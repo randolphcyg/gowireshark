@@ -1,0 +1,164 @@
+include::attributes.adoc[]
+:stylesheet: ws.css
+:linkcss:
+:copycss: {stylesheet}
+
+== Wireshark {wireshark-version} Release Notes
+// Asciidoctor Syntax Quick Reference:
+// https://asciidoctor.org/docs/asciidoc-syntax-quick-reference/
+
+== What is Wireshark?
+
+Wireshark is the world’s most popular network protocol analyzer.
+It is used for troubleshooting, analysis, development and education.
+
+== What’s New
+
+NOTE: This is the last release branch with support for 32-bit Windows.
+Updates will no longer be available after May 22, 2024 for that platform.
+wsbuglink:17779[]
+
+// The Windows installers now ship with Npcap 1.60.
+// They previously shipped with Npcap 1.55.
+
+// The Windows installers now ship with USBPcap 1.5.X.0.
+// They previously shipped with USBPcap 1.5.4.0.
+
+// The Windows installers now ship with Qt 5.15.2.
+// They previously shipped with Qt 5.12.1.
+
+=== Bug Fixes
+
+// The following vulnerabilities have been fixed:
+
+// * wssalink:2022-06[]
+// Foo dissector {crash,infinite loop,memory leak}.
+// wsbuglink:xxxx[].
+// cveidlink:2022-xxxx[].
+// Fixed in master: xxxx
+// Fixed in release-3.6: xxxx
+// Fixed in release-3.4: xxxx
+// CVSS AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:L
+// CWE-?
+
+The following bugs have been fixed:
+
+//* wsbuglink:5000[]
+//* wsbuglink:6000[Wireshark bug]
+//* cveidlink:2014-2486[]
+//* Wireshark keeps banging out random chords on your piano and yelling “LIPS LIKE SUGUAR, SUGAR KISSES” because it was funny that one time at a party.
+
+* Multiple Files preference "Create new file automatically...after" [time] working incorrectly wsbuglink:16783[].
+
+* get_filter Lua function doesn't return the filter wsbuglink:17188[].
+
+* Dissector bug, protocol HTTP failed assertion "saved_layers_len < 500" with chunked/multipart wsbuglink:18130[].
+
+* Wrong EtherCAT bit label (possible dissector bug) wsbuglink:18132[].
+
+* UDP packets falsely marked as "malformed packet" wsbuglink:18136[].
+
+* TLS certificate parser with filter crash wsbuglink:18155[].
+
+* Incorrect type for the IEC 60870 APDU appears in packet details pane wsbuglink:18167[].
+
+* NHRP Problem wsbuglink:18181[].
+
+* EtherCAT CoE header unknown type wsbuglink:18220[].
+
+=== New and Updated Features
+
+
+// === Removed Features and Support
+
+// === Removed Dissectors
+
+=== New Protocol Support
+
+There are no new protocols in this release.
+
+=== Updated Protocol Support
+
+// Add one protocol per line between the -- delimiters.
+// ag -A1 '(define PSNAME|proto_register_protocol[^_])' $(git diff --name-only v3.4.9.. | ag packet- | sort -u)
+[commaize]
+--
+BGP
+DTLS
+EtherCAT
+EtherCAT Mailbox
+HTTP
+IEC 104
+MEGACO
+NHRP
+PPPoE
+QUIC
+RTCP
+Signal PDU
+SOME/IP
+X509IF
+--
+
+=== New and Updated Capture File Support
+
+There is no new or updated capture file support in this release.
+// Add one file type per line between the -- delimiters.
+// [commaize]
+// --
+// --
+
+=== New File Format Decoding Support
+
+There is no new or updated file format support in this release.
+// Add one file type per line between the -- delimiters.
+// [commaize]
+// --
+// --
+
+
+// === New and Updated Capture Interfaces support
+
+//_Non-empty section placeholder._
+
+// === Major API Changes
+
+== Getting Wireshark
+
+Wireshark source code and installation packages are available from
+https://www.wireshark.org/download.html.
+
+=== Vendor-supplied Packages
+
+Most Linux and Unix vendors supply their own Wireshark packages.
+You can usually install or upgrade Wireshark using the package management system specific to that platform.
+A list of third-party packages can be found on the
+https://www.wireshark.org/download.html[download page]
+on the Wireshark web site.
+
+== File Locations
+
+Wireshark and TShark look in several different locations for preference files, plugins, SNMP MIBS, and RADIUS dictionaries.
+These locations vary from platform to platform.
+You can use menu:Help[About Wireshark,Folders] or `tshark -G folders` to find the default locations on your system.
+
+== Getting Help
+
+The User’s Guide, manual pages and various other documentation can be found at
+https://www.wireshark.org/docs/
+
+Community support is available on
+https://ask.wireshark.org/[Wireshark’s Q&A site]
+and on the wireshark-users mailing list.
+Subscription information and archives for all of Wireshark’s mailing lists can be found on
+https://www.wireshark.org/lists/[the web site].
+
+Bugs and feature requests can be reported on
+https://gitlab.com/wireshark/wireshark/-/issues[the issue tracker].
+
+// Official Wireshark training and certification are available from
+// https://www.wiresharktraining.com/[Wireshark University].
+
+== Frequently Asked Questions
+
+A complete FAQ is available on the
+https://www.wireshark.org/faq.html[Wireshark web site].

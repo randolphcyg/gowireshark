@@ -1,0 +1,740 @@
+# In the interest of reliability and performance, please avoid installing
+# external dependencies here, e.g. via tools/*-setup.sh, apt, dnf, or yum.
+# Do so in the appropriate Dockerfile at
+# https://gitlab.com/wireshark/wireshark-containers/ instead.
+# The resulting images can be found at
+# https://gitlab.com/wireshark/wireshark-containers/container_registry
+
+stages:
+  - build
+  - analysis
+  - test
+  - fuzz-asan
+  - fuzz-randpkt
+  - fuzz-valgrind
+
+variables:
+  # Ensure that checkouts are a) fast and b) have a reachable tag. In a
+  # brighter, more glorious future we might be able to use --shallow-since:
+  # https://gitlab.com/gitlab-org/gitlab-runner/-/issues/3460
+  # In the mean time, fetching the last 5000 commits does the job.
+  GIT_DEPTH: "1"
+  GIT_FETCH_EXTRA_FLAGS: "--depth=5000"
+  CCACHE_DIR: "${CI_PROJECT_DIR}/ccache"
+  # Preferred version of clang available on wireshark-ubuntu-dev
+  CLANG_VERSION: 14
+  # Enable color output in CMake, Ninja, and other tools. https://bixense.com/clicolors/
+  CLICOLOR_FORCE: 1
+
+# Common rule stanzas
+# These must currently be including using "!reference tags". "extends:" and
+# YAML anchors won't work:
+# https://gitlab.com/gitlab-org/gitlab/-/issues/322992
+
+# Commits that have been approved and merged. Run automatically in the main
+# repo and allow manual runs in the web UI and in forks.
+.if-merged:
+  - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "release-3.6" && $CI_PROJECT_URL =~ /.*gitlab.com\/wireshark\/wireshark/'
+    when: always
+  - if: '$CI_PIPELINE_SOURCE == "web"'
+    when: always
+  - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_URL !~ /.*gitlab.com\/wireshark\/wireshark/'
+    when: manual
+# Merged commits for runners which are only available in
+# wireshark/wireshark, e.g. wireshark-windows-*. Run automatically in
+# the main repo and allow manual runs in the web UI.
+.if-w-w-only-merged:
+  - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_URL =~ /.*gitlab.com\/wireshark\/wireshark/'
+    when: always
+  - if: '$CI_PIPELINE_SOURCE == "web"'
+    when: always
+# Incoming merge requests.
+.if-merge-request:
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    when: always
+# Incoming non-detached merge requests. Must be used for runners which are only
+# available in wireshark/wireshark, e.g. wireshark-windows-*
+.if-w-w-only-merge-request:
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_PROJECT_URL =~ /.*gitlab.com\/wireshark\/wireshark/'
+    when: always
+# Fuzz jobs. Care should be taken when changing this since the scheduler
+# often doesn't report errors.
+.if-fuzz-schedule:
+  - if: '$CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_TYPE == "fuzz"'
+    when: always
+
+.build-linux:
+  stage: build
+  tags:
+    - docker
+  after_script:
+    - for builddir in build/packaging/rpm/BUILD/wireshark-*/build build/packaging/rpm/BUILD/wireshark-* build obj-*; do [ ! -d "$builddir/run" ] || break; done
+    - if [[ "$CI_JOB_NAME" == "build:rpm-opensuse-"* ]]; then export LD_LIBRARY_PATH=$builddir/run; fi
+    - if [ -f $builddir/run/tshark ]; then $builddir/run/tshark --version; fi
+  needs: []
+
+.test-linux:
+  stage: test
+  tags:
+    - docker
+  variables:
+    GIT_STRATEGY: none
+
+.build-ubuntu:
+  extends: .build-linux
+  image: registry.gitlab.com/wireshark/wireshark-containers/ubuntu-dev
+  retry: 1
+  # https://gould.cx/ted/blog/2017/06/10/ccache-for-Gitlab-CI/
+  cache:
+    # XXX Use ${CI_JOB_NAME}-${CI_MERGE_REQUEST_TARGET_BRANCH_NAME} instead?
+    key: ${CI_JOB_NAME}-release-3.6
+    paths:
+      - ccache/
+  before_script:
+    - useradd user
+    - export LANG=en_US.UTF-8
+    - export PYTEST_ADDOPTS=--skip-missing-programs=dumpcap,rawshark
+    - mkdir -p ccache
+    - ccache --show-stats
+    - export DEB_BUILD_OPTIONS=nocheck,parallel=$(( $(getconf _NPROCESSORS_ONLN) + 2 ))
+    - export DH_QUIET=1
+    - export MAKEFLAGS=--silent
+    - mkdir build
+    - cd build
+  script:
+    # setcap restricts our library paths
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - CFLAGS=-Wl,-rpath=$(pwd)/run CXXFLAGS=-Wl,-rpath=$(pwd)/run cmake -GNinja -DENABLE_CCACHE=ON $CMAKE_ARGS ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - ninja
+    - ninja install
+    - ninja shellcheck
+    - ninja test-programs
+    - chown -R user .
+    - if [ -f run/dumpcap ]; then setcap cap_net_raw,cap_net_admin+eip run/dumpcap; fi
+    - if [ -f run/dumpcap ]; then su user -c "run/dumpcap -D" ; fi
+    - su user -c pytest-3
+  after_script:
+    # The cache should be large enough to be useful but it shouldn't take
+    # too long to restore+save each run.
+    - ccache --max-size $( du --summarize --block-size=1M "$CI_PROJECT_DIR/build" | awk '{printf ("%dM", $1 * 1.5)}' )
+
+.build-rpm:
+  extends: .build-linux
+  rules: !reference [.if-merged]
+  before_script:
+    # It might make sense to set "GIT_STRATEGY: none" and build from
+    # the tarball.
+    - git config --global user.email "you@example.com"
+    - git config --global user.name "Your Name"
+    - mkdir build
+    - cd build
+    - perl ../tools/make-version.pl --set-release
+    - mv -v ../wireshark-*.tar.* .
+  artifacts:
+    paths:
+      - build/packaging/rpm/RPMS
+    expire_in: 3 days
+  needs:
+    - 'Source Package'
+
+.test-rpm:
+  extends: .test-linux
+  rules: !reference [.if-merged]
+
+.build-windows:
+  stage: build
+  retry: 1
+  before_script:
+    - if (-Not (Test-Path C:\Development)) { New-Item -Path C:\Development -ItemType "directory" }
+    - $env:WIRESHARK_BASE_DIR = "C:\Development"
+    - $env:Configuration = "RelWithDebInfo"
+    - $env:Path += ";C:\Program Files\CMake\bin"
+    - $env:Path += ";C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin"
+    - $env:Path += ";C:\qt\5.15.2\msvc2019_64\bin"
+    # https://help.appveyor.com/discussions/questions/18777-how-to-use-vcvars64bat-from-powershell
+    - cmd.exe /c "call `"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat`" && set > %temp%\vcvars.txt"
+    - Get-Content "$env:temp\vcvars.txt" | Foreach-Object { if ($_ -match "^(.*?)=(.*)$") { Set-Content "env:\$($matches[1])" $matches[2] } }
+    # Testing / debugging only.
+    # - cmd.exe /c "set CI_PIPELINE_SOURCE"
+    # - cmd.exe /c "set CI_PROJECT_URL"
+    #- dir c:\
+    #- dir c:\qt
+    #- $env:path.split(";")
+    #- cmd.exe /c "set"
+    #- Get-Location
+    - mkdir build
+    - cd build
+  needs: []
+
+Source Package:
+  extends: .build-ubuntu
+  stage: .pre
+  rules: !reference [.if-merged]
+  script:
+    - perl ../tools/make-version.pl --set-release || ../perl make-version.pl --set-release
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake -G Ninja $CMAKE_ARGS -DENABLE_CCACHE=ON ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - cd $CI_PROJECT_DIR
+    - build/packaging/source/git-export-release.sh -d .
+  after_script:
+    # - ccache --max-size $( du --summarize --block-size=1M "$CI_PROJECT_DIR/build" | awk '{printf ("%dM", $1 * 1.5)}' )
+    - stat --format="%n %s bytes" wireshark-*.tar.*
+    - for digest in sha256 rmd160 sha1 ; do openssl $digest wireshark-*.tar.* ; done
+    # This will break if we produce multiple tarballs, which is arguably a good thing.
+    - if [ -n "$S3_DESTINATION_DIST" ] ; then aws s3 cp wireshark-*.tar.* "$S3_DESTINATION_DIST/" ; fi
+  artifacts:
+    paths:
+      - wireshark-*.tar.*
+
+CentOS 7 RPM Package:
+  extends: .build-rpm
+  image: registry.gitlab.com/wireshark/wireshark-containers/centos-7-dev
+  script:
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake3 -GNinja ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - ninja-build rpm-package
+CentOS 7 RPM Test:
+  extends: .test-rpm
+  image: registry.gitlab.com/wireshark/wireshark-containers/centos-7-dev
+  script:
+    - yum --nogpgcheck localinstall -y build/packaging/rpm/RPMS/x86_64/*.rpm
+    - tshark --version
+  needs: [ 'CentOS 7 RPM Package' ]
+
+# Job to generate packages for Debian stable
+Debian Stable APT Package:
+  extends: .build-linux
+  rules: !reference [.if-merged]
+  image: registry.gitlab.com/wireshark/wireshark-containers/debian-stable-dev
+  script:
+    - perl tools/make-version.pl --set-release
+    # Shared GitLab runners limit the log size to 4M, so reduce verbosity. See
+    # https://gitlab.com/gitlab-com/support-forum/issues/2790
+    - export DH_QUIET=1
+    - export MAKEFLAGS=--silent
+    - dpkg-buildpackage -b --no-sign -jauto
+    - mkdir debian-packages
+    - mv ../*.deb debian-packages/
+  artifacts:
+    paths:
+      - debian-packages/*.deb
+    expire_in: 3 days
+Debian Stable APT Test:
+  extends: .test-linux
+  rules: !reference [.if-merged]
+  image: registry.gitlab.com/wireshark/wireshark-containers/debian-stable-dev
+  stage: test
+  script:
+    - DEBIAN_FRONTEND=noninteractive apt-get install ./debian-packages/*.deb -y
+    - tshark --version
+  after_script:
+    # Used for https://www.wireshark.org/docs/dfref/
+    - TSHARK_VERSION=$( tshark --version | head -n 1 | sed -e 's/.*(v//' -e 's/)$//' -e 's/-0-g.*//' )
+    - tshark -G fields > dfilter-list-${TSHARK_VERSION}.txt
+  artifacts:
+    paths:
+      - dfilter-list-*.txt
+  variables:
+    GIT_STRATEGY: none
+  needs: [ 'Debian Stable APT Package' ]
+
+Fedora RPM Package:
+  extends: .build-rpm
+  image: registry.gitlab.com/wireshark/wireshark-containers/fedora-dev
+  script:
+    # Shared GitLab runners limit the log size to 4M, so reduce verbosity. See
+    # https://gitlab.com/gitlab-com/support-forum/issues/2790
+    - export FORCE_CMAKE_NINJA_NON_VERBOSE=1
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake3 -GNinja ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - ninja rpm-package
+# Fedora RPM Test:
+#   extends: .test-rpm
+#   image: fedora
+#   script:
+#     - dnf install -y build/packaging/rpm/RPMS/x86_64/*.rpm
+#     - tshark --version
+#  needs: [ 'Fedora RPM Package' ]
+
+openSUSE 15.3 RPM Package:
+  extends: .build-rpm
+  image: registry.gitlab.com/wireshark/wireshark-containers/opensuse-15.3-dev
+  script:
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake -GNinja ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - ninja rpm-package
+openSUSE 15.3 RPM Test:
+  extends: .test-rpm
+  image: registry.gitlab.com/wireshark/wireshark-containers/opensuse-15.3-dev
+  script:
+    - zypper --no-gpg-checks --no-remote install -y build/packaging/rpm/RPMS/x86_64/*.rpm
+    - tshark --version
+  needs: [ 'openSUSE 15.3 RPM Package' ]
+
+Rocky Linux 8 RPM Package:
+  extends: .build-rpm
+  image: registry.gitlab.com/wireshark/wireshark-containers/rockylinux-8-dev
+  script:
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake -GNinja ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - ninja-build rpm-package
+Rocky Linux 8 RPM Test:
+  extends: .test-rpm
+  image: registry.gitlab.com/wireshark/wireshark-containers/rockylinux-8-dev
+  script:
+    - dnf --nogpgcheck localinstall -y build/packaging/rpm/RPMS/x86_64/*.rpm
+    - tshark --version
+  needs: [ 'Rocky Linux 8 RPM Package' ]
+
+Ubuntu APT Package:
+  extends: .build-ubuntu
+  rules: !reference [.if-merged]
+  script:
+    # build-ubuntu puts us in `build`.
+    - cd ..
+    - CC=/usr/lib/ccache/gcc CXX=/usr/lib/ccache/g++ MAKE=ninja dpkg-buildpackage -us -uc -rfakeroot -jauto -Zgzip -zfast
+    - mkdir ubuntu-packages
+    - mv ../*.deb ubuntu-packages/
+  after_script:
+    # dpkg-buildpackage builds in obj-<triplet>, so we need to override
+    # .build-ubuntu. We also build more stuff, so decrease our multiplier.
+    - ccache --max-size $( du --summarize --block-size=1M --total "$CI_PROJECT_DIR"/obj-* | awk '/total$/ {printf ("%dM", $1 * 1.25)}' )
+  artifacts:
+    paths:
+      - ubuntu-packages/*.deb
+    expire_in: 3 days
+Ubuntu APT Test:
+  extends: .test-linux
+  rules: !reference [.if-merged]
+  image: registry.gitlab.com/wireshark/wireshark-containers/ubuntu-dev
+  stage: test
+  script:
+    - DEBIAN_FRONTEND=noninteractive apt-get install ./ubuntu-packages/*.deb -y
+    - tshark --version
+  variables:
+    GIT_STRATEGY: none
+  needs: [ 'Ubuntu APT Package' ]
+
+Win64 Package:
+  extends: .build-windows
+  rules: !reference [.if-w-w-only-merged]
+  tags:
+    - wireshark-win64-package
+  before_script:
+    - $env:WIRESHARK_BASE_DIR = "C:\Development"
+    - $env:Configuration = "RelWithDebInfo"
+    - $env:Path += ";C:\Program Files\CMake\bin"
+    - $env:Path += ";C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin"
+    - $env:Path += ";C:\qt\5.15.2\msvc2019_64\bin"
+    - $env:Path += ";C:\Program Files (x86)\NSIS"
+    - $env:Path += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
+    - $env:Path += ";C:\Program Files\Amazon\AWSCLIV2"
+    # https://help.appveyor.com/discussions/questions/18777-how-to-use-vcvars64bat-from-powershell
+    - cmd.exe /c "call `"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat`" && set > %temp%\vcvars.txt"
+    - Get-Content "$env:temp\vcvars.txt" | Foreach-Object { if ($_ -match "^(.*?)=(.*)$") { Set-Content "env:\$($matches[1])" $matches[2] } }
+    - mkdir build
+    - cd build
+  script:
+    - perl ../tools/make-version.pl --set-release
+    - cmake -G "Visual Studio 17 2022" -A x64 -DDISABLE_WERROR=OFF -DTEST_EXTRA_ARGS=--enable-release -DENABLE_LTO=off ..
+    - msbuild /verbosity:minimal "/consoleloggerparameters:PerformanceSummary;NoSummary" /maxcpucount Wireshark.sln
+    - msbuild /verbosity:minimal /maxcpucount test-programs.vcxproj
+    - msbuild /verbosity:minimal /maxcpucount nsis_package_prep.vcxproj
+    - msbuild /verbosity:minimal /maxcpucount wix_package_prep.vcxproj
+    - C:\gitlab-builds\bin\sign-files.ps1 -Recurse -Path run\RelWithDebInfo
+    - msbuild /verbosity:minimal nsis_package.vcxproj
+    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\nsis
+    - msbuild /verbosity:minimal wix_package.vcxproj
+    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\wix
+    - msbuild /verbosity:minimal portableapps_package.vcxproj
+    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\portableapps
+    - $plugins = Get-ChildItem run\RelWithDebInfo\plugins\*\*.dll ; signtool verify /v /pa /all run\RelWithDebInfo\*.exe run\RelWithDebInfo\extcap\*.exe $plugins run\RelWithDebInfo\libwireshark.dll run\RelWithDebInfo\libwiretap.dll run\RelWithDebInfo\libwsutil.dll packaging\nsis\Wireshark-win??-*.exe packaging\wix\Wireshark-win??-*.msi packaging\portableapps\WiresharkPortable??_*.paf.exe
+    - msbuild /verbosity:minimal pdb_zip_package.vcxproj
+    - C:\gitlab-builds\bin\mse-scan.ps1
+    - $packages = Get-ChildItem "packaging\nsis\Wireshark-win??-*.exe", "packaging\wix\Wireshark-win??-*.msi", "packaging\portableapps\WiresharkPortable??_*.paf.exe", "Wireshark-pdb-win??-*.zip"
+    - foreach ($package in $packages) { Write-Host $package.name $package.length "bytes" }
+    - foreach ($package in $packages) { certutil -hashfile $package SHA256 }
+    - |
+      if (Test-Path env:S3_DESTINATION_WIN64) {
+        foreach ($package in $packages) {
+          aws s3 cp "$package" "$env:S3_DESTINATION_WIN64/"
+        }
+      }
+    - ctest -C RelWithDebInfo --parallel 3 --force-new-ctest-process --output-on-failure
+
+Win32 Package:
+  extends: .build-windows
+  rules: !reference [.if-w-w-only-merged]
+  tags:
+    - wireshark-win32-package
+  before_script:
+    - $env:WIRESHARK_BASE_DIR = "C:\Development"
+    - $env:Configuration = "RelWithDebInfo"
+    - $env:Path += ";C:\Program Files\CMake\bin"
+    - $env:Path += ";C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin"
+    - $env:Path += ";C:\qt\5.15.2\msvc2019\bin"
+    - $env:Path += ";C:\Program Files (x86)\NSIS"
+    - $env:Path += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
+    - $env:Path += ";C:\Program Files\Amazon\AWSCLIV2"
+    # https://help.appveyor.com/discussions/questions/18777-how-to-use-vcvars64bat-from-powershell
+    - cmd.exe /c "call `"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsamd64_x86.bat`" && set > %temp%\vcvars.txt"
+    - Get-Content "$env:temp\vcvars.txt" | Foreach-Object { if ($_ -match "^(.*?)=(.*)$") { Set-Content "env:\$($matches[1])" $matches[2] } }
+    - $env:Platform = "Win32"
+    - mkdir build
+    - cd build
+  script:
+    - perl ../tools/make-version.pl --set-release
+    - cmake -G "Visual Studio 17 2022" -A Win32 -DDISABLE_WERROR=OFF -DTEST_EXTRA_ARGS=--enable-release -DENABLE_LTO=off ..
+    - msbuild /verbosity:minimal "/consoleloggerparameters:PerformanceSummary;NoSummary" /maxcpucount Wireshark.sln
+    - msbuild /verbosity:minimal /maxcpucount test-programs.vcxproj
+    - msbuild /verbosity:minimal /maxcpucount nsis_package_prep.vcxproj
+    - msbuild /verbosity:minimal /maxcpucount wix_package_prep.vcxproj
+    - C:\gitlab-builds\bin\sign-files.ps1 -Recurse -Path run\RelWithDebInfo
+    - msbuild /verbosity:minimal nsis_package.vcxproj
+    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\nsis
+    - msbuild /verbosity:minimal wix_package.vcxproj
+    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\wix
+    - msbuild /verbosity:minimal portableapps_package.vcxproj
+    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\portableapps
+    - $plugins = Get-ChildItem run\RelWithDebInfo\plugins\*\*.dll ; signtool verify /v /pa /all run\RelWithDebInfo\*.exe run\RelWithDebInfo\extcap\*.exe $plugins run\RelWithDebInfo\libwireshark.dll run\RelWithDebInfo\libwiretap.dll run\RelWithDebInfo\libwsutil.dll packaging\nsis\Wireshark-win??-*.exe packaging\wix\Wireshark-win??-*.msi packaging\portableapps\WiresharkPortable??_*.paf.exe
+    - msbuild /verbosity:minimal pdb_zip_package.vcxproj
+    - C:\gitlab-builds\bin\mse-scan.ps1
+    - $packages = Get-ChildItem "packaging\nsis\Wireshark-win??-*.exe", "packaging\wix\Wireshark-win??-*.msi", "packaging\portableapps\WiresharkPortable??_*.paf.exe", "Wireshark-pdb-win??-*.zip"
+    - foreach ($package in $packages) { Write-Host $package.name $package.length "bytes" }
+    - foreach ($package in $packages) { certutil -hashfile $package SHA256 }
+    - |
+      if (Test-Path env:S3_DESTINATION_WIN32) {
+        foreach ($package in $packages) {
+          aws s3 cp "$package" "$env:S3_DESTINATION_WIN32/"
+        }
+      }
+    - ctest -C RelWithDebInfo --parallel 3 --force-new-ctest-process --output-on-failure
+
+macOS Arm Package:
+  stage: build
+  rules: !reference [.if-w-w-only-merged]
+  variables:
+    CODE_SIGN_IDENTITY: "Wireshark Foundation, Inc."
+  tags:
+    - wireshark-macos-arm-package
+  retry: 1
+  before_script:
+    - mkdir build
+    - cd build
+  script:
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    # XXX - Move this to a separate DENABLE_PCAP=OFF job?
+    - arch -arch arm64 cmake -DENABLE_CCACHE=ON -DENABLE_PCAP=OFF -DCMAKE_APPLE_SILICON_PROCESSOR=arm64 -DCMAKE_OSX_ARCHITECTURES=arm64 -G Ninja ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - arch -arch arm64 ninja
+    - cd ..
+    - git clean -d --force --force -x
+    - perl tools/make-version.pl --set-release
+    - mkdir build
+    - cd build
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake -DENABLE_CCACHE=ON -DCMAKE_APPLE_SILICON_PROCESSOR=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_OSX_ARCHITECTURES=arm64 -DTEST_EXTRA_ARGS=--enable-release -G Ninja ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - ninja
+    - package-prep
+    - ninja dmg_package
+    - cd run
+    - notarize-build
+    - stat -f "%N %z bytes" Wireshark*Arm*.dmg
+    - for digest in sha256 rmd160 sha1 ; do openssl $digest Wireshark*Arm*.dmg ; done
+    - |
+      if [ -n "$S3_DESTINATION_MACOS_ARM64" ] ; then
+        aws s3 cp Wireshark*Arm*.dmg "$S3_DESTINATION_MACOS_ARM64/"
+      fi
+    - cd ..
+    - ninja test-programs
+    - ctest --parallel 4 --output-on-failure
+  needs: []
+
+macOS Intel Package:
+  stage: build
+  rules: !reference [.if-w-w-only-merged]
+  variables:
+    CODE_SIGN_IDENTITY: "Wireshark Foundation, Inc."
+  tags:
+    - wireshark-macos-intel-package
+  retry: 1
+  script:
+    - export CMAKE_PREFIX_PATH=/usr/local/Qt-5.15.3/lib/cmake
+    - export PATH="$PATH:$HOME/bin"
+    - perl tools/make-version.pl --set-release
+    - mkdir build
+    - cd build
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake -DENABLE_CCACHE=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13 -DCMAKE_OSX_SYSROOT=macosx10.15 -DTEST_EXTRA_ARGS=--enable-release -G Ninja ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - ninja
+    - package-prep
+    - ninja dmg_package
+    - cd run
+    - notarize-build
+    - stat -f "%N %z bytes" Wireshark*Intel*.dmg
+    - for digest in sha256 rmd160 sha1 ; do openssl $digest Wireshark*Intel*.dmg ; done
+    - |
+      if [ -n "$S3_DESTINATION_MACOS_INTEL64" ] ; then
+        aws s3 cp Wireshark*Intel*.dmg "$S3_DESTINATION_MACOS_INTEL64/"
+      fi
+    - cd ..
+    - ninja test-programs
+    - ctest --parallel 4 --output-on-failure
+  needs: []
+
+# Build the User's Guide and Developer's Guide
+# Disabled until we have versioned docs.
+.Documentation:
+  extends: .build-linux
+  image: registry.gitlab.com/wireshark/wireshark-containers/ubuntu-dev
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_URL =~ /.*gitlab.com\/wireshark\/wireshark/'
+      changes:
+        - "docbook/**/*"
+        - "epan/wslua/**/*"
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - "docbook/**/*"
+        - "epan/wslua/**/*"
+      when: manual
+  script:
+    # XXX We might want to move this to wireshark-ubuntu-dev or debian-setup.sh.
+    - DEBIAN_FRONTEND=noninteractive apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get --yes install ruby-coderay ruby-asciidoctor-pdf
+    - NOKOGIRI_USE_SYSTEM_LIBRARIES=1 gem install asciidoctor-epub3
+    - mkdir build
+    - cd build
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake -GNinja ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - ninja all_guides
+    - cd docbook
+    - for HTML_DIR in wsug_html wsug_html_chunked wsdg_html wsdg_html_chunked ; do zip -9 -r "$HTML_DIR.zip" "$HTML_DIR" ; done
+  after_script:
+    - mv -v build/docbook/ws[ud]g_html{,_chunked}.zip .
+    - mv -v build/docbook/Wireshark*Guide.{epub,pdf} .
+    - |
+      if [ -n "$S3_DESTINATION_DOCS" ] ; then
+        for DOC_FILE in ws[ud]g_html{,_chunked}.zip Wireshark*Guide.{epub,pdf} ; do
+          aws s3 cp "$DOC_FILE" "$S3_DESTINATION_DOCS/"
+        done
+      fi
+  artifacts:
+    paths:
+      - wsug_html.zip
+      - wsug_html_chunked.zip
+      - wsdg_html.zip
+      - wsdg_html_chunked.zip
+      - "Wireshark User's Guide.pdf"
+      - "Wireshark Developer's Guide.pdf"
+      - "Wireshark User's Guide.epub"
+      - "Wireshark Developer's Guide.epub"
+  needs: []
+
+
+# https://docs.gitlab.com/ee/user/gitlab_com/index.html#linux-shared-runners
+
+Commit Check:
+  extends: .build-ubuntu
+  rules: !reference [.if-merge-request]
+  script:
+    # build-ubuntu puts us in `build`.
+    - cd ..
+    - bash ./tools/pre-commit 'HEAD^1'
+    - tools/validate-commit.py
+
+# Rely on fedora:latest and debian-stable jobs for testing a recent GCC version.
+Latest Clang:
+  extends: .build-ubuntu
+  rules: !reference [.if-merged]
+  variables:
+    CC: "clang-$CLANG_VERSION"
+    CXX: "clang++-$CLANG_VERSION"
+
+GCC Warnings:
+  extends: .build-ubuntu
+  rules: !reference [.if-merge-request]
+  script:
+    # build-ubuntu puts us in `build`.
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - CC=gcc CXX=g++ cmake -DENABLE_EXTRA_COMPILER_WARNINGS=on -DCMAKE_EXPORT_COMPILE_COMMANDS=on -DENABLE_CCACHE=ON -G Ninja ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - script --command ninja --flush --quiet --return ../gcc_report.txt
+    - ansi2html < ../gcc_report.txt > ../gcc_report.html
+    - ninja test-programs
+    - chown -R user .
+    - su user -c "ctest --parallel $(getconf _NPROCESSORS_ONLN) --force-new-ctest-process --output-on-failure"
+  artifacts:
+    paths:
+      - gcc_report.html
+
+Code Checks + Clang Warnings:
+  extends: .build-ubuntu
+  rules: !reference [.if-merge-request]
+  variables:
+    CC: "clang-$CLANG_VERSION"
+    CXX: "clang++-$CLANG_VERSION"
+  script:
+    # build-ubuntu puts us in `build`.
+    - cd ..
+    - python3 tools/checklicenses.py
+    - mkdir cppcheck
+    - ./tools/cppcheck/cppcheck.sh -l 1 | tee cppcheck/cppcheck_report.txt
+    - if [[ -s "cppcheck/cppcheck_report.txt" ]]; then ./tools/cppcheck/cppcheck.sh -l 1 -x > cppcheck/cppcheck_report.xml ; fi
+    - if [[ -s "cppcheck/cppcheck_report.txt" ]]; then cppcheck-htmlreport --file cppcheck/cppcheck_report.xml  --report-dir cppcheck ; fi
+    - ./tools/check_typed_item_calls.py --commits 1 | tee item_calls_check.txt
+    - ./tools/check_tfs.py --commits 1 | tee tfs_check.txt
+    - cd build
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake -DENABLE_EXTRA_COMPILER_WARNINGS=on -DENABLE_CHECKHF_CONFLICT=on -DCMAKE_EXPORT_COMPILE_COMMANDS=on -DENABLE_CCACHE=ON -G Ninja ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - mkdir ../html
+    - script --command ninja --flush --quiet --return ../tmp_clang_report.txt
+    - ansi2txt < ../tmp_clang_report.txt > ../clang_report.txt
+    - ansi2html < ../tmp_clang_report.txt > ../html/clang_report.html
+    - ./run/tshark -v 2> >(tee ../checkhf_conflict.txt)
+    - ../tools/validate-clang-check.sh -c $CLANG_VERSION 2> >(tee ../tmp_clang_analyzer_check.txt)
+    - ansi2txt < ../tmp_clang_analyzer_check.txt > ../clang_analyzer_check.txt
+    - ansi2html < ../tmp_clang_analyzer_check.txt > ../html/clang_analyzer_check.html
+    - ninja checkAPI
+  artifacts:
+    paths:
+      - clang_report.txt
+      - clang_analyzer_check.txt
+      - cppcheck
+      - item_calls_check.txt
+      - tfs_check.txt
+      - checkhf_conflict.txt
+      - html/
+
+# Windows runners are still beta, at least technically:
+# https://docs.gitlab.com/ee/user/gitlab_com/index.html#windows-shared-runners-beta
+Windows Build:
+  extends: .build-windows
+  rules: !reference [.if-w-w-only-merge-request]
+  tags:
+    - wireshark-windows-merge-req
+  script:
+    - cmake -G "Visual Studio 17 2022" -A x64 -DDISABLE_WERROR=OFF -DTEST_EXTRA_ARGS=--enable-release -DENABLE_LTO=off ..
+    - msbuild /verbosity:minimal /maxcpucount Wireshark.sln
+    - msbuild /verbosity:minimal /maxcpucount test-programs.vcxproj
+    - ctest -C RelWithDebInfo --parallel 3 --force-new-ctest-process --output-on-failure
+
+ABI Check:
+  extends: .build-ubuntu
+  rules: !reference [.if-merge-request]
+  script:
+    # build-ubuntu puts us in `build`.
+    - DEBIAN_FRONTEND=noninteractive apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get --yes install abi-dumper abi-compliance-checker
+    # Ubuntu 20.04 ships with version 1.1, which has issues: https://github.com/lvc/abi-dumper/issues/21
+    - curl --fail -JL https://raw.githubusercontent.com/lvc/abi-dumper/1.2/abi-dumper.pl > /usr/bin/abi-dumper
+    - CFLAGS="-Og" cmake -G Ninja -DENABLE_CCACHE=ON -DCMAKE_BUILD_TYPE=Debug -DBUILD_wireshark=OFF ..
+    - ninja wiretap-abi-dump epan-abi-dump wsutil-abi-dump
+    - ACC_EXIT=0
+    - abi-compliance-checker -l wiretap -old ../tools/abi-dumps/wiretap-abi-12.0.0.dump -new wiretap-abi-12*.dump || ACC_EXIT=1
+    - abi-compliance-checker -l epan -old ../tools/abi-dumps/epan-abi-15.0.0.dump -new epan-abi-15*.dump || ACC_EXIT=1
+    - abi-compliance-checker -l wsutil -old ../tools/abi-dumps/wsutil-abi-13.0.0.dump -new wsutil-abi-13*.dump || ACC_EXIT=1
+    - mv compat_reports ..
+    - mv *-abi-*.dump ..
+    - cd ..
+    - zip -9 -r compat_reports.zip compat_reports
+    - exit $ACC_EXIT
+  artifacts:
+    when: always
+    paths:
+      - compat_reports.zip
+      - ./*-abi-*.dump
+
+# Fuzz TShark using ASAN and valgrind.
+.fuzz-ubuntu:
+  extends: .build-ubuntu
+  rules: !reference [.if-fuzz-schedule]
+  tags:
+    - wireshark-ubuntu-fuzz
+  resource_group: fuzz-release-3.6
+  variables:
+    CC: "clang-$CLANG_VERSION"
+    CXX: "clang++-$CLANG_VERSION"
+    INSTALL_PREFIX: "$CI_PROJECT_DIR/_install"
+    MIN_PLUGINS: 10
+    MAX_PASSES: 15
+  before_script:
+    - DEBIAN_FRONTEND=noninteractive apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get --yes install llvm-$CLANG_VERSION
+    - mkdir -p ccache
+    # Signal after_script, which runs in its own shell.
+    - echo "export FUZZ_PASSED=true" > /tmp/fuzz_result.sh
+    - mkdir /tmp/fuzz
+    - mkdir build
+    - cd build
+  after_script:
+    - . /tmp/fuzz_result.sh
+    - if $FUZZ_PASSED ; then exit 0 ; fi
+    - echo Fuzzing failed. Generating report.
+    - FUZZ_CAPTURE=$( ls /tmp/fuzz/fuzz-*.pcap | head -n 1 )
+    - FUZZ_ERRORS="/tmp/fuzz/$( basename "$FUZZ_CAPTURE" .pcap ).err"
+    - printf "\nfuzz-test.sh stderr:\n" >> "$FUZZ_ERRORS"
+    - cat fuzz-test.err >> "$FUZZ_ERRORS"
+    - |
+      if [ -n "$S3_DESTINATION_FUZZ" ] ; then
+        aws s3 cp "$FUZZ_CAPTURE" "$S3_DESTINATION_FUZZ/"
+        aws s3 cp "$FUZZ_ERRORS" "$S3_DESTINATION_FUZZ/"
+      fi
+    # The cache should be large enough to be useful but it shouldn't take
+    # too long to restore+save each run.
+    - ccache --max-size $( du --summarize --block-size=1M "$CI_PROJECT_DIR/build" | awk '{printf ("%dM", $1 * 1.5)}' )
+
+ASan Menagerie Fuzz:
+  extends: .fuzz-ubuntu
+  stage: fuzz-asan
+  script:
+    - MAX_SECONDS=$(( 4 * 60 * 60 ))
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake -G Ninja -DBUILD_wireshark=OFF -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX -DENABLE_CCACHE=ON ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - ninja
+    - ninja install
+    - cd ..
+    # /var/menagerie contains captures harvested from wireshark.org's mailing list, wiki, issues, etc.
+    # We have more captures than we can fuzz in $MAX_SECONDS, so we shuffle them each run.
+    - ./tools/fuzz-test.sh -a -2 -P $MIN_PLUGINS -b $INSTALL_PREFIX/bin -d /tmp/fuzz -t $MAX_SECONDS $( shuf -e /var/menagerie/*/* ) 2> fuzz-test.err || echo "export FUZZ_PASSED=false" > /tmp/fuzz_result.sh
+
+ASan randpkt Fuzz:
+  extends: .fuzz-ubuntu
+  stage: fuzz-randpkt
+  script:
+    # XXX Reuse fuzz-asan?
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake -G Ninja -DBUILD_wireshark=OFF -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX -DENABLE_CCACHE=ON ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - ninja
+    - ninja install
+    - cd ..
+    - ./tools/randpkt-test.sh -a -b $INSTALL_PREFIX/bin -d /tmp/fuzz -p $MAX_PASSES 2> fuzz-test.err || echo "export FUZZ_PASSED=false" > /tmp/fuzz_result.sh
+  needs: [ 'ASan Menagerie Fuzz' ]
+
+Valgrind Menagerie Fuzz:
+  extends: .fuzz-ubuntu
+  stage: fuzz-valgrind
+  script:
+    - DEBIAN_FRONTEND=noninteractive apt-get update
+    - DEBIAN_FRONTEND=noninteractive apt-get --yes install valgrind
+    - MAX_SECONDS=$(( 3 * 60 * 60 ))
+    - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
+    - cmake -G Ninja -DBUILD_wireshark=OFF -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=OFF -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX -DENABLE_CCACHE=ON ..
+    - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
+    - ninja
+    - ninja install
+    - cd ..
+    - ./tools/fuzz-test.sh -g -P $MIN_PLUGINS -b $INSTALL_PREFIX/bin -d /tmp/fuzz -t $MAX_SECONDS $( shuf -e /var/menagerie/*/* ) 2> fuzz-test.err || echo "export FUZZ_PASSED=false" > /tmp/fuzz_result.sh
+  needs: [ 'ASan randpkt Fuzz' ]
