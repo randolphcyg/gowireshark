@@ -23,10 +23,12 @@ package gowireshark
 #include <wsutil/privileges.h>
 // init modules & init capture_file
 int init(char *filename);
-// print the whole frame
-void print_all_packet_text();
-// print the first frame
-void print_first_packet_text();
+// Dissect and print all frames
+void print_all_frame();
+// Dissect and print the first frame
+void print_first_frame();
+// Dissect and print the first several frames
+void print_first_several_frame(int count);
 */
 import "C"
 import (
@@ -61,8 +63,8 @@ func EpanPluginsSupported() int {
 	return int(C.epan_plugins_supported())
 }
 
-// DissectFirstPkt dissect all package in a pcap file but only print the first package
-func DissectFirstPkt(filepath string) (err error) {
+// DissectAllFrame Dissect and print all frames
+func DissectAllFrame(filepath string) (err error) {
 	if !tool.IsFileExist(filepath) {
 		err = errors.Wrap(ErrFileNotFound, filepath)
 		log.Error(err)
@@ -71,13 +73,13 @@ func DissectFirstPkt(filepath string) (err error) {
 
 	C.init(C.CString(filepath))
 
-	C.print_first_packet_text()
+	C.print_all_frame()
 
 	return
 }
 
-// DissectAllPkt dissect and print all package in a pcap file
-func DissectAllPkt(filepath string) (err error) {
+// DissectFirstFrame Dissect and print the first frame
+func DissectFirstFrame(filepath string) (err error) {
 	if !tool.IsFileExist(filepath) {
 		err = errors.Wrap(ErrFileNotFound, filepath)
 		log.Error(err)
@@ -86,7 +88,22 @@ func DissectAllPkt(filepath string) (err error) {
 
 	C.init(C.CString(filepath))
 
-	C.print_all_packet_text()
+	C.print_first_frame()
+
+	return
+}
+
+// DissectFirstSeveralFrame Dissect and print the first several frames
+func DissectFirstSeveralFrame(filepath string, count int) (err error) {
+	if !tool.IsFileExist(filepath) {
+		err = errors.Wrap(ErrFileNotFound, filepath)
+		log.Error(err)
+		return err
+	}
+
+	C.init(C.CString(filepath))
+
+	C.print_first_several_frame(C.int(count))
 
 	return
 }
