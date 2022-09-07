@@ -32,6 +32,8 @@ void print_first_several_frame(int count);
 */
 import "C"
 import (
+	"strconv"
+
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
@@ -41,6 +43,8 @@ import (
 
 var (
 	ErrFileNotFound = errors.New("cannot open file, no such file")
+	ErrReadFile     = errors.New("occur error when read file ")
+	ErrIllegalPara  = errors.New("illegal parameter")
 )
 
 func init() {
@@ -71,7 +75,11 @@ func DissectAllFrame(filepath string) (err error) {
 		return err
 	}
 
-	C.init(C.CString(filepath))
+	if errNo := C.init(C.CString(filepath)); errNo != 0 {
+		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
+		log.Error(err)
+		return
+	}
 
 	C.print_all_frame()
 
@@ -86,7 +94,11 @@ func DissectFirstFrame(filepath string) (err error) {
 		return err
 	}
 
-	C.init(C.CString(filepath))
+	if errNo := C.init(C.CString(filepath)); errNo != 0 {
+		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
+		log.Error(err)
+		return
+	}
 
 	C.print_first_frame()
 
@@ -101,7 +113,17 @@ func DissectFirstSeveralFrame(filepath string, count int) (err error) {
 		return err
 	}
 
-	C.init(C.CString(filepath))
+	if count < 1 {
+		err = errors.Wrap(ErrIllegalPara, strconv.Itoa(count))
+		log.Error(err)
+		return
+	}
+
+	if errNo := C.init(C.CString(filepath)); errNo != 0 {
+		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
+		log.Error(err)
+		return
+	}
 
 	C.print_first_several_frame(C.int(count))
 
