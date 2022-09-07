@@ -15,22 +15,27 @@ func TestEpanPluginsSupported(t *testing.T) {
 	fmt.Println(gowireshark.EpanPluginsSupported())
 }
 
-func TestDissectFirstPkt(t *testing.T) {
-	fmt.Println("Parse the first package of the data package file")
-
+func TestDissectAllFrame(t *testing.T) {
 	filepath := "../pcaps/s7comm_clean.pcap"
-	err := gowireshark.DissectFirstPkt(filepath)
+	err := gowireshark.DissectAllFrame(filepath)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 }
 
-func TestDissectAllPkt(t *testing.T) {
-	fmt.Println("Test to parse all packages in the data package file")
-
+func TestDissectFirstFrame(t *testing.T) {
 	filepath := "../pcaps/s7comm_clean.pcap"
-	err := gowireshark.DissectAllPkt(filepath)
+	err := gowireshark.DissectFirstFrame(filepath)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+}
+
+func TestDissectFirstSeveralFrame(t *testing.T) {
+	filepath := "../pcaps/s7comm_clean.pcap"
+	err := gowireshark.DissectFirstSeveralFrame(filepath, 3)
 	if err != nil {
 		fmt.Println(err)
 	}

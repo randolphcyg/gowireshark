@@ -16,7 +16,9 @@
 capture_file cfile;
 // init modules & init capture_file
 int init(char *filename);
-// print the whole frame
-void print_all_packet_text();
-// print the first frame
-void print_first_packet_text();
+// Dissect and print all frames
+void print_all_frame();
+// Dissect and print the first frame
+void print_first_frame();
+// Dissect and print the first several frames
+void print_first_several_frame(int count);

@@ -1,8 +1,11 @@
 #include <include/lib.h>
+
+/* Init the capture file struct */
 void cap_file_init(capture_file *cf) {
 	/* Initialize the capture file struct */
 	memset(cf, 0, sizeof(capture_file));
 }
+
 static const nstime_t * tshark_get_frame_ts(struct packet_provider_data *prov, guint32 frame_num) {
 	if (prov->ref && prov->ref->num == frame_num)
 		    return &prov->ref->abs_ts;
@@ -16,6 +19,8 @@ static const nstime_t * tshark_get_frame_ts(struct packet_provider_data *prov, g
 	}
 	return NULL;
 }
+
+/* Clean the capture file struct */
 void clean() {
 	if (cfile.provider.frames != NULL) {
 		/*
@@ -34,6 +39,7 @@ void clean() {
 	/** cleanup the whole epan module, this is used to be called only once in a program */
 	epan_cleanup();
 }
+
 /* Fill data to the capture file struct */
 int init(char *filename) {
 	int          err = 0;
@@ -85,6 +91,8 @@ int init(char *filename) {
 			clean();
 	return err;
 }
+
+/* Read each frame */
 gboolean read_packet(epan_dissect_t **edt_r) {
 	epan_dissect_t    *edt;
 	int                err;
@@ -111,8 +119,13 @@ gboolean read_packet(epan_dissect_t **edt_r) {
      */
 	if (wtap_read(cfile.provider.wth, &rec, &cfile.buf, &err, &err_info, &data_offset)) {
 		cfile.count++;
+
 		frame_data fdlocal;
 		frame_data_init(&fdlocal, cfile.count, &rec, data_offset, cum_bytes);
+
+        // data_offset must be correctly set
+		data_offset = fdlocal.pkt_len;
+
 		edt = epan_dissect_new(cfile.epan, TRUE, TRUE);
 		prime_epan_dissect_with_postdissector_wanted_hfids(edt);
 		/**
@@ -122,11 +135,9 @@ gboolean read_packet(epan_dissect_t **edt_r) {
 		cfile.provider.ref = &fdlocal;
 		tvbuff_t *tvb;
 		tvb = tvb_new_real_data(cfile.buf.data, data_offset, data_offset);
+
 		// core dissect process
 		epan_dissect_run_with_taps(edt, cfile.cd_t, &rec, tvb, &fdlocal, &cfile.cinfo);
-//		epan_dissect_run(edt, cfile.cd_t, &rec, tvb, &fdlocal, &cfile.cinfo);
-		// epan_dissect_file_run(edt, &rec, tvb, &fdlocal, &cfile.cinfo);
-		// epan_dissect_file_run_with_taps(edt, &rec, tvb, &fdlocal, &cfile.cinfo);
 		frame_data_set_after_dissect(&fdlocal, &cum_bytes);
 		cfile.provider.prev_cap = cfile.provider.prev_dis = frame_data_sequence_add(cfile.provider.frames, &fdlocal);
 		// free space
@@ -136,7 +147,9 @@ gboolean read_packet(epan_dissect_t **edt_r) {
 	}
 	return FALSE;
 }
-void print_all_packet_text() {
+
+/* Dissect and print all frames */
+void print_all_frame() {
 	epan_dissect_t *edt;
 	print_stream_t *print_stream;
 	print_stream = print_stream_text_stdio_new(stdout);
@@ -148,18 +161,36 @@ void print_all_packet_text() {
 	}
 	clean();
 }
-void print_first_packet_text() {
+
+/* Dissect and print the first frame */
+void print_first_frame() {
 	epan_dissect_t *edt;
 	print_stream_t *print_stream;
 	print_stream = print_stream_text_stdio_new(stdout);
-	// 开始读取数据包
+	// start reading packets
 	if (read_packet(&edt)) {
-		// TODO 第二个参数无效果 需要确认
 		proto_tree_print(print_dissections_expanded, FALSE, edt, NULL, print_stream);
 		// print hex data
 		print_hex_data(print_stream, edt);
 		epan_dissect_free(edt);
 		edt = NULL;
 	}
+	clean();
+}
+
+/* Dissect and print the first several frames */
+void print_first_several_frame(int count) {
+	epan_dissect_t *edt;
+	print_stream_t *print_stream;
+	print_stream = print_stream_text_stdio_new(stdout);
+	// start reading packets
+    while (cfile.count < count) {
+        read_packet(&edt);
+        proto_tree_print(print_dissections_expanded, FALSE, edt, NULL, print_stream);
+        // print hex data
+        print_hex_data(print_stream, edt);
+        epan_dissect_free(edt);
+        edt = NULL;
+    }
 	clean();
 }
