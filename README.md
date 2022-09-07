@@ -72,9 +72,8 @@
    )
    
    func main() {
-       fmt.Println("测试数据包文件第一个包解析")
        filepath := "pcaps/s7comm_clean.pcap"
-       err := gowireshark.DissectFirstPkt(filepath)
+       err := gowireshark.DissectFirstFrame(filepath)
        if err != nil {
            fmt.Println(err)
        }
@@ -83,7 +82,7 @@
 
 ## 4. TODO
 
-1. 修复解析数据包过程错误问题
+1. ~~修复解析数据包过程错误截断问题~~
 2. 增加修正为输出解析后的json数据
 3. 增加实时监听解析功能
 
