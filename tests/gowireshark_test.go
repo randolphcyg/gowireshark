@@ -35,7 +35,7 @@ func TestDissectFirstFrame(t *testing.T) {
 
 func TestDissectFirstSeveralFrame(t *testing.T) {
 	filepath := "../pcaps/s7comm_clean.pcap"
-	err := gowireshark.DissectFirstSeveralFrame(filepath, 3)
+	err := gowireshark.DissectFirstSeveralFrame(filepath, 2000)
 	if err != nil {
 		fmt.Println(err)
 	}
