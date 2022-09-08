@@ -41,3 +41,19 @@ func TestDissectFirstSeveralFrame(t *testing.T) {
 	}
 
 }
+
+func TestDissectSpecificFrame(t *testing.T) {
+	filepath := "../pcaps/s7comm_clean.pcap"
+	err := gowireshark.DissectSpecificFrame(filepath, 5000)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func TestDissectSpecificFrameOutOfBounds(t *testing.T) {
+	filepath := "../pcaps/s7comm_clean.pcap"
+	err := gowireshark.DissectSpecificFrame(filepath, 5448)
+	if err != nil {
+		fmt.Println(err)
+	}
+}

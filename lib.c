@@ -179,6 +179,7 @@ void print_first_several_frame(int count) {
   print_stream = print_stream_text_stdio_new(stdout);
   // start reading packets
   while (read_packet(&edt)) {
+    // print proto tree
     proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
                      print_stream);
     // print hex data

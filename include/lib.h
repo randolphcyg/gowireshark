@@ -16,6 +16,8 @@
 capture_file cfile;
 // init modules & init capture_file
 int init(char *filename);
+// Read each frame
+gboolean read_packet(epan_dissect_t **edt_r);
 // Dissect and print all frames
 void print_all_frame();
 // Dissect and print the first frame
