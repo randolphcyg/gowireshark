@@ -31,6 +31,8 @@ void print_all_frame();
 void print_first_frame();
 // Dissect and print the first several frames
 void print_first_several_frame(int count);
+// Dissect and print specific frame
+void print_specific_frame(int num);
 */
 import "C"
 import (
@@ -133,8 +135,9 @@ func DissectFirstSeveralFrame(filepath string, count int) (err error) {
 	return
 }
 
-// DissectSpecificFrame Dissect and print the Specific frame
-func DissectSpecificFrame(filepath string, num int) (err error) {
+// DissectSpecificFrameByGo Dissect and print the Specific frame
+// [by call read_packet with cgo, can judge the bounds of frame ]
+func DissectSpecificFrameByGo(filepath string, num int) (err error) {
 	if !tool.IsFileExist(filepath) {
 		err = errors.Wrap(ErrFileNotFound, filepath)
 		log.Error(err)
@@ -184,6 +187,33 @@ func DissectSpecificFrame(filepath string, num int) (err error) {
 
 		return
 	}
+
+	return
+}
+
+// DissectSpecificFrame Dissect and print the Specific frame
+func DissectSpecificFrame(filepath string, num int) (err error) {
+	if !tool.IsFileExist(filepath) {
+		err = errors.Wrap(ErrFileNotFound, filepath)
+		log.Error(err)
+		return err
+	}
+
+	if num < 1 {
+		err = errors.Wrap(ErrIllegalPara, strconv.Itoa(num))
+		log.Error(err)
+		return
+	}
+
+	errNo := C.init(C.CString(filepath))
+	if errNo != 0 {
+		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
+		log.Error(err)
+		return
+	}
+
+	// print none if num is out of bounds
+	C.print_specific_frame(C.int(num))
 
 	return
 }
