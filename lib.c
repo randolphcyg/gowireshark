@@ -191,3 +191,27 @@ void print_first_several_frame(int count) {
     }
   }
 }
+// Dissect and print specific frame
+void print_specific_frame(int num) {
+  epan_dissect_t *edt;
+  print_stream_t *print_stream;
+  print_stream = print_stream_text_stdio_new(stdout);
+  // start reading packets
+  while (read_packet(&edt)) {
+    if (num != cfile.count) {
+      epan_dissect_free(edt);
+      edt = NULL;
+      continue;
+    }
+
+    // print proto tree
+    proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
+                     print_stream);
+    // print hex data
+    print_hex_data(print_stream, edt);
+
+    epan_dissect_free(edt);
+    edt = NULL;
+    break;
+  }
+}
