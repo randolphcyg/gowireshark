@@ -50,7 +50,29 @@ func TestDissectSpecificFrame(t *testing.T) {
 	}
 }
 
+/*
+RESULT: none
+*/
 func TestDissectSpecificFrameOutOfBounds(t *testing.T) {
+	filepath := "../pcaps/s7comm_clean.pcap"
+	err := gowireshark.DissectSpecificFrame(filepath, 5448)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func TestDissectSpecificFrameByGo(t *testing.T) {
+	filepath := "../pcaps/s7comm_clean.pcap"
+	err := gowireshark.DissectSpecificFrame(filepath, 5000)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+/*
+RESULT: 5448: frame index is out of bounds
+*/
+func TestDissectSpecificFrameByGoOutOfBounds(t *testing.T) {
 	filepath := "../pcaps/s7comm_clean.pcap"
 	err := gowireshark.DissectSpecificFrame(filepath, 5448)
 	if err != nil {
