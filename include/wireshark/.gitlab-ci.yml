@@ -196,6 +196,7 @@ CentOS 7 RPM Package:
     - cmake3 -GNinja ..
     - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
     - ninja-build rpm-package
+
 CentOS 7 RPM Test:
   extends: .test-rpm
   image: registry.gitlab.com/wireshark/wireshark-containers/centos-7-dev
@@ -222,6 +223,7 @@ Debian Stable APT Package:
     paths:
       - debian-packages/*.deb
     expire_in: 3 days
+
 Debian Stable APT Test:
   extends: .test-linux
   rules: !reference [.if-merged]
@@ -252,6 +254,7 @@ Fedora RPM Package:
     - cmake3 -GNinja ..
     - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
     - ninja rpm-package
+
 # Fedora RPM Test:
 #   extends: .test-rpm
 #   image: fedora
@@ -268,6 +271,7 @@ openSUSE 15.3 RPM Package:
     - cmake -GNinja ..
     - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
     - ninja rpm-package
+
 openSUSE 15.3 RPM Test:
   extends: .test-rpm
   image: registry.gitlab.com/wireshark/wireshark-containers/opensuse-15.3-dev
@@ -284,6 +288,7 @@ Rocky Linux 8 RPM Package:
     - cmake -GNinja ..
     - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
     - ninja-build rpm-package
+
 Rocky Linux 8 RPM Test:
   extends: .test-rpm
   image: registry.gitlab.com/wireshark/wireshark-containers/rockylinux-8-dev
@@ -309,6 +314,7 @@ Ubuntu APT Package:
     paths:
       - ubuntu-packages/*.deb
     expire_in: 3 days
+
 Ubuntu APT Test:
   extends: .test-linux
   rules: !reference [.if-merged]
@@ -632,27 +638,35 @@ Windows Build:
 ABI Check:
   extends: .build-ubuntu
   rules: !reference [.if-merge-request]
+  variables:
+    # Use DWARF-4. ABI dumper version 1.3 is required for DWARF-5 support (the GCC 11 default) but version 1.3 is still not released.
+    # https://github.com/lvc/abi-dumper/issues/34
+    CFLAGS: "-Og -gdwarf-4"
   script:
     # build-ubuntu puts us in `build`.
     - DEBIAN_FRONTEND=noninteractive apt-get update
     - DEBIAN_FRONTEND=noninteractive apt-get --yes install abi-dumper abi-compliance-checker
-    # Ubuntu 20.04 ships with version 1.1, which has issues: https://github.com/lvc/abi-dumper/issues/21
-    - curl --fail -JL https://raw.githubusercontent.com/lvc/abi-dumper/1.2/abi-dumper.pl > /usr/bin/abi-dumper
-    - CFLAGS="-Og" cmake -G Ninja -DENABLE_CCACHE=ON -DCMAKE_BUILD_TYPE=Debug -DBUILD_wireshark=OFF ..
+    # CMake build type None is required to prevent CMake from adding its own debug flags and clobbering our own.
+    - cmake -G Ninja -DENABLE_CCACHE=ON -DCMAKE_BUILD_TYPE=None -DBUILD_wireshark=OFF ..
     - ninja wiretap-abi-dump epan-abi-dump wsutil-abi-dump
-    - ACC_EXIT=0
-    - abi-compliance-checker -l wiretap -old ../tools/abi-dumps/wiretap-abi-12.0.0.dump -new wiretap-abi-12*.dump || ACC_EXIT=1
-    - abi-compliance-checker -l epan -old ../tools/abi-dumps/epan-abi-15.0.0.dump -new epan-abi-15*.dump || ACC_EXIT=1
-    - abi-compliance-checker -l wsutil -old ../tools/abi-dumps/wsutil-abi-13.0.0.dump -new wsutil-abi-13*.dump || ACC_EXIT=1
-    - mv compat_reports ..
+    - set +e
+    - abi-compliance-checker -l wiretap -old ../tools/abi-dumps/wiretap-abi-12.0.1.dump -new wiretap-abi-12*.dump
+    - WIRETAP_EXIT=$?
+    - abi-compliance-checker -l epan -old ../tools/abi-dumps/epan-abi-15.0.1.dump -new epan-abi-15*.dump
+    - EPAN_EXIT=$?
+    - abi-compliance-checker -l wsutil -old ../tools/abi-dumps/wsutil-abi-13.0.1.dump -new wsutil-abi-13*.dump
+    - WSUTIL_EXIT=$?
+    - set -e
+    - printf "WIRETAP_EXIT=%d EPAN_EXIT=%d WSUTIL_EXIT=%d\\n" $WIRETAP_EXIT $EPAN_EXIT $WSUTIL_EXIT
+    - mv compat_reports ../compat_reports_3.6
     - mv *-abi-*.dump ..
     - cd ..
-    - zip -9 -r compat_reports.zip compat_reports
-    - exit $ACC_EXIT
+    - zip -9 -r compat_reports_3.6.zip compat_reports_3.6
+    - exit $(( WIRETAP_EXIT + EPAN_EXIT + WSUTIL_EXIT ))
   artifacts:
     when: always
     paths:
-      - compat_reports.zip
+      - compat_reports_3.6.zip
       - ./*-abi-*.dump
 
 # Fuzz TShark using ASAN and valgrind.
@@ -726,6 +740,11 @@ ASan randpkt Fuzz:
 Valgrind Menagerie Fuzz:
   extends: .fuzz-ubuntu
   stage: fuzz-valgrind
+  variables:
+    # Use DWARF-4 debug info. Valgrind does not support Clang 14 with DWARF-5.
+    # https://gitlab.com/wireshark/wireshark/-/issues/18191
+    # https://www.mail-archive.com/valgrind-users@lists.sourceforge.net/msg07239.html
+    CFLAGS: "-gdwarf-4"
   script:
     - DEBIAN_FRONTEND=noninteractive apt-get update
     - DEBIAN_FRONTEND=noninteractive apt-get --yes install valgrind

@@ -94,8 +94,8 @@ sub read_repo_info {
 
 	# Tarball produced by 'git archive' will have the $Format string
 	# substituted due to the use of 'export-subst' in .gitattributes.
-	my $git_archive_commit = '4a304d7ec2224a766b7c32b37bbff295f51b9e77';
-	my @git_refs = split(/, /, 'HEAD, tag: wireshark-3.6.7, tag: v3.6.7, refs/pipelines/598514654');
+	my $git_archive_commit = 'd25900c51508135ac54abfa66a7a07176cdee041';
+	my @git_refs = split(/, /, 'HEAD, tag: wireshark-3.6.8, tag: v3.6.8, origin/release-3.6, refs/pipelines/633811676');
 	if (substr($git_archive_commit, 0, 1) eq '$') {
 		# If $Format is still present, then this is not a git archive.
 		$git_archive_commit = undef;

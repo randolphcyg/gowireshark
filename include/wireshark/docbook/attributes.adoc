@@ -1,9 +1,12 @@
 // Common attributes
 
-:wireshark-version: 3.6.7
+:wireshark-version: 3.6.8
 
 // Required for btn, kbd:, and menu: macros.
 :experimental:
+
+// Don't add a "Last updated" footer to our man pages.
+:nofooter:
 
 // Create PA4 (210 × 280mm) pages: https://en.wikipedia.org/wiki/Paper_size#PA4_or_L4
 // This is the approximate intersection of A4 (210 × 297mm) and U.S. Letter

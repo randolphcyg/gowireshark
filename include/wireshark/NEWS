@@ -1,4 +1,4 @@
- Wireshark 3.6.7 Release Notes
+ Wireshark 3.6.8 Release Notes
 
  What is Wireshark?
 
@@ -13,28 +13,49 @@
 
   Bug Fixes
 
+   The following vulnerabilities have been fixed:
+
+     • wnpa-sec-2022-06[2] F5 Ethernet Trailer dissector infinite loop.
+       Issue 18307[3].
+
    The following bugs have been fixed:
 
-     • Multiple Files preference "Create new file automatically…​after"
-       [time] working incorrectly Issue 16783[2].
+     • TCAP Malformed exception on externally re-assembled packet Issue
+       10515[4].
 
-     • get_filter Lua function doesn’t return the filter Issue 17188[3].
+     • Extended 3GPP-GPRS-Negotiated-QoS-profile strings decoded
+       incompletely Issue 10688[5].
 
-     • Dissector bug, protocol HTTP failed assertion "saved_layers_len <
-       500" with chunked/multipart Issue 18130[4].
+     • HTTP2 dissector decodes first SSL record only Issue 11173[6].
 
-     • Wrong EtherCAT bit label (possible dissector bug) Issue 18132[5].
+     • L2TP improvements - cookie length detection, UDP encapsulation
+       and more Issue 16565[7].
 
-     • UDP packets falsely marked as "malformed packet" Issue 18136[6].
+     • USB Truncation of URB_isochronous in frames Issue 18021[8].
 
-     • TLS certificate parser with filter crash Issue 18155[7].
+     • ISUP/BICC parameter summary text duplication Issue 18094[9].
 
-     • Incorrect type for the IEC 60870 APDU appears in packet details
-       pane Issue 18167[8].
+     • Running rpm-setup.sh shows missing packages that Centos does not
+       need Issue 18166[10].
 
-     • NHRP Problem Issue 18181[9].
+     • IPX/IPX RIP: Crash on expand subtree Issue 18234[11].
 
-     • EtherCAT CoE header unknown type Issue 18220[10].
+     • Qt: A file or packet comment that is too large will corrupt the
+       pcapng file Issue 18235[12].
+
+     • BGP dissector bug Issue 18248[13].
+
+     • Wrong interpretation of the cbsp.rep_period field in
+       epan/dissectors/packet-gsm_cbsp.c Issue 18254[14].
+
+     • Assertion due to incorrect mask for btatt.battery_power_state.*
+       Issue 18267[15].
+
+     • Qt: Expert Info dialog not showing Malformed Frame when Frame
+       length is less than captured length Issue 18312[16].
+
+     • Wireshark and tshark become non-responsive when reading certain
+       packets Issue 18313[17].
 
   New and Updated Features
 
@@ -44,12 +65,12 @@
 
   Updated Protocol Support
 
-   BGP, DTLS, EtherCAT, EtherCAT Mailbox, HTTP, IEC 104, MEGACO, NHRP,
-   PPPoE, QUIC, RTCP, Signal PDU, SOME/IP, and X509IF
+   BGP, BICC, BT ATT, CBSP, Couchbase, F5 Ethernet Trailer, Frame, GTP,
+   GTP (prime), IPsec, ISUP, L2TP, NAS-5GS, Protobuf, SCCP, TCP, and TLS
 
   New and Updated Capture File Support
 
-   There is no new or updated capture file support in this release.
+   pcap, pcapng
 
   New File Format Decoding Support
 
@@ -65,7 +86,7 @@
    Most Linux and Unix vendors supply their own Wireshark packages. You
    can usually install or upgrade Wireshark using the package management
    system specific to that platform. A list of third-party packages can
-   be found on the download page[11] on the Wireshark web site.
+   be found on the download page[18] on the Wireshark web site.
 
  File Locations
 
@@ -80,32 +101,37 @@
   The User’s Guide, manual pages and various other documentation can be
   found at https://www.wireshark.org/docs/
 
-  Community support is available on Wireshark’s Q&A site[12] and on the
+  Community support is available on Wireshark’s Q&A site[19] and on the
   wireshark-users mailing list. Subscription information and archives
-  for all of Wireshark’s mailing lists can be found on the web site[13].
+  for all of Wireshark’s mailing lists can be found on the web site[20].
 
-  Bugs and feature requests can be reported on the issue tracker[14].
+  Bugs and feature requests can be reported on the issue tracker[21].
 
  Frequently Asked Questions
 
-  A complete FAQ is available on the Wireshark web site[15].
-
-  Last updated 2022-07-27 18:31:51 UTC
+  A complete FAQ is available on the Wireshark web site[22].
 
  References
 
    1. https://gitlab.com/wireshark/wireshark/-/issues/17779
-   2. https://gitlab.com/wireshark/wireshark/-/issues/16783
-   3. https://gitlab.com/wireshark/wireshark/-/issues/17188
-   4. https://gitlab.com/wireshark/wireshark/-/issues/18130
-   5. https://gitlab.com/wireshark/wireshark/-/issues/18132
-   6. https://gitlab.com/wireshark/wireshark/-/issues/18136
-   7. https://gitlab.com/wireshark/wireshark/-/issues/18155
-   8. https://gitlab.com/wireshark/wireshark/-/issues/18167
-   9. https://gitlab.com/wireshark/wireshark/-/issues/18181
-  10. https://gitlab.com/wireshark/wireshark/-/issues/18220
-  11. https://www.wireshark.org/download.html
-  12. https://ask.wireshark.org/
-  13. https://www.wireshark.org/lists/
-  14. https://gitlab.com/wireshark/wireshark/-/issues
-  15. https://www.wireshark.org/faq.html
+   2. https://www.wireshark.org/security/wnpa-sec-2022-06
+   3. https://gitlab.com/wireshark/wireshark/-/issues/18307
+   4. https://gitlab.com/wireshark/wireshark/-/issues/10515
+   5. https://gitlab.com/wireshark/wireshark/-/issues/10688
+   6. https://gitlab.com/wireshark/wireshark/-/issues/11173
+   7. https://gitlab.com/wireshark/wireshark/-/issues/16565
+   8. https://gitlab.com/wireshark/wireshark/-/issues/18021
+   9. https://gitlab.com/wireshark/wireshark/-/issues/18094
+  10. https://gitlab.com/wireshark/wireshark/-/issues/18166
+  11. https://gitlab.com/wireshark/wireshark/-/issues/18234
+  12. https://gitlab.com/wireshark/wireshark/-/issues/18235
+  13. https://gitlab.com/wireshark/wireshark/-/issues/18248
+  14. https://gitlab.com/wireshark/wireshark/-/issues/18254
+  15. https://gitlab.com/wireshark/wireshark/-/issues/18267
+  16. https://gitlab.com/wireshark/wireshark/-/issues/18312
+  17. https://gitlab.com/wireshark/wireshark/-/issues/18313
+  18. https://www.wireshark.org/download.html
+  19. https://ask.wireshark.org/
+  20. https://www.wireshark.org/lists/
+  21. https://gitlab.com/wireshark/wireshark/-/issues
+  22. https://www.wireshark.org/faq.html

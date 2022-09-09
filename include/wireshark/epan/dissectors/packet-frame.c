@@ -110,6 +110,7 @@ static gint ett_bblog = -1;
 static expert_field ei_comments_text = EI_INIT;
 static expert_field ei_arrive_time_out_of_range = EI_INIT;
 static expert_field ei_incomplete = EI_INIT;
+static expert_field ei_len_lt_caplen = EI_INIT;
 
 static int frame_tap = -1;
 
@@ -514,19 +515,42 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 		wtap_block_foreach_option(fr_data->pkt_block, frame_add_comment, (void *)&fr_user_data);
 	}
 
-	/* if FRAME is not referenced from any filters we don't need to worry about
-	   generating any tree items.  */
+	cap_len = tvb_captured_length(tvb);
+	frame_len = tvb_reported_length(tvb);
+
+	/* If FRAME is not referenced from any filters we don't need to
+	   worry about generating any tree items.
+
+	   We do, however, have to worry about generating expert infos,
+	   as those have to show up if, for example, the user requests
+	   the expert info dialog.
+
+	   NOTE: if any expert infos are added in the "frame is referenced"
+	   arm of the conditional, they must also be added to the "frame
+	   is not referenced" arm.  See, for example, issue #18312.
+
+	   XXX - all these tricks to optimize dissection if only some
+	   information is required are fragile.  Something better that
+	   handles this automatically would be useful. */
 	if (!proto_field_is_referenced(tree, proto_frame)) {
 		tree=NULL;
 		if (pinfo->presence_flags & PINFO_HAS_TS) {
 			if (pinfo->abs_ts.nsecs < 0 || pinfo->abs_ts.nsecs >= 1000000000)
-				expert_add_info(pinfo, NULL, &ei_arrive_time_out_of_range);
+				expert_add_info_format(pinfo, NULL, &ei_arrive_time_out_of_range,
+								    "Arrival Time: Fractional second %09ld is invalid,"
+								    " the valid range is 0-1000000000",
+								    (long) pinfo->abs_ts.nsecs);
+		}
+		if (frame_len < cap_len) {
+			/*
+			 * A reported length less than a captured length
+			 * is bogus, as you cannot capture more data
+			 * than there is in a packet.
+			 */
+			expert_add_info(pinfo, NULL, &ei_len_lt_caplen);
 		}
 	} else {
 		/* Put in frame header information. */
-		cap_len = tvb_captured_length(tvb);
-		frame_len = tvb_reported_length(tvb);
-
 		cap_plurality = plurality(cap_len, "", "s");
 		frame_plurality = plurality(frame_len, "", "s");
 
@@ -774,9 +798,17 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 		proto_tree_add_uint(fh_tree, hf_frame_number, tvb,
 				    0, 0, pinfo->num);
 
-		proto_tree_add_uint_format(fh_tree, hf_frame_len, tvb,
-					   0, 0, frame_len, "Frame Length: %u byte%s (%u bits)",
-					   frame_len, frame_plurality, frame_len * 8);
+		item = proto_tree_add_uint_format(fh_tree, hf_frame_len, tvb,
+						  0, 0, frame_len, "Frame Length: %u byte%s (%u bits)",
+						  frame_len, frame_plurality, frame_len * 8);
+		if (frame_len < cap_len) {
+			/*
+			 * A reported length less than a captured length
+			 * is bogus, as you cannot capture more data
+			 * than there is in a packet.
+			 */
+			expert_add_info(pinfo, item, &ei_len_lt_caplen);
+		}
 
 		proto_tree_add_uint_format(fh_tree, hf_frame_capture_len, tvb,
 					   0, 0, cap_len, "Capture Length: %u byte%s (%u bits)",
@@ -842,6 +874,15 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 		col_set_str(pinfo->cinfo, COL_INFO, "<Ignored>");
 		proto_tree_add_boolean_format(tree, hf_frame_ignored, tvb, 0, 0, TRUE, "This frame is marked as ignored");
 		return tvb_captured_length(tvb);
+	}
+
+	if (frame_len < cap_len) {
+		/*
+		 * Fix the reported length; a reported length less than
+		 * a captured length is bogus, as you cannot capture
+		 * more data than there is in a packet.
+		 */
+		tvb_fix_reported_length(tvb);
 	}
 
 	/* Portable Exception Handling to trap Wireshark specific exceptions like BoundsError exceptions */
@@ -1407,7 +1448,8 @@ proto_register_frame(void)
 	static ei_register_info ei[] = {
 		{ &ei_comments_text, { "frame.comment.expert", PI_COMMENTS_GROUP, PI_COMMENT, "Formatted comment", EXPFILL }},
 		{ &ei_arrive_time_out_of_range, { "frame.time_invalid", PI_SEQUENCE, PI_NOTE, "Arrival Time: Fractional second out of range (0-1000000000)", EXPFILL }},
-		{ &ei_incomplete, { "frame.incomplete", PI_UNDECODED, PI_NOTE, "Incomplete dissector", EXPFILL }}
+		{ &ei_incomplete, { "frame.incomplete", PI_UNDECODED, PI_NOTE, "Incomplete dissector", EXPFILL }},
+		{ &ei_len_lt_caplen, { "frame.len_lt_caplen", PI_MALFORMED, PI_ERROR, "Frame length is less than captured length", EXPFILL }}
 	};
 
 	module_t *frame_module;
