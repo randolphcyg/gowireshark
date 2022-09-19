@@ -7,7 +7,9 @@ package gowireshark
 #cgo CFLAGS: -I${SRCDIR}/include/wireshark
 #cgo CFLAGS: -std=c99
 
+#include <include/lib.h>
 #include <cfile.h>
+#include <epan/charsets.h>
 #include <epan/column.h>
 #include <epan/epan.h>
 #include <epan/epan_dissect.h>
@@ -19,6 +21,7 @@ package gowireshark
 #include <stdio.h>
 #include <wiretap/wtap-int.h>
 #include <wiretap/wtap.h>
+#include <wsutil/json_dumper.h>
 #include <wsutil/nstime.h>
 #include <wsutil/privileges.h>
 // init modules & init capture_file
@@ -33,10 +36,18 @@ void print_first_frame();
 void print_first_several_frame(int count);
 // Dissect and print specific frame
 void print_specific_frame(int num);
+// Dissect and print hex_data of specific frame
+void print_specific_frame_hex_data(int num);
+// transfer proto tree to json format
+char* json_tree(int num);
+// Dissect and print hex_data of specific frame
+gboolean get_hex_part(print_stream_t *stream, epan_dissect_t *edt);
 */
 import "C"
 import (
+	"reflect"
 	"strconv"
+	"unsafe"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -51,6 +62,10 @@ var (
 	ErrIllegalPara            = errors.New("illegal parameter")
 	WarnFrameIndexOutOfBounds = errors.New("frame index is out of bounds")
 )
+
+// SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
+// result of a single data packet, which is convenient for converting c char to go string
+const SINGLEPKTMAXLEN = 65535
 
 func init() {
 	// init logger
@@ -77,7 +92,7 @@ func DissectAllFrame(filepath string) (err error) {
 	if !tool.IsFileExist(filepath) {
 		err = errors.Wrap(ErrFileNotFound, filepath)
 		log.Error(err)
-		return err
+		return
 	}
 
 	if errNo := C.init(C.CString(filepath)); errNo != 0 {
@@ -96,7 +111,7 @@ func DissectFirstFrame(filepath string) (err error) {
 	if !tool.IsFileExist(filepath) {
 		err = errors.Wrap(ErrFileNotFound, filepath)
 		log.Error(err)
-		return err
+		return
 	}
 
 	if errNo := C.init(C.CString(filepath)); errNo != 0 {
@@ -115,7 +130,7 @@ func DissectFirstSeveralFrame(filepath string, count int) (err error) {
 	if !tool.IsFileExist(filepath) {
 		err = errors.Wrap(ErrFileNotFound, filepath)
 		log.Error(err)
-		return err
+		return
 	}
 
 	if count < 1 {
@@ -141,7 +156,7 @@ func DissectSpecificFrameByGo(filepath string, num int) (err error) {
 	if !tool.IsFileExist(filepath) {
 		err = errors.Wrap(ErrFileNotFound, filepath)
 		log.Error(err)
-		return err
+		return
 	}
 
 	if num < 1 {
@@ -196,7 +211,7 @@ func DissectSpecificFrame(filepath string, num int) (err error) {
 	if !tool.IsFileExist(filepath) {
 		err = errors.Wrap(ErrFileNotFound, filepath)
 		log.Error(err)
-		return err
+		return
 	}
 
 	if num < 1 {
@@ -216,4 +231,77 @@ func DissectSpecificFrame(filepath string, num int) (err error) {
 	C.print_specific_frame(C.int(num))
 
 	return
+}
+
+// DissectSpecificFrameHexData Dissect and print hex_data of specific frame
+func DissectSpecificFrameHexData(filepath string, num int) (err error) {
+	if !tool.IsFileExist(filepath) {
+		err = errors.Wrap(ErrFileNotFound, filepath)
+		log.Error(err)
+		return
+	}
+
+	if num < 1 {
+		err = errors.Wrap(ErrIllegalPara, strconv.Itoa(num))
+		log.Error(err)
+		return
+	}
+
+	errNo := C.init(C.CString(filepath))
+	if errNo != 0 {
+		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
+		log.Error(err)
+		return
+	}
+
+	// print none if num is out of bounds
+	C.print_specific_frame_hex_data(C.int(num))
+
+	return
+}
+
+// InitCapFile init capture file only once TODO modify previous function
+func InitCapFile(inputFilepath string) (err error) {
+	if !tool.IsFileExist(inputFilepath) {
+		err = errors.Wrap(ErrFileNotFound, inputFilepath)
+		log.Error(err)
+		return
+	}
+
+	errNo := C.init(C.CString(inputFilepath))
+	if errNo != 0 {
+		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
+		log.Error(err)
+		return
+	}
+
+	return
+}
+
+// ProtoTreeToJsonSpecificFrame transfer proto tree to json format
+func ProtoTreeToJsonSpecificFrame(num int) (res string, err error) {
+	if num < 1 {
+		err = errors.Wrap(ErrIllegalPara, strconv.Itoa(num))
+		log.Error(err)
+		return
+	}
+
+	// The core logic is implemented by c
+	src := C.json_tree(C.int(num))
+	res = CChar2GoStr(src)
+
+	return
+}
+
+// CChar2GoStr C string -> Go string
+func CChar2GoStr(src *C.char) (res string) {
+	var s0 string
+	var s0Hdr = (*reflect.StringHeader)(unsafe.Pointer(&s0))
+	s0Hdr.Data = uintptr(unsafe.Pointer(src))
+	s0Hdr.Len = int(C.strlen(src))
+
+	sLen := int(C.strlen(src))
+	s1 := string((*[SINGLEPKTMAXLEN]byte)(unsafe.Pointer(src))[:sLen:sLen])
+
+	return s1
 }

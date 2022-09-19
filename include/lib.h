@@ -1,4 +1,5 @@
 #include <cfile.h>
+#include <epan/charsets.h>
 #include <epan/column.h>
 #include <epan/epan.h>
 #include <epan/epan_dissect.h>
@@ -10,10 +11,11 @@
 #include <stdio.h>
 #include <wiretap/wtap-int.h>
 #include <wiretap/wtap.h>
+#include <wsutil/json_dumper.h>
 #include <wsutil/nstime.h>
 #include <wsutil/privileges.h>
 // global variable
-capture_file cfile;
+extern capture_file cfile;
 // init modules & init capture_file
 int init(char *filename);
 // Read each frame
@@ -26,3 +28,9 @@ void print_first_frame();
 void print_first_several_frame(int count);
 // Dissect and print specific frame
 void print_specific_frame(int num);
+// Dissect and print hex_data of specific frame
+void print_specific_frame_hex_data(int num);
+// transfer proto tree to json format
+char* json_tree(int num);
+// Dissect and print hex_data of specific frame
+gboolean get_hex_part(print_stream_t *stream, epan_dissect_t *edt);
