@@ -1,4 +1,10 @@
+#include <include/cJSON.h>
 #include <include/lib.h>
+#include <include/protoTreeToJson.h>
+
+// global capture file variable
+capture_file cfile;
+
 /* Init the capture file struct */
 void cap_file_init(capture_file *cf) {
   /* Initialize the capture file struct */
@@ -41,7 +47,7 @@ void clean() {
   epan_cleanup();
 }
 /* Fill data to the capture file struct */
-int init(char *filename) {
+int init(char *filepath) {
   int err = 0;
   gchar *err_info = NULL;
   e_prefs *prefs_p;
@@ -70,7 +76,7 @@ int init(char *filename) {
    */
   epan_init(NULL, NULL, 0);
   cap_file_init(&cfile);
-  cfile.filename = filename;
+  cfile.filename = filepath;
   cfile.provider.wth =
       wtap_open_offline(cfile.filename, WTAP_TYPE_AUTO, &err, &err_info, TRUE);
   if (err != 0 || cfile.provider.wth == NULL) {
@@ -214,4 +220,77 @@ void print_specific_frame(int num) {
     edt = NULL;
     break;
   }
+}
+// Dissect and print hex_data of specific frame
+void print_specific_frame_hex_data(int num) {
+  epan_dissect_t *edt;
+  print_stream_t *print_stream;
+  print_stream = print_stream_text_stdio_new(stdout);
+  // start reading packets
+  while (read_packet(&edt)) {
+    if (num != cfile.count) {
+      epan_dissect_free(edt);
+      edt = NULL;
+      continue;
+    }
+
+    printf("### num【%u】\n", num);
+    get_hex_part(print_stream, edt);
+
+    epan_dissect_free(edt);
+    edt = NULL;
+    break;
+  }
+}
+
+// json_tree transfer proto tree to json format
+char* json_tree(int num) {
+  static output_fields_t *output_fields = NULL;
+  static gchar **protocolfilter = NULL;
+  static pf_flags protocolfilter_flags = PF_NONE;
+  static gboolean no_duplicate_keys = FALSE;
+  static proto_node_children_grouper_func node_children_grouper =
+      proto_node_group_children_by_unique;
+  static json_dumper jdumper;
+
+  epan_dissect_t *edt;
+  print_stream_t *print_stream;
+  print_stream = print_stream_text_stdio_new(stdout);
+
+//   cJSON 	*jsonroot = NULL;
+//   	//新建一个JSON项目：jsonroot
+//       jsonroot = cJSON_CreateObject();
+//
+//     char *allout =  cJSON_PrintUnformatted(jsonroot);
+
+  // start reading packets
+  while (read_packet(&edt)) {
+    if (num != cfile.count) {
+      epan_dissect_free(edt);
+      edt = NULL;
+      continue;
+    }
+
+    protocolfilter_flags = PF_INCLUDE_CHILDREN; // PF_NONE
+    output_fields = output_fields_new();
+    node_children_grouper =
+        proto_node_group_children_by_json_key; // proto_node_group_children_by_unique
+    protocolfilter = wmem_strsplit(wmem_epan_scope(), NULL, " ", -1);
+
+    char *out;
+    out = proto_tree_to_json(NULL, print_dissections_expanded, TRUE, protocolfilter,
+                       protocolfilter_flags, edt, &cfile.cinfo,
+                       node_children_grouper);
+//    printf("FRAME %d, result:\n %s\n", cfile.count, out);
+
+    epan_dissect_free(edt);
+    edt = NULL;
+
+//    cJSON_AddItemToObject(jsonroot, "1", out);
+    return out;
+    break;
+  }
+
+//  printf("allout == %s\n\n", allout);
+  return "";
 }
