@@ -340,19 +340,15 @@ func ProtoTreeToJsonSpecificFrame(inputFilepath string, num int) (resBytes []byt
 
 		// The core logic is implemented by c
 		src := C.json_tree(C.int(counter))
-
 		frameData := CChar2GoStr(src)
-		log.Error(counter, frameData)
-
-		allFrameRes[strconv.Itoa(counter)] = frameData
-
 		if frameData == "" {
 			log.Error("result is blank")
 			break
 		}
 
-		break
+		allFrameRes[strconv.Itoa(counter)] = frameData
 
+		break
 	}
 
 	resBytes, err = json.Marshal(allFrameRes)
