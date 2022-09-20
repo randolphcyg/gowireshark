@@ -31,6 +31,8 @@ void print_specific_frame(int num);
 // Dissect and print hex_data of specific frame
 void print_specific_frame_hex_data(int num);
 // transfer proto tree to json format
-char* json_tree(int num);
+char *json_tree(int num);
 // Dissect and print hex_data of specific frame
+void print_specific_frame_hex_data(int num);
+// inner func
 gboolean get_hex_part(print_stream_t *stream, epan_dissect_t *edt);

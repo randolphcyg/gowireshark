@@ -41,6 +41,8 @@ void print_specific_frame_hex_data(int num);
 // transfer proto tree to json format
 char* json_tree(int num);
 // Dissect and print hex_data of specific frame
+void print_specific_frame_hex_data(int num);
+// inner func
 gboolean get_hex_part(print_stream_t *stream, epan_dissect_t *edt);
 */
 import "C"
@@ -370,4 +372,18 @@ func CChar2GoStr(src *C.char) (res string) {
 	s1 := string((*[SINGLEPKTMAXLEN]byte)(unsafe.Pointer(src))[:sLen:sLen])
 
 	return s1
+}
+
+// GetSpecificFrameHexData TODO 获取16进制内容
+func GetSpecificFrameHexData(inputFilepath string, num int) (err error) {
+	// init cap file only once
+	err = InitCapFile(inputFilepath)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	C.print_specific_frame_hex_data(C.int(num))
+
+	return
 }
