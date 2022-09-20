@@ -3,7 +3,7 @@
 // json result
 extern cJSON *root;
 extern char *out;
-// json对象layers层
+// json layers member
 extern cJSON* cjson_layers;
 
 gboolean proto_tree_print_hex(print_dissections_e print_dissections,
