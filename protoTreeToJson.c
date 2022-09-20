@@ -103,7 +103,7 @@ static gboolean modify_print_hex_data_buffer(print_stream_t *stream,
   int counter = 0;
   while (i < length) {
     if ((i & 15) == 0) {
-      printf("@@计数器-%d\n", counter);
+      printf("@COUNTER %d\n", counter);
       counter++;
       /*
        * Start of a new line.
@@ -248,118 +248,6 @@ static const guint8 *get_field_data(GSList *src_list, field_info *fi) {
   }
   return NULL; /* not found */
 }
-
-///* Print a tree's data, and any child nodes. */
-// static void proto_tree_print_node(proto_node *node, gpointer data) {
-//   field_info *fi = PNODE_FINFO(node);
-//   print_data *pdata = (print_data *)data;
-//   const guint8 *pd;
-//   gchar label_str[ITEM_LABEL_LENGTH];
-//   gchar *label_ptr;
-//
-//   /* dissection with an invisible proto tree? */
-//   ws_assert(fi);
-//
-//   /* Don't print invisible entries. */
-//   if (proto_item_is_hidden(node) && (prefs.display_hidden_proto_items ==
-//   FALSE))
-//     return;
-//
-//   /* Give up if we've already gotten an error. */
-//   if (!pdata->success)
-//     return;
-//
-//   /* was a free format label produced? */
-//   if (fi->rep) {
-//     label_ptr = fi->rep->representation;
-//   } else { /* no, make a generic label */
-//     label_ptr = label_str;
-//     proto_item_fill_label(fi, label_str);
-//   }
-//
-//   if (proto_item_is_generated(node))
-//     label_ptr = g_strconcat("[", label_ptr, "]", NULL);
-//
-//   pdata->success = print_line(pdata->stream, pdata->level, label_ptr);
-//
-//   if (proto_item_is_generated(node))
-//     g_free(label_ptr);
-//
-//   if (!pdata->success)
-//     return;
-//
-//   /*
-//    * If -O is specified, only display the protocols which are in the
-//    * lookup table.  Only check on the first level: once we start printing
-//    * a tree, print the rest of the subtree.  Otherwise we won't print
-//    * subitems whose abbreviation doesn't match the protocol--for example
-//    * text items (whose abbreviation is simply "text").
-//    */
-//   if ((pdata->output_only_tables != NULL) && (pdata->level == 0) &&
-//       (g_hash_table_lookup(pdata->output_only_tables, fi->hfinfo->abbrev) ==
-//        NULL)) {
-//     return;
-//   }
-//
-//   /* If it's uninterpreted data, dump it (unless our caller will
-//      be printing the entire packet in hex). */
-//   if ((fi->hfinfo->id == proto_data) && (pdata->print_hex_for_data)) {
-//     /*
-//      * Find the data for this field.
-//      */
-//     pd = get_field_data(pdata->src_list, fi);
-//     if (pd) {
-//       if (!print_line(pdata->stream, 0, "")) {
-//         pdata->success = FALSE;
-//         return;
-//       }
-//       if (!modify_print_hex_data_buffer(pdata->stream, pd, fi->length,
-//                                         pdata->encoding)) {
-//         pdata->success = FALSE;
-//         return;
-//       }
-//     }
-//   }
-//
-//   /* If we're printing all levels, or if this node is one with a
-//      subtree and its subtree is expanded, recurse into the subtree,
-//      if it exists. */
-//   ws_assert((fi->tree_type >= -1) && (fi->tree_type < num_tree_types));
-//   if ((pdata->print_dissections == print_dissections_expanded) ||
-//       ((pdata->print_dissections == print_dissections_as_displayed) &&
-//        (fi->tree_type >= 0) && tree_expanded(fi->tree_type))) {
-//     if (node->first_child != NULL) {
-//       pdata->level++;
-//       proto_tree_children_foreach(node, proto_tree_print_node, pdata);
-//       pdata->level--;
-//       if (!pdata->success)
-//         return;
-//     }
-//   }
-// }
-
-//// print hex
-// gboolean proto_tree_print_hex(print_dissections_e print_dissections,
-//                               gboolean print_hex, epan_dissect_t *edt,
-//                               GHashTable *output_only_tables,
-//                               print_stream_t *stream) {
-//   print_data data;
-//
-//   /* Create the output */
-//   data.level = 0;
-//   data.stream = stream;
-//   data.success = TRUE;
-//   data.src_list = edt->pi.data_src;
-//   data.encoding = (packet_char_enc)edt->pi.fd->encoding;
-//   data.print_dissections = print_dissections;
-//   /* If we're printing the entire packet in hex, don't
-//      print uninterpreted data fields in hex as well. */
-//   data.print_hex_for_data = !print_hex;
-//   data.output_only_tables = output_only_tables;
-//
-//   proto_tree_children_foreach(edt->tree, proto_tree_print_node, &data);
-//   return data.success;
-// }
 
 /*
  *
