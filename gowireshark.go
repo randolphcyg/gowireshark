@@ -374,7 +374,7 @@ func CChar2GoStr(src *C.char) (res string) {
 	return s1
 }
 
-// GetSpecificFrameHexData TODO 获取16进制内容
+// GetSpecificFrameHexData TODO get specific frame hex data
 func GetSpecificFrameHexData(inputFilepath string, num int) (err error) {
 	// init cap file only once
 	err = InitCapFile(inputFilepath)
