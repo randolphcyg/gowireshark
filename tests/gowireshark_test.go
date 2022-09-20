@@ -90,12 +90,22 @@ map[1:{"_index":"packets-2017-06-09",
 "offset":{},
 "_source":{"layers":{"frame":{}}}}}}]
 */
-func TestProtoTreeToJsonSpecificFrame(t *testing.T) {
+func TestProtoTreeToJsonAllFrame(t *testing.T) {
 	inputFilepath := "../pcaps/s7comm_clean.pcap"
 	resBytes, err := gowireshark.ProtoTreeToJsonAllFrame(inputFilepath)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	fmt.Printf("%s", resBytes)
+	fmt.Printf("%s\n", resBytes)
+}
+
+func TestProtoTreeToJsonSpecificFrame(t *testing.T) {
+	inputFilepath := "../pcaps/s7comm_clean.pcap"
+	resBytes, err := gowireshark.ProtoTreeToJsonSpecificFrame(inputFilepath, 2)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Printf("%s\n", resBytes)
 }
