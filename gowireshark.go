@@ -45,6 +45,7 @@ gboolean get_hex_part(print_stream_t *stream, epan_dissect_t *edt);
 */
 import "C"
 import (
+	"encoding/json"
 	"reflect"
 	"strconv"
 	"unsafe"
@@ -278,17 +279,86 @@ func InitCapFile(inputFilepath string) (err error) {
 	return
 }
 
-// ProtoTreeToJsonSpecificFrame transfer proto tree to json format
-func ProtoTreeToJsonSpecificFrame(num int) (res string, err error) {
-	if num < 1 {
-		err = errors.Wrap(ErrIllegalPara, strconv.Itoa(num))
+// ProtoTreeToJsonAllFrame transfer proto tree to json format
+func ProtoTreeToJsonAllFrame(inputFilepath string) (resBytes []byte, err error) {
+	// init cap file only once
+	err = InitCapFile(inputFilepath)
+	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	// The core logic is implemented by c
-	src := C.json_tree(C.int(num))
-	res = CChar2GoStr(src)
+	counter := 1
+	allFrameRes := make(map[string]string)
+	// TODO when get the size of capture file, use parallel logic
+	for {
+		// The core logic is implemented by c
+		src := C.json_tree(C.int(counter))
+
+		frameData := CChar2GoStr(src)
+		log.Error(counter, frameData)
+
+		allFrameRes[strconv.Itoa(counter)] = frameData
+		counter++
+
+		if frameData == "" {
+			log.Error("result is blank")
+			break
+		}
+
+		if counter == 4 {
+			break
+		}
+
+	}
+
+	resBytes, err = json.Marshal(allFrameRes)
+	if err != nil {
+		log.Error(err)
+	}
+
+	return
+}
+
+// ProtoTreeToJsonSpecificFrame transfer specific frame proto tree to json format
+func ProtoTreeToJsonSpecificFrame(inputFilepath string, num int) (resBytes []byte, err error) {
+	// init cap file only once
+	err = InitCapFile(inputFilepath)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	counter := 0
+	allFrameRes := make(map[string]string)
+	// TODO when get the size of capture file, use parallel logic
+	for {
+		counter++
+		if counter < num && num != counter {
+			continue
+		}
+
+		// The core logic is implemented by c
+		src := C.json_tree(C.int(counter))
+
+		frameData := CChar2GoStr(src)
+		log.Error(counter, frameData)
+
+		allFrameRes[strconv.Itoa(counter)] = frameData
+
+		if frameData == "" {
+			log.Error("result is blank")
+			break
+		}
+
+		break
+
+	}
+
+	resBytes, err = json.Marshal(allFrameRes)
+	if err != nil {
+		log.Error(err)
+	}
 
 	return
 }

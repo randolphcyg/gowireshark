@@ -2,7 +2,6 @@ package tests
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 
 	"github.com/randolphcyg/gowireshark"
@@ -92,38 +91,11 @@ map[1:{"_index":"packets-2017-06-09",
 "_source":{"layers":{"frame":{}}}}}}]
 */
 func TestProtoTreeToJsonSpecificFrame(t *testing.T) {
-	all := make(map[string]string)
 	inputFilepath := "../pcaps/s7comm_clean.pcap"
-
-	// init cap file only once
-	err := gowireshark.InitCapFile(inputFilepath)
+	resBytes, err := gowireshark.ProtoTreeToJsonAllFrame(inputFilepath)
 	if err != nil {
 		fmt.Println(err)
-		return
 	}
 
-	counter := 1
-
-	for {
-		frameData, err := gowireshark.ProtoTreeToJsonSpecificFrame(counter)
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-
-		all[strconv.Itoa(counter)] = frameData
-		counter++
-
-		if frameData == "" {
-			fmt.Println("result is blank")
-			break
-		}
-
-		if counter == 5 {
-			break
-		}
-
-	}
-
-	fmt.Println(all)
+	fmt.Printf("%s", resBytes)
 }
