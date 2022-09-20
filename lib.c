@@ -244,7 +244,7 @@ void print_specific_frame_hex_data(int num) {
 }
 
 // json_tree transfer proto tree to json format
-char* json_tree(int num) {
+char *json_tree(int num) {
   static output_fields_t *output_fields = NULL;
   static gchar **protocolfilter = NULL;
   static pf_flags protocolfilter_flags = PF_NONE;
@@ -256,12 +256,6 @@ char* json_tree(int num) {
   epan_dissect_t *edt;
   print_stream_t *print_stream;
   print_stream = print_stream_text_stdio_new(stdout);
-
-//   cJSON 	*jsonroot = NULL;
-//   	//新建一个JSON项目：jsonroot
-//       jsonroot = cJSON_CreateObject();
-//
-//     char *allout =  cJSON_PrintUnformatted(jsonroot);
 
   // start reading packets
   while (read_packet(&edt)) {
@@ -278,19 +272,15 @@ char* json_tree(int num) {
     protocolfilter = wmem_strsplit(wmem_epan_scope(), NULL, " ", -1);
 
     char *out;
-    out = proto_tree_to_json(NULL, print_dissections_expanded, TRUE, protocolfilter,
-                       protocolfilter_flags, edt, &cfile.cinfo,
-                       node_children_grouper);
-//    printf("FRAME %d, result:\n %s\n", cfile.count, out);
+    out = proto_tree_to_json(NULL, print_dissections_expanded, TRUE,
+                             protocolfilter, protocolfilter_flags, edt,
+                             &cfile.cinfo, node_children_grouper);
 
     epan_dissect_free(edt);
     edt = NULL;
 
-//    cJSON_AddItemToObject(jsonroot, "1", out);
     return out;
     break;
   }
-
-//  printf("allout == %s\n\n", allout);
   return "";
 }
