@@ -77,7 +77,6 @@ static gboolean modify_print_hex_data_buffer(const guchar *cp, guint length,
   guchar c;
   gchar line[MAX_LINE_LEN + 1];
   gchar line_offset[MAX_LINE_LEN + 1];
-  //  gchar line_offset[MAX_LINE_LEN + 1];
   unsigned int use_digits;
 
   static gchar binhex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
