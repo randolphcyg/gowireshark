@@ -95,7 +95,7 @@ func TestProtoTreeToJsonAllFrame(t *testing.T) {
 }
 
 func TestProtoTreeToJsonSpecificFrame(t *testing.T) {
-	resBytes, err := gowireshark.ProtoTreeToJsonSpecificFrame(inputFilepath, 2)
+	resBytes, err := gowireshark.ProtoTreeToJsonSpecificFrame(inputFilepath, 3)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -104,8 +104,10 @@ func TestProtoTreeToJsonSpecificFrame(t *testing.T) {
 }
 
 func TestGetSpecificFrameHexData(t *testing.T) {
-	err := gowireshark.GetSpecificFrameHexData(inputFilepath, 2)
+	resBytes, err := gowireshark.GetSpecificFrameHexData(inputFilepath, 3)
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	fmt.Printf("%s\n", resBytes)
 }

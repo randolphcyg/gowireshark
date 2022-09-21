@@ -68,12 +68,16 @@ struct _output_fields {
    offset, 2 blanks separating offset
    from data dump, data dump */
 
-static gboolean modify_print_hex_data_buffer(print_stream_t *stream,
-                                             const guchar *cp, guint length,
-                                             packet_char_enc encoding) {
+static gboolean modify_print_hex_data_buffer(const guchar *cp, guint length,
+                                             cJSON *cjson_offset,
+                                             cJSON *cjson_hex,
+                                             cJSON *cjson_ascii) {
+
   register unsigned int ad, i, j, k, l;
   guchar c;
   gchar line[MAX_LINE_LEN + 1];
+  gchar line_offset[MAX_LINE_LEN + 1];
+  //  gchar line_offset[MAX_LINE_LEN + 1];
   unsigned int use_digits;
 
   static gchar binhex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
@@ -99,12 +103,8 @@ static gboolean modify_print_hex_data_buffer(print_stream_t *stream,
   i = 0;
   j = 0;
   k = 0;
-  // counter
-  int counter = 0;
   while (i < length) {
     if ((i & 15) == 0) {
-      printf("@COUNTER %d\n", counter);
-      counter++;
       /*
        * Start of a new line.
        */
@@ -113,9 +113,14 @@ static gboolean modify_print_hex_data_buffer(print_stream_t *stream,
       do {
         l--;
         c = (ad >> (l * 4)) & 0xF;
-        printf("# DATA1 %d\n", c);
-        line[j++] = binhex[c];
+        line[j] = binhex[c];
+        // offset data
+        line_offset[j] = binhex[c];
+        line_offset[j + 1] = '\0';
+        j++;
       } while (l != 0);
+      // add offset to json obj
+      cJSON_AddItemToArray(cjson_offset, cJSON_CreateString(line_offset));
       line[j++] = ' ';
       line[j++] = ' ';
       memset(line + j, ' ', DATA_DUMP_LEN);
@@ -130,13 +135,6 @@ static gboolean modify_print_hex_data_buffer(print_stream_t *stream,
     line[j++] = binhex[c & 0xf];
     j++;
 
-    printf("## DATA2 %d\n", EBCDIC_to_ASCII1(c));
-
-    if ((c >= ' ') && (c < 0x7f)) {
-      printf("### DATA3 %c\n", c);
-    } else {
-      printf("### DATA3 %s\n", ".");
-    }
     line[k++] = ((c >= ' ') && (c < 0x7f)) ? c : '.';
     i++;
     if (((i & 15) == 0) || (i == length)) {
@@ -147,18 +145,30 @@ static gboolean modify_print_hex_data_buffer(print_stream_t *stream,
        * and advance the offset.
        */
       line[k] = '\0';
-      bool print_line_res;
-      print_line_res = print_line(stream, 0, line);
-      if (!print_line_res)
-        return FALSE;
+
+      // hex data
+      char line_hex[48];
+      strncpy(line_hex, line + use_digits + 2, 48);
+      line_hex[47] = '\0';
+      // add hex to json obj
+      cJSON_AddItemToArray(cjson_hex, cJSON_CreateString(line_hex));
+
+      // ascii str data
+      char line_ascii[17];
+      strncpy(line_ascii, line + use_digits + 52, 17);
+      line_ascii[16] = '\0';
+      // add ascii to json obj
+      cJSON_AddItemToArray(cjson_ascii, cJSON_CreateString(line_ascii));
+
       ad += 16;
     }
   }
   return TRUE;
 }
 
-// get_hex_part TODO: get hex part of data and turn it to str
-gboolean get_hex_part(print_stream_t *stream, epan_dissect_t *edt) {
+// get_hex_data get hex part of data
+gboolean get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset,
+                      cJSON *cjson_hex, cJSON *cjson_ascii) {
   gboolean multiple_sources;
   GSList *src_le;
   tvbuff_t *tvb;
@@ -182,15 +192,14 @@ gboolean get_hex_part(print_stream_t *stream, epan_dissect_t *edt) {
       name = get_data_source_name(src);
       line = g_strdup_printf("%s:", name);
       wmem_free(NULL, name);
-      print_line(stream, 0, line);
       g_free(line);
     }
     length = tvb_captured_length(tvb);
     if (length == 0)
       return TRUE;
     cp = tvb_get_ptr(tvb, 0, length);
-    if (!modify_print_hex_data_buffer(stream, cp, length,
-                                      (packet_char_enc)edt->pi.fd->encoding))
+    if (!modify_print_hex_data_buffer(cp, length, cjson_offset, cjson_hex,
+                                      cjson_ascii))
       return FALSE;
   }
   return TRUE;
@@ -555,33 +564,28 @@ proto_tree_to_json(output_fields_t *fields,
                    proto_node_children_grouper_func node_children_grouper) {
   write_json_data data;
 
+  // json root node
   root = cJSON_CreateObject();
-
   // set json obj common value
   write_json_index(edt);
   cJSON_AddStringToObject(root, "_type", "doc");
-  cJSON *cjson_score = NULL;
-  cjson_score = cJSON_CreateObject();
+  cJSON *cjson_score = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "_score", cjson_score);
 
-  // TODO 1. ascii
-  cJSON *cjson_ascii = NULL;
-  cjson_ascii = cJSON_CreateObject();
-  cJSON_AddItemToObject(root, "ascii", cjson_ascii);
-  // TODO 3. hex
-  cJSON *cjson_hex = NULL;
-  cjson_hex = cJSON_CreateObject();
-  cJSON_AddItemToObject(root, "hex", cjson_hex);
-  // TODO 4. offset
-  cJSON *cjson_offset = NULL;
-  cjson_offset = cJSON_CreateObject();
-  cJSON_AddItemToObject(root, "offset", cjson_offset);
+  cJSON *cjson_offset = cJSON_CreateObject();
+  cJSON *cjson_hex = cJSON_CreateObject();
+  cJSON *cjson_ascii = cJSON_CreateObject();
+  // process get hex data
+  get_hex_data(edt, cjson_offset, cjson_hex, cjson_ascii);
 
-  cJSON *cjson_source = NULL;
-  cjson_source = cJSON_CreateObject();
+  cJSON_AddItemToObject(root, "offset", cjson_offset);
+  cJSON_AddItemToObject(root, "hex", cjson_hex);
+  cJSON_AddItemToObject(root, "ascii", cjson_ascii);
+
+  cJSON *cjson_source = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "_source", cjson_source);
 
-  // new layers
+  // add layers node
   cjson_layers = cJSON_CreateObject();
   cJSON_AddItemToObject(cjson_source, "layers", cjson_layers);
 
