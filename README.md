@@ -23,11 +23,14 @@
 - tests 测试文件夹
 - gowireshark.go go封装最终对外的接口
 - lib.c c封装wireshark接口，提供给gowireshark.go调用
+- protoTreeToJson 修复和使用的wireshark源码
+- cJSON c的json库
 
 树结构:
 ```
-gowireshark/
+gowireshark
 ├── README.md
+├── cJSON.c
 ├── common/
 │   ├── middleware/
 │   └── tool/
@@ -35,23 +38,25 @@ gowireshark/
 ├── go.sum
 ├── gowireshark.go
 ├── include/
+│   ├── cJSON.h
 │   ├── lib.h
+│   ├── protoTreeToJson.h
 │   └── wireshark/
 ├── lib.c
 ├── libs/
-│   ├── libwireshark.so*
-│   ├── libwireshark.so.15*
-│   ├── libwireshark.so.15.0.8*
-│   ├── libwiretap.so*
-│   ├── libwiretap.so.12*
-│   ├── libwiretap.so.12.0.8*
-│   ├── libwsutil.so*
-│   ├── libwsutil.so.13*
-│   └── libwsutil.so.13.1.0*
+│   ├── libwireshark.so
+│   ├── libwireshark.so.15
+│   ├── libwireshark.so.15.0.8
+│   ├── libwiretap.so
+│   ├── libwiretap.so.12
+│   ├── libwiretap.so.12.0.8
+│   ├── libwsutil.so
+│   ├── libwsutil.so.13
+│   └── libwsutil.so.13.1.0
 ├── pcaps/
 │   └── s7comm_clean.pcap
+├── protoTreeToJson.c
 └── tests/
-    ├── gowireshark.log
     └── gowireshark_test.go
 ```
 
@@ -185,5 +190,6 @@ tree -L 2 -F gowireshark
 ## 5. TODO
 
 1. ~~修复解析数据包过程错误截断问题~~
-2. 增加修正为输出解析后的json数据
-3. 增加实时监听解析功能
+2. ~~增加输出json格式解析结果~~
+3. ~~增加输出16进制数据~~
+4. 增加实时监听解析功能
