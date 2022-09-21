@@ -18,6 +18,7 @@ package gowireshark
 #include <epan/print.h>
 #include <epan/print_stream.h>
 #include <epan/tvbuff.h>
+#include <include/cJSON.h>
 #include <stdio.h>
 #include <wiretap/wtap-int.h>
 #include <wiretap/wtap.h>
@@ -36,14 +37,13 @@ void print_first_frame();
 void print_first_several_frame(int count);
 // Dissect and print specific frame
 void print_specific_frame(int num);
-// Dissect and print hex_data of specific frame
-void print_specific_frame_hex_data(int num);
 // transfer proto tree to json format
-char* json_tree(int num);
+char *json_tree(int num);
 // Dissect and print hex_data of specific frame
-void print_specific_frame_hex_data(int num);
+char *print_specific_frame_hex_data(int num);
 // inner func
-gboolean get_hex_part(print_stream_t *stream, epan_dissect_t *edt);
+gboolean get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset,
+                      cJSON *cjson_hex, cJSON *cjson_ascii);
 */
 import "C"
 import (
@@ -356,6 +356,7 @@ func ProtoTreeToJsonSpecificFrame(inputFilepath string, num int) (resBytes []byt
 	resBytes, err = json.Marshal(allFrameRes)
 	if err != nil {
 		log.Error(err)
+		return
 	}
 
 	return
@@ -374,8 +375,8 @@ func CChar2GoStr(src *C.char) (res string) {
 	return s1
 }
 
-// GetSpecificFrameHexData TODO get specific frame hex data
-func GetSpecificFrameHexData(inputFilepath string, num int) (err error) {
+// GetSpecificFrameHexData get specific frame hex data
+func GetSpecificFrameHexData(inputFilepath string, num int) (resBytes []byte, err error) {
 	// init cap file only once
 	err = InitCapFile(inputFilepath)
 	if err != nil {
@@ -383,7 +384,18 @@ func GetSpecificFrameHexData(inputFilepath string, num int) (err error) {
 		return
 	}
 
-	C.print_specific_frame_hex_data(C.int(num))
+	src := C.print_specific_frame_hex_data(C.int(num))
+	hexData := CChar2GoStr(src)
+	if hexData == "" {
+		log.Error("result is blank")
+		return
+	}
+
+	resBytes, err = json.Marshal(hexData)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 
 	return
 }

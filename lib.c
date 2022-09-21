@@ -222,10 +222,8 @@ void print_specific_frame(int num) {
   }
 }
 // Dissect and print hex_data of specific frame
-void print_specific_frame_hex_data(int num) {
+char *print_specific_frame_hex_data(int num) {
   epan_dissect_t *edt;
-  print_stream_t *print_stream;
-  print_stream = print_stream_text_stdio_new(stdout);
   // start reading packets
   while (read_packet(&edt)) {
     if (num != cfile.count) {
@@ -234,13 +232,25 @@ void print_specific_frame_hex_data(int num) {
       continue;
     }
 
-    printf("### num【%u】\n", num);
-    get_hex_part(print_stream, edt);
+    cJSON *cjson_hex_root = cJSON_CreateObject();
+
+    cJSON *cjson_offset = cJSON_CreateArray();
+    cJSON *cjson_hex = cJSON_CreateArray();
+    cJSON *cjson_ascii = cJSON_CreateArray();
+
+    get_hex_data(edt, cjson_offset, cjson_hex, cjson_ascii);
+
+    cJSON_AddItemToObject(cjson_hex_root, "offset", cjson_offset);
+    cJSON_AddItemToObject(cjson_hex_root, "hex", cjson_hex);
+    cJSON_AddItemToObject(cjson_hex_root, "ascii", cjson_ascii);
 
     epan_dissect_free(edt);
     edt = NULL;
+
+    return cJSON_PrintUnformatted(cjson_hex_root);
     break;
   }
+  return "";
 }
 
 // json_tree transfer proto tree to json format
