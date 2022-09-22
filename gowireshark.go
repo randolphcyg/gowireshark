@@ -64,6 +64,7 @@ var (
 	ErrReadFile               = errors.New("occur error when read file ")
 	ErrIllegalPara            = errors.New("illegal parameter")
 	WarnFrameIndexOutOfBounds = errors.New("frame index is out of bounds")
+	ErrUnmarshalDissectResult = errors.New("unmarshal dissect result error")
 )
 
 // SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
@@ -281,87 +282,6 @@ func InitCapFile(inputFilepath string) (err error) {
 	return
 }
 
-// ProtoTreeToJsonAllFrame transfer proto tree to json format
-func ProtoTreeToJsonAllFrame(inputFilepath string) (resBytes []byte, err error) {
-	// init cap file only once
-	err = InitCapFile(inputFilepath)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	counter := 1
-	allFrameRes := make(map[string]string)
-	// TODO when get the size of capture file, use parallel logic
-	for {
-		// The core logic is implemented by c
-		src := C.json_tree(C.int(counter))
-
-		frameData := CChar2GoStr(src)
-		log.Error(counter, frameData)
-
-		allFrameRes[strconv.Itoa(counter)] = frameData
-		counter++
-
-		if frameData == "" {
-			log.Error("result is blank")
-			break
-		}
-
-		if counter == 4 {
-			break
-		}
-
-	}
-
-	resBytes, err = json.Marshal(allFrameRes)
-	if err != nil {
-		log.Error(err)
-	}
-
-	return
-}
-
-// ProtoTreeToJsonSpecificFrame transfer specific frame proto tree to json format
-func ProtoTreeToJsonSpecificFrame(inputFilepath string, num int) (resBytes []byte, err error) {
-	// init cap file only once
-	err = InitCapFile(inputFilepath)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	counter := 0
-	allFrameRes := make(map[string]string)
-	// TODO when get the size of capture file, use parallel logic
-	for {
-		counter++
-		if counter < num && num != counter {
-			continue
-		}
-
-		// The core logic is implemented by c
-		src := C.json_tree(C.int(counter))
-		frameData := CChar2GoStr(src)
-		if frameData == "" {
-			log.Error("result is blank")
-			break
-		}
-
-		allFrameRes[strconv.Itoa(counter)] = frameData
-
-		break
-	}
-
-	resBytes, err = json.Marshal(allFrameRes)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	return
-}
-
 // CChar2GoStr C string -> Go string
 func CChar2GoStr(src *C.char) (res string) {
 	var s0 string
@@ -395,6 +315,104 @@ func GetSpecificFrameHexData(inputFilepath string, num int) (resBytes []byte, er
 	if err != nil {
 		log.Error(err)
 		return
+	}
+
+	return
+}
+
+// DissectResult c解析结果结构体
+type DissectResult struct {
+	WsIndex  string   `json:"_index"`
+	Offset   []string `json:"offset"`
+	Hex      []string `json:"hex"`
+	Ascii    []string `json:"ascii"`
+	WsSource struct {
+		Layers map[string]interface{} `json:"layers"`
+	} `json:"_source"`
+}
+
+// UnmarshalDissectResult 反序列化c解析结果
+func UnmarshalDissectResult(src string) (dissectResultWrap DissectResult, err error) {
+	err = json.Unmarshal([]byte(src), &dissectResultWrap)
+	if err != nil {
+		return DissectResult{}, err
+	}
+
+	return
+}
+
+// ProtoTreeToJsonSpecificFrame transfer specific frame proto tree to json format
+func ProtoTreeToJsonSpecificFrame(inputFilepath string, num int) (allFrameDissectRes map[string]DissectResult, err error) {
+	// init cap file only once
+	err = InitCapFile(inputFilepath)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	counter := 0
+	allFrameDissectRes = make(map[string]DissectResult)
+	// TODO when get the size of capture file, use parallel logic
+	for {
+		counter++
+		if counter < num && num != counter {
+			continue
+		}
+
+		// The core logic is implemented by c
+		src := C.json_tree(C.int(counter))
+		frameData := CChar2GoStr(src)
+		if frameData == "" {
+			log.Info("result is empty, all frame dissect over")
+			break
+		}
+
+		// unmarshal dissect result
+		singleFrameData, err := UnmarshalDissectResult(frameData)
+		if err != nil {
+			err = errors.Wrap(ErrUnmarshalDissectResult, "Frame num "+strconv.Itoa(counter))
+			log.Error(err)
+			break
+		}
+		allFrameDissectRes[strconv.Itoa(counter)] = singleFrameData
+
+		break
+	}
+
+	return
+}
+
+// ProtoTreeToJsonAllFrame transfer proto tree to json format
+func ProtoTreeToJsonAllFrame(inputFilepath string) (allFrameDissectRes map[string]DissectResult, err error) {
+	// init cap file only once
+	err = InitCapFile(inputFilepath)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	counter := 1
+	allFrameDissectRes = make(map[string]DissectResult)
+	// TODO when get the size of capture file, use parallel logic
+	for {
+		// The core logic is implemented by c
+		src := C.json_tree(C.int(counter))
+
+		frameData := CChar2GoStr(src)
+
+		// unmarshal dissect result
+		singleFrameData, err := UnmarshalDissectResult(frameData)
+		if frameData == "" {
+			log.Info("result is empty, all frame dissect over")
+			break
+		}
+		if err != nil {
+			err = errors.Wrap(ErrUnmarshalDissectResult, "Frame num "+strconv.Itoa(counter))
+			log.Error(err)
+			break
+		}
+		allFrameDissectRes[strconv.Itoa(counter)] = singleFrameData
+		counter++
 	}
 
 	return
