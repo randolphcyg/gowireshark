@@ -571,9 +571,9 @@ proto_tree_to_json(output_fields_t *fields,
   cJSON *cjson_score = cJSON_CreateObject();
   cJSON_AddItemToObject(root, "_score", cjson_score);
 
-  cJSON *cjson_offset = cJSON_CreateObject();
-  cJSON *cjson_hex = cJSON_CreateObject();
-  cJSON *cjson_ascii = cJSON_CreateObject();
+  cJSON *cjson_offset = cJSON_CreateArray();
+  cJSON *cjson_hex = cJSON_CreateArray();
+  cJSON *cjson_ascii = cJSON_CreateArray();
   // process get hex data
   get_hex_data(edt, cjson_offset, cjson_hex, cjson_ascii);
 

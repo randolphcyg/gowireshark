@@ -1,8 +1,11 @@
 package tests
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/randolphcyg/gowireshark"
 )
@@ -75,34 +78,6 @@ func TestDissectSpecificFrameByGoOutOfBounds(t *testing.T) {
 	}
 }
 
-/*
-RESULT:
-map[1:{"_index":"packets-2017-06-09",
-"_type":"doc",
-"_score":{},
-"ascii":{},
-"hex":{},
-"offset":{},
-"_source":{"layers":{"frame":{}}}}}}]
-*/
-func TestProtoTreeToJsonAllFrame(t *testing.T) {
-	resBytes, err := gowireshark.ProtoTreeToJsonAllFrame(inputFilepath)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	fmt.Printf("%s\n", resBytes)
-}
-
-func TestProtoTreeToJsonSpecificFrame(t *testing.T) {
-	resBytes, err := gowireshark.ProtoTreeToJsonSpecificFrame(inputFilepath, 3)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	fmt.Printf("%s\n", resBytes)
-}
-
 func TestGetSpecificFrameHexData(t *testing.T) {
 	resBytes, err := gowireshark.GetSpecificFrameHexData(inputFilepath, 3)
 	if err != nil {
@@ -110,4 +85,60 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 	}
 
 	fmt.Printf("%s\n", resBytes)
+}
+
+/*
+	{
+		"1": {
+			"_index": "packets-20xx-0x-0x",
+			"offset": ["0000", "0010", ...],
+			"hex": ["00 1c 06 1c 69 e4 20 47 47 87 d4 96 08 00 45 00", ...],
+			"ascii": ["....i. GG.....E.", ...],
+			"_source": {
+				"layers": {
+	                "frame": {
+						...
+					},
+					"eth": {
+						"eth.dst": "00:1c:06:1c:69:e4",
+						"eth.dst_tree": {
+	                        ...
+						}
+					},
+	                ...
+				}
+			}
+		},
+	    ...
+	}
+*/
+func TestProtoTreeToJsonSpecificFrame(t *testing.T) {
+	specificFrameDissectRes, err := gowireshark.ProtoTreeToJsonSpecificFrame(inputFilepath, 3)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	resBytes, err := json.Marshal(specificFrameDissectRes)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	fmt.Printf("%s\n", resBytes)
+}
+
+func TestProtoTreeToJsonAllFrame(t *testing.T) {
+	allFrameDissectRes, err := gowireshark.ProtoTreeToJsonAllFrame(inputFilepath)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	resBytes, err := json.Marshal(allFrameDissectRes)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	fmt.Printf("%s\n", resBytes)
+	fmt.Printf("%d\n", len(resBytes))
 }
