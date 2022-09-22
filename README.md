@@ -83,31 +83,51 @@ graph LR
 
 > 环境要求: x86-64, 安装glib2.0
 
+```shell
+# 安装glib-2.0
+sudo apt install libglib2.0-dev -y
+```
+
 ### 3.1. 安装
 
 ```shell
 go get github.com/randolphcyg/gowireshark
 ```
 
-### 3.2. 测试代码：
+### 3.2. 根据系统选择动态链接库
 
-```go
-package main
+因为github有大文件限制，因此so文件上传不了：
 
-import (
-    "fmt"
+阿里云盘下载：「gowireshark-libs」https://www.aliyundrive.com/s/j3aVfoFtHgp
 
-    "github.com/randolphcyg/gowireshark"
-)
+将9个文件放到/libs目录下即可。
 
-func main() {
-    filepath := "pcaps/s7comm_clean.pcap"
-    err := gowireshark.DissectFirstFrame(filepath)
-    if err != nil {
-        fmt.Println(err)
-    }
-}
-```
+### 3.3. 测试代码：
+
+1. tests文件夹下用go test命令直接测试
+   ```shell
+   go test -v -run TestDissectFirstFrame
+   ```
+   若没有出现报错即可。
+
+2. 项目外
+   ```go
+   package main
+   
+   import (
+       "fmt"
+   
+       "github.com/randolphcyg/gowireshark"
+   )
+   
+   func main() {
+       filepath := "pcaps/s7comm_clean.pcap"
+       err := gowireshark.DissectFirstFrame(filepath)
+       if err != nil {
+           fmt.Println(err)
+       }
+   }
+   ```
 
 ## 4. 如何更新及规范说明
 
@@ -184,7 +204,12 @@ tree -L 2 -F gowireshark
 5. 在linux环境测试
    非特殊情况请进行指定函数测试，例如:
    ```shell
+   # 解析并输出第一帧
    go test -v -run TestDissectFirstFrame
+   # 解析并以Json格式输出某一帧
+   go test -v -run TestProtoTreeToJsonSpecificFrame
+   # 解析并输出某一帧的hex等数据
+   go test -v -run TestGetSpecificFrameHexData
    ```
 
 ## 5. TODO
