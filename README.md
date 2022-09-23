@@ -122,7 +122,7 @@ go get github.com/randolphcyg/gowireshark
    
    func main() {
        filepath := "pcaps/s7comm_clean.pcap"
-       err := gowireshark.DissectFirstFrame(filepath)
+       err := gowireshark.DissectPrintFirstFrame(filepath)
        if err != nil {
            fmt.Println(err)
        }
@@ -205,9 +205,9 @@ tree -L 2 -F gowireshark
    非特殊情况请进行指定函数测试，例如:
    ```shell
    # 解析并输出第一帧
-   go test -v -run TestDissectFirstFrame
+   go test -v -run TestDissectPrintFirstFrame
    # 解析并以Json格式输出某一帧
-   go test -v -run TestProtoTreeToJsonSpecificFrame
+   go test -v -run TestGetSpecificFrameProtoTreeInJson
    # 解析并输出某一帧的hex等数据
    go test -v -run TestGetSpecificFrameHexData
    ```

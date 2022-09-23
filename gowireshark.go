@@ -25,7 +25,7 @@ package gowireshark
 #include <wsutil/json_dumper.h>
 #include <wsutil/nstime.h>
 #include <wsutil/privileges.h>
-// init modules & init capture_file
+// Init modules & Init capture_file
 int init(char *filename);
 // Read each frame
 gboolean read_packet(epan_dissect_t **edt_r);
@@ -37,13 +37,10 @@ void print_first_frame();
 void print_first_several_frame(int count);
 // Dissect and print specific frame
 void print_specific_frame(int num);
-// transfer proto tree to json format
-char *json_tree(int num);
-// Dissect and print hex_data of specific frame
-char *print_specific_frame_hex_data(int num);
-// inner func
-gboolean get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset,
-                      cJSON *cjson_hex, cJSON *cjson_ascii);
+// Dissect and get hex data of specific frame
+char *get_specific_frame_hex_data(int num);
+// Get proto tree in json format
+char *proto_tree_in_json(int num);
 */
 import "C"
 import (
@@ -65,6 +62,7 @@ var (
 	ErrIllegalPara            = errors.New("illegal parameter")
 	WarnFrameIndexOutOfBounds = errors.New("frame index is out of bounds")
 	ErrUnmarshalDissectResult = errors.New("unmarshal dissect result error")
+	ErrEmptyDissectResult     = errors.New("proto dissect result is empty by c")
 )
 
 // SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
@@ -74,6 +72,19 @@ const SINGLEPKTMAXLEN = 65535
 func init() {
 	// init logger
 	logger.Init()
+}
+
+// CChar2GoStr C string -> Go string
+func CChar2GoStr(src *C.char) (res string) {
+	var s0 string
+	var s0Hdr = (*reflect.StringHeader)(unsafe.Pointer(&s0))
+	s0Hdr.Data = uintptr(unsafe.Pointer(src))
+	s0Hdr.Len = int(C.strlen(src))
+
+	sLen := int(C.strlen(src))
+	s1 := string((*[SINGLEPKTMAXLEN]byte)(unsafe.Pointer(src))[:sLen:sLen])
+
+	return s1
 }
 
 // EpanVersion get epan module's version
@@ -91,35 +102,28 @@ func EpanPluginsSupported() int {
 	return int(C.epan_plugins_supported())
 }
 
-// DissectAllFrame Dissect and print all frames
-func DissectAllFrame(filepath string) (err error) {
-	if !tool.IsFileExist(filepath) {
-		err = errors.Wrap(ErrFileNotFound, filepath)
+// initCapFile Init capture file only once
+func initCapFile(inputFilepath string) (err error) {
+	if !tool.IsFileExist(inputFilepath) {
+		err = errors.Wrap(ErrFileNotFound, inputFilepath)
 		log.Error(err)
 		return
 	}
 
-	if errNo := C.init(C.CString(filepath)); errNo != 0 {
+	errNo := C.init(C.CString(inputFilepath))
+	if errNo != 0 {
 		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
 		log.Error(err)
 		return
 	}
-
-	C.print_all_frame()
 
 	return
 }
 
-// DissectFirstFrame Dissect and print the first frame
-func DissectFirstFrame(filepath string) (err error) {
-	if !tool.IsFileExist(filepath) {
-		err = errors.Wrap(ErrFileNotFound, filepath)
-		log.Error(err)
-		return
-	}
-
-	if errNo := C.init(C.CString(filepath)); errNo != 0 {
-		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
+// DissectPrintFirstFrame Dissect and print the first frame
+func DissectPrintFirstFrame(inputFilepath string) (err error) {
+	err = initCapFile(inputFilepath)
+	if err != nil {
 		log.Error(err)
 		return
 	}
@@ -129,22 +133,29 @@ func DissectFirstFrame(filepath string) (err error) {
 	return
 }
 
-// DissectFirstSeveralFrame Dissect and print the first several frames
-func DissectFirstSeveralFrame(filepath string, count int) (err error) {
-	if !tool.IsFileExist(filepath) {
-		err = errors.Wrap(ErrFileNotFound, filepath)
+// DissectPrintAllFrame Dissect and print all frames
+func DissectPrintAllFrame(inputFilepath string) (err error) {
+	err = initCapFile(inputFilepath)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	C.print_all_frame()
+
+	return
+}
+
+// DissectPrintFirstSeveralFrame Dissect and print the first several frames
+func DissectPrintFirstSeveralFrame(inputFilepath string, count int) (err error) {
+	err = initCapFile(inputFilepath)
+	if err != nil {
 		log.Error(err)
 		return
 	}
 
 	if count < 1 {
 		err = errors.Wrap(ErrIllegalPara, strconv.Itoa(count))
-		log.Error(err)
-		return
-	}
-
-	if errNo := C.init(C.CString(filepath)); errNo != 0 {
-		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
 		log.Error(err)
 		return
 	}
@@ -156,22 +167,15 @@ func DissectFirstSeveralFrame(filepath string, count int) (err error) {
 
 // DissectSpecificFrameByGo Dissect and print the Specific frame
 // [by call read_packet with cgo, can judge the bounds of frame ]
-func DissectSpecificFrameByGo(filepath string, num int) (err error) {
-	if !tool.IsFileExist(filepath) {
-		err = errors.Wrap(ErrFileNotFound, filepath)
+func DissectSpecificFrameByGo(inputFilepath string, num int) (err error) {
+	err = initCapFile(inputFilepath)
+	if err != nil {
 		log.Error(err)
 		return
 	}
 
 	if num < 1 {
 		err = errors.Wrap(ErrIllegalPara, strconv.Itoa(num))
-		log.Error(err)
-		return
-	}
-
-	errNo := C.init(C.CString(filepath))
-	if errNo != 0 {
-		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
 		log.Error(err)
 		return
 	}
@@ -201,7 +205,7 @@ func DissectSpecificFrameByGo(filepath string, num int) (err error) {
 			break
 		}
 
-		err = errors.Wrap(WarnFrameIndexOutOfBounds, strconv.Itoa(num))
+		err = errors.Wrap(WarnFrameIndexOutOfBounds, "Frame num "+strconv.Itoa(num))
 		log.Warn(err)
 
 		return
@@ -210,23 +214,16 @@ func DissectSpecificFrameByGo(filepath string, num int) (err error) {
 	return
 }
 
-// DissectSpecificFrame Dissect and print the Specific frame
-func DissectSpecificFrame(filepath string, num int) (err error) {
-	if !tool.IsFileExist(filepath) {
-		err = errors.Wrap(ErrFileNotFound, filepath)
+// DissectPrintSpecificFrame Dissect and print the Specific frame
+func DissectPrintSpecificFrame(inputFilepath string, num int) (err error) {
+	err = initCapFile(inputFilepath)
+	if err != nil {
 		log.Error(err)
 		return
 	}
 
 	if num < 1 {
-		err = errors.Wrap(ErrIllegalPara, strconv.Itoa(num))
-		log.Error(err)
-		return
-	}
-
-	errNo := C.init(C.CString(filepath))
-	if errNo != 0 {
-		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
+		err = errors.Wrap(ErrIllegalPara, "Frame num "+strconv.Itoa(num))
 		log.Error(err)
 		return
 	}
@@ -238,81 +235,67 @@ func DissectSpecificFrame(filepath string, num int) (err error) {
 }
 
 // DissectSpecificFrameHexData Dissect and print hex_data of specific frame
-func DissectSpecificFrameHexData(filepath string, num int) (err error) {
-	if !tool.IsFileExist(filepath) {
-		err = errors.Wrap(ErrFileNotFound, filepath)
+func DissectSpecificFrameHexData(inputFilepath string, num int) (err error) {
+	err = initCapFile(inputFilepath)
+	if err != nil {
 		log.Error(err)
 		return
 	}
 
 	if num < 1 {
-		err = errors.Wrap(ErrIllegalPara, strconv.Itoa(num))
-		log.Error(err)
-		return
-	}
-
-	errNo := C.init(C.CString(filepath))
-	if errNo != 0 {
-		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
+		err = errors.Wrap(ErrIllegalPara, "Frame num "+strconv.Itoa(num))
 		log.Error(err)
 		return
 	}
 
 	// print none if num is out of bounds
-	C.print_specific_frame_hex_data(C.int(num))
+	C.get_specific_frame_hex_data(C.int(num))
 
 	return
 }
 
-// InitCapFile init capture file only once TODO modify previous function
-func InitCapFile(inputFilepath string) (err error) {
-	if !tool.IsFileExist(inputFilepath) {
-		err = errors.Wrap(ErrFileNotFound, inputFilepath)
-		log.Error(err)
-		return
-	}
+// HexData hex data
+type HexData struct {
+	Offset []string `json:"offset"`
+	Hex    []string `json:"hex"`
+	Ascii  []string `json:"ascii"`
+}
 
-	errNo := C.init(C.CString(inputFilepath))
-	if errNo != 0 {
-		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
-		log.Error(err)
-		return
+// UnmarshalHexData Unmarshal hex data dissect result
+func UnmarshalHexData(src string) (res HexData, err error) {
+	err = json.Unmarshal([]byte(src), &res)
+	if err != nil {
+		return HexData{}, err
 	}
 
 	return
 }
 
-// CChar2GoStr C string -> Go string
-func CChar2GoStr(src *C.char) (res string) {
-	var s0 string
-	var s0Hdr = (*reflect.StringHeader)(unsafe.Pointer(&s0))
-	s0Hdr.Data = uintptr(unsafe.Pointer(src))
-	s0Hdr.Len = int(C.strlen(src))
-
-	sLen := int(C.strlen(src))
-	s1 := string((*[SINGLEPKTMAXLEN]byte)(unsafe.Pointer(src))[:sLen:sLen])
-
-	return s1
-}
-
-// GetSpecificFrameHexData get specific frame hex data
-func GetSpecificFrameHexData(inputFilepath string, num int) (resBytes []byte, err error) {
-	// init cap file only once
-	err = InitCapFile(inputFilepath)
+// GetSpecificFrameHexData Get hex data of specific frame
+func GetSpecificFrameHexData(inputFilepath string, num int) (hexData HexData, err error) {
+	err = initCapFile(inputFilepath)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	src := C.print_specific_frame_hex_data(C.int(num))
-	hexData := CChar2GoStr(src)
-	if hexData == "" {
-		log.Error("result is blank")
-		return
+	// get specific frame hex data in json format by c
+	srcHex := C.get_specific_frame_hex_data(C.int(num))
+	if srcHex != nil {
+		if C.strlen(srcHex) == 0 {
+			err = errors.Wrap(ErrIllegalPara, "Frame num "+strconv.Itoa(num))
+			log.Error(err)
+			return
+		}
 	}
 
-	resBytes, err = json.Marshal(hexData)
+	// transfer c char to go string
+	srcHexStr := CChar2GoStr(srcHex)
+
+	// unmarshal dissect result
+	hexData, err = UnmarshalHexData(srcHexStr)
 	if err != nil {
+		err = errors.Wrap(ErrUnmarshalDissectResult, "Frame num "+strconv.Itoa(num))
 		log.Error(err)
 		return
 	}
@@ -320,8 +303,8 @@ func GetSpecificFrameHexData(inputFilepath string, num int) (resBytes []byte, er
 	return
 }
 
-// DissectResult c解析结果结构体
-type DissectResult struct {
+// FrameDissectRes Dissect results of each frame of data
+type FrameDissectRes struct {
 	WsIndex  string   `json:"_index"`
 	Offset   []string `json:"offset"`
 	Hex      []string `json:"hex"`
@@ -331,44 +314,47 @@ type DissectResult struct {
 	} `json:"_source"`
 }
 
-// UnmarshalDissectResult 反序列化c解析结果
-func UnmarshalDissectResult(src string) (dissectResultWrap DissectResult, err error) {
-	err = json.Unmarshal([]byte(src), &dissectResultWrap)
+// UnmarshalDissectResult Unmarshal dissect result
+func UnmarshalDissectResult(src string) (res FrameDissectRes, err error) {
+	err = json.Unmarshal([]byte(src), &res)
 	if err != nil {
-		return DissectResult{}, err
+		return FrameDissectRes{}, err
 	}
 
 	return
 }
 
-// ProtoTreeToJsonSpecificFrame transfer specific frame proto tree to json format
-func ProtoTreeToJsonSpecificFrame(inputFilepath string, num int) (allFrameDissectRes map[string]DissectResult, err error) {
-	// init cap file only once
-	err = InitCapFile(inputFilepath)
+// GetSpecificFrameProtoTreeInJson Transfer specific frame proto tree to json format
+func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int) (allFrameDissectRes map[string]FrameDissectRes, err error) {
+	err = initCapFile(inputFilepath)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
 	counter := 0
-	allFrameDissectRes = make(map[string]DissectResult)
-	// TODO when get the size of capture file, use parallel logic
+	allFrameDissectRes = make(map[string]FrameDissectRes)
 	for {
 		counter++
 		if counter < num && num != counter {
 			continue
 		}
 
-		// The core logic is implemented by c
-		src := C.json_tree(C.int(counter))
-		frameData := CChar2GoStr(src)
-		if frameData == "" {
-			log.Info("result is empty, all frame dissect over")
-			break
+		// get proto dissect result in json format by c
+		srcFrame := C.proto_tree_in_json(C.int(counter))
+		if srcFrame != nil {
+			if C.strlen(srcFrame) == 0 {
+				err = errors.Wrap(ErrIllegalPara, "Frame num "+strconv.Itoa(num))
+				log.Error(err)
+				break
+			}
 		}
 
+		// transfer c char to go string
+		srcFrameStr := CChar2GoStr(srcFrame)
+
 		// unmarshal dissect result
-		singleFrameData, err := UnmarshalDissectResult(frameData)
+		singleFrameData, err := UnmarshalDissectResult(srcFrameStr)
 		if err != nil {
 			err = errors.Wrap(ErrUnmarshalDissectResult, "Frame num "+strconv.Itoa(counter))
 			log.Error(err)
@@ -382,30 +368,32 @@ func ProtoTreeToJsonSpecificFrame(inputFilepath string, num int) (allFrameDissec
 	return
 }
 
-// ProtoTreeToJsonAllFrame transfer proto tree to json format
-func ProtoTreeToJsonAllFrame(inputFilepath string) (allFrameDissectRes map[string]DissectResult, err error) {
-	// init cap file only once
-	err = InitCapFile(inputFilepath)
+// GetAllFrameProtoTreeInJson Transfer proto tree to json format
+func GetAllFrameProtoTreeInJson(inputFilepath string) (allFrameDissectRes map[string]FrameDissectRes, err error) {
+	err = initCapFile(inputFilepath)
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
 	counter := 1
-	allFrameDissectRes = make(map[string]DissectResult)
-	// TODO when get the size of capture file, use parallel logic
+	allFrameDissectRes = make(map[string]FrameDissectRes)
 	for {
-		// The core logic is implemented by c
-		src := C.json_tree(C.int(counter))
+		// get proto dissect result in json format by c
+		srcFrame := C.proto_tree_in_json(C.int(counter))
+		if srcFrame != nil {
+			if C.strlen(srcFrame) == 0 {
+				err = errors.Wrap(ErrIllegalPara, "Frame num "+strconv.Itoa(counter))
+				log.Error(err)
+				break
+			}
+		}
 
-		frameData := CChar2GoStr(src)
+		// transfer c char to go string
+		srcFrameStr := CChar2GoStr(srcFrame)
 
 		// unmarshal dissect result
-		singleFrameData, err := UnmarshalDissectResult(frameData)
-		if frameData == "" {
-			log.Info("result is empty, all frame dissect over")
-			break
-		}
+		singleFrameData, err := UnmarshalDissectResult(srcFrameStr)
 		if err != nil {
 			err = errors.Wrap(ErrUnmarshalDissectResult, "Frame num "+strconv.Itoa(counter))
 			log.Error(err)
