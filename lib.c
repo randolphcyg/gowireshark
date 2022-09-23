@@ -221,8 +221,8 @@ void print_specific_frame(int num) {
     break;
   }
 }
-// Dissect and print hex_data of specific frame
-char *print_specific_frame_hex_data(int num) {
+// Dissect and get hex data of specific frame
+char *get_specific_frame_hex_data(int num) {
   epan_dissect_t *edt;
   // start reading packets
   while (read_packet(&edt)) {
@@ -253,8 +253,8 @@ char *print_specific_frame_hex_data(int num) {
   return "";
 }
 
-// json_tree transfer proto tree to json format
-char *json_tree(int num) {
+// proto_tree_in_json transfer proto tree to json format
+char *proto_tree_in_json(int num) {
   static output_fields_t *output_fields = NULL;
   static gchar **protocolfilter = NULL;
   static pf_flags protocolfilter_flags = PF_NONE;
@@ -282,9 +282,9 @@ char *json_tree(int num) {
     protocolfilter = wmem_strsplit(wmem_epan_scope(), NULL, " ", -1);
 
     char *out;
-    out = proto_tree_to_json(NULL, print_dissections_expanded, TRUE,
-                             protocolfilter, protocolfilter_flags, edt,
-                             &cfile.cinfo, node_children_grouper);
+    out = get_proto_tree_dissect_res_in_json(
+        NULL, print_dissections_expanded, TRUE, protocolfilter,
+        protocolfilter_flags, edt, &cfile.cinfo, node_children_grouper);
 
     epan_dissect_free(edt);
     edt = NULL;
