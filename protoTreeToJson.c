@@ -68,10 +68,9 @@ struct _output_fields {
    offset, 2 blanks separating offset
    from data dump, data dump */
 
-static gboolean modify_print_hex_data_buffer(const guchar *cp, guint length,
-                                             cJSON *cjson_offset,
-                                             cJSON *cjson_hex,
-                                             cJSON *cjson_ascii) {
+static gboolean get_hex_data_buffer(const guchar *cp, guint length,
+                                    cJSON *cjson_offset, cJSON *cjson_hex,
+                                    cJSON *cjson_ascii) {
 
   register unsigned int ad, i, j, k, l;
   guchar c;
@@ -197,21 +196,10 @@ gboolean get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset,
     if (length == 0)
       return TRUE;
     cp = tvb_get_ptr(tvb, 0, length);
-    if (!modify_print_hex_data_buffer(cp, length, cjson_offset, cjson_hex,
-                                      cjson_ascii))
+    if (!get_hex_data_buffer(cp, length, cjson_offset, cjson_hex, cjson_ascii))
       return FALSE;
   }
   return TRUE;
-}
-
-/* Cache the protocols and field handles that the print functionality needs
-   This helps break explicit dependency on the dissectors. */
-static int proto_data = -1;
-static int proto_frame = -1;
-
-void print_cache_field_handles(void) {
-  proto_data = proto_get_id_by_short_name("Data");
-  proto_frame = proto_get_id_by_short_name("Frame");
 }
 
 /*
@@ -263,8 +251,7 @@ static const guint8 *get_field_data(GSList *src_list, field_info *fi) {
  */
 
 // json result
-cJSON *root = NULL;
-char *out = NULL;
+cJSON *cjson_root = NULL;
 // json obj layers
 cJSON *cjson_layers = NULL;
 
@@ -551,25 +538,24 @@ static void write_json_index(epan_dissect_t *edt) {
 
   str = g_strdup_printf("packets-%s", ts);
 
-  cJSON_AddStringToObject(root, "_index", str);
+  cJSON_AddStringToObject(cjson_root, "_index", str);
   g_free(str);
 }
 
-char *
-proto_tree_to_json(output_fields_t *fields,
-                   print_dissections_e print_dissections, gboolean print_hex,
-                   gchar **protocolfilter, pf_flags protocolfilter_flags,
-                   epan_dissect_t *edt, column_info *cinfo,
-                   proto_node_children_grouper_func node_children_grouper) {
+char *get_proto_tree_dissect_res_in_json(
+    output_fields_t *fields, print_dissections_e print_dissections,
+    gboolean print_hex, gchar **protocolfilter, pf_flags protocolfilter_flags,
+    epan_dissect_t *edt, column_info *cinfo,
+    proto_node_children_grouper_func node_children_grouper) {
   write_json_data data;
 
   // json root node
-  root = cJSON_CreateObject();
+  cjson_root = cJSON_CreateObject();
   // set json obj common value
   write_json_index(edt);
-  cJSON_AddStringToObject(root, "_type", "doc");
+  cJSON_AddStringToObject(cjson_root, "_type", "doc");
   cJSON *cjson_score = cJSON_CreateObject();
-  cJSON_AddItemToObject(root, "_score", cjson_score);
+  cJSON_AddItemToObject(cjson_root, "_score", cjson_score);
 
   cJSON *cjson_offset = cJSON_CreateArray();
   cJSON *cjson_hex = cJSON_CreateArray();
@@ -577,12 +563,12 @@ proto_tree_to_json(output_fields_t *fields,
   // process get hex data
   get_hex_data(edt, cjson_offset, cjson_hex, cjson_ascii);
 
-  cJSON_AddItemToObject(root, "offset", cjson_offset);
-  cJSON_AddItemToObject(root, "hex", cjson_hex);
-  cJSON_AddItemToObject(root, "ascii", cjson_ascii);
+  cJSON_AddItemToObject(cjson_root, "offset", cjson_offset);
+  cJSON_AddItemToObject(cjson_root, "hex", cjson_hex);
+  cJSON_AddItemToObject(cjson_root, "ascii", cjson_ascii);
 
   cJSON *cjson_source = cJSON_CreateObject();
-  cJSON_AddItemToObject(root, "_source", cjson_source);
+  cJSON_AddItemToObject(cjson_root, "_source", cjson_source);
 
   // add layers node
   cjson_layers = cJSON_CreateObject();
@@ -603,5 +589,5 @@ proto_tree_to_json(output_fields_t *fields,
     write_json_proto_node_children(edt->tree, &data, cjson_layers);
   }
 
-  return cJSON_PrintUnformatted(root);
+  return cJSON_PrintUnformatted(cjson_root);
 }

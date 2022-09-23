@@ -15,9 +15,9 @@
 #include <wsutil/json_dumper.h>
 #include <wsutil/nstime.h>
 #include <wsutil/privileges.h>
-// global variable
+// Global variable
 extern capture_file cfile;
-// init modules & init capture_file
+// Init modules & Init capture_file
 int init(char *filename);
 // Read each frame
 gboolean read_packet(epan_dissect_t **edt_r);
@@ -29,10 +29,7 @@ void print_first_frame();
 void print_first_several_frame(int count);
 // Dissect and print specific frame
 void print_specific_frame(int num);
-// transfer proto tree to json format
-char *json_tree(int num);
-// Dissect and print hex_data of specific frame
-char *print_specific_frame_hex_data(int num);
-// inner func
-gboolean get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset,
-                      cJSON *cjson_hex, cJSON *cjson_ascii);
+// Dissect and get hex data of specific frame
+char *get_specific_frame_hex_data(int num);
+// Get proto tree in json format
+char *proto_tree_in_json(int num);

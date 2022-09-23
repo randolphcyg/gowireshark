@@ -1,11 +1,8 @@
 package tests
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/randolphcyg/gowireshark"
 )
@@ -20,32 +17,32 @@ func TestEpanPluginsSupported(t *testing.T) {
 	fmt.Println(gowireshark.EpanPluginsSupported())
 }
 
-func TestDissectAllFrame(t *testing.T) {
-	err := gowireshark.DissectAllFrame(inputFilepath)
+func TestDissectPrintFirstFrame(t *testing.T) {
+	err := gowireshark.DissectPrintFirstFrame(inputFilepath)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 }
 
-func TestDissectFirstFrame(t *testing.T) {
-	err := gowireshark.DissectFirstFrame(inputFilepath)
+func TestDissectPrintAllFrame(t *testing.T) {
+	err := gowireshark.DissectPrintAllFrame(inputFilepath)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 }
 
-func TestDissectFirstSeveralFrame(t *testing.T) {
-	err := gowireshark.DissectFirstSeveralFrame(inputFilepath, 2000)
+func TestDissectPrintFirstSeveralFrame(t *testing.T) {
+	err := gowireshark.DissectPrintFirstSeveralFrame(inputFilepath, 200)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 }
 
-func TestDissectSpecificFrame(t *testing.T) {
-	err := gowireshark.DissectSpecificFrame(inputFilepath, 5000)
+func TestDissectPrintSpecificFrame(t *testing.T) {
+	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5000)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -54,15 +51,15 @@ func TestDissectSpecificFrame(t *testing.T) {
 /*
 RESULT: none
 */
-func TestDissectSpecificFrameOutOfBounds(t *testing.T) {
-	err := gowireshark.DissectSpecificFrame(inputFilepath, 5448)
+func TestDissectPrintSpecificFrameOutOfBounds(t *testing.T) {
+	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5448)
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
-func TestDissectSpecificFrameByGo(t *testing.T) {
-	err := gowireshark.DissectSpecificFrame(inputFilepath, 5000)
+func TestDissectPrintSpecificFrameByGo(t *testing.T) {
+	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5000)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -71,20 +68,28 @@ func TestDissectSpecificFrameByGo(t *testing.T) {
 /*
 RESULT: 5448: frame index is out of bounds
 */
-func TestDissectSpecificFrameByGoOutOfBounds(t *testing.T) {
-	err := gowireshark.DissectSpecificFrame(inputFilepath, 5448)
+func TestDissectPrintSpecificFrameByGoOutOfBounds(t *testing.T) {
+	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5448)
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
 func TestGetSpecificFrameHexData(t *testing.T) {
-	resBytes, err := gowireshark.GetSpecificFrameHexData(inputFilepath, 3)
+	res, err := gowireshark.GetSpecificFrameHexData(inputFilepath, 3)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	fmt.Printf("%s\n", resBytes)
+	for i, item := range res.Offset {
+		fmt.Println(i, item)
+	}
+	for i, item := range res.Hex {
+		fmt.Println(i, item)
+	}
+	for i, item := range res.Ascii {
+		fmt.Println(i, item)
+	}
 }
 
 /*
@@ -112,33 +117,32 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 	    ...
 	}
 */
-func TestProtoTreeToJsonSpecificFrame(t *testing.T) {
-	specificFrameDissectRes, err := gowireshark.ProtoTreeToJsonSpecificFrame(inputFilepath, 3)
+func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
+	specificFrameDissectRes, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 3)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	resBytes, err := json.Marshal(specificFrameDissectRes)
-	if err != nil {
-		log.Error(err)
-		return
+	for k, frameData := range specificFrameDissectRes {
+		fmt.Println("# Frame num:" + k)
+		fmt.Println("## WsIndex:", frameData.WsIndex)
+		fmt.Println("## Offset:", frameData.Offset)
+		fmt.Println("## Hex:", frameData.Hex)
+		fmt.Println("## Ascii:", frameData.Ascii)
+		fmt.Println("## Layers:")
+		for layer, layerData := range frameData.WsSource.Layers {
+			fmt.Println("### Layers num:", layer, layerData)
+		}
 	}
 
-	fmt.Printf("%s\n", resBytes)
 }
 
-func TestProtoTreeToJsonAllFrame(t *testing.T) {
-	allFrameDissectRes, err := gowireshark.ProtoTreeToJsonAllFrame(inputFilepath)
+func TestGetAllFrameProtoTreeInJson(t *testing.T) {
+	allFrameDissectRes, err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	resBytes, err := json.Marshal(allFrameDissectRes)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	fmt.Printf("%s\n", resBytes)
-	fmt.Printf("%d\n", len(resBytes))
+	// Do not print the content in case the amount of data is too large
+	fmt.Printf("frame count:%d\n", len(allFrameDissectRes))
 }
