@@ -9,31 +9,25 @@
 ## 1.项目结构说明
 
 ### 1.1. 依赖组件：
-   - lwiretap、lwsutil、lwireshark
-   - glib-2.0
-   - github.com/pkg/errors
-   - github.com/sirupsen/logrus
+- 内置：lwiretap、lwsutil、lwireshark
+- 系统需要安装：glib-2.0
 
 ### 1.2. 项目结构
 
-- common 通用工具类，日志模块等
-- include wireshark源码及lib.h 封装的对go提供的接口
-- libs wireshark动态链接库，在linux中编译
-- pcaps pcap文件 用来测试
-- tests 测试文件夹
-- gowireshark.go go封装最终对外的接口
+- include/ wireshark源码及lib.h 封装的对go提供的接口
+- libs/ wireshark动态链接库，在linux中编译
+- pcaps/ pcap文件 用来测试
+- tests/ 测试文件夹
+- cJSON.c c的json库
+- protoTreeToJson.c 修复和使用的wireshark源码
 - lib.c c封装wireshark接口，提供给gowireshark.go调用
-- protoTreeToJson 修复和使用的wireshark源码
-- cJSON c的json库
+- gowireshark.go go封装最终对外的接口
 
 树结构:
 ```
 gowireshark
 ├── README.md
 ├── cJSON.c
-├── common/
-│   ├── middleware/
-│   └── tool/
 ├── go.mod
 ├── go.sum
 ├── gowireshark.go
@@ -136,8 +130,8 @@ go get github.com/randolphcyg/gowireshark
    在linux下编译动态链接库，同时注意**尽量将另一份未操作过的源码解压修改名字放到 include/wireshark 目录，保持不修改源码**
    
 ```shell
+#下载
 wget https://2.na.dl.wireshark.org/src/wireshark-3.6.8.tar.xz
-
 # 解压并修改文件夹名
 tar -xvf wireshark-3.6.8.tar.xz
 mv wireshark-3.6.8 wireshark
@@ -146,6 +140,34 @@ cd wireshark/
 
 # 测试 若有报红参考依赖解决步骤；直到往上翻阅日志没有依赖报错，才往下走
 cmake -LH ./
+
+## 若没有cmake3.20以上版本请安装
+wget https://cmake.org/files/LatestRelease/cmake-3.24.2.tar.gz
+sudo tar -xzf cmake-3.24.2.tar.gz
+cd cmake-3.24.2/
+sudo ./bootstrap
+sudo apt install build-essential -y
+### 若显示openssl未安装则执行
+sudo apt install libssl-dev  -y
+sudo make
+sudo make install
+cmake --version
+
+# 需要安装的依赖
+apt install libgcrypt-dev -y
+apt install libc-ares-dev -y
+apt install flex -y
+apt install qtbase5-dev -y
+apt install qttools5-dev-tools -y
+apt install qttools5-dev -y
+apt install qtmultimedia5-dev -y
+# 看到qt5报错时候 其实没必要安装 直接走下一步就可以了 Qt5Multimedia 的错误不用管
+# 其他可能的依赖
+apt install libglib2.0-dev -y
+apt install libssl-dev -y
+apt install ninja-build -y
+apt install pcaputils -y
+apt install libpcap-dev -y
 
 # 创建目录
 mkdir build
@@ -172,12 +194,10 @@ ls -lh
 
 # 将动态链接库移动到libs目录下 一共是9个，如果之前有旧版本的记得将旧版本的删除
 cd ../../../../libs/
-# 复制之前先删掉之前的动态链接库
 cp ../include/wireshark/build/run/lib*so* .
 
 # 最后删除编译用到的文件夹及源码包
 # 先删除因为编译被污染的文件夹
-cd ../include/
 rm -rf wireshark/
 # 然后拿着源码包在解压
 tar -xvf wireshark-3.6.8.tar.xz
