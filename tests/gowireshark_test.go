@@ -48,18 +48,18 @@ func TestDissectPrintSpecificFrame(t *testing.T) {
 	}
 }
 
-/*
-RESULT: none
-*/
-func TestDissectPrintSpecificFrameOutOfBounds(t *testing.T) {
-	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5448)
+func TestDissectPrintSpecificFrameByGo(t *testing.T) {
+	err := gowireshark.DissectPrintSpecificFrameByGo(inputFilepath, 5000)
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
-func TestDissectPrintSpecificFrameByGo(t *testing.T) {
-	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5000)
+/*
+RESULT: none
+*/
+func TestDissectPrintSpecificFrameOutOfBounds(t *testing.T) {
+	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5448)
 	if err != nil {
 		fmt.Println(err)
 	}
