@@ -3,7 +3,7 @@
 > gowireshark 是一个提供 wireshark 协议解析功能的golang包
 
 - 暂仅支持linux平台，此库在ubuntu22.04中开发测试
-- 基于 wireshark3.6.8
+- 基于 wireshark3.6.8、libpcap1.10.1
 - 用c和go封装 wireshark，是一个golang包
 ---
 ## 1.项目结构说明
@@ -18,9 +18,11 @@
 - libs/ wireshark动态链接库，在linux中编译
 - pcaps/ pcap文件 用来测试
 - tests/ 测试文件夹
-- cJSON.c c的json库
-- protoTreeToJson.c 修复和使用的wireshark源码
-- lib.c c封装wireshark接口，提供给gowireshark.go调用
+- cJSON.c、cJSON.h c的json库[勿动]
+- lib.c、offline.c、online.c 修复和使用的wireshark、libpcap库源码
+- include/lib.h、offline.h、online.h 封装wireshark接口的声明，提供给gowireshark.go调用
+- include/wireshark wireshark源码[勿动]
+- include/libpcap libpcap源码[勿动]
 - gowireshark.go go封装最终对外的接口
 
 树结构:
@@ -34,10 +36,13 @@ gowireshark
 ├── include/
 │   ├── cJSON.h
 │   ├── lib.h
-│   ├── protoTreeToJson.h
+│   ├── libpcap/
+│   ├── offline.h
+│   ├── online.h
 │   └── wireshark/
 ├── lib.c
 ├── libs/
+│   ├── libpcap.so.1
 │   ├── libwireshark.so
 │   ├── libwireshark.so.15
 │   ├── libwireshark.so.15.0.8
@@ -47,9 +52,10 @@ gowireshark
 │   ├── libwsutil.so
 │   ├── libwsutil.so.13
 │   └── libwsutil.so.13.1.0
+├── offline.c
+├── online.c
 ├── pcaps/
 │   └── s7comm_clean.pcap
-├── protoTreeToJson.c
 └── tests/
     └── gowireshark_test.go
 ```

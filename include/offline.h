@@ -1,9 +1,7 @@
-#include <include/cJSON.h>
-
-// json result
-extern cJSON *cjson_root;
+// proto tree result
+extern cJSON *proto_tree_res;
 // json layers member
-extern cJSON *cjson_layers;
+extern cJSON *layers;
 
 // get_hex_data get hex part of data
 gboolean get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset,

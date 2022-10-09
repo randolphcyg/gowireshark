@@ -1,6 +1,4 @@
-#include <include/cJSON.h>
 #include <include/lib.h>
-#include <include/protoTreeToJson.h>
 
 typedef struct {
   int level;
@@ -247,13 +245,13 @@ static const guint8 *get_field_data(GSList *src_list, field_info *fi) {
 
 /*
  *
- * json
+ * dissect proto tree in json format
  */
 
-// json result
-cJSON *cjson_root = NULL;
+// proto tree result
+cJSON *proto_tree_res = NULL;
 // json obj layers
-cJSON *cjson_layers = NULL;
+cJSON *layers = NULL;
 
 typedef void (*proto_node_value_writer)(proto_node *, write_json_data *);
 
@@ -538,7 +536,7 @@ static void write_json_index(epan_dissect_t *edt) {
 
   str = g_strdup_printf("packets-%s", ts);
 
-  cJSON_AddStringToObject(cjson_root, "_index", str);
+  cJSON_AddStringToObject(proto_tree_res, "_index", str);
   g_free(str);
 }
 
@@ -550,12 +548,12 @@ char *get_proto_tree_dissect_res_in_json(
   write_json_data data;
 
   // json root node
-  cjson_root = cJSON_CreateObject();
+  proto_tree_res = cJSON_CreateObject();
   // set json obj common value
   write_json_index(edt);
-  cJSON_AddStringToObject(cjson_root, "_type", "doc");
+  cJSON_AddStringToObject(proto_tree_res, "_type", "doc");
   cJSON *cjson_score = cJSON_CreateObject();
-  cJSON_AddItemToObject(cjson_root, "_score", cjson_score);
+  cJSON_AddItemToObject(proto_tree_res, "_score", cjson_score);
 
   cJSON *cjson_offset = cJSON_CreateArray();
   cJSON *cjson_hex = cJSON_CreateArray();
@@ -563,16 +561,16 @@ char *get_proto_tree_dissect_res_in_json(
   // process get hex data
   get_hex_data(edt, cjson_offset, cjson_hex, cjson_ascii);
 
-  cJSON_AddItemToObject(cjson_root, "offset", cjson_offset);
-  cJSON_AddItemToObject(cjson_root, "hex", cjson_hex);
-  cJSON_AddItemToObject(cjson_root, "ascii", cjson_ascii);
+  cJSON_AddItemToObject(proto_tree_res, "offset", cjson_offset);
+  cJSON_AddItemToObject(proto_tree_res, "hex", cjson_hex);
+  cJSON_AddItemToObject(proto_tree_res, "ascii", cjson_ascii);
 
   cJSON *cjson_source = cJSON_CreateObject();
-  cJSON_AddItemToObject(cjson_root, "_source", cjson_source);
+  cJSON_AddItemToObject(proto_tree_res, "_source", cjson_source);
 
   // add layers node
-  cjson_layers = cJSON_CreateObject();
-  cJSON_AddItemToObject(cjson_source, "layers", cjson_layers);
+  layers = cJSON_CreateObject();
+  cJSON_AddItemToObject(cjson_source, "layers", layers);
 
   if (fields == NULL || fields->fields == NULL) {
     /* Write out all fields */
@@ -586,8 +584,8 @@ char *get_proto_tree_dissect_res_in_json(
     }
     data.node_children_grouper = node_children_grouper;
     // core logic
-    write_json_proto_node_children(edt->tree, &data, cjson_layers);
+    write_json_proto_node_children(edt->tree, &data, layers);
   }
 
-  return cJSON_PrintUnformatted(cjson_root);
+  return cJSON_PrintUnformatted(proto_tree_res);
 }

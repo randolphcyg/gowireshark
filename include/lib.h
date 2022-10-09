@@ -9,6 +9,7 @@
 #include <epan/print_stream.h>
 #include <epan/tvbuff.h>
 #include <include/cJSON.h>
+#include <pcap/pcap.h>
 #include <stdio.h>
 #include <wiretap/wtap-int.h>
 #include <wiretap/wtap.h>

@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/randolphcyg/gowireshark"
 )
@@ -145,4 +146,83 @@ func TestGetAllFrameProtoTreeInJson(t *testing.T) {
 
 	// Do not print the content in case the amount of data is too large
 	fmt.Printf("frame count:%d\n", len(allFrameDissectRes))
+}
+
+/*
+Get interface device list, TODO but not return addresses of device (cause c logic error)
+Result:
+bluetooth-monitor Bluetooth Linux Monitor 56
+nflog Linux netfilter log (NFLOG) interface 48
+nfqueue Linux netfilter queue (NFQUEUE) interface 48
+dbus-system D-Bus system bus 48
+dbus-session D-Bus session bus 48
+enp0s5  22
+any Pseudo-device that captures on all interfaces 54
+lo  55
+*/
+func TestGetIfaceList(t *testing.T) {
+	iFaces, err := gowireshark.GetIfaceList()
+	if err != nil {
+		fmt.Println(err)
+	}
+	for k, v := range iFaces {
+		fmt.Println(k, v.Description, v.Flags)
+	}
+}
+
+/*
+Get interface device nonblock status, default is false
+Result:
+device: enp0s5  nonblock status: false
+*/
+func TestGetIfaceNonblockStatus(t *testing.T) {
+	ifaceName := "enp0s5"
+	status, err := gowireshark.GetIfaceNonblockStatus(ifaceName)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("device:", ifaceName, " nonblock status:", status)
+}
+
+func TestSetIfaceNonblockStatus(t *testing.T) {
+	ifaceName := "enp0s5"
+	status, err := gowireshark.SetIfaceNonblockStatus(ifaceName, true)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("device:", ifaceName, "after set, now nonblock status is:", status)
+}
+
+// BlockForever causes it to block forever waiting for packets, when passed
+// into SetTimeout or OpenLive, while still returning incoming packets to userland relatively
+// quickly.
+const BlockForever = -time.Millisecond * 10
+
+func timeoutMillis(timeout time.Duration) int {
+	// Flip sign if necessary.  See package docs on timeout for reasoning behind this.
+	if timeout < 0 {
+		timeout *= -1
+	}
+	// Round up
+	if timeout != 0 && timeout < time.Millisecond {
+		timeout = time.Millisecond
+	}
+	return int(timeout / time.Millisecond)
+}
+
+var (
+	ifaceName         = "enp0s5"
+	snapshotLen int32 = 1024
+	timeout           = 30 * time.Second
+	err         error
+)
+
+func TestDissectPktLive(t *testing.T) {
+	err = gowireshark.DissectPktLive(ifaceName, int(snapshotLen), 1, timeoutMillis(timeout))
+	if err != nil {
+		fmt.Println(err)
+	}
+
 }
