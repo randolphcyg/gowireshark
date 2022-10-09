@@ -1,6 +1,6 @@
 #include <include/cJSON.h>
 #include <include/lib.h>
-#include <include/protoTreeToJson.h>
+#include <include/offline.h>
 
 // global capture file variable
 capture_file cfile;
