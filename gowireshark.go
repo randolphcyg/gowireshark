@@ -2,12 +2,11 @@ package gowireshark
 
 /*
 #cgo pkg-config: glib-2.0
-#cgo LDFLAGS: -L${SRCDIR}/libs -lwiretap -lwsutil -lwireshark
+#cgo LDFLAGS: -L${SRCDIR}/libs -lwiretap -lwsutil -lwireshark -lpcap
 #cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/libs
 #cgo CFLAGS: -I${SRCDIR}/include/wireshark
-#cgo CFLAGS: -std=c99
+#cgo CFLAGS: -I${SRCDIR}/include/libpcap
 
-#include <include/lib.h>
 #include <cfile.h>
 #include <epan/charsets.h>
 #include <epan/column.h>
@@ -19,6 +18,7 @@ package gowireshark
 #include <epan/print_stream.h>
 #include <epan/tvbuff.h>
 #include <include/cJSON.h>
+#include <pcap/pcap.h>
 #include <stdio.h>
 #include <wiretap/wtap-int.h>
 #include <wiretap/wtap.h>
@@ -41,6 +41,14 @@ void print_specific_frame(int num);
 char *get_specific_frame_hex_data(int num);
 // Get proto tree in json format
 char *proto_tree_in_json(int num);
+// Get interface list
+char *get_if_list();
+// Get interface nonblock status
+int get_if_nonblock_status(char *device_name);
+// Set interface nonblock status
+int set_if_nonblock_status(char *device_name, int nonblock);
+// Capture packet and handle each one
+int capture_pkt(char *device_name);
 */
 import "C"
 import (
@@ -58,16 +66,14 @@ var (
 	ErrReadFile               = errors.New("occur error when read file ")
 	ErrIllegalPara            = errors.New("illegal parameter")
 	WarnFrameIndexOutOfBounds = errors.New("frame index is out of bounds")
-	ErrUnmarshalDissectResult = errors.New("unmarshal dissect result error")
+	ErrUnmarshalObj           = errors.New("unmarshal obj error")
 	ErrEmptyDissectResult     = errors.New("proto dissect result is empty by c")
+	ErrFromCLogic             = errors.New("run c logic occur error")
 )
 
 // SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
 // result of a single data packet, which is convenient for converting c char to go string
-const SINGLEPKTMAXLEN = 65535
-
-func init() {
-}
+const SINGLEPKTMAXLEN = 655350
 
 // isFileExist check if the file path exists
 func isFileExist(path string) bool {
@@ -265,7 +271,7 @@ func GetSpecificFrameHexData(inputFilepath string, num int) (hexData HexData, er
 	// unmarshal dissect result
 	hexData, err = UnmarshalHexData(srcHexStr)
 	if err != nil {
-		err = errors.Wrap(ErrUnmarshalDissectResult, "Frame num "+strconv.Itoa(num))
+		err = errors.Wrap(ErrUnmarshalObj, "Frame num "+strconv.Itoa(num))
 		return
 	}
 
@@ -323,7 +329,7 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int) (allFrameDis
 		// unmarshal dissect result
 		singleFrameData, err := UnmarshalDissectResult(srcFrameStr)
 		if err != nil {
-			err = errors.Wrap(ErrUnmarshalDissectResult, "Frame num "+strconv.Itoa(counter))
+			err = errors.Wrap(ErrUnmarshalObj, "Frame num "+strconv.Itoa(counter))
 			break
 		}
 		allFrameDissectRes[strconv.Itoa(counter)] = singleFrameData
@@ -359,7 +365,7 @@ func GetAllFrameProtoTreeInJson(inputFilepath string) (allFrameDissectRes map[st
 		// unmarshal dissect result
 		singleFrameData, err := UnmarshalDissectResult(srcFrameStr)
 		if err != nil {
-			err = errors.Wrap(ErrUnmarshalDissectResult, "Frame num "+strconv.Itoa(counter))
+			err = errors.Wrap(ErrUnmarshalObj, "Frame num "+strconv.Itoa(counter))
 			break
 		}
 		allFrameDissectRes[strconv.Itoa(counter)] = singleFrameData
@@ -367,4 +373,75 @@ func GetAllFrameProtoTreeInJson(inputFilepath string) (allFrameDissectRes map[st
 	}
 
 	return
+}
+
+// IFace interface device
+type IFace struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Flags       int    `json:"flags"`
+}
+
+// UnmarshalIFace Unmarshal interface device
+func UnmarshalIFace(src string) (res map[string]IFace, err error) {
+	err = json.Unmarshal([]byte(src), &res)
+	if err != nil {
+		return nil, err
+	}
+
+	return
+}
+
+// GetIfaceList Get interface list
+func GetIfaceList() (res map[string]IFace, err error) {
+	src := C.get_if_list()
+	// transfer c char to go string
+	// unmarshal interface device list obj
+	res, err = UnmarshalIFace(CChar2GoStr(src))
+	if err != nil {
+		err = ErrUnmarshalObj
+		return
+	}
+
+	return
+}
+
+// GetIfaceNonblockStatus Get interface nonblock status
+func GetIfaceNonblockStatus(deviceName string) (isNonblock bool, err error) {
+	nonblockStatus := C.get_if_nonblock_status(C.CString(deviceName))
+	if nonblockStatus == 0 {
+		isNonblock = false
+	} else if nonblockStatus == 1 {
+		isNonblock = true
+	} else {
+		err = errors.Wrapf(ErrFromCLogic, "nonblockStatus:%v", nonblockStatus)
+	}
+
+	return
+}
+
+// SetIfaceNonblockStatus Set interface nonblock status
+func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, err error) {
+	setNonblockCode := 0
+	if isNonblock {
+		setNonblockCode = 1
+	}
+
+	nonblockStatus := C.set_if_nonblock_status(C.CString(deviceName), C.int(setNonblockCode))
+	if nonblockStatus == 0 {
+		status = false
+	} else if nonblockStatus == 1 {
+		status = true
+	} else {
+		err = errors.Wrapf(ErrFromCLogic, "nonblockStatus:%v", nonblockStatus)
+	}
+
+	return
+}
+
+// DissectPktLive Capture packet by libpcap and dissect each one by wireshark
+func DissectPktLive(deviceName string, snapLen int, pro int, timeout int) error {
+	C.capture_pkt(C.CString(deviceName))
+
+	return nil
 }
