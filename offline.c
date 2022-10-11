@@ -162,7 +162,13 @@ static gboolean get_hex_data_buffer(const guchar *cp, guint length,
   return TRUE;
 }
 
-// get_hex_data get hex part of data
+/**
+ * Get hex part of data.
+ *
+ *  @param edt epan_dissect_t type
+ *  @return TRUE if run successful;
+ *  @return cjson_offset、cjson_hex、cjson_ascii;
+ */
 gboolean get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset,
                       cJSON *cjson_hex, cJSON *cjson_ascii) {
   gboolean multiple_sources;
@@ -540,6 +546,12 @@ static void write_json_index(epan_dissect_t *edt) {
   g_free(str);
 }
 
+/**
+ * Get protocol tree dissect result in json format.
+ *
+ *  @param cinfo column_info type
+ *  @return char of protocol tree json
+ */
 char *get_proto_tree_dissect_res_in_json(
     output_fields_t *fields, print_dissections_e print_dissections,
     gboolean print_hex, gchar **protocolfilter, pf_flags protocolfilter_flags,

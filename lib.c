@@ -5,11 +5,16 @@
 // global capture file variable
 capture_file cfile;
 
-/* Init the capture file struct */
-void cap_file_init(capture_file *cf) {
-  /* Initialize the capture file struct */
-  memset(cf, 0, sizeof(capture_file));
-}
+/**
+ * Init the capture file struct.
+ *
+ *  @param cf the pointer of capture_file struct which is a global var
+ */
+void cap_file_init(capture_file *cf) { memset(cf, 0, sizeof(capture_file)); }
+
+/**
+ * Copy from tshark.
+ */
 static const nstime_t *tshark_get_frame_ts(struct packet_provider_data *prov,
                                            guint32 frame_num) {
   if (prov->ref && prov->ref->num == frame_num)
@@ -24,7 +29,10 @@ static const nstime_t *tshark_get_frame_ts(struct packet_provider_data *prov,
   }
   return NULL;
 }
-/* Clean the capture file struct */
+
+/**
+ * Clean the capture file struct and epan mod.
+ */
 void clean() {
   if (cfile.provider.frames != NULL) {
     /*
@@ -46,7 +54,13 @@ void clean() {
    * program */
   epan_cleanup();
 }
-/* Fill data to the capture file struct */
+
+/**
+ * Init policies、wtap mod、epan mod and Fill the capture file struct.
+ *
+ *  @param filepath the pcap file path
+ *  @return 0 if init correctly
+ */
 int init(char *filepath) {
   int err = 0;
   gchar *err_info = NULL;
@@ -96,7 +110,13 @@ int init(char *filepath) {
   build_column_format_array(&cfile.cinfo, prefs_p->num_cols, TRUE);
   return 0;
 }
-/* Read each frame */
+
+/**
+ * Read each frame.
+ *
+ *  @param edt_r the epan_dissect_t struct of each frame
+ *  @return TRUE if can dissect frame correctly, FALSE if can not read frame
+ */
 gboolean read_packet(epan_dissect_t **edt_r) {
   epan_dissect_t *edt;
   int err;
@@ -150,7 +170,12 @@ gboolean read_packet(epan_dissect_t **edt_r) {
   }
   return FALSE;
 }
-/* Dissect and print all frames */
+
+/**
+ * Dissect and print all frames.
+ *
+ *  @return none, just print dissect result
+ */
 void print_all_frame() {
   epan_dissect_t *edt;
   print_stream_t *print_stream;
@@ -163,7 +188,12 @@ void print_all_frame() {
     edt = NULL;
   }
 }
-/* Dissect and print the first frame */
+
+/**
+ * Dissect and print the first frame.
+ *
+ *  @return none, just print dissect result
+ */
 void print_first_frame() {
   epan_dissect_t *edt;
   print_stream_t *print_stream;
@@ -178,7 +208,13 @@ void print_first_frame() {
     edt = NULL;
   }
 }
-/* Dissect and print the first several frames */
+
+/**
+ * Dissect and print the first several frames.
+ *
+ *  @param count the first several frames to dissect and print, count is the num
+ *  @return none, just print dissect result
+ */
 void print_first_several_frame(int count) {
   epan_dissect_t *edt;
   print_stream_t *print_stream;
@@ -197,7 +233,13 @@ void print_first_several_frame(int count) {
     }
   }
 }
-// Dissect and print specific frame
+
+/**
+ * Dissect and print specific frame.
+ *
+ *  @param num the index of frame which you want to dieesct
+ *  @return none, just print dissect result
+ */
 void print_specific_frame(int num) {
   epan_dissect_t *edt;
   print_stream_t *print_stream;
@@ -221,7 +263,13 @@ void print_specific_frame(int num) {
     break;
   }
 }
-// Dissect and get hex data of specific frame
+
+/**
+ * Dissect and get hex data of specific frame.
+ *
+ *  @param num the index of frame which you want to dieesct
+ *  @return char of hex data dissect result, include hex data
+ */
 char *get_specific_frame_hex_data(int num) {
   epan_dissect_t *edt;
   // start reading packets
@@ -253,7 +301,12 @@ char *get_specific_frame_hex_data(int num) {
   return "";
 }
 
-// proto_tree_in_json transfer proto tree to json format
+/**
+ * Transfer proto tree to json format.
+ *
+ *  @param num the index of frame which you want to dieesct
+ *  @return char of protocol tree dissect result, include hex data
+ */
 char *proto_tree_in_json(int num) {
   static output_fields_t *output_fields = NULL;
   static gchar **protocolfilter = NULL;
