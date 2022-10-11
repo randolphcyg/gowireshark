@@ -11,7 +11,19 @@ char errbuf[PCAP_ERRBUF_SIZE];
 // interface device list
 cJSON *ifaces = NULL;
 
-// get_if_list Get interface list
+/**
+ * Get interface list.
+ *
+ *  @return char of map in json format:
+ * {
+ *  "device name1": {
+ *    "name": "device name1",
+ *    "description": "xxx device1",
+ *    "flags": 1,
+ *  },
+ *  ...
+ * }
+ */
 char *get_if_list() {
   pcap_if_t *alldevs;
   pcap_findalldevs(&alldevs, errbuf);
@@ -31,7 +43,14 @@ char *get_if_list() {
   return cJSON_PrintUnformatted(ifaces);
 }
 
-// get_if_nonblock_status Get interface nonblock status
+/**
+ * Get interface nonblock status.
+ *
+ *  @param device_name the name of interface device
+ *  @return current status is nonblock: 1;
+ *  current status is not nonblock: 0;
+ *  occur error: 2;
+ */
 int get_if_nonblock_status(char *device_name) {
   pcap_t *handle;
   int is_nonblock;
@@ -50,7 +69,15 @@ int get_if_nonblock_status(char *device_name) {
   return 2;
 }
 
-// set_if_nonblock_status Set interface nonblock status
+/**
+ * Set interface nonblock status.
+ *
+ *  @param device_name the name of interface device
+ *  @param nonblock set 1: is nonblock, set 0: is not nonblock
+ *  @return current status is nonblock: 1;
+ *  current status is not nonblock: 0;
+ *  occur error: 2;
+ */
 int set_if_nonblock_status(char *device_name, int nonblock) {
   pcap_t *handle;
   int is_nonblock;
@@ -115,7 +142,12 @@ void dissect_protocol_callback(unsigned char *argument,
   //  g_usleep(800 * 1000);
 }
 
-// capture_pkt Capture packet
+/**
+ * Listen device and Capture packet.
+ *
+ *  @param device_name the name of interface device
+ *  @return normal run: 0;occur error: 2;
+ */
 int capture_pkt(char *device_name) {
   pcap_if_t *alldevs;
   // Save the starting address of the received packet
@@ -129,7 +161,7 @@ int capture_pkt(char *device_name) {
     return 2;
   }
 
-  pcap_handle = pcap_open_live(alldevs->name, 1024, 1, 0, NULL);
+  pcap_handle = pcap_open_live(alldevs->name, BUFSIZE, 1, 0, NULL);
   if (pcap_loop(pcap_handle, -1, dissect_protocol_callback, NULL) < 0) {
     perror("pcap_loop");
   }
