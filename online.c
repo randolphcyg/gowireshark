@@ -108,7 +108,7 @@ void dissect_protocol_callback(unsigned char *argument,
   unsigned short ethernet_type; // eth type
 
   printf("----------------------------------------------------\n");
-  printf("%s\n", ctime((time_t *)&(packet_heaher->ts.tv_sec)));
+  printf("》》》%s\n", ctime((time_t *)&(packet_heaher->ts.tv_sec)));
 
   ethernet_protocol = (struct ether_header *)packet_content;
   // get src mac addr
@@ -157,12 +157,18 @@ int capture_pkt(char *device_name) {
 
   pcap_findalldevs(&alldevs, errbuf);
   if (alldevs == NULL) {
-    fprintf(stderr, "couldn't find default device: %s\n", errbuf);
+    fprintf(stderr, "couldn't find device: %s\n", errbuf);
     return 2;
   }
 
-  pcap_handle = pcap_open_live(alldevs->name, BUFSIZE, 1, 0, NULL);
-  if (pcap_loop(pcap_handle, -1, dissect_protocol_callback, NULL) < 0) {
+  // gopacket set 1000; too fast if set 1; so set 20 for now
+  pcap_handle = pcap_open_live(alldevs->name, BUFSIZE, 1, 20, NULL);
+  /* pcap_loop loop read packet
+  second para is cnt, if cnt equals -1, will loop util ends;
+  else the number of returned packets is cnt;
+  third para is callback function, will handle each packet;
+  */
+  if (pcap_loop(pcap_handle, 1, dissect_protocol_callback, NULL) < 0) {
     perror("pcap_loop");
   }
 
