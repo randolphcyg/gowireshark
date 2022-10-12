@@ -7,6 +7,7 @@
 #include <epan/frame_data_sequence.h>
 #include <epan/print.h>
 #include <epan/print_stream.h>
+#include <epan/tap.h>
 #include <epan/tvbuff.h>
 #include <include/cJSON.h>
 #include <pcap/pcap.h>
@@ -16,10 +17,10 @@
 #include <wsutil/json_dumper.h>
 #include <wsutil/nstime.h>
 #include <wsutil/privileges.h>
-// Global variable
-extern capture_file cfile;
-// Init modules & Init capture_file
-int init(char *filename);
+// Init policies、wtap mod、epan mod.
+int init_env();
+// Init capture file
+int init_cf(char *filename);
 // Read each frame
 gboolean read_packet(epan_dissect_t **edt_r);
 // Dissect and print all frames

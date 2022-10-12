@@ -16,6 +16,8 @@ package gowireshark
 #include <epan/frame_data_sequence.h>
 #include <epan/print.h>
 #include <epan/print_stream.h>
+#include <epan/print_stream.h>
+#include <epan/tap.h>
 #include <epan/tvbuff.h>
 #include <include/cJSON.h>
 #include <pcap/pcap.h>
@@ -25,8 +27,10 @@ package gowireshark
 #include <wsutil/json_dumper.h>
 #include <wsutil/nstime.h>
 #include <wsutil/privileges.h>
-// Init modules & Init capture_file
-int init(char *filename);
+// Init policies、wtap mod、epan mod.
+int init_env();
+// Init capture file
+int init_cf(char *filename);
 // Read each frame
 gboolean read_packet(epan_dissect_t **edt_r);
 // Dissect and print all frames
@@ -67,13 +71,20 @@ var (
 	ErrIllegalPara            = errors.New("illegal parameter")
 	WarnFrameIndexOutOfBounds = errors.New("frame index is out of bounds")
 	ErrUnmarshalObj           = errors.New("unmarshal obj error")
-	ErrEmptyDissectResult     = errors.New("proto dissect result is empty by c")
 	ErrFromCLogic             = errors.New("run c logic occur error")
 )
 
 // SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
 // result of a single data packet, which is convenient for converting c char to go string
 const SINGLEPKTMAXLEN = 655350
+
+func init() {
+	// Init policies、wtap mod、epan mod.
+	initEnvRes := C.init_env()
+	if initEnvRes == 0 {
+		panic("init env failed")
+	}
+}
 
 // isFileExist check if the file path exists
 func isFileExist(path string) bool {
@@ -109,14 +120,14 @@ func EpanPluginsSupported() int {
 	return int(C.epan_plugins_supported())
 }
 
-// initCapFile Init capture file only once
+// initCapFile Init capture file only once for each pcap file
 func initCapFile(inputFilepath string) (err error) {
 	if !isFileExist(inputFilepath) {
 		err = errors.Wrap(ErrFileNotFound, inputFilepath)
 		return
 	}
 
-	errNo := C.init(C.CString(inputFilepath))
+	errNo := C.init_cf(C.CString(inputFilepath))
 	if errNo != 0 {
 		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
 		return
@@ -150,7 +161,6 @@ func DissectPrintAllFrame(inputFilepath string) (err error) {
 }
 
 // DissectPrintFirstSeveralFrame Dissect and print the first several frames
-// TODO fix c wtap init bug
 func DissectPrintFirstSeveralFrame(inputFilepath string, count int) (err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
@@ -168,7 +178,6 @@ func DissectPrintFirstSeveralFrame(inputFilepath string, count int) (err error) 
 }
 
 // DissectPrintSpecificFrame Dissect and print the Specific frame
-// TODO fix c wtap init bug
 func DissectPrintSpecificFrame(inputFilepath string, num int) (err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
@@ -259,8 +268,7 @@ func GetSpecificFrameHexData(inputFilepath string, num int) (hexData HexData, er
 	// get specific frame hex data in json format by c
 	srcHex := C.get_specific_frame_hex_data(C.int(num))
 	if srcHex != nil {
-		if C.strlen(srcHex) == 0 {
-			err = errors.Wrap(ErrEmptyDissectResult, "Frame num "+strconv.Itoa(num))
+		if C.strlen(srcHex) == 0 { // loop ends
 			return
 		}
 	}
@@ -318,7 +326,6 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int) (allFrameDis
 		srcFrame := C.proto_tree_in_json(C.int(counter))
 		if srcFrame != nil {
 			if C.strlen(srcFrame) == 0 {
-				err = errors.Wrap(ErrEmptyDissectResult, "Frame num "+strconv.Itoa(num))
 				break
 			}
 		}
@@ -353,8 +360,7 @@ func GetAllFrameProtoTreeInJson(inputFilepath string) (allFrameDissectRes map[st
 		// get proto dissect result in json format by c
 		srcFrame := C.proto_tree_in_json(C.int(counter))
 		if srcFrame != nil {
-			if C.strlen(srcFrame) == 0 {
-				err = errors.Wrap(ErrEmptyDissectResult, "Frame num "+strconv.Itoa(counter))
+			if C.strlen(srcFrame) == 0 { // loop ends
 				break
 			}
 		}

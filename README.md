@@ -131,35 +131,41 @@ go get github.com/randolphcyg/gowireshark
 
 ## 4. 如何更新及规范说明
 
-### 4.1. 如果要更新wireshark源码及动态链接库，请遵循以下步骤(更详细可参考另一片文档)
+### 4.1. 更新wireshark源码及编译动态链接库
 
-   在linux下编译动态链接库，同时注意**尽量将另一份未操作过的源码解压修改名字放到 include/wireshark 目录，保持不修改源码**
-   
-```shell
-#下载
+在linux下编译动态链接库，同时注意**尽量将另一份未操作过的源码解压修改名字放到 include/wireshark 目录，保持不修改源码**
+
+<details>
+<summary>编译wireshark动态链接库</summary>
+
+```
+下载
 wget https://2.na.dl.wireshark.org/src/wireshark-3.6.8.tar.xz
-# 解压并修改文件夹名
+
+解压并修改文件夹名
 tar -xvf wireshark-3.6.8.tar.xz
 mv wireshark-3.6.8 wireshark
-# 到正确文件夹目录下
+
+到正确文件夹目录下
 cd wireshark/
 
-# 测试 若有报红参考依赖解决步骤；直到往上翻阅日志没有依赖报错，才往下走
+测试 若有报红参考依赖解决步骤；直到往上翻阅日志没有依赖报错，才往下走
 cmake -LH ./
 
-## 若没有cmake3.20以上版本请安装
+若没有cmake3.20以上版本请安装
 wget https://cmake.org/files/LatestRelease/cmake-3.24.2.tar.gz
 sudo tar -xzf cmake-3.24.2.tar.gz
 cd cmake-3.24.2/
 sudo ./bootstrap
 sudo apt install build-essential -y
-### 若显示openssl未安装则执行
+
+若显示openssl未安装则执行
 sudo apt install libssl-dev  -y
 sudo make
 sudo make install
 cmake --version
 
-# 需要安装的依赖
+需要安装的依赖
 apt install libgcrypt-dev -y
 apt install libc-ares-dev -y
 apt install flex -y
@@ -167,67 +173,74 @@ apt install qtbase5-dev -y
 apt install qttools5-dev-tools -y
 apt install qttools5-dev -y
 apt install qtmultimedia5-dev -y
-# 看到qt5报错时候 其实没必要安装 直接走下一步就可以了 Qt5Multimedia 的错误不用管
-# 其他可能的依赖
+
+看到qt5报错时候 其实没必要安装 直接走下一步就可以了 Qt5Multimedia 的错误不用管
+其他可能的依赖
 apt install libglib2.0-dev -y
 apt install libssl-dev -y
 apt install ninja-build -y
 apt install pcaputils -y
 apt install libpcap-dev -y
 
-# 创建目录
+创建目录
 mkdir build
 cd build
 
-# 删除之前测试用生成的文件 一定要删除
+删除之前测试用生成的文件 一定要删除
 rm ../CMakeCache.txt
 rm -rf ../CMakeFiles/
 
-
-# 构建 生成的文件将在build中
+构建(生成的文件将在build中)
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_wireshark=off -DENABLE_LUA=off ..
 
-# 生产用这一个
+生产用这一个
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_wireshark=off -DENABLE_LUA=off ..
-# 编译 时间略长一些
+
+编译(时间略长一些)
 ninja
 
-# 编译成功进入run目录下查看编译好的动态链接库
+编译成功进入run目录下查看编译好的动态链接库
 cd run/
-# 查看
-ls -lh 
 
+查看
+ls -lh
 
-# 将动态链接库移动到libs目录下 一共是9个，如果之前有旧版本的记得将旧版本的删除
+将动态链接库移动到libs目录下 一共是9个，如果之前有旧版本的记得将旧版本的删除
 cd ../../../../libs/
 cp ../include/wireshark/build/run/lib*so* .
 
-# 最后删除编译用到的文件夹及源码包
-# 先删除因为编译被污染的文件夹
+最后删除编译用到的文件夹及源码包
+先删除因为编译被污染的文件夹
 rm -rf wireshark/
-# 然后拿着源码包在解压
+
+然后拿着源码包在解压
 tar -xvf wireshark-3.6.8.tar.xz
 mv wireshark-3.6.8 wireshark
-# 删除源码包
+
+删除源码包
 rm wireshark-3.6.8.tar.xz
 
-# 查看项目目录结构 到项目跟目录的上一层执行
+查看项目目录结构(项目跟目录上一层执行)
 tree -L 2 -F gowireshark
 ```
+</details>
 
 ### 4.2. 开发新功能注意点
    
-1. 先修改 lib.c，增加/修改函数；
-2. 若修改了函数声明/增加了函数，需要在 include/lib.h 修改/增加对应声明，
-同样在 gowireshark.go 导入c的序文中修改/增加同样的对应声明。
-3. 测试请统一写到tests文件夹中，通用工具类写在common中
-4. 用 clang-format 工具格式化c代码：
+1. 先编写新功能c代码，可在lib.c中或根目录新建c文件；
+2. 同步将函数声明更新到同名头文件lib.h或新建头文件， 同样在go代码序文中增加相同的声明；
+3. 在go代码中封装对外接口；
+4. 测试统一写到tests文件夹中;
+5. 用 clang-format 工具格式化c代码及头文件：
+    
+   例：`clang-format -i lib.c`，带参数-i表示此命令直接格式化指定文件，去掉-i即可预览；
+
+   修改根目录下所有.c文件、include/目录下所有.h头文件：
    ```shell
-   # 带参数-i表示此命令直接格式化指定文件，去掉-i即可预览
-   clang-format -i lib.c
-   clang-format -i include/lib.h
+   find . -maxdepth 1 -name '*.c' | grep -v 'cJSON.c' | xargs  clang-format -i
+   find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | xargs  clang-format -i
    ```
-5. 在linux环境测试
+6. 在linux环境测试
    非特殊情况请进行指定函数测试，例如:
    ```shell
    # 解析并输出第一帧
@@ -243,4 +256,5 @@ tree -L 2 -F gowireshark
 1. ~~修复解析数据包过程错误截断问题~~
 2. ~~增加输出json格式解析结果~~
 3. ~~增加输出16进制数据~~
-4. 增加实时监听解析功能
+4. ~~增加实时监听抓包功能~~
+5. 增加实时解析功能

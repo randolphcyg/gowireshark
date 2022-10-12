@@ -9,6 +9,7 @@ import (
 )
 
 const inputFilepath = "../pcaps/s7comm_clean.pcap"
+const inputFilepath2 = "../pcaps/wincc_s400_production.pcap"
 
 func TestEpanVersion(t *testing.T) {
 	fmt.Println(gowireshark.EpanVersion())
@@ -48,6 +49,44 @@ func TestDissectPrintSpecificFrame(t *testing.T) {
 		fmt.Println(err)
 	}
 }
+
+func TestCapFileMulSeq(t *testing.T) {
+	var err error
+
+	fmt.Println("@@@@@@@@@@@@@")
+	err = gowireshark.DissectPrintSpecificFrame(inputFilepath, 5000)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println("$$$$$$$$$$$$$")
+	err = gowireshark.DissectPrintSpecificFrame(inputFilepath2, 50)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+//func TestCapFileMulGoroutine(t *testing.T) {
+//	var err error
+//
+//	go func() {
+//		fmt.Println("@@@@@@@@@@@@@")
+//		err = gowireshark.DissectPrintSpecificFrame(inputFilepath, 5000)
+//		if err != nil {
+//			fmt.Println(err)
+//		}
+//	}()
+//
+//	go func() {
+//		fmt.Println("$$$$$$$$$$$$$")
+//		err = gowireshark.DissectPrintSpecificFrame(inputFilepath2, 50)
+//		if err != nil {
+//			fmt.Println(err)
+//		}
+//	}()
+//
+//	time.Sleep(time.Second * 3)
+//}
 
 func TestDissectPrintSpecificFrameByGo(t *testing.T) {
 	err := gowireshark.DissectPrintSpecificFrameByGo(inputFilepath, 5000)
