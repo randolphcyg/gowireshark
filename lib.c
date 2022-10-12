@@ -3,68 +3,15 @@
 #include <include/offline.h>
 
 // global capture file variable
-capture_file cfile;
+capture_file cf;
 
 /**
- * Init the capture file struct.
- *
- *  @param cf the pointer of capture_file struct which is a global var
- */
-void cap_file_init(capture_file *cf) { memset(cf, 0, sizeof(capture_file)); }
-
-/**
- * Copy from tshark.
- */
-static const nstime_t *tshark_get_frame_ts(struct packet_provider_data *prov,
-                                           guint32 frame_num) {
-  if (prov->ref && prov->ref->num == frame_num)
-    return &prov->ref->abs_ts;
-  if (prov->prev_dis && prov->prev_dis->num == frame_num)
-    return &prov->prev_dis->abs_ts;
-  if (prov->prev_cap && prov->prev_cap->num == frame_num)
-    return &prov->prev_cap->abs_ts;
-  if (prov->frames) {
-    frame_data *fd = frame_data_sequence_find(prov->frames, frame_num);
-    return (fd) ? &fd->abs_ts : NULL;
-  }
-  return NULL;
-}
-
-/**
- * Clean the capture file struct and epan mod.
- */
-void clean() {
-  if (cfile.provider.frames != NULL) {
-    /*
-     * Free a frame_data_sequence and all the frame_data structures in it.
-     */
-    free_frame_data_sequence(cfile.provider.frames);
-    cfile.provider.frames = NULL;
-  }
-  if (cfile.provider.wth != NULL) {
-    /** Closes any open file handles and frees the memory associated with wth.
-     */
-    wtap_close(cfile.provider.wth);
-    cfile.provider.wth = NULL;
-  }
-  if (cfile.epan != NULL) {
-    epan_free(cfile.epan);
-  }
-  /** cleanup the whole epan module, this is used to be called only once in a
-   * program */
-  epan_cleanup();
-}
-
-/**
- * Init policies、wtap mod、epan mod and Fill the capture file struct.
+ * Init policies、wtap mod、epan mod.
  *
  *  @param filepath the pcap file path
  *  @return 0 if init correctly
  */
-int init(char *filepath) {
-  int err = 0;
-  gchar *err_info = NULL;
-  e_prefs *prefs_p;
+int init_env() {
   /**
    * Called when the program starts, to enable security features and save
    * whatever credential information we'll need later.
@@ -88,26 +35,153 @@ int init(char *filepath) {
    *
    * Returns TRUE on success, FALSE on failure.
    */
-  epan_init(NULL, NULL, 0);
-  cap_file_init(&cfile);
-  cfile.filename = filepath;
-  cfile.provider.wth =
-      wtap_open_offline(cfile.filename, WTAP_TYPE_AUTO, &err, &err_info, TRUE);
-  if (err != 0 || cfile.provider.wth == NULL) {
+  gboolean init_epan_res;
+  init_epan_res = epan_init(NULL, NULL, 0);
+  if (init_epan_res) {
+    return 1;
+  } else {
+    return 0;
+  }
+
+  return 1;
+}
+
+/**
+ * Copy from tshark, handle time.
+ */
+static const nstime_t *tshark_get_frame_ts(struct packet_provider_data *prov,
+                                           guint32 frame_num) {
+  if (prov->ref && prov->ref->num == frame_num)
+    return &prov->ref->abs_ts;
+  if (prov->prev_dis && prov->prev_dis->num == frame_num)
+    return &prov->prev_dis->abs_ts;
+  if (prov->prev_cap && prov->prev_cap->num == frame_num)
+    return &prov->prev_cap->abs_ts;
+  if (prov->frames) {
+    frame_data *fd = frame_data_sequence_find(prov->frames, frame_num);
+    return (fd) ? &fd->abs_ts : NULL;
+  }
+  return NULL;
+}
+
+/**
+ * Clean the capture file struct and epan mod.
+ */
+void clean() {
+  if (cf.provider.frames != NULL) {
+    /*
+     * Free a frame_data_sequence and all the frame_data structures in it.
+     */
+    free_frame_data_sequence(cf.provider.frames);
+    cf.provider.frames = NULL;
+  }
+  if (cf.provider.wth != NULL) {
+    /** Closes any open file handles and frees the memory associated with wth.
+     */
+    wtap_close(cf.provider.wth);
+    cf.provider.wth = NULL;
+  }
+  if (cf.epan != NULL) {
+    epan_free(cf.epan);
+  }
+  /** cleanup the whole epan module, this is used to be called only once in a
+   * program */
+  epan_cleanup();
+}
+
+/**
+ * Clean the capture file struct.
+ */
+void clean_cf() {
+  cf.stop_flag = FALSE;
+  if (cf.provider.wth) {
+    wtap_close(cf.provider.wth);
+    cf.provider.wth = NULL;
+  }
+
+  /* We have no file open... */
+  if (cf.filename != NULL) {
+    g_free(cf.filename);
+    cf.filename = NULL;
+  }
+
+  /* ...which means we have no changes to that file to save. */
+  cf.unsaved_changes = FALSE;
+
+  /* no open_routine type */
+  cf.open_type = WTAP_TYPE_AUTO;
+
+  /* Clean up the record metadata. */
+  wtap_rec_cleanup(&cf.rec);
+
+  cf.rfcode = NULL;
+  if (cf.provider.frames != NULL) {
+    //    free_frame_data_sequence(cf.provider.frames);
+    free(cf.provider.frames);
+    cf.provider.frames = NULL;
+  }
+  if (cf.provider.frames_modified_blocks) {
+    g_tree_destroy(cf.provider.frames_modified_blocks);
+    cf.provider.frames_modified_blocks = NULL;
+  }
+
+  /* No frames, no frame selected, no field in that frame selected. */
+  cf.count = 0;
+  cf.current_frame = NULL;
+  cf.current_row = 0;
+  cf.finfo_selected = NULL;
+
+  /* No frame link-layer types, either. */
+  if (cf.linktypes != NULL) {
+    g_array_free(cf.linktypes, TRUE);
+    cf.linktypes = NULL;
+  }
+
+  cf.f_datalen = 0;
+  nstime_set_zero(&cf.elapsed_time);
+
+  reset_tap_listeners();
+
+  epan_free(cf.epan);
+  cf.epan = NULL;
+
+  /* We have no file open. */
+  cf.state = FILE_CLOSED;
+
+  //    cf_callback_invoke(cf_cb_file_closed, cf);
+}
+
+/**
+ * Init and fill the capture file struct.
+ *
+ *  @param filepath the pcap file path
+ *  @return 0 if init correctly
+ */
+int init_cf(char *filepath) {
+  int err = 0;
+  gchar *err_info = NULL;
+  e_prefs *prefs_p;
+
+  /* Initialize the capture file struct */
+  memset(&cf, 0, sizeof(capture_file));
+  cf.filename = filepath;
+  cf.provider.wth =
+      wtap_open_offline(cf.filename, WTAP_TYPE_AUTO, &err, &err_info, TRUE);
+  if (err != 0 || cf.provider.wth == NULL) {
     clean();
     return err;
   }
-  cfile.count = 0;
-  cfile.provider.frames = new_frame_data_sequence();
+  cf.count = 0;
+  cf.provider.frames = new_frame_data_sequence();
   static const struct packet_provider_funcs funcs = {
       tshark_get_frame_ts,
       NULL,
       NULL,
       NULL,
   };
-  cfile.epan = epan_new(&cfile.provider, &funcs);
+  cf.epan = epan_new(&cf.provider, &funcs);
   prefs_p = epan_load_settings();
-  build_column_format_array(&cfile.cinfo, prefs_p->num_cols, TRUE);
+  build_column_format_array(&cf.cinfo, prefs_p->num_cols, TRUE);
   return 0;
 }
 
@@ -140,29 +214,28 @@ gboolean read_packet(epan_dissect_t **edt_r) {
    * if the read succeeded.
    * @return TRUE on success, FALSE on failure.
    */
-  if (wtap_read(cfile.provider.wth, &rec, &cfile.buf, &err, &err_info,
+  if (wtap_read(cf.provider.wth, &rec, &cf.buf, &err, &err_info,
                 &data_offset)) {
-    cfile.count++;
+    cf.count++;
     frame_data fdlocal;
-    frame_data_init(&fdlocal, cfile.count, &rec, data_offset, cum_bytes);
+    frame_data_init(&fdlocal, cf.count, &rec, data_offset, cum_bytes);
     // data_offset must be correctly set
     data_offset = fdlocal.pkt_len;
-    edt = epan_dissect_new(cfile.epan, TRUE, TRUE);
+    edt = epan_dissect_new(cf.epan, TRUE, TRUE);
     prime_epan_dissect_with_postdissector_wanted_hfids(edt);
     /**
      * Sets the frame data struct values before dissection.
      */
-    frame_data_set_before_dissect(&fdlocal, &cfile.elapsed_time,
-                                  &cfile.provider.ref, cfile.provider.prev_dis);
-    cfile.provider.ref = &fdlocal;
+    frame_data_set_before_dissect(&fdlocal, &cf.elapsed_time, &cf.provider.ref,
+                                  cf.provider.prev_dis);
+    cf.provider.ref = &fdlocal;
     tvbuff_t *tvb;
-    tvb = tvb_new_real_data(cfile.buf.data, data_offset, data_offset);
+    tvb = tvb_new_real_data(cf.buf.data, data_offset, data_offset);
     // core dissect process
-    epan_dissect_run_with_taps(edt, cfile.cd_t, &rec, tvb, &fdlocal,
-                               &cfile.cinfo);
+    epan_dissect_run_with_taps(edt, cf.cd_t, &rec, tvb, &fdlocal, &cf.cinfo);
     frame_data_set_after_dissect(&fdlocal, &cum_bytes);
-    cfile.provider.prev_cap = cfile.provider.prev_dis =
-        frame_data_sequence_add(cfile.provider.frames, &fdlocal);
+    cf.provider.prev_cap = cf.provider.prev_dis =
+        frame_data_sequence_add(cf.provider.frames, &fdlocal);
     // free space
     frame_data_destroy(&fdlocal);
     *edt_r = edt;
@@ -187,6 +260,7 @@ void print_all_frame() {
     epan_dissect_free(edt);
     edt = NULL;
   }
+  clean_cf();
 }
 
 /**
@@ -207,6 +281,7 @@ void print_first_frame() {
     epan_dissect_free(edt);
     edt = NULL;
   }
+  clean_cf();
 }
 
 /**
@@ -228,10 +303,11 @@ void print_first_several_frame(int count) {
     print_hex_data(print_stream, edt);
     epan_dissect_free(edt);
     edt = NULL;
-    if (cfile.count == count) {
+    if (cf.count == count) {
       break;
     }
   }
+  clean_cf();
 }
 
 /**
@@ -246,7 +322,7 @@ void print_specific_frame(int num) {
   print_stream = print_stream_text_stdio_new(stdout);
   // start reading packets
   while (read_packet(&edt)) {
-    if (num != cfile.count) {
+    if (num != cf.count) {
       epan_dissect_free(edt);
       edt = NULL;
       continue;
@@ -262,6 +338,8 @@ void print_specific_frame(int num) {
     edt = NULL;
     break;
   }
+
+  clean_cf();
 }
 
 /**
@@ -274,7 +352,7 @@ char *get_specific_frame_hex_data(int num) {
   epan_dissect_t *edt;
   // start reading packets
   while (read_packet(&edt)) {
-    if (num != cfile.count) {
+    if (num != cf.count) {
       epan_dissect_free(edt);
       edt = NULL;
       continue;
@@ -298,6 +376,7 @@ char *get_specific_frame_hex_data(int num) {
     return cJSON_PrintUnformatted(cjson_hex_root);
     break;
   }
+  clean_cf();
   return "";
 }
 
@@ -322,7 +401,7 @@ char *proto_tree_in_json(int num) {
 
   // start reading packets
   while (read_packet(&edt)) {
-    if (num != cfile.count) {
+    if (num != cf.count) {
       epan_dissect_free(edt);
       edt = NULL;
       continue;
@@ -337,7 +416,7 @@ char *proto_tree_in_json(int num) {
     char *out;
     out = get_proto_tree_dissect_res_in_json(
         NULL, print_dissections_expanded, TRUE, protocolfilter,
-        protocolfilter_flags, edt, &cfile.cinfo, node_children_grouper);
+        protocolfilter_flags, edt, &cf.cinfo, node_children_grouper);
 
     epan_dissect_free(edt);
     edt = NULL;
@@ -345,5 +424,6 @@ char *proto_tree_in_json(int num) {
     return out;
     break;
   }
+  clean_cf();
   return "";
 }
