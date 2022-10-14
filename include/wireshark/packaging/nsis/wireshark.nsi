@@ -10,7 +10,7 @@
 SetCompressor /SOLID lzma
 SetCompressorDictSize 64 ; MB
 
-!include "common.nsh"
+!include "wireshark-common.nsh"
 !include 'LogicLib.nsh'
 !include "StrFunc.nsh"
 !include "WordFunc.nsh"
@@ -40,7 +40,7 @@ ${StrRep}
 ; The file to write
 OutFile "${OUTFILE_DIR}\${PROGRAM_NAME}-${WIRESHARK_TARGET_PLATFORM}-${VERSION}.exe"
 ; Installer icon
-Icon "${TOP_SRC_DIR}\image\wiresharkinst.ico"
+Icon "${TOP_SRC_DIR}\resources\icons\wiresharkinst.ico"
 
 ; ============================================================================
 ; Modern UI
@@ -55,7 +55,7 @@ Icon "${TOP_SRC_DIR}\image\wiresharkinst.ico"
 !include "InstallOptions.nsh"
 ;!addplugindir ".\Plugins"
 
-!define MUI_ICON "${TOP_SRC_DIR}\image\wiresharkinst.ico"
+!define MUI_ICON "${TOP_SRC_DIR}\resources\icons\wiresharkinst.ico"
 BrandingText "Wireshark${U+00ae} Installer"
 
 !define MUI_COMPONENTSPAGE_SMALLDESC
@@ -125,7 +125,7 @@ Page custom DisplayUSBPcapPage
   ; https://nsis.sourceforge.io/Docs/Modern%20UI%202/Readme.html
   ; https://nsis.sourceforge.io/Docs/nsDialogs/Readme.html
   !ifdef QT_DIR
-  !include "AdditionalTasksPage.nsdinc"
+  !include "wireshark-additional-tasks.nsdinc"
   !endif
 
 ; ============================================================================
@@ -201,11 +201,7 @@ ComponentText "The following components are available for installation."
 DirText "Choose a directory in which to install ${PROGRAM_NAME}."
 
 ; The default installation directory
-!if ${WIRESHARK_TARGET_PLATFORM} == "win64"
-  InstallDir $PROGRAMFILES64\${PROGRAM_NAME}
-!else
-  InstallDir $PROGRAMFILES\${PROGRAM_NAME}
-!endif
+InstallDir $PROGRAMFILES64\${PROGRAM_NAME}
 
 ; See if this is an upgrade; if so, use the old InstallDir as default
 InstallDirRegKey HKEY_LOCAL_MACHINE SOFTWARE\${PROGRAM_NAME} "InstallDir"
@@ -248,7 +244,6 @@ FunctionEnd
 ; Control states
 Var START_MENU_STATE
 Var DESKTOP_ICON_STATE
-Var QUICK_LAUNCH_STATE
 Var FILE_ASSOCIATE_STATE
 
 ; NSIS
@@ -276,67 +271,63 @@ Function .onInit
   !if ${WIRESHARK_TARGET_PLATFORM} == "win64"
     ; http://forums.winamp.com/printthread.php?s=16ffcdd04a8c8d52bee90c0cae273ac5&threadid=262873
     ${IfNot} ${RunningX64}
-      MessageBox MB_OK "This version of Wireshark only runs on x64 machines.$\nTry installing the 32-bit version instead." /SD IDOK
+      MessageBox MB_OK "Wireshark only runs on x64 machines.$\nTry installing a 32-bit version (3.6 or earlier) instead." /SD IDOK
       Abort
-    ${EndIf}
-  !else
-    ${If} ${RunningX64}
-      MessageBox MB_OK "You are installing a 32-bit version of Wireshark on a 64-bit machine.$\nWe recommend installing the 64-bit version instead." /SD IDOK
     ${EndIf}
   !endif
 
-    ; Get the Windows version
-    ${GetWindowsVersion} $R0
+  ; Get the Windows version
+  ${GetWindowsVersion} $R0
 
-    ; This should match the following:
-    ; - The NTDDI_VERSION and _WIN32_WINNT parts of cmakeconfig.h.in
-    ; - The <compatibility><application> section in image\wireshark.exe.manifest.in
-    ; - The VersionNT parts of packaging\wix\Prerequisites.wxi
+  ; This should match the following:
+  ; - The NTDDI_VERSION and _WIN32_WINNT parts of cmakeconfig.h.in
+  ; - The <compatibility><application> section in image\wireshark.exe.manifest.in
+  ; - The VersionNT parts of packaging\wix\Prerequisites.wxi
 
-    ; Uncomment to test.
-    ; MessageBox MB_OK "You're running Windows $R0."
+  ; Uncomment to test.
+  ; MessageBox MB_OK "You're running Windows $R0."
 
-    ; Check if we're able to run with this version
-    StrCmp $R0 '95' lbl_winversion_unsupported
-    StrCmp $R0 '98' lbl_winversion_unsupported
-    StrCmp $R0 'ME' lbl_winversion_unsupported
-    StrCmp $R0 'NT 4.0' lbl_winversion_unsupported_nt4
-    StrCmp $R0 '2000' lbl_winversion_unsupported_2000
-    StrCmp $R0 'XP' lbl_winversion_unsupported_xp_2003
-    StrCmp $R0 '2003' lbl_winversion_unsupported_xp_2003
-    StrCmp $R0 'Vista' lbl_winversion_unsupported_vista_2008
-    StrCmp $R0 '2008' lbl_winversion_unsupported_vista_2008
-    Goto lbl_winversion_supported
+  ; Check if we're able to run with this version
+  StrCmp $R0 '95' lbl_winversion_unsupported
+  StrCmp $R0 '98' lbl_winversion_unsupported
+  StrCmp $R0 'ME' lbl_winversion_unsupported
+  StrCmp $R0 'NT 4.0' lbl_winversion_unsupported_nt4
+  StrCmp $R0 '2000' lbl_winversion_unsupported_2000
+  StrCmp $R0 'XP' lbl_winversion_unsupported_xp_2003
+  StrCmp $R0 '2003' lbl_winversion_unsupported_xp_2003
+  StrCmp $R0 'Vista' lbl_winversion_unsupported_vista_2008
+  StrCmp $R0 '2008' lbl_winversion_unsupported_vista_2008
+  Goto lbl_winversion_supported
 
 lbl_winversion_unsupported:
-    MessageBox MB_OK \
-        "Windows $R0 is no longer supported.$\nPlease install Ethereal 0.99.0 instead." \
-        /SD IDOK
-    Quit
+  MessageBox MB_OK \
+      "Windows $R0 is no longer supported.$\nPlease install Ethereal 0.99.0 instead." \
+      /SD IDOK
+  Quit
 
 lbl_winversion_unsupported_nt4:
-    MessageBox MB_OK \
-            "Windows $R0 is no longer supported.$\nPlease install Wireshark 0.99.4 instead." \
-            /SD IDOK
-    Quit
+  MessageBox MB_OK \
+          "Windows $R0 is no longer supported.$\nPlease install Wireshark 0.99.4 instead." \
+          /SD IDOK
+  Quit
 
 lbl_winversion_unsupported_2000:
-    MessageBox MB_OK \
-        "Windows $R0 is no longer supported.$\nPlease install Wireshark 1.2 or 1.0 instead." \
-        /SD IDOK
-    Quit
+  MessageBox MB_OK \
+      "Windows $R0 is no longer supported.$\nPlease install Wireshark 1.2 or 1.0 instead." \
+      /SD IDOK
+  Quit
 
 lbl_winversion_unsupported_xp_2003:
-    MessageBox MB_OK \
-        "Windows $R0 is no longer supported.$\nPlease install ${PROGRAM_NAME} 1.12 or 1.10 instead." \
-        /SD IDOK
-    Quit
+  MessageBox MB_OK \
+      "Windows $R0 is no longer supported.$\nPlease install ${PROGRAM_NAME} 1.12 or 1.10 instead." \
+      /SD IDOK
+  Quit
 
 lbl_winversion_unsupported_vista_2008:
-    MessageBox MB_OK \
-        "Windows $R0 is no longer supported.$\nPlease install ${PROGRAM_NAME} 2.2 instead." \
-        /SD IDOK
-    Quit
+  MessageBox MB_OK \
+      "Windows $R0 is no longer supported.$\nPlease install ${PROGRAM_NAME} 2.2 instead." \
+      /SD IDOK
+  Quit
 
 lbl_winversion_supported:
 !insertmacro IsWiresharkRunning
@@ -344,7 +335,6 @@ lbl_winversion_supported:
   ; Default control values.
   StrCpy $START_MENU_STATE ${BST_CHECKED}
   StrCpy $DESKTOP_ICON_STATE ${BST_UNCHECKED}
-  StrCpy $QUICK_LAUNCH_STATE ${BST_CHECKED}
   StrCpy $FILE_ASSOCIATE_STATE ${BST_CHECKED}
 
   ; Copied from https://nsis.sourceforge.io/Auto-uninstall_old_before_installing_new
@@ -367,20 +357,16 @@ lbl_winversion_supported:
   ; user chose before.
   ; (we use the "all users" start menu, so select it first)
   SetShellVarContext all
-  ; MessageBox MB_OK|MB_ICONINFORMATION "oninit 1 sm $START_MENU_STATE di $DESKTOP_ICON_STATE ql $QUICK_LAUNCH_STATE"
+  ; MessageBox MB_OK|MB_ICONINFORMATION "oninit 1 sm $START_MENU_STATE di $DESKTOP_ICON_STATE"
   ${IfNot} ${FileExists} $SMPROGRAMS\${PROGRAM_NAME}.lnk
     StrCpy $START_MENU_STATE ${BST_UNCHECKED}
   ${Endif}
   ${If} ${FileExists} $DESKTOP\${PROGRAM_NAME}.lnk
     StrCpy $DESKTOP_ICON_STATE ${BST_CHECKED}
   ${Endif}
-  ${IfNot} ${FileExists} $QUICKLAUNCH\${PROGRAM_NAME}.lnk
-    StrCpy $QUICK_LAUNCH_STATE ${BST_UNCHECKED}
-  ${Endif}
   ; Leave FILE_ASSOCIATE_STATE checked.
   ; MessageBox MB_OK|MB_ICONINFORMATION "oninit 2 sm $START_MENU_STATE $SMPROGRAMS\${PROGRAM_NAME}\${PROGRAM_NAME}.lnk \
-  ;   $\ndi $DESKTOP_ICON_STATE $DESKTOP\${PROGRAM_NAME}.lnk \
-  ;   $\nql $QUICK_LAUNCH_STATE $QUICKLAUNCH\${PROGRAM_NAME}.lnk"
+  ;   $\ndi $DESKTOP_ICON_STATE $DESKTOP\${PROGRAM_NAME}.lnk
 
   MessageBox MB_YESNOCANCEL|MB_ICONQUESTION \
     "$OLD_DISPLAYNAME is already installed.\
@@ -465,13 +451,6 @@ done:
     StrCpy $DESKTOP_ICON_STATE ${BST_UNCHECKED}
   ${Endif}
 
-  ${GetOptions} $R0 "/quicklaunchicon=" $R1
-  ${If} $R1 == "yes"
-    StrCpy $QUICK_LAUNCH_STATE ${BST_CHECKED}
-  ${ElseIf} $R1 == "no"
-    StrCpy $QUICK_LAUNCH_STATE ${BST_UNCHECKED}
-  ${Endif}
-
   ;Extract InstallOptions INI files
   ;!insertmacro INSTALLOPTIONS_EXTRACT "AdditionalTasksPage.ini"
   !insertmacro INSTALLOPTIONS_EXTRACT "NpcapPage.ini"
@@ -515,7 +494,7 @@ File "${STAGING_DIR}\libwiretap.dll"
 File "${STAGING_DIR}\libwireshark.dll"
 File "${STAGING_DIR}\libwsutil.dll"
 
-!include all-manifest.nsh
+!include wireshark-manifest.nsh
 
 File "${STAGING_DIR}\COPYING.txt"
 File "${STAGING_DIR}\NEWS.txt"
@@ -533,6 +512,8 @@ File "${STAGING_DIR}\dumpcap.exe"
 File "${STAGING_DIR}\dumpcap.html"
 File "${STAGING_DIR}\extcap.html"
 File "${STAGING_DIR}\ipmap.html"
+File "${STAGING_DIR}\gpl-2.0-standalone.html"
+File "${STAGING_DIR}\Acknowledgements.md"
 
 ; C-runtime redistributable
 ; vc_redist.x64.exe or vc_redist.x86.exe - copy and execute the redistributable installer
@@ -902,8 +883,8 @@ WriteRegStr HKEY_LOCAL_MACHINE "${UNINSTALL_PATH}" "URLUpdateInfo" "https://www.
 
 WriteRegDWORD HKEY_LOCAL_MACHINE "${UNINSTALL_PATH}" "NoModify" 1
 WriteRegDWORD HKEY_LOCAL_MACHINE "${UNINSTALL_PATH}" "NoRepair" 1
-WriteRegDWORD HKEY_LOCAL_MACHINE "${UNINSTALL_PATH}" "VersionMajor" ${VERSION_MAJOR}
-WriteRegDWORD HKEY_LOCAL_MACHINE "${UNINSTALL_PATH}" "VersionMinor" ${VERSION_MINOR}
+WriteRegDWORD HKEY_LOCAL_MACHINE "${UNINSTALL_PATH}" "VersionMajor" ${MAJOR_VERSION}
+WriteRegDWORD HKEY_LOCAL_MACHINE "${UNINSTALL_PATH}" "VersionMinor" ${MINOR_VERSION}
 
 WriteRegStr HKEY_LOCAL_MACHINE "${UNINSTALL_PATH}" "UninstallString" '"$INSTDIR\${UNINSTALLER_NAME}"'
 WriteRegStr HKEY_LOCAL_MACHINE "${UNINSTALL_PATH}" "QuietUninstallString" '"$INSTDIR\${UNINSTALLER_NAME}" /S'
@@ -946,19 +927,19 @@ File "${EXTRA_INSTALLER_DIR}\USBPcapSetup-${USBPCAP_PACKAGE_VERSION}.exe"
 ExecWait '"$INSTDIR\USBPcapSetup-${USBPCAP_PACKAGE_VERSION}.exe"' $0
 DetailPrint "USBPcap installer returned $0"
 ${If} $0 == "0"
-    ${If} ${RunningX64}
-        ${DisableX64FSRedirection}
-        SetRegView 64
-    ${EndIf}
-    ReadRegStr $USBPCAP_UNINSTALL HKEY_LOCAL_MACHINE "Software\Microsoft\Windows\CurrentVersion\Uninstall\USBPcap" "UninstallString"
-    ${If} ${RunningX64}
-        ${EnableX64FSRedirection}
-        SetRegView 32
-    ${EndIf}
-    ${StrRep} $0 '$USBPCAP_UNINSTALL' 'Uninstall.exe' 'USBPcapCMD.exe'
-    ${StrRep} $1 '$0' '"' ''
-    CopyFiles  /SILENT $1 $INSTDIR\extcap
-    SetRebootFlag true
+  ${If} ${RunningX64}
+    ${DisableX64FSRedirection}
+    SetRegView 64
+  ${EndIf}
+  ReadRegStr $USBPCAP_UNINSTALL HKEY_LOCAL_MACHINE "Software\Microsoft\Windows\CurrentVersion\Uninstall\USBPcap" "UninstallString"
+  ${If} ${RunningX64}
+    ${EnableX64FSRedirection}
+    SetRegView 32
+  ${EndIf}
+  ${StrRep} $0 '$USBPCAP_UNINSTALL' 'Uninstall.exe' 'USBPcapCMD.exe'
+  ${StrRep} $1 '$0' '"' ''
+  CopyFiles  /SILENT $1 $INSTDIR\extcap
+  SetRebootFlag true
 ${EndIf}
 SecRequired_skip_USBPcap:
 
@@ -983,7 +964,7 @@ File "${QT_DIR}\${PROGRAM_NAME_PATH}"
 ; Write an entry for ShellExecute
 WriteRegStr HKEY_LOCAL_MACHINE "Software\Microsoft\Windows\CurrentVersion\App Paths\${PROGRAM_NAME_PATH}" "" '$INSTDIR\${PROGRAM_NAME_PATH}'
 WriteRegStr HKEY_LOCAL_MACHINE "Software\Microsoft\Windows\CurrentVersion\App Paths\${PROGRAM_NAME_PATH}" "Path" '$INSTDIR'
-!include qt-dll-manifest.nsh
+!include wireshark-qt-manifest.nsh
 
 ${!defineifexist} TRANSLATIONS_FOLDER "${QT_DIR}\translations"
 SetOutPath $INSTDIR
@@ -1003,10 +984,6 @@ ${If} $DESKTOP_ICON_STATE == ${BST_CHECKED}
   CreateShortCut "$DESKTOP\${PROGRAM_NAME}.lnk" "$INSTDIR\${PROGRAM_NAME_PATH}" "" "$INSTDIR\${PROGRAM_NAME_PATH}" 0 "" "" "${PROGRAM_FULL_NAME}"
 ${Endif}
 
-${If} $QUICK_LAUNCH_STATE == ${BST_CHECKED}
-  CreateShortCut "$QUICKLAUNCH\${PROGRAM_NAME}.lnk" "$INSTDIR\${PROGRAM_NAME_PATH}" "" "$INSTDIR\${PROGRAM_NAME_PATH}" 0 "" "" "${PROGRAM_FULL_NAME}"
-${Endif}
-
 SectionEnd ; "SecWiresharkQt"
 !endif
 
@@ -1022,55 +999,55 @@ SectionGroup "Plugins & Extensions" SecPluginsGroup
 
 Section "Dissector Plugins" SecPlugins
 ;-------------------------------------------
-SetOutPath '$INSTDIR\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan'
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\ethercat.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\gryphon.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\irda.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\opcua.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\profinet.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\unistim.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\wimax.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\wimaxasncp.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\wimaxmacphy.dll"
+SetOutPath '$INSTDIR\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan'
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\ethercat.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\gryphon.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\irda.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\opcua.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\profinet.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\unistim.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\wimax.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\wimaxasncp.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\wimaxmacphy.dll"
 !include "custom_plugins.txt"
 SectionEnd
 
 Section "Tree Statistics Plugin" SecStatsTree
 ;-------------------------------------------
-SetOutPath '$INSTDIR\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan'
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\stats_tree.dll"
+SetOutPath '$INSTDIR\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan'
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\stats_tree.dll"
 SectionEnd
 
 Section "Mate - Meta Analysis and Tracing Engine" SecMate
 ;-------------------------------------------
-SetOutPath '$INSTDIR\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan'
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\mate.dll"
+SetOutPath '$INSTDIR\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan'
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\mate.dll"
 SectionEnd
 
 
 Section "TRANSUM - network and application performance analysis" SecTransum
 ;-------------------------------------------
-SetOutPath '$INSTDIR\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan'
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\epan\transum.dll"
+SetOutPath '$INSTDIR\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan'
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\epan\transum.dll"
 SectionEnd
 
 Section "File type plugins - capture file support" SecWiretap
 ;-------------------------------------------
-SetOutPath '$INSTDIR\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\wiretap'
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\wiretap\usbdump.dll"
+SetOutPath '$INSTDIR\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\wiretap'
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\wiretap\usbdump.dll"
 SectionEnd
 
 Section "Codec plugins" SecCodec
 ;-------------------------------------------
-SetOutPath '$INSTDIR\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\codecs'
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\codecs\g711.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\codecs\g722.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\codecs\g726.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\codecs\g729.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\codecs\l16mono.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\codecs\sbc.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\codecs\ilbc.dll"
-File "${STAGING_DIR}\plugins\${VERSION_MAJOR}.${VERSION_MINOR}\codecs\opus_dec.dll"
+SetOutPath '$INSTDIR\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\codecs'
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\codecs\g711.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\codecs\g722.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\codecs\g726.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\codecs\g729.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\codecs\l16mono.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\codecs\sbc.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\codecs\ilbc.dll"
+File "${STAGING_DIR}\plugins\${MAJOR_VERSION}.${MINOR_VERSION}\codecs\opus_dec.dll"
 SectionEnd
 
 Section "Configuration Profiles" SecProfiles
@@ -1078,6 +1055,7 @@ Section "Configuration Profiles" SecProfiles
 ; This should be a function or macro
 SetOutPath '$INSTDIR\profiles\Bluetooth'
 File "${STAGING_DIR}\profiles\Bluetooth\colorfilters"
+File "${STAGING_DIR}\profiles\Bluetooth\preferences"
 SetOutPath '$INSTDIR\profiles\Classic'
 File "${STAGING_DIR}\profiles\Classic\colorfilters"
 SetOutPath '$INSTDIR\profiles\No Reassembly'
@@ -1182,13 +1160,15 @@ Section /o "Androiddump" SecAndroiddump
 SectionEnd
 !insertmacro CheckExtrasFlag "androiddump"
 
-Section /o "Sshdump and Ciscodump" SecSshdump
+Section /o "Sshdump, Ciscodump, and Wifidump" SecSshdump
 ;-------------------------------------------
   !insertmacro InstallExtcap "sshdump"
   !insertmacro InstallExtcap "ciscodump"
+  !insertmacro InstallExtcap "wifidump"
 SectionEnd
 !insertmacro CheckExtrasFlag "sshdump"
 !insertmacro CheckExtrasFlag "ciscodump"
+!insertmacro CheckExtrasFlag "wifidump"
 
 Section /o "UDPdump" SecUDPdump
 ;-------------------------------------------
@@ -1260,7 +1240,7 @@ SectionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SecUDPdump} "Provide capture interface that gets UDP packets from network devices"
   !insertmacro MUI_DESCRIPTION_TEXT ${SecRandpktdump} "Provide random packet generator"
   !insertmacro MUI_DESCRIPTION_TEXT ${SecEtwdump} "Provide ETW reader"
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecEditCap} "Copy packets to a new file, optionally trimmming packets, omitting them, or saving to a different format."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecEditCap} "Copy packets to a new file, optionally trimming packets, omitting them, or saving to a different format."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecText2Pcap} "Read an ASCII hex dump and write the data into a libpcap-style capture file."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMergecap} "Combine multiple saved capture files into a single output file"
   !insertmacro MUI_DESCRIPTION_TEXT ${SecReordercap} "Copy packets to a new file, sorted by time."
@@ -1290,7 +1270,6 @@ Function InitAdditionalTasksPage
   ; We set XXX_STATE -> XxxCheckBox here and go the other direction below.
   ${NSD_SetState} $hCtl_AdditionalTasksPage_StartMenuCheckBox $START_MENU_STATE
   ${NSD_SetState} $hCtl_AdditionalTasksPage_DesktopIconCheckBox $DESKTOP_ICON_STATE
-  ${NSD_SetState} $hCtl_AdditionalTasksPage_QuickLaunchCheckBox $QUICK_LAUNCH_STATE
   ${NSD_SetState} $hCtl_AdditionalTasksPage_AssociateExtensionsCheckBox $FILE_ASSOCIATE_STATE
 
   StrCpy $QT_SELECTED 0
@@ -1300,7 +1279,6 @@ Function InitAdditionalTasksPage
   EnableWindow $hCtl_AdditionalTasksPage_CreateShortcutsLabel $QT_SELECTED
   EnableWindow $hCtl_AdditionalTasksPage_StartMenuCheckBox $QT_SELECTED
   EnableWindow $hCtl_AdditionalTasksPage_DesktopIconCheckBox $QT_SELECTED
-  EnableWindow $hCtl_AdditionalTasksPage_QuickLaunchCheckBox $QT_SELECTED
 
   EnableWindow $hCtl_AdditionalTasksPage_ExtensionsLabel $QT_SELECTED
   EnableWindow $hCtl_AdditionalTasksPage_AssociateExtensionsCheckBox $QT_SELECTED
@@ -1313,7 +1291,6 @@ Function LeaveAdditionalTasksPage
   ; We set XxxCheckBox -> XXX_STATE here and go the other direction above.
   ${NSD_GetState} $hCtl_AdditionalTasksPage_StartMenuCheckBox $START_MENU_STATE
   ${NSD_GetState} $hCtl_AdditionalTasksPage_DesktopIconCheckBox $DESKTOP_ICON_STATE
-  ${NSD_GetState} $hCtl_AdditionalTasksPage_QuickLaunchCheckBox $QUICK_LAUNCH_STATE
   ${NSD_GetState} $hCtl_AdditionalTasksPage_AssociateExtensionsCheckBox $FILE_ASSOCIATE_STATE
 FunctionEnd
 
@@ -1326,94 +1303,81 @@ Var USBPCAP_NAME ; DisplayName from USBPcap installation
 
 Function myShowCallback
 
-    ClearErrors
-    ; detect if WinPcap should be installed
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 4" "Text" "Install Npcap ${NPCAP_PACKAGE_VERSION}"
-    ReadRegStr $NPCAP_NAME HKEY_LOCAL_MACHINE "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\NpcapInst" "DisplayName"
-    IfErrors 0 lbl_npcap_installed
-    ; check also if WinPcap is installed
-    ReadRegStr $WINPCAP_NAME HKEY_LOCAL_MACHINE "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\WinPcapInst" "DisplayName"
-    IfErrors 0 lbl_winpcap_installed ;if RegKey is available, WinPcap is already installed
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 2" "Text" "Neither of these are installed"
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 2" "Flags" "DISABLED"
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Text" "(Use Add/Remove Programs first to uninstall any undetected old Npcap or WinPcap versions)"
-    Goto lbl_npcap_done
+  ClearErrors
+  ; detect if WinPcap should be installed
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 4" "Text" "Install Npcap ${NPCAP_PACKAGE_VERSION}"
+  ReadRegStr $NPCAP_NAME HKEY_LOCAL_MACHINE "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\NpcapInst" "DisplayName"
+  IfErrors 0 lbl_npcap_installed
+  ; check also if WinPcap is installed
+  ReadRegStr $WINPCAP_NAME HKEY_LOCAL_MACHINE "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\WinPcapInst" "DisplayName"
+  IfErrors 0 lbl_winpcap_installed ;if RegKey is available, WinPcap is already installed
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 2" "Text" "Neither of these are installed"
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 2" "Flags" "DISABLED"
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Text" "(Use Add/Remove Programs first to uninstall any undetected old Npcap or WinPcap versions)"
+  Goto lbl_npcap_done
 
 lbl_npcap_installed:
-    ReadRegStr $NPCAP_DISPLAY_VERSION HKEY_LOCAL_MACHINE "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\NpcapInst" "DisplayVersion"
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 1" "Text" "Currently installed Npcap version"
-    StrCmp $NPCAP_NAME "Npcap" 0 +3
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 2" "Text" "Npcap $NPCAP_DISPLAY_VERSION"
-    Goto +2
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 2" "Text" "$NPCAP_NAME"
+  ReadRegStr $NPCAP_DISPLAY_VERSION HKEY_LOCAL_MACHINE "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\NpcapInst" "DisplayVersion"
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 1" "Text" "Currently installed Npcap version"
+  StrCmp $NPCAP_NAME "Npcap" 0 +3
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 2" "Text" "Npcap $NPCAP_DISPLAY_VERSION"
+  Goto +2
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 2" "Text" "$NPCAP_NAME"
 
-    ; Compare the installed build against the one we have.
-    StrCmp $NPCAP_DISPLAY_VERSION "" lbl_npcap_do_install ; Npcap wasn't installed improperly?
-    ${VersionConvert} $NPCAP_DISPLAY_VERSION "" $R0 ; 0.99-r7 -> 0.99.114.7
-    ${VersionConvert} "${NPCAP_PACKAGE_VERSION}" "" $R1
-    ${VersionCompare} $R0 $R1 $1
-    StrCmp $1 "2" lbl_npcap_do_install
+  ; Compare the installed build against the one we have.
+  StrCmp $NPCAP_DISPLAY_VERSION "" lbl_npcap_do_install ; Npcap wasn't installed improperly?
+  ${VersionConvert} $NPCAP_DISPLAY_VERSION "" $R0 ; 0.99-r7 -> 0.99.114.7
+  ${VersionConvert} "${NPCAP_PACKAGE_VERSION}" "" $R1
+  ${VersionCompare} $R0 $R1 $1
+  StrCmp $1 "2" lbl_npcap_do_install
 
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 4" "State" "0"
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 4" "Flags" "DISABLED"
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Text" "If you wish to install Npcap, please uninstall $NPCAP_NAME manually first."
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Flags" "DISABLED"
-    Goto lbl_npcap_done
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 4" "State" "0"
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 4" "Flags" "DISABLED"
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Text" "If you wish to install Npcap, please uninstall $NPCAP_NAME manually first."
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Flags" "DISABLED"
+  Goto lbl_npcap_done
 
 lbl_winpcap_installed:
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 2" "Text" "$WINPCAP_NAME"
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 4" "State" "1"
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Text" "The currently installed $WINPCAP_NAME may be uninstalled first."
-    Goto lbl_npcap_done
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 2" "Text" "$WINPCAP_NAME"
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 4" "State" "1"
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Text" "The currently installed $WINPCAP_NAME may be uninstalled first."
+  Goto lbl_npcap_done
 
 lbl_npcap_do_install:
-    ; seems to be an old version, install newer one
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 4" "State" "1"
-    StrCmp $NPCAP_NAME "Npcap" 0 +3
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Text" "The currently installed Npcap $NPCAP_DISPLAY_VERSION will be uninstalled first."
-    Goto +2
-    WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Text" "The currently installed $NPCAP_NAME will be uninstalled first."
+  ; seems to be an old version, install newer one
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 4" "State" "1"
+  StrCmp $NPCAP_NAME "Npcap" 0 +3
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Text" "The currently installed Npcap $NPCAP_DISPLAY_VERSION will be uninstalled first."
+  Goto +2
+  WriteINIStr "$PLUGINSDIR\NpcapPage.ini" "Field 5" "Text" "The currently installed $NPCAP_NAME will be uninstalled first."
 
 lbl_npcap_done:
 
-    ; detect if USBPcap should be installed
-    WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 4" "Text" "Install USBPcap ${USBPCAP_PACKAGE_VERSION}"
-    ${If} ${RunningX64}
-        ${DisableX64FSRedirection}
-        SetRegView 64
-    ${EndIf}
-    ReadRegStr $USBPCAP_NAME HKEY_LOCAL_MACHINE "Software\Microsoft\Windows\CurrentVersion\Uninstall\USBPcap" "DisplayName"
-    ${If} ${RunningX64}
-        ${EnableX64FSRedirection}
-        SetRegView 32
-    ${EndIf}
-    IfErrors 0 lbl_usbpcap_installed ;if RegKey is available, USBPcap is already installed
-    WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 2" "Text" "USBPcap is currently not installed"
-    WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 2" "Flags" "DISABLED"
-    WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 5" "Text" "(Use Add/Remove Programs first to uninstall any undetected old USBPcap versions)"
-    Goto lbl_usbpcap_done
+  ; detect if USBPcap should be installed
+  WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 4" "Text" "Install USBPcap ${USBPCAP_PACKAGE_VERSION}"
+  ${If} ${RunningX64}
+      ${DisableX64FSRedirection}
+      SetRegView 64
+  ${EndIf}
+  ReadRegStr $USBPCAP_NAME HKEY_LOCAL_MACHINE "Software\Microsoft\Windows\CurrentVersion\Uninstall\USBPcap" "DisplayName"
+  ${If} ${RunningX64}
+      ${EnableX64FSRedirection}
+      SetRegView 32
+  ${EndIf}
+  IfErrors 0 lbl_usbpcap_installed ;if RegKey is available, USBPcap is already installed
+  WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 2" "Text" "USBPcap is currently not installed"
+  WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 2" "Flags" "DISABLED"
+  WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 5" "Text" "(Use Add/Remove Programs first to uninstall any undetected old USBPcap versions)"
+  Goto lbl_usbpcap_done
 
 lbl_usbpcap_installed:
-    WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 2" "Text" "$USBPCAP_NAME"
-    WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 4" "State" "0"
-    WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 4" "Flags" "DISABLED"
-    WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 5" "Text" "If you wish to install USBPcap ${USBPCAP_PACKAGE_VERSION}, please uninstall $USBPCAP_NAME manually first."
-    WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 5" "Flags" "DISABLED"
-    Goto lbl_usbpcap_done
+  WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 2" "Text" "$USBPCAP_NAME"
+  WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 4" "State" "0"
+  WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 4" "Flags" "DISABLED"
+  WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 5" "Text" "If you wish to install USBPcap ${USBPCAP_PACKAGE_VERSION}, please uninstall $USBPCAP_NAME manually first."
+  WriteINIStr "$PLUGINSDIR\USBPcapPage.ini" "Field 5" "Flags" "DISABLED"
+  Goto lbl_usbpcap_done
 
 lbl_usbpcap_done:
 
 FunctionEnd
-
-;
-; Editor modelines  -  https://www.wireshark.org/tools/modelines.html
-;
-; Local variables:
-; c-basic-offset: 4
-; tab-width: 8
-; indent-tabs-mode: nil
-; End:
-;
-; vi: set shiftwidth=4 tabstop=8 expandtab:
-; :indentSize=4:tabSize=8:noTabs=true:
-;

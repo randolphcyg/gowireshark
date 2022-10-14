@@ -18,7 +18,7 @@
  *
  * Based on the RANAP dissector
  *
- * References: 3GPP TS 36.413 V16.7.0 (2021-10)
+ * References: 3GPP TS 36.413 V17.1.0 (2022-06)
  */
 
 #include "config.h"
@@ -69,6 +69,7 @@ static dissector_handle_t lte_rrc_ue_radio_access_cap_info_nb_handle;
 static dissector_handle_t nr_rrc_ue_radio_access_cap_info_handle;
 static dissector_handle_t lte_rrc_ue_radio_paging_info_handle;
 static dissector_handle_t lte_rrc_ue_radio_paging_info_nb_handle;
+static dissector_handle_t nr_rrc_ue_radio_paging_info_handle;
 
 
 /*--- Included file: packet-s1ap-val.h ---*/
@@ -121,8 +122,10 @@ static dissector_handle_t lte_rrc_ue_radio_paging_info_nb_handle;
 #define maxnoofConnectedengNBs         256
 #define maxnoofPC5QoSFlows             2048
 #define maxnooffrequencies             64
-#define maxNARFCN                      32
+#define maxNARFCN                      3279165
 #define maxRS_IndexCellQual            16
+#define maxnoofPSCellsPerPrimaryCellinUEHistoryInfo 8
+#define maxnoofTACsInNTN               12
 #define maxnoofIRATReportingCells      128
 #define maxnoofcandidateCells          16
 #define maxnoofCellineNB               256
@@ -524,7 +527,24 @@ typedef enum _ProtocolIE_ID_enum {
   id_WUS_Assistance_Information = 323,
   id_NB_IoT_PagingDRX = 324,
   id_TraceCollectionEntityURI = 325,
-  id_EmergencyIndicator = 326
+  id_EmergencyIndicator = 326,
+  id_UERadioCapabilityForPaging_NR_Format = 327,
+  id_SourceTransportLayerAddress = 328,
+  id_lastVisitedPSCellList = 329,
+  id_RACSIndication = 330,
+  id_PagingCause = 331,
+  id_SecurityIndication = 332,
+  id_SecurityResult = 333,
+  id_E_RABSecurityResultItem = 334,
+  id_E_RABSecurityResultList = 335,
+  id_RAT_Restrictions = 336,
+  id_UEContextReferenceatSourceeNB = 337,
+  id_Unknown_338 = 338,
+  id_LTE_NTN_TAI_Information = 339,
+  id_SourceNodeTransportLayerAddress = 340,
+  id_E_RABToBeUpdatedList = 341,
+  id_E_RABToBeUpdatedItem = 342,
+  id_SourceSNID = 343
 } ProtocolIE_ID_enum;
 
 typedef enum _HandoverType_enum {
@@ -538,7 +558,15 @@ typedef enum _HandoverType_enum {
 } HandoverType_enum;
 
 typedef enum _RAT_Type_enum {
-  nbiot        =   0
+  nbiot        =   0,
+  nbiot_leo    =   1,
+  nbiot_meo    =   2,
+  nbiot_geo    =   3,
+  nbiot_othersat =   4,
+  eutran_leo   =   5,
+  eutran_meo   =   6,
+  eutran_geo   =   7,
+  eutran_othersat =   8
 } RAT_Type_enum;
 
 typedef enum _SRVCCHOIndication_enum {
@@ -547,7 +575,7 @@ typedef enum _SRVCCHOIndication_enum {
 } SRVCCHOIndication_enum;
 
 /*--- End of included file: packet-s1ap-val.h ---*/
-#line 66 "./asn1/s1ap/packet-s1ap-template.c"
+#line 67 "./asn1/s1ap/packet-s1ap-template.c"
 
 /* Initialize the protocol and registered fields */
 static int proto_s1ap = -1;
@@ -600,6 +628,11 @@ static int hf_s1ap_NRintegrityProtectionAlgorithms_Reserved = -1;
 static int hf_s1ap_UE_Application_Layer_Measurement_Capability_QoE_Measurement_for_streaming_service = -1;
 static int hf_s1ap_UE_Application_Layer_Measurement_Capability_QoE_Measurement_for_MTSI_service = -1;
 static int hf_s1ap_UE_Application_Layer_Measurement_Capability_Reserved = -1;
+static int hf_s1ap_rAT_RestrictionInformation_LEO = -1;
+static int hf_s1ap_rAT_RestrictionInformation_MEO = -1;
+static int hf_s1ap_rAT_RestrictionInformation_GEO = -1;
+static int hf_s1ap_rAT_RestrictionInformation_OTHERSAT = -1;
+static int hf_s1ap_rAT_RestrictionInformation_Reserved = -1;
 
 /*--- Included file: packet-s1ap-hf.c ---*/
 #line 1 "./asn1/s1ap/packet-s1ap-hf.c"
@@ -668,6 +701,8 @@ static int hf_s1ap_E_RABInformationListItem_PDU = -1;  /* E_RABInformationListIt
 static int hf_s1ap_E_RABList_PDU = -1;            /* E_RABList */
 static int hf_s1ap_E_RABItem_PDU = -1;            /* E_RABItem */
 static int hf_s1ap_E_RABLevelQoSParameters_PDU = -1;  /* E_RABLevelQoSParameters */
+static int hf_s1ap_E_RABSecurityResultList_PDU = -1;  /* E_RABSecurityResultList */
+static int hf_s1ap_E_RABSecurityResultItem_PDU = -1;  /* E_RABSecurityResultItem */
 static int hf_s1ap_E_RABUsageReportItem_PDU = -1;  /* E_RABUsageReportItem */
 static int hf_s1ap_Ethernet_Type_PDU = -1;        /* Ethernet_Type */
 static int hf_s1ap_s1ap_EUTRAN_CGI_PDU = -1;      /* EUTRAN_CGI */
@@ -694,11 +729,13 @@ static int hf_s1ap_IAB_Supported_PDU = -1;        /* IAB_Supported */
 static int hf_s1ap_KillAllWarningMessages_PDU = -1;  /* KillAllWarningMessages */
 static int hf_s1ap_LAI_PDU = -1;                  /* LAI */
 static int hf_s1ap_s1ap_LastVisitedEUTRANCellInformation_PDU = -1;  /* LastVisitedEUTRANCellInformation */
+static int hf_s1ap_LastVisitedPSCellList_PDU = -1;  /* LastVisitedPSCellList */
 static int hf_s1ap_s1ap_LastVisitedGERANCellInformation_PDU = -1;  /* LastVisitedGERANCellInformation */
 static int hf_s1ap_LPPa_PDU_PDU = -1;             /* LPPa_PDU */
 static int hf_s1ap_LHN_ID_PDU = -1;               /* LHN_ID */
 static int hf_s1ap_LoggedMBSFNMDT_PDU = -1;       /* LoggedMBSFNMDT */
 static int hf_s1ap_LTE_M_Indication_PDU = -1;     /* LTE_M_Indication */
+static int hf_s1ap_LTE_NTN_TAI_Information_PDU = -1;  /* LTE_NTN_TAI_Information */
 static int hf_s1ap_M3Configuration_PDU = -1;      /* M3Configuration */
 static int hf_s1ap_M4Configuration_PDU = -1;      /* M4Configuration */
 static int hf_s1ap_M5Configuration_PDU = -1;      /* M5Configuration */
@@ -741,19 +778,22 @@ static int hf_s1ap_Packet_LossRate_PDU = -1;      /* Packet_LossRate */
 static int hf_s1ap_Paging_eDRXInformation_PDU = -1;  /* Paging_eDRXInformation */
 static int hf_s1ap_PagingDRX_PDU = -1;            /* PagingDRX */
 static int hf_s1ap_PagingPriority_PDU = -1;       /* PagingPriority */
+static int hf_s1ap_PagingCause_PDU = -1;          /* PagingCause */
 static int hf_s1ap_PC5QoSParameters_PDU = -1;     /* PC5QoSParameters */
 static int hf_s1ap_PendingDataIndication_PDU = -1;  /* PendingDataIndication */
 static int hf_s1ap_PLMNidentity_PDU = -1;         /* PLMNidentity */
 static int hf_s1ap_ProSeAuthorized_PDU = -1;      /* ProSeAuthorized */
 static int hf_s1ap_ProSeUEtoNetworkRelaying_PDU = -1;  /* ProSeUEtoNetworkRelaying */
 static int hf_s1ap_PS_ServiceNotAvailable_PDU = -1;  /* PS_ServiceNotAvailable */
-static int hf_s1ap_PSCellInformation_PDU = -1;    /* PSCellInformation */
+static int hf_s1ap_s1ap_PSCellInformation_PDU = -1;  /* PSCellInformation */
+static int hf_s1ap_RACSIndication_PDU = -1;       /* RACSIndication */
 static int hf_s1ap_ReceiveStatusOfULPDCPSDUsExtended_PDU = -1;  /* ReceiveStatusOfULPDCPSDUsExtended */
 static int hf_s1ap_ReceiveStatusOfULPDCPSDUsPDCP_SNlength18_PDU = -1;  /* ReceiveStatusOfULPDCPSDUsPDCP_SNlength18 */
 static int hf_s1ap_RecommendedCellItem_PDU = -1;  /* RecommendedCellItem */
 static int hf_s1ap_RecommendedENBItem_PDU = -1;   /* RecommendedENBItem */
 static int hf_s1ap_RelativeMMECapacity_PDU = -1;  /* RelativeMMECapacity */
 static int hf_s1ap_RelayNode_Indicator_PDU = -1;  /* RelayNode_Indicator */
+static int hf_s1ap_RAT_Restrictions_PDU = -1;     /* RAT_Restrictions */
 static int hf_s1ap_RAT_Type_PDU = -1;             /* RAT_Type */
 static int hf_s1ap_RequestType_PDU = -1;          /* RequestType */
 static int hf_s1ap_RequestTypeAdditionalInfo_PDU = -1;  /* RequestTypeAdditionalInfo */
@@ -766,6 +806,7 @@ static int hf_s1ap_SecurityContext_PDU = -1;      /* SecurityContext */
 static int hf_s1ap_SecondaryRATDataUsageRequest_PDU = -1;  /* SecondaryRATDataUsageRequest */
 static int hf_s1ap_SecondaryRATDataUsageReportList_PDU = -1;  /* SecondaryRATDataUsageReportList */
 static int hf_s1ap_SecondaryRATDataUsageReportItem_PDU = -1;  /* SecondaryRATDataUsageReportItem */
+static int hf_s1ap_SecurityIndication_PDU = -1;   /* SecurityIndication */
 static int hf_s1ap_SerialNumber_PDU = -1;         /* SerialNumber */
 static int hf_s1ap_ServiceType_PDU = -1;          /* ServiceType */
 static int hf_s1ap_SONInformationReport_PDU = -1;  /* SONInformationReport */
@@ -786,6 +827,7 @@ static int hf_s1ap_TimeSynchronisationInfo_PDU = -1;  /* TimeSynchronisationInfo
 static int hf_s1ap_S_TMSI_PDU = -1;               /* S_TMSI */
 static int hf_s1ap_TAI_PDU = -1;                  /* TAI */
 static int hf_s1ap_TargetID_PDU = -1;             /* TargetID */
+static int hf_s1ap_Global_RAN_NODE_ID_PDU = -1;   /* Global_RAN_NODE_ID */
 static int hf_s1ap_s1ap_TargeteNB_ToSourceeNB_TransparentContainer_PDU = -1;  /* TargeteNB_ToSourceeNB_TransparentContainer */
 static int hf_s1ap_Target_ToSource_TransparentContainer_PDU = -1;  /* Target_ToSource_TransparentContainer */
 static int hf_s1ap_TimeToWait_PDU = -1;           /* TimeToWait */
@@ -853,6 +895,8 @@ static int hf_s1ap_E_RABToBeSwitchedDLItem_PDU = -1;  /* E_RABToBeSwitchedDLItem
 static int hf_s1ap_PathSwitchRequestAcknowledge_PDU = -1;  /* PathSwitchRequestAcknowledge */
 static int hf_s1ap_E_RABToBeSwitchedULList_PDU = -1;  /* E_RABToBeSwitchedULList */
 static int hf_s1ap_E_RABToBeSwitchedULItem_PDU = -1;  /* E_RABToBeSwitchedULItem */
+static int hf_s1ap_E_RABToBeUpdatedList_PDU = -1;  /* E_RABToBeUpdatedList */
+static int hf_s1ap_E_RABToBeUpdatedItem_PDU = -1;  /* E_RABToBeUpdatedItem */
 static int hf_s1ap_PathSwitchRequestFailure_PDU = -1;  /* PathSwitchRequestFailure */
 static int hf_s1ap_HandoverCancel_PDU = -1;       /* HandoverCancel */
 static int hf_s1ap_HandoverCancelAcknowledge_PDU = -1;  /* HandoverCancelAcknowledge */
@@ -1131,6 +1175,8 @@ static int hf_s1ap_cause = -1;                    /* Cause */
 static int hf_s1ap_qCI = -1;                      /* QCI */
 static int hf_s1ap_allocationRetentionPriority = -1;  /* AllocationAndRetentionPriority */
 static int hf_s1ap_gbrQosInformation = -1;        /* GBR_QosInformation */
+static int hf_s1ap_E_RABSecurityResultList_item = -1;  /* ProtocolIE_SingleContainer */
+static int hf_s1ap_securityResult = -1;           /* SecurityResult */
 static int hf_s1ap_E_RABUsageReportList_item = -1;  /* ProtocolIE_SingleContainer */
 static int hf_s1ap_startTimestamp = -1;           /* T_startTimestamp */
 static int hf_s1ap_endTimestamp = -1;             /* T_endTimestamp */
@@ -1181,19 +1227,24 @@ static int hf_s1ap_threshRS_Index_r15 = -1;       /* T_threshRS_Index_r15 */
 static int hf_s1ap_sSBToMeasure = -1;             /* T_sSBToMeasure */
 static int hf_s1ap_sSRSSIMeasurement = -1;        /* T_sSRSSIMeasurement */
 static int hf_s1ap_quantityConfigNR_R15 = -1;     /* T_quantityConfigNR_R15 */
-static int hf_s1ap_blackCellsToAddModList = -1;   /* T_blackCellsToAddModList */
+static int hf_s1ap_excludedCellsToAddModList = -1;  /* T_excludedCellsToAddModList */
 static int hf_s1ap_e_UTRAN_Cell = -1;             /* LastVisitedEUTRANCellInformation */
 static int hf_s1ap_uTRAN_Cell = -1;               /* LastVisitedUTRANCellInformation */
 static int hf_s1ap_gERAN_Cell = -1;               /* LastVisitedGERANCellInformation */
 static int hf_s1ap_nG_RAN_Cell = -1;              /* LastVisitedNGRANCellInformation */
 static int hf_s1ap_cellType = -1;                 /* CellType */
 static int hf_s1ap_time_UE_StayedInCell = -1;     /* Time_UE_StayedInCell */
+static int hf_s1ap_LastVisitedPSCellList_item = -1;  /* LastVisitedPSCellInformation */
+static int hf_s1ap_pSCellID = -1;                 /* PSCellInformation */
+static int hf_s1ap_timeStay = -1;                 /* INTEGER_0_40950 */
 static int hf_s1ap_undefined = -1;                /* NULL */
 static int hf_s1ap_pattern_period = -1;           /* T_pattern_period */
 static int hf_s1ap_pattern_offset = -1;           /* INTEGER_0_10239_ */
 static int hf_s1ap_loggingInterval = -1;          /* LoggingInterval */
 static int hf_s1ap_loggingDuration = -1;          /* LoggingDuration */
 static int hf_s1ap_mBSFN_ResultToLog = -1;        /* MBSFN_ResultToLog */
+static int hf_s1ap_tACList_In_LTE_NTN = -1;       /* TACList_In_LTE_NTN */
+static int hf_s1ap_uE_Location_Derived_TAC = -1;  /* TAC */
 static int hf_s1ap_m3period = -1;                 /* M3period */
 static int hf_s1ap_m4period = -1;                 /* M4period */
 static int hf_s1ap_m4_links_to_log = -1;          /* Links_to_log */
@@ -1257,6 +1308,8 @@ static int hf_s1ap_timeStayedInCell = -1;         /* INTEGER_0_4095 */
 static int hf_s1ap_recommendedENBList = -1;       /* RecommendedENBList */
 static int hf_s1ap_RecommendedENBList_item = -1;  /* ProtocolIE_SingleContainer */
 static int hf_s1ap_mMEPagingTarget = -1;          /* MMEPagingTarget */
+static int hf_s1ap_RAT_Restrictions_item = -1;    /* RAT_RestrictionsItem */
+static int hf_s1ap_rAT_RestrictionInformation = -1;  /* T_rAT_RestrictionInformation */
 static int hf_s1ap_eventType = -1;                /* EventType */
 static int hf_s1ap_reportArea = -1;               /* ReportArea */
 static int hf_s1ap_rIMInformation = -1;           /* RIMInformation */
@@ -1272,6 +1325,8 @@ static int hf_s1ap_nextHopParameter = -1;         /* SecurityKey */
 static int hf_s1ap_SecondaryRATDataUsageReportList_item = -1;  /* ProtocolIE_SingleContainer */
 static int hf_s1ap_secondaryRATType = -1;         /* SecondaryRATType */
 static int hf_s1ap_e_RABUsageReportList = -1;     /* E_RABUsageReportList */
+static int hf_s1ap_integrityProtectionIndication = -1;  /* IntegrityProtectionIndication */
+static int hf_s1ap_integrityProtectionResult = -1;  /* IntegrityProtectionResult */
 static int hf_s1ap_sONInformationRequest = -1;    /* SONInformationRequest */
 static int hf_s1ap_sONInformationReply = -1;      /* SONInformationReply */
 static int hf_s1ap_sONInformation_Extension = -1;  /* SONInformation_Extension */
@@ -1314,6 +1369,7 @@ static int hf_s1ap_broadcastPLMNs = -1;           /* BPLMNs */
 static int hf_s1ap_stratumLevel = -1;             /* StratumLevel */
 static int hf_s1ap_synchronisationStatus = -1;    /* SynchronisationStatus */
 static int hf_s1ap_mMEC = -1;                     /* MME_Code */
+static int hf_s1ap_TACList_In_LTE_NTN_item = -1;  /* TAC */
 static int hf_s1ap_tAIListforMDT = -1;            /* TAIListforMDT */
 static int hf_s1ap_TAIListforMDT_item = -1;       /* TAI */
 static int hf_s1ap_TAIListforWarning_item = -1;   /* TAI */
@@ -1385,6 +1441,7 @@ static int hf_s1ap_dL_gTP_TEID = -1;              /* GTP_TEID */
 static int hf_s1ap_uL_TransportLayerAddress = -1;  /* TransportLayerAddress */
 static int hf_s1ap_gTP_TEID = -1;                 /* GTP_TEID */
 static int hf_s1ap_e_RABlevelQosParameters = -1;  /* E_RABLevelQoSParameters */
+static int hf_s1ap_securityIndication = -1;       /* SecurityIndication */
 static int hf_s1ap_E_RABToBeSetupListBearerSUReq_item = -1;  /* ProtocolIE_SingleContainer */
 static int hf_s1ap_e_RABlevelQoSParameters = -1;  /* E_RABLevelQoSParameters */
 static int hf_s1ap_nAS_PDU = -1;                  /* NAS_PDU */
@@ -1483,7 +1540,7 @@ static int hf_s1ap_eHRPD_Sector_ID_01 = -1;       /* EHRPD_Sector_ID */
 static int hf_s1ap_eHRPDSectorLoadReportingResponse = -1;  /* EHRPDSectorLoadReportingResponse */
 
 /*--- End of included file: packet-s1ap-hf.c ---*/
-#line 119 "./asn1/s1ap/packet-s1ap-template.c"
+#line 125 "./asn1/s1ap/packet-s1ap-template.c"
 
 /* Initialize the subtree pointers */
 static int ett_s1ap = -1;
@@ -1524,10 +1581,11 @@ static int ett_s1ap_threshRS_Index_r15 = -1;
 static int ett_s1ap_sSBToMeasure = -1;
 static int ett_s1ap_sSRSSIMeasurement = -1;
 static int ett_s1ap_quantityConfigNR_R15 = -1;
-static int ett_s1ap_blackCellsToAddModList = -1;
+static int ett_s1ap_excludedCellsToAddModList = -1;
 static int ett_s1ap_NB_IoT_RLF_Report_Container = -1;
 static int ett_s1ap_MDT_ConfigurationNR = -1;
 static int ett_s1ap_IntersystemSONConfigurationTransfer = -1;
+static int ett_s1ap_rAT_RestrictionInformation = -1;
 
 /*--- Included file: packet-s1ap-ett.c ---*/
 #line 1 "./asn1/s1ap/packet-s1ap-ett.c"
@@ -1624,6 +1682,8 @@ static gint ett_s1ap_E_RABInformationListItem = -1;
 static gint ett_s1ap_E_RABList = -1;
 static gint ett_s1ap_E_RABItem = -1;
 static gint ett_s1ap_E_RABLevelQoSParameters = -1;
+static gint ett_s1ap_E_RABSecurityResultList = -1;
+static gint ett_s1ap_E_RABSecurityResultItem = -1;
 static gint ett_s1ap_E_RABUsageReportList = -1;
 static gint ett_s1ap_E_RABUsageReportItem = -1;
 static gint ett_s1ap_EUTRAN_CGI = -1;
@@ -1648,10 +1708,13 @@ static gint ett_s1ap_InterSystemMeasurementItem = -1;
 static gint ett_s1ap_LAI = -1;
 static gint ett_s1ap_LastVisitedCell_Item = -1;
 static gint ett_s1ap_LastVisitedEUTRANCellInformation = -1;
+static gint ett_s1ap_LastVisitedPSCellList = -1;
+static gint ett_s1ap_LastVisitedPSCellInformation = -1;
 static gint ett_s1ap_LastVisitedGERANCellInformation = -1;
 static gint ett_s1ap_ListeningSubframePattern = -1;
 static gint ett_s1ap_LoggedMDT = -1;
 static gint ett_s1ap_LoggedMBSFNMDT = -1;
+static gint ett_s1ap_LTE_NTN_TAI_Information = -1;
 static gint ett_s1ap_M3Configuration = -1;
 static gint ett_s1ap_M4Configuration = -1;
 static gint ett_s1ap_M5Configuration = -1;
@@ -1688,6 +1751,8 @@ static gint ett_s1ap_RecommendedCellItem = -1;
 static gint ett_s1ap_RecommendedENBsForPaging = -1;
 static gint ett_s1ap_RecommendedENBList = -1;
 static gint ett_s1ap_RecommendedENBItem = -1;
+static gint ett_s1ap_RAT_Restrictions = -1;
+static gint ett_s1ap_RAT_RestrictionsItem = -1;
 static gint ett_s1ap_RequestType = -1;
 static gint ett_s1ap_RIMTransfer = -1;
 static gint ett_s1ap_RIMRoutingAddress = -1;
@@ -1696,6 +1761,8 @@ static gint ett_s1ap_ECGIListForRestart = -1;
 static gint ett_s1ap_SecurityContext = -1;
 static gint ett_s1ap_SecondaryRATDataUsageReportList = -1;
 static gint ett_s1ap_SecondaryRATDataUsageReportItem = -1;
+static gint ett_s1ap_SecurityIndication = -1;
+static gint ett_s1ap_SecurityResult = -1;
 static gint ett_s1ap_SONInformation = -1;
 static gint ett_s1ap_SONInformationReply = -1;
 static gint ett_s1ap_SONInformationReport = -1;
@@ -1716,6 +1783,7 @@ static gint ett_s1ap_SupportedTAs = -1;
 static gint ett_s1ap_SupportedTAs_Item = -1;
 static gint ett_s1ap_TimeSynchronisationInfo = -1;
 static gint ett_s1ap_S_TMSI = -1;
+static gint ett_s1ap_TACList_In_LTE_NTN = -1;
 static gint ett_s1ap_TAIBasedMDT = -1;
 static gint ett_s1ap_TAIListforMDT = -1;
 static gint ett_s1ap_TAIListforWarning = -1;
@@ -1783,6 +1851,7 @@ static gint ett_s1ap_PathSwitchRequest = -1;
 static gint ett_s1ap_E_RABToBeSwitchedDLItem = -1;
 static gint ett_s1ap_PathSwitchRequestAcknowledge = -1;
 static gint ett_s1ap_E_RABToBeSwitchedULItem = -1;
+static gint ett_s1ap_E_RABToBeUpdatedItem = -1;
 static gint ett_s1ap_PathSwitchRequestFailure = -1;
 static gint ett_s1ap_HandoverCancel = -1;
 static gint ett_s1ap_HandoverCancelAcknowledge = -1;
@@ -1938,7 +2007,7 @@ static gint ett_s1ap_EHRPDCompositeAvailableCapacity = -1;
 static gint ett_s1ap_EHRPDMultiSectorLoadReportingResponseItem = -1;
 
 /*--- End of included file: packet-s1ap-ett.c ---*/
-#line 164 "./asn1/s1ap/packet-s1ap-template.c"
+#line 171 "./asn1/s1ap/packet-s1ap-template.c"
 
 static expert_field ei_s1ap_number_pages_le15 = EI_INIT;
 
@@ -1999,7 +2068,6 @@ enum {
 };
 
 /* Global variables */
-static guint gbl_s1apSctpPort=SCTP_PORT_S1AP;
 static gboolean g_s1ap_dissect_container = TRUE;
 static gint g_s1ap_dissect_lte_container_as = S1AP_LTE_CONTAINER_AUTOMATIC;
 
@@ -2035,13 +2103,13 @@ static int dissect_TargetBSS_ToSourceBSS_TransparentContainer_PDU(tvbuff_t *tvb,
 static void
 s1ap_Threshold_RSRP_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-140, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-140, v);
 }
 
 static void
 s1ap_Threshold_RSRQ_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-20, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-20, v);
 }
 
 static const true_false_string s1ap_tfs_interfacesToTrace = {
@@ -2052,7 +2120,7 @@ static const true_false_string s1ap_tfs_interfacesToTrace = {
 static void
 s1ap_Time_UE_StayedInCell_EnhancedGranularity_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fs", ((float)v)/10);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fs", ((float)v)/10);
 }
 
 const value_string s1ap_serialNumber_gs_vals[] = {
@@ -2104,7 +2172,7 @@ dissect_s1ap_warningMessageContents(tvbuff_t *warning_msg_tvb, proto_tree *tree,
 static void
 s1ap_EUTRANRoundTripDelayEstimationInfo_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%uTs (%u)", 16*v, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%uTs (%u)", 16*v, v);
 }
 
 static const true_false_string s1ap_tfs_activate_do_not_activate = {
@@ -2115,25 +2183,25 @@ static const true_false_string s1ap_tfs_activate_do_not_activate = {
 static void
 s1ap_Packet_LossRate_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1f %% (%u)", (float)v/10, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1f %% (%u)", (float)v/10, v);
 }
 
 static void
 s1ap_threshold_nr_rsrp_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-156, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-156, v);
 }
 
 static void
 s1ap_threshold_nr_rsrq_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-43, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-43, v);
 }
 
 static void
 s1ap_threshold_nr_sinr_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-23, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-23, v);
 }
 
 static struct s1ap_private_data*
@@ -2205,7 +2273,7 @@ dissect_s1ap_INTEGER_0_65535(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 
 static int
 dissect_s1ap_T_global(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 231 "./asn1/s1ap/s1ap.cnf"
+#line 233 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   offset = dissect_per_object_identifier_str(tvb, offset, actx, tree, hf_index, &s1ap_data->obj_id);
 
@@ -2230,7 +2298,7 @@ static const per_choice_t PrivateIE_ID_choice[] = {
 
 static int
 dissect_s1ap_PrivateIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 227 "./asn1/s1ap/s1ap.cnf"
+#line 229 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->obj_id = NULL;
 
@@ -2319,7 +2387,7 @@ static value_string_ext s1ap_ProcedureCode_vals_ext = VALUE_STRING_EXT_INIT(s1ap
 
 static int
 dissect_s1ap_ProcedureCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 145 "./asn1/s1ap/s1ap.cnf"
+#line 147 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
                                                             0U, 255U, &s1ap_data->procedure_code, FALSE);
@@ -2333,7 +2401,7 @@ dissect_s1ap_ProcedureCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 
 static int
 dissect_s1ap_ProtocolExtensionID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 139 "./asn1/s1ap/s1ap.cnf"
+#line 141 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
                                                             0U, 65535U, &s1ap_data->protocol_extension_id, FALSE);
@@ -2673,6 +2741,23 @@ static const value_string s1ap_ProtocolIE_ID_vals[] = {
   { id_NB_IoT_PagingDRX, "id-NB-IoT-PagingDRX" },
   { id_TraceCollectionEntityURI, "id-TraceCollectionEntityURI" },
   { id_EmergencyIndicator, "id-EmergencyIndicator" },
+  { id_UERadioCapabilityForPaging_NR_Format, "id-UERadioCapabilityForPaging-NR-Format" },
+  { id_SourceTransportLayerAddress, "id-SourceTransportLayerAddress" },
+  { id_lastVisitedPSCellList, "id-lastVisitedPSCellList" },
+  { id_RACSIndication, "id-RACSIndication" },
+  { id_PagingCause, "id-PagingCause" },
+  { id_SecurityIndication, "id-SecurityIndication" },
+  { id_SecurityResult, "id-SecurityResult" },
+  { id_E_RABSecurityResultItem, "id-E-RABSecurityResultItem" },
+  { id_E_RABSecurityResultList, "id-E-RABSecurityResultList" },
+  { id_RAT_Restrictions, "id-RAT-Restrictions" },
+  { id_UEContextReferenceatSourceeNB, "id-UEContextReferenceatSourceeNB" },
+  { id_Unknown_338, "id-Unknown-338" },
+  { id_LTE_NTN_TAI_Information, "id-LTE-NTN-TAI-Information" },
+  { id_SourceNodeTransportLayerAddress, "id-SourceNodeTransportLayerAddress" },
+  { id_E_RABToBeUpdatedList, "id-E-RABToBeUpdatedList" },
+  { id_E_RABToBeUpdatedItem, "id-E-RABToBeUpdatedItem" },
+  { id_SourceSNID, "id-SourceSNID" },
   { 0, NULL }
 };
 
@@ -2681,7 +2766,7 @@ static value_string_ext s1ap_ProtocolIE_ID_vals_ext = VALUE_STRING_EXT_INIT(s1ap
 
 static int
 dissect_s1ap_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 121 "./asn1/s1ap/s1ap.cnf"
+#line 123 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
                                                             0U, 65535U, &s1ap_data->protocol_ie_id, FALSE);
@@ -2689,7 +2774,7 @@ dissect_s1ap_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 
 
 
-#line 125 "./asn1/s1ap/s1ap.cnf"
+#line 127 "./asn1/s1ap/s1ap.cnf"
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
                            val_to_str_ext(s1ap_data->protocol_ie_id, &s1ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
@@ -2770,7 +2855,7 @@ static const per_sequence_t ProtocolIE_ContainerList_sequence_of[1] = {
 
 static int
 dissect_s1ap_ProtocolIE_ContainerList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 172 "./asn1/s1ap/s1ap.cnf"
+#line 174 "./asn1/s1ap/s1ap.cnf"
   static const asn1_par_def_t ProtocolIE_ContainerList_pars[] = {
     { "lowerBound", ASN1_PAR_INTEGER },
     { "upperBound", ASN1_PAR_INTEGER },
@@ -2828,7 +2913,7 @@ dissect_s1ap_ProtocolExtensionContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_
 
 static int
 dissect_s1ap_T_value(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 235 "./asn1/s1ap/s1ap.cnf"
+#line 237 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   if (s1ap_data->obj_id) {
     offset = call_per_oid_callback(s1ap_data->obj_id, tvb, actx->pinfo, tree, offset, actx, hf_index);
@@ -2879,7 +2964,7 @@ dissect_s1ap_PrivateIE_Container(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 
 static int
 dissect_s1ap_PLMNidentity(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 248 "./asn1/s1ap/s1ap.cnf"
+#line 250 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb=NULL;
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   e212_number_type_t number_type = s1ap_data->number_type;
@@ -2908,7 +2993,7 @@ dissect_s1ap_PLMNidentity(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 
 static int
 dissect_s1ap_MME_Group_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1022 "./asn1/s1ap/s1ap.cnf"
+#line 1043 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        2, 2, FALSE, &parameter_tvb);
@@ -2926,7 +3011,7 @@ dissect_s1ap_MME_Group_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 
 static int
 dissect_s1ap_MME_Code(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1013 "./asn1/s1ap/s1ap.cnf"
+#line 1034 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        1, 1, FALSE, &parameter_tvb);
@@ -2951,7 +3036,7 @@ static const per_sequence_t GUMMEI_sequence[] = {
 
 static int
 dissect_s1ap_GUMMEI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1006 "./asn1/s1ap/s1ap.cnf"
+#line 1027 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->number_type = E212_GUMMEI;
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -2967,7 +3052,7 @@ dissect_s1ap_GUMMEI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 
 static int
 dissect_s1ap_M_TMSI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1361 "./asn1/s1ap/s1ap.cnf"
+#line 1388 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   proto_item *ti;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
@@ -3031,7 +3116,7 @@ dissect_s1ap_AerialUEsubscriptionInformation(tvbuff_t *tvb _U_, int offset _U_, 
 
 static int
 dissect_s1ap_CellIdentity(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2623 "./asn1/s1ap/s1ap.cnf"
+#line 2682 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *cell_id_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, -1,
                                      28, 28, FALSE, NULL, 0, &cell_id_tvb, NULL);
@@ -3055,7 +3140,7 @@ static const per_sequence_t EUTRAN_CGI_sequence[] = {
 
 static int
 dissect_s1ap_EUTRAN_CGI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2616 "./asn1/s1ap/s1ap.cnf"
+#line 2675 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->number_type = E212_ECGI;
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -3100,7 +3185,7 @@ dissect_s1ap_CellBasedMDT(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 
 static int
 dissect_s1ap_TAC(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1309 "./asn1/s1ap/s1ap.cnf"
+#line 1336 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
@@ -3168,7 +3253,7 @@ static const per_sequence_t TAI_sequence[] = {
 
 static int
 dissect_s1ap_TAI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1446 "./asn1/s1ap/s1ap.cnf"
+#line 1473 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->number_type = E212_TAI;
   s1ap_data->tai = wmem_new0(actx->pinfo->pool, struct s1ap_tai);
@@ -3468,7 +3553,7 @@ dissect_s1ap_AllocationAndRetentionPriority(tvbuff_t *tvb _U_, int offset _U_, a
 
 static int
 dissect_s1ap_CELevel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 794 "./asn1/s1ap/s1ap.cnf"
+#line 815 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -3907,7 +3992,7 @@ dissect_s1ap_BluetoothMeasConfig(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 
 static int
 dissect_s1ap_BluetoothName(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1476 "./asn1/s1ap/s1ap.cnf"
+#line 1503 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        1, 248, FALSE, &parameter_tvb);
@@ -4387,6 +4472,8 @@ const value_string s1ap_CauseRadioNetwork_vals[] = {
   {  39, "release-due-to-pre-emption" },
   {  40, "n26-interface-not-available" },
   {  41, "insufficient-ue-capabilities" },
+  {  42, "maximum-bearer-pre-emption-rate-exceeded" },
+  {  43, "up-integrity-protection-not-possible" },
   { 0, NULL }
 };
 
@@ -4395,10 +4482,10 @@ static value_string_ext s1ap_CauseRadioNetwork_vals_ext = VALUE_STRING_EXT_INIT(
 
 static int
 dissect_s1ap_CauseRadioNetwork(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2584 "./asn1/s1ap/s1ap.cnf"
+#line 2643 "./asn1/s1ap/s1ap.cnf"
   guint32 value;
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     36, &value, TRUE, 6, NULL);
+                                     36, &value, TRUE, 8, NULL);
 
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " [RadioNetwork-cause=%s]", val_to_str_const(value, s1ap_CauseRadioNetwork_vals, "Unknown"));
 
@@ -4417,7 +4504,7 @@ const value_string s1ap_CauseTransport_vals[] = {
 
 static int
 dissect_s1ap_CauseTransport(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2589 "./asn1/s1ap/s1ap.cnf"
+#line 2648 "./asn1/s1ap/s1ap.cnf"
   guint32 value;
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      2, &value, TRUE, 0, NULL);
@@ -4436,16 +4523,17 @@ const value_string s1ap_CauseNas_vals[] = {
   {   2, "detach" },
   {   3, "unspecified" },
   {   4, "csg-subscription-expiry" },
+  {   5, "uE-not-in-PLMN-serving-area" },
   { 0, NULL }
 };
 
 
 static int
 dissect_s1ap_CauseNas(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2594 "./asn1/s1ap/s1ap.cnf"
+#line 2653 "./asn1/s1ap/s1ap.cnf"
   guint32 value;
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, &value, TRUE, 1, NULL);
+                                     4, &value, TRUE, 2, NULL);
 
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " [NAS-cause=%s]", val_to_str_const(value, s1ap_CauseNas_vals, "Unknown"));
 
@@ -4469,7 +4557,7 @@ const value_string s1ap_CauseProtocol_vals[] = {
 
 static int
 dissect_s1ap_CauseProtocol(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2599 "./asn1/s1ap/s1ap.cnf"
+#line 2658 "./asn1/s1ap/s1ap.cnf"
   guint32 value;
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      7, &value, TRUE, 0, NULL);
@@ -4495,7 +4583,7 @@ const value_string s1ap_CauseMisc_vals[] = {
 
 static int
 dissect_s1ap_CauseMisc(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2604 "./asn1/s1ap/s1ap.cnf"
+#line 2663 "./asn1/s1ap/s1ap.cnf"
   guint32 value;
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      6, &value, TRUE, 0, NULL);
@@ -4569,7 +4657,7 @@ dissect_s1ap_CE_mode_B_SupportIndicator(tvbuff_t *tvb _U_, int offset _U_, asn1_
 
 static int
 dissect_s1ap_Cdma2000PDU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 728 "./asn1/s1ap/s1ap.cnf"
+#line 746 "./asn1/s1ap/s1ap.cnf"
 
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
@@ -4611,7 +4699,7 @@ dissect_s1ap_Cdma2000RATType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 
 static int
 dissect_s1ap_Cdma2000SectorID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 743 "./asn1/s1ap/s1ap.cnf"
+#line 761 "./asn1/s1ap/s1ap.cnf"
 /* 9.2.1.25
  * This IE is set to CDMA2000 Reference Cell ID
  * corresponding to the HRPD/1xRTT sector under
@@ -4761,7 +4849,7 @@ dissect_s1ap_CellType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 
 static int
 dissect_s1ap_LAC(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1329 "./asn1/s1ap/s1ap.cnf"
+#line 1356 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        2, 2, FALSE, &parameter_tvb);
@@ -4789,7 +4877,7 @@ dissect_s1ap_CI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_t
 
 static int
 dissect_s1ap_RAC(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1338 "./asn1/s1ap/s1ap.cnf"
+#line 1365 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        1, 1, FALSE, &parameter_tvb);
@@ -4815,7 +4903,7 @@ static const per_sequence_t CGI_sequence[] = {
 
 static int
 dissect_s1ap_CGI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2611 "./asn1/s1ap/s1ap.cnf"
+#line 2670 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->number_type = E212_CGI;
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -4924,7 +5012,7 @@ static const per_sequence_t SupportedTAs_Item_sequence[] = {
 
 static int
 dissect_s1ap_SupportedTAs_Item(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1396 "./asn1/s1ap/s1ap.cnf"
+#line 1423 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
 
   if (!PINFO_FD_VISITED(actx->pinfo) &&
@@ -4939,7 +5027,7 @@ dissect_s1ap_SupportedTAs_Item(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_s1ap_SupportedTAs_Item, SupportedTAs_Item_sequence);
 
-#line 1407 "./asn1/s1ap/s1ap.cnf"
+#line 1434 "./asn1/s1ap/s1ap.cnf"
   s1ap_data->supported_ta = NULL;
 
 
@@ -5468,7 +5556,7 @@ dissect_s1ap_DAPSResponseInfoItem(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 
 static int
 dissect_s1ap_DataCodingScheme(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1144 "./asn1/s1ap/s1ap.cnf"
+#line 1171 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      8, 8, FALSE, NULL, 0, &parameter_tvb, NULL);
@@ -5766,7 +5854,7 @@ static const per_sequence_t LAI_sequence[] = {
 
 static int
 dissect_s1ap_LAI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1322 "./asn1/s1ap/s1ap.cnf"
+#line 1349 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->number_type = E212_LAI;
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -5844,7 +5932,7 @@ dissect_s1ap_ENB_StatusTransfer_TransparentContainer(tvbuff_t *tvb _U_, int offs
 
 static int
 dissect_s1ap_ENB_UE_S1AP_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1425 "./asn1/s1ap/s1ap.cnf"
+#line 1452 "./asn1/s1ap/s1ap.cnf"
   guint32 enb_ue_s1ap_id;
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
@@ -5867,7 +5955,7 @@ dissect_s1ap_ENB_UE_S1AP_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 
 static int
 dissect_s1ap_ENBname(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 270 "./asn1/s1ap/s1ap.cnf"
+#line 272 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb=NULL;
   int length;
   gboolean is_ascii;
@@ -5894,7 +5982,7 @@ dissect_s1ap_ENBname(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
 
 static int
 dissect_s1ap_TransportLayerAddress(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 323 "./asn1/s1ap/s1ap.cnf"
+#line 325 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb=NULL;
   proto_tree *subtree;
   gint tvb_len;
@@ -5944,7 +6032,7 @@ dissect_s1ap_ENBX2TLAs(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 
 static int
 dissect_s1ap_EncryptionAlgorithms(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1029 "./asn1/s1ap/s1ap.cnf"
+#line 1050 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      16, 16, TRUE, NULL, 0, &parameter_tvb, NULL);
@@ -6002,7 +6090,7 @@ dissect_s1ap_EN_DCSONengNBIdentification(tvbuff_t *tvb _U_, int offset _U_, asn1
 
 static int
 dissect_s1ap_FiveGSTAC(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1352 "./asn1/s1ap/s1ap.cnf"
+#line 1379 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        3, 3, FALSE, &parameter_tvb);
@@ -6026,7 +6114,7 @@ static const per_sequence_t FiveGSTAI_sequence[] = {
 
 static int
 dissect_s1ap_FiveGSTAI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1345 "./asn1/s1ap/s1ap.cnf"
+#line 1372 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->number_type = E212_5GSTAI;
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -6377,6 +6465,67 @@ dissect_s1ap_E_RABLevelQoSParameters(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 }
 
 
+static const per_sequence_t E_RABSecurityResultList_sequence_of[1] = {
+  { &hf_s1ap_E_RABSecurityResultList_item, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_s1ap_ProtocolIE_SingleContainer },
+};
+
+static int
+dissect_s1ap_E_RABSecurityResultList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
+                                                  ett_s1ap_E_RABSecurityResultList, E_RABSecurityResultList_sequence_of,
+                                                  1, maxnoofE_RABs, FALSE);
+
+  return offset;
+}
+
+
+static const value_string s1ap_IntegrityProtectionResult_vals[] = {
+  {   0, "performed" },
+  {   1, "not-performed" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_s1ap_IntegrityProtectionResult(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     2, NULL, TRUE, 0, NULL);
+
+  return offset;
+}
+
+
+static const per_sequence_t SecurityResult_sequence[] = {
+  { &hf_s1ap_integrityProtectionResult, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_IntegrityProtectionResult },
+  { &hf_s1ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_s1ap_SecurityResult(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_s1ap_SecurityResult, SecurityResult_sequence);
+
+  return offset;
+}
+
+
+static const per_sequence_t E_RABSecurityResultItem_sequence[] = {
+  { &hf_s1ap_e_RAB_ID       , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_E_RAB_ID },
+  { &hf_s1ap_securityResult , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_SecurityResult },
+  { &hf_s1ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_s1ap_E_RABSecurityResultItem(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_s1ap_E_RABSecurityResultItem, E_RABSecurityResultItem_sequence);
+
+  return offset;
+}
+
+
 static const per_sequence_t E_RABUsageReportList_sequence_of[1] = {
   { &hf_s1ap_E_RABUsageReportList_item, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_s1ap_ProtocolIE_SingleContainer },
 };
@@ -6394,7 +6543,7 @@ dissect_s1ap_E_RABUsageReportList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 
 static int
 dissect_s1ap_T_startTimestamp(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1236 "./asn1/s1ap/s1ap.cnf"
+#line 1263 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *timestamp_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        4, 4, FALSE, &timestamp_tvb);
@@ -6402,7 +6551,7 @@ dissect_s1ap_T_startTimestamp(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 
 
 
-#line 1240 "./asn1/s1ap/s1ap.cnf"
+#line 1267 "./asn1/s1ap/s1ap.cnf"
   if (timestamp_tvb) {
     proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(timestamp_tvb, 0));
   }
@@ -6415,7 +6564,7 @@ dissect_s1ap_T_startTimestamp(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 
 static int
 dissect_s1ap_T_endTimestamp(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1245 "./asn1/s1ap/s1ap.cnf"
+#line 1272 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *timestamp_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        4, 4, FALSE, &timestamp_tvb);
@@ -6423,7 +6572,7 @@ dissect_s1ap_T_endTimestamp(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 
 
 
-#line 1249 "./asn1/s1ap/s1ap.cnf"
+#line 1276 "./asn1/s1ap/s1ap.cnf"
   if (timestamp_tvb) {
     proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(timestamp_tvb, 0));
   }
@@ -6824,7 +6973,7 @@ static const value_string s1ap_HandoverType_vals[] = {
 
 static int
 dissect_s1ap_HandoverType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 373 "./asn1/s1ap/s1ap.cnf"
+#line 375 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      5, &s1ap_data->handover_type_value, TRUE, 2, NULL);
@@ -6849,7 +6998,7 @@ dissect_s1ap_Masked_IMEISV(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 
 static int
 dissect_s1ap_MeasurementsToActivate(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1189 "./asn1/s1ap/s1ap.cnf"
+#line 1216 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      8, 8, FALSE, NULL, 0, &parameter_tvb, NULL);
@@ -7036,7 +7185,7 @@ dissect_s1ap_ImmediateMDT(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 
 static int
 dissect_s1ap_IMSI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1372 "./asn1/s1ap/s1ap.cnf"
+#line 1399 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        3, 8, FALSE, &parameter_tvb);
@@ -7100,7 +7249,7 @@ dissect_s1ap_InformationOnRecommendedCellsAndENBsForPaging(tvbuff_t *tvb _U_, in
 
 static int
 dissect_s1ap_IntegrityProtectionAlgorithms(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1044 "./asn1/s1ap/s1ap.cnf"
+#line 1065 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      16, 16, TRUE, NULL, 0, &parameter_tvb, NULL);
@@ -7123,10 +7272,27 @@ dissect_s1ap_IntegrityProtectionAlgorithms(tvbuff_t *tvb _U_, int offset _U_, as
 }
 
 
+static const value_string s1ap_IntegrityProtectionIndication_vals[] = {
+  {   0, "required" },
+  {   1, "preferred" },
+  {   2, "not-needed" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_s1ap_IntegrityProtectionIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     3, NULL, TRUE, 0, NULL);
+
+  return offset;
+}
+
+
 
 static int
 dissect_s1ap_InterfacesToTrace(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 926 "./asn1/s1ap/s1ap.cnf"
+#line 947 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      8, 8, FALSE, NULL, 0, &parameter_tvb, NULL);
@@ -7223,7 +7389,7 @@ dissect_s1ap_INTEGER_1_maxRS_IndexCellQual(tvbuff_t *tvb _U_, int offset _U_, as
 
 static int
 dissect_s1ap_T_sMTC(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 958 "./asn1/s1ap/s1ap.cnf"
+#line 979 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *ssb_mtc_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        NO_BOUND, NO_BOUND, FALSE, &ssb_mtc_tvb);
@@ -7242,7 +7408,7 @@ dissect_s1ap_T_sMTC(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 
 static int
 dissect_s1ap_T_threshRS_Index_r15(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 966 "./asn1/s1ap/s1ap.cnf"
+#line 987 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *threshold_list_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        NO_BOUND, NO_BOUND, FALSE, &threshold_list_tvb);
@@ -7261,7 +7427,7 @@ dissect_s1ap_T_threshRS_Index_r15(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 
 static int
 dissect_s1ap_T_sSBToMeasure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 974 "./asn1/s1ap/s1ap.cnf"
+#line 995 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *ssb_to_meas_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        NO_BOUND, NO_BOUND, FALSE, &ssb_to_meas_tvb);
@@ -7280,7 +7446,7 @@ dissect_s1ap_T_sSBToMeasure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 
 static int
 dissect_s1ap_T_sSRSSIMeasurement(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 982 "./asn1/s1ap/s1ap.cnf"
+#line 1003 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *ss_rssi_meas_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        NO_BOUND, NO_BOUND, FALSE, &ss_rssi_meas_tvb);
@@ -7299,7 +7465,7 @@ dissect_s1ap_T_sSRSSIMeasurement(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 
 static int
 dissect_s1ap_T_quantityConfigNR_R15(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 990 "./asn1/s1ap/s1ap.cnf"
+#line 1011 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *quantity_config_nr_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        NO_BOUND, NO_BOUND, FALSE, &quantity_config_nr_tvb);
@@ -7317,15 +7483,15 @@ dissect_s1ap_T_quantityConfigNR_R15(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 
 
 static int
-dissect_s1ap_T_blackCellsToAddModList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 998 "./asn1/s1ap/s1ap.cnf"
-  tvbuff_t *black_cells_list_tvb = NULL;
+dissect_s1ap_T_excludedCellsToAddModList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+#line 1019 "./asn1/s1ap/s1ap.cnf"
+  tvbuff_t *excluded_cells_list_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       NO_BOUND, NO_BOUND, FALSE, &black_cells_list_tvb);
+                                       NO_BOUND, NO_BOUND, FALSE, &excluded_cells_list_tvb);
 
-  if (black_cells_list_tvb) {
-    proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_blackCellsToAddModList);
-    dissect_lte_rrc_CellsToAddModListNR_r15_PDU(black_cells_list_tvb, actx->pinfo, subtree, NULL);
+  if (excluded_cells_list_tvb) {
+    proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_excludedCellsToAddModList);
+    dissect_lte_rrc_CellsToAddModListNR_r15_PDU(excluded_cells_list_tvb, actx->pinfo, subtree, NULL);
   }
 
 
@@ -7344,7 +7510,7 @@ static const per_sequence_t InterSystemMeasurementItem_sequence[] = {
   { &hf_s1ap_sSBToMeasure   , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_s1ap_T_sSBToMeasure },
   { &hf_s1ap_sSRSSIMeasurement, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_s1ap_T_sSRSSIMeasurement },
   { &hf_s1ap_quantityConfigNR_R15, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_s1ap_T_quantityConfigNR_R15 },
-  { &hf_s1ap_blackCellsToAddModList, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_s1ap_T_blackCellsToAddModList },
+  { &hf_s1ap_excludedCellsToAddModList, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_s1ap_T_excludedCellsToAddModList },
   { &hf_s1ap_iE_Extensions  , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
   { NULL, 0, 0, NULL }
 };
@@ -7409,7 +7575,7 @@ dissect_s1ap_IntersystemMeasurementConfiguration(tvbuff_t *tvb _U_, int offset _
 
 static int
 dissect_s1ap_IntersystemSONConfigurationTransfer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1511 "./asn1/s1ap/s1ap.cnf"
+#line 1538 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   proto_tree *subtree;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -7532,7 +7698,7 @@ dissect_s1ap_LastVisitedEUTRANCellInformation(tvbuff_t *tvb _U_, int offset _U_,
 
 static int
 dissect_s1ap_LastVisitedUTRANCellInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1093 "./asn1/s1ap/s1ap.cnf"
+#line 1120 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -7581,7 +7747,7 @@ dissect_s1ap_LastVisitedGERANCellInformation(tvbuff_t *tvb _U_, int offset _U_, 
 
 static int
 dissect_s1ap_LastVisitedNGRANCellInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1075 "./asn1/s1ap/s1ap.cnf"
+#line 1102 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   proto_tree *subtree;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -7635,8 +7801,95 @@ dissect_s1ap_LastVisitedCell_Item(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 
 
 static int
+dissect_s1ap_NRCellIdentity(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
+                                     36, 36, FALSE, NULL, 0, NULL, NULL);
+
+  return offset;
+}
+
+
+static const per_sequence_t NR_CGI_sequence[] = {
+  { &hf_s1ap_pLMNIdentity   , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_PLMNidentity },
+  { &hf_s1ap_nRCellIdentity , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_NRCellIdentity },
+  { &hf_s1ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_s1ap_NR_CGI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+#line 2691 "./asn1/s1ap/s1ap.cnf"
+  struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
+  s1ap_data->number_type = E212_NRCGI;
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_s1ap_NR_CGI, NR_CGI_sequence);
+
+
+
+
+  return offset;
+}
+
+
+static const per_sequence_t PSCellInformation_sequence[] = {
+  { &hf_s1ap_nCGI           , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_NR_CGI },
+  { &hf_s1ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_s1ap_PSCellInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_s1ap_PSCellInformation, PSCellInformation_sequence);
+
+  return offset;
+}
+
+
+
+static int
+dissect_s1ap_INTEGER_0_40950(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 40950U, NULL, FALSE);
+
+  return offset;
+}
+
+
+static const per_sequence_t LastVisitedPSCellInformation_sequence[] = {
+  { &hf_s1ap_pSCellID       , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_PSCellInformation },
+  { &hf_s1ap_timeStay       , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_INTEGER_0_40950 },
+  { &hf_s1ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_s1ap_LastVisitedPSCellInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_s1ap_LastVisitedPSCellInformation, LastVisitedPSCellInformation_sequence);
+
+  return offset;
+}
+
+
+static const per_sequence_t LastVisitedPSCellList_sequence_of[1] = {
+  { &hf_s1ap_LastVisitedPSCellList_item, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_s1ap_LastVisitedPSCellInformation },
+};
+
+static int
+dissect_s1ap_LastVisitedPSCellList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
+                                                  ett_s1ap_LastVisitedPSCellList, LastVisitedPSCellList_sequence_of,
+                                                  1, maxnoofPSCellsPerPrimaryCellinUEHistoryInfo, FALSE);
+
+  return offset;
+}
+
+
+
+static int
 dissect_s1ap_LPPa_PDU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 314 "./asn1/s1ap/s1ap.cnf"
+#line 316 "./asn1/s1ap/s1ap.cnf"
 
   tvbuff_t *parameter_tvb=NULL;
 
@@ -7656,7 +7909,7 @@ dissect_s1ap_LPPa_PDU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 
 static int
 dissect_s1ap_LHN_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1224 "./asn1/s1ap/s1ap.cnf"
+#line 1251 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        32, 256, FALSE, &parameter_tvb);
@@ -7854,6 +8107,37 @@ static int
 dissect_s1ap_LTE_M_Indication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      1, NULL, TRUE, 0, NULL);
+
+  return offset;
+}
+
+
+static const per_sequence_t TACList_In_LTE_NTN_sequence_of[1] = {
+  { &hf_s1ap_TACList_In_LTE_NTN_item, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_s1ap_TAC },
+};
+
+static int
+dissect_s1ap_TACList_In_LTE_NTN(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
+                                                  ett_s1ap_TACList_In_LTE_NTN, TACList_In_LTE_NTN_sequence_of,
+                                                  1, maxnoofTACsInNTN, FALSE);
+
+  return offset;
+}
+
+
+static const per_sequence_t LTE_NTN_TAI_Information_sequence[] = {
+  { &hf_s1ap_servingPLMN    , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_PLMNidentity },
+  { &hf_s1ap_tACList_In_LTE_NTN, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_TACList_In_LTE_NTN },
+  { &hf_s1ap_uE_Location_Derived_TAC, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_TAC },
+  { &hf_s1ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_s1ap_LTE_NTN_TAI_Information(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_s1ap_LTE_NTN_TAI_Information, LTE_NTN_TAI_Information_sequence);
 
   return offset;
 }
@@ -8076,7 +8360,7 @@ dissect_s1ap_MDT_Activation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 
 static int
 dissect_s1ap_MDT_Location_Info(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1208 "./asn1/s1ap/s1ap.cnf"
+#line 1235 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      8, 8, FALSE, NULL, 0, &parameter_tvb, NULL);
@@ -8196,7 +8480,7 @@ dissect_s1ap_PrivacyIndicator(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 
 static int
 dissect_s1ap_MessageIdentifier(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1114 "./asn1/s1ap/s1ap.cnf"
+#line 1141 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, -1,
                                      16, 16, FALSE, NULL, 0, &parameter_tvb, NULL);
@@ -8224,7 +8508,7 @@ dissect_s1ap_MobilityInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 
 static int
 dissect_s1ap_MMEname(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 286 "./asn1/s1ap/s1ap.cnf"
+#line 288 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb=NULL;
   int length;
   gboolean is_ascii;
@@ -8288,7 +8572,7 @@ dissect_s1ap_MMERelaySupportIndicator(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 
 static int
 dissect_s1ap_MME_UE_S1AP_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1437 "./asn1/s1ap/s1ap.cnf"
+#line 1464 "./asn1/s1ap/s1ap.cnf"
   guint32 mme_ue_s1ap_id;
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
                                                             0U, 4294967295U, &mme_ue_s1ap_id, FALSE);
@@ -8308,7 +8592,7 @@ dissect_s1ap_MME_UE_S1AP_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 
 static int
 dissect_s1ap_MSClassmark2(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1167 "./asn1/s1ap/s1ap.cnf"
+#line 1194 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        NO_BOUND, NO_BOUND, FALSE, &parameter_tvb);
@@ -8327,7 +8611,7 @@ dissect_s1ap_MSClassmark2(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 
 static int
 dissect_s1ap_MSClassmark3(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1175 "./asn1/s1ap/s1ap.cnf"
+#line 1202 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        NO_BOUND, NO_BOUND, FALSE, &parameter_tvb);
@@ -8397,7 +8681,7 @@ dissect_s1ap_MutingPatternInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 
 static int
 dissect_s1ap_MDT_ConfigurationNR(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1502 "./asn1/s1ap/s1ap.cnf"
+#line 1529 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   proto_tree *subtree;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -8417,7 +8701,7 @@ dissect_s1ap_MDT_ConfigurationNR(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 
 static int
 dissect_s1ap_NAS_PDU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 305 "./asn1/s1ap/s1ap.cnf"
+#line 307 "./asn1/s1ap/s1ap.cnf"
 
 tvbuff_t *parameter_tvb=NULL;
 
@@ -8437,7 +8721,7 @@ tvbuff_t *parameter_tvb=NULL;
 
 static int
 dissect_s1ap_NASSecurityParametersfromE_UTRAN(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1380 "./asn1/s1ap/s1ap.cnf"
+#line 1407 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        NO_BOUND, NO_BOUND, FALSE, &parameter_tvb);
@@ -8456,7 +8740,7 @@ dissect_s1ap_NASSecurityParametersfromE_UTRAN(tvbuff_t *tvb _U_, int offset _U_,
 
 static int
 dissect_s1ap_NASSecurityParameterstoE_UTRAN(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1388 "./asn1/s1ap/s1ap.cnf"
+#line 1415 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        NO_BOUND, NO_BOUND, FALSE, &parameter_tvb);
@@ -8587,7 +8871,7 @@ dissect_s1ap_NB_IoT_Paging_eDRXInformation(tvbuff_t *tvb _U_, int offset _U_, as
 
 static int
 dissect_s1ap_NB_IoT_RLF_Report_Container(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 863 "./asn1/s1ap/s1ap.cnf"
+#line 884 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -8640,40 +8924,8 @@ dissect_s1ap_NotifySourceeNB(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 
 
 static int
-dissect_s1ap_NRCellIdentity(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     36, 36, FALSE, NULL, 0, NULL, NULL);
-
-  return offset;
-}
-
-
-static const per_sequence_t NR_CGI_sequence[] = {
-  { &hf_s1ap_pLMNIdentity   , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_PLMNidentity },
-  { &hf_s1ap_nRCellIdentity , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_NRCellIdentity },
-  { &hf_s1ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
-  { NULL, 0, 0, NULL }
-};
-
-static int
-dissect_s1ap_NR_CGI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2632 "./asn1/s1ap/s1ap.cnf"
-  struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
-  s1ap_data->number_type = E212_NRCGI;
-  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
-                                   ett_s1ap_NR_CGI, NR_CGI_sequence);
-
-
-
-
-  return offset;
-}
-
-
-
-static int
 dissect_s1ap_NRencryptionAlgorithms(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1263 "./asn1/s1ap/s1ap.cnf"
+#line 1290 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      16, 16, TRUE, NULL, 0, &parameter_tvb, NULL);
@@ -8699,7 +8951,7 @@ dissect_s1ap_NRencryptionAlgorithms(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 
 static int
 dissect_s1ap_NRintegrityProtectionAlgorithms(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1278 "./asn1/s1ap/s1ap.cnf"
+#line 1305 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      16, 16, TRUE, NULL, 0, &parameter_tvb, NULL);
@@ -9041,6 +9293,21 @@ dissect_s1ap_PagingProbabilityInformation(tvbuff_t *tvb _U_, int offset _U_, asn
 }
 
 
+static const value_string s1ap_PagingCause_vals[] = {
+  {   0, "voice" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_s1ap_PagingCause(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     1, NULL, TRUE, 0, NULL);
+
+  return offset;
+}
+
+
 static const per_sequence_t PC5FlowBitRates_sequence[] = {
   { &hf_s1ap_guaranteedFlowBitRate, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_BitRate },
   { &hf_s1ap_maximumFlowBitRate, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_BitRate },
@@ -9145,7 +9412,7 @@ dissect_s1ap_PendingDataIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 
 static int
 dissect_s1ap_Port_Number(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 354 "./asn1/s1ap/s1ap.cnf"
+#line 356 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        2, 2, FALSE, &parameter_tvb);
@@ -9239,16 +9506,16 @@ dissect_s1ap_PS_ServiceNotAvailable(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 }
 
 
-static const per_sequence_t PSCellInformation_sequence[] = {
-  { &hf_s1ap_nCGI           , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_NR_CGI },
-  { &hf_s1ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
-  { NULL, 0, 0, NULL }
+static const value_string s1ap_RACSIndication_vals[] = {
+  {   0, "true" },
+  { 0, NULL }
 };
 
+
 static int
-dissect_s1ap_PSCellInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
-                                   ett_s1ap_PSCellInformation, PSCellInformation_sequence);
+dissect_s1ap_RACSIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     1, NULL, TRUE, 0, NULL);
 
   return offset;
 }
@@ -9330,21 +9597,86 @@ dissect_s1ap_RelayNode_Indicator(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 }
 
 
+
+static int
+dissect_s1ap_T_rAT_RestrictionInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+#line 712 "./asn1/s1ap/s1ap.cnf"
+  tvbuff_t *parameter_tvb = NULL;
+  offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
+                                     8, 8, TRUE, NULL, 0, &parameter_tvb, NULL);
+
+  if(parameter_tvb){
+    static int * const fields[] = {
+      &hf_s1ap_rAT_RestrictionInformation_LEO,
+      &hf_s1ap_rAT_RestrictionInformation_MEO,
+      &hf_s1ap_rAT_RestrictionInformation_GEO,
+      &hf_s1ap_rAT_RestrictionInformation_OTHERSAT,
+      &hf_s1ap_rAT_RestrictionInformation_Reserved,
+      NULL
+    };
+    proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_rAT_RestrictionInformation);
+    proto_tree_add_bitmask_list(subtree, parameter_tvb, 0, 1, fields, ENC_BIG_ENDIAN);
+  }
+
+
+
+  return offset;
+}
+
+
+static const per_sequence_t RAT_RestrictionsItem_sequence[] = {
+  { &hf_s1ap_pLMNidentity   , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_PLMNidentity },
+  { &hf_s1ap_rAT_RestrictionInformation, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_T_rAT_RestrictionInformation },
+  { &hf_s1ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_s1ap_RAT_RestrictionsItem(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_s1ap_RAT_RestrictionsItem, RAT_RestrictionsItem_sequence);
+
+  return offset;
+}
+
+
+static const per_sequence_t RAT_Restrictions_sequence_of[1] = {
+  { &hf_s1ap_RAT_Restrictions_item, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_s1ap_RAT_RestrictionsItem },
+};
+
+static int
+dissect_s1ap_RAT_Restrictions(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
+                                                  ett_s1ap_RAT_Restrictions, RAT_Restrictions_sequence_of,
+                                                  1, maxnoofEPLMNsPlusOne, FALSE);
+
+  return offset;
+}
+
+
 static const value_string s1ap_RAT_Type_vals[] = {
   { nbiot, "nbiot" },
+  { nbiot_leo, "nbiot-leo" },
+  { nbiot_meo, "nbiot-meo" },
+  { nbiot_geo, "nbiot-geo" },
+  { nbiot_othersat, "nbiot-othersat" },
+  { eutran_leo, "eutran-leo" },
+  { eutran_meo, "eutran-meo" },
+  { eutran_geo, "eutran-geo" },
+  { eutran_othersat, "eutran-othersat" },
   { 0, NULL }
 };
 
 
 static int
 dissect_s1ap_RAT_Type(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1410 "./asn1/s1ap/s1ap.cnf"
+#line 1437 "./asn1/s1ap/s1ap.cnf"
   guint32 rat_type = 0xffffffff;
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     1, &rat_type, TRUE, 0, NULL);
+                                     1, &rat_type, TRUE, 8, NULL);
 
-  if (s1ap_data->s1ap_conv && s1ap_data->supported_ta && (rat_type == nbiot)) {
+  if (s1ap_data->s1ap_conv && s1ap_data->supported_ta && rat_type <= nbiot_othersat) {
     guint64 *key;
     guint i;
 
@@ -9410,7 +9742,7 @@ dissect_s1ap_RequestTypeAdditionalInfo(tvbuff_t *tvb _U_, int offset _U_, asn1_c
 
 static int
 dissect_s1ap_RIMInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 712 "./asn1/s1ap/s1ap.cnf"
+#line 730 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
 
@@ -9525,7 +9857,7 @@ dissect_s1ap_RepetitionPeriod(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 
 static int
 dissect_s1ap_UE_RLF_Report_Container(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 825 "./asn1/s1ap/s1ap.cnf"
+#line 846 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -9554,7 +9886,7 @@ dissect_s1ap_UE_RLF_Report_Container(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 
 static int
 dissect_s1ap_UE_RLF_Report_Container_for_extended_bands(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 845 "./asn1/s1ap/s1ap.cnf"
+#line 866 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -9599,7 +9931,7 @@ dissect_s1ap_RLFReportInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 
 static int
 dissect_s1ap_RRC_Container(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 573 "./asn1/s1ap/s1ap.cnf"
+#line 575 "./asn1/s1ap/s1ap.cnf"
 
 
   tvbuff_t *parameter_tvb;
@@ -9802,10 +10134,25 @@ dissect_s1ap_SecondaryRATDataUsageReportItem(tvbuff_t *tvb _U_, int offset _U_, 
 }
 
 
+static const per_sequence_t SecurityIndication_sequence[] = {
+  { &hf_s1ap_integrityProtectionIndication, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_IntegrityProtectionIndication },
+  { &hf_s1ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_s1ap_SecurityIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_s1ap_SecurityIndication, SecurityIndication_sequence);
+
+  return offset;
+}
+
+
 
 static int
 dissect_s1ap_SerialNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1121 "./asn1/s1ap/s1ap.cnf"
+#line 1148 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      16, 16, FALSE, NULL, 0, &parameter_tvb, NULL);
@@ -9938,7 +10285,7 @@ dissect_s1ap_SynchronisationInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_
 
 static int
 dissect_s1ap_Source_ToTarget_TransparentContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 424 "./asn1/s1ap/s1ap.cnf"
+#line 426 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
 
@@ -10054,7 +10401,7 @@ static const value_string s1ap_SRVCCHOIndication_vals[] = {
 
 static int
 dissect_s1ap_SRVCCHOIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 377 "./asn1/s1ap/s1ap.cnf"
+#line 379 "./asn1/s1ap/s1ap.cnf"
   guint32 srvcc_ho_ind;
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
@@ -10152,7 +10499,7 @@ static const per_sequence_t SourceeNB_ToTargeteNB_TransparentContainer_sequence[
 
 static int
 dissect_s1ap_SourceeNB_ToTargeteNB_TransparentContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 399 "./asn1/s1ap/s1ap.cnf"
+#line 401 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   volatile guint32 _offset;
 
@@ -10496,7 +10843,7 @@ static const per_sequence_t TargeteNB_ToSourceeNB_TransparentContainer_sequence[
 
 static int
 dissect_s1ap_TargeteNB_ToSourceeNB_TransparentContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 492 "./asn1/s1ap/s1ap.cnf"
+#line 494 "./asn1/s1ap/s1ap.cnf"
     struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
     volatile guint32 _offset;
 
@@ -10521,7 +10868,7 @@ dissect_s1ap_TargeteNB_ToSourceeNB_TransparentContainer(tvbuff_t *tvb _U_, int o
 
 static int
 dissect_s1ap_Target_ToSource_TransparentContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 510 "./asn1/s1ap/s1ap.cnf"
+#line 512 "./asn1/s1ap/s1ap.cnf"
 
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
@@ -10624,7 +10971,7 @@ dissect_s1ap_Time_UE_StayedInCell_EnhancedGranularity(tvbuff_t *tvb _U_, int off
 
 static int
 dissect_s1ap_TimeSinceSecondaryNodeRelease(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1065 "./asn1/s1ap/s1ap.cnf"
+#line 1086 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        4, 4, FALSE, &parameter_tvb);
@@ -10657,7 +11004,7 @@ dissect_s1ap_TransportInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 
 static int
 dissect_s1ap_E_UTRAN_Trace_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 915 "./asn1/s1ap/s1ap.cnf"
+#line 936 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -10893,7 +11240,7 @@ dissect_s1ap_UEIdentityIndexValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 
 static int
 dissect_s1ap_UE_HistoryInformationFromTheUE(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 654 "./asn1/s1ap/s1ap.cnf"
+#line 656 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
 
@@ -10945,7 +11292,7 @@ dissect_s1ap_UEPagingID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 
 static int
 dissect_s1ap_UERadioCapability(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 673 "./asn1/s1ap/s1ap.cnf"
+#line 675 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
 
@@ -10962,7 +11309,7 @@ dissect_s1ap_UERadioCapability(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
     if (s1ap_data->protocol_ie_id == id_UERadioCapability_NR_Format) {
       handle = nr_rrc_ue_radio_access_cap_info_handle;
     } else if ((s1ap_is_nbiot_ue(actx->pinfo) && (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_AUTOMATIC)) ||
-        (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_NBIOT)) {
+               (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_NBIOT)) {
       handle = lte_rrc_ue_radio_access_cap_info_nb_handle;
     } else {
       handle = lte_rrc_ue_radio_access_cap_info_handle;
@@ -10987,7 +11334,7 @@ dissect_s1ap_UERadioCapability(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 
 static int
 dissect_s1ap_UERadioCapabilityForPaging(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 763 "./asn1/s1ap/s1ap.cnf"
+#line 781 "./asn1/s1ap/s1ap.cnf"
 
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
@@ -10999,10 +11346,13 @@ dissect_s1ap_UERadioCapabilityForPaging(tvbuff_t *tvb _U_, int offset _U_, asn1_
     return offset;
 
   if (g_s1ap_dissect_container) {
+    struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
     volatile dissector_handle_t handle;
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_UERadioPagingInformation);
-    if ((s1ap_is_nbiot_ue(actx->pinfo) && (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_AUTOMATIC)) ||
-        (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_NBIOT)) {
+    if (s1ap_data->protocol_ie_id == id_UERadioCapabilityForPaging_NR_Format) {
+      handle = nr_rrc_ue_radio_paging_info_handle;
+    } else if ((s1ap_is_nbiot_ue(actx->pinfo) && (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_AUTOMATIC)) ||
+               (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_NBIOT)) {
       handle = lte_rrc_ue_radio_paging_info_nb_handle;
     } else {
       handle = lte_rrc_ue_radio_paging_info_handle;
@@ -11170,7 +11520,7 @@ dissect_s1ap_UEUserPlaneCIoTSupportIndicator(tvbuff_t *tvb _U_, int offset _U_, 
 
 static int
 dissect_s1ap_UE_Application_Layer_Measurement_Capability(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1293 "./asn1/s1ap/s1ap.cnf"
+#line 1320 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      8, 8, FALSE, NULL, 0, &parameter_tvb, NULL);
@@ -11261,7 +11611,7 @@ dissect_s1ap_WarningAreaList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 
 static int
 dissect_s1ap_WarningType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1134 "./asn1/s1ap/s1ap.cnf"
+#line 1161 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        2, 2, FALSE, &parameter_tvb);
@@ -11292,7 +11642,7 @@ dissect_s1ap_WarningSecurityInfo(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 
 static int
 dissect_s1ap_WarningMessageContents(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1158 "./asn1/s1ap/s1ap.cnf"
+#line 1185 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        1, 9600, FALSE, &parameter_tvb);
@@ -11327,7 +11677,7 @@ dissect_s1ap_WLANMeasConfig(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 
 static int
 dissect_s1ap_WLANName(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 1484 "./asn1/s1ap/s1ap.cnf"
+#line 1511 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        1, 32, FALSE, &parameter_tvb);
@@ -11477,7 +11827,7 @@ dissect_s1ap_ENBIndirectX2TransportLayerAddresses(tvbuff_t *tvb _U_, int offset 
 
 static int
 dissect_s1ap_E_RAB_IE_ContainerList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 199 "./asn1/s1ap/s1ap.cnf"
+#line 201 "./asn1/s1ap/s1ap.cnf"
   asn1_stack_frame_push(actx, "ProtocolIE-ContainerList");
   asn1_param_push_integer(actx, 1);
   asn1_param_push_integer(actx, maxnoofE_RABs);
@@ -11497,7 +11847,7 @@ static const per_sequence_t HandoverRequired_sequence[] = {
 
 static int
 dissect_s1ap_HandoverRequired(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 385 "./asn1/s1ap/s1ap.cnf"
+#line 387 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->handover_type_value = 0xff;
   s1ap_data->srvcc_ho_cs_only = FALSE;
@@ -11517,7 +11867,7 @@ static const per_sequence_t HandoverCommand_sequence[] = {
 
 static int
 dissect_s1ap_HandoverCommand(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 389 "./asn1/s1ap/s1ap.cnf"
+#line 391 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->handover_type_value = 0xff;
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "HandoverCommand");
@@ -11564,7 +11914,7 @@ static const per_sequence_t HandoverPreparationFailure_sequence[] = {
 
 static int
 dissect_s1ap_HandoverPreparationFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2388 "./asn1/s1ap/s1ap.cnf"
+#line 2447 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "HandoverPreparationFailure");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11581,7 +11931,7 @@ static const per_sequence_t HandoverRequest_sequence[] = {
 
 static int
 dissect_s1ap_HandoverRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 392 "./asn1/s1ap/s1ap.cnf"
+#line 394 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->handover_type_value = 0xff;
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "HandoverRequest");
@@ -11627,7 +11977,7 @@ static const per_sequence_t HandoverRequestAcknowledge_sequence[] = {
 
 static int
 dissect_s1ap_HandoverRequestAcknowledge(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 395 "./asn1/s1ap/s1ap.cnf"
+#line 397 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->handover_type_value = 0xff;
 
@@ -11702,7 +12052,7 @@ static const per_sequence_t HandoverFailure_sequence[] = {
 
 static int
 dissect_s1ap_HandoverFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2394 "./asn1/s1ap/s1ap.cnf"
+#line 2453 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "HandoverFailure");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11719,7 +12069,7 @@ static const per_sequence_t HandoverNotify_sequence[] = {
 
 static int
 dissect_s1ap_HandoverNotify(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2396 "./asn1/s1ap/s1ap.cnf"
+#line 2455 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "HandoverNotify");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11736,7 +12086,7 @@ static const per_sequence_t PathSwitchRequest_sequence[] = {
 
 static int
 dissect_s1ap_PathSwitchRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2398 "./asn1/s1ap/s1ap.cnf"
+#line 2457 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "PathSwitchRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11779,7 +12129,7 @@ static const per_sequence_t PathSwitchRequestAcknowledge_sequence[] = {
 
 static int
 dissect_s1ap_PathSwitchRequestAcknowledge(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2400 "./asn1/s1ap/s1ap.cnf"
+#line 2459 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "PathSwitchRequestAcknowledge");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11815,6 +12165,31 @@ dissect_s1ap_E_RABToBeSwitchedULItem(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 }
 
 
+
+static int
+dissect_s1ap_E_RABToBeUpdatedList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_s1ap_E_RAB_IE_ContainerList(tvb, offset, actx, tree, hf_index);
+
+  return offset;
+}
+
+
+static const per_sequence_t E_RABToBeUpdatedItem_sequence[] = {
+  { &hf_s1ap_e_RAB_ID       , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_E_RAB_ID },
+  { &hf_s1ap_securityIndication, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_SecurityIndication },
+  { &hf_s1ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_s1ap_ProtocolExtensionContainer },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_s1ap_E_RABToBeUpdatedItem(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_s1ap_E_RABToBeUpdatedItem, E_RABToBeUpdatedItem_sequence);
+
+  return offset;
+}
+
+
 static const per_sequence_t PathSwitchRequestFailure_sequence[] = {
   { &hf_s1ap_protocolIEs    , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_s1ap_ProtocolIE_Container },
   { NULL, 0, 0, NULL }
@@ -11822,7 +12197,7 @@ static const per_sequence_t PathSwitchRequestFailure_sequence[] = {
 
 static int
 dissect_s1ap_PathSwitchRequestFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2402 "./asn1/s1ap/s1ap.cnf"
+#line 2461 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "PathSwitchRequestFailure");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11839,7 +12214,7 @@ static const per_sequence_t HandoverCancel_sequence[] = {
 
 static int
 dissect_s1ap_HandoverCancel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2404 "./asn1/s1ap/s1ap.cnf"
+#line 2463 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "HandoverCancel");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11856,7 +12231,7 @@ static const per_sequence_t HandoverCancelAcknowledge_sequence[] = {
 
 static int
 dissect_s1ap_HandoverCancelAcknowledge(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2406 "./asn1/s1ap/s1ap.cnf"
+#line 2465 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "HandoverCancelAcknowledge");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11873,7 +12248,7 @@ static const per_sequence_t HandoverSuccess_sequence[] = {
 
 static int
 dissect_s1ap_HandoverSuccess(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2574 "./asn1/s1ap/s1ap.cnf"
+#line 2633 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "HandoverSuccess");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11890,7 +12265,7 @@ static const per_sequence_t ENBEarlyStatusTransfer_sequence[] = {
 
 static int
 dissect_s1ap_ENBEarlyStatusTransfer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2576 "./asn1/s1ap/s1ap.cnf"
+#line 2635 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "ENBEarlyStatusTransfer");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11907,7 +12282,7 @@ static const per_sequence_t MMEEarlyStatusTransfer_sequence[] = {
 
 static int
 dissect_s1ap_MMEEarlyStatusTransfer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2578 "./asn1/s1ap/s1ap.cnf"
+#line 2637 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MMEEarlyStatusTransfer");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11924,7 +12299,7 @@ static const per_sequence_t E_RABSetupRequest_sequence[] = {
 
 static int
 dissect_s1ap_E_RABSetupRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2408 "./asn1/s1ap/s1ap.cnf"
+#line 2467 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "E-RABSetupRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -11974,7 +12349,7 @@ static const per_sequence_t E_RABSetupResponse_sequence[] = {
 
 static int
 dissect_s1ap_E_RABSetupResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2410 "./asn1/s1ap/s1ap.cnf"
+#line 2469 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "E-RABSetupResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12022,7 +12397,7 @@ static const per_sequence_t E_RABModifyRequest_sequence[] = {
 
 static int
 dissect_s1ap_E_RABModifyRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2412 "./asn1/s1ap/s1ap.cnf"
+#line 2471 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "E-RABModifyRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12070,7 +12445,7 @@ static const per_sequence_t E_RABModifyResponse_sequence[] = {
 
 static int
 dissect_s1ap_E_RABModifyResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2414 "./asn1/s1ap/s1ap.cnf"
+#line 2473 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "E-RABModifyResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12116,7 +12491,7 @@ static const per_sequence_t E_RABReleaseCommand_sequence[] = {
 
 static int
 dissect_s1ap_E_RABReleaseCommand(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2416 "./asn1/s1ap/s1ap.cnf"
+#line 2475 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "E-RABReleaseCommand");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12133,7 +12508,7 @@ static const per_sequence_t E_RABReleaseResponse_sequence[] = {
 
 static int
 dissect_s1ap_E_RABReleaseResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2418 "./asn1/s1ap/s1ap.cnf"
+#line 2477 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "E-RABReleaseResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12179,7 +12554,7 @@ static const per_sequence_t E_RABReleaseIndication_sequence[] = {
 
 static int
 dissect_s1ap_E_RABReleaseIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2420 "./asn1/s1ap/s1ap.cnf"
+#line 2479 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "E-RABReleaseIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12196,7 +12571,7 @@ static const per_sequence_t InitialContextSetupRequest_sequence[] = {
 
 static int
 dissect_s1ap_InitialContextSetupRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2422 "./asn1/s1ap/s1ap.cnf"
+#line 2481 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "InitialContextSetupRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12246,7 +12621,7 @@ static const per_sequence_t InitialContextSetupResponse_sequence[] = {
 
 static int
 dissect_s1ap_InitialContextSetupResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2424 "./asn1/s1ap/s1ap.cnf"
+#line 2483 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "InitialContextSetupResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12294,7 +12669,7 @@ static const per_sequence_t InitialContextSetupFailure_sequence[] = {
 
 static int
 dissect_s1ap_InitialContextSetupFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2426 "./asn1/s1ap/s1ap.cnf"
+#line 2485 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "InitialContextSetupFailure");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12311,7 +12686,7 @@ static const per_sequence_t Paging_sequence[] = {
 
 static int
 dissect_s1ap_Paging(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2428 "./asn1/s1ap/s1ap.cnf"
+#line 2487 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "Paging");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12357,7 +12732,7 @@ static const per_sequence_t UEContextReleaseRequest_sequence[] = {
 
 static int
 dissect_s1ap_UEContextReleaseRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2430 "./asn1/s1ap/s1ap.cnf"
+#line 2489 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextReleaseRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12374,7 +12749,7 @@ static const per_sequence_t UEContextReleaseCommand_sequence[] = {
 
 static int
 dissect_s1ap_UEContextReleaseCommand(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2432 "./asn1/s1ap/s1ap.cnf"
+#line 2491 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextReleaseCommand");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12391,7 +12766,7 @@ static const per_sequence_t UEContextReleaseComplete_sequence[] = {
 
 static int
 dissect_s1ap_UEContextReleaseComplete(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2434 "./asn1/s1ap/s1ap.cnf"
+#line 2493 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextReleaseComplete");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12408,7 +12783,7 @@ static const per_sequence_t UEContextModificationRequest_sequence[] = {
 
 static int
 dissect_s1ap_UEContextModificationRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2436 "./asn1/s1ap/s1ap.cnf"
+#line 2495 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextModificationRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12425,7 +12800,7 @@ static const per_sequence_t UEContextModificationResponse_sequence[] = {
 
 static int
 dissect_s1ap_UEContextModificationResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2438 "./asn1/s1ap/s1ap.cnf"
+#line 2497 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextModificationResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12442,7 +12817,7 @@ static const per_sequence_t UEContextModificationFailure_sequence[] = {
 
 static int
 dissect_s1ap_UEContextModificationFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2440 "./asn1/s1ap/s1ap.cnf"
+#line 2499 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextModificationFailure");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12459,7 +12834,7 @@ static const per_sequence_t UERadioCapabilityMatchRequest_sequence[] = {
 
 static int
 dissect_s1ap_UERadioCapabilityMatchRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2442 "./asn1/s1ap/s1ap.cnf"
+#line 2501 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UERadioCapabilityMatchRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12476,7 +12851,7 @@ static const per_sequence_t UERadioCapabilityMatchResponse_sequence[] = {
 
 static int
 dissect_s1ap_UERadioCapabilityMatchResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2444 "./asn1/s1ap/s1ap.cnf"
+#line 2503 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UERadioCapabilityMatchResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12493,7 +12868,7 @@ static const per_sequence_t DownlinkNASTransport_sequence[] = {
 
 static int
 dissect_s1ap_DownlinkNASTransport(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 365 "./asn1/s1ap/s1ap.cnf"
+#line 367 "./asn1/s1ap/s1ap.cnf"
   /* Set the direction of the message */
   actx->pinfo->link_dir=P2P_DIR_DL;
 
@@ -12513,7 +12888,7 @@ static const per_sequence_t InitialUEMessage_sequence[] = {
 
 static int
 dissect_s1ap_InitialUEMessage(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 361 "./asn1/s1ap/s1ap.cnf"
+#line 363 "./asn1/s1ap/s1ap.cnf"
   /* Set the direction of the message */
   actx->pinfo->link_dir=P2P_DIR_UL;
 
@@ -12533,7 +12908,7 @@ static const per_sequence_t UplinkNASTransport_sequence[] = {
 
 static int
 dissect_s1ap_UplinkNASTransport(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 369 "./asn1/s1ap/s1ap.cnf"
+#line 371 "./asn1/s1ap/s1ap.cnf"
   /* Set the direction of the message */
   actx->pinfo->link_dir=P2P_DIR_UL;
 
@@ -12553,7 +12928,7 @@ static const per_sequence_t NASNonDeliveryIndication_sequence[] = {
 
 static int
 dissect_s1ap_NASNonDeliveryIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2452 "./asn1/s1ap/s1ap.cnf"
+#line 2511 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "NASNonDeliveryIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12570,7 +12945,7 @@ static const per_sequence_t RerouteNASRequest_sequence[] = {
 
 static int
 dissect_s1ap_RerouteNASRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2454 "./asn1/s1ap/s1ap.cnf"
+#line 2513 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "RerouteNASRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12583,7 +12958,7 @@ dissect_s1ap_RerouteNASRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 
 static int
 dissect_s1ap_S1_Message(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 904 "./asn1/s1ap/s1ap.cnf"
+#line 925 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -12609,7 +12984,7 @@ static const per_sequence_t NASDeliveryIndication_sequence[] = {
 
 static int
 dissect_s1ap_NASDeliveryIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2558 "./asn1/s1ap/s1ap.cnf"
+#line 2617 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "NASDeliveryIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12626,7 +13001,7 @@ static const per_sequence_t Reset_sequence[] = {
 
 static int
 dissect_s1ap_Reset(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2456 "./asn1/s1ap/s1ap.cnf"
+#line 2515 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "Reset");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12694,7 +13069,7 @@ static const per_sequence_t ResetAcknowledge_sequence[] = {
 
 static int
 dissect_s1ap_ResetAcknowledge(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2458 "./asn1/s1ap/s1ap.cnf"
+#line 2517 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "ResetAcknowledge");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12725,7 +13100,7 @@ static const per_sequence_t ErrorIndication_sequence[] = {
 
 static int
 dissect_s1ap_ErrorIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2460 "./asn1/s1ap/s1ap.cnf"
+#line 2519 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "ErrorIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12742,7 +13117,7 @@ static const per_sequence_t S1SetupRequest_sequence[] = {
 
 static int
 dissect_s1ap_S1SetupRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2462 "./asn1/s1ap/s1ap.cnf"
+#line 2521 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "S1SetupRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12759,7 +13134,7 @@ static const per_sequence_t S1SetupResponse_sequence[] = {
 
 static int
 dissect_s1ap_S1SetupResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2464 "./asn1/s1ap/s1ap.cnf"
+#line 2523 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "S1SetupResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12776,7 +13151,7 @@ static const per_sequence_t S1SetupFailure_sequence[] = {
 
 static int
 dissect_s1ap_S1SetupFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2466 "./asn1/s1ap/s1ap.cnf"
+#line 2525 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "S1SetupFailure");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12793,7 +13168,7 @@ static const per_sequence_t ENBConfigurationUpdate_sequence[] = {
 
 static int
 dissect_s1ap_ENBConfigurationUpdate(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2468 "./asn1/s1ap/s1ap.cnf"
+#line 2527 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "ENBConfigurationUpdate");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12810,7 +13185,7 @@ static const per_sequence_t ENBConfigurationUpdateAcknowledge_sequence[] = {
 
 static int
 dissect_s1ap_ENBConfigurationUpdateAcknowledge(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2470 "./asn1/s1ap/s1ap.cnf"
+#line 2529 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "ENBConfigurationUpdateAcknowledge");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12827,7 +13202,7 @@ static const per_sequence_t ENBConfigurationUpdateFailure_sequence[] = {
 
 static int
 dissect_s1ap_ENBConfigurationUpdateFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2472 "./asn1/s1ap/s1ap.cnf"
+#line 2531 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "ENBConfigurationUpdateFailure");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12844,7 +13219,7 @@ static const per_sequence_t MMEConfigurationUpdate_sequence[] = {
 
 static int
 dissect_s1ap_MMEConfigurationUpdate(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2474 "./asn1/s1ap/s1ap.cnf"
+#line 2533 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MMEConfigurationUpdate");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12861,7 +13236,7 @@ static const per_sequence_t MMEConfigurationUpdateAcknowledge_sequence[] = {
 
 static int
 dissect_s1ap_MMEConfigurationUpdateAcknowledge(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2476 "./asn1/s1ap/s1ap.cnf"
+#line 2535 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MMEConfigurationUpdateAcknowledge");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12878,7 +13253,7 @@ static const per_sequence_t MMEConfigurationUpdateFailure_sequence[] = {
 
 static int
 dissect_s1ap_MMEConfigurationUpdateFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2478 "./asn1/s1ap/s1ap.cnf"
+#line 2537 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MMEConfigurationUpdateFailure");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12895,7 +13270,7 @@ static const per_sequence_t DownlinkS1cdma2000tunnelling_sequence[] = {
 
 static int
 dissect_s1ap_DownlinkS1cdma2000tunnelling(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2480 "./asn1/s1ap/s1ap.cnf"
+#line 2539 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "DownlinkS1cdma2000tunnelling");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12912,7 +13287,7 @@ static const per_sequence_t UplinkS1cdma2000tunnelling_sequence[] = {
 
 static int
 dissect_s1ap_UplinkS1cdma2000tunnelling(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2482 "./asn1/s1ap/s1ap.cnf"
+#line 2541 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UplinkS1cdma2000tunnelling");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12929,7 +13304,7 @@ static const per_sequence_t UECapabilityInfoIndication_sequence[] = {
 
 static int
 dissect_s1ap_UECapabilityInfoIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2484 "./asn1/s1ap/s1ap.cnf"
+#line 2543 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UECapabilityInfoIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12946,7 +13321,7 @@ static const per_sequence_t ENBStatusTransfer_sequence[] = {
 
 static int
 dissect_s1ap_ENBStatusTransfer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2486 "./asn1/s1ap/s1ap.cnf"
+#line 2545 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "ENBStatusTransfer");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12963,7 +13338,7 @@ static const per_sequence_t MMEStatusTransfer_sequence[] = {
 
 static int
 dissect_s1ap_MMEStatusTransfer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2488 "./asn1/s1ap/s1ap.cnf"
+#line 2547 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MMEStatusTransfer");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12980,7 +13355,7 @@ static const per_sequence_t TraceStart_sequence[] = {
 
 static int
 dissect_s1ap_TraceStart(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2490 "./asn1/s1ap/s1ap.cnf"
+#line 2549 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "TraceStart");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -12997,7 +13372,7 @@ static const per_sequence_t TraceFailureIndication_sequence[] = {
 
 static int
 dissect_s1ap_TraceFailureIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2492 "./asn1/s1ap/s1ap.cnf"
+#line 2551 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "TraceFailureIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13014,7 +13389,7 @@ static const per_sequence_t DeactivateTrace_sequence[] = {
 
 static int
 dissect_s1ap_DeactivateTrace(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2494 "./asn1/s1ap/s1ap.cnf"
+#line 2553 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "DeactivateTrace");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13031,7 +13406,7 @@ static const per_sequence_t CellTrafficTrace_sequence[] = {
 
 static int
 dissect_s1ap_CellTrafficTrace(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2496 "./asn1/s1ap/s1ap.cnf"
+#line 2555 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "CellTrafficTrace");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13048,7 +13423,7 @@ static const per_sequence_t LocationReportingControl_sequence[] = {
 
 static int
 dissect_s1ap_LocationReportingControl(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2498 "./asn1/s1ap/s1ap.cnf"
+#line 2557 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "LocationReportingControl");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13065,7 +13440,7 @@ static const per_sequence_t LocationReportingFailureIndication_sequence[] = {
 
 static int
 dissect_s1ap_LocationReportingFailureIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2500 "./asn1/s1ap/s1ap.cnf"
+#line 2559 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "LocationReportingFailureIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13082,7 +13457,7 @@ static const per_sequence_t LocationReport_sequence[] = {
 
 static int
 dissect_s1ap_LocationReport(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2502 "./asn1/s1ap/s1ap.cnf"
+#line 2561 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "LocationReport");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13099,7 +13474,7 @@ static const per_sequence_t OverloadStart_sequence[] = {
 
 static int
 dissect_s1ap_OverloadStart(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2504 "./asn1/s1ap/s1ap.cnf"
+#line 2563 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "OverloadStart");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13116,7 +13491,7 @@ static const per_sequence_t OverloadStop_sequence[] = {
 
 static int
 dissect_s1ap_OverloadStop(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2506 "./asn1/s1ap/s1ap.cnf"
+#line 2565 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "OverloadStop");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13133,7 +13508,7 @@ static const per_sequence_t WriteReplaceWarningRequest_sequence[] = {
 
 static int
 dissect_s1ap_WriteReplaceWarningRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2508 "./asn1/s1ap/s1ap.cnf"
+#line 2567 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "WriteReplaceWarningRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13150,7 +13525,7 @@ static const per_sequence_t WriteReplaceWarningResponse_sequence[] = {
 
 static int
 dissect_s1ap_WriteReplaceWarningResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2510 "./asn1/s1ap/s1ap.cnf"
+#line 2569 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "WriteReplaceWarningResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13167,7 +13542,7 @@ static const per_sequence_t ENBDirectInformationTransfer_sequence[] = {
 
 static int
 dissect_s1ap_ENBDirectInformationTransfer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2512 "./asn1/s1ap/s1ap.cnf"
+#line 2571 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "ENBDirectInformationTransfer");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13204,7 +13579,7 @@ static const per_sequence_t MMEDirectInformationTransfer_sequence[] = {
 
 static int
 dissect_s1ap_MMEDirectInformationTransfer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2514 "./asn1/s1ap/s1ap.cnf"
+#line 2573 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MMEDirectInformationTransfer");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13221,7 +13596,7 @@ static const per_sequence_t ENBConfigurationTransfer_sequence[] = {
 
 static int
 dissect_s1ap_ENBConfigurationTransfer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2516 "./asn1/s1ap/s1ap.cnf"
+#line 2575 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "ENBConfigurationTransfer");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13238,7 +13613,7 @@ static const per_sequence_t MMEConfigurationTransfer_sequence[] = {
 
 static int
 dissect_s1ap_MMEConfigurationTransfer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2518 "./asn1/s1ap/s1ap.cnf"
+#line 2577 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MMEConfigurationTransfer");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13255,7 +13630,7 @@ static const per_sequence_t PrivateMessage_sequence[] = {
 
 static int
 dissect_s1ap_PrivateMessage(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2520 "./asn1/s1ap/s1ap.cnf"
+#line 2579 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "PrivateMessage");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13272,7 +13647,7 @@ static const per_sequence_t KillRequest_sequence[] = {
 
 static int
 dissect_s1ap_KillRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2522 "./asn1/s1ap/s1ap.cnf"
+#line 2581 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "KillRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13289,7 +13664,7 @@ static const per_sequence_t KillResponse_sequence[] = {
 
 static int
 dissect_s1ap_KillResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2524 "./asn1/s1ap/s1ap.cnf"
+#line 2583 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "KillResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13306,7 +13681,7 @@ static const per_sequence_t PWSRestartIndication_sequence[] = {
 
 static int
 dissect_s1ap_PWSRestartIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2526 "./asn1/s1ap/s1ap.cnf"
+#line 2585 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "PWSRestartIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13323,7 +13698,7 @@ static const per_sequence_t PWSFailureIndication_sequence[] = {
 
 static int
 dissect_s1ap_PWSFailureIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2528 "./asn1/s1ap/s1ap.cnf"
+#line 2587 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "PWSFailureIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13340,7 +13715,7 @@ static const per_sequence_t DownlinkUEAssociatedLPPaTransport_sequence[] = {
 
 static int
 dissect_s1ap_DownlinkUEAssociatedLPPaTransport(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2530 "./asn1/s1ap/s1ap.cnf"
+#line 2589 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "DownlinkUEAssociatedLPPaTransport");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13357,7 +13732,7 @@ static const per_sequence_t UplinkUEAssociatedLPPaTransport_sequence[] = {
 
 static int
 dissect_s1ap_UplinkUEAssociatedLPPaTransport(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2532 "./asn1/s1ap/s1ap.cnf"
+#line 2591 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UplinkUEAssociatedLPPaTransport");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13374,7 +13749,7 @@ static const per_sequence_t DownlinkNonUEAssociatedLPPaTransport_sequence[] = {
 
 static int
 dissect_s1ap_DownlinkNonUEAssociatedLPPaTransport(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2534 "./asn1/s1ap/s1ap.cnf"
+#line 2593 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "DownlinkNonUEAssociatedLPPaTransport");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13391,7 +13766,7 @@ static const per_sequence_t UplinkNonUEAssociatedLPPaTransport_sequence[] = {
 
 static int
 dissect_s1ap_UplinkNonUEAssociatedLPPaTransport(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2536 "./asn1/s1ap/s1ap.cnf"
+#line 2595 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UplinkNonUEAssociatedLPPaTransport");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13408,7 +13783,7 @@ static const per_sequence_t E_RABModificationIndication_sequence[] = {
 
 static int
 dissect_s1ap_E_RABModificationIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2538 "./asn1/s1ap/s1ap.cnf"
+#line 2597 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "E-RABModificationIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13495,7 +13870,7 @@ static const per_sequence_t E_RABModificationConfirm_sequence[] = {
 
 static int
 dissect_s1ap_E_RABModificationConfirm(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2540 "./asn1/s1ap/s1ap.cnf"
+#line 2599 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "E-RABModificationConfirm");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13541,7 +13916,7 @@ static const per_sequence_t UEContextModificationIndication_sequence[] = {
 
 static int
 dissect_s1ap_UEContextModificationIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2542 "./asn1/s1ap/s1ap.cnf"
+#line 2601 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextModificationIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13558,7 +13933,7 @@ static const per_sequence_t UEContextModificationConfirm_sequence[] = {
 
 static int
 dissect_s1ap_UEContextModificationConfirm(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2544 "./asn1/s1ap/s1ap.cnf"
+#line 2603 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextModificationConfirm");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13575,7 +13950,7 @@ static const per_sequence_t UEContextSuspendRequest_sequence[] = {
 
 static int
 dissect_s1ap_UEContextSuspendRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2546 "./asn1/s1ap/s1ap.cnf"
+#line 2605 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextSuspendRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13592,7 +13967,7 @@ static const per_sequence_t UEContextSuspendResponse_sequence[] = {
 
 static int
 dissect_s1ap_UEContextSuspendResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2548 "./asn1/s1ap/s1ap.cnf"
+#line 2607 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextSuspendResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13609,7 +13984,7 @@ static const per_sequence_t UEContextResumeRequest_sequence[] = {
 
 static int
 dissect_s1ap_UEContextResumeRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2550 "./asn1/s1ap/s1ap.cnf"
+#line 2609 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextResumeRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13651,7 +14026,7 @@ static const per_sequence_t UEContextResumeResponse_sequence[] = {
 
 static int
 dissect_s1ap_UEContextResumeResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2552 "./asn1/s1ap/s1ap.cnf"
+#line 2611 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextResumeResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13693,7 +14068,7 @@ static const per_sequence_t UEContextResumeFailure_sequence[] = {
 
 static int
 dissect_s1ap_UEContextResumeFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2554 "./asn1/s1ap/s1ap.cnf"
+#line 2613 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEContextResumeFailure");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13710,7 +14085,7 @@ static const per_sequence_t ConnectionEstablishmentIndication_sequence[] = {
 
 static int
 dissect_s1ap_ConnectionEstablishmentIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2556 "./asn1/s1ap/s1ap.cnf"
+#line 2615 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "ConnectionEstablishmentIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13727,7 +14102,7 @@ static const per_sequence_t RetrieveUEInformation_sequence[] = {
 
 static int
 dissect_s1ap_RetrieveUEInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2560 "./asn1/s1ap/s1ap.cnf"
+#line 2619 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "RetrieveUEInformation");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13744,7 +14119,7 @@ static const per_sequence_t UEInformationTransfer_sequence[] = {
 
 static int
 dissect_s1ap_UEInformationTransfer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2562 "./asn1/s1ap/s1ap.cnf"
+#line 2621 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEInformationTransfer");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13761,7 +14136,7 @@ static const per_sequence_t ENBCPRelocationIndication_sequence[] = {
 
 static int
 dissect_s1ap_ENBCPRelocationIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2564 "./asn1/s1ap/s1ap.cnf"
+#line 2623 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "ENBCPRelocationIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13778,7 +14153,7 @@ static const per_sequence_t MMECPRelocationIndication_sequence[] = {
 
 static int
 dissect_s1ap_MMECPRelocationIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2566 "./asn1/s1ap/s1ap.cnf"
+#line 2625 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MMECPRelocationIndication");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13795,7 +14170,7 @@ static const per_sequence_t SecondaryRATDataUsageReport_sequence[] = {
 
 static int
 dissect_s1ap_SecondaryRATDataUsageReport(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2568 "./asn1/s1ap/s1ap.cnf"
+#line 2627 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "SecondaryRATDataUsageReport");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13812,7 +14187,7 @@ static const per_sequence_t UERadioCapabilityIDMappingRequest_sequence[] = {
 
 static int
 dissect_s1ap_UERadioCapabilityIDMappingRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2570 "./asn1/s1ap/s1ap.cnf"
+#line 2629 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UERadioCapabilityIDMappingRequest");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13829,7 +14204,7 @@ static const per_sequence_t UERadioCapabilityIDMappingResponse_sequence[] = {
 
 static int
 dissect_s1ap_UERadioCapabilityIDMappingResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 2572 "./asn1/s1ap/s1ap.cnf"
+#line 2631 "./asn1/s1ap/s1ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UERadioCapabilityIDMappingResponse");
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -13842,7 +14217,7 @@ dissect_s1ap_UERadioCapabilityIDMappingResponse(tvbuff_t *tvb _U_, int offset _U
 
 static int
 dissect_s1ap_InitiatingMessage_value(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 151 "./asn1/s1ap/s1ap.cnf"
+#line 153 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->message_type = INITIATING_MESSAGE;
 
@@ -13871,7 +14246,7 @@ dissect_s1ap_InitiatingMessage(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 
 static int
 dissect_s1ap_SuccessfulOutcome_value(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 155 "./asn1/s1ap/s1ap.cnf"
+#line 157 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->message_type = SUCCESSFUL_OUTCOME;
 
@@ -13900,7 +14275,7 @@ dissect_s1ap_SuccessfulOutcome(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 
 static int
 dissect_s1ap_UnsuccessfulOutcome_value(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 159 "./asn1/s1ap/s1ap.cnf"
+#line 161 "./asn1/s1ap/s1ap.cnf"
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->message_type = UNSUCCESSFUL_OUTCOME;
 
@@ -14300,7 +14675,7 @@ dissect_s1ap_CellStateIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 
 static int
 dissect_s1ap_T_uERLFReportContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 883 "./asn1/s1ap/s1ap.cnf"
+#line 904 "./asn1/s1ap/s1ap.cnf"
   tvbuff_t *parameter_tvb;
   proto_tree *subtree;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -15307,6 +15682,22 @@ static int dissect_E_RABLevelQoSParameters_PDU(tvbuff_t *tvb _U_, packet_info *p
   offset += 7; offset >>= 3;
   return offset;
 }
+static int dissect_E_RABSecurityResultList_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_s1ap_E_RABSecurityResultList(tvb, offset, &asn1_ctx, tree, hf_s1ap_E_RABSecurityResultList_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
+static int dissect_E_RABSecurityResultItem_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_s1ap_E_RABSecurityResultItem(tvb, offset, &asn1_ctx, tree, hf_s1ap_E_RABSecurityResultItem_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
 static int dissect_E_RABUsageReportItem_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
@@ -15515,6 +15906,14 @@ int dissect_s1ap_LastVisitedEUTRANCellInformation_PDU(tvbuff_t *tvb _U_, packet_
   offset += 7; offset >>= 3;
   return offset;
 }
+static int dissect_LastVisitedPSCellList_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_s1ap_LastVisitedPSCellList(tvb, offset, &asn1_ctx, tree, hf_s1ap_LastVisitedPSCellList_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
 int dissect_s1ap_LastVisitedGERANCellInformation_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
@@ -15552,6 +15951,14 @@ static int dissect_LTE_M_Indication_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U
   asn1_ctx_t asn1_ctx;
   asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
   offset = dissect_s1ap_LTE_M_Indication(tvb, offset, &asn1_ctx, tree, hf_s1ap_LTE_M_Indication_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
+static int dissect_LTE_NTN_TAI_Information_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_s1ap_LTE_NTN_TAI_Information(tvb, offset, &asn1_ctx, tree, hf_s1ap_LTE_NTN_TAI_Information_PDU);
   offset += 7; offset >>= 3;
   return offset;
 }
@@ -15891,6 +16298,14 @@ static int dissect_PagingPriority_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_,
   offset += 7; offset >>= 3;
   return offset;
 }
+static int dissect_PagingCause_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_s1ap_PagingCause(tvb, offset, &asn1_ctx, tree, hf_s1ap_PagingCause_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
 static int dissect_PC5QoSParameters_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
@@ -15939,11 +16354,19 @@ static int dissect_PS_ServiceNotAvailable_PDU(tvbuff_t *tvb _U_, packet_info *pi
   offset += 7; offset >>= 3;
   return offset;
 }
-static int dissect_PSCellInformation_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+int dissect_s1ap_PSCellInformation_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
   asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
-  offset = dissect_s1ap_PSCellInformation(tvb, offset, &asn1_ctx, tree, hf_s1ap_PSCellInformation_PDU);
+  offset = dissect_s1ap_PSCellInformation(tvb, offset, &asn1_ctx, tree, hf_s1ap_s1ap_PSCellInformation_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
+static int dissect_RACSIndication_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_s1ap_RACSIndication(tvb, offset, &asn1_ctx, tree, hf_s1ap_RACSIndication_PDU);
   offset += 7; offset >>= 3;
   return offset;
 }
@@ -15992,6 +16415,14 @@ static int dissect_RelayNode_Indicator_PDU(tvbuff_t *tvb _U_, packet_info *pinfo
   asn1_ctx_t asn1_ctx;
   asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
   offset = dissect_s1ap_RelayNode_Indicator(tvb, offset, &asn1_ctx, tree, hf_s1ap_RelayNode_Indicator_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
+static int dissect_RAT_Restrictions_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_s1ap_RAT_Restrictions(tvb, offset, &asn1_ctx, tree, hf_s1ap_RAT_Restrictions_PDU);
   offset += 7; offset >>= 3;
   return offset;
 }
@@ -16088,6 +16519,14 @@ static int dissect_SecondaryRATDataUsageReportItem_PDU(tvbuff_t *tvb _U_, packet
   asn1_ctx_t asn1_ctx;
   asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
   offset = dissect_s1ap_SecondaryRATDataUsageReportItem(tvb, offset, &asn1_ctx, tree, hf_s1ap_SecondaryRATDataUsageReportItem_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
+static int dissect_SecurityIndication_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_s1ap_SecurityIndication(tvb, offset, &asn1_ctx, tree, hf_s1ap_SecurityIndication_PDU);
   offset += 7; offset >>= 3;
   return offset;
 }
@@ -16248,6 +16687,14 @@ static int dissect_TargetID_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto
   asn1_ctx_t asn1_ctx;
   asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
   offset = dissect_s1ap_TargetID(tvb, offset, &asn1_ctx, tree, hf_s1ap_TargetID_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
+static int dissect_Global_RAN_NODE_ID_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_s1ap_Global_RAN_NODE_ID(tvb, offset, &asn1_ctx, tree, hf_s1ap_Global_RAN_NODE_ID_PDU);
   offset += 7; offset >>= 3;
   return offset;
 }
@@ -16784,6 +17231,22 @@ static int dissect_E_RABToBeSwitchedULItem_PDU(tvbuff_t *tvb _U_, packet_info *p
   asn1_ctx_t asn1_ctx;
   asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
   offset = dissect_s1ap_E_RABToBeSwitchedULItem(tvb, offset, &asn1_ctx, tree, hf_s1ap_E_RABToBeSwitchedULItem_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
+static int dissect_E_RABToBeUpdatedList_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_s1ap_E_RABToBeUpdatedList(tvb, offset, &asn1_ctx, tree, hf_s1ap_E_RABToBeUpdatedList_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
+static int dissect_E_RABToBeUpdatedItem_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_s1ap_E_RABToBeUpdatedItem(tvb, offset, &asn1_ctx, tree, hf_s1ap_E_RABToBeUpdatedItem_PDU);
   offset += 7; offset >>= 3;
   return offset;
 }
@@ -17790,7 +18253,7 @@ int dissect_s1ap_SONtransferCause_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_,
 
 
 /*--- End of included file: packet-s1ap-fn.c ---*/
-#line 397 "./asn1/s1ap/packet-s1ap-template.c"
+#line 403 "./asn1/s1ap/packet-s1ap-template.c"
 
 static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
@@ -17889,22 +18352,18 @@ dissect_s1ap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 void
 proto_reg_handoff_s1ap(void)
 {
-  static gboolean Initialized=FALSE;
-  static guint SctpPort;
-
-  if (!Initialized) {
-    gcsna_handle = find_dissector_add_dependency("gcsna", proto_s1ap);
-    nas_eps_handle = find_dissector_add_dependency("nas-eps", proto_s1ap);
-    lppa_handle = find_dissector_add_dependency("lppa", proto_s1ap);
-    bssgp_handle = find_dissector_add_dependency("bssgp", proto_s1ap);
-    lte_rrc_ue_radio_access_cap_info_handle = find_dissector_add_dependency("lte-rrc.ue_radio_access_cap_info", proto_s1ap);
-    lte_rrc_ue_radio_access_cap_info_nb_handle = find_dissector_add_dependency("lte-rrc.ue_radio_access_cap_info.nb", proto_s1ap);
-    nr_rrc_ue_radio_access_cap_info_handle = find_dissector_add_dependency("nr-rrc.ue_radio_access_cap_info", proto_s1ap);
-    lte_rrc_ue_radio_paging_info_handle = find_dissector_add_dependency("lte-rrc.ue_radio_paging_info", proto_s1ap);
-    lte_rrc_ue_radio_paging_info_nb_handle = find_dissector_add_dependency("lte-rrc.ue_radio_paging_info.nb", proto_s1ap);
-    dissector_add_for_decode_as("sctp.port", s1ap_handle);
-    dissector_add_uint("sctp.ppi", S1AP_PAYLOAD_PROTOCOL_ID, s1ap_handle);
-    Initialized=TRUE;
+  gcsna_handle = find_dissector_add_dependency("gcsna", proto_s1ap);
+  nas_eps_handle = find_dissector_add_dependency("nas-eps", proto_s1ap);
+  lppa_handle = find_dissector_add_dependency("lppa", proto_s1ap);
+  bssgp_handle = find_dissector_add_dependency("bssgp", proto_s1ap);
+  lte_rrc_ue_radio_access_cap_info_handle = find_dissector_add_dependency("lte-rrc.ue_radio_access_cap_info", proto_s1ap);
+  lte_rrc_ue_radio_access_cap_info_nb_handle = find_dissector_add_dependency("lte-rrc.ue_radio_access_cap_info.nb", proto_s1ap);
+  nr_rrc_ue_radio_access_cap_info_handle = find_dissector_add_dependency("nr-rrc.ue_radio_access_cap_info", proto_s1ap);
+  lte_rrc_ue_radio_paging_info_handle = find_dissector_add_dependency("lte-rrc.ue_radio_paging_info", proto_s1ap);
+  lte_rrc_ue_radio_paging_info_nb_handle = find_dissector_add_dependency("lte-rrc.ue_radio_paging_info.nb", proto_s1ap);
+  nr_rrc_ue_radio_paging_info_handle = find_dissector_add_dependency("nr-rrc.ue_radio_paging_info", proto_s1ap);
+  dissector_add_uint("sctp.ppi", S1AP_PAYLOAD_PROTOCOL_ID, s1ap_handle);
+  dissector_add_uint_with_preference("sctp.port", SCTP_PORT_S1AP, s1ap_handle);
 
 /*--- Included file: packet-s1ap-dis-tab.c ---*/
 #line 1 "./asn1/s1ap/packet-s1ap-dis-tab.c"
@@ -18121,7 +18580,7 @@ proto_reg_handoff_s1ap(void)
   dissector_add_uint("s1ap.ies", id_Subscription_Based_UE_DifferentiationInfo, create_dissector_handle(dissect_Subscription_Based_UE_DifferentiationInfo_PDU, proto_s1ap));
   dissector_add_uint("s1ap.ies", id_PendingDataIndication, create_dissector_handle(dissect_PendingDataIndication_PDU, proto_s1ap));
   dissector_add_uint("s1ap.ies", id_WarningAreaCoordinates, create_dissector_handle(dissect_WarningAreaCoordinates_PDU, proto_s1ap));
-  dissector_add_uint("s1ap.ies", id_PSCellInformation, create_dissector_handle(dissect_PSCellInformation_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.ies", id_PSCellInformation, create_dissector_handle(dissect_s1ap_PSCellInformation_PDU, proto_s1ap));
   dissector_add_uint("s1ap.ies", id_ConnectedengNBList, create_dissector_handle(dissect_ConnectedengNBList_PDU, proto_s1ap));
   dissector_add_uint("s1ap.ies", id_ConnectedengNBToAddList, create_dissector_handle(dissect_ConnectedengNBList_PDU, proto_s1ap));
   dissector_add_uint("s1ap.ies", id_ConnectedengNBToRemoveList, create_dissector_handle(dissect_ConnectedengNBList_PDU, proto_s1ap));
@@ -18146,6 +18605,12 @@ proto_reg_handoff_s1ap(void)
   dissector_add_uint("s1ap.ies", id_Bearers_SubjectToEarlyStatusTransfer_Item, create_dissector_handle(dissect_Bearers_SubjectToEarlyStatusTransfer_Item_PDU, proto_s1ap));
   dissector_add_uint("s1ap.ies", id_WUS_Assistance_Information, create_dissector_handle(dissect_WUS_Assistance_Information_PDU, proto_s1ap));
   dissector_add_uint("s1ap.ies", id_NB_IoT_PagingDRX, create_dissector_handle(dissect_NB_IoT_PagingDRX_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.ies", id_UERadioCapabilityForPaging_NR_Format, create_dissector_handle(dissect_UERadioCapabilityForPaging_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.ies", id_PagingCause, create_dissector_handle(dissect_PagingCause_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.ies", id_E_RABSecurityResultItem, create_dissector_handle(dissect_E_RABSecurityResultItem_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.ies", id_LTE_NTN_TAI_Information, create_dissector_handle(dissect_LTE_NTN_TAI_Information_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.ies", id_E_RABToBeUpdatedList, create_dissector_handle(dissect_E_RABToBeUpdatedList_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.ies", id_E_RABToBeUpdatedItem, create_dissector_handle(dissect_E_RABToBeUpdatedItem_PDU, proto_s1ap));
   dissector_add_uint("s1ap.extension", id_Data_Forwarding_Not_Possible, create_dissector_handle(dissect_Data_Forwarding_Not_Possible_PDU, proto_s1ap));
   dissector_add_uint("s1ap.extension", id_Time_Synchronisation_Info, create_dissector_handle(dissect_TimeSynchronisationInfo_PDU, proto_s1ap));
   dissector_add_uint("s1ap.extension", id_x2TNLConfigurationInfo, create_dissector_handle(dissect_X2TNLConfigurationInfo_PDU, proto_s1ap));
@@ -18196,7 +18661,7 @@ proto_reg_handoff_s1ap(void)
   dissector_add_uint("s1ap.extension", id_WLANMeasurementConfiguration, create_dissector_handle(dissect_WLANMeasurementConfiguration_PDU, proto_s1ap));
   dissector_add_uint("s1ap.extension", id_NRrestrictionin5GS, create_dissector_handle(dissect_NRrestrictionin5GS_PDU, proto_s1ap));
   dissector_add_uint("s1ap.extension", id_LastNG_RANPLMNIdentity, create_dissector_handle(dissect_PLMNidentity_PDU, proto_s1ap));
-  dissector_add_uint("s1ap.extension", id_PSCellInformation, create_dissector_handle(dissect_PSCellInformation_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.extension", id_PSCellInformation, create_dissector_handle(dissect_s1ap_PSCellInformation_PDU, proto_s1ap));
   dissector_add_uint("s1ap.extension", id_IMSvoiceEPSfallbackfrom5G, create_dissector_handle(dissect_IMSvoiceEPSfallbackfrom5G_PDU, proto_s1ap));
   dissector_add_uint("s1ap.extension", id_TimeSinceSecondaryNodeRelease, create_dissector_handle(dissect_RequestTypeAdditionalInfo_PDU, proto_s1ap));
   dissector_add_uint("s1ap.extension", id_ContextatSource, create_dissector_handle(dissect_ContextatSource_PDU, proto_s1ap));
@@ -18209,6 +18674,16 @@ proto_reg_handoff_s1ap(void)
   dissector_add_uint("s1ap.extension", id_DAPSResponseInfoList, create_dissector_handle(dissect_DAPSResponseInfoList_PDU, proto_s1ap));
   dissector_add_uint("s1ap.extension", id_TraceCollectionEntityURI, create_dissector_handle(dissect_URI_Address_PDU, proto_s1ap));
   dissector_add_uint("s1ap.extension", id_EmergencyIndicator, create_dissector_handle(dissect_EmergencyIndicator_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.extension", id_SourceTransportLayerAddress, create_dissector_handle(dissect_TransportLayerAddress_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.extension", id_lastVisitedPSCellList, create_dissector_handle(dissect_LastVisitedPSCellList_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.extension", id_RACSIndication, create_dissector_handle(dissect_RACSIndication_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.extension", id_SecurityIndication, create_dissector_handle(dissect_SecurityIndication_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.extension", id_E_RABSecurityResultList, create_dissector_handle(dissect_E_RABSecurityResultList_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.extension", id_RAT_Restrictions, create_dissector_handle(dissect_RAT_Restrictions_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.extension", id_UEContextReferenceatSourceeNB, create_dissector_handle(dissect_ENB_UE_S1AP_ID_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.extension", id_LTE_NTN_TAI_Information, create_dissector_handle(dissect_LTE_NTN_TAI_Information_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.extension", id_SourceNodeTransportLayerAddress, create_dissector_handle(dissect_TransportLayerAddress_PDU, proto_s1ap));
+  dissector_add_uint("s1ap.extension", id_SourceSNID, create_dissector_handle(dissect_Global_RAN_NODE_ID_PDU, proto_s1ap));
   dissector_add_uint("s1ap.proc.imsg", id_HandoverPreparation, create_dissector_handle(dissect_HandoverRequired_PDU, proto_s1ap));
   dissector_add_uint("s1ap.proc.sout", id_HandoverPreparation, create_dissector_handle(dissect_HandoverCommand_PDU, proto_s1ap));
   dissector_add_uint("s1ap.proc.uout", id_HandoverPreparation, create_dissector_handle(dissect_HandoverPreparationFailure_PDU, proto_s1ap));
@@ -18310,17 +18785,7 @@ proto_reg_handoff_s1ap(void)
 
 
 /*--- End of included file: packet-s1ap-dis-tab.c ---*/
-#line 512 "./asn1/s1ap/packet-s1ap-template.c"
-  } else {
-    if (SctpPort != 0) {
-      dissector_delete_uint("sctp.port", SctpPort, s1ap_handle);
-    }
-  }
-
-  SctpPort=gbl_s1apSctpPort;
-  if (SctpPort != 0) {
-    dissector_add_uint("sctp.port", SctpPort, s1ap_handle);
-  }
+#line 514 "./asn1/s1ap/packet-s1ap-template.c"
 }
 
 /*--- proto_register_s1ap -------------------------------------------*/
@@ -18431,7 +18896,7 @@ void proto_register_s1ap(void) {
         NULL, HFILL }},
     { &hf_s1ap_WarningMessageContents_decoded_page,
       { "Decoded Page", "s1ap.WarningMessageContents.decoded_page",
-        FT_STRING, STR_UNICODE, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_s1ap_measurementsToActivate_M1,
       { "M1", "s1ap.measurementsToActivate.M1",
@@ -18520,6 +18985,26 @@ void proto_register_s1ap(void) {
     { &hf_s1ap_UE_Application_Layer_Measurement_Capability_Reserved,
       { "Reserved", "s1ap.UE_Application_Layer_Measurement_Capability.Reserved",
         FT_UINT8, BASE_HEX, NULL, 0x3f,
+        NULL, HFILL }},
+    { &hf_s1ap_rAT_RestrictionInformation_LEO,
+      { "LEO", "s1ap.rAT_RestrictionInformation.LEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x80,
+        NULL, HFILL }},
+    { &hf_s1ap_rAT_RestrictionInformation_MEO,
+      { "MEO", "s1ap.rAT_RestrictionInformation.MEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x40,
+        NULL, HFILL }},
+    { &hf_s1ap_rAT_RestrictionInformation_GEO,
+      { "GEO", "s1ap.rAT_RestrictionInformation.GEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x20,
+        NULL, HFILL }},
+    { &hf_s1ap_rAT_RestrictionInformation_OTHERSAT,
+      { "OTHERSAT", "s1ap.rAT_RestrictionInformation.OTHERSAT",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x10,
+        NULL, HFILL }},
+    { &hf_s1ap_rAT_RestrictionInformation_Reserved,
+      { "Reserved", "s1ap.rAT_RestrictionInformation.Reserved",
+        FT_UINT8, BASE_HEX, NULL, 0x0f,
         NULL, HFILL }},
 
 /*--- Included file: packet-s1ap-hfarr.c ---*/
@@ -18784,6 +19269,14 @@ void proto_register_s1ap(void) {
       { "E-RABLevelQoSParameters", "s1ap.E_RABLevelQoSParameters_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
+    { &hf_s1ap_E_RABSecurityResultList_PDU,
+      { "E-RABSecurityResultList", "s1ap.E_RABSecurityResultList",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        NULL, HFILL }},
+    { &hf_s1ap_E_RABSecurityResultItem_PDU,
+      { "E-RABSecurityResultItem", "s1ap.E_RABSecurityResultItem_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
     { &hf_s1ap_E_RABUsageReportItem_PDU,
       { "E-RABUsageReportItem", "s1ap.E_RABUsageReportItem_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -18888,6 +19381,10 @@ void proto_register_s1ap(void) {
       { "LastVisitedEUTRANCellInformation", "s1ap.LastVisitedEUTRANCellInformation_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
+    { &hf_s1ap_LastVisitedPSCellList_PDU,
+      { "LastVisitedPSCellList", "s1ap.LastVisitedPSCellList",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        NULL, HFILL }},
     { &hf_s1ap_s1ap_LastVisitedGERANCellInformation_PDU,
       { "LastVisitedGERANCellInformation", "s1ap.LastVisitedGERANCellInformation",
         FT_UINT32, BASE_DEC, VALS(s1ap_LastVisitedGERANCellInformation_vals), 0,
@@ -18898,7 +19395,7 @@ void proto_register_s1ap(void) {
         NULL, HFILL }},
     { &hf_s1ap_LHN_ID_PDU,
       { "LHN-ID", "s1ap.LHN_ID",
-        FT_STRING, STR_UNICODE, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_s1ap_LoggedMBSFNMDT_PDU,
       { "LoggedMBSFNMDT", "s1ap.LoggedMBSFNMDT_element",
@@ -18907,6 +19404,10 @@ void proto_register_s1ap(void) {
     { &hf_s1ap_LTE_M_Indication_PDU,
       { "LTE-M-Indication", "s1ap.LTE_M_Indication",
         FT_UINT32, BASE_DEC, VALS(s1ap_LTE_M_Indication_vals), 0,
+        NULL, HFILL }},
+    { &hf_s1ap_LTE_NTN_TAI_Information_PDU,
+      { "LTE-NTN-TAI-Information", "s1ap.LTE_NTN_TAI_Information_element",
+        FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_s1ap_M3Configuration_PDU,
       { "M3Configuration", "s1ap.M3Configuration_element",
@@ -19076,6 +19577,10 @@ void proto_register_s1ap(void) {
       { "PagingPriority", "s1ap.PagingPriority",
         FT_UINT32, BASE_DEC, VALS(s1ap_PagingPriority_vals), 0,
         NULL, HFILL }},
+    { &hf_s1ap_PagingCause_PDU,
+      { "PagingCause", "s1ap.PagingCause",
+        FT_UINT32, BASE_DEC, VALS(s1ap_PagingCause_vals), 0,
+        NULL, HFILL }},
     { &hf_s1ap_PC5QoSParameters_PDU,
       { "PC5QoSParameters", "s1ap.PC5QoSParameters_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -19100,9 +19605,13 @@ void proto_register_s1ap(void) {
       { "PS-ServiceNotAvailable", "s1ap.PS_ServiceNotAvailable",
         FT_UINT32, BASE_DEC, VALS(s1ap_PS_ServiceNotAvailable_vals), 0,
         NULL, HFILL }},
-    { &hf_s1ap_PSCellInformation_PDU,
+    { &hf_s1ap_s1ap_PSCellInformation_PDU,
       { "PSCellInformation", "s1ap.PSCellInformation_element",
         FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_s1ap_RACSIndication_PDU,
+      { "RACSIndication", "s1ap.RACSIndication",
+        FT_UINT32, BASE_DEC, VALS(s1ap_RACSIndication_vals), 0,
         NULL, HFILL }},
     { &hf_s1ap_ReceiveStatusOfULPDCPSDUsExtended_PDU,
       { "ReceiveStatusOfULPDCPSDUsExtended", "s1ap.ReceiveStatusOfULPDCPSDUsExtended",
@@ -19127,6 +19636,10 @@ void proto_register_s1ap(void) {
     { &hf_s1ap_RelayNode_Indicator_PDU,
       { "RelayNode-Indicator", "s1ap.RelayNode_Indicator",
         FT_UINT32, BASE_DEC, VALS(s1ap_RelayNode_Indicator_vals), 0,
+        NULL, HFILL }},
+    { &hf_s1ap_RAT_Restrictions_PDU,
+      { "RAT-Restrictions", "s1ap.RAT_Restrictions",
+        FT_UINT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
     { &hf_s1ap_RAT_Type_PDU,
       { "RAT-Type", "s1ap.RAT_Type",
@@ -19174,6 +19687,10 @@ void proto_register_s1ap(void) {
         NULL, HFILL }},
     { &hf_s1ap_SecondaryRATDataUsageReportItem_PDU,
       { "SecondaryRATDataUsageReportItem", "s1ap.SecondaryRATDataUsageReportItem_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_s1ap_SecurityIndication_PDU,
+      { "SecurityIndication", "s1ap.SecurityIndication_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_s1ap_SerialNumber_PDU,
@@ -19255,6 +19772,10 @@ void proto_register_s1ap(void) {
     { &hf_s1ap_TargetID_PDU,
       { "TargetID", "s1ap.TargetID",
         FT_UINT32, BASE_DEC, VALS(s1ap_TargetID_vals), 0,
+        NULL, HFILL }},
+    { &hf_s1ap_Global_RAN_NODE_ID_PDU,
+      { "Global-RAN-NODE-ID", "s1ap.Global_RAN_NODE_ID",
+        FT_UINT32, BASE_DEC, VALS(s1ap_Global_RAN_NODE_ID_vals), 0,
         NULL, HFILL }},
     { &hf_s1ap_s1ap_TargeteNB_ToSourceeNB_TransparentContainer_PDU,
       { "TargeteNB-ToSourceeNB-TransparentContainer", "s1ap.TargeteNB_ToSourceeNB_TransparentContainer_element",
@@ -19522,6 +20043,14 @@ void proto_register_s1ap(void) {
         NULL, HFILL }},
     { &hf_s1ap_E_RABToBeSwitchedULItem_PDU,
       { "E-RABToBeSwitchedULItem", "s1ap.E_RABToBeSwitchedULItem_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_s1ap_E_RABToBeUpdatedList_PDU,
+      { "E-RABToBeUpdatedList", "s1ap.E_RABToBeUpdatedList",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        NULL, HFILL }},
+    { &hf_s1ap_E_RABToBeUpdatedItem_PDU,
+      { "E-RABToBeUpdatedItem", "s1ap.E_RABToBeUpdatedItem_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_s1ap_PathSwitchRequestFailure_PDU,
@@ -20194,7 +20723,7 @@ void proto_register_s1ap(void) {
         "T_bt_rssi", HFILL }},
     { &hf_s1ap_BluetoothMeasConfigNameList_item,
       { "BluetoothName", "s1ap.BluetoothName",
-        FT_STRING, STR_UNICODE, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_s1ap_BPLMNs_item,
       { "PLMNidentity", "s1ap.PLMNidentity",
@@ -20636,6 +21165,14 @@ void proto_register_s1ap(void) {
       { "gbrQosInformation", "s1ap.gbrQosInformation_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "GBR_QosInformation", HFILL }},
+    { &hf_s1ap_E_RABSecurityResultList_item,
+      { "ProtocolIE-SingleContainer", "s1ap.ProtocolIE_SingleContainer_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_s1ap_securityResult,
+      { "securityResult", "s1ap.securityResult_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
     { &hf_s1ap_E_RABUsageReportList_item,
       { "ProtocolIE-SingleContainer", "s1ap.ProtocolIE_SingleContainer_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -20836,8 +21373,8 @@ void proto_register_s1ap(void) {
       { "quantityConfigNR-R15", "s1ap.quantityConfigNR_R15",
         FT_BYTES, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-    { &hf_s1ap_blackCellsToAddModList,
-      { "blackCellsToAddModList", "s1ap.blackCellsToAddModList",
+    { &hf_s1ap_excludedCellsToAddModList,
+      { "excludedCellsToAddModList", "s1ap.excludedCellsToAddModList",
         FT_BYTES, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_s1ap_e_UTRAN_Cell,
@@ -20864,6 +21401,18 @@ void proto_register_s1ap(void) {
       { "time-UE-StayedInCell", "s1ap.time_UE_StayedInCell",
         FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_seconds, 0,
         NULL, HFILL }},
+    { &hf_s1ap_LastVisitedPSCellList_item,
+      { "LastVisitedPSCellInformation", "s1ap.LastVisitedPSCellInformation_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_s1ap_pSCellID,
+      { "pSCellID", "s1ap.pSCellID_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        "PSCellInformation", HFILL }},
+    { &hf_s1ap_timeStay,
+      { "timeStay", "s1ap.timeStay",
+        FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_seconds, 0,
+        "INTEGER_0_40950", HFILL }},
     { &hf_s1ap_undefined,
       { "undefined", "s1ap.undefined_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -20888,6 +21437,14 @@ void proto_register_s1ap(void) {
       { "mBSFN-ResultToLog", "s1ap.mBSFN_ResultToLog",
         FT_UINT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
+    { &hf_s1ap_tACList_In_LTE_NTN,
+      { "tACList-In-LTE-NTN", "s1ap.tACList_In_LTE_NTN",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        NULL, HFILL }},
+    { &hf_s1ap_uE_Location_Derived_TAC,
+      { "uE-Location-Derived-TAC", "s1ap.uE_Location_Derived_TAC",
+        FT_UINT16, BASE_DEC_HEX, NULL, 0,
+        "TAC", HFILL }},
     { &hf_s1ap_m3period,
       { "m3period", "s1ap.m3period",
         FT_UINT32, BASE_DEC, VALS(s1ap_M3period_vals), 0,
@@ -21126,7 +21683,7 @@ void proto_register_s1ap(void) {
         NULL, HFILL }},
     { &hf_s1ap_timeStayedInCell,
       { "timeStayedInCell", "s1ap.timeStayedInCell",
-        FT_UINT32, BASE_DEC, NULL, 0,
+        FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_seconds, 0,
         "INTEGER_0_4095", HFILL }},
     { &hf_s1ap_recommendedENBList,
       { "recommendedENBList", "s1ap.recommendedENBList",
@@ -21140,6 +21697,14 @@ void proto_register_s1ap(void) {
       { "mMEPagingTarget", "s1ap.mMEPagingTarget",
         FT_UINT32, BASE_DEC, VALS(s1ap_MMEPagingTarget_vals), 0,
         NULL, HFILL }},
+    { &hf_s1ap_RAT_Restrictions_item,
+      { "RAT-RestrictionsItem", "s1ap.RAT_RestrictionsItem_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_s1ap_rAT_RestrictionInformation,
+      { "rAT-RestrictionInformation", "s1ap.rAT_RestrictionInformation",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "T_rAT_RestrictionInformation", HFILL }},
     { &hf_s1ap_eventType,
       { "eventType", "s1ap.eventType",
         FT_UINT32, BASE_DEC, VALS(s1ap_EventType_vals), 0,
@@ -21199,6 +21764,14 @@ void proto_register_s1ap(void) {
     { &hf_s1ap_e_RABUsageReportList,
       { "e-RABUsageReportList", "s1ap.e_RABUsageReportList",
         FT_UINT32, BASE_DEC, NULL, 0,
+        NULL, HFILL }},
+    { &hf_s1ap_integrityProtectionIndication,
+      { "integrityProtectionIndication", "s1ap.integrityProtectionIndication",
+        FT_UINT32, BASE_DEC, VALS(s1ap_IntegrityProtectionIndication_vals), 0,
+        NULL, HFILL }},
+    { &hf_s1ap_integrityProtectionResult,
+      { "integrityProtectionResult", "s1ap.integrityProtectionResult",
+        FT_UINT32, BASE_DEC, VALS(s1ap_IntegrityProtectionResult_vals), 0,
         NULL, HFILL }},
     { &hf_s1ap_sONInformationRequest,
       { "sONInformationRequest", "s1ap.sONInformationRequest",
@@ -21368,6 +21941,10 @@ void proto_register_s1ap(void) {
       { "mMEC", "s1ap.mMEC",
         FT_UINT8, BASE_DEC_HEX, NULL, 0,
         "MME_Code", HFILL }},
+    { &hf_s1ap_TACList_In_LTE_NTN_item,
+      { "TAC", "s1ap.TAC",
+        FT_UINT16, BASE_DEC_HEX, NULL, 0,
+        NULL, HFILL }},
     { &hf_s1ap_tAIListforMDT,
       { "tAIListforMDT", "s1ap.tAIListforMDT",
         FT_UINT32, BASE_DEC, NULL, 0,
@@ -21598,7 +22175,7 @@ void proto_register_s1ap(void) {
         NULL, HFILL }},
     { &hf_s1ap_WLANMeasConfigNameList_item,
       { "WLANName", "s1ap.WLANName",
-        FT_STRING, STR_UNICODE, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_s1ap_pagingProbabilityInformation,
       { "pagingProbabilityInformation", "s1ap.pagingProbabilityInformation",
@@ -21650,6 +22227,10 @@ void proto_register_s1ap(void) {
         NULL, HFILL }},
     { &hf_s1ap_e_RABlevelQosParameters,
       { "e-RABlevelQosParameters", "s1ap.e_RABlevelQosParameters_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_s1ap_securityIndication,
+      { "securityIndication", "s1ap.securityIndication_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_s1ap_E_RABToBeSetupListBearerSUReq_item,
@@ -22038,7 +22619,7 @@ void proto_register_s1ap(void) {
         NULL, HFILL }},
 
 /*--- End of included file: packet-s1ap-hfarr.c ---*/
-#line 723 "./asn1/s1ap/packet-s1ap-template.c"
+#line 735 "./asn1/s1ap/packet-s1ap-template.c"
   };
 
   /* List of subtrees */
@@ -22081,10 +22662,11 @@ void proto_register_s1ap(void) {
     &ett_s1ap_sSBToMeasure,
     &ett_s1ap_sSRSSIMeasurement,
     &ett_s1ap_quantityConfigNR_R15,
-    &ett_s1ap_blackCellsToAddModList,
+    &ett_s1ap_excludedCellsToAddModList,
     &ett_s1ap_NB_IoT_RLF_Report_Container,
     &ett_s1ap_MDT_ConfigurationNR,
     &ett_s1ap_IntersystemSONConfigurationTransfer,
+    &ett_s1ap_rAT_RestrictionInformation,
 
 /*--- Included file: packet-s1ap-ettarr.c ---*/
 #line 1 "./asn1/s1ap/packet-s1ap-ettarr.c"
@@ -22181,6 +22763,8 @@ void proto_register_s1ap(void) {
     &ett_s1ap_E_RABList,
     &ett_s1ap_E_RABItem,
     &ett_s1ap_E_RABLevelQoSParameters,
+    &ett_s1ap_E_RABSecurityResultList,
+    &ett_s1ap_E_RABSecurityResultItem,
     &ett_s1ap_E_RABUsageReportList,
     &ett_s1ap_E_RABUsageReportItem,
     &ett_s1ap_EUTRAN_CGI,
@@ -22205,10 +22789,13 @@ void proto_register_s1ap(void) {
     &ett_s1ap_LAI,
     &ett_s1ap_LastVisitedCell_Item,
     &ett_s1ap_LastVisitedEUTRANCellInformation,
+    &ett_s1ap_LastVisitedPSCellList,
+    &ett_s1ap_LastVisitedPSCellInformation,
     &ett_s1ap_LastVisitedGERANCellInformation,
     &ett_s1ap_ListeningSubframePattern,
     &ett_s1ap_LoggedMDT,
     &ett_s1ap_LoggedMBSFNMDT,
+    &ett_s1ap_LTE_NTN_TAI_Information,
     &ett_s1ap_M3Configuration,
     &ett_s1ap_M4Configuration,
     &ett_s1ap_M5Configuration,
@@ -22245,6 +22832,8 @@ void proto_register_s1ap(void) {
     &ett_s1ap_RecommendedENBsForPaging,
     &ett_s1ap_RecommendedENBList,
     &ett_s1ap_RecommendedENBItem,
+    &ett_s1ap_RAT_Restrictions,
+    &ett_s1ap_RAT_RestrictionsItem,
     &ett_s1ap_RequestType,
     &ett_s1ap_RIMTransfer,
     &ett_s1ap_RIMRoutingAddress,
@@ -22253,6 +22842,8 @@ void proto_register_s1ap(void) {
     &ett_s1ap_SecurityContext,
     &ett_s1ap_SecondaryRATDataUsageReportList,
     &ett_s1ap_SecondaryRATDataUsageReportItem,
+    &ett_s1ap_SecurityIndication,
+    &ett_s1ap_SecurityResult,
     &ett_s1ap_SONInformation,
     &ett_s1ap_SONInformationReply,
     &ett_s1ap_SONInformationReport,
@@ -22273,6 +22864,7 @@ void proto_register_s1ap(void) {
     &ett_s1ap_SupportedTAs_Item,
     &ett_s1ap_TimeSynchronisationInfo,
     &ett_s1ap_S_TMSI,
+    &ett_s1ap_TACList_In_LTE_NTN,
     &ett_s1ap_TAIBasedMDT,
     &ett_s1ap_TAIListforMDT,
     &ett_s1ap_TAIListforWarning,
@@ -22340,6 +22932,7 @@ void proto_register_s1ap(void) {
     &ett_s1ap_E_RABToBeSwitchedDLItem,
     &ett_s1ap_PathSwitchRequestAcknowledge,
     &ett_s1ap_E_RABToBeSwitchedULItem,
+    &ett_s1ap_E_RABToBeUpdatedItem,
     &ett_s1ap_PathSwitchRequestFailure,
     &ett_s1ap_HandoverCancel,
     &ett_s1ap_HandoverCancelAcknowledge,
@@ -22495,7 +23088,7 @@ void proto_register_s1ap(void) {
     &ett_s1ap_EHRPDMultiSectorLoadReportingResponseItem,
 
 /*--- End of included file: packet-s1ap-ettarr.c ---*/
-#line 770 "./asn1/s1ap/packet-s1ap-template.c"
+#line 783 "./asn1/s1ap/packet-s1ap-template.c"
   };
 
   static ei_register_info ei[] = {
@@ -22526,13 +23119,8 @@ void proto_register_s1ap(void) {
   s1ap_proc_uout_dissector_table = register_dissector_table("s1ap.proc.uout", "S1AP-ELEMENTARY-PROCEDURE UnsuccessfulOutcome", proto_s1ap, FT_UINT32, BASE_DEC);
 
   /* Register configuration options for ports */
-  s1ap_module = prefs_register_protocol(proto_s1ap, proto_reg_handoff_s1ap);
+  s1ap_module = prefs_register_protocol(proto_s1ap, NULL);
 
-  prefs_register_uint_preference(s1ap_module, "sctp.port",
-                                 "S1AP SCTP Port",
-                                 "Set the SCTP port for S1AP messages",
-                                 10,
-                                 &gbl_s1apSctpPort);
   prefs_register_bool_preference(s1ap_module, "dissect_container", "Dissect TransparentContainer", "Dissect TransparentContainers that are opaque to S1AP", &g_s1ap_dissect_container);
   prefs_register_enum_preference(s1ap_module, "dissect_lte_container_as", "Dissect LTE TransparentContainer as",
                                  "Select whether LTE TransparentContainer should be dissected as NB-IOT or legacy LTE",

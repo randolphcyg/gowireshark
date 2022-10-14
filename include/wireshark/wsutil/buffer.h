@@ -1,4 +1,4 @@
-/* buffer.h
+/** @file
  *
  * Wiretap Library
  * Copyright (c) 1998 by Gilbert Ramirez <gram@alumni.rice.edu>
@@ -10,7 +10,7 @@
 #define __W_BUFFER_H__
 
 #include <glib.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

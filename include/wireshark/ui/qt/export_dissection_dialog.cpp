@@ -31,7 +31,7 @@
 #endif // Q_OS_WIN
 
 #include <epan/prefs.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 
 #if !defined(Q_OS_WIN)
 static const QStringList export_extensions = QStringList()
@@ -56,7 +56,7 @@ ExportDissectionDialog::ExportDissectionDialog(QWidget *parent, capture_file *ca
     , sel_range_(selRange)
 #endif /* Q_OS_WIN */
 {
-    setWindowTitle(wsApp->windowTitleString(tr("Export Packet Dissections")));
+    setWindowTitle(mainApp->windowTitleString(tr("Export Packet Dissections")));
 
     switch (prefs.gui_fileopen_style) {
 
@@ -67,7 +67,7 @@ ExportDissectionDialog::ExportDissectionDialog(QWidget *parent, capture_file *ca
          * use the "last opened" directory saved in the preferences file if
          * there was one.
          */
-        setDirectory(wsApp->lastOpenDir());
+        setDirectory(mainApp->lastOpenDir());
         break;
 
     case FO_STYLE_SPECIFIED:
@@ -144,7 +144,7 @@ ExportDissectionDialog::ExportDissectionDialog(QWidget *parent, capture_file *ca
     // Grow the dialog to account for the extra widgets.
     resize(width(), height() + (packet_range_group_box_.height() * 2 / 3));
 
-    connect(this, SIGNAL(accepted()), this, SLOT(dialogAccepted()));
+    connect(this, SIGNAL(filesSelected(QStringList)), this, SLOT(dialogAccepted(QStringList)));
 #else // Q_OS_WIN
 #endif // Q_OS_WIN
 }
@@ -169,11 +169,11 @@ void ExportDissectionDialog::show()
 }
 
 #ifndef Q_OS_WIN
-void ExportDissectionDialog::dialogAccepted()
+void ExportDissectionDialog::dialogAccepted(const QStringList &selected)
 {
-    if (selectedFiles().length() > 0) {
+    if (selected.length() > 0) {
         cf_print_status_t status;
-        QString file_name = selectedFiles()[0];
+        QString file_name = selected[0];
 
         /* Fill in our print (and export) args */
 
@@ -201,6 +201,7 @@ void ExportDissectionDialog::dialogAccepted()
                     print_args_.print_dissections = print_dissections_expanded;
             }
             print_args_.print_hex = packet_format_group_box_.bytesEnabled();
+            print_args_.hexdump_options = packet_format_group_box_.getHexdumpOptions();
             print_args_.stream = print_stream_text_new(TRUE, print_args_.file);
             if (print_args_.stream == NULL) {
                 open_failure_alert_box(print_args_.file, errno, TRUE);
@@ -238,12 +239,10 @@ void ExportDissectionDialog::dialogAccepted()
                 break;
         }
 
-        if (selectedFiles().length() > 0) {
-            gchar *dirname;
-            /* Save the directory name for future file dialogs. */
-            dirname = get_dirname(print_args_.file);  /* Overwrites file_name data */
-            set_last_open_dir(dirname);
-        }
+        gchar *dirname;
+        /* Save the directory name for future file dialogs. */
+        dirname = get_dirname(print_args_.file);  /* Overwrites file_name data */
+        set_last_open_dir(dirname);
     }
 }
 
@@ -283,6 +282,6 @@ void ExportDissectionDialog::checkValidity()
 
 void ExportDissectionDialog::on_buttonBox_helpRequested()
 {
-    wsApp->helpTopicAction(HELP_EXPORT_FILE_DIALOG);
+    mainApp->helpTopicAction(HELP_EXPORT_FILE_DIALOG);
 }
 #endif // Q_OS_WIN

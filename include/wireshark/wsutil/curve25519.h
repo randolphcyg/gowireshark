@@ -1,4 +1,4 @@
-/* curve25519.h
+/** @file
  * NaCl/Sodium-compatible API for Curve25519 cryptography.
  *
  * Copyright (c) 2018, Peter Wu <peter@lekensteyn.nl>
@@ -10,14 +10,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-/*
- * Callers MUST check GCRYPT_VERSION_NUMBER >= 0x010700 before using this API.
- */
-
 #ifndef __CURVE25519_H__
 #define __CURVE25519_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 #include "wsgcrypt.h"
 
 /*

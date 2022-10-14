@@ -1,4 +1,4 @@
-/* address.h
+/** @file
  * Definitions for structures storing addresses, and for the type of
  * variables holding port-type values
  *
@@ -28,6 +28,10 @@ extern "C" {
  * If an address type is added here, it must be "registered" within address_types.c
  * For dissector address types, just use the address_type_dissector_register function
  * from address_types.h
+ *
+ * AT_NUMERIC - a numeric address type can consist of a guint8, guint16, guint32 or guint64
+ * value. If no correct length is provided, to avoid data bleed, a guint8 is
+ * assumed. Only representation (aka conversion of value to string) is implemented for this type.
  */
 typedef enum {
     AT_NONE,               /* no link-layer address */
@@ -42,6 +46,7 @@ typedef enum {
     AT_IB,                 /* Infiniband GID/LID */
     AT_AX25,               /* AX.25 */
     AT_VINES,              /* Banyan Vines address */
+    AT_NUMERIC,            /* Numeric address type. */
 
     AT_END_OF_LIST         /* Must be last in list */
 } address_type;

@@ -176,6 +176,7 @@ static void calcappprotocol_stat_init(stat_tap_table_ui* new_stat)
   table = stat_tap_init_table(table_name, num_fields, 0, NULL);
   stat_tap_add_table(new_stat, table);
 
+  memset(items, 0x0, sizeof(items));
   /* Add a row for each value type */
   while (message_type_values[i].strptr) {
     items[MESSAGE_TYPE_COLUMN].type                = TABLE_ITEM_STRING;
@@ -204,7 +205,7 @@ static void calcappprotocol_stat_init(stat_tap_table_ui* new_stat)
 }
 
 static tap_packet_status
-calcappprotocol_stat_packet(void* tapdata, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* data)
+calcappprotocol_stat_packet(void* tapdata, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* data, tap_flags_t flags _U_)
 {
   stat_data_t*                     stat_data = (stat_data_t*)tapdata;
   const tap_calcappprotocol_rec_t* tap_rec   = (const tap_calcappprotocol_rec_t*)data;

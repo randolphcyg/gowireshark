@@ -19,7 +19,7 @@
 #include <wsutil/utf8_entities.h>
 
 #include <ui/qt/utils/qt_ui_utils.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 
 #include <QClipboard>
 #include <QPushButton>
@@ -46,6 +46,7 @@ const int bandwidth_col_ = 5;
 const int end_packets_col_ = 6;
 const int end_bytes_col_ = 7;
 const int end_bandwidth_col_ = 8;
+const int pdus_col_ = 9;
 
 class ProtocolHierarchyTreeWidgetItem : public QTreeWidgetItem
 {
@@ -53,6 +54,7 @@ public:
     ProtocolHierarchyTreeWidgetItem(QTreeWidgetItem *parent, ph_stats_node_t& ph_stats_node) :
         QTreeWidgetItem(parent),
         total_packets_(ph_stats_node.num_pkts_total),
+        total_pdus_(ph_stats_node.num_pdus_total),
         last_packets_(ph_stats_node.num_pkts_last),
         total_bytes_(ph_stats_node.num_bytes_total),
         last_bytes_(ph_stats_node.num_bytes_last),
@@ -87,6 +89,7 @@ public:
         setText(end_packets_col_, QString::number(last_packets_));
         setText(end_bytes_col_, QString::number(last_bytes_));
         setText(end_bandwidth_col_, seconds > 0.0 ? bits_s_to_qstring(end_bits_s_) : UTF8_EM_DASH);
+        setText(pdus_col_, QString::number(total_pdus_));
     }
 
     // Return a QString, int, double, or invalid QVariant representing the raw column data.
@@ -110,6 +113,8 @@ public:
             return last_bytes_;
         case (end_bandwidth_col_):
             return end_bits_s_;
+        case (pdus_col_):
+            return total_pdus_;
         default:
             break;
         }
@@ -137,6 +142,8 @@ public:
             return last_bytes_ < other_phtwi.last_bytes_;
         case end_bandwidth_col_:
             return end_bits_s_ < other_phtwi.end_bits_s_;
+        case pdus_col_:
+            return total_pdus_ < other_phtwi.total_pdus_;
         default:
             break;
         }
@@ -150,6 +157,7 @@ public:
 private:
     QString filter_name_;
     unsigned total_packets_;
+    unsigned total_pdus_;
     unsigned last_packets_;
     unsigned total_bytes_;
     unsigned last_bytes_;
@@ -332,7 +340,7 @@ void ProtocolHierarchyDialog::on_actionCopyAsCsv_triggered()
         foreach (QVariant v, protoHierRowData(item)) {
             if (!v.isValid()) {
                 separated_value << "\"\"";
-            } else if (v.type() == QVariant::String) {
+            } else if (v.userType() == QMetaType::QString) {
                 separated_value << QString("\"%1\"").arg(v.toString());
             } else {
                 separated_value << v.toString();
@@ -343,7 +351,7 @@ void ProtocolHierarchyDialog::on_actionCopyAsCsv_triggered()
         if (!first) ++iter;
         first = false;
     }
-    wsApp->clipboard()->setText(stream.readAll());
+    mainApp->clipboard()->setText(stream.readAll());
 }
 
 void ProtocolHierarchyDialog::on_actionCopyAsYaml_triggered()
@@ -364,10 +372,10 @@ void ProtocolHierarchyDialog::on_actionCopyAsYaml_triggered()
         if (!first) ++iter;
         first = false;
     }
-    wsApp->clipboard()->setText(stream.readAll());
+    mainApp->clipboard()->setText(stream.readAll());
 }
 
 void ProtocolHierarchyDialog::on_buttonBox_helpRequested()
 {
-    wsApp->helpTopicAction(HELP_STATS_PROTO_HIERARCHY_DIALOG);
+    mainApp->helpTopicAction(HELP_STATS_PROTO_HIERARCHY_DIALOG);
 }

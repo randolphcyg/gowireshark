@@ -1,4 +1,4 @@
-/* media_params.h
+/** @file
  * Routines for parsing media type parameters as per RFC 822 and RFC 2045
  * Copyright 2004, Anders Broman.
  * Copyright 2004, Olivier Biot.
@@ -18,7 +18,7 @@
 
 #include <epan/wmem_scopes.h>
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

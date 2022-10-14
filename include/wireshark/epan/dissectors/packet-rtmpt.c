@@ -912,7 +912,7 @@ dissect_amf0_property_list(tvbuff_t *tvb, gint offset, proto_tree *tree, guint *
 
                 proto_tree_add_uint(name_tree, hf_amf_stringlength, tvb, offset, 2, iStringLength);
                 offset += 2;
-                proto_tree_add_item(name_tree, hf_amf_string, tvb, offset, iStringLength, ENC_UTF_8|ENC_NA);
+                proto_tree_add_item(name_tree, hf_amf_string, tvb, offset, iStringLength, ENC_UTF_8);
                 offset += iStringLength;
 
                 /* value-type: property value */
@@ -1113,9 +1113,9 @@ dissect_amf0_value_type(tvbuff_t *tvb, gint offset, proto_tree *tree, gboolean *
                 iInteger64Value = tvb_get_ntoh64(tvb, iValueOffset);
                 proto_tree_add_int64(val_tree, hf_amf_int64, tvb, iValueOffset, 8, iInteger64Value);
                 iValueOffset += 8;
-                proto_item_append_text(ti," %" G_GINT64_MODIFIER "d", iInteger64Value);
+                proto_item_append_text(ti," %" PRId64, iInteger64Value);
                 if (parent_ti != NULL)
-                        proto_item_append_text(parent_ti," %" G_GINT64_MODIFIER "d", iInteger64Value);
+                        proto_item_append_text(parent_ti," %" PRId64, iInteger64Value);
                 break;
         default:
                 /*
@@ -1520,7 +1520,7 @@ dissect_amf3_value_type(tvbuff_t *tvb, gint offset, proto_tree *tree, proto_item
                         iStringLength = iIntegerValue >> 1;
                         proto_tree_add_uint(val_tree, hf_amf_xmllength, tvb, iValueOffset, iValueLength, iStringLength);
                         iValueOffset += iValueLength;
-                        proto_tree_add_item(val_tree, hf_amf_xml, tvb, iValueOffset, iStringLength, ENC_UTF_8|ENC_NA);
+                        proto_tree_add_item(val_tree, hf_amf_xml, tvb, iValueOffset, iStringLength, ENC_UTF_8);
                 } else {
                         /* the upper 28 bits of the integer value are a string reference index */
                         proto_tree_add_uint(val_tree, hf_amf_object_reference, tvb, iValueOffset, iValueLength, iIntegerValue >> 1);
@@ -2404,16 +2404,16 @@ dissect_rtmpt_http(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
         cdir = pinfo->srcport == pinfo->match_uint;
 
         if (cdir) {
-                conv = find_conversation(pinfo->num, &pinfo->dst, &pinfo->src, conversation_pt_to_endpoint_type(pinfo->ptype), 0, pinfo->srcport, 0);
+                conv = find_conversation(pinfo->num, &pinfo->dst, &pinfo->src, conversation_pt_to_conversation_type(pinfo->ptype), 0, pinfo->srcport, 0);
                 if (!conv) {
                         RTMPT_DEBUG("RTMPT new conversation\n");
-                        conv = conversation_new(pinfo->num, &pinfo->dst, &pinfo->src, conversation_pt_to_endpoint_type(pinfo->ptype), 0, pinfo->srcport, 0);
+                        conv = conversation_new(pinfo->num, &pinfo->dst, &pinfo->src, conversation_pt_to_conversation_type(pinfo->ptype), 0, pinfo->srcport, 0);
                 }
         } else {
-                conv = find_conversation(pinfo->num, &pinfo->src, &pinfo->dst, conversation_pt_to_endpoint_type(pinfo->ptype), 0, pinfo->destport, 0);
+                conv = find_conversation(pinfo->num, &pinfo->src, &pinfo->dst, conversation_pt_to_conversation_type(pinfo->ptype), 0, pinfo->destport, 0);
                 if (!conv) {
                         RTMPT_DEBUG("RTMPT new conversation\n");
-                        conv = conversation_new(pinfo->num, &pinfo->src, &pinfo->dst, conversation_pt_to_endpoint_type(pinfo->ptype), 0, pinfo->destport, 0);
+                        conv = conversation_new(pinfo->num, &pinfo->src, &pinfo->dst, conversation_pt_to_conversation_type(pinfo->ptype), 0, pinfo->destport, 0);
                 }
         }
 

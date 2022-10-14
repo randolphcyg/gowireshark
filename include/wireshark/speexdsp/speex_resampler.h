@@ -1,4 +1,6 @@
-/* Copyright (C) 2007 Jean-Marc Valin
+/** @file
+
+   Copyright (C) 2007 Jean-Marc Valin
 
    File: speex_resampler.h
    Resampling code
@@ -40,7 +42,8 @@
 
 #define OUTSIDE_SPEEX 1
 #define RANDOM_PREFIX ws_codec
-#include "ws_symbol_export.h"
+#include <include/ws_symbol_export.h>
+#include <include/ws_diag_control.h>
 #define EXPORT
 
 #ifdef OUTSIDE_SPEEX

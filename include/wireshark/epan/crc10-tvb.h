@@ -1,4 +1,4 @@
-/* crc10-tvb.h
+/** @file
  * Declaration of CRC-10 tvbuff routines
  *
  * Wireshark - Network traffic analyzer
@@ -11,7 +11,7 @@
 #ifndef __CRC10_TVB_H__
 #define __CRC10_TVB_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

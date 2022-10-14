@@ -1,4 +1,4 @@
-/* stat_tap_ui.h
+/** @file
  * Declarations of routines to register UI information for stats
  *
  * Wireshark - Network traffic analyzer
@@ -11,7 +11,7 @@
 #ifndef __STAT_TAP_UI_H__
 #define __STAT_TAP_UI_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #include <epan/params.h>
 #include <epan/stat_groups.h>

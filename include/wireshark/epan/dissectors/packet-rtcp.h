@@ -13,12 +13,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* Info to save in RTCP conversation / packet-info.
    Note that this structure applies to the destination end of
    an RTP session */
-#define MAX_RTCP_SETUP_METHOD_SIZE 7
+#define MAX_RTCP_SETUP_METHOD_SIZE 10
 struct _rtcp_conversation_info
 {
     /* Setup info is relevant to traffic whose dest is the conversation address */

@@ -20,7 +20,7 @@
 #include <wiretap/wtap.h>
 #include "ui/capture_globals.h"
 
-#include "wireshark_application.h"
+#include "main_application.h"
 
 #include <QClipboard>
 #include <QPushButton>
@@ -34,11 +34,11 @@ CompiledFilterOutput::CompiledFilterOutput(QWidget *parent, QStringList &intList
     ui->setupUi(this);
     loadGeometry();
     setAttribute(Qt::WA_DeleteOnClose, true);
-    ui->filterList->setCurrentFont(wsApp->monospaceFont());
+    ui->filterList->setCurrentFont(mainApp->monospaceFont());
 
     copy_bt_ = ui->buttonBox->addButton(tr("Copy"), QDialogButtonBox::ActionRole);
     copy_bt_->setToolTip(tr("Copy filter text to the clipboard."));
-    connect(copy_bt_, SIGNAL(clicked()), this, SLOT(copyFilterText()));
+    connect(copy_bt_, &QPushButton::clicked, this, &CompiledFilterOutput::copyFilterText);
 
     QPushButton *close_bt = ui->buttonBox->button(QDialogButtonBox::Close);
     close_bt->setDefault(true);
@@ -113,5 +113,5 @@ void CompiledFilterOutput::on_interfaceList_currentItemChanged(QListWidgetItem *
 
 void CompiledFilterOutput::copyFilterText()
 {
-    wsApp->clipboard()->setText(ui->filterList->toPlainText());
+    mainApp->clipboard()->setText(ui->filterList->toPlainText());
 }

@@ -288,6 +288,8 @@ static int hf_isakmp_ike_attr_prf = -1;
 static int hf_isakmp_ike_attr_key_length = -1;
 static int hf_isakmp_ike_attr_field_size = -1;
 static int hf_isakmp_ike_attr_group_order = -1;
+static int hf_isakmp_ike_attr_block_size = -1;
+static int hf_isakmp_ike_attr_asymmetric_cryptographic_algorithm_type = -1;
 
 static attribute_common_fields hf_isakmp_resp_lifetime_ike_attr = { -1, -1, -1, -1, -1 };
 static int hf_isakmp_resp_lifetime_ike_attr_life_type = -1;
@@ -817,6 +819,8 @@ static const range_string tek_key_attr_type[] = {
 #define IKE_ATTR_KEY_LENGTH                             14
 #define IKE_ATTR_FIELD_SIZE                             15
 #define IKE_ATTR_GROUP_ORDER                    16
+#define IKE_ATTR_BLOCK_SIZE                     17
+#define IKE_ATTR_ACAT                           20
 
 
 
@@ -837,7 +841,10 @@ static const range_string ike_attr_type[] = {
   { 14,14,       "Key-Length" },
   { 15,15,       "Field-Size" },
   { 16,16,       "Group-Order" },
-  { 17,16383,    "Unassigned (Future use)" },
+  { 17,17,       "Block-Size" },
+  { 18,19,       "Unassigned (Future use)" },
+  { 20,20,       "Asymmetric-Cryptographic-Algorithm-Type" },
+  { 21,16383,    "Unassigned (Future use)" },
   { 16384,32767, "Private use" },
   { 0,0,         NULL },
 };
@@ -957,6 +964,9 @@ static const value_string ipsec_attr_auth_algo[] = {
 #define ENC_CAST_CBC            6
 #define ENC_AES_CBC             7
 #define ENC_CAMELLIA_CBC        8
+#define ENC_SM4_CBC_DEPRECATED  127
+#define ENC_SM1_CBC             128
+#define ENC_SM4_CBC             129
 
 static const value_string ike_attr_enc_algo[] = {
   { 0,                          "RESERVED" },
@@ -968,6 +978,9 @@ static const value_string ike_attr_enc_algo[] = {
   { ENC_CAST_CBC,               "CAST-CBC" },
   { ENC_AES_CBC,                "AES-CBC" },
   { ENC_CAMELLIA_CBC,           "CAMELLIA-CBC" },
+  { ENC_SM4_CBC_DEPRECATED,     "SM4-CBC (DEPRECATED)" },
+  { ENC_SM1_CBC,                "SM1-CBC" },
+  { ENC_SM4_CBC,                "SM4-CBC" },
   { 0,  NULL },
 };
 
@@ -977,6 +990,7 @@ static const value_string ike_attr_enc_algo[] = {
 #define HMAC_SHA2_256   4
 #define HMAC_SHA2_384   5
 #define HMAC_SHA2_512   6
+#define HMAC_SM3        20
 
 static const value_string ike_attr_hash_algo[] = {
   { 0,                  "RESERVED" },
@@ -986,6 +1000,16 @@ static const value_string ike_attr_hash_algo[] = {
   { HMAC_SHA2_256,      "SHA2-256" },
   { HMAC_SHA2_384,      "SHA2-384" },
   { HMAC_SHA2_512,      "SHA2-512" },
+  { HMAC_SM3,           "SM3" },
+  { 0,  NULL },
+};
+
+#define ASYMMETRIC_RSA   1
+#define ASYMMETRIC_SM2   2
+
+static const value_string ike_attr_asym_algo[] = {
+  { ASYMMETRIC_RSA,      "RSA" },
+  { ASYMMETRIC_SM2,      "SM2" },
   { 0,  NULL },
 };
 
@@ -1905,7 +1929,6 @@ static ikev2_encr_alg_spec_t ikev2_encr_algs[] = {
   {IKEV2_ENCR_AES_CTR_192, 28, 1, 8, GCRY_CIPHER_AES192, GCRY_CIPHER_MODE_CTR, 4, 0},
   {IKEV2_ENCR_AES_CTR_256, 36, 1, 8, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CTR, 4, 0},
 
-#ifdef HAVE_LIBGCRYPT_AEAD
   /* GCM algorithms: key length: aes-length + 4 bytes of IV (salt), iv - 8 bytes */
   {IKEV2_ENCR_AES_GCM_128_16, 20, 1, 8, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_GCM, 4, 16},
   {IKEV2_ENCR_AES_GCM_192_16, 28, 1, 8, GCRY_CIPHER_AES192, GCRY_CIPHER_MODE_GCM, 4, 16},
@@ -1931,36 +1954,6 @@ static ikev2_encr_alg_spec_t ikev2_encr_algs[] = {
   {IKEV2_ENCR_AES_CCM_128_12, 19, 1, 8, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CCM, 3, 12},
   {IKEV2_ENCR_AES_CCM_192_12, 27, 1, 8, GCRY_CIPHER_AES192, GCRY_CIPHER_MODE_CCM, 3, 12},
   {IKEV2_ENCR_AES_CCM_256_12, 35, 1, 8, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CCM, 3, 12},
-#else
-  /* decrypt using plain ctr mode - special handling for GCM mode of counter initial value 2 inside dis_enc()*/
-  /* GCM algorithms: key length: aes-length + 4 bytes of IV (salt), iv - 8 bytes */
-  {IKEV2_ENCR_AES_GCM_128_16, 20, 1, 8, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CTR, 4, 16},
-  {IKEV2_ENCR_AES_GCM_192_16, 28, 1, 8, GCRY_CIPHER_AES192, GCRY_CIPHER_MODE_CTR, 4, 16},
-  {IKEV2_ENCR_AES_GCM_256_16, 36, 1, 8, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CTR, 4, 16},
-
-  {IKEV2_ENCR_AES_GCM_128_8, 20, 1, 8, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CTR, 4, 8},
-  {IKEV2_ENCR_AES_GCM_192_8, 28, 1, 8, GCRY_CIPHER_AES192, GCRY_CIPHER_MODE_CTR, 4, 8},
-  {IKEV2_ENCR_AES_GCM_256_8, 36, 1, 8, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CTR, 4, 8},
-
-  {IKEV2_ENCR_AES_GCM_128_12, 20, 1, 8, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CTR, 4, 12},
-  {IKEV2_ENCR_AES_GCM_192_12, 28, 1, 8, GCRY_CIPHER_AES192, GCRY_CIPHER_MODE_CTR, 4, 12},
-  {IKEV2_ENCR_AES_GCM_256_12, 36, 1, 8, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CTR, 4, 12},
-
-  /* CCM algorithms: key length: aes-length + 3 bytes of salt, iv - 8 bytes.
-   * Special handling of setting first byte of iv to length of 14 - noncelen inside dis_enc() */
-  {IKEV2_ENCR_AES_CCM_128_16, 19, 1, 8, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CTR, 3, 16},
-  {IKEV2_ENCR_AES_CCM_192_16, 27, 1, 8, GCRY_CIPHER_AES192, GCRY_CIPHER_MODE_CTR, 3, 16},
-  {IKEV2_ENCR_AES_CCM_256_16, 35, 1, 8, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CTR, 3, 16},
-
-  {IKEV2_ENCR_AES_CCM_128_8, 19, 1, 8, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CTR, 3, 8},
-  {IKEV2_ENCR_AES_CCM_192_8, 27, 1, 8, GCRY_CIPHER_AES192, GCRY_CIPHER_MODE_CTR, 3, 8},
-  {IKEV2_ENCR_AES_CCM_256_8, 35, 1, 8, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CTR, 3, 8},
-
-  {IKEV2_ENCR_AES_CCM_128_12, 19, 1, 8, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CTR, 3, 12},
-  {IKEV2_ENCR_AES_CCM_192_12, 27, 1, 8, GCRY_CIPHER_AES192, GCRY_CIPHER_MODE_CTR, 3, 12},
-  {IKEV2_ENCR_AES_CCM_256_12, 35, 1, 8, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CTR, 3, 12},
-
-#endif
 
   {0, 0, 0, 0, 0, 0, 0, 0}
 };
@@ -2990,6 +2983,21 @@ static const guint8 VID_FORTINET_ENDPOINT_CONTROL[] = { /* Endpoint Control (For
         0x0B, 0xAF, 0xBB, 0xD3, 0x4A, 0xD3, 0x04, 0x4E
 };
 
+static const guint8 VID_FORTINET_AUTODISCOVERY_RECEIVER[] = { /* Auto-Discovery Receiver (Fortinet) */
+        0xCA, 0x4A, 0x4C, 0xBB, 0x12, 0xEA, 0xB6, 0xC5,
+        0x8C, 0x57, 0x06, 0x7C, 0x2E, 0x65, 0x37, 0x86
+};
+
+static const guint8 VID_FORTINET_AUTODISCOVERY_SENDER[] = { /* Auto-Discovery Sender (Fortinet) */
+        0x9B, 0x15, 0xE6, 0x5A, 0x87, 0x1A, 0xFF, 0x34,
+        0x26, 0x66, 0x62, 0x3B, 0xA5, 0x02, 0x2E, 0x60
+};
+
+static const guint8 VID_FORTINET_EXCHANGE_INTERFACE_IP[] = { /* Exchange Interface IP (Fortinet) */
+        0xA5, 0x8F, 0xEC, 0x50, 0x36, 0xF5, 0x7B, 0x21,
+        0xE8, 0xB4, 0x99, 0xE3, 0x36, 0xC7, 0x6E, 0xE6
+};
+
 static const bytes_string vendor_id[] = {
   { VID_SSH_IPSEC_EXPRESS_1_1_0, sizeof(VID_SSH_IPSEC_EXPRESS_1_1_0), "Ssh Communications Security IPSEC Express version 1.1.0" },
   { VID_SSH_IPSEC_EXPRESS_1_1_1, sizeof(VID_SSH_IPSEC_EXPRESS_1_1_1), "Ssh Communications Security IPSEC Express version 1.1.1" },
@@ -3102,6 +3110,9 @@ static const bytes_string vendor_id[] = {
   { VID_FORTINET_FORTIGATE, sizeof(VID_FORTINET_FORTIGATE), "Fortigate (Fortinet)" },
   { VID_FORTINET_FORTICLIENT_CONNECT, sizeof(VID_FORTINET_FORTICLIENT_CONNECT), "Forticlient connect license (Fortinet)" },
   { VID_FORTINET_ENDPOINT_CONTROL, sizeof(VID_FORTINET_ENDPOINT_CONTROL), "Endpoint Control (Fortinet)" },
+  { VID_FORTINET_AUTODISCOVERY_RECEIVER, sizeof(VID_FORTINET_AUTODISCOVERY_RECEIVER), "Auto-Discovery Receiver (Fortinet)" },
+  { VID_FORTINET_AUTODISCOVERY_SENDER, sizeof(VID_FORTINET_AUTODISCOVERY_SENDER), "Auto-Discovery Sender (Fortinet)" },
+  { VID_FORTINET_EXCHANGE_INTERFACE_IP, sizeof(VID_FORTINET_EXCHANGE_INTERFACE_IP), "Exchange Interface IP (Fortinet)" },
   { 0, 0, NULL }
 };
 
@@ -3263,7 +3274,7 @@ dissect_isakmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 {
   int             offset      = 0, len;
   isakmp_hdr_t    hdr;
-  proto_item     *ti, *vers_item;
+  proto_item     *ti, *vers_item, *ti_root;
   proto_tree     *isakmp_tree = NULL, *vers_tree;
   int             isakmp_version;
   void*           decr_data   = NULL;
@@ -3285,8 +3296,8 @@ dissect_isakmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
   else if (tvb_get_ntohl(tvb, ISAKMP_HDR_SIZE-4) < ISAKMP_HDR_SIZE)
     return 0;
 
-  ti = proto_tree_add_item(tree, proto_isakmp, tvb, offset, -1, ENC_NA);
-  isakmp_tree = proto_item_add_subtree(ti, ett_isakmp);
+  ti_root = proto_tree_add_item(tree, proto_isakmp, tvb, offset, -1, ENC_NA);
+  isakmp_tree = proto_item_add_subtree(ti_root, ett_isakmp);
 
   /* RFC3948 2.3 NAT Keepalive packet:
    * 1 byte payload with the value 0xff.
@@ -3459,9 +3470,13 @@ dissect_isakmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
       dissect_payloads(tvb, isakmp_tree, isakmp_version, hdr.next_payload,
                        offset, len, pinfo, hdr.message_id, !(flags & R_FLAG), decr_data);
     }
+
+    offset += len;
   }
 
-  return tvb_captured_length(tvb);
+  proto_item_set_end(ti_root, tvb, offset);
+
+  return offset;
 }
 
 
@@ -3800,37 +3815,37 @@ dissect_life_duration(tvbuff_t *tvb, proto_tree *tree, proto_item *ti, int hf_ui
       guint64 val;
       val = tvb_get_ntoh40(tvb, offset);
 
-      proto_tree_add_uint64_format_value(tree, hf_uint64, tvb, offset, len, val, "%" G_GINT64_MODIFIER "u", val);
-      proto_item_append_text(ti, ": %" G_GINT64_MODIFIER "u", val);
+      proto_tree_add_uint64_format_value(tree, hf_uint64, tvb, offset, len, val, "%" PRIu64, val);
+      proto_item_append_text(ti, ": %" PRIu64, val);
       break;
     }
     case 6: {
         guint64 val;
         val = tvb_get_ntoh48(tvb, offset);
 
-        proto_tree_add_uint64_format_value(tree, hf_uint64, tvb, offset, len, val, "%" G_GINT64_MODIFIER "u", val);
-        proto_item_append_text(ti, ": %" G_GINT64_MODIFIER "u", val);
+        proto_tree_add_uint64_format_value(tree, hf_uint64, tvb, offset, len, val, "%" PRIu64, val);
+        proto_item_append_text(ti, ": %" PRIu64, val);
         break;
     }
     case 7: {
       guint64 val;
       val = tvb_get_ntoh56(tvb, offset);
 
-      proto_tree_add_uint64_format_value(tree, hf_uint64, tvb, offset, len, val, "%" G_GINT64_MODIFIER "u", val);
-      proto_item_append_text(ti, ": %" G_GINT64_MODIFIER "u", val);
+      proto_tree_add_uint64_format_value(tree, hf_uint64, tvb, offset, len, val, "%" PRIu64, val);
+      proto_item_append_text(ti, ": %" PRIu64, val);
       break;
     }
     case 8: {
       guint64 val;
       val = tvb_get_ntoh64(tvb, offset);
 
-      proto_tree_add_uint64_format_value(tree, hf_uint64, tvb, offset, len, val, "%" G_GINT64_MODIFIER "u", val);
-      proto_item_append_text(ti, ": %" G_GINT64_MODIFIER "u", val);
+      proto_tree_add_uint64_format_value(tree, hf_uint64, tvb, offset, len, val, "%" PRIu64, val);
+      proto_item_append_text(ti, ": %" PRIu64, val);
       break;
     }
     default:
       proto_tree_add_item(tree, hf_bytes, tvb, offset, len, ENC_NA);
-      proto_item_append_text(ti, ": %" G_GINT64_MODIFIER "x ...", tvb_get_ntoh64(tvb, offset));
+      proto_item_append_text(ti, ": %" PRIx64 " ...", tvb_get_ntoh64(tvb, offset));
       break;
   }
 }
@@ -4040,6 +4055,13 @@ dissect_ike_attribute(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int o
       break;
     case IKE_ATTR_GROUP_ORDER:
       proto_tree_add_item(attr_tree, hf_isakmp_ike_attr_group_order, tvb, offset, value_len, ENC_NA);
+      break;
+    case IKE_ATTR_BLOCK_SIZE:
+      proto_tree_add_item(attr_tree, hf_isakmp_ike_attr_block_size, tvb, offset, value_len, ENC_NA);
+      break;
+    case IKE_ATTR_ACAT:
+      proto_tree_add_item(attr_tree, hf_isakmp_ike_attr_asymmetric_cryptographic_algorithm_type, tvb, offset, value_len, ENC_BIG_ENDIAN);
+      proto_item_append_text(attr_item, ": %s", val_to_str(tvb_get_ntohs(tvb, offset), ike_attr_asym_algo, "Unknown %d"));
       break;
     default:
       /* No Default Action */
@@ -4403,7 +4425,7 @@ dissect_cert(tvbuff_t *tvb, int offset, int length, proto_tree *tree, int isakmp
         offset += 20;
         length -= 20;
 
-        ti_url = proto_tree_add_item(tree, hf_isakmp_cert_x509_url, tvb, offset, length, ENC_ASCII|ENC_NA);
+        ti_url = proto_tree_add_item(tree, hf_isakmp_cert_x509_url, tvb, offset, length, ENC_ASCII);
         proto_item_set_url(ti_url);
         }
         break;
@@ -4872,7 +4894,7 @@ dissect_notif(tvbuff_t *tvb, packet_info *pinfo, int offset, int length, proto_t
             proto_tree_add_item(tree, hf_isakmp_notify_data_redirect_new_resp_gw_ident_ipv6, tvb, offset+2, 16, ENC_NA);
             break;
           case 3:
-            proto_tree_add_item(tree, hf_isakmp_notify_data_redirect_new_resp_gw_ident_fqdn, tvb, offset+2, tvb_get_guint8(tvb,offset+1), ENC_ASCII|ENC_NA);
+            proto_tree_add_item(tree, hf_isakmp_notify_data_redirect_new_resp_gw_ident_fqdn, tvb, offset+2, tvb_get_guint8(tvb,offset+1), ENC_ASCII);
             break;
           default :
             proto_tree_add_item(tree, hf_isakmp_notify_data_redirect_new_resp_gw_ident, tvb, offset+2, tvb_get_guint8(tvb,offset+1), ENC_NA);
@@ -5135,7 +5157,7 @@ dissect_vid(tvbuff_t *tvb, int offset, int length, proto_tree *tree)
   if (length >= 19 && memcmp(pVID, VID_ARUBA_VIA_AUTH_PROFILE, 19) == 0)
   {
     offset += 19;
-    proto_tree_add_item(tree, hf_isakmp_vid_aruba_via_auth_profile, tvb, offset, length-19, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_isakmp_vid_aruba_via_auth_profile, tvb, offset, length-19, ENC_ASCII);
     offset += 4;
   }
 
@@ -5843,10 +5865,8 @@ dissect_enc(tvbuff_t *tvb,
   tvbuff_t *decr_tvb = NULL;
   gint payloads_len;
   proto_tree *decr_tree = NULL, *decr_payloads_tree = NULL;
-#ifdef HAVE_LIBGCRYPT_AEAD
   guchar *aa_data = NULL, *icv_data = NULL;
   gint aad_len = 0;
-#endif
 
   if (decr_info) {
     /* Need decryption details to know field lengths. */
@@ -5911,7 +5931,6 @@ dissect_enc(tvbuff_t *tvb,
       /*
        * Recalculate ICD value if the specified authentication algorithm allows it.
        */
-#ifdef HAVE_LIBGCRYPT_AEAD
       if (icv_len) {
         /* For GCM/CCM algorithms ICD is computed during decryption.
           Must save offset and length of authenticated additional data (whole ISAKMP header
@@ -5920,7 +5939,6 @@ dissect_enc(tvbuff_t *tvb,
         aa_data = (guchar *)tvb_memdup(pinfo->pool, tvb, 0, aad_len);
         icv_data = (guchar *)tvb_memdup(pinfo->pool, tvb, offset, icv_len);
       } else
-#endif
       if (key_info->auth_spec->gcry_alg) {
         proto_item_append_text(icd_item, " <%s>", val_to_str(key_info->auth_spec->number, vs_ikev2_auth_algs, "Unknown mac algo: %d"));
         err = gcry_md_open(&md_hd, key_info->auth_spec->gcry_alg, key_info->auth_spec->gcry_flag);
@@ -6032,7 +6050,6 @@ dissect_enc(tvbuff_t *tvb,
           key_info->encr_spec->gcry_alg, encr_iv_len, gcry_strerror(err));
       }
 
-#ifdef HAVE_LIBGCRYPT_AEAD
       if (key_info->encr_spec->gcry_mode == GCRY_CIPHER_MODE_CCM) {
         guint64 ccm_lengths[3];
         ccm_lengths[0] = encr_data_len;
@@ -6055,7 +6072,6 @@ dissect_enc(tvbuff_t *tvb,
             key_info->encr_spec->gcry_alg, gcry_strerror(err));
         }
       }
-#endif
 
       err = gcry_cipher_decrypt(cipher_hd, decr_data, decr_data_len, encr_data, encr_data_len);
       if (err) {
@@ -6064,7 +6080,6 @@ dissect_enc(tvbuff_t *tvb,
           key_info->encr_spec->gcry_alg, gcry_strerror(err));
       }
 
-#ifdef HAVE_LIBGCRYPT_AEAD
       if (icv_len) {
         /* gcry_cipher_checktag() doesn't work on 1.6.x version well - requires all of 16 bytes
          * of ICV, so it won't work with 12 and 8 bytes of ICV.
@@ -6080,6 +6095,9 @@ dissect_enc(tvbuff_t *tvb,
          * - in 1.6.x length must be equal of cipher block length. Aaargh... :-(
          * We use accepted for both versions length of block size for GCM (16 bytes).
          * For CCM length given must be the same as given to gcry_cipher_ctl(GCRYCTL_SET_CCM_LENGTHS)
+         *
+         * XXX: We now require libgcrypt 1.8.0, so presumably this could
+         * be updated?
          */
         guchar *tag;
         gint tag_len = icv_len;
@@ -6106,7 +6124,6 @@ dissect_enc(tvbuff_t *tvb,
           expert_add_info(pinfo, icd_item, &ei_isakmp_ikev2_integrity_checksum);
         }
       }
-#endif
 
       gcry_cipher_close(cipher_hd);
     }
@@ -6305,7 +6322,7 @@ static gboolean ikev1_uat_data_update_cb(void* p, char** err) {
   ikev1_uat_data_key_t *ud = (ikev1_uat_data_key_t *)p;
 
   if (ud->icookie_len != COOKIE_SIZE) {
-    *err = g_strdup_printf("Length of Initiator's COOKIE must be %d octets (%d hex characters).", COOKIE_SIZE, COOKIE_SIZE * 2);
+    *err = ws_strdup_printf("Length of Initiator's COOKIE must be %d octets (%d hex characters).", COOKIE_SIZE, COOKIE_SIZE * 2);
     return FALSE;
   }
 
@@ -6315,7 +6332,7 @@ static gboolean ikev1_uat_data_update_cb(void* p, char** err) {
   }
 
   if (ud->key_len > MAX_KEY_SIZE) {
-    *err = g_strdup_printf("Length of Encryption key limited to %d octets (%d hex characters).", MAX_KEY_SIZE, MAX_KEY_SIZE * 2);
+    *err = ws_strdup_printf("Length of Encryption key limited to %d octets (%d hex characters).", MAX_KEY_SIZE, MAX_KEY_SIZE * 2);
     return FALSE;
   }
 
@@ -6390,12 +6407,12 @@ static gboolean ikev2_uat_data_update_cb(void* p, char** err) {
   ikev2_uat_data_t *ud = (ikev2_uat_data_t *)p;
 
   if (ud->key.spii_len != COOKIE_SIZE) {
-    *err = g_strdup_printf("Length of Initiator's SPI must be %d octets (%d hex characters).", COOKIE_SIZE, COOKIE_SIZE * 2);
+    *err = ws_strdup_printf("Length of Initiator's SPI must be %d octets (%d hex characters).", COOKIE_SIZE, COOKIE_SIZE * 2);
     return FALSE;
   }
 
   if (ud->key.spir_len != COOKIE_SIZE) {
-    *err = g_strdup_printf("Length of Responder's SPI must be %d octets (%d hex characters).", COOKIE_SIZE, COOKIE_SIZE * 2);
+    *err = ws_strdup_printf("Length of Responder's SPI must be %d octets (%d hex characters).", COOKIE_SIZE, COOKIE_SIZE * 2);
     return FALSE;
   }
 
@@ -6408,31 +6425,31 @@ static gboolean ikev2_uat_data_update_cb(void* p, char** err) {
   }
 
   if (ud->encr_spec->icv_len && ud->auth_spec->number != IKEV2_AUTH_NONE) {
-    *err = g_strdup_printf("Selected encryption_algorithm %s requires selecting NONE integrity algorithm.",
+    *err = ws_strdup_printf("Selected encryption_algorithm %s requires selecting NONE integrity algorithm.",
              val_to_str(ud->encr_spec->number, vs_ikev2_encr_algs, "other-%d"));
     return FALSE;
   }
 
   if (ud->sk_ei_len != ud->encr_spec->key_len) {
-    *err = g_strdup_printf("Length of SK_ei (%u octets) does not match the key length (%u octets) of the selected encryption algorithm.",
+    *err = ws_strdup_printf("Length of SK_ei (%u octets) does not match the key length (%u octets) of the selected encryption algorithm.",
              ud->sk_ei_len, ud->encr_spec->key_len);
     return FALSE;
   }
 
   if (ud->sk_er_len != ud->encr_spec->key_len) {
-    *err = g_strdup_printf("Length of SK_er (%u octets) does not match the key length (%u octets) of the selected encryption algorithm.",
+    *err = ws_strdup_printf("Length of SK_er (%u octets) does not match the key length (%u octets) of the selected encryption algorithm.",
              ud->sk_er_len, ud->encr_spec->key_len);
     return FALSE;
   }
 
   if (ud->sk_ai_len != ud->auth_spec->key_len) {
-    *err = g_strdup_printf("Length of SK_ai (%u octets) does not match the key length (%u octets) of the selected integrity algorithm.",
+    *err = ws_strdup_printf("Length of SK_ai (%u octets) does not match the key length (%u octets) of the selected integrity algorithm.",
              ud->sk_ai_len, ud->auth_spec->key_len);
     return FALSE;
   }
 
   if (ud->sk_ar_len != ud->auth_spec->key_len) {
-    *err = g_strdup_printf("Length of SK_ar (%u octets) does not match the key length (%u octets) of the selected integrity algorithm.",
+    *err = ws_strdup_printf("Length of SK_ar (%u octets) does not match the key length (%u octets) of the selected integrity algorithm.",
              ud->sk_ar_len, ud->auth_spec->key_len);
     return FALSE;
   }
@@ -7387,6 +7404,14 @@ proto_register_isakmp(void)
     { &hf_isakmp_ike_attr_group_order,
       { "Group Order", "isakmp.ike.attr.group_order",
         FT_BYTES, BASE_NONE, NULL, 0x00,
+        NULL, HFILL }},
+    { &hf_isakmp_ike_attr_block_size,
+      { "Block Size", "isakmp.ike.attr.block_size",
+        FT_BYTES, BASE_NONE, NULL, 0x00,
+        NULL, HFILL }},
+    { &hf_isakmp_ike_attr_asymmetric_cryptographic_algorithm_type,
+      { "Asymmetric Cryptographic Algorithm Type", "isakmp.ike.attr.asymmetric_cryptographic_algorithm_type",
+        FT_UINT16, BASE_DEC, VALS(ike_attr_asym_algo), 0x00,
         NULL, HFILL }},
 
     /* Responder Lifetime Notification for IKEv1 SA */

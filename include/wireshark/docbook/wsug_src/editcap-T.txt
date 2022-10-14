@@ -178,6 +178,9 @@ editcap: The available encapsulation types for the "-T" flag are:
     unknown - Unknown
     unknown-nettl - Unknown link-layer type with nettl headers
     usb-20 - USB 2.0/1.1/1.0 packets
+    usb-20-full - Full-Speed USB 2.0/1.1/1.0 packets
+    usb-20-high - High-Speed USB 2.0 packets
+    usb-20-low - Low-Speed USB 2.0/1.1/1.0 packets
     usb-darwin - USB packets with Darwin (macOS, etc.) headers
     usb-freebsd - USB packets with FreeBSD header
     usb-linux - USB packets with Linux header
@@ -212,4 +215,5 @@ editcap: The available encapsulation types for the "-T" flag are:
     x2e-xoraya - X2E Xoraya
     x25-nettl - X.25 with nettl headers
     xeth - Xerox 3MB Ethernet
+    zbncp - ZBOSS NCP
     zwave-serial - Z-Wave Serial API packets

@@ -1,0 +1,33 @@
+{
+	"BUILD_DIR" : "/opt/wireshark/ui/qt/qtui_autogen",
+	"CMAKE_BINARY_DIR" : "/opt/wireshark",
+	"CMAKE_CURRENT_BINARY_DIR" : "/opt/wireshark/ui/qt",
+	"CMAKE_CURRENT_SOURCE_DIR" : "/opt/wireshark/ui/qt",
+	"CMAKE_SOURCE_DIR" : "/opt/wireshark",
+	"INCLUDE_DIR" : "/opt/wireshark/ui/qt/qtui_autogen/include",
+	"INPUTS" : 
+	[
+		"/opt/wireshark/ui/qt/wireshark_ru.qm",
+		"/opt/wireshark/ui/qt/wireshark_zh_CN.qm",
+		"/opt/wireshark/ui/qt/wireshark_en.qm",
+		"/opt/wireshark/ui/qt/wireshark_sv.qm",
+		"/opt/wireshark/ui/qt/wireshark_uk.qm",
+		"/opt/wireshark/ui/qt/wireshark_es.qm",
+		"/opt/wireshark/ui/qt/wireshark_ja_JP.qm",
+		"/opt/wireshark/ui/qt/wireshark_tr_TR.qm",
+		"/opt/wireshark/ui/qt/wireshark_fr.qm",
+		"/opt/wireshark/ui/qt/wireshark_de.qm",
+		"/opt/wireshark/ui/qt/wireshark_it.qm",
+		"/opt/wireshark/ui/qt/wireshark_pl.qm"
+	],
+	"LOCK_FILE" : "/opt/wireshark/ui/qt/CMakeFiles/qtui_autogen.dir/AutoRcc_i18n_EWIEGA46WW_Lock.lock",
+	"MULTI_CONFIG" : false,
+	"OPTIONS" : [ "--format-version", "1", "-compress-algo", "zlib", "-name", "i18n" ],
+	"OUTPUT_CHECKSUM" : "EWIEGA46WW",
+	"OUTPUT_NAME" : "qrc_i18n.cpp",
+	"RCC_EXECUTABLE" : "/usr/lib/qt5/bin/rcc",
+	"RCC_LIST_OPTIONS" : [ "--list" ],
+	"SETTINGS_FILE" : "/opt/wireshark/ui/qt/CMakeFiles/qtui_autogen.dir/AutoRcc_i18n_EWIEGA46WW_Used.txt",
+	"SOURCE" : "/opt/wireshark/ui/qt/i18n.qrc",
+	"VERBOSITY" : 0
+}

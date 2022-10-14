@@ -1,4 +1,4 @@
-/* packet_list_record.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -16,7 +16,7 @@
 
 #include "cfile.h"
 
-#include <epan/column-info.h>
+#include <epan/column.h>
 #include <epan/packet.h>
 
 #include <QByteArray>

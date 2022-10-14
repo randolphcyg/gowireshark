@@ -474,10 +474,18 @@ typedef struct attribute_info {
 
 // This describes a one-way connection. Each CIP Connection includes 2 of these.
 typedef struct cip_connID_info {
+   // Connection ID from Forward Open Request. This may get updated in the Forward Open Response.
    guint32 connID;
+
+   // From Common Packet Format, Sockaddr Info Item.
    address ipaddress;
    guint16 port;
-   guint32 type;
+
+   // Network Connection Parameters
+   guint32 type;  // See: cip_con_type_vals
+
+   // Requested Packet Interval in microseconds.
+   guint32 rpi;
 
    // Actual Packet Interval in microseconds.
    guint32 api;
@@ -494,8 +502,13 @@ typedef struct cip_connection_triad {
 typedef struct cip_safety_epath_info {
    gboolean safety_seg;
    enum cip_safety_format_type format;
-   guint16 running_rollover_value;  /* Keep track of the rollover value over the course of the connection */
-   guint16 running_timestamp_value; /* Keep track of the timestamp value over the course of the connection */
+
+   // These 3x variables are only used during a first pass calculation.
+   guint16 running_rollover_value;   /* Keep track of the rollover value over the course of the connection */
+   guint16 running_timestamp_value;  /* Keep track of the timestamp value over the course of the connection */
+   gboolean seen_non_zero_timestamp; /* True if we have seen a non-zero timestamp on this connection */
+
+   // The Target CIP Connection Triad from the Forward Open Response, Safety Application Reply Data.
    cip_connection_triad_t target_triad;
 } cip_safety_epath_info_t;
 
@@ -504,6 +517,7 @@ typedef struct cip_conn_info {
    // Forward Open Data
    cip_connection_triad_t  triad;
    guint8                  TransportClass_trigger;
+   guint32                 timeout_multiplier;
    cip_safety_epath_info_t safety;
    guint32                 ClassID;
    guint32                 ConnPoint;
@@ -520,6 +534,8 @@ typedef struct cip_conn_info {
    cip_connID_info_t T2O;
 
    // Unique ID generated that links together the CIP Connections.
+   //  - If the full connection information is available (eg: FwdOpen found), then it will link both
+   //    connections (one for each direction)
    guint32 connid;
 } cip_conn_info_t;
 
@@ -528,6 +544,8 @@ typedef struct cip_req_info {
 
    // This is the CIP Service Code. It does not include the Response bit.
    guint8                     bService;
+
+   // Number of 16-bit words in pIOI.
    guint                      IOILen;
    void                      *pIOI;
 
@@ -568,6 +586,7 @@ extern int  dissect_cip_attribute(packet_info *pinfo, proto_tree *tree, proto_it
 extern void dissect_cip_data(proto_tree *item_tree, tvbuff_t *tvb, int offset, packet_info *pinfo, cip_req_info_t *preq_info, proto_item* msp_item, gboolean is_msp_item);
 extern void dissect_cip_date_and_time(proto_tree *tree, tvbuff_t *tvb, int offset, int hf_datetime);
 extern int dissect_cip_utime(proto_tree* tree, tvbuff_t* tvb, int offset, int hf_datetime);
+extern int dissect_cip_generic_service_rsp(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree);
 extern int  dissect_cip_get_attribute_list_req(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item * item,
    int offset, cip_simple_request_info_t* req_data);
 extern int  dissect_cip_multiple_service_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item * item, int offset, gboolean request);
@@ -588,6 +607,7 @@ extern void dissect_deviceid(tvbuff_t *tvb, int offset, proto_tree *tree,
    int hf_vendor, int hf_devtype, int hf_prodcode,
    int hf_compatibility, int hf_comp_bit, int hf_majrev, int hf_minrev,
    gboolean generate);
+extern int dissect_electronic_key_format(tvbuff_t* tvb, int offset, proto_tree* tree, gboolean generate, guint8 key_format);
 extern int  dissect_optional_attr_list(packet_info *pinfo, proto_tree *tree, proto_item *item, tvbuff_t *tvb,
    int offset, int total_len);
 extern int  dissect_optional_service_list(packet_info *pinfo, proto_tree *tree, proto_item *item, tvbuff_t *tvb,
@@ -607,8 +627,12 @@ extern gboolean should_dissect_cip_response(tvbuff_t *tvb, int offset, guint8 ge
 */
 extern const value_string cip_sc_rr[];
 extern const value_string cip_reset_type_vals[];
+extern const value_string cip_con_prio_vals[];
+extern const value_string cip_con_type_vals[];
+extern const value_string cip_con_time_mult_vals[];
 extern const value_string cip_class_names_vals[];
 extern const value_string cip_port_number_vals[];
+extern const value_string cip_id_state_vals[];
 extern value_string_ext cip_gs_vals_ext;
 extern value_string_ext cip_cm_ext_st_vals_ext;
 extern value_string_ext cip_vendor_vals_ext;

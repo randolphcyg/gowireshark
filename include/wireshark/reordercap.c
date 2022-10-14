@@ -84,7 +84,7 @@ frame_write(FrameRecord_t *frame, wtap *wth, wtap_dumper *pdh,
     int    err;
     gchar  *err_info;
 
-    DEBUG_PRINT("\nDumping frame (offset=%" G_GINT64_MODIFIER "u)\n",
+    DEBUG_PRINT("\nDumping frame (offset=%" PRIu64 ")\n",
                 frame->offset);
 
 
@@ -159,7 +159,7 @@ reordercap_cmdarg_err_cont(const char *msg_format, va_list ap)
 int
 main(int argc, char *argv[])
 {
-    char *init_progfile_dir_error;
+    char *configuration_init_error;
     static const struct report_message_routines reordercap_message_routines = {
         failure_message,
         failure_message,
@@ -207,7 +207,7 @@ main(int argc, char *argv[])
     ws_log_parse_args(&argc, argv, vcmdarg_err, INVALID_OPTION);
 
     /* Initialize the version information. */
-    ws_init_version_info("Reordercap (Wireshark)", NULL, NULL, NULL);
+    ws_init_version_info("Reordercap", NULL, NULL);
 
     /*
      * Get credential information for later use.
@@ -218,12 +218,12 @@ main(int argc, char *argv[])
      * Attempt to get the pathname of the directory containing the
      * executable file.
      */
-    init_progfile_dir_error = init_progfile_dir(argv[0]);
-    if (init_progfile_dir_error != NULL) {
+    configuration_init_error = configuration_init(argv[0], NULL);
+    if (configuration_init_error != NULL) {
         fprintf(stderr,
                 "reordercap: Can't get pathname of directory containing the reordercap program: %s.\n",
-                init_progfile_dir_error);
-        g_free(init_progfile_dir_error);
+                configuration_init_error);
+        g_free(configuration_init_error);
     }
 
     init_report_message("reordercap", &reordercap_message_routines);
@@ -357,7 +357,7 @@ main(int argc, char *argv[])
     g_ptr_array_free(frames, TRUE);
 
     /* Close outfile */
-    if (!wtap_dump_close(pdh, &err, &err_info)) {
+    if (!wtap_dump_close(pdh, NULL, &err, &err_info)) {
         cfile_close_failure_message(outfile, err, err_info);
         wtap_dump_params_cleanup(&params);
         ret = OUTPUT_FILE_ERROR;

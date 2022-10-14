@@ -11,7 +11,7 @@
 
 #include "config.h"
 
-#include <stdio.h>
+#include <stdio.h>    /* for sscanf() */
 
 #include <epan/packet.h>
 #include <epan/conversation.h>
@@ -41,6 +41,7 @@ static int hf_eap_identity_full = -1;
 static int hf_eap_identity_actual_len = -1;
 static int hf_eap_identity_prefix = -1;
 static int hf_eap_identity_type = -1;
+static int hf_eap_identity_certificate_sn = -1;
 static int hf_eap_identity_mcc = -1;
 static int hf_eap_identity_mcc_mnc_2digits = -1;
 static int hf_eap_identity_mcc_mnc_3digits = -1;
@@ -151,6 +152,19 @@ static int hf_eap_gpsk_pd_payload = -1;
 static int hf_eap_gpsk_payload_mac = -1;
 static int hf_eap_gpsk_failure_code = -1;
 
+static int hf_eap_msauth_tlv_mandatory = -1;
+static int hf_eap_msauth_tlv_reserved = -1;
+static int hf_eap_msauth_tlv_type = -1;
+static int hf_eap_msauth_tlv_len = -1;
+static int hf_eap_msauth_tlv_val = -1;
+static int hf_eap_msauth_tlv_status = -1;
+static int hf_eap_msauth_tlv_crypto_reserved = -1;
+static int hf_eap_msauth_tlv_crypto_version = -1;
+static int hf_eap_msauth_tlv_crypto_rcv_version = -1;
+static int hf_eap_msauth_tlv_crypto_subtype = -1;
+static int hf_eap_msauth_tlv_crypto_nonce = -1;
+static int hf_eap_msauth_tlv_crypto_cmac = -1;
+
 static int hf_eap_data = -1;
 
 static gint ett_eap = -1;
@@ -160,11 +174,14 @@ static gint ett_eap_sake_attr = -1;
 static gint ett_eap_gpsk_csuite_list = -1;
 static gint ett_eap_gpsk_csuite = -1;
 static gint ett_eap_gpsk_csuite_sel = -1;
+static gint ett_eap_msauth_tlv = -1;
+static gint ett_eap_msauth_tlv_tree = -1;
 
 static expert_field ei_eap_ms_chap_v2_length = EI_INIT;
 static expert_field ei_eap_mitm_attacks = EI_INIT;
 static expert_field ei_eap_md5_value_size_overflow = EI_INIT;
 static expert_field ei_eap_dictionary_attacks = EI_INIT;
+static expert_field ei_eap_identity_nonascii = EI_INIT;
 static expert_field ei_eap_identity_invalid = EI_INIT;
 static expert_field ei_eap_retransmission = EI_INIT;
 static expert_field ei_eap_bad_length = EI_INIT;
@@ -175,7 +192,10 @@ static dissector_handle_t eap_handle;
 
 static dissector_handle_t tls_handle;
 static dissector_handle_t diameter_avps_handle;
+static dissector_handle_t peap_handle;
 static dissector_handle_t teap_handle;
+
+static dissector_handle_t isakmp_handle;
 
 const value_string eap_code_vals[] = {
   { EAP_REQUEST,  "Request" },
@@ -523,6 +543,35 @@ static const value_string eap_gpsk_failure_code_vals[] = {
   { 0, NULL }
 };
 
+#define MSAUTH_TLV_MANDATORY 0x8000
+#define MSAUTH_TLV_RESERVED  0x4000
+#define MSAUTH_TLV_TYPE      0x3FFF
+
+#define MSAUTH_TLV_TYPE_EXTENSION_UNASSIGNED    0
+#define MSAUTH_TLV_TYPE_EXTENSION_RESULT        3
+#define MSAUTH_TLV_TYPE_EXTENSION_CRYPTOBINDING 12
+
+#define MSAUTH_TLV_TYPE_EXPANDED_SOH 33
+
+static const value_string eap_msauth_tlv_type_vals[] = {
+  { MSAUTH_TLV_TYPE_EXTENSION_UNASSIGNED,    "Unassigned" },
+  { MSAUTH_TLV_TYPE_EXTENSION_RESULT,        "Result" },
+  { MSAUTH_TLV_TYPE_EXTENSION_CRYPTOBINDING, "Cryptobinding" },
+  { 0,                                       NULL }
+};
+
+static const value_string eap_msauth_tlv_status_vals[] = {
+  { 1, "Success" },
+  { 2, "Failure" },
+  { 0, NULL }
+};
+
+static const value_string eap_msauth_tlv_crypto_subtype_vals[] = {
+  { 0, "Binding Request" },
+  { 1, "Binding Response" },
+  { 0, NULL }
+};
+
 /*
  * State information for EAP-TLS (RFC2716) and Lightweight EAP:
  *
@@ -567,33 +616,38 @@ typedef struct {
   int     info;  /* interpretation depends on EAP message type */
 } frame_state_t;
 
-/*********************************************************************
-                           EAP-TLS
-RFC2716
-**********************************************************************/
-
 /*
-from RFC2716, pg 17
+from RFC5216, pg 21
 
    Flags
 
       0 1 2 3 4 5 6 7 8
       +-+-+-+-+-+-+-+-+
-      |L M S R R Vers |
+      |L M S R R R R R| TLS (RFC5216)
+      +-+-+-+-+-+-+-+-+
+      |L M S R R|  V  | TTLS (RFC5281) and FAST (RFC4851)
+      +-+-+-+-+-+-+-+-+
+      |L M S O R|  V  | TEAP (RFC7170)
+      +-+-+-+-+-+-+-+-+
+      |L M S R R R| V | PEAPv0 (draft-kamath-pppext-peapv0)
+      +-+-+-+-+-+-+-+-+
+      |L M S R R|  V  | PEAPv1 (draft-josefsson-pppext-eap-tls-eap-06) and PEAPv2 (draft-josefsson-pppext-eap-tls-eap-10)
       +-+-+-+-+-+-+-+-+
 
       L = Length included
       M = More fragments
       S = EAP-TLS start
+      O = Outer TLV length included (TEAP only)
       R = Reserved
-      Vers = PEAP version (Reserved for TLS and TTLS)
+      V = TTLS/FAST/TEAP/PEAP version (Reserved for TLS)
 */
 
-#define EAP_TLS_FLAG_L 0x80 /* Length included */
-#define EAP_TLS_FLAG_M 0x40 /* More fragments  */
-#define EAP_TLS_FLAG_S 0x20 /* EAP-TLS start   */
+#define EAP_TLS_FLAG_L             0x80 /* Length included            */
+#define EAP_TLS_FLAG_M             0x40 /* More fragments             */
+#define EAP_TLS_FLAG_S             0x20 /* EAP-TLS start              */
+#define EAP_TLS_FLAG_O             0x10 /* Outer TLV length included  */
 
-#define EAP_TLS_FLAGS_VERSION 0x07 /* Version mask for PEAP, TTLS, FAST */
+#define EAP_TLS_FLAGS_VERSION      0x07 /* Version mask */
 
 /*
  * reassembly of EAP-TLS
@@ -604,8 +658,10 @@ static int hf_eap_tls_flags = -1;
 static int hf_eap_tls_flag_l = -1;
 static int hf_eap_tls_flag_m = -1;
 static int hf_eap_tls_flag_s = -1;
+static int hf_eap_tls_flag_o = -1;
 static int hf_eap_tls_flags_version = -1;
 static int hf_eap_tls_len = -1;
+static int hf_eap_tls_outer_tlvs_len = -1;
 static int hf_eap_tls_fragment  = -1;
 static int hf_eap_tls_fragments = -1;
 static int hf_eap_tls_fragment_overlap = -1;
@@ -625,6 +681,7 @@ static gint ett_eap_aka_attr = -1;
 static gint ett_eap_exp_attr = -1;
 static gint ett_eap_tls_flags = -1;
 static gint ett_identity = -1;
+static gint ett_eap_ikev2_flags = -1;
 
 static const fragment_items eap_tls_frag_items = {
   &ett_eap_tls_fragment,
@@ -643,6 +700,34 @@ static const fragment_items eap_tls_frag_items = {
   NULL,
   "fragments"
 };
+
+
+/*
+ * EAP-IKE2, RFC5106
+ */
+
+ /*
+   RFC5106, 8.1, page 17
+
+     0 1 2 3 4 5 6 7
+    +-+-+-+-+-+-+-+-+
+    |L M I 0 0 0 0 0|
+    +-+-+-+-+-+-+-+-+
+
+    L = Length included
+    M = More fragments
+    I = Integrity Checksum Data included
+  */
+#define EAP_IKEV2_FLAG_L 0x80 /* Length included */
+#define EAP_IKEV2_FLAG_M 0x40 /* More fragments */
+#define EAP_IKEV2_FLAG_I 0x20 /* Integrity checksum data included */
+
+static int hf_eap_ikev2_flags = -1;
+static int hf_eap_ikev2_flag_l = -1;
+static int hf_eap_ikev2_flag_m = -1;
+static int hf_eap_ikev2_flag_i = -1;
+static int hf_eap_ikev2_len = -1;
+static int hf_eap_ikev2_int_chk_data = -1;
 
 /**********************************************************************
  Support for EAP Expanded Type.
@@ -695,12 +780,6 @@ dissect_exteap(proto_tree *eap_tree, tvbuff_t *tvb, int offset,
 /* *********************************************************************
 ********************************************************************* */
 
-static gboolean
-test_flag(unsigned char flag, unsigned char mask)
-{
-  return ( ( flag & mask ) != 0 );
-}
-
 static void
 dissect_eap_mschapv2(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int offset,
                      gint size)
@@ -748,7 +827,7 @@ dissect_eap_mschapv2(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, in
     if (left <= 0)
       break;
     proto_tree_add_item(eap_tree, hf_eap_ms_chap_v2_name,
-                        tvb, offset, left, ENC_ASCII|ENC_NA);
+                        tvb, offset, left, ENC_ASCII);
     break;
   case MS_CHAP_V2_RESPONSE:
     if (left <= 0)
@@ -779,19 +858,19 @@ dissect_eap_mschapv2(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, in
     }
     if (left <= 0)
       break;
-    proto_tree_add_item(eap_tree, hf_eap_ms_chap_v2_name, tvb, offset, left, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(eap_tree, hf_eap_ms_chap_v2_name, tvb, offset, left, ENC_ASCII);
     break;
   case MS_CHAP_V2_SUCCESS:
     if (left <= 0)
       break;
     proto_tree_add_item(eap_tree, hf_eap_ms_chap_v2_message,
-                            tvb, offset, left, ENC_ASCII|ENC_NA);
+                            tvb, offset, left, ENC_ASCII);
     break;
   case MS_CHAP_V2_FAILURE:
     if (left <= 0)
       break;
     proto_tree_add_item(eap_tree, hf_eap_ms_chap_v2_failure_request,
-                            tvb, offset, left, ENC_ASCII|ENC_NA);
+                            tvb, offset, left, ENC_ASCII);
     break;
   default:
     proto_tree_add_item(eap_tree, hf_eap_ms_chap_v2_data, tvb, offset, left, ENC_NA);
@@ -812,41 +891,79 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
   guint8*     identity = NULL;
   gchar**     tokens = NULL;
   gchar**     realm_tokens = NULL;
+  gchar**     cert_tokens = NULL;
   guint       ntokens = 0;
   guint       nrealm_tokens = 0;
+  guint       ncert_tokens = 0;
   gboolean    ret = TRUE;
+  gboolean    enc_imsi = FALSE;
   int         hf_eap_identity_mcc_mnc;
   proto_item* item;
 
-  identity = tvb_get_string_enc(pinfo->pool, tvb, offset, size, ENC_ASCII);
-
-  /* Split the Identity and the NAI Realm first */
-  tokens = g_strsplit_set(identity, "@", -1);
+  /* Check for Encrypted IMSI - NULL prefix byte */
+  if (tvb_get_guint8(tvb, offset) == 0x00) {
+    /* Check if identity string complies with ASCII character set.  Encrypted IMSI
+     * identities use Base64 encoding and should therefore be ASCII-compliant.
+    */
+    if (tvb_ascii_isprint(tvb, offset + 1, size - 1) == FALSE) {
+      item = proto_tree_add_item(tree, hf_eap_identity, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
+      expert_add_info(pinfo, item, &ei_eap_identity_nonascii);
+      goto end;
+    }
+    identity = tvb_get_string_enc(pinfo->pool, tvb, offset + 1, size - 1, ENC_ASCII);
+    /* Encrypted IMSIs must be delimited twice:
+     * (1) Once to tokenize the 3GPP realm from the Certificate Serial Number
+     *     using the ',' character
+     * (2) Once to tokenize the 3GPP realm using the '@' character
+    */
+    tokens = g_strsplit_set(identity, ",", -1);
+    enc_imsi = TRUE;
+  } else {
+    /* Check if identity string complies with ASCII character set */
+    if (tvb_ascii_isprint(tvb, offset, size) == FALSE) {
+      item = proto_tree_add_item(tree, hf_eap_identity, tvb, offset, size, ENC_ASCII || ENC_NA);
+      expert_add_info(pinfo, item, &ei_eap_identity_nonascii);
+      goto end;
+    }
+    /* All other identities may be delimited with the '@' character */
+    identity = tvb_get_string_enc(pinfo->pool, tvb, offset, size, ENC_ASCII);
+    tokens = g_strsplit_set(identity, "@", -1);
+  }
 
   while(tokens[ntokens])
     ntokens++;
 
-  /* tokens[0] is the identity, tokens[1] is the NAI Realm */
-  if (ntokens != 2) {
-    ret = FALSE;
-    proto_tree_add_item(tree, hf_eap_identity, tvb, offset, size, ENC_ASCII|ENC_NA);
-    goto end;
-  }
+  /* Check for valid EAP Identity strings based on tokens and 3GPP-format */
+  if (enc_imsi) {
+    if (ntokens < 2 || g_ascii_strncasecmp(tokens[1], "CertificateSerialNumber", 23)) {
+      ret = FALSE;
+      proto_tree_add_item(tree, hf_eap_identity, tvb, offset + 1, size - 1, ENC_ASCII);
+      goto end;
+    }
+  } else {
+    /* tokens[0] is the identity, tokens[1] is the NAI Realm */
+    if (ntokens != 2) {
+      ret = FALSE;
+      proto_tree_add_item(tree, hf_eap_identity, tvb, offset, size, ENC_ASCII);
+      goto end;
+    }
 
-  realm_tokens = g_strsplit_set(tokens[1], ".", -1);
+    realm_tokens = g_strsplit_set(tokens[1], ".", -1);
 
-  while(realm_tokens[nrealm_tokens])
-    nrealm_tokens++;
+    while(realm_tokens[nrealm_tokens])
+      nrealm_tokens++;
 
-  /* The WLAN identity must have the form of
-     <imsi>@wlan.mnc<mnc>.mcc<mcc>.3gppnetwork.org
-     If not, we don't have a wlan identity
-  */
-  if (ntokens != 2 || nrealm_tokens != 5 || g_ascii_strncasecmp(realm_tokens[0], "wlan", 4) ||
-      g_ascii_strncasecmp(realm_tokens[3], "3gppnetwork", 11) ||
-      g_ascii_strncasecmp(realm_tokens[4], "org", 3)) {
-    ret = FALSE;
-    goto end;
+    /* The WLAN identity must have the form of
+       <imsi>@wlan.mnc<mnc>.mcc<mcc>.3gppnetwork.org
+       If not, we don't have a wlan identity
+    */
+    if (ntokens != 2 || nrealm_tokens != 5 || g_ascii_strncasecmp(realm_tokens[0], "wlan", 4) ||
+        g_ascii_strncasecmp(realm_tokens[3], "3gppnetwork", 11) ||
+        g_ascii_strncasecmp(realm_tokens[4], "org", 3)) {
+      ret = FALSE;
+      proto_tree_add_item(tree, hf_eap_identity, tvb, offset, size, ENC_ASCII);
+      goto end;
+    }
   }
 
   /* It is very likely that we have a WLAN identity (EAP-AKA/EAP-SIM) */
@@ -861,7 +978,10 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
   switch(eap_identity_prefix) {
     case 0x00: /* Encrypted IMSI */
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]), ENC_ASCII || ENC_NA);
+      /* Account for wide characters that increase the byte count
+       * despite the character count (i.e., strlen() fails to return
+       * the proper character count, leading to offset errors. */
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]), ENC_ASCII);
       break;
     case '0': /* EAP-AKA Permanent */
     case '1': /* EAP-SIM Permanent */
@@ -873,36 +993,80 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
     case '3': /* EAP-SIM Pseudonym */
     case '7': /* EAP-AKA' Pseudonym */
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII|ENC_NA);
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII);
       break;
     case '4': /* EAP-AKA Reauth ID */
     case '5': /* EAP-SIM Reauth ID */
     case '8': /* EAP-AKA' Reauth ID */
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII|ENC_NA);
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII);
       break;
     case 'C': /* Conservative Peer */
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII|ENC_NA);
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII);
       break;
     case 'a': /* Anonymous User */
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset, size, ENC_ASCII || ENC_NA);
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset, (guint)strlen(tokens[0]), ENC_ASCII|ENC_NA);
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset, (guint)strlen(tokens[0]), ENC_ASCII);
       break;
     case 'G': /* TODO: 'G' Unknown */
     case 'I': /* TODO: 'I' Unknown */
     default:
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII|ENC_NA);
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII);
       expert_add_info(pinfo, item, &ei_eap_identity_invalid);
   }
 
-  /* EAP identities do not always equate to IMSIs.  We should
-   * still add the MCC and MNC values for non-permanent EAP
-   * identities. */
-  if (!sscanf(realm_tokens[1] + 3, "%u", &mnc) || !sscanf(realm_tokens[2] + 3, "%u", &mcc)) {
-    ret = FALSE;
-    goto end;
+  /* If the identity is an Encrypted IMSI, parse the Certificate Serial Number */
+  if (enc_imsi) {
+    /* Tokenize the Certificate string */
+    cert_tokens = g_strsplit_set(tokens[1], "=", -1);
+
+    while(cert_tokens[ncert_tokens])
+      ncert_tokens++;
+
+    /* Add Certificate Serial Number to the tree */
+    proto_tree_add_item(eap_identity_tree, hf_eap_identity_certificate_sn, tvb,
+      offset + 1 + (guint)strlen(tokens[0]) + 1 + (guint)strlen("CertificateSerialNumber="),
+      (guint)strlen(tokens[1]) - (guint)strlen("CertificateSerialNumber="), ENC_ASCII);
+
+    /* Check for the optional NAI Realm string */
+    if (ntokens != 3 || g_ascii_strncasecmp(tokens[2], "Realm", 5)) {
+      goto end;
+    }
+
+    realm_tokens = g_strsplit_set(tokens[2], "@.", -1);
+
+    while (realm_tokens[nrealm_tokens])
+      nrealm_tokens++;
+
+    /* The realm string must have the form of
+       wlan.mnc<mnc>.mcc<mcc>.3gppnetwork.org
+       If not, we don't have a proper realm.
+    */
+    if (nrealm_tokens != 5 || g_ascii_strncasecmp(realm_tokens[0], "wlan", 4) ||
+        g_ascii_strncasecmp(realm_tokens[1], "mnc", 3) ||
+        g_ascii_strncasecmp(realm_tokens[2], "mcc", 3) ||
+        g_ascii_strncasecmp(realm_tokens[3], "3gppnetwork", 11) ||
+        g_ascii_strncasecmp(realm_tokens[4], "org", 3)) {
+      ret = FALSE;
+      goto end;
+    }
+
+    /* EAP identities do not always equate to IMSIs.  We should
+     * still add the MCC and MNC values for non-permanent EAP
+     * identities. */
+    if (!sscanf(realm_tokens[2] + 3, "%u", &mnc) || !sscanf(realm_tokens[3] + 3, "%u", &mcc)) {
+      ret = FALSE;
+      goto end;
+    }
+  } else {
+    /* Not an encrypted IMSI, but still need to make sure the realm tokens are
+     * consistent with the 3GPP format. */
+    if (!sscanf(realm_tokens[1] + 3, "%u", &mnc) || !sscanf(realm_tokens[2] + 3, "%u", &mcc)) {
+      ret = FALSE;
+      goto end;
+    }
   }
 
   if (!try_val_to_str_ext(mcc * 100 + mnc, &mcc_mnc_2digits_codes_ext)) {
@@ -919,18 +1083,38 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
     hf_eap_identity_mcc_mnc = hf_eap_identity_mcc_mnc_2digits;
   }
 
-  proto_tree_add_uint(eap_identity_tree, hf_eap_identity_mcc_mnc,
-    tvb, offset + (guint)strlen(tokens[0]) + (guint)strlen("@wlan.") +
-    (guint)strlen("mnc"), (guint)strlen(realm_tokens[1]) - (guint)strlen("mnc"),
-    mcc_mnc);
+  /* Handle encrypted IMSI indices first */
+  if(realm_tokens[0] && realm_tokens[1] && realm_tokens[2] && realm_tokens[3]) {
+    if (enc_imsi) {
+      /* Add MNC to tree */
+      proto_tree_add_uint(eap_identity_tree, hf_eap_identity_mcc_mnc, tvb,
+        offset + 1 + (guint)strlen(tokens[0]) + 1 + (guint)strlen(tokens[1]) + 1 +
+        (guint)strlen("Realm=@wlan.mnc"), (guint)strlen(realm_tokens[2]) -
+        (guint)strlen("mnc"), mcc_mnc);
+      /* Add MCC to tree */
+      proto_tree_add_uint(eap_identity_tree, hf_eap_identity_mcc, tvb,
+        offset + 1 + (guint)strlen(tokens[0]) + 1 + (guint)strlen(tokens[1]) + 1 +
+        (guint)strlen(realm_tokens[0]) + (guint)strlen("@wlan.") +
+        (guint)strlen(realm_tokens[2]) + (guint)strlen(".mcc"),
+        (guint)strlen(realm_tokens[3]) - (guint)strlen("mcc"), mcc);
+    } else {
+      /* Add MNC to tree */
+      proto_tree_add_uint(eap_identity_tree, hf_eap_identity_mcc_mnc,
+        tvb, offset + (guint)strlen(tokens[0]) + (guint)strlen("@wlan.") +
+        (guint)strlen("mnc"), (guint)strlen(realm_tokens[1]) - (guint)strlen("mnc"),
+        mcc_mnc);
+      /* Add MCC to tree */
+      proto_tree_add_uint(eap_identity_tree, hf_eap_identity_mcc,
+        tvb, offset + (guint)(strlen(tokens[0]) + (guint)strlen("@wlan.") +
+        (guint)strlen(realm_tokens[1]) + 1 + strlen("mcc")),
+        (guint)strlen(realm_tokens[2]) - (guint)strlen("mcc"), mcc);
+    }
+  }
 
-  proto_tree_add_uint(eap_identity_tree, hf_eap_identity_mcc,
-    tvb, offset + (guint)(strlen(tokens[0]) + strlen("@wlan.") +
-    strlen(realm_tokens[1]) + 1 + strlen("mcc")),
-    (guint)(strlen(realm_tokens[2]) - strlen("mcc")), mcc);
 end:
   g_strfreev(tokens);
   g_strfreev(realm_tokens);
+  g_strfreev(cert_tokens);
 
   return ret;
 }
@@ -938,7 +1122,25 @@ end:
 static void
 dissect_eap_identity(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, int offset, gint size)
 {
-  /* Try to dissect as WLAN identity */
+  /*
+   * Try to dissect as WLAN identity.
+   *
+   * XXX - what other types of identity are there?
+   *
+   * XXX - dissect_eap_identity_wlan() speaks of EAP-AKA and EAP-SIM,
+   * and neither RFC 4187 for EAP-AKA nor RFC 4186 for EAP-SIM speak
+   * of those being used solely on WLANs.  For that matter, 802.1X
+   * was originally designed for wired networks (Ethernet, Token Ring,
+   * FDDI), and later adapted for 802.11.
+   *
+   * If dissecting EAP identities must be done differently for wired
+   * networks and 802.11, this should dissect them based on the link-layer
+   * type of the network on which the packet arrived.
+   *
+   * If dissecting EAP identities does *not* need to be done differently
+   * for wired networks and 802.11, dissect_eap_identity_wlan() should
+   * just be incorporated within this routine.
+   */
   if (dissect_eap_identity_wlan(tvb, pinfo, tree, offset, size))
     return;
 }
@@ -1495,6 +1697,69 @@ dissect_eap_gpsk(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int of
 }
 
 static int
+dissect_eap_msauth_tlv(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int offset, gint size)
+{
+  guint tlv_type, tlv_len;
+  proto_tree *tlv_tree, *tree, *ti_len;
+
+  tlv_tree = proto_tree_add_subtree(eap_tree, tvb, offset, size, ett_eap_msauth_tlv,
+                                    NULL, "Tag Length Values");
+
+next_tlv:
+  tlv_type = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN) & MSAUTH_TLV_TYPE;
+  tlv_len = tvb_get_guint16(tvb, offset + 2, ENC_BIG_ENDIAN);
+
+  tree = proto_tree_add_subtree_format(tlv_tree, tvb, offset, 4 + tlv_len,
+                                       ett_eap_msauth_tlv_tree, NULL, "TLV: t=%s(%d) l=%d",
+                                       val_to_str_const(tlv_type, eap_msauth_tlv_type_vals, "Unknown"),
+                                       tlv_type, 4 + tlv_len);
+
+  proto_tree_add_item(tree, hf_eap_msauth_tlv_mandatory, tvb, offset, 2, ENC_BIG_ENDIAN);
+  proto_tree_add_item(tree, hf_eap_msauth_tlv_reserved, tvb, offset, 2, ENC_BIG_ENDIAN);
+  proto_tree_add_item(tree, hf_eap_msauth_tlv_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+  offset += 2;
+
+  proto_tree_add_item(tree, hf_eap_msauth_tlv_len, tvb, offset, 2, ENC_BIG_ENDIAN);
+  offset += 2;
+
+  switch (tlv_type) {
+  case MSAUTH_TLV_TYPE_EXTENSION_RESULT:
+    proto_tree_add_item(tree, hf_eap_msauth_tlv_status, tvb, offset, 2, ENC_BIG_ENDIAN);
+    offset += 2;
+    break;
+
+  case MSAUTH_TLV_TYPE_EXTENSION_CRYPTOBINDING:
+    proto_tree_add_item(tree, hf_eap_msauth_tlv_crypto_reserved, tvb, offset, 1, ENC_BIG_ENDIAN);
+    offset += 1;
+    proto_tree_add_item(tree, hf_eap_msauth_tlv_crypto_version, tvb, offset, 1, ENC_BIG_ENDIAN);
+    offset += 1;
+    proto_tree_add_item(tree, hf_eap_msauth_tlv_crypto_rcv_version, tvb, offset, 1, ENC_BIG_ENDIAN);
+    offset += 1;
+    proto_tree_add_item(tree, hf_eap_msauth_tlv_crypto_subtype, tvb, offset, 1, ENC_BIG_ENDIAN);
+    offset += 1;
+    proto_tree_add_item(tree, hf_eap_msauth_tlv_crypto_nonce, tvb, offset, 32, ENC_NA);
+    offset += 32;
+    proto_tree_add_item(tree, hf_eap_msauth_tlv_crypto_cmac, tvb, offset, 20, ENC_NA);
+    offset += 20;
+    break;
+
+  default:
+    ti_len = proto_tree_add_item(tree, hf_eap_msauth_tlv_val, tvb, offset, tlv_len, ENC_NA);
+    if (4 + tlv_len > (guint)size - offset) {
+      expert_add_info(pinfo, ti_len, &ei_eap_bad_length);
+    }
+    offset += tlv_len;
+  }
+
+  if (offset < size) {
+    goto next_tlv;
+  }
+
+  return offset;
+}
+
+
+static int
 dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   guint8          eap_code;
@@ -1510,6 +1775,11 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
   proto_tree     *eap_tree;
   proto_tree     *eap_tls_flags_tree;
   proto_item     *eap_type_item;
+  static address null_address = ADDRESS_INIT_NONE;
+  static guint8 pae_group_address_mac_addr[6] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x03 };
+  static address pae_group_address = ADDRESS_INIT(AT_ETHER, sizeof(pae_group_address_mac_addr), pae_group_address_mac_addr);
+  packet_info    pinfo_eapol;
+  packet_info    *pinfo_conv;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "EAP");
   col_clear(pinfo->cinfo, COL_INFO);
@@ -1523,10 +1793,6 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
   /*
    * Find a conversation to which we belong; create one if we don't find it.
    *
-   * If this is an EAP-Message (RFC 2869) encapsulated in Tunneled TLS EAP
-   * (EAP-TTLS), then we should not attempt to create a conversation to detect
-   * retransmitted messages, try TLS reassembly and so on.
-   *
    * EAP runs over RADIUS (which runs over UDP), EAPOL (802.1X Authentication)
    * or other transports. In case of RADIUS, a single "session" may consist
    * of two UDP associations (one for authorization, one for accounting) which
@@ -1539,42 +1805,77 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
    * EAP-Request/Identity message which cannot be found in the middle of the
    * session. Use it as a signal to start a new conversation. This ensures that
    * the TLS dissector associates new TLS messages with a unique TLS session.
+   *
+   * For EAPOL frames we need to massage the source/destination addresses into
+   * something stable for the TLS decoder as wireshark typically thinks there
+   * are three conversations occurring when there is only one:
+   *  * src ether = server mac -> dst ether = PAE multicast group address
+   *  * src ether = server mac -> dst ether = client mac
+   *  * src ether = client mac -> dst ether = PAE multicast group address
+   * We set the port so the TLS decoder can figure out which side is the server
    */
-  if (!proto_is_frame_protocol(pinfo->layers, "tls")) {
-    if (PINFO_FD_VISITED(pinfo) || !(eap_code == EAP_REQUEST && tvb_get_guint8(tvb, 4) == EAP_TYPE_ID)) {
-      conversation = find_conversation_pinfo(pinfo, 0);
+  if (pinfo->src.type == AT_ETHER) {
+    memcpy(&pinfo_eapol, pinfo, sizeof(packet_info));
+    pinfo_conv = &pinfo_eapol;
+    if (eap_code == EAP_REQUEST) {	/* server -> client */
+      copy_address_shallow(&pinfo_conv->src, &null_address);
+      copy_address_shallow(&pinfo_conv->dst, &pae_group_address);
+      pinfo_conv->srcport = 443;
+    } else {				/* client -> server */
+      copy_address_shallow(&pinfo_conv->src, &pae_group_address);
+      copy_address_shallow(&pinfo_conv->dst, &null_address);
+      pinfo_conv->destport = 443;
     }
-    if (conversation == NULL) {
-      conversation = conversation_new(pinfo->num, &pinfo->src,
-                                      &pinfo->dst, conversation_pt_to_endpoint_type(pinfo->ptype),
-                                      pinfo->srcport, pinfo->destport, 0);
-    }
-
-    /*
-     * Get the state information for the conversation; attach some if
-     * we don't find it.
-     */
-    conversation_state = (conv_state_t *)conversation_get_proto_data(conversation, proto_eap);
-    if (conversation_state == NULL) {
-      /*
-       * Attach state information to the conversation.
-       */
-      conversation_state = wmem_new(wmem_file_scope(), conv_state_t);
-      conversation_state->eap_tls_seq      = -1;
-      conversation_state->eap_reass_cookie =  0;
-      conversation_state->leap_state       = -1;
-      conversation_state->last_eap_id_req  = -1;
-      conversation_state->last_eap_id_resp = -1;
-      conversation_add_proto_data(conversation, proto_eap, conversation_state);
-    }
-
-    /*
-     * Set this now, so that it gets remembered even if we throw an exception
-     * later.
-     */
-    if (eap_code == EAP_FAILURE)
-      conversation_state->leap_state = -1;
+  } else {
+    pinfo_conv = pinfo;
   }
+
+  /*
+   * To support tunneled EAP-TLS (e.g. {TTLS,PEAP,TEAP,...}/EAP-TLS) we
+   * group our TLS frames by the depth they are found at and use this
+   * as offsets for p_get_proto_data/p_add_proto_data and as done for
+   * EAPOL above we massage the client port using this too
+   */
+  guint32 tls_group = pinfo_conv->curr_proto_layer_num << 16;
+  if (eap_code == EAP_REQUEST) {	/* server -> client */
+    pinfo_conv->destport |= tls_group;
+  } else {				/* client -> server */
+    pinfo_conv->srcport |= tls_group;
+  }
+
+  if (PINFO_FD_VISITED(pinfo_conv) || !(eap_code == EAP_REQUEST && tvb_get_guint8(tvb, 4) == EAP_TYPE_ID)) {
+    conversation = find_conversation_pinfo(pinfo_conv, 0);
+  }
+  if (conversation == NULL) {
+    conversation = conversation_new(pinfo_conv->num, &pinfo_conv->src,
+		      &pinfo_conv->dst, conversation_pt_to_conversation_type(pinfo_conv->ptype),
+		      pinfo_conv->srcport, pinfo_conv->destport, 0);
+  }
+
+  /*
+   * Get the state information for the conversation; attach some if
+   * we don't find it.
+   */
+  conversation_state = (conv_state_t *)conversation_get_proto_data(conversation, proto_eap);
+  if (conversation_state == NULL) {
+    /*
+     * Attach state information to the conversation.
+     */
+    conversation_state = wmem_new(wmem_file_scope(), conv_state_t);
+    conversation_state->eap_tls_seq      = -1;
+    conversation_state->eap_reass_cookie =  0;
+    conversation_state->leap_state       = -1;
+    conversation_state->last_eap_id_req  = -1;
+    conversation_state->last_eap_id_resp = -1;
+    conversation_add_proto_data(conversation, proto_eap, conversation_state);
+  }
+
+  /*
+   * Set this now, so that it gets remembered even if we throw an exception
+   * later.
+   */
+  if (eap_code == EAP_FAILURE)
+    conversation_state->leap_state = -1;
 
   eap_len = tvb_get_ntohs(tvb, 2);
   len     = eap_len;
@@ -1604,10 +1905,10 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
         *last_eap_id = eap_identifier;
         if (is_duplicate_id) {
           // Use a dummy value to remember that this packet is a duplicate.
-          p_add_proto_data(wmem_file_scope(), pinfo, proto_eap, 1, GINT_TO_POINTER(1));
+          p_add_proto_data(wmem_file_scope(), pinfo, proto_eap, PROTO_DATA_EAP_DUPLICATE_ID | tls_group, GINT_TO_POINTER(1));
         }
       } else {
-        is_duplicate_id = !!p_get_proto_data(wmem_file_scope(), pinfo, proto_eap, 1);
+        is_duplicate_id = !!p_get_proto_data(wmem_file_scope(), pinfo, proto_eap, PROTO_DATA_EAP_DUPLICATE_ID | tls_group);
       }
       if (is_duplicate_id) {
         expert_add_info(pinfo, ti_id, &ei_eap_retransmission);
@@ -1651,7 +1952,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
         **********************************************************************/
       case EAP_TYPE_NOTIFY:
         proto_tree_add_item(eap_tree, hf_eap_notification, tvb,
-            offset, size, ENC_ASCII|ENC_NA);
+            offset, size, ENC_ASCII);
         break;
 
         /*********************************************************************
@@ -1696,10 +1997,11 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
       case EAP_TYPE_TLS:
       case EAP_TYPE_TEAP:
       {
-        guint8   flags            = tvb_get_guint8(tvb, offset);
         gboolean more_fragments;
         gboolean has_length;
         gboolean is_start;
+        gboolean outer_tlvs = false;
+        gint outer_tlvs_length = 0;
         int      eap_tls_seq      = -1;
         guint32  eap_reass_cookie =  0;
         gboolean needs_reassembly =  FALSE;
@@ -1710,23 +2012,22 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
           break;
         }
 
-        more_fragments = test_flag(flags,EAP_TLS_FLAG_M);
-        has_length     = test_flag(flags,EAP_TLS_FLAG_L);
-        is_start       = test_flag(flags,EAP_TLS_FLAG_S);
-
-        if (is_start)
-          conversation_state->eap_tls_seq = -1;
-
         /* Flags field, 1 byte */
         ti = proto_tree_add_item(eap_tree, hf_eap_tls_flags, tvb, offset, 1, ENC_BIG_ENDIAN);
         eap_tls_flags_tree = proto_item_add_subtree(ti, ett_eap_tls_flags);
-        proto_tree_add_item(eap_tls_flags_tree, hf_eap_tls_flag_l, tvb, offset, 1, ENC_BIG_ENDIAN);
-        proto_tree_add_item(eap_tls_flags_tree, hf_eap_tls_flag_m, tvb, offset, 1, ENC_BIG_ENDIAN);
-        proto_tree_add_item(eap_tls_flags_tree, hf_eap_tls_flag_s, tvb, offset, 1, ENC_BIG_ENDIAN);
+        proto_tree_add_item_ret_boolean(eap_tls_flags_tree, hf_eap_tls_flag_l, tvb, offset, 1, ENC_BIG_ENDIAN, &has_length);
+        proto_tree_add_item_ret_boolean(eap_tls_flags_tree, hf_eap_tls_flag_m, tvb, offset, 1, ENC_BIG_ENDIAN, &more_fragments);
+        proto_tree_add_item_ret_boolean(eap_tls_flags_tree, hf_eap_tls_flag_s, tvb, offset, 1, ENC_BIG_ENDIAN, &is_start);
 
-        if ((eap_type == EAP_TYPE_PEAP) || (eap_type == EAP_TYPE_TTLS) ||
-            (eap_type == EAP_TYPE_FAST) || (eap_type == EAP_TYPE_TEAP)) {
+        switch (eap_type) {
+        case EAP_TYPE_TEAP:
+          proto_tree_add_item_ret_boolean(eap_tls_flags_tree, hf_eap_tls_flag_o, tvb, offset, 1, ENC_BIG_ENDIAN, &outer_tlvs);
+          /* FALLTHROUGH */
+        case EAP_TYPE_TTLS:
+        case EAP_TYPE_FAST:
+        case EAP_TYPE_PEAP:
           proto_tree_add_item(eap_tls_flags_tree, hf_eap_tls_flags_version, tvb, offset, 1, ENC_BIG_ENDIAN);
+          break;
         }
         size   -= 1;
         offset += 1;
@@ -1737,6 +2038,16 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
           size   -= 4;
           offset += 4;
         }
+
+        /* Outer TLV Length field, 4 bytes, OPTIONAL. */
+        if (outer_tlvs) {
+          proto_tree_add_item_ret_uint(eap_tree, hf_eap_tls_outer_tlvs_len, tvb, offset, 4, ENC_BIG_ENDIAN, &outer_tlvs_length);
+          size   -= 4;
+          offset += 4;
+        }
+
+        if (is_start)
+          conversation_state->eap_tls_seq = -1;
 
         /* 4.1.1 Authority ID Data https://datatracker.ietf.org/doc/html/rfc4851#section-4.1.1 */
         if (eap_type == EAP_TYPE_FAST && is_start) {
@@ -1811,7 +2122,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
             first pass through the capture.
           */
           /* See if we have a remembered defragmentation EAP ID. */
-          packet_state = (frame_state_t *)p_get_proto_data(wmem_file_scope(), pinfo, proto_eap, 0);
+          packet_state = (frame_state_t *)p_get_proto_data(wmem_file_scope(), pinfo, proto_eap, PROTO_DATA_EAP_FRAME_STATE | tls_group);
           if (packet_state == NULL) {
             /*
              * We haven't - does this message require reassembly?
@@ -1874,7 +2185,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
                  */
                 packet_state = wmem_new(wmem_file_scope(), frame_state_t);
                 packet_state->info = eap_reass_cookie;
-                p_add_proto_data(wmem_file_scope(), pinfo, proto_eap, 0, packet_state);
+                p_add_proto_data(wmem_file_scope(), pinfo, proto_eap, PROTO_DATA_EAP_FRAME_STATE | tls_group, packet_state);
               }
             }
           } else {
@@ -1953,19 +2264,27 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
           if (next_tvb) {
             switch (eap_type) {
               case EAP_TYPE_TTLS:
-                tls_set_appdata_dissector(tls_handle, pinfo, diameter_avps_handle);
+                tls_set_appdata_dissector(tls_handle, pinfo_conv, diameter_avps_handle);
                 break;
               case EAP_TYPE_PEAP:
-                tls_set_appdata_dissector(tls_handle, pinfo, eap_handle);
+                p_add_proto_data(pinfo->pool, pinfo, proto_eap, PROTO_DATA_EAP_TVB | tls_group, tvb);
+                tls_set_appdata_dissector(tls_handle, pinfo_conv, peap_handle);
                 break;
               case EAP_TYPE_TEAP:
-                tls_set_appdata_dissector(tls_handle, pinfo, teap_handle);
+                if (outer_tlvs) {	/* https://www.rfc-editor.org/rfc/rfc7170.html#section-4.1 */
+                  tvbuff_t *teap_tvb = tvb_new_subset_length(tvb, offset + size - outer_tlvs_length, outer_tlvs_length);
+                  call_dissector(teap_handle, teap_tvb, pinfo_conv, eap_tree);
+                  if (size == outer_tlvs_length) goto skip_tls_dissector;
+                  next_tvb = tvb_new_subset_length(next_tvb, 0, size - outer_tlvs_length);
+                }
+                tls_set_appdata_dissector(tls_handle, pinfo_conv, teap_handle);
                 break;
             }
-            call_dissector(tls_handle, next_tvb, pinfo, eap_tree);
+            call_dissector(tls_handle, next_tvb, pinfo_conv, eap_tree);
           }
         }
       }
+skip_tls_dissector:
       break; /*  EAP_TYPE_TLS */
 
       /*********************************************************************
@@ -2003,7 +2322,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
          * If so, should we stop here to avoid modifying conversation_state? */
 
         /* See if we've already remembered the state. */
-        packet_state = (frame_state_t *)p_get_proto_data(wmem_file_scope(), pinfo, proto_eap, 0);
+        packet_state = (frame_state_t *)p_get_proto_data(wmem_file_scope(), pinfo, proto_eap, PROTO_DATA_EAP_FRAME_STATE | tls_group);
         if (packet_state == NULL) {
           /*
            * We haven't - compute the state based on the current
@@ -2024,7 +2343,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
            */
           packet_state = wmem_new(wmem_file_scope(), frame_state_t);
           packet_state->info = leap_state;
-          p_add_proto_data(wmem_file_scope(), pinfo, proto_eap, 0, packet_state);
+          p_add_proto_data(wmem_file_scope(), pinfo, proto_eap, PROTO_DATA_EAP_FRAME_STATE | tls_group, packet_state);
 
           /*
            * Update the conversation's state.
@@ -2061,7 +2380,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
         /* Name    (Length-(8+Count)) */
         namesize = eap_len - (8+count);
-        proto_tree_add_item(eap_tree, hf_eap_leap_name, tvb, offset, namesize, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(eap_tree, hf_eap_leap_name, tvb, offset, namesize, ENC_ASCII);
       }
 
       break; /* EAP_TYPE_LEAP */
@@ -2129,6 +2448,68 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
         break; /* EAP_TYPE_GPSK */
 
       /*********************************************************************
+            EAP-IKEv2 - RFC 5106
+      **********************************************************************/
+      case EAP_TYPE_IKEV2:
+      {
+        gboolean more_fragments;
+        gboolean has_length;
+        gboolean icv_present;
+
+        /* Flags field, 1 byte */
+        ti = proto_tree_add_item(eap_tree, hf_eap_ikev2_flags, tvb, offset, 1, ENC_BIG_ENDIAN);
+        eap_tls_flags_tree = proto_item_add_subtree(ti, hf_eap_ikev2_flags);
+        proto_tree_add_item_ret_boolean(eap_tls_flags_tree, hf_eap_ikev2_flag_l, tvb, offset, 1, ENC_BIG_ENDIAN, &has_length);
+        proto_tree_add_item_ret_boolean(eap_tls_flags_tree, hf_eap_ikev2_flag_m, tvb, offset, 1, ENC_BIG_ENDIAN, &more_fragments);
+        proto_tree_add_item_ret_boolean(eap_tls_flags_tree, hf_eap_ikev2_flag_i, tvb, offset, 1, ENC_BIG_ENDIAN, &icv_present);
+
+        size -= 1;
+        offset += 1;
+
+        /* Length field, 4 bytes, OPTIONAL. */
+        if (has_length) {
+          proto_tree_add_item(eap_tree, hf_eap_ikev2_len, tvb, offset, 4, ENC_BIG_ENDIAN);
+          size -= 4;
+          offset += 4;
+        }
+
+        if (size > 0) {
+          tvbuff_t* next_tvb = NULL;
+          gint      tvb_len;
+
+          tvb_len = tvb_captured_length_remaining(tvb, offset);
+          if (size < tvb_len) {
+            tvb_len = size;
+          }
+
+          if (has_length || more_fragments) {
+            /* TODO: Add fragmentation support
+             * Length of integrity check data needs to be determined in case of fragmentation. Chosen INTEG transform?
+             */
+          } else {
+            next_tvb = tvb_new_subset_length_caplen(tvb, offset, tvb_len, size);
+            guint tmp = call_dissector(isakmp_handle, next_tvb, pinfo, eap_tree);
+            size -= tmp;
+            offset += tmp;
+
+            if (icv_present && size > 0) {
+              /* We assume that all data present is integrity check data. We cannot detect too short/long right now. */
+              proto_tree_add_item(eap_tree, hf_eap_ikev2_int_chk_data, tvb, offset, size, ENC_NA);
+            }
+          }
+        }
+
+        break;
+      } /* EAP_TYPE_IKEV2 */
+
+      /*********************************************************************
+            MS-Authentication-TLV - MS-PEAP section 2.2.8.1
+      **********************************************************************/
+      case EAP_TYPE_MSAUTH_TLV:
+        dissect_eap_msauth_tlv(eap_tree, tvb, pinfo, offset, size);
+        break; /* EAP_TYPE_MSAUTH_TLV */
+
+      /*********************************************************************
       **********************************************************************/
       default:
         proto_tree_add_item(eap_tree, hf_eap_data, tvb, offset, size, ENC_NA);
@@ -2190,6 +2571,11 @@ proto_register_eap(void)
 
     { &hf_eap_identity_full, {
       "Identity (Full)", "eap.identity.full",
+      FT_STRING, BASE_NONE, NULL, 0x0,
+      NULL, HFILL }},
+
+    { &hf_eap_identity_certificate_sn, {
+      "Certificate Serial Number", "eap.identity.cert_sn",
       FT_STRING, BASE_NONE, NULL, 0x0,
       NULL, HFILL }},
 
@@ -2255,6 +2641,11 @@ proto_register_eap(void)
       FT_BOOLEAN, 8, NULL, EAP_TLS_FLAG_S,
       NULL, HFILL }},
 
+    { &hf_eap_tls_flag_o, {
+      "Outer TLV Length Included", "eap.tls.flags.outer_tlv_len_included",
+      FT_BOOLEAN, 8, NULL, EAP_TLS_FLAG_O,
+      NULL, HFILL }},
+
     { &hf_eap_tls_flags_version, {
       "Version", "eap.tls.flags.version",
       FT_UINT8, BASE_DEC, NULL, EAP_TLS_FLAGS_VERSION,
@@ -2262,6 +2653,11 @@ proto_register_eap(void)
 
     { &hf_eap_tls_len, {
       "EAP-TLS Length", "eap.tls.len",
+      FT_UINT32, BASE_DEC, NULL, 0x0,
+      NULL, HFILL }},
+
+    { &hf_eap_tls_outer_tlvs_len, {
+      "TEAP Outer TLVs Length", "eap.tls.len",
       FT_UINT32, BASE_DEC, NULL, 0x0,
       NULL, HFILL }},
 
@@ -2785,6 +3181,66 @@ proto_register_eap(void)
       FT_BYTES, BASE_NONE, NULL, 0x0,
       NULL, HFILL }},
 
+    { &hf_eap_msauth_tlv_mandatory, {
+      "Mandatory", "eap.msauth-tlv.mandatory",
+      FT_BOOLEAN, 16, NULL, MSAUTH_TLV_MANDATORY,
+      NULL, HFILL }},
+
+    { &hf_eap_msauth_tlv_reserved, {
+      "Reserved", "eap.msauth-tlv.reserved",
+      FT_BOOLEAN, 16, NULL, MSAUTH_TLV_RESERVED,
+      NULL, HFILL }},
+
+    { &hf_eap_msauth_tlv_type, {
+      "Type", "eap.msauth-tlv.type",
+      FT_UINT16, BASE_DEC, VALS(eap_msauth_tlv_type_vals), MSAUTH_TLV_TYPE,
+      NULL, HFILL }},
+
+    { &hf_eap_msauth_tlv_len, {
+      "Length", "eap.msauth-tlv.len",
+      FT_UINT16, BASE_DEC, NULL, 0x00,
+      NULL, HFILL }},
+
+     { &hf_eap_msauth_tlv_val, {
+      "Value", "eap.msauth-tlv.val",
+      FT_BYTES, BASE_NONE, NULL, 0x0,
+      NULL, HFILL }},
+
+     { &hf_eap_msauth_tlv_status, {
+      "Status", "eap.msauth-tlv.status",
+      FT_UINT16, BASE_DEC, VALS(eap_msauth_tlv_status_vals), 0x0,
+      NULL, HFILL }},
+
+     { &hf_eap_msauth_tlv_crypto_reserved, {
+      "Reserved", "eap.msauth-tlv.crypto.reserved",
+      FT_UINT8, BASE_DEC, NULL, 0x0,
+      NULL, HFILL }},
+
+     { &hf_eap_msauth_tlv_crypto_version, {
+      "Version", "eap.msauth-tlv.crypto.version",
+      FT_UINT8, BASE_DEC, NULL, 0x0,
+      NULL, HFILL }},
+
+     { &hf_eap_msauth_tlv_crypto_rcv_version, {
+      "Received Version", "eap.msauth-tlv.crypto.received-version",
+      FT_UINT8, BASE_DEC, NULL, 0x0,
+      NULL, HFILL }},
+
+     { &hf_eap_msauth_tlv_crypto_subtype, {
+      "Subtype", "eap.msauth-tlv.crypto.subtype",
+      FT_UINT8, BASE_DEC, VALS(eap_msauth_tlv_crypto_subtype_vals), 0x0,
+      NULL, HFILL }},
+
+     { &hf_eap_msauth_tlv_crypto_nonce, {
+      "Nonce", "eap.msauth-tlv.crypto.nonce",
+      FT_BYTES, BASE_NONE, NULL, 0x0,
+      NULL, HFILL }},
+
+     { &hf_eap_msauth_tlv_crypto_cmac, {
+      "Compound MAC", "eap.msauth-tlv.crypto.cmac",
+      FT_BYTES, BASE_NONE, NULL, 0x0,
+      NULL, HFILL }},
+
     /* Expanded type fields */
     { &hf_eap_ext_vendor_id, {
       "EAP-EXT Vendor Id", "eap.ext.vendor_id",
@@ -2794,7 +3250,37 @@ proto_register_eap(void)
     { &hf_eap_ext_vendor_type, {
       "EAP-EXT Vendor Type", "eap.ext.vendor_type",
       FT_UINT8, BASE_HEX, VALS(eap_ext_vendor_type_vals), 0x0,
-      NULL, HFILL }}
+      NULL, HFILL }},
+
+    { &hf_eap_ikev2_flags, {
+      "EAP-IKEv2 Flags", "eap.ikev2.flags",
+      FT_UINT8, BASE_HEX, NULL, 0x0,
+      NULL, HFILL } },
+
+    { &hf_eap_ikev2_flag_l, {
+      "Length Included", "eap.ikve2.flags.len_included",
+      FT_BOOLEAN, 8, NULL, EAP_IKEV2_FLAG_L,
+      NULL, HFILL } },
+
+    { &hf_eap_ikev2_flag_m, {
+      "More Fragments", "eap.ikev2.flags.more_fragments",
+      FT_BOOLEAN, 8, NULL, EAP_IKEV2_FLAG_M,
+      NULL, HFILL } },
+
+    { &hf_eap_ikev2_flag_i, {
+      "Integrity Checksum Data present", "eap.ikev2.flags.icv_present",
+      FT_BOOLEAN, 8, NULL, EAP_IKEV2_FLAG_I,
+      NULL, HFILL } },
+
+    { &hf_eap_ikev2_len, {
+      "EAP-IKEv2 Length", "eap.ikev2.len",
+      FT_UINT32, BASE_DEC, NULL, 0x0,
+      NULL, HFILL } },
+
+    { &hf_eap_ikev2_int_chk_data, {
+      "EAP-IKEv2 Integrity Checksum Data", "eap.ikev2.integrity_checksum_data",
+      FT_BYTES, BASE_NONE, NULL, 0x0,
+      NULL, HFILL } },
   };
   static gint *ett[] = {
     &ett_eap,
@@ -2804,13 +3290,16 @@ proto_register_eap(void)
     &ett_eap_gpsk_csuite,
     &ett_eap_gpsk_csuite_sel,
     &ett_eap_sake_attr,
+    &ett_eap_msauth_tlv,
+    &ett_eap_msauth_tlv_tree,
     &ett_eap_tls_fragment,
     &ett_eap_tls_fragments,
     &ett_eap_sim_attr,
     &ett_eap_aka_attr,
     &ett_eap_exp_attr,
     &ett_eap_tls_flags,
-    &ett_identity
+    &ett_identity,
+    &ett_eap_ikev2_flags,
   };
   static ei_register_info ei[] = {
      { &ei_eap_ms_chap_v2_length, { "eap.ms_chap_v2.length.invalid", PI_PROTOCOL, PI_WARN, "Invalid Length", EXPFILL }},
@@ -2819,6 +3308,7 @@ proto_register_eap(void)
      { &ei_eap_dictionary_attacks, { "eap.dictionary_attacks", PI_SECURITY, PI_WARN,
                                "Vulnerable to dictionary attacks. If possible, change EAP type."
                                " See http://www.cisco.com/warp/public/cc/pd/witc/ao350ap/prodlit/2331_pp.pdf", EXPFILL }},
+     { &ei_eap_identity_nonascii, { "eap.identity.nonascii", PI_PROTOCOL, PI_WARN, "Non-ASCII characters within identity", EXPFILL }},
      { &ei_eap_identity_invalid, { "eap.identity.invalid", PI_PROTOCOL, PI_WARN, "Invalid identity code", EXPFILL }},
      { &ei_eap_retransmission, { "eap.retransmission", PI_SEQUENCE, PI_NOTE, "This packet is a retransmission", EXPFILL }},
      { &ei_eap_bad_length, { "eap.bad_length", PI_PROTOCOL, PI_WARN, "Bad length (too small or too large)", EXPFILL }},
@@ -2853,7 +3343,10 @@ proto_reg_handoff_eap(void)
    */
   tls_handle = find_dissector_add_dependency("tls", proto_eap);
   diameter_avps_handle = find_dissector_add_dependency("diameter_avps", proto_eap);
+  peap_handle = find_dissector_add_dependency("peap", proto_eap);
   teap_handle = find_dissector_add_dependency("teap", proto_eap);
+
+  isakmp_handle = find_dissector_add_dependency("isakmp", proto_eap);
 
   dissector_add_uint("ppp.protocol", PPP_EAP, eap_handle);
   dissector_add_uint("eapol.type", EAPOL_EAP, eap_handle);

@@ -1,4 +1,4 @@
-/* libpcap.h
+/** @file
  *
  * Wiretap Library
  * Copyright (c) 1998 by Gilbert Ramirez <gram@alumni.rice.edu>
@@ -11,7 +11,7 @@
 
 #include <glib.h>
 #include <wiretap/wtap.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* Magic numbers in "libpcap" files.
 

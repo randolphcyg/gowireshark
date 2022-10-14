@@ -1,4 +1,4 @@
-/* pppdump.h
+/** @file
  *
  * Copyright (c) 2000 by Gilbert Ramirez <gram@alumni.rice.edu>
  *
@@ -11,7 +11,7 @@
 
 #include <glib.h>
 #include "wtap.h"
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 wtap_open_return_val pppdump_open(wtap *wth, int *err, gchar **err_info);
 

@@ -49,8 +49,8 @@ CHANGE_OFFSET=0
 MAX_LEAK=$(( 1024 * 100 ))
 
 # Our maximum run time.
-START_SECONDS=$SECONDS
-MAX_SECONDS=$(( START_SECONDS + 86400 ))
+RUN_START_SECONDS=$SECONDS
+RUN_MAX_SECONDS=$(( RUN_START_SECONDS + 86400 ))
 
 # To do: add options for file names and limits
 while getopts "2b:C:d:e:agp:P:o:t:" OPTCHAR ; do
@@ -65,8 +65,8 @@ while getopts "2b:C:d:e:agp:P:o:t:" OPTCHAR ; do
         p) MAX_PASSES=$OPTARG ;;
         P) MIN_PLUGINS=$OPTARG ;;
         o) CHANGE_OFFSET=$OPTARG ;;
-        t) MAX_SECONDS=$(( START_SECONDS + OPTARG )) ;;
-        *) printf "Unknown option %s" "$OPTCHAR"
+        t) RUN_MAX_SECONDS=$(( RUN_START_SECONDS + OPTARG )) ;;
+        *) printf "Unknown option %s\n" "$OPTCHAR"
     esac
 done
 shift $((OPTIND - 1))
@@ -144,7 +144,7 @@ if [ "$MAX_PASSES" -gt 0 ]; then
     HOWMANY="$MAX_PASSES passes"
 fi
 echo -n "Running $RUNNER $COMMON_ARGS with args: "
-printf "\"%s\" " "${RUNNER_ARGS[@]}"
+printf "\"%s\"\n" "${RUNNER_ARGS[@]}"
 echo "($HOWMANY)"
 echo ""
 
@@ -169,7 +169,7 @@ trap trap_abrt ABRT
 PASS=0
 while { [ $PASS -lt "$MAX_PASSES" ] || [ "$MAX_PASSES" -lt 1 ]; } && ! $DONE ; do
     PASS=$(( PASS+1 ))
-    echo "Starting pass $PASS:"
+    echo "Pass $PASS:"
     RUN=0
 
     for CF in "$@" ; do
@@ -183,7 +183,6 @@ while { [ $PASS -lt "$MAX_PASSES" ] || [ "$MAX_PASSES" -lt 1 ]; } && ! $DONE ; d
         if [ "$OSTYPE" == "cygwin" ] ; then
             CF=$( cygpath --windows "$CF" )
         fi
-        printf "    %s: " "$( basename "$CF" )"
 
         "$CAPINFOS" "$CF" > /dev/null 2> "$TMP_DIR/$ERR_FILE"
         RETVAL=$?
@@ -196,12 +195,28 @@ while { [ $PASS -lt "$MAX_PASSES" ] || [ "$MAX_PASSES" -lt 1 ]; } && ! $DONE ; d
             ws_exit_error
         fi
 
+        # Choose a random subset of large captures.
+        KEEP=
+        PACKET_RANGE=
+        CF_PACKETS=$( "$CAPINFOS" -T -r -c "$CF" | cut -f2 )
+        if [[ CF_PACKETS -gt $MAX_FUZZ_PACKETS ]] ; then
+            START_PACKET=$(( CF_PACKETS - MAX_FUZZ_PACKETS ))
+            START_PACKET=$( shuf --input-range=1-$START_PACKET --head-count=1 )
+            END_PACKET=$(( START_PACKET + MAX_FUZZ_PACKETS ))
+            KEEP=-r
+            PACKET_RANGE="$START_PACKET-$END_PACKET"
+            printf "    Fuzzing packets %d-%d of %d\n" "$START_PACKET" "$END_PACKET" "$CF_PACKETS"
+        fi
+
         DISSECTOR_BUG=0
         VG_ERR_CNT=0
 
+        printf "    %s: " "$( basename "$CF" )"
+        # shellcheck disable=SC2086
         "$EDITCAP" -E "$ERR_PROB" -o "$CHANGE_OFFSET" $KEEP "$CF" "$TMP_DIR/$TMP_FILE" $PACKET_RANGE > /dev/null 2>&1
         RETVAL=$?
         if [ $RETVAL -ne 0 ] ; then
+            # shellcheck disable=SC2086
             "$EDITCAP" -E "$ERR_PROB" -o "$CHANGE_OFFSET" $KEEP -T ether "$CF" "$TMP_DIR/$TMP_FILE" $PACKET_RANGE \
                 > /dev/null 2>&1
             RETVAL=$?
@@ -211,6 +226,7 @@ while { [ $PASS -lt "$MAX_PASSES" ] || [ "$MAX_PASSES" -lt 1 ]; } && ! $DONE ; d
             fi
         fi
 
+        FILE_START_SECONDS=$SECONDS
         RUNNER_PIDS=
         RUNNER_ERR_FILES=
         for ARGS in "${RUNNER_ARGS[@]}" ; do
@@ -249,8 +265,8 @@ while { [ $PASS -lt "$MAX_PASSES" ] || [ "$MAX_PASSES" -lt 1 ]; } && ! $DONE ; d
             RUNNER_PIDS="$RUNNER_PIDS $RUNNER_PID"
             RUNNER_ERR_FILES="$RUNNER_ERR_FILES $TMP_DIR/$ERR_FILE.$RUNNER_PID"
 
-            if [ $SECONDS -ge $MAX_SECONDS ] ; then
-                printf "\nStopping after %d seconds.\n" $(( SECONDS - START_SECONDS ))
+            if [ $SECONDS -ge $RUN_MAX_SECONDS ] ; then
+                printf "\nStopping after %d seconds.\n" $(( SECONDS - RUN_START_SECONDS ))
                 DONE=true
             fi
         done
@@ -291,7 +307,7 @@ while { [ $PASS -lt "$MAX_PASSES" ] || [ "$MAX_PASSES" -lt 1 ]; } && ! $DONE ; d
             fi
         done
 
-        echo " OK"
+        printf " OK (%s seconds)\\n" $(( SECONDS - FILE_START_SECONDS ))
         rm -f "$TMP_DIR/$TMP_FILE" "$TMP_DIR/$ERR_FILE"
     done
 done

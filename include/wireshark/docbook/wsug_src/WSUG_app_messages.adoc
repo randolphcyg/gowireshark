@@ -1,6 +1,6 @@
 // WSUG Appendix Messages
 
-[[AppMessages]]
+[#AppMessages]
 
 [appendix]
 == Wireshark Messages
@@ -9,7 +9,7 @@ Wireshark provides you with additional information generated out of the plain
 packet data or it may need to indicate dissection problems. Messages generated
 by Wireshark are usually placed in square brackets (“[]”).
 
-[[AppMessagesList]]
+[#AppMessagesList]
 
 === Packet List Messages
 
@@ -21,7 +21,7 @@ Malformed packet means that the protocol dissector can’t dissect the contents 
 the packet any further. There can be various reasons:
 
 * __Wrong dissector__: Wireshark erroneously has chosen the wrong protocol
-  dissector for this packet. This will happen e.g. if you are using a protocol
+  dissector for this packet. This will happen e.g., if you are using a protocol
   not on its well known TCP or UDP port. You may try Analyze|Decode As to
   circumvent this problem.
 
@@ -52,7 +52,7 @@ was simply running out of packet bytes and had to give up. There’s nothing els
 you can do now, except to repeat the whole capture process again with a higher
 (or no) packet size limitation.
 
-[[AppMessagesDetails]]
+[#AppMessagesDetails]
 
 === Packet Details Messages
 
@@ -74,7 +74,7 @@ The time between the request and the response packets.
 
 ==== [Stream setup by PROTOCOL (frame 123)]
 
-The session control protocol (SDP, H225, etc) message which signaled the
+The session control protocol (SDP, H225, etc.) message which signaled the
 creation of this session. You can directly jump to the corresponding packet
 by double clicking on this message.
 

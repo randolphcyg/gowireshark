@@ -1,4 +1,4 @@
-/* base32.h
+/** @file
  * Base-32 conversion
  *
  * Wireshark - Network traffic analyzer
@@ -10,7 +10,7 @@
 #ifndef __BASE32_H__
 #define __BASE32_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

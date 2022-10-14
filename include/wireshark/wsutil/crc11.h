@@ -1,5 +1,4 @@
-/*
- * crc11.h
+/** @file
  * http://www.tty1.net/pycrc/faq_en.html#code-ownership
  *
  * Wireshark - Network traffic analyzer
@@ -13,7 +12,7 @@
 
 #include <glib.h>
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

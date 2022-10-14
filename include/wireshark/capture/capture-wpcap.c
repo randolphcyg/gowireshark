@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <glib.h>
 
-#include <ws_attributes.h>
+#include <include/ws_attributes.h>
 
 #include "capture/capture-wpcap.h"
 
@@ -221,6 +221,12 @@ load_wpcap(void)
 	has_wpcap = TRUE;
 }
 
+gboolean
+caplibs_have_npcap(void)
+{
+	return has_wpcap && g_str_has_prefix(p_pcap_lib_version(), "Npcap");
+}
+
 static char *
 local_code_page_str_to_utf8(char *str)
 {
@@ -258,14 +264,14 @@ convert_errbuf_to_utf8(char *errbuf)
 	}
 	errbuf[PCAP_ERRBUF_SIZE - 1] = '\0';
 	utf8_err = local_code_page_str_to_utf8(errbuf);
-	g_snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s", utf8_err);
+	snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s", utf8_err);
 	g_free(utf8_err);
 }
 
 static char *
 cant_load_winpcap_err(const char *app_name)
 {
-	return g_strdup_printf(
+	return ws_strdup_printf(
 "Unable to load Npcap or WinPcap (wpcap.dll); %s will not be able to\n"
 "capture packets.\n"
 "\n"
@@ -369,7 +375,7 @@ pcap_open_live(const char *a, int b, int c, int d, char *errbuf)
 {
 	pcap_t *p;
 	if (!has_wpcap) {
-		g_snprintf(errbuf, PCAP_ERRBUF_SIZE,
+		snprintf(errbuf, PCAP_ERRBUF_SIZE,
 			   "unable to load Npcap or WinPcap (wpcap.dll); can't open %s to capture",
 			   a);
 		return NULL;
@@ -404,7 +410,7 @@ pcap_open(const char *a, int b, int c, int d, struct pcap_rmtauth *e, char *errb
 {
 	pcap_t *ret;
 	if (!has_wpcap) {
-		g_snprintf(errbuf, PCAP_ERRBUF_SIZE,
+		snprintf(errbuf, PCAP_ERRBUF_SIZE,
 			   "unable to load Npcap or WinPcap (wpcap.dll); can't open %s to capture",
 			   a);
 		return NULL;
@@ -558,7 +564,7 @@ pcap_statustostr(int a)
     }
 
     /* XXX copy routine from pcap.c ??? */
-    (void)g_snprintf(ebuf, sizeof ebuf, "Don't have pcap_statustostr(), can't translate error: %d", a);
+    (void)snprintf(ebuf, sizeof ebuf, "Don't have pcap_statustostr(), can't translate error: %d", a);
     return(ebuf);
 
 }
@@ -764,12 +770,12 @@ cant_get_if_list_error_message(const char *err_str)
 	 */
 	if (strstr(err_str, "Not enough storage is available to process this command") != NULL ||
 	    strstr(err_str, "The operation completed successfully") != NULL) {
-		return g_strdup_printf("Can't get list of interfaces: %s\n"
+		return ws_strdup_printf("Can't get list of interfaces: %s\n"
 "This might be a problem with WinPcap 3.0. You should try updating to\n"
 "Npcap. See https://npcap.com/ for more information.",
 		    err_str);
 	}
-	return g_strdup_printf("Can't get list of interfaces: %s", err_str);
+	return ws_strdup_printf("Can't get list of interfaces: %s", err_str);
 }
 
 if_capabilities_t *
@@ -814,16 +820,13 @@ open_capture_device_local(capture_options *capture_opts,
  * Append the WinPcap or Npcap SDK version with which we were compiled to a GString.
  */
 void
-get_compiled_caplibs_version(GString *str)
+gather_caplibs_compile_info(feature_list l)
 {
-	g_string_append(str, "with libpcap");
+	with_feature(l, "libpcap");
 }
 
-/*
- * Append the version of Npcap with which we we're running to a GString.
- */
 void
-get_runtime_caplibs_version(GString *str)
+gather_caplibs_runtime_info(feature_list l)
 {
 	/*
 	 * On Windows, we might have been compiled with WinPcap/Npcap but
@@ -831,10 +834,9 @@ get_runtime_caplibs_version(GString *str)
 	 * not and, if we have it, what version we have.
 	 */
 	if (has_wpcap) {
-		g_string_append_printf(str, "with ");
-		g_string_append_printf(str, p_pcap_lib_version());
+		with_feature(l, "%s", p_pcap_lib_version());
 	} else
-		g_string_append(str, "without Npcap or WinPcap");
+		without_feature(l, "Npcap or WinPcap");
 }
 
 /*
@@ -884,17 +886,20 @@ load_wpcap(void)
  * to a GString.
  */
 void
-get_compiled_caplibs_version(GString *str)
+gather_caplibs_compile_info(feature_list l)
 {
-	g_string_append(str, "without Npcap or WinPcap");
+	without_feature(l, "libpcap");
 }
 
-/*
- * Don't append anything, as we weren't even compiled to use WinPcap/Npcap.
- */
 void
-get_runtime_caplibs_version(GString *str _U_)
+gather_caplibs_runtime_info(feature_list l _U_)
 {
+}
+
+gboolean
+caplibs_have_npcap(void)
+{
+	return FALSE;
 }
 
 #endif /* HAVE_LIBPCAP */

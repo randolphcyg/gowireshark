@@ -22,7 +22,7 @@ static void
 slist_stnode_free(gpointer data)
 {
 	if (data) {
-		stnode_free((stnode_t *)data);
+		stnode_free(data);
 	}
 }
 
@@ -37,23 +37,20 @@ sttype_set_free(gpointer value)
 {
 	/* If the data was not claimed with stnode_steal_data(), free it. */
 	if (value) {
-		set_nodelist_free((GSList *)value);
+		set_nodelist_free(value);
 	}
 }
 
 static char *
-sttype_set_tostr(const void *data)
+sttype_set_tostr(const void *data, gboolean pretty)
 {
-	GSList* nodelist = (GSList *)data;
+	const GSList* nodelist = data;
 	stnode_t *lower, *upper;
 	GString *repr = g_string_new("");
-	char *str;
 
 	while (nodelist) {
 		lower = nodelist->data;
-		str = stnode_tostr(lower);
-		g_string_append(repr, str);
-		g_free(str);
+		g_string_append(repr, stnode_tostr(lower, pretty));
 
 		/* Set elements are always in pairs; upper may be null. */
 		nodelist = g_slist_next(nodelist);
@@ -61,9 +58,7 @@ sttype_set_tostr(const void *data)
 		upper = nodelist->data;
 		if (upper != NULL) {
 			g_string_append(repr, "..");
-			str = stnode_tostr(upper);
-			g_string_append(repr, str);
-			g_free(str);
+			g_string_append(repr, stnode_tostr(upper, pretty));
 		}
 
 		nodelist = g_slist_next(nodelist);

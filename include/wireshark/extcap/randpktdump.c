@@ -11,6 +11,7 @@
  */
 
 #include "config.h"
+#define WS_LOG_DOMAIN "randpktdump"
 
 #include "extcap-base.h"
 
@@ -165,7 +166,7 @@ int main(int argc, char *argv[])
 	 * Attempt to get the pathname of the directory containing the
 	 * executable file.
 	 */
-	err_msg = init_progfile_dir(argv[0]);
+	err_msg = configuration_init(argv[0], NULL);
 	if (err_msg != NULL) {
 		ws_warning("Can't get pathname of directory containing the extcap program: %s.",
 			err_msg);
@@ -178,7 +179,7 @@ int main(int argc, char *argv[])
 	g_free(help_url);
 	extcap_base_register_interface(extcap_conf, RANDPKT_EXTCAP_INTERFACE, "Random packet generator", 147, "Generator dependent DLT");
 
-	help_header = g_strdup_printf(
+	help_header = ws_strdup_printf(
 		" %s --extcap-interfaces\n"
 		" %s --extcap-interface=%s --extcap-dlts\n"
 		" %s --extcap-interface=%s --extcap-config\n"

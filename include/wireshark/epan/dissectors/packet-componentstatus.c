@@ -178,8 +178,8 @@ dissect_componentstatusprotocol_cspreport_message(tvbuff_t *message_tvb, proto_t
   t.secs  = (time_t)(interval / 1000000);
   t.nsecs = (int)((interval - 1000000 * t.secs) * 1000);
   proto_tree_add_time(message_tree, hf_cspreport_report_interval, message_tvb,  24,   4, &t);
-  proto_tree_add_item(message_tree, hf_cspreport_location,        message_tvb,  28, 128, ENC_UTF_8|ENC_NA);
-  proto_tree_add_item(message_tree, hf_cspreport_status,          message_tvb, 156, 128, ENC_UTF_8|ENC_NA);
+  proto_tree_add_item(message_tree, hf_cspreport_location,        message_tvb,  28, 128, ENC_UTF_8);
+  proto_tree_add_item(message_tree, hf_cspreport_status,          message_tvb, 156, 128, ENC_UTF_8);
 
   workload = (float)(100.0 * CSR_GET_WORKLOAD(tvb_get_ntohs(message_tvb, 284)));
   if(workload < 0.0) {   /* Special value 0xffff -> -1.0 means "no load provided"! */
@@ -328,6 +328,7 @@ static void componentstatusprotocol_stat_init(stat_tap_table_ui* new_stat)
   table = stat_tap_init_table(table_name, num_fields, 0, NULL);
   stat_tap_add_table(new_stat, table);
 
+  memset(items, 0x0, sizeof(items));
   /* Add a row for each value type */
   while (message_type_values[i].strptr) {
     items[MESSAGE_TYPE_COLUMN].type                = TABLE_ITEM_STRING;
@@ -356,7 +357,7 @@ static void componentstatusprotocol_stat_init(stat_tap_table_ui* new_stat)
 }
 
 static tap_packet_status
-componentstatusprotocol_stat_packet(void* tapdata, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* data)
+componentstatusprotocol_stat_packet(void* tapdata, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* data, tap_flags_t flags _U_)
 {
   stat_data_t*              stat_data = (stat_data_t*)tapdata;
   const tap_componentstatusprotocol_rec_t*      tap_rec   = (const tap_componentstatusprotocol_rec_t*)data;

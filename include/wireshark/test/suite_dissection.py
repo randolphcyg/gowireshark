@@ -17,6 +17,25 @@ import sys
 
 @fixtures.mark_usefixtures('test_env')
 @fixtures.uses_fixtures
+class case_dissect_dtn_tcpcl(subprocesstest.SubprocessTestCase):
+
+    def test_tcpclv3_xfer(self, cmd_tshark, features, dirs, capture_file):
+        self.assertRun((cmd_tshark,
+                '-r', capture_file('dtn_tcpclv3_bpv6_transfer.pcapng'),
+                '-Tfields', '-etcpcl.ack.length',
+            ))
+        self.assertEqual(self.countOutput(r'1064'), 2)
+
+    def test_tcpclv4_xfer(self, cmd_tshark, features, dirs, capture_file):
+        self.assertRun((cmd_tshark,
+                '-r', capture_file('dtn_tcpclv4_bpv7_transfer.pcapng'),
+                '-Tfields', '-etcpcl.v4.xfer_ack.ack_len',
+            ))
+        self.assertEqual(self.countOutput(r'199'), 2)
+
+
+@fixtures.mark_usefixtures('test_env')
+@fixtures.uses_fixtures
 class case_dissect_bpv7(subprocesstest.SubprocessTestCase):
 
     def test_bpv7_admin_status(self, cmd_tshark, features, dirs, capture_file):
@@ -176,6 +195,167 @@ class case_dissect_grpc(subprocesstest.SubprocessTestCase):
             ))
         self.assertEqual(self.countOutput('DATA'), 8)
 
+    def test_grpc_http2_fake_headers(self, cmd_tshark, features, dirs, capture_file):
+        '''HTTP2/gRPC fake headers (used when HTTP2 initial HEADERS frame is missing)'''
+        if not features.have_nghttp2:
+            self.skipTest('Requires nghttp2.')
+        well_know_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'well_know_types').replace('\\', '/')
+        user_defined_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'user_defined_types').replace('\\', '/')
+        self.assertRun((cmd_tshark,
+                '-r', capture_file('grpc_person_search_protobuf_with_image-missing_headers.pcapng.gz'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(well_know_types_dir, 'FALSE'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(user_defined_types_dir, 'TRUE'),
+                '-o', 'uat:http2_fake_headers: "{}","{}","{}","{}","{}","{}"'.format(
+                            '50051','3','IN',':path','/tutorial.PersonSearchService/Search','TRUE'),
+                '-o', 'uat:http2_fake_headers: "{}","{}","{}","{}","{}","{}"'.format(
+                            '50051','0','IN','content-type','application/grpc','TRUE'),
+                '-o', 'uat:http2_fake_headers: "{}","{}","{}","{}","{}","{}"'.format(
+                            '50051','0','OUT','content-type','application/grpc','TRUE'),
+                '-d', 'tcp.port==50051,http2',
+                '-Y', 'protobuf.field.value.string == "Jason" || protobuf.field.value.string == "Lily"',
+            ))
+        self.assertEqual(self.countOutput('DATA'), 2)
+
+
+@fixtures.mark_usefixtures('test_env')
+@fixtures.uses_fixtures
+class case_dissect_grpc_web(subprocesstest.SubprocessTestCase):
+
+    def test_grpc_web_unary_call_over_http1(self, cmd_tshark, features, dirs, capture_file):
+        '''gRPC-Web unary call over http1'''
+        well_know_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'well_know_types').replace('\\', '/')
+        user_defined_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'user_defined_types').replace('\\', '/')
+        self.assertRun((cmd_tshark,
+                '-r', capture_file('grpc_web.pcapng.gz'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(well_know_types_dir, 'FALSE'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(user_defined_types_dir, 'TRUE'),
+                '-o', 'protobuf.preload_protos: TRUE',
+                '-o', 'protobuf.pbf_as_hf: TRUE',
+                '-d', 'tcp.port==57226,http',
+                '-Y', '(tcp.stream eq 0) && (pbf.greet.HelloRequest.name == "88888888"'
+                        '|| pbf.greet.HelloRequest.name == "99999999"'
+                        '|| pbf.greet.HelloReply.message == "Hello 99999999")',
+            ))
+        self.assertEqual(self.countOutput('greet.HelloRequest'), 2)
+        self.assertEqual(self.countOutput('greet.HelloReply'), 1)
+
+    def test_grpc_web_unary_call_over_http2(self, cmd_tshark, features, dirs, capture_file):
+        '''gRPC-Web unary call over http2'''
+        if not features.have_nghttp2:
+            self.skipTest('Requires nghttp2.')
+        well_know_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'well_know_types').replace('\\', '/')
+        user_defined_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'user_defined_types').replace('\\', '/')
+        self.assertRun((cmd_tshark,
+                '-r', capture_file('grpc_web.pcapng.gz'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(well_know_types_dir, 'FALSE'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(user_defined_types_dir, 'TRUE'),
+                '-o', 'protobuf.preload_protos: TRUE',
+                '-o', 'protobuf.pbf_as_hf: TRUE',
+                '-d', 'tcp.port==57228,http2',
+                '-Y', '(tcp.stream eq 1) && (pbf.greet.HelloRequest.name == "88888888"'
+                        '|| pbf.greet.HelloRequest.name == "99999999"'
+                        '|| pbf.greet.HelloReply.message == "Hello 99999999")',
+            ))
+        self.assertEqual(self.countOutput('greet.HelloRequest'), 2)
+        self.assertEqual(self.countOutput('greet.HelloReply'), 1)
+
+    def test_grpc_web_reassembly_and_stream_over_http2(self, cmd_tshark, features, dirs, capture_file):
+        '''gRPC-Web data reassembly and server stream over http2'''
+        if not features.have_nghttp2:
+            self.skipTest('Requires nghttp2.')
+        well_know_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'well_know_types').replace('\\', '/')
+        user_defined_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'user_defined_types').replace('\\', '/')
+        self.assertRun((cmd_tshark,
+                '-r', capture_file('grpc_web.pcapng.gz'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(well_know_types_dir, 'FALSE'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(user_defined_types_dir, 'TRUE'),
+                '-o', 'protobuf.preload_protos: TRUE',
+                '-o', 'protobuf.pbf_as_hf: TRUE',
+                '-d', 'tcp.port==57228,http2',
+                '-Y', '(tcp.stream eq 2) && ((pbf.greet.HelloRequest.name && grpc.message_length == 80004)'
+                       '|| (pbf.greet.HelloReply.message && (grpc.message_length == 23 || grpc.message_length == 80012)))',
+            ))
+        self.assertEqual(self.countOutput('greet.HelloRequest'), 2)
+        self.assertEqual(self.countOutput('greet.HelloReply'), 4)
+
+    def test_grpc_web_text_unary_call_over_http1(self, cmd_tshark, features, dirs, capture_file):
+        '''gRPC-Web-Text unary call over http1'''
+        well_know_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'well_know_types').replace('\\', '/')
+        user_defined_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'user_defined_types').replace('\\', '/')
+        self.assertRun((cmd_tshark,
+                '-r', capture_file('grpc_web.pcapng.gz'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(well_know_types_dir, 'FALSE'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(user_defined_types_dir, 'TRUE'),
+                '-o', 'protobuf.preload_protos: TRUE',
+                '-o', 'protobuf.pbf_as_hf: TRUE',
+                '-d', 'tcp.port==57226,http',
+                '-Y', '(tcp.stream eq 5) && (pbf.greet.HelloRequest.name == "88888888"'
+                        '|| pbf.greet.HelloRequest.name == "99999999"'
+                        '|| pbf.greet.HelloReply.message == "Hello 99999999")',
+            ))
+        self.assertTrue(self.grepOutput('GRPC-Web-Text'))
+        self.assertEqual(self.countOutput('greet.HelloRequest'), 2)
+        self.assertEqual(self.countOutput('greet.HelloReply'), 1)
+
+    def test_grpc_web_text_unary_call_over_http2(self, cmd_tshark, features, dirs, capture_file):
+        '''gRPC-Web-Text unary call over http2'''
+        if not features.have_nghttp2:
+            self.skipTest('Requires nghttp2.')
+        well_know_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'well_know_types').replace('\\', '/')
+        user_defined_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'user_defined_types').replace('\\', '/')
+        self.assertRun((cmd_tshark,
+                '-r', capture_file('grpc_web.pcapng.gz'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(well_know_types_dir, 'FALSE'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(user_defined_types_dir, 'TRUE'),
+                '-o', 'protobuf.preload_protos: TRUE',
+                '-o', 'protobuf.pbf_as_hf: TRUE',
+                '-d', 'tcp.port==57228,http2',
+                '-Y', '(tcp.stream eq 6) && (pbf.greet.HelloRequest.name == "88888888"'
+                        '|| pbf.greet.HelloRequest.name == "99999999"'
+                        '|| pbf.greet.HelloReply.message == "Hello 99999999")',
+            ))
+        self.assertTrue(self.grepOutput('GRPC-Web-Text'))
+        self.assertEqual(self.countOutput('greet.HelloRequest'), 2)
+        self.assertEqual(self.countOutput('greet.HelloReply'), 1)
+
+    def test_grpc_web_text_reassembly_and_stream_over_http2(self, cmd_tshark, features, dirs, capture_file):
+        '''gRPC-Web-Text data reassembly and server stream over http2'''
+        if not features.have_nghttp2:
+            self.skipTest('Requires nghttp2.')
+        well_know_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'well_know_types').replace('\\', '/')
+        user_defined_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'user_defined_types').replace('\\', '/')
+        self.assertRun((cmd_tshark,
+                '-r', capture_file('grpc_web.pcapng.gz'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(well_know_types_dir, 'FALSE'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(user_defined_types_dir, 'TRUE'),
+                '-o', 'protobuf.preload_protos: TRUE',
+                '-o', 'protobuf.pbf_as_hf: TRUE',
+                '-d', 'tcp.port==57228,http2',
+                '-Y', '(tcp.stream eq 8) && ((pbf.greet.HelloRequest.name && grpc.message_length == 80004)'
+                       '|| (pbf.greet.HelloReply.message && (grpc.message_length == 23 || grpc.message_length == 80012)))',
+            ))
+        self.assertTrue(self.grepOutput('GRPC-Web-Text'))
+        self.assertEqual(self.countOutput('greet.HelloRequest'), 2)
+        self.assertEqual(self.countOutput('greet.HelloReply'), 4)
+
+    def test_grpc_web_text_reassembly_over_http1(self, cmd_tshark, features, dirs, capture_file):
+        '''gRPC-Web-Text data reassembly over http1'''
+        well_know_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'well_know_types').replace('\\', '/')
+        user_defined_types_dir = os.path.join(dirs.protobuf_lang_files_dir, 'user_defined_types').replace('\\', '/')
+        self.assertRun((cmd_tshark,
+                '-r', capture_file('grpc_web.pcapng.gz'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(well_know_types_dir, 'FALSE'),
+                '-o', 'uat:protobuf_search_paths: "{}","{}"'.format(user_defined_types_dir, 'TRUE'),
+                '-o', 'protobuf.preload_protos: TRUE',
+                '-o', 'protobuf.pbf_as_hf: TRUE',
+                '-d', 'tcp.port==57226,http',
+                '-Y', '(tcp.stream eq 7) && (grpc.message_length == 80004 || grpc.message_length == 80010)',
+            ))
+        self.assertTrue(self.grepOutput('GRPC-Web-Text'))
+        self.assertEqual(self.countOutput('greet.HelloRequest'), 1)
+        self.assertEqual(self.countOutput('greet.HelloReply'), 1)
+
+
 @fixtures.mark_usefixtures('test_env')
 @fixtures.uses_fixtures
 class case_dissect_http(subprocesstest.SubprocessTestCase):
@@ -228,8 +408,12 @@ class case_dissect_http2(subprocesstest.SubprocessTestCase):
                 '-o', 'tls.keylog_file: {}'.format(key_file),
                 '-z', 'follow,http2,hex,0,0'
             ))
+        # Stream ID 0 bytes
         self.assertTrue(self.grepOutput('00000000  00 00 12 04 00 00 00 00'))
+        # Stream ID 1 bytes, decrypted but compressed by HPACK
         self.assertFalse(self.grepOutput('00000000  00 00 2c 01 05 00 00 00'))
+        # Stream ID 1 bytes, decrypted and uncompressed
+        self.assertFalse(self.grepOutput('00000000  00 00 00 07 3a 6d 65 74'))
 
     def test_http2_follow_1(self, cmd_tshark, features, dirs, capture_file):
         '''Follow HTTP/2 Stream ID 1 test'''
@@ -241,8 +425,12 @@ class case_dissect_http2(subprocesstest.SubprocessTestCase):
                 '-o', 'tls.keylog_file: {}'.format(key_file),
                 '-z', 'follow,http2,hex,0,1'
             ))
+        # Stream ID 0 bytes
         self.assertFalse(self.grepOutput('00000000  00 00 12 04 00 00 00 00'))
-        self.assertTrue(self.grepOutput('00000000  00 00 2c 01 05 00 00 00'))
+        # Stream ID 1 bytes, decrypted but compressed by HPACK
+        self.assertFalse(self.grepOutput('00000000  00 00 2c 01 05 00 00 00'))
+        # Stream ID 1 bytes, decrypted and uncompressed
+        self.assertTrue(self.grepOutput('00000000  00 00 00 07 3a 6d 65 74'))
 
 @fixtures.mark_usefixtures('test_env')
 @fixtures.uses_fixtures
@@ -390,11 +578,7 @@ class case_dissect_tcp(subprocesstest.SubprocessTestCase):
                 '-Y', 'http',
             ] + extraArgs)
         self.assertEqual(self.countOutput('HTTP'), 5)
-        # TODO PDU /1 (segments in frames 1, 2, 4) should be reassembled in
-        # frame 4, but it is currently done in frame 6 because the current
-        # implementation reassembles only contiguous segments and PDU /2 has
-        # segments in frames 6, 3, 7.
-        self.assertTrue(self.grepOutput(r'^\s*6\s.*PUT /1 HTTP/1.1'))
+        self.assertTrue(self.grepOutput(r'^\s*4\s.*PUT /1 HTTP/1.1'))
         self.assertTrue(self.grepOutput(r'^\s*7\s.*GET /2 HTTP/1.1'))
         self.assertTrue(self.grepOutput(r'^\s*10\s.*PUT /3 HTTP/1.1'))
         self.assertTrue(self.grepOutput(r'^\s*11\s.*PUT /4 HTTP/1.1'))
@@ -403,30 +587,8 @@ class case_dissect_tcp(subprocesstest.SubprocessTestCase):
     def test_tcp_out_of_order_onepass(self, cmd_tshark, dirs):
         self.check_tcp_out_of_order(cmd_tshark, dirs)
 
-    @unittest.skip("MSP splitting is not implemented yet")
     def test_tcp_out_of_order_twopass(self, cmd_tshark, dirs):
         self.check_tcp_out_of_order(cmd_tshark, dirs, extraArgs=['-2'])
-
-    def test_tcp_out_of_order_twopass_with_bug(self, cmd_tshark, capture_file):
-        # TODO fix the issue below, remove this and enable
-        # "test_tcp_out_of_order_twopass"
-        self.assertRun((cmd_tshark,
-                '-r', capture_file('http-ooo.pcap'),
-                '-otcp.reassemble_out_of_order:TRUE',
-                '-Y', 'http',
-                '-2',
-            ))
-        self.assertEqual(self.countOutput('HTTP'), 3)
-        self.assertTrue(self.grepOutput(r'^\s*7\s.*PUT /1 HTTP/1.1'))
-        self.assertTrue(self.grepOutput(r'^\s*7\s.*GET /2 HTTP/1.1'))
-        # TODO ideally this should not be concatenated.
-        # Normally a multi-segment PDU (MSP) covers only a single PDU, but OoO
-        # segments can extend MSP such that it covers two (or even more) PDUs.
-        # Until MSP splitting is implemented, two PDUs are shown in a single
-        # packet (and in case of -2, they are only shown in the last packet).
-        self.assertTrue(self.grepOutput(r'^\s*11\s.*PUT /3 HTTP/1.1'))
-        self.assertTrue(self.grepOutput(r'^\s*11\s.*PUT /4 HTTP/1.1'))
-        self.assertTrue(self.grepOutput(r'^\s*15\s.*PUT /5 HTTP/1.1'))
 
     def test_tcp_out_of_order_data_after_syn(self, cmd_tshark, capture_file):
         '''Test when the first non-empty segment is OoO.'''
@@ -544,6 +706,42 @@ class case_dissect_tls(subprocesstest.SubprocessTestCase):
     def test_tls_handshake_reassembly_2(self, cmd_tshark, capture_file):
         '''Verify that TCP and TLS handshake reassembly works (second pass).'''
         self.check_tls_handshake_reassembly(
+            cmd_tshark, capture_file, extraArgs=['-2'])
+
+@fixtures.mark_usefixtures('test_env')
+@fixtures.uses_fixtures
+class case_dissect_quic(subprocesstest.SubprocessTestCase):
+    def check_quic_tls_handshake_reassembly(self, cmd_tshark, capture_file,
+                                       extraArgs=[]):
+        # An assortment of QUIC carrying TLS handshakes that need to be
+        # reassembled, including fragmented in one packet, fragmented in
+        # multiple packets, fragmented in multiple out of order packets,
+        # retried, retried with overlap from the original packets, and retried
+        # with one of the original packets missing (but all data there.)
+        # Include -zexpert just to be sure that nothing Warn or higher occured.
+        # Note level expert infos may be expected with the overlaps and
+        # retransmissions.
+        proc = self.assertRun([cmd_tshark,
+                               '-r', capture_file('quic-fragmented-handshakes.pcapng.gz'),
+                               '-zexpert,warn',
+                               '-Ytls.handshake.type',
+                               '-o', 'gui.column.format:"Handshake Type","%Cus:tls.handshake.type:0:R"',
+                               ] + extraArgs)
+        self.assertEqual(self.countOutput('Client Hello'), 18)
+        self.assertEqual(self.countOutput('Server Hello'), 2)
+        self.assertEqual(self.countOutput('Finished'), 2)
+        self.assertEqual(self.countOutput('New Session Ticket,New Session Ticket'), 1)
+        self.assertEqual(self.countOutput('Certificate'), 2)
+        self.assertFalse(self.grepOutput('Warns'))
+        self.assertFalse(self.grepOutput('Errors'))
+
+    def test_quic_tls_handshake_reassembly(self, cmd_tshark, capture_file):
+        '''Verify that QUIC and TLS handshake reassembly works.'''
+        self.check_quic_tls_handshake_reassembly(cmd_tshark, capture_file)
+
+    def test_quic_tls_handshake_reassembly_2(self, cmd_tshark, capture_file):
+        '''Verify that QUIC and TLS handshake reassembly works (second pass).'''
+        self.check_quic_tls_handshake_reassembly(
             cmd_tshark, capture_file, extraArgs=['-2'])
 
 @fixtures.mark_usefixtures('test_env')

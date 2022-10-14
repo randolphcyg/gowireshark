@@ -18,7 +18,6 @@ import subprocess
 # is assigned to a different variable or a macro is used, it isn't tracked.
 
 # TODO:
-# Currently assuming we'll find call + first 2 args in same line...
 # Attempt to check for allowed encoding types (most likely will be literal values |'d)?
 
 
@@ -50,46 +49,94 @@ class Call:
                pass
 
 
+# These are variable names that have been seen to be used in calls..
+common_hf_var_names = { 'hf_index', 'hf_item', 'hf_idx', 'hf_x', 'hf_id', 'hf_cookie', 'hf_flag',
+                        'hf_dos_time', 'hf_dos_date', 'hf_value', 'hf_num',
+                        'hf_cause_value', 'hf_uuid',
+                        'hf_endian', 'hf_ip', 'hf_port', 'hf_suff', 'hf_string', 'hf_uint',
+                        'hf_tag', 'hf_type', 'hf_hdr', 'hf_field', 'hf_opcode', 'hf_size',
+                        'hf_entry' }
+
 # A check for a particular API function.
 class APICheck:
-    def __init__(self, fun_name, allowed_types):
+    def __init__(self, fun_name, allowed_types, positive_length=False):
         self.fun_name = fun_name
         self.allowed_types = allowed_types
+        self.positive_length = positive_length
         self.calls = []
 
         if fun_name.startswith('ptvcursor'):
             # RE captures function name + 1st 2 args (always ptvc + hfindex)
-            self.p = re.compile('.*' +  self.fun_name + '\(([a-zA-Z0-9_]+),\s*([a-zA-Z0-9_]+)')
+            self.p = re.compile('[^\n]*' +  self.fun_name + '\(([a-zA-Z0-9_]+),\s*([a-zA-Z0-9_]+)')
         elif fun_name.find('add_bitmask') == -1:
-            # RE captures function name + 1st 2 args (always tree + hfindex)
-            self.p = re.compile('.*' +  self.fun_name + '\(([a-zA-Z0-9_]+),\s*([a-zA-Z0-9_]+)')
+            # Normal case.
+            # RE captures function name + 1st 2 args (always tree + hfindex + length)
+            self.p = re.compile('[^\n]*' +  self.fun_name + '\(([a-zA-Z0-9_]+),\s*([a-zA-Z0-9_]+),\s*[a-zA-Z0-9_]+,\s*[a-zA-Z0-9_]+,\s*([a-zA-Z0-9_]+)')
         else:
+            # _add_bitmask functions.
             # RE captures function name + 1st + 4th args (always tree + hfindex)
-            self.p = re.compile('.*' +  self.fun_name + '\(([a-zA-Z0-9_]+),\s*[a-zA-Z0-9_]+,\s*[a-zA-Z0-9_]+,\s*([a-zA-Z0-9_]+)')
+            self.p = re.compile('[^\n]*' +  self.fun_name + '\(([a-zA-Z0-9_]+),\s*[a-zA-Z0-9_]+,\s*[a-zA-Z0-9_]+,\s*([a-zA-Z0-9_]+)')
 
         self.file = None
+
 
     def find_calls(self, file):
         self.file = file
         self.calls = []
-        with open(file, 'r') as f:
-            for line_number, line in enumerate(f, start=1):
-                m = self.p.match(line)
-                if m:
-                    self.calls.append(Call(m.group(2), line_number=line_number))
 
-    def check_against_items(self, items):
+        with open(file, 'r') as f:
+            contents = f.read()
+            lines = contents.splitlines()
+            total_lines = len(lines)
+            for line_number,line in enumerate(lines):
+                # Want to check this, and next few lines
+                to_check = lines[line_number-1] + '\n'
+                # Nothing to check if function name isn't in it
+                if to_check.find(self.fun_name) != -1:
+                    # Ok, add the next file lines before trying RE
+                    for i in range(1, 4):
+                        if to_check.find(';') != -1:
+                            break
+                        elif line_number+i < total_lines:
+                            to_check += (lines[line_number-1+i] + '\n')
+                    m = self.p.search(to_check)
+                    if m:
+                        # Add call. We have length if re had 3 groups.
+                        num_groups = self.p.groups
+                        self.calls.append(Call(m.group(2),
+                                               line_number=line_number,
+                                               length=(m.group(3) if (num_groups==3) else None)))
+
+
+
+    def check_against_items(self, items_defined, items_declared, items_declared_extern, check_missing_items=False):
+        global errors_found
+        global warnings_found
+
         for call in self.calls:
-            if call.hf_name in items:
-                if not items[call.hf_name].item_type in self.allowed_types:
+            if self.positive_length and call.length != None:
+                if call.length != -1 and call.length <= 0:
+                    print('Error: ' +  self.fun_name + '(.., ' + call.hf_name + ', ...) called at ' +
+                          self.file + ':' + str(call.line_number) +
+                          ' with length ' + str(call.length) + ' - must be > 0 or -1')
+                    # Inc global count of issues found.
+                    errors_found += 1
+            if call.hf_name in items_defined:
+                if not items_defined[call.hf_name].item_type in self.allowed_types:
                     # Report this issue.
                     print('Error: ' +  self.fun_name + '(.., ' + call.hf_name + ', ...) called at ' +
                           self.file + ':' + str(call.line_number) +
-                          ' with type ' + items[call.hf_name].item_type)
+                          ' with type ' + items_defined[call.hf_name].item_type)
                     print('    (allowed types are', self.allowed_types, ')\n')
                     # Inc global count of issues found.
-                    global errors_found
                     errors_found += 1
+            elif check_missing_items:
+                if call.hf_name in items_declared and not call.hf_name in items_declared_extern:
+                #not in common_hf_var_names:
+                    print('Warning:', self.file + ':' + str(call.line_number),
+                          self.fun_name + ' called for "' + call.hf_name + '"', ' - but no item found')
+                    warnings_found += 1
+
 
 
 class ProtoTreeAddItemCheck(APICheck):
@@ -102,13 +149,13 @@ class ProtoTreeAddItemCheck(APICheck):
             # proto_tree_add_item(proto_tree *tree, int hfindex, tvbuff_t *tvb,
             #                     const gint start, gint length, const guint encoding)
             self.fun_name = 'proto_tree_add_item'
-            self.p = re.compile('.*' + self.fun_name + '\([a-zA-Z0-9_]+,\s*([a-zA-Z0-9_]+),\s*[a-zA-Z0-9_]+,\s*[a-zA-Z0-9_]+,\s*([0-9]+),\s*([a-zA-Z0-9_]+)')
+            self.p = re.compile('[^\n]*' + self.fun_name + '\([a-zA-Z0-9_]+,\s*([a-zA-Z0-9_]+),\s*[a-zA-Z0-9_]+,\s*[a-zA-Z0-9_]+,\s*([0-9]+),\s*([a-zA-Z0-9_]+)')
         else:
             # proto_item *
             # ptvcursor_add(ptvcursor_t *ptvc, int hfindex, gint length,
             #               const guint encoding)
             self.fun_name = 'ptvcursor_add'
-            self.p = re.compile('.*' + self.fun_name + '\([a-zA-Z0-9_]+,\s*([a-zA-Z0-9_]+),\s*([0-9]+),\s*([a-zA-Z0-9_]+)')
+            self.p = re.compile('[^\n]*' + self.fun_name + '\([a-zA-Z0-9_]+,\s*([a-zA-Z0-9_]+),\s*([a-zA-Z_0-9]+),\s*([a-zA-Z0-9_]+)')
 
 
         self.lengths = {}
@@ -129,7 +176,6 @@ class ProtoTreeAddItemCheck(APICheck):
         self.lengths['FT_INT56']  = 7
         self.lengths['FT_UINT64'] = 8
         self.lengths['FT_INT64']  = 8
-        # TODO: for FT_BOOLEAN, could take length from 2nd arg (which is in bits...)
         self.lengths['FT_ETHER']  = 6
         # TODO: other types...
 
@@ -137,29 +183,47 @@ class ProtoTreeAddItemCheck(APICheck):
         self.file = file
         self.calls = []
         with open(file, 'r') as f:
-            # TODO: would be better to just iterate over those found in whole file,
-            # but extra effort would be needed to still know line number.
-            for line_number, line in enumerate(f, start=1):
-                m = self.p.match(line)
-                if m:
-                    self.calls.append(Call(m.group(1), line_number=line_number, length=m.group(2)))
 
-    def check_against_items(self, items):
+            contents = f.read()
+            lines = contents.splitlines()
+            total_lines = len(lines)
+            for line_number,line in enumerate(lines):
+                # Want to check this, and next few lines
+                to_check = lines[line_number-1] + '\n'
+                # Nothing to check if function name isn't in it
+                if to_check.find(self.fun_name) != -1:
+                    # Ok, add the next file lines before trying RE
+                    for i in range(1, 5):
+                        if to_check.find(';') != -1:
+                            break
+                        elif line_number+i < total_lines:
+                            to_check += (lines[line_number-1+i] + '\n')
+                    m = self.p.search(to_check)
+                    if m:
+                        self.calls.append(Call(m.group(1), line_number=line_number, length=m.group(2)))
+
+    def check_against_items(self, items_defined, items_declared, items_declared_extern, check_missing_items=False):
         # For now, only complaining if length if call is longer than the item type implies.
         #
         # Could also be bugs where the length is always less than the type allows.
         # Would involve keeping track (in the item) of whether any call had used the full length.
 
+        global warnings_found
+
         for call in self.calls:
-            if call.hf_name in items:
-                if call.length and items[call.hf_name].item_type in self.lengths:
-                    if self.lengths[items[call.hf_name].item_type] < call.length:
+            if call.hf_name in items_defined:
+                if call.length and items_defined[call.hf_name].item_type in self.lengths:
+                    if self.lengths[items_defined[call.hf_name].item_type] < call.length:
                         print('Warning:', self.file + ':' + str(call.line_number),
                               self.fun_name + ' called for', call.hf_name, ' - ',
-                              'item type is', items[call.hf_name].item_type, 'but call has len', call.length)
-
-                        global warnings_found
+                              'item type is', items_defined[call.hf_name].item_type, 'but call has len', call.length)
                         warnings_found += 1
+            elif check_missing_items:
+                if call.hf_name in items_declared and not call.hf_name in items_declared_extern:
+                #not in common_hf_var_names:
+                    print('Warning:', self.file + ':' + str(call.line_number),
+                          self.fun_name + ' called for "' + call.hf_name + '"', ' - but no item found')
+                    warnings_found += 1
 
 
 
@@ -178,14 +242,15 @@ known_non_contiguous_fields = { 'wlan.fixed.capabilities.cfpoll.sta',
                                 'ebhscr.eth.rsv',  # matches other fields in same sequence
                                 'v120.lli',  # non-contiguous field (http://www.acacia-net.com/wwwcla/protocol/v120_l2.htm)
                                 'stun.type.class',
-                                'bssgp.csg_id'
+                                'bssgp.csg_id',
+                                'telnet.auth.mod.enc', 'osc.message.midi.bender', 'btle.data_header.rfu'
 
                               }
 ##################################################################################################
 
 
 field_widths = {
-    'FT_BOOLEAN' : 64,   # TODO: Width depends upon 'display' field, not checked.
+    'FT_BOOLEAN' : 64,   # TODO: Width depends upon 'display' field
     'FT_CHAR'    : 8,
     'FT_UINT8'   : 8,
     'FT_INT8'    : 8,
@@ -217,6 +282,9 @@ class Item:
         self.label = label
 
         self.mask = mask
+
+        global warnings_found
+
         if check_mask or check_consecutive:
             self.set_mask_value()
 
@@ -225,10 +293,7 @@ class Item:
                 if label != Item.previousItem.label:
                     print('Warning: ' + filename + ': - filter "' + filter +
                           '" appears consecutively - labels are "' + Item.previousItem.label + '" and "' + label + '"')
-            if Item.previousItem and self.mask_value and (Item.previousItem.mask_value == self.mask_value):
-                if label != Item.previousItem.label:
-                    print('Warning: ' + filename + ': - mask ' + self.mask +
-                          ' appears consecutively - labels are "' + Item.previousItem.label + '" and "' + label + '"')
+                    warnings_found += 1
 
             Item.previousItem = self
 
@@ -237,27 +302,38 @@ class Item:
         if check_label:
             if label.startswith(' ') or label.endswith(' '):
                 print('Warning: ' + filename + ' filter "' + filter +  '" label' + label + '" begins or ends with a space')
+                warnings_found += 1
+
             if (label.count('(') != label.count(')') or
                 label.count('[') != label.count(']') or
                 label.count('{') != label.count('}')):
                 print('Warning: ' + filename + ': - filter "' + filter + '" label', '"' + label + '"', 'has unbalanced parens/braces/brackets')
+                warnings_found += 1
             if item_type != 'FT_NONE' and label.endswith(':'):
                 print('Warning: ' + filename + ': - filter "' + filter + '" label', '"' + label + '"', 'ends with an unnecessary colon')
+                warnings_found += 1
 
         self.item_type = item_type
         self.type_modifier = type_modifier
 
         # Optionally check that mask bits are contiguous
         if check_mask:
-            if not mask in { 'NULL', '0x0', '0', '0x00'}:
+            if self.mask_read and not mask in { 'NULL', '0x0', '0', '0x00'}:
                 self.check_contiguous_bits(mask)
-                self.check_mask_too_long(mask)
+                #self.check_mask_too_long(mask)
                 self.check_num_digits(mask)
                 self.check_digits_all_zeros(mask)
 
 
     def set_mask_value(self):
         try:
+            self.mask_read = True
+            if any(not c in '0123456789abcdefABCDEFxX' for c in self.mask):
+                self.mask_read = False
+                self.mask_value = 0
+                return
+
+
             # Read according to the appropriate base.
             if self.mask.startswith('0x'):
                 self.mask_value = int(self.mask, 16)
@@ -266,6 +342,7 @@ class Item:
             else:
                 self.mask_value = int(self.mask, 10)
         except:
+            self.mask_read = False
             self.mask_value = 0
 
 
@@ -273,7 +350,7 @@ class Item:
     def check_bit(self, value, n):
         return (value & (0x1 << n)) != 0
 
-    # Output a warning if non-contigous bits are found in the the mask (guint64).
+    # Output a warning if non-contigous bits are found in the mask (guint64).
     # Note that this legimately happens in several dissectors where multiple reserved/unassigned
     # bits are conflated into one field.
     # TODO: there is probably a cool/efficient way to check this?
@@ -322,6 +399,7 @@ class Item:
         while n <= 63:
             if self.check_bit(self.mask_value, n):
                 print('Warning:', self.filename, 'filter=', self.filter, ' - mask with non-contiguous bits', mask)
+                warnings_found += 1
                 return
             n += 1
 
@@ -381,23 +459,62 @@ class Item:
     def check_digits_all_zeros(self, mask):
         if mask.startswith('0x') and len(mask) > 3:
             if mask[2:] == '0'*(len(mask)-2):
-                print('Warning: ', self.filename, 'filter=', self.filter, ' - item has all zeros - this is confusing! :', mask)
+                print('Warning:', self.filename, 'filter=', self.filter, ' - item has all zeros - this is confusing! :', mask)
                 global warnings_found
                 warnings_found += 1
+
+
+class CombinedCallsCheck:
+    def __init__(self, file, apiChecks):
+        self.file = file
+        self.apiChecks = apiChecks
+        self.get_all_calls()
+
+    def get_all_calls(self):
+        self.all_calls = []
+        # Combine calls into one list.
+        for check in self.apiChecks:
+            self.all_calls += check.calls
+
+        # Sort by line number.
+        self.all_calls.sort(key=lambda x:x.line_number)
+
+    def check_consecutive_item_calls(self):
+        lines = open(self.file, 'r').read().splitlines()
+
+        prev = None
+        for call in self.all_calls:
+            if prev and call.hf_name == prev.hf_name:
+                # More compelling if close together..
+                if call.line_number>prev.line_number and call.line_number-prev.line_number <= 4:
+                    scope_different = False
+                    for l in range(prev.line_number, call.line_number-1):
+                        if lines[l].find('{') != -1 or lines[l].find('}') != -1 or lines[l].find('else') != -1 or lines[l].find('break;') != -1 or lines[l].find('if ') != -1:
+                            scope_different = True
+                            break
+                    # Also more compelling if check for and scope changes { } in lines in-between?
+                    if not scope_different:
+                        print('Warning:', f + ':' + str(call.line_number),
+                              call.hf_name + ' called consecutively at line', call.line_number, '- previous at', prev.line_number)
+                        global warnings_found
+                        warnings_found += 1
+            prev = call
+
+
 
 
 # These are APIs in proto.c that check a set of types at runtime and can print '.. is not of type ..' to the console
 # if the type is not suitable.
 apiChecks = []
-apiChecks.append(APICheck('proto_tree_add_item_ret_uint', { 'FT_CHAR', 'FT_UINT8', 'FT_UINT16', 'FT_UINT24', 'FT_UINT32'}))
+apiChecks.append(APICheck('proto_tree_add_item_ret_uint', { 'FT_CHAR', 'FT_UINT8', 'FT_UINT16', 'FT_UINT24', 'FT_UINT32'}, positive_length=True))
 apiChecks.append(APICheck('proto_tree_add_item_ret_int', { 'FT_INT8', 'FT_INT16', 'FT_INT24', 'FT_INT32'}))
-apiChecks.append(APICheck('ptvcursor_add_ret_uint', { 'FT_CHAR', 'FT_UINT8', 'FT_UINT16', 'FT_UINT24', 'FT_UINT32'}))
-apiChecks.append(APICheck('ptvcursor_add_ret_int', { 'FT_INT8', 'FT_INT16', 'FT_INT24', 'FT_INT32'}))
+apiChecks.append(APICheck('ptvcursor_add_ret_uint', { 'FT_CHAR', 'FT_UINT8', 'FT_UINT16', 'FT_UINT24', 'FT_UINT32'}, positive_length=True))
+apiChecks.append(APICheck('ptvcursor_add_ret_int', { 'FT_INT8', 'FT_INT16', 'FT_INT24', 'FT_INT32'}, positive_length=True))
 apiChecks.append(APICheck('ptvcursor_add_ret_string', { 'FT_STRING', 'FT_STRINGZ', 'FT_UINT_STRING', 'FT_STRINGZPAD', 'FT_STRINGZTRUNC'}))
-apiChecks.append(APICheck('ptvcursor_add_ret_boolean', { 'FT_BOOLEAN'}))
-apiChecks.append(APICheck('proto_tree_add_item_ret_uint64', { 'FT_UINT40', 'FT_UINT48', 'FT_UINT56', 'FT_UINT64'}))
-apiChecks.append(APICheck('proto_tree_add_item_ret_int64', { 'FT_INT40', 'FT_INT48', 'FT_INT56', 'FT_INT64'}))
-apiChecks.append(APICheck('proto_tree_add_item_ret_boolean', { 'FT_BOOLEAN'}))
+apiChecks.append(APICheck('ptvcursor_add_ret_boolean', { 'FT_BOOLEAN'}, positive_length=True))
+apiChecks.append(APICheck('proto_tree_add_item_ret_uint64', { 'FT_UINT40', 'FT_UINT48', 'FT_UINT56', 'FT_UINT64'}, positive_length=True))
+apiChecks.append(APICheck('proto_tree_add_item_ret_int64', { 'FT_INT40', 'FT_INT48', 'FT_INT56', 'FT_INT64'}, positive_length=True))
+apiChecks.append(APICheck('proto_tree_add_item_ret_boolean', { 'FT_BOOLEAN'}, positive_length=True))
 apiChecks.append(APICheck('proto_tree_add_item_ret_string_and_length', { 'FT_STRING', 'FT_STRINGZ', 'FT_UINT_STRING', 'FT_STRINGZPAD', 'FT_STRINGZTRUNC'}))
 apiChecks.append(APICheck('proto_tree_add_item_ret_display_string_and_length', { 'FT_STRING', 'FT_STRINGZ', 'FT_UINT_STRING',
                                                                                  'FT_STRINGZPAD', 'FT_STRINGZTRUNC', 'FT_BYTES', 'FT_UINT_BYTES'}))
@@ -432,9 +549,11 @@ apiChecks.append(APICheck('proto_tree_add_item_ret_varint', { 'FT_INT8', 'FT_INT
 apiChecks.append(APICheck('proto_tree_add_boolean_bits_format_value', { 'FT_BOOLEAN'}))
 apiChecks.append(APICheck('proto_tree_add_boolean_bits_format_value64', { 'FT_BOOLEAN'}))
 apiChecks.append(APICheck('proto_tree_add_ascii_7bits_item', { 'FT_STRING'}))
-apiChecks.append(APICheck('proto_tree_add_checksum', { 'FT_UINT8', 'FT_UINT16', 'FT_UINT24', 'FT_UINT32'}))
+# TODO: positions are different, and takes 2 hf_fields..
+#apiChecks.append(APICheck('proto_tree_add_checksum', { 'FT_UINT8', 'FT_UINT16', 'FT_UINT24', 'FT_UINT32'}))
 apiChecks.append(APICheck('proto_tree_add_int64_bits_format_value', { 'FT_INT40', 'FT_INT48', 'FT_INT56', 'FT_INT64'}))
 
+# TODO: add proto_tree_add_bytes_item, proto_tree_add_time_item ?
 
 bitmask_types = { 'FT_CHAR', 'FT_UINT8', 'FT_UINT16', 'FT_UINT24', 'FT_UINT32',
                   'FT_INT8', 'FT_INT16', 'FT_INT24', 'FT_INT32',
@@ -449,7 +568,8 @@ apiChecks.append(APICheck('proto_tree_add_bitmask_with_flags_ret_uint64', bitmas
 apiChecks.append(APICheck('proto_tree_add_bitmask_value', bitmask_types))
 apiChecks.append(APICheck('proto_tree_add_bitmask_value_with_flags', bitmask_types))
 apiChecks.append(APICheck('proto_tree_add_bitmask_len', bitmask_types))
-apiChecks.append(APICheck('proto_tree_add_bitmask_text', bitmask_types))
+# TODO: doesn't even have an hf_item !
+#apiChecks.append(APICheck('proto_tree_add_bitmask_text', bitmask_types))
 
 # Check some ptvcuror calls too.
 apiChecks.append(APICheck('ptvcursor_add_ret_uint', { 'FT_CHAR', 'FT_UINT8', 'FT_UINT16', 'FT_UINT24', 'FT_UINT32'}))
@@ -485,8 +605,8 @@ def isGeneratedFile(filename):
             line.find('automatically generated by Pidl') != -1 or
             line.find('Created by: The Qt Meta Object Compiler') != -1 or
             line.find('This file was generated') != -1 or
-            line.find('This filter was automatically generated') != -1):
-
+            line.find('This filter was automatically generated') != -1 or
+            line.find('This file is auto generated, do not edit!') != -1):
 
             f_read.close()
             return True
@@ -496,7 +616,7 @@ def isGeneratedFile(filename):
     f_read.close()
     return False
 
-# Look for hf items in a dissector file.
+# Look for hf items (i.e. full item to be registered) in a dissector file.
 def find_items(filename, check_mask=False, check_label=False, check_consecutive=False):
     is_generated = isGeneratedFile(filename)
     items = {}
@@ -504,7 +624,7 @@ def find_items(filename, check_mask=False, check_label=False, check_consecutive=
         contents = f.read()
         # Remove comments so as not to trip up RE.
         contents = removeComments(contents)
-        matches = re.finditer(r'.*\{\s*\&(hf_.*),\s*{\s*\"(.+)\",\s*\"([a-zA-Z0-9_\-\.]+)\",\s*([A-Z0-9_]*),\s*(.*),\s*([&A-Za-z0-9x_\(\)]*),\s*([a-z0-9x_]*),', contents)
+        matches = re.finditer(r'.*\{\s*\&(hf_[a-z_A-Z0-9]*)\s*,\s*{\s*\"*(.+)\"*\s*,\s*\"([a-zA-Z0-9_\-\.]+)\"\s*,\s*([a-zA-Z0-9_]*)\s*,\s*(.*)\s*,\s*([\&A-Za-z0-9x_<\|\s\(\)]*)\s*,\s*([ a-zA-Z0-9x_\<\~\|\(\)]*)\s*,', contents)
         for m in matches:
             # Store this item.
             hf = m.group(1)
@@ -515,10 +635,32 @@ def find_items(filename, check_mask=False, check_label=False, check_consecutive=
                              check_consecutive=(not is_generated and check_consecutive))
     return items
 
+def find_item_declarations(filename):
+    items = set()
+
+    with open(filename, 'r') as f:
+        lines = f.read().splitlines()
+        p = re.compile(r'^static int (hf_[a-zA-Z0-9_]*)\s*\=\s*-1;')
+        for line in lines:
+            m = p.search(line)
+            if m:
+                items.add(m.group(1))
+    return items
+
+def find_item_extern_declarations(filename):
+    items = set()
+    with open(filename, 'r') as f:
+        lines = f.read().splitlines()
+        p = re.compile(r'^\s*(hf_[a-zA-Z0-9_]*)\s*\=\s*proto_registrar_get_id_byname\s*\(')
+        for line in lines:
+            m = p.search(line)
+            if m:
+                items.add(m.group(1))
+    return items
 
 
 def is_dissector_file(filename):
-    p = re.compile(r'.*packet-.*\.c')
+    p = re.compile(r'.*(packet|file)-.*\.c$')
     return p.match(filename)
 
 
@@ -544,19 +686,26 @@ def findDissectorFilesInFolder(folder, dissector_files=None, recursive=False):
 
 
 # Run checks on the given dissector file.
-def checkFile(filename, check_mask=False, check_label=False, check_consecutive=False):
+def checkFile(filename, check_mask=False, check_label=False, check_consecutive=False, check_missing_items=False):
     # Check file exists - e.g. may have been deleted in a recent commit.
     if not os.path.exists(filename):
         print(filename, 'does not exist!')
         return
 
     # Find important parts of items.
-    items = find_items(filename, check_mask, check_label, check_consecutive)
+    items_defined = find_items(filename, check_mask, check_label, check_consecutive)
+    items_extern_declared = {}
+
+    items_declared = {}
+    if check_missing_items:
+        items_declared = find_item_declarations(filename)
+        items_extern_declared = find_item_extern_declarations(filename)
+
 
     # Check each API
     for c in apiChecks:
         c.find_calls(filename)
-        c.check_against_items(items)
+        c.check_against_items(items_defined, items_declared, items_extern_declared, check_missing_items)
 
 
 
@@ -566,7 +715,7 @@ def checkFile(filename, check_mask=False, check_label=False, check_consecutive=F
 # command-line args.  Controls which dissector files should be checked.
 # If no args given, will just scan epan/dissectors folder.
 parser = argparse.ArgumentParser(description='Check calls in dissectors')
-parser.add_argument('--file', action='store', default='',
+parser.add_argument('--file', action='append',
                     help='specify individual dissector file to test')
 parser.add_argument('--folder', action='store', default='',
                     help='specify folder to test')
@@ -580,6 +729,9 @@ parser.add_argument('--label', action='store_true',
                    help='when set, check label field too')
 parser.add_argument('--consecutive', action='store_true',
                     help='when set, copy copy/paste errors between consecutive items')
+parser.add_argument('--missing-items', action='store_true',
+                    help='when set, look for used items that were never registered')
+
 
 
 args = parser.parse_args()
@@ -588,11 +740,15 @@ args = parser.parse_args()
 # Get files from wherever command-line args indicate.
 files = []
 if args.file:
-    # Add single specified file
-    if not args.file.startswith('epan') and not os.path.exists(args.file):
-        files.append(os.path.join('epan', 'dissectors', args.file))
-    else:
-        files.append(args.file)
+    # Add specified file(s)
+    for f in args.file:
+        if not f.startswith('epan'):
+            f = os.path.join('epan', 'dissectors', f)
+        if not os.path.isfile(f):
+            print('Chosen file', f, 'does not exist.')
+            exit(1)
+        else:
+            files.append(f)
 elif args.folder:
     # Add all files from a given folder.
     folder = args.folder
@@ -646,7 +802,14 @@ else:
 for f in files:
     if should_exit:
         exit(1)
-    checkFile(f, check_mask=args.mask, check_label=args.label, check_consecutive=args.consecutive)
+    checkFile(f, check_mask=args.mask, check_label=args.label,
+              check_consecutive=args.consecutive, check_missing_items=args.missing_items)
+
+    # Do checks against all calls.
+    if args.consecutive:
+        combined_calls = CombinedCallsCheck(f, apiChecks)
+        combined_calls.check_consecutive_item_calls()
+
 
 # Show summary.
 print(warnings_found, 'warnings')

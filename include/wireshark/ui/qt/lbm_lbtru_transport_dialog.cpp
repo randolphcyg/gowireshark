@@ -15,7 +15,7 @@
 #include "file.h"
 
 #include <ui/qt/utils/qt_ui_utils.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 
 #include <QClipboard>
 #include <QMessageBox>
@@ -1629,8 +1629,7 @@ LBMLBTRUTransportDialog::LBMLBTRUTransportDialog(QWidget * parent, capture_file 
     m_ui->receivers_TreeWidget->setColumnHidden(Receiver_ACKFramesBytes_Column, true);
     m_ui->receivers_TreeWidget->setColumnHidden(Receiver_CREQFramesBytes_Column, true);
 
-    connect(this, SIGNAL(accepted()), this, SLOT(closeDialog()));
-    connect(this, SIGNAL(rejected()), this, SLOT(closeDialog()));
+    setAttribute(Qt::WA_DeleteOnClose, true);
     fillTree();
 }
 
@@ -1742,7 +1741,7 @@ void LBMLBTRUTransportDialog::resetTap(void * tap_data)
     info->clearMaps();
 }
 
-tap_packet_status LBMLBTRUTransportDialog::tapPacket(void * tap_data, packet_info * pinfo, epan_dissect_t *, const void * tap_info)
+tap_packet_status LBMLBTRUTransportDialog::tapPacket(void * tap_data, packet_info * pinfo, epan_dissect_t *, const void * tap_info, tap_flags_t)
 {
     if (pinfo->fd->passed_dfilter == 1)
     {
@@ -1761,11 +1760,6 @@ void LBMLBTRUTransportDialog::drawTreeItems(void *)
 void LBMLBTRUTransportDialog::on_applyFilterButton_clicked(void)
 {
     fillTree();
-}
-
-void LBMLBTRUTransportDialog::closeDialog(void)
-{
-    delete this;
 }
 
 void LBMLBTRUTransportDialog::sourcesDetailCurrentChanged(int index)
@@ -1974,7 +1968,7 @@ void LBMLBTRUTransportDialog::receiversDetailItemDoubleClicked(QTreeWidgetItem *
 
 void LBMLBTRUTransportDialog::custom_source_context_menuRequested(const QPoint & pos)
 {
-    m_source_context_menu->exec(m_source_header->mapToGlobal(pos));
+    m_source_context_menu->popup(m_source_header->mapToGlobal(pos));
 }
 
 void LBMLBTRUTransportDialog::actionSourceDataFrames_triggered(bool checked)
@@ -2108,7 +2102,7 @@ void LBMLBTRUTransportDialog::actionSourceAutoResizeColumns_triggered(void)
 
 void LBMLBTRUTransportDialog::custom_receiver_context_menuRequested(const QPoint & pos)
 {
-    m_receiver_context_menu->exec(m_receiver_header->mapToGlobal(pos));
+    m_receiver_context_menu->popup(m_receiver_header->mapToGlobal(pos));
 }
 
 void LBMLBTRUTransportDialog::actionReceiverNAKFrames_triggered(bool checked)

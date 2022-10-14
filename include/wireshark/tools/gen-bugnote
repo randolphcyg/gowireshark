@@ -36,10 +36,19 @@ fi
 
 issue_title=$(
     curl -s -o - "${gitlab_issue_url_pfx}/$issue_id" \
-    | jq --raw-output '.title'
+    | jq '.title'
     )
 
-echo -e "* $issue_title wsbuglink:${issue_id}[].\\n" \
+# We can escape backslashes in jq's --raw-output or we can trim quotes off
+# its plain output.
+issue_title="${issue_title%\"}"
+issue_title="${issue_title#\"}"
+trailing_period=""
+if [[ ! ${issue_title: -1} =~ [[:punct:]] ]] ; then
+    trailing_period="."
+fi
+
+printf "* %s%s wsbuglink:${issue_id}[].\\n" "$issue_title" "$trailing_period" \
     | $clipboard_cmd
 
 echo "Copied $issue_id: $issue_title"

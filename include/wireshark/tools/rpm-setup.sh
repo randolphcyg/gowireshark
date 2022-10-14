@@ -55,11 +55,11 @@ BASIC_LIST="cmake \
 	gcc-c++ \
 	flex \
 	python3 \
-	perl \
 	desktop-file-utils \
 	git \
 	glib2-devel \
 	libpcap-devel \
+	pcre2-devel \
 	zlib-devel \
 	libgcrypt-devel"
 
@@ -71,6 +71,7 @@ ADDITIONAL_LIST="libcap-devel \
 	minizip-devel \
 	lz4 \
 	libxml2-devel \
+	perl \
 	spandsp-devel \
 	systemd-devel"
 
@@ -177,6 +178,10 @@ echo "Required Qt5 Mutlimedia and/or Qt5 Print Support is unavailable" >&2
 # This in only required on OpenSUSE
 add_package BASIC_LIST libqt5-qtsvg-devel ||
 echo "Required OpenSUSE package libqt5-qtsvg-devel is unavailable. Not required for other distributions." >&2
+
+# This in only required on OpenSUSE
+add_package BASIC_LIST libQt5Concurrent-devel ||
+echo "Required OpenSUSE package libQt5Concurrent-devel is unavailable. Not required for other distributions." >&2
 
 # This in only required on OpenSUSE
 add_packages BASIC_LIST hicolor-icon-theme xdg-utils ||

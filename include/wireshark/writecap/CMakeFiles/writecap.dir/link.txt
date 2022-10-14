@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../run/libwritecap.a  CMakeFiles/writecap.dir/pcapio.c.o
+/usr/bin/ranlib ../run/libwritecap.a

@@ -15,7 +15,7 @@
 #include "file.h"
 
 #include <ui/qt/utils/qt_ui_utils.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 
 #include <QClipboard>
 #include <QMenu>
@@ -1214,8 +1214,7 @@ LBMLBTRMTransportDialog::LBMLBTRMTransportDialog(QWidget * parent, capture_file 
     m_ui->sources_TreeWidget->setColumnHidden(Source_NCFFramesCountBytes_Column, true);
     m_ui->sources_TreeWidget->setColumnHidden(Source_SMFramesBytes_Column, true);
 
-    connect(this, SIGNAL(accepted()), this, SLOT(closeDialog()));
-    connect(this, SIGNAL(rejected()), this, SLOT(closeDialog()));
+    setAttribute(Qt::WA_DeleteOnClose, true);
     fillTree();
 }
 
@@ -1323,7 +1322,7 @@ void LBMLBTRMTransportDialog::resetTap(void * tap_data)
     info->clearMaps();
 }
 
-tap_packet_status LBMLBTRMTransportDialog::tapPacket(void * tap_data, packet_info * pinfo, epan_dissect_t *, const void * tap_info)
+tap_packet_status LBMLBTRMTransportDialog::tapPacket(void * tap_data, packet_info * pinfo, epan_dissect_t *, const void * tap_info, tap_flags_t)
 {
     if (pinfo->fd->passed_dfilter == 1)
     {
@@ -1342,11 +1341,6 @@ void LBMLBTRMTransportDialog::drawTreeItems(void *)
 void LBMLBTRMTransportDialog::on_applyFilterButton_clicked(void)
 {
     fillTree();
-}
-
-void LBMLBTRMTransportDialog::closeDialog(void)
-{
-    delete this;
 }
 
 void LBMLBTRMTransportDialog::sourcesDetailCurrentChanged(int index)
@@ -1487,7 +1481,7 @@ void LBMLBTRMTransportDialog::receiversDetailItemDoubleClicked(QTreeWidgetItem *
 
 void LBMLBTRMTransportDialog::custom_source_context_menuRequested(const QPoint & pos)
 {
-    m_source_context_menu->exec(m_source_header->mapToGlobal(pos));
+    m_source_context_menu->popup(m_source_header->mapToGlobal(pos));
 }
 
 void LBMLBTRMTransportDialog::actionSourceDataFrames_triggered(bool checked)

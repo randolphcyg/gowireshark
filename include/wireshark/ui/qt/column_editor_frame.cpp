@@ -11,13 +11,13 @@
 
 #include <glib.h>
 
-#include <epan/column-info.h>
 #include <epan/column.h>
 #include <epan/prefs.h>
 #include <ui/recent.h>
 
 #include <ui/preference_utils.h>
-#include <ui/qt/wireshark_application.h>
+
+#include "main_application.h"
 
 #include "column_editor_frame.h"
 #include <ui_column_editor_frame.h>
@@ -43,8 +43,10 @@ ColumnEditorFrame::ColumnEditorFrame(QWidget *parent) :
         ui->typeComboBox->addItem(col_format_desc(i), QVariant(i));
     }
 
-    connect(ui->fieldsNameLineEdit, SIGNAL(textChanged(QString)),
-            ui->fieldsNameLineEdit, SLOT(checkCustomColumn(QString)));
+    connect(ui->fieldsNameLineEdit, &FieldFilterEdit::textChanged,
+            ui->fieldsNameLineEdit, &FieldFilterEdit::checkCustomColumn);
+    connect(ui->fieldsNameLineEdit, &FieldFilterEdit::textChanged,
+            this, &ColumnEditorFrame::checkCanResolve);
 }
 
 ColumnEditorFrame::~ColumnEditorFrame()
@@ -75,6 +77,7 @@ void ColumnEditorFrame::setFields(int index)
         ui->fieldsNameLineEdit->setSyntaxState(SyntaxLineEdit::Empty);
         ui->occurrenceLineEdit->clear();
         ui->occurrenceLineEdit->setSyntaxState(SyntaxLineEdit::Empty);
+        ui->resolvedCheckBox->setEnabled(false);
     }
     ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(ok);
 }
@@ -86,6 +89,7 @@ void ColumnEditorFrame::editColumn(int column)
     saved_fields_ = get_column_custom_fields(column);
     saved_occurrence_ = QString::number(get_column_custom_occurrence(column));
     ui->typeComboBox->setCurrentIndex(get_column_format(column));
+    ui->resolvedCheckBox->setChecked(get_column_resolved(column));
     setFields(ui->typeComboBox->currentIndex());
 }
 
@@ -151,6 +155,9 @@ void ColumnEditorFrame::on_buttonBox_accepted()
             if (!ui->occurrenceLineEdit->text().isEmpty()) {
                 set_column_custom_occurrence(cur_column_, ui->occurrenceLineEdit->text().toInt());
             }
+            if (ui->resolvedCheckBox->isEnabled()) {
+                set_column_resolved(cur_column_, ui->resolvedCheckBox->isChecked());
+            }
         }
         prefs_main_write();
         emit columnEdited();
@@ -168,14 +175,24 @@ void ColumnEditorFrame::keyPressEvent(QKeyEvent *event)
             if (ui->buttonBox->button(QDialogButtonBox::Ok)->isEnabled()) {
                 on_buttonBox_accepted();
             } else if (ui->fieldsNameLineEdit->syntaxState() == SyntaxLineEdit::Empty) {
-                wsApp->pushStatus(WiresharkApplication::FilterSyntax, tr("Missing fields."));
+                mainApp->pushStatus(MainApplication::FilterSyntax, tr("Missing fields."));
             } else if (ui->fieldsNameLineEdit->syntaxState() != SyntaxLineEdit::Valid) {
-                wsApp->pushStatus(WiresharkApplication::FilterSyntax, tr("Invalid fields."));
+                mainApp->pushStatus(MainApplication::FilterSyntax, tr("Invalid fields."));
             } else if (ui->occurrenceLineEdit->syntaxState() == SyntaxLineEdit::Invalid) {
-                wsApp->pushStatus(WiresharkApplication::FilterSyntax, tr("Invalid occurrence value."));
+                mainApp->pushStatus(MainApplication::FilterSyntax, tr("Invalid occurrence value."));
             }
         }
     }
 
     AccordionFrame::keyPressEvent(event);
+}
+
+void ColumnEditorFrame::checkCanResolve()
+{
+    if (ui->fieldsNameLineEdit->syntaxState() == SyntaxLineEdit::Valid && column_prefs_custom_resolve(ui->fieldsNameLineEdit->text().toUtf8().constData())) {
+        ui->resolvedCheckBox->setEnabled(true);
+    } else  {
+        ui->resolvedCheckBox->setEnabled(false);
+        ui->resolvedCheckBox->setChecked(false);
+    }
 }

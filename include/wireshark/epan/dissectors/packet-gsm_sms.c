@@ -230,6 +230,8 @@ static int hf_gsm_sms_dis_field_addr_length = -1;
 static int hf_gsm_sms_dis_iei_uds_position = -1;
 static int hf_gsm_sms_dis_iei_tf_length = -1;
 static int hf_gsm_sms_dis_iei_pa_animation_number = -1;
+static int hf_gsm_sms_dis_iei_lang_single_shift = -1;
+static int hf_gsm_sms_dis_iei_lang_locking_shift = -1;
 static gint hf_gsm_sms_dis_field_udh_gsm_mask00 = -1;
 static gint hf_gsm_sms_dis_field_udh_gsm_mask01 = -1;
 static gint hf_gsm_sms_dis_field_udh_gsm_mask03 = -1;
@@ -287,7 +289,7 @@ static value_string_ext gsm_sms_coding_group_bits_vals_ext = VALUE_STRING_EXT_IN
 static dissector_table_t gsm_sms_dissector_tbl;
 /* Short Message reassembly */
 static reassembly_table g_sm_reassembly_table;
-static wmem_map_t *g_sm_fragment_params_table = NULL;
+static wmem_multimap_t *g_sm_fragment_params_table = NULL;
 static gint ett_gsm_sms_ud_fragment = -1;
 static gint ett_gsm_sms_ud_fragments = -1;
  /*
@@ -808,7 +810,7 @@ static const true_false_string tfs_message_class_defined = { "Defined below", "R
 
 static void
 dis_field_dcs(tvbuff_t *tvb, proto_tree *tree, guint32 offset, guint8 oct,
-    gboolean *seven_bit, gboolean *eight_bit, gboolean *ucs2, gboolean *compressed)
+    enum character_set *cset, gboolean *compressed)
 {
     proto_item  *item;
     proto_tree  *subtree;
@@ -816,9 +818,7 @@ dis_field_dcs(tvbuff_t *tvb, proto_tree *tree, guint32 offset, guint8 oct,
     gboolean     default_3_bits;
     gboolean     default_data;
 
-    *seven_bit  = FALSE;
-    *eight_bit  = FALSE;
-    *ucs2       = FALSE;
+    *cset       = OTHER;
     *compressed = FALSE;
 
     item = proto_tree_add_item(tree, hf_gsm_sms_tp_dcs, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -834,7 +834,7 @@ dis_field_dcs(tvbuff_t *tvb, proto_tree *tree, guint32 offset, guint8 oct,
     {
         proto_tree_add_item(subtree, hf_gsm_sms_gsm_7_bit_default_alphabet, tvb, offset, 1, ENC_NA);
 
-        *seven_bit = TRUE;
+        *cset      = GSM_7BITS;
         return;
     }
 
@@ -853,6 +853,7 @@ dis_field_dcs(tvbuff_t *tvb, proto_tree *tree, guint32 offset, guint8 oct,
         break;
 
     case 2:
+        /* Reserved coding groups */
         return;
 
     case 3:
@@ -860,15 +861,15 @@ dis_field_dcs(tvbuff_t *tvb, proto_tree *tree, guint32 offset, guint8 oct,
         {
         case 0x00:
             default_3_bits = TRUE;
-            *seven_bit = TRUE;
+            *cset      = GSM_7BITS;
             break;
         case 0x01:
             default_3_bits = TRUE;
-            *seven_bit = TRUE;
+            *cset      = GSM_7BITS;
             break;
         case 0x02:
             default_3_bits = TRUE;
-            *ucs2 = TRUE;
+            *cset      = UCS2;
             break;
         case 0x03:
             default_data = TRUE;
@@ -886,15 +887,16 @@ dis_field_dcs(tvbuff_t *tvb, proto_tree *tree, guint32 offset, guint8 oct,
         switch ((oct & 0x0c) >> 2)
         {
         case 0x00:
-            *seven_bit = TRUE;
+            *cset      = GSM_7BITS;
             break;
         case 0x01:
-            *eight_bit = TRUE;
+            *cset      = OTHER;
             break;
         case 0x02:
-            *ucs2 = TRUE;
+            *cset      = UCS2;
             break;
         case 0x03:
+            /* Reserved */
             break;
         }
 
@@ -909,7 +911,7 @@ dis_field_dcs(tvbuff_t *tvb, proto_tree *tree, guint32 offset, guint8 oct,
     }
     else if (default_data)
     {
-        *seven_bit = !(*eight_bit = (oct & 0x04) ? TRUE : FALSE);
+        *cset      = (oct & 0x04) ? OTHER : GSM_7BITS;
         proto_tree_add_item(subtree, hf_gsm_sms_dcs_reserved08, tvb, offset, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(subtree, hf_gsm_sms_dcs_message_coding, tvb, offset, 1, ENC_NA);
         proto_tree_add_item(subtree, hf_gsm_sms_dcs_message_class, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -1756,13 +1758,66 @@ dis_iei_upi(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, guint32 offset,
     offset++;
 }
 
+/* TS 123.038 V17.0.0 (2022-04), Table 6.2.1.4.1 */
+static const value_string lang_single_shift_vals[] = {
+    { 0x01, "Turkish" },
+    { 0x02, "Spanish" },
+    { 0x03, "Portuguese" },
+    { 0x04, "Bengali" },
+    { 0x05, "Gujarati" },
+    { 0x06, "Hindi" },
+    { 0x07, "Kannada" },
+    { 0x08, "Malayalam" },
+    { 0x09, "Oriya" },
+    { 0x0A, "Punjabi" },
+    { 0x0B, "Tamil" },
+    { 0x0C, "Telugu" },
+    { 0x0D, "Urdu" },
+    { 0, NULL }
+};
+
+/* 9.2.3.24.15 */
+static void
+dis_iei_lang_ss(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, guint32 offset, guint8 length, gsm_sms_udh_fields_t *p_udh_fields _U_)
+{
+    EXACT_DATA_CHECK(length, 1);
+
+    proto_tree_add_item(tree, hf_gsm_sms_dis_iei_lang_single_shift, tvb, offset, 1, ENC_BIG_ENDIAN);
+}
+
+/* TS 123.038 V17.0.0 (2022-04), Table 6.2.1.4.1 */
+static const value_string lang_locking_shift_vals[] = {
+    { 0x01, "Turkish" },
+//  { 0x02, "Spanish" }, Not defined, fallback to GSM 7 bit alphabet
+    { 0x03, "Portuguese" },
+    { 0x04, "Bengali" },
+    { 0x05, "Gujarati" },
+    { 0x06, "Hindi" },
+    { 0x07, "Kannada" },
+    { 0x08, "Malayalam" },
+    { 0x09, "Oriya" },
+    { 0x0A, "Punjabi" },
+    { 0x0B, "Tamil" },
+    { 0x0C, "Telugu" },
+    { 0x0D, "Urdu" },
+    { 0, NULL }
+};
+
+/* 9.2.3.24.16 */
+static void
+dis_iei_lang_ls(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, guint32 offset, guint8 length, gsm_sms_udh_fields_t *p_udh_fields _U_)
+{
+    EXACT_DATA_CHECK(length, 1);
+
+    proto_tree_add_item(tree, hf_gsm_sms_dis_iei_lang_locking_shift, tvb, offset, 1, ENC_BIG_ENDIAN);
+}
 
 /*
  * 9.2.3.24 TP-User Data (TP-UD)
  * Information Element Identifier octet
  */
 
-/* TS 123 040 V9.3.0 (2010-10) */
+/* TS 123 040 V17.2.0 (2022-05) */
 static const range_string gsm_sms_tp_ud_ie_id_rvals[] = {
     { 0x00, 0x00,  "Concatenated short messages, 8-bit reference number (SMS Control)" },
     { 0x01, 0x01,  "Special SMS Message Indication (SMS Control)" },
@@ -1795,10 +1850,14 @@ static const range_string gsm_sms_tp_ud_ie_id_rvals[] = {
     { 0x20, 0x20,  "RFC 822 E-Mail Header (SMS Control)" },
     { 0x21, 0x21,  "Hyperlink format element (SMS Control)" },
     { 0x22, 0x22,  "Reply Address Element (SMS Control)" },
+    { 0x23, 0x23,  "Enhanced Voice Mail Information (SMS Control)" },
+    { 0x24, 0x24,  "National Language Single Shift (SMS Control)" },
+    { 0x25, 0x25,  "National Language Locking Shift (SMS Control)" },
+    { 0x26, 0x6F,  "Reserved for future use N/A" },
     { 0x70, 0x7F,  "(U)SIM Toolkit Security Headers (SMS Control)" },
     { 0x80, 0x9F,  "SME to SME specific use (SMS Control)" },
     { 0xA0, 0xBF,  "Reserved for future use N/A" },
-    { 0xC0, 0xDF,  "SME to SME specific use (SMS Control)" },
+    { 0xC0, 0xDF,  "SC specific use (SMS Control)" },
     { 0xE0, 0xFF,  "Reserved for future use N/A" },
     { 0x00, 0x00,  NULL },
 };
@@ -1871,6 +1930,12 @@ dis_field_ud_iei(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, guint32 of
             case 0x13:
                 iei_fcn = dis_iei_upi;
                 break;
+            case 0x24:
+                iei_fcn = dis_iei_lang_ss;
+                break;
+            case 0x25:
+                iei_fcn = dis_iei_lang_ls;
+                break;
         }
 
         iei_len = tvb_get_guint8(tvb, offset + 1);
@@ -1935,7 +2000,7 @@ dis_field_udh(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, guint32 *offs
     *offset += oct;
     *length -= oct;
 
-    if (cset != OTHER)
+    if (cset == GSM_7BITS || cset == ASCII_7BITS)
     {
         /* step over fill bits ? */
 
@@ -1965,8 +2030,8 @@ dis_field_udh(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, guint32 *offs
 #define SMS_MAX_MESSAGE_SIZE 160
 static void
 dis_field_ud(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset,
-             guint32 length, gboolean udhi, guint8 udl, gboolean seven_bit,
-             gboolean eight_bit, gboolean ucs2, gboolean compressed, gsm_sms_data_t *data)
+             guint32 length, gboolean udhi, guint8 udl, enum character_set cset,
+             gboolean compressed, gsm_sms_data_t *data)
 {
     proto_tree        *subtree;
     tvbuff_t          *sm_tvb = NULL;
@@ -2040,20 +2105,14 @@ dis_field_ud(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset
                             offset, length,
                             ett_ud, NULL, "TP-User-Data");
 
+    if (data && data->stk_packing_required)
+    {
+        cset = GSM_7BITS_UNPACKED;
+    }
+
     if (udhi)
     {
-        enum character_set cset;
-
-        if (data && data->stk_packing_required)
-        {
-            cset = OTHER;
-        }
-        else
-        {
-            cset = (seven_bit && !compressed) ? GSM_7BITS : OTHER;
-        }
-
-        dis_field_udh(tvb, pinfo, subtree, &offset, &length, &udl, cset, &fill_bits, &udh_fields);
+        dis_field_udh(tvb, pinfo, subtree, &offset, &length, &udl, compressed ? OTHER : cset, &fill_bits, &udh_fields);
     }
 
     if (udh_fields.frags > 1)
@@ -2106,7 +2165,7 @@ dis_field_ud(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset
             p_frag_params->udl = udl;
             p_frag_params->fill_bits =  fill_bits;
             p_frag_params->length = length;
-            wmem_map_insert(g_sm_fragment_params_table, p_frag_params_key, p_frag_params);
+            wmem_multimap_insert32(g_sm_fragment_params_table, p_frag_params_key, pinfo->num, p_frag_params);
         }
     } /* Else: not fragmented */
     if (! sm_tvb) /* One single Short Message, or not reassembled */
@@ -2118,7 +2177,7 @@ dis_field_ud(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset
     }
     else
     {
-        if (data && data->stk_packing_required)
+        if (cset == GSM_7BITS_UNPACKED)
         {
             /*
              * STK requires SMS packing by the terminal; this means
@@ -2148,18 +2207,18 @@ dis_field_ud(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset
                     copy_address_shallow(&frag_params_key.src, &pinfo->src);
                     copy_address_shallow(&frag_params_key.dst, &pinfo->dst);
                     frag_params_key.id = (udh_fields.sm_id<<16)|i;
-                    p_frag_params = (sm_fragment_params*)wmem_map_lookup(g_sm_fragment_params_table,
-                                                                         &frag_params_key);
+                    p_frag_params = (sm_fragment_params*)wmem_multimap_lookup32_le(g_sm_fragment_params_table,
+                                                                         &frag_params_key, pinfo->num);
 
                     if (p_frag_params) {
                         proto_tree_add_item(subtree, hf_gsm_sms_text, sm_tvb, total_sms_len,
-                                            p_frag_params->length, ENC_ASCII|ENC_NA);
+                                            p_frag_params->length, ENC_3GPP_TS_23_038_7BITS_UNPACKED);
                         total_sms_len += p_frag_params->length;
                     }
                 }
             }
         }
-        else if (seven_bit)
+        else if (cset == GSM_7BITS)
         {
             if(!(reassembled && pinfo->num == reassembled_in))
             {
@@ -2181,8 +2240,8 @@ dis_field_ud(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset
                     copy_address_shallow(&frag_params_key.src, &pinfo->src);
                     copy_address_shallow(&frag_params_key.dst, &pinfo->dst);
                     frag_params_key.id = (udh_fields.sm_id<<16)|i;
-                    p_frag_params = (sm_fragment_params*)wmem_map_lookup(g_sm_fragment_params_table,
-                                                                         &frag_params_key);
+                    p_frag_params = (sm_fragment_params*)wmem_multimap_lookup32_le(g_sm_fragment_params_table,
+                                                                         &frag_params_key, pinfo->num);
 
                     if (p_frag_params) {
                         proto_tree_add_ts_23_038_7bits_packed_item(subtree, hf_gsm_sms_text, sm_tvb,
@@ -2194,7 +2253,7 @@ dis_field_ud(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset
                 }
             }
         }
-        else if (eight_bit)
+        else if (cset == OTHER)
         {
             if (!is_fragmented || (reassembled && pinfo->num == reassembled_in)) {
                 if (! dissector_try_uint(gsm_sms_dissector_tbl, udh_fields.port_src, sm_tvb, pinfo, subtree))
@@ -2208,7 +2267,7 @@ dis_field_ud(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset
                 proto_tree_add_item(subtree, hf_gsm_sms_body, tvb, offset, length, ENC_NA);
             }
         }
-        else if (ucs2)
+        else if (cset == UCS2)
         {
             {
                 guint rep_len = tvb_reported_length(sm_tvb);
@@ -2235,8 +2294,8 @@ dis_field_ud(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset
                         copy_address_shallow(&frag_params_key.src, &pinfo->src);
                         copy_address_shallow(&frag_params_key.dst, &pinfo->dst);
                         frag_params_key.id = (udh_fields.sm_id<<16)|i;
-                        p_frag_params = (sm_fragment_params*)wmem_map_lookup(g_sm_fragment_params_table,
-                                                                             &frag_params_key);
+                        p_frag_params = (sm_fragment_params*)wmem_multimap_lookup32_le(g_sm_fragment_params_table,
+                                                                             &frag_params_key, pinfo->num);
 
                         if (p_frag_params) {
                             /* Decode as ENC_UTF_16 instead of UCS2 because Android and iOS smartphones
@@ -2282,15 +2341,13 @@ dis_field_pi(tvbuff_t *tvb, proto_tree *tree, guint32 offset)
 static void
 dis_msg_deliver(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, gsm_sms_data_t *data)
 {
-    guint32        saved_offset;
-    guint32        length;
-    guint8         oct;
-    guint8         udl;
-    gboolean       seven_bit;
-    gboolean       eight_bit;
-    gboolean       ucs2;
-    gboolean       compressed;
-    gboolean       udhi;
+    guint32             saved_offset;
+    guint32             length;
+    guint8              oct;
+    guint8              udl;
+    enum character_set  cset;
+    gboolean            compressed;
+    gboolean            udhi;
 
     saved_offset = offset;
     length = tvb_reported_length_remaining(tvb, offset);
@@ -2316,7 +2373,7 @@ dis_msg_deliver(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 off
     offset++;
     oct = tvb_get_guint8(tvb, offset);
 
-    dis_field_dcs(tvb, tree, offset, oct, &seven_bit, &eight_bit, &ucs2, &compressed);
+    dis_field_dcs(tvb, tree, offset, oct, &cset, &compressed);
 
     offset++;
     dis_field_scts(tvb, pinfo, tree, &offset);
@@ -2331,7 +2388,7 @@ dis_msg_deliver(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 off
         offset++;
 
         dis_field_ud(tvb, pinfo, tree, offset, length - (offset - saved_offset), udhi, udl,
-            seven_bit, eight_bit, ucs2, compressed, data);
+            cset, compressed, data);
     }
 }
 
@@ -2342,16 +2399,14 @@ dis_msg_deliver(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 off
 static void
 dis_msg_deliver_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, gsm_sms_data_t *data)
 {
-    guint32        saved_offset;
-    guint32        length;
-    guint8         oct;
-    guint8         pi;
-    guint8         udl;
-    gboolean       seven_bit = FALSE;
-    gboolean       eight_bit = FALSE;
-    gboolean       ucs2 = FALSE;
-    gboolean       compressed = FALSE;
-    gboolean       udhi;
+    guint32             saved_offset;
+    guint32             length;
+    guint8              oct;
+    guint8              pi;
+    guint8              udl;
+    enum character_set  cset = OTHER;
+    gboolean            compressed = FALSE;
+    gboolean            udhi;
 
 
     udl = 0;
@@ -2422,7 +2477,7 @@ dis_msg_deliver_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guin
         offset++;
         oct = tvb_get_guint8(tvb, offset);
 
-        dis_field_dcs(tvb, tree, offset, oct, &seven_bit, &eight_bit, &ucs2, &compressed);
+        dis_field_dcs(tvb, tree, offset, oct, &cset, &compressed);
     }
 
     if (pi & 0x04)
@@ -2446,7 +2501,7 @@ dis_msg_deliver_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guin
         offset++;
 
         dis_field_ud(tvb, pinfo, tree, offset, length - (offset - saved_offset), udhi, udl,
-            seven_bit, eight_bit, ucs2, compressed, data);
+            cset, compressed, data);
     }
 }
 
@@ -2457,16 +2512,14 @@ dis_msg_deliver_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guin
 static void
 dis_msg_submit(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, gsm_sms_data_t *data)
 {
-    guint32        saved_offset;
-    guint32        length;
-    guint8         oct;
-    guint8         vp_form;
-    guint8         udl;
-    gboolean       seven_bit;
-    gboolean       eight_bit;
-    gboolean       ucs2;
-    gboolean       compressed;
-    gboolean       udhi;
+    guint32             saved_offset;
+    guint32             length;
+    guint8              oct;
+    guint8              vp_form;
+    guint8              udl;
+    enum character_set  cset;
+    gboolean            compressed;
+    gboolean            udhi;
 
 
     saved_offset = offset;
@@ -2498,7 +2551,7 @@ dis_msg_submit(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offs
     offset++;
     oct = tvb_get_guint8(tvb, offset);
 
-    dis_field_dcs(tvb, tree, offset, oct, &seven_bit, &eight_bit, &ucs2, &compressed);
+    dis_field_dcs(tvb, tree, offset, oct, &cset, &compressed);
 
     offset++;
     dis_field_vp(tvb, pinfo, tree, &offset, vp_form);
@@ -2513,7 +2566,7 @@ dis_msg_submit(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offs
         offset++;
 
         dis_field_ud(tvb, pinfo, tree, offset, length - (offset - saved_offset), udhi, udl,
-            seven_bit, eight_bit, ucs2, compressed, data);
+            cset, compressed, data);
     }
 }
 
@@ -2524,16 +2577,14 @@ dis_msg_submit(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offs
 static void
 dis_msg_submit_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, gsm_sms_data_t *data)
 {
-    guint32        saved_offset;
-    guint32        length;
-    guint8         oct;
-    guint8         pi;
-    guint8         udl;
-    gboolean       seven_bit = FALSE;
-    gboolean       eight_bit = FALSE;
-    gboolean       ucs2 = FALSE;
-    gboolean       compressed = FALSE;
-    gboolean       udhi;
+    guint32             saved_offset;
+    guint32             length;
+    guint8              oct;
+    guint8              pi;
+    guint8              udl;
+    enum character_set  cset = OTHER;
+    gboolean            compressed = FALSE;
+    gboolean            udhi;
 
 
     udl = 0;
@@ -2596,7 +2647,7 @@ dis_msg_submit_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint
 
         oct = tvb_get_guint8(tvb, offset);
 
-        dis_field_dcs(tvb, tree, offset, oct, &seven_bit, &eight_bit, &ucs2, &compressed);
+        dis_field_dcs(tvb, tree, offset, oct, &cset, &compressed);
         offset++;
     }
 
@@ -2619,7 +2670,7 @@ dis_msg_submit_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint
     if (udl > 0)
     {
         dis_field_ud(tvb, pinfo, tree, offset, length - (offset - saved_offset), udhi, udl,
-            seven_bit, eight_bit, ucs2, compressed, data);
+            cset, compressed, data);
     }
 }
 
@@ -2630,16 +2681,14 @@ dis_msg_submit_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint
 static void
 dis_msg_status_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, gsm_sms_data_t *data)
 {
-    guint32        saved_offset;
-    guint32        length;
-    guint8         oct;
-    guint8         pi;
-    guint8         udl;
-    gboolean       seven_bit = FALSE;
-    gboolean       eight_bit = FALSE;
-    gboolean       ucs2 = FALSE;
-    gboolean       compressed = FALSE;
-    gboolean       udhi;
+    guint32             saved_offset;
+    guint32             length;
+    guint8              oct;
+    guint8              pi;
+    guint8              udl;
+    enum character_set  cset = OTHER;
+    gboolean            compressed = FALSE;
+    gboolean            udhi;
 
 
     udl = 0;
@@ -2711,7 +2760,7 @@ dis_msg_status_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint
         }
 
         oct = tvb_get_guint8(tvb, offset);
-        dis_field_dcs(tvb, tree, offset, oct, &seven_bit, &eight_bit, &ucs2, &compressed);
+        dis_field_dcs(tvb, tree, offset, oct, &cset, &compressed);
         offset++;
     }
 
@@ -2734,7 +2783,7 @@ dis_msg_status_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint
     if (udl > 0)
     {
         dis_field_ud(tvb, pinfo, tree, offset, length - (offset - saved_offset), udhi, udl,
-            seven_bit, eight_bit, ucs2, compressed, data);
+            cset, compressed, data);
     }
 }
 
@@ -2986,22 +3035,22 @@ proto_register_gsm_sms(void)
             },
             { &hf_gsm_sms_tp_oa,
               { "TP-OA Digits", "gsm_sms.tp-oa",
-                FT_STRING, STR_UNICODE, NULL, 0x00,
+                FT_STRING, BASE_NONE, NULL, 0x00,
                 "TP-Originating-Address Digits", HFILL }
             },
             { &hf_gsm_sms_tp_da,
               { "TP-DA Digits", "gsm_sms.tp-da",
-                FT_STRING, STR_UNICODE, NULL, 0x00,
+                FT_STRING, BASE_NONE, NULL, 0x00,
                 "TP-Destination-Address Digits", HFILL }
             },
             { &hf_gsm_sms_tp_ra,
               { "TP-RA Digits", "gsm_sms.tp-ra",
-                FT_STRING, STR_UNICODE, NULL, 0x00,
+                FT_STRING, BASE_NONE, NULL, 0x00,
                 "TP-Recipient-Address Digits", HFILL }
             },
             { &hf_gsm_sms_tp_digits,
               { "Digits", "gsm_sms.tp-digits",
-                FT_STRING, STR_UNICODE, NULL, 0x00,
+                FT_STRING, BASE_NONE, NULL, 0x00,
                 "TP (Unknown) Digits", HFILL }
             },
             { &hf_gsm_sms_tp_pid,
@@ -3066,7 +3115,7 @@ proto_register_gsm_sms(void)
             },
             { &hf_gsm_sms_text,
               { "SMS text", "gsm_sms.sms_text",
-                FT_STRING, STR_UNICODE, NULL, 0x00,
+                FT_STRING, BASE_NONE, NULL, 0x00,
                 "The text of the SMS", HFILL }
             },
             { &hf_gsm_sms_body,
@@ -3501,6 +3550,8 @@ proto_register_gsm_sms(void)
       { &hf_gsm_sms_dis_iei_vp_vertical_dimension, { "Vertical dimension", "gsm_sms.dis_iei_vp.vertical_dimension", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_gsm_sms_dis_iei_vp_variable_picture, { "Variable Picture", "gsm_sms.dis_iei_vp.variable_picture", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_gsm_sms_dis_iei_upi_num_corresponding_objects, { "Number of corresponding objects", "gsm_sms.dis_iei_upi.num_corresponding_objects", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+      { &hf_gsm_sms_dis_iei_lang_single_shift, { "Language (Single Shift)", "gsm_sms.dis_iei_lang.single_shift", FT_UINT8, BASE_DEC, VALS(lang_single_shift_vals), 0x0, NULL, HFILL }},
+      { &hf_gsm_sms_dis_iei_lang_locking_shift, { "Language (Locking Shift)", "gsm_sms.dis_iei_lang.locking_shift", FT_UINT8, BASE_DEC, VALS(lang_locking_shift_vals), 0x0, NULL, HFILL }},
       { &hf_gsm_sms_dis_field_ud_iei_length, { "Length", "gsm_sms.dis_field_ud_iei.length", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_gsm_sms_ie_data, { "IE Data", "gsm_sms.ie_data", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_gsm_sms_dis_field_udh_user_data_header_length, { "User Data Header Length", "gsm_sms.dis_field_udh.user_data_header_length", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
@@ -3593,7 +3644,7 @@ proto_register_gsm_sms(void)
 
     register_dissector("gsm_sms", dissect_gsm_sms, proto_gsm_sms);
 
-    g_sm_fragment_params_table = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(),
+    g_sm_fragment_params_table = wmem_multimap_new_autoreset(wmem_epan_scope(), wmem_file_scope(),
                                                         sm_fragment_params_hash, sm_fragment_params_equal);
 
     reassembly_table_register(&g_sm_reassembly_table,

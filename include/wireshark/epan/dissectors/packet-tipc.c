@@ -578,7 +578,7 @@ tipc_addr_value_to_buf(guint tipc_address, gchar *buf, int buf_len)
 	tipc_address = tipc_address >> 12;
 	zone = tipc_address & 0xff;
 
-	g_snprintf(buf, buf_len, "%u.%u.%u", zone, subnetwork, processor);
+	snprintf(buf, buf_len, "%u.%u.%u", zone, subnetwork, processor);
 	return buf;
 }
 
@@ -1091,7 +1091,7 @@ dissect_tipc_v2_internal_msg(tvbuff_t *tipc_tvb, proto_tree *tipc_tree, packet_i
 
 			if ((message_type == TIPCv2_RESET_MSG)
 					|| ((message_type == TIPCv2_STATE_MSG) && ((msg_size-(orig_hdr_size*4)) != 0))){ /* is allowed */
-				proto_tree_add_item(tipc_tree, hf_tipcv2_bearer_instance, tipc_tvb, offset, -1, ENC_ASCII|ENC_NA);
+				proto_tree_add_item(tipc_tree, hf_tipcv2_bearer_instance, tipc_tvb, offset, -1, ENC_ASCII);
 				/* the bearer instance string is padded with \0 to the next word boundry */
 				b_inst_strlen = tvb_strsize(tipc_tvb, offset);
 				offset += b_inst_strlen;
@@ -2002,7 +2002,7 @@ dissect_tipc_int_prot_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tipc_tr
 
 	switch (user) {
 		case TIPC_LINK_PROTOCOL:
-			proto_tree_add_item(tipc_tree, hf_tipc_bearer_name, tvb, offset, -1, ENC_ASCII|ENC_NA);
+			proto_tree_add_item(tipc_tree, hf_tipc_bearer_name, tvb, offset, -1, ENC_ASCII);
 			break;
 		case TIPC_CHANGEOVER_PROTOCOL:
 			switch (msg_type) {
@@ -2291,7 +2291,7 @@ dissect_tipc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 		proto_tree_add_item_ret_uint(tipc_tree, hf_tipc_dst_port, tipc_tvb, offset, 4, ENC_BIG_ENDIAN, &destport);
 	}
 
-	conversation_create_endpoint(pinfo, &pinfo->src, &pinfo->dst, ENDPOINT_TIPC, srcport, destport, 0);
+	conversation_set_conv_addr_port_endpoints(pinfo, &pinfo->src, &pinfo->dst, CONVERSATION_TIPC, srcport, destport);
 
 	offset = offset + 4;
 	/* 20 - 24 Bytes

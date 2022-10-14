@@ -275,6 +275,7 @@ enum {
     SPICE_DISPLAY_CAP_CODEC_H264,
     SPICE_DISPLAY_CAP_PREF_VIDEO_CODEC_TYPE,
     SPICE_DISPLAY_CAP_CODEC_VP9,
+    SPICE_DISPLAY_CAP_CODEC_H265,
     /* Number of bits to display for capabilities of the display channel. */
     DISPLAY_CAP_NBITS
 };
@@ -293,7 +294,9 @@ enum {
     SPICE_DISPLAY_CAP_CODEC_VP8_MASK = (1 << SPICE_DISPLAY_CAP_CODEC_VP8),
     SPICE_DISPLAY_CAP_CODEC_H264_MASK = (1 << SPICE_DISPLAY_CAP_CODEC_H264),
     SPICE_DISPLAY_CAP_PREF_VIDEO_CODEC_TYPE_MASK = (1 << SPICE_DISPLAY_CAP_PREF_VIDEO_CODEC_TYPE),
-    SPICE_DISPLAY_CAP_CODEC_VP9_MASK = (1 << SPICE_DISPLAY_CAP_CODEC_VP9)
+    SPICE_DISPLAY_CAP_CODEC_VP9_MASK = (1 << SPICE_DISPLAY_CAP_CODEC_VP9),
+    SPICE_DISPLAY_CAP_CODEC_H265_MASK = (1 << SPICE_DISPLAY_CAP_CODEC_H265)
+
 };
 
 /* display channel */
@@ -687,6 +690,7 @@ static int hf_display_cap_codec_vp8 = -1;
 static int hf_display_cap_codec_h264 = -1;
 static int hf_display_cap_pref_video_codec_type = -1;
 static int hf_display_cap_codec_vp9 = -1;
+static int hf_display_cap_codec_h265 = -1;
 static int hf_main_uuid = -1;
 static int hf_main_name = -1;
 static int hf_main_name_len = -1;
@@ -1013,7 +1017,7 @@ dissect_ImageQuic(tvbuff_t *tvb, proto_tree *tree, guint32 offset)
 
         proto_tree_add_uint(ImageQuic_tree, hf_spice_quic_image_size, tvb, offset, 4, QuicSize);
         offset += 4;
-        proto_tree_add_item(ImageQuic_tree, hf_spice_quic_magic, tvb, offset, 4, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(ImageQuic_tree, hf_spice_quic_magic, tvb, offset, 4, ENC_ASCII);
         offset += 4;
         proto_tree_add_item(ImageQuic_tree, hf_quic_major_version, tvb, offset, 2, ENC_LITTLE_ENDIAN);
         offset += 2;
@@ -1035,7 +1039,7 @@ static guint32
 dissect_ImageLZ_common_header(tvbuff_t *tvb, proto_tree *tree, const guint32 offset)
 {
 
-    proto_tree_add_item(tree, hf_spice_lz_magic, tvb, offset, 4, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_spice_lz_magic, tvb, offset, 4, ENC_ASCII);
     proto_tree_add_item(tree, hf_LZ_major_version, tvb, offset + 4, 2, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_LZ_minor_version, tvb, offset + 6, 2, ENC_BIG_ENDIAN);
 
@@ -1744,7 +1748,7 @@ dissect_spice_common_server_messages(tvbuff_t *tvb, packet_info *pinfo, proto_tr
             message_len = tvb_get_letohl(tvb, offset);
             proto_tree_add_item(tree, hf_notify_message_len, tvb, offset, 4, ENC_LITTLE_ENDIAN);
             offset += 4;
-            proto_tree_add_item(tree, hf_notify_message, tvb, offset, message_len + 1, ENC_ASCII|ENC_NA);
+            proto_tree_add_item(tree, hf_notify_message, tvb, offset, message_len + 1, ENC_ASCII);
             offset += (message_len + 1);
             break;
         default:
@@ -2430,7 +2434,7 @@ dissect_spice_main_server(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, c
             name_len = tvb_get_letohl(tvb, offset);
             proto_tree_add_item(tree, hf_main_name_len, tvb, offset, 4, ENC_LITTLE_ENDIAN);
             offset += 4;
-            proto_tree_add_item(tree, hf_main_name, tvb, offset, name_len, ENC_ASCII|ENC_NA);
+            proto_tree_add_item(tree, hf_main_name, tvb, offset, name_len, ENC_ASCII);
             offset += name_len;
             break;
         case SPICE_MSG_MAIN_UUID:
@@ -2690,7 +2694,7 @@ dissect_spice_port_server(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, c
                 guint32 size = tvb_get_letohl(tvb, offset);
                 proto_tree_add_item(tree, hf_spice_name_length, tvb, offset, 4, ENC_LITTLE_ENDIAN);
                 offset += 4;
-                proto_tree_add_item(tree, hf_main_name, tvb, offset, size, ENC_ASCII|ENC_NA);
+                proto_tree_add_item(tree, hf_main_name, tvb, offset, size, ENC_ASCII);
                 offset += size;
                 proto_tree_add_item(tree, hf_port_opened, tvb, offset, 1, ENC_LITTLE_ENDIAN);
                 offset += 1;
@@ -2868,7 +2872,7 @@ dissect_spice_link_common_header(tvbuff_t *tvb, proto_tree *tree)
 {
      if (tree) {
         /* dissect common header */
-        proto_tree_add_item(tree, hf_spice_magic,   tvb,  0, 4, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(tree, hf_spice_magic,   tvb,  0, 4, ENC_ASCII);
         proto_tree_add_item(tree, hf_major_version, tvb,  4, 4, ENC_LITTLE_ENDIAN);
         proto_tree_add_item(tree, hf_minor_version, tvb,  8, 4, ENC_LITTLE_ENDIAN);
         proto_tree_add_item(tree, hf_message_size,  tvb, 12, 4, ENC_LITTLE_ENDIAN);
@@ -2974,6 +2978,7 @@ dissect_spice_link_capabilities(tvbuff_t *tvb, packet_info* pinfo, proto_tree *t
                     &hf_display_cap_codec_h264,
                     &hf_display_cap_pref_video_codec_type,
                     &hf_display_cap_codec_vp9,
+                    &hf_display_cap_codec_h265,
                     NULL
                 };
 
@@ -3281,7 +3286,7 @@ dissect_spice(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
                     pdu_len += 4;
                     GET_PDU_FROM_OFFSET(offset)
                     offset += 4;
-                    proto_tree_add_item(spice_tree, hf_spice_sasl_authentication_data, tvb, offset, pdu_len - 4, ENC_ASCII|ENC_NA);
+                    proto_tree_add_item(spice_tree, hf_spice_sasl_authentication_data, tvb, offset, pdu_len - 4, ENC_ASCII);
                     offset += (pdu_len - 4);
                 }
             }
@@ -3676,6 +3681,11 @@ proto_register_spice(void)
         { &hf_display_cap_codec_vp9,
           { "VP9 codec display channel support", "spice.display_cap_codec_vp9",
             FT_BOOLEAN, DISPLAY_CAP_NBITS, TFS(&tfs_set_notset), SPICE_DISPLAY_CAP_CODEC_VP9_MASK,
+            NULL, HFILL }
+        },
+        { &hf_display_cap_codec_h265,
+          { "H265 codec display channel support", "spice.display_cap_codec_h265",
+            FT_BOOLEAN, DISPLAY_CAP_NBITS, TFS(&tfs_set_notset), SPICE_DISPLAY_CAP_CODEC_H265_MASK,
             NULL, HFILL }
         },
         { &hf_cursor_cap,

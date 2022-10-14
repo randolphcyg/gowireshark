@@ -798,7 +798,7 @@ static void snort_show_alert(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo
             /* Write 6 figures to position after decimal place in timestamp. Must have managed to
                parse out fields already, so will definitely be long enough for memcpy() to succeed. */
             char digits[7];
-            g_snprintf(digits, 7, "%06u", pinfo->abs_ts.nsecs / 1000);
+            snprintf(digits, 7, "%06d", pinfo->abs_ts.nsecs / 1000);
             memcpy(alert->raw_alert+18, digits, 6);
             alert->raw_alert_ts_fixed = TRUE;
         }
@@ -1089,7 +1089,7 @@ static const char *get_user_comment_string(proto_tree *tree)
             for (i=0; i< items->len; i++) {
                 field_info *field = (field_info *)g_ptr_array_index(items,i);
                 if (strcmp(field->hfinfo->abbrev, "frame.comment") == 0) {
-                    value = field->value.value.string;
+                    value = fvalue_get_string(&field->value);
                     break;
                 }
                 /* This is the only item that can come before "frame.comment", so otherwise break out */
@@ -1400,7 +1400,7 @@ static void snort_cleanup(void)
     if (current_session.pdh) {
         int write_err;
         gchar *write_err_info;
-        if (!wtap_dump_close(current_session.pdh, &write_err, &write_err_info)) {
+        if (!wtap_dump_close(current_session.pdh, NULL, &write_err, &write_err_info)) {
             /* XXX - somehow report the error? */
             g_free(write_err_info);
         }

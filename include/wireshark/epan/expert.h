@@ -1,4 +1,4 @@
-/* expert.h
+/** @file
  * Collecting of Expert information.
  *
  * For further info, see:
@@ -17,7 +17,7 @@
 #include <epan/proto.h>
 #include <epan/packet_info.h>
 #include "value_string.h"
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

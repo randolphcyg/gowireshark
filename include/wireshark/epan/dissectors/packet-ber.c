@@ -45,8 +45,6 @@
 
 #include "config.h"
 
-#include <stdio.h>
-
 #include <epan/packet.h>
 #include <epan/exceptions.h>
 #include <epan/reassemble.h>
@@ -81,6 +79,7 @@ static gint hf_ber_id_uni_tag_ext = -1;
 static gint hf_ber_id_tag = -1;
 static gint hf_ber_id_tag_ext = -1;
 static gint hf_ber_length = -1;
+static gint hf_ber_length_octets = -1;
 static gint hf_ber_bitstring_padding = -1;
 static gint hf_ber_bitstring_empty = -1;
 static gint hf_ber_unknown_OID = -1;
@@ -113,6 +112,7 @@ static gint hf_ber_single_ASN1_type = -1;         /* T_single_ASN1_type */
 static gint hf_ber_octet_aligned = -1;            /* OCTET_STRING */
 static gint hf_ber_arbitrary = -1;                /* BIT_STRING */
 static gint hf_ber_extra_data = -1;
+static gint hf_ber_encoding_boiler_plate = -1;
 
 /* Generated from convert_proto_tree_add_text.pl */
 static int hf_ber_seq_of_eoc = -1;
@@ -323,6 +323,16 @@ static const fragment_items octet_string_frag_items = {
     "OCTET STRING fragments"
 };
 
+void
+add_ber_encoded_label(tvbuff_t* tvb, packet_info* pinfo _U_, proto_tree* tree)
+{
+    proto_item *ti;
+
+    ti = proto_tree_add_item(tree, hf_ber_encoding_boiler_plate, tvb, 0, -1, ENC_NA);
+    proto_item_set_generated(ti);
+
+}
+
 static void *
 oid_copy_cb(void *dest, const void *orig, size_t len _U_)
 {
@@ -364,7 +374,7 @@ static uat_field_t users_flds[] = {
 
 static void ber_prompt(packet_info *pinfo _U_, gchar* result)
 {
-    g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Decode ASN.1 file as");
+    snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Decode ASN.1 file as");
 }
 
 static gpointer ber_value(packet_info *pinfo _U_)
@@ -536,12 +546,12 @@ ber_check_value64 (gint64 value, gint64 min_len, gint64 max_len, asn1_ctx_t *act
     if ((min_len != -1) && (value < min_len)) {
         expert_add_info_format(
             actx->pinfo, item, &ei_ber_size_constraint_value,
-            "Size constraint: value too small: %" G_GINT64_MODIFIER "d (%" G_GINT64_MODIFIER "d .. %" G_GINT64_MODIFIER "d)",
+            "Size constraint: value too small: %" PRId64 " (%" PRId64" .. %" PRId64 ")",
             value, min_len, max_len);
     } else if ((max_len != -1) && (value > max_len)) {
         expert_add_info_format(
             actx->pinfo, item, &ei_ber_size_constraint_value,
-            "Size constraint: value too big: %" G_GINT64_MODIFIER "d (%" G_GINT64_MODIFIER "d .. %" G_GINT64_MODIFIER "d)",
+            "Size constraint: value too big: %" PRId64 " (%" PRId64 " .. %" PRId64 ")",
             value, min_len, max_len);
     }
 }
@@ -1376,7 +1386,12 @@ dissect_ber_length(packet_info *pinfo _U_, proto_tree *tree, tvbuff_t *tvb, int 
         if (tmp_ind) {
             proto_tree_add_uint_format_value(tree, hf_ber_length, tvb, old_offset, 1, tmp_length, "Indefinite length %d", tmp_length);
         } else {
-            proto_tree_add_uint(tree, hf_ber_length, tvb, old_offset, offset - old_offset, tmp_length);
+            if ((offset - old_offset) > 1) {
+                proto_tree_add_uint(tree, hf_ber_length_octets, tvb, old_offset, 1, (tvb_get_guint8(tvb, old_offset) & 0x7f));
+                proto_tree_add_uint(tree, hf_ber_length, tvb, old_offset+1, offset - (old_offset+1), tmp_length);
+            } else {
+                proto_tree_add_uint(tree, hf_ber_length, tvb, old_offset, offset - old_offset, tmp_length);
+            }
         }
     }
     if (length)
@@ -1834,7 +1849,7 @@ dissect_ber_integer64(gboolean implicit_tag, asn1_ctx_t *actx, proto_tree *tree,
     gint64   val;
     guint32  i;
     gboolean used_too_many_bytes = FALSE;
-    guint8 first;
+    guint8 first = 0;
 #ifdef DEBUG_BER
 {
 const char *name;
@@ -1866,27 +1881,27 @@ proto_tree_add_debug_text(tree, "INTEGERnew dissect_ber_integer(%s) entered impl
       len = remaining>0 ? remaining : 0;
     }
 
-    first = tvb_get_guint8(tvb, offset);
-    /* we can't handle integers > 64 bits */
-    /* take into account the use case of a 64bits unsigned integer: you will have a 9th byte set to 0 */
-    if ((len > 9) || ((len == 9) && (first != 0))) {
-        if (hf_id >= 0) {
-            header_field_info *hfinfo = proto_registrar_get_nth(hf_id);
-
-            /* use the original field only if it is suitable for bytes */
-            if (hfinfo->type != FT_BYTES)
-                hf_id = hf_ber_64bit_uint_as_bytes;
-
-            proto_tree_add_bytes_format(tree, hf_id, tvb, offset, len, NULL,
-                "%s: 0x%s", hfinfo->name, tvb_bytes_to_str(wmem_packet_scope(), tvb, offset, len));
-        }
-
-        offset += len;
-        return offset;
-    }
-
-    val=0;
+    val = 0;
     if (len > 0) {
+
+        first = tvb_get_guint8(tvb, offset);
+        /* we can't handle integers > 64 bits */
+        /* take into account the use case of a 64bits unsigned integer: you will have a 9th byte set to 0 */
+        if ((len > 9) || ((len == 9) && (first != 0))) {
+            if (hf_id >= 0) {
+                header_field_info *hfinfo = proto_registrar_get_nth(hf_id);
+
+                /* use the original field only if it is suitable for bytes */
+                if (hfinfo->type != FT_BYTES)
+                    hf_id = hf_ber_64bit_uint_as_bytes;
+
+                proto_tree_add_bytes_format(tree, hf_id, tvb, offset, len, NULL,
+                                            "%s: 0x%s", hfinfo->name, tvb_bytes_to_str(wmem_packet_scope(), tvb, offset, len));
+            }
+
+            offset += len;
+            return offset;
+        }
         /* extend sign bit for signed fields */
         enum ftenum type  = FT_INT32; /* Default to signed, is this correct? */
         if (hf_id >= 0) {
@@ -1912,15 +1927,14 @@ proto_tree_add_debug_text(tree, "INTEGERnew dissect_ber_integer(%s) entered impl
 
     if (hf_id >= 0) {
         /*  */
+        header_field_info* hfi;
+
+        hfi = proto_registrar_get_nth(hf_id);
         if ((len < 1) || (len > 9) || ((len == 9) && (first != 0))) {
           proto_tree_add_expert_format(
               tree, actx->pinfo, &ei_ber_error_length, tvb, offset-len, len,
-              "BER Error: Can't handle integer length: %u",
-              len);
+              "BER Error: %s: length of item (%u) is not valid", hfi->name, len);
         } else {
-            header_field_info* hfi;
-
-            hfi = proto_registrar_get_nth(hf_id);
             switch (hfi->type) {
             case FT_UINT8:
             case FT_UINT16:
@@ -2028,20 +2042,34 @@ dissect_ber_boolean(gboolean implicit_tag, asn1_ctx_t *actx, proto_tree *tree, t
         offset = dissect_ber_length(actx->pinfo, tree, tvb, offset, &len, NULL);
         /*if (ber_class != BER_CLASS_UNI)*/
     } else {
-        /* nothing to do here, yet */
+        gint32 remaining = tvb_reported_length_remaining(tvb, offset);
+        len = remaining > 0 ? remaining : 0;
     }
 
-    val = tvb_get_guint8(tvb, offset);
-    offset += 1;
+    if (len == 1)
+    {
+        val = tvb_get_guint8(tvb, offset);
+        offset += 1;
 
-    actx->created_item = NULL;
+        actx->created_item = NULL;
 
-    if (hf_id >= 0) {
-        hfi = proto_registrar_get_nth(hf_id);
-        if (hfi->type == FT_BOOLEAN)
-            actx->created_item = proto_tree_add_boolean(tree, hf_id, tvb, offset-1, 1, val);
-        else
-            actx->created_item = proto_tree_add_uint(tree, hf_id, tvb, offset-1, 1, val ? 1 : 0);
+        if (hf_id >= 0) {
+            hfi = proto_registrar_get_nth(hf_id);
+            if (hfi->type == FT_BOOLEAN)
+                actx->created_item = proto_tree_add_boolean(tree, hf_id, tvb, offset-1, 1, val);
+            else
+                actx->created_item = proto_tree_add_uint(tree, hf_id, tvb, offset-1, 1, val ? 1 : 0);
+        }
+    } else {
+        val = 0;
+        actx->created_item = NULL;
+
+        if (hf_id >= 0) {
+            hfi = proto_registrar_get_nth(hf_id);
+            proto_tree_add_expert_format(
+                    tree, actx->pinfo, &ei_ber_error_length, tvb, offset, len,
+                    "BER Error: %s: length of item (%u) is not valid", hfi->name, len);
+        }
     }
 
     if (value) {
@@ -3537,7 +3565,7 @@ proto_tree_add_debug_text(tree, "SQ OF dissect_ber_sq_of(%s) entered\n", name);
         proto_tree_add_expert_format(
             tree, actx->pinfo, &ei_ber_error_length, tvb, offset-2, 2,
             "BER Error: %s OF contained %d too many bytes",
-            (type == BER_UNI_TAG_SEQUENCE) ? "SET" : "SEQUENCE",
+            (type == BER_UNI_TAG_SEQUENCE) ? "SEQUENCE" : "SET",
             offset - end_offset);
     }
 
@@ -3567,15 +3595,8 @@ dissect_ber_set_of(gboolean implicit_tag, asn1_ctx_t *actx, proto_tree *parent_t
 int
 dissect_ber_GeneralizedTime(gboolean implicit_tag, asn1_ctx_t *actx, proto_tree *tree, tvbuff_t *tvb, int offset, gint hf_id)
 {
-    char          str[35];
-    int           tmp_int;
+    nstime_t      ts;
     const guint8 *tmpstr;
-    char         *strptr;
-    char          first_delim[2];
-    int           first_digits;
-    char          second_delim[2];
-    int           second_digits;
-    int           ret;
     gint8         ber_class;
     gboolean      pc;
     gint32        tag;
@@ -3622,7 +3643,33 @@ dissect_ber_GeneralizedTime(gboolean implicit_tag, asn1_ctx_t *actx, proto_tree 
         end_offset = offset+len;
     }
 
-    if ((len < 14) || (len > 23)) {
+    /* ASN.1 GeneralizedTime is a ISO 8601 Basic profile that omits the T
+     * between date and time. BER allows accuracy of hours, minutes, seconds,
+     * fractions of a second "to any degree of accuracy", and even
+     * fractional minutes or hours (see ITU-T X.680 46.2 and ITU-T X.690 8.25.)
+     *
+     * CER/DER (and PER) require that the seconds field be present (cf.
+     * ITU-T X.690 11.7 and ITU-T X.691 10.6.5), that the decimal point
+     * element be ".", that fractional seconds trailing zeros MUST be omitted,
+     * and that the decimal point shall also be omitted if the entire fractional
+     * second is 0 (in order to have a unique representation.)
+     *
+     * RFC 5280 says that X.509 certificate validity dates after 2050, which
+     * MUST use GeneralizedTime, MUST be expressed in Z and MUST include
+     * seconds but MUST NOT include fractional seconds.
+     *
+     * The minimum that iso8601_to_nstime() handles currently is
+     * YYYYMMDDhhmm = 12 digits
+     * and the maximimum is
+     * YYYYMMDDhhmmss.sssssssss+hhmm = 29 digits
+     *
+     * That doesn't handle everything that BER technically supports, but
+     * everything seen in practice. For the protocols that are more restrictive
+     * if someone really wants to validate and complain about e.g. fractional
+     * seconds in a X.509 certificate, that could be added to the conformance
+     * file.
+     */
+    if ((len < 12) || (len > 29)) {
         cause = proto_tree_add_expert_format(
             tree, actx->pinfo, &ei_ber_error_length,
             tvb, len_offset, len_len,
@@ -3636,121 +3683,26 @@ dissect_ber_GeneralizedTime(gboolean implicit_tag, asn1_ctx_t *actx, proto_tree 
     }
 
     tmpstr = tvb_get_string_enc(wmem_packet_scope(), tvb, offset, len, ENC_ASCII);
-    strptr = str;
-    /* those fields are allways present */
-    strptr += g_snprintf(str, 20, "%.4s-%.2s-%.2s %.2s:%.2s:%.2s",
-                         tmpstr, tmpstr+4, tmpstr+6, tmpstr+8,
-                         tmpstr+10, tmpstr+12);
-
-    first_delim[0]  = 0;
-    second_delim[0] = 0;
-    ret = sscanf(tmpstr, "%14d%1[.,+-Z]%4d%1[+-Z]%4d", &tmp_int, first_delim, &first_digits, second_delim, &second_digits);
-    /* tmp_int does not contain valid value because of overflow but we use it just for format checking */
-    if (ret < 1) {
-        /* Nothing matched */
-        goto invalid;
-    }
-
-    if (ret >= 2) {
-        /*
-         * We saw the date+time and the first delimiter.
-         *
-         * Either:
-         *
-         *    it's '.' or ',', in which case we have a fraction of a
-         *    minute or hour;
-         *
-         *    it's '+' or '-', in which case we have an offset from UTC;
-         *
-         *    it's 'Z', in which case the time is UTC.
-         */
-        switch (first_delim[0]) {
-        case '.':
-        case ',':
-            /*
-             * Fraction of a minute or an hour.
-             */
-            if (ret == 2 || first_digits < 0 || first_digits > 999) {
-                /*
-                 * We saw the decimal sign, but didn't see the fraction
-                 * or
-                 * we got a number outside the valid range.
-                 */
-                goto invalid;
-            }
-            strptr += g_snprintf(strptr, 5, "%c%.3d", first_delim[0], first_digits);
-            if (ret >= 4) {
-                /*
-                 * We saw the fraction and the second delimiter.
-                 *
-                 * Either:
-                 *
-                 *    it's '+' or '-', in which case we have an offset
-                 *    from UTC;
-                 *
-                 *    it's 'Z', in which case the time is UTC.
-                 */
-                switch (second_delim[0]) {
-                case '+':
-                case '-':
-                    if (ret == 4) {
-                        /*
-                         * We saw the + or -, but didn't see the offset
-                         * from UTC.
-                         */
-                        goto invalid;
-                    }
-                    g_snprintf(strptr, 12, " (UTC%c%.4d)", second_delim[0], second_digits);
-                    break;
-                case 'Z':
-                    g_snprintf(strptr, 7, " (UTC)");
-                    break;
-                default:
-                    /* handle the malformed field */
-                    break;
-                }
-            }
-            break;
-        case '+':
-        case '-':
-            /*
-             * Offset from UTC.
-             */
-            if (ret == 2) {
-                /*
-                 * We saw the + or -1, but didn't see the offset.
-                 */
-                goto invalid;
-            }
-            g_snprintf(strptr, 12, " (UTC%c%.4d)", first_delim[0], first_digits);
-            break;
-        case 'Z':
-            g_snprintf(strptr, 7, " (UTC)");
-            break;
-        default:
-            /* handle the malformed field */
-            break;
+    if (!iso8601_to_nstime(&ts, tmpstr, ISO8601_DATETIME_BASIC)) {
+        cause = proto_tree_add_expert_format(
+            tree, actx->pinfo, &ei_ber_invalid_format_generalized_time,
+            tvb, offset, len,
+            "BER Error: GeneralizedTime invalid format: %s",
+            tmpstr);
+        if (decode_unexpected) {
+            proto_tree *unknown_tree = proto_item_add_subtree(cause, ett_ber_unknown);
+            dissect_unknown_ber(actx->pinfo, tvb, offset, unknown_tree);
         }
+        return end_offset;
     }
 
     if (hf_id >= 0) {
-        proto_tree_add_string(tree, hf_id, tvb, offset, len, str);
+        proto_tree_add_time(tree, hf_id, tvb, offset, len, &ts);
     }
 
     offset+=len;
     return offset;
 
-invalid:
-    cause = proto_tree_add_expert_format(
-        tree, actx->pinfo, &ei_ber_invalid_format_generalized_time,
-        tvb, offset, len,
-        "BER Error: GeneralizedTime invalid format: %s",
-        tmpstr);
-    if (decode_unexpected) {
-        proto_tree *unknown_tree = proto_item_add_subtree(cause, ett_ber_unknown);
-        dissect_unknown_ber(actx->pinfo, tvb, offset, unknown_tree);
-    }
-    return end_offset;
 }
 
 /* datestrptr: if not NULL return datetime string instead of adding to tree or NULL when packet is malformed
@@ -3821,7 +3773,7 @@ dissect_ber_UTCTime(gboolean implicit_tag, asn1_ctx_t *actx, proto_tree *tree, t
             goto malformed;
         }
     }
-    g_snprintf(outstrptr, 15, "%.2s-%.2s-%.2s %.2s:%.2s", instr, instr+2, instr+4, instr+6, instr+8);
+    snprintf(outstrptr, 15, "%.2s-%.2s-%.2s %.2s:%.2s", instr, instr+2, instr+4, instr+6, instr+8);
     outstrptr+= 14;
 
     /* (ss)? */
@@ -3830,7 +3782,7 @@ dissect_ber_UTCTime(gboolean implicit_tag, asn1_ctx_t *actx, proto_tree *tree, t
             i++;
             if ((instr[i] >= '0') && (instr[i] <= '9')) {
                 i++;
-                g_snprintf(outstrptr, 4, ":%.2s", instr+10);
+                snprintf(outstrptr, 4, ":%.2s", instr+10);
                 outstrptr+=3;
             } else {
                 error_str = "BER Error: malformed UTCTime encoding, "
@@ -3849,7 +3801,7 @@ dissect_ber_UTCTime(gboolean implicit_tag, asn1_ctx_t *actx, proto_tree *tree, t
                         "there must be no further octets after \'Z\'";
             goto malformed;
         }
-        g_snprintf(outstrptr, 7, " (UTC)");
+        snprintf(outstrptr, 7, " (UTC)");
         i++;
         break;
     case '-':
@@ -3866,7 +3818,7 @@ dissect_ber_UTCTime(gboolean implicit_tag, asn1_ctx_t *actx, proto_tree *tree, t
                 goto malformed;
             }
         }
-        g_snprintf(outstrptr, 12, " (UTC%c%.4s)", instr[i], instr+i+1);
+        snprintf(outstrptr, 12, " (UTC%c%.4s)", instr[i], instr+i+1);
         i+=5;
         break;
     default:
@@ -4342,6 +4294,9 @@ proto_register_ber(void)
         { &hf_ber_id_tag_ext, {
                 "Tag", "ber.id.tag", FT_UINT32, BASE_DEC,
                 NULL, 0, "Tag value for non-Universal classes", HFILL }},
+        { &hf_ber_length_octets, {
+                "Length Octets", "ber.length_octets", FT_UINT8, BASE_DEC,
+                NULL, 0, "Number of length octets", HFILL }},
         { &hf_ber_length, {
                 "Length", "ber.length", FT_UINT32, BASE_DEC,
                 NULL, 0, "Length of contents", HFILL }},
@@ -4490,8 +4445,8 @@ proto_register_ber(void)
       { &hf_ber_choice_eoc, { "CHOICE EOC", "ber.choice_eoc", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_ber_seq_of_eoc, { "SEQ OF EOC", "ber.seq_of_eoc", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_ber_64bit_uint_as_bytes, { "64bits unsigned integer", "ber.64bit_uint_as_bytes", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+      { &hf_ber_encoding_boiler_plate, { "BER encoded protocol, to see BER internal fields set protocol BER preferences", "ber.encoding_boiler_plate", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     };
-
 
     static gint *ett[] = {
         &ett_ber_octet_string,

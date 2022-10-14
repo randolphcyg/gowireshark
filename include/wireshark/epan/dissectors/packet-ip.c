@@ -36,6 +36,7 @@
 #include <epan/ax25_pids.h>
 #include <epan/decode_as.h>
 #include <epan/proto_data.h>
+#include <epan/exported_pdu.h>
 
 #include <wiretap/erf_record.h>
 #include <wsutil/str_util.h>
@@ -53,6 +54,8 @@ void proto_register_ip(void);
 void proto_reg_handoff_ip(void);
 
 static int ip_tap = -1;
+
+static int exported_pdu_tap = -1;
 
 /* Decode the old IPv4 TOS field as the DiffServ DS Field (RFC2474/2475) */
 static gboolean g_ip_dscp_actif = TRUE;
@@ -476,7 +479,7 @@ const value_string ip_version_vals[] = {
 
 static void ip_prompt(packet_info *pinfo, gchar* result)
 {
-    g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "IP protocol %u as",
+    snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "IP protocol %u as",
         GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_ip, pinfo->curr_layer_num)));
 }
 
@@ -502,37 +505,39 @@ static const char* ip_conv_get_filter_type(conv_item_t* conv, conv_filter_type_e
 static ct_dissector_info_t ip_ct_dissector_info = {&ip_conv_get_filter_type};
 
 static tap_packet_status
-ip_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip)
+ip_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip, tap_flags_t flags)
 {
     conv_hash_t *hash = (conv_hash_t*) pct;
+    hash->flags = flags;
     const ws_ip4 *iph=(const ws_ip4 *)vip;
 
-    add_conversation_table_data(hash, &iph->ip_src, &iph->ip_dst, 0, 0, 1, pinfo->fd->pkt_len, &pinfo->rel_ts, &pinfo->abs_ts, &ip_ct_dissector_info, ENDPOINT_NONE);
+    add_conversation_table_data(hash, &iph->ip_src, &iph->ip_dst, 0, 0, 1, pinfo->fd->pkt_len, &pinfo->rel_ts, &pinfo->abs_ts, &ip_ct_dissector_info, CONVERSATION_NONE);
 
     return TAP_PACKET_REDRAW;
 }
 
-static const char* ip_host_get_filter_type(hostlist_talker_t* host, conv_filter_type_e filter)
+static const char* ip_endpoint_get_filter_type(endpoint_item_t* endpoint, conv_filter_type_e filter)
 {
-    if ((filter == CONV_FT_ANY_ADDRESS) && (host->myaddress.type == AT_IPv4))
+    if ((filter == CONV_FT_ANY_ADDRESS) && (endpoint->myaddress.type == AT_IPv4))
         return "ip.addr";
 
     return CONV_FILTER_INVALID;
 }
 
-static hostlist_dissector_info_t ip_host_dissector_info = {&ip_host_get_filter_type};
+static et_dissector_info_t ip_endpoint_dissector_info = {&ip_endpoint_get_filter_type};
 
 static tap_packet_status
-ip_hostlist_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip)
+ip_endpoint_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip, tap_flags_t flags)
 {
     conv_hash_t *hash = (conv_hash_t*) pit;
+    hash->flags = flags;
     const ws_ip4 *iph=(const ws_ip4 *)vip;
 
     /* Take two "add" passes per packet, adding for each direction, ensures that all
     packets are counted properly (even if address is sending to itself)
-    XXX - this could probably be done more efficiently inside hostlist_table */
-    add_hostlist_table_data(hash, &iph->ip_src, 0, TRUE, 1, pinfo->fd->pkt_len, &ip_host_dissector_info, ENDPOINT_NONE);
-    add_hostlist_table_data(hash, &iph->ip_dst, 0, FALSE, 1, pinfo->fd->pkt_len, &ip_host_dissector_info, ENDPOINT_NONE);
+    XXX - this could probably be done more efficiently inside endpoint_table */
+    add_endpoint_table_data(hash, &iph->ip_src, 0, TRUE, 1, pinfo->fd->pkt_len, &ip_endpoint_dissector_info, ENDPOINT_NONE);
+    add_endpoint_table_data(hash, &iph->ip_dst, 0, FALSE, 1, pinfo->fd->pkt_len, &ip_endpoint_dissector_info, ENDPOINT_NONE);
     return TAP_PACKET_REDRAW;
 }
 
@@ -545,7 +550,7 @@ ip_filter_valid(packet_info *pinfo)
 static gchar*
 ip_build_filter(packet_info *pinfo)
 {
-    return g_strdup_printf("ip.addr eq %s and ip.addr eq %s",
+    return ws_strdup_printf("ip.addr eq %s and ip.addr eq %s",
                 address_to_str(pinfo->pool, &pinfo->net_src),
                 address_to_str(pinfo->pool, &pinfo->net_dst));
 }
@@ -839,10 +844,10 @@ dissect_ipopt_security(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
                           tvb, curr_offset, 2, ENC_BIG_ENDIAN);
       curr_offset += 2;
       proto_tree_add_item(field_tree, hf_ip_opt_sec_rfc791_hr,
-                          tvb, curr_offset, 2, ENC_ASCII|ENC_NA);
+                          tvb, curr_offset, 2, ENC_ASCII);
       curr_offset += 2;
       proto_tree_add_item(field_tree, hf_ip_opt_sec_rfc791_tcc,
-                          tvb, curr_offset, 3, ENC_ASCII|ENC_NA);
+                          tvb, curr_offset, 3, ENC_ASCII);
       return curr_offset;
     }
   }
@@ -984,7 +989,7 @@ dissect_ipopt_cipso(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
           bit_spot = 0;
           while (bit_spot < 8) {
             if (val_ptr[byte_spot] & bitmask) {
-              g_snprintf(cat_str_tmp, USHRT_MAX_STRLEN, "%u",
+              snprintf(cat_str_tmp, USHRT_MAX_STRLEN, "%u",
                          byte_spot * 8 + bit_spot);
               if (cat_str_len < (strlen(cat_str) + 2 + USHRT_MAX_STRLEN)) {
                 char *cat_str_new;
@@ -1034,7 +1039,7 @@ dissect_ipopt_cipso(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
         char *cat_str_tmp = (char *)wmem_alloc(pinfo->pool, USHRT_MAX_STRLEN);
 
         while ((offset + 2) <= offset_max_cat) {
-          g_snprintf(cat_str_tmp, USHRT_MAX_STRLEN, "%u",
+          snprintf(cat_str_tmp, USHRT_MAX_STRLEN, "%u",
                      tvb_get_ntohs(tvb, offset));
           offset += 2;
           if (cat_str[0] != '\0')
@@ -1076,10 +1081,10 @@ dissect_ipopt_cipso(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
             offset += 2;
           }
           if (cat_low != cat_high)
-            g_snprintf(cat_str_tmp, USHRT_MAX_STRLEN * 2, "%u-%u",
+            snprintf(cat_str_tmp, USHRT_MAX_STRLEN * 2, "%u-%u",
                        cat_high, cat_low);
           else
-            g_snprintf(cat_str_tmp, USHRT_MAX_STRLEN * 2, "%u", cat_high);
+            snprintf(cat_str_tmp, USHRT_MAX_STRLEN * 2, "%u", cat_high);
 
           if (cat_str[0] != '\0')
             (void) g_strlcat(cat_str, ",", USHRT_MAX_STRLEN * 16);
@@ -1181,7 +1186,7 @@ dissect_ipopt_route(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int pro
       dissect_option_route(field_tree, tvb, offset + optoffset, hf_ip_rec_rt,
                            hf_ip_rec_rt_host, FALSE);
     } else if (optoffset == (len - 4)) {
-      /* This is the the destination */
+      /* This is the destination */
       proto_item *item;
       guint32 addr;
       const char *dst_host;
@@ -1580,7 +1585,7 @@ dissect_ip_options(tvbuff_t *tvb, int offset, guint length,
       if (option_dissector == NULL) {
         name = wmem_strdup_printf(pinfo->pool, "Unknown (0x%02x)", opt);
       } else {
-        name = dissector_handle_get_short_name(option_dissector);
+        name = dissector_handle_get_protocol_short_name(option_dissector);
       }
 
       /* Option has a length. Is it in the packet? */
@@ -1828,6 +1833,19 @@ ip_try_dissect(gboolean heur_first, guint nxt, tvbuff_t *tvb, packet_info *pinfo
   return FALSE;
 }
 
+static void
+export_pdu(tvbuff_t *tvb, packet_info *pinfo)
+{
+  if (have_tap_listener(exported_pdu_tap)) {
+    exp_pdu_data_t *exp_pdu_data = wmem_new0(pinfo->pool, exp_pdu_data_t);
+
+    exp_pdu_data->tvb_captured_length = tvb_captured_length(tvb);
+    exp_pdu_data->tvb_reported_length = tvb_reported_length(tvb);
+    exp_pdu_data->pdu_tvb = tvb;
+    tap_queue_packet(exported_pdu_tap, pinfo, exp_pdu_data);
+  }
+}
+
 static int
 dissect_ip_v4(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* data _U_)
 {
@@ -1988,6 +2006,9 @@ dissect_ip_v4(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
       set_actual_length(tvb, iph->ip_len);
     }
   }
+
+  /* Only export after adjusting the length */
+  export_pdu(tvb, pinfo);
 
   iph->ip_id  = tvb_get_ntohs(tvb, offset + 4);
   if (tree)
@@ -2521,19 +2542,19 @@ proto_register_ip(void)
 
     { &hf_geoip_country,
       { "Source or Destination GeoIP Country", "ip.geoip.country",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_country_iso,
       { "Source or Destination GeoIP ISO Two Letter Country Code", "ip.geoip.country_iso",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_city,
       { "Source or Destination GeoIP City", "ip.geoip.city",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_as_number,
       { "Source or Destination GeoIP AS Number", "ip.geoip.asnum",
         FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_as_org,
       { "Source or Destination GeoIP AS Organization", "ip.geoip.org",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_latitude,
       { "Source or Destination GeoIP Latitude", "ip.geoip.lat",
         FT_DOUBLE, BASE_NONE, NULL, 0x0, NULL, HFILL }},
@@ -2542,22 +2563,22 @@ proto_register_ip(void)
         FT_DOUBLE, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_src_summary,
       { "Source GeoIP", "ip.geoip.src_summary",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_src_country,
       { "Source GeoIP Country", "ip.geoip.src_country",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_src_country_iso,
       { "Source GeoIP ISO Two Letter Country Code", "ip.geoip.src_country_iso",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_src_city,
       { "Source GeoIP City", "ip.geoip.src_city",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_src_as_number,
       { "Source GeoIP AS Number", "ip.geoip.src_asnum",
         FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_src_as_org,
       { "Source GeoIP AS Organization", "ip.geoip.src_org",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_src_latitude,
       { "Source GeoIP Latitude", "ip.geoip.src_lat",
         FT_DOUBLE, BASE_NONE, NULL, 0x0, NULL, HFILL }},
@@ -2566,22 +2587,22 @@ proto_register_ip(void)
         FT_DOUBLE, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_dst_summary,
       { "Destination GeoIP", "ip.geoip.dst_summary",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_dst_country,
       { "Destination GeoIP Country", "ip.geoip.dst_country",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_dst_country_iso,
       { "Destination GeoIP ISO Two Letter Country Code", "ip.geoip.dst_country_iso",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_dst_city,
       { "Destination GeoIP City", "ip.geoip.dst_city",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_dst_as_number,
       { "Destination GeoIP AS Number", "ip.geoip.dst_asnum",
         FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_dst_as_org,
       { "Destination GeoIP AS Organization", "ip.geoip.dst_org",
-        FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL }},
+        FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     { &hf_geoip_dst_latitude,
       { "Destination GeoIP Latitude", "ip.geoip.dst_lat",
         FT_DOUBLE, BASE_NONE, NULL, 0x0, NULL, HFILL }},
@@ -2591,7 +2612,7 @@ proto_register_ip(void)
 
     { &hf_ip_flags,
       { "Flags", "ip.flags", FT_UINT8, BASE_HEX,
-        NULL, 0x0, "Flags (3 bits)", HFILL }},
+        NULL, 0xE0, "Flags (3 bits)", HFILL }},
 
     { &hf_ip_flags_sf,
       { "Security flag", "ip.flags.sf", FT_BOOLEAN, 8,
@@ -2723,7 +2744,7 @@ proto_register_ip(void)
         NULL, 0x00000003, NULL, HFILL }},
 
     { &hf_ip_opt_sec_rfc791_sec,
-      { "Security", "ip.opt.sec_rfc791_sec", FT_UINT8, BASE_HEX,
+      { "Security", "ip.opt.sec_rfc791_sec", FT_UINT16, BASE_HEX,
         VALS(secl_rfc791_vals), 0x0, NULL, HFILL }},
 
     { &hf_ip_opt_sec_rfc791_comp,
@@ -2988,8 +3009,11 @@ proto_register_ip(void)
                         &addresses_reassembly_table_functions);
   ip_tap = register_tap("ip");
 
+  /* This needs a different (& more user-friendly) name than the other tap */
+  exported_pdu_tap = register_export_pdu_tap_with_encap("IP", WTAP_ENCAP_RAW_IP);
+
   register_decode_as(&ip_da);
-  register_conversation_table(proto_ip, TRUE, ip_conversation_packet, ip_hostlist_packet);
+  register_conversation_table(proto_ip, TRUE, ip_conversation_packet, ip_endpoint_packet);
   register_conversation_filter("ip", "IPv4", ip_filter_valid, ip_build_filter);
 
   ip_cap_handle = register_capture_dissector("ip", capture_ip, proto_ip);
@@ -3044,7 +3068,7 @@ proto_reg_handoff_ip(void)
   dissector_add_uint("pwach.channel_type", PW_ACH_TYPE_IPV4, ip_handle);
   dissector_add_uint("mcc.proto", PW_ACH_TYPE_IPV4, ip_handle);
   dissector_add_uint("sflow_245.header_protocol", SFLOW_245_HEADER_IPv4, ip_handle);
-  dissector_add_uint("l2tp.pw_type", L2TPv3_PROTOCOL_IP, ip_handle);
+  dissector_add_uint("l2tp.pw_type", L2TPv3_PW_IP, ip_handle);
   dissector_add_for_decode_as_with_preference("udp.port", ip_handle);
   dissector_add_for_decode_as("pcli.payload", ip_handle);
   dissector_add_uint("wtap_encap", WTAP_ENCAP_RAW_IP4, ip_handle);

@@ -9,6 +9,7 @@
 
 
 #include "config.h"
+#define WS_LOG_DOMAIN LOG_DOMAIN_DFILTER
 
 #ifdef DUMP_DFILTER_MACRO
 #include <stdio.h>
@@ -18,21 +19,15 @@
 #include "dfilter-int.h"
 #include "dfilter.h"
 #include "dfilter-macro.h"
-#include <ftypes/ftypes-int.h>
+#include <ftypes/ftypes.h>
 #include <epan/uat-int.h>
 #include <epan/proto.h>
 #include <wsutil/glib-compat.h>
 
-typedef struct {
-	const char* name;
-	gboolean usable;
-	char* repr;
-} fvt_cache_entry_t;
 
 static uat_t* dfilter_macro_uat = NULL;
 static dfilter_macro_t* macros = NULL;
 static guint num_macros;
-static GHashTable* fvt_cache = NULL;
 
 /* #define DUMP_DFILTER_MACRO */
 #ifdef DUMP_DFILTER_MACRO
@@ -42,48 +37,10 @@ void dump_dfilter_macro_t(const dfilter_macro_t *m, const char *function, const 
 #define DUMP_MACRO(m)
 #endif
 
-static gboolean fvt_cache_cb(proto_node * node, gpointer data _U_) {
-	field_info* finfo = PNODE_FINFO(node);
-	fvt_cache_entry_t* e;
-
-	if (!finfo) return FALSE;
-
-	if ((e = (fvt_cache_entry_t*)g_hash_table_lookup(fvt_cache,finfo->hfinfo->abbrev))) {
-		e->usable = FALSE;
-	} else if (finfo->value.ftype->val_to_string_repr) {
-		switch (finfo->hfinfo->type) {
-			case FT_NONE:
-			case FT_PROTOCOL:
-				return FALSE;
-			default:
-				break;
-		}
-		e = g_new(fvt_cache_entry_t,1);
-		e->name = finfo->hfinfo->abbrev;
-		e->repr = fvalue_to_string_repr(NULL, &(finfo->value), FTREPR_DFILTER, finfo->hfinfo->display);
-		e->usable = TRUE;
-		g_hash_table_insert(fvt_cache,(void*)finfo->hfinfo->abbrev,e);
-	}
-	return FALSE;
-}
-
-static void dfilter_free_fvt_entry(gpointer v)
-{
-	fvt_cache_entry_t* e = (fvt_cache_entry_t*)v;
-	wmem_free(NULL, e->repr);
-	g_free(e);
-}
-
-void dfilter_macro_build_ftv_cache(void* tree_root) {
-	g_hash_table_remove_all(fvt_cache);
-	proto_tree_traverse_post_order((proto_tree *)tree_root, fvt_cache_cb, NULL);
-}
-
 static gchar* dfilter_macro_resolve(gchar* name, gchar** args, gchar** error) {
 	GString* text;
 	int argc = 0;
 	dfilter_macro_t* m = NULL;
-	fvt_cache_entry_t* e;
 	int* arg_pos_p;
 	gchar** parts;
 	gchar* ret;
@@ -98,20 +55,9 @@ static gchar* dfilter_macro_resolve(gchar* name, gchar** args, gchar** error) {
 	}
 
 	if (!m) {
-		if (fvt_cache &&
-		    (e = (fvt_cache_entry_t  *)g_hash_table_lookup(fvt_cache,name)) != NULL) {
-			if(e->usable) {
-				return wmem_strdup(NULL, e->repr);
-			} else {
-				if (error != NULL)
-					*error = g_strdup_printf("macro '%s' is unusable", name);
-				return NULL;
-			}
-		} else {
-			if (error != NULL)
-				*error = g_strdup_printf("macro '%s' does not exist", name);
-			return NULL;
-		}
+		if (error != NULL)
+			*error = g_strdup_printf("macro '%s' does not exist", name);
+		return NULL;
 	}
 
 	DUMP_MACRO(m);
@@ -122,7 +68,7 @@ static gchar* dfilter_macro_resolve(gchar* name, gchar** args, gchar** error) {
 
 	if (argc != m->argc) {
 		if (error != NULL) {
-			*error = g_strdup_printf("wrong number of arguments for macro '%s', expecting %d instead of %d",
+			*error = ws_strdup_printf("wrong number of arguments for macro '%s', expecting %d instead of %d",
 									  name, m->argc, argc);
 		}
 		return NULL;
@@ -148,6 +94,39 @@ static gchar* dfilter_macro_resolve(gchar* name, gchar** args, gchar** error) {
 	return ret;
 }
 
+/* Start points to the first character after "${" */
+static gboolean start_is_field_reference(const char *start)
+{
+	const char *end;
+	char saved_c;
+	const header_field_info *hfinfo;
+
+	end = strchr(start, '#');
+	if (end == NULL)
+		end = strchr(start, '}');
+	if (end == NULL)
+		return FALSE;
+
+	saved_c = *end;
+	/* This violates constness but we will restore the original string. */
+	*(char *)end = '\0';
+	/* Search for name in registered fields. */
+	hfinfo = dfilter_resolve_unparsed(NULL, start);
+	/* Restore mangled string. */
+	*(char *)end = saved_c;
+
+	if (hfinfo == NULL)
+		return FALSE;
+
+	if (hfinfo->type == FT_PROTOCOL || hfinfo->type == FT_NONE) {
+		/* Ignore these? */
+		return FALSE;
+	}
+
+	/* It's a field reference so ignore it as a macro. */
+	ws_noisy("Ignore field reference ${%s}", start);
+	return TRUE;
+}
 
 static gchar* dfilter_macro_apply_recurse(const gchar* text, guint depth, gchar** error) {
 	enum { OUTSIDE, STARTING, NAME, ARGS } state = OUTSIDE;
@@ -202,6 +181,14 @@ static gchar* dfilter_macro_apply_recurse(const gchar* text, guint depth, gchar*
 			} case STARTING: {
 				switch (c) {
 					case '{': {
+						if (start_is_field_reference(r)) {
+							/* We have a field reference, preserve the name with ${} and bail. */
+							g_string_append(out,"${");
+							state = OUTSIDE;
+							break;
+						}
+
+						/* We have a macro, continue. */
 						args = g_ptr_array_new();
 						arg = g_string_sized_new(32);
 						name = g_string_sized_new(32);
@@ -535,7 +522,7 @@ static gboolean macro_name_chk(void *mp, const char *in_name, guint name_len,
 			/* This a string field which is always NUL-terminated,
 			 * so no need to check name_len. */
 			if (!g_strcmp0(in_name, macros[i].name)) {
-				*error = g_strdup_printf("macro '%s' already exists",
+				*error = ws_strdup_printf("macro '%s' already exists",
 							 in_name);
 				return FALSE;
 			}
@@ -572,8 +559,6 @@ void dfilter_macro_init(void) {
 				    NULL, /* Note: This is set in macros_init () */
 				    NULL,
 				    uat_fields);
-
-	fvt_cache = g_hash_table_new_full(g_str_hash,g_str_equal, NULL, dfilter_free_fvt_entry);
 }
 
 void dfilter_macro_get_uat(uat_t **dfmu_ptr_ptr) {
@@ -677,7 +662,6 @@ void dump_dfilter_macro_t(const dfilter_macro_t *m, const char *function, const 
 
 void dfilter_macro_cleanup(void)
 {
-	g_hash_table_destroy(fvt_cache);
 }
 
 /*

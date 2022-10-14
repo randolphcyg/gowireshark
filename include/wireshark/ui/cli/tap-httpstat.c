@@ -89,7 +89,8 @@ http_draw_hash_responses(gint * key _U_, http_response_code_t *data, char *forma
 	}
 	if (data->packets == 0)
 		return;
-	/* "     HTTP %3d %-35s %9d packets", */
+	/* "     %3d %-35s %9d packets", */
+	/* The maximum existing response code length is 32 characters */
 	printf(format, data->response_code, data->name, data->packets);
 }
 
@@ -124,7 +125,7 @@ httpstat_reset(void *psp)
 }
 
 static tap_packet_status
-httpstat_packet(void *psp, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *pri)
+httpstat_packet(void *psp, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *pri, tap_flags_t flags _U_)
 {
 	const http_info_value_t *value = (const http_info_value_t *)pri;
 	httpstat_t *sp = (httpstat_t *)psp;
@@ -202,12 +203,12 @@ httpstat_draw(void *psp)
 	else
 		printf("HTTP Statistics with filter %s\n", sp->filter);
 
-	printf("* HTTP Status Codes in reply packets\n");
+	printf("* HTTP Response Status Codes                Packets\n");
 	g_hash_table_foreach(sp->hash_responses, (GHFunc)http_draw_hash_responses,
-			     (gpointer)"    HTTP %3d %s\n");
-	printf("* List of HTTP Request methods\n");
+			     (gpointer)"  %3d %-35s %9d\n");
+	printf("* HTTP Request Methods                      Packets\n");
 	g_hash_table_foreach(sp->hash_requests,  (GHFunc)http_draw_hash_requests,
-			     (gpointer)"    %9s %d \n");
+			     (gpointer)"  %-39s %9d \n");
 	printf("===================================================================\n");
 }
 

@@ -9,10 +9,20 @@
 
 #include "filter_action.h"
 
-#include <ui/qt/wireshark_application.h>
+#include <ui/qt/main_application.h>
 #include <ui/qt/main_window.h>
 
+#include <QClipboard>
 #include <QMenu>
+
+FilterAction::FilterAction(QObject *parent, FilterAction::Action action, FilterAction::ActionType type, QString actionName) :
+    QAction(parent),
+    action_(action),
+    type_(type),
+    actionName_(actionName)
+{
+    setText(actionName);
+}
 
 FilterAction::FilterAction(QObject *parent, FilterAction::Action action, FilterAction::ActionType type, FilterAction::ActionDirection direction) :
     QAction(parent),
@@ -187,9 +197,9 @@ QActionGroup * FilterAction::createFilterGroup(QString filter, bool prepare, boo
         enabled = false;
 
     bool filterEmpty = false;
-    if (wsApp)
+    if (mainApp)
     {
-        QWidget * mainWin = wsApp->mainWindow();
+        QWidget * mainWin = mainApp->mainWindow();
         if (qobject_cast<MainWindow *>(mainWin))
             filterEmpty = qobject_cast<MainWindow *>(mainWin)->getFilter().isEmpty();
     }
@@ -245,7 +255,7 @@ QMenu * FilterAction::createFilterMenu(FilterAction::Action act, QString filter,
 
 void FilterAction::groupTriggered(QAction * action)
 {
-    if (action && wsApp)
+    if (action && mainApp)
     {
         if (action->property("filterType").canConvert<FilterAction::ActionType>() &&
             sender()->property("filterAction").canConvert<FilterAction::Action>())
@@ -254,7 +264,7 @@ void FilterAction::groupTriggered(QAction * action)
             FilterAction::ActionType type = action->property("filterType").value<FilterAction::ActionType>();
             QString filter = sender()->property("filter").toString();
 
-            QWidget * mainWin = wsApp->mainWindow();
+            QWidget * mainWin = mainApp->mainWindow();
             if (qobject_cast<MainWindow *>(mainWin))
             {
                 MainWindow * mw = qobject_cast<MainWindow *>(mainWin);
@@ -285,5 +295,5 @@ void FilterAction::copyActionTriggered()
 
     QString filter = sendAction->property("filter").toString();
     if (filter.length() > 0)
-        wsApp->clipboard()->setText(filter);
+        mainApp->clipboard()->setText(filter);
 }

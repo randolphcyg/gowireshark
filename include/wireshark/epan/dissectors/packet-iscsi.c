@@ -20,7 +20,7 @@
 
 #include "config.h"
 
-#include <stdio.h>
+#include <stdio.h>      /* for sscanf() */
 
 #include <epan/packet.h>
 #include <epan/prefs.h>
@@ -576,7 +576,7 @@ iscsi_dissect_TargetAddress(packet_info *pinfo, tvbuff_t* tvb, proto_tree *tree,
     if (addr && !pinfo->fd->visited) {
         conversation_t *conv;
 
-        conv = conversation_new(pinfo->num, addr, addr, ENDPOINT_TCP, port, port, NO_ADDR2|NO_PORT2);
+        conv = conversation_new(pinfo->num, addr, addr, CONVERSATION_TCP, port, port, NO_ADDR2|NO_PORT2);
         if (conv == NULL) {
             return;
         }
@@ -609,7 +609,7 @@ addTextKeys(packet_info *pinfo, proto_tree *tt, tvbuff_t *tvb, gint offset, guin
         }
         *value++ = 0;
 
-        proto_tree_add_item(tt, hf_iscsi_KeyValue, tvb, offset, len, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(tt, hf_iscsi_KeyValue, tvb, offset, len, ENC_ASCII);
         if (!strcmp(key, "TargetAddress")) {
             iscsi_dissect_TargetAddress(pinfo, tvb, tt, value, offset + (guint)strlen("TargetAddress") + 2);
         }

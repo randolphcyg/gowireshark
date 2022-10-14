@@ -30,6 +30,7 @@
 #include <epan/prefs.h>
 #include <epan/conversation.h>
 #include <epan/tap.h>
+#include <epan/strutil.h>
 #include <epan/rtd_table.h>
 #include <epan/expert.h>
 #include "packet-mgcp.h"
@@ -322,7 +323,7 @@ static const value_string mgcp_message_type[] = {
 };
 
 static tap_packet_status
-mgcpstat_packet(void *pms, packet_info *pinfo, epan_dissect_t *edt _U_, const void *pmi)
+mgcpstat_packet(void *pms, packet_info *pinfo, epan_dissect_t *edt _U_, const void *pmi, tap_flags_t flags _U_)
 {
 	rtd_data_t* rtd_data = (rtd_data_t*)pms;
 	rtd_stat_table* ms = &rtd_data->stat_table;
@@ -1172,7 +1173,7 @@ static void dissect_mgcp_firstline(tvbuff_t *tvb, packet_info *pinfo, proto_tree
 					if (verb_description != NULL)
 					{
 						/* Can show verb along with code if known */
-						g_snprintf(code_with_verb, 64, "%s (%s)", code, verb_description);
+						snprintf(code_with_verb, 64, "%s (%s)", code, verb_description);
 					}
 
 					proto_tree_add_string_format(tree, hf_mgcp_req_verb, tvb,
@@ -1292,7 +1293,7 @@ static void dissect_mgcp_firstline(tvbuff_t *tvb, packet_info *pinfo, proto_tree
 					 * if you do that.
 					 */
 					conversation = find_conversation(pinfo->num, &null_address,
-					                                 &pinfo->dst, conversation_pt_to_endpoint_type(pinfo->ptype), pinfo->srcport,
+					                                 &pinfo->dst, conversation_pt_to_conversation_type(pinfo->ptype), pinfo->srcport,
 					                                 pinfo->destport, 0);
 				}
 				if (conversation != NULL)
@@ -1393,7 +1394,7 @@ static void dissect_mgcp_firstline(tvbuff_t *tvb, packet_info *pinfo, proto_tree
 					 * if you do that.
 					 */
 					conversation = find_conversation(pinfo->num, &pinfo->src,
-					                                 &null_address, conversation_pt_to_endpoint_type(pinfo->ptype), pinfo->srcport,
+					                                 &null_address, conversation_pt_to_conversation_type(pinfo->ptype), pinfo->srcport,
 					                                 pinfo->destport, 0);
 				}
 				if (conversation == NULL)
@@ -1402,13 +1403,13 @@ static void dissect_mgcp_firstline(tvbuff_t *tvb, packet_info *pinfo, proto_tree
 					if (pinfo->ptype == PT_TCP)
 					{
 						conversation = conversation_new(pinfo->num, &pinfo->src,
-						                                &pinfo->dst, ENDPOINT_TCP, pinfo->srcport,
+						                                &pinfo->dst, CONVERSATION_TCP, pinfo->srcport,
 						                                pinfo->destport, 0);
 					}
 					else
 					{
 						conversation = conversation_new(pinfo->num, &pinfo->src,
-						                                &null_address, conversation_pt_to_endpoint_type(pinfo->ptype), pinfo->srcport,
+						                                &null_address, conversation_pt_to_conversation_type(pinfo->ptype), pinfo->srcport,
 						                                pinfo->destport, 0);
 					}
 				}
@@ -1583,7 +1584,7 @@ dissect_mgcp_connectionparams(proto_tree *parent_tree, tvbuff_t *tvb, gint offse
 	gchar **tokens;
 	guint i;
 
-	item = proto_tree_add_item(parent_tree, hf_mgcp_param_connectionparam, tvb, offset, param_type_len+param_val_len, ENC_ASCII|ENC_NA);
+	item = proto_tree_add_item(parent_tree, hf_mgcp_param_connectionparam, tvb, offset, param_type_len+param_val_len, ENC_ASCII);
 	tree = proto_item_add_subtree(item, ett_mgcp_param_connectionparam);
 
 	/* The P: line */
@@ -1690,7 +1691,7 @@ dissect_mgcp_localconnectionoptions(proto_tree *parent_tree, tvbuff_t *tvb, gint
 	gchar **tokens;
 	guint i;
 
-	item = proto_tree_add_item(parent_tree, hf_mgcp_param_localconnoptions, tvb, offset, param_type_len+param_val_len, ENC_ASCII|ENC_NA);
+	item = proto_tree_add_item(parent_tree, hf_mgcp_param_localconnoptions, tvb, offset, param_type_len+param_val_len, ENC_ASCII);
 	tree = proto_item_add_subtree(item, ett_mgcp_param_localconnectionoptions);
 
 	/* The L: line */
@@ -1852,7 +1853,7 @@ dissect_mgcp_localvoicemetrics(proto_tree *parent_tree, tvbuff_t *tvb, gint offs
 
 	if (parent_tree)
 	{
-	item = proto_tree_add_item(parent_tree, hf_mgcp_param_localvoicemetrics, tvb, offset, param_type_len+param_val_len, ENC_ASCII|ENC_NA);
+	item = proto_tree_add_item(parent_tree, hf_mgcp_param_localvoicemetrics, tvb, offset, param_type_len+param_val_len, ENC_ASCII);
 		tree = proto_item_add_subtree(item, ett_mgcp_param_localvoicemetrics);
 	}
 
@@ -2003,7 +2004,7 @@ dissect_mgcp_remotevoicemetrics(proto_tree *parent_tree, tvbuff_t *tvb, gint off
 
 	if (parent_tree)
 	{
-	item = proto_tree_add_item(parent_tree, hf_mgcp_param_remotevoicemetrics, tvb, offset, param_type_len+param_val_len, ENC_ASCII|ENC_NA);
+	item = proto_tree_add_item(parent_tree, hf_mgcp_param_remotevoicemetrics, tvb, offset, param_type_len+param_val_len, ENC_ASCII);
 		tree = proto_item_add_subtree(item, ett_mgcp_param_remotevoicemetrics);
 	}
 

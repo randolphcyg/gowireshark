@@ -1,4 +1,4 @@
-/* lbm_lbtrm_transport_dialog.h
+/** @file
  *
  * Copyright (c) 2005-2014 Informatica Corporation. All Rights Reserved.
  *
@@ -66,7 +66,7 @@ class LBMLBTRMTransportDialog : public QDialog
         void resetReceiversDetail(void);
         void fillTree(void);
         static void resetTap(void * tap_data);
-        static tap_packet_status tapPacket(void * tap_data, packet_info * pinfo, epan_dissect_t * edt, const void * stream_info);
+        static tap_packet_status tapPacket(void * tap_data, packet_info * pinfo, epan_dissect_t * edt, const void * stream_info, tap_flags_t flags);
         static void drawTreeItems(void * tap_data);
         void loadSourceDataDetails(LBMLBTRMSourceTransportEntry * transport);
         void loadSourceRXDataDetails(LBMLBTRMSourceTransportEntry * transport);
@@ -76,7 +76,6 @@ class LBMLBTRMTransportDialog : public QDialog
         void loadReceiverNAKDetails(LBMLBTRMReceiverTransportEntry * transport);
 
     private slots:
-        void closeDialog(void);
         void on_applyFilterButton_clicked(void);
 
         void sourcesDetailCurrentChanged(int Index);

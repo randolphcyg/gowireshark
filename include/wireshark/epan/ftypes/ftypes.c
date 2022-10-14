@@ -8,14 +8,12 @@
 
 #include "config.h"
 
-#include <ftypes-int.h>
-#include <glib.h>
+#include "ftypes-int.h"
 
-#include "ftypes.h"
 #include <wsutil/ws_assert.h>
 
 /* Keep track of ftype_t's via their ftenum number */
-static ftype_t* type_list[FT_NUM_TYPES];
+ftype_t* type_list[FT_NUM_TYPES];
 
 /* Initialize the ftype module. */
 void
@@ -34,6 +32,31 @@ ftypes_initialize(void)
 	ftype_register_tvbuff();
 }
 
+void
+ftypes_register_pseudofields(void)
+{
+	static int proto_ftypes;
+
+	proto_ftypes = proto_register_protocol(
+				"Wireshark Field/Fundamental Types",
+				"Wireshark FTypes",
+				"_ws.ftypes");
+
+	ftype_register_pseudofields_bytes(proto_ftypes);
+	ftype_register_pseudofields_double(proto_ftypes);
+	ftype_register_pseudofields_ieee_11073_float(proto_ftypes);
+	ftype_register_pseudofields_integer(proto_ftypes);
+	ftype_register_pseudofields_ipv4(proto_ftypes);
+	ftype_register_pseudofields_ipv6(proto_ftypes);
+	ftype_register_pseudofields_guid(proto_ftypes);
+	ftype_register_pseudofields_none(proto_ftypes);
+	ftype_register_pseudofields_string(proto_ftypes);
+	ftype_register_pseudofields_time(proto_ftypes);
+	ftype_register_pseudofields_tvbuff(proto_ftypes);
+
+	proto_set_cant_toggle(proto_ftypes);
+}
+
 /* Each ftype_t is registered via this function */
 void
 ftype_register(enum ftenum ftype, ftype_t *ft)
@@ -47,13 +70,6 @@ ftype_register(enum ftenum ftype, ftype_t *ft)
 
 	type_list[ftype] = ft;
 }
-
-/* Given an ftenum number, return an ftype_t* */
-#define FTYPE_LOOKUP(ftype, result)	\
-	/* Check input */		\
-	ws_assert(ftype < FT_NUM_TYPES);	\
-	result = type_list[ftype];
-
 
 
 /* from README.dissector:
@@ -173,52 +189,16 @@ ftype_can_eq(enum ftenum ftype)
 	ftype_t	*ft;
 
 	FTYPE_LOOKUP(ftype, ft);
-	return ft->cmp_eq ? TRUE : FALSE;
+	return ft->cmp_order != NULL;
 }
 
 gboolean
-ftype_can_ne(enum ftenum ftype)
+ftype_can_cmp(enum ftenum ftype)
 {
 	ftype_t	*ft;
 
 	FTYPE_LOOKUP(ftype, ft);
-	return ft->cmp_ne ? TRUE : FALSE;
-}
-
-gboolean
-ftype_can_gt(enum ftenum ftype)
-{
-	ftype_t	*ft;
-
-	FTYPE_LOOKUP(ftype, ft);
-	return ft->cmp_gt ? TRUE : FALSE;
-}
-
-gboolean
-ftype_can_ge(enum ftenum ftype)
-{
-	ftype_t	*ft;
-
-	FTYPE_LOOKUP(ftype, ft);
-	return ft->cmp_ge ? TRUE : FALSE;
-}
-
-gboolean
-ftype_can_lt(enum ftenum ftype)
-{
-	ftype_t	*ft;
-
-	FTYPE_LOOKUP(ftype, ft);
-	return ft->cmp_lt ? TRUE : FALSE;
-}
-
-gboolean
-ftype_can_le(enum ftenum ftype)
-{
-	ftype_t	*ft;
-
-	FTYPE_LOOKUP(ftype, ft);
-	return ft->cmp_le ? TRUE : FALSE;
+	return ft->cmp_order != NULL;
 }
 
 gboolean
@@ -227,7 +207,61 @@ ftype_can_bitwise_and(enum ftenum ftype)
 	ftype_t	*ft;
 
 	FTYPE_LOOKUP(ftype, ft);
-	return ft->cmp_bitwise_and ? TRUE : FALSE;
+	return ft->bitwise_and ? TRUE : FALSE;
+}
+
+gboolean
+ftype_can_unary_minus(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	return ft->unary_minus != NULL;
+}
+
+gboolean
+ftype_can_add(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	return ft->add != NULL;
+}
+
+gboolean
+ftype_can_subtract(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	return ft->subtract != NULL;
+}
+
+gboolean
+ftype_can_multiply(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	return ft->multiply != NULL;
+}
+
+gboolean
+ftype_can_divide(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	return ft->divide != NULL;
+}
+
+gboolean
+ftype_can_modulo(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	return ft->modulo != NULL;
 }
 
 gboolean
@@ -246,6 +280,62 @@ ftype_can_matches(enum ftenum ftype)
 
 	FTYPE_LOOKUP(ftype, ft);
 	return ft->cmp_matches ? TRUE : FALSE;
+}
+
+gboolean
+ftype_can_is_zero(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	return ft->is_zero ? TRUE : FALSE;
+}
+
+gboolean
+ftype_can_is_negative(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	return ft->is_negative ? TRUE : FALSE;
+}
+
+gboolean
+ftype_can_val_to_sinteger(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	/* We first convert to 64 bit and then check for overflow. */
+	return ft->val_to_sinteger64 ? TRUE : FALSE;
+}
+
+gboolean
+ftype_can_val_to_uinteger(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	/* We first convert to 64 bit and then check for overflow. */
+	return ft->val_to_uinteger64 ? TRUE : FALSE;
+}
+
+gboolean
+ftype_can_val_to_sinteger64(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	return ft->val_to_sinteger64 ? TRUE : FALSE;
+}
+
+gboolean
+ftype_can_val_to_uinteger64(enum ftenum ftype)
+{
+	ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	return ft->val_to_uinteger64 ? TRUE : FALSE;
 }
 
 /* ---------------------------------------------------------- */
@@ -271,6 +361,27 @@ fvalue_new(ftenum_t ftype)
 	return fv;
 }
 
+fvalue_t*
+fvalue_dup(const fvalue_t *fv_orig)
+{
+	fvalue_t		*fv_new;
+	FvalueCopyFunc		copy_value;
+
+	fv_new = g_slice_new(fvalue_t);
+	fv_new->ftype = fv_orig->ftype;
+	copy_value = fv_new->ftype->copy_value;
+	if (copy_value != NULL) {
+		/* deep copy */
+		copy_value(fv_new, fv_orig);
+	}
+	else {
+		/* shallow copy */
+		memcpy(&fv_new->value, &fv_orig->value, sizeof(fv_orig->value));
+	}
+
+	return fv_new;
+}
+
 void
 fvalue_init(fvalue_t *fv, ftenum_t ftype)
 {
@@ -286,14 +397,31 @@ fvalue_init(fvalue_t *fv, ftenum_t ftype)
 	}
 }
 
+void
+fvalue_cleanup(fvalue_t *fv)
+{
+	if (!fv->ftype->free_value)
+		return;
+	fv->ftype->free_value(fv);
+}
+
+void
+fvalue_free(fvalue_t *fv)
+{
+	fvalue_cleanup(fv);
+	g_slice_free(fvalue_t, fv);
+}
+
 fvalue_t*
-fvalue_from_unparsed(ftenum_t ftype, const char *s, gboolean allow_partial_value, gchar **err_msg)
+fvalue_from_literal(ftenum_t ftype, const char *s, gboolean allow_partial_value, gchar **err_msg)
 {
 	fvalue_t	*fv;
+	gboolean ok = FALSE;
 
 	fv = fvalue_new(ftype);
-	if (fv->ftype->val_from_unparsed) {
-		if (fv->ftype->val_from_unparsed(fv, s, allow_partial_value, err_msg)) {
+	if (fv->ftype->val_from_literal) {
+		ok = fv->ftype->val_from_literal(fv, s, allow_partial_value, err_msg);
+		if (ok) {
 			/* Success */
 			if (err_msg != NULL)
 				*err_msg = NULL;
@@ -302,22 +430,22 @@ fvalue_from_unparsed(ftenum_t ftype, const char *s, gboolean allow_partial_value
 	}
 	else {
 		if (err_msg != NULL) {
-			*err_msg = g_strdup_printf("\"%s\" cannot be converted to %s.",
+			*err_msg = ws_strdup_printf("\"%s\" cannot be converted to %s.",
 					s, ftype_pretty_name(ftype));
 		}
 	}
-	FVALUE_FREE(fv);
+	fvalue_free(fv);
 	return NULL;
 }
 
 fvalue_t*
-fvalue_from_string(ftenum_t ftype, const char *s, gchar **err_msg)
+fvalue_from_string(ftenum_t ftype, const char *str, size_t len, gchar **err_msg)
 {
 	fvalue_t	*fv;
 
 	fv = fvalue_new(ftype);
 	if (fv->ftype->val_from_string) {
-		if (fv->ftype->val_from_string(fv, s, err_msg)) {
+		if (fv->ftype->val_from_string(fv, str, len, err_msg)) {
 			/* Success */
 			if (err_msg != NULL)
 				*err_msg = NULL;
@@ -326,11 +454,41 @@ fvalue_from_string(ftenum_t ftype, const char *s, gchar **err_msg)
 	}
 	else {
 		if (err_msg != NULL) {
-			*err_msg = g_strdup_printf("\"%s\" cannot be converted to %s.",
-					s, ftype_pretty_name(ftype));
+			*err_msg = ws_strdup_printf("%s cannot be converted from a string (\"%s\").",
+					ftype_pretty_name(ftype), str);
 		}
 	}
-	FVALUE_FREE(fv);
+	fvalue_free(fv);
+	return NULL;
+}
+
+fvalue_t*
+fvalue_from_charconst(ftenum_t ftype, unsigned long num, gchar **err_msg)
+{
+	fvalue_t	*fv;
+
+	fv = fvalue_new(ftype);
+	if (fv->ftype->val_from_charconst) {
+		if (fv->ftype->val_from_charconst(fv, num, err_msg)) {
+			/* Success */
+			if (err_msg != NULL)
+				*err_msg = NULL;
+			return fv;
+		}
+	}
+	else {
+		if (err_msg != NULL) {
+			if (num <= 0x7f && g_ascii_isprint(num)) {
+				*err_msg = ws_strdup_printf("Character constant '%c' (0x%lx) cannot be converted to %s.",
+						(int)num, num, ftype_pretty_name(ftype));
+			}
+			else {
+				*err_msg = ws_strdup_printf("Character constant 0x%lx cannot be converted to %s.",
+						num, ftype_pretty_name(ftype));
+			}
+		}
+	}
+	fvalue_free(fv);
 	return NULL;
 }
 
@@ -341,7 +499,7 @@ fvalue_type_ftenum(fvalue_t *fv)
 }
 
 const char*
-fvalue_type_name(fvalue_t *fv)
+fvalue_type_name(const fvalue_t *fv)
 {
 	return fv->ftype->name;
 }
@@ -356,32 +514,55 @@ fvalue_length(fvalue_t *fv)
 		return fv->ftype->wire_size;
 }
 
-int
-fvalue_string_repr_len(fvalue_t *fv, ftrepr_t rtype, int field_display)
-{
-	ws_assert(fv->ftype->len_string_repr);
-	return fv->ftype->len_string_repr(fv, rtype, field_display);
-}
-
 char *
-fvalue_to_string_repr(wmem_allocator_t *scope, fvalue_t *fv, ftrepr_t rtype, int field_display)
+fvalue_to_string_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype, int field_display)
 {
-	char *buf;
-	int len;
 	if (fv->ftype->val_to_string_repr == NULL) {
 		/* no value-to-string-representation function, so the value cannot be represented */
 		return NULL;
 	}
 
-	if ((len = fvalue_string_repr_len(fv, rtype, field_display)) >= 0) {
-		buf = (char *)wmem_alloc0(scope, len + 1);
-	} else {
-		/* the value cannot be represented in the given representation type (rtype) */
-		return NULL;
-	}
+	return fv->ftype->val_to_string_repr(scope, fv, rtype, field_display);
+}
 
-	fv->ftype->val_to_string_repr(fv, rtype, field_display, buf, (unsigned int)len+1);
-	return buf;
+enum ft_result
+fvalue_to_uinteger(const fvalue_t *fv, guint32 *repr)
+{
+	guint64 val;
+	enum ft_result res = fv->ftype->val_to_uinteger64(fv, &val);
+	if (res != FT_OK)
+		return res;
+	if (val > G_MAXUINT32)
+		return FT_OVERFLOW;
+
+	*repr = (guint32)val;
+	return FT_OK;
+}
+
+enum ft_result
+fvalue_to_sinteger(const fvalue_t *fv, gint32 *repr)
+{
+	gint64 val;
+	enum ft_result res = fv->ftype->val_to_sinteger64(fv, &val);
+	if (res != FT_OK)
+		return res;
+	if (val > G_MAXINT32)
+		return FT_OVERFLOW;
+
+	*repr = (gint32)val;
+	return FT_OK;
+}
+
+enum ft_result
+fvalue_to_uinteger64(const fvalue_t *fv, guint64 *repr)
+{
+	return fv->ftype->val_to_uinteger64(fv, repr);
+}
+
+enum ft_result
+fvalue_to_sinteger64(const fvalue_t *fv, gint64 *repr)
+{
+	return fv->ftype->val_to_sinteger64(fv, repr);
 }
 
 typedef struct {
@@ -527,18 +708,28 @@ fvalue_set_time(fvalue_t *fv, const nstime_t *value)
 void
 fvalue_set_string(fvalue_t *fv, const gchar *value)
 {
-	ws_assert(IS_FT_STRING(fv->ftype->ftype) ||
-			fv->ftype->ftype == FT_UINT_STRING);
-	ws_assert(fv->ftype->set_value.set_value_string);
-	fv->ftype->set_value.set_value_string(fv, value);
+	wmem_strbuf_t *buf = wmem_strbuf_new(NULL, value);
+	fvalue_set_strbuf(fv, buf);
 }
 
 void
-fvalue_set_protocol(fvalue_t *fv, tvbuff_t *value, const gchar *name)
+fvalue_set_strbuf(fvalue_t *fv, wmem_strbuf_t *value)
+{
+	if (value->allocator != NULL) {
+		/* XXX Can this condition be relaxed? */
+		ws_critical("Fvalue strbuf allocator must be NULL");
+	}
+	ws_assert(IS_FT_STRING(fv->ftype->ftype));
+	ws_assert(fv->ftype->set_value.set_value_strbuf);
+	fv->ftype->set_value.set_value_strbuf(fv, value);
+}
+
+void
+fvalue_set_protocol(fvalue_t *fv, tvbuff_t *value, const gchar *name, int length)
 {
 	ws_assert(fv->ftype->ftype == FT_PROTOCOL);
 	ws_assert(fv->ftype->set_value.set_value_protocol);
-	fv->ftype->set_value.set_value_protocol(fv, value, name);
+	fv->ftype->set_value.set_value_protocol(fv, value, name, length);
 }
 
 void
@@ -602,9 +793,8 @@ fvalue_set_floating(fvalue_t *fv, gdouble value)
 	fv->ftype->set_value.set_value_floating(fv, value);
 }
 
-
-gpointer
-fvalue_get(fvalue_t *fv)
+const guint8 *
+fvalue_get_bytes(fvalue_t *fv)
 {
 	ws_assert(fv->ftype->ftype == FT_BYTES ||
 			fv->ftype->ftype == FT_UINT_BYTES ||
@@ -615,14 +805,47 @@ fvalue_get(fvalue_t *fv)
 			fv->ftype->ftype == FT_REL_OID ||
 			fv->ftype->ftype == FT_SYSTEM_ID ||
 			fv->ftype->ftype == FT_FCWWN ||
-			fv->ftype->ftype == FT_GUID ||
-			fv->ftype->ftype == FT_IPv6 ||
-			fv->ftype->ftype == FT_PROTOCOL ||
-			IS_FT_STRING(fv->ftype->ftype) ||
-			fv->ftype->ftype == FT_UINT_STRING ||
-			IS_FT_TIME(fv->ftype->ftype));
-	ws_assert(fv->ftype->get_value.get_value_ptr);
-	return fv->ftype->get_value.get_value_ptr(fv);
+			fv->ftype->ftype == FT_IPv6);
+	ws_assert(fv->ftype->get_value.get_value_bytes);
+	return fv->ftype->get_value.get_value_bytes(fv);
+}
+
+const e_guid_t *
+fvalue_get_guid(fvalue_t *fv)
+{
+	ws_assert(fv->ftype->ftype == FT_GUID);
+	ws_assert(fv->ftype->get_value.get_value_guid);
+	return fv->ftype->get_value.get_value_guid(fv);
+}
+
+const nstime_t *
+fvalue_get_time(fvalue_t *fv)
+{
+	ws_assert(IS_FT_TIME(fv->ftype->ftype));
+	ws_assert(fv->ftype->get_value.get_value_time);
+	return fv->ftype->get_value.get_value_time(fv);
+}
+
+const char *
+fvalue_get_string(fvalue_t *fv)
+{
+	return wmem_strbuf_get_str(fvalue_get_strbuf(fv));
+}
+
+const wmem_strbuf_t *
+fvalue_get_strbuf(fvalue_t *fv)
+{
+	ws_assert(IS_FT_STRING(fv->ftype->ftype));
+	ws_assert(fv->ftype->get_value.get_value_strbuf);
+	return fv->ftype->get_value.get_value_strbuf(fv);
+}
+
+tvbuff_t *
+fvalue_get_protocol(fvalue_t *fv)
+{
+	ws_assert(fv->ftype->ftype == FT_PROTOCOL);
+	ws_assert(fv->ftype->get_value.get_value_protocol);
+	return fv->ftype->get_value.get_value_protocol(fv);
 }
 
 guint32
@@ -686,76 +909,196 @@ fvalue_get_floating(fvalue_t *fv)
 	return fv->ftype->get_value.get_value_floating(fv);
 }
 
-gboolean
+ft_bool_t
 fvalue_eq(const fvalue_t *a, const fvalue_t *b)
 {
-	/* XXX - check compatibility of a and b */
-	ws_assert(a->ftype->cmp_eq);
-	return a->ftype->cmp_eq(a, b);
+	int cmp;
+	enum ft_result res;
+
+	ws_assert(a->ftype->cmp_order);
+	res = a->ftype->cmp_order(a, b, &cmp);
+	if (res != FT_OK)
+		return -res;
+	return cmp == 0 ? FT_TRUE : FT_FALSE;
 }
 
-gboolean
+ft_bool_t
 fvalue_ne(const fvalue_t *a, const fvalue_t *b)
 {
-	/* XXX - check compatibility of a and b */
-	ws_assert(a->ftype->cmp_ne);
-	return a->ftype->cmp_ne(a, b);
+	int cmp;
+	enum ft_result res;
+
+	ws_assert(a->ftype->cmp_order);
+	res = a->ftype->cmp_order(a, b, &cmp);
+	if (res != FT_OK)
+		return -res;
+	return cmp != 0 ? FT_TRUE : FT_FALSE;
 }
 
-gboolean
+ft_bool_t
 fvalue_gt(const fvalue_t *a, const fvalue_t *b)
 {
-	/* XXX - check compatibility of a and b */
-	ws_assert(a->ftype->cmp_gt);
-	return a->ftype->cmp_gt(a, b);
+	int cmp;
+	enum ft_result res;
+
+	ws_assert(a->ftype->cmp_order);
+	res = a->ftype->cmp_order(a, b, &cmp);
+	if (res != FT_OK)
+		return -res;
+	return cmp > 0 ? FT_TRUE : FT_FALSE;
 }
 
-gboolean
+ft_bool_t
 fvalue_ge(const fvalue_t *a, const fvalue_t *b)
 {
-	/* XXX - check compatibility of a and b */
-	ws_assert(a->ftype->cmp_ge);
-	return a->ftype->cmp_ge(a, b);
+	int cmp;
+	enum ft_result res;
+
+	ws_assert(a->ftype->cmp_order);
+	res = a->ftype->cmp_order(a, b, &cmp);
+	if (res != FT_OK)
+		return -res;
+	return cmp >= 0 ? FT_TRUE : FT_FALSE;
 }
 
-gboolean
+ft_bool_t
 fvalue_lt(const fvalue_t *a, const fvalue_t *b)
 {
-	/* XXX - check compatibility of a and b */
-	ws_assert(a->ftype->cmp_lt);
-	return a->ftype->cmp_lt(a, b);
+	int cmp;
+	enum ft_result res;
+
+	ws_assert(a->ftype->cmp_order);
+	res = a->ftype->cmp_order(a, b, &cmp);
+	if (res != FT_OK)
+		return -res;
+	return cmp < 0 ? FT_TRUE : FT_FALSE;
 }
 
-gboolean
+ft_bool_t
 fvalue_le(const fvalue_t *a, const fvalue_t *b)
 {
-	/* XXX - check compatibility of a and b */
-	ws_assert(a->ftype->cmp_le);
-	return a->ftype->cmp_le(a, b);
+	int cmp;
+	enum ft_result res;
+
+	ws_assert(a->ftype->cmp_order);
+	res = a->ftype->cmp_order(a, b, &cmp);
+	if (res != FT_OK)
+		return -res;
+	return cmp <= 0 ? FT_TRUE : FT_FALSE;
 }
 
-gboolean
-fvalue_bitwise_and(const fvalue_t *a, const fvalue_t *b)
-{
-	/* XXX - check compatibility of a and b */
-	ws_assert(a->ftype->cmp_bitwise_and);
-	return a->ftype->cmp_bitwise_and(a, b);
-}
-
-gboolean
+ft_bool_t
 fvalue_contains(const fvalue_t *a, const fvalue_t *b)
 {
-	/* XXX - check compatibility of a and b */
+	gboolean yes;
+	enum ft_result res;
+
 	ws_assert(a->ftype->cmp_contains);
-	return a->ftype->cmp_contains(a, b);
+	res = a->ftype->cmp_contains(a, b, &yes);
+	if (res != FT_OK)
+		return -res;
+	return yes ? FT_TRUE : FT_FALSE;
+}
+
+ft_bool_t
+fvalue_matches(const fvalue_t *a, const ws_regex_t *re)
+{
+	gboolean yes;
+	enum ft_result res;
+
+	ws_assert(a->ftype->cmp_matches);
+	res = a->ftype->cmp_matches(a, re, &yes);
+	if (res != FT_OK)
+		return -res;
+	return yes ? FT_TRUE : FT_FALSE;
 }
 
 gboolean
-fvalue_matches(const fvalue_t *a, const GRegex *b)
+fvalue_is_zero(const fvalue_t *a)
+{
+	return a->ftype->is_zero(a);
+}
+
+gboolean
+fvalue_is_negative(const fvalue_t *a)
+{
+	return a->ftype->is_negative(a);
+}
+
+static fvalue_t *
+_fvalue_binop(FvalueBinaryOp op, const fvalue_t *a, const fvalue_t *b, char **err_msg)
+{
+	fvalue_t *result;
+
+	result = fvalue_new(a->ftype->ftype);
+	if (op(result, a, b, err_msg) != FT_OK) {
+		fvalue_free(result);
+		return NULL;
+	}
+	return result;
+}
+
+fvalue_t *
+fvalue_bitwise_and(const fvalue_t *a, const fvalue_t *b, char **err_msg)
 {
 	/* XXX - check compatibility of a and b */
-	ws_assert(a->ftype->cmp_matches);
-	return a->ftype->cmp_matches(a, b);
+	ws_assert(a->ftype->bitwise_and);
+	return _fvalue_binop(a->ftype->bitwise_and, a, b, err_msg);
+}
+
+fvalue_t *
+fvalue_add(const fvalue_t *a, const fvalue_t *b, gchar **err_msg)
+{
+	/* XXX - check compatibility of a and b */
+	ws_assert(a->ftype->add);
+	return _fvalue_binop(a->ftype->add, a, b, err_msg);
+}
+
+fvalue_t *
+fvalue_subtract(const fvalue_t *a, const fvalue_t *b, gchar **err_msg)
+{
+	/* XXX - check compatibility of a and b */
+	ws_assert(a->ftype->subtract);
+	return _fvalue_binop(a->ftype->subtract, a, b, err_msg);
+}
+
+fvalue_t *
+fvalue_multiply(const fvalue_t *a, const fvalue_t *b, gchar **err_msg)
+{
+	/* XXX - check compatibility of a and b */
+	ws_assert(a->ftype->multiply);
+	return _fvalue_binop(a->ftype->multiply, a, b, err_msg);
+}
+
+fvalue_t *
+fvalue_divide(const fvalue_t *a, const fvalue_t *b, gchar **err_msg)
+{
+	/* XXX - check compatibility of a and b */
+	ws_assert(a->ftype->divide);
+	return _fvalue_binop(a->ftype->divide, a, b, err_msg);
+}
+
+fvalue_t *
+fvalue_modulo(const fvalue_t *a, const fvalue_t *b, gchar **err_msg)
+{
+	/* XXX - check compatibility of a and b */
+	ws_assert(a->ftype->modulo);
+	return _fvalue_binop(a->ftype->modulo, a, b, err_msg);
+}
+
+fvalue_t*
+fvalue_unary_minus(const fvalue_t *fv, char **err_msg)
+{
+	fvalue_t *result;
+
+	ws_assert(fv->ftype->unary_minus);
+
+	result = fvalue_new(fv->ftype->ftype);
+	if (fv->ftype->unary_minus(result, fv, err_msg) != FT_OK) {
+		fvalue_free(result);
+		return NULL;
+	}
+	return result;
 }
 
 /*

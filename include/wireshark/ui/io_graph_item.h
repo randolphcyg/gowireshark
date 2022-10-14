@@ -1,4 +1,5 @@
-/* io_graph_item.h
+/** @file
+ *
  * Definitions and functions for I/O graph items
  *
  * Copied from gtk/io_stat.c, (c) 2002 Ronnie Sahlberg
@@ -167,7 +168,7 @@ update_io_graph_item(io_graph_item_t *items, int idx, packet_info *pinfo, epan_d
             guint64 new_uint64;
             float new_float;
             double new_double;
-            nstime_t *new_time;
+            const nstime_t *new_time;
 
             switch (proto_registrar_get_ftype(hf_index)) {
             case FT_UINT8:
@@ -298,7 +299,7 @@ update_io_graph_item(io_graph_item_t *items, int idx, packet_info *pinfo, epan_d
                 item->fields++;
                 break;
             case FT_RELATIVE_TIME:
-                new_time = (nstime_t *)fvalue_get(&((field_info *)gp->pdata[i])->value);
+                new_time = fvalue_get_time(&((field_info *)gp->pdata[i])->value);
 
                 switch (item_unit) {
                 case IOG_ITEM_UNIT_CALC_LOAD:

@@ -1,4 +1,4 @@
-/* interface_toolbar.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -71,7 +71,7 @@ private slots:
 
     void closeLog();
 
-    void on_interfacesComboBox_currentIndexChanged(const QString &ifname);
+    void on_interfacesComboBox_currentTextChanged(const QString &ifname);
 
 private:
     void initializeControls(const iface_toolbar *toolbar);

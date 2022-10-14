@@ -68,10 +68,10 @@ BASIC_LIST="gcc \
 	qtbase5-dev-tools \
 	libc-ares-dev \
 	libpcap-dev \
+	libpcre2-dev \
 	flex \
 	make \
 	python3 \
-	perl \
 	libgcrypt-dev"
 
 ADDITIONAL_LIST="libnl-3-dev \
@@ -90,7 +90,9 @@ ADDITIONAL_LIST="libnl-3-dev \
 	libminizip-dev \
 	git \
 	ninja-build \
+	perl \
 	xsltproc \
+	ccache \
 	libspeexdsp-dev"
 
 # Uncomment to add PNG compression utilities used by compress-pngs:
@@ -111,7 +113,8 @@ DEBDEPS_LIST="debhelper \
 	python3-ply \
 	quilt"
 
-TESTDEPS_LIST=
+TESTDEPS_LIST="python3-pytest \
+	python3-pytest-xdist"
 
 # Adds package $2 to list variable $1 if the package is found.
 # If $3 is given, then this version requirement must be satisfied.

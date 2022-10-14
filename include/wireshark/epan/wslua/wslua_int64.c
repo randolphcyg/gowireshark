@@ -292,7 +292,7 @@ WSLUA_CONSTRUCTOR Int64_fromhex(lua_State* L) {
     const gchar *s = luaL_checklstring(L,WSLUA_ARG_Int64_fromhex_HEX,&len);
 
     if (len > 0) {
-        if (sscanf(s, "%" G_GINT64_MODIFIER "x", &result) != 1) {
+        if (sscanf(s, "%" SCNx64, &result) != 1) {
             return luaL_error(L, "Error decoding the passed-in hex string");
         }
     }
@@ -304,10 +304,10 @@ WSLUA_METHOD Int64_tohex(lua_State* L) {
     /* Returns a hexadecimal string of the <<lua_class_Int64,`Int64`>> value.
        @since 1.11.3
      */
-#define WSLUA_OPTARG_Int64_new_NUMBYTES 2 /* The number of hex chars/nibbles to generate.
+#define WSLUA_OPTARG_Int64_tohex_NUMBYTES 2 /* The number of hex chars/nibbles to generate.
                                              A negative value generates uppercase. Default is 16. */
     gint64 b = getInt64(L,1);
-    lua_Integer n = luaL_optinteger(L, WSLUA_OPTARG_Int64_new_NUMBYTES, 16);
+    lua_Integer n = luaL_optinteger(L, WSLUA_OPTARG_Int64_tohex_NUMBYTES, 16);
     const gchar *hexdigits = "0123456789abcdef";
     gchar buf[16];
     lua_Integer i;
@@ -349,7 +349,7 @@ WSLUA_METAMETHOD Int64__tostring(lua_State* L) {
     /* Converts the <<lua_class_Int64,`Int64`>> into a string of decimal digits. */
     gint64 num = getInt64(L,1);
     gchar s[LUATYPE64_STRING_SIZE];
-    if (g_snprintf(s, LUATYPE64_STRING_SIZE, "%" G_GINT64_MODIFIER "d", num) < 0) {
+    if (snprintf(s, LUATYPE64_STRING_SIZE, "%" PRId64, num) < 0) {
         return luaL_error(L, "Error writing Int64 to a string");
     }
     lua_pushstring(L,s);
@@ -835,7 +835,7 @@ WSLUA_METAMETHOD UInt64__tostring(lua_State* L) {
     /* Converts the <<lua_class_UInt64,`UInt64`>> into a string. */
     guint64 num = getUInt64(L,1);
     gchar s[LUATYPE64_STRING_SIZE];
-    if (g_snprintf(s, LUATYPE64_STRING_SIZE, "%" G_GINT64_MODIFIER "u",(guint64)num) < 0) {
+    if (snprintf(s, LUATYPE64_STRING_SIZE, "%" PRIu64,(guint64)num) < 0) {
         return luaL_error(L, "Error writing UInt64 to a string");
     }
     lua_pushstring(L,s);
@@ -852,7 +852,7 @@ WSLUA_CONSTRUCTOR UInt64_fromhex(lua_State* L) {
     const gchar *s = luaL_checklstring(L,WSLUA_ARG_UInt64_fromhex_HEX,&len);
 
     if (len > 0) {
-        if (sscanf(s, "%" G_GINT64_MODIFIER "x", &result) != 1) {
+        if (sscanf(s, "%" SCNx64, &result) != 1) {
             return luaL_error(L, "Error decoding the passed-in hex string");
         }
     }
@@ -864,10 +864,10 @@ WSLUA_METHOD UInt64_tohex(lua_State* L) {
     /* Returns a hex string of the <<lua_class_UInt64,`UInt64`>> value.
        @since 1.11.3
      */
-#define WSLUA_OPTARG_UInt64_new_NUMBYTES 2 /* The number of hex-chars/nibbles to generate.
+#define WSLUA_OPTARG_UInt64_tohex_NUMBYTES 2 /* The number of hex-chars/nibbles to generate.
                                               Negative means uppercase Default is 16. */
     guint64 b = getUInt64(L,1);
-    lua_Integer n = luaL_optinteger(L, WSLUA_OPTARG_UInt64_new_NUMBYTES, 16);
+    lua_Integer n = luaL_optinteger(L, WSLUA_OPTARG_UInt64_tohex_NUMBYTES, 16);
     const gchar *hexdigits = "0123456789abcdef";
     gchar buf[16];
     lua_Integer i;

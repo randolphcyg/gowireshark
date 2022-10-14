@@ -1,4 +1,4 @@
--- 3GPP TS 38.473 V16.7.0 (2021-10)
+-- 3GPP TS 38.473 V16.9.0 (2022-04)
 -- 9.4.4	PDU Definitions
 -- **************************************************************
 --
@@ -262,7 +262,9 @@ IMPORTS
 	Extended-GNB-CU-Name,
 	Extended-GNB-DU-Name,
 	F1CTransferPath,
-	SCGIndicator
+	SCGIndicator,
+	SpatialRelationPerSRSResource,
+	MeasurementPeriodicityExtended
 
 
 
@@ -610,6 +612,8 @@ FROM F1AP-Containers
 	id-E-CID-ReportCharacteristics,
 	id-F1CTransferPath,
 	id-SCGIndicator,
+	id-SRSSpatialRelationPerSRSResource,
+	id-PosMeasurementPeriodicityExtended,
 	maxCellingNBDU,
 	maxnoofCandidateSpCells,
 	maxnoofDRBs,
@@ -762,7 +766,7 @@ F1SetupRequestIEs F1AP-PROTOCOL-IES ::= {
 	{ ID id-GNB-DU-RRC-Version				CRITICALITY reject	TYPE RRC-Version						PRESENCE mandatory	}|
 	{ ID id-Transport-Layer-Address-Info	CRITICALITY ignore	TYPE Transport-Layer-Address-Info		PRESENCE optional	}|
 	{ ID id-BAPAddress						CRITICALITY ignore	TYPE BAPAddress							PRESENCE optional	}|
-	{ ID id-Extended-GNB-CU-Name			CRITICALITY ignore	TYPE Extended-GNB-CU-Name				PRESENCE optional	},
+	{ ID id-Extended-GNB-DU-Name			CRITICALITY ignore	TYPE Extended-GNB-DU-Name				PRESENCE optional	},
 	...
 } 
 
@@ -795,7 +799,7 @@ F1SetupResponseIEs F1AP-PROTOCOL-IES ::= {
 	{ ID id-Transport-Layer-Address-Info	CRITICALITY ignore	TYPE Transport-Layer-Address-Info		PRESENCE optional	}|
 	{ ID id-UL-BH-Non-UP-Traffic-Mapping	CRITICALITY reject	TYPE UL-BH-Non-UP-Traffic-Mapping		PRESENCE optional	}|
 	{ ID id-BAPAddress						CRITICALITY ignore	TYPE BAPAddress							PRESENCE optional	}|
-	{ ID id-Extended-GNB-DU-Name			CRITICALITY ignore	TYPE Extended-GNB-DU-Name				PRESENCE optional	},
+	{ ID id-Extended-GNB-CU-Name			CRITICALITY ignore	TYPE Extended-GNB-CU-Name				PRESENCE optional	},
 	...
 }
 
@@ -3098,7 +3102,10 @@ PositioningMeasurementRequestIEs F1AP-PROTOCOL-IES ::= {
 	{ ID id-SRSConfiguration						CRITICALITY ignore	TYPE SRSConfiguration								PRESENCE optional}|
 	{ ID id-MeasurementBeamInfoRequest				CRITICALITY ignore	TYPE MeasurementBeamInfoRequest	PRESENCE optional	}|
 	{ ID id-SystemFrameNumber						CRITICALITY ignore	TYPE SystemFrameNumber		PRESENCE optional}|
-	{ ID id-SlotNumber								CRITICALITY ignore	TYPE SlotNumber				PRESENCE optional},
+	{ ID id-SlotNumber								CRITICALITY ignore	TYPE SlotNumber				PRESENCE optional}|
+	{ ID id-PosMeasurementPeriodicityExtended		CRITICALITY reject	TYPE MeasurementPeriodicityExtended			PRESENCE conditional }
+	-- The IE shall be present the MeasurementPeriodicity IE is set to the value "extended"
+,
 	...
 } 
 
@@ -3434,6 +3441,7 @@ SemipersistentSRS ::= SEQUENCE {
 }
 
 SemipersistentSRS-ExtIEs F1AP-PROTOCOL-EXTENSION ::= {
+	{ ID id-SRSSpatialRelationPerSRSResource	CRITICALITY ignore	EXTENSION SpatialRelationPerSRSResource PRESENCE optional},
 	...
 }
 

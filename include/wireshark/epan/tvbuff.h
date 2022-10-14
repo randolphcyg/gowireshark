@@ -1,4 +1,4 @@
-/* tvbuff.h
+/** @file
  *
  * Testy, Virtual(-izable) Buffer of guint8*'s
  *
@@ -282,7 +282,9 @@ WS_DLL_PUBLIC guint tvb_offset_from_real_beginning(const tvbuff_t *tvb);
 /* Returns the offset from the first byte of real data. */
 WS_DLL_PUBLIC gint tvb_raw_offset(tvbuff_t *tvb);
 
-/** Set the "this is a fragment" flag. */
+/** Set the "this is a fragment" flag. This affects whether
+ * FragmentBoundsError is thrown instead of ContainedBoundsError
+ * or ReportedBoundsError. */
 WS_DLL_PUBLIC void tvb_set_fragment(tvbuff_t *tvb);
 
 WS_DLL_PUBLIC struct tvbuff *tvb_get_ds_tvb(tvbuff_t *tvb);
@@ -777,7 +779,7 @@ WS_DLL_PUBLIC const guint8 *tvb_get_const_stringz(tvbuff_t *tvb,
  * no more than bufsize number of bytes, including terminating NUL, to buffer.
  * Returns length of string (not including terminating NUL), or -1 if the
  * string was truncated in the buffer due to not having reached the terminating
- * NUL.  In this way, it acts like g_snprintf().
+ * NUL.  In this way, it acts like snprintf().
  *
  * When processing a packet where the remaining number of bytes is less
  * than bufsize, an exception is not thrown if the end of the packet
@@ -811,6 +813,18 @@ WS_DLL_PUBLIC gint tvb_get_raw_bytes_as_string(tvbuff_t *tvb, const gint offset,
 * Returns TRUE if all bytes are printable, FALSE otherwise
 */
 WS_DLL_PUBLIC gboolean tvb_ascii_isprint(tvbuff_t *tvb, const gint offset,
+	const gint length);
+
+/** Iterates over the provided portion of the tvb checking that it is
+* valid UTF-8 consisting entirely of printable characters. (The characters
+* must be complete; if the portion ends in a partial sequence that could
+* begin a valid character, this returns FALSE.) The length may be -1 for
+* "all the way to the end of the tvbuff".
+* Returns TRUE if printable, FALSE otherwise
+*
+* @see isprint_utf8_string()
+*/
+WS_DLL_PUBLIC gboolean tvb_utf_8_isprint(tvbuff_t *tvb, const gint offset,
 	const gint length);
 
 /**

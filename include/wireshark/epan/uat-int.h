@@ -1,5 +1,4 @@
-/*
- *  uat-int.h
+/** @file
  *
  *  User Accessible Tables
  *  Maintain an array of user accessible data structures
@@ -18,7 +17,7 @@
 #define __UAT_INT_H__
 
 #include "uat.h"
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

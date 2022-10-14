@@ -11,7 +11,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #define MAX_T38_DATA_ITEMS 4
 #define MAX_T38_DESC 128

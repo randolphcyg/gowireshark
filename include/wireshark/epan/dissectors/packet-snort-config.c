@@ -11,7 +11,6 @@
 
 #include "config.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -21,7 +20,7 @@
 #include <wsutil/report_message.h>
 
 #include "packet-snort-config.h"
-#include "ws_attributes.h"
+#include "include/ws_attributes.h"
 
 /* Forward declaration */
 static void parse_config_file(SnortConfig_t *snort_config, FILE *config_file_fd, const char *filename, const char *dirname, int recursion_level);
@@ -464,7 +463,7 @@ char *expand_reference(SnortConfig_t *snort_config, char *reference)
 
         /* Append prefix and remainder, and return!!!! */
         if (prefix_replacement) {
-            g_snprintf(expanded_reference, 512, "%s%s", prefix_replacement, reference+length+1);
+            snprintf(expanded_reference, 512, "%s%s", prefix_replacement, reference+length+1);
             return expanded_reference;
         }
         else {

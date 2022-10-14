@@ -4051,27 +4051,27 @@ set_both_sides_umts_fp_conv_data(packet_info *pinfo, umts_fp_conversation_info_t
 
     /* Finding or creating conversation for the way the packet is heading */
     packet_direction_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-        conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation_pt_to_conversation_type(pinfo->ptype),
         pinfo->destport, pinfo->srcport, NO_ADDR_B);
 
     if (packet_direction_conv == NULL) {
         /* Conversation does not exist yet, creating one now. */
         packet_direction_conv = conversation_new(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-            conversation_pt_to_endpoint_type(pinfo->ptype),
-            pinfo->destport, pinfo->srcport, NO_ADDR_B);
+            conversation_pt_to_conversation_type(pinfo->ptype),
+            pinfo->destport, pinfo->srcport, NO_ADDR2);
     }
     conversation_add_proto_data(packet_direction_conv, proto_fp, umts_fp_conversation_info);
 
     /* Finding or creating conversation for the other side */
     other_direction_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_src, &pinfo->net_dst,
-        conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation_pt_to_conversation_type(pinfo->ptype),
         pinfo->srcport, pinfo->destport, NO_ADDR_B);
 
     if (other_direction_conv == NULL) {
         /* Conversation does not exist yet, creating one now. */
         other_direction_conv = conversation_new(pinfo->num, &pinfo->net_src, &pinfo->net_dst,
-            conversation_pt_to_endpoint_type(pinfo->ptype),
-            pinfo->srcport, pinfo->destport, NO_ADDR_B);
+            conversation_pt_to_conversation_type(pinfo->ptype),
+            pinfo->srcport, pinfo->destport, NO_ADDR2);
     }
     conversation_add_proto_data(other_direction_conv, proto_fp, umts_fp_conversation_info);
 
@@ -4090,7 +4090,7 @@ heur_dissect_fp_dcch_over_dch(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
     /* Trying to find existing conversation */
     p_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-        conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation_pt_to_conversation_type(pinfo->ptype),
         pinfo->destport, pinfo->srcport, NO_ADDR_B);
 
     if (p_conv != NULL) {
@@ -4146,8 +4146,8 @@ heur_dissect_fp_dcch_over_dch(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         /* the conversation must be created here if it doesn't exist yet*/
         if (p_conv == NULL) {
             conversation_new(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-                conversation_pt_to_endpoint_type(pinfo->ptype),
-                pinfo->destport, pinfo->srcport, NO_ADDR_B);
+                conversation_pt_to_conversation_type(pinfo->ptype),
+                pinfo->destport, pinfo->srcport, NO_ADDR2);
         }
         return FALSE;
     }
@@ -4225,7 +4225,7 @@ heur_dissect_fp_fach1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
 
     /* Finding or creating conversation */
     p_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-        conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation_pt_to_conversation_type(pinfo->ptype),
         pinfo->destport, pinfo->srcport, NO_ADDR_B);
 
     if (p_conv != NULL) {
@@ -4335,7 +4335,7 @@ heur_dissect_fp_fach2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
 
     /* Finding or creating conversation */
     p_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-        conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation_pt_to_conversation_type(pinfo->ptype),
         pinfo->destport, pinfo->srcport, NO_ADDR_B);
 
     if (p_conv != NULL) {
@@ -4450,7 +4450,7 @@ heur_dissect_fp_rach(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 
     /* Finding or creating conversation */
     p_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-        conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation_pt_to_conversation_type(pinfo->ptype),
         pinfo->destport, pinfo->srcport, NO_ADDR_B);
 
     if (p_conv != NULL) {
@@ -4576,7 +4576,7 @@ heur_dissect_fp_pch(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
 
     /* Finding or creating conversation */
     p_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-        conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation_pt_to_conversation_type(pinfo->ptype),
         pinfo->destport, pinfo->srcport, NO_ADDR_B);
 
     if (p_conv != NULL) {
@@ -4780,7 +4780,7 @@ heur_dissect_fp_hsdsch_type_1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
     /* Trying to find existing conversation */
     p_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-        conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation_pt_to_conversation_type(pinfo->ptype),
         pinfo->destport, pinfo->srcport, NO_ADDR_B);
 
     if (p_conv != NULL) {
@@ -4911,7 +4911,7 @@ heur_dissect_fp_hsdsch_type_2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
     /* Trying to find existing conversation */
     p_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-        conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation_pt_to_conversation_type(pinfo->ptype),
         pinfo->destport, pinfo->srcport, NO_ADDR_B);
 
     if (p_conv != NULL) {
@@ -5081,7 +5081,7 @@ heur_dissect_fp_edch_type_1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     /* Trying to find existing conversation */
     p_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-        conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation_pt_to_conversation_type(pinfo->ptype),
         pinfo->destport, pinfo->srcport, NO_ADDR_B);
 
     if (p_conv != NULL) {
@@ -5241,7 +5241,7 @@ heur_dissect_fp_unknown_format(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
 
     /* Trying to find existing conversation */
     p_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-        conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation_pt_to_conversation_type(pinfo->ptype),
         pinfo->destport, pinfo->srcport, NO_ADDR_B);
 
     /* Check if FP Conversation Info is attached */
@@ -5314,7 +5314,7 @@ heur_dissect_fp_unknown_format(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
     }
 
     /* The CRC is correct! */
-    /* Attaching 'FP Conversation Info' the the UDP conversation so other */
+    /* Attaching 'FP Conversation Info' to the UDP conversation so other */
     /* packets (both Control AND Data) will be marked as FP */
     umts_fp_conversation_info = wmem_new0(wmem_file_scope(), umts_fp_conversation_info_t);
     umts_fp_conversation_info->channel = CHANNEL_UNKNOWN;
@@ -5802,7 +5802,7 @@ dissect_fp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
     /* Check if we have conversation info */
     /* Trying to find exact match - with both RNC's address & port and Node B's address & port */
     p_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-                               conversation_pt_to_endpoint_type(pinfo->ptype),
+                               conversation_pt_to_conversation_type(pinfo->ptype),
                                pinfo->destport, pinfo->srcport, 0);
     if (p_conv) {
         p_conv_data = (umts_fp_conversation_info_t *)conversation_get_proto_data(p_conv, proto_fp);
@@ -5811,8 +5811,8 @@ dissect_fp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
         /* Didn't find exact conversation match */
         /* Try to find a partial match with just the source/destination included */
         p_conv = (conversation_t *)find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
-                                   conversation_pt_to_endpoint_type(pinfo->ptype),
-                                   pinfo->destport, pinfo->srcport, NO_ADDR2);
+                                   conversation_pt_to_conversation_type(pinfo->ptype),
+                                   pinfo->destport, pinfo->srcport, NO_ADDR_B);
         if (p_conv) {
             p_conv_data = (umts_fp_conversation_info_t *)conversation_get_proto_data(p_conv, proto_fp);
         }

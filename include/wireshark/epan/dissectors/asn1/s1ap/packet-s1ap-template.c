@@ -10,7 +10,7 @@
  *
  * Based on the RANAP dissector
  *
- * References: 3GPP TS 36.413 V16.7.0 (2021-10)
+ * References: 3GPP TS 36.413 V17.1.0 (2022-06)
  */
 
 #include "config.h"
@@ -61,6 +61,7 @@ static dissector_handle_t lte_rrc_ue_radio_access_cap_info_nb_handle;
 static dissector_handle_t nr_rrc_ue_radio_access_cap_info_handle;
 static dissector_handle_t lte_rrc_ue_radio_paging_info_handle;
 static dissector_handle_t lte_rrc_ue_radio_paging_info_nb_handle;
+static dissector_handle_t nr_rrc_ue_radio_paging_info_handle;
 
 #include "packet-s1ap-val.h"
 
@@ -115,6 +116,11 @@ static int hf_s1ap_NRintegrityProtectionAlgorithms_Reserved = -1;
 static int hf_s1ap_UE_Application_Layer_Measurement_Capability_QoE_Measurement_for_streaming_service = -1;
 static int hf_s1ap_UE_Application_Layer_Measurement_Capability_QoE_Measurement_for_MTSI_service = -1;
 static int hf_s1ap_UE_Application_Layer_Measurement_Capability_Reserved = -1;
+static int hf_s1ap_rAT_RestrictionInformation_LEO = -1;
+static int hf_s1ap_rAT_RestrictionInformation_MEO = -1;
+static int hf_s1ap_rAT_RestrictionInformation_GEO = -1;
+static int hf_s1ap_rAT_RestrictionInformation_OTHERSAT = -1;
+static int hf_s1ap_rAT_RestrictionInformation_Reserved = -1;
 #include "packet-s1ap-hf.c"
 
 /* Initialize the subtree pointers */
@@ -156,10 +162,11 @@ static int ett_s1ap_threshRS_Index_r15 = -1;
 static int ett_s1ap_sSBToMeasure = -1;
 static int ett_s1ap_sSRSSIMeasurement = -1;
 static int ett_s1ap_quantityConfigNR_R15 = -1;
-static int ett_s1ap_blackCellsToAddModList = -1;
+static int ett_s1ap_excludedCellsToAddModList = -1;
 static int ett_s1ap_NB_IoT_RLF_Report_Container = -1;
 static int ett_s1ap_MDT_ConfigurationNR = -1;
 static int ett_s1ap_IntersystemSONConfigurationTransfer = -1;
+static int ett_s1ap_rAT_RestrictionInformation = -1;
 #include "packet-s1ap-ett.c"
 
 static expert_field ei_s1ap_number_pages_le15 = EI_INIT;
@@ -221,7 +228,6 @@ enum {
 };
 
 /* Global variables */
-static guint gbl_s1apSctpPort=SCTP_PORT_S1AP;
 static gboolean g_s1ap_dissect_container = TRUE;
 static gint g_s1ap_dissect_lte_container_as = S1AP_LTE_CONTAINER_AUTOMATIC;
 
@@ -257,13 +263,13 @@ static int dissect_TargetBSS_ToSourceBSS_TransparentContainer_PDU(tvbuff_t *tvb,
 static void
 s1ap_Threshold_RSRP_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-140, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-140, v);
 }
 
 static void
 s1ap_Threshold_RSRQ_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-20, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-20, v);
 }
 
 static const true_false_string s1ap_tfs_interfacesToTrace = {
@@ -274,7 +280,7 @@ static const true_false_string s1ap_tfs_interfacesToTrace = {
 static void
 s1ap_Time_UE_StayedInCell_EnhancedGranularity_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fs", ((float)v)/10);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fs", ((float)v)/10);
 }
 
 const value_string s1ap_serialNumber_gs_vals[] = {
@@ -326,7 +332,7 @@ dissect_s1ap_warningMessageContents(tvbuff_t *warning_msg_tvb, proto_tree *tree,
 static void
 s1ap_EUTRANRoundTripDelayEstimationInfo_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%uTs (%u)", 16*v, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%uTs (%u)", 16*v, v);
 }
 
 static const true_false_string s1ap_tfs_activate_do_not_activate = {
@@ -337,25 +343,25 @@ static const true_false_string s1ap_tfs_activate_do_not_activate = {
 static void
 s1ap_Packet_LossRate_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1f %% (%u)", (float)v/10, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1f %% (%u)", (float)v/10, v);
 }
 
 static void
 s1ap_threshold_nr_rsrp_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-156, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-156, v);
 }
 
 static void
 s1ap_threshold_nr_rsrq_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-43, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-43, v);
 }
 
 static void
 s1ap_threshold_nr_sinr_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-23, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-23, v);
 }
 
 static struct s1ap_private_data*
@@ -492,33 +498,19 @@ dissect_s1ap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 void
 proto_reg_handoff_s1ap(void)
 {
-  static gboolean Initialized=FALSE;
-  static guint SctpPort;
-
-  if (!Initialized) {
-    gcsna_handle = find_dissector_add_dependency("gcsna", proto_s1ap);
-    nas_eps_handle = find_dissector_add_dependency("nas-eps", proto_s1ap);
-    lppa_handle = find_dissector_add_dependency("lppa", proto_s1ap);
-    bssgp_handle = find_dissector_add_dependency("bssgp", proto_s1ap);
-    lte_rrc_ue_radio_access_cap_info_handle = find_dissector_add_dependency("lte-rrc.ue_radio_access_cap_info", proto_s1ap);
-    lte_rrc_ue_radio_access_cap_info_nb_handle = find_dissector_add_dependency("lte-rrc.ue_radio_access_cap_info.nb", proto_s1ap);
-    nr_rrc_ue_radio_access_cap_info_handle = find_dissector_add_dependency("nr-rrc.ue_radio_access_cap_info", proto_s1ap);
-    lte_rrc_ue_radio_paging_info_handle = find_dissector_add_dependency("lte-rrc.ue_radio_paging_info", proto_s1ap);
-    lte_rrc_ue_radio_paging_info_nb_handle = find_dissector_add_dependency("lte-rrc.ue_radio_paging_info.nb", proto_s1ap);
-    dissector_add_for_decode_as("sctp.port", s1ap_handle);
-    dissector_add_uint("sctp.ppi", S1AP_PAYLOAD_PROTOCOL_ID, s1ap_handle);
-    Initialized=TRUE;
+  gcsna_handle = find_dissector_add_dependency("gcsna", proto_s1ap);
+  nas_eps_handle = find_dissector_add_dependency("nas-eps", proto_s1ap);
+  lppa_handle = find_dissector_add_dependency("lppa", proto_s1ap);
+  bssgp_handle = find_dissector_add_dependency("bssgp", proto_s1ap);
+  lte_rrc_ue_radio_access_cap_info_handle = find_dissector_add_dependency("lte-rrc.ue_radio_access_cap_info", proto_s1ap);
+  lte_rrc_ue_radio_access_cap_info_nb_handle = find_dissector_add_dependency("lte-rrc.ue_radio_access_cap_info.nb", proto_s1ap);
+  nr_rrc_ue_radio_access_cap_info_handle = find_dissector_add_dependency("nr-rrc.ue_radio_access_cap_info", proto_s1ap);
+  lte_rrc_ue_radio_paging_info_handle = find_dissector_add_dependency("lte-rrc.ue_radio_paging_info", proto_s1ap);
+  lte_rrc_ue_radio_paging_info_nb_handle = find_dissector_add_dependency("lte-rrc.ue_radio_paging_info.nb", proto_s1ap);
+  nr_rrc_ue_radio_paging_info_handle = find_dissector_add_dependency("nr-rrc.ue_radio_paging_info", proto_s1ap);
+  dissector_add_uint("sctp.ppi", S1AP_PAYLOAD_PROTOCOL_ID, s1ap_handle);
+  dissector_add_uint_with_preference("sctp.port", SCTP_PORT_S1AP, s1ap_handle);
 #include "packet-s1ap-dis-tab.c"
-  } else {
-    if (SctpPort != 0) {
-      dissector_delete_uint("sctp.port", SctpPort, s1ap_handle);
-    }
-  }
-
-  SctpPort=gbl_s1apSctpPort;
-  if (SctpPort != 0) {
-    dissector_add_uint("sctp.port", SctpPort, s1ap_handle);
-  }
 }
 
 /*--- proto_register_s1ap -------------------------------------------*/
@@ -629,7 +621,7 @@ void proto_register_s1ap(void) {
         NULL, HFILL }},
     { &hf_s1ap_WarningMessageContents_decoded_page,
       { "Decoded Page", "s1ap.WarningMessageContents.decoded_page",
-        FT_STRING, STR_UNICODE, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_s1ap_measurementsToActivate_M1,
       { "M1", "s1ap.measurementsToActivate.M1",
@@ -719,6 +711,26 @@ void proto_register_s1ap(void) {
       { "Reserved", "s1ap.UE_Application_Layer_Measurement_Capability.Reserved",
         FT_UINT8, BASE_HEX, NULL, 0x3f,
         NULL, HFILL }},
+    { &hf_s1ap_rAT_RestrictionInformation_LEO,
+      { "LEO", "s1ap.rAT_RestrictionInformation.LEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x80,
+        NULL, HFILL }},
+    { &hf_s1ap_rAT_RestrictionInformation_MEO,
+      { "MEO", "s1ap.rAT_RestrictionInformation.MEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x40,
+        NULL, HFILL }},
+    { &hf_s1ap_rAT_RestrictionInformation_GEO,
+      { "GEO", "s1ap.rAT_RestrictionInformation.GEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x20,
+        NULL, HFILL }},
+    { &hf_s1ap_rAT_RestrictionInformation_OTHERSAT,
+      { "OTHERSAT", "s1ap.rAT_RestrictionInformation.OTHERSAT",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x10,
+        NULL, HFILL }},
+    { &hf_s1ap_rAT_RestrictionInformation_Reserved,
+      { "Reserved", "s1ap.rAT_RestrictionInformation.Reserved",
+        FT_UINT8, BASE_HEX, NULL, 0x0f,
+        NULL, HFILL }},
 #include "packet-s1ap-hfarr.c"
   };
 
@@ -762,10 +774,11 @@ void proto_register_s1ap(void) {
     &ett_s1ap_sSBToMeasure,
     &ett_s1ap_sSRSSIMeasurement,
     &ett_s1ap_quantityConfigNR_R15,
-    &ett_s1ap_blackCellsToAddModList,
+    &ett_s1ap_excludedCellsToAddModList,
     &ett_s1ap_NB_IoT_RLF_Report_Container,
     &ett_s1ap_MDT_ConfigurationNR,
     &ett_s1ap_IntersystemSONConfigurationTransfer,
+    &ett_s1ap_rAT_RestrictionInformation,
 #include "packet-s1ap-ettarr.c"
   };
 
@@ -797,13 +810,8 @@ void proto_register_s1ap(void) {
   s1ap_proc_uout_dissector_table = register_dissector_table("s1ap.proc.uout", "S1AP-ELEMENTARY-PROCEDURE UnsuccessfulOutcome", proto_s1ap, FT_UINT32, BASE_DEC);
 
   /* Register configuration options for ports */
-  s1ap_module = prefs_register_protocol(proto_s1ap, proto_reg_handoff_s1ap);
+  s1ap_module = prefs_register_protocol(proto_s1ap, NULL);
 
-  prefs_register_uint_preference(s1ap_module, "sctp.port",
-                                 "S1AP SCTP Port",
-                                 "Set the SCTP port for S1AP messages",
-                                 10,
-                                 &gbl_s1apSctpPort);
   prefs_register_bool_preference(s1ap_module, "dissect_container", "Dissect TransparentContainer", "Dissect TransparentContainers that are opaque to S1AP", &g_s1ap_dissect_container);
   prefs_register_enum_preference(s1ap_module, "dissect_lte_container_as", "Dissect LTE TransparentContainer as",
                                  "Select whether LTE TransparentContainer should be dissected as NB-IOT or legacy LTE",

@@ -1,4 +1,4 @@
-/* packet.h
+/** @file
  * Definitions for packet disassembly structures and routines
  *
  * Wireshark - Network traffic analyzer
@@ -10,6 +10,7 @@
 
 #ifndef __PACKET_H__
 #define __PACKET_H__
+#include <include/wireshark.h>
 
 #include <wiretap/wtap_opttypes.h>
 #include "proto.h"
@@ -22,8 +23,6 @@
 #include "guid-utils.h"
 #include "tfs.h"
 #include "unit_strings.h"
-#include "ws_symbol_export.h"
-#include "wsutil/glib-compat.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -246,6 +245,13 @@ WS_DLL_PUBLIC void dissector_change_uint(const char *abbrev, const guint32 patte
 /* Reset an entry in a uint dissector table to its initial value. */
 WS_DLL_PUBLIC void dissector_reset_uint(const char *name, const guint32 pattern);
 
+/* Return TRUE if an entry in a uint dissector table is found and has been
+ * changed (i.e. dissector_change_uint() has been called, such as from
+ * Decode As, prefs registered via dissector_add_uint_[range_]with_preference),
+ * etc.), otherwise return FALSE.
+ */
+WS_DLL_PUBLIC gboolean dissector_is_uint_changed(dissector_table_t const sub_dissectors, const guint32 uint_val);
+
 /* Look for a given value in a given uint dissector table and, if found,
    call the dissector with the arguments supplied, and return the number
    of bytes consumed, otherwise return 0. */
@@ -294,6 +300,12 @@ WS_DLL_PUBLIC void dissector_change_string(const char *name, const gchar *patter
 
 /* Reset an entry in a string sub-dissector table to its initial value. */
 WS_DLL_PUBLIC void dissector_reset_string(const char *name, const gchar *pattern);
+
+/* Return TRUE if an entry in a string dissector table is found and has been
+ * changed (i.e. dissector_change_string() has been called, such as from
+ * Decode As), otherwise return FALSE.
+ */
+WS_DLL_PUBLIC gboolean dissector_is_string_changed(dissector_table_t const subdissectors, const gchar *string);
 
 /* Look for a given string in a given dissector table and, if found, call
    the dissector with the arguments supplied, and return the number of
@@ -412,9 +424,10 @@ WS_DLL_PUBLIC void dissector_add_for_decode_as_with_preference(const char *name,
  */
 WS_DLL_PUBLIC GSList *dissector_table_get_dissector_handles(dissector_table_t dissector_table);
 
-/** Get a handle to dissector out of a dissector table
+/** Get a handle to dissector out of a dissector table given the description
+ * of what the dissector dissects.
  */
-WS_DLL_PUBLIC dissector_handle_t dissector_table_get_dissector_handle(dissector_table_t dissector_table, const gchar* short_name);
+WS_DLL_PUBLIC dissector_handle_t dissector_table_get_dissector_handle(dissector_table_t dissector_table, const gchar* description);
 
 /** Get a dissector table's type
  */
@@ -423,6 +436,10 @@ WS_DLL_PUBLIC ftenum_t dissector_table_get_type(dissector_table_t dissector_tabl
 /** Mark a dissector table as allowing "Decode As"
  */
 WS_DLL_PUBLIC void dissector_table_allow_decode_as(dissector_table_t dissector_table);
+
+/** Returns TRUE if dissector table allows "Decode As"
+ */
+WS_DLL_PUBLIC gboolean dissector_table_supports_decode_as(dissector_table_t dissector_table);
 
 /* List of "heuristic" dissectors (which get handed a packet, look at it,
    and either recognize it as being for their protocol, dissect it, and
@@ -536,6 +553,9 @@ WS_DLL_PUBLIC void heur_dissector_delete(const char *name, heur_dissector_t diss
 /** Register a new dissector. */
 WS_DLL_PUBLIC dissector_handle_t register_dissector(const char *name, dissector_t dissector, const int proto);
 
+/** Register a new dissector with a description. */
+WS_DLL_PUBLIC dissector_handle_t register_dissector_with_description(const char *name, const char *description, dissector_t dissector, const int proto);
+
 /** Register a new dissector with a callback pointer. */
 WS_DLL_PUBLIC dissector_handle_t register_dissector_with_data(const char *name, dissector_cb_t dissector, const int proto, void *cb_data);
 
@@ -543,10 +563,17 @@ WS_DLL_PUBLIC dissector_handle_t register_dissector_with_data(const char *name, 
 void deregister_dissector(const char *name);
 
 /** Get the long name of the protocol for a dissector handle. */
-extern const char *dissector_handle_get_long_name(const dissector_handle_t handle);
+WS_DLL_PUBLIC const char *dissector_handle_get_protocol_long_name(const dissector_handle_t handle);
 
 /** Get the short name of the protocol for a dissector handle. */
+WS_DLL_PUBLIC const char *dissector_handle_get_protocol_short_name(const dissector_handle_t handle);
+
+/* For backwards source and binary compatibility */
+G_DEPRECATED_FOR(dissector_handle_get_protocol_short_name)
 WS_DLL_PUBLIC const char *dissector_handle_get_short_name(const dissector_handle_t handle);
+
+/** Get the description for what the dissector for a dissector handle dissects. */
+WS_DLL_PUBLIC const char *dissector_handle_get_description(const dissector_handle_t handle);
 
 /** Get the index of the protocol for a dissector handle. */
 WS_DLL_PUBLIC int dissector_handle_get_protocol_index(const dissector_handle_t handle);
@@ -568,6 +595,8 @@ WS_DLL_PUBLIC dissector_handle_t create_dissector_handle(dissector_t dissector,
     const int proto);
 WS_DLL_PUBLIC dissector_handle_t create_dissector_handle_with_name(dissector_t dissector,
     const int proto, const char* name);
+WS_DLL_PUBLIC dissector_handle_t create_dissector_handle_with_name_and_description(dissector_t dissector,
+    const int proto, const char* name, const char* description);
 
 /** Call a dissector through a handle and if no dissector was found
  * pass it over to the "data" dissector instead.

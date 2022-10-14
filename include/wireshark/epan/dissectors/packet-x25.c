@@ -535,7 +535,7 @@ x25_hash_add_proto_start(guint16 vc, guint32 frame, dissector_handle_t dissect)
     /*
      * Is there already a circuit with this VC number?
      */
-    conv = find_conversation_by_id(frame, ENDPOINT_X25, vc, 0);
+    conv = find_conversation_by_id(frame, CONVERSATION_X25, vc);
     if (conv != NULL) {
         /*
          * Yes - close it, as we're creating a new one.
@@ -546,7 +546,7 @@ x25_hash_add_proto_start(guint16 vc, guint32 frame, dissector_handle_t dissect)
     /*
      * Set up a new circuit.
      */
-    conv = conversation_new_by_id(frame, ENDPOINT_X25, vc, 0);
+    conv = conversation_new_by_id(frame, CONVERSATION_X25, vc);
 
     /*
      * Set its dissector.
@@ -562,7 +562,7 @@ x25_hash_add_proto_end(guint16 vc, guint32 frame)
     /*
      * Try to find the circuit.
      */
-    conv = find_conversation_by_id(frame, ENDPOINT_X25, vc, 0);
+    conv = find_conversation_by_id(frame, CONVERSATION_X25, vc);
 
     /*
      * If we succeeded, close it.
@@ -1229,7 +1229,7 @@ dissect_x25_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     modulo = ((bytes0_1 & 0x2000) ? 128 : 8);
     vc     = (int)(bytes0_1 & 0x0FFF);
 
-    conversation_create_endpoint_by_id(pinfo, ENDPOINT_X25, vc, 0);
+    conversation_set_elements_by_id(pinfo, CONVERSATION_X25, vc);
 
     if (bytes0_1 & X25_ABIT) toa = TRUE;
     else toa = FALSE;
@@ -1923,7 +1923,7 @@ dissect_x25_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
       next_tvb = tvb_new_subset_remaining(tvb, localoffset);
 
     /* See if there's already a dissector for this circuit. */
-    if (try_conversation_dissector_by_id(ENDPOINT_X25, vc, next_tvb, pinfo,
+    if (try_conversation_dissector_by_id(CONVERSATION_X25, vc, next_tvb, pinfo,
                               tree, &q_bit_set)) {
                 return; /* found it and dissected it */
     }
@@ -1940,9 +1940,9 @@ dissect_x25_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     if (payload_check_data){
     /* If the Call Req. has not been captured, let's look at the first
        two bytes of the payload to see if this looks like COTP. */
-    if (tvb_get_guint8(tvb, localoffset) == tvb_reported_length(next_tvb)-1) {
+    if (tvb_get_guint8(next_tvb, 0) == tvb_reported_length(next_tvb)-1) {
       /* First byte contains the length of the remaining buffer */
-      if ((tvb_get_guint8(tvb, localoffset+1) & 0x0F) == 0) {
+      if ((tvb_get_guint8(next_tvb, 1) & 0x0F) == 0) {
         /* Second byte contains a valid COTP TPDU */
         if (!pinfo->fd->visited)
             x25_hash_add_proto_start(vc, pinfo->num, ositp_handle);
@@ -1953,7 +1953,7 @@ dissect_x25_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     /* Then let's look at the first byte of the payload to see if this
        looks like IP or CLNP. */
-    switch (tvb_get_guint8(tvb, localoffset)) {
+    switch (tvb_get_guint8(next_tvb, 0)) {
 
     case 0x45:
         /* Looks like an IP header */

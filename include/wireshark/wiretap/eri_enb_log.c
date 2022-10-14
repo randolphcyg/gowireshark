@@ -47,7 +47,7 @@ static gboolean eri_enb_log_get_packet(FILE_T fh, wtap_rec* rec,
 			length = length - 1;
 		}
 
-		if (0 < iso8601_to_nstime(&packet_time, line+1)) {
+		if (0 < iso8601_to_nstime(&packet_time, line+1, ISO8601_DATETIME)) {
 			rec->ts.secs = packet_time.secs;
 			rec->ts.nsecs = packet_time.nsecs;
 			rec->presence_flags |= WTAP_HAS_TS;
@@ -109,7 +109,7 @@ eri_enb_log_open(wtap *wth, int *err, gchar **err_info)
 		return WTAP_OPEN_NOT_MINE;
 	}
 
-	if (g_strstr_len(line1, strlen(eri_enb_log_magic), eri_enb_log_magic) == NULL)
+	if (g_strstr_len(line1, sizeof(line1), eri_enb_log_magic) == NULL)
 	{
 		return WTAP_OPEN_NOT_MINE;
 	}

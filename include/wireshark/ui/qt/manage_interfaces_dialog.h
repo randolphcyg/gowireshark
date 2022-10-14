@@ -1,4 +1,4 @@
-/* manage_interfaces_dialog.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -66,16 +66,12 @@ private slots:
     void on_delPipe_clicked();
 #endif
 
-    void onSelectionChanged(const QItemSelection &sel, const QItemSelection &desel);
-
 #ifdef HAVE_PCAP_REMOTE
     void on_addRemote_clicked();
     void on_delRemote_clicked();
     void remoteAccepted();
     void on_remoteList_currentItemChanged(QTreeWidgetItem *current, QTreeWidgetItem *previous);
     void on_remoteList_itemClicked(QTreeWidgetItem *item, int column);
-    int  remoteInterfacesExists(char* device_name);
-    QTreeWidgetItem* getRemoteHostItem( char* name );
     void addRemoteInterfaces(GList *rlist, remote_options *roptions);
     void updateRemoteInterfaceList(GList *rlist, remote_options *roptions);
     void setRemoteSettings(interface_t *iface);

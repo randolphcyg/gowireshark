@@ -26,7 +26,7 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include <ws_log_defs.h>
+#include <include/ws_log_defs.h>
 
 #include <wiretap/wtap.h>
 
@@ -692,7 +692,7 @@ extern C shift##C(lua_State* L,int i)
 #define THROW_LUA_ERROR(...) \
     THROW_FORMATTED(DissectorError, __VA_ARGS__)
 
-/* Catches any Wireshark exceptions in code and convert it into a LUA error.
+/* Catches any Wireshark exceptions in code and convert it into a Lua error.
  * Normal restrictions for TRY/CATCH apply, in particular, do not return! */
 #define WRAP_NON_LUA_EXCEPTIONS(code) \
 { \
@@ -806,7 +806,7 @@ extern char* wslua_get_actual_filename(const char* fname);
 
 extern int wslua_bin2hex(lua_State* L, const guint8* data, const guint len, const gboolean lowercase, const gchar* sep);
 extern int wslua_hex2bin(lua_State* L, const char* data, const guint len, const gchar* sep);
-extern int luaopen_rex_glib(lua_State *L);
+extern int luaopen_rex_pcre2(lua_State *L);
 
 extern const gchar* get_current_plugin_version(void);
 extern void clear_current_plugin_version(void);

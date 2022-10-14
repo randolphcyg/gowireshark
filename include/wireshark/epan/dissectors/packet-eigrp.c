@@ -2147,6 +2147,8 @@ dissect_eigrp_wide_metric_attr (proto_tree *tree, tvbuff_t *tvb,
             break;
 
         case EIGRP_ATTR_SCALED:
+            /* TODO: if this corresponds to RFC 7868, 6.9.3.2, should be scaled bandwidth
+               followed by scaled delay (both 32 bits) ? */
             proto_tree_add_item(sub_tree, hf_eigrp_attr_scaled, sub_tvb,
                                 sub_offset, 4, ENC_BIG_ENDIAN);
             break;
@@ -2163,16 +2165,19 @@ dissect_eigrp_wide_metric_attr (proto_tree *tree, tvbuff_t *tvb,
             break;
 
         case EIGRP_ATTR_JITTER:
+            /* TODO: RFC 7868 6.9.3.5 suggests this value should be 6 bytes */
             proto_tree_add_item(sub_tree, hf_eigrp_attr_jitter, sub_tvb,
                                 sub_offset, 4, ENC_BIG_ENDIAN);
             break;
 
         case EIGRP_ATTR_QENERGY:
+            /* TODO: RFC 7868 6.9.3.6 splits this into separate high and low 16-bit values */
             proto_tree_add_item(sub_tree, hf_eigrp_attr_qenergy, sub_tvb,
                                 sub_offset, 4, ENC_BIG_ENDIAN);
             break;
 
         case EIGRP_ATTR_ENERGY:
+            /* TODO: RFC 7868 6.9.3.7 splits this into separate high and low 16-bit values */
             proto_tree_add_item(sub_tree, hf_eigrp_attr_energy, sub_tvb,
                                 sub_offset, 4, ENC_BIG_ENDIAN);
             break;
@@ -2553,19 +2558,19 @@ dissect_eigrp (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 static void
 eigrp_fmt_cable_range(gchar *result, guint32 revision )
 {
-   g_snprintf( result, ITEM_LABEL_LENGTH, "%u-%u", (guint16)(( revision & 0xFFFF0000 ) >> 16), (guint16)(revision & 0xFFFF) );
+   snprintf( result, ITEM_LABEL_LENGTH, "%u-%u", (guint16)(( revision & 0xFFFF0000 ) >> 16), (guint16)(revision & 0xFFFF) );
 }
 
 static void
 eigrp_fmt_nexthop_address(gchar *result, guint32 revision )
 {
-   g_snprintf( result, ITEM_LABEL_LENGTH, "%u.%u", (guint16)(( revision & 0xFFFF0000 ) >> 16), (guint16)(revision & 0xFFFF) );
+   snprintf( result, ITEM_LABEL_LENGTH, "%u.%u", (guint16)(( revision & 0xFFFF0000 ) >> 16), (guint16)(revision & 0xFFFF) );
 }
 
 static void
 eigrp_fmt_version(gchar *result, guint32 revision )
 {
-   g_snprintf( result, ITEM_LABEL_LENGTH, "%d.%02d", (guint8)(( revision & 0xFF00 ) >> 8), (guint8)(revision & 0xFF) );
+   snprintf( result, ITEM_LABEL_LENGTH, "%d.%02d", (guint8)(( revision & 0xFF00 ) >> 8), (guint8)(revision & 0xFF) );
 }
 
 /**
@@ -3115,27 +3120,27 @@ proto_register_eigrp(void)
         },
         { &hf_eigrp_attr_scaled,
           { "Legacy Metric", "eigrp.attr.scaled",
-            FT_UINT16, BASE_DEC, NULL, 0x0,
+            FT_UINT32, BASE_DEC, NULL, 0x0,
             "Metric calculated from legacy TLVs", HFILL }
         },
         { &hf_eigrp_attr_tag,
           { "Tag", "eigrp.attr.tag",
-            FT_UINT16, BASE_DEC, NULL, 0x0,
+            FT_UINT32, BASE_DEC, NULL, 0x0,
             "Tag assigned by admin for dest", HFILL }
         },
         { &hf_eigrp_attr_jitter,
           { "Jitter", "eigrp.attr.jitter",
-            FT_UINT16, BASE_DEC, NULL, 0x0,
+            FT_UINT32, BASE_DEC, NULL, 0x0,
             "Variation in path delay", HFILL }
         },
         { &hf_eigrp_attr_qenergy,
           { "Q-Energy", "eigrp.attr.qenergy",
-            FT_UINT16, BASE_DEC, NULL, 0x0,
+            FT_UINT32, BASE_DEC, NULL, 0x0,
             "Non-Active energy usage along path", HFILL }
         },
         { &hf_eigrp_attr_energy,
           { "Energy", "eigrp.attr.energy",
-            FT_UINT16, BASE_DEC, NULL, 0x0,
+            FT_UINT32, BASE_DEC, NULL, 0x0,
             "Active energy usage along path", HFILL }
         },
 
@@ -3371,7 +3376,7 @@ proto_register_eigrp(void)
  * @par
  * If this dissector uses sub-dissector registration add a registration routine.
  *
- * This form of the reg_handoff function is used if if you perform registration
+ * This form of the reg_handoff function is used if you perform registration
  * functions which are dependent upon prefs.  If this function is registered as
  * a prefs callback (see prefs_register_protocol above) this function is also
  * called by preferences whenever "Apply" is pressed;

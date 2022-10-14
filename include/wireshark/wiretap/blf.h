@@ -1,8 +1,9 @@
-/* blf.h
+/** @file
  *
- * BLF file format decoder for the Wiretap library.
+ * Binary Log File (BLF) file format from Vector Informatik decoder
+ * for the Wiretap library.
  *
- * Copyright (c) 2021 by Dr. Lars Voelker <lars.voelker@technica-engineering.de>
+ * Copyright (c) 2021-2022 by Dr. Lars Voelker <lars.voelker@technica-engineering.de>
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -23,6 +24,9 @@ wtap_open_return_val blf_open(wtap *wth, int *err, gchar **err_info);
 
 
 #define BLF_HEADER_TYPE_DEFAULT                   1
+#define BLF_HEADER_TYPE_2                         2
+#define BLF_HEADER_TYPE_3                         3
+
 
 #define BLF_COMPRESSION_NONE                      0
 #define BLF_COMPRESSION_ZLIB                      2
@@ -83,6 +87,31 @@ typedef struct blf_logobjectheader {
     guint16 object_version;
     guint64 object_timestamp;
 } blf_logobjectheader_t;
+
+#define BLF_TS_STATUS_ORIG_TS_VALID     0x01
+#define BLF_TS_STATUS_SW_TS             0x02
+#define BLF_TS_STATUS_PROTO_SPECIFIC    0x10
+
+typedef struct blf_logobjectheader2 {
+    guint32 flags;
+    guint8  timestamp_status;
+    guint8  res1;
+    guint16 object_version;
+    guint64 object_timestamp;
+    guint64 original_timestamp;
+} blf_logobjectheader2_t;
+
+typedef struct blf_logobjectheader3 {
+    guint32 flags;
+    guint16 static_size;
+    guint16 object_version;
+    guint64 object_timestamp;
+} blf_logobjectheader3_t;
+
+
+#define BLF_DIR_RX    0
+#define BLF_DIR_TX    1
+#define BLF_DIR_TX_RQ 2
 
 typedef struct blf_ethernetframeheader {
     guint8  src_addr[6];
@@ -286,7 +315,7 @@ typedef struct blf_flexrayrcvmessage {
     guint16 channel;
     guint16 version;
     guint16 channelMask;    /* 0 res, 1 A, 2 B, 3 A+B */
-    guint16  dir;           /* 0 RX, 1 TX, 2 TX Req, 3 internal, 4 internal*/ /* high byte reserved! */
+    guint16 dir;            /* 0 RX, 1 TX, 2 TX Req, 3 internal, 4 internal*/ /* high byte reserved! */
     guint32 clientIndex;
     guint32 clusterNo;
     guint16 frameId;
@@ -361,6 +390,30 @@ typedef struct blf_linmessage_trailer {
     guint8  res1;
     guint32 res2;
 } blf_linmessage_trailer_t;
+
+
+/* see https://bitbucket.org/tobylorenz/vector_blf/src/master/src/Vector/BLF/AppText.h */
+
+typedef struct blf_apptext {
+    guint32 source;
+    guint32 reservedAppText1;
+    guint32 textLength;
+    guint32 reservedAppText2;
+} blf_apptext_t;
+
+#define BLF_APPTEXT_COMMENT  0x00000000
+#define BLF_APPTEXT_CHANNEL  0x00000001
+#define BLF_APPTEXT_METADATA 0x00000002
+
+#define BLF_BUSTYPE_CAN 1
+#define BLF_BUSTYPE_LIN 5
+#define BLF_BUSTYPE_MOST 6
+#define BLF_BUSTYPE_FLEXRAY 7
+#define BLF_BUSTYPE_J1708 9
+#define BLF_BUSTYPE_ETHERNET 11
+#define BLF_BUSTYPE_WLAN 13
+#define BLF_BUSTYPE_AFDX 14
+
 
 /* see https://bitbucket.org/tobylorenz/vector_blf/src/master/src/Vector/BLF/ObjectHeaderBase.h */
 

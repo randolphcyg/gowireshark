@@ -25,56 +25,56 @@ function_new(gpointer funcdef)
 {
 	function_t		*stfuncrec;
 
-	ws_assert(funcdef != NULL);
-
 	stfuncrec = g_new(function_t, 1);
 
 	stfuncrec->magic = FUNCTION_MAGIC;
-	stfuncrec->funcdef = (df_func_def_t *)funcdef;
+	stfuncrec->funcdef = funcdef;
 	stfuncrec->params = NULL;
 
-	return (gpointer) stfuncrec;
+	return stfuncrec;
 }
 
 static gpointer
 function_dup(gconstpointer data)
 {
-	const function_t *org = (const function_t *)data;
+	const function_t *org = data;
 	function_t		 *stfuncrec;
 	GSList *p;
 
-	stfuncrec = (function_t *)function_new(org->funcdef);
+	stfuncrec = function_new(org->funcdef);
 
 	for (p = org->params; p; p = p->next) {
-		const stnode_t *param = (const stnode_t *)p->data;
+		const stnode_t *param = p->data;
 		stfuncrec->params = g_slist_append(stfuncrec->params, stnode_dup(param));
 	}
-	return (gpointer) stfuncrec;
+	return stfuncrec;
 }
 
 static char *
-function_tostr(const void *data)
+function_tostr(const void *data, gboolean pretty)
 {
-	const function_t *stfuncrec = (const function_t *)data;
+	const function_t *stfuncrec = data;
 	const df_func_def_t *def = stfuncrec->funcdef;
 	GSList *params = stfuncrec->params;
 	GString *repr = g_string_new("");
-	char *s;
 
 	ws_assert(def);
 
-	g_string_printf(repr, "%s(", def->name);
-	while (params != NULL) {
-		ws_assert(params->data);
-		s = stnode_tostr(params->data);
-		g_string_append(repr, s);
-		g_free(s);
-		params = params->next;
-		if (params != NULL) {
-			g_string_append(repr, ", ");
+	if (pretty) {
+		g_string_printf(repr, "%s(", def->name);
+		while (params != NULL) {
+			ws_assert(params->data);
+			g_string_append(repr, stnode_tostr(params->data, pretty));
+			params = params->next;
+			if (params != NULL) {
+				g_string_append(repr, ", ");
+			}
 		}
+		g_string_append_c(repr, ')');
 	}
-	g_string_append_c(repr, ')');
+	else {
+		g_string_printf(repr, "%s#%u", def->name, g_slist_length(params));
+	}
 
 	return g_string_free(repr, FALSE);
 }
@@ -82,7 +82,7 @@ function_tostr(const void *data)
 static void
 slist_stnode_free(gpointer data)
 {
-	stnode_free((stnode_t *)data);
+	stnode_free(data);
 }
 
 void
@@ -94,7 +94,7 @@ st_funcparams_free(GSList *params)
 static void
 function_free(gpointer value)
 {
-	function_t	*stfuncrec = (function_t*)value;
+	function_t	*stfuncrec = value;
 	ws_assert_magic(stfuncrec, FUNCTION_MAGIC);
 	st_funcparams_free(stfuncrec->params);
 	g_free(stfuncrec);
@@ -108,7 +108,7 @@ sttype_function_set_params(stnode_t *node, GSList *params)
 
 	function_t	*stfuncrec;
 
-	stfuncrec = (function_t*)stnode_data(node);
+	stfuncrec = stnode_data(node);
 	ws_assert_magic(stfuncrec, FUNCTION_MAGIC);
 
 	stfuncrec->params = params;
@@ -120,9 +120,19 @@ sttype_function_funcdef(stnode_t *node)
 {
 	function_t	*stfuncrec;
 
-	stfuncrec = (function_t*)stnode_data(node);
+	stfuncrec = stnode_data(node);
 	ws_assert_magic(stfuncrec, FUNCTION_MAGIC);
 	return stfuncrec->funcdef;
+}
+
+const char *
+sttype_function_name(stnode_t *node)
+{
+	function_t	*stfuncrec;
+
+	stfuncrec = stnode_data(node);
+	ws_assert_magic(stfuncrec, FUNCTION_MAGIC);
+	return stfuncrec->funcdef->name;
 }
 
 /* Get the parameters for a function stnode_t. */
@@ -131,7 +141,7 @@ sttype_function_params(stnode_t *node)
 {
 	function_t	*stfuncrec;
 
-	stfuncrec = (function_t*)stnode_data(node);
+	stfuncrec = stnode_data(node);
 	ws_assert_magic(stfuncrec, FUNCTION_MAGIC);
 	return stfuncrec->params;
 }

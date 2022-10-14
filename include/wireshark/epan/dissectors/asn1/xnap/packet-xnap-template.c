@@ -1,7 +1,7 @@
 /* packet-xnap.c
  * Routines for dissecting NG-RAN Xn application protocol (XnAP)
  * 3GPP TS 38.423 packet dissection
- * Copyright 2018-2021, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2018-2022, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Ref:
- * 3GPP TS 38.423 V16.7.0 (2021-10)
+ * 3GPP TS 38.423 V17.1.0 (2022-06)
  */
 
 #include "config.h"
@@ -56,6 +56,10 @@ static int hf_xnap_NG_RANTraceID_TraceRecordingSessionReference = -1;
 static int hf_xnap_primaryRATRestriction_e_UTRA = -1;
 static int hf_xnap_primaryRATRestriction_nR = -1;
 static int hf_xnap_primaryRATRestriction_nR_unlicensed = -1;
+static int hf_xnap_primaryRATRestriction_nR_LEO = -1;
+static int hf_xnap_primaryRATRestriction_nR_MEO = -1;
+static int hf_xnap_primaryRATRestriction_nR_GEO = -1;
+static int hf_xnap_primaryRATRestriction_nR_OTHERSAT = -1;
 static int hf_xnap_primaryRATRestriction_reserved = -1;
 static int hf_xnap_secondaryRATRestriction_e_UTRA = -1;
 static int hf_xnap_secondaryRATRestriction_nR = -1;
@@ -117,6 +121,17 @@ static gint ett_xnap_non_anchorCarrier_Format2_NPRACHConfig = -1;
 static gint ett_xnap_anchorCarrier_NPRACHConfigTDD = -1;
 static gint ett_xnap_non_anchorCarrier_NPRACHConfigTDD = -1;
 static gint ett_xnap_non_anchorCarrierFrequency = -1;
+static gint ett_xnap_cSI_RS_Configuration = -1;
+static gint ett_xnap_sR_Configuration = -1;
+static gint ett_xnap_pDCCH_ConfigSIB1 = -1;
+static gint ett_xnap_sCS_Common = -1;
+static gint ett_xnap_LastVisitedPSCellInformation = -1;
+static gint ett_xnap_MeasObjectContainer = -1;
+static gint ett_xnap_RACH_Config_Common = -1;
+static gint ett_xnap_RACH_Config_Common_IAB = -1;
+static gint ett_xnap_ReportConfigContainer = -1;
+static gint ett_xnap_RLC_Bearer_Configuration = -1;
+static gint ett_xnap_SuccessfulHOReportContainer = -1;
 #include "packet-xnap-ett.c"
 
 enum {
@@ -144,7 +159,6 @@ static const enum_val_t xnap_lte_rrc_context_vals[] = {
 };
 
 /* Global variables */
-static guint xnap_sctp_port = SCTP_PORT_XnAP;
 static gint xnap_dissect_target_ng_ran_container_as = XNAP_NG_RAN_CONTAINER_AUTOMATIC;
 static gint xnap_dissect_lte_rrc_context_as = XNAP_LTE_RRC_CONTEXT_LTE;
 
@@ -169,43 +183,43 @@ static dissector_handle_t xnap_handle;
 static void
 xnap_PacketLossRate_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1f%% (%u)", (float)v/10, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1f%% (%u)", (float)v/10, v);
 }
 
 static void
 xnap_PacketDelayBudget_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fms (%u)", (float)v/2, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fms (%u)", (float)v/2, v);
 }
 
 static void
 xnap_ExtendedPacketDelayBudget_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.2fms (%u)", (float)v/100, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.2fms (%u)", (float)v/100, v);
 }
 
 static void
 xnap_handoverTriggerChange_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%d)", ((float)v)/2, (gint32)v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%d)", ((float)v)/2, (gint32)v);
 }
 
 static void
 xnap_Threshold_RSRP_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-156, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-156, v);
 }
 
 static void
 xnap_Threshold_RSRQ_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-43, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-43, v);
 }
 
 static void
 xnap_Threshold_SINR_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-23, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-23, v);
 }
 
 static const true_false_string xnap_tfs_activate_do_not_activate = {
@@ -365,9 +379,25 @@ void proto_register_xnap(void) {
       { "nR-unlicensed", "xnap.primaryRATRestriction.nR_unlicensed",
         FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x20,
         NULL, HFILL }},
+    { &hf_xnap_primaryRATRestriction_nR_LEO,
+      { "nR-LEO", "xnap.primaryRATRestriction.nR_LEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x10,
+        NULL, HFILL }},
+    { &hf_xnap_primaryRATRestriction_nR_MEO,
+      { "nR-MEO", "xnap.primaryRATRestriction.nR_MEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x08,
+        NULL, HFILL }},
+    { &hf_xnap_primaryRATRestriction_nR_GEO,
+      { "nR-GEO", "xnap.primaryRATRestriction.nR_GEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x04,
+        NULL, HFILL }},
+    { &hf_xnap_primaryRATRestriction_nR_OTHERSAT,
+      { "nR-unlicensed", "xnap.primaryRATRestriction.nR_unlicensed",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x02,
+        NULL, HFILL }},
     { &hf_xnap_primaryRATRestriction_reserved,
       { "reserved", "xnap.primaryRATRestriction.reserved",
-        FT_UINT8, BASE_HEX, NULL, 0x1f,
+        FT_UINT8, BASE_HEX, NULL, 0x01,
         NULL, HFILL }},
     { &hf_xnap_secondaryRATRestriction_e_UTRA,
       { "e-UTRA", "xnap.secondaryRATRestriction.e_UTRA",
@@ -491,6 +521,17 @@ void proto_register_xnap(void) {
     &ett_xnap_anchorCarrier_NPRACHConfigTDD,
     &ett_xnap_non_anchorCarrier_NPRACHConfigTDD,
     &ett_xnap_non_anchorCarrierFrequency,
+    &ett_xnap_cSI_RS_Configuration,
+    &ett_xnap_sR_Configuration,
+    &ett_xnap_pDCCH_ConfigSIB1,
+    &ett_xnap_sCS_Common,
+    &ett_xnap_LastVisitedPSCellInformation,
+    &ett_xnap_MeasObjectContainer,
+    &ett_xnap_RACH_Config_Common,
+    &ett_xnap_RACH_Config_Common_IAB,
+    &ett_xnap_ReportConfigContainer,
+    &ett_xnap_RLC_Bearer_Configuration,
+    &ett_xnap_SuccessfulHOReportContainer,
 #include "packet-xnap-ettarr.c"
   };
 
@@ -508,13 +549,8 @@ void proto_register_xnap(void) {
   xnap_proc_sout_dissector_table = register_dissector_table("xnap.proc.sout", "XNAP-ELEMENTARY-PROCEDURE SuccessfulOutcome", proto_xnap, FT_UINT32, BASE_DEC);
   xnap_proc_uout_dissector_table = register_dissector_table("xnap.proc.uout", "XNAP-ELEMENTARY-PROCEDURE UnsuccessfulOutcome", proto_xnap, FT_UINT32, BASE_DEC);
 
-  xnap_module = prefs_register_protocol(proto_xnap, proto_reg_handoff_xnap);
+  xnap_module = prefs_register_protocol(proto_xnap, NULL);
 
-  prefs_register_uint_preference(xnap_module, "sctp.port",
-                                 "XnAP SCTP Port",
-                                 "Set the SCTP port for XnAP messages",
-                                 10,
-                                 &xnap_sctp_port);
   prefs_register_enum_preference(xnap_module, "dissect_target_ng_ran_container_as", "Dissect target NG-RAN container as",
                                  "Select whether target NG-RAN container should be decoded automatically"
                                  " (based on Xn Setup procedure) or manually",
@@ -528,21 +564,7 @@ void proto_register_xnap(void) {
 void
 proto_reg_handoff_xnap(void)
 {
-  static gboolean initialized = FALSE;
-  static guint sctp_port;
-
-  if (!initialized) {
-    dissector_add_for_decode_as("sctp.port", xnap_handle);
-    dissector_add_uint("sctp.ppi", XNAP_PROTOCOL_ID, xnap_handle);
-    initialized = TRUE;
+  dissector_add_uint_with_preference("sctp.port", SCTP_PORT_XnAP, xnap_handle);
+  dissector_add_uint("sctp.ppi", XNAP_PROTOCOL_ID, xnap_handle);
 #include "packet-xnap-dis-tab.c"
-  } else {
-    if (sctp_port != 0) {
-      dissector_delete_uint("sctp.port", sctp_port, xnap_handle);
-    }
-  }
-  sctp_port = xnap_sctp_port;
-  if (sctp_port != 0) {
-    dissector_add_uint("sctp.port", sctp_port, xnap_handle);
-  }
 }

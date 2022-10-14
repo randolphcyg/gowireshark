@@ -23,7 +23,7 @@
 #include "progress_frame.h"
 #include <ui/qt/utils/qt_ui_utils.h>
 #include "sequence_diagram.h"
-#include "wireshark_application.h"
+#include "main_application.h"
 #include <ui/qt/utils/variant_pointer.h>
 #include <ui/alert_box.h>
 #include "ui/qt/widgets/wireshark_file_dialog.h"
@@ -361,7 +361,11 @@ void SequenceDialog::diagramClicked(QMouseEvent *event)
             on_actionGoToPacket_triggered();
             break;
         case Qt::RightButton:
-            ctx_menu_.exec(event->globalPos());
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0 ,0)
+            ctx_menu_.popup(event->globalPosition().toPoint());
+#else
+            ctx_menu_.popup(event->globalPos());
+#endif
             break;
         default:
             break;
@@ -432,7 +436,7 @@ void SequenceDialog::on_buttonBox_clicked(QAbstractButton *button)
 void SequenceDialog::exportDiagram()
 {
     QString file_name, extension;
-    QDir path(wsApp->lastOpenDir());
+    QDir path(mainApp->lastOpenDir());
     QString pdf_filter = tr("Portable Document Format (*.pdf)");
     QString png_filter = tr("Portable Network Graphics (*.png)");
     QString bmp_filter = tr("Windows Bitmap (*.bmp)");
@@ -449,7 +453,7 @@ void SequenceDialog::exportDiagram()
         filter.append(QString(";;%5").arg(ascii_filter));
     }
 
-    file_name = WiresharkFileDialog::getSaveFileName(this, wsApp->windowTitleString(tr("Save Graph As…")),
+    file_name = WiresharkFileDialog::getSaveFileName(this, mainApp->windowTitleString(tr("Save Graph As…")),
                                              path.canonicalPath(), filter, &extension);
 
     if (file_name.length() > 0) {
@@ -474,7 +478,7 @@ void SequenceDialog::exportDiagram()
         }
         // else error dialog?
         if (save_ok) {
-            wsApp->setLastOpenDirFromFilename(file_name);
+            mainApp->setLastOpenDirFromFilename(file_name);
         } else {
             open_failure_alert_box(file_name.toUtf8().constData(), errno, TRUE);
         }
@@ -849,7 +853,7 @@ void SequenceDialog::rtpPlayerRemove()
 
 void SequenceDialog::on_buttonBox_helpRequested()
 {
-    wsApp->helpTopicAction(HELP_STAT_FLOW_GRAPH);
+    mainApp->helpTopicAction(HELP_STAT_FLOW_GRAPH);
 }
 
 SequenceInfo::SequenceInfo(seq_analysis_info_t *sainfo) :

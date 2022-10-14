@@ -1,4 +1,5 @@
-/* file.h
+/** @file
+ *
  * Definitions for file structures and routines
  *
  * Wireshark - Network traffic analyzer
@@ -423,13 +424,6 @@ void cf_redissect_packets(capture_file *cf);
  */
 cf_read_status_t cf_retap_packets(capture_file *cf);
 
-/**
- * Adjust timestamp precision if auto is selected.
- *
- * @param cf the capture file
- */
-void cf_timestamp_auto_precision(capture_file *cf);
-
 /* print_range, enum which frames should be printed */
 typedef enum {
     print_range_selected_only,    /* selected frame(s) only (currently only one) */
@@ -451,6 +445,7 @@ typedef struct {
     print_dissections_e print_dissections;
     gboolean print_hex;           /* TRUE if we should print hex data;
                                    * FALSE if we should print only if not dissected. */
+    guint hexdump_options;        /* Hexdump options if print_hex is TRUE. */
     gboolean print_formfeed;      /* TRUE if a formfeed should be printed before
                                    * each new packet */
 } print_args_t;
@@ -620,9 +615,9 @@ gboolean cf_goto_framenum(capture_file *cf);
  * Select the packet in the given row.
  *
  * @param cf the capture file
- * @param row the row to select
+ * @param frame the frame to be selected
  */
-void cf_select_packet(capture_file *cf, int row);
+void cf_select_packet(capture_file *cf, frame_data *frame);
 
 /**
  * Unselect all packets, if any.
@@ -677,7 +672,7 @@ void cf_unignore_frame(capture_file *cf, frame_data *frame);
  * @return one of cf_status_t
  */
 cf_status_t
-cf_merge_files_to_tempfile(gpointer pd_window, char **out_filenamep,
+cf_merge_files_to_tempfile(gpointer pd_window, const char *temp_dir, char **out_filenamep,
                            int in_file_count, const char *const *in_filenames,
                            int file_type, gboolean do_append);
 
@@ -733,16 +728,3 @@ gboolean cf_add_ip_name_from_string(capture_file *cf, const char *addr, const ch
 #endif /* __cplusplus */
 
 #endif /* file.h */
-
-/*
- * Editor modelines  -  https://www.wireshark.org/tools/modelines.html
- *
- * Local variables:
- * c-basic-offset: 4
- * tab-width: 8
- * indent-tabs-mode: nil
- * End:
- *
- * vi: set shiftwidth=4 tabstop=8 expandtab:
- * :indentSize=4:tabSize=8:noTabs=true:
- */

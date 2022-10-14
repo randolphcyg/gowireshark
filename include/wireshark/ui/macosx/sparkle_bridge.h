@@ -1,4 +1,4 @@
-/* sparkle_bridge.h
+/** @file
  *
  * C wrapper for the Sparkle API
  *
@@ -21,7 +21,5 @@
 void sparkle_software_update_init(const char *url, bool enabled, int interval);
 
 void sparkle_software_update_check(void);
-
-void sparkle_software_update_cleanup(void);
 
 #endif // SPARKLE_BRIDGE_H

@@ -192,7 +192,6 @@ typedef enum
 * a detailed tree that expresses a somewhat more semantically meaningful
 * decode.
 */
-static guint global_megaco_txt_sctp_port = PORT_MEGACO_TXT;
 #if 0
 static guint global_megaco_bin_sctp_port = PORT_MEGACO_BIN;
 static guint global_megaco_bin_tcp_port = PORT_MEGACO_BIN;
@@ -327,13 +326,13 @@ megacostat_filtercheck(const char *opt_arg _U_, const char **filter _U_, char** 
     }
 
     if (!prefs_get_bool_value(megaco_ctx_track, pref_current) || !prefs_get_bool_value(h248_ctx_track, pref_current)) {
-        *err = g_strdup_printf("Track Context option at Protocols -> MEGACO and Protocols -> H248 preferences\n"
+        *err = ws_strdup_printf("Track Context option at Protocols -> MEGACO and Protocols -> H248 preferences\n"
                                 "has to be set to true to enable measurement of service response times.\n");
     }
 }
 
 static tap_packet_status
-megacostat_packet(void *pms, packet_info *pinfo, epan_dissect_t *edt _U_, const void *pmi)
+megacostat_packet(void *pms, packet_info *pinfo, epan_dissect_t *edt _U_, const void *pmi, tap_flags_t flags _U_)
 {
     rtd_data_t* rtd_data = (rtd_data_t*)pms;
     rtd_stat_table* ms = &rtd_data->stat_table;
@@ -425,7 +424,7 @@ megacostat_packet(void *pms, packet_info *pinfo, epan_dissect_t *edt _U_, const 
 static void
 export_megaco_pdu(packet_info *pinfo, tvbuff_t *tvb)
 {
-    exp_pdu_data_t *exp_pdu_data = export_pdu_create_common_tags(pinfo, "megaco", EXP_PDU_TAG_PROTO_NAME);
+    exp_pdu_data_t *exp_pdu_data = export_pdu_create_common_tags(pinfo, "megaco", EXP_PDU_TAG_DISSECTOR_NAME);
 
     exp_pdu_data->tvb_captured_length = tvb_captured_length(tvb);
     exp_pdu_data->tvb_reported_length = tvb_reported_length(tvb);
@@ -999,7 +998,7 @@ nextcontext:
 
         /* Find Commands */
 
-        /* If Transaction is is Request, Reply or Pending */
+        /* If Transaction is Request, Reply or Pending */
         tvb_command_start_offset = megaco_tvb_skip_wsp(tvb, tvb_current_offset +1);
         tvb_command_end_offset = tvb_command_start_offset;
 
@@ -1104,7 +1103,7 @@ nextcontext:
                 megaco_command = MEGACO_CMD_NOT_SET;
                 /* creation of the megaco_tree_command_line additionally Command and Transaction ID will be printed in this line */
                 /* Changed to use the lines above. this code is saved if there is complaints
-                sub_ti = proto_tree_add_item(megaco_tree,hf_megaco_command_line,tvb,tvb_command_start_offset,tokenlen, ENC_UTF_8|ENC_NA);
+                sub_ti = proto_tree_add_item(megaco_tree,hf_megaco_command_line,tvb,tvb_command_start_offset,tokenlen, ENC_UTF_8);
                 megaco_tree_command_line = proto_item_add_subtree(sub_ti, ett_megaco_command_line);
                 */
                 if (!global_megaco_dissect_tree) {
@@ -2089,7 +2088,7 @@ dissect_megaco_eventsdescriptor(tvbuff_t *tvb, packet_info *pinfo, proto_tree *m
                 tokenlen = tvb_RBRKT+1 - tvb_previous_offset;
             }
 
-            megaco_requestedevent_ti = proto_tree_add_item(megaco_eventsdescriptor_tree,hf_megaco_pkgdname,tvb,tvb_previous_offset,tokenlen, ENC_UTF_8|ENC_NA);
+            megaco_requestedevent_ti = proto_tree_add_item(megaco_eventsdescriptor_tree,hf_megaco_pkgdname,tvb,tvb_previous_offset,tokenlen, ENC_UTF_8);
             megaco_requestedevent_tree = proto_item_add_subtree(megaco_requestedevent_ti, ett_megaco_requestedevent);
 
             if ( tvb_help_offset < tvb_RBRKT && tvb_help_offset != -1 ){
@@ -2232,7 +2231,7 @@ dissect_megaco_signaldescriptor(tvbuff_t *tvb, packet_info *pinfo, proto_tree *m
                  pkg_tokenlen = tvb_RBRKT+1 - tvb_previous_offset;
              }
 
-            megaco_requestedsignal_ti = proto_tree_add_item(megaco_signalsdescriptor_tree,hf_megaco_pkgdname,tvb,tvb_previous_offset,pkg_tokenlen, ENC_UTF_8|ENC_NA);
+            megaco_requestedsignal_ti = proto_tree_add_item(megaco_signalsdescriptor_tree,hf_megaco_pkgdname,tvb,tvb_previous_offset,pkg_tokenlen, ENC_UTF_8);
             megaco_requestedsignal_tree = proto_item_add_subtree(megaco_requestedsignal_ti, ett_megaco_requestedsignal);
 
             if ( tvb_help_offset < tvb_RBRKT && tvb_help_offset != -1 ){
@@ -2646,7 +2645,7 @@ dissect_megaco_observedeventsdescriptor(tvbuff_t *tvb, packet_info *pinfo, proto
 
             megaco_observedevent_tree = proto_item_add_subtree(megaco_observedevent_ti, ett_megaco_observedevent);
 
-            proto_tree_add_item(megaco_observedevent_tree,hf_megaco_pkgdname,tvb,tvb_previous_offset,pkg_tokenlen, ENC_UTF_8|ENC_NA);
+            proto_tree_add_item(megaco_observedevent_tree,hf_megaco_pkgdname,tvb,tvb_previous_offset,pkg_tokenlen, ENC_UTF_8);
 
             if ( tvb_help_offset < tvb_RBRKT && tvb_help_offset != -1 ){
 
@@ -2723,7 +2722,7 @@ dissect_megaco_Packagesdescriptor(tvbuff_t *tvb, proto_tree *megaco_tree_command
 
     tokenlen =  (tvb_RBRKT+1) - tvb_previous_offset;
 
-    megaco_packagesdescriptor_ti = proto_tree_add_item(megaco_tree_command_line,hf_megaco_packages_descriptor,tvb,tvb_previous_offset,tokenlen, ENC_UTF_8|ENC_NA);
+    megaco_packagesdescriptor_ti = proto_tree_add_item(megaco_tree_command_line,hf_megaco_packages_descriptor,tvb,tvb_previous_offset,tokenlen, ENC_UTF_8);
     megaco_packagesdescriptor_tree = proto_item_add_subtree(megaco_packagesdescriptor_ti, ett_megaco_packagesdescriptor);
 
     tvb_current_offset = tvb_find_guint8(tvb, tvb_previous_offset, tvb_RBRKT, '=');
@@ -2930,7 +2929,7 @@ dissect_megaco_errordescriptor(tvbuff_t *tvb, packet_info* pinfo, proto_tree *me
     tvb_current_offset = tvb_find_guint8(tvb, tvb_previous_offset+1, tvb_RBRKT, '\"');
 
     tokenlen =  tvb_current_offset - tvb_previous_offset-1;
-    proto_tree_add_item(error_tree, hf_megaco_error_string, tvb, tvb_previous_offset+1, tokenlen, ENC_UTF_8|ENC_NA);
+    proto_tree_add_item(error_tree, hf_megaco_error_string, tvb, tvb_previous_offset+1, tokenlen, ENC_UTF_8);
 }
 static void
 dissect_megaco_TerminationStatedescriptor(tvbuff_t *tvb, proto_tree *megaco_mediadescriptor_tree,  gint tvb_next_offset, gint tvb_current_offset)
@@ -3593,7 +3592,7 @@ megaco_fmt_content( gchar *result, guint32 context )
         (void) g_strlcpy(result, val_to_str_const(context, megaco_context_vals, "Unknown"), ITEM_LABEL_LENGTH);
         break;
     default:
-        g_snprintf( result, ITEM_LABEL_LENGTH, "%d", context);
+        snprintf( result, ITEM_LABEL_LENGTH, "%d", context);
     }
 }
 
@@ -3839,12 +3838,7 @@ proto_register_megaco(void)
 
     /* Register our configuration options, particularly our ports */
 
-    megaco_module = prefs_register_protocol(proto_megaco, proto_reg_handoff_megaco);
-
-    prefs_register_uint_preference(megaco_module, "sctp.txt_port",
-                                   "MEGACO Text SCTP Port",
-                                   "Set the SCTP port for MEGACO text messages",
-                                   10, &global_megaco_txt_sctp_port);
+    megaco_module = prefs_register_protocol(proto_megaco, NULL);
 
 #if 0
     prefs_register_uint_preference(megaco_module, "sctp.bin_port",
@@ -3898,43 +3892,30 @@ proto_register_megaco(void)
 void
 proto_reg_handoff_megaco(void)
 {
-    static gboolean megaco_prefs_initialized = FALSE;
-    static dissector_handle_t megaco_text_tcp_handle;
+    dissector_handle_t megaco_text_tcp_handle;
 
         /*
     * Variables to allow for proper deletion of dissector registration when
     * the user changes port from the gui.
     */
-    static guint txt_sctp_port;
 #if 0
     static guint bin_sctp_port;
     static guint bin_tcp_port;
     static guint bin_udp_port;
 #endif
 
-    if (!megaco_prefs_initialized) {
-        sdp_handle = find_dissector_add_dependency("sdp", proto_megaco);
-        h245_handle = find_dissector_add_dependency("h245dg", proto_megaco);
-        h248_handle = find_dissector_add_dependency("h248", proto_megaco);
-        h248_otp_handle = find_dissector_add_dependency("h248_otp", proto_megaco);
-        data_handle = find_dissector("data");
+    sdp_handle = find_dissector_add_dependency("sdp", proto_megaco);
+    h245_handle = find_dissector_add_dependency("h245dg", proto_megaco);
+    h248_handle = find_dissector_add_dependency("h248", proto_megaco);
+    h248_otp_handle = find_dissector_add_dependency("h248_otp", proto_megaco);
+    data_handle = find_dissector("data");
 
-        megaco_text_tcp_handle = create_dissector_handle(dissect_megaco_text_tcp, proto_megaco);
+    megaco_text_tcp_handle = create_dissector_handle(dissect_megaco_text_tcp, proto_megaco);
 
-        dissector_add_uint_with_preference("tcp.port", PORT_MEGACO_TXT, megaco_text_tcp_handle);
-        dissector_add_uint_with_preference("udp.port", PORT_MEGACO_TXT, megaco_text_handle);
-        dissector_add_uint("sctp.ppi", H248_PAYLOAD_PROTOCOL_ID,   megaco_text_handle);
-
-        megaco_prefs_initialized = TRUE;
-    } else {
-        dissector_delete_uint("sctp.port", txt_sctp_port, megaco_text_handle);
-    }
-
-    /* Set our port number for future use */
-
-    txt_sctp_port = global_megaco_txt_sctp_port;
-
-    dissector_add_uint("sctp.port", global_megaco_txt_sctp_port, megaco_text_handle);
+    dissector_add_uint_with_preference("tcp.port", PORT_MEGACO_TXT, megaco_text_tcp_handle);
+    dissector_add_uint_with_preference("udp.port", PORT_MEGACO_TXT, megaco_text_handle);
+    dissector_add_uint_with_preference("sctp.port", PORT_MEGACO_TXT, megaco_text_handle);
+    dissector_add_uint("sctp.ppi", H248_PAYLOAD_PROTOCOL_ID,   megaco_text_handle);
 
     exported_pdu_tap = find_tap_id(EXPORT_PDU_TAP_NAME_LAYER_7);
 

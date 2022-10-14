@@ -1625,7 +1625,7 @@ dissect_thread_mc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
                         proto_tree_add_item(tlv_tree, hf_thread_mc_tlv_unknown, tvb, offset, tlv_len, ENC_NA);
                     } else {
                         /* Display it simply */
-                        proto_tree_add_item(tlv_tree, hf_thread_mc_tlv_vendor_data, tvb, offset, tlv_len, ENC_ASCII|ENC_NA);
+                        proto_tree_add_item(tlv_tree, hf_thread_mc_tlv_vendor_data, tvb, offset, tlv_len, ENC_ASCII);
                     }
                     offset += tlv_len;
                 }
@@ -3365,7 +3365,7 @@ proto_register_thread(void)
 
     proto_thread = proto_register_protocol("Thread", "Thread", "thread");
 
-    thread_module = prefs_register_protocol(proto_thread, proto_reg_handoff_thread);
+    thread_module = prefs_register_protocol(proto_thread, NULL);
     prefs_register_obsolete_preference(thread_module, "thr_coap_decode");
     prefs_register_string_preference(thread_module, "thr_seq_ctr",
                                      "Thread sequence counter",
@@ -3391,6 +3391,7 @@ proto_register_thread_coap(void)
     proto_thread_coap = proto_register_protocol("Thread CoAP", "Thread CoAP", "thread_coap");
     thread_coap_handle = register_dissector("thread_coap", dissect_thread_coap, proto_thread_coap);
 
+    dissector_add_string("coap_tmf_media_type", "application/octet-stream", thread_coap_handle);
     thread_coap_namespace = register_dissector_table("thread.coap_namespace", "Thread CoAP namespace", proto_thread_coap, FT_STRING, BASE_NONE);
 }
 

@@ -39,7 +39,7 @@
 
 #include "config.h"
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #include <epan/packet.h>
 #include <epan/capture_dissectors.h>
@@ -60,12 +60,12 @@
 #include <wsutil/adler32.h>
 #include <wsutil/utf8_entities.h>
 #include <wsutil/str_util.h>
+#include <wsutil/ws_roundup.h>
 
 #include "packet-sctp.h"
 
 #define LT(x, y) ((gint32)((x) - (y)) < 0)
 
-#define ADD_PADDING(x) ((((x) + 3) >> 2) << 2)
 #define UDP_TUNNELING_PORT 9899
 
 #define MAX_NUMBER_OF_PPIDS     2
@@ -471,7 +471,7 @@ sctp_chunk_type_update_cb(void *r, char **err)
   */
   c = proto_check_field_name(rec->type_name);
   if (c) {
-    *err = g_strdup_printf("Header name can't contain '%c'", c);
+    *err = ws_strdup_printf("Header name can't contain '%c'", c);
     return FALSE;
   }
 
@@ -670,7 +670,7 @@ sctp_src_prompt(packet_info *pinfo, gchar *result)
 {
     guint32 port = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, hf_source_port, pinfo->curr_layer_num));
 
-    g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "source (%s%u)", UTF8_RIGHTWARDS_ARROW, port);
+    snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "source (%s%u)", UTF8_RIGHTWARDS_ARROW, port);
 }
 
 static gpointer
@@ -684,7 +684,7 @@ sctp_dst_prompt(packet_info *pinfo, gchar *result)
 {
     guint32 port = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, hf_destination_port, pinfo->curr_layer_num));
 
-    g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "destination (%s%u)", UTF8_RIGHTWARDS_ARROW, port);
+    snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "destination (%s%u)", UTF8_RIGHTWARDS_ARROW, port);
 }
 
 static gpointer
@@ -699,7 +699,7 @@ sctp_both_prompt(packet_info *pinfo, gchar *result)
     guint32 srcport = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, hf_source_port, pinfo->curr_layer_num)),
             destport = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, hf_destination_port, pinfo->curr_layer_num));
 
-    g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "both (%u%s%u)", srcport, UTF8_LEFT_RIGHT_ARROW, destport);
+    snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "both (%u%s%u)", srcport, UTF8_LEFT_RIGHT_ARROW, destport);
 }
 
 static void
@@ -708,9 +708,9 @@ sctp_ppi_prompt1(packet_info *pinfo _U_, gchar* result)
     guint32 ppid = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_sctp, 0));
 
     if (ppid == LAST_PPID) {
-        g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "PPID (none)");
+        snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "PPID (none)");
     } else {
-        g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "PPID (%d)", ppid);
+        snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "PPID (%d)", ppid);
     }
 }
 
@@ -720,9 +720,9 @@ sctp_ppi_prompt2(packet_info *pinfo _U_, gchar* result)
     guint32 ppid = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_sctp, 1));
 
     if (ppid == LAST_PPID) {
-        g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "PPID (none)");
+        snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "PPID (none)");
     } else {
-        g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "PPID (%d)", ppid);
+        snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "PPID (%d)", ppid);
     }
 }
 
@@ -780,19 +780,21 @@ static const char* sctp_conv_get_filter_type(conv_item_t* conv, conv_filter_type
 static ct_dissector_info_t sctp_ct_dissector_info = {&sctp_conv_get_filter_type};
 
 static tap_packet_status
-sctp_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip)
+sctp_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip, tap_flags_t flags)
 {
   conv_hash_t *hash = (conv_hash_t*) pct;
+  hash->flags = flags;
+
   const struct _sctp_info *sctphdr=(const struct _sctp_info *)vip;
 
   add_conversation_table_data(hash, &sctphdr->ip_src, &sctphdr->ip_dst,
-        sctphdr->sport, sctphdr->dport, 1, pinfo->fd->pkt_len, &pinfo->rel_ts, &pinfo->abs_ts, &sctp_ct_dissector_info, ENDPOINT_SCTP);
+        sctphdr->sport, sctphdr->dport, 1, pinfo->fd->pkt_len, &pinfo->rel_ts, &pinfo->abs_ts, &sctp_ct_dissector_info, CONVERSATION_SCTP);
 
 
   return TAP_PACKET_REDRAW;
 }
 
-static const char* sctp_host_get_filter_type(hostlist_talker_t* host, conv_filter_type_e filter)
+static const char* sctp_endpoint_get_filter_type(endpoint_item_t* endpoint, conv_filter_type_e filter)
 {
     if (filter == CONV_FT_SRC_PORT)
         return "sctp.srcport";
@@ -803,47 +805,49 @@ static const char* sctp_host_get_filter_type(hostlist_talker_t* host, conv_filte
     if (filter == CONV_FT_ANY_PORT)
         return "sctp.port";
 
-    if(!host) {
+    if(!endpoint) {
         return CONV_FILTER_INVALID;
     }
 
     if (filter == CONV_FT_SRC_ADDRESS) {
-        if (host->myaddress.type == AT_IPv4)
+        if (endpoint->myaddress.type == AT_IPv4)
             return "ip.src";
-        if (host->myaddress.type == AT_IPv6)
+        if (endpoint->myaddress.type == AT_IPv6)
             return "ipv6.src";
     }
 
     if (filter == CONV_FT_DST_ADDRESS) {
-        if (host->myaddress.type == AT_IPv4)
+        if (endpoint->myaddress.type == AT_IPv4)
             return "ip.dst";
-        if (host->myaddress.type == AT_IPv6)
+        if (endpoint->myaddress.type == AT_IPv6)
             return "ipv6.dst";
     }
 
     if (filter == CONV_FT_ANY_ADDRESS) {
-        if (host->myaddress.type == AT_IPv4)
+        if (endpoint->myaddress.type == AT_IPv4)
             return "ip.addr";
-        if (host->myaddress.type == AT_IPv6)
+        if (endpoint->myaddress.type == AT_IPv6)
             return "ipv6.addr";
     }
 
     return CONV_FILTER_INVALID;
 }
 
-static hostlist_dissector_info_t sctp_host_dissector_info = {&sctp_host_get_filter_type};
+static et_dissector_info_t sctp_endpoint_dissector_info = {&sctp_endpoint_get_filter_type};
 
 static tap_packet_status
-sctp_hostlist_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip)
+sctp_endpoint_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip, tap_flags_t flags)
 {
   conv_hash_t *hash = (conv_hash_t*) pit;
+  hash->flags = flags;
+
   const struct _sctp_info *sctphdr=(const struct _sctp_info *)vip;
 
   /* Take two "add" passes per packet, adding for each direction, ensures that all
   packets are counted properly (even if address is sending to itself)
-  XXX - this could probably be done more efficiently inside hostlist_table */
-  add_hostlist_table_data(hash, &sctphdr->ip_src, sctphdr->sport, TRUE, 1, pinfo->fd->pkt_len, &sctp_host_dissector_info, ENDPOINT_SCTP);
-  add_hostlist_table_data(hash, &sctphdr->ip_dst, sctphdr->dport, FALSE, 1, pinfo->fd->pkt_len, &sctp_host_dissector_info, ENDPOINT_SCTP);
+  XXX - this could probably be done more efficiently inside endpoint_table */
+  add_endpoint_table_data(hash, &sctphdr->ip_src, sctphdr->sport, TRUE, 1, pinfo->fd->pkt_len, &sctp_endpoint_dissector_info, ENDPOINT_SCTP);
+  add_endpoint_table_data(hash, &sctphdr->ip_dst, sctphdr->dport, FALSE, 1, pinfo->fd->pkt_len, &sctp_endpoint_dissector_info, ENDPOINT_SCTP);
 
   return TAP_PACKET_REDRAW;
 }
@@ -1077,7 +1081,7 @@ tsn_tree(sctp_tsn_t *t, proto_item *tsn_item, packet_info *pinfo,
     char ds[64];
 
     if (t->retransmit_count > MAX_RETRANS_TRACKED_PER_TSN)
-      g_snprintf(ds, sizeof(ds), " (only %d displayed)", MAX_RETRANS_TRACKED_PER_TSN);
+      snprintf(ds, sizeof(ds), " (only %d displayed)", MAX_RETRANS_TRACKED_PER_TSN);
     else
       ds[0] = 0;
 
@@ -1422,7 +1426,7 @@ dissect_hostname_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, 
   guint16 hostname_length;
 
   hostname_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
-  proto_tree_add_item(parameter_tree, hf_hostname, parameter_tvb, HOSTNAME_OFFSET, hostname_length, ENC_ASCII|ENC_NA);
+  proto_tree_add_item(parameter_tree, hf_hostname, parameter_tvb, HOSTNAME_OFFSET, hostname_length, ENC_ASCII);
   proto_item_append_text(parameter_item, " (Hostname: %.*s)", hostname_length, tvb_format_text(wmem_packet_scope(), parameter_tvb, HOSTNAME_OFFSET, hostname_length));
 
 }
@@ -1606,11 +1610,6 @@ dissect_add_incoming_streams_parameter(tvbuff_t *parameter_tvb, proto_tree *para
 
 static void
 dissect_ecn_parameter(tvbuff_t *parameter_tvb _U_)
-{
-}
-
-static void
-dissect_nonce_supported_parameter(tvbuff_t *parameter_tvb _U_)
 {
 }
 
@@ -1808,7 +1807,6 @@ dissect_unknown_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, p
 #define ADD_OUTGOING_STREAMS_REQUEST_PARAMETER_ID 0x0011
 #define ADD_INCOMING_STREAMS_REQUEST_PARAMETER_ID 0x0012
 #define ECN_PARAMETER_ID                          0x8000
-#define NONCE_SUPPORTED_PARAMETER_ID              0x8001
 #define RANDOM_PARAMETER_ID                       0x8002
 #define CHUNKS_PARAMETER_ID                       0x8003
 #define HMAC_ALGO_PARAMETER_ID                    0x8004
@@ -1837,7 +1835,6 @@ static const value_string parameter_identifier_values[] = {
   { ADD_INCOMING_STREAMS_REQUEST_PARAMETER_ID, "Add incoming streams request" },
   { SUPPORTED_ADDRESS_TYPES_PARAMETER_ID,      "Supported address types"      },
   { ECN_PARAMETER_ID,                          "ECN"                          },
-  { NONCE_SUPPORTED_PARAMETER_ID,              "Nonce supported"              },
   { RANDOM_PARAMETER_ID,                       "Random"                       },
   { CHUNKS_PARAMETER_ID,                       "Authenticated Chunk list"     },
   { HMAC_ALGO_PARAMETER_ID,                    "Requested HMAC Algorithm"     },
@@ -1953,8 +1950,6 @@ dissect_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo,
   case ECN_PARAMETER_ID:
     dissect_ecn_parameter(parameter_tvb);
     break;
-  case NONCE_SUPPORTED_PARAMETER_ID:
-    dissect_nonce_supported_parameter(parameter_tvb);
     break;
   case RANDOM_PARAMETER_ID:
     dissect_random_parameter(parameter_tvb, parameter_tree);
@@ -2013,7 +2008,7 @@ dissect_parameters(tvbuff_t *parameters_tvb, packet_info *pinfo, proto_tree *tre
       proto_item_append_text(additional_item, " ");
 
     length       = tvb_get_ntohs(parameters_tvb, offset + PARAMETER_LENGTH_OFFSET);
-    total_length = ADD_PADDING(length);
+    total_length = WS_ROUNDUP_4(length);
 
     /*  If we have less bytes than we need, throw an exception while dissecting
      *  the parameter--not when generating the parameter_tvb below.
@@ -2410,7 +2405,7 @@ dissect_error_causes(tvbuff_t *causes_tvb, packet_info *pinfo, proto_tree *tree)
   offset = 0;
   while((remaining_length = tvb_reported_length_remaining(causes_tvb, offset))) {
     length       = tvb_get_ntohs(causes_tvb, offset + CAUSE_LENGTH_OFFSET);
-    total_length = ADD_PADDING(length);
+    total_length = WS_ROUNDUP_4(length);
 
     /*  If we have less bytes than we need, throw an exception while dissecting
      *  the cause--not when generating the causes_tvb below.
@@ -2438,9 +2433,55 @@ static gboolean
 dissect_payload(tvbuff_t *payload_tvb, packet_info *pinfo, proto_tree *tree, guint32 ppi)
 {
   guint32 low_port, high_port;
+  gboolean try_ppi, try_low_port, try_high_port;
   heur_dtbl_entry_t *hdtbl_entry;
 
   if (enable_ulp_dissection) {
+
+    /* XXX - we ignore port numbers of 0, as some dissectors use a port
+       number of 0 to disable the port. */
+    if (pinfo->srcport > pinfo->destport) {
+      low_port = pinfo->destport;
+      high_port = pinfo->srcport;
+    } else {
+      low_port = pinfo->srcport;
+      high_port = pinfo->destport;
+    }
+
+    try_ppi = FALSE;
+    if (dissector_is_uint_changed(sctp_ppi_dissector_table, ppi)) {
+      if (dissector_try_uint_new(sctp_ppi_dissector_table, ppi, payload_tvb, pinfo, tree, TRUE, GUINT_TO_POINTER(ppi))) {
+        return TRUE;
+      }
+    } else {
+      /* The default; try it later */
+      try_ppi = TRUE;
+    }
+
+    try_low_port = FALSE;
+    if (low_port != 0) {
+      if (dissector_is_uint_changed(sctp_port_dissector_table, low_port)) {
+        if (dissector_try_uint_new(sctp_port_dissector_table, low_port, payload_tvb, pinfo, tree, TRUE, GUINT_TO_POINTER(ppi))) {
+          return TRUE;
+        }
+      } else {
+        /* The default; try it later */
+        try_low_port = TRUE;
+      }
+    }
+
+    try_high_port = FALSE;
+    if (high_port != 0) {
+      if (dissector_is_uint_changed(sctp_port_dissector_table, high_port)) {
+        if (dissector_try_uint_new(sctp_port_dissector_table, high_port, payload_tvb, pinfo, tree, TRUE, GUINT_TO_POINTER(ppi))) {
+          return TRUE;
+        }
+      } else {
+        /* The default; try it later */
+        try_high_port = TRUE;
+      }
+    }
+
     if (try_heuristic_first) {
       /* do lookup with the heuristic subdissector table */
       if (dissector_try_heuristic(sctp_heur_subdissector_list, payload_tvb, pinfo, tree, &hdtbl_entry, GUINT_TO_POINTER(ppi)))
@@ -2448,6 +2489,7 @@ dissect_payload(tvbuff_t *payload_tvb, packet_info *pinfo, proto_tree *tree, gui
     }
 
     /* Do lookups with the subdissector table.
+       First try the PPI.
 
        When trying port numbers, we try the port number with the lower value
        first, followed by the port number with the higher value.  This means
@@ -2460,23 +2502,15 @@ dissect_payload(tvbuff_t *payload_tvb, packet_info *pinfo, proto_tree *tree, gui
        one (as that prefers well-known ports to reserved ports);
 
        although there is, of course, no guarantee that any such strategy
-       will always pick the right port number.
-
-       XXX - we ignore port numbers of 0, as some dissectors use a port
-       number of 0 to disable the port. */
-    if (dissector_try_uint_new(sctp_ppi_dissector_table, ppi, payload_tvb, pinfo, tree, TRUE, GUINT_TO_POINTER(ppi)))
+       will always pick the right port number. */
+    if (try_ppi &&
+        dissector_try_uint_new(sctp_ppi_dissector_table, ppi, payload_tvb, pinfo, tree, TRUE, GUINT_TO_POINTER(ppi)))
       return TRUE;
-    if (pinfo->srcport > pinfo->destport) {
-      low_port = pinfo->destport;
-      high_port = pinfo->srcport;
-    } else {
-      low_port = pinfo->srcport;
-      high_port = pinfo->destport;
-    }
-    if (low_port != 0 &&
+
+    if (try_low_port &&
         dissector_try_uint_new(sctp_port_dissector_table, low_port, payload_tvb, pinfo, tree, TRUE, GUINT_TO_POINTER(ppi)))
       return TRUE;
-    if (high_port != 0 &&
+    if (try_high_port &&
         dissector_try_uint_new(sctp_port_dissector_table, high_port, payload_tvb, pinfo, tree, TRUE, GUINT_TO_POINTER(ppi)))
       return TRUE;
 
@@ -2574,7 +2608,6 @@ frag_hash(gconstpointer k)
   return key->sport ^ key->dport ^ key->verification_tag ^
          key->stream_id ^ key->stream_seq_num ^ key->u_bit;
 }
-
 
 
 static void
@@ -3179,7 +3212,7 @@ create_exp_pdu_table(packet_info *pinfo, tvbuff_t *tvb, const char *table_name, 
 static exp_pdu_data_t*
 create_exp_pdu_proto_name(packet_info *pinfo, tvbuff_t *tvb, const gchar *proto_name)
 {
-  exp_pdu_data_t *exp_pdu_data = export_pdu_create_common_tags(pinfo, proto_name, EXP_PDU_TAG_PROTO_NAME);
+  exp_pdu_data_t *exp_pdu_data = export_pdu_create_common_tags(pinfo, proto_name, EXP_PDU_TAG_DISSECTOR_NAME);
 
   exp_pdu_data->tvb_captured_length = tvb_captured_length(tvb);
   exp_pdu_data->tvb_reported_length = tvb_reported_length(tvb);
@@ -3347,7 +3380,7 @@ dissect_data_chunk(tvbuff_t *chunk_tvb,
     tsn -= ha->first_tsn;
   }
 
-  col_append_fstr(pinfo->cinfo, COL_INFO, "(TSN=%" G_GUINT32_FORMAT ") ", tsn);
+  col_append_fstr(pinfo->cinfo, COL_INFO, "(TSN=%" PRIu32 ") ", tsn);
 
   if (chunk_tree) {
     if (is_idata)
@@ -3707,13 +3740,13 @@ dissect_sack_chunk(packet_info *pinfo, tvbuff_t *chunk_tvb, proto_tree *chunk_tr
   if(last_end == 0) {
     /* No GapAck -> only show CumAck */
     col_append_fstr(pinfo->cinfo, COL_INFO,
-                    "(Ack=%" G_GUINT32_FORMAT ", Arwnd=%" G_GUINT32_FORMAT ") ",
+                    "(Ack=%" PRIu32 ", Arwnd=%" PRIu32 ") ",
                     cum_tsn_ack, a_rwnd);
   }
   else {
     /* Show CumAck + highest GapAck */
     col_append_fstr(pinfo->cinfo, COL_INFO,
-                    "(Ack=%" G_GUINT32_FORMAT "+%" G_GUINT32_FORMAT ", Arwnd=%" G_GUINT32_FORMAT ") ",
+                    "(Ack=%" PRIu32 "+%" PRIu32 ", Arwnd=%" PRIu32 ") ",
                     cum_tsn_ack, last_end, a_rwnd);
   }
 
@@ -4545,7 +4578,7 @@ dissect_sctp_chunks(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_i
   while((remaining_length = tvb_reported_length_remaining(tvb, offset))) {
     /* extract the chunk length and compute number of padding bytes */
     length         = tvb_get_ntohs(tvb, offset + CHUNK_LENGTH_OFFSET);
-    total_length   = ADD_PADDING(length);
+    total_length   = WS_ROUNDUP_4(length);
 
     /*  If we have less bytes than we need, throw an exception while dissecting
      *  the chunk--not when generating the chunk_tvb below.
@@ -5149,7 +5182,7 @@ proto_register_sctp(void)
   register_decode_as(&sctp_da_port);
   register_decode_as(&sctp_da_ppi);
 
-  register_conversation_table(proto_sctp, FALSE, sctp_conversation_packet, sctp_hostlist_packet);
+  register_conversation_table(proto_sctp, FALSE, sctp_conversation_packet, sctp_endpoint_packet);
 }
 
 void

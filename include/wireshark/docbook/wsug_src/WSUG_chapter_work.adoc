@@ -1,10 +1,10 @@
 // WSUG Chapter Work
 
-[[ChapterWork]]
+[#ChapterWork]
 
 == Working With Captured Packets
 
-[[ChWorkViewPacketsSection]]
+[#ChWorkViewPacketsSection]
 
 === Viewing Packets You Have Captured
 
@@ -19,7 +19,7 @@ corresponding bytes in the byte view. An example with a TCP packet selected is
 shown in <<ChWorkSelPack1>>. It also has the Acknowledgment number in the TCP
 header selected, which shows up in the byte view as the selected bytes.
 
-[[ChWorkSelPack1]]
+[#ChWorkSelPack1]
 
 .Wireshark with a TCP packet selected for viewing
 image::wsug_graphics/ws-packet-selected.png[{screenshot-attrs}]
@@ -34,7 +34,7 @@ packet list or by selecting the packet in which you are interested in the packet
 list pane and selecting menu:View[Show Packet in New Window]. This allows you to
 easily compare two or more packets, even across multiple files.
 
-[[ChWorkPacketSepView]]
+[#ChWorkPacketSepView]
 
 .Viewing a packet in a separate window
 image::wsug_graphics/ws-packet-sep-win.png[{screenshot-attrs}]
@@ -47,7 +47,7 @@ number of other ways to open a new packet window:
 - From <<PacketListPopupMenuTable>>.
 - From <<PacketDetailsPopupMenuTable>>.
 
-[[ChWorkDisplayPopUpSection]]
+[#ChWorkDisplayPopUpSection]
 
 === Pop-up Menus
 
@@ -55,11 +55,11 @@ You can open a pop-up menu over the “Packet List”, its column heading,
 “Packet Details”, or “Packet Bytes” by clicking your right mouse button
 on the corresponding item.
 
-[[ChWorkColumnHeaderPopUpMenuSection]]
+[#ChWorkColumnHeaderPopUpMenuSection]
 
 ==== Pop-up Menu Of The “Packet List” Column Header
 
-[[ChWorkColumnHeaderPopUpMenu]]
+[#ChWorkColumnHeaderPopUpMenu]
 .Pop-up menu of the “Packet List” column header
 image::wsug_graphics/ws-column-header-popup-menu.png[{screenshot-attrs}]
 
@@ -67,7 +67,7 @@ The following table gives an overview of which functions are available
 in this header, where to find the corresponding function in the main
 menu, and a description of each item.
 
-[[ColumnHeaderPopupMenuTable]]
+[#ColumnHeaderPopupMenuTable]
 .The menu items of the “Packet List” column header pop-up menu
 [options="header",cols="3,7"]
 |===
@@ -102,11 +102,11 @@ Remove this column, similar to deleting it in the “Preferences” dialog.
 
 |===
 
-[[ChWorkPacketListPanePopUpMenuSection]]
+[#ChWorkPacketListPanePopUpMenuSection]
 
 ==== Pop-up Menu Of The “Packet List” Pane
 
-[[ChWorkPacketListPanePopUpMenu]]
+[#ChWorkPacketListPanePopUpMenu]
 
 .Pop-up menu of the “Packet List” pane
 image::wsug_graphics/ws-packet-pane-popup-menu.png[{screenshot-attrs}]
@@ -115,7 +115,7 @@ The following table gives an overview of which functions are available
 in this pane, where to find the corresponding function in the main menu,
 and a short description of each item.
 
-[[PacketListPopupMenuTable]]
+[#PacketListPopupMenuTable]
 .The menu items of the “Packet List” pop-up menu
 [options="header",cols="3,1,6"]
 |===
@@ -131,7 +131,7 @@ of some or all packets.
 |menu:Packet Comment...[] |menu:Edit[] |
 Opens the “Packet Comment” dialog, which lets you add a comment to a
 single packet. Note that the ability to save packet comments depends on
-your file format. E.g. pcapng supports comments, pcap does not.
+your file format. E.g., pcapng supports comments, pcap does not.
 
 |menu:Edit Resolved Name[]||
 Allows you to enter a name to resolve for the selected address.
@@ -221,11 +221,11 @@ details.
 |===
 
 
-[[ChWorkPacketDetailsPanePopUpMenuSection]]
+[#ChWorkPacketDetailsPanePopUpMenuSection]
 
 ==== Pop-up Menu Of The “Packet Details” Pane
 
-[[ChWorkPacketDetailsPanePopUpMenu]]
+[#ChWorkPacketDetailsPanePopUpMenu]
 
 .Pop-up menu of the “Packet Details” pane
 image::wsug_graphics/ws-details-pane-popup-menu.png[{screenshot-attrs}]
@@ -234,7 +234,7 @@ The following table gives an overview of which functions are available in this
 pane, where to find the corresponding function in the main menu, and a short
 description of each item.
 
-[[PacketDetailsPopupMenuTable]]
+[#PacketDetailsPopupMenuTable]
 
 .The menu items of the “Packet Details” pop-up menu
 [options="header",cols="3,1,6"]
@@ -316,8 +316,8 @@ Copy the packet bytes to the clipboard as C-style escape sequences.
 This menu item is the same as the File menu item of the same name. It
 allows you to export raw packet bytes to a binary file.
 
-|menu:Wiki Protocol Page[]|| Show the wiki page corresponding to the currently selected protocol in your web browser.
-|menu:Filter Field Reference[]|| Show the filter field reference web page corresponding to the currently selected protocol in your web browser.
+|menu:Wiki Protocol Page[]|| Open the wiki page for the selected protocol in your web browser.
+|menu:Filter Field Reference[]|| Open the filter field reference web page for the selected protocol in your web browser.
 
 |menu:Protocol Preferences[] ||
 Adjust the preferences for the selected protocol.
@@ -335,11 +335,11 @@ window. See <<ChWorkPacketSepView>> for details.
 
 |===
 
-[[ChWorkPacketBytesPanePopUpMenuSection]]
+[#ChWorkPacketBytesPanePopUpMenuSection]
 
 ==== Pop-up Menu Of The “Packet Bytes” Pane
 
-[[ChWorkPacketBytesPanePopUpMenu]]
+[#ChWorkPacketBytesPanePopUpMenu]
 
 .Pop-up menu of the “Packet Bytes” pane
 image::wsug_graphics/ws-bytes-pane-popup-menu.png[{screenshot-attrs}]
@@ -347,7 +347,7 @@ image::wsug_graphics/ws-bytes-pane-popup-menu.png[{screenshot-attrs}]
 The following table gives an overview of which functions are available
 in this pane along with a short description of each item.
 
-[[PacketBytesPopupMenuTable]]
+[#PacketBytesPopupMenuTable]
 
 .The menu items of the “Packet Bytes” pop-up menu
 [options="header",cols="3,7"]
@@ -393,7 +393,40 @@ Use EBCDIC encoding when displaying “hexdump” text.
 
 |===
 
-[[ChWorkDisplayFilterSection]]
+[#ChWorkPacketDiagramPanePopUpMenuSection]
+
+==== Pop-up Menu Of The “Packet Diagram” Pane
+
+[#ChWorkPacketDiagramPanePopUpMenu]
+
+.Pop-up menu of the “Packet Diagram” pane
+image::wsug_graphics/ws-diagram-pane-popup-menu.png[{screenshot-attrs}]
+
+The following table gives an overview of which functions are available
+in this pane along with a short description of each item.
+
+[#PacketDiagramPopupMenuTable]
+
+.The menu items of the “Packet Diagram” pop-up menu
+[options="header",cols="3,7"]
+|===
+|Item |Description
+
+|menu:Show Field Values[] |
+Display current value for each field on the packet diagram.
+
+|menu:Save Diagram As...[] |
+Save the packet diagram to an image file (PNG, BMP, JPEG).
+
+|menu:Copy as Raster Image[] |
+Copy the packet diagram to the clipboard in raster (ARGB32) format.
+
+// |menu:…as SVG[] |
+// (macOS) Copy the packet diagram to the clipboard in SVG format.
+
+|===
+
+[#ChWorkDisplayFilterSection]
 
 === Filtering Packets While Viewing
 
@@ -402,6 +435,8 @@ _Capture filters_ are used for filtering
 when capturing packets and are discussed in <<ChCapCaptureFilterSection>>.
 _Display filters_ are used for filtering
 which packets are displayed and are discussed below.
+For more information about _display filter_ syntax, see the
+link:{wireshark-man-page-url}wireshark-filter.html[wireshark-filter(4)] man page.
 
 Display filters allow you to concentrate on the packets you are interested in
 while hiding the currently uninteresting ones. They allow you to only display packets
@@ -434,7 +469,7 @@ expression.
 ====
 
 
-[[ChWorkTCPFilter]]
+[#ChWorkTCPFilter]
 
 .Filtering on the TCP protocol
 image::wsug_graphics/ws-display-filter-tcp.png[{screenshot-attrs}]
@@ -461,7 +496,7 @@ the _Display Filter Expression_ dialog box is available in
 <<ChWorkFilterAddExpressionSection>>.
 
 
-[[ChWorkBuildDisplayFilterSection]]
+[#ChWorkBuildDisplayFilterSection]
 
 === Building Display Filter Expressions
 
@@ -513,51 +548,61 @@ A complete list of available comparison operators is shown in <<DispCompOps>>.
 English and C-like operators are interchangeable and can be mixed within a filter string.
 ====
 
-[[DispCompOps]]
+[#DispCompOps]
 
 .Display Filter comparison operators
-[options="header",cols="1,1,1,4"]
+[options="header",cols="1,1,1,3,3"]
 |===
-|English|C-like|Description|Example
-|eq |== |Equal| `ip.src==10.0.0.5`
-|ne |!= |Not equal| `ip.src!=10.0.0.5`
-|gt |>  |Greater than| `frame.len > 10`
-|lt |<  |Less than| `frame.len < 128`
-|ge |>= |Greater than or equal to| `frame.len ge 0x100`
-|le |\<= |Less than or equal to| `frame.len \<= 0x20`
-|contains||Protocol, field or slice contains a value| `sip.To contains "a1762"`
-|matches|~|Protocol or text field matches a Perl-compatible regular expression| `http.host matches "acme\\.(org\|com\|net)"`
-|bitwise_and|&|Bitwise AND is non-zero| `tcp.flags & 0x02`
+| English      | Alias    | C-like | Description                      | Example
+| eq           | any_eq   | ==     | Equal (any if more than one)     | `ip.src == 10.0.0.5`
+| ne           | all_ne   | !=     | Not equal (all if more than one) | `ip.src != 10.0.0.5`
+|              | all_eq   | ===    | Equal (all if more than one)     | `ip.src === 10.0.0.5`
+|              | any_ne   | !==    | Not equal (any if more than one) | `ip.src !== 10.0.0.5`
+| gt           |          | >      | Greater than                     | `frame.len > 10`
+| lt           |          | <      | Less than                        | `frame.len < 128`
+| ge           |          | >=     | Greater than or equal to         | `frame.len ge 0x100`
+| le           |          | \<=    | Less than or equal to            | `frame.len \<= 0x20`
+| contains     |          |        | Protocol, field or slice contains a value | `sip.To contains "a1762"`
+| matches      |          | ~      | Protocol or text field matches a Perl-compatible regular expression| `http.host matches "acme\\.(org\|com\|net)"`
 |===
+
+
+[NOTE]
+====
+The meaning of != (all not equal) was changed in Wireshark 3.6.
+Before it used to mean "any not equal".
+====
 
 All protocol fields have a type. <<ChWorkFieldTypes>> provides a list
 of the types with examples of how to use them in display filters.
 
-[[ChWorkFieldTypes]]
+[#ChWorkFieldTypes]
 
 ===== Display Filter Field Types
 
 Unsigned integer::
   Can be 8, 16, 24, 32, or 64 bits. You can express integers in decimal, octal,
-  or hexadecimal. The following display filters are equivalent:
+  hexadecimal or binary. The following display filters are equivalent:
 +
 `ip.len le 1500`
 +
 `ip.len le 02734`
 +
 `ip.len le 0x5dc`
++
+`ip.len le 0b10111011100`
 
 Signed integer::
   Can be 8, 16, 24, 32, or 64 bits. As with unsigned integers you can use
-  decimal, octal, or hexadecimal.
+  decimal, octal, hexadecimal or binary.
 
 Boolean::
-  Can be 1 (for true), or 0 (for false).
+  Can be 1 or "True" or "TRUE", 0 or "False" or "FALSE" (without quotes).
 +
-A Boolean field is present whether its value is true or false. For example,
+A Boolean field is present regardless if its value is true or false. For example,
 `tcp.flags.syn` is present in all TCP packets containing the flag, whether
 the SYN flag is 0 or 1. To only match TCP packets with the SYN flag set, you need
-to use `tcp.flags.syn == 1`.
+to use `tcp.flags.syn == 1` or `tcp.flags.syn == True`.
 
 Ethernet address::
   6 bytes separated by a colon (:), dot (.), or dash (-) with one or two bytes between separators:
@@ -593,7 +638,7 @@ numerical digits respectively:
 +
 `dns.qry.name contains "www.\x77\x69\x72\x65\x73\x68\x61\x72\x6b.org"`
 +
-Alternatively a raw string syntax can be used. Such strings are prefixed with `r` or `R` and treat
+Alternatively, a raw string syntax can be used. Such strings are prefixed with `r` or `R` and treat
 backslash as a literal character.
 +
 `http.user_agent matches r"\(X11;"`
@@ -619,7 +664,7 @@ date must be specified:
 In the second format, a `T` may appear between the date and time as in
 ISO 8601, but not when less significant times are dropped.
 
-[[ChWorkFilterExamples]]
+[#ChWorkFilterExamples]
 
 ===== Some Examples
 
@@ -643,16 +688,16 @@ Comparisons are case-insensitive.
 tcp.flags & 0x02
 ----
 That display filter will match all packets that contain the “tcp.flags” field with the 0x02 bit,
-i.e. the SYN bit, set.
+i.e., the SYN bit, set.
 
-==== Possible Pitfalls Using Regular Expressions
+===== Possible Pitfalls Using Regular Expressions
 
 String literals containing regular expressions are parsed twice. Once by Wireshark's display
-filter engine and again by the PCRE library. It's important to keep this in mind when using
+filter engine and again by the PCRE2 library. It's important to keep this in mind when using
 the "matches" operator with regex escape sequences and special characters.
 
-For example the filter expression `+frame matches "AB\x43"+` uses the string `+"ABC"+` as input
-pattern to PCRE. However the expression `+frame matches "AB\\x43"+` uses the string `+"AB\x43"+`
+For example, the filter expression `+frame matches "AB\x43"+` uses the string `+"ABC"+` as input
+pattern to PCRE. However, the expression `+frame matches "AB\\x43"+` uses the string `+"AB\x43"+`
 as the pattern. In this case both expressions give the same result because Wireshark and PCRE
 both support the same byte escape sequence (0x43 is the ASCII hex code for `C`).
 
@@ -661,16 +706,13 @@ code for `(` the pattern input to PCRE is `+"bar("+`. This regular expression is
 invalid (missing closing parenthesis). To match a literal parenthesis in a display filter regular
 expression it must be escaped (twice) with backslashes.
 
-Another common pitfall is using `\.` instead of `\\.` in a regular expression. The former
-will match any character (the backslash is superfluous) while the latter will match a literal dot.
-
-TIP: Using raw strings avoids most problem with the "matches" operator and double escapes.
+TIP: Using raw strings avoids most problem with the "matches" operator and double escape requirements.
 
 ==== Combining Expressions
 
 You can combine filter expressions in Wireshark using the logical operators shown in <<FiltLogOps>>
 
-[[FiltLogOps]]
+[#FiltLogOps]
 
 .Display Filter Logical Operations
 [options="header",cols="1,1,1,4"]
@@ -762,12 +804,35 @@ ip.addr in {10.0.0.5 .. 10.0.0.9, 192.168.1.1..192.168.1.9}
 frame.time_delta in {10 .. 10.5}
 ----
 
+==== Arithmetic operators
+
+You can perform the arithmetic operations on numeric fields shown in <<ArithmeticOps>>
+
+[#ArithmeticOps]
+
+.Display Filter Arithmetic Operations
+[options="header",cols="1,1,4"]
+|===
+|Name            |Syntax    | Description
+|Unary minus     |-A        | Negation of A
+|Addition        |A + B     | Add B to A
+|Subtraction     |A - B     | Subtract B from A
+|Multiplication  |A * B     | Multiply A times B
+|Division        |A / B     | Divide A by B
+|Modulo          |A % B     | Remainder of A divided by B
+|Bitwise AND     |A & B     | Bitwise AND of A and B
+|===
+
+Arithmetic expressions can be grouped using curly braces.
+
+//TODO: Add example.
+
 ==== Functions
 
 The display filter language has a number of functions to convert fields, see
 <<DispFunctions>>.
 
-[[DispFunctions]]
+[#DispFunctions]
 .Display Filter Functions
 [options="header",cols="1,4"]
 |===
@@ -777,6 +842,9 @@ The display filter language has a number of functions to convert fields, see
 |len     |Returns the byte length of a string or bytes field.
 |count   |Returns the number of field occurrences in a frame.
 |string  |Converts a non-string field to a string.
+|max     |Return the maximum value for the arguments.
+|min     |Return the minimum value for the arguments.
+|abs     |Return the absolute value for the argument.
 |===
 
 The `upper` and `lower` functions can used to force case-insensitive matches:
@@ -805,7 +873,14 @@ To match IP addresses ending in 255 in a block of subnets (172.16 to 172.31):
 string(ip.dst) matches r"^172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]{1,3}\.255"
 ----
 
-[[ChWorkBuildDisplayFilterTransitional]]
+The functions max() and min() take any number of arguments of the same type
+and returns the largest/smallest respectively of the set.
+
+----
+max(tcp.srcport, tcp.dstport) <= 1024
+----
+
+[#ChWorkBuildDisplayFilterTransitional]
 
 ==== Sometimes Fields Change Names
 
@@ -820,17 +895,49 @@ make the transition easier.
 For example, the DHCP dissector was originally developed for the BOOTP
 protocol but as of Wireshark 3.0 all of the “bootp” display filter
 fields have been renamed to their “dhcp” equivalents. You can still use
-the old filter names for the time being, e.g. “bootp.type” is equivalent
+the old filter names for the time being, e.g., “bootp.type” is equivalent
 to “dhcp.type” but Wireshark will show the warning “"bootp" is deprecated”
 when you use it. Support for the deprecated fields may be removed in the future.
 
-[[ChWorkFilterAddExpressionSection]]
+==== Some protocol names can be ambiguous
+In some particular cases relational expressions (equal, less than, etc.)
+can be ambiguous. The filter name of a protocol or protocol field can contain
+any letter and digit in any order, possibly separated by dots. That can be
+indistinguishable from a literal value (usually numerical values in hexadecimal).
+For example the semantic value of `fc` can be the protocol Fibre Channel or the
+number 0xFC in hexadecimal because the 0x prefix is optional for hexadecimal numbers.
+
+Any value that matches a registered protocol or protocol field filter name is
+interpreted semantically as such. If it doesn't match a protocol name the normal
+rules for parsing literal values apply.
+
+So in the case of 'fc' the lexical token is interpreted as "Fibre Channel" and
+not 0xFC. In the case of 'fd' it would be interpreted as 0xFD because it is a
+well-formed hexadecimal literal value (according to the rules of display filter
+language syntax) and there is no protocol registered with the filter name 'fd'.
+
+How ambiguous values are interpreted may change in the future. To avoid this
+problem and resolve the ambiguity there is additional syntax available.
+Values in-between angle brackets are always and only treated as literal
+values. Bytes arrays and numeric values can also be prefixed with a colon to
+force interpretation as a literal value. Values prefixed with a dot are always
+treated as a protocol name. The dot stands for the root of the protocol namespace
+and is optional)
+----
+frame[10:] contains .fc or frame[10] == :fc and not frame contains <cafe.face>
+----
+If you are writing a script, or you think your expression may not be giving the
+expected results because of the syntactical ambiguity of some filter expression
+it is advisable to use the explicit syntax to indicate the correct meaning for
+that expression.
+
+[#ChWorkFilterAddExpressionSection]
 
 === The “Display Filter Expression” Dialog Box
 
 When you are accustomed to Wireshark’s filtering system and know what labels you
 wish to use in your filters it can be very quick to simply type a filter string.
-However if you are new to Wireshark or are working with a slightly unfamiliar
+However, if you are new to Wireshark or are working with a slightly unfamiliar
 protocol it can be very confusing to try to figure out what to type. The
 “Display Filter Expression” dialog box helps with this.
 
@@ -841,7 +948,7 @@ Wireshark display filter strings.
 ====
 
 
-[[ChWorkFilterAddExpression1]]
+[#ChWorkFilterAddExpression1]
 
 .The “Display Filter Expression” dialog box
 image::wsug_graphics/ws-filter-add-expression.png[{screenshot-attrs}]
@@ -896,7 +1003,7 @@ btn:[Cancel]::
 You can leave the “Add Expression...” dialog box without any effect by
 clicking the btn:[Cancel] button.
 
-[[ChWorkDefineFilterSection]]
+[#ChWorkDefineFilterSection]
 
 === Defining And Saving Filters
 
@@ -909,7 +1016,7 @@ Wireshark will open the corresponding dialog as shown in <<FiltersDialog>>.
 The two dialogs look and work similar to one another.
 Both are described here, and the differences are noted as needed.
 
-[[FiltersDialog]]
+[#FiltersDialog]
 
 .The “Capture Filters” and “Display Filters” dialog boxes
 image::wsug_graphics/ws-filters.png[{screenshot-attrs}]
@@ -939,7 +1046,7 @@ Saves the filter settings and closes the dialog.
 btn:[Cancel]::
 Closes the dialog without saving any changes.
 
-[[ChWorkDefineFilterMacrosSection]]
+[#ChWorkDefineFilterMacrosSection]
 
 === Defining And Saving Filter Macros
 
@@ -951,7 +1058,7 @@ To define and save your own filter macros, follow the steps below:
 
 . In the main menu select menu:Analyze[Display Filter Macros...]. Wireshark will open a corresponding dialog <<FilterMacrosDialog>>.
 +
-[[FilterMacrosDialog]]
+[#FilterMacrosDialog]
 +
 .Display Filter Macros window
 image::wsug_graphics/ws-filter-macros.png[{screenshot-attrs}]
@@ -964,7 +1071,7 @@ image::wsug_graphics/ws-filter-macros.png[{screenshot-attrs}]
 
 To learn more about display filter macro syntax, see <<ChDisplayFilterMacrosSection>>.
 
-[[ChWorkFindPacketSection]]
+[#ChWorkFindPacketSection]
 
 === Finding Packets
 
@@ -975,7 +1082,7 @@ main toolbar and the packet list shown in <<ChWorkFindPacketToolbar>>.
 
 ==== The “Find Packet” Toolbar
 
-[[ChWorkFindPacketToolbar]]
+[#ChWorkFindPacketToolbar]
 
 .The “Find Packet” toolbar
 image::wsug_graphics/ws-find-packet.png[{screenshot-attrs}]
@@ -985,7 +1092,7 @@ You can search using the following criteria:
 Display filter::
   Enter a display filter string into the text entry field and click the btn:[Find] button.
   +
-  For example, to find the three way handshake for a connection from host 192.168.0.1, use the following filter string:
+  For example, to find the three-way handshake for a connection from host 192.168.0.1, use the following filter string:
 +
 ----
 ip.src==192.168.0.1 and tcp.flags.syn==1
@@ -1012,7 +1119,7 @@ Regular Expression::
   should return a number of sites that will help you test and explore
   your expressions.
 
-[[ChWorkGoToPacketSection]]
+[#ChWorkGoToPacketSection]
 
 === Go To A Specific Packet
 
@@ -1031,7 +1138,7 @@ most web browsers.
 
 ==== The “Go to Packet” Toolbar
 
-[[ChWorkGoToPacketToolbar]]
+[#ChWorkGoToPacketToolbar]
 
 .The “Go To Packet” toolbar
 image::wsug_graphics/ws-goto-packet.png[{screenshot-attrs}]
@@ -1059,7 +1166,7 @@ This command will jump to the first packet displayed.
 
 This command will jump to the last packet displayed.
 
-[[ChWorkMarkPacketSection]]
+[#ChWorkMarkPacketSection]
 
 === Marking Packets
 
@@ -1087,13 +1194,13 @@ you can select from the following:
 You can also mark and unmark a packet by clicking on it in the packet list
 with the middle mouse button.
 
-[[ChWorkIgnorePacketSection]]
+[#ChWorkIgnorePacketSection]
 
 === Ignoring Packets
 
 You can ignore packets in the “Packet List” pane. Wireshark will then
 pretend that they not exist in the capture file. An ignored packet will
-be shown with white background and gray foreground, regardless of the
+be shown with white background and grey foreground, regardless of the
 coloring rules set.
 
 Ignored packet information is not stored in the capture file or anywhere
@@ -1109,7 +1216,7 @@ menu:Edit[] menu you can select from the following:
 
 * menu:Unignore All Displayed[] reset the ignored state of all packets.
 
-[[ChWorkTimeFormatsSection]]
+[#ChWorkTimeFormatsSection]
 
 === Time Display Formats And Time References
 
@@ -1130,7 +1237,7 @@ The available presentation formats are:
 * menu:Time of Day: 01:02:03.123456[] The absolute time of the day when the packet
   was captured.
 
-* menu:Seconds Since Beginning of Capture: 123.123456[] The time relative to the
+* menu:Seconds Since First Captured Packet: 123.123456[] The time relative to the
   start of the capture file or the first “Time Reference” before this packet
   (see <<ChWorkTimeReferencePacketSection>>).
 
@@ -1160,20 +1267,20 @@ using the “Automatic” setting for libpcap files (which is microseconds). If
 you use Seconds it would show simply 1 and if you use Nanoseconds it shows
 1.123456000.
 
-[[ChWorkTimeReferencePacketSection]]
+[#ChWorkTimeReferencePacketSection]
 
 ==== Packet Time Referencing
 
 The user can set time references to packets. A time reference is the starting
 point for all subsequent packet time calculations. It will be useful, if you
-want to see the time values relative to a special packet, e.g. the start of a
+want to see the time values relative to a special packet, e.g., the start of a
 new request. It’s possible to set multiple time references in the capture file.
 
 The time references will not be saved permanently and will be lost when you
 close the capture file.
 
 Time referencing will only be useful if the time display format is set to
-“Seconds Since Beginning of Capture”. If one of the other time display formats
+“Seconds Since First Captured Packet”. If one of the other time display formats
 are used, time referencing will have no effect (and will make no sense either).
 
 To work with time references, choose one of the menu:Time Reference[] items in
@@ -1188,7 +1295,7 @@ the menu:[Edit] menu or from the pop-up menu of the “Packet List” pane. See
 * menu:Find Previous[] Find the previous time referenced packet in the “Packet
   List” pane.
 
-[[ChWorkTimeReference]]
+[#ChWorkTimeReference]
 
 .Wireshark showing a time referenced packet
 image::wsug_graphics/ws-time-reference.png[{screenshot-attrs}]

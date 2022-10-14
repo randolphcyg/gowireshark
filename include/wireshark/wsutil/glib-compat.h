@@ -1,6 +1,7 @@
-/* glib-compat.h
+/** @file
+*
 * Definitions to provide some functions that are not present in older
-* GLIB versions (down to 2.22)
+* GLIB versions we support (currently down to 2.50)
 *
 * Wireshark - Network traffic analyzer
 * By Gerald Combs <gerald@wireshark.org>
@@ -11,8 +12,8 @@
 #ifndef GLIB_COMPAT_H
 #define GLIB_COMPAT_H
 
-#include "ws_symbol_export.h"
-#include "ws_attributes.h"
+#include "include/ws_symbol_export.h"
+#include "include/ws_attributes.h"
 
 #include <glib.h>
 #include <string.h>

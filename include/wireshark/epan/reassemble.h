@@ -1,4 +1,4 @@
-/* reassemble.h
+/** @file
  * Declarations of routines for {fragment,segment} reassembly
  *
  * Wireshark - Network traffic analyzer
@@ -15,7 +15,7 @@
 #ifndef REASSEMBLE_H
 #define REASSEMBLE_H
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* only in fd_head: packet is defragmented */
 #define FD_DEFRAGMENTED		0x0001
@@ -213,12 +213,33 @@ fragment_add_multiple_ok(reassembly_table *table, tvbuff_t *tvb,
 			 const gboolean more_frags);
 
 /*
+ * Like fragment_add, except that the fragment may originate from a frame
+ * other than pinfo->num. For use when you are adding an out of order segment
+ * that arrived in an earlier frame, so that show_fragment_tree will display
+ * the correct fragment numbers.
+ *
+ * This is for protocols like TCP, where the correct reassembly to add a
+ * segment to cannot be determined without processing previous segments
+ * in sequence order, including handing them to subdissectors.
+ *
+ * Note that pinfo is still used to set reassembled_in if we have all the
+ * fragments, so that results on subsequent passes can be the same as the
+ * first pass.
+ */
+WS_DLL_PUBLIC fragment_head *
+fragment_add_out_of_order(reassembly_table *table, tvbuff_t *tvb,
+                          const int offset, const packet_info *pinfo,
+                          const guint32 id, const void *data,
+                          const guint32 frag_offset,
+                          const guint32 frag_data_len,
+                          const gboolean more_frags, const guint32 frag_frame);
+/*
  * Like fragment_add, but maintains a table for completed reassemblies.
  *
  * If the packet was seen before, return the head of the fully reassembled
  * fragments list (NULL if there was none).
  *
- * Otherwise (if reassembly was not possible before), try to to add the new
+ * Otherwise (if reassembly was not possible before), try to add the new
  * fragment to the fragments table. If reassembly is now possible, remove all
  * (reassembled) fragments from the fragments table and store it as a completed
  * reassembly. The head of this reassembled fragments list is returned.
@@ -377,6 +398,20 @@ fragment_reset_tot_len(reassembly_table *table, const packet_info *pinfo,
 		       const guint32 id, const void *data, const guint32 tot_len);
 
 /*
+ * Truncates the size of an already defragmented reassembly to tot_len,
+ * discarding past that point, including splitting any fragments in the
+ * middle as necessary. The specified length must be less than or equal
+ * to the reassembled length. (If it already matches the reassembled length,
+ * then nothing will be done.)
+ *
+ * Used for continuous streams like TCP, where the length of a segment cannot
+ * be determined without first reassembling and handing to a subdissector.
+ */
+void
+fragment_truncate(reassembly_table *table, const packet_info *pinfo,
+		       const guint32 id, const void *data, const guint32 tot_len);
+
+/*
  * Return the expected index for the last block (for fragment_add_seq functions)
  * or the expected number of bytes (for fragment_add functions).
  */
@@ -405,10 +440,6 @@ fragment_get(reassembly_table *table, const packet_info *pinfo,
 	     const guint32 id, const void *data);
 
 /* The same for the reassemble table */
-/* id *must* be the frame number for this to work! */
-WS_DLL_PUBLIC fragment_head *
-fragment_get_reassembled(reassembly_table *table, const guint32 id);
-
 WS_DLL_PUBLIC fragment_head *
 fragment_get_reassembled_id(reassembly_table *table, const packet_info *pinfo,
 			    const guint32 id);

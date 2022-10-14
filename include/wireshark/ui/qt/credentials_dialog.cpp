@@ -17,7 +17,7 @@
 #include "credentials_dialog.h"
 #include <ui_credentials_dialog.h>
 #include <ui/tap-credentials.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 #include "ui/qt/widgets/wireshark_file_dialog.h"
 #include "ui/qt/models/credentials_model.h"
 #include <ui/qt/models/url_link_delegate.h>
@@ -72,7 +72,7 @@ CredentialsDialog::CredentialsDialog(QWidget &parent, CaptureFile &cf, PacketLis
     ui->auths->setSortingEnabled(true);
     ui->auths->sortByColumn(CredentialsModel::COL_NUM, Qt::AscendingOrder);
 
-    connect(ui->auths, SIGNAL(clicked(const QModelIndex&)), this, SLOT(actionGoToPacket(const QModelIndex&)));
+    connect(ui->auths, &QTreeView::clicked, this, &CredentialsDialog::actionGoToPacket);
 
     registerTapListener("credentials", this, "", 0, tapReset, tapPacket, Q_NULLPTR);
     cf.retapPackets();
@@ -89,7 +89,7 @@ void CredentialsDialog::tapReset(void *tapdata)
     d->model_->clear();
 }
 
-tap_packet_status CredentialsDialog::tapPacket(void *tapdata, _packet_info *, epan_dissect *, const void *data)
+tap_packet_status CredentialsDialog::tapPacket(void *tapdata, _packet_info *, epan_dissect *, const void *data, tap_flags_t)
 {
     CredentialsDialog * d = (CredentialsDialog*) tapdata;
     d->model_->addRecord((const tap_credential_t*)data);
@@ -103,9 +103,17 @@ void CredentialsDialog::actionGoToPacket(const QModelIndex& idx)
 
     QVariant packet_data = idx.data(Qt::UserRole);
     QVariant hf_id = idx.data(CredentialsModel::ColumnHFID);
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    if (!hf_id.canConvert<int>())
+        hf_id = QVariant::fromValue(0);
+
+    if (packet_data.canConvert<int>())
+        packet_list_->goToPacket(packet_data.toInt(), hf_id.toInt());
+#else
     if (!hf_id.canConvert(QVariant::Int))
         hf_id = QVariant::fromValue(0);
 
     if (packet_data.canConvert(QVariant::Int))
         packet_list_->goToPacket(packet_data.toInt(), hf_id.toInt());
+#endif
 }

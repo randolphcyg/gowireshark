@@ -54,7 +54,7 @@ new_phs_t(phs_t *parent)
 
 
 static tap_packet_status
-protohierstat_packet(void *prs, packet_info *pinfo, epan_dissect_t *edt, const void *dummy _U_)
+protohierstat_packet(void *prs, packet_info *pinfo, epan_dissect_t *edt, const void *dummy _U_, tap_flags_t flags _U_)
 {
 	phs_t *rs = (phs_t *)prs;
 	phs_t *tmprs;
@@ -129,13 +129,13 @@ phs_draw(phs_t *rs, int indentation)
 		stroff = 0;
 		for (i=0; i<indentation; i++) {
 			if (i > 15) {
-				stroff += g_snprintf(str+stroff, MAXPHSLINE-stroff, "...");
+				stroff += snprintf(str+stroff, MAXPHSLINE-stroff, "...");
 				break;
 			}
-			stroff += g_snprintf(str+stroff, MAXPHSLINE-stroff, "  ");
+			stroff += snprintf(str+stroff, MAXPHSLINE-stroff, "  ");
 		}
-		g_snprintf(str+stroff, MAXPHSLINE-stroff, "%s", rs->proto_name);
-		printf("%-40s frames:%u bytes:%" G_GINT64_MODIFIER "u\n", str, rs->frames, rs->bytes);
+		snprintf(str+stroff, MAXPHSLINE-stroff, "%s", rs->proto_name);
+		printf("%-40s frames:%u bytes:%" PRIu64 "\n", str, rs->frames, rs->bytes);
 		phs_draw(rs->child, indentation+1);
 	}
 }

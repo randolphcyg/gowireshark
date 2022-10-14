@@ -47,6 +47,7 @@ extern "C" {
 #define LONGOPT_LIST_TSTAMP_TYPES LONGOPT_BASE_CAPTURE+1
 #define LONGOPT_SET_TSTAMP_TYPE   LONGOPT_BASE_CAPTURE+2
 #define LONGOPT_COMPRESS_TYPE     LONGOPT_BASE_CAPTURE+3
+#define LONGOPT_CAPTURE_TMPDIR    LONGOPT_BASE_CAPTURE+4
 
 /*
  * Options for capturing common to all capturing programs.
@@ -87,7 +88,8 @@ extern "C" {
     {"linktype",              ws_required_argument, NULL, 'y'}, \
     {"list-time-stamp-types", ws_no_argument,       NULL, LONGOPT_LIST_TSTAMP_TYPES}, \
     {"time-stamp-type",       ws_required_argument, NULL, LONGOPT_SET_TSTAMP_TYPE}, \
-    {"compress-type",         ws_required_argument, NULL, LONGOPT_COMPRESS_TYPE},
+    {"compress-type",         ws_required_argument, NULL, LONGOPT_COMPRESS_TYPE}, \
+    {"temp-dir",              ws_required_argument, NULL, LONGOPT_CAPTURE_TMPDIR},
 
 
 #define OPTSTRING_CAPTURE_COMMON \
@@ -208,7 +210,9 @@ typedef struct interface_options_tag {
     GHashTable       *extcap_args;
     GPid              extcap_pid;           /* pid of running process or WS_INVALID_PID */
     gpointer          extcap_pipedata;
-    guint             extcap_child_watch;
+    GString          *extcap_stderr;
+    guint             extcap_stdout_watch;
+    guint             extcap_stderr_watch;
 #ifdef _WIN32
     HANDLE            extcap_pipe_h;
     HANDLE            extcap_control_in_h;
@@ -305,6 +309,9 @@ typedef struct capture_options_tag {
     gboolean           has_autostop_packets;  /**< TRUE if maximum packet count is
                                                    specified */
     int                autostop_packets;      /**< Maximum packet count */
+    gboolean           has_autostop_written_packets;  /**< TRUE if maximum packet count is
+                                                   specified */
+    int                autostop_written_packets;      /**< Maximum packet count */
     gboolean           has_autostop_filesize; /**< TRUE if maximum capture file size
                                                    is specified */
     guint32            autostop_filesize;     /**< Maximum capture file size in kB */
@@ -315,11 +322,16 @@ typedef struct capture_options_tag {
     gboolean           print_file_names;      /**< TRUE if printing names of completed
                                                    files as we close them */
     gchar             *print_name_to;         /**< output file name */
+    gchar             *temp_dir;              /**< temporary directory path */
 
     /* internally used (don't touch from outside) */
     gboolean           output_to_pipe;        /**< save_file is a pipe (named or stdout) */
     gboolean           capture_child;         /**< hidden option: Wireshark child mode */
+    gboolean           stop_after_extcaps;    /**< request dumpcap stop after last extcap */
+    gboolean           wait_for_extcap_cbs;   /**< extcaps terminated, waiting for callbacks */
     gchar             *compress_type;         /**< compress type */
+    gchar             *closed_msg;            /**< Dumpcap capture closed message */
+    guint              extcap_terminate_id;   /**< extcap process termination source ID */
 } capture_options;
 
 /* initialize the capture_options with some reasonable values */

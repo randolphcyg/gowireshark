@@ -195,37 +195,39 @@ static const char* fc_conv_get_filter_type(conv_item_t* conv, conv_filter_type_e
 static ct_dissector_info_t fc_ct_dissector_info = {&fc_conv_get_filter_type};
 
 static tap_packet_status
-fc_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip)
+fc_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip, tap_flags_t flags)
 {
     conv_hash_t *hash = (conv_hash_t*) pct;
+    hash->flags = flags;
     const fc_hdr *fchdr=(const fc_hdr *)vip;
 
-    add_conversation_table_data(hash, &fchdr->s_id, &fchdr->d_id, 0, 0, 1, pinfo->fd->pkt_len, &pinfo->rel_ts, &pinfo->abs_ts, &fc_ct_dissector_info, ENDPOINT_NONE);
+    add_conversation_table_data(hash, &fchdr->s_id, &fchdr->d_id, 0, 0, 1, pinfo->fd->pkt_len, &pinfo->rel_ts, &pinfo->abs_ts, &fc_ct_dissector_info, CONVERSATION_NONE);
 
     return TAP_PACKET_REDRAW;
 }
 
-static const char* fc_host_get_filter_type(hostlist_talker_t* host, conv_filter_type_e filter)
+static const char* fc_endpoint_get_filter_type(endpoint_item_t* endpoint, conv_filter_type_e filter)
 {
-    if ((filter == CONV_FT_ANY_ADDRESS) && (host->myaddress.type == AT_FC))
+    if ((filter == CONV_FT_ANY_ADDRESS) && (endpoint->myaddress.type == AT_FC))
         return "fc.id";
 
     return CONV_FILTER_INVALID;
 }
 
-static hostlist_dissector_info_t fc_host_dissector_info = {&fc_host_get_filter_type};
+static et_dissector_info_t fc_endpoint_dissector_info = {&fc_endpoint_get_filter_type};
 
 static tap_packet_status
-fc_hostlist_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip)
+fc_endpoint_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip, tap_flags_t flags)
 {
     conv_hash_t *hash = (conv_hash_t*) pit;
+    hash->flags = flags;
     const fc_hdr *fchdr=(const fc_hdr *)vip;
 
     /* Take two "add" passes per packet, adding for each direction, ensures that all
     packets are counted properly (even if address is sending to itself)
-    XXX - this could probably be done more efficiently inside hostlist_table */
-    add_hostlist_table_data(hash, &fchdr->s_id, 0, TRUE, 1, pinfo->fd->pkt_len, &fc_host_dissector_info, ENDPOINT_NONE);
-    add_hostlist_table_data(hash, &fchdr->d_id, 0, FALSE, 1, pinfo->fd->pkt_len, &fc_host_dissector_info, ENDPOINT_NONE);
+    XXX - this could probably be done more efficiently inside endpoint_table */
+    add_endpoint_table_data(hash, &fchdr->s_id, 0, TRUE, 1, pinfo->fd->pkt_len, &fc_endpoint_dissector_info, ENDPOINT_NONE);
+    add_endpoint_table_data(hash, &fchdr->d_id, 0, FALSE, 1, pinfo->fd->pkt_len, &fc_endpoint_dissector_info, ENDPOINT_NONE);
 
     return TAP_PACKET_REDRAW;
 }
@@ -238,7 +240,7 @@ fcstat_init(struct register_srt* srt _U_, GArray* srt_array)
     srt_stat_table *fc_srt_table;
     guint32 i;
 
-    fc_srt_table = init_srt_table("Fibre Channel Types", NULL, srt_array, FC_NUM_PROCEDURES, NULL, NULL, NULL);
+    fc_srt_table = init_srt_table("Fibre Channel Types", NULL, srt_array, FC_NUM_PROCEDURES, NULL, "fc.type", NULL);
     for (i = 0; i < FC_NUM_PROCEDURES; i++)
     {
         gchar* tmp_str = val_to_str_wmem(NULL, i, fc_fc4_val, "Unknown(0x%02x)");
@@ -248,7 +250,7 @@ fcstat_init(struct register_srt* srt _U_, GArray* srt_array)
 }
 
 static tap_packet_status
-fcstat_packet(void *pss, packet_info *pinfo, epan_dissect_t *edt _U_, const void *prv)
+fcstat_packet(void *pss, packet_info *pinfo, epan_dissect_t *edt _U_, const void *prv, tap_flags_t flags _U_)
 {
     guint i = 0;
     srt_stat_table *fc_srt_table;
@@ -720,9 +722,9 @@ dissect_fc_helper (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean
     if(!is_ifcp){
         set_address_tvb (&pinfo->dst, AT_FC, 3, tvb, offset+1);
         set_address_tvb (&pinfo->src, AT_FC, 3, tvb, offset+5);
-        conversation_create_endpoint(pinfo, &pinfo->src, &pinfo->dst, ENDPOINT_EXCHG, 0, 0, 0);
+        conversation_set_conv_addr_port_endpoints(pinfo, &pinfo->src, &pinfo->dst, CONVERSATION_EXCHG, 0, 0);
     } else {
-        conversation_create_endpoint(pinfo, &pinfo->src, &pinfo->dst, ENDPOINT_EXCHG, pinfo->srcport, pinfo->destport, 0);
+        conversation_set_conv_addr_port_endpoints(pinfo, &pinfo->src, &pinfo->dst, CONVERSATION_EXCHG, pinfo->srcport, pinfo->destport);
     }
     set_address(&fchdr->d_id, pinfo->dst.type, pinfo->dst.len, pinfo->dst.data);
     set_address(&fchdr->s_id, pinfo->src.type, pinfo->src.len, pinfo->src.data);
@@ -751,7 +753,7 @@ dissect_fc_helper (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean
     /* Set up LUN data. OXID + LUN make up unique exchanges, but LUN is populated in subdissectors
        and not necessarily in every frame. Stub it here for now */
     fchdr->lun = 0xFFFF;
-    if (!pinfo->fd->visited) {
+    if (pinfo->fd->visited) {
         fchdr->lun = (guint16)GPOINTER_TO_UINT(wmem_tree_lookup32(fc_conv_data->luns, fchdr->oxid));
     }
 
@@ -1171,6 +1173,12 @@ dissect_fc_helper (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean
 
     fchdr->fc_ex = fc_ex;
 
+    /* XXX: The ACK_1 frames (and other LINK_CONTROL frames) should
+     * probably be ignored (or treated specially) for SRT purposes,
+     * and not used to change the first exchange frame or start time
+     * of an exchange.
+     */
+
     /* populate the exchange struct */
     if(!pinfo->fd->visited){
         if(fchdr->fctl&FC_FCTL_EXCHANGE_FIRST){
@@ -1560,7 +1568,7 @@ proto_register_fc(void)
 
     fcsof_handle = register_dissector("fcsof", dissect_fcsof, proto_fcsof);
 
-    register_conversation_table(proto_fc, TRUE, fc_conversation_packet, fc_hostlist_packet);
+    register_conversation_table(proto_fc, TRUE, fc_conversation_packet, fc_endpoint_packet);
     register_srt_table(proto_fc, NULL, 1, fcstat_packet, fcstat_init, NULL);
 }
 

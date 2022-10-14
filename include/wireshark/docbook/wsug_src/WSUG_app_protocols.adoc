@@ -1,11 +1,11 @@
 // WSUG Appendix Protocols
 
-[[AppProtocols]]
+[#AppProtocols]
 
 [appendix]
 == Protocols and Protocol Fields
 
-Wireshark distinguishes between protocols (e.g. tcp) and protocol fields (e.g.
+Wireshark distinguishes between protocols (e.g., tcp) and protocol fields (e.g.,
 tcp.port).
 
 A comprehensive list of all protocols and protocol fields can be found

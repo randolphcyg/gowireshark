@@ -1,4 +1,5 @@
-/* pcap-common.h
+/** @file
+ *
  * Declarations for code common to pcap and pcapng file formats
  *
  * Wiretap Library
@@ -15,7 +16,7 @@
 
 #include <glib.h>
 #include "wtap.h"
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 extern guint wtap_max_snaplen_for_encap(int wtap_encap);
 

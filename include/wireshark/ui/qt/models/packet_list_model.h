@@ -1,4 +1,4 @@
-/* packet_list_model.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -32,6 +32,11 @@ class PacketListModel : public QAbstractItemModel
 {
     Q_OBJECT
 public:
+
+    enum {
+        HEADER_CAN_RESOLVE = Qt::UserRole,
+    };
+
     explicit PacketListModel(QObject *parent = 0, capture_file *cf = NULL);
     ~PacketListModel();
     void setCaptureFile(capture_file *cf);

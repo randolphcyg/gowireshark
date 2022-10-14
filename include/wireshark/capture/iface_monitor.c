@@ -8,12 +8,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include <config.h>
+#include "config.h"
+#include "iface_monitor.h"
 
 #ifdef HAVE_LIBPCAP
-
-#include <capture/iface_monitor.h>
-#include "ws_attributes.h"
 
 #if defined(HAVE_LIBNL)
 
@@ -277,7 +275,7 @@ iface_mon_event(void)
         return;
     }
     evd = (struct net_event_data *)&kem->event_data[0];
-    g_snprintf(ifr_name, IFNAMSIZ, "%s%u", evd->if_name, evd->if_unit);
+    snprintf(ifr_name, IFNAMSIZ, "%s%u", evd->if_name, evd->if_unit);
 
     /*
      * Check type of event.

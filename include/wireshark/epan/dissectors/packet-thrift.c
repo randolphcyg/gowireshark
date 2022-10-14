@@ -89,6 +89,7 @@ static const int TBP_THRIFT_DOUBLE_LEN = 8;
 static const int TBP_THRIFT_I16_LEN = 2;
 static const int TBP_THRIFT_I32_LEN = 4;
 static const int TBP_THRIFT_I64_LEN = 8;
+static const int TBP_THRIFT_UUID_LEN = 16;
 static const int TBP_THRIFT_MTYPE_OFFSET = 3;
 static const int TBP_THRIFT_MTYPE_LEN = 1;
 static const int TBP_THRIFT_VERSION_LEN = 4; /* (Version + method type) is explicitly passed as an int32 in libthrift */
@@ -147,6 +148,7 @@ static int hf_thrift_i8 = -1;
 static int hf_thrift_i16 = -1;
 static int hf_thrift_i32 = -1;
 static int hf_thrift_i64 = -1;
+static int hf_thrift_uuid = -1;
 static int hf_thrift_binary = -1;
 static int hf_thrift_string = -1;
 static int hf_thrift_struct = -1;
@@ -211,6 +213,7 @@ typedef enum {
     DE_THRIFT_C_SET,
     DE_THRIFT_C_MAP,
     DE_THRIFT_C_STRUCT,
+    DE_THRIFT_C_UUID,
 } thrift_compact_type_enum_t;
 
 typedef struct _thrift_field_header_t {
@@ -241,6 +244,7 @@ static const value_string thrift_type_vals[] = {
     { DE_THRIFT_T_MAP, "T_MAP" },
     { DE_THRIFT_T_SET, "T_SET" },
     { DE_THRIFT_T_LIST, "T_LIST" },
+    { DE_THRIFT_T_UUID, "T_UUID" },
     { 0, NULL }
 };
 
@@ -258,6 +262,7 @@ static const value_string thrift_compact_type_vals[] = {
     { DE_THRIFT_C_SET, "T_SET" },
     { DE_THRIFT_C_MAP, "T_MAP" },
     { DE_THRIFT_C_STRUCT, "T_STRUCT" },
+    { DE_THRIFT_C_UUID, "T_UUID" },
     { 0, NULL }
 };
 
@@ -593,7 +598,7 @@ dissect_thrift_field_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     /* Create the field header sub-tree if requested only. */
     if (tree != NULL) {
         header->fh_tree = proto_tree_add_subtree_format(tree, tvb, header->type_offset, *offset - header->type_offset, ett_thrift_field, NULL,
-                "Field Header #%" G_GINT64_MODIFIER "d", header->field_id);
+                "Field Header #%" PRId64, header->field_id);
         if (thrift_opt->tprotocol & PROTO_THRIFT_COMPACT) {
             header->type_pi = proto_tree_add_bits_item(header->fh_tree, hf_thrift_compact_struct_type, tvb, (header->type_offset << OCTETS_TO_BITS_SHIFT) + TCP_THRIFT_NIBBLE_SHIFT, TCP_THRIFT_NIBBLE_SHIFT, ENC_BIG_ENDIAN);
             header->fid_pi = proto_tree_add_bits_item(header->fh_tree, hf_thrift_fid_delta, tvb, header->type_offset << OCTETS_TO_BITS_SHIFT, TCP_THRIFT_NIBBLE_SHIFT, ENC_BIG_ENDIAN);
@@ -731,10 +736,10 @@ dissect_thrift_string_as_preferred(tvbuff_t *tvb, packet_info *pinfo, proto_tree
                 proto_tree_add_item(tree, hf_thrift_string, tvb, *offset, str_len, ENC_UTF_16 | ENC_BIG_ENDIAN);
                 break;
             case DECODE_BINARY_AS_UTF8:
-                proto_tree_add_item(tree, hf_thrift_string, tvb, *offset, str_len, ENC_UTF_8|ENC_NA);
+                proto_tree_add_item(tree, hf_thrift_string, tvb, *offset, str_len, ENC_UTF_8);
                 break;
             case DECODE_BINARY_AS_ASCII:
-                proto_tree_add_item(tree, hf_thrift_string, tvb, *offset, str_len, ENC_ASCII|ENC_NA);
+                proto_tree_add_item(tree, hf_thrift_string, tvb, *offset, str_len, ENC_ASCII);
                 break;
             case DECODE_BINARY_AS_AUTO_UTF8:
                 /* When there is no data at all, consider it a string
@@ -742,7 +747,7 @@ dissect_thrift_string_as_preferred(tvbuff_t *tvb, packet_info *pinfo, proto_tree
                  * If not entirely captured, consider it as a binary. */
                 if (tvb_captured_length_remaining(tvb, *offset) >= str_len &&
                     (str_len == 0 || thrift_binary_utf8_isprint(tvb, *offset, str_len, TRUE) > 0)) {
-                    proto_tree_add_item(tree, hf_thrift_string, tvb, *offset, str_len, ENC_UTF_8|ENC_NA);
+                    proto_tree_add_item(tree, hf_thrift_string, tvb, *offset, str_len, ENC_UTF_8);
                     break;
                 }
                 /* otherwise, continue with type BINARY */
@@ -789,6 +794,8 @@ compact_struct_type_to_generic_type(thrift_compact_type_enum_t compact)
         return DE_THRIFT_T_MAP;
     case DE_THRIFT_C_STRUCT:
         return DE_THRIFT_T_STRUCT;
+    case DE_THRIFT_C_UUID:
+        return DE_THRIFT_T_UUID;
     default:
         return DE_THRIFT_T_VOID;
     }
@@ -893,7 +900,7 @@ dissect_thrift_t_field_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     /* Once we know it's the expected type (which is /not/ T_STOP), we can read the field id. */
     if (field_header.field_id != (gint64)field_id) {
         expert_add_info_format(pinfo, field_header.fid_pi, &ei_thrift_wrong_field_id,
-                "Sub-dissector expects field id = %d, found %" G_GINT64_MODIFIER "d instead.", field_id, field_header.field_id);
+                "Sub-dissector expects field id = %d, found %" PRId64 " instead.", field_id, field_header.field_id);
     }
 
     /* Expose the field header sub-tree if requested. */
@@ -1087,6 +1094,29 @@ dissect_thrift_t_double(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
 }
 
 int
+dissect_thrift_t_uuid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, thrift_option_data_t *thrift_opt, gboolean is_field, int field_id, gint hf_id)
+{
+    /* Get the current state of dissection. */
+    DISSECTOR_ASSERT(thrift_opt);
+    DISSECTOR_ASSERT(thrift_opt->canary == THRIFT_OPTION_DATA_CANARY);
+
+    /* Dissect field header if necessary. */
+    if (is_field) {
+        offset = dissect_thrift_t_field_header(tvb, pinfo, tree, offset, thrift_opt, DE_THRIFT_T_UUID, field_id, NULL);
+    }
+    ABORT_SUBDISSECTION_ON_ISSUE(offset);
+
+    if (tvb_reported_length_remaining(tvb, offset) < TBP_THRIFT_UUID_LEN) {
+        return THRIFT_REQUEST_REASSEMBLY;
+    }
+
+    proto_tree_add_item(tree, hf_id, tvb, offset, TBP_THRIFT_UUID_LEN, ENC_BIG_ENDIAN);
+    offset += TBP_THRIFT_UUID_LEN;
+
+    return offset;
+}
+
+int
 dissect_thrift_t_binary(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, thrift_option_data_t *thrift_opt, gboolean is_field, int field_id, gint hf_id)
 {
     return dissect_thrift_t_string_enc(tvb, pinfo, tree, offset, thrift_opt, is_field, field_id, hf_id, ENC_NA);
@@ -1210,6 +1240,9 @@ dissect_thrift_t_member(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
         break;
     case DE_THRIFT_T_STRUCT:
         offset = dissect_thrift_t_struct(tvb, pinfo, tree, offset, thrift_opt, is_field, elt->fid, *elt->p_hf_id, *elt->p_ett_id, elt->u.members);
+        break;
+    case DE_THRIFT_T_UUID:
+        offset = dissect_thrift_t_uuid(tvb, pinfo, tree, offset, thrift_opt, is_field, elt->fid, *elt->p_hf_id);
         break;
     default:
         REPORT_DISSECTOR_BUG("Unexpected Thrift type dissection requested.");
@@ -1950,6 +1983,11 @@ dissect_thrift_binary_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         proto_tree_add_item(tree, hf_thrift_double, tvb, *offset, TBP_THRIFT_DOUBLE_LEN, ENC_BIG_ENDIAN);
         *offset += TBP_THRIFT_DOUBLE_LEN;
         break;
+    case DE_THRIFT_T_UUID:
+        ABORT_ON_INCOMPLETE_PDU(TBP_THRIFT_UUID_LEN);
+        proto_tree_add_item(tree, hf_thrift_uuid, tvb, *offset, TBP_THRIFT_UUID_LEN, ENC_BIG_ENDIAN);
+        *offset += TBP_THRIFT_UUID_LEN;
+        break;
     case DE_THRIFT_T_BINARY:
         if (dissect_thrift_binary_binary(tvb, pinfo, tree, offset, thrift_opt, header_tree) == THRIFT_REQUEST_REASSEMBLY) {
             return THRIFT_REQUEST_REASSEMBLY;
@@ -2357,6 +2395,11 @@ dissect_thrift_compact_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         proto_tree_add_item(tree, hf_thrift_double, tvb, *offset, TBP_THRIFT_DOUBLE_LEN, ENC_LITTLE_ENDIAN);
         *offset += TBP_THRIFT_DOUBLE_LEN;
         break;
+    case DE_THRIFT_C_UUID:
+        ABORT_ON_INCOMPLETE_PDU(TBP_THRIFT_UUID_LEN);
+        proto_tree_add_item(tree, hf_thrift_uuid, tvb, *offset, TBP_THRIFT_UUID_LEN, ENC_BIG_ENDIAN);
+        *offset += TBP_THRIFT_UUID_LEN;
+        break;
     case DE_THRIFT_C_BINARY:
         if (dissect_thrift_compact_binary(tvb, pinfo, tree, offset, thrift_opt, header_tree) == THRIFT_REQUEST_REASSEMBLY) {
             return THRIFT_REQUEST_REASSEMBLY;
@@ -2659,7 +2702,7 @@ dissect_thrift_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int o
             offset += seqid_len;
             proto_tree_add_int(sub_tree, hf_thrift_str_len, tvb, offset, str_len_len, str_len);
             offset += str_len_len;
-            proto_tree_add_item(sub_tree, hf_thrift_method, tvb, offset, str_len, ENC_UTF_8|ENC_NA);
+            proto_tree_add_item(sub_tree, hf_thrift_method, tvb, offset, str_len, ENC_UTF_8);
             offset = offset + str_len;
         } else if (thrift_opt->tprotocol & PROTO_THRIFT_STRICT) {
             /* Strict: proto_id|version|mtype|length|name|seqid */
@@ -2670,7 +2713,7 @@ dissect_thrift_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int o
             offset += TBP_THRIFT_MTYPE_LEN;
             proto_tree_add_item(sub_tree, hf_thrift_str_len, tvb, offset, TBP_THRIFT_LENGTH_LEN, ENC_BIG_ENDIAN);
             offset += TBP_THRIFT_LENGTH_LEN;
-            proto_tree_add_item(sub_tree, hf_thrift_method, tvb, offset, str_len, ENC_UTF_8|ENC_NA);
+            proto_tree_add_item(sub_tree, hf_thrift_method, tvb, offset, str_len, ENC_UTF_8);
             offset = offset + str_len;
             proto_tree_add_item(sub_tree, hf_thrift_seq_id, tvb, offset, TBP_THRIFT_SEQ_ID_LEN, ENC_BIG_ENDIAN);
             offset += TBP_THRIFT_SEQ_ID_LEN;
@@ -2678,7 +2721,7 @@ dissect_thrift_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int o
             /* Old: length|name|mtype|seqid */
             proto_tree_add_item(sub_tree, hf_thrift_str_len, tvb, offset, TBP_THRIFT_LENGTH_LEN, ENC_BIG_ENDIAN);
             offset += TBP_THRIFT_LENGTH_LEN;
-            proto_tree_add_item(sub_tree, hf_thrift_method, tvb, offset, str_len, ENC_UTF_8|ENC_NA);
+            proto_tree_add_item(sub_tree, hf_thrift_method, tvb, offset, str_len, ENC_UTF_8);
             offset = offset + str_len;
             mtype_pi = proto_tree_add_bits_item(sub_tree, hf_thrift_mtype, tvb, (offset << OCTETS_TO_BITS_SHIFT) + 5, 3, ENC_BIG_ENDIAN);
             offset += TBP_THRIFT_MTYPE_LEN;
@@ -2757,7 +2800,7 @@ dissect_thrift_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int o
     thrift_opt->reassembly_length = TBP_THRIFT_TYPE_LEN;
     if (thrift_opt->reply_field_id != 0) {
         expert_add_info(pinfo, fid_pi, &ei_thrift_application_exception);
-        proto_item_set_text(data_pi, "Exception: %" G_GINT64_MODIFIER "d", thrift_opt->reply_field_id);
+        proto_item_set_text(data_pi, "Exception: %" PRId64, thrift_opt->reply_field_id);
     }
 
     if (is_compact) {
@@ -3341,7 +3384,7 @@ proto_register_thrift(void)
                 NULL, HFILL }
         },
         { &hf_thrift_string,
-            { "String", "thrift.binary",
+            { "String", "thrift.string",
                 FT_STRING, BASE_NONE, NULL, 0x0,
                 "Binary field interpreted as a string.", HFILL }
         },
@@ -3393,6 +3436,11 @@ proto_register_thrift(void)
         { &hf_thrift_large_container,
             { "More than 14 items", "thrift.num_item",
                 FT_UINT8, BASE_HEX, NULL, 0x0,
+                NULL, HFILL }
+        },
+        { &hf_thrift_uuid,
+            { "UUID", "thrift.uuid",
+                FT_GUID, BASE_NONE, NULL, 0x0,
                 NULL, HFILL }
         },
     };

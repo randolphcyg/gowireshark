@@ -1,4 +1,4 @@
-/* stream.h
+/** @file
  *
  * Definititions for handling circuit-switched protocols
  * which are handled as streams, and don't have lengths
@@ -16,7 +16,7 @@
 
 #include <epan/tvbuff.h>
 #include <epan/reassemble.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 struct _fragment_items;
 

@@ -38,7 +38,6 @@
 #include "packet-frame.h"
 #include "packet-icmp.h"
 
-#include <epan/column-info.h>
 #include <epan/color_filters.h>
 
 void proto_register_frame(void);
@@ -75,6 +74,7 @@ static int hf_frame_drop_count = -1;
 static int hf_frame_protocols = -1;
 static int hf_frame_color_filter_name = -1;
 static int hf_frame_color_filter_text = -1;
+static int hf_frame_section_number = -1;
 static int hf_frame_interface_id = -1;
 static int hf_frame_interface_name = -1;
 static int hf_frame_interface_description = -1;
@@ -98,6 +98,9 @@ static int hf_frame_cb_copy_allowed = -1;
 static int hf_frame_bblog = -1;
 static int hf_frame_bblog_ticks = -1;
 static int hf_frame_bblog_serial_nr = -1;
+static int hf_frame_pcaplog_type = -1;
+static int hf_frame_pcaplog_length = -1;
+static int hf_frame_pcaplog_data = -1;
 static int hf_comments_text = -1;
 
 static gint ett_frame = -1;
@@ -106,6 +109,7 @@ static gint ett_flags = -1;
 static gint ett_comments = -1;
 static gint ett_verdict = -1;
 static gint ett_bblog = -1;
+static gint ett_pcaplog_data = -1;
 
 static expert_field ei_comments_text = EI_INIT;
 static expert_field ei_arrive_time_out_of_range = EI_INIT;
@@ -118,6 +122,7 @@ static dissector_handle_t docsis_handle;
 static dissector_handle_t sysdig_handle;
 static dissector_handle_t systemd_journal_handle;
 static dissector_handle_t bblog_handle;
+static dissector_handle_t xml_handle;
 
 /* Preferences */
 static gboolean show_file_off       = FALSE;
@@ -223,7 +228,7 @@ ensure_tree_item(proto_tree *tree, guint count)
 /* whenever a frame packet is seen by the tap listener */
 /* Add a new frame into the graph */
 static tap_packet_status
-frame_seq_analysis_packet( void *ptr, packet_info *pinfo, epan_dissect_t *edt _U_, const void *dummy _U_)
+frame_seq_analysis_packet( void *ptr, packet_info *pinfo, epan_dissect_t *edt _U_, const void *dummy _U_, tap_flags_t flags _U_)
 {
 	seq_analysis_info_t *sainfo = (seq_analysis_info_t *) ptr;
 	seq_analysis_item_t *sai = sequence_analysis_create_sai_with_addresses(pinfo, sainfo);
@@ -632,7 +637,7 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 			 * be preferred?
 			 */
 			ti = proto_tree_add_protocol_format(tree, proto_syscall, tvb, 0, tvb_captured_length(tvb),
-			    "System Call %u: %u byte%s",
+			    "Sysdig Event %u: %u byte%s",
 			    pinfo->num, frame_len, frame_plurality);
 			break;
 
@@ -675,6 +680,13 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 		}
 
 		fh_tree = proto_item_add_subtree(ti, ett_frame);
+
+		if (pinfo->rec->presence_flags & WTAP_HAS_SECTION_NUMBER &&
+		   (proto_field_is_referenced(tree, hf_frame_section_number))) {
+			/* Show it as 1-origin */
+			proto_tree_add_uint(fh_tree, hf_frame_section_number, tvb,
+					    0, 0, pinfo->rec->section_number + 1);
+		}
 
 		if (pinfo->rec->presence_flags & WTAP_HAS_INTERFACE_ID &&
 		   (proto_field_is_referenced(tree, hf_frame_interface_id) || proto_field_is_referenced(tree, hf_frame_interface_name) || proto_field_is_referenced(tree, hf_frame_interface_description))) {
@@ -864,7 +876,7 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 		if (show_file_off) {
 			proto_tree_add_int64_format_value(fh_tree, hf_frame_file_off, tvb,
 						    0, 0, pinfo->fd->file_off,
-						    "%" G_GINT64_MODIFIER "d (0x%" G_GINT64_MODIFIER "x)",
+						    "%" PRId64 " (0x%" PRIx64 ")",
 						    pinfo->fd->file_off, pinfo->fd->file_off);
 		}
 	}
@@ -999,6 +1011,32 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 						break;
 					}
 					break;
+				case PEN_VCTR:
+				{
+					guint32 data_type;
+					guint32 data_length;
+					proto_item *pi_tmp;
+					proto_tree *pt_pcaplog_data;
+
+					proto_tree_add_item_ret_uint(fh_tree, hf_frame_pcaplog_type, tvb, 0, 4, ENC_LITTLE_ENDIAN, &data_type);
+					proto_tree_add_item_ret_uint(fh_tree, hf_frame_pcaplog_length, tvb, 4, 4, ENC_LITTLE_ENDIAN, &data_length);
+					pi_tmp = proto_tree_add_item(fh_tree, hf_frame_pcaplog_data, tvb, 8, data_length, ENC_NA);
+					pt_pcaplog_data = proto_item_add_subtree(pi_tmp, ett_pcaplog_data);
+
+					col_set_str(pinfo->cinfo, COL_PROTOCOL, "pcaplog");
+					col_add_fstr(pinfo->cinfo, COL_INFO, "Custom Block: PEN = %s (%d), will%s be copied",
+						enterprises_lookup(pinfo->rec->rec_header.custom_block_header.pen, "Unknown"),
+						pinfo->rec->rec_header.custom_block_header.pen,
+						pinfo->rec->rec_header.custom_block_header.copy_allowed ? "" : " not");
+
+					/* at least data_types 1-3 seem XML-based */
+					if (data_type > 0 && data_type <= 3) {
+						call_dissector(xml_handle, tvb_new_subset_remaining(tvb, 8), pinfo, pt_pcaplog_data);
+					} else {
+						call_data_dissector(tvb_new_subset_remaining(tvb, 8), pinfo, pt_pcaplog_data);
+					}
+				}
+					break;
 				default:
 					col_set_str(pinfo->cinfo, COL_PROTOCOL, "PCAPNG");
 					proto_tree_add_uint_format_value(fh_tree, hf_frame_cb_pen, tvb, 0, 0,
@@ -1038,7 +1076,7 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 				/* XXX - add other hardware exception codes as required */
 			default:
 				show_exception(tvb, pinfo, parent_tree, DissectorError,
-					       g_strdup_printf("dissector caused an unknown exception: 0x%x", GetExceptionCode()));
+					       ws_strdup_printf("dissector caused an unknown exception: 0x%x", GetExceptionCode()));
 			}
 		}
 #endif
@@ -1106,7 +1144,7 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 					/* XXX - add other hardware exception codes as required */
 				default:
 					show_exception(tvb, pinfo, parent_tree, DissectorError,
-						       g_strdup_printf("dissector caused an unknown exception: 0x%x", GetExceptionCode()));
+						       ws_strdup_printf("dissector caused an unknown exception: 0x%x", GetExceptionCode()));
 				}
 			}
 #endif
@@ -1276,6 +1314,11 @@ proto_register_frame(void)
 		    FT_STRING, BASE_NONE, NULL, 0x0,
 		    "The frame matched this coloring rule string", HFILL }},
 
+		{ &hf_frame_section_number,
+		  { "Section number", "frame.section_number",
+		    FT_UINT32, BASE_DEC, NULL, 0x0,
+		    "The number of the file section this frame is in", HFILL }},
+
 		{ &hf_frame_interface_id,
 		  { "Interface id", "frame.interface_id",
 		    FT_UINT32, BASE_DEC, NULL, 0x0,
@@ -1428,6 +1471,20 @@ proto_register_frame(void)
 		    FT_UINT32, BASE_DEC, NULL, 0x0,
 		    NULL, HFILL}},
 
+		{ &hf_frame_pcaplog_type,
+		{ "Date Type", "frame.pcaplog.data_type",
+		    FT_UINT32, BASE_DEC, NULL, 0x0,
+		    NULL, HFILL} },
+
+		{ &hf_frame_pcaplog_length,
+		{ "Data Length", "frame.pcaplog.data_length",
+		    FT_UINT32, BASE_DEC, NULL, 0x0,
+		    NULL, HFILL} },
+
+		{ &hf_frame_pcaplog_data,
+		{ "Data", "frame.pcaplog.data",
+		    FT_BYTES, BASE_NONE, NULL, 0x0,
+		    NULL, HFILL} },
 	};
 
 	static hf_register_info hf_encap =
@@ -1442,7 +1499,8 @@ proto_register_frame(void)
 		&ett_flags,
 		&ett_comments,
 		&ett_verdict,
-		&ett_bblog
+		&ett_bblog,
+		&ett_pcaplog_data
 	};
 
 	static ei_register_info ei[] = {
@@ -1527,6 +1585,7 @@ proto_reg_handoff_frame(void)
 	sysdig_handle = find_dissector_add_dependency("sysdig", proto_frame);
 	systemd_journal_handle = find_dissector_add_dependency("systemd_journal", proto_frame);
 	bblog_handle = find_dissector_add_dependency("bblog", proto_frame);
+	xml_handle = find_dissector_add_dependency("xml", proto_frame);
 }
 
 /*

@@ -68,7 +68,7 @@ add_sid_name_mapping(const char *sid, const char *name)
  * level  1 : user displayinfo 1
  */
 static tap_packet_status
-samr_query_dispinfo(void *dummy _U_, packet_info *pinfo, epan_dissect_t *edt, const void *pri)
+samr_query_dispinfo(void *dummy _U_, packet_info *pinfo, epan_dissect_t *edt, const void *pri, tap_flags_t flags _U_)
 {
 	const dcerpc_info *ri=(const dcerpc_info *)pri;
 	void *old_ctx=NULL;
@@ -177,8 +177,8 @@ samr_query_dispinfo(void *dummy _U_, packet_info *pinfo, epan_dissect_t *edt, co
 		fi_name=(field_info *)gp_names->pdata[num_rids-1];
 		(void) g_strlcpy(sid_name_str, sid, 256);
 		sid_name_str[len++]='-';
-		g_snprintf(sid_name_str+len, 256-len, "%d",fi_rid->value.value.sinteger);
-		add_sid_name_mapping(sid_name_str, fi_name->value.value.string);
+		snprintf(sid_name_str+len, 256-len, "%d",fi_rid->value.value.sinteger);
+		add_sid_name_mapping(sid_name_str, fvalue_get_string(&fi_name->value));
 	}
 	return TAP_PACKET_REDRAW;
 }
@@ -190,12 +190,12 @@ samr_query_dispinfo(void *dummy _U_, packet_info *pinfo, epan_dissect_t *edt, co
  * level 12 : DNS_DOMAIN_INFO     lsa.domain_sid -> lsa.domain
  */
 static tap_packet_status
-lsa_policy_information(void *dummy _U_, packet_info *pinfo _U_, epan_dissect_t *edt, const void *pri _U_)
+lsa_policy_information(void *dummy _U_, packet_info *pinfo _U_, epan_dissect_t *edt, const void *pri _U_, tap_flags_t flags _U_)
 {
 	GPtrArray *gp;
 	field_info *fi;
-	char *domain;
-	char *sid;
+	const char *domain;
+	const char *sid;
 	int info_level;
 
 	gp=proto_get_finfo_ptr_array(edt->tree, hf_lsa_info_level);
@@ -214,14 +214,14 @@ lsa_policy_information(void *dummy _U_, packet_info *pinfo _U_, epan_dissect_t *
 			return TAP_PACKET_DONT_REDRAW;
 		}
 		fi=(field_info *)gp->pdata[0];
-		domain=fi->value.value.string;
+		domain=fvalue_get_string(&fi->value);
 
 		gp=proto_get_finfo_ptr_array(edt->tree, hf_nt_domain_sid);
 		if(!gp || gp->len!=1){
 			return TAP_PACKET_DONT_REDRAW;
 		}
 		fi=(field_info *)gp->pdata[0];
-		sid=fi->value.value.string;
+		sid=fvalue_get_string(&fi->value);
 
 		add_sid_name_mapping(sid, domain);
 		break;

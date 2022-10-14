@@ -4,8 +4,8 @@
  *
  * This dissector includes items from:
  *    CIP Volume 1: Common Industrial Protocol, Edition 3.24
- *    CIP Volume 2: EtherNet/IP Adaptation of CIP, Edition 1.27
- *    CIP Volume 8: CIP Security, Edition 1.11
+ *    CIP Volume 2: EtherNet/IP Adaptation of CIP, Edition 1.30
+ *    CIP Volume 8: CIP Security, Edition 1.13
  *
  * Copyright 2003-2004
  * Magnus Hansson <mah@hms.se>
@@ -368,6 +368,8 @@ static int hf_eip_cert_capflags_reserved = -1;
 static int hf_eip_cert_capability_flags = -1;
 static int hf_eip_cert_num_certs = -1;
 static int hf_eip_cert_cert_name = -1;
+static int hf_lldp_subtype = -1;
+static int hf_lldp_mac_address = -1;
 
 /* Initialize the subtree pointers */
 static gint ett_enip = -1;
@@ -688,7 +690,7 @@ static const value_string enip_dlr_redundant_gateway_status_vals[] = {
 
 static const value_string cip_security_state_vals[] = {
    { 0,  "Factory Default Configuration" },
-   { 1,  "Initial Commissioning In Progress" },
+   { 1,  "Configuration In Progress" },
    { 2,  "Configured" },
    { 3,  "Incomplete Configuration" },
 
@@ -699,12 +701,19 @@ static const value_string eip_security_state_vals[] = {
    { 0,  "Factory Default Configuration" },
    { 1,  "Configuration In Progress" },
    { 2,  "Configured" },
+   { 3,  "Pull Model In Progress" },
+   { 4,  "Pull Model Completed" },
+   { 5,  "Pull Model Disabled" },
 
    { 0,  NULL }
 };
 
 static const value_string eip_cert_state_vals[] = {
-   { 0,  "Created" },
+   { 0,  "Non-Existent" },
+   { 1,  "Created" },
+   { 2,  "Configuring" },
+   { 3,  "Verified" },
+   { 4,  "Invalid" },
 
    { 0,  NULL }
 };
@@ -789,7 +798,7 @@ static const true_false_string dlr_lnknbrstatus_frame_type_vals = {
 
 static void enip_prompt(packet_info *pinfo _U_, gchar* result)
 {
-   g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Dissect unidentified I/O traffic as");
+   snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Dissect unidentified I/O traffic as");
 }
 
 static wmem_map_t *enip_request_hashtable = NULL;
@@ -846,7 +855,7 @@ enip_request_equal(gconstpointer v, gconstpointer w)
 static void
 enip_fmt_lir_revision( gchar *result, guint32 revision )
 {
-   g_snprintf( result, ITEM_LABEL_LENGTH, "%d.%02d", (guint8)(( revision & 0xFF00 ) >> 8), (guint8)(revision & 0xFF) );
+   snprintf( result, ITEM_LABEL_LENGTH, "%d.%02d", (guint8)(( revision & 0xFF00 ) >> 8), (guint8)(revision & 0xFF) );
 }
 
 static guint
@@ -959,8 +968,11 @@ typedef struct enip_conn_key {
    guint32 T2OConnID;
 } enip_conn_key_t;
 
+// This is a per list of CIP connection IDs per conversation_t.
 typedef struct _enip_conv_info_t {
+   // Connection ID --> cip_conn_info_t
    wmem_tree_t *O2TConnIDs;
+   // Connection ID --> cip_conn_info_t
    wmem_tree_t *T2OConnIDs;
 } enip_conv_info_t;
 
@@ -990,7 +1002,7 @@ enip_io_conv_filter(packet_info *pinfo)
 
    if (conn->close_frame > 0)
    {
-      buf = g_strdup_printf(
+      buf = ws_strdup_printf(
           "((frame.number == %u) || ((frame.number >= %u) && (frame.number <= %u))) && "  /* Frames between ForwardOpen and ForwardClose reply */
            "((enip.cpf.sai.connid == 0x%08x || enip.cpf.sai.connid == 0x%08x) || "                             /* O->T and T->O Connection IDs */
            "((cip.cm.conn_serial_num == 0x%04x) && (cip.cm.vendor == 0x%04x) && (cip.cm.orig_serial_num == 0x%08x)))",     /* Connection Triad */
@@ -1001,7 +1013,7 @@ enip_io_conv_filter(packet_info *pinfo)
    else
    {
        /* If Forward Close isn't found, don't limit the (end) frame range */
-      buf = g_strdup_printf(
+      buf = ws_strdup_printf(
           "((frame.number == %u) || (frame.number >= %u)) && "                                            /* Frames starting with ForwardOpen */
            "((enip.cpf.sai.connid == 0x%08x || enip.cpf.sai.connid == 0x%08x) || "                            /* O->T and T->O Connection IDs */
            "((cip.cm.conn_serial_num == 0x%04x) && (cip.cm.vendor == 0x%04x) && (cip.cm.orig_serial_num == 0x%08x)))",    /* Connection Triad */
@@ -1036,7 +1048,7 @@ enip_exp_conv_filter(packet_info *pinfo)
 
    if (conn->close_frame > 0)
    {
-      buf = g_strdup_printf(
+      buf = ws_strdup_printf(
           "((frame.number == %u) || ((frame.number >= %u) && (frame.number <= %u))) && "  /* Frames between ForwardOpen and ForwardClose reply */
            "((enip.cpf.cai.connid == 0x%08x || enip.cpf.cai.connid == 0x%08x) || "                             /* O->T and T->O Connection IDs */
            "((cip.cm.conn_serial_num == 0x%04x) && (cip.cm.vendor == 0x%04x) && (cip.cm.orig_serial_num == 0x%08x)))",     /* Connection Triad */
@@ -1047,7 +1059,7 @@ enip_exp_conv_filter(packet_info *pinfo)
    else
    {
        /* If Forward Close isn't found, don't limit the (end) frame range */
-      buf = g_strdup_printf(
+      buf = ws_strdup_printf(
           "((frame.number == %u) || (frame.number >= %u)) && "    /* Frames between ForwardOpen and ForwardClose */
            "((enip.cpf.cai.connid == 0x%08x || enip.cpf.cai.connid == 0x%08x) || "                          /* O->T and T->O Connection IDs */
            "((cip.cm.conn_serial_num == 0x%04x) && (cip.cm.vendor == 0x%04x) && (cip.cm.orig_serial_num == 0x%08x)))",  /* Connection Triad */
@@ -1144,7 +1156,7 @@ enip_conv_info_t* get_conversation_info_one_direction(packet_info* pinfo, addres
       copy_address_wmem(wmem_file_scope(), &connid_info->ipaddress, dst_address);
    }
 
-   address dest_address;
+   address dest_address = ADDRESS_INIT_NONE;
    if (connid_info->ipaddress.type == AT_IPv6)
    {
       dest_address.type = AT_IPv6;
@@ -1160,11 +1172,11 @@ enip_conv_info_t* get_conversation_info_one_direction(packet_info* pinfo, addres
    // Similar logic to find_or_create_conversation(), but since I/O traffic
    //    is on UDP, the pinfo parameter doesn't have the correct information.
    conversation_t* conversation = find_conversation(pinfo->num, src_address, &dest_address,
-      ENDPOINT_UDP, connid_info->port, 0, NO_PORT_B);
+      CONVERSATION_UDP, connid_info->port, 0, NO_PORT_B);
    if (conversation == NULL)
    {
       conversation = conversation_new(pinfo->num, src_address, &dest_address,
-         ENDPOINT_UDP, connid_info->port, 0, NO_PORT2);
+         CONVERSATION_UDP, connid_info->port, 0, NO_PORT2);
    }
 
    enip_conv_info_t* enip_info = (enip_conv_info_t*)conversation_get_proto_data(conversation, proto_enip);
@@ -1344,7 +1356,7 @@ enip_get_io_connid(packet_info *pinfo, guint32 connid, enum enip_connid_type* pc
     */
    conversation = find_conversation(pinfo->num,
             &pinfo->src, &pinfo->dst,
-            conversation_pt_to_endpoint_type(pinfo->ptype),
+            conversation_pt_to_conversation_type(pinfo->ptype),
             pinfo->destport, 0, NO_PORT_B);
 
    if (conversation == NULL)
@@ -1485,7 +1497,7 @@ dissect_tcpip_interface_config(packet_info *pinfo, proto_tree *tree, proto_item 
    proto_tree_add_item(tree, hf_tcpip_ic_name_server2, tvb, offset+16, 4, ENC_LITTLE_ENDIAN);
 
    domain_length = tvb_get_letohs( tvb, offset+20);
-   proto_tree_add_item(tree, hf_tcpip_ic_domain_name,  tvb, offset+22, domain_length, ENC_ASCII|ENC_NA);
+   proto_tree_add_item(tree, hf_tcpip_ic_domain_name,  tvb, offset+22, domain_length, ENC_ASCII);
 
    /* Add padding. */
    domain_length += domain_length % 2;
@@ -2133,7 +2145,7 @@ dissect_eip_cert_cert_list(packet_info *pinfo, proto_tree *tree, proto_item *ite
    for (i = 0; i < num; i++)
    {
       path_size = tvb_get_guint8( tvb, offset );
-      proto_tree_add_item(tree, hf_eip_cert_cert_name, tvb, offset+1, path_size, ENC_ASCII|ENC_NA);
+      proto_tree_add_item(tree, hf_eip_cert_cert_name, tvb, offset+1, path_size, ENC_ASCII);
       offset += (1+path_size);
 
       path_size = dissect_padded_epath_len_usint(pinfo, cert_tree, ti, tvb, offset, total_len);
@@ -2457,7 +2469,7 @@ static void dissect_item_list_services_response(packet_info* pinfo, tvbuff_t* tv
       tvb_format_stringzpad(pinfo->pool, tvb, offset + 4, 16));
 }
 
-static void display_fwd_open_connection_path(cip_conn_info_t* conn_info, proto_tree* tree, tvbuff_t* tvb, packet_info* pinfo)
+void display_fwd_open_connection_path(cip_conn_info_t* conn_info, proto_tree* tree, tvbuff_t* tvb, packet_info* pinfo)
 {
    if (!conn_info->pFwdOpenPathData)
    {
@@ -3612,7 +3624,7 @@ proto_register_enip(void)
           NULL, HFILL }},
 
       { &hf_enip_eip_security_state,
-        { "EIP Security State", "enip.eip_security_state",
+        { "EtherNet/IP Security State", "enip.eip_security_state",
           FT_UINT8, BASE_DEC, VALS(eip_security_state_vals), 0,
           NULL, HFILL }},
 
@@ -4660,6 +4672,16 @@ proto_register_enip(void)
         { "Certificate name", "cip.eip_cert.cert_name",
           FT_STRING, BASE_NONE, NULL, 0,
           NULL, HFILL }},
+
+      { &hf_lldp_subtype,
+        { "ODVA LLDP Subtype", "cip.lldp.subtype",
+          FT_UINT8, BASE_DEC, VALS(lldp_cip_subtypes), 0,
+          NULL, HFILL }
+		},
+      { &hf_lldp_mac_address,
+        { "MAC Address", "cip.lldp.mac_address",
+          FT_ETHER, BASE_NONE, NULL, 0,
+          NULL, HFILL }},
    };
 
    /* Setup protocol subtree array */
@@ -5010,6 +5032,53 @@ proto_register_enip(void)
    subdissector_decode_as_io_table = register_decode_as_next_proto(proto_enip, "cip.io", "CIP I/O Payload", enip_prompt);
 } /* end of proto_register_enip() */
 
+const value_string lldp_cip_subtypes[] = {
+   { 1, "CIP Identification" },
+   { 2, "CIP MAC Address" },
+   { 3, "CIP Interface Label" },
+   { 4, "Position ID" },
+   { 5, "T1S PHY Data" },
+   { 6, "Commission Request" },
+   { 7, "Commission Response" },
+   { 8, "Discover Topology Response" },
+
+	{ 0, NULL }
+};
+
+int dissect_lldp_cip_tlv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
+{
+   int total_len = tvb_reported_length_remaining(tvb, 0);
+   int offset = 0;
+   guint32 subtype;
+	proto_tree_add_item_ret_uint(tree, hf_lldp_subtype, tvb, offset, 1, ENC_BIG_ENDIAN, &subtype);
+   offset++;
+
+   switch (subtype)
+   {
+      case 1:
+      {
+         dissect_electronic_key_format(tvb, offset, tree, FALSE, CI_E_SERIAL_NUMBER_KEY_FORMAT_VAL);
+         break;
+      }
+
+      case 2:
+         proto_tree_add_item(tree, hf_lldp_mac_address, tvb, offset, 6, ENC_NA);
+         break;
+
+      case 3:
+      {
+         // The string is all the data, minus Subtype (1 byte).
+         int string_len = total_len - 1;
+         proto_tree_add_item(tree, hf_elink_interface_label, tvb, offset, string_len, ENC_ASCII | ENC_NA);
+         break;
+      }
+
+      default:
+         break;
+   }
+
+   return tvb_reported_length(tvb);
+}
 
 void
 proto_reg_handoff_enip(void)

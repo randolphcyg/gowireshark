@@ -23,6 +23,7 @@
 #include <epan/packet.h>
 #include <epan/sctpppids.h>
 #include <wsutil/str_util.h>
+#include <wsutil/ws_roundup.h>
 
 void proto_register_dua(void);
 void proto_reg_handoff_dua(void);
@@ -67,8 +68,6 @@ static gint ett_dua_parameter       = -1;
 static dissector_handle_t dpnss_handle;
 static dissector_handle_t dua_handle;
 
-#define ADD_PADDING(x) ((((x) + 3) >> 2) << 2)
-
 #define PARAMETER_TAG_LENGTH    2
 #define PARAMETER_LENGTH_LENGTH 2
 #define PARAMETER_HEADER_LENGTH (PARAMETER_TAG_LENGTH + PARAMETER_LENGTH_LENGTH)
@@ -99,7 +98,7 @@ dissect_text_interface_identifier_parameter(tvbuff_t *parameter_tvb, proto_tree 
   interface_id_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
 
   proto_tree_add_item(parameter_tree, hf_text_interface_id,
-                      parameter_tvb, TEXT_INTERFACE_ID_OFFSET, interface_id_length, ENC_ASCII|ENC_NA);
+                      parameter_tvb, TEXT_INTERFACE_ID_OFFSET, interface_id_length, ENC_ASCII);
   proto_item_append_text(parameter_item, " (%.*s)", interface_id_length,
                          tvb_format_text(wmem_packet_scope(), parameter_tvb, TEXT_INTERFACE_ID_OFFSET, interface_id_length));
 }
@@ -113,7 +112,7 @@ dissect_info_string_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tre
 
   info_string_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   proto_tree_add_item(parameter_tree, hf_info_string,
-                      parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII|ENC_NA);
+                      parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII);
   proto_item_append_text(parameter_item, " (%.*s)", info_string_length,
                          tvb_format_text(wmem_packet_scope(), parameter_tvb, INFO_STRING_OFFSET, info_string_length));
 }
@@ -533,7 +532,7 @@ dissect_parameters(tvbuff_t *parameters_tvb, packet_info *pinfo, proto_tree *tre
   offset = 0;
   while((remaining_length = tvb_reported_length_remaining(parameters_tvb, offset))) {
     length       = tvb_get_ntohs(parameters_tvb, offset + PARAMETER_LENGTH_OFFSET);
-    total_length = ADD_PADDING(length);
+    total_length = WS_ROUNDUP_4(length);
     if (remaining_length >= length)
       total_length = MIN(total_length, remaining_length);
     /* create a tvb for the parameter including the padding bytes */

@@ -25,7 +25,7 @@
 
 #include "profile_dialog.h"
 #include <ui_profile_dialog.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 #include <ui/qt/utils/color_utils.h>
 #include <ui/qt/simple_dialog.h>
 
@@ -58,7 +58,7 @@ ProfileDialog::ProfileDialog(QWidget *parent) :
 {
     pd_ui_->setupUi(this);
     loadGeometry();
-    setWindowTitle(wsApp->windowTitleString(tr("Configuration Profiles")));
+    setWindowTitle(mainApp->windowTitleString(tr("Configuration Profiles")));
 
     ok_button_ = pd_ui_->buttonBox->button(QDialogButtonBox::Ok);
 
@@ -106,10 +106,10 @@ ProfileDialog::ProfileDialog(QWidget *parent) :
 
     pd_ui_->cmbProfileTypes->addItems(ProfileSortModel::filterTypes());
 
-    connect (pd_ui_->cmbProfileTypes, SIGNAL(currentTextChanged(const QString &)),
-              this, SLOT(filterChanged(const QString &)));
-    connect (pd_ui_->lineProfileFilter, SIGNAL(textChanged(const QString &)),
-              this, SLOT(filterChanged(const QString &)));
+    connect (pd_ui_->cmbProfileTypes, &QComboBox::currentTextChanged,
+              this, &ProfileDialog::filterChanged);
+    connect (pd_ui_->lineProfileFilter, &QLineEdit::textChanged,
+              this, &ProfileDialog::filterChanged);
 
     currentItemChanged();
 
@@ -180,7 +180,7 @@ int ProfileDialog::execAction(ProfileDialog::ProfileAction profile_action)
         break;
     case DeleteCurrentProfile:
         if (delete_current_profile()) {
-            wsApp->setConfigurationProfile (Q_NULLPTR);
+            mainApp->setConfigurationProfile (Q_NULLPTR);
         }
         break;
     }
@@ -477,7 +477,7 @@ void ProfileDialog::on_buttonBox_accepted()
 
     if (write_recent) {
         /* Get the current geometry, before writing it to disk */
-        wsApp->emitAppSignal(WiresharkApplication::ProfileChanging);
+        mainApp->emitAppSignal(MainApplication::ProfileChanging);
 
         /* Write recent file for current profile now because
          * the profile may be renamed in apply_profile_changes() */
@@ -513,11 +513,11 @@ void ProfileDialog::on_buttonBox_accepted()
 
     if (profileName.length() > 0 && model_->findByName(profileName) >= 0) {
         // The new profile exists, change.
-        wsApp->setConfigurationProfile (profileName.toUtf8().constData(), FALSE);
+        mainApp->setConfigurationProfile (profileName.toUtf8().constData(), FALSE);
     } else if (!model_->activeProfile().isValid()) {
         // The new profile does not exist, and the previous profile has
         // been deleted.  Change to the default profile.
-        wsApp->setConfigurationProfile (Q_NULLPTR, FALSE);
+        mainApp->setConfigurationProfile (Q_NULLPTR, FALSE);
     }
 }
 
@@ -530,7 +530,7 @@ void ProfileDialog::on_buttonBox_rejected()
 
 void ProfileDialog::on_buttonBox_helpRequested()
 {
-    wsApp->helpTopicAction(HELP_CONFIG_PROFILES_DIALOG);
+    mainApp->helpTopicAction(HELP_CONFIG_PROFILES_DIALOG);
 }
 
 void ProfileDialog::dataChanged(const QModelIndex &)
@@ -615,7 +615,7 @@ void ProfileDialog::exportProfiles(bool exportAllPersonalProfiles)
         QString err;
         if (model_->exportProfiles(zipFile, items, &err))
         {
-            QString msg = tr("%Ln profile(s) exported", "", items.count());
+            QString msg = tr("%Ln profile(s) exported", "", static_cast<int>(items.count()));
             if (skipped > 0)
                 msg.append(tr(", %Ln profile(s) skipped", "", skipped));
             QMessageBox::information(this, tr("Exporting profiles"), msg);
@@ -734,8 +734,8 @@ QString ProfileDialog::lastOpenDir()
 
 void ProfileDialog::storeLastDir(QString dir)
 {
-    if (wsApp && dir.length() > 0)
-        wsApp->setLastOpenDir(qUtf8Printable(dir));
+    if (mainApp && dir.length() > 0)
+        mainApp->setLastOpenDir(qUtf8Printable(dir));
 }
 
 void ProfileDialog::resetTreeView()
@@ -760,8 +760,8 @@ void ProfileDialog::resetTreeView()
     QItemSelectionModel *selModel = pd_ui_->profileTreeView->selectionModel();
     connect(selModel, &QItemSelectionModel::currentChanged,
             this, &ProfileDialog::currentItemChanged, Qt::QueuedConnection);
-    connect(selModel, SIGNAL(selectionChanged(const QItemSelection &, const QItemSelection &)),
-            this, SLOT(selectionChanged()));
+    connect(selModel, &QItemSelectionModel::selectionChanged,
+            this, &ProfileDialog::selectionChanged);
 
     selectionChanged();
 

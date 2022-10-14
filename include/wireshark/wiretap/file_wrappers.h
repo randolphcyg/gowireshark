@@ -1,4 +1,4 @@
-/* file_wrappers.h
+/** @file
  *
  * Wiretap Library
  * Copyright (c) 1998 by Gilbert Ramirez <gram@alumni.rice.edu>
@@ -9,10 +9,9 @@
 #ifndef __WTAP_FILE_WRAPPERS_H__
 #define __WTAP_FILE_WRAPPERS_H__
 
-#include <glib.h>
+#include <include/wireshark.h>
 #include "wtap.h"
 #include <wsutil/file_util.h>
-#include "ws_symbol_export.h"
 
 extern FILE_T file_open(const char *path);
 extern FILE_T file_fdopen(int fildes);

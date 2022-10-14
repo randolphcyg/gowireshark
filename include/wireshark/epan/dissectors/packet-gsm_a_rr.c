@@ -1050,6 +1050,7 @@ static int hf_gsm_a_rr_multiband_reporting_present = -1;
 static int hf_gsm_a_rr_report_priority_description = -1;
 static int hf_gsm_a_rr_tdd_reporting_offset_present = -1;
 static int hf_gsm_a_rr_amr_config_present = -1;
+static int hf_gsm_a_rr_rand_bit_stream_ind = -1;
 static int hf_gsm_a_rr_900_reporting_present = -1;
 static int hf_gsm_a_rr_rfl_number_present = -1;
 static int hf_gsm_a_rr_eutran_fdd_reporting_offset_present = -1;
@@ -7909,7 +7910,16 @@ de_rr_si6_rest_oct(tvbuff_t *tvb, proto_tree *subtree, packet_info *pinfo _U_, g
             bit_offset += 4;
         }
     }
-    gsm_rr_csn_padding_bits(subtree, tvb, bit_offset, tvb_len);
+    if (gsm_rr_csn_HL_flag(tvb, subtree, 0, bit_offset++, hf_gsm_a_rr_rand_bit_stream_ind))
+    { /* H < Random bit stream : bit **> */
+        proto_tree_add_bytes_format_value(subtree, hf_gsm_a_rr_padding, tvb,
+                                          bit_offset >> 3, -1, NULL,
+                                          "random bit stream");
+    }
+    else
+    { /* L <spare padding> -- (no randomization) */
+        gsm_rr_csn_padding_bits(subtree, tvb, bit_offset, tvb_len);
+    }
     return tvb_len - offset;
 }
 
@@ -8640,7 +8650,7 @@ de_rr_tlli(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offs
 
     curr_offset = curr_offset + 4;
     if(add_string)
-        g_snprintf(add_string, string_len, " - 0x%x", tlli);
+        snprintf(add_string, string_len, " - 0x%x", tlli);
 
     return(curr_offset - offset);
 }
@@ -9073,7 +9083,7 @@ de_rr_ec_request_reference(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _
 static void
 gsm_a_rr_ec_ma_number_fmt(gchar *s, guint32 v)
 {
-    g_snprintf(s, ITEM_LABEL_LENGTH, "EC-EGPRS Mobile Allocation set %u (%u)", v+1, v);
+    snprintf(s, ITEM_LABEL_LENGTH, "EC-EGPRS Mobile Allocation set %u (%u)", v+1, v);
 }
 
 static guint16
@@ -14353,7 +14363,7 @@ proto_register_gsm_a_rr(void)
             },
             { &hf_gsm_a_rr_ec_imsi,
               { "IMSI", "gsm_a.rr.ec_imsi",
-                FT_STRING, STR_ASCII, NULL, 0x0,
+                FT_STRING, BASE_NONE, NULL, 0x0,
                 NULL, HFILL
               }
             },
@@ -14698,6 +14708,7 @@ proto_register_gsm_a_rr(void)
             { &hf_gsm_a_rr_si13alt_position_present, { "SI3 alt position", "gsm_a.rr.si13alt_position.present", FT_BOOLEAN, BASE_NONE, TFS(&tfs_present_not_present), 0x00, NULL, HFILL }},
             { &hf_gsm_a_call_prio_present, { "Call Priority", "gsm_a.call_prio.present", FT_BOOLEAN, BASE_NONE, TFS(&tfs_present_not_present), 0x00, NULL, HFILL }},
             { &hf_gsm_a_rr_amr_config_present, { "AMR Config", "gsm_a.rr.amr_config.present", FT_BOOLEAN, BASE_NONE, TFS(&tfs_present_not_present), 0x00, NULL, HFILL }},
+            { &hf_gsm_a_rr_rand_bit_stream_ind, { "Random Bit Stream", "gsm_a.rr.rand_bit_stream.ind", FT_BOOLEAN, BASE_NONE, TFS(&tfs_present_not_present), 0x00, NULL, HFILL }},
             { &hf_gsm_a_rr_rfl_number_present, { "RFL number list", "gsm_a.rr.rfl_number.present", FT_BOOLEAN, BASE_NONE, TFS(&tfs_present_not_present), 0x00, NULL, HFILL }},
             { &hf_gsm_a_rr_gprs_mobile_allocation, { "MA", "gsm_a.rr.gprs_mobile_allocation", FT_BOOLEAN, BASE_NONE, TFS(&tfs_not_present_present), 0x00, NULL, HFILL }},
             { &hf_gsm_a_rr_arfcn_index_list, { "ARFCN index list", "gsm_a.rr.arfcn_index_list", FT_BOOLEAN, BASE_NONE, TFS(&tfs_present_not_present), 0x00, NULL, HFILL }},

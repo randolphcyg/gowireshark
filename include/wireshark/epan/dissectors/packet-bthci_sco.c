@@ -66,6 +66,7 @@ dissect_bthci_sco(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
     guint32                   k_adapter_id;
     guint32                   k_bd_addr_oui;
     guint32                   k_bd_addr_id;
+    guint16                   packet_status;
     remote_bdaddr_t          *remote_bdaddr;
     const gchar              *localhost_name;
     guint8                   *localhost_bdaddr;
@@ -81,6 +82,8 @@ dissect_bthci_sco(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
 
     ti = proto_tree_add_item(tree, proto_bthci_sco, tvb, offset, tvb_captured_length(tvb), ENC_NA);
     bthci_sco_tree = proto_item_add_subtree(ti, ett_bthci_sco);
+
+    col_set_str(pinfo->cinfo, COL_PROTOCOL, "HCI_SCO");
 
     switch (pinfo->p2p_dir) {
         case P2P_DIR_SENT:
@@ -99,6 +102,9 @@ dissect_bthci_sco(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
     proto_tree_add_item(bthci_sco_tree, hf_bthci_sco_chandle, tvb,       offset, 2, ENC_LITTLE_ENDIAN);
     flags   = tvb_get_letohs(tvb, offset);
     offset += 2;
+
+    packet_status = (flags >> 12) & 0x03;
+    col_append_fstr(pinfo->cinfo, COL_INFO, "SCO - %s", val_to_str(packet_status, packet_status_vals, "%s"));
 
     proto_tree_add_item(bthci_sco_tree, hf_bthci_sco_length, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -182,7 +188,7 @@ dissect_bthci_sco(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
         remote_length = (gint)(strlen(remote_ether_addr) + 3 + strlen(remote_name) + 1);
         remote_addr_name = (gchar *)wmem_alloc(pinfo->pool, remote_length);
 
-        g_snprintf(remote_addr_name, remote_length, "%s (%s)", remote_ether_addr, remote_name);
+        snprintf(remote_addr_name, remote_length, "%s (%s)", remote_ether_addr, remote_name);
 
         if (pinfo->p2p_dir == P2P_DIR_RECV) {
             set_address(&pinfo->net_src, AT_STRINGZ, (int)strlen(remote_name) + 1, remote_name);
@@ -243,7 +249,7 @@ dissect_bthci_sco(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
     localhost_length = (gint)(strlen(localhost_ether_addr) + 3 + strlen(localhost_name) + 1);
     localhost_addr_name = (gchar *)wmem_alloc(pinfo->pool, localhost_length);
 
-    g_snprintf(localhost_addr_name, localhost_length, "%s (%s)", localhost_ether_addr, localhost_name);
+    snprintf(localhost_addr_name, localhost_length, "%s (%s)", localhost_ether_addr, localhost_name);
 
     if (pinfo->p2p_dir == P2P_DIR_RECV) {
         set_address(&pinfo->net_dst, AT_STRINGZ, (int)strlen(localhost_name) + 1, localhost_name);

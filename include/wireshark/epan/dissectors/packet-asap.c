@@ -27,6 +27,7 @@
 #include <epan/stat_tap_ui.h>
 
 #include <wsutil/str_util.h>
+#include <wsutil/ws_roundup.h>
 
 #include "packet-asap+enrp-common.h"
 
@@ -188,7 +189,7 @@ dissect_error_causes(tvbuff_t *error_causes_tvb, proto_tree *parameter_tree)
   offset = 0;
   while(tvb_reported_length_remaining(error_causes_tvb, offset) > 0) {
     length          = tvb_get_ntohs(error_causes_tvb, offset + CAUSE_LENGTH_OFFSET);
-    total_length    = ADD_PADDING(length);
+    total_length    = WS_ROUNDUP_4(length);
     error_cause_tvb = tvb_new_subset_length(error_causes_tvb, offset , total_length);
     dissect_error_cause(error_cause_tvb, parameter_tree);
     offset += total_length;
@@ -509,7 +510,7 @@ dissect_parameters(tvbuff_t *parameters_tvb, proto_tree *tree)
   offset = 0;
   while((remaining_length = tvb_reported_length_remaining(parameters_tvb, offset)) > 0) {
     length       = tvb_get_ntohs(parameters_tvb, offset + PARAMETER_LENGTH_OFFSET);
-    total_length = ADD_PADDING(length);
+    total_length = WS_ROUNDUP_4(length);
     if (remaining_length >= length)
       total_length = MIN(total_length, remaining_length);
     /* create a tvb for the parameter including the padding bytes */
@@ -678,6 +679,7 @@ static void asap_stat_init(stat_tap_table_ui* new_stat)
   table = stat_tap_init_table(table_name, num_fields, 0, NULL);
   stat_tap_add_table(new_stat, table);
 
+  memset(items, 0x0, sizeof(items));
   /* Add a row for each value type */
   while (message_type_values[i].strptr) {
     items[MESSAGE_TYPE_COLUMN].type                = TABLE_ITEM_STRING;
@@ -706,7 +708,7 @@ static void asap_stat_init(stat_tap_table_ui* new_stat)
 }
 
 static tap_packet_status
-asap_stat_packet(void* tapdata, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* data)
+asap_stat_packet(void* tapdata, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* data, tap_flags_t flags _U_)
 {
   stat_data_t*              stat_data = (stat_data_t*)tapdata;
   const asap_tap_rec_t*     tap_rec   = (const asap_tap_rec_t*)data;

@@ -67,21 +67,39 @@ static void lua_menu_callback(gpointer data) {
 WSLUA_FUNCTION wslua_register_menu(lua_State* L) { /*  Register a menu item in one of the main menus. Requires a GUI. */
 #define WSLUA_ARG_register_menu_NAME 1 /* The name of the menu item. Use slashes to separate submenus. (e.g. menu:Lua Scripts[My Fancy Statistics]). (string) */
 #define WSLUA_ARG_register_menu_ACTION 2 /* The function to be called when the menu item is invoked. The function must take no arguments and return nothing. */
-#define WSLUA_OPTARG_register_menu_GROUP 3 /* Where to place the item in the menu hierarchy. If omitted, defaults to MENU_STAT_GENERIC. One of:
-                                              * MENU_STAT_UNSORTED: menu:Statistics[]
-                                              * MENU_STAT_GENERIC: menu:Statistics[], first section
-                                              * MENU_STAT_CONVERSATION: menu:Statistics[Conversation List]
-                                              * MENU_STAT_ENDPOINT: menu:Statistics[Endpoint List]
-                                              * MENU_STAT_RESPONSE: menu:Statistics[Service Response Time]
-                                              * MENU_STAT_TELEPHONY: menu:Telephony[]
-                                              * MENU_STAT_TELEPHONY_ANSI: menu:Telephony[ANSI]
-                                              * MENU_STAT_TELEPHONY_GSM: menu:Telephony[GSM]
-                                              * MENU_STAT_TELEPHONY_LTE: menu:Telephony[LTE]
-                                              * MENU_STAT_TELEPHONY_MTP3: menu:Telephony[MTP3]
-                                              * MENU_STAT_TELEPHONY_SCTP: menu:Telephony[SCTP]
-                                              * MENU_ANALYZE: menu:Analyze[]
-                                              * MENU_ANALYZE_CONVERSATION: menu:Analyze[Conversation Filter]
-                                              * MENU_TOOLS_UNSORTED: menu:Tools[] */
+#define WSLUA_OPTARG_register_menu_GROUP 3 /*
+    Where to place the item in the menu hierarchy.
+    If omitted, defaults to MENU_STAT_GENERIC.
+    Valid packet (Wireshark) items are:
+    * MENU_PACKET_ANALYZE_UNSORTED: menu:Analyze[]
+    * MENU_PACKET_STAT_UNSORTED: menu:Statistics[]
+    * MENU_STAT_GENERIC: menu:Statistics[], first section
+    * MENU_STAT_CONVERSATION_LIST: menu:Statistics[Conversation List]
+    * MENU_STAT_ENDPOINT_LIST: menu:Statistics[Endpoint List]
+    * MENU_STAT_RESPONSE_TIME: menu:Statistics[Service Response Time]
+    * MENU_STAT_RSERPOOL = menu:Statistics[Reliable Server Pooling (RSerPool)]
+    * MENU_STAT_TELEPHONY: menu:Telephony[]
+    * MENU_STAT_TELEPHONY_ANSI: menu:Telephony[ANSI]
+    * MENU_STAT_TELEPHONY_GSM: menu:Telephony[GSM]
+    * MENU_STAT_TELEPHONY_LTE: menu:Telephony[LTE]
+    * MENU_STAT_TELEPHONY_MTP3: menu:Telephony[MTP3]
+    * MENU_STAT_TELEPHONY_SCTP: menu:Telephony[SCTP]
+    * MENU_ANALYZE: menu:Analyze[]
+    * MENU_ANALYZE_CONVERSATION: menu:Analyze[Conversation Filter]
+    * MENU_TOOLS_UNSORTED: menu:Tools[]
+
+    Valid log (Logray) items are:
+    * MENU_LOG_ANALYZE_UNSORTED: menu:Analyze[]
+    * MENU_LOG_STAT_UNSORTED = 16
+
+    The following are deprecated and shouldn't be used in new code:
+    * MENU_ANALYZE_UNSORTED, superseded by MENU_PACKET_ANALYZE_UNSORTED
+    * MENU_ANALYZE_CONVERSATION, superseded by MENU_ANALYZE_CONVERSATION_FILTER
+    * MENU_STAT_CONVERSATION, superseded by MENU_STAT_CONVERSATION_LIST
+    * MENU_STAT_ENDPOINT, superseded by MENU_STAT_ENDPOINT_LIST
+    * MENU_STAT_RESPONSE, superseded by MENU_STAT_RESPONSE_TIME
+    * MENU_STAT_UNSORTED, superseded by MENU_PACKET_STAT_UNSORTED
+ */
 
     const gchar* name = luaL_checkstring(L,WSLUA_ARG_register_menu_NAME);
     struct _lua_menu_data* md;
@@ -341,7 +359,7 @@ Instead of a strings it is possible to provide tables with fields 'name' and 'va
     g_ptr_array_add(field_names, NULL);
     g_ptr_array_add(field_values, NULL);
 
-    ops->new_dialog(title, (const gchar**)(field_names->pdata), (const gchar**)(field_values->pdata), lua_dialog_cb, dcbd, g_free);
+    ops->new_dialog(ops->ops_id, title, (const gchar**)(field_names->pdata), (const gchar**)(field_values->pdata), lua_dialog_cb, dcbd, g_free);
 
     g_ptr_array_free(field_names, TRUE);
     g_ptr_array_free(field_values, TRUE);
@@ -606,7 +624,7 @@ WSLUA_CONSTRUCTOR TextWindow_new(lua_State* L) { /*
     title = luaL_optstring(L,WSLUA_OPTARG_TextWindow_new_TITLE, "Untitled Window");
     tw = g_new(struct _wslua_tw, 1);
     tw->expired = FALSE;
-    tw->ws_tw = ops->new_text_window(title);
+    tw->ws_tw = ops->new_text_window(ops->ops_id, title);
 
     default_cbd = g_new(struct _close_cb_data, 1);
 
@@ -624,7 +642,7 @@ WSLUA_CONSTRUCTOR TextWindow_new(lua_State* L) { /*
 }
 
 WSLUA_METHOD TextWindow_set_atclose(lua_State* L) { /* Set the function that will be called when the text window closes. */
-#define WSLUA_ARG_TextWindow_at_close_ACTION 2 /* A Lua function to be executed when the user closes the text window. */
+#define WSLUA_ARG_TextWindow_set_atclose_ACTION 2 /* A Lua function to be executed when the user closes the text window. */
 
     TextWindow tw = checkTextWindow(L,1);
     struct _close_cb_data* cbd;
@@ -637,7 +655,7 @@ WSLUA_METHOD TextWindow_set_atclose(lua_State* L) { /* Set the function that wil
     lua_settop(L,2);
 
     if (! lua_isfunction(L,2)) {
-        WSLUA_ARG_ERROR(TextWindow_at_close,ACTION,"Must be a function");
+        WSLUA_ARG_ERROR(TextWindow_set_atclose,ACTION,"Must be a function");
         return 0;
     }
 
@@ -731,7 +749,7 @@ WSLUA_METHOD TextWindow_get_text(lua_State* L) { /* Get the text of the window. 
     text = ops->get_text(tw->ws_tw);
 
     lua_pushstring(L,text);
-    WSLUA_RETURN(1); /* The `TextWindow`'s text. */
+    WSLUA_RETURN(1); /* The `TextWindow`++'++s text. */
 }
 
 WSLUA_METHOD TextWindow_close(lua_State* L) { /* Close the window. */
@@ -1055,7 +1073,7 @@ WSLUA_FUNCTION wslua_set_color_filter_slot(lua_State* L) { /*
 
     For example, this command yields the same results as the table above (and with all foregrounds set to black):
     ----
-    wireshark -o gui.colorized_frame.bg:ffc0c0,ffc0ff,e0c0e0,c0c0ff,c0e0e0,c0ffff,c0ffc0,ffffc0,e0e0c0,e0e0e0 -o gui.colorized_frame.fg:000000,000000,000000,000000,000000,000000,000000,000000
+    wireshark -o gui.colorized_frame.bg:ffc0c0,ffc0ff,e0c0e0,c0c0ff,c0e0e0,c0ffff,c0ffc0,ffffc0,e0e0c0,e0e0e0 -o gui.colorized_frame.fg:000000,000000,000000,000000,000000,000000,000000,000000,000000,000000
     ----
     */
 #define WSLUA_ARG_set_color_filter_slot_TEXT  2 /* The https://gitlab.com/wireshark/wireshark/-/wikis/DisplayFilters[display filter] for selecting packets to be colorized

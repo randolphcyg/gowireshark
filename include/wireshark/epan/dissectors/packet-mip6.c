@@ -3501,7 +3501,7 @@ degrees_convert_fixed_to_float(guint value)
 static void
 degrees_base_custom(gchar *str, guint degrees)
 {
-    g_snprintf(str, ITEM_LABEL_LENGTH, "%f", degrees_convert_fixed_to_float(degrees) );
+    snprintf(str, ITEM_LABEL_LENGTH, "%f", degrees_convert_fixed_to_float(degrees) );
 }
 
 static int
@@ -3717,7 +3717,7 @@ dissect_mipv6_options(tvbuff_t *tvb, int offset, guint length,
             if (option_dissector == NULL) {
                 name = wmem_strdup_printf(pinfo->pool, "Unknown (0x%02x)", opt);
             } else {
-                name = dissector_handle_get_short_name(option_dissector);
+                name = dissector_handle_get_protocol_short_name(option_dissector);
             }
 
             /* Option has a length. Is it in the packet? */

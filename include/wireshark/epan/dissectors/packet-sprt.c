@@ -674,8 +674,8 @@ static const value_string sprt_prof_xchg_support[] = {
 
 static const range_string sprt_payload_dlci1[] = {
     { SPRT_VALUE_RANGE(SPRT_PAYLOAD_DLCI1_DTE2DTE),                               "DTE-to-DTE (V.24 interfaces) data" },
-    { SPRT_PAYLOAD_DLCI1_RESERVED_START,     SPRT_PAYLOAD_DLCI1_RESERVED_END,     "Reserved for for ITU-T" },
-    { SPRT_PAYLOAD_DLCI1_NOT_RESERVED_START, SPRT_PAYLOAD_DLCI1_NOT_RESERVED_END, "Not reserved for for ITU-T" },
+    { SPRT_PAYLOAD_DLCI1_RESERVED_START,     SPRT_PAYLOAD_DLCI1_RESERVED_END,     "Reserved for ITU-T" },
+    { SPRT_PAYLOAD_DLCI1_NOT_RESERVED_START, SPRT_PAYLOAD_DLCI1_NOT_RESERVED_END, "Not reserved for ITU-T" },
     { SPRT_VALUE_RANGE(SPRT_PAYLOAD_DLCI1_CTRLFN2CTRLFN),                         "Control-function to control-function information" },
     { 0, 0, NULL }
 };
@@ -770,14 +770,14 @@ void sprt_add_address(packet_info *pinfo,
      * Check if the ip address and port combination is not
      * already registered as a conversation.
      */
-    p_conv = find_conversation(setup_frame_number, addr, &null_addr, ENDPOINT_UDP, port, other_port,
+    p_conv = find_conversation(setup_frame_number, addr, &null_addr, CONVERSATION_UDP, port, other_port,
                                 NO_ADDR_B | (!other_port ? NO_PORT_B : 0));
 
     /*
      * If not, create a new conversation.
      */
     if (!p_conv || p_conv->setup_frame != setup_frame_number) {
-        p_conv = conversation_new(setup_frame_number, addr, &null_addr, ENDPOINT_UDP,
+        p_conv = conversation_new(setup_frame_number, addr, &null_addr, CONVERSATION_UDP,
                                     (guint32)port, (guint32)other_port,
                                     NO_ADDR2 | (!other_port ? NO_PORT2 : 0));
     }

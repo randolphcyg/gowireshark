@@ -3,8 +3,9 @@
 # says that recent CMake versions take care of rpathification.
 
 # To do:
-# - Add bcond_with clang
+# - Support clang with non Fedora distributions
 
+%bcond_with	toolchain_clang
 %bcond_with	ninja
 %bcond_with	ccache
 %bcond_without	qt5
@@ -22,6 +23,16 @@
 %bcond_with	ilbc
 %bcond_with	opus
 
+# Fedora options to use clang as the compiler
+# https://docs.fedoraproject.org/en-US/packaging-guidelines/#compiler
+%if %{with toolchain_clang}
+%if 0%{?fedora}
+%global toolchain clang
+%else
+%global toolchain gcc
+%endif
+%endif
+
 # Set at most one of these two:
 # Note that setcap requires rpmbuild 4.7.0 or later.
 %global setuid_dumpcap 0
@@ -32,7 +43,14 @@
 # are set.
 %global use_wireshark_group 1
 
-%global package_version @VERSION@
+# RPM 4.11.2 and higher errors out on double dash in versions by default.
+# Some, but not all, distros make this a warning instead; ensure that it is.
+# We override the dashes with underscores for the main wireshark RPM version,
+# but rpmbuild will fail based on its generated dependency from the pkg-config
+# file (wireshark.pc), which has our original version with dashes.
+%global _wrong_version_format_terminate_build 0
+
+%global package_version @PROJECT_VERSION@
 
 
 Summary:	The world's foremost protocol analyzer
@@ -47,14 +65,13 @@ Source:		https://www.wireshark.org/download/src/%{name}-%{package_version}.tar.x
 URL:		https://www.wireshark.org/
 Packager:	Gerald Combs <gerald[AT]wireshark.org>
 
-%if 0%{?rhel} && ( 0%{?rhel} <= 7 )
-BuildRequires:	cmake3 >= 3.5
-%else
-BuildRequires:	cmake >= 3.5
-%endif
+BuildRequires:	cmake >= 3.10
 BuildRequires:	python3
+%if %{with toolchain_clang}
+BuildRequires:	clang
+%else
 BuildRequires:	gcc
-BuildRequires:	perl
+%endif
 BuildRequires:	flex
 %if %{with ninja}
 %if 0%{?fedora} || 0%{?rhel}
@@ -82,10 +99,11 @@ BuildRequires:	docbook-style-xsl
 %endif
 %endif
 
-BuildRequires:	glib2-devel >= 2.38.0
+BuildRequires:	glib2-devel >= 2.50.0
 BuildRequires:	libpcap-devel
 BuildRequires:	zlib-devel
 BuildRequires:	libgcrypt-devel
+BuildRequires:	pcre2-devel
 
 %if %{with lz4_and_snappy}
 %if 0%{?suse_version}
@@ -115,12 +133,6 @@ BuildRequires:	lua51-devel
 BuildRequires:	lua-devel < 5.3
 %endif
 %endif
-%endif
-
-# Fedora complains about double dash in version.
-# Shut it up just for it.
-%if 0%{?fedora}
-%define _wrong_version_format_terminate_build 0
 %endif
 
 %if %{with nghttp2}
@@ -203,12 +215,15 @@ Summary:	Wireshark's Qt-based GUI
 Group:		Applications/Internet
 Obsoletes:	wireshark-gnome < %{version} wireshark-gtk < %{version}
 Requires:	%{name} = %{version}-%{release}
+%if %{without toolchain_clang}
 BuildRequires:	gcc-c++
+%endif
 %if 0%{?suse_version}
 BuildRequires:	libQt5Core-devel
 BuildRequires:	libQt5Gui-devel
 BuildRequires:	libQt5Widgets-devel
 BuildRequires:	libQt5PrintSupport-devel
+BuildRequires:	libQt5Concurrent-devel
 BuildRequires:	libqt5-qtmultimedia-devel
 BuildRequires:	libqt5-linguist-devel
 Requires:	libQt5Svg5
@@ -266,12 +281,7 @@ development of Wireshark scripts and plugins.
 # Fedora's new RPATH hardening means we need to enable $ORIGIN if the
 # prefix is anything other than /usr:
 # https://fedoraproject.org/wiki/Changes/Broken_RPATH_will_fail_rpmbuild
-%if 0%{?rhel} && ( 0%{?rhel} <= 7 )
-cmake3 \
-  -DCMAKE_INSTALL_PREFIX:PATH=%{_prefix} \
-%else
 %cmake \
-%endif
 %if 0%{?fedora} && ( "%{_prefix}" != "/usr" )
   -DENABLE_RPATH_ORIGIN=ON \
 %endif
@@ -330,7 +340,7 @@ cmake3 \
 %else
   -DENABLE_BROTLI=OFF \
 %endif
-  -DDISABLE_WERROR=ON \
+  -DENABLE_WERROR=OFF \
 %if %{with ninja}
   -G Ninja \
 %endif
@@ -527,6 +537,8 @@ update-mime-database %{_datadir}/mime &> /dev/null || :
 - Cleanup specfile to remove obsolete and deprecated syntax
 
 * Wed Jan  5 2022 John Thacker
+- pcre2 is required now (most distros will get this as part of a dependency
+  chain glib2-devel->libselinux-devel->pcre2-devel anyway)
 - Remove Requires that automatic dependency handling picks up
 
 * Mon Mar 29 2021 Joao Valverde

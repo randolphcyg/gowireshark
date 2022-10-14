@@ -113,8 +113,6 @@ static range_t *global_sessions_samis_type_1;
 #define IPDR_PORT 4737
 #define IPDR_HEADER_LEN     8
 
-static guint global_ipdr_port = IPDR_PORT;
-
 enum
 {
     IPDR_FLOW_START = 0x01,
@@ -229,7 +227,7 @@ dissect_ipdr_samis_type_1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     proto_item_append_text(ti, " bytes");
     offset += 4;
     if (len > 0) {
-        proto_tree_add_item(samis_type_1_tree, hf_ipdr_cmts_host_name, tvb, offset, len, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(samis_type_1_tree, hf_ipdr_cmts_host_name, tvb, offset, len, ENC_ASCII);
         offset += len;
     }
 
@@ -252,7 +250,7 @@ dissect_ipdr_samis_type_1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     proto_item_append_text(ti, " bytes");
     offset += 4;
     if (len > 0) {
-        proto_tree_add_item(samis_type_1_tree, hf_ipdr_cmts_md_if_name, tvb, offset, len, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(samis_type_1_tree, hf_ipdr_cmts_md_if_name, tvb, offset, len, ENC_ASCII);
         offset += len;
     }
 
@@ -271,7 +269,7 @@ dissect_ipdr_samis_type_1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     if (len == 16) {
         proto_tree_add_item(samis_type_1_tree, hf_ipdr_cm_ipv6_addr, tvb, offset, len, ENC_ASCII|ENC_BIG_ENDIAN);
     } else if (len > 0) {
-        proto_tree_add_item(samis_type_1_tree, hf_ipdr_cm_ipv6_addr_string, tvb, offset, len, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(samis_type_1_tree, hf_ipdr_cm_ipv6_addr_string, tvb, offset, len, ENC_ASCII);
     }
     offset += len;
 
@@ -281,7 +279,7 @@ dissect_ipdr_samis_type_1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     if (len == 16) {
         proto_tree_add_item(samis_type_1_tree, hf_ipdr_cm_ipv6_ll_addr, tvb, offset, len, ENC_ASCII|ENC_BIG_ENDIAN);
     } else if (len > 0) {
-        proto_tree_add_item(samis_type_1_tree, hf_ipdr_cm_ipv6_ll_addr_string, tvb, offset, len, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(samis_type_1_tree, hf_ipdr_cm_ipv6_ll_addr_string, tvb, offset, len, ENC_ASCII);
     }
     offset += len;
 
@@ -333,7 +331,7 @@ dissect_ipdr_samis_type_1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     proto_item_append_text(ti, " bytes");
     offset += 4;
     if (len > 0) {
-        proto_tree_add_item(samis_type_1_tree, hf_ipdr_service_class_name, tvb, offset, len, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(samis_type_1_tree, hf_ipdr_service_class_name, tvb, offset, len, ENC_ASCII);
         offset += len;
     }
 
@@ -405,7 +403,7 @@ dissect_ipdr_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     case IPDR_FLOW_STOP:
         proto_tree_add_item(ipdr_tree, hf_ipdr_reason_code, tvb, offset, 2, ENC_BIG_ENDIAN);
         offset += 2;
-        proto_tree_add_item(ipdr_tree, hf_ipdr_reason_info, tvb, offset, -1, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(ipdr_tree, hf_ipdr_reason_info, tvb, offset, -1, ENC_ASCII);
         break;
     case IPDR_CONNECT:
         proto_tree_add_item(ipdr_tree, hf_ipdr_initiator_id, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -443,7 +441,7 @@ dissect_ipdr_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     case IPDR_SESSION_STOP:
         proto_tree_add_item(ipdr_tree, hf_ipdr_reason_code, tvb, offset, 2, ENC_BIG_ENDIAN);
         offset += 2;
-        proto_tree_add_item(ipdr_tree, hf_ipdr_reason_info, tvb, offset, -1, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(ipdr_tree, hf_ipdr_reason_info, tvb, offset, -1, ENC_ASCII);
         break;
     case IPDR_TEMPLATE_DATA:
         proto_tree_add_item(ipdr_tree, hf_ipdr_config_id, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -497,7 +495,7 @@ dissect_ipdr_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
         offset += 4;
         proto_tree_add_item(ipdr_tree, hf_ipdr_error_code, tvb, offset, 2, ENC_BIG_ENDIAN);
         offset += 2;
-        proto_tree_add_item(ipdr_tree, hf_ipdr_description, tvb, offset, -1, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(ipdr_tree, hf_ipdr_description, tvb, offset, -1, ENC_ASCII);
         break;
     case IPDR_REQUEST:
         proto_tree_add_item(ipdr_tree, hf_ipdr_template_id, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -662,7 +660,6 @@ proto_register_ipdr(void)
 void
 proto_reg_handoff_ipdr(void)
 {
-    static guint ipdr_port;
     static range_t *sessions_samis_type_1;
     static gboolean ipdr_prefs_initialized = FALSE;
 
@@ -670,19 +667,12 @@ proto_reg_handoff_ipdr(void)
         ipdr_handle = create_dissector_handle(dissect_ipdr, proto_ipdr);
         ipdr_samis_type_1_handle = register_dissector("ipdr-samis-type-1", dissect_ipdr_samis_type_1,
                                                       proto_ipdr_samis_type_1);
-        dissector_add_uint_with_preference("tcp.port", global_ipdr_port, ipdr_handle);
+        dissector_add_uint_with_preference("tcp.port", IPDR_PORT, ipdr_handle);
 
         ipdr_prefs_initialized = TRUE;
     } else {
-        dissector_delete_uint("tcp.port", ipdr_port, ipdr_handle);
         dissector_delete_uint_range("ipdr.session_type", sessions_samis_type_1, ipdr_samis_type_1_handle);
     }
-
-    if (global_ipdr_port) {
-        dissector_add_uint("tcp.port", global_ipdr_port, ipdr_handle);
-    }
-
-    ipdr_port = global_ipdr_port;
 
     sessions_samis_type_1 = range_copy(wmem_epan_scope(), global_sessions_samis_type_1);
     dissector_add_uint_range("ipdr.session_type", sessions_samis_type_1, ipdr_samis_type_1_handle);

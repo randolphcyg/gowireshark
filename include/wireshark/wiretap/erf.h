@@ -1,4 +1,4 @@
-/*
+/** @file
  *
  * Copyright (c) 2003 Endace Technology Ltd, Hamilton, New Zealand.
  * All rights reserved.
@@ -15,7 +15,7 @@
 
 #include <glib.h>
 #include <wiretap/wtap.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #define ERF_POPULATE_SUCCESS 1
 #define ERF_POPULATE_ALREADY_POPULATED 0

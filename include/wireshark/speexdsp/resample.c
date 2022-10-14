@@ -80,7 +80,7 @@ static void speex_free (void *ptr) {g_free(ptr);}
 #include <math.h>
 #include <limits.h>
 
-#include "ws_attributes.h"
+#include "include/ws_attributes.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -353,7 +353,7 @@ static int resampler_basic_direct_single(SpeexResamplerState *st, spx_uint32_t c
       for(j=0;j<N;j++) sum += MULT16_16(sinct[j], iptr[j]);
 
 /*    This code is slower on most DSPs which have only 2 accumulators.
-      Plus this this forces truncation to 32 bits and you lose the HW guard bits.
+      Plus this forces truncation to 32 bits and you lose the HW guard bits.
       I think we can trust the compiler and let it vectorize and/or unroll itself.
       spx_word32_t accum[4] = {0,0,0,0};
       for(j=0;j<N;j+=4) {

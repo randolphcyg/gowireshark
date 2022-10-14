@@ -12,14 +12,13 @@ Copyright (c) 2008-2009		Luis R. Rodriguez
 SPDX-License-Identifier: ISC
 */
 
-#include <config.h>
+#include "config.h"
+#include "ws80211_utils.h"
 
 #include <stdio.h>
 
 #include <glib.h>
 #include <glib/gstdio.h>
-
-#include "ws80211_utils.h"
 
 #if defined(HAVE_LIBNL) && defined(HAVE_NL80211)
 #include <string.h>
@@ -384,7 +383,7 @@ static int get_phys_handler(struct nl_msg *msg, void *arg)
 	if (!tb_msg[NL80211_ATTR_WIPHY_NAME])
 		return NL_SKIP;
 
-	ifname = g_strdup_printf("%s.mon", nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]));
+	ifname = ws_strdup_printf("%s.mon", nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]));
 	iface = get_interface_by_name(cookie->interfaces, ifname);
 
 	if (!iface) {
@@ -675,7 +674,7 @@ static int ws80211_populate_devices(GArray *interfaces)
 		if (iface_info.type == NL80211_IFTYPE_MONITOR) {
 			for (j = 0; j < interfaces->len; j++) {
 				iface = g_array_index(interfaces, struct ws80211_interface *, j);
-				t2 = g_strdup_printf("phy%d.mon", iface_info.phyidx);
+				t2 = ws_strdup_printf("phy%d.mon", iface_info.phyidx);
 				if (t2) {
 					if (!strcmp(t2, iface->ifname)) {
 						g_free(iface->ifname);
@@ -1183,7 +1182,7 @@ const char *ws80211_get_helper_path(void)
 		if (reg_ret == ERROR_SUCCESS) {
 			airpcap_dir_utf16[ad_size-1] = L'\0';
 			g_free(airpcap_conf_path);
-			airpcap_conf_path = g_strdup_printf("%s\\AirpcapConf.exe", utf_16to8(airpcap_dir_utf16));
+			airpcap_conf_path = ws_strdup_printf("%s\\AirpcapConf.exe", utf_16to8(airpcap_dir_utf16));
 
 			if (!g_file_test(airpcap_conf_path, G_FILE_TEST_IS_EXECUTABLE)) {
 				g_free(airpcap_conf_path);

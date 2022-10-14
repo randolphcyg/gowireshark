@@ -17,7 +17,7 @@
 
 #include "rpc_service_response_time_dialog.h"
 #include "scsi_service_response_time_dialog.h"
-#include "wireshark_application.h"
+#include "main_application.h"
 
 #include <QTreeWidget>
 #include <QTreeWidgetItemIterator>
@@ -34,7 +34,7 @@ srt_init(const char *args, void*) {
         if (args_l.length() > 2) {
             filter = QStringList(args_l.mid(2)).join(",");
         }
-        wsApp->emitTapParameterSignal(srt, filter, NULL);
+        mainApp->emitTapParameterSignal(srt, filter, NULL);
     }
 }
 }
@@ -183,7 +183,7 @@ ServiceResponseTimeDialog::ServiceResponseTimeDialog(QWidget &parent, CaptureFil
     for (int col = 0; col < NUM_SRT_COLUMNS; col++) {
         header_labels.push_back(service_response_time_get_column_name(col));
     }
-    statsTreeWidget()->setColumnCount(header_labels.count());
+    statsTreeWidget()->setColumnCount(static_cast<int>(header_labels.count()));
     statsTreeWidget()->setHeaderLabels(header_labels);
 
     for (int col = 0; col < statsTreeWidget()->columnCount(); col++) {
@@ -197,8 +197,8 @@ ServiceResponseTimeDialog::ServiceResponseTimeDialog(QWidget &parent, CaptureFil
         setDisplayFilter(filter);
     }
 
-    connect(statsTreeWidget(), SIGNAL(itemChanged(QTreeWidgetItem*,int)),
-            this, SLOT(statsTreeWidgetItemChanged()));
+    connect(statsTreeWidget(), &QTreeWidget::itemChanged,
+            this, &ServiceResponseTimeDialog::statsTreeWidgetItemChanged);
 }
 
 ServiceResponseTimeDialog::~ServiceResponseTimeDialog()

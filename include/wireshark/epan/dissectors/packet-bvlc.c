@@ -422,6 +422,63 @@ BACnetErrorCode[] = {
     { 140, "list-item-not-numbered"},
     { 141, "list-item-not-timestamped"},
     { 142, "invalid-data-encoding"},
+    { 143, "bvlc-function-unknown"},
+    { 144, "bvlc-proprietary-function-unknown"},
+    { 145, "header-encoding-error"},
+    { 146, "header-not-understood"},
+    { 147, "message-incomplete"},
+    { 148, "not-a-bacnet-sc-hub"},
+    { 149, "payload-expected"},
+    { 150, "unexpected-data"},
+    { 151, "node-duplicate-vmac"},
+    { 152, "http-unexpected-response-code"},
+    { 153, "http-no-upgrade"},
+    { 154, "http-resource-not-local"},
+    { 155, "http-proxy-authentication-failed"},
+    { 156, "http-response-timeout"},
+    { 157, "http-response-syntax-error"},
+    { 158, "http-response-value-error"},
+    { 159, "http-response-missing-header"},
+    { 160, "http-websocket-header-error"},
+    { 161, "http-upgrade-required"},
+    { 162, "http-upgrade-error"},
+    { 163, "http-temporary-unavailable"},
+    { 164, "http-not-a-server"},
+    { 165, "http-error"},
+    { 166, "websocket-scheme-not-supported"},
+    { 167, "websocket-unknown-control-message"},
+    { 168, "websocket-close-error"},
+    { 169, "websocket-closed-by-peer"},
+    { 170, "websocket-endpoint-leaves"},
+    { 171, "websocket-protocol-error"},
+    { 172, "websocket-data-not-accepted"},
+    { 173, "websocket-closed-abnormally"},
+    { 174, "websocket-data-inconsistent"},
+    { 175, "websocket-data-against-policy"},
+    { 176, "websocket-frame-too-long"},
+    { 177, "websocket-extension-missing"},
+    { 178, "websocket-request-unavailable"},
+    { 179, "websocket-error"},
+    { 180, "tls-client-certificate-error"},
+    { 181, "tls-server-certificate-error"},
+    { 182, "tls-client-authentication-failed"},
+    { 183, "tls-server-authentication-failed"},
+    { 184, "tls-client-certificate-expired"},
+    { 185, "tls-server-certificate-expired"},
+    { 186, "tls-client-certificate-revoked"},
+    { 187, "tls-server-certificate-revoked"},
+    { 188, "tls-error"},
+    { 189, "dns-unavailable"},
+    { 190, "dns-name-resolution-failed"},
+    { 191, "dns-resolver-failure"},
+    { 192, "dns-error"},
+    { 193, "tcp-connect-timeout"},
+    { 194, "tcp-connection-refused"},
+    { 195, "tcp-closed-by-local"},
+    { 196, "tcp-closed-other"},
+    { 197, "tcp-error"},
+    { 198, "ip-address-not-reachable"},
+    { 199, "ip-error"},
     { 0,   NULL}
 /* Enumerated values 0-255 are reserved for definition by ASHRAE.
    Enumerated values 256-65535 may be used by others subject to the
@@ -992,7 +1049,7 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 	if ((bvlc_control & BSCVLC_CONTROL_ORIG_ADDRESS) != 0)
 	{
 		for(idx = 0; idx < 6; idx++)
-			g_snprintf(&mac_buffer[idx * 2], sizeof(mac_buffer) - (idx * 2), "%02X", tvb_get_guint8(tvb, offset + idx));
+			snprintf(&mac_buffer[idx * 2], sizeof(mac_buffer) - (idx * 2), "%02X", tvb_get_guint8(tvb, offset + idx));
 		col_append_fstr(pinfo->cinfo, COL_INFO, " SMAC %s", mac_buffer);
 
 		proto_tree_add_item(bvlc_tree, hf_bscvlc_orig_vmac, tvb, offset, 6, ENC_NA);
@@ -1002,7 +1059,7 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 	if ((bvlc_control & BSCVLC_CONTROL_DEST_ADDRESS) != 0)
 	{
 		for(idx = 0; idx < 6; idx++)
-			g_snprintf(&mac_buffer[idx * 2],  sizeof(mac_buffer) - (idx * 2), "%02X", tvb_get_guint8(tvb, offset + idx));
+			snprintf(&mac_buffer[idx * 2],  sizeof(mac_buffer) - (idx * 2), "%02X", tvb_get_guint8(tvb, offset + idx));
 		col_append_fstr(pinfo->cinfo, COL_INFO, " DMAC %s", mac_buffer);
 
 		proto_tree_add_item(bvlc_tree, hf_bscvlc_dest_vmac, tvb, offset, 6, ENC_NA);

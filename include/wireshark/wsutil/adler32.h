@@ -1,4 +1,4 @@
-/* adler32.h
+/** @file
  * Compute the Adler32 checksum (RFC 1950)
  * 2003 Tomas Kukosa
  *
@@ -12,7 +12,7 @@
 #ifndef ADLER32_H
 #define ADLER32_H
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C"{

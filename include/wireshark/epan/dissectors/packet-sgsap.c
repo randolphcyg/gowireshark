@@ -38,7 +38,6 @@ static dissector_handle_t gsm_a_dtap_handle;
  * The payload protocol identifier to be used for SGsAP is 0.
  */
 #define SGSAP_SCTP_PORT_RANGE "29118"
-static range_t *global_sgsap_port_range;
 
 /* Initialize the protocol and registered fields */
 static int proto_sgsap = -1;
@@ -109,7 +108,7 @@ de_sgsap_eps_loc_upd_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U
     proto_tree_add_item(tree, hf_sgsap_eps_location_update_type, tvb, offset, 1, ENC_BIG_ENDIAN);
     if (add_string) {
         oct = tvb_get_guint8(tvb, curr_offset);
-        g_snprintf(add_string, string_len, " - %s", val_to_str_const(oct, sgsap_eps_location_update_type_values, "Reserved"));
+        snprintf(add_string, string_len, " - %s", val_to_str_const(oct, sgsap_eps_location_update_type_values, "Reserved"));
     }
 
     curr_offset++;
@@ -147,7 +146,7 @@ de_sgsap_err_msg(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
     get_sgsap_msg_params(oct, &msg_str, &ett_tree, &hf_idx, &msg_fcn_p);
     if (msg_str) {
         if (add_string)
-            g_snprintf(add_string, string_len, " - %s", msg_str);
+            snprintf(add_string, string_len, " - %s", msg_str);
 
     }
     if (msg_fcn_p){
@@ -227,7 +226,7 @@ de_sgsap_imeisv(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32
     proto_tree_add_item_ret_display_string(tree, hf_sgsap_imeisv, tvb, curr_offset, len, ENC_BCD_DIGITS_0_9, pinfo->pool, &imeisv_str);
     if (add_string) {
         /* (len<<2)+4 = the maximum number of bytes to produce (including the terminating nul character). */
-        g_snprintf(add_string, (len<<2)+4, " - %s", imeisv_str);
+        snprintf(add_string, (len<<2)+4, " - %s", imeisv_str);
     }
 
     return(len);
@@ -376,7 +375,7 @@ de_sgsap_mme_name(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint
         }
         proto_tree_add_string(tree, hf_sgsap_mme_name, tvb, offset, len, fqdn);
         if (add_string)
-            g_snprintf(add_string, string_len, " - %s", fqdn);
+            snprintf(add_string, string_len, " - %s", fqdn);
 
     }
 
@@ -447,7 +446,7 @@ de_sgsap_serv_indic(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, gui
     proto_tree_add_item(tree, hf_sgsap_service_indicator_value, tvb, offset, 1, ENC_BIG_ENDIAN);
     if (add_string) {
         oct = tvb_get_guint8(tvb, curr_offset);
-        g_snprintf(add_string, string_len, " - %s", val_to_str_const(oct, sgsap_service_indicator_values, "Reserved"));
+        snprintf(add_string, string_len, " - %s", val_to_str_const(oct, sgsap_service_indicator_values, "Reserved"));
     }
     curr_offset++;
 
@@ -490,7 +489,7 @@ de_sgsap_sgs_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guin
     proto_tree_add_item(tree, hf_sgsap_sgs_cause, tvb, offset, 1, ENC_BIG_ENDIAN);
     if (add_string) {
         oct = tvb_get_guint8(tvb, curr_offset);
-        g_snprintf(add_string, string_len, " - %s", val_to_str_ext_const(oct, &sgsap_sgs_cause_values_ext, "Reserved"));
+        snprintf(add_string, string_len, " - %s", val_to_str_ext_const(oct, &sgsap_sgs_cause_values_ext, "Reserved"));
     }
     curr_offset++;
 
@@ -577,7 +576,7 @@ de_sgsap_vlr_name(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint
         }
         proto_tree_add_string(tree, hf_sgsap_vlr_name, tvb, offset, len, fqdn);
         if (add_string)
-            g_snprintf(add_string, string_len, " - %s", fqdn);
+            snprintf(add_string, string_len, " - %s", fqdn);
     }
 
     return(len);
@@ -1583,7 +1582,6 @@ dissect_sgsap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 void proto_register_sgsap(void) {
     guint        i;
     guint        last_offset;
-    module_t    *sgsap_module;
 
     /* List of fields */
 
@@ -1721,16 +1719,8 @@ void proto_register_sgsap(void) {
     /* Register dissector */
     sgsap_handle = register_dissector(PFNAME, dissect_sgsap, proto_sgsap);
 
-   /* Set default SCTP ports */
-    range_convert_str(wmem_epan_scope(), &global_sgsap_port_range, SGSAP_SCTP_PORT_RANGE, MAX_SCTP_PORT);
+    /* sgsap_module = prefs_register_protocol(proto_sgsap, NULL); */
 
-    sgsap_module = prefs_register_protocol(proto_sgsap, proto_reg_handoff_sgsap);
-
-    prefs_register_range_preference(sgsap_module, "sctp_ports",
-                                  "SGsAP SCTP port numbers",
-                                  "Port numbers used for SGsAP traffic "
-                                  "(default " SGSAP_SCTP_PORT_RANGE ")",
-                                  &global_sgsap_port_range, MAX_SCTP_PORT);
 }
 
 void
@@ -1739,21 +1729,8 @@ proto_reg_handoff_sgsap(void)
     /* The registered SCTP port number for SGsAP is 29118.
      * The payload protocol identifier to be used for SGsAP is 0.
      */
-    static gboolean Initialized = FALSE;
-    static range_t *sgsap_port_range;
-
     gsm_a_dtap_handle = find_dissector_add_dependency("gsm_a_dtap", proto_sgsap);
-
-    if (!Initialized) {
-        dissector_add_for_decode_as("sctp.port", sgsap_handle);
-        Initialized=TRUE;
-    } else {
-        dissector_delete_uint_range("sctp.port", sgsap_port_range, sgsap_handle);
-        wmem_free(wmem_epan_scope(), sgsap_port_range);
-    }
-
-    sgsap_port_range = range_copy(wmem_epan_scope(), global_sgsap_port_range);
-    dissector_add_uint_range("sctp.port", sgsap_port_range, sgsap_handle);
+    dissector_add_uint_range_with_preference("sctp.port", SGSAP_SCTP_PORT_RANGE, sgsap_handle);
 }
 
 /*

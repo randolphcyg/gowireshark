@@ -650,7 +650,7 @@ static gchar *key_to_str( const iax_circuit_key *key )
   strp = str[i];
 
   addrstr = address_to_str(NULL, &key->addr);
-  g_snprintf(strp, 80, "{%s:%i,%i}",
+  snprintf(strp, 80, "{%s:%i,%i}",
              addrstr,
              key->port,
              key->callno);
@@ -786,12 +786,12 @@ typedef struct iax_call_data {
 
 
 
-/* creates a new ENDPOINT_IAX2 circuit with a specified circuit id for a call
+/* creates a new CONVERSATION_IAX2 circuit with a specified circuit id for a call
  *
  * typically a call has up to three associated circuits: an original source, an
  * original destination, and the result of a transfer.
  *
- * For each endpoint, a ENDPOINT_IAX2 circuit is created and added to the call_data
+ * For each endpoint, a CONVERSATION_IAX2 circuit is created and added to the call_data
  * by this function
  *
  * 'reversed' should be true if this end is the one which would have _received_
@@ -814,8 +814,8 @@ static conversation_t *iax2_new_circuit_for_call(packet_info *pinfo, proto_item 
     return NULL;
   }
 
-  conv = conversation_new_by_id(framenum, ENDPOINT_IAX2,
-                    circuit_id, 0);
+  conv = conversation_new_by_id(framenum, CONVERSATION_IAX2,
+                    circuit_id);
 
   conversation_add_proto_data(conv, proto_iax2, iax_call);
 
@@ -867,7 +867,7 @@ static iax_call_data *iax_lookup_call_from_dest(packet_info *pinfo, proto_item *
   iax_call_data *iax_call;
   gboolean       reversed = FALSE;
 
-  dst_conv = find_conversation_by_id(framenum, ENDPOINT_IAX2, dst_circuit_id, 0);
+  dst_conv = find_conversation_by_id(framenum, CONVERSATION_IAX2, dst_circuit_id);
 
   if (!dst_conv) {
 #ifdef DEBUG_HASHING
@@ -884,7 +884,7 @@ static iax_call_data *iax_lookup_call_from_dest(packet_info *pinfo, proto_item *
 
   iax_call = (iax_call_data *)conversation_get_proto_data(dst_conv, proto_iax2);
 
-  /* there's no way we can create a ENDPOINT_IAX2 circuit without adding
+  /* there's no way we can create a CONVERSATION_IAX2 circuit without adding
      iax call data to it; assert this */
   DISSECTOR_ASSERT(iax_call);
 
@@ -997,12 +997,12 @@ static iax_call_data *iax_lookup_call( packet_info *pinfo,
      * packet.
      */
 
-    src_conv = find_conversation_by_id(pinfo->num, ENDPOINT_IAX2, src_circuit_id, 0);
+    src_conv = find_conversation_by_id(pinfo->num, CONVERSATION_IAX2, src_circuit_id);
 
     if (src_conv) {
       iax_call = (iax_call_data *)conversation_get_proto_data(src_conv, proto_iax2);
 
-      /* there's no way we can create a ENDPOINT_IAX2 circuit without adding
+      /* there's no way we can create a CONVERSATION_IAX2 circuit without adding
          iax call data to it; assert this */
       DISSECTOR_ASSERT(iax_call);
 
@@ -1850,7 +1850,7 @@ dissect_fullpacket(tvbuff_t *tvb, guint32 offset,
 
   case AST_FRAME_DTMF_BEGIN:
   case AST_FRAME_DTMF_END:
-    proto_tree_add_item(packet_type_tree, hf_iax2_dtmf_csub, tvb, offset+9, 1, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(packet_type_tree, hf_iax2_dtmf_csub, tvb, offset+9, 1, ENC_ASCII);
     offset += 10;
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " digit %c", csub);
@@ -1938,7 +1938,7 @@ dissect_fullpacket(tvbuff_t *tvb, guint32 offset,
       int textlen = tvb_captured_length_remaining(tvb, offset);
       if (textlen > 0)
       {
-        proto_tree_add_item(packet_type_tree, hf_iax2_text_text, tvb, offset, textlen, ENC_UTF_8|ENC_NA);
+        proto_tree_add_item(packet_type_tree, hf_iax2_text_text, tvb, offset, textlen, ENC_UTF_8);
         offset += textlen;
       }
     }
@@ -1953,7 +1953,7 @@ dissect_fullpacket(tvbuff_t *tvb, guint32 offset,
       int urllen = tvb_captured_length_remaining(tvb, offset);
       if (urllen > 0)
       {
-        proto_item *pi = proto_tree_add_item(packet_type_tree, hf_iax2_html_url, tvb, offset, urllen, ENC_UTF_8|ENC_NA);
+        proto_item *pi = proto_tree_add_item(packet_type_tree, hf_iax2_html_url, tvb, offset, urllen, ENC_UTF_8);
         proto_item_set_url(pi);
         offset += urllen;
       }
@@ -2308,7 +2308,7 @@ static void process_iax_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
       * tbd what the best thing to do here is. */
       memset(&dissector_info, 0, sizeof(dissector_info));
     } else {
-      dissector_info.etype = ENDPOINT_IAX2;
+      dissector_info.ctype = CONVERSATION_IAX2;
       dissector_info.circuit_id = (guint32)iax_packet->call_data->forward_circuit_ids[0];
     }
 

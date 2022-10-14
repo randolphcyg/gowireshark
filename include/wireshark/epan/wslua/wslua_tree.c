@@ -53,11 +53,11 @@ TreeItem create_TreeItem(proto_tree* tree, proto_item* item)
 CLEAR_OUTSTANDING(TreeItem, expired, TRUE)
 
 WSLUA_CLASS_DEFINE(TreeItem,FAIL_ON_NULL_OR_EXPIRED("TreeItem"));
-/* <lua_class_TreeItem,`TreeItem`>>s represent information in the https://www.wireshark.org/docs/wsug_html_chunked/ChUsePacketDetailsPaneSection.html[packet details] pane of Wireshark, and the packet details view of TShark.
+/* <<lua_class_TreeItem,`TreeItem`>>s represent information in the https://www.wireshark.org/docs/wsug_html_chunked/ChUsePacketDetailsPaneSection.html[packet details] pane of Wireshark, and the packet details view of TShark.
    A <<lua_class_TreeItem,`TreeItem`>> represents a node in the tree, which might also be a subtree and have a list of children.
    The children of a subtree have zero or more siblings which are other children of the same <<lua_class_TreeItem,`TreeItem`>> subtree.
 
-   During dissection, heuristic-dissection, and post-dissection, a root <lua_class_TreeItem,`TreeItem`>> is passed to dissectors as the third argument of the function
+   During dissection, heuristic-dissection, and post-dissection, a root <<lua_class_TreeItem,`TreeItem`>> is passed to dissectors as the third argument of the function
    callback (e.g., `myproto.dissector(tvbuf,pktinfo,root)`).
 
    In some cases the tree is not truly added to, in order to improve performance.
@@ -76,7 +76,7 @@ try_add_packet_field(lua_State *L, TreeItem tree_item, TvbRange tvbr, const int 
                      const ftenum_t type, const guint encoding, gint *ret_err)
 {
     gint err = 0;
-    proto_item* item = NULL;
+    proto_item *volatile item = NULL;
     gint endoff = 0;
 
     switch(type) {
@@ -164,9 +164,9 @@ WSLUA_METHOD TreeItem_add_packet_field(lua_State *L) {
      returned, but the second returned value is `nil`.
 
      Another new feature added to this function in Wireshark version 1.11.3 is the
-     ability to extract native number `ProtoField`s from string encoding in the
+     ability to extract native number `ProtoField`++s++ from string encoding in the
      `TvbRange`, for ASCII-based and similar string encodings. For example, a
-     <<lua_class_ProtoField,`ProtoField`>> of as `ftypes.UINT32` type can be extracted from a `TvbRange`
+     <<lua_class_ProtoField,`ProtoField`>> of type `ftypes.UINT32` can be extracted from a `TvbRange`
      containing the ASCII string "123", and it will correctly decode the ASCII to
      the number `123`, both in the tree as well as for the second return value of
      this function. To do so, you must set the `encoding` argument of this function

@@ -13,7 +13,7 @@
 #define __PACKET_E164_H__
 
 #include <epan/value_string.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 extern const value_string E164_country_code_value[];
 extern const value_string E164_ISO3166_country_code_short_value[];
@@ -44,4 +44,5 @@ typedef enum {
 extern void dissect_e164_number(tvbuff_t *tvb, proto_tree *tree, int offset, int length, e164_info_t e164_info);
 WS_DLL_PUBLIC void dissect_e164_cc(tvbuff_t *tvb, proto_tree *tree, int offset, e164_encoding_t encoding);
 WS_DLL_PUBLIC const gchar * dissect_e164_msisdn(tvbuff_t *tvb, proto_tree *tree, int offset, int length, e164_encoding_t encoding);
+WS_DLL_PUBLIC const gchar * dissect_e164_isdn(tvbuff_t *tvb, proto_tree *tree, int offset, int length, e164_encoding_t encoding);
 #endif

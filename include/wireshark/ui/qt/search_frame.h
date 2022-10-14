@@ -1,4 +1,4 @@
-/* search_frame.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -47,7 +47,7 @@ private:
 
     Ui::SearchFrame *sf_ui_;
     capture_file *cap_file_;
-    GRegex *regex_;
+    ws_regex_t *regex_;
     QString regex_error_;
 
 private slots:

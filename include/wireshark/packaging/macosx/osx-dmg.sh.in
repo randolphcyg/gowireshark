@@ -5,9 +5,12 @@
 set -e
 
 # Defaults
+app_name="Wireshark"
 dmgbuild="@DMGBUILD_EXECUTABLE@"
-version="@VERSION@"
-settings_file="@CMAKE_BINARY_DIR@/packaging/macosx/dmgbuild-settings.py"
+version="@PROJECT_VERSION@"
+log_version="@LOG_PROJECT_VERSION@"
+app_settings_file="@CMAKE_BINARY_DIR@/packaging/macosx/wireshark-app.dmgbuild"
+dsym_settings_file="@CMAKE_BINARY_DIR@/packaging/macosx/wireshark-dsym.dmgbuild"
 architecture=""
 
 # Help message
@@ -24,8 +27,8 @@ OPTIONS
 	-h,--help
 		Display this help message.
 
-Icons are positioned and the background image is set in
-dmgbuild-settings.py.in.
+Icons are positioned and the background image is set in wireshark-app.dmgbuild.in
+and wireshark-dsym.dmgbuild.in.
 "
 }
 
@@ -34,20 +37,14 @@ if [ ! -x "$dmgbuild" ] ; then
 	exit 1
 fi
 
-if lipo Wireshark.app/Contents/MacOS/Wireshark -verify_arch arm64 ; then
-	architecture="Arm 64"
-elif lipo Wireshark.app/Contents/MacOS/Wireshark -verify_arch x86_64 ; then
-	architecture="Intel 64"
-else
-	echo "Error: Wireshark.app missing or has unknown architecture."
-	lipo Wireshark.app/Contents/MacOS/Wireshark -detailed_info
-	exit 1
-fi
-
 # Parse command line arguments
 while [ "$1" != "" ]
 do
 	case $1 in
+		-a|--app-name)
+			shift 1
+			app_name="$1"
+			;;
 		-h|--help)
 			help
 			exit 0 ;;
@@ -58,27 +55,54 @@ do
 	shift 1
 done
 
-vol_name="Wireshark ${version}"
-img_name="$vol_name $architecture.dmg"
+if lipo "$app_name.app/Contents/MacOS/$app_name" -verify_arch arm64 ; then
+	architecture="Arm 64"
+elif lipo "$app_name.app/Contents/MacOS/$app_name" -verify_arch x86_64 ; then
+	architecture="Intel 64"
+else
+	echo "Error: $app_name.app missing or has unknown architecture."
+	lipo "$app_name.app/Contents/MacOS/$app_name" -detailed_info
+	exit 1
+fi
 
-echo -e "\\nCREATE WIRESHARK DISK IMAGE\\n"
+if [[ $app_name = Log* ]] ; then
+	version=$log_version
+	app_settings_file="@CMAKE_BINARY_DIR@/packaging/macosx/logray-app.dmgbuild"
+	dsym_settings_file="@CMAKE_BINARY_DIR@/packaging/macosx/logray-dsym.dmgbuild"
+fi
+
+app_vol_name="$app_name ${version}"
+app_img_name="$app_vol_name $architecture.dmg"
+
+printf "\nCreating application disk image %s\n" "$app_img_name"
 
 "$dmgbuild" \
 	--no-hidpi \
-	-s "$settings_file" \
-	"$vol_name" \
-	"$img_name" || exit 1
+	-s "$app_settings_file" \
+	"$app_vol_name" \
+	"$app_img_name" || exit 1
 
-echo -e "\\nSIGN WIRESHARK DISK IMAGE\\n"
+dsym_vol_name="$app_name dSYM ${version}"
+dsym_img_name="$dsym_vol_name $architecture.dmg"
+
+printf "\nCreating debugging symbols disk image %s\n" "$dsym_img_name"
+
+"$dmgbuild" \
+	--no-hidpi \
+	-s "$dsym_settings_file" \
+	"$dsym_vol_name" \
+	"$dsym_img_name" || exit 1
+
+printf "\nSigning disk images\n"
 
 # TN2206, "Signing Disk Images"
 if [ -n "$CODE_SIGN_IDENTITY" ] ; then
-	echo -e "Signing $img_name"
+	echo -e "Signing $app_img_name and $dsym_img_name"
 	codesign \
 		--sign "Developer ID Application: $CODE_SIGN_IDENTITY" \
 		--timestamp \
 		--verbose \
-		"$img_name"
+		"$app_img_name" "$dsym_img_name"
 fi
 
 exit 0

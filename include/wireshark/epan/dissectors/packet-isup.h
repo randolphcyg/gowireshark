@@ -13,12 +13,13 @@
 #ifndef PACKET_ISUP_H
 #define PACKET_ISUP_H
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #define ISUP_MAX_NUM_MESSAGE_TYPES  256
 
 typedef struct _isup_tap_rec_t {
     guint8      message_type;
+    guint8      itu_isup_variant;
     /* added for VoIP calls analysis, see ui/voip_calls.c*/
     gchar           *called_number;
     gchar           *calling_number;

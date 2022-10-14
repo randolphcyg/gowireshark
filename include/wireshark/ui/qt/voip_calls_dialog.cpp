@@ -22,7 +22,7 @@
 #include "rtp_player_dialog.h"
 #include "sequence_dialog.h"
 #include <ui/qt/utils/stock_icon.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 #include <ui/qt/models/voip_calls_info_model.h>
 
 #include <QClipboard>
@@ -44,11 +44,11 @@ enum { voip_calls_type_ = 1000 };
 
 VoipCallsDialog *VoipCallsDialog::pinstance_voip_{nullptr};
 VoipCallsDialog *VoipCallsDialog::pinstance_sip_{nullptr};
-std::mutex VoipCallsDialog::mutex_;
+std::mutex VoipCallsDialog::init_mutex_;
 
 VoipCallsDialog *VoipCallsDialog::openVoipCallsDialogVoip(QWidget &parent, CaptureFile &cf, QObject *packet_list)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(init_mutex_);
     if (pinstance_voip_ == nullptr)
     {
         pinstance_voip_ = new VoipCallsDialog(parent, cf, false);
@@ -60,7 +60,7 @@ VoipCallsDialog *VoipCallsDialog::openVoipCallsDialogVoip(QWidget &parent, Captu
 
 VoipCallsDialog *VoipCallsDialog::openVoipCallsDialogSip(QWidget &parent, CaptureFile &cf, QObject *packet_list)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(init_mutex_);
     if (pinstance_sip_ == nullptr)
     {
         pinstance_sip_ = new VoipCallsDialog(parent, cf, true);
@@ -195,24 +195,28 @@ bool VoipCallsDialog::eventFilter(QObject *, QEvent *event)
 
 VoipCallsDialog::~VoipCallsDialog()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    delete ui;
+    std::lock_guard<std::mutex> lock(init_mutex_);
+    if ((all_flows_ && (pinstance_sip_ != nullptr))
+        || (!all_flows_ && (pinstance_voip_ != nullptr))
+       ) {
+        delete ui;
 
-    voip_calls_reset_all_taps(&tapinfo_);
-    if (!voip_calls_tap_listeners_removed_) {
-        voip_calls_remove_all_tap_listeners(&tapinfo_);
-        voip_calls_tap_listeners_removed_ = true;
-    }
-    sequence_info_->unref();
-    g_queue_free(tapinfo_.callsinfos);
-    // We don't need to clear shown_callsinfos_ data, it was shared
-    // with tapinfo_.callsinfos and was cleared
-    // during voip_calls_reset_all_taps
-    g_queue_free(shown_callsinfos_);
-    if (all_flows_) {
-        pinstance_sip_ = nullptr;
-    } else {
-        pinstance_voip_ = nullptr;
+        voip_calls_reset_all_taps(&tapinfo_);
+        if (!voip_calls_tap_listeners_removed_) {
+            voip_calls_remove_all_tap_listeners(&tapinfo_);
+            voip_calls_tap_listeners_removed_ = true;
+        }
+        sequence_info_->unref();
+        g_queue_free(tapinfo_.callsinfos);
+        // We don't need to clear shown_callsinfos_ data, it was shared
+        // with tapinfo_.callsinfos and was cleared
+        // during voip_calls_reset_all_taps
+        g_queue_free(shown_callsinfos_);
+        if (all_flows_) {
+            pinstance_sip_ = nullptr;
+        } else {
+            pinstance_voip_ = nullptr;
+        }
     }
 }
 
@@ -256,24 +260,25 @@ void VoipCallsDialog::contextMenuEvent(QContextMenuEvent *event)
     if (! selected)
         return;
 
-    QMenu popupMenu;
+    QMenu *popupMenu = new QMenu(this);
     QAction *action;
 
-    popupMenu.addMenu(ui->menuSelect);
-    action = popupMenu.addAction(tr("Display time as time of day"), this, SLOT(switchTimeOfDay()));
+    popupMenu->setAttribute(Qt::WA_DeleteOnClose);
+    popupMenu->addMenu(ui->menuSelect);
+    action = popupMenu->addAction(tr("Display time as time of day"), this, SLOT(switchTimeOfDay()));
     action->setCheckable(true);
     action->setChecked(call_infos_model_->timeOfDay());
     action->setEnabled(!file_closed_);
-    popupMenu.addSeparator();
-    action = popupMenu.addAction(tr("Copy as CSV"), this, SLOT(copyAsCSV()));
+    popupMenu->addSeparator();
+    action = popupMenu->addAction(tr("Copy as CSV"), this, SLOT(copyAsCSV()));
     action->setToolTip(tr("Copy stream list as CSV."));
-    action = popupMenu.addAction(tr("Copy as YAML"), this, SLOT(copyAsYAML()));
+    action = popupMenu->addAction(tr("Copy as YAML"), this, SLOT(copyAsYAML()));
     action->setToolTip(tr("Copy stream list as YAML."));
-    popupMenu.addSeparator();
-    popupMenu.addAction(ui->actionSelectRtpStreams);
-    popupMenu.addAction(ui->actionDeselectRtpStreams);
+    popupMenu->addSeparator();
+    popupMenu->addAction(ui->actionSelectRtpStreams);
+    popupMenu->addAction(ui->actionDeselectRtpStreams);
 
-    popupMenu.exec(event->globalPos());
+    popupMenu->popup(event->globalPos());
 }
 
 void VoipCallsDialog::changeEvent(QEvent *event)
@@ -328,7 +333,7 @@ void VoipCallsDialog::tapReset(void *tapinfo_ptr)
     voip_calls_dialog->sequence_info_ = new SequenceInfo(voip_calls_dialog->tapinfo_.graph_analysis);
 }
 
-tap_packet_status VoipCallsDialog::tapPacket(void *, packet_info *, epan_dissect_t *, const void *)
+tap_packet_status VoipCallsDialog::tapPacket(void *, packet_info *, epan_dissect_t *, const void *, tap_flags_t)
 {
 #ifdef QT_MULTIMEDIA_LIB
 //    voip_calls_tapinfo_t *tapinfo = (voip_calls_tapinfo_t *) tapinfo_ptr;
@@ -701,7 +706,7 @@ void VoipCallsDialog::copyAsCSV()
         }
         stream << rdsl.join(",") << '\n';
     }
-    wsApp->clipboard()->setText(stream.readAll());
+    mainApp->clipboard()->setText(stream.readAll());
 }
 
 void VoipCallsDialog::copyAsYAML()
@@ -715,7 +720,7 @@ void VoipCallsDialog::copyAsYAML()
             stream << " - " << v.toString() << '\n';
         }
     }
-    wsApp->clipboard()->setText(stream.readAll());
+    mainApp->clipboard()->setText(stream.readAll());
 }
 
 void VoipCallsDialog::on_buttonBox_clicked(QAbstractButton *button)
@@ -759,7 +764,7 @@ void VoipCallsDialog::on_displayFilterCheckBox_toggled(bool checked)
 
 void VoipCallsDialog::on_buttonBox_helpRequested()
 {
-    wsApp->helpTopicAction(HELP_TELEPHONY_VOIP_CALLS_DIALOG);
+    mainApp->helpTopicAction(HELP_TELEPHONY_VOIP_CALLS_DIALOG);
 }
 
 void VoipCallsDialog::switchTimeOfDay()

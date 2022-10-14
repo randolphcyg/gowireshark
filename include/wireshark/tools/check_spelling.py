@@ -13,6 +13,7 @@ import signal
 from collections import Counter
 
 # Looks for spelling errors among strings found in source or documentation files.
+# N.B. To run this script, you should install pyspellchecker (not spellchecker) using pip.
 
 # TODO: check structured doxygen comments?
 
@@ -112,6 +113,14 @@ class File:
 
         return self.checkMultiWordsRecursive(word)
 
+    # If word before 'id' is recognised, accept word.
+    def wordBeforeId(self, word):
+        if word.lower().endswith('id'):
+            if not spell.unknown([word[0:len(word)-2]]):
+                return True
+            else:
+                return False
+
     def checkMultiWordsRecursive(self, word):
         length = len(word)
         #print('word=', word)
@@ -120,29 +129,32 @@ class File:
 
         for idx in range(4, length+1):
             w = word[0:idx]
-            #print('considering', w)
             if not spell.unknown([w]):
-                #print('Recognised!')
                 if idx == len(word):
-                    #print('Was end of word, so TRUEE!!!!')
                     return True
                 else:
-                    #print('More to go..')
                     if self.checkMultiWordsRecursive(word[idx:]):
                         return True
 
         return False
 
+    def numberPlusUnits(self, word):
+        m = re.search(r'^([0-9]+)([a-zA-Z]+)$', word)
+        if m:
+            if m.group(2).lower() in { "bit", "bits", "gb", "kbps", "gig", "mb", "th", "mhz", "v", "hz", "k",
+                                       "mbps", "m", "g", "ms", "nd", "nds", "rd", "kb", "kbit",
+                                       "khz", "km", "ms", "usec", "sec", "gbe", "ns", "ksps", "qam", "mm" }:
+                return True
+        return False
+
+
     # Check the spelling of all the words we have found
     def spellCheck(self):
 
         num_values = len(self.values)
-        this_value = 0
-        for v in self.values:
+        for value_index,v in enumerate(self.values):
             if should_exit:
                 exit(1)
-
-            this_value += 1
 
             # Ignore includes.
             if v.endswith('.h'):
@@ -203,8 +215,11 @@ class File:
                 word = word.replace('“', '')
                 word = word.replace('”', '')
 
-                if len(word) > 4 and spell.unknown([word]) and not self.checkMultiWords(word):
-                    print(self.file, this_value, '/', num_values, '"' + original + '"', bcolors.FAIL + word + bcolors.ENDC,
+                if self.numberPlusUnits(word):
+                    continue
+
+                if len(word) > 4 and spell.unknown([word]) and not self.checkMultiWords(word) and not self.wordBeforeId(word):
+                    print(self.file, value_index, '/', num_values, '"' + original + '"', bcolors.FAIL + word + bcolors.ENDC,
                          ' -> ', '?')
                     # TODO: this can be interesting, but takes too long!
                     # bcolors.OKGREEN + spell.correction(word) + bcolors.ENDC
@@ -223,7 +238,8 @@ def removeContractions(code_string):
                      "you’d", "developer’s", "doesn’t", "what’s", "let’s", "haven’t", "can’t", "you’ve",
                      "shouldn’t", "didn’t", "wouldn’t", "aren’t", "there’s", "packet’s", "couldn’t", "world’s",
                      "needn’t", "graph’s", "table’s", "parent’s", "entity’s", "server’s", "node’s",
-                     "querier’s", "sender’s", "receiver’s", "computer’s", "frame’s", "vendor’s", "system’s"]
+                     "querier’s", "sender’s", "receiver’s", "computer’s", "frame’s", "vendor’s", "system’s",
+                     "we’ll", "asciidoctor’s", "protocol’s", "microsoft’s", "wasn’t" ]
     for c in contractions:
         code_string = code_string.replace(c, "")
         code_string = code_string.replace(c.capitalize(), "")
@@ -282,8 +298,7 @@ def findStrings(filename):
                 file.add(m.group(1))
         else:
             # A documentation file, so examine all words.
-            words = contents.split()
-            for w in words:
+            for w in contents.split():
                 file.add(w)
 
         return file
@@ -294,13 +309,16 @@ def isGeneratedFile(filename):
     if not filename.endswith('.c'):
         return False
 
+    # This file is generated, but notice is further in than want to check for all files
+    if filename.endswith('pci-ids.c'):
+        return True
+
     # Open file
     f_read = open(os.path.join(filename), 'r')
-    lines_tested = 0
-    for line in f_read:
+    for line_no,line in enumerate(f_read):
         # The comment to say that its generated is near the top, so give up once
         # get a few lines down.
-        if lines_tested > 10:
+        if line_no > 10:
             f_read.close()
             return False
         if (line.find('Generated automatically') != -1 or
@@ -309,11 +327,11 @@ def isGeneratedFile(filename):
             line.find('automatically generated by Pidl') != -1 or
             line.find('Created by: The Qt Meta Object Compiler') != -1 or
             line.find('This file was generated') != -1 or
-            line.find('This filter was automatically generated') != -1):
+            line.find('This filter was automatically generated') != -1 or
+            line.find('This file is auto generated, do not edit!') != -1):
 
             f_read.close()
             return True
-        lines_tested = lines_tested + 1
 
     # OK, looks like a hand-written file!
     f_read.close()
@@ -322,7 +340,9 @@ def isGeneratedFile(filename):
 
 def isAppropriateFile(filename):
     file, extension = os.path.splitext(filename)
-    return extension in { '.adoc', '.c', '.cpp', '.pod', '.nsi'} or file.endswith('README')
+    if filename.find('CMake') != -1:
+        return False
+    return extension in { '.adoc', '.c', '.cpp', '.pod', '.nsi', '.txt'} or file.endswith('README')
 
 
 def findFilesInFolder(folder, recursive=True):
@@ -363,7 +383,7 @@ def checkFile(filename):
 # command-line args.  Controls which files should be checked.
 # If no args given, will just scan epan/dissectors folder.
 parser = argparse.ArgumentParser(description='Check spellings in specified files')
-parser.add_argument('--file', action='store', default='',
+parser.add_argument('--file', action='append',
                     help='specify individual file to test')
 parser.add_argument('--folder', action='store', default='',
                     help='specify folder to test')
@@ -380,12 +400,13 @@ args = parser.parse_args()
 # Get files from wherever command-line args indicate.
 files = []
 if args.file:
-    # Add single specified file..
-    if not os.path.isfile(args.file):
-        print('Chosen file', args.file, 'does not exist.')
-        exit(1)
-    else:
-        files.append(args.file)
+    # Add specified file(s)
+    for f in args.file:
+        if not os.path.isfile(f):
+            print('Chosen file', f, 'does not exist.')
+            exit(1)
+        else:
+            files.append(f)
 elif args.commits:
     # Get files affected by specified number of commits.
     command = ['git', 'diff', '--name-only', 'HEAD~' + args.commits]
@@ -437,10 +458,11 @@ else:
 
 # Now check the chosen files.
 for f in files:
-    # Jump out if control-C has been pressed.
+    # Check this file.
+    checkFile(f)
+    # But get out if control-C has been pressed.
     if should_exit:
         exit(1)
-    checkFile(f)
 
 
 

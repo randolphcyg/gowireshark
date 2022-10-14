@@ -31,7 +31,7 @@ gchar *
 user_guide_url(const gchar *page) {
     GString *url = g_string_new("");
 
-#if defined(WIN32)
+#if defined(_WIN32)
     /*
      * The User's Guide is in a directory named "Wireshark User's Guide" in
      * the program directory.
@@ -48,12 +48,12 @@ user_guide_url(const gchar *page) {
         /* try to open the HTML page from wireshark.org instead */
         g_string_printf(url, "file://" DOC_DIR "/guides/wsug_html_chunked/%s", page);
     }
-#endif /* WIN32 / DOC_DIR */
+#endif /* _WIN32 / DOC_DIR */
 
 
     /* Fall back to wireshark.org. */
     if (url->len == 0) {
-        g_string_printf(url, WS_DOCS_URL "/wsug_html_chunked/%s", page);
+        g_string_printf(url, WS_DOCS_URL "wsug_html_chunked/%s", page);
     }
     return g_string_free(url, FALSE);
 }
@@ -78,7 +78,7 @@ topic_action_url(topic_action_e action)
         url = g_strdup(WS_DOCS_URL);
         break;
     case(ONLINEPAGE_USERGUIDE):
-        url = g_strdup(WS_DOCS_URL "/wsug_html_chunked/");
+        url = g_strdup(WS_DOCS_URL "wsug_html_chunked/");
         break;
     case(ONLINEPAGE_FAQ):
         url = g_strdup(WS_FAQ_URL);
@@ -159,9 +159,6 @@ topic_action_url(topic_action_e action)
     case(HELP_CONFIG_PROFILES_DIALOG):
         url = user_guide_url("ChCustConfigProfilesSection.html");
         break;
-    case (HELP_MANUAL_ADDR_RESOLVE_DIALOG):
-        url = user_guide_url("ChManualAddressResolveSection.html");
-        break;
     case(HELP_PRINT_DIALOG):
         url = user_guide_url("ChIOPrintSection.html");
         break;
@@ -222,9 +219,6 @@ topic_action_url(topic_action_e action)
     case(HELP_STATS_IO_GRAPH_DIALOG):
         url = user_guide_url("ChStatIOGraphs.html");
         break;
-    case(HELP_STATS_COMPARE_FILES_DIALOG):
-        url = user_guide_url("ChStatCompareCaptureFiles.html");
-        break;
     case(HELP_STATS_LTE_MAC_TRAFFIC_DIALOG):
         url = user_guide_url("ChTelLTEMACTraffic.html");
         break;
@@ -242,9 +236,6 @@ topic_action_url(topic_action_e action)
         break;
     case(HELP_CAPTURE_INTERFACE_OPTIONS_DIALOG):
         url = user_guide_url("ChCustPreferencesSection.html#ChCustInterfaceOptionsSection");
-        break;
-    case(HELP_CAPTURE_INTERFACES_DETAILS_DIALOG):
-        url = user_guide_url("ChCapInterfaceDetailsSection.html");
         break;
     case(HELP_PREFERENCES_DIALOG):
         url = user_guide_url("ChCustPreferencesSection.html");
@@ -277,9 +268,6 @@ topic_action_url(topic_action_e action)
     case(HELP_TIME_SHIFT_DIALOG):
         url = user_guide_url("ChWorkShiftTimePacketSection.html");
         break;
-    case(HELP_FILTER_SAVE_DIALOG):
-        url = user_guide_url("ChWorkFilterSaveSection.html");
-        break;
     case(HELP_TELEPHONY_VOIP_CALLS_DIALOG):
         url = user_guide_url("ChTelVoipCalls.html");
         break;
@@ -304,8 +292,8 @@ topic_action_url(topic_action_e action)
 
     case(TOPIC_ACTION_NONE):
     default:
-        ws_assert_not_reached();
         url = g_strdup(WS_HOME_PAGE_URL);
+        ws_assert_not_reached();
     }
 
     return url;

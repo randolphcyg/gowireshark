@@ -669,7 +669,8 @@ static tap_packet_status
 ucp_stats_tree_per_packet(stats_tree *st, /* st as it was passed to us */
                                       packet_info *pinfo _U_,
                                       epan_dissect_t *edt _U_,
-                                      const void *p) /* Used for getting UCP stats */
+                                      const void *p,
+                                      tap_flags_t flags _U_) /* Used for getting UCP stats */
 {
     const ucp_tap_rec_t *tap_rec = (const ucp_tap_rec_t*)p;
 
@@ -1042,7 +1043,7 @@ ucp_handle_XSer(proto_tree *tree, tvbuff_t *tvb)
         len = len * 16 + AHex2Bin(intval);
         proto_tree_add_uint(tree, hf_xser_service, tvb, offset,   2, service);
         proto_tree_add_uint(tree, hf_xser_length,  tvb, offset+2, 2, len);
-        proto_tree_add_item(tree, hf_xser_data,    tvb, offset+4, len*2, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(tree, hf_xser_data,    tvb, offset+4, len*2, ENC_ASCII);
         offset += 4 + (2 * len);
     }
 }

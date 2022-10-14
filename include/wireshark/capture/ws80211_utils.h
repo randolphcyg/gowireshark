@@ -1,4 +1,5 @@
-/*
+/** @file
+ *
  * Copyright 2012, Pontus Fuchs <pontus.fuchs@gmail.com>
  *
  * Wireshark - Network traffic analyzer
@@ -11,7 +12,7 @@
 #ifndef __WS80211_UTILS_H__
 #define __WS80211_UTILS_H__
 
-#include "ws_attributes.h"
+#include <include/wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,5 +1,8 @@
-/* column.h
+/** @file
  * Definitions for column handling routines
+ * Column preference and format settings.
+ *
+ * For internal Wireshark useonly. Don't include this header in dissectors!
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -11,8 +14,8 @@
 #ifndef __COLUMN_H__
 #define __COLUMN_H__
 
-#include "ws_symbol_export.h"
-#include <epan/column-info.h>
+#include "include/ws_symbol_export.h"
+#include <epan/column-utils.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,6 +68,19 @@ WS_DLL_PUBLIC
 gint                 get_column_char_width(const gint format);
 WS_DLL_PUBLIC
 gchar               *get_column_tooltip(const gint col);
+
+/** Get the text of a column element. The string returned may
+ * depend on whether the resolved member variable is set.
+ * For internal Wireshark use, not to be called from dissectors.
+ * Dissectors use col_get_text() in column-utils.h
+ *
+ * @param cinfo the column information
+ * @param col the column index to use (not the format)
+ *
+ * @return the text string
+ */
+WS_DLL_PUBLIC
+const gchar         *get_column_text(column_info *cinfo, const gint col);
 
 WS_DLL_PUBLIC
 void

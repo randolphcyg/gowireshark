@@ -17,6 +17,8 @@
 
 #include <wsutil/utf8_entities.h>
 
+#include "main_application.h"
+
 #include <ui/qt/widgets/display_filter_edit.h>
 #include "filter_dialog.h"
 #include <ui/qt/widgets/stock_icon_tool_button.h>
@@ -27,7 +29,6 @@
 #include <ui/qt/filter_action.h>
 #include <ui/qt/display_filter_expression_dialog.h>
 #include <ui/qt/main_window.h>
-#include "wireshark_application.h"
 
 #include <QAction>
 #include <QAbstractItemView>
@@ -121,27 +122,30 @@ DisplayFilterEdit::DisplayFilterEdit(QWidget *parent, DisplayFilterEditType type
     connect(this, &DisplayFilterEdit::textChanged, this,
             static_cast<void (DisplayFilterEdit::*)(const QString &)>(&DisplayFilterEdit::checkFilter));
 
-    connect(wsApp, &WiresharkApplication::appInitialized, this, &DisplayFilterEdit::updateBookmarkMenu);
-    connect(wsApp, &WiresharkApplication::displayFilterListChanged, this, &DisplayFilterEdit::updateBookmarkMenu);
-    connect(wsApp, SIGNAL(preferencesChanged()), this, SLOT(checkFilter()));
+    connect(mainApp, &MainApplication::appInitialized, this, &DisplayFilterEdit::updateBookmarkMenu);
+    connect(mainApp, &MainApplication::displayFilterListChanged, this, &DisplayFilterEdit::updateBookmarkMenu);
+    connect(mainApp, SIGNAL(preferencesChanged()), this, SLOT(checkFilter()));
 
-    connect(wsApp, SIGNAL(appInitialized()), this, SLOT(connectToMainWindow()));
+    connect(mainApp, SIGNAL(appInitialized()), this, SLOT(connectToMainWindow()));
 }
 
 void DisplayFilterEdit::connectToMainWindow()
 {
-    connect(this, SIGNAL(filterPackets(QString, bool)), wsApp->mainWindow(), SLOT(filterPackets(QString, bool)));
+    connect(this, SIGNAL(filterPackets(QString, bool)), mainApp->mainWindow(), SLOT(filterPackets(QString, bool)));
     connect(this, SIGNAL(showPreferencesDialog(QString)),
-            wsApp->mainWindow(), SLOT(showPreferencesDialog(QString)));
-    connect(wsApp->mainWindow(), SIGNAL(displayFilterSuccess(bool)),
+            mainApp->mainWindow(), SLOT(showPreferencesDialog(QString)));
+    connect(mainApp->mainWindow(), SIGNAL(displayFilterSuccess(bool)),
             this, SLOT(displayFilterSuccess(bool)));
 }
 
 void DisplayFilterEdit::contextMenuEvent(QContextMenuEvent *event) {
     QMenu *menu = this->createStandardContextMenu();
+    menu->setAttribute(Qt::WA_DeleteOnClose);
 
-    if (menu->actions().count() <= 0)
+    if (menu->actions().count() <= 0) {
+        menu->deleteLater();
         return;
+    }
 
     QAction * first = menu->actions().at(0);
 
@@ -158,7 +162,7 @@ void DisplayFilterEdit::contextMenuEvent(QContextMenuEvent *event) {
 
     menu->insertSeparator(first);
 
-    menu->exec(event->globalPos());
+    menu->popup(event->globalPos());
 }
 
 void DisplayFilterEdit::triggerAlignementAction()
@@ -295,7 +299,7 @@ void DisplayFilterEdit::paintEvent(QPaintEvent *evt) {
         else
             xpos = bookmark_button_->size().width();
 
-        painter.drawLine(xpos, cr.top(), xpos, cr.bottom());
+        painter.drawLine(xpos, cr.top(), xpos, cr.bottom() + 1);
     }
 }
 
@@ -338,7 +342,7 @@ void DisplayFilterEdit::checkFilter(const QString& filter_text)
     }
 
     if (filter_text.length() <= 0)
-        wsApp->popStatus(WiresharkApplication::FilterSyntax);
+        mainApp->popStatus(MainApplication::FilterSyntax);
 
     emit popFilterSyntaxStatus();
     if (!checkDisplayFilter(filter_text))
@@ -347,14 +351,14 @@ void DisplayFilterEdit::checkFilter(const QString& filter_text)
     switch (syntaxState()) {
     case Deprecated:
     {
-        wsApp->pushStatus(WiresharkApplication::FilterSyntax, syntaxErrorMessage());
+        mainApp->pushStatus(MainApplication::FilterSyntax, syntaxErrorMessage());
         setToolTip(syntaxErrorMessage());
         break;
     }
     case Invalid:
     {
         QString invalidMsg = tr("Invalid filter: ").append(syntaxErrorMessage());
-        wsApp->pushStatus(WiresharkApplication::FilterSyntax, syntaxErrorMessage());
+        mainApp->pushStatus(MainApplication::FilterSyntax, syntaxErrorMessage());
         setToolTip(invalidMsg);
         break;
     }
@@ -470,14 +474,14 @@ void DisplayFilterEdit::buildCompletionList(const QString &field_word)
 {
     // Push a hint about the current field.
     if (syntaxState() == Valid) {
-        wsApp->popStatus(WiresharkApplication::FilterSyntax);
+        mainApp->popStatus(MainApplication::FilterSyntax);
 
         header_field_info *hfinfo = proto_registrar_get_byname(field_word.toUtf8().constData());
         if (hfinfo) {
             QString cursor_field_msg = QString("%1: %2")
                     .arg(hfinfo->name)
                     .arg(ftype_pretty_name(hfinfo->type));
-            wsApp->pushStatus(WiresharkApplication::FilterSyntax, cursor_field_msg);
+            mainApp->pushStatus(MainApplication::FilterSyntax, cursor_field_msg);
         }
     }
 
@@ -515,7 +519,7 @@ void DisplayFilterEdit::buildCompletionList(const QString &field_word)
 
     void *proto_cookie;
     QStringList field_list;
-    int field_dots = field_word.count('.'); // Some protocol names (_ws.expert) contain periods.
+    int field_dots = static_cast<int>(field_word.count('.')); // Some protocol names (_ws.expert) contain periods.
     for (int proto_id = proto_get_first_protocol(&proto_cookie); proto_id != -1; proto_id = proto_get_next_protocol(&proto_cookie)) {
         protocol_t *protocol = find_protocol_by_id(proto_id);
         if (!proto_is_protocol_enabled(protocol)) continue;
@@ -761,8 +765,13 @@ void DisplayFilterEdit::createFilterTextDropMenu(QDropEvent *event, bool prepare
 
     FilterAction::Action filterAct = prepare ? FilterAction::ActionPrepare : FilterAction::ActionApply;
     QMenu * applyMenu = FilterAction::createFilterMenu(filterAct, filterText, true, this);
+    applyMenu->setAttribute(Qt::WA_DeleteOnClose);
 
-    applyMenu->exec(this->mapToGlobal(event->pos()));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0 ,0)
+    applyMenu->popup(this->mapToGlobal(event->position().toPoint()));
+#else
+    applyMenu->popup(this->mapToGlobal(event->pos()));
+#endif
 }
 
 void DisplayFilterEdit::displayFilterExpression()

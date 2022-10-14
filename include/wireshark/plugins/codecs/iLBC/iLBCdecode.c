@@ -16,7 +16,7 @@
 
 #include "ilbc.h"
 #include "wsutil/codecs.h"
-#include "ws_attributes.h"
+#include "include/ws_attributes.h"
 
 #define ILBC_20MS 20
 #define ILBC_30MS 30

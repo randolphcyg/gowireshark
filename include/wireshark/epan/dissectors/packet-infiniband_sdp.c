@@ -249,14 +249,14 @@ dissect_ib_sdp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
        will not work since we do not have the source QP. this WILL succeed when we're still
        in the process of CM negotiations */
     conv = find_conversation(pinfo->num, &pinfo->src, &pinfo->dst,
-                             ENDPOINT_IBQP, pinfo->srcport, pinfo->destport, 0);
+                             CONVERSATION_IBQP, pinfo->srcport, pinfo->destport, 0);
 
     if (!conv) {
         /* if not, try to find an established RC channel. recall Infiniband conversations are
            registered with one side of the channel. since the packet is only guaranteed to
            contain the qpn of the destination, we'll use this */
         conv = find_conversation(pinfo->num, &pinfo->dst, &pinfo->dst,
-                                 ENDPOINT_IBQP, pinfo->destport, pinfo->destport, NO_ADDR_B|NO_PORT_B);
+                                 CONVERSATION_IBQP, pinfo->destport, pinfo->destport, NO_ADDR_B|NO_PORT_B);
 
         if (!conv)
             return FALSE;   /* nothing to do with no conversation context */
@@ -436,7 +436,7 @@ proto_register_ib_sdp(void)
     proto_register_subtree_array(ett, array_length(ett));
 
     /* Register preferences */
-    ib_sdp_module = prefs_register_protocol(proto_ib_sdp, proto_reg_handoff_ib_sdp);
+    ib_sdp_module = prefs_register_protocol(proto_ib_sdp, NULL);
 
     prefs_register_static_text_preference(ib_sdp_module, "use_decode_as",
         "Heuristic matching preferences removed.  Use Infiniband protocol preferences or Decode As.",

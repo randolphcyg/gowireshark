@@ -1,4 +1,4 @@
-/* timestamp.h
+/** @file
  * Defines for packet timestamps
  *
  * Wireshark - Network traffic analyzer
@@ -11,7 +11,7 @@
 #ifndef __TIMESTAMP_H__
 #define __TIMESTAMP_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

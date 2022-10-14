@@ -19,7 +19,7 @@
 
 #include "ui/qt/interface_frame.h"
 #include <ui/qt/simple_dialog.h>
-#include <ui/qt/wireshark_application.h>
+#include <ui/qt/main_application.h>
 
 #include <ui/qt/models/interface_tree_model.h>
 #include <ui/qt/models/sparkline_delegate.h>
@@ -30,6 +30,8 @@
 #include "extcap.h"
 
 #include <ui/recent.h>
+#include "capture_opts.h"
+#include "ui/capture_globals.h"
 #include <wsutil/utf8_entities.h>
 
 #include <QDesktopServices>
@@ -94,20 +96,22 @@ InterfaceFrame::InterfaceFrame(QWidget * parent)
     columns.append(IFTREE_COL_STATS);
     proxy_model_.setColumns(columns);
     proxy_model_.setStoreOnChange(true);
+    proxy_model_.setSortByActivity(true);
     proxy_model_.setSourceModel(&source_model_);
 
     info_model_.setSourceModel(&proxy_model_);
-    info_model_.setColumn(columns.indexOf(IFTREE_COL_STATS));
+    info_model_.setColumn(static_cast<int>(columns.indexOf(IFTREE_COL_STATS)));
 
     ui->interfaceTree->setModel(&info_model_);
+    ui->interfaceTree->setSortingEnabled(true);
 
     ui->interfaceTree->setItemDelegateForColumn(proxy_model_.mapSourceToColumn(IFTREE_COL_STATS), new SparkLineDelegate(this));
 
     ui->interfaceTree->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->interfaceTree, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(showContextMenu(QPoint)));
 
-    connect(wsApp, SIGNAL(appInitialized()), this, SLOT(interfaceListChanged()));
-    connect(wsApp, SIGNAL(localInterfaceListChanged()), this, SLOT(interfaceListChanged()));
+    connect(mainApp, SIGNAL(appInitialized()), this, SLOT(interfaceListChanged()));
+    connect(mainApp, SIGNAL(localInterfaceListChanged()), this, SLOT(interfaceListChanged()));
 
     connect(ui->interfaceTree->selectionModel(), SIGNAL(selectionChanged(const QItemSelection &, const QItemSelection &)),
             this, SLOT(interfaceTreeSelectionChanged(const QItemSelection &, const QItemSelection &)));
@@ -145,21 +149,18 @@ QMenu * InterfaceFrame::getSelectionMenu()
     {
         QAction * toggleRemoteAction = new QAction(tr("Remote interfaces"), this);
         toggleRemoteAction->setCheckable(true);
-        toggleRemoteAction->setChecked(! proxy_model_.remoteDisplay());
+        toggleRemoteAction->setChecked(proxy_model_.remoteDisplay());
         connect(toggleRemoteAction, SIGNAL(triggered()), this, SLOT(toggleRemoteInterfaces()));
         contextMenu->addAction(toggleRemoteAction);
     }
 #endif
 
-#if 0
-    // Disabled until bug 13354 is fixed
     contextMenu->addSeparator();
     QAction * toggleHideAction = new QAction(tr("Show hidden interfaces"), this);
     toggleHideAction->setCheckable(true);
-    toggleHideAction->setChecked(! proxy_model_->filterHidden());
+    toggleHideAction->setChecked(! proxy_model_.filterHidden());
     connect(toggleHideAction, SIGNAL(triggered()), this, SLOT(toggleHiddenInterfaces()));
     contextMenu->addAction(toggleHideAction);
-#endif
 
     return contextMenu;
 }
@@ -250,6 +251,7 @@ void InterfaceFrame::interfaceListChanged()
 
 void InterfaceFrame::toggleHiddenInterfaces()
 {
+    source_model_.interfaceListChanged();
     proxy_model_.toggleFilterHidden();
 
     emit typeSelectionChanged();
@@ -308,7 +310,7 @@ void InterfaceFrame::resetInterfaceTreeDisplay()
         // used if __APPLE__ is defined, so that it reflects the
         // new message text.
         //
-        QString install_chmodbpf_path = wsApp->applicationDirPath() + "/../Resources/Extras/Install ChmodBPF.pkg";
+        QString install_chmodbpf_path = mainApp->applicationDirPath() + "/../Resources/Extras/Install ChmodBPF.pkg";
         ui->warningLabel->setText(tr(
             "<p>"
             "You don't have permission to capture on local interfaces."
@@ -410,10 +412,14 @@ void InterfaceFrame::on_interfaceTree_doubleClicked(const QModelIndex &index)
     if (! realIndex.isValid())
         return;
 
+    QStringList interfaces;
+
 #ifdef HAVE_LIBPCAP
 
     QString device_name = source_model_.getColumnContent(realIndex.row(), IFTREE_COL_NAME).toString();
     QString extcap_string = source_model_.getColumnContent(realIndex.row(), IFTREE_COL_EXTCAP_PATH).toString();
+
+    interfaces << device_name;
 
     /* We trust the string here. If this interface is really extcap, the string is
      * being checked immediatly before the dialog is being generated */
@@ -422,12 +428,13 @@ void InterfaceFrame::on_interfaceTree_doubleClicked(const QModelIndex &index)
         /* this checks if configuration is required and not yet provided or saved via prefs */
         if (extcap_has_configuration((const char *)(device_name.toStdString().c_str()), TRUE))
         {
-            emit showExtcapOptions(device_name);
+            emit showExtcapOptions(device_name, true);
             return;
         }
     }
 #endif
-    emit startCapture();
+
+    startCapture(interfaces);
 }
 
 #ifdef HAVE_LIBPCAP
@@ -450,7 +457,7 @@ void InterfaceFrame::on_interfaceTree_clicked(const QModelIndex &index)
             /* this checks if configuration is required and not yet provided or saved via prefs */
             if (extcap_has_configuration((const char *)(device_name.toStdString().c_str()), FALSE))
             {
-                emit showExtcapOptions(device_name);
+                emit showExtcapOptions(device_name, false);
                 return;
             }
         }
@@ -473,14 +480,7 @@ void InterfaceFrame::updateStatistics(void)
         if (selectIndex.isValid())
             source_model_.updateStatistic(idx);
     }
-
 #endif
-}
-
-/* Proxy Method so we do not need to expose the source model */
-void InterfaceFrame::getPoints(int idx, PointList * pts)
-{
-    source_model_.getPoints(idx, pts);
 }
 
 void InterfaceFrame::showRunOnFile(void)
@@ -490,10 +490,40 @@ void InterfaceFrame::showRunOnFile(void)
 
 void InterfaceFrame::showContextMenu(QPoint pos)
 {
-    QMenu ctx_menu;
+    QMenu * ctx_menu = new QMenu(this);
+    ctx_menu->setAttribute(Qt::WA_DeleteOnClose);
 
-    ctx_menu.addAction(tr("Start capture"), this, SIGNAL(startCapture()));
-    ctx_menu.exec(ui->interfaceTree->mapToGlobal(pos));
+    ctx_menu->addAction(tr("Start capture"), this, [=] () {
+        QStringList ifaces;
+        QModelIndexList selIndices = ui->interfaceTree->selectionModel()->selectedIndexes();
+        foreach(QModelIndex idx, selIndices)
+        {
+            QModelIndex realIndex = proxy_model_.mapToSource(info_model_.mapToSource(idx));
+            if (realIndex.column() != IFTREE_COL_NAME)
+                realIndex = realIndex.sibling(realIndex.row(), IFTREE_COL_NAME);
+            QString name = realIndex.data(Qt::DisplayRole).toString();
+            if (! ifaces.contains(name))
+                ifaces << name;
+        }
+
+        startCapture(ifaces);
+    });
+
+    ctx_menu->addSeparator();
+
+    QModelIndex actIndex = ui->interfaceTree->indexAt(pos);
+    QModelIndex realIndex = proxy_model_.mapToSource(info_model_.mapToSource(actIndex));
+    bool isHidden = realIndex.sibling(realIndex.row(), IFTREE_COL_HIDDEN).data(Qt::UserRole).toBool();
+    QAction * hideAction = ctx_menu->addAction(tr("Hide Interface"), this, [=] () {
+        /* Attention! Only realIndex.row is a 1:1 correlation to all_ifaces */
+        interface_t *device = &g_array_index(global_capture_opts.all_ifaces, interface_t, realIndex.row());
+        device->hidden = ! device->hidden;
+        mainApp->emitAppSignal(MainApplication::LocalInterfacesChanged);
+    });
+    hideAction->setCheckable(true);
+    hideAction->setChecked(isHidden);
+
+    ctx_menu->popup(ui->interfaceTree->mapToGlobal(pos));
 }
 
 void InterfaceFrame::on_warningLabel_linkActivated(const QString &link)

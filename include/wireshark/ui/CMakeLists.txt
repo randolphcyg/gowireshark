@@ -52,7 +52,6 @@ set(NONGENERATED_UI_SRC
 	text_import.c
 	text_import_regex.c
 	time_shift.c
-	traffic_table_ui.c
 	util.c
 	voip_calls.c
 )
@@ -101,9 +100,18 @@ if(NOT VCSVERSION_OVERRIDE)
 	add_dependencies(version_info vcs_version)
 endif()
 
-target_link_libraries(version_info PRIVATE ${ZLIB_LIBRARIES} wsutil)
+target_link_libraries(version_info
+	PRIVATE
+		wsutil
+		${ZLIB_LIBRARIES}
+		${PCRE2_LIBRARIES}
+)
 
-target_include_directories(version_info SYSTEM PRIVATE ${ZLIB_INCLUDE_DIRS})
+target_include_directories(version_info
+	SYSTEM PRIVATE
+		${ZLIB_INCLUDE_DIRS}
+		${PCRE2_INCLUDE_DIRS}
+)
 
 set_target_properties(ui version_info PROPERTIES
 	LINK_FLAGS "${WS_LINK_FLAGS}"

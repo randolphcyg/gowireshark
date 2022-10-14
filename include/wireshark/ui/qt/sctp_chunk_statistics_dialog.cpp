@@ -45,7 +45,7 @@ SCTPChunkStatisticsDialog::SCTPChunkStatisticsDialog(QWidget *parent, const sctp
     this->setWindowTitle(QString(tr("SCTP Chunk Statistics: %1 Port1 %2 Port2 %3"))
             .arg(gchar_free_to_qstring(cf_get_display_name(cap_file_)))
             .arg(assoc->port1).arg(assoc->port2));
- //   connect(ui->tableWidget->verticalHeader(), SIGNAL(sectionMoved(int,int,int)), this, SLOT(on_sectionMoved(int, int, int)));
+//    connect(ui->tableWidget->verticalHeader(), &QHeaderView::sectionMoved, this, &SCTPChunkStatisticsDialog::on_sectionMoved);
 
     ctx_menu_.addAction(ui->actionHideChunkType);
     ctx_menu_.addAction(ui->actionChunkTypePreferences);
@@ -67,7 +67,7 @@ void SCTPChunkStatisticsDialog::initializeChunkMap()
     for (int i = 0; i < 256; i++) {
         temp.id = i;
         temp.row = i;
-        g_snprintf(buf, sizeof buf, "%d", i);
+        snprintf(buf, sizeof buf, "%d", i);
         (void) g_strlcpy(temp.name, val_to_str_const(i, chunk_type_values, "NA"), sizeof temp.name);
         if (strcmp(temp.name, "NA") == 0) {
             temp.hide = 1;
@@ -202,7 +202,7 @@ void SCTPChunkStatisticsDialog::contextMenuEvent(QContextMenuEvent * event)
     selected_point = event->pos();
     QTableWidgetItem *item = ui->tableWidget->itemAt(selected_point.x(), selected_point.y()-60);
     if (item) {
-        ctx_menu_.exec(event->globalPos());
+        ctx_menu_.popup(event->globalPos());
     }
 }
 
@@ -248,7 +248,7 @@ void SCTPChunkStatisticsDialog::on_pushButton_clicked()
 
     for (int i = 0; i < chunks.size(); i++) {
         tempChunk = chunks.value(i);
-        g_snprintf(str, sizeof str, "\"%d\",\"%s\",\"%s\"\n", tempChunk.id, tempChunk.name, tempChunk.hide==0?"Show":"Hide");
+        snprintf(str, sizeof str, "\"%d\",\"%s\",\"%s\"\n", tempChunk.id, tempChunk.name, tempChunk.hide==0?"Show":"Hide");
         fputs(str, fp);
         void *rec = g_malloc0(uat->record_size);
         uat_add_record(uat, rec, TRUE);
@@ -308,7 +308,7 @@ void SCTPChunkStatisticsDialog::on_actionChunkTypePreferences_triggered()
     uatdialog->exec();
     // Emitting PacketDissectionChanged directly from a QDialog can cause
     // problems on macOS.
-    wsApp->flushAppSignals();
+    mainApp->flushAppSignals();
 
     ui->tableWidget->clear();
     ui->tableWidget->setRowCount(0);

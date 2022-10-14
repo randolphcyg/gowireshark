@@ -43,7 +43,7 @@
 #include <ui/qt/utils/qt_ui_utils.h>
 #include "rtp_player_dialog.h"
 #include <ui/qt/utils/stock_icon.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 #include "ui/qt/widgets/wireshark_file_dialog.h"
 
 /*
@@ -240,11 +240,12 @@ enum {
 };
 
 RtpAnalysisDialog *RtpAnalysisDialog::pinstance_{nullptr};
-std::mutex RtpAnalysisDialog::mutex_;
+std::mutex RtpAnalysisDialog::init_mutex_;
+std::mutex RtpAnalysisDialog::run_mutex_;
 
 RtpAnalysisDialog *RtpAnalysisDialog::openRtpAnalysisDialog(QWidget &parent, CaptureFile &cf, QObject *packet_list)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(init_mutex_);
     if (pinstance_ == nullptr)
     {
         pinstance_ = new RtpAnalysisDialog(parent, cf);
@@ -316,13 +317,15 @@ RtpAnalysisDialog::RtpAnalysisDialog(QWidget &parent, CaptureFile &cf) :
 
 RtpAnalysisDialog::~RtpAnalysisDialog()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    delete ui;
-    for(int i=0; i<tabs_.count(); i++) {
-        deleteTabInfo(tabs_[i]);
-        g_free(tabs_[i]);
+    std::lock_guard<std::mutex> lock(init_mutex_);
+    if (pinstance_ != nullptr) {
+        delete ui;
+        for(int i=0; i<tabs_.count(); i++) {
+            deleteTabInfo(tabs_[i]);
+            g_free(tabs_[i]);
+        }
+        pinstance_ = nullptr;
     }
-    pinstance_ = nullptr;
 }
 
 void RtpAnalysisDialog::deleteTabInfo(tab_info_t *tab_info)
@@ -616,7 +619,7 @@ void RtpAnalysisDialog::on_actionSaveGraph_triggered()
     ui->tabWidget->setCurrentWidget(ui->graphTab);
 
     QString file_name, extension;
-    QDir path(wsApp->lastOpenDir());
+    QDir path(mainApp->lastOpenDir());
     QString pdf_filter = tr("Portable Document Format (*.pdf)");
     QString png_filter = tr("Portable Network Graphics (*.png)");
     QString bmp_filter = tr("Windows Bitmap (*.bmp)");
@@ -632,7 +635,7 @@ void RtpAnalysisDialog::on_actionSaveGraph_triggered()
     if (!file_closed_) {
         save_file += QString("/%1").arg(cap_file_.fileBaseName());
     }
-    file_name = WiresharkFileDialog::getSaveFileName(this, wsApp->windowTitleString(tr("Save Graph As…")),
+    file_name = WiresharkFileDialog::getSaveFileName(this, mainApp->windowTitleString(tr("Save Graph As…")),
                                              save_file, filter, &extension);
 
     if (!file_name.isEmpty()) {
@@ -651,14 +654,14 @@ void RtpAnalysisDialog::on_actionSaveGraph_triggered()
 //        ui->streamGraph->legend->setVisible(false);
         // else error dialog?
         if (save_ok) {
-            wsApp->setLastOpenDirFromFilename(file_name);
+            mainApp->setLastOpenDirFromFilename(file_name);
         }
     }
 }
 
 void RtpAnalysisDialog::on_buttonBox_helpRequested()
 {
-    wsApp->helpTopicAction(HELP_TELEPHONY_RTP_ANALYSIS_DIALOG);
+    mainApp->helpTopicAction(HELP_TELEPHONY_RTP_ANALYSIS_DIALOG);
 }
 
 void RtpAnalysisDialog::tapReset(void *tapinfo_ptr)
@@ -669,7 +672,7 @@ void RtpAnalysisDialog::tapReset(void *tapinfo_ptr)
     rtp_analysis_dialog->resetStatistics();
 }
 
-tap_packet_status RtpAnalysisDialog::tapPacket(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *, const void *rtpinfo_ptr)
+tap_packet_status RtpAnalysisDialog::tapPacket(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *, const void *rtpinfo_ptr, tap_flags_t)
 {
     RtpAnalysisDialog *rtp_analysis_dialog = dynamic_cast<RtpAnalysisDialog *>((RtpAnalysisDialog*)tapinfo_ptr);
     if (!rtp_analysis_dialog) return TAP_PACKET_DONT_REDRAW;
@@ -851,7 +854,7 @@ void RtpAnalysisDialog::saveCsvHeader(QFile *save_file, QTreeWidget *tree)
     foreach (QVariant v, row_data) {
         if (!v.isValid()) {
             values << "\"\"";
-        } else if ((int) v.type() == (int) QMetaType::QString) {
+        } else if (v.userType() == QMetaType::QString) {
             values << QString("\"%1\"").arg(v.toString());
         } else {
             values << v.toString();
@@ -871,7 +874,7 @@ void RtpAnalysisDialog::saveCsvData(QFile *save_file, QTreeWidget *tree)
         foreach (QVariant v, ra_ti->rowData()) {
             if (!v.isValid()) {
                 values << "\"\"";
-            } else if ((int) v.type() == (int) QMetaType::QString) {
+            } else if (v.userType() == QMetaType::QString) {
                 values << QString("\"%1\"").arg(v.toString());
             } else {
                 values << v.toString();
@@ -898,7 +901,7 @@ void RtpAnalysisDialog::saveCsv(RtpAnalysisDialog::StreamDirection direction)
     }
 
     QString file_path = WiresharkFileDialog::getSaveFileName(
-                this, caption, wsApp->lastOpenDir().absoluteFilePath("RTP Packet Data.csv"),
+                this, caption, mainApp->lastOpenDir().absoluteFilePath("RTP Packet Data.csv"),
                 tr("Comma-separated values (*.csv)"));
 
     if (file_path.isEmpty()) return;
@@ -965,7 +968,11 @@ void RtpAnalysisDialog::graphClicked(QMouseEvent *event)
 {
     updateWidgets();
     if (event->button() == Qt::RightButton) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0 ,0)
+        graph_ctx_menu_.popup(event->globalPosition().toPoint());
+#else
         graph_ctx_menu_.popup(event->globalPos());
+#endif
     }
 }
 
@@ -1021,20 +1028,28 @@ void RtpAnalysisDialog::showStreamMenu(QPoint pos)
 
 void RtpAnalysisDialog::replaceRtpStreams(QVector<rtpstream_id_t *> stream_ids)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    // Delete existing tabs (from last to first)
-    if (tabs_.count() > 0) {
-        for(int i=tabs_.count(); i>0; i--) {
-            closeTab(i-1);
+    std::unique_lock<std::mutex> lock(run_mutex_, std::try_to_lock);
+    if (lock.owns_lock()) {
+        // Delete existing tabs (from last to first)
+        if (tabs_.count() > 0) {
+            for(int i = static_cast<int>(tabs_.count()); i>0; i--) {
+                closeTab(i-1);
+            }
         }
+        addRtpStreamsPrivate(stream_ids);
+    } else {
+        ws_warning("replaceRtpStreams was called while other thread locked it. Current call is ignored, try it later.");
     }
-    addRtpStreamsPrivate(stream_ids);
 }
 
 void RtpAnalysisDialog::addRtpStreams(QVector<rtpstream_id_t *> stream_ids)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    addRtpStreamsPrivate(stream_ids);
+    std::unique_lock<std::mutex> lock(run_mutex_, std::try_to_lock);
+    if (lock.owns_lock()) {
+        addRtpStreamsPrivate(stream_ids);
+    } else {
+        ws_warning("addRtpStreams was called while other thread locked it. Current call is ignored, try it later.");
+    }
 }
 
 void RtpAnalysisDialog::addRtpStreamsPrivate(QVector<rtpstream_id_t *> stream_ids)
@@ -1077,6 +1092,7 @@ void RtpAnalysisDialog::addRtpStreamsPrivate(QVector<rtpstream_id_t *> stream_id
     setUpdatesEnabled(true);
     registerTapListener("rtp", this, NULL, 0, tapReset, tapPacket, tapDraw);
     cap_file_.retapPackets();
+    updateStatistics();
     removeTapListeners();
 
     updateGraph();
@@ -1084,20 +1100,24 @@ void RtpAnalysisDialog::addRtpStreamsPrivate(QVector<rtpstream_id_t *> stream_id
 
 void RtpAnalysisDialog::removeRtpStreams(QVector<rtpstream_id_t *> stream_ids)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    setUpdatesEnabled(false);
-    foreach(rtpstream_id_t *id, stream_ids) {
-        QList<tab_info_t *> tabs = tab_hash_.values(rtpstream_id_to_hash(id));
-        for (int i = 0; i < tabs.size(); i++) {
-            tab_info_t *tab = tabs.at(i);
-            if (rtpstream_id_equal(&tab->stream.id, id, RTPSTREAM_ID_EQUAL_SSRC))  {
-                closeTab(tabs_.indexOf(tab));
+    std::unique_lock<std::mutex> lock(run_mutex_, std::try_to_lock);
+    if (lock.owns_lock()) {
+        setUpdatesEnabled(false);
+        foreach(rtpstream_id_t *id, stream_ids) {
+            QList<tab_info_t *> tabs = tab_hash_.values(rtpstream_id_to_hash(id));
+            for (int i = 0; i < tabs.size(); i++) {
+                tab_info_t *tab = tabs.at(i);
+                if (rtpstream_id_equal(&tab->stream.id, id, RTPSTREAM_ID_EQUAL_SSRC))  {
+                    closeTab(static_cast<int>(tabs_.indexOf(tab)));
+                }
             }
         }
-    }
-    setUpdatesEnabled(true);
+        setUpdatesEnabled(true);
 
-    updateGraph();
+        updateGraph();
+    } else {
+        ws_warning("removeRtpStreams was called while other thread locked it. Current call is ignored, try it later.");
+    }
 }
 
 tab_info_t *RtpAnalysisDialog::getTabInfoForCurrentTab()

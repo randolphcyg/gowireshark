@@ -1,4 +1,5 @@
-/*
+/** @file
+ *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
  * Copyright 2001 Gerald Combs
@@ -13,5 +14,10 @@
 gboolean
 dfw_semcheck(dfwork_t *dfw);
 
+ftenum_t
+check_arithmetic_expr(dfwork_t *dfw, stnode_t *st_node, ftenum_t lhs_ftype);
+
+ftenum_t
+check_function(dfwork_t *dfw, stnode_t *st_node, ftenum_t lhs_ftype);
 
 #endif

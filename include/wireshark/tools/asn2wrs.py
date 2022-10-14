@@ -3375,8 +3375,8 @@ class Type (Node):
     def eth_type_default_table(self, ectx, tname):
         return ''
 
-    def eth_type_default_body(self, ectx):
-        print("#Unhandled  eth_type_default_body() in %s" % (self.type))
+    def eth_type_default_body(self, ectx, tname):
+        print("#Unhandled  eth_type_default_body('%s') in %s" % (tname, self.type))
         print(self.str_depth(1))
         return ''
 
@@ -5238,6 +5238,12 @@ class UnrestrictedCharacterStringType (CharacterStringType):
 class GeneralizedTime (RestrictedCharacterStringType):
     def eth_tsname(self):
         return 'GeneralizedTime'
+
+    def eth_ftype(self, ectx):
+        if (ectx.Ber()):
+            return ('FT_ABSOLUTE_TIME', 'ABSOLUTE_TIME_LOCAL')
+        else:
+            return ('FT_STRING', 'BASE_NONE')
 
     def eth_type_default_body(self, ectx, tname):
         if (ectx.Ber()):

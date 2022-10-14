@@ -1,6 +1,6 @@
 /* packet-f1ap.c
  * Routines for E-UTRAN F1 Application Protocol (F1AP) packet dissection
- * Copyright 2018-2021, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2018-2022, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * References: 3GPP TS 38.473 V16.7.0 (2021-10)
+ * References: 3GPP TS 38.473 V16.9.0 (2022-04)
  */
 
 #include "config.h"
@@ -126,6 +126,7 @@ static gint ett_f1ap_SL_ConfigDedicatedEUTRA_Info = -1;
 static gint ett_f1ap_TDD_UL_DLConfigCommonNR = -1;
 static gint ett_f1ap_UEAssistanceInformationEUTRA = -1;
 static gint ett_f1ap_PosAssistance_Information = -1;
+static gint ett_f1ap_LocationMeasurementInformation = -1;
 #include "packet-f1ap-ett.c"
 
 enum{
@@ -414,19 +415,19 @@ static void set_message_label(asn1_ctx_t *actx, int type)
 static void
 f1ap_MaxPacketLossRate_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1f%% (%u)", (float)v/10, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1f%% (%u)", (float)v/10, v);
 }
 
 static void
 f1ap_PacketDelayBudget_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fms (%u)", (float)v/2, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fms (%u)", (float)v/2, v);
 }
 
 static void
 f1ap_ExtendedPacketDelayBudget_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.2fms (%u)", (float)v/100, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.2fms (%u)", (float)v/100, v);
 }
 
 static f1ap_private_data_t*
@@ -520,7 +521,7 @@ f1ap_stats_tree_init(stats_tree *st)
 
 static tap_packet_status
 f1ap_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_,
-                       epan_dissect_t* edt _U_ , const void* p)
+                       epan_dissect_t* edt _U_ , const void* p, tap_flags_t flags _U_)
 {
     const struct f1ap_tap_t *pi = (const struct f1ap_tap_t *) p;
 
@@ -732,6 +733,7 @@ void proto_register_f1ap(void) {
     &ett_f1ap_TDD_UL_DLConfigCommonNR,
     &ett_f1ap_UEAssistanceInformationEUTRA,
     &ett_f1ap_PosAssistance_Information,
+    &ett_f1ap_LocationMeasurementInformation,
 #include "packet-f1ap-ettarr.c"
   };
 

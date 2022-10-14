@@ -136,7 +136,7 @@ dissect_etag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
         ing_e_cid = (guint32)((((tci >> 32) & 0xFFF) | ((tci <<  4) & 0xFF000)) & 0xFFFFF);    /* Ingress_E-CID_base | Ingress_E-CID ext */
 
         if (etag_summary_in_tree) {
-            proto_item_append_text(ti, ", TCI: 0x%" G_GINT64_MODIFIER "x Ingress_E-CID: %u E-CID: %u", tci, ing_e_cid, e_cid);
+            proto_item_append_text(ti, ", TCI: 0x%" PRIx64 " Ingress_E-CID: %u E-CID: %u", tci, ing_e_cid, e_cid);
         }
         etag_tree = proto_item_add_subtree(ti, ett_etag);
 
@@ -208,8 +208,8 @@ proto_register_etag(void)
     proto_register_field_array(proto_etag, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
 
-    etag_module = prefs_register_protocol(proto_etag, proto_reg_handoff_etag);
-        prefs_register_bool_preference(etag_module, "summary_in_tree",
+    etag_module = prefs_register_protocol(proto_etag, NULL);
+    prefs_register_bool_preference(etag_module, "summary_in_tree",
         "Show E-Tag summary in protocol tree",
         "Whether the E-Tag summary line should be shown in the protocol tree",
         &etag_summary_in_tree);

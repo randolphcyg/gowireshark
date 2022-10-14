@@ -748,6 +748,40 @@ dissect_mpa_fpdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 	return ulpdu_length;
 }
 
+/* Extracted from dissect_warp_mpa, Obtain the TCP seq of the first FPDU */
+static mpa_state_t*
+get_state_of_first_fpdu(tvbuff_t *tvb, packet_info *pinfo, struct tcpinfo *tcpinfo, guint8 *endpoint)
+{
+	conversation_t *conversation = NULL;
+	mpa_state_t *state = NULL;
+
+	if (tvb_captured_length(tvb) >= MPA_SMALLEST_FPDU_LEN && is_mpa_fpdu(pinfo)) {
+		conversation = find_conversation_pinfo(pinfo, 0);
+		state = get_mpa_state(conversation);
+
+		if (pinfo->srcport == state->minfo[MPA_INITIATOR].port) {
+			*endpoint = MPA_INITIATOR;
+		} else if (pinfo->srcport == state->minfo[MPA_RESPONDER].port) {
+			*endpoint = MPA_RESPONDER;
+		} else {
+			REPORT_DISSECTOR_BUG("endpoint cannot be determined");
+		}
+
+		/* Markers are used by either the Initiator or the Responder or both. */
+		if ((state->ini_exp_m_res || state->res_exp_m_ini) && *endpoint <= MPA_RESPONDER) {
+
+			/* find the TCP sequence number of the first FPDU */
+			if (!state->minfo[*endpoint].valid) {
+				state->minfo[*endpoint].seq = tcpinfo->seq;
+				state->minfo[*endpoint].valid = TRUE;
+			}
+		}
+	}
+
+	return state;
+}
+
+
 /*
  * Main dissection routine.
  */
@@ -755,7 +789,6 @@ static gboolean
 dissect_iwarp_mpa(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
 	tvbuff_t *next_tvb = NULL;
-	conversation_t *conversation = NULL;
 	mpa_state_t *state = NULL;
 	struct tcpinfo *tcpinfo;
 	guint8 endpoint = 3;
@@ -766,30 +799,8 @@ dissect_iwarp_mpa(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
 	tcpinfo = (struct tcpinfo *)data;
 
 	/* FPDU */
-	if (tvb_captured_length(tvb) >= MPA_SMALLEST_FPDU_LEN && is_mpa_fpdu(pinfo)) {
-
-		conversation = find_conversation_pinfo(pinfo, 0);
-
-		state = get_mpa_state(conversation);
-
-		if (pinfo->srcport == state->minfo[MPA_INITIATOR].port) {
-			endpoint = MPA_INITIATOR;
-		} else if (pinfo->srcport == state->minfo[MPA_RESPONDER].port) {
-			endpoint = MPA_RESPONDER;
-		} else {
-			REPORT_DISSECTOR_BUG("endpoint cannot be determined");
-		}
-
-		/* Markers are used by either the Initiator or the Responder or both. */
-		if ((state->ini_exp_m_res || state->res_exp_m_ini) && endpoint <= MPA_RESPONDER) {
-
-			/* find the TCP sequence number of the first FPDU */
-			if (!state->minfo[endpoint].valid) {
-				state->minfo[endpoint].seq = tcpinfo->seq;
-				state->minfo[endpoint].valid = TRUE;
-			}
-		}
-
+	state = get_state_of_first_fpdu(tvb, pinfo, tcpinfo, &endpoint);
+	if (state) {
 		/* dissect FPDU */
 		ulpdu_length = dissect_mpa_fpdu(tvb, pinfo, tree, state, tcpinfo,
 				endpoint);
@@ -839,6 +850,11 @@ iwrap_mpa_pdu_length(packet_info *pinfo _U_, tvbuff_t *tvb,
 	gint remaining = tvb_captured_length_remaining(tvb, offset);
 	guint pdu_length = 0;
 	guint16 PD_Length;
+	mpa_state_t *state = NULL;
+	guint8 endpoint = 3;
+	guint32 num_of_m = 0;
+	struct tcpinfo *tcpinfo;
+	int current_offset = offset;
 
 	tag = tvb_get_ntoh64(tvb, offset);
 	if (tag != MPA_REQ_REP_FRAME) {
@@ -846,7 +862,23 @@ iwrap_mpa_pdu_length(packet_info *pinfo _U_, tvbuff_t *tvb,
 		guint16 ULPDU_Length;
 		guint8 pad_length;
 
-		ULPDU_Length = tvb_get_ntohs(tvb, offset);
+		tcpinfo = (struct tcpinfo *)data;
+
+		state = get_state_of_first_fpdu(tvb, pinfo, tcpinfo, &endpoint);
+		if (state) {
+			if (state -> minfo[endpoint] . valid && get_first_marker_offset(state, tcpinfo, endpoint) == 0) {
+				current_offset += MPA_MARKER_LEN;
+			}
+
+			if (state -> minfo[endpoint] . valid) {
+				num_of_m = number_of_markers(state, tcpinfo, endpoint);
+			}
+		}
+
+		if (num_of_m > 0) {
+			pdu_length += num_of_m * MPA_MARKER_LEN;
+		}
+		ULPDU_Length = tvb_get_ntohs(tvb, current_offset);
 		pad_length = fpdu_pad_length(ULPDU_Length);
 
 		pdu_length += MPA_ULPDU_LENGTH_LEN;

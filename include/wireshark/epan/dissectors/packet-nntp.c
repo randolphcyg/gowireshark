@@ -13,6 +13,8 @@
 
 #include <epan/packet.h>
 
+#include "packet-tls-utils.h"
+
 void proto_register_nntp(void);
 void proto_reg_handoff_nntp(void);
 
@@ -22,7 +24,15 @@ static int hf_nntp_request = -1;
 
 static gint ett_nntp = -1;
 
+static dissector_handle_t nntp_handle;
+static dissector_handle_t tls_handle;
+
 #define TCP_PORT_NNTP			119
+
+/* State of NNTP conversation */
+typedef struct nntp_conversation_t {
+	gboolean tls_requested;
+} nntp_conversation_t;
 
 static int
 dissect_nntp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
@@ -32,7 +42,18 @@ dissect_nntp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	proto_item	*ti;
 	gint		offset = 0;
 	gint		next_offset;
+	const guchar    *line;
 	int		linelen;
+	conversation_t  *conversation;
+	nntp_conversation_t *session_state;
+
+	conversation = find_or_create_conversation(pinfo);
+	session_state = (nntp_conversation_t *)conversation_get_proto_data(conversation, proto_nntp);
+	if (!session_state) {
+		session_state = wmem_new0(wmem_file_scope(), nntp_conversation_t);
+		session_state->tls_requested = FALSE;
+		conversation_add_proto_data(conversation, proto_nntp, session_state);
+	}
 
 	if (pinfo->match_uint == pinfo->destport)
 		type = "Request";
@@ -50,45 +71,53 @@ dissect_nntp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	 * "tvb_get_ptr()" call won't throw an exception.
 	 */
 	linelen = tvb_find_line_end(tvb, offset, -1, &next_offset, FALSE);
+	line    = tvb_get_ptr(tvb, offset, linelen);
 	col_add_fstr(pinfo->cinfo, COL_INFO, "%s: %s", type,
 		    tvb_format_text(pinfo->pool, tvb, offset, linelen));
 
-	if (tree) {
-		ti = proto_tree_add_item(tree, proto_nntp, tvb, offset, -1,
-		    ENC_NA);
-		nntp_tree = proto_item_add_subtree(ti, ett_nntp);
+	ti = proto_tree_add_item(tree, proto_nntp, tvb, offset, -1, ENC_NA);
+	nntp_tree = proto_item_add_subtree(ti, ett_nntp);
 
-		if (pinfo->match_uint == pinfo->destport) {
-			ti = proto_tree_add_boolean(nntp_tree,
-			    hf_nntp_request, tvb, 0, 0, TRUE);
-		} else {
-			ti = proto_tree_add_boolean(nntp_tree,
-			    hf_nntp_response, tvb, 0, 0, TRUE);
+	if (pinfo->match_uint == pinfo->destport) {
+		ti = proto_tree_add_boolean(nntp_tree, hf_nntp_request, tvb, 0, 0, TRUE);
+
+		if (g_ascii_strncasecmp(line, "STARTTLS", 8) == 0) {
+			session_state->tls_requested = TRUE;
 		}
-		proto_item_set_hidden(ti);
+	} else {
+		ti = proto_tree_add_boolean(nntp_tree, hf_nntp_response, tvb, 0, 0, TRUE);
 
-		/*
-		 * Show the request or response as text, a line at a time.
-		 * XXX - for requests, we could display the stuff after the
-		 * first line, if any, based on what the request was, and
-		 * for responses, we could display it based on what the
-		 * matching request was, although the latter requires us to
-		 * know what the matching request was....
-		 */
-		while (tvb_offset_exists(tvb, offset)) {
-			/*
-			 * Find the end of the line.
-			 */
-			tvb_find_line_end(tvb, offset, -1, &next_offset,
-			    FALSE);
-
-			/*
-			 * Put this line.
-			 */
-			proto_tree_add_format_text(nntp_tree, tvb, offset, next_offset - offset);
-			offset = next_offset;
+		if (session_state->tls_requested) {
+			if (g_ascii_strncasecmp(line, "382", 3) == 0) {
+				/* STARTTLS command accepted */
+				ssl_starttls_ack(tls_handle, pinfo, nntp_handle);
+			}
+			session_state->tls_requested = FALSE;
 		}
 	}
+	proto_item_set_hidden(ti);
+
+	/*
+	 * Show the request or response as text, a line at a time.
+	 * XXX - for requests, we could display the stuff after the
+	 * first line, if any, based on what the request was, and
+	 * for responses, we could display it based on what the
+	 * matching request was, although the latter requires us to
+	 * know what the matching request was....
+	 */
+	while (tvb_offset_exists(tvb, offset)) {
+		/*
+		 * Find the end of the line.
+		 */
+		tvb_find_line_end(tvb, offset, -1, &next_offset, FALSE);
+
+		/*
+		 * Put this line.
+		 */
+		proto_tree_add_format_text(nntp_tree, tvb, offset, next_offset - offset);
+		offset = next_offset;
+	}
+
 	return tvb_captured_length(tvb);
 }
 
@@ -119,10 +148,10 @@ proto_register_nntp(void)
 void
 proto_reg_handoff_nntp(void)
 {
-	dissector_handle_t nntp_handle;
-
-	nntp_handle = create_dissector_handle(dissect_nntp, proto_nntp);
+	nntp_handle = register_dissector("nntp", dissect_nntp, proto_nntp);
 	dissector_add_uint_with_preference("tcp.port", TCP_PORT_NNTP, nntp_handle);
+
+	tls_handle = find_dissector("tls");
 }
 
 /*

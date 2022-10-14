@@ -1,4 +1,4 @@
-/* crc5.h
+/** @file
  * Declaration of CRC-5 routines and table
  *
  * 2019 Tomasz Mon <desowin@gmail.com>
@@ -13,7 +13,7 @@
 #ifndef __CRC5_H__
 #define __CRC5_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

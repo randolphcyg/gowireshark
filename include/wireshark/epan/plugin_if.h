@@ -1,4 +1,4 @@
-/* plugin_if.h
+/** @file
  * An API for Wireshark plugins
  *
  * This enables wireshark dissectors, especially those implemented by plugins
@@ -17,8 +17,8 @@
 #ifndef EPAN_PLUGIN_IF_H
 #define EPAN_PLUGIN_IF_H
 
-#include "ws_symbol_export.h"
-#include "ws_attributes.h"
+#include "include/ws_symbol_export.h"
+#include "include/ws_attributes.h"
 
 #include <glib.h>
 #include <epan/epan.h>

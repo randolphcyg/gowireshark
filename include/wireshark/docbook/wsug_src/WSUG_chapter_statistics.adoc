@@ -1,10 +1,10 @@
 // WSUG Chapter Statistics
 
-[[ChStatistics]]
+[#ChStatistics]
 
 == Statistics
 
-[[ChStatIntroduction]]
+[#ChStatIntroduction]
 
 === Introduction
 
@@ -13,7 +13,7 @@ the menu:Statistics[] menu.
 
 These statistics range from general information about the loaded capture file
 (like the number of captured packets), to statistics about specific protocols
-(e.g. statistics about the number of HTTP requests and responses captured).
+(e.g., statistics about the number of HTTP requests and responses captured).
 
 .General statistics
 
@@ -21,9 +21,9 @@ These statistics range from general information about the loaded capture file
 
   - *Protocol Hierarchy* of the captured packets.
 
-  - *Conversations* e.g. traffic between specific IP addresses.
+  - *Conversations* e.g., traffic between specific IP addresses.
 
-  - *Endpoints* e.g. traffic to and from an IP addresses.
+  - *Endpoints* e.g., traffic to and from IP addresses.
 
   - *I/O Graphs* visualizing the number of packets (or similar) in time.
 
@@ -47,7 +47,7 @@ version of this document.
 Some of these statistics are described at
 {wireshark-wiki-url}Statistics.
 
-[[ChStatSummary]]
+[#ChStatSummary]
 
 === The “Capture File Properties” Dialog
 
@@ -100,7 +100,7 @@ Copies the “Details” information to the clipboard.
 btn:[Help]::
 Opens this section of the User’s Guide.
 
-[[ChStatResolvedAddresses]]
+[#ChStatResolvedAddresses]
 
 === Resolved Addresses
 
@@ -110,7 +110,7 @@ The Resolved Addresses window shows the list of resolved addresses and their hos
 
 . Select `Use an external network name resolver` in the menu:Preferences[Name Resolution] menu. This option is enabled by default.
 
-NOTE: The resolved addresses are not updated automatically after users change the settings. To display newly available names user have to reopen the dialog.
+NOTE: The resolved addresses are not updated automatically after a user changes the settings. To display newly available names, the user has to reopen the dialog.
 
 The `Ports` tab shows the list of service names, ports and types.
 
@@ -119,7 +119,7 @@ Wireshark reads the entries for port mappings from the `hosts` service configura
 .Resolved Addresses window
 image::wsug_graphics/ws-resolved-addr.png[{screenshot-attrs}]
 
-[[ChStatHierarchy]]
+[#ChStatHierarchy]
 
 === The “Protocol Hierarchy” Window
 
@@ -144,7 +144,7 @@ Percent Packets::
 The percentage of protocol packets relative to all packets in the capture.
 
 Packets::
-The total number of packets of this protocol.
+The total number of packets that contain this protocol.
 
 Percent Bytes::
 The percentage of protocol bytes relative to the total bytes in the capture.
@@ -164,21 +164,25 @@ The absolute number of bytes of this protocol where it was the highest protocol 
 End Bits/s::
 The bandwidth of this protocol relative to the capture time where was the highest protocol in the stack (last dissected).
 
-Packets usually contain multiple protocols. As a result more than one protocol will
-be counted for each packet. Example: In the screenshot IP has 99.9% and TCP
-98.5% (which is together much more than 100%).
+PDUs::
+The total number of PDUs of this protocol.
+
+Packets usually contain multiple protocols. As a result, more than one protocol
+will be counted for each packet. Example: In the screenshot 100% of packets
+are IP and 99.3% are TCP (which is together much more than 100%).
 
 Protocol layers can consist of packets that won’t contain any higher layer
-protocol, so the sum of all higher layer packets may not sum up to the protocols
-packet count. Example: In the screenshot TCP has 98.5% but the sum of the
-subprotocols (TLS, HTTP, etc) is much less. This can be caused by continuation
-frames, TCP protocol overhead, and other undissected data.
+protocol, so the sum of all higher layer packets may not sum to the protocol's
+packet count. This can be caused by segments and fragments reassembled in other
+frames, TCP protocol overhead, and other undissected data. Example: In the
+screenshot 99.3% of the packets are TCP but the sum of the subprotocols
+(TLS, HTTP, Git, etc.) is much less.
 
 A single packet can contain the same protocol more than once. In this case, the
-protocol is counted more than once. For example ICMP replies and many tunneling
-protocols will carry more than one IP header.
+entry in the `PDUs` column will be greater than that of `Packets`. Example:
+In the screenshot there are many more TLS and Git PDUs than there are packets.
 
-[[ChStatConversations]]
+[#ChStatConversations]
 
 === Conversations
 
@@ -187,7 +191,7 @@ example, an IP conversation is all the traffic between two IP addresses. The
 description of the known endpoint types can be found in
 <<ChStatEndpoints>>.
 
-[[ChStatConversationsWindow]]
+[#ChStatConversationsWindow]
 
 ==== The “Conversations” Window
 
@@ -197,7 +201,7 @@ addresses, packet counters, and byte counters the conversation window adds four
 columns: the start time of the conversation (“Rel Start”) or (“Abs Start”),
 the duration of the conversation in seconds, and the average bits (not bytes)
 per second in each direction. A timeline graph is also drawn across the
-“Rel Start” / “Abs Start” and “Duration” columns.
+“Rel Start” / “Abs Start” and “Duration” columns. Additionally
 
 .The “Conversations” window
 image::wsug_graphics/ws-stats-conversations.png[{screenshot-attrs}]
@@ -209,13 +213,22 @@ the specific protocol layer (MAC layer for the selected Ethernet endpoints
 page). _Limit to display filter_ will only show conversations matching the
 current display filter. _Absolute start time_ switches the start time column
 between relative (“Rel Start”) and absolute (“Abs Start”) times. Relative start
-times match the “Seconds Since Beginning of Capture” time display format in the
+times match the “Seconds Since First Captured Packet” time display format in the
 packet list and absolute start times match the “Time of Day” display format.
 
+If a display filter had been applied before the dialog is opened, _Limit to 
+display filter_ will be set automatically. Additionally, after a display filter
+had been applied, two columns ("Total Packets") and ("Percent Filtered") show
+the number of unfiltered total packets and the percentage of packets in this filter
+display. 
+
 The btn:[Copy] button will copy the list values to the clipboard in CSV
-(Comma Separated Values) or YAML format. The btn:[Follow Stream...] button
-will show the stream contents as described in <<ChAdvFollowStream>> dialog. The
-btn:[Graph...] button will show a graph as described in <<ChStatIOGraphs>>.
+(Comma Separated Values), YAML format or JSON format. The numbers are generally
+exported without special formatting, but this can be enabled if needed.
+
+The btn:[Follow Stream...] button will show the stream contents as described
+in <<ChAdvFollowStream>> dialog. The btn:[Graph...] button will show a graph
+as described in <<ChStatIOGraphs>>.
 
 btn:[Conversation Types] lets you choose which traffic type tabs are shown.
 See <<ChStatEndpoints>> for a list of endpoint types. The enabled types
@@ -230,7 +243,7 @@ it before (or while) you are doing a live capture.
 // Removed:
 // [[ChStatConversationListWindow]]
 
-[[ChStatEndpoints]]
+[#ChStatEndpoints]
 
 === Endpoints
 
@@ -261,10 +274,10 @@ IPv4:: Identical to the 32-bit IPv4 address.
 
 IPv6:: Identical to the 128-bit IPv6 address.
 
-IPX:: A concatenation of a 32 bit network number and 48 bit node address, by
+IPX:: A concatenation of a 32-bit network number and 48-bit node address, by
 default the Ethernet interface’s MAC-48 address.
 
-JXTA:: A 160 bit SHA-1 URN.
+JXTA:: A 160-bit SHA-1 URN.
 
 NCP:: Similar to IPX.
 
@@ -293,7 +306,7 @@ endpoints. Of course, as these aren’t physical endpoints the real traffic
 will be received by some or all of the listed unicast endpoints.
 ====
 
-[[ChStatEndpointsWindow]]
+[#ChStatEndpointsWindow]
 
 ==== The “Endpoints” Window
 
@@ -303,7 +316,7 @@ This window shows statistics about the endpoints captured.
 image::wsug_graphics/ws-stats-endpoints.png[{screenshot-attrs}]
 
 For each supported protocol, a tab is shown in this window. Each tab label shows
-the number of endpoints captured (e.g. the tab label “Ethernet &#183; 4” tells
+the number of endpoints captured (e.g., the tab label “Ethernet &#183; 4” tells
 you that four ethernet endpoints have been captured). If no endpoints of a
 specific protocol were captured, the tab label will be greyed out (although the
 related page can still be selected).
@@ -317,9 +330,16 @@ conversations matching the current display filter. Note that in this
 example we have MaxMind DB configured which gives us extra geographic
 columns. See <<ChMaxMindDbPaths>> for more information.
 
+If a display filter had been applied before the dialog is opened, _Limit to 
+display filter_ will be set automatically. Additionally, after a display filter
+had been applied, two columns ("Total Packets") and ("Percent Filtered") show
+the number of unfiltered total packets and the percentage of packets in this filter
+display. 
+
 The btn:[Copy] button will copy the list values to the clipboard in CSV
-(Comma Separated Values) or YAML format. The btn:[Map] button will show the
-endpoints mapped in your web browser.
+(Comma Separated Values), YAML format or JSON format. The numbers are generally
+exported without special formatting, but this can be enabled if needed. 
+The btn:[Map] button will show the endpoints mapped in your web browser.
 
 btn:[Endpoint Types] lets you choose which traffic type tabs are shown. See
 <<ChStatEndpoints>> above for a list of endpoint types. The enabled
@@ -335,7 +355,7 @@ it before (or while) you are doing a live capture.
 // [[ChStatEndpointListWindow]]
 
 
-[[ChStatPacketLengths]]
+[#ChStatPacketLengths]
 
 === Packet Lengths
 
@@ -355,7 +375,7 @@ Count::
 The number of packets that fall into this range.
 
 Average::
-The arithmetic mean length of the packets in this range.
+The arithmetic mean of the packet lengths in this range.
 
 Min Val, Max Val::
 The minimum and maximum lengths in this range.
@@ -381,7 +401,7 @@ You can show statistics for a portion of the capture by entering a display filte
 btn:[Copy] copies the statistics to the clipboard.
 btn:[Save as...] lets you save the data as text, CSV, YAML, or XML.
 
-[[ChStatIOGraphs]]
+[#ChStatIOGraphs]
 
 === The “I/O Graphs” Window
 
@@ -410,7 +430,7 @@ Color::
 The color to use for plotting the graph’s lines, bars, or points.
 
 Style::
-How to visually represent the graph’s data, e.g. by drawing a line, bar, circle, plus, etc.
+How to visually represent the graph’s data, e.g., by drawing a line, bar, circle, plus, etc.
 
 Y Axis::
 The value to use for the graph’s Y axis. Can be one of:
@@ -492,7 +512,7 @@ btn:[Save As...] will save the currently displayed graph as an image or CSV data
 You can see a list of useful keyboard shortcuts by right-clicking on the graph.
 ====
 
-[[ChStatIOGraphsMissingValues]]
+[#ChStatIOGraphsMissingValues]
 
 [discrete]
 ==== Missing Values Are Zero
@@ -509,7 +529,7 @@ Zero values are shown in line graphs, and bar charts.
 // If you need to display zero values in a scatter plot, you can do so by making the Y Axis a calculated field.
 // For example, the calculated equivalent of “Packets” is a “COUNT FRAMES” Y Axis with a Y Field set to “frame”.
 
-[[ChStatSRT]]
+[#ChStatSRT]
 
 === Service Response Time
 
@@ -537,7 +557,7 @@ This information is available for many protocols, including the following:
 As an example, the SMB2 service response time is described below in more detail.
 The other Service Response Time windows will show statistics specific to their respective protocols, but will offer the same menu options.
 
-[[ChStatSRTSMB2]]
+[#ChStatSRTSMB2]
 
 ==== The “SMB2 Service Response Time Statistics” Window
 
@@ -558,19 +578,19 @@ btn:[Save As...] will save the response time information in various formats.
 
 btn:[Close] will close this dialog.
 
-[[ChStatDHCPBOOTP]]
+[#ChStatDHCPBOOTP]
 
 === DHCP (BOOTP) Statistics
 
 The Dynamic Host Configuration Protocol (DHCP) is an option of the Bootstrap Protocol (BOOTP). It dynamically assigns IP addresses and other parameters to a DHCP client. The DHCP (BOOTP) Statistics window displays a table over the number of occurrences of a DHCP message type. The user can filter, copy or save the data into a file.
 
-[[ChStatNetPerfMeter]]
+[#ChStatNetPerfMeter]
 
 === NetPerfMeter Statistics
 
 The NetPerfMeter Protocol{nbsp}(NPMP) is the control and data transfer protocol of NetPerfMeter, the transport protocol performance testing tool. It transmits data streams over TCP, SCTP, UDP and DCCP with given parameters, such as frame rate, frame size, saturated flows, etc.
 
-With this statistics you can:
+With these statistics you can:
 
 * Observed number of messages and bytes per message type.
 * The share of messages and bytes for each message type.
@@ -584,12 +604,12 @@ link:https://duepublico2.uni-due.de/servlets/MCRFileNodeServlet/duepublico_deriv
 .NetPerfMeter Statistics window
 image::wsug_graphics/ws-netperfmeter-statistics.png[{screenshot-attrs}]
 
-[[ChStatONCRPC]]
+[#ChStatONCRPC]
 
 === ONC-RPC Programs
 
 Open Network Computing (ONC) Remote Procedure Call (RPC) uses TCP or UDP protocols to map a program number to a specific port on a remote machine and call a required service at that port. The ONC-RPC Programs window shows the description for captured program calls, such as program name, its number, version, and other data.
-[[ChStat29West]]
+[#ChStat29West]
 
 === 29West
 
@@ -623,7 +643,7 @@ a|* Advertisement by Queue
 |The LBT-Ru Transport Statistics window shows the Sources and Receivers sequence numbers for transport and other data.
 |===
 
-[[ChStatANCP]]
+[#ChStatANCP]
 
 === ANCP
 
@@ -635,19 +655,19 @@ The Access Node Control Protocol (ANCP) is an TCP based protocol, which operates
 
 The ANCP window shows the related statistical data. The user can filter, copy or save the data into a file.
 
-[[ChStatBACnet]]
+[#ChStatBACnet]
 
 === BACnet
 
 Building Automation and Control Networks (BACnet) is a communication protocol which provides control for various building automated facilities, such as light control, fire alarm control, and others. Wireshark provides the BACnet statistics which is a packet counter. You can sort packets by instance ID, IP address, object type or service.
 
-[[ChStatCollectd]]
+[#ChStatCollectd]
 
 === Collectd
 
 Collectd is a system statistics collection daemon. It collects various statistics from your system and converts it for the network use. The Collectd statistics window shows counts for values, which split into type, plugin, and host as well as total packets counter. You can filter, copy or save the data to a file.
 
-[[ChStatDNS]]
+[#ChStatDNS]
 
 === DNS
 
@@ -664,7 +684,7 @@ You might find these statistics useful for quickly examining the health of a DNS
 
 You can filter, copy or save the data into a file.
 
-[[ChStatFlowGraph]]
+[#ChStatFlowGraph]
 
 === Flow Graph
 
@@ -708,41 +728,41 @@ Additional controls available for VoIP calls:
 
 
 
-[[ChStatHARTIP]]
+[#ChStatHARTIP]
 
 === HART-IP
 
 Highway Addressable Remote Transducer over IP (HART-IP) is an application layer protocol. It sends and receives digital information between smart devices and control or monitoring systems. The HART-IP statistics window shows the counter for response, request, publish and error packets. You can filter, copy or save the data to a file.
 
-[[ChStatHPFEEDS]]
+[#ChStatHPFEEDS]
 
 === HPFEEDS
 
 Hpfeeds protocol provides a lightweight authenticated publishing and subscription. It supports arbitrary binary payloads which can be separated into different channels. HPFEEDS statistics window shows a counter for payload size per channel and opcodes. You can filter, copy or save the data to a file.
 
-[[ChStatHTTP]]
+[#ChStatHTTP]
 
 === HTTP Statistics
 
-[[ChStatHTTPPacketCounter]]
+[#ChStatHTTPPacketCounter]
 
 ==== HTTP Packet Counter
 
 Statistics for HTTP request types and response codes.
 
-[[ChStatHTTPRequests]]
+[#ChStatHTTPRequests]
 
 ==== HTTP Requests
 
 HTTP statistics based on the host and URI.
 
-[[ChStatHTTPLoadDistribution]]
+[#ChStatHTTPLoadDistribution]
 
 ==== HTTP Load Distribution
 
 HTTP request and response statistics based on the server address and host.
 
-[[ChStatHTTPRequestSequences]]
+[#ChStatHTTPRequestSequences]
 
 ==== HTTP Request Sequences
 
@@ -754,7 +774,7 @@ request leads to the next.
 image::wsug_graphics/ws-stats-http-requestsequences.png[{screenshot-attrs}]
 
 
-[[ChStatHTTP2]]
+[#ChStatHTTP2]
 
 === HTTP2
 
@@ -762,13 +782,13 @@ Hypertext Transfer Protocol version 2 (HTTP/2) allows multiplexing various HTTP 
 
 As HTTP/2 traffic is typically encrypted with TLS, you must configure decryption to observe HTTP/2 traffic. For more details, see the link:{wireshark-wiki-url}TLS[TLS wiki page].
 
-[[ChStatSametime]]
+[#ChStatSametime]
 
 === Sametime
 
 Sametime is a protocol for the IBM Sametime software. The Sametime statistics window shows the counter for message type, send type, and user status.
 
-[[ChStatTCPStreamGraphs]]
+[#ChStatTCPStreamGraphs]
 
 === TCP Stream Graphs
 
@@ -791,13 +811,13 @@ segment.
 
 Window Scaling:: Window size and outstanding bytes.
 
-[[ChStatUDPMulticastStreams]]
+[#ChStatUDPMulticastStreams]
 
 === UDP Multicast Streams
 
 The UDP Multicast Streams window shows statistics for all UDP multicast streams. It includes source addresses and ports, destination addresses and ports, packets counter and other data. You can specify the burst interval, the alarm limits and output speeds. To apply new settings, press btn:[Enter].
 
-With this statistics you can:
+With these statistics you can:
 
 * Measure the burst size for a video stream. This uses the sliding window algorithm.
 * Measure of the output buffer size limit, that no packet drop will occur. This uses the Leaky bucket algorithm.
@@ -806,7 +826,7 @@ With this statistics you can:
 .UDP Multicast Streams window
 image::wsug_graphics/ws-udp-multicast-stream.png[{screenshot-attrs}]
 
-[[ChStatRSerPool]]
+[#ChStatRSerPool]
 
 === Reliable Server Pooling (RSerPool)
 
@@ -854,7 +874,7 @@ image::wsug_graphics/ws-pingpongprotocol-statistics.png[{screenshot-attrs}]
 .Scripting Service Protocol Statistics window
 image::wsug_graphics/ws-ssp-statistics.png[{screenshot-attrs}]
 
-[[ChStatF5]]
+[#ChStatF5]
 
 === F5
 
@@ -877,7 +897,7 @@ Each `tmm Distribution` window contains the statistics for the following data:
 *** Traffic without a flow ID.
 
 
-[[ChStatIPv4]]
+[#ChStatIPv4]
 
 === IPv4 Statistics
 
@@ -892,7 +912,7 @@ The menu:Statistics[IPv4] menu provides the packet counter by submenus:
 
 You can see similar statistics in the menu:Statistics[Conversations] and menu:Statistics[Endpoints] menus.
 
-[[ChStatIPv6]]
+[#ChStatIPv6]
 
 === IPv6 Statistics
 

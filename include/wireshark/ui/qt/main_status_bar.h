@@ -1,4 +1,4 @@
-/* main_status_bar.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -68,6 +68,7 @@ private:
     guint32 cs_count_;
 
     void showCaptureStatistics();
+    void setStatusbarForCaptureFile();
 
     void pushGenericStatus(StatusContext status, const QString &message, const QString &messagetip = QString());
     void popGenericStatus(StatusContext status);
@@ -96,7 +97,7 @@ private slots:
     void manageProfile();
     void showProfileMenu(const QPoint &global_pos, Qt::MouseButton button);
 
-    friend WiresharkApplication;
+    friend MainApplication;
 };
 
 #endif // MAIN_STATUS_BAR_H

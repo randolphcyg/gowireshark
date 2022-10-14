@@ -1,0 +1,16 @@
+<RCC>
+  <qresource prefix="/i18n">
+    <file>wireshark_de.qm</file>
+    <file>wireshark_en.qm</file>
+    <file>wireshark_es.qm</file>
+    <file>wireshark_fr.qm</file>
+    <file>wireshark_it.qm</file>
+    <file>wireshark_ja_JP.qm</file>
+    <file>wireshark_pl.qm</file>
+    <file>wireshark_ru.qm</file>
+    <file>wireshark_sv.qm</file>
+    <file>wireshark_tr_TR.qm</file>
+    <file>wireshark_uk.qm</file>
+    <file>wireshark_zh_CN.qm</file>
+  </qresource>
+</RCC>

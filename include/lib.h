@@ -30,7 +30,7 @@ void print_first_frame();
 // Dissect and print the first several frames
 void print_first_several_frame(int count);
 // Dissect and print specific frame
-void print_specific_frame(int num);
+int print_specific_frame(int num);
 // Dissect and get hex data of specific frame
 char *get_specific_frame_hex_data(int num);
 // Get proto tree in json format

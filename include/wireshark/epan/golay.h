@@ -1,4 +1,4 @@
-/*
+/** @file
  * Provides routines for encoding and decoding the extended Golay
  * (24,12,8) code.
  *
@@ -18,7 +18,7 @@
 #ifndef __GOLAY_H__
 #define __GOLAY_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* encodes a 12-bit word to a 24-bit codeword
  */

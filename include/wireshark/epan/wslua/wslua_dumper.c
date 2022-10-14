@@ -302,7 +302,7 @@ WSLUA_METHOD Dumper_close(lua_State* L) {
 
     g_hash_table_remove(dumper_encaps,*dp);
 
-    if (!wtap_dump_close(*dp, &err, &err_info)) {
+    if (!wtap_dump_close(*dp, NULL, &err, &err_info)) {
         if (err_info != NULL) {
             luaL_error(L,"error closing: %s (%s)",
                        wtap_strerror(err), err_info);
@@ -343,7 +343,7 @@ WSLUA_METHOD Dumper_dump(lua_State* L) {
      */
 #define WSLUA_ARG_Dumper_dump_TIMESTAMP 2 /* The absolute timestamp the packet will have. */
 #define WSLUA_ARG_Dumper_dump_PSEUDOHEADER 3 /* The `PseudoHeader` to use. */
-#define WSLUA_ARG_Dumper_dump_BYTEARRAY 4 /* the data to be saved */
+#define WSLUA_ARG_Dumper_dump_BYTEARRAY 4 /* The data to be saved */
 
     Dumper d = checkDumper(L,1);
     PseudoHeader ph;
@@ -585,7 +585,7 @@ static int Dumper__gc(lua_State* L) {
 
     g_hash_table_remove(dumper_encaps,*dp);
 
-    if (!wtap_dump_close(*dp, &err, &err_info)) {
+    if (!wtap_dump_close(*dp, NULL, &err, &err_info)) {
         if (err_info != NULL) {
             luaL_error(L,"error closing: %s (%s)",
                        wtap_strerror(err), err_info);

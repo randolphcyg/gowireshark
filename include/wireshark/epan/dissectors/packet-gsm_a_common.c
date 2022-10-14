@@ -752,8 +752,6 @@ static int hf_gsm_a_af_acknowledgement = -1;
 static int hf_gsm_a_call_priority = -1;
 static int hf_gsm_a_ciphering_info = -1;
 static int hf_gsm_a_sapi = -1;
-static int hf_gsm_a_mobile_country_code = -1;
-static int hf_gsm_a_mobile_network_code = -1;
 
 /* Inter protocol hf */
 int hf_3gpp_tmsi = -1;
@@ -2070,13 +2068,6 @@ guint16 elem_v_short(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gint p
 }
 
 
-static dgt_set_t Dgt_tbcd = {
-    {
-  /*  0   1   2   3   4   5   6   7   8   9   a   b   c   d   e   f */
-     '0','1','2','3','4','5','6','7','8','9','?','B','C','*','#','?'
-    }
-};
-
 static dgt_set_t Dgt1_9_bcd = {
     {
   /*  0   1   2   3   4   5   6   7   8   9   a   b   c   d   e   f */
@@ -2085,88 +2076,6 @@ static dgt_set_t Dgt1_9_bcd = {
 };
 
 /* FUNCTIONS */
-
-/*
- * Decode the MCC/MNC from 3 octets in 'octs'
- */
-static void
-mcc_mnc_aux(guint8 *octs, gchar *mcc, gchar *mnc)
-{
-    if ((octs[0] & 0x0f) <= 9)
-    {
-        mcc[0] = Dgt_tbcd.out[octs[0] & 0x0f];
-    }
-    else
-    {
-        mcc[0] = (octs[0] & 0x0f) + 55;
-    }
-
-    if (((octs[0] & 0xf0) >> 4) <= 9)
-    {
-        mcc[1] = Dgt_tbcd.out[(octs[0] & 0xf0) >> 4];
-    }
-    else
-    {
-        mcc[1] = ((octs[0] & 0xf0) >> 4) + 55;
-    }
-
-    if ((octs[1] & 0x0f) <= 9)
-    {
-        mcc[2] = Dgt_tbcd.out[octs[1] & 0x0f];
-    }
-    else
-    {
-        mcc[2] = (octs[1] & 0x0f) + 55;
-    }
-
-    mcc[3] = '\0';
-
-    if (((octs[1] & 0xf0) >> 4) <= 9)
-    {
-        mnc[2] = Dgt_tbcd.out[(octs[1] & 0xf0) >> 4];
-    }
-    else
-    {
-        mnc[2] = ((octs[1] & 0xf0) >> 4) + 55;
-    }
-
-    if ((octs[2] & 0x0f) <= 9)
-    {
-        mnc[0] = Dgt_tbcd.out[octs[2] & 0x0f];
-    }
-    else
-    {
-        mnc[0] = (octs[2] & 0x0f) + 55;
-    }
-
-    if (((octs[2] & 0xf0) >> 4) <= 9)
-    {
-        mnc[1] = Dgt_tbcd.out[(octs[2] & 0xf0) >> 4];
-    }
-    else
-    {
-        mnc[1] = ((octs[2] & 0xf0) >> 4) + 55;
-    }
-
-    if (mnc[1] == 'F')
-    {
-        /*
-         * only a 1 digit MNC (very old)
-         */
-        mnc[1] = '\0';
-    }
-    else if (mnc[2] == 'F')
-    {
-        /*
-         * only a 2 digit MNC
-         */
-        mnc[2] = '\0';
-    }
-    else
-    {
-        mnc[3] = '\0';
-    }
-}
 
 /* 3GPP TS 24.008
  * [3] 10.5.1.1 Cell Identity
@@ -2241,13 +2150,11 @@ de_ciph_key_seq_num( tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, gu
 guint16
 de_lai(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
 {
-    guint8      octs[3];
     guint16     value;
     guint32     curr_offset;
     proto_tree *subtree;
     proto_item *item;
-    gchar       mcc[4];
-    gchar       mnc[4];
+    gchar      *mcc_mnc_str;
 
     curr_offset = offset;
 
@@ -2255,19 +2162,15 @@ de_lai(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guin
                                tvb, curr_offset, 5, ett_gsm_common_elem[DE_LAI], &item,
                                val_to_str_ext_const(DE_LAI, &gsm_common_elem_strings_ext, ""));
 
-    octs[0] = tvb_get_guint8(tvb, curr_offset);
-    octs[1] = tvb_get_guint8(tvb, curr_offset + 1);
-    octs[2] = tvb_get_guint8(tvb, curr_offset + 2);
+    mcc_mnc_str = dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, subtree, curr_offset, E212_LAI, TRUE);
 
-    mcc_mnc_aux(octs, mcc, mnc);
-
-    curr_offset = dissect_e212_mcc_mnc(tvb, pinfo, subtree, curr_offset, E212_LAI, TRUE);
+    curr_offset += 3;
 
     value = tvb_get_ntohs(tvb, curr_offset);
 
     proto_tree_add_item(subtree, hf_gsm_a_lac, tvb, curr_offset, 2, ENC_BIG_ENDIAN);
 
-    proto_item_append_text(item, " - %s/%s/%u", mcc,mnc,value);
+    proto_item_append_text(item, " - %s, LAC %u", mcc_mnc_str, value);
 
     curr_offset += 2;
 
@@ -2303,7 +2206,7 @@ de_mid(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guin
         proto_tree_add_item(tree, hf_gsm_a_mobile_identity_type, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
 
         if (add_string)
-            g_snprintf(add_string, string_len, " - No Identity Code");
+            snprintf(add_string, string_len, " - No Identity Code");
 
         curr_offset++;
 
@@ -2347,7 +2250,7 @@ de_mid(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guin
         }
 
         if (add_string)
-            g_snprintf(add_string, string_len, " - %s (%s)",
+            snprintf(add_string, string_len, " - %s (%s)",
                 ((oct & 0x07) == 3) ? "IMEISV" : "IMSI",
                 digit_str);
 
@@ -2379,7 +2282,7 @@ de_mid(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guin
             digit_str);
 
         if (add_string)
-            g_snprintf(add_string, string_len, " - IMEI (%s)", digit_str);
+            snprintf(add_string, string_len, " - IMEI (%s)", digit_str);
 
         curr_offset += len - (curr_offset - offset);
         break;
@@ -2393,7 +2296,7 @@ de_mid(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guin
         proto_tree_add_item_ret_uint(tree, hf_3gpp_tmsi, tvb, curr_offset, 4, ENC_BIG_ENDIAN, &value);
 
         if (add_string)
-            g_snprintf(add_string, string_len, " - TMSI/P-TMSI (0x%04x)", value);
+            snprintf(add_string, string_len, " - TMSI/P-TMSI (0x%04x)", value);
 
         curr_offset += 4;
         break;
@@ -2435,7 +2338,7 @@ de_mid(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guin
         expert_add_info_format(pinfo, ti, &ei_gsm_a_mobile_identity_type, "Unknown format %u", (oct & 0x07));
 
         if (add_string)
-            g_snprintf(add_string, string_len, " - Format Unknown");
+            snprintf(add_string, string_len, " - Format Unknown");
 
         curr_offset += len;
         break;
@@ -3546,10 +3449,8 @@ de_ps_domain_spec_sys_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, 
 guint16
 de_plmn_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string, int string_len)
 {
-    guint8  octs[3];
+    gchar  *mcc_mnc_str;
     guint32 curr_offset;
-    gchar   mcc[4];
-    gchar   mnc[4];
     guint8  num_plmn;
     proto_tree* subtree;
 
@@ -3558,15 +3459,9 @@ de_plmn_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset
     num_plmn = 0;
     while ((len - (curr_offset - offset)) >= 3)
     {
-        octs[0] = tvb_get_guint8(tvb, curr_offset);
-        octs[1] = tvb_get_guint8(tvb, curr_offset + 1);
-        octs[2] = tvb_get_guint8(tvb, curr_offset + 2);
-
-        mcc_mnc_aux(octs, mcc, mnc);
-
         subtree = proto_tree_add_subtree_format(tree, tvb, curr_offset, 3, ett_gsm_a_plmn, NULL, "PLMN[%u]", num_plmn + 1);
-        proto_tree_add_string(subtree, hf_gsm_a_mobile_country_code, tvb, curr_offset, 3, mcc);
-        proto_tree_add_string(subtree, hf_gsm_a_mobile_network_code, tvb, curr_offset, 3, mnc);
+        mcc_mnc_str = dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, subtree, curr_offset, E212_NONE, TRUE);
+        proto_item_append_text(subtree, ": %s", mcc_mnc_str);
 
         curr_offset += 3;
 
@@ -3574,7 +3469,7 @@ de_plmn_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset
     }
 
     if (add_string)
-        g_snprintf(add_string, string_len, " - %u PLMN%s",
+        snprintf(add_string, string_len, " - %u PLMN%s",
             num_plmn, plurality(num_plmn, "", "s"));
 
     EXTRANEOUS_DATA_CHECK(len, curr_offset - offset, pinfo, &ei_gsm_a_extraneous_data);
@@ -3712,7 +3607,7 @@ static void gsm_a_stat_init(stat_tap_table_ui* new_stat, const char *table_title
         if (msg_str) {
             col_str = g_strdup(msg_str);
         } else {
-            col_str = g_strdup_printf("Unknown message %d", i);
+            col_str = ws_strdup_printf("Unknown message %d", i);
         }
 
         items[IEI_COLUMN].value.uint_value = i;
@@ -3802,61 +3697,61 @@ gsm_a_stat_packet(void *tapdata, const void *gatr_ptr, guint8 pdu_type, int prot
 }
 
 static tap_packet_status
-gsm_a_bssmap_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr)
+gsm_a_bssmap_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr, tap_flags_t flags _U_)
 {
     return gsm_a_stat_packet(tapdata, gatr_ptr, BSSAP_PDU_TYPE_BSSMAP, 0);
 }
 
 static tap_packet_status
-gsm_a_dtap_mm_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr)
+gsm_a_dtap_mm_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr, tap_flags_t flags _U_)
 {
     return gsm_a_stat_packet(tapdata, gatr_ptr, BSSAP_PDU_TYPE_DTAP, PD_MM);
 }
 
 static tap_packet_status
-gsm_a_dtap_rr_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr)
+gsm_a_dtap_rr_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr, tap_flags_t flags _U_)
 {
     return gsm_a_stat_packet(tapdata, gatr_ptr, BSSAP_PDU_TYPE_DTAP, PD_RR);
 }
 
 static tap_packet_status
-gsm_a_dtap_cc_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr)
+gsm_a_dtap_cc_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr, tap_flags_t flags _U_)
 {
     return gsm_a_stat_packet(tapdata, gatr_ptr, BSSAP_PDU_TYPE_DTAP, PD_CC);
 }
 
 static tap_packet_status
-gsm_a_dtap_gmm_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr)
+gsm_a_dtap_gmm_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr, tap_flags_t flags _U_)
 {
     return gsm_a_stat_packet(tapdata, gatr_ptr, BSSAP_PDU_TYPE_DTAP, PD_GMM);
 }
 
 static tap_packet_status
-gsm_a_dtap_sms_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr)
+gsm_a_dtap_sms_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr, tap_flags_t flags _U_)
 {
     return gsm_a_stat_packet(tapdata, gatr_ptr, BSSAP_PDU_TYPE_DTAP, PD_SMS);
 }
 
 static tap_packet_status
-gsm_a_dtap_sm_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr)
+gsm_a_dtap_sm_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr, tap_flags_t flags _U_)
 {
     return gsm_a_stat_packet(tapdata, gatr_ptr, BSSAP_PDU_TYPE_DTAP, PD_SM);
 }
 
 static tap_packet_status
-gsm_a_dtap_ss_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr)
+gsm_a_dtap_ss_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr, tap_flags_t flags _U_)
 {
     return gsm_a_stat_packet(tapdata, gatr_ptr, BSSAP_PDU_TYPE_DTAP, PD_SS);
 }
 
 static tap_packet_status
-gsm_a_dtap_tp_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr)
+gsm_a_dtap_tp_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr, tap_flags_t flags _U_)
 {
     return gsm_a_stat_packet(tapdata, gatr_ptr, BSSAP_PDU_TYPE_DTAP, PD_TP);
 }
 
 static tap_packet_status
-gsm_a_sacch_rr_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr)
+gsm_a_sacch_rr_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gatr_ptr, tap_flags_t flags _U_)
 {
     return gsm_a_stat_packet(tapdata, gatr_ptr, GSM_A_PDU_TYPE_SACCH, 0);
 }
@@ -4093,7 +3988,7 @@ proto_register_gsm_a_common(void)
         NULL, HFILL }
     },
     { &hf_gsm_a_type_of_ciph_alg,
-        { "Call priority", "gsm_a.call_prio",
+        { "Type of ciphering algorithm", "gsm_a.type_of_ciph_alg",
         FT_UINT8, BASE_DEC, VALS(gsm_a_gm_type_of_ciph_alg_vals), 0x07,
         NULL, HFILL }
     },
@@ -4846,8 +4741,6 @@ proto_register_gsm_a_common(void)
       { &hf_gsm_a_call_priority, { "Call Priority", "gsm_a.call_priority", FT_UINT32, BASE_DEC, VALS(gsm_a_call_priority_vals), 0x00000007, NULL, HFILL }},
       { &hf_gsm_a_ciphering_info, { "Ciphering Information", "gsm_a.ciphering_info", FT_UINT8, BASE_HEX, NULL, 0xf0, NULL, HFILL }},
       { &hf_gsm_a_sapi, { "SAPI (Service Access Point Identifier)", "gsm_a.sapi", FT_UINT8, BASE_DEC, VALS(gsm_a_sapi_vals), 0x30, NULL, HFILL }},
-      { &hf_gsm_a_mobile_country_code, { "Mobile Country Code (MCC)", "gsm_a.mobile_country_code", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
-      { &hf_gsm_a_mobile_network_code, { "Mobile Network Code (MNC)", "gsm_a.mobile_network_code", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     };
 
     /* Setup protocol subtree array */

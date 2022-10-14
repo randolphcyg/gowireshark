@@ -1,5 +1,4 @@
-/*
- *  funnel.h
+/** @file
  *
  * EPAN's GUI mini-API
  *
@@ -16,8 +15,8 @@
 
 #include <glib.h>
 #include <epan/stat_groups.h>
-#include "ws_symbol_export.h"
-#include <ws_log_defs.h>
+#include "include/ws_symbol_export.h"
+#include <include/ws_log_defs.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,7 +47,7 @@ struct progdlg;
 
 typedef struct _funnel_ops_t {
     funnel_ops_id_t *ops_id;
-    funnel_text_window_t* (*new_text_window)(const char* label);
+    funnel_text_window_t* (*new_text_window)(funnel_ops_id_t *ops_id, const char* label);
     void (*set_text)(funnel_text_window_t*  win, const char* text);
     void (*append_text)(funnel_text_window_t*  win, const char* text);
     void (*prepend_text)(funnel_text_window_t*  win, const char* text);
@@ -59,7 +58,8 @@ typedef struct _funnel_ops_t {
     void (*destroy_text_window)(funnel_text_window_t*  win);
     void (*add_button)(funnel_text_window_t*  win, funnel_bt_t* cb, const char* label);
 
-    void (*new_dialog)(const gchar* title,
+    void (*new_dialog)(funnel_ops_id_t *ops_id,
+                    const gchar* title,
                     const gchar** field_names,
                     const gchar** field_values,
                     funnel_dlg_cb_t dlg_cb,

@@ -21,7 +21,7 @@
 
 #include <ui/qt/models/percent_bar_delegate.h>
 #include <ui/qt/utils/qt_ui_utils.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 
 // To do:
 // - Add the name resolution checkbox
@@ -386,7 +386,10 @@ public:
             WlanStationTreeWidgetItem *cur_ws_ti = dynamic_cast<WlanStationTreeWidgetItem *>(cur_ti);
             cur_ws_ti->draw(&bssid_, packets_ - beacon_);
             for (int col = 0; col < treeWidget()->columnCount(); col++) {
-                cur_ws_ti->setTextAlignment(col, treeWidget()->headerItem()->textAlignment(col));
+            // int QTreeWidgetItem::textAlignment(int column) const
+            // Returns the text alignment for the label in the given column.
+            // Note: This function returns an int for historical reasons. It will be corrected to return Qt::Alignment in Qt 7.
+                cur_ws_ti->setTextAlignment(col, static_cast<Qt::Alignment>(treeWidget()->headerItem()->textAlignment(col)));
             }
         }
 
@@ -562,7 +565,7 @@ void WlanStatisticsDialog::tapReset(void *ws_dlg_ptr)
     ws_dlg->packet_count_ = 0;
 }
 
-tap_packet_status WlanStatisticsDialog::tapPacket(void *ws_dlg_ptr, _packet_info *, epan_dissect *, const void *wlan_hdr_ptr)
+tap_packet_status WlanStatisticsDialog::tapPacket(void *ws_dlg_ptr, _packet_info *, epan_dissect *, const void *wlan_hdr_ptr, tap_flags_t)
 {
     WlanStatisticsDialog *ws_dlg = static_cast<WlanStatisticsDialog *>(ws_dlg_ptr);
     const wlan_hdr_t *wlan_hdr  = (const wlan_hdr_t *)wlan_hdr_ptr;
@@ -594,7 +597,10 @@ tap_packet_status WlanStatisticsDialog::tapPacket(void *ws_dlg_ptr, _packet_info
     if (!wn_ti) {
         wn_ti = new WlanNetworkTreeWidgetItem(ws_dlg->statsTreeWidget(), wlan_hdr);
         for (int col = 0; col < ws_dlg->statsTreeWidget()->columnCount(); col++) {
-            wn_ti->setTextAlignment(col, ws_dlg->statsTreeWidget()->headerItem()->textAlignment(col));
+            // int QTreeWidgetItem::textAlignment(int column) const
+            // Returns the text alignment for the label in the given column.
+            // Note: This function returns an int for historical reasons. It will be corrected to return Qt::Alignment in Qt 7.
+            wn_ti->setTextAlignment(col, static_cast<Qt::Alignment>(ws_dlg->statsTreeWidget()->headerItem()->textAlignment(col)));
         }
     }
 
@@ -726,7 +732,7 @@ wlan_statistics_init(const char *args, void*) {
     if (args_l.length() > 2) {
         filter = QStringList(args_l.mid(2)).join(",").toUtf8();
     }
-    wsApp->emitStatCommandSignal("WlanStatistics", filter.constData(), NULL);
+    mainApp->emitStatCommandSignal("WlanStatistics", filter.constData(), NULL);
 }
 
 static stat_tap_ui wlan_statistics_ui = {

@@ -1,4 +1,4 @@
-/* eax.h
+/** @file
  * Encryption and decryption routines implementing the EAX' encryption mode
  * Copyright 2010, Edward J. Beroset, edward.j.beroset@us.elster.com
  *
@@ -13,7 +13,7 @@
 #define	_EAX_H
 
 #include <glib.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 typedef struct tagMAC_T
 {

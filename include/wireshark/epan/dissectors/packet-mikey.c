@@ -1201,7 +1201,7 @@ dissect_payload_general_ext(mikey_t *mikey _U_, tvbuff_t *tvb, packet_info *pinf
 		parent = proto_tree_get_parent(tree);
 		if (type == 1) {
 			/* For SDP-IDs, show a string instead of raw bytes */
-			proto_tree_add_item(tree, hf_mikey[POS_GENERAL_EXT_VALUE], tvb, 4, data_len, ENC_ASCII|ENC_NA);
+			proto_tree_add_item(tree, hf_mikey[POS_GENERAL_EXT_VALUE], tvb, 4, data_len, ENC_ASCII);
 		} else {
 			proto_tree_add_item(tree, hf_mikey[POS_GENERAL_EXT_DATA], tvb, 4, data_len, ENC_NA);
 		}
@@ -1838,6 +1838,7 @@ proto_reg_handoff_mikey(void)
 	dissector_add_string("key_mgmt", "mikey", mikey_handle);
 	dissector_add_uint_with_preference("tcp.port", PORT_MIKEY, mikey_handle);
 	dissector_add_uint_with_preference("udp.port", PORT_MIKEY, mikey_handle);
+	dissector_add_string("media_type", "application/mikey", mikey_handle);
 }
 /*
  * Editor modelines  -  https://www.wireshark.org/tools/modelines.html

@@ -26,6 +26,8 @@
 /* ---- Structures for pnio_rtc1 ---- */
 extern int       proto_pn_dcp;
 extern int proto_pn_io_apdu_status;
+extern int proto_pn_io_time_aware_status;
+
 extern gboolean  pnio_ps_selection;  /* given by pnio preferences */
 
 /* Structure for general station information */
@@ -36,8 +38,10 @@ typedef struct tagStationInfo {
     guint16   u16Vendor_id;
     guint16   u16Device_id;
     /* frame structure */
-    guint16   ioDataObjectNr;
-    guint16   iocsNr;
+    guint16   ioDataObjectNr_in;
+    guint16   ioDataObjectNr_out;
+    guint16   iocsNr_in;
+    guint16   iocsNr_out;
     /* GSDfile station information */
     gboolean  gsdFound;
     gboolean  gsdPathLength;
@@ -70,6 +74,7 @@ typedef struct tagIocsObject {
 typedef struct tagIoDataObject {
     guint16     slotNr;
     guint16     subSlotNr;
+    guint32     api;
     guint32     moduleIdentNr;
     guint32     subModuleIdentNr;
     guint16     frameOffset;
@@ -143,6 +148,9 @@ extern int dissect_pn_undecoded(tvbuff_t *tvb, int offset, packet_info *pinfo,
                     proto_tree *tree, guint32 length);
 
 extern int dissect_pn_user_data(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+                    proto_tree *tree, guint32 length, const char *text);
+
+extern int dissect_pn_pa_profile_data(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
                     proto_tree *tree, guint32 length, const char *text);
 
 extern int dissect_blocks(tvbuff_t *tvb, int offset,

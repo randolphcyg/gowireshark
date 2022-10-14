@@ -1,4 +1,4 @@
-/* column_list_model.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -58,7 +58,8 @@ public:
         COL_TITLE,
         COL_TYPE,
         COL_FIELDS,
-        COL_OCCURRENCE
+        COL_OCCURRENCE,
+        COL_RESOLVED
     };
 
     enum {

@@ -20,6 +20,7 @@
 #include <epan/conversation_table.h>
 #include <epan/conversation_filter.h>
 #include <epan/capture_dissectors.h>
+#include <epan/exported_pdu.h>
 #include <wsutil/pint.h>
 #include "packet-eth.h"
 #include "packet-gre.h"
@@ -111,6 +112,8 @@ static dissector_handle_t eth_maybefcs_handle;
 
 static int eth_tap = -1;
 
+static gint exported_pdu_tap = -1;
+
 #define ETH_HEADER_SIZE    14
 
 static const true_false_string ig_tfs = {
@@ -153,37 +156,39 @@ static const char* eth_conv_get_filter_type(conv_item_t* conv, conv_filter_type_
 static ct_dissector_info_t eth_ct_dissector_info = {&eth_conv_get_filter_type};
 
 static tap_packet_status
-eth_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip)
+eth_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip, tap_flags_t flags)
 {
   conv_hash_t *hash = (conv_hash_t*) pct;
+  hash->flags = flags;
   const eth_hdr *ehdr=(const eth_hdr *)vip;
 
-  add_conversation_table_data(hash, &ehdr->src, &ehdr->dst, 0, 0, 1, pinfo->fd->pkt_len, &pinfo->rel_ts, &pinfo->abs_ts, &eth_ct_dissector_info, ENDPOINT_NONE);
+  add_conversation_table_data(hash, &ehdr->src, &ehdr->dst, 0, 0, 1, pinfo->fd->pkt_len, &pinfo->rel_ts, &pinfo->abs_ts, &eth_ct_dissector_info, CONVERSATION_NONE);
 
   return TAP_PACKET_REDRAW;
 }
 
-static const char* eth_host_get_filter_type(hostlist_talker_t* host, conv_filter_type_e filter)
+static const char* eth_endpoint_get_filter_type(endpoint_item_t* endpoint, conv_filter_type_e filter)
 {
-  if ((filter == CONV_FT_ANY_ADDRESS) && (host->myaddress.type == AT_ETHER))
+  if ((filter == CONV_FT_ANY_ADDRESS) && (endpoint->myaddress.type == AT_ETHER))
     return "eth.addr";
 
   return CONV_FILTER_INVALID;
 }
 
-static hostlist_dissector_info_t eth_host_dissector_info = {&eth_host_get_filter_type};
+static et_dissector_info_t eth_endpoint_dissector_info = {&eth_endpoint_get_filter_type};
 
 static tap_packet_status
-eth_hostlist_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip)
+eth_endpoint_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip, tap_flags_t flags)
 {
   conv_hash_t *hash = (conv_hash_t*) pit;
+  hash->flags = flags;
   const eth_hdr *ehdr=(const eth_hdr *)vip;
 
   /* Take two "add" passes per packet, adding for each direction, ensures that all
      packets are counted properly (even if address is sending to itself)
-     XXX - this could probably be done more efficiently inside hostlist_table */
-  add_hostlist_table_data(hash, &ehdr->src, 0, TRUE, 1, pinfo->fd->pkt_len, &eth_host_dissector_info, ENDPOINT_NONE);
-  add_hostlist_table_data(hash, &ehdr->dst, 0, FALSE, 1, pinfo->fd->pkt_len, &eth_host_dissector_info, ENDPOINT_NONE);
+     XXX - this could probably be done more efficiently inside endpoint_table */
+  add_endpoint_table_data(hash, &ehdr->src, 0, TRUE, 1, pinfo->fd->pkt_len, &eth_endpoint_dissector_info, ENDPOINT_NONE);
+  add_endpoint_table_data(hash, &ehdr->dst, 0, FALSE, 1, pinfo->fd->pkt_len, &eth_endpoint_dissector_info, ENDPOINT_NONE);
 
   return TAP_PACKET_REDRAW;
 }
@@ -197,7 +202,7 @@ eth_filter_valid(packet_info *pinfo)
 static gchar*
 eth_build_filter(packet_info *pinfo)
 {
-    return g_strdup_printf("eth.addr eq %s and eth.addr eq %s",
+    return ws_strdup_printf("eth.addr eq %s and eth.addr eq %s",
                 address_to_str(pinfo->pool, &pinfo->dl_src),
                 address_to_str(pinfo->pool, &pinfo->dl_dst));
 }
@@ -329,14 +334,14 @@ dissect_address_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboole
   proto_item_set_hidden(addr_item);
 
   addr_item = proto_tree_add_item(addr_tree, hf_eth_dst_oui, tvb, 0, 3, ENC_NA);
-  PROTO_ITEM_SET_GENERATED(addr_item);
-  PROTO_ITEM_SET_HIDDEN(addr_item);
+  proto_item_set_generated(addr_item);
+  proto_item_set_hidden(addr_item);
 
   dst_oui_name = tvb_get_manuf_name_if_known(tvb, 0);
   if (dst_oui_name != NULL) {
     addr_item = proto_tree_add_string(addr_tree, hf_eth_dst_oui_resolved, tvb, 0, 6, dst_oui_name);
-    PROTO_ITEM_SET_GENERATED(addr_item);
-    PROTO_ITEM_SET_HIDDEN(addr_item);
+    proto_item_set_generated(addr_item);
+    proto_item_set_hidden(addr_item);
   }
 
   proto_tree_add_ether(addr_tree, hf_eth_addr, tvb, 0, 6, dst_addr);
@@ -346,13 +351,13 @@ dissect_address_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboole
   proto_item_set_hidden(addr_item);
 
   addr_item = proto_tree_add_item(addr_tree, hf_eth_addr_oui, tvb, 0, 3, ENC_NA);
-  PROTO_ITEM_SET_GENERATED(addr_item);
-  PROTO_ITEM_SET_HIDDEN(addr_item);
+  proto_item_set_generated(addr_item);
+  proto_item_set_hidden(addr_item);
 
   if (dst_oui_name != NULL) {
     addr_item = proto_tree_add_string(addr_tree, hf_eth_addr_oui_resolved, tvb, 0, 6, dst_oui_name);
-    PROTO_ITEM_SET_GENERATED(addr_item);
-    PROTO_ITEM_SET_HIDDEN(addr_item);
+    proto_item_set_generated(addr_item);
+    proto_item_set_hidden(addr_item);
   }
 
   proto_tree_add_item(addr_tree, hf_eth_dst_lg, tvb, 0, 3, ENC_BIG_ENDIAN);
@@ -375,14 +380,14 @@ dissect_address_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboole
   proto_item_set_hidden(addr_item);
 
   addr_item = proto_tree_add_item(addr_tree, hf_eth_src_oui, tvb, 6, 3, ENC_NA);
-  PROTO_ITEM_SET_GENERATED(addr_item);
-  PROTO_ITEM_SET_HIDDEN(addr_item);
+  proto_item_set_generated(addr_item);
+  proto_item_set_hidden(addr_item);
 
   src_oui_name = tvb_get_manuf_name_if_known(tvb, 6);
   if (src_oui_name != NULL) {
     addr_item = proto_tree_add_string(addr_tree, hf_eth_src_oui_resolved, tvb, 6, 6, src_oui_name);
-    PROTO_ITEM_SET_GENERATED(addr_item);
-    PROTO_ITEM_SET_HIDDEN(addr_item);
+    proto_item_set_generated(addr_item);
+    proto_item_set_hidden(addr_item);
   }
 
   proto_tree_add_ether(addr_tree, hf_eth_addr, tvb, 6, 6, src_addr);
@@ -392,13 +397,13 @@ dissect_address_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboole
   proto_item_set_hidden(addr_item);
 
   addr_item = proto_tree_add_item(addr_tree, hf_eth_addr_oui, tvb, 6, 3, ENC_NA);
-  PROTO_ITEM_SET_GENERATED(addr_item);
-  PROTO_ITEM_SET_HIDDEN(addr_item);
+  proto_item_set_generated(addr_item);
+  proto_item_set_hidden(addr_item);
 
   if (src_oui_name != NULL) {
     addr_item = proto_tree_add_string(addr_tree, hf_eth_addr_oui_resolved, tvb, 6, 6, src_oui_name);
-    PROTO_ITEM_SET_GENERATED(addr_item);
-    PROTO_ITEM_SET_HIDDEN(addr_item);
+    proto_item_set_generated(addr_item);
+    proto_item_set_hidden(addr_item);
   }
 
   proto_tree_add_item(addr_tree, hf_eth_src_lg, tvb, 6, 3, ENC_BIG_ENDIAN);
@@ -407,6 +412,19 @@ dissect_address_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboole
   proto_tree_add_item(addr_tree, hf_eth_src_ig, tvb, 6, 3, ENC_BIG_ENDIAN);
   addr_item = proto_tree_add_item(addr_tree, hf_eth_ig, tvb, 6, 3, ENC_BIG_ENDIAN);
   proto_item_set_hidden(addr_item);
+}
+
+static void
+export_pdu(tvbuff_t *tvb, packet_info *pinfo)
+{
+  if (have_tap_listener(exported_pdu_tap)) {
+    exp_pdu_data_t *exp_pdu_data = wmem_new0(pinfo->pool, exp_pdu_data_t);
+
+    exp_pdu_data->tvb_captured_length = tvb_captured_length(tvb);
+    exp_pdu_data->tvb_reported_length = tvb_reported_length(tvb);
+    exp_pdu_data->pdu_tvb = tvb;
+    tap_queue_packet(exported_pdu_tap, pinfo, exp_pdu_data);
+  }
 }
 
 static proto_tree *
@@ -444,6 +462,7 @@ dissect_eth_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
   ehdr->type = tvb_get_ntohs(tvb, 12);
 
   tap_queue_packet(eth_tap, pinfo, ehdr);
+  export_pdu(tvb, pinfo);
 
   /*
    * In case the packet is a non-Ethernet packet inside
@@ -1135,7 +1154,7 @@ proto_register_eth(void)
   eth_maybefcs_handle = register_dissector("eth_maybefcs", dissect_eth_maybefcs, proto_eth);
   eth_tap = register_tap("eth");
 
-  register_conversation_table(proto_eth, TRUE, eth_conversation_packet, eth_hostlist_packet);
+  register_conversation_table(proto_eth, TRUE, eth_conversation_packet, eth_endpoint_packet);
   register_conversation_filter("eth", "Ethernet", eth_filter_valid, eth_build_filter);
 
   register_capture_dissector("eth", capture_eth, proto_eth);
@@ -1155,6 +1174,8 @@ proto_reg_handoff_eth(void)
 
   eth_handle = create_dissector_handle(dissect_eth, proto_eth);
   dissector_add_uint("wtap_encap", WTAP_ENCAP_ETHERNET, eth_handle);
+  /* This needs a different (& more user-friendly) name than the other tap */
+  exported_pdu_tap = register_export_pdu_tap_with_encap("Ethernet", WTAP_ENCAP_ETHERNET);
 
   dissector_add_uint("ethertype", ETHERTYPE_ETHBRIDGE, eth_withoutfcs_handle);
 
@@ -1169,7 +1190,7 @@ proto_reg_handoff_eth(void)
   dissector_add_uint("gre.proto", GRE_MIKROTIK_EOIP, eth_withoutfcs_handle);
   dissector_add_uint("juniper.proto", JUNIPER_PROTO_ETHER, eth_withoutfcs_handle);
   dissector_add_uint("sflow_245.header_protocol", SFLOW_245_HEADER_ETHERNET, eth_withoutfcs_handle);
-  dissector_add_uint("l2tp.pw_type", L2TPv3_PROTOCOL_ETH, eth_withoutfcs_handle);
+  dissector_add_uint("l2tp.pw_type", L2TPv3_PW_ETH, eth_withoutfcs_handle);
   dissector_add_uint("vxlan.next_proto", VXLAN_ETHERNET, eth_withoutfcs_handle);
   dissector_add_uint("sll.ltype", LINUX_SLL_P_ETHERNET, eth_withoutfcs_handle);
   dissector_add_uint("nsh.next_proto", NSH_ETHERNET, eth_withoutfcs_handle);

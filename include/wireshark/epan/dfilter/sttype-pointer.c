@@ -8,85 +8,110 @@
  */
 
 #include "config.h"
+#include "sttype-pointer.h"
 
 #include "ftypes/ftypes.h"
-#include "ftypes/ftypes-int.h"
 #include "syntax-tree.h"
+#include <epan/proto.h> // For BASE_NONE
 
 static void
-fvalue_free(gpointer value)
+sttype_fvalue_free(gpointer value)
 {
-	fvalue_t *fvalue = (fvalue_t*)value;
+	fvalue_t *fvalue = value;
 
 	/* If the data was not claimed with stnode_steal_data(), free it. */
 	if (fvalue) {
-		FVALUE_FREE(fvalue);
+		fvalue_free(fvalue);
 	}
 }
 
 static void
 pcre_free(gpointer value)
 {
-	GRegex	*pcre = (GRegex*)value;
+	ws_regex_t *pcre = value;
 
 	/* If the data was not claimed with stnode_steal_data(), free it. */
 	if (pcre) {
-		/*
-		 * They're reference-counted, so just drop the reference
-		 * count; it'll get freed when the reference count drops
-		 * to 0.
-		 */
-		g_regex_unref(pcre);
+		ws_regex_free(pcre);
 	}
 }
 
 static char *
-fvalue_tostr(const void *data)
+sttype_fvalue_tostr(const void *data, gboolean pretty)
 {
-	fvalue_t *fvalue = (fvalue_t*)data;
+	const fvalue_t *fvalue = data;
 
 	char *s, *repr;
 
 	s = fvalue_to_string_repr(NULL, fvalue, FTREPR_DFILTER, BASE_NONE);
-	repr = g_strdup_printf("%s[%s]", fvalue_type_name(fvalue), s);
+	if (pretty)
+		repr = g_strdup(s);
+	else
+		repr = ws_strdup_printf("%s <%s>", s, fvalue_type_name(fvalue));
 	g_free(s);
 	return repr;
 }
 
 static char *
-field_tostr(const void *data)
+pcre_tostr(const void *data, gboolean pretty _U_)
 {
-	header_field_info *hfinfo = (header_field_info *)data;
-
-	return g_strdup(hfinfo->abbrev);
+	return g_strdup(ws_regex_pattern(data));
 }
 
 static char *
-pcre_tostr(const void *data)
+charconst_tostr(const void *data, gboolean pretty _U_)
 {
-	const GRegex *pcre = (const GRegex *)data;
+	unsigned long num = *(const unsigned long *)data;
 
-	return g_strdup(g_regex_get_pattern(pcre));
+	if (num > 0x7f)
+		goto out;
+
+	switch (num) {
+		case 0:    return g_strdup("'\\0'");
+		case '\a': return g_strdup("'\\a'");
+		case '\b': return g_strdup("'\\b'");
+		case '\f': return g_strdup("'\\f'");
+		case '\n': return g_strdup("'\\n'");
+		case '\r': return g_strdup("'\\r'");
+		case '\t': return g_strdup("'\\t'");
+		case '\v': return g_strdup("'\\v'");
+		case '\'': return g_strdup("'\\''");
+		case '\\': return g_strdup("'\\\\'");
+		default:
+			break;
+	}
+
+	if (g_ascii_isprint(num))
+		return ws_strdup_printf("'%c'", (int)num);
+out:
+	return ws_strdup_printf("'\\x%02lx'", num);
+}
+
+ftenum_t
+sttype_pointer_ftenum(stnode_t *node)
+{
+	switch (node->type->id) {
+		case STTYPE_FIELD:
+		case STTYPE_REFERENCE:
+			return ((header_field_info *)node->data)->type;
+		case STTYPE_FVALUE:
+			return fvalue_type_ftenum(node->data);
+		default:
+			break;
+	}
+	return FT_NONE;
 }
 
 void
 sttype_register_pointer(void)
 {
-	static sttype_t field_type = {
-		STTYPE_FIELD,
-		"FIELD",
-		NULL,
-		NULL,
-		NULL,
-		field_tostr
-	};
 	static sttype_t fvalue_type = {
 		STTYPE_FVALUE,
 		"FVALUE",
 		NULL,
-		fvalue_free,
+		sttype_fvalue_free,
 		NULL,
-		fvalue_tostr
+		sttype_fvalue_tostr
 	};
 	static sttype_t pcre_type = {
 		STTYPE_PCRE,
@@ -96,10 +121,18 @@ sttype_register_pointer(void)
 		NULL,
 		pcre_tostr
 	};
+	static sttype_t charconst_type = {
+		STTYPE_CHARCONST,
+		"CHARCONST",
+		NULL,
+		g_free,
+		NULL,
+		charconst_tostr
+	};
 
-	sttype_register(&field_type);
 	sttype_register(&fvalue_type);
 	sttype_register(&pcre_type);
+	sttype_register(&charconst_type);
 }
 
 /*

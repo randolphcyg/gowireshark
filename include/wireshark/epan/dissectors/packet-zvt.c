@@ -100,15 +100,15 @@ typedef struct _apdu_info_t {
 
 static void dissect_zvt_int_status(tvbuff_t *tvb, gint offset, guint16 len,
         packet_info *pinfo, proto_tree *tree, zvt_transaction_t *zvt_trans);
-static void dissect_zvt_reg(tvbuff_t *tvb, gint offset, guint16 len,
+static void dissect_zvt_reg(tvbuff_t *tvb, gint offset, guint16 len _U_,
         packet_info *pinfo, proto_tree *tree, zvt_transaction_t *zvt_trans);
 static void dissect_zvt_bitmap_seq(tvbuff_t *tvb, gint offset, guint16 len,
+        packet_info *pinfo, proto_tree *tree, zvt_transaction_t *zvt_trans _U_);
+static void dissect_zvt_init(tvbuff_t *tvb, gint offset, guint16 len _U_,
+        packet_info *pinfo _U_, proto_tree *tree, zvt_transaction_t *zvt_trans _U_);
+static void dissect_zvt_pass_bitmap_seq(tvbuff_t *tvb, gint offset, guint16 len _U_,
         packet_info *pinfo, proto_tree *tree, zvt_transaction_t *zvt_trans);
-static void dissect_zvt_init(tvbuff_t *tvb, gint offset, guint16 len,
-        packet_info *pinfo, proto_tree *tree, zvt_transaction_t *zvt_trans);
-static void dissect_zvt_pass_bitmap_seq(tvbuff_t *tvb, gint offset, guint16 len,
-        packet_info *pinfo, proto_tree *tree, zvt_transaction_t *zvt_trans);
-static void dissect_zvt_abort(tvbuff_t *tvb, gint offset, guint16 len,
+static void dissect_zvt_abort(tvbuff_t *tvb, gint offset, guint16 len _U_,
         packet_info *pinfo, proto_tree *tree, zvt_transaction_t *zvt_trans);
 
 static const apdu_info_t apdu_info[] = {
@@ -169,9 +169,9 @@ static gint dissect_zvt_amount(
 static gint dissect_zvt_tlv_container(
         tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree);
 static inline gint dissect_zvt_res_code(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree);
+        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree);
 static inline gint dissect_zvt_cc(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree);
+        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree);
 static inline gint dissect_zvt_terminal_id(
         tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree);
 static inline gint dissect_zvt_time(
@@ -179,7 +179,7 @@ static inline gint dissect_zvt_time(
 static inline gint dissect_zvt_date(
         tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree);
 static inline gint dissect_zvt_card_type(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree);
+        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree);
 static inline gint dissect_zvt_trace_number(
         tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree);
 static inline gint dissect_zvt_expiry_date(
@@ -232,6 +232,7 @@ static int ett_zvt_bitmap = -1;
 static int ett_zvt_tlv_dat_obj = -1;
 static int ett_zvt_tlv_subseq = -1;
 static int ett_zvt_tlv_tag = -1;
+static int ett_zvt_tlv_receipt = -1;
 
 static int hf_zvt_resp_in = -1;
 static int hf_zvt_resp_to = -1;
@@ -276,6 +277,11 @@ static int hf_zvt_card_number = -1;
 static int hf_zvt_card_name = -1;
 static int hf_zvt_additional_data = -1;
 static int hf_zvt_characters_per_line = -1;
+static int hf_zvt_receipt_info = -1;
+static int hf_zvt_receipt_info_positive = -1;
+static int hf_zvt_receipt_info_signature = -1;
+static int hf_zvt_receipt_info_negative = -1;
+static int hf_zvt_receipt_info_printing = -1;
 
 static int * const receipt_parameter_flag_fields[] = {
     &hf_zvt_receipt_parameter_positive_customer,
@@ -286,6 +292,14 @@ static int * const receipt_parameter_flag_fields[] = {
     &hf_zvt_receipt_parameter_print_short_receipt,
     &hf_zvt_receipt_parameter_no_product_data,
     &hf_zvt_receipt_parameter_ecr_as_printer,
+    NULL
+};
+
+static int * const receipt_info_fields[] = {
+    &hf_zvt_receipt_info_positive,
+    &hf_zvt_receipt_info_signature,
+    &hf_zvt_receipt_info_negative,
+    &hf_zvt_receipt_info_printing,
     NULL
 };
 
@@ -322,6 +336,9 @@ static value_string_ext ctrl_field_ext = VALUE_STRING_EXT_INIT(ctrl_field);
 
 /* ISO 4217 currency codes */
 static const value_string zvt_cc[] = {
+    { 0x0756, "CHF" },
+    { 0x0826, "GBP" },
+    { 0x0840, "USD" },
     { 0x0978, "EUR" },
     { 0, NULL }
 };
@@ -338,6 +355,7 @@ static const value_string card_type[] = {
     {  5, "girocard" },
     {  6, "Mastercard" },
     { 10, "VISA" },
+    { 46, "Maestro" },
     {  0, NULL }
 };
 static value_string_ext card_type_ext = VALUE_STRING_EXT_INIT(card_type);
@@ -400,6 +418,7 @@ static value_string_ext tlv_tag_class_ext = VALUE_STRING_EXT_INIT(tlv_tag_class)
 #define TLV_TAG_CARDHOLDER_AUTH     0x1F10
 #define TLV_TAG_ONLINE_FLAG         0x1F11
 #define TLV_TAG_CARD_TYPE           0x1F12
+#define TLV_TAG_RECEIPT_INFO        0x1F37
 
 
 typedef struct _tlv_seq_info_t {
@@ -409,7 +428,7 @@ typedef struct _tlv_seq_info_t {
 
 static gint
 dissect_zvt_tlv_seq(tvbuff_t *tvb, gint offset, guint16 seq_max_len,
-        packet_info *pinfo _U_, proto_tree *tree, tlv_seq_info_t *seq_info);
+        packet_info *pinfo, proto_tree *tree, tlv_seq_info_t *seq_info);
 
 typedef struct _tlv_info_t {
     guint32 tag;
@@ -419,7 +438,7 @@ typedef struct _tlv_info_t {
 
 static inline gint dissect_zvt_tlv_text_lines(
         tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo, proto_tree *tree, tlv_seq_info_t *seq_info);
+        packet_info *pinfo _U_, proto_tree *tree, tlv_seq_info_t *seq_info);
 
 static inline gint dissect_zvt_tlv_subseq(
         tvbuff_t *tvb, gint offset, gint len,
@@ -427,19 +446,23 @@ static inline gint dissect_zvt_tlv_subseq(
 
 static inline gint dissect_zvt_tlv_permitted_cmd(
         tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo, proto_tree *tree, tlv_seq_info_t *seq_info);
+        packet_info *pinfo _U_, proto_tree *tree, tlv_seq_info_t *seq_info _U_);
 
 static inline gint dissect_zvt_tlv_receipt_type(
         tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo, proto_tree *tree, tlv_seq_info_t *seq_info);
+        packet_info *pinfo _U_, proto_tree *tree, tlv_seq_info_t *seq_info _U_);
 
 static inline gint dissect_zvt_tlv_receipt_param(
         tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo, proto_tree *tree, tlv_seq_info_t *seq_info);
+        packet_info *pinfo _U_, proto_tree *tree, tlv_seq_info_t *seq_info _U_);
 
 static inline gint dissect_zvt_tlv_characters_per_line(
         tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo, proto_tree *tree, tlv_seq_info_t *seq_info);
+        packet_info *pinfo, proto_tree *tree, tlv_seq_info_t *seq_info _U_);
+
+static inline gint dissect_zvt_tlv_receipt_info(
+        tvbuff_t *tvb, gint offset, gint len, packet_info *pinfo _U_,
+        proto_tree *tree, tlv_seq_info_t *seq_info _U_);
 
 static const tlv_info_t tlv_info[] = {
     { TLV_TAG_TEXT_LINES, dissect_zvt_tlv_text_lines },
@@ -450,7 +473,8 @@ static const tlv_info_t tlv_info[] = {
     { TLV_TAG_PERMITTED_ZVT_CMD, dissect_zvt_tlv_permitted_cmd },
     { TLV_TAG_RECEIPT_TYPE, dissect_zvt_tlv_receipt_type },
     { TLV_TAG_RECEIPT_PARAM, dissect_zvt_tlv_receipt_param },
-    { TLV_TAG_CHARS_PER_LINE, dissect_zvt_tlv_characters_per_line }
+    { TLV_TAG_CHARS_PER_LINE, dissect_zvt_tlv_characters_per_line },
+    { TLV_TAG_RECEIPT_INFO, dissect_zvt_tlv_receipt_info }
 };
 
 static const value_string tlv_tags[] = {
@@ -472,6 +496,7 @@ static const value_string tlv_tags[] = {
     { TLV_TAG_CARDHOLDER_AUTH,    "Cardholder authentication" },
     { TLV_TAG_ONLINE_FLAG,        "Online flag" },
     { TLV_TAG_CARD_TYPE,          "Card type" },
+    { TLV_TAG_RECEIPT_INFO,       "Receipt information" },
     { 0, NULL }
 };
 static value_string_ext tlv_tags_ext = VALUE_STRING_EXT_INIT(tlv_tags);
@@ -524,17 +549,27 @@ static inline gint dissect_zvt_tlv_receipt_param(
         tvbuff_t *tvb, gint offset, gint len,
         packet_info *pinfo _U_, proto_tree *tree, tlv_seq_info_t *seq_info _U_)
 {
-    proto_tree_add_bitmask(tree, tvb, offset, hf_zvt_receipt_parameter, ett_zvt_tlv_tag, receipt_parameter_flag_fields, ENC_BIG_ENDIAN);
+    proto_tree_add_bitmask(tree, tvb, offset, hf_zvt_receipt_parameter, ett_zvt_tlv_receipt, receipt_parameter_flag_fields, ENC_BIG_ENDIAN);
     return len;
 }
 
 
 static inline gint dissect_zvt_tlv_characters_per_line(
         tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo _U_, proto_tree *tree, tlv_seq_info_t *seq_info _U_)
+        packet_info *pinfo, proto_tree *tree, tlv_seq_info_t *seq_info _U_)
 {
     const gchar *str = tvb_bcd_dig_to_str_be(pinfo->pool, tvb, offset, 1, NULL, FALSE);
     proto_tree_add_string(tree, hf_zvt_characters_per_line, tvb, offset, 1, str);
+    return len;
+}
+
+
+static inline gint dissect_zvt_tlv_receipt_info(
+        tvbuff_t *tvb, gint offset, gint len,
+        packet_info *pinfo _U_, proto_tree *tree, tlv_seq_info_t *seq_info _U_)
+{
+    proto_tree_add_bitmask(tree, tvb, offset, hf_zvt_receipt_info,
+            ett_zvt_tlv_receipt, receipt_info_fields, ENC_BIG_ENDIAN);
     return len;
 }
 
@@ -728,7 +763,7 @@ static inline gint dissect_zvt_card_type(
 
 
 static inline gint dissect_zvt_terminal_id(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree)
+        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree)
 {
     const gchar *str = tvb_bcd_dig_to_str_be(pinfo->pool, tvb, offset, 4, NULL, FALSE);
     proto_tree_add_string(tree, hf_zvt_terminal_id, tvb, offset, 4, str);
@@ -737,7 +772,7 @@ static inline gint dissect_zvt_terminal_id(
 
 
 static inline gint dissect_zvt_amount(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree)
+        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree)
 {
     const gchar *str = tvb_bcd_dig_to_str_be(pinfo->pool, tvb, offset, 6, NULL, FALSE);
     proto_tree_add_uint64(tree, hf_zvt_amount, tvb, offset, 6, g_ascii_strtoll(str,NULL,10));
@@ -746,7 +781,7 @@ static inline gint dissect_zvt_amount(
 
 
 static inline gint dissect_zvt_time(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree)
+        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree)
 {
     const gchar *str = tvb_bcd_dig_to_str_be(pinfo->pool, tvb, offset, 3, NULL, FALSE);
     gchar  *fstr = (char *)wmem_alloc(pinfo->pool, 9);
@@ -765,7 +800,7 @@ static inline gint dissect_zvt_time(
 
 
 static inline gint dissect_zvt_date(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree)
+        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree)
 {
     const gchar *str = tvb_bcd_dig_to_str_be(pinfo->pool, tvb, offset, 2, NULL, FALSE);
     gchar  *fstr = (char *)wmem_alloc(pinfo->pool, 6);
@@ -781,7 +816,7 @@ static inline gint dissect_zvt_date(
 
 
 static inline gint dissect_zvt_expiry_date(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree)
+        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree)
 {
     const gchar *str = tvb_bcd_dig_to_str_be(pinfo->pool, tvb, offset, 2, NULL, FALSE);
     gchar  *fstr = (char *)wmem_alloc(pinfo->pool, 6);
@@ -797,7 +832,7 @@ static inline gint dissect_zvt_expiry_date(
 
 
 static inline gint dissect_zvt_trace_number(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree)
+        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree)
 {
     const gchar *str = tvb_bcd_dig_to_str_be(pinfo->pool, tvb, offset, 3, NULL, FALSE);
     proto_tree_add_string(tree, hf_zvt_trace_number, tvb, offset, 3, str);
@@ -806,7 +841,7 @@ static inline gint dissect_zvt_trace_number(
 
 
 static inline gint dissect_zvt_card_number(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree)
+        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree)
 {
     guint8 tens = tvb_get_guint8(tvb, offset) & 0x0f;
     guint8 ones = tvb_get_guint8(tvb, offset + 1) & 0x0f;
@@ -818,7 +853,7 @@ static inline gint dissect_zvt_card_number(
 
 
 static inline gint dissect_zvt_card_name(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree)
+        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree)
 {
     guint8 tens = tvb_get_guint8(tvb, offset) & 0x0f;
     guint8 ones = tvb_get_guint8(tvb, offset + 1) & 0x0f;
@@ -830,7 +865,7 @@ static inline gint dissect_zvt_card_name(
 
 
 static inline gint dissect_zvt_additional_data(
-        tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree)
+        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree)
 {
     guint8 hundrets = tvb_get_guint8(tvb, offset) & 0x0f;
     guint8 tens = tvb_get_guint8(tvb, offset + 1) & 0x0f;
@@ -962,7 +997,7 @@ dissect_zvt_pass_bitmap_seq(tvbuff_t *tvb, gint offset, guint16 len _U_,
    (which may be the complete APDU payload or a part of it) */
 static void
 dissect_zvt_bitmap_seq(tvbuff_t *tvb, gint offset, guint16 len,
-        packet_info *pinfo _U_, proto_tree *tree, zvt_transaction_t *zvt_trans _U_)
+        packet_info *pinfo, proto_tree *tree, zvt_transaction_t *zvt_trans _U_)
 {
     gint offset_start, ret;
 
@@ -1130,7 +1165,7 @@ dissect_zvt_apdu(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tre
 
 
 static gint
-dissect_zvt_serial(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree)
+dissect_zvt_serial(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree)
 {
     gint  offset_start;
     int   apdu_len;
@@ -1248,7 +1283,7 @@ static guint get_zvt_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offs
 }
 
 static int
-dissect_zvt_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
+dissect_zvt_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     tcp_dissect_pdus(tvb, pinfo, tree, TRUE, ZVT_APDU_MIN_LEN,
                      get_zvt_message_len, dissect_zvt, data);
@@ -1275,7 +1310,8 @@ proto_register_zvt(void)
         &ett_zvt_bitmap,
         &ett_zvt_tlv_dat_obj,
         &ett_zvt_tlv_subseq,
-        &ett_zvt_tlv_tag
+        &ett_zvt_tlv_tag,
+        &ett_zvt_tlv_receipt
     };
     static hf_register_info hf[] = {
         { &hf_zvt_resp_in,
@@ -1358,7 +1394,7 @@ proto_register_zvt(void)
                 FT_UINT32, BASE_DEC, NULL, 0, NULL, HFILL } },
         { &hf_zvt_text_lines_line,
             { "Text line", "zvt.tlv.text_lines.line",
-                FT_STRING, STR_UNICODE, NULL, 0, NULL, HFILL } },
+                FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL } },
         { &hf_zvt_permitted_cmd,
             { "Permitted command", "zvt.tlv.permitted_command",
                 FT_UINT16, BASE_HEX, NULL, 0, NULL, HFILL } },
@@ -1410,6 +1446,24 @@ proto_register_zvt(void)
         { &hf_zvt_characters_per_line,
             { "Characters per line", "zvt.characters_per_line", FT_STRING,
                 BASE_NONE, NULL, 0, NULL, HFILL } },
+        { &hf_zvt_receipt_info,
+            { "Receipt information", "zvt.tlv.receipt_info", FT_UINT8,
+                BASE_HEX, NULL, 0x00, NULL, HFILL } },
+        { &hf_zvt_receipt_info_positive,
+            { "Positive receipt (authorised)",
+                "zvt.tlv.receipt_info.positive", FT_BOOLEAN, 8,
+                TFS(&tfs_yes_no), 0x01, NULL, HFILL } },
+        { &hf_zvt_receipt_info_signature,
+            { "Receipt contains a signature",
+                "zvt.tlv.receipt_info.signature", FT_BOOLEAN, 8,
+                TFS(&tfs_yes_no), 0x02, NULL, HFILL } },
+        { &hf_zvt_receipt_info_negative,
+            { "Negative receipt (aborted, rejected)",
+                "zvt.tlv.receipt_info.negative", FT_BOOLEAN, 8,
+                TFS(&tfs_yes_no), 0x04, NULL, HFILL } },
+        { &hf_zvt_receipt_info_printing,
+            { "Printing is mandatory", "zvt.tlv.receipt_info.printing",
+                FT_BOOLEAN, 8, TFS(&tfs_yes_no), 0x80, NULL, HFILL } }
     };
 
     static ei_register_info ei[] = {

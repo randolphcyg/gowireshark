@@ -1,4 +1,4 @@
-/* stats_tree.h
+/** @file
  * A counter tree API for Wireshark dissectors
  * 2005, Luis E. G. Ontanon
  *
@@ -16,7 +16,7 @@
 #include <epan/packet_info.h>
 #include <epan/tap.h>
 #include <epan/stat_groups.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,7 +49,8 @@ typedef struct _stats_tree stats_tree;
 typedef tap_packet_status (*stat_tree_packet_cb)(stats_tree*,
                                                  packet_info *,
                                                  epan_dissect_t *,
-                                                 const void *);
+                                                 const void *,
+                                                 tap_flags_t flags);
 
 /* stats_tree initialization callback */
 typedef void  (*stat_tree_init_cb)(stats_tree *);
@@ -63,8 +64,8 @@ typedef enum _stat_node_datatype {
 } stat_node_datatype;
 
 /* registers a new stats tree with default group REGISTER_STAT_GROUP_UNSORTED
- * abbr: protocol abbr
- * name: protocol display name
+ * abbr: tree abbr (used for tshark -z option)
+ * name: tree display name in GUI menu and window (use "/" for sub menus)
  * flags: tap listener flags for per-packet callback
  * packet: per packet callback
  * init: tree initialization callback
@@ -79,8 +80,8 @@ WS_DLL_PUBLIC void stats_tree_register(const gchar *tapname,
                                        stat_tree_cleanup_cb cleanup);
 
 /* registers a new stats tree with default group REGISTER_STAT_GROUP_UNSORTED from a plugin
- * abbr: protocol abbr
- * name: protocol display name
+ * abbr: tree abbr (used for tshark -z option)
+ * name: tree display name in GUI menu and window (use "/" for sub menus)
  * flags: tap listener flags for per-packet callback
  * packet: per packet callback
  * init: tree initialization callback
@@ -95,8 +96,8 @@ WS_DLL_PUBLIC void stats_tree_register_plugin(const gchar *tapname,
                                               stat_tree_cleanup_cb cleanup);
 
 /* registers a new stats tree
- * abbr: protocol abbr
- * name: protocol display name
+ * abbr: tree abbr (used for tshark -z option)
+ * name: tree display name in GUI menu and window (use "/" for sub menus)
  * flags: tap listener flags for per-packet callback
  * packet: per packet callback
  * init: tree initialization callback

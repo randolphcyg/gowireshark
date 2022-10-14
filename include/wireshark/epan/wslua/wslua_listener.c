@@ -67,7 +67,7 @@ static int tap_packet_cb_error_handler(lua_State* L) {
 }
 
 
-static tap_packet_status lua_tap_packet(void *tapdata, packet_info *pinfo, epan_dissect_t *edt, const void *data) {
+static tap_packet_status lua_tap_packet(void *tapdata, packet_info *pinfo, epan_dissect_t *edt, const void *data, tap_flags_t flags _U_) {
     Listener tap = (Listener)tapdata;
     tap_packet_status retval = TAP_PACKET_DONT_REDRAW;
     TreeItem lua_tree_tap;
@@ -324,7 +324,7 @@ WSLUA_METAMETHOD Listener__tostring(lua_State* L) {
     /* Generates a string of debug info for the tap `Listener`. */
     Listener tap = checkListener(L,1);
 
-    lua_pushfstring(L,"Listener(%s) filter: %s",tap->name, tap->filter ? tap->filter : "NONE");
+    lua_pushfstring(L,"Listener(%s) filter: %s  tapinfo: %s",tap->name, tap->filter ? tap->filter : "NONE", tap->extractor ? "YES": "NO");
 
     return 1;
 }
@@ -345,7 +345,9 @@ WSLUA_METAMETHOD Listener__tostring(lua_State* L) {
 
     [NOTE]
     ====
-    `tapinfo` is a table of info based on the `Listener`'s type, or nil.
+    `tapinfo` is a table of info based on the `Listener` type, or nil.
+
+    See _epan/wslua/taps_ for `tapinfo` structure definitions.
     ====
 */
 WSLUA_ATTRIBUTE_FUNC_SETTER(Listener,packet);

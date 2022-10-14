@@ -114,7 +114,6 @@ static int dissect_camel_EstablishTemporaryConnectionArgV2(gboolean implicit_tag
 static int dissect_camel_SpecializedResourceReportArgV23(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
 
 /* XXX - can we get rid of these and always do the SRT work? */
-static gboolean gcamel_HandleSRT=FALSE;
 static gboolean gcamel_PersistentSRT=FALSE;
 static gboolean gcamel_DisplaySRT=FALSE;
 gboolean gcamel_StatSRT=FALSE;
@@ -184,7 +183,7 @@ static const value_string camel_Component_vals[] = {
 
 const value_string  camelSRTtype_naming[]= {
   { CAMELSRT_SESSION,         "TCAP_Session" },
-  { CAMELSRT_VOICE_INITIALDP, "InialDP/Continue" },
+  { CAMELSRT_VOICE_INITIALDP, "InitialDP/Continue" },
   { CAMELSRT_VOICE_ACR1,      "Slice1_ACR/ACH" },
   { CAMELSRT_VOICE_ACR2,      "Slice2_ACR/ACH" },
   { CAMELSRT_VOICE_ACR3,      "Slice3_ACR/ACH" },
@@ -342,7 +341,7 @@ camelstat_init(struct register_srt* srt _U_, GArray* srt_array)
 }
 
 static tap_packet_status
-camelstat_packet(void *pcamel, packet_info *pinfo, epan_dissect_t *edt _U_, const void *psi)
+camelstat_packet(void *pcamel, packet_info *pinfo, epan_dissect_t *edt _U_, const void *psi, tap_flags_t flags _U_)
 {
   guint idx = 0;
   srt_stat_table *camel_srt_table;
@@ -496,9 +495,9 @@ camelsrt_init_routine(void)
 
   /* The Display of SRT is enable
    * 1) For wireshark only if Persistent Stat is enable
-   * 2) For Tshark, if the SRT handling is enable
+   * 2) For Tshark, if the SRT CLI tap is registered
    */
-  gcamel_DisplaySRT=gcamel_PersistentSRT || gcamel_HandleSRT&gcamel_StatSRT;
+  gcamel_DisplaySRT=gcamel_PersistentSRT || gcamel_StatSRT;
 }
 
 
@@ -1105,8 +1104,7 @@ dissect_camel_all(int version, const char* col_protocol, const char* suffix,
   dissect_camel_camelPDU(FALSE, tvb, 0, &asn1_ctx , tree, -1, p_private_tcap);
 
   /* If a Tcap context is associated to this transaction */
-  if (gcamel_HandleSRT &&
-      gp_camelsrt_info->tcap_context ) {
+  if (gp_camelsrt_info->tcap_context ) {
     if (gcamel_DisplaySRT && tree) {
       stat_tree = proto_tree_add_subtree(tree, tvb, 0, 0, ett_camel_stat, NULL, "Stat");
     }
@@ -1175,6 +1173,7 @@ static void camel_stat_init(stat_tap_table_ui* new_stat)
   table = stat_tap_init_table(table_name, num_fields, 0, NULL);
   stat_tap_add_table(new_stat, table);
 
+  memset(items, 0x0, sizeof(items));
   items[MESSAGE_TYPE_COLUMN].type = TABLE_ITEM_STRING;
   items[COUNT_COLUMN].type = TABLE_ITEM_UINT;
   items[COUNT_COLUMN].value.uint_value = 0;
@@ -1185,9 +1184,9 @@ static void camel_stat_init(stat_tap_table_ui* new_stat)
     const char *ocs = try_val_to_str(i, camel_opr_code_strings);
     char *col_str;
     if (ocs) {
-      col_str = g_strdup_printf("Request %s", ocs);
+      col_str = ws_strdup_printf("Request %s", ocs);
     } else {
-      col_str = g_strdup_printf("Unknown op code %d", i);
+      col_str = ws_strdup_printf("Unknown op code %d", i);
     }
 
     items[MESSAGE_TYPE_COLUMN].value.string_value = col_str;
@@ -1196,7 +1195,7 @@ static void camel_stat_init(stat_tap_table_ui* new_stat)
 }
 
 static tap_packet_status
-camel_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *csi_ptr)
+camel_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *csi_ptr, tap_flags_t flags _U_)
 {
   stat_data_t* stat_data = (stat_data_t*)tapdata;
   const struct camelsrt_info_t *csi = (const struct camelsrt_info_t *) csi_ptr;
@@ -1552,10 +1551,7 @@ void proto_register_camel(void) {
     "TCAP Subsystem numbers used for Camel",
     &global_ssn_range, MAX_SSN);
 
-  prefs_register_bool_preference(camel_module, "srt",
-                                 "Analyze Service Response Time",
-                                 "Enable response time analysis",
-                                 &gcamel_HandleSRT);
+  prefs_register_obsolete_preference(camel_module, "srt");
 
   prefs_register_bool_preference(camel_module, "persistentsrt",
                                  "Persistent stats for SRT",

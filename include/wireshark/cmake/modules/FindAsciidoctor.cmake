@@ -32,7 +32,7 @@ if(ASCIIDOCTOR_EXECUTABLE)
 
     function(set_asciidoctor_target_properties _target)
         set_target_properties(${_target} PROPERTIES
-            FOLDER "Docbook"
+            FOLDER "Documentation"
             EXCLUDE_FROM_DEFAULT_BUILD True
         )
     endfunction(set_asciidoctor_target_properties)
@@ -41,6 +41,7 @@ if(ASCIIDOCTOR_EXECUTABLE)
         # Doesn't work with AsciidoctorJ?
         # --failure-level=WARN
         # --trace
+        --quiet
         --attribute build_dir=${CMAKE_CURRENT_BINARY_DIR}
         --require ${CMAKE_SOURCE_DIR}/docbook/asciidoctor-macros/ws_utils.rb
         --require ${CMAKE_SOURCE_DIR}/docbook/asciidoctor-macros/commaize-block.rb

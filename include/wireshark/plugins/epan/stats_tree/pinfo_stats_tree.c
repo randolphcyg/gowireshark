@@ -115,11 +115,11 @@ static tap_packet_status ip_hosts_stats_tree_packet(stats_tree *st, packet_info 
 	return TAP_PACKET_REDRAW;
 }
 
-static tap_packet_status ipv4_hosts_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_) {
+static tap_packet_status ipv4_hosts_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_, tap_flags_t flags _U_) {
 	return ip_hosts_stats_tree_packet(st, pinfo, st_node_ipv4, st_str_ipv4);
 }
 
-static tap_packet_status ipv6_hosts_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_) {
+static tap_packet_status ipv6_hosts_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_, tap_flags_t flags _U_) {
 	return ip_hosts_stats_tree_packet(st, pinfo, st_node_ipv6, st_str_ipv6);
 }
 
@@ -171,11 +171,11 @@ static tap_packet_status ip_srcdst_stats_tree_packet(stats_tree *st,
 	return TAP_PACKET_REDRAW;
 }
 
-static tap_packet_status ipv4_srcdst_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_) {
+static tap_packet_status ipv4_srcdst_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_, tap_flags_t flags _U_) {
 	return ip_srcdst_stats_tree_packet(st, pinfo, st_node_ipv4_src, st_str_ipv4_src, st_node_ipv4_dst, st_str_ipv4_dst);
 }
 
-static tap_packet_status ipv6_srcdst_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_) {
+static tap_packet_status ipv6_srcdst_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_, tap_flags_t flags _U_) {
 	return ip_srcdst_stats_tree_packet(st, pinfo, st_node_ipv6_src, st_str_ipv6_src, st_node_ipv6_dst, st_str_ipv6_dst);
 }
 
@@ -193,12 +193,12 @@ static void ipv6_ptype_stats_tree_init(stats_tree *st) {
 	st_node_ipv6_ptype = stats_tree_create_pivot(st, st_str_ipv6_ptype, 0);
 }
 
-static tap_packet_status ipv4_ptype_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_) {
+static tap_packet_status ipv4_ptype_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_, tap_flags_t flags _U_) {
 	stats_tree_tick_pivot(st, st_node_ipv4_ptype, port_type_to_str(pinfo->ptype));
 	return TAP_PACKET_REDRAW;
 }
 
-static tap_packet_status ipv6_ptype_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_) {
+static tap_packet_status ipv6_ptype_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_, tap_flags_t flags _U_) {
 	stats_tree_tick_pivot(st, st_node_ipv6_ptype, port_type_to_str(pinfo->ptype));
 	return TAP_PACKET_REDRAW;
 }
@@ -230,16 +230,16 @@ static tap_packet_status dsts_stats_tree_packet(stats_tree *st, packet_info *pin
 	tick_stat_node(st, st_str, 0, FALSE);
 	ip_dst_node = tick_stat_node(st, address_to_str(pinfo->pool, &pinfo->net_dst), st_node, TRUE);
 	protocol_node = tick_stat_node(st, port_type_to_str(pinfo->ptype), ip_dst_node, TRUE);
-	g_snprintf(str, sizeof(str) - 1, "%u", pinfo->destport);
+	snprintf(str, sizeof(str) - 1, "%u", pinfo->destport);
 	tick_stat_node(st, str, protocol_node, TRUE);
 	return TAP_PACKET_REDRAW;
 }
 
-static tap_packet_status ipv4_dsts_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_) {
+static tap_packet_status ipv4_dsts_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_, tap_flags_t flags _U_) {
 	return dsts_stats_tree_packet(st, pinfo, st_node_ipv4_dsts, st_str_ipv4_dsts);
 }
 
-static tap_packet_status ipv6_dsts_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_) {
+static tap_packet_status ipv6_dsts_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_, tap_flags_t flags _U_) {
 	return dsts_stats_tree_packet(st, pinfo, st_node_ipv6_dsts, st_str_ipv6_dsts);
 }
 
@@ -255,7 +255,7 @@ static void plen_stats_tree_init(stats_tree *st) {
 	for (i = 0; i < num_plen_uat - 1; i++) {
 		str_range_array[i] = range_convert_range(NULL, uat_plen_records[i].packet_range);
 	}
-	str_range_array[num_plen_uat - 1] = g_strdup_printf("%u and greater",
+	str_range_array[num_plen_uat - 1] = ws_strdup_printf("%u and greater",
 		uat_plen_records[num_plen_uat - 1].packet_range->ranges[0].low);
 
 	st_node_plen = stats_tree_create_range_node_string(st, st_str_plen, 0, num_plen_uat, str_range_array);
@@ -264,7 +264,7 @@ static void plen_stats_tree_init(stats_tree *st) {
 	}
 }
 
-static tap_packet_status plen_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_) {
+static tap_packet_status plen_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p _U_, tap_flags_t flags _U_) {
 	tick_stat_node(st, st_str_plen, 0, FALSE);
 
 	stats_tree_tick_range(st, st_str_plen, 0, pinfo->fd->pkt_len);

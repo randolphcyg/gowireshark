@@ -3,7 +3,7 @@
  * X2 Application Protocol (X2AP);
  * 3GPP TS 36.423 packet dissection
  * Copyright 2007-2014, Anders Broman <anders.broman@ericsson.com>
- * Copyright 2016-2021, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2016-2022, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -12,7 +12,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Ref:
- * 3GPP TS 36.423 V16.7.0 (2021-10)
+ * 3GPP TS 36.423 V17.1.0 (2022-06)
  */
 
 #include "config.h"
@@ -125,6 +125,11 @@ static int hf_x2ap_ReportCharacteristics_ENDC_Reserved = -1;
 static int hf_x2ap_Registration_Request_ENDC_PDU = -1;
 static int hf_x2ap_ReportingPeriodicity_ENDC_PDU = -1;
 static int hf_x2ap_ReportCharacteristics_ENDC_PDU = -1;
+static int hf_x2ap_rAT_RestrictionInformation_LEO = -1;
+static int hf_x2ap_rAT_RestrictionInformation_MEO = -1;
+static int hf_x2ap_rAT_RestrictionInformation_GEO = -1;
+static int hf_x2ap_rAT_RestrictionInformation_OTHERSAT = -1;
+static int hf_x2ap_rAT_RestrictionInformation_Reserved = -1;
 #include "packet-x2ap-hf.c"
 
 /* Initialize the subtree pointers */
@@ -176,6 +181,9 @@ static int ett_x2ap_MDT_ConfigurationNR = -1;
 static int ett_x2ap_NRCellPRACHConfig = -1;
 static int ett_x2ap_IntendedTDD_DL_ULConfiguration_NR = -1;
 static int ett_x2ap_UERadioCapability = -1;
+static int ett_x2ap_LastVisitedPSCell_Item = -1;
+static int ett_x2ap_NRRACHReportContainer = -1;
+static int ett_x2ap_rAT_RestrictionInformation = -1;
 #include "packet-x2ap-ett.c"
 
 /* Forward declarations */
@@ -217,7 +225,6 @@ static const enum_val_t x2ap_rrc_context_vals[] = {
 };
 
 /* Global variables */
-static guint gbl_x2apSctpPort=SCTP_PORT_X2AP;
 static gint g_x2ap_dissect_rrc_context_as = X2AP_RRC_CONTEXT_LTE;
 
 /* Dissector tables */
@@ -255,31 +262,31 @@ static const true_false_string x2ap_tfs_activate_do_not_activate = {
 static void
 x2ap_Time_UE_StayedInCell_EnhancedGranularity_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fs", ((float)v)/10);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fs", ((float)v)/10);
 }
 
 static void
 x2ap_handoverTriggerChange_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%d)", ((float)v)/2, (gint32)v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%d)", ((float)v)/2, (gint32)v);
 }
 
 static void
 x2ap_Threshold_RSRP_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-140, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-140, v);
 }
 
 static void
 x2ap_Threshold_RSRQ_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-20, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-20, v);
 }
 
 static void
 x2ap_Packet_LossRate_fmt(gchar *s, guint32 v)
 {
-  g_snprintf(s, ITEM_LABEL_LENGTH, "%.1f %% (%u)", (float)v/10, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1f %% (%u)", (float)v/10, v);
 }
 
 static struct x2ap_private_data*
@@ -641,6 +648,26 @@ void proto_register_x2ap(void) {
       { "ReportCharacteristics-ENDC", "x2ap.ReportCharacteristics_ENDC",
         FT_BYTES, BASE_NONE, NULL, 0,
         NULL, HFILL }},
+    { &hf_x2ap_rAT_RestrictionInformation_LEO,
+      { "LEO", "x2ap.rAT_RestrictionInformation.LEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x80,
+        NULL, HFILL }},
+    { &hf_x2ap_rAT_RestrictionInformation_MEO,
+      { "MEO", "x2ap.rAT_RestrictionInformation.MEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x40,
+        NULL, HFILL }},
+    { &hf_x2ap_rAT_RestrictionInformation_GEO,
+      { "GEO", "x2ap.rAT_RestrictionInformation.GEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x20,
+        NULL, HFILL }},
+    { &hf_x2ap_rAT_RestrictionInformation_OTHERSAT,
+      { "OTHERSAT", "x2ap.rAT_RestrictionInformation.OTHERSAT",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x10,
+        NULL, HFILL }},
+    { &hf_x2ap_rAT_RestrictionInformation_Reserved,
+      { "Reserved", "x2ap.rAT_RestrictionInformation.Reserved",
+        FT_UINT8, BASE_HEX, NULL, 0x0f,
+        NULL, HFILL }},
 #include "packet-x2ap-hfarr.c"
   };
 
@@ -694,6 +721,9 @@ void proto_register_x2ap(void) {
     &ett_x2ap_NRCellPRACHConfig,
     &ett_x2ap_IntendedTDD_DL_ULConfiguration_NR,
     &ett_x2ap_UERadioCapability,
+    &ett_x2ap_LastVisitedPSCell_Item,
+    &ett_x2ap_NRRACHReportContainer,
+    &ett_x2ap_rAT_RestrictionInformation,
 #include "packet-x2ap-ettarr.c"
   };
 
@@ -715,14 +745,9 @@ void proto_register_x2ap(void) {
   x2ap_proc_sout_dissector_table = register_dissector_table("x2ap.proc.sout", "X2AP-ELEMENTARY-PROCEDURE SuccessfulOutcome", proto_x2ap, FT_UINT32, BASE_DEC);
   x2ap_proc_uout_dissector_table = register_dissector_table("x2ap.proc.uout", "X2AP-ELEMENTARY-PROCEDURE UnsuccessfulOutcome", proto_x2ap, FT_UINT32, BASE_DEC);
 
-  /* Register configuration1 options for ports */
-  x2ap_module = prefs_register_protocol(proto_x2ap, proto_reg_handoff_x2ap);
+  /* Register configuration options */
+  x2ap_module = prefs_register_protocol(proto_x2ap, NULL);
 
-  prefs_register_uint_preference(x2ap_module, "sctp.port",
-                                 "X2AP SCTP Port",
-                                 "Set the SCTP port for X2AP messages",
-                                 10,
-                                 &gbl_x2apSctpPort);
   prefs_register_enum_preference(x2ap_module, "dissect_rrc_context_as", "Dissect RRC Context as",
                                  "Select whether RRC Context should be dissected as legacy LTE or NB-IOT",
                                  &g_x2ap_dissect_rrc_context_as, x2ap_rrc_context_vals, FALSE);
@@ -733,24 +758,9 @@ void proto_register_x2ap(void) {
 void
 proto_reg_handoff_x2ap(void)
 {
-  static gboolean Initialized=FALSE;
-  static guint SctpPort;
-
-  if (!Initialized) {
-    dissector_add_for_decode_as("sctp.port", x2ap_handle);
-    dissector_add_uint("sctp.ppi", X2AP_PAYLOAD_PROTOCOL_ID, x2ap_handle);
-    Initialized=TRUE;
+  dissector_add_uint_with_preference("sctp.port", SCTP_PORT_X2AP, x2ap_handle);
+  dissector_add_uint("sctp.ppi", X2AP_PAYLOAD_PROTOCOL_ID, x2ap_handle);
 #include "packet-x2ap-dis-tab.c"
-  } else {
-    if (SctpPort != 0) {
-      dissector_delete_uint("sctp.port", SctpPort, x2ap_handle);
-    }
-  }
-
-  SctpPort=gbl_x2apSctpPort;
-  if (SctpPort != 0) {
-    dissector_add_uint("sctp.port", SctpPort, x2ap_handle);
-  }
 }
 
 

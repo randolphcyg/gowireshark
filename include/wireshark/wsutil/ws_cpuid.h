@@ -1,4 +1,4 @@
-/* ws_cpuid.h
+/** @file
  * Get the CPU info on x86 processors that support it
  *
  * Wireshark - Network traffic analyzer
@@ -9,23 +9,59 @@
  */
 
 /*
- * Get CPU info on platforms where the cpuid instruction can be used skip 32 bit versions for GCC
+ * Get CPU info on platforms where the x86 cpuid instruction can be used.
+ *
+ * Skip 32-bit versions for GCC and Clang, as older IA-32 processors don't
+ * have cpuid.
+ *
  * Intel has documented the CPUID instruction in the "Intel(r) 64 and IA-32
- * Architectures Developer's Manual" at http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-vol-2a-manual.html
- * the ws_cpuid() routine will return 0 if cpuinfo isn't available.
+ * Architectures Developer's Manual" at
+ *
+ * https://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-vol-2a-manual.html
+ *
+ * The ws_cpuid() routine will return 0 if cpuinfo isn't available, including
+ * on non-x86 platforms and on 32-bit x86 platforms with GCC and Clang, as
+ * well as non-MSVC and non-GCC-or-Clang platforms.
+ *
+ * The "selector" argument to ws_cpuid() is the "initial EAX value" for the
+ * instruction.  The initial ECX value is 0.
+ *
+ * The "CPUInfo" argument points to 4 32-bit values into which the
+ * resulting values of EAX, EBX, ECX, and EDX are store, in order.
  */
 
-#include "ws_attributes.h"
+#include "include/ws_attributes.h"
 
 #if defined(_MSC_VER)     /* MSVC */
+
+/*
+ * XXX - do the same IA-32 (which doesn't have CPUID prior to some versions
+ * of the 80486 and all versions of the 80586^Woriginal Pentium) vs.
+ * x86-64 (which always has CPUID) stuff that we do with GCC/Clang?
+ *
+ * You will probably not be happy running current versions of Wireshark
+ * on an 80386 or 80486 machine, and we're dropping support for IA-32
+ * on Windows anyway, so the answer is probably "no".
+ */
+#if defined(_M_IX86) || defined(_M_X64)
 static gboolean
 ws_cpuid(guint32 *CPUInfo, guint32 selector)
 {
+	/* https://docs.microsoft.com/en-us/cpp/intrinsics/cpuid-cpuidex */
+
 	CPUInfo[0] = CPUInfo[1] = CPUInfo[2] = CPUInfo[3] = 0;
 	__cpuid((int *) CPUInfo, selector);
 	/* XXX, how to check if it's supported on MSVC? just in case clear all flags above */
 	return TRUE;
 }
+#else /* not x86 */
+static gboolean
+ws_cpuid(guint32 *CPUInfo _U_, int selector _U_)
+{
+	/* Not x86, so no cpuid instruction */
+	return FALSE;
+}
+#endif
 
 #elif defined(__GNUC__)  /* GCC/clang */
 

@@ -1,4 +1,5 @@
-/* qt_ui_utils.h
+/** @file
+ *
  * Declarations of Qt-specific UI utility routines
  *
  * Wireshark - Network traffic analyzer
@@ -43,11 +44,6 @@ struct epan_range;
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-// Introduced in Qt 5.4
-#ifndef qUtf8Printable
-#define qUtf8Printable(str) str.toUtf8().constData()
-#endif
 
 /*
  * Helper macro, to prevent old-style-cast warnings, when using GList in c++ code
@@ -146,11 +142,11 @@ G_GNUC_PRINTF(3, 0);
 
 /** Convert a range to a QString using range_convert_range().
  *
- * @param range A pointer to an range struct.
+ * @param range A pointer to a range_string struct.
  *
- * @return A QString representation of the address. May be the null string (QString())
+ * @return A QString representation of the range_string. May be the null string (QString())
  */
-const QString range_to_qstring(const struct epan_range *range);
+const QString range_to_qstring(const range_string *range);
 
 /** Convert a bits per second value to a human-readable QString using format_size().
  *

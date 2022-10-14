@@ -28,10 +28,11 @@
 # include <wsutil/report_message.h>
 # include <wsutil/file_util.h>
 # include <errno.h>
-# if GNUTLS_VERSION_NUMBER < 0x030401
-#   define GNUTLS_KEYID_USE_SHA1 0
-# endif
 #endif  /* HAVE_LIBGNUTLS */
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 /** Maps guint32 secrets_type -> secrets_block_callback_t. */
 static GHashTable *secrets_callbacks;
@@ -261,7 +262,7 @@ pkcs11_load_keys_from_token(const char *token_uri, const char *pin, char **err)
     ret = gnutls_pkcs11_obj_list_import_url4(&list, &nlist, token_uri,
             GNUTLS_PKCS11_OBJ_FLAG_PRIVKEY|GNUTLS_PKCS11_OBJ_FLAG_LOGIN);
     if (ret < 0) {
-        *err = g_strdup_printf("Failed to iterate through objects for %s: %s", token_uri, gnutls_strerror(ret));
+        *err = ws_strdup_printf("Failed to iterate through objects for %s: %s", token_uri, gnutls_strerror(ret));
         goto cleanup;
     }
 
@@ -363,7 +364,7 @@ uat_pkcs11_libs_load_all(void)
     for (guint i = 0; i < uat_num_pkcs11_libs; i++) {
         const pkcs11_lib_record_t *rec = &uat_pkcs11_libs[i];
         const char *libname = rec->library_path;
-#ifdef WIN32
+#ifdef _MSC_VER
         // Work around a bug in p11-kit < 0.23.16 on Windows
         HMODULE provider_lib = LoadLibraryA(libname);
         if (! provider_lib || ! GetProcAddress(provider_lib, "C_GetFunctionList")) {
@@ -372,7 +373,7 @@ uat_pkcs11_libs_load_all(void)
 #endif
         /* Note: should return success for already loaded libraries.  */
         ret = gnutls_pkcs11_add_provider(libname, NULL);
-#ifdef WIN32
+#ifdef _MSC_VER
         }
         if (provider_lib) {
             FreeLibrary(provider_lib);
@@ -443,7 +444,7 @@ load_rsa_keyfile(const char *filename, const char *password, gboolean save_key, 
 
     FILE *fp = ws_fopen(filename, "rb");
     if (!fp) {
-        *err = g_strdup_printf("Error loading RSA key file %s: %s", filename, g_strerror(errno));
+        *err = ws_strdup_printf("Error loading RSA key file %s: %s", filename, g_strerror(errno));
         return;
     }
 
@@ -455,7 +456,7 @@ load_rsa_keyfile(const char *filename, const char *password, gboolean save_key, 
     }
     fclose(fp);
     if (!x509_priv_key) {
-        *err = g_strdup_printf("Error loading RSA key file %s: %s", filename, errmsg);
+        *err = ws_strdup_printf("Error loading RSA key file %s: %s", filename, errmsg);
         g_free(errmsg);
         return;
     }
@@ -464,12 +465,12 @@ load_rsa_keyfile(const char *filename, const char *password, gboolean save_key, 
     ret = gnutls_privkey_import_x509(privkey, x509_priv_key,
             GNUTLS_PRIVKEY_IMPORT_AUTO_RELEASE|GNUTLS_PRIVKEY_IMPORT_COPY);
     if (ret < 0) {
-        *err = g_strdup_printf("Error importing private key %s: %s", filename, gnutls_strerror(ret));
+        *err = ws_strdup_printf("Error importing private key %s: %s", filename, gnutls_strerror(ret));
         goto end;
     }
     ret = gnutls_x509_privkey_get_key_id(x509_priv_key, GNUTLS_KEYID_USE_SHA1, key_id.key_id, &size);
     if (ret < 0 || size != sizeof(key_id)) {
-        *err = g_strdup_printf("Error calculating Key ID for %s: %s", filename, gnutls_strerror(ret));
+        *err = ws_strdup_printf("Error calculating Key ID for %s: %s", filename, gnutls_strerror(ret));
         goto end;
     }
 

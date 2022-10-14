@@ -103,13 +103,6 @@ bool CaptureFile::isValid() const
     return false;
 }
 
-int CaptureFile::currentRow()
-{
-    if (isValid())
-        return cap_file_->current_row;
-    return -1;
-}
-
 const QString CaptureFile::filePath()
 {
     QString path;
@@ -232,6 +225,13 @@ void CaptureFile::reload()
 void CaptureFile::stopLoading()
 {
     setCaptureStopFlag(true);
+}
+
+QString CaptureFile::displayFilter() const
+{
+    if (isValid())
+        return QString(cap_file_->dfilter);
+    return QString();
 }
 
 capture_file *CaptureFile::globalCapFile()

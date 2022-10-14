@@ -5411,7 +5411,7 @@ dissect_gsm_map_ss_USSD_String(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int
       break;
     case SMS_ENCODING_8BIT:
       /* XXX - ASCII, or some extended ASCII? */
-      proto_tree_add_item(subtree, hf_gsm_map_ussd_string, parameter_tvb, 0, length, ENC_ASCII|ENC_NA);
+      proto_tree_add_item(subtree, hf_gsm_map_ussd_string, parameter_tvb, 0, length, ENC_ASCII);
       break;
     case SMS_ENCODING_UCS2:
     case SMS_ENCODING_UCS2_LANG:
@@ -23364,7 +23364,11 @@ static int dissect_returnErrorData(proto_tree *tree, tvbuff_t *tvb, int offset, 
     offset=dissect_gsm_map_er_SubBusyForMT_SMS_Param(FALSE, tvb, offset, actx, tree, -1);
     break;
   case 32: /* SM-DeliveryFailureCause */
-    offset=dissect_gsm_map_er_SM_DeliveryFailureCause(FALSE, tvb, offset, actx, tree, -1);
+    offset = dissect_mc_message(tvb, offset, actx, tree,
+                              FALSE, dissect_gsm_map_er_SM_EnumeratedDeliveryFailureCause, hf_gsm_map_er_sm_EnumeratedDeliveryFailureCause,
+                              FALSE, dissect_gsm_map_er_SM_DeliveryFailureCause, -1,
+                              FALSE, NULL, -1);
+
     break;
   case 33: /* MessageWaitListFullParam */
     offset=dissect_gsm_map_er_MessageWaitListFullParam(FALSE, tvb, offset, actx, tree, -1);
@@ -24104,12 +24108,12 @@ static stat_tap_table_item gsm_map_stat_fields[] = {
   {TABLE_ITEM_STRING, TAP_ALIGN_LEFT, "Operation Code", "%-25s"},
   {TABLE_ITEM_UINT, TAP_ALIGN_RIGHT, "Invokes", "%d"},
   {TABLE_ITEM_UINT, TAP_ALIGN_RIGHT, "Num Bytes", "%d"},
-  {TABLE_ITEM_FLOAT, TAP_ALIGN_RIGHT, "Avg Bytes", "%d"},
+  {TABLE_ITEM_FLOAT, TAP_ALIGN_RIGHT, "Avg Bytes", "%1.2f"},
   {TABLE_ITEM_UINT, TAP_ALIGN_RIGHT, "Return Result", "%d"},
   {TABLE_ITEM_UINT, TAP_ALIGN_RIGHT, "Num Bytes", "%d"},
-  {TABLE_ITEM_FLOAT, TAP_ALIGN_RIGHT, "Avg Bytes", "%d"},
+  {TABLE_ITEM_FLOAT, TAP_ALIGN_RIGHT, "Avg Bytes", "%1.2f"},
   {TABLE_ITEM_UINT, TAP_ALIGN_RIGHT, "Total Bytes", "%d"},
-  {TABLE_ITEM_FLOAT, TAP_ALIGN_RIGHT, "Avg Bytes", "%d"},
+  {TABLE_ITEM_FLOAT, TAP_ALIGN_RIGHT, "Avg Bytes", "%1.2f"},
 };
 
 static void gsm_map_stat_init(stat_tap_table_ui* new_stat)
@@ -24152,7 +24156,7 @@ static void gsm_map_stat_init(stat_tap_table_ui* new_stat)
     if (ocs) {
       col_str = g_strdup(ocs);
     } else {
-      col_str = g_strdup_printf("Unknown op code %d", i);
+      col_str = ws_strdup_printf("Unknown op code %d", i);
     }
 
     items[ID_COLUMN].value.uint_value = i;
@@ -24162,7 +24166,7 @@ static void gsm_map_stat_init(stat_tap_table_ui* new_stat)
 }
 
 static tap_packet_status
-gsm_map_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gmtr_ptr)
+gsm_map_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *gmtr_ptr, tap_flags_t flags _U_)
 {
   stat_data_t* stat_data = (stat_data_t*)tapdata;
   const gsm_map_tap_rec_t *gmtr = (const gsm_map_tap_rec_t *)gmtr_ptr;
@@ -24648,7 +24652,7 @@ void proto_register_gsm_map(void) {
           "Service Area Code", HFILL }},
       { &hf_gsm_map_ussd_string,
         { "USSD String", "gsm_map.ussd_string",
-          FT_STRING, STR_UNICODE, NULL, 0,
+          FT_STRING, BASE_NONE, NULL, 0,
           NULL, HFILL }},
     { &hf_gsm_map_spare_bits,
         { "Spare bit(s)", "gsm_map.spare_bits",
@@ -24818,11 +24822,11 @@ void proto_register_gsm_map(void) {
         "ISDN_AddressString", HFILL }},
     { &hf_gsm_map_diameter_Name,
       { "diameter-Name", "gsm_map.diameter_Name",
-        FT_STRING, STR_ASCII, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         "DiameterIdentity", HFILL }},
     { &hf_gsm_map_diameter_Realm,
       { "diameter-Realm", "gsm_map.diameter_Realm",
-        FT_STRING, STR_ASCII, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         "DiameterIdentity", HFILL }},
     { &hf_gsm_map_cellGlobalIdOrServiceAreaIdFixedLength,
       { "cellGlobalIdOrServiceAreaIdFixedLength", "gsm_map.cellGlobalIdOrServiceAreaIdFixedLength",
@@ -26697,11 +26701,11 @@ void proto_register_gsm_map(void) {
         NULL, HFILL }},
     { &hf_gsm_map_ms_sgsn_Name,
       { "sgsn-Name", "gsm_map.ms.sgsn_Name",
-        FT_STRING, STR_ASCII, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         "DiameterIdentity", HFILL }},
     { &hf_gsm_map_ms_sgsn_Realm,
       { "sgsn-Realm", "gsm_map.ms.sgsn_Realm",
-        FT_STRING, STR_ASCII, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         "DiameterIdentity", HFILL }},
     { &hf_gsm_map_ms_lgd_supportIndicator,
       { "lgd-supportIndicator", "gsm_map.ms.lgd_supportIndicator_element",
@@ -28369,7 +28373,7 @@ void proto_register_gsm_map(void) {
         "TA_Id", HFILL }},
     { &hf_gsm_map_ms_mme_Name,
       { "mme-Name", "gsm_map.ms.mme_Name",
-        FT_STRING, STR_ASCII, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         "DiameterIdentity", HFILL }},
     { &hf_gsm_map_ms_routeingAreaIdentity,
       { "routeingAreaIdentity", "gsm_map.ms.routeingAreaIdentity",
@@ -30091,19 +30095,19 @@ void proto_register_gsm_map(void) {
         "SupportedLCS_CapabilitySets", HFILL }},
     { &hf_gsm_map_lcs_mme_Name,
       { "mme-Name", "gsm_map.lcs.mme_Name",
-        FT_STRING, STR_ASCII, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         "DiameterIdentity", HFILL }},
     { &hf_gsm_map_lcs_aaa_Server_Name,
       { "aaa-Server-Name", "gsm_map.lcs.aaa_Server_Name",
-        FT_STRING, STR_ASCII, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         "DiameterIdentity", HFILL }},
     { &hf_gsm_map_lcs_sgsn_Name,
       { "sgsn-Name", "gsm_map.lcs.sgsn_Name",
-        FT_STRING, STR_ASCII, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         "DiameterIdentity", HFILL }},
     { &hf_gsm_map_lcs_sgsn_Realm,
       { "sgsn-Realm", "gsm_map.lcs.sgsn_Realm",
-        FT_STRING, STR_ASCII, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         "DiameterIdentity", HFILL }},
     { &hf_gsm_map_lcs_locationType,
       { "locationType", "gsm_map.lcs.locationType_element",
@@ -30431,7 +30435,7 @@ void proto_register_gsm_map(void) {
         "ISDN_AddressString", HFILL }},
     { &hf_gsm_map_lcs_mme_Number,
       { "mme-Number", "gsm_map.lcs.mme_Number",
-        FT_STRING, STR_ASCII, NULL, 0,
+        FT_STRING, BASE_NONE, NULL, 0,
         "DiameterIdentity", HFILL }},
     { &hf_gsm_map_lcs_DeferredLocationEventType_msAvailable,
       { "msAvailable", "gsm.map.lcs.DeferredLocationEventType.msAvailable",
@@ -32093,7 +32097,7 @@ void proto_register_gsm_map(void) {
         NULL, HFILL }},
 
 /*--- End of included file: packet-gsm_map-hfarr.c ---*/
-#line 3335 "./asn1/gsm_map/packet-gsm_map-template.c"
+#line 3339 "./asn1/gsm_map/packet-gsm_map-template.c"
   };
 
   /* List of subtrees */
@@ -32849,7 +32853,7 @@ void proto_register_gsm_map(void) {
     &ett_NokiaMAP_Extensions_AllowedServiceData,
 
 /*--- End of included file: packet-gsm_map-ettarr.c ---*/
-#line 3374 "./asn1/gsm_map/packet-gsm_map-template.c"
+#line 3378 "./asn1/gsm_map/packet-gsm_map-template.c"
   };
 
   static ei_register_info ei[] = {
@@ -32993,7 +32997,7 @@ void proto_register_gsm_map(void) {
 
 
 /*--- End of included file: packet-gsm_map-dis-tab.c ---*/
-#line 3434 "./asn1/gsm_map/packet-gsm_map-template.c"
+#line 3438 "./asn1/gsm_map/packet-gsm_map-template.c"
   oid_add_from_string("ericsson-gsm-Map-Ext","1.2.826.0.1249.58.1.0" );
   oid_add_from_string("accessTypeNotAllowed-id","1.3.12.2.1107.3.66.1.2");
   /*oid_add_from_string("map-ac networkLocUp(1) version3(3)","0.4.0.0.1.0.1.3" );

@@ -92,13 +92,13 @@ set(LIBWIRESHARK_PUBLIC_HEADERS
 	frame_data.h
 	frame_data_sequence.h
 	funnel.h
-	garrayfix.h
 	#geoip_db.h
 	golay.h
 	guid-utils.h
 	iana_charsets.h
 	iax2_codec_type.h
 	in_cksum.h
+	introspection.h
 	ip_opts.h
 	ipproto.h
 	ipv4.h
@@ -151,7 +151,6 @@ set(LIBWIRESHARK_PUBLIC_HEADERS
 	timestamp.h
 	timestats.h
 	tfs.h
-	time_fmt.h
 	to_str.h
 	tvbparse.h
 	tvbuff.h
@@ -210,6 +209,7 @@ set(LIBWIRESHARK_NONGENERATED_FILES
 	guid-utils.c
 	iana_charsets.c
 	in_cksum.c
+	introspection.c
 	ipproto.c
 	maxmind_db.c
 	media_params.c
@@ -299,15 +299,16 @@ add_library(epan
 	$<TARGET_OBJECTS:dfilter>
 	$<TARGET_OBJECTS:dissectors>
 	$<TARGET_OBJECTS:dissectors-corba>
+	$<TARGET_OBJECTS:dissector-registration>
 	$<TARGET_OBJECTS:ftypes>
 	$<$<BOOL:${LUA_FOUND}>:$<TARGET_OBJECTS:wslua>>
-	${CMAKE_BINARY_DIR}/image/libwireshark.rc
+	${CMAKE_BINARY_DIR}/resources/libwireshark.rc
 )
 
 set_target_properties(epan PROPERTIES
 	COMPILE_DEFINITIONS "WS_BUILD_DLL"
 	LINK_FLAGS "${WS_LINK_FLAGS}"
-	VERSION "15.0.8" SOVERSION 15
+	VERSION "16.0.0" SOVERSION 16
 	INSTALL_RPATH "${LIBRARY_INSTALL_RPATH}"
 	# By default the name for a library with target name epan will be libepan,
 	# but Ethereal is now named Wireshark
@@ -343,6 +344,7 @@ target_link_libraries(epan
 		${WIN_WS2_32_LIBRARY}
 		${ZLIB_LIBRARIES}
 		${ZSTD_LIBRARIES}
+		$<$<BOOL:${LUA_FOUND}>:lrexlib>
 )
 
 target_include_directories(epan
@@ -425,6 +427,14 @@ target_link_libraries(wscbor_test epan)
 set_target_properties(wscbor_test PROPERTIES
     FOLDER "Tests"
     EXCLUDE_FROM_DEFAULT_BUILD True
+)
+
+# This tries to parse C headers using Python to extract enums for
+# introspection. It is slow and has some particular dependencies.
+# It's also not foolproof. It should not be part of the ALL target.
+add_custom_target(gen-enums
+	COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/make-enums.py
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
 CHECKAPI(

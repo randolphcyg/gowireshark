@@ -103,7 +103,7 @@ diam_tree_to_csv(proto_node *node, gpointer data)
 			val_str = g_strdup(val_tmp);
 			wmem_free(NULL, val_tmp);
 		} else
-			val_str = g_strdup_printf("unsupported type: %s", ftype_name(ftype));
+			val_str = ws_strdup_printf("unsupported type: %s", ftype_name(ftype));
 
 		/*printf("traverse: name='%s', abbrev='%s',desc='%s', val='%s'\n", hfi->name, hfi->abbrev, ftype_name(hfi->type), val_str);*/
 		printf("%s='%s' ", hfi->name, val_str);
@@ -113,7 +113,7 @@ diam_tree_to_csv(proto_node *node, gpointer data)
 }
 
 static tap_packet_status
-diameteravp_packet(void *pds, packet_info *pinfo, epan_dissect_t *edt _U_, const void *pdi)
+diameteravp_packet(void *pds, packet_info *pinfo, epan_dissect_t *edt _U_, const void *pdi, tap_flags_t flags _U_)
 {
 	tap_packet_status ret = TAP_PACKET_DONT_REDRAW;
 	double resp_time = 0.;

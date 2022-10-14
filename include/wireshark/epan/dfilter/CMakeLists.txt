@@ -22,10 +22,12 @@ set(DFILTER_HEADER_FILES
 	drange.h
 	gencode.h
 	semcheck.h
+	sttype-field.h
 	sttype-function.h
-	sttype-range.h
+	sttype-pointer.h
 	sttype-set.h
-	sttype-test.h
+	sttype-slice.h
+	sttype-op.h
 	syntax-tree.h
 )
 
@@ -37,13 +39,13 @@ set(DFILTER_NONGENERATED_FILES
 	drange.c
 	gencode.c
 	semcheck.c
+	sttype-field.c
 	sttype-function.c
-	sttype-integer.c
 	sttype-pointer.c
-	sttype-range.c
 	sttype-set.c
+	sttype-slice.c
 	sttype-string.c
-	sttype-test.c
+	sttype-op.c
 	syntax-tree.c
 )
 source_group(dfilter FILES ${DFILTER_NONGENERATED_FILES})

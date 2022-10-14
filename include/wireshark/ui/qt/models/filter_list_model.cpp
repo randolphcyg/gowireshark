@@ -108,7 +108,7 @@ FilterListModel::FilterListType FilterListModel::filterType() const
 
 int FilterListModel::rowCount(const QModelIndex &/* parent */) const
 {
-    return storage.count();
+    return static_cast<int>(storage.count());
 }
 
 int FilterListModel::columnCount(const QModelIndex &/* parent */) const
@@ -300,7 +300,9 @@ bool FilterListModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
         {
             int storeTo = insertRow;
             if (storeTo < 0 || storeTo >= storage.count())
-                storeTo = storage.count() - 1;
+            {
+                storeTo = static_cast<int>(storage.count()) - 1;
+            }
 
             beginResetModel();
             storage.move(strow, storeTo);

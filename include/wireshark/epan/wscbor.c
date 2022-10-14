@@ -140,10 +140,11 @@ static void wscbor_head_free(wmem_allocator_t *alloc, wscbor_head_t *head) {
 struct _wscbor_chunk_priv_t {
     /// The allocator used for wscbor_chunk_t.errors and wscbor_chunk_t.tags
     wmem_allocator_t *alloc;
+    /// Non-error expert info on this chunk (type wscbor_error_t*)
+    wmem_list_t *infos;
     /// For string types, including indefinite length, the item payload.
     /// Otherwise NULL.
     tvbuff_t *str_value;
-
 };
 
 /** Get a clamped string length suitable for tvb functions.
@@ -190,6 +191,7 @@ wscbor_chunk_t * wscbor_chunk_read(wmem_allocator_t *alloc, tvbuff_t *tvb, gint 
     wscbor_chunk_t *chunk = wmem_new0(alloc, wscbor_chunk_t);
     chunk->_priv = wmem_new0(alloc, struct _wscbor_chunk_priv_t);
     chunk->_priv->alloc = alloc;
+    chunk->_priv->infos = wmem_list_new(alloc);
     chunk->errors = wmem_list_new(alloc);
     chunk->tags = wmem_list_new(alloc);
     chunk->start = *offset;
@@ -232,7 +234,9 @@ wscbor_chunk_t * wscbor_chunk_read(wmem_allocator_t *alloc, tvbuff_t *tvb, gint 
                 // skip over definite data
                 *offset += datalen;
                 chunk->data_length += datalen;
-                chunk->_priv->str_value = tvb_new_subset_length(tvb, chunk->start + chunk->head_length, datalen);
+                if(datalen) {
+                    chunk->_priv->str_value = tvb_new_subset_length(tvb, chunk->start + chunk->head_length, datalen);
+                }
             }
             else {
                 // indefinite length, sequence of definite items
@@ -260,10 +264,12 @@ wscbor_chunk_t * wscbor_chunk_read(wmem_allocator_t *alloc, tvbuff_t *tvb, gint 
                             const gint datalen = wscbor_get_length(chunk, head->rawvalue);
                             *offset += datalen;
                             chunk->data_length += datalen;
-                            tvb_composite_append(
-                                chunk->_priv->str_value,
-                                tvb_new_subset_length(tvb, head->start + head->length, datalen)
-                            );
+                            if(datalen) {
+                                tvb_composite_append(
+                                    chunk->_priv->str_value,
+                                    tvb_new_subset_length(tvb, head->start + head->length, datalen)
+                                );
+                            }
                         }
                     }
 
@@ -273,7 +279,7 @@ wscbor_chunk_t * wscbor_chunk_read(wmem_allocator_t *alloc, tvbuff_t *tvb, gint 
                     }
                 }
 
-                wmem_list_append(chunk->errors, wscbor_error_new(
+                wmem_list_append(chunk->_priv->infos, wscbor_error_new(
                         chunk->_priv->alloc, &ei_cbor_indef_string,
                         NULL
                 ));
@@ -295,6 +301,8 @@ static void wscbor_subitem_free(gpointer data, gpointer userdata) {
 void wscbor_chunk_free(wscbor_chunk_t *chunk) {
     DISSECTOR_ASSERT(chunk);
     wmem_allocator_t *alloc = chunk->_priv->alloc;
+    wmem_list_foreach(chunk->_priv->infos, wscbor_subitem_free, alloc);
+    wmem_destroy_list(chunk->_priv->infos);
     wmem_list_foreach(chunk->errors, wscbor_subitem_free, alloc);
     wmem_destroy_list(chunk->errors);
     wmem_list_foreach(chunk->tags, wscbor_subitem_free, alloc);
@@ -302,17 +310,30 @@ void wscbor_chunk_free(wscbor_chunk_t *chunk) {
     wmem_free(alloc, chunk);
 }
 
-guint64 wscbor_chunk_mark_errors(packet_info *pinfo, proto_item *item, const wscbor_chunk_t *chunk) {
-    for (wmem_list_frame_t *it = wmem_list_head(chunk->errors); it;
-            it = wmem_list_frame_next(it)) {
-        wscbor_error_t *err = (wscbor_error_t *) wmem_list_frame_data(it);
-        if (err->msg) {
-            expert_add_info_format(pinfo, item, err->ei, "%s", err->msg);
-        }
-        else {
-            expert_add_info(pinfo, item, err->ei);
-        }
+/// User data for wscbor_expert_add()
+typedef struct {
+    packet_info *pinfo;
+    proto_item *item;
+} wscbor_expert_add_t;
+
+/// A callback for wmem_list_foreach() to add the info
+static void wscbor_expert_add(gpointer data, gpointer userdata) {
+    const wscbor_error_t *err = (const wscbor_error_t *)data;
+    wscbor_expert_add_t *ctx = (wscbor_expert_add_t *)userdata;
+
+    if (err->msg) {
+        expert_add_info_format(ctx->pinfo, ctx->item, err->ei, "%s", err->msg);
     }
+    else {
+        expert_add_info(ctx->pinfo, ctx->item, err->ei);
+    }
+}
+
+guint64 wscbor_chunk_mark_errors(packet_info *pinfo, proto_item *item, const wscbor_chunk_t *chunk) {
+    wscbor_expert_add_t ctx = {pinfo, item};
+    wmem_list_foreach(chunk->errors, wscbor_expert_add, &ctx);
+    wmem_list_foreach(chunk->_priv->infos, wscbor_expert_add, &ctx);
+
     return wmem_list_count(chunk->errors);
 }
 
@@ -604,13 +625,21 @@ proto_item * proto_tree_add_cbor_bitmask(proto_tree *tree, int hfindex, const gi
 }
 
 proto_item * proto_tree_add_cbor_tstr(proto_tree *tree, int hfindex, packet_info *pinfo, tvbuff_t *tvb _U_, const wscbor_chunk_t *chunk) {
-    proto_item *item = proto_tree_add_item(tree, hfindex, chunk->_priv->str_value, 0, tvb_reported_length(chunk->_priv->str_value), 0);
-    wscbor_chunk_mark_errors(pinfo, item, chunk);
-    return item;
+    if (chunk->_priv->str_value) {
+        proto_item *item = proto_tree_add_item(tree, hfindex, chunk->_priv->str_value, 0, tvb_reported_length(chunk->_priv->str_value), 0);
+        wscbor_chunk_mark_errors(pinfo, item, chunk);
+        return item;
+    } else {
+        return NULL;
+    }
 }
 
 proto_item * proto_tree_add_cbor_bstr(proto_tree *tree, int hfindex, packet_info *pinfo, tvbuff_t *tvb _U_, const wscbor_chunk_t *chunk) {
-    proto_item *item = proto_tree_add_item(tree, hfindex, chunk->_priv->str_value, 0, tvb_reported_length(chunk->_priv->str_value), 0);
-    wscbor_chunk_mark_errors(pinfo, item, chunk);
-    return item;
+    if (chunk->_priv->str_value) {
+        proto_item *item = proto_tree_add_item(tree, hfindex, chunk->_priv->str_value, 0, tvb_reported_length(chunk->_priv->str_value), 0);
+        wscbor_chunk_mark_errors(pinfo, item, chunk);
+        return item;
+    } else {
+        return NULL;
+    }
 }

@@ -1,7 +1,8 @@
 /* packet-sec.c
  * Routines for Bundle Protocol Version 7 Security (BPSec) dissection
  * References:
- *     BPSec: https://datatracker.ietf.org/doc/html/draft-ietf-dtn-bpsec-27
+ *     RFC 9172: https://www.rfc-editor.org/rfc/rfc9172.html
+ *     RFC 9173: https://www.rfc-editor.org/rfc/rfc9173.html
  *
  * Copyright 2019-2021, Brian Sipos <brian.sipos@gmail.com>
  *
@@ -22,9 +23,11 @@
 #include <epan/to_str.h>
 #include <wsutil/crc16.h>
 #include <wsutil/crc32.h>
-#include <stdio.h>
 #include <inttypes.h>
 #include "epan/wscbor.h"
+
+void proto_register_bpsec(void);
+void proto_reg_handoff_bpsec(void);
 
 /// Glib logging "domain" name
 //static const char *LOG_DOMAIN = "bpsec";
@@ -90,7 +93,7 @@ static hf_register_info fields[] = {
     {&hf_asb_flags, {"Flags", "bpsec.asb.flags", FT_UINT64, BASE_HEX, NULL, 0x0, NULL, HFILL}},
     {&hf_asb_flags_has_params, {"Parameters Present", "bpsec.asb.flags.has_params", FT_BOOLEAN, 8, TFS(&tfs_set_notset), BPSEC_ASB_HAS_PARAMS, NULL, HFILL}},
     {&hf_asb_secsrc_nodeid, {"Security Source", "bpsec.asb.secsrc.nodeid", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL}},
-    {&hf_asb_secsrc_uri, {"Security Source URI", "bpsec.asb.secsrc.uri", FT_STRING, STR_UNICODE, NULL, 0x0, NULL, HFILL}},
+    {&hf_asb_secsrc_uri, {"Security Source URI", "bpsec.asb.secsrc.uri", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL}},
     {&hf_asb_param_list, {"Security Parameters, Count", "bpsec.asb.param_count", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL}},
     {&hf_asb_param_pair, {"Parameter", "bpsec.asb.param", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL}},
     {&hf_asb_param_id, {"Type ID", "bpsec.asb.param.id", FT_INT64, BASE_DEC, NULL, 0x0, NULL, HFILL}},
@@ -197,11 +200,6 @@ guint bpsec_id_hash(gconstpointer key) {
 
 /** Dissect an ID-value pair within a context.
  *
- * @param dissector
- * @param typeid
- * @param tvb
- * @param pinfo
- * @param tree
  */
 static gint dissect_value(dissector_handle_t dissector, gint64 *typeid, tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree) {
     gint sublen = 0;
@@ -233,35 +231,38 @@ static int dissect_block_asb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     if (!wscbor_skip_if_errors(wmem_packet_scope(), tvb, &offset, chunk_tgt_list)) {
         proto_tree *tree_tgt_list = proto_item_add_subtree(item_tgt_list, ett_tgt_list);
 
-        wscbor_chunk_t *chunk_tgt = wscbor_chunk_read(wmem_packet_scope(), tvb, &offset);
-        guint64 *tgt_blknum = wscbor_require_uint64(wmem_packet_scope(), chunk_tgt);
-        proto_item *item_tgt = proto_tree_add_cbor_uint64(tree_tgt_list, hf_asb_target, pinfo, tvb, chunk_tgt, tgt_blknum);
-        if (tgt_blknum) {
-            wmem_array_append(targets, tgt_blknum, 1);
+        // iterate all targets
+        for (guint64 param_ix = 0; param_ix < chunk_tgt_list->head_value; ++param_ix) {
+            wscbor_chunk_t *chunk_tgt = wscbor_chunk_read(wmem_packet_scope(), tvb, &offset);
+            guint64 *tgt_blknum = wscbor_require_uint64(wmem_packet_scope(), chunk_tgt);
+            proto_item *item_tgt = proto_tree_add_cbor_uint64(tree_tgt_list, hf_asb_target, pinfo, tvb, chunk_tgt, tgt_blknum);
+            if (tgt_blknum) {
+                wmem_array_append(targets, tgt_blknum, 1);
 
-            wmem_map_t *map = NULL;
-            if (*tgt_blknum == 0) {
-                map = (root_hfindex == hf_bib)
-                    ? data->bundle->primary->sec.data_i
-                    : data->bundle->primary->sec.data_c;
-            }
-            else {
-                bp_block_canonical_t *found = wmem_map_lookup(data->bundle->block_nums, tgt_blknum);
-                if (found) {
+                wmem_map_t *map = NULL;
+                if (*tgt_blknum == 0) {
                     map = (root_hfindex == hf_bib)
-                        ? found->sec.data_i
-                        : found->sec.data_c;
+                        ? data->bundle->primary->sec.data_i
+                        : data->bundle->primary->sec.data_c;
                 }
                 else {
-                    expert_add_info(pinfo, item_tgt, &ei_target_invalid);
+                    bp_block_canonical_t *found = wmem_map_lookup(data->bundle->block_nums, tgt_blknum);
+                    if (found) {
+                        map = (root_hfindex == hf_bib)
+                            ? found->sec.data_i
+                            : found->sec.data_c;
+                    }
+                    else {
+                        expert_add_info(pinfo, item_tgt, &ei_target_invalid);
+                    }
                 }
-            }
-            if (map && (data->block->block_number)) {
-                wmem_map_insert(
-                    map,
-                    data->block->block_number,
-                    NULL
-                );
+                if (map && (data->block->block_number)) {
+                    wmem_map_insert(
+                        map,
+                        data->block->block_number,
+                        NULL
+                    );
+                }
             }
         }
 
@@ -311,7 +312,7 @@ static int dissect_block_asb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
                     gint64 *paramid = wscbor_require_int64(wmem_packet_scope(), chunk_paramid);
                     proto_tree_add_cbor_int64(tree_param_pair, hf_asb_param_id, pinfo, tvb, chunk_paramid, paramid);
                     if (paramid) {
-                        proto_item_append_text(item_param_pair, ", ID: %" PRIi64, *paramid);
+                        proto_item_append_text(item_param_pair, ", ID: %" PRId64, *paramid);
                     }
 
                     const gint offset_value = offset;
@@ -355,7 +356,7 @@ static int dissect_block_asb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
                 if (tgt_ix < tgt_size) {
                     const guint64 *tgt_blknum = wmem_array_index(targets, tgt_ix);
                     proto_item *item_tgt_blknum = proto_tree_add_uint64(tree_result_tgt_list, hf_asb_result_tgt_ref, tvb, 0, 0, *tgt_blknum);
-                    PROTO_ITEM_SET_GENERATED(item_tgt_blknum);
+                    proto_item_set_generated(item_tgt_blknum);
                 }
 
                 // iterate all results for this target
@@ -370,7 +371,7 @@ static int dissect_block_asb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
                         gint64 *resultid = wscbor_require_int64(wmem_packet_scope(), chunk_resultid);
                         proto_tree_add_cbor_int64(tree_result_pair, hf_asb_result_id, pinfo, tvb, chunk_resultid, resultid);
                         if (resultid) {
-                            proto_item_append_text(item_result_pair, ", ID: %" PRIi64, *resultid);
+                            proto_item_append_text(item_result_pair, ", ID: %" PRId64, *resultid);
                         }
 
                         const gint offset_value = offset;

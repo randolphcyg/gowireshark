@@ -253,10 +253,6 @@ static expert_field ei_h264_nal_unit_type_unspecified = EI_INIT;
 
 static dissector_handle_t h264_name_handle;
 
-/* The dynamic payload type range which will be dissected as H.264 */
-
-static range_t *temp_dynamic_payload_type_range = NULL;
-
 static dissector_handle_t h264_handle;
 
 /* syntax tables in subclause 7.3 is equal to
@@ -755,11 +751,11 @@ dissect_h264_exp_golomb_code(proto_tree *tree, int hf_index, tvbuff_t *tvb, gint
         *start_bit_offset = bit_offset;
         /* We will probably get a BoundsError later in the packet. */
         if (descriptor == H264_SE_V) {
-            ti = proto_tree_add_int_format_value(tree, hf_index, tvb, start_offset, (bit_offset >> 3) - start_offset + 1, codenum, "Invalid value (%d leading zero bits), clamped to %" G_GINT32_MODIFIER "d", leading_zero_bits, se_value);
+            ti = proto_tree_add_int_format_value(tree, hf_index, tvb, start_offset, (bit_offset >> 3) - start_offset + 1, codenum, "Invalid value (%d leading zero bits), clamped to %" PRId32, leading_zero_bits, se_value);
             expert_add_info(NULL, ti, &ei_h264_oversized_exp_golomb_code);
             return se_value;
         } else {
-            ti = proto_tree_add_uint_format_value(tree, hf_index, tvb, start_offset, (bit_offset >> 3) - start_offset + 1, codenum, "Invalid value (%d leading zero bits), clamped to %" G_GINT32_MODIFIER "u", leading_zero_bits, codenum);
+            ti = proto_tree_add_uint_format_value(tree, hf_index, tvb, start_offset, (bit_offset >> 3) - start_offset + 1, codenum, "Invalid value (%d leading zero bits), clamped to %" PRIu32, leading_zero_bits, codenum);
             expert_add_info(NULL, ti, &ei_h264_oversized_exp_golomb_code);
             return codenum;
         }
@@ -3749,14 +3745,9 @@ proto_register_h264(void)
     /* Register a configuration option for port */
 
 
-    h264_module = prefs_register_protocol(proto_h264, proto_reg_handoff_h264);
+    h264_module = prefs_register_protocol(proto_h264, NULL);
 
-
-    prefs_register_range_preference(h264_module, "dynamic.payload.type",
-                            "H.264 dynamic payload types",
-                            "Dynamic payload types which will be interpreted as H.264"
-                            "; values must be in the range 1 - 127",
-                            &temp_dynamic_payload_type_range, 127);
+    prefs_register_obsolete_preference(h264_module, "dynamic.payload.type");
 
     h264_handle = register_dissector("h264", dissect_h264, proto_h264);
 }
@@ -3766,32 +3757,21 @@ proto_register_h264(void)
 void
 proto_reg_handoff_h264(void)
 {
-    static range_t  *dynamic_payload_type_range = NULL;
-    static gboolean  h264_prefs_initialized     = FALSE;
+    h264_capability_t *ftr;
 
-    if (!h264_prefs_initialized) {
-        h264_capability_t *ftr;
+    dissector_add_string("rtp_dyn_payload_type","H264", h264_handle);
+    dissector_add_string("rtp_dyn_payload_type","H264-SVC", h264_handle);
+    dissector_add_string("rtp_dyn_payload_type","X-H264UC", h264_handle);
 
-        dissector_add_string("rtp_dyn_payload_type","H264", h264_handle);
-        dissector_add_string("rtp_dyn_payload_type","H264-SVC", h264_handle);
-        dissector_add_string("rtp_dyn_payload_type","X-H264UC", h264_handle);
-
-        h264_name_handle = create_dissector_handle(dissect_h264_name, proto_h264);
-        for (ftr=h264_capability_tab; ftr->id; ftr++) {
-            if (ftr->name)
-                dissector_add_string("h245.gef.name", ftr->id, h264_name_handle);
-            if (ftr->content_pdu)
-                dissector_add_string("h245.gef.content", ftr->id, create_dissector_handle(ftr->content_pdu, proto_h264));
-        }
-        h264_prefs_initialized = TRUE;
-    } else {
-        dissector_delete_uint_range("rtp.pt", dynamic_payload_type_range, h264_handle);
-        wmem_free(wmem_epan_scope(), dynamic_payload_type_range);
+    h264_name_handle = create_dissector_handle(dissect_h264_name, proto_h264);
+    for (ftr=h264_capability_tab; ftr->id; ftr++) {
+        if (ftr->name)
+            dissector_add_string("h245.gef.name", ftr->id, h264_name_handle);
+        if (ftr->content_pdu)
+            dissector_add_string("h245.gef.content", ftr->id, create_dissector_handle(ftr->content_pdu, proto_h264));
     }
 
-    dynamic_payload_type_range = range_copy(wmem_epan_scope(), temp_dynamic_payload_type_range);
-    range_remove_value(wmem_epan_scope(), &dynamic_payload_type_range, 0);
-    dissector_add_uint_range("rtp.pt", dynamic_payload_type_range, h264_handle);
+    dissector_add_uint_range_with_preference("rtp.pt", "", h264_handle);
 
 }
 

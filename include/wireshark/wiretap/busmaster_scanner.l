@@ -12,6 +12,7 @@
 %top {
 /* Include this before everything else, for various large-file definitions */
 #include "config.h"
+#include <include/wireshark.h>
 }
 
 %option noyywrap
@@ -43,7 +44,7 @@
 
 %{
 
-#include <ws_diag_control.h>
+#include <include/ws_diag_control.h>
 #include <wiretap/file_wrappers.h>
 #include "busmaster_parser.h"
 #include "busmaster_priv.h"

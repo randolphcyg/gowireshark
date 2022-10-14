@@ -1,4 +1,4 @@
-/* export_dissection_dialog.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -40,7 +40,7 @@ public slots:
 
 private slots:
 #ifndef Q_OS_WIN
-    void dialogAccepted();
+    void dialogAccepted(const QStringList &selected);
     void exportTypeChanged(QString name_filter);
     void checkValidity();
     void on_buttonBox_helpRequested();

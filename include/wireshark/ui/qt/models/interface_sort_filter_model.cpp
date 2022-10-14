@@ -18,7 +18,7 @@
 #include <ui/preference_utils.h>
 #include <ui/qt/utils/qt_ui_utils.h>
 
-#include "wireshark_application.h"
+#include "main_application.h"
 
 #include <QAbstractItemModel>
 
@@ -34,6 +34,7 @@ void InterfaceSortFilterModel::resetAllFilter()
     _filterTypes = true;
     _invertTypeFilter = false;
     _storeOnChange = false;
+    _sortByActivity = false;
 #ifdef HAVE_PCAP_REMOTE
     _remoteDisplay = true;
 #endif
@@ -51,7 +52,7 @@ void InterfaceSortFilterModel::setStoreOnChange(bool storeOnChange)
     _storeOnChange = storeOnChange;
     if (storeOnChange)
     {
-        connect(wsApp, &WiresharkApplication::preferencesChanged, this, &InterfaceSortFilterModel::resetPreferenceData);
+        connect(mainApp, &MainApplication::preferencesChanged, this, &InterfaceSortFilterModel::resetPreferenceData);
         resetPreferenceData();
     }
 }
@@ -61,6 +62,18 @@ void InterfaceSortFilterModel::setFilterHidden(bool filter)
     _filterHidden = filter;
 
     invalidate();
+}
+
+
+void InterfaceSortFilterModel::setSortByActivity(bool sort)
+{
+    _sortByActivity = sort;
+    invalidate();
+}
+
+bool InterfaceSortFilterModel::sortByActivity() const
+{
+    return _sortByActivity;
 }
 
 #ifdef HAVE_PCAP_REMOTE
@@ -327,7 +340,7 @@ int InterfaceSortFilterModel::mapSourceToColumn(InterfaceTreeColumns mdlIndex)
     if (! _columns.contains(mdlIndex))
         return -1;
 
-    return _columns.indexOf(mdlIndex, 0);
+    return static_cast<int>(_columns.indexOf(mdlIndex, 0));
 }
 
 QModelIndex InterfaceSortFilterModel::mapToSource(const QModelIndex &proxyIndex) const
@@ -353,7 +366,7 @@ QModelIndex InterfaceSortFilterModel::mapFromSource(const QModelIndex &sourceInd
 
     QModelIndex newIndex = QSortFilterProxyModel::mapFromSource(sourceIndex);
 
-    return index(newIndex.row(), _columns.indexOf((InterfaceTreeColumns) sourceIndex.column()));
+    return index(newIndex.row(), static_cast<int>(_columns.indexOf((InterfaceTreeColumns) sourceIndex.column())));
 }
 
 QString InterfaceSortFilterModel::interfaceError()
@@ -369,3 +382,15 @@ QString InterfaceSortFilterModel::interfaceError()
 
     return result;
 }
+
+bool InterfaceSortFilterModel::lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const
+{
+    bool leftActive = source_left.sibling(source_left.row(), InterfaceTreeColumns::IFTREE_COL_ACTIVE).data(Qt::UserRole).toBool();
+    bool rightActive = source_right.sibling(source_right.row(), InterfaceTreeColumns::IFTREE_COL_ACTIVE).data(Qt::UserRole).toBool();
+
+    if (_sortByActivity && rightActive && ! leftActive)
+        return true;
+
+    return QSortFilterProxyModel::lessThan(source_left, source_right);
+}
+

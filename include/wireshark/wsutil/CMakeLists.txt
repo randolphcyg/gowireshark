@@ -23,7 +23,6 @@ set(WSUTIL_PUBLIC_HEADERS
 	buffer.h
 	codecs.h
 	color.h
-	copyright_info.h
 	cpu_info.h
 	crash_info.h
 	crc5.h
@@ -39,6 +38,7 @@ set(WSUTIL_PUBLIC_HEADERS
 	eax.h
 	epochs.h
 	exported_pdu_tlvs.h
+	feature_list.h
 	filesystem.h
 	g711.h
 	inet_addr.h
@@ -56,6 +56,7 @@ set(WSUTIL_PUBLIC_HEADERS
 	pow2.h
 	privileges.h
 	processes.h
+	regex.h
 	report_message.h
 	sign_ext.h
 	sober128.h
@@ -77,6 +78,8 @@ set(WSUTIL_PUBLIC_HEADERS
 	ws_mempbrk_int.h
 	ws_pipe.h
 	ws_roundup.h
+	ws_return.h
+	wsgcrypt.h
 	wsjson.h
 	wslog.h
 	xtea.h
@@ -89,7 +92,6 @@ set(WSUTIL_COMMON_FILES
 	bitswap.c
 	buffer.c
 	codecs.c
-	copyright_info.c
 	crash_info.c
 	crc10.c
 	crc16.c
@@ -103,6 +105,7 @@ set(WSUTIL_COMMON_FILES
 	curve25519.c
 	dot11decrypt_wep.c
 	eax.c
+	feature_list.c
 	filesystem.c
 	g711.c
 	inet_addr.c
@@ -115,6 +118,7 @@ set(WSUTIL_COMMON_FILES
 	os_version_info.c
 	please_report_bug.c
 	privileges.c
+	regex.c
 	rsa.c
 	sober128.c
 	socket.c
@@ -127,7 +131,6 @@ set(WSUTIL_COMMON_FILES
 	to_str.c
 	type_util.c
 	unicode-utils.c
-	ws_assert.c
 	ws_getopt.c
 	ws_mempbrk.c
 	ws_pipe.c
@@ -251,15 +254,14 @@ endif()
 add_library(wsutil
 	${WSUTIL_FILES}
 	$<TARGET_OBJECTS:wmem>
-	${CMAKE_BINARY_DIR}/image/libwsutil.rc
+	${CMAKE_BINARY_DIR}/resources/libwsutil.rc
 )
 
 set_target_properties(wsutil PROPERTIES
 	PREFIX "lib"
 	COMPILE_DEFINITIONS "WS_BUILD_DLL"
 	LINK_FLAGS "${WS_LINK_FLAGS}"
-	# 0 -> 1: ws_log_default_writer
-	VERSION "13.1.0" SOVERSION 13
+	VERSION "14.0.0" SOVERSION 14
 	FOLDER "DLLs"
 	INSTALL_RPATH "${LIBRARY_INSTALL_RPATH}"
 )
@@ -279,6 +281,7 @@ target_link_libraries(wsutil
 		${CMAKE_DL_LIBS}
 		${GCRYPT_LIBRARIES}
 		${GNUTLS_LIBRARIES}
+		${PCRE2_LIBRARIES}
 		${M_LIBRARIES}
 		${WIN_IPHLPAPI_LIBRARY}
 		${WIN_WS2_32_LIBRARY}
@@ -288,6 +291,7 @@ target_include_directories(wsutil
 	SYSTEM PRIVATE
 		${GCRYPT_INCLUDE_DIRS}
 		${GNUTLS_INCLUDE_DIRS}
+		${PCRE2_INCLUDE_DIRS}
 )
 
 install(TARGETS wsutil

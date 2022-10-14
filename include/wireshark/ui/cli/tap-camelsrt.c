@@ -28,7 +28,7 @@
 
 void register_tap_listener_camelsrt(void);
 
-/* Save the the first NUM_RAS_STATS stats in the array to calculate percentile */
+/* Save the first NUM_RAS_STATS stats in the array to calculate percentile */
 #define NUM_RAS_STATS 500000
 
 /* Number of couple message Request/Response to analyze*/
@@ -53,7 +53,7 @@ static void camelsrt_reset(void *phs)
 static tap_packet_status camelsrt_packet(void *phs,
                                          packet_info *pinfo _U_,
                                          epan_dissect_t *edt _U_,
-                                         const void *phi)
+                                         const void *phi, tap_flags_t flags _U_)
 {
   struct camelsrt_t *hs = (struct camelsrt_t *)phs;
   const struct camelsrt_info_t * pi = (const struct camelsrt_info_t *)phi;
@@ -202,12 +202,13 @@ static void camelsrt_init(const char *opt_arg, void *userdata _U_)
   GString *error_string;
 
   p_camelsrt = g_new(struct camelsrt_t, 1);
-  if (!strncmp(opt_arg, "camel,srt,", 9)) {
-    p_camelsrt->filter = g_strdup(opt_arg+9);
+  camelsrt_reset(p_camelsrt);
+
+  if (!strncmp(opt_arg, "camel,srt,", 10)) {
+    p_camelsrt->filter = g_strdup(opt_arg+10);
   } else {
     p_camelsrt->filter = NULL;
   }
-  camelsrt_reset(p_camelsrt);
 
   error_string = register_tap_listener("CAMEL",
                                      p_camelsrt,

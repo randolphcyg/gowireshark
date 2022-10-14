@@ -17,8 +17,9 @@
 #include <epan/strutil.h>
 
 #include <wsutil/utf8_entities.h>
+#include <wsutil/regex.h>
 
-#include "wireshark_application.h"
+#include "main_application.h"
 #include <QKeyEvent>
 #include <QCheckBox>
 
@@ -63,7 +64,7 @@ SearchFrame::SearchFrame(QWidget *parent) :
 SearchFrame::~SearchFrame()
 {
     if (regex_) {
-        g_regex_unref(regex_);
+        ws_regex_free(regex_);
     }
     delete sf_ui_;
 }
@@ -140,13 +141,13 @@ void SearchFrame::keyPressEvent(QKeyEvent *event)
 
 bool SearchFrame::regexCompile()
 {
-    int flags = (G_REGEX_OPTIMIZE);
+    unsigned flags = 0;
     if (!sf_ui_->caseCheckBox->isChecked()) {
-        flags |= G_REGEX_CASELESS;
+        flags |= WS_REGEX_CASELESS;
     }
 
     if (regex_) {
-        g_regex_unref(regex_);
+        ws_regex_free(regex_);
     }
 
     if (sf_ui_->searchLineEdit->text().isEmpty()) {
@@ -154,12 +155,12 @@ bool SearchFrame::regexCompile()
         return false;
     }
 
-    GError *error = nullptr;
-    regex_ = g_regex_new(sf_ui_->searchLineEdit->text().toUtf8().constData(),
-                         (GRegexCompileFlags)flags, (GRegexMatchFlags) 0, &error);
-    if (error) {
-        regex_error_ = error->message;
-        g_error_free(error);
+    char *errmsg = nullptr;
+    regex_ = ws_regex_compile_ex(sf_ui_->searchLineEdit->text().toUtf8().constData(), -1,
+                         &errmsg, flags);
+
+    if (errmsg != nullptr) {
+        regex_error_ = errmsg;
     }
 
     return regex_ ? true : false;
@@ -347,7 +348,7 @@ void SearchFrame::on_searchTypeComboBox_currentIndexChanged(int idx)
         sf_ui_->searchLineEdit->checkFilter();
     } else {
         sf_ui_->searchLineEdit->setToolTip(QString());
-        wsApp->popStatus(WiresharkApplication::FilterSyntax);
+        mainApp->popStatus(MainApplication::FilterSyntax);
     }
 
     updateWidgets();
@@ -448,8 +449,8 @@ void SearchFrame::on_findButton_clicked()
 
     g_free(cap_file_->sfilter);
     cap_file_->sfilter = g_strdup(sf_ui_->searchLineEdit->text().toUtf8().constData());
-    wsApp->popStatus(WiresharkApplication::FileStatus);
-    wsApp->pushStatus(WiresharkApplication::FileStatus, tr("Searching for %1…").arg(sf_ui_->searchLineEdit->text()));
+    mainApp->popStatus(MainApplication::FileStatus);
+    mainApp->pushStatus(MainApplication::FileStatus, tr("Searching for %1…").arg(sf_ui_->searchLineEdit->text()));
 
     if (cap_file_->hex) {
         /* Hex value in packet data */
@@ -502,15 +503,15 @@ void SearchFrame::on_findButton_clicked()
     }
 
     search_done:
-    wsApp->popStatus(WiresharkApplication::FileStatus);
+    mainApp->popStatus(MainApplication::FileStatus);
     if (!err_string.isEmpty()) {
-        wsApp->pushStatus(WiresharkApplication::FilterSyntax, err_string);
+        mainApp->pushStatus(MainApplication::FilterSyntax, err_string);
     }
 }
 
 void SearchFrame::on_cancelButton_clicked()
 {
-    wsApp->popStatus(WiresharkApplication::FilterSyntax);
+    mainApp->popStatus(MainApplication::FilterSyntax);
     animatedHide();
 }
 

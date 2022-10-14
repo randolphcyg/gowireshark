@@ -3397,7 +3397,7 @@ proto_register_zbee_zcl_price(void)
          /* end Tariff Information Type/Charging Scheme fields */
 
         { &hf_zbee_zcl_price_tariff_information_tariff_label,
-            { "Tariff Label", "zbee_zcl_se.price.tariff_information.tariff_label", FT_UINT_STRING, STR_UNICODE, NULL,
+            { "Tariff Label", "zbee_zcl_se.price.tariff_information.tariff_label", FT_UINT_STRING, BASE_NONE, NULL,
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_price_tariff_information_number_of_price_tiers_in_use,
@@ -3857,11 +3857,11 @@ static void
 decode_zcl_drlc_temp_offset(gchar *s, guint8 value)
 {
     if (value == ZBEE_ZCL_DRLC_TEMP_OFFSET_NOT_USED)
-        g_snprintf(s, ITEM_LABEL_LENGTH, "Not Used");
+        snprintf(s, ITEM_LABEL_LENGTH, "Not Used");
     else {
         gfloat temp_delta;
         temp_delta = value / ZBEE_ZCL_DRLC_TEMP_OFFSET_DIVIDER;
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%+.2f%s", temp_delta, units_degree_celsius.singular);
+        snprintf(s, ITEM_LABEL_LENGTH, "%+.2f%s", temp_delta, units_degree_celsius.singular);
     }
 } /*decode_zcl_msg_start_time*/
 
@@ -3874,11 +3874,11 @@ decode_zcl_drlc_temp_offset(gchar *s, guint8 value)
 static void decode_zcl_drlc_temp_set_point(gchar *s, gint16 value)
 {
     if (value & ZBEE_ZCL_DRLC_TEMP_SET_POINT_NOT_USED)
-        g_snprintf(s, ITEM_LABEL_LENGTH, "Not Used");
+        snprintf(s, ITEM_LABEL_LENGTH, "Not Used");
     else {
         gfloat temp_delta;
         temp_delta = value / ZBEE_ZCL_DRLC_TEMP_SET_POINT_DIVIDER;
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%+.2f%s", temp_delta, units_degree_celsius.singular);
+        snprintf(s, ITEM_LABEL_LENGTH, "%+.2f%s", temp_delta, units_degree_celsius.singular);
     }
 } /*decode_zcl_drlc_temp_set_point*/
 
@@ -3891,9 +3891,9 @@ static void decode_zcl_drlc_temp_set_point(gchar *s, gint16 value)
 static void decode_zcl_drlc_average_load_adjustment_percentage(gchar *s, gint8 value)
 {
     if (value & ZBEE_ZCL_DRLC_AVERAGE_LOAD_ADJUSTMENT_PERCENTAGE)
-        g_snprintf(s, ITEM_LABEL_LENGTH, "Not Used");
+        snprintf(s, ITEM_LABEL_LENGTH, "Not Used");
     else {
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%+d%%", value);
+        snprintf(s, ITEM_LABEL_LENGTH, "%+d%%", value);
     }
 } /*decode_zcl_drlc_average_load_adjustment_percentage*/
 
@@ -8023,7 +8023,7 @@ static gint ett_zbee_zcl_msg = -1;
 static gint ett_zbee_zcl_msg_message_control = -1;
 static gint ett_zbee_zcl_msg_ext_message_control = -1;
 
-static expert_field ei_zbee_zcl_msg_msg_ctrl_depreciated = EI_INIT;
+static expert_field ei_zbee_zcl_msg_msg_ctrl_deprecated = EI_INIT;
 
 /* Message Control Transmission */
 static const value_string zbee_zcl_msg_ctrl_tx_names[] = {
@@ -8221,7 +8221,7 @@ dissect_zcl_msg_cancel(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guin
     *offset += 1;
 
     if (msg_ctrl != 0x00) {
-       expert_add_info(pinfo, tree, &ei_zbee_zcl_msg_msg_ctrl_depreciated);
+       expert_add_info(pinfo, tree, &ei_zbee_zcl_msg_msg_ctrl_deprecated);
     }
 
 } /* dissect_zcl_msg_cancel */
@@ -8308,9 +8308,9 @@ static void
 decode_zcl_msg_duration(gchar *s, guint16 value)
 {
     if (value == 0xffff)
-        g_snprintf(s, ITEM_LABEL_LENGTH, "Until changed");
+        snprintf(s, ITEM_LABEL_LENGTH, "Until changed");
     else
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%d minutes", value);
+        snprintf(s, ITEM_LABEL_LENGTH, "%d minutes", value);
     return;
 } /*decode_zcl_msg_duration*/
 
@@ -8325,12 +8325,12 @@ static void
 decode_zcl_msg_start_time(gchar *s, guint32 value)
 {
     if (value == ZBEE_ZCL_MSG_START_TIME_NOW)
-        g_snprintf(s, ITEM_LABEL_LENGTH, "Now");
+        snprintf(s, ITEM_LABEL_LENGTH, "Now");
     else {
         gchar *start_time;
         time_t epoch_time = (time_t)value + ZBEE_ZCL_NSTIME_UTC_OFFSET;
         start_time = abs_time_secs_to_str (NULL, epoch_time, ABSOLUTE_TIME_UTC, TRUE);
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%s", start_time);
+        snprintf(s, ITEM_LABEL_LENGTH, "%s", start_time);
         wmem_free(NULL, start_time);
     }
 } /* decode_zcl_msg_start_time */
@@ -8436,7 +8436,7 @@ proto_register_zbee_zcl_msg(void)
     /* Expert Info */
     expert_module_t* expert_zbee_zcl_msg;
     static ei_register_info ei[] = {
-        { &ei_zbee_zcl_msg_msg_ctrl_depreciated, { "zbee_zcl_se.msg.msg_ctrl.depreciated", PI_PROTOCOL, PI_WARN, "Message Control depreciated in this message, should be 0x00", EXPFILL }},
+        { &ei_zbee_zcl_msg_msg_ctrl_deprecated, { "zbee_zcl_se.msg.msg_ctrl.deprecated", PI_PROTOCOL, PI_WARN, "Message Control deprecated in this message, should be 0x00", EXPFILL }},
     };
 
     /* Register the ZigBee ZCL Messaging cluster protocol name and description */
@@ -13959,11 +13959,11 @@ proto_register_zbee_zcl_device_management(void)
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_publish_change_of_supplier_provider_proposed_provider_name,
-            { "Proposed Provider Name", "zbee_zcl_se.device_management.publish_change_of_supplier.provider_proposed_provider_name", FT_UINT_STRING, STR_UNICODE, NULL,
+            { "Proposed Provider Name", "zbee_zcl_se.device_management.publish_change_of_supplier.provider_proposed_provider_name", FT_UINT_STRING, BASE_NONE, NULL,
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_publish_change_of_supplier_provider_proposed_provider_contact_details,
-            { "Proposed Provider Contact Details", "zbee_zcl_se.device_management.publish_change_of_supplier.provider_proposed_provider_contact_details", FT_UINT_STRING, STR_UNICODE, NULL,
+            { "Proposed Provider Contact Details", "zbee_zcl_se.device_management.publish_change_of_supplier.provider_proposed_provider_contact_details", FT_UINT_STRING, BASE_NONE, NULL,
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_request_new_password_issuer_event_id,
@@ -13979,7 +13979,7 @@ proto_register_zbee_zcl_device_management(void)
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_request_new_password_password,
-            { "Password", "zbee_zcl_se.device_management.request_new_password.password", FT_UINT_STRING, STR_UNICODE, NULL,
+            { "Password", "zbee_zcl_se.device_management.request_new_password.password", FT_UINT_STRING, BASE_NONE, NULL,
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_update_site_id_issuer_event_id,
@@ -13995,7 +13995,7 @@ proto_register_zbee_zcl_device_management(void)
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_update_site_id_site_id,
-            { "SiteID", "zbee_zcl_se.device_management.update_site_id.site_id", FT_UINT_STRING, STR_UNICODE, NULL,
+            { "SiteID", "zbee_zcl_se.device_management.update_site_id.site_id", FT_UINT_STRING, BASE_NONE, NULL,
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_get_event_configuration_event_id,
@@ -14015,7 +14015,7 @@ proto_register_zbee_zcl_device_management(void)
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_update_cin_customerid_number,
-            { "CustomerID Number", "zbee_zcl_se.device_management.update_cin.customerid_number", FT_UINT_STRING, STR_UNICODE, NULL,
+            { "CustomerID Number", "zbee_zcl_se.device_management.update_cin.customerid_number", FT_UINT_STRING, BASE_NONE, NULL,
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_set_event_configuration_issuer_event_id,

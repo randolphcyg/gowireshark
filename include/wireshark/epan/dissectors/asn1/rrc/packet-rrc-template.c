@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * Ref: 3GPP TS 25.331 V16.1.0 (2020-09)
+ * Ref: 3GPP TS 25.331 V17.1.0 (2022-06)
  */
 
 /**
@@ -430,6 +430,11 @@ get_or_create_cipher_info(fp_info *fpinf, rlc_info *rlcinf) {
       cipher_info->seq_no[i][0] = -1;
       cipher_info->seq_no[i][1] = -1;
     }
+
+    /* Set algorithms to 'unknown' since 0s are valid values */
+    cipher_info->ciphering_algorithm = -1;
+    cipher_info->integrity_algorithm = -1;
+
     g_tree_insert(rrc_ciph_info_tree, GINT_TO_POINTER((gint)rlcinf->ueid[fpinf->cur_tb]), cipher_info);
   }
   return cipher_info;

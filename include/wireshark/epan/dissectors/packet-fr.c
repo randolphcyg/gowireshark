@@ -506,7 +506,7 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
       proto_tree_add_uint(fr_tree, hf_fr_dlci, tvb, 0, offset, addr);
     }
 
-    conversation_create_endpoint_by_id(pinfo, ENDPOINT_DLCI, addr, 0);
+    conversation_set_elements_by_id(pinfo, CONVERSATION_DLCI, addr);
     col_add_fstr(pinfo->cinfo, COL_INFO, "DLCI %u", addr);
   }
 
@@ -1117,7 +1117,7 @@ proto_reg_handoff_fr(void)
   dissector_add_uint("juniper.proto", JUNIPER_PROTO_FRELAY, fr_handle);
   dissector_add_uint("sflow_245.header_protocol", SFLOW_245_HEADER_FRAME_RELAY, fr_handle);
   dissector_add_uint("atm.aal5.type", TRAF_FR, fr_handle);
-  dissector_add_uint("l2tp.pw_type", L2TPv3_PROTOCOL_FR, fr_handle);
+  dissector_add_uint("l2tp.pw_type", L2TPv3_PW_FR, fr_handle);
   dissector_add_uint("sll.hatype", ARPHRD_FRAD, fr_handle);
 
   fr_phdr_handle = create_dissector_handle(dissect_fr_phdr, proto_fr);

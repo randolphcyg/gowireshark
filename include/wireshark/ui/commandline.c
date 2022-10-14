@@ -166,6 +166,9 @@ commandline_print_usage(gboolean for_help_option) {
     fprintf(output, "  --capture-comment <comment>\n");
     fprintf(output, "                           add a capture file comment, if supported\n");
 #endif
+    fprintf(output, "  --temp-dir <directory>   write temporary files to this directory\n");
+    fprintf(output, "                           (default: %s)\n", g_get_tmp_dir());
+    fprintf(output, "\n");
 
     ws_log_print_usage(output);
 
@@ -261,6 +264,27 @@ void commandline_early_options(int argc, char *argv[])
         switch (opt) {
             case 'C':        /* Configuration Profile */
                 if (profile_exists (ws_optarg, FALSE)) {
+                    set_profile_name (ws_optarg);
+                } else if (profile_exists (ws_optarg, TRUE)) {
+                    char  *pf_dir_path, *pf_dir_path2, *pf_filename;
+                    /* Copy from global profile */
+                    if (create_persconffile_profile(ws_optarg, &pf_dir_path) == -1) {
+                        cmdarg_err("Can't create directory\n\"%s\":\n%s.",
+                            pf_dir_path, g_strerror(errno));
+
+                        g_free(pf_dir_path);
+                        exit(INVALID_FILE);
+                    }
+                    if (copy_persconffile_profile(ws_optarg, ws_optarg, TRUE, &pf_filename,
+                            &pf_dir_path, &pf_dir_path2) == -1) {
+                        cmdarg_err("Can't copy file \"%s\" in directory\n\"%s\" to\n\"%s\":\n%s.",
+                            pf_filename, pf_dir_path2, pf_dir_path, g_strerror(errno));
+
+                        g_free(pf_filename);
+                        g_free(pf_dir_path);
+                        g_free(pf_dir_path2);
+                        exit(INVALID_FILE);
+                    }
                     set_profile_name (ws_optarg);
                 } else {
                     cmdarg_err("Configuration Profile \"%s\" does not exist", ws_optarg);
@@ -411,6 +435,7 @@ void commandline_other_options(int argc, char *argv[], gboolean opt_reset)
             case 'p':        /* Don't capture in promiscuous mode */
             case 'i':        /* Use interface x */
             case LONGOPT_SET_TSTAMP_TYPE: /* Set capture timestamp type */
+            case LONGOPT_CAPTURE_TMPDIR: /* capture temp directory */
 #ifdef HAVE_PCAP_CREATE
             case 'I':        /* Capture in monitor mode, if available */
 #endif
@@ -718,7 +743,7 @@ void commandline_options_drop(const char *module_name, const char *pref_name) {
 
     if (global_commandline_info.user_opts == NULL) return;
 
-    opt_prefix = g_strdup_printf("%s.%s:", module_name, pref_name);
+    opt_prefix = ws_strdup_printf("%s.%s:", module_name, pref_name);
 
     while (NULL != (elem = g_slist_find_custom(global_commandline_info.user_opts,
                         (gconstpointer)opt_prefix, cl_find_custom))) {

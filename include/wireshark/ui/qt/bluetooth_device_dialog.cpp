@@ -59,12 +59,12 @@ static const int row_number_simple_pairing_mode = 22;
 static const int row_number_voice_setting = 23;
 
 static tap_packet_status
-bluetooth_device_tap_packet(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *edt, const void* data)
+bluetooth_device_tap_packet(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *edt, const void* data, tap_flags_t flags)
 {
     bluetooth_device_tapinfo_t *tapinfo = (bluetooth_device_tapinfo_t *) tapinfo_ptr;
 
     if (tapinfo->tap_packet)
-        tapinfo->tap_packet(tapinfo, pinfo, edt, data);
+        tapinfo->tap_packet(tapinfo, pinfo, edt, data, flags);
 
     return TAP_PACKET_REDRAW;
 }
@@ -104,15 +104,12 @@ BluetoothDeviceDialog::BluetoothDeviceDialog(QWidget &parent, CaptureFile &cf, Q
     WiresharkDialog(parent, cf),
     ui(new Ui::BluetoothDeviceDialog)
 {
-    QString titleBdAddr;
-    QString titleName;
-
     ui->setupUi(this);
     resize(parent.width() * 4 / 10, parent.height() * 2 / 2);
 
     setTitle(bdAddr, name);
 
-    connect(ui->tableWidget, SIGNAL(customContextMenuRequested(const QPoint &)), this, SLOT(tableContextMenu(const QPoint &)));
+    connect(ui->tableWidget, &QTableWidget::customContextMenuRequested, this, &BluetoothDeviceDialog::tableContextMenu);
 
     ui->tableWidget->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
 
@@ -267,7 +264,7 @@ void BluetoothDeviceDialog::on_actionMark_Unmark_Row_triggered()
 
 void BluetoothDeviceDialog::tableContextMenu(const QPoint &pos)
 {
-    context_menu_.exec(ui->tableWidget->viewport()->mapToGlobal(pos));
+    context_menu_.popup(ui->tableWidget->viewport()->mapToGlobal(pos));
 }
 
 void BluetoothDeviceDialog::on_actionCopy_Cell_triggered()
@@ -375,14 +372,13 @@ void BluetoothDeviceDialog::saveItemData(QTableWidgetItem *item,
 
 }
 
-tap_packet_status BluetoothDeviceDialog::tapPacket(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *, const void *data)
+tap_packet_status BluetoothDeviceDialog::tapPacket(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *, const void *data, tap_flags_t)
 {
     bluetooth_device_tapinfo_t   *tapinfo    = static_cast<bluetooth_device_tapinfo_t *>(tapinfo_ptr);
     BluetoothDeviceDialog        *dialog     = static_cast<BluetoothDeviceDialog *>(tapinfo->ui);
     bluetooth_device_tap_t       *tap_device = static_cast<bluetooth_device_tap_t *>(const_cast<void *>(data));
     QString                       bd_addr;
     QString                       bd_addr_oui;
-    QString                       name;
     const gchar                  *manuf;
     QTableWidget                 *tableWidget;
     QTableWidgetItem             *item;
@@ -407,7 +403,7 @@ tap_packet_status BluetoothDeviceDialog::tapPacket(void *tapinfo_ptr, packet_inf
             int pos;
 
             bd_addr_oui = QString(manuf);
-            pos = bd_addr_oui.indexOf('_');
+            pos = static_cast<int>(bd_addr_oui.indexOf('_'));
             if (pos < 0) {
                 manuf = NULL;
             } else {

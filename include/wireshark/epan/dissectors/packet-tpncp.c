@@ -118,7 +118,7 @@ static value_string tpncp_events_id_vals[MAX_TPNCP_DB_SIZE];
 static value_string tpncp_enums_id_vals[MAX_ENUMS_NUM][MAX_ENUM_ENTRIES];
 static gchar *tpncp_enums_name_vals[MAX_ENUMS_NUM];
 
-static gint hf_size = 1;
+static gint hf_size = 0;
 static gint hf_allocated = 0;
 static hf_register_info *hf = NULL;
 
@@ -549,7 +549,7 @@ get_enum_name_val(const gchar *enum_name)
 
 static gboolean add_hf(hf_register_info *hf_entr)
 {
-    if (hf_size > hf_allocated) {
+    if (hf_size >= hf_allocated) {
         void *newbuf;
         hf_allocated += 1024;
         newbuf = wmem_realloc(wmem_epan_scope(), hf, hf_allocated * sizeof (hf_register_info));
@@ -557,7 +557,7 @@ static gboolean add_hf(hf_register_info *hf_entr)
             return FALSE;
         hf = (hf_register_info *) newbuf;
     }
-    memcpy(hf + hf_size - 1, hf_entr, sizeof (hf_register_info));
+    memcpy(hf + hf_size, hf_entr, sizeof (hf_register_info));
     hf_size++;
     return TRUE;
 }
@@ -688,18 +688,17 @@ init_tpncp_data_fields_info(tpncp_data_field_info *data_fields_info, FILE *file)
         void *newbuf;
 
         /* Register non-standard data should be done only once. */
-        hf_allocated = hf_size + (int) array_length(hf_tpncp) - 1;
+        hf_allocated = hf_size + (int) array_length(hf_tpncp);
         newbuf = wmem_realloc(wmem_epan_scope(), hf, hf_allocated * sizeof (hf_register_info));
         if (!newbuf)
             return -1;
         hf = (hf_register_info *) newbuf;
         for (idx = 0; idx < array_length(hf_tpncp); idx++) {
-            memcpy(hf + (hf_size - 1), hf_tpncp + idx, sizeof (hf_register_info));
+            memcpy(hf + hf_size, hf_tpncp + idx, sizeof (hf_register_info));
             hf_size++;
         }
         was_registered = TRUE;
-    } else
-        hf_size++;
+    }
 
     is_address_family = FALSE;
     ip_addr_field = 0;
@@ -708,11 +707,9 @@ init_tpncp_data_fields_info(tpncp_data_field_info *data_fields_info, FILE *file)
     while (fgetline(tpncp_db_entry, MAX_TPNCP_DB_ENTRY_LEN, file)) {
         special_type = TPNCP_NORMAL;
         since = 0;
-        g_snprintf(entry_copy, MAX_TPNCP_DB_ENTRY_LEN, "%s", tpncp_db_entry);
-        if (!strncmp(tpncp_db_entry, "#####", 5)) {
-            hf_size--;
+        snprintf(entry_copy, MAX_TPNCP_DB_ENTRY_LEN, "%s", tpncp_db_entry);
+        if (!strncmp(tpncp_db_entry, "#####", 5))
             break;
-        }
 
         /* Default to decimal display type */
         hf_entr.hfinfo.display = BASE_DEC;
@@ -908,7 +905,7 @@ init_tpncp_db(void)
     gchar tpncp_dat_file_path[MAX_TPNCP_DB_ENTRY_LEN];
     FILE *file;
 
-    g_snprintf(tpncp_dat_file_path, MAX_TPNCP_DB_ENTRY_LEN,
+    snprintf(tpncp_dat_file_path, MAX_TPNCP_DB_ENTRY_LEN,
                "%s" G_DIR_SEPARATOR_S "tpncp" G_DIR_SEPARATOR_S "tpncp.dat", get_datafile_dir());
 
     /* Open file with TPNCP data. */

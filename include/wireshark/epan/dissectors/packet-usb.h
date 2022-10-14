@@ -29,6 +29,16 @@ typedef struct _usb_address_t {
 
 typedef struct _usb_conv_info_t usb_conv_info_t;
 
+/* Wireshark specific (i.e. numeric values are arbitrary) enum representing
+ * USB device speed.
+ */
+typedef enum {
+    USB_SPEED_UNKNOWN,  /* Unknown, skip speed specific processing */
+    USB_SPEED_LOW,
+    USB_SPEED_FULL,
+    USB_SPEED_HIGH,
+} usb_speed_t;
+
 /* header type */
 typedef enum {
     USB_HEADER_LINUX_48_BYTES,
@@ -49,6 +59,7 @@ typedef struct _usb_pseudo_urb_t {
     guint8 device_address;
     guint8 endpoint;
     guint16 bus_id;
+    usb_speed_t speed;
 } usb_pseudo_urb_t;
 
 /* there is one such structure for each request/response */
@@ -88,7 +99,14 @@ typedef struct _usb_trans_info_t {
     guint64 usb_id;
 } usb_trans_info_t;
 
-enum usb_conv_class_data_type {USB_CONV_UNKNOWN = 0, USB_CONV_U3V, USB_CONV_AUDIO, USB_CONV_VIDEO, USB_CONV_MASS_STORAGE};
+enum usb_conv_class_data_type {
+    USB_CONV_UNKNOWN = 0,
+    USB_CONV_U3V,
+    USB_CONV_AUDIO,
+    USB_CONV_VIDEO,
+    USB_CONV_MASS_STORAGE_BOT,
+    USB_CONV_MASS_STORAGE_UASP,
+};
 
 /* Conversation Structure
  * there is one such structure for each device/endpoint conversation */
@@ -104,6 +122,7 @@ struct _usb_conv_info_t {
     gboolean is_request;
     gboolean is_setup;
     guint8   setup_requesttype;
+    usb_speed_t speed;
 
     guint16 interfaceClass;     /* Interface Descriptor - class          */
     guint16 interfaceSubclass;  /* Interface Descriptor - subclass       */
@@ -273,11 +292,15 @@ proto_item * dissect_usb_descriptor_header(proto_tree *tree,
 
 void dissect_usb_endpoint_address(proto_tree *tree, tvbuff_t *tvb, int offset);
 
+unsigned int
+sanitize_usb_max_packet_size(guint8 ep_type, usb_speed_t speed,
+                             unsigned int max_packet_size);
+
 int
 dissect_usb_endpoint_descriptor(packet_info *pinfo, proto_tree *parent_tree,
                                 tvbuff_t *tvb, int offset,
                                 usb_conv_info_t  *usb_conv_info,
-                                guint8 *out_ep_type);
+                                guint8 *out_ep_type, usb_speed_t speed);
 
 int
 dissect_usb_unknown_descriptor(packet_info *pinfo _U_, proto_tree *parent_tree,

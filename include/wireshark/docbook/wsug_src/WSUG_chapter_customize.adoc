@@ -1,14 +1,14 @@
 // WSUG Chapter Customizing
 
-[[ChapterCustomize]]
+[#ChapterCustomize]
 
 == Customizing Wireshark
 
-[[ChCustIntroduction]]
+[#ChCustIntroduction]
 
 === Introduction
 
-Wireshark’s default behaviour will usually suit your needs pretty well. However,
+Wireshark’s default behavior will usually suit your needs pretty well. However,
 as you become more familiar with Wireshark, it can be customized in various ways
 to suit your needs even better. In this chapter we explore:
 
@@ -20,7 +20,7 @@ to suit your needs even better. In this chapter we explore:
 
 * How to use the various preference settings
 
-[[ChCustCommandLine]]
+[#ChCustCommandLine]
 
 === Start Wireshark from the command line
 
@@ -32,7 +32,7 @@ Wireshark supports a large number of command line parameters. To see what they
 are, simply enter the command _wireshark -h_ and the help information shown in
 <<ChCustEx1>> (or something similar) should be printed.
 
-[[ChCustEx1]]
+[#ChCustEx1]
 .Help information available from Wireshark
 ----
 include::wireshark-h.txt[]
@@ -41,7 +41,7 @@ include::wireshark-h.txt[]
 We will examine each of the command line options in turn.
 
 The first thing to notice is that issuing the command `wireshark` by itself will
-bring up Wireshark. However, you can include as many of the command line
+launch Wireshark. However, you can include as many of the command line
 parameters as you like. Their meanings are as follows ( in alphabetical order ):
 
 // XXX - is the alphabetical order a good choice? Maybe better task based?
@@ -308,7 +308,7 @@ addresses received by that machine.
 
 -P <path setting>::
 Special path settings usually detected automatically. This is used for special
-cases, e.g. starting Wireshark from a known location on an USB stick.
+cases, e.g., starting Wireshark from a known location on an USB stick.
 +
 The criterion is of the form key:path, where key is one of:
 +
@@ -441,7 +441,7 @@ implemented statistics consult the Wireshark manual page.
 // XXX - add more details here!
 
 
-[[ChCustColorizationSection]]
+[#ChCustColorizationSection]
 
 === Packet colorization
 
@@ -469,7 +469,7 @@ To permanently colorize packets, select menu:View[Coloring Rules...]. Wireshark
 will display the “Coloring Rules” dialog box as shown in
 <<ChCustColoringRulesDialog>>.
 
-[[ChCustColoringRulesDialog]]
+[#ChCustColoringRulesDialog]
 .The “Coloring Rules” dialog box
 image::wsug_graphics/ws-coloring-rules-dialog.png[{screenshot-attrs}]
 
@@ -495,7 +495,7 @@ edited. Clicking on the btn:[Foreground] and btn:[Background] buttons will
 open a color chooser (<<ChCustChooseColorDialog>>) for the foreground (text) and
 background colors respectively.
 
-[[ChCustChooseColorDialog]]
+[#ChCustChooseColorDialog]
 .A color chooser
 image::wsug_graphics/ws-choose-color-rule.png[{small-screenshot-attrs}]
 
@@ -507,12 +507,12 @@ btn:[OK].
 in Wireshark. Note that the frame detail shows that the “Bad TCP” rule
 was applied, along with the matching filter.
 
-[[ChCustColorFilterMany]]
+[#ChCustColorFilterMany]
 .Using color filters with Wireshark
 image::wsug_graphics/ws-coloring-fields.png[{screenshot-attrs}]
 
 
-[[ChCustProtocolDissectionSection]]
+[#ChCustProtocolDissectionSection]
 
 === Control Protocol dissection
 
@@ -522,14 +522,14 @@ Each protocol has its own dissector, so dissecting a complete packet will
 typically involve several dissectors. As Wireshark tries to find the right
 dissector for each packet (using static “routes” and heuristics “guessing”),
 it might choose the wrong dissector in your specific case. For example,
-Wireshark won’t know if you use a common protocol on an uncommon TCP port, e.g.
+Wireshark won’t know if you use a common protocol on an uncommon TCP port, e.g.,
 using HTTP on TCP port 800 instead of the standard port 80.
 
 There are two ways to control the relations between protocol dissectors: disable
 a protocol dissector completely or temporarily divert the way Wireshark calls
 the dissectors.
 
-[[ChAdvEnabledProtocols]]
+[#ChAdvEnabledProtocols]
 
 ==== The “Enabled Protocols” dialog box
 
@@ -550,7 +550,7 @@ To enable or disable protocols select menu:Analyze[Enabled Protocols...].
 Wireshark will pop up the “Enabled Protocols” dialog box as shown in
 <<ChAdvEnabledProtocolsFig>>.
 
-[[ChAdvEnabledProtocolsFig]]
+[#ChAdvEnabledProtocolsFig]
 .The “Enabled Protocols” dialog box
 image::wsug_graphics/ws-enabled-protocols.png[{screenshot-attrs}]
 
@@ -570,7 +570,7 @@ btn:[OK]:: Save and apply the changes and close the dialog box, see <<AppFiles>>
 
 btn:[Cancel]:: Cancel the changes and close the dialog box.
 
-[[ChAdvDecodeAs]]
+[#ChAdvDecodeAs]
 
 ==== User Specified Decodes
 
@@ -581,7 +581,7 @@ experiments on your network.
 Decode As is accessed by selecting the menu:Analyze[Decode As...]. Wireshark
 will pop up the “Decode As” dialog box as shown in <<ChAdvDecodeAsFig>>.
 
-[[ChAdvDecodeAsFig]]
+[#ChAdvDecodeAsFig]
 .The “Decode As” dialog box
 image::wsug_graphics/ws-decode-as.png[{screenshot-attrs}]
 
@@ -609,7 +609,7 @@ btn:[Save]:: Save and apply the user specified decodes and close the dialog box.
 
 btn:[Cancel]:: Cancel the changes and close the dialog box.
 
-[[ChCustPreferencesSection]]
+[#ChCustPreferencesSection]
 
 === Preferences
 
@@ -626,7 +626,7 @@ side is a tree where you can select the page to be shown.
 
 * The btn:[Cancel] button will restore all preferences settings to the last saved state.
 
-[[ChCustGUIPrefPage]]
+[#ChCustGUIPrefPage]
 .The preferences dialog box
 image::wsug_graphics/ws-gui-preferences.png[{screenshot-attrs}]
 
@@ -648,7 +648,7 @@ $ wireshark -o "gui.prepend_window_title:Internal Network" &
 $ wireshark -o "gui.prepend_window_title:External Network" &
 ----
 
-[[ChCustConfigProfilesSection]]
+[#ChCustConfigProfilesSection]
 
 === Configuration Profiles
 
@@ -722,7 +722,7 @@ Configuration files stored in each profile include:
 All other configurations are stored in the personal configuration folder and
 are common to all profiles.
 
-[[ChCustGUIConfigProfilesPage]]
+[#ChCustGUIConfigProfilesPage]
 .The configuration profiles dialog box
 image::wsug_graphics/ws-gui-config-profiles.png[{medium-screenshot-attrs}]
 
@@ -773,19 +773,19 @@ added and deleted profiles will not be deleted.
 btn:[Help]::
 Show this help page.
 
-[[ChUserTable]]
+[#ChUserTable]
 
 === User Table
 
 The User Table editor is used for managing various tables in Wireshark. Its main
 dialog works very similarly to that of <<ChCustColorizationSection>>.
 
-[[ChDisplayFilterMacrosSection]]
+[#ChDisplayFilterMacrosSection]
 
 === Display Filter Macros
 
 Display Filter Macros are a mechanism to create shortcuts for complex filters.
-For example defining a display filter macro named _$$tcp_conv$$_ whose text is
+For example, defining a display filter macro named _$$tcp_conv$$_ whose text is
 
 ----
 (ip.src == $1 and ip.dst == $2 and tcp.srcport == $3 and tcp.dstport == $4)
@@ -810,11 +810,11 @@ The name of the macro.
 Text::
 The replacement text for the macro it uses $1, $2, $3, ... as the input arguments.
 
-[[ChEssCategoryAttributes]]
+[#ChEssCategoryAttributes]
 
 === ESS Category Attributes
 
-Wireshark uses this table to map ESS Security Category attributes to textual representations.  The values to put in this table are usually found in a http://www.xmlspif.org/[XML SPIF], which is used for defining security labels.
+Wireshark uses this table to map ESS Security Category attributes to textual representations.  The values to put in this table are usually found in an http://www.xmlspif.org/[XML SPIF], which is used for defining security labels.
 
 This table is a user table, as described in <<ChUserTable>>, with the
 following fields:
@@ -828,7 +828,7 @@ The value (Label And Cert Value) representing the Category.
 Name::
 The textual representation for the value.
 
-[[ChMaxMindDbPaths]]
+[#ChMaxMindDbPaths]
 
 === MaxMind Database Paths
 
@@ -847,7 +847,7 @@ The locations for your data files are up to you, but `/usr/share/GeoIP`
 and `/var/lib/GeoIP` are common on Linux and `C:\ProgramData\GeoIP`,
 `C:\Program Files\Wireshark\GeoIP` might be good choices on Windows.
 
-[[ChGeoIPDbPaths]]
+[#ChGeoIPDbPaths]
 
 Previous versions of Wireshark supported MaxMind's original GeoIP Legacy
 database format. They were configured similar to MaxMindDB files above,
@@ -855,7 +855,7 @@ except GeoIP files must begin with _Geo_ and end with _.dat_. They are
 no longer supported and MaxMind stopped distributing GeoLite Legacy
 databases in April 2018.
 
-[[ChIKEv2DecryptionSection]]
+[#ChIKEv2DecryptionSection]
 
 === IKEv2 decryption table
 
@@ -903,7 +903,7 @@ length must meet the requirement of the integrity algorithm selected.
 Integrity Algorithm::
 Integrity algorithm of the IKE_SA.
 
-[[ChObjectIdentifiers]]
+[#ChObjectIdentifiers]
 
 === Object Identifiers
 
@@ -918,24 +918,24 @@ associated values, the extensibility means that other values may be encountered.
 Wireshark uses this table to allow the user to define the name and syntax of
 Object Identifiers that Wireshark does not know about (for example, a privately
 defined X.400 extension). It also allows the user to override the name and
-syntax of Object Identifiers that Wireshark does know about (e.g. changing the
+syntax of Object Identifiers that Wireshark does know about (e.g., changing the
 name “id-at-countryName” to just “c”).
 
 This table is a user table, as described in <<ChUserTable>>, with the
 following fields:
 
 OID::
-The string representation of the Object Identifier e.g. “2.5.4.6”.
+The string representation of the Object Identifier e.g., “2.5.4.6”.
 
 Name::
 The name that should be displayed by Wireshark when the Object Identifier is
-dissected e.g. (“c”);
+dissected e.g., (“c”);
 
 Syntax::
 The syntax of the value associated with the Object Identifier. This must be one
-of the syntaxes that Wireshark already knows about (e.g. “PrintableString”).
+of the syntaxes that Wireshark already knows about (e.g., “PrintableString”).
 
-[[ChPresContextList]]
+[#ChPresContextList]
 
 === PRES Users Context List
 
@@ -954,7 +954,7 @@ Syntax Name OID::
 The object identifier representing the abstract syntax name, which defines the
 protocol that is carried over this association.
 
-[[ChSccpUsers]]
+[#ChSccpUsers]
 
 === SCCP users Table
 
@@ -969,15 +969,15 @@ An Integer representing the network indicator for which this association is
 valid.
 
 Called DPCs::
-An range of integers representing the dpcs for which this association is valid.
+A range of integers representing the dpcs for which this association is valid.
 
 Called SSNs::
-An range of integers representing the ssns for which this association is valid.
+A range of integers representing the ssns for which this association is valid.
 
 User protocol::
 The protocol that is carried over this association
 
-[[ChSNMPSMIModules]]
+[#ChSNMPSMIModules]
 
 === SMI (MIB and PIB) Modules
 
@@ -985,9 +985,9 @@ If your copy of Wireshark supports libSMI, you can specify a list of MIB and PIB
 modules here. The COPS and SNMP dissectors can use them to resolve OIDs.
 
 Module name::
-The name of the module, e.g. IF-MIB.
+The name of the module, e.g., IF-MIB.
 
-[[ChSNMPSMIPaths]]
+[#ChSNMPSMIPaths]
 
 === SMI (MIB and PIB) Paths
 
@@ -995,11 +995,11 @@ If your copy of Wireshark supports libSMI, you can specify one or more paths to
 MIB and PIB modules here.
 
 Directory name::
-A module directory, e.g. `/usr/local/snmp/mibs`. Wireshark automatically uses
+A module directory, e.g., `/usr/local/snmp/mibs`. Wireshark automatically uses
 the standard SMI path for your system, so you usually don’t have to add anything
 here.
 
-[[ChSNMPEnterpriseSpecificTrapTypes]]
+[#ChSNMPEnterpriseSpecificTrapTypes]
 
 === SNMP Enterprise Specific Trap Types
 
@@ -1021,7 +1021,7 @@ An Integer representing the specific-trap code.
 Description::
 The description to show in the packet details.
 
-[[ChSNMPUsersSection]]
+[#ChSNMPUsersSection]
 
 === SNMP users Table
 
@@ -1033,7 +1033,7 @@ following fields:
 
 Engine ID::
 If given this entry will be used only for packets whose engine id is this. This
-field takes an hexadecimal string in the form 0102030405.
+field takes a hexadecimal string in the form 0102030405.
 
 Username::
 This is the userName. When a single user has more than one password for
@@ -1044,23 +1044,23 @@ Authentication model::
 Which auth model to use (either “MD5” or “SHA1”).
 
 Password::
-The authentication password. Use _\xDD_ for unprintable characters. An
+The authentication password. Use _\xDD_ for unprintable characters. A
 hexadecimal password must be entered as a sequence of _\xDD_ characters. For
-example the hex password 010203040506 must be entered as
+example, the hex password 010203040506 must be entered as
 _\x01\x02\x03\x04\x05\x06_. The _\_ character must be treated as an unprintable
-character, i.e. it must be entered as _\x5C_ or _\x5c_.
+character, i.e., it must be entered as _\x5C_ or _\x5c_.
 
 Privacy protocol::
 Which encryption algorithm to use (either “DES” or “AES”).
 
 Privacy password::
-The privacy password. Use _\xDD_ for unprintable characters. An hexadecimal
-password must be entered as a sequence of _\xDD_ characters. For example the hex
+The privacy password. Use _\xDD_ for unprintable characters. A hexadecimal
+password must be entered as a sequence of _\xDD_ characters. For example, the hex
 password 010203040506 must be entered as _\x01\x02\x03\x04\x05\x06_. The _\_
-character must be treated as an unprintable character, i.e. it must be entered
+character must be treated as an unprintable character, i.e., it must be entered
 as _\x5C_ or _\x5c_.
 
-[[ChK12ProtocolsSection]]
+[#ChK12ProtocolsSection]
 
 === Tektronix K12xx/15 RF5 protocols Table
 
@@ -1078,12 +1078,12 @@ specific case and a general one the specific one must appear first in the list.
 
 Protocol::
 This is the name of the encapsulating protocol (the lowest layer in the packet
-data) it can be either just the name of the protocol (e.g. mtp2, eth_withoutfcs,
+data) it can be either just the name of the protocol (e.g., mtp2, eth_withoutfcs,
 sscf-nni ) or the name of the encapsulation protocol and the “application”
-protocol over it separated by a colon (e.g sscop:sscf-nni, sscop:alcap,
+protocol over it separated by a colon (e.g., sscop:sscf-nni, sscop:alcap,
 sscop:nbap, ...)
 
-[[ChUserDLTsSection]]
+[#ChUserDLTsSection]
 
 === User DLTs protocol table
 
@@ -1098,7 +1098,7 @@ One of the user dlts.
 
 Payload protocol::
 This is the name of the payload protocol (the lowest layer in the packet data).
-(e.g. “eth” for ethernet, “ip” for IPv4)
+(e.g., “eth” for ethernet, “ip” for IPv4)
 
 Header size::
 If there is a header protocol (before the payload protocol) this tells which
@@ -1114,7 +1114,7 @@ size this trailer is. A value of 0 disables the trailer protocol.
 Trailer protocol::
 The name of the trailer protocol to be used (uses “data” as default).
 
-[[ChProtobufSearchPaths]]
+[#ChProtobufSearchPaths]
 
 === Protobuf Search Paths
 
@@ -1151,7 +1151,7 @@ changed. Note that the source directories that configured to protobuf official o
 libraries path (like `d:/protobuf-3.4.1/include/`) should not be set to load all
 files, that may cause unnecessary memory use.
 
-[[ChProtobufUDPMessageTypes]]
+[#ChProtobufUDPMessageTypes]
 
 === Protobuf UDP Message Types
 

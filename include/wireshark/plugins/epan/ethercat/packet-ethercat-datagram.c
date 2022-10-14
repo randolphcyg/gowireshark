@@ -1330,26 +1330,26 @@ static void EcSummaryFormater(guint32 datalength, tvbuff_t *tvb, gint offset, ch
    {
       guint16 len = ecFirst.len&0x07ff;
       guint16 cnt = get_wc(&ecFirst, tvb, offset);
-      g_snprintf ( szText, nMax, "'%s': Len: %d, Adp 0x%x, Ado 0x%x, Wc %d ",
+      snprintf ( szText, nMax, "'%s': Len: %d, Adp 0x%x, Ado 0x%x, Wc %d ",
          convertEcCmdToText(ecFirst.cmd, EcCmdShort), len, ecFirst.anAddrUnion.a.adp, ecFirst.anAddrUnion.a.ado, cnt );
    }
    else if ( nSub == 2 )
    {
-      g_snprintf ( szText, nMax, "%d Cmds, '%s': len %d, '%s': len %d ",
+      snprintf ( szText, nMax, "%d Cmds, '%s': len %d, '%s': len %d ",
          nSub, convertEcCmdToText(nCmds[0], EcCmdShort), nLens[0], convertEcCmdToText(nCmds[1], EcCmdShort), nLens[1]);
    }
    else if ( nSub == 3 )
    {
-      g_snprintf ( szText, nMax, "%d Cmds, '%s': len %d, '%s': len %d, '%s': len %d",
+      snprintf ( szText, nMax, "%d Cmds, '%s': len %d, '%s': len %d, '%s': len %d",
          nSub, convertEcCmdToText(nCmds[0], EcCmdShort), nLens[0], convertEcCmdToText(nCmds[1], EcCmdShort), nLens[1], convertEcCmdToText(nCmds[2], EcCmdShort), nLens[2]);
    }
    else if ( nSub == 4 )
    {
-      g_snprintf ( szText, nMax, "%d Cmds, '%s': len %d, '%s': len %d, '%s': len %d, '%s': len %d",
+      snprintf ( szText, nMax, "%d Cmds, '%s': len %d, '%s': len %d, '%s': len %d, '%s': len %d",
          nSub, convertEcCmdToText(nCmds[0], EcCmdShort), nLens[0], convertEcCmdToText(nCmds[1], EcCmdShort), nLens[1], convertEcCmdToText(nCmds[2], EcCmdShort), nLens[2], convertEcCmdToText(nCmds[3], EcCmdShort), nLens[3]);
    }
    else
-      g_snprintf ( szText, nMax, "%d Cmds, SumLen %d, '%s'... ",
+      snprintf ( szText, nMax, "%d Cmds, SumLen %d, '%s'... ",
          nSub, nLen, convertEcCmdToText(ecFirst.cmd, EcCmdShort));
 }
 
@@ -1359,9 +1359,9 @@ static void EcCmdFormatter(guint8 cmd, char *szText, gint nMax)
    const gchar *szCmd = try_val_to_str_idx((guint32)cmd, EcCmdLong, &idx);
 
    if ( idx != -1 )
-      g_snprintf(szText, nMax, "Cmd        : %d (%s)", cmd, szCmd);
+      snprintf(szText, nMax, "Cmd        : %d (%s)", cmd, szCmd);
    else
-      g_snprintf(szText, nMax, "Cmd        : %d (Unknown command)", cmd);
+      snprintf(szText, nMax, "Cmd        : %d (Unknown command)", cmd);
 }
 
 
@@ -1388,20 +1388,20 @@ static void EcSubFormatter(tvbuff_t *tvb, gint offset, char *szText, gint nMax)
    case EC_CMD_TYPE_BRW:
    case EC_CMD_TYPE_ARMW:
    case EC_CMD_TYPE_FRMW:
-      g_snprintf ( szText, nMax, "EtherCAT datagram: Cmd: '%s' (%d), Len: %d, Adp 0x%x, Ado 0x%x, Cnt %d",
+      snprintf ( szText, nMax, "EtherCAT datagram: Cmd: '%s' (%d), Len: %d, Adp 0x%x, Ado 0x%x, Cnt %d",
          convertEcCmdToText(ecParser.cmd, EcCmdShort), ecParser.cmd, len, ecParser.anAddrUnion.a.adp, ecParser.anAddrUnion.a.ado, cnt);
       break;
    case EC_CMD_TYPE_LRD:
    case EC_CMD_TYPE_LWR:
    case EC_CMD_TYPE_LRW:
-      g_snprintf ( szText, nMax, "EtherCAT datagram: Cmd: '%s' (%d), Len: %d, Addr 0x%x, Cnt %d",
+      snprintf ( szText, nMax, "EtherCAT datagram: Cmd: '%s' (%d), Len: %d, Addr 0x%x, Cnt %d",
          convertEcCmdToText(ecParser.cmd, EcCmdShort), ecParser.cmd, len, ecParser.anAddrUnion.addr, cnt);
       break;
    case EC_CMD_TYPE_EXT:
-      g_snprintf ( szText, nMax, "EtherCAT datagram: Cmd: 'EXT' (%d), Len: %d",  ecParser.cmd, len);
+      snprintf ( szText, nMax, "EtherCAT datagram: Cmd: 'EXT' (%d), Len: %d",  ecParser.cmd, len);
       break;
    default:
-      g_snprintf ( szText, nMax, "EtherCAT datagram: Cmd: 'Unknown' (%d), Len: %d",  ecParser.cmd, len);
+      snprintf ( szText, nMax, "EtherCAT datagram: Cmd: 'Unknown' (%d), Len: %d",  ecParser.cmd, len);
    }
 }
 
@@ -3165,23 +3165,23 @@ void proto_register_ecat(void)
          },
          { &hf_ecat_reg_mio_status0_link,
            {"Link detected", "ecat.reg.mio.status0.link",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0002, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x02, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status0_linkstatuserr,
            {"Link status error", "ecat.reg.mio.status0.linkstatuserr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0004, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x04, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status0_readerr,
            {"Read error", "ecat.reg.mio.status0.readerr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0008, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x08, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status0_linkpartnererr,
            {"Link partner error", "ecat.reg.mio.status0.linkpartnererr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0010, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x10, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status0_phycfgupdated,
            {"Phy config updated", "ecat.reg.mio.status0.phycfgupdated",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0020, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x20, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status1,
            {"MIO port status 1 (0x519)", "ecat.reg.mio.status1",
@@ -3193,23 +3193,23 @@ void proto_register_ecat(void)
          },
          { &hf_ecat_reg_mio_status1_link,
            {"Link detected", "ecat.reg.mio.status1.link",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0002, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x02, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status1_linkstatuserr,
            {"Link status error", "ecat.reg.mio.status1.linkstatuserr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0004, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x04, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status1_readerr,
            {"Read error", "ecat.reg.mio.status1.readerr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0008, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x08, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status1_linkpartnererr,
            {"Link partner error", "ecat.reg.mio.status1.linkpartnererr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0010, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x10, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status1_phycfgupdated,
            {"Phy config updated", "ecat.reg.mio.status1.phycfgupdated",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0020, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x20, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status2,
            {"MIO port status 2 (0x51A)", "ecat.reg.mio.status2",
@@ -3221,23 +3221,23 @@ void proto_register_ecat(void)
          },
          { &hf_ecat_reg_mio_status2_link,
            {"Link detected", "ecat.reg.mio.status2.link",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0002, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x02, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status2_linkstatuserr,
            {"Link status error", "ecat.reg.mio.status2.linkstatuserr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0004, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x04, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status2_readerr,
            {"Read error", "ecat.reg.mio.status2.readerr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0008, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x08, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status2_linkpartnererr,
            {"Link partner error", "ecat.reg.mio.status2.linkpartnererr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0010, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x10, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status2_phycfgupdated,
            {"Phy config updated", "ecat.reg.mio.status2.phycfgupdated",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0020, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x20, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status3,
            {"MIO port status 3 (0x51B)", "ecat.reg.mio.status3",
@@ -3249,23 +3249,23 @@ void proto_register_ecat(void)
          },
          { &hf_ecat_reg_mio_status3_link,
            {"Link detected", "ecat.reg.mio.status3.link",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0002, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x02, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status3_linkstatuserr,
            {"Link status error", "ecat.reg.mio.status3.linkstatuserr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0004, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x04, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status3_readerr,
            {"Read error", "ecat.reg.mio.status3.readerr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0008, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x08, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status3_linkpartnererr,
            {"Link partner error", "ecat.reg.mio.status3.linkpartnererr",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0010, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x10, NULL, HFILL }
          },
          { &hf_ecat_reg_mio_status3_phycfgupdated,
            {"Phy config updated", "ecat.reg.mio.status3.phycfgupdated",
-           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x0020, NULL, HFILL }
+           FT_BOOLEAN, 8, TFS(&tfs_local_true_false), 0x20, NULL, HFILL }
          },
          { &hf_ecat_reg_fmmu,
            {"FMMU", "ecat.fmmu",

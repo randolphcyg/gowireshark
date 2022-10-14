@@ -16,16 +16,19 @@ find_package( XSLTPROC )
 
 function(set_docbook_target_properties _target)
 	set_target_properties(${_target} PROPERTIES
-		FOLDER "Docbook"
+		FOLDER "Documentation"
 		EXCLUDE_FROM_DEFAULT_BUILD True
 		)
 endfunction(set_docbook_target_properties)
 
 set(COMMON_FILES
 	common_src/GPL_appendix.adoc
+	common_src/typographic_conventions.adoc
 )
 
 set(COMMON_GRAPHICS
+	common_graphics/caution.svg
+	common_graphics/important.svg
 	common_graphics/note.svg
 	common_graphics/tip.svg
 	common_graphics/warning.svg
@@ -101,6 +104,8 @@ set(WSUG_GRAPHICS
 	wsug_graphics/ws-decode-as.png
 	wsug_graphics/ws-details-pane-popup-menu.png
 	wsug_graphics/ws-details-pane.png
+	wsug_graphics/ws-diagram-pane.png
+	wsug_graphics/ws-diagram-pane-popup-menu.png
 	wsug_graphics/ws-display-filter-tcp.png # GTK+
 	wsug_graphics/ws-edit-menu.png
 	wsug_graphics/ws-enabled-protocols.png
@@ -301,7 +306,7 @@ set(WSLUA_MODULES
 	${CMAKE_SOURCE_DIR}/epan/wslua/wslua_capture_info.c
 	${CMAKE_SOURCE_DIR}/epan/wslua/wslua_dir.c
 	${CMAKE_SOURCE_DIR}/epan/wslua/wslua_wtap.c
-	${CMAKE_SOURCE_DIR}/epan/wslua/wslua_util.c
+	${CMAKE_SOURCE_DIR}/epan/wslua/wslua_utility.c
 	${CMAKE_SOURCE_DIR}/epan/wslua/wslua_struct.c
 )
 
@@ -310,13 +315,14 @@ ADD_CUSTOM_COMMAND(
 	OUTPUT
 		wsluarm
 	COMMAND ${CMAKE_COMMAND} -E make_directory wsluarm_src
-	COMMAND ${PERL_EXECUTABLE}
-		${CMAKE_CURRENT_SOURCE_DIR}/make-wsluarm.pl
+	COMMAND ${PYTHON_EXECUTABLE}
+		${CMAKE_CURRENT_SOURCE_DIR}/make-wsluarm.py
+		--output-directory wsluarm_src
 		${WSLUA_MODULES}
 	COMMAND ${CMAKE_COMMAND} -E touch
 		wsluarm
 	DEPENDS
-		${CMAKE_CURRENT_SOURCE_DIR}/make-wsluarm.pl
+		${CMAKE_CURRENT_SOURCE_DIR}/make-wsluarm.py
 		${WSLUA_MODULES}
 )
 

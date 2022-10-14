@@ -10,6 +10,8 @@
 
 #include "config.h"
 
+/* Because ws_assert() dependes on ws_error() we do not use it
+ * here and fall back on assert() instead. */
 #if defined(WS_DISABLE_ASSERT) && !defined(NDEBUG)
 #define NDEBUG
 #endif
@@ -30,6 +32,7 @@
 #endif
 
 #include "file_util.h"
+#include "time_util.h"
 #include "to_str.h"
 #include "strtoi.h"
 
@@ -62,16 +65,13 @@
 #define DOMAIN_UNDEFED(domain)    ((domain) == NULL || *(domain) == '\0')
 #define DOMAIN_DEFINED(domain)    (!DOMAIN_UNDEFED(domain))
 
-#define VALID_FATAL_LEVEL(level) \
-        (level >= LOG_LEVEL_WARNING && level <= LOG_LEVEL_ERROR)
-
 /*
  * Note: I didn't measure it but I assume using a string array is faster than
  * a GHashTable for small number N of domains.
  */
 typedef struct {
     char **domainv;
-    gboolean positive;              /* positive or negative match */
+    bool positive;                  /* positive or negative match */
     enum ws_log_level min_level;    /* for level filters */
 } log_filter_t;
 
@@ -80,13 +80,13 @@ typedef struct {
  * will be printed regardless of log level. This is a feature, not a bug. */
 static enum ws_log_level current_log_level = LOG_LEVEL_NONE;
 
-static gboolean stdout_color_enabled = FALSE;
+static bool stdout_color_enabled = false;
 
-static gboolean stderr_color_enabled = FALSE;
+static bool stderr_color_enabled = false;
 
 /* Use stdout for levels "info" and below, for backward compatibility
  * with GLib. */
-static gboolean stdout_logging_enabled = FALSE;
+static bool stdout_logging_enabled = false;
 
 static const char *registered_progname = DEFAULT_PROGNAME;
 
@@ -110,7 +110,7 @@ static FILE *custom_log = NULL;
 static enum ws_log_level fatal_log_level = LOG_LEVEL_ERROR;
 
 #ifndef WS_DISABLE_DEBUG
-static gboolean init_complete = FALSE;
+static bool init_complete = false;
 #endif
 
 
@@ -126,6 +126,8 @@ const char *ws_log_level_to_string(enum ws_log_level level)
     switch (level) {
         case LOG_LEVEL_NONE:
             return "(zero)";
+        case LOG_LEVEL_ECHO:
+            return "ECHO";
         case LOG_LEVEL_ERROR:
             return "ERROR";
         case LOG_LEVEL_CRITICAL:
@@ -165,6 +167,8 @@ static enum ws_log_level string_to_log_level(const char *str_level)
         return LOG_LEVEL_CRITICAL;
     else if (g_ascii_strcasecmp(str_level, "error") == 0)
         return LOG_LEVEL_ERROR;
+    else if (g_ascii_strcasecmp(str_level, "echo") == 0)
+        return LOG_LEVEL_ECHO;
     else
         return LOG_LEVEL_NONE;
 }
@@ -177,69 +181,69 @@ static inline const char *domain_to_string(const char *domain)
 }
 
 
-static inline gboolean filter_contains(log_filter_t *filter,
+static inline bool filter_contains(log_filter_t *filter,
                                             const char *domain)
 {
     if (filter == NULL || DOMAIN_UNDEFED(domain))
-        return FALSE;
+        return false;
 
     for (char **domv = filter->domainv; *domv != NULL; domv++) {
         if (g_ascii_strcasecmp(*domv, domain) == 0) {
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 
-static inline gboolean level_filter_matches(log_filter_t *filter,
+static inline bool level_filter_matches(log_filter_t *filter,
                                         const char *domain,
                                         enum ws_log_level level,
-                                        gboolean *active_ptr)
+                                        bool *active_ptr)
 {
     if (filter == NULL || DOMAIN_UNDEFED(domain))
-        return FALSE;
+        return false;
 
     if (!filter_contains(filter, domain))
-        return FALSE;
+        return false;
 
     if (filter->positive) {
         if (active_ptr)
             *active_ptr = level >= filter->min_level;
-        return TRUE;
+        return true;
     }
 
     /* negative match */
     if (level <= filter->min_level) {
         if (active_ptr)
-            *active_ptr = FALSE;
-        return TRUE;
+            *active_ptr = false;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
-gboolean ws_log_msg_is_active(const char *domain, enum ws_log_level level)
+bool ws_log_msg_is_active(const char *domain, enum ws_log_level level)
 {
     /*
      * Higher numerical levels have higher priority. Critical and above
      * are always enabled.
      */
     if (level >= LOG_LEVEL_CRITICAL)
-        return TRUE;
+        return true;
 
     /*
      * Check if the level has been configured as fatal.
      */
     if (level >= fatal_log_level)
-        return TRUE;
+        return true;
 
     /*
      * The debug/noisy filter overrides the other parameters.
      */
     if (DOMAIN_DEFINED(domain)) {
-        gboolean active;
+        bool active;
 
         if (level_filter_matches(noisy_filter, domain, level, &active))
             return active;
@@ -252,13 +256,13 @@ gboolean ws_log_msg_is_active(const char *domain, enum ws_log_level level)
      * message.
      */
     if (level < current_log_level)
-        return FALSE;
+        return false;
 
     /*
      * If we don't have domain filtering enabled we are done.
      */
     if (domain_filter == NULL)
-        return TRUE;
+        return true;
 
     /*
      * We have a filter but we don't use it with the undefined domain,
@@ -266,7 +270,7 @@ gboolean ws_log_msg_is_active(const char *domain, enum ws_log_level level)
      * chosen domain.
      */
     if (DOMAIN_UNDEFED(domain))
-        return TRUE;
+        return true;
 
     /* Check if the domain filter matches. */
     if (filter_contains(domain_filter, domain))
@@ -283,12 +287,15 @@ enum ws_log_level ws_log_get_level(void)
 }
 
 
-void ws_log_set_level(enum ws_log_level level)
+enum ws_log_level ws_log_set_level(enum ws_log_level level)
 {
     if (level <= LOG_LEVEL_NONE || level >= _LOG_LEVEL_LAST)
-        return;
+        return LOG_LEVEL_NONE;
+    if (level > LOG_LEVEL_CRITICAL)
+        level = LOG_LEVEL_CRITICAL;
 
     current_log_level = level;
+    return current_log_level;
 }
 
 
@@ -297,11 +304,7 @@ enum ws_log_level ws_log_set_level_str(const char *str_level)
     enum ws_log_level level;
 
     level = string_to_log_level(str_level);
-    if (level == LOG_LEVEL_NONE)
-        return LOG_LEVEL_NONE;
-
-    current_log_level = level;
-    return current_log_level;
+    return ws_log_set_level(level);
 }
 
 
@@ -343,7 +346,7 @@ parse_console_compat_option(char *argv[],
                         int exit_failure)
 {
     const char *mask_str;
-    guint32 mask;
+    uint32_t mask;
     enum ws_log_level level;
 
     assert(argv != NULL);
@@ -514,7 +517,7 @@ int ws_log_parse_args(int *argc_ptr, char *argv[],
         else if (option == opt_domain) {
             ws_log_set_domain_filter(value);
         }
-        else if (option == opt_file) {
+        else if (value && option == opt_file) {
             FILE *fp = ws_fopen(value, "w");
             if (fp == NULL) {
                 print_err(vcmdarg_err, exit_failure,
@@ -578,7 +581,7 @@ static void tokenize_filter_str(log_filter_t **filter_ptr,
     char *tok, *str;
     const char *sep = ",;";
     GPtrArray *ptr;
-    gboolean negated = FALSE;
+    bool negated = false;
     log_filter_t *filter;
 
     assert(filter_ptr);
@@ -588,7 +591,7 @@ static void tokenize_filter_str(log_filter_t **filter_ptr,
         return;
 
     if (str_filter[0] == '!') {
-        negated = TRUE;
+        negated = true;
         str_filter += 1;
     }
     if (*str_filter == '\0')
@@ -603,13 +606,13 @@ static void tokenize_filter_str(log_filter_t **filter_ptr,
 
     g_free(str);
     if (ptr->len == 0) {
-        g_ptr_array_free(ptr, TRUE);
+        g_ptr_array_free(ptr, true);
         return;
     }
     g_ptr_array_add(ptr, NULL);
 
     filter = g_new(log_filter_t, 1);
-    filter->domainv = (void *)g_ptr_array_free(ptr, FALSE);
+    filter->domainv = (void *)g_ptr_array_free(ptr, false);
     filter->positive = !negated;
     filter->min_level = min_level;
     *filter_ptr = filter;
@@ -637,12 +640,17 @@ void ws_log_set_noisy_filter(const char *str_filter)
 }
 
 
-void ws_log_set_fatal(enum ws_log_level level)
+enum ws_log_level ws_log_set_fatal(enum ws_log_level level)
 {
-    if (!VALID_FATAL_LEVEL(level))
-        return;
+    if (level <= LOG_LEVEL_NONE || level >= _LOG_LEVEL_LAST)
+        return LOG_LEVEL_NONE;
+    if (level > LOG_LEVEL_ERROR)
+        level = LOG_LEVEL_ERROR;
+    if (level < LOG_LEVEL_WARNING)
+        level = LOG_LEVEL_WARNING;
 
     fatal_log_level = level;
+    return fatal_log_level;
 }
 
 
@@ -651,11 +659,31 @@ enum ws_log_level ws_log_set_fatal_str(const char *str_level)
     enum ws_log_level level;
 
     level = string_to_log_level(str_level);
-    if (!VALID_FATAL_LEVEL(level))
-        return LOG_LEVEL_NONE;
+    return ws_log_set_fatal(level);
+}
 
-    fatal_log_level = level;
-    return fatal_log_level;
+
+void ws_log_set_writer(ws_log_writer_cb *writer)
+{
+    if (registered_log_writer_data_free)
+        registered_log_writer_data_free(registered_log_writer_data);
+
+    registered_log_writer = writer;
+    registered_log_writer_data = NULL;
+    registered_log_writer_data_free = NULL;
+}
+
+
+void ws_log_set_writer_with_data(ws_log_writer_cb *writer,
+                        void *user_data,
+                        ws_log_writer_free_data_cb *free_user_data)
+{
+    if (registered_log_writer_data_free)
+        registered_log_writer_data_free(registered_log_writer_data);
+
+    registered_log_writer = writer;
+    registered_log_writer_data = user_data;
+    registered_log_writer_data_free = free_user_data;
 }
 
 
@@ -706,18 +734,8 @@ void ws_log_init(const char *progname,
 
     current_log_level = DEFAULT_LOG_LEVEL;
 
-#if GLIB_CHECK_VERSION(2,50,0)
     stdout_color_enabled = g_log_writer_supports_color(fileno(stdout));
     stderr_color_enabled = g_log_writer_supports_color(fileno(stderr));
-#elif !defined(_WIN32)
-    /* We assume every non-Windows console supports color. */
-    stdout_color_enabled = (isatty(fileno(stdout)) == 1);
-    stderr_color_enabled = (isatty(fileno(stderr)) == 1);
-#else
-     /* Our Windows build version of GLib is pretty recent, we are probably
-      * fine here, unless we want to do better than GLib. */
-    stdout_color_enabled = stderr_color_enabled = FALSE;
-#endif
 
     /* Set the GLib log handler for the default domain. */
     g_log_set_handler(NULL, G_LOG_LEVEL_MASK | G_LOG_FLAG_FATAL,
@@ -764,7 +782,7 @@ void ws_log_init(const char *progname,
         ws_log_set_noisy_filter(env);
 
 #ifndef WS_DISABLE_DEBUG
-    init_complete = TRUE;
+    init_complete = true;
 #endif
 }
 
@@ -798,27 +816,33 @@ void ws_log_init_with_writer_and_data(const char *progname,
 #define RED     "\033[31m"
 #define RESET   "\033[0m"
 
-static inline const char *level_color_on(gboolean enable,
-                                            enum ws_log_level level)
+static inline const char *level_color_on(bool enable, enum ws_log_level level)
 {
     if (!enable)
         return "";
 
-    if (level <= LOG_LEVEL_DEBUG)
-        return GREEN;
-    else if (level <= LOG_LEVEL_MESSAGE)
-        return CYAN;
-    else if (level <= LOG_LEVEL_WARNING)
-        return YELLOW;
-    else if (level <= LOG_LEVEL_CRITICAL)
-        return MAGENTA;
-    else if (level <= LOG_LEVEL_ERROR)
-        return RED;
-    else
-        return "";
+    switch (level) {
+        case LOG_LEVEL_NOISY:
+        case LOG_LEVEL_DEBUG:
+            return GREEN;
+        case LOG_LEVEL_INFO:
+        case LOG_LEVEL_MESSAGE:
+            return CYAN;
+        case LOG_LEVEL_WARNING:
+            return YELLOW;
+        case LOG_LEVEL_CRITICAL:
+            return MAGENTA;
+        case LOG_LEVEL_ERROR:
+            return RED;
+        case LOG_LEVEL_ECHO:
+            return YELLOW;
+        default:
+            break;
+    }
+    return "";
 }
 
-static inline const char *color_off(gboolean enable)
+static inline const char *color_off(bool enable)
 {
     return enable ? RESET : "";
 }
@@ -830,14 +854,12 @@ static inline const char *color_off(gboolean enable)
  * in the log handler context (GLib might log a message if we register
  * our own handler for the GLib domain).
  */
-static void log_write_do_work(FILE *fp, gboolean use_color,
+static void log_write_do_work(FILE *fp, bool use_color,
                                 struct tm *when, long nanosecs,
                                 const char *domain,  enum ws_log_level level,
-                                const char *file, int line, const char *func,
+                                const char *file, long line, const char *func,
                                 const char *user_format, va_list user_ap)
 {
-    gboolean doextra = (level != DEFAULT_LOG_LEVEL);
-
 #ifndef WS_DISABLE_DEBUG
     if (!init_complete)
         fputs(" ** (noinit)", fp);
@@ -864,37 +886,21 @@ static void log_write_do_work(FILE *fp, gboolean use_color,
                                 color_off(use_color));
 
     /* File/line */
-    if (doextra && file != NULL && line >= 0)
-        fprintf(fp, "%s:%d ", file, line);
-    else if (doextra && file != NULL)
+    if (file != NULL && line >= 0)
+        fprintf(fp, "%s:%ld ", file, line);
+    else if (file != NULL)
         fprintf(fp, "%s ", file);
 
     fputs("-- ", fp);
 
     /* Function name */
-    if (doextra && func != NULL)
+    if (func != NULL)
         fprintf(fp, "%s(): ", func);
 
     /* User message */
     vfprintf(fp, user_format, user_ap);
     fputc('\n', fp);
     fflush(fp);
-}
-
-
-static inline ws_log_time_t *get_timestamp(ws_log_time_t *ts)
-{
-    assert(ts);
-#if defined(HAVE_CLOCK_GETTIME)
-    if (clock_gettime(CLOCK_REALTIME, (struct timespec *)ts) == 0)
-        return ts;
-#elif defined(_WIN32)
-    if (timespec_get((struct timespec *)ts, TIME_UTC) == TIME_UTC)
-        return ts;
-#endif
-    ts->tv_sec = time(NULL);
-    ts->tv_nsec = -1;
-    return ts;
 }
 
 
@@ -933,19 +939,19 @@ static inline bool console_color_enabled(enum ws_log_level level)
  * our own handler for the GLib domain).
  */
 static void log_write_dispatch(const char *domain, enum ws_log_level level,
-                            const char *file, int line, const char *func,
+                            const char *file, long line, const char *func,
                             const char *user_format, va_list user_ap)
 {
-    ws_log_time_t tstamp;
+    struct timespec tstamp;
     struct tm *cookie = NULL;
 
-    get_timestamp(&tstamp);
+    ws_clock_get_realtime(&tstamp);
 
     if (custom_log) {
         va_list user_ap_copy;
 
         va_copy(user_ap_copy, user_ap);
-        log_write_do_work(custom_log, FALSE,
+        log_write_do_work(custom_log, false,
                             get_localtime(tstamp.tv_sec, &cookie),
                             tstamp.tv_nsec,
                             domain, level, file, line, func,
@@ -965,7 +971,7 @@ static void log_write_dispatch(const char *domain, enum ws_log_level level,
                             user_format, user_ap);
     }
 
-    if (level >= fatal_log_level) {
+    if (level >= fatal_log_level && level != LOG_LEVEL_ECHO) {
         abort();
     }
 }
@@ -982,7 +988,7 @@ void ws_logv(const char *domain, enum ws_log_level level,
 
 
 void ws_logv_full(const char *domain, enum ws_log_level level,
-                    const char *file, int line, const char *func,
+                    const char *file, long line, const char *func,
                     const char *format, va_list ap)
 {
     if (!ws_log_msg_is_active(domain, level))
@@ -1007,7 +1013,7 @@ void ws_log(const char *domain, enum ws_log_level level,
 
 
 void ws_log_full(const char *domain, enum ws_log_level level,
-                    const char *file, int line, const char *func,
+                    const char *file, long line, const char *func,
                     const char *format, ...)
 {
     if (!ws_log_msg_is_active(domain, level))
@@ -1021,8 +1027,21 @@ void ws_log_full(const char *domain, enum ws_log_level level,
 }
 
 
+void ws_log_fatal_full(const char *domain, enum ws_log_level level,
+                    const char *file, long line, const char *func,
+                    const char *format, ...)
+{
+    va_list ap;
+
+    va_start(ap, format);
+    log_write_dispatch(domain, level, file, line, func, format, ap);
+    va_end(ap);
+    abort();
+}
+
+
 void ws_log_write_always_full(const char *domain, enum ws_log_level level,
-                    const char *file, int line, const char *func,
+                    const char *file, long line, const char *func,
                     const char *format, ...)
 {
     va_list ap;
@@ -1034,14 +1053,14 @@ void ws_log_write_always_full(const char *domain, enum ws_log_level level,
 
 
 void ws_log_buffer_full(const char *domain, enum ws_log_level level,
-                    const char *file, int line, const char *func,
-                    const guint8 *ptr, size_t size,  size_t max_len,
+                    const char *file, long line, const char *func,
+                    const uint8_t *ptr, size_t size,  size_t max_bytes_len,
                     const char *msg)
 {
     if (!ws_log_msg_is_active(domain, level))
         return;
 
-    char *bufstr = bytes_to_str_max(NULL, ptr, size, max_len);
+    char *bufstr = bytes_to_str_maxlen(NULL, ptr, size, max_bytes_len);
 
     if (G_UNLIKELY(msg == NULL))
         ws_log_write_always_full(domain, level, file, line, func,
@@ -1056,11 +1075,11 @@ void ws_log_buffer_full(const char *domain, enum ws_log_level level,
 
 
 void ws_log_file_writer(FILE *fp, const char *domain, enum ws_log_level level,
-                            ws_log_time_t timestamp,
-                            const char *file, int line, const char *func,
+                            struct timespec timestamp,
+                            const char *file, long line, const char *func,
                             const char *user_format, va_list user_ap)
 {
-    log_write_do_work(fp, FALSE,
+    log_write_do_work(fp, false,
                         get_localtime(timestamp.tv_sec, NULL),
                         timestamp.tv_nsec,
                         domain, level, file, line, func,
@@ -1069,8 +1088,8 @@ void ws_log_file_writer(FILE *fp, const char *domain, enum ws_log_level level,
 
 
 void ws_log_console_writer(const char *domain, enum ws_log_level level,
-                            ws_log_time_t timestamp,
-                            const char *file, int line, const char *func,
+                            struct timespec timestamp,
+                            const char *file, long line, const char *func,
                             const char *user_format, va_list user_ap)
 {
     log_write_do_work(console_file(level), console_color_enabled(level),
@@ -1087,14 +1106,6 @@ void ws_log_console_writer_set_use_stdout(bool use_stdout)
     stdout_logging_enabled = use_stdout;
 }
 
-void ws_log_default_writer(const char *domain, enum ws_log_level level,
-                            ws_log_time_t timestamp,
-                            const char *file, int line, const char *func,
-                            const char *user_format, va_list user_ap,
-                            void *user_data _U_)
-{
-    ws_log_console_writer(domain, level, timestamp, file, line, func, user_format, user_ap);
-}
 
 static void ws_log_cleanup(void)
 {

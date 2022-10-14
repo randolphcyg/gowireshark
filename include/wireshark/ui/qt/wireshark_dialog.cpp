@@ -16,7 +16,7 @@
 #include <epan/packet.h>
 #include <epan/tap.h>
 
-#include "wireshark_application.h"
+#include "main_application.h"
 #include "wireshark_dialog.h"
 #include <ui/qt/utils/qt_ui_utils.h>
 #include "ui/recent.h"
@@ -36,11 +36,10 @@ WiresharkDialog::WiresharkDialog(QWidget &parent, CaptureFile &capture_file) :
     retap_depth_(0),
     dialog_closed_(false)
 {
-    setWindowIcon(wsApp->normalIcon());
+    setWindowIcon(mainApp->normalIcon());
     setWindowSubtitle(QString());
 
-    connect(&cap_file_, SIGNAL(captureEvent(CaptureEvent)),
-            this, SLOT(captureEvent(CaptureEvent)));
+    connect(&cap_file_, &CaptureFile::captureEvent, this, &WiresharkDialog::captureEvent);
 }
 
 void WiresharkDialog::accept()
@@ -60,7 +59,7 @@ void WiresharkDialog::setWindowSubtitle(const QString &subtitle)
 {
     subtitle_ = subtitle;
 
-    QString title = wsApp->windowTitleString(QStringList() << subtitle_ << cap_file_.fileTitle());
+    QString title = mainApp->windowTitleString(QStringList() << subtitle_ << cap_file_.fileTitle());
     QDialog::setWindowTitle(title);
 }
 
@@ -96,7 +95,7 @@ void WiresharkDialog::updateWidgets()
     setWindowSubtitle(subtitle_);
 }
 
-bool WiresharkDialog::registerTapListener(const char *tap_name, void *tap_data, const char *filter, guint flags, void (*tap_reset)(void *), tap_packet_status (*tap_packet)(void *, struct _packet_info *, struct epan_dissect *, const void *), void (*tap_draw)(void *))
+bool WiresharkDialog::registerTapListener(const char *tap_name, void *tap_data, const char *filter, guint flags, tap_reset_cb tap_reset, tap_packet_cb tap_packet, tap_draw_cb tap_draw)
 {
     GString *error_string = register_tap_listener(tap_name, tap_data, filter, flags,
                                                   tap_reset, tap_packet, tap_draw, NULL);

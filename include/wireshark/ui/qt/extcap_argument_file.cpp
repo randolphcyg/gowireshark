@@ -59,7 +59,8 @@ QWidget * ExtcapArgumentFileSelection::createEditor(QWidget * parent)
     textBox = new QLineEdit(text, parent);
     textBox->setReadOnly(true);
 
-    const char *prefval = _argument->pref_valptr ? *_argument->pref_valptr : NULL;
+    /* Value is empty if no file is selected */
+    const char *prefval = (_argument->pref_valptr && (*_argument->pref_valptr)) ? *_argument->pref_valptr : NULL;
     if (prefval)
     {
         QString storeValue(prefval);
@@ -75,8 +76,8 @@ QWidget * ExtcapArgumentFileSelection::createEditor(QWidget * parent)
         buttonSelect->setToolTip(QString().fromUtf8(_argument->tooltip));
     }
 
-    connect(buttonSelect, SIGNAL(clicked()), (QObject *)this, SLOT(openFileDialog()));
-    connect(buttonClear, SIGNAL(clicked()), (QObject *)this, SLOT(clearFilename()));
+    connect(buttonSelect, &QPushButton::clicked, this, &ExtcapArgumentFileSelection::openFileDialog);
+    connect(buttonClear, &QPushButton::clicked, this, &ExtcapArgumentFileSelection::clearFilename);
 
     editLayout->addWidget(textBox);
     editLayout->addWidget(buttonSelect);
@@ -161,3 +162,9 @@ bool ExtcapArgumentFileSelection::isValid()
 
     return valid;
 }
+
+void ExtcapArgumentFileSelection::setDefaultValue()
+{
+    clearFilename();
+}
+

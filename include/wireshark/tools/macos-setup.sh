@@ -19,10 +19,10 @@ shopt -s extglob
 DARWIN_MAJOR_VERSION=`uname -r | sed 's/\([0-9]*\).*/\1/'`
 
 #
-# The minimum supported version of Qt is 5.6, so the minimum supported version
-# of macOS is OS X 10.8 (Mountain Lion), aka Darwin 12.0
-if [[ $DARWIN_MAJOR_VERSION -lt 12 ]]; then
-    echo "This script does not support any versions of macOS before Mountain Lion" 1>&2
+# The minimum supported version of Qt is 5.9, so the minimum supported version
+# of macOS is OS X 10.10 (Yosemite), aka Darwin 14.0
+if [[ $DARWIN_MAJOR_VERSION -lt 14 ]]; then
+    echo "This script does not support any versions of macOS before Yosemite" 1>&2
     exit 1
 fi
 
@@ -58,8 +58,8 @@ fi
 
 #
 # Some packages need xz to unpack their current source.
-# While tar, since macOS 10.9, can uncompress xz'ed tarballs,
-# it can't do so in older versions, and xz isn't provided with macOS.
+# XXX: tar, since macOS 10.9, can uncompress xz'ed tarballs,
+# so perhaps we could get rid of this now?
 #
 XZ_VERSION=5.2.5
 
@@ -78,19 +78,7 @@ PCRE_VERSION=8.45
 # CMake is required to do the build - and to build some of the
 # dependencies.
 #
-# 3.19.2 is the first version to support Apple Silicon, but the precompiled
-# binary on cmake.org is only a universal binary that requires macOS 10.0
-# (Yosemite) or newer.
-#
-# So on Mountain Lion and Mavericks we choose the last stable release that
-# works on them (3.18.6), and on Yosemite and later we choose the latest stable
-# version (currently 3.19.7).
-#
-if [[ $DARWIN_MAJOR_VERSION -gt 13 ]]; then
-    CMAKE_VERSION=${CMAKE_VERSION-3.19.7}
-else
-    CMAKE_VERSION=${CMAKE_VERSION-3.18.6}
-fi
+CMAKE_VERSION=${CMAKE_VERSION-3.21.4}
 
 #
 # Ninja isn't required, as make is provided with Xcode, but it is
@@ -120,6 +108,10 @@ LIBGPG_ERROR_VERSION=1.39
 # libgcrypt is required.
 #
 LIBGCRYPT_VERSION=1.8.7
+#
+# libpcre2 is required.
+#
+PCRE2_VERSION=10.39
 
 #
 # One or more of the following libraries are required to build Wireshark.
@@ -131,7 +123,7 @@ LIBGCRYPT_VERSION=1.8.7
 # "QT_VERSION=5.10.1 ./macos-setup.sh"
 # will build and install with QT 5.10.1.
 #
-QT_VERSION=${QT_VERSION-5.12.10}
+QT_VERSION=${QT_VERSION-5.12.12}
 
 if [ "$QT_VERSION" ]; then
     QT_MAJOR_VERSION="`expr $QT_VERSION : '\([0-9][0-9]*\).*'`"
@@ -181,7 +173,7 @@ LIBXML2_VERSION=2.9.9
 LZ4_VERSION=1.9.2
 SBC_VERSION=1.3
 CARES_VERSION=1.15.0
-LIBSSH_VERSION=0.9.0
+LIBSSH_VERSION=0.9.6
 # mmdbresolve
 MAXMINDDB_VERSION=1.4.3
 NGHTTP2_VERSION=1.46.0
@@ -211,31 +203,19 @@ else
     #
     # No - install a Python package.
     #
-    # 3.7.6 is the final version of Python to have official packages for the
-    # 64-bit/32-bit variant that supports 10.6 (Snow Leopard) through 10.8
-    # (Mountain Lion), and 3.9.1 is the first version of Python to support
-    # macOS 11 Big Sur and Apple Silicon (Arm-based Macs).
-    #
-    # So on Mountain Lion, choose 3.7.6, otherwise get the latest stable
-    # version (3.9.5).
-    #
-    if [[ $DARWIN_MAJOR_VERSION -gt 12 ]]; then
-        PYTHON3_VERSION=3.9.5
-    else
-        PYTHON3_VERSION=3.7.6
-    fi
+    PYTHON3_VERSION=3.9.5
 fi
 BROTLI_VERSION=1.0.9
 # minizip
 ZLIB_VERSION=1.2.11
 # Uncomment to enable automatic updates using Sparkle
-#SPARKLE_VERSION=1.26.0
+#SPARKLE_VERSION=2.1.0
 
 #
 # Asciidoctor is required to build the documentation.
 #
-ASCIIDOCTOR_VERSION=${ASCIIDOCTOR_VERSION-2.0.10}
-ASCIIDOCTORPDF_VERSION=${ASCIIDOCTORPDF_VERSION-1.5.0.beta.5}
+ASCIIDOCTOR_VERSION=${ASCIIDOCTOR_VERSION-2.0.16}
+ASCIIDOCTORPDF_VERSION=${ASCIIDOCTORPDF_VERSION-1.6.1}
 
 #
 # GNU autotools; they're provided with releases up to Snow Leopard, but
@@ -285,7 +265,7 @@ uninstall_curl() {
 install_xz() {
     if [ "$XZ_VERSION" -a ! -f xz-$XZ_VERSION-done ] ; then
         echo "Downloading, building, and installing xz:"
-        [ -f xz-$XZ_VERSION.tar.bz2 ] || curl -L -O http://tukaani.org/xz/xz-$XZ_VERSION.tar.bz2 || exit 1
+        [ -f xz-$XZ_VERSION.tar.bz2 ] || curl -L -O https://tukaani.org/xz/xz-$XZ_VERSION.tar.bz2 || exit 1
         $no_build && echo "Skipping installation" && return
         bzcat xz-$XZ_VERSION.tar.bz2 | tar xf - || exit 1
         cd xz-$XZ_VERSION
@@ -326,7 +306,7 @@ uninstall_xz() {
 install_lzip() {
     if [ "$LZIP_VERSION" -a ! -f lzip-$LZIP_VERSION-done ] ; then
         echo "Downloading, building, and installing lzip:"
-        [ -f lzip-$LZIP_VERSION.tar.gz ] || curl -L -O http://download.savannah.gnu.org/releases/lzip/lzip-$LZIP_VERSION.tar.gz || exit 1
+        [ -f lzip-$LZIP_VERSION.tar.gz ] || curl -L -O https://download.savannah.gnu.org/releases/lzip/lzip-$LZIP_VERSION.tar.gz || exit 1
         $no_build && echo "Skipping installation" && return
         gzcat lzip-$LZIP_VERSION.tar.gz | tar xf - || exit 1
         cd lzip-$LZIP_VERSION
@@ -392,6 +372,45 @@ uninstall_pcre() {
         fi
 
         installed_pcre_version=""
+    fi
+}
+
+install_pcre2() {
+    if [ "$PCRE2_VERSION" -a ! -f "pcre2-$PCRE2_VERSION-done" ] ; then
+        echo "Downloading, building, and installing pcre2:"
+        [ -f "pcre2-$PCRE2_VERSION.tar.bz2" ] || curl -L -O "https://github.com/PhilipHazel/pcre2/releases/download/pcre2-$PCRE2_VERSION/pcre2-10.39.tar.bz2" || exit 1
+        $no_build && echo "Skipping installation" && return
+        bzcat "pcre2-$PCRE2_VERSION.tar.bz2" | tar xf - || exit 1
+        cd "pcre2-$PCRE2_VERSION"
+        mkdir build_dir
+        cd build_dir
+        # https://github.com/Homebrew/homebrew-core/blob/master/Formula/pcre2.rb
+        # https://github.com/microsoft/vcpkg/blob/master/ports/pcre2/portfile.cmake
+        MACOSX_DEPLOYMENT_TARGET=$min_osx_target SDKROOT="$SDKPATH" \
+            cmake -DBUILD_STATIC_LIBS=OFF -DBUILD_SHARED_LIBS=ON -DPCRE2_SUPPORT_JIT=ON -DPCRE2_SUPPORT_UNICODE=ON .. || exit 1
+        make $MAKE_BUILD_OPTS || exit 1
+        $DO_MAKE_INSTALL || exit 1
+        cd ../..
+        touch "pcre2-$PCRE2_VERSION-done"
+    fi
+}
+
+uninstall_pcre2() {
+    if [ -n "$installed_pcre2_version" ] && [ -s "pcre2-$installed_pcre2_version/build_dir/install_manifest.txt" ] ; then
+        echo "Uninstalling pcre2:"
+        # PCRE2 10.39 installs pcre2unicode.3 twice, so this will return an error.
+        while read -r ; do $DO_RM -v "$REPLY" ; done < <(cat "pcre2-$installed_pcre2_version/build_dir/install_manifest.txt"; echo)
+        rm "pcre2-$installed_pcre2_version-done"
+
+        if [ "$#" -eq 1 -a "$1" = "-r" ] ; then
+            #
+            # Get rid of the previously downloaded and unpacked version.
+            #
+            rm -rf "pcre2-$installed_pcre2_version"
+            rm -rf "pcre2-$installed_pcre2_version.tar.bz2"
+        fi
+
+        installed_pcre2_version=""
     fi
 }
 
@@ -575,7 +594,7 @@ install_asciidoctorpdf() {
         ## record them for uninstallation
         ## ttfunk, pdf-core, prawn, prawn-table, Ascii85, ruby-rc4, hashery, afm, pdf-reader, prawn-templates, public_suffix, addressable, css_parser, prawn-svg, prawn-icon, safe_yaml, thread_safe, polyglot, treetop, asciidoctor-pdf
         echo "Downloading and installing Asciidoctor-pdf:"
-        sudo gem install -V asciidoctor-pdf --prerelease --version "=${ASCIIDOCTORPDF_VERSION}"
+        sudo gem install -V asciidoctor-pdf --version "=${ASCIIDOCTORPDF_VERSION}"
         touch asciidoctorpdf-${ASCIIDOCTORPDF_VERSION}-done
     fi
 }
@@ -728,7 +747,7 @@ uninstall_meson() {
 install_gettext() {
     if [ ! -f gettext-$GETTEXT_VERSION-done ] ; then
         echo "Downloading, building, and installing GNU gettext:"
-        [ -f gettext-$GETTEXT_VERSION.tar.gz ] || curl -L -O http://ftp.gnu.org/pub/gnu/gettext/gettext-$GETTEXT_VERSION.tar.gz || exit 1
+        [ -f gettext-$GETTEXT_VERSION.tar.gz ] || curl -L -O https://ftp.gnu.org/pub/gnu/gettext/gettext-$GETTEXT_VERSION.tar.gz || exit 1
         $no_build && echo "Skipping installation" && return
         gzcat gettext-$GETTEXT_VERSION.tar.gz | tar xf - || exit 1
         cd gettext-$GETTEXT_VERSION
@@ -809,7 +828,7 @@ install_glib() {
         #
         # Starting with GLib 2.28.8, xz-compressed tarballs are available.
         #
-        [ -f glib-$GLIB_VERSION.tar.xz ] || curl -L -O http://ftp.gnome.org/pub/gnome/sources/glib/$glib_dir/glib-$GLIB_VERSION.tar.xz || exit 1
+        [ -f glib-$GLIB_VERSION.tar.xz ] || curl -L -O https://download.gnome.org/sources/glib/$glib_dir/glib-$GLIB_VERSION.tar.xz || exit 1
         $no_build && echo "Skipping installation" && return
         xzcat glib-$GLIB_VERSION.tar.xz | tar xf - || exit 1
         cd glib-$GLIB_VERSION
@@ -1058,7 +1077,7 @@ install_qt() {
         # 5.3 - 5.8:  qt-opensource-mac-x64-clang-{version}.dmg
         # 5.9 - 5.14: qt-opensource-mac-x64-{version}.dmg
         # 5.15 - 6.0: Offline installers no longer provided.
-        # ( http://download.qt.io/archive/qt/5.15/5.15.0/OFFLINE_README.txt )
+        # ( https://download.qt.io/archive/qt/5.15/5.15.0/OFFLINE_README.txt )
         # XXX: We need a different approach for QT >= 5.15
         #
         case $QT_MAJOR_VERSION in
@@ -1070,12 +1089,8 @@ install_qt() {
         5)
             case $QT_MINOR_VERSION in
 
-            0|1|2|3|4|5)
+            0|1|2|3|4|5|6|7|8)
                 echo "Qt $QT_VERSION" is too old 1>&2
-                ;;
-
-            6|7|8)
-                QT_VOLUME=qt-opensource-mac-x64-clang-$QT_VERSION
                 ;;
 
             9|10|11|12|13|14)
@@ -1086,7 +1101,7 @@ install_qt() {
                 ;;
 
             esac
-            [ -f $QT_VOLUME.dmg ] || curl -L -O http://download.qt.io/archive/qt/$QT_MAJOR_MINOR_VERSION/$QT_MAJOR_MINOR_DOTDOT_VERSION/$QT_VOLUME.dmg || exit 1
+            [ -f $QT_VOLUME.dmg ] || curl -L -O https://download.qt.io/archive/qt/$QT_MAJOR_MINOR_VERSION/$QT_MAJOR_MINOR_DOTDOT_VERSION/$QT_VOLUME.dmg || exit 1
             $no_build && echo "Skipping installation" && return
             sudo hdiutil attach $QT_VOLUME.dmg || exit 1
 
@@ -1133,11 +1148,11 @@ uninstall_qt() {
             5*)
                 case $installed_qt_minor_version in
 
-                0|1|2)
+                0|1|2|3|4|5)
                     echo "Qt $installed_qt_version" is too old 1>&2
                     ;;
 
-                3|4|5|6|7|8)
+                6|7|8)
                     installed_qt_volume=qt-opensource-mac-x64-clang-$installed_qt_version.dmg
                     ;;
 
@@ -1253,7 +1268,7 @@ install_libgcrypt() {
         # libgcrypt expects gnu89, not c99/gnu99, semantics for
         # "inline".  See, for example:
         #
-        #    http://lists.freebsd.org/pipermail/freebsd-ports-bugs/2010-October/198809.html
+        #    https://lists.freebsd.org/pipermail/freebsd-ports-bugs/2010-October/198809.html
         #
         CFLAGS="$CFLAGS -std=gnu89 $VERSION_MIN_FLAGS $SDKFLAGS" CXXFLAGS="$CXXFLAGS $VERSION_MIN_FLAGS $SDKFLAGS" LDFLAGS="$LDFLAGS $VERSION_MIN_FLAGS $SDKFLAGS" ./configure --disable-asm || exit 1
         make $MAKE_BUILD_OPTS || exit 1
@@ -1527,7 +1542,7 @@ uninstall_gnutls() {
 install_lua() {
     if [ "$LUA_VERSION" -a ! -f lua-$LUA_VERSION-done ] ; then
         echo "Downloading, building, and installing Lua:"
-        [ -f lua-$LUA_VERSION.tar.gz ] || curl -L -O http://www.lua.org/ftp/lua-$LUA_VERSION.tar.gz || exit 1
+        [ -f lua-$LUA_VERSION.tar.gz ] || curl -L -O https://www.lua.org/ftp/lua-$LUA_VERSION.tar.gz || exit 1
         $no_build && echo "Skipping installation" && return
         gzcat lua-$LUA_VERSION.tar.gz | tar xf - || exit 1
         cd lua-$LUA_VERSION
@@ -1600,17 +1615,21 @@ uninstall_snappy() {
         # just remove what we know it installs.
         #
         # $DO_MAKE_UNINSTALL || exit 1
-        $DO_RM -f /usr/local/lib/libsnappy.1.1.8.dylib \
-                  /usr/local/lib/libsnappy.1.dylib \
-                  /usr/local/lib/libsnappy.dylib \
-                  /usr/local/include/snappy-c.h \
-                  /usr/local/include/snappy-sinksource.h \
-                  /usr/local/include/snappy-stubs-public.h \
-                  /usr/local/include/snappy.h \
-                  /usr/local/lib/cmake/Snappy/SnappyConfig.cmake \
-                  /usr/local/lib/cmake/Snappy/SnappyConfigVersion.cmake \
-                  /usr/local/lib/cmake/Snappy/SnappyTargets-noconfig.cmake \
-                  /usr/local/lib/cmake/Snappy/SnappyTargets.cmake || exit 1
+        if [ -s build_dir/install_manifest.txt ] ; then
+            while read -r ; do $DO_RM -v "$REPLY" ; done < <(cat build_dir/install_manifest.txt; echo)
+        else
+            $DO_RM -f /usr/local/lib/libsnappy.1.1.8.dylib \
+                    /usr/local/lib/libsnappy.1.dylib \
+                    /usr/local/lib/libsnappy.dylib \
+                    /usr/local/include/snappy-c.h \
+                    /usr/local/include/snappy-sinksource.h \
+                    /usr/local/include/snappy-stubs-public.h \
+                    /usr/local/include/snappy.h \
+                    /usr/local/lib/cmake/Snappy/SnappyConfig.cmake \
+                    /usr/local/lib/cmake/Snappy/SnappyConfigVersion.cmake \
+                    /usr/local/lib/cmake/Snappy/SnappyTargets-noconfig.cmake \
+                    /usr/local/lib/cmake/Snappy/SnappyTargets.cmake || exit 1
+        fi
         #
         # snappy uses cmake and doesn't support "make distclean";
         #.just remove the entire build directory.
@@ -1679,7 +1698,13 @@ install_libxml2() {
         $no_build && echo "Skipping installation" && return
         gzcat libxml2-$LIBXML2_VERSION.tar.gz | tar xf - || exit 1
         cd libxml2-$LIBXML2_VERSION
-        CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=0 $VERSION_MIN_FLAGS $SDKFLAGS" CXXFLAGS="$CXXFLAGS -D_FORTIFY_SOURCE=0 $VERSION_MIN_FLAGS $SDKFLAGS" LDFLAGS="$LDFLAGS $VERSION_MIN_FLAGS $SDKFLAGS" ./configure || exit 1
+        #
+        # At least on macOS 12.0.1 with Xcode 13.1, when we build
+        # libxml2, the linker complains that we don't have the right
+        # to link with the Python framework, so don't build with
+        # Python.
+        #
+        CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=0 $VERSION_MIN_FLAGS $SDKFLAGS" CXXFLAGS="$CXXFLAGS -D_FORTIFY_SOURCE=0 $VERSION_MIN_FLAGS $SDKFLAGS" LDFLAGS="$LDFLAGS $VERSION_MIN_FLAGS $SDKFLAGS" ./configure --without-python || exit 1
         make $MAKE_BUILD_OPTS || exit 1
         $DO_MAKE_INSTALL || exit 1
         cd ..
@@ -1992,7 +2017,10 @@ uninstall_nghttp2() {
 install_libtiff() {
     if [ "$LIBTIFF_VERSION" -a ! -f tiff-$LIBTIFF_VERSION-done ] ; then
         echo "Downloading, building, and installing libtiff:"
-        [ -f libtiff-$LIBTIFF_VERSION.tar.gz ] || curl -L -O http://dl.maptools.org/dl/libtiff/tiff-$LIBTIFF_VERSION.tar.gz || exit 1
+        [ -f tiff-$LIBTIFF_VERSION.tar.gz ] ||
+            curl --fail -L -O https://download.osgeo.org/libtiff/tiff-$LIBTIFF_VERSION.tar.gz     ||
+            curl --fail -L -O https://download.osgeo.org/libtiff/old/tiff-$LIBTIFF_VERSION.tar.gz ||
+            exit 1
         $no_build && echo "Skipping installation" && return
         gzcat tiff-$LIBTIFF_VERSION.tar.gz | tar xf - || exit 1
         cd tiff-$LIBTIFF_VERSION
@@ -2070,7 +2098,7 @@ uninstall_spandsp() {
 install_speexdsp() {
     if [ "$SPEEXDSP_VERSION" -a ! -f speexdsp-$SPEEXDSP_VERSION-done ] ; then
         echo "Downloading, building, and installing SpeexDSP:"
-        [ -f speexdsp-$SPEEXDSP_VERSION.tar.gz ] || curl -L -O http://downloads.us.xiph.org/releases/speex/speexdsp-$SPEEXDSP_VERSION.tar.gz || exit 1
+        [ -f speexdsp-$SPEEXDSP_VERSION.tar.gz ] || curl -L -O https://ftp.osuosl.org/pub/xiph/releases/speex/speexdsp-$SPEEXDSP_VERSION.tar.gz || exit 1
         $no_build && echo "Skipping installation" && return
         gzcat speexdsp-$SPEEXDSP_VERSION.tar.gz | tar xf - || exit 1
         cd speexdsp-$SPEEXDSP_VERSION
@@ -2106,7 +2134,7 @@ uninstall_speexdsp() {
 install_bcg729() {
     if [ "$BCG729_VERSION" -a ! -f bcg729-$BCG729_VERSION-done ] ; then
         echo "Downloading, building, and installing bcg729:"
-        [ -f bcg729-$BCG729_VERSION.tar.gz ] || curl -L -O http://download-mirror.savannah.gnu.org/releases/linphone/plugins/sources/bcg729-$BCG729_VERSION.tar.gz || exit 1
+        [ -f bcg729-$BCG729_VERSION.tar.gz ] || curl -L -O https://download.savannah.gnu.org/releases/linphone/plugins/sources/bcg729-$BCG729_VERSION.tar.gz || exit 1
         $no_build && echo "Skipping installation" && return
         gzcat bcg729-$BCG729_VERSION.tar.gz | tar xf - || exit 1
         cd bcg729-$BCG729_VERSION
@@ -2225,10 +2253,6 @@ install_python3() {
         else
             macver=11
         fi
-    elif [[ $DARWIN_MAJOR_VERSION -lt 13 ]]; then
-        # The 64-bit installer requires 10.9 (Mavericks), use the 64-bit/32-bit
-        # variant for 10.8 (Mountain Lion).
-        macver=x10.6
     fi
     if [ "$PYTHON3_VERSION" -a ! -f python3-$PYTHON3_VERSION-done ] ; then
         echo "Downloading and installing python3:"
@@ -2842,6 +2866,17 @@ install_all() {
         uninstall_pcre -r
     fi
 
+    if [ -n "$installed_pcre2_version" -a \
+              "$installed_pcre2_version" != "$PCRE2_VERSION" ] ; then
+        echo "Installed pcre2 version is $installed_pcre2_version"
+        if [ -z "$PCRE2_VERSION" ] ; then
+            echo "pcre2 is not requested"
+        else
+            echo "Requested pcre2 version is $PCRE2_VERSION"
+        fi
+        uninstall_pcre2 -r
+    fi
+
     if [ ! -z "$installed_lzip_version" -a \
               "$installed_lzip_version" != "$LZIP_VERSION" ] ; then
         echo "Installed lzip version is $installed_lzip_version"
@@ -2918,6 +2953,8 @@ install_all() {
     install_libtool
 
     install_cmake
+
+    install_pcre2
 
     #
     # Install Python 3 now; not only is it needed for the Wireshark
@@ -3247,6 +3284,7 @@ then
     installed_xz_version=`ls xz-*-done 2>/dev/null | sed 's/xz-\(.*\)-done/\1/'`
     installed_lzip_version=`ls lzip-*-done 2>/dev/null | sed 's/lzip-\(.*\)-done/\1/'`
     installed_pcre_version=`ls pcre-*-done 2>/dev/null | sed 's/pcre-\(.*\)-done/\1/'`
+    installed_pcre2_version=$(ls pcre2-*-done 2>/dev/null | sed 's/pcre2-\(.*\)-done/\1/')
     installed_autoconf_version=`ls autoconf-*-done 2>/dev/null | sed 's/autoconf-\(.*\)-done/\1/'`
     installed_automake_version=`ls automake-*-done 2>/dev/null | sed 's/automake-\(.*\)-done/\1/'`
     installed_libtool_version=`ls libtool-*-done 2>/dev/null | sed 's/libtool-\(.*\)-done/\1/'`
@@ -3453,10 +3491,10 @@ export CFLAGS
 export CXXFLAGS
 
 #
-# You need Xcode or the command-line tools installed to get the compilers.
+# You need Xcode or the command-line tools installed to get the compilers (xcrun checks both).
 #
-if [ ! -x /usr/bin/xcodebuild ]; then
-    echo "Please install Xcode first (should be available on DVD or from the Mac App Store)."
+ if [ ! -x /usr/bin/xcrun ]; then
+    echo "Please install Xcode (app or command line) first (should be available on DVD or from the Mac App Store)."
     exit 1
 fi
 
@@ -3473,9 +3511,12 @@ if [ "$QT_VERSION" ]; then
     #
     if /usr/bin/xcodebuild -version >/dev/null 2>&1; then
         :
+    elif qmake --version >/dev/null 2>&1; then
+        :
     else
         echo "Please install Xcode first (should be available on DVD or from the Mac App Store)."
         echo "The command-line build tools are not sufficient to build Qt."
+        echo "Alternatively build QT according to: https://gist.github.com/shoogle/750a330c851bd1a924dfe1346b0b4a08#:~:text=MacOS%2FQt%5C%20Creator-,Go%20to%20Qt%20Creator%20%3E%20Preferences%20%3E%20Build%20%26%20Run%20%3E%20Kits,for%20both%20compilers%2C%20not%20gcc%20."
         exit 1
     fi
 fi
@@ -3522,11 +3563,11 @@ echo
 echo "mkdir build; cd build"
 if [ ! -z "$NINJA_VERSION" ]; then
     echo "cmake -G Ninja .."
-    echo "ninja app_bundle"
+    echo "ninja wireshark_app_bundle logray_app_bundle # (Modify as needed)"
     echo "ninja install/strip"
 else
     echo "cmake .."
-    echo "make $MAKE_BUILD_OPTS app_bundle"
+    echo "make $MAKE_BUILD_OPTS wireshark_app_bundle logray_app_bundle # (Modify as needed)"
     echo "make install/strip"
 fi
 echo

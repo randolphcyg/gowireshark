@@ -11,12 +11,12 @@ find_package( Asciidoctor 1.5 )
 
 add_custom_command(
 	OUTPUT AUTHORS-SHORT
-	COMMAND ${PERL_EXECUTABLE}
-		${CMAKE_CURRENT_SOURCE_DIR}/make-authors-short.pl
+	COMMAND ${PYTHON_EXECUTABLE}
+		${CMAKE_CURRENT_SOURCE_DIR}/make-authors-short.py
 		< ${CMAKE_SOURCE_DIR}/AUTHORS
 		> ${CMAKE_CURRENT_BINARY_DIR}/AUTHORS-SHORT
 	DEPENDS
-		${CMAKE_CURRENT_SOURCE_DIR}/make-authors-short.pl
+		${CMAKE_CURRENT_SOURCE_DIR}/make-authors-short.py
 		${CMAKE_SOURCE_DIR}/AUTHORS
 )
 
@@ -60,6 +60,7 @@ ADD_MAN_PAGE(sshdump     1)
 ADD_MAN_PAGE(text2pcap   1)
 ADD_MAN_PAGE(tshark      1)
 ADD_MAN_PAGE(udpdump     1)
+ADD_MAN_PAGE(wifidump    1)
 
 ADD_MAN_PAGE(extcap           4)
 ADD_MAN_PAGE(wireshark-filter 4)
@@ -88,6 +89,8 @@ endif()
 set(BUNDLE_RESOURCE_SHARE_MAN1_FILES ${MAN1_INSTALL_FILES} PARENT_SCOPE)
 set(BUNDLE_RESOURCE_SHARE_MAN4_FILES ${MAN4_INSTALL_FILES} PARENT_SCOPE)
 
+set(MAN_INCLUDES diagnostic-options.adoc)
+
 if(ASCIIDOCTOR_FOUND)
 	ASCIIDOCTOR2ROFFMAN(1 ${MAN1_SOURCE_FILES})
 	ASCIIDOCTOR2ROFFMAN(4 ${MAN4_SOURCE_FILES})
@@ -97,7 +100,7 @@ if(ASCIIDOCTOR_FOUND)
 		${MAN1_INSTALL_FILES}
 		${MAN4_INSTALL_FILES}
 	)
-	set_target_properties(manpages PROPERTIES FOLDER "Docs")
+	set_target_properties(manpages PROPERTIES FOLDER "Documentation")
 endif()
 
 add_custom_target(
@@ -108,7 +111,7 @@ add_custom_target(
 		${MAN4_INSTALL_FILES}
 		${HTML_INSTALL_FILES}
 )
-set_target_properties(docs PROPERTIES FOLDER "Docs")
+set_target_properties(docs PROPERTIES FOLDER "Documentation")
 
 if(ASCIIDOCTOR_FOUND)
 	install(

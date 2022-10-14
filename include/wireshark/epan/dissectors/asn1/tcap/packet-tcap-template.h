@@ -13,7 +13,7 @@
 #ifndef PACKET_tcap_H
 #define PACKET_tcap_H
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* TCAP component type */
 #define TCAP_COMP_INVOKE	0xa1
@@ -160,12 +160,6 @@ struct tcapsrt_info_t {
   guint32 dst_tid;
   guint8 ope;
 };
-
-/**
- * Routine called when the TAP is initialized.
- * so hash table are (re)created
- */
-void tcapsrt_init_routine(void);
 
 /**
  * Initialize the Message Info used by the main dissector

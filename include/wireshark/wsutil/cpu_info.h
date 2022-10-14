@@ -1,4 +1,4 @@
-/* cpu_info.h
+/** @file
  * Declarations of routines to report CPU information
  *
  * Wireshark - Network traffic analyzer
@@ -11,7 +11,7 @@
 #ifndef __WSUTIL_CPU_INFO_H__
 #define __WSUTIL_CPU_INFO_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -19,7 +19,7 @@
 #include <QTreeWidgetItem>
 #include <QPushButton>
 
-#include "wireshark_application.h"
+#include "main_application.h"
 
 #include "ui/recent.h"
 
@@ -770,7 +770,7 @@ void LteRlcStatisticsDialog::tapReset(void *ws_dlg_ptr)
 
 // Process the tap info from a dissected RLC PDU.
 // Returns TAP_PACKET_REDRAW if a redraw is needed, TAP_PACKET_DONT_REDRAW otherwise.
-tap_packet_status LteRlcStatisticsDialog::tapPacket(void *ws_dlg_ptr, struct _packet_info *, epan_dissect *, const void *rlc_lte_tap_info_ptr)
+tap_packet_status LteRlcStatisticsDialog::tapPacket(void *ws_dlg_ptr, struct _packet_info *, epan_dissect *, const void *rlc_lte_tap_info_ptr, tap_flags_t)
 {
     // Look up dialog.
     LteRlcStatisticsDialog *ws_dlg = static_cast<LteRlcStatisticsDialog *>(ws_dlg_ptr);
@@ -798,7 +798,10 @@ tap_packet_status LteRlcStatisticsDialog::tapPacket(void *ws_dlg_ptr, struct _pa
         // Existing UE wasn't found so create a new one.
         ue_ti = new RlcUeTreeWidgetItem(ws_dlg->statsTreeWidget(), rlt_info);
         for (int col = 0; col < ws_dlg->statsTreeWidget()->columnCount(); col++) {
-            ue_ti->setTextAlignment(col, ws_dlg->statsTreeWidget()->headerItem()->textAlignment(col));
+            // int QTreeWidgetItem::textAlignment(int column) const
+            // Returns the text alignment for the label in the given column.
+            // Note: This function returns an int for historical reasons. It will be corrected to return Qt::Alignment in Qt 7.
+            ue_ti->setTextAlignment(col, static_cast<Qt::Alignment>(ws_dlg->statsTreeWidget()->headerItem()->textAlignment(col)));
         }
     }
 
@@ -985,7 +988,7 @@ lte_rlc_statistics_init(const char *args, void*) {
     if (args_l.length() > 2) {
         filter = QStringList(args_l.mid(2)).join(",").toUtf8();
     }
-    wsApp->emitStatCommandSignal("LteRlcStatistics", filter.constData(), NULL);
+    mainApp->emitStatCommandSignal("LteRlcStatistics", filter.constData(), NULL);
 }
 
 static stat_tap_ui lte_rlc_statistics_ui = {

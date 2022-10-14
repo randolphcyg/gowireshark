@@ -945,7 +945,7 @@ tele_param_user_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint 
 
     case 0x04:
         encoding_bit_len = 16;
-        cset = OTHER;
+        cset = UCS2;
         break;
 
     case 0x09:
@@ -1038,10 +1038,6 @@ tele_param_user_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint 
         {
             switch (cset)
             {
-            case GSM_7BITS:
-            case OTHER:
-                break;
-
             case ASCII_7BITS:
                 if (fill_bits > unused_bits)
                 {
@@ -1063,6 +1059,9 @@ tele_param_user_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint 
                     offset += 1;
                     unused_bits = 8;
                 }
+                break;
+
+            default:
                 break;
             }
         } else if (encoding_bit_len == 16) {
@@ -1472,7 +1471,7 @@ tele_param_mult_enc_user_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
         case 0x04:
             encoding_bit_len = 16;
-            cset = OTHER;
+            cset = UCS2;
             break;
 
         case 0x09:
@@ -1947,7 +1946,7 @@ trans_param_tele_id(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint l
         "%s (%u)",
         str, value);
 
-    g_snprintf(add_string, string_len, " - %s (%u)", str, value);
+    snprintf(add_string, string_len, " - %s (%u)", str, value);
 }
 
 static void
@@ -1966,7 +1965,7 @@ trans_param_srvc_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint 
         "%s (%u)",
         str, value);
 
-    g_snprintf(add_string, string_len, " - %s (%u)", str, value);
+    snprintf(add_string, string_len, " - %s (%u)", str, value);
 
     if ((value >= ANSI_TSB58_SRVC_CAT_CMAS_MIN) && (value <= ANSI_TSB58_SRVC_CAT_CMAS_MAX))
     {
@@ -2205,7 +2204,7 @@ trans_param_bearer_reply_opt(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *
     proto_tree_add_item(tree, hf_ansi_637_trans_bearer_reply_seq_num, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_ansi_637_reserved_bits_8_03, tvb, offset, 1, ENC_BIG_ENDIAN);
 
-    g_snprintf(add_string, string_len, " - Reply Sequence Number (%u)",
+    snprintf(add_string, string_len, " - Reply Sequence Number (%u)",
         (tvb_get_guint8(tvb, offset) & 0xfc) >> 2);
 }
 
@@ -2228,7 +2227,7 @@ trans_param_cause_codes(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
     oct = tvb_get_guint8(tvb, offset);
 
-    g_snprintf(add_string, string_len, " - Reply Sequence Number (%u)", (oct & 0xfc) >> 2);
+    snprintf(add_string, string_len, " - Reply Sequence Number (%u)", (oct & 0xfc) >> 2);
 
     if (!(oct & 0x03)) return;
 
@@ -2826,7 +2825,7 @@ proto_register_ansi_637(void)
         },
         { &hf_ansi_637_tele_user_data_text,
             { "Encoded user data", "ansi_637_tele.user_data.text",
-            FT_STRING, STR_UNICODE, NULL, 0,
+            FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
         { &hf_ansi_637_tele_user_data_encoding,
@@ -3196,7 +3195,7 @@ proto_register_ansi_637(void)
         },
         { &hf_ansi_637_tele_cmas_text,
             { "CMAE_alert_text", "ansi_637_tele.cmas.text",
-            FT_STRING, STR_UNICODE, NULL, 0,
+            FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
         { &hf_ansi_637_tele_mult_enc_user_data_encoding,
@@ -3211,7 +3210,7 @@ proto_register_ansi_637(void)
         },
         { &hf_ansi_637_tele_mult_enc_user_data_text,
             { "Encoded user data", "ansi_637_tele.mult_enc_user_data.text",
-            FT_STRING, STR_UNICODE, NULL, 0,
+            FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
         { &hf_ansi_637_tele_srvc_cat_prog_data_encoding,
@@ -3251,7 +3250,7 @@ proto_register_ansi_637(void)
         },
         { &hf_ansi_637_tele_srvc_cat_prog_data_text,
             { "Encoded program data", "ansi_637_tele.srvc_cat_prog_data.text",
-            FT_STRING, STR_UNICODE, NULL, 0,
+            FT_STRING, BASE_NONE, NULL, 0,
             NULL, HFILL }
         },
         { &hf_ansi_637_msb_first_field,

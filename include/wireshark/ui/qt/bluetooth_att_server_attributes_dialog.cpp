@@ -33,12 +33,12 @@ static const int column_number_uuid = 1;
 static const int column_number_uuid_name = 2;
 
 static tap_packet_status
-btatt_handle_tap_packet(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *edt, const void* data)
+btatt_handle_tap_packet(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *edt, const void* data, tap_flags_t flags)
 {
     tapinfo_t *tapinfo = (tapinfo_t *) tapinfo_ptr;
 
     if (tapinfo->tap_packet)
-        tapinfo->tap_packet(tapinfo, pinfo, edt, data);
+        tapinfo->tap_packet(tapinfo, pinfo, edt, data, flags);
 
     return TAP_PACKET_REDRAW;
 }
@@ -59,10 +59,10 @@ BluetoothAttServerAttributesDialog::BluetoothAttServerAttributesDialog(QWidget &
     ui->setupUi(this);
     loadGeometry(parent.width() * 4 / 5, parent.height() * 2 / 3);
 
-    connect(ui->tableTreeWidget, SIGNAL(customContextMenuRequested(const QPoint &)), this, SLOT(tableContextMenu(const QPoint &)));
-    connect(ui->interfaceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(interfaceCurrentIndexChanged(int)));
-    connect(ui->deviceComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(deviceCurrentIndexChanged(int)));
-    connect(ui->removeDuplicatesCheckBox, SIGNAL(stateChanged(int)), this, SLOT(removeDuplicatesStateChanged(int)));
+    connect(ui->tableTreeWidget, &QTreeWidget::customContextMenuRequested, this, &BluetoothAttServerAttributesDialog::tableContextMenu);
+    connect(ui->interfaceComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &BluetoothAttServerAttributesDialog::interfaceCurrentIndexChanged);
+    connect(ui->deviceComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &BluetoothAttServerAttributesDialog::deviceCurrentIndexChanged);
+    connect(ui->removeDuplicatesCheckBox, &QCheckBox::stateChanged, this, &BluetoothAttServerAttributesDialog::removeDuplicatesStateChanged);
 
     ui->tableTreeWidget->sortByColumn(column_number_handle, Qt::AscendingOrder);
 
@@ -136,7 +136,7 @@ void BluetoothAttServerAttributesDialog::keyPressEvent(QKeyEvent *event)
 
 void BluetoothAttServerAttributesDialog::tableContextMenu(const QPoint &pos)
 {
-    context_menu_.exec(ui->tableTreeWidget->viewport()->mapToGlobal(pos));
+    context_menu_.popup(ui->tableTreeWidget->viewport()->mapToGlobal(pos));
 }
 
 
@@ -237,7 +237,7 @@ void BluetoothAttServerAttributesDialog::tapReset(void *tapinfo_ptr)
 }
 
 
-tap_packet_status BluetoothAttServerAttributesDialog::tapPacket(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *, const void *data)
+tap_packet_status BluetoothAttServerAttributesDialog::tapPacket(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *, const void *data, tap_flags_t)
 {
     tapinfo_t                           *tapinfo     = static_cast<tapinfo_t *>(tapinfo_ptr);
     BluetoothAttServerAttributesDialog  *dialog      = static_cast<BluetoothAttServerAttributesDialog *>(tapinfo->ui);
@@ -282,8 +282,8 @@ tap_packet_status BluetoothAttServerAttributesDialog::tapPacket(void *tapinfo_pt
     }
 
     handle = QString("0x%1").arg(tap_handles->handle, 4, 16, QChar('0'));
-    uuid = QString(print_numeric_uuid(&tap_handles->uuid));
-    uuid_name = QString(print_uuid(&tap_handles->uuid));
+    uuid = QString(print_numeric_bluetooth_uuid(&tap_handles->uuid));
+    uuid_name = QString(print_bluetooth_uuid(&tap_handles->uuid));
 
     if (dialog->ui->removeDuplicatesCheckBox->checkState() == Qt::Checked) {
         QTreeWidgetItemIterator i_item(dialog->ui->tableTreeWidget);

@@ -26,12 +26,12 @@
 #include <epan/expert.h>
 #include <epan/addr_resolv.h>
 #include <epan/pci-ids.h>
-#include <stdio.h>
 
 void proto_reg_handoff_ncsi(void);
 void proto_register_ncsi(void);
 
 static int proto_ncsi = -1;
+static dissector_handle_t ncsi_handle;
 
 /* Common header fields */
 static int hf_ncsi_mc_id = -1;
@@ -402,7 +402,7 @@ static const true_false_string tfs_complete_disable_inprog = { "Complete", "Disa
 static const value_string ncsi_partner_flow_vals[] = {
     { 0x00, "Not pause capable" },
     { 0x01, "Symmetric pause" },
-    { 0x02, "Assymmetric pause" },
+    { 0x02, "Asymmetric pause" },
     { 0x03, "Symmetric & Assymetric pause" },
     { 0, NULL },
 };
@@ -532,10 +532,7 @@ ncsi_bcd_dig_to_str(tvbuff_t *tvb, const gint offset)
             digit_str[str_offset++] = '.';
         }
 
-        if ((octet >> 4) != 0xf) {
-            digit_str[str_offset++] =  HEXSTR((octet >> 4) & 0x0f);
-        }
-
+        digit_str[str_offset++] = HEXSTR((octet >> 4) & 0x0f);
         digit_str[str_offset++] = HEXSTR(octet & 0x0f);
 
     }
@@ -1007,12 +1004,12 @@ proto_register_ncsi(void)
         },
         { &hf_ncsi_resp,
           { "Response", "ncsi.resp",
-            FT_UINT8, BASE_HEX, VALS(ncsi_resp_code_vals), 0x0,
+            FT_UINT16, BASE_HEX, VALS(ncsi_resp_code_vals), 0x0,
             "Response code", HFILL },
         },
         { &hf_ncsi_reason,
           { "Reason", "ncsi.reason",
-            FT_UINT8, BASE_HEX, VALS(ncsi_resp_reason_vals), 0x0,
+            FT_UINT16, BASE_HEX, VALS(ncsi_resp_reason_vals), 0x0,
             "Reason code", HFILL },
         },
         { &hf_ncsi_sp_hwarb,
@@ -1662,6 +1659,7 @@ proto_register_ncsi(void)
 
     /* Register the protocol name and description */
     proto_ncsi = proto_register_protocol("NCSI", "NCSI", "ncsi");
+    ncsi_handle = register_dissector("ncsi", dissect_ncsi, proto_ncsi);
 
     /* Required function calls to register the header fields and subtrees */
     proto_register_field_array(proto_ncsi, hf, array_length(hf));
@@ -1671,8 +1669,6 @@ proto_register_ncsi(void)
 void
 proto_reg_handoff_ncsi(void)
 {
-    dissector_handle_t ncsi_handle;
-    ncsi_handle = create_dissector_handle(dissect_ncsi, proto_ncsi);
     dissector_add_uint("ethertype", ETHERTYPE_NCSI, ncsi_handle);
 }
 

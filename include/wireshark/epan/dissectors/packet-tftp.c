@@ -219,7 +219,7 @@ typedef struct _tftp_eo_t {
 
 /* Tap function */
 static tap_packet_status
-tftp_eo_packet(void *tapdata, packet_info *pinfo, epan_dissect_t *edt _U_, const void *data)
+tftp_eo_packet(void *tapdata, packet_info *pinfo, epan_dissect_t *edt _U_, const void *data, tap_flags_t flags _U_)
 {
   export_object_list_t *object_list = (export_object_list_t *)tapdata;
   const tftp_eo_t *eo_info = (const tftp_eo_t *)data;
@@ -275,9 +275,9 @@ tftp_dissect_options(tvbuff_t *tvb, packet_info *pinfo, int offset,
                                    ett_tftp_option, NULL, "Option: %s = %s", optionname, optionvalue);
 
     proto_tree_add_item(opt_tree, hf_tftp_option_name, tvb, offset,
-                        option_len, ENC_ASCII|ENC_NA);
+                        option_len, ENC_ASCII);
     proto_tree_add_item(opt_tree, hf_tftp_option_value, tvb, value_offset,
-                        value_len, ENC_ASCII|ENC_NA);
+                        value_len, ENC_ASCII);
 
     offset += option_len + value_len;
 
@@ -452,7 +452,7 @@ static void dissect_tftp_message(tftp_conv_info_t *tftp_info,
 
     i1 = tvb_strsize(tvb, offset);
     proto_tree_add_item(tftp_tree, hf_tftp_transfer_type,
-                        tvb, offset, i1, ENC_ASCII|ENC_NA);
+                        tvb, offset, i1, ENC_ASCII);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, ", Transfer type: %s",
                     tvb_format_stringzpad(pinfo->pool, tvb, offset, i1));
@@ -478,7 +478,7 @@ static void dissect_tftp_message(tftp_conv_info_t *tftp_info,
 
     i1 = tvb_strsize(tvb, offset);
     proto_tree_add_item(tftp_tree, hf_tftp_transfer_type,
-                        tvb, offset, i1, ENC_ASCII|ENC_NA);
+                        tvb, offset, i1, ENC_ASCII);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, ", Transfer type: %s",
                     tvb_format_stringzpad(pinfo->pool, tvb, offset, i1));
@@ -692,7 +692,7 @@ static void dissect_tftp_message(tftp_conv_info_t *tftp_info,
 
     i1 = tvb_strsize(tvb, offset);
     proto_tree_add_item(tftp_tree, hf_tftp_error_string, tvb, offset,
-                        i1, ENC_ASCII|ENC_NA);
+                        i1, ENC_ASCII);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, ", Message: %s",
                     tvb_format_stringzpad(pinfo->pool, tvb, offset, i1));
@@ -803,7 +803,7 @@ static conversation_t* create_tftp_conversation(packet_info *pinfo)
   conversation_t* conversation = NULL;
   if (!PINFO_FD_VISITED(pinfo)) {
     /* New read or write request on first pass, so create conversation with client port only */
-    conversation = conversation_new(pinfo->num, &pinfo->src, &pinfo->dst, ENDPOINT_UDP,
+    conversation = conversation_new(pinfo->num, &pinfo->src, &pinfo->dst, CONVERSATION_UDP,
                                     pinfo->srcport, 0, NO_PORT2);
     conversation_set_dissector(conversation, tftp_handle);
     /* Store conversation in this frame */
@@ -919,7 +919,7 @@ dissect_tftp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
   {
     /* Not the initial read or write request */
     /* Look for wildcarded conversation based upon client port */
-    if ((conversation = find_conversation(pinfo->num, &pinfo->dst, &pinfo->src, ENDPOINT_UDP,
+    if ((conversation = find_conversation(pinfo->num, &pinfo->dst, &pinfo->src, CONVERSATION_UDP,
                                      pinfo->destport, 0, NO_PORT_B)) && conversation_get_dissector(conversation, pinfo->num) == tftp_handle) {
 #if 0
       /* XXX: While setting the wildcarded port makes sense, if we do that,
@@ -933,7 +933,7 @@ dissect_tftp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
       if (pinfo->destport == conversation_key_port1(conversation->key_ptr))
         conversation_set_port2(conversation, pinfo->srcport);
 #endif
-    } else if ((conversation = find_conversation(pinfo->num, &pinfo->src, &pinfo->dst, ENDPOINT_UDP,
+    } else if ((conversation = find_conversation(pinfo->num, &pinfo->src, &pinfo->dst, CONVERSATION_UDP,
                                      pinfo->srcport, 0, NO_PORT_B)) && conversation_get_dissector(conversation, pinfo->num) == tftp_handle) {
 
     } else {

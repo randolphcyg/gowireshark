@@ -1,6 +1,7 @@
-/* ascend-int.h
+/** @file
+ *
  * Definitions for routines common to multiple modules in the Lucent/Ascend
- * capture file reading code code, but not used outside that code.
+ * capture file reading code, but not used outside that code.
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -14,7 +15,7 @@
 
 #include <glib.h>
 #include <stdbool.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 typedef struct {
     time_t inittime;

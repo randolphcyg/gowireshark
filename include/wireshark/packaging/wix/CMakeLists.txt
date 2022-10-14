@@ -69,14 +69,12 @@ else()
 	message(FATAL_ERROR "Your mysterious moon-man architecture \"${WIRESHARK_TARGET_PLATFORM}\" frightens and confuses us.")
 endif()
 
-set(PRODUCT_VERSION ${PROJECT_MAJOR_VERSION}.${PROJECT_MINOR_VERSION}.${PROJECT_PATCH_VERSION}.${PROJECT_BUILD_VERSION})
-
 # To do:
 # - Sync the various version names between CMake and Wix.
-# - Set CMakeLists.txt version strings in tools/make-version.pl
+# - Set CMakeLists.txt version strings in tools/make-version.py
 # - Add a VERSION_EXTRA cmake option
 set (VERSION "${PROJECT_VERSION}")
-set (PRODUCT_VERSION=${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MICRO}.${VERSION_BUILD})
+set(PRODUCT_VERSION ${PROJECT_MAJOR_VERSION}.${PROJECT_MINOR_VERSION}.${PROJECT_PATCH_VERSION}.${PROJECT_BUILD_VERSION})
 
 # Use the merge module that comes with our version of Visual Studio
 if(MSVC_VERSION GREATER_EQUAL 1930)
@@ -135,7 +133,7 @@ foreach(_dll ${GLIB2_DLLS_RELEASE})
 endforeach()
 file(APPEND "${_all_manifest_wix}" "      <?endif?>\n")
 SET(unique_component "")
-foreach(_dll ${CARES_DLL} ${GCRYPT_DLLS}
+foreach(_dll ${CARES_DLL} ${PCRE2_DLL} ${GCRYPT_DLLS}
 		${GNUTLS_DLLS} ${KERBEROS_DLLS} ${LIBSSH_DLLS} ${LUA_DLL}
 		${LZ4_DLL} ${NGHTTP2_DLL} ${SBC_DLL} ${SMI_DLL} ${SNAPPY_DLL}
 		${SPANDSP_DLL} ${BCG729_DLL} ${LIBXML2_DLLS} ${WINSPARKLE_DLL}
@@ -174,7 +172,7 @@ foreach(_dll ${GLIB2_DLLS_RELEASE})
 endforeach()
 file(APPEND "${_all_manifest_wix}" "      <?endif?>\n")
 SET(unique_file "")
-foreach(_dll ${CARES_DLL} ${GCRYPT_DLLS}
+foreach(_dll ${CARES_DLL} ${PCRE2_DLL} ${GCRYPT_DLLS}
 		${GNUTLS_DLLS} ${KERBEROS_DLLS} ${LIBSSH_DLLS} ${LUA_DLL}
 		${LZ4_DLL} ${NGHTTP2_DLL} ${SBC_DLL} ${SMI_DLL} ${SNAPPY_DLL}
 		${SPANDSP_DLL} ${BCG729_DLL} ${LIBXML2_DLLS} ${WINSPARKLE_DLL}
@@ -215,13 +213,13 @@ set(WIX_CANDLE_DEFINES
 	-dWiresharkMajorVersion=${PROJECT_MAJOR_VERSION}
 	-dWiresharkMinorVersion=${PROJECT_MINOR_VERSION}
 	-dAssetDir=${CMAKE_SOURCE_DIR}/packaging/wix
-	-dBuildOutputDir=${EXECUTABLE_OUTPUT_PATH}/${CMAKE_BUILD_TYPE}
-	-dDiameterDir=${ARCHIVE_OUTPUT_PATH}/${CMAKE_BUILD_TYPE}/diameter
-	-dIconDir=${CMAKE_SOURCE_DIR}/image
-	-dQtTranslationDir=${ARCHIVE_OUTPUT_PATH}/${CMAKE_BUILD_TYPE}/translations
-	-dRadiusDictDir=${ARCHIVE_OUTPUT_PATH}/${CMAKE_BUILD_TYPE}/radius
-	-dSnmpMibDir=${ARCHIVE_OUTPUT_PATH}/${CMAKE_BUILD_TYPE}/snmp/mibs
-	-dUsersGuideDir=${ARCHIVE_OUTPUT_PATH}/${CMAKE_BUILD_TYPE}/docbook/wsug_html_chunked
+	-dBuildOutputDir=${EXECUTABLE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}
+	-dDiameterDir=${ARCHIVE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}/diameter
+	-dIconDir=${CMAKE_SOURCE_DIR}/resources/icons
+	-dQtTranslationDir=${ARCHIVE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}/translations
+	-dRadiusDictDir=${ARCHIVE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}/radius
+	-dSnmpMibDir=${ARCHIVE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}/snmp/mibs
+	-dUsersGuideDir=${ARCHIVE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}/docbook/wsug_html_chunked
 	-dVCRedistVersion=${MSVC_CRT_VERSION}
 	-dVCRedistDir=${MERGE_MODULE_DIR}
 	${d_smi_dir}
@@ -285,7 +283,7 @@ macro( ADD_WIX_PACKAGE_TARGET )
 		# SNMPMibs.wxs. Collects all MIBs in "output" snmp/mibs
 		# directory. Generated with heat.exe
 		add_custom_command(OUTPUT ${_wix_binary_dir}/SNMPMibs.wxs
-			COMMAND ${WIX_HEAT_EXECUTABLE} dir ${ARCHIVE_OUTPUT_PATH}/${CMAKE_BUILD_TYPE}/snmp/mibs
+			COMMAND ${WIX_HEAT_EXECUTABLE} dir ${ARCHIVE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}/snmp/mibs
 					${WIX_HEAT_FLAGS} -cg CG.Plugins.SNMP -dr dirSnmpMibs -var var.SnmpMibDir
 					-out ${_wix_binary_dir}/SNMPMibs.wxs
 		)
@@ -293,7 +291,7 @@ macro( ADD_WIX_PACKAGE_TARGET )
 		# RadiusDict.wxs. Collects all Radius dictionary files in
 		# "output" radius directory. Generated with heat.exe
 		add_custom_command(OUTPUT ${_wix_binary_dir}/RadiusDict.wxs
-			COMMAND ${WIX_HEAT_EXECUTABLE} dir ${ARCHIVE_OUTPUT_PATH}/${CMAKE_BUILD_TYPE}/radius
+			COMMAND ${WIX_HEAT_EXECUTABLE} dir ${ARCHIVE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}/radius
 					${WIX_HEAT_FLAGS} -cg CG.RadiusDict -dr dirRadius -var var.RadiusDictDir
 					-out ${_wix_binary_dir}/RadiusDict.wxs
 		)
@@ -301,7 +299,7 @@ macro( ADD_WIX_PACKAGE_TARGET )
 		# Diameter.wxs. Collects all Diameter XML dictionary files
 		# in "output" diameter directory. Generated with heat.exe
 		add_custom_command(OUTPUT ${_wix_binary_dir}/Diameter.wxs
-			COMMAND ${WIX_HEAT_EXECUTABLE} dir ${ARCHIVE_OUTPUT_PATH}/${CMAKE_BUILD_TYPE}/diameter
+			COMMAND ${WIX_HEAT_EXECUTABLE} dir ${ARCHIVE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}/diameter
 					${WIX_HEAT_FLAGS} -cg CG.Diameter -dr dirDiameter -var var.DiameterDir
 					-out ${_wix_binary_dir}/Diameter.wxs
 		)
@@ -309,22 +307,23 @@ macro( ADD_WIX_PACKAGE_TARGET )
 		# QtTranslation.wxs. Collects all Qt translation files in
 		# "output" translations directory. Generated with heat.exe
 		add_custom_command(OUTPUT ${_wix_binary_dir}/QtTranslation.wxs
-			COMMAND ${WIX_HEAT_EXECUTABLE} dir ${ARCHIVE_OUTPUT_PATH}/${CMAKE_BUILD_TYPE}/translations
+			COMMAND ${WIX_HEAT_EXECUTABLE} dir ${ARCHIVE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}/translations
 					${WIX_HEAT_FLAGS} -cg CG.QtTranslations -dr dirTranslations -var var.QtTranslationDir
 					-out ${_wix_binary_dir}/QtTranslation.wxs
 		)
 
 		# Build WiX package dependencies. We build the package in
-		# two stages so that wix_package below doesn't trigger any
+		# two stages so that wireshark_wix below doesn't trigger any
 		# dependencies that might clobber any signed executables.
-		add_custom_target(wix_package_prep
+		# XXX Rename this to wireshark_wix_prep
+		add_custom_target(wireshark_wix_prep
 			DEPENDS
 				${WIX_FILES}
 				copy_data_files
 				user_guide_html
 				faq_html
 		)
-		set_target_properties(wix_package_prep PROPERTIES
+		set_target_properties(wireshark_wix_prep PROPERTIES
 			FOLDER "Packaging"
 			EXCLUDE_FROM_DEFAULT_BUILD True
 		)
@@ -332,7 +331,8 @@ macro( ADD_WIX_PACKAGE_TARGET )
 		# Dump the installer into
 		# ${CMAKE_CURRENT_SOURCE_DIR}/packaging/wix
 		# Note that executables and DLLs *must* be built separately
-		add_custom_target(wix_package
+		# XXX Rename this to wireshark_wix
+		add_custom_target(wireshark_wix
 			COMMAND ${WIX_CANDLE_EXECUTABLE} ${WIX_CANDLE_DEFINES}
 				$<$<CONFIG:Debug>:-dBUNDLE_DEBUG_DLLS>
 				${WIX_SOURCE_FILES}
@@ -341,7 +341,7 @@ macro( ADD_WIX_PACKAGE_TARGET )
 			COMMAND ${WIX_LIGHT_EXECUTABLE} ${WIX_LIGHT_DEFINES} ${WIX_OUT_FILES}
 			WORKING_DIRECTORY ${_wix_binary_dir}
 		)
-		set_target_properties(wix_package PROPERTIES
+		set_target_properties(wireshark_wix PROPERTIES
 			FOLDER "Packaging"
 			EXCLUDE_FROM_DEFAULT_BUILD True
 		)

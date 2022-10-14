@@ -354,9 +354,13 @@ static  wmem_list_t *async_dns_queue_head = NULL;
 gboolean use_custom_dns_server_list = FALSE;
 struct dns_server_data {
     char *ipaddr;
+    guint32 udp_port;
+    guint32 tcp_port;
 };
 
 UAT_CSTRING_CB_DEF(dnsserverlist_uats, ipaddr, struct dns_server_data)
+UAT_DEC_CB_DEF(dnsserverlist_uats, tcp_port, struct dns_server_data)
+UAT_DEC_CB_DEF(dnsserverlist_uats, udp_port, struct dns_server_data)
 
 static uat_t *dnsserver_uat = NULL;
 static struct dns_server_data  *dnsserverlist_uats = NULL;
@@ -377,6 +381,8 @@ dns_server_copy_cb(void *dst_, const void *src_, size_t len _U_)
     struct dns_server_data       *dst = (struct dns_server_data *)dst_;
 
     dst->ipaddr = g_strdup(src->ipaddr);
+    dst->udp_port = src->udp_port;
+    dst->tcp_port = src->tcp_port;
 
     return dst;
 }
@@ -390,11 +396,30 @@ dnsserver_uat_fld_ip_chk_cb(void* r _U_, const char* ipaddr, guint len _U_, cons
         return TRUE;
     }
 
-    *err = g_strdup_printf("No valid IP address given.");
+    *err = ws_strdup_printf("No valid IP address given.");
     return FALSE;
 }
 
+static gboolean
+dnsserver_uat_fld_port_chk_cb(void* r _U_, const char* p, guint len _U_, const void* u1 _U_, const void* u2 _U_, char** err)
+{
+    if (!p || strlen(p) == 0u) {
+        // This should be removed in favor of Decode As. Make it optional.
+        *err = NULL;
+        return TRUE;
+    }
 
+    if (strcmp(p, "53") != 0){
+        guint16 port;
+        if (!ws_strtou16(p, NULL, &port)) {
+            *err = g_strdup("Invalid port given.");
+            return FALSE;
+        }
+    }
+
+    *err = NULL;
+    return TRUE;
+}
 
 static void
 c_ares_ghba_sync_cb(void *arg, int status, int timeouts _U_, struct hostent *he) {
@@ -545,14 +570,14 @@ c_ares_set_dns_servers(void)
 
     if (ndnsservers == 0) {
         //clear the list of servers.  This may effectively disable name resolution
-        ares_set_servers(ghba_chan, NULL);
-        ares_set_servers(ghbn_chan, NULL);
+        ares_set_servers_ports(ghba_chan, NULL);
+        ares_set_servers_ports(ghbn_chan, NULL);
     } else {
-        struct ares_addr_node* servers = wmem_alloc_array(NULL, struct ares_addr_node, ndnsservers);
+        struct ares_addr_port_node* servers = wmem_alloc_array(NULL, struct ares_addr_port_node, ndnsservers);
         ws_in4_addr ipv4addr;
         ws_in6_addr ipv6addr;
         gboolean invalid_IP_found = FALSE;
-        struct ares_addr_node* server;
+        struct ares_addr_port_node* server;
         guint i;
         for (i = 0, server = servers; i < ndnsservers-1; i++, server++) {
             if (ws_inet_pton6(dnsserverlist_uats[i].ipaddr, &ipv6addr)) {
@@ -568,6 +593,9 @@ c_ares_set_dns_servers(void)
                 memset(&server->addr.addr4, 0, 4);
                 break;
             }
+
+            server->udp_port = (int)dnsserverlist_uats[i].udp_port;
+            server->tcp_port = (int)dnsserverlist_uats[i].tcp_port;
 
             server->next = (server+1);
         }
@@ -585,10 +613,13 @@ c_ares_set_dns_servers(void)
                 memset(&server->addr.addr4, 0, 4);
             }
         }
+        server->udp_port = (int)dnsserverlist_uats[i].udp_port;
+        server->tcp_port = (int)dnsserverlist_uats[i].tcp_port;
+
         server->next = NULL;
 
-        ares_set_servers(ghba_chan, servers);
-        ares_set_servers(ghbn_chan, servers);
+        ares_set_servers_ports(ghba_chan, servers);
+        ares_set_servers_ports(ghbn_chan, servers);
         wmem_free(NULL, servers);
     }
 }
@@ -952,7 +983,7 @@ enterprises_base_custom(char *buf, guint32 value)
 
     if ((s = try_enterprises_lookup(value)) == NULL)
         s = ITEM_LABEL_UNKNOWN_STR;
-    g_snprintf(buf, ITEM_LABEL_LENGTH, "%s (%u)", s, value);
+    snprintf(buf, ITEM_LABEL_LENGTH, "%s (%u)", s, value);
 }
 
 static void
@@ -1006,9 +1037,9 @@ fill_dummy_ip4(const guint addr, hashipv4_t* volatile tp)
         }
 
         /* There are more efficient ways to do this, but this is safe if we
-         * trust g_snprintf and MAXNAMELEN
+         * trust snprintf and MAXNAMELEN
          */
-        g_snprintf(tp->name, MAXNAMELEN, "%s%s", subnet_entry.name, paddr);
+        snprintf(tp->name, MAXNAMELEN, "%s%s", subnet_entry.name, paddr);
     } else {
         /* XXX: This means we end up printing "1.2.3.4 (1.2.3.4)" in many cases */
         ip_to_str_buf((const guint8 *)&addr, tp->name, MAXNAMELEN);
@@ -1789,7 +1820,7 @@ eth_addr_resolve(hashether_t *tp) {
         do {
             /* Only the topmost 5 bytes participate fully */
             if ((name = wka_name_lookup(addr, mask+40)) != NULL) {
-                g_snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x",
+                snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x",
                         name, addr[5] & (0xFF >> mask));
                 tp->status = HASHETHER_STATUS_RESOLVED_DUMMY;
                 return tp;
@@ -1800,7 +1831,7 @@ eth_addr_resolve(hashether_t *tp) {
         do {
             /* Only the topmost 4 bytes participate fully */
             if ((name = wka_name_lookup(addr, mask+32)) != NULL) {
-                g_snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x",
+                snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x",
                         name, addr[4] & (0xFF >> mask), addr[5]);
                 tp->status = HASHETHER_STATUS_RESOLVED_DUMMY;
                 return tp;
@@ -1811,7 +1842,7 @@ eth_addr_resolve(hashether_t *tp) {
         do {
             /* Only the topmost 3 bytes participate fully */
             if ((name = wka_name_lookup(addr, mask+24)) != NULL) {
-                g_snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x:%02x",
+                snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x:%02x",
                         name, addr[3] & (0xFF >> mask), addr[4], addr[5]);
                 tp->status = HASHETHER_STATUS_RESOLVED_DUMMY;
                 return tp;
@@ -1821,7 +1852,7 @@ eth_addr_resolve(hashether_t *tp) {
         /* Now try looking in the manufacturer table. */
         manuf_value = manuf_name_lookup(addr);
         if ((manuf_value != NULL) && (manuf_value->status != HASHETHER_STATUS_UNRESOLVED)) {
-            g_snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x:%02x",
+            snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x:%02x",
                     manuf_value->resolved_name, addr[3], addr[4], addr[5]);
             tp->status = HASHETHER_STATUS_RESOLVED_DUMMY;
             return tp;
@@ -1833,7 +1864,7 @@ eth_addr_resolve(hashether_t *tp) {
         do {
             /* Only the topmost 2 bytes participate fully */
             if ((name = wka_name_lookup(addr, mask+16)) != NULL) {
-                g_snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x:%02x:%02x",
+                snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x:%02x:%02x",
                         name, addr[2] & (0xFF >> mask), addr[3], addr[4],
                         addr[5]);
                 tp->status = HASHETHER_STATUS_RESOLVED_DUMMY;
@@ -1845,7 +1876,7 @@ eth_addr_resolve(hashether_t *tp) {
         do {
             /* Only the topmost byte participates fully */
             if ((name = wka_name_lookup(addr, mask+8)) != NULL) {
-                g_snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x:%02x:%02x:%02x",
+                snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x:%02x:%02x:%02x",
                         name, addr[1] & (0xFF >> mask), addr[2], addr[3],
                         addr[4], addr[5]);
                 tp->status = HASHETHER_STATUS_RESOLVED_DUMMY;
@@ -1857,7 +1888,7 @@ eth_addr_resolve(hashether_t *tp) {
         do {
             /* Not even the topmost byte participates fully */
             if ((name = wka_name_lookup(addr, mask)) != NULL) {
-                g_snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x:%02x:%02x:%02x:%02x",
+                snprintf(tp->resolved_name, MAXNAMELEN, "%s_%02x:%02x:%02x:%02x:%02x:%02x",
                         name, addr[0] & (0xFF >> mask), addr[1], addr[2],
                         addr[3], addr[4], addr[5]);
                 tp->status = HASHETHER_STATUS_RESOLVED_DUMMY;
@@ -2108,7 +2139,7 @@ ipxnet_name_lookup(wmem_allocator_t *allocator, const guint addr)
 
     if ( (ipxnet = get_ipxnetbyaddr(addr)) == NULL) {
         /* unknown name */
-        g_snprintf(tp->name, MAXNAMELEN, "%X", addr);
+        snprintf(tp->name, MAXNAMELEN, "%X", addr);
 
     } else {
         (void) g_strlcpy(tp->name, ipxnet->name, MAXNAMELEN);
@@ -2131,7 +2162,7 @@ parse_vlan_line(char *line, vlan_t *vlan)
     if ((cp = strtok(line, " \t\n")) == NULL)
         return -1;
 
-    if (sscanf(cp, "%" G_GUINT16_FORMAT, &id) == 1) {
+    if (sscanf(cp, "%" SCNu16, &id) == 1) {
         vlan->id = id;
     }
     else {
@@ -2227,6 +2258,7 @@ initialize_vlans(void)
 static void
 vlan_name_lookup_cleanup(void)
 {
+    end_vlanent();
     vlan_hash_table = NULL;
     g_free(g_pvlan_path);
     g_pvlan_path = NULL;
@@ -2252,7 +2284,7 @@ vlan_name_lookup(const guint id)
 
     if ( (vlan = get_vlannamebyid(id)) == NULL) {
         /* unknown name */
-        g_snprintf(tp->name, MAXVLANNAMELEN, "<%u>", id);
+        snprintf(tp->name, MAXVLANNAMELEN, "<%u>", id);
 
     } else {
         (void) g_strlcpy(tp->name, vlan->name, MAXVLANNAMELEN);
@@ -2823,12 +2855,12 @@ addr_resolve_pref_init(module_t *nameres)
             &gbl_resolv_flags.network_name);
 
     prefs_register_bool_preference(nameres, "dns_pkt_addr_resolution",
-            "Use captured DNS packet data for address resolution",
-            "Whether address/name pairs found in captured DNS packets should be used by Wireshark for name resolution.",
+            "Use captured DNS packet data for name resolution",
+            "Use address/name pairs found in captured DNS packets for name resolution.",
             &gbl_resolv_flags.dns_pkt_addr_resolution);
 
     prefs_register_bool_preference(nameres, "use_external_name_resolver",
-            "Use an external network name resolver",
+            "Use your system's DNS settings for name resolution",
             "Use your system's configured name resolver"
             " (usually DNS) to resolve network names."
             " Only applies when network name resolution"
@@ -2836,12 +2868,14 @@ addr_resolve_pref_init(module_t *nameres)
             &gbl_resolv_flags.use_external_net_name_resolver);
 
     prefs_register_bool_preference(nameres, "use_custom_dns_servers",
-        "Use custom list of DNS servers for name resolution",
-        "Uses DNS Servers list to resolve network names if TRUE.  If FALSE, default information is used",
-        &use_custom_dns_server_list);
+            "Use a custom list of DNS servers for name resolution",
+            "Use a DNS Servers list to resolve network names if TRUE.  If FALSE, default information is used",
+            &use_custom_dns_server_list);
 
     static uat_field_t dns_server_uats_flds[] = {
         UAT_FLD_CSTRING_OTHER(dnsserverlist_uats, ipaddr, "IP address", dnsserver_uat_fld_ip_chk_cb, "IPv4 or IPv6 address"),
+        UAT_FLD_CSTRING_OTHER(dnsserverlist_uats, tcp_port, "TCP Port", dnsserver_uat_fld_port_chk_cb, "Port Number (TCP)"),
+        UAT_FLD_CSTRING_OTHER(dnsserverlist_uats, udp_port, "UDP Port", dnsserver_uat_fld_port_chk_cb, "Port Number (UDP)"),
         UAT_END_FIELDS
     };
 
@@ -3277,11 +3311,11 @@ port_with_resolution_to_str_buf(gchar *buf, gulong buf_size, port_type proto, gu
 
     if (!gbl_resolv_flags.transport_name || (proto == PT_NONE)) {
         /* No name resolution support, just return port string */
-        return g_snprintf(buf, buf_size, "%u", port);
+        return snprintf(buf, buf_size, "%u", port);
     }
     port_str = serv_name_lookup(proto, port);
     ws_assert(port_str);
-    return g_snprintf(buf, buf_size, "%s (%u)", port_str, port);
+    return snprintf(buf, buf_size, "%s (%u)", port_str, port);
 }
 
 const gchar *

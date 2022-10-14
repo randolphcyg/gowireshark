@@ -22,6 +22,7 @@
 #include <epan/prefs.h>
 #include <epan/dfilter/dfilter.h>
 #include <epan/column.h>
+#include <epan/column-info.h>
 #include <epan/packet.h>
 #include <wsutil/ws_assert.h>
 
@@ -747,21 +748,21 @@ get_custom_field_tooltip (gchar *custom_field, gint occurrence)
     header_field_info *hfi = proto_registrar_get_byname(custom_field);
     if (hfi == NULL) {
         /* Not a valid field */
-        return g_strdup_printf("Unknown Field: %s", custom_field);
+        return ws_strdup_printf("Unknown Field: %s", custom_field);
     }
 
     if (hfi->parent == -1) {
         /* Protocol */
-        return g_strdup_printf("%s (%s)", hfi->name, hfi->abbrev);
+        return ws_strdup_printf("%s (%s)", hfi->name, hfi->abbrev);
     }
 
     if (occurrence == 0) {
         /* All occurrences */
-        return g_strdup_printf("%s\n%s (%s)", proto_get_protocol_name(hfi->parent), hfi->name, hfi->abbrev);
+        return ws_strdup_printf("%s\n%s (%s)", proto_get_protocol_name(hfi->parent), hfi->name, hfi->abbrev);
     }
 
     /* One given occurrence */
-    return g_strdup_printf("%s\n%s (%s#%d)", proto_get_protocol_name(hfi->parent), hfi->name, hfi->abbrev, occurrence);
+    return ws_strdup_printf("%s\n%s (%s#%d)", proto_get_protocol_name(hfi->parent), hfi->name, hfi->abbrev, occurrence);
 }
 
 gchar *
@@ -804,6 +805,20 @@ get_column_tooltip(const gint col)
     g_strfreev(fields);
 
     return g_string_free (column_tooltip, FALSE);
+}
+
+const gchar*
+get_column_text(column_info *cinfo, const gint col)
+{
+  ws_assert(cinfo);
+  ws_assert(col < cinfo->num_cols);
+
+  if (!get_column_resolved(col) && cinfo->col_expr.col_expr_val[col]) {
+      /* Use the unresolved value in col_expr_val */
+      return cinfo->col_expr.col_expr_val[col];
+  }
+
+  return cinfo->columns[col].col_data;
 }
 
 void

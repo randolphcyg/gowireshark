@@ -1,4 +1,4 @@
-/* privileges.h
+/** @file
  * Declarations of routines for handling privileges.
  *
  * Wireshark - Network traffic analyzer
@@ -11,7 +11,7 @@
 #ifndef __PRIVILEGES_H__
 #define __PRIVILEGES_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

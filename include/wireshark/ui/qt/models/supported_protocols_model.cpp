@@ -12,6 +12,7 @@
 #include <QPalette>
 #include <QApplication>
 #include <QBrush>
+#include <QRegularExpression>
 
 #include <ui/qt/models/supported_protocols_model.h>
 
@@ -158,7 +159,7 @@ void SupportedProtocolsModel::populate()
     void *proto_cookie;
     void *field_cookie;
 
-    emit beginResetModel();
+    beginResetModel();
 
     SupportedProtocolsItem *protoItem, *fieldItem;
     protocol_t *protocol;
@@ -181,7 +182,7 @@ void SupportedProtocolsModel::populate()
         }
     }
 
-    emit endResetModel();
+    endResetModel();
 }
 
 
@@ -209,7 +210,9 @@ bool SupportedProtocolsProxyModel::lessThan(const QModelIndex &left, const QMode
 
 bool SupportedProtocolsProxyModel::filterAcceptItem(SupportedProtocolsItem& item) const
 {
-    QRegExp regex(filter_, Qt::CaseInsensitive);
+    QRegularExpression regex(filter_, QRegularExpression::CaseInsensitiveOption);
+    if (! regex.isValid())
+        return false;
 
     if (item.name().contains(regex))
         return true;

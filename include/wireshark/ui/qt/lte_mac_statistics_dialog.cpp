@@ -19,7 +19,7 @@
 #include <QTreeWidgetItem>
 
 #include <ui/qt/models/percent_bar_delegate.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 
 // TODO: have never tested in a live capture.
 
@@ -601,12 +601,12 @@ LteMacStatisticsDialog::LteMacStatisticsDialog(QWidget &parent, CaptureFile &cf,
     }
 
     // Set handler for when the tree item changes to set the appropriate labels.
-    connect(statsTreeWidget(), SIGNAL(itemSelectionChanged()),
-            this, SLOT(updateHeaderLabels()));
+    connect(statsTreeWidget(), &QTreeWidget::itemSelectionChanged,
+            this, &LteMacStatisticsDialog::updateHeaderLabels);
 
     // Set handler for when display filter string is changed.
-    connect(this, SIGNAL(updateFilter(QString)),
-            this, SLOT(filterUpdated(QString)));
+    connect(this, &LteMacStatisticsDialog::updateFilter,
+            this, &LteMacStatisticsDialog::filterUpdated);
 }
 
 // Destructor.
@@ -719,7 +719,7 @@ void LteMacStatisticsDialog::tapReset(void *ws_dlg_ptr)
 //---------------------------------------------------------------------------------------
 // Process tap info from a new packet.
 // Returns TAP_PACKET_REDRAW if a redraw is needed, TAP_PACKET_DONT_REDRAW otherwise.
-tap_packet_status LteMacStatisticsDialog::tapPacket(void *ws_dlg_ptr, struct _packet_info *, epan_dissect *, const void *mac_lte_tap_info_ptr)
+tap_packet_status LteMacStatisticsDialog::tapPacket(void *ws_dlg_ptr, struct _packet_info *, epan_dissect *, const void *mac_lte_tap_info_ptr, tap_flags_t)
 {
     // Look up dialog and tap info.
     LteMacStatisticsDialog *ws_dlg = static_cast<LteMacStatisticsDialog *>(ws_dlg_ptr);
@@ -757,7 +757,10 @@ tap_packet_status LteMacStatisticsDialog::tapPacket(void *ws_dlg_ptr, struct _pa
     if (!mac_ue_ti) {
         mac_ue_ti = new MacUETreeWidgetItem(ws_dlg->statsTreeWidget(), mlt_info);
         for (int col = 0; col < ws_dlg->statsTreeWidget()->columnCount(); col++) {
-            mac_ue_ti->setTextAlignment(col, ws_dlg->statsTreeWidget()->headerItem()->textAlignment(col));
+            // int QTreeWidgetItem::textAlignment(int column) const
+            // Returns the text alignment for the label in the given column.
+            // Note: This function returns an int for historical reasons. It will be corrected to return Qt::Alignment in Qt 7.
+            mac_ue_ti->setTextAlignment(col, static_cast<Qt::Alignment>(ws_dlg->statsTreeWidget()->headerItem()->textAlignment(col)));
         }
     }
 
@@ -903,7 +906,7 @@ lte_mac_statistics_init(const char *args, void*) {
     if (args_l.length() > 2) {
         filter = QStringList(args_l.mid(2)).join(",").toUtf8();
     }
-    wsApp->emitStatCommandSignal("LteMacStatistics", filter.constData(), NULL);
+    mainApp->emitStatCommandSignal("LteMacStatistics", filter.constData(), NULL);
 }
 
 static stat_tap_ui lte_mac_statistics_ui = {

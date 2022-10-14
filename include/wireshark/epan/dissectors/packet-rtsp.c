@@ -181,7 +181,7 @@ rtsp_stats_tree_init(stats_tree* st)
 
 /* RTSP/Packet Counter stats packet function */
 static tap_packet_status
-rtsp_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* p)
+rtsp_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* p, tap_flags_t flags _U_)
 {
     const rtsp_info_value_t *v = (const rtsp_info_value_t *)p;
     guint         i = v->response_code;
@@ -216,7 +216,7 @@ rtsp_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_, epan_dissect_t* e
 
         tick_stat_node(st, resp_str, st_node_responses, FALSE);
 
-        g_snprintf(str, sizeof(str),"%u %s",i,val_to_str(i,rtsp_status_code_vals, "Unknown (%d)"));
+        snprintf(str, sizeof(str),"%u %s",i,val_to_str(i,rtsp_status_code_vals, "Unknown (%d)"));
         tick_stat_node(st, str, resp_grp, FALSE);
     } else if (v->request_method) {
         stats_tree_tick_pivot(st,st_node_requests,v->request_method);
@@ -848,7 +848,7 @@ dissect_rtspmessage(tvbuff_t *tvb, int offset, packet_info *pinfo,
          * assumes zero if missing.
          */
         if (!req_resp_hdrs_do_reassembly(tvb, offset, pinfo,
-            rtsp_desegment_headers, rtsp_desegment_body, FALSE)) {
+            rtsp_desegment_headers, rtsp_desegment_body, FALSE, NULL)) {
             /*
              * More data needed for desegmentation.
              */

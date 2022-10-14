@@ -272,7 +272,7 @@ dissect_control(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int is_
 			break;
 		}
 
-		g_snprintf(info, 80, "S%s, func=%s, N(R)=%u",
+		snprintf(info, 80, "S%s, func=%s, N(R)=%u",
 			poll_final ? (is_response ? " F" : " P") : "",
 			frame_type,
 			(ctl & LAPSAT_CTL_N_R_MSK) >> LAPSAT_CTL_N_R_SHIFT);
@@ -305,7 +305,7 @@ dissect_control(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int is_
 			break;
 		}
 
-		g_snprintf(info, 80, "U%s, func=%s",
+		snprintf(info, 80, "U%s, func=%s",
 			poll_final ? (is_response ? " F" : " P") : "",
 			frame_type);
 
@@ -315,7 +315,7 @@ dissect_control(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int is_
 		/*
 		 * Information frame
 		 */
-		g_snprintf(info, 80, "I%s, N(R)=%u, N(S)=%u",
+		snprintf(info, 80, "I%s, N(R)=%u, N(S)=%u",
 			poll_final ? " P" : "",
 			(ctl & LAPSAT_CTL_N_R_MSK) >> LAPSAT_CTL_N_R_SHIFT,
 			(ctl & LAPSAT_CTL_N_S_MSK) >> LAPSAT_CTL_N_S_SHIFT);
@@ -505,7 +505,7 @@ dissect_lapsat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dissec
 		pinfo->fragmented = !!(addr & LAPSAT_SI);
 
 		/* Rely on caller to provide a way to group fragments */
-		fragment_id = (conversation_get_endpoint_by_id(pinfo, ENDPOINT_GSMTAP, USE_LAST_ENDPOINT) << 3) | (sapi << 1) | pinfo->p2p_dir;
+		fragment_id = (conversation_get_id_from_elements(pinfo, CONVERSATION_GSMTAP, USE_LAST_ENDPOINT) << 3) | (sapi << 1) | pinfo->p2p_dir;
 
 		/* Fragment reconstruction helpers */
 		fd_m = fragment_add_seq_next(

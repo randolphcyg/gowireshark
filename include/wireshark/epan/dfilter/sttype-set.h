@@ -1,4 +1,5 @@
-/*
+/** @file
+ *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
  * Copyright 2001 Gerald Combs
@@ -12,7 +13,7 @@
 
 #include <glib.h>
 
-#include "ws_attributes.h"
+#include "include/ws_attributes.h"
 
 gboolean
 sttype_set_convert_to_range(stnode_t **node_left, stnode_t **node_right);

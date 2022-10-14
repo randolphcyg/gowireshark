@@ -1,4 +1,5 @@
-/* iface_monitor.h
+/** @file
+ *
  * interface monitor by Pontus Fuchs <pontus.fuchs@gmail.com>
  *
  * Wireshark - Network traffic analyzer
@@ -9,6 +10,8 @@
  */
 #ifndef IFACE_MONITOR_H
 #define IFACE_MONITOR_H
+
+#include <include/wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

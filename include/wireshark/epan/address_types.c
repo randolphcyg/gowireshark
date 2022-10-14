@@ -19,6 +19,7 @@
 #include "wsutil/str_util.h"
 #include "wsutil/inet_addr.h"
 #include <wsutil/ws_assert.h>
+#include <wsutil/pint.h>
 
 struct _address_type_t {
     int                     addr_type; /* From address_type enumeration or registered value */
@@ -485,7 +486,7 @@ static int ax25_addr_to_str(const address* addr, gchar *buf, int buf_len)
 
     ssid = (addrdata[6] >> 1) & 0x0f;
     if (ssid != 0) {
-        bufp += g_snprintf(bufp,buf_len-(int)(bufp-buf),"-%d",ssid);
+        bufp += snprintf(bufp,buf_len-(int)(bufp-buf),"-%d",ssid);
     } else {
         *bufp++ = '\0'; /* NULL terminate */
     }
@@ -537,6 +538,49 @@ static int vines_addr_str_len(const address* addr _U_)
 static int vines_len(void)
 {
     return VINES_ADDR_LEN;
+}
+
+/******************************************************************************
+ * AT_NUMERIC
+ ******************************************************************************/
+
+/* G_MAXUINT64 is defined as 0xffffffffffffffffU which in itself represents
+ * 18,446,744,073,709,551,615 as decimal, which has 20 characters. Adding 21
+ * as for null-byte termination.
+ * All values are derived from the counterparts defined in glib/basic-types */
+const size_t MAX_UINT64_WIDTH = 21;
+const size_t MAX_UINT32_WIDTH = 11;
+const size_t MAX_UINT16_WIDTH = 6;
+const size_t MAX_UINT8_WIDTH = 4;
+
+static int numeric_addr_str_len(const address* addr)
+{
+    if (addr->len == (int) sizeof(guint64)) {
+        return (int) MAX_UINT64_WIDTH;
+    } else if (addr->len == (int) sizeof(guint32)) {
+        return (int) MAX_UINT32_WIDTH;
+    } else if (addr->len == (int) sizeof(guint16)) {
+        return (int) MAX_UINT16_WIDTH;
+    }
+
+    return (int) MAX_UINT8_WIDTH;
+}
+
+static int numeric_addr_to_str(const address* addr, gchar *buf, int buf_len)
+{
+    int ret;
+
+    if (addr->len == (int) sizeof(guint64)) {
+        ret = snprintf(buf, buf_len, "%"PRIu64, *(guint64 *)addr->data);
+    } else if (addr->len == (int) sizeof(guint32)) {
+        ret = snprintf(buf, buf_len, "%"PRIu32, *(guint32 *)addr->data);
+    } else if (addr->len == (int) sizeof(guint16)) {
+        ret = snprintf(buf, buf_len, "%"PRIu16, *(guint16 *)addr->data);
+    } else {
+        ret = snprintf(buf, buf_len, "%"PRIu8,  *(guint8 *)addr->data);
+    }
+
+    return ret + 1;
 }
 
 /******************************************************************************
@@ -703,6 +747,19 @@ void address_types_initialize(void)
         NULL,              /* addr_name_res_len */
     };
 
+    static address_type_t numeric_address = {
+        AT_NUMERIC,          /* addr_type */
+        "AT_NUMERIC",        /* name */
+        "Simple numeric address",   /* pretty_name */
+        numeric_addr_to_str, /* addr_to_str */
+        numeric_addr_str_len, /* addr_str_len */
+        NULL,              /* addr_to_byte */
+        NULL,              /* addr_col_filter */
+        NULL,              /* addr_fixed_len */
+        NULL,              /* addr_name_res_str */
+        NULL,              /* addr_name_res_len */
+    };
+
     num_dissector_addr_type = 0;
 
     /* Initialize the type array.  This is mostly for handling
@@ -721,6 +778,7 @@ void address_types_initialize(void)
     address_type_register(AT_IB, &ib_address );
     address_type_register(AT_AX25, &ax25_address );
     address_type_register(AT_VINES, &vines_address );
+    address_type_register(AT_NUMERIC, &numeric_address );
 }
 
 /* Given an address type id, return an address_type_t* */

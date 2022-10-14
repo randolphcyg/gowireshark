@@ -1,4 +1,5 @@
-/* capture-pcap-util.h
+/** @file
+ *
  * Utility definitions for packet capture
  *
  * Wireshark - Network traffic analyzer
@@ -10,6 +11,8 @@
 
 #ifndef __CAPTURE_PCAP_UTIL_H__
 #define __CAPTURE_PCAP_UTIL_H__
+
+#include <wsutil/feature_list.h>
 
 #ifdef HAVE_LIBPCAP
 
@@ -76,7 +79,7 @@ extern pcap_t *open_capture_device(capture_options *capture_opts,
 
 #endif /* HAVE_LIBPCAP */
 
-extern void get_compiled_caplibs_version(GString *str);
+extern void gather_caplibs_compile_info(feature_list l);
 
 /*
  * Append to a GString an indication of the version of capture libraries
@@ -85,7 +88,11 @@ extern void get_compiled_caplibs_version(GString *str);
  * WinPcap/Npcap wasn't loaded, or nothing, if we weren't compiled with
  * libpcap/WinPcap/Npcap.
  */
-extern void get_runtime_caplibs_version(GString *str);
+extern void gather_caplibs_runtime_info(feature_list l);
+
+#ifdef _WIN32
+extern gboolean caplibs_have_npcap(void);
+#endif
 
 #ifdef __cplusplus
 }

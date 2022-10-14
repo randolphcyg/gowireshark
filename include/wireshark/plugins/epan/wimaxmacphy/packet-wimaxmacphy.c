@@ -20,6 +20,7 @@
 
 /* Initialize the protocol and registered fields */
 
+static dissector_handle_t wimaxmacphy_handle;
 static int proto_wimaxmacphy                                         = -1;
 static int hf_wimaxmacphy_hdr_phy_entity_id                          = -1;
 static int hf_wimaxmacphy_hdr_message_segmentation                   = -1;
@@ -2761,8 +2762,7 @@ proto_register_wimaxmacphy(void)
             {
                 &hf_wimaxmacphy_prim_number_of_consecutive_frames_with_aas,
                 {
-                    "Number of consecutive frames with AAS Calibration Zone"
-                    " allocation",
+                    "Number of consecutive frames with AAS Calibration Zone allocation",
                     "wimaxmacphy.prim_number_of_consecutive_frames_with_aas",
                     FT_UINT8,
                     BASE_DEC,
@@ -3206,7 +3206,7 @@ proto_register_wimaxmacphy(void)
                 {
                     "Feedback sub-type",
                     "wimaxmacphy.prim_fast_feedback_sub_type",
-                    FT_UINT8,
+                    FT_UINT16,
                     BASE_DEC,
                     VALS(
                         wimaxmacphy_prim_fast_feedback_sub_type_vals),
@@ -3951,8 +3951,7 @@ proto_register_wimaxmacphy(void)
             {
                 &hf_wimaxmacphy_dl_burst_map_number_of_slots,
                 {
-                    "Number of slots (duration) after repetition code is"
-                    " applied",
+                    "Number of slots (duration) after repetition code is applied",
                     "wimaxmacphy.burst_map_number_of_slots",
                     FT_UINT16,
                     BASE_DEC,
@@ -5414,6 +5413,7 @@ proto_register_wimaxmacphy(void)
         "WiMAX MAC-PHY over Ethernet",
         "WiMAX MAC-PHY",
         "wimaxmacphy");
+    wimaxmacphy_handle = register_dissector("wimaxmacphy", dissect_wimaxmacphy, proto_wimaxmacphy);
 
     /* Required function calls to register the header fields and subtrees
      * used */
@@ -5426,9 +5426,6 @@ proto_register_wimaxmacphy(void)
 void
 proto_reg_handoff_wimaxmacphy(void)
 {
-    dissector_handle_t wimaxmacphy_handle;
-
-    wimaxmacphy_handle = create_dissector_handle(dissect_wimaxmacphy, proto_wimaxmacphy);
     dissector_add_for_decode_as_with_preference("udp.port", wimaxmacphy_handle);
 }
 

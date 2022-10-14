@@ -10,11 +10,14 @@
 
 #define VERSION_EXTRA "$ENV{WIRESHARK_VERSION_EXTRA}"
 
-/* Version number of package */
+/* Version number of Wireshark and associated utilities */
 #define VERSION "${PROJECT_VERSION}${VERSION_EXTRA}"
 #define VERSION_MAJOR ${PROJECT_MAJOR_VERSION}
 #define VERSION_MINOR ${PROJECT_MINOR_VERSION}
 #define VERSION_MICRO ${PROJECT_PATCH_VERSION}
+
+/* Version number of Logray and associated utilities */
+#define LOG_VERSION "${LOG_PROJECT_VERSION}${VERSION_EXTRA}"
 
 #define PLUGIN_PATH_ID "${PLUGIN_PATH_ID}"
 #define VERSION_FLAVOR "${VERSION_FLAVOR}"
@@ -40,6 +43,9 @@
 /* Define to 1 if you have the `clock_gettime` function. */
 #cmakedefine HAVE_CLOCK_GETTIME 1
 
+/* Define to 1 if you have the `timespec_get` function. */
+#cmakedefine HAVE_TIMESPEC_GET 1
+
 /* Define to use the MaxMind DB library */
 #cmakedefine HAVE_MAXMINDDB 1
 
@@ -60,9 +66,6 @@
 
 /* Define if you have the 'dlget' function. */
 #cmakedefine HAVE_DLGET 1
-
-/* Define if you have the 'getexecname' function. */
-#cmakedefine HAVE_GETEXECNAME 1
 
 /* Define to 1 if you have the <grp.h> header file. */
 #cmakedefine HAVE_GRP_H 1
@@ -90,6 +93,9 @@
 
 /* Define to use kerberos */
 #cmakedefine HAVE_KERBEROS 1
+
+/* Define to use PCRE2 library */
+#define HAVE_PCRE2 1
 
 /* Define to use nghttp2 */
 #cmakedefine HAVE_NGHTTP2 1
@@ -247,6 +253,18 @@
 /* Define if you have the 'strptime' function. */
 #cmakedefine HAVE_STRPTIME 1
 
+/* Define if you have the 'memmem' function. */
+#cmakedefine HAVE_MEMMEM 1
+
+/* Define if you have the 'strcasestr' function. */
+#cmakedefine HAVE_STRCASESTR 1
+
+/* Define if you have the 'strerrorname_np' function. */
+#cmakedefine HAVE_STRERRORNAME_NP 1
+
+/* Define if you have the 'vasprintf' function. */
+#cmakedefine HAVE_VASPRINTF 1
+
 /* Define to 1 if `st_birthtime' is a member of `struct stat'. */
 #cmakedefine HAVE_STRUCT_STAT_ST_BIRTHTIME 1
 
@@ -278,10 +296,7 @@
 #cmakedefine HAVE_UNISTD_H 1
 
 /* Define if we have QtMultimedia */
-#define QT_MULTIMEDIA_LIB 1
-
-/* Define if we have QtMacExtras */
-#cmakedefine QT_MACEXTRAS_LIB 1
+#cmakedefine QT_MULTIMEDIA_LIB 1
 
 /* Build androiddump with libpcap instead of wireshark stuff */
 #cmakedefine ANDROIDDUMP_USE_LIBPCAP 1
@@ -291,21 +306,16 @@
 /* Note: not use in the code */
 #cmakedefine YYTEXT_POINTER
 
+/* Define to 1 if the 'ssize_t' type exists. */
+#cmakedefine HAVE_SSIZE_T 1
+
 #if defined(_MSC_VER)
-#  if !defined(QT_VERSION) || !defined(_SSIZE_T_DEFINED)
-   typedef int ssize_t;
-#  endif
 #  define strncasecmp strnicmp
 #  define popen       _popen
 #  define pclose      _pclose
 #endif
 
 #if defined(_WIN32)
-   /* WpdPack/INclude/pcap/pcap.h checks for "#if defined(WIN32)" */
-#  ifndef WIN32
-#    define WIN32	1
-#  endif
-
    /*
     * Flex (v 2.5.35) uses this symbol to "exclude" unistd.h
     */
@@ -316,7 +326,10 @@
 #  endif
 #endif
 
-#include <ws_diag_control.h>
-#include <ws_log_defs.h>
+#ifdef HAVE_PCRE2
+#define PCRE2_CODE_UNIT_WIDTH  8
+#endif
+
+#include <include/ws_log_defs.h>
 
 #endif /* __CONFIG_H__ */

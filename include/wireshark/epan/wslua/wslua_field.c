@@ -15,7 +15,7 @@
 #include "config.h"
 
 #include <epan/dfilter/dfilter.h>
-#include <epan/ftypes/ftypes-int.h>
+#include <epan/ftypes/ftypes.h>
 
 /* WSLUA_MODULE Field Obtaining Dissection Data */
 
@@ -144,12 +144,13 @@ WSLUA_METAMETHOD FieldInfo__call(lua_State* L) {
         case FT_ABSOLUTE_TIME:
         case FT_RELATIVE_TIME: {
                 NSTime nstime = (NSTime)g_malloc(sizeof(nstime_t));
-                *nstime = *(NSTime)fvalue_get(&(fi->ws_fi->value));
+                *nstime = *fvalue_get_time(&(fi->ws_fi->value));
                 pushNSTime(L,nstime);
                 return 1;
             }
         case FT_STRING:
-        case FT_STRINGZ: {
+        case FT_STRINGZ:
+        case FT_STRINGZPAD: {
                 gchar* repr = fvalue_to_string_repr(NULL, &fi->ws_fi->value,FTREPR_DISPLAY,BASE_NONE);
                 if (repr)
                 {
@@ -177,7 +178,7 @@ WSLUA_METAMETHOD FieldInfo__call(lua_State* L) {
         case FT_OID:
             {
                 ByteArray ba = g_byte_array_new();
-                g_byte_array_append(ba, (const guint8 *) fvalue_get(&fi->ws_fi->value),
+                g_byte_array_append(ba, fvalue_get_bytes(&fi->ws_fi->value),
                                     fvalue_length(&fi->ws_fi->value));
                 pushByteArray(L,ba);
                 return 1;
@@ -185,7 +186,7 @@ WSLUA_METAMETHOD FieldInfo__call(lua_State* L) {
         case FT_PROTOCOL:
             {
                 ByteArray ba = g_byte_array_new();
-                tvbuff_t* tvb = (tvbuff_t *) fvalue_get(&fi->ws_fi->value);
+                tvbuff_t* tvb = fvalue_get_protocol(&fi->ws_fi->value);
                 guint8* raw;
                 if (tvb != NULL) {
                     raw = (guint8 *)tvb_memdup(NULL, tvb, 0, tvb_captured_length(tvb));
@@ -209,30 +210,22 @@ WSLUA_METAMETHOD FieldInfo__tostring(lua_State* L) {
     /* The string representation of the field. */
     FieldInfo fi = checkFieldInfo(L,1);
 
-    if (fi->ws_fi->value.ftype->val_to_string_repr) {
-        gchar* repr = NULL;
+    gchar* repr = NULL;
 
-        if (fi->ws_fi->hfinfo->type == FT_PROTOCOL) {
-            repr = fvalue_to_string_repr(NULL, &fi->ws_fi->value,FTREPR_DFILTER,BASE_NONE);
-        }
-        else {
-            repr = fvalue_to_string_repr(NULL, &fi->ws_fi->value,FTREPR_DISPLAY,fi->ws_fi->hfinfo->display);
-        }
-
-        if (repr) {
-            lua_pushstring(L,repr);
-            /* fvalue_to_string_repr() wmem_alloc's the string's buffer */
-            wmem_free(NULL, repr);
-        }
-        else {
-            lua_pushstring(L,"(unknown)");
-        }
-    }
-    else if (fi->ws_fi->hfinfo->type == FT_NONE) {
-        lua_pushstring(L, "(none)");
+    if (fi->ws_fi->hfinfo->type == FT_PROTOCOL) {
+        repr = fvalue_to_string_repr(NULL, &fi->ws_fi->value,FTREPR_DFILTER,BASE_NONE);
     }
     else {
-        lua_pushstring(L,"(n/a)");
+        repr = fvalue_to_string_repr(NULL, &fi->ws_fi->value,FTREPR_DISPLAY,fi->ws_fi->hfinfo->display);
+    }
+
+    if (repr) {
+        lua_pushstring(L,repr);
+        /* fvalue_to_string_repr() wmem_alloc's the string's buffer */
+        wmem_free(NULL, repr);
+    }
+    else {
+        lua_pushstring(L,"(unknown)");
     }
 
     return 1;

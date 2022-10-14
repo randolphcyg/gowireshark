@@ -14,7 +14,7 @@
 
 #include "bcg729/decoder.h"
 #include "wsutil/codecs.h"
-#include "ws_attributes.h"
+#include "include/ws_attributes.h"
 
 void codec_register_g729(void);
 

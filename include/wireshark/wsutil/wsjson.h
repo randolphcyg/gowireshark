@@ -1,4 +1,5 @@
-/* wsjson.h
+/** @file
+ *
  * JSON parsing functions.
  *
  * Copyright 2016, Dario Lombardo
@@ -13,7 +14,7 @@
 #ifndef __WSJSON_H__
 #define __WSJSON_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 #include <glib.h>
 
 #include "jsmn.h"

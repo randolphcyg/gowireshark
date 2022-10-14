@@ -1,4 +1,5 @@
-/* export_objects_model.h
+/** @file
+ *
  * Data model for Export Objects.
  *
  * Wireshark - Network traffic analyzer
@@ -30,6 +31,7 @@ class ExportObjectModel : public QAbstractTableModel
 
 public:
     ExportObjectModel(register_eo_t* eo, QObject *parent);
+    virtual ~ExportObjectModel();
 
     enum ExportObjectColumn {
         colPacket = 0,

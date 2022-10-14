@@ -52,9 +52,13 @@
 #include <wsutil/wslog.h>
 #include <ui/clopts_common.h>
 
+#ifdef _WIN32
+#include <wsutil/unicode-utils.h>
+#endif
+
 #include "globals.h"
 #include <epan/packet.h>
-#include <epan/ftypes/ftypes-int.h>
+#include <epan/ftypes/ftypes.h>
 #include "file.h"
 #include "frame_tvbuff.h"
 #include <epan/disabled_protos.h>
@@ -83,8 +87,6 @@
 #include <ui/version_info.h>
 
 #include "capture/capture-pcap-util.h"
-
-#include "extcap.h"
 
 #ifdef HAVE_LIBPCAP
 #include <setjmp.h>
@@ -189,8 +191,10 @@ print_usage(FILE *output)
     fprintf(output, "  -S                       format string for fields\n");
     fprintf(output, "                           (%%D - name, %%S - stringval, %%N numval)\n");
     fprintf(output, "  -t ad|a|r|d|dd|e         output format of time stamps (def: r: rel. to first)\n");
+    fprintf(output, "\n");
 
     ws_log_print_usage(output);
+    fprintf(output, "\n");
 
     fprintf(output, "\n");
     fprintf(output, "Miscellaneous:\n");
@@ -447,8 +451,8 @@ main(int argc, char *argv[])
     ws_log_parse_args(&argc, argv, vcmdarg_err, INVALID_OPTION);
 
     /* Initialize the version information. */
-    ws_init_version_info("Rawshark (Wireshark)", NULL,
-                         epan_get_compiled_version_info,
+    ws_init_version_info("Rawshark",
+                         epan_gather_compile_info,
                          NULL);
 
 #ifdef _WIN32
@@ -477,7 +481,7 @@ main(int argc, char *argv[])
      * Attempt to get the pathname of the directory containing the
      * executable file.
      */
-    err_msg = init_progfile_dir(argv[0]);
+    err_msg = configuration_init(argv[0], NULL);
     if (err_msg != NULL) {
         fprintf(stderr, "rawshark: Can't get pathname of rawshark program: %s.\n",
                 err_msg);
@@ -810,7 +814,6 @@ clean_exit:
     g_free(pipe_name);
     epan_free(cfile.epan);
     epan_cleanup();
-    extcap_cleanup();
     wtap_cleanup();
     return ret;
 }
@@ -900,7 +903,7 @@ raw_pipe_read(wtap_rec *rec, Buffer *buf, int *err, gchar **err_info, gint64 *da
 #endif
     if (bytes_needed > WTAP_MAX_PACKET_SIZE_STANDARD) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("Bad packet length: %lu",
+        *err_info = ws_strdup_printf("Bad packet length: %lu",
                    (unsigned long) bytes_needed);
         return FALSE;
     }
@@ -971,7 +974,7 @@ process_packet(capture_file *cf, epan_dissect_t *edt, gint64 offset,
         /* The user sends an empty packet when he wants to get output from us even if we don't currently have
            packets to process. We spit out a line with the timestamp and the text "void"
         */
-        printf("%lu %" G_GUINT64_FORMAT " %d void -\n", (unsigned long int)cf->count,
+        printf("%lu %" PRIu64 " %d void -\n", (unsigned long int)cf->count,
                (guint64)rec->ts.secs, rec->ts.nsecs);
 
         fflush(stdout);
@@ -1104,7 +1107,7 @@ static void field_display_to_string(header_field_info *hfi, char* buf, int size)
     }
     else
     {
-        g_snprintf(buf, size, "(Bit count: %d)", hfi->display);
+        snprintf(buf, size, "(Bit count: %d)", hfi->display);
     }
 }
 
@@ -1116,10 +1119,10 @@ static void field_display_to_string(header_field_info *hfi, char* buf, int size)
 static gboolean print_field_value(field_info *finfo, int cmd_line_index)
 {
     header_field_info   *hfinfo;
-    char                *fs_buf = NULL;
+    char                *fs_buf;
     char                *fs_ptr = NULL;
     static GString     *label_s = NULL;
-    int                 fs_len;
+    size_t              fs_len;
     guint              i;
     string_fmt_t       *sf;
     guint32            uvalue;
@@ -1134,19 +1137,18 @@ static gboolean print_field_value(field_info *finfo, int cmd_line_index)
         label_s = g_string_new("");
     }
 
-    if(finfo->value.ftype->val_to_string_repr)
-    {
+    fs_buf = fvalue_to_string_repr(NULL, &finfo->value,
+                          FTREPR_DFILTER, finfo->hfinfo->display);
+    if (fs_buf != NULL) {
         /*
          * this field has an associated value,
          * e.g: ip.hdr_len
          */
-        fs_len = fvalue_string_repr_len(&finfo->value, FTREPR_DFILTER, finfo->hfinfo->display);
-        fs_buf = fvalue_to_string_repr(NULL, &finfo->value,
-                              FTREPR_DFILTER, finfo->hfinfo->display);
+        fs_len = strlen(fs_buf);
         fs_ptr = fs_buf;
 
         /* String types are quoted. Remove them. */
-        if (IS_FT_STRING(finfo->value.ftype->ftype) && fs_len > 2) {
+        if (IS_FT_STRING(fvalue_type_ftenum(&finfo->value)) && fs_len > 2) {
             fs_buf[fs_len - 1] = '\0';
             fs_ptr++;
         }
@@ -1235,7 +1237,7 @@ static gboolean print_field_value(field_info *finfo, int cmd_line_index)
         return TRUE;
     }
 
-    if(finfo->value.ftype->val_to_string_repr)
+    if(fs_buf)
     {
         printf(" %d=\"%s\"", cmd_line_index, fs_ptr);
         wmem_free(NULL, fs_buf);
@@ -1252,7 +1254,7 @@ static gboolean print_field_value(field_info *finfo, int cmd_line_index)
 }
 
 static tap_packet_status
-protocolinfo_packet(void *prs, packet_info *pinfo _U_, epan_dissect_t *edt, const void *dummy _U_)
+protocolinfo_packet(void *prs, packet_info *pinfo _U_, epan_dissect_t *edt, const void *dummy _U_, tap_flags_t flags _U_)
 {
     pci_t *rs=(pci_t *)prs;
     GPtrArray *gp;

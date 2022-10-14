@@ -1,4 +1,4 @@
-/* sctp_graph_dialog.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -94,7 +94,7 @@ private slots:
 
     void on_pushButton_4_clicked();
 
-    void graphClicked(QCPAbstractPlottable* plottable, QMouseEvent* event);
+    void graphClicked(QCPAbstractPlottable* plottable, int, QMouseEvent* event);
 
     void on_saveButton_clicked();
 

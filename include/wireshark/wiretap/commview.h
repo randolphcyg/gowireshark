@@ -1,4 +1,4 @@
-/* commview.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -10,7 +10,7 @@
 #ifndef __COMMVIEW_H__
 #define __COMMVIEW_H__
 #include <glib.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 wtap_open_return_val commview_ncf_open(wtap *wth, int *err, gchar **err_info);
 

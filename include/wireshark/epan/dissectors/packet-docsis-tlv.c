@@ -223,6 +223,7 @@ static int hf_docsis_tlv_mcap_dipl_up_upper_band_edge_65 = -1;
 static int hf_docsis_tlv_mcap_dipl_up_upper_band_edge_85 = -1;
 static int hf_docsis_tlv_mcap_dipl_up_upper_band_edge_117 = -1;
 static int hf_docsis_tlv_mcap_dipl_up_upper_band_edge_204 = -1;
+static int hf_docsis_tlv_mcap_low_latency_sup = -1;
 
 static int hf_docsis_tlv_clsfr_ref = -1;
 static int hf_docsis_tlv_clsfr_id = -1;
@@ -913,13 +914,13 @@ static const value_string docsis_time_prot_perf_sup_vals[] = {
 static void
 fourth_db(char *buf, guint32 value)
 {
-    g_snprintf(buf, ITEM_LABEL_LENGTH, "%.2f dB", value/4.0);
+    snprintf(buf, ITEM_LABEL_LENGTH, "%.2f dB", value/4.0);
 }
 
 static void
 fourth_dbmv(char *buf, guint32 value)
 {
-    g_snprintf(buf, ITEM_LABEL_LENGTH, "%.2f dBmV", value/4.0);
+    snprintf(buf, ITEM_LABEL_LENGTH, "%.2f dBmV", value/4.0);
 }
 
 static reassembly_table ucd_reassembly_table;
@@ -1014,7 +1015,7 @@ dissect_phs_err (tvbuff_t * tvb, packet_info *pinfo, proto_tree * tree, int star
             break;
           case PHS_ERR_MSG:
             proto_tree_add_item (err_tree, hf_docsis_tlv_phs_err_msg, tvb, pos,
-                                 length, ENC_ASCII|ENC_NA);
+                                 length, ENC_ASCII);
             break;
           default:
             dissect_unknown_tlv (tvb, pinfo, err_tree, pos - 2, length + 2);
@@ -1231,7 +1232,7 @@ dissect_sflow_err (tvbuff_t * tvb, packet_info* pinfo, proto_tree * tree, int st
             break;
           case SFW_ERR_MSG:
             proto_tree_add_item (err_tree, hf_docsis_tlv_sflow_err_msg, tvb,
-                                 pos, length, ENC_ASCII|ENC_NA);
+                                 pos, length, ENC_ASCII);
             break;
           default:
             dissect_unknown_tlv (tvb, pinfo, err_tree, pos - 2, length + 2);
@@ -1511,7 +1512,7 @@ dissect_sflow (tvbuff_t * tvb, packet_info* pinfo, proto_tree * tree, int start,
             break;
           case SFW_SERVICE_CLASS_NAME:
             proto_tree_add_item (sflow_tree, hf_docsis_tlv_sflow_classname, tvb,
-                                 pos, length, ENC_ASCII|ENC_NA);
+                                 pos, length, ENC_ASCII);
             break;
           case SFW_ERRORS:
             dissect_sflow_err (tvb, pinfo, sflow_tree, pos, length);
@@ -1852,7 +1853,7 @@ dissect_clsfr_err (tvbuff_t * tvb, packet_info* pinfo, proto_tree * tree, int st
             break;
           case CFR_ERR_MSG:
             proto_tree_add_item (err_tree, hf_docsis_tlv_clsfr_err_msg, tvb,
-                                 pos, length, ENC_ASCII|ENC_NA);
+                                 pos, length, ENC_ASCII);
             break;
           default:
             dissect_unknown_tlv (tvb, pinfo, err_tree, pos - 2, length + 2);
@@ -3019,7 +3020,7 @@ dissect_modemcap (tvbuff_t * tvb, packet_info* pinfo, proto_tree * tree, int sta
                 expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
               }
             break;
-         case CAP_DIPL_DOWN_UPPER_BAND_EDGE:
+          case CAP_DIPL_DOWN_UPPER_BAND_EDGE:
             if (length == 1)
               {
                 static int * const dipl_down_upper_band_edge[] = {
@@ -3051,6 +3052,17 @@ dissect_modemcap (tvbuff_t * tvb, packet_info* pinfo, proto_tree * tree, int sta
 
                 proto_tree_add_bitmask(mcap_tree, tvb, pos, hf_docsis_tlv_mcap_dipl_up_upper_band_edge,
                          ett_docsis_tlv_mcap_dipl_up_upper_band_edge, dipl_up_upper_band_edge, ENC_BIG_ENDIAN);
+              }
+            else
+              {
+                expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
+          case CAP_LOW_LATENCY_SUP:
+            if (length == 1)
+              {
+                proto_tree_add_item (mcap_tree, hf_docsis_tlv_mcap_low_latency_sup, tvb,
+                                     pos, length, ENC_BIG_ENDIAN);
               }
             else
               {
@@ -3210,7 +3222,7 @@ dissect_snmpv3_kickstart(tvbuff_t * tvb, packet_info * pinfo, proto_tree *tree, 
           case SNMPV3_SEC_NAME:
             proto_tree_add_item (snmpv3_tree,
                                  hf_docsis_tlv_snmpv3_kick_name, tvb,
-                                 pos, length, ENC_ASCII|ENC_NA);
+                                 pos, length, ENC_ASCII);
             break;
           case SNMPV3_MGR_PUB_NUM:
             proto_tree_add_item (snmpv3_tree,
@@ -3499,7 +3511,7 @@ dissect_tcc_err(tvbuff_t * tvb, packet_info* pinfo, proto_tree *tree, int start,
           case TCC_ERR_MSG:
             proto_tree_add_item (tccerr_tree,
                                  hf_docsis_tcc_err_msg, tvb,
-                                 pos, length, ENC_ASCII|ENC_NA);
+                                 pos, length, ENC_ASCII);
             break;
           default:
             dissect_unknown_tlv (tvb, pinfo, tccerr_tree, pos - 2, length + 2);
@@ -5200,7 +5212,7 @@ dissect_docsis_tlv (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void
               break;
             case TLV_SW_UPG_FILE:
               proto_tree_add_item (tlv_tree, hf_docsis_tlv_sw_file, tvb, pos,
-                                   length, ENC_ASCII|ENC_NA);
+                                   length, ENC_ASCII);
               break;
             case TLV_SNMP_WRITE_CTRL:
               proto_tree_add_item (tlv_tree, hf_docsis_tlv_snmp_access, tvb,
@@ -6279,6 +6291,12 @@ proto_register_docsis_tlv (void)
       "docsis_tlv.mcap.dipl_up_upper_band_edge.204mhz",
       FT_BOOLEAN, 8, NULL, 0x10,
       NULL, HFILL}
+    },
+    {&hf_docsis_tlv_mcap_low_latency_sup,
+     {".62 Low Latency Support",
+      "docsis_tlv.mcap.low_latancy_sup",
+      FT_UINT8, BASE_HEX, NULL, 0x0,
+      "Low Latency Support", HFILL}
     },
     {&hf_docsis_tlv_cm_mic,
      {"6 CM MIC", "docsis_tlv.cmmic",

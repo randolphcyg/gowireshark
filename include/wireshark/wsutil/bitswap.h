@@ -1,4 +1,4 @@
-/* bitswap.h
+/** @file
  * Macro to bitswap a byte by looking it up in a table
  *
  * Wireshark - Network traffic analyzer
@@ -11,7 +11,7 @@
 #ifndef __BITSWAP_H__
 #define __BITSWAP_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

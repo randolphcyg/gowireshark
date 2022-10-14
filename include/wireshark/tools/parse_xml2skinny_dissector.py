@@ -401,7 +401,7 @@ def xml2obj(src):
             if self.make_additional_info == "yes":
                 ret += self.indent_out('srtp_add_address(pinfo, PT_UDP, &%s, %s, 0, "SKINNY", pinfo->num, false, NULL, NULL, NULL);\n' %(self.use_param, self.name))
                 ret += self.indent_out('%s_str = address_to_display(NULL, &%s);\n' % (self.use_param, self.use_param))
-                ret += self.indent_out('si->additionalInfo = g_strdup_printf("%%s:%%d", %s_str, %s);\n' % (self.use_param, self.name))
+                ret += self.indent_out('si->additionalInfo = ws_strdup_printf("%%s:%%d", %s_str, %s);\n' % (self.use_param, self.name))
                 ret += self.indent_out('wmem_free(NULL, %s_str);\n' % (self.use_param))
 
             return ret
@@ -447,7 +447,7 @@ def xml2obj(src):
                 size = self.size
 
             if self.make_additional_info == "yes":
-                ret += self.indent_out('si->additionalInfo = g_strdup_printf("\\"%s\\"",\n')
+                ret += self.indent_out('si->additionalInfo = ws_strdup_printf("\\"%s\\"",\n')
                 self.incr_indent()
                 ret += self.indent_out('try_val_to_str_ext(\n')
                 self.incr_indent()
@@ -459,7 +459,7 @@ def xml2obj(src):
                 ret += self.indent_out(');\n')
 
             if self.make_additional_info_short == "yes":
-                ret += self.indent_out('si->additionalInfo = g_strdup_printf("\\"%s\\"",\n')
+                ret += self.indent_out('si->additionalInfo = ws_strdup_printf("\\"%s\\"",\n')
                 self.incr_indent()
                 ret += self.indent_out('try_val_to_str_ext(\n')
                 self.incr_indent()
@@ -608,7 +608,7 @@ def xml2obj(src):
                         ret += self.indent_out('%s_len = tvb_strnlen(ptvcursor_tvbuff(cursor), ptvcursor_current_offset(cursor), 24)+1;\n' %(self.name))
                     ret += self.indent_out('if (%s_len > 1) {\n' %(self.name))
                     self.incr_indent()
-                    ret += self.indent_out('si->additionalInfo = g_strdup_printf("\\"%%s\\"", tvb_format_stringzpad(pinfo->pool, ptvcursor_tvbuff(cursor), ptvcursor_current_offset(cursor), %s_len));\n' %(self.name))
+                    ret += self.indent_out('si->additionalInfo = ws_strdup_printf("\\"%%s\\"", tvb_format_stringzpad(pinfo->pool, ptvcursor_tvbuff(cursor), ptvcursor_current_offset(cursor), %s_len));\n' %(self.name))
                     self.decr_indent()
                     ret += self.indent_out('}\n')
 
@@ -652,7 +652,7 @@ def xml2obj(src):
             if self.basemessage.dynamic == "yes":
                 ret += self.indent_out('%s_len = tvb_strnlen(ptvcursor_tvbuff(cursor), ptvcursor_current_offset(cursor), -1)+1;\n' %self.name)
                 ret += self.indent_out('if (%s_len > 1) {\n' %self.name)
-                ret += self.indent_out('  ptvcursor_add(cursor, hf_skinny_%s, 6, ENC_NA);\n' %(self.name, self.name))
+                ret += self.indent_out('  ptvcursor_add(cursor, hf_skinny_%s, 6, ENC_NA);\n' %(self.name))
                 ret += self.indent_out('  ptvcursor_advance(cursor, %s_len - 6);\n' %(self.name))
                 ret += self.indent_out('} else {\n')
                 ret += self.indent_out('  ptvcursor_advance(cursor, 1);\n')
@@ -803,7 +803,7 @@ def xml2obj(src):
                 params = self.use_param.split(',')
                 ret += self.indent_out('if (si->%s && si->%s) {\n' %(params[0], params[1]))
                 self.incr_indent()
-                ret += self.indent_out('si->additionalInfo = g_strdup_printf("\\"%%s -> %%s\\"", si->%s, si->%s);\n' %(params[0], params[1]))
+                ret += self.indent_out('si->additionalInfo = ws_strdup_printf("\\"%%s -> %%s\\"", si->%s, si->%s);\n' %(params[0], params[1]))
                 self.decr_indent()
                 ret += self.indent_out('}\n')
             return ret

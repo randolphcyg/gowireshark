@@ -1,4 +1,4 @@
-/* wireshark_dialog.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -94,9 +94,9 @@ protected:
      */
     bool registerTapListener(const char *tap_name, void *tap_data,
                         const char *filter, guint flags,
-                        void (*tap_reset)(void *tapdata),
-                        tap_packet_status (*tap_packet)(void *tapdata, struct _packet_info *pinfo, struct epan_dissect *edt, const void *data),
-                        void (*tap_draw)(void *tap_data));
+                        tap_reset_cb tap_reset,
+                        tap_packet_cb tap_packet,
+                        tap_draw_cb tap_draw);
 
     /**
      * @brief Remove all tap listeners registered via registerTapListener.

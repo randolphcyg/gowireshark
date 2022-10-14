@@ -29,7 +29,7 @@
 #include <QStandardItem>
 #include <QStandardItemModel>
 #include <QItemSelectionModel>
-#include <QRegExp>
+#include <QRegularExpression>
 
 #include <glib.h>
 
@@ -46,26 +46,19 @@
 #include <ui/qt/extcap_options_dialog.h>
 
 ExtArgTimestamp::ExtArgTimestamp(extcap_arg * argument, QObject * parent) :
-    ExtcapArgument(argument, parent) {}
+    ExtcapArgument(argument, parent), tsBox(0) {}
 
 QWidget * ExtArgTimestamp::createEditor(QWidget * parent)
 {
-    QDateTimeEdit * tsBox;
     QString text = defaultValue();
 
-    if (_argument->pref_valptr && *_argument->pref_valptr)
+    if (_argument->pref_valptr && strlen(*_argument->pref_valptr))
     {
         QString storeValue(*_argument->pref_valptr);
-
-        if (storeValue.length() > 0 && storeValue.compare(text) != 0)
-            text = storeValue.trimmed();
+        text = storeValue.trimmed();
     }
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
     ts = QDateTime::fromSecsSinceEpoch(text.toInt());
-#else
-    ts = QDateTime::fromTime_t(text.toInt());
-#endif
     tsBox = new QDateTimeEdit(ts, parent);
     tsBox->setDisplayFormat(QLocale::system().dateTimeFormat());
     tsBox->setCalendarPopup(true);
@@ -87,11 +80,7 @@ void ExtArgTimestamp::onDateTimeChanged(QDateTime t)
 
 QString ExtArgTimestamp::defaultValue()
 {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
     return QString::number(QDateTime::currentDateTime().toSecsSinceEpoch());
-#else
-    return QString::number(QDateTime::currentDateTime().toTime_t());
-#endif
 }
 
 bool ExtArgTimestamp::isValid()
@@ -106,11 +95,7 @@ bool ExtArgTimestamp::isValid()
 
 QString ExtArgTimestamp::value()
 {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
     return QString::number(ts.toSecsSinceEpoch());
-#else
-    return QString::number(ts.toTime_t());
-#endif
 }
 
 QString ExtArgTimestamp::prefValue()
@@ -118,22 +103,33 @@ QString ExtArgTimestamp::prefValue()
     return value();
 }
 
+bool ExtArgTimestamp::isSetDefaultValueSupported()
+{
+    return TRUE;
+}
+
+void ExtArgTimestamp::setDefaultValue()
+{
+    QDateTime t;
+
+    t = QDateTime::fromSecsSinceEpoch(defaultValue().toInt());
+    tsBox->setDateTime(t);
+}
+
+
+
 ExtArgSelector::ExtArgSelector(extcap_arg * argument, QObject * parent) :
         ExtcapArgument(argument, parent), boxSelection(0) {}
 
 QWidget * ExtArgSelector::createEditor(QWidget * parent)
 {
-    int counter = 0;
-    int selected = -1;
-    const char *prefval = _argument->pref_valptr ? *_argument->pref_valptr : NULL;
-    QString stored(prefval ? prefval : "");
-
     QWidget * editor = new QWidget(parent);
     QHBoxLayout * layout = new QHBoxLayout();
     QMargins margins = layout->contentsMargins();
     layout->setContentsMargins(0, margins.top(), 0, margins.bottom());
 
     boxSelection = new QComboBox(parent);
+    boxSelection->setToolTip(QString().fromUtf8(_argument->tooltip));
     layout->addWidget(boxSelection);
 
     if (values.length() > 0)
@@ -143,19 +139,11 @@ QWidget * ExtArgSelector::createEditor(QWidget * parent)
         while (iter != values.constEnd())
         {
             boxSelection->addItem((*iter).value(), (*iter).call());
-
-            if (!prefval && (*iter).isDefault())
-                selected = counter;
-            else if (prefval && stored.compare((*iter).call()) == 0)
-                selected = counter;
-
-            counter++;
             ++iter;
         }
-
-        if (selected > -1 && selected < boxSelection->count())
-            boxSelection->setCurrentIndex(selected);
     }
+
+    setDefaultValue();
 
     if (reload())
     {
@@ -184,7 +172,7 @@ void ExtArgSelector::onReloadTriggered()
     int selected = -1;
 
     QString call = boxSelection->currentData().toString();
-    const char *prefval = _argument->pref_valptr ? *_argument->pref_valptr : NULL;
+    const char *prefval = (_argument->pref_valptr && strlen(*_argument->pref_valptr)) ? *_argument->pref_valptr : NULL;
     QString stored(prefval ? prefval : "");
     if (call != stored)
         stored = call;
@@ -240,14 +228,48 @@ QString ExtArgSelector::value()
     return data.toString();
 }
 
+bool ExtArgSelector::isSetDefaultValueSupported()
+{
+    return TRUE;
+}
+
+void ExtArgSelector::setDefaultValue()
+{
+    int counter = 0;
+    int selected = -1;
+
+    const char *prefval = (_argument->pref_valptr && strlen(*_argument->pref_valptr)) ? *_argument->pref_valptr : NULL;
+    QString stored(prefval ? prefval : "");
+
+    if (values.length() > 0)
+    {
+        ExtcapValueList::const_iterator iter = values.constBegin();
+
+        while (iter != values.constEnd())
+        {
+            if (!prefval && (*iter).isDefault())
+                selected = counter;
+            else if (prefval && stored.compare((*iter).call()) == 0)
+                selected = counter;
+
+            counter++;
+            ++iter;
+        }
+
+        if (selected > -1 && selected < boxSelection->count())
+            boxSelection->setCurrentIndex(selected);
+    }
+
+}
+
+
+
 ExtArgRadio::ExtArgRadio(extcap_arg * argument, QObject * parent) :
         ExtcapArgument(argument, parent), selectorGroup(0), callStrings(0) {}
 
 QWidget * ExtArgRadio::createEditor(QWidget * parent)
 {
-
     int count = 0;
-    bool anyChecked = false;
 
     selectorGroup = new QButtonGroup(parent);
     QWidget * radioButtons = new QWidget;
@@ -259,7 +281,7 @@ QWidget * ExtArgRadio::createEditor(QWidget * parent)
 
     callStrings = new QList<QString>();
 
-    if (values.length() > 0  )
+    if (values.length() > 0)
     {
         ExtcapValueList::const_iterator iter = values.constBegin();
 
@@ -268,12 +290,6 @@ QWidget * ExtArgRadio::createEditor(QWidget * parent)
             QRadioButton * radio = new QRadioButton((*iter).value());
             QString callString = (*iter).call();
             callStrings->append(callString);
-
-            if ((*iter).isDefault())
-            {
-                radio->setChecked(true);
-                anyChecked = true;
-            }
 
             connect(radio, SIGNAL(clicked(bool)), SLOT(onBoolChanged(bool)));
             selectorGroup->addButton(radio, count);
@@ -285,9 +301,7 @@ QWidget * ExtArgRadio::createEditor(QWidget * parent)
         }
     }
 
-    /* No default was provided, and not saved value exists */
-    if (anyChecked == false && count > 0)
-        ((QRadioButton*)(selectorGroup->button(0)))->setChecked(true);
+    setDefaultValue();
 
     radioButtons->setLayout(vrLayout);
 
@@ -302,7 +316,7 @@ QString ExtArgRadio::value()
 
     idx = selectorGroup->checkedId();
     if (idx > -1 && callStrings->length() > idx)
-        return callStrings->takeAt(idx);
+        return callStrings->at(idx);
 
     return QString();
 }
@@ -332,6 +346,40 @@ bool ExtArgRadio::isValid()
     return valid;
 }
 
+bool ExtArgRadio::isSetDefaultValueSupported()
+{
+    return TRUE;
+}
+
+void ExtArgRadio::setDefaultValue()
+{
+    int counter = 0;
+    int selected = 0;
+
+    const char *prefval = (_argument->pref_valptr && strlen(*_argument->pref_valptr)) ? *_argument->pref_valptr : NULL;
+    QString stored(prefval ? prefval : "");
+
+    if (values.length() > 0)
+    {
+        ExtcapValueList::const_iterator iter = values.constBegin();
+
+        while (iter != values.constEnd())
+        {
+            if (!prefval && (*iter).isDefault())
+                selected = counter;
+            else if (prefval && stored.compare((*iter).call()) == 0)
+                selected = counter;
+
+            counter++;
+            ++iter;
+        }
+
+        ((QRadioButton*)(selectorGroup->button(selected)))->setChecked(true);
+    }
+}
+
+
+
 ExtArgBool::ExtArgBool(extcap_arg * argument, QObject * parent) :
         ExtcapArgument(argument, parent), boolBox(0) {}
 
@@ -348,12 +396,12 @@ QWidget * ExtArgBool::createEditor(QWidget * parent)
     if (_argument->tooltip != NULL)
         boolBox->setToolTip(QString().fromUtf8(_argument->tooltip));
 
-    const char *prefval = _argument->pref_valptr ? *_argument->pref_valptr : NULL;
+    const char *prefval = (_argument->pref_valptr && strlen(*_argument->pref_valptr)) ? *_argument->pref_valptr : NULL;
     if (prefval)
     {
-        QRegExp regexp(EXTCAP_BOOLEAN_REGEX);
-
-        bool savedstate = (regexp.indexIn(QString(prefval[0]), 0) != -1);
+        QRegularExpression regexp(EXTCAP_BOOLEAN_REGEX);
+        QRegularExpressionMatch match = regexp.match(QString(prefval[0]));
+        bool savedstate = match.hasMatch();
         if (savedstate != state)
             state = savedstate;
     }
@@ -415,6 +463,18 @@ QString ExtArgBool::defaultValue()
     return defaultBool() ? QString("true") : QString("false");
 }
 
+bool ExtArgBool::isSetDefaultValueSupported()
+{
+    return TRUE;
+}
+
+void ExtArgBool::setDefaultValue()
+{
+    boolBox->setCheckState(defaultBool() ? Qt::Checked : Qt::Unchecked);
+}
+
+
+
 ExtArgText::ExtArgText(extcap_arg * argument, QObject * parent) :
     ExtcapArgument(argument, parent), textBox(0)
 {
@@ -424,12 +484,11 @@ QWidget * ExtArgText::createEditor(QWidget * parent)
 {
     QString text = defaultValue();
 
-    if (_argument->pref_valptr && *_argument->pref_valptr)
+    /* Prefs can contain empty string. We accept it. */
+    if (_argument->pref_valptr && (*_argument->pref_valptr))
     {
         QString storeValue(*_argument->pref_valptr);
-
-        if (storeValue.length() > 0 && storeValue.compare(text) != 0)
-            text = storeValue.trimmed();
+        text = storeValue.trimmed();
     }
 
     textBox = new QLineEdit(text, parent);
@@ -441,7 +500,7 @@ QWidget * ExtArgText::createEditor(QWidget * parent)
         textBox->setPlaceholderText(QString().fromUtf8(_argument->placeholder));
 
     if (_argument->arg_type == EXTCAP_ARG_PASSWORD)
-        textBox->setEchoMode(QLineEdit::Password);
+        textBox->setEchoMode(QLineEdit::PasswordEchoOnEdit);
 
     connect(textBox , SIGNAL(textChanged(QString)), SLOT(onStringChanged(QString)));
 
@@ -498,8 +557,8 @@ bool ExtArgText::isValid()
         QString regexp = QString().fromUtf8(_argument->regexp);
         if (regexp.length() > 0)
         {
-            QRegExp expr(regexp);
-            if (! expr.isValid() || expr.indexIn(value(), 0) == -1)
+            QRegularExpression expr(regexp, QRegularExpression::UseUnicodePropertiesOption);
+            if (! expr.isValid() || ! expr.match(value()).hasMatch())
                 valid = false;
         }
     }
@@ -511,6 +570,18 @@ bool ExtArgText::isValid()
     return valid;
 }
 
+bool ExtArgText::isSetDefaultValueSupported()
+{
+    return TRUE;
+}
+
+void ExtArgText::setDefaultValue()
+{
+    textBox->setText(defaultValue());
+}
+
+
+
 ExtArgNumber::ExtArgNumber(extcap_arg * argument, QObject * parent) :
         ExtArgText(argument, parent) {}
 
@@ -518,12 +589,10 @@ QWidget * ExtArgNumber::createEditor(QWidget * parent)
 {
     QString text = defaultValue();
 
-    if (_argument->pref_valptr && *_argument->pref_valptr)
+    if (_argument->pref_valptr && strlen(*_argument->pref_valptr))
     {
         QString storeValue(*_argument->pref_valptr);
-
-        if (storeValue.length() > 0 && storeValue.compare(text) != 0)
-            text = storeValue;
+        text = storeValue;
     }
 
     textBox = (QLineEdit *)ExtArgText::createEditor(parent);
@@ -907,3 +976,13 @@ void ExtcapArgument::onBoolChanged(bool)
 {
     emit valueChanged();
 }
+
+bool ExtcapArgument::isSetDefaultValueSupported()
+{
+    return FALSE;
+}
+
+void ExtcapArgument::setDefaultValue()
+{
+}
+

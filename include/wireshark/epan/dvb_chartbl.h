@@ -1,4 +1,4 @@
-/* dvb_chartbl.h
+/** @file
  * Routines for handling DVB-SI character tables (as defined in EN 300 468)
  *
  * Wireshark - Network traffic analyzer
@@ -10,7 +10,7 @@
 #ifndef __DVB_CHARTBL_H__
 #define __DVB_CHARTBL_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #include <epan/proto.h>
 #include <epan/to_str.h>

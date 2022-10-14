@@ -439,7 +439,7 @@ static const value_string interface_role_str[] = {
 /* whenever a ICMP packet is seen by the tap listener */
 /* Add a new frame into the graph */
 static tap_packet_status
-icmp_seq_analysis_packet( void *ptr, packet_info *pinfo, epan_dissect_t *edt _U_, const void *dummy _U_)
+icmp_seq_analysis_packet( void *ptr, packet_info *pinfo, epan_dissect_t *edt _U_, const void *dummy _U_, tap_flags_t flags _U_)
 {
 	seq_analysis_info_t *sainfo = (seq_analysis_info_t *) ptr;
 	seq_analysis_item_t *sai = sequence_analysis_create_sai_with_addresses(pinfo, sainfo);
@@ -480,13 +480,13 @@ static conversation_t *_find_or_create_conversation(packet_info * pinfo)
 
 	/* Have we seen this conversation before? */
 	conv =
-	    find_conversation(pinfo->num, &pinfo->src, &pinfo->dst, conversation_pt_to_endpoint_type(pinfo->ptype),
+	    find_conversation(pinfo->num, &pinfo->src, &pinfo->dst, conversation_pt_to_conversation_type(pinfo->ptype),
 			      0, 0, 0);
 	if (conv == NULL) {
 		/* No, this is a new conversation. */
 		conv =
 		    conversation_new(pinfo->num, &pinfo->src,
-				     &pinfo->dst, conversation_pt_to_endpoint_type(pinfo->ptype), 0, 0, 0);
+				     &pinfo->dst, conversation_pt_to_conversation_type(pinfo->ptype), 0, 0, 0);
 	}
 	return conv;
 }
@@ -869,7 +869,7 @@ dissect_interface_information_object(tvbuff_t * tvb, gint offset,
 			offset += 1;
 		}
 		if (obj_end_offset >= offset + int_name_length) {
-			proto_tree_add_item(int_name_object_tree, hf_icmp_int_info_name_string, tvb, offset, int_name_length - 1, ENC_ASCII|ENC_NA);
+			proto_tree_add_item(int_name_object_tree, hf_icmp_int_info_name_string, tvb, offset, int_name_length - 1, ENC_ASCII);
 			offset += int_name_length - 1;
 		}
 	}
@@ -915,7 +915,7 @@ dissect_interface_identification_object(tvbuff_t * tvb, gint offset,
 
 	switch(c_type) {
 		case ICMP_EXT_ECHO_IDENT_NAME:
-			proto_tree_add_item(ext_object_tree, hf_icmp_int_ident_name_string, tvb, offset, obj_length - 4, ENC_ASCII|ENC_NA);
+			proto_tree_add_item(ext_object_tree, hf_icmp_int_ident_name_string, tvb, offset, obj_length - 4, ENC_ASCII);
 			break;
 		case ICMP_EXT_ECHO_IDENT_INDEX:
 			proto_tree_add_item(ext_object_tree, hf_icmp_int_ident_index, tvb, offset, 4, ENC_NA);
@@ -1230,7 +1230,7 @@ static icmp_transaction_t *transaction_end(packet_info * pinfo,
 
 	conversation =
 	    find_conversation(pinfo->num, &pinfo->src, &pinfo->dst,
-			      conversation_pt_to_endpoint_type(pinfo->ptype), 0, 0, 0);
+			      conversation_pt_to_conversation_type(pinfo->ptype), 0, 0, 0);
 	if (conversation == NULL) {
 		return NULL;
 	}
@@ -2087,7 +2087,7 @@ void proto_register_icmp(void)
 
 		{&hf_icmp_mpls_label,
 		 {"Label", "icmp.mpls.label", FT_UINT24, BASE_DEC, NULL,
-		  0x00fffff0,
+		  0xfffff0,
 		  NULL, HFILL}},
 
 		{&hf_icmp_mpls_exp,

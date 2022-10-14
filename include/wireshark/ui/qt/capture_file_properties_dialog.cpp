@@ -20,7 +20,7 @@
 #include "ui/version_info.h"
 
 #include <ui/qt/utils/qt_ui_utils.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 
 #include <QPushButton>
 #include <QScrollBar>
@@ -484,15 +484,15 @@ QString CaptureFilePropertiesDialog::summaryToHtml()
     captured_str = displayed_str = marked_str = n_a;
     if (seconds > 0) {
         captured_str =
-                gchar_free_to_qstring(format_size(summary.bytes / seconds, format_size_unit_none|format_size_prefix_si));
+                gchar_free_to_qstring(format_size(summary.bytes / seconds, FORMAT_SIZE_UNIT_NONE, FORMAT_SIZE_PREFIX_SI));
     }
     if (disp_seconds > 0) {
         displayed_str =
-                gchar_free_to_qstring(format_size(summary.filtered_bytes / disp_seconds, format_size_unit_none|format_size_prefix_si));
+                gchar_free_to_qstring(format_size(summary.filtered_bytes / disp_seconds, FORMAT_SIZE_UNIT_NONE, FORMAT_SIZE_PREFIX_SI));
     }
     if (marked_seconds > 0) {
         marked_str =
-                gchar_free_to_qstring(format_size(summary.marked_bytes / marked_seconds, format_size_unit_none|format_size_prefix_si));
+                gchar_free_to_qstring(format_size(summary.marked_bytes / marked_seconds, FORMAT_SIZE_UNIT_NONE, FORMAT_SIZE_PREFIX_SI));
     }
     out << table_row_begin
         << table_data_tmpl.arg(tr("Average bytes/s"))
@@ -505,15 +505,15 @@ QString CaptureFilePropertiesDialog::summaryToHtml()
     captured_str = displayed_str = marked_str = n_a;
     if (seconds > 0) {
             captured_str =
-                    gchar_free_to_qstring(format_size(summary.bytes * 8 / seconds, format_size_unit_none|format_size_prefix_si));
+                    gchar_free_to_qstring(format_size(summary.bytes * 8 / seconds, FORMAT_SIZE_UNIT_NONE, FORMAT_SIZE_PREFIX_SI));
     }
     if (disp_seconds > 0) {
             displayed_str =
-                    gchar_free_to_qstring(format_size(summary.filtered_bytes * 8 / disp_seconds, format_size_unit_none|format_size_prefix_si));
+                    gchar_free_to_qstring(format_size(summary.filtered_bytes * 8 / disp_seconds, FORMAT_SIZE_UNIT_NONE, FORMAT_SIZE_PREFIX_SI));
     }
     if (marked_seconds > 0) {
             marked_str =
-                    gchar_free_to_qstring(format_size(summary.marked_bytes * 8 / marked_seconds, format_size_unit_none|format_size_prefix_si));
+                    gchar_free_to_qstring(format_size(summary.marked_bytes * 8 / marked_seconds, FORMAT_SIZE_UNIT_NONE, FORMAT_SIZE_PREFIX_SI));
     }
     out << table_row_begin
         << table_data_tmpl.arg(tr("Average bits/s"))
@@ -605,7 +605,7 @@ void CaptureFilePropertiesDialog::changeEvent(QEvent* event)
 
 void CaptureFilePropertiesDialog::on_buttonBox_helpRequested()
 {
-    wsApp->helpTopicAction(HELP_STATS_SUMMARY_DIALOG);
+    mainApp->helpTopicAction(HELP_STATS_SUMMARY_DIALOG);
 }
 
 void CaptureFilePropertiesDialog::on_buttonBox_accepted()

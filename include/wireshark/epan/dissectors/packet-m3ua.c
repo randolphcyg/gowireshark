@@ -25,6 +25,7 @@
 #include <epan/address_types.h>
 #include <epan/sctpppids.h>
 #include <wsutil/str_util.h>
+#include <wsutil/ws_roundup.h>
 #include "packet-mtp3.h"
 #include "packet-sccp.h"
 #include "packet-frame.h"
@@ -37,7 +38,6 @@ void proto_reg_handoff_m3ua(void);
 static gint m3ua_pref_mtp3_standard;
 
 #define SCTP_PORT_M3UA         2905
-#define ADD_PADDING(x) ((((x) + 3) >> 2) << 2)
 
 #define VERSION_LENGTH         1
 #define RESERVED_LENGTH        1
@@ -398,7 +398,7 @@ dissect_info_string_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tre
   guint16 info_string_length;
 
   info_string_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
-  proto_tree_add_item(parameter_tree, hf_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII|ENC_NA);
+  proto_tree_add_item(parameter_tree, hf_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII);
   proto_item_append_text(parameter_item, " (%.*s)", info_string_length,
                          tvb_format_text(wmem_packet_scope(), parameter_tvb, INFO_STRING_OFFSET, info_string_length));
 }
@@ -1948,7 +1948,7 @@ dissect_parameters(tvbuff_t *parameters_tvb, packet_info *pinfo, proto_tree *tre
   offset = 0;
   while((remaining_length = tvb_reported_length_remaining(parameters_tvb, offset))) {
     length       = tvb_get_ntohs(parameters_tvb, offset + PARAMETER_LENGTH_OFFSET);
-    total_length = ADD_PADDING(length);
+    total_length = WS_ROUNDUP_4(length);
     if (remaining_length >= length)
       total_length = MIN(total_length, remaining_length);
     /* create a tvb for the parameter including the padding bytes */

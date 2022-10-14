@@ -1,4 +1,4 @@
-/* file_util.h
+/** @file
  * File utility definitions
  *
  * Wireshark - Network traffic analyzer
@@ -13,7 +13,7 @@
 
 #include <glib.h>
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef _WIN32
 #include <io.h>		/* for _read(), _write(), etc. */
@@ -101,6 +101,10 @@ WS_DLL_PUBLIC FILE * ws_stdio_freopen (const gchar *filename, const gchar *mode,
  * These routines don't take pathnames, so they don't require
  * pathname-converting wrappers on Windows.
  */
+
+typedef unsigned int ws_file_size_t;
+typedef signed int ws_file_ssize_t;
+
 #define ws_read    _read
 #define ws_write   _write
 #define ws_close   _close
@@ -181,6 +185,9 @@ WS_DLL_PUBLIC int ws_close_if_possible(int fd);
 #define ws_remove		remove
 #define ws_fopen		fopen
 #define ws_freopen		freopen
+
+typedef size_t ws_file_size_t;
+typedef ssize_t ws_file_ssize_t;
 
 #define ws_read    read
 #define ws_write   write

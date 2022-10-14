@@ -1,5 +1,4 @@
-/*
- * crc16-plain.h
+/** @file
  * http://www.tty1.net/pycrc/faq_en.html#code-ownership
  *
  * Wireshark - Network traffic analyzer
@@ -31,7 +30,7 @@
 #ifndef __CRC____PLAIN_H__
 #define __CRC____PLAIN_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #include <glib.h>
 #include <stdlib.h>

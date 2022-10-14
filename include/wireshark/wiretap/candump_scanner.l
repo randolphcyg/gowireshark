@@ -9,6 +9,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+%top {
+/* Include this before everything else, for various large-file definitions */
+#include "config.h"
+#include <include/wireshark.h>
+}
+
 %option reentrant
 %option noyywrap
 %option noinput
@@ -39,7 +45,7 @@
 
 %{
 
-#include <ws_diag_control.h>
+#include <include/ws_diag_control.h>
 #include <wiretap/file_wrappers.h>
 #include "candump_parser.h"
 #include "candump_priv.h"

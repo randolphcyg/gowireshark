@@ -1,4 +1,4 @@
-/* ws_mempbrk.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -10,7 +10,7 @@
 #ifndef __WS_MEMPBRK_H__
 #define __WS_MEMPBRK_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef HAVE_SSE4_2
 #include <emmintrin.h>

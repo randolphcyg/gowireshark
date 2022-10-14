@@ -1,4 +1,4 @@
-/* crc8.h
+/** @file
  * Declaration of CRC-8 routine and tables
  *
  * 2011 Roland Knall <rknall@gmail.com>
@@ -14,7 +14,7 @@
 #define __CRC8_H__
 
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

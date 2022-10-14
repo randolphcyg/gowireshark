@@ -1,4 +1,4 @@
--- 3GPP TS 38.463 V16.7.0 (2021-10)
+-- 3GPP TS 38.463 V16.9.0 (2022-04)
 -- **************************************************************
 --
 -- Information Element Definitions
@@ -53,6 +53,10 @@ IMPORTS
 	id-DataForwardingtoNG-RANQoSFlowInformationList,
 	id-MaxCIDEHCDL,
 	id-ignoreMappingRuleIndication,
+	id-EarlyDataForwardingIndicator,
+	id-QoSFlowsDRBRemapping,
+	id-SecurityIndicationModify,
+	id-DataForwardingSourceIPAddress,
 	maxnoofQoSParaSets,
 	maxnoofErrors,
 	maxnoofSliceItems,
@@ -426,7 +430,8 @@ DefaultDRB	::=	ENUMERATED	{
 
 DirectForwardingPathAvailability ::= ENUMERATED {
 	inter-system-direct-path-available,
-	...
+	...,
+	intra-system-direct-path-available
 }
 
 DiscardTimer	::=	ENUMERATED {ms10, ms20, ms30, ms40, ms50, ms60, ms75, ms100, ms150, ms200, ms250, ms300, ms500, ms750, ms1500, infinity}
@@ -683,6 +688,7 @@ DRB-Setup-Item-EUTRAN	::=	SEQUENCE {
 }
 
 DRB-Setup-Item-EUTRAN-ExtIEs		E1AP-PROTOCOL-EXTENSION ::= {
+{ ID id-DataForwardingSourceIPAddress			CRITICALITY ignore	EXTENSION TransportLayerAddress		PRESENCE optional},
 	...
 }
 
@@ -831,9 +837,11 @@ DRB-To-Modify-Item-NG-RAN	::=	SEQUENCE {
 
 DRB-To-Modify-Item-NG-RAN-ExtIEs		E1AP-PROTOCOL-EXTENSION ::= {
 	{ID id-OldQoSFlowMap-ULendmarkerexpected	CRITICALITY reject	EXTENSION QoS-Flow-List	PRESENCE optional}|
-	{ID id-DRB-QoS						CRITICALITY ignore	EXTENSION QoSFlowLevelQoSParameters		PRESENCE optional}|
-	{ID id-EarlyForwardingCOUNTReq		CRITICALITY reject	EXTENSION EarlyForwardingCOUNTReq		PRESENCE optional}|
-	{ID id-EarlyForwardingCOUNTInfo		CRITICALITY reject	EXTENSION EarlyForwardingCOUNTInfo		PRESENCE optional},
+	{ID id-DRB-QoS						CRITICALITY ignore	EXTENSION QoSFlowLevelQoSParameters			PRESENCE optional}|
+	{ID id-EarlyForwardingCOUNTReq		CRITICALITY reject	EXTENSION EarlyForwardingCOUNTReq			PRESENCE optional}|
+	{ID id-EarlyForwardingCOUNTInfo		CRITICALITY reject	EXTENSION EarlyForwardingCOUNTInfo			PRESENCE optional}|
+	{ID id-DAPSRequestInfo				CRITICALITY ignore	EXTENSION DAPSRequestInfo					PRESENCE optional}|
+	{ID id-EarlyDataForwardingIndicator	CRITICALITY ignore	EXTENSION EarlyDataForwardingIndicator	PRESENCE optional},
 	...
 }
 
@@ -904,6 +912,7 @@ DRB-To-Setup-Item-EUTRAN	::=	SEQUENCE {
 }
 
 DRB-To-Setup-Item-EUTRAN-ExtIEs		E1AP-PROTOCOL-EXTENSION ::= {
+{ ID id-DataForwardingSourceIPAddress			CRITICALITY ignore	EXTENSION TransportLayerAddress		PRESENCE optional},
 	...
 }
 
@@ -942,9 +951,10 @@ DRB-To-Setup-Item-NG-RAN	::=	SEQUENCE {
 }
 
 DRB-To-Setup-Item-NG-RAN-ExtIEs		E1AP-PROTOCOL-EXTENSION ::= {
-		{ID id-DRB-QoS						CRITICALITY ignore	EXTENSION QoSFlowLevelQoSParameters		PRESENCE optional}|
-		{ID id-DAPSRequestInfo				CRITICALITY ignore	EXTENSION DAPSRequestInfo					PRESENCE optional}|
-		{ID id-ignoreMappingRuleIndication	CRITICALITY reject	EXTENSION IgnoreMappingRuleIndication	PRESENCE optional},
+	{ID id-DRB-QoS						CRITICALITY ignore	EXTENSION QoSFlowLevelQoSParameters		PRESENCE optional}|
+	{ID id-DAPSRequestInfo				CRITICALITY ignore	EXTENSION DAPSRequestInfo					PRESENCE optional}|
+	{ID id-ignoreMappingRuleIndication	CRITICALITY reject	EXTENSION IgnoreMappingRuleIndication	PRESENCE optional}|
+	{ID id-QoSFlowsDRBRemapping			CRITICALITY reject	EXTENSION QoS-Flows-DRB-Remapping			PRESENCE optional},
 	...
 }
 
@@ -1016,6 +1026,8 @@ DataDiscardRequired	::= 	ENUMERATED {
 }
 
 -- E
+
+EarlyDataForwardingIndicator ::= ENUMERATED {stop, ...}
 
 EarlyForwardingCOUNTInfo ::= CHOICE {
 	firstDLCount					FirstDLCount,
@@ -1368,6 +1380,20 @@ measurementsToActivate		MeasurementsToActivate,
 ImmediateMDT-ExtIEs E1AP-PROTOCOL-EXTENSION ::= {
 	...
 }
+
+IAB-Donor-CU-UPPSKInfo-Item ::= SEQUENCE {
+	iAB-donor-CU-UPPSK			IAB-donor-CU-UPPSK,
+	iAB-donor-CU-UPIPAddress		TransportLayerAddress,
+	iAB-DUIPAddress				TransportLayerAddress,
+	iE-Extensions	ProtocolExtensionContainer { { IAB-donor-CU-UPPSKInfoItemExtIEs } }	OPTIONAL,
+	...
+}
+
+IAB-donor-CU-UPPSKInfoItemExtIEs 	E1AP-PROTOCOL-EXTENSION ::= {
+	...
+}
+
+IAB-donor-CU-UPPSK	::= OCTET STRING
 
 -- J
 
@@ -1914,11 +1940,12 @@ PDU-Session-Resource-To-Modify-Item	::=	SEQUENCE {
 }
 
 PDU-Session-Resource-To-Modify-Item-ExtIEs		E1AP-PROTOCOL-EXTENSION ::= {
-	{ID id-SNSSAI		CRITICALITY reject	EXTENSION SNSSAI		PRESENCE optional}|
-	{ ID id-CommonNetworkInstance						CRITICALITY ignore	EXTENSION CommonNetworkInstance								PRESENCE optional	}|
-	{ID id-redundant-nG-UL-UP-TNL-Information		CRITICALITY ignore	EXTENSION 	UP-TNL-Information			PRESENCE optional	}|
-	{ID id-RedundantCommonNetworkInstance				CRITICALITY ignore	EXTENSION 	CommonNetworkInstance		PRESENCE optional	}|
-	{ID id-DataForwardingtoE-UTRANInformationList				CRITICALITY ignore	EXTENSION 	DataForwardingtoE-UTRANInformationList		PRESENCE optional	},
+	{ID id-SNSSAI										CRITICALITY reject	EXTENSION 	SNSSAI												PRESENCE optional}|
+	{ID id-CommonNetworkInstance						CRITICALITY ignore	EXTENSION 	CommonNetworkInstance							PRESENCE optional	}|
+	{ID id-redundant-nG-UL-UP-TNL-Information			CRITICALITY ignore	EXTENSION 	UP-TNL-Information								PRESENCE optional	}|
+	{ID id-RedundantCommonNetworkInstance				CRITICALITY ignore	EXTENSION 	CommonNetworkInstance							PRESENCE optional	}|
+	{ID id-DataForwardingtoE-UTRANInformationList		CRITICALITY ignore	EXTENSION 	DataForwardingtoE-UTRANInformationList	PRESENCE optional	}|
+	{ID id-SecurityIndicationModify						CRITICALITY ignore	EXTENSION 	SecurityIndication								PRESENCE optional	},
 	...
 }
 
@@ -2056,7 +2083,8 @@ QoS-Flow-Item	::=	SEQUENCE {
 }
 
 QoS-Flow-Item-ExtIEs		E1AP-PROTOCOL-EXTENSION ::= {
-	{ID id-QoSFlowMappingIndication		CRITICALITY ignore	EXTENSION QoS-Flow-Mapping-Indication		PRESENCE optional},
+	{ID id-QoSFlowMappingIndication			CRITICALITY ignore	EXTENSION QoS-Flow-Mapping-Indication		PRESENCE optional}|
+	{ID id-DataForwardingSourceIPAddress	CRITICALITY ignore	EXTENSION TransportLayerAddress					PRESENCE optional},
 	...
 }
 
@@ -2087,6 +2115,8 @@ QoS-Flow-Mapping-Item-ExtIEs		E1AP-PROTOCOL-EXTENSION ::= {
 }
 
 QoS-Flow-Mapping-Indication ::= ENUMERATED {ul, dl, ...}
+
+QoS-Flows-DRB-Remapping ::= ENUMERATED {update, source-configuration, ...}
 
 QoS-Parameters-Support-List	::= SEQUENCE {
 	eUTRAN-QoS-Support-List			EUTRAN-QoS-Support-List			OPTIONAL,
@@ -2133,7 +2163,8 @@ QoSFlowLevelQoSParameters-ExtIEs 	E1AP-PROTOCOL-EXTENSION ::= {
 	{ID id-QoSMonitoringRequest				CRITICALITY ignore	EXTENSION QosMonitoringRequest					PRESENCE optional}|
 	{ID id-MCG-OfferedGBRQoSFlowInfo		CRITICALITY ignore	EXTENSION GBR-QoSFlowInformation				PRESENCE optional}|
 	{ID id-QosMonitoringReportingFrequency	CRITICALITY ignore	EXTENSION QosMonitoringReportingFrequency	PRESENCE optional}|
-	{ID id-QoSMonitoringDisabled			CRITICALITY ignore	EXTENSION QosMonitoringDisabled					PRESENCE optional},
+	{ID id-QoSMonitoringDisabled			CRITICALITY ignore	EXTENSION QosMonitoringDisabled					PRESENCE optional}|
+	{ID id-DataForwardingSourceIPAddress	CRITICALITY ignore	EXTENSION TransportLayerAddress					PRESENCE optional},
 	...
 }
 

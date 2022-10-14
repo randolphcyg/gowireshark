@@ -20,6 +20,7 @@
 #include <epan/exceptions.h>
 #include <epan/prefs.h>
 #include <epan/show_exception.h>
+#include <epan/conversation.h>
 
 #include "packet-tpkt.h"
 
@@ -30,6 +31,7 @@ static heur_dissector_list_t tpkt_heur_subdissector_list;
 
 /* TPKT header fields             */
 static int proto_tpkt                = -1;
+static int proto_tpkt_heur           = -1;
 static protocol_t *proto_tpkt_ptr;
 static int hf_tpkt_version           = -1;
 static int hf_tpkt_reserved          = -1;
@@ -45,12 +47,14 @@ static gboolean tpkt_desegment = TRUE;
 
 #define TCP_PORT_TPKT_RANGE       "102"
 
+/* IANA registered port for RDP (as ms-wbt-server) */
+#define TCP_PORT_RDP 3389
+
 /* find the dissector for OSI TP (aka COTP) */
 static dissector_handle_t osi_tp_handle;
 static dissector_handle_t tpkt_handle;
 
 #define DEFAULT_TPKT_PORT_RANGE "102"
-static range_t *tpkt_tcp_port_range;
 
 /*
  * Check whether this could be a TPKT-encapsulated PDU.
@@ -584,6 +588,26 @@ dissect_ascii_tpkt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 }
 #endif
 
+/* A heuristic dissector for TPKT. This is useful for RDP, where TLS may
+ * or may not be present depending on the RDP security settings.
+ */
+static int
+dissect_tpkt_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+{
+    conversation_t    *conversation;
+
+    if (is_tpkt(tvb, 0) == -1) {
+        /* Doesn't look like TPKT directly. Might be over TLS, so reject
+         * and let the TLS heuristic dissector take a look
+         */
+        return 0;
+    }
+
+    conversation = find_or_create_conversation(pinfo);
+    conversation_set_dissector(conversation, tpkt_handle);
+    return dissect_tpkt(tvb, pinfo, tree, data);
+}
+
 void
 proto_register_tpkt(void)
 {
@@ -650,45 +674,35 @@ proto_register_tpkt(void)
     proto_register_subtree_array(ett, array_length(ett));
     tpkt_handle = register_dissector("tpkt", dissect_tpkt, proto_tpkt);
 
-    tpkt_module = prefs_register_protocol(proto_tpkt, proto_reg_handoff_tpkt);
+    tpkt_module = prefs_register_protocol(proto_tpkt, NULL);
     prefs_register_bool_preference(tpkt_module, "desegment",
         "Reassemble TPKT messages spanning multiple TCP segments",
         "Whether the TPKT dissector should reassemble messages spanning multiple TCP segments. "
         "To use this option, you must also enable \"Allow subdissectors to reassemble TCP streams\" in the TCP protocol settings.",
         &tpkt_desegment);
 
-    range_convert_str(wmem_epan_scope(), &tpkt_tcp_port_range, DEFAULT_TPKT_PORT_RANGE, MAX_TCP_PORT);
-
-    prefs_register_range_preference(tpkt_module, "tcp.ports", "TPKT TCP ports",
-                                  "TCP ports to be decoded as TPKT (default: "
-                                  DEFAULT_TPKT_PORT_RANGE ")",
-                                  &tpkt_tcp_port_range, MAX_TCP_PORT);
-
     /* heuristic dissectors for premable CredSSP before RDP and Fast-Path RDP packets */
     tpkt_heur_subdissector_list = register_heur_dissector_list("tpkt", proto_tpkt);
 
+    proto_tpkt_heur = proto_register_protocol_in_name_only("TPKT Heuristic (for RDP)", "TPKT Heuristic (for RDP)", "tpkt", proto_tpkt, FT_PROTOCOL);
 }
 
 void
 proto_reg_handoff_tpkt(void)
 {
-    static range_t *port_range = NULL;
-
     osi_tp_handle = find_dissector("ositp");
     dissector_add_uint_range_with_preference("tcp.port", TCP_PORT_TPKT_RANGE, tpkt_handle);
 
-    dissector_delete_uint_range("tcp.port", port_range, tpkt_handle);
-    wmem_free(wmem_epan_scope(), port_range);
-
-    port_range = range_copy(wmem_epan_scope(), tpkt_tcp_port_range);
-    dissector_add_uint_range("tcp.port", port_range, tpkt_handle);
-
-    /* XXX: ssl_dissector_add registers TLS as the dissector for TCP for the
+    /* ssl_dissector_add registers TLS as the dissector for TCP for the
      * given port. We can't use it, since on port 3389 TPKT (for RDP) can be
      * over TLS or directly over TCP, depending on the RDP security settings.
-     * Ideally we'd check both.
+     * TPKT heuristics are also too weak to enable in general. Instead,
+     * use the heuristic dissector by default just on the RDP port, and
+     * if rejected the TLS heuristic dissector will be tried.
      */
-    dissector_add_uint("tls.port", 3389, tpkt_handle);
+    dissector_add_uint("tls.port", TCP_PORT_RDP, tpkt_handle);
+    dissector_add_uint("tcp.port", TCP_PORT_RDP, create_dissector_handle(dissect_tpkt_heur, proto_tpkt_heur));
+    heur_dissector_add("tcp", dissect_tpkt_heur, "TPKT over TCP", "tpkt_tcp", proto_tpkt, HEURISTIC_DISABLE);
 
     /*
     tpkt_ascii_handle = create_dissector_handle(dissect_ascii_tpkt, proto_tpkt);

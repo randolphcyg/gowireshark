@@ -26,6 +26,7 @@
 #include "packet-windows-common.h"
 #include "packet-dcerpc-lsa.h"
 #include "packet-ntlmssp.h"
+#include "packet-dcerpc-misc.h"
 /* for keytab format */
 #include <epan/asn1.h>
 #include "packet-kerberos.h"
@@ -4570,7 +4571,7 @@ netlogon_dissect_UAS_INFO_0(tvbuff_t *tvb, int offset,
         return offset;
     }
 
-    proto_tree_add_item(tree, hf_netlogon_computer_name, tvb, offset, 16, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_netlogon_computer_name, tvb, offset, 16, ENC_ASCII);
     offset += 16;
 
     time_created = tvb_get_guint32(tvb, offset, DREP_ENC_INTEGER(drep));
@@ -6801,7 +6802,6 @@ netlogon_dissect_netrserverauthenticate023_reply(tvbuff_t *tvb, int offset,
             debugprintf("Found %d passwords \n",list_size);
             if( flags & NETLOGON_FLAG_AES )
             {
-#if GCRYPT_VERSION_NUMBER >= 0x010800 /* 1.8.0 */
                 guint8 salt_buf[16] = { 0 };
                 guint8 sha256[HASH_SHA2_256_LENGTH];
                 guint64 calculated_cred;
@@ -6871,7 +6871,6 @@ netlogon_dissect_netrserverauthenticate023_reply(tvbuff_t *tvb, int offset,
                         }
                     }
                 }
-#endif
             } else if ( flags & NETLOGON_FLAG_STRONGKEY ) {
                 guint8 zeros[4] = { 0 };
                 guint8 md5[HASH_MD5_LENGTH];
@@ -7654,14 +7653,14 @@ static int dissect_secchan_nl_auth_message(tvbuff_t *tvb, int offset,
     /* netbios domain name */
     if (messageflags&0x00000001) {
         len = tvb_strsize(tvb, offset);
-        proto_tree_add_item(subtree, hf_netlogon_secchan_nl_nb_domain, tvb, offset, len, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(subtree, hf_netlogon_secchan_nl_nb_domain, tvb, offset, len, ENC_ASCII);
         offset += len;
     }
 
     /* netbios host name */
     if (messageflags&0x00000002) {
         len = tvb_strsize(tvb, offset);
-        proto_tree_add_item(subtree, hf_netlogon_secchan_nl_nb_host, tvb, offset, len, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(subtree, hf_netlogon_secchan_nl_nb_host, tvb, offset, len, ENC_ASCII);
         offset += len;
     }
 
@@ -7876,7 +7875,6 @@ static int get_seal_key(const guint8 *session_key,int key_len,guint8* seal_key)
 
 }
 
-#if GCRYPT_VERSION_NUMBER >= 0x010800 /* 1.8.0 */
 static guint64 uncrypt_sequence_aes(guint8* session_key,guint64 checksum,guint64 enc_seq,unsigned char is_server _U_)
 {
     gcry_error_t err;
@@ -7919,7 +7917,6 @@ static guint64 uncrypt_sequence_aes(guint8* session_key,guint64 checksum,guint64
     gcry_cipher_close(cipher_hd);
     return enc_seq;
 }
-#endif
 
 static guint64 uncrypt_sequence_strong(guint8* session_key,guint64 checksum,guint64 enc_seq,unsigned char is_server _U_)
 {
@@ -7957,11 +7954,9 @@ static guint64 uncrypt_sequence_strong(guint8* session_key,guint64 checksum,guin
 
 static guint64 uncrypt_sequence(guint32 flags, guint8* session_key,guint64 checksum,guint64 enc_seq,unsigned char is_server _U_)
 {
-#if GCRYPT_VERSION_NUMBER >= 0x010800 /* 1.8.0 */
     if (flags & NETLOGON_FLAG_AES) {
         return uncrypt_sequence_aes(session_key, checksum, enc_seq, is_server);
     }
-#endif
 
     if (flags & NETLOGON_FLAG_STRONGKEY) {
         return uncrypt_sequence_strong(session_key, checksum, enc_seq, is_server);
@@ -7970,7 +7965,6 @@ static guint64 uncrypt_sequence(guint32 flags, guint8* session_key,guint64 check
     return 0;
 }
 
-#if GCRYPT_VERSION_NUMBER >= 0x010800 /* 1.8.0 */
 static gcry_error_t prepare_decryption_cipher_aes(netlogon_auth_vars *vars,
                                                   gcry_cipher_hd_t *_cipher_hd)
 {
@@ -8009,7 +8003,6 @@ static gcry_error_t prepare_decryption_cipher_aes(netlogon_auth_vars *vars,
     *_cipher_hd = cipher_hd;
     return 0;
 }
-#endif
 
 static gcry_error_t prepare_decryption_cipher_strong(netlogon_auth_vars *vars,
                                                      gcry_cipher_hd_t *_cipher_hd)
@@ -8056,11 +8049,9 @@ static gcry_error_t prepare_decryption_cipher(netlogon_auth_vars *vars,
 {
     *_cipher_hd = NULL;
 
-#if GCRYPT_VERSION_NUMBER >= 0x010800 /* 1.8.0 */
     if (vars->flags & NETLOGON_FLAG_AES) {
         return prepare_decryption_cipher_aes(vars, _cipher_hd);
     }
-#endif
 
     if (vars->flags & NETLOGON_FLAG_STRONGKEY) {
         return prepare_decryption_cipher_strong(vars, _cipher_hd);
@@ -8255,15 +8246,6 @@ dissect_response_secchan_verf(tvbuff_t *tvb, int offset, packet_info *pinfo ,
 {
     return dissect_secchan_verf(tvb,offset,pinfo,tree,drep,1);
 }
-
-/* Secure channel types */
-
-static const value_string sec_chan_type_vals[] = {
-    { SEC_CHAN_WKSTA,  "Workstation" },
-    { SEC_CHAN_DOMAIN, "Domain trust" },
-    { SEC_CHAN_BDC,    "Backup domain controller" },
-    { 0, NULL }
-};
 
 void
 proto_register_dcerpc_netlogon(void)
@@ -8818,7 +8800,7 @@ proto_register_dcerpc_netlogon(void)
 
         { &hf_netlogon_secure_channel_type,
           { "Sec Chan Type", "netlogon.sec_chan_type", FT_UINT16, BASE_DEC,
-            VALS(sec_chan_type_vals), 0x0, "Secure Channel Type", HFILL }},
+            VALS(misc_netr_SchannelType_vals), 0x0, "Secure Channel Type", HFILL }},
 
         { &hf_netlogon_restart_state,
           { "Restart State", "netlogon.restart_state", FT_UINT16, BASE_DEC,

@@ -3,8 +3,9 @@
  * Wiretap Library
  * Copyright (c) 1998 by Gilbert Ramirez <gram@alumni.rice.edu>
  *
- * File format support for blf file format
- * Copyright (c) 2021 by Dr. Lars Voelker <lars.voelker@technica-engineering.de>
+ * File format support for the Binary Log File (BLF) file format from
+ * Vector Informatik decoder
+ * Copyright (c) 2021-2022 by Dr. Lars Voelker <lars.voelker@technica-engineering.de>
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -108,36 +109,40 @@ blf_calc_key_value(int pkt_encap, guint32 channel) {
     return ((gint64)pkt_encap << 32) | channel;
 }
 
-static void add_interface_name(wtap_block_t *int_data, int pkt_encap, guint32 channel) {
-    switch (pkt_encap) {
-    case WTAP_ENCAP_ETHERNET:
-        wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "ETH-%d", channel);
-        break;
-    case WTAP_ENCAP_IEEE_802_11:
-        wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "WLAN-%d", channel);
-        break;
-    case WTAP_ENCAP_FLEXRAY:
-        wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "FR-%d", channel);
-        break;
-    case WTAP_ENCAP_LIN:
-        wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "LIN-%d", channel);
-        break;
-    case WTAP_ENCAP_SOCKETCAN:
-        wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "CAN-%d", channel);
-        break;
-    default:
-        wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "0x%04x-%d", pkt_encap, channel);
+static void add_interface_name(wtap_block_t *int_data, int pkt_encap, guint32 channel, gchar *name) {
+    if (name != NULL) {
+        wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, name, channel);
+    } else {
+        switch (pkt_encap) {
+        case WTAP_ENCAP_ETHERNET:
+            wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "ETH-%d", channel);
+            break;
+        case WTAP_ENCAP_IEEE_802_11:
+            wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "WLAN-%d", channel);
+            break;
+        case WTAP_ENCAP_FLEXRAY:
+            wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "FR-%d", channel);
+            break;
+        case WTAP_ENCAP_LIN:
+            wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "LIN-%d", channel);
+            break;
+        case WTAP_ENCAP_SOCKETCAN:
+            wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "CAN-%d", channel);
+            break;
+        default:
+            wtap_block_add_string_option_format(*int_data, OPT_IDB_NAME, "0x%04x-%d", pkt_encap, channel);
+        }
     }
 }
 
 static guint32
-blf_add_interface(blf_params_t *params, int pkt_encap, guint32 channel) {
+blf_add_interface(blf_params_t *params, int pkt_encap, guint32 channel, gchar *name) {
     wtap_block_t int_data = wtap_block_create(WTAP_BLOCK_IF_ID_AND_INFO);
     wtapng_if_descr_mandatory_t *if_descr_mand = (wtapng_if_descr_mandatory_t*)wtap_block_get_mandatory_data(int_data);
     blf_channel_to_iface_entry_t *item = NULL;
 
     if_descr_mand->wtap_encap = pkt_encap;
-    add_interface_name(&int_data, pkt_encap, channel);
+    add_interface_name(&int_data, pkt_encap, channel, name);
     if_descr_mand->time_units_per_second = 1000 * 1000 * 1000;
     if_descr_mand->tsprecision = WTAP_TSPREC_NSEC;
     wtap_block_add_uint8_option(int_data, OPT_IDB_TSRESOL, 9);
@@ -168,7 +173,7 @@ blf_add_interface(blf_params_t *params, int pkt_encap, guint32 channel) {
 }
 
 static guint32
-blf_lookup_interface(blf_params_t *params, int pkt_encap, guint32 channel) {
+blf_lookup_interface(blf_params_t *params, int pkt_encap, guint32 channel, gchar *name) {
     gint64 key = blf_calc_key_value(pkt_encap, channel);
     blf_channel_to_iface_entry_t *item = NULL;
 
@@ -181,7 +186,7 @@ blf_lookup_interface(blf_params_t *params, int pkt_encap, guint32 channel) {
     if (item != NULL) {
         return item->interface_id;
     } else {
-        return blf_add_interface(params, pkt_encap, channel);
+        return blf_add_interface(params, pkt_encap, channel, name);
     }
 }
 
@@ -230,6 +235,22 @@ static void
 fix_endianness_blf_logobjectheader(blf_logobjectheader_t *header) {
     header->flags = GUINT32_FROM_LE(header->flags);
     header->client_index = GUINT16_FROM_LE(header->client_index);
+    header->object_version = GUINT16_FROM_LE(header->object_version);
+    header->object_timestamp = GUINT64_FROM_LE(header->object_timestamp);
+}
+
+static void
+fix_endianness_blf_logobjectheader2(blf_logobjectheader2_t *header) {
+    header->flags = GUINT32_FROM_LE(header->flags);
+    header->object_version = GUINT16_FROM_LE(header->object_version);
+    header->object_timestamp = GUINT64_FROM_LE(header->object_timestamp);
+    header->original_timestamp = GUINT64_FROM_LE(header->object_timestamp);
+}
+
+static void
+fix_endianness_blf_logobjectheader3(blf_logobjectheader3_t *header) {
+    header->flags = GUINT32_FROM_LE(header->flags);
+    header->static_size = GUINT16_FROM_LE(header->static_size);
     header->object_version = GUINT16_FROM_LE(header->object_version);
     header->object_timestamp = GUINT64_FROM_LE(header->object_timestamp);
 }
@@ -359,19 +380,34 @@ fix_endianness_blf_linmessage_trailer(blf_linmessage_trailer_t *header) {
     header->res2 = GUINT32_FROM_LE(header->res2);
 }
 
+static void
+fix_endianness_blf_apptext_header(blf_apptext_t *header) {
+    header->source = GUINT32_FROM_LE(header->source);
+    header->reservedAppText1 = GUINT32_FROM_LE(header->reservedAppText1);
+    header->textLength = GUINT32_FROM_LE(header->textLength);
+    header->reservedAppText2 = GUINT32_FROM_LE(header->reservedAppText2);
+}
+
 static guint64
-blf_timestamp_to_ns(blf_logobjectheader_t *header) {
-    switch (header->flags) {
+blf_timestamp_to_ns(guint32 flags, guint64 timestamp) {
+    switch (flags) {
     case BLF_TIMESTAMP_RESOLUTION_10US:
-        return 10000 * header->object_timestamp;
+        return 10000 * timestamp;
         break;
 
     case BLF_TIMESTAMP_RESOLUTION_1NS:
-        return header->object_timestamp;
+        return timestamp;
         break;
 
     default:
-        ws_debug("I don't understand the flags 0x%x", header->flags);
+        /*
+         * XXX - report this as an error?
+         *
+         * Or provide a mechanism to allow file readers to report
+         * a warning (an error that the the reader tries to work
+         * around and that the caller should report)?
+         */
+        ws_debug("I don't understand the flags 0x%x", flags);
         return 0;
         break;
     }
@@ -403,12 +439,12 @@ blf_add_logcontainer(blf_t *blf_data, blf_log_container_t log_container) {
 }
 
 static gboolean
-blf_get_logcontainer_by_index(blf_t *blf_data, guint index, blf_log_container_t **ret) {
-    if (blf_data == NULL || blf_data->log_containers == NULL || index >= blf_data->log_containers->len) {
+blf_get_logcontainer_by_index(blf_t *blf_data, guint container_index, blf_log_container_t **ret) {
+    if (blf_data == NULL || blf_data->log_containers == NULL || container_index >= blf_data->log_containers->len) {
         return FALSE;
     }
 
-    *ret = &g_array_index(blf_data->log_containers, blf_log_container_t, index);
+    *ret = &g_array_index(blf_data->log_containers, blf_log_container_t, container_index);
     return TRUE;
 }
 
@@ -561,7 +597,7 @@ blf_read_bytes_or_eof(blf_params_t *params, guint64 real_pos, void *target_buffe
                  * malformed file (WTAP_ERR_BAD_FILE)?
                  */
                 *err = WTAP_ERR_INTERNAL;
-                *err_info = g_strdup_printf("blf_read_bytes_or_eof: cannot refresh container");
+                *err_info = ws_strdup_printf("blf_read_bytes_or_eof: cannot refresh container");
                 ws_debug("cannot refresh container");
                 return FALSE;
             }
@@ -599,7 +635,7 @@ blf_read_bytes_or_eof(blf_params_t *params, guint64 real_pos, void *target_buffe
                  * malformed file (WTAP_ERR_BAD_FILE)?
                  */
                 *err = WTAP_ERR_INTERNAL;
-                *err_info = g_strdup_printf("blf_read_bytes_or_eof: cannot pull in container");
+                *err_info = ws_strdup_printf("blf_read_bytes_or_eof: cannot pull in container");
                 ws_debug("cannot pull in container");
                 return FALSE;
             }
@@ -610,7 +646,7 @@ blf_read_bytes_or_eof(blf_params_t *params, guint64 real_pos, void *target_buffe
                  * malformed file (WTAP_ERR_BAD_FILE)?
                  */
                 *err = WTAP_ERR_INTERNAL;
-                *err_info = g_strdup_printf("blf_read_bytes_or_eof: cannot refresh container");
+                *err_info = ws_strdup_printf("blf_read_bytes_or_eof: cannot refresh container");
                 ws_debug("cannot refresh container");
                 return FALSE;
             }
@@ -621,7 +657,7 @@ blf_read_bytes_or_eof(blf_params_t *params, guint64 real_pos, void *target_buffe
                  * malformed file (WTAP_ERR_BAD_FILE)?
                  */
                 *err = WTAP_ERR_INTERNAL;
-                *err_info = g_strdup_printf("blf_read_bytes_or_eof: pulling in container failed hard");
+                *err_info = ws_strdup_printf("blf_read_bytes_or_eof: pulling in container failed hard");
                 ws_debug("pulling in container failed hard");
                 return FALSE;
             }
@@ -643,13 +679,13 @@ blf_read_bytes_or_eof(blf_params_t *params, guint64 real_pos, void *target_buffe
          * malformed file (WTAP_ERR_BAD_FILE)?
          */
         *err = WTAP_ERR_INTERNAL;
-        *err_info = g_strdup_printf("blf_read_bytes_or_eof: ran out of items in container");
+        *err_info = ws_strdup_printf("blf_read_bytes_or_eof: ran out of items in container");
         return FALSE;
         break;
 
     default:
         *err = WTAP_ERR_UNSUPPORTED;
-        *err_info = g_strdup_printf("blf: unknown compression method %u",
+        *err_info = ws_strdup_printf("blf: unknown compression method %u",
                                     start_container->compression_method);
         ws_debug("unknown compression method");
         return FALSE;
@@ -701,7 +737,7 @@ blf_scan_file_for_logcontainers(blf_params_t *params) {
             fix_endianness_blf_blockheader(&header);
 
             if (memcmp(header.magic, blf_obj_magic, sizeof(blf_obj_magic))) {
-                ws_debug("object magic is not LOBJ");
+                ws_debug("object magic is not LOBJ (pos: 0x%" PRIx64 ")", current_start_pos);
             } else {
                 break;
             }
@@ -773,34 +809,49 @@ blf_scan_file_for_logcontainers(blf_params_t *params) {
         }
     }
 
-    params->blf_data->current_real_seek_pos = 0;
-
     return TRUE;
 }
 
 static void
-blf_init_rec(blf_params_t *params, blf_logobjectheader_t *header, int pkt_encap, guint32 channel, guint caplen, guint len) {
+blf_init_rec(blf_params_t *params, guint64 object_timestamp, int pkt_encap, guint32 channel, guint caplen, guint len) {
     params->rec->rec_type = REC_TYPE_PACKET;
     params->rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
     params->rec->presence_flags = WTAP_HAS_TS | WTAP_HAS_CAP_LEN | WTAP_HAS_INTERFACE_ID;
     params->rec->tsprec = WTAP_TSPREC_NSEC;       /* there is no 10us, maybe we should update this */
-    guint64 object_timestamp = blf_timestamp_to_ns(header) + params->blf_data->start_offset_ns;
     params->rec->ts.secs = object_timestamp / (1000 * 1000 * 1000);
     params->rec->ts.nsecs = object_timestamp % (1000 * 1000 * 1000);
     params->rec->rec_header.packet_header.caplen = caplen;
     params->rec->rec_header.packet_header.len = len;
 
     params->rec->rec_header.packet_header.pkt_encap = pkt_encap;
-    params->rec->rec_header.packet_header.interface_id = blf_lookup_interface(params, pkt_encap, channel);
+    params->rec->rec_header.packet_header.interface_id = blf_lookup_interface(params, pkt_encap, channel, NULL);
 
     /* TODO: before we had to remove comments and verdict here to not leak memory but APIs have changed ... */
+}
+
+static void
+blf_add_direction_option(blf_params_t *params, guint16 direction) {
+    guint32 tmp = 0; /* dont care */
+
+    switch (direction) {
+    case BLF_DIR_RX:
+        tmp = 1; /* inbound */
+        break;
+    case BLF_DIR_TX:
+    case BLF_DIR_TX_RQ:
+        tmp = 2; /* outbound */
+        break;
+    }
+
+    /* pcapng.c: #define OPT_EPB_FLAGS 0x0002 */
+    wtap_block_add_uint32_option(params->rec->block, 0x0002, tmp);
 }
 
 static gboolean
 blf_read_log_object_header(blf_params_t *params, int *err, gchar **err_info, gint64 header2_start, gint64 data_start, blf_logobjectheader_t *logheader) {
     if (data_start - header2_start < (gint64)sizeof(blf_logobjectheader_t)) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: not enough bytes for log object header");
+        *err_info = ws_strdup_printf("blf: not enough bytes for log object header");
         ws_debug("not enough bytes for timestamp header");
         return FALSE;
     }
@@ -814,19 +865,48 @@ blf_read_log_object_header(blf_params_t *params, int *err, gchar **err_info, gin
 }
 
 static gboolean
-blf_read_ethernetframe(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 header2_start, gint64 data_start, gint64 object_length) {
-    blf_logobjectheader_t logheader;
+blf_read_log_object_header2(blf_params_t *params, int *err, gchar **err_info, gint64 header2_start, gint64 data_start, blf_logobjectheader2_t *logheader) {
+    if (data_start - header2_start < (gint64)sizeof(blf_logobjectheader2_t)) {
+        *err = WTAP_ERR_BAD_FILE;
+        *err_info = ws_strdup_printf("blf: not enough bytes for log object header");
+        ws_debug("not enough bytes for timestamp header");
+        return FALSE;
+    }
+
+    if (!blf_read_bytes_or_eof(params, header2_start, logheader, sizeof(*logheader), err, err_info)) {
+        ws_debug("not enough bytes for logheader");
+        return FALSE;
+    }
+    fix_endianness_blf_logobjectheader2(logheader);
+    return TRUE;
+}
+
+static gboolean
+blf_read_log_object_header3(blf_params_t *params, int *err, gchar **err_info, gint64 header2_start, gint64 data_start, blf_logobjectheader3_t *logheader) {
+    if (data_start - header2_start < (gint64)sizeof(blf_logobjectheader3_t)) {
+        *err = WTAP_ERR_BAD_FILE;
+        *err_info = ws_strdup_printf("blf: not enough bytes for log object header");
+        ws_debug("not enough bytes for timestamp header");
+        return FALSE;
+    }
+
+    if (!blf_read_bytes_or_eof(params, header2_start, logheader, sizeof(*logheader), err, err_info)) {
+        ws_debug("not enough bytes for logheader");
+        return FALSE;
+    }
+    fix_endianness_blf_logobjectheader3(logheader);
+    return TRUE;
+}
+
+static gboolean
+blf_read_ethernetframe(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 data_start, gint64 object_length, guint64 timestamp) {
     blf_ethernetframeheader_t ethheader;
     guint8 tmpbuf[18];
     guint caplen, len;
 
-    if (!blf_read_log_object_header(params, err, err_info, header2_start, data_start, &logheader)) {
-        return FALSE;
-    }
-
     if (object_length < (data_start - block_start) + (int) sizeof(blf_ethernetframeheader_t)) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: ETHERNET_FRAME: not enough bytes for ethernet frame header in object");
+        *err_info = ws_strdup_printf("blf: ETHERNET_FRAME: not enough bytes for ethernet frame header in object");
         ws_debug("not enough bytes for ethernet frame header in object");
         return FALSE;
     }
@@ -883,23 +963,19 @@ blf_read_ethernetframe(blf_params_t *params, int *err, gchar **err_info, gint64 
     }
     params->buf->first_free += ethheader.payloadlength;
 
-    blf_init_rec(params, &logheader, WTAP_ENCAP_ETHERNET, ethheader.channel, caplen, len);
+    blf_init_rec(params, timestamp, WTAP_ENCAP_ETHERNET, ethheader.channel, caplen, len);
+    blf_add_direction_option(params, ethheader.direction);
 
     return TRUE;
 }
 
 static gboolean
-blf_read_ethernetframe_ext(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 header2_start, gint64 data_start, gint64 object_length) {
-    blf_logobjectheader_t logheader;
+blf_read_ethernetframe_ext(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 data_start, gint64 object_length, guint64 timestamp) {
     blf_ethernetframeheader_ex_t ethheader;
-
-    if (!blf_read_log_object_header(params, err, err_info, header2_start, data_start, &logheader)) {
-        return FALSE;
-    }
 
     if (object_length < (data_start - block_start) + (int) sizeof(blf_ethernetframeheader_ex_t)) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: ETHERNET_FRAME_EX: not enough bytes for ethernet frame header in object");
+        *err_info = ws_strdup_printf("blf: ETHERNET_FRAME_EX: not enough bytes for ethernet frame header in object");
         ws_debug("not enough bytes for ethernet frame header in object");
         return FALSE;
     }
@@ -914,7 +990,7 @@ blf_read_ethernetframe_ext(blf_params_t *params, int *err, gchar **err_info, gin
 
     if (object_length - (data_start - block_start) - sizeof(blf_ethernetframeheader_ex_t) < ethheader.frame_length) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: ETHERNET_FRAME_EX: frame too short");
+        *err_info = ws_strdup_printf("blf: ETHERNET_FRAME_EX: frame too short");
         ws_debug("frame too short");
         return FALSE;
     }
@@ -924,23 +1000,23 @@ blf_read_ethernetframe_ext(blf_params_t *params, int *err, gchar **err_info, gin
         return FALSE;
     }
 
-    blf_init_rec(params, &logheader, WTAP_ENCAP_ETHERNET, ethheader.channel, ethheader.frame_length, ethheader.frame_length);
+    blf_init_rec(params, timestamp, WTAP_ENCAP_ETHERNET, ethheader.channel, ethheader.frame_length, ethheader.frame_length);
     wtap_block_add_uint32_option(params->rec->block, OPT_PKT_QUEUE, ethheader.hw_channel);
+    blf_add_direction_option(params, ethheader.direction);
+
     return TRUE;
 }
 
+/*
+ * XXX - provide radio information to our caller in the pseudo-header.
+ */
 static gboolean
-blf_read_wlanframe(blf_params_t* params, int* err, gchar** err_info, gint64 block_start, gint64 header2_start, gint64 data_start, gint64 object_length) {
-    blf_logobjectheader_t logheader;
+blf_read_wlanframe(blf_params_t* params, int* err, gchar** err_info, gint64 block_start, gint64 data_start, gint64 object_length, guint64 timestamp) {
     blf_wlanframeheader_t wlanheader;
-
-    if (!blf_read_log_object_header(params, err, err_info, header2_start, data_start, &logheader)) {
-        return FALSE;
-    }
 
     if (object_length < (data_start - block_start) + (int)sizeof(blf_wlanframeheader_t)) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: WLAN_FRAME: not enough bytes for wlan frame header in object");
+        *err_info = ws_strdup_printf("blf: WLAN_FRAME: not enough bytes for wlan frame header in object");
         ws_debug("not enough bytes for wlan frame header in object");
         return FALSE;
     }
@@ -955,7 +1031,7 @@ blf_read_wlanframe(blf_params_t* params, int* err, gchar** err_info, gint64 bloc
 
     if (object_length - (data_start - block_start) - sizeof(blf_wlanframeheader_t) < wlanheader.frame_length) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: WLAN_FRAME: frame too short");
+        *err_info = ws_strdup_printf("blf: WLAN_FRAME: frame too short");
         ws_debug("frame too short");
         return FALSE;
     }
@@ -965,7 +1041,9 @@ blf_read_wlanframe(blf_params_t* params, int* err, gchar** err_info, gint64 bloc
         return FALSE;
     }
 
-    blf_init_rec(params, &logheader, WTAP_ENCAP_IEEE_802_11, wlanheader.channel, wlanheader.frame_length, wlanheader.frame_length);
+    blf_init_rec(params, timestamp, WTAP_ENCAP_IEEE_802_11, wlanheader.channel, wlanheader.frame_length, wlanheader.frame_length);
+    blf_add_direction_option(params, wlanheader.direction);
+
     return TRUE;
 }
 
@@ -974,7 +1052,7 @@ static guint8 canfd_dlc_to_length[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 2
 
 static gboolean
 blf_can_fill_buf_and_rec(blf_params_t *params, int *err, gchar **err_info, guint32 canid, guint8 payload_length, guint8 payload_length_valid, guint64 start_position,
-                         blf_logobjectheader_t *header, guint32 channel) {
+                         guint64 timestamp, guint32 channel) {
     guint8   tmpbuf[8];
     guint    caplen, len;
 
@@ -998,14 +1076,13 @@ blf_can_fill_buf_and_rec(blf_params_t *params, int *err, gchar **err_info, guint
     }
     params->buf->first_free += payload_length_valid;
 
-    blf_init_rec(params, header, WTAP_ENCAP_SOCKETCAN, channel, caplen, len);
+    blf_init_rec(params, timestamp, WTAP_ENCAP_SOCKETCAN, channel, caplen, len);
 
     return TRUE;
 }
 
 static gboolean
-blf_read_canmessage(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 header2_start, gint64 data_start, gint64 object_length, gboolean can_message2) {
-    blf_logobjectheader_t logheader;
+blf_read_canmessage(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 data_start, gint64 object_length, guint64 timestamp, gboolean can_message2) {
     blf_canmessage_t canheader;
     blf_canmessage2_trailer_t can2trailer;
 
@@ -1013,13 +1090,9 @@ blf_read_canmessage(blf_params_t *params, int *err, gchar **err_info, gint64 blo
     guint8   payload_length;
     guint8   payload_length_valid;
 
-    if (!blf_read_log_object_header(params, err, err_info, header2_start, data_start, &logheader)) {
-        return FALSE;
-    }
-
     if (object_length < (data_start - block_start) + (int) sizeof(canheader)) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: %s: not enough bytes for canfd header in object",
+        *err_info = ws_strdup_printf("blf: %s: not enough bytes for canfd header in object",
                                     can_message2 ? "CAN_MESSAGE2" : "CAN_MESSAGE");
         ws_debug("not enough bytes for canfd header in object");
         return FALSE;
@@ -1055,7 +1128,7 @@ blf_read_canmessage(blf_params_t *params, int *err, gchar **err_info, gint64 blo
         payload_length_valid = 0;
     }
 
-    if (!blf_can_fill_buf_and_rec(params, err, err_info, canid, payload_length, payload_length_valid, data_start + sizeof(canheader), &logheader, canheader.channel)) {
+    if (!blf_can_fill_buf_and_rec(params, err, err_info, canid, payload_length, payload_length_valid, data_start + sizeof(canheader), timestamp, canheader.channel)) {
         return FALSE;
     }
 
@@ -1063,7 +1136,7 @@ blf_read_canmessage(blf_params_t *params, int *err, gchar **err_info, gint64 blo
     if (can_message2) {
         if (object_length < (data_start - block_start) + (int) sizeof(canheader) + payload_length_valid + (int) sizeof(can2trailer)) {
             *err = WTAP_ERR_BAD_FILE;
-            *err_info = g_strdup_printf("blf: CAN_MESSAGE2: not enough bytes for can message 2 trailer");
+            *err_info = ws_strdup_printf("blf: CAN_MESSAGE2: not enough bytes for can message 2 trailer");
             ws_debug("not enough bytes for can message 2 trailer");
             return FALSE;
         }
@@ -1074,12 +1147,13 @@ blf_read_canmessage(blf_params_t *params, int *err, gchar **err_info, gint64 blo
         fix_endianness_blf_canmessage2_trailer(&can2trailer);
     }
 
+    blf_add_direction_option(params, (canheader.flags & BLF_CANMESSAGE_FLAG_TX) == BLF_CANMESSAGE_FLAG_TX ? BLF_DIR_TX: BLF_DIR_RX);
+
     return TRUE;
 }
 
 static gboolean
-blf_read_canfdmessage(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 header2_start, gint64 data_start, gint64 object_length) {
-    blf_logobjectheader_t logheader;
+blf_read_canfdmessage(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 data_start, gint64 object_length, guint64 timestamp) {
     blf_canfdmessage_t canheader;
 
     gboolean canfd;
@@ -1087,13 +1161,9 @@ blf_read_canfdmessage(blf_params_t *params, int *err, gchar **err_info, gint64 b
     guint8   payload_length;
     guint8   payload_length_valid;
 
-    if (!blf_read_log_object_header(params, err, err_info, header2_start, data_start, &logheader)) {
-        return FALSE;
-    }
-
     if (object_length < (data_start - block_start) + (int) sizeof(canheader)) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: CAN_FD_MESSAGE: not enough bytes for canfd header in object");
+        *err_info = ws_strdup_printf("blf: CAN_FD_MESSAGE: not enough bytes for canfd header in object");
         ws_debug("not enough bytes for canfd header in object");
         return FALSE;
     }
@@ -1137,16 +1207,17 @@ blf_read_canfdmessage(blf_params_t *params, int *err, gchar **err_info, gint64 b
         payload_length_valid = 0;
     }
 
-    if (!blf_can_fill_buf_and_rec(params, err, err_info, canid, payload_length, payload_length_valid, data_start + sizeof(canheader), &logheader, canheader.channel)) {
+    if (!blf_can_fill_buf_and_rec(params, err, err_info, canid, payload_length, payload_length_valid, data_start + sizeof(canheader), timestamp, canheader.channel)) {
         return FALSE;
     }
+
+    blf_add_direction_option(params, (canheader.flags & BLF_CANMESSAGE_FLAG_TX) == BLF_CANMESSAGE_FLAG_TX ? BLF_DIR_TX : BLF_DIR_RX);
 
     return TRUE;
 }
 
 static gboolean
-blf_read_canfdmessage64(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 header2_start, gint64 data_start, gint64 object_length) {
-    blf_logobjectheader_t logheader;
+blf_read_canfdmessage64(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 data_start, gint64 object_length, guint64 timestamp) {
     blf_canfdmessage64_t canheader;
 
     gboolean canfd;
@@ -1154,13 +1225,9 @@ blf_read_canfdmessage64(blf_params_t *params, int *err, gchar **err_info, gint64
     guint8   payload_length;
     guint8   payload_length_valid;
 
-    if (!blf_read_log_object_header(params, err, err_info, header2_start, data_start, &logheader)) {
-        return FALSE;
-    }
-
     if (object_length < (data_start - block_start) + (int) sizeof(canheader)) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: CAN_FD_MESSAGE_64: not enough bytes for canfd header in object");
+        *err_info = ws_strdup_printf("blf: CAN_FD_MESSAGE_64: not enough bytes for canfd header in object");
         ws_debug("not enough bytes for canfd header in object");
         return FALSE;
     }
@@ -1212,16 +1279,17 @@ blf_read_canfdmessage64(blf_params_t *params, int *err, gchar **err_info, gint64
         }
     }
 
-    if (!blf_can_fill_buf_and_rec(params, err, err_info, canid, payload_length, payload_length_valid, data_start + sizeof(canheader), &logheader, canheader.channel)) {
+    if (!blf_can_fill_buf_and_rec(params, err, err_info, canid, payload_length, payload_length_valid, data_start + sizeof(canheader), timestamp, canheader.channel)) {
         return FALSE;
     }
+
+    blf_add_direction_option(params, canheader.dir);
 
     return TRUE;
 }
 
 static gboolean
-blf_read_flexraydata(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 header2_start, gint64 data_start, gint64 object_length) {
-    blf_logobjectheader_t logheader;
+blf_read_flexraydata(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 data_start, gint64 object_length, guint64 timestamp) {
     blf_flexraydata_t frheader;
 
     guint8 payload_length;
@@ -1229,13 +1297,9 @@ blf_read_flexraydata(blf_params_t *params, int *err, gchar **err_info, gint64 bl
     guint8 tmpbuf[7];
     guint  caplen, len;
 
-    if (!blf_read_log_object_header(params, err, err_info, header2_start, data_start, &logheader)) {
-        return FALSE;
-    }
-
     if (object_length < (data_start - block_start) + (int) sizeof(frheader)) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: FLEXRAY_DATA: not enough bytes for flexrayheader in object");
+        *err_info = ws_strdup_printf("blf: FLEXRAY_DATA: not enough bytes for flexrayheader in object");
         ws_debug("not enough bytes for flexrayheader in object");
         return FALSE;
     }
@@ -1290,14 +1354,14 @@ blf_read_flexraydata(blf_params_t *params, int *err, gchar **err_info, gint64 bl
     }
     params->buf->first_free += payload_length_valid;
 
-    blf_init_rec(params, &logheader, WTAP_ENCAP_FLEXRAY, frheader.channel, caplen, len);
+    blf_init_rec(params, timestamp, WTAP_ENCAP_FLEXRAY, frheader.channel, caplen, len);
+    blf_add_direction_option(params, frheader.dir);
 
     return TRUE;
 }
 
 static gboolean
-blf_read_flexraymessage(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 header2_start, gint64 data_start, gint64 object_length) {
-    blf_logobjectheader_t logheader;
+blf_read_flexraymessage(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 data_start, gint64 object_length, guint64 timestamp) {
     blf_flexraymessage_t frheader;
 
     guint8 payload_length;
@@ -1305,13 +1369,9 @@ blf_read_flexraymessage(blf_params_t *params, int *err, gchar **err_info, gint64
     guint8 tmpbuf[7];
     guint  caplen, len;
 
-    if (!blf_read_log_object_header(params, err, err_info, header2_start, data_start, &logheader)) {
-        return FALSE;
-    }
-
     if (object_length < (data_start - block_start) + (int) sizeof(frheader)) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: FLEXRAY_MESSAGE: not enough bytes for flexrayheader in object");
+        *err_info = ws_strdup_printf("blf: FLEXRAY_MESSAGE: not enough bytes for flexrayheader in object");
         ws_debug("not enough bytes for flexrayheader in object");
         return FALSE;
     }
@@ -1383,14 +1443,14 @@ blf_read_flexraymessage(blf_params_t *params, int *err, gchar **err_info, gint64
     }
     params->buf->first_free += payload_length_valid;
 
-    blf_init_rec(params, &logheader, WTAP_ENCAP_FLEXRAY, frheader.channel, caplen, len);
+    blf_init_rec(params, timestamp, WTAP_ENCAP_FLEXRAY, frheader.channel, caplen, len);
+    blf_add_direction_option(params, frheader.dir);
 
     return TRUE;
 }
 
 static gboolean
-blf_read_flexrayrcvmessageex(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 header2_start, gint64 data_start, gint64 object_length, gboolean ext) {
-    blf_logobjectheader_t logheader;
+blf_read_flexrayrcvmessageex(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 data_start, gint64 object_length, guint64 timestamp, gboolean ext) {
     blf_flexrayrcvmessage_t frheader;
 
     guint16 payload_length;
@@ -1399,17 +1459,13 @@ blf_read_flexrayrcvmessageex(blf_params_t *params, int *err, gchar **err_info, g
     gint    frheadersize = sizeof(frheader);
     guint   caplen, len;
 
-    if (!blf_read_log_object_header(params, err, err_info, header2_start, data_start, &logheader)) {
-        return FALSE;
-    }
-
     if (ext) {
         frheadersize += 40;
     }
 
     if ((gint64)object_length < (data_start - block_start) + frheadersize) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: %s: not enough bytes for flexrayheader in object",
+        *err_info = ws_strdup_printf("blf: %s: not enough bytes for flexrayheader in object",
                                     ext ? "FLEXRAY_RCVMESSAGE_EX" : "FLEXRAY_RCVMESSAGE");
         ws_debug("not enough bytes for flexrayheader in object");
         return FALSE;
@@ -1484,14 +1540,14 @@ blf_read_flexrayrcvmessageex(blf_params_t *params, int *err, gchar **err_info, g
     }
     params->buf->first_free += payload_length_valid;
 
-    blf_init_rec(params, &logheader, WTAP_ENCAP_FLEXRAY, frheader.channelMask, caplen, len);
+    blf_init_rec(params, timestamp, WTAP_ENCAP_FLEXRAY, frheader.channelMask, caplen, len);
+    blf_add_direction_option(params, frheader.dir);
 
     return TRUE;
 }
 
 static gboolean
-blf_read_linmessage(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 header2_start, gint64 data_start, gint64 object_length) {
-    blf_logobjectheader_t    logheader;
+blf_read_linmessage(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 data_start, gint64 object_length, guint64 timestamp) {
     blf_linmessage_t         linheader;
     blf_linmessage_trailer_t lintrailer;
 
@@ -1499,13 +1555,9 @@ blf_read_linmessage(blf_params_t *params, int *err, gchar **err_info, gint64 blo
     guint8  payload_length_valid;
     guint   caplen, len;
 
-    if (!blf_read_log_object_header(params, err, err_info, header2_start, data_start, &logheader)) {
-        return FALSE;
-    }
-
     if (object_length < (data_start - block_start) + (int)sizeof(linheader)) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: LIN_MESSAGE: not enough bytes for linmessage header in object");
+        *err_info = ws_strdup_printf("blf: LIN_MESSAGE: not enough bytes for linmessage header in object");
         ws_debug("not enough bytes for linmessage header in object");
         return FALSE;
     }
@@ -1551,7 +1603,7 @@ blf_read_linmessage(blf_params_t *params, int *err, gchar **err_info, gint64 blo
 
     if (object_length < (data_start - block_start) + (int)sizeof(linheader) + payload_length_valid + (int)sizeof(lintrailer)) {
         *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup_printf("blf: LIN_MESSAGE: not enough bytes for linmessage trailer");
+        *err_info = ws_strdup_printf("blf: LIN_MESSAGE: not enough bytes for linmessage trailer");
         ws_debug("not enough bytes for linmessage trailer");
         return FALSE;
     }
@@ -1562,14 +1614,95 @@ blf_read_linmessage(blf_params_t *params, int *err, gchar **err_info, gint64 blo
     fix_endianness_blf_linmessage_trailer(&lintrailer);
     /* we are not using it right now since the CRC is too big to convert */
 
-    blf_init_rec(params, &logheader, WTAP_ENCAP_LIN, linheader.channel, caplen, len);
+    blf_init_rec(params, timestamp, WTAP_ENCAP_LIN, linheader.channel, caplen, len);
+    blf_add_direction_option(params, lintrailer.dir);
 
     return TRUE;
 }
 
 static gboolean
+blf_read_apptextmessage(blf_params_t *params, int *err, gchar **err_info, gint64 block_start, gint64 data_start, gint64 object_length, guint64 timestamp _U_) {
+    blf_apptext_t            apptextheader;
+
+    if (object_length < (data_start - block_start) + (int)sizeof(apptextheader)) {
+        *err = WTAP_ERR_BAD_FILE;
+        *err_info = ws_strdup_printf("blf: APP_TEXT: not enough bytes for apptext header in object");
+        ws_debug("not enough bytes for apptext header in object");
+        return FALSE;
+    }
+
+    if (!blf_read_bytes(params, data_start, &apptextheader, sizeof(apptextheader), err, err_info)) {
+        ws_debug("not enough bytes for apptext header in file");
+        return FALSE;
+    }
+    fix_endianness_blf_apptext_header(&apptextheader);
+
+    if (apptextheader.source != BLF_APPTEXT_CHANNEL) {
+        return TRUE;
+    }
+
+    gchar *text = g_try_malloc0((gsize)apptextheader.textLength);
+
+    if (!blf_read_bytes(params, data_start + sizeof(apptextheader), text, apptextheader.textLength, err, err_info)) {
+        ws_debug("not enough bytes for apptext text in file");
+        g_free(text);
+        return FALSE;
+    }
+
+    /* returns a NULL terminated array of NULL terminates strings */
+    gchar **tokens = g_strsplit_set(text, ";", -1);
+
+    if ( tokens == NULL || tokens[0] == NULL || tokens[1] == NULL) {
+        if (tokens != NULL) {
+            g_strfreev(tokens);
+        }
+        g_free(text);
+        return TRUE;
+    }
+
+    guint32 channel = (apptextheader.reservedAppText1 >> 8) & 0xff;
+
+    int pkt_encap;
+    switch ((apptextheader.reservedAppText1 >> 16) & 0xff) {
+    case BLF_BUSTYPE_CAN:
+        pkt_encap = WTAP_ENCAP_SOCKETCAN;
+        break;
+
+    case BLF_BUSTYPE_FLEXRAY:
+        pkt_encap = WTAP_ENCAP_FLEXRAY;
+        break;
+
+    case BLF_BUSTYPE_LIN:
+        pkt_encap = WTAP_ENCAP_LIN;
+        break;
+
+    case BLF_BUSTYPE_ETHERNET:
+        pkt_encap = WTAP_ENCAP_ETHERNET;
+        break;
+
+    case BLF_BUSTYPE_WLAN:
+        pkt_encap = WTAP_ENCAP_IEEE_802_11;
+        break;
+
+    default:
+        pkt_encap = 0xffffffff;
+    }
+
+    /* we use lookup to create interface, if not existing yet */
+    blf_lookup_interface(params, pkt_encap, channel, tokens[1]);
+
+    g_strfreev(tokens);
+    g_free(text);
+    return TRUE;
+}
+
+static gboolean
 blf_read_block(blf_params_t *params, gint64 start_pos, int *err, gchar **err_info) {
-    blf_blockheader_t header;
+    blf_blockheader_t        header;
+    blf_logobjectheader_t    logheader;
+    blf_logobjectheader2_t   logheader2;
+    blf_logobjectheader3_t   logheader3;
+    guint64                  timestamp;
 
     while (1) {
         /* Find Object */
@@ -1591,7 +1724,7 @@ blf_read_block(blf_params_t *params, gint64 start_pos, int *err, gchar **err_inf
             fix_endianness_blf_blockheader(&header);
 
             if (memcmp(header.magic, blf_obj_magic, sizeof(blf_obj_magic))) {
-                ws_debug("object magic is not LOBJ");
+                ws_debug("object magic is not LOBJ (pos: 0x%" PRIx64 ")", start_pos);
             } else {
                 break;
             }
@@ -1602,10 +1735,31 @@ blf_read_block(blf_params_t *params, gint64 start_pos, int *err, gchar **err_inf
         }
         params->blf_data->start_of_last_obj = start_pos;
 
-        if (header.header_type != BLF_HEADER_TYPE_DEFAULT) {
+        switch (header.header_type) {
+        case BLF_HEADER_TYPE_DEFAULT:
+            if (!blf_read_log_object_header(params, err, err_info, start_pos + sizeof(blf_blockheader_t), start_pos + header.header_length, &logheader)) {
+                return FALSE;
+            }
+            timestamp = blf_timestamp_to_ns(logheader.flags, logheader.object_timestamp) + params->blf_data->start_offset_ns;
+            break;
+
+        case BLF_HEADER_TYPE_2:
+            if (!blf_read_log_object_header2(params, err, err_info, start_pos + sizeof(blf_blockheader_t), start_pos + header.header_length, &logheader2)) {
+                return FALSE;
+            }
+            timestamp = blf_timestamp_to_ns(logheader2.flags, logheader2.object_timestamp) + params->blf_data->start_offset_ns;
+            break;
+
+        case BLF_HEADER_TYPE_3:
+            if (!blf_read_log_object_header3(params, err, err_info, start_pos + sizeof(blf_blockheader_t), start_pos + header.header_length, &logheader3)) {
+                return FALSE;
+            }
+            timestamp = blf_timestamp_to_ns(logheader3.flags, logheader3.object_timestamp) + params->blf_data->start_offset_ns;
+            break;
+
+        default:
             *err = WTAP_ERR_UNSUPPORTED;
-            *err_info = g_strdup_printf("blf: unknown header type %u",
-                                        header.header_type);
+            *err_info = ws_strdup_printf("blf: unknown header type %u", header.header_type);
             ws_debug("unknown header type");
             return FALSE;
         }
@@ -1616,73 +1770,71 @@ blf_read_block(blf_params_t *params, gint64 start_pos, int *err, gchar **err_inf
         switch (header.object_type) {
         case BLF_OBJTYPE_LOG_CONTAINER:
             *err = WTAP_ERR_UNSUPPORTED;
-            *err_info = g_strdup_printf("blf: log container in log container not supported");
+            *err_info = ws_strdup_printf("blf: log container in log container not supported");
             ws_debug("log container in log container not supported");
             return FALSE;
             break;
 
         case BLF_OBJTYPE_ETHERNET_FRAME:
-            return blf_read_ethernetframe(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                                          start_pos + header.header_length, header.object_length);
+            return blf_read_ethernetframe(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp);
             break;
 
         case BLF_OBJTYPE_ETHERNET_FRAME_EX:
-            return blf_read_ethernetframe_ext(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                                              start_pos + header.header_length, header.object_length);
+            return blf_read_ethernetframe_ext(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp);
             break;
 
         case BLF_OBJTYPE_WLAN_FRAME:
-            return blf_read_wlanframe(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                start_pos + header.header_length, header.object_length);
+            return blf_read_wlanframe(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp);
             break;
 
         case BLF_OBJTYPE_CAN_MESSAGE:
-            return blf_read_canmessage(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                                       start_pos + header.header_length, header.object_length, FALSE);
+            return blf_read_canmessage(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp, FALSE);
             break;
 
         case BLF_OBJTYPE_CAN_MESSAGE2:
-            return blf_read_canmessage(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                                       start_pos + header.header_length, header.object_length, TRUE);
+            return blf_read_canmessage(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp, TRUE);
             break;
 
         case BLF_OBJTYPE_CAN_FD_MESSAGE:
-            return blf_read_canfdmessage(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                                         start_pos + header.header_length, header.object_length);
+            return blf_read_canfdmessage(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp);
             break;
 
         case BLF_OBJTYPE_CAN_FD_MESSAGE_64:
-            return blf_read_canfdmessage64(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                                           start_pos + header.header_length, header.object_length);
+            return blf_read_canfdmessage64(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp);
             break;
 
         case BLF_OBJTYPE_FLEXRAY_DATA:
-            return blf_read_flexraydata(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                                           start_pos + header.header_length, header.object_length);
+            return blf_read_flexraydata(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp);
             break;
 
         case BLF_OBJTYPE_FLEXRAY_MESSAGE:
-            return blf_read_flexraymessage(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                                           start_pos + header.header_length, header.object_length);
+            return blf_read_flexraymessage(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp);
             break;
 
         case BLF_OBJTYPE_FLEXRAY_RCVMESSAGE:
-            return blf_read_flexrayrcvmessageex(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                                                start_pos + header.header_length, header.object_length, FALSE);
+            return blf_read_flexrayrcvmessageex(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp, FALSE);
             break;
 
         case BLF_OBJTYPE_FLEXRAY_RCVMESSAGE_EX:
-            return blf_read_flexrayrcvmessageex(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                                                start_pos + header.header_length, header.object_length, TRUE);
+            return blf_read_flexrayrcvmessageex(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp, TRUE);
             break;
 
         case BLF_OBJTYPE_LIN_MESSAGE:
-            return blf_read_linmessage(params, err, err_info, start_pos, start_pos + sizeof(blf_blockheader_t),
-                                       start_pos + header.header_length, header.object_length);
+            return blf_read_linmessage(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp);
+            break;
+
+        case BLF_OBJTYPE_APP_TEXT:
+            if (!blf_read_apptextmessage(params, err, err_info, start_pos, start_pos + header.header_length, header.object_length, timestamp)) {
+                /* we only return errors */
+                return FALSE;
+            }
+
+            /* we do not return since there is no packet to show here */
+            start_pos += MAX(MAX(16, header.object_length), header.header_length);
             break;
 
         default:
-            ws_debug("unknown object type");
+            ws_debug("unknown object type 0x%04x", header.object_type);
             start_pos += MAX(MAX(16, header.object_length), header.header_length);
         }
     }
@@ -1699,7 +1851,7 @@ static gboolean blf_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, gchar 
     blf_tmp.blf_data = (blf_t *)wth->priv;
 
     if (!blf_read_block(&blf_tmp, blf_tmp.blf_data->current_real_seek_pos, err, err_info)) {
-        ws_debug("data_offset is %" G_GINT64_MODIFIER "d", *data_offset);
+        ws_debug("data_offset is %" PRId64, *data_offset);
         return FALSE;
     }
     *data_offset = blf_tmp.blf_data->start_of_last_obj;
@@ -1839,7 +1991,7 @@ static const struct supported_block_type blf_blocks_supported[] = {
 };
 
 static const struct file_type_subtype_info blf_info = {
-        "BLF Logfile", "blf", "blf", NULL,
+        "Vector Informatik Binary Logging Format (BLF) logfile", "blf", "blf", NULL,
         FALSE, BLOCKS_SUPPORTED(blf_blocks_supported),
         NULL, NULL, NULL
 };

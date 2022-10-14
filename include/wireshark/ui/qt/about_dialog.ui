@@ -42,7 +42,7 @@
           <string/>
          </property>
          <property name="pixmap">
-          <pixmap resource="../../image/about.qrc">:/about/wssplash.png</pixmap>
+          <pixmap resource="../../resources/about.qrc">:/about/wssplash.png</pixmap>
          </property>
          <property name="scaledContents">
           <bool>false</bool>
@@ -95,7 +95,7 @@
             <string>Copy the version information to the clipboard</string>
            </property>
            <property name="text">
-            <string>Copy To Clipboard</string>
+            <string>Copy to Clipboard</string>
            </property>
           </widget>
          </item>
@@ -112,7 +112,7 @@
            </property>
           </spacer>
          </item>
-      </layout>
+        </layout>
        </item>
       </layout>
      </widget>
@@ -261,15 +261,7 @@
       <attribute name="title">
        <string>Acknowledgments</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_8">
-       <item>
-        <widget class="QPlainTextEdit" name="pte_Authors">
-         <property name="readOnly">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-      </layout>
+      <layout class="QVBoxLayout" name="ackVerticalLayout"/>
      </widget>
      <widget class="QWidget" name="tab_license">
       <attribute name="title">
@@ -277,8 +269,11 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_5">
        <item>
-        <widget class="QPlainTextEdit" name="pte_License">
+        <widget class="QTextBrowser" name="textBrowserLicense">
          <property name="readOnly">
+          <bool>true</bool>
+         </property>
+         <property name="openExternalLinks">
           <bool>true</bool>
          </property>
         </widget>
@@ -300,7 +295,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../../image/about.qrc"/>
+  <include location="../../resources/about.qrc"/>
  </resources>
  <connections>
   <connection>

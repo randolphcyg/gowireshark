@@ -53,7 +53,6 @@
  */
 
 #include "config.h"
-#include <glib.h>
 
 #include <epan/packet.h>
 #include <epan/expert.h>
@@ -61,11 +60,9 @@
 #include <epan/addr_resolv.h>
 #include <epan/wmem_scopes.h>
 #include <epan/conversation.h>
-#include <epan/column.h>
 #include <epan/dissectors/packet-tcp.h>
 #include <epan/dissectors/packet-rtps.h>
 
-#include <stdio.h>
 
 #define PARAM_ID_ADVANCED_FRAME0               0x000C1
 #define PARAM_ID_ADVANCED_FRAME1               0x000C2

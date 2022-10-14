@@ -15,7 +15,7 @@
 #include "tvbuff.h"
 #include "address.h"
 
-struct endpoint;
+struct conversation_element;
 
 /** @file
  * Dissected packet data and metadata.
@@ -70,8 +70,9 @@ typedef struct _packet_info {
   guint32 destport;                 /**< destination port */
   guint32 match_uint;               /**< matched uint for calling subdissector from table */
   const char *match_string;         /**< matched string for calling subdissector from table */
-  gboolean use_endpoint;            /**< TRUE if endpoint member should be used for conversations */
-  struct endpoint* conv_endpoint;   /**< Data that can be used for conversations */
+  gboolean use_conv_addr_port_endpoints; /**< TRUE if address/port endpoints member should be used for conversations */
+  struct conversation_addr_port_endpoints* conv_addr_port_endpoints; /**< Data that can be used for address+port conversations, including wildcarding */
+  struct conversation_element *conv_elements; /**< Arbritrary conversation identifier; can't be wildcarded */
   guint16 can_desegment;            /**< >0 if this segment could be desegmented.
                                          A dissector that can offer this API (e.g.
                                          TCP) sets can_desegment=2, then
@@ -132,8 +133,10 @@ typedef struct _packet_info {
 
   GHashTable *private_table;    /**< a hash table passed from one dissector to another */
 
-  wmem_list_t *layers;      /**< layers of each protocol */
-  guint8 curr_layer_num;       /**< The current "depth" or layer number in the current frame */
+  wmem_list_t *layers;          /**< layers of each protocol */
+  wmem_map_t *proto_layers;     /** map of proto_id to curr_proto_layer_num. */
+  guint8 curr_layer_num;        /**< The current "depth" or layer number in the current frame */
+  guint8 curr_proto_layer_num;  /**< The current "depth" or layer number for this dissector in the current frame */
   guint16 link_number;
 
   guint16 clnp_srcref;          /**< clnp/cotp source reference (can't use srcport, this would confuse tpkt) */

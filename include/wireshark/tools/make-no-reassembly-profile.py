@@ -13,6 +13,8 @@ import re
 import subprocess
 import sys
 
+MIN_PLUGINS = 10
+
 def main():
     parser = argparse.ArgumentParser(description='No reassembly profile generator')
     parser.add_argument('-p', '--program-path', default=os.path.curdir, help='Path to TShark.')
@@ -20,12 +22,20 @@ def main():
     args = parser.parse_args()
 
     this_dir = os.path.dirname(__file__)
-    profile_path = os.path.join(this_dir, '..', 'profiles', 'No Reassembly', 'preferences')
+    profile_path = os.path.join(this_dir, '..', 'resources', 'share', 'wireshark', 'profiles', 'No Reassembly', 'preferences')
 
     tshark_path = os.path.join(args.program_path, 'tshark')
     if not os.path.isfile(tshark_path):
         print('tshark not found at {}\n'.format(tshark_path))
         parser.print_usage()
+        sys.exit(1)
+
+    # Make sure plugin prefs are present.
+    cp = subprocess.run([tshark_path, '-G', 'plugins'], stdout=subprocess.PIPE, check=True, encoding='utf-8')
+    plugin_lines = cp.stdout.splitlines()
+    dissector_count = len(tuple(filter(lambda p: re.search('\sdissector\s', p), plugin_lines)))
+    if dissector_count < MIN_PLUGINS:
+        print('Found {} plugins but require {}.'.format(dissector_count, MIN_PLUGINS))
         sys.exit(1)
 
     rd_pref_re = re.compile('^#\s*(.*(reassembl|desegment)\S*):\s*TRUE')

@@ -1,4 +1,4 @@
-/* packet_list_header.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -23,9 +23,7 @@ class PacketListHeader : public QHeaderView
     Q_OBJECT
 
 public:
-    PacketListHeader(Qt::Orientation orientation, capture_file * cap_file, QWidget *parent = nullptr);
-
-    void setCaptureFile(capture_file * cap_file);
+    PacketListHeader(Qt::Orientation orientation, QWidget *parent = nullptr);
 
 protected:
     virtual void dropEvent(QDropEvent *event) override;
@@ -58,12 +56,7 @@ signals:
     void columnsChanged();
 
 private:
-
-    capture_file * cap_file_;
     int sectionIdx;
-    int lastSize;
-
-    void setSectionVisibility();
 };
 
 #endif

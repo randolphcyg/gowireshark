@@ -232,7 +232,7 @@ asphodel_fmt_version(gchar *result, guint32 version)
     guint8 major = version >> 8;
     guint8 minor = (version >> 4) & 0x0F;
     guint8 subminor = version & 0x0F;
-    g_snprintf(result, ITEM_LABEL_LENGTH, "%d.%d.%d", major, minor, subminor);
+    snprintf(result, ITEM_LABEL_LENGTH, "%d.%d.%d", major, minor, subminor);
 }
 
 static int
@@ -501,10 +501,10 @@ dissect_asphodel_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
         proto_tree_add_item(asphodel_tree, hf_asphodel_remote_stream_packet_length, tvb, offset + 4, 2, ENC_BIG_ENDIAN);
     }
 
-    conversation = find_conversation(pinfo->num, &pinfo->src, 0, ENDPOINT_UDP, pinfo->srcport, 0, NO_ADDR_B | NO_PORT_B);
+    conversation = find_conversation(pinfo->num, &pinfo->src, 0, CONVERSATION_UDP, pinfo->srcport, 0, NO_ADDR_B | NO_PORT_B);
     if (!conversation)
     {
-        conversation = conversation_new(pinfo->num, &pinfo->src, 0, ENDPOINT_TCP, pinfo->srcport, 0, NO_ADDR2 | NO_PORT2);
+        conversation = conversation_new(pinfo->num, &pinfo->src, 0, CONVERSATION_TCP, pinfo->srcport, 0, NO_ADDR2 | NO_PORT2);
         conversation_set_dissector(conversation, asphodel_tcp_handle);
     }
 
@@ -538,10 +538,10 @@ dissect_asphodel_inquiry(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
         }
     }
 
-    conversation = find_conversation(pinfo->num, &pinfo->src, 0, ENDPOINT_UDP, pinfo->srcport, 0, NO_ADDR_B | NO_PORT_B);
+    conversation = find_conversation(pinfo->num, &pinfo->src, 0, CONVERSATION_UDP, pinfo->srcport, 0, NO_ADDR_B | NO_PORT_B);
     if (!conversation)
     {
-        conversation = conversation_new(pinfo->num, &pinfo->src, 0, ENDPOINT_UDP, pinfo->srcport, 0, NO_ADDR2 | NO_PORT2);
+        conversation = conversation_new(pinfo->num, &pinfo->src, 0, CONVERSATION_UDP, pinfo->srcport, 0, NO_ADDR2 | NO_PORT2);
         conversation_set_dissector(conversation, asphodel_response_handle);
     }
 
@@ -772,7 +772,7 @@ proto_reg_handoff_asphodel(void)
     asphodel_response_handle = create_dissector_handle(dissect_asphodel_response, proto_asphodel);
     asphodel_tcp_handle = create_dissector_handle(dissect_asphodel_tcp, proto_asphodel);
 
-    heur_dissector_add("udp", dissect_asphodel_heur_udp, "Asphodel",
+    heur_dissector_add("udp", dissect_asphodel_heur_udp, "Asphodel over UDP",
                        "asphodel_inquiry", proto_asphodel, HEURISTIC_ENABLE);
     dissector_add_for_decode_as("udp.port", asphodel_response_handle);
     dissector_add_for_decode_as("tcp.port", asphodel_tcp_handle);

@@ -1,0 +1,41 @@
+{
+	"BUILD_DIR" : "/opt/wireshark/ui/qt/qtui_autogen",
+	"CMAKE_BINARY_DIR" : "/opt/wireshark",
+	"CMAKE_CURRENT_BINARY_DIR" : "/opt/wireshark/ui/qt",
+	"CMAKE_CURRENT_SOURCE_DIR" : "/opt/wireshark/ui/qt",
+	"CMAKE_SOURCE_DIR" : "/opt/wireshark",
+	"INCLUDE_DIR" : "/opt/wireshark/ui/qt/qtui_autogen/include",
+	"INPUTS" : 
+	[
+		"/opt/wireshark/resources/languages/ru.svg",
+		"/opt/wireshark/resources/languages/tr_TR.svg",
+		"/opt/wireshark/resources/languages/fr.svg",
+		"/opt/wireshark/resources/languages/es.svg",
+		"/opt/wireshark/resources/languages/ja_JP.svg",
+		"/opt/wireshark/resources/languages/en.svg",
+		"/opt/wireshark/resources/languages/sv.svg",
+		"/opt/wireshark/resources/languages/uk.svg",
+		"/opt/wireshark/resources/languages/pl.svg",
+		"/opt/wireshark/resources/languages/de.svg",
+		"/opt/wireshark/resources/languages/it.svg",
+		"/opt/wireshark/resources/languages/zh_CN.svg"
+	],
+	"LOCK_FILE" : "/opt/wireshark/ui/qt/CMakeFiles/qtui_autogen.dir/AutoRcc_languages_KXQ2JDG3UX_Lock.lock",
+	"MULTI_CONFIG" : false,
+	"OPTIONS" : 
+	[
+		"--format-version",
+		"1",
+		"-compress-algo",
+		"zlib",
+		"-name",
+		"languages"
+	],
+	"OUTPUT_CHECKSUM" : "KXQ2JDG3UX",
+	"OUTPUT_NAME" : "qrc_languages.cpp",
+	"RCC_EXECUTABLE" : "/usr/lib/qt5/bin/rcc",
+	"RCC_LIST_OPTIONS" : [ "--list" ],
+	"SETTINGS_FILE" : "/opt/wireshark/ui/qt/CMakeFiles/qtui_autogen.dir/AutoRcc_languages_KXQ2JDG3UX_Used.txt",
+	"SOURCE" : "/opt/wireshark/resources/languages/languages.qrc",
+	"VERBOSITY" : 0
+}

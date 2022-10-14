@@ -1,4 +1,4 @@
-/* about_dialog.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -33,13 +33,8 @@ public:
     explicit AuthorListModel(QObject * parent = Q_NULLPTR);
     virtual ~AuthorListModel();
 
-    QString acknowledgment() const;
-
 protected:
     virtual QStringList headerColumns() const;
-
-private:
-    QString acknowledgement_;
 
 };
 

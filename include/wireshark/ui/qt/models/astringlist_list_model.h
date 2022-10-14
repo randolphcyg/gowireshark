@@ -1,4 +1,4 @@
-/* astringlist_list_model.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -70,6 +70,7 @@ public:
     void setFilterType(AStringListListFilterType type, int column = -1);
 
     void setColumnToFilter(int);
+    void setColumnsToFilter(QList<int>);
     void clearColumnsToFilter();
 
     void clearHiddenColumns();

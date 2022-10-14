@@ -11,7 +11,7 @@
 #define __PACKET_HTTP_H__
 
 #include <epan/packet.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 WS_DLL_PUBLIC const value_string vals_http_status_code[];
 
@@ -21,6 +21,9 @@ WS_DLL_PUBLIC
 void http_tcp_dissector_delete(guint32 port);
 WS_DLL_PUBLIC
 void http_tcp_port_add(guint32 port);
+
+WS_DLL_PUBLIC
+void http_add_path_components_to_tree(tvbuff_t* tvb, packet_info* pinfo _U_, proto_item* item, int offset, int length);
 
 /* Used for HTTP statistics */
 typedef struct _http_info_value_t {
@@ -61,6 +64,10 @@ typedef struct _http_conv_t {
 	gchar   *request_uri;
 	gchar   *full_uri;
 
+        /* Used to speed up desegmenting of chunked Transfer-Encoding. */
+	wmem_map_t *chunk_offsets_fwd;
+	wmem_map_t *chunk_offsets_rev;
+
 	/* Fields related to proxied/tunneled/Upgraded connections. */
 	guint32	 startframe;	/* First frame of proxied connection */
 	int    	 startoffset;	/* Offset within the frame where the new protocol begins. */
@@ -88,7 +95,9 @@ typedef struct _http_message_info_t {
 	http_type_t type;       /**< Message type; may be HTTP_OTHERS if not called by HTTP */
 	const char *media_str;  /**< Content-Type parameters */
 	const char *content_id; /**< Content-ID parameter */
-	void *data;             /**< The http_type is used to indicate the data transported */
+	/** In http1.0/1.1, data contains the header name/value mappings, valid only within the packet scope.
+	    In other protocols, the http_type is used to indicate the data transported. */
+	void *data;
 } http_message_info_t;
 
 #endif /* __PACKET_HTTP_H__ */

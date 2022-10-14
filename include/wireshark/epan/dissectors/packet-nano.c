@@ -735,7 +735,7 @@ static int dissect_nano_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     // try to find this conversation
     if ((conversation = find_conversation_pinfo(pinfo, 0)) == NULL) {
         // create new conversation
-        conversation = conversation_new(pinfo->num, &pinfo->src, &pinfo->dst, conversation_pt_to_endpoint_type(pinfo->ptype),
+        conversation = conversation_new(pinfo->num, &pinfo->src, &pinfo->dst, conversation_pt_to_conversation_type(pinfo->ptype),
                 pinfo->srcport, pinfo->destport, 0);
     }
 
@@ -858,7 +858,7 @@ void proto_register_nano(void)
     static hf_register_info hf[] = {
         { &hf_nano_magic_number,
           { "Magic Number", "nano.magic_number",
-            FT_STRING, STR_ASCII, NULL, 0x00,
+            FT_STRING, BASE_NONE, NULL, 0x00,
             "Nano Protocol Magic Number", HFILL }
         },
         { &hf_nano_version_max,

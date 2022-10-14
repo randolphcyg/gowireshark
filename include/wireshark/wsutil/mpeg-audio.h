@@ -1,4 +1,4 @@
-/* mpeg-audio.h
+/** @file
  *
  * MPEG Audio header dissection
  * Written by Shaun Jackman <sjackman@gmail.com>
@@ -11,7 +11,8 @@
 #ifndef MPA_H
 #define MPA_H 1
 
-#include "ws_symbol_export.h"
+#include <glib.h>
+#include "include/ws_symbol_export.h"
 
 struct mpa {
 	unsigned int emphasis   :2;
@@ -71,6 +72,8 @@ WS_DLL_PUBLIC
 unsigned int mpa_frequency(const struct mpa *);
 WS_DLL_PUBLIC
 unsigned int mpa_padding(const struct mpa *);
+WS_DLL_PUBLIC
+guint32 decode_synchsafe_int(guint32);
 
 #define MPA_DATA_BYTES(mpa) (mpa_bitrate(mpa) * mpa_samples(mpa) \
 		/ mpa_frequency(mpa) / 8)

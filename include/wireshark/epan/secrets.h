@@ -1,4 +1,4 @@
-/* secrets.h
+/** @file
  * Secrets management and processing.
  * Copyright 2018, Peter Wu <peter@lekensteyn.nl>
  *
@@ -13,7 +13,7 @@
 #define __SECRETS_H__
 
 #include <glib.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,9 +1,12 @@
 %top {
 /* Include this before everything else, for various large-file definitions */
 #include "config.h"
+#include <include/wireshark.h>
 
 #include <stdlib.h>
 #include <errno.h>
+
+#include <wsutil/str_util.h>
 
 #include "dfilter-int.h"
 #include "syntax-tree.h"
@@ -74,23 +77,27 @@
  */
 DIAG_OFF_FLEX
 
-#define LVAL		df_lval
-#define LVAL_TYPE	stnode_t*
-#define LVAL_INIT_VAL	NULL
-#define MODNAME		df
-#define FLEX_YY_PREFIX	df_
+stnode_t *df_lval;
 
-#include <lemonflex-head.inc>
+static int set_lval_simple(df_scanner_state_t *state, int token, const char *token_value, sttype_id_t type_id);
+#define simple(token)	(update_location(yyextra, yytext), set_lval_simple(yyextra, token, yytext, STTYPE_UNINITIALIZED))
+#define test(token)	(update_location(yyextra, yytext), set_lval_simple(yyextra, token, yytext, STTYPE_TEST))
+#define math(token)	(update_location(yyextra, yytext), set_lval_simple(yyextra, token, yytext, STTYPE_ARITHMETIC))
 
-/*#undef YY_NO_UNPUT*/
+static int set_lval_literal(df_scanner_state_t *state, const char *token_value);
+static int set_lval_unparsed(df_scanner_state_t *state, const char *token_value);
+static int set_lval_quoted_string(df_scanner_state_t *state, GString *quoted_string);
+static int set_lval_charconst(df_scanner_state_t *state, GString *quoted_string);
+static int set_lval_field(df_scanner_state_t *state, const char *token_value);
 
-static int set_lval_str(int token, const char *token_value);
-static int set_lval_field(int token, header_field_info *hfinfo, const char *token_value);
-static int set_lval_func(int token, df_func_def_t *func, const char *token_value);
-static int set_lval_int(dfwork_t *dfw, int token, const char *token_value);
-static int simple(int token, const char *token_value);
-#define SIMPLE(token) simple(token, yytext)
-static gboolean str_to_gint32(dfwork_t *dfw, const char *s, gint32* pint);
+static gboolean append_escaped_char(df_scanner_state_t *state, GString *str, char c);
+static gboolean append_universal_character_name(df_scanner_state_t *state, GString *str, const char *ucn);
+static gboolean parse_charconst(df_scanner_state_t *state, const char *s, unsigned long *valuep);
+
+static void update_location(df_scanner_state_t *state, const char *text);
+static void update_string_loc(df_scanner_state_t *state, const char *text);
+
+#define FAIL(...) dfilter_fail(yyextra->dfw, &yyextra->location, __VA_ARGS__)
 
 /*
  * Sleazy hack to suppress compiler warnings in yy_fatal_error().
@@ -106,139 +113,146 @@ static gboolean str_to_gint32(dfwork_t *dfw, const char *s, gint32* pint);
 
 %}
 
-%x RANGE_INT
-%x RANGE_PUNCT
+Identifier	[[:alnum:]_][[:alnum:]_-]*(\.[[:alnum:]_-]+)*
+
+hex2		[[:xdigit:]]{2}
+MacAddress	{hex2}:{hex2}:{hex2}:{hex2}:{hex2}:{hex2}|{hex2}-{hex2}-{hex2}-{hex2}-{hex2}-{hex2}|{hex2}\.{hex2}\.{hex2}\.{hex2}\.{hex2}\.{hex2}
+
+hex4		[[:xdigit:]]{4}
+QuadMacAddress	{hex4}\.{hex4}\.{hex4}
+
+dec-octet	[0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5]
+IPv4address	{dec-octet}\.{dec-octet}\.{dec-octet}\.{dec-octet}
+
+h16		[0-9A-Fa-f]{1,4}
+ls32		{h16}:{h16}|{IPv4address}
+IPv6address	({h16}:){6}{ls32}|::({h16}:){5}{ls32}|({h16})?::({h16}:){4}{ls32}|(({h16}:){0,1}{h16})?::({h16}:){3}{ls32}|(({h16}:){0,2}{h16})?::({h16}:){2}{ls32}|(({h16}:){0,3}{h16})?::{h16}:{ls32}|(({h16}:){0,4}{h16})?::{ls32}|(({h16}:){0,5}{h16})?::{h16}|(({h16}:){0,6}{h16})?::
+
+v4-cidr-prefix	\/[[:digit:]]{1,2}
+v6-cidr-prefix	\/[[:digit:]]{1,3}
+
+colon-bytes	{hex2}(:{hex2})+
+dot-bytes	{hex2}(\.{hex2})+
+hyphen-bytes	{hex2}(-{hex2})+
+
+%x RANGE
+%x LAYER
 %x DQUOTE
 %x SQUOTE
+%x REFERENCE
 
 %%
 
-[[:blank:]\n]+		{
-	/* Ignore whitespace, unless set elements are being parsed. Perhaps it
-	 * should have used commas from the beginning, but now we are stuck with
-	 * whitespace as separators. */
-	if (yyextra->in_set) {
-		return simple(TOKEN_WHITESPACE, NULL);
-	}
+[[:blank:]\n]+	{
+	update_location(yyextra, yytext);
 }
 
+"("		return simple(TOKEN_LPAREN);
+")"		return simple(TOKEN_RPAREN);
+","		return simple(TOKEN_COMMA);
+"{"		return simple(TOKEN_LBRACE);
+".."		return simple(TOKEN_DOTDOT);
+"}"		return simple(TOKEN_RBRACE);
+"$"		return simple(TOKEN_DOLLAR);
+"any"		return simple(TOKEN_ANY);
+"all"		return simple(TOKEN_ALL);
 
+"=="		return test(TOKEN_TEST_ANY_EQ);
+"eq"		return test(TOKEN_TEST_ANY_EQ);
+"any_eq"	return test(TOKEN_TEST_ANY_EQ);
+"!="		return test(TOKEN_TEST_ALL_NE);
+"ne"		return test(TOKEN_TEST_ALL_NE);
+"all_ne"	return test(TOKEN_TEST_ALL_NE);
+"==="		return test(TOKEN_TEST_ALL_EQ);
+"all_eq"	return test(TOKEN_TEST_ALL_EQ);
+"!=="		return test(TOKEN_TEST_ANY_NE);
+"~="		{
+	add_deprecated_token(yyextra->dfw, "The operator \"~=\" is deprecated, use \"!==\" instead.");
+	return test(TOKEN_TEST_ANY_NE);
+}
+"any_ne"	return test(TOKEN_TEST_ANY_NE);
+">"		return test(TOKEN_TEST_GT);
+"gt"		return test(TOKEN_TEST_GT);
+">="		return test(TOKEN_TEST_GE);
+"ge"		return test(TOKEN_TEST_GE);
+"<"		return test(TOKEN_TEST_LT);
+"lt"		return test(TOKEN_TEST_LT);
+"<="		return test(TOKEN_TEST_LE);
+"le"		return test(TOKEN_TEST_LE);
+"contains"	return test(TOKEN_TEST_CONTAINS);
+"~"		return test(TOKEN_TEST_MATCHES);
+"matches"	return test(TOKEN_TEST_MATCHES);
+"!"		return test(TOKEN_TEST_NOT);
+"not"		return test(TOKEN_TEST_NOT);
+"&&"		return test(TOKEN_TEST_AND);
+"and"		return test(TOKEN_TEST_AND);
+"||"		return test(TOKEN_TEST_OR);
+"or"		return test(TOKEN_TEST_OR);
+"in"		return test(TOKEN_TEST_IN);
 
-"("		return SIMPLE(TOKEN_LPAREN);
-")"		return SIMPLE(TOKEN_RPAREN);
+"+"		return math(TOKEN_PLUS);
+"-"		return math(TOKEN_MINUS);
+"*"		return math(TOKEN_STAR);
+"/"		return math(TOKEN_RSLASH);
+"%"		return math(TOKEN_PERCENT);
+"&"		return math(TOKEN_BITWISE_AND);
+"bitwise_and"	return math(TOKEN_BITWISE_AND);
 
-[[:blank:]\n]*","[[:blank:]\n]*	{
-	return simple(TOKEN_COMMA, ",");
+"#"				{
+	BEGIN(LAYER);
+	return simple(TOKEN_HASH);
 }
 
-"{"[[:blank:]\n]*	{
-	yyextra->in_set = TRUE;
-	return simple(TOKEN_LBRACE, "{");
-}
-[[:blank:]\n]*".."[[:blank:]\n]*	return simple(TOKEN_DOTDOT, "..");
-[[:blank:]\n]*"}"	{
-	yyextra->in_set = FALSE;
-	return simple(TOKEN_RBRACE, "}");
-}
-
-"=="		return SIMPLE(TOKEN_TEST_ANY_EQ);
-"eq"		return SIMPLE(TOKEN_TEST_ANY_EQ);
-"!="		return SIMPLE(TOKEN_TEST_ALL_NE);
-"ne"		return SIMPLE(TOKEN_TEST_ALL_NE);
-"~="		return SIMPLE(TOKEN_TEST_ANY_NE);
-"any_ne"	return SIMPLE(TOKEN_TEST_ANY_NE);
-">"		return SIMPLE(TOKEN_TEST_GT);
-"gt"		return SIMPLE(TOKEN_TEST_GT);
-">="		return SIMPLE(TOKEN_TEST_GE);
-"ge"		return SIMPLE(TOKEN_TEST_GE);
-"<"		return SIMPLE(TOKEN_TEST_LT);
-"lt"		return SIMPLE(TOKEN_TEST_LT);
-"<="		return SIMPLE(TOKEN_TEST_LE);
-"le"		return SIMPLE(TOKEN_TEST_LE);
-"bitwise_and"	return SIMPLE(TOKEN_TEST_BITWISE_AND);
-"&"		return SIMPLE(TOKEN_TEST_BITWISE_AND);
-"contains"	return SIMPLE(TOKEN_TEST_CONTAINS);
-"~"		return SIMPLE(TOKEN_TEST_MATCHES);
-"matches"	return SIMPLE(TOKEN_TEST_MATCHES);
-"!"		return SIMPLE(TOKEN_TEST_NOT);
-"not"		return SIMPLE(TOKEN_TEST_NOT);
-"&&"		return SIMPLE(TOKEN_TEST_AND);
-"and"		return SIMPLE(TOKEN_TEST_AND);
-"||"		return SIMPLE(TOKEN_TEST_OR);
-"or"		return SIMPLE(TOKEN_TEST_OR);
-"in"		return SIMPLE(TOKEN_TEST_IN);
-
-
-"["					{
-	BEGIN(RANGE_INT);
-	return SIMPLE(TOKEN_LBRACKET);
-}
-
-<RANGE_INT>[+-]?[[:digit:]]+		{
-	BEGIN(RANGE_PUNCT);
-	return set_lval_int(yyextra->dfw, TOKEN_INTEGER, yytext);
-}
-
-<RANGE_INT>[+-]?0x[[:xdigit:]]+		{
-	BEGIN(RANGE_PUNCT);
-	return set_lval_int(yyextra->dfw, TOKEN_INTEGER, yytext);
-}
-
-<RANGE_INT,RANGE_PUNCT>":"		{
-	BEGIN(RANGE_INT);
-	return SIMPLE(TOKEN_COLON);
-}
-
-<RANGE_PUNCT>"-"			{
-	BEGIN(RANGE_INT);
-	return SIMPLE(TOKEN_HYPHEN);
-}
-
-<RANGE_INT,RANGE_PUNCT>","		{
-	BEGIN(RANGE_INT);
-	return SIMPLE(TOKEN_COMMA);
-}
-
-<RANGE_INT,RANGE_PUNCT>"]"		{
+<LAYER>[[:digit:]]+		{
 	BEGIN(INITIAL);
-	return SIMPLE(TOKEN_RBRACKET);
+	update_location(yyextra, yytext);
+	return set_lval_simple(yyextra, TOKEN_INTEGER, yytext, STTYPE_UNINITIALIZED);
 }
 
-	/* Error if none of the above while scanning a range (slice) */
-
-<RANGE_PUNCT>[^:\-,\]]+		{
-	dfilter_fail(yyextra->dfw, "Invalid string \"%s\" found while scanning slice.", yytext);
+<LAYER>[^[:digit:][]			{
+	update_location(yyextra, yytext);
+	FAIL("Expected digit or \"[\", not \"%s\"", yytext);
 	return SCAN_FAILED;
 }
 
-	/* XXX It would be nice to be able to match an entire non-integer string,
-	 * but beware of Flex's "match the most text" rule.
-	 */
+<INITIAL,LAYER>"["		{
+	BEGIN(RANGE);
+	return simple(TOKEN_LBRACKET);
+}
 
-<RANGE_INT>.	{
-	dfilter_fail(yyextra->dfw, "Invalid character \"%s\" found while scanning slice; expected integer.", yytext);
+<RANGE>[^],]+			{
+	update_location(yyextra, yytext);
+	return set_lval_simple(yyextra, TOKEN_RANGE_NODE, yytext, STTYPE_UNINITIALIZED);
+}
+
+<RANGE>","			{
+	return simple(TOKEN_COMMA);
+}
+
+<RANGE>"]"				{
+	BEGIN(INITIAL);
+	return simple(TOKEN_RBRACKET);
+}
+
+<RANGE><<EOF>>				{
+	update_location(yyextra, yytext);
+	FAIL("The right bracket was missing from a slice.");
 	return SCAN_FAILED;
 }
 
 [rR]{0,1}\042			{
 	/* start quote of a quoted string */
-	/* The example of how to scan for strings was taken from
-	the flex 2.5.4 manual, from the section "Start Conditions".
-	See:
-	http://www.gnu.org/software/flex/manual/html_node/flex_11.html */
-
+	/*
+	 * The example of how to scan for strings was taken from
+	 * the flex manual, from the section "Start Conditions".
+	 * See: https://westes.github.io/flex/manual/Start-Conditions.html
+	 */
 	BEGIN(DQUOTE);
-	/* A previous filter that failed to compile due to
-	a missing end quote will have left quoted_string set
-	to something. Clear it now that we are starting
-	a new quoted string. */
-	if (yyextra->quoted_string) {
-		g_string_free(yyextra->quoted_string, TRUE);
-		/* Don't set quoted_string to NULL, as we
-		do in other quoted_string-cleanup code, as we're
-		about to set it in the next line. */
-	}
-	yyextra->quoted_string = g_string_new("");
+	update_location(yyextra, yytext);
+	yyextra->string_loc = yyextra->location;
+
+	yyextra->quoted_string = g_string_new(NULL);
+
 	if (yytext[0] == 'r' || yytext[0] == 'R') {
 		/*
 		 * This is a raw string (like in Python). Rules: 1) The two
@@ -258,43 +272,36 @@ static gboolean str_to_gint32(dfwork_t *dfw, const char *s, gint32* pint);
 
 <DQUOTE><<EOF>>				{
 	/* unterminated string */
-	/* The example of how to handle unclosed strings was taken from
-	the flex 2.5.4 manual, from the section "End-of-file rules".
-	See:
-	http://www.gnu.org/software/flex/manual/html_node/flex_13.html */
-
-	dfilter_fail(yyextra->dfw, "The final quote was missing from a quoted string.");
+	update_string_loc(yyextra, yytext);
+	g_string_free(yyextra->quoted_string, TRUE);
+	yyextra->quoted_string = NULL;
+	FAIL("The final quote was missing from a quoted string.");
 	return SCAN_FAILED;
 }
 
 <DQUOTE>\042			{
 	/* end quote */
-	int token;
 	BEGIN(INITIAL);
-	token = set_lval_str(TOKEN_STRING, yyextra->quoted_string->str);
-	g_string_free(yyextra->quoted_string, TRUE);
+	update_string_loc(yyextra, yytext);
+	int token = set_lval_quoted_string(yyextra, yyextra->quoted_string);
 	yyextra->quoted_string = NULL;
+	yyextra->string_loc.col_start = -1;
 	return token;
 }
 
 <DQUOTE>\\[0-7]{1,3} {
 	/* octal sequence */
+	update_string_loc(yyextra, yytext);
 	if (yyextra->raw_string) {
 		g_string_append(yyextra->quoted_string, yytext);
 	}
 	else {
 		unsigned long result;
 		result = strtoul(yytext + 1, NULL, 8);
-		if (result == 0) {
-			g_string_free(yyextra->quoted_string, TRUE);
-			yyextra->quoted_string = NULL;
-			dfilter_fail(yyextra->dfw, "%s (NUL byte) cannot be used with a regular string.", yytext);
-			return SCAN_FAILED;
-		}
 		if (result > 0xff) {
 			g_string_free(yyextra->quoted_string, TRUE);
 			yyextra->quoted_string = NULL;
-			dfilter_fail(yyextra->dfw, "%s is larger than 255.", yytext);
+			FAIL("%s is larger than 255.", yytext);
 			return SCAN_FAILED;
 		}
 		g_string_append_c(yyextra->quoted_string, (gchar) result);
@@ -303,136 +310,171 @@ static gboolean str_to_gint32(dfwork_t *dfw, const char *s, gint32* pint);
 
 <DQUOTE>\\x[[:xdigit:]]{1,2} {
 	/* hex sequence */
+	/*
+	 * C standard does not place a limit on the number of hex
+	 * digits after \x... but we do. \xNN can have 1 or two Ns, not more.
+	 */
+	update_string_loc(yyextra, yytext);
 	if (yyextra->raw_string) {
 		g_string_append(yyextra->quoted_string, yytext);
 	}
 	else {
 		unsigned long result;
 		result = strtoul(yytext + 2, NULL, 16);
-		if (result == 0) {
-			g_string_free(yyextra->quoted_string, TRUE);
-			yyextra->quoted_string = NULL;
-			dfilter_fail(yyextra->dfw, "%s (NUL byte) cannot be used with a regular string.", yytext);
-			return SCAN_FAILED;
-		}
 		g_string_append_c(yyextra->quoted_string, (gchar) result);
+	}
+}
+
+<DQUOTE>\\u[[:xdigit:]]{0,4} {
+	/* universal character name */
+	update_string_loc(yyextra, yytext);
+	if (yyextra->raw_string) {
+		g_string_append(yyextra->quoted_string, yytext);
+	}
+	else if (!append_universal_character_name(yyextra, yyextra->quoted_string, yytext)) {
+		g_string_free(yyextra->quoted_string, TRUE);
+		yyextra->quoted_string = NULL;
+		return SCAN_FAILED;
+	}
+}
+
+<DQUOTE>\\U[[:xdigit:]]{0,8} {
+	/* universal character name */
+	update_string_loc(yyextra, yytext);
+	if (yyextra->raw_string) {
+		g_string_append(yyextra->quoted_string, yytext);
+	}
+	else if (!append_universal_character_name(yyextra, yyextra->quoted_string, yytext)) {
+		g_string_free(yyextra->quoted_string, TRUE);
+		yyextra->quoted_string = NULL;
+		return SCAN_FAILED;
 	}
 }
 
 
 <DQUOTE>\\.				{
 	/* escaped character */
+	update_string_loc(yyextra, yytext);
 	if (yyextra->raw_string) {
 		g_string_append(yyextra->quoted_string, yytext);
 	}
-	else {
-		g_string_append_c(yyextra->quoted_string, yytext[1]);
+	else if (!append_escaped_char(yyextra, yyextra->quoted_string, yytext[1])) {
+		g_string_free(yyextra->quoted_string, TRUE);
+		yyextra->quoted_string = NULL;
+		return SCAN_FAILED;
 	}
 }
 
 <DQUOTE>[^\\\042]+			{
 	/* non-escaped string */
+	update_string_loc(yyextra, yytext);
 	g_string_append(yyextra->quoted_string, yytext);
 }
 
 
 \047				{
 	/* start quote of a quoted character value */
-	/* The example of how to scan for strings was taken from
-	the Flex manual, from the section "Start Conditions".
-	See:
-	http://flex.sourceforge.net/manual/Start-Conditions.html#Start-Conditions */
-
 	BEGIN(SQUOTE);
-	/* A previous filter that failed to compile due to
-	a missing end quote will have left quoted_string set
-	to something. Clear it now that we are starting
-	a new quoted string. */
-	if (yyextra->quoted_string) {
-		g_string_free(yyextra->quoted_string, TRUE);
-		/* Don't set quoted_string to NULL, as we
-		do in other quoted_string-cleanup code, as we're
-		about to set it in the next line. */
-	}
+	update_location(yyextra, yytext);
+	yyextra->string_loc = yyextra->location;
+
 	yyextra->quoted_string = g_string_new("'");
 }
 
 <SQUOTE><<EOF>>				{
 	/* unterminated character value */
-	/* The example of how to handle unclosed strings was taken from
-	the Flex manual, from the section "End-of-file rules".
-	See:
-	http://flex.sourceforge.net/manual/EOF.html#EOF.html */
-
-	dfilter_fail(yyextra->dfw, "The final quote was missing from a character constant.");
+	update_string_loc(yyextra, yytext);
+	g_string_free(yyextra->quoted_string, TRUE);
+	yyextra->quoted_string = NULL;
+	FAIL("The final quote was missing from a character constant.");
 	return SCAN_FAILED;
 }
 
 <SQUOTE>\047			{
 	/* end quote */
-	int token;
 	BEGIN(INITIAL);
+	update_string_loc(yyextra, yytext);
 	g_string_append_c(yyextra->quoted_string, '\'');
-	token = set_lval_str(TOKEN_CHARCONST, yyextra->quoted_string->str);
-	g_string_free(yyextra->quoted_string, TRUE);
+	int token = set_lval_charconst(yyextra, yyextra->quoted_string);
 	yyextra->quoted_string = NULL;
+	yyextra->string_loc.col_start = -1;
 	return token;
 }
 
 <SQUOTE>\\.				{
 	/* escaped character */
+	update_string_loc(yyextra, yytext);
 	g_string_append(yyextra->quoted_string, yytext);
 }
 
 <SQUOTE>[^\\\047]+			{
 	/* non-escaped string */
+	update_string_loc(yyextra, yytext);
 	g_string_append(yyextra->quoted_string, yytext);
 }
 
 
+	/* None of the patterns below can match ".." anywhere in the token string. */
 
-[-[:alnum:]_\.:]*\/[[:digit:]]+  {
-        /* CIDR */
-        return set_lval_str(TOKEN_UNPARSED, yytext);
+{MacAddress}|{QuadMacAddress}		{
+	/* MAC Address. */
+	update_location(yyextra, yytext);
+	return set_lval_simple(yyextra, TOKEN_UNPARSED, yytext, STTYPE_UNINITIALIZED);
 }
 
-		([.][-+[:alnum:]_:]+)+[.]{0,2} |
-[-+[:alnum:]_:]+([.][-+[:alnum:]_:]+)*[.]{0,2} {
-	/* Is it a field name or some other value (float, integer, bytes, ...)? */
-	header_field_info *hfinfo;
-	df_func_def_t *df_func_def;
+{IPv4address}{v4-cidr-prefix}?		{
+	/* IPv4 with or without prefix. */
+	update_location(yyextra, yytext);
+	return set_lval_simple(yyextra, TOKEN_UNPARSED, yytext, STTYPE_UNINITIALIZED);
+}
 
-	/* Trailing dot is allowed for floats, but make sure that trailing ".."
-	 * is interpreted as a token on its own. */
-	if (strstr(yytext, "..")) {
-		yyless(yyleng-2);
-	}
+{IPv6address}{v6-cidr-prefix}?		{
+	/* IPv6 with or without prefix. */
+	update_location(yyextra, yytext);
+	return set_lval_simple(yyextra, TOKEN_UNPARSED, yytext, STTYPE_UNINITIALIZED);
+}
 
-	hfinfo = proto_registrar_get_byname(yytext);
-	if (hfinfo) {
-		/* Yes, it's a field name */
-		return set_lval_field(TOKEN_FIELD, hfinfo, yytext);
-	}
+:?({colon-bytes}|{dot-bytes}|{hyphen-bytes})	{
+	/* Bytes. */
+	update_location(yyextra, yytext);
+	if (yytext[0] == ':')
+		return set_lval_literal(yyextra, yytext); /* Keep leading colon. */
+	return set_lval_unparsed(yyextra, yytext);
+}
 
-	hfinfo = proto_registrar_get_byalias(yytext);
-	if (hfinfo) {
-		/* Yes, it's an aliased field name */
-		add_deprecated_token(yyextra->dfw, yytext);
-		return set_lval_field(TOKEN_FIELD, hfinfo, yytext);
-	}
+:[[:xdigit:]]+		{
+	/* Numeric. */
+	update_location(yyextra, yytext);
+	return set_lval_literal(yyextra, yytext + 1); /* Skip leading colon. */
+}
 
-	df_func_def = df_func_lookup(yytext);
-	if (df_func_def) {
-		/* Yes, it's a dfilter function */
-		return set_lval_func(TOKEN_FUNCTION, df_func_def, yytext);
+"<"[^>=]+">"			{
+	/* Literal in-between angle brackets (cannot be parsed as a protocol field). */
+	/* Strip brackets. */
+	update_location(yyextra, yytext);
+	char *end = strchr(yytext, '>');
+	*end = '\0';
+	return set_lval_literal(yyextra, yytext + 1);
+}
+
+\.?{Identifier}			{
+	/* Identifier or unparsed. */
+	update_location(yyextra, yytext);
+	if (yytext[0] == '.') {
+		/* Skip leading dot. */
+		return set_lval_field(yyextra, yytext + 1);
 	}
-	/* No match, so treat it as an unparsed string */
-	return set_lval_str(TOKEN_UNPARSED, yytext);
+	return set_lval_unparsed(yyextra, yytext);
 }
 
 . {
 	/* Default */
-	return set_lval_str(TOKEN_UNPARSED, yytext);
+	update_location(yyextra, yytext);
+	if (isprint_string(yytext))
+		FAIL("\"%s\" was unexpected in this context.", yytext);
+	else
+		FAIL("Non-printable ASCII characters may only appear inside double-quotes.");
+	return SCAN_FAILED;
 }
 
 
@@ -443,152 +485,358 @@ static gboolean str_to_gint32(dfwork_t *dfw, const char *s, gint32* pint);
  */
 DIAG_ON_FLEX
 
-static int
-simple(int token, const char *token_value)
+static void
+_update_location(df_scanner_state_t *state, size_t len)
 {
-	switch (token) {
-		case TOKEN_LPAREN:
-		case TOKEN_RPAREN:
-		case TOKEN_LBRACKET:
-		case TOKEN_RBRACKET:
-		case TOKEN_LBRACE:
-		case TOKEN_RBRACE:
-		case TOKEN_COLON:
-		case TOKEN_COMMA:
-		case TOKEN_DOTDOT:
-		case TOKEN_HYPHEN:
-		case TOKEN_WHITESPACE:
-		case TOKEN_TEST_ANY_EQ:
-		case TOKEN_TEST_ALL_NE:
-		case TOKEN_TEST_ANY_NE:
-		case TOKEN_TEST_GT:
-		case TOKEN_TEST_GE:
-		case TOKEN_TEST_LT:
-		case TOKEN_TEST_LE:
-		case TOKEN_TEST_BITWISE_AND:
-		case TOKEN_TEST_CONTAINS:
-		case TOKEN_TEST_MATCHES:
-		case TOKEN_TEST_NOT:
-		case TOKEN_TEST_AND:
-		case TOKEN_TEST_OR:
-		case TOKEN_TEST_IN:
-			break;
-		default:
-			ws_assert_not_reached();
-	}
-	stnode_init(df_lval, STTYPE_UNINITIALIZED, NULL, token_value);
+	state->location.col_start += (long)state->location.col_len;
+	state->location.col_len = len;
+}
+
+static void
+update_location(df_scanner_state_t *state, const char *text)
+{
+	_update_location(state, strlen(text));
+}
+
+static void
+update_string_loc(df_scanner_state_t *state, const char *text)
+{
+	size_t len = strlen(text);
+	state->string_loc.col_len += len;
+	_update_location(state, len);
+}
+
+static int
+set_lval_simple(df_scanner_state_t *state, int token, const char *token_value, sttype_id_t type_id)
+{
+	stnode_init(df_lval, type_id, NULL, g_strdup(token_value), &state->location);
 	return token;
 }
 
 static int
-set_lval_str(int token, const char *token_value)
+set_lval_literal(df_scanner_state_t *state, const char *token_value)
 {
-	sttype_id_t	type_id;
-
-	switch (token) {
-		case TOKEN_STRING:
-			type_id = STTYPE_STRING;
-			break;
-		case TOKEN_CHARCONST:
-			type_id = STTYPE_CHARCONST;
-			break;
-		case TOKEN_UNPARSED:
-			type_id = STTYPE_UNPARSED;
-			break;
-		default:
-			ws_assert_not_reached();
-	}
-	stnode_init(df_lval, type_id, (gpointer)token_value, token_value);
-	return token;
+	stnode_init(df_lval, STTYPE_LITERAL, g_strdup(token_value), g_strdup(token_value), &state->location);
+	return TOKEN_LITERAL;
 }
 
 static int
-set_lval_field(int token, header_field_info *hfinfo, const char *token_value)
+set_lval_unparsed(df_scanner_state_t *state, const char *token_value)
 {
-	ws_assert(token == TOKEN_FIELD);
-	stnode_init(df_lval, STTYPE_FIELD, hfinfo, token_value);
-	return token;
+	return set_lval_simple(state, TOKEN_UNPARSED, token_value, STTYPE_UNINITIALIZED);
 }
 
 static int
-set_lval_func(int token, df_func_def_t *func, const char *token_value)
+set_lval_quoted_string(df_scanner_state_t *state, GString *quoted_string)
 {
-	ws_assert(token == TOKEN_FUNCTION);
-	stnode_init(df_lval, STTYPE_FUNCTION, func, token_value);
-	return token;
+	char *token_value;
+
+	token_value = ws_escape_string_len(NULL, quoted_string->str, quoted_string->len, true);
+	stnode_init(df_lval, STTYPE_STRING, quoted_string, token_value, &state->string_loc);
+	return TOKEN_STRING;
 }
 
 static int
-set_lval_int(dfwork_t *dfw, int token, const char *token_value)
+set_lval_charconst(df_scanner_state_t *state, GString *quoted_string)
 {
-	sttype_id_t	type_id = STTYPE_UNINITIALIZED;
-	gint32		val;
+	unsigned long number;
+	gboolean ok;
 
-	if (!str_to_gint32(dfw, token_value, &val)) {
+	char *token_value = g_string_free(quoted_string, FALSE);
+	ok = parse_charconst(state, token_value, &number);
+	if (!ok) {
+		g_free(token_value);
 		return SCAN_FAILED;
 	}
-
-	switch (token) {
-		case TOKEN_INTEGER:
-			type_id = STTYPE_INTEGER;
-			break;
-		default:
-			ws_assert_not_reached();
-	}
-
-	stnode_init_int(df_lval, type_id, val, token_value);
-	return token;
+	stnode_init(df_lval, STTYPE_CHARCONST, g_memdup2(&number, sizeof(number)), token_value, &state->string_loc);
+	return TOKEN_CHARCONST;
 }
 
+static int
+set_lval_field(df_scanner_state_t *state, const char *token_value)
+{
+	header_field_info *hfinfo;
+
+	hfinfo = dfilter_resolve_unparsed(state->dfw, token_value);
+	if (hfinfo == NULL) {
+		dfilter_fail(state->dfw, &state->location, "\"%s\" is not a valid protocol or protocol field.", token_value);
+	}
+	stnode_init(df_lval, STTYPE_FIELD, hfinfo, g_strdup(token_value), &state->location);
+	return TOKEN_FIELD;
+}
 
 static gboolean
-str_to_gint32(dfwork_t *dfw, const char *s, gint32* pint)
+append_escaped_char(df_scanner_state_t *state, GString *str, char c)
 {
-	char    *endptr;
-	long	integer;
-
-	errno = 0;
-	integer = strtol(s, &endptr, 0);
-
-	if (errno == EINVAL || endptr == s || *endptr != '\0') {
-		/* This isn't a valid number. */
-		dfilter_fail(dfw, "\"%s\" is not a valid number.", s);
-		return FALSE;
-	}
-	if (errno == ERANGE) {
-		if (integer == LONG_MAX) {
-			dfilter_fail(dfw, "\"%s\" causes an integer overflow.", s);
-		}
-		else if (integer == LONG_MIN) {
-			dfilter_fail(dfw, "\"%s\" causes an integer underflow.", s);
-		}
-		else {
-			/*
-			 * XXX - can "strtol()" set errno to ERANGE without
-			 * returning LONG_MAX or LONG_MIN?
-			 */
-			dfilter_fail(dfw, "\"%s\" is not an integer.", s);
-		}
-		return FALSE;
-	}
-	if (integer > G_MAXINT32) {
-		/*
-		 * Fits in a long, but not in a gint32 (a long might be
-		 * 64 bits).
-		 */
-		dfilter_fail(dfw, "\"%s\" causes an integer overflow.", s);
-		return FALSE;
-	}
-	if (integer < G_MININT32) {
-		/*
-		 * Fits in a long, but not in a gint32 (a long might be
-		 * 64 bits).
-		 */
-		dfilter_fail(dfw, "\"%s\" causes an integer underflow.", s);
-		return FALSE;
+	switch (c) {
+		case 'a':
+			c = '\a';
+			break;
+		case 'b':
+			c = '\b';
+			break;
+		case 'f':
+			c = '\f';
+			break;
+		case 'n':
+			c = '\n';
+			break;
+		case 'r':
+			c = '\r';
+			break;
+		case 't':
+			c = '\t';
+			break;
+		case 'v':
+			c = '\v';
+			break;
+		case '\\':
+		case '\'':
+		case '\"':
+			break;
+		default:
+			dfilter_fail(state->dfw, &state->location,
+					"\\%c is not a valid character escape sequence", c);
+			return FALSE;
 	}
 
-	*pint = (gint32)integer;
+	g_string_append_c(str, c);
 	return TRUE;
 }
 
+static gboolean
+parse_universal_character_name(df_scanner_state_t *state _U_, const char *str, char **ret_endptr, gunichar *valuep)
+{
+	guint64 val;
+	char *endptr;
+	int ndigits;
+
+	if (str[0] != '\\')
+		return FALSE;
+
+	if (str[1] == 'u')
+		ndigits = 4;
+	else if (str[1] == 'U')
+		ndigits = 8;
+	else
+		return FALSE;
+
+	for (int i = 2; i < ndigits + 2; i++) {
+		if (!g_ascii_isxdigit(str[i])) {
+			return FALSE;
+		}
+	}
+
+	errno = 0;
+	val = g_ascii_strtoull(str + 2, &endptr, 16); /* skip leading 'u' or 'U' */
+
+	if (errno != 0 || endptr == str || val > G_MAXUINT32) {
+		return FALSE;
+	}
+
+	/*
+	 * Ref: https://en.cppreference.com/w/c/language/escape
+	 * Range of universal character names
+	 *
+	 * If a universal character name corresponds to a code point that is
+	 * not 0x24 ($), 0x40 (@), nor 0x60 (`) and less than 0xA0, or a
+	 * surrogate code point (the range 0xD800-0xDFFF, inclusive), or
+	 * greater than 0x10FFFF, i.e. not a Unicode code point (since C23),
+	 * the program is ill-formed. In other words, members of basic source
+	 * character set and control characters (in ranges 0x0-0x1F and
+	 * 0x7F-0x9F) cannot be expressed in universal character names.
+	 */
+	if (val < 0xA0 && val != 0x24 && val != 0x40 && val != 0x60)
+		return FALSE;
+	else if (val >= 0xD800 && val <= 0xDFFF)
+		return FALSE;
+	else if (val > 0x10FFFF)
+		return FALSE;
+
+	*valuep = (gunichar)val;
+	if (ret_endptr)
+		*ret_endptr = endptr;
+	return TRUE;
+}
+
+static gboolean
+append_universal_character_name(df_scanner_state_t *state, GString *str, const char *ucn)
+{
+	gunichar val;
+
+	if (!parse_universal_character_name(state, ucn, NULL, &val)) {
+		dfilter_fail(state->dfw, &state->location, "%s is not a valid universal character name", ucn);
+		return FALSE;
+	}
+
+	g_string_append_unichar(str, val);
+	return TRUE;
+}
+
+static gboolean
+parse_charconst(df_scanner_state_t *state, const char *s, unsigned long *valuep)
+{
+	const char *cp;
+	unsigned long value;
+	gunichar unival;
+	char *endptr;
+
+	cp = s + 1;	/* skip the leading ' */
+	if (*cp == '\'') {
+		dfilter_fail(state->dfw, &state->string_loc, "Empty character constant.");
+		return FALSE;
+	}
+
+	if (*cp == '\\') {
+		/*
+		 * C escape sequence.
+		 * An escape sequence is an octal number \NNN,
+		 * an hex number \xNN, or one of \' \" \\ \a \b \f \n \r \t \v
+		 * that stands for the byte value of the equivalent
+		 * C-escape in ASCII encoding.
+		 */
+		cp++;
+		switch (*cp) {
+
+		case '\0':
+			dfilter_fail(state->dfw, &state->string_loc, "%s isn't a valid character constant.", s);
+			return FALSE;
+
+		case 'a':
+			value = '\a';
+			cp++;
+			break;
+
+		case 'b':
+			value = '\b';
+			cp++;
+			break;
+
+		case 'f':
+			value = '\f';
+			cp++;
+			break;
+
+		case 'n':
+			value = '\n';
+			break;
+
+		case 'r':
+			value = '\r';
+			cp++;
+			break;
+
+		case 't':
+			value = '\t';
+			cp++;
+			break;
+
+		case 'v':
+			value = '\v';
+			cp++;
+			break;
+
+		case '\'':
+			value = '\'';
+			cp++;
+			break;
+
+		case '\\':
+			value = '\\';
+			cp++;
+			break;
+
+		case '"':
+			value = '"';
+			cp++;
+			break;
+
+		case 'x':
+			cp++;
+			if (*cp >= '0' && *cp <= '9')
+				value = *cp - '0';
+			else if (*cp >= 'A' && *cp <= 'F')
+				value = 10 + (*cp - 'A');
+			else if (*cp >= 'a' && *cp <= 'f')
+				value = 10 + (*cp - 'a');
+			else {
+				dfilter_fail(state->dfw, &state->string_loc, "%s isn't a valid character constant.", s);
+				return FALSE;
+			}
+			cp++;
+			if (*cp != '\'') {
+				value <<= 4;
+				if (*cp >= '0' && *cp <= '9')
+					value |= *cp - '0';
+				else if (*cp >= 'A' && *cp <= 'F')
+					value |= 10 + (*cp - 'A');
+				else if (*cp >= 'a' && *cp <= 'f')
+					value |= 10 + (*cp - 'a');
+				else {
+					dfilter_fail(state->dfw, &state->string_loc, "%s isn't a valid character constant.", s);
+					return FALSE;
+				}
+			}
+			cp++;
+			break;
+
+		case 'u':
+		case 'U':
+			if (!parse_universal_character_name(state, s+1, &endptr, &unival)) {
+				dfilter_fail(state->dfw, &state->string_loc, "%s is not a valid universal character name", s);
+				return FALSE;
+			}
+			value = (unsigned long)unival;
+			cp = endptr;
+			break;
+
+		default:
+			/* Octal */
+			if (*cp >= '0' && *cp <= '7')
+				value = *cp - '0';
+			else {
+				dfilter_fail(state->dfw, &state->string_loc, "%s isn't a valid character constant.", s);
+				return FALSE;
+			}
+			if (*(cp + 1) != '\'') {
+				cp++;
+				value <<= 3;
+				if (*cp >= '0' && *cp <= '7')
+					value |= *cp - '0';
+				else {
+					dfilter_fail(state->dfw, &state->string_loc, "%s isn't a valid character constant.", s);
+					return FALSE;
+				}
+				if (*(cp + 1) != '\'') {
+					cp++;
+					value <<= 3;
+					if (*cp >= '0' && *cp <= '7')
+						value |= *cp - '0';
+					else {
+						dfilter_fail(state->dfw, &state->string_loc, "%s isn't a valid character constant.", s);
+						return FALSE;
+					}
+				}
+			}
+			if (value > 0xFF) {
+				dfilter_fail(state->dfw, &state->string_loc, "%s is too large to be a valid character constant.", s);
+				return FALSE;
+			}
+			cp++;
+		}
+	} else {
+		value = *cp++;
+		if (!g_ascii_isprint(value)) {
+			dfilter_fail(state->dfw, &state->string_loc, "Non-printable value '0x%02lx' in character constant.", value);
+			return FALSE;
+		}
+	}
+
+	if ((*cp != '\'') || (*(cp + 1) != '\0')){
+		dfilter_fail(state->dfw, &state->string_loc, "%s is too long to be a valid character constant.", s);
+		return FALSE;
+	}
+
+	*valuep = value;
+	return TRUE;
+}

@@ -25,7 +25,7 @@
 #include <ui/qt/utils/qt_ui_utils.h>
 #include <ui/qt/widgets/qcustomplot.h>
 #include "ui/qt/widgets/wireshark_file_dialog.h"
-#include "wireshark_application.h"
+#include "main_application.h"
 
 SCTPGraphDialog::SCTPGraphDialog(QWidget *parent, const sctp_assoc_info_t *assoc,
         capture_file *cf, int dir) :
@@ -371,7 +371,7 @@ void SCTPGraphDialog::drawGraph(const sctp_assoc_info_t* selected_assoc)
     ui->sctpPlot->xAxis->setLabel(tr("time [secs]"));
     ui->sctpPlot->yAxis->setLabel(tr("TSNs"));
     ui->sctpPlot->setInteractions(QCP::iRangeZoom | QCP::iRangeDrag | QCP::iSelectPlottables);
-    connect(ui->sctpPlot, SIGNAL(plottableClick(QCPAbstractPlottable*,QMouseEvent*)), this, SLOT(graphClicked(QCPAbstractPlottable*, QMouseEvent*)));
+    connect(ui->sctpPlot, &QCustomPlot::plottableClick, this, &SCTPGraphDialog::graphClicked);
     // set axes ranges, so we see all data:
     QCPRange myXRange(selected_assoc->min_secs, (selected_assoc->max_secs+1));
     if (relative) {
@@ -425,7 +425,7 @@ void SCTPGraphDialog::on_pushButton_4_clicked()
     ui->sctpPlot->replot();
 }
 
-void SCTPGraphDialog::graphClicked(QCPAbstractPlottable* plottable, QMouseEvent* event)
+void SCTPGraphDialog::graphClicked(QCPAbstractPlottable* plottable, int, QMouseEvent* event)
 {
     frame_num = 0;
     int i=0;
@@ -478,7 +478,7 @@ void SCTPGraphDialog::graphClicked(QCPAbstractPlottable* plottable, QMouseEvent*
 void SCTPGraphDialog::save_graph(QDialog *dlg, QCustomPlot *plot)
 {
     QString file_name, extension;
-    QDir path(wsApp->lastOpenDir());
+    QDir path(mainApp->lastOpenDir());
     QString pdf_filter = tr("Portable Document Format (*.pdf)");
     QString png_filter = tr("Portable Network Graphics (*.png)");
     QString bmp_filter = tr("Windows Bitmap (*.bmp)");
@@ -490,7 +490,7 @@ void SCTPGraphDialog::save_graph(QDialog *dlg, QCustomPlot *plot)
             .arg(bmp_filter)
             .arg(jpeg_filter);
 
-    file_name = WiresharkFileDialog::getSaveFileName(dlg, wsApp->windowTitleString(tr("Save Graph As…")),
+    file_name = WiresharkFileDialog::getSaveFileName(dlg, mainApp->windowTitleString(tr("Save Graph As…")),
                                              path.canonicalPath(), filter, &extension);
 
     if (file_name.length() > 0) {
@@ -506,7 +506,7 @@ void SCTPGraphDialog::save_graph(QDialog *dlg, QCustomPlot *plot)
         }
         // else error dialog?
         if (save_ok) {
-            wsApp->setLastOpenDirFromFilename(file_name);
+            mainApp->setLastOpenDirFromFilename(file_name);
         }
     }
 }

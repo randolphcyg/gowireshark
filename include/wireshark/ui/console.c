@@ -21,8 +21,8 @@
 
 void
 console_log_writer(const char *domain, enum ws_log_level level,
-                                   ws_log_time_t timestamp,
-                                   const char *file, int line, const char *func,
+                                   struct timespec timestamp,
+                                   const char *file, long line, const char *func,
                                    const char *user_format, va_list user_ap,
                                    void *user_data _U_)
 {

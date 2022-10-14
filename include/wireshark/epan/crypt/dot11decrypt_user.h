@@ -1,4 +1,4 @@
-/* dot11decrypt_user.h
+/** @file
  *
  * Copyright (c) 2006 CACE Technologies, Davis (California)
  * All rights reserved.
@@ -13,7 +13,7 @@
 /*	File includes																					*/
 /*																										*/
 #include "dot11decrypt_interop.h"
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /*																										*/
 /*																										*/

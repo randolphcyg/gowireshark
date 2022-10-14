@@ -1,7 +1,7 @@
 /* packet-bpv7.h
  * Definitions for Bundle Protocol Version 7 dissection.
  * References:
- *     BPv7: https://datatracker.ietf.org/doc/html/draft-ietf-dtn-bpbis-31
+ *     RFC 9171: https://www.rfc-editor.org/rfc/rfc9171.html
  *
  * Copyright 2019-2021, Brian Sipos <brian.sipos@gmail.com>
  *
@@ -14,7 +14,7 @@
 #ifndef PACKET_BPV7_H
 #define PACKET_BPV7_H
 
-#include <ws_symbol_export.h>
+#include <include/ws_symbol_export.h>
 #include <epan/tvbuff.h>
 #include <epan/proto.h>
 #include <epan/expert.h>
@@ -23,14 +23,22 @@
 extern "C" {
 #endif
 
-/*
- * BPv7 block-type-specific data dissectors are registered with the
+/* This dissector defines two layers of protocol:
+ * - The BPv7 bundle format and its block types.
+ * - The BPv7 Administrative Record which is a bundle payload as indicated by
+ *   a primary block flag.
+ *
+ * BPv7 block-type-specific data (BTSD) dissectors are registered with the
  * dissector table "bpv7.block_type" and Administrative Record dissectors
  * with the table "bpv7.admin_record_type". Both use guint64* table keys.
+ * Both use bp_dissector_data_t* as dissector user data.
+ *
+ * There is a BTSD heuristic dissector table "bpv7.btsd" which uses
+ * bp_dissector_data_t* as dissector user data.
  */
 
 /** Bundle CRC types.
- * Section 4.1.1.
+ * RFC 9171 Section 4.2.1.
  */
 typedef enum {
     /// no CRC is present.
@@ -42,7 +50,7 @@ typedef enum {
 } BundleCrcType;
 
 /** Bundle processing control flags.
- * Section 4.1.3.
+ * RFC 9171 Section 4.2.3.
  */
 typedef enum {
     /// bundle deletion status reports are requested.
@@ -66,7 +74,7 @@ typedef enum {
 } BundleProcessingFlag;
 
 /** Block processing control flags.
- * Section 4.1.4.
+ * RFC 9171 Section 4.2.4.
  */
 typedef enum {
     /// block must be removed from bundle if it can't be processed.
@@ -80,7 +88,7 @@ typedef enum {
 } BlockProcessingFlag;
 
 /** Standard block type codes.
- * Section 4.2.3 and Section 4.3.
+ * RFC 9171 Section 4.3.2 and Section 4.4.
  */
 typedef enum {
     BP_BLOCKTYPE_INVALID = 0,
@@ -99,7 +107,7 @@ typedef enum {
 } BlockTypeCode;
 
 /** Administrative record type codes.
- * Section 6.1.
+ * RFC 9171 Section 6.1.
  */
 typedef enum {
     /// Bundle status report

@@ -745,13 +745,16 @@ static const fragment_items sccp_xudt_msg_frag_items = {
 static reassembly_table sccp_xudt_msg_reassembly_table;
 
 
-#define SCCP_USER_DATA   0
-#define SCCP_USER_TCAP   1
-#define SCCP_USER_RANAP  2
-#define SCCP_USER_BSSAP  3
-#define SCCP_USER_GSMMAP 4
-#define SCCP_USER_CAMEL  5
-#define SCCP_USER_INAP   6
+#define SCCP_USER_DATA       0
+#define SCCP_USER_TCAP       1
+#define SCCP_USER_RANAP      2
+#define SCCP_USER_BSSAP      3
+#define SCCP_USER_GSMMAP     4
+#define SCCP_USER_CAMEL      5
+#define SCCP_USER_INAP       6
+#define SCCP_USER_BSAP       7
+#define SCCP_USER_BSSAP_LE   8
+#define SCCP_USER_BSSAP_PLUS 9
 
 typedef struct _sccp_user_t {
   guint               ni;
@@ -773,18 +776,24 @@ static dissector_handle_t bssap_handle;
 static dissector_handle_t gsmmap_handle;
 static dissector_handle_t camel_handle;
 static dissector_handle_t inap_handle;
+static dissector_handle_t bsap_handle;
+static dissector_handle_t bssap_le_handle;
+static dissector_handle_t bssap_plus_handle;
 static dissector_handle_t default_handle;
 
 static const char *default_payload = NULL;
 
 static const value_string sccp_users_vals[] = {
-  { SCCP_USER_DATA,     "Data"},
-  { SCCP_USER_TCAP,     "TCAP"},
-  { SCCP_USER_RANAP,    "RANAP"},
-  { SCCP_USER_BSSAP,    "BSSAP"},
-  { SCCP_USER_GSMMAP,   "GSM MAP"},
-  { SCCP_USER_CAMEL,    "CAMEL"},
-  { SCCP_USER_INAP,     "INAP"},
+  { SCCP_USER_DATA,       "Data"},
+  { SCCP_USER_TCAP,       "TCAP"},
+  { SCCP_USER_RANAP,      "RANAP"},
+  { SCCP_USER_BSSAP,      "BSSAP"},
+  { SCCP_USER_GSMMAP,     "GSM MAP"},
+  { SCCP_USER_CAMEL,      "CAMEL"},
+  { SCCP_USER_INAP,       "INAP"},
+  { SCCP_USER_BSAP,       "BSAP"},
+  { SCCP_USER_BSSAP_LE,   "BSSAP-LE"},
+  { SCCP_USER_BSSAP_PLUS, "BSSAP+"},
   { 0, NULL }
 };
 
@@ -942,7 +951,7 @@ sccp_reassemble_fragments(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 static void sccp_prompt(packet_info *pinfo _U_, gchar* result)
 {
-  g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Dissect SSN %d as",
+  snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Dissect SSN %d as",
      GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_sccp, 0)));
 }
 
@@ -1961,8 +1970,8 @@ dissect_sccp_called_calling_param(tvbuff_t *tvb, proto_tree *tree, packet_info *
   guint8 national = 0xFFU, routing_ind, gti, pci, ssni, ssn;
   tvbuff_t *gt_tvb;
   dissector_handle_t ssn_dissector = NULL, tcap_ssn_dissector = NULL;
-  const char *ssn_dissector_short_name = NULL;
-  const char *tcap_ssn_dissector_short_name = NULL;
+  const char *ssn_dissector_description = NULL;
+  const char *tcap_ssn_dissector_description = NULL;
 
   call_tree = proto_tree_add_subtree_format(tree, tvb, 0, length,
                                   called ? ett_sccp_called : ett_sccp_calling, NULL,
@@ -2093,19 +2102,19 @@ dissect_sccp_called_calling_param(tvbuff_t *tvb, proto_tree *tree, packet_info *
       ssn_dissector = dissector_get_uint_handle(sccp_ssn_dissector_table, ssn);
 
       if (ssn_dissector) {
-        ssn_dissector_short_name = dissector_handle_get_short_name(ssn_dissector);
+        ssn_dissector_description = dissector_handle_get_description(ssn_dissector);
 
-        if (ssn_dissector_short_name) {
+        if (ssn_dissector_description) {
           item = proto_tree_add_string_format(call_tree, hf_sccp_linked_dissector, tvb, offset - 1, ADDRESS_SSN_LENGTH,
-                                     ssn_dissector_short_name, "Linked to %s", ssn_dissector_short_name);
+                                     ssn_dissector_description, "Linked to %s", ssn_dissector_description);
           proto_item_set_generated(item);
 
-          if (g_ascii_strncasecmp("TCAP", ssn_dissector_short_name, 4)== 0) {
+          if (g_ascii_strncasecmp("TCAP", ssn_dissector_description, 4)== 0) {
             tcap_ssn_dissector = get_itu_tcap_subdissector(ssn);
 
             if (tcap_ssn_dissector) {
-              tcap_ssn_dissector_short_name = dissector_handle_get_short_name(tcap_ssn_dissector);
-              proto_item_append_text(item,", TCAP SSN linked to %s", tcap_ssn_dissector_short_name);
+              tcap_ssn_dissector_description = dissector_handle_get_description(tcap_ssn_dissector);
+              proto_item_append_text(item,", TCAP SSN linked to %s", tcap_ssn_dissector_description);
             }
           }
         } /* short name */
@@ -2868,7 +2877,8 @@ dissect_xudt_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *sccp_tree,
                     guint16 *optional_pointer_p, guint16 *orig_opt_ptr_p)
 {
   guint16   variable_pointer1 = 0, variable_pointer2 = 0, variable_pointer3 = 0;
-  guint16   optional_pointer  = 0, orig_opt_ptr = 0;
+  guint16   optional_pointer  = 0, orig_opt_ptr = 0, optional_pointer1 = 0;
+  guint8    optional_param_type = 0;
   tvbuff_t *new_tvb = NULL;
   guint32   source_local_ref = 0;
   guint     msg_offset = tvb_offset_from_real_beginning(tvb);
@@ -2924,7 +2934,16 @@ dissect_xudt_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *sccp_tree,
                                   PARAMETER_CALLING_PARTY_ADDRESS,
                                   variable_pointer2, sccp_info);
 
-  if (tvb_get_guint8(tvb, optional_pointer) == PARAMETER_SEGMENTATION) {
+
+  optional_pointer1 = optional_pointer;
+  while((optional_param_type = tvb_get_guint8(tvb, optional_pointer1)) != PARAMETER_END_OF_OPTIONAL_PARAMETERS) {
+    if (optional_param_type == PARAMETER_SEGMENTATION)
+      break;
+    optional_pointer1 += PARAMETER_TYPE_LENGTH;
+    optional_pointer1 += tvb_get_guint8(tvb, optional_pointer1) + PARAMETER_LENGTH_LENGTH;
+  }
+
+  if (tvb_get_guint8(tvb, optional_pointer1) == PARAMETER_SEGMENTATION) {
     if (!sccp_reassemble) {
       proto_tree_add_item(sccp_tree, hf_sccp_segmented_data, tvb, variable_pointer3, tvb_get_guint8(tvb, variable_pointer3)+1, ENC_NA);
     } else {
@@ -2941,8 +2960,8 @@ dissect_xudt_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *sccp_tree,
        * The values 0000 to 1111 are possible; the value 0000 indicates
        * the last segment.
        */
-      octet = tvb_get_guint8(tvb, optional_pointer+2);
-      source_local_ref = tvb_get_letoh24(tvb, optional_pointer+3);
+      octet = tvb_get_guint8(tvb, optional_pointer1+2);
+      source_local_ref = tvb_get_letoh24(tvb, optional_pointer1+3);
 
       if ((octet & 0x0f) == 0)
         more_frag = FALSE;
@@ -3495,13 +3514,16 @@ static struct _sccp_ul {
   dissector_handle_t *handlep;
 } user_list[] = {
 
-  {SCCP_USER_DATA,   FALSE, &data_handle},
-  {SCCP_USER_TCAP,   FALSE, &tcap_handle},
-  {SCCP_USER_RANAP,  FALSE, &ranap_handle},
-  {SCCP_USER_BSSAP,  FALSE, &bssap_handle},
-  {SCCP_USER_GSMMAP, TRUE,  &gsmmap_handle},
-  {SCCP_USER_CAMEL,  TRUE,  &camel_handle},
-  {SCCP_USER_INAP,   TRUE,  &inap_handle},
+  {SCCP_USER_DATA,       FALSE, &data_handle},
+  {SCCP_USER_TCAP,       FALSE, &tcap_handle},
+  {SCCP_USER_RANAP,      FALSE, &ranap_handle},
+  {SCCP_USER_BSSAP,      FALSE, &bssap_handle},
+  {SCCP_USER_GSMMAP,     TRUE,  &gsmmap_handle},
+  {SCCP_USER_CAMEL,      TRUE,  &camel_handle},
+  {SCCP_USER_INAP,       TRUE,  &inap_handle},
+  {SCCP_USER_BSAP,       FALSE, &bsap_handle},
+  {SCCP_USER_BSSAP_LE,   FALSE, &bssap_le_handle},
+  {SCCP_USER_BSSAP_PLUS, FALSE, &bssap_plus_handle},
   {0, FALSE, NULL}
 };
 
@@ -4245,13 +4267,16 @@ proto_reg_handoff_sccp(void)
     dissector_add_uint("mtp3.service_indicator", MTP_SI_SCCP, sccp_handle);
     dissector_add_string("tali.opcode", "sccp", sccp_handle);
 
-    data_handle   = find_dissector("data");
-    tcap_handle   = find_dissector_add_dependency("tcap", proto_sccp);
-    ranap_handle  = find_dissector_add_dependency("ranap", proto_sccp);
-    bssap_handle  = find_dissector_add_dependency("bssap", proto_sccp);
-    gsmmap_handle = find_dissector_add_dependency("gsm_map_sccp", proto_sccp);
-    camel_handle  = find_dissector_add_dependency("camel", proto_sccp);
-    inap_handle   = find_dissector_add_dependency("inap", proto_sccp);
+    data_handle       = find_dissector("data");
+    tcap_handle       = find_dissector_add_dependency("tcap", proto_sccp);
+    ranap_handle      = find_dissector_add_dependency("ranap", proto_sccp);
+    bssap_handle      = find_dissector_add_dependency("bssap", proto_sccp);
+    gsmmap_handle     = find_dissector_add_dependency("gsm_map_sccp", proto_sccp);
+    camel_handle      = find_dissector_add_dependency("camel", proto_sccp);
+    inap_handle       = find_dissector_add_dependency("inap", proto_sccp);
+    bsap_handle       = find_dissector_add_dependency("bsap", proto_sccp);
+    bssap_le_handle   = find_dissector_add_dependency("bssap_le", proto_sccp);
+    bssap_plus_handle = find_dissector_add_dependency("bssap_plus", proto_sccp);
 
     ss7pc_address_type = address_type_get_by_name("AT_SS7PC");
 

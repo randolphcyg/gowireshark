@@ -50,9 +50,9 @@ QVariant VoipCallsInfoModel::data(const QModelIndex &index, int role) const
     case InitialSpeaker:
         return address_to_display_qstring(&(call_info->initial_speaker));
     case From:
-        return call_info->from_identity;
+        return QString::fromUtf8(call_info->from_identity);
     case To:
-        return call_info->to_identity;
+        return QString::fromUtf8(call_info->to_identity);
     case Protocol:
         return ((call_info->protocol == VOIP_COMMON) && call_info->protocol_name) ?
             call_info->protocol_name : voip_protocol_name[call_info->protocol];
@@ -99,7 +99,7 @@ QVariant VoipCallsInfoModel::data(const QModelIndex &index, int role) const
             break;
         case VOIP_COMMON:
         default:
-            return call_info->call_comment;
+            return QString::fromUtf8(call_info->call_comment);
         }
     case ColumnCount:
         ws_assert_not_reached();
@@ -145,7 +145,7 @@ int VoipCallsInfoModel::rowCount(const QModelIndex &parent) const
         return 0;
     }
 
-    return callinfos_.size();
+    return static_cast<int>(callinfos_.size());
 }
 
 int VoipCallsInfoModel::columnCount(const QModelIndex &parent) const
@@ -185,7 +185,7 @@ bool VoipCallsInfoModel::timeOfDay() const
 void VoipCallsInfoModel::updateCalls(GQueue *callsinfos)
 {
     if (callsinfos) {
-        int calls = callinfos_.count();
+        qsizetype calls = callinfos_.count();
         int cnt = 0;
         GList *cur_call;
 

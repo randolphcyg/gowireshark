@@ -25,13 +25,13 @@
 #include <epan/to_str.h>
 
 #include <wsutil/str_util.h>
+#include <wsutil/ws_roundup.h>
 
 #include "packet-mtp3.h"
 #include "packet-sccp.h"
 void proto_register_sua(void);
 void proto_reg_handoff_sua(void);
 
-#define ADD_PADDING(x) ((((x) + 3) >> 2) << 2)
 #define SCTP_PORT_SUA          14001
 
 #define RESERVED_1_LENGTH      1
@@ -590,7 +590,7 @@ dissect_info_string_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto
     return;
   }
 
-  proto_tree_add_item(parameter_tree, hf_sua_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_UTF_8|ENC_NA);
+  proto_tree_add_item(parameter_tree, hf_sua_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_UTF_8);
   proto_item_append_text(parameter_item, " (%.*s)", info_string_length,
                          tvb_format_text(pinfo->pool, parameter_tvb, INFO_STRING_OFFSET, info_string_length));
 }
@@ -1097,7 +1097,7 @@ dissect_receive_sequence_number_parameter(tvbuff_t *parameter_tvb, proto_tree *p
 
 static const value_string interworking_values[] = {
   { 0x0,   "No Interworking with SS7 Networks" },
-  { 0x1,   "IP-Signalling Endpoint interworking with with SS7 networks" },
+  { 0x1,   "IP-Signalling Endpoint interworking with SS7 networks" },
   { 0x2,   "Signalling Gateway" },
   { 0x3,   "Relay Node Support" },
   { 0,     NULL } };
@@ -2104,7 +2104,7 @@ dissect_parameters(tvbuff_t *parameters_tvb, packet_info *pinfo, proto_tree *tre
   offset = 0;
   while((remaining_length = tvb_reported_length_remaining(parameters_tvb, offset))) {
     length       = tvb_get_ntohs(parameters_tvb, offset + PARAMETER_LENGTH_OFFSET);
-    total_length = ADD_PADDING(length);
+    total_length = WS_ROUNDUP_4(length);
     if (remaining_length >= length)
       total_length = MIN(total_length, remaining_length);
     /* create a tvb for the parameter including the padding bytes */

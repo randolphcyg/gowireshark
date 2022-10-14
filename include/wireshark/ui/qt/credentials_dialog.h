@@ -1,5 +1,4 @@
-/*
- * credentials_dialog.h
+/** @file
  *
  * Copyright 2019 - Dario Lombardo <lomato@gmail.com>
  *
@@ -42,7 +41,7 @@ private:
     CredentialsModel * model_;
 
     static void tapReset(void *tapdata);
-    static tap_packet_status tapPacket(void *tapdata, struct _packet_info *pinfo, struct epan_dissect *edt, const void *data);
+    static tap_packet_status tapPacket(void *tapdata, struct _packet_info *pinfo, struct epan_dissect *edt, const void *data, tap_flags_t flags);
 };
 
 #endif // CREDENTIALS_DIALOG_H

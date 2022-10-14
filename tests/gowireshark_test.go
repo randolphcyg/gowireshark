@@ -88,27 +88,10 @@ func TestCapFileMulSeq(t *testing.T) {
 //	time.Sleep(time.Second * 3)
 //}
 
-func TestDissectPrintSpecificFrameByGo(t *testing.T) {
-	err := gowireshark.DissectPrintSpecificFrameByGo(inputFilepath, 5000)
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
 /*
 RESULT: none
 */
 func TestDissectPrintSpecificFrameOutOfBounds(t *testing.T) {
-	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5448)
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
-/*
-RESULT: 5448: frame index is out of bounds
-*/
-func TestDissectPrintSpecificFrameByGoOutOfBounds(t *testing.T) {
 	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5448)
 	if err != nil {
 		fmt.Println(err)
@@ -258,6 +241,7 @@ var (
 	err         error
 )
 
+// TODO How can I assemble a wth structure like an offline packet by capturing and analyzing packets online?
 func TestDissectPktLive(t *testing.T) {
 	err = gowireshark.DissectPktLive(ifaceName, int(snapshotLen), 1, timeoutMillis(timeout))
 	if err != nil {

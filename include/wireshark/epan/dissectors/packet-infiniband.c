@@ -1691,7 +1691,7 @@ static heur_dissector_list_t heur_dissectors_cm_private;
 /* ----- This sections contains various utility functions indirectly related to Infiniband dissection ---- */
 static void infiniband_payload_prompt(packet_info *pinfo _U_, gchar* result)
 {
-    g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Dissect Infiniband payload as");
+    snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Dissect Infiniband payload as");
 }
 
 static void table_destroy_notify(gpointer data) {
@@ -2605,7 +2605,7 @@ static void update_sport(packet_info *pinfo)
     conversation_infiniband_data *conv_data;
 
     conv = find_conversation(pinfo->num, &pinfo->dst, &pinfo->dst,
-                             ENDPOINT_IBQP, pinfo->destport, pinfo->destport, NO_ADDR_B|NO_PORT_B);
+                             CONVERSATION_IBQP, pinfo->destport, pinfo->destport, NO_ADDR_B|NO_PORT_B);
     if (!conv)
         return;
 
@@ -3306,13 +3306,13 @@ create_conv_and_add_proto_data(packet_info *pinfo, guint64 service_id,
     proto_data->src_qp = src_port;
     memcpy(&proto_data->mad_private_data[0], mad_data, MAD_DATA_SIZE);
     conv = conversation_new(pinfo->num, addr, addr,
-                            ENDPOINT_IBQP, port, port, options);
+                            CONVERSATION_IBQP, port, port, options);
     conversation_add_proto_data(conv, proto_infiniband, proto_data);
 
     /* next, register the conversation using the LIDs */
     set_address(addr, AT_IB, sizeof(guint16), wmem_memdup(pinfo->pool, &lid, sizeof lid));
     conv = conversation_new(pinfo->num, addr, addr,
-                            ENDPOINT_IBQP, port, port, options);
+                            CONVERSATION_IBQP, port, port, options);
     conversation_add_proto_data(conv, proto_infiniband, proto_data);
 }
 
@@ -3358,7 +3358,7 @@ static void save_conversation_info(packet_info *pinfo, guint8 *local_gid, guint8
         proto_data->client_to_server = TRUE;
 
         conv = conversation_new(pinfo->num, &pinfo->src, &pinfo->dst,
-                                ENDPOINT_IBQP, pinfo->srcport, pinfo->destport, 0);
+                                CONVERSATION_IBQP, pinfo->srcport, pinfo->destport, 0);
         conversation_add_proto_data(conv, proto_infiniband, proto_data);
 
         /* create unidirection conversation for packets that will flow from
@@ -3567,7 +3567,7 @@ static void create_bidi_conv(packet_info *pinfo, connection_context *connection)
     proto_data->client_to_server = FALSE;
     memset(&proto_data->mad_private_data[0], 0, MAD_DATA_SIZE);
     conv = conversation_new(pinfo->num, &pinfo->src, &pinfo->dst,
-                            ENDPOINT_IBQP, connection->resp_qp,
+                            CONVERSATION_IBQP, connection->resp_qp,
                             connection->req_qp, 0);
     conversation_add_proto_data(conv, proto_infiniband, proto_data);
 }
@@ -3618,7 +3618,7 @@ static void update_passive_conv_info(packet_info *pinfo,
     conversation_infiniband_data *conv_data;
 
     conv = find_conversation(pinfo->num, &pinfo->dst, &pinfo->dst,
-                             ENDPOINT_IBQP, connection->req_qp, connection->req_qp,
+                             CONVERSATION_IBQP, connection->req_qp, connection->req_qp,
                              NO_ADDR_B|NO_PORT_B);
     if (!conv)
         return;   /* nothing to do with no conversation context */
@@ -4658,7 +4658,7 @@ static void parse_NodeDescription(proto_tree* parentTree, tvbuff_t* tvb, gint *o
         return;
 
     NodeDescription_header_tree = parentTree;
-    proto_tree_add_item(NodeDescription_header_tree, hf_infiniband_NodeDescription_NodeString, tvb, local_offset, 64, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(NodeDescription_header_tree, hf_infiniband_NodeDescription_NodeString, tvb, local_offset, 64, ENC_ASCII);
 }
 
 /* Parse NodeInfo Attribute
@@ -5838,7 +5838,7 @@ static int parse_ServiceAssociationRecord(proto_tree* parentTree, tvbuff_t* tvb,
 
     proto_tree_add_item(ServiceAssociationRecord_header_tree, hf_infiniband_ServiceAssociationRecord_ServiceKey, tvb, local_offset, 16, ENC_NA);
     local_offset += 16;
-    proto_tree_add_item(ServiceAssociationRecord_header_tree, hf_infiniband_ServiceAssociationRecord_ServiceName, tvb, local_offset, 64, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(ServiceAssociationRecord_header_tree, hf_infiniband_ServiceAssociationRecord_ServiceName, tvb, local_offset, 64, ENC_ASCII);
     local_offset += 64;
 
     return local_offset;

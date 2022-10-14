@@ -69,7 +69,7 @@ ADD: Additional generic (non-checked) ICV length of 128, 192 and 256.
 #include <epan/decode_as.h>
 #include <epan/capture_dissectors.h>
 
-#include <stdio.h>
+#include <stdio.h>    /* for sscanf() */
 #include <epan/uat.h>
 #include <wsutil/str_util.h>
 #include <wsutil/wsgcrypt.h>
@@ -320,7 +320,7 @@ compute_ascii_key(gchar **ascii_key, const gchar *key, char **err)
         {
           g_free(*ascii_key);
           *ascii_key = NULL;
-          *err = g_strdup_printf("Key %s begins with an invalid hex char (%c)", key, key[i]);
+          *err = ws_strdup_printf("Key %s begins with an invalid hex char (%c)", key, key[i]);
           return -1;    /* not a valid hex digit */
         }
         (*ascii_key)[j] = (guchar)hex_digit;
@@ -345,7 +345,7 @@ compute_ascii_key(gchar **ascii_key, const gchar *key, char **err)
         {
           g_free(*ascii_key);
           *ascii_key = NULL;
-          *err = g_strdup_printf("Key %s has an invalid hex char (%c)",
+          *err = ws_strdup_printf("Key %s has an invalid hex char (%c)",
                      key, key[i-1]);
           return -1;    /* not a valid hex digit */
         }
@@ -356,7 +356,7 @@ compute_ascii_key(gchar **ascii_key, const gchar *key, char **err)
         {
           g_free(*ascii_key);
           *ascii_key = NULL;
-          *err = g_strdup_printf("Key %s has an invalid hex char (%c)", key, key[i-1]);
+          *err = ws_strdup_printf("Key %s has an invalid hex char (%c)", key, key[i-1]);
           return -1;    /* not a valid hex digit */
         }
         key_byte |= (guchar)hex_digit;
@@ -813,7 +813,7 @@ get_full_ipv6_addr(char* ipv6_addr_expanded, char *ipv6_addr)
            break;
         addr_byte &= (0x0F << (4 * (i + 1) - mask));
         addr_byte &= 0x0F;
-        g_snprintf(ipv6_addr_expanded + i, 4, "%X", addr_byte);
+        snprintf(ipv6_addr_expanded + i, 4, "%X", addr_byte);
       }
     }
   }
@@ -897,9 +897,9 @@ get_full_ipv4_addr(char* ipv4_address_expanded, char *ipv4_address)
             return FALSE;
 
           if(addr_byte < 16)
-            g_snprintf(addr_byte_string,4,"0%X",addr_byte);
+            snprintf(addr_byte_string,4,"0%X",addr_byte);
           else
-            g_snprintf(addr_byte_string,4,"%X",addr_byte);
+            snprintf(addr_byte_string,4,"%X",addr_byte);
           for(i = 0; i < strlen(addr_byte_string); i++)
           {
             ipv4_address_expanded[cpt] = addr_byte_string[i];
@@ -926,9 +926,9 @@ get_full_ipv4_addr(char* ipv4_address_expanded, char *ipv4_address)
             return FALSE;
 
           if(addr_byte < 16)
-            g_snprintf(addr_byte_string,4,"0%X",addr_byte);
+            snprintf(addr_byte_string,4,"0%X",addr_byte);
           else
-            g_snprintf(addr_byte_string,4,"%X",addr_byte);
+            snprintf(addr_byte_string,4,"%X",addr_byte);
           for(i = 0; i < strlen(addr_byte_string); i++)
           {
             ipv4_address_expanded[cpt] = addr_byte_string[i];
@@ -968,7 +968,7 @@ get_full_ipv4_addr(char* ipv4_address_expanded, char *ipv4_address)
              return FALSE;
           addr_byte &= (0x0F << (4 * (i + 1) - mask));
           addr_byte &= 0x0F;
-          g_snprintf(ipv4_address_expanded + i, 4, "%X", addr_byte);
+          snprintf(ipv4_address_expanded + i, 4, "%X", addr_byte);
         }
       }
     }
@@ -1059,7 +1059,7 @@ filter_spi_match(guint spi, gchar *filter)
   if (strchr(filter, IPSEC_SA_WILDCARDS_ANY) != NULL) {
     gchar spi_string[IPSEC_SPI_LEN_MAX];
 
-    g_snprintf(spi_string, IPSEC_SPI_LEN_MAX,"0x%08x", spi);
+    snprintf(spi_string, IPSEC_SPI_LEN_MAX,"0x%08x", spi);
 
     /* Lengths need to match exactly... */
     if(strlen(spi_string) != filter_len)
@@ -1184,7 +1184,7 @@ get_esp_sa(gint protocol_typ, gchar *src,  gchar *dst,  guint spi,
 
 static void ah_prompt(packet_info *pinfo, gchar *result)
 {
-    g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "IP protocol %u as",
+    snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "IP protocol %u as",
         GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_ah, pinfo->curr_layer_num)));
 }
 
@@ -1197,7 +1197,7 @@ static void
 export_ipsec_pdu(dissector_handle_t dissector_handle, packet_info *pinfo, tvbuff_t *tvb)
 {
   if (have_tap_listener(exported_pdu_tap)) {
-    exp_pdu_data_t *exp_pdu_data = export_pdu_create_common_tags(pinfo, dissector_handle_get_dissector_name(dissector_handle), EXP_PDU_TAG_PROTO_NAME);
+    exp_pdu_data_t *exp_pdu_data = export_pdu_create_common_tags(pinfo, dissector_handle_get_dissector_name(dissector_handle), EXP_PDU_TAG_DISSECTOR_NAME);
 
     exp_pdu_data->tvb_captured_length = tvb_captured_length(tvb);
     exp_pdu_data->tvb_reported_length = tvb_reported_length(tvb);
@@ -1205,6 +1205,104 @@ export_ipsec_pdu(dissector_handle_t dissector_handle, packet_info *pinfo, tvbuff
 
     tap_queue_packet(exported_pdu_tap, pinfo, exp_pdu_data);
   }
+}
+
+/**
+ * Implements much of RFC 5879, "Heuristics for Detecting ESP-NULL Packets"
+ *
+ * Does NOT attempt to properly detect ENCR_NULL_AUTH_AES_GMAC.
+ */
+static int
+esp_null_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *esp_tree)
+{
+  int esp_packet_len, esp_pad_len, esp_icv_len, offset;
+  guint encapsulated_protocol;
+  guint32 saved_match_uint;
+  gboolean heur_ok;
+
+  tvbuff_t *next_tvb;
+  dissector_handle_t dissector_handle;
+
+  /* Possible ICV lengths to try. Per RFC 5879, smallest to largest.
+   */
+  static const int icv_lengths[] = {
+    12,
+    16,
+    24,
+    32,
+    -1
+  };
+
+  esp_packet_len = tvb_reported_length(tvb);
+
+  for (int i = 0; (esp_icv_len = icv_lengths[i]) != -1; i++) {
+
+    /* Make sure the packet is not truncated before the fields
+     * we need to read to determine the encapsulated protocol.
+     */
+    if (tvb_bytes_exist(tvb, -(esp_icv_len + 2), 2))
+    {
+      offset = esp_packet_len - (esp_icv_len + 2);
+      esp_pad_len = tvb_get_guint8(tvb, offset);
+      encapsulated_protocol = tvb_get_guint8(tvb, offset + 1);
+      dissector_handle = dissector_get_uint_handle(ip_dissector_table, encapsulated_protocol);
+      if (dissector_handle == NULL) {
+        continue;
+      }
+      if (ESP_HEADER_LEN + esp_pad_len > offset) {
+        continue;
+      }
+      heur_ok = TRUE;
+      for (int j=0; j < esp_pad_len; j++) {
+        if (tvb_get_guint8(tvb, offset - (j + 1)) != (esp_pad_len - j)) {
+          heur_ok = FALSE;
+          break;
+        }
+      }
+      if (!heur_ok) {
+        continue;
+      }
+
+      saved_match_uint  = pinfo->match_uint;
+      pinfo->match_uint = encapsulated_protocol;
+      next_tvb = tvb_new_subset_length(tvb, ESP_HEADER_LEN, offset - ESP_HEADER_LEN - esp_pad_len);
+      /* If the matching dissector has been disabled or rejects the packet,
+       * consider the heuristic failed.
+       * XXX: Should we also catch exceptions and consider those failures too?
+       *
+       * Note that the case of ENCR_NULL_AUTH_AES_GMAC will find the correct
+       * padding and encapsulated protocol using a 16 byte ICV, but needs to
+       * skip over the 8 bytes of IV.
+       */
+      if (call_dissector_only(dissector_handle, next_tvb, pinfo, proto_tree_get_parent_tree(esp_tree), NULL) == 0) {
+        pinfo->match_uint = saved_match_uint;
+        continue;
+      }
+      export_ipsec_pdu(dissector_handle, pinfo, next_tvb);
+      pinfo->match_uint = saved_match_uint;
+
+      if (esp_tree) {
+        if (esp_pad_len !=0) {
+          proto_tree_add_item(esp_tree, hf_esp_pad,
+                              tvb, offset - esp_pad_len,
+                              esp_pad_len, ENC_NA);
+        }
+
+        proto_tree_add_uint(esp_tree, hf_esp_pad_len, tvb,
+                            offset, 1,
+                            esp_pad_len);
+
+        proto_tree_add_uint_format(esp_tree, hf_esp_protocol, tvb,
+                                   offset + 1, 1,
+                                   encapsulated_protocol,
+                                   "Next header: %s (0x%02x)",
+                                   ipprotostr(encapsulated_protocol), encapsulated_protocol);
+      }
+
+      return esp_icv_len;
+    }
+  }
+  return esp_icv_len;
 }
 
 static gboolean
@@ -1765,12 +1863,8 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
           esp_salt_len = 4;
           esp_encr_key_len -= esp_salt_len;
 
-#ifdef HAVE_LIBGCRYPT_AEAD
           crypt_mode_libgcrypt =
             (esp_encr_algo == IPSEC_ENCRYPT_AES_CTR) ? GCRY_CIPHER_MODE_CTR : GCRY_CIPHER_MODE_GCM;
-#else
-          crypt_mode_libgcrypt = GCRY_CIPHER_MODE_CTR;
-#endif
           switch(esp_encr_key_len * 8)
           {
           case 128:
@@ -2020,7 +2114,6 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
           }
 
 
-#ifdef HAVE_LIBGCRYPT_AEAD
           if (g_esp_enable_authentication_check && icv_type == ICV_TYPE_AEAD) {
             /* Allocate buffer for ICV  */
             esp_icv = (guint8 *)tvb_memdup(wmem_packet_scope(), tvb, esp_packet_len - esp_icv_len, esp_icv_len);
@@ -2033,7 +2126,6 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
                                    gcry_cipher_algo_name(crypt_algo_libgcrypt), crypt_mode_libgcrypt, gcry_strerror(err));
             }
           }
-#endif
 
           if (!err)
           {
@@ -2052,7 +2144,6 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
             /* Decryption has finished */
             decrypt_ok = TRUE;
 
-#ifdef HAVE_LIBGCRYPT_AEAD
             if (g_esp_enable_authentication_check && icv_type == ICV_TYPE_AEAD) {
               guchar *esp_icv_computed;
               gint tag_len;
@@ -2081,7 +2172,6 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
                 esp_icv_expected = bytes_to_str(wmem_packet_scope(), esp_icv_computed, esp_icv_len);
               }
             }
-#endif
           }
         }
       }
@@ -2187,51 +2277,24 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
   {
     if(g_esp_enable_null_encryption_decode_heuristic)
     {
-      /* Make sure the packet is not truncated before the fields
-       * we need to read to determine the encapsulated protocol.
-       * (Note: we assume an ICV of 12 byte length.)
-       */
-      if(tvb_bytes_exist(tvb, esp_packet_len - 14, 2))
-      {
-        esp_pad_len = tvb_get_guint8(tvb, esp_packet_len - 14);
-        encapsulated_protocol = tvb_get_guint8(tvb, esp_packet_len - 13);
-        dissector_handle = dissector_get_uint_handle(ip_dissector_table, encapsulated_protocol);
-        if (dissector_handle) {
-          saved_match_uint  = pinfo->match_uint;
-          pinfo->match_uint = encapsulated_protocol;
-          next_tvb = tvb_new_subset_length(tvb, ESP_HEADER_LEN, esp_packet_len - ESP_HEADER_LEN - 14 - esp_pad_len);
-          export_ipsec_pdu(dissector_handle, pinfo, next_tvb);
-          call_dissector(dissector_handle, next_tvb, pinfo, tree);
-          pinfo->match_uint = saved_match_uint;
-          decrypt_dissect_ok = TRUE;
-        }
-      }
+      esp_icv_len = esp_null_heur(tvb, pinfo, esp_tree);
     }
 
-    if(decrypt_dissect_ok)
+    if(esp_icv_len != -1)
     {
+      offset = esp_packet_len - esp_icv_len;
       if(esp_tree)
       {
-        proto_tree_add_uint(esp_tree, hf_esp_pad_len, tvb,
-                            esp_packet_len - 14, 1,
-                            esp_pad_len);
-
-        proto_tree_add_uint_format(esp_tree, hf_esp_protocol, tvb,
-                                   esp_packet_len - 13, 1,
-                                   encapsulated_protocol,
-                                   "Next header: %s (0x%02x)",
-                                   ipprotostr(encapsulated_protocol), encapsulated_protocol);
-
         /* Make sure we have the auth trailer data */
-        if(tvb_bytes_exist(tvb, esp_packet_len - 12, 12))
+        if(tvb_bytes_exist(tvb, offset, esp_icv_len))
         {
-          proto_tree_add_item(esp_tree, hf_esp_icv, tvb, esp_packet_len - 12, 12, ENC_NA);
+          icv_item = proto_tree_add_item(esp_tree, hf_esp_icv, tvb, offset, esp_icv_len, ENC_NA);
         }
         else
         {
           /* Truncated so just display what we have */
-          proto_tree_add_bytes_format(esp_tree, hf_esp_icv, tvb, esp_packet_len - 12,
-                                      12 - (esp_packet_len - tvb_captured_length(tvb)),
+          icv_item = proto_tree_add_bytes_format(esp_tree, hf_esp_icv, tvb, offset,
+                                      esp_icv_len - (esp_packet_len - tvb_captured_length(tvb)),
                                       NULL, "Integrity Check Value (truncated)");
         }
       }
@@ -2490,8 +2553,9 @@ proto_register_ipsec(void)
   prefs_register_bool_preference(esp_module, "enable_null_encryption_decode_heuristic",
                                  "Attempt to detect/decode NULL encrypted ESP payloads",
                                  "This is done only if the Decoding is not SET or the packet does not belong to a SA. "
-                                 "Assumes a 12 byte auth (HMAC-SHA1-96/HMAC-MD5-96/AES-XCBC-MAC-96) "
-                                 "and attempts decode based on the ethertype 13 bytes from packet end",
+                                 "Tries ICV lengths of 12, 16, 24, and 32 bytes, checks for valid padding, "
+                                 "and attempts to decode based on the derived Next Header field. "
+                                 "Does not detect ENCR_NULL_AUTH_AES_GMAC (i.e. assumes 0 length IV)",
                                  &g_esp_enable_null_encryption_decode_heuristic);
 
   prefs_register_bool_preference(esp_module, "do_esp_sequence_analysis",

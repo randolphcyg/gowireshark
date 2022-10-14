@@ -1,4 +1,4 @@
-/* cfutils.h
+/** @file
  * Declarations of routines to work around deficiencies in Core Foundation,
  * such as the lack of a routine to convert a CFString to a C string of
  * arbitrary size.
@@ -13,7 +13,7 @@
 #ifndef __WSUTIL_CFUTILS_H__
 #define __WSUTIL_CFUTILS_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

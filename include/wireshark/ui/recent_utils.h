@@ -1,4 +1,5 @@
-/* recent_utils.h
+/** @file
+ *
  * Routines called to write stuff to the recent file; their implementations
  * are GUI-dependent, but the API's aren't
  *
@@ -44,12 +45,6 @@ extern gboolean dfilter_combo_add_recent(const gchar *dftext);
  * @param rf the recent file
  */
 extern void dfilter_recent_combo_write_all(FILE *rf);
-
-/** Write all packet list geometry values to the recent file.
- *
- *  @param rf recent file handle from caller
- */
-extern void packet_list_recent_write_all(FILE *rf);
 
 #ifdef __cplusplus
 }

@@ -26,7 +26,7 @@
 
 #include "config.h"
 
-#include <stdio.h>
+#include <stdio.h>      /* for sscanf() */
 #include <epan/packet.h>
 #include <epan/exceptions.h>
 #include <epan/prefs.h>
@@ -762,7 +762,7 @@ dcerpc_add_conv_to_bind_table(decode_dcerpc_bind_values_t *binding)
         0,
         &binding->addr_a,
         &binding->addr_b,
-        conversation_pt_to_endpoint_type(binding->ptype),
+        conversation_pt_to_conversation_type(binding->ptype),
         binding->port_a,
         binding->port_b,
         0);
@@ -772,7 +772,7 @@ dcerpc_add_conv_to_bind_table(decode_dcerpc_bind_values_t *binding)
             0,
             &binding->addr_a,
             &binding->addr_b,
-            conversation_pt_to_endpoint_type(binding->ptype),
+            conversation_pt_to_conversation_type(binding->ptype),
             binding->port_a,
             binding->port_b,
             0);
@@ -878,7 +878,7 @@ dcerpc_prompt(packet_info *pinfo, gchar* result)
     g_string_append(str, "&\r\n");
     g_string_append_printf(str, "%s: %u\r\n", address_str->str, pinfo->destport);
     g_string_append_printf(str, "&\r\nContext ID: %u\r\n", decode_data->dcectxid);
-    g_string_append_printf(str, "&\r\nSMB FID: %"G_GINT64_MODIFIER"u\r\n",
+    g_string_append_printf(str, "&\r\nSMB FID: %"PRIu64"\r\n",
                            dcerpc_get_transport_salt(pinfo));
     g_string_append(str, "with:\r\n");
 
@@ -1714,7 +1714,7 @@ dcerpc_get_proto_name(e_guid_t *uuid, guint16 ver)
         return NULL;
     }
 
-    return dissector_handle_get_short_name(handle);
+    return dissector_handle_get_protocol_short_name(handle);
 }
 
 /* Function to find the opnum hf-field of a registered protocol
@@ -1985,7 +1985,7 @@ dcerpcstat_init(struct register_srt* srt, GArray* srt_array)
 }
 
 static tap_packet_status
-dcerpcstat_packet(void *pss, packet_info *pinfo, epan_dissect_t *edt _U_, const void *prv)
+dcerpcstat_packet(void *pss, packet_info *pinfo, epan_dissect_t *edt _U_, const void *prv, tap_flags_t flags _U_)
 {
     guint i = 0;
     srt_stat_table *dcerpc_srt_table;
@@ -2039,11 +2039,11 @@ dcerpcstat_param(register_srt_t* srt, const char* opt_arg, char** err)
            &d1,&d2,&d3,&d40,&d41,&d42,&d43,&d44,&d45,&d46,&d47,&major,&minor,&pos) == 13)
     {
         if ((major < 0) || (major > 65535)) {
-            *err = g_strdup_printf("dcerpcstat_init() Major version number %d is invalid - must be positive and <= 65535", major);
+            *err = ws_strdup_printf("dcerpcstat_init() Major version number %d is invalid - must be positive and <= 65535", major);
             return pos;
         }
         if ((minor < 0) || (minor > 65535)) {
-            *err = g_strdup_printf("dcerpcstat_init() Minor version number %d is invalid - must be positive and <= 65535", minor);
+            *err = ws_strdup_printf("dcerpcstat_init() Minor version number %d is invalid - must be positive and <= 65535", minor);
             return pos;
         }
         ver = major;
@@ -2079,7 +2079,7 @@ dcerpcstat_param(register_srt_t* srt, const char* opt_arg, char** err)
     }
     else
     {
-        *err = g_strdup_printf("<uuid>,<major version>.<minor version>[,<filter>]");
+        *err = ws_strdup_printf("<uuid>,<major version>.<minor version>[,<filter>]");
     }
 
     return pos;
@@ -4218,7 +4218,7 @@ dissect_dcerpc_cn_bind_ack(tvbuff_t *tvb, gint offset, packet_info *pinfo,
                                    hf_dcerpc_cn_sec_addr_len, &sec_addr_len);
     if (sec_addr_len != 0) {
         proto_tree_add_item(dcerpc_tree, hf_dcerpc_cn_sec_addr, tvb, offset,
-                            sec_addr_len, ENC_ASCII|ENC_NA);
+                            sec_addr_len, ENC_ASCII);
         offset += sec_addr_len;
     }
 
@@ -4450,7 +4450,7 @@ dissect_dcerpc_cn_stub(tvbuff_t *tvb, int offset, packet_info *pinfo,
        then exit
     */
     if (pinfo->fd->visited) {
-        fd_head = fragment_get_reassembled(&dcerpc_co_reassembly_table, frame);
+        fd_head = fragment_get_reassembled_id(&dcerpc_co_reassembly_table, pinfo, frame);
         goto end_cn_stub;
     }
 
@@ -5438,6 +5438,7 @@ dissect_dcerpc_cn_rts(tvbuff_t *tvb, gint offset, packet_info *pinfo,
     }
 }
 
+/* Test to see if this looks like a connection oriented PDU */
 static gboolean
 is_dcerpc(tvbuff_t *tvb, int offset, packet_info *pinfo _U_)
 {
@@ -5445,6 +5446,7 @@ is_dcerpc(tvbuff_t *tvb, int offset, packet_info *pinfo _U_)
     guint8 rpc_ver_minor;
     guint8 ptype;
     guint8 drep[4];
+    guint16 frag_len;
 
     if (!tvb_bytes_exist(tvb, offset, sizeof(e_dce_cn_common_hdr_t)))
         return FALSE;   /* not enough information to check */
@@ -5466,6 +5468,11 @@ is_dcerpc(tvbuff_t *tvb, int offset, packet_info *pinfo _U_)
         return FALSE;
     if (drep[1] > DCE_RPC_DREP_FP_IBM)
         return FALSE;
+    offset += (int)sizeof(drep);
+    frag_len = dcerpc_tvb_get_ntohs(tvb, offset, drep);
+    if (frag_len < sizeof(e_dce_cn_common_hdr_t)) {
+        return FALSE;
+    }
 
     return TRUE;
 }
@@ -5861,15 +5868,24 @@ dissect_dcerpc_cn_bs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 
 static guint
 get_dcerpc_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb,
-                   int offset _U_, void *data _U_)
+                   int offset, void *data _U_)
 {
     guint8 drep[4];
     guint16 frag_len;
 
-    /* XXX: why does htis not take offset into account? */
-    tvb_memcpy(tvb, (guint8 *)drep, 4, sizeof(drep));
-    frag_len = dcerpc_tvb_get_ntohs(tvb, 8, drep);
+    tvb_memcpy(tvb, (guint8 *)drep, offset+4, sizeof(drep));
+    frag_len = dcerpc_tvb_get_ntohs(tvb, offset+8, drep);
 
+    if (!frag_len) {
+        /* tcp_dissect_pdus() interprets a 0 return value as meaning
+         * "a PDU starts here, but the length cannot be determined yet, so
+         * we need at least one more segment." However, a frag_len of 0 here
+         * is instead a bogus length. Instead return 1, another bogus length
+         * also less than our fixed length, so that the TCP dissector will
+         * correctly interpret it as a bogus and report an error.
+         */
+        frag_len = 1;
+    }
     return frag_len;
 }
 
@@ -5895,7 +5911,7 @@ dissect_dcerpc_tcp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     decode_data = dcerpc_get_decode_data(pinfo);
     decode_data->dcetransporttype = DCE_TRANSPORT_UNKNOWN;
 
-    tcp_dissect_pdus(tvb, pinfo, tree, dcerpc_cn_desegment, 10, get_dcerpc_pdu_len, dissect_dcerpc_pdu, data);
+    tcp_dissect_pdus(tvb, pinfo, tree, dcerpc_cn_desegment, sizeof(e_dce_cn_common_hdr_t), get_dcerpc_pdu_len, dissect_dcerpc_pdu, data);
     return TRUE;
 }
 
@@ -5907,7 +5923,7 @@ dissect_dcerpc_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
     decode_data = dcerpc_get_decode_data(pinfo);
     decode_data->dcetransporttype = DCE_TRANSPORT_UNKNOWN;
 
-    tcp_dissect_pdus(tvb, pinfo, tree, dcerpc_cn_desegment, 10, get_dcerpc_pdu_len, dissect_dcerpc_pdu, data);
+    tcp_dissect_pdus(tvb, pinfo, tree, dcerpc_cn_desegment, sizeof(e_dce_cn_common_hdr_t), get_dcerpc_pdu_len, dissect_dcerpc_pdu, data);
     return tvb_captured_length(tvb);
 }
 

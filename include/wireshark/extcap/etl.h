@@ -1,5 +1,5 @@
-/* etl.h
-*
+/** @file
+ *
  * Copyright 2020, Odysseus Yang
  *
  * Wireshark - Network traffic analyzer
@@ -13,7 +13,7 @@
 #define __W_ETL_H__
 
 #include "wiretap/wtap.h"
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 #include "wiretap/wtap-int.h"
 
 #include <glib.h>

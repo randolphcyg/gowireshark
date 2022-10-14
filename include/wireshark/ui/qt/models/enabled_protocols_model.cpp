@@ -14,7 +14,9 @@
 #include <epan/disabled_protos.h>
 
 #include <ui/qt/utils/variant_pointer.h>
-#include "wireshark_application.h"
+#include "main_application.h"
+
+#include <QRegularExpression>
 
 class ProtocolTreeItem : public EnabledProtocolItem
 {
@@ -263,12 +265,7 @@ bool EnabledProtocolsModel::setData(const QModelIndex &index, const QVariant &va
     if (item == NULL)
         return false;
 
-    item->setEnabled(value == Qt::Checked ? true : false);
-
-    QVector<int> roles;
-    roles << role;
-
-    emit dataChanged(index, index, roles);
+    item->setEnabled(value.toInt() == Qt::Checked ? true : false);
 
     return true;
 }
@@ -287,7 +284,7 @@ void EnabledProtocolsModel::populate()
     void *cookie;
     protocol_t *protocol;
 
-    emit beginResetModel();
+    beginResetModel();
 
     // Iterate over all the protocols
     for (int i = proto_get_first_protocol(&cookie); i != -1; i = proto_get_next_protocol(&cookie))
@@ -302,7 +299,7 @@ void EnabledProtocolsModel::populate()
         }
     }
 
-    emit endResetModel();
+    endResetModel();
 }
 
 void EnabledProtocolsModel::applyChanges(bool writeChanges)
@@ -337,7 +334,7 @@ void EnabledProtocolsModel::saveChanges(bool writeChanges)
     if (writeChanges) {
         save_enabled_and_disabled_lists();
     }
-    wsApp->emitAppSignal(WiresharkApplication::PacketDissectionChanged);
+    mainApp->emitAppSignal(MainApplication::PacketDissectionChanged);
 }
 
 
@@ -417,7 +414,9 @@ bool EnabledProtocolsProxyModel::filterAcceptsSelf(int sourceRow, const QModelIn
     if (! item)
         return false;
 
-    QRegExp regex(filter_, Qt::CaseInsensitive);
+    QRegularExpression regex(filter_, QRegularExpression::CaseInsensitiveOption);
+    if (! regex.isValid())
+        return false;
 
     if ((type_ != EnabledProtocolsProxyModel::EnabledItems && type_ != EnabledProtocolsProxyModel::DisabledItems) &&
         (protocolType_ == EnabledProtocolItem::Any || protocolType_ == item->type()) )
@@ -480,9 +479,10 @@ void EnabledProtocolsProxyModel::setItemsEnable(EnabledProtocolsProxyModel::Enab
         return;
 
     if (! parent.isValid())
-        emit beginResetModel();
+        beginResetModel();
 
-    for (int row = 0; row < rowCount(parent); row++)
+    int rowcount = rowCount(parent);
+    for (int row = 0; row < rowcount; row++)
     {
         QModelIndex idx = index(row, EnabledProtocolsModel::colProtocol, parent);
 
@@ -509,5 +509,5 @@ void EnabledProtocolsProxyModel::setItemsEnable(EnabledProtocolsProxyModel::Enab
 
 
     if (! parent.isValid())
-        emit endResetModel();
+        endResetModel();
 }

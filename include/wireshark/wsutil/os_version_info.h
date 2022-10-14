@@ -1,4 +1,4 @@
-/* os_version_info.h
+/** @file
  * Declarations of outines to report operating system version information
  *
  * Wireshark - Network traffic analyzer
@@ -11,7 +11,7 @@
 #ifndef __WSUTIL_OS_VERSION_INFO_H__
 #define __WSUTIL_OS_VERSION_INFO_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -13,7 +13,7 @@
 #include <ui/qt/utils/wireshark_mime_data.h>
 #include <ui/qt/models/uat_model.h>
 #include <ui/qt/filter_action.h>
-#include <ui/qt/wireshark_application.h>
+#include <ui/qt/main_application.h>
 
 #include <epan/filter_expressions.h>
 #include <ui/preference_utils.h>
@@ -53,9 +53,9 @@ FilterExpressionToolBar::FilterExpressionToolBar(QWidget * parent) :
     connect(this, &DragDropToolBar::actionMoved, this, &FilterExpressionToolBar::onActionMoved);
     connect(this, &DragDropToolBar::newFilterDropped, this, &FilterExpressionToolBar::onFilterDropped);
 
-    connect(wsApp, &WiresharkApplication::appInitialized,
+    connect(mainApp, &MainApplication::appInitialized,
             this, &FilterExpressionToolBar::filterExpressionsChanged);
-    connect(wsApp, &WiresharkApplication::filterExpressionsChanged,
+    connect(mainApp, &MainApplication::filterExpressionsChanged,
             this, &FilterExpressionToolBar::filterExpressionsChanged);
 
 }
@@ -85,6 +85,7 @@ void FilterExpressionToolBar::onCustomMenuHandler(const QPoint& pos)
 void FilterExpressionToolBar::customMenu(FilterExpressionToolBar * target, QAction * filterAction, const QPoint& pos)
 {
     QMenu * filterMenu = new QMenu(target);
+    filterMenu->setAttribute(Qt::WA_DeleteOnClose);
 
     /* Only display context menu for actual filter actions */
     QString filterText = filterAction->property(dfe_property_expression_).toString().trimmed();
@@ -119,7 +120,7 @@ void FilterExpressionToolBar::customMenu(FilterExpressionToolBar * target, QActi
     /* Forcing the menus to get closed, no matter which action has been triggered */
     connect(filterMenu, &QMenu::triggered, this, &FilterExpressionToolBar::closeMenu);
 
-    filterMenu->exec(mapToGlobal(pos));
+    filterMenu->popup(mapToGlobal(pos));
 }
 
 void FilterExpressionToolBar::filterExpressionsChanged()
@@ -428,7 +429,7 @@ gboolean FilterExpressionToolBar::filter_expression_add_action(const void *key _
         dfb_action->setToolTip(fe->expression);
         dfb_action->setProperty(dfe_property_comment_, QString(fe->expression));
     }
-    dfb_action->setData(fe->expression);
+    dfb_action->setData(QString::fromUtf8(fe->expression));
     dfb_action->setProperty(dfe_property_, true);
     dfb_action->setProperty(dfe_property_label_, QString(fe->label));
     dfb_action->setProperty(dfe_property_expression_, QString(fe->expression));

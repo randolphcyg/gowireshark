@@ -23,7 +23,7 @@
 #include <ui/qt/utils/tango_colors.h>
 #include <ui/qt/utils/qt_ui_utils.h>
 #include "progress_frame.h"
-#include "wireshark_application.h"
+#include "main_application.h"
 #include "ui/qt/widgets/wireshark_file_dialog.h"
 
 #include <QCursor>
@@ -622,11 +622,11 @@ void TCPStreamDialog::fillGraph(bool reset_axes, bool set_focus)
 
     stream_desc_ = tr("%1 %2 pkts, %3 %4 %5 pkts, %6 ")
             .arg(UTF8_RIGHTWARDS_ARROW)
-            .arg(gchar_free_to_qstring(format_size(pkts_fwd, format_size_unit_none|format_size_prefix_si)))
-            .arg(gchar_free_to_qstring(format_size(bytes_fwd, format_size_unit_bytes|format_size_prefix_si)))
+            .arg(gchar_free_to_qstring(format_size(pkts_fwd, FORMAT_SIZE_UNIT_NONE, FORMAT_SIZE_PREFIX_SI)))
+            .arg(gchar_free_to_qstring(format_size(bytes_fwd, FORMAT_SIZE_UNIT_BYTES, FORMAT_SIZE_PREFIX_SI)))
             .arg(UTF8_LEFTWARDS_ARROW)
-            .arg(gchar_free_to_qstring(format_size(pkts_rev, format_size_unit_none|format_size_prefix_si)))
-            .arg(gchar_free_to_qstring(format_size(bytes_rev, format_size_unit_bytes|format_size_prefix_si)));
+            .arg(gchar_free_to_qstring(format_size(pkts_rev, FORMAT_SIZE_UNIT_NONE, FORMAT_SIZE_PREFIX_SI)))
+            .arg(gchar_free_to_qstring(format_size(bytes_rev, FORMAT_SIZE_UNIT_BYTES, FORMAT_SIZE_PREFIX_SI)));
     mouseMoved(NULL);
     if (reset_axes)
         resetAxes();
@@ -1663,7 +1663,11 @@ void TCPStreamDialog::graphClicked(QMouseEvent *event)
     if (event->button() == Qt::RightButton) {
         // XXX We should find some way to get streamPlot to handle a
         // contextMenuEvent instead.
-        ctx_menu_.exec(event->globalPos());
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0 ,0)
+        ctx_menu_.popup(event->globalPosition().toPoint());
+#else
+        ctx_menu_.popup(event->globalPos());
+#endif
     } else  if (mouse_drags_) {
         if (sp->axisRect()->rect().contains(event->pos())) {
             sp->setCursor(QCursor(Qt::ClosedHandCursor));
@@ -1839,7 +1843,7 @@ void TCPStreamDialog::transformYRange(const QCPRange &y_range1)
 void TCPStreamDialog::on_buttonBox_accepted()
 {
     QString file_name, extension;
-    QDir path(wsApp->lastOpenDir());
+    QDir path(mainApp->lastOpenDir());
     QString pdf_filter = tr("Portable Document Format (*.pdf)");
     QString png_filter = tr("Portable Network Graphics (*.png)");
     QString bmp_filter = tr("Windows Bitmap (*.bmp)");
@@ -1851,7 +1855,7 @@ void TCPStreamDialog::on_buttonBox_accepted()
             .arg(bmp_filter)
             .arg(jpeg_filter);
 
-    file_name = WiresharkFileDialog::getSaveFileName(this, wsApp->windowTitleString(tr("Save Graph As…")),
+    file_name = WiresharkFileDialog::getSaveFileName(this, mainApp->windowTitleString(tr("Save Graph As…")),
                                              path.canonicalPath(), filter, &extension);
 
     if (file_name.length() > 0) {
@@ -1867,7 +1871,7 @@ void TCPStreamDialog::on_buttonBox_accepted()
         }
         // else error dialog?
         if (save_ok) {
-            wsApp->setLastOpenDirFromFilename(file_name);
+            mainApp->setLastOpenDirFromFilename(file_name);
         }
     }
 }
@@ -2208,5 +2212,5 @@ void TCPStreamDialog::GraphUpdater::doUpdate()
 
 void TCPStreamDialog::on_buttonBox_helpRequested()
 {
-    wsApp->helpTopicAction(HELP_STATS_TCP_STREAM_GRAPHS_DIALOG);
+    mainApp->helpTopicAction(HELP_STATS_TCP_STREAM_GRAPHS_DIALOG);
 }

@@ -1,11 +1,12 @@
-/* This file is derived from sober128 implementation in corosync
+/** @file
+   This file is derived from sober128 implementation in corosync
    cluster engine. corosync cluster engine borrows the implementation
    from LibTomCrypt.
 
    The latest version of the original code can be found at
    http://www.libtom.net/LibTomCrypt/ according to which this code is in the
    Public Domain
-   */
+*/
 
 /* About LibTomCrypt:
  * ---------------------------------------------------------------------
@@ -23,7 +24,7 @@
 #ifndef _SOBER127_H
 #define _SOBER127_H
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 typedef struct _sober128_prng {
     unsigned long      R[17],          /* Working storage for the shift register */

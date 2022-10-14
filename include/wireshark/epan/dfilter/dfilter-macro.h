@@ -1,4 +1,4 @@
-/* dfilter-macro.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -10,7 +10,7 @@
 #ifndef _DFILTER_MACRO_H
 #define _DFILTER_MACRO_H
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 
 #define DFILTER_MACRO_FILENAME "dfilter_macros"
@@ -38,9 +38,6 @@ struct epan_uat;
 
 WS_DLL_PUBLIC
 void dfilter_macro_get_uat(struct epan_uat **dfmu_ptr_ptr);
-
-WS_DLL_PUBLIC
-void dfilter_macro_build_ftv_cache(void* tree_root);
 
 void dfilter_macro_cleanup(void);
 

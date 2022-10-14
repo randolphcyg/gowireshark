@@ -25,7 +25,6 @@
 #include <wsutil/filesystem.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
-#include <epan/garrayfix.h>
 #include <wsutil/str_util.h>
 #include <wsutil/report_message.h>
 
@@ -174,7 +173,33 @@ static const gchar *default_media_types[] = {
     "application/vnd.3gpp.cw+xml",
     "application/vnd.3gpp.iut+xml",             /*3GPP TS 24.337*/
     "application/vnc.3gpp.iut-config+xml",      /*3GPP TS 24.337*/
-    "application/vnd.3gpp.mcptt-info+xml",
+    "application/vnd.3gpp.mcptt-info+xml",                 /*3GPP TS 24.379 version 17.6.0*/
+    "application/vnd.3gpp.mcptt-mbms-usage-info+xml",      /*3GPP TS 24.379 version 17.6.0*/
+    "application/vnd.3gpp.mcptt-location-info+xml",        /*3GPP TS 24.379 version 17.6.0*/
+    "application/vnd.3gpp.mcptt-affiliation-command+xml",  /*3GPP TS 24.379 version 17.6.0*/
+    "application/vnd.3gpp.mcptt-floor-request+xml",        /*3GPP TS 24.379 version 17.6.0*/
+    "application/vnd.3gpp.mcptt-signed+xml",               /*3GPP TS 24.379 version 17.6.0*/
+    "application/vnd.3gpp.mcptt-regroup+xml",              /*3GPP TS 24.379 version 17.6.0*/
+    "application/vnd.3gpp.mcdata-info+xml",                /*3GPP TS 24.282 version 17.6.2*/
+    "application/vnd.3gpp.mcdata-mbms-usage-info+xml",     /*3GPP TS 24.282 version 17.6.2*/
+    "application/vnd.3gpp.mcdata-location-info+xml",       /*3GPP TS 24.282 version 17.6.2*/
+    "application/vnd.3gpp.mcdata-affiliation-command+xml", /*3GPP TS 24.282 version 17.6.2*/
+    "application/vnd.3gpp.mcdata-regroup+xml",             /*3GPP TS 24.282 version 17.6.2*/
+    "application/vnd.3gpp.mcvideo-info+xml",               /*3GPP TS 24.281 version 17.6.0*/
+    "application/vnd.3gpp.mcvideo-mbms-usage-info+xml",    /*3GPP TS 24.281 version 17.6.0*/
+    "application/vnd.3gpp.mcvideo-location-info+xml",      /*3GPP TS 24.281 version 17.6.0*/
+    "application/vnd.3gpp.mcvideo-affiliation-command+xml",/*3GPP TS 24.281 version 17.6.0*/
+    "application/vnd.3gpp.transmission-request+xml",       /*3GPP TS 24.281 version 17.6.0*/
+    "application/vnd.3gpp.mcptt-ue-init-config+xml",       /*3GPP TS 24.484 version 17.5.0*/
+    "application/vnd.3gpp.mcptt-ue-config+xml",            /*3GPP TS 24.484 version 17.5.0*/
+    "application/vnd.3gpp.mcptt-user-profile+xml",         /*3GPP TS 24.484 version 17.5.0*/
+    "application/vnd.3gpp.mcptt-service-config+xml",       /*3GPP TS 24.484 version 17.5.0*/
+    "application/vnd.3gpp.mcdata-service-config+xml",      /*3GPP TS 24.484 version 17.5.0*/
+    "application/vnd.3gpp.mcvideo-service-config+xml",     /*3GPP TS 24.484 version 17.5.0*/
+    "application/vnd.3gpp.mcvideo-ue-config+xml",          /*3GPP TS 24.484 version 17.5.0*/
+    "application/vnd.3gpp.mcvideo-user-profile+xml",       /*3GPP TS 24.484 version 17.5.0*/
+    "application/vnd.3gpp.mcdata-ue-config+xml",           /*3GPP TS 24.484 version 17.5.0*/
+    "application/vnd.3gpp.mcdata-user-profile+xml",        /*3GPP TS 24.484 version 17.5.0*/
     "application/vnd.3gpp.mid-call+xml",
     "application/vnd.3gpp-prose-pc3ch+xml",
     "application/vnd.3gpp-prose+xml",
@@ -618,7 +643,7 @@ static void before_dtd_doctype(void *tvbparse_data, const void *wanted_data _U_,
     tvbparse_elem_t *name_tok      = tok->sub->next->next->next->sub->sub;
     proto_tree      *dtd_item      = proto_tree_add_item(current_frame->tree, hf_doctype,
                                                          name_tok->tvb, name_tok->offset,
-                                                         name_tok->len, ENC_ASCII|ENC_NA);
+                                                         name_tok->len, ENC_ASCII);
 
     proto_item_set_text(dtd_item, "%s", tvb_format_text(wmem_packet_scope(), tok->tvb, tok->offset, tok->len));
 
@@ -1321,7 +1346,7 @@ static void register_dtd(dtd_build_data_t *dtd_data, GString *errors)
 
         root_element->hf_tag = proto_register_protocol(full_name, short_name, short_name);
         proto_register_field_array(root_element->hf_tag, (hf_register_info*)wmem_array_get_raw(hfs), wmem_array_get_count(hfs));
-        proto_register_subtree_array((gint **)g_array_data(etts), etts->len);
+        proto_register_subtree_array((gint **)etts->data, etts->len);
 
         if (dtd_data->media_type) {
             gchar* media_type = wmem_strdup(wmem_epan_scope(), dtd_data->media_type);
@@ -1511,7 +1536,7 @@ proto_register_xml(void)
     xml_ns.hf_tag = proto_register_protocol("eXtensible Markup Language", "XML", xml_ns.name);
 
     proto_register_field_array(xml_ns.hf_tag, (hf_register_info*)wmem_array_get_raw(hf_arr), wmem_array_get_count(hf_arr));
-    proto_register_subtree_array((gint **)g_array_data(ett_arr), ett_arr->len);
+    proto_register_subtree_array((gint **)ett_arr->data, ett_arr->len);
     expert_xml = expert_register_protocol(xml_ns.hf_tag);
     expert_register_field_array(expert_xml, ei, array_length(ei));
 

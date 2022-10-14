@@ -7,100 +7,34 @@
  */
 
 #include "config.h"
+#include "ftypes-int.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/*
- * Just make sure we include the prototype for strptime as well
- * (needed for glibc 2.2) but make sure we do this only if not
- * yet defined.
- */
-#ifndef __USE_XOPEN
-#  define __USE_XOPEN
-#endif
-
-#include <time.h>
-
-#include <ftypes-int.h>
 #include <epan/to_str.h>
+#include <wsutil/time_util.h>
 
-#ifndef HAVE_STRPTIME
-#include "wsutil/strptime.h"
-#endif
 
-static gboolean
-cmp_eq(const fvalue_t *a, const fvalue_t *b)
+static enum ft_result
+cmp_order(const fvalue_t *a, const fvalue_t *b, int *cmp)
 {
-	return ((a->value.time.secs) ==(b->value.time.secs))
-	     &&((a->value.time.nsecs)==(b->value.time.nsecs));
+	*cmp = nstime_cmp(&(a->value.time), &(b->value.time));
+	return FT_OK;
 }
-static gboolean
-cmp_ne(const fvalue_t *a, const fvalue_t *b)
-{
-	return (a->value.time.secs !=b->value.time.secs)
-	     ||(a->value.time.nsecs!=b->value.time.nsecs);
-}
-static gboolean
-cmp_gt(const fvalue_t *a, const fvalue_t *b)
-{
-	if (a->value.time.secs > b->value.time.secs) {
-		return TRUE;
-	}
-	if (a->value.time.secs < b->value.time.secs) {
-		return FALSE;
-	}
-
-	return a->value.time.nsecs > b->value.time.nsecs;
-}
-static gboolean
-cmp_ge(const fvalue_t *a, const fvalue_t *b)
-{
-	if (a->value.time.secs > b->value.time.secs) {
-		return TRUE;
-	}
-	if (a->value.time.secs < b->value.time.secs) {
-		return FALSE;
-	}
-
-	return a->value.time.nsecs >= b->value.time.nsecs;
-}
-static gboolean
-cmp_lt(const fvalue_t *a, const fvalue_t *b)
-{
-	if (a->value.time.secs < b->value.time.secs) {
-		return TRUE;
-	}
-	if (a->value.time.secs > b->value.time.secs) {
-		return FALSE;
-	}
-
-	return a->value.time.nsecs < b->value.time.nsecs;
-}
-static gboolean
-cmp_le(const fvalue_t *a, const fvalue_t *b)
-{
-	if (a->value.time.secs < b->value.time.secs) {
-		return TRUE;
-	}
-	if (a->value.time.secs > b->value.time.secs) {
-		return FALSE;
-	}
-
-	return a->value.time.nsecs <= b->value.time.nsecs;
-}
-
 
 /*
  * Get a nanoseconds value, starting at "p".
  *
  * Returns true on success, false on failure.
+ *
+ * If successful endptr points to the first invalid character.
  */
 static gboolean
-get_nsecs(const char *startp, int *nsecs)
+get_nsecs(const char *startp, int *nsecs, const char **endptr)
 {
-	int ndigits;
+	int ndigits = 0;
 	int scale;
 	const char *p;
 	int val;
@@ -108,9 +42,10 @@ get_nsecs(const char *startp, int *nsecs)
 	int i;
 
 	/*
-	 * How many characters are in the string?
+	 * How many digits are in the string?
 	 */
-	ndigits = (int)strlen(startp);
+	for (p = startp; g_ascii_isdigit(*p); p++)
+		ndigits++;
 
 	/*
 	 * If there are N characters in the string, the last of the
@@ -122,7 +57,6 @@ get_nsecs(const char *startp, int *nsecs)
 	/*
 	 * Start at the last character, and work backwards.
 	 */
-	p = startp + ndigits;
 	val = 0;
 	while (p != startp) {
 		p--;
@@ -152,11 +86,13 @@ get_nsecs(const char *startp, int *nsecs)
 		scale++;
 	}
 	*nsecs = val;
+	if (endptr)
+		*endptr = startp + ndigits;
 	return TRUE;
 }
 
 static gboolean
-relative_val_from_unparsed(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, gchar **err_msg)
+relative_val_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, gchar **err_msg)
 {
 	const char    *curptr;
 	char *endptr;
@@ -199,7 +135,7 @@ relative_val_from_unparsed(fvalue_t *fv, const char *s, gboolean allow_partial_v
 		/*
 		 * Get the nanoseconds value.
 		 */
-		if (!get_nsecs(curptr, &fv->value.time.nsecs))
+		if (!get_nsecs(curptr, &fv->value.time.nsecs, NULL))
 			goto fail;
 	} else {
 		/*
@@ -216,7 +152,7 @@ relative_val_from_unparsed(fvalue_t *fv, const char *s, gboolean allow_partial_v
 
 fail:
 	if (err_msg != NULL)
-		*err_msg = g_strdup_printf("\"%s\" is not a valid time.", s);
+		*err_msg = ws_strdup_printf("\"%s\" is not a valid time.", s);
 	return FALSE;
 }
 
@@ -238,20 +174,32 @@ parse_month_name(const char *s, int *tm_mon)
 	return FALSE;
 }
 
-/* Parses an absolute time value from a string. The string cannot have
- * a time zone suffix and is always interpreted in local time.
+/*
+ * Parses an absolute time value from a string. The string can have
+ * a UTC time zone suffix. In that case it is interpreted in UTC. Otherwise
+ * it is interpreted in local time.
  *
  * OS-dependent; e.g., on 32 bit versions of Windows when compiled to use
  * _mktime32 treats dates before January 1, 1970 as invalid.
  * (https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/mktime-mktime32-mktime64)
  */
+
+#define EXAMPLE "Example: \"Nov 12, 1999 08:55:44.123\" or \"2011-07-04 12:34:56\""
+
 static gboolean
-absolute_val_from_string(fvalue_t *fv, const char *s, gchar **err_msg)
+absolute_val_from_string(fvalue_t *fv, const char *s, size_t len _U_, char **err_msg_ptr)
 {
 	struct tm tm;
-	char    *curptr = NULL;
+	const char *curptr = NULL;
+	const char *endptr;
 	gboolean has_seconds = TRUE;
+	char *err_msg = NULL;
 
+	/* Try ISO 8601 format first. */
+	if (iso8601_to_nstime(&fv->value.time, s, ISO8601_DATETIME) == strlen(s))
+		return TRUE;
+
+	/* Try other legacy formats. */
 	memset(&tm, 0, sizeof(tm));
 
 	if (strlen(s) < sizeof("2000-1-1") - 1)
@@ -259,44 +207,75 @@ absolute_val_from_string(fvalue_t *fv, const char *s, gchar **err_msg)
 
 	/* Do not use '%b' to parse the month name, it is locale-specific. */
 	if (s[3] == ' ' && parse_month_name(s, &tm.tm_mon))
-		curptr = strptime(s + 4, "%d, %Y %H:%M:%S", &tm);
+		curptr = ws_strptime(s + 4, "%d, %Y %H:%M:%S", &tm);
 
-	if (curptr == NULL)
-		curptr = strptime(s,"%Y-%m-%dT%H:%M:%S", &tm);
-	if (curptr == NULL)
-		curptr = strptime(s,"%Y-%m-%d %H:%M:%S", &tm);
 	if (curptr == NULL) {
 		has_seconds = FALSE;
-		curptr = strptime(s,"%Y-%m-%d %H:%M", &tm);
+		curptr = ws_strptime(s,"%Y-%m-%d %H:%M", &tm);
 	}
 	if (curptr == NULL)
-		curptr = strptime(s,"%Y-%m-%d %H", &tm);
+		curptr = ws_strptime(s,"%Y-%m-%d %H", &tm);
 	if (curptr == NULL)
-		curptr = strptime(s,"%Y-%m-%d", &tm);
+		curptr = ws_strptime(s,"%Y-%m-%d", &tm);
 	if (curptr == NULL)
 		goto fail;
 	tm.tm_isdst = -1;	/* let the computer figure out if it's DST */
-	fv->value.time.secs = mktime(&tm);
-	if (*curptr != '\0') {
-		/*
-		 * Something came after the seconds field; it must be
-		 * a nanoseconds field.
-		 */
-		if (*curptr != '.' || !has_seconds)
-			goto fail;	/* it's not */
+
+	if (*curptr == '.') {
+		/* Nanoseconds */
+		if (!has_seconds) {
+			err_msg = ws_strdup("Subsecond precision requires a seconds field.");
+			goto fail;	/* Requires seconds */
+		}
 		curptr++;	/* skip the "." */
-		if (!g_ascii_isdigit((unsigned char)*curptr))
-			goto fail;	/* not a digit, so not valid */
-		if (!get_nsecs(curptr, &fv->value.time.nsecs))
+		if (!g_ascii_isdigit((unsigned char)*curptr)) {
+			/* not a digit, so not valid */
+			err_msg = ws_strdup("Subseconds value is not a number.");
 			goto fail;
-	} else {
+		}
+		if (!get_nsecs(curptr, &fv->value.time.nsecs, &endptr)) {
+			err_msg = ws_strdup("Subseconds value is invalid.");
+			goto fail;
+		}
+		curptr = endptr;
+	}
+	else {
 		/*
 		 * No nanoseconds value - it's 0.
 		 */
 		fv->value.time.nsecs = 0;
 	}
 
-	if (fv->value.time.secs == -1) {
+	/* Skip whitespace */
+	while (g_ascii_isspace(*curptr)) {
+		curptr++;
+	}
+
+	/* Do we have a Timezone? */
+	if (strcmp(curptr, "UTC") == 0) {
+		curptr += strlen("UTC");
+		if (*curptr == '\0') {
+			/* It's UTC */
+			fv->value.time.secs = mktime_utc(&tm);
+			goto done;
+		}
+		else {
+			err_msg = ws_strdup("Unexpected data after time value.");
+			goto fail;
+		}
+	}
+	if (*curptr == '\0') {
+		/* Local time */
+		fv->value.time.secs = mktime(&tm);
+		goto done;
+	}
+	else {
+		err_msg = ws_strdup("Unexpected data after time value.");
+		goto fail;
+	}
+
+done:
+	if (fv->value.time.secs == (time_t)-1) {
 		/*
 		 * XXX - should we supply an error message that mentions
 		 * that the time specified might be syntactically valid
@@ -307,22 +286,32 @@ absolute_val_from_string(fvalue_t *fv, const char *s, gchar **err_msg)
 		 * backward, so that there are two different times that
 		 * it could be)?
 		 */
+		err_msg = ws_strdup_printf("\"%s\" cannot be converted to a valid calendar time.", s);
 		goto fail;
 	}
 
 	return TRUE;
 
 fail:
-	if (err_msg != NULL)
-		*err_msg = g_strdup_printf("\"%s\" is not a valid absolute time. Example: \"Nov 12, 1999 08:55:44.123\" or \"2011-07-04 12:34:56\"",
-		    s);
+	if (err_msg_ptr != NULL) {
+		if (err_msg == NULL) {
+			*err_msg_ptr = ws_strdup_printf("\"%s\" is not a valid absolute time. " EXAMPLE, s);
+		}
+		else {
+			*err_msg_ptr = err_msg;
+		}
+	}
+	else {
+		g_free(err_msg);
+	}
+
 	return FALSE;
 }
 
 static gboolean
-absolute_val_from_unparsed(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, gchar **err_msg)
+absolute_val_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, gchar **err_msg)
 {
-	return absolute_val_from_string(fv, s, err_msg);
+	return absolute_val_from_string(fv, s, 0, err_msg);
 }
 
 static void
@@ -333,103 +322,128 @@ time_fvalue_new(fvalue_t *fv)
 }
 
 static void
+time_fvalue_copy(fvalue_t *dst, const fvalue_t *src)
+{
+	nstime_copy(&dst->value.time, &src->value.time);
+}
+
+static void
 time_fvalue_set(fvalue_t *fv, const nstime_t *value)
 {
 	fv->value.time = *value;
 }
 
-static gpointer
+static const nstime_t *
 value_get(fvalue_t *fv)
 {
 	return &(fv->value.time);
 }
 
-static int
-absolute_val_repr_len(fvalue_t *fv, ftrepr_t rtype, int field_display)
+static char *
+abs_time_to_ftrepr_dfilter(wmem_allocator_t *scope,
+			const nstime_t *nstime, bool use_utc)
 {
-	gchar *rep;
-	int ret;
+	struct tm *tm;
+	char datetime_format[128];
+	int nsecs;
+	char nsecs_buf[32];
+
+	if (use_utc) {
+		tm = gmtime(&nstime->secs);
+		if (tm != NULL)
+			strftime(datetime_format, sizeof(datetime_format), "\"%Y-%m-%d %H:%M:%S%%sZ\"", tm);
+		else
+			snprintf(datetime_format, sizeof(datetime_format), "Not representable");
+	}
+	else {
+		tm = localtime(&nstime->secs);
+		/* Displaying the timezone could be made into a preference. */
+		if (tm != NULL)
+			strftime(datetime_format, sizeof(datetime_format), "\"%Y-%m-%d %H:%M:%S%%s%z\"", tm);
+		else
+			snprintf(datetime_format, sizeof(datetime_format), "Not representable");
+	}
+
+	if (nstime->nsecs == 0)
+		return wmem_strdup_printf(scope, datetime_format, "");
+
+	nsecs = nstime->nsecs;
+	while (nsecs > 0 && (nsecs % 10) == 0) {
+		nsecs /= 10;
+	}
+	snprintf(nsecs_buf, sizeof(nsecs_buf), ".%d", nsecs);
+
+	return wmem_strdup_printf(scope, datetime_format, nsecs_buf);
+}
+
+static char *
+absolute_val_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype, int field_display)
+{
+	char *rep;
+
+	if (field_display == BASE_NONE)
+		field_display = ABSOLUTE_TIME_LOCAL;
 
 	switch (rtype) {
+		case FTREPR_DISPLAY:
+			rep = abs_time_to_str_ex(scope, &fv->value.time,
+					field_display, ABS_TIME_TO_STR_SHOW_ZONE);
+			break;
 
-	case FTREPR_DISPLAY:
-		rep = abs_time_to_str(NULL, &fv->value.time,
-				(absolute_time_display_e)field_display, TRUE);
-		break;
+		case FTREPR_DFILTER:
+			/* Only ABSOLUTE_TIME_LOCAL and ABSOLUTE_TIME_UTC
+			 * are supported. Normalize the field_display value. */
+			if (field_display != ABSOLUTE_TIME_LOCAL)
+				field_display = ABSOLUTE_TIME_UTC;
+			rep = abs_time_to_ftrepr_dfilter(scope, &fv->value.time, field_display != ABSOLUTE_TIME_LOCAL);
+			break;
 
-	case FTREPR_DFILTER:
-		/* absolute_val_from_string only accepts local time,
-		 * with no time zone, so match that. */
-		rep = abs_time_to_str(NULL, &fv->value.time,
-				ABSOLUTE_TIME_LOCAL, FALSE);
-		break;
-
-	default:
-		ws_assert_not_reached();
-		break;
+		default:
+			ws_assert_not_reached();
+			break;
 	}
 
-	ret = (int)strlen(rep) + ((rtype == FTREPR_DFILTER) ? 2 : 0);	/* 2 for opening and closing quotes */
-
-	wmem_free(NULL, rep);
-
-	return ret;
+	return rep;
 }
 
-static void
-absolute_val_to_repr(fvalue_t *fv, ftrepr_t rtype, int field_display, char *buf, unsigned int size)
+static char *
+relative_val_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_)
 {
-	gchar *rep;
-	switch (rtype) {
-
-	case FTREPR_DISPLAY:
-		rep = abs_time_to_str(NULL, &fv->value.time,
-				(absolute_time_display_e)field_display, TRUE);
-		break;
-
-	case FTREPR_DFILTER:
-		/* absolute_val_from_string only accepts local time,
-		 * with no time zone, so match that. */
-		rep = abs_time_to_str(NULL, &fv->value.time,
-				ABSOLUTE_TIME_LOCAL, FALSE);
-		*buf++ = '\"';
-		break;
-
-	default:
-		ws_assert_not_reached();
-		break;
-	}
-
-	(void) g_strlcpy(buf, rep, size);
-
-	if (rtype == FTREPR_DFILTER) {
-		buf += strlen(rep);
-		*buf++ = '\"';
-		*buf++ = '\0';
-	}
-	wmem_free(NULL, rep);
+	return rel_time_to_secs_str(scope, &fv->value.time);
 }
 
-static int
-relative_val_repr_len(fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_)
+static gboolean
+time_is_zero(const fvalue_t *fv)
 {
-	gchar *rep;
-	int ret;
-
-	rep = rel_time_to_secs_str(NULL, &fv->value.time);
-	ret = (int)strlen(rep);
-	wmem_free(NULL, rep);
-
-	return ret;
+	return nstime_is_zero(&fv->value.time);
 }
 
-static void
-relative_val_to_repr(fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_, char *buf, unsigned int size)
+static gboolean
+time_is_negative(const fvalue_t *fv)
 {
-	gchar *rep;
-	rep = rel_time_to_secs_str(NULL, &fv->value.time);
-	(void) g_strlcpy(buf, rep, size);
-	wmem_free(NULL, rep);
+	return fv->value.time.secs < 0;
+}
+
+static enum ft_result
+time_unary_minus(fvalue_t * dst, const fvalue_t *src, char **err_ptr _U_)
+{
+	dst->value.time.secs = -src->value.time.secs;
+	dst->value.time.nsecs = -src->value.time.nsecs;
+	return FT_OK;
+}
+
+static enum ft_result
+time_add(fvalue_t * dst, const fvalue_t *a, const fvalue_t *b, char **err_ptr _U_)
+{
+	nstime_sum(&dst->value.time, &a->value.time, &b->value.time);
+	return FT_OK;
+}
+
+static enum ft_result
+time_subtract(fvalue_t * dst, const fvalue_t *a, const fvalue_t *b, char **err_ptr _U_)
+{
+	nstime_delta(&dst->value.time, &a->value.time, &b->value.time);
+	return FT_OK;
 }
 
 void
@@ -442,27 +456,34 @@ ftype_register_time(void)
 		"Date and time",		/* pretty_name */
 		0,				/* wire_size */
 		time_fvalue_new,		/* new_value */
+		time_fvalue_copy,		/* copy_value */
 		NULL,				/* free_value */
-		absolute_val_from_unparsed,	/* val_from_unparsed */
+		absolute_val_from_literal,	/* val_from_literal */
 		absolute_val_from_string,	/* val_from_string */
+		NULL,				/* val_from_charconst */
 		absolute_val_to_repr,		/* val_to_string_repr */
-		absolute_val_repr_len,		/* len_string_repr */
+
+		NULL,				/* val_to_uinteger64 */
+		NULL,				/* val_to_sinteger64 */
 
 		{ .set_value_time = time_fvalue_set },	/* union set_value */
-		{ .get_value_ptr = value_get },		/* union get_value */
+		{ .get_value_time = value_get },	/* union get_value */
 
-		cmp_eq,
-		cmp_ne,
-		cmp_gt,
-		cmp_ge,
-		cmp_lt,
-		cmp_le,
-		NULL,				/* cmp_bitwise_and */
+		cmp_order,
 		NULL,				/* cmp_contains */
 		NULL,				/* cmp_matches */
 
+		time_is_zero,			/* is_zero */
+		NULL,				/* is_negative */
 		NULL,
-		NULL
+		NULL,
+		NULL,				/* bitwise_and */
+		NULL,				/* unary_minus */
+		NULL,				/* add */
+		NULL,				/* subtract */
+		NULL,				/* multiply */
+		NULL,				/* divide */
+		NULL,				/* modulo */
 	};
 	static ftype_t reltime_type = {
 		FT_RELATIVE_TIME,		/* ftype */
@@ -470,31 +491,60 @@ ftype_register_time(void)
 		"Time offset",			/* pretty_name */
 		0,				/* wire_size */
 		time_fvalue_new,		/* new_value */
+		time_fvalue_copy,		/* copy_value */
 		NULL,				/* free_value */
-		relative_val_from_unparsed,	/* val_from_unparsed */
+		relative_val_from_literal,	/* val_from_literal */
 		NULL,				/* val_from_string */
+		NULL,				/* val_from_charconst */
 		relative_val_to_repr,		/* val_to_string_repr */
-		relative_val_repr_len,		/* len_string_repr */
+
+		NULL,				/* val_to_uinteger64 */
+		NULL,				/* val_to_sinteger64 */
 
 		{ .set_value_time = time_fvalue_set },	/* union set_value */
-		{ .get_value_ptr = value_get },		/* union get_value */
+		{ .get_value_time = value_get },	/* union get_value */
 
-		cmp_eq,
-		cmp_ne,
-		cmp_gt,
-		cmp_ge,
-		cmp_lt,
-		cmp_le,
-		NULL,				/* cmp_bitwise_and */
+		cmp_order,
 		NULL,				/* cmp_contains */
 		NULL,				/* cmp_matches */
 
+		time_is_zero,			/* is_zero */
+		time_is_negative,		/* is_negative */
 		NULL,
-		NULL
+		NULL,
+		NULL,				/* bitwise_and */
+		time_unary_minus,		/* unary_minus */
+		time_add,			/* add */
+		time_subtract,			/* subtract */
+		NULL,				/* multiply */
+		NULL,				/* divide */
+		NULL,				/* modulo */
 	};
 
 	ftype_register(FT_ABSOLUTE_TIME, &abstime_type);
 	ftype_register(FT_RELATIVE_TIME, &reltime_type);
+}
+
+void
+ftype_register_pseudofields_time(int proto)
+{
+	static int hf_ft_rel_time;
+	static int hf_ft_abs_time;
+
+	static hf_register_info hf_ftypes[] = {
+		{ &hf_ft_abs_time,
+		    { "FT_ABSOLUTE_TIME", "_ws.ftypes.abs_time",
+			FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL, 0x00,
+			NULL, HFILL }
+		},
+		{ &hf_ft_rel_time,
+		    { "FT_RELATIVE_TIME", "_ws.ftypes.rel_time",
+			FT_RELATIVE_TIME, BASE_NONE, NULL, 0x00,
+			NULL, HFILL }
+		},
+	};
+
+	proto_register_field_array(proto, hf_ftypes, array_length(hf_ftypes));
 }
 
 /*

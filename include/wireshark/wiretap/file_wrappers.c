@@ -14,15 +14,15 @@
  *
  */
 
-#include <config.h>
+#include "config.h"
+#include "file_wrappers.h"
 
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include "wtap-int.h"
-#include "file_wrappers.h"
+
 #include <wsutil/file_util.h>
-#include <wsutil/ws_assert.h>
 
 #ifdef HAVE_ZLIB
 #define ZLIB_CONST
@@ -275,7 +275,7 @@ buf_read(FILE_T state, struct wtap_reader_buf *buf)
     if (ret == 0)
         state->eof = TRUE;
     state->raw_pos += ret;
-    buf->avail += ret;
+    buf->avail += (guint)ret;
     return 0;
 }
 

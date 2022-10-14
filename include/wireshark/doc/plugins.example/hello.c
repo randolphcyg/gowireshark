@@ -8,12 +8,9 @@
  */
 
 #define WS_BUILD_DLL
-
+#include <include/wireshark.h>
 #include <epan/packet.h>
 #include <epan/proto.h>
-#include <ws_attributes.h>
-#include <ws_symbol_export.h>
-#include <ws_version.h>
 
 #ifndef VERSION
 #define VERSION "0.0.0"

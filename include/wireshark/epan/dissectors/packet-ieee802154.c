@@ -322,7 +322,7 @@ static gboolean ieee802154_key_update_cb(void *r, char **err)
 
         if (bytes->len < IEEE802154_CIPHER_SIZE)
         {
-            *err = g_strdup_printf("Key must be at least %d bytes", IEEE802154_CIPHER_SIZE);
+            *err = ws_strdup_printf("Key must be at least %d bytes", IEEE802154_CIPHER_SIZE);
             g_byte_array_free(bytes, TRUE);
             return FALSE;
         }
@@ -450,6 +450,8 @@ static int hf_ieee802154_hie_csl = -1;
 static int hf_ieee802154_hie_csl_phase = -1;
 static int hf_ieee802154_hie_csl_period = -1;
 static int hf_ieee802154_hie_csl_rendezvous_time = -1;
+static int hf_ieee802154_hie_rdv = -1;
+static int hf_ieee802154_hie_rdv_wakeup_interval = -1;
 static int hf_ieee802154_hie_global_time = -1;
 static int hf_ieee802154_hie_global_time_value = -1;
 static int hf_ieee802154_hie_vendor_specific = -1;
@@ -728,6 +730,7 @@ static gint ett_ieee802154_hie_unsupported = -1;
 static gint ett_ieee802154_hie_time_correction = -1;
 static gint ett_ieee802154_hie_ht = -1;
 static gint ett_ieee802154_hie_csl = -1;
+static gint ett_ieee802154_hie_rdv = -1;
 static gint ett_ieee802154_hie_global_time = -1;
 static gint ett_ieee802154_hie_vendor_specific = -1;
 static gint ett_ieee802154_payload_ie = -1;
@@ -1011,7 +1014,7 @@ static const value_string ieee802154_psie_names[] = {
     { 0, NULL }
 };
 
-static const value_string zboss_page_names[] = {
+const value_string zboss_page_names[] = {
     { 0, "2.4 GHz" },
     { 28, "863-868 MHz band"},
     { 29, "868-870, 870-876 MHz band" },
@@ -1322,10 +1325,10 @@ static conversation_t *_find_or_create_conversation(packet_info *pinfo, const ad
     conversation_t *conv = NULL;
 
     /* Have we seen this conversation before? */
-    conv = find_conversation(pinfo->num, src_addr, dst_addr, ENDPOINT_NONE, 0, 0, 0);
+    conv = find_conversation(pinfo->num, src_addr, dst_addr, CONVERSATION_NONE, 0, 0, 0);
     if (conv == NULL) {
         /* No, this is a new conversation. */
-        conv = conversation_new(pinfo->num, src_addr, dst_addr, ENDPOINT_NONE, 0, 0, 0);
+        conv = conversation_new(pinfo->num, src_addr, dst_addr, CONVERSATION_NONE, 0, 0, 0);
     }
     return conv;
 }
@@ -3274,7 +3277,7 @@ dissect_ieee802154_tap_tlvs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
                 break;
             case IEEE802154_TAP_ASN:
                 proto_tree_add_item_ret_uint64(tlvtree, hf_ieee802154_asn, tvb, offset, 8, ENC_LITTLE_ENDIAN, &ieee802154_tsch_asn);
-                proto_item_append_text(proto_tree_get_parent(tlvtree), ": %"G_GUINT64_FORMAT, ieee802154_tsch_asn);
+                proto_item_append_text(proto_tree_get_parent(tlvtree), ": %"PRIu64, ieee802154_tsch_asn);
                 break;
             case IEEE802154_TAP_SLOT_START_TS:
                 proto_tree_add_item_ret_uint64(tlvtree, hf_ieee802154_slot_start_ts, tvb, offset, 8,
@@ -3286,7 +3289,7 @@ dissect_ieee802154_tap_tlvs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
             case IEEE802154_TAP_TIMESLOT_LENGTH:
                 proto_tree_add_item_ret_uint(tlvtree, hf_ieee802154_tap_timeslot_length, tvb, offset, 4,
                                              ENC_LITTLE_ENDIAN, &timeslot_length);
-                proto_item_append_text(proto_tree_get_parent(tlvtree), ": %"G_GUINT32_FORMAT" %s", timeslot_length, units_microseconds.singular);
+                proto_item_append_text(proto_tree_get_parent(tlvtree), ": %"PRIu32" %s", timeslot_length, units_microseconds.singular);
                 break;
             case IEEE802154_TAP_LQI: {
                 guint32 lqi;
@@ -3984,6 +3987,34 @@ dissect_hie_csl(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *d
         return 2 + 6;
     }
     return 2 + 4;
+}
+
+/**
+ * Dissect the Rendez-Vous Time IE (7.4.2.6)
+ * The IE is made of 2 fields:
+ *  - RendezVous Time: in 802.15.4-2015, this is exactly the same field as in the CSL IE
+ *  - Wake-Up Interval: the spec text is unclear about the field being optional or not. This dissector assumes it is
+ */
+static int
+dissect_hie_rendezvous_time(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
+{
+    proto_tree *subtree = ieee802154_create_hie_tree(tvb, tree, hf_ieee802154_hie_rdv, ett_ieee802154_hie_rdv);
+
+    // reuse field from CSL IE
+    proto_tree_add_item(subtree, hf_ieee802154_hie_csl_rendezvous_time, tvb, 2, 2, ENC_LITTLE_ENDIAN);
+
+    // In 802.15.4-2015, Rendez-Vous Time IE is only present in CSL Wake-Up Frames
+    // Update the packet information
+    col_set_str(pinfo->cinfo, COL_INFO, "CSL Wake-up Frame");
+    col_append_fstr(pinfo->cinfo, COL_INFO, ", Rendez-Vous Time: %d", tvb_get_guint16(tvb, 2, ENC_LITTLE_ENDIAN));
+
+    // Assume Wake-Up Interval is optional. Spec says "only present [...] when macCslInterval is nonzero"
+    if (tvb_reported_length(tvb) >= 6) {
+        proto_tree_add_item(subtree, hf_ieee802154_hie_rdv_wakeup_interval, tvb, 4, 2, ENC_LITTLE_ENDIAN);
+        return 2 + 4;
+    }
+
+    return 2 + 2;
 }
 
 /**
@@ -5516,9 +5547,9 @@ static void ieee802154_da_prompt(packet_info *pinfo _U_, gchar* result)
     ieee802154_hints_t *hints;
     hints = (ieee802154_hints_t *)p_get_proto_data(wmem_file_scope(), pinfo, proto_ieee802154, 0);
     if (hints)
-        g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "IEEE 802.15.4 PAN 0x%04x as", hints->src_pan);
+        snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "IEEE 802.15.4 PAN 0x%04x as", hints->src_pan);
     else
-        g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "IEEE 802.15.4 PAN Unknown");
+        snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "IEEE 802.15.4 PAN Unknown");
 } /* iee802154_da_prompt */
 
 /* Returns the value to index the panid decode table with (source PAN)*/
@@ -5560,42 +5591,44 @@ static const char* ieee802154_conv_get_filter_type(conv_item_t* conv, conv_filte
 
 static ct_dissector_info_t ieee802154_ct_dissector_info = {&ieee802154_conv_get_filter_type };
 
-static tap_packet_status ieee802154_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip _U_)
+static tap_packet_status ieee802154_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip _U_, tap_flags_t flags)
 {
     conv_hash_t *hash = (conv_hash_t*)pct;
+    hash->flags = flags;
 
     add_conversation_table_data(hash, &pinfo->dl_src, &pinfo->dl_dst, 0, 0, 1,
             pinfo->fd->pkt_len, &pinfo->rel_ts, &pinfo->abs_ts,
-            &ieee802154_ct_dissector_info, ENDPOINT_NONE);
+            &ieee802154_ct_dissector_info, CONVERSATION_NONE);
 
     return TAP_PACKET_REDRAW;
 }
 
-static const char* ieee802154_host_get_filter_type(hostlist_talker_t* host, conv_filter_type_e filter)
+static const char* ieee802154_endpoint_get_filter_type(endpoint_item_t* endpoint, conv_filter_type_e filter)
 {
     if (filter == CONV_FT_ANY_ADDRESS) {
-        if (host->myaddress.type == ieee802_15_4_short_address_type)
+        if (endpoint->myaddress.type == ieee802_15_4_short_address_type)
             return "wpan.addr16";
-        else if (host->myaddress.type == AT_EUI64)
+        else if (endpoint->myaddress.type == AT_EUI64)
             return "wpan.addr64";
     }
 
     return CONV_FILTER_INVALID;
 }
 
-static hostlist_dissector_info_t ieee802154_host_dissector_info = {&ieee802154_host_get_filter_type };
+static et_dissector_info_t ieee802154_endpoint_dissector_info = {&ieee802154_endpoint_get_filter_type };
 
-static tap_packet_status ieee802154_hostlist_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip _U_)
+static tap_packet_status ieee802154_endpoint_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip _U_, tap_flags_t flags)
 {
     conv_hash_t *hash = (conv_hash_t*)pit;
+    hash->flags = flags;
 
     /* Take two "add" passes per packet, adding for each direction, ensures that all
      packets are counted properly (even if address is sending to itself)
-     XXX - this could probably be done more efficiently inside hostlist_table */
-    add_hostlist_table_data(hash, &pinfo->dl_src, 0, TRUE, 1,
-            pinfo->fd->pkt_len, &ieee802154_host_dissector_info, ENDPOINT_NONE);
-    add_hostlist_table_data(hash, &pinfo->dl_dst, 0, FALSE, 1,
-            pinfo->fd->pkt_len, &ieee802154_host_dissector_info, ENDPOINT_NONE);
+     XXX - this could probably be done more efficiently inside endpoint_table */
+    add_endpoint_table_data(hash, &pinfo->dl_src, 0, TRUE, 1,
+            pinfo->fd->pkt_len, &ieee802154_endpoint_dissector_info, ENDPOINT_NONE);
+    add_endpoint_table_data(hash, &pinfo->dl_dst, 0, FALSE, 1,
+            pinfo->fd->pkt_len, &ieee802154_endpoint_dissector_info, ENDPOINT_NONE);
 
     return TAP_PACKET_REDRAW;
 }
@@ -5609,7 +5642,7 @@ static gboolean ieee802154_filter_valid(packet_info *pinfo)
 
 static gchar* ieee802154_build_filter(packet_info *pinfo)
 {
-    return g_strdup_printf("wpan.%s eq %s and wpan.%s eq %s",
+    return ws_strdup_printf("wpan.%s eq %s and wpan.%s eq %s",
             (pinfo->dl_src.type == ieee802_15_4_short_address_type) ? "addr16" : "addr64",
             address_to_str(pinfo->pool, &pinfo->dl_src),
             (pinfo->dl_dst.type == ieee802_15_4_short_address_type) ? "addr16" : "addr64",
@@ -5873,6 +5906,15 @@ void proto_register_ieee802154(void)
         { &hf_ieee802154_hie_csl_rendezvous_time,
         { "Rendezvous Time", "wpan.header_ie.csl.rendezvous_time", FT_INT16, BASE_DEC, NULL, 0x0,
             "CSL Rendezvous Time in units of 10 symbols", HFILL }},
+
+        /* RendezVous Time IE */
+        { &hf_ieee802154_hie_rdv,
+        { "Rendezvous Time IE", "wpan.header_ie.rdv", FT_NONE, BASE_NONE, NULL, 0x0,
+            NULL, HFILL }},
+
+        { &hf_ieee802154_hie_rdv_wakeup_interval,
+        { "Wake-up Interval", "wpan.header_ie.csl.wakeup_interval", FT_INT16, BASE_DEC, NULL, 0x0,
+            "Interval between two successive Wake-Up frames, in units of 10 symbols", HFILL }},
 
         /* Global Time IE */
         { &hf_ieee802154_hie_global_time,
@@ -6576,7 +6618,7 @@ void proto_register_ieee802154(void)
             NULL, HFILL }},
 
         { &hf_ieee802154_tap_rss,
-        { "RSS",           "wpan-tap.rss", FT_FLOAT, BASE_FLOAT|BASE_UNIT_STRING, &units_dbm, 0x0,
+        { "RSS",           "wpan-tap.rss", FT_FLOAT, BASE_NONE|BASE_UNIT_STRING, &units_dbm, 0x0,
             NULL, HFILL }},
 
         { &hf_ieee802154_ch_num,
@@ -6648,11 +6690,11 @@ void proto_register_ieee802154(void)
             NULL, HFILL }},
 
         { &hf_ieee802154_chplan_start,
-        { "Channel0 freq",              "wpan-tap.chplan.start", FT_FLOAT, BASE_FLOAT|BASE_UNIT_STRING, &units_khz, 0x0,
+        { "Channel0 freq",              "wpan-tap.chplan.start", FT_FLOAT, BASE_NONE|BASE_UNIT_STRING, &units_khz, 0x0,
             "Channel 0 center frequency", HFILL }},
 
         { &hf_ieee802154_chplan_spacing,
-        { "Spacing",                    "wpan-tap.chplan.spacing", FT_FLOAT, BASE_FLOAT|BASE_UNIT_STRING, &units_khz, 0x0,
+        { "Spacing",                    "wpan-tap.chplan.spacing", FT_FLOAT, BASE_NONE|BASE_UNIT_STRING, &units_khz, 0x0,
             "Channel spacing", HFILL }},
 
         { &hf_ieee802154_chplan_channels,
@@ -6660,7 +6702,7 @@ void proto_register_ieee802154(void)
             "Number of channels", HFILL }},
 
         { &hf_ieee802154_ch_freq,
-        { "Frequency",                  "wpan-tap.ch_freq", FT_FLOAT, BASE_FLOAT|BASE_UNIT_STRING, &units_khz, 0x0,
+        { "Frequency",                  "wpan-tap.ch_freq", FT_FLOAT, BASE_NONE|BASE_UNIT_STRING, &units_khz, 0x0,
             "Channel center frequency", HFILL }},
 
         { &hf_ieee802154_frame_start_offset,
@@ -6707,6 +6749,7 @@ void proto_register_ieee802154(void)
         &ett_ieee802154_hie_time_correction,
         &ett_ieee802154_hie_ht,
         &ett_ieee802154_hie_csl,
+        &ett_ieee802154_hie_rdv,
         &ett_ieee802154_hie_global_time,
         &ett_ieee802154_hie_vendor_specific,
         &ett_ieee802154_payload_ie,
@@ -6981,7 +7024,7 @@ void proto_register_ieee802154(void)
 
     ieee802154_tap = register_tap(IEEE802154_PROTOABBREV_WPAN);
 
-    register_conversation_table(proto_ieee802154, TRUE, ieee802154_conversation_packet, ieee802154_hostlist_packet);
+    register_conversation_table(proto_ieee802154, TRUE, ieee802154_conversation_packet, ieee802154_endpoint_packet);
     register_conversation_filter(IEEE802154_PROTOABBREV_WPAN, "IEEE 802.15.4", ieee802154_filter_valid, ieee802154_build_filter);
 } /* proto_register_ieee802154 */
 
@@ -7007,6 +7050,29 @@ void proto_reg_handoff_ieee802154(void)
         dissector_add_uint("wtap_encap", WTAP_ENCAP_IEEE802_15_4_TAP, ieee802154_tap_handle);
         dissector_add_uint("sll.ltype", LINUX_SLL_P_IEEE802154, ieee802154_handle);
 
+        /* Register internal IE handlers */
+        dissector_add_uint(IEEE802154_HEADER_IE_DTABLE, IEEE802154_HEADER_IE_TIME_CORR, create_dissector_handle(dissect_hie_time_correction, -1));
+        dissector_add_uint(IEEE802154_HEADER_IE_DTABLE, IEEE802154_HEADER_IE_CSL, create_dissector_handle(dissect_hie_csl, -1));
+        dissector_add_uint(IEEE802154_HEADER_IE_DTABLE, IEEE802154_HEADER_IE_RENDEZVOUS, create_dissector_handle(dissect_hie_rendezvous_time, -1));
+        dissector_add_uint(IEEE802154_HEADER_IE_DTABLE, IEEE802154_HEADER_IE_GLOBAL_TIME, create_dissector_handle(dissect_hie_global_time, -1));
+        dissector_add_uint(IEEE802154_HEADER_IE_DTABLE, IEEE802154_HEADER_IE_VENDOR_SPECIFIC, create_dissector_handle(dissect_hie_vendor_specific, -1));
+
+        dissector_add_uint(IEEE802154_PAYLOAD_IE_DTABLE, IEEE802154_PAYLOAD_IE_MLME, create_dissector_handle(dissect_pie_mlme, -1));
+        dissector_add_uint(IEEE802154_PAYLOAD_IE_DTABLE, IEEE802154_PAYLOAD_IE_VENDOR, create_dissector_handle(dissect_pie_vendor, -1));
+        dissector_add_uint(IEEE802154_PAYLOAD_IE_DTABLE, IEEE802154_PAYLOAD_IE_MPX, create_dissector_handle(dissect_mpx_ie, -1));
+        dissector_add_uint(IEEE802154_PAYLOAD_IE_DTABLE, IEEE802154_PAYLOAD_IE_IETF, create_dissector_handle(dissect_ietf_ie, -1));
+
+        dissector_add_uint(IEEE802154_MLME_IE_DTABLE, IEEE802154_MLME_SUBIE_CHANNEL_HOPPING, create_dissector_handle(dissect_802154_channel_hopping, -1));
+        dissector_add_uint(IEEE802154_MLME_IE_DTABLE, IEEE802154_MLME_SUBIE_TSCH_SYNCH, create_dissector_handle(dissect_802154_tsch_time_sync, -1));
+        dissector_add_uint(IEEE802154_MLME_IE_DTABLE, IEEE802154_MLME_SUBIE_TSCH_SLOTFR_LINK, create_dissector_handle(dissect_802154_tsch_slotframe_link, -1));
+        dissector_add_uint(IEEE802154_MLME_IE_DTABLE, IEEE802154_MLME_SUBIE_TSCH_TIMESLOT, create_dissector_handle(dissect_802154_tsch_timeslot, -1));
+        dissector_add_uint(IEEE802154_MLME_IE_DTABLE, IEEE802154_MLME_SUBIE_ENHANCED_BEACON_FILTER, create_dissector_handle(dissect_802154_eb_filter, -1));
+
+        /* For the MPX-IE */
+        ethertype_table = find_dissector_table("ethertype");
+        eapol_handle = find_dissector("eapol");
+        lowpan_handle = find_dissector("6lowpan");
+        wisun_sec_handle = find_dissector("wisun.sec");
         prefs_initialized = TRUE;
     } else {
         dissector_delete_uint("ethertype", old_ieee802154_ethertype, ieee802154_handle);
@@ -7017,28 +7083,6 @@ void proto_reg_handoff_ieee802154(void)
     /* Register dissector handles. */
     dissector_add_uint("ethertype", ieee802154_ethertype, ieee802154_handle);
 
-    /* Register internal IE handlers */
-    dissector_add_uint(IEEE802154_HEADER_IE_DTABLE, IEEE802154_HEADER_IE_TIME_CORR, create_dissector_handle(dissect_hie_time_correction, -1));
-    dissector_add_uint(IEEE802154_HEADER_IE_DTABLE, IEEE802154_HEADER_IE_CSL, create_dissector_handle(dissect_hie_csl, -1));
-    dissector_add_uint(IEEE802154_HEADER_IE_DTABLE, IEEE802154_HEADER_IE_GLOBAL_TIME, create_dissector_handle(dissect_hie_global_time, -1));
-    dissector_add_uint(IEEE802154_HEADER_IE_DTABLE, IEEE802154_HEADER_IE_VENDOR_SPECIFIC, create_dissector_handle(dissect_hie_vendor_specific, -1));
-
-    dissector_add_uint(IEEE802154_PAYLOAD_IE_DTABLE, IEEE802154_PAYLOAD_IE_MLME, create_dissector_handle(dissect_pie_mlme, -1));
-    dissector_add_uint(IEEE802154_PAYLOAD_IE_DTABLE, IEEE802154_PAYLOAD_IE_VENDOR, create_dissector_handle(dissect_pie_vendor, -1));
-    dissector_add_uint(IEEE802154_PAYLOAD_IE_DTABLE, IEEE802154_PAYLOAD_IE_MPX, create_dissector_handle(dissect_mpx_ie, -1));
-    dissector_add_uint(IEEE802154_PAYLOAD_IE_DTABLE, IEEE802154_PAYLOAD_IE_IETF, create_dissector_handle(dissect_ietf_ie, -1));
-
-    dissector_add_uint(IEEE802154_MLME_IE_DTABLE, IEEE802154_MLME_SUBIE_CHANNEL_HOPPING, create_dissector_handle(dissect_802154_channel_hopping, -1));
-    dissector_add_uint(IEEE802154_MLME_IE_DTABLE, IEEE802154_MLME_SUBIE_TSCH_SYNCH, create_dissector_handle(dissect_802154_tsch_time_sync, -1));
-    dissector_add_uint(IEEE802154_MLME_IE_DTABLE, IEEE802154_MLME_SUBIE_TSCH_SLOTFR_LINK, create_dissector_handle(dissect_802154_tsch_slotframe_link, -1));
-    dissector_add_uint(IEEE802154_MLME_IE_DTABLE, IEEE802154_MLME_SUBIE_TSCH_TIMESLOT, create_dissector_handle(dissect_802154_tsch_timeslot, -1));
-    dissector_add_uint(IEEE802154_MLME_IE_DTABLE, IEEE802154_MLME_SUBIE_ENHANCED_BEACON_FILTER, create_dissector_handle(dissect_802154_eb_filter, -1));
-
-    /* For the MPX-IE */
-    ethertype_table = find_dissector_table("ethertype");
-    eapol_handle = find_dissector("eapol");
-    lowpan_handle = find_dissector("6lowpan");
-    wisun_sec_handle = find_dissector("wisun.sec");
 } /* proto_reg_handoff_ieee802154 */
 
 /*

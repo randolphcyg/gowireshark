@@ -78,6 +78,7 @@ static dissector_table_t xid_subdissector_table;
 
 static dissector_table_t ethertype_subdissector_table;
 static dissector_table_t hpteam_subdissector_table;
+static dissector_table_t other_control_dissector_table;
 
 static dissector_handle_t bpdu_handle;
 static dissector_handle_t eth_withoutfcs_handle;
@@ -209,7 +210,7 @@ static wmem_map_t *oui_info_table = NULL;
 static void
 llc_sap_value( gchar *result, guint32 sap )
 {
-	g_snprintf( result, ITEM_LABEL_LENGTH, "%s", val_to_str_const(sap<<1, sap_vals, "Unknown"));
+	snprintf( result, ITEM_LABEL_LENGTH, "%s", val_to_str_const(sap<<1, sap_vals, "Unknown"));
 }
 
 /*
@@ -470,7 +471,11 @@ dissect_llc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 					}
 				}
 			} else {
-				call_data_dissector(next_tvb, pinfo, tree);
+				if (!dissector_try_uint(
+					other_control_dissector_table, control,
+					next_tvb, pinfo, tree)) {
+					call_data_dissector(next_tvb, pinfo, tree);
+				}
 			}
 		}
 	}
@@ -835,6 +840,8 @@ proto_register_llc(void)
 	  "LLC SAP", proto_llc, FT_UINT8, BASE_HEX);
 	xid_subdissector_table = register_dissector_table("llc.xid_dsap",
 	  "LLC XID SAP", proto_llc, FT_UINT8, BASE_HEX);
+	other_control_dissector_table = register_dissector_table("llc.control",
+	  "LLC Control", proto_llc, FT_UINT16, BASE_HEX);
 	register_capture_dissector_table("llc.dsap", "LLC");
 
 	llc_handle = register_dissector("llc", dissect_llc, proto_llc);

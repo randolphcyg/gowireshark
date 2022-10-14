@@ -82,6 +82,27 @@ void proto_reg_handoff_pn_io(void);
 #define PN_INPUT_CR              1      /* PROFINET Input Connect Request value */
 #define PN_INPUT_DATADESCRITPION 1      /* PROFINET Input Data Description value */
 
+#define PA_PROFILE_API 0x9700u
+#define PA_PROFILE_DAP_MASK 0xFFFF0000u
+#define PA_PROFILE_DAP_IDENT 0x00FD0000u
+
+#define PA_PROFILE_BLOCK_DAP 0u
+#define PA_PROFILE_BLOCK_PB 1u
+#define PA_PROFILE_BLOCK_FB 2u
+#define PA_PROFILE_BLOCK_TB 3u
+
+#define PA_PROFILE_TB_PARENT_PRESSURE 1u
+#define PA_PROFILE_TB_PARENT_TEMPERATURE 2u
+#define PA_PROFILE_TB_PARENT_FLOW 3u
+#define PA_PROFILE_TB_PARENT_LEVEL 1u
+#define PA_PROFILE_TB_PARENT_ACTUATOR 1u
+#define PA_PROFILE_TB_PARENT_DISCRETE_IO 1u
+#define PA_PROFILE_TB_PARENT_LIQUID_ANALYZER 1u
+#define PA_PROFILE_TB_PARENT_GAS_ANALYZER 1u
+#define PA_PROFILE_TB_PARENT_ENUMERATED_IO 1u
+#define PA_PROFILE_TB_PARENT_BINARY_IO 1u
+
+
 
 static int proto_pn_io = -1;
 static int proto_pn_io_device = -1;
@@ -90,6 +111,7 @@ static int proto_pn_io_supervisor = -1;
 static int proto_pn_io_parameterserver = -1;
 static int proto_pn_io_implicitar = -1;
 int proto_pn_io_apdu_status = -1;
+int proto_pn_io_time_aware_status = -1;
 
 static int hf_pn_io_opnum = -1;
 static int hf_pn_io_reserved16 = -1;
@@ -119,6 +141,7 @@ static int hf_pn_io_ar_properties_device_access = -1;
 static int hf_pn_io_ar_properties_companion_ar = -1;
 static int hf_pn_io_ar_properties_achnowledge_companion_ar = -1;
 static int hf_pn_io_ar_properties_reserved = -1;
+static int hf_pn_io_ar_properties_time_aware_system = -1;
 static int hf_pn_io_ar_properties_combined_object_container_with_legacy_startupmode = -1;
 static int hf_pn_io_ar_properties_combined_object_container_with_advanced_startupmode = -1;
 static int hf_pn_io_ar_properties_pull_module_alarm_allowed = -1;
@@ -265,6 +288,7 @@ static int hf_pn_io_block_version_high = -1;
 static int hf_pn_io_block_version_low = -1;
 
 static int hf_pn_io_sessionkey = -1;
+static int hf_pn_io_control_alarm_sequence_number = -1;
 static int hf_pn_io_control_command = -1;
 static int hf_pn_io_control_command_prmend = -1;
 static int hf_pn_io_control_command_applready = -1;
@@ -321,10 +345,10 @@ static int hf_pn_io_submodule_properties_reserved = -1;
 static int hf_pn_io_submodule_state = -1;
 static int hf_pn_io_submodule_state_format_indicator = -1;
 static int hf_pn_io_submodule_state_add_info = -1;
-static int hf_pn_io_submodule_state_qualified_info = -1;
+static int hf_pn_io_submodule_state_advice = -1;
 static int hf_pn_io_submodule_state_maintenance_required = -1;
 static int hf_pn_io_submodule_state_maintenance_demanded = -1;
-static int hf_pn_io_submodule_state_diag_info = -1;
+static int hf_pn_io_submodule_state_fault = -1;
 static int hf_pn_io_submodule_state_ar_info = -1;
 static int hf_pn_io_submodule_state_ident_info = -1;
 static int hf_pn_io_submodule_state_detail = -1;
@@ -373,10 +397,12 @@ static int hf_pn_io_ext_channel_error_type0x8008 = -1;
 static int hf_pn_io_ext_channel_error_type0x800A = -1;
 static int hf_pn_io_ext_channel_error_type0x800B = -1;
 static int hf_pn_io_ext_channel_error_type0x800C = -1;
+static int hf_pn_io_ext_channel_error_type0x8010 = -1;
 
 static int hf_pn_io_ext_channel_error_type = -1;
 
 static int hf_pn_io_ext_channel_add_value = -1;
+static int hf_pn_io_qualified_channel_qualifier = -1;
 
 static int hf_pn_io_ptcp_subdomain_id = -1;
 static int hf_pn_io_ir_data_id = -1;
@@ -441,6 +467,11 @@ static int hf_pn_io_length_peer_port_id = -1;
 static int hf_pn_io_peer_port_id = -1;
 static int hf_pn_io_length_peer_chassis_id = -1;
 static int hf_pn_io_peer_chassis_id = -1;
+static int hf_pn_io_neighbor = -1;
+static int hf_pn_io_length_peer_port_name = -1;
+static int hf_pn_io_peer_port_name = -1;
+static int hf_pn_io_length_peer_station_name = -1;
+static int hf_pn_io_peer_station_name = -1;
 static int hf_pn_io_length_own_port_id = -1;
 static int hf_pn_io_own_port_id = -1;
 static int hf_pn_io_peer_macadd = -1;
@@ -448,6 +479,7 @@ static int hf_pn_io_media_type = -1;
 static int hf_pn_io_macadd = -1;
 static int hf_pn_io_length_own_chassis_id = -1;
 static int hf_pn_io_own_chassis_id = -1;
+static int hf_pn_io_rtclass3_port_status = -1;
 
 static int hf_pn_io_ethertype = -1;
 static int hf_pn_io_rx_port = -1;
@@ -494,6 +526,93 @@ static int hf_pn_io_number_of_subslots = -1;
 /* static int hf_pn_io_maintenance_required_drop_budget = -1; */
 /* static int hf_pn_io_maintenance_demanded_drop_budget = -1; */
 /* static int hf_pn_io_error_drop_budget = -1; */
+
+static int hf_pn_io_tsn_number_of_queues = -1;
+static int hf_pn_io_tsn_max_supported_record_size = -1;
+static int hf_pn_io_tsn_transfer_time_tx = -1;
+static int hf_pn_io_tsn_transfer_time_rx = -1;
+static int hf_pn_io_tsn_port_capabilities_time_aware = -1;
+static int hf_pn_io_tsn_port_capabilities_preemption = -1;
+static int hf_pn_io_tsn_port_capabilities_queue_masking = -1;
+static int hf_pn_io_tsn_port_capabilities_reserved = -1;
+static int hf_pn_io_tsn_forwarding_group = -1;
+static int hf_pn_io_tsn_forwarding_group_ingress = -1;
+static int hf_pn_io_tsn_forwarding_group_egress = -1;
+static int hf_pn_io_tsn_stream_class = -1;
+static int hf_pn_io_tsn_dependent_forwarding_delay = -1;
+static int hf_pn_io_tsn_independent_forwarding_delay = -1;
+static int hf_pn_io_tsn_forwarding_delay_block_number_of_entries = -1;
+static int hf_pn_io_tsn_expected_neighbor_block_number_of_entries = -1;
+static int hf_pn_io_tsn_port_id_block_number_of_entries = -1;
+
+static int hf_pn_io_tsn_nme_parameter_uuid = -1;
+static int hf_pn_io_tsn_domain_vid_config = -1;
+static int hf_pn_io_tsn_domain_vid_config_stream_high_vid = -1;
+static int hf_pn_io_tsn_domain_vid_config_stream_high_red_vid = -1;
+static int hf_pn_io_tsn_domain_vid_config_stream_low_vid = -1;
+static int hf_pn_io_tsn_domain_vid_config_stream_low_red_vid = -1;
+static int hf_pn_io_tsn_domain_vid_config_non_stream_vid = -1;
+static int hf_pn_io_tsn_domain_vid_config_non_stream_vid_B = -1;
+static int hf_pn_io_tsn_domain_vid_config_non_stream_vid_C = -1;
+static int hf_pn_io_tsn_domain_vid_config_non_stream_vid_D = -1;
+static int hf_pn_io_tsn_domain_vid_config_reserved = -1;
+static int hf_pn_io_number_of_tsn_time_data_block_entries = -1;
+static int hf_pn_io_number_of_tsn_domain_queue_rate_limiter_entries = -1;
+static int hf_pn_io_number_of_tsn_domain_port_ingress_rate_limiter_entries = -1;
+static int hf_pn_io_number_of_tsn_domain_port_config_entries = -1;
+
+static int hf_pn_io_tsn_domain_port_config = -1;
+static int hf_pn_io_tsn_domain_port_config_preemption_enabled  = -1;
+static int hf_pn_io_tsn_domain_port_config_boundary_port_config = -1;
+static int hf_pn_io_tsn_domain_port_config_reserved = -1;
+
+static int hf_pn_io_tsn_domain_port_ingress_rate_limiter = -1;
+static int hf_pn_io_tsn_domain_port_ingress_rate_limiter_cir = -1;
+static int hf_pn_io_tsn_domain_port_ingress_rate_limiter_cbs = -1;
+static int hf_pn_io_tsn_domain_port_ingress_rate_limiter_envelope = -1;
+static int hf_pn_io_tsn_domain_port_ingress_rate_limiter_rank = -1;
+
+static int hf_pn_io_tsn_domain_queue_rate_limiter = -1;
+static int hf_pn_io_tsn_domain_queue_rate_limiter_cir = -1;
+static int hf_pn_io_tsn_domain_queue_rate_limiter_cbs = -1;
+static int hf_pn_io_tsn_domain_queue_rate_limiter_envelope = -1;
+static int hf_pn_io_tsn_domain_queue_rate_limiter_rank = -1;
+static int hf_pn_io_tsn_domain_queue_rate_limiter_queue_id = -1;
+static int hf_pn_io_tsn_domain_queue_rate_limiter_reserved = -1;
+
+static int hf_pn_io_number_of_tsn_domain_queue_config_entries = -1;
+static int hf_pn_io_tsn_domain_queue_config = -1;
+static int hf_pn_io_tsn_domain_queue_config_queue_id = -1;
+static int hf_pn_io_tsn_domain_queue_config_tci_pcp = -1;
+static int hf_pn_io_tsn_domain_queue_config_shaper = -1;
+static int hf_pn_io_tsn_domain_queue_config_preemption_mode = -1;
+static int hf_pn_io_tsn_domain_queue_config_unmask_time_offset = -1;
+static int hf_pn_io_tsn_domain_queue_config_mask_time_offset = -1;
+
+static int hf_pn_io_network_deadline = -1;
+static int hf_pn_io_time_domain_number = -1;
+static int hf_pn_io_time_pll_window = -1;
+static int hf_pn_io_message_interval_factor = -1;
+static int hf_pn_io_message_timeout_factor = -1;
+static int hf_pn_io_time_sync_properties = -1;
+static int hf_pn_io_time_sync_properties_role = -1;
+static int hf_pn_io_time_sync_properties_reserved = -1;
+static int hf_pn_io_time_domain_uuid = -1;
+static int hf_pn_io_time_domain_name_length = -1;
+static int hf_pn_io_time_domain_name = -1;
+static int hf_pn_io_tsn_nme_name_uuid = -1;
+static int hf_pn_io_tsn_nme_name_length = -1;
+static int hf_pn_io_tsn_nme_name = -1;
+static int hf_pn_io_tsn_domain_uuid = -1;
+static int hf_pn_io_tsn_domain_name_length = -1;
+static int hf_pn_io_tsn_domain_name = -1;
+
+static int hf_pn_io_tsn_fdb_command = -1;
+static int hf_pn_io_tsn_dst_add = -1;
+
+static int hf_pn_io_number_of_tsn_domain_sync_tree_entries = -1;
+static int hf_pn_io_tsn_domain_sync_port_role = -1;
+static int hf_pn_io_tsn_domain_port_id = -1;
 
 static int hf_pn_io_maintenance_required_power_budget = -1;
 static int hf_pn_io_maintenance_demanded_power_budget = -1;
@@ -800,6 +919,7 @@ static gint ett_pn_io_soe_adjust_specifier = -1;
 static gint ett_pn_io_sr_properties = -1;
 static gint ett_pn_io_line_delay = -1;
 static gint ett_pn_io_counter_status = -1;
+static gint ett_pn_io_neighbor = -1;
 
 static gint ett_pn_io_GroupProperties = -1;
 
@@ -813,6 +933,15 @@ static gint ett_pn_io_peer_to_peer_boundary = -1;
 static gint ett_pn_io_mau_type_extension = -1;
 
 static gint ett_pn_io_pe_operational_mode = -1;
+
+static gint ett_pn_io_tsn_domain_port_config = -1;
+static gint ett_pn_io_tsn_domain_port_ingress_rate_limiter = -1;
+static gint ett_pn_io_tsn_domain_queue_rate_limiter = -1;
+static gint ett_pn_io_tsn_domain_vid_config = -1;
+static gint ett_pn_io_tsn_domain_queue_config = -1;
+static gint ett_pn_io_time_sync_properties = -1;
+static gint ett_pn_io_tsn_domain_port_id = -1;
+
 
 #define PD_SUB_FRAME_BLOCK_FIOCR_PROPERTIES_LENGTH 4
 #define PD_SUB_FRAME_BLOCK_FRAME_ID_LENGTH 2
@@ -854,6 +983,7 @@ gboolean           pnio_ps_selection = TRUE;
 static const char *pnio_ps_networkpath = "";
 
 wmem_list_t       *aruuid_frame_setup_list = NULL;
+static wmem_map_t *pnio_time_aware_frame_map = NULL;
 
 
 /* Allow heuristic dissection */
@@ -862,7 +992,9 @@ static heur_dissector_list_t heur_pn_subdissector_list;
 static const value_string pn_io_block_type[] = {
     { 0x0000, "Reserved" },
     { 0x0001, "Alarm Notification High"},
+    { 0x8001, "Alarm Ack High"},
     { 0x0002, "Alarm Notification Low"},
+    { 0x8002, "Alarm Ack Low"},
     { 0x0008, "IODWriteReqHeader"},
     { 0x8008, "IODWriteResHeader"},
     { 0x0009, "IODReadReqHeader"},
@@ -917,8 +1049,9 @@ static const value_string pn_io_block_type[] = {
     { 0x0105, "PrmServerBlockReq"},
     { 0x8105, "PrmServerBlockRes"},
     { 0x0106, "MCRBlockReq"},
-    { 0x8106, "ARServerBlock"},
+    { 0x8106, "ARServerBlockRes"},
     { 0x0107, "SubFrameBlock"},
+    { 0x8107, "ARRPCBlockRes"},
     { 0x0108, "ARVendorBlockReq"},
     { 0x8108, "ARVendorBlockRes"},
     { 0x0109, "IRInfoBlock"},
@@ -927,12 +1060,12 @@ static const value_string pn_io_block_type[] = {
     { 0x010C, "RSInfoBlock"},
     { 0x0110, "IODControlReq Prm End.req"},
     { 0x8110, "IODControlRes Prm End.rsp"},
-    { 0x0111, "IODControlReq Prm End.req"},
-    { 0x8111, "IODControlRes Prm End.rsp"},
+    { 0x0111, "IODControlReq Plug Prm End.req"},
+    { 0x8111, "IODControlRes Plug Prm End.rsp"},
     { 0x0112, "IOXBlockReq Application Ready.req"},
     { 0x8112, "IOXBlockRes Application Ready.rsp"},
-    { 0x0113, "IOXBlockReq Application Ready.req"},
-    { 0x8113, "IOXBlockRes Application Ready.rsp"},
+    { 0x0113, "IOXBlockReq Plug Application Ready.req"},
+    { 0x8113, "IOXBlockRes Plug Application Ready.rsp"},
     { 0x0114, "IODReleaseReq"},
     { 0x8114, "IODReleaseRes"},
     { 0x0115, "ARRPCServerBlockReq"},
@@ -941,9 +1074,9 @@ static const value_string pn_io_block_type[] = {
     { 0x8116, "IOXControlRes Ready for Companion.rsp"},
     { 0x0117, "IOXControlReq Ready for RT_CLASS_3.req"},
     { 0x8117, "IOXControlRes Ready for RT_CLASS_3.rsp"},
-    { 0x0118, "ControlBlockPrmBegin"},
+    { 0x0118, "PrmBeginReq"},
+    { 0x8118, "PrmBeginRes"},
     { 0x0119, "SubmoduleListBlock"},
-    { 0x8118, "ControlBlockPrmBeginRes"},
 
     { 0x0200, "PDPortDataCheck"},
     { 0x0201, "PDevData"},
@@ -988,29 +1121,63 @@ static const value_string pn_io_block_type[] = {
     { 0x0229, "AdjustMAUType-Extension"},
     { 0x022A, "PDIRSubframeData"},
     { 0x022B, "SubframeBlock"},
+    { 0x022C, "PDPortDataRealExtended"},
+    { 0x022D, "PDTimeData"},
+    { 0x022E, "PDPortSFPDataCheck"},
     { 0x0230, "PDNCDataCheck"},
     { 0x0231, "MrpInstanceDataAdjust"},
     { 0x0232, "MrpInstanceDataReal"},
     { 0x0233, "MrpInstanceDataCheck"},
-    { 0x0241, "PDRsiInstances"},
+    { 0x0234, "PDPortMrpIcDataAdjust"},
+    { 0x0235, "PDPortMrpIcDataCheck"},
+    { 0x0236, "PDPortMrpIcDataReal"},
     { 0x0240, "PDInterfaceDataReal"},
+    { 0x0241, "PDRsiInstances"},
     { 0x0250, "PDInterfaceAdjust"},
     { 0x0251, "PDPortStatistic"},
+    { 0x0260, "OwnPort"},
+    { 0x0261, "Neighbors"},
+    { 0x0270, "TSNNetworkControlDataReal"},
+    { 0x0271, "TSNNetworkControlDataAdjust"},
+    { 0x0272, "TSNDomainPortConfigBlock"},
+    { 0x0273, "TSNDomainQueueConfigBlock"},
+    { 0x0274, "TSNTimeDataBlock"},
+    { 0x0275, "TSNStreamPathData"},
+    { 0x0276, "TSNSyncTreeData"},
+    { 0x0277, "TSNUploadNetworkAttributes"},
+    { 0x0278, "ForwardingDelayBlock"},
+    { 0x0279, "TSNExpectedNetworkAttributes"},
+    { 0x027A, "TSNStreamPathDataReal"},
+    { 0x027B, "TSNDomainPortIngressRateLimiterBlock"},
+    { 0x027C, "TSNDomainQueueRateLimiterBlock"},
+    { 0x027D, "TSNPortIDBlock"},
+    { 0x027E, "TSNExpectedNeighborBlock" },
+    { 0x0300, "PDInterfaceSecurityAdjust"},
     { 0x0400, "MultipleBlockHeader"},
     { 0x0401, "COContainerContent"},
     { 0x0500, "RecordDataReadQuery"},
-    { 0x0600, "FSHello"},
+    { 0x0501, "TSNAddStreamReq"},
+    { 0x0502, "TSNAddStreamRsp"},
+    { 0x0503, "TSNRemoveStreamReq"},
+    { 0x0504, "TSNRemoveStreamRsp"},
+    { 0x0505, "TSNRenewStreamReq"},
+    { 0x0506, "TSNRenewStreamRsp"},
+    { 0x0600, "FSHelloBlock"},
     { 0x0601, "FSParameterBlock"},
+    { 0x0602, "FastStartUpBlock"},
     { 0x0608, "PDInterfaceFSUDataAdjust"},
     { 0x0609, "ARFSUDataAdjust"},
     { 0x0700, "AutoConfiguration"},
     { 0x0701, "AutoConfiguration Communication"},
     { 0x0702, "AutoConfiguration Configuration"},
+    { 0x0703, "AutoConfiguration Isochronous"},
     { 0x0810, "PE_EntityFilterData"},
     { 0x0811, "PE_EntityStatusData"},
     { 0x0900, "RS_AdjustObserver" },
     { 0x0901, "RS_GetEvent" },
     { 0x0902, "RS_AckEvent" },
+    { 0x0A00, "Upload BLOB Query" },
+    { 0x0A01, "Upload BLOB" },
     { 0xB050, "Ext-PLL Control / RTC+RTA SyncID 0 (EDD)" },
     { 0xB051, "Ext-PLL Control / RTA SyncID 1 (GSY)" },
 
@@ -1219,6 +1386,13 @@ static const value_string pn_io_arproperties_acknowldege_companion_ar[] = {
     { 0, NULL }
 };
 
+/* Bit 28 */
+static const value_string pn_io_arproperties_time_aware_system[] = {
+    { 0x00000000, "NonTimeAware" },
+    { 0x00000001, "TimeAware" },
+    { 0, NULL }
+};
+
 /* bit 29 for legacy startup mode*/
 static const value_string pn_io_arproperties_combined_object_container_with_legacy_startupmode[] = {
     { 0x00000000, "CombinedObjectContainer not used" },
@@ -1349,9 +1523,9 @@ static const value_string pn_io_submodule_state_add_info[] = {
     { 0, NULL }
 };
 
-static const value_string pn_io_submodule_state_qualified_info[] = {
-    { 0x0000, "No QualifiedInfo available" },
-    { 0x0001, "QualifiedInfo available" },
+static const value_string pn_io_submodule_state_advice[] = {
+    { 0x0000, "No Advice available" },
+    { 0x0001, "Advice available" },
     { 0, NULL }
 };
 
@@ -1367,9 +1541,9 @@ static const value_string pn_io_submodule_state_maintenance_demanded[] = {
     { 0, NULL }
 };
 
-static const value_string pn_io_submodule_state_diag_info[] = {
-    { 0x0000, "No DiagnosisData available" },
-    { 0x0001, "DiagnosisData available" },
+static const value_string pn_io_submodule_state_fault[] = {
+    { 0x0000, "No Fault available" },
+    { 0x0001, "Fault available" },
     { 0, NULL }
 };
 
@@ -1433,68 +1607,62 @@ static const value_string pn_io_index[] = {
     { 0x8013, "Maintenance demanded in all codings for one subslot" },
     /*0x8014 - 0x801D reserved */
     { 0x801E, "SubstituteValues for one subslot" },
-    /*0x801F - 0x8027 reserved */
+    /*0x801F reserved */
+    { 0x8020, "PDIRSubframeData for one subslot" },
+    /*0x8021 - 0x8026 reserved */
+    { 0x8027, "PDPortDataRealExtended for one subslot" },
     { 0x8028, "RecordInputDataObjectElement for one subslot" },
     { 0x8029, "RecordOutputDataObjectElement for one subslot" },
     { 0x802A, "PDPortDataReal for one subslot" },
     { 0x802B, "PDPortDataCheck for one subslot" },
     { 0x802C, "PDIRData for one subslot" },
-    { 0x802D, "Expected PDSyncData for one subslot with SyncID value 0" },
+    { 0x802D, "PDSyncData for one subslot with SyncID value 0" },
     /*0x802E reserved */
     { 0x802F, "PDPortDataAdjust for one subslot" },
     { 0x8030, "IsochronousModeData for one subslot" },
-    { 0x8031, "Expected PDSyncData for one subslot with SyncID value 1" },
-    { 0x8032, "Expected PDSyncData for one subslot with SyncID value 2" },
-    { 0x8033, "Expected PDSyncData for one subslot with SyncID value 3" },
-    { 0x8034, "Expected PDSyncData for one subslot with SyncID value 4" },
-    { 0x8035, "Expected PDSyncData for one subslot with SyncID value 5" },
-    { 0x8036, "Expected PDSyncData for one subslot with SyncID value 6" },
-    { 0x8037, "Expected PDSyncData for one subslot with SyncID value 7" },
-    { 0x8038, "Expected PDSyncData for one subslot with SyncID value 8" },
-    { 0x8039, "Expected PDSyncData for one subslot with SyncID value 9" },
-    { 0x803A, "Expected PDSyncData for one subslot with SyncID value 10" },
-    { 0x803B, "Expected PDSyncData for one subslot with SyncID value 11" },
-    { 0x803C, "Expected PDSyncData for one subslot with SyncID value 12" },
-    { 0x803D, "Expected PDSyncData for one subslot with SyncID value 13" },
-    { 0x803E, "Expected PDSyncData for one subslot with SyncID value 14" },
-    { 0x803F, "Expected PDSyncData for one subslot with SyncID value 15" },
-    { 0x8040, "Expected PDSyncData for one subslot with SyncID value 16" },
-    { 0x8041, "Expected PDSyncData for one subslot with SyncID value 17" },
-    { 0x8042, "Expected PDSyncData for one subslot with SyncID value 18" },
-    { 0x8043, "Expected PDSyncData for one subslot with SyncID value 19" },
-    { 0x8044, "Expected PDSyncData for one subslot with SyncID value 20" },
-    { 0x8045, "Expected PDSyncData for one subslot with SyncID value 21" },
-    { 0x8046, "Expected PDSyncData for one subslot with SyncID value 22" },
-    { 0x8047, "Expected PDSyncData for one subslot with SyncID value 23" },
-    { 0x8048, "Expected PDSyncData for one subslot with SyncID value 24" },
-    { 0x8049, "Expected PDSyncData for one subslot with SyncID value 25" },
-    { 0x804A, "Expected PDSyncData for one subslot with SyncID value 26" },
-    { 0x804B, "Expected PDSyncData for one subslot with SyncID value 27" },
-    { 0x804C, "Expected PDSyncData for one subslot with SyncID value 28" },
-    { 0x804D, "Expected PDSyncData for one subslot with SyncID value 29" },
-    { 0x804E, "Expected PDSyncData for one subslot with SyncID value 30" },
-    { 0x804F, "Expected PDSyncData for one subslot with SyncID value 31" },
+    { 0x8031, "PDTimeData for one subslot" },
+    /*0x8032 - 0x804F reserved */
     { 0x8050, "PDInterfaceMrpDataReal for one subslot" },
     { 0x8051, "PDInterfaceMrpDataCheck for one subslot" },
     { 0x8052, "PDInterfaceMrpDataAdjust for one subslot" },
     { 0x8053, "PDPortMrpDataAdjust for one subslot" },
     { 0x8054, "PDPortMrpDataReal for one subslot" },
-    /*0x8055 - 0x805F reserved */
+    { 0x8055, "PDPortMrpIcDataAdjust for one subslot" },
+    { 0x8056, "PDPortMrpIcDataCheck for one subslot" },
+    { 0x8057, "PDPortMrpIcDataReal for one subslot" },
+    /*0x8058 - 0x805F reserved */
     { 0x8060, "PDPortFODataReal for one subslot" },
     { 0x8061, "PDPortFODataCheck for one subslot" },
     { 0x8062, "PDPortFODataAdjust for one subslot" },
-    /*0x8063 - 0x806F reserved */
+    { 0x8063, "PDPortSFPDataCheck for one subslot" },
+    /*0x8064 - 0x806F reserved */
     { 0x8070, "PDNCDataCheck for one subslot" },
     { 0x8071, "PDInterfaceAdjust for one subslot" },
     { 0x8072, "PDPortStatistic for one subslot" },
     /*0x8071 - 0x807F reserved */
     { 0x8080, "PDInterfaceDataReal" },
     /*0x8081 - 0x808F reserved */
-    { 0x8090, "Expected PDInterfaceFSUDataAdjust" },
-    /*0x8091 - 0xAFEF reserved except 0x80B0, 0x80AF and 0x80CF*/
+    { 0x8090, "PDInterfaceFSUDataAdjust" },
+    /*0x8091 - 0x809F reserved */
+    { 0x80A0, "Profiles covering energy saving - Record_0" },
+    /*0x80A1 - 0x80AE reserved */
     { 0x80AF, "PE_EntityStatusData for one subslot" },
     { 0x80B0, "CombinedObjectContainer" },
+    /*0x80B1 - 0x80CE reserved */
     { 0x80CF, "RS_AdjustObserver" },
+    { 0x80D0, "Profiles covering condition monitoring - Record_0" },
+    /*0x80D1 - 0x80DF reserved */
+    { 0x80F0, "TSNNetworkControlDataReal" },
+    { 0x80F1, "TSNStreamPathData" },
+    { 0x80F2, "TSNSyncTreeData" },
+    { 0x80F3, "TSNUploadNetworkAttributes" },
+    { 0x80F4, "TSNExpectedNetworkAttributes" },
+    { 0x80F5, "TSNNetworkControlDataAdjust" },
+    { 0x80F6, "TSNStreamPathDataReal for stream class High" },
+    { 0x80F7, "TSNStreamPathDataReal for stream class High Redundant" },
+    { 0x80F8, "TSNStreamPathDataReal for stream class Low" },
+    { 0x80F9, "TSNStreamPathDataReal for stream class Low Redundant" },
+    /*0x80FA - 0xAFEF reserved */
     { 0xAFF0, "I&M0" },
     { 0xAFF1, "I&M1" },
     { 0xAFF2, "I&M2" },
@@ -1605,7 +1773,8 @@ static const value_string pn_io_index[] = {
     { 0xE031, "PE_EntityStatusData for one AR" },
     /*0xE032 - 0xE03F reserved */
     { 0xE040, "MultipleWrite" },
-    /*0xE041 - 0xE04F reserved */
+    { 0xE041, "ApplicationReadyBlock" },
+    /*0xE042 - 0xE04F reserved */
     { 0xE050, "ARFSUDataAdjust data for one AR" },
     /*0xE051 - 0xE05F reserved */
     { 0xE060, "RS_GetEvent (using RecordDataRead service)" },
@@ -1643,11 +1812,24 @@ static const value_string pn_io_index[] = {
     { 0xF842, "PDExpectedData" },
     /*0xF843 - 0xF84F reserved */
     { 0xF850, "AutoConfiguration" },
+    { 0xF860, "GSD upload using UploadBLOBQuery and UploadBLOB" },
     { 0xF870, "PE_EntityFilterData" },
     { 0xF871, "PE_EntityStatusData" },
-    { 0xF880, "AssetManagementData" },
-    /*0xF851 - 0xFBFF reserved except 0xF880*/
+    { 0xF880, "AssetManagementData - contains all or first chunk of complete assets" },
+    { 0xF881, "AssetManagementData - second chunk" },
+    { 0xF882, "AssetManagementData - third chunk" },
+    { 0xF883, "AssetManagementData - fourth chunk" },
+    { 0xF884, "AssetManagementData - fifth chunk" },
+    { 0xF885, "AssetManagementData - sixth chunk" },
+    { 0xF886, "AssetManagementData - seventh chunk" },
+    { 0xF887, "AssetManagementData - eighth chunk" },
+    { 0xF888, "AssetManagementData - ninth chunk" },
+    { 0xF889, "AssetManagementData - tenth chunk" },
+    { 0xF8F0, "Stream Add using TSNAddStreamReq and TSNAddStreamRsp" },
     { 0xF8F1, "PDRsiInstances" },
+    { 0xF8F2, "Stream Remove using TSNRemoveStreamReq and TSNRemoveStreamRsp" },
+    { 0xF8F3, "Stream Renew using TSNRenewStreamReq and TSNRenewStreamRsp" },
+    { 0xFBFF, "Trigger index for RPC connection monitoring" },
     /*0xFC00 - 0xFFFF reserved for profiles */
     { 0, NULL }
 };
@@ -1660,12 +1842,15 @@ static const value_string pn_io_user_structure_identifier[] = {
     { 0x8003, "QualifiedChannelDiagnosis" },
     /*0x8004 - 0x80FF reserved */
     { 0x8100, "Maintenance" },
-    /*0x8101 - 0x8FFF reserved  except 8300, 8301, 8302, 8303 */
-    { 0x8300, "Sequence of events RS_LowWatermark" },
-    { 0x8301, "Sequence of events RS_Timeout" },
-    { 0x8302, "Sequence of events RS_Overflow" },
-    { 0x8303, "Sequence of events RS_Event" },
+    /*0x8101 - 0x8FFF reserved except 8200, 8201, 8300, 8301, 8302, 8303, 8310, 8320 */
+    { 0x8200, "Upload&Retrieval" },
+    { 0x8201, "iParameter" },
+    { 0x8300, "Reporting system RS_LowWatermark" },
+    { 0x8301, "Reporting system RS_Timeout" },
+    { 0x8302, "Reporting system RS_Overflow" },
+    { 0x8303, "Reporting system RS_Event" },
     { 0x8310, "PE_EnergySavingStatus" },
+    { 0x8320, "Channel related Process Alarm reasons" },
     /*0x9000 - 0x9FFF reserved for profiles */
     /*0xA000 - 0xFFFF reserved */
     { 0, NULL }
@@ -1678,28 +1863,47 @@ static const value_string pn_io_channel_error_type[] = {
     { 0x0003, "Overvoltage" },
     { 0x0004, "Overload" },
     { 0x0005, "Overtemperature" },
-    { 0x0006, "line break" },
-    { 0x0007, "upper limit value exceeded" },
-    { 0x0008, "lower limit value exceeded" },
+    { 0x0006, "Wire break" },
+    { 0x0007, "Upper limit value exceeded" },
+    { 0x0008, "Lower limit value exceeded" },
     { 0x0009, "Error" },
-    /*0x000A - 0x000F reserved */
-    { 0x0010, "parameterization fault" },
-    { 0x0011, "power supply fault" },
-    { 0x0012, "fuse blown / open" },
+    { 0x000A, "Simulation active" },
+    /*0x000B - 0x000E reserved */
+    { 0x000F, "Parameter missing" },
+    { 0x0010, "Parameterization fault" },
+    { 0x0011, "Power supply fault" },
+    { 0x0012, "Fuse blown / open" },
     { 0x0013, "Manufacturer specific" },
-    { 0x0014, "ground fault" },
-    { 0x0015, "reference point lost" },
-    { 0x0016, "process event lost / sampling error" },
-    { 0x0017, "threshold warning" },
-    { 0x0018, "output disabled" },
-    { 0x0019, "safety event" },
-    { 0x001A, "external fault" },
+    { 0x0014, "Ground fault" },
+    { 0x0015, "Reference point lost" },
+    { 0x0016, "Process event lost / sampling error" },
+    { 0x0017, "Threshold warning" },
+    { 0x0018, "Output disabled" },
+    { 0x0019, "FunctionalSafety event" },
+    { 0x001A, "External fault" },
     /*0x001B - 0x001F manufacturer specific */
+    { 0x001F, "Temporary fault" },
     /*0x0020 - 0x00FF reserved for common profiles */
+    { 0x0040, "Mismatch of safety destination address" },
+    { 0x0041, "Safety destination address not valid" },
+    { 0x0042, "Safety source address not valid" },
+    { 0x0043, "Safety watchdog time value is 0ms" },
+    { 0x0044, "Parameter F_SIL exceeds SIL of specific application" },
+    { 0x0045, "Parameter F_CRC_Length does not match generated values" },
+    { 0x0046, "Version of F-Parameter set incorrect" },
+    { 0x0047, "Data inconsistent in received F-Parameter block (CRC1 error)" },
+    { 0x0048, "Device specific or unspecific diagnosis information, see manual" },
+    { 0x0049, "Save iParameter watchdog time exceeded" },
+    { 0x004A, "Restore iParameter watchdog time exceeded" },
+    { 0x004B, "Inconsistent iParameters (iParCRC error)" },
+    { 0x004C, "F_Block_ID not supported" },
+    { 0x004D, "Transmission error: data inconsistent (CRC2 error)" },
+    { 0x004E, "Transmission error: timeout" },
+    { 0x004F, "Acknowledge needed to enable the channel(s)" },
     /*0x0100 - 0x7FFF manufacturer specific */
     { 0x8000, "Data transmission impossible" },
     { 0x8001, "Remote mismatch" },
-    { 0x8002, "Media redundancy mismatch" },
+    { 0x8002, "Media redundancy mismatch - Ring" },
     { 0x8003, "Sync mismatch" },
     { 0x8004, "IsochronousMode mismatch" },
     { 0x8005, "Multicast CR mismatch" },
@@ -1711,9 +1915,373 @@ static const value_string pn_io_channel_error_type[] = {
     { 0x800A, "Dynamic frame packing function mismatch" },
     { 0x800B, "Media redundancy with planned duplication mismatch"},
     { 0x800C, "System redundancy mismatch"},
+    { 0x800D, "Multiple interface mismatch"},
+    { 0x8010, "Power failure over Single Pair Ethernet"},
     /* ends */
     /*0x800D - 0x8FFF reserved */
     /*0x9000 - 0x9FFF reserved for profile */
+    /*0x9000 - 0x902F NE107 common (PA Profile 4.02) */
+    { 0x9000, "Sensor element exciter faulty" },
+    { 0x9001, "Error in evaluation electronics" },
+    { 0x9002, "Error in internal energy supply" },
+    { 0x9003, "Error in sensor element" },
+    { 0x9004, "Error in actuator element" },
+    { 0x9005, "Faulty installat e.g. dead space" },
+    { 0x9006, "Parameter setting error" },
+    { 0x9008, "Overloading" },
+    { 0x9009, "Wrong polarity of aux power" },
+    { 0x900A, "Maximum line length exceeded" },
+    { 0x900B, "Corrosion/abrasion by medium" },
+    { 0x900C, "Fouling on sensor element" },
+    { 0x900D, "Auxil medium missing or insufficient" },
+    { 0x900E, "Wear reserve used up (operation)" },
+    { 0x900F, "Wear reserve used up (wear)" },
+    { 0x9010, "Error in peripherals" },
+    { 0x9011, "Electromag interference too high" },
+    { 0x9012, "Temperature of medium too high" },
+    { 0x9013, "Ambient temperature too high" },
+    { 0x9014, "Vibration/Impact load too high" },
+    { 0x9015, "Auxiliary power range off-spec" },
+    { 0x9016, "Auxiliary medium missing" },
+    { 0x9017, "Excessive temperature shock" },
+    { 0x9018, "Deviation from measurement" },
+    { 0x9019, "Humidity in electronics area" },
+    { 0x901A, "Medium in electronics area" },
+    { 0x901B, "Mechanical damage" },
+    { 0x901C, "Communication error" },
+    { 0x901D, "Foreign material in electro area" },
+    /*0x9030 - 0x906F NE107 contact thermometer (PA Profile 4.02) */
+    { 0x9030, "Immersion depth too limited" },
+    { 0x9031, "Unequate medium around sensor" },
+    { 0x9032, "Temp distrib not representative" },
+    { 0x9033, "Inadequate thermal contact" },
+    { 0x9034, "Sensor close to heat source/sink" },
+    { 0x9035, "External temperature influence" },
+    { 0x9036, "Insufficient thermocoupling" },
+    { 0x9037, "Thermocoupling too high" },
+    { 0x9038, "Friction heat by flowing gases" },
+    { 0x9039, "Thermalcapac of sensor too high" },
+    { 0x903A, "Deposits" },
+    { 0x903B, "Systemrelated resonant vibration" },
+    { 0x903C, "Resonantvibrat excited by flow" },
+    { 0x903D, "Leakage" },
+    { 0x903E, "Abrasion" },
+    { 0x903F, "Corrosion" },
+    { 0x9040, "Flow approach speed too high" },
+    { 0x9041, "Insulation to ground too low" },
+    { 0x9042, "Insulation betw. lines too low" },
+    { 0x9043, "Parasitic thermal elements" },
+    { 0x9044, "Parasitic galvanic elements" },
+    { 0x9045, "Short circuit" },
+    { 0x9046, "Shorted coil and break" },
+    { 0x9047, "Line/contact resistance too high" },
+    { 0x9048, "Compression spring failure" },
+    { 0x9049, "Drift of sensor charact curve" },
+    { 0x904A, "Insuff contact of meas insert" },
+    { 0x904B, "Meas insert mechanical seized" },
+    { 0x904C, "Measuring insert in thermowell" },
+    { 0x904D, "Measuring insert too short" },
+    { 0x904E, "Resistance wire abrasion" },
+    { 0x904F, "Mechanic stress character curve" },
+    { 0x9050, "Thermal stress character curve" },
+    { 0x9051, "Intrinsic heating too severe" },
+    { 0x9052, "EMI on measuring circuit" },
+    { 0x9053, "Faulty linearisation" },
+    { 0x9054, "Incorrect sensor position" },
+    { 0x9055, "Faulty comparative point temp" },
+    { 0x9056, "Faulty compar of line resistance" },
+    { 0x9057, "Unsymmet supply line resistance" },
+    { 0x9058, "Wrong material of compens line" },
+    { 0x9059, "Damage to supply lines" },
+    { 0x905A, "Capacitive feedback" },
+    { 0x905B, "Potential transfer" },
+    { 0x905C, "Potential differences exceeded" },
+    { 0x905D, "Impermiss mix of wire systems" },
+    { 0x905E, "Reverse polarity of lines" },
+    { 0x905F, "Reverse polarity of lines" },
+    /*0x9070 - 0x90A7 NE107 pressure (PA Profile 4.02) */
+    { 0x9070, "Pressure peaks outside range" },
+    { 0x9071, "Deposits on the seal diaphragm" },
+    { 0x9072, "Characteristic curve change" },
+    { 0x9073, "Inc. measuring err. (turn down)" },
+    { 0x9074, "Wear on the seal diaphragm" },
+    { 0x9075, "Process seal at flush diaphragm" },
+    { 0x9076, "Offset error due to inst. pos." },
+    { 0x9077, "Seal diaphragm deformation" },
+    { 0x9078, "Hydrogen penetration" },
+    { 0x9079, "Mean value deviation" },
+    { 0x907A, "Pressure sensor system leakage" },
+    { 0x907B, "Hydrostatic offset" },
+    { 0x907C, "Gas seepage from pressure sensor" },
+    { 0x907D, "Add. measuring err. due to temp." },
+    { 0x907E, "Delta T in capillary tubing" },
+    { 0x907F, "Increase in compensation times" },
+    { 0x9080, "Oleic acid leak" },
+    { 0x9081, "Pulse lines blocked" },
+    { 0x9082, "Gas inclusion in liquid medium" },
+    { 0x9083, "Delta T in pulse lines" },
+    { 0x9084, "Liquid inclusion in gas" },
+    { 0x9088, "Sedimentation on sensor" },
+    { 0x9089, "Change of density" },
+    { 0x908A, "Wrong height / wrong adjustment" },
+    { 0x908B, "Clogged membrane" },
+    { 0x908C, "Error with pulse line" },
+    { 0x908D, "Internal tank pressure influence" },
+    { 0x908E, "Influence of temperature" },
+    { 0x908F, "Hydrogen diffusion" },
+    { 0x9090, "Absence of bubble gas" },
+    { 0x9091, "Air-bubble feed line blocked" },
+    { 0x9092, "Wear and tear of diaphragm" },
+    { 0x9093, "Gas seepage" },
+    { 0x9094, "Pressure rise at rel. of bubbles" },
+    { 0x9095, "Pressure sensor overload" },
+    { 0x9096, "Flow rate of bubble gas too high" },
+    /*0x90F8 - 0x910F NE107 coriolis (PA Profile 4.02) */
+    { 0x90F8, "Gas bubbles in the liquid" },
+    { 0x90F9, "Fouling, clogging" },
+    { 0x90FA, "Erosion, corrosion" },
+    { 0x90FB, "Faulty mounting" },
+    { 0x90FC, "Asymmetry of measuring tubes" },
+    { 0x90FD, "External vibrations" },
+    { 0x90FE, "Pulsating flow" },
+    { 0x90FF, "Incomplete filling" },
+    /*0x9110 - 0x9127 NE107 EMF (PA Profile 4.02) */
+    { 0x9110, "Gas bubbles in the liquid" },
+    { 0x9111, "Corrosion of electrodes" },
+    { 0x9112, "Electrical conductivity too low" },
+    { 0x9113, "Liner damage" },
+    { 0x9114, "Electrode fouling" },
+    { 0x9115, "External magnetic fields" },
+    { 0x9116, "Electrode short circuit" },
+    { 0x9117, "Incomplete filling" },
+    /*0x9128 - 0x913F NE107 thermal mass (PA Profile 4.02) */
+    /* empty */
+    /*0x9140 - 0x915F NE107 ultrasonic (PA Profile 4.02) */
+    { 0x9140, "Particle inclusions Check process" },
+    { 0x9141, "Gas bubbles in the liquid" },
+    { 0x9142, "Body fouling" },
+    { 0x9143, "External ultrasonic waves" },
+    { 0x9144, "Sensor fouling" },
+    { 0x9145, "Erosion" },
+    { 0x9146, "Faulty mounting (clamp on)" },
+    { 0x9147, "Pulsating flow" },
+    { 0x9148, "Sound conductivity" },
+    { 0x9149, "Signal lost due to overrange" },
+    { 0x914A, "Flow profile disturbance" },
+    { 0x914B, "Incomplete filling" },
+    /*0x9160 - 0x9177 NE107 variable area (PA Profile 4.02) */
+    { 0x9160, "Blocked float" },
+    { 0x9161, "Fouling" },
+    { 0x9162, "Erosion, corrosion" },
+    { 0x9163, "Gas bubbles in the liquid" },
+    { 0x9164, "Pulsating flow" },
+    { 0x9165, "External magnetic fields" },
+    /*0x9178 - 0x9197 NE107 vortex (PA Profile 4.02) */
+    { 0x9178, "Gas bubbles in the liquid" },
+    { 0x9179, "External vibrations" },
+    { 0x917A, "Pulsating flow" },
+    { 0x917B, "Two phase flow" },
+    { 0x917C, "Cavitation in device" },
+    { 0x917D, "Out of linear range" },
+    { 0x917E, "Sensor fouling" },
+    { 0x917F, "Solid particles" },
+    { 0x9180, "Flow profile disturbance" },
+    { 0x9181, "Incomplete filling" },
+    { 0x9182, "Bluff body fouling" },
+    /*0x9198 - 0x91B7 NE107 buoyancy (PA Profile 4.02) */
+    { 0x9198, "Gas density change above liquid" },
+    { 0x9199, "Vibration/strokes from outside" },
+    { 0x919A, "Displacer partly inside compartm" },
+    { 0x919B, "Displacer too heavy/too light" },
+    { 0x919C, "Density change or displac config" },
+    { 0x919D, "Sticking of torque or spring" },
+    { 0x919E, "Displacer swinging freedomly" },
+    { 0x919F, "Displac mounting faulty" },
+    { 0x91A0, "Displacer blocked or bended" },
+    { 0x91A1, "Displacer too light, corrosion" },
+    { 0x91A2, "Displacer leakage" },
+    { 0x91A3, "Force sensor broken" },
+    /*0x91B8 - 0x91FF NE107 radar (PA Profile 4.02) */
+    { 0x91B8, "Change of running time, encrust?" },
+    { 0x91B9, "False echoes, encrustation?" },
+    { 0x91BA, "Wrong/no indication, foam" },
+    { 0x91BB, "Poor reflection" },
+    { 0x91BC, "Problems with tank wall" },
+    { 0x91BD, "Surge tube or vent blocked" },
+    { 0x91BE, "Nozzle too long/high" },
+    { 0x91BF, "No metallic reflecting surface" },
+    { 0x91C0, "Blocking distance underrun" },
+    { 0x91C1, "Mechanical overloading of probe" },
+    { 0x91C2, "Probe lost or torn off" },
+    { 0x91C3, "Overload by external power" },
+    { 0x91C4, "Product or moisture in coupler" },
+    { 0x91C5, "Change of microwave speed" },
+    { 0x91C6, "Corr,abras, coating detachment" },
+    { 0x91C7, "Probe in filling flow" },
+    { 0x91D8, "No clear interface Emulsion?" },
+    { 0x91D9, "Wrong indication param setting" },
+    { 0x91DA, "Diff dielecon too small" },
+    { 0x91DB, "More than one interface" },
+    { 0x91DC, "First phase thickness too small" },
+    { 0x91E0, "Attenuation due to deposits" },
+    { 0x91E1, "False echoes due to deposits" },
+    { 0x91E2, "Corrosion surge tube (inside)" },
+    { 0x91E3, "Impurity in wave coupler area" },
+    { 0x91E4, "Antenna immersed in product" },
+    { 0x91E5, "Wrong signal due to foam" },
+    { 0x91E6, "Strong signal attenuation" },
+    { 0x91E7, "Shift of radar signal speed" },
+    { 0x91E8, "Reflection" },
+    { 0x91E9, "False interpretation of the echo" },
+    { 0x91EA, "Bad polarization of the signal" },
+    { 0x91EB, "Surge tube or vent blocked" },
+    { 0x91EC, "Nozzle too long for antenna" },
+    { 0x91ED, "Wall clearance, not vertical" },
+    { 0x91EE, "Corrosion on antenna" },
+    { 0x91EF, "Attenuation due to fog or dust" },
+    { 0x91F0, "Antenna signal blocked" },
+    { 0x91F1, "Blocking distance under-run" },
+    { 0x91F2, "Echo too strong (overmodulation)" },
+    /*0x9208 - 0x9257 NE107 electro (PA Profile 4.02) */
+    { 0x9208, "Faulty torque monitoring" },
+    { 0x9209, "Worn gear/spindle" },
+    { 0x920A, "Drive torque off-spec" },
+    { 0x920B, "Device temperature too high" },
+    { 0x920C, "Faulty limit position monitoring" },
+    { 0x920D, "Motor overload" },
+    { 0x920E, "Oil quality off-spec" },
+    { 0x920F, "Oil loss" },
+    { 0x9210, "Blocked drive" },
+    { 0x9211, "Off-spec seat/plug leakage" },
+    { 0x9212, "Off-spec spindle/shaft seal leak" },
+    { 0x9213, "Alteration and wear on spindle" },
+    { 0x9214, "Altered friction" },
+    { 0x9215, "Wear in the valve" },
+    { 0x9216, "Blocked valve" },
+    { 0x9217, "Change in valve move performance" },
+    { 0x9218, "Changed breakaway moment" },
+    { 0x9219, "Spindle deformation" },
+    { 0x921A, "Plug torn off" },
+    { 0x921B, "Off-spec valve temperature" },
+    { 0x921C, "Off-spec characteristic line" },
+    { 0x921E, "Incorrect position sensing" },
+    { 0x921F, "Input signal off-spec" },
+    { 0x9220, "Vibration off-spec" },
+    { 0x9221, "Temp in positioner too high/low" },
+    { 0x9222, "Moisture in positioner" },
+    { 0x9223, "Additional IO module defect" },
+    { 0x9224, "Signal without end position" },
+    { 0x9225, "No signal in end position" },
+    { 0x9226, "Control loop oscillation" },
+    { 0x9227, "Hysteresis" },
+    { 0x9228, "Changed friction" },
+    { 0x9229, "Backlash between drive and valve" },
+    { 0x922A, "Persistent deviation of control" },
+    { 0x922B, "Inadmissible dynamic stress" },
+    { 0x922C, "Faulty mounting" },
+    { 0x922D, "Faulty mount positioner to motor" },
+    { 0x922E, "Leak in piping" },
+    { 0x922F, "Insufficient drive power" },
+    { 0x9231, "Operator error during operation" },
+    { 0x9232, "Inadmissible static stress" },
+    { 0x9233, "Recording of pers. control dev." },
+    { 0x9234, "Parameter plausibility check" },
+    { 0x9235, "Status report on operating mode" },
+    { 0x9236, "Histogram for valve positions" },
+    { 0x9237, "Zero point and endpoint shift" },
+    { 0x9238, "Running time monitoring" },
+    { 0x9239, "Evaluation of internal signals" },
+    { 0x923A, "Operating hours counter" },
+    { 0x923B, "Pressure-displacement diagram" },
+    { 0x923C, "Total valve travel" },
+    { 0x923D, "Step response diagnostics" },
+    { 0x923E, "Internal temperature monitoring" },
+    { 0x923F, "Counter for direction changes" },
+    { 0x9240, "Operating archive" },
+    { 0x9241, "Report archive" },
+    { 0x9242, "Status reports on access control" },
+    { 0x9243, "Cavitation / flashing" },
+    { 0x9244, "Partial stroke test" },
+    { 0x9245, "P dif measurement across valve" },
+    { 0x9246, "Noise level measurement" },
+    /*0x9258 - 0x92A7 NE107 electro pneumatic (PA Profile 4.02) */
+    { 0x9258, "Minor drive leakage" },
+    { 0x9259, "High friction" },
+    { 0x925A, "Feed air pressure off-spec" },
+    { 0x925B, "Vent blockage" },
+    { 0x925C, "Diaphragm damage" },
+    { 0x925D, "Broken spring" },
+    { 0x925E, "Moist air in spring chamber" },
+    { 0x925F, "Blocked drive" },
+    { 0x9260, "Drive leakage too big" },
+    { 0x9261, "Off-spec seat/plug leakage" },
+    { 0x9262, "Off-spec spindle/shaft seal leak" },
+    { 0x9263, "Alteration and wear on spindle" },
+    { 0x9264, "Altered friction" },
+    { 0x9265, "Wear in the valve" },
+    { 0x9266, "Blocked valve" },
+    { 0x9267, "Change in valve move performance" },
+    { 0x9268, "Changed breakaway moment" },
+    { 0x9269, "Spindle deformation" },
+    { 0x926A, "Plug torn off" },
+    { 0x926B, "Off-spec valve temperature" },
+    { 0x926C, "Off-spec characteristic line" },
+    { 0x926D, "Fault in the pneumatic unit" },
+    { 0x926E, "Incorrect position sensing" },
+    { 0x926F, "Input signal off-spec" },
+    { 0x9270, "Vibration off-spec" },
+    { 0x9271, "Temp in positioner too high/low" },
+    { 0x9272, "Moisture in positioner" },
+    { 0x9273, "Additional IO module defect" },
+    { 0x9274, "Signal without end position" },
+    { 0x9275, "No signal in end position" },
+    { 0x9276, "Control loop oscillation" },
+    { 0x9277, "Hysteresis" },
+    { 0x9278, "Changed friction" },
+    { 0x9279, "Backlash between drive and valve" },
+    { 0x927A, "Persistent deviation of control" },
+    { 0x927B, "Inadmissible dynamic stress" },
+    { 0x927C, "Faulty mounting" },
+    { 0x927D, "Faulty mount positioner to drive" },
+    { 0x927E, "Leak in piping" },
+    { 0x927F, "Insufficient drive power" },
+    { 0x9280, "Quality of feed air off-spec" },
+    { 0x9281, "Operator error during operation" },
+    { 0x9282, "Inadmissible static stress" },
+    { 0x9283, "Recording of pers. control dev." },
+    { 0x9284, "Parameter plausibility check" },
+    { 0x9285, "Status report on operating mode" },
+    { 0x9286, "Histogram for valve positions" },
+    { 0x9287, "Zero point and endpoint shift" },
+    { 0x9288, "Running time monitoring" },
+    { 0x9289, "Evaluation of internal signals" },
+    { 0x928A, "Operating hours counter" },
+    { 0x928B, "Pressure-displacement diagram" },
+    { 0x928C, "Total valve travel" },
+    { 0x928D, "Step response diagnostics" },
+    { 0x928E, "Internal temperature monitoring" },
+    { 0x928F, "Counter for direction changes" },
+    { 0x9290, "Operating archive" },
+    { 0x9291, "Report archive" },
+    { 0x9292, "Status reports on access control" },
+    { 0x9293, "Cavitation / flashing" },
+    { 0x9294, "Partial stroke test" },
+    { 0x9295, "P dif measurement across valve" },
+    { 0x9296, "Noise level measurement" },
+    /*0x92A8 - 0x92BF NE107 sol valve (PA Profile 4.02) */
+    { 0x92A8, "Failure to reach safe position" },
+    { 0x92A9, "Failure to reach operat position" },
+    { 0x92AA, "High temperature in coil" },
+    { 0x92AB, "Moisture, humidity" },
+    { 0x92AC, "Signal outside of endposition" },
+    { 0x92AD, "No signal at endposition" },
+    /*0x92C0 - 0x92DF Physical block (PA Profile 4.02) */
+    { 0x92CD, "Maintenance" },
+    { 0x92D0, "Maintenance alarm" },
+    { 0x92D1, "Maintenance demanded" },
+    { 0x92D2, "Function check" },
+    { 0x92D3, "Out of spec." },
+    { 0x92D4, "Update event" },
     /*0xA000 - 0xFFFF reserved */
     { 0, NULL }
 };
@@ -1747,8 +2315,8 @@ static const value_string pn_io_ext_channel_error_type0x8000[] = {
 static const value_string pn_io_ext_channel_error_type0x8001[] = {
     /* 0x0000 Reserved */
     /* 0x0001 - 0x7FFF Manufacturer specific */
-    { 0x8000, "Peer Chassis ID mismatch"},
-    { 0x8001, "Peer Port ID mismatch"},
+    { 0x8000, "Peer name of station mismatch"},
+    { 0x8001, "Peer name of port mismatch"},
     { 0x8002, "Peer RT_CLASS_3 mismatch a"},
     { 0x8003, "Peer MAUType mismatch"},
     { 0x8004, "Peer MRP domain mismatch"},
@@ -1758,7 +2326,8 @@ static const value_string pn_io_ext_channel_error_type0x8001[] = {
     { 0x8008, "Peer PTCP mismatch b"},
     { 0x8009, "Peer Preamble Length mismatch"},
     { 0x800A, "Peer Fragmentation mismatch"},
-    /* 0x800B - 0x8FFF Reserved */
+    { 0x800B, "Peer MRP Interconnection domain mismatch"},
+    /* 0x800C - 0x8FFF Reserved */
     /* 0x9000 - 0x9FFF Reserved for profiles */
     /* 0xA000 - 0xFFFF Reserved */
     { 0, NULL }
@@ -1867,7 +2436,16 @@ static const value_string pn_io_ext_channel_error_type0x8007[] = {
     /* 0x0000 Reserved */
     /* 0x0001 - 0x7FFF Manufacturer specific */
     { 0x8000, "Power Budget"},
-    /* 0x8001 - 0x8FFF Reserved */
+    { 0x8001, "SFP - Temperature threshold violation (High)"},
+    { 0x8002, "SFP - TX Bias threshold violation (High)"},
+    { 0x8003, "SFP - TX Bias threshold violation (Low)"},
+    { 0x8004, "SFP - TX Power threshold violation (High)"},
+    { 0x8005, "SFP - TX Power threshold violation (Low)"},
+    { 0x8006, "SFP - RX Power threshold violation (High)"},
+    { 0x8007, "SFP - RX Power threshold violation (Low)"},
+    { 0x8008, "SFP - TX Fault State indication"},
+    { 0x8009, "SFP - RX Loss State indication"},
+    /* 0x800A - 0x8FFF Reserved */
     /* 0x9000 - 0x9FFF Reserved for profiles */
     /* 0xA000 - 0xFFFF Reserved */
     { 0, NULL }
@@ -1921,6 +2499,56 @@ static const value_string pn_io_ext_channel_error_type0x800C[] = {
     /* 0xA000 - 0xFFFF Reserved */
     { 0, NULL }
 };
+
+    /* ExtChannelErrorType for ChannelErrorType "Power failure over Single Pair Ethernet" 0x8010 */
+static const value_string pn_io_ext_channel_error_type0x8010[] = {
+    /* 0x0000 Reserved */
+    /* 0x0001 - 0x7FFF Manufacturer specific */
+    { 0x8000, "SPE power supply - Short circuit"},
+    { 0x8001, "SPE power supply - Open circuit"},
+    { 0x8002, "SPE power supply - Voltage level"},
+    { 0x8003, "SPE power supply - Current level"},
+    /* 0x8004 - 0x8FFF Reserved */
+    /* 0x9000 - 0x9FFF Reserved for profiles */
+    /* 0xA000 - 0xFFFF Reserved */
+    { 0, NULL }
+};
+
+/* QualifiedChannelQualifier */
+static const value_string pn_io_qualified_channel_qualifier[] = {
+    {0x00000001, "Reserved"},
+    {0x00000002, "Reserved"},
+    {0x00000004, "Reserved"},
+    {0x00000008, "Qualifier_3 (Advice)"},
+    {0x00000010, "Qualifier_4 (Advice, PA: UpdateEvent)"},
+    {0x00000020, "Qualifier_5 (Advice, PA: OutOfSpecification)"},
+    {0x00000040, "Qualifier_6 (Advice)"},
+    {0x00000080, "Qualifier_7 (MaintenanceRequired)"},
+    {0x00000100, "Qualifier_8 (MaintenanceRequired)"},
+    {0x00000200, "Qualifier_9 (MaintenanceRequired)"},
+    {0x00000400, "Qualifier_10 (MaintenanceRequired)"},
+    {0x00000800, "Qualifier_11 (MaintenanceRequired)"},
+    {0x00001000, "Qualifier_12 (MaintenanceRequired, PA: MaintenanceRequired)"},
+    {0x00002000, "Qualifier_13 (MaintenanceRequired)"},
+    {0x00004000, "Qualifier_14 (MaintenanceRequired)"},
+    {0x00008000, "Qualifier_15 (MaintenanceRequired)"},
+    {0x00010000, "Qualifier_16 (MaintenanceRequired)"},
+    {0x00020000, "Qualifier_17 (MaintenanceDemanded)"},
+    {0x00040000, "Qualifier_18 (MaintenanceDemanded)"},
+    {0x00080000, "Qualifier_19 (MaintenanceDemanded)"},
+    {0x00100000, "Qualifier_20 (MaintenanceDemanded)"},
+    {0x00200000, "Qualifier_21 (MaintenanceDemanded)"},
+    {0x00400000, "Qualifier_22 (MaintenanceDemanded, PA: MaintenanceDemanded)"},
+    {0x00800000, "Qualifier_23 (MaintenanceDemanded)"},
+    {0x01000000, "Qualifier_24 (MaintenanceDemanded, PA: FunctionCheck)"},
+    {0x02000000, "Qualifier_25 (MaintenanceDemanded)"},
+    {0x04000000, "Qualifier_26 (MaintenanceDemanded)"},
+    {0x08000000, "Qualifier_27 (Fault)"},
+    {0x10000000, "Qualifier_28 (Fault)"},
+    {0x20000000, "Qualifier_29 (Fault)"},
+    {0x40000000, "Qualifier_30 (Fault, PA: Fault)"},
+    {0x80000000, "Qualifier_31 (Fault)"},
+    {0, NULL}};
 
 static const value_string pn_io_channel_properties_type[] = {
     { 0x0000, "submodule or unspecified" },
@@ -2003,7 +2631,9 @@ static const value_string pn_io_mau_type[] = {
     { 0x002E, "100BASELX10" },
     /*0x002F - 0x0035 reserved */
     { 0x0036, "100BASEPXFD" },
-    /*0x0037 - 0xFFFF reserved */
+    /*0x0037 - 0x008C reserved */
+    { 0x008D, "10BASET1L" },
+    /*0x008E - 0xFFFF reserved */
     { 0, NULL }
 };
 
@@ -2057,7 +2687,9 @@ static const range_string pn_io_mau_type_extension[] = {
     { 0x0000, 0x0000, "No SubMAUType" },
     { 0x0001, 0x00FF, "Reserved" },
     { 0x0100, 0x0100, "POF" },
-    { 0x0101, 0xFFEF, "Reserved for SubMAUType" },
+    { 0x0101, 0x01FF, "Reserved for SubMAUType" },
+    { 0x0200, 0x0200, "APL" },
+    { 0x0201, 0xFFEF, "Reserved for SubMAUType" },
     { 0xFFF0, 0xFFFF, "Reserved" },
     { 0, 0, NULL }
 };
@@ -2119,7 +2751,6 @@ static const value_string pn_io_media_type[] = {
     /*0x0004 - 0xFFFF reserved */
     { 0, NULL }
 };
-
 
 static const value_string pn_io_fiber_optic_type[] = {
     { 0x0000, "No fiber type adjusted" },
@@ -2615,6 +3246,474 @@ static const value_string pn_io_pdportstatistic_counter_status_reserved[] = {
     { 0, NULL }
 };
 
+static const value_string pn_io_tsn_domain_vid_config_vals[] = {
+    { 0x00, "Reserved" },
+    { 0x64, "NonStreamVID-Default" },
+    { 0x65, "StreamHighVID-Default" },
+    { 0x66, "StreamHighRedVID-Default" },
+    { 0x67, "StreamLowVID-Default" },
+    { 0x68, "StreamLowRedVID-Default" },
+    { 0x69, "NonStreamVIDB-Default" },
+    { 0x6A, "NonStreamVIDC-Default" },
+    { 0x6B, "NonStreamVIDD-Default" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_tsn_domain_port_config_preemption_enabled_vals[] = {
+    { 0x00, "Preemption support is disabled for this port" },
+    { 0x01, "Preemption support is enabled for this port" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_tsn_domain_port_config_boundary_port_config_vals[] = {
+    { 0x00, "No boundary port" },
+    { 0x01, "Boundary port with Remapping1" },
+    { 0x02, "Boundary port with Remapping2" },
+    { 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_port_ingress_rate_limiter_cir[] = {
+    { 0x0000, 0x0000, "No Boundary Port" },
+    { 0x0001, 0xFFFF, "Committed information rate in 0,1 Mbit/s"},
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_port_ingress_rate_limiter_cbs[] = {
+    { 0x0000, 0x0000, "No Boundary Port" },
+    { 0x0001, 0xFFFF, "Committed burst size in octets"},
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_port_ingress_rate_limiter_envelope[] = {
+    { 0x0000, 0x0000, "No Boundary Port" },
+    { 0x0001, 0x0001, "Best effort envelope"},
+    { 0x0002, 0x0002, "RT_CLASS_X, RTA_CLASS_X envelope"},
+    { 0x0003, 0xFFFF, "Reserved"},
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_port_ingress_rate_limiter_rank[] = {
+    { 0x0000, 0x0000, "No Boundary Port" },
+    { 0x0001, 0x0001, "CF1"},
+    { 0x0002, 0x0002, "CF2"},
+    { 0x0003, 0x0003, "CF3"},
+    { 0x0004, 0x0004, "CF4"},
+    { 0x0005, 0x0005, "CF5"},
+    { 0x0006, 0xFFFF, "Reserved"},
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_queue_rate_limiter_cir[] = {
+    { 0x0000, 0x0000, "Used in case of no rate limiter" },
+    { 0x0001, 0xFFFF, "Committed information rate in 0,1 Mbit/s"},
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_queue_rate_limiter_cbs[] = {
+    { 0x0000, 0x0000, "Used in case of no rate limiter" },
+    { 0x0001, 0xFFFF, "Committed burst size in octets"},
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_queue_rate_limiter_envelope[] = {
+    { 0x00, 0x00, "Used in case of no rate limiter" },
+    { 0x01, 0x01, "Best effort envelope"},
+    { 0x02, 0xFF, "Reserved"},
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_queue_rate_limiter_rank[] = {
+    { 0x00, 0x00, "Used in case of no boundary port" },
+    { 0x01, 0x01, "CF1"},
+    { 0x02, 0x02, "CF2"},
+    { 0x03, 0x03, "CF3"},
+    { 0x04, 0x04, "CF4"},
+    { 0x05, 0x05, "CF5"},
+    { 0x06, 0xFF, "Reserved"},
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_queue_rate_limiter_queue_id[] = {
+    { 0x00, 0x07, "Identifier of the queue" },
+    { 0x08, 0xFF, "Reserved"},
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_queue_rate_limiter_reserved[] = {
+    { 0x00, 0xFF, "Reserved" },
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_network_domain[] = {
+    { 0x00000000, 0x00000000, "No Deadline" },
+    { 0x00000001, 0xFFFFFFFF, "The Deadline in Microseconds"},
+    { 0, 0, NULL }
+};
+
+static const value_string pn_io_time_domain_number_vals[] = {
+    { 0x0000, "Global Time" },
+    { 0x0001, "Global Time Redundant" },
+    { 0x0020, "Working Clock" },
+    { 0x0021, "Working Clock Redundant" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_time_pll_window_vals[] = {
+    { 0x00000000, "Disabled" },
+    { 0x000003E8, "Default" },
+    { 0x00002710, "Default" },
+    { 0x000186A0, "Default" },
+    { 0x000F4240, "Default" },
+    { 0x00989680, "Default" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_message_interval_factor_vals[] = {
+    { 0x0000, "Reserved" },
+    { 0x03E8, "Default" },
+    { 0x0FA0, "Default" },
+    { 0, NULL }
+};
+
+static const range_string pn_io_message_timeout_factor[] = {
+    { 0x0000, 0x0000, "Disabled" },
+    { 0x0001, 0x0002, "Optional" },
+    { 0x0003, 0x0005, "Mandatory" },
+    { 0x0006, 0x0006, "Default, mandatory" },
+    { 0x0007, 0x000F, "Mandatory" },
+    { 0x0010, 0x01FF, "Optional" },
+    { 0x0200, 0xFFFF, "Reserved" },
+    { 0, 0, NULL }
+};
+
+static const value_string pn_io_time_sync_properties_vals[] = {
+    { 0x00, "Reserved" },
+    { 0x01, "External Sync" },
+    { 0x02, "Internal Sync" },
+    { 0x03, "Reserved" },
+    { 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_queue_config_shaper[] = {
+    { 0x00, 0x00, "Reserved" },
+    { 0x01, 0x01, "Strict Priority" },
+    { 0x02, 0xFF, "Reserved" },
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_domain_sync_port_role_vals[] = {
+    { 0x00,0x00, "The port is not part of the sync tree for this sync domain" },
+    { 0x01,0x01, "Sync egress port for this sync domain" },
+    { 0x02,0x02, "Sync ingress port for this sync domain" },
+    { 0x02,0XFF, "Reserved" },
+    { 0, 0, NULL }
+};
+
+static const value_string pn_io_tsn_fdb_command[] = {
+    { 0x01, "AddStreamEntry" },
+    { 0x02, "RemoveStreamEntry" },
+    { 0x03, "RemoveAllStreamEntries" },
+    /* all others reserved */
+    { 0, NULL }
+};
+
+static const range_string pn_io_tsn_transfer_time_tx_vals[] = {
+    { 0x00000000, 0x00000000, "Reserved" },
+    { 0x00000001, 0x05F5E100, "Egress transfer time for the local interface of an endstation" },
+    { 0x05F5E101, 0xFFFFFFFF, "Reserved" },
+    { 0, 0, NULL }
+
+};
+
+static const range_string pn_io_tsn_transfer_time_rx_vals[] = {
+
+    { 0x00000000, 0x00000000, "Reserved" },
+    { 0x00000001, 0x05F5E100, "Ingress transfer time for the local interface of an endstation" },
+    { 0x05F5E101, 0xFFFFFFFF, "Reserved" },
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_max_supported_record_size_vals[] = {
+    { 0x00000000,0x00000FE3, "Reserved" },
+    { 0x00000FE4,0x0000FFFF, "Describes the maximum supported size of RecordDataWrite." },
+    {0x00010000,0xFFFFFFFF,"Reserved"},
+    { 0, 0, NULL }
+};
+static const range_string pn_io_tsn_forwarding_group_vals[] = {
+    { 0x00,0x00, "Reserved" },
+    { 0x01,0xFF, "Identifier of logical port grouping. Identifies ports with equal forwarding delay values." },
+    { 0, 0, NULL }
+};
+
+static const value_string pn_io_tsn_stream_class_vals[] = {
+
+    /*other reserved */
+    { 0x01, "High" },
+    { 0x02, "High Redundant" },
+    { 0x03, "Low" },
+    { 0x04, "Low Redundant" },
+    { 0, NULL }
+};
+
+static const range_string pn_io_tsn_independent_forwarding_delay_vals[] = {
+
+    { 0x00000000, 0x00000000, "Reserved" },
+    { 0x00000001, 0x000F4240, "Independent bridge delay value used for calculation" },
+    { 0, 0, NULL }
+};
+
+static const range_string pn_io_tsn_dependent_forwarding_delay_vals[] = {
+
+    { 0x00000000, 0x00000000, "Reserved" },
+    { 0x00000001, 0x000C3500, "Octet size dependent bridge delay value used for calculation" },
+    { 0, 0, NULL }
+};
+
+static const value_string pn_io_tsn_number_of_queues_vals[] = {
+
+    { 0x06, "The bridge supports six transmit queues at the port" },
+    { 0x08, "The bridge supports eight transmit queues at the port" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_tsn_port_capabilities_time_aware_vals[] = {
+    { 0x00, "This port is not usable within a Time Aware System"},
+    { 0x01, "This port is usable within a Time Aware System" },
+    { 0, NULL }
+};
+static const value_string pn_io_tsn_port_capabilities_preemption_vals[] = {
+    { 0x00, "Preemption is not supported at this port" },
+    { 0x01, "Preemption is supported at this port"},
+    { 0, NULL }
+};
+
+static const value_string pn_io_tsn_port_capabilities_queue_masking_vals[] = {
+    { 0x00, "Queue Masking is not supported at this port"},
+    { 0x01, "Queue Masking is supported at this port" },
+    { 0, NULL }
+};
+
+/* Format of submodule ident number as per PA Profile 4.02 specification:
+   [VariantOfSubmodule, Block_object, Parent_Class, Class] */
+static const value_string pn_io_pa_profile_block_object_vals[] = {
+    { 0, "DAP" },
+    { 1, "PB" },
+    { 2, "FB" },
+    { 3, "TB" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_dap_submodule_vals[] = {
+    { 1, "DAP" },
+    { 2, "Device Management" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_physical_block_parent_class_vals[] = {
+    { 1, "Transmitter" },
+    { 2, "Actuator" },
+    { 3, "Discrete I/O" },
+    { 4, "Controller" },
+    { 5, "Analyzer" },
+    { 6, "Lab Device" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_function_block_class_vals[] = {
+    { 1, "Input" },
+    { 2, "Output" },
+    { 3, "Further Input" },
+    { 4, "Further Output" },
+    { 128, "Manuf. specific Input" },
+    { 129, "Manuf. specific Output" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_function_block_parent_class_vals[] = {
+    {0, "Analog Temperature" },
+    {1, "Analog Temperature Difference"},
+    {2, "Analog Average Temperature"},
+    {3, "Analog Electronics Temperature"},
+    {4, "Analog Transmitter Temperature"},
+    {5, "Analog Sensor Temperature"},
+    {6, "Analog Frame Temperature"},
+    {7, "Analog Auxiliary Temperature"},
+    {8, "Analog Energy Supply Temperature"},
+    {9, "Analog Energy Return Temperature"},
+    {20, "Analog Pressure"},
+    {21, "Analog Absolute Pressure"},
+    {22, "Analog Gauge Pressure"},
+    {23, "Analog Differential Pressure"},
+    {30, "Analog Level"},
+    {31, "Analog Distance"},
+    {32, "Analog Interface Level"},
+    {33, "Analog Interface Distance"},
+    {40, "Analog Volume"},
+    {41, "Analog Ullage"},
+    {42, "Analog Interface Volume"},
+    {43, "Analog Standard Volume"},
+    {44, "Analog Fraction Substance 1 Volume"},
+    {45, "Analog Fraction Substance 2 Volume"},
+    {46, "Analog Fraction Substance 1 Std Volume"},
+    {47, "Analog Fraction Substance 2 Std Volume"},
+    {50, "Analog Mass"},
+    {51, "Analog Net Mass"},
+    {52, "Analog Fraction Substance 1 Mass"},
+    {53, "Analog Fraction Substance 2 Mass"},
+    {60, "Analog Volume Flow"},
+    {61, "Analog Standard Volume Flow"},
+    {62, "Analog Fraction Substance 1 Volume Flow"},
+    {63, "Analog Fraction Substance 2 Volume Flow"},
+    {70, "Analog Mass Flow"},
+    {71, "Analog Fraction Substance 1 Mass Flow"},
+    {72, "Analog Fraction Substance 2 Mass Flow"},
+    {80, "Analog Density"},
+    {81, "Analog Standard Density"},
+    {82, "Analog Analog Api Gravity"},
+    {83, "Analog Standard Api Gravity"},
+    {84, "Analog Specific Gravity"},
+    {85, "Analog Standard Specific Gravity"},
+    {90, "Analog Flow Velocity"},
+    {91, "Analog Sound Velocity"},
+    {92, "Analog Rate Of Change"},
+    {100, "Analog Kinematic Viscosity"},
+    {101, "Analog Dynamic Viscosity"},
+    {110, "Analog Energy"},
+    {111, "Analog Power"},
+    {120, "Analog Vortex Frequency"},
+    {130, "Analog Concentration"},
+    {131, "Analog Energy Efficiency Rating"},
+    {132, "Analog Coefficient Of Performance"},
+    {133, "Analog Fraction Substance 1%"},
+    {134, "Analog Fraction Substance 2%"},
+    {140, "Analog pH"},
+    {141, "Analog Conductivity"},
+    {142, "Analog Resistivity"},
+    {143, "Analog Gas Concentration"},
+    {149, "Flexible AI"},
+    {150, "Totalizer"},
+    {160, "Actuator"},
+    {170, "Discrete"},
+    {180, "Enumerated"},
+    {190, "Binary(8 Bit)"},
+    {191, "Binary(16 Bit)"},
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_transducer_block_parent_class_vals[] = {
+    { 1, "Pressure" },
+    { 2, "Temperature" },
+    { 3, "Flow" },
+    { 4, "Level" },
+    { 5, "Actuator" },
+    { 6, "Discrete I/O" },
+    { 7, "Liquid analyzer" },
+    { 8, "Gas analyzer" },
+    { 10, "Enumerated I/O" },
+    { 11, "Binary I/O" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_transducer_block_pressure_class_vals[] = {
+    { 1, "Pressure" },
+    { 2, "Pressure + level" },
+    { 3, "Pressure + flow" },
+    { 4, "Pressure + level + flow" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_transducer_block_temperature_class_vals[] = {
+    { 1, "Thermocouple (TC)" },
+    { 2, "Resistance thermometer (RTD)" },
+    { 3, "Pyrometer" },
+    { 16, "TC + DC U (DC Voltage)" },
+    { 17, "RTD + R (R-Resistance)" },
+    { 18, "TC+RTD+r+DC U" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_transducer_block_flow_class_vals[] = {
+    { 1, "Electromagnetic" },
+    { 2, "Vortex" },
+    { 3, "Coriolis" },
+    { 4, "Thermal mass" },
+    { 5, "Ultrasonic" },
+    { 6, "Variable area" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_transducer_block_level_class_vals[] = {
+    { 1, "Hydrostatic" },
+    { 2, "Ultrasonic" },
+    { 3, "Radiometric" },
+    { 4, "Capacitance" },
+    { 5, "Displacer" },
+    { 6, "Float" },
+    { 7, "Radar" },
+    { 8, "Buoyancy" },
+    { 9, "Air bubble system" },
+    { 10, "Gravimetric" },
+    { 11, "Optical" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_transducer_block_actuator_class_vals[] = {
+    { 1, "Electric" },
+    { 2, "Electro-pneumatic" },
+    { 3, "Electro-hydraulic" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_transducer_block_discrete_io_class_vals[] = {
+    { 1, "Input" },
+    { 2, "Output" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_transducer_block_liquid_analyzer_class_vals[] = {
+    { 1, "pH" },
+    { 2, "Conductivity" },
+    { 3, "Oxygen" },
+    { 4, "Chlorine" },
+    { 5, "Resistivity" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_transducer_block_gas_analyzer_class_vals[] = {
+    { 1, "Standard" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_transducer_block_enumerated_io_class_vals[] = {
+    { 1, "Input" },
+    { 2, "Output" },
+    { 0, NULL }
+};
+
+static const value_string pn_io_pa_profile_transducer_block_binary_io_class_vals[] = {
+    { 2, "8 Bit output" },
+    { 3, "8 Bit input" },
+    { 4, "16 Bit output" },
+    { 5, "16 Bit input" },
+    { 0, NULL }
+};
+
+static const value_string* pn_io_pa_profile_transducer_block_class_vals[] = {
+    NULL,
+    pn_io_pa_profile_transducer_block_pressure_class_vals,
+    pn_io_pa_profile_transducer_block_temperature_class_vals,
+    pn_io_pa_profile_transducer_block_flow_class_vals,
+    pn_io_pa_profile_transducer_block_level_class_vals,
+    pn_io_pa_profile_transducer_block_actuator_class_vals,
+    pn_io_pa_profile_transducer_block_discrete_io_class_vals,
+    pn_io_pa_profile_transducer_block_liquid_analyzer_class_vals,
+    pn_io_pa_profile_transducer_block_gas_analyzer_class_vals,
+    NULL,
+    pn_io_pa_profile_transducer_block_enumerated_io_class_vals,
+    pn_io_pa_profile_transducer_block_binary_io_class_vals
+};
+
+
 static int
 dissect_profidrive_value(tvbuff_t *tvb, gint offset, packet_info *pinfo,
                          proto_tree *tree, guint8 *drep, guint8 format_val)
@@ -2654,7 +3753,7 @@ dissect_profidrive_value(tvbuff_t *tvb, gint offset, packet_info *pinfo,
         {
             gint sLen;
             sLen = (gint)tvb_strnlen( tvb, offset, -1);
-            proto_tree_add_item(tree, hf_pn_io_profidrive_param_value_string, tvb, offset, sLen, ENC_ASCII|ENC_NA);
+            proto_tree_add_item(tree, hf_pn_io_profidrive_param_value_string, tvb, offset, sLen, ENC_ASCII);
             offset = (offset + sLen);
             break;
         }
@@ -3061,11 +4160,11 @@ dissect_RS_IdentificationInfo(tvbuff_t *tvb, int offset,
         hf_pn_io_am_device_identification_organization, &u64AM_DeviceIdentificationOrganization);
 
     /* IM_Tag_Function [32] */
-    proto_tree_add_item(tree, hf_pn_io_im_tag_function, tvb, offset, 32, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_pn_io_im_tag_function, tvb, offset, 32, ENC_ASCII);
     offset += 32;
 
     /* IM_Tag_Location [22] */
-    proto_tree_add_item(tree, hf_pn_io_im_tag_location, tvb, offset, 22, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_pn_io_im_tag_location, tvb, offset, 22, ENC_ASCII);
     offset += 22;
 
     return offset;
@@ -3292,105 +4391,138 @@ dissect_RS_EventInfo(tvbuff_t *tvb, int offset,
 }
 
 static int
-dissect_AlarmUserStructure(tvbuff_t *tvb, int offset,
-    packet_info *pinfo, proto_tree *tree, proto_item *item, guint8 *drep,
-        guint16 *body_length, guint16 u16UserStructureIdentifier)
+dissect_Diagnosis(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, proto_item *item, guint8 *drep, guint16 u16UserStructureIdentifier)
 {
     guint16    u16ChannelNumber;
     guint16    u16ChannelErrorType;
     guint16    u16ExtChannelErrorType;
     guint32    u32ExtChannelAddValue;
+    guint32    u32QualifiedChannelQualifier;
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_channel_number, &u16ChannelNumber);
+
+    offset = dissect_ChannelProperties(tvb, offset, pinfo, tree, item, drep);
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_channel_error_type, &u16ChannelErrorType);
+
+    if (u16UserStructureIdentifier == 0x8000) /* ChannelDiagnosisData */
+    {
+        return offset;
+    }
+
+    if (u16ChannelErrorType < 0x7fff)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0, &u16ExtChannelErrorType);
+    }
+    else if (u16ChannelErrorType == 0x8000)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x8000, &u16ExtChannelErrorType);
+    }
+    else if (u16ChannelErrorType == 0x8001)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x8001, &u16ExtChannelErrorType);
+    }
+    else if (u16ChannelErrorType == 0x8002)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x8002, &u16ExtChannelErrorType);
+    }
+    else if ((u16ChannelErrorType == 0x8003)||(u16ChannelErrorType == 0x8009))
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x8003, &u16ExtChannelErrorType);
+    }
+    else if (u16ChannelErrorType == 0x8004)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x8004, &u16ExtChannelErrorType);
+    }
+    else if (u16ChannelErrorType == 0x8005)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x8005, &u16ExtChannelErrorType);
+    }
+    else if (u16ChannelErrorType == 0x8007)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x8007, &u16ExtChannelErrorType);
+    }
+    else if (u16ChannelErrorType == 0x8008)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x8008, &u16ExtChannelErrorType);
+    }
+    else if (u16ChannelErrorType == 0x800A)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x800A, &u16ExtChannelErrorType);
+    }
+    else if (u16ChannelErrorType == 0x800B)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x800B, &u16ExtChannelErrorType);
+    }
+    else if (u16ChannelErrorType == 0x800C)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x800C, &u16ExtChannelErrorType);
+    }
+    else if (u16ChannelErrorType == 0x8010)
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type0x8010, &u16ExtChannelErrorType);
+    }
+    else
+    {
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_error_type, &u16ExtChannelErrorType);
+    }
+
+    offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_ext_channel_add_value, &u32ExtChannelAddValue);
+
+    if (u16UserStructureIdentifier == 0x8002) /* ExtChannelDiagnosisData */
+    {
+        return offset;
+    }
+
+    offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep,
+                    hf_pn_io_qualified_channel_qualifier, &u32QualifiedChannelQualifier);
+
+    /* QualifiedChannelDiagnosisData */
+    return offset;
+}
+
+static int
+dissect_AlarmUserStructure(tvbuff_t *tvb, int offset,
+    packet_info *pinfo, proto_tree *tree, proto_item *item, guint8 *drep,
+        guint16 *body_length, guint16 u16UserStructureIdentifier)
+{
     guint16    u16Index = 0;
     guint32    u32RecDataLen;
     pnio_ar_t *ar       = NULL;
 
-
     switch (u16UserStructureIdentifier) {
     case(0x8000):   /* ChannelDiagnosisData */
-        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_channel_number, &u16ChannelNumber);
-        offset = dissect_ChannelProperties(tvb, offset, pinfo, tree, item, drep);
-        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_channel_error_type, &u16ChannelErrorType);
+        offset = dissect_Diagnosis(tvb, offset, pinfo, tree, item, drep,
+                        u16UserStructureIdentifier);
         *body_length -= 6;
         break;
     case(0x8002):   /* ExtChannelDiagnosisData */
-        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_channel_number, &u16ChannelNumber);
-
-        offset = dissect_ChannelProperties(tvb, offset, pinfo, tree, item, drep);
-
-        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_channel_error_type, &u16ChannelErrorType);
-
-        if (u16ChannelErrorType < 0x7fff)
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0, &u16ExtChannelErrorType);
-        }
-        else if (u16ChannelErrorType == 0x8000)
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0x8000, &u16ExtChannelErrorType);
-        }
-        else if (u16ChannelErrorType == 0x8001)
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0x8001, &u16ExtChannelErrorType);
-        }
-        else if (u16ChannelErrorType == 0x8002)
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0x8002, &u16ExtChannelErrorType);
-        }
-        else if ((u16ChannelErrorType == 0x8003)||(u16ChannelErrorType == 0x8009))
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0x8003, &u16ExtChannelErrorType);
-        }
-        else if (u16ChannelErrorType == 0x8004)
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0x8004, &u16ExtChannelErrorType);
-        }
-        else if (u16ChannelErrorType == 0x8005)
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0x8005, &u16ExtChannelErrorType);
-        }
-        else if (u16ChannelErrorType == 0x8007)
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0x8007, &u16ExtChannelErrorType);
-        }
-        else if (u16ChannelErrorType == 0x8008)
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0x8008, &u16ExtChannelErrorType);
-        }
-        else if (u16ChannelErrorType == 0x800A)
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0x800A, &u16ExtChannelErrorType);
-        }
-        else if (u16ChannelErrorType == 0x800B)
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0x800B, &u16ExtChannelErrorType);
-        }
-        else if (u16ChannelErrorType == 0x800C)
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type0x800C, &u16ExtChannelErrorType);
-        }
-        else
-        {
-            offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_error_type, &u16ExtChannelErrorType);
-        }
-        offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_ext_channel_add_value, &u32ExtChannelAddValue);
+        offset = dissect_Diagnosis(tvb, offset, pinfo, tree, item, drep,
+                        u16UserStructureIdentifier);
         *body_length -= 12;
+        break;
+  case (0x8003):    /* QualifiedChannelDiagnosisData */
+        offset = dissect_Diagnosis(tvb, offset, pinfo, tree, item, drep,
+                        u16UserStructureIdentifier);
+        *body_length -= 16;
         break;
     case(0x8100):   /* MaintenanceItem */
         offset = dissect_block(tvb, offset, pinfo, tree, drep, &u16Index, &u32RecDataLen, &ar);
@@ -3412,8 +4544,7 @@ dissect_AlarmUserStructure(tvbuff_t *tvb, int offset,
         break;
     /* XXX - dissect remaining user structures of [AlarmItem] */
     case(0x8001):   /* DiagnosisData */
-    case(0x8003):   /* QualifiedChannelDiagnosisData */
-    default:
+     default:
         if (u16UserStructureIdentifier >= 0x8000) {
             offset = dissect_pn_undecoded(tvb, offset, pinfo, tree, *body_length);
         } else {
@@ -3505,11 +4636,11 @@ dissect_IandM0_block(tvbuff_t *tvb, int offset,
     offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
                     hf_pn_io_vendor_id_low, &u8VendorIDLow);
     /* c8[20] OrderID */
-    proto_tree_add_item (tree, hf_pn_io_order_id, tvb, offset, 20, ENC_ASCII|ENC_NA);
+    proto_tree_add_item (tree, hf_pn_io_order_id, tvb, offset, 20, ENC_ASCII);
     offset += 20;
 
     /* c8[16] IM_Serial_Number */
-    proto_tree_add_item (tree, hf_pn_io_im_serial_number, tvb, offset, 16, ENC_ASCII|ENC_NA);
+    proto_tree_add_item (tree, hf_pn_io_im_serial_number, tvb, offset, 16, ENC_ASCII);
     offset += 16;
 
     /* x16 IM_Hardware_Revision */
@@ -3564,11 +4695,11 @@ dissect_IandM1_block(tvbuff_t *tvb, int offset,
     }
 
     /* IM_Tag_Function [32] */
-    proto_tree_add_item_ret_display_string (tree, hf_pn_io_im_tag_function, tvb, offset, 32, ENC_ASCII|ENC_NA, pinfo->pool, &pTagFunction);
+    proto_tree_add_item_ret_display_string (tree, hf_pn_io_im_tag_function, tvb, offset, 32, ENC_ASCII, pinfo->pool, &pTagFunction);
     offset += 32;
 
     /* IM_Tag_Location [22] */
-    proto_tree_add_item_ret_display_string (tree, hf_pn_io_im_tag_location, tvb, offset, 22, ENC_ASCII|ENC_NA, pinfo->pool, &pTagLocation);
+    proto_tree_add_item_ret_display_string (tree, hf_pn_io_im_tag_location, tvb, offset, 22, ENC_ASCII, pinfo->pool, &pTagLocation);
     offset += 22;
 
     proto_item_append_text(item, ": TagFunction:\"%s\", TagLocation:\"%s\"", pTagFunction, pTagLocation);
@@ -3590,7 +4721,7 @@ dissect_IandM2_block(tvbuff_t *tvb, int offset,
     }
 
     /* IM_Date [16] */
-    proto_tree_add_item_ret_display_string (tree, hf_pn_io_im_date, tvb, offset, 16, ENC_ASCII|ENC_NA, pinfo->pool, &pDate);
+    proto_tree_add_item_ret_display_string (tree, hf_pn_io_im_date, tvb, offset, 16, ENC_ASCII, pinfo->pool, &pDate);
     offset += 16;
 
     proto_item_append_text(item, ": Date:\"%s\"", pDate);
@@ -3612,7 +4743,7 @@ dissect_IandM3_block(tvbuff_t *tvb, int offset,
     }
 
     /* IM_Descriptor [54] */
-    proto_tree_add_item_ret_display_string (tree, hf_pn_io_im_descriptor, tvb, offset, 54, ENC_ASCII|ENC_NA, pinfo->pool, &pDescriptor);
+    proto_tree_add_item_ret_display_string (tree, hf_pn_io_im_descriptor, tvb, offset, 54, ENC_ASCII, pinfo->pool, &pDescriptor);
     offset += 54;
 
     proto_item_append_text(item, ": Descriptor:\"%s\"", pDescriptor);
@@ -3750,11 +4881,11 @@ dissect_IandM5Data_block(tvbuff_t *tvb, int offset,
     guint8     u8IMSWRevisionInternalChange;
 
     /* c8[64] IM Annotation */
-    proto_tree_add_item(tree, hf_pn_io_im_annotation, tvb, offset, 64, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_pn_io_im_annotation, tvb, offset, 64, ENC_ASCII);
     offset += 64;
 
     /* c8[64] IM Order ID */
-    proto_tree_add_item(tree, hf_pn_io_im_order_id, tvb, offset, 64, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_pn_io_im_order_id, tvb, offset, 64, ENC_ASCII);
     offset += 64;
 
     /* x8 VendorIDHigh */
@@ -3765,7 +4896,7 @@ dissect_IandM5Data_block(tvbuff_t *tvb, int offset,
                     hf_pn_io_vendor_id_low, &u8VendorIDLow);
 
     /* c8[16] IM Serial Number */
-    proto_tree_add_item(tree, hf_pn_io_im_serial_number, tvb, offset, 16, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_pn_io_im_serial_number, tvb, offset, 16, ENC_ASCII);
     offset += 16;
 
     /* x16 IM_Hardware_Revision */
@@ -3999,23 +5130,23 @@ guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
     offset = dissect_AM_Location(tvb, offset, pinfo, tree, drep);
 
     /* IM_Annotation */
-    proto_tree_add_item(tree, hf_pn_io_im_annotation, tvb, offset, 64, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_pn_io_im_annotation, tvb, offset, 64, ENC_ASCII);
     offset += 64;
 
     /* IM_OrderID */
-    proto_tree_add_item(tree, hf_pn_io_im_order_id, tvb, offset, 64, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_pn_io_im_order_id, tvb, offset, 64, ENC_ASCII);
     offset += 64;
 
     /* AM_SoftwareRevision */
-    proto_tree_add_item(tree, hf_pn_io_am_software_revision, tvb, offset, 64, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_pn_io_am_software_revision, tvb, offset, 64, ENC_ASCII);
     offset += 64;
 
     /* AM_HardwareRevision */
-    proto_tree_add_item(tree, hf_pn_io_am_hardware_revision, tvb, offset, 64, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_pn_io_am_hardware_revision, tvb, offset, 64, ENC_ASCII);
     offset += 64;
 
     /* IM_Serial_Number */
-    proto_tree_add_item(tree, hf_pn_io_im_serial_number, tvb, offset, 16, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_pn_io_im_serial_number, tvb, offset, 16, ENC_ASCII);
     offset += 16;
 
     /* IM_Software_Revision */
@@ -4689,9 +5820,9 @@ dissect_IODReadResHeader_block(tvbuff_t *tvb, int offset,
 }
 
 
-/* dissect the control/connect block */
+/* dissect the control/connect and control/connect block */
 static int
-dissect_ControlConnect_block(tvbuff_t *tvb, int offset,
+dissect_ControlPlugOrConnect_block(tvbuff_t *tvb, int offset,
     packet_info *pinfo, proto_tree *tree, proto_item *item, guint8 *drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow,
     pnio_ar_t **ar, guint16 blocktype)
 {
@@ -4720,8 +5851,15 @@ dissect_ControlConnect_block(tvbuff_t *tvb, int offset,
     offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
                         hf_pn_io_sessionkey, &u16SessionKey);
 
-    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
-                        hf_pn_io_reserved16, NULL);
+    if (((blocktype & 0x7FFF) == 0x0111) || ((blocktype & 0x7FFF) == 0x0113)) {
+        /* control/plug */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                            hf_pn_io_control_alarm_sequence_number, NULL);
+    } else {
+        /* control/connect */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                            hf_pn_io_reserved16, NULL);
+    }
 
     sub_item = proto_tree_add_item(tree, hf_pn_io_control_command, tvb, offset, 2, ENC_BIG_ENDIAN);
     sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_control_command);
@@ -5082,11 +6220,15 @@ dissect_PDPortDataReal_block(tvbuff_t *tvb, int offset,
     guint16  u16SubslotNr;
     guint8   u8LengthOwnPortID;
     char    *pOwnPortID;
+    proto_item *sub_item;
+    proto_tree *sub_tree;
     guint8   u8NumberOfPeers;
     guint8   u8I;
     guint8   u8LengthPeerPortID;
     guint8   u8LengthPeerChassisID;
     guint8   mac[6];
+    char    *pPeerChassisId;
+    char    *pPeerPortId;
     guint16  u16MAUType;
     guint32  u32DomainBoundary;
     guint32  u32MulticastBoundary;
@@ -5114,7 +6256,7 @@ dissect_PDPortDataReal_block(tvbuff_t *tvb, int offset,
     offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
                         hf_pn_io_length_own_port_id, &u8LengthOwnPortID);
     /* OwnPortID */
-    proto_tree_add_item_ret_display_string (tree, hf_pn_io_own_port_id, tvb, offset, u8LengthOwnPortID, ENC_ASCII|ENC_NA, pinfo->pool, &pOwnPortID);
+    proto_tree_add_item_ret_display_string (tree, hf_pn_io_own_port_id, tvb, offset, u8LengthOwnPortID, ENC_ASCII, pinfo->pool, &pOwnPortID);
     offset += u8LengthOwnPortID;
 
     /* NumberOfPeers */
@@ -5125,31 +6267,40 @@ dissect_PDPortDataReal_block(tvbuff_t *tvb, int offset,
 
     u8I = u8NumberOfPeers;
     while (u8I--) {
+        sub_item = proto_tree_add_item(tree, hf_pn_io_neighbor, tvb, offset, 0, ENC_NA);
+        sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_neighbor);
+
         /* LengthPeerPortID */
-        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, sub_tree, drep,
                             hf_pn_io_length_peer_port_id, &u8LengthPeerPortID);
         /* PeerPortID */
-        proto_tree_add_item (tree, hf_pn_io_peer_port_id, tvb, offset, u8LengthPeerPortID, ENC_ASCII|ENC_NA);
+        proto_tree_add_item_ret_display_string (sub_tree, hf_pn_io_peer_port_id, tvb, offset, u8LengthPeerPortID,
+                            ENC_ASCII, pinfo->pool, &pPeerPortId);
+
         offset += u8LengthPeerPortID;
 
         /* LengthPeerChassisID */
-        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, sub_tree, drep,
                             hf_pn_io_length_peer_chassis_id, &u8LengthPeerChassisID);
         /* PeerChassisID */
-        proto_tree_add_item (tree, hf_pn_io_peer_chassis_id, tvb, offset, u8LengthPeerChassisID, ENC_ASCII|ENC_NA);
+        proto_tree_add_item_ret_display_string (sub_tree, hf_pn_io_peer_chassis_id, tvb, offset, u8LengthPeerChassisID,
+                            ENC_ASCII, pinfo->pool, &pPeerChassisId);
+
         offset += u8LengthPeerChassisID;
 
         /* Padding */
-        offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+        offset = dissect_pn_align4(tvb, offset, pinfo, sub_tree);
 
         /* LineDelay */
-        offset = dissect_Line_Delay(tvb, offset, pinfo, tree, drep, &u32LineDelayValue);
+        offset = dissect_Line_Delay(tvb, offset, pinfo, sub_tree, drep, &u32LineDelayValue);
 
         /* PeerMACAddress */
-        offset = dissect_pn_mac(tvb, offset, pinfo, tree,
+        offset = dissect_pn_mac(tvb, offset, pinfo, sub_tree,
                             hf_pn_io_peer_macadd, mac);
         /* Padding */
-        offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+        offset = dissect_pn_align4(tvb, offset, pinfo, sub_tree);
+
+        proto_item_append_text(sub_item, ": %s (%s)", pPeerChassisId, pPeerPortId);
     }
 
     /* MAUType */
@@ -5186,6 +6337,43 @@ dissect_PDPortDataReal_block(tvbuff_t *tvb, int offset,
     return offset;
 }
 
+
+/* dissect the PDPortDataRealExtended blocks */
+static int
+dissect_PDPortDataRealExtended_block(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree,
+    proto_item *item, guint8 *drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow, guint16 u16BodyLength)
+{
+    guint16   u16SlotNr;
+    guint16   u16SubslotNr;
+    guint16   u16Index = 0;
+    guint32   u32RecDataLen;
+    pnio_ar_t *ar       = NULL;
+    int       endoffset = offset + u16BodyLength;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+
+    /* SlotNumber */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                        hf_pn_io_slot_nr, &u16SlotNr);
+    /* Subslotnumber */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                        hf_pn_io_subslot_nr, &u16SubslotNr);
+
+    proto_item_append_text(item, ": Slot:0x%x/0x%x", u16SlotNr, u16SubslotNr);
+
+    while (endoffset > offset) {
+        offset = dissect_block(tvb, offset, pinfo, tree, drep, &u16Index, &u32RecDataLen, &ar);
+        u16Index++;
+    }
+
+    return offset;
+}
 
 static int
 dissect_PDInterfaceMrpDataAdjust_block(tvbuff_t *tvb, int offset,
@@ -5240,7 +6428,7 @@ dissect_PDInterfaceMrpDataAdjust_block(tvbuff_t *tvb, int offset,
            with the labels being counted strings; does that mean that this
            is just an ASCII string to be interpreted as a Punycode Unicode
            domain name? */
-        proto_tree_add_item (tree, hf_pn_io_mrp_domain_name, tvb, offset, u8LengthDomainName, ENC_ASCII|ENC_NA);
+        proto_tree_add_item (tree, hf_pn_io_mrp_domain_name, tvb, offset, u8LengthDomainName, ENC_ASCII);
         offset += u8LengthDomainName;
 
         /* Padding */
@@ -5311,7 +6499,7 @@ dissect_PDInterfaceMrpDataReal_block(tvbuff_t *tvb, int offset,
                 hf_pn_io_mrp_length_domain_name, &u8LengthDomainName);
         /* MRP_DomainName */
         /* XXX - see comment earlier about MRP_DomainName */
-        proto_tree_add_item (tree, hf_pn_io_mrp_domain_name, tvb, offset, u8LengthDomainName, ENC_ASCII|ENC_NA);
+        proto_tree_add_item (tree, hf_pn_io_mrp_domain_name, tvb, offset, u8LengthDomainName, ENC_ASCII);
         offset += u8LengthDomainName;
 
         if (u8BlockVersionLow == 0) {
@@ -5885,14 +7073,14 @@ dissect_CheckPeers_block(tvbuff_t *tvb, int offset,
         offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
                             hf_pn_io_length_peer_port_id, &u8LengthPeerPortID);
         /* PeerPortID */
-        proto_tree_add_item (tree, hf_pn_io_peer_port_id, tvb, offset, u8LengthPeerPortID, ENC_ASCII|ENC_NA);
+        proto_tree_add_item (tree, hf_pn_io_peer_port_id, tvb, offset, u8LengthPeerPortID, ENC_ASCII);
         offset += u8LengthPeerPortID;
 
         /* LengthPeerChassisID */
         offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
                             hf_pn_io_length_peer_chassis_id, &u8LengthPeerChassisID);
         /* PeerChassisID */
-        proto_tree_add_item (tree, hf_pn_io_peer_chassis_id, tvb, offset, u8LengthPeerChassisID, ENC_ASCII|ENC_NA);
+        proto_tree_add_item (tree, hf_pn_io_peer_chassis_id, tvb, offset, u8LengthPeerChassisID, ENC_ASCII);
         offset += u8LengthPeerChassisID;
     }
 
@@ -6265,7 +7453,7 @@ dissect_MrpInstanceDataAdjust_block(tvbuff_t *tvb, int offset,
                     hf_pn_io_mrp_length_domain_name, &u8LengthDomainName);
     /* MRP_DomainName */
     /* XXX - see comment earlier about MRP_DomainName */
-    proto_tree_add_item (tree, hf_pn_io_mrp_domain_name, tvb, offset, u8LengthDomainName, ENC_ASCII|ENC_NA);
+    proto_tree_add_item (tree, hf_pn_io_mrp_domain_name, tvb, offset, u8LengthDomainName, ENC_ASCII);
     offset += u8LengthDomainName;
     /* Padding */
     offset = dissect_pn_align4(tvb, offset, pinfo, tree);
@@ -6312,7 +7500,7 @@ dissect_MrpInstanceDataReal_block(tvbuff_t *tvb, int offset,
                     hf_pn_io_mrp_length_domain_name, &u8LengthDomainName);
     /* MRP_DomainName */
     /* XXX - see comment earlier about MRP_DomainName */
-    proto_tree_add_item (tree, hf_pn_io_mrp_domain_name, tvb, offset, u8LengthDomainName, ENC_ASCII|ENC_NA);
+    proto_tree_add_item (tree, hf_pn_io_mrp_domain_name, tvb, offset, u8LengthDomainName, ENC_ASCII);
     offset += u8LengthDomainName;
     /* Padding */
     offset = dissect_pn_align4(tvb, offset, pinfo, tree);
@@ -6386,6 +7574,814 @@ dissect_PDInterfaceAdjust_block(tvbuff_t *tvb, int offset,
     return offset;
 }
 
+/* TSNNetworkControlDataReal */
+static int
+dissect_TSNNetworkControlDataReal_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    proto_item* sub_item;
+    proto_tree* sub_tree;
+
+    e_guid_t  nme_parameter_uuid;
+    guint32 u32NetworkDeadline;
+    guint16 u16SendClockFactor;
+    guint16 u16NumberofEntries;
+    guint16 u16TSNNMENameLength;
+    guint16 u16TSNDomainNameLength;
+    e_guid_t  tsn_nme_name_uuid;
+    e_guid_t  tsn_domain_uuid;
+
+    int bit_offset;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    /* Padding */
+    offset = dissect_pn_padding(tvb, offset, pinfo, tree, 2);
+
+    /* NMEParameterUUID*/
+    offset = dissect_pn_uuid(tvb, offset, pinfo, tree, hf_pn_io_tsn_nme_parameter_uuid, &nme_parameter_uuid);
+
+    /* TSNDomainVIDConfig*/
+    sub_item = proto_tree_add_item(tree, hf_pn_io_tsn_domain_vid_config, tvb, offset, 16, ENC_NA);
+    sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_tsn_domain_vid_config);
+    bit_offset = offset << 3;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_reserved, tvb, bit_offset, 32, ENC_BIG_ENDIAN);
+    bit_offset += 32;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_non_stream_vid_D, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_non_stream_vid_C, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_non_stream_vid_B, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_non_stream_vid, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_stream_low_red_vid, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_stream_low_vid, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_stream_high_red_vid, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_stream_high_vid, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+
+    offset += 16;
+
+    /* TSNDomainPortConfigBlock */
+    offset = dissect_a_block(tvb, offset, pinfo, /*sub_*/tree, drep);
+
+    /* Network Deadline */
+    offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep, hf_pn_io_network_deadline, &u32NetworkDeadline);
+
+    /* SendClockFactor 16 */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_send_clock_factor, &u16SendClockFactor);
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_number_of_tsn_time_data_block_entries, &u16NumberofEntries);
+
+    /* TSNTimeDataBlock */
+    while (u16NumberofEntries > 0) {
+        u16NumberofEntries--;
+
+        offset = dissect_a_block(tvb, offset, pinfo, /*sub_*/tree, drep);
+    }
+
+    /* TSNNMENameUUID */
+    offset = dissect_pn_uuid(tvb, offset, pinfo, tree, hf_pn_io_tsn_nme_name_uuid, &tsn_nme_name_uuid);
+
+    /* TSNNMENameLength */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_tsn_nme_name_length, &u16TSNNMENameLength);
+
+    /* TSNNMEName */
+    proto_tree_add_item(tree, hf_pn_io_tsn_nme_name, tvb, offset, u16TSNNMENameLength, ENC_ASCII | ENC_NA);
+    offset += u16TSNNMENameLength;
+
+    /* Padding */
+    offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+
+    /* TSNDomainUUID */
+    offset = dissect_pn_uuid(tvb, offset, pinfo, tree, hf_pn_io_tsn_domain_uuid, &tsn_domain_uuid);
+
+    /* TSNDomainNameLength */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_tsn_domain_name_length, &u16TSNDomainNameLength);
+
+    /* TSNDomainName */
+    proto_tree_add_item(tree, hf_pn_io_tsn_domain_name, tvb, offset, u16TSNDomainNameLength, ENC_ASCII | ENC_NA);
+    offset += u16TSNDomainNameLength;
+
+    /* Padding */
+    offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+
+    return offset;
+
+}
+
+/* TSNNetworkControlDataAdjust */
+static int
+dissect_TSNNetworkControlDataAdjust_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    proto_item* sub_item;
+    proto_tree* sub_tree;
+
+    e_guid_t  nme_parameter_uuid;
+    guint32 u32NetworkDeadline;
+    guint16 u16SendClockFactor;
+    guint16 u16NumberofEntries;
+    guint16 u16TSNNMENameLength;
+    e_guid_t  tsn_nme_name_uuid;
+
+    int bit_offset;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    /* Padding */
+    offset = dissect_pn_padding(tvb, offset, pinfo, tree, 2);
+
+    /* NMEParameterUUID*/
+    offset = dissect_pn_uuid(tvb, offset, pinfo, tree, hf_pn_io_tsn_nme_parameter_uuid, &nme_parameter_uuid);
+
+    /* TSNDomainVIDConfig*/
+    sub_item = proto_tree_add_item(tree, hf_pn_io_tsn_domain_vid_config, tvb, offset, 16, ENC_NA);
+    sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_tsn_domain_vid_config);
+
+    bit_offset = offset << 3;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_reserved, tvb, bit_offset, 32, ENC_BIG_ENDIAN);
+    bit_offset += 32;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_non_stream_vid_D, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_non_stream_vid_C, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_non_stream_vid_B, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_non_stream_vid, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_stream_low_red_vid, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_stream_low_vid, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_stream_high_red_vid, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+    bit_offset += 12;
+
+    proto_tree_add_bits_item(sub_tree, hf_pn_io_tsn_domain_vid_config_stream_high_vid, tvb, bit_offset, 12, ENC_BIG_ENDIAN);
+
+    offset += 16;
+
+    /* TSNDomainPortConfigBlock */
+    offset = dissect_a_block(tvb, offset, pinfo, /*sub_*/tree, drep);
+
+    /* Network Deadline */
+    offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep, hf_pn_io_network_deadline, &u32NetworkDeadline);
+
+    /* SendClockFactor 16 */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_send_clock_factor, &u16SendClockFactor);
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_number_of_tsn_time_data_block_entries, &u16NumberofEntries);
+
+    /* TSNTimeDataBlock */
+    while (u16NumberofEntries > 0) {
+        u16NumberofEntries--;
+
+        offset = dissect_a_block(tvb, offset, pinfo, /*sub_*/tree, drep);
+    }
+
+    /* TSNNMENameUUID */
+    offset = dissect_pn_uuid(tvb, offset, pinfo, tree, hf_pn_io_tsn_nme_name_uuid, &tsn_nme_name_uuid);
+
+    /* TSNNMENameLength */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_tsn_nme_name_length, &u16TSNNMENameLength);
+
+    /* TSNNMEName */
+    proto_tree_add_item(tree, hf_pn_io_tsn_nme_name, tvb, offset, u16TSNNMENameLength, ENC_ASCII | ENC_NA);
+    offset += u16TSNNMENameLength;
+
+    /* Padding */
+    offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+
+    return offset;
+}
+
+/* TSNStreamPathData */
+static int
+dissect_TSNStreamPathDataReal_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow, gboolean real)
+{
+    guint8  u8FDBCommand;
+    guint16 u16NumberofEntries;
+    guint8  dstAdd[6];
+    guint16 u16StreamClass;
+    guint16 u16SlotNumber;
+    guint16 u16SubSlotNumber;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_pn_padding(tvb, offset, pinfo, tree, 1);
+
+    if (!real) {
+        /* FDBCommand */
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_fdb_command, &u8FDBCommand);
+    }
+    else {
+        offset = dissect_pn_padding(tvb, offset, pinfo, tree, 1);
+    }
+
+    offset = dissect_pn_padding(tvb, offset, pinfo, tree, 2);
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+        hf_pn_io_number_of_tsn_domain_sync_tree_entries, &u16NumberofEntries);
+
+    while (u16NumberofEntries > 0) {
+        u16NumberofEntries--;
+        /* DestinationAddress */
+        offset = dissect_pn_mac(tvb, offset, pinfo, tree, hf_pn_io_tsn_dst_add, dstAdd);
+
+        /* StreamClass */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_tsn_stream_class, &u16StreamClass);
+
+        /* IngressPort */
+        /* TSNDomainPortID */
+        /*SlotNumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_slot_nr, &u16SlotNumber);
+        /* SubSlotNumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_subslot_nr, &u16SubSlotNumber);
+
+        /* EgressPort */
+        /* TSNDomainPortID */
+        /*SlotNumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_slot_nr, &u16SlotNumber);
+        /* SubSlotNumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_subslot_nr, &u16SubSlotNumber);
+    }
+    return offset;
+}
+
+/* TSNSyncTreeData */
+static int
+dissect_TSNSyncTreeData_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    guint16    u16NumberofEntries;
+    guint16    u16SlotNr;
+    guint16    u16SubslotNr;
+    guint16    u16TimeDomainNumber;
+    guint8     u8SyncPortRole;
+    proto_item* sub_item;
+    proto_tree* sub_tree;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+        hf_pn_io_number_of_tsn_domain_sync_tree_entries, &u16NumberofEntries);
+
+    while (u16NumberofEntries > 0) {
+        u16NumberofEntries--;
+        /* TSNDomainPortID */
+        sub_item = proto_tree_add_item(tree, hf_pn_io_tsn_domain_port_id, tvb, offset, 4, ENC_NA);
+        sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_tsn_domain_port_id);
+        /* SlotNumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, sub_tree, drep, hf_pn_io_slot_nr, &u16SlotNr);
+        /*--*/
+        /* Subslotnumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, sub_tree, drep, hf_pn_io_subslot_nr, &u16SubslotNr);
+        /* TimeDomainNumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_time_domain_number, &u16TimeDomainNumber);
+        /* SyncPortRole */
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep, hf_pn_io_tsn_domain_sync_port_role, &u8SyncPortRole);
+
+        /* Padding */
+        offset = dissect_pn_padding(tvb, offset, pinfo, tree, 1);
+    }
+    return offset;
+}
+
+/* TSNDomainPortConfigBlock */
+static int
+dissect_TSNDomainPortConfig_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    guint16    u16NumberofEntries;
+    guint16    u16SlotNr;
+    guint16    u16SubslotNr;
+    proto_item* sub_item_port_config;
+    proto_tree* sub_tree_port_config;
+    guint8     u8TSNDomainPortConfig;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+        hf_pn_io_number_of_tsn_domain_port_config_entries, &u16NumberofEntries);
+
+    while (u16NumberofEntries > 0) {
+        u16NumberofEntries--;
+
+        /* SlotNumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_slot_nr, &u16SlotNr);
+        /* Subslotnumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_subslot_nr, &u16SubslotNr);
+
+        /* TSNDomainPortConfig */
+        sub_item_port_config = proto_tree_add_item(tree, hf_pn_io_tsn_domain_port_config, tvb, offset, 1, ENC_NA);
+        sub_tree_port_config = proto_item_add_subtree(sub_item_port_config, ett_pn_io_tsn_domain_port_config);
+
+        dissect_dcerpc_uint8(tvb, offset, pinfo, sub_tree_port_config, drep,
+            hf_pn_io_tsn_domain_port_config_reserved, &u8TSNDomainPortConfig);
+        dissect_dcerpc_uint8(tvb, offset, pinfo, sub_tree_port_config, drep,
+            hf_pn_io_tsn_domain_port_config_boundary_port_config, &u8TSNDomainPortConfig);
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, sub_tree_port_config, drep,
+            hf_pn_io_tsn_domain_port_config_preemption_enabled, &u8TSNDomainPortConfig);
+
+        /* Padding */
+        offset = dissect_pn_padding(tvb, offset, pinfo, tree, 3);
+
+        /* TSNDomainPortIngressRateLimiter */
+        offset = dissect_a_block(tvb, offset, pinfo, /*sub_*/tree, drep);
+
+        /* TSNDomainQueueConfigBlock */
+        offset = dissect_a_block(tvb, offset, pinfo, /*sub_*/tree, drep);
+
+        /* TSNDomainQueueRateLimiterBlock */
+        offset = dissect_a_block(tvb, offset, pinfo, /*sub_*/tree, drep);
+    }
+    return offset;
+}
+
+/* TSNDomainQueueConfigBlock */
+static int
+dissect_TSNDomainQueueConfig_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    guint16    u16NumberofEntries;
+    proto_item* sub_item;
+    proto_tree* sub_tree;
+    guint64     u64TSNDomainQueueConfig;
+    dcerpc_info di; /* fake dcerpc_info struct */
+    dcerpc_call_value dcv; /* fake dcerpc_call_value struct */
+    di.call_data = &dcv;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+        hf_pn_io_number_of_tsn_domain_queue_config_entries, &u16NumberofEntries);
+
+    while (u16NumberofEntries > 0) {
+        u16NumberofEntries--;
+
+        sub_item = proto_tree_add_item(tree, hf_pn_io_tsn_domain_queue_config, tvb, offset, 8, ENC_NA);
+        sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_tsn_domain_queue_config);
+
+        /* TSNDomainQueueConfig */
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_config_mask_time_offset, &u64TSNDomainQueueConfig);
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_config_unmask_time_offset, &u64TSNDomainQueueConfig);
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_config_preemption_mode, &u64TSNDomainQueueConfig);
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_config_shaper, &u64TSNDomainQueueConfig);
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_config_tci_pcp, &u64TSNDomainQueueConfig);
+        offset = dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_config_queue_id, &u64TSNDomainQueueConfig);
+    }
+    return offset;
+}
+
+/* TSNTimeDataBlock */
+static int
+dissect_TSNTimeData_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    guint16 u16TimeDomainNumber;
+    guint32 u32TimePLLWindow;
+    guint32 u32MessageIntervalFactor;
+    guint16 u16MessageTimeoutFactor;
+    guint16 u16TimeSyncProperties;
+    guint8  u8TimeDomainNameLength;
+    e_guid_t  time_domain_uuid;
+    proto_item* sub_item;
+    proto_tree* sub_tree;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    /* TimeDomainNumber */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_time_domain_number, &u16TimeDomainNumber);
+
+    /* TimePLLWindow */
+    offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep, hf_pn_io_time_pll_window, &u32TimePLLWindow);
+
+    /* MessageIntervalFactor */
+    offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep, hf_pn_io_message_interval_factor, &u32MessageIntervalFactor);
+
+    /* MessageTimeoutFactor */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_message_timeout_factor, &u16MessageTimeoutFactor);
+
+    /* TimeSyncProperties */
+    sub_item = proto_tree_add_item(tree, hf_pn_io_time_sync_properties, tvb, offset, 2, ENC_NA);
+    sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_time_sync_properties);
+
+    dissect_dcerpc_uint16(tvb, offset, pinfo, sub_tree, drep,
+        hf_pn_io_time_sync_properties_reserved, &u16TimeSyncProperties);
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, sub_tree, drep,
+        hf_pn_io_time_sync_properties_role, &u16TimeSyncProperties);
+
+    /* TimeDomainUUID */
+    offset = dissect_pn_uuid(tvb, offset, pinfo, tree, hf_pn_io_time_domain_uuid, &time_domain_uuid);
+
+    /* TimeDomainNameLength */
+    offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep, hf_pn_io_time_domain_name_length, &u8TimeDomainNameLength);
+
+    /* TimeDomainName */
+    proto_tree_add_item(tree, hf_pn_io_time_domain_name, tvb, offset, u8TimeDomainNameLength, ENC_ASCII | ENC_NA);
+    offset += u8TimeDomainNameLength;
+
+    /* Padding */
+    offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+
+    return offset;
+}
+
+/* TSNUploadNetworkAttributesBlock */
+static int
+dissect_TSNUploadNetworkAttributes_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    guint32     u32TransferTimeTX;
+    guint32     u32TransferTimeRX;
+    guint32     u32MaxSupportedRecordSize;
+
+    if (u8BlockVersionHigh != 1 || (u8BlockVersionLow != 0 && u8BlockVersionLow != 1)) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+        /* Align to the next 32 bit twice */
+    offset = dissect_pn_padding(tvb, offset, pinfo, tree, 2);
+
+    /* TSNPortIDBlock */
+    offset = dissect_a_block(tvb, offset, pinfo, tree, drep);
+
+    /*MaxSupportedRecordSize*/
+    offset= dissect_dcerpc_uint32(tvb,offset,pinfo,tree,drep,hf_pn_io_tsn_max_supported_record_size,&u32MaxSupportedRecordSize);
+
+    /* TransferTimeTX */
+    offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep,
+        hf_pn_io_tsn_transfer_time_tx, &u32TransferTimeTX);
+
+    /* TransferTimeRX */
+    offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep,
+        hf_pn_io_tsn_transfer_time_rx, &u32TransferTimeRX);
+
+    /* TSNForwardingDelayBlock */
+    offset = dissect_a_block(tvb, offset, pinfo, tree, drep);
+
+    return offset;
+}
+
+/* TSNExpectedNeighborBlock */
+static int
+dissect_TSNExpectedNeighbor_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    guint8      u8NumberOfPeers;
+    guint8      u8I;
+    guint8      u8LengthPeerPortName;
+    guint8      u8LengthPeerStationName;
+    guint16     u16NumberOfEntries;
+    guint16     u16SlotNr;
+    guint16     u16SubslotNr;
+    guint32     u32LineDelayValue;
+
+    if (u8BlockVersionHigh != 1 || (u8BlockVersionLow != 0 && u8BlockVersionLow != 1)) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_tsn_expected_neighbor_block_number_of_entries, &u16NumberOfEntries);
+
+    while (u16NumberOfEntries > 0)
+    {
+        u16NumberOfEntries--;
+
+        /*TSNDomainPortID*/
+        /* SlotNumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_slot_nr, &u16SlotNr);
+        /*--*/
+        /* Subslotnumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_subslot_nr, &u16SubslotNr);
+
+        /* Padding */
+        offset = dissect_pn_padding(tvb, offset, pinfo, tree, 3);
+
+        /* NumberOfPeers */
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_number_of_peers, &u8NumberOfPeers);
+
+        u8I = u8NumberOfPeers;
+        while (u8I--) {
+            /* LengthPeerPortName */
+            offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+                hf_pn_io_length_peer_port_name, &u8LengthPeerPortName);
+
+            /* PeerPortName */
+            proto_tree_add_item(tree, hf_pn_io_peer_port_name, tvb, offset, u8LengthPeerPortName, ENC_ASCII | ENC_NA);
+            offset += u8LengthPeerPortName;
+
+            /* LengthPeerStationName */
+            offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+                hf_pn_io_length_peer_station_name, &u8LengthPeerStationName);
+
+            /* PeerStationName */
+            proto_tree_add_item(tree, hf_pn_io_peer_station_name, tvb, offset, u8LengthPeerStationName, ENC_ASCII | ENC_NA);
+            offset += u8LengthPeerStationName;
+
+            /* Padding */
+            offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+
+            /* LineDelay */
+            offset = dissect_Line_Delay(tvb, offset, pinfo, tree, drep, &u32LineDelayValue);
+        }
+    }
+    return offset;
+}
+
+/* TSNExpectedNetworkAttributesBlock */
+static int
+dissect_TSNExpectedNetworkAttributes_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    if (u8BlockVersionHigh != 1 || (u8BlockVersionLow != 0 && u8BlockVersionLow != 1)) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    /* Align to the next 32 bit twice */
+    offset = dissect_pn_padding(tvb, offset, pinfo, tree, 2);
+
+    /* TSNPortIDBlock */
+    offset = dissect_a_block(tvb, offset, pinfo, tree, drep);
+
+    /* TSNForwardingDelayBlock */
+    offset = dissect_a_block(tvb, offset, pinfo, tree, drep);
+
+    /* TSNExpectedNeighborBlock */
+    offset = dissect_a_block(tvb, offset, pinfo, tree, drep);
+
+    return offset;
+}
+
+/* TSNDomainPortIngressRateLimiterBlock */
+static int
+dissect_TSNDomainPortIngressRateLimiter_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    guint16    u16NumberofEntries;
+    proto_item* sub_item_port_ingress;
+    proto_tree* sub_tree_port_ingress;
+    guint64    u64TSNDomainPortIngressRateLimiter;
+    dcerpc_info di; /* fake dcerpc_info struct */
+    dcerpc_call_value dcv; /* fake dcerpc_call_value struct */
+    di.call_data = &dcv;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+        hf_pn_io_number_of_tsn_domain_port_ingress_rate_limiter_entries, &u16NumberofEntries);
+
+    while (u16NumberofEntries > 0) {
+        u16NumberofEntries--;
+
+        /* TSNDomainPortIngressRateLimiter */
+        sub_item_port_ingress = proto_tree_add_item(tree, hf_pn_io_tsn_domain_port_ingress_rate_limiter, tvb, offset, 8, ENC_NA);
+        sub_tree_port_ingress = proto_item_add_subtree(sub_item_port_ingress, ett_pn_io_tsn_domain_port_ingress_rate_limiter);
+
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree_port_ingress, &di, drep,
+            hf_pn_io_tsn_domain_port_ingress_rate_limiter_cir, &u64TSNDomainPortIngressRateLimiter);
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree_port_ingress, &di, drep,
+            hf_pn_io_tsn_domain_port_ingress_rate_limiter_cbs, &u64TSNDomainPortIngressRateLimiter);
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree_port_ingress, &di, drep,
+            hf_pn_io_tsn_domain_port_ingress_rate_limiter_envelope, &u64TSNDomainPortIngressRateLimiter);
+        offset = dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree_port_ingress, &di, drep,
+            hf_pn_io_tsn_domain_port_ingress_rate_limiter_rank, &u64TSNDomainPortIngressRateLimiter);
+    }
+    return offset;
+}
+
+/* TSNDomainQueueRateLimiterBlock */
+static int
+dissect_TSNDomainQueueRateLimiter_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    guint16    u16NumberofEntries;
+    proto_item* sub_item;
+    proto_tree* sub_tree;
+    guint64    u64TSNDomainQueueRateLimiter;
+    dcerpc_info di; /* fake dcerpc_info struct */
+    dcerpc_call_value dcv; /* fake dcerpc_call_value struct */
+    di.call_data = &dcv;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+        hf_pn_io_number_of_tsn_domain_queue_rate_limiter_entries, &u16NumberofEntries);
+
+    while (u16NumberofEntries > 0) {
+        u16NumberofEntries--;
+
+        /* TSNDomainQueueRateLimiter */
+        sub_item = proto_tree_add_item(tree, hf_pn_io_tsn_domain_queue_rate_limiter, tvb, offset, 8, ENC_NA);
+        sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_tsn_domain_queue_rate_limiter);
+
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_rate_limiter_cir, &u64TSNDomainQueueRateLimiter);
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_rate_limiter_cbs, &u64TSNDomainQueueRateLimiter);
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_rate_limiter_envelope, &u64TSNDomainQueueRateLimiter);
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_rate_limiter_rank, &u64TSNDomainQueueRateLimiter);
+        dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_rate_limiter_queue_id, &u64TSNDomainQueueRateLimiter);
+        offset = dissect_dcerpc_uint64(tvb, offset, pinfo, sub_tree, &di, drep,
+            hf_pn_io_tsn_domain_queue_rate_limiter_reserved, &u64TSNDomainQueueRateLimiter);
+    }
+    return offset;
+}
+
+/* TSNPortIDBlock */
+static int
+dissect_TSNPortID_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    guint8      u8NumberOfQueues;
+    guint8      u8ForwardingGroup;
+    guint8      u8TSNPortCapabilities;
+    guint16     u16NumberOfEntries;
+    guint16     u16SlotNr;
+    guint16     u16SubslotNr;
+    guint16     u16MAUType;
+    guint16     u16MAUTypeExtension;
+
+    if (u8BlockVersionHigh != 1 || (u8BlockVersionLow != 0 && u8BlockVersionLow != 1)) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_tsn_port_id_block_number_of_entries, &u16NumberOfEntries);
+
+   while (u16NumberOfEntries > 0)
+   {
+        u16NumberOfEntries--;
+
+        /*TSNDomainPortID*/
+        /* SlotNumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_slot_nr, &u16SlotNr);
+        /*--*/
+        /* Subslotnumber */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_subslot_nr, &u16SubslotNr);
+
+        /*MAUType*/
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_mau_type, &u16MAUType);
+
+        /*MAUTypeExtension*/
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_mau_type_extension, &u16MAUTypeExtension);
+
+        /* NumberOfQueues */
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_number_of_queues, &u8NumberOfQueues);
+
+        /* TSNPortCapabilities */
+        /* bit 0 */
+        dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_port_capabilities_time_aware, &u8TSNPortCapabilities);
+
+        /* bit 1 */
+        dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_port_capabilities_preemption, &u8TSNPortCapabilities);
+
+        /* bit 2 */
+        dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_port_capabilities_queue_masking, &u8TSNPortCapabilities);
+
+        /* bit 3-7 */
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_port_capabilities_reserved, &u8TSNPortCapabilities);
+
+        /* ForwardingGroup */
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_forwarding_group, &u8ForwardingGroup);
+
+        /* Align to the next 32 bit */
+        offset = dissect_pn_padding(tvb, offset, pinfo, tree, 1);
+
+    }
+    return offset;
+}
+
+/* TSNForwardingDelayBlock */
+static int
+dissect_TSNForwardingDelay_block(tvbuff_t* tvb, int offset,
+    packet_info* pinfo, proto_tree* tree, proto_item* item _U_, guint8* drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    guint8      u8ForwardingGroupIngress;
+    guint8      u8ForwardingGroupEgress;
+    guint16     u16NumberOfEntries;
+    guint16     u16StreamClass;
+    guint32     u32DependentForwardingDelay;
+    guint32     u32IndependentForwardingDelay;
+
+    if (u8BlockVersionHigh != 1 || (u8BlockVersionLow != 0 && u8BlockVersionLow != 1)) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep, hf_pn_io_tsn_forwarding_delay_block_number_of_entries, &u16NumberOfEntries);
+
+   while (u16NumberOfEntries > 0)
+   {
+        u16NumberOfEntries--;
+
+        /*ForwardingGroupIngress*/
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_forwarding_group_ingress, &u8ForwardingGroupIngress);
+
+        /*ForwardingGroupEgress*/
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_forwarding_group_egress, &u8ForwardingGroupEgress);
+
+        /* StreamClass */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_stream_class, &u16StreamClass);
+
+        /* DependentForwardingDelay */
+        offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_dependent_forwarding_delay, &u32DependentForwardingDelay);
+
+        /* IndependentForwardingDelay */
+        offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep,
+            hf_pn_io_tsn_independent_forwarding_delay, &u32IndependentForwardingDelay);
+    }
+    return offset;
+}
+
 /* PDPortStatistic for one subslot */
 static int
 dissect_PDPortStatistic_block(tvbuff_t *tvb, int offset,
@@ -6452,6 +8448,157 @@ dissect_PDPortStatistic_block(tvbuff_t *tvb, int offset,
     return offset;
 }
 
+/* OwnPort */
+static int
+dissect_OwnPort_block(tvbuff_t *tvb, int offset,
+ packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint8 *drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    guint8   u8LengthOwnPortID;
+    char    *pOwnPortID;
+    guint16  u16MAUType;
+    guint16  u16MAUTypeExtension;
+    guint32  u32MulticastBoundary;
+    guint8   u8LinkStatePort;
+    guint8   u8LinkStateLink;
+    guint32  u32MediaType;
+    guint32  u32LineDelayValue;
+    guint16  u16PortStatus;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+
+    /* LengthOwnPortID */
+    offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+                        hf_pn_io_length_own_port_id, &u8LengthOwnPortID);
+    /* OwnPortName */
+    proto_tree_add_item_ret_display_string (tree, hf_pn_io_own_port_id, tvb, offset, u8LengthOwnPortID, ENC_ASCII, pinfo->pool, &pOwnPortID);
+    offset += u8LengthOwnPortID;
+
+    /* Padding */
+    offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+
+    /* LineDelay */
+    offset = dissect_Line_Delay(tvb, offset, pinfo, tree, drep, &u32LineDelayValue);
+
+    /* MediaType */
+    offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep,
+                        hf_pn_io_media_type, &u32MediaType);
+
+    /* MulticastBoundary */
+    offset = dissect_dcerpc_uint32(tvb, offset, pinfo, tree, drep,
+                        hf_pn_io_multicast_boundary, &u32MulticastBoundary);
+
+    /* MAUType */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                        hf_pn_io_mau_type, &u16MAUType);
+
+    /* MAUTypeExtension */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                        hf_pn_io_mau_type_extension, &u16MAUTypeExtension);
+
+    /* LinkState.Port */
+    offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+                        hf_pn_io_link_state_port, &u8LinkStatePort);
+    /* LinkState.Link */
+    offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+                        hf_pn_io_link_state_link, &u8LinkStateLink);
+
+    /* RTClass3_PortStatus */
+    offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
+                        hf_pn_io_rtclass3_port_status, &u16PortStatus);
+
+    proto_item_append_text(item, ": OwnPortID:%s, LinkState.Port:%s LinkState.Link:%s MediaType:%s MAUType:%s",
+        pOwnPortID,
+        val_to_str(u8LinkStatePort, pn_io_link_state_port, "0x%x"),
+        val_to_str(u8LinkStateLink, pn_io_link_state_link, "0x%x"),
+        val_to_str(u32MediaType, pn_io_media_type, "0x%x"),
+        val_to_str(u16MAUType, pn_io_mau_type, "0x%x"));
+
+    return offset;
+}
+
+
+/* Neighbors */
+static int
+dissect_Neighbors_block(tvbuff_t *tvb, int offset,
+ packet_info *pinfo, proto_tree *tree, proto_item *item _U_, guint8 *drep, guint8 u8BlockVersionHigh, guint8 u8BlockVersionLow)
+{
+    proto_item *sub_item;
+    proto_tree *sub_tree;
+    guint8   u8NumberOfPeers;
+    guint8   u8I;
+    guint8   mac[6];
+    char    *pPeerStationName;
+    char    *pPeerPortName;
+    guint8   u8LengthPeerPortName;
+    guint8   u8LengthPeerStationName;
+    guint16  u16MAUType;
+    guint16  u16MAUTypeExtension;
+    guint32  u32LineDelayValue;
+
+    if (u8BlockVersionHigh != 1 || u8BlockVersionLow != 0) {
+        expert_add_info_format(pinfo, item, &ei_pn_io_block_version,
+            "Block version %u.%u not implemented yet!", u8BlockVersionHigh, u8BlockVersionLow);
+        return offset;
+    }
+
+    offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+
+    /* NumberOfPeers */
+    offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
+                        hf_pn_io_number_of_peers, &u8NumberOfPeers);
+
+    offset = dissect_pn_align4(tvb, offset, pinfo, tree);
+
+    u8I = u8NumberOfPeers;
+    while (u8I--) {
+        sub_item = proto_tree_add_item(tree, hf_pn_io_neighbor, tvb, offset, 0, ENC_NA);
+        sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_neighbor);
+
+        /* LineDelay */
+        offset = dissect_Line_Delay(tvb, offset, pinfo, sub_tree, drep, &u32LineDelayValue);
+
+        /* MAUType */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, sub_tree, drep,
+                            hf_pn_io_mau_type, &u16MAUType);
+
+        /* MAUTypeExtension */
+        offset = dissect_dcerpc_uint16(tvb, offset, pinfo, sub_tree, drep,
+                            hf_pn_io_mau_type_extension, &u16MAUTypeExtension);
+
+        /* PeerMACAddress */
+        offset = dissect_pn_mac(tvb, offset, pinfo, sub_tree,
+                            hf_pn_io_peer_macadd, mac);
+
+        /* LengthPeerPortName */
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, sub_tree, drep,
+                            hf_pn_io_length_peer_port_name, &u8LengthPeerPortName);
+        /* PeerPortName */
+        proto_tree_add_item_ret_display_string (sub_tree, hf_pn_io_peer_port_name, tvb, offset, u8LengthPeerPortName,
+                            ENC_ASCII, pinfo->pool, &pPeerPortName);
+        offset += u8LengthPeerPortName;
+
+        /* LengthPeerStationName */
+        offset = dissect_dcerpc_uint8(tvb, offset, pinfo, sub_tree, drep,
+                            hf_pn_io_length_peer_station_name, &u8LengthPeerStationName);
+        /* PeerStationName */
+        proto_tree_add_item_ret_display_string (sub_tree, hf_pn_io_peer_station_name, tvb, offset, u8LengthPeerStationName,
+                            ENC_ASCII, pinfo->pool, &pPeerStationName);
+        offset += u8LengthPeerStationName;
+
+        offset = dissect_pn_align4(tvb, offset, pinfo, sub_tree);
+
+        proto_item_append_text(sub_item, ": %s (%s)", pPeerStationName, pPeerPortName);
+    }
+
+    return offset;
+}
+
 
 /* dissect the PDInterfaceDataReal block */
 static int
@@ -6473,7 +8620,7 @@ dissect_PDInterfaceDataReal_block(tvbuff_t *tvb, int offset,
     offset = dissect_dcerpc_uint8(tvb, offset, pinfo, tree, drep,
                         hf_pn_io_length_own_chassis_id, &u8LengthOwnChassisID);
     /* OwnChassisID */
-    proto_tree_add_item (tree, hf_pn_io_own_chassis_id, tvb, offset, u8LengthOwnChassisID, ENC_ASCII|ENC_NA);
+    proto_tree_add_item (tree, hf_pn_io_own_chassis_id, tvb, offset, u8LengthOwnChassisID, ENC_ASCII);
     offset += u8LengthOwnChassisID;
 
     /* Padding */
@@ -6618,7 +8765,7 @@ dissect_PDSyncData_block(tvbuff_t *tvb, int offset,
                             hf_pn_io_ptcp_length_subdomain_name, &u8LengthSubdomainName);
         /* PTCPSubdomainName */
         /* XXX - another Punycode string */
-        proto_tree_add_item (tree, hf_pn_io_ptcp_subdomain_name, tvb, offset, u8LengthSubdomainName, ENC_ASCII|ENC_NA);
+        proto_tree_add_item (tree, hf_pn_io_ptcp_subdomain_name, tvb, offset, u8LengthSubdomainName, ENC_ASCII);
         offset += u8LengthSubdomainName;
 
         /* Padding */
@@ -7127,6 +9274,7 @@ dissect_ARProperties(tvbuff_t *tvb, int offset,
     proto_tree *sub_tree;
     guint32     u32ARProperties;
     guint8      startupMode;
+    guint8      isTimeAware;
 
     sub_item = proto_tree_add_item(tree, hf_pn_io_ar_properties, tvb, offset, 4, ENC_BIG_ENDIAN);
     sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_ar_properties);
@@ -7147,6 +9295,13 @@ dissect_ARProperties(tvbuff_t *tvb, int offset,
         dissect_dcerpc_uint32(tvb, offset, pinfo, sub_tree, drep,
             hf_pn_io_ar_properties_combined_object_container_with_legacy_startupmode, &u32ARProperties);
     }
+    dissect_dcerpc_uint32(tvb, offset, pinfo, sub_tree, drep,
+                        hf_pn_io_ar_properties_time_aware_system, &u32ARProperties);
+
+    isTimeAware = (guint8)((u32ARProperties >> 28) & 0x01);
+
+    wmem_map_insert(pnio_time_aware_frame_map, GUINT_TO_POINTER(pinfo->num), GUINT_TO_POINTER(isTimeAware));
+
     dissect_dcerpc_uint32(tvb, offset, pinfo, sub_tree, drep,
                         hf_pn_io_ar_properties_reserved, &u32ARProperties);
     dissect_dcerpc_uint32(tvb, offset, pinfo, sub_tree, drep,
@@ -7170,7 +9325,6 @@ dissect_ARProperties(tvbuff_t *tvb, int offset,
 
     return offset;
 }
-
 
 /* dissect the IOCRProperties */
 static int
@@ -7267,7 +9421,7 @@ dissect_ARData_block(tvbuff_t *tvb, int offset,
                          hf_pn_io_cminitiator_objectuuid, &uuid);
             offset = dissect_dcerpc_uint16(tvb, offset, pinfo, ar_tree, drep,
                          hf_pn_io_station_name_length, &u16NameLength);
-            proto_tree_add_item (ar_tree, hf_pn_io_cminitiator_station_name, tvb, offset, u16NameLength, ENC_ASCII|ENC_NA);
+            proto_tree_add_item (ar_tree, hf_pn_io_cminitiator_station_name, tvb, offset, u16NameLength, ENC_ASCII);
             offset += u16NameLength;
 
             offset = dissect_dcerpc_uint16(tvb, offset, pinfo, ar_tree, drep,
@@ -7350,7 +9504,7 @@ dissect_ARData_block(tvbuff_t *tvb, int offset,
             offset = dissect_dcerpc_uint16(tvb, offset, pinfo, ar_tree, drep,
                         hf_pn_io_station_name_length, &u16NameLength);
             /* ParameterServerStationName */
-            proto_tree_add_item (ar_tree, hf_pn_io_parameter_server_station_name, tvb, offset, u16NameLength, ENC_ASCII|ENC_NA);
+            proto_tree_add_item (ar_tree, hf_pn_io_parameter_server_station_name, tvb, offset, u16NameLength, ENC_ASCII);
             offset += u16NameLength;
             /* NumberOfAPIs */
             offset = dissect_dcerpc_uint16(tvb, offset, pinfo, ar_tree, drep,
@@ -7397,7 +9551,7 @@ dissect_ARData_block(tvbuff_t *tvb, int offset,
             offset = dissect_dcerpc_uint16(tvb, offset, pinfo, ar_tree, drep, hf_pn_io_cmresponder_udprtport, &u16UDPRTPort);
             /* CMInitiatorStationName*/
             offset = dissect_dcerpc_uint16(tvb, offset, pinfo, ar_tree, drep, hf_pn_io_station_name_length, &u16NameLength);
-            proto_tree_add_item (ar_tree, hf_pn_io_cminitiator_station_name, tvb, offset, u16NameLength, ENC_ASCII|ENC_NA);
+            proto_tree_add_item (ar_tree, hf_pn_io_cminitiator_station_name, tvb, offset, u16NameLength, ENC_ASCII);
             offset += u16NameLength;
             /** align padding! **/
             offset = dissect_pn_align4(tvb, offset, pinfo, ar_tree);
@@ -7406,7 +9560,7 @@ dissect_ARData_block(tvbuff_t *tvb, int offset,
             offset = dissect_dcerpc_uint16(tvb, offset, pinfo, ar_tree, drep, hf_pn_io_station_name_length, &u16NameLength);
             if (u16NameLength != 0) {
                 /* ParameterServerStationName */
-                proto_tree_add_item (ar_tree, hf_pn_io_parameter_server_station_name, tvb, offset, u16NameLength, ENC_ASCII|ENC_NA);
+                proto_tree_add_item (ar_tree, hf_pn_io_parameter_server_station_name, tvb, offset, u16NameLength, ENC_ASCII);
                 offset += u16NameLength;
             }
             else
@@ -8031,12 +10185,12 @@ dissect_ARBlockReq_block(tvbuff_t *tvb, int offset,
         /* When ARType==IOCARSR, then find or create conversation for this frame */
         if (!PINFO_FD_VISITED(pinfo)) {
             /* Get current conversation endpoints using MAC addresses */
-            conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, ENDPOINT_UDP, 0, 0, 0);
+            conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, CONVERSATION_UDP, 0, 0, 0);
             if (conversation == NULL) {
                 /* Create new conversation, if no "Ident OK" frame as been dissected yet!
                  * Need to switch dl_src & dl_dst, as current packet is sent by controller and not by device.
                  * All conversations are based on Device MAC as addr1 */
-                conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, ENDPOINT_UDP, 0, 0, 0);
+                conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, CONVERSATION_UDP, 0, 0, 0);
             }
 
             /* Try to get apdu status switch information from the conversation */
@@ -8087,7 +10241,7 @@ dissect_ARBlockReq_block(tvbuff_t *tvb, int offset,
     offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
                         hf_pn_io_station_name_length, &u16NameLength);
 
-    proto_tree_add_item_ret_display_string (tree, hf_pn_io_cminitiator_station_name, tvb, offset, u16NameLength, ENC_ASCII|ENC_NA, pinfo->pool, &pStationName);
+    proto_tree_add_item_ret_display_string (tree, hf_pn_io_cminitiator_station_name, tvb, offset, u16NameLength, ENC_ASCII, pinfo->pool, &pStationName);
     offset += u16NameLength;
 
     proto_item_append_text(item, ": %s, Session:%u, MAC:%02x:%02x:%02x:%02x:%02x:%02x, Port:0x%x, Station:%s",
@@ -8191,11 +10345,13 @@ dissect_IOCRBlockReq_block(tvbuff_t *tvb, int offset,
     guint8      mac[6];
     guint16     u16NumberOfAPIs;
     guint32     u32Api;
-    guint16     u16NumberOfIODataObjects;
+    guint16     u16NumberOfIODataObjectsInAPI;
+    guint16     u16NumberOfIODataObjectsInCR = 0U;
     guint16     u16SlotNr;
     guint16     u16SubslotNr;
     guint16     u16IODataObjectFrameOffset;
-    guint16     u16NumberOfIOCS;
+    guint16     u16NumberOfIOCSInAPI;
+    guint16     u16NumberOfIOCSInCR = 0U;
     guint16     u16IOCSFrameOffset;
     proto_item *api_item;
     proto_tree *api_tree;
@@ -8206,6 +10362,7 @@ dissect_IOCRBlockReq_block(tvbuff_t *tvb, int offset,
     guint32     u32SubStart;
 
     conversation_t    *conversation;
+    conversation_t    *conversation_time_aware;
     stationInfo       *station_info = NULL;
     iocsObject        *iocs_object;
     iocsObject        *cmp_iocs_object;
@@ -8230,7 +10387,7 @@ dissect_IOCRBlockReq_block(tvbuff_t *tvb, int offset,
     offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
                         hf_pn_io_lt, &u16LT);
 
-        offset = dissect_IOCRProperties(tvb, offset, pinfo, tree, drep);
+    offset = dissect_IOCRProperties(tvb, offset, pinfo, tree, drep);
 
     offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
                         hf_pn_io_data_length, &u16DataLength);
@@ -8255,6 +10412,25 @@ dissect_IOCRBlockReq_block(tvbuff_t *tvb, int offset,
     offset = dissect_pn_mac(tvb, offset, pinfo, tree,
                         hf_pn_io_iocr_multicast_mac_add, mac);
 
+    if (wmem_map_contains(pnio_time_aware_frame_map, GUINT_TO_POINTER(pinfo->num)))
+    {
+        address cyclic_mac_addr;
+        address iocr_mac_addr;
+
+        set_address(&cyclic_mac_addr, AT_ETHER, 6, mac);
+
+        iocr_mac_addr = (u16IOCRType == PN_INPUT_CR) ? pinfo->dl_dst : pinfo->dl_src;
+
+         /* Get current conversation endpoints using MAC addresses */
+        conversation_time_aware = find_conversation(pinfo->num, &cyclic_mac_addr, &iocr_mac_addr, CONVERSATION_NONE, 0, 0, 0);
+
+        if (conversation_time_aware == NULL) {
+            conversation_time_aware = conversation_new(pinfo->num, &iocr_mac_addr, &cyclic_mac_addr, CONVERSATION_NONE, 0, 0, 0);
+        }
+
+        conversation_add_proto_data(conversation_time_aware, proto_pn_io_time_aware_status, wmem_map_lookup(pnio_time_aware_frame_map, GUINT_TO_POINTER(pinfo->num)));
+    }
+
     offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
                         hf_pn_io_number_of_apis, &u16NumberOfAPIs);
 
@@ -8273,18 +10449,18 @@ dissect_IOCRBlockReq_block(tvbuff_t *tvb, int offset,
                             hf_pn_io_api, &u32Api);
         /* NumberOfIODataObjects */
         offset = dissect_dcerpc_uint16(tvb, offset, pinfo, api_tree, drep,
-                            hf_pn_io_number_of_io_data_objects, &u16NumberOfIODataObjects);
+                            hf_pn_io_number_of_io_data_objects, &u16NumberOfIODataObjectsInAPI);
 
         /* Set global Variant for Number of IO Data Objects */
         /* Notice: Handle Input & Output seperate!!! */
         if (!PINFO_FD_VISITED(pinfo)) {
             /* Get current conversation endpoints using MAC addresses */
-            conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, ENDPOINT_NONE, 0, 0, 0);
+            conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, CONVERSATION_NONE, 0, 0, 0);
             if (conversation == NULL) {
                 /* Create new conversation, if no "Ident OK" frame as been dissected yet!
                  * Need to switch dl_src & dl_dst, as Connect Request is sent by controller and not by device.
                  * All conversations are based on Device MAC as addr1 */
-                conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, ENDPOINT_NONE, 0, 0, 0);
+                conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, CONVERSATION_NONE, 0, 0, 0);
             }
 
             current_aruuid_frame = pn_find_aruuid_frame_setup(pinfo);
@@ -8302,12 +10478,12 @@ dissect_IOCRBlockReq_block(tvbuff_t *tvb, int offset,
                 init_pnio_rtc1_station(station_info);
                 conversation_add_proto_data(conversation, current_aruuid, station_info);
             }
-            station_info->ioDataObjectNr += u16NumberOfIODataObjects;
+            u16NumberOfIODataObjectsInCR += u16NumberOfIODataObjectsInAPI;
 
             pn_find_dcp_station_info(station_info, conversation);
         }
 
-        u16Tmp = u16NumberOfIODataObjects;
+        u16Tmp = u16NumberOfIODataObjectsInAPI;
         while (u16Tmp--) {
             sub_item = proto_tree_add_item(api_tree, hf_pn_io_io_data_object, tvb, offset, 0, ENC_NA);
             sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_io_data_object);
@@ -8367,16 +10543,14 @@ dissect_IOCRBlockReq_block(tvbuff_t *tvb, int offset,
 
         /* NumberOfIOCS */
         offset = dissect_dcerpc_uint16(tvb, offset, pinfo, api_tree, drep,
-                            hf_pn_io_number_of_iocs, &u16NumberOfIOCS);
+                            hf_pn_io_number_of_iocs, &u16NumberOfIOCSInAPI);
 
         /* Set global Vairant for NumberOfIOCS */
         if (!PINFO_FD_VISITED(pinfo)) {
-            if (station_info != NULL) {
-                station_info->iocsNr = u16NumberOfIOCS;
-            }
+            u16NumberOfIOCSInCR += u16NumberOfIOCSInAPI;
         }
 
-        u16Tmp = u16NumberOfIOCS;
+        u16Tmp = u16NumberOfIOCSInAPI;
         while (u16Tmp--) {
             sub_item = proto_tree_add_item(api_tree, hf_pn_io_io_cs, tvb, offset, 0, ENC_NA);
             sub_tree = proto_item_add_subtree(sub_item, ett_pn_io_io_cs);
@@ -8427,9 +10601,22 @@ dissect_IOCRBlockReq_block(tvbuff_t *tvb, int offset,
         }
 
         proto_item_append_text(api_item, ": 0x%x, NumberOfIODataObjects: %u NumberOfIOCS: %u",
-            u32Api, u16NumberOfIODataObjects, u16NumberOfIOCS);
+            u32Api, u16NumberOfIODataObjectsInAPI, u16NumberOfIOCSInAPI);
 
         proto_item_set_len(api_item, offset - u32ApiStart);
+    }
+
+    /* Update global object count  */
+    if (!PINFO_FD_VISITED(pinfo)) {
+        if (station_info != NULL) {
+            if (u16IOCRType == PN_INPUT_CR) {
+                station_info->iocsNr_in = u16NumberOfIOCSInCR;
+                station_info->ioDataObjectNr_in = u16NumberOfIODataObjectsInCR;
+            } else {
+                station_info->iocsNr_out = u16NumberOfIOCSInCR;
+                station_info->ioDataObjectNr_out = u16NumberOfIODataObjectsInCR;
+            }
+        }
     }
 
     if (ar != NULL) {
@@ -8586,7 +10773,7 @@ dissect_ARServerBlock(tvbuff_t *tvb, int offset,
     offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
                         hf_pn_io_station_name_length, &u16NameLength);
 
-    proto_tree_add_item (tree, hf_pn_io_cminitiator_station_name, tvb, offset, u16NameLength, ENC_ASCII|ENC_NA);
+    proto_tree_add_item (tree, hf_pn_io_cminitiator_station_name, tvb, offset, u16NameLength, ENC_ASCII);
     offset += u16NameLength;
     /* Padding to next 4 byte alignment in this block */
     u16padding = u16BodyLength - (2 + u16NameLength);
@@ -8692,7 +10879,7 @@ dissect_MCRBlockReq_block(tvbuff_t *tvb, int offset,
     offset = dissect_dcerpc_uint16(tvb, offset, pinfo, tree, drep,
                         hf_pn_io_station_name_length, &u16NameLength);
 
-    proto_tree_add_item_ret_display_string (tree, hf_pn_io_provider_station_name, tvb, offset, u16NameLength, ENC_ASCII|ENC_NA, pinfo->pool, &pStationName);
+    proto_tree_add_item_ret_display_string (tree, hf_pn_io_provider_station_name, tvb, offset, u16NameLength, ENC_ASCII, pinfo->pool, &pStationName);
     offset += u16NameLength;
 
     proto_item_append_text(item, ", CRRef:%u, Properties:0x%x, TFactor:%u, Station:%s",
@@ -9078,12 +11265,12 @@ dissect_DataDescription(tvbuff_t *tvb, int offset,
     /* Save new data for IO Data Objects */
     if (!PINFO_FD_VISITED(pinfo)) {
         /* Get current conversation endpoints using MAC addresses */
-        conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, ENDPOINT_NONE, 0, 0, 0);
+        conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, CONVERSATION_NONE, 0, 0, 0);
         if (conversation == NULL) {
             /* Create new conversation, if no "Ident OK" frame as been dissected yet!
              * Need to switch dl_src & dl_dst, as current packet is sent by controller and not by device.
              * All conversations are based on Device MAC as addr1 */
-           conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, ENDPOINT_NONE, 0, 0, 0);
+           conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, CONVERSATION_NONE, 0, 0, 0);
         }
 
         current_aruuid_frame = pn_find_aruuid_frame_setup(pinfo);
@@ -9110,6 +11297,7 @@ dissect_DataDescription(tvbuff_t *tvb, int offset,
                 io_data_object = (ioDataObject*)wmem_list_frame_data(frame);
                 if (io_data_object->slotNr == tmp_io_data_object->slotNr && io_data_object->subSlotNr == tmp_io_data_object->subSlotNr) {
                     /* Write additional data from dissect_ExpectedSubmoduleBlockReq_block() to corresponding io_data_object */
+                    io_data_object->api = tmp_io_data_object->api;
                     io_data_object->moduleIdentNr = tmp_io_data_object->moduleIdentNr;
                     io_data_object->subModuleIdentNr = tmp_io_data_object->subModuleIdentNr;
                     io_data_object->length = u16SubmoduleDataLength;
@@ -9129,6 +11317,108 @@ dissect_DataDescription(tvbuff_t *tvb, int offset,
     return offset;
 }
 
+
+static int
+resolve_pa_profile_submodule_name(ioDataObject *io_data_object)
+{
+    const uint32_t u32SubmoduleIdentNumber = io_data_object->subModuleIdentNr;
+    /* split components of submodule ident number */
+    const uint8_t variant = (u32SubmoduleIdentNumber >> 24u) & 0xFFu;
+    const uint8_t block_object = (u32SubmoduleIdentNumber >> 16u) & 0xFFu;
+    const uint8_t parent_class = (u32SubmoduleIdentNumber >> 8u) & 0xFFu;
+    const uint8_t class = (u32SubmoduleIdentNumber) & 0xFFu;
+
+    const gchar* parent_class_name = NULL;
+    const gchar* class_name        = NULL;
+
+    const gchar* block_object_name = try_val_to_str(block_object, pn_io_pa_profile_block_object_vals);
+
+    if (block_object_name != NULL)
+    {
+        switch (block_object)
+        {
+        case PA_PROFILE_BLOCK_DAP:
+            if (parent_class == 0u)
+            {
+                class_name = try_val_to_str(class, pn_io_pa_profile_dap_submodule_vals);
+                if (class_name != NULL)
+                {
+                    (void)snprintf(io_data_object->moduleNameStr, MAX_NAMELENGTH, "%s - %s", block_object_name, class_name);
+                }
+            }
+            else
+            {
+                /* we have an interface or a port */
+                if (class == 0u)
+                {
+                    (void)snprintf(io_data_object->moduleNameStr, MAX_NAMELENGTH, "Interface %d", parent_class);
+                }
+                else
+                {
+                    (void)snprintf(io_data_object->moduleNameStr, MAX_NAMELENGTH, "Port %d Interface %d", class, parent_class);
+                }
+            }
+            break;
+
+        case PA_PROFILE_BLOCK_PB:
+            parent_class_name = try_val_to_str(parent_class, pn_io_pa_profile_physical_block_parent_class_vals);
+            if (parent_class_name != NULL)
+            {
+                (void)snprintf(io_data_object->moduleNameStr, MAX_NAMELENGTH, "%s - %s", block_object_name, parent_class_name);
+            }
+            else
+            {
+                (void)snprintf(io_data_object->moduleNameStr, MAX_NAMELENGTH, "%s - Unknown", block_object_name);
+            }
+            break;
+
+        case PA_PROFILE_BLOCK_FB:
+            class_name = try_val_to_str(class, pn_io_pa_profile_function_block_class_vals);
+            if (class <= 2u)
+            {
+                parent_class_name = try_val_to_str(parent_class, pn_io_pa_profile_function_block_parent_class_vals);
+            }
+            else
+            {
+                parent_class_name = (class <= 4u) ? "Analog" : "";
+            }
+
+            if ((parent_class_name != NULL) && (class_name != NULL))
+            {
+                (void)snprintf(io_data_object->moduleNameStr, MAX_NAMELENGTH, "%s - %s %s", block_object_name, parent_class_name, class_name);
+            }
+            else
+            {
+                (void)snprintf(io_data_object->moduleNameStr, MAX_NAMELENGTH, "%s - Unknown", block_object_name);
+            }
+            break;
+
+        case PA_PROFILE_BLOCK_TB:
+            parent_class_name = try_val_to_str(parent_class, pn_io_pa_profile_transducer_block_parent_class_vals);
+            if (parent_class_name != NULL)
+            {
+                class_name = try_val_to_str(class, pn_io_pa_profile_transducer_block_class_vals[parent_class]);
+                (void)snprintf(io_data_object->moduleNameStr, MAX_NAMELENGTH, "%s - %s (%s)", block_object_name, parent_class_name, class_name);
+            }
+            else
+            {
+                (void)snprintf(io_data_object->moduleNameStr, MAX_NAMELENGTH, "%s - Unknown", block_object_name);
+            }
+            break;
+        }
+
+        if (variant != 0u)
+        {
+            g_strlcat (io_data_object->moduleNameStr, " (VARIANT)", MAX_NAMELENGTH);
+        }
+
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
 
 /* dissect the ExpectedSubmoduleBlockReq */
 static int
@@ -9224,12 +11514,12 @@ dissect_ExpectedSubmoduleBlockReq_block(tvbuff_t *tvb, int offset,
 
 
     /* Get current conversation endpoints using MAC addresses */
-    conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, ENDPOINT_NONE, 0, 0, 0);
+    conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, CONVERSATION_NONE, 0, 0, 0);
     if (conversation == NULL) {
         /* Create new conversation, if no "Ident OK" frame as been dissected yet!
         * Need to switch dl_src & dl_dst, as current packet is sent by controller and not by device.
         * All conversations are based on Device MAC as addr1 */
-        conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, ENDPOINT_NONE, 0, 0, 0);
+        conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, CONVERSATION_NONE, 0, 0, 0);
     }
 
     current_aruuid_frame = pn_find_aruuid_frame_setup(pinfo);
@@ -9383,11 +11673,28 @@ dissect_ExpectedSubmoduleBlockReq_block(tvbuff_t *tvb, int offset,
             offset = dissect_dcerpc_uint16(tvb, offset, pinfo, submodule_tree, drep,
                             hf_pn_io_submodule_properties_type, &u16SubmoduleProperties);
 
+            io_data_object->api = u32Api;
             io_data_object->slotNr = u16SlotNr;
             io_data_object->subSlotNr = u16SubslotNr;
             io_data_object->moduleIdentNr = u32ModuleIdentNumber;
             io_data_object->subModuleIdentNr = u32SubmoduleIdentNumber;
             io_data_object->discardIOXS = u16SubmoduleProperties & 0x0020;
+
+            /* Before searching the GSD, check if we have a PA Profile 4.02 submodule. If yes
+               then the submodule's name is defined in the specification and can be resolved
+               without the GSD.
+               We still read the GSD afterwards, in case the user wants to override the specification's
+               names with a GSD.
+               Most PA Profile submodules are located in API 0x9700, but the DAP and the interfaces/ports
+               are located in API 0 per PROFINET specification, so we need to filter also on the DAP module
+               ident number.
+            */
+            if ((io_data_object->api == PA_PROFILE_API) ||
+                ((io_data_object->moduleIdentNr & PA_PROFILE_DAP_MASK) == PA_PROFILE_DAP_IDENT))
+            {
+                resolve_pa_profile_submodule_name(io_data_object);
+            }
+
 
             /* Search the moduleID and subModuleID, find if PROFIsafe and also search for F-Par. Indexnumber
              * ---------------------------------------------------------------------------------------------
@@ -9628,9 +11935,9 @@ dissect_ModuleDiffBlock_block(tvbuff_t *tvb, int offset,
 
             if (!PINFO_FD_VISITED(pinfo)) {
                 /* Get current conversation endpoints using MAC addresses */
-                conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, ENDPOINT_NONE, 0, 0, 0);
+                conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, CONVERSATION_NONE, 0, 0, 0);
                 if (conversation == NULL) {
-                    conversation = conversation_new(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, ENDPOINT_NONE, 0, 0, 0);
+                    conversation = conversation_new(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, CONVERSATION_NONE, 0, 0, 0);
                 }
 
                 current_aruuid_frame = pn_find_aruuid_frame_setup(pinfo);
@@ -9686,13 +11993,13 @@ dissect_ModuleDiffBlock_block(tvbuff_t *tvb, int offset,
                     dissect_dcerpc_uint16(tvb, offset, pinfo, submodule_tree, drep,
                                     hf_pn_io_submodule_state_ar_info, &u16SubmoduleState);
                     dissect_dcerpc_uint16(tvb, offset, pinfo, submodule_tree, drep,
-                                    hf_pn_io_submodule_state_diag_info, &u16SubmoduleState);
+                                    hf_pn_io_submodule_state_fault, &u16SubmoduleState);
                     dissect_dcerpc_uint16(tvb, offset, pinfo, submodule_tree, drep,
                                     hf_pn_io_submodule_state_maintenance_demanded, &u16SubmoduleState);
                     dissect_dcerpc_uint16(tvb, offset, pinfo, submodule_tree, drep,
                                     hf_pn_io_submodule_state_maintenance_required, &u16SubmoduleState);
                     dissect_dcerpc_uint16(tvb, offset, pinfo, submodule_tree, drep,
-                                    hf_pn_io_submodule_state_qualified_info, &u16SubmoduleState);
+                                    hf_pn_io_submodule_state_advice, &u16SubmoduleState);
                     offset = dissect_dcerpc_uint16(tvb, offset, pinfo, submodule_tree, drep,
                                     hf_pn_io_submodule_state_add_info, &u16SubmoduleState);
                 } else {
@@ -10241,7 +12548,7 @@ dissect_block(tvbuff_t *tvb, int offset,
     case(0x0114):
     case(0x0116):
     case(0x0117):
-        dissect_ControlConnect_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow, ar, u16BlockType);
+        dissect_ControlPlugOrConnect_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow, ar, u16BlockType);
         break;
 
     case(0x0118):
@@ -10383,6 +12690,9 @@ dissect_block(tvbuff_t *tvb, int offset,
     case(0x022B):
         dissect_PDSubFrameBlock_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow, u16BodyLength);
         break;
+    case(0x022C):
+        dissect_PDPortDataRealExtended_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow, u16BodyLength);
+        break;
 
     case(0x0230):
         dissect_PDPortFODataCheck_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
@@ -10396,7 +12706,6 @@ dissect_block(tvbuff_t *tvb, int offset,
     case(0x0233):
         dissect_MrpInstanceDataCheck_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow, u16BodyLength);
             break;
-
     case(0x0240):
         dissect_PDInterfaceDataReal_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
         break;
@@ -10408,6 +12717,57 @@ dissect_block(tvbuff_t *tvb, int offset,
         break;
     case(0x0251):
         dissect_PDPortStatistic_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+	case(0x0260):
+        dissect_OwnPort_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x0261):
+        dissect_Neighbors_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x0270):
+        dissect_TSNNetworkControlDataReal_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x0271):
+        dissect_TSNNetworkControlDataAdjust_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x0272):
+        dissect_TSNDomainPortConfig_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x0273):
+        dissect_TSNDomainQueueConfig_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x0274):
+        dissect_TSNTimeData_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x0275):
+        dissect_TSNStreamPathDataReal_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow, FALSE);
+        break;
+    case(0x0276):
+        dissect_TSNSyncTreeData_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x0277):
+        dissect_TSNUploadNetworkAttributes_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x0278):
+        dissect_TSNForwardingDelay_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x0279):
+        dissect_TSNExpectedNetworkAttributes_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x027A):
+        dissect_TSNStreamPathDataReal_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow, TRUE);
+	break;
+    case(0x027B):
+        dissect_TSNDomainPortIngressRateLimiter_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x027C):
+        dissect_TSNDomainQueueRateLimiter_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x027D):
+        dissect_TSNPortID_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
+        break;
+    case(0x027E):
+        dissect_TSNExpectedNeighbor_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow);
         break;
     case(0x0400):
         dissect_MultipleBlockHeader_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow, u16BodyLength);
@@ -10487,7 +12847,7 @@ dissect_block(tvbuff_t *tvb, int offset,
     case(0x8116):
     case(0x8117):
     case(0x8118):
-        dissect_ControlConnect_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow, ar, u16BlockType);
+        dissect_ControlPlugOrConnect_block(tvb, offset, pinfo, sub_tree, sub_item, drep, u8BlockVersionHigh, u8BlockVersionLow, ar, u16BlockType);
         break;
     default:
         dissect_pn_undecoded(tvb, offset, pinfo, sub_tree, u16BodyLength);
@@ -10964,6 +13324,8 @@ dissect_RecordDataRead(tvbuff_t *tvb, int offset,
     case(0x8012):   /* Maintenance required in all codings for one subslot */
     case(0x8013):   /* Maintenance demanded in all codings for one subslot */
     case(0x801e):   /* SubstituteValues for one subslot */
+    case(0x8020):   /* PDIRSubframeData for one subslot */
+    case(0x8027):   /* PDPortDataRealExtended for one subslot */
     case(0x8028):   /* RecordInputDataObjectElement for one subslot */
     case(0x8029):   /* RecordOutputDataObjectElement for one subslot */
     case(0x8050):   /* PDInterfaceMrpDataReal for one subslot */
@@ -10971,9 +13333,15 @@ dissect_RecordDataRead(tvbuff_t *tvb, int offset,
     case(0x8052):   /* PDInterfaceMrpDataAdjust for one subslot */
     case(0x8053):   /* PDPortMrpDataAdjust for one subslot */
     case(0x8054):   /* PDPortMrpDataReal for one subslot */
+    case(0x80F0):   /* TSNNetworkControlDataReal */
+    case(0x80F2):   /* TSNSyncTreeData */
+    case(0x80F3):   /* TSNUploadNetworkAttributes */
+    case(0x80F4):   /* TSNExpectedNetworkAttributes */
+    case(0x80F5):   /* TSNNetworkControlDataAdjust */
     case(0x8060):   /* PDPortFODataReal for one subslot */
     case(0x8061):   /* PDPortFODataCheck for one subslot */
     case(0x8062):   /* PDPortFODataAdjust for one subslot */
+    case(0x8063):   /* PDPortSFPDataCheck for one subslot */
     case(0x8070):   /* PDNCDataCheck for one subslot */
     case(0x8071):   /* PDPortStatistic for one subslot */
     case(0x8080):   /* PDInterfaceDataReal */
@@ -11062,7 +13430,7 @@ dissect_RecordDataRead(tvbuff_t *tvb, int offset,
     case(0x802e):   /* Expected PDSyncData for one subslot with SyncID value 0 for PTCPoverRTC */
     case(0x802f):   /* PDPortDataAdjust */
     case(0x8030):   /* IsochronousModeData for one subslot */
-    case(0x8031):   /* Expected PDSyncData for one subslot with SyncID value 1 */
+    case(0x8031):   /* PDTimeData for one subslot */
     case(0x8032):
     case(0x8033):
     case(0x8034):
@@ -11093,7 +13461,10 @@ dissect_RecordDataRead(tvbuff_t *tvb, int offset,
     case(0x804d):
     case(0x804e):
     case(0x804f):   /* Expected PDSyncData for one subslot with SyncID value 31 */
-    case(0x8072):    /* PDPortStatistic for one subslot */
+    case(0x8055):   /* PDPortMrpIcDataAdjust for one subslot */
+    case(0x8056):   /* PDPortMrpIcDataCheck for one subslot */
+    case(0x8057):   /* PDPortMrpIcDataReal for one subslot */
+    case(0x8072):   /* PDPortStatistic for one subslot */
     case(0xc000):   /* ExpectedIdentificationData for one slot */
     case(0xc001):   /* RealIdentificationData for one slot */
     case(0xc00a):   /* Diagnosis in channel coding for one slot */
@@ -11264,12 +13635,12 @@ dissect_ProfiSafeParameterRequest(tvbuff_t *tvb, int offset,
 
     if (!PINFO_FD_VISITED(pinfo)) {
         /* Get current conversation endpoints using MAC addresses */
-        conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, ENDPOINT_NONE, 0, 0, 0);
+        conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, CONVERSATION_NONE, 0, 0, 0);
         if (conversation == NULL) {
             /* Create new conversation, if no "Ident OK" frame as been dissected yet!
              * Need to switch dl_src & dl_dst, as current packet is sent by controller and not by device.
              * All conversations are based on Device MAC as addr1 */
-            conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, ENDPOINT_NONE, 0, 0, 0);
+            conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, CONVERSATION_NONE, 0, 0, 0);
         }
 
         current_aruuid_frame = pn_find_aruuid_frame_setup(pinfo);
@@ -11344,12 +13715,12 @@ dissect_RecordDataWrite(tvbuff_t *tvb, int offset,
 
     /* PROFISafe */
     /* Get current conversation endpoints using MAC addresses */
-    conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, ENDPOINT_NONE, 0, 0, 0);
+    conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, CONVERSATION_NONE, 0, 0, 0);
     if (conversation == NULL) {
         /* Create new conversation, if no "Ident OK" frame as been dissected yet!
         * Need to switch dl_src & dl_dst, as current packet is sent by controller and not by device.
         * All conversations are based on Device MAC as addr1 */
-        conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, ENDPOINT_NONE, 0, 0, 0);
+        conversation = conversation_new(pinfo->num, &pinfo->dl_dst, &pinfo->dl_src, CONVERSATION_NONE, 0, 0, 0);
     }
 
     current_aruuid_frame = pn_find_aruuid_frame_setup(pinfo);
@@ -11428,16 +13799,22 @@ dissect_RecordDataWrite(tvbuff_t *tvb, int offset,
     case(0x802e):   /* Expected PDSyncData for one subslot with SyncID value 0 for PTCPoverRTC */
     case(0x802f):   /* PDPortDataAdjust for one subslot */
     case(0x8030):   /* IsochronousModeData for one subslot */
+    case(0x8031):   /* PDTimeData for one subslot */
     case(0x8051):   /* PDInterfaceMrpDataCheck for one subslot */
     case(0x8052):   /* PDInterfaceMrpDataAdjust for one subslot */
     case(0x8053):   /* PDPortMrpDataAdjust for one subslot */
+    case(0x8055):   /* PDPortMrpIcDataAdjust for one subslot */
+    case(0x8056):   /* PDPortMrpIcDataCheck for one subslot */
     case(0x8061):   /* PDPortFODataCheck for one subslot */
     case(0x8062):   /* PDPortFODataAdjust for one subslot */
+    case(0x8063):   /* PDPortSFPDataCheck for one subslot */
     case(0x8070):   /* PDNCDataCheck for one subslot */
     case(0x8071):   /* PDInterfaceAdjust */
     case(0x8090):   /* PDInterfaceFSUDataAdjust */
     case(0x80B0):   /* CombinedObjectContainer*/
     case(0x80CF):   /* RS_AdjustObserver */
+    case(0xaff1):   /* I&M1 */
+    case(0xaff2):   /* I&M2 */
     case(0xaff3):   /* I&M3 */
     case(0xe050):   /* FastStartUp data for one AR */
     case(0xe061):   /* RS_AckEvent (using RecordDataWrite service) */
@@ -11797,6 +14174,8 @@ dissect_PNIO_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     /* the sub tvb will NOT contain the frame_id here! */
     guint16  u16FrameID = GPOINTER_TO_UINT(data);
     heur_dtbl_entry_t *hdtbl_entry;
+    conversation_t* conversation;
+    guint8 isTimeAware = FALSE;
 
     /*
      * In case the packet is a protocol encoded in the basic PNIO transport stream,
@@ -11806,10 +14185,27 @@ dissect_PNIO_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     if (dissector_try_heuristic(heur_pn_subdissector_list, tvb, pinfo, tree, &hdtbl_entry, NULL))
         return TRUE;
 
+    /* TimeAwareness Information needed for dissecting RTC3 - RTSteam frames  */
+    conversation = find_conversation(pinfo->num, &pinfo->dl_src, &pinfo->dl_dst, CONVERSATION_NONE, 0, 0, 0);
+
+    if (conversation != NULL) {
+        isTimeAware = GPOINTER_TO_UINT(conversation_get_proto_data(conversation, proto_pn_io_time_aware_status));
+    }
+
     /* is this a (none DFP) PNIO class 3 data packet? */
     /* frame id must be in valid range (cyclic Real-Time, class=3) */
-    if ((u16FrameID >= 0x0100 && u16FrameID <= 0x06FF) ||   /* RTC3 non redundant */
-        (u16FrameID >= 0x700 && u16FrameID <= 0x0fff)) {    /* RTC3 redundant */
+    if (((u16FrameID >= 0x0100 && u16FrameID <= 0x06FF) || /* RTC3 non redundant */
+        (u16FrameID >= 0x0700 && u16FrameID <= 0x0fff)) && /* RTC3 redundant */
+        !isTimeAware) {
+        dissect_CSF_SDU_heur(tvb, pinfo, tree, data);
+        return TRUE;
+    }
+
+    /* is this a PNIO class stream data packet? */
+    /* frame id must be in valid range (cyclic Real-Time, class=Stream) */
+    if (((u16FrameID >= 0x1000 && u16FrameID <= 0x2FFF) ||
+        (u16FrameID >= 0x3800 && u16FrameID <= 0x3FFF)) &&
+        isTimeAware) {
         dissect_CSF_SDU_heur(tvb, pinfo, tree, data);
         return TRUE;
     }
@@ -11817,7 +14213,7 @@ dissect_PNIO_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     /* The following range is reserved for following developments */
     /* frame id must be in valid range (Reserved) and
      * first byte (CBA version field) has to be != 0x11 */
-    if (u16FrameID >= 0x1000 && u16FrameID <= 0x7fff) {
+    if (u16FrameID >= 0x4000 && u16FrameID <= 0x7fff) {
         dissect_PNIO_C_SDU(tvb, 0, pinfo, tree, drep);
         return TRUE;
     }
@@ -11889,7 +14285,7 @@ pn_io_ar_conv_filter(packet_info *pinfo)
     set_address(&controllermac_addr, AT_ETHER, 6, ar->controllermac);
     set_address(&devicemac_addr, AT_ETHER, 6, ar->devicemac);
 
-    buf = g_strdup_printf(
+    buf = ws_strdup_printf(
         "pn_io.ar_uuid == %s || "                                   /* ARUUID */
         "(pn_io.alarm_src_endpoint == 0x%x && eth.src == %s) || "   /* Alarm CR (contr -> dev) */
         "(pn_io.alarm_src_endpoint == 0x%x && eth.src == %s)",      /* Alarm CR (dev -> contr) */
@@ -11919,7 +14315,7 @@ pn_io_ar_conv_data_filter(packet_info *pinfo)
     guid_str = guid_to_str(pinfo->pool, (const e_guid_t*) &ar->aruuid);
     if (ar->arType == 0x0010) /* IOCARSingle using RT_CLASS_3 */
     {
-        buf = g_strdup_printf(
+        buf = ws_strdup_printf(
             "pn_io.ar_uuid == %s || "                                           /* ARUUID */
             "(pn_rt.frame_id == 0x%x) || (pn_rt.frame_id == 0x%x) || "
             "(pn_io.alarm_src_endpoint == 0x%x && eth.src == %s) || "           /* Alarm CR (contr -> dev) */
@@ -11931,7 +14327,7 @@ pn_io_ar_conv_data_filter(packet_info *pinfo)
     }
     else
     {
-        buf = g_strdup_printf(
+        buf = ws_strdup_printf(
             "pn_io.ar_uuid == %s || "                                           /* ARUUID */
             "(pn_rt.frame_id == 0x%x && eth.src == %s && eth.dst == %s) || "    /* Input CR && dev MAC -> contr MAC */
             "(pn_rt.frame_id == 0x%x && eth.src == %s && eth.dst == %s) || "    /* Output CR && contr MAC -> dev MAC */
@@ -11970,6 +14366,7 @@ pnio_cleanup(void) {
 static void
 pnio_setup(void) {
     aruuid_frame_setup_list = wmem_list_new(wmem_file_scope());
+    pnio_time_aware_frame_map = wmem_map_new(wmem_file_scope(), g_direct_hash, g_direct_equal);
 }
 
 
@@ -12079,7 +14476,12 @@ proto_register_pn_io (void)
     },
     { &hf_pn_io_ar_properties_reserved,
       { "Reserved", "pn_io.ar_properties.reserved",
-        FT_UINT32, BASE_HEX, NULL, 0x1FFFF000,
+        FT_UINT32, BASE_HEX, NULL, 0x0FFFF000,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_ar_properties_time_aware_system,
+      { "TimeAwareSystem", "pn_io.ar_properties.time_aware_system",
+        FT_UINT32, BASE_HEX, VALS(pn_io_arproperties_time_aware_system), 0x10000000,
         NULL, HFILL }
     },
     { &hf_pn_io_ar_properties_combined_object_container_with_legacy_startupmode,
@@ -12658,6 +15060,11 @@ proto_register_pn_io (void)
         FT_UINT16, BASE_DEC, NULL, 0x0,
         NULL, HFILL }
     },
+    { &hf_pn_io_control_alarm_sequence_number,
+      { "AlarmSequenceNumber", "pn_io.control_alarm_sequence_number",
+        FT_UINT16, BASE_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
     { &hf_pn_io_control_command,
       { "ControlCommand", "pn_io.control_command",
         FT_UINT16, BASE_HEX, NULL, 0x0,
@@ -12915,9 +15322,9 @@ proto_register_pn_io (void)
         FT_UINT16, BASE_HEX, VALS(pn_io_submodule_state_add_info), 0x0007,
         NULL, HFILL }
     },
-    { &hf_pn_io_submodule_state_qualified_info,
-      { "QualifiedInfo", "pn_io.submodule_state.qualified_info",
-        FT_UINT16, BASE_HEX, VALS(pn_io_submodule_state_qualified_info), 0x0008,
+    { &hf_pn_io_submodule_state_advice,
+      { "Advice", "pn_io.submodule_state.advice",
+        FT_UINT16, BASE_HEX, VALS(pn_io_submodule_state_advice), 0x0008,
         NULL, HFILL }
     },
     { &hf_pn_io_submodule_state_maintenance_required,
@@ -12930,9 +15337,9 @@ proto_register_pn_io (void)
         FT_UINT16, BASE_HEX, VALS(pn_io_submodule_state_maintenance_demanded), 0x0020,
         NULL, HFILL }
     },
-    { &hf_pn_io_submodule_state_diag_info,
-      { "DiagInfo", "pn_io.submodule_state.diag_info",
-        FT_UINT16, BASE_HEX, VALS(pn_io_submodule_state_diag_info), 0x0040,
+    { &hf_pn_io_submodule_state_fault,
+      { "Fault", "pn_io.submodule_state.fault",
+        FT_UINT16, BASE_HEX, VALS(pn_io_submodule_state_fault), 0x0040,
         NULL, HFILL }
     },
     { &hf_pn_io_submodule_state_ar_info,
@@ -13181,6 +15588,11 @@ proto_register_pn_io (void)
         FT_UINT16, BASE_HEX, VALS(pn_io_ext_channel_error_type0x800C), 0x0,
         NULL, HFILL }
     },
+    { &hf_pn_io_ext_channel_error_type0x8010,
+      { "ExtChannelErrorType", "pn_io.ext_channel_error_type8010",
+        FT_UINT16, BASE_HEX, VALS(pn_io_ext_channel_error_type0x8010), 0x0,
+        NULL, HFILL }
+    },
     { &hf_pn_io_ext_channel_error_type,
       { "ExtChannelErrorType", "pn_io.ext_channel_error_type",
         FT_UINT16, BASE_HEX, NULL, 0x0,
@@ -13189,6 +15601,11 @@ proto_register_pn_io (void)
     { &hf_pn_io_ext_channel_add_value,
       { "ExtChannelAddValue", "pn_io.ext_channel_add_value",
         FT_UINT32, BASE_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_qualified_channel_qualifier,
+      { "QualifiedChannelQualifier", "pn_io.qualified_channel_qualifier",
+        FT_UINT32, BASE_HEX, VALS(pn_io_qualified_channel_qualifier), 0x0,
         NULL, HFILL }
     },
     { &hf_pn_io_ptcp_subdomain_id,
@@ -13412,6 +15829,396 @@ proto_register_pn_io (void)
         FT_UINT16, BASE_DEC_HEX, VALS(pn_io_preamble_length), 0x0,
         NULL, HFILL }
     },
+    { &hf_pn_io_tsn_max_supported_record_size,
+     { "MaxSupportedRecordSize", "pn_io.tsn_upload_network_attributes.max_supported_record_size",
+       FT_UINT32, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_max_supported_record_size_vals), 0x0,
+       NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_transfer_time_tx,
+     { "TransferTimeTX", "pn_io.tsn_upload_network_attributes.transfer_time_tx",
+       FT_UINT32, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_transfer_time_tx_vals), 0x0,
+       NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_transfer_time_rx,
+     { "TransferTimeRX", "pn_io.tsn_upload_network_attributes.transfer_time_rx",
+       FT_UINT32, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_transfer_time_rx_vals), 0x0,
+       NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_number_of_queues,
+    { "NumberOfQueues", "pn_io.tsn_port_id_block.number_of_queues",
+      FT_UINT8, BASE_HEX, VALS(pn_io_tsn_number_of_queues_vals), 0x0,
+      NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_forwarding_delay_block_number_of_entries,
+      { "TSNForwardingDelayBlockNumberOfEntries", "pn_io.tsn_forward_delaying_block.number_of_entries",
+        FT_UINT16, BASE_DEC, NULL, 0x0,
+        NULL, HFILL }
+    },
+  { &hf_pn_io_tsn_port_id_block_number_of_entries,
+      { "TSNPortIDBlockNumberOfEntries", "pn_io.tsn_port_id_block.number_of_entries",
+        FT_UINT16, BASE_DEC, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_expected_neighbor_block_number_of_entries,
+      { "TSNExpectedNeighborBlockNumberOfEntries", "pn_io.tsn_expected_neighbor_block.number_of_entries",
+        FT_UINT16, BASE_DEC, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_port_capabilities_time_aware,
+       { "TSNPortCapabilities.TimeAware", "pn_io.tsn_port_capabilities.time_aware",
+         FT_UINT8, BASE_HEX, VALS(pn_io_tsn_port_capabilities_time_aware_vals), 0x01,
+         NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_port_capabilities_preemption,
+       { "TSNPortCapabilities.Preemption", "pn_io.tsn_port_capabilities.preemption",
+         FT_UINT8, BASE_HEX, VALS(pn_io_tsn_port_capabilities_preemption_vals), 0x02,
+         NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_port_capabilities_queue_masking,
+       { "TSNPortCapabilities.QueueMasking", "pn_io.tsn_port_capabilities.queue_masking",
+         FT_UINT8, BASE_HEX, VALS(pn_io_tsn_port_capabilities_queue_masking_vals), 0x04,
+         NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_port_capabilities_reserved,
+      { "TSNPortCapabilities.Reserved", "pn_io.tsn_port_capabilities_reserved",
+         FT_UINT8, BASE_HEX, NULL, 0xF8,
+         NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_forwarding_group,
+     { "ForwardingGroup", "pn_io.tsn_port_id_block.forwarding_group",
+       FT_UINT8, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_forwarding_group_vals), 0x0,
+       NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_forwarding_group_ingress,
+     { "ForwardingGroupIngress", "pn_io.tsn_port_id_block.forwarding_group_ingress",
+       FT_UINT8, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_forwarding_group_vals), 0x0,
+       NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_forwarding_group_egress,
+     { "ForwardingGroupEgress", "pn_io.tsn_port_id_block.forwarding_group_egress",
+       FT_UINT8, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_forwarding_group_vals), 0x0,
+       NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_stream_class,
+      { "StreamClass", "pn_io.tsn_forwarding_delay_entry.stream_class",
+        FT_UINT16, BASE_HEX, VALS(pn_io_tsn_stream_class_vals), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_dependent_forwarding_delay,
+     { "DependentForwardDelay", "pn_io.tsn_forwarding_delay_entry.dependent_forwarding_delay",
+       FT_UINT32, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_dependent_forwarding_delay_vals), 0x0,
+       NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_independent_forwarding_delay,
+     { "IndependentForwardDelay", "pn_io.tsn_forwarding_delay_entry.independent_forwarding_delay",
+       FT_UINT32, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_independent_forwarding_delay_vals), 0x0,
+       NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_nme_parameter_uuid,
+      { "NMEParameterUUID", "pn_io.tsn_nme_parameter_uuid",
+        FT_GUID, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_vid_config,
+      { "TSNDomainVIDConfig", "pn_io.tsn_domain_vid_config",
+        FT_NONE, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_vid_config_stream_high_vid,
+      { "TSNDomainVIDConfig.StreamHighVID", "pn_io.tsn_domain_vid_config.stream_high_vid",
+        FT_UINT16, BASE_HEX, VALS(pn_io_tsn_domain_vid_config_vals), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_vid_config_stream_high_red_vid,
+      { "TSNDomainVIDConfig.StreamHighRedVID", "pn_io.tsn_domain_vid_config.stream_high_red_vid",
+        FT_UINT16, BASE_HEX, VALS(pn_io_tsn_domain_vid_config_vals), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_vid_config_stream_low_vid,
+      { "TSNDomainVIDConfig.StreamLowVID", "pn_io.tsn_domain_vid_config.stream_low_vid",
+        FT_UINT16, BASE_HEX, VALS(pn_io_tsn_domain_vid_config_vals), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_vid_config_stream_low_red_vid,
+      { "TSNDomainVIDConfig.StreamLowRedVID", "pn_io.tsn_domain_vid_config.stream_low_red_vid",
+        FT_UINT16, BASE_HEX, VALS(pn_io_tsn_domain_vid_config_vals), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_vid_config_non_stream_vid,
+      { "TSNDomainVIDConfig.NonStreamVID", "pn_io.tsn_domain_vid_config.non_stream_vid",
+        FT_UINT16, BASE_HEX, VALS(pn_io_tsn_domain_vid_config_vals), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_vid_config_non_stream_vid_B,
+      { "TSNDomainVIDConfig.NonStreamVIDB", "pn_io.tsn_domain_vid_config.non_stream_vid_B",
+        FT_UINT16, BASE_HEX, VALS(pn_io_tsn_domain_vid_config_vals), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_vid_config_non_stream_vid_C,
+      { "TSNDomainVIDConfig.NonStreamVIDC", "pn_io.tsn_domain_vid_config.non_stream_vid_C",
+        FT_UINT16, BASE_HEX, VALS(pn_io_tsn_domain_vid_config_vals), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_vid_config_non_stream_vid_D,
+      { "TSNDomainVIDConfig.NonStreamVIDD", "pn_io.tsn_domain_vid_config.non_stream_vid_D",
+        FT_UINT16, BASE_HEX, VALS(pn_io_tsn_domain_vid_config_vals), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_vid_config_reserved,
+      { "TSNDomainVIDConfig.Reserved", "pn_io.tsn_domain_vid_config.reserved",
+        FT_UINT32, BASE_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_number_of_tsn_domain_port_config_entries,
+      { "TSNDomainPortConfig.NumberOfEntries", "pn_io.tsn_domain_port_config.number_of_entries",
+        FT_UINT16, BASE_DEC, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_number_of_tsn_time_data_block_entries,
+      { "TSNTimeDataBlock.NumberOfEntries", "pn_io.tsn_time_data_block.number_of_entries",
+        FT_UINT16, BASE_DEC, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_number_of_tsn_domain_queue_rate_limiter_entries,
+      { "TSNDomainQueueRateLimiter.NumberOfEntries", "pn_io.tsn_domain_queue_rate_limiter.number_of_entries",
+        FT_UINT16, BASE_DEC, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_number_of_tsn_domain_port_ingress_rate_limiter_entries,
+      { "TSNDomainPortIngressRateLimiter.NumberOfEntries", "pn_io.tsn_domain_port_ingress_limiter.number_of_entries",
+        FT_UINT16, BASE_DEC, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_port_config,
+      { "TSNDomainPortConfig", "pn_io.tsn_domain_port_config",
+        FT_UINT8, BASE_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_port_config_preemption_enabled,
+      { "TSNDomainPortConfig.PreemptionEnabled", "pn_io.tsn_domain_port_config.preemption_enabled",
+        FT_UINT8, BASE_HEX, VALS(pn_io_tsn_domain_port_config_preemption_enabled_vals), 0x01,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_port_config_boundary_port_config,
+      { "TSNDomainPortConfig.BoundaryPortConfig", "pn_io.tsn_domain_port_config.boundary_port_config",
+        FT_UINT8, BASE_HEX, VALS(pn_io_tsn_domain_port_config_boundary_port_config_vals), 0x0E,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_port_config_reserved,
+      { "TSNDomainPortConfig.Reserved", "pn_io.tsn_domain_port_config.reserved",
+        FT_UINT8, BASE_HEX, NULL, 0xF0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_port_ingress_rate_limiter,
+      { "TSNDomainPortIngressRateLimiter", "pn_io.tsn_domain_port_ingress_rate_limiter",
+         FT_UINT64, BASE_HEX, NULL, 0x0,
+         NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_port_ingress_rate_limiter_cir,
+      { "TSNDomainPortIngressRateLimiter.Cir", "pn_io.tsn_domain_port_ingress_rate_limiter.cir",
+        FT_UINT64, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_port_ingress_rate_limiter_cir), 0x000000000000FFFF,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_port_ingress_rate_limiter_cbs,
+      { "TSNDomainPortIngressRateLimiter.Cbs", "pn_io.tsn_domain_port_ingress_rate_limiter.cbs",
+        FT_UINT64, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_port_ingress_rate_limiter_cbs), 0x00000000FFFF0000,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_port_ingress_rate_limiter_envelope,
+      { "TSNDomainPortIngressRateLimiter.Envelope", "pn_io.tsn_domain_port_ingress_rate_limiter.envelope",
+        FT_UINT64, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_port_ingress_rate_limiter_envelope), 0x0000FFFF00000000,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_port_ingress_rate_limiter_rank,
+      { "TSNDomainPortIngressRateLimiter.Rank", "pn_io.tsn_domain_port_ingress_rate_limiter.rank",
+        FT_UINT64, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_port_ingress_rate_limiter_rank), 0xFFFF000000000000,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_rate_limiter,
+      { "TSNDomainQueueRateLimiter", "pn_io.tsn_domain_port_queue_rate_limiter",
+        FT_UINT64, BASE_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_rate_limiter_cir,
+      { "TSNDomainQueueRateLimiter.Cir", "pn_io.tsn_domain_port_queue_rate_limiter.cir",
+        FT_UINT64, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_queue_rate_limiter_cir), 0x000000000000FFFF,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_rate_limiter_cbs,
+      { "TSNDomainQueueRateLimiter.Cbs", "pn_io.tsn_domain_port_queue_rate_limiter.cbs",
+        FT_UINT64, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_queue_rate_limiter_cbs), 0x00000000FFFF0000,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_rate_limiter_envelope,
+      { "TSNDomainQueueRateLimiter.Envelope", "pn_io.tsn_domain_port_queue_rate_limiter.envelope",
+        FT_UINT64, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_queue_rate_limiter_envelope), 0x000000FF00000000,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_rate_limiter_rank,
+      { "TSNDomainQueueRateLimiter.Rank", "pn_io.tsn_domain_port_queue_rate_limiter.rank",
+        FT_UINT64, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_queue_rate_limiter_rank), 0x0000FF0000000000,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_rate_limiter_queue_id,
+      { "TSNDomainQueueRateLimiter.QueueID", "pn_io.tsn_domain_port_queue_rate_limiter.queue_id",
+        FT_UINT64, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_queue_rate_limiter_queue_id), 0x00FF000000000000,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_rate_limiter_reserved,
+      { "TSNDomainQueueRateLimiter.Reserved", "pn_io.tsn_domain_port_queue_rate_limiter.reserved",
+        FT_UINT64, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_queue_rate_limiter_reserved), 0xFF00000000000000,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_number_of_tsn_domain_queue_config_entries,
+      { "TSNDomainQueueConfig.NumberOfEntries", "pn_io.tsn_domain_queue_config.number_of_entries",
+        FT_UINT16, BASE_DEC, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_config,
+      { "TSNDomainQueueConfig", "pn_io.tsn_domain_queue_config",
+        FT_UINT64, BASE_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_config_queue_id,
+        { "TSNDomainQueueConfig.QueueID", "pn_io.tsn_domain_queue_config.queue_id",
+          FT_UINT64, BASE_HEX, NULL, 0xF,
+          NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_config_tci_pcp,
+        { "TSNDomainQueueConfig.TciPcp", "pn_io.tsn_domain_queue_config.tci_pcp",
+          FT_UINT64, BASE_HEX, NULL, 0x70,
+          NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_config_shaper,
+        { "TSNDomainQueueConfig.Shaper", "pn_io.tsn_domain_queue_config.shaper",
+          FT_UINT64, BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_queue_config_shaper), 0x3F80,
+          NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_config_preemption_mode,
+        { "TSNDomainQueueConfig.PreemptionMode", "pn_io.tsn_domain_queue_config.preemption_mode",
+          FT_UINT64, BASE_HEX, NULL, 0xC000,
+          NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_config_unmask_time_offset,
+      { "TSNDomainQueueConfig.UnmaskTimeOffset", "pn_io.tsn_domain_queue_config.unmask_time_offset",
+        FT_UINT64, BASE_HEX, NULL, 0xFFFFFF0000,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_queue_config_mask_time_offset,
+      { "TSNDomainQueueConfig.MaskTimeOffset", "pn_io.tsn_domain_queue_config.mask_time_offset",
+        FT_UINT64, BASE_HEX, NULL, 0xFFFFFF0000000000,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_network_deadline,
+      { "NetworkDeadline", "pn_io.network_deadline",
+        FT_UINT32, BASE_DEC | BASE_RANGE_STRING, RVALS(pn_io_network_domain), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_time_domain_number,
+      { "TimeDomainNumber", "pn_io.time_domain_number",
+         FT_UINT16, BASE_HEX , VALS(pn_io_time_domain_number_vals), 0x0,
+         NULL, HFILL }
+    },
+    { &hf_pn_io_time_pll_window,
+      { "TimePLLWindow", "pn_io.time_pll_window",
+        FT_UINT32, BASE_DEC , VALS(pn_io_time_pll_window_vals), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_message_interval_factor,
+      { "MessageIntervalFactor", "pn_io.message_interval_factor",
+         FT_UINT32, BASE_DEC , VALS(pn_io_message_interval_factor_vals), 0x0,
+         NULL, HFILL }
+    },
+    { &hf_pn_io_message_timeout_factor,
+      { "MessageTimeoutFactor", "pn_io.message_timeout_factor",
+         FT_UINT16, BASE_DEC | BASE_RANGE_STRING, RVALS(pn_io_message_timeout_factor), 0x0,
+         NULL, HFILL }
+    },
+    { &hf_pn_io_time_sync_properties,
+      { "TimeSyncProperties", "pn_io.time_sync_properties",
+        FT_UINT16, BASE_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_time_sync_properties_role,
+      { "TimeSyncProperties.Role", "pn_io.time_sync_properties.role",
+        FT_UINT16, BASE_HEX, VALS(pn_io_time_sync_properties_vals), 0x3,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_time_sync_properties_reserved,
+      { "TimeSyncProperties.Reserved", "pn_io.time_sync_properties.reserved",
+        FT_UINT16, BASE_HEX, NULL, 0xFFFC,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_time_domain_uuid,
+      { "TimeDomainUUID", "pn_io.time_domain_uuid",
+        FT_GUID, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_time_domain_name_length,
+      { "TimeDomainNameLength", "pn_io.time_domain_name_length",
+        FT_UINT8, BASE_DEC_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_time_domain_name,
+      { "TimeDomainName", "pn_io.time_domain_name",
+        FT_STRING, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_nme_name_uuid,
+      { "TSNNMENameUUID", "pn_io.tsn_nme_name_uuid",
+        FT_GUID, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_nme_name_length,
+      { "TSNNMENameLength", "pn_io.tsn_nme_name_length",
+        FT_UINT16, BASE_DEC_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_nme_name,
+      { "TSNNMEName", "pn_io.tsn_nme_name",
+        FT_STRING, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_uuid,
+      { "TSNDomainUUID", "pn_io.tsn_domain_uuid",
+        FT_GUID, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_name_length,
+      { "TSNDomainNameLength", "pn_io.tsn_domain_name_length",
+        FT_UINT16, BASE_DEC_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_name,
+      { "TSNDomainName", "pn_io.tsn_domain_name",
+        FT_STRING, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_fdb_command,
+      { "FDBCommand", "pn_io.tsn_fdb_command",
+        FT_UINT8, BASE_HEX, VALS(pn_io_tsn_fdb_command), 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_dst_add,
+      { "DestinationAddress", "pn_io.tsn_dst_add",
+        FT_ETHER, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_number_of_tsn_domain_sync_tree_entries,
+      { "NumberOfEntries", "pn_io.tsn_domain_sync_tree_entries",
+        FT_UINT16, BASE_DEC, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_port_id,
+      { "TSNDomainPortID", "pn_io.tsn_domain_port_id",
+        FT_NONE, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_tsn_domain_sync_port_role,
+      { "SyncPortRole", "pn_io.tsn_domain_sync_port_rule",
+        FT_UINT8,BASE_HEX | BASE_RANGE_STRING, RVALS(pn_io_tsn_domain_sync_port_role_vals), 0x0,
+        NULL, HFILL }
+    },
     { &hf_pn_io_mau_type,
       { "MAUType", "pn_io.mau_type",
         FT_UINT16, BASE_HEX, VALS(pn_io_mau_type), 0x0,
@@ -13527,6 +16334,31 @@ proto_register_pn_io (void)
         FT_STRING, BASE_NONE, NULL, 0x0,
         NULL, HFILL }
     },
+    { &hf_pn_io_neighbor,
+      { "Neighbor", "pn_io.neighbor",
+        FT_NONE, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_length_peer_port_name,
+      { "LengthPeerPortName", "pn_io.length_peer_port_name",
+        FT_UINT8, BASE_DEC_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_peer_port_name,
+      { "PeerPortName", "pn_io.peer_port_name",
+        FT_STRING, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_length_peer_station_name,
+      { "LengthPeerStationName", "pn_io.length_peer_station_name",
+        FT_UINT8, BASE_DEC_HEX, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_peer_station_name,
+      { "PeerStationName", "pn_io.peer_station_name",
+        FT_STRING, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
     { &hf_pn_io_length_own_chassis_id,
       { "LengthOwnChassisID", "pn_io.length_own_chassis_id",
         FT_UINT8, BASE_DEC, NULL, 0x0,
@@ -13535,6 +16367,11 @@ proto_register_pn_io (void)
     { &hf_pn_io_own_chassis_id,
       { "OwnChassisID", "pn_io.own_chassis_id",
         FT_STRING, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_pn_io_rtclass3_port_status,
+      { "RTClass3_PortStatus", "pn_io.rtclass3_port_status",
+        FT_UINT16, BASE_HEX, NULL, 0x0,
         NULL, HFILL }
     },
     { &hf_pn_io_length_own_port_id,
@@ -14840,7 +17677,15 @@ proto_register_pn_io (void)
         &ett_pn_io_dcp_boundary,
         &ett_pn_io_peer_to_peer_boundary,
         &ett_pn_io_mau_type_extension,
-        &ett_pn_io_pe_operational_mode
+        &ett_pn_io_pe_operational_mode,
+		&ett_pn_io_neighbor,
+		&ett_pn_io_tsn_domain_vid_config,
+        &ett_pn_io_tsn_domain_port_config,
+        &ett_pn_io_tsn_domain_queue_config,
+        &ett_pn_io_tsn_domain_port_ingress_rate_limiter,
+        &ett_pn_io_tsn_domain_queue_rate_limiter,
+        &ett_pn_io_time_sync_properties,
+		&ett_pn_io_tsn_domain_port_id
     };
 
     static ei_register_info ei[] = {
@@ -14871,6 +17716,7 @@ proto_register_pn_io (void)
     proto_pn_io_parameterserver = proto_register_protocol_in_name_only("PROFINET IO (Parameter Server)", "PNIO (Parameter Server Interface)", "pn_io_parameterserver", proto_pn_io, FT_PROTOCOL);
     proto_pn_io_implicitar = proto_register_protocol_in_name_only("PROFINET IO (Implicit Ar)", "PNIO (Implicit Ar)", "pn_io_implicitar", proto_pn_io, FT_PROTOCOL);
     proto_pn_io_apdu_status = proto_register_protocol_in_name_only("PROFINET IO (Apdu Status)", "PNIO (Apdu Status)", "pn_io_apdu_status", proto_pn_io, FT_PROTOCOL);
+    proto_pn_io_time_aware_status = proto_register_protocol_in_name_only("PROFINET IO (Time Aware Status)", "PNIO (Time Aware Status)", "pn_io_time_aware_status", proto_pn_io, FT_PROTOCOL);
 
     proto_register_field_array (proto_pn_io, hf, array_length (hf));
     proto_register_subtree_array (ett, array_length (ett));

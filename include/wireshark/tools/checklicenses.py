@@ -32,7 +32,7 @@ Examples:
 
 
 ALLOWED_LICENSES = [
-    'BSD',
+    'BSD (1 clause)',
     'BSD (2 clause)',
     'BSD (2 clause) GPL (v2 or later)',
     'BSD (3 clause)',
@@ -61,16 +61,13 @@ PATH_SPECIFIC_ALLOWED_LICENSES = {
     'wsutil/strnatcmp.h': [
         'Zlib',
     ],
-    'dtds': [
+    'resources/protocols/dtds': [
         'UNKNOWN',
     ],
-    'diameter/dictionary.dtd': [
+    'resources/protocols/diameter/dictionary.dtd': [
         'UNKNOWN',
     ],
-    'wimaxasncp/dictionary.dtd': [
-        'UNKNOWN',
-    ],
-    'CONTRIBUTING.md': [
+    'resources/protocols/wimaxasncp/dictionary.dtd': [
         'UNKNOWN',
     ],
     'doc/': [
@@ -138,9 +135,6 @@ PATH_SPECIFIC_ALLOWED_LICENSES = {
     'epan/dissectors/pidl/mapi/response.cnf.c': [
         'UNKNOWN',
     ],
-    'tools/abi-dumps': [
-        'UNKNOWN',
-    ],
     # The following tools are under incompatible licenses (mostly GPLv3 or
     # GPLv3+), but this is OK since they are not actually linked into Wireshark
     'tools/pidl': [
@@ -153,6 +147,9 @@ PATH_SPECIFIC_ALLOWED_LICENSES = {
         'GPL (v2)'
     ],
     '.gitlab/': [
+        'UNKNOWN',
+    ],
+    'wsutil/safe-math.h': [ # Public domain (CC0)
         'UNKNOWN',
     ],
 }

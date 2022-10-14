@@ -570,7 +570,7 @@ dissect_zbee_zcl_power_config(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_t
 static void
 decode_power_conf_voltage(gchar *s, guint32 value)
 {
-    g_snprintf(s, ITEM_LABEL_LENGTH, "%d.%d [V]", value/10, value%10);
+    snprintf(s, ITEM_LABEL_LENGTH, "%d.%d [V]", value/10, value%10);
     return;
 } /*decode_power_conf_voltage*/
 
@@ -589,7 +589,7 @@ decode_power_conf_voltage(gchar *s, guint32 value)
 static void
 decode_power_conf_percentage(gchar *s, guint32 value)
 {
-    g_snprintf(s, ITEM_LABEL_LENGTH, "%.1f [%%]", value/2.0);
+    snprintf(s, ITEM_LABEL_LENGTH, "%.1f [%%]", value/2.0);
     return;
 } /*decode_power_conf_percentage*/
 
@@ -609,13 +609,13 @@ static void
 decode_power_conf_frequency(gchar *s, guint32 value)
 {
     if(value == 0x00)
-        g_snprintf(s, ITEM_LABEL_LENGTH, "Frequency too low to be measured (or DC supply)");
+        snprintf(s, ITEM_LABEL_LENGTH, "Frequency too low to be measured (or DC supply)");
     else if(value == 0xfe)
-        g_snprintf(s, ITEM_LABEL_LENGTH, "Frequency too high to be measured");
+        snprintf(s, ITEM_LABEL_LENGTH, "Frequency too high to be measured");
     else if (value == 0xff)
-        g_snprintf(s, ITEM_LABEL_LENGTH, "Frequency could not be measured");
+        snprintf(s, ITEM_LABEL_LENGTH, "Frequency could not be measured");
     else
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%d [Hz]", value*2);
+        snprintf(s, ITEM_LABEL_LENGTH, "%d [Hz]", value*2);
     return;
 } /*decode_power_conf_frequency*/
 
@@ -634,7 +634,7 @@ decode_power_conf_frequency(gchar *s, guint32 value)
 static void
 decode_power_conf_batt_AHr(gchar *s, guint32 value)
 {
-    g_snprintf(s, ITEM_LABEL_LENGTH, "%d [mAHr]", value*10);
+    snprintf(s, ITEM_LABEL_LENGTH, "%d [mAHr]", value*10);
     return;
 } /*decode_power_conf_batt_AHr*/
 
@@ -2294,7 +2294,7 @@ static const value_string zbee_zcl_scenes_color_loop_direction_values[] = {
 static void
 decode_color_xy(gchar *s, guint16 value)
 {
-    g_snprintf(s, ITEM_LABEL_LENGTH, "%.4lf", value/65535.0);
+    snprintf(s, ITEM_LABEL_LENGTH, "%.4lf", value/65535.0);
 }
 
 /*FUNCTION:------------------------------------------------------
@@ -2311,7 +2311,7 @@ decode_color_xy(gchar *s, guint16 value)
  */
 static void decode_setpoint(gchar *s, gint16 value)
 {
-    g_snprintf(s, ITEM_LABEL_LENGTH, "%.2lf [" UTF8_DEGREE_SIGN "C]", value/100.0);
+    snprintf(s, ITEM_LABEL_LENGTH, "%.2lf [" UTF8_DEGREE_SIGN "C]", value/100.0);
 }
 
 /*FUNCTION:------------------------------------------------------
@@ -9952,13 +9952,13 @@ static void
 decode_zcl_ota_curr_time(gchar *s, guint32 value)
 {
     if (value == ZBEE_ZCL_OTA_TIME_NOW) {
-        g_snprintf(s, ITEM_LABEL_LENGTH, "Now");
+        snprintf(s, ITEM_LABEL_LENGTH, "Now");
     }
     else {
         gchar *tmp;
         value += ZBEE_ZCL_NSTIME_UTC_OFFSET;
         tmp = abs_time_secs_to_str(NULL, value, ABSOLUTE_TIME_LOCAL, 1);
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%s", tmp);
+        snprintf(s, ITEM_LABEL_LENGTH, "%s", tmp);
         wmem_free(NULL, tmp);
     }
 
@@ -9979,12 +9979,12 @@ static void
 decode_zcl_ota_req_time(gchar *s, guint32 value)
 {
     if (value == ZBEE_ZCL_OTA_TIME_WAIT) {
-        g_snprintf(s, ITEM_LABEL_LENGTH, "Wrong Value");
+        snprintf(s, ITEM_LABEL_LENGTH, "Wrong Value");
     }
     else {
         /* offset from now */
         gchar *tmp = signed_time_secs_to_str(NULL, value);
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%s from now", tmp);
+        snprintf(s, ITEM_LABEL_LENGTH, "%s from now", tmp);
         wmem_free(NULL, tmp);
     }
 
@@ -10005,12 +10005,12 @@ static void
 decode_zcl_ota_upgr_time(gchar *s, guint32 value)
 {
     if (value == ZBEE_ZCL_OTA_TIME_WAIT) {
-        g_snprintf(s, ITEM_LABEL_LENGTH, "Wait for upgrade command");
+        snprintf(s, ITEM_LABEL_LENGTH, "Wait for upgrade command");
     }
     else {
         /* offset from now */
         gchar *tmp = signed_time_secs_to_str(NULL, value);
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%s from now", tmp);
+        snprintf(s, ITEM_LABEL_LENGTH, "%s from now", tmp);
         wmem_free(NULL, tmp);
     }
 
@@ -10030,7 +10030,7 @@ decode_zcl_ota_upgr_time(gchar *s, guint32 value)
 static void
 decode_zcl_ota_size_in_bytes(gchar *s, guint32 value)
 {
-    g_snprintf(s, ITEM_LABEL_LENGTH, "%d [Bytes]", value);
+    snprintf(s, ITEM_LABEL_LENGTH, "%d [Bytes]", value);
 } /*decode_zcl_ota_size_in_bytes*/
 
 /*FUNCTION:------------------------------------------------------
@@ -11796,10 +11796,10 @@ static void
 decode_power_profile_id(gchar *s, guint8 id)
 {
     if (id == 0) {
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%d (All)", id);
+        snprintf(s, ITEM_LABEL_LENGTH, "%d (All)", id);
     }
     else {
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%d", id);
+        snprintf(s, ITEM_LABEL_LENGTH, "%d", id);
     }
 } /*decode_power_profile_id*/
 
@@ -11819,7 +11819,7 @@ decode_power_profile_id(gchar *s, guint8 id)
 static void
 decode_price_in_cents(gchar *s, guint32 value)
 {
-    g_snprintf(s, ITEM_LABEL_LENGTH, "%d cents", value);
+    snprintf(s, ITEM_LABEL_LENGTH, "%d cents", value);
 } /* decode_price_in_cents */
 
 
@@ -11838,7 +11838,7 @@ decode_price_in_cents(gchar *s, guint32 value)
 static void
 decode_power_in_watt(gchar *s, guint16 value)
 {
-    g_snprintf(s, ITEM_LABEL_LENGTH, "%d Watt", value);
+    snprintf(s, ITEM_LABEL_LENGTH, "%d Watt", value);
 } /* decode_power_in_watt */
 
 /*FUNCTION:------------------------------------------------------
@@ -11856,7 +11856,7 @@ decode_power_in_watt(gchar *s, guint16 value)
 static void
 decode_energy(gchar *s, guint16 value)
 {
-    g_snprintf(s, ITEM_LABEL_LENGTH, "%d Watt per hours", value);
+    snprintf(s, ITEM_LABEL_LENGTH, "%d Watt per hours", value);
 } /* decode_energy */
 
 /*FUNCTION:------------------------------------------------------
@@ -11875,10 +11875,10 @@ static void
 func_decode_delayinminute(gchar *s, guint16 value)
 {
     if (value == 0) {
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%d minutes (Not permitted)", value);
+        snprintf(s, ITEM_LABEL_LENGTH, "%d minutes (Not permitted)", value);
     }
     else {
-        g_snprintf(s, ITEM_LABEL_LENGTH, "%d minutes", value);
+        snprintf(s, ITEM_LABEL_LENGTH, "%d minutes", value);
     }
 
 } /* func_decode_delayinminute*/
@@ -15841,6 +15841,7 @@ proto_reg_handoff_zbee_zcl_gp(void)
 #define ZBEE_ZCL_TOUCHLINK_INFO_ASSIGNMENT      0x02
 #define ZBEE_ZCL_TOUCHLINK_INFO_INITIATOR       0x10
 #define ZBEE_ZCL_TOUCHLINK_INFO_UNDEFINED       0x20
+#define ZBEE_ZCL_TOUCHLINK_INFO_PROFILE_INTEROP 0x80
 
 /*Touchlink Key Indicies*/
 #define ZBEE_ZCL_TOUCHLINK_KEYID_DEVELOPMENT    0
@@ -15870,6 +15871,7 @@ static int hf_zbee_zcl_touchlink_info_factory = -1;
 static int hf_zbee_zcl_touchlink_info_assignment = -1;
 static int hf_zbee_zcl_touchlink_info_initiator = -1;
 static int hf_zbee_zcl_touchlink_info_undefined = -1;
+static int hf_zbee_zcl_touchlink_info_profile_introp = -1;
 static int hf_zbee_zcl_touchlink_start_index = -1;
 static int hf_zbee_zcl_touchlink_ident_duration = -1;
 
@@ -15953,6 +15955,12 @@ static const value_string zbee_zcl_touchlink_status_names[] = {
     { 0, NULL }
 };
 
+static const value_string zbee_zcl_touchlink_profile_interop_names[] = {
+    { 0, "ZLL" },
+    { 1, "Zigbee 3.0" },
+    { 0, NULL }
+};
+
 static const value_string zbee_zcl_touchlink_keyid_names[] = {
     { ZBEE_ZCL_TOUCHLINK_KEYID_DEVELOPMENT, "Development Key" },
     { ZBEE_ZCL_TOUCHLINK_KEYID_MASTER, "Master Key" },
@@ -15986,6 +15994,7 @@ dissect_zcl_touchlink_scan_request(tvbuff_t *tvb, proto_tree *tree, guint *offse
         &hf_zbee_zcl_touchlink_info_assignment,
         &hf_zbee_zcl_touchlink_info_initiator,
         &hf_zbee_zcl_touchlink_info_undefined,
+        &hf_zbee_zcl_touchlink_info_profile_introp,
         NULL
     };
     proto_tree_add_bitmask(tree, tvb, *offset, hf_zbee_zcl_touchlink_zbee, ett_zbee_zcl_touchlink_zbee, zbee_info_flags, ENC_LITTLE_ENDIAN);
@@ -16128,6 +16137,7 @@ dissect_zcl_touchlink_scan_response(tvbuff_t *tvb, proto_tree *tree, guint *offs
         &hf_zbee_zcl_touchlink_info_assignment,
         &hf_zbee_zcl_touchlink_info_initiator,
         &hf_zbee_zcl_touchlink_info_undefined,
+        &hf_zbee_zcl_touchlink_info_profile_introp,
         NULL
     };
     static int * const zll_keybit_flags[] = {
@@ -16436,6 +16446,10 @@ proto_register_zbee_zcl_touchlink(void)
         { &hf_zbee_zcl_touchlink_info_undefined,
             { "Undefined", "zbee_zcl_general.touchlink.info.undefined", FT_BOOLEAN, 8, NULL,
             ZBEE_ZCL_TOUCHLINK_INFO_UNDEFINED, NULL, HFILL } },
+
+        { &hf_zbee_zcl_touchlink_info_profile_introp,
+            { "Profile Interop", "zbee_zcl_general.touchlink.info.profile.interop", FT_UINT8, BASE_HEX, VALS(zbee_zcl_touchlink_profile_interop_names),
+            ZBEE_ZCL_TOUCHLINK_INFO_PROFILE_INTEROP, NULL, HFILL } },
 
         /* Touchlink Key Information Bitmask */
         { &hf_zbee_zcl_touchlink_key_bitmask,

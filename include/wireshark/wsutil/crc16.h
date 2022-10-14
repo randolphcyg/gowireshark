@@ -1,4 +1,4 @@
-/* crc16.h
+/** @file
  * Declaration of CRC-16 routines and table
  *
  * 2004 Richard van der Hoff <richardv@mxtelecom.com>
@@ -13,7 +13,7 @@
 #ifndef __CRC16_H__
 #define __CRC16_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

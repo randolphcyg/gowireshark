@@ -31,7 +31,7 @@
 #include "ui/simple_dialog.h"
 
 #include <ui/qt/utils/qt_ui_utils.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 
 #include <QTextStream>
 
@@ -340,7 +340,7 @@ gsm_map_summary_reset(void *tapdata)
 
 
 static tap_packet_status
-gsm_map_summary_packet(void *tapdata, packet_info *, epan_dissect_t *, const void *gmtr_ptr)
+gsm_map_summary_packet(void *tapdata, packet_info *, epan_dissect_t *, const void *gmtr_ptr, tap_flags_t flags _U_)
 {
     gsm_map_stat_t *gm_stat = (gsm_map_stat_t *)tapdata;
     const gsm_map_tap_rec_t *gm_tap_rec = (const gsm_map_tap_rec_t *)gmtr_ptr;

@@ -616,7 +616,7 @@ dissect_sametime_content(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
         tick statistics
 */
 static tap_packet_status
-sametime_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* p)
+sametime_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* p, tap_flags_t flags _U_)
 {
    const struct SametimeTap *pi = (const struct SametimeTap *)p;
 
@@ -738,7 +738,7 @@ proto_register_sametime(void)
       },
       { &hf_sametime_field_text,
          { "text", "sametime.field_text",
-            FT_STRING, STR_ASCII,
+            FT_STRING, BASE_NONE,
             NULL, 0x0,
             NULL, HFILL }
       },
@@ -824,43 +824,43 @@ proto_register_sametime(void)
       /*type location*/
       { &hf_sametime_location_name,
          { "name", "sametime.location.name",
-            FT_STRING, STR_ASCII,
+            FT_STRING, BASE_NONE,
             NULL, 0x0,
             NULL, HFILL }
       },
       { &hf_sametime_location_city,
          { "city", "sametime.location.city",
-            FT_STRING, STR_ASCII,
+            FT_STRING, BASE_NONE,
             NULL, 0x0,
             NULL, HFILL }
       },
       { &hf_sametime_location_province,
          { "province", "sametime.location.province",
-            FT_STRING, STR_ASCII,
+            FT_STRING, BASE_NONE,
             NULL, 0x0,
             NULL, HFILL }
       },
       { &hf_sametime_location_postalcode,
          { "postal code", "sametime.location.postalcode",
-            FT_STRING, STR_ASCII,
+            FT_STRING, BASE_NONE,
             NULL, 0x0,
             NULL, HFILL }
       },
       { &hf_sametime_location_country,
          { "country", "sametime.location.country",
-            FT_STRING, STR_ASCII,
+            FT_STRING, BASE_NONE,
             NULL, 0x0,
             NULL, HFILL }
       },
       { &hf_sametime_location_phone,
          { "phone", "sametime.location.phone",
-            FT_STRING, STR_ASCII,
+            FT_STRING, BASE_NONE,
             NULL, 0x0,
             NULL, HFILL }
       },
       { &hf_sametime_location_timezone,
          { "time zone", "sametime.location.timezone",
-            FT_STRING, STR_ASCII,
+            FT_STRING, BASE_NONE,
             NULL, 0x0,
             NULL, HFILL }
       },

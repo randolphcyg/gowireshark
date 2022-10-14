@@ -1,4 +1,4 @@
-/* charsets.h
+/** @file
  * Routines for handling character sets
  *
  * Wireshark - Network traffic analyzer
@@ -10,7 +10,7 @@
 #ifndef __CHARSETS_H__
 #define __CHARSETS_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

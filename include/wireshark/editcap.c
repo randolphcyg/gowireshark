@@ -23,16 +23,6 @@
 #include <stdarg.h>
 #include <math.h>
 
-/*
- * Just make sure we include the prototype for strptime as well
- * (needed for glibc 2.2) but make sure we do this only if not
- * yet defined.
- */
-
-#ifndef __USE_XOPEN
-#  define __USE_XOPEN
-#endif
-
 #include <time.h>
 #include <glib.h>
 
@@ -51,10 +41,6 @@
 #ifdef _WIN32
 #include <process.h>    /* getpid */
 #include <winsock2.h>
-#endif
-
-#ifndef HAVE_STRPTIME
-# include "wsutil/strptime.h"
 #endif
 
 #include <ui/clopts_common.h>
@@ -179,6 +165,7 @@ static const struct {
     guint32     id;
 } secrets_types[] = {
     { "tls",    SECRETS_TYPE_TLS },
+    { "ssh",    SECRETS_TYPE_SSH },
     { "wg",     SECRETS_TYPE_WIREGUARD },
 };
 
@@ -196,7 +183,7 @@ abs_time_to_str_with_sec_resolution(const nstime_t *abs_time)
     tmp = localtime(&abs_time->secs);
 
     if (tmp) {
-        g_snprintf(buf, 16, "%d%02d%02d%02d%02d%02d",
+        snprintf(buf, 16, "%d%02d%02d%02d%02d%02d",
             tmp->tm_year + 1900,
             tmp->tm_mon+1,
             tmp->tm_mday,
@@ -218,7 +205,7 @@ fileset_get_filename_by_pattern(guint idx, const wtap_rec *rec,
     gchar *timestr;
     gchar *abs_str;
 
-    g_snprintf(filenum, sizeof(filenum), "%05u", idx % RINGBUFFER_MAX_NUM_FILES);
+    snprintf(filenum, sizeof(filenum), "%05u", idx % RINGBUFFER_MAX_NUM_FILES);
     if (rec->presence_flags & WTAP_HAS_TS) {
         timestr = abs_time_to_str_with_sec_resolution(&rec->ts);
         abs_str = g_strconcat(fprefix, "_", filenum, "_", timestr, fsuffix, NULL);
@@ -749,7 +736,7 @@ print_usage(FILE *output)
     fprintf(output, "\n");
     fprintf(output, "Usage: editcap [options] ... <infile> <outfile> [ <packet#>[-<packet#>] ... ]\n");
     fprintf(output, "\n");
-    fprintf(output, "<infile> and <outfile> must both be present.\n");
+    fprintf(output, "<infile> and <outfile> must both be present; use '-' for stdin or stdout.\n");
     fprintf(output, "A single packet or a range of packets can be selected.\n");
     fprintf(output, "\n");
     fprintf(output, "Packet selection:\n");
@@ -767,14 +754,14 @@ print_usage(FILE *output)
     fprintf(output, "  -d                     remove packet if duplicate (window == %d).\n", DEFAULT_DUP_DEPTH);
     fprintf(output, "  -D <dup window>        remove packet if duplicate; configurable <dup window>.\n");
     fprintf(output, "                         Valid <dup window> values are 0 to %d.\n", MAX_DUP_DEPTH);
-    fprintf(output, "                         NOTE: A <dup window> of 0 with -v (verbose option) is\n");
+    fprintf(output, "                         NOTE: A <dup window> of 0 with -V (verbose option) is\n");
     fprintf(output, "                         useful to print MD5 hashes.\n");
     fprintf(output, "  -w <dup time window>   remove packet if duplicate packet is found EQUAL TO OR\n");
     fprintf(output, "                         LESS THAN <dup time window> prior to current packet.\n");
     fprintf(output, "                         A <dup time window> is specified in relative seconds\n");
     fprintf(output, "                         (e.g. 0.000001).\n");
     fprintf(output, "           NOTE: The use of the 'Duplicate packet removal' options with\n");
-    fprintf(output, "           other editcap options except -v may not always work as expected.\n");
+    fprintf(output, "           other editcap options except -V may not always work as expected.\n");
     fprintf(output, "           Specifically the -r, -t or -S options will very likely NOT have the\n");
     fprintf(output, "           desired effect if combined with the -d, -D or -w.\n");
     fprintf(output, "  --skip-radiotap-header skip radiotap header when checking for packet duplicates.\n");
@@ -849,12 +836,12 @@ print_usage(FILE *output)
     fprintf(output, "                         command line.\n");
     fprintf(output, "\n");
     fprintf(output, "Miscellaneous:\n");
-    fprintf(output, "  -h                     display this help and exit.\n");
-    fprintf(output, "  -v                     verbose output.\n");
-    fprintf(output, "                         If -v is used with any of the 'Duplicate Packet\n");
+    fprintf(output, "  -h, --help             display this help and exit.\n");
+    fprintf(output, "  -V                     verbose output.\n");
+    fprintf(output, "                         If -V is used with any of the 'Duplicate Packet\n");
     fprintf(output, "                         Removal' options (-d, -D or -w) then Packet lengths\n");
     fprintf(output, "                         and MD5 hashes are printed to standard-error.\n");
-    fprintf(output, "  -V, --version          print version information and exit.\n");
+    fprintf(output, "  -v, --version          print version information and exit.\n");
 }
 
 struct string_elem {
@@ -1036,7 +1023,7 @@ editcap_dump_open(const char *filename, const wtap_dump_params *params,
                 int close_err;
                 gchar *close_err_info;
 
-                wtap_dump_close(pdh, &close_err, &close_err_info);
+                wtap_dump_close(pdh, NULL, &close_err, &close_err_info);
                 g_free(close_err_info);
                 wtap_block_unref(if_data_copy);
                 return NULL;
@@ -1115,7 +1102,7 @@ process_new_idbs(wtap *wth, wtap_dumper *pdh, GArray *idbs_seen,
 int
 main(int argc, char *argv[])
 {
-    char         *init_progfile_dir_error;
+    char         *configuration_init_error;
     static const struct report_message_routines editcap_report_routines = {
         failure_message,
         failure_message,
@@ -1148,7 +1135,7 @@ main(int argc, char *argv[])
         {"inject-secrets", ws_required_argument, NULL, LONGOPT_INJECT_SECRETS},
         {"discard-all-secrets", ws_no_argument, NULL, LONGOPT_DISCARD_ALL_SECRETS},
         {"help", ws_no_argument, NULL, 'h'},
-        {"version", ws_no_argument, NULL, 'V'},
+        {"version", ws_no_argument, NULL, 'v'},
         {"capture-comment", ws_required_argument, NULL, LONGOPT_CAPTURE_COMMENT},
         {"discard-capture-comment", ws_no_argument, NULL, LONGOPT_DISCARD_CAPTURE_COMMENT},
         {0, 0, 0, 0 }
@@ -1205,7 +1192,7 @@ main(int argc, char *argv[])
 #endif /* _WIN32 */
 
     /* Initialize the version information. */
-    ws_init_version_info("Editcap (Wireshark)", NULL, NULL, NULL);
+    ws_init_version_info("Editcap", NULL, NULL);
 
     /*
      * Get credential information for later use.
@@ -1216,12 +1203,12 @@ main(int argc, char *argv[])
      * Attempt to get the pathname of the directory containing the
      * executable file.
      */
-    init_progfile_dir_error = init_progfile_dir(argv[0]);
-    if (init_progfile_dir_error != NULL) {
+    configuration_init_error = configuration_init(argv[0], NULL);
+    if (configuration_init_error != NULL) {
         fprintf(stderr,
                 "editcap: Can't get pathname of directory containing the editcap program: %s.\n",
-                init_progfile_dir_error);
-        g_free(init_progfile_dir_error);
+                configuration_init_error);
+        g_free(configuration_init_error);
     }
 
     init_report_message("editcap", &editcap_report_routines);
@@ -1370,7 +1357,7 @@ main(int argc, char *argv[])
             nstime_t in_time;
 
             check_startstop = TRUE;
-            if ((0 < iso8601_to_nstime(&in_time, ws_optarg)) || (0 < unix_epoch_to_nstime(&in_time, ws_optarg))) {
+            if ((0 < iso8601_to_nstime(&in_time, ws_optarg, ISO8601_DATETIME)) || (0 < unix_epoch_to_nstime(&in_time, ws_optarg))) {
                 if (opt == 'A') {
                     nstime_copy(&starttime, &in_time);
                     have_starttime = TRUE;
@@ -1541,16 +1528,16 @@ main(int argc, char *argv[])
             }
             break;
 
-        case 'v':
+        case 'V':
             if (verbose) {
-                cmdarg_err("-v was specified twice");
+                cmdarg_err("-V was specified twice");
                 ret = INVALID_OPTION;
                 goto clean_exit;
             }
             verbose = TRUE;
             break;
 
-        case 'V':
+        case 'v':
             show_version();
             goto clean_exit;
             break;
@@ -1851,7 +1838,7 @@ main(int argc, char *argv[])
                 }
                 while (nstime_cmp(&rec->ts, &block_next) > 0) { /* time for the next file */
 
-                    if (!wtap_dump_close(pdh, &write_err, &write_err_info)) {
+                    if (!wtap_dump_close(pdh, NULL, &write_err, &write_err_info)) {
                         cfile_close_failure_message(filename, write_err,
                                                     write_err_info);
                         ret = WRITE_ERROR;
@@ -1883,7 +1870,7 @@ main(int argc, char *argv[])
         if (split_packet_count != 0) {
             /* time for the next file? */
             if (written_count > 0 && (written_count % split_packet_count) == 0) {
-                if (!wtap_dump_close(pdh, &write_err, &write_err_info)) {
+                if (!wtap_dump_close(pdh, NULL, &write_err, &write_err_info)) {
                     cfile_close_failure_message(filename, write_err,
                                                 write_err_info);
                     ret = WRITE_ERROR;
@@ -2315,7 +2302,7 @@ main(int argc, char *argv[])
         }
     }
 
-    if (!wtap_dump_close(pdh, &write_err, &write_err_info)) {
+    if (!wtap_dump_close(pdh, NULL, &write_err, &write_err_info)) {
         cfile_close_failure_message(filename, write_err, write_err_info);
         ret = WRITE_ERROR;
         goto clean_exit;

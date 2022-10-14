@@ -3,13 +3,13 @@
 > gowireshark 是一个提供 wireshark 协议解析功能的golang包
 
 - 暂仅支持linux平台，此库在ubuntu22.04中开发测试
-- 基于 wireshark3.6.8、libpcap1.10.1
+- 基于 wireshark4.0.0、libpcap1.10.1
 - 用c和go封装 wireshark，是一个golang包
 ---
 ## 1.项目结构说明
 
 ### 1.1. 依赖组件：
-- 内置：lwiretap、lwsutil、lwireshark
+- 内置：lwiretap、lwsutil、lwireshark、lpcap
 - 系统需要安装：glib-2.0
 
 ### 1.2. 项目结构
@@ -44,18 +44,19 @@ gowireshark
 ├── libs/
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
-│   ├── libwireshark.so.15
-│   ├── libwireshark.so.15.0.8
+│   ├── libwireshark.so.16
+│   ├── libwireshark.so.16.0.0
 │   ├── libwiretap.so
-│   ├── libwiretap.so.12
-│   ├── libwiretap.so.12.0.8
+│   ├── libwiretap.so.13
+│   ├── libwiretap.so.13.0.0
 │   ├── libwsutil.so
-│   ├── libwsutil.so.13
-│   └── libwsutil.so.13.1.0
+│   ├── libwsutil.so.14
+│   └── libwsutil.so.14.0.0
 ├── offline.c
 ├── online.c
 ├── pcaps/
-│   └── s7comm_clean.pcap
+│   ├── s7comm_clean.pcap
+│   └── wincc_s400_production.pcap
 └── tests/
     └── gowireshark_test.go
 ```
@@ -100,7 +101,9 @@ go get github.com/randolphcyg/gowireshark
 
 阿里云盘下载：「gowireshark-libs」https://www.aliyundrive.com/s/j3aVfoFtHgp
 
-将9个文件放到/libs目录下即可。
+根据系统选择，wireshark版本选择最新版本，否则将和代码不兼容。
+
+将9个wireshark动态链接库文件和1个libpcap动态链接库文件放到/libs目录下即可。
 
 ### 3.3. 测试代码：
 
@@ -133,23 +136,28 @@ go get github.com/randolphcyg/gowireshark
 
 ### 4.1. 更新wireshark源码及编译动态链接库
 
-在linux下编译动态链接库，同时注意**尽量将另一份未操作过的源码解压修改名字放到 include/wireshark 目录，保持不修改源码**
+在linux下编译动态链接库,若更新动态链接库，include/wireshark/目录需要同步更新，同时测试各接口是否发生变动。
 
 <details>
 <summary>编译wireshark动态链接库</summary>
 
 ```
+在/opt目录下操作
+cd /opt/
+
 下载
-wget https://2.na.dl.wireshark.org/src/wireshark-3.6.8.tar.xz
+wget https://2.na.dl.wireshark.org/src/wireshark-4.0.0.tar.xz
 
 解压并修改文件夹名
-tar -xvf wireshark-3.6.8.tar.xz
-mv wireshark-3.6.8 wireshark
+tar -xvf wireshark-4.0.0.tar.xz
+mv wireshark-4.0.0 wireshark
 
-到正确文件夹目录下
+到wireshark目录下
 cd wireshark/
 
-测试 若有报红参考依赖解决步骤；直到往上翻阅日志没有依赖报错，才往下走
+-------------环境中编译所需的依赖-----------------------------------
+
+[仅测试] 输出日志有爆红则解决依赖问题，到qt5时忽略报错，删除CMakeCache.txt、CMakeFiles/
 cmake -LH ./
 
 若没有cmake3.20以上版本请安装
@@ -182,43 +190,37 @@ apt install ninja-build -y
 apt install pcaputils -y
 apt install libpcap-dev -y
 
+-------------环境中编译所需的依赖-----------------------------------
+
+解决完依赖问题，删除之前测试用生成的文件
+rm ../CMakeCache.txt
+rm -rf ../CMakeFiles/
+
 创建目录
 mkdir build
 cd build
 
-删除之前测试用生成的文件 一定要删除
-rm ../CMakeCache.txt
-rm -rf ../CMakeFiles/
-
-构建(生成的文件将在build中)
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_wireshark=off -DENABLE_LUA=off ..
-
-生产用这一个
+构建[生产用]
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_wireshark=off -DENABLE_LUA=off ..
 
-编译(时间略长一些)
+编译(时间较长)
 ninja
 
 编译成功进入run目录下查看编译好的动态链接库
 cd run/
 
-查看
+查看，出现so后缀的动态链接库即可
 ls -lh
 
-将动态链接库移动到libs目录下 一共是9个，如果之前有旧版本的记得将旧版本的删除
-cd ../../../../libs/
-cp ../include/wireshark/build/run/lib*so* .
+将动态链接库移动到libs目录下 一共是9个(如果之前有旧版本的记得将旧版本的删除)
+cd 项目根目录/libs/
+cp/opt/wireshark/build/run/lib*so* .
 
-最后删除编译用到的文件夹及源码包
 先删除因为编译被污染的文件夹
-rm -rf wireshark/
+rm -rf /opt/wireshark/build/
 
-然后拿着源码包在解压
-tar -xvf wireshark-3.6.8.tar.xz
-mv wireshark-3.6.8 wireshark
-
-删除源码包
-rm wireshark-3.6.8.tar.xz
+将源码替换到include/wireshark
+cp /opt/wireshark/ 项目根目录/include/wireshark/
 
 查看项目目录结构(项目跟目录上一层执行)
 tree -L 2 -F gowireshark
@@ -235,12 +237,12 @@ tree -L 2 -F gowireshark
     
    例：`clang-format -i lib.c`，带参数-i表示此命令直接格式化指定文件，去掉-i即可预览；
 
-   修改根目录下所有.c文件、include/目录下所有.h头文件：
+   修改根目录下所有.c文件、include/目录下所有.h头文件(仅当前目录1层，不向下遍历查找)：
    ```shell
    find . -maxdepth 1 -name '*.c' | grep -v 'cJSON.c' | xargs  clang-format -i
    find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | xargs  clang-format -i
    ```
-6. 在linux环境测试
+6. 在linux环境测试tests/目录下测试
    非特殊情况请进行指定函数测试，例如:
    ```shell
    # 解析并输出第一帧
@@ -249,12 +251,14 @@ tree -L 2 -F gowireshark
    go test -v -run TestGetSpecificFrameProtoTreeInJson
    # 解析并输出某一帧的hex等数据
    go test -v -run TestGetSpecificFrameHexData
+   # 实时解析数据包
+   go test -v -run TestDissectPktLive
    ```
 
 ## 5. TODO
 
-1. ~~修复解析数据包过程错误截断问题~~
-2. ~~增加输出json格式解析结果~~
-3. ~~增加输出16进制数据~~
-4. ~~增加实时监听抓包功能~~
-5. 增加实时解析功能
+1. ~~离线数据包文件解析打印~~
+2. ~~离线数据包文件解析并输出json格式~~
+3. ~~16进制数据获取~~
+4. ~~实时监听接口并抓包~~
+5. 实时解析从接口抓到的数据包

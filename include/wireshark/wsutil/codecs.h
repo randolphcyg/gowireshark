@@ -1,4 +1,4 @@
-/* codecs.h
+/** @file
  * codecs interface   2007 Tomas Kukosa
  *
  * Wireshark - Network traffic analyzer
@@ -11,8 +11,8 @@
 #ifndef _CODECS_H_
 #define _CODECS_H_
 
-#include "ws_symbol_export.h"
-#include "ws_attributes.h"
+#include "include/ws_symbol_export.h"
+#include "include/ws_attributes.h"
 
 #include <glib.h>
 

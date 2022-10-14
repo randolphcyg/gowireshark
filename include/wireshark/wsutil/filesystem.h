@@ -1,4 +1,4 @@
-/* filesystem.h
+/** @file
  * Filesystem utility definitions
  *
  * Wireshark - Network traffic analyzer
@@ -11,8 +11,7 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
-#include "ws_symbol_export.h"
-#include "ws_attributes.h"
+#include <include/wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,13 +22,35 @@ extern "C" {
  */
 #define DEFAULT_PROFILE      "Default"
 
-
-/*
+/**
+ * Initialize our configuration environment.
+ *
  * Get the pathname of the directory from which the executable came,
- * and save it for future use.  Returns NULL on success, and a
- * g_mallocated string containing an error on failure.
+ * and save it for future use.
+ *
+ * Set our configuration namespace, which determines the top-level
+ * configuration directory name and environment variable prefixes.
+ * Default is "Wireshark".
+ *
+ * @param arg0 Executable name hint. Should be argv[0].
+ * @param namespace_name The namespace to use. "Wireshark" or NULL uses
+ *        the Wireshark namespace. "Logray" uses the Logray namespace.
+ * @return NULL on success, and a g_mallocated string containing an error on failure.
  */
-WS_DLL_PUBLIC char *init_progfile_dir(const char *arg0);
+WS_DLL_PUBLIC char *configuration_init(const char *arg0, const char *namespace_name);
+
+/**
+ * Get the configuration namespace name.
+ * @return The namespace name. One of "Wireshark" or "Logray".
+ */
+WS_DLL_PUBLIC const char *get_configuration_namespace(void);
+
+/**
+ * Check to see if the configuration namespace is for packet analysis
+ * (Wireshark) or log analysis (Logray).
+ * @return true if the configuration namespace is for packets.
+ */
+WS_DLL_PUBLIC bool is_packet_configuration_namespace(void);
 
 /*
  * Get the directory in which the program resides.
@@ -38,7 +59,7 @@ WS_DLL_PUBLIC const char *get_progfile_dir(void);
 
 /*
  * Get the directory in which plugins are stored; this must not be called
- * before init_progfile_dir() is called, as they might be stored in a
+ * before configuration_init() is called, as they might be stored in a
  * subdirectory of the program file directory.
  */
 WS_DLL_PUBLIC const char *get_plugins_dir(void);
@@ -60,7 +81,7 @@ WS_DLL_PUBLIC const char *get_plugins_pers_dir_with_version(void);
 
 /*
  * Get the directory in which extcap hooks are stored; this must not be called
- * before init_progfile_dir() is called, as they might be stored in a
+ * before configuration_init() is called, as they might be stored in a
  * subdirectory of the program file directory.
  */
 WS_DLL_PUBLIC const char *get_extcap_dir(void);

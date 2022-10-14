@@ -164,14 +164,14 @@ set_source_files_properties(
 
 add_library(wiretap
 	${WIRETAP_FILES}
-	${CMAKE_BINARY_DIR}/image/wiretap.rc
+	${CMAKE_BINARY_DIR}/resources/libwiretap.rc
 )
 
 set_target_properties(wiretap PROPERTIES
 	PREFIX "lib"
 	COMPILE_DEFINITIONS "WS_BUILD_DLL"
 	LINK_FLAGS "${WS_LINK_FLAGS}"
-	VERSION "12.0.8" SOVERSION 12
+	VERSION "13.0.0" SOVERSION 13
 	FOLDER "DLLs"
 	INSTALL_RPATH "${LIBRARY_INSTALL_RPATH}"
 )

@@ -1,4 +1,4 @@
-/* rtp_player_dialog.h
+/** @file
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -26,7 +26,14 @@
 #include <QTreeWidgetItem>
 #include <QMetaType>
 #include <ui/qt/widgets/qcustomplot.h>
-#include <QAudioDeviceInfo>
+
+#ifdef QT_MULTIMEDIA_LIB
+# if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+# include <QAudioDevice>
+# else
+# include <QAudioDeviceInfo>
+# endif
+#endif
 
 namespace Ui {
 class RtpPlayerDialog;
@@ -116,8 +123,10 @@ public slots:
     void rtpAnalysisAdd();
     void rtpAnalysisRemove();
 
+#endif
 protected:
     explicit RtpPlayerDialog(QWidget &parent, CaptureFile &cf, bool capture_running);
+#ifdef QT_MULTIMEDIA_LIB
     ~RtpPlayerDialog();
 
     virtual void showEvent(QShowEvent *);
@@ -173,8 +182,8 @@ private slots:
     void on_actionAudioRoutingMuteInvert_triggered();
     void on_streamTreeWidget_itemSelectionChanged();
     void on_streamTreeWidget_itemDoubleClicked(QTreeWidgetItem *item, const int column);
-    void on_outputDeviceComboBox_currentIndexChanged(const QString &);
-    void on_outputAudioRate_currentIndexChanged(const QString &);
+    void on_outputDeviceComboBox_currentTextChanged(const QString &);
+    void on_outputAudioRate_currentTextChanged(const QString &);
     void on_jitterSpinBox_valueChanged(double);
     void on_timingComboBox_currentIndexChanged(int);
     void on_todCheckBox_toggled(bool checked);
@@ -194,10 +203,17 @@ private slots:
     void on_actionPrepareFilter_triggered();
     void on_actionReadCapture_triggered();
 
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    void sinkStateChanged();
+#endif
+
+#endif
 private:
     static RtpPlayerDialog *pinstance_;
-    static std::mutex mutex_;
+    static std::mutex init_mutex_;
+    static std::mutex run_mutex_;
 
+#ifdef QT_MULTIMEDIA_LIB
     Ui::RtpPlayerDialog *ui;
     QMenu *graph_ctx_menu_;
     QMenu *list_ctx_menu_;
@@ -214,7 +230,13 @@ private:
     QSharedPointer<QCPAxisTickerDateTime> datetime_ticker_;
     bool stereo_available_;
     QList<RtpAudioStream *> playing_streams_;
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    QAudioSink *marker_stream_;
+    QTimer notify_timer_;
+    qint64 notify_timer_start_diff_;    // Used to shift play cursor to correct place
+#else
     QAudioOutput *marker_stream_;
+#endif
     quint32 marker_stream_requested_out_rate_;
     QTreeWidgetItem *last_ti_;
     bool listener_removed_;
@@ -234,7 +256,7 @@ private:
 
     // Tap callbacks
 //    static void tapReset(void *tapinfo_ptr);
-    static tap_packet_status tapPacket(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *, const void *rtpinfo_ptr);
+    static tap_packet_status tapPacket(void *tapinfo_ptr, packet_info *pinfo, epan_dissect_t *, const void *rtpinfo_ptr, tap_flags_t flags);
     static void tapDraw(void *tapinfo_ptr);
 
     void addPacket(packet_info *pinfo, const struct _rtp_info *rtpinfo);
@@ -250,8 +272,13 @@ private:
     void updateStartStopTime(rtpstream_info_t *rtpstream, bool is_first);
     void formatAudioRouting(QTreeWidgetItem *ti, AudioRouting audio_routing);
     bool isStereoAvailable();
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    QAudioSink *getSilenceAudioOutput();
+    QAudioDevice getCurrentDeviceInfo();
+#else
     QAudioOutput *getSilenceAudioOutput();
     QAudioDeviceInfo getCurrentDeviceInfo();
+#endif
     QTreeWidgetItem *findItemByCoords(QPoint point);
     QTreeWidgetItem *findItem(QCPAbstractPlottable *plottable);
     void handleItemHighlight(QTreeWidgetItem *ti, bool scroll);
@@ -263,8 +290,8 @@ private:
     void fillAudioRateMenu();
     void cleanupMarkerStream();
 
-    qint64 saveAudioHeaderAU(QFile *save_file, int channels, unsigned audio_rate);
-    qint64 saveAudioHeaderWAV(QFile *save_file, int channels, unsigned audio_rate, qint64 samples);
+    qint64 saveAudioHeaderAU(QFile *save_file, quint32 channels, unsigned audio_rate);
+    qint64 saveAudioHeaderWAV(QFile *save_file, quint32 channels, unsigned audio_rate, qint64 samples);
     bool writeAudioSilenceSamples(QFile *out_file, qint64 samples, int stream_count);
     bool writeAudioStreamsSamples(QFile *out_file, QVector<RtpAudioStream *> streams, bool swap_bytes);
     save_audio_t selectFileAudioFormatAndName(QString *file_path);

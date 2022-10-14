@@ -75,24 +75,24 @@ Packet capturing is performed with the pcap library.  That library
 supports specifying a filter expression; packets that don't match that
 filter are discarded.  The *-f* option is used to specify a capture
 filter.  The syntax of a capture filter is defined by the pcap library;
-this syntax is different from the read filter syntax described below,
+this syntax is different from the display filter syntax described below,
 and the filtering mechanism is limited in its abilities.
 
-Read filters in *TShark*, which allow you to select which packets are
+Display filters in *TShark*, which allow you to select which packets are
 to be decoded or written to a file, are very powerful; more fields are
 filterable in *TShark* than in other protocol analyzers, and the syntax
 you can use to create your filters is richer.  As *TShark* progresses,
-expect more and more protocol fields to be allowed in read filters.
-Read filters use the same syntax as display and color filters in
-*Wireshark*; a read filter is specified with the *-R* option.
+expect more and more protocol fields to be allowed in display filters.
+Display filters use the same syntax as display and color filters in
+*Wireshark*; a display filter is specified with the *-Y* option.
 
-Read filters can be specified when capturing or when reading from a
-capture file.  Note that that capture filters are much more efficient
-than read filters, and it may be more difficult for *TShark* to keep up
-with a busy network if a read filter is specified for a live capture, so
-you might be more likely to lose packets if you're using a read filter.
+Display filters can be specified when capturing or when reading from a
+capture file.  Note that capture filters are much more efficient
+than display filters, and it may be more difficult for *TShark* to keep up
+with a busy network if a display filter is specified for a live capture, so
+you might be more likely to lose packets if you're using a display filter.
 
-A capture or read filter can either be specified with the *-f* or *-R*
+A capture or display filter can either be specified with the *-f* or *-Y*
 option, respectively, in which case the entire filter expression must be
 specified as a single argument (which means that if it contains spaces,
 it must be quoted), or can be specified with command-line arguments
@@ -100,13 +100,14 @@ after the option arguments, in which case all the arguments after the
 filter arguments are treated as a filter expression.  If the filter is
 specified with command-line arguments after the option arguments, it's a
 capture filter if a capture is being done (i.e., if no *-r* option was
-specified) and a read filter if a capture file is being read (i.e., if a
+specified) and a display filter if a capture file is being read (i.e., if a
 *-r* option was specified).
 
 If the *-w* option is specified when capturing packets or reading from
 a capture file, *TShark* does not display packets on the standard
 output.  Instead, it writes the packets to a capture file with the name
-specified by the *-w* option.
+specified by the *-w* option.  Note that display filters are currently
+not supported when capturing and saving the captured packets.
 
 If you want to write the decoded form of packets to a file, run
 *TShark* without the *-w* option, and redirect its standard output to
@@ -183,7 +184,9 @@ packet  will be read, so more bytes than this number may be read).  Note that
 the filesize is limited to a maximum value of 2 GiB.
 
 *packets*:__value__ switch to the next file after it contains __value__
-packets. Same as *-c*<capture packet count>.
+packets.
+This does not include any packets that do not pass the display filter, so it
+may differ from *-c*<capture packet count>.
 --
 
 -A  <user>:<password>::
@@ -243,7 +246,7 @@ packets.
 __value__ is 1, make running file number part before start time part; this is
 the original and default behaviour (e.g. log_00001_20220714164426.pcap).  If
 __value__ is greater than 1, make start time part before running number part
-(e.g. log_20210828164426_00001.pcap).  The latter makes alphabetical sortig
+(e.g. log_20210828164426_00001.pcap).  The latter makes alphabetical sorting
 order equal to creation time order, and keeps related multiple file sets in
 same directory close to each other.
 
@@ -278,8 +281,10 @@ the default capture buffer size is used instead.
 +
 --
 Set the maximum number of packets to read when capturing live
-data. Same as *-a packets:*<capture packet count>.
+data.
 If reading a capture file, set the maximum number of packets to read.
+This includes any packets that do not pass the display filter, so it
+may differ from *-a packets:*<capture packet count>.
 --
 
 -C  <configuration profile>::
@@ -345,10 +350,13 @@ selected. Column names may be used prefixed with "_ws.col."
 
 Example: *tshark -e frame.number -e ip.addr -e udp -e _ws.col.Info*
 
-Giving a protocol rather than a single field will print multiple items
-of data about the protocol as a single field.  Fields are separated by
-tab characters by default.  *-E* controls the format of the printed
-fields.
+Fields are separated by tab characters by default.  *-E* controls the
+format of the printed fields.
+Giving a protocol rather than a single field will print the protocol summary
+(subtree label) from the packet details as a single field.
+If the protocol summary contains only the protocol name
+(e.g. "Hypertext Transfer Protocol") then the protocol filter name ("http")
+will be printed.
 --
 
 -E  <field print option>::
@@ -595,7 +603,7 @@ there are no non-loopback interfaces.  If there are no interfaces at all,
 
 Pipe names should be either the name of a FIFO (named pipe) or "-" to
 read data from the standard input.  On Windows systems, pipe names must be
-of the form "\\pipe\.\*pipename*".  Data read from pipes must be in
+of the form +"\\.\pipe\+*pipename*".  Data read from pipes must be in
 standard pcapng or pcap format. Pcapng data must have the same
 endianness as the capturing host.
 
@@ -960,6 +968,14 @@ multi-line view of the details of each of the packets, depending on
 whether the *-V* option was specified.  This is the default.
 --
 
+--temp-dir <directory>::
++
+--
+Specifies the directory into which temporary files (including capture files)
+are to be written. The default behaviour is to use your system's temporary
+directory (typically __/tmp__ on Linux, and __C:\\Temp__ on Windows).
+--
+
 -u <seconds type>::
 +
 --
@@ -1028,6 +1044,76 @@ Cause *TShark* to print a hex and ASCII dump of the packet data
 after printing the summary and/or details, if either are also being displayed.
 --
 
+--hexdump <hexoption>::
++
+--
+Cause *TShark* to print a hex and ASCII dump of the packet data
+with the ability to select which data sources to dump and how to
+format or exclude the ASCII dump text.
+
+This option can be used multiple times where the data source *<hexoption>*
+is *all* or *frames* and the ASCII dump text *<hexoption>* is *ascii*,
+*delimit*, *noascii*.
+
+  Example:  tshark ... --hexdump frames --hexdump delimit ...
+
+*all*::
+
+Enable hexdump, generate hexdump blocks for all data sources associated
+with each frame. Used to negate earlier use of `--hexdump frames`.
+The *-x* option displays all data sources by default.
+
+*frames*::
+
+Enable hexdump, generate hexdump blocks only for the frame data. Use
+this option to exclude, from hexdump output, any hexdump blocks for
+secondary data sources such as 'Bitstring tvb', 'Reassembled TCP',
+'De-chunked entity body', etc.
+
+*ascii*::
+
+Enable hexdump, with undelimited ASCII dump text. Used to negate earlier
+use of `--hexdump delimit` or `--hexdump noascii`. The *-x* option
+displays undelimited ASCII dump text by default.
+
+*delimit*::
+
+Enable hexdump with the ASCII dump text delimited with '|' characters.
+This is useful to unambiguously determine the last of the hex byte text
+and start of the ASCII dump text.
+
+*noascii*::
+
+Enable hexdump without printing any ASCII dump text.
+
+*help*::
+
+Display --hexdump specific help then exit.
+
+The use of *--hexdump <hexoption>* is particularly useful to generate output
+that can be used to create a pcap or pcapng file from a capture file type such
+as Microsoft NetMon 2.x which *TShark* and *Wireshark* can read but can not
+directly do a "Save as" nor export packets from.
+
+Examples:
+
+Generate hexdump output, with only the frame data source, with delimited ASCII
+dump text, with each frame hex block preceeded by a human readable timestamp that
+is directly usable by the *text2pcap* utility:
+
+  tshark ... --hexdump frames --hexdump delimit \
+      -P -t ad -o gui.column.format:"Time","%t" \
+      | text2pcap -n -t '%F %T.%f' - MYNEWPCAPNG
+
+Generate hexdump output, with only the frame data source, with no ASCII dump text,
+with each frame hex block preceeded by an epoch timestamp that is directly
+usable by the *text2pcap* utility:
+
+  tshark ... --hexdump frames --hexdump noascii \
+      -P -t e -o gui.column.format:"Time","%t" \
+      | text2pcap -n -t %s.%f - MYNEWPCAPNG
+--
+
 -X <eXtension options>::
 +
 --
@@ -1047,8 +1133,13 @@ pass the string 'bar' to the second lua script, namely 'other.lua'.
 
 *read_format*:__file_format__ tells *TShark* to use the given file format to
 read in the file (the file given in the *-r* command option). Providing no
-__file_format__ argument, or an invalid one, will produce a file of available
-file formats to use.
+__file_format__ argument, or an invalid one, will produce a list of available
+file formats to use. For example,
+
+  tshark -r rtcp_broken.pcapng -X read_format:"MIME Files Format" -V
+
+will display the internal file structure  and allow access to the
+`file-pcapng` fields.
 --
 
 -y|--linktype  <capture link type>::
@@ -1085,7 +1176,7 @@ is one) will be checked against this filter.
 +
 --
 Automatically reset internal session when reached to specified number of packets.
-for example,
+For example,
 
     tshark -M 100000
 
@@ -1157,6 +1248,15 @@ Count the number of ANSI MAP messages of each type, and calculate the
 total number of bytes and average bytes of each message type.
 --
 
+*-z* asap,stat[,__filter__]::
++
+--
+Calculate statistics on Aggregate Service Access Protocol (ASAP).
+For each ASAP message type, displays the number, rate, and share among
+all ASAP message types of both packets and bytes, and the first and last
+time that it is seen.
+--
+
 *-z* bacapp_instanceid,tree[,__filter__]::
 +
 --
@@ -1189,6 +1289,15 @@ Displayed information includes source and destination address,
 object ID, and instance ID.
 --
 
+*-z* calcappprotocol,stat[,__filter__]::
++
+--
+Calculate statistics on the Calculation Application Protocol of
+Reliable Server Pooling.  For each message type, displays the number,
+rate, and share among all message types of both packets and bytes,
+and the first and last time that it is seen.
+--
+
 *-z* camel,counter[,__filter__]::
 +
 --
@@ -1212,38 +1321,48 @@ of collectd packets and the total number of value segments, along with the
 host, plugin, and type of the values.
 --
 
+*-z* componentstatusprotocol,stat[,__filter__]::
++
+--
+Calculate statistics on the Calculation Status Protocol of Reliable
+Server Pooling.  For each message type, displays the number, rate
+and share among all message types of both packets and bytes, and the
+first and last time that it is seen.
+--
+
 *-z* conv,__type__[,__filter__]::
 +
 --
 Create a table that lists all conversations that could be seen in the
-capture.  __type__ specifies the conversation endpoint types for which we
+capture.  __type__ specifies the conversation endpoint type for which we
 want to generate the statistics; currently the supported ones are:
 
-  "bluetooth"  Bluetooth addresses
-  "eth"   Ethernet addresses
-  "fc"    Fibre Channel addresses
-  "fddi"  FDDI addresses
-  "ip"    IPv4 addresses
-  "ipv6"  IPv6 addresses
-  "ipx"   IPX addresses
-  "jxta"  JXTA message addresses
-  "mptcp" Multipath TCP connections
-  "ncp"   NCP connections
-  "rsvp"  RSVP connections
-  "sctp"  SCTP addresses
-  "sll"   Linux "cooked mode" capture addresses
-  "tcp"   TCP/IP socket pairs  Both IPv4 and IPv6 are supported
-  "tr"    Token Ring addresses
-  "udp"   UDP/IP socket pairs  Both IPv4 and IPv6 are supported
-  "usb"   USB addresses
-  "wlan"  IEEE 802.11 addresses
-  "wpan"  IEEE 802.15.4 addresses
-  "zbee_nwk" ZigBee Network Layer addresses
+  "bluetooth" Bluetooth addresses
+  "dccp"      DCCP/IP socket pairs Both IPv4 and IPv6 are supported
+  "eth"       Ethernet addresses
+  "fc"        Fibre Channel addresses
+  "fddi"      FDDI addresses
+  "ip"        IPv4 addresses
+  "ipv6"      IPv6 addresses
+  "ipx"       IPX addresses
+  "jxta"      JXTA message addresses
+  "mptcp"     Multipath TCP connections
+  "ncp"       NCP connections
+  "rsvp"      RSVP connections
+  "sctp"      SCTP/IP socket pairs Both IPv4 and IPv6 are supported
+  "sll"       Linux "cooked mode" capture addresses
+  "tcp"       TCP/IP socket pairs  Both IPv4 and IPv6 are supported
+  "tr"        Token Ring addresses
+  "udp"       UDP/IP socket pairs  Both IPv4 and IPv6 are supported
+  "usb"       USB addresses
+  "wlan"      IEEE 802.11 addresses
+  "wpan"      IEEE 802.15.4 addresses
+  "zbee_nwk"  ZigBee Network Layer addresses
 
-The table is presented with one line for each conversation and displays
-the number of packets/bytes in each direction as well as the total
-number of packets/bytes.  The table is sorted according to the total
-number of frames.
+The table is presented with one line for each conversation which displays
+the number of frames/bytes in each direction, the total number of 
+frames/bytes, relative start time and duration. 
+The table is sorted according to the total number of frames.
 --
 
 *-z* credentials::
@@ -1293,7 +1412,7 @@ This option enables extraction of most important diameter fields from large
 capture files. Exactly one text line for each diameter message with matched
 *diameter.cmd.code* will be printed.
 
-Empty diameter command code or '*' can be specified to mach any *diameter.cmd.code*
+Empty diameter command code or +'*'+ can be specified to match any *diameter.cmd.code*
 
 Example: *-z diameter,avp*  extract default field set from diameter messages.
 
@@ -1354,34 +1473,44 @@ payload) max, min and average values are also displayed.
 +
 --
 Create a table that lists all endpoints that could be seen in the
-capture.  __type__ specifies the endpoint types for which we
+capture.  __type__ specifies the endpoint type for which we
 want to generate the statistics; currently the supported ones are:
 
-  "bluetooth"  Bluetooth addresses
-  "eth"   Ethernet addresses
-  "fc"    Fibre Channel addresses
-  "fddi"  FDDI addresses
-  "ip"    IPv4 addresses
-  "ipv6"  IPv6 addresses
-  "ipx"   IPX addresses
-  "jxta"  JXTA message addresses
-  "mptcp" Multipath TCP connections
-  "ncp"   NCP connections
-  "rsvp"  RSVP connections
-  "sctp"  SCTP addresses
-  "sll"   Linux "cooked mode" capture addresses
-  "tcp"   TCP/IP socket pairs  Both IPv4 and IPv6 are supported
-  "tr"    Token Ring addresses
-  "udp"   UDP/IP socket pairs  Both IPv4 and IPv6 are supported
-  "usb"   USB addresses
-  "wlan"  IEEE 802.11 addresses
-  "wpan"  IEEE 802.15.4 addresses
-  "zbee_nwk" ZigBee Network Layer addresses
+  "bluetooth" Bluetooth addresses
+  "dccp"      DCCP/IP socket pairs Both IPv4 and IPv6 are supported
+  "eth"       Ethernet addresses
+  "fc"        Fibre Channel addresses
+  "fddi"      FDDI addresses
+  "ip"        IPv4 addresses
+  "ipv6"      IPv6 addresses
+  "ipx"       IPX addresses
+  "jxta"      JXTA message addresses
+  "mptcp"     Multipath TCP connections
+  "ncp"       NCP connections
+  "rsvp"      RSVP connections
+  "sctp"      SCTP/IP socket pairs Both IPv4 and IPv6 are supported
+  "sll"       Linux "cooked mode" capture addresses
+  "tcp"       TCP/IP socket pairs  Both IPv4 and IPv6 are supported
+  "tr"        Token Ring addresses
+  "udp"       UDP/IP socket pairs  Both IPv4 and IPv6 are supported
+  "usb"       USB addresses
+  "wlan"      IEEE 802.11 addresses
+  "wpan"      IEEE 802.15.4 addresses
+  "zbee_nwk"  ZigBee Network Layer addresses
 
-The table is presented with one line for each conversation and displays
-the number of packets/bytes in each direction as well as the total
-number of packets/bytes.  The table is sorted according to the total
-number of frames.
+The table is presented with one line for each endpoint which displays
+the total number of packets/bytes and the number of packets/bytes in
+each direction.
+The table is sorted according to the total number of packets.
+--
+
+*-z* enrp,stat[,__filter__]::
++
+--
+Calculate statistics on Endpoint Handlespace Redundancy Protocol (ENRP).
+For each message type, displays the number, rate, and share among
+all message types of both packets and bytes, and the first and last
+time that it is seen.
 --
 
 *-z* expert[__,error|,warn|,note|,chat|,comment__][,__filter__]::
@@ -1397,6 +1526,41 @@ This option can be used multiple times on the command line.
 
 Example: *-z "expert,note,tcp"* will only collect expert items for frames that
 include the tcp protocol, with a severity of note or higher.
+--
+
+*-z* f1ap,tree[,__filter__]::
++
+--
+Calculate the distribution of F1AP packets, grouped by packet types.
+--
+
+*-z* f5_tmm_dist,tree[,__filter__]::
++
+--
+Calculate the F5 Ethernet trailer Traffic Managment Microkernel distribution.
+Displayed information is the number of packets and bytes, grouped by the TMM
+slot and number, whether packets are ingress or egress, and whether there is
+a flow ID and virtual server name, a flow ID without virtual server name, or
+no flow ID, along with total for all packets with F5 trailers.
+--
+
+*-z* f5_virt_dist,tree[,__filter__]::
++
+--
+Calculate F5 Ethernet trailer Virtual Server distribution.
+Displayed information is the number of packets and bytes, grouped by the
+virtual server name if it exists, or by whether there is a flow ID or not
+if there is no virtual server name, as well as totals for all packets with
+F5 trailers.
+--
+
+*-z* fc,srt[,__filter__]::
++
+--
+Collect requests/response SRT (Service Response Time) data for GTP.
+Data collected is the number of request/response pairs, mimimum SRT,
+maximum SRT, average SRT, and sum SRT for each value of the Type field
+(next protocol).  No statistics are gathered on unpaired messages.
 --
 
 *-z* flow,__name__,__mode__[,__filter__]::
@@ -1432,10 +1596,15 @@ __prot__ specifies the transport protocol.  It can be one of:
 
   tcp   TCP
   udp   UDP
+  dccp  DCCP
   tls   TLS or SSL
   http  HTTP streams
   http2 HTTP/2 streams
   quic  QUIC streams
+
+NOTE: While the usage help presents sip as an option, the proper
+stream filters are not implemented so SIP calls cannot be followed
+in *TShark*, only in *Wireshark*.
 
 __mode__ specifies the output mode.  It can be one of:
 
@@ -1454,12 +1623,12 @@ __filter__ specifies the stream to be displayed. There are three formats:
   stream-index
   stream-index,substream-index
 
-The first format specifies IP addresses and TCP or UDP port pairs. (TCP ports
-are used for TLS, HTTP, and HTTP2; QUIC does not support address and port
-matching because of connection migration.)
+The first format specifies IP addresses and TCP, UDP, or DCCP port pairs.
+(TCP ports are used for TLS, HTTP, and HTTP2; QUIC does not support address
+and port matching because of connection migration.)
 
-The second format specifies stream indices, and is used for TCP, UDP, TLS, and
-HTTP. (TLS and HTTP use TCP stream indices.)
+The second format specifies stream indices, and is used for TCP, UDP, DCCP,
+TLS, and HTTP. (TLS and HTTP use TCP stream indices.)
 
 The third format, specifying streams and substreams, is used for HTTP/2 and
 QUIC due to their use of multiplexing. (TCP stream and HTTP/2 stream indices
@@ -1513,6 +1682,15 @@ stream on the first TCP session (index 0) with HTTP/2 Stream ID 1.
       00000020  34 a0 5b b8 21 5c 0b ea  62 d1 bf                 4.[.!\.. b..
       0000002B  00 40 00 00 00 00 00 00  01 89 50 4e 47 0d 0a 1a  .@...... ..PNG...
 
+--
+
+*-z* fractalgeneratorprotocol,stat[,__filter__]::
++
+--
+Calculate statistics on the Fractal Generator Protocol of Reliable
+Server Pooling.  For each message type, displays the number, rate
+and share among all message types of both packets and bytes, and the
+first and last time that it is seen.
 --
 
 *-z* gsm_a::
@@ -1597,7 +1775,7 @@ Example: *-z "h225_ras,rtd,ip.addr==1.2.3.4"* will only collect stats for
 ITU-T H.225 RAS packets exchanged by the host at IP address 1.2.3.4 .
 --
 
-*-z* hart_ip,tree,[,__filter__]::
+*-z* hart_ip,tree[,__filter__]::
 +
 --
 Calculate statistics on HART-IP packets, grouping by message types and
@@ -1904,6 +2082,85 @@ Calculate statistics on ISUP messages. Displayed information is message
 types and direction (originating point code and destination point code.)
 --
 
+*-z* lbmr_queue_ads_queue,tree[,__filter__]::
++
+--
+Calculate statistics on LBM Topic Resolution Packets. Displays queue
+advertisements collated by queue name and then source addresses and port.
+--
+
+*-z* lbmr_queue_ads_source,tree[,__filter__]::
++
+--
+Calculate statistics on LBM Topic Resolution Packets. Displays queue
+advertisements collated by source address and then queue and port.
+--
+
+*-z* lbmr_queue_queries_queue,tree[,__filter__]::
++
+--
+Calculate statistics on LBM Topic Resolution Packets. Displays queue
+queries collated by queue name and then receiver addresses.
+--
+
+*-z* lbmr_queue_queries_receiver,tree[,__filter__]::
++
+--
+Calculate statistics on LBM Topic Resolution Packets. Displays queue
+queries collated by receiver address and then queue.
+--
+
+*-z* lbmr_topic_ads_source,tree[,__filter__]::
++
+--
+Calculate statistics on LBM Topic Resolution Packets. Displays topic
+advertisements collated by source address and then topic name and
+source string.
+--
+
+*-z* lbmr_topic_ads_topic,tree[,__filter__]::
++
+--
+Calculate statistics on LBM Topic Resolution Packets. Displays topic
+advertisements collated by topic name and then source address and
+source string.
+--
+
+*-z* lbmr_topic_ads_transport,tree[,__filter__]::
++
+--
+Calculate statistics on LBM Topic Resolution Packets. Displays topic
+advertisements collated by source string and then topic name.
+--
+
+*-z* lbmr_topic_queries_pattern,tree[,__filter__]::
++
+--
+Calculate statistics on LBM Topic Resolution Packets. Displays topic
+queries collated by pattern and then receiver address.
+--
+
+*-z* lbmr_topic_queries_pattern_receiver,tree[,__filter__]::
++
+--
+Calculate statistics on LBM Topic Resolution Packets. Displays topic
+queries collated by receiver address and then pattern.
+--
+
+*-z* lbmr_topic_queries_receiver,tree[,__filter__]::
++
+--
+Calculate statistics on LBM Topic Resolution Packets. Displays topic
+queries collated by receiver address and then topic name.
+--
+
+*-z* lbmr_topic_queries_topic,tree[,__filter__]::
++
+--
+Calculate statistics on LBM Topic Resolution Packets. Displays topic
+queries collated by topic name and then receiver address.
+--
+
 *-z* mac-lte,stat[,__filter__]::
 +
 --
@@ -1977,6 +2234,15 @@ the number of packets, number of packets with the RTP market bit set,
 number of AMR frames, jitter analysis, and sequence number analysis.
 --
 
+*-z* pingpongprotocol,stat[,__filter__]::
++
+--
+Calculate statistics on the Ping Pong Protocol of Reliable
+Server Pooling.  For each message type, displays the number, rate
+and share among all message types of both packets and bytes, and the
+first and last time that it is seen.
+--
+
 *-z* plen,tree[,__filter__]::
 +
 --
@@ -2019,7 +2285,6 @@ This option can be used multiple times on the command line.
 --
 Calculate statistics on port types that occur on IPv4 packets.
 --
-
 
 *-z* radius,rtd[,__filter__]::
 +
@@ -2156,6 +2421,29 @@ The current method used by *TShark* to find the SID->name mapping
 is relatively restricted with a hope of future expansion.
 --
 
+*-z* smb,srt[,__filter__]::
++
+--
+Collect call/reply SRT (Service Response Time) data for SMB.  Data collected
+is number of calls for each SMB command, MinSRT, MaxSRT and AvgSRT.
+
+Example: *-z smb,srt*
+
+The data will be presented as separate tables for all normal SMB commands,
+all Transaction2 commands and all NT Transaction commands.
+Only those commands that are seen in the capture will have its stats
+displayed.
+Only the first command in a xAndX command chain will be used in the
+calculation.  So for common SessionSetupAndX + TreeConnectAndX chains,
+only the SessionSetupAndX call will be used in the statistics.
+This is a flaw that might be fixed in the future.
+
+This option can be used multiple times on the command line.
+
+Example: *-z "smb,srt,ip.addr==1.2.3.4"* will only collect stats for
+SMB packets exchanged by the host at IP address 1.2.3.4 .
+--
+
 *-z* smb2,srt[,__filter__]::
 +
 --
@@ -2180,6 +2468,20 @@ Collect call/reply SRT (Service Response Time) data for SNMP. The data
 collected for each PDU type is the number of request/response pairs,
 MinSRT, MaxSRT, AvgSRT, and SumSRT.  No data is collected on unpaired
 messages.
+--
+
+*-z*  someip_messages,tree[,__filter__]::
++
+--
+Create statistic of SOME/IP messages. Messages are counted and displayed
+as Messages grouped by sender/receiver.
+--
+
+*-z*  someipsd_entries,tree[,__filter__]::
++
+--
+Create statistic of SOME/IP-SD entries. Entries are counted and displayed
+as Entries grouped by sender/receiver.
 --
 
 *-z* sv::
@@ -2292,6 +2594,8 @@ Enable dissection of heuristic protocol.
 --
 Disable dissection of heuristic protocol.
 --
+
+include::diagnostic-options.adoc[]
 
 == CAPTURE FILTER SYNTAX
 

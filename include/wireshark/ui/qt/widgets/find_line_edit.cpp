@@ -14,12 +14,14 @@
 #include <QAction>
 #include <QKeyEvent>
 #include <QMenu>
+#include <QRegularExpression>
 
 void FindLineEdit::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu *menu = createStandardContextMenu();
     QAction *action;
 
+    menu->setAttribute(Qt::WA_DeleteOnClose);
     menu->addSeparator();
 
     action = menu->addAction(tr("Textual Find"));
@@ -32,8 +34,7 @@ void FindLineEdit::contextMenuEvent(QContextMenuEvent *event)
     action->setChecked(use_regex_);
     connect(action, &QAction::triggered, this, &FindLineEdit::setUseRegex);
 
-    menu->exec(event->globalPos());
-    delete menu;
+    menu->popup(event->globalPos());
 }
 
 void FindLineEdit::keyPressEvent(QKeyEvent *event)
@@ -52,7 +53,7 @@ void FindLineEdit::validateText()
     if (!use_regex_ || text().isEmpty()) {
         setStyleSheet(style.arg(QString("")));
     } else {
-        QRegExp regexp(text());
+        QRegularExpression regexp(text(), QRegularExpression::UseUnicodePropertiesOption);
         if (regexp.isValid()) {
             setStyleSheet(style.arg(ColorUtils::fromColorT(prefs.gui_text_valid).name()));
         } else {

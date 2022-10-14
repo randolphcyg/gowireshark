@@ -29,7 +29,7 @@ value_get(fvalue_t *fv)
 }
 
 static gboolean
-val_from_unparsed(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, gchar **err_msg)
+val_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, gchar **err_msg)
 {
 	guint32	addr;
 	unsigned int nmask_bits;
@@ -53,7 +53,7 @@ val_from_unparsed(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_,
 
 	if (!get_host_ipaddr(addr_str, &addr)) {
 		if (err_msg != NULL) {
-			*err_msg = g_strdup_printf("\"%s\" is not a valid hostname or IPv4 address.",
+			*err_msg = ws_strdup_printf("\"%s\" is not a valid hostname or IPv4 address.",
 			    addr_str);
 		}
 		if (addr_str_to_free)
@@ -71,16 +71,16 @@ val_from_unparsed(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_,
 		net_str = slash + 1;
 
 		/* XXX - this is inefficient */
-		nmask_fvalue = fvalue_from_unparsed(FT_UINT32, net_str, FALSE, err_msg);
+		nmask_fvalue = fvalue_from_literal(FT_UINT32, net_str, FALSE, err_msg);
 		if (!nmask_fvalue) {
 			return FALSE;
 		}
 		nmask_bits = fvalue_get_uinteger(nmask_fvalue);
-		FVALUE_FREE(nmask_fvalue);
+		fvalue_free(nmask_fvalue);
 
 		if (nmask_bits > 32) {
 			if (err_msg != NULL) {
-				*err_msg = g_strdup_printf("Netmask bits in a CIDR IPv4 address should be <= 32, not %u",
+				*err_msg = ws_strdup_printf("Netmask bits in a CIDR IPv4 address should be <= 32, not %u",
 						nmask_bits);
 			}
 			return FALSE;
@@ -95,21 +95,11 @@ val_from_unparsed(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_,
 	return TRUE;
 }
 
-static int
-val_repr_len(fvalue_t *fv _U_, ftrepr_t rtype _U_, int field_display _U_)
-{
-	/*
-	 * 15 characters for "XXX.XXX.XXX.XXX".
-	 */
-	return 15;
-}
-
-/* We're assuming the buffer is at least WS_INET_ADDRSTRLEN (16 bytes) */
-static void
-val_to_repr(fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_, char *buf, unsigned int size _U_)
+static char *
+val_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_)
 {
 	guint32	ipv4_net_order = g_htonl(fv->value.ipv4.addr);
-	ip_to_str_buf((guint8*)&ipv4_net_order, buf, WS_INET_ADDRSTRLEN);
+	return ip_to_str(scope, (guint8*)&ipv4_net_order);
 }
 
 
@@ -119,81 +109,27 @@ val_to_repr(fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_, char *buf, 
  * So, for example, w.x.y.z/32 eq w.x.y.0/24 is TRUE.
  */
 
-static gboolean
-cmp_eq(const fvalue_t *fv_a, const fvalue_t *fv_b)
+static enum ft_result
+cmp_order(const fvalue_t *fv_a, const fvalue_t *fv_b, int *cmp)
 {
 	guint32		addr_a, addr_b, nmask;
 
 	nmask = MIN(fv_a->value.ipv4.nmask, fv_b->value.ipv4.nmask);
 	addr_a = fv_a->value.ipv4.addr & nmask;
 	addr_b = fv_b->value.ipv4.addr & nmask;
-	return (addr_a == addr_b);
+	if (addr_a == addr_b)
+		*cmp = 0;
+	else
+		*cmp = addr_a < addr_b ? -1 : 1;
+	return FT_OK;
 }
 
-static gboolean
-cmp_ne(const fvalue_t *fv_a, const fvalue_t *fv_b)
+static enum ft_result
+bitwise_and(fvalue_t *dst, const fvalue_t *fv_a, const fvalue_t *fv_b, char **err_ptr _U_)
 {
-	guint32		addr_a, addr_b, nmask;
-
-	nmask = MIN(fv_a->value.ipv4.nmask, fv_b->value.ipv4.nmask);
-	addr_a = fv_a->value.ipv4.addr & nmask;
-	addr_b = fv_b->value.ipv4.addr & nmask;
-	return (addr_a != addr_b);
-}
-
-static gboolean
-cmp_gt(const fvalue_t *fv_a, const fvalue_t *fv_b)
-{
-	guint32		addr_a, addr_b, nmask;
-
-	nmask = MIN(fv_a->value.ipv4.nmask, fv_b->value.ipv4.nmask);
-	addr_a = fv_a->value.ipv4.addr & nmask;
-	addr_b = fv_b->value.ipv4.addr & nmask;
-	return (addr_a > addr_b);
-}
-
-static gboolean
-cmp_ge(const fvalue_t *fv_a, const fvalue_t *fv_b)
-{
-	guint32		addr_a, addr_b, nmask;
-
-	nmask = MIN(fv_a->value.ipv4.nmask, fv_b->value.ipv4.nmask);
-	addr_a = fv_a->value.ipv4.addr & nmask;
-	addr_b = fv_b->value.ipv4.addr & nmask;
-	return (addr_a >= addr_b);
-}
-
-static gboolean
-cmp_lt(const fvalue_t *fv_a, const fvalue_t *fv_b)
-{
-	guint32		addr_a, addr_b, nmask;
-
-	nmask = MIN(fv_a->value.ipv4.nmask, fv_b->value.ipv4.nmask);
-	addr_a = fv_a->value.ipv4.addr & nmask;
-	addr_b = fv_b->value.ipv4.addr & nmask;
-	return (addr_a < addr_b);
-}
-
-static gboolean
-cmp_le(const fvalue_t *fv_a, const fvalue_t *fv_b)
-{
-	guint32		addr_a, addr_b, nmask;
-
-	nmask = MIN(fv_a->value.ipv4.nmask, fv_b->value.ipv4.nmask);
-	addr_a = fv_a->value.ipv4.addr & nmask;
-	addr_b = fv_b->value.ipv4.addr & nmask;
-	return (addr_a <= addr_b);
-}
-
-static gboolean
-cmp_bitwise_and(const fvalue_t *fv_a, const fvalue_t *fv_b)
-{
-	guint32		addr_a;
-	guint32		addr_b;
-
-	addr_a = fv_a->value.ipv4.addr & fv_a->value.ipv4.nmask;
-	addr_b = fv_b->value.ipv4.addr & fv_b->value.ipv4.nmask;
-	return ((addr_a & addr_b) != 0);
+	dst->value.ipv4 = fv_a->value.ipv4;
+	dst->value.ipv4.addr &= (fv_b->value.ipv4.addr & fv_b->value.ipv4.nmask);
+	return FT_OK;
 }
 
 static void
@@ -203,6 +139,12 @@ slice(fvalue_t *fv, GByteArray *bytes, guint offset, guint length)
 	guint32 addr = g_htonl(fv->value.ipv4.addr);
 	data = ((guint8*)&addr)+offset;
 	g_byte_array_append(bytes, data, length);
+}
+
+static gboolean
+is_zero(const fvalue_t *fv_a)
+{
+	return fv_a->value.ipv4.addr == 0;
 }
 
 void
@@ -215,30 +157,53 @@ ftype_register_ipv4(void)
 		"IPv4 address",			/* pretty_name */
 		4,				/* wire_size */
 		NULL,				/* new_value */
+		NULL,				/* copy_value */
 		NULL,				/* free_value */
-		val_from_unparsed,		/* val_from_unparsed */
+		val_from_literal,		/* val_from_literal */
 		NULL,				/* val_from_string */
+		NULL,				/* val_from_charconst */
 		val_to_repr,			/* val_to_string_repr */
-		val_repr_len,			/* len_string_repr */
+
+		NULL,				/* val_to_uinteger64 */
+		NULL,				/* val_to_sinteger64 */
 
 		{ .set_value_uinteger = set_uinteger },	/* union set_value */
 		{ .get_value_uinteger = value_get },	/* union get_value */
 
-		cmp_eq,
-		cmp_ne,
-		cmp_gt,
-		cmp_ge,
-		cmp_lt,
-		cmp_le,
-		cmp_bitwise_and,
+		cmp_order,
 		NULL,				/* cmp_contains */
 		NULL,				/* cmp_matches */
 
+		is_zero,
+		NULL,
 		NULL,
 		slice,
+		bitwise_and,
+		NULL,				/* unary_minus */
+		NULL,				/* add */
+		NULL,				/* subtract */
+		NULL,				/* multiply */
+		NULL,				/* divide */
+		NULL,				/* modulo */
 	};
 
 	ftype_register(FT_IPv4, &ipv4_type);
+}
+
+void
+ftype_register_pseudofields_ipv4(int proto)
+{
+	static int hf_ft_ipv4;
+
+	static hf_register_info hf_ftypes[] = {
+		{ &hf_ft_ipv4,
+		    { "FT_IPv4", "_ws.ftypes.ipv4",
+			FT_IPv4, BASE_NONE, NULL, 0x00,
+			NULL, HFILL }
+		},
+	};
+
+	proto_register_field_array(proto, hf_ftypes, array_length(hf_ftypes));
 }
 
 /*

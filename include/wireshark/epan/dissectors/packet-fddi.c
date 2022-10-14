@@ -155,37 +155,39 @@ static const char* fddi_conv_get_filter_type(conv_item_t* conv, conv_filter_type
 static ct_dissector_info_t fddi_ct_dissector_info = {&fddi_conv_get_filter_type};
 
 static tap_packet_status
-fddi_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip)
+fddi_conversation_packet(void *pct, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip, tap_flags_t flags)
 {
   conv_hash_t *hash = (conv_hash_t*) pct;
+  hash->flags = flags;
   const fddi_hdr *ehdr=(const fddi_hdr *)vip;
 
-  add_conversation_table_data(hash, &ehdr->src, &ehdr->dst, 0, 0, 1, pinfo->fd->pkt_len, &pinfo->rel_ts, &pinfo->abs_ts, &fddi_ct_dissector_info, ENDPOINT_NONE);
+  add_conversation_table_data(hash, &ehdr->src, &ehdr->dst, 0, 0, 1, pinfo->fd->pkt_len, &pinfo->rel_ts, &pinfo->abs_ts, &fddi_ct_dissector_info, CONVERSATION_NONE);
 
   return TAP_PACKET_REDRAW;
 }
 
-static const char* fddi_host_get_filter_type(hostlist_talker_t* host, conv_filter_type_e filter)
+static const char* fddi_endpoint_get_filter_type(endpoint_item_t* endpoint, conv_filter_type_e filter)
 {
-  if ((filter == CONV_FT_ANY_ADDRESS) && (host->myaddress.type == AT_ETHER))
+  if ((filter == CONV_FT_ANY_ADDRESS) && (endpoint->myaddress.type == AT_ETHER))
     return "fddi.addr";
 
   return CONV_FILTER_INVALID;
 }
 
-static hostlist_dissector_info_t fddi_host_dissector_info = {&fddi_host_get_filter_type};
+static et_dissector_info_t fddi_endpoint_dissector_info = {&fddi_endpoint_get_filter_type};
 
 static tap_packet_status
-fddi_hostlist_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip)
+fddi_endpoint_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const void *vip, tap_flags_t flags)
 {
   conv_hash_t *hash = (conv_hash_t*) pit;
+  hash->flags = flags;
   const fddi_hdr *ehdr=(const fddi_hdr *)vip;
 
   /* Take two "add" passes per packet, adding for each direction, ensures that all
   packets are counted properly (even if address is sending to itself)
-  XXX - this could probably be done more efficiently inside hostlist_table */
-  add_hostlist_table_data(hash, &ehdr->src, 0, TRUE, 1, pinfo->fd->pkt_len, &fddi_host_dissector_info, ENDPOINT_NONE);
-  add_hostlist_table_data(hash, &ehdr->dst, 0, FALSE, 1, pinfo->fd->pkt_len, &fddi_host_dissector_info, ENDPOINT_NONE);
+  XXX - this could probably be done more efficiently inside endpoint_table */
+  add_endpoint_table_data(hash, &ehdr->src, 0, TRUE, 1, pinfo->fd->pkt_len, &fddi_endpoint_dissector_info, ENDPOINT_NONE);
+  add_endpoint_table_data(hash, &ehdr->dst, 0, FALSE, 1, pinfo->fd->pkt_len, &fddi_endpoint_dissector_info, ENDPOINT_NONE);
 
   return TAP_PACKET_REDRAW;
 }
@@ -260,35 +262,35 @@ fddifc_to_str(int fc)
     switch (fc & FDDI_FC_CLFF) {
 
     case FDDI_FC_MAC:
-      g_snprintf(strbuf, sizeof(strbuf), "MAC frame, control %x", fc & FDDI_FC_ZZZZ);
+      snprintf(strbuf, sizeof(strbuf), "MAC frame, control %x", fc & FDDI_FC_ZZZZ);
       return strbuf;
 
     case FDDI_FC_SMT:
-      g_snprintf(strbuf, sizeof(strbuf), "SMT frame, control %x", fc & FDDI_FC_ZZZZ);
+      snprintf(strbuf, sizeof(strbuf), "SMT frame, control %x", fc & FDDI_FC_ZZZZ);
       return strbuf;
 
     case FDDI_FC_LLC_ASYNC:
       if (fc & FDDI_FC_ASYNC_R)
-        g_snprintf(strbuf, sizeof(strbuf), "Async LLC frame, control %x", fc & FDDI_FC_ZZZZ);
+        snprintf(strbuf, sizeof(strbuf), "Async LLC frame, control %x", fc & FDDI_FC_ZZZZ);
       else
-        g_snprintf(strbuf, sizeof(strbuf), "Async LLC frame, priority %d",
+        snprintf(strbuf, sizeof(strbuf), "Async LLC frame, priority %d",
                         fc & FDDI_FC_ASYNC_PRI);
       return strbuf;
 
     case FDDI_FC_LLC_SYNC:
       if (fc & FDDI_FC_ZZZZ) {
-        g_snprintf(strbuf, sizeof(strbuf), "Sync LLC frame, control %x", fc & FDDI_FC_ZZZZ);
+        snprintf(strbuf, sizeof(strbuf), "Sync LLC frame, control %x", fc & FDDI_FC_ZZZZ);
         return strbuf;
       } else
         return "Sync LLC frame";
 
     case FDDI_FC_IMP_ASYNC:
-      g_snprintf(strbuf, sizeof(strbuf), "Implementor async frame, control %x",
+      snprintf(strbuf, sizeof(strbuf), "Implementor async frame, control %x",
                         fc & FDDI_FC_ZZZZ);
       return strbuf;
 
     case FDDI_FC_IMP_SYNC:
-      g_snprintf(strbuf, sizeof(strbuf), "Implementor sync frame, control %x",
+      snprintf(strbuf, sizeof(strbuf), "Implementor sync frame, control %x",
                         fc & FDDI_FC_ZZZZ);
       return strbuf;
 
@@ -518,7 +520,7 @@ proto_register_fddi(void)
                                  &fddi_padding);
 
   fddi_tap = register_tap("fddi");
-  register_conversation_table(proto_fddi, TRUE, fddi_conversation_packet, fddi_hostlist_packet);
+  register_conversation_table(proto_fddi, TRUE, fddi_conversation_packet, fddi_endpoint_packet);
 }
 
 void

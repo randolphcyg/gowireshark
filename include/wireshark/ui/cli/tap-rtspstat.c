@@ -129,7 +129,7 @@ rtspstat_reset(void *psp  )
 }
 
 static tap_packet_status
-rtspstat_packet(void *psp , packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *pri)
+rtspstat_packet(void *psp , packet_info *pinfo _U_, epan_dissect_t *edt _U_, const void *pri, tap_flags_t flags _U_)
 {
 	const rtsp_info_value_t *value = (const rtsp_info_value_t *)pri;
 	rtspstat_t *sp = (rtspstat_t *) psp;
@@ -207,12 +207,12 @@ rtspstat_draw(void *psp  )
 	else
 		printf("RTSP Statistics with filter %s\n", sp->filter);
 
-	printf(	"* RTSP Status Codes in reply packets\n");
+	printf("* RTSP Response Status Codes                Packets\n");
 	g_hash_table_foreach( sp->hash_responses, (GHFunc)rtsp_draw_hash_responses,
-		(gpointer)"    RTSP %3d %s\n");
-	printf("* List of RTSP Request methods\n");
+		(gpointer)"  %3d %-35s %9d\n");
+	printf("* RTSP Request Methods                      Packets\n");
 	g_hash_table_foreach( sp->hash_requests,  (GHFunc)rtsp_draw_hash_requests,
-		(gpointer)"    %9s %d \n");
+		(gpointer)"  %-39s %9d\n");
 	printf("===================================================================\n");
 }
 

@@ -24,6 +24,7 @@
 #include <epan/expert.h>
 #include <epan/conversation.h>
 #include <epan/crc10-tvb.h>
+#include <epan/crc6-tvb.h>
 #include <wsutil/crc10.h>
 #include <wsutil/crc6.h>
 
@@ -150,8 +151,6 @@ static dissector_handle_t iuup_handle;
 
 static gboolean dissect_fields = FALSE;
 static gboolean two_byte_pseudoheader = FALSE;
-static range_t *global_dynamic_payload_type_range = 0;
-
 
 #define PDUTYPE_DATA_WITH_CRC 0
 #define PDUTYPE_DATA_NO_CRC 1
@@ -341,12 +340,15 @@ iuup_proto_tree_add_bits(proto_tree* tree, int hf, tvbuff_t* tvb, int offset, in
     return pi;
 }
 
-static void dissect_iuup_payload(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, guint rfci_id _U_, int offset, guint32 circuit_id) {
+static void dissect_iuup_payload(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, guint rfci_id, int offset, guint32 circuit_id) {
     iuup_circuit_t* iuup_circuit;
     iuup_rfci_t *rfci;
     int last_offset = tvb_reported_length(tvb) - 1;
     guint bit_offset = 0;
     proto_item* pi;
+
+    if (offset == (int)tvb_reported_length(tvb)) /* NO_DATA */
+      return;
 
     pi = proto_tree_add_item(tree,hf_iuup_payload,tvb,offset,-1,ENC_NA);
 
@@ -552,15 +554,10 @@ static void dissect_iuup_ratectl(tvbuff_t* tvb, packet_info* pinfo _U_, proto_tr
 
 }
 
-static void add_hdr_crc(tvbuff_t* tvb, packet_info* pinfo, proto_item* iuup_tree, guint16 crccheck)
+static void add_hdr_crc(tvbuff_t* tvb, packet_info* pinfo, proto_item* iuup_tree)
 {
-    proto_item *crc_item;
-
-    crc_item = proto_tree_add_item(iuup_tree,hf_iuup_hdr_crc,tvb,2,1,ENC_BIG_ENDIAN);
-    if (crccheck) {
-        proto_item_append_text(crc_item, "%s", " [incorrect]");
-        expert_add_info(pinfo, crc_item, &ei_iuup_hdr_crc_bad);
-    }
+    proto_tree_add_checksum(iuup_tree, tvb, 2, hf_iuup_hdr_crc, -1, &ei_iuup_hdr_crc_bad,
+                            pinfo, crc6_compute_tvb(tvb, 2), ENC_BIG_ENDIAN, PROTO_CHECKSUM_VERIFY);
 }
 
 static guint16
@@ -604,11 +601,8 @@ static int dissect_iuup(tvbuff_t* tvb_in, packet_info* pinfo, proto_tree* tree, 
     proto_item* ack_item = NULL;
     guint8 first_octet;
     guint8 second_octet;
-    guint8 octet_array[2];
     guint8 pdutype;
     guint phdr = 0;
-    guint16  hdrcrc6;
-    guint16  crccheck;
     tvbuff_t* tvb = tvb_in;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "IuUP");
@@ -623,15 +617,13 @@ static int dissect_iuup(tvbuff_t* tvb_in, packet_info* pinfo, proto_tree* tree, 
 
         phdr &= 0x7fff;
 
-        conversation_create_endpoint_by_id(pinfo, ENDPOINT_IUUP, phdr, 0);
+        conversation_set_elements_by_id(pinfo, CONVERSATION_IUUP, phdr);
 
         tvb = tvb_new_subset_length(tvb_in,2,len);
     }
 
-    octet_array[0] = first_octet =  tvb_get_guint8(tvb,0);
-    octet_array[1] = second_octet =  tvb_get_guint8(tvb,1);
-    hdrcrc6 = tvb_get_guint8(tvb, 2) >> 2;
-    crccheck = crc6_0X6F(hdrcrc6, octet_array, 2);
+    first_octet =  tvb_get_guint8(tvb,0);
+    second_octet =  tvb_get_guint8(tvb,1);
 
     pdutype = ( first_octet & PDUTYPE_MASK ) >> 4;
 
@@ -656,9 +648,9 @@ static int dissect_iuup(tvbuff_t* tvb_in, packet_info* pinfo, proto_tree* tree, 
             }
 
             proto_tree_add_item(iuup_tree,hf_iuup_rfci,tvb,1,1,ENC_BIG_ENDIAN);
-            add_hdr_crc(tvb, pinfo, iuup_tree, crccheck);
+            add_hdr_crc(tvb, pinfo, iuup_tree);
             add_payload_crc(tvb, pinfo, iuup_tree);
-            dissect_iuup_payload(tvb,pinfo,iuup_tree,second_octet & 0x3f,4, conversation_get_endpoint_by_id(pinfo, ENDPOINT_IUUP, USE_LAST_ENDPOINT));
+            dissect_iuup_payload(tvb,pinfo,iuup_tree,second_octet & 0x3f,4, conversation_get_id_from_elements(pinfo, CONVERSATION_IUUP, USE_LAST_ENDPOINT));
             return tvb_captured_length(tvb);
         case PDUTYPE_DATA_NO_CRC:
             col_append_fstr(pinfo->cinfo, COL_INFO," RFCI %u", (guint)(second_octet & 0x3f));
@@ -671,8 +663,8 @@ static int dissect_iuup(tvbuff_t* tvb_in, packet_info* pinfo, proto_tree* tree, 
             }
 
             proto_tree_add_item(iuup_tree,hf_iuup_rfci,tvb,1,1,ENC_BIG_ENDIAN);
-            add_hdr_crc(tvb, pinfo, iuup_tree, crccheck);
-            dissect_iuup_payload(tvb,pinfo,iuup_tree,second_octet & 0x3f,3, conversation_get_endpoint_by_id(pinfo, ENDPOINT_IUUP, USE_LAST_ENDPOINT));
+            add_hdr_crc(tvb, pinfo, iuup_tree);
+            dissect_iuup_payload(tvb,pinfo,iuup_tree,second_octet & 0x3f,3, conversation_get_id_from_elements(pinfo, CONVERSATION_IUUP, USE_LAST_ENDPOINT));
             return tvb_captured_length(tvb);
         case PDUTYPE_DATA_CONTROL_PROC:
             if (tree) {
@@ -680,7 +672,7 @@ static int dissect_iuup(tvbuff_t* tvb_in, packet_info* pinfo, proto_tree* tree, 
                 proto_tree_add_item(iuup_tree,hf_iuup_frame_number_t14,tvb,0,1,ENC_BIG_ENDIAN);
                 proto_tree_add_item(iuup_tree,hf_iuup_mode_version,tvb,1,1,ENC_BIG_ENDIAN);
                 proc_item = proto_tree_add_item(iuup_tree,hf_iuup_procedure_indicator,tvb,1,1,ENC_BIG_ENDIAN);
-                add_hdr_crc(tvb, pinfo, iuup_tree, crccheck);
+                add_hdr_crc(tvb, pinfo, iuup_tree);
             }
 
             col_append_str(pinfo->cinfo, COL_INFO,
@@ -723,7 +715,7 @@ static int dissect_iuup(tvbuff_t* tvb_in, packet_info* pinfo, proto_tree* tree, 
             switch( second_octet & PROCEDURE_MASK ) {
                 case PROC_INIT:
                     add_payload_crc(tvb, pinfo, iuup_tree);
-                    dissect_iuup_init(tvb,pinfo,iuup_tree, conversation_get_endpoint_by_id(pinfo, ENDPOINT_IUUP, USE_LAST_ENDPOINT));
+                    dissect_iuup_init(tvb,pinfo,iuup_tree, conversation_get_id_from_elements(pinfo, CONVERSATION_IUUP, USE_LAST_ENDPOINT));
                     return tvb_captured_length(tvb);
                 case PROC_RATE:
                     add_payload_crc(tvb, pinfo, iuup_tree);
@@ -827,21 +819,9 @@ static int find_iuup(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
 
 
 void proto_reg_handoff_iuup(void) {
-    static gboolean iuup_prefs_initialized = FALSE;
-    static range_t *saved_dynamic_payload_type_range = NULL;
+    dissector_add_string("rtp_dyn_payload_type","VND.3GPP.IUFP", iuup_handle);
 
-    if (!iuup_prefs_initialized) {
-        dissector_add_string("rtp_dyn_payload_type","VND.3GPP.IUFP", iuup_handle);
-        iuup_prefs_initialized = TRUE;
-    } else {
-        dissector_delete_uint_range("rtp.pt", saved_dynamic_payload_type_range, iuup_handle);
-        wmem_free(wmem_epan_scope(), saved_dynamic_payload_type_range);
-    }
-
-    saved_dynamic_payload_type_range = range_copy(wmem_epan_scope(), global_dynamic_payload_type_range);
-
-    range_remove_value(wmem_epan_scope(), &saved_dynamic_payload_type_range, 0);
-    dissector_add_uint_range("rtp.pt", saved_dynamic_payload_type_range, iuup_handle);
+    dissector_add_uint_range_with_preference("rtp.pt", "", iuup_handle);
 }
 
 
@@ -980,7 +960,7 @@ void proto_register_iuup(void) {
 
     circuits = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(), g_direct_hash, g_direct_equal);
 
-    iuup_module = prefs_register_protocol(proto_iuup, proto_reg_handoff_iuup);
+    iuup_module = prefs_register_protocol(proto_iuup, NULL);
 
     prefs_register_bool_preference(iuup_module, "dissect_payload",
                                    "Dissect IuUP Payload bits",
@@ -992,11 +972,7 @@ void proto_register_iuup(void) {
                                    "The payload contains a two byte pseudoheader indicating direction and circuit_id",
                                    &two_byte_pseudoheader);
 
-    prefs_register_range_preference(iuup_module, "dynamic.payload.type",
-                                   "IuUP dynamic payload type",
-                                   "Dynamic payload types which will be interpreted as IuUP"
-                                   "; values must be in the range 1 - 127",
-                                   &global_dynamic_payload_type_range, 127);
+    prefs_register_obsolete_preference(iuup_module, "dynamic.payload.type");
 }
 
 /*

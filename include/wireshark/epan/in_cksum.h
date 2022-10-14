@@ -1,4 +1,4 @@
-/* in_cksum.h
+/** @file
  * Declaration of Internet checksum routine.
  *
  * Copyright (c) 1988, 1992, 1993
@@ -10,7 +10,7 @@
 #ifndef __IN_CKSUM_H__
 #define __IN_CKSUM_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 typedef struct {
 	const guint8 *ptr;

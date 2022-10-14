@@ -1147,10 +1147,10 @@ dissect_diameter_3gpp_path(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
     while (offset < end_offset) {
         comma_offset = tvb_find_guint8(tvb, offset, -1, ',');
         if(comma_offset == -1) {
-            proto_tree_add_item(sub_tree, hf_diameter_3gpp_path, tvb, offset, comma_offset, ENC_ASCII|ENC_NA);
+            proto_tree_add_item(sub_tree, hf_diameter_3gpp_path, tvb, offset, comma_offset, ENC_ASCII);
             return end_offset;
         }
-        proto_tree_add_item(sub_tree, hf_diameter_3gpp_path, tvb, offset, comma_offset, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(sub_tree, hf_diameter_3gpp_path, tvb, offset, comma_offset, ENC_ASCII);
         offset = comma_offset+1;
     }
 
@@ -1171,7 +1171,7 @@ dissect_diameter_3gpp_contact(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree 
     proto_item *item;
     int offset = 0;
 
-    item = proto_tree_add_item(tree, hf_diameter_3gpp_contact, tvb, offset, -1, ENC_ASCII|ENC_NA);
+    item = proto_tree_add_item(tree, hf_diameter_3gpp_contact, tvb, offset, -1, ENC_ASCII);
     proto_item_set_generated(item);
 
     return tvb_reported_length(tvb);
@@ -2022,6 +2022,18 @@ dissect_diameter_3gpp_nor_flags(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 
     proto_tree_add_bitmask_with_flags(tree, tvb, 0, hf_diameter_3gpp_nor_flags, diameter_3gpp_nor_flags_ett, flags, ENC_BIG_ENDIAN, BMT_NO_APPEND);
     return 4;
+}
+
+/* AVP Code: 1474 GMLC-NUMBER */
+static int
+dissect_diameter_3gpp_isdn(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
+{
+    int offset = 0;
+    int length = tvb_reported_length(tvb);
+
+    dissect_e164_isdn(tvb, tree, offset, length, E164_ENC_BCD);
+
+    return length;
 }
 
 /* AVP Code: 1490 IDR-Flags */
@@ -3008,6 +3020,9 @@ proto_reg_handoff_diameter_3gpp(void)
 
     /* AVP Code: 1443 NOR-Flags */
     dissector_add_uint("diameter.3gpp", 1443, create_dissector_handle(dissect_diameter_3gpp_nor_flags, proto_diameter_3gpp));
+
+    /* AVP Code: 1474 GMLC-Number */
+    dissector_add_uint("diameter.3gpp", 1474, create_dissector_handle(dissect_diameter_3gpp_isdn, proto_diameter_3gpp));
 
     /* AVP Code: 1490 IDR-Flags */
     dissector_add_uint("diameter.3gpp", 1490, create_dissector_handle(dissect_diameter_3gpp_idr_flags, proto_diameter_3gpp));

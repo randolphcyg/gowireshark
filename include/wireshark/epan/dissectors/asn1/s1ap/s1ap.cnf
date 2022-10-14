@@ -30,6 +30,7 @@ ImmediateMDT_PDU
 LastVisitedEUTRANCellInformation_PDU
 LastVisitedGERANCellInformation_PDU
 MDTMode_PDU
+PSCellInformation_PDU
 SourceeNB-ToTargeteNB-TransparentContainer_PDU
 SONConfigurationTransfer_PDU
 SONtransferApplicationIdentity_PDU
@@ -50,6 +51,7 @@ ImmediateMDT
 LastVisitedEUTRANCellInformation
 LastVisitedGERANCellInformation
 MDTMode
+PSCellInformation
 S1AP-PDU
 SourceeNB-ToTargeteNB-TransparentContainer
 SONConfigurationTransfer
@@ -684,7 +686,7 @@ Port-Number TYPE = FT_UINT16 DISPLAY = BASE_DEC
     if (s1ap_data->protocol_ie_id == id_UERadioCapability_NR_Format) {
       handle = nr_rrc_ue_radio_access_cap_info_handle;
     } else if ((s1ap_is_nbiot_ue(actx->pinfo) && (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_AUTOMATIC)) ||
-        (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_NBIOT)) {
+               (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_NBIOT)) {
       handle = lte_rrc_ue_radio_access_cap_info_nb_handle;
     } else {
       handle = lte_rrc_ue_radio_access_cap_info_handle;
@@ -705,6 +707,22 @@ Threshold-RSRP DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(s1ap_Threshold_RSRP_fmt)
 
 #.TYPE_ATTR
 Threshold-RSRQ DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(s1ap_Threshold_RSRQ_fmt)
+
+#.FN_BODY RAT-RestrictionsItem/rAT-RestrictionInformation VAL_PTR = &parameter_tvb
+  tvbuff_t *parameter_tvb = NULL;
+%(DEFAULT_BODY)s
+  if(parameter_tvb){
+    static int * const fields[] = {
+      &hf_s1ap_rAT_RestrictionInformation_LEO,
+      &hf_s1ap_rAT_RestrictionInformation_MEO,
+      &hf_s1ap_rAT_RestrictionInformation_GEO,
+      &hf_s1ap_rAT_RestrictionInformation_OTHERSAT,
+      &hf_s1ap_rAT_RestrictionInformation_Reserved,
+      NULL
+    };
+    proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_rAT_RestrictionInformation);
+    proto_tree_add_bitmask_list(subtree, parameter_tvb, 0, 1, fields, ENC_BIG_ENDIAN);
+  }
 
 # 9.2.3.24 RIM Information
 # Contains the BSSGP RIM PDU
@@ -769,10 +787,13 @@ if (gcsna_handle) {
     return offset;
 
   if (g_s1ap_dissect_container) {
+    struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
     volatile dissector_handle_t handle;
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_UERadioPagingInformation);
-    if ((s1ap_is_nbiot_ue(actx->pinfo) && (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_AUTOMATIC)) ||
-        (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_NBIOT)) {
+    if (s1ap_data->protocol_ie_id == id_UERadioCapabilityForPaging_NR_Format) {
+      handle = nr_rrc_ue_radio_paging_info_handle;
+    } else if ((s1ap_is_nbiot_ue(actx->pinfo) && (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_AUTOMATIC)) ||
+               (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_NBIOT)) {
       handle = lte_rrc_ue_radio_paging_info_nb_handle;
     } else {
       handle = lte_rrc_ue_radio_paging_info_handle;
@@ -994,12 +1015,12 @@ BitRate DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_bit_sec
     dissect_lte_rrc_QuantityConfigNR_r15_PDU(quantity_config_nr_tvb, actx->pinfo, subtree, NULL);
   }
 
-#.FN_BODY InterSystemMeasurementItem/blackCellsToAddModList VAL_PTR = &black_cells_list_tvb
-  tvbuff_t *black_cells_list_tvb = NULL;
+#.FN_BODY InterSystemMeasurementItem/excludedCellsToAddModList VAL_PTR = &excluded_cells_list_tvb
+  tvbuff_t *excluded_cells_list_tvb = NULL;
 %(DEFAULT_BODY)s
-  if (black_cells_list_tvb) {
-    proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_blackCellsToAddModList);
-    dissect_lte_rrc_CellsToAddModListNR_r15_PDU(black_cells_list_tvb, actx->pinfo, subtree, NULL);
+  if (excluded_cells_list_tvb) {
+    proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_excludedCellsToAddModList);
+    dissect_lte_rrc_CellsToAddModListNR_r15_PDU(excluded_cells_list_tvb, actx->pinfo, subtree, NULL);
   }
 
 #.FN_BODY GUMMEI
@@ -1070,6 +1091,12 @@ Time-UE-StayedInCell-EnhancedGranularity DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC
 
 #.TYPE_ATTR
 TimeSinceSecondaryNodeRelease TYPE=FT_UINT32 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+
+#.TYPE_ATTR
+LastVisitedPSCellInformation/timeStay DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+
+#.TYPE_ATTR
+RecommendedCellItem/timeStayedInCell DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
 
 #.FN_BODY LastVisitedNGRANCellInformation VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb = NULL;
@@ -1219,7 +1246,7 @@ ExtendedRepetitionPeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_second
   }
 
 #.TYPE_ATTR
-LHN-ID TYPE=FT_STRING DISPLAY = STR_UNICODE
+LHN-ID TYPE=FT_STRING DISPLAY = BASE_NONE
 #.FN_BODY LHN-ID VAL_PTR = &parameter_tvb HF_INDEX = -1
   tvbuff_t *parameter_tvb = NULL;
 %(DEFAULT_BODY)s
@@ -1410,7 +1437,7 @@ M-TMSI TYPE = FT_UINT32 DISPLAY = BASE_DEC_HEX
   guint32 rat_type = 0xffffffff;
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
 %(DEFAULT_BODY)s
-  if (s1ap_data->s1ap_conv && s1ap_data->supported_ta && (rat_type == nbiot)) {
+  if (s1ap_data->s1ap_conv && s1ap_data->supported_ta && rat_type <= nbiot_othersat) {
     guint64 *key;
     guint i;
 
@@ -1471,7 +1498,7 @@ M-TMSI TYPE = FT_UINT32 DISPLAY = BASE_DEC_HEX
 Packet-LossRate DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(s1ap_Packet_LossRate_fmt)
 
 #.TYPE_ATTR
-BluetoothName TYPE=FT_STRING DISPLAY = STR_UNICODE
+BluetoothName TYPE=FT_STRING DISPLAY = BASE_NONE
 #.FN_BODY BluetoothName VAL_PTR = &parameter_tvb HF_INDEX = -1
   tvbuff_t *parameter_tvb = NULL;
 %(DEFAULT_BODY)s
@@ -1479,7 +1506,7 @@ BluetoothName TYPE=FT_STRING DISPLAY = STR_UNICODE
 #.END
 
 #.TYPE_ATTR
-WLANName TYPE=FT_STRING DISPLAY = STR_UNICODE
+WLANName TYPE=FT_STRING DISPLAY = BASE_NONE
 #.FN_BODY WLANName VAL_PTR = &parameter_tvb HF_INDEX = -1
   tvbuff_t *parameter_tvb = NULL;
 %(DEFAULT_BODY)s
@@ -1893,6 +1920,22 @@ id-WUS-Assistance-Information                       ProtocolIE-ID
 id-NB-IoT-PagingDRX                                 ProtocolIE-ID
 id-TraceCollectionEntityURI                         ProtocolIE-ID
 id-EmergencyIndicator                               ProtocolIE-ID
+id-UERadioCapabilityForPaging-NR-Format             ProtocolIE-ID
+id-SourceTransportLayerAddress                      ProtocolIE-ID
+id-lastVisitedPSCellList                            ProtocolIE-ID
+id-RACSIndication                                   ProtocolIE-ID
+id-PagingCause                                      ProtocolIE-ID
+id-SecurityIndication                               ProtocolIE-ID
+id-SecurityResult                                   ProtocolIE-ID
+id-E-RABSecurityResultItem                          ProtocolIE-ID
+id-E-RABSecurityResultList                          ProtocolIE-ID
+id-RAT-Restrictions                                 ProtocolIE-ID
+id-UEContextReferenceatSourceeNB                    ProtocolIE-ID
+id-LTE-NTN-TAI-Information                          ProtocolIE-ID
+id-SourceNodeTransportLayerAddress                  ProtocolIE-ID
+id-E-RABToBeUpdatedList                             ProtocolIE-ID
+id-E-RABToBeUpdatedItem                             ProtocolIE-ID
+id-SourceSNID                                       ProtocolIE-ID
 
 #.END
 
@@ -2141,6 +2184,12 @@ ENB-EarlyStatusTransfer-TransparentContainer    N s1ap.ies id-eNB-EarlyStatusTra
 Bearers-SubjectToEarlyStatusTransfer-Item       N s1ap.ies id-Bearers-SubjectToEarlyStatusTransfer-Item
 WUS-Assistance-Information                      N s1ap.ies id-WUS-Assistance-Information
 NB-IoT-PagingDRX                                N s1ap.ies id-NB-IoT-PagingDRX
+UERadioCapabilityForPaging                      N s1ap.ies id-UERadioCapabilityForPaging-NR-Format
+PagingCause                                     N s1ap.ies id-PagingCause
+E-RABSecurityResultItem                         N s1ap.ies id-E-RABSecurityResultItem
+LTE-NTN-TAI-Information                         N s1ap.ies id-LTE-NTN-TAI-Information
+E-RABToBeUpdatedList                            N s1ap.ies id-E-RABToBeUpdatedList
+E-RABToBeUpdatedItem                            N s1ap.ies id-E-RABToBeUpdatedItem
 
 #S1AP-PROTOCOL-IES-PAIR
 #RAB-SetupOrModifyItemFirst             N s1ap.ies.pair.first id-RAB-SetupOrModifyItem
@@ -2212,6 +2261,16 @@ DAPSRequestInfo                         N s1ap.extension id-DAPSRequestInfo
 DAPSResponseInfoList                    N s1ap.extension id-DAPSResponseInfoList
 URI-Address                             N s1ap.extension id-TraceCollectionEntityURI
 EmergencyIndicator                      N s1ap.extension id-EmergencyIndicator
+TransportLayerAddress                   N s1ap.extension id-SourceTransportLayerAddress
+LastVisitedPSCellList                   N s1ap.extension id-lastVisitedPSCellList
+RACSIndication                          N s1ap.extension id-RACSIndication
+SecurityIndication                      N s1ap.extension id-SecurityIndication
+E-RABSecurityResultList                 N s1ap.extension id-E-RABSecurityResultList
+RAT-Restrictions                        N s1ap.extension id-RAT-Restrictions
+ENB-UE-S1AP-ID                          N s1ap.extension id-UEContextReferenceatSourceeNB
+LTE-NTN-TAI-Information                 N s1ap.extension id-LTE-NTN-TAI-Information
+TransportLayerAddress                   N s1ap.extension id-SourceNodeTransportLayerAddress
+Global-RAN-NODE-ID                      N s1ap.extension id-SourceSNID
 
 #S1AP-ELEMENTARY-PROCEDURE
 HandoverRequired                        N s1ap.proc.imsg id-HandoverPreparation

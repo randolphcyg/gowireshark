@@ -11,10 +11,18 @@
 
 #include <errno.h>
 
+#include <include/ws_diag_control.h>
+
+#if WS_IS_AT_LEAST_GNUC_VERSION(12,1)
+DIAG_OFF(stringop-overflow)
+#endif
 #include "interface_toolbar.h"
+#if WS_IS_AT_LEAST_GNUC_VERSION(12,1)
+DIAG_ON(stringop-overflow)
+#endif
 #include <ui/qt/widgets/interface_toolbar_lineedit.h>
 #include "simple_dialog.h"
-#include "wireshark_application.h"
+#include "main_application.h"
 #include <ui_interface_toolbar.h>
 
 #include "capture_opts.h"
@@ -554,7 +562,7 @@ void InterfaceToolbar::controlReceived(QString ifname, int num, int command, QBy
             break;
 
         case commandStatusMessage:
-            wsApp->pushStatus(WiresharkApplication::TemporaryStatus, payload);
+            mainApp->pushStatus(MainApplication::TemporaryStatus, payload);
             break;
 
         case commandInformationMessage:
@@ -666,7 +674,7 @@ void InterfaceToolbar::onLogButtonClicked()
 
     if (!interface_[ifname].log_dialog.contains(num))
     {
-        interface_[ifname].log_dialog[num] = new FunnelTextDialog(ifname + " " + button->text());
+        interface_[ifname].log_dialog[num] = new FunnelTextDialog(window(), ifname + " " + button->text());
         connect(interface_[ifname].log_dialog[num], SIGNAL(accepted()), this, SLOT(closeLog()));
         connect(interface_[ifname].log_dialog[num], SIGNAL(rejected()), this, SLOT(closeLog()));
 
@@ -971,14 +979,14 @@ void InterfaceToolbar::interfaceListChanged()
     if (!keep_selected)
     {
         // Select the first interface
-        on_interfacesComboBox_currentIndexChanged(ui->interfacesComboBox->currentText());
+        on_interfacesComboBox_currentTextChanged(ui->interfacesComboBox->currentText());
     }
 
     updateWidgets();
 #endif
 }
 
-void InterfaceToolbar::on_interfacesComboBox_currentIndexChanged(const QString &ifname)
+void InterfaceToolbar::on_interfacesComboBox_currentTextChanged(const QString &ifname)
 {
     foreach (int num, control_widget_.keys())
     {

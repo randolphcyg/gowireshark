@@ -1,5 +1,4 @@
-/*
- * exported_pdu.h
+/** @file
  * Routines for exported_pdu dissection
  * Copyright 2013, Anders Broman <anders-broman@ericsson.com>
  *
@@ -13,8 +12,8 @@
 #ifndef EXPORTED_PDU_H
 #define EXPORTED_PDU_H
 
-#include "ws_symbol_export.h"
-#include "ws_attributes.h"
+#include "include/ws_symbol_export.h"
+#include "include/ws_attributes.h"
 
 #include <glib.h>
 
@@ -39,7 +38,12 @@ extern "C" {
 /* To add dynamically an export name, call the following function
    It returns the registered tap */
 WS_DLL_PUBLIC gint register_export_pdu_tap(const char *name);
+/* Same as above, but for export taps that use an encapsulation other
+ * than WTAP_ENCAP_WIRESHARK_UPPER_PDU */
+WS_DLL_PUBLIC gint register_export_pdu_tap_with_encap(const char *name, gint encap);
 WS_DLL_PUBLIC GSList *get_export_pdu_tap_list(void);
+
+WS_DLL_PUBLIC gint export_pdu_tap_get_encap(const char* name);
 
 /** Compute the size (in bytes) of a pdu item
 *
@@ -88,7 +92,7 @@ typedef struct _exp_pdu_data_t {
 
  @param pinfo Packet info that may contain data for the PDU items
  @param proto_name Name of protocol that is exporting PDU
- @param tag_type Tag type for protocol's PDU. Must be EXP_PDU_TAG_PROTO_NAME or EXP_PDU_TAG_HEUR_PROTO_NAME.
+ @param tag_type Tag type for protocol's PDU. Must be EXP_PDU_TAG_DISSECTOR_NAME or EXP_PDU_TAG_HEUR_DISSECTOR_NAME.
  @param items PDU items to be exported
  @return filled exp_pdu_data_t struct
 */
@@ -105,7 +109,7 @@ WS_DLL_PUBLIC exp_pdu_data_t *export_pdu_create_tags(packet_info *pinfo, const c
  6. Original frame number
 
  @param pinfo Packet info that may contain data for the PDU items
- @param tag_type Tag type for protocol's PDU. Must be EXP_PDU_TAG_PROTO_NAME, EXP_PDU_TAG_HEUR_PROTO_NAME or EXP_PDU_TAG_DISSECTOR_TABLE_NAME
+ @param tag_type Tag type for protocol's PDU. Must be EXP_PDU_TAG_DISSECTOR_NAME, EXP_PDU_TAG_HEUR_DISSECTOR_NAME or EXP_PDU_TAG_DISSECTOR_TABLE_NAME
  @param proto_name Name of protocol that is exporting PDU
  @return filled exp_pdu_data_t struct
 */

@@ -315,7 +315,7 @@ dissect_npm_add_flow_message(tvbuff_t *message_tvb, proto_tree *message_tree, pr
   proto_tree_add_item(message_tree, hf_addflow_streamid, message_tvb,      16,  2, ENC_BIG_ENDIAN);
   proto_tree_add_item(message_tree, hf_addflow_protocol, message_tvb,      18,  1, ENC_BIG_ENDIAN);
   proto_tree_add_item(message_tree, hf_addflow_flags, message_tvb,         19,  1, ENC_BIG_ENDIAN);
-  proto_tree_add_item(message_tree, hf_addflow_description, message_tvb,   20, 32, ENC_UTF_8|ENC_NA);
+  proto_tree_add_item(message_tree, hf_addflow_description, message_tvb,   20, 32, ENC_UTF_8);
 
   proto_tree_add_double_format_value(message_tree, hf_addflow_ordered, message_tvb, 52, 4,
                                      100.0 * tvb_get_ntohl(message_tvb, 52) / (double)0xffffffff, "%1.3f%%",
@@ -608,6 +608,7 @@ static void npm_stat_init(stat_tap_table_ui* new_stat)
   table = stat_tap_init_table(table_name, num_fields, 0, NULL);
   stat_tap_add_table(new_stat, table);
 
+  memset(items, 0x0, sizeof(items));
   /* Add a row for each value type */
   while (message_type_values[i].strptr) {
     items[MESSAGE_TYPE_COLUMN].type                = TABLE_ITEM_STRING;
@@ -636,7 +637,7 @@ static void npm_stat_init(stat_tap_table_ui* new_stat)
 }
 
 static tap_packet_status
-npm_stat_packet(void* tapdata, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* data)
+npm_stat_packet(void* tapdata, packet_info* pinfo _U_, epan_dissect_t* edt _U_, const void* data, tap_flags_t flags _U_)
 {
   stat_data_t*              stat_data = (stat_data_t*)tapdata;
   const tap_npm_rec_t*      tap_rec   = (const tap_npm_rec_t*)data;
@@ -804,7 +805,7 @@ proto_register_npm(void)
   };
 
   static stat_tap_table_ui npm_stat_table = {
-    REGISTER_STAT_GROUP_UNSORTED,
+    REGISTER_PACKET_STAT_GROUP_UNSORTED,
     "NetPerfMeter Statistics",
     "npm",
     "npm,stat",

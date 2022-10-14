@@ -1,4 +1,4 @@
-/* vwr.h
+/** @file
  *
  * Wiretap Library
  * Copyright (c) 1998-2010 by Tom Alexander <talexander@ixiacom.com>
@@ -10,7 +10,7 @@
 #ifndef __VWR_H__
 #define __VWR_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 wtap_open_return_val vwr_open(wtap *wth, int *err, gchar **err_info);
 

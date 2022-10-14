@@ -41,7 +41,10 @@ class CalledSymbols:
         elif file.find('ui/qt') != -1:
             object_file = os.path.join(build_folder, os.path.dirname(file), 'CMakeFiles', ('qtui' + '.dir'), os.path.basename(file) + '.o')
         else:
-            object_file = os.path.join(build_folder, os.path.dirname(file), 'CMakeFiles', last_dir + '.dir', os.path.basename(file) + '.o')
+            if file.endswith('dissectors.c'):
+                object_file = os.path.join(build_folder, os.path.dirname(file), 'CMakeFiles', 'dissector-registration' + '.dir', os.path.basename(file) + '.o')
+            else:
+                object_file = os.path.join(build_folder, os.path.dirname(file), 'CMakeFiles', last_dir + '.dir', os.path.basename(file) + '.o')
         if not os.path.exists(object_file):
             print('Warning -', object_file, 'does not exist')
             return
@@ -74,6 +77,7 @@ class DefinedSymbols:
 
         # Make sure that file is built.
         object_file = os.path.join(build_folder, 'epan', 'dissectors', 'CMakeFiles', 'dissectors.dir', os.path.basename(file) + '.o')
+
         if not os.path.exists(object_file):
             print('Warning -', object_file, 'does not exist')
             return
@@ -218,7 +222,7 @@ issues_found = 0
 parser = argparse.ArgumentParser(description='Check calls in dissectors')
 parser.add_argument('--build', action='store', default='',
                     help='build folder', required=False)
-parser.add_argument('--file', action='store', default='',
+parser.add_argument('--file', action='append',
                     help='specify individual dissector file to test')
 parser.add_argument('--commits', action='store',
                     help='last N commits to check')
@@ -235,11 +239,15 @@ if args.build:
     build_folder = args.build
 
 if args.file:
-    # Add single specified file..
-    if not args.file.startswith('epan'):
-        files.append(os.path.join('epan', 'dissectors', args.file))
-    else:
-        files.append(args.file)
+    # Add specified file(s)
+    for f in args.file:
+        if not f.startswith('epan'):
+            f = os.path.join('epan', 'dissectors', f)
+        if not os.path.isfile(f):
+            print('Chosen file', f, 'does not exist.')
+            exit(1)
+        else:
+            files.append(f)
 elif args.commits:
     # Get files affected by specified number of commits.
     command = ['git', 'diff', '--name-only', 'HEAD~' + args.commits]

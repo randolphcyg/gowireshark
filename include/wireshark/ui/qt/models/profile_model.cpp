@@ -26,6 +26,7 @@
 #include <QDir>
 #include <QFont>
 #include <QTemporaryDir>
+#include <QRegularExpression>
 
 Q_LOGGING_CATEGORY(profileLogger, "wireshark.profiles")
 
@@ -141,7 +142,7 @@ ProfileModel::ProfileModel(QObject * parent) :
 
 void ProfileModel::loadProfiles()
 {
-    emit beginResetModel();
+    beginResetModel();
 
     bool refresh = profiles_.count() > 0;
 
@@ -157,7 +158,7 @@ void ProfileModel::loadProfiles()
         fl_entry = gxx_list_next(fl_entry);
     }
 
-    emit endResetModel();
+    endResetModel();
 }
 
 GList * ProfileModel::entry(profile_def *ref) const
@@ -228,7 +229,7 @@ bool ProfileModel::userProfilesExist() const
 
 int ProfileModel::rowCount(const QModelIndex &) const
 {
-    return profiles_.count();
+    return static_cast<int>(profiles_.count());
 }
 
 int ProfileModel::columnCount(const QModelIndex &) const
@@ -770,9 +771,8 @@ QModelIndex ProfileModel::duplicateEntry(QModelIndex idx, int new_status)
         parentName = prof->name;
 
     /* check to ensure we do not end up with (copy) (copy) (copy) ... */
-    QRegExp rx("\\s+(\\(\\s*" + tr("copy", "noun") + "\\s*\\d*\\))");
-    if (rx.indexIn(parentName) >= 0)
-        parentName.replace(rx, "");
+    QRegularExpression rx("\\s+(\\(\\s*" + tr("copy", "noun") + "\\s*\\d*\\))");
+    parentName.replace(rx, "");
 
     QString new_name;
     /* if copy is global and name has not been used before, use that, else create first copy */
@@ -988,7 +988,7 @@ QFileInfoList ProfileModel::uniquePaths(QFileInfoList lst)
         {
             if (entry.exists() && entry.isDir())
             {
-                newLst << entry.absoluteFilePath();
+                newLst << QFileInfo(entry.absoluteFilePath());
                 files << entry.absoluteFilePath();
             }
         }
@@ -1101,7 +1101,7 @@ bool ProfileModel::acceptFile(QString fileName, int fileSize)
 QString ProfileModel::cleanName(QString fileName)
 {
     QStringList parts = fileName.split("/");
-    QString temp = parts[parts.count() - 1].replace(QRegExp("[" + QRegExp::escape(illegalCharacters()) + "]"), QString("_") );
+    QString temp = parts[parts.count() - 1].replace(QRegularExpression("[" + QRegularExpression::escape(illegalCharacters()) + "]"), QString("_") );
     temp = parts.join("/");
     return temp;
 }
@@ -1260,7 +1260,8 @@ bool ProfileModel::checkNameValidity(QString name, QString *msg)
 
     for (int cnt = 0; cnt < invalid_dir_chars.length() && ! invalid; cnt++)
     {
-        msgChars += invalid_dir_chars[cnt] + " ";
+        msgChars += invalid_dir_chars[cnt];
+        msgChars += ' ';
         if (name.contains(invalid_dir_chars[cnt]))
             invalid = true;
     }

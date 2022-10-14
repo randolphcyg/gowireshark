@@ -10,9 +10,9 @@
 #ifndef __PACKET_QUIC_H__
 #define __PACKET_QUIC_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
-#include <wsutil/wsgcrypt.h>	/* needed to define HAVE_LIBGCRYPT_AEAD */
+#include <wsutil/wsgcrypt.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +39,8 @@ typedef struct _quic_stream_info {
 typedef struct quic_cid {
     guint8      len;
     guint8      cid[QUIC_MAX_CID_LENGTH];
+    guint8      reset_token[16];
+    gboolean    reset_token_set;
 } quic_cid_t;
 
 /**
@@ -53,10 +55,8 @@ typedef struct quic_cid {
 
 /** Set/Get protocol-specific data for the QUIC STREAM. */
 
-#ifdef HAVE_LIBGCRYPT_AEAD
 void    quic_stream_add_proto_data(struct _packet_info *pinfo, quic_stream_info *stream_info, void *proto_data);
 void   *quic_stream_get_proto_data(struct _packet_info *pinfo, quic_stream_info *stream_info);
-#endif /* HAVE_LIBGCRYPT_AEAD */
 
 /** Returns the number of items for quic.connection.number. */
 WS_DLL_PUBLIC guint32 get_quic_connections_count(void);
@@ -77,6 +77,8 @@ void
 quic_add_connection(packet_info *pinfo, const quic_cid_t *cid);
 void
 quic_add_loss_bits(packet_info *pinfo, guint64 value);
+void
+quic_add_stateless_reset_token(packet_info *pinfo, tvbuff_t *tvb, gint offset, const quic_cid_t *cid);
 void
 quic_proto_tree_add_version(tvbuff_t *tvb, proto_tree *tree, int hfindex, guint offset);
 

@@ -22,6 +22,7 @@
 
 #include <epan/packet.h>
 #include <epan/stats_tree.h>
+#include <wsutil/ws_roundup.h>
 #include "packet-tcp.h"
 
 #define ANCP_PORT 6068 /* The ANCP TCP port:draft-ietf-ancp-protocol-09.txt */
@@ -54,12 +55,6 @@
 #define TLV_PING_PARAMS                 0x07
 #define TLV_PING_OPAQUE_DATA            0x08
 #define TLV_PING_RES_STR                0x09
-
-#define SKIPPADDING(_ofst, _len)         \
-    do {                                 \
-        if ((_len) % 4)                  \
-            _ofst += (4 - ((_len) % 4)); \
-    } while(0)
 
 void proto_register_ancp(void);
 void proto_reg_handoff_ancp(void);
@@ -385,7 +380,6 @@ dissect_ancp_tlv(tvbuff_t *tvb, proto_tree *tlv_tree, gint offset)
                                 hf_ancp_dsl_line_stlv_value, tvb, offset,
                                 stlvlen, ENC_BIG_ENDIAN);
                         val = tvb_get_ntohl(tvb, offset);
-                        offset += stlvlen; /* Except loop-encap, rest are 4B */
 
                         switch (stlvtype) {
                             case TLV_DSL_LINE_STATE:
@@ -407,7 +401,7 @@ dissect_ancp_tlv(tvbuff_t *tvb, proto_tree *tlv_tree, gint offset)
                                             "Unknown (0x%02x)"));
                                 break;
                         }
-                        SKIPPADDING(offset, stlvlen);
+                        offset += WS_ROUNDUP_4(stlvlen); /* Except loop-encap, rest are 4B */
                     }
                     break;
                 }
@@ -434,9 +428,8 @@ dissect_ancp_tlv(tvbuff_t *tvb, proto_tree *tlv_tree, gint offset)
                 default:
                     /* Assume TLV value is string - covers ALCID, OAM resp */
                     proto_tree_add_item(tlv_tree, hf_ancp_ext_tlv_value_str,
-                            tvb, offset, tlen, ENC_ASCII|ENC_NA);
-                    offset += tlen;
-                    SKIPPADDING(offset, tlen);
+                            tvb, offset, tlen, ENC_ASCII);
+                    offset += WS_ROUNDUP_4(tlen);
                     break;
             } /* end switch {ttype} */
             return offset;
@@ -595,7 +588,7 @@ ancp_stats_tree_init(stats_tree *st)
 
 static tap_packet_status
 ancp_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_,
-                       epan_dissect_t* edt _U_ , const void* p)
+                       epan_dissect_t* edt _U_ , const void* p, tap_flags_t flags _U_)
 {
     const struct ancp_tap_t *pi = (const struct ancp_tap_t *) p;
 

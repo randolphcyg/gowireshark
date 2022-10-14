@@ -1,4 +1,5 @@
-/* wmem.h
+/** @file
+ *
  * Definitions for the Wireshark Memory Manager
  * Copyright 2012, Evan Huus <eapache@gmail.com>
  *
@@ -17,6 +18,7 @@
 #include "wmem_list.h"
 #include "wmem_map.h"
 #include "wmem_miscutl.h"
+#include "wmem_multimap.h"
 #include "wmem_queue.h"
 #include "wmem_stack.h"
 #include "wmem_strbuf.h"

@@ -34,6 +34,11 @@ indent_size = 8
 indent_style = space
 indent_size = 4
 
+# Lemon
+[*.lemon]
+indent_style = space
+indent_size = 4
+
 # WiX. The `xmllint --format` default is two spaces.
 [*.wx?]
 indent_style = space
@@ -48,6 +53,11 @@ indent_size = 2
 [*.yml]
 indent_style = space
 indent_size = 2
+
+# Asciidoc
+[*.adoc]
+indent_style = space
+indent_size = 4
 
 # GraphViz. The examples at https://gitlab.com/graphviz/graphviz/-/blob/master/graphs
 # seem to be all over the place, so just go with 4 spaces for now.
@@ -65,50 +75,7 @@ indent_size = 8
 indent_style = space
 indent_size = 4
 
-[{capinfos,captype,mergecap,tfshark,tshark}.c]
-indent_size = 2
-
-[{dftest,randpkt,trigcap}.c]
+# Flex (lexical analyzer generator)
+[*.l]
 indent_style = tab
-indent_size = tab
-
-[capture_stop_conditions.[ch]]
-indent_size = 2
-
-[cfile.[ch]]
-indent_size = 2
-
-[conditions.[ch]]
-indent_size = 2
-
-[file.[ch]]
-indent_size = 2
-
-[frame_tvbuff.[ch]]
-indent_style = tab
-indent_size = tab
-
-[pcapio.[ch]]
 indent_size = 8
-
-[ringbuffer.[ch]]
-indent_size = 2
-
-[randpkt_core.[ch]]
-indent_style = tab
-indent_size = tab
-
-[sharkd.c]
-indent_size = 2
-
-[sharkd_daemon.c]
-indent_style = tab
-indent_size = tab
-
-[sharkd_session.c]
-indent_style = tab
-indent_size = tab
-
-[version_info.[ch]]
-indent_style = tab
-indent_size = tab

@@ -46,7 +46,7 @@ void register_decode_as(decode_as_t* reg)
 
 static void next_proto_prompt(packet_info *pinfo _U_, gchar *result)
 {
-    g_snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Next level protocol as");
+    snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Next level protocol as");
 }
 
 static gpointer next_proto_value(packet_info *pinfo _U_)
@@ -97,19 +97,19 @@ static void
 decode_proto_add_to_list (const gchar *table_name, gpointer value, gpointer user_data)
 {
     struct decode_as_default_populate* populate = (struct decode_as_default_populate*)user_data;
-    const gchar     *proto_name;
+    const gchar     *dissector_description;
     gint       i;
     dissector_handle_t handle;
 
 
     handle = (dissector_handle_t)value;
-    proto_name = dissector_handle_get_short_name(handle);
+    dissector_description = dissector_handle_get_description(handle);
 
     i = dissector_handle_get_protocol_index(handle);
     if (i >= 0 && !proto_is_protocol_enabled(find_protocol_by_id(i)))
         return;
 
-    populate->add_to_list(table_name, proto_name, value, populate->ui_element);
+    populate->add_to_list(table_name, dissector_description, value, populate->ui_element);
 }
 
 void decode_as_default_populate_list(const gchar *table_name, decode_as_add_to_list_func add_to_list, gpointer ui_element)
@@ -311,18 +311,18 @@ decode_as_write_entry (const gchar *table_name, ftenum_t selector_type,
 {
     GList **decode_as_rows_list = (GList **)user_data;
     dissector_handle_t current, initial;
-    const gchar *current_proto_name, *initial_proto_name, *decode_as_row;
+    const gchar *current_dissector_name, *initial_dissector_name, *decode_as_row;
 
     current = dtbl_entry_get_handle((dtbl_entry_t *)value);
     if (current == NULL)
-        current_proto_name = DECODE_AS_NONE;
+        current_dissector_name = DECODE_AS_NONE;
     else
-        current_proto_name = dissector_handle_get_short_name(current);
+        current_dissector_name = dissector_handle_get_description(current);
     initial = dtbl_entry_get_initial_handle((dtbl_entry_t *)value);
     if (initial == NULL)
-        initial_proto_name = DECODE_AS_NONE;
+        initial_dissector_name = DECODE_AS_NONE;
     else
-        initial_proto_name = dissector_handle_get_short_name(initial);
+        initial_dissector_name = dissector_handle_get_description(initial);
 
     switch (selector_type) {
 
@@ -340,10 +340,10 @@ decode_as_write_entry (const gchar *table_name, ftenum_t selector_type,
          * but pre-1.10 releases are at end-of-life and won't
          * be fixed.
          */
-        decode_as_row = g_strdup_printf(
+        decode_as_row = ws_strdup_printf(
             DECODE_AS_ENTRY ": %s,%u,%s,%s\n",
-            table_name, GPOINTER_TO_UINT(key), initial_proto_name,
-            current_proto_name);
+            table_name, GPOINTER_TO_UINT(key), initial_dissector_name,
+            current_dissector_name);
         break;
     case FT_NONE:
         /*
@@ -351,10 +351,10 @@ decode_as_write_entry (const gchar *table_name, ftenum_t selector_type,
          * FT_NONE dissector table uses a single uint value for
          * a placeholder
          */
-        decode_as_row = g_strdup_printf(
+        decode_as_row = ws_strdup_printf(
             DECODE_AS_ENTRY ": %s,0,%s,%s\n",
-            table_name, initial_proto_name,
-            current_proto_name);
+            table_name, initial_dissector_name,
+            current_dissector_name);
         break;
 
     case FT_STRING:
@@ -362,10 +362,10 @@ decode_as_write_entry (const gchar *table_name, ftenum_t selector_type,
     case FT_UINT_STRING:
     case FT_STRINGZPAD:
     case FT_STRINGZTRUNC:
-        decode_as_row = g_strdup_printf(
+        decode_as_row = ws_strdup_printf(
             DECODE_AS_ENTRY ": %s,%s,%s,%s\n",
-            table_name, (gchar *)key, initial_proto_name,
-            current_proto_name);
+            table_name, (gchar *)key, initial_dissector_name,
+            current_dissector_name);
         break;
 
     default:
@@ -398,7 +398,7 @@ save_decode_as_entries(gchar** err)
     GList *decode_as_rows_list = NULL;
 
     if (create_persconffile_dir(&pf_dir_path) == -1) {
-        *err = g_strdup_printf("Can't create directory\n\"%s\"\nfor recent file: %s.",
+        *err = ws_strdup_printf("Can't create directory\n\"%s\"\nfor recent file: %s.",
                                 pf_dir_path, g_strerror(errno));
         g_free(pf_dir_path);
         return -1;
@@ -406,17 +406,18 @@ save_decode_as_entries(gchar** err)
 
     daf_path = get_persconffile_path(DECODE_AS_ENTRIES_FILE_NAME, TRUE);
     if ((da_file = ws_fopen(daf_path, "w")) == NULL) {
-        *err = g_strdup_printf("Can't open decode_as_entries file\n\"%s\": %s.",
+        *err = ws_strdup_printf("Can't open decode_as_entries file\n\"%s\": %s.",
                                 daf_path, g_strerror(errno));
         g_free(daf_path);
         return -1;
     }
 
-    fputs("# \"Decode As\" entries file for Wireshark " VERSION ".\n"
+    fprintf(da_file, "# \"Decode As\" entries file for %s " VERSION ".\n"
         "#\n"
         "# This file is regenerated each time \"Decode As\" preferences\n"
-        "# are saved within Wireshark. Making manual changes should be safe,\n"
-        "# however.\n", da_file);
+        "# are saved within %s. Making manual changes should be safe,\n"
+        "# however.\n",
+        get_configuration_namespace(), get_configuration_namespace());
 
     dissector_all_tables_foreach_changed(decode_as_write_entry, &decode_as_rows_list);
 

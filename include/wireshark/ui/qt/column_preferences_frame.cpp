@@ -11,7 +11,6 @@
 
 #include <glib.h>
 
-#include <epan/column-info.h>
 #include <epan/column.h>
 #include <epan/prefs.h>
 #include <epan/proto.h>
@@ -24,7 +23,7 @@
 #include <ui/qt/widgets/syntax_line_edit.h>
 #include <ui/qt/widgets/field_filter_edit.h>
 #include <ui/qt/models/column_list_model.h>
-#include "wireshark_application.h"
+#include "main_application.h"
 
 #include <QComboBox>
 #include <QTreeWidgetItemIterator>
@@ -68,6 +67,8 @@ ColumnPreferencesFrame::ColumnPreferencesFrame(QWidget *parent) :
     ui->columnTreeView->resizeColumnToContents(ColumnListModel::COL_DISPLAYED);
     ui->columnTreeView->resizeColumnToContents(ColumnListModel::COL_TITLE);
     ui->columnTreeView->resizeColumnToContents(ColumnListModel::COL_TYPE);
+    ui->columnTreeView->resizeColumnToContents(ColumnListModel::COL_OCCURRENCE);
+    ui->columnTreeView->resizeColumnToContents(ColumnListModel::COL_RESOLVED);
 
     connect(ui->columnTreeView->selectionModel(), &QItemSelectionModel::selectionChanged,
         this, &ColumnPreferencesFrame::selectionChanged);
@@ -84,7 +85,7 @@ ColumnPreferencesFrame::~ColumnPreferencesFrame()
 void ColumnPreferencesFrame::unstash()
 {
     model_->saveColumns();
-    wsApp->emitAppSignal(WiresharkApplication::ColumnsChanged);
+    mainApp->emitAppSignal(MainApplication::ColumnsChanged);
 }
 
 void ColumnPreferencesFrame::on_newToolButton_clicked()
@@ -115,9 +116,10 @@ void ColumnPreferencesFrame::on_chkShowDisplayedOnly_stateChanged(int /*state*/)
 void ColumnPreferencesFrame::on_columnTreeView_customContextMenuRequested(const QPoint &pos)
 {
     QMenu * contextMenu = new QMenu(this);
+    contextMenu->setAttribute(Qt::WA_DeleteOnClose);
     QAction * action = contextMenu->addAction(tr("Reset all changes"));
     connect(action, &QAction::triggered, this, &ColumnPreferencesFrame::resetAction);
-    contextMenu->exec(mapToGlobal(pos));
+    contextMenu->popup(mapToGlobal(pos));
 }
 
 void ColumnPreferencesFrame::resetAction(bool /*checked*/)

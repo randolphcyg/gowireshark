@@ -171,8 +171,12 @@ static int hf_rsl_osmo_rep_acch_dl_sacch = -1;
 static int hf_rsl_osmo_rep_acch_dl_facch_all = -1;
 static int hf_rsl_osmo_rep_acch_dl_facch_cmd = -1;
 static int hf_rsl_osmo_top_acch_val = -1;
+static int hf_rsl_osmo_top_acch_sacch = -1;
+static int hf_rsl_osmo_top_acch_facch = -1;
+static int hf_rsl_osmo_top_acch_rxqual = -1;
 static int hf_rsl_osmo_tsc_set = -1;
 static int hf_rsl_osmo_tsc_val = -1;
+static int hf_rsl_osmo_osmux_cid = -1;
 
 /* Initialize the subtree pointers */
 static int ett_rsl = -1;
@@ -436,6 +440,7 @@ static const value_string rsl_msg_disc_vals[] = {
 #define RSL_IE_OSMO_REP_ACCH_CAP          0x60
 #define RSL_IE_OSMO_TRAINING_SEQUENCE     0x61
 #define RSL_IE_OSMO_TOP_ACCH_CAP          0x62
+#define RSL_IE_OSMO_OSMUX_CID             0x63
 
 static const value_string rsl_msg_type_vals[] = {
       /*    0 0 0 0 - - - - Radio Link Layer Management messages: */
@@ -678,6 +683,7 @@ static const value_string rsl_ie_type_vals[] = {
 /* 0x60 */    { RSL_IE_OSMO_REP_ACCH_CAP, "Repeated ACCH Capabilities" },
 /* 0x61 */    { RSL_IE_OSMO_TRAINING_SEQUENCE, "Training Sequence Code/Set" },
 /* 0x62 */    { RSL_IE_OSMO_TOP_ACCH_CAP, "Temporary ACCH Overpower Capabilities" },
+/* 0x63 */    { RSL_IE_OSMO_OSMUX_CID, "Osmux CID" },
 /* 0xe0 */    { RSL_IE_IPAC_SRTP_CONFIG,"SRTP Configuration" },
 /* 0xe1 */    { RSL_IE_IPAC_PROXY_UDP,  "BSC Proxy UDP Port" },
 /* 0xe2 */    { RSL_IE_IPAC_BSCMPL_TOUT,"BSC Multiplex Timeout" },
@@ -3653,6 +3659,9 @@ dissect_rsl_ie_osmo_top_acch_cap(tvbuff_t *tvb, packet_info *pinfo _U_,
     proto_tree_add_item_ret_uint(ie_tree, hf_rsl_ie_length, tvb, offset++, 1, ENC_NA, &length);
     proto_item_set_len(ti, length + 2);
 
+    proto_tree_add_item(ie_tree, hf_rsl_osmo_top_acch_sacch, tvb, offset, 1, ENC_NA);
+    proto_tree_add_item(ie_tree, hf_rsl_osmo_top_acch_facch, tvb, offset, 1, ENC_NA);
+    proto_tree_add_item(ie_tree, hf_rsl_osmo_top_acch_rxqual, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(ie_tree, hf_rsl_osmo_top_acch_val, tvb, offset, 1, ENC_NA);
     offset++;
 
@@ -3714,6 +3723,7 @@ dissct_rsl_ipaccess_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
     rtp_dyn_payload_t *dyn_pl = NULL;
     struct dyn_pl_info_t *dyn_pl_info;
     conversation_t *conv;
+    gboolean use_osmux = FALSE;
 
     msg_type = tvb_get_guint8(tvb, offset) & 0x7f;
     offset++;
@@ -3860,29 +3870,38 @@ dissct_rsl_ipaccess_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
             proto_tree_add_item(ie_tree, hf_rsl_cstat_avg_tx_dly, tvb,
                                 offset+24, 4, ENC_BIG_ENDIAN);
             break;
+        case RSL_IE_OSMO_OSMUX_CID:
+            if (global_rsl_use_osmo_bts) {
+                proto_tree_add_item(ie_tree, hf_rsl_osmo_osmux_cid, tvb,
+                                    offset, len, ENC_BIG_ENDIAN);
+                use_osmux = TRUE;
+            }
+            break;
         }
         offset += len;
     }
 
     switch (msg_type) {
     case RSL_MSG_TYPE_IPAC_CRCX_ACK:
-        /* Notify the RTP and RTCP dissectors about a new RTP stream */
-        src_addr.type = AT_IPv4;
-        src_addr.len = 4;
-        src_addr.data = (guint8 *)&local_addr;
+        if (!use_osmux) {
+            /* Notify the RTP and RTCP dissectors about a new RTP stream */
+            src_addr.type = AT_IPv4;
+            src_addr.len = 4;
+            src_addr.data = (guint8 *)&local_addr;
 
-        conv = find_or_create_conversation(pinfo);
-        dyn_pl_info = (struct dyn_pl_info_t *)conversation_get_proto_data(conv, proto_rsl);
-        if (dyn_pl_info && (dyn_pl_info->rtp_codec == 2 || dyn_pl_info->rtp_codec == 5)) {
-            dyn_pl = rtp_dyn_payload_new();
-            rtp_dyn_payload_insert(dyn_pl, dyn_pl_info->rtp_pt, "AMR", 8000);
+            conv = find_or_create_conversation(pinfo);
+            dyn_pl_info = (struct dyn_pl_info_t *)conversation_get_proto_data(conv, proto_rsl);
+            if (dyn_pl_info && (dyn_pl_info->rtp_codec == 2 || dyn_pl_info->rtp_codec == 5)) {
+                dyn_pl = rtp_dyn_payload_new();
+                rtp_dyn_payload_insert(dyn_pl, dyn_pl_info->rtp_pt, "AMR", 8000);
+            }
+            conversation_delete_proto_data(conv, proto_rsl);
+            wmem_free(wmem_file_scope(), dyn_pl_info);
+            rtp_add_address(pinfo, PT_UDP, &src_addr, local_port, 0,
+                            "GSM A-bis/IP", pinfo->num, 0, dyn_pl);
+            rtcp_add_address(pinfo, &src_addr, local_port+1, 0,
+                             "GSM A-bis/IP", pinfo->num);
         }
-        conversation_delete_proto_data(conv, proto_rsl);
-        wmem_free(wmem_file_scope(), dyn_pl_info);
-        rtp_add_address(pinfo, PT_UDP, &src_addr, local_port, 0,
-                        "GSM A-bis/IP", pinfo->num, 0, dyn_pl);
-        rtcp_add_address(pinfo, &src_addr, local_port+1, 0,
-                         "GSM A-bis/IP", pinfo->num);
         break;
     }
     return offset;
@@ -4657,11 +4676,11 @@ req_ref_ra_est_cause_convert(gchar *result, guint32 ra)
         goto found;
     }
 
-    g_snprintf(result, ITEM_LABEL_LENGTH, "unknown ra %u", ra);
+    snprintf(result, ITEM_LABEL_LENGTH, "unknown ra %u", ra);
     return;
 
 found:
-    g_snprintf(result, ITEM_LABEL_LENGTH, "%s", str);
+    snprintf(result, ITEM_LABEL_LENGTH, "%s", str);
 }
 
 static int
@@ -5267,6 +5286,21 @@ void proto_register_rsl(void)
             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_decibels, 0x07,
             NULL, HFILL }
         },
+        { &hf_rsl_osmo_top_acch_rxqual,
+          { "Uplink RxQual threshold", "gsm_abis_rsl.osmo_top_acch.rxqual",
+            FT_UINT8, BASE_DEC, VALS(gsm_a_rr_rxqual_vals), 0x38,
+            NULL, HFILL }
+        },
+        { &hf_rsl_osmo_top_acch_facch,
+          { "FACCH Overpower", "gsm_abis_rsl.osmo_top_acch.facch",
+            FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x40,
+            NULL, HFILL }
+        },
+        { &hf_rsl_osmo_top_acch_sacch,
+          { "SACCH Overpower", "gsm_abis_rsl.osmo_top_acch.sacch",
+            FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x80,
+            NULL, HFILL }
+        },
         { &hf_rsl_osmo_tsc_set,
           { "Training Sequence Set", "gsm_abis_rsl.osmo_tsc_set",
             FT_UINT8, BASE_DEC, VALS(rsl_osmo_tsc_set_vals), 0,
@@ -5274,6 +5308,11 @@ void proto_register_rsl(void)
         },
         { &hf_rsl_osmo_tsc_val,
           { "Training Sequence Code", "gsm_abis_rsl.osmo_tsc_val",
+            FT_UINT8, BASE_DEC, NULL, 0,
+            NULL, HFILL }
+        },
+        { &hf_rsl_osmo_osmux_cid,
+          { "Osmux CID", "gsm_abis_rsl.osmo_osmux_cid",
             FT_UINT8, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
@@ -5465,6 +5504,7 @@ void proto_register_rsl(void)
     RSL_ATT_TLVDEF(RSL_IE_IPAC_RTP_PAYLOAD,  TLV_TYPE_TV,            0);
     RSL_ATT_TLVDEF(RSL_IE_IPAC_RTP_CSD_FMT,  TLV_TYPE_TV,            0);
     RSL_ATT_TLVDEF(RSL_IE_OSMO_TRAINING_SEQUENCE, TLV_TYPE_TLV,      0);
+    RSL_ATT_TLVDEF(RSL_IE_OSMO_OSMUX_CID,    TLV_TYPE_TLV,           0);
 
     /* Register the protocol name and description */
     proto_rsl = proto_register_protocol("Radio Signalling Link (RSL)", "RSL", "gsm_abis_rsl");
@@ -5476,7 +5516,7 @@ void proto_register_rsl(void)
 
     rsl_handle = register_dissector("gsm_abis_rsl", dissect_rsl, proto_rsl);
 
-    rsl_module = prefs_register_protocol(proto_rsl, proto_reg_handoff_rsl);
+    rsl_module = prefs_register_protocol(proto_rsl, NULL);
     prefs_register_bool_preference(rsl_module, "use_ipaccess_rsl",
                                    "Use nanoBTS definitions",
                                    "Use ipaccess nanoBTS specific definitions for RSL",

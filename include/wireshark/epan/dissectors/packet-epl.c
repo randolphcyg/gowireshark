@@ -67,6 +67,7 @@
 #include <epan/expert.h>
 #include <epan/reassemble.h>
 #include <epan/proto_data.h>
+#include <epan/strutil.h>
 #include <epan/uat.h>
 #include <wsutil/strtoi.h>
 #include <wsutil/file_util.h>
@@ -2219,7 +2220,7 @@ epl_get_convo(packet_info *pinfo, int opts)
 	node_addr = &epl_placeholder_mac;
 
 	if ((epan_convo = find_conversation(pinfo->num, node_addr, node_addr,
-				conversation_pt_to_endpoint_type(pinfo->ptype), node_port, node_port, NO_ADDR_B|NO_PORT_B)))
+				conversation_pt_to_conversation_type(pinfo->ptype), node_port, node_port, NO_ADDR_B|NO_PORT_B)))
 	{
 		/* XXX Do I need to check setup_frame != pinfo->num in order to not
 		 * create unnecessary new conversations?
@@ -2236,7 +2237,7 @@ epl_get_convo(packet_info *pinfo, int opts)
 	{
 new_convo_creation:
 		epan_convo = conversation_new(pinfo->num, node_addr, node_addr,
-				conversation_pt_to_endpoint_type(pinfo->ptype), node_port, node_port, NO_ADDR2|NO_PORT2);
+				conversation_pt_to_conversation_type(pinfo->ptype), node_port, node_port, NO_ADDR2|NO_PORT2);
 	}
 
 	convo = (struct epl_convo*)conversation_get_proto_data(epan_convo, proto_epl);
@@ -2501,7 +2502,7 @@ epl_set_sequence_nr(packet_info *pinfo, guint16 seqnum)
 static void
 elp_version( gchar *result, guint32 version )
 {
-	g_snprintf( result, ITEM_LABEL_LENGTH, "%d.%d", hi_nibble(version), lo_nibble(version));
+	snprintf( result, ITEM_LABEL_LENGTH, "%d.%d", hi_nibble(version), lo_nibble(version));
 }
 /* Code to actually dissect the packets */
 static int
@@ -2521,11 +2522,8 @@ dissect_eplpdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean udp
 	if (tvb_reported_length(tvb) < 3)
 	{
 		/* Not enough data for an EPL header; don't try to interpret it */
-		return FALSE;
+		return 0;
 	}
-
-	/* Make entries in Protocol column and Info column on summary display */
-	col_set_str(pinfo->cinfo, COL_PROTOCOL, udpencap ? "POWERLINK/UDP" : "POWERLINK");
 
 	/* Get message type */
 	epl_mtyp = tvb_get_guint8(tvb, EPL_MTYP_OFFSET) & 0x7F;
@@ -2536,7 +2534,15 @@ dissect_eplpdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean udp
 	* to dissect it as a normal EPL packet.
 	*/
 	if (dissector_try_heuristic(heur_epl_subdissector_list, tvb, pinfo, tree, &hdtbl_entry, &epl_mtyp))
-		return TRUE;
+		return tvb_reported_length(tvb);
+
+	if (!try_val_to_str(epl_mtyp, mtyp_vals)) {
+		/* Not an EPL packet */
+		return 0;
+	}
+
+	/* Make entries in Protocol column and Info column on summary display */
+	col_set_str(pinfo->cinfo, COL_PROTOCOL, udpencap ? "POWERLINK/UDP" : "POWERLINK");
 
 	/* tap */
 	/*  mi.epl_mtyp = epl_mtyp;
@@ -2607,7 +2613,7 @@ dissect_eplpdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean udp
 			break;
 
 		default:    /* no valid EPL packet */
-			return FALSE;
+			return 0;
 	}
 
 	if (tree)
@@ -2801,7 +2807,7 @@ dissect_epl_payload(proto_tree *epl_tree, tvbuff_t *tvb, packet_info *pinfo, gin
 			guint64 val;
 			item = proto_tree_add_item_ret_uint64(epl_tree, *type->hf,
 						tvb, offset, type->len, type->encoding, &val);
-			proto_item_append_text(item, " (0x%.*" G_GINT64_MODIFIER "x)", 2*type->len, val);
+			proto_item_append_text(item, " (0x%.*" PRIx64 ")", 2*type->len, val);
 		}
 	}
 	/* If a mapping uses a type of fixed width that's not equal to
@@ -2815,7 +2821,7 @@ dissect_epl_payload(proto_tree *epl_tree, tvbuff_t *tvb, packet_info *pinfo, gin
 			guint64 val;
 			item = proto_tree_add_item_ret_uint64(epl_tree, hf_epl_od_uint,
 						payload_tvb, 0, payload_len, ENC_LITTLE_ENDIAN, &val);
-			proto_item_append_text(item, " (0x%.*" G_GINT64_MODIFIER "x)", 2*payload_len, val);
+			proto_item_append_text(item, " (0x%.*" PRIx64 ")", 2*payload_len, val);
 		}
 		else
 		{
@@ -3506,7 +3512,7 @@ dissect_epl_asnd_ires(struct epl_convo *convo, proto_tree *epl_tree, tvbuff_t *t
 	proto_tree_add_ipv4(epl_tree , hf_epl_asnd_identresponse_gtw, tvb, offset, 4, epl_asnd_identresponse_gtw);
 	offset += 4;
 
-	proto_tree_add_item(epl_tree, hf_epl_asnd_identresponse_hn, tvb, offset, 32, ENC_ASCII|ENC_NA);
+	proto_tree_add_item(epl_tree, hf_epl_asnd_identresponse_hn, tvb, offset, 32, ENC_ASCII);
 	offset += 32;
 
 	proto_tree_add_item(epl_tree, hf_epl_asnd_identresponse_vex2, tvb, offset, 48, ENC_NA);
@@ -4324,9 +4330,9 @@ dissect_object_mapping(struct profile *profile, wmem_array_t *mappings, proto_tr
 	{
 		/* TODO One could think of a better string here? */
 		if (nosub)
-			g_snprintf(map.title, sizeof(map.title), "PDO - %04X", map.pdo.idx);
+			snprintf(map.title, sizeof(map.title), "PDO - %04X", map.pdo.idx);
 		else
-			g_snprintf(map.title, sizeof(map.title), "PDO - %04X:%02X", map.pdo.idx, map.pdo.subindex);
+			snprintf(map.title, sizeof(map.title), "PDO - %04X:%02X", map.pdo.idx, map.pdo.subindex);
 
 		add_object_mapping(mappings, &map);
 	}
@@ -5717,7 +5723,7 @@ proto_register_epl(void)
 		},
 		{ &hf_epl_asnd_identresponse_profile_path,
 			{ "Profile Path", "epl.asnd.ires.profilepath",
-				FT_STRING, STR_UNICODE, NULL, 0x00, NULL, HFILL }
+				FT_STRING, BASE_NONE, NULL, 0x00, NULL, HFILL }
 		},
 		{ &hf_epl_asnd_identresponse_vid,
 			{ "VendorId", "epl.asnd.ires.vendorid",
@@ -6202,7 +6208,7 @@ proto_register_epl(void)
 		/* EPL Data types */
 		{ &hf_epl_pdo,
 			{ "PDO", "epl.pdo",
-				FT_STRING, STR_ASCII, NULL, 0x00, NULL, HFILL }
+				FT_STRING, BASE_NONE, NULL, 0x00, NULL, HFILL }
 		},
 		{ &hf_epl_pdo_index,
 			{ "Index", "epl.pdo.index",
@@ -6260,7 +6266,7 @@ proto_register_epl(void)
 		},
 		{ &hf_epl_od_string,
 			{ "Data", "epl.od.data.string",
-				FT_STRING, STR_UNICODE, NULL, 0x00, NULL, HFILL }
+				FT_STRING, BASE_NONE, NULL, 0x00, NULL, HFILL }
 		},
 		{ &hf_epl_od_octet_string,
 			{ "Data", "epl.od.data.bytestring",
@@ -6497,7 +6503,7 @@ epl_profile_uat_fld_fileopen_check_cb(void *record _U_, const char *path, guint 
 
 	if (ws_stat64(path, &st) != 0)
 	{
-		*err = g_strdup_printf("File '%s' does not exist or access was denied.", path);
+		*err = ws_strdup_printf("File '%s' does not exist or access was denied.", path);
 		return FALSE;
 	}
 
@@ -6514,7 +6520,7 @@ epl_profile_uat_fld_fileopen_check_cb(void *record _U_, const char *path, guint 
 		*err = NULL;
 		return TRUE;
 #else
-		*err = g_strdup_printf("*.xdd and *.xdc support not compiled in. %s", supported);
+		*err = ws_strdup_printf("*.xdd and *.xdc support not compiled in. %s", supported);
 		return FALSE;
 #endif
 	}
@@ -6732,15 +6738,19 @@ nodeid_profile_list_uats_nodeid_tostr_cb(void *_rec, char **out_ptr, unsigned *o
 static gboolean
 epl_uat_fld_cn_check_cb(void *record _U_, const char *str, guint len _U_, const void *u1 _U_, const void *u2 _U_, char **err)
 {
-	unsigned int c;
 	guint8 nodeid;
 
 	if (ws_strtou8(str, NULL, &nodeid) && EPL_IS_CN_NODEID(nodeid))
 		return TRUE;
 
-	if (sscanf(str, "%*02x%*c%*02x%*c%*02x%*c%*02x%*c%*02x%*c%02x", &c) > 0)
-		return TRUE;
+	GByteArray *addr = g_byte_array_new();
 
+	if (hex_str_to_bytes(str, addr, FALSE) && addr->len == FT_ETHER_LEN) {
+		g_byte_array_free(addr, TRUE);
+		return TRUE;
+	}
+
+	g_byte_array_free(addr, TRUE);
 	*err = g_strdup("Invalid argument. Expected either a CN ID [1-239] or a MAC address");
 	return FALSE;
 }
@@ -6749,27 +6759,21 @@ static void
 nodeid_profile_list_uats_nodeid_set_cb(void *_rec, const char *str, unsigned len, const void *set_data _U_, const void *fld_data _U_)
 {
 	struct nodeid_profile_uat_assoc *rec = (struct nodeid_profile_uat_assoc*)_rec;
-	guint8 addr[6];
+	GByteArray *addr = g_byte_array_new();
 
-	if (ws_strtou8(str, NULL, &addr[0]))
-	{
-		rec->is_nodeid = TRUE;
-		rec->node.id = addr[0];
-	}
-	else
-	{
-		unsigned i;
-		const char *endptr = str;
-		for (i = 0; i < 6; i++)
-		{
-			ws_hexstrtou8(endptr, &endptr, &addr[i]);
-			endptr++;
-		}
-
-		alloc_address_wmem(NULL, &rec->node.addr, AT_ETHER, 6, addr);
+	rec->is_nodeid = TRUE;
+	if (hex_str_to_bytes(str, addr, FALSE) && addr->len == FT_ETHER_LEN) {
+		alloc_address_wmem(NULL, &rec->node.addr, AT_ETHER, FT_ETHER_LEN, addr->data);
 		rec->is_nodeid = FALSE;
 	}
+	else if (!ws_strtou8(str, NULL, &rec->node.id))
+	{
+		/* Invalid input. Set this to a bad value and let
+		 * epl_uat_fld_cn_check_cb return an error message. */
+		rec->node.id = 0;
+	}
 
+	g_byte_array_free(addr, TRUE);
 	g_free(rec->id_str);
 	rec->id_str = g_strndup(str, len);
 }

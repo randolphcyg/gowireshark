@@ -33,10 +33,6 @@ indent_size = tab
 [clopts_common.[ch]]
 indent_size = 2
 
-[copyright_info.[ch]]
-indent_style = tab
-indent_size = tab
-
 [crash_info.[ch]]
 indent_style = tab
 indent_size = tab
@@ -87,10 +83,6 @@ indent_size = 2
 indent_style = tab
 indent_size = tab
 
-[str_util.[ch]]
-indent_style = tab
-indent_size = tab
-
 [strptime.[ch]]
 indent_size = 2
 
@@ -98,6 +90,10 @@ indent_size = 2
 indent_size = 2
 
 [time_util.[ch]]
+indent_style = tab
+indent_size = tab
+
+[to_str.[ch]]
 indent_style = tab
 indent_size = tab
 

@@ -1,4 +1,5 @@
-/* airpcap_loader.h
+/** @file
+ *
  * Declarations of routines for the "About" dialog
  *
  * Giorgio Tino <giorgio.tino@cacetech.com>
@@ -15,6 +16,7 @@
 #define __AIRPCAP_LOADER_H__
 
 #include <epan/crypt/dot11decrypt_system.h>
+#include <wsutil/feature_list.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -395,10 +397,10 @@ airpcap_if_clear_decryption_settings(airpcap_if_info_t* info_if);
  * Adds compiled version string to str
  */
 void
-get_compiled_airpcap_version(GString *str);
+gather_airpcap_compile_info(feature_list l);
 
 void
-get_runtime_airpcap_version(GString *str);
+gather_airpcap_runtime_info(feature_list l);
 
 #ifdef __cplusplus
 }

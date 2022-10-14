@@ -12,7 +12,7 @@
 
 #include "config.h"
 
-#include <stdio.h>
+#include <stdio.h>      /* for sscanf() */
 
 #include "epan/packet.h"
 #include "epan/expert.h"
@@ -213,7 +213,7 @@ static void add_exported_pdu(tvbuff_t *tvb, packet_info *pinfo, const char * sub
     if (have_tap_listener(exported_pdu_tap)) {
         exp_pdu_data_t *exp_pdu_data;
 
-        exp_pdu_data = export_pdu_create_tags(pinfo, subdissector_name, EXP_PDU_TAG_PROTO_NAME, NULL);
+        exp_pdu_data = export_pdu_create_tags(pinfo, subdissector_name, EXP_PDU_TAG_DISSECTOR_NAME, NULL);
 
         exp_pdu_data->tvb_captured_length = tvb_captured_length(tvb);
         exp_pdu_data->tvb_reported_length = tvb_reported_length(tvb);
@@ -325,12 +325,12 @@ void proto_register_logcat_text(void) {
             },
             { &hf_logcat_text_tag,
                 { "Tag",       "logcat_text.tag",
-                FT_STRING, STR_UNICODE, NULL, 0x00, NULL, HFILL
+                FT_STRING, BASE_NONE, NULL, 0x00, NULL, HFILL
                 }
             },
             { &hf_logcat_text_log,
                 { "Log",       "logcat_text.log",
-                FT_STRING, STR_UNICODE, NULL, 0x00, NULL, HFILL
+                FT_STRING, BASE_NONE, NULL, 0x00, NULL, HFILL
                 }
             },
             { &hf_logcat_text_priority,

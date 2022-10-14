@@ -1,5 +1,4 @@
-/*
- * crc7.h
+/** @file
  *
  * Functions and types for CRC checks.
  *
@@ -24,7 +23,7 @@
 #ifndef __CRC7__H__
 #define __CRC7__H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

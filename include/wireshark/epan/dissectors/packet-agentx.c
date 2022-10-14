@@ -15,6 +15,7 @@
 
 #include <epan/packet.h>
 #include <epan/to_str.h>
+#include <wsutil/ws_roundup.h>
 
 #include "packet-tcp.h"
 
@@ -271,7 +272,6 @@ enum OID_USAGE { OID_START_RANGE, OID_END_RANGE, OID_EXACT };
 #define OID_IS_INCLUSIVE 	0x01
 
 #define PDU_HDR_LEN	20
-#define PADDING(x) ((((x) + 3) >> 2) << 2)
 
 #define NORLEL(flags,var,tvb,offset) \
 	var = (flags & NETWORK_BYTE_ORDER) ? \
@@ -289,14 +289,14 @@ dissect_octet_string(tvbuff_t *tvb, proto_tree *tree, int offset, guint8 flags)
 
 	NORLEL(flags, n_oct, tvb, offset);
 
-	p_noct = PADDING(n_oct);
+	p_noct = WS_ROUNDUP_4(n_oct);
 
 	proto_tree_add_uint(tree, hf_ostring_len, tvb, offset, 4, n_oct);
 	/*
 	 * XXX - an "octet string" is not necessarily a text string, so
 	 * having hf_ostring be FT_STRING is not necessarily appropriate.
 	 */
-	proto_tree_add_item(tree, hf_ostring, tvb, offset + 4, n_oct, ENC_ASCII|ENC_NA);
+	proto_tree_add_item(tree, hf_ostring, tvb, offset + 4, n_oct, ENC_ASCII);
 	return p_noct + 4;
 
 }
@@ -313,11 +313,11 @@ convert_oid_to_str(guint32 *oid, int len, char* str, int slen, char prefix)
 	if(slen < len) return 0;
 
 	if(prefix) {
-		tlen += g_snprintf(str, slen, ".1.3.6.1.%d", prefix);
+		tlen += snprintf(str, slen, ".1.3.6.1.%d", prefix);
 	}
 
 	for(i=0; i < len && tlen < slen; i++) {
-		tlen += g_snprintf(str+tlen, slen-tlen, ".%d", oid[i]);
+		tlen += snprintf(str+tlen, slen-tlen, ".%d", oid[i]);
 	}
 	return tlen;
 }
@@ -346,7 +346,7 @@ dissect_object_id(tvbuff_t *tvb, proto_tree *tree, int offset, guint8 flags, enu
 	}
 
 	if(!convert_oid_to_str(&oid[0], n_subid, &str_oid[0], 2048, prefix))
-		g_snprintf(&str_oid[0], 2048, "(null)");
+		snprintf(&str_oid[0], 2048, "(null)");
 
 	if(tree) {
 		const char *range = "";

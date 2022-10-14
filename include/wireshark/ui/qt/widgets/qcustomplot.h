@@ -1,4 +1,6 @@
-/***************************************************************************
+/** @file
+**
+****************************************************************************
 **                                                                        **
 **  QCustomPlot, an easy to use, modern plotting widget for Qt            **
 **  Copyright (C) 2011-2021 Emanuel Eichhammer                            **
@@ -150,26 +152,8 @@ class QCPPolarGraph;
 
   It provides QMetaObject-based reflection of its enums and flags via \a QCP::staticMetaObject.
 */
-#ifndef Q_MOC_RUN
 namespace QCP {
-#else
-class QCP { // when in moc-run, make it look like a class, so we get Q_GADGET, Q_ENUMS/Q_FLAGS features in namespace
-  Q_GADGET
-  Q_ENUMS(ExportPen)
-  Q_ENUMS(ResolutionUnit)
-  Q_ENUMS(SignDomain)
-  Q_ENUMS(MarginSide)
-  Q_FLAGS(MarginSides)
-  Q_ENUMS(AntialiasedElement)
-  Q_FLAGS(AntialiasedElements)
-  Q_ENUMS(PlottingHint)
-  Q_FLAGS(PlottingHints)
-  Q_ENUMS(Interaction)
-  Q_FLAGS(Interactions)
-  Q_ENUMS(SelectionRectMode)
-  Q_ENUMS(SelectionType)
-public:
-#endif
+    Q_NAMESPACE
 
 /*!
   Defines the different units in which the image resolution can be specified in the export
@@ -312,6 +296,20 @@ enum SelectionType { stNone                ///< The plottable is not selectable
                      ,stMultipleDataRanges ///< Any combination of data points/ranges can be selected
                     };
 
+  Q_ENUM_NS(ExportPen)
+  Q_ENUM_NS(ResolutionUnit)
+  Q_ENUM_NS(SignDomain)
+  Q_ENUM_NS(MarginSide)
+  Q_FLAG_NS(MarginSides)
+  Q_ENUM_NS(AntialiasedElement)
+  Q_FLAG_NS(AntialiasedElements)
+  Q_ENUM_NS(PlottingHint)
+  Q_FLAG_NS(PlottingHints)
+  Q_ENUM_NS(Interaction)
+  Q_FLAG_NS(Interactions)
+  Q_ENUM_NS(SelectionRectMode)
+  Q_ENUM_NS(SelectionType)
+
 /*! \internal
 
   Returns whether the specified \a value is considered an invalid data value for plottables (i.e.
@@ -380,15 +378,7 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(QCP::AntialiasedElements)
 Q_DECLARE_OPERATORS_FOR_FLAGS(QCP::PlottingHints)
 Q_DECLARE_OPERATORS_FOR_FLAGS(QCP::MarginSides)
 Q_DECLARE_OPERATORS_FOR_FLAGS(QCP::Interactions)
-Q_DECLARE_METATYPE(QCP::ExportPen)
-Q_DECLARE_METATYPE(QCP::ResolutionUnit)
-Q_DECLARE_METATYPE(QCP::SignDomain)
-Q_DECLARE_METATYPE(QCP::MarginSide)
-Q_DECLARE_METATYPE(QCP::AntialiasedElement)
-Q_DECLARE_METATYPE(QCP::PlottingHint)
-Q_DECLARE_METATYPE(QCP::Interaction)
-Q_DECLARE_METATYPE(QCP::SelectionRectMode)
-Q_DECLARE_METATYPE(QCP::SelectionType)
+//no need to use Q_DECLARE_METATYPE on enum since Q_ENUM_NS adds enum as metatype automatically
 
 /* end of 'src/global.h' */
 
@@ -964,7 +954,7 @@ public:
   friend inline const QCPDataSelection operator-(const QCPDataRange& a, const QCPDataRange& b);
 
   // getters:
-  int dataRangeCount() const { return mDataRanges.size(); }
+  int dataRangeCount() const { return static_cast<int>(mDataRanges.size()); }
   int dataPointCount() const;
   QCPDataRange dataRange(int index=0) const;
   QList<QCPDataRange> dataRanges() const { return mDataRanges; }
@@ -1368,8 +1358,8 @@ public:
   virtual ~QCPLayoutGrid() Q_DECL_OVERRIDE;
 
   // getters:
-  int rowCount() const { return mElements.size(); }
-  int columnCount() const { return mElements.size() > 0 ? mElements.first().size() : 0; }
+  int rowCount() const { return static_cast<int>(mElements.size()); }
+  int columnCount() const { return mElements.size() > 0 ? static_cast<int>(mElements.first().size()) : 0; }
   QList<double> columnStretchFactors() const { return mColumnStretchFactors; }
   QList<double> rowStretchFactors() const { return mRowStretchFactors; }
   int columnSpacing() const { return mColumnSpacing; }
@@ -2578,7 +2568,7 @@ public:
   QCPDataContainer();
 
   // getters:
-  int size() const { return mData.size()-mPreallocSize; }
+  int size() const { return static_cast<int>(mData.size()-mPreallocSize); }
   bool isEmpty() const { return size() == 0; }
   bool autoSqueeze() const { return mAutoSqueeze; }
 
@@ -2869,7 +2859,7 @@ void QCPDataContainer<DataType>::add(const QVector<DataType> &data, bool already
     return;
   }
 
-  const int n = data.size();
+  const int n = static_cast<int>(data.size());
   const int oldSize = size();
 
   if (alreadySorted && oldSize > 0 && !qcpLessThanSortKey<DataType>(*constBegin(), *(data.constEnd()-1))) // prepend if new data is sorted and keys are all smaller than or equal to existing ones
@@ -4664,7 +4654,7 @@ void QCPAbstractPlottable1D<DataType>::drawPolyline(QCPPainter *painter, const Q
   {
     int i = 0;
     bool lastIsNan = false;
-    const int lineDataSize = lineData.size();
+    const int lineDataSize = static_cast<int>(lineData.size());
     while (i < lineDataSize && (qIsNaN(lineData.at(i).y()) || qIsNaN(lineData.at(i).x()))) // make sure first point is not NaN
       ++i;
     ++i; // because drawing works in 1 point retrospect
@@ -4684,7 +4674,7 @@ void QCPAbstractPlottable1D<DataType>::drawPolyline(QCPPainter *painter, const Q
   {
     int segmentStart = 0;
     int i = 0;
-    const int lineDataSize = lineData.size();
+    const int lineDataSize = static_cast<int>(lineData.size());
     while (i < lineDataSize)
     {
       if (qIsNaN(lineData.at(i).y()) || qIsNaN(lineData.at(i).x()) || qIsInf(lineData.at(i).y())) // NaNs create a gap in the line. Also filter Infs which make drawPolyline block
@@ -5705,7 +5695,7 @@ public:
   // non-virtual methods:
   QList<QCPBars*> bars() const { return mBars; }
   QCPBars* bars(int index) const;
-  int size() const { return mBars.size(); }
+  int size() const { return static_cast<int>(mBars.size()); }
   bool isEmpty() const { return mBars.isEmpty(); }
   void clear();
   bool contains(QCPBars *bars) const { return mBars.contains(bars); }

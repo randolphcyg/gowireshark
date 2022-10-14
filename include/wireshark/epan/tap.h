@@ -1,4 +1,4 @@
-/* tap.h
+/** @file
  * packet tap interface   2002 Ronnie Sahlberg
  *
  * Wireshark - Network traffic analyzer
@@ -13,7 +13,7 @@
 
 #include <epan/epan.h>
 #include <epan/packet_info.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,21 +28,28 @@ typedef enum {
 	TAP_PACKET_FAILED	/**< Packet processing failed, stop calling this tap */
 } tap_packet_status;
 
+typedef guint tap_flags_t;
+
 typedef void (*tap_reset_cb)(void *tapdata);
-typedef tap_packet_status (*tap_packet_cb)(void *tapdata, packet_info *pinfo, epan_dissect_t *edt, const void *data);
+typedef tap_packet_status (*tap_packet_cb)(void *tapdata, packet_info *pinfo, epan_dissect_t *edt, const void *data, tap_flags_t flags);
 typedef void (*tap_draw_cb)(void *tapdata);
 typedef void (*tap_finish_cb)(void *tapdata);
 
 /**
  * Flags to indicate what a tap listener's packet routine requires.
  */
-#define TL_REQUIRES_NOTHING	0x00000000	        /**< nothing */
-#define TL_REQUIRES_PROTO_TREE	0x00000001	    /**< full protocol tree */
-#define TL_REQUIRES_COLUMNS	0x00000002	        /**< columns */
-#define TL_REQUIRES_ERROR_PACKETS	0x00000004	/**< include packet even if pinfo->flags.in_error_pkt is set */
+#define TL_REQUIRES_NOTHING         0x00000000	    /**< nothing */
+#define TL_REQUIRES_PROTO_TREE      0x00000001	    /**< full protocol tree */
+#define TL_REQUIRES_COLUMNS         0x00000002	    /**< columns */
+#define TL_REQUIRES_ERROR_PACKETS   0x00000004	    /**< include packet even if pinfo->flags.in_error_pkt is set */
+
 /** Flags to indicate what the tap listener does */
-#define TL_IS_DISSECTOR_HELPER	0x00000008	    /**< tap helps a dissector do work
-						                         ** but does not, itself, require dissection */
+#define TL_IS_DISSECTOR_HELPER      0x00000008	    /**< tap helps a dissector do work
+						                             ** but does not, itself, require dissection */
+
+/** Flags to indicate what the packet cb should do */
+#define TL_IGNORE_DISPLAY_FILTER    0x00000010      /**< use packet, even if it woul dbe filtered out */
+#define TL_DISPLAY_FILTER_IGNORED   0x00100000      /**< flag for the conversation handler */
 
 typedef struct {
 	void (*register_tap_listener)(void);   /* routine to call to register tap listener */

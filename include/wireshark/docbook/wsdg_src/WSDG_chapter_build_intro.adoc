@@ -1,10 +1,10 @@
 // WSDG Chapter Build Introduction
 
-[[ChapterBuildIntro]]
+[#ChapterBuildIntro]
 
 == Introduction
 
-[[ChCodeOverview]]
+[#ChCodeOverview]
 
 === Source overview
 
@@ -24,14 +24,14 @@ the _/capture_ directory
 
 * Help - using an external web browser and text output
 
-[[ChCodeStyle]]
+[#ChCodeStyle]
 
 === Coding Style
 
 The coding style guides for Wireshark can be found in the “Portability”
 section of the file _doc/README.developer_.
 
-[[ChCodeGLib]]
+[#ChCodeGLib]
 
 === The GLib library
 
@@ -47,6 +47,6 @@ common data structures.
 ____
 
 GLib contains lots of useful things for platform independent development.
-See https://developer.gnome.org/glib/[] for details about GLib.
+See https://developer.gnome.org/glib/ and https://docs.gtk.org/glib/ for details about GLib.
 
 // End of WSDG Chapter Build Introduction

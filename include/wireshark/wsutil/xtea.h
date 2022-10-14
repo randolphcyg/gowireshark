@@ -1,4 +1,5 @@
-/* xtea.h
+/** @file
+ *
  * Implementation of XTEA cipher
  * By Ahmad Fatoum <ahmad[AT]a3f.at>
  * Copyright 2017 Ahmad Fatoum
@@ -16,7 +17,7 @@
 /* Actual XTEA is big-endian, nevertheless there exist protocols that treat every block
  * as little endian, so we provide both
  */
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 #include <glib.h>
 
 WS_DLL_PUBLIC void decrypt_xtea_ecb(guint8 plaintext[8], const guint8 ciphertext[8], const guint32 key[4], guint num_rounds);

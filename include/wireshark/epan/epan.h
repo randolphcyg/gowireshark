@@ -1,4 +1,4 @@
-/* epan.h
+/** @file
  *
  * Wireshark Protocol Analyzer Library
  *
@@ -12,12 +12,13 @@
 
 #include <glib.h>
 
+#include <wsutil/feature_list.h>
 #include <epan/tvbuff.h>
 #include <epan/prefs.h>
 #include <epan/frame_data.h>
 #include <epan/register.h>
 #include <wiretap/wtap_opttypes.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -116,7 +117,8 @@ WS_DLL_PUBLIC
 void epan_cleanup(void);
 
 typedef struct {
-	void (*init)(void);
+	void (*init)(void);		/* Called before proto_init() */
+	void (*post_init)(void);	/* Called at the end of epan_init() */
 	void (*dissect_init)(epan_dissect_t *);
 	void (*dissect_cleanup)(epan_dissect_t *);
 	void (*cleanup)(void);
@@ -273,14 +275,14 @@ epan_custom_set(epan_dissect_t *edt, GSList *ids, gint occurrence,
  */
 WS_DLL_PUBLIC
 void
-epan_get_compiled_version_info(GString *str);
+epan_gather_compile_info(feature_list l);
 
 /**
  * Get runtime information for libraries used by libwireshark.
  */
 WS_DLL_PUBLIC
 void
-epan_get_runtime_version_info(GString *str);
+epan_gather_runtime_info(feature_list l);
 
 #ifdef __cplusplus
 }
