@@ -5,6 +5,11 @@
 // global capture file variable
 capture_file cf;
 
+static guint hexdump_source_option =
+    HEXDUMP_SOURCE_MULTI; /* Default - Enable legacy multi-source mode */
+static guint hexdump_ascii_option =
+    HEXDUMP_ASCII_INCLUDE; /* Default - Enable legacy undelimited ASCII dump */
+
 /**
  * Init policies、wtap mod、epan mod.
  *
@@ -128,7 +133,6 @@ void clean_cf() {
   /* No frames, no frame selected, no field in that frame selected. */
   cf.count = 0;
   cf.current_frame = NULL;
-  cf.current_row = 0;
   cf.finfo_selected = NULL;
 
   /* No frame link-layer types, either. */
@@ -217,27 +221,27 @@ gboolean read_packet(epan_dissect_t **edt_r) {
   if (wtap_read(cf.provider.wth, &rec, &cf.buf, &err, &err_info,
                 &data_offset)) {
     cf.count++;
-    frame_data fdlocal;
-    frame_data_init(&fdlocal, cf.count, &rec, data_offset, cum_bytes);
+    frame_data fd;
+    frame_data_init(&fd, cf.count, &rec, data_offset, cum_bytes);
     // data_offset must be correctly set
-    data_offset = fdlocal.pkt_len;
+    data_offset = fd.pkt_len;
     edt = epan_dissect_new(cf.epan, TRUE, TRUE);
     prime_epan_dissect_with_postdissector_wanted_hfids(edt);
     /**
      * Sets the frame data struct values before dissection.
      */
-    frame_data_set_before_dissect(&fdlocal, &cf.elapsed_time, &cf.provider.ref,
+    frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref,
                                   cf.provider.prev_dis);
-    cf.provider.ref = &fdlocal;
+    cf.provider.ref = &fd;
     tvbuff_t *tvb;
     tvb = tvb_new_real_data(cf.buf.data, data_offset, data_offset);
     // core dissect process
-    epan_dissect_run_with_taps(edt, cf.cd_t, &rec, tvb, &fdlocal, &cf.cinfo);
-    frame_data_set_after_dissect(&fdlocal, &cum_bytes);
+    epan_dissect_run_with_taps(edt, cf.cd_t, &rec, tvb, &fd, &cf.cinfo);
+    frame_data_set_after_dissect(&fd, &cum_bytes);
     cf.provider.prev_cap = cf.provider.prev_dis =
-        frame_data_sequence_add(cf.provider.frames, &fdlocal);
+        frame_data_sequence_add(cf.provider.frames, &fd);
     // free space
-    frame_data_destroy(&fdlocal);
+    frame_data_destroy(&fd);
     *edt_r = edt;
     return TRUE;
   }
@@ -277,7 +281,8 @@ void print_first_frame() {
     proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
                      print_stream);
     // print hex data
-    print_hex_data(print_stream, edt);
+    print_hex_data(print_stream, edt,
+                   hexdump_source_option | hexdump_ascii_option);
     epan_dissect_free(edt);
     edt = NULL;
   }
@@ -300,7 +305,8 @@ void print_first_several_frame(int count) {
     proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
                      print_stream);
     // print hex data
-    print_hex_data(print_stream, edt);
+    print_hex_data(print_stream, edt,
+                   hexdump_source_option | hexdump_ascii_option);
     epan_dissect_free(edt);
     edt = NULL;
     if (cf.count == count) {
@@ -313,39 +319,40 @@ void print_first_several_frame(int count) {
 /**
  * Dissect and print specific frame.
  *
- *  @param num the index of frame which you want to dieesct
- *  @return none, just print dissect result
+ *  @param num the index of frame which you want to dissect
+ *  @return int out of bounds:2; correct:0;
  */
-void print_specific_frame(int num) {
+int print_specific_frame(int num) {
   epan_dissect_t *edt;
   print_stream_t *print_stream;
   print_stream = print_stream_text_stdio_new(stdout);
   // start reading packets
   while (read_packet(&edt)) {
-    if (num != cf.count) {
-      epan_dissect_free(edt);
-      edt = NULL;
-      continue;
-    }
+    if (num == cf.count) {
+      // print proto tree
+      proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
+                       print_stream);
+      // print hex data
+      print_hex_data(print_stream, edt,
+                     hexdump_source_option | hexdump_ascii_option);
 
-    // print proto tree
-    proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
-                     print_stream);
-    // print hex data
-    print_hex_data(print_stream, edt);
+      clean_cf();
+      return 0;
+    }
 
     epan_dissect_free(edt);
     edt = NULL;
-    break;
   }
 
   clean_cf();
+
+  return 2;
 }
 
 /**
  * Dissect and get hex data of specific frame.
  *
- *  @param num the index of frame which you want to dieesct
+ *  @param num the index of frame which you want to dissect
  *  @return char of hex data dissect result, include hex data
  */
 char *get_specific_frame_hex_data(int num) {
@@ -383,7 +390,7 @@ char *get_specific_frame_hex_data(int num) {
 /**
  * Transfer proto tree to json format.
  *
- *  @param num the index of frame which you want to dieesct
+ *  @param num the index of frame which you want to dissect
  *  @return char of protocol tree dissect result, include hex data
  */
 char *proto_tree_in_json(int num) {
@@ -411,12 +418,11 @@ char *proto_tree_in_json(int num) {
     output_fields = output_fields_new();
     node_children_grouper =
         proto_node_group_children_by_json_key; // proto_node_group_children_by_unique
-    protocolfilter = wmem_strsplit(wmem_epan_scope(), NULL, " ", -1);
 
     char *out;
     out = get_proto_tree_dissect_res_in_json(
-        NULL, print_dissections_expanded, TRUE, protocolfilter,
-        protocolfilter_flags, edt, &cf.cinfo, node_children_grouper);
+        NULL, print_dissections_expanded, TRUE, NULL, protocolfilter_flags, edt,
+        &cf.cinfo, node_children_grouper);
 
     epan_dissect_free(edt);
     edt = NULL;
