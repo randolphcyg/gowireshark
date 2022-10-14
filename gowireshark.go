@@ -40,7 +40,7 @@ void print_first_frame();
 // Dissect and print the first several frames
 void print_first_several_frame(int count);
 // Dissect and print specific frame
-void print_specific_frame(int num);
+int print_specific_frame(int num);
 // Dissect and get hex data of specific frame
 char *get_specific_frame_hex_data(int num);
 // Get proto tree in json format
@@ -189,52 +189,10 @@ func DissectPrintSpecificFrame(inputFilepath string, num int) (err error) {
 		return
 	}
 
-	// print none if num is out of bounds
-	C.print_specific_frame(C.int(num))
-
-	return
-}
-
-// DissectPrintSpecificFrameByGo Dissect and print the Specific frame
-// [by call read_packet with cgo, can judge the bounds of frame ]
-func DissectPrintSpecificFrameByGo(inputFilepath string, num int) (err error) {
-	err = initCapFile(inputFilepath)
-	if err != nil {
-		return
-	}
-
-	if num < 1 {
-		err = errors.Wrap(ErrIllegalPara, strconv.Itoa(num))
-		return
-	}
-
-	// start reading packets
-	count := 0
-	var edt *C.struct_epan_dissect
-	printStream := C.print_stream_text_stdio_new(C.stdout)
-	for {
-		success := C.read_packet(&edt)
-		if success == 1 {
-			count++
-			if count < num && num != count {
-				C.epan_dissect_free(edt)
-				edt = nil
-				continue
-			}
-
-			// print proto tree
-			C.proto_tree_print(C.print_dissections_expanded, 0, edt, nil, printStream)
-			// print hex data
-			C.print_hex_data(printStream, edt)
-
-			C.epan_dissect_free(edt)
-			edt = nil
-
-			break
-		}
-
-		err = errors.Wrap(WarnFrameIndexOutOfBounds, "Frame num "+strconv.Itoa(num))
-
+	// errNo is 2 if num is out of bounds
+	errNo := C.print_specific_frame(C.int(num))
+	if errNo == 2 {
+		err = errors.Wrap(WarnFrameIndexOutOfBounds, strconv.Itoa(int(errNo)))
 		return
 	}
 
