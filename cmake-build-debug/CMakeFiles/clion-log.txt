@@ -1,1 +1,0 @@
-在 /Users/randolph/go/src/github.com/randolphcyg/gowireshark 中找不到 CMakeLists.txt 选择 CMakeLists.txt
