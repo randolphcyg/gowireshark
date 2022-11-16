@@ -137,8 +137,8 @@ variables:
   extends: .build-linux
   rules: !reference [.if-merged]
   before_script:
-    # It might make sense to set "GIT_STRATEGY: none" and build from
-    # the tarball.
+    # Hack to let ninja make full use of the system on Fedora and Rocky.
+    - export RPM_BUILD_NCPUS=$(( $( getconf _NPROCESSORS_ONLN ) + 2 ))
     - git config --global user.email "you@example.com"
     - git config --global user.name "Your Name"
     - mkdir build
@@ -164,7 +164,8 @@ variables:
     - $env:WIRESHARK_BASE_DIR = "C:\Development"
     - $env:Configuration = "RelWithDebInfo"
     - $env:Path += ";C:\Program Files\CMake\bin"
-    - $env:CMAKE_PREFIX_PATH = "C:\qt\6.2.4\msvc2019_64"
+    - $env:CMAKE_PREFIX_PATH = "C:\qt\5.15.2\msvc2019_64"
+    # - $env:CMAKE_PREFIX_PATH = "C:\qt\6.2.4\msvc2019_64"
     # https://help.appveyor.com/discussions/questions/18777-how-to-use-vcvars64bat-from-powershell
     - cmd.exe /c "call `"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat`" && set > %temp%\vcvars.txt"
     - Get-Content "$env:temp\vcvars.txt" | Foreach-Object { if ($_ -match "^(.*?)=(.*)$") { Set-Content "env:\$($matches[1])" $matches[2] } }
@@ -336,7 +337,8 @@ Win64 Package:
     - $env:WIRESHARK_BASE_DIR = "C:\Development"
     - $env:Configuration = "RelWithDebInfo"
     - $env:Path += ";C:\Program Files\Amazon\AWSCLIV2"
-    - $env:CMAKE_PREFIX_PATH = "C:\qt\6.2.3\msvc2019_64"
+    - $env:CMAKE_PREFIX_PATH = "C:\qt\5.15.2\msvc2019_64"
+    # - $env:CMAKE_PREFIX_PATH = "C:\qt\6.2.4\msvc2019_64"
     # https://help.appveyor.com/discussions/questions/18777-how-to-use-vcvars64bat-from-powershell
     - cmd.exe /c "call `"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat`" && set > %temp%\vcvars.txt"
     - Get-Content "$env:temp\vcvars.txt" | Foreach-Object { if ($_ -match "^(.*?)=(.*)$") { Set-Content "env:\$($matches[1])" $matches[2] } }
@@ -344,7 +346,7 @@ Win64 Package:
     - cd build
   script:
     - C:\Windows\py.exe ..\tools\make-version.py --set-release ..
-    - cmake -G "Visual Studio 17 2022" -A x64 -DENABLE_WERROR=ON -DUSE_qt6=ON -DENABLE_LTO=off ..
+    - cmake -G "Visual Studio 17 2022" -A x64 -DENABLE_WERROR=ON -DUSE_qt6=OFF -DENABLE_LTO=off ..
     - msbuild /verbosity:minimal "/consoleloggerparameters:PerformanceSummary;NoSummary" /maxcpucount Wireshark.sln
     - msbuild /verbosity:minimal /maxcpucount test-programs.vcxproj
     - msbuild /verbosity:minimal /maxcpucount wireshark_nsis_prep.vcxproj
@@ -584,7 +586,7 @@ Windows Build:
   tags:
     - wireshark-windows-merge-req
   script:
-    - cmake -G "Visual Studio 17 2022" -A x64 -DENABLE_WERROR=ON -DUSE_qt6=ON -DENABLE_LTO=off ..
+    - cmake -G "Visual Studio 17 2022" -A x64 -DENABLE_WERROR=ON -DUSE_qt6=OFF -DENABLE_LTO=off ..
     - msbuild /verbosity:minimal /maxcpucount Wireshark.sln
     - msbuild /verbosity:minimal /maxcpucount test-programs.vcxproj
     - ctest -C RelWithDebInfo --parallel 3 --force-new-ctest-process --output-on-failure
@@ -627,7 +629,7 @@ Windows Build:
     - wsar_html.zip
   needs: []
 
-.ABI Check:
+ABI Check:
   extends: .build-ubuntu
   rules: !reference [.if-merge-request]
   variables:
@@ -641,19 +643,24 @@ Windows Build:
     # CMake build type None is required to prevent CMake from adding its own debug flags and clobbering our own.
     - cmake -G Ninja -DENABLE_CCACHE=ON -DCMAKE_BUILD_TYPE=None -DBUILD_wireshark=OFF ..
     - ninja wiretap-abi-dump epan-abi-dump wsutil-abi-dump
-    - ACC_EXIT=0
-    - abi-compliance-checker -l wiretap -old ../tools/abi-dumps/wiretap-abi-13.0.0.dump -new wiretap-abi-13*.dump || ACC_EXIT=1
-    - abi-compliance-checker -l epan -old ../tools/abi-dumps/epan-abi-16.0.0.dump -new epan-abi-16*.dump || ACC_EXIT=1
-    - abi-compliance-checker -l wsutil -old ../tools/abi-dumps/wsutil-abi-14.0.0.dump -new wsutil-abi-14*.dump || ACC_EXIT=1
-    - mv compat_reports ..
+    - set +e
+    - abi-compliance-checker -l wiretap -old ../tools/abi-dumps/wiretap-abi-13.0.0.dump -new wiretap-abi-13*.dump
+    - WIRETAP_EXIT=$?
+    - abi-compliance-checker -l epan -old ../tools/abi-dumps/epan-abi-16.0.0.dump -new epan-abi-16*.dump
+    - EPAN_EXIT=$?
+    - abi-compliance-checker -l wsutil -old ../tools/abi-dumps/wsutil-abi-14.0.0.dump -new wsutil-abi-14*.dump
+    - WSUTIL_EXIT=$?
+    - set -e
+    - printf "WIRETAP_EXIT=%d EPAN_EXIT=%d WSUTIL_EXIT=%d\\n" $WIRETAP_EXIT $EPAN_EXIT $WSUTIL_EXIT
+    - mv compat_reports ../compat_reports_4.0
     - mv *-abi-*.dump ..
     - cd ..
-    - zip -9 -r compat_reports.zip compat_reports
-    - exit $ACC_EXIT
+    - zip -9 -r compat_reports_4.0.zip compat_reports_4.0
+    - exit $(( WIRETAP_EXIT + EPAN_EXIT + WSUTIL_EXIT ))
   artifacts:
     when: always
     paths:
-      - compat_reports.zip
+      - compat_reports_4.0.zip
       - ./*-abi-*.dump
 
 # Fuzz TShark using ASAN and valgrind.

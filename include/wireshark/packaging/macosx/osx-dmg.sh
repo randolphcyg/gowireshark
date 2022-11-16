@@ -7,8 +7,8 @@ set -e
 # Defaults
 app_name="Wireshark"
 dmgbuild=""
-version="4.0.0"
-log_version="0.8.0"
+version="4.0.1"
+log_version="0.8.1"
 app_settings_file="/opt/wireshark/packaging/macosx/wireshark-app.dmgbuild"
 dsym_settings_file="/opt/wireshark/packaging/macosx/wireshark-dsym.dmgbuild"
 architecture=""

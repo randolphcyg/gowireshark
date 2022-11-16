@@ -771,8 +771,8 @@ run/plugins/4.0/epan/wimax.so: plugins/epan/wimax/CMakeFiles/wimax.dir/crc.c.o
 run/plugins/4.0/epan/wimax.so: plugins/epan/wimax/CMakeFiles/wimax.dir/crc_data.c.o
 run/plugins/4.0/epan/wimax.so: plugins/epan/wimax/CMakeFiles/wimax.dir/wimax_tlv.c.o
 run/plugins/4.0/epan/wimax.so: plugins/epan/wimax/CMakeFiles/wimax.dir/build.make
-run/plugins/4.0/epan/wimax.so: run/libwireshark.so.16.0.0
-run/plugins/4.0/epan/wimax.so: run/libwiretap.so.13.0.0
+run/plugins/4.0/epan/wimax.so: run/libwireshark.so.16.0.1
+run/plugins/4.0/epan/wimax.so: run/libwiretap.so.13.0.1
 run/plugins/4.0/epan/wimax.so: run/libwsutil.so.14.0.0
 run/plugins/4.0/epan/wimax.so: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/plugins/4.0/epan/wimax.so: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

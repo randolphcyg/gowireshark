@@ -4,8 +4,8 @@
 WIRESHARK_ICON ICON "wireshark.ico"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,0,0,0
- PRODUCTVERSION 4,0,0,0
+ FILEVERSION 4,0,1,0
+ PRODUCTVERSION 4,0,1,0
  FILEFLAGSMASK 0x0L
 #ifdef _DEBUG
  FILEFLAGS VS_FF_DEBUG
@@ -22,12 +22,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "The Wireshark developer community\0"
             VALUE "FileDescription", "Dumpcap\0"
-            VALUE "FileVersion", "4.0.0\0"
-            VALUE "InternalName", "Dumpcap 4.0.0\0"
+            VALUE "FileVersion", "4.0.1\0"
+            VALUE "InternalName", "Dumpcap 4.0.1\0"
             VALUE "LegalCopyright", "Copyright © 2000 Gerald Combs <gerald@wireshark.org>, Gilbert Ramirez <gram@alumni.rice.edu> and others\0"
             VALUE "OriginalFilename", "Dumpcap.exe\0"
             VALUE "ProductName", "Dumpcap\0"
-            VALUE "ProductVersion", "4.0.0\0"
+            VALUE "ProductVersion", "4.0.1\0"
         END
     END
     BLOCK "VarFileInfo"

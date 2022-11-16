@@ -99,8 +99,8 @@ unistim_EXTERNAL_OBJECTS =
 run/plugins/4.0/epan/unistim.so: plugins/epan/unistim/CMakeFiles/unistim.dir/plugin.c.o
 run/plugins/4.0/epan/unistim.so: plugins/epan/unistim/CMakeFiles/unistim.dir/packet-unistim.c.o
 run/plugins/4.0/epan/unistim.so: plugins/epan/unistim/CMakeFiles/unistim.dir/build.make
-run/plugins/4.0/epan/unistim.so: run/libwireshark.so.16.0.0
-run/plugins/4.0/epan/unistim.so: run/libwiretap.so.13.0.0
+run/plugins/4.0/epan/unistim.so: run/libwireshark.so.16.0.1
+run/plugins/4.0/epan/unistim.so: run/libwiretap.so.13.0.1
 run/plugins/4.0/epan/unistim.so: run/libwsutil.so.14.0.0
 run/plugins/4.0/epan/unistim.so: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/plugins/4.0/epan/unistim.so: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

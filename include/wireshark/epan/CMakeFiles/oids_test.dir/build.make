@@ -79,9 +79,9 @@ oids_test_EXTERNAL_OBJECTS =
 
 run/oids_test: epan/CMakeFiles/oids_test.dir/oids_test.c.o
 run/oids_test: epan/CMakeFiles/oids_test.dir/build.make
-run/oids_test: run/libwireshark.so.16.0.0
+run/oids_test: run/libwireshark.so.16.0.1
 run/oids_test: /usr/lib/aarch64-linux-gnu/libz.so
-run/oids_test: run/libwiretap.so.13.0.0
+run/oids_test: run/libwiretap.so.13.0.1
 run/oids_test: run/libwsutil.so.14.0.0
 run/oids_test: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/oids_test: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

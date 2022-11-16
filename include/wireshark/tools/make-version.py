@@ -44,8 +44,8 @@ GIT_ABBREV_LENGTH = 12
 # If the text "$Format" is still present, it means that
 # git archive did not replace the $Format string, which
 # means that this not a git archive.
-GIT_EXPORT_SUBST_H = '0cbe09cd796b2ea24c6069b76ea16df7f51cf67b'
-GIT_EXPORT_SUBST_D = 'HEAD, tag: wireshark-4.0.0, tag: v4.0.0, refs/pipelines/658452685'
+GIT_EXPORT_SUBST_H = 'e9f3970b15272bb9fc2d48ea9f0d2219e68dbc3b'
+GIT_EXPORT_SUBST_D = 'HEAD, tag: wireshark-4.0.1, tag: v4.0.1, refs/pipelines/677892874'
 IS_GIT_ARCHIVE = not GIT_EXPORT_SUBST_H.startswith('$Format')
 
 

@@ -118,11 +118,35 @@ int extract_bool(proto_tree *tree, int field_id, gboolean *result_array, size_t 
     {
         fvalue_t *fv = &(((field_info*)finfo_array->pdata[i])->value);
 
-        if (fv->value.uinteger)
+        ws_assert(fvalue_type_ftenum(fv) == FT_BOOLEAN);
+        if (fv->value.uinteger64)
             result_array[i] = TRUE;
         else
             result_array[i] = FALSE;
     }
+
+    return 0;
+}
+
+/*
+ * Extract a count of the number of instances of a given field.
+ */
+int extract_instance_count(proto_tree *tree, int field_id, size_t *element_count)
+{
+    GPtrArray *finfo_array;
+
+    *element_count = 0;
+    if (tree == NULL) {
+        return -1;
+    }
+
+    finfo_array = proto_get_finfo_ptr_array(tree, field_id);
+
+    if (finfo_array == NULL) {
+        return -1;
+    }
+
+    *element_count = g_ptr_array_len(finfo_array);
 
     return 0;
 }

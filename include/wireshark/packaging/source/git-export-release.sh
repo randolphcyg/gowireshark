@@ -34,7 +34,7 @@ shift $(( OPTIND - 1 ))
 # The remaining parameter, if set, is a package version such as 3.4.5
 # or 3.4.5-67-gabcd4321
 # By default the version from make-version.py + CMake is used.
-PROJECT_VERSION=4.0.0
+PROJECT_VERSION=4.0.1
 if test -n "${1-}"; then
     PROJECT_VERSION="$1"
 fi
@@ -44,7 +44,7 @@ TARBALL="${DESTDIR}/wireshark-${PROJECT_VERSION}.tar.xz"
 # A tarball produced by 'git archive' will have the $Format string
 # substituted due to the use of 'export-subst' in .gitattributes.
 # shellcheck disable=SC2016
-COMMIT='0cbe09cd796b2ea24c6069b76ea16df7f51cf67b'
+COMMIT='e9f3970b15272bb9fc2d48ea9f0d2219e68dbc3b'
 
 if [[ $COMMIT != \$F* ]] ; then
     # This file was extracted from a tarball produced by git archive

@@ -2219,8 +2219,8 @@ for (i_@aname@=0; i_@aname@ < @aval@; i_@aname@++) {
 #include <epan/dissectors/packet-giop.h>
 #include <epan/expert.h>
 
-#include "ws_diag_control.h"
-#include "ws_compiler_tests.h"
+#include "include/ws_diag_control.h"
+#include "include/ws_compiler_tests.h"
 
 #ifdef _MSC_VER
 /* disable warning: "unreference local variable" */

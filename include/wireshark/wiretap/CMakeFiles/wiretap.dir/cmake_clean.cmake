@@ -2,7 +2,7 @@ file(REMOVE_RECURSE
   "../run/libwiretap.pdb"
   "../run/libwiretap.so"
   "../run/libwiretap.so.13"
-  "../run/libwiretap.so.13.0.0"
+  "../run/libwiretap.so.13.0.1"
   "CMakeFiles/wiretap.dir/5views.c.o"
   "CMakeFiles/wiretap.dir/aethra.c.o"
   "CMakeFiles/wiretap.dir/ascend_parser.c.o"

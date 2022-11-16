@@ -131,8 +131,8 @@ run/plugins/4.0/epan/irda.so: plugins/epan/irda/CMakeFiles/irda.dir/packet-ircom
 run/plugins/4.0/epan/irda.so: plugins/epan/irda/CMakeFiles/irda.dir/packet-irda.c.o
 run/plugins/4.0/epan/irda.so: plugins/epan/irda/CMakeFiles/irda.dir/packet-sir.c.o
 run/plugins/4.0/epan/irda.so: plugins/epan/irda/CMakeFiles/irda.dir/build.make
-run/plugins/4.0/epan/irda.so: run/libwireshark.so.16.0.0
-run/plugins/4.0/epan/irda.so: run/libwiretap.so.13.0.0
+run/plugins/4.0/epan/irda.so: run/libwireshark.so.16.0.1
+run/plugins/4.0/epan/irda.so: run/libwiretap.so.13.0.1
 run/plugins/4.0/epan/irda.so: run/libwsutil.so.14.0.0
 run/plugins/4.0/epan/irda.so: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/plugins/4.0/epan/irda.so: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

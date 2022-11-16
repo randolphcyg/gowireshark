@@ -79,8 +79,8 @@ wscbor_test_EXTERNAL_OBJECTS =
 
 run/wscbor_test: epan/CMakeFiles/wscbor_test.dir/wscbor_test.c.o
 run/wscbor_test: epan/CMakeFiles/wscbor_test.dir/build.make
-run/wscbor_test: run/libwireshark.so.16.0.0
-run/wscbor_test: run/libwiretap.so.13.0.0
+run/wscbor_test: run/libwireshark.so.16.0.1
+run/wscbor_test: run/libwiretap.so.13.0.1
 run/wscbor_test: run/libwsutil.so.14.0.0
 run/wscbor_test: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/wscbor_test: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

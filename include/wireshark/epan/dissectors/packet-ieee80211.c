@@ -8854,13 +8854,12 @@ static int * const resp_control_fields[] = {
 };
 
 static int
-dissect_dscp_policy_response(tvbuff_t *tvb, packet_info *pinfo _U_,
+dissect_dscp_policy_response(tvbuff_t *tvb, packet_info *pinfo,
                              proto_tree *tree, int offset)
 {
   int start_offset = offset;
   guint8 count;
-  char status_buf[256];
-  guint sts_len = 0;
+  wmem_strbuf_t *status_buf = wmem_strbuf_new_label(pinfo->pool);
   int i;
 
   proto_tree_add_bitmask(tree, tvb, offset,
@@ -8885,21 +8884,21 @@ dissect_dscp_policy_response(tvbuff_t *tvb, packet_info *pinfo _U_,
                                                 i);
     proto_tree_add_item(status_tree, hf_ieee80211_dscp_policy_id, tvb,
                         offset, 1, ENC_NA);
-    if (sts_len == 0) {
-      sts_len += snprintf(status_buf + sts_len, 256 - sts_len, "%u:", scsid);
+    if (wmem_strbuf_get_len(status_buf) == 0) {
+      wmem_strbuf_append_printf(status_buf, "%u:", scsid);
     } else {
-      sts_len += snprintf(status_buf + sts_len, 256 - sts_len, " %u:", scsid);
+      wmem_strbuf_append_printf(status_buf, " %u:", scsid);
     }
     offset += 1;
 
     status = tvb_get_guint8(tvb, offset);
     proto_tree_add_item(status_tree, hf_ieee80211_dscp_policy_status, tvb,
                         offset, 1, ENC_NA);
-    sts_len += snprintf(status_buf + sts_len, 256 - sts_len, "%u", status);
+    wmem_strbuf_append_printf(status_buf, "%u", status);
     offset += 1;
   }
   proto_tree_add_string(tree, hf_ieee80211_dscp_policy_scs_sts_list, tvb, 0, 1,
-                        status_buf);
+                        wmem_strbuf_finalize(status_buf));
 
   return offset - start_offset;
 }

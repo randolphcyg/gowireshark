@@ -15,7 +15,7 @@
 #include <lauxlib.h>
 
 #include "lua_bitop.h"
-#include "ws_diag_control.h"
+#include "include/ws_diag_control.h"
 
 #include <stdint.h>
 

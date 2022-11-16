@@ -121,8 +121,8 @@ run/plugins/4.0/epan/wimaxasncp.so: plugins/epan/wimaxasncp/CMakeFiles/wimaxasnc
 run/plugins/4.0/epan/wimaxasncp.so: plugins/epan/wimaxasncp/CMakeFiles/wimaxasncp.dir/packet-wimaxasncp.c.o
 run/plugins/4.0/epan/wimaxasncp.so: plugins/epan/wimaxasncp/CMakeFiles/wimaxasncp.dir/wimaxasncp_dict.c.o
 run/plugins/4.0/epan/wimaxasncp.so: plugins/epan/wimaxasncp/CMakeFiles/wimaxasncp.dir/build.make
-run/plugins/4.0/epan/wimaxasncp.so: run/libwireshark.so.16.0.0
-run/plugins/4.0/epan/wimaxasncp.so: run/libwiretap.so.13.0.0
+run/plugins/4.0/epan/wimaxasncp.so: run/libwireshark.so.16.0.1
+run/plugins/4.0/epan/wimaxasncp.so: run/libwiretap.so.13.0.1
 run/plugins/4.0/epan/wimaxasncp.so: run/libwsutil.so.14.0.0
 run/plugins/4.0/epan/wimaxasncp.so: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/plugins/4.0/epan/wimaxasncp.so: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

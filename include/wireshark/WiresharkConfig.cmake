@@ -1,7 +1,7 @@
 set(Wireshark_MAJOR_VERSION 4)
 set(Wireshark_MINOR_VERSION 0)
-set(Wireshark_PATCH_VERSION 0)
-set(Wireshark_VERSION "4.0.0")
+set(Wireshark_PATCH_VERSION 1)
+set(Wireshark_VERSION "4.0.1")
 
 set(Wireshark_PLUGINS_ENABLED 1)
 set(Wireshark_PLUGIN_LIBDIR "lib/wireshark/plugins/4.0")

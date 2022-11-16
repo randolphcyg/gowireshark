@@ -99,8 +99,8 @@ wimaxmacphy_EXTERNAL_OBJECTS =
 run/plugins/4.0/epan/wimaxmacphy.so: plugins/epan/wimaxmacphy/CMakeFiles/wimaxmacphy.dir/plugin.c.o
 run/plugins/4.0/epan/wimaxmacphy.so: plugins/epan/wimaxmacphy/CMakeFiles/wimaxmacphy.dir/packet-wimaxmacphy.c.o
 run/plugins/4.0/epan/wimaxmacphy.so: plugins/epan/wimaxmacphy/CMakeFiles/wimaxmacphy.dir/build.make
-run/plugins/4.0/epan/wimaxmacphy.so: run/libwireshark.so.16.0.0
-run/plugins/4.0/epan/wimaxmacphy.so: run/libwiretap.so.13.0.0
+run/plugins/4.0/epan/wimaxmacphy.so: run/libwireshark.so.16.0.1
+run/plugins/4.0/epan/wimaxmacphy.so: run/libwiretap.so.13.0.1
 run/plugins/4.0/epan/wimaxmacphy.so: run/libwsutil.so.14.0.0
 run/plugins/4.0/epan/wimaxmacphy.so: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/plugins/4.0/epan/wimaxmacphy.so: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

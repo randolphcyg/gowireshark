@@ -195,8 +195,8 @@ run/plugins/4.0/epan/ethercat.so: plugins/epan/ethercat/CMakeFiles/ethercat.dir/
 run/plugins/4.0/epan/ethercat.so: plugins/epan/ethercat/CMakeFiles/ethercat.dir/packet-ioraw.c.o
 run/plugins/4.0/epan/ethercat.so: plugins/epan/ethercat/CMakeFiles/ethercat.dir/packet-nv.c.o
 run/plugins/4.0/epan/ethercat.so: plugins/epan/ethercat/CMakeFiles/ethercat.dir/build.make
-run/plugins/4.0/epan/ethercat.so: run/libwireshark.so.16.0.0
-run/plugins/4.0/epan/ethercat.so: run/libwiretap.so.13.0.0
+run/plugins/4.0/epan/ethercat.so: run/libwireshark.so.16.0.1
+run/plugins/4.0/epan/ethercat.so: run/libwiretap.so.13.0.1
 run/plugins/4.0/epan/ethercat.so: run/libwsutil.so.14.0.0
 run/plugins/4.0/epan/ethercat.so: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/plugins/4.0/epan/ethercat.so: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

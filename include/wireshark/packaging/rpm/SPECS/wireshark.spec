@@ -50,12 +50,12 @@
 # file (wireshark.pc), which has our original version with dashes.
 %global _wrong_version_format_terminate_build 0
 
-%global package_version 4.0.0
+%global package_version 4.0.1
 
 
 Summary:	The world's foremost protocol analyzer
 Name:		wireshark
-Version:	4.0.0
+Version:	4.0.1
 Release:	1
 License:	GPLv2+
 Group:		Applications/Internet
