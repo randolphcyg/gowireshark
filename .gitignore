@@ -2,6 +2,5 @@
 .DS_Store
 wireshark/*
 libs/*
-.vscode/c_cpp_properties.json
-.vscode/settings.json
+.vscode/*
 .idea/

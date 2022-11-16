@@ -1,8 +1,13 @@
+#include "file.h"
+#include <frame_tvbuff.h>
 #include <include/lib.h>
-#include <net/ethernet.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
+#include <wiretap/libpcap.h>
+
+/*
+libpcap function
+*/
 
 #define BUFSIZE 65535
 // error buffer
@@ -56,7 +61,7 @@ int get_if_nonblock_status(char *device_name) {
   int is_nonblock;
 
   if (device_name) {
-    handle = pcap_open_live(device_name, BUFSIZE, 1, 1000, errbuf);
+    handle = pcap_open_live(device_name, BUFSIZE, 1, 20, errbuf);
     if (handle == NULL) {
       return 2;
     }
@@ -99,213 +104,389 @@ int set_if_nonblock_status(char *device_name, int nonblock) {
   return 2;
 }
 
+/*
+rawshark function
+*/
+
 // global capture file variable for online logic
 capture_file cf_live;
+static frame_data prev_dis_frame;
+static frame_data prev_cap_frame;
 
-/**
- * Copy from tshark, handle time.
+/*
+ * The way the packet decode is to be written.
  */
-static const nstime_t *tshark_get_frame_ts(struct packet_provider_data *prov,
-                                           guint32 frame_num) {
-  if (prov->ref && prov->ref->num == frame_num)
-    return &prov->ref->abs_ts;
-  if (prov->prev_dis && prov->prev_dis->num == frame_num)
-    return &prov->prev_dis->abs_ts;
-  if (prov->prev_cap && prov->prev_cap->num == frame_num)
-    return &prov->prev_cap->abs_ts;
-  if (prov->frames) {
-    frame_data *fd = frame_data_sequence_find(prov->frames, frame_num);
-    return (fd) ? &fd->abs_ts : NULL;
-  }
-  return NULL;
-}
+typedef enum {
+  WRITE_TEXT, /* summary or detail text */
+  WRITE_XML   /* PDML or PSML */
+              /* Add CSV and the like here */
+} output_action_e;
 
-void init_cf_live() {
-  int err = 0;
-  gchar *err_info = NULL;
-  e_prefs *prefs_p;
+static gboolean line_buffered;
+static print_format_e print_format = PR_FMT_TEXT;
 
-  /* Initialize the capture file struct */
-  memset(&cf_live, 0, sizeof(capture_file));
-  // Online analysis does not have the step of wtap_open_offline, how should the
-  // data be set correctly?
-  //  cf_live.filename = filepath;
-  //  cf_live.provider.wth =
-  //      wtap_open_offline(cf_live.filename, WTAP_TYPE_AUTO, &err, &err_info,
-  //      TRUE);
-  //  if (err != 0 || cf_live.provider.wth == NULL) {
-  //    clean();
-  //    return err;
-  //  }
-  cf_live.count = 0;
-  cf_live.provider.frames = new_frame_data_sequence();
-  static const struct packet_provider_funcs funcs = {
-      tshark_get_frame_ts,
-      NULL,
-      NULL,
-      NULL,
-  };
-  cf_live.epan = epan_new(&cf_live.provider, &funcs);
-  prefs_p = epan_load_settings();
-  build_column_format_array(&cf_live.cinfo, prefs_p->num_cols, TRUE);
-}
+static gboolean want_pcap_pkthdr;
+
+int init_cf_live();
+static gboolean dissect_packet(epan_dissect_t *edt, gint64 offset,
+                               wtap_rec *rec, Buffer *buf,
+                               const u_char *packet);
+static void show_print_file_io_error(int err);
+
+typedef enum {
+  SF_NONE,   /* No format (placeholder) */
+  SF_NAME,   /* %D Field name / description */
+  SF_NUMVAL, /* %N Numeric value */
+  SF_STRVAL  /* %S String value */
+} string_fmt_e;
+
+typedef struct string_fmt_s {
+  gchar *plain;
+  string_fmt_e format; /* Valid if plain is NULL */
+} string_fmt_t;
+
+int encap;
+GPtrArray *string_fmts;
 
 /**
- * Read each live packet.
+ * Prepare data for print_hex_data func .
  *
- *  @param argument
- *  @param packet_header a pcap_pkthdr type
- *  @param packet_content  pointer to packet
+ *  @param 
+ *  @return gboolean true or false;
  */
-gboolean read_live_packet(epan_dissect_t **edt_r,
-                          const struct pcap_pkthdr *packet_header,
-                          const unsigned char *packet_content) {
-  epan_dissect_t *edt;
-  int err;
-  gchar *err_info = NULL;
+static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
+                             gchar **err_info, const struct pcap_pkthdr *pkthdr,
+                             const u_char *packet) {
+  struct pcap_pkthdr mem_hdr;
+  struct pcaprec_hdr disk_hdr;
+  ssize_t bytes_read = 0;
+  unsigned int bytes_needed = (unsigned int)sizeof(disk_hdr);
+  guchar *ptr = (guchar *)&disk_hdr;
+
+  *err = 0;
+
+  bytes_needed = sizeof(pkthdr);
+  ptr = (guchar *)&pkthdr;
+
+  rec->rec_type = REC_TYPE_PACKET;
+  rec->presence_flags = WTAP_HAS_TS | WTAP_HAS_CAP_LEN;
+
+  rec->ts.nsecs = (gint32)pkthdr->ts.tv_usec * 1000;
+  rec->ts.secs = pkthdr->ts.tv_sec;
+  rec->rec_header.packet_header.caplen = pkthdr->caplen;
+  rec->rec_header.packet_header.len = pkthdr->len;
+
+  bytes_needed = rec->rec_header.packet_header.caplen;
+  rec->rec_header.packet_header.pkt_encap = encap;
+
+  // printf("mem_hdr: %lu disk_hdr: %lu\n", sizeof(mem_hdr), sizeof(disk_hdr));
+  // printf("tv_sec: %d (%04x)\n", (unsigned int)rec->ts.secs, (unsigned
+  // int)rec->ts.secs); printf("tv_nsec: %d (%04x)\n", rec->ts.nsecs,
+  // rec->ts.nsecs); printf("caplen: %d (%04x)\n",
+  // rec->rec_header.packet_header.caplen,
+  // rec->rec_header.packet_header.caplen); printf("len: %d (%04x)\n",
+  // rec->rec_header.packet_header.len, rec->rec_header.packet_header.len);
+
+  if (bytes_needed > WTAP_MAX_PACKET_SIZE_STANDARD) {
+    *err = WTAP_ERR_BAD_FILE;
+    *err_info =
+        ws_strdup_printf("Bad packet length: %lu", (unsigned long)bytes_needed);
+    return FALSE;
+  }
+
+  // assign space for buf
+  ws_buffer_assure_space(buf, bytes_needed);
+  buf->data = packet;
+
+  return TRUE;
+}
+
+static guint hexdump_source_option =
+    HEXDUMP_SOURCE_MULTI; /* Default - Enable legacy multi-source mode */
+static guint hexdump_ascii_option =
+    HEXDUMP_ASCII_INCLUDE; /* Default - Enable legacy undelimited ASCII dump */
+
+/**
+ * Dissect each packet.
+ *
+ *  @param 
+ *  @return gboolean true or false;
+ */
+static gboolean dissect_packet(epan_dissect_t *edt, gint64 offset,
+                               wtap_rec *rec, Buffer *buf,
+                               const u_char *packet) {
   static guint32 cum_bytes = 0;
-  static gint64 data_offset = 0;
-  wtap_rec rec;
-  wtap_rec_init(&rec);
+
+  if (rec->rec_header.packet_header.len == 0) {
+    /* The user sends an empty packet when he wants to get output from us even
+       if we don't currently have packets to process. We spit out a line with
+       the timestamp and the text "void"
+    */
+    printf("Header is null, frame No.：%lu %" PRIu64 " %d void -\n",
+           (unsigned long int)cf_live.count, (guint64)rec->ts.secs,
+           rec->ts.nsecs);
+
+    fflush(stdout);
+
+    return FALSE;
+  }
 
   cf_live.count++;
   frame_data fd;
-  frame_data_init(&fd, cf_live.count, &rec, data_offset, cum_bytes);
-  // data_offset must be correctly set
-  data_offset = fd.pkt_len;
-  edt = epan_dissect_new(cf_live.epan, TRUE, TRUE);
-  prime_epan_dissect_with_postdissector_wanted_hfids(edt);
-  /**
-   * Sets the frame data struct values before dissection.
-   */
+  frame_data_init(&fd, cf_live.count, rec, offset, cum_bytes);
   frame_data_set_before_dissect(&fd, &cf_live.elapsed_time,
                                 &cf_live.provider.ref,
                                 cf_live.provider.prev_dis);
   cf_live.provider.ref = &fd;
   tvbuff_t *tvb;
-  tvb = tvb_new_real_data(cf_live.buf.data, data_offset, data_offset);
-  // core dissect process
-  epan_dissect_run_with_taps(edt, cf_live.cd_t, &rec, tvb, &fd, &cf_live.cinfo);
+  tvb = frame_tvbuff_new_buffer(&cf_live.provider, &fd, buf);
+  epan_dissect_run_with_taps(edt, cf_live.cd_t, rec, tvb, &fd, &cf_live.cinfo);
   frame_data_set_after_dissect(&fd, &cum_bytes);
-  cf_live.provider.prev_cap = cf_live.provider.prev_dis =
-      frame_data_sequence_add(cf_live.provider.frames, &fd);
-  // free space
+  prev_dis_frame = fd;
+  cf_live.provider.prev_dis = &prev_dis_frame;
+  prev_cap_frame = fd;
+  cf_live.provider.prev_cap = &prev_cap_frame;
+
+  if (ferror(stdout)) {
+    show_print_file_io_error(errno);
+    exit(2);
+  }
+
+  static pf_flags protocolfilter_flags = PF_NONE;
+  static proto_node_children_grouper_func node_children_grouper =
+      proto_node_group_children_by_unique;
+  protocolfilter_flags = PF_INCLUDE_CHILDREN;
+  node_children_grouper = proto_node_group_children_by_json_key;
+  printf("#### %s %d %s\n", "PKG NO.", cf_live.count, " Proto Tree:");
+  char *out_tmp = get_proto_tree_dissect_res_in_json(
+      NULL, print_dissections_expanded, TRUE, NULL, protocolfilter_flags, edt,
+      &cf_live.cinfo, node_children_grouper);
+
+  //   printf("Tree:%s \n", out_tmp);
+
+  epan_dissect_reset(edt);
   frame_data_destroy(&fd);
-  *edt_r = edt;
 
   return TRUE;
 }
 
+static void show_print_file_io_error(int err) {
+  switch (err) {
+
+  case ENOSPC:
+    printf("Not all the packets could be printed because there is "
+           "no space left on the file system.");
+    break;
+
+#ifdef EDQUOT
+  case EDQUOT:
+    printf("Not all the packets could be printed because you are "
+           "too close to, or over your disk quota.");
+    break;
+#endif
+
+  default:
+    printf("An error occurred while printing packets: %s.", g_strerror(err));
+    break;
+  }
+}
+
+static const nstime_t *raw_get_frame_ts(struct packet_provider_data *prov,
+                                        guint32 frame_num) {
+  if (prov->ref && prov->ref->num == frame_num)
+    return &prov->ref->abs_ts;
+
+  if (prov->prev_dis && prov->prev_dis->num == frame_num)
+    return &prov->prev_dis->abs_ts;
+
+  if (prov->prev_cap && prov->prev_cap->num == frame_num)
+    return &prov->prev_cap->abs_ts;
+
+  return NULL;
+}
+
+const char *
+cap_file_provider_get_interface_name(struct packet_provider_data *prov,
+                                     guint32 interface_id) {
+  wtapng_iface_descriptions_t *idb_info;
+  wtap_block_t wtapng_if_descr = NULL;
+  char *interface_name;
+
+  idb_info = wtap_file_get_idb_info(prov->wth);
+
+  if (interface_id < idb_info->interface_data->len)
+    wtapng_if_descr =
+        g_array_index(idb_info->interface_data, wtap_block_t, interface_id);
+
+  g_free(idb_info);
+
+  if (wtapng_if_descr) {
+    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_NAME,
+                                           &interface_name) ==
+        WTAP_OPTTYPE_SUCCESS)
+      return interface_name;
+    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_DESCRIPTION,
+                                           &interface_name) ==
+        WTAP_OPTTYPE_SUCCESS)
+      return interface_name;
+    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_HARDWARE,
+                                           &interface_name) ==
+        WTAP_OPTTYPE_SUCCESS)
+      return interface_name;
+  }
+  return "unknown";
+}
+
+const char *
+cap_file_provider_get_interface_description(struct packet_provider_data *prov,
+                                            guint32 interface_id) {
+  wtapng_iface_descriptions_t *idb_info;
+  wtap_block_t wtapng_if_descr = NULL;
+  char *interface_name;
+
+  idb_info = wtap_file_get_idb_info(prov->wth);
+
+  if (interface_id < idb_info->interface_data->len)
+    wtapng_if_descr =
+        g_array_index(idb_info->interface_data, wtap_block_t, interface_id);
+
+  g_free(idb_info);
+
+  if (wtapng_if_descr) {
+    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_DESCRIPTION,
+                                           &interface_name) ==
+        WTAP_OPTTYPE_SUCCESS)
+      return interface_name;
+  }
+  return NULL;
+}
+
+// init cf_live
+int init_cf_live() {
+  int err = 0;
+  e_prefs *prefs_p;
+
+  /* Create new epan session for dissection. */
+  epan_free(cf_live.epan);
+
+  /* Initialize the capture file struct */
+  memset(&cf_live, 0, sizeof(capture_file));
+
+  cf_live.provider.wth = NULL;
+  cf_live.f_datalen = 0; /* not used, but set it anyway */
+
+  /* Indicate whether it's a permanent or temporary file. */
+  cf_live.is_tempfile = FALSE;
+
+  /* No user changes yet. */
+  cf_live.unsaved_changes = FALSE;
+
+  cf_live.cd_t = WTAP_FILE_TYPE_SUBTYPE_UNKNOWN;
+  cf_live.open_type = WTAP_TYPE_AUTO;
+  cf_live.count = 0;
+  cf_live.drops_known = FALSE;
+  cf_live.drops = 0;
+  cf_live.snap = 0;
+  cf_live.provider.frames = new_frame_data_sequence();
+  nstime_set_zero(&cf_live.elapsed_time);
+  cf_live.provider.ref = NULL;
+  cf_live.provider.prev_dis = NULL;
+  cf_live.provider.prev_cap = NULL;
+  static const struct packet_provider_funcs funcs = {
+      raw_get_frame_ts,
+      NULL,
+      NULL,
+      //   cap_file_provider_get_interface_name,
+      //   cap_file_provider_get_interface_description,
+      NULL,
+  };
+  cf_live.epan = epan_new(&cf_live.provider, &funcs);
+  prefs_p = epan_load_settings();
+  build_column_format_array(&cf_live.cinfo, prefs_p->num_cols, TRUE);
+  return 0;
+}
+
 /**
- * Handle each packet in callback function.
+ * Dissect each package in real time. TODO: put json format result into queue
+ * for golang. Callback function for pcap_loop().
  *
- *  @param argument
- *  @param packet_header a pcap_pkthdr type
- *  @param packet_content  pointer to packet
+ *  @param pkthdr package header;
+ *  @param packet package content;
  */
-void dissect_protocol_callback(unsigned char *argument,
-                               const struct pcap_pkthdr *packet_header,
-                               const unsigned char *packet_content) {
-  unsigned char *mac_string; // mac str
-  struct ether_header *ethernet_protocol;
-  unsigned short ethernet_type; // eth type
+void processPacketCallback(u_char *arg, const struct pcap_pkthdr *pkthdr,
+                           const u_char *packet) {
+  int *count = (int *)arg;
+  int err;
+  gchar *err_info = NULL;
+  gint64 data_offset = 0;
 
-  printf("----------------------------------------------------\n");
-  printf("Packet length : %d\n", packet_header->len);
-  printf("Number of bytes : %d\n", packet_header->caplen);
-  printf("Received time : %s\n",
-         ctime((const time_t *)&packet_header->ts.tv_sec));
+  wtap_rec rec;
+  Buffer buf;
+  epan_dissect_t edt;
 
-  // dissect and print
-  epan_dissect_t *edt;
-  print_stream_t *print_stream;
-  print_stream = print_stream_text_stdio_new(stdout);
-  if (read_live_packet(&edt, packet_header, packet_content)) {
-    proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
-                     print_stream);
-    epan_dissect_free(edt);
-    edt = NULL;
+  wtap_rec_init(&rec);
+  ws_buffer_init(&buf, 1514);
+
+  epan_dissect_init(&edt, cf_live.epan, TRUE, TRUE);
+
+  // prepare data
+  gboolean raw_pipe_read_res =
+      prepare_data(&rec, &buf, &err, &err_info, pkthdr, packet);
+  if (!raw_pipe_read_res) {
+    printf("%s \n", "prepare_data err");
+    return;
   }
 
-  //  ethernet_protocol = (struct ether_header *)packet_content;
-  //  // get src mac addr
-  //  mac_string = (unsigned char *)&(ethernet_protocol->ether_shost);
-  //  printf("Mac Source Address is %02x:%02x:%02x:%02x:%02x:%02x\n",
-  //         *(mac_string + 0), *(mac_string + 1), *(mac_string + 2),
-  //         *(mac_string + 3), *(mac_string + 4), *(mac_string + 5));
-  //
-  //  // get dest mac
-  //  mac_string = (unsigned char *)&(ethernet_protocol->ether_dhost);
-  //  printf("Mac Destination Address is %02x:%02x:%02x:%02x:%02x:%02x\n",
-  //         *(mac_string + 0), *(mac_string + 1), *(mac_string + 2),
-  //         *(mac_string + 3), *(mac_string + 4), *(mac_string + 5));
-  //
-  //  // get eth type
-  //  ethernet_type = ntohs(ethernet_protocol->ether_type);
-  //  printf("Ethernet type is :%04x\n", ethernet_type);
-  //  switch (ethernet_type) {
-  //  case 0x0800: // ip
-  //    printf("The network layer is IP protocol\n");
-  //    break;
-  //  case 0x0806: // arp
-  //    printf("The network layer is ARP protocol\n");
-  //    break;
-  //  case 0x0835: // rarp
-  //    printf("The network layer is RARP protocol\n");
-  //    break;
-  //  default:
-  //    break;
-  //  }
-  //
-  //  // hex data
-  //  int i;
-  //  for (i = 0; i < packet_header->caplen; i++) {
-  //    printf(" %02x", packet_content[i]);
-  //    if ((i + 1) % 16 == 0) {
-  //      printf("\n");
-  //    }
-  //  }
-  //  printf("\n\n");
+  cf_live.buf = buf;
 
-  //  g_usleep(800 * 1000);
+  // dissect pkg
+  dissect_packet(&edt, data_offset, &rec, &buf, packet);
+
+  // clean tmp
+  epan_dissect_cleanup(&edt);
+  wtap_rec_cleanup(&rec);
+
+  return;
 }
 
 /**
  * Listen device and Capture packet.
  *
  *  @param device_name the name of interface device
- *  @return normal run: 0;occur error: 2;
+ *  @return correct: 0; error: 2;
  */
-int capture_pkt(char *device_name) {
-  // init capture file struct to hold live packet
-  init_cf_live();
-
+int handle_pkt_live(char *device_name, int num) {
+  int err = 0;
+  char errBuf[PCAP_ERRBUF_SIZE], *devStr;
   pcap_if_t *alldevs;
   // Save the starting address of the received packet
   const unsigned char *p_packet_content = NULL;
-  pcap_t *pcap_handle = NULL;
   struct pcap_pkthdr protocol_header;
 
-  pcap_findalldevs(&alldevs, errbuf);
+  // init capture_file obj for live capture and dissect
+  err = init_cf_live();
+  if (err != 0) {
+    return err;
+  }
+  // find all devices
+  pcap_findalldevs(&alldevs, errBuf);
   if (alldevs == NULL) {
-    fprintf(stderr, "couldn't find device: %s\n", errbuf);
+    printf("pcap_findalldevs() couldn't find device: %s\n", errBuf);
     return 2;
   }
 
-  // gopacket set 1000; too fast if set 1; so set 20 for now
-  pcap_handle = pcap_open_live(alldevs->name, BUFSIZE, 1, 20, NULL);
-  /* pcap_loop loop read packet
-  second para is cnt, if cnt equals -1, will loop util ends;
-  else the number of returned packets is cnt;
-  third para is callback function, will handle each packet;
-  */
-  // TODO only 2 packages are analyzed, and it is modified to -1 after the
-  // process is completed
-  if (pcap_loop(pcap_handle, 2, dissect_protocol_callback, NULL) < 0) {
-    perror("pcap_loop");
+  // open device
+  pcap_t *device = pcap_open_live(alldevs->name, BUFSIZE, 1, 20, errBuf);
+  if (!device) {
+    printf("pcap_open_live() couldn't open device: %s\n", errBuf);
+    return 2;
   }
 
-  pcap_close(pcap_handle);
+  // loop and dissect pkg
+  int count = 0;
+  pcap_loop(device, num, processPacketCallback, (u_char *)&count);
+
+  pcap_close(device);
 
   return 0;
 }

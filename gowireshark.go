@@ -27,6 +27,7 @@ package gowireshark
 #include <wsutil/json_dumper.h>
 #include <wsutil/nstime.h>
 #include <wsutil/privileges.h>
+#include <epan/tap.h>
 // Init policies、wtap mod、epan mod.
 int init_env();
 // Init capture file
@@ -51,8 +52,8 @@ char *get_if_list();
 int get_if_nonblock_status(char *device_name);
 // Set interface nonblock status
 int set_if_nonblock_status(char *device_name, int nonblock);
-// Capture packet and handle each one
-int capture_pkt(char *device_name);
+// Capture and dissect packet in real time
+int handle_pkt_live(char *device_name, int num);
 */
 import "C"
 import (
@@ -76,7 +77,7 @@ var (
 
 // SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
 // result of a single data packet, which is convenient for converting c char to go string
-const SINGLEPKTMAXLEN = 655350
+const SINGLEPKTMAXLEN = 6553500
 
 func init() {
 	// Init policies、wtap mod、epan mod.
@@ -404,8 +405,11 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 }
 
 // DissectPktLive Capture packet by libpcap and dissect each one by wireshark
+// TODO 1. There are still deviations in the parsing results of the protocol tree, and all four layers are put into data
+// 1. How Go efficiently obtains parsing results from C's callback function
 func DissectPktLive(deviceName string, snapLen int, pro int, timeout int) error {
-	C.capture_pkt(C.CString(deviceName))
+
+	C.handle_pkt_live(C.CString(deviceName), C.int(10))
 
 	return nil
 }

@@ -470,7 +470,6 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
     // Retrieve the json key from the first value.
     proto_node *first_value = (proto_node *)node_values_list->data;
     const char *json_key = proto_node_to_json_key(first_value);
-
     field_info *fi = first_value->finfo;
     char *value_string_repr = fvalue_to_string_repr(
         NULL, &fi->value, FTREPR_DISPLAY, fi->hfinfo->display);
@@ -598,6 +597,8 @@ char *get_proto_tree_dissect_res_in_json(
     // core logic
     write_json_proto_node_children(edt->tree, &data, layers);
   }
+
+  printf("Proto Tree：%s\n", cJSON_Print(proto_tree_res));
 
   return cJSON_PrintUnformatted(proto_tree_res);
 }
