@@ -253,6 +253,7 @@ tree -L 2 -F gowireshark
    go test -v -run TestGetSpecificFrameHexData
    # 实时解析数据包
    go test -v -run TestDissectPktLive
+   go test -v -run TestGetAllFrameProtoTreeInJson
    ```
 
 ## 5. TODO
