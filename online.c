@@ -151,22 +151,27 @@ GPtrArray *string_fmts;
 /**
  * Prepare data for print_hex_data func .
  *
- *  @param 
+ *  @param
  *  @return gboolean true or false;
  */
 static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
                              gchar **err_info, const struct pcap_pkthdr *pkthdr,
-                             const u_char *packet) {
-  struct pcap_pkthdr mem_hdr;
+                             const u_char *packet, gint64 *data_offset) {
+  // struct pcap_pkthdr mem_hdr;
   struct pcaprec_hdr disk_hdr;
   ssize_t bytes_read = 0;
   unsigned int bytes_needed = (unsigned int)sizeof(disk_hdr);
-  guchar *ptr = (guchar *)&disk_hdr;
+  // guchar *ptr = (guchar *)&disk_hdr;
+
+  // disk_hdr.ts_sec = pkthdr->ts.tv_sec;
+  // disk_hdr.ts_usec = (gint32)pkthdr->ts.tv_usec;;
+  // disk_hdr.incl_len = pkthdr->caplen;
+  // disk_hdr.orig_len = pkthdr->len;
 
   *err = 0;
 
   bytes_needed = sizeof(pkthdr);
-  ptr = (guchar *)&pkthdr;
+  // ptr = (guchar *)&pkthdr;
 
   rec->rec_type = REC_TYPE_PACKET;
   rec->presence_flags = WTAP_HAS_TS | WTAP_HAS_CAP_LEN;
@@ -177,7 +182,10 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
   rec->rec_header.packet_header.len = pkthdr->len;
 
   bytes_needed = rec->rec_header.packet_header.caplen;
-  rec->rec_header.packet_header.pkt_encap = encap;
+  //   rec->rec_header.packet_header. = packet;
+  //   edt->pi.data_src
+  // rec->options_buf.data = packet;
+  //   rec->rec_header.packet_header.pseudo_header.eth.fcs_len = 0;
 
   // printf("mem_hdr: %lu disk_hdr: %lu\n", sizeof(mem_hdr), sizeof(disk_hdr));
   // printf("tv_sec: %d (%04x)\n", (unsigned int)rec->ts.secs, (unsigned
@@ -209,7 +217,7 @@ static guint hexdump_ascii_option =
 /**
  * Dissect each packet.
  *
- *  @param 
+ *  @param
  *  @return gboolean true or false;
  */
 static gboolean dissect_packet(epan_dissect_t *edt, gint64 offset,
@@ -406,6 +414,13 @@ int init_cf_live() {
   return 0;
 }
 
+void process_packet_to_file(u_char *arg, const struct pcap_pkthdr *pkthdr,
+                            const u_char *packet) {
+  pcap_dump(arg, pkthdr, packet);
+  printf("Received Packet Size: %d\n", pkthdr->len);
+  return;
+}
+
 /**
  * Dissect each package in real time. TODO: put json format result into queue
  * for golang. Callback function for pcap_loop().
@@ -413,34 +428,29 @@ int init_cf_live() {
  *  @param pkthdr package header;
  *  @param packet package content;
  */
-void processPacketCallback(u_char *arg, const struct pcap_pkthdr *pkthdr,
-                           const u_char *packet) {
+void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
+                             const u_char *packet) {
   int *count = (int *)arg;
   int err;
   gchar *err_info = NULL;
   gint64 data_offset = 0;
 
   wtap_rec rec;
-  Buffer buf;
   epan_dissect_t edt;
 
   wtap_rec_init(&rec);
-  ws_buffer_init(&buf, 1514);
 
   epan_dissect_init(&edt, cf_live.epan, TRUE, TRUE);
 
-  // prepare data
-  gboolean raw_pipe_read_res =
-      prepare_data(&rec, &buf, &err, &err_info, pkthdr, packet);
-  if (!raw_pipe_read_res) {
+  // prepare data: cf_live.buf、rec
+  if (!prepare_data(&rec, &cf_live.buf, &err, &err_info, pkthdr, packet,
+                    &data_offset)) {
     printf("%s \n", "prepare_data err");
     return;
   }
 
-  cf_live.buf = buf;
-
   // dissect pkg
-  dissect_packet(&edt, data_offset, &rec, &buf, packet);
+  dissect_packet(&edt, data_offset, &rec, &cf_live.buf, packet);
 
   // clean tmp
   epan_dissect_cleanup(&edt);
@@ -482,9 +492,20 @@ int handle_pkt_live(char *device_name, int num) {
     return 2;
   }
 
+  //   pcap_dumper_t* out_pcap;
+  //   out_pcap  = pcap_dump_open(device,"10.pcap");
+
   // loop and dissect pkg
   int count = 0;
-  pcap_loop(device, num, processPacketCallback, (u_char *)&count);
+  pcap_loop(device, num, process_packet_callback, (u_char *)&count);
+
+  /*Loop 20 times & call process_packet_to_file() for every received packet.*/
+  //   pcap_loop(device, 20, process_packet_to_file, (u_char *)out_pcap);
+
+  /*flush buff*/
+  //   pcap_dump_flush(out_pcap);
+
+  //   pcap_dump_close(out_pcap);
 
   pcap_close(device);
 

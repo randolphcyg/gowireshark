@@ -407,9 +407,9 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 // DissectPktLive Capture packet by libpcap and dissect each one by wireshark
 // TODO 1. There are still deviations in the parsing results of the protocol tree, and all four layers are put into data
 // 1. How Go efficiently obtains parsing results from C's callback function
-func DissectPktLive(deviceName string, snapLen int, pro int, timeout int) error {
+func DissectPktLive(deviceName string, num int) error {
 
-	C.handle_pkt_live(C.CString(deviceName), C.int(10))
+	C.handle_pkt_live(C.CString(deviceName), C.int(num))
 
 	return nil
 }

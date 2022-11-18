@@ -3,7 +3,6 @@ package tests
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/randolphcyg/gowireshark"
 )
@@ -225,33 +224,11 @@ func TestSetIfaceNonblockStatus(t *testing.T) {
 	fmt.Println("device:", ifaceName, "after set, now nonblock status is:", status)
 }
 
-// BlockForever causes it to block forever waiting for packets, when passed
-// into SetTimeout or OpenLive, while still returning incoming packets to userland relatively
-// quickly.
-const BlockForever = -time.Millisecond * 10
-
-func timeoutMillis(timeout time.Duration) int {
-	// Flip sign if necessary.  See package docs on timeout for reasoning behind this.
-	if timeout < 0 {
-		timeout *= -1
-	}
-	// Round up
-	if timeout != 0 && timeout < time.Millisecond {
-		timeout = time.Millisecond
-	}
-	return int(timeout / time.Millisecond)
-}
-
-var (
-	ifaceName         = "enp0s5"
-	snapshotLen int32 = 1024
-	timeout           = 30 * time.Second
-	err         error
-)
-
-// TODO How can I assemble a wth structure like an offline packet by capturing and analyzing packets online?
+// TODO make result correctly
 func TestDissectPktLive(t *testing.T) {
-	err = gowireshark.DissectPktLive(ifaceName, int(snapshotLen), 1, timeoutMillis(timeout))
+	ifaceName := "enp0s5"
+	pktNum := 2
+	err := gowireshark.DissectPktLive(ifaceName, pktNum)
 	if err != nil {
 		fmt.Println(err)
 	}
