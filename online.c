@@ -128,9 +128,6 @@ static print_format_e print_format = PR_FMT_TEXT;
 static gboolean want_pcap_pkthdr;
 
 int init_cf_live();
-static gboolean dissect_packet(epan_dissect_t *edt, gint64 offset,
-                               wtap_rec *rec, Buffer *buf,
-                               const u_char *packet);
 static void show_print_file_io_error(int err);
 
 typedef enum {
@@ -213,70 +210,6 @@ static guint hexdump_source_option =
     HEXDUMP_SOURCE_MULTI; /* Default - Enable legacy multi-source mode */
 static guint hexdump_ascii_option =
     HEXDUMP_ASCII_INCLUDE; /* Default - Enable legacy undelimited ASCII dump */
-
-/**
- * Dissect each packet.
- *
- *  @param
- *  @return gboolean true or false;
- */
-static gboolean dissect_packet(epan_dissect_t *edt, gint64 offset,
-                               wtap_rec *rec, Buffer *buf,
-                               const u_char *packet) {
-  static guint32 cum_bytes = 0;
-
-  if (rec->rec_header.packet_header.len == 0) {
-    /* The user sends an empty packet when he wants to get output from us even
-       if we don't currently have packets to process. We spit out a line with
-       the timestamp and the text "void"
-    */
-    printf("Header is null, frame No.：%lu %" PRIu64 " %d void -\n",
-           (unsigned long int)cf_live.count, (guint64)rec->ts.secs,
-           rec->ts.nsecs);
-
-    fflush(stdout);
-
-    return FALSE;
-  }
-
-  cf_live.count++;
-  frame_data fd;
-  frame_data_init(&fd, cf_live.count, rec, offset, cum_bytes);
-  frame_data_set_before_dissect(&fd, &cf_live.elapsed_time,
-                                &cf_live.provider.ref,
-                                cf_live.provider.prev_dis);
-  cf_live.provider.ref = &fd;
-  tvbuff_t *tvb;
-  tvb = frame_tvbuff_new_buffer(&cf_live.provider, &fd, buf);
-  epan_dissect_run_with_taps(edt, cf_live.cd_t, rec, tvb, &fd, &cf_live.cinfo);
-  frame_data_set_after_dissect(&fd, &cum_bytes);
-  prev_dis_frame = fd;
-  cf_live.provider.prev_dis = &prev_dis_frame;
-  prev_cap_frame = fd;
-  cf_live.provider.prev_cap = &prev_cap_frame;
-
-  if (ferror(stdout)) {
-    show_print_file_io_error(errno);
-    exit(2);
-  }
-
-  static pf_flags protocolfilter_flags = PF_NONE;
-  static proto_node_children_grouper_func node_children_grouper =
-      proto_node_group_children_by_unique;
-  protocolfilter_flags = PF_INCLUDE_CHILDREN;
-  node_children_grouper = proto_node_group_children_by_json_key;
-  printf("#### %s %d %s\n", "PKG NO.", cf_live.count, " Proto Tree:");
-  char *out_tmp = get_proto_tree_dissect_res_in_json(
-      NULL, print_dissections_expanded, TRUE, NULL, protocolfilter_flags, edt,
-      &cf_live.cinfo, node_children_grouper);
-
-  //   printf("Tree:%s \n", out_tmp);
-
-  epan_dissect_reset(edt);
-  frame_data_destroy(&fd);
-
-  return TRUE;
-}
 
 static void show_print_file_io_error(int err) {
   switch (err) {
@@ -434,6 +367,9 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   int err;
   gchar *err_info = NULL;
   gint64 data_offset = 0;
+  static guint32 cum_bytes = 0;
+  Buffer buf;
+  ws_buffer_init(&buf, 1514);
 
   wtap_rec rec;
   epan_dissect_t edt;
@@ -443,17 +379,60 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   epan_dissect_init(&edt, cf_live.epan, TRUE, TRUE);
 
   // prepare data: cf_live.buf、rec
-  if (!prepare_data(&rec, &cf_live.buf, &err, &err_info, pkthdr, packet,
+  if (!prepare_data(&rec, &buf, &err, &err_info, pkthdr, packet,
                     &data_offset)) {
     printf("%s \n", "prepare_data err");
     return;
   }
 
   // dissect pkg
-  dissect_packet(&edt, data_offset, &rec, &cf_live.buf, packet);
+  if (&rec.rec_header.packet_header.len == 0) {
+    printf("Header is null, frame No.%lu %" PRIu64 " %d void -\n",
+           (unsigned long int)cf_live.count, (guint64)&rec.ts.secs,
+           &rec.ts.nsecs);
 
-  // clean tmp
-  epan_dissect_cleanup(&edt);
+    fflush(stdout);
+
+    return;
+  }
+
+  cf_live.count++;
+  frame_data fd;
+  frame_data_init(&fd, cf_live.count, &rec, data_offset, cum_bytes);
+  frame_data_set_before_dissect(&fd, &cf_live.elapsed_time,
+                                &cf_live.provider.ref,
+                                cf_live.provider.prev_dis);
+  cf_live.provider.ref = &fd;
+  tvbuff_t *tvb;
+  tvb = frame_tvbuff_new_buffer(&cf_live.provider, &fd, &buf);
+  epan_dissect_run_with_taps(&edt, cf_live.cd_t, &rec, tvb, &fd,
+                             &cf_live.cinfo);
+  frame_data_set_after_dissect(&fd, &cum_bytes);
+  prev_dis_frame = fd;
+  cf_live.provider.prev_dis = &prev_dis_frame;
+  prev_cap_frame = fd;
+  cf_live.provider.prev_cap = &prev_cap_frame;
+
+  if (ferror(stdout)) {
+    show_print_file_io_error(errno);
+    exit(2);
+  }
+
+  static pf_flags protocolfilter_flags = PF_NONE;
+  static proto_node_children_grouper_func node_children_grouper =
+      proto_node_group_children_by_unique;
+  protocolfilter_flags = PF_INCLUDE_CHILDREN;
+  node_children_grouper = proto_node_group_children_by_json_key;
+  printf("#### %s %d %s\n", "PKG NO.", cf_live.count, " Proto Tree:");
+  // transfer each pkt dissect result to json format
+  get_proto_tree_dissect_res_in_json(NULL, print_dissections_expanded, TRUE,
+                                     NULL, protocolfilter_flags, &edt,
+                                     &cf_live.cinfo, node_children_grouper);
+
+  // clean tmp data
+  ws_buffer_free(&cf_live.buf);
+  epan_dissect_reset(&edt);
+  frame_data_destroy(&fd);
   wtap_rec_cleanup(&rec);
 
   return;
