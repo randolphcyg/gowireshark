@@ -227,7 +227,7 @@ func TestSetIfaceNonblockStatus(t *testing.T) {
 // TODO make result correctly
 func TestDissectPktLive(t *testing.T) {
 	ifaceName := "enp0s5"
-	pktNum := 2
+	pktNum := 10
 	err := gowireshark.DissectPktLive(ifaceName, pktNum)
 	if err != nil {
 		fmt.Println(err)
