@@ -154,15 +154,9 @@ GPtrArray *string_fmts;
 static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
                              gchar **err_info, const struct pcap_pkthdr *pkthdr,
                              const u_char *packet, gint64 *data_offset) {
-  // struct pcap_pkthdr mem_hdr;
   struct pcaprec_hdr disk_hdr;
   ssize_t bytes_read = 0;
   unsigned int bytes_needed = (unsigned int)sizeof(disk_hdr);
-
-  // disk_hdr.ts_sec = pkthdr->ts.tv_sec;
-  // disk_hdr.ts_usec = (gint32)pkthdr->ts.tv_usec;;
-  // disk_hdr.incl_len = pkthdr->caplen;
-  // disk_hdr.orig_len = pkthdr->len;
 
   *err = 0;
 
@@ -177,21 +171,8 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
   rec->rec_header.packet_header.len = pkthdr->len;
 
   bytes_needed = rec->rec_header.packet_header.caplen;
-  
-  rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_PER_PACKET;
-  
-  //   rec->rec_header.packet_header. = packet;
-  //   edt->pi.data_src
-  // rec->options_buf.data = packet;
-  //   rec->rec_header.packet_header.pseudo_header.eth.fcs_len = 0;
 
-  // printf("mem_hdr: %lu disk_hdr: %lu\n", sizeof(mem_hdr), sizeof(disk_hdr));
-  // printf("tv_sec: %d (%04x)\n", (unsigned int)rec->ts.secs, (unsigned
-  // int)rec->ts.secs); printf("tv_nsec: %d (%04x)\n", rec->ts.nsecs,
-  // rec->ts.nsecs); printf("caplen: %d (%04x)\n",
-  // rec->rec_header.packet_header.caplen,
-  // rec->rec_header.packet_header.caplen); printf("len: %d (%04x)\n",
-  // rec->rec_header.packet_header.len, rec->rec_header.packet_header.len);
+  rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_ETHERNET;
 
   if (bytes_needed > WTAP_MAX_PACKET_SIZE_STANDARD) {
     *err = WTAP_ERR_BAD_FILE;
@@ -336,10 +317,8 @@ int init_cf_live() {
   cf_live.provider.prev_cap = NULL;
   static const struct packet_provider_funcs funcs = {
       raw_get_frame_ts,
-      NULL,
-      NULL,
-      //   cap_file_provider_get_interface_name,
-      //   cap_file_provider_get_interface_description,
+      cap_file_provider_get_interface_name,
+      cap_file_provider_get_interface_description,
       NULL,
   };
   cf_live.epan = epan_new(&cf_live.provider, &funcs);
@@ -419,12 +398,12 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
     exit(2);
   }
 
-//  print_stream_t *print_stream;
-//  print_stream = print_stream_text_stdio_new(stdout);
-//  printf("#### %s %d %s\n", "PKG NO.", cf_live.count, " Hex Data:");
-//  // print hex data
-//  print_hex_data(print_stream, &edt,
-//                 hexdump_source_option | hexdump_ascii_option);
+  //  print_stream_t *print_stream;
+  //  print_stream = print_stream_text_stdio_new(stdout);
+  //  printf("#### %s %d %s\n", "PKG NO.", cf_live.count, " Hex Data:");
+  //  // print hex data
+  //  print_hex_data(print_stream, &edt,
+  //                 hexdump_source_option | hexdump_ascii_option);
 
   static pf_flags protocolfilter_flags = PF_NONE;
   static proto_node_children_grouper_func node_children_grouper =
