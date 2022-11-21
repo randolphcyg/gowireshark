@@ -418,6 +418,13 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
     exit(2);
   }
 
+//  print_stream_t *print_stream;
+//  print_stream = print_stream_text_stdio_new(stdout);
+//  printf("#### %s %d %s\n", "PKG NO.", cf_live.count, " Hex Data:");
+//  // print hex data
+//  print_hex_data(print_stream, &edt,
+//                 hexdump_source_option | hexdump_ascii_option);
+
   static pf_flags protocolfilter_flags = PF_NONE;
   static proto_node_children_grouper_func node_children_grouper =
       proto_node_group_children_by_unique;
