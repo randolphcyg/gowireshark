@@ -158,7 +158,6 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
   struct pcaprec_hdr disk_hdr;
   ssize_t bytes_read = 0;
   unsigned int bytes_needed = (unsigned int)sizeof(disk_hdr);
-  // guchar *ptr = (guchar *)&disk_hdr;
 
   // disk_hdr.ts_sec = pkthdr->ts.tv_sec;
   // disk_hdr.ts_usec = (gint32)pkthdr->ts.tv_usec;;
@@ -168,7 +167,6 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
   *err = 0;
 
   bytes_needed = sizeof(pkthdr);
-  // ptr = (guchar *)&pkthdr;
 
   rec->rec_type = REC_TYPE_PACKET;
   rec->presence_flags = WTAP_HAS_TS | WTAP_HAS_CAP_LEN;
@@ -179,6 +177,9 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
   rec->rec_header.packet_header.len = pkthdr->len;
 
   bytes_needed = rec->rec_header.packet_header.caplen;
+  
+  rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_PER_PACKET;
+  
   //   rec->rec_header.packet_header. = packet;
   //   edt->pi.data_src
   // rec->options_buf.data = packet;
@@ -387,7 +388,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 
   // dissect pkg
   if (&rec.rec_header.packet_header.len == 0) {
-    printf("Header is null, frame No.%lu %" PRIu64 " %d void -\n",
+    printf("Header is null, frame No.%lu %" PRIu64 " %ls void -\n",
            (unsigned long int)cf_live.count, (guint64)&rec.ts.secs,
            &rec.ts.nsecs);
 
