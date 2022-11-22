@@ -58,9 +58,12 @@ int handle_pkt_live(char *device_name, int num);
 import "C"
 import (
 	"encoding/json"
+	"fmt"
+	"net"
 	"os"
 	"reflect"
 	"strconv"
+	"syscall"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -78,6 +81,7 @@ var (
 // SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
 // result of a single data packet, which is convenient for converting c char to go string
 const SINGLEPKTMAXLEN = 6553500
+const UNIXBUFFSIZE = 65535
 
 func init() {
 	// Init policies、wtap mod、epan mod.
@@ -404,11 +408,49 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 	return
 }
 
-// DissectPktLive Capture packet by libpcap and dissect each one by wireshark
-// TODO 1. There are still deviations in the parsing results of the protocol tree, and all four layers are put into data
-// 1. How Go efficiently obtains parsing results from C's callback function
-func DissectPktLive(deviceName string, num int) error {
+func readUnix(listener *net.UnixConn) {
+	for {
+		buf := make([]byte, UNIXBUFFSIZE)
+		size, _, err := listener.ReadFromUnix(buf)
+		if err != nil {
+			panic("start unix domain fail:" + err.Error())
+		}
+		// TODO put result into go pipe
+		fmt.Println("GET DISSECT RESULT:", string(buf[:size]))
+	}
+}
 
+// start unix domain
+func runUnix() (err error) {
+	addr, err := net.ResolveUnixAddr("unixgram", "/tmp/gsocket")
+	if err != nil {
+		fmt.Printf("Error: %s\n", err.Error())
+		panic("ResolveUnixAddr fail:" + err.Error())
+		return
+	}
+	syscall.Unlink("/tmp/gsocket")
+	listener, err := net.ListenUnixgram("unixgram", addr)
+	if err != nil {
+		panic("ListenUnixgram fail:" + err.Error())
+		return
+	}
+	defer listener.Close()
+
+	//send to its subs
+	go readUnix(listener)
+
+	select {}
+}
+
+// DissectPktLive Capture packet by libpcap and dissect each one by wireshark;
+// c use unix domain to send data to buf, go get data from the buf
+// TODO: put data into go pipe for user to use
+// TODO： buffer overflow detected error
+func DissectPktLive(deviceName string, num int) error {
+	// start unix domain to get data from c
+	go runUnix()
+
+	// capture and dissect pkt in c
 	C.handle_pkt_live(C.CString(deviceName), C.int(num))
 
 	return nil
