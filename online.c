@@ -4,6 +4,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <wiretap/libpcap.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 /*
 libpcap function
@@ -334,9 +342,53 @@ void process_packet_to_file(u_char *arg, const struct pcap_pkthdr *pkthdr,
   return;
 }
 
+#define err_log(errlog)                                                        \
+  do {                                                                         \
+    perror(errlog);                                                            \
+    exit(1);                                                                   \
+  } while (0)
+#define N 65535
+void *init_psend(void *a);
+void init_unix_domain();
+char unix_buf[N] = {};
+int sockfd;
+struct sockaddr_un serveraddr;
+struct sockaddr_un clientaddr;
+socklen_t addrlen = sizeof(clientaddr);
+
+// unix domain send data
+void *init_psend(void *a) {
+  if ((sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
+    err_log("fail to socket");
+  }
+  serveraddr.sun_family = AF_UNIX;
+  strcpy(serveraddr.sun_path, "/tmp/gsocket");
+}
+
+// unix domain init
+void init_unix_domain() {
+  pthread_t send;
+  pthread_t recv;
+  if (pthread_create(&send, NULL, init_psend, NULL) == -1) {
+    puts("fail to create pthread send");
+    exit(1);
+  }
+
+  // 等待线程结束
+  void *result;
+  if (pthread_join(send, &result) == -1) {
+    puts("fail to recollect send");
+    exit(1);
+  }
+
+  if (pthread_join(recv, &result) == -1) {
+    puts("fail to recollect recv");
+    exit(1);
+  }
+}
+
 /**
- * Dissect each package in real time. TODO: put json format result into queue
- * for golang. Callback function for pcap_loop().
+ * Dissect each package in real time.
  *
  *  @param pkthdr package header;
  *  @param packet package content;
@@ -410,11 +462,17 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
       proto_node_group_children_by_unique;
   protocolfilter_flags = PF_INCLUDE_CHILDREN;
   node_children_grouper = proto_node_group_children_by_json_key;
-  printf("#### %s %d %s\n", "PKG NO.", cf_live.count, " Proto Tree:");
   // transfer each pkt dissect result to json format
-  get_proto_tree_dissect_res_in_json(NULL, print_dissections_expanded, TRUE,
-                                     NULL, protocolfilter_flags, &edt,
-                                     &cf_live.cinfo, node_children_grouper);
+  char *tree_res_json = get_proto_tree_dissect_res_in_json(
+      NULL, print_dissections_expanded, TRUE, NULL, protocolfilter_flags, &edt,
+      &cf_live.cinfo, node_children_grouper);
+  // unix domain send data to go
+  memset(unix_buf, 0, N);
+  memcpy(unix_buf, tree_res_json, strlen(tree_res_json));
+  if (sendto(sockfd, unix_buf, N, 0, (struct sockaddr *)&serveraddr, addrlen) <
+      0) {
+    err_log("fail to sendto");
+  }
 
   // clean tmp data
   ws_buffer_free(&cf_live.buf);
@@ -461,6 +519,9 @@ int handle_pkt_live(char *device_name, int num) {
   //   pcap_dumper_t* out_pcap;
   //   out_pcap  = pcap_dump_open(device,"10.pcap");
 
+  // start unix domain to send data to golang
+  init_unix_domain();
+
   // loop and dissect pkg
   int count = 0;
   pcap_loop(device, num, process_packet_callback, (u_char *)&count);
@@ -474,6 +535,7 @@ int handle_pkt_live(char *device_name, int num) {
   //   pcap_dump_close(out_pcap);
 
   pcap_close(device);
+  close(sockfd);
 
   return 0;
 }

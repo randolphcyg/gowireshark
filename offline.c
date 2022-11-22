@@ -598,7 +598,5 @@ char *get_proto_tree_dissect_res_in_json(
     write_json_proto_node_children(edt->tree, &data, layers);
   }
 
-  printf("Proto Tree: %s\n", cJSON_Print(proto_tree_res));
-
   return cJSON_PrintUnformatted(proto_tree_res);
 }
