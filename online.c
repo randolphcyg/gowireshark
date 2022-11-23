@@ -1,17 +1,17 @@
 #include "file.h"
+#include <arpa/inet.h>
 #include <frame_tvbuff.h>
 #include <include/lib.h>
-#include <stdio.h>
-#include <string.h>
-#include <wiretap/libpcap.h>
-#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <wiretap/libpcap.h>
 
 /*
 libpcap function
@@ -342,11 +342,6 @@ void process_packet_to_file(u_char *arg, const struct pcap_pkthdr *pkthdr,
   return;
 }
 
-#define err_log(errlog)                                                        \
-  do {                                                                         \
-    perror(errlog);                                                            \
-    exit(1);                                                                   \
-  } while (0)
 #define N 65535
 void *init_psend(void *a);
 void init_unix_domain();
@@ -359,7 +354,8 @@ socklen_t addrlen = sizeof(clientaddr);
 // unix domain send data
 void *init_psend(void *a) {
   if ((sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-    err_log("fail to socket");
+    printf("fail to socket\n");
+    exit(1);
   }
   serveraddr.sun_family = AF_UNIX;
   strcpy(serveraddr.sun_path, "/tmp/gsocket");
@@ -370,21 +366,24 @@ void init_unix_domain() {
   pthread_t send;
   pthread_t recv;
   if (pthread_create(&send, NULL, init_psend, NULL) == -1) {
-    puts("fail to create pthread send");
+    printf("fail to create pthread send\n");
     exit(1);
   }
 
-  // 等待线程结束
+  // wait for end
   void *result;
   if (pthread_join(send, &result) == -1) {
-    puts("fail to recollect send");
+    printf("fail to recollect send\n");
     exit(1);
   }
+}
 
-  if (pthread_join(recv, &result) == -1) {
-    puts("fail to recollect recv");
-    exit(1);
+// safety memcpy
+void *memcpy_safe(void *dest, const void *src, size_t n, size_t left_buf_size) {
+  if (n > left_buf_size) {
+    n = left_buf_size;
   }
+  return memcpy(dest, src, n);
 }
 
 /**
@@ -467,12 +466,13 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
       NULL, print_dissections_expanded, TRUE, NULL, protocolfilter_flags, &edt,
       &cf_live.cinfo, node_children_grouper);
   // unix domain send data to go
-  memset(unix_buf, 0, N);
-  memcpy(unix_buf, tree_res_json, strlen(tree_res_json));
-  if (sendto(sockfd, unix_buf, N, 0, (struct sockaddr *)&serveraddr, addrlen) <
-      0) {
-    err_log("fail to sendto");
+  memcpy_safe(unix_buf, tree_res_json, strlen(tree_res_json), N);
+  // memcpy(unix_buf, tree_res_json, strlen(tree_res_json));
+  if (sendto(sockfd, unix_buf, strlen(tree_res_json), 0,
+             (struct sockaddr *)&serveraddr, addrlen) < 0) {
+    printf("###### %s #####\n", "fail to sendto");
   }
+  memset(unix_buf, 0, N);
 
   // clean tmp data
   ws_buffer_free(&cf_live.buf);
@@ -492,7 +492,6 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 int handle_pkt_live(char *device_name, int num) {
   int err = 0;
   char errBuf[PCAP_ERRBUF_SIZE], *devStr;
-  pcap_if_t *alldevs;
   // Save the starting address of the received packet
   const unsigned char *p_packet_content = NULL;
   struct pcap_pkthdr protocol_header;
@@ -502,22 +501,16 @@ int handle_pkt_live(char *device_name, int num) {
   if (err != 0) {
     return err;
   }
-  // find all devices
-  pcap_findalldevs(&alldevs, errBuf);
-  if (alldevs == NULL) {
-    printf("pcap_findalldevs() couldn't find device: %s\n", errBuf);
-    return 2;
-  }
 
   // open device
-  pcap_t *device = pcap_open_live(alldevs->name, BUFSIZE, 1, 20, errBuf);
+  pcap_t *device = pcap_open_live(device_name, BUFSIZE, 1, 20, errBuf);
   if (!device) {
     printf("pcap_open_live() couldn't open device: %s\n", errBuf);
     return 2;
   }
 
   //   pcap_dumper_t* out_pcap;
-  //   out_pcap  = pcap_dump_open(device,"10.pcap");
+  //   out_pcap  = pcap_dump_open(device,"pkg.pcap");
 
   // start unix domain to send data to golang
   init_unix_domain();
