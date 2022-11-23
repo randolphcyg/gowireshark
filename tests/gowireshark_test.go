@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -224,10 +225,60 @@ func TestSetIfaceNonblockStatus(t *testing.T) {
 	fmt.Println("device:", ifaceName, "after set, now nonblock status is:", status)
 }
 
-// TODO make result correctly
-func TestDissectPktLive(t *testing.T) {
+/*
+Test infinite loop fetching and parsing packets.
+Set the num parameter of the DissectPktLive function to -1
+to process packets in an infinite loop.
+*/
+func TestDissectPktLiveInfinite(t *testing.T) {
 	ifaceName := "enp0s5"
-	pktNum := 10
+	pktNum := -1
+
+	livePkgCount := 0
+	// Simulate reading and processing data from a pipeline
+	go func() {
+		for {
+			select {
+			case pkg := <-gowireshark.PkgDetailLiveChan:
+				livePkgCount++
+				pkgByte, _ := json.Marshal(pkg)
+				fmt.Printf("Processed pkg:【%d】pkg len:【%d】\n", livePkgCount, len(pkgByte))
+			default:
+			}
+		}
+	}()
+
+	// Enable processing processes such as packet capture parsing
+	err := gowireshark.DissectPktLive(ifaceName, pktNum)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+}
+
+/*
+Set the num parameter of the DissectPktLive function to a specific num like 20
+to process packets in a limited loop.
+*/
+func TestDissectPktLiveSpecificNum(t *testing.T) {
+	ifaceName := "enp0s5"
+	pktNum := 20
+
+	livePkgCount := 0
+	// Simulate reading and processing data from a pipeline
+	go func() {
+		for {
+			select {
+			case pkg := <-gowireshark.PkgDetailLiveChan:
+				livePkgCount++
+				pkgByte, _ := json.Marshal(pkg)
+				fmt.Printf("Processed pkg:【%d】pkg len:【%d】\n", livePkgCount, len(pkgByte))
+			default:
+			}
+		}
+	}()
+
+	// Enable processing processes such as packet capture parsing
 	err := gowireshark.DissectPktLive(ifaceName, pktNum)
 	if err != nil {
 		fmt.Println(err)

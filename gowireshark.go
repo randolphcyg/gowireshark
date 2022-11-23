@@ -81,7 +81,13 @@ var (
 // SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
 // result of a single data packet, which is convenient for converting c char to go string
 const SINGLEPKTMAXLEN = 6553500
+
+// UNIXBUFFSIZE The maximum length of packet detail data transmitted by the Unix domain socket;
+// Beyond this length will be safely truncated at c; The truncated data will not be properly deserialized into a golang struct.
 const UNIXBUFFSIZE = 65535
+
+// PkgDetailLiveChan put pkg detail struct into go pipe
+var PkgDetailLiveChan = make(chan FrameDissectRes, 1000)
 
 func init() {
 	// Init policies、wtap mod、epan mod.
@@ -415,8 +421,19 @@ func readUnix(listener *net.UnixConn) {
 		if err != nil {
 			panic("start unix domain fail:" + err.Error())
 		}
-		// TODO put result into go pipe
-		fmt.Println("GET DISSECT RESULT:", string(buf[:size]))
+		// handle each pkg
+		//fmt.Println("数据包详情：")
+		//fmt.Println(len(string(buf)))
+		//fmt.Println("数据包结束")
+		// unmarshal dissect result
+		singleFrameData, err := UnmarshalDissectResult(string(buf[:size]))
+		if err != nil {
+			err = errors.Wrap(ErrUnmarshalObj, "WsIndex: "+singleFrameData.WsIndex)
+			fmt.Println(err)
+		}
+		// 向管道写入解析结果
+		PkgDetailLiveChan <- singleFrameData
+
 	}
 }
 
@@ -444,8 +461,6 @@ func runUnix() (err error) {
 
 // DissectPktLive Capture packet by libpcap and dissect each one by wireshark;
 // c use unix domain to send data to buf, go get data from the buf
-// TODO: put data into go pipe for user to use
-// TODO： buffer overflow detected error
 func DissectPktLive(deviceName string, num int) error {
 	// start unix domain to get data from c
 	go runUnix()
