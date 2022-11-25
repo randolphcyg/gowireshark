@@ -422,18 +422,14 @@ func readUnix(listener *net.UnixConn) {
 			panic("start unix domain fail:" + err.Error())
 		}
 		// handle each pkg
-		//fmt.Println("数据包详情：")
-		//fmt.Println(len(string(buf)))
-		//fmt.Println("数据包结束")
 		// unmarshal dissect result
 		singleFrameData, err := UnmarshalDissectResult(string(buf[:size]))
 		if err != nil {
 			err = errors.Wrap(ErrUnmarshalObj, "WsIndex: "+singleFrameData.WsIndex)
 			fmt.Println(err)
 		}
-		// 向管道写入解析结果
+		// write packet dissect result to go pipe
 		PkgDetailLiveChan <- singleFrameData
-
 	}
 }
 
@@ -441,7 +437,6 @@ func readUnix(listener *net.UnixConn) {
 func runUnix() (err error) {
 	addr, err := net.ResolveUnixAddr("unixgram", "/tmp/gsocket")
 	if err != nil {
-		fmt.Printf("Error: %s\n", err.Error())
 		panic("ResolveUnixAddr fail:" + err.Error())
 		return
 	}
