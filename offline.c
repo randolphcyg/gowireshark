@@ -603,7 +603,7 @@ char *get_proto_tree_dissect_res_in_json(
     write_json_proto_node_children(edt->tree, &data, layers);
   }
 
-  char* result = cJSON_PrintUnformatted(proto_tree_res);
+  char *result = cJSON_PrintUnformatted(proto_tree_res);
   cJSON_Delete(proto_tree_res);
 
   return result;
