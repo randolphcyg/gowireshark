@@ -483,6 +483,8 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
     // if has value, just insert
     if (pdata->print_text && has_value) {
       cJSON_AddStringToObject(obj_current_node, json_key, value_string_repr);
+      free(value_string_repr);
+      value_string_repr = NULL;
     }
 
     // has chil node ?
@@ -500,6 +502,9 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
       gchar *json_key_s = g_strdup_printf("%s%s", json_key, suffix);
 
       cJSON_AddItemToObject(obj_current_node, json_key_s, cjson_tmp_child);
+
+      free(json_key_s);
+      json_key_s = NULL;
 
       // has_children is TRUE if any of the nodes have children. so dynamic
       // judge it.
@@ -598,5 +603,8 @@ char *get_proto_tree_dissect_res_in_json(
     write_json_proto_node_children(edt->tree, &data, layers);
   }
 
-  return cJSON_PrintUnformatted(proto_tree_res);
+  char* result = cJSON_PrintUnformatted(proto_tree_res);
+  cJSON_Delete(proto_tree_res);
+
+  return result;
 }

@@ -53,7 +53,10 @@ char *get_if_list() {
   }
   pcap_freealldevs(alldevs);
 
-  return cJSON_PrintUnformatted(ifaces);
+  char *result = cJSON_PrintUnformatted(ifaces);
+  cJSON_Delete(ifaces);
+
+  return result;
 }
 
 /**
@@ -399,8 +402,8 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   gchar *err_info = NULL;
   gint64 data_offset = 0;
   static guint32 cum_bytes = 0;
-  Buffer buf;
-  ws_buffer_init(&buf, 1514);
+   Buffer buf;
+   ws_buffer_init(&buf, 1514);
 
   wtap_rec rec;
   epan_dissect_t edt;
@@ -434,10 +437,11 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
                                 &cf_live.provider.ref,
                                 cf_live.provider.prev_dis);
   cf_live.provider.ref = &fd;
-  tvbuff_t *tvb;
-  tvb = frame_tvbuff_new_buffer(&cf_live.provider, &fd, &buf);
-  epan_dissect_run_with_taps(&edt, cf_live.cd_t, &rec, tvb, &fd,
-                             &cf_live.cinfo);
+  // dissect logic
+  epan_dissect_run_with_taps(
+      &edt, cf_live.cd_t, &rec,
+      frame_tvbuff_new_buffer(&cf_live.provider, &fd, &buf), &fd,
+      &cf_live.cinfo);
   frame_data_set_after_dissect(&fd, &cum_bytes);
   prev_dis_frame = fd;
   cf_live.provider.prev_dis = &prev_dis_frame;
@@ -448,13 +452,6 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
     show_print_file_io_error(errno);
     exit(2);
   }
-
-  //  print_stream_t *print_stream;
-  //  print_stream = print_stream_text_stdio_new(stdout);
-  //  printf("#### %s %d %s\n", "PKG NO.", cf_live.count, " Hex Data:");
-  //  // print hex data
-  //  print_hex_data(print_stream, &edt,
-  //                 hexdump_source_option | hexdump_ascii_option);
 
   static pf_flags protocolfilter_flags = PF_NONE;
   static proto_node_children_grouper_func node_children_grouper =
@@ -467,7 +464,6 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
       &cf_live.cinfo, node_children_grouper);
   // unix domain send data to go
   memcpy_safe(unix_buf, tree_res_json, strlen(tree_res_json), N);
-  // memcpy(unix_buf, tree_res_json, strlen(tree_res_json));
   if (sendto(sockfd, unix_buf, strlen(tree_res_json), 0,
              (struct sockaddr *)&serveraddr, addrlen) < 0) {
     printf("###### %s #####\n", "fail to sendto");
@@ -476,6 +472,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 
   // clean tmp data
   ws_buffer_free(&cf_live.buf);
+  cJSON_free(tree_res_json);
   epan_dissect_reset(&edt);
   frame_data_destroy(&fd);
   wtap_rec_cleanup(&rec);
@@ -509,23 +506,12 @@ int handle_pkt_live(char *device_name, int num) {
     return 2;
   }
 
-  //   pcap_dumper_t* out_pcap;
-  //   out_pcap  = pcap_dump_open(device,"pkg.pcap");
-
   // start unix domain to send data to golang
   init_unix_domain();
 
   // loop and dissect pkg
   int count = 0;
   pcap_loop(device, num, process_packet_callback, (u_char *)&count);
-
-  /*Loop 20 times & call process_packet_to_file() for every received packet.*/
-  //   pcap_loop(device, 20, process_packet_to_file, (u_char *)out_pcap);
-
-  /*flush buff*/
-  //   pcap_dump_flush(out_pcap);
-
-  //   pcap_dump_close(out_pcap);
 
   pcap_close(device);
   close(sockfd);
