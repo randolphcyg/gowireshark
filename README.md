@@ -75,8 +75,8 @@ gowireshark
 ```mermaid
 graph LR
     A(golang)==cgo==>B(clang)
-    B(c)-.->C[wireshark dll]
-    B(c)-.->D[libpcap dll]
+    B(clang)-.->C[wireshark dll]
+    B(clang)-.->D[libpcap dll]
     style A fill:#FFCCCC
     style B fill:#99CCCC
     style C fill:#FFCC99,stroke:#FFCCCC,stroke-width:2px,stroke-dasharray: 5, 5
