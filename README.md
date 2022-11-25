@@ -30,11 +30,13 @@
 gowireshark
 ├── README.md
 ├── cJSON.c
+├── frame_tvbuff.c
 ├── go.mod
 ├── go.sum
 ├── gowireshark.go
 ├── include/
 │   ├── cJSON.h
+│   ├── frame_tvbuff.h
 │   ├── lib.h
 │   ├── libpcap/
 │   ├── offline.h
@@ -45,10 +47,10 @@ gowireshark
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
 │   ├── libwireshark.so.16
-│   ├── libwireshark.so.16.0.0
+│   ├── libwireshark.so.16.0.1
 │   ├── libwiretap.so
 │   ├── libwiretap.so.13
-│   ├── libwiretap.so.13.0.0
+│   ├── libwiretap.so.13.0.1
 │   ├── libwsutil.so
 │   ├── libwsutil.so.14
 │   └── libwsutil.so.14.0.0
@@ -70,14 +72,15 @@ gowireshark
 
 ## 2.2. 调用关系
 
-gowireshark.go >> lib.h + lib.c >> wireshark 动态链接库 + wireshark 源码 
-
 ```mermaid
 graph LR
-    A(gowireshark.go)==cgo==>B(lib.h + lib.c)-.->C[wireshark 动态链接库 + wireshark 源码]
+    A(golang)==cgo==>B(clang)
+    B(c)-.->C[wireshark dll]
+    B(c)-.->D[libpcap dll]
     style A fill:#FFCCCC
     style B fill:#99CCCC
     style C fill:#FFCC99,stroke:#FFCCCC,stroke-width:2px,stroke-dasharray: 5, 5
+    style D fill:#FFCC99,stroke:#FFCCCC,stroke-width:2px,stroke-dasharray: 5, 5
 ```
 
 ## 3. How To Use
