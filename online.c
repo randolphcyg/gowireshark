@@ -402,8 +402,8 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   gchar *err_info = NULL;
   gint64 data_offset = 0;
   static guint32 cum_bytes = 0;
-   Buffer buf;
-   ws_buffer_init(&buf, 1514);
+  Buffer buf;
+  ws_buffer_init(&buf, 1514);
 
   wtap_rec rec;
   epan_dissect_t edt;
