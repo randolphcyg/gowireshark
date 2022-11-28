@@ -14,10 +14,58 @@
 #include <wiretap/libpcap.h>
 
 /*
-libpcap function
+1. AF_UNIX part
 */
 
-#define BUFSIZE 65535
+#define AF_UNIX_BUFSIZE 65535
+void *init_psend(void *a);
+void init_af_unix();
+char af_unix_buf[AF_UNIX_BUFSIZE] = {};
+int sockfd;
+struct sockaddr_un serveraddr;
+struct sockaddr_un clientaddr;
+socklen_t addrlen = sizeof(clientaddr);
+
+// AF_UNIX init
+void init_af_unix() {
+  pthread_t send;
+  pthread_t recv;
+  if (pthread_create(&send, NULL, init_psend, NULL) == -1) {
+    printf("fail to create pthread send\n");
+    exit(1);
+  }
+
+  // wait for end
+  void *result;
+  if (pthread_join(send, &result) == -1) {
+    printf("fail to recollect send\n");
+    exit(1);
+  }
+}
+
+// AF_UNIX send data
+void *init_psend(void *a) {
+  if ((sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
+    printf("fail to socket\n");
+    exit(1);
+  }
+  serveraddr.sun_family = AF_UNIX;
+  strcpy(serveraddr.sun_path, "/tmp/gsocket");
+}
+
+// safety memcpy
+void *memcpy_safe(void *dest, const void *src, size_t n, size_t left_buf_size) {
+  if (n > left_buf_size) {
+    n = left_buf_size;
+  }
+  return memcpy(dest, src, n);
+}
+
+/*
+2. libpcap part
+*/
+
+#define LIBPCAP_BUFSIZE 65535
 // error buffer
 char errbuf[PCAP_ERRBUF_SIZE];
 
@@ -72,7 +120,7 @@ int get_if_nonblock_status(char *device_name) {
   int is_nonblock;
 
   if (device_name) {
-    handle = pcap_open_live(device_name, BUFSIZE, 1, 20, errbuf);
+    handle = pcap_open_live(device_name, LIBPCAP_BUFSIZE, 1, 20, errbuf);
     if (handle == NULL) {
       return 2;
     }
@@ -99,7 +147,7 @@ int set_if_nonblock_status(char *device_name, int nonblock) {
   int is_nonblock;
 
   if (device_name) {
-    handle = pcap_open_live(device_name, BUFSIZE, 1, 1000, errbuf);
+    handle = pcap_open_live(device_name, LIBPCAP_BUFSIZE, 1, 1000, errbuf);
     if (handle == NULL) {
       return 2;
     }
@@ -116,7 +164,7 @@ int set_if_nonblock_status(char *device_name, int nonblock) {
 }
 
 /*
-rawshark function
+3. wireshark part
 */
 
 // global capture file variable for online logic
@@ -124,85 +172,8 @@ capture_file cf_live;
 static frame_data prev_dis_frame;
 static frame_data prev_cap_frame;
 
-/*
- * The way the packet decode is to be written.
- */
-typedef enum {
-  WRITE_TEXT, /* summary or detail text */
-  WRITE_XML   /* PDML or PSML */
-              /* Add CSV and the like here */
-} output_action_e;
-
-static gboolean line_buffered;
-static print_format_e print_format = PR_FMT_TEXT;
-
-static gboolean want_pcap_pkthdr;
-
-int init_cf_live();
 static void show_print_file_io_error(int err);
-
-typedef enum {
-  SF_NONE,   /* No format (placeholder) */
-  SF_NAME,   /* %D Field name / description */
-  SF_NUMVAL, /* %N Numeric value */
-  SF_STRVAL  /* %S String value */
-} string_fmt_e;
-
-typedef struct string_fmt_s {
-  gchar *plain;
-  string_fmt_e format; /* Valid if plain is NULL */
-} string_fmt_t;
-
-int encap;
-GPtrArray *string_fmts;
-
-/**
- * Prepare data for print_hex_data func .
- *
- *  @param
- *  @return gboolean true or false;
- */
-static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
-                             gchar **err_info, const struct pcap_pkthdr *pkthdr,
-                             const u_char *packet, gint64 *data_offset) {
-  struct pcaprec_hdr disk_hdr;
-  ssize_t bytes_read = 0;
-  unsigned int bytes_needed = (unsigned int)sizeof(disk_hdr);
-
-  *err = 0;
-
-  bytes_needed = sizeof(pkthdr);
-
-  rec->rec_type = REC_TYPE_PACKET;
-  rec->presence_flags = WTAP_HAS_TS | WTAP_HAS_CAP_LEN;
-
-  rec->ts.nsecs = (gint32)pkthdr->ts.tv_usec * 1000;
-  rec->ts.secs = pkthdr->ts.tv_sec;
-  rec->rec_header.packet_header.caplen = pkthdr->caplen;
-  rec->rec_header.packet_header.len = pkthdr->len;
-
-  bytes_needed = rec->rec_header.packet_header.caplen;
-
-  rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_ETHERNET;
-
-  if (bytes_needed > WTAP_MAX_PACKET_SIZE_STANDARD) {
-    *err = WTAP_ERR_BAD_FILE;
-    *err_info =
-        ws_strdup_printf("Bad packet length: %lu", (unsigned long)bytes_needed);
-    return FALSE;
-  }
-
-  // assign space for buf
-  ws_buffer_assure_space(buf, bytes_needed);
-  buf->data = packet;
-
-  return TRUE;
-}
-
-static guint hexdump_source_option =
-    HEXDUMP_SOURCE_MULTI; /* Default - Enable legacy multi-source mode */
-static guint hexdump_ascii_option =
-    HEXDUMP_ASCII_INCLUDE; /* Default - Enable legacy undelimited ASCII dump */
+int init_cf_live();
 
 static void show_print_file_io_error(int err) {
   switch (err) {
@@ -338,55 +309,46 @@ int init_cf_live() {
   return 0;
 }
 
+/**
+ * Prepare data: cf_live.buf、rec.
+ *
+ *  @param
+ *  @return gboolean true or false;
+ */
+static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
+                             gchar **err_info, const struct pcap_pkthdr *pkthdr,
+                             const u_char *packet, gint64 *data_offset) {
+  *err = 0;
+
+  rec->rec_type = REC_TYPE_PACKET;
+  rec->presence_flags = WTAP_HAS_TS | WTAP_HAS_CAP_LEN;
+  rec->ts.nsecs = (gint32)pkthdr->ts.tv_usec * 1000;
+  rec->ts.secs = pkthdr->ts.tv_sec;
+  rec->rec_header.packet_header.caplen = pkthdr->caplen;
+  rec->rec_header.packet_header.len = pkthdr->len;
+  rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_ETHERNET;
+
+  unsigned int bytes_needed = rec->rec_header.packet_header.caplen;
+
+  if (bytes_needed > WTAP_MAX_PACKET_SIZE_STANDARD) {
+    *err = WTAP_ERR_BAD_FILE;
+    *err_info =
+        ws_strdup_printf("Bad packet length: %lu", (unsigned long)bytes_needed);
+    return FALSE;
+  }
+
+  // assign space for buf
+  ws_buffer_assure_space(buf, bytes_needed);
+  buf->data = packet;
+
+  return TRUE;
+}
+
 void process_packet_to_file(u_char *arg, const struct pcap_pkthdr *pkthdr,
                             const u_char *packet) {
   pcap_dump(arg, pkthdr, packet);
   printf("Received Packet Size: %d\n", pkthdr->len);
   return;
-}
-
-#define N 65535
-void *init_psend(void *a);
-void init_unix_domain();
-char unix_buf[N] = {};
-int sockfd;
-struct sockaddr_un serveraddr;
-struct sockaddr_un clientaddr;
-socklen_t addrlen = sizeof(clientaddr);
-
-// unix domain send data
-void *init_psend(void *a) {
-  if ((sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-    printf("fail to socket\n");
-    exit(1);
-  }
-  serveraddr.sun_family = AF_UNIX;
-  strcpy(serveraddr.sun_path, "/tmp/gsocket");
-}
-
-// unix domain init
-void init_unix_domain() {
-  pthread_t send;
-  pthread_t recv;
-  if (pthread_create(&send, NULL, init_psend, NULL) == -1) {
-    printf("fail to create pthread send\n");
-    exit(1);
-  }
-
-  // wait for end
-  void *result;
-  if (pthread_join(send, &result) == -1) {
-    printf("fail to recollect send\n");
-    exit(1);
-  }
-}
-
-// safety memcpy
-void *memcpy_safe(void *dest, const void *src, size_t n, size_t left_buf_size) {
-  if (n > left_buf_size) {
-    n = left_buf_size;
-  }
-  return memcpy(dest, src, n);
 }
 
 /**
@@ -397,29 +359,25 @@ void *memcpy_safe(void *dest, const void *src, size_t n, size_t left_buf_size) {
  */
 void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
                              const u_char *packet) {
-  int *count = (int *)arg;
   int err;
   gchar *err_info = NULL;
   gint64 data_offset = 0;
   static guint32 cum_bytes = 0;
   Buffer buf;
-  ws_buffer_init(&buf, 1514);
-
+  frame_data fd;
   wtap_rec rec;
   epan_dissect_t edt;
 
+  ws_buffer_init(&buf, 1514);
   wtap_rec_init(&rec);
-
   epan_dissect_init(&edt, cf_live.epan, TRUE, TRUE);
 
-  // prepare data: cf_live.buf、rec
   if (!prepare_data(&rec, &buf, &err, &err_info, pkthdr, packet,
                     &data_offset)) {
     printf("%s \n", "prepare_data err");
     return;
   }
 
-  // dissect pkg
   if (&rec.rec_header.packet_header.len == 0) {
     printf("Header is null, frame No.%lu %" PRIu64 " %ls void -\n",
            (unsigned long int)cf_live.count, (guint64)&rec.ts.secs,
@@ -431,17 +389,18 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   }
 
   cf_live.count++;
-  frame_data fd;
   frame_data_init(&fd, cf_live.count, &rec, data_offset, cum_bytes);
   frame_data_set_before_dissect(&fd, &cf_live.elapsed_time,
                                 &cf_live.provider.ref,
                                 cf_live.provider.prev_dis);
   cf_live.provider.ref = &fd;
-  // dissect logic
+
+  // dissect pkg
   epan_dissect_run_with_taps(
       &edt, cf_live.cd_t, &rec,
       frame_tvbuff_new_buffer(&cf_live.provider, &fd, &buf), &fd,
       &cf_live.cinfo);
+
   frame_data_set_after_dissect(&fd, &cum_bytes);
   prev_dis_frame = fd;
   cf_live.provider.prev_dis = &prev_dis_frame;
@@ -453,29 +412,31 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
     exit(2);
   }
 
+  // transfer each pkt dissect result to json format
   static pf_flags protocolfilter_flags = PF_NONE;
   static proto_node_children_grouper_func node_children_grouper =
       proto_node_group_children_by_unique;
   protocolfilter_flags = PF_INCLUDE_CHILDREN;
   node_children_grouper = proto_node_group_children_by_json_key;
-  // transfer each pkt dissect result to json format
   char *tree_res_json = get_proto_tree_dissect_res_in_json(
       NULL, print_dissections_expanded, TRUE, NULL, protocolfilter_flags, &edt,
       &cf_live.cinfo, node_children_grouper);
-  // unix domain send data to go
-  memcpy_safe(unix_buf, tree_res_json, strlen(tree_res_json), N);
-  if (sendto(sockfd, unix_buf, strlen(tree_res_json), 0,
+
+  // use AF_UNIX send data to go
+  memcpy_safe(af_unix_buf, tree_res_json, strlen(tree_res_json),
+              AF_UNIX_BUFSIZE);
+  if (sendto(sockfd, af_unix_buf, strlen(tree_res_json), 0,
              (struct sockaddr *)&serveraddr, addrlen) < 0) {
     printf("###### %s #####\n", "fail to sendto");
   }
-  memset(unix_buf, 0, N);
+  memset(af_unix_buf, 0, AF_UNIX_BUFSIZE);
 
-  // clean tmp data
+  // free all memory allocated
   ws_buffer_free(&cf_live.buf);
-  cJSON_free(tree_res_json);
   epan_dissect_reset(&edt);
   frame_data_destroy(&fd);
   wtap_rec_cleanup(&rec);
+  cJSON_free(tree_res_json);
 
   return;
 }
@@ -500,18 +461,18 @@ int handle_pkt_live(char *device_name, int num) {
   }
 
   // open device
-  pcap_t *device = pcap_open_live(device_name, BUFSIZE, 1, 20, errBuf);
+  pcap_t *device = pcap_open_live(device_name, LIBPCAP_BUFSIZE, 1, 20, errBuf);
   if (!device) {
     printf("pcap_open_live() couldn't open device: %s\n", errBuf);
     return 2;
   }
 
-  // start unix domain to send data to golang
-  init_unix_domain();
+  // start AF_UNIX to send data to golang
+  init_af_unix();
 
   // loop and dissect pkg
   int count = 0;
-  pcap_loop(device, num, process_packet_callback, (u_char *)&count);
+  pcap_loop(device, num, process_packet_callback, NULL);
 
   pcap_close(device);
   close(sockfd);
