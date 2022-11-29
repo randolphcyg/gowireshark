@@ -3,7 +3,7 @@
 > gowireshark 是一个提供 wireshark 协议解析功能的golang包
 
 - 暂仅支持linux平台，此库在ubuntu22.04中开发测试
-- 基于 wireshark4.0.0、libpcap1.10.1
+- 基于 wireshark4.0.1、libpcap1.10.1
 - 用c和go封装 wireshark，是一个golang包
 ---
 ## 1.项目结构说明
@@ -149,11 +149,11 @@ go get github.com/randolphcyg/gowireshark
 cd /opt/
 
 下载
-wget https://2.na.dl.wireshark.org/src/wireshark-4.0.0.tar.xz
+wget https://2.na.dl.wireshark.org/src/wireshark-4.0.1.tar.xz
 
 解压并修改文件夹名
-tar -xvf wireshark-4.0.0.tar.xz
-mv wireshark-4.0.0 wireshark
+tar -xvf wireshark-4.0.1.tar.xz
+mv wireshark-4.0.1 wireshark
 
 到wireshark目录下
 cd wireshark/
