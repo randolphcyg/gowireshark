@@ -256,7 +256,8 @@ tree -L 2 -F gowireshark
    go test -v -run TestGetSpecificFrameHexData
    # 实时解析数据包
    go test -v -run TestDissectPktLive
-   go test -v -run TestGetAllFrameProtoTreeInJson
+   # 实时抓包 读取一定数目并解析  
+   go test -v -run TestDissectPktLiveSpecificNum
    ```
 
 ## 5. TODO

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/randolphcyg/gowireshark"
 )
@@ -254,6 +255,8 @@ func TestDissectPktLiveInfinite(t *testing.T) {
 		fmt.Println(err)
 	}
 
+	time.Sleep(time.Second * 10)
+
 }
 
 /*
@@ -283,5 +286,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	time.Sleep(time.Second)
 
 }
