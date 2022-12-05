@@ -82,12 +82,18 @@ var (
 // result of a single data packet, which is convenient for converting c char to go string
 const SINGLEPKTMAXLEN = 6553500
 
+// SERVERSOCKPATH socket server path
+const SERVERSOCKPATH string = "/tmp/gsocket"
+
 // UNIXBUFFSIZE The maximum length of packet detail data transmitted by the Unix domain socket;
 // Beyond this length will be safely truncated at c; The truncated data will not be properly deserialized into a golang struct.
 const UNIXBUFFSIZE = 65535
 
 // PkgDetailLiveChan put pkg detail struct into go pipe
 var PkgDetailLiveChan = make(chan FrameDissectRes, 1000)
+
+// UnixListener socket server listener
+var UnixListener *net.UnixConn
 
 func init() {
 	// Init policies、wtap mod、epan mod.
@@ -414,6 +420,29 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 	return
 }
 
+// RunUnix socket server:  start socket and read data
+func RunUnix() (err error) {
+	addr, err := net.ResolveUnixAddr("unixgram", SERVERSOCKPATH)
+	if err != nil {
+		panic("ResolveUnixAddr fail:" + err.Error())
+		return
+	}
+
+	syscall.Unlink(SERVERSOCKPATH)
+
+	UnixListener, err = net.ListenUnixgram("unixgram", addr)
+	if err != nil {
+		err = errors.Wrap(err, "ListenUnixgram fail")
+		return
+	}
+
+	// read data from c client
+	go readUnix(UnixListener)
+
+	return
+}
+
+// readUnix socket server: read data
 func readUnix(listener *net.UnixConn) {
 	for {
 		buf := make([]byte, UNIXBUFFSIZE)
@@ -433,35 +462,9 @@ func readUnix(listener *net.UnixConn) {
 	}
 }
 
-// start unix domain
-func runUnix() (err error) {
-	addr, err := net.ResolveUnixAddr("unixgram", "/tmp/gsocket")
-	if err != nil {
-		panic("ResolveUnixAddr fail:" + err.Error())
-		return
-	}
-	syscall.Unlink("/tmp/gsocket")
-	listener, err := net.ListenUnixgram("unixgram", addr)
-	if err != nil {
-		panic("ListenUnixgram fail:" + err.Error())
-		return
-	}
-	defer listener.Close()
-
-	//send to its subs
-	go readUnix(listener)
-
-	select {}
-}
-
-// DissectPktLive Capture packet by libpcap and dissect each one by wireshark;
-// c use unix domain to send data to buf, go get data from the buf
-func DissectPktLive(deviceName string, num int) error {
-	// start unix domain to get data from c
-	go runUnix()
-
-	// capture and dissect pkt in c
+// DissectPktLive start socket client, capture and dissect packet.
+func DissectPktLive(deviceName string, num int) (err error) {
 	C.handle_pkt_live(C.CString(deviceName), C.int(num))
 
-	return nil
+	return
 }

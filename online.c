@@ -17,14 +17,16 @@
 1. AF_UNIX part
 */
 
+#define SERVER_SOCK_PATH "/tmp/gsocket"
 #define AF_UNIX_BUFSIZE 65535
-void *init_psend(void *a);
-void init_af_unix();
-char af_unix_buf[AF_UNIX_BUFSIZE] = {};
 int sockfd;
+char af_unix_buf[AF_UNIX_BUFSIZE] = {};
 struct sockaddr_un serveraddr;
 struct sockaddr_un clientaddr;
 socklen_t addrlen = sizeof(clientaddr);
+
+void *init_psend(void *a);
+void init_af_unix();
 
 // AF_UNIX init
 void init_af_unix() {
@@ -50,7 +52,7 @@ void *init_psend(void *a) {
     exit(1);
   }
   serveraddr.sun_family = AF_UNIX;
-  strcpy(serveraddr.sun_path, "/tmp/gsocket");
+  strcpy(serveraddr.sun_path, SERVER_SOCK_PATH);
 }
 
 // safety memcpy
@@ -342,13 +344,6 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
   buf->data = packet;
 
   return TRUE;
-}
-
-void process_packet_to_file(u_char *arg, const struct pcap_pkthdr *pkthdr,
-                            const u_char *packet) {
-  pcap_dump(arg, pkthdr, packet);
-  printf("Received Packet Size: %d\n", pkthdr->len);
-  return;
 }
 
 /**
