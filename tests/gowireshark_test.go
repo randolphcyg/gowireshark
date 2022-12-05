@@ -232,11 +232,17 @@ Set the num parameter of the DissectPktLive function to -1
 to process packets in an infinite loop.
 */
 func TestDissectPktLiveInfinite(t *testing.T) {
-	ifaceName := "enp0s5"
+	ifName := "enp0s5"
 	pktNum := -1
-
 	livePkgCount := 0
-	// Simulate reading and processing data from a pipeline
+
+	// socket server: start socket server and wait data to come
+	err := gowireshark.RunUnix()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// user read unmarshal data from go channel
 	go func() {
 		for {
 			select {
@@ -244,18 +250,19 @@ func TestDissectPktLiveInfinite(t *testing.T) {
 				livePkgCount++
 				pkgByte, _ := json.Marshal(pkg)
 				fmt.Printf("Processed pkg:【%d】pkg len:【%d】\n", livePkgCount, len(pkgByte))
+				//fmt.Println(pkg)
 			default:
 			}
 		}
 	}()
 
-	// Enable processing processes such as packet capture parsing
-	err := gowireshark.DissectPktLive(ifaceName, pktNum)
+	// start socket client, capture and dissect packet.
+	err = gowireshark.DissectPktLive(ifName, pktNum)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	time.Sleep(time.Second * 10)
+	select {}
 
 }
 
@@ -264,11 +271,17 @@ Set the num parameter of the DissectPktLive function to a specific num like 20
 to process packets in a limited loop.
 */
 func TestDissectPktLiveSpecificNum(t *testing.T) {
-	ifaceName := "enp0s5"
+	ifName := "enp0s5"
 	pktNum := 20
-
 	livePkgCount := 0
-	// Simulate reading and processing data from a pipeline
+
+	// socket server: start socket server and wait data to come
+	err := gowireshark.RunUnix()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// user read unmarshal data from go channel
 	go func() {
 		for {
 			select {
@@ -276,13 +289,14 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 				livePkgCount++
 				pkgByte, _ := json.Marshal(pkg)
 				fmt.Printf("Processed pkg:【%d】pkg len:【%d】\n", livePkgCount, len(pkgByte))
+				//fmt.Println(pkg)
 			default:
 			}
 		}
 	}()
 
-	// Enable processing processes such as packet capture parsing
-	err := gowireshark.DissectPktLive(ifaceName, pktNum)
+	// start socket client, capture and dissect packet.
+	err = gowireshark.DissectPktLive(ifName, pktNum)
 	if err != nil {
 		fmt.Println(err)
 	}
