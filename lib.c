@@ -419,16 +419,16 @@ char *proto_tree_in_json(int num) {
     node_children_grouper =
         proto_node_group_children_by_json_key; // proto_node_group_children_by_unique
 
-    cJSON *proto_tree_res_json = get_proto_tree_dissect_res_in_json(
+    cJSON *proto_tree_json = get_proto_tree_json(
         NULL, print_dissections_expanded, TRUE, NULL, protocolfilter_flags, edt,
         &cf.cinfo, node_children_grouper);
-    char *proto_tree_res_json_str = cJSON_PrintUnformatted(proto_tree_res_json);
-    cJSON_Delete(proto_tree_res_json);
+    char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
+    cJSON_Delete(proto_tree_json);
 
     epan_dissect_free(edt);
     edt = NULL;
 
-    return proto_tree_res_json_str;
+    return proto_tree_json_str;
   }
   clean_cf();
   return "";

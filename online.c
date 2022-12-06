@@ -414,14 +414,14 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   protocolfilter_flags = PF_INCLUDE_CHILDREN;
   node_children_grouper = proto_node_group_children_by_json_key;
 
-  cJSON *proto_tree_res_json = get_proto_tree_dissect_res_in_json(
+  cJSON *proto_tree_json = get_proto_tree_json(
       NULL, print_dissections_expanded, TRUE, NULL, protocolfilter_flags, &edt,
       &cf_live.cinfo, node_children_grouper);
 
-  char *proto_tree_res_json_str = cJSON_PrintUnformatted(proto_tree_res_json);
-  int len = strlen(proto_tree_res_json_str);
+  char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
+  int len = strlen(proto_tree_json_str);
   memset(af_unix_buf, 0, len);
-  memcpy_safe(af_unix_buf, proto_tree_res_json_str, len, AF_UNIX_BUFSIZE);
+  memcpy_safe(af_unix_buf, proto_tree_json_str, len, AF_UNIX_BUFSIZE);
   if (sendto(sockfd, af_unix_buf, len, 0, (struct sockaddr *)&serveraddr,
              addrlen) < 0) {
     printf("###### %s #####\n", "fail to sendto");
@@ -432,8 +432,8 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   epan_dissect_cleanup(&edt);
   frame_data_destroy(&fd);
   wtap_rec_cleanup(&rec);
-  cJSON_Delete(proto_tree_res_json);
-  cJSON_free(proto_tree_res_json_str);
+  cJSON_Delete(proto_tree_json);
+  cJSON_free(proto_tree_json_str);
 
   return;
 }

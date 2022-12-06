@@ -20,6 +20,7 @@ package gowireshark
 #include <epan/tap.h>
 #include <epan/tvbuff.h>
 #include <include/cJSON.h>
+#include <include/offline.h>
 #include <pcap/pcap.h>
 #include <stdio.h>
 #include <wiretap/wtap-int.h>
