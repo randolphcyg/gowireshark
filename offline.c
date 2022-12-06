@@ -255,7 +255,7 @@ static const guint8 *get_field_data(GSList *src_list, field_info *fi) {
  */
 
 // proto tree result
-cJSON *proto_tree_res_json = NULL;
+cJSON *proto_tree_json = NULL;
 // json obj layers
 cJSON *layers = NULL;
 
@@ -546,7 +546,7 @@ static void write_json_index(epan_dissect_t *edt) {
 
   str = g_strdup_printf("packets-%s", ts);
 
-  cJSON_AddStringToObject(proto_tree_res_json, "_index", str);
+  cJSON_AddStringToObject(proto_tree_json, "_index", str);
   g_free(str);
 }
 
@@ -556,20 +556,21 @@ static void write_json_index(epan_dissect_t *edt) {
  *  @param cinfo column_info type
  *  @return char of protocol tree json
  */
-cJSON *get_proto_tree_dissect_res_in_json(
-    output_fields_t *fields, print_dissections_e print_dissections,
-    gboolean print_hex, gchar **protocolfilter, pf_flags protocolfilter_flags,
-    epan_dissect_t *edt, column_info *cinfo,
-    proto_node_children_grouper_func node_children_grouper) {
+cJSON *
+get_proto_tree_json(output_fields_t *fields,
+                    print_dissections_e print_dissections, gboolean print_hex,
+                    gchar **protocolfilter, pf_flags protocolfilter_flags,
+                    epan_dissect_t *edt, column_info *cinfo,
+                    proto_node_children_grouper_func node_children_grouper) {
   write_json_data data;
 
   // json root node
-  proto_tree_res_json = cJSON_CreateObject();
+  proto_tree_json = cJSON_CreateObject();
   // set json obj common value
   write_json_index(edt);
-  cJSON_AddStringToObject(proto_tree_res_json, "_type", "doc");
+  cJSON_AddStringToObject(proto_tree_json, "_type", "doc");
   cJSON *cjson_score = cJSON_CreateObject();
-  cJSON_AddItemToObject(proto_tree_res_json, "_score", cjson_score);
+  cJSON_AddItemToObject(proto_tree_json, "_score", cjson_score);
 
   cJSON *cjson_offset = cJSON_CreateArray();
   cJSON *cjson_hex = cJSON_CreateArray();
@@ -577,12 +578,12 @@ cJSON *get_proto_tree_dissect_res_in_json(
   // process get hex data
   get_hex_data(edt, cjson_offset, cjson_hex, cjson_ascii);
 
-  cJSON_AddItemToObject(proto_tree_res_json, "offset", cjson_offset);
-  cJSON_AddItemToObject(proto_tree_res_json, "hex", cjson_hex);
-  cJSON_AddItemToObject(proto_tree_res_json, "ascii", cjson_ascii);
+  cJSON_AddItemToObject(proto_tree_json, "offset", cjson_offset);
+  cJSON_AddItemToObject(proto_tree_json, "hex", cjson_hex);
+  cJSON_AddItemToObject(proto_tree_json, "ascii", cjson_ascii);
 
   cJSON *cjson_source = cJSON_CreateObject();
-  cJSON_AddItemToObject(proto_tree_res_json, "_source", cjson_source);
+  cJSON_AddItemToObject(proto_tree_json, "_source", cjson_source);
 
   // add layers node
   layers = cJSON_CreateObject();
@@ -603,5 +604,5 @@ cJSON *get_proto_tree_dissect_res_in_json(
     write_json_proto_node_children(edt->tree, &data, layers);
   }
 
-  return proto_tree_res_json;
+  return proto_tree_json;
 }
