@@ -413,25 +413,27 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
       proto_node_group_children_by_unique;
   protocolfilter_flags = PF_INCLUDE_CHILDREN;
   node_children_grouper = proto_node_group_children_by_json_key;
-  char *tree_res_json = get_proto_tree_dissect_res_in_json(
+
+  cJSON *proto_tree_res_json = get_proto_tree_dissect_res_in_json(
       NULL, print_dissections_expanded, TRUE, NULL, protocolfilter_flags, &edt,
       &cf_live.cinfo, node_children_grouper);
 
-  // use AF_UNIX send data to go
-  memcpy_safe(af_unix_buf, tree_res_json, strlen(tree_res_json),
-              AF_UNIX_BUFSIZE);
-  if (sendto(sockfd, af_unix_buf, strlen(tree_res_json), 0,
-             (struct sockaddr *)&serveraddr, addrlen) < 0) {
+  char *proto_tree_res_json_str = cJSON_PrintUnformatted(proto_tree_res_json);
+  int len = strlen(proto_tree_res_json_str);
+  memset(af_unix_buf, 0, len);
+  memcpy_safe(af_unix_buf, proto_tree_res_json_str, len, AF_UNIX_BUFSIZE);
+  if (sendto(sockfd, af_unix_buf, len, 0, (struct sockaddr *)&serveraddr,
+             addrlen) < 0) {
     printf("###### %s #####\n", "fail to sendto");
   }
-  memset(af_unix_buf, 0, AF_UNIX_BUFSIZE);
 
   // free all memory allocated
   ws_buffer_free(&cf_live.buf);
   epan_dissect_cleanup(&edt);
   frame_data_destroy(&fd);
   wtap_rec_cleanup(&rec);
-  cJSON_free(tree_res_json);
+  cJSON_Delete(proto_tree_res_json);
+  cJSON_free(proto_tree_res_json_str);
 
   return;
 }
