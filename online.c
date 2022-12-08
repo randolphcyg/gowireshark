@@ -171,11 +171,13 @@ int set_if_nonblock_status(char *device_name, int nonblock) {
 
 // global capture file variable for online logic
 capture_file cf_live;
+pcap_t *device;
 static frame_data prev_dis_frame;
 static frame_data prev_cap_frame;
 
 static void show_print_file_io_error(int err);
 int init_cf_live();
+void close_cf_live();
 
 static void show_print_file_io_error(int err) {
   switch (err) {
@@ -312,6 +314,65 @@ int init_cf_live() {
 }
 
 /**
+ * Clean the capture file struct.
+ */
+void close_cf_live() {
+  cf_live.stop_flag = FALSE;
+  if (cf_live.provider.wth) {
+    wtap_close(cf_live.provider.wth);
+    cf_live.provider.wth = NULL;
+  }
+
+  /* We have no file open... */
+  if (cf_live.filename != NULL) {
+    g_free(cf_live.filename);
+    cf_live.filename = NULL;
+  }
+
+  /* ...which means we have no changes to that file to save. */
+  cf_live.unsaved_changes = FALSE;
+
+  /* no open_routine type */
+  cf_live.open_type = WTAP_TYPE_AUTO;
+
+  /* Clean up the record metadata. */
+  wtap_rec_cleanup(&cf_live.rec);
+
+  cf_live.rfcode = NULL;
+  if (cf_live.provider.frames != NULL) {
+    //    free_frame_data_sequence(cf.provider.frames);
+    free(cf_live.provider.frames);
+    cf_live.provider.frames = NULL;
+  }
+  if (cf_live.provider.frames_modified_blocks) {
+    g_tree_destroy(cf_live.provider.frames_modified_blocks);
+    cf_live.provider.frames_modified_blocks = NULL;
+  }
+
+  /* No frames, no frame selected, no field in that frame selected. */
+  cf_live.count = 0;
+  cf_live.current_frame = NULL;
+  cf_live.finfo_selected = NULL;
+
+  /* No frame link-layer types, either. */
+  if (cf_live.linktypes != NULL) {
+    g_array_free(cf_live.linktypes, TRUE);
+    cf_live.linktypes = NULL;
+  }
+
+  cf_live.f_datalen = 0;
+  nstime_set_zero(&cf_live.elapsed_time);
+
+  reset_tap_listeners();
+
+  epan_free(cf_live.epan);
+  cf_live.epan = NULL;
+
+  /* We have no file open. */
+  cf_live.state = FILE_CLOSED;
+}
+
+/**
  * Prepare data: cf_live.buf、rec.
  *
  *  @param
@@ -369,7 +430,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 
   if (!prepare_data(&rec, &buf, &err, &err_info, pkthdr, packet,
                     &data_offset)) {
-    printf("%s \n", "prepare_data err");
+    printf("process_packet_callback:%s \n", "prepare_data err");
     return;
   }
 
@@ -424,7 +485,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   memcpy_safe(af_unix_buf, proto_tree_json_str, len, AF_UNIX_BUFSIZE);
   if (sendto(sockfd, af_unix_buf, len, 0, (struct sockaddr *)&serveraddr,
              addrlen) < 0) {
-    printf("###### %s #####\n", "fail to sendto");
+    printf("process_packet_callback: %s\n", "socket err, fail to sendto");
   }
 
   // free all memory allocated
@@ -442,9 +503,11 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  * Listen device and Capture packet.
  *
  *  @param device_name the name of interface device
+ *  @param num the number of packet you want to capture and dissect
+ *  @param promisc "1" represents promiscuous mode, other non-promiscuous mode.
  *  @return correct: 0; error: 2;
  */
-int handle_pkt_live(char *device_name, int num) {
+int handle_pkt_live(char *device_name, int num, int promisc) {
   int err = 0;
   char errBuf[PCAP_ERRBUF_SIZE], *devStr;
   // Save the starting address of the received packet
@@ -458,7 +521,7 @@ int handle_pkt_live(char *device_name, int num) {
   }
 
   // open device
-  pcap_t *device = pcap_open_live(device_name, LIBPCAP_BUFSIZE, 1, 20, errBuf);
+  device = pcap_open_live(device_name, LIBPCAP_BUFSIZE, promisc, 20, errBuf);
   if (!device) {
     printf("pcap_open_live() couldn't open device: %s\n", errBuf);
     return 2;
@@ -470,9 +533,27 @@ int handle_pkt_live(char *device_name, int num) {
   // loop and dissect pkg
   int count = 0;
   pcap_loop(device, num, process_packet_callback, NULL);
-
   pcap_close(device);
   close(sockfd);
 
   return 0;
+}
+
+/**
+ * Stop capture packet live、 free all memory allocated、close socket.
+ */
+void stop_dissect_capture_pkg() {
+  // close libpcap capture loop
+  pcap_breakloop(device);
+  // close cf file for live capture
+  close_cf_live();
+
+  // shutdown socket's write function and close socket
+  int shut_wr_res = shutdown(sockfd, SHUT_WR);
+  if (shut_wr_res != 0) {
+    printf("SHUT_WR: %s\n", "close socket write failed！");
+  }
+  close(sockfd);
+
+  return;
 }

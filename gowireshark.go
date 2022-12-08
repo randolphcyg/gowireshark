@@ -54,7 +54,9 @@ int get_if_nonblock_status(char *device_name);
 // Set interface nonblock status
 int set_if_nonblock_status(char *device_name, int nonblock);
 // Capture and dissect packet in real time
-int handle_pkt_live(char *device_name, int num);
+int handle_pkt_live(char *device_name, int num, int promisc);
+// Stop capture packet live and free all memory allocated
+void stop_dissect_capture_pkg();
 */
 import "C"
 import (
@@ -464,8 +466,15 @@ func readUnix(listener *net.UnixConn) {
 }
 
 // DissectPktLive start socket client, capture and dissect packet.
-func DissectPktLive(deviceName string, num int) (err error) {
-	C.handle_pkt_live(C.CString(deviceName), C.int(num))
+func DissectPktLive(deviceName string, num int, promisc int) (err error) {
+	C.handle_pkt_live(C.CString(deviceName), C.int(num), C.int(promisc))
+
+	return
+}
+
+// StopDissectPktLive Stop capture packet live、 free all memory allocated、close socket.
+func StopDissectPktLive() {
+	C.stop_dissect_capture_pkg()
 
 	return
 }
