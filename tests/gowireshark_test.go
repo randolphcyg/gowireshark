@@ -238,7 +238,7 @@ func TestDissectPktLiveInfinite(t *testing.T) {
 	livePkgCount := 0
 
 	// socket server: start socket server and wait data to come
-	err := gowireshark.RunUnix()
+	err := gowireshark.RunSock()
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -278,7 +278,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	livePkgCount := 0
 
 	// socket server: start socket server and wait data to come
-	err := gowireshark.RunUnix()
+	err := gowireshark.RunSock()
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -314,7 +314,7 @@ func TestStopDissectPktLive(t *testing.T) {
 	livePkgCount := 0
 
 	// socket server: start socket server and wait data to come
-	err := gowireshark.RunUnix()
+	err := gowireshark.RunSock()
 	if err != nil {
 		fmt.Println(err)
 	}
