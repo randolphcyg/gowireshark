@@ -85,12 +85,12 @@ var (
 // result of a single data packet, which is convenient for converting c char to go string
 const SINGLEPKTMAXLEN = 6553500
 
-// SERVERSOCKPATH socket server path
-const SERVERSOCKPATH string = "/tmp/gsocket"
+// SOCKSERVERPATH socket server path
+const SOCKSERVERPATH string = "/tmp/gsocket"
 
-// UNIXBUFFSIZE The maximum length of packet detail data transmitted by the Unix domain socket;
+// SOCKBUFFSIZE The maximum length of packet detail data transmitted by the Unix domain socket;
 // Beyond this length will be safely truncated at c; The truncated data will not be properly deserialized into a golang struct.
-const UNIXBUFFSIZE = 65535
+const SOCKBUFFSIZE = 655350
 
 // PkgDetailLiveChan put pkg detail struct into go pipe
 var PkgDetailLiveChan = make(chan FrameDissectRes, 1000)
@@ -423,15 +423,15 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 	return
 }
 
-// RunUnix socket server:  start socket and read data
-func RunUnix() (err error) {
-	addr, err := net.ResolveUnixAddr("unixgram", SERVERSOCKPATH)
+// RunSock Unix domain socket(AF_UNIX) server:  start socket and read data.
+func RunSock() (err error) {
+	addr, err := net.ResolveUnixAddr("unixgram", SOCKSERVERPATH)
 	if err != nil {
 		panic("ResolveUnixAddr fail:" + err.Error())
 		return
 	}
 
-	syscall.Unlink(SERVERSOCKPATH)
+	syscall.Unlink(SOCKSERVERPATH)
 
 	UnixListener, err = net.ListenUnixgram("unixgram", addr)
 	if err != nil {
@@ -440,15 +440,15 @@ func RunUnix() (err error) {
 	}
 
 	// read data from c client
-	go readUnix(UnixListener)
+	go readSock(UnixListener)
 
 	return
 }
 
-// readUnix socket server: read data
-func readUnix(listener *net.UnixConn) {
+// readSock Unix domain socket(AF_UNIX) server: read data func
+func readSock(listener *net.UnixConn) {
 	for {
-		buf := make([]byte, UNIXBUFFSIZE)
+		buf := make([]byte, SOCKBUFFSIZE)
 		size, _, err := listener.ReadFromUnix(buf)
 		if err != nil {
 			panic("start unix domain fail:" + err.Error())
@@ -465,7 +465,8 @@ func readUnix(listener *net.UnixConn) {
 	}
 }
 
-// DissectPktLive start socket client, capture and dissect packet.
+// DissectPktLive start Unix domain socket(AF_UNIX) client, capture and dissect packet.
+// promisc: 0 indicates a non-promiscuous mode, and any other value indicates a promiscuous mode
 func DissectPktLive(deviceName string, num int, promisc int) (err error) {
 	C.handle_pkt_live(C.CString(deviceName), C.int(num), C.int(promisc))
 
