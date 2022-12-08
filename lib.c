@@ -97,7 +97,7 @@ void clean() {
 /**
  * Clean the capture file struct.
  */
-void clean_cf() {
+void close_cf() {
   cf.stop_flag = FALSE;
   if (cf.provider.wth) {
     wtap_close(cf.provider.wth);
@@ -151,8 +151,6 @@ void clean_cf() {
 
   /* We have no file open. */
   cf.state = FILE_CLOSED;
-
-  //    cf_callback_invoke(cf_cb_file_closed, cf);
 }
 
 /**
@@ -264,7 +262,7 @@ void print_all_frame() {
     epan_dissect_free(edt);
     edt = NULL;
   }
-  clean_cf();
+  close_cf();
 }
 
 /**
@@ -286,7 +284,7 @@ void print_first_frame() {
     epan_dissect_free(edt);
     edt = NULL;
   }
-  clean_cf();
+  close_cf();
 }
 
 /**
@@ -313,7 +311,7 @@ void print_first_several_frame(int count) {
       break;
     }
   }
-  clean_cf();
+  close_cf();
 }
 
 /**
@@ -336,7 +334,7 @@ int print_specific_frame(int num) {
       print_hex_data(print_stream, edt,
                      hexdump_source_option | hexdump_ascii_option);
 
-      clean_cf();
+      close_cf();
       return 0;
     }
 
@@ -344,7 +342,7 @@ int print_specific_frame(int num) {
     edt = NULL;
   }
 
-  clean_cf();
+  close_cf();
 
   return 2;
 }
@@ -383,7 +381,7 @@ char *get_specific_frame_hex_data(int num) {
     return cJSON_PrintUnformatted(cjson_hex_root);
     break;
   }
-  clean_cf();
+  close_cf();
   return "";
 }
 
@@ -430,6 +428,6 @@ char *proto_tree_in_json(int num) {
 
     return proto_tree_json_str;
   }
-  clean_cf();
+  close_cf();
   return "";
 }
