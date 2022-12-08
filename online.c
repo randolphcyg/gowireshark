@@ -14,25 +14,35 @@
 #include <wiretap/libpcap.h>
 
 /*
-1. AF_UNIX part
+PART1. Unix domain socket(AF_UNIX)
 */
 
-#define SERVER_SOCK_PATH "/tmp/gsocket"
-#define AF_UNIX_BUFSIZE 65535
+#define SOCKSERVERPATH "/tmp/gsocket"
+#define SOCKBUFFSIZE 655350
 int sockfd;
-char af_unix_buf[AF_UNIX_BUFSIZE] = {};
+char sock_buf[SOCKBUFFSIZE] = {};
 struct sockaddr_un serveraddr;
 struct sockaddr_un clientaddr;
 socklen_t addrlen = sizeof(clientaddr);
 
-void *init_psend(void *a);
-void init_af_unix();
+void *init_sock_send(void *a);
+void init_sock();
 
-// AF_UNIX init
-void init_af_unix() {
+// init Unix domain socket(AF_UNIX) send data func
+void *init_sock_send(void *a) {
+  if ((sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
+    printf("fail to socket\n");
+    exit(1);
+  }
+  serveraddr.sun_family = AF_UNIX;
+  strcpy(serveraddr.sun_path, SOCKSERVERPATH);
+}
+
+// init Unix domain socket(AF_UNIX)
+void init_sock() {
   pthread_t send;
   pthread_t recv;
-  if (pthread_create(&send, NULL, init_psend, NULL) == -1) {
+  if (pthread_create(&send, NULL, init_sock_send, NULL) == -1) {
     printf("fail to create pthread send\n");
     exit(1);
   }
@@ -45,16 +55,6 @@ void init_af_unix() {
   }
 }
 
-// AF_UNIX send data
-void *init_psend(void *a) {
-  if ((sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-    printf("fail to socket\n");
-    exit(1);
-  }
-  serveraddr.sun_family = AF_UNIX;
-  strcpy(serveraddr.sun_path, SERVER_SOCK_PATH);
-}
-
 // safety memcpy
 void *memcpy_safe(void *dest, const void *src, size_t n, size_t left_buf_size) {
   if (n > left_buf_size) {
@@ -64,10 +64,10 @@ void *memcpy_safe(void *dest, const void *src, size_t n, size_t left_buf_size) {
 }
 
 /*
-2. libpcap part
+PART2. libpcap
 */
 
-#define LIBPCAP_BUFSIZE 65535
+#define SNAP_LEN 65535
 // error buffer
 char errbuf[PCAP_ERRBUF_SIZE];
 
@@ -122,7 +122,7 @@ int get_if_nonblock_status(char *device_name) {
   int is_nonblock;
 
   if (device_name) {
-    handle = pcap_open_live(device_name, LIBPCAP_BUFSIZE, 1, 20, errbuf);
+    handle = pcap_open_live(device_name, SNAP_LEN, 1, 20, errbuf);
     if (handle == NULL) {
       return 2;
     }
@@ -149,7 +149,7 @@ int set_if_nonblock_status(char *device_name, int nonblock) {
   int is_nonblock;
 
   if (device_name) {
-    handle = pcap_open_live(device_name, LIBPCAP_BUFSIZE, 1, 1000, errbuf);
+    handle = pcap_open_live(device_name, SNAP_LEN, 1, 1000, errbuf);
     if (handle == NULL) {
       return 2;
     }
@@ -166,7 +166,7 @@ int set_if_nonblock_status(char *device_name, int nonblock) {
 }
 
 /*
-3. wireshark part
+PART3. wireshark
 */
 
 // global capture file variable for online logic
@@ -481,9 +481,9 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 
   char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
   int len = strlen(proto_tree_json_str);
-  memset(af_unix_buf, 0, len);
-  memcpy_safe(af_unix_buf, proto_tree_json_str, len, AF_UNIX_BUFSIZE);
-  if (sendto(sockfd, af_unix_buf, len, 0, (struct sockaddr *)&serveraddr,
+  memset(sock_buf, 0, len);
+  memcpy_safe(sock_buf, proto_tree_json_str, len, SOCKBUFFSIZE);
+  if (sendto(sockfd, sock_buf, len, 0, (struct sockaddr *)&serveraddr,
              addrlen) < 0) {
     printf("process_packet_callback: %s\n", "socket err, fail to sendto");
   }
@@ -504,7 +504,8 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  *
  *  @param device_name the name of interface device
  *  @param num the number of packet you want to capture and dissect
- *  @param promisc "1" represents promiscuous mode, other non-promiscuous mode.
+ *  @param promisc 0 indicates a non-promiscuous mode, and any other value
+ * indicates a promiscuous mode.
  *  @return correct: 0; error: 2;
  */
 int handle_pkt_live(char *device_name, int num, int promisc) {
@@ -521,19 +522,21 @@ int handle_pkt_live(char *device_name, int num, int promisc) {
   }
 
   // open device
-  device = pcap_open_live(device_name, LIBPCAP_BUFSIZE, promisc, 20, errBuf);
+  device = pcap_open_live(device_name, SNAP_LEN, promisc, 20, errBuf);
   if (!device) {
     printf("pcap_open_live() couldn't open device: %s\n", errBuf);
     return 2;
   }
 
-  // start AF_UNIX to send data to golang
-  init_af_unix();
+  // start Unix domain socket(AF_UNIX) to send data to golang
+  init_sock();
 
   // loop and dissect pkg
   int count = 0;
   pcap_loop(device, num, process_packet_callback, NULL);
+  // close libpcap device handler
   pcap_close(device);
+  // close socket
   close(sockfd);
 
   return 0;
