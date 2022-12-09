@@ -18,7 +18,7 @@
 #ifndef __GOLAY_H__
 #define __GOLAY_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /* encodes a 12-bit word to a 24-bit codeword
  */

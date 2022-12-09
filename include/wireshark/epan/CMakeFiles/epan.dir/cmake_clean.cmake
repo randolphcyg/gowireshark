@@ -2,7 +2,7 @@ file(REMOVE_RECURSE
   "../run/libwireshark.pdb"
   "../run/libwireshark.so"
   "../run/libwireshark.so.16"
-  "../run/libwireshark.so.16.0.1"
+  "../run/libwireshark.so.16.0.2"
   "CMakeFiles/epan.dir/addr_and_mask.c.o"
   "CMakeFiles/epan.dir/addr_resolv.c.o"
   "CMakeFiles/epan.dir/address_types.c.o"

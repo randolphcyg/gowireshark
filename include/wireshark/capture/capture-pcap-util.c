@@ -30,7 +30,7 @@
 #include <dlfcn.h>
 #endif
 
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 
 /*
  * Linux bonding devices mishandle unknown ioctls; they fail

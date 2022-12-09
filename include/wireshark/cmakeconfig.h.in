@@ -330,6 +330,6 @@
 #define PCRE2_CODE_UNIT_WIDTH  8
 #endif
 
-#include <include/ws_log_defs.h>
+#include <ws_log_defs.h>
 
 #endif /* __CONFIG_H__ */

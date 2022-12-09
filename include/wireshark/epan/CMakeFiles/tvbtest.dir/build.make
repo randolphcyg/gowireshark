@@ -79,8 +79,8 @@ tvbtest_EXTERNAL_OBJECTS =
 
 run/tvbtest: epan/CMakeFiles/tvbtest.dir/tvbtest.c.o
 run/tvbtest: epan/CMakeFiles/tvbtest.dir/build.make
-run/tvbtest: run/libwireshark.so.16.0.1
-run/tvbtest: run/libwiretap.so.13.0.1
+run/tvbtest: run/libwireshark.so.16.0.2
+run/tvbtest: run/libwiretap.so.13.0.2
 run/tvbtest: run/libwsutil.so.14.0.0
 run/tvbtest: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/tvbtest: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

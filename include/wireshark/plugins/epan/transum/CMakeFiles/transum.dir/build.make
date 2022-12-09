@@ -131,8 +131,8 @@ run/plugins/4.0/epan/transum.so: plugins/epan/transum/CMakeFiles/transum.dir/pac
 run/plugins/4.0/epan/transum.so: plugins/epan/transum/CMakeFiles/transum.dir/decoders.c.o
 run/plugins/4.0/epan/transum.so: plugins/epan/transum/CMakeFiles/transum.dir/extractors.c.o
 run/plugins/4.0/epan/transum.so: plugins/epan/transum/CMakeFiles/transum.dir/build.make
-run/plugins/4.0/epan/transum.so: run/libwireshark.so.16.0.1
-run/plugins/4.0/epan/transum.so: run/libwiretap.so.13.0.1
+run/plugins/4.0/epan/transum.so: run/libwireshark.so.16.0.2
+run/plugins/4.0/epan/transum.so: run/libwiretap.so.13.0.2
 run/plugins/4.0/epan/transum.so: run/libwsutil.so.14.0.0
 run/plugins/4.0/epan/transum.so: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/plugins/4.0/epan/transum.so: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

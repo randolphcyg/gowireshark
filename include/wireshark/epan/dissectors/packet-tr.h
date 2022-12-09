@@ -10,7 +10,7 @@
 #ifndef __PACKET_TR_H__
 #define __PACKET_TR_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 typedef struct _tr_hdr {
 	guint8 ac;

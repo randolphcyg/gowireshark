@@ -140,8 +140,8 @@ set(CMAKE_MULTIPLE_OUTPUT_PAIRS
   "/opt/wireshark/epan/protobuf_lang_scanner_lex.h" "/opt/wireshark/epan/protobuf_lang_scanner.c"
   "/opt/wireshark/epan/radius_dict_lex.h" "/opt/wireshark/epan/radius_dict.c"
   "/opt/wireshark/epan/uat_load_lex.h" "/opt/wireshark/epan/uat_load.c"
-  "/opt/wireshark/run/libwireshark.so" "/opt/wireshark/run/libwireshark.so.16.0.1"
-  "/opt/wireshark/run/libwireshark.so.16" "/opt/wireshark/run/libwireshark.so.16.0.1"
+  "/opt/wireshark/run/libwireshark.so" "/opt/wireshark/run/libwireshark.so.16.0.2"
+  "/opt/wireshark/run/libwireshark.so.16" "/opt/wireshark/run/libwireshark.so.16.0.2"
   )
 
 

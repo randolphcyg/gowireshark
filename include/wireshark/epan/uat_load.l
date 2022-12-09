@@ -1,7 +1,7 @@
 %top {
 /* Include this before everything else, for various large-file definitions */
 #include "config.h"
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #define WS_LOG_DOMAIN LOG_DOMAIN_UAT
 

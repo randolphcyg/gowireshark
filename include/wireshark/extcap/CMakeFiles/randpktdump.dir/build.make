@@ -86,7 +86,7 @@ run/extcap/randpktdump: extcap/CMakeFiles/randpktdump.dir/build.make
 run/extcap/randpktdump: run/librandpkt_core.a
 run/extcap/randpktdump: /usr/lib/aarch64-linux-gnu/libz.so
 run/extcap/randpktdump: run/libui.a
-run/extcap/randpktdump: run/libwiretap.so.13.0.1
+run/extcap/randpktdump: run/libwiretap.so.13.0.2
 run/extcap/randpktdump: run/libcaputils.a
 run/extcap/randpktdump: run/libwsutil.so.14.0.0
 run/extcap/randpktdump: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

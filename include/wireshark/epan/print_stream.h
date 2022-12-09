@@ -13,7 +13,7 @@
 #ifndef __PRINT_STREAM_H__
 #define __PRINT_STREAM_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include <wsutil/color.h>
 

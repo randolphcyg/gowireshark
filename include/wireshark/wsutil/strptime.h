@@ -10,7 +10,7 @@
 #ifndef __STRPTIME_H__
 #define __STRPTIME_H__
 
-#include <include/ws_symbol_export.h>
+#include <ws_symbol_export.h>
 #include <time.h>
 
 /*

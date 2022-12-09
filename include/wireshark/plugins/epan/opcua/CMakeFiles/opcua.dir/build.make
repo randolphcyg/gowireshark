@@ -275,8 +275,8 @@ run/plugins/4.0/epan/opcua.so: plugins/epan/opcua/CMakeFiles/opcua.dir/opcua_ext
 run/plugins/4.0/epan/opcua.so: plugins/epan/opcua/CMakeFiles/opcua.dir/opcua_hfindeces.c.o
 run/plugins/4.0/epan/opcua.so: plugins/epan/opcua/CMakeFiles/opcua.dir/opcua_statuscode.c.o
 run/plugins/4.0/epan/opcua.so: plugins/epan/opcua/CMakeFiles/opcua.dir/build.make
-run/plugins/4.0/epan/opcua.so: run/libwireshark.so.16.0.1
-run/plugins/4.0/epan/opcua.so: run/libwiretap.so.13.0.1
+run/plugins/4.0/epan/opcua.so: run/libwireshark.so.16.0.2
+run/plugins/4.0/epan/opcua.so: run/libwiretap.so.13.0.2
 run/plugins/4.0/epan/opcua.so: run/libwsutil.so.14.0.0
 run/plugins/4.0/epan/opcua.so: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/plugins/4.0/epan/opcua.so: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

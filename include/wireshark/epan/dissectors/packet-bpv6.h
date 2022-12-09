@@ -21,7 +21,7 @@
 #ifndef PACKET_BPV6_H
 #define PACKET_BPV6_H
 
-#include <include/ws_symbol_export.h>
+#include <ws_symbol_export.h>
 #include <epan/tvbuff.h>
 #include <epan/proto.h>
 

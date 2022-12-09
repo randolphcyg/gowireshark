@@ -84,7 +84,7 @@ run/extcap/androiddump: CMakeFiles/cli_main.dir/cli_main.c.o
 run/extcap/androiddump: extcap/CMakeFiles/extcap-base.dir/extcap-base.c.o
 run/extcap/androiddump: extcap/CMakeFiles/androiddump.dir/build.make
 run/extcap/androiddump: run/libui.a
-run/extcap/androiddump: run/libwiretap.so.13.0.1
+run/extcap/androiddump: run/libwiretap.so.13.0.2
 run/extcap/androiddump: /usr/lib/aarch64-linux-gnu/libz.so
 run/extcap/androiddump: run/libcaputils.a
 run/extcap/androiddump: run/libwsutil.so.14.0.0

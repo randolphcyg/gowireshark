@@ -94,8 +94,8 @@ exntest_EXTERNAL_OBJECTS =
 run/exntest: epan/CMakeFiles/exntest.dir/exntest.c.o
 run/exntest: epan/CMakeFiles/exntest.dir/except.c.o
 run/exntest: epan/CMakeFiles/exntest.dir/build.make
-run/exntest: run/libwireshark.so.16.0.1
-run/exntest: run/libwiretap.so.13.0.1
+run/exntest: run/libwireshark.so.16.0.2
+run/exntest: run/libwiretap.so.13.0.2
 run/exntest: run/libwsutil.so.14.0.0
 run/exntest: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/exntest: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

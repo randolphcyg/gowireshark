@@ -12,7 +12,7 @@
 #ifndef __PACKET_MBIM_H__
 #define __PACKET_MBIM_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #define MBIM_COMMAND_QUERY 0
 #define MBIM_COMMAND_SET   1

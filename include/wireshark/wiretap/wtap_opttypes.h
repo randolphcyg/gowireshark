@@ -10,7 +10,7 @@
 #ifndef WTAP_OPT_TYPES_H
 #define WTAP_OPT_TYPES_H
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include <wsutil/inet_ipv4.h>
 #include <wsutil/inet_ipv6.h>

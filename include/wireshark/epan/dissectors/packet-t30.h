@@ -11,7 +11,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 WS_DLL_PUBLIC value_string_ext t30_facsimile_control_field_vals_ext;
 WS_DLL_PUBLIC value_string_ext t30_facsimile_control_field_vals_short_ext;

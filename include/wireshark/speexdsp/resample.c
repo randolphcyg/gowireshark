@@ -80,7 +80,7 @@ static void speex_free (void *ptr) {g_free(ptr);}
 #include <math.h>
 #include <limits.h>
 
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846

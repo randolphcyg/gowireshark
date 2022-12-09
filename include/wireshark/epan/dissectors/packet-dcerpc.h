@@ -13,7 +13,7 @@
 #define __PACKET_DCERPC_H__
 
 #include <epan/conversation.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

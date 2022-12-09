@@ -12,7 +12,7 @@
 #define __RTP_PT_H__
 
 #include <epan/value_string.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

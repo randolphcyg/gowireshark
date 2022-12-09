@@ -15,7 +15,7 @@
 
 #include <glib.h>
 #include <wiretap/wtap.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #define ERF_POPULATE_SUCCESS 1
 #define ERF_POPULATE_ALREADY_POPULATED 0

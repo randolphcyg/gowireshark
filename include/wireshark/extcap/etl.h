@@ -13,7 +13,7 @@
 #define __W_ETL_H__
 
 #include "wiretap/wtap.h"
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include "wiretap/wtap-int.h"
 
 #include <glib.h>

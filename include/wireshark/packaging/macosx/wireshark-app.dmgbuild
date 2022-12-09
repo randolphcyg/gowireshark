@@ -18,7 +18,7 @@ import os.path
 
 # .. Useful stuff ..............................................................
 
-ws_version = '4.0.1'
+ws_version = '4.0.2'
 ws_volname = 'Wireshark ' + ws_version
 ws_srcdir = '/opt/wireshark'
 ws_bindir = '/opt/wireshark'

@@ -10,7 +10,7 @@
 #ifndef  __COLOR_FILTERS_H__
 #define  __COLOR_FILTERS_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include <wsutil/color.h>
 

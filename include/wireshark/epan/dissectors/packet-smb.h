@@ -12,7 +12,7 @@
 #ifndef __PACKET_SMB_H__
 #define __PACKET_SMB_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include <epan/proto.h>
 #include <epan/wmem_scopes.h>

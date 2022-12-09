@@ -14,7 +14,7 @@
 #ifndef __WSJSON_H__
 #define __WSJSON_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include <glib.h>
 
 #include "jsmn.h"

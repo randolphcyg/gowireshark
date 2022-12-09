@@ -11,7 +11,7 @@
 #ifndef __FILTER_EXPRESSIONS_H__
 #define __FILTER_EXPRESSIONS_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include <epan/prefs.h>
 #include <epan/wmem_scopes.h>

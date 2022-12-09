@@ -39,7 +39,7 @@ endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   foreach(file
-      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libwireshark.so.16.0.1"
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libwireshark.so.16.0.2"
       "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libwireshark.so.16"
       )
     if(EXISTS "${file}" AND
@@ -50,11 +50,11 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     endif()
   endforeach()
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE SHARED_LIBRARY FILES
-    "/opt/wireshark/run/libwireshark.so.16.0.1"
+    "/opt/wireshark/run/libwireshark.so.16.0.2"
     "/opt/wireshark/run/libwireshark.so.16"
     )
   foreach(file
-      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libwireshark.so.16.0.1"
+      "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libwireshark.so.16.0.2"
       "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libwireshark.so.16"
       )
     if(EXISTS "${file}" AND

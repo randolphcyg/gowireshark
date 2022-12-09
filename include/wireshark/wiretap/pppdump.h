@@ -11,7 +11,7 @@
 
 #include <glib.h>
 #include "wtap.h"
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 wtap_open_return_val pppdump_open(wtap *wth, int *err, gchar **err_info);
 

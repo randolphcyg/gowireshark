@@ -14,7 +14,7 @@
 #include <string.h>
 
 #include "wsutil/codecs.h"
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 
 void codec_register_l16(void);
 

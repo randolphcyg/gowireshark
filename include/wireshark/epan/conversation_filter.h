@@ -12,7 +12,7 @@
 #ifndef __DISSECTOR_FILTERS_H__
 #define __DISSECTOR_FILTERS_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

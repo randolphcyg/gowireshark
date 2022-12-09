@@ -23,7 +23,7 @@
 #ifndef __CRC7__H__
 #define __CRC7__H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

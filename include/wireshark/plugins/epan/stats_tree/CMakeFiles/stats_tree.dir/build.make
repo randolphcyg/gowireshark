@@ -99,8 +99,8 @@ stats_tree_EXTERNAL_OBJECTS =
 run/plugins/4.0/epan/stats_tree.so: plugins/epan/stats_tree/CMakeFiles/stats_tree.dir/plugin.c.o
 run/plugins/4.0/epan/stats_tree.so: plugins/epan/stats_tree/CMakeFiles/stats_tree.dir/pinfo_stats_tree.c.o
 run/plugins/4.0/epan/stats_tree.so: plugins/epan/stats_tree/CMakeFiles/stats_tree.dir/build.make
-run/plugins/4.0/epan/stats_tree.so: run/libwireshark.so.16.0.1
-run/plugins/4.0/epan/stats_tree.so: run/libwiretap.so.13.0.1
+run/plugins/4.0/epan/stats_tree.so: run/libwireshark.so.16.0.2
+run/plugins/4.0/epan/stats_tree.so: run/libwiretap.so.13.0.2
 run/plugins/4.0/epan/stats_tree.so: run/libwsutil.so.14.0.0
 run/plugins/4.0/epan/stats_tree.so: /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so
 run/plugins/4.0/epan/stats_tree.so: /usr/lib/aarch64-linux-gnu/libglib-2.0.so

@@ -10,7 +10,7 @@
 #ifndef __PACKET_SLL_H__
 #define __PACKET_SLL_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /*
  * The LINUX_SLL_ values for "sll_protocol".

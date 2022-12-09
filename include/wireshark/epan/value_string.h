@@ -14,7 +14,7 @@
 #include <glib.h>
 #include <stdint.h>
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include <epan/wmem_scopes.h>
 
 #ifdef __cplusplus

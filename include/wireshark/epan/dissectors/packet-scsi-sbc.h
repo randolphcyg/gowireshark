@@ -15,7 +15,7 @@
 #ifndef __PACKET_SCSI_SBC_H_
 #define __PACKET_SCSI_SBC_H_
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /* SBC Commands */
 #define SCSI_SBC_FORMATUNIT             0x04

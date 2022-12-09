@@ -10,7 +10,7 @@
 #ifndef __TIME_UTIL_H__
 #define __TIME_UTIL_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 #include <time.h>
 
 #ifdef __cplusplus

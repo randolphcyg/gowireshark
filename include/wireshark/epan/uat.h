@@ -17,7 +17,7 @@
 
 #include <stdlib.h>
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include <wsutil/strtoi.h>
 
 #ifdef __cplusplus

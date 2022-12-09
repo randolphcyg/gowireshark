@@ -311,12 +311,28 @@ const QFont MainApplication::monospaceFont(bool zoomed) const
 void MainApplication::setMonospaceFont(const char *font_string) {
 
     if (font_string && strlen(font_string) > 0) {
-        mono_font_.fromString(font_string);
-
-        // Only accept the font name if it actually exists.
-        if (mono_font_.family() == QFontInfo(mono_font_).family()) {
-            return;
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+        // Qt 6's QFont::toString returns a value with 16 fields, e.g.
+        // Consolas,11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+        // Qt 5's QFont::fromString expects a value with 10 fields, e.g.
+        // Consolas,10,-1,5,50,0,0,0,0,0
+        const char *fs_ptr = font_string;
+        int comma_count = 0;
+        while ((fs_ptr = strchr(fs_ptr, ',')) != NULL) {
+            fs_ptr++;
+            comma_count++;
         }
+        if (comma_count < 10) {
+#endif
+            mono_font_.fromString(font_string);
+
+            // Only accept the font name if it actually exists.
+            if (mono_font_.family() == QFontInfo(mono_font_).family()) {
+                return;
+            }
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+        }
+#endif
     }
 
     // https://en.wikipedia.org/wiki/Category:Monospaced_typefaces
@@ -341,14 +357,18 @@ void MainApplication::setMonospaceFont(const char *font_string) {
 #if defined(Q_OS_WIN)
     const char *default_font = win_default_font;
     substitutes << win_alt_font << osx_default_font << osx_alt_fonts << x11_default_font << x11_alt_fonts << fallback_fonts;
+# if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    font_size_adjust = 1;
+# else // QT_VERSION
     font_size_adjust = 2;
+# endif // QT_VERSION
 #elif defined(Q_OS_MAC)
     const char *default_font = osx_default_font;
     substitutes << osx_alt_fonts << win_default_font << win_alt_font << x11_default_font << x11_alt_fonts << fallback_fonts;
-#else
+#else // Q_OS
     const char *default_font = x11_default_font;
     substitutes << x11_alt_fonts << win_default_font << win_alt_font << osx_default_font << osx_alt_fonts << fallback_fonts;
-#endif
+#endif // Q_OS
 
     mono_font_.setFamily(default_font);
     mono_font_.insertSubstitutions(default_font, substitutes);

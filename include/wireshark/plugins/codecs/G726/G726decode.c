@@ -14,7 +14,7 @@
 
 #include "spandsp.h"
 #include "wsutil/codecs.h"
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 
 typedef struct _g726_codec_ctx {
     g726_state_t *state;

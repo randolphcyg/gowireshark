@@ -13,7 +13,7 @@
 #ifndef __PACKET_BSSGP_H__
 #define __PACKET_BSSGP_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 WS_DLL_PUBLIC value_string_ext bssgp_cause_vals_ext;
 

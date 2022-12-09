@@ -11,7 +11,7 @@
 #ifndef __PACKET_DTLS_H__
 #define __PACKET_DTLS_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include <epan/packet.h>
 
 WS_DLL_PUBLIC void dtls_dissector_add(guint port, dissector_handle_t handle);

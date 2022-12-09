@@ -1,694 +1,639 @@
-commit c2dfcf9bc6
+commit 89358de9f4
 Author: Gerald Combs <gerald@wireshark.org>
-Date:   Tue Oct 25 12:23:23 2022 -0700
+Date:   Mon Dec 5 15:52:42 2022 -0800
 
-    GitLab CI: Build RPMs in parallel.
+    Qt: Don't use QString::toLocal8Bit().
 
-    Our RPM spec runs `cmake --build ... -j1` on Fedora and Rocky. Set
-    RPM_BUILD_NCPUS, which increases the `-j` value so that ninja can make
-    full use of the system.
+    As the QString::toLocal8Bit() documentation says,
 
-    [skip ci]
+    "On Unix systems this is equivalen to toUtf8(), on Windows the systems
+    current code page is being used."
 
-    (cherry picked from commit 23f206c8b8887bd11b121b28d54e749b69febbe9)
+    This is problematic for the Packet Comments dialog, since the comments
+    need to be UTF-8 as per the pcapng specification. Use toUtf8() instead
+    there and in the Import Text dialog.
+
+    Remove the toLocal8Bit() calls from the Extcap Options dialog since they
+    weren'nt needed.
+
+    Blind attempt at fixing #18698.
+
+    (cherry picked from commit 932f4ff893012e259175649f73c22a76839a2877)
+
+commit 60ce09bb43
+Author: John Thacker <johnthacker@gmail.com>
+Date:   Tue Dec 6 07:21:58 2022 -0500
+
+    test: Skip Follow HTTP2 test without Nghttp2
+
+    The expected test output is with the headers decompressed, which
+    we can't do without Nghttp2. (It outputs the compressed headers
+    if we don't have it, so we could test for that instead.)
+
+    Fix #18707
+
+    (cherry picked from commit 74b1c07f913fcedcf9c28795b93ac53ee654fb29)
+
+commit 32e9b16afd
+Author: Gerald Combs <gerald@wireshark.org>
+Date:   Mon Dec 5 13:20:24 2022 -0800
+
+    Prep for 4.0.2.
+
+commit d0e7f501c1
+Author: Stig Bjørlykke <stig@bjorlykke.org>
+Date:   Mon Dec 5 14:50:31 2022 +0100
+
+    dtls: Support Connection ID when using Block Ciphers
+
+    Add support for DTLS Connection ID when using Block Ciphers
+    with the deprecated extention type (53) from
+    draft-ietf-tls-dtls-connection-id-07.
+
+    Closes #18705
+
+    (cherry picked from commit 6558b58e58772743420c4b35a73c958f826f6b61)
+
+commit 11a0464167
+Author: Kevin Albertson <kevin.eric.albertson@gmail.com>
+Date:   Fri Dec 2 22:18:38 2022 -0500
+
+    kafka: fix note of ZSTD_decompressStream return
+
+    (cherry picked from commit 266a0d38b4b57ceae7e910ad10cfd68e9de3908a)
+
+commit f812314a60
+Author: Kevin Albertson <kevin.eric.albertson@gmail.com>
+Date:   Fri Dec 2 22:08:31 2022 -0500
+
+    kafka: stop decompressing once all input is consumed
+
+    (cherry picked from commit 9412adf7bfa6d1b6749f9dd25a15241c9450ec3e)
+
+commit 2855fd7377
+Author: John Thacker <johnthacker@gmail.com>
+Date:   Sat Jul 2 08:16:28 2022 -0400
+
+    nxp_802154_sniffer: Add heuristics
+
+    UDP port 49999 is not IANA registered, so add some heuristics
+    to the NXP 802.15.4 sniffer so that it doesn't claim packets
+    from other protocols that have chosen that ephemeral port.
+
+    Don't return 0 after already adding things to the tree; do that
+    check in the heuristics.
+
+    Fix #18695
+
+    (cherry picked from commit c36dde6e1319287fb23ed779fd246f9f8d21fce2)
+
+commit 7af58a8c3a
+Author: Gerald Combs <gerald@wireshark.org>
+Date:   Sun Dec 4 16:38:17 2022 +0000
+
+    [Automatic update for 2022-12-04]
+
+    Update manuf, services enterprise numbers, translations, and other items.
+
+commit 9828a59081
+Author: John Thacker <johnthacker@gmail.com>
+Date:   Thu Dec 1 20:38:35 2022 -0500
+
+    kafka: Don't try to decompress if the length is zero.
+
+    There's no point in trying to decompress a message with
+    length zero, and some of the third party decompression
+    libraries (e.g. zstd) can give unexpected results that
+    lead to infinite loops if we do so. A message length zero
+    is almost surely a file with errors.
+
+    (cherry picked from commit 0e119321837e6ec69fe6cb04aee04935e0386d7a)
+
+commit ccf491b993
+Author: John Thacker <johnthacker@gmail.com>
+Date:   Thu Dec 1 20:46:15 2022 -0500
+
+    openflow_v6: Prevent infinite loops in too short ofp_stats
+
+    The ofp_stats struct length field includes the fixed 4 bytes.
+    If the length is smaller than that, report the length error
+    and break out. In particular, a value of zero can cause
+    infinite loops if this isn't done.
+
+    (cherry picked from commit 13823bb1059cf70f401892ba1b1eaa2400cdf3db)
+
+commit c9aef2471e
+Author: João Valverde <j@v6e.pt>
+Date:   Tue Nov 29 15:41:20 2022 +0000
+
+    wslog: Check fileno() for errors
+
+    fileno() can fail and GLib will assert on negative fd.
+
+    Fixes #18684.
+
+    (cherry picked from commit 7336190bbc254dbf3533256702f2b960db775ea9)
+
+commit 2f02d2b8da
+Author: Jirka Novak <j.novak@netsystem.cz>
+Date:   Sun Aug 28 09:59:22 2022 +0200
+
+    Capture options dialog: Fix start of capture by double click
+
+    Double click is used for editing of some columns in dialog, but it
+    starts capture too.
+    Change lists noneditable columns (interface name and traffic graph) which
+    starts capture. The rest of columns are editable by double click as before.
+
+    Related to #18269. This patch fixes the code, doc update is other task.
+
+    Welcome screen is fixed too. First column with excap symbol ignores
+    double click.
+
+    (cherry picked from commit 33e00237d1f1f7ab3a7a876eac7b092c962334e6)
+
+commit 6b49db03f2
+Author: John Thacker <johnthacker@gmail.com>
+Date:   Wed Nov 30 08:39:46 2022 -0500
+
+    bpv6: Prevent infinite loops
+
+    display_extension_block is supposed to return the current offset,
+    not the number of bytes remaining, which can be less than the current
+    offset and cause an infinite loop. In the case of errors, set
+    lastheader and return the current offset to break out of loops.
+
+    (cherry picked from commit f2a0d25dba1152f1f34c91cd2addab11c9c8b250)
+
+commit 2f6ee6179a
+Author: Gerald Combs <gerald@wireshark.org>
+Date:   Sun Nov 27 15:04:13 2022 -0800
+
+    CMake: Updates for CMake 3.25 and later on Windows.
+
+    https://cmake.org/cmake/help/latest/release/3.25.html says:
+
+    "On Windows, when targeting the MSVC ABI, the find_library() command now
+    accepts .a file names after first considering .lib. This is symmetric
+    with existing behavior when targeting the GNU ABI, in which the command
+    accepts .lib file names after first considering .a."
+
+    If "MSVC" is defined, only search for libsmi-2. This keeps us from finding
+    libsmi.a. Set NO_SYSTEM_ENVIRONMENT_PATH when we're searching for zlib. This
+    keeps us from finding Strawberry Perl's version.
+
+    Some SpanDSP builds link with LibTIFF, but our Windows version doesn't.
+
+    (cherry picked from commit 0af31745082d2bf75d79c6827381e819f6db8df9)
+
+commit 7407fe6365
+Author: Anders Broman <anders.broman@ericsson.com>
+Date:   Mon Nov 28 09:34:15 2022 +0100
+
+    S1AP: Wrong ie id used on RequestTypeAdditionalInfo
+
+    (cherry picked from commit 47a1b0f9da71071b2b0776617ad56e6ea5547d28)
+
+    Conflicts:
+            epan/dissectors/packet-s1ap.c
+
+commit 4e41a9d22c
+Author: Gerald Combs <gerald@wireshark.org>
+Date:   Sun Nov 27 16:39:39 2022 +0000
+
+    [Automatic update for 2022-11-27]
+
+    Update manuf, services enterprise numbers, translations, and other items.
+
+commit 639c648509
+Author: j.novak@netsystem.cz <j.novak@netsystem.cz>
+Date:   Fri Nov 25 16:06:49 2022 +0000
+
+    RTP Player: Fix: Playback marker do not move after resume with Qt6 (4.0)
+
+commit 03702ed22e
+Author: Alexis La Goutte <alexis.lagoutte@gmail.com>
+Date:   Mon Nov 21 15:12:37 2022 +0000
+
+    BGP: Fix (reader_)offset for IGMP
+
+    fix typo (offset => reader_offset)
+
+    Close #18660
+
+    (cherry picked from commit 6dcfb07b7ded9d9237ef0b67700d04236d94630f)
+
+commit 40a4750d35
+Author: Chuck Craft <bubbasnmp@gmail.com>
+Date:   Fri Nov 18 21:02:44 2022 -0600
+
+    github: windows - downgrade cmake back to 3.24.3
+
+    cmake 3.25 changed library search logic for .a and .library
+    Downgrade cmake until libsmi and zlib cmake files are adjusted?
+    See notes in !8807
+
+    (cherry picked from commit 80ebd68cc44f538adb3f940453c5687a11555534)
+
+commit 5eda8d7f9c
+Author: Gerald Combs <gerald@wireshark.org>
+Date:   Sun Nov 20 16:39:49 2022 +0000
+
+    [Automatic update for 2022-11-20]
+
+    Update manuf, services enterprise numbers, translations, and other items.
+
+    services failed.
+
+commit 9afcb5fbe0
+Author: Ferry Huberts <ferry.huberts@pelagic.nl>
+Date:   Thu Nov 17 11:05:14 2022 +0100
+
+    locamation-im: restore showing the eol character in the hex dump
+
+    This got lost in b00725c945d92ecc3a9560262e0d098bece70288.
+
+    Showing the eol character is important to us.
+
+    Signed-off-by: Ferry Huberts <ferry.huberts@pelagic.nl>
+
+commit 5d1d564b04
+Author: Ferry Huberts <ferry.huberts@pelagic.nl>
+Date:   Thu Nov 17 12:26:22 2022 +0100
+
+    locamation-im: line numbers are never used for split lines, lose them
+
+    Signed-off-by: Ferry Huberts <ferry.huberts@pelagic.nl>
+
+commit c21c297b94
+Author: John Thacker <johnthacker@gmail.com>
+Date:   Wed Nov 16 19:42:53 2022 -0500
+
+    locamation-im: Fix encoding
+
+    Add strings with proto_tree_add_item or tvb_get_string_enc;
+    avoid using tvb_get_raw_bytes_as_string.
+
+    Use UTF-8 as the encoding to future-proof, according to
+    Locomation.
+
+    Use tvb_find_line_end() to split the lines, which does almost
+    all the needed logic and simplifies the code.
+
+    Fix #18632
+
+commit 1fcde654cd
+Author: John Thacker <johnthacker@gmail.com>
+Date:   Wed Nov 16 18:44:01 2022 -0500
+
+    rpm-setup: Don't attempt to install cmake3
+
+    cmake is already in the basic list of packages. "cmake3" is
+    necessary for RHEL/CentOS 7 (where the "cmake" package is 2.8.12),
+    but that distribution isn't supported on 4.0 and later.
+
+    At the same time, the OpenSUSE 15.4 repository accidentally has
+    a "cmake3" package which is an earlier version than the "cmake" RPM,
+    which creates some conflicts when trying to install both.
+    (https://gitlab.com/wireshark/wireshark-containers/-/jobs/3328997023)
+
+    So, don't attempt to install cmake3 anymore.
+
+    (cherry picked from commit 6e6386a3dce1edb850328a8627e1cd02db0a6474)
+
+commit 2eb3e3eb22
+Author: John Thacker <johnthacker@gmail.com>
+Date:   Thu Nov 10 20:18:00 2022 -0500
+
+    tcp: Use correct wraparound comparison in sequence analysis
+
+    maxseqtobeacked needs to be increased when it's lower than
+    nextseq, not the other way around, otherwise we can get repeated
+    extra TCP ACKed unseen segment messages.
+
+    Since sequence analysis is always on the absolute sequence
+    numbers, not relative, it needs to use LT_SEQ to handle wraparound.
+
+    Fix #18558. Fix #18633.
+
+    (cherry picked from commit 8fd375cfad4dd70065cc8a5b4f3e9535a3c32a74)
+
+commit 19299ae542
+Author: Pascal Quantin <pascal@wireshark.org>
+Date:   Tue Nov 15 15:23:52 2022 +0100
+
+    PCAP: upgrade dissector to v17.0.0
+
+    In their infinite wisdom, 3GPP succeeded to make non backward compatible
+    ASN.1 description
+    Closes #18646
+
+    (cherry picked from commit 6b41ad918b2aa8f67d103bf5981c78716b64e554)
+
+commit 09287b55a4
+Author: Kevin Albertson <kevin.eric.albertson@gmail.com>
+Date:   Sun Nov 13 08:49:54 2022 -0500
+
+    move depth increment below error checks
+
+    (cherry picked from commit 24d55ce7ac82c2a32171c0c229efe09169fd4fff)
+
+commit 95641e5b79
+Author: Kevin Albertson <kevin.eric.albertson@gmail.com>
+Date:   Tue Nov 8 20:17:17 2022 -0500
+
+    mongo: fix document depth tracking
+
+    Fixes a "BSON document recursion exceeds" error on lists of > 100
+    documents.
+
+    (cherry picked from commit 2b43f5f650288ecb39497f7dad2f15888e83b120)
+
+commit e52571c9b0
+Author: Gerald Combs <gerald@wireshark.org>
+Date:   Sun Nov 13 16:36:52 2022 +0000
+
+    [Automatic update for 2022-11-13]
+
+    Update manuf, services enterprise numbers, translations, and other items.
+
+    services failed.
+
+commit 9de1a4e3d6
+Author: John Thacker <johnthacker@gmail.com>
+Date:   Wed Nov 9 20:37:39 2022 -0500
+
+    WASSP: Don't add a NULL to a column
+
+    The result of try_val_to_str can be NULL, don't add a null address
+    to a column. Ensure that an appropriate unknown string is added
+    instead.
+
+    Fix #18613
+
+    (cherry picked from commit f9a5bf58057b0b65a8a062c2b13b6d206bbd9fd6)
+
+commit 5f22e8abf4
+Author: Huang Qiangxiong <qiangxiong.huang@qq.com>
+Date:   Wed Nov 9 23:34:10 2022 +0800
+
+    Protobuf: fix the bug about string format
+
+    Support string format like:
+    - 'a single quote string contains "a double quote string"'
+    - "a double quote string contains 'a single quote string'"
+
+    close #18599
+
+    (cherry picked from commit 99e93e24b89e13e9e1ccf6c3665814e61f59fa48)
+
+commit 0bb5638c79
+Author: Pascal Quantin <pascal@wireshark.org>
+Date:   Wed Nov 9 16:12:17 2022 +0100
+
+    EVS: add an option to force decoding as Header-Full format only
+
+    Closes #18498
+
+    (cherry picked from commit 1196f214aac82aba01eb84bc1975163c14a0b640)
+
+commit dc7381f195
+Author: Gerald Combs <gerald@wireshark.org>
+Date:   Sun Nov 6 10:33:09 2022 -0800
+
+    GitLab CI: Switch to clang 15.
+
+    (cherry picked from commit 0928a25d1f7f24b38b59474a981296b8de8ba372)
 
     Conflicts:
             .gitlab-ci.yml
 
-commit 1dc7cef383
+commit ffa56754ab
+Author: Pascal Quantin <pascal@wireshark.org>
+Date:   Sun Nov 6 16:57:59 2022 +0100
+
+    IPv6: fix embedded IPv4 address dissection when using Well-Known Prefix
+
+    See https://www.wireshark.org/lists/wireshark-dev/202211/msg00000.html
+
+    (cherry picked from commit a1feafad6cc0f176525acdcf6be71a04e0310333)
+
+commit 5d60eab11d
 Author: Gerald Combs <gerald@wireshark.org>
-Date:   Tue Oct 25 12:17:25 2022 -0700
+Date:   Sun Nov 6 16:41:14 2022 +0000
 
-    Prep for 4.0.1.
-
-    [skip ci]
-
-commit b71bbbed20
-Author: Gerald Combs <gerald@wireshark.org>
-Date:   Tue Oct 25 09:06:33 2022 -0700
-
-    IEEE 802.11: Fix a length check.
-
-    Fix a length check issue introduced in 85a9e05c52.
-
-    (cherry picked from commit 708da485267804865278e43960495446a2c06329)
-
-commit 9374e8b130
-Author: John Thacker <johnthacker@gmail.com>
-Date:   Mon Oct 24 08:30:54 2022 -0400
-
-    SCTP: Fix host name address parameter
-
-    The deprecated Host Name Address Parameter, RFC 9260 3.3.2.1.4:
-    "At least one null terminator is included in the Host Name string
-    and MUST be included in the length."
-
-    That makes it a string which is both counted and null-terminated,
-    which is a FT_STRINGZ. Return the string as obtained rather than
-    formatting it a second time. Don't pass in a width as a format specifier,
-    because the length of the UTF-8 string is not necessarily the length
-    in octets, if replacement characters or escaping was used.
-
-    Fix #18534.
-
-    (cherry picked from commit 0647fc5f238f642212a0a058b45a315242cb5a45)
-
-commit b8f6e713aa
-Author: Michael Tuexen <tuexen@wireshark.org>
-Date:   Thu Oct 13 01:16:27 2022 +0200
-
-    SCTP: Improve handling of Host Name parameters
-
-    (cherry picked from commit 41fdfcdbfbcf02f903a7a3e1b118c02ff77958d5)
-
-commit aa6583095c
-Author: Stig Bjørlykke <stig@bjorlykke.org>
-Date:   Mon Oct 24 09:26:14 2022 +0200
-
-    Add dot in Protocol column for H.xxx dissectors
-
-    Closes #18524
-
-    (cherry picked from commit 3353a158a9ec8b86b00ca3e14a649e73c55f1443)
-
-commit dfb7fcc753
-Author: Stig Bjørlykke <stig@bjorlykke.org>
-Date:   Thu Oct 20 08:13:09 2022 +0200
-
-    h248: Add missing dot in H.248 protocol name
-
-    Add the missing dot in H.248 protocol name and dissector table.
-
-    Closes #18513
-
-    (cherry picked from commit cac6a8452b63c96c30e705ad850136d2448a0890)
-
-commit d18638dc7b
-Author: Anders Broman <anders.broman@ericsson.com>
-Date:   Mon Oct 24 19:49:04 2022 +0200
-
-    PER: Fix call_per_oid_callback() open type length is in bytes.
-
-    tvb_new_octet_aligned() expects the length in bits.
-
-    (cherry picked from commit 92d58f297dfcbb4e9dabb771e2002dbd3b326d38)
-
-commit 8556212cac
-Author: Chuck Craft <bubbasnmp@gmail.com>
-Date:   Sun Oct 23 17:33:06 2022 -0500
-
-    github: use latest winflexbison3 in workflow build
-
-    Use current version (2.5.24.20210105) which is hosted on github.
-    Should reduce timeouts previous version had which is hosted on
-    sourceforge.
-
-    (cherry picked from commit 72234923c4d41a783b28883525045a32d1bcc253)
-
-commit 6f5a0f78c7
-Author: Alexander Funke <alexander.funke@fh-muenster.de>
-Date:   Thu Oct 20 14:49:58 2022 +0200
-
-    IP: Fix fragment offset value calculation
-
-    The bitmask was applied twice, through the header_field_info
-     and before calling proto_tree_add_uint.
-    Now using _format_value for correct calculation.
-
-    (cherry picked from commit 1ab15061b56ac549a1eae9002f4965990a87c9a4)
-
-commit 2d5da44ad1
-Author: Michael Tuexen <tuexen@wireshark.org>
-Date:   Sat Oct 15 15:59:35 2022 +0200
-
-    TCP: Update TCP TARR support to version 06 of the ID
-
-    The dissector now supports draft-gomez-tcpm-ack-rate-request-06.
-    The rate is now encoded in one byte instead of two.
-
-    (cherry picked from commit 510c22a6a724747bd54f6f9e4294c9723cd3ca31)
-
-commit 062976537c
-Author: Gerald Combs <gerald@wireshark.org>
-Date:   Mon Oct 24 10:04:27 2022 -0700
-
-    IEEE 802.11: Fix DSCP string handling
-
-    Replace looped snprintfs with wmem_strbuf_append_printfs.
-
-    (cherry picked from commit 85a9e05c52b1d011eb128d94d4c9c6893fe32472)
-
-commit 118f49876c
-Author: Alexis La Goutte <alexis.lagoutte@gmail.com>
-Date:   Tue Sep 6 11:25:15 2022 +0000
-
-    diameter: Fix Clang Warning
-
-    line 2198 Although the value stored to 'vnd' is used in the enclosing expression, the value is never actually read from 'vnd'
-
-    (cherry picked from commit 7b2f0222400e9494f7d6ab16dbfa1f467f94f68d)
-
-commit b551a14f19
-Author: Alexis La Goutte <alexis.lagoutte@gmail.com>
-Date:   Tue Sep 6 11:41:30 2022 +0000
-
-    pfcp: Fix deadcode found by Clang Analyzer
-
-    packet-pfcp.c:8650:9: warning: Value stored to 'offset' is never read [deadcode.DeadStores]
-
-    (cherry picked from commit 7e45b72c3968a2ddd02b72d2201406b2425c4fd8)
-
-commit 5c4c061ae1
-Author: Alexis La Goutte <alexis.lagoutte@gmail.com>
-Date:   Tue Sep 6 11:38:28 2022 +0000
-
-    oran: Fix deadcode found by Clang Analyzer
-
-    packet-oran.c:517:5: warning: Value stored to 'bit_offset' is never read [deadcode.DeadStores]
-
-    (cherry picked from commit 9503dd457669402647a2ee1becaaff08925806ce)
-
-commit 340d1fdecb
-Author: Alexis La Goutte <alexis.lagoutte@gmail.com>
-Date:   Tue Sep 6 11:31:53 2022 +0000
-
-    mbim: Fix deadcode found by Clang Analyzer
-
-    packet-mbim.c:5651:5: warning: Value stored to 'offset' is never read [deadcode.DeadStores]
-    packet-mbim.c:5703:5: warning: Value stored to 'offset' is never read [deadcode.DeadStores]
-
-    (cherry picked from commit 4bcc8d86f8ebe849f404e86ae4229342c570ff1f)
-
-commit 8bd1c0996f
-Author: Dr. Lars Völker <lars.voelker@technica-engineering.de>
-Date:   Wed Oct 12 19:59:27 2022 +0200
-
-    BLF: Fixing the interpretation of SRR and RTR
-
-    This fixes a bug in the canfdmessage64 encoding in BLF that leads to
-    CAN-FD frames being interpreted as Remote Frames instead of correctly
-    ignoring the SRR flag. Makes canfdmessage encoding more robust as well.
-
-commit d9a8a6f313
-Author: Gerald Combs <gerald@wireshark.org>
-Date:   Sun Oct 23 16:36:59 2022 +0000
-
-    [Automatic update for 2022-10-23]
+    [Automatic update for 2022-11-06]
 
     Update manuf, services enterprise numbers, translations, and other items.
 
-commit 66634eef60
-Author: Gerald Combs <gerald@wireshark.org>
-Date:   Fri Oct 21 14:48:14 2022 -0700
-
-    GitLab CI: Fix the Win64 Package job.
-
-    Set CMAKE_PREFIX_PATH.
-
-commit 11caac147e
-Author: Guy Harris <gharris@sonic.net>
-Date:   Fri Oct 21 00:42:42 2022 -0700
-
-    packet bytes: do a simpler test for "is this ASCII?"
-
-    Just test whether the octet has the 0x80 bit set.
-
-    (cherry picked from commit 10703285972f0e992e25409667464d302c949304)
-
-commit a58d017c99
-Author: Guy Harris <gharris@sonic.net>
-Date:   Thu Oct 20 23:07:23 2022 -0700
-
-    packet bytes: don't assume the unadorned "char" type is signed.
-
-    The C language does not guarantee that "char" is signed or unsigned; it
-    just states that it's "implementation-dependent".
-
-    At least some C compilers for some architectures make it unsigned, so
-    you need "signed char" to get a signed value.  In particular, it's
-    unsigned for most ARM compilers (compilers for Darwin-based OSes such as
-    macOS make it signed on all platforms, including ARM), which causes a
-    warning about "ba[i] < '\0'" always being false.
-
-    The purpose of that test is to check for octets that correspond neither
-    to ASCII printable characters nor ASCII control characters; just test
-    with !g_ascii_isprint(ba[i]) && !g_ascii_iscntrl(ba[i]).  (Those are
-    macros, so it's not as if that adds any subroutine call overhead.)
-
-    Add some comments to explain what's being done in
-    ShowPacketBytesDialog::symbolizeBuffer() while we're at it.  (Not one of
-    the better uses of C++ polymorphism, giving "replace the octet at this
-    location with this sequence of octets" and "replace all octets equal to
-    this value with this sequence of octets" the same name, even though what
-    they do differs significantly.  I would have called one replace_at and
-    the other replace_all or something such as that, but the Qt developers
-    didn't ask me....)
-
-    (cherry picked from commit de50666ec077a0b09f3d61ccd20870a03db52c92)
-
-commit ec26e75c2f
+commit 8842d21fa8
 Author: John Thacker <johnthacker@gmail.com>
-Date:   Wed Oct 19 07:23:50 2022 -0400
+Date:   Thu Nov 3 20:55:05 2022 -0400
 
-    rtcp: Use setup_frame_number to look for conversations
+    skinny: Resync xml code with dissector, regenerate
 
-    Use the setup_frame_number to look for and create conversations
-    with srtcp_add_address, the same way as done in srtp_add_address.
-    This ensures that RTP and RTCP find the same conversation when
-    called back to back (as when handling them multiplexed on the
-    same conversation.
+    Make changes to packet-skinny.c.in and SkinnyProtocolOptimized.xml
+    that incorporate changes from 67f05835cac0a26636a7e04739a4cc0dd225c077
+    and 8efad466c4e62b0371659c8fd1d909038c36da27 made to the dissector
+    manually and regenerate. Also fix a case where a comment mixed
+    tabs and spaces, which caused the python conversion tool to complain.
 
-    Related to #18460.
+    (cherry picked from commit 73c291029d9b8e7412548405b051827708aedc4f)
 
-    (cherry picked from commit 2d831519c3f58979b4caa434fef7a3e8cd6a10cf)
+commit 5545fe5681
+Author: John Thacker <johnthacker@gmail.com>
+Date:   Thu Nov 3 19:20:41 2022 -0400
 
-commit cb44e927dc
+    skinny: Convert parse_xml2skinny_dissector.py to Py3
+
+    Convert parse_xml2skinny_dissector.py to Python 3.
+    This is mostly the output of running 2to3, but some of the
+    uses of dict.keys() were left as is instead of being converted
+    to lists, since only membership was tested.
+
+    The dissector still needs to be regenerated, which will happen
+    in a next commit, so that this change can be easily backported.
+
+    (cherry picked from commit 8c585cc2280deb256f6af442907a77c4627e3d02)
+
+commit 1ab45e0875
+Author: Pascal Quantin <pascal@wireshark.org>
+Date:   Thu Nov 3 11:40:41 2022 +0000
+
+    addr_resolv: define default port values for DNS resolution UAT
+
+    This ensures forward compatibility when using Wireshark 4.x or later
+    (see #18214)
+
+    (cherry picked from commit 1505fa1b4b91370aaa0b0127ef4c4a36bffd32c9)
+
+commit 04032a5c8d
+Author: Pascal Quantin <pascal@wireshark.org>
+Date:   Wed Nov 2 09:03:39 2022 +0000
+
+    EVS: fix frame format detection heuristics
+
+    As stated in 3GPP 26.445 chapter A.2.2.1.4.2, RTP padding must be taken
+    into account to discrimate between Header-Full format and Compact format
+
+    Closes #18498
+
+    (cherry picked from commit 798c1a8e6d37df465766c90729b9643e78235374)
+
+commit f973a606c1
+Author: Pau Espin Pedrol <pespin@sysmocom.de>
+Date:   Wed Nov 2 11:40:33 2022 +0100
+
+    gsm_osmux: Fix AMR_SID frame type payload size
+
+    According to TS 26.101, AMR_SID payload is 39 bits.
+    Hence, (39+7)/8 = 5, rounding to octet boundaries.
+
+    This fixes incorrect dissecting of Osmux frames containing AMR_SID
+    payloads.
+
+    (cherry picked from commit 12a5c106645b01f7e4b7d9928a641b9306feba5d)
+
+commit a1ecdeb6dd
+Author: Pascal Quantin <pascal@wireshark.org>
+Date:   Tue Nov 1 14:02:43 2022 +0000
+
+    GOOSE: add back goose.floating_point filter
+
+    Let's add it as a hidden filter for IEEE 754 single precision floating point
+
+    Closes #18491
+
+    (cherry picked from commit a1c55f2356c90dbd60861e33270f875b24734346)
+
+commit d66e242a7f
+Author: Roland Knall <rknall@gmail.com>
+Date:   Mon Oct 31 10:06:45 2022 +0000
+
+    Qt: Prevent dangling object for profile dialog
+
+    When running the profiles dialog from the main status bar,
+    some objects appear to be not cleaned up properly with Qt 6.
+    This will circumvent this, by creating an object for the
+    dialog and cleaning it on closing.
+
+    Fixes #18525
+
+    (cherry picked from commit c59804f25f4e2b146e9685b44e01715d6c220dca)
+
+commit bbd98ab909
+Author: Adrian Granados <adrian@intuitibits.com>
+Date:   Fri Oct 7 20:50:37 2022 -0400
+
+    extcap: fix missing control frames from wifidump capture
+
+    Normally, 'control' and 'otherbss' flags are set when
+    using monitor mode, but certain Wi-Fi drivers (e.g. MT7921)
+    need to explicitly have these flags set in order to capture
+    control frames.
+
+    (cherry picked from commit 420ec1511dcd467d33bf30d65c7a6dcb8f73734a)
+
+commit d5dd2fdcf9
 Author: Gerald Combs <gerald@wireshark.org>
-Date:   Mon Oct 17 12:45:04 2022 -0700
+Date:   Sun Oct 30 16:37:26 2022 +0000
 
-    GitLab CI: Switch the Windows packages back to Qt 5.
-
-    There are a couple of Qt6-related issues causing problems for users.
-    Switch back to Qt5 until they're resolved.
-
-    Ping #18476.
-
-commit 9fe9df3065
-Author: Uli Heilmeier <uh@heilmeier.eu>
-Date:   Tue Oct 18 21:28:14 2022 +0200
-
-    CFDP: Fix empty source filename
-
-    Fixes: #18495
-
-    (cherry picked from commit b42628389ec23de92b37972ff8c65dd4b25a243d)
-
-commit 01c69da05b
-Author: Gerald Combs <gerald@wireshark.org>
-Date:   Tue Oct 18 13:59:49 2022 -0700
-
-    Qt: Add geolocation columns back to the Endpoints dialog.
-
-    Add geolocation columns back to the Endpoints dialog. Fix our
-    geolocation column alignments as well.
-
-    Fixes #18320.
-
-    (cherry picked from commit b2b76c2baefc9a483de83cbcb810d9a609e948f0)
-
-commit a0e48787fd
-Author: Gerald Combs <gerald@wireshark.org>
-Date:   Tue Oct 18 12:38:36 2022 -0700
-
-    Qt: Fix the ByteViewText line height.
-
-    QFontMetrics::leading() was zero for Consolas on Windows in Qt5, but is
-    nonzero in Qt6. This revealed that we were inconsistently using height()
-    and leading() to calculate our line height. Just use lineSpacing()
-    instead.
-
-    Fixes #18438.
-
-    (cherry picked from commit 0d59da3156f834986444bb0cec22ae810b19d36b)
-
-commit 14aae4feb5
-Author: Gerald Combs <gerald@wireshark.org>
-Date:   Tue Sep 27 11:34:51 2022 -0700
-
-    Qt: Use new-style syntax for signal & slots connected by name.
-
-    Change anything that matches
-
-        grep -Eir '(signal|slot) *\( *on_action' ui
-
-    to new-style connections so that we can catch any future direct
-    connection conversion issues at compile time.
-
-    Change a connection from on_actionCaptureOptions_triggered to
-    showCaptureOptionsDialog and make showCaptureOptionsDialog public. Fixes
-    an issue introduced in fcdb77dc.
-
-    (cherry picked from commit f011e750258b7d36c7074661efd227de400090e3)
-
-    Fixes #18506
-
-commit 6c5a76e6d1
-Author: Gerald Combs <gerald@wireshark.org>
-Date:   Sun Oct 16 16:40:53 2022 +0000
-
-    [Automatic update for 2022-10-16]
+    [Automatic update for 2022-10-30]
 
     Update manuf, services enterprise numbers, translations, and other items.
 
-commit 41bf376f1e
-Author: Jaap Keuter <jaap.keuter@xs4all.nl>
-Date:   Sat Oct 15 22:19:12 2022 +0200
+commit 7a76e634a1
+Author: Roland Knall <rknall@gmail.com>
+Date:   Fri Oct 28 15:21:27 2022 +0200
 
-    PER, asn2wrs: Fix permitted-alphabet constrained character strings
+    Qt: Fix unexpected bytes suffix
 
-    Effective permitted-alphabet constraints are only PER-visible for
-    the known-multiplier character string types (X.691 27.1). When
-    PER-visible, the upper bound of any code point used in the
-    alphabet needs to be calculated, in particular for the ALIGNED
-    variant, because that determines whether or not canonical order
-    is used (X.691 27.5.2, 27.5.4).
+    Packets obviously have not a "bytes" suffix, therefore
+    it should be removed.
 
-    Note that even with the change to asn2wrs.py none of the generated
-    dissectors change, because we don't have any example of ASN.1
-    with non-PER visible permitted alphabet constraints because of
-    using them on non known-multiplier character string types
-    (like UTF8String).
+    Fixes #18229
 
-    There's some various edge cases that we still don't handle, but
-    nothing that any of the ASN.1 modules in the repository use.
-    (Permitted-alphabet constraints using characters outside the
-    ASCII range, possibly with "CharacterStringList", "Quadruple",
-    or "Tuple" notation, permitted-alphabet constraints that are
-    extensible and thus not PER-visible, etc.)
+    (cherry picked from commit b4a738e0693575fadaae87aa9c39aeea016a5d50)
 
-    Also fix a fencepost error with the length of the octets to highlight.
+commit e5dab8c905
+Author: Roland Knall <rknall@gmail.com>
+Date:   Fri Oct 28 14:51:38 2022 +0200
 
-    Fix #18468
+    TrafficTree: Fix wrong element choosen in context menu
 
-    (cherry picked from commit cb23c5e8d74223ab8c2fb7fcb081d7128ffaf2fd)
+    The context menu falsely assigns the proxied index to the context menu
+    entries, therefore always selecting the wrong model index for the
+    resulting functions.
 
-    # Conflicts:
-    #       epan/dissectors/packet-per.c
+    Fixes #18xxx
 
-commit 33aa938ff3
-Author: Chuck Craft <bubbasnmp@gmail.com>
-Date:   Wed Oct 12 14:43:05 2022 -0500
+    (cherry picked from commit ea60fdcb31c5046c2cf8a5a1abef9af91c8811fd)
 
-    Github actions: newer verions with node12 -> node16
+commit c3c4725de7
+Author: Martin Mathieson <martin.mathieson@keysight.com>
+Date:   Thu Oct 27 16:12:50 2022 +0100
 
-    Ping #18462
+    PER: Fix length of restricted character string item
 
-    (cherry picked from commit 3c0936d83e5e1ddda369533b072d5c0a62bf38d3)
+    (cherry picked from commit c8cf2f544c76f23ba084f4a076f8324294d333fb)
 
-commit d5a184e88f
-Author: John Thacker <johnthacker@gmail.com>
-Date:   Wed Oct 12 23:43:41 2022 -0400
+commit 900e55dd66
+Author: Alexis La Goutte <alexis.lagoutte@gmail.com>
+Date:   Wed Oct 26 19:41:21 2022 +0000
 
-    smb: Fix display_unicode_string
+    evs: fix typo for evs_d_bits_t0_values
 
-    In SMB, display_unicode_string is used to handle null terminated
-    UTF-16LE strings. Do that with the normal API, instead of just
-    taking every other byte (which works for ASCII and nothing else.)
+     should be { 0x6, "NB 24.4 kbps" } instead of the current { 0x6, "Not used" }
+    According to Table A.3 of 3gpp TS 26445
 
-    Do the same fix for the DirectPlay dissector, which borrowed the
-    code from SMB
+    Reported by Massimiliano Agnoletti
 
-    Fix #18467.
+    Close: #18550
 
-    (cherry picked from commit 900984b3b7e9e49c9186bcd799882cf7f6cdd8e3)
+    (cherry picked from commit 0b9edb2299df34feb9772726ddb710c9008251b2)
 
-commit 6fce089ba6
-Author: Guy Harris <gharris@sonic.net>
-Date:   Wed Oct 12 01:25:04 2022 -0700
-
-    Match declaration style of other functions.
-
-    All other functions are declared with two lines:
-
-        WS_DLL_PUBLIC <type>
-        <function_name(<args>);
-
-    Declare wtap_block_foreach_option() that  way, too, for consistency.
-
-    (cherry picked from commit 670bacedc9e0c455b9104166791a48ce338c26d2)
-
-commit f6196a0617
-Author: Guy Harris <gharris@sonic.net>
-Date:   Tue Oct 11 23:53:03 2022 -0700
-
-    Use "a" before consonant sounds, use "an" before vowel sounds.
-
-    (cherry picked from commit f7422a5cc85a3b58b371fa7ec22c55dc0662215c)
-
-commit eb1dad4ef9
+commit 2b509168b2
 Author: Gerald Combs <gerald@wireshark.org>
-Date:   Tue Aug 30 13:20:11 2022 -0700
+Date:   Thu Oct 27 09:58:39 2022 -0700
 
-    GitLab CI: Reenable the ABI Check job.
+    Qt: Make sure our font setting is backward compatible.
 
-    Update our ABI dump files using ones built with our current ubuntu-dev
-    image. Reenable the "ABI Check" job.
+    Qt5's QFont::fromString() isn't compatible with Qt6's QFont::toString().
+    If we were built with Qt5, don't try to process a font preference that
+    was created by Qt6.
 
-commit a9e0fbac40
-Author: Gerald Combs <gerald@wireshark.org>
-Date:   Mon Oct 10 09:18:22 2022 -0700
+    Fixes #18553
 
-    Qt: Properly truncate our FieldInformation strings.
+    (cherry picked from commit 0ae3315f53bc9c1b56809c07b7326ba22ad6d38b)
 
-    As the Qt6 QString::QString(const QByteArray &ba) documenation says:
-
-    "Note: any null ('\0') bytes in the byte array will be included in this
-    string, converted to Unicode null characters (U+0000). This behavior is
-    different from Qt 5.x."
-
-    Make sure FieldInformation::toString() truncates its display label byte
-    array before converting it to a QString.
-
-    Fixes #18428
-
-    (cherry picked from commit f3f1556d456a7a3d3a70c7c4f05cdd02f01463e6)
-
-commit 8ca341774e
-Author: Guy Harris <gharris@sonic.net>
-Date:   Mon Oct 10 16:00:53 2022 -0700
-
-    transum: expert infos are not Boolean fields.
-
-    They're of type FT_NONE, meaning that they do not have values, they're
-    just present or not.
-
-    Handle the TCP analysis fields "tcp.analysis.retransmission" and
-    "tcp.analysis.keep_alive", both of which are expert infos, by just
-    seeing if they're present or not.
-
-    Fixes a problem mentioned in a comment in merge request !8412.
-
-    (cherry picked from commit 3db17dab82d41d97c6426d8767971dd3d40bc8f2)
-
-commit e9c398ca75
-Author: Gerald Combs <gerald@wireshark.org>
-Date:   Sun Oct 9 16:37:12 2022 +0000
-
-    [Automatic update for 2022-10-09]
-
-    Update manuf, services enterprise numbers, translations, and other items.
-
-commit 626db94cc3
-Author: Angelo Spampinato <aspampinato@protonmail.com>
-Date:   Thu Aug 25 16:43:56 2022 +0000
-
-    Adding some SharkFest info to the welcome screen
-
-    (cherry picked from commit 52e34b25319beac6c5a3f2eab306cf93b9c5ae37)
-
-commit b9712ee3c0
+commit 1c6719eaba
 Author: João Valverde <j@v6e.pt>
-Date:   Sat Oct 8 16:47:51 2022 +0100
+Date:   Fri Oct 28 14:19:35 2022 +0100
 
-    dfilter: Fix integer comparison on big-endian
+    epan: Increase timezone buffer size
 
-    Fix copy-paste mistake to use the correct struct field.
+    Some internationalized strings can exceed this size and become
+    truncated with encoding errors.
 
-    Fixes #12236.
+    Fixes #18562.
 
-    (cherry picked from commit 7b4abf83417beeaf6cc178303d1f118017a48167)
+    (cherry picked from commit 267954cda2198ff81525b803223d7f0eed918bf0)
 
-commit 3b84ee876e
-Author: Stig Bjørlykke <stig@bjorlykke.org>
-Date:   Thu Oct 6 12:15:04 2022 +0200
-
-    f5ethtrailer: Default disable preference to perform analysis
-
-    The f5ethtrailer.perform_analysis preference is documented to
-    "slow down Wireshark", so make it default disabled.
-
-    (cherry picked from commit 245df5da6207c82084681affcd9269bca9d020e3)
-
-commit 77666bdb4e
-Author: João Valverde <j@v6e.pt>
-Date:   Fri Oct 7 12:18:51 2022 +0100
-
-    dfilter: Amend a numeric pattern in the scanner
-
-    We amend the :<numeric> pattern to not eat the leading
-    colon. Because the colon can be part of the value (with IPv6 addresses
-    for example) we want to avoid doing that.
-
-    IPv6 addresses are covered by their own rules but this removes the
-    requirement in the future to handle any special cases and avoids
-    surprises.
-
-    For this reason the colon-prefix syntax is already explicitly defined to
-    work only for byte arrays and there is currently no universal
-    syntax for all literal values or even all numbers.
-
-    Other numbers can keep using the lexical type "unparsed".
-
-    ```
-    run/dftest "_ws.ftypes.uint8 == :fd"
-    Filter: _ws.ftypes.uint8 == :fd
-    dftest: ":fd" is not a valid number.
-            _ws.ftypes.uint8 == :fd
-                                ^~~
-
-    run/dftest "_ws.ftypes.uint8 == fd"
-    Filter: _ws.ftypes.uint8 == fd
-    dftest: "fd" is not a valid number.
-            _ws.ftypes.uint8 == fd
-                                ^~
-
-    run/dftest "_ws.ftypes.uint8 == 0xfd"
-    Filter: _ws.ftypes.uint8 == 0xfd
-
-    Syntax tree:
-     0 TEST_ANY_EQ:
-       1 FIELD(_ws.ftypes.uint8 <FT_UINT8>)
-       1 FVALUE(253 <FT_UINT8>)
-
-    Instructions:
-    00000 READ_TREE         _ws.ftypes.uint8 <FT_UINT8> -> reg#0
-    00001 IF_FALSE_GOTO     3
-    00002 ANY_EQ            reg#0 == 253 <FT_UINT8>
-    00003 RETURN
-
-    run/dftest "_ws.ftypes.bytes == fd"
-    Filter: _ws.ftypes.bytes == fd
-
-    Syntax tree:
-     0 TEST_ANY_EQ:
-       1 FIELD(_ws.ftypes.bytes <FT_BYTES>)
-       1 FVALUE(fd <FT_BYTES>)
-
-    Instructions:
-    00000 READ_TREE         _ws.ftypes.bytes <FT_BYTES> -> reg#0
-    00001 IF_FALSE_GOTO     3
-    00002 ANY_EQ            reg#0 == fd <FT_BYTES>
-    00003 RETURN
-
-    run/dftest "_ws.ftypes.bytes == :fd"
-    Filter: _ws.ftypes.bytes == :fd
-
-    Syntax tree:
-     0 TEST_ANY_EQ:
-       1 FIELD(_ws.ftypes.bytes <FT_BYTES>)
-       1 FVALUE(fd <FT_BYTES>)
-
-    Instructions:
-    00000 READ_TREE         _ws.ftypes.bytes <FT_BYTES> -> reg#0
-    00001 IF_FALSE_GOTO     3
-    00002 ANY_EQ            reg#0 == fd <FT_BYTES>
-    00003 RETURN
-    ```
-
-commit aae7795005
-Author: João Valverde <j@v6e.pt>
-Date:   Fri Oct 7 11:28:22 2022 +0100
-
-    dfilter: Remove problematic <...> literal syntax
-
-    The <...> syntax for literals, intended to be as generic as
-    possible, unintentionally introduced an ambiguity with the
-    relational expression "a < b or a > c".
-
-    Literals are values like numbers, bytes, IPv6 addresses or, one
-    could imagine, UNC paths for example, if an FT_UNC type were to
-    be added in the future.
-
-    We could use a new unique symbol like @...@ but the <...>
-    syntax is very recent and may not be necessary with ":xxx" so
-    just remove it.
-
-    A byte array can be explicitly declared by prefixing with a colon. It
-    is not as generic but the main ambiguity that this new syntax attempted
-    to solve is bytes vs protocol names. We don't want to introduce a new
-    reserved symbol for now, until other requirements if any are more clear.
-
-    Fixes #18418.
-
-commit 69626fec88
-Author: j.novak@netsystem.cz <j.novak@netsystem.cz>
-Date:   Sat Oct 8 15:10:35 2022 +0000
-
-    RTP Player: Fix: Only silence played on Windows with Qt 6.x
-
-commit dd5c7d0aa7
-Author: Uli Heilmeier <uh@heilmeier.eu>
-Date:   Fri Oct 7 13:16:32 2022 +0200
-
-    sshdump: Add '-f ' for capture filter
-
-    Fixes #18420
-
-    (cherry picked from commit a471aa76286b59da87dc361b3f29c2749616ef80)
-
-commit c03a118673
-Author: Eugene Adell <eugene.adell@gmail.com>
-Date:   Sat Oct 8 09:13:44 2022 +0200
-
-    Conversation dialog : rename the B to A packets column
-
-    The A to B packets column appeared twice, probably due to a
-    copy/paste.
-
-    (cherry picked from commit 24fadd8938698fd2cd214647b0264d40dce93ebc)
-
-commit 15d84369ae
-Author: Stig Bjørlykke <stig@bjorlykke.org>
-Date:   Fri Oct 7 14:16:04 2022 +0200
-
-    f5ethtrailer: Only remove registered taps
-
-    Add checks to only remove registered taps.
-
-    (cherry picked from commit da4277971fe0a9df0097b39e26a702768b25da7b)
-
-commit c902e0d370
-Author: Balint Reczey <balint@balintreczey.hu>
-Date:   Thu Oct 6 10:20:40 2022 +0200
-
-    debian/control: Make libwsutil-dev break/replace libwireshark-dev (<< 3.7.0)
-
-    Libwsutil now ships header files previously present in libwireshark-dev.
-
-    Follow-up to d391d86c337ec1389095b55a2ee2f7ac56e65d80.
-
-    (cherry picked from commit 3c933a6dba1f8ec05e0f41fbb7736e98fe969d4d)
-
-commit a1a5d60638
-Author: Guy Harris <gharris@sonic.net>
-Date:   Wed Oct 5 14:57:08 2022 -0700
-
-    TRANSUM: fix fetching of Boolean values.
-
-    As of a change many years ago, Boolean values are stored as 64-bit (the
-    change was made to handle Boolean bitfields in 64-bit fields).  Fix the
-    extractor for Boolean values to fetch from the 64-bit unsigned integer
-    field, and, while we're at it, add a change that the field in question
-    really *is* a Boolean field (the functions used to fetch the value in
-    the other extractors do such a check).
-
-    (cherry picked from commit b2cbc6f034d6ef5e0813f59a45387cc79b9311e4)
-
-commit 687b15737a
-Author: John Thacker <johnthacker@gmail.com>
-Date:   Mon Oct 3 21:10:33 2022 -0400
-
-    gtp: Use ENC_APN_STR for decode_apn
-
-    Using ENC_APN_STR is simpler and guarantees that we produce
-    valid UTF-8. Fix #18402
-
-    (cherry picked from commit 333fe08bb3ae72426522d86ede66b4e2abdf43b8)
-
-commit 7af3fb612b
+commit 235f951686
 Author: Gerald Combs <gerald@wireshark.org>
-Date:   Tue Oct 4 17:23:23 2022 -0700
+Date:   Thu Oct 27 10:29:47 2022 -0700
 
-    Version: 4.0.0 → 4.0.1.
+    Qt: Fix our default font size on Windows.
+
+    It looks like we need to adjust our monospace font size differently in
+    Qt6 on Windows.
+
+    (cherry picked from commit d560dd39487aa4f3fb9c6153d055c27d7b14f0d7)
+
+commit 69884260a4
+Author: Gerald Combs <gerald@wireshark.org>
+Date:   Wed Oct 26 12:08:45 2022 -0700
+
+    Version: 4.0.1 → 4.0.2
 
     [skip ci]

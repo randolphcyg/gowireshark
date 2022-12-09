@@ -13,7 +13,7 @@
 #ifndef __WS_DIAG_CONTROL_H__
 #define __WS_DIAG_CONTROL_H__
 
-#include "include/ws_compiler_tests.h"
+#include "ws_compiler_tests.h"
 
 #ifdef __cplusplus
 extern "C" {

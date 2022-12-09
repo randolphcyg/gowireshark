@@ -16,15 +16,19 @@
 
 #include <epan/packet.h>
 #include <epan/prefs.h>
-
+#include <epan/proto_data.h>
+#include "packet-rtp.h"
 
 void proto_register_evs(void);
 void proto_reg_handoff_evs(void);
 
 static dissector_handle_t evs_handle;
 
+static gboolean evs_hf_only = FALSE;
+
 /* Initialize the protocol and registered fields */
 static int proto_evs = -1;
+static int proto_rtp = -1;
 
 static int hf_evs_packet_length = -1;
 static int hf_evs_voice_data = -1;
@@ -98,7 +102,7 @@ static const value_string evs_d_bits_t0_values[] = {
     { 0x3, "NB 9.6 kbps" },
     { 0x4, "NB 13.2 kbps" },
     { 0x5, "NB 16.4 kbps" },
-    { 0x6, "Not used" },
+    { 0x6, "NB 24.4 kbps" },
     { 0x7, "Not used" },
     { 0x8, "Not used" },
     { 0x9, "Not used" },
@@ -610,6 +614,7 @@ dissect_evs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
     int num_toc, num_data;
     guint64 value;
     gboolean is_compact = FALSE;
+    struct _rtp_pkt_info *rtp_pkt_info = p_get_proto_data(pinfo->pool, pinfo, proto_rtp, pinfo->curr_layer_num-1);
 
     /* Make entries in Protocol column and Info column on summary display */
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "EVS");
@@ -618,6 +623,8 @@ dissect_evs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
     /* Find out if we have one of the reserved packet sizes*/
     packet_len = tvb_reported_length(tvb);
     num_bits = packet_len * 8;
+    if (rtp_pkt_info)
+        num_bits += rtp_pkt_info->padding_len * 8; /* take into account RTP padding if any */
     if (num_bits == 56) {
         /* A.2.1.3 Special case for 56 bit payload size (EVS Primary or EVS AMR-WB IO SID) */
         /* The resulting ambiguity between EVS Primary 2.8 kbps and EVS AMR-WB IO SID frames is resolved through the
@@ -634,7 +641,7 @@ dissect_evs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
             /* EVS AMR-WB IO SID */
             str = "EVS AMR-WB IO SID";
         }
-    } else {
+    } else if (!evs_hf_only) {
         str = try_val_to_str_idx(num_bits, evs_protected_payload_sizes_value, &idx);
         if (str) {
             is_compact = TRUE;
@@ -1084,9 +1091,11 @@ proto_register_evs(void)
     evs_module = prefs_register_protocol(proto_evs, NULL);
 
     prefs_register_obsolete_preference(evs_module, "dynamic.payload.type");
-
+    prefs_register_bool_preference(evs_module, "hf_only",
+                                   "Header-Full format only",
+                                   "Decode payload assuming that Header-Full format only is used",
+                                   &evs_hf_only);
     evs_handle = register_dissector("evs", dissect_evs, proto_evs);
-
 }
 
 void
@@ -1094,6 +1103,7 @@ proto_reg_handoff_evs(void)
 {
     dissector_add_string("rtp_dyn_payload_type", "EVS", evs_handle);
     dissector_add_uint_range_with_preference("rtp.pt", "", evs_handle);
+    proto_rtp = proto_get_id_by_filter_name("rtp");
 }
 
 /*

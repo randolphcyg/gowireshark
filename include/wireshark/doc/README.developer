@@ -831,12 +831,12 @@ header file (foobar.h) looks like this:
 
   #ifndef __FOOBAR_H__
   #define __FOOBAR_H__
-  #include <include/wireshark.h>
+  #include <wireshark.h>
   followed by <system headers>
   followed by <wireshark public headers>
 
   #ifdef __cplusplus
-  extern "C" {
+  extern "C" { 
   #endif
   (declarations)
   #ifdef __cplusplus

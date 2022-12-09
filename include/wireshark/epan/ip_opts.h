@@ -12,7 +12,7 @@
 #ifndef __IP_OPTS_H__
 #define __IP_OPTS_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /** @file
  */

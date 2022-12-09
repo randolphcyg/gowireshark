@@ -11,13 +11,13 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.0.1"
+#define VERSION "4.0.2"
 #define VERSION_MAJOR 4
 #define VERSION_MINOR 0
-#define VERSION_MICRO 1
+#define VERSION_MICRO 2
 
 /* Version number of Logray and associated utilities */
-#define LOG_VERSION "0.8.1"
+#define LOG_VERSION "0.8.2"
 
 #define PLUGIN_PATH_ID "4.0"
 #define VERSION_FLAVOR ""
@@ -330,6 +330,6 @@
 #define PCRE2_CODE_UNIT_WIDTH  8
 #endif
 
-#include <include/ws_log_defs.h>
+#include <ws_log_defs.h>
 
 #endif /* __CONFIG_H__ */
