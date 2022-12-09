@@ -339,7 +339,10 @@ func TestStopDissectPktLive(t *testing.T) {
 	go func() {
 		fmt.Println("Simulate manual stop real-time packet capture!")
 		time.Sleep(time.Second * 2)
-		gowireshark.StopDissectPktLive()
+		err := gowireshark.StopDissectPktLive()
+		if err != nil {
+			fmt.Println(err)
+		}
 		fmt.Println("############ stop capture successfully! ##############")
 	}()
 

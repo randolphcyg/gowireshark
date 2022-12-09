@@ -50,13 +50,13 @@ char *proto_tree_in_json(int num);
 // Get interface list
 char *get_if_list();
 // Get interface nonblock status
-int get_if_nonblock_status(char *device_name);
+int get_if_nonblock_status(char *device);
 // Set interface nonblock status
-int set_if_nonblock_status(char *device_name, int nonblock);
+int set_if_nonblock_status(char *device, int nonblock);
 // Capture and dissect packet in real time
-int handle_pkt_live(char *device_name, int num, int promisc);
+int handle_pkt_live(char *device, int num, int promisc);
 // Stop capture packet live and free all memory allocated
-void stop_dissect_capture_pkg();
+char *stop_dissect_capture_pkg();
 */
 import "C"
 import (
@@ -391,8 +391,8 @@ func GetIfaceList() (res map[string]IFace, err error) {
 }
 
 // GetIfaceNonblockStatus Get interface nonblock status
-func GetIfaceNonblockStatus(deviceName string) (isNonblock bool, err error) {
-	nonblockStatus := C.get_if_nonblock_status(C.CString(deviceName))
+func GetIfaceNonblockStatus(device string) (isNonblock bool, err error) {
+	nonblockStatus := C.get_if_nonblock_status(C.CString(device))
 	if nonblockStatus == 0 {
 		isNonblock = false
 	} else if nonblockStatus == 1 {
@@ -405,13 +405,13 @@ func GetIfaceNonblockStatus(deviceName string) (isNonblock bool, err error) {
 }
 
 // SetIfaceNonblockStatus Set interface nonblock status
-func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, err error) {
+func SetIfaceNonblockStatus(device string, isNonblock bool) (status bool, err error) {
 	setNonblockCode := 0
 	if isNonblock {
 		setNonblockCode = 1
 	}
 
-	nonblockStatus := C.set_if_nonblock_status(C.CString(deviceName), C.int(setNonblockCode))
+	nonblockStatus := C.set_if_nonblock_status(C.CString(device), C.int(setNonblockCode))
 	if nonblockStatus == 0 {
 		status = false
 	} else if nonblockStatus == 1 {
@@ -467,15 +467,21 @@ func readSock(listener *net.UnixConn) {
 
 // DissectPktLive start Unix domain socket(AF_UNIX) client, capture and dissect packet.
 // promisc: 0 indicates a non-promiscuous mode, and any other value indicates a promiscuous mode
-func DissectPktLive(deviceName string, num int, promisc int) (err error) {
-	C.handle_pkt_live(C.CString(deviceName), C.int(num), C.int(promisc))
+func DissectPktLive(device string, num int, promisc int) (err error) {
+	C.handle_pkt_live(C.CString(device), C.int(num), C.int(promisc))
 
 	return
 }
 
 // StopDissectPktLive Stop capture packet live、 free all memory allocated、close socket.
-func StopDissectPktLive() {
-	C.stop_dissect_capture_pkg()
+func StopDissectPktLive() (err error) {
+	errMsg := C.stop_dissect_capture_pkg()
+	if C.strlen(errMsg) != 0 {
+		// transfer c char to go string
+		errMsgStr := CChar2GoStr(errMsg)
+		err = errors.Errorf("fail to stop capture packet live:%s", errMsgStr)
+		return
+	}
 
 	return
 }
