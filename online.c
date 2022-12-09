@@ -112,17 +112,17 @@ char *get_if_list() {
 /**
  * Get interface nonblock status.
  *
- *  @param device_name the name of interface device
+ *  @param device: the name of interface device
  *  @return current status is nonblock: 1;
  *  current status is not nonblock: 0;
  *  occur error: 2;
  */
-int get_if_nonblock_status(char *device_name) {
+int get_if_nonblock_status(char *device) {
   pcap_t *handle;
   int is_nonblock;
 
-  if (device_name) {
-    handle = pcap_open_live(device_name, SNAP_LEN, 1, 20, errbuf);
+  if (device) {
+    handle = pcap_open_live(device, SNAP_LEN, 1, 20, errbuf);
     if (handle == NULL) {
       return 2;
     }
@@ -138,18 +138,18 @@ int get_if_nonblock_status(char *device_name) {
 /**
  * Set interface nonblock status.
  *
- *  @param device_name the name of interface device
+ *  @param device: the name of interface device
  *  @param nonblock set 1: is nonblock, set 0: is not nonblock
  *  @return current status is nonblock: 1;
  *  current status is not nonblock: 0;
  *  occur error: 2;
  */
-int set_if_nonblock_status(char *device_name, int nonblock) {
+int set_if_nonblock_status(char *device, int nonblock) {
   pcap_t *handle;
   int is_nonblock;
 
-  if (device_name) {
-    handle = pcap_open_live(device_name, SNAP_LEN, 1, 1000, errbuf);
+  if (device) {
+    handle = pcap_open_live(device, SNAP_LEN, 1, 1000, errbuf);
     if (handle == NULL) {
       return 2;
     }
@@ -171,7 +171,7 @@ PART3. wireshark
 
 // global capture file variable for online logic
 capture_file cf_live;
-pcap_t *device;
+pcap_t *handle;
 static frame_data prev_dis_frame;
 static frame_data prev_cap_frame;
 
@@ -502,13 +502,13 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 /**
  * Listen device and Capture packet.
  *
- *  @param device_name the name of interface device
+ *  @param device: the name of interface device
  *  @param num the number of packet you want to capture and dissect
  *  @param promisc 0 indicates a non-promiscuous mode, and any other value
  * indicates a promiscuous mode.
  *  @return correct: 0; error: 2;
  */
-int handle_pkt_live(char *device_name, int num, int promisc) {
+int handle_pkt_live(char *device, int num, int promisc) {
   int err = 0;
   char errBuf[PCAP_ERRBUF_SIZE], *devStr;
   // Save the starting address of the received packet
@@ -522,8 +522,8 @@ int handle_pkt_live(char *device_name, int num, int promisc) {
   }
 
   // open device
-  device = pcap_open_live(device_name, SNAP_LEN, promisc, 20, errBuf);
-  if (!device) {
+  handle = pcap_open_live(device, SNAP_LEN, promisc, 20, errBuf);
+  if (!handle) {
     printf("pcap_open_live() couldn't open device: %s\n", errBuf);
     return 2;
   }
@@ -533,9 +533,9 @@ int handle_pkt_live(char *device_name, int num, int promisc) {
 
   // loop and dissect pkg
   int count = 0;
-  pcap_loop(device, num, process_packet_callback, NULL);
+  pcap_loop(handle, num, process_packet_callback, NULL);
   // close libpcap device handler
-  pcap_close(device);
+  pcap_close(handle);
   // close socket
   close(sockfd);
 
@@ -545,9 +545,12 @@ int handle_pkt_live(char *device_name, int num, int promisc) {
 /**
  * Stop capture packet live、 free all memory allocated、close socket.
  */
-void stop_dissect_capture_pkg() {
-  // close libpcap capture loop
-  pcap_breakloop(device);
+char *stop_dissect_capture_pkg() {
+  if (!handle) {
+    return "This device has no pcap_handle, no need to close";
+  }
+  pcap_breakloop(handle);
+
   // close cf file for live capture
   close_cf_live();
 
@@ -558,5 +561,5 @@ void stop_dissect_capture_pkg() {
   }
   close(sockfd);
 
-  return;
+  return "";
 }
