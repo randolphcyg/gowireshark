@@ -1,31 +1,71 @@
-# gowireshark
+# Gowireshark
 
-> gowireshark 是一个提供 wireshark 协议解析功能的golang包
+> Gowireshark is a Golang library that allows our Golang program to have wireshark's protocol parsing capabilities, 
+> which can parse pcap packet files or listen to devices in real time and get protocol parsing results.
 
-- 暂仅支持linux平台，此库在ubuntu22.04中开发测试
-- 基于 wireshark4.0.1、libpcap1.10.1
-- 用c和go封装 wireshark，是一个golang包
+- Based on libpcap 1.10.1, wireshark 4.0.2
+- Currently only Linux platform is supported
 ---
-## 1.项目结构说明
+## 1. Installation
 
-### 1.1. 依赖组件：
-- 内置：lwiretap、lwsutil、lwireshark、lpcap
-- 系统需要安装：glib-2.0
+---
+### 1.1. Requirements
+- x86-64
+- glib-2.0
 
-### 1.2. 项目结构
+```shell
+# install glib-2.0
+sudo apt install libglib2.0-dev -y
+```
 
-- include/ wireshark源码及lib.h 封装的对go提供的接口
-- libs/ wireshark动态链接库，在linux中编译
-- pcaps/ pcap文件 用来测试
-- tests/ 测试文件夹
-- cJSON.c、cJSON.h c的json库[勿动]
-- lib.c、offline.c、online.c 修复和使用的wireshark、libpcap库源码
-- include/lib.h、offline.h、online.h 封装wireshark接口的声明，提供给gowireshark.go调用
-- include/wireshark wireshark源码[勿动]
-- include/libpcap libpcap源码[勿动]
-- gowireshark.go go封装最终对外的接口
+### 1.2. Usage
 
-树结构:
+```shell
+go get "github.com/randolphcyg/gowireshark"
+```
+
+Due to GitHub file size limitation, dynamic link library files cannot be uploaded and can be downloaded from Alibaba Cloud Disk:
+
+> [gowireshark-libs](https://www.aliyundrive.com/s/j3aVfoFtHgp)
+
+This project will keep the dynamic link library corresponding to the latest stable version of wireshark, select according to the system version, 
+or compile the corresponding version of the dynamic link library according to this document.
+
+After downloading, put 9 wireshark dynamic link library files and 1 libpcap dynamic link library file into the /libs directory.
+
+how to test:
+
+```shell
+cd tests/
+go test -v -run TestDissectFirstFrame
+```
+
+how to dissect a pcap file:
+
+```go
+package main
+   
+import (
+    "fmt"
+
+    "github.com/randolphcyg/gowireshark"
+)
+
+func main() {
+    filepath := "pcaps/s7comm_clean.pcap"
+    err := gowireshark.DissectPrintFirstFrame(filepath)
+    if err != nil {
+        fmt.Println(err)
+    }
+}
+```
+Other examples can refer to the test file.
+
+## 2. Detailed description
+
+---
+
+### 2.1. Project directory structure
 ```
 gowireshark
 ├── README.md
@@ -47,10 +87,10 @@ gowireshark
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
 │   ├── libwireshark.so.16
-│   ├── libwireshark.so.16.0.1
+│   ├── libwireshark.so.16.0.2
 │   ├── libwiretap.so
 │   ├── libwiretap.so.13
-│   ├── libwiretap.so.13.0.1
+│   ├── libwiretap.so.13.0.2
 │   ├── libwsutil.so
 │   ├── libwsutil.so.14
 │   └── libwsutil.so.14.0.0
@@ -62,15 +102,18 @@ gowireshark
 └── tests/
     └── gowireshark_test.go
 ```
+Detailed description of the project directory structure：
+- **include/wireshark/** wireshark compiled source code.
+- **include/libpcap/** libpcap compiled source code.
+- **libs/** wireshark、libpcap dll files.
+- **pcaps/** pcap packet files used for testing.
+- **tests/** test files.
+- **cJSON.c、cJSON.h** [cJSON](https://github.com/DaveGamble/cJSON) library.
+- **lib.c、offline.c、online.c** Encapsulate and strengthen libpcap and wireshark with C.
+- **include/lib.h、offline.h、online.h** The declaration of the wireshark interface is encapsulated in C and finally called by the Go encapsulation.
+- **gowireshark.go** All external interfaces are encapsulated by Go.
 
-## 2. 项目设计思路
-
-## 2.1. 设计思路
-
-1. 根据wireshark源码编译libwireshark.so等动态链接库
-2. 用c封装功能并用go封装对外接口
-
-## 2.2. 调用关系
+### 2.2. Call chain
 
 ```mermaid
 graph LR
@@ -83,191 +126,165 @@ graph LR
     style D fill:#FFCC99,stroke:#FFCCCC,stroke-width:2px,stroke-dasharray: 5, 5
 ```
 
-## 3. How To Use
 
-> 环境要求: x86-64, 安装glib2.0
+### 2.3. How to compile wireshark, libpcap dynamic link libraries
 
-```shell
-# 安装glib-2.0
-sudo apt install libglib2.0-dev -y
-```
+> If the compiled wireshark and libpcap dynamic link libraries are different from the supported versions of the current project, please cover the include/wireshark and libpcap directories simultaneously;
+> Note that if the wireshark version changes greatly, some interfaces in this project may be invalid, but they can be studied and fixed;
 
-### 3.1. 安装
-
-```shell
-go get github.com/randolphcyg/gowireshark
-```
-
-### 3.2. 根据系统选择动态链接库
-
-因为github有大文件限制，因此so文件上传不了：
-
-阿里云盘下载：「gowireshark-libs」https://www.aliyundrive.com/s/j3aVfoFtHgp
-
-根据系统选择，wireshark版本选择最新版本，否则将和代码不兼容。
-
-将9个wireshark动态链接库文件和1个libpcap动态链接库文件放到/libs目录下即可。
-
-### 3.3. 测试代码：
-
-1. tests文件夹下用go test命令直接测试
-   ```shell
-   go test -v -run TestDissectFirstFrame
-   ```
-   若没有出现报错即可。
-
-2. 项目外
-   ```go
-   package main
-   
-   import (
-       "fmt"
-   
-       "github.com/randolphcyg/gowireshark"
-   )
-   
-   func main() {
-       filepath := "pcaps/s7comm_clean.pcap"
-       err := gowireshark.DissectPrintFirstFrame(filepath)
-       if err != nil {
-           fmt.Println(err)
-       }
-   }
-   ```
-
-## 4. 如何更新及规范说明
-
-### 4.1. 更新wireshark源码及编译动态链接库
-
-在linux下编译动态链接库,若更新动态链接库，include/wireshark/目录需要同步更新，同时测试各接口是否发生变动。
 
 <details>
-<summary>编译wireshark动态链接库</summary>
+<summary>1.Compile the wireshark dynamic link library</summary>
 
-```
-在/opt目录下操作
+```shell
+# Operate in the /opt directory
 cd /opt/
 
-下载
-wget https://2.na.dl.wireshark.org/src/wireshark-4.0.1.tar.xz
+# Download the source code
+wget https://1.as.dl.wireshark.org/src/wireshark-4.0.2.tar.xz
 
-解压并修改文件夹名
-tar -xvf wireshark-4.0.1.tar.xz
-mv wireshark-4.0.1 wireshark
+# Unzip and modify the folder name
+tar -xvf wireshark-4.0.2.tar.xz
+mv wireshark-4.0.2 wireshark
 
-到wireshark目录下
+# Go to the wireshark directory
 cd wireshark/
 
--------------环境中编译所需的依赖-----------------------------------
-
-[仅测试] 输出日志有爆红则解决依赖问题，到qt5时忽略报错，删除CMakeCache.txt、CMakeFiles/
+--------[For the first time] How to check the dependencies required for compilation-------------
+# Resolve dependency issues according to the output red error log until they are ignored when a qt5 error occurs
 cmake -LH ./
 
-若没有cmake3.20以上版本请安装
+# If you do not have cmake3.20, please install it first
 wget https://cmake.org/files/LatestRelease/cmake-3.24.2.tar.gz
 sudo tar -xzf cmake-3.24.2.tar.gz
 cd cmake-3.24.2/
 sudo ./bootstrap
 sudo apt install build-essential -y
 
-若显示openssl未安装则执行
+# If openSSL is not installed, execute it
 sudo apt install libssl-dev  -y
 sudo make
 sudo make install
 cmake --version
 
-需要安装的依赖
+# Dependencies that may need to be installed
 apt install libgcrypt-dev -y
 apt install libc-ares-dev -y
 apt install flex -y
-apt install qtbase5-dev -y
-apt install qttools5-dev-tools -y
-apt install qttools5-dev -y
-apt install qtmultimedia5-dev -y
-
-看到qt5报错时候 其实没必要安装 直接走下一步就可以了 Qt5Multimedia 的错误不用管
-其他可能的依赖
 apt install libglib2.0-dev -y
 apt install libssl-dev -y
 apt install ninja-build -y
 apt install pcaputils -y
 apt install libpcap-dev -y
+# Qt5-related dependencies are not used and can be ignored
+apt install qtbase5-dev -y
+apt install qttools5-dev-tools -y
+apt install qttools5-dev -y
+apt install qtmultimedia5-dev -y
 
--------------环境中编译所需的依赖-----------------------------------
+# Dependent on the problem resolution complete, delete the files generated by the test
+rm CMakeCache.txt
+rm -rf CMakeFiles/
+-------------------------------------------------------------------------------
 
-解决完依赖问题，删除之前测试用生成的文件
-rm ../CMakeCache.txt
-rm -rf ../CMakeFiles/
-
-创建目录
+# Create a build-specific directory under the wireshark/ directory
 mkdir build
 cd build
 
-构建[生产用]
+# Build [For production]
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_wireshark=off -DENABLE_LUA=off ..
 
-编译(时间较长)
+# Compile[slightly longer]
 ninja
 
-编译成功进入run目录下查看编译好的动态链接库
+# After successful compilation, enter the run directory to view the compiled dynamic link library
 cd run/
-
-查看，出现so后缀的动态链接库即可
 ls -lh
 
-将动态链接库移动到libs目录下 一共是9个(如果之前有旧版本的记得将旧版本的删除)
-cd 项目根目录/libs/
+# Overwrites replaces the original 9 wireshark dynamic link library files
+cd gowireshark/libs/
 cp/opt/wireshark/build/run/lib*so* .
 
-先删除因为编译被污染的文件夹
+# Overwrite the wireshark source folder(Remove the useless build/ directory first)
 rm -rf /opt/wireshark/build/
+cp /opt/wireshark/ gowireshark/include/wireshark/
 
-将源码替换到include/wireshark
-cp /opt/wireshark/ 项目根目录/include/wireshark/
-
-查看项目目录结构(项目跟目录上一层执行)
+# View project directory structure [project directory parent directory execution]
 tree -L 2 -F gowireshark
 ```
 </details>
 
-### 4.2. 开发新功能注意点
-   
-1. 先编写新功能c代码，可在lib.c中或根目录新建c文件；
-2. 同步将函数声明更新到同名头文件lib.h或新建头文件， 同样在go代码序文中增加相同的声明；
-3. 在go代码中封装对外接口；
-4. 测试统一写到tests文件夹中;
-5. 用 clang-format 工具格式化c代码及头文件：
-    
-   例：`clang-format -i lib.c`，带参数-i表示此命令直接格式化指定文件，去掉-i即可预览；
+<details>
+<summary>2.Compile the libpcap dynamic link library</summary>
 
-   修改根目录下所有.c文件、include/目录下所有.h头文件(仅当前目录1层，不向下遍历查找)：
+```
+cd /opt
+export PCAPV=1.10.1
+wget http://www.tcpdump.org/release/libpcap-$PCAPV.tar.gz
+tar -zxvf libpcap-$PCAPV.tar.gz
+cd libpcap-$PCAPV
+export CC=aarch64-linux-gnu-gcc
+./configure --host=aarch64-linux --with-pcap=linux
+# Remember to install the flex、bison library and remove the extra manifest and syso files
+make
+
+# If there is no bison library, please install it
+apt install bison
+
+# After the compilation is completed, modify 【libpcap.so.1.10.1】 to 【libpcap.so.1】, 
+# you can call the dynamic link library in the go code, and the required operations are:
+
+// Importing the libpcap library will find a dynamic link library named libpcap.so.1 in the libs directory
+#cgo LDFLAGS: -L${SRCDIR}/libs -lpcap
+#cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/libs
+// This allows the program to find the source code corresponding to the libpcap dynamic link library
+#cgo CFLAGS: -I${SRCDIR}/include/libpcap
+// Comment out the c99 standard(if any), otherwise you will not recognize the u_int, u_short and other types when calling libpcap
+//#cgo CFLAGS: -std=c99
+```
+</details>
+
+## 3. Develop
+
+---
+   
+1. First write the new function C code, you can create a new C file in lib.c or the root directory.
+2. Synchronously update the function declaration to the header file lib.h with the same name or create a new header file, and also add the same declaration to the go code preamble.
+3. Encapsulate external interfaces in GO code.
+4. Tests are written to the tests/ directory.
+5. Use the clang-format tool to format custom C code and header files:
+   E.g：`clang-format -i lib.c`，With the parameter '-i' indicates that this command directly formats the specified file, remove '-i' to preview.
+   Modify all .c files in the root directory and all .h header files in the include/ directory (only the current directory is level 1, do not traverse down to find it):
+   
    ```shell
    find . -maxdepth 1 -name '*.c' | grep -v 'cJSON.c' | xargs  clang-format -i
    find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | xargs  clang-format -i
    ```
-6. 在linux环境测试tests/目录下测试
-   非特殊情况请进行指定函数测试，例如:
+6. how to test(cd tests/):
    ```shell
-   # 解析并输出第一帧
+   # Parse and output the first frame
    go test -v -run TestDissectPrintFirstFrame
-   # 解析并以Json格式输出某一帧
+   # Parse and output a frame in JSON format
    go test -v -run TestGetSpecificFrameProtoTreeInJson
-   # 解析并输出某一帧的hex等数据
+   # Parses and outputs a frame of HEX data
    go test -v -run TestGetSpecificFrameHexData
-   # 实时解析数据包
+   # Parse packets in real time
    go test -v -run TestDissectPktLive
-   # 实时抓包 读取一定数目并解析  
+   # Real-time packet capture Read a certain number and parse it
    go test -v -run TestDissectPktLiveSpecificNum
    ```
 
-## 5. TODO
+## 4. TODO
 
-1. ~~离线数据包文件解析打印~~
-2. ~~离线数据包文件解析并输出json格式~~
-3. ~~16进制数据获取~~
-4. ~~实时监听接口并抓包~~
-5. ~~实时解析从接口抓到的数据包~~
-6. ~~封装go调用实时解析的逻辑-将实时解析结果通过unix domain传输给golang~~
-7. ~~封装golang对收到的实时数据包解析结果的处理，方便golang调用~~
-8. ~~优化代码，解决内存泄漏问题~~
-9. ~~停止实时抓包解析功能~~
+---
+1. ~~Offline packet file parsing printing~~
+2. ~~Offline packet files parse and output JSON format~~
+3. ~~Base 16 data acquisition~~
+4. ~~Listen to interfaces in real time and capture packets~~
+5. ~~Parse packets caught from the interface in real time~~
+6. ~~Encapsulates the logic for go to invoke real-time parsing - transmits real-time parsing results to golang via Unix domain sockets (AF_UNIX)~~
+7. ~~Encapsulates Golang's processing of the received real-time packet parsing results for Golang calling~~
+8. ~~Optimize code to resolve memory leaks~~
+9. ~~Stop real-time packet capture parsing~~
+10. Optimize memory leakage and improve the performance of real-time packet capture and parsing interfaces
+11. Support real-time capture of multiple devices, and can locate the handle according to the device name and close
