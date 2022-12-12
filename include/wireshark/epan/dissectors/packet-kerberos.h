@@ -20,7 +20,7 @@
 #ifndef __PACKET_KERBEROS_H
 #define __PACKET_KERBEROS_H
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

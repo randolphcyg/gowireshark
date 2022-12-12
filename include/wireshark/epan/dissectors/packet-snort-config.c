@@ -20,7 +20,7 @@
 #include <wsutil/report_message.h>
 
 #include "packet-snort-config.h"
-#include "ws_attributes.h"
+#include "include/ws_attributes.h"
 
 /* Forward declaration */
 static void parse_config_file(SnortConfig_t *snort_config, FILE *config_file_fd, const char *filename, const char *dirname, int recursion_level);

@@ -30,7 +30,7 @@
  */
 
 #include "rtp_audio_file.h"
-#include <ws_attributes.h>
+#include <include/ws_attributes.h>
 
 RtpAudioFile::RtpAudioFile(bool use_disk_for_temp, bool use_disk_for_frames):
       real_pos_(0)

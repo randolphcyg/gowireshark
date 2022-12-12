@@ -4,7 +4,7 @@
 > which can parse pcap packet files or listen to devices in real time and get protocol parsing results.
 
 - Based on libpcap 1.10.1, wireshark 4.0.2
-- Currently only Linux platform is supported
+- Currently only x86-64 platform is supported
 ---
 ## 1. Installation
 
@@ -37,7 +37,7 @@ how to test:
 
 ```shell
 cd tests/
-go test -v -run TestDissectFirstFrame
+go test -v -run TestDissectPrintFirstFrame
 ```
 
 how to dissect a pcap file:

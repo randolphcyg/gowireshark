@@ -19,7 +19,7 @@
 #define __TEXT_IMPORT_H__
 
 #include <stdio.h>
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #include <wiretap/wtap.h>
 

@@ -15,7 +15,7 @@
 #ifndef __WSGCRYPT_H__
 #define __WSGCRYPT_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 /* XXX: Turning off warnings here may not be necessary now that libgcrypt
  * 1.8.0 is the minimum version.

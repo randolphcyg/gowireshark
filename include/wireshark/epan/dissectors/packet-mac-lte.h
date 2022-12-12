@@ -16,7 +16,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* radioType */
 #define FDD_RADIO 1

@@ -11,7 +11,7 @@
 #ifndef IFACE_MONITOR_H
 #define IFACE_MONITOR_H
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -18,7 +18,7 @@
 #include <extcap/extcap-base.h>
 #include <string.h>
 #include <libssh/callbacks.h>
-#include <ws_attributes.h>
+#include <include/ws_attributes.h>
 #include <wsutil/wslog.h>
 
 static void extcap_log(int priority _U_, const char *function, const char *buffer, void *userdata _U_)

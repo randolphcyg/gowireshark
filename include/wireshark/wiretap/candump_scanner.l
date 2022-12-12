@@ -12,7 +12,7 @@
 %top {
 /* Include this before everything else, for various large-file definitions */
 #include "config.h"
-#include <wireshark.h>
+#include <include/wireshark.h>
 }
 
 %option reentrant
@@ -45,7 +45,7 @@
 
 %{
 
-#include <ws_diag_control.h>
+#include <include/ws_diag_control.h>
 #include <wiretap/file_wrappers.h>
 #include "candump_parser.h"
 #include "candump_priv.h"

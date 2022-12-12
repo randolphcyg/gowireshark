@@ -11,7 +11,7 @@
 #ifndef __DECODE_AS_H__
 #define __DECODE_AS_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #include "ftypes/ftypes.h"
 #include "packet_info.h"

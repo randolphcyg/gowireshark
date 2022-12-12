@@ -9,7 +9,7 @@
 #ifndef __WTAP_FILE_WRAPPERS_H__
 #define __WTAP_FILE_WRAPPERS_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 #include "wtap.h"
 #include <wsutil/file_util.h>
 

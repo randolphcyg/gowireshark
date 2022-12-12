@@ -13,7 +13,7 @@
 #define __PREFS_INT_H__
 
 #include <stdio.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 #include <epan/wmem_scopes.h>
 
 #ifdef __cplusplus

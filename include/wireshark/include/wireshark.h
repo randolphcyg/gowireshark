@@ -42,11 +42,11 @@
  */
 #include <ws_version.h>
 
-#include <ws_attributes.h>
-#include <ws_compiler_tests.h>
-#include <ws_diag_control.h>
-#include <ws_posix_compat.h>
-#include <ws_symbol_export.h>
+#include <include/ws_attributes.h>
+#include <include/ws_compiler_tests.h>
+#include <include/ws_diag_control.h>
+#include <include/ws_posix_compat.h>
+#include <include/ws_symbol_export.h>
 
 #include <wsutil/ws_assert.h>
 #include <wsutil/wslog.h>

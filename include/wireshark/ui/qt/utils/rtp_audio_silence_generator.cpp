@@ -8,7 +8,7 @@
  */
 
 #include "rtp_audio_silence_generator.h"
-#include <ws_attributes.h>
+#include <include/ws_attributes.h>
 
 AudioSilenceGenerator::AudioSilenceGenerator()
 {

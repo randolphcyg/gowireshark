@@ -13,7 +13,7 @@
 #include <glib.h>
 
 #include <string.h>
-#include <ws_attributes.h>
+#include <include/ws_attributes.h>
 #include <wsutil/feature_list.h>
 
 #ifdef HAVE_LIBPCAP

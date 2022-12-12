@@ -11,7 +11,7 @@
 
 #include <errno.h>
 
-#include <ws_diag_control.h>
+#include <include/ws_diag_control.h>
 
 #if WS_IS_AT_LEAST_GNUC_VERSION(12,1)
 DIAG_OFF(stringop-overflow)

@@ -22,7 +22,7 @@
 #include <wsutil/wmem/wmem_list.h>
 #include <wsutil/wmem/wmem_map.h>
 
-#include <ws_diag_control.h>
+#include <include/ws_diag_control.h>
 
 static wmem_allocator_t *test_scope;
 

@@ -3,7 +3,7 @@
 %top {
 /* Include this before everything else, for various large-file definitions */
 #include "config.h"
-#include <wireshark.h>
+#include <include/wireshark.h>
 }
 
 /*
