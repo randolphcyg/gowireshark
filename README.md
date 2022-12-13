@@ -24,15 +24,6 @@ sudo apt install libglib2.0-dev -y
 go get "github.com/randolphcyg/gowireshark"
 ```
 
-Due to GitHub file size limitation, dynamic link library files cannot be uploaded and can be downloaded from Alibaba Cloud Disk:
-
-> [gowireshark-libs](https://www.aliyundrive.com/s/j3aVfoFtHgp)
-
-This project will keep the dynamic link library corresponding to the latest stable version of wireshark, select according to the system version, 
-or compile the corresponding version of the dynamic link library according to this document.
-
-After downloading, put 9 wireshark dynamic link library files and 1 libpcap dynamic link library file into the /libs directory.
-
 how to test:
 
 ```shell
