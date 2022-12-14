@@ -370,6 +370,8 @@ void close_cf_live() {
 
   /* We have no file open. */
   cf_live.state = FILE_CLOSED;
+
+  ws_buffer_free(&cf_live.buf);
 }
 
 /**
@@ -488,7 +490,6 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   }
 
   // free all memory allocated
-  ws_buffer_free(&cf_live.buf);
   epan_dissect_cleanup(&edt);
   frame_data_destroy(&fd);
   wtap_rec_cleanup(&rec);
