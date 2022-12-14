@@ -518,6 +518,8 @@ int handle_pkt_live(char *device, int num, int promisc) {
   // init capture_file obj for live capture and dissect
   err = init_cf_live();
   if (err != 0) {
+    // close cf file for live capture
+    close_cf_live();
     return err;
   }
 
@@ -525,6 +527,8 @@ int handle_pkt_live(char *device, int num, int promisc) {
   handle = pcap_open_live(device, SNAP_LEN, promisc, 20, errBuf);
   if (!handle) {
     printf("pcap_open_live() couldn't open device: %s\n", errBuf);
+    // close cf file for live capture
+    close_cf_live();
     return 2;
   }
 
@@ -536,6 +540,8 @@ int handle_pkt_live(char *device, int num, int promisc) {
   pcap_loop(handle, num, process_packet_callback, NULL);
   // close libpcap device handler
   pcap_close(handle);
+  // close cf file for live capture
+  close_cf_live();
   // close socket
   close(sockfd);
 
