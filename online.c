@@ -419,16 +419,15 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   gchar *err_info = NULL;
   gint64 data_offset = 0;
   static guint32 cum_bytes = 0;
-  Buffer buf;
   frame_data fd;
   wtap_rec rec;
   epan_dissect_t edt;
 
-  ws_buffer_init(&buf, 1514);
+  ws_buffer_init(&cf_live.buf, 1514);
   wtap_rec_init(&rec);
   epan_dissect_init(&edt, cf_live.epan, TRUE, TRUE);
 
-  if (!prepare_data(&rec, &buf, &err, &err_info, pkthdr, packet,
+  if (!prepare_data(&rec, &cf_live.buf, &err, &err_info, pkthdr, packet,
                     &data_offset)) {
     printf("process_packet_callback:%s \n", "prepare_data err");
     return;
@@ -454,7 +453,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   // dissect pkg
   epan_dissect_run_with_taps(
       &edt, cf_live.cd_t, &rec,
-      frame_tvbuff_new_buffer(&cf_live.provider, &fd, &buf), &fd,
+      frame_tvbuff_new_buffer(&cf_live.provider, &fd, &cf_live.buf), &fd,
       &cf_live.cinfo);
 
   frame_data_set_after_dissect(&fd, &cum_bytes);
