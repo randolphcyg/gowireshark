@@ -40,11 +40,7 @@ int init_env() {
    *
    * Returns TRUE on success, FALSE on failure.
    */
-  gboolean init_epan_res;
-  init_epan_res = epan_init(NULL, NULL, 0);
-  if (init_epan_res) {
-    return 1;
-  } else {
+  if (!epan_init(NULL, NULL, FALSE)) {
     return 0;
   }
 
