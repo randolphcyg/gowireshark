@@ -248,8 +248,8 @@ apt install bison
    Modify all .c files in the root directory and all .h header files in the include/ directory (only the current directory is level 1, do not traverse down to find it):
    
    ```shell
-   find . -maxdepth 1 -name '*.c' | grep -v 'cJSON.c' | xargs  clang-format -i
-   find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | xargs  clang-format -i
+   find . -maxdepth 1 -name '*.c' | grep -v 'cJSON.c' | grep -v 'frame_tvbuff.c' | xargs clang-format -i
+   find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | grep -v 'frame_tvbuff.h' | xargs  clang-format -i
    ```
 6. how to test(cd tests/):
    ```shell
