@@ -41,7 +41,6 @@ void *init_sock_send(void *a) {
 // init Unix domain socket(AF_UNIX)
 void init_sock() {
   pthread_t send;
-  pthread_t recv;
   if (pthread_create(&send, NULL, init_sock_send, NULL) == -1) {
     printf("fail to create pthread send\n");
     exit(1);
@@ -175,30 +174,8 @@ pcap_t *handle;
 static frame_data prev_dis_frame;
 static frame_data prev_cap_frame;
 
-static void show_print_file_io_error(int err);
 int init_cf_live();
 void close_cf_live();
-
-static void show_print_file_io_error(int err) {
-  switch (err) {
-
-  case ENOSPC:
-    printf("Not all the packets could be printed because there is "
-           "no space left on the file system.");
-    break;
-
-#ifdef EDQUOT
-  case EDQUOT:
-    printf("Not all the packets could be printed because you are "
-           "too close to, or over your disk quota.");
-    break;
-#endif
-
-  default:
-    printf("An error occurred while printing packets: %s.", g_strerror(err));
-    break;
-  }
-}
 
 static const nstime_t *raw_get_frame_ts(struct packet_provider_data *prov,
                                         guint32 frame_num) {
@@ -430,16 +407,24 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 
   if (!prepare_data(&rec, &buf, &err, &err_info, pkthdr, packet,
                     &data_offset)) {
-    printf("process_packet_callback:%s \n", "prepare_data err");
+    printf("prepare_data err, frame Num:%lu\n",
+           (unsigned long int)cf_live.count);
+
+    // TODO how to free buf correctly
+    if (!buf.data) {
+      ws_buffer_free(&buf);
+    }
+
     return;
   }
 
   if (&rec.rec_header.packet_header.len == 0) {
-    printf("Header is null, frame No.%lu %" PRIu64 " %ls void -\n",
-           (unsigned long int)cf_live.count, (guint64)&rec.ts.secs,
-           &rec.ts.nsecs);
+    printf("Header is null, frame Num:%lu\n", (unsigned long int)cf_live.count);
 
-    fflush(stdout);
+    // TODO how to free buf correctly
+    if (!buf.data) {
+      ws_buffer_free(&buf);
+    }
 
     return;
   }
@@ -463,21 +448,10 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   prev_cap_frame = fd;
   cf_live.provider.prev_cap = &prev_cap_frame;
 
-  if (ferror(stdout)) {
-    show_print_file_io_error(errno);
-    exit(2);
-  }
-
   // transfer each pkt dissect result to json format
-  static pf_flags protocolfilter_flags = PF_NONE;
-  static proto_node_children_grouper_func node_children_grouper =
-      proto_node_group_children_by_unique;
-  protocolfilter_flags = PF_INCLUDE_CHILDREN;
-  node_children_grouper = proto_node_group_children_by_json_key;
-
   cJSON *proto_tree_json = get_proto_tree_json(
-      NULL, print_dissections_expanded, TRUE, NULL, protocolfilter_flags, &edt,
-      &cf_live.cinfo, node_children_grouper);
+      NULL, print_dissections_expanded, TRUE, NULL, PF_INCLUDE_CHILDREN, &edt,
+      &cf_live.cinfo, proto_node_group_children_by_json_key);
 
   char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
   int len = strlen(proto_tree_json_str);
@@ -485,15 +459,19 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   memcpy_safe(sock_buf, proto_tree_json_str, len, SOCKBUFFSIZE);
   if (sendto(sockfd, sock_buf, len, 0, (struct sockaddr *)&serveraddr,
              addrlen) < 0) {
-    printf("process_packet_callback: %s\n", "socket err, fail to sendto");
+    printf("socket err, fail to sendto, frame Num:%lu\n",
+           (unsigned long int)cf_live.count);
   }
 
   // free all memory allocated
   epan_dissect_cleanup(&edt);
   frame_data_destroy(&fd);
+
+  // TODO how to free buf correctly
   if (!buf.data) {
     ws_buffer_free(&buf);
   }
+
   wtap_rec_cleanup(&rec);
   cJSON_Delete(proto_tree_json);
   cJSON_free(proto_tree_json_str);
