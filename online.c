@@ -370,8 +370,6 @@ void close_cf_live() {
 
   /* We have no file open. */
   cf_live.state = FILE_CLOSED;
-
-  ws_buffer_free(&cf_live.buf);
 }
 
 /**
