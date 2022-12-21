@@ -494,9 +494,8 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   epan_dissect_cleanup(&edt);
   frame_data_destroy(&fd);
   if (!buf.data) {
-    g_free(buf.data);
+    ws_buffer_free(&buf);
   }
-  // ws_buffer_free(&buf);
   wtap_rec_cleanup(&rec);
   cJSON_Delete(proto_tree_json);
   cJSON_free(proto_tree_json_str);
