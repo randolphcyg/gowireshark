@@ -368,17 +368,6 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
   rec->rec_header.packet_header.len = pkthdr->len;
   rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_ETHERNET;
 
-  unsigned int bytes_needed = rec->rec_header.packet_header.caplen;
-
-  if (bytes_needed > WTAP_MAX_PACKET_SIZE_STANDARD) {
-    *err = WTAP_ERR_BAD_FILE;
-    *err_info =
-        ws_strdup_printf("Bad packet length: %lu", (unsigned long)bytes_needed);
-    return FALSE;
-  }
-
-  // assign space for buf
-  ws_buffer_assure_space(buf, bytes_needed);
   buf->data = packet;
 
   return TRUE;
@@ -410,10 +399,9 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
     printf("prepare_data err, frame Num:%lu\n",
            (unsigned long int)cf_live.count);
 
+    wtap_rec_cleanup(&rec);
     // TODO how to free buf correctly
-    if (!buf.data) {
-      ws_buffer_free(&buf);
-    }
+    ws_buffer_free(&buf);
 
     return;
   }
@@ -421,10 +409,9 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   if (&rec.rec_header.packet_header.len == 0) {
     printf("Header is null, frame Num:%lu\n", (unsigned long int)cf_live.count);
 
+    wtap_rec_cleanup(&rec);
     // TODO how to free buf correctly
-    if (!buf.data) {
-      ws_buffer_free(&buf);
-    }
+    ws_buffer_free(&buf);
 
     return;
   }
@@ -466,13 +453,11 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   // free all memory allocated
   epan_dissect_cleanup(&edt);
   frame_data_destroy(&fd);
+  wtap_rec_cleanup(&rec);
 
   // TODO how to free buf correctly
-  if (!buf.data) {
-    ws_buffer_free(&buf);
-  }
+  ws_buffer_free(&buf);
 
-  wtap_rec_cleanup(&rec);
   cJSON_Delete(proto_tree_json);
   cJSON_free(proto_tree_json_str);
 
