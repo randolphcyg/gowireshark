@@ -367,8 +367,14 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
   rec->rec_header.packet_header.caplen = pkthdr->caplen;
   rec->rec_header.packet_header.len = pkthdr->len;
   rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_ETHERNET;
-
+  // TODO how to fix this err
   buf->data = packet;
+
+  if (rec->rec_header.packet_header.len == 0) {
+    printf("Header is null, frame Num:%lu\n", (unsigned long int)cf_live.count);
+
+    return FALSE;
+  }
 
   return TRUE;
 }
@@ -387,31 +393,19 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   static guint32 cum_bytes = 0;
   frame_data fd;
   wtap_rec rec;
-  Buffer buf;
   epan_dissect_t edt;
 
   wtap_rec_init(&rec);
-  ws_buffer_init(&buf, 1514);
+  ws_buffer_init(&cf_live.buf, 1514);
   epan_dissect_init(&edt, cf_live.epan, TRUE, TRUE);
 
-  if (!prepare_data(&rec, &buf, &err, &err_info, pkthdr, packet,
+  if (!prepare_data(&rec, &cf_live.buf, &err, &err_info, pkthdr, packet,
                     &data_offset)) {
     printf("prepare_data err, frame Num:%lu\n",
            (unsigned long int)cf_live.count);
 
     wtap_rec_cleanup(&rec);
-    // TODO how to free buf correctly
-    ws_buffer_free(&buf);
-
-    return;
-  }
-
-  if (&rec.rec_header.packet_header.len == 0) {
-    printf("Header is null, frame Num:%lu\n", (unsigned long int)cf_live.count);
-
-    wtap_rec_cleanup(&rec);
-    // TODO how to free buf correctly
-    ws_buffer_free(&buf);
+    ws_buffer_free(&cf_live.buf);
 
     return;
   }
@@ -426,7 +420,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   // dissect pkg
   epan_dissect_run_with_taps(
       &edt, cf_live.cd_t, &rec,
-      frame_tvbuff_new_buffer(&cf_live.provider, &fd, &buf), &fd,
+      frame_tvbuff_new_buffer(&cf_live.provider, &fd, &cf_live.buf), &fd,
       &cf_live.cinfo);
 
   frame_data_set_after_dissect(&fd, &cum_bytes);
@@ -451,15 +445,12 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   }
 
   // free all memory allocated
+  cJSON_free(proto_tree_json_str);
+  cJSON_Delete(proto_tree_json);
   epan_dissect_cleanup(&edt);
   frame_data_destroy(&fd);
   wtap_rec_cleanup(&rec);
-
-  // TODO how to free buf correctly
-  ws_buffer_free(&buf);
-
-  cJSON_Delete(proto_tree_json);
-  cJSON_free(proto_tree_json_str);
+  ws_buffer_free(&cf_live.buf);
 
   return;
 }
