@@ -368,7 +368,7 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
   rec->rec_header.packet_header.len = pkthdr->len;
   rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_ETHERNET;
   // TODO how to fix this err
-  buf->data = packet;
+  buf->data = (guint8 *)packet;
 
   if (rec->rec_header.packet_header.len == 0) {
     printf("Header is null, frame Num:%lu\n", (unsigned long int)cf_live.count);
