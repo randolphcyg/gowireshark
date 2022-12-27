@@ -393,19 +393,20 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   static guint32 cum_bytes = 0;
   frame_data fd;
   wtap_rec rec;
+  Buffer buf;
   epan_dissect_t edt;
 
   wtap_rec_init(&rec);
-  ws_buffer_init(&cf_live.buf, 1514);
+  ws_buffer_init(&buf, 1514);
   epan_dissect_init(&edt, cf_live.epan, TRUE, TRUE);
 
-  if (!prepare_data(&rec, &cf_live.buf, &err, &err_info, pkthdr, packet,
+  if (!prepare_data(&rec, &buf, &err, &err_info, pkthdr, packet,
                     &data_offset)) {
     printf("prepare_data err, frame Num:%lu\n",
            (unsigned long int)cf_live.count);
 
     wtap_rec_cleanup(&rec);
-    ws_buffer_free(&cf_live.buf);
+    ws_buffer_free(&buf);
 
     return;
   }
@@ -420,7 +421,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   // dissect pkg
   epan_dissect_run_with_taps(
       &edt, cf_live.cd_t, &rec,
-      frame_tvbuff_new_buffer(&cf_live.provider, &fd, &cf_live.buf), &fd,
+      frame_tvbuff_new_buffer(&cf_live.provider, &fd, &buf), &fd,
       &cf_live.cinfo);
 
   frame_data_set_after_dissect(&fd, &cum_bytes);
@@ -449,8 +450,8 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   cJSON_Delete(proto_tree_json);
   epan_dissect_cleanup(&edt);
   frame_data_destroy(&fd);
+  ws_buffer_free(&buf);
   wtap_rec_cleanup(&rec);
-  ws_buffer_free(&cf_live.buf);
 
   return;
 }
