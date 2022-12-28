@@ -4,13 +4,11 @@
 > which can parse pcap packet files or listen to devices in real time and get protocol parsing results.
 
 - Based on libpcap 1.10.1, wireshark 4.0.2
-- Currently only x86-64 platform is supported
 ---
 ## 1. Installation
 
 ---
 ### 1.1. Requirements
-- x86-64
 - glib-2.0
 
 ```shell
