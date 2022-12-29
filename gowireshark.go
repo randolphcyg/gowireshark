@@ -477,7 +477,6 @@ func DissectPktLive(device string, num int, promisc int) (err error) {
 func StopDissectPktLive() (err error) {
 	errMsg := C.stop_dissect_capture_pkg()
 	if C.strlen(errMsg) != 0 {
-		defer C.free(unsafe.Pointer(errMsg))
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)
 		err = errors.Errorf("fail to stop capture packet live:%s", errMsgStr)
