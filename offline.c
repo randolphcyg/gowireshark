@@ -254,11 +254,6 @@ static const guint8 *get_field_data(GSList *src_list, field_info *fi) {
  * dissect proto tree in json format
  */
 
-// proto tree result
-cJSON *proto_tree_json = NULL;
-// json obj layers
-cJSON *layers = NULL;
-
 typedef void (*proto_node_value_writer)(proto_node *, write_json_data *);
 
 static void write_json_proto_node_list(GSList *proto_node_list_head,
@@ -532,7 +527,7 @@ static void write_json_proto_node_children(proto_node *node,
   g_slist_free_full(grouped_children_list, (GDestroyNotify)g_slist_free);
 }
 
-static void write_json_index(epan_dissect_t *edt) {
+static void write_json_index(epan_dissect_t *edt, cJSON *proto_tree_json) {
   char ts[30];
   struct tm *timeinfo;
   gchar *str;
@@ -556,18 +551,17 @@ static void write_json_index(epan_dissect_t *edt) {
  *  @param cinfo column_info type
  *  @return char of protocol tree json
  */
-cJSON *
-get_proto_tree_json(output_fields_t *fields,
-                    print_dissections_e print_dissections, gboolean print_hex,
-                    gchar **protocolfilter, pf_flags protocolfilter_flags,
-                    epan_dissect_t *edt, column_info *cinfo,
-                    proto_node_children_grouper_func node_children_grouper) {
+void get_proto_tree_json(output_fields_t *fields,
+                         print_dissections_e print_dissections,
+                         gboolean print_hex, gchar **protocolfilter,
+                         pf_flags protocolfilter_flags, epan_dissect_t *edt,
+                         column_info *cinfo,
+                         proto_node_children_grouper_func node_children_grouper,
+                         cJSON *proto_tree_json) {
   write_json_data data;
 
-  // json root node
-  proto_tree_json = cJSON_CreateObject();
   // set json obj common value
-  write_json_index(edt);
+  write_json_index(edt, proto_tree_json);
   cJSON_AddStringToObject(proto_tree_json, "_type", "doc");
   cJSON *cjson_score = cJSON_CreateObject();
   cJSON_AddItemToObject(proto_tree_json, "_score", cjson_score);
@@ -586,7 +580,7 @@ get_proto_tree_json(output_fields_t *fields,
   cJSON_AddItemToObject(proto_tree_json, "_source", cjson_source);
 
   // add layers node
-  layers = cJSON_CreateObject();
+  cJSON *layers = cJSON_CreateObject();
   cJSON_AddItemToObject(cjson_source, "layers", layers);
 
   if (fields == NULL || fields->fields == NULL) {
@@ -604,5 +598,5 @@ get_proto_tree_json(output_fields_t *fields,
     write_json_proto_node_children(edt->tree, &data, layers);
   }
 
-  return proto_tree_json;
+  return;
 }
