@@ -10,6 +10,6 @@ int get_if_nonblock_status(char *device);
 // Set interface nonblock status
 int set_if_nonblock_status(char *device, int nonblock);
 // Capture and dissect packet in real time
-int handle_pkt_live(char *device, int num, int promisc);
+int handle_pkt_live(char *device, int num, int promisc, int to_ms);
 // Stop capture packet live、 free all memory allocated、close socket.
 char *stop_dissect_capture_pkg();

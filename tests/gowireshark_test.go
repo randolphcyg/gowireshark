@@ -235,6 +235,7 @@ func TestDissectPktLiveInfinite(t *testing.T) {
 	ifName := "enp0s5"
 	pktNum := -1
 	promisc := 1
+	timeout := 20
 	livePkgCount := 0
 
 	// socket server: start socket server and wait data to come
@@ -258,7 +259,7 @@ func TestDissectPktLiveInfinite(t *testing.T) {
 	}()
 
 	// start socket client, capture and dissect packet.
-	err = gowireshark.DissectPktLive(ifName, pktNum, promisc)
+	err = gowireshark.DissectPktLive(ifName, pktNum, promisc, timeout)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -275,6 +276,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	ifName := "enp0s5"
 	pktNum := 20
 	promisc := 1
+	timeout := 20
 	livePkgCount := 0
 
 	// socket server: start socket server and wait data to come
@@ -298,7 +300,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	}()
 
 	// start socket client, capture and dissect packet.
-	err = gowireshark.DissectPktLive(ifName, pktNum, promisc)
+	err = gowireshark.DissectPktLive(ifName, pktNum, promisc, timeout)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -311,6 +313,7 @@ func TestStopDissectPktLive(t *testing.T) {
 	ifName := "enp0s5"
 	pktNum := -1
 	promisc := 1
+	timeout := 20
 	livePkgCount := 0
 
 	// socket server: start socket server and wait data to come
@@ -348,7 +351,7 @@ func TestStopDissectPktLive(t *testing.T) {
 
 	fmt.Println("start c client, start capture function")
 	// start socket client, capture and dissect packet.
-	err = gowireshark.DissectPktLive(ifName, pktNum, promisc)
+	err = gowireshark.DissectPktLive(ifName, pktNum, promisc, timeout)
 	if err != nil {
 		fmt.Println(err)
 	}
