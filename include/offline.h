@@ -9,9 +9,10 @@ gboolean get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset,
 
 // get_proto_tree_json get proto tree dissect result and transfer
 // it to json format (include hex data)
-cJSON *
-get_proto_tree_json(output_fields_t *fields,
-                    print_dissections_e print_dissections, gboolean print_hex,
-                    gchar **protocolfilter, pf_flags protocolfilter_flags,
-                    epan_dissect_t *edt, column_info *cinfo,
-                    proto_node_children_grouper_func node_children_grouper);
+void get_proto_tree_json(output_fields_t *fields,
+                         print_dissections_e print_dissections,
+                         gboolean print_hex, gchar **protocolfilter,
+                         pf_flags protocolfilter_flags, epan_dissect_t *edt,
+                         column_info *cinfo,
+                         proto_node_children_grouper_func node_children_grouper,
+                         cJSON *proto_tree_json);

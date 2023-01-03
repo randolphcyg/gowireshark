@@ -431,11 +431,13 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   cf_live.provider.prev_cap = &prev_cap_frame;
 
   // transfer each pkt dissect result to json format
-  cJSON *proto_tree_json = get_proto_tree_json(
-      NULL, print_dissections_expanded, TRUE, NULL, PF_INCLUDE_CHILDREN, &edt,
-      &cf_live.cinfo, proto_node_group_children_by_json_key);
+  cJSON *proto_tree_json = cJSON_CreateObject();
+  get_proto_tree_json(NULL, print_dissections_expanded, TRUE, NULL,
+                      PF_INCLUDE_CHILDREN, &edt, &cf_live.cinfo,
+                      proto_node_group_children_by_json_key, proto_tree_json);
 
   char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
+
   int len = strlen(proto_tree_json_str);
   memset(sock_buf, 0, len);
   memcpy_safe(sock_buf, proto_tree_json_str, len, SOCKBUFFSIZE);
