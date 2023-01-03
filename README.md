@@ -275,5 +275,4 @@ apt install bison
 7. ~~Encapsulates Golang's processing of the received real-time packet parsing results for Golang calling~~
 8. ~~Optimize code to resolve memory leaks~~
 9. ~~Stop real-time packet capture parsing~~
-10. Optimize memory leakage and improve the performance of real-time packet capture and parsing interfaces
-11. Support real-time capture of multiple devices, and can locate the handle according to the device name and close
+10. ~~Optimize memory leakage and improve the performance of real-time packet capture and parsing interfaces~~
