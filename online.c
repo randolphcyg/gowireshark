@@ -367,8 +367,9 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
   rec->rec_header.packet_header.caplen = pkthdr->caplen;
   rec->rec_header.packet_header.len = pkthdr->len;
   rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_ETHERNET;
-  // TODO how to fix this err
-  buf->data = (guint8 *)packet;
+
+  int length = strlen((char *)packet);
+  memcpy(buf->data, packet, length);
 
   if (rec->rec_header.packet_header.len == 0) {
     printf("Header is null, frame Num:%lu\n", (unsigned long int)cf_live.count);
@@ -467,7 +468,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  * indicates a promiscuous mode.
  *  @return correct: 0; error: 2;
  */
-int handle_pkt_live(char *device, int num, int promisc) {
+int handle_pkt_live(char *device, int num, int promisc, int to_ms) {
   int err = 0;
   char errBuf[PCAP_ERRBUF_SIZE], *devStr;
   // Save the starting address of the received packet
@@ -483,7 +484,7 @@ int handle_pkt_live(char *device, int num, int promisc) {
   }
 
   // open device
-  handle = pcap_open_live(device, SNAP_LEN, promisc, 20, errBuf);
+  handle = pcap_open_live(device, SNAP_LEN, promisc, to_ms, errBuf);
   if (!handle) {
     printf("pcap_open_live() couldn't open device: %s\n", errBuf);
     // close cf file for live capture
