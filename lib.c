@@ -413,9 +413,11 @@ char *proto_tree_in_json(int num) {
     node_children_grouper =
         proto_node_group_children_by_json_key; // proto_node_group_children_by_unique
 
-    cJSON *proto_tree_json = get_proto_tree_json(
-        NULL, print_dissections_expanded, TRUE, NULL, protocolfilter_flags, edt,
-        &cf.cinfo, node_children_grouper);
+    // json root node
+    cJSON *proto_tree_json = cJSON_CreateObject();
+    get_proto_tree_json(NULL, print_dissections_expanded, TRUE, NULL,
+                        protocolfilter_flags, edt, &cf.cinfo,
+                        node_children_grouper, proto_tree_json);
     char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
     cJSON_Delete(proto_tree_json);
 
