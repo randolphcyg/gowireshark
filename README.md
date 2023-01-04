@@ -3,7 +3,7 @@
 > Gowireshark is a Golang library that allows our Golang program to have wireshark's protocol parsing capabilities, 
 > which can parse pcap packet files or listen to devices in real time and get protocol parsing results.
 
-- Based on libpcap 1.10.1, wireshark 4.0.2
+- Based on libpcap 1.10.2, wireshark 4.0.2
 ---
 ## 1. Installation
 
@@ -93,7 +93,7 @@ gowireshark
 ```
 Detailed description of the project directory structure：
 - **include/wireshark/** wireshark compiled source code.
-- **include/libpcap/** libpcap compiled source code.
+- **include/libpcap/** libpcap uncompiled source code.
 - **libs/** wireshark、libpcap dll files.
 - **pcaps/** pcap packet files used for testing.
 - **tests/** test files.
@@ -208,7 +208,7 @@ tree -L 2 -F gowireshark
 
 ```
 cd /opt
-export PCAPV=1.10.1
+export PCAPV=1.10.2
 wget http://www.tcpdump.org/release/libpcap-$PCAPV.tar.gz
 tar -zxvf libpcap-$PCAPV.tar.gz
 cd libpcap-$PCAPV
@@ -217,10 +217,12 @@ export CC=aarch64-linux-gnu-gcc
 # Remember to install the flex、bison library and remove the extra manifest and syso files
 make
 
+------
 # If there is no bison library, please install it
 apt install bison
+------
 
-# After the compilation is completed, modify 【libpcap.so.1.10.1】 to 【libpcap.so.1】, 
+# After the compilation is completed, modify 【libpcap.so.1.10.2】 to 【libpcap.so.1】, 
 # you can call the dynamic link library in the go code, and the required operations are:
 
 // Importing the libpcap library will find a dynamic link library named libpcap.so.1 in the libs directory
