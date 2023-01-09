@@ -428,7 +428,6 @@ func RunSock() (err error) {
 	addr, err := net.ResolveUnixAddr("unixgram", SOCKSERVERPATH)
 	if err != nil {
 		panic("ResolveUnixAddr fail:" + err.Error())
-		return
 	}
 
 	syscall.Unlink(SOCKSERVERPATH)

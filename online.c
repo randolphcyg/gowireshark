@@ -25,11 +25,11 @@ struct sockaddr_un serveraddr;
 struct sockaddr_un clientaddr;
 socklen_t addrlen = sizeof(clientaddr);
 
-void *init_sock_send(void *a);
+void *init_sock_send(void *arg);
 void init_sock();
 
 // init Unix domain socket(AF_UNIX) send data func
-void *init_sock_send(void *a) {
+void *init_sock_send(void *arg) {
   if ((sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
     printf("fail to socket\n");
     exit(1);
@@ -470,10 +470,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  */
 int handle_pkt_live(char *device, int num, int promisc, int to_ms) {
   int err = 0;
-  char errBuf[PCAP_ERRBUF_SIZE], *devStr;
-  // Save the starting address of the received packet
-  const unsigned char *p_packet_content = NULL;
-  struct pcap_pkthdr protocol_header;
+  char errBuf[PCAP_ERRBUF_SIZE];
 
   // init capture_file obj for live capture and dissect
   err = init_cf_live();
