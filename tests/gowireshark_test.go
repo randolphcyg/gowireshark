@@ -3,6 +3,7 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -232,14 +233,24 @@ Set the num parameter of the DissectPktLive function to -1
 to process packets in an infinite loop.
 */
 func TestDissectPktLiveInfinite(t *testing.T) {
+	sockServerPath := "/tmp/gsocket"
+	// sockBuffSize The maximum length of packet detail data transmitted by the Unix domain socket;
+	// Beyond this length will be safely truncated at c; The truncated data will not be properly deserialized into a golang struct.
+	sockBuffSize := 655350
 	ifName := "enp0s5"
 	pktNum := -1
 	promisc := 1
 	timeout := 20
 	livePkgCount := 0
 
+	// UnixListener socket server listener
+	var UnixListener *net.UnixConn
+
+	// PkgDetailLiveChan put pkg detail struct into go pipe
+	var PkgDetailLiveChan = make(chan gowireshark.FrameDissectRes, 1000)
+
 	// socket server: start socket server and wait data to come
-	err := gowireshark.RunSock()
+	err := gowireshark.RunSock(sockServerPath, sockBuffSize, UnixListener, PkgDetailLiveChan)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -248,7 +259,7 @@ func TestDissectPktLiveInfinite(t *testing.T) {
 	go func() {
 		for {
 			select {
-			case pkg := <-gowireshark.PkgDetailLiveChan:
+			case pkg := <-PkgDetailLiveChan:
 				livePkgCount++
 				pkgByte, _ := json.Marshal(pkg)
 				fmt.Printf("Processed pkg:【%d】pkg len:【%d】\n", livePkgCount, len(pkgByte))
@@ -259,7 +270,7 @@ func TestDissectPktLiveInfinite(t *testing.T) {
 	}()
 
 	// start socket client, capture and dissect packet.
-	err = gowireshark.DissectPktLive(ifName, pktNum, promisc, timeout)
+	err = gowireshark.DissectPktLive(ifName, sockServerPath, pktNum, promisc, timeout)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -273,14 +284,24 @@ Set the num parameter of the DissectPktLive function to a specific num like 20
 to process packets in a limited loop.
 */
 func TestDissectPktLiveSpecificNum(t *testing.T) {
+	sockServerPath := "/tmp/gsocket"
+	// sockBuffSize The maximum length of packet detail data transmitted by the Unix domain socket;
+	// Beyond this length will be safely truncated at c; The truncated data will not be properly deserialized into a golang struct.
+	sockBuffSize := 655350
 	ifName := "enp0s5"
 	pktNum := 20
 	promisc := 1
 	timeout := 20
 	livePkgCount := 0
 
+	// UnixListener socket server listener
+	var UnixListener *net.UnixConn
+
+	// PkgDetailLiveChan put pkg detail struct into go pipe
+	var PkgDetailLiveChan = make(chan gowireshark.FrameDissectRes, 1000)
+
 	// socket server: start socket server and wait data to come
-	err := gowireshark.RunSock()
+	err := gowireshark.RunSock(sockServerPath, sockBuffSize, UnixListener, PkgDetailLiveChan)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -289,7 +310,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	go func() {
 		for {
 			select {
-			case pkg := <-gowireshark.PkgDetailLiveChan:
+			case pkg := <-PkgDetailLiveChan:
 				livePkgCount++
 				pkgByte, _ := json.Marshal(pkg)
 				fmt.Printf("Processed pkg:【%d】pkg len:【%d】\n", livePkgCount, len(pkgByte))
@@ -300,7 +321,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	}()
 
 	// start socket client, capture and dissect packet.
-	err = gowireshark.DissectPktLive(ifName, pktNum, promisc, timeout)
+	err = gowireshark.DissectPktLive(ifName, sockServerPath, pktNum, promisc, timeout)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -310,14 +331,24 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 }
 
 func TestStopDissectPktLive(t *testing.T) {
+	sockServerPath := "/tmp/gsocket"
 	ifName := "enp0s5"
+	// sockBuffSize The maximum length of packet detail data transmitted by the Unix domain socket;
+	// Beyond this length will be safely truncated at c; The truncated data will not be properly deserialized into a golang struct.
+	sockBuffSize := 655350
 	pktNum := -1
 	promisc := 1
 	timeout := 20
 	livePkgCount := 0
 
+	// UnixListener socket server listener
+	var UnixListener *net.UnixConn
+
+	// PkgDetailLiveChan put pkg detail struct into go pipe
+	var PkgDetailLiveChan = make(chan gowireshark.FrameDissectRes, 1000)
+
 	// socket server: start socket server and wait data to come
-	err := gowireshark.RunSock()
+	err := gowireshark.RunSock(sockServerPath, sockBuffSize, UnixListener, PkgDetailLiveChan)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -328,7 +359,7 @@ func TestStopDissectPktLive(t *testing.T) {
 	go func() {
 		for {
 			select {
-			case pkg := <-gowireshark.PkgDetailLiveChan:
+			case pkg := <-PkgDetailLiveChan:
 				//time.Sleep(time.Millisecond * 200)
 				livePkgCount++
 				pkgByte, _ := json.Marshal(pkg)
@@ -342,7 +373,7 @@ func TestStopDissectPktLive(t *testing.T) {
 	go func() {
 		fmt.Println("Simulate manual stop real-time packet capture!")
 		time.Sleep(time.Second * 2)
-		err := gowireshark.StopDissectPktLive()
+		err := gowireshark.StopDissectPktLive(ifName)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -351,7 +382,7 @@ func TestStopDissectPktLive(t *testing.T) {
 
 	fmt.Println("start c client, start capture function")
 	// start socket client, capture and dissect packet.
-	err = gowireshark.DissectPktLive(ifName, pktNum, promisc, timeout)
+	err = gowireshark.DissectPktLive(ifName, sockServerPath, pktNum, promisc, timeout)
 	if err != nil {
 		fmt.Println(err)
 	}

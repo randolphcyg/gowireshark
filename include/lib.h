@@ -18,12 +18,10 @@
 #include <wsutil/json_dumper.h>
 #include <wsutil/nstime.h>
 #include <wsutil/privileges.h>
-// Init policies、wtap mod、epan mod.
+// Init policies、wtap mod、epan mod
 int init_env();
 // Init capture file
 int init_cf(char *filename);
-// Read each frame
-gboolean read_packet(epan_dissect_t **edt_r);
 // Dissect and print all frames
 void print_all_frame();
 // Dissect and print the first frame

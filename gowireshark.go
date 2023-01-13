@@ -29,12 +29,10 @@ package gowireshark
 #include <wsutil/nstime.h>
 #include <wsutil/privileges.h>
 #include <epan/tap.h>
-// Init policies、wtap mod、epan mod.
+// Init policies、wtap mod、epan mod
 int init_env();
 // Init capture file
 int init_cf(char *filename);
-// Read each frame
-gboolean read_packet(epan_dissect_t **edt_r);
 // Dissect and print all frames
 void print_all_frame();
 // Dissect and print the first frame
@@ -50,13 +48,13 @@ char *proto_tree_in_json(int num);
 // Get interface list
 char *get_if_list();
 // Get interface nonblock status
-int get_if_nonblock_status(char *device);
+int get_if_nonblock_status(char *device_name);
 // Set interface nonblock status
-int set_if_nonblock_status(char *device, int nonblock);
+int set_if_nonblock_status(char *device_name, int nonblock);
 // Capture and dissect packet in real time
-int handle_pkt_live(char *device, int num, int promisc, int to_ms);
+char *handle_pkt_live(char *device_name, char *sock_server_path, int num, int promisc, int to_ms);
 // Stop capture packet live and free all memory allocated
-char *stop_dissect_capture_pkg();
+char *stop_dissect_capture_pkg(char *device_name);
 */
 import "C"
 import (
@@ -85,24 +83,11 @@ var (
 // result of a single data packet, which is convenient for converting c char to go string
 const SINGLEPKTMAXLEN = 6553500
 
-// SOCKSERVERPATH socket server path
-const SOCKSERVERPATH string = "/tmp/gsocket"
-
-// SOCKBUFFSIZE The maximum length of packet detail data transmitted by the Unix domain socket;
-// Beyond this length will be safely truncated at c; The truncated data will not be properly deserialized into a golang struct.
-const SOCKBUFFSIZE = 655350
-
-// PkgDetailLiveChan put pkg detail struct into go pipe
-var PkgDetailLiveChan = make(chan FrameDissectRes, 1000)
-
-// UnixListener socket server listener
-var UnixListener *net.UnixConn
-
 func init() {
 	// Init policies、wtap mod、epan mod.
 	initEnvRes := C.init_env()
 	if initEnvRes == 0 {
-		panic("init env failed")
+		panic("fail to init env")
 	}
 }
 
@@ -113,16 +98,15 @@ func isFileExist(path string) bool {
 }
 
 // CChar2GoStr C string -> Go string
-func CChar2GoStr(src *C.char) (res string) {
-	var s0 string
-	var s0Hdr = (*reflect.StringHeader)(unsafe.Pointer(&s0))
-	s0Hdr.Data = uintptr(unsafe.Pointer(src))
-	s0Hdr.Len = int(C.strlen(src))
+func CChar2GoStr(src *C.char) string {
+	var s string
+	var sHdr = (*reflect.StringHeader)(unsafe.Pointer(&s))
+	sHdr.Data = uintptr(unsafe.Pointer(src))
+	sHdr.Len = int(C.strlen(src))
 
 	sLen := int(C.strlen(src))
-	s1 := string((*[SINGLEPKTMAXLEN]byte)(unsafe.Pointer(src))[:sLen:sLen])
 
-	return s1
+	return string((*[SINGLEPKTMAXLEN]byte)(unsafe.Pointer(src))[:sLen:sLen])
 }
 
 // EpanVersion get epan module's version
@@ -315,6 +299,7 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int) (allFrameDis
 		singleFrameData, err := UnmarshalDissectResult(srcFrameStr)
 		if err != nil {
 			err = errors.Wrap(ErrUnmarshalObj, "Frame num "+strconv.Itoa(counter))
+			fmt.Println(err)
 			break
 		}
 		allFrameDissectRes[strconv.Itoa(counter)] = singleFrameData
@@ -350,6 +335,7 @@ func GetAllFrameProtoTreeInJson(inputFilepath string) (allFrameDissectRes map[st
 		singleFrameData, err := UnmarshalDissectResult(srcFrameStr)
 		if err != nil {
 			err = errors.Wrap(ErrUnmarshalObj, "Frame num "+strconv.Itoa(counter))
+			fmt.Println(err)
 			break
 		}
 		allFrameDissectRes[strconv.Itoa(counter)] = singleFrameData
@@ -391,8 +377,8 @@ func GetIfaceList() (res map[string]IFace, err error) {
 }
 
 // GetIfaceNonblockStatus Get interface nonblock status
-func GetIfaceNonblockStatus(device string) (isNonblock bool, err error) {
-	nonblockStatus := C.get_if_nonblock_status(C.CString(device))
+func GetIfaceNonblockStatus(deviceName string) (isNonblock bool, err error) {
+	nonblockStatus := C.get_if_nonblock_status(C.CString(deviceName))
 	if nonblockStatus == 0 {
 		isNonblock = false
 	} else if nonblockStatus == 1 {
@@ -405,13 +391,13 @@ func GetIfaceNonblockStatus(device string) (isNonblock bool, err error) {
 }
 
 // SetIfaceNonblockStatus Set interface nonblock status
-func SetIfaceNonblockStatus(device string, isNonblock bool) (status bool, err error) {
+func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, err error) {
 	setNonblockCode := 0
 	if isNonblock {
 		setNonblockCode = 1
 	}
 
-	nonblockStatus := C.set_if_nonblock_status(C.CString(device), C.int(setNonblockCode))
+	nonblockStatus := C.set_if_nonblock_status(C.CString(deviceName), C.int(setNonblockCode))
 	if nonblockStatus == 0 {
 		status = false
 	} else if nonblockStatus == 1 {
@@ -424,34 +410,38 @@ func SetIfaceNonblockStatus(device string, isNonblock bool) (status bool, err er
 }
 
 // RunSock Unix domain socket(AF_UNIX) server:  start socket and read data.
-func RunSock() (err error) {
-	addr, err := net.ResolveUnixAddr("unixgram", SOCKSERVERPATH)
+func RunSock(sockServerPath string, sockBuffSize int, listener *net.UnixConn, pkgChan chan FrameDissectRes) (err error) {
+	addr, err := net.ResolveUnixAddr("unixgram", sockServerPath)
 	if err != nil {
-		panic("ResolveUnixAddr fail:" + err.Error())
+		err = errors.Wrap(err, "fail to resolve UnixAddr")
+		panic(err)
 	}
 
-	syscall.Unlink(SOCKSERVERPATH)
-
-	UnixListener, err = net.ListenUnixgram("unixgram", addr)
-	if err != nil {
-		err = errors.Wrap(err, "ListenUnixgram fail")
-		return
+	syscall.Unlink(sockServerPath)
+	if listener == nil {
+		listener, err = net.ListenUnixgram("unixgram", addr)
+		if err != nil {
+			err = errors.Wrap(err, "fail to start Unix domain socket(AF_UNIX) server")
+			return
+		}
 	}
 
 	// read data from c client
-	go readSock(UnixListener)
+	go readSock(listener, pkgChan, sockBuffSize)
 
 	return
 }
 
 // readSock Unix domain socket(AF_UNIX) server: read data func
-func readSock(listener *net.UnixConn) {
+func readSock(listener *net.UnixConn, pkgChan chan FrameDissectRes, sockBuffSize int) {
 	for {
-		buf := make([]byte, SOCKBUFFSIZE)
+		buf := make([]byte, sockBuffSize)
 		size, _, err := listener.ReadFromUnix(buf)
 		if err != nil {
-			panic("start unix domain fail:" + err.Error())
+			err = errors.Wrap(err, "fail to read from Unix domain socket(AF_UNIX) client")
+			panic(err)
 		}
+
 		// handle each pkg
 		// unmarshal dissect result
 		singleFrameData, err := UnmarshalDissectResult(string(buf[:size]))
@@ -459,22 +449,28 @@ func readSock(listener *net.UnixConn) {
 			err = errors.Wrap(ErrUnmarshalObj, "WsIndex: "+singleFrameData.WsIndex)
 			fmt.Println(err)
 		}
+
 		// write packet dissect result to go pipe
-		PkgDetailLiveChan <- singleFrameData
+		pkgChan <- singleFrameData
 	}
 }
 
 // DissectPktLive start Unix domain socket(AF_UNIX) client, capture and dissect packet.
 // promisc: 0 indicates a non-promiscuous mode, and any other value indicates a promiscuous mode
-func DissectPktLive(device string, num, promisc, timeout int) (err error) {
-	C.handle_pkt_live(C.CString(device), C.int(num), C.int(promisc), C.int(timeout))
-
+func DissectPktLive(deviceName, sockServerPath string, num, promisc, timeout int) (err error) {
+	errMsg := C.handle_pkt_live(C.CString(deviceName), C.CString(sockServerPath), C.int(num), C.int(promisc), C.int(timeout))
+	if C.strlen(errMsg) != 0 {
+		// transfer c char to go string
+		errMsgStr := CChar2GoStr(errMsg)
+		err = errors.Errorf("fail to capture packet live:%s", errMsgStr)
+		return
+	}
 	return
 }
 
 // StopDissectPktLive Stop capture packet live、 free all memory allocated、close socket.
-func StopDissectPktLive() (err error) {
-	errMsg := C.stop_dissect_capture_pkg()
+func StopDissectPktLive(deviceName string) (err error) {
+	errMsg := C.stop_dissect_capture_pkg(C.CString(deviceName))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)
