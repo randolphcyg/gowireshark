@@ -75,6 +75,7 @@ Other examples can refer to the [test file](https://github.com/randolphcyg/gowir
 ### 2.1. Project directory
 ```
 gowireshark
+├── README-zh.md
 ├── README.md
 ├── cJSON.c
 ├── frame_tvbuff.c
@@ -88,6 +89,7 @@ gowireshark
 │   ├── libpcap/
 │   ├── offline.h
 │   ├── online.h
+│   ├── uthash.h
 │   └── wireshark/
 ├── lib.c
 ├── libs/
@@ -119,6 +121,7 @@ Detailed description of the project directory structure：
 | `libs/`                                   | wireshark、libpcap latest dll files                                                          |
 | `pcaps/`                                  | Pcap packet files used for testing                                                          |
 | `tests/`                                  | Test files                                                                                  |
+| `uthash.h`                                | Third-party [uthash](https://github.com/troydhanson/uthash) library                         |
 | `cJSON.c、cJSON.h`                         | Third-party [cJSON](https://github.com/DaveGamble/cJSON) library                            |
 | `lib.c、offline.c、online.c`                | Code that encapsulates and enhances libpcap and wireshark functionality in C                |
 | `include/lib.h、offline.h、online.h`        | Some c interfaces exposed to go                                                             |
@@ -314,7 +317,7 @@ apt install bison
 - [x] Optimize code to resolve memory leaks
 - [x] Stop real-time packet capture parsing
 - [x] Optimize memory leakage and improve the performance of real-time packet capture and parsing interfaces
-- [ ] :punch: Supports packet capture for multiple devices and stops packet capture based on device name
+- [ ] :punch: Supports packet capture for multiple devices and stops packet capture based on device name (TODO Bugs to be fixed)
 
 
 ## 5. Contact

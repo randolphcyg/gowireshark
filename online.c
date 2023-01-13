@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <frame_tvbuff.h>
 #include <include/lib.h>
+#include <include/uthash.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -13,44 +14,129 @@
 #include <unistd.h>
 #include <wiretap/libpcap.h>
 
+void *init_sock_send(void *arg);
+char *init_sock(char *device_name);
+
+void cap_file_init(capture_file *cf);
+char *init_cf_live(capture_file *cf_live);
+void close_cf_live(capture_file *cf_live);
+
+char *add_device(char *device_name, char *sock_server_path, int num,
+                 int promisc, int to_ms);
+struct device_map *find_device(char *device_name);
+
+#define SOCKBUFFSIZE 655350
+
+// device_content Contains the information needed for each device
+typedef struct device_content {
+  char *sock_server_path;
+  int sockfd;
+  char sock_buf[SOCKBUFFSIZE];
+  struct sockaddr_un serveraddr;
+  struct sockaddr_un clientaddr;
+  socklen_t addrlen;
+
+  char *device;
+  int num;
+  int promisc;
+  int to_ms;
+
+  capture_file *cf_live;
+  pcap_t *handle;
+  frame_data prev_dis_frame;
+  frame_data prev_cap_frame;
+} device_content;
+
+struct device_map {
+  char *device_name;
+  device_content content;
+  UT_hash_handle hh;
+};
+
+// global map to restore device info
+struct device_map *devices = NULL;
+
+char *add_device(char *device_name, char *sock_server_path, int num,
+                 int promisc, int to_ms) {
+  struct device_map *s;
+  capture_file *cf_tmp;
+
+  HASH_FIND_STR(devices, device_name, s);
+  if (s == NULL) {
+    s = (struct device_map *)malloc(sizeof *s);
+
+    memset(s, 0, sizeof(struct device_map));
+
+    cf_tmp = (capture_file *)malloc(sizeof *cf_tmp);
+    cap_file_init(cf_tmp);
+
+    s->device_name = device_name;
+    s->content.sock_server_path = sock_server_path;
+    s->content.num = num;
+    s->content.promisc = promisc;
+    s->content.to_ms = to_ms;
+    s->content.addrlen = sizeof(s->content.clientaddr);
+    s->content.cf_live = cf_tmp;
+
+    // init capture_file
+    char *errMsg = init_cf_live(cf_tmp);
+    if (errMsg != NULL) {
+      if (strlen(errMsg) != 0) {
+        // close cf file
+        close_cf_live(cf_tmp);
+        return "Add device failed: fail to init cf_live";
+      }
+    }
+
+    HASH_ADD_KEYPTR(hh, devices, s->device_name, strlen(s->device_name), s);
+
+    return "";
+  } else {
+    return "The device is in use";
+  }
+
+  return "";
+}
+
+struct device_map *find_device(char *device_name) {
+  struct device_map *s;
+
+  HASH_FIND_STR(devices, device_name, s);
+  return s;
+}
+
 /*
 PART1. Unix domain socket(AF_UNIX)
 */
 
-#define SOCKSERVERPATH "/tmp/gsocket"
-#define SOCKBUFFSIZE 655350
-int sockfd;
-char sock_buf[SOCKBUFFSIZE] = {};
-struct sockaddr_un serveraddr;
-struct sockaddr_un clientaddr;
-socklen_t addrlen = sizeof(clientaddr);
-
-void *init_sock_send(void *arg);
-void init_sock();
-
 // init Unix domain socket(AF_UNIX) send data func
 void *init_sock_send(void *arg) {
-  if ((sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
+  char *device_name = (char *)arg;
+  struct device_map *device = find_device(device_name);
+  if (!device) {
+    printf("device unknown\n");
+    exit(1);
+  }
+
+  if ((device->content.sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
     printf("fail to socket\n");
     exit(1);
   }
-  serveraddr.sun_family = AF_UNIX;
-  strcpy(serveraddr.sun_path, SOCKSERVERPATH);
+  device->content.serveraddr.sun_family = AF_UNIX;
+  strcpy(device->content.serveraddr.sun_path, device->content.sock_server_path);
 }
 
 // init Unix domain socket(AF_UNIX)
-void init_sock() {
+char *init_sock(char *device_name) {
   pthread_t send;
-  if (pthread_create(&send, NULL, init_sock_send, NULL) == -1) {
-    printf("fail to create pthread send\n");
-    exit(1);
+  if (pthread_create(&send, NULL, init_sock_send, device_name) == -1) {
+    return "fail to create pthread send";
   }
 
   // wait for end
   void *result;
   if (pthread_join(send, &result) == -1) {
-    printf("fail to recollect send\n");
-    exit(1);
+    return "fail to recollect send";
   }
 }
 
@@ -111,17 +197,17 @@ char *get_if_list() {
 /**
  * Get interface nonblock status.
  *
- *  @param device: the name of interface device
+ *  @param device_name: the name of interface device
  *  @return current status is nonblock: 1;
  *  current status is not nonblock: 0;
  *  occur error: 2;
  */
-int get_if_nonblock_status(char *device) {
+int get_if_nonblock_status(char *device_name) {
   pcap_t *handle;
   int is_nonblock;
 
-  if (device) {
-    handle = pcap_open_live(device, SNAP_LEN, 1, 20, errbuf);
+  if (device_name) {
+    handle = pcap_open_live(device_name, SNAP_LEN, 1, 20, errbuf);
     if (handle == NULL) {
       return 2;
     }
@@ -137,18 +223,18 @@ int get_if_nonblock_status(char *device) {
 /**
  * Set interface nonblock status.
  *
- *  @param device: the name of interface device
+ *  @param device_name: the name of interface device
  *  @param nonblock set 1: is nonblock, set 0: is not nonblock
  *  @return current status is nonblock: 1;
  *  current status is not nonblock: 0;
  *  occur error: 2;
  */
-int set_if_nonblock_status(char *device, int nonblock) {
+int set_if_nonblock_status(char *device_name, int nonblock) {
   pcap_t *handle;
   int is_nonblock;
 
-  if (device) {
-    handle = pcap_open_live(device, SNAP_LEN, 1, 1000, errbuf);
+  if (device_name) {
+    handle = pcap_open_live(device_name, SNAP_LEN, 1, 1000, errbuf);
     if (handle == NULL) {
       return 2;
     }
@@ -167,15 +253,6 @@ int set_if_nonblock_status(char *device, int nonblock) {
 /*
 PART3. wireshark
 */
-
-// global capture file variable for online logic
-capture_file cf_live;
-pcap_t *handle;
-static frame_data prev_dis_frame;
-static frame_data prev_cap_frame;
-
-int init_cf_live();
-void close_cf_live();
 
 static const nstime_t *raw_get_frame_ts(struct packet_provider_data *prov,
                                         guint32 frame_num) {
@@ -247,119 +324,122 @@ cap_file_provider_get_interface_description(struct packet_provider_data *prov,
   return NULL;
 }
 
-// init cf_live
-int init_cf_live() {
-  int err = 0;
-  e_prefs *prefs_p;
-
-  /* Create new epan session for dissection. */
-  epan_free(cf_live.epan);
-
+void cap_file_init(capture_file *cf) {
   /* Initialize the capture file struct */
-  memset(&cf_live, 0, sizeof(capture_file));
+  memset(cf, 0, sizeof(capture_file));
+}
 
-  cf_live.provider.wth = NULL;
-  cf_live.f_datalen = 0; /* not used, but set it anyway */
-
-  /* Indicate whether it's a permanent or temporary file. */
-  cf_live.is_tempfile = FALSE;
-
-  /* No user changes yet. */
-  cf_live.unsaved_changes = FALSE;
-
-  cf_live.cd_t = WTAP_FILE_TYPE_SUBTYPE_UNKNOWN;
-  cf_live.open_type = WTAP_TYPE_AUTO;
-  cf_live.count = 0;
-  cf_live.drops_known = FALSE;
-  cf_live.drops = 0;
-  cf_live.snap = 0;
-  cf_live.provider.frames = new_frame_data_sequence();
-  nstime_set_zero(&cf_live.elapsed_time);
-  cf_live.provider.ref = NULL;
-  cf_live.provider.prev_dis = NULL;
-  cf_live.provider.prev_cap = NULL;
+static epan_t *raw_epan_new(capture_file *cf) {
   static const struct packet_provider_funcs funcs = {
       raw_get_frame_ts,
       cap_file_provider_get_interface_name,
       cap_file_provider_get_interface_description,
       NULL,
   };
-  cf_live.epan = epan_new(&cf_live.provider, &funcs);
+
+  return epan_new(&cf->provider, &funcs);
+}
+
+// init cf_live
+char *init_cf_live(capture_file *cf_live) {
+  e_prefs *prefs_p;
+  /* Create new epan session for dissection. */
+  epan_free(cf_live->epan);
+
+  cf_live->provider.wth = NULL;
+  cf_live->f_datalen = 0; /* not used, but set it anyway */
+  /* Indicate whether it's a permanent or temporary file. */
+  cf_live->is_tempfile = FALSE;
+
+  /* No user changes yet. */
+  cf_live->unsaved_changes = FALSE;
+  cf_live->cd_t = WTAP_FILE_TYPE_SUBTYPE_UNKNOWN;
+  cf_live->open_type = WTAP_TYPE_AUTO;
+  cf_live->count = 0;
+  cf_live->drops_known = FALSE;
+  cf_live->drops = 0;
+  cf_live->snap = 0;
+  cf_live->provider.frames = new_frame_data_sequence();
+  nstime_set_zero(&cf_live->elapsed_time);
+  cf_live->provider.ref = NULL;
+  cf_live->provider.prev_dis = NULL;
+  cf_live->provider.prev_cap = NULL;
+  cf_live->epan = raw_epan_new(cf_live);
   prefs_p = epan_load_settings();
-  build_column_format_array(&cf_live.cinfo, prefs_p->num_cols, TRUE);
-  return 0;
+  build_column_format_array(&cf_live->cinfo, prefs_p->num_cols, TRUE);
+
+  return "";
 }
 
 /**
  * Clean the capture file struct.
  */
-void close_cf_live() {
-  cf_live.stop_flag = FALSE;
-  if (cf_live.provider.wth) {
-    wtap_close(cf_live.provider.wth);
-    cf_live.provider.wth = NULL;
+void close_cf_live(capture_file *cf_live) {
+  cf_live->stop_flag = FALSE;
+  if (cf_live->provider.wth) {
+    wtap_close(cf_live->provider.wth);
+    cf_live->provider.wth = NULL;
   }
 
   /* We have no file open... */
-  if (cf_live.filename != NULL) {
-    g_free(cf_live.filename);
-    cf_live.filename = NULL;
+  if (cf_live->filename != NULL) {
+    g_free(cf_live->filename);
+    cf_live->filename = NULL;
   }
 
   /* ...which means we have no changes to that file to save. */
-  cf_live.unsaved_changes = FALSE;
+  cf_live->unsaved_changes = FALSE;
 
   /* no open_routine type */
-  cf_live.open_type = WTAP_TYPE_AUTO;
+  cf_live->open_type = WTAP_TYPE_AUTO;
 
   /* Clean up the record metadata. */
-  wtap_rec_cleanup(&cf_live.rec);
+  wtap_rec_cleanup(&cf_live->rec);
 
-  cf_live.rfcode = NULL;
-  if (cf_live.provider.frames != NULL) {
+  cf_live->rfcode = NULL;
+  if (cf_live->provider.frames != NULL) {
     //    free_frame_data_sequence(cf.provider.frames);
-    free(cf_live.provider.frames);
-    cf_live.provider.frames = NULL;
+    free(cf_live->provider.frames);
+    cf_live->provider.frames = NULL;
   }
-  if (cf_live.provider.frames_modified_blocks) {
-    g_tree_destroy(cf_live.provider.frames_modified_blocks);
-    cf_live.provider.frames_modified_blocks = NULL;
+  if (cf_live->provider.frames_modified_blocks) {
+    g_tree_destroy(cf_live->provider.frames_modified_blocks);
+    cf_live->provider.frames_modified_blocks = NULL;
   }
 
   /* No frames, no frame selected, no field in that frame selected. */
-  cf_live.count = 0;
-  cf_live.current_frame = NULL;
-  cf_live.finfo_selected = NULL;
+  cf_live->count = 0;
+  cf_live->current_frame = NULL;
+  cf_live->finfo_selected = NULL;
 
   /* No frame link-layer types, either. */
-  if (cf_live.linktypes != NULL) {
-    g_array_free(cf_live.linktypes, TRUE);
-    cf_live.linktypes = NULL;
+  if (cf_live->linktypes != NULL) {
+    g_array_free(cf_live->linktypes, TRUE);
+    cf_live->linktypes = NULL;
   }
 
-  cf_live.f_datalen = 0;
-  nstime_set_zero(&cf_live.elapsed_time);
+  cf_live->f_datalen = 0;
+  nstime_set_zero(&cf_live->elapsed_time);
 
   reset_tap_listeners();
 
-  epan_free(cf_live.epan);
-  cf_live.epan = NULL;
+  epan_free(cf_live->epan);
+  cf_live->epan = NULL;
 
   /* We have no file open. */
-  cf_live.state = FILE_CLOSED;
+  cf_live->state = FILE_CLOSED;
 }
 
 /**
- * Prepare data: cf_live.buf、rec.
+ * Prepare data: cf_live->buf、rec.
  *
  *  @param
  *  @return gboolean true or false;
  */
-static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
-                             gchar **err_info, const struct pcap_pkthdr *pkthdr,
-                             const u_char *packet, gint64 *data_offset) {
-  *err = 0;
-
+static gboolean prepare_data(wtap_rec *rec, Buffer *buf, gchar **err_info,
+                             const struct pcap_pkthdr *pkthdr,
+                             const u_char *packet, gint64 *data_offset,
+                             capture_file *cf_live) {
   rec->rec_type = REC_TYPE_PACKET;
   rec->presence_flags = WTAP_HAS_TS | WTAP_HAS_CAP_LEN;
   rec->ts.nsecs = (gint32)pkthdr->ts.tv_usec * 1000;
@@ -372,7 +452,8 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
   memcpy(buf->data, packet, length);
 
   if (rec->rec_header.packet_header.len == 0) {
-    printf("Header is null, frame Num:%lu\n", (unsigned long int)cf_live.count);
+    printf("Header is null, frame Num:%lu\n",
+           (unsigned long int)cf_live->count);
 
     return FALSE;
   }
@@ -383,12 +464,20 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, int *err,
 /**
  * Dissect each package in real time.
  *
+ *  @param arg user argument
  *  @param pkthdr package header;
  *  @param packet package content;
  */
 void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
                              const u_char *packet) {
-  int err;
+  char *device_name = (char *)arg;
+
+  struct device_map *device = find_device(device_name);
+  if (!device) {
+    printf("device unknown\n");
+    return;
+  }
+
   gchar *err_info = NULL;
   gint64 data_offset = 0;
   static guint32 cum_bytes = 0;
@@ -399,12 +488,12 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 
   wtap_rec_init(&rec);
   ws_buffer_init(&buf, 1514);
-  epan_dissect_init(&edt, cf_live.epan, TRUE, TRUE);
+  epan_dissect_init(&edt, device->content.cf_live->epan, TRUE, TRUE);
 
-  if (!prepare_data(&rec, &buf, &err, &err_info, pkthdr, packet,
-                    &data_offset)) {
+  if (!prepare_data(&rec, &buf, &err_info, pkthdr, packet, &data_offset,
+                    device->content.cf_live)) {
     printf("prepare_data err, frame Num:%lu\n",
-           (unsigned long int)cf_live.count);
+           (unsigned long int)device->content.cf_live->count);
 
     wtap_rec_cleanup(&rec);
     ws_buffer_free(&buf);
@@ -412,40 +501,44 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
     return;
   }
 
-  cf_live.count++;
-  frame_data_init(&fd, cf_live.count, &rec, data_offset, cum_bytes);
-  frame_data_set_before_dissect(&fd, &cf_live.elapsed_time,
-                                &cf_live.provider.ref,
-                                cf_live.provider.prev_dis);
-  cf_live.provider.ref = &fd;
+  device->content.cf_live->count++;
+  frame_data_init(&fd, device->content.cf_live->count, &rec, data_offset,
+                  cum_bytes);
+  frame_data_set_before_dissect(&fd, &device->content.cf_live->elapsed_time,
+                                &device->content.cf_live->provider.ref,
+                                device->content.cf_live->provider.prev_dis);
+  device->content.cf_live->provider.ref = &fd;
 
   // dissect pkg
   epan_dissect_run_with_taps(
-      &edt, cf_live.cd_t, &rec,
-      frame_tvbuff_new_buffer(&cf_live.provider, &fd, &buf), &fd,
-      &cf_live.cinfo);
+      &edt, device->content.cf_live->cd_t, &rec,
+      frame_tvbuff_new_buffer(&device->content.cf_live->provider, &fd, &buf),
+      &fd, &device->content.cf_live->cinfo);
 
   frame_data_set_after_dissect(&fd, &cum_bytes);
-  prev_dis_frame = fd;
-  cf_live.provider.prev_dis = &prev_dis_frame;
-  prev_cap_frame = fd;
-  cf_live.provider.prev_cap = &prev_cap_frame;
+
+  device->content.prev_dis_frame = fd;
+  device->content.cf_live->provider.prev_dis = &device->content.prev_dis_frame;
+  device->content.prev_cap_frame = fd;
+  device->content.cf_live->provider.prev_cap = &device->content.prev_cap_frame;
 
   // transfer each pkt dissect result to json format
   cJSON *proto_tree_json = cJSON_CreateObject();
   get_proto_tree_json(NULL, print_dissections_expanded, TRUE, NULL,
-                      PF_INCLUDE_CHILDREN, &edt, &cf_live.cinfo,
+                      PF_INCLUDE_CHILDREN, &edt,
+                      &device->content.cf_live->cinfo,
                       proto_node_group_children_by_json_key, proto_tree_json);
 
   char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
 
   int len = strlen(proto_tree_json_str);
-  memset(sock_buf, 0, len);
-  memcpy_safe(sock_buf, proto_tree_json_str, len, SOCKBUFFSIZE);
-  if (sendto(sockfd, sock_buf, len, 0, (struct sockaddr *)&serveraddr,
-             addrlen) < 0) {
+  memset(device->content.sock_buf, 0, len);
+  memcpy_safe(device->content.sock_buf, proto_tree_json_str, len, SOCKBUFFSIZE);
+  if (sendto(device->content.sockfd, device->content.sock_buf, len, 0,
+             (struct sockaddr *)&device->content.serveraddr,
+             device->content.addrlen) < 0) {
     printf("socket err, fail to sendto, frame Num:%lu\n",
-           (unsigned long int)cf_live.count);
+           (unsigned long int)device->content.cf_live->count);
   }
 
   // free all memory allocated
@@ -462,67 +555,92 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 /**
  * Listen device and Capture packet.
  *
- *  @param device: the name of interface device
+ *  @param device_name: the name of interface device
+ *  @param sock_server_path device's socket server path
  *  @param num the number of packet you want to capture and dissect
  *  @param promisc 0 indicates a non-promiscuous mode, and any other value
  * indicates a promiscuous mode.
- *  @return correct: 0; error: 2;
+ *  @param to_ms The timeout period for libpcap to capture packets from the
+ * device
+ *  @return error message
  */
-int handle_pkt_live(char *device, int num, int promisc, int to_ms) {
-  int err = 0;
+char *handle_pkt_live(char *device_name, char *sock_server_path, int num,
+                      int promisc, int to_ms) {
+
+  char *errMsg;
   char errBuf[PCAP_ERRBUF_SIZE];
 
-  // init capture_file obj for live capture and dissect
-  err = init_cf_live();
-  if (err != 0) {
-    // close cf file for live capture
-    close_cf_live();
-    return err;
+  // add device to global map
+  errMsg = add_device(device_name, sock_server_path, num, promisc, to_ms);
+  if (errMsg != NULL) {
+    if (strlen(errMsg) != 0) {
+      return errMsg;
+    }
+  }
+
+  // fetch target device
+  struct device_map *device = find_device(device_name);
+  if (!device) {
+    return "device unknown";
   }
 
   // open device
-  handle = pcap_open_live(device, SNAP_LEN, promisc, to_ms, errBuf);
-  if (!handle) {
-    printf("pcap_open_live() couldn't open device: %s\n", errBuf);
+  device->content.handle =
+      pcap_open_live(device->device_name, SNAP_LEN, device->content.promisc,
+                     device->content.to_ms, errBuf);
+  if (!device->content.handle) {
     // close cf file for live capture
-    close_cf_live();
-    return 2;
+    close_cf_live(device->content.cf_live);
+
+    return "pcap_open_live() couldn't open device";
   }
 
   // start Unix domain socket(AF_UNIX) to send data to golang
-  init_sock();
+  errMsg = init_sock(device->device_name);
+  if (errMsg != NULL) {
+    if (strlen(errMsg) != 0) {
+      return errMsg;
+    }
+  }
 
   // loop and dissect pkg
   int count = 0;
-  pcap_loop(handle, num, process_packet_callback, NULL);
+  pcap_loop(device->content.handle, num, process_packet_callback,
+            device->device_name);
   // close libpcap device handler
-  pcap_close(handle);
+  pcap_close(device->content.handle);
   // close cf file for live capture
-  close_cf_live();
+  close_cf_live(device->content.cf_live);
   // close socket
-  close(sockfd);
+  close(device->content.sockfd);
 
-  return 0;
+  return "";
 }
 
 /**
  * Stop capture packet live、 free all memory allocated、close socket.
  */
-char *stop_dissect_capture_pkg() {
-  if (!handle) {
+char *stop_dissect_capture_pkg(char *device_name) {
+  struct device_map *device = find_device(device_name);
+  if (!device) {
+    return "device unknown";
+  }
+
+  if (!device->content.handle) {
     return "This device has no pcap_handle, no need to close";
   }
-  pcap_breakloop(handle);
+
+  pcap_breakloop(device->content.handle);
 
   // close cf file for live capture
-  close_cf_live();
+  close_cf_live(device->content.cf_live);
 
   // shutdown socket's write function and close socket
-  int shut_wr_res = shutdown(sockfd, SHUT_WR);
+  int shut_wr_res = shutdown(device->content.sockfd, SHUT_WR);
   if (shut_wr_res != 0) {
-    printf("SHUT_WR: %s\n", "close socket write failed！");
+    printf("SHUT_WR: %s\n", "close socket write failed!");
   }
-  close(sockfd);
+  close(device->content.sockfd);
 
   return "";
 }
