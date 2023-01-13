@@ -75,6 +75,7 @@ func main() {
 ### 2.1. 项目目录
 ```
 gowireshark
+├── README-zh.md
 ├── README.md
 ├── cJSON.c
 ├── frame_tvbuff.c
@@ -88,6 +89,7 @@ gowireshark
 │   ├── libpcap/
 │   ├── offline.h
 │   ├── online.h
+│   ├── uthash.h
 │   └── wireshark/
 ├── lib.c
 ├── libs/
@@ -111,18 +113,19 @@ gowireshark
 ```
 项目目录结构的详细说明：
 
-| 文件                                        | 说明                                               |
-|-------------------------------------------|--------------------------------------------------|
-| `include/wireshark/`                      | wireshark 编译后源码                                  |
-| `include/libpcap/`                        | libpcap 未编译源码                                    |
-| `frame_tvbuff.c`、`include/frame_tvbuff.h` | wireshark的源码文件、拷贝出来的、必须放在此处                      |
-| `libs/`                                   | wireshark、libpcap最新动态链接库文件                       |
-| `pcaps/`                                  | 用于测试的 pcap 数据包文件                                 |
-| `tests/`                                  | 测试文件夹                                            |
-| `cJSON.c、cJSON.h`                         | 第三方[cJSON](https://github.com/DaveGamble/cJSON)库 |
-| `lib.c、offline.c、online.c`                | 用C封装和加强libpcap和wireshark功能的代码                    |
-| `include/lib.h、offline.h、online.h`        | 暴露给go的一些c接口                                      |
-| `gowireshark.go`                          | 用go封装最终的接口，用户go程序可直接使用                           |
+| 文件                                        | 说明                                                    |
+|-------------------------------------------|-------------------------------------------------------|
+| `include/wireshark/`                      | wireshark 编译后源码                                       |
+| `include/libpcap/`                        | libpcap 未编译源码                                         |
+| `frame_tvbuff.c`、`include/frame_tvbuff.h` | wireshark的源码文件、拷贝出来的、必须放在此处                           |
+| `libs/`                                   | wireshark、libpcap最新动态链接库文件                            |
+| `pcaps/`                                  | 用于测试的 pcap 数据包文件                                      |
+| `tests/`                                  | 测试文件夹                                                 |
+| `uthash.h`                                | 第三方 [uthash](https://github.com/troydhanson/uthash) 库 |
+| `cJSON.c、cJSON.h`                         | 第三方[cJSON](https://github.com/DaveGamble/cJSON)库      |
+| `lib.c、offline.c、online.c`                | 用C封装和加强libpcap和wireshark功能的代码                         |
+| `include/lib.h、offline.h、online.h`        | 暴露给go的一些c接口                                           |
+| `gowireshark.go`                          | 用go封装最终的接口，用户go程序可直接使用                                |
 
 ### 2.2. 调用链
 
@@ -265,7 +268,7 @@ apt install bison
 
    ```shell
    find . -maxdepth 1 -name '*.c' | grep -v 'cJSON.c' | grep -v 'frame_tvbuff.c' | xargs clang-format -i
-   find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | grep -v 'frame_tvbuff.h' | xargs  clang-format -i
+   find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | grep -v 'frame_tvbuff.h' | grep -v 'uthash.h' | xargs  clang-format -i
    ```
 6. 如何测试(cd tests/):
 
@@ -311,7 +314,7 @@ apt install bison
 - [x] 封装 go 对收到的 Golang 调用实时数据包解析结果的处理
 - [x] 优化代码并解决内存泄漏问题，使实时接口可以长时间运行
 - [x] 支持停止实时接口
-- [ ] :punch: 支持多个设备的数据包捕获，并根据设备名称停止实时接口
+- [ ] :punch: 支持多个设备的数据包捕获，并根据设备名称停止实时接口 (TODO bug待修复)
  
 
 
