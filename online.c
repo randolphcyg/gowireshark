@@ -108,6 +108,25 @@ char *get_if_list() {
   return result;
 }
 
+/*select the first nic_device available on the machine
+ * return :
+ * -1: on failture
+ *  0: on success*/
+int get_first_device(char *device){
+    pcap_if_t *first_if;
+
+    if (pcap_findalldevs(&first_if, errbuf) < 0) {
+        fprintf(stderr, "Error: couldn't find any devices %s\n", errbuf);
+        return -1;
+    }
+
+    strncpy(device, first_if->name, IFNAMSIZ - 1);
+    pcap_freealldevs(first_if);
+
+    return 0;
+
+}
+
 /**
  * Get interface nonblock status.
  *

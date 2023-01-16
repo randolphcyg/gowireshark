@@ -5,6 +5,8 @@ extern cJSON *ifaces;
 
 // Get interface list
 char *get_if_list();
+// Select the first device
+int get_first_device(char *device)；
 // Get interface nonblock status
 int get_if_nonblock_status(char *device);
 // Set interface nonblock status
