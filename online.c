@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include <wiretap/libpcap.h>
 
+static frame_data ref_frame;
+
 void *init_sock_send(void *arg);
 char *init_sock(char *device_name);
 
@@ -45,6 +47,8 @@ typedef struct device_content {
   pcap_t *handle;
   frame_data prev_dis_frame;
   frame_data prev_cap_frame;
+  wtap_rec rec;
+  epan_dissect_t edt;
 } device_content;
 
 struct device_map {
@@ -114,12 +118,12 @@ void *init_sock_send(void *arg) {
   char *device_name = (char *)arg;
   struct device_map *device = find_device(device_name);
   if (!device) {
-    printf("device unknown\n");
+    //    printf("device unknown\n");
     exit(1);
   }
 
   if ((device->content.sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-    printf("fail to socket\n");
+    //    printf("fail to socket\n");
     exit(1);
   }
   device->content.serveraddr.sun_family = AF_UNIX;
@@ -431,15 +435,12 @@ void close_cf_live(capture_file *cf_live) {
 }
 
 /**
- * Prepare data: cf_live->buf、rec.
+ * Prepare data: rec
  *
  *  @param
  *  @return gboolean true or false;
  */
-static gboolean prepare_data(wtap_rec *rec, Buffer *buf, gchar **err_info,
-                             const struct pcap_pkthdr *pkthdr,
-                             const u_char *packet, gint64 *data_offset,
-                             capture_file *cf_live) {
+static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
   rec->rec_type = REC_TYPE_PACKET;
   rec->presence_flags = WTAP_HAS_TS | WTAP_HAS_CAP_LEN;
   rec->ts.nsecs = (gint32)pkthdr->ts.tv_usec * 1000;
@@ -448,17 +449,104 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, gchar **err_info,
   rec->rec_header.packet_header.len = pkthdr->len;
   rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_ETHERNET;
 
-  int length = strlen((char *)packet);
-  memcpy(buf->data, packet, length);
-
   if (rec->rec_header.packet_header.len == 0) {
-    printf("Header is null, frame Num:%lu\n",
-           (unsigned long int)cf_live->count);
+    //    printf("Header is null, frame Num:%lu\n",
+    //           (unsigned long int)cf_live->count);
+    return FALSE;
+  }
 
+  if (pkthdr->caplen > WTAP_MAX_PACKET_SIZE_STANDARD) {
+    //    printf("Size is to big, and size is %d\n", pkthdr->caplen);
     return FALSE;
   }
 
   return TRUE;
+}
+
+static gboolean send_data_to_go(struct device_map *device) {
+  // transfer each pkt dissect result to json format
+  cJSON *proto_tree_json = cJSON_CreateObject();
+  get_proto_tree_json(NULL, print_dissections_expanded, TRUE, NULL,
+                      PF_INCLUDE_CHILDREN, &device->content.edt,
+                      &device->content.cf_live->cinfo,
+                      proto_node_group_children_by_json_key, proto_tree_json);
+
+  char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
+
+  int len = strlen(proto_tree_json_str);
+  memset(device->content.sock_buf, 0, len);
+  memcpy_safe(device->content.sock_buf, proto_tree_json_str, len, SOCKBUFFSIZE);
+  if (sendto(device->content.sockfd, device->content.sock_buf, len, 0,
+             (struct sockaddr *)&device->content.serveraddr,
+             device->content.addrlen) < 0) {
+    cJSON_free(proto_tree_json_str);
+    cJSON_Delete(proto_tree_json);
+    epan_dissect_cleanup(&device->content.edt);
+    wtap_rec_cleanup(&device->content.rec);
+    //    printf("socket err, fail to sendto, frame Num:%lu\n",
+    //           (unsigned long int)device->content.cf_live->count);
+    return FALSE;
+  }
+
+  cJSON_free(proto_tree_json_str);
+  cJSON_Delete(proto_tree_json);
+
+  return TRUE;
+}
+
+static gboolean process_packet(struct device_map *device, gint64 offset,
+                               const struct pcap_pkthdr *pkthdr,
+                               const u_char *packet) {
+  frame_data fd;
+  static guint32 cum_bytes = 0;
+
+  device->content.cf_live->count++;
+
+  frame_data_init(&fd, device->content.cf_live->count, &device->content.rec,
+                  offset, cum_bytes);
+
+  frame_data_set_before_dissect(&fd, &device->content.cf_live->elapsed_time,
+                                &device->content.cf_live->provider.ref,
+                                device->content.cf_live->provider.prev_dis);
+
+  if (device->content.cf_live->provider.ref == &fd) {
+    ref_frame = fd;
+    device->content.cf_live->provider.ref = &ref_frame;
+  }
+
+  tvbuff_t *tvb =
+      frame_tvbuff_new(&device->content.cf_live->provider, &fd, packet);
+
+  // dissect pkg
+  epan_dissect_run_with_taps(
+      &device->content.edt, device->content.cf_live->cd_t, &device->content.rec,
+      tvb, &fd, &device->content.cf_live->cinfo);
+
+  frame_data_set_after_dissect(&fd, &cum_bytes);
+
+  device->content.prev_dis_frame = fd;
+  device->content.cf_live->provider.prev_dis = &device->content.prev_dis_frame;
+  device->content.prev_cap_frame = fd;
+  device->content.cf_live->provider.prev_cap = &device->content.prev_cap_frame;
+
+  if (!send_data_to_go(device)) {
+    return FALSE;
+  }
+
+  // free all memory allocated
+  epan_dissect_reset(&device->content.edt);
+  frame_data_destroy(&fd);
+  wtap_rec_cleanup(&device->content.rec);
+
+  return TRUE;
+}
+
+void before_callback_init(struct device_map *device) {
+  epan_dissect_init(&device->content.edt, device->content.cf_live->epan, TRUE,
+                    TRUE);
+  wtap_rec_init(&device->content.rec);
+
+  return;
 }
 
 /**
@@ -471,83 +559,22 @@ static gboolean prepare_data(wtap_rec *rec, Buffer *buf, gchar **err_info,
 void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
                              const u_char *packet) {
   char *device_name = (char *)arg;
-
   struct device_map *device = find_device(device_name);
   if (!device) {
-    printf("device unknown\n");
     return;
   }
 
   gchar *err_info = NULL;
   gint64 data_offset = 0;
-  static guint32 cum_bytes = 0;
-  frame_data fd;
-  wtap_rec rec;
-  Buffer buf;
-  epan_dissect_t edt;
-
-  wtap_rec_init(&rec);
-  ws_buffer_init(&buf, 1514);
-  epan_dissect_init(&edt, device->content.cf_live->epan, TRUE, TRUE);
-
-  if (!prepare_data(&rec, &buf, &err_info, pkthdr, packet, &data_offset,
-                    device->content.cf_live)) {
-    printf("prepare_data err, frame Num:%lu\n",
-           (unsigned long int)device->content.cf_live->count);
-
-    wtap_rec_cleanup(&rec);
-    ws_buffer_free(&buf);
+  if (!prepare_data(&device->content.rec, pkthdr)) {
+    //    printf("prepare_data err, frame Num:%lu\n",
+    //           (unsigned long int)device->content.cf_live->count);
+    wtap_rec_cleanup(&device->content.rec);
 
     return;
   }
 
-  device->content.cf_live->count++;
-  frame_data_init(&fd, device->content.cf_live->count, &rec, data_offset,
-                  cum_bytes);
-  frame_data_set_before_dissect(&fd, &device->content.cf_live->elapsed_time,
-                                &device->content.cf_live->provider.ref,
-                                device->content.cf_live->provider.prev_dis);
-  device->content.cf_live->provider.ref = &fd;
-
-  // dissect pkg
-  epan_dissect_run_with_taps(
-      &edt, device->content.cf_live->cd_t, &rec,
-      frame_tvbuff_new_buffer(&device->content.cf_live->provider, &fd, &buf),
-      &fd, &device->content.cf_live->cinfo);
-
-  frame_data_set_after_dissect(&fd, &cum_bytes);
-
-  device->content.prev_dis_frame = fd;
-  device->content.cf_live->provider.prev_dis = &device->content.prev_dis_frame;
-  device->content.prev_cap_frame = fd;
-  device->content.cf_live->provider.prev_cap = &device->content.prev_cap_frame;
-
-  // transfer each pkt dissect result to json format
-  cJSON *proto_tree_json = cJSON_CreateObject();
-  get_proto_tree_json(NULL, print_dissections_expanded, TRUE, NULL,
-                      PF_INCLUDE_CHILDREN, &edt,
-                      &device->content.cf_live->cinfo,
-                      proto_node_group_children_by_json_key, proto_tree_json);
-
-  char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
-
-  int len = strlen(proto_tree_json_str);
-  memset(device->content.sock_buf, 0, len);
-  memcpy_safe(device->content.sock_buf, proto_tree_json_str, len, SOCKBUFFSIZE);
-  if (sendto(device->content.sockfd, device->content.sock_buf, len, 0,
-             (struct sockaddr *)&device->content.serveraddr,
-             device->content.addrlen) < 0) {
-    printf("socket err, fail to sendto, frame Num:%lu\n",
-           (unsigned long int)device->content.cf_live->count);
-  }
-
-  // free all memory allocated
-  cJSON_free(proto_tree_json_str);
-  cJSON_Delete(proto_tree_json);
-  epan_dissect_cleanup(&edt);
-  frame_data_destroy(&fd);
-  ws_buffer_free(&buf);
-  wtap_rec_cleanup(&rec);
+  process_packet(device, data_offset, pkthdr, packet);
 
   return;
 }
@@ -605,6 +632,7 @@ char *handle_pkt_live(char *device_name, char *sock_server_path, int num,
 
   // loop and dissect pkg
   int count = 0;
+  before_callback_init(device);
   pcap_loop(device->content.handle, num, process_packet_callback,
             device->device_name);
   // close libpcap device handler
