@@ -99,9 +99,9 @@ char *add_device(char *device_name, char *sock_server_path, int num,
     s->content.cf_live = cf_tmp;
 
     // init capture_file
-    char *errMsg = init_cf_live(cf_tmp);
-    if (errMsg != NULL) {
-      if (strlen(errMsg) != 0) {
+    char *err_msg = init_cf_live(cf_tmp);
+    if (err_msg != NULL) {
+      if (strlen(err_msg) != 0) {
         // close cf file
         close_cf_live(cf_tmp);
         return "Add device failed: fail to init cf_live";
@@ -134,12 +134,12 @@ void *init_sock_send(void *arg) {
   char *device_name = (char *)arg;
   struct device_map *device = find_device(device_name);
   if (!device) {
-    //    printf("device unknown\n");
+    printf("device unknown: %s\n", device_name);
     exit(1);
   }
 
   if ((device->content.sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-    //    printf("fail to socket\n");
+    printf("fail to init socket: %s\n", device_name);
     exit(1);
   }
   device->content.serveraddr.sun_family = AF_UNIX;
@@ -149,13 +149,13 @@ void *init_sock_send(void *arg) {
 // init Unix domain socket(AF_UNIX)
 char *init_sock(char *device_name) {
   pthread_t send;
-  if (pthread_create(&send, NULL, init_sock_send, device_name) == -1) {
+  if (pthread_create(&send, NULL, init_sock_send, device_name) != 0) {
     return "fail to create pthread send";
   }
 
   // wait for end
   void *result;
-  if (pthread_join(send, &result) == -1) {
+  if (pthread_join(send, &result) != 0) {
     return "fail to recollect send";
   }
 }
@@ -173,8 +173,10 @@ PART2. libpcap
 */
 
 #define SNAP_LEN 65535
+
+char *err_msg;
 // error buffer
-char errbuf[PCAP_ERRBUF_SIZE];
+char err_buf[PCAP_ERRBUF_SIZE];
 
 // interface device list
 cJSON *ifaces = NULL;
@@ -194,7 +196,7 @@ cJSON *ifaces = NULL;
  */
 char *get_if_list() {
   pcap_if_t *alldevs;
-  pcap_findalldevs(&alldevs, errbuf);
+  pcap_findalldevs(&alldevs, err_buf);
 
   ifaces = cJSON_CreateObject();
   cJSON *if_item = NULL;
@@ -227,11 +229,11 @@ int get_if_nonblock_status(char *device_name) {
   int is_nonblock;
 
   if (device_name) {
-    handle = pcap_open_live(device_name, SNAP_LEN, 1, 20, errbuf);
+    handle = pcap_open_live(device_name, SNAP_LEN, 1, 20, err_buf);
     if (handle == NULL) {
       return 2;
     }
-    is_nonblock = pcap_getnonblock(handle, errbuf);
+    is_nonblock = pcap_getnonblock(handle, err_buf);
     pcap_close(handle);
 
     return is_nonblock;
@@ -254,14 +256,14 @@ int set_if_nonblock_status(char *device_name, int nonblock) {
   int is_nonblock;
 
   if (device_name) {
-    handle = pcap_open_live(device_name, SNAP_LEN, 1, 1000, errbuf);
+    handle = pcap_open_live(device_name, SNAP_LEN, 1, 1000, err_buf);
     if (handle == NULL) {
       return 2;
     }
     // set nonblock status
-    pcap_setnonblock(handle, nonblock, errbuf);
+    pcap_setnonblock(handle, nonblock, err_buf);
     // get nonblock status
-    is_nonblock = pcap_getnonblock(handle, errbuf);
+    is_nonblock = pcap_getnonblock(handle, err_buf);
     pcap_close(handle);
 
     return is_nonblock;
@@ -604,8 +606,6 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   gchar *err_info = NULL;
   gint64 data_offset = 0;
   if (!prepare_data(&device->content.rec, pkthdr)) {
-    //    printf("prepare_data err, frame Num:%lu\n",
-    //           (unsigned long int)device->content.cf_live->count);
     wtap_rec_cleanup(&device->content.rec);
 
     return;
@@ -617,7 +617,8 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 }
 
 /**
- * Listen device and Capture packet.
+ * Add a device to global device map、listen to this device、init a socket for
+ * this device and capture packet from this device.
  *
  *  @param device_name: the name of interface device
  *  @param sock_server_path: device's socket server path
@@ -628,17 +629,13 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  * device
  *  @return char: error message
  */
-char *handle_pkt_live(char *device_name, char *sock_server_path, int num,
-                      int promisc, int to_ms) {
-
-  char *errMsg;
-  char errBuf[PCAP_ERRBUF_SIZE];
-
-  // add device to global map
-  errMsg = add_device(device_name, sock_server_path, num, promisc, to_ms);
-  if (errMsg != NULL) {
-    if (strlen(errMsg) != 0) {
-      return errMsg;
+char *handle_packet(char *device_name, char *sock_server_path, int num,
+                    int promisc, int to_ms) {
+  // add a device to global device map
+  err_msg = add_device(device_name, sock_server_path, num, promisc, to_ms);
+  if (err_msg != NULL) {
+    if (strlen(err_msg) != 0) {
+      return err_msg;
     }
   }
 
@@ -648,10 +645,10 @@ char *handle_pkt_live(char *device_name, char *sock_server_path, int num,
     return "device unknown";
   }
 
-  // open device
+  // open device && gen a libpcap handle
   device->content.handle =
       pcap_open_live(device->device_name, SNAP_LEN, device->content.promisc,
-                     device->content.to_ms, errBuf);
+                     device->content.to_ms, err_buf);
   if (!device->content.handle) {
     // close cf file for live capture
     close_cf_live(device->content.cf_live);
@@ -660,15 +657,14 @@ char *handle_pkt_live(char *device_name, char *sock_server_path, int num,
   }
 
   // start Unix domain socket(AF_UNIX) to send data to golang
-  errMsg = init_sock(device->device_name);
-  if (errMsg != NULL) {
-    if (strlen(errMsg) != 0) {
-      return errMsg;
+  err_msg = init_sock(device->device_name);
+  if (err_msg != NULL) {
+    if (strlen(err_msg) != 0) {
+      return err_msg;
     }
   }
 
   // loop and dissect pkg
-  int count = 0;
   before_callback_init(device);
   pcap_loop(device->content.handle, num, process_packet_callback,
             device->device_name);

@@ -52,7 +52,7 @@ int get_if_nonblock_status(char *device_name);
 // Set interface nonblock status
 int set_if_nonblock_status(char *device_name, int nonblock);
 // Capture and dissect packet in real time
-char *handle_pkt_live(char *device_name, char *sock_server_path, int num, int promisc, int to_ms);
+char *handle_packet(char *device_name, char *sock_server_path, int num, int promisc, int to_ms);
 // Stop capture packet live and free all memory allocated
 char *stop_dissect_capture_pkg(char *device_name);
 */
@@ -458,7 +458,7 @@ func readSock(listener *net.UnixConn, pkgChan chan FrameDissectRes, sockBuffSize
 // DissectPktLive start Unix domain socket(AF_UNIX) client, capture and dissect packet.
 // promisc: 0 indicates a non-promiscuous mode, and any other value indicates a promiscuous mode
 func DissectPktLive(deviceName, sockServerPath string, num, promisc, timeout int) (err error) {
-	errMsg := C.handle_pkt_live(C.CString(deviceName), C.CString(sockServerPath), C.int(num), C.int(promisc), C.int(timeout))
+	errMsg := C.handle_packet(C.CString(deviceName), C.CString(sockServerPath), C.int(num), C.int(promisc), C.int(timeout))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)
