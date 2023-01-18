@@ -14,19 +14,6 @@
 #include <unistd.h>
 #include <wiretap/libpcap.h>
 
-static frame_data ref_frame;
-
-void *init_sock_send(void *arg);
-char *init_sock(char *device_name);
-
-void cap_file_init(capture_file *cf);
-char *init_cf_live(capture_file *cf_live);
-void close_cf_live(capture_file *cf_live);
-
-char *add_device(char *device_name, char *sock_server_path, int num,
-                 int promisc, int to_ms);
-struct device_map *find_device(char *device_name);
-
 #define SOCKBUFFSIZE 655350
 
 // device_content Contains the information needed for each device
@@ -59,6 +46,35 @@ struct device_map {
 
 // global map to restore device info
 struct device_map *devices = NULL;
+
+char *add_device(char *device_name, char *sock_server_path, int num,
+                 int promisc, int to_ms);
+struct device_map *find_device(char *device_name);
+
+void *init_sock_send(void *arg);
+char *init_sock(char *device_name);
+
+void cap_file_init(capture_file *cf);
+char *init_cf_live(capture_file *cf_live);
+void close_cf_live(capture_file *cf_live);
+
+static frame_data ref_frame;
+
+static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr);
+static gboolean send_data_to_go(struct device_map *device);
+static gboolean process_packet(struct device_map *device, gint64 offset,
+                               const struct pcap_pkthdr *pkthdr,
+                               const u_char *packet);
+void before_callback_init(struct device_map *device);
+void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
+                             const u_char *packet);
+char *handle_pkt_live(char *device_name, char *sock_server_path, int num,
+                      int promisc, int to_ms);
+char *stop_dissect_capture_pkg(char *device_name);
+
+/*
+PART0. Use uthash to implement the logic related to the map of the device
+*/
 
 char *add_device(char *device_name, char *sock_server_path, int num,
                  int promisc, int to_ms) {
@@ -202,7 +218,7 @@ char *get_if_list() {
  * Get interface nonblock status.
  *
  *  @param device_name: the name of interface device
- *  @return current status is nonblock: 1;
+ *  @return int: current status is nonblock: 1;
  *  current status is not nonblock: 0;
  *  occur error: 2;
  */
@@ -228,8 +244,8 @@ int get_if_nonblock_status(char *device_name) {
  * Set interface nonblock status.
  *
  *  @param device_name: the name of interface device
- *  @param nonblock set 1: is nonblock, set 0: is not nonblock
- *  @return current status is nonblock: 1;
+ *  @param nonblock: set 1: is nonblock, set 0: is not nonblock
+ *  @return int: current status is nonblock: 1;
  *  current status is not nonblock: 0;
  *  occur error: 2;
  */
@@ -435,10 +451,11 @@ void close_cf_live(capture_file *cf_live) {
 }
 
 /**
- * Prepare data: rec
+ * Prepare wtap_rec data.
  *
- *  @param
- *  @return gboolean true or false;
+ *  @param rec: wtap_rec for each packet
+ *  @param pkthdr: package header
+ *  @return gboolean: true or false
  */
 static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
   rec->rec_type = REC_TYPE_PACKET;
@@ -463,6 +480,12 @@ static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
   return TRUE;
 }
 
+/**
+ * Use socket to transfer data to the Go program.
+ *
+ *  @param device: a device in global device map
+ *  @return gboolean: true or false
+ */
 static gboolean send_data_to_go(struct device_map *device) {
   // transfer each pkt dissect result to json format
   cJSON *proto_tree_json = cJSON_CreateObject();
@@ -494,6 +517,15 @@ static gboolean send_data_to_go(struct device_map *device) {
   return TRUE;
 }
 
+/**
+ * The core dissective process for each captured packet.
+ *
+ *  @param device: a device in global device map
+ *  @param offset: data offset
+ *  @param pkthdr: package header
+ *  @param packet: package content
+ *  @return gboolean: true or false
+ */
 static gboolean process_packet(struct device_map *device, gint64 offset,
                                const struct pcap_pkthdr *pkthdr,
                                const u_char *packet) {
@@ -530,6 +562,11 @@ static gboolean process_packet(struct device_map *device, gint64 offset,
   device->content.cf_live->provider.prev_cap = &device->content.prev_cap_frame;
 
   if (!send_data_to_go(device)) {
+    // free all memory allocated
+    epan_dissect_reset(&device->content.edt);
+    frame_data_destroy(&fd);
+    wtap_rec_cleanup(&device->content.rec);
+
     return FALSE;
   }
 
@@ -552,9 +589,9 @@ void before_callback_init(struct device_map *device) {
 /**
  * Dissect each package in real time.
  *
- *  @param arg user argument
- *  @param pkthdr package header;
- *  @param packet package content;
+ *  @param arg: user argument
+ *  @param pkthdr: package header
+ *  @param packet: package content
  */
 void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
                              const u_char *packet) {
@@ -583,13 +620,13 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  * Listen device and Capture packet.
  *
  *  @param device_name: the name of interface device
- *  @param sock_server_path device's socket server path
- *  @param num the number of packet you want to capture and dissect
- *  @param promisc 0 indicates a non-promiscuous mode, and any other value
- * indicates a promiscuous mode.
- *  @param to_ms The timeout period for libpcap to capture packets from the
+ *  @param sock_server_path: device's socket server path
+ *  @param num: the number of packet you want to capture and dissect
+ *  @param promisc: 0 indicates a non-promiscuous mode, and any other value
+ * indicates a promiscuous mode
+ *  @param to_ms: The timeout period for libpcap to capture packets from the
  * device
- *  @return error message
+ *  @return char: error message
  */
 char *handle_pkt_live(char *device_name, char *sock_server_path, int num,
                       int promisc, int to_ms) {
@@ -647,6 +684,9 @@ char *handle_pkt_live(char *device_name, char *sock_server_path, int num,
 
 /**
  * Stop capture packet live、 free all memory allocated、close socket.
+ *
+ *  @param device: a device in global device map
+ *  @return char: err message
  */
 char *stop_dissect_capture_pkg(char *device_name) {
   struct device_map *device = find_device(device_name);
