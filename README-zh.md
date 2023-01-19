@@ -3,7 +3,7 @@
 README: [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md) | [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md)
 
 - Gowireshark 是一个 Golang 库，它允许我们的 Golang 程序具有 wireshark 的协议解析功能，它可以离线解析 pcap 数据包文件或实时监听设备并获得协议解析结果。
-- Gowireshark基于[libpcap 1.10.2](https://www.tcpdump.org/release/)与[wireshark 4.0.2](https://www.wireshark.org/#download)编译后的动态链接库开发。
+- Gowireshark基于[libpcap 1.10.3](https://www.tcpdump.org/release/)与[wireshark 4.0.3](https://www.wireshark.org/#download)编译后的动态链接库开发。
 
 ---
 
@@ -155,16 +155,17 @@ graph LR
 ```shell
 # 到/opt目录下操作
 cd /opt/
+export WIRESHARKV=4.0.3
 
 # 下载源码
-wget https://1.as.dl.wireshark.org/src/wireshark-4.0.2.tar.xz
+wget https://1.as.dl.wireshark.org/src/wireshark-$WIRESHARKV.tar.xz
 
 # 解压缩并修改文件夹名称
-tar -xvf wireshark-4.0.2.tar.xz
-mv wireshark-4.0.2 wireshark
+tar -xvf wireshark-$WIRESHARKV.tar.xz
+mv wireshark-$WIRESHARKV wireshark
 
 # 进入wireshark目录
-cd wireshark/
+cd /opt/wireshark/
 
 --------[首次操作] 如何检查编译所需的依赖项-------------
 # 根据输出的红色错误日志解决依赖项问题，直到发生 qt5 错误时忽略这些问题
@@ -218,12 +219,13 @@ cd run/
 ls -lh
 
 # 覆盖替换原始的 9 个 wireshark 动态链接库文件
-cd gowireshark/libs/
-cp/opt/wireshark/build/run/lib*so* .
+cd /opt/gowireshark/libs/
+cp /opt/wireshark/build/run/lib*so* .
 
 # 覆盖 wireshark 源文件夹（先删除无用的 build/ 目录）
 rm -rf /opt/wireshark/build/
-cp /opt/wireshark/ gowireshark/include/wireshark/
+# 将源码拷贝到项目前可以将原 /opt/gowireshark/include/wireshark/ 目录备份
+cp -r /opt/wireshark/ /opt/gowireshark/include/wireshark/
 
 # 查看项目目录结构 [项目目录父目录执行]
 tree -L 2 -F gowireshark
@@ -235,7 +237,7 @@ tree -L 2 -F gowireshark
 
 ```
 cd /opt
-export PCAPV=1.10.2
+export PCAPV=1.10.3
 wget http://www.tcpdump.org/release/libpcap-$PCAPV.tar.gz
 tar -zxvf libpcap-$PCAPV.tar.gz
 cd libpcap-$PCAPV
@@ -249,7 +251,7 @@ make
 apt install bison
 ------
 
-# 编译完成后，将 【libpcap.so.1.10.2】 修改为 【libpcap.so.1】，
+# 编译完成后，将 【libpcap.so.1.10.3】 修改为 【libpcap.so.1】，
 ```
 </details>
 
