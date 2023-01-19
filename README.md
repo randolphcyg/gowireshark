@@ -113,7 +113,7 @@ gowireshark
 ```
 Detailed description of the project directory structure：
 
-| 文件                                        | 说明                                                                                          |
+| file                                      | description                                                                                 |
 |-------------------------------------------|---------------------------------------------------------------------------------------------|
 | `include/wireshark/`                      | wireshark compiled source code                                                              |
 | `include/libpcap/`                        | libpcap uncompiled source code                                                              |
@@ -318,6 +318,7 @@ apt install bison
 - [x] Stop real-time packet capture parsing
 - [x] Optimize memory leakage and improve the performance of real-time packet capture and parsing interfaces
 - [ ] :punch: Supports packet capture for multiple devices and stops packet capture based on device name (TODO Bugs to be fixed)
+- [ ] handle_packet func: memory leakage
 
 
 ## 5. Contact
