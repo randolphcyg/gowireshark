@@ -157,6 +157,7 @@ static gboolean pbf_as_hf = FALSE; /* dissect protobuf fields as header fields o
 static gboolean preload_protos = FALSE;
 /* Show protobuf as JSON similar to https://developers.google.com/protocol-buffers/docs/proto3#json */
 static gboolean display_json_mapping = FALSE;
+static gboolean use_utc_fmt = FALSE;
 
 enum add_default_value_policy_t {
     ADD_DEFAULT_VALUE_NONE,
@@ -376,7 +377,7 @@ protobuf_dissect_field_value(proto_tree *value_tree, tvbuff_t *tvb, guint offset
 
 static void
 dissect_protobuf_message(tvbuff_t *tvb, guint offset, guint length, packet_info *pinfo, proto_tree *protobuf_tree,
-    const PbwDescriptor* message_desc, gboolean is_top_level, json_dumper *dumper);
+    const PbwDescriptor* message_desc, int hf_msg, gboolean is_top_level, json_dumper *dumper, wmem_allocator_t* scope, char** retval);
 
 /* Only repeated fields of primitive numeric types (types which use the varint, 32-bit, or 64-bit wire types) can
  * be declared "packed".
@@ -493,7 +494,6 @@ dissect_packed_repeated_field_values(tvbuff_t *tvb, guint start, guint length, p
 
 /* The "google.protobuf.Timestamp" must be converted to rfc3339 format if mapping to JSON
  * according to https://developers.google.com/protocol-buffers/docs/proto3#json
- * TODO: Displaying the timezone in 'Z' or local format could be made into a preference.
  */
 static char *
 abs_time_to_rfc3339(wmem_allocator_t *scope, const nstime_t *nstime, bool use_utc)
@@ -551,7 +551,6 @@ protobuf_dissect_field_value(proto_tree *value_tree, tvbuff_t *tvb, guint offset
     proto_tree* field_tree = proto_item_get_subtree(ti_field);
     proto_tree* field_parent_tree = proto_tree_get_parent_tree(field_tree);
     proto_tree* pbf_tree = field_tree;
-    nstime_t timestamp = { 0 };
     dissector_handle_t field_dissector = field_full_name ? dissector_get_string_handle(protobuf_field_subdissector_table, field_full_name) : NULL;
 
     if (pbf_as_hf && field_full_name) {
@@ -699,13 +698,13 @@ protobuf_dissect_field_value(proto_tree *value_tree, tvbuff_t *tvb, guint offset
 
     case PROTOBUF_TYPE_BYTES:
         if (field_desc && dumper) {
+            json_dumper_begin_base64(dumper);
             buf = (char*) tvb_memdup(wmem_file_scope(), tvb, offset, length);
             if (buf) {
-                json_dumper_begin_base64(dumper);
                 json_dumper_write_base64(dumper, buf, length);
-                json_dumper_end_base64(dumper);
                 wmem_free(wmem_file_scope(), buf);
             }
+            json_dumper_end_base64(dumper);
         }
         if (field_dissector) {
             if (!show_details) { /* don't show Value node if there is a subdissector for this field */
@@ -753,27 +752,18 @@ protobuf_dissect_field_value(proto_tree *value_tree, tvbuff_t *tvb, guint offset
                 expert_add_info(pinfo, ti_field, &et_protobuf_message_type_not_found);
             }
         }
-        if (hf_id_ptr) {
-            if (sub_message_desc
-                && strcmp(pbw_Descriptor_full_name(sub_message_desc), "google.protobuf.Timestamp") == 0)
-            {   /* parse this field directly as timestamp */
-                if (tvb_get_protobuf_time(tvb, offset, length, &timestamp)) {
-                    ti = proto_tree_add_time(pbf_tree, *hf_id_ptr, tvb, offset, length, &timestamp);
-                    subtree = proto_item_add_subtree(ti, ett_protobuf_message);
-                    if (dumper) {
-                        buf = abs_time_to_rfc3339(pinfo->pool, &timestamp, FALSE);
-                        json_dumper_value_string(dumper, buf);
-                    }
-                } else {
-                    expert_add_info(pinfo, ti_field, &ei_protobuf_failed_parse_field);
-                }
-            } else {
-                ti = proto_tree_add_bytes_format_value(pbf_tree, *hf_id_ptr, tvb, offset, length, NULL, "(%u bytes)", length);
-                subtree = proto_item_add_subtree(ti, ett_protobuf_message);
-            }
-        }
         if (sub_message_desc) {
-            dissect_protobuf_message(tvb, offset, length, pinfo, subtree, sub_message_desc, FALSE, (timestamp.secs == 0 ? dumper : NULL));
+            dissect_protobuf_message(tvb, offset, length, pinfo, pbf_as_hf ? pbf_tree : subtree, sub_message_desc,
+                hf_id_ptr ? *hf_id_ptr : -1, FALSE, dumper, wmem_packet_scope(), &buf);
+
+            if (buf) { /* append the value in string format to ti_field node */
+                proto_item_append_text(ti_field, "= %s", buf);
+            }
+        } else if (hf_id_ptr) {
+            ti = proto_tree_add_bytes_format_value(pbf_tree, *hf_id_ptr, tvb, offset, length, NULL, "(%u bytes)", length);
+            subtree = proto_item_add_subtree(ti, ett_protobuf_message);
+        } else {
+            /* we don't continue with unknown mssage type */
         }
         break;
 
@@ -1380,10 +1370,10 @@ add_missing_fields_with_default_values(tvbuff_t* tvb, guint offset, packet_info*
 
 static void
 dissect_protobuf_message(tvbuff_t *tvb, guint offset, guint length, packet_info *pinfo, proto_tree *protobuf_tree,
-    const PbwDescriptor* message_desc, gboolean is_top_level, json_dumper *dumper)
+    const PbwDescriptor* message_desc, int hf_msg, gboolean is_top_level, json_dumper *dumper, wmem_allocator_t* scope, char** retval)
 {
     proto_tree *message_tree;
-    proto_item *ti_message, *ti;
+    proto_item *ti_message, *ti, *ti_parent = proto_tree_get_parent(protobuf_tree);
     const gchar* message_name = "<UNKNOWN> Message Type";
     guint max_offset = offset + length;
     const PbwFieldDescriptor* field_desc;
@@ -1391,12 +1381,34 @@ dissect_protobuf_message(tvbuff_t *tvb, guint offset, guint length, packet_info 
     int* parsed_fields = NULL; /* store parsed field numbers. end with NULL */
     int parsed_fields_count = 0;
     int field_count = 0;
+    nstime_t timestamp = { 0 };
+    gchar* value_label = NULL; /* The label representing the value of some wellknown message, such as google.protobuf.Timestamp */
 
     if (message_desc) {
         message_name = pbw_Descriptor_full_name(message_desc);
         field_count = pbw_Descriptor_field_count(message_desc);
         if (add_default_value && field_count > 0) {
             parsed_fields = wmem_alloc0_array(pinfo->pool, int, field_count);
+        }
+
+        if (strcmp(message_name, "google.protobuf.Timestamp") == 0) {
+            /* parse this message as timestamp */
+            if (tvb_get_protobuf_time(tvb, offset, length, &timestamp)) {
+                value_label = abs_time_to_rfc3339(scope ? scope : pinfo->pool, &timestamp, use_utc_fmt);
+                if (hf_msg != -1) {
+                    ti = proto_tree_add_time_format_value(protobuf_tree, hf_msg, tvb, offset, length, &timestamp, "%s", value_label);
+                    protobuf_tree = proto_item_add_subtree(ti, ett_protobuf_message);
+                }
+                if (dumper) {
+                    json_dumper_value_string(dumper, value_label);
+                    dumper = NULL; /* this message will not dump as JSON object */
+                }
+            } else {
+                expert_add_info(pinfo, ti_parent, &ei_protobuf_failed_parse_field);
+            }
+        } else if (hf_msg != -1) {
+            ti = proto_tree_add_bytes_format_value(protobuf_tree, hf_msg, tvb, offset, length, NULL, "(%u bytes)", length);
+            protobuf_tree = proto_item_add_subtree(ti, ett_protobuf_message);
         }
     }
 
@@ -1474,6 +1486,15 @@ dissect_protobuf_message(tvbuff_t *tvb, guint offset, guint length, packet_info 
     if (parsed_fields) {
         wmem_free(pinfo->pool, parsed_fields);
     }
+
+    if (value_label) {
+        ti = proto_tree_add_item(message_tree, hf_text_only, tvb, offset, length, ENC_NA);
+        proto_item_set_text(ti, "[Message Value: %s]", value_label);
+    }
+
+    if (retval) {
+        *retval = value_label;
+    }
 }
 
 /* try to find message type by UDP port */
@@ -1507,10 +1528,6 @@ dissect_protobuf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
     const PbwDescriptor* message_desc = NULL;
     const gchar* data_str = NULL;
     gchar *json_str, *p, *q;
-    json_dumper dumper = {
-        .output_string = (display_json_mapping ? g_string_new(NULL) : NULL),
-        .flags = JSON_DUMPER_FLAGS_PRETTY_PRINT,
-    };
 
     /* initialize only the first time the protobuf dissector is called */
     if (!protobuf_dissector_called) {
@@ -1599,10 +1616,19 @@ dissect_protobuf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
         message_desc = find_message_type_by_udp_port(pinfo);
     }
 
-    dissect_protobuf_message(tvb, offset, tvb_reported_length_remaining(tvb, offset), pinfo,
-        protobuf_tree, message_desc, pinfo->ptype == PT_UDP, (message_desc ? &dumper : NULL));
+    if (display_json_mapping && message_desc) {
+        json_dumper dumper = {
+            .output_string = g_string_new(NULL),
+            .flags = JSON_DUMPER_FLAGS_PRETTY_PRINT | JSON_DUMPER_FLAGS_NO_DEBUG,
+        };
 
-    if (display_json_mapping && message_desc && json_dumper_finish(&dumper)) {
+        /* Dissecting can throw an exception, ideally CLEANUP_PUSH and _POP
+         * should be used to free the GString to avoid a leak.
+         */
+        dissect_protobuf_message(tvb, offset, tvb_reported_length_remaining(tvb, offset), pinfo,
+            protobuf_tree, message_desc, -1, pinfo->ptype == PT_UDP, &dumper, NULL, NULL);
+
+        DISSECTOR_ASSERT_HINT(json_dumper_finish(&dumper), "Bad json_dumper state");
         ti = proto_tree_add_item(tree, proto_protobuf_json_mapping, tvb, 0, -1, ENC_NA);
         protobuf_json_tree = proto_item_add_subtree(ti, ett_protobuf_json);
 
@@ -1623,6 +1649,9 @@ dissect_protobuf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 
             g_free(json_str);
         }
+    } else {
+        dissect_protobuf_message(tvb, offset, tvb_reported_length_remaining(tvb, offset), pinfo,
+            protobuf_tree, message_desc, -1, pinfo->ptype == PT_UDP, NULL, NULL, NULL);
     }
 
     return tvb_captured_length(tvb);
@@ -1855,7 +1884,7 @@ collect_fields(const PbwDescriptor* message, void* userdata)
             sub_msg_desc = pbw_FieldDescriptor_message_type(field_desc);
             if (sub_msg_desc && strcmp(pbw_Descriptor_full_name(sub_msg_desc), "google.protobuf.Timestamp") == 0) {
                 hf->hfinfo.type = FT_ABSOLUTE_TIME;
-                hf->hfinfo.display = ABSOLUTE_TIME_LOCAL;
+                hf->hfinfo.display = use_utc_fmt ? ABSOLUTE_TIME_NTP_UTC : ABSOLUTE_TIME_LOCAL;
             } else {
                 hf->hfinfo.type = FT_BYTES;
                 hf->hfinfo.display = BASE_NONE;
@@ -2263,6 +2292,11 @@ proto_register_protobuf(void)
         "Protobuf message should be displayed "
         "in addition to the dissection tree",
         &display_json_mapping);
+
+    prefs_register_bool_preference(protobuf_module, "use_utc",
+        "Display time in UTC",
+        "Display timestamp in UTC format",
+        &use_utc_fmt);
 
     /* Following preferences are for undefined fields, that happened while message type is not specified
        when calling dissect_protobuf(), or message type or field information is not found in search paths

@@ -11,7 +11,7 @@
 #ifndef _PACKET_ECATMAILBOX_H_
 #define _PACKET_ECATMAILBOX_H_
 
-#include <include/ws_diag_control.h>
+#include <ws_diag_control.h>
 DIAG_OFF_PEDANTIC
 
 /* Ensure the same data layout for all platforms */

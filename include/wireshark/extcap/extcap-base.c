@@ -23,7 +23,7 @@
 
 #include <wsutil/ws_assert.h>
 
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 
 enum extcap_options {
     EXTCAP_BASE_OPTIONS_ENUM

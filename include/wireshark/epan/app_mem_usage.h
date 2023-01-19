@@ -9,7 +9,7 @@
 #ifndef __APP_MEM_USAGE_H__
 #define __APP_MEM_USAGE_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 typedef struct {
 	const char *name;

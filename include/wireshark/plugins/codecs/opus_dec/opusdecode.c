@@ -13,7 +13,7 @@
 #include "opus/opus.h"
 
 #include "wsutil/codecs.h"
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 
 void codec_register_opus(void);
 

@@ -13,7 +13,7 @@
 
 #include <glib.h>
 
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 
 gboolean
 sttype_set_convert_to_range(stnode_t **node_left, stnode_t **node_right);

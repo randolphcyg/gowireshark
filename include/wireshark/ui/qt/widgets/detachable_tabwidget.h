@@ -10,7 +10,7 @@
 #ifndef DETACHABLE_TABWIDGET_H
 #define DETACHABLE_TABWIDGET_H
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #include <QTabWidget>
 #include <QDialog>

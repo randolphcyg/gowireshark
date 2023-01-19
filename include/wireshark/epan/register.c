@@ -9,7 +9,7 @@
  */
 
 #include "register-int.h"
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 
 #include <glib.h>
 

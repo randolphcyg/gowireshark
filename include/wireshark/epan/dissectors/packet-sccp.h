@@ -11,7 +11,7 @@
 #ifndef __PACKET_SCCP_H
 #define __PACKET_SCCP_H
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #define SCCP_MSG_TYPE_CR    0x01
 #define SCCP_MSG_TYPE_CC    0x02

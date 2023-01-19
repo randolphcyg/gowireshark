@@ -8,7 +8,7 @@
  */
 
 #define WS_BUILD_DLL
-#include <include/wireshark.h>
+#include <wireshark.h>
 #include <epan/packet.h>
 #include <epan/proto.h>
 

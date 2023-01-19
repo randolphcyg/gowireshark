@@ -5878,8 +5878,8 @@ jcp		19541/tcp/udp	# JCP Client
 mle		19788/udp	# Mesh Link Establishment
 faircom-db	19790/tcp	# FairCom Database
 iec-104-sec	19998/tcp	# IEC 60870-5-104 process control - secure
-dnp-sec		19999/tcp/udp	# Distributed Network Protocol - Secure
-dnp		20000/tcp/udp	# DNP
+dnp-sec		19999/tcp/udp/sctp	# Distributed Network Protocol - Secure
+dnp		20000/tcp/udp/sctp	# DNP
 microsan	20001/tcp/udp	# MicroSAN
 commtact-http	20002/tcp/udp	# Commtact HTTP
 commtact-https	20003/tcp/udp	# Commtact HTTPS
@@ -6161,6 +6161,7 @@ crestron-ctps	41797/tcp	# Crestron Secure Terminal Port
 candp		42508/tcp/udp	# Computer Associates network discovery protocol
 candrp		42509/tcp/udp	# CA discovery response
 caerpc		42510/tcp/udp	# CA eTrust RPC
+curiosity	42999/tcp	# API endpoint for search application
 recvr-rc	43000/tcp	# Receiver Remote Control
 recvr-rc-disc	43000/udp	# Receiver Remote Control Discovery
 reachout	43188/tcp/udp	# REACHOUT

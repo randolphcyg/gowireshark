@@ -15,7 +15,7 @@
 #ifndef REASSEMBLE_H
 #define REASSEMBLE_H
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /* only in fd_head: packet is defragmented */
 #define FD_DEFRAGMENTED		0x0001

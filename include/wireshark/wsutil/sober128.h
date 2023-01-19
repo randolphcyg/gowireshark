@@ -24,7 +24,7 @@
 #ifndef _SOBER127_H
 #define _SOBER127_H
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 typedef struct _sober128_prng {
     unsigned long      R[17],          /* Working storage for the shift register */

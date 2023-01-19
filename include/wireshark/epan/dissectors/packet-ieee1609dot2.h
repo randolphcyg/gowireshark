@@ -20,7 +20,7 @@
 #ifndef _IEEE1609DOT2_H_
 #define _IEEE1609DOT2_H_
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 
 /*--- Included file: packet-ieee1609dot2-val.h ---*/

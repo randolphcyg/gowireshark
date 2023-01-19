@@ -25,53 +25,108 @@ wsbuglink:17779[]
 
 The following vulnerabilities have been fixed:
 
-* wssalink:2022-09[]
-Multiple dissector infinite loops.
-// wsbuglink:xxxxx[].
-// cveidlink:2022-xxxx[].
-// Fixed in master: f2a0d25dba,13823bb105,0e11932183,f8d308e9af
-// Fixed in release-4.0: 6b49db03f2,ccf491b993,9828a59081
-// Fixed in release-3.6: 5fb7e2097e,39db474f80
+* wssalink:2023-01[]
+EAP dissector crash.
+wsbuglink:18622[].
+// cveidlink:2023-xxxx[].
+// Fixed in master: a8b16d74e1
+// Fixed in release-4.0: 2fdd1b9c8d
+// Fixed in release-3.6: n/a
 // CVSS AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:L
-// CWE-835
+// CWE-825
+// * Fuzz job crash output: fuzz-2022-11-11-7078.pcap. wsbuglink:18622[].
 
-* wssalink:2022-10[]
-Kafka dissector memory exhaustion.
-// wsbuglink:xxxxx[].
-// cveidlink:2022-xxxx[].
-// Fixed in master: 9412adf7bf
-// Fixed in release-4.0: f812314a60
-// Fixed in release-3.6: 9a93a1dbe3
+* wssalink:2023-02[]
+NFS dissector memory leak.
+wsbuglink:18628[].
+// cveidlink:2023-xxxx[].
+// Fixed in master: ae0c38a07a
+// Fixed in release-4.0: e405371a55
+// Fixed in release-3.6: 3e73371a27
 // CVSS AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:L
 // CWE-789
+// * Fuzz job crash output: fuzz-2022-11-12-7114.pcap. wsbuglink:18628[].
+
+* wssalink:2023-03[]
+Dissection engine crash.
+wsbuglink:18766[].
+// cveidlink:2023-xxxx[].
+// Fixed in master: 55ffdb08bb
+// Fixed in release-4.0: 51f52a76b4
+// Fixed in release-3.6: c9433c341b
+// CVSS AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:L
+// CWE-476
+// * Fuzz job crash output: fuzz-2022-12-27-10777.pcap. wsbuglink:18766[].
+
+* wssalink:2023-04[]
+GNW dissector crash.
+wsbuglink:18779[].
+// cveidlink:2023-xxxx[].
+// Fixed in master: 693dc40936
+// Fixed in release-4.0: e3cfec7313
+// Fixed in release-3.6: 086700bcc0
+// CVSS AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:L
+// CWE-825
+// * Fuzz job crash output: fuzz-2023-01-03-10777.pcap. wsbuglink:18779[].
+
+* wssalink:2023-05[]
+iSCSI dissector crash.
+wsbuglink:18796[].
+// cveidlink:2023-xxxx[].
+// Fixed in master: 1e1e733d8c
+// Fixed in release-4.0: efddc13620
+// Fixed in release-3.6: fa82aec631
+// CVSS AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:L
+// CWE-476
+// * Fuzz job crash output: fuzz-2023-01-11-10954.pcap. wsbuglink:18796[].
+
+* wssalink:2023-06[]
+Multiple dissector excessive loops.
+wsbuglink:18711[]. wsbuglink:18720[], wsbuglink:18737[].
+// cveidlink:2023-xxxx[].
+// Fixed in master: 2fd04b6ba9, dcf00fc3bd, b0cf030b30
+// Fixed in release-4.0: ebdaeafba6, 69d3ad621e, f8f9b557f6
+// Fixed in release-3.6: 2517e806ab, d1f5073d2e, 2aa7856bf7
+// CVSS AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:L
+// CWE-834
+// * Fuzz job crash output: fuzz-2022-12-07-11016.pcap. wsbuglink:18711[].
+// * Fuzz job crash output: fuzz-2022-12-10-10621.pcap. wsbuglink:18720[].
+//* Private. wsbuglink:18737[].
+
+* wssalink:2023-07[]
+TIPC dissector crash.
+wsbuglink:18770[].
+// cveidlink:2023-xxxx[].
+// Fixed in master: 659b830aef
+// Fixed in release-4.0: e487a599b0
+// Fixed in release-3.6: 78a8875f24
+// CVSS AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:L
+// CWE-674
+// * Fuzz job crash output: fuzz-2022-12-30-11007.pcap wsbuglink:18770[].
 
 The following bugs have been fixed:
-
-* Qt: Endpoints dialog - unexpected byte unit suffixes in packet columns. wsbuglink:18229[].
-* GOOSE: field "floating_point" not working anymore. wsbuglink:18491[].
-* EVS Header-Full format padding issues. wsbuglink:18498[].
-* Wireshark 4.0.0 VOIP playback has no sound and can't resume after pausing. wsbuglink:18510[].
-* Wireshark crashes when exporting a profile on Mac OSX if there is no extension. wsbuglink:18525[].
-* EVS dissector missing value description. wsbuglink:18550[].
-* Qt 6 font descriptions not backward compatible with Qt 5. wsbuglink:18553[].
-* Wireshark, wrong TCP ACKed unseen segment message. wsbuglink:18558[].
-* Invalid Cyrillic symbol in timezone at \"Arrival Time\" field in frame. wsbuglink:18562[].
-* ProtoBuf parse extension definitions failed. wsbuglink:18599[].
-* Fuzz job crash output: fuzz-2022-11-09-11134.pcap. wsbuglink:18613[].
-* Fuzz job crash output: fuzz-2022-11-14-11111.pcap. wsbuglink:18632[].
-* Wireshark is using old version of ASN (ETSI TS 125 453 V11.2.0)  which is imapacting length of param in the messages. wsbuglink:18646[].
-* BGP: False IGMP flags value in EVPN routes (type 6,7,8) wsbuglink:18660[].
-* wslog assumes stderr and stdout exist. wsbuglink:18684[].
-* Editing packet comments, with non-ASCII characters, on Windows saves them in the local code page, not in UTF-8. wsbuglink:18698[].
-* Unable to decrypt PSK based DTLS traffic which uses Connection ID. wsbuglink:18705[].
-* HTTP2 tests fail when built without nghttp2. wsbuglink:18707[].
-
 
 //* wsbuglink:5000[]
 //* wsbuglink:6000[Wireshark bug]
 //* cveidlink:2014-2486[]
 //* Wireshark insists on subscribing to two dozen streaming services but only watches three.
 
+* Qt: After modifying coloring rules, the coloring rule applied to the first packet reflects the coloring rules previously in effect. wsbuglink:12475[].
+* Help file doesn't display for extcap interfaces. wsbuglink:15592[].
+* For USB traffic on XHC20 interface destination is always given as Host. wsbuglink:16768[].
+* Wireshark Expert Info - cannot deselect the limit to display filter tick box. wsbuglink:18461[].
+* Wrong pointer conversion in get_data_source_tvb_by_name() wsbuglink:18517[].
+* Wrong number of bits skipped while decoding an empty UTF8String on UPER packet. wsbuglink:18702[].
+* Crash when analyzing protobuf packets. wsbuglink:18730[].
+* Uninitialized values in various dissectors. wsbuglink:18742[].
+* String (GeoIP country/city) ordering doesn't work in Endpoints. wsbuglink:18749[].
+* Wireshark crashes with an assertion failure on stray minus in filter. wsbuglink:18750[].
+* IO Graph: Add new graph only works until the 10th graph. wsbuglink:18762[].
+* Fuzz job crash output: fuzz-2022-12-30-11007.pcap. wsbuglink:18770[].
+//* null. wsbuglink:18774[].
+* Q.850 - error in label for cause 0x7F. wsbuglink:18780[].
+* Uninitialized values in CoAP and RTPS dissectors. wsbuglink:18785[].
+* Screenshots in AppStream metainfo.xml file not available. wsbuglink:18801[].
 
 === New and Updated Features
 
@@ -93,30 +148,32 @@ There are no new protocols in this release.
 === Updated Protocol Support
 
 // Add one protocol per line between the -- delimiters.
-// ag -A1 '(define PSNAME|proto_register_protocol[^_])' $(git diff --name-only v4.0.2.. | ag packet- | sort -u)
+// ag -A1 '(define PSNAME|proto_register_protocol[^_])' $(git diff --name-only v4.0.3.. | ag packet- | sort -u)
 [commaize]
 --
-ASN.1 PER
 ASTERIX
+BEEP
 BGP
 BPv6
-DTLS
-EVS
-GOOSE
-GSM Osmux
-IPv6
-Kafka
-Locamation IM
-MONGO
-NXP 802.15.4
-OpenFlow v6
-PCAP
-Protobuf
-RTP
-S1AP
-SKINNY
-TCP
-WASSP
+CoAP
+EAP
+GNW
+GSM A-bis P-GSL
+iSCSI
+ISUP
+LwM2M-TLV
+MBIM
+NBAP
+NFS
+OBD-II
+OPUS
+ProtoBuf
+ROHC
+RTPS
+Telnet
+TIPC
+RLC
+USB
 --
 
 === New and Updated Capture File Support
@@ -183,6 +240,11 @@ https://sharkfest.wireshark.org[SharkFest].
 
 // Official Wireshark training and certification are available from
 // https://www.wiresharktraining.com/[Wireshark University].
+
+== How You Can Help
+
+The Wireshark Foundation helps as many people as possible understand their networks as much as possible.
+You can find out more and donate at https://wiresharkfoundation.org[wiresharkfoundation.org].
 
 == Frequently Asked Questions
 

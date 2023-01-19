@@ -11,7 +11,7 @@
 #ifndef __WIN32UTIL_H__
 #define __WIN32UTIL_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #include <windows.h>
 

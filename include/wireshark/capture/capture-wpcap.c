@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <glib.h>
 
-#include <include/ws_attributes.h>
+#include <ws_attributes.h>
 
 #include "capture/capture-wpcap.h"
 

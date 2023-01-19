@@ -13,7 +13,7 @@
 #ifndef __PACKET_Q931_H__
 #define __PACKET_Q931_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 WS_DLL_PUBLIC void dissect_q931_bearer_capability_ie(tvbuff_t *, int, int,
     proto_tree *);

@@ -3,7 +3,7 @@
 README: [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md) | [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md)
 
 - Gowireshark is a Golang library that allows our Golang program to have wireshark's protocol parsing function, which can parse pcap packet files offline or listen to the device in real time and obtain protocol parsing results.
-- Gowireshark is developed based on the dynamic link library compiled by [libpcap 1.10.2](https://www.tcpdump.org/release/)、[wireshark 4.0.2](https://www.wireshark.org/#download).
+- Gowireshark is developed based on the dynamic link library compiled by [libpcap 1.10.3](https://www.tcpdump.org/release/)、[wireshark 4.0.3](https://www.wireshark.org/#download).
 
 ---
 
@@ -160,16 +160,17 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 ```shell
 # Operate in the /opt directory
 cd /opt/
+export WIRESHARKV=4.0.3
 
 # Download the source code
-wget https://1.as.dl.wireshark.org/src/wireshark-4.0.2.tar.xz
+wget https://1.as.dl.wireshark.org/src/wireshark-$WIRESHARKV.tar.xz
 
 # Unzip and modify the folder name
-tar -xvf wireshark-4.0.2.tar.xz
-mv wireshark-4.0.2 wireshark
+tar -xvf wireshark-$WIRESHARKV.tar.xz
+mv wireshark-$WIRESHARKV wireshark
 
 # Go to the wireshark directory
-cd wireshark/
+cd /opt/wireshark/
 
 --------[For the first time] How to check the dependencies required for compilation-------------
 # Resolve dependency issues according to the output red error log until they are ignored when a qt5 error occurs
@@ -223,12 +224,13 @@ cd run/
 ls -lh
 
 # Overwrites replaces the original 9 wireshark dynamic link library files
-cd gowireshark/libs/
-cp/opt/wireshark/build/run/lib*so* .
+cd /opt/gowireshark/libs/
+cp -r /opt/wireshark/build/run/lib*so* .
 
 # Overwrite the wireshark source folder(Remove the useless build/ directory first)
 rm -rf /opt/wireshark/build/
-cp /opt/wireshark/ gowireshark/include/wireshark/
+# Before copying the source code to the project, you can back up the original /opt/gowireshark/include/wireshark/ directory
+cp /opt/wireshark/ /opt/gowireshark/include/wireshark/
 
 # View project directory structure [project directory parent directory execution]
 tree -L 2 -F gowireshark
@@ -240,7 +242,7 @@ tree -L 2 -F gowireshark
 
 ```
 cd /opt
-export PCAPV=1.10.2
+export PCAPV=1.10.3
 wget http://www.tcpdump.org/release/libpcap-$PCAPV.tar.gz
 tar -zxvf libpcap-$PCAPV.tar.gz
 cd libpcap-$PCAPV
@@ -292,7 +294,7 @@ apt install bison
 
    There are some C syntax declarations and imports in the preface, as well as some cgo parameters, so that when compiling this go project with `go build`, the internal C project will be automatically compiled into it:
     ```cgo
-    # After the compilation is completed, modify 【libpcap.so.1.10.2】 to 【libpcap.so.1】, 
+    # After the compilation is completed, modify 【libpcap.so.1.10.3】 to 【libpcap.so.1】, 
     # you can call the dynamic link library in the go code, and the required operations are:
     
     // Importing the libpcap library will find a dynamic link library named libpcap.so.1 in the libs directory

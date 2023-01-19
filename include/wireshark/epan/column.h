@@ -14,7 +14,7 @@
 #ifndef __COLUMN_H__
 #define __COLUMN_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include <epan/column-utils.h>
 
 #ifdef __cplusplus

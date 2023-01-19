@@ -264,7 +264,10 @@ TrafficDataFilterProxy::TrafficDataFilterProxy(QObject *parent) :
     _filterColumn(-1),
     _filterOn(-1),
     _filterText(QString())
-{}
+{
+    setSortRole(ATapDataModel::UNFORMATTED_DISPLAYDATA);
+}
+
 
 void TrafficDataFilterProxy::filterForColumn(int column, int filterOn, QString filterText)
 {
@@ -299,10 +302,11 @@ int TrafficDataFilterProxy::mapToSourceColumn(int proxyColumn) const
                     column++;
             }
             ConversationDataModel * convModel = qobject_cast<ConversationDataModel *>(model);
-            if (convModel->showConversationId() && column > ConversationDataModel::CONV_COLUMN_BYTES)
+            if (!convModel->showConversationId() && column > ConversationDataModel::CONV_COLUMN_BYTES) {
                 column++;
+            }
             if (! model->showTotalColumn()) {
-                if (column > ConversationDataModel::CONV_COLUMN_BYTES)
+                if (column > ConversationDataModel::CONV_COLUMN_CONV_ID)
                     column+=2;
             }
         }
@@ -426,9 +430,6 @@ bool TrafficDataFilterProxy::lessThan(const QModelIndex &source_left, const QMod
 
         return result;
     }
-
-    if (datA.canConvert<double>() && datB.canConvert<double>())
-        return datA.toDouble() < datB.toDouble();
 
     return QSortFilterProxyModel::lessThan(source_left, source_right);
 }

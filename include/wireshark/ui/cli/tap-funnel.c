@@ -18,7 +18,7 @@
 #include <epan/funnel.h>
 #include <stdio.h>
 
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 
 #include <wsutil/wslog.h>
 

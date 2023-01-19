@@ -15,7 +15,7 @@
 #include "dot11decrypt_interop.h"
 #include "dot11decrypt_system.h"
 
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 #include <wsutil/wsgcrypt.h>
 
 /****************************************************************************/

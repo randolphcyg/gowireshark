@@ -15,7 +15,7 @@
 
 #include <glib.h>
 #include <epan/packet.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #define SUBTREE_UNDEFINED_LENGTH -1
 

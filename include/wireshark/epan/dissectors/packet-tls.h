@@ -11,7 +11,7 @@
 #ifndef __PACKET_TLS_H__
 #define __PACKET_TLS_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include <epan/packet.h>
 
 /** Maps Session-ID to pre-master secrets. */

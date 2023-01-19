@@ -11,8 +11,8 @@
 #ifndef __FRAME_DATA_H__
 #define __FRAME_DATA_H__
 
-#include <include/ws_diag_control.h>
-#include <include/ws_symbol_export.h>
+#include <ws_diag_control.h>
+#include <ws_symbol_export.h>
 #include <wsutil/nstime.h>
 
 #include <wiretap/wtap.h>

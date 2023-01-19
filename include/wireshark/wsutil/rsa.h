@@ -12,7 +12,7 @@
 #ifndef __RSA_H__
 #define __RSA_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include "wsgcrypt.h"
 
 #ifdef HAVE_LIBGNUTLS

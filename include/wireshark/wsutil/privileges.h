@@ -11,7 +11,7 @@
 #ifndef __PRIVILEGES_H__
 #define __PRIVILEGES_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

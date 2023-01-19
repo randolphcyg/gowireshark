@@ -8,3 +8,5 @@ libwsutil.so filter=lfs diff=lfs merge=lfs -text
 libwsutil.so.14 filter=lfs diff=lfs merge=lfs -text
 libwsutil.so.14.0.0 filter=lfs diff=lfs merge=lfs -text
 libwireshark.so filter=lfs diff=lfs merge=lfs -text
+libwireshark.so.16.0.3 filter=lfs diff=lfs merge=lfs -text
+libwiretap.so.13.0.3 filter=lfs diff=lfs merge=lfs -text

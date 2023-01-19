@@ -12,7 +12,7 @@
 
 #include "config.h"
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 #include <sbc/sbc.h>
 
 #include "wsutil/codecs.h"
