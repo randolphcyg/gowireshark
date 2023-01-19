@@ -96,10 +96,10 @@ gowireshark
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
 │   ├── libwireshark.so.16
-│   ├── libwireshark.so.16.0.2
+│   ├── libwireshark.so.16.0.3
 │   ├── libwiretap.so
 │   ├── libwiretap.so.13
-│   ├── libwiretap.so.13.0.2
+│   ├── libwiretap.so.13.0.3
 │   ├── libwsutil.so
 │   ├── libwsutil.so.14
 │   └── libwsutil.so.14.0.0
@@ -110,6 +110,7 @@ gowireshark
 │   └── wincc_s400_production.pcap
 └── tests/
     └── gowireshark_test.go
+
 ```
 Detailed description of the project directory structure：
 
