@@ -159,21 +159,19 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 <summary>1.Compile the wireshark dynamic link library</summary>
 
 ```shell
+# Determine the latest release version and set environment variables
+export WIRESHARKV=4.0.3
 # Operate in the /opt directory
 cd /opt/
-export WIRESHARKV=4.0.3
-
 # Download the source code
 wget https://1.as.dl.wireshark.org/src/wireshark-$WIRESHARKV.tar.xz
-
 # Unzip and modify the folder name
 tar -xvf wireshark-$WIRESHARKV.tar.xz
 mv wireshark-$WIRESHARKV wireshark
-
-# Go to the wireshark directory
+# Operate in the /opt/wireshark directory
 cd /opt/wireshark/
 
---------[For the first time] How to check the dependencies required for compilation-------------
+--------[The first compilation needs to be checked] How to check the dependencies required for compilation-------------
 # Resolve dependency issues according to the output red error log until they are ignored when a qt5 error occurs
 cmake -LH ./
 
@@ -210,24 +208,20 @@ rm CMakeCache.txt
 rm -rf CMakeFiles/
 -------------------------------------------------------------------------------
 
-# Create a build-specific directory under the wireshark/ directory
+# Create a build-specific directory under the /opt/wireshark/ directory
 mkdir build
 cd build
-
 # Build [For production]
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_wireshark=off -DENABLE_LUA=off ..
-
 # Compile[slightly longer]
 ninja
 
 # After successful compilation, enter the run directory to view the compiled dynamic link library
 cd run/
 ls -lh
-
 # Overwrites replaces the original 9 wireshark dynamic link library files
 cd /opt/gowireshark/libs/
 cp -r /opt/wireshark/build/run/lib*so* .
-
 # Overwrite the wireshark source folder(Remove the useless build/ directory first)
 rm -rf /opt/wireshark/build/
 # Before copying the source code to the project, you can back up the original /opt/gowireshark/include/wireshark/ directory
@@ -242,18 +236,26 @@ tree -L 2 -F gowireshark
 <summary>2.Compile the libpcap dynamic link library</summary>
 
 ```
-cd /opt
+# Determine the latest release version and set environment variables
 export PCAPV=1.10.3
+# Operate in the /opt directory
+cd /opt
 wget http://www.tcpdump.org/release/libpcap-$PCAPV.tar.gz
 tar -zxvf libpcap-$PCAPV.tar.gz
 cd libpcap-$PCAPV
 export CC=aarch64-linux-gnu-gcc
 ./configure --host=aarch64-linux --with-pcap=linux
-# Remember to install the flex、bison library and remove the extra manifest and syso files
+# Compile
 make
 
-------
-# If there is no bison library, please install it
+# After successful compilation, rename the dll file
+mv libpcap.so.$PCAPV libpcap.so.1
+# Finally, replace the original dll file
+mv /opt/libpcap-$PCAPV/libpcap.so.1 /opt/gowireshark/libs/libpcap.so.1
+
+---[unessential]---
+# If there is no flex、bison library, please install first
+apt install flex
 apt install bison
 ------
 ```
