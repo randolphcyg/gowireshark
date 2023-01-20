@@ -154,21 +154,19 @@ graph LR
 <summary>1.编译wireshark动态链接库</summary>
 
 ```shell
+# 确定最新发行版本并设置环境变量
+export WIRESHARKV=4.0.3
 # 到/opt目录下操作
 cd /opt/
-export WIRESHARKV=4.0.3
-
 # 下载源码
 wget https://1.as.dl.wireshark.org/src/wireshark-$WIRESHARKV.tar.xz
-
 # 解压缩并修改文件夹名称
 tar -xvf wireshark-$WIRESHARKV.tar.xz
 mv wireshark-$WIRESHARKV wireshark
-
-# 进入wireshark目录
+# 到/opt/wireshark目录操作
 cd /opt/wireshark/
 
---------[首次操作] 如何检查编译所需的依赖项-------------
+--------[首次编译需要检查下] 如何检查编译所需的依赖项-------------
 # 根据输出的红色错误日志解决依赖项问题，直到发生 qt5 错误时忽略这些问题
 cmake -LH ./
 
@@ -205,24 +203,20 @@ rm CMakeCache.txt
 rm -rf CMakeFiles/
 -------------------------------------------------------------------------------
 
-# 在 wireshark/ 目录下创建一个用来构建的目录
+# 在 /opt/wireshark/ 目录下创建一个用来构建的目录
 mkdir build
 cd build
-
 # 构建[生产用]
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_wireshark=off -DENABLE_LUA=off ..
-
 # 编译[时长略久]
 ninja
 
 # 编译成功后，进入build/run/目录查看编译后的动态链接库
 cd run/
 ls -lh
-
 # 覆盖替换原始的 9 个 wireshark 动态链接库文件
 cd /opt/gowireshark/libs/
 cp /opt/wireshark/build/run/lib*so* .
-
 # 覆盖 wireshark 源文件夹（先删除无用的 build/ 目录）
 rm -rf /opt/wireshark/build/
 # 将源码拷贝到项目前可以将原 /opt/gowireshark/include/wireshark/ 目录备份
@@ -237,22 +231,28 @@ tree -L 2 -F gowireshark
 <summary>2.编译libpcap动态链接库</summary>
 
 ```
-cd /opt
+# 确定最新发行版本并设置环境变量
 export PCAPV=1.10.3
+# 在/opt目录下操作
+cd /opt
 wget http://www.tcpdump.org/release/libpcap-$PCAPV.tar.gz
 tar -zxvf libpcap-$PCAPV.tar.gz
 cd libpcap-$PCAPV
 export CC=aarch64-linux-gnu-gcc
 ./configure --host=aarch64-linux --with-pcap=linux
-# 记得安装 flex、bison 库并删除额外的清单和 syso 文件
+# 编译
 make
 
-------
-# 如果没有 bison 库，请安装它
+# 成功编译后，重命名动态链接库文件
+mv libpcap.so.$PCAPV libpcap.so.1
+# 最后替换原动态链接库文件
+mv /opt/libpcap-$PCAPV/libpcap.so.1 /opt/gowireshark/libs/libpcap.so.1
+
+---[非必须]---
+# 如果没有flex、bison库，请先安装
+apt install flex
 apt install bison
 ------
-
-# 编译完成后，将 【libpcap.so.1.10.3】 修改为 【libpcap.so.1】，
 ```
 </details>
 
