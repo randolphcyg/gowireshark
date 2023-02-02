@@ -8,306 +8,306 @@
 /* Name of package */
 #define PACKAGE "wireshark"
 
-#define VERSION_EXTRA "$ENV{WIRESHARK_VERSION_EXTRA}"
+#define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "${PROJECT_VERSION}${VERSION_EXTRA}"
-#define VERSION_MAJOR ${PROJECT_MAJOR_VERSION}
-#define VERSION_MINOR ${PROJECT_MINOR_VERSION}
-#define VERSION_MICRO ${PROJECT_PATCH_VERSION}
+#define VERSION "4.0.3"
+#define VERSION_MAJOR 4
+#define VERSION_MINOR 0
+#define VERSION_MICRO 3
 
 /* Version number of Logray and associated utilities */
-#define LOG_VERSION "${LOG_PROJECT_VERSION}${VERSION_EXTRA}"
+#define LOG_VERSION "0.8.3"
 
-#define PLUGIN_PATH_ID "${PLUGIN_PATH_ID}"
-#define VERSION_FLAVOR "${VERSION_FLAVOR}"
+#define PLUGIN_PATH_ID "4.0"
+#define VERSION_FLAVOR ""
 
 /* Build wsutil with SIMD optimization */
-#cmakedefine HAVE_SSE4_2 1
+/* #undef HAVE_SSE4_2 */
 
 /* Define to 1 if we want to enable plugins */
-#cmakedefine HAVE_PLUGINS 1
+#define HAVE_PLUGINS 1
 
 /*  Define to 1 if we check hf conflict */
-#cmakedefine ENABLE_CHECK_FILTER 1
+/* #undef ENABLE_CHECK_FILTER */
 
 /* Link Wireshark libraries statically */
-#cmakedefine ENABLE_STATIC 1
+/* #undef ENABLE_STATIC */
 
 /* Enable AirPcap */
-#cmakedefine HAVE_AIRPCAP 1
+/* #undef HAVE_AIRPCAP */
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
-#cmakedefine HAVE_ARPA_INET_H 1
+#define HAVE_ARPA_INET_H 1
 
 /* Define to 1 if you have the `clock_gettime` function. */
-#cmakedefine HAVE_CLOCK_GETTIME 1
+#define HAVE_CLOCK_GETTIME 1
 
 /* Define to 1 if you have the `timespec_get` function. */
-#cmakedefine HAVE_TIMESPEC_GET 1
+#define HAVE_TIMESPEC_GET 1
 
 /* Define to use the MaxMind DB library */
-#cmakedefine HAVE_MAXMINDDB 1
+/* #undef HAVE_MAXMINDDB */
 
 /* Define to 1 if you have the <ifaddrs.h> header file. */
-#cmakedefine HAVE_IFADDRS_H 1
+#define HAVE_IFADDRS_H 1
 
 /* Define to 1 if yu have the `fseeko` function. */
-#cmakedefine HAVE_FSEEKO 1
+#define HAVE_FSEEKO 1
 
 /* Define to 1 if you have the `getexecname' function. */
-#cmakedefine HAVE_GETEXECNAME 1
+/* #undef HAVE_GETEXECNAME */
 
 /* Define to 1 if you have the `getifaddrs' function. */
-#cmakedefine HAVE_GETIFADDRS 1
+#define HAVE_GETIFADDRS 1
 
 /* Define if LIBSSH support is enabled */
-#cmakedefine HAVE_LIBSSH 1
+#define HAVE_LIBSSH 1
 
 /* Define if you have the 'dlget' function. */
-#cmakedefine HAVE_DLGET 1
+/* #undef HAVE_DLGET */
 
 /* Define to 1 if you have the <grp.h> header file. */
-#cmakedefine HAVE_GRP_H 1
+#define HAVE_GRP_H 1
 
 /* Define to use heimdal kerberos */
-#cmakedefine HAVE_HEIMDAL_KERBEROS 1
+/* #undef HAVE_HEIMDAL_KERBEROS */
 
 /* Define to 1 if you have the `krb5_pac_verify' function. */
-#cmakedefine HAVE_KRB5_PAC_VERIFY 1
+/* #undef HAVE_KRB5_PAC_VERIFY */
 
 /* Define to 1 if you have the `krb5_c_fx_cf2_simple' function. */
-#cmakedefine HAVE_KRB5_C_FX_CF2_SIMPLE 1
+/* #undef HAVE_KRB5_C_FX_CF2_SIMPLE */
 
 /* Define to 1 if you have the `decode_krb5_enc_tkt_part' function. */
-#cmakedefine HAVE_DECODE_KRB5_ENC_TKT_PART 1
+/* #undef HAVE_DECODE_KRB5_ENC_TKT_PART */
 
 /* Define to 1 if you have the `encode_krb5_enc_tkt_part' function. */
-#cmakedefine HAVE_ENCODE_KRB5_ENC_TKT_PART 1
+/* #undef HAVE_ENCODE_KRB5_ENC_TKT_PART */
 
 /* Define to 1 if you have the `inflatePrime' function. */
-#cmakedefine HAVE_INFLATEPRIME 1
+#define HAVE_INFLATEPRIME 1
 
 /* Define to 1 if you have the `issetugid' function. */
-#cmakedefine HAVE_ISSETUGID 1
+/* #undef HAVE_ISSETUGID */
 
 /* Define to use kerberos */
-#cmakedefine HAVE_KERBEROS 1
+/* #undef HAVE_KERBEROS */
 
 /* Define to use PCRE2 library */
 #define HAVE_PCRE2 1
 
 /* Define to use nghttp2 */
-#cmakedefine HAVE_NGHTTP2 1
+/* #undef HAVE_NGHTTP2 */
 
 /* Define to use the libcap library */
-#cmakedefine HAVE_LIBCAP 1
+/* #undef HAVE_LIBCAP */
 
 /* Define to use GnuTLS library */
-#cmakedefine HAVE_LIBGNUTLS 1
+/* #undef HAVE_LIBGNUTLS */
 
 /* Define to 1 if GnuTLS was built with pkcs11 support. */
-#cmakedefine HAVE_GNUTLS_PKCS11 1
+/* #undef HAVE_GNUTLS_PKCS11 */
 
 /* Enable libnl support */
-#cmakedefine HAVE_LIBNL 1
+/* #undef HAVE_LIBNL */
 
 /* libnl version 1 */
-#cmakedefine HAVE_LIBNL1 1
+/* #undef HAVE_LIBNL1 */
 
 /* libnl version 2 */
-#cmakedefine HAVE_LIBNL2 1
+/* #undef HAVE_LIBNL2 */
 
 /* libnl version 3 */
-#cmakedefine HAVE_LIBNL3 1
+/* #undef HAVE_LIBNL3 */
 
 /* Define to use libpcap library */
-#cmakedefine HAVE_LIBPCAP 1
+#define HAVE_LIBPCAP 1
 
 /* Define to 1 if you have the `smi' library (-lsmi). */
-#cmakedefine HAVE_LIBSMI 1
+/* #undef HAVE_LIBSMI */
 
 /* Define to 1 if libsmi exports a version string (and that symbol is visible). */
-#cmakedefine HAVE_SMI_VERSION_STRING 1
+/* #undef HAVE_SMI_VERSION_STRING */
 
 /* Define to use zlib library */
-#cmakedefine HAVE_ZLIB 1
+#define HAVE_ZLIB 1
 
 /* Define to use the minizip library */
-#cmakedefine HAVE_MINIZIP 1
+/* #undef HAVE_MINIZIP */
 
 /* Define if `dos_date' (with underscore) field exists in `zip_fileinfo'  */
-#cmakedefine HAVE_MZCOMPAT_DOS_DATE 1
+/* #undef HAVE_MZCOMPAT_DOS_DATE */
 
 /* Define to use brotli library */
-#cmakedefine HAVE_BROTLI 1
+/* #undef HAVE_BROTLI */
 
 /* Define to use lz4 library */
-#cmakedefine HAVE_LZ4 1
+/* #undef HAVE_LZ4 */
 
 /* Check for lz4frame */
-#cmakedefine HAVE_LZ4FRAME_H 1
+/* #undef HAVE_LZ4FRAME_H */
 
 /* Define to use snappy library */
-#cmakedefine HAVE_SNAPPY 1
+/* #undef HAVE_SNAPPY */
 
 /* Define to use zstd library */
-#cmakedefine HAVE_ZSTD 1
+/* #undef HAVE_ZSTD */
 
 /* Define to 1 if you have the <linux/sockios.h> header file. */
-#cmakedefine HAVE_LINUX_SOCKIOS_H 1
+#define HAVE_LINUX_SOCKIOS_H 1
 
 /* Define to 1 if you have the <linux/if_bonding.h> header file. */
-#cmakedefine HAVE_LINUX_IF_BONDING_H 1
+#define HAVE_LINUX_IF_BONDING_H 1
 
 /* Define to use Lua */
-#cmakedefine HAVE_LUA 1
+/* #undef HAVE_LUA */
 
 /* Define to use MIT kerberos */
-#cmakedefine HAVE_MIT_KERBEROS 1
+/* #undef HAVE_MIT_KERBEROS */
 
 /* Define to 1 if you have the <netdb.h> header file. */
-#cmakedefine HAVE_NETDB_H 1
+#define HAVE_NETDB_H 1
 
 /* Define to 1 if you have the <netinet/in.h> header file. */
-#cmakedefine HAVE_NETINET_IN_H 1
+#define HAVE_NETINET_IN_H 1
 
 /* nl80211.h is new enough */
-#cmakedefine HAVE_NL80211 1
+/* #undef HAVE_NL80211 */
 
 /* SET_CHANNEL is supported */
-#cmakedefine HAVE_NL80211_CMD_SET_CHANNEL 1
+/* #undef HAVE_NL80211_CMD_SET_CHANNEL */
 
 /* SPLIT_WIPHY_DUMP is supported */
-#cmakedefine HAVE_NL80211_SPLIT_WIPHY_DUMP 1
+/* #undef HAVE_NL80211_SPLIT_WIPHY_DUMP */
 
 /* VHT_CAPABILITY is supported */
-#cmakedefine HAVE_NL80211_VHT_CAPABILITY 1
+/* #undef HAVE_NL80211_VHT_CAPABILITY */
 
 /* Define to 1 if you have macOS frameworks */
-#cmakedefine HAVE_MACOS_FRAMEWORKS 1
+/* #undef HAVE_MACOS_FRAMEWORKS */
 
 /* Define to 1 if you have the macOS CFPropertyListCreateWithStream function */
-#cmakedefine HAVE_CFPROPERTYLISTCREATEWITHSTREAM 1
+/* #undef HAVE_CFPROPERTYLISTCREATEWITHSTREAM */
 
 /* Define to 1 if you have the `pcap_create' function. */
-#cmakedefine HAVE_PCAP_CREATE 1
+#define HAVE_PCAP_CREATE 1
 
 /* Define to 1 if the capture buffer size can be set. */
-#cmakedefine CAN_SET_CAPTURE_BUFFER_SIZE 1
+#define CAN_SET_CAPTURE_BUFFER_SIZE 1
 
 /* Define to 1 if you have the `pcap_freecode' function. */
-#cmakedefine HAVE_PCAP_FREECODE 1
+#define HAVE_PCAP_FREECODE 1
 
 /* Define to 1 if you have the `pcap_free_datalinks' function. */
-#cmakedefine HAVE_PCAP_FREE_DATALINKS 1
+#define HAVE_PCAP_FREE_DATALINKS 1
 
 /* Define to 1 if you have the `pcap_open' function. */
-#cmakedefine HAVE_PCAP_OPEN 1
+/* #undef HAVE_PCAP_OPEN */
 
 /* Define to 1 if you have libpcap/WinPcap/Npcap remote capturing support. */
-#cmakedefine HAVE_PCAP_REMOTE 1
+/* #undef HAVE_PCAP_REMOTE */
 
 /* Define to 1 if you have the `pcap_setsampling' function. */
-#cmakedefine HAVE_PCAP_SETSAMPLING 1
+/* #undef HAVE_PCAP_SETSAMPLING */
 
 /* Define to 1 if you have the `pcap_set_tstamp_precision' function. */
-#cmakedefine HAVE_PCAP_SET_TSTAMP_PRECISION 1
+#define HAVE_PCAP_SET_TSTAMP_PRECISION 1
 
 /* Define to 1 if you have the `pcap_set_tstamp_type' function. */
-#cmakedefine HAVE_PCAP_SET_TSTAMP_TYPE 1
+#define HAVE_PCAP_SET_TSTAMP_TYPE 1
 
 /* Define to 1 if you have the <pwd.h> header file. */
-#cmakedefine HAVE_PWD_H 1
+#define HAVE_PWD_H 1
 
 /* Define to 1 if you want to playing SBC by standalone BlueZ SBC library */
-#cmakedefine HAVE_SBC 1
+/* #undef HAVE_SBC */
 
 /* Define to 1 if you have the SpanDSP library. */
-#cmakedefine HAVE_SPANDSP 1
+/* #undef HAVE_SPANDSP */
 
 /* Define to 1 if you have the bcg729 library. */
-#cmakedefine HAVE_BCG729 1
+/* #undef HAVE_BCG729 */
 
 /* Define to 1 if you have the ilbc library. */
-#cmakedefine HAVE_ILBC 1
+/* #undef HAVE_ILBC */
 
 /* Define to 1 if you have the opus library. */
-#cmakedefine HAVE_OPUS 1
+/* #undef HAVE_OPUS */
 
 /* Define to 1 if you have the speexdsp library. */
-#cmakedefine HAVE_SPEEXDSP 1
+/* #undef HAVE_SPEEXDSP */
 
 /* Define to 1 if you have the lixbml2 library. */
-#cmakedefine HAVE_LIBXML2 1
+/* #undef HAVE_LIBXML2 */
 
 /* Define to 1 if you have the `setresgid' function. */
-#cmakedefine HAVE_SETRESGID 1
+#define HAVE_SETRESGID 1
 
 /* Define to 1 if you have the `setresuid' function. */
-#cmakedefine HAVE_SETRESUID 1
+#define HAVE_SETRESUID 1
 
 /* Define to 1 if you have the Sparkle or WinSparkle library */
-#cmakedefine HAVE_SOFTWARE_UPDATE 1
+/* #undef HAVE_SOFTWARE_UPDATE */
 
 /* Define if you have the 'strptime' function. */
-#cmakedefine HAVE_STRPTIME 1
+#define HAVE_STRPTIME 1
 
 /* Define if you have the 'memmem' function. */
-#cmakedefine HAVE_MEMMEM 1
+#define HAVE_MEMMEM 1
 
 /* Define if you have the 'strcasestr' function. */
-#cmakedefine HAVE_STRCASESTR 1
+#define HAVE_STRCASESTR 1
 
 /* Define if you have the 'strerrorname_np' function. */
-#cmakedefine HAVE_STRERRORNAME_NP 1
+#define HAVE_STRERRORNAME_NP 1
 
 /* Define if you have the 'vasprintf' function. */
-#cmakedefine HAVE_VASPRINTF 1
+#define HAVE_VASPRINTF 1
 
 /* Define to 1 if `st_birthtime' is a member of `struct stat'. */
-#cmakedefine HAVE_STRUCT_STAT_ST_BIRTHTIME 1
+/* #undef HAVE_STRUCT_STAT_ST_BIRTHTIME */
 
 /* Define if st_blksize field exists in struct stat */
-#cmakedefine HAVE_STRUCT_STAT_ST_BLKSIZE 1
+#define HAVE_STRUCT_STAT_ST_BLKSIZE 1
 
 /* Define to 1 if `__st_birthtime' is a member of `struct stat'. */
-#cmakedefine HAVE_STRUCT_STAT___ST_BIRTHTIME 1
+/* #undef HAVE_STRUCT_STAT___ST_BIRTHTIME */
 
 /* Define to 1 if you have the <sys/socket.h> header file. */
-#cmakedefine HAVE_SYS_SOCKET_H 1
+#define HAVE_SYS_SOCKET_H 1
 
 /* Define to 1 if you have the <sys/time.h> header file. */
-#cmakedefine HAVE_SYS_TIME_H 1
+#define HAVE_SYS_TIME_H 1
 
 /* Define to 1 if you have the <sys/utsname.h> header file. */
-#cmakedefine HAVE_SYS_UTSNAME_H 1
+#define HAVE_SYS_UTSNAME_H 1
 
 /* Define to 1 if you have the <sys/wait.h> header file. */
-#cmakedefine HAVE_SYS_WAIT_H 1
+#define HAVE_SYS_WAIT_H 1
 
 /* Define if tm_zone field exists in struct tm */
-#cmakedefine HAVE_STRUCT_TM_TM_ZONE 1
+#define HAVE_STRUCT_TM_TM_ZONE 1
 
 /* Define if tzname array exists */
-#cmakedefine HAVE_TZNAME 1
+#define HAVE_TZNAME 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
-#cmakedefine HAVE_UNISTD_H 1
+#define HAVE_UNISTD_H 1
 
 /* Define if we have QtMultimedia */
-#cmakedefine QT_MULTIMEDIA_LIB 1
+/* #undef QT_MULTIMEDIA_LIB */
 
 /* Build androiddump with libpcap instead of wireshark stuff */
-#cmakedefine ANDROIDDUMP_USE_LIBPCAP 1
+/* #undef ANDROIDDUMP_USE_LIBPCAP */
 
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
    `char[]'. */
 /* Note: not use in the code */
-#cmakedefine YYTEXT_POINTER
+/* #undef YYTEXT_POINTER */
 
 /* Define to 1 if the 'ssize_t' type exists. */
-#cmakedefine HAVE_SSIZE_T 1
+#define HAVE_SSIZE_T 1
 
 #if defined(_MSC_VER)
 #  define strncasecmp strnicmp

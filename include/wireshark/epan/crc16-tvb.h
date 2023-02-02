@@ -13,7 +13,7 @@
 #ifndef __CRC16_TVB_H__
 #define __CRC16_TVB_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

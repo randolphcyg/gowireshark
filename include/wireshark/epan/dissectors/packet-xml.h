@@ -10,7 +10,7 @@
 #ifndef __PACKET_XML_H__
 #define __PACKET_XML_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 typedef struct _xml_ns_t {
     /* the name of this namespace */

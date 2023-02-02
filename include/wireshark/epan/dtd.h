@@ -17,7 +17,7 @@
 
 #include <glib.h>
 #include <stdlib.h> /* exit() */
-#include "ws_attributes.h"
+#include "include/ws_attributes.h"
 
 typedef struct _dtd_build_data_t {
 	gchar* proto_name;

@@ -12,7 +12,7 @@
 #define MPA_H 1
 
 #include <glib.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 struct mpa {
 	unsigned int emphasis   :2;

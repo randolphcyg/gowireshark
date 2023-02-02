@@ -10,7 +10,7 @@
 #ifndef __PACKET_TCP_H__
 #define __PACKET_TCP_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #include <epan/conversation.h>
 #include <epan/reassemble.h>

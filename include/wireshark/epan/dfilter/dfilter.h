@@ -11,7 +11,7 @@
 #define DFILTER_H
 
 #include <glib.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* Passed back to user */
 typedef struct epan_dfilter dfilter_t;

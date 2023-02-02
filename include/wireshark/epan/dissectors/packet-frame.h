@@ -9,7 +9,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /*
  * Routine used to register frame end routine.  The routine should only

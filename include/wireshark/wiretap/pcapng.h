@@ -11,7 +11,7 @@
 
 #include <glib.h>
 #include "wtap.h"
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #define PCAPNG_MAGIC         0x1A2B3C4D
 #define PCAPNG_SWAPPED_MAGIC 0x4D3C2B1A

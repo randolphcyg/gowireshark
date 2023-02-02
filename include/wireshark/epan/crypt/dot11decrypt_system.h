@@ -87,7 +87,7 @@
 
 #include "dot11decrypt_interop.h"
 #include "dot11decrypt_user.h"
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /************************************************************************/
 /*	Macro definitions						*/

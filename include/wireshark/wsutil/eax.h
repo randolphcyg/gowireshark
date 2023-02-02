@@ -13,7 +13,7 @@
 #define	_EAX_H
 
 #include <glib.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 typedef struct tagMAC_T
 {

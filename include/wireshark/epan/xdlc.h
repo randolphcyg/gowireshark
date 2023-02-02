@@ -12,7 +12,7 @@
 #ifndef __XDLC_H__
 #define __XDLC_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /** @file
  * Define *DLC frame types, and routine to dissect the control field of

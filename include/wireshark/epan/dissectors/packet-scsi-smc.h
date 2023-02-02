@@ -15,7 +15,7 @@
 #ifndef __PACKET_SCSI_SMC_H_
 #define __PACKET_SCSI_SMC_H_
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* SMC Commands */
 #define SCSI_SMC_EXCHANGE_MEDIUM                 0x40

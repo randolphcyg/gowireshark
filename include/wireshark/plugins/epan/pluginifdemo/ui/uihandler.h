@@ -19,7 +19,7 @@
 
 #include <epan/plugin_if.h>
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 class GuiHandler : public QObject
 {

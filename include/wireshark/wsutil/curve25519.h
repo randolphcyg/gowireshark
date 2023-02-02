@@ -13,7 +13,7 @@
 #ifndef __CURVE25519_H__
 #define __CURVE25519_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 #include "wsgcrypt.h"
 
 /*

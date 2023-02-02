@@ -19,7 +19,7 @@
 #include "oids.h"
 #include <epan/wmem_scopes.h>
 
-#include <ws_diag_control.h>
+#include <include/ws_diag_control.h>
 
 static wmem_allocator_t *test_scope;
 

@@ -13,7 +13,7 @@
 #ifndef __WSUTIL_CFUTILS_H__
 #define __WSUTIL_CFUTILS_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

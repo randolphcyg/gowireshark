@@ -13,7 +13,7 @@
 #include "config.h"
 #define WS_LOG_DOMAIN "dpauxmon"
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #include "extcap-base.h"
 

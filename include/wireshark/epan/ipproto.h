@@ -12,7 +12,7 @@
 #ifndef __IPPROTO_H__
 #define __IPPROTO_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 #include <epan/value_string.h>
 
 /*

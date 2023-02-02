@@ -11,7 +11,7 @@
 #ifndef __DECODE_AS_UTILS_H__
 #define __DECODE_AS_UTILS_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /** @file
  *  "Decode As" / "User Specified Decodes" dialog box.

@@ -16,7 +16,7 @@
 
 #include <epan/tvbuff.h>
 #include <epan/reassemble.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 struct _fragment_items;
 

@@ -10,7 +10,7 @@
 #ifndef __PACKET_QUIC_H__
 #define __PACKET_QUIC_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #include <wsutil/wsgcrypt.h>
 

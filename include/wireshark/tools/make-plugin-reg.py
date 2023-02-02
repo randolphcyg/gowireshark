@@ -115,7 +115,7 @@ reg_code += """
 
 /* plugins are DLLs on Windows */
 #define WS_BUILD_DLL
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 """
 

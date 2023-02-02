@@ -11,7 +11,7 @@
 #ifndef __STR_UTIL_H__
 #define __STR_UTIL_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 #include <wsutil/wmem/wmem.h>
 
 #ifdef __cplusplus

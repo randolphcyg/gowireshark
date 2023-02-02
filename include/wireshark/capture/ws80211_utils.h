@@ -12,7 +12,7 @@
 #ifndef __WS80211_UTILS_H__
 #define __WS80211_UTILS_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {
