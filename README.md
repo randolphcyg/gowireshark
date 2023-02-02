@@ -110,7 +110,6 @@ gowireshark
 │   └── wincc_s400_production.pcap
 └── tests/
     └── gowireshark_test.go
-
 ```
 Detailed description of the project directory structure：
 
