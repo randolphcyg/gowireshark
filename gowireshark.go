@@ -378,6 +378,11 @@ func GetIfaceList() (res map[string]IFace, err error) {
 
 // GetIfaceNonblockStatus Get interface nonblock status
 func GetIfaceNonblockStatus(deviceName string) (isNonblock bool, err error) {
+	if deviceName == "" {
+		err = errors.Wrap(err, "device name is blank")
+		return
+	}
+
 	nonblockStatus := C.get_if_nonblock_status(C.CString(deviceName))
 	if nonblockStatus == 0 {
 		isNonblock = false
@@ -392,6 +397,11 @@ func GetIfaceNonblockStatus(deviceName string) (isNonblock bool, err error) {
 
 // SetIfaceNonblockStatus Set interface nonblock status
 func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, err error) {
+	if deviceName == "" {
+		err = errors.Wrap(err, "device name is blank")
+		return
+	}
+
 	setNonblockCode := 0
 	if isNonblock {
 		setNonblockCode = 1
@@ -411,6 +421,11 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 
 // RunSock Unix domain socket(AF_UNIX) server:  start socket and read data.
 func RunSock(sockServerPath string, sockBuffSize int, listener *net.UnixConn, pkgChan chan FrameDissectRes) (err error) {
+	if sockServerPath == "" {
+		err = errors.Wrap(err, "sockServerPath is blank")
+		return
+	}
+
 	addr, err := net.ResolveUnixAddr("unixgram", sockServerPath)
 	if err != nil {
 		err = errors.Wrap(err, "fail to resolve UnixAddr")
@@ -458,6 +473,16 @@ func readSock(listener *net.UnixConn, pkgChan chan FrameDissectRes, sockBuffSize
 // DissectPktLive start Unix domain socket(AF_UNIX) client, capture and dissect packet.
 // promisc: 0 indicates a non-promiscuous mode, and any other value indicates a promiscuous mode
 func DissectPktLive(deviceName, sockServerPath string, num, promisc, timeout int) (err error) {
+	if deviceName == "" {
+		err = errors.Wrap(err, "device name is blank")
+		return
+	}
+
+	if sockServerPath == "" {
+		err = errors.Wrap(err, "sockServerPath is blank")
+		return
+	}
+
 	errMsg := C.handle_packet(C.CString(deviceName), C.CString(sockServerPath), C.int(num), C.int(promisc), C.int(timeout))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
@@ -465,11 +490,17 @@ func DissectPktLive(deviceName, sockServerPath string, num, promisc, timeout int
 		err = errors.Errorf("fail to capture packet live:%s", errMsgStr)
 		return
 	}
+
 	return
 }
 
 // StopDissectPktLive Stop capture packet live、 free all memory allocated、close socket.
 func StopDissectPktLive(deviceName string) (err error) {
+	if deviceName == "" {
+		err = errors.Wrap(err, "device name is blank")
+		return
+	}
+
 	errMsg := C.stop_dissect_capture_pkg(C.CString(deviceName))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
