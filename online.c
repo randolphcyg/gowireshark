@@ -148,16 +148,20 @@ void *init_sock_send(void *arg) {
 
 // init Unix domain socket(AF_UNIX)
 char *init_sock(char *device_name) {
+  int ret;
   pthread_t send;
-  if (pthread_create(&send, NULL, init_sock_send, device_name) != 0) {
+  ret = pthread_create(&send, NULL, init_sock_send, device_name);
+  if (ret != 0) {
     return "fail to create pthread send";
   }
 
-  // wait for end
-  void *result;
-  if (pthread_join(send, &result) != 0) {
+  // wait for send thread's end
+  ret = pthread_join(send, NULL);
+  if (ret != 0) {
     return "fail to recollect send";
   }
+
+  return NULL;
 }
 
 // safety memcpy
@@ -600,6 +604,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
   char *device_name = (char *)arg;
   struct device_map *device = find_device(device_name);
   if (!device) {
+    printf("The device is not in the global map: %s\n", device_name);
     return;
   }
 
@@ -642,7 +647,7 @@ char *handle_packet(char *device_name, char *sock_server_path, int num,
   // fetch target device
   struct device_map *device = find_device(device_name);
   if (!device) {
-    return "device unknown";
+    return "The device is not in the global map";
   }
 
   // open device && gen a libpcap handle
@@ -687,7 +692,7 @@ char *handle_packet(char *device_name, char *sock_server_path, int num,
 char *stop_dissect_capture_pkg(char *device_name) {
   struct device_map *device = find_device(device_name);
   if (!device) {
-    return "device unknown";
+    return "The device is not in the global map";
   }
 
   if (!device->content.handle) {
