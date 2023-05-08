@@ -3,7 +3,7 @@
 README: [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md) | [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md)
 
 - Gowireshark 是一个 Golang 库，它允许我们的 Golang 程序具有 wireshark 的协议解析功能，它可以离线解析 pcap 数据包文件或实时监听设备并获得协议解析结果。
-- Gowireshark基于[libpcap 1.10.3](https://www.tcpdump.org/release/)与[wireshark 4.0.3](https://www.wireshark.org/#download)编译后的动态链接库开发。
+- Gowireshark基于[libpcap 1.10.4](https://www.tcpdump.org/release/)与[wireshark 4.0.5](https://www.wireshark.org/#download)编译后的动态链接库开发。
 
 ---
 
@@ -154,7 +154,7 @@ graph LR
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.0.3
+export WIRESHARKV=4.0.5
 # 到/opt目录下操作
 cd /opt/
 # 下载源码
@@ -231,7 +231,7 @@ tree -L 2 -F gowireshark
 
 ```
 # 确定最新发行版本并设置环境变量
-export PCAPV=1.10.3
+export PCAPV=1.10.4
 # 在/opt目录下操作
 cd /opt
 wget http://www.tcpdump.org/release/libpcap-$PCAPV.tar.gz
