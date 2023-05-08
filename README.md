@@ -3,7 +3,7 @@
 README: [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md) | [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md)
 
 - Gowireshark is a Golang library that allows our Golang program to have wireshark's protocol parsing function, which can parse pcap packet files offline or listen to the device in real time and obtain protocol parsing results.
-- Gowireshark is developed based on the dynamic link library compiled by [libpcap 1.10.3](https://www.tcpdump.org/release/)、[wireshark 4.0.3](https://www.wireshark.org/#download).
+- Gowireshark is developed based on the dynamic link library compiled by [libpcap 1.10.4](https://www.tcpdump.org/release/)、[wireshark 4.0.5](https://www.wireshark.org/#download).
 
 ---
 
@@ -159,7 +159,7 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 
 ```shell
 # Determine the latest release version and set environment variables
-export WIRESHARKV=4.0.3
+export WIRESHARKV=4.0.5
 # Operate in the /opt directory
 cd /opt/
 # Download the source code
@@ -236,7 +236,7 @@ tree -L 2 -F gowireshark
 
 ```
 # Determine the latest release version and set environment variables
-export PCAPV=1.10.3
+export PCAPV=1.10.4
 # Operate in the /opt directory
 cd /opt
 wget http://www.tcpdump.org/release/libpcap-$PCAPV.tar.gz
@@ -296,7 +296,7 @@ apt install bison
 
    There are some C syntax declarations and imports in the preface, as well as some cgo parameters, so that when compiling this go project with `go build`, the internal C project will be automatically compiled into it:
     ```cgo
-    # After the compilation is completed, modify 【libpcap.so.1.10.3】 to 【libpcap.so.1】, 
+    # After the compilation is completed, modify 【libpcap.so.1.10.4】 to 【libpcap.so.1】, 
     # you can call the dynamic link library in the go code, and the required operations are:
     
     // Importing the libpcap library will find a dynamic link library named libpcap.so.1 in the libs directory
