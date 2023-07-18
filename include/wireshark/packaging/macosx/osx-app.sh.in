@@ -534,6 +534,7 @@ dsymutil --minimize --out "$bundle_dsym" \
 # done
 
 codesign_file () {
+	# https://developer.apple.com/forums/thread/128166
 	# https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html
 	# https://developer.apple.com/library/archive/technotes/tn2206/_index.html
 	# https://developer.apple.com/documentation/security/notarizing_your_app_before_distribution/resolving_common_notarization_issues?language=objc
@@ -544,6 +545,7 @@ codesign_file () {
 
 	codesign \
 		--sign "Developer ID Application: $CODE_SIGN_IDENTITY" \
+		--prefix "org.wireshark." \
 		--force \
 		--options runtime \
 		--entitlements "@CMAKE_SOURCE_DIR@/packaging/macosx/entitlements.plist" \

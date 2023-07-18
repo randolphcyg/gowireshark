@@ -146,11 +146,11 @@ void UatFrame::applyChanges()
     if (!uat_) return;
 
     if (uat_->flags & UAT_AFFECTS_FIELDS) {
-        /* Recreate list with new fields and redissect packets */
+        /* Recreate list with new fields */
         mainApp->queueAppSignal(MainApplication::FieldsChanged);
     }
     if (uat_->flags & UAT_AFFECTS_DISSECTION) {
-        /* Just redissect packets if we have any */
+        /* Redissect packets if we have any */
         mainApp->queueAppSignal(MainApplication::PacketDissectionChanged);
     }
 }
@@ -363,12 +363,10 @@ void UatFrame::on_clearToolButton_clicked()
 
 void UatFrame::resizeColumns()
 {
-    ui->uatTreeView->setVisible(false);
     for (int i = 0; i < uat_model_->columnCount(); i++) {
         ui->uatTreeView->resizeColumnToContents(i);
         if (i == 0) {
             ui->uatTreeView->setColumnWidth(i, ui->uatTreeView->columnWidth(i)+ui->uatTreeView->indentation());
         }
     }
-    ui->uatTreeView->setVisible(true);
 }

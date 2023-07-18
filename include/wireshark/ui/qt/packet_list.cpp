@@ -204,7 +204,8 @@ PacketList::PacketList(QWidget *parent) :
     rows_inserted_(false),
     columns_changed_(false),
     set_column_visibility_(false),
-    frozen_rows_(QModelIndexList()),
+    frozen_current_row_(QModelIndex()),
+    frozen_selected_rows_(QModelIndexList()),
     cur_history_(-1),
     in_history_(false)
 {
@@ -998,7 +999,7 @@ void PacketList::drawCurrentPacket()
 {
     QModelIndex current_index = currentIndex();
     if (selectionModel() && current_index.isValid()) {
-        selectionModel()->clearCurrentIndex();
+        selectionModel()->clearSelection();
         selectionModel()->setCurrentIndex(current_index, QItemSelectionModel::SelectCurrent | QItemSelectionModel::Rows);
     }
 }
@@ -1200,7 +1201,8 @@ void PacketList::freeze()
 {
     column_state_ = header()->saveState();
     setHeaderHidden(true);
-    frozen_rows_ = selectedIndexes();
+    frozen_current_row_ = currentIndex();
+    frozen_selected_rows_ = selectedIndexes();
     selectionModel()->clear();
     setModel(Q_NULLPTR);
     // It looks like GTK+ sends a cursor-changed signal at this point but Qt doesn't
@@ -1221,16 +1223,18 @@ void PacketList::thaw(bool restore_selection)
     // resized the columns manually since they were initially loaded.
     header()->restoreState(column_state_);
 
-    if (restore_selection && frozen_rows_.length() > 0 && selectionModel()) {
+    if (restore_selection && frozen_selected_rows_.length() > 0 && selectionModel()) {
         /* This updates our selection, which redissects the current packet,
          * which is needed when we're called from MainWindow::layoutPanes.
          * Also, this resets all ProtoTree and ByteView data */
         clearSelection();
-        foreach (QModelIndex idx, frozen_rows_) {
+        setCurrentIndex(frozen_current_row_);
+        foreach (QModelIndex idx, frozen_selected_rows_) {
             selectionModel()->select(idx, QItemSelectionModel::Select | QItemSelectionModel::Rows);
         }
     }
-    frozen_rows_ = QModelIndexList();
+    frozen_current_row_ = QModelIndex();
+    frozen_selected_rows_ = QModelIndexList();
 }
 
 void PacketList::clear() {
@@ -1772,7 +1776,7 @@ void PacketList::applyTimeShift()
 {
     packet_list_model_->resetColumns();
     redrawVisiblePackets();
-    // XXX emit packetDissectionChanged(); ?
+    emit packetDissectionChanged();
 }
 
 void PacketList::updatePackets(bool redraw)
@@ -2025,7 +2029,7 @@ void PacketList::drawNearOverlay()
                 bgcolor = &color_filter->bg_color;
             }
 
-            int next_line = (row - start) * o_height / o_rows;
+            int next_line = (row - start + 1) * o_height / o_rows;
             if (bgcolor) {
                 QColor color(ColorUtils::fromColorT(bgcolor));
                 painter.fillRect(0, cur_line, o_width, next_line - cur_line, color);

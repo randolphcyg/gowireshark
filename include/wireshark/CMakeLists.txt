@@ -41,7 +41,7 @@ project(${_project_name} C CXX)
 # Updated by tools/make-version.py
 set(PROJECT_MAJOR_VERSION 4)
 set(PROJECT_MINOR_VERSION 0)
-set(PROJECT_PATCH_VERSION 3)
+set(PROJECT_PATCH_VERSION 7)
 set(PROJECT_BUILD_VERSION 0)
 set(PROJECT_VERSION_EXTENSION "")
 
@@ -584,14 +584,17 @@ if( CMAKE_C_COMPILER_ID MATCHES "MSVC")
 
 	# MSVC 14.28 + C11 enables C5105, but older Windows SDKs aren't completely compatible.
 	# Windows SDK 10.0.17763.0 generates syntax errors with C11 enabled.
-	if (CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION VERSION_LESS 10.0.18362.0)
-		message(FATAL_ERROR "Windows SDK ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} doesn't support C11. Please make sure you're using 10.0.20348.0 or later.")
-	endif()
-	# Windows SDK 10.0.18362.0 to 10.0.19041.685 generate warning C5105 with C11 enabled.
-	if(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION VERSION_LESS 10.0.20348.0)
-		message(WARNING "Windows SDK ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} doesn't support C11. Please make sure you're using 10.0.20348.0 or later.")
-		## 5105: macro expansion producing 'defined' has undefined behavior
-		list(APPEND LOCAL_CFLAGS /wd5105)
+	# The variable CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION does not work with the Ninja generator. Presumably it requires a VS generator.
+	if (CMAKE_GENERATOR MATCHES "Visual Studio")
+		if (CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION VERSION_LESS 10.0.18362.0)
+			message(FATAL_ERROR "Windows SDK ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} doesn't support C11. Please make sure you're using 10.0.20348.0 or later.")
+		endif()
+		# Windows SDK 10.0.18362.0 to 10.0.19041.685 generate warning C5105 with C11 enabled.
+		if(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION VERSION_LESS 10.0.20348.0)
+			message(WARNING "Windows SDK ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} doesn't support C11. Please make sure you're using 10.0.20348.0 or later.")
+			## 5105: macro expansion producing 'defined' has undefined behavior
+			list(APPEND LOCAL_CFLAGS /wd5105)
+		endif()
 	endif()
 
 	# We've matched these to specific compiler versions using the
@@ -723,7 +726,7 @@ else() # ! MSVC
 	if((CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_LESS "5.1") OR
 	   (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_COMPILER_VERSION VERSION_LESS "6.0") OR
 	   (CMAKE_C_COMPILER_ID STREQUAL "AppleClang" AND CMAKE_C_COMPILER_VERSION VERSION_LESS "12.0"))
-		if(NOT CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_VERSION VERSION_LESS "4.7")
+		if(NOT CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_VERSION VERSION_LESS "5.0")
 			list(APPEND WIRESHARK_C_ONLY_FLAGS -Wno-missing-field-initializers)
 		endif()
 		# Silence warnings for initialization of nested structs like
@@ -1222,7 +1225,9 @@ if(BUILD_wireshark OR BUILD_logray)
 		#   https://gitlab.kitware.com/cmake/cmake/-/issues/18837
 		# The below test can be found in Qt6, lib/cmake/Qt6/QtFeature.cmake
 		if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND MSVC_VERSION GREATER_EQUAL 1913)
-			add_definitions("-Zc:__cplusplus")
+			# Cannot use add_definitions() here because rc.exe does not understand this flag.
+			# https://cmake.org/pipermail/cmake/2009-August/031672.html
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Zc:__cplusplus")
 		endif()
 		list(APPEND QT_PACKAGELIST Qt6Core5Compat)
 	else()
@@ -1563,7 +1568,9 @@ add_subdirectory( epan )
 add_subdirectory( extcap )
 add_subdirectory( randpkt_core )
 add_subdirectory( tools/lemon )
-add_subdirectory( tools/radiotap-gen )
+if(PCAP_FOUND)
+	add_subdirectory( tools/radiotap-gen )
+endif()
 add_subdirectory( ui )
 add_subdirectory( wiretap )
 add_subdirectory( writecap )
@@ -3248,6 +3255,7 @@ if(ENABLE_APPLICATION_BUNDLE AND BUILD_wireshark)
 
 	# --preserve-xattr is undocumented but ensures that we install
 	# a signed ChmodBPF script.
+	set (_chmodbpf_version 1.2)
 	set (install_chmodbpf_component_pkg "${CMAKE_BINARY_DIR}/install.ChmodBPF.pkg")
 	add_custom_command(OUTPUT "${install_chmodbpf_component_pkg}"
 		COMMAND find
@@ -3261,7 +3269,7 @@ if(ENABLE_APPLICATION_BUNDLE AND BUILD_wireshark)
 		COMMAND "${CMAKE_SOURCE_DIR}/packaging/macosx/osx-extras.sh"
 		COMMAND pkgbuild
 			--identifier org.wireshark.ChmodBPF.pkg
-			--version 1.1
+			--version ${_chmodbpf_version}
 			--preserve-xattr
 			--root "${CMAKE_SOURCE_DIR}/packaging/macosx/ChmodBPF/root"
 			--scripts "${CMAKE_SOURCE_DIR}/packaging/macosx/ChmodBPF/install-scripts"
@@ -3275,7 +3283,7 @@ if(ENABLE_APPLICATION_BUNDLE AND BUILD_wireshark)
 	add_custom_command(OUTPUT "${install_chmodbpf_pkg}"
 		COMMAND productbuild
 			--identifier org.wireshark.install.ChmodBPF.product
-			--version 1.1
+			--version ${_chmodbpf_version}
 			--distribution "${CMAKE_SOURCE_DIR}/packaging/macosx/ChmodBPF/install-distribution.xml"
 			--package-path "${CMAKE_BINARY_DIR}"
 			${install_chmodbpf_pkg}
@@ -3288,7 +3296,7 @@ if(ENABLE_APPLICATION_BUNDLE AND BUILD_wireshark)
 	add_custom_command(OUTPUT "${uninstall_chmodbpf_component_pkg}"
 		COMMAND pkgbuild
 			--identifier org.wireshark.uninstall.ChmodBPF.pkg
-			--version 1.1
+			--version ${_chmodbpf_version}
 			--nopayload
 			--scripts "${CMAKE_SOURCE_DIR}/packaging/macosx/ChmodBPF/uninstall-scripts"
 			${uninstall_chmodbpf_component_pkg}
@@ -3299,7 +3307,7 @@ if(ENABLE_APPLICATION_BUNDLE AND BUILD_wireshark)
 	add_custom_command(OUTPUT "${uninstall_chmodbpf_pkg}"
 		COMMAND productbuild
 			--identifier org.wireshark.uninstall.ChmodBPF.product
-			--version 1.1
+			--version ${_chmodbpf_version}
 			--distribution "${CMAKE_SOURCE_DIR}/packaging/macosx/ChmodBPF/uninstall-distribution.xml"
 			--package-path "${CMAKE_BINARY_DIR}"
 			${uninstall_chmodbpf_pkg}
@@ -3310,6 +3318,7 @@ if(ENABLE_APPLICATION_BUNDLE AND BUILD_wireshark)
 
 	add_custom_target(chmodbpf DEPENDS ${install_chmodbpf_pkg} ${uninstall_chmodbpf_pkg})
 
+	set (_path_helper_version 1.1)
 	set (install_path_helper_component_pkg "${CMAKE_BINARY_DIR}/install.path_helper.pkg")
 	add_custom_command(OUTPUT "${install_path_helper_component_pkg}"
 		COMMAND find
@@ -3322,7 +3331,7 @@ if(ENABLE_APPLICATION_BUNDLE AND BUILD_wireshark)
 			-exec chmod 644 "{}" +
 		COMMAND pkgbuild
 			--identifier org.wireshark.path_helper.pkg
-			--version 1.0
+			--version ${_path_helper_version}
 			--root "${CMAKE_SOURCE_DIR}/packaging/macosx/path_helper/root/etc"
 			--install-location /private/etc
 			${install_path_helper_component_pkg}
@@ -3334,7 +3343,7 @@ if(ENABLE_APPLICATION_BUNDLE AND BUILD_wireshark)
 	add_custom_command(OUTPUT "${install_path_helper_pkg}"
 		COMMAND productbuild
 			--identifier org.wireshark.install.path_helper.product
-			--version 1.0
+			--version ${_path_helper_version}
 			--distribution "${CMAKE_SOURCE_DIR}/packaging/macosx/path_helper/install-distribution.xml"
 			--package-path "${CMAKE_BINARY_DIR}"
 			${install_path_helper_pkg}
@@ -3347,7 +3356,7 @@ if(ENABLE_APPLICATION_BUNDLE AND BUILD_wireshark)
 	add_custom_command(OUTPUT "${uninstall_path_helper_component_pkg}"
 		COMMAND pkgbuild
 			--identifier org.wireshark.uninstall.path_helper.pkg
-			--version 1.0
+			--version ${_path_helper_version}
 			--nopayload
 			--scripts "${CMAKE_SOURCE_DIR}/packaging/macosx/path_helper/uninstall-scripts"
 			${uninstall_path_helper_component_pkg}
@@ -3358,7 +3367,7 @@ if(ENABLE_APPLICATION_BUNDLE AND BUILD_wireshark)
 	add_custom_command(OUTPUT "${uninstall_path_helper_pkg}"
 		COMMAND productbuild
 			--identifier org.wireshark.uninstall.path_helper.product
-			--version 1.0
+			--version ${_path_helper_version}
 			--distribution "${CMAKE_SOURCE_DIR}/packaging/macosx/path_helper/uninstall-distribution.xml"
 			--package-path "${CMAKE_BINARY_DIR}"
 			${uninstall_path_helper_pkg}

@@ -1,13 +1,16 @@
 /*
   Copyright (c) 2009-2017 Dave Gamble and cJSON contributors
+
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
   in the Software without restriction, including without limitation the rights
   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
   copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
+
   The above copyright notice and this permission notice shall be included in
   all copies or substantial portions of the Software.
+
   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -32,16 +35,21 @@ extern "C"
 #ifdef __WINDOWS__
 
 /* When compiling for windows, we specify a specific calling convention to avoid issues where we are being called from a project with a different default calling convention.  For windows you have 3 define options:
+
 CJSON_HIDE_SYMBOLS - Define this in the case where you don't want to ever dllexport symbols
 CJSON_EXPORT_SYMBOLS - Define this on library build when you want to dllexport symbols (default)
 CJSON_IMPORT_SYMBOLS - Define this if you want to dllimport symbol
+
 For *nix builds that support visibility attribute, you can define similar behavior by
+
 setting default visibility to hidden by adding
 -fvisibility=hidden (for gcc)
 or
 -xldscope=hidden (for sun cc)
 to CFLAGS
+
 then using the CJSON_API_VISIBILITY flag to "export" the same symbols the way CJSON_EXPORT_SYMBOLS does
+
 */
 
 #define CJSON_CDECL __cdecl
@@ -73,7 +81,7 @@ then using the CJSON_API_VISIBILITY flag to "export" the same symbols the way CJ
 /* project version */
 #define CJSON_VERSION_MAJOR 1
 #define CJSON_VERSION_MINOR 7
-#define CJSON_VERSION_PATCH 12
+#define CJSON_VERSION_PATCH 16
 
 #include <stddef.h>
 
@@ -129,11 +137,6 @@ typedef int cJSON_bool;
 #define CJSON_NESTING_LIMIT 1000
 #endif
 
-/* Precision of double variables comparison */
-#ifndef CJSON_DOUBLE_PRECISION
-#define CJSON_DOUBLE_PRECISION .0000000000000001
-#endif
-
 /* returns the version of cJSON as a string */
 CJSON_PUBLIC(const char*) cJSON_Version(void);
 
@@ -143,9 +146,11 @@ CJSON_PUBLIC(void) cJSON_InitHooks(cJSON_Hooks* hooks);
 /* Memory Management: the caller is always responsible to free the results from all variants of cJSON_Parse (with cJSON_Delete) and cJSON_Print (with stdlib free, cJSON_Hooks.free_fn, or cJSON_free as appropriate). The exception is cJSON_PrintPreallocated, where the caller has full responsibility of the buffer. */
 /* Supply a block of JSON, and this returns a cJSON object you can interrogate. */
 CJSON_PUBLIC(cJSON *) cJSON_Parse(const char *value);
+CJSON_PUBLIC(cJSON *) cJSON_ParseWithLength(const char *value, size_t buffer_length);
 /* ParseWithOpts allows you to require (and check) that the JSON is null terminated, and to retrieve the pointer to the final byte parsed. */
 /* If you supply a ptr in return_parse_end and parsing fails, then return_parse_end will contain a pointer to the error so will match cJSON_GetErrorPtr(). */
 CJSON_PUBLIC(cJSON *) cJSON_ParseWithOpts(const char *value, const char **return_parse_end, cJSON_bool require_null_terminated);
+CJSON_PUBLIC(cJSON *) cJSON_ParseWithLengthOpts(const char *value, size_t buffer_length, const char **return_parse_end, cJSON_bool require_null_terminated);
 
 /* Render a cJSON entity to text for transfer/storage. */
 CJSON_PUBLIC(char *) cJSON_Print(const cJSON *item);
@@ -170,8 +175,9 @@ CJSON_PUBLIC(cJSON_bool) cJSON_HasObjectItem(const cJSON *object, const char *st
 /* For analysing failed parses. This returns a pointer to the parse error. You'll probably need to look a few chars back to make sense of it. Defined when cJSON_Parse() returns 0. 0 when cJSON_Parse() succeeds. */
 CJSON_PUBLIC(const char *) cJSON_GetErrorPtr(void);
 
-/* Check if the item is a string and return its valuestring */
+/* Check item type and return its value */
 CJSON_PUBLIC(char *) cJSON_GetStringValue(const cJSON * const item);
+CJSON_PUBLIC(double) cJSON_GetNumberValue(const cJSON * const item);
 
 /* These functions check the type of an item */
 CJSON_PUBLIC(cJSON_bool) cJSON_IsInvalid(const cJSON * const item);
@@ -213,15 +219,15 @@ CJSON_PUBLIC(cJSON *) cJSON_CreateDoubleArray(const double *numbers, int count);
 CJSON_PUBLIC(cJSON *) cJSON_CreateStringArray(const char *const *strings, int count);
 
 /* Append item to the specified array/object. */
-CJSON_PUBLIC(void) cJSON_AddItemToArray(cJSON *array, cJSON *item);
-CJSON_PUBLIC(void) cJSON_AddItemToObject(cJSON *object, const char *string, cJSON *item);
+CJSON_PUBLIC(cJSON_bool) cJSON_AddItemToArray(cJSON *array, cJSON *item);
+CJSON_PUBLIC(cJSON_bool) cJSON_AddItemToObject(cJSON *object, const char *string, cJSON *item);
 /* Use this when string is definitely const (i.e. a literal, or as good as), and will definitely survive the cJSON object.
  * WARNING: When this function was used, make sure to always check that (item->type & cJSON_StringIsConst) is zero before
  * writing to `item->string` */
-CJSON_PUBLIC(void) cJSON_AddItemToObjectCS(cJSON *object, const char *string, cJSON *item);
+CJSON_PUBLIC(cJSON_bool) cJSON_AddItemToObjectCS(cJSON *object, const char *string, cJSON *item);
 /* Append reference to item to the specified array/object. Use this when you want to add an existing cJSON to a new cJSON, but don't want to corrupt your existing cJSON. */
-CJSON_PUBLIC(void) cJSON_AddItemReferenceToArray(cJSON *array, cJSON *item);
-CJSON_PUBLIC(void) cJSON_AddItemReferenceToObject(cJSON *object, const char *string, cJSON *item);
+CJSON_PUBLIC(cJSON_bool) cJSON_AddItemReferenceToArray(cJSON *array, cJSON *item);
+CJSON_PUBLIC(cJSON_bool) cJSON_AddItemReferenceToObject(cJSON *object, const char *string, cJSON *item);
 
 /* Remove/Detach items from Arrays/Objects. */
 CJSON_PUBLIC(cJSON *) cJSON_DetachItemViaPointer(cJSON *parent, cJSON * const item);
@@ -233,11 +239,11 @@ CJSON_PUBLIC(void) cJSON_DeleteItemFromObject(cJSON *object, const char *string)
 CJSON_PUBLIC(void) cJSON_DeleteItemFromObjectCaseSensitive(cJSON *object, const char *string);
 
 /* Update array items. */
-CJSON_PUBLIC(void) cJSON_InsertItemInArray(cJSON *array, int which, cJSON *newitem); /* Shifts pre-existing items to the right. */
+CJSON_PUBLIC(cJSON_bool) cJSON_InsertItemInArray(cJSON *array, int which, cJSON *newitem); /* Shifts pre-existing items to the right. */
 CJSON_PUBLIC(cJSON_bool) cJSON_ReplaceItemViaPointer(cJSON * const parent, cJSON * const item, cJSON * replacement);
-CJSON_PUBLIC(void) cJSON_ReplaceItemInArray(cJSON *array, int which, cJSON *newitem);
-CJSON_PUBLIC(void) cJSON_ReplaceItemInObject(cJSON *object,const char *string,cJSON *newitem);
-CJSON_PUBLIC(void) cJSON_ReplaceItemInObjectCaseSensitive(cJSON *object,const char *string,cJSON *newitem);
+CJSON_PUBLIC(cJSON_bool) cJSON_ReplaceItemInArray(cJSON *array, int which, cJSON *newitem);
+CJSON_PUBLIC(cJSON_bool) cJSON_ReplaceItemInObject(cJSON *object,const char *string,cJSON *newitem);
+CJSON_PUBLIC(cJSON_bool) cJSON_ReplaceItemInObjectCaseSensitive(cJSON *object,const char *string,cJSON *newitem);
 
 /* Duplicate a cJSON item */
 CJSON_PUBLIC(cJSON *) cJSON_Duplicate(const cJSON *item, cJSON_bool recurse);
@@ -250,7 +256,7 @@ CJSON_PUBLIC(cJSON_bool) cJSON_Compare(const cJSON * const a, const cJSON * cons
 
 /* Minify a strings, remove blank characters(such as ' ', '\t', '\r', '\n') from strings.
  * The input pointer json cannot point to a read-only address area, such as a string constant,
- * but should point to a readable and writable adress area. */
+ * but should point to a readable and writable address area. */
 CJSON_PUBLIC(void) cJSON_Minify(char *json);
 
 /* Helper functions for creating and adding items to an object at the same time.
@@ -270,6 +276,15 @@ CJSON_PUBLIC(cJSON*) cJSON_AddArrayToObject(cJSON * const object, const char * c
 /* helper for the cJSON_SetNumberValue macro */
 CJSON_PUBLIC(double) cJSON_SetNumberHelper(cJSON *object, double number);
 #define cJSON_SetNumberValue(object, number) ((object != NULL) ? cJSON_SetNumberHelper(object, (double)number) : (number))
+/* Change the valuestring of a cJSON_String object, only takes effect when type of object is cJSON_String */
+CJSON_PUBLIC(char*) cJSON_SetValuestring(cJSON *object, const char *valuestring);
+
+/* If the object is not a boolean type this does nothing and returns cJSON_Invalid else it returns the new type*/
+#define cJSON_SetBoolValue(object, boolValue) ( \
+    (object != NULL && ((object)->type & (cJSON_False|cJSON_True))) ? \
+    (object)->type=((object)->type &(~(cJSON_False|cJSON_True)))|((boolValue)?cJSON_True:cJSON_False) : \
+    cJSON_Invalid\
+)
 
 /* Macro for iterating over an array or object */
 #define cJSON_ArrayForEach(element, array) for(element = (array != NULL) ? (array)->child : NULL; element != NULL; element = element->next)

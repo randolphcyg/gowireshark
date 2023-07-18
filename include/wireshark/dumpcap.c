@@ -192,6 +192,7 @@ typedef struct _capture_src {
 #endif
     gboolean                     pcap_err;
     guint                        interface_id;
+    guint                        idb_id;                 /**< If from_pcapng is false, the output IDB interface ID. Otherwise the mapping in src_iface_to_global is used. */
     GThread                     *tid;
     int                          snaplen;
     int                          linktype;
@@ -591,36 +592,18 @@ get_pcap_failure_secondary_error_message(cap_device_open_status open_status,
      * have platform-specific suggestions at the end (for example, suggestions
      * for how to get permission to capture).
      */
-    if (open_status == CAP_DEVICE_OPEN_ERR_GENERIC) {
-        /*
-         * We don't know what kind of error it is.  See if there's a hint
-         * in the error string; if not, throw all generic suggestions at
-         * the user.
-         */
-        static const char promisc_failed[] =
-            "failed to set hardware filter to promiscuous mode";
+    switch (open_status) {
 
+    case CAP_DEVICE_OPEN_ERROR_NO_SUCH_DEVICE:
+    case CAP_DEVICE_OPEN_ERROR_RFMON_NOTSUP:
+    case CAP_DEVICE_OPEN_ERROR_IFACE_NOT_UP:
         /*
-         * Does the error string begin with the error produced by WinPcap
-         * and Npcap if attempting to set promiscuous mode fails?
-         * (Note that this string could have a specific error message
-         * from an NDIS error after the initial part, so we do a prefix
-         * check rather than an exact match check.)
+         * Not clear what suggestions to make for these cases.
          */
-        if (strncmp(open_status_str, promisc_failed, sizeof promisc_failed - 1) == 0) {
-            /*
-             * Yes.  Suggest that the user turn off promiscuous mode on that
-             * device.
-             */
-            return
-                   "Please turn off promiscuous mode for this device";
-        } else {
-            return
-                   "Please check to make sure you have sufficient permissions, and that you have "
-                   "the proper interface or pipe specified."
-                   PLATFORM_PERMISSIONS_SUGGESTION;
-        }
-    } else if (open_status == CAP_DEVICE_OPEN_ERR_PERMISSIONS) {
+        return "";
+
+    case CAP_DEVICE_OPEN_ERROR_PERM_DENIED:
+    case CAP_DEVICE_OPEN_ERROR_PROMISC_PERM_DENIED:
         /*
          * This is a permissions error, so no need to specify any other
          * warnings.
@@ -628,13 +611,97 @@ get_pcap_failure_secondary_error_message(cap_device_open_status open_status,
         return
                "Please check to make sure you have sufficient permissions."
                PLATFORM_PERMISSIONS_SUGGESTION;
-    } else {
+        break;
+
+    case CAP_DEVICE_OPEN_ERROR_OTHER:
+    case CAP_DEVICE_OPEN_ERROR_GENERIC:
+        {
+        /*
+         * We don't know what kind of error it is.  See if there's a hint
+         * in the error string; if not, throw all generic suggestions at
+         * the user.
+         */
+        static const char promisc_failed[] =
+            "failed to set hardware filter to promiscuous mode";
+#if defined(__linux__)
+        static const char af_notsup[] =
+            "socket: Address family not supported by protocol";
+#endif
+
+        /*
+         * Check for some text that pops up in some errors.
+         */
+        if (strncmp(open_status_str, promisc_failed, sizeof promisc_failed - 1) == 0) {
+            /*
+             * The error string begins with the error produced by WinPcap
+             * and Npcap if attempting to set promiscuous mode fails.
+             * (Note that this string could have a specific error message
+             * from an NDIS error after the initial part, so we do a prefix
+             * check rather than an exact match check.)
+             *
+             * Suggest that the user turn off promiscuous mode on that
+             * device.
+             */
+            return
+                   "Please turn off promiscuous mode for this device";
+#if defined(__linux__)
+        } else if (strcmp(open_status_str, af_notsup) == 0) {
+            /*
+             * The error string is the message provided by libpcap on
+	     * Linux if an attempt to open a PF_PACKET socket failed
+	     * with EAFNOSUPPORT.  This probably means that either 1)
+	     * the kernel doesn't have PF_PACKET support configured in
+	     * or 2) this is a Flatpak version of Wireshark that's been
+	     * sandboxed in a way that disallows opening PF_PACKET
+	     * sockets.
+	     *
+	     * Suggest that the user find some other package of
+	     * Wireshark if they want to capture traffic and are
+	     * running a Flatpak of Wireshark or that they configure
+	     * PF_PACKET support back in if it's configured out.
+	     */
+	    return
+                       "If you are running Wireshark from a Flatpak package, "
+                       "it does not support packet capture; you will need "
+                       "to run a different version of Wireshark in order "
+                       "to capture traffic.\n"
+                       "\n"
+                       "Otherwise, if your machine is running a kernel that "
+                       "was not configured with CONFIG_PACKET, that kernel "
+                       "does not support packet capture; you will need to "
+                       "use a kernel configured with CONFIG_PACKET.";
+#endif
+        } else {
+            /*
+             * No.  Was this a "generic" error from pcap_open_live()
+             * or pcap_open(), in which case it might be a permissions
+             * error?
+             */
+            if (open_status == CAP_DEVICE_OPEN_ERROR_GENERIC) {
+                return
+                       "Please check to make sure you have sufficient permissions, and that you have "
+                       "the proper interface or pipe specified."
+                       PLATFORM_PERMISSIONS_SUGGESTION;
+            } else {
+                /*
+                 * This is not a permissons error, so no need to suggest
+                 * checking permissions.
+                 */
+                return
+                    "Please check that you have the proper interface or pipe specified.";
+            }
+        }
+        }
+        break;
+
+    default:
         /*
          * This is not a permissons error, so no need to suggest
          * checking permissions.
          */
         return
             "Please check that you have the proper interface or pipe specified.";
+        break;
     }
 }
 
@@ -646,9 +713,45 @@ get_capture_device_open_failure_messages(cap_device_open_status open_status,
                                          char *secondary_errmsg,
                                          size_t secondary_errmsg_len)
 {
-    snprintf(errmsg, (gulong) errmsg_len,
-               "The capture session could not be initiated on capture device \"%s\" (%s).",
-               iface, open_status_str);
+    switch (open_status) {
+
+    case CAP_DEVICE_OPEN_ERROR_NO_SUCH_DEVICE:
+        snprintf(errmsg, (gulong) errmsg_len,
+                 "There is no device named \"%s\".\n(%s)",
+                 iface, open_status_str);
+        break;
+
+    case CAP_DEVICE_OPEN_ERROR_RFMON_NOTSUP:
+        snprintf(errmsg, (gulong) errmsg_len,
+                 "Capturing in monitor mode is not supported on device \"%s\".\n(%s)",
+                 iface, open_status_str);
+        break;
+
+    case CAP_DEVICE_OPEN_ERROR_PERM_DENIED:
+        snprintf(errmsg, (gulong) errmsg_len,
+                 "You do not have permission to capture on device \"%s\".\n(%s)",
+                 iface, open_status_str);
+        break;
+
+    case CAP_DEVICE_OPEN_ERROR_IFACE_NOT_UP:
+        snprintf(errmsg, (gulong) errmsg_len,
+                 "Device \"%s\" is not up.\n(%s)",
+                 iface, open_status_str);
+        break;
+
+    case CAP_DEVICE_OPEN_ERROR_PROMISC_PERM_DENIED:
+        snprintf(errmsg, (gulong) errmsg_len,
+                 "You do not have permission to capture in promiscuous mode on device \"%s\".\n(%s)",
+                 iface, open_status_str);
+        break;
+
+    case CAP_DEVICE_OPEN_ERROR_OTHER:
+    default:
+        snprintf(errmsg, (gulong) errmsg_len,
+                 "The capture session could not be initiated on capture device \"%s\".\n(%s)",
+                 iface, open_status_str);
+        break;
+    }
     snprintf(secondary_errmsg, (gulong) secondary_errmsg_len, "%s",
                get_pcap_failure_secondary_error_message(open_status, open_status_str));
 }
@@ -2804,18 +2907,6 @@ capture_loop_open_input(capture_options *capture_opts, loop_data *ld,
             return FALSE;
         }
 
-        /*
-         * Add our pcapng interface entry. This will be deleted further
-         * down if pcapng_passthrough == TRUE.
-         */
-        saved_idb_t idb_source = { 0 };
-        idb_source.interface_id = i;
-        g_rw_lock_writer_lock (&ld->saved_shb_idb_lock);
-        g_array_append_val(global_ld.saved_idbs, idb_source);
-        g_rw_lock_writer_unlock (&ld->saved_shb_idb_lock);
-        ws_debug("%s: saved capture_opts IDB %u",
-              G_STRFUNC, i);
-
 #ifdef MUST_DO_SELECT
         pcap_src->pcap_fd = -1;
 #endif
@@ -2956,7 +3047,23 @@ capture_loop_open_input(capture_options *capture_opts, loop_data *ld,
             g_free(sync_msg_str);
         }
         if (pcap_src->from_pcapng) {
+            /*
+             * We will use the IDBs from the source (but rewrite the
+             * interface IDs if there's more than one source.)
+             */
             pcapng_src_count++;
+        } else {
+            /*
+             * Add our pcapng interface entry.
+             */
+            saved_idb_t idb_source = { 0 };
+            idb_source.interface_id = i;
+            g_rw_lock_writer_lock (&ld->saved_shb_idb_lock);
+            pcap_src->idb_id = global_ld.saved_idbs->len;
+            g_array_append_val(global_ld.saved_idbs, idb_source);
+            g_rw_lock_writer_unlock (&ld->saved_shb_idb_lock);
+            ws_debug("%s: saved capture_opts %u to IDB %u",
+                  G_STRFUNC, i, pcap_src->idb_id);
         }
     }
 
@@ -2971,9 +3078,8 @@ capture_loop_open_input(capture_options *capture_opts, loop_data *ld,
          */
         ld->pcapng_passthrough = TRUE;
         g_rw_lock_writer_lock (&ld->saved_shb_idb_lock);
-        ws_debug("%s: Clearing %u interfaces for passthrough",
-              G_STRFUNC, global_ld.saved_idbs->len);
-        g_array_set_size(global_ld.saved_idbs, 0);
+        ws_assert(global_ld.saved_idbs->len == 0);
+        ws_debug("%s: Pass through SHBs and IDBs directly", G_STRFUNC);
         g_rw_lock_writer_unlock (&ld->saved_shb_idb_lock);
     }
 
@@ -4608,7 +4714,7 @@ capture_loop_write_packet_cb(u_char *pcap_src_p, const struct pcap_pkthdr *phdr,
                                                             NULL,
                                                             phdr->ts.tv_sec, (gint32)phdr->ts.tv_usec,
                                                             phdr->caplen, phdr->len,
-                                                            pcap_src->interface_id,
+                                                            pcap_src->idb_id,
                                                             ts_mul,
                                                             pd, 0,
                                                             &global_ld.bytes_written, &err);

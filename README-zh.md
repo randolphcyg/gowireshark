@@ -3,7 +3,7 @@
 README: [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md) | [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md)
 
 - Gowireshark 是一个 Golang 库，它允许我们的 Golang 程序具有 wireshark 的协议解析功能，它可以离线解析 pcap 数据包文件或实时监听设备并获得协议解析结果。
-- Gowireshark基于[libpcap 1.10.4](https://www.tcpdump.org/release/)与[wireshark 4.0.5](https://www.wireshark.org/#download)编译后的动态链接库开发。
+- Gowireshark基于[libpcap 1.10.4](https://www.tcpdump.org/release/)与[wireshark 4.0.7](https://www.wireshark.org/#download)编译后的动态链接库开发。
 
 ---
 
@@ -74,7 +74,7 @@ func main() {
 
 ### 2.1. 项目目录
 ```
-gowireshark
+gowireshark/
 ├── README-zh.md
 ├── README.md
 ├── cJSON.c
@@ -94,15 +94,15 @@ gowireshark
 ├── lib.c
 ├── libs/
 │   ├── libpcap.so.1
-│   ├── libwireshark.so
-│   ├── libwireshark.so.16
-│   ├── libwireshark.so.16.0.3
-│   ├── libwiretap.so
-│   ├── libwiretap.so.13
-│   ├── libwiretap.so.13.0.3
-│   ├── libwsutil.so
-│   ├── libwsutil.so.14
-│   └── libwsutil.so.14.0.0
+│   ├── libwireshark.so -> libwireshark.so.16*
+│   ├── libwireshark.so.16 -> libwireshark.so.16.0.7*
+│   ├── libwireshark.so.16.0.7*
+│   ├── libwiretap.so -> libwiretap.so.13*
+│   ├── libwiretap.so.13 -> libwiretap.so.13.0.7*
+│   ├── libwiretap.so.13.0.7*
+│   ├── libwsutil.so -> libwsutil.so.14*
+│   ├── libwsutil.so.14 -> libwsutil.so.14.0.0*
+│   └── libwsutil.so.14.0.0*
 ├── offline.c
 ├── online.c
 ├── pcaps/
@@ -154,7 +154,7 @@ graph LR
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.0.5
+export WIRESHARKV=4.0.7
 # 到/opt目录下操作
 cd /opt/
 # 下载源码
@@ -203,19 +203,21 @@ rm -rf CMakeFiles/
 -------------------------------------------------------------------------------
 
 # 在 /opt/wireshark/ 目录下创建一个用来构建的目录
-mkdir build
-cd build
+mkdir build && cd build
 # 构建[生产用]
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_wireshark=off -DENABLE_LUA=off ..
 # 编译[时长略久]
 ninja
 
 # 编译成功后，进入build/run/目录查看编译后的动态链接库
-cd run/
-ls -lh
+cd run/ && ls -lh
 # 覆盖替换原始的 9 个 wireshark 动态链接库文件
 cd /opt/gowireshark/libs/
 cp /opt/wireshark/build/run/lib*so* .
+# 首先执行 步骤 [修正源码导入错误]
+👇
+👇
+👇
 # 覆盖 wireshark 源文件夹（先删除无用的 build/ 目录）
 rm -rf /opt/wireshark/build/
 # 将源码拷贝到项目前可以将原 /opt/gowireshark/include/wireshark/ 目录备份
@@ -223,6 +225,57 @@ cp -r /opt/wireshark/ /opt/gowireshark/include/wireshark/
 
 # 查看项目目录结构 [项目目录父目录执行]
 tree -L 2 -F gowireshark
+```
+
+
+[修正源码导入错误]
+可以使用IDE批量修改
+```shell
+#include <ws_version.h>
+#include <config.h>
+// 在build后, 将生成文件 `ws_version.h` 和 `config.h`, 将它俩复制到wireshark根目录,最后在将`wireshark/`覆盖到项目`include/wireshark/`目录
+cp /opt/wireshark/build/ws_version.h /opt/wireshark/ws_version.h
+cp /opt/wireshark/build/config.h /opt/wireshark/config.h
+
+#include "ws_symbol_export.h"
+==>
+#include "include/ws_symbol_export.h"
+
+#include <ws_symbol_export.h>
+==>
+#include <include/ws_symbol_export.h>
+
+#include <ws_attributes.h>
+==>
+#include <include/ws_attributes.h>
+
+#include <ws_diag_control.h>
+==>
+#include <include/ws_diag_control.h>
+
+#include <wireshark.h>
+==>
+#include <include/wireshark.h>
+ 
+#include "ws_compiler_tests.h"
+==>
+#include "include/ws_compiler_tests.h"
+
+#include <ws_compiler_tests.h>
+==>
+#include <include/ws_compiler_tests.h>
+
+#include <ws_posix_compat.h>
+==>
+#include <include/ws_posix_compat.h>
+
+#include <ws_log_defs.h>
+==>
+#include <include/ws_log_defs.h>
+
+#include "ws_attributes.h"
+==>
+#include "include/ws_attributes.h"
 ```
 </details>
 

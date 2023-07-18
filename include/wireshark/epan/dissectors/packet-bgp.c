@@ -7085,7 +7085,14 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
                 break;
 
             case SAFNUM_EVPN:
-                total_length = decode_evpn_nlri(tree, tvb, offset, pinfo);
+                /* Check for Add Path */
+                if (tvb_get_guint8(tvb, offset + 4 ) <= EVPN_S_PMSI_A_D_ROUTE && tvb_get_guint8(tvb, offset ) == 0) {
+                    proto_tree_add_item(tree, hf_path_id, tvb, offset, 4, ENC_BIG_ENDIAN);
+                    offset += 4;
+                    total_length = decode_evpn_nlri(tree, tvb, offset, pinfo) + 4;
+                } else {
+                     total_length = decode_evpn_nlri(tree, tvb, offset, pinfo);
+                }
                 break;
 
             default:
@@ -9890,7 +9897,7 @@ dissect_bgp_path_attr(proto_tree *subtree, tvbuff_t *tvb, guint16 path_attr_len,
                     }
                 } else {
                     proto_tree_add_expert_format(subtree2, pinfo, &ei_bgp_length_invalid, tvb, o + i + aoff, alen,
-                                                 "Attribute set (invalid): %u bytes%s",
+                                                 "Attribute set (invalid): %u byte%s",
                                                  alen, plurality(alen, "", "s"));
                 }
                 break;

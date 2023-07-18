@@ -44,8 +44,8 @@ GIT_ABBREV_LENGTH = 12
 # If the text "$Format" is still present, it means that
 # git archive did not replace the $Format string, which
 # means that this not a git archive.
-GIT_EXPORT_SUBST_H = 'c552f74cdc235956749afb80f6536ca8c9c145d7'
-GIT_EXPORT_SUBST_D = 'HEAD, tag: wireshark-4.0.3, tag: v4.0.3, refs/pipelines/751209506'
+GIT_EXPORT_SUBST_H = '0ad1823cc09011b4a03d9e8dba7e2fcebc936d82'
+GIT_EXPORT_SUBST_D = 'HEAD, tag: wireshark-4.0.7, tag: v4.0.7, refs/pipelines/929199742'
 IS_GIT_ARCHIVE = not GIT_EXPORT_SUBST_H.startswith('$Format')
 
 
@@ -123,8 +123,8 @@ def update_attributes_asciidoc(src_dir, repo_data):
 
 def update_docinfo_asciidoc(src_dir, repo_data):
     doc_paths = []
-    doc_paths += [os.path.join(src_dir, 'docbook', 'developer-guide-docinfo.xml')]
-    doc_paths += [os.path.join(src_dir, 'docbook', 'user-guide-docinfo.xml')]
+    doc_paths += [os.path.join(src_dir, 'docbook', 'wsdg_src', 'developer-guide-docinfo.xml')]
+    doc_paths += [os.path.join(src_dir, 'docbook', 'wsug_src', 'user-guide-docinfo.xml')]
 
     for doc_path in doc_paths:
         with open(doc_path, encoding='utf-8') as fh:

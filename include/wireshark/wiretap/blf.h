@@ -189,6 +189,7 @@ typedef struct blf_canfdmessage {
     guint8  dlc;
     guint32 id;
     guint32 frameLength_in_ns;
+    guint8  arbitration_bit_count;
     guint8  canfdflags;
     guint8  validDataBytes;
     guint8  reservedCanFdMessage1;
@@ -388,7 +389,9 @@ typedef struct blf_linmessage_trailer {
     guint16 crc;
     guint8  dir;            /* 0 RX, 1 TX Receipt, 2 TX Req */
     guint8  res1;
+/*  This field is optional and skipping does not hurt us.
     guint32 res2;
+*/
 } blf_linmessage_trailer_t;
 
 

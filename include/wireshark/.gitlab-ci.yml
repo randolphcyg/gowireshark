@@ -42,9 +42,8 @@ variables:
 # repo and allow manual runs in the web UI and in forks.
 .if-merged:
   - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "release-4.0" && $CI_PROJECT_URL =~ /.*gitlab.com\/wireshark\/wireshark/'
-    when: always
   - if: '$CI_PIPELINE_SOURCE == "web"'
-    when: always
+  - if: '$CI_PIPELINE_SOURCE == "api"'
   - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_URL !~ /.*gitlab.com\/wireshark\/wireshark/'
     when: manual
 # Merged commits for runners which are only available in
@@ -52,28 +51,23 @@ variables:
 # the main repo and allow manual runs in the web UI.
 .if-w-w-only-merged:
   - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_URL =~ /.*gitlab.com\/wireshark\/wireshark/'
-    when: always
   - if: '$CI_PIPELINE_SOURCE == "web"'
-    when: always
+  - if: '$CI_PIPELINE_SOURCE == "api"'
 # Incoming merge requests.
 .if-merge-request:
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    when: always
 # Incoming non-detached merge requests. Must be used for runners which are only
 # available in wireshark/wireshark, e.g. wireshark-windows-*
 .if-w-w-only-merge-request:
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_PROJECT_URL =~ /.*gitlab.com\/wireshark\/wireshark/'
-    when: always
 # Daily jobs. Care should be taken when changing this since the scheduler
 # often doesn't report errors.
 .if-daily-schedule:
   - if: '$CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_TYPE == "daily"'
-    when: always
 # Fuzz jobs. Care should be taken when changing this since the scheduler
 # often doesn't report errors.
 .if-fuzz-schedule:
   - if: '$CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_TYPE == "fuzz"'
-    when: always
 
 .build-linux:
   stage: build
@@ -216,7 +210,7 @@ Debian Stable APT Package:
     - export DH_QUIET=1
     - export MAKEFLAGS=--silent
     - dpkg-buildpackage -b --no-sign -jauto
-    - lintian --suppress-tags library-not-linked-against-libc,copyright-excludes-files-in-native-package --display-experimental --display-info --pedantic --profile debian
+    - lintian --suppress-tags library-not-linked-against-libc --display-experimental --display-info --pedantic --profile debian
     - mkdir debian-packages
     - mv ../*.deb debian-packages/
   artifacts:
@@ -234,8 +228,9 @@ Debian Stable APT Test:
     - tshark --version
   after_script:
     # Used for https://www.wireshark.org/docs/dfref/
-    - TSHARK_VERSION=$( tshark --version | head -n 1 | sed -e 's/.*(v//' -e 's/)$//' -e 's/-0-g.*//' )
+    - TSHARK_VERSION=$( tshark --version | head -n 1 | sed -e 's/.*(v//' -e 's/)\.*$//' -e 's/-0-g.*//' )
     - tshark -G fields > dfilter-list-${TSHARK_VERSION}.txt
+    - if [[ -n "$S3_DESTINATION_DIST" ]] && [[ $TSHARK_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then aws s3 cp dfilter-list-${TSHARK_VERSION}.txt "$S3_DESTINATION_DIST/" ; fi
   artifacts:
     paths:
       - dfilter-list-*.txt
@@ -353,11 +348,11 @@ Win64 Package:
     - msbuild /verbosity:minimal /maxcpucount wireshark_wix_prep.vcxproj
     - C:\gitlab-builds\bin\sign-files.ps1 -Recurse -Path run\RelWithDebInfo
     - msbuild /verbosity:minimal wireshark_nsis.vcxproj
-    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\nsis
+    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\nsis\Wireshark-*.exe
     - msbuild /verbosity:minimal wireshark_wix.vcxproj
-    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\wix
+    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\wix\Wireshark-*.msi
     - msbuild /verbosity:minimal wireshark_portableapps.vcxproj
-    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\portableapps
+    - C:\gitlab-builds\bin\sign-files.ps1 -Path packaging\portableapps\WiresharkPortable*.exe
     - $plugins = Get-ChildItem run\RelWithDebInfo\plugins\*\*.dll ; signtool verify /q /pa /all run\RelWithDebInfo\*.exe run\RelWithDebInfo\extcap\*.exe $plugins run\RelWithDebInfo\libwireshark.dll run\RelWithDebInfo\libwiretap.dll run\RelWithDebInfo\libwsutil.dll packaging\nsis\Wireshark-win??-*.exe packaging\wix\Wireshark-win??-*.msi packaging\portableapps\WiresharkPortable??_*.paf.exe
     - msbuild /verbosity:minimal pdb_zip_package.vcxproj
     - C:\gitlab-builds\bin\mse-scan.ps1
@@ -449,7 +444,6 @@ macOS Intel Package:
       changes:
         - "docbook/**/*"
         - "epan/wslua/**/*"
-      when: always
     - if: '$CI_PIPELINE_SOURCE == "push"'
       changes:
         - "docbook/**/*"
@@ -666,6 +660,7 @@ ABI Check:
 # Fuzz TShark using ASAN and valgrind.
 .fuzz-ubuntu:
   extends: .build-ubuntu
+  retry: 0
   rules: !reference [.if-fuzz-schedule]
   tags:
     - wireshark-ubuntu-fuzz
@@ -678,7 +673,11 @@ ABI Check:
     MAX_PASSES: 15
   before_script:
     - DEBIAN_FRONTEND=noninteractive apt-get update
-    - DEBIAN_FRONTEND=noninteractive apt-get --yes install llvm-$CLANG_VERSION
+    # Use DPkg::options::="--force-overwrite" until
+    # https://bugs.launchpad.net/ubuntu/+source/llvm-toolchain-15/+bug/2008755
+    # https://github.com/llvm/llvm-project/issues/62104
+    # are fixed.
+    - DEBIAN_FRONTEND=noninteractive apt-get --yes --option DPkg::options::="--force-overwrite" install llvm-$CLANG_VERSION
     - mkdir -p ccache
     # Signal after_script, which runs in its own shell.
     - echo "export FUZZ_PASSED=true" > /tmp/fuzz_result.sh
@@ -706,7 +705,7 @@ ASan Menagerie Fuzz:
   extends: .fuzz-ubuntu
   stage: fuzz-asan
   script:
-    - MAX_SECONDS=$(( 4 * 60 * 60 ))
+    - MAX_SECONDS=$(( 6 * 60 * 60 ))
     - printf "\e[0Ksection_start:%s:cmake_section[collapsed=true]\r\e[0KRunning CMake" "$( date +%s)"
     - cmake -G Ninja -DBUILD_wireshark=OFF -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX -DENABLE_CCACHE=ON ..
     - printf "\e[0Ksection_end:%s:cmake_section\r\e[0K" "$( date +%s)"
@@ -734,6 +733,7 @@ ASan randpkt Fuzz:
 Valgrind Menagerie Fuzz:
   extends: .fuzz-ubuntu
   stage: fuzz-valgrind
+  resource_group: fuzz-release-4.0-valgrind
   variables:
     # Use DWARF-4 debug info. Valgrind does not support Clang 14 with DWARF-5.
     # https://gitlab.com/wireshark/wireshark/-/issues/18191

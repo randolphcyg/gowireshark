@@ -11,19 +11,19 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.0.3"
+#define VERSION "4.0.7"
 #define VERSION_MAJOR 4
 #define VERSION_MINOR 0
-#define VERSION_MICRO 3
+#define VERSION_MICRO 7
 
 /* Version number of Logray and associated utilities */
-#define LOG_VERSION "0.8.3"
+#define LOG_VERSION "0.8.7"
 
 #define PLUGIN_PATH_ID "4.0"
 #define VERSION_FLAVOR ""
 
 /* Build wsutil with SIMD optimization */
-/* #undef HAVE_SSE4_2 */
+#define HAVE_SSE4_2 1
 
 /* Define to 1 if we want to enable plugins */
 #define HAVE_PLUGINS 1
@@ -62,7 +62,7 @@
 #define HAVE_GETIFADDRS 1
 
 /* Define if LIBSSH support is enabled */
-#define HAVE_LIBSSH 1
+/* #undef HAVE_LIBSSH */
 
 /* Define if you have the 'dlget' function. */
 /* #undef HAVE_DLGET */

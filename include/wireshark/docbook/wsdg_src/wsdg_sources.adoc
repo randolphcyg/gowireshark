@@ -363,7 +363,7 @@ This requires you to set up git as described at <<ChSrcGit>>.
 GitLab uses a https://docs.gitlab.com/ee/user/project/repository/forking_workflow.html[forking workflow], which looks like this:
 
 .GitLab Workflow
-image::wsdg_graphics/git-triangular-workflow.svg[]
+image::images/git-triangular-workflow.svg[]
 
 In the diagram above, your fork can created by pressing the “Fork” button at {wireshark-gitlab-project-url}.
 Your local repository can be created as described in <<ChSrcGit>>.
@@ -689,7 +689,7 @@ You can do so as follows:
 [source,sh,subs="attributes+"]
 ----
 # Create a new topic branch for the backport.
-$ git checkout -b backport-g1ab2c3d4 upstream/{example-branch}
+$ git checkout -b backport-1ab2c3d4 upstream/{example-branch}
 
 # Cherry-pick the change. Include a "cherry picked from..." line.
 $ git cherry-pick -x 1ab2c3d4

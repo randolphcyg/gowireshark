@@ -621,15 +621,17 @@ class case_dissect_tcp(subprocesstest.SubprocessTestCase):
         # H - first time that the start of the MSP is delivered
         self.assertIn('3\t6\t[TCP Out-Of-Order]', lines[2])
         self.assertIn('[TCP segment of a reassembled PDU]', lines[2])
-        # H - first retransmission.
-        self.assertIn('4\t\t', lines[3])
-        self.assertNotIn('[TCP segment of a reassembled PDU]', lines[3])
+        # H - first retransmission. Because this is before the reassembly
+        # completes we can add it to the reassembly
+        self.assertIn('4\t6\t[TCP Out-Of-Order]', lines[3])
+        self.assertIn('[TCP segment of a reassembled PDU]', lines[3])
         # 1 - continue reassembly
         self.assertIn('5\t6\t[TCP Out-Of-Order]', lines[4])
         self.assertIn('[TCP segment of a reassembled PDU]', lines[4])
         # 3 - finish reassembly
         self.assertIn('6\t\tPUT /0 HTTP/1.1', lines[5])
-        # H - second retransmission.
+        # H - second retransmission. This is after the reassembly completes
+        # so we do not add it to the ressembly (but throw a ReassemblyError.)
         self.assertIn('7\t\t', lines[6])
         self.assertNotIn('[TCP segment of a reassembled PDU]', lines[6])
 
@@ -707,6 +709,28 @@ class case_dissect_tls(subprocesstest.SubprocessTestCase):
         '''Verify that TCP and TLS handshake reassembly works (second pass).'''
         self.check_tls_handshake_reassembly(
             cmd_tshark, capture_file, extraArgs=['-2'])
+
+    def check_tls_out_of_order(self, cmd_tshark, capture_file, test_env, extraArgs=[]):
+        proc = self.assertRun([cmd_tshark,
+                '-r', capture_file('challenge01_ooo_stream.pcapng.gz'),
+                '-otcp.reassemble_out_of_order:TRUE',
+                '-q',
+                '-zhttp,stat,png or image-jfif',
+            ] + extraArgs)
+        self.assertTrue(self.grepOutput(r'200 OK\s*11'))
+
+    def test_tls_out_of_order(self, cmd_tshark, capture_file, features, test_env):
+        '''Verify that TLS reassembly over TCP reassembly works.'''
+        if not features.have_gnutls:
+            self.skipTest('Requires GnuTLS.')
+        self.check_tls_out_of_order(cmd_tshark, capture_file, test_env)
+
+    def test_tls_out_of_order_second_pass(self, cmd_tshark, capture_file, features, test_env):
+        '''Verify that TLS reassembly over TCP reassembly works (second pass).'''
+        if not features.have_gnutls:
+            self.skipTest('Requires GnuTLS.')
+        self.check_tls_out_of_order(cmd_tshark, capture_file,
+            test_env, extraArgs=['-2'])
 
 @fixtures.mark_usefixtures('test_env')
 @fixtures.uses_fixtures

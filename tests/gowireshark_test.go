@@ -188,7 +188,7 @@ nflog Linux netfilter log (NFLOG) interface 48
 nfqueue Linux netfilter queue (NFQUEUE) interface 48
 dbus-system D-Bus system bus 48
 dbus-session D-Bus session bus 48
-enp0s5  22
+ens33  22
 any Pseudo-device that captures on all interfaces 54
 lo  55
 */
@@ -205,10 +205,10 @@ func TestGetIfaceList(t *testing.T) {
 /*
 Get interface device nonblock status, default is false
 Result:
-device: enp0s5  nonblock status: false
+device: ens33  nonblock status: false
 */
 func TestGetIfaceNonblockStatus(t *testing.T) {
-	ifaceName := "enp0s5"
+	ifaceName := "ens33"
 	status, err := gowireshark.GetIfaceNonblockStatus(ifaceName)
 	if err != nil {
 		fmt.Println(err)
@@ -218,7 +218,7 @@ func TestGetIfaceNonblockStatus(t *testing.T) {
 }
 
 func TestSetIfaceNonblockStatus(t *testing.T) {
-	ifaceName := "enp0s5"
+	ifaceName := "ens33"
 	status, err := gowireshark.SetIfaceNonblockStatus(ifaceName, true)
 	if err != nil {
 		fmt.Println(err)
@@ -237,7 +237,7 @@ func TestDissectPktLiveInfinite(t *testing.T) {
 	// sockBuffSize The maximum length of packet detail data transmitted by the Unix domain socket;
 	// Beyond this length will be safely truncated at c; The truncated data will not be properly deserialized into a golang struct.
 	sockBuffSize := 655350
-	ifName := "enp0s5"
+	ifName := "ens33"
 	pktNum := -1
 	promisc := 1
 	timeout := 20
@@ -288,7 +288,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	// sockBuffSize The maximum length of packet detail data transmitted by the Unix domain socket;
 	// Beyond this length will be safely truncated at c; The truncated data will not be properly deserialized into a golang struct.
 	sockBuffSize := 655350
-	ifName := "enp0s5"
+	ifName := "ens33"
 	pktNum := 20
 	promisc := 1
 	timeout := 20
@@ -314,7 +314,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 				livePkgCount++
 				pkgByte, _ := json.Marshal(pkg)
 				fmt.Printf("Processed pkg:【%d】pkg len:【%d】\n", livePkgCount, len(pkgByte))
-				//fmt.Println(pkg)
+				fmt.Println(pkg)
 			default:
 			}
 		}
@@ -332,7 +332,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 
 func TestStopDissectPktLive(t *testing.T) {
 	sockServerPath := "/tmp/gsocket"
-	ifName := "enp0s5"
+	ifName := "ens33"
 	// sockBuffSize The maximum length of packet detail data transmitted by the Unix domain socket;
 	// Beyond this length will be safely truncated at c; The truncated data will not be properly deserialized into a golang struct.
 	sockBuffSize := 655350

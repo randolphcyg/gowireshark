@@ -816,7 +816,7 @@ write_json_proto_node_list(GSList *proto_node_list_head, write_json_data *pdata)
         // We assume all values of a json key have roughly the same layout. Thus we can use the first value to derive
         // attributes of all the values.
         gboolean has_value = value_string_repr != NULL;
-        gboolean is_pseudo_text_field = fi->hfinfo->id == 0;
+        gboolean is_pseudo_text_field = fi->hfinfo->id == hf_text_only;
 
         wmem_free(NULL, value_string_repr); // fvalue_to_string_repr returns allocated buffer
 
@@ -1806,40 +1806,56 @@ print_escaped_xml(FILE *fh, const char *unescaped_string)
 {
     const char *p;
 
-#define ESCAPED_BUFFER_MAX 256
-    static char temp_buffer[ESCAPED_BUFFER_MAX];
+#define ESCAPED_BUFFER_SIZE 256
+#define ESCAPED_BUFFER_LIMIT (ESCAPED_BUFFER_SIZE - (int)sizeof("&quot;"))
+    static char temp_buffer[ESCAPED_BUFFER_SIZE];
     gint        offset = 0;
 
     if (fh == NULL || unescaped_string == NULL) {
         return;
     }
 
-    for (p = unescaped_string; *p != '\0' && (offset<(ESCAPED_BUFFER_MAX-1)); p++) {
+    /* XXX: Why not use xml_escape() from epan/strutil.h ? */
+    for (p = unescaped_string; *p != '\0' && (offset <= ESCAPED_BUFFER_LIMIT); p++) {
         switch (*p) {
         case '&':
-            (void) g_strlcpy(&temp_buffer[offset], "&amp;", ESCAPED_BUFFER_MAX-offset);
+            (void) g_strlcpy(&temp_buffer[offset], "&amp;", ESCAPED_BUFFER_SIZE-offset);
             offset += 5;
             break;
         case '<':
-            (void) g_strlcpy(&temp_buffer[offset], "&lt;", ESCAPED_BUFFER_MAX-offset);
+            (void) g_strlcpy(&temp_buffer[offset], "&lt;", ESCAPED_BUFFER_SIZE-offset);
             offset += 4;
             break;
         case '>':
-            (void) g_strlcpy(&temp_buffer[offset], "&gt;", ESCAPED_BUFFER_MAX-offset);
+            (void) g_strlcpy(&temp_buffer[offset], "&gt;", ESCAPED_BUFFER_SIZE-offset);
             offset += 4;
             break;
         case '"':
-            (void) g_strlcpy(&temp_buffer[offset], "&quot;", ESCAPED_BUFFER_MAX-offset);
+            (void) g_strlcpy(&temp_buffer[offset], "&quot;", ESCAPED_BUFFER_SIZE-offset);
             offset += 6;
             break;
         case '\'':
-            (void) g_strlcpy(&temp_buffer[offset], "&#x27;", ESCAPED_BUFFER_MAX-offset);
+            (void) g_strlcpy(&temp_buffer[offset], "&#x27;", ESCAPED_BUFFER_SIZE-offset);
             offset += 6;
             break;
-        default:
+        case '\t':
+        case '\n':
+        case '\r':
             temp_buffer[offset++] = *p;
+            break;
+        default:
+            /* XML 1.0 doesn't allow ASCII control characters, except
+             * for the three whitespace ones above (which do *not*
+             * include '\v' and '\f', so not the same group as isspace),
+             * even as character references.
+             * There's no official way to escape them, so we'll do this. */
+            if (g_ascii_iscntrl(*p)) {
+                offset += snprintf(&temp_buffer[offset], ESCAPED_BUFFER_SIZE-offset, "\\x%x", (guint8)*p);
+            } else {
+                temp_buffer[offset++] = *p;
+            }
         }
-        if (offset > ESCAPED_BUFFER_MAX-8) {
+        if (offset > ESCAPED_BUFFER_LIMIT) {
             /* Getting close to end of buffer so flush to fh */
             temp_buffer[offset] = '\0';
             fputs(temp_buffer, fh);
@@ -2412,14 +2428,6 @@ static void format_field_values(output_fields_t* fields, gpointer field_index, g
         break;
     case 'a':
         /* print the value of all accurrences of the field */
-        if (g_ptr_array_len(fv_p) != 0) {
-            /*
-             * This isn't the first occurrence. so add the "aggregator"
-             * character as a separator between the previous element
-             * and this element.
-             */
-            g_ptr_array_add(fv_p, (gpointer)ws_strdup_printf("%c", fields->aggregator));
-        }
         break;
     default:
         ws_assert_not_reached();
@@ -2537,6 +2545,9 @@ static void write_specified_fields(fields_format format, output_fields_t *fields
 
                 /* Output the array of (partial) field values */
                 for (j = 0; j < g_ptr_array_len(fv_p); j++ ) {
+                    if (j != 0) {
+                        fputc(fields->aggregator, fh);
+                    }
                     str = (gchar *)g_ptr_array_index(fv_p, j);
                     print_escaped_csv(fh, str);
                     g_free(str);
@@ -2560,7 +2571,7 @@ static void write_specified_fields(fields_format format, output_fields_t *fields
                 fv_p = fields->field_values[i];
 
                 /* Output the array of (partial) field values */
-                for (j = 0; j < (g_ptr_array_len(fv_p)); j+=2 ) {
+                for (j = 0; j < (g_ptr_array_len(fv_p)); j++ ) {
                     str = (gchar *)g_ptr_array_index(fv_p, j);
 
                     fprintf(fh, "  <field name=\"%s\" value=", field);
@@ -2589,7 +2600,7 @@ static void write_specified_fields(fields_format format, output_fields_t *fields
                 json_dumper_begin_array(dumper);
 
                 /* Output the array of (partial) field values */
-                for (j = 0; j < (g_ptr_array_len(fv_p)); j += 2) {
+                for (j = 0; j < (g_ptr_array_len(fv_p)); j++ ) {
                     str = (gchar *) g_ptr_array_index(fv_p, j);
                     json_dumper_value_string(dumper, str);
                     g_free(str);
@@ -2617,7 +2628,7 @@ static void write_specified_fields(fields_format format, output_fields_t *fields
                 json_dumper_begin_array(dumper);
 
                 /* Output the array of (partial) field values */
-                for (j = 0; j < (g_ptr_array_len(fv_p)); j += 2) {
+                for (j = 0; j < (g_ptr_array_len(fv_p)); j++ ) {
                     str = (gchar *)g_ptr_array_index(fv_p, j);
                     json_dumper_value_string(dumper, str);
                     g_free(str);
