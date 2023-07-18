@@ -3,7 +3,7 @@
 README: [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md) | [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md)
 
 - Gowireshark is a Golang library that allows our Golang program to have wireshark's protocol parsing function, which can parse pcap packet files offline or listen to the device in real time and obtain protocol parsing results.
-- Gowireshark is developed based on the dynamic link library compiled by [libpcap 1.10.4](https://www.tcpdump.org/release/)、[wireshark 4.0.5](https://www.wireshark.org/#download).
+- Gowireshark is developed based on the dynamic link library compiled by [libpcap 1.10.4](https://www.tcpdump.org/release/)、[wireshark 4.0.7](https://www.wireshark.org/#download).
 
 ---
 
@@ -74,7 +74,7 @@ Other examples can refer to the [test file](https://github.com/randolphcyg/gowir
 
 ### 2.1. Project directory
 ```
-gowireshark
+gowireshark/
 ├── README-zh.md
 ├── README.md
 ├── cJSON.c
@@ -94,15 +94,15 @@ gowireshark
 ├── lib.c
 ├── libs/
 │   ├── libpcap.so.1
-│   ├── libwireshark.so
-│   ├── libwireshark.so.16
-│   ├── libwireshark.so.16.0.3
-│   ├── libwiretap.so
-│   ├── libwiretap.so.13
-│   ├── libwiretap.so.13.0.3
-│   ├── libwsutil.so
-│   ├── libwsutil.so.14
-│   └── libwsutil.so.14.0.0
+│   ├── libwireshark.so -> libwireshark.so.16*
+│   ├── libwireshark.so.16 -> libwireshark.so.16.0.7*
+│   ├── libwireshark.so.16.0.7*
+│   ├── libwiretap.so -> libwiretap.so.13*
+│   ├── libwiretap.so.13 -> libwiretap.so.13.0.7*
+│   ├── libwiretap.so.13.0.7*
+│   ├── libwsutil.so -> libwsutil.so.14*
+│   ├── libwsutil.so.14 -> libwsutil.so.14.0.0*
+│   └── libwsutil.so.14.0.0*
 ├── offline.c
 ├── online.c
 ├── pcaps/
@@ -159,7 +159,7 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 
 ```shell
 # Determine the latest release version and set environment variables
-export WIRESHARKV=4.0.5
+export WIRESHARKV=4.0.7
 # Operate in the /opt directory
 cd /opt/
 # Download the source code
@@ -208,26 +208,77 @@ rm -rf CMakeFiles/
 -------------------------------------------------------------------------------
 
 # Create a build-specific directory under the /opt/wireshark/ directory
-mkdir build
-cd build
+mkdir build && cd build
 # Build [For production]
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_wireshark=off -DENABLE_LUA=off ..
 # Compile[slightly longer]
 ninja
 
 # After successful compilation, enter the run directory to view the compiled dynamic link library
-cd run/
-ls -lh
+cd run/ && ls -lh
 # Overwrites replaces the original 9 wireshark dynamic link library files
 cd /opt/gowireshark/libs/
 cp -r /opt/wireshark/build/run/lib*so* .
+# first do step [modify source code import error]
+👇
+👇
+👇
 # Overwrite the wireshark source folder(Remove the useless build/ directory first)
 rm -rf /opt/wireshark/build/
 # Before copying the source code to the project, you can back up the original /opt/gowireshark/include/wireshark/ directory
-cp /opt/wireshark/ /opt/gowireshark/include/wireshark/
+cp -r /opt/wireshark/ /opt/gowireshark/include/wireshark/
 
 # View project directory structure [project directory parent directory execution]
 tree -L 2 -F gowireshark
+```
+
+[modify source code import error]
+```shell
+#include <ws_version.h>
+#include <config.h>
+after build, it genarate file `ws_version.h` and `config.h`
+cp /opt/wireshark/build/ws_version.h /opt/wireshark/ws_version.h
+cp /opt/wireshark/build/config.h /opt/wireshark/config.h
+
+#include "ws_symbol_export.h"
+==>
+#include "include/ws_symbol_export.h"
+
+#include <ws_symbol_export.h>
+==>
+#include <include/ws_symbol_export.h>
+
+#include <ws_attributes.h>
+==>
+#include <include/ws_attributes.h>
+
+#include <ws_diag_control.h>
+==>
+#include <include/ws_diag_control.h>
+
+#include <wireshark.h>
+==>
+#include <include/wireshark.h>
+ 
+#include "ws_compiler_tests.h"
+==>
+#include "include/ws_compiler_tests.h"
+
+#include <ws_compiler_tests.h>
+==>
+#include <include/ws_compiler_tests.h>
+
+#include <ws_posix_compat.h>
+==>
+#include <include/ws_posix_compat.h>
+
+#include <ws_log_defs.h>
+==>
+#include <include/ws_log_defs.h>
+
+#include "ws_attributes.h"
+==>
+#include "include/ws_attributes.h"
 ```
 </details>
 
