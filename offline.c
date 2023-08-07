@@ -1,25 +1,6 @@
 #include <include/lib.h>
 
 typedef struct {
-  int level;
-  print_stream_t *stream;
-  gboolean success;
-  GSList *src_list;
-  print_dissections_e print_dissections;
-  gboolean print_hex_for_data;
-  packet_char_enc encoding;
-  GHashTable *output_only_tables; /* output only these protocols */
-} print_data;
-
-typedef struct {
-  int level;
-  FILE *fh;
-  GSList *src_list;
-  gchar **filter;
-  pf_flags filter_flags;
-} write_pdml_data;
-
-typedef struct {
   GSList *src_list;
   gchar **filter;
   pf_flags filter_flags;
@@ -28,11 +9,6 @@ typedef struct {
   proto_node_children_grouper_func node_children_grouper;
   json_dumper *dumper;
 } write_json_data;
-
-typedef struct {
-  output_fields_t *fields;
-  epan_dissect_t *edt;
-} write_field_data_t;
 
 struct _output_fields {
   gboolean print_bom;
@@ -204,49 +180,6 @@ gboolean get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset,
       return FALSE;
   }
   return TRUE;
-}
-
-/*
- * Find the data source for a specified field, and return a pointer
- * to the data in it. Returns NULL if the data is out of bounds.
- */
-/* XXX: What am I missing ?
- *      Why bother searching for fi->ds_tvb for the matching tvb
- *       in the data_source list ?
- *      IOW: Why not just use fi->ds_tvb for the arg to tvb_get_ptr() ?
- */
-
-static const guint8 *get_field_data(GSList *src_list, field_info *fi) {
-  GSList *src_le;
-  tvbuff_t *src_tvb;
-  gint length, tvbuff_length;
-  struct data_source *src;
-
-  for (src_le = src_list; src_le != NULL; src_le = src_le->next) {
-    src = (struct data_source *)src_le->data;
-    src_tvb = get_data_source_tvb(src);
-    if (fi->ds_tvb == src_tvb) {
-      /*
-       * Found it.
-       *
-       * XXX - a field can have a length that runs past
-       * the end of the tvbuff.  Ideally, that should
-       * be fixed when adding an item to the protocol
-       * tree, but checking the length when doing
-       * that could be expensive.  Until we fix that,
-       * we'll do the check here.
-       */
-      tvbuff_length = tvb_captured_length_remaining(src_tvb, fi->start);
-      if (tvbuff_length < 0) {
-        return NULL;
-      }
-      length = fi->length;
-      if (length > tvbuff_length)
-        length = tvbuff_length;
-      return tvb_get_ptr(src_tvb, fi->start, length);
-    }
-  }
-  return NULL; /* not found */
 }
 
 /*
@@ -465,10 +398,12 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
     // Retrieve the json key from the first value.
     proto_node *first_value = (proto_node *)node_values_list->data;
     const char *json_key = proto_node_to_json_key(first_value);
+
     field_info *fi = first_value->finfo;
     char *value_string_repr = fvalue_to_string_repr(
         NULL, &fi->value, FTREPR_DISPLAY, fi->hfinfo->display);
     // printf("@@@ %s %s \n", json_key, value_string_repr);
+
     // has child node ?
     gboolean has_children = any_has_children(node_values_list);
 
@@ -478,8 +413,7 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
     // if has value, just insert
     if (pdata->print_text && has_value) {
       cJSON_AddStringToObject(obj_current_node, json_key, value_string_repr);
-      free(value_string_repr);
-      value_string_repr = NULL;
+      wmem_free(NULL, value_string_repr);
     }
 
     // has chil node ?
@@ -498,8 +432,7 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
 
       cJSON_AddItemToObject(obj_current_node, json_key_s, cjson_tmp_child);
 
-      free(json_key_s);
-      json_key_s = NULL;
+      wmem_free(NULL, json_key_s);
 
       // has_children is TRUE if any of the nodes have children. so dynamic
       // judge it.
