@@ -117,7 +117,6 @@ void close_cf() {
 
   cf.rfcode = NULL;
   if (cf.provider.frames != NULL) {
-    //    free_frame_data_sequence(cf.provider.frames);
     free(cf.provider.frames);
     cf.provider.frames = NULL;
   }
@@ -388,17 +387,12 @@ char *get_specific_frame_hex_data(int num) {
  *  @return char of protocol tree dissect result, include hex data
  */
 char *proto_tree_in_json(int num) {
-  static output_fields_t *output_fields = NULL;
-  static gchar **protocolfilter = NULL;
-  static pf_flags protocolfilter_flags = PF_NONE;
-  static gboolean no_duplicate_keys = FALSE;
-  static proto_node_children_grouper_func node_children_grouper =
-      proto_node_group_children_by_unique;
-  static json_dumper jdumper;
-
   epan_dissect_t *edt;
-  print_stream_t *print_stream;
-  print_stream = print_stream_text_stdio_new(stdout);
+  static output_fields_t *output_fields = NULL;
+  output_fields = output_fields_new();
+  static pf_flags protocolfilter_flags = PF_INCLUDE_CHILDREN;
+  static proto_node_children_grouper_func node_children_grouper =
+      proto_node_group_children_by_json_key;
 
   // start reading packets
   while (read_packet(&edt)) {
@@ -407,11 +401,6 @@ char *proto_tree_in_json(int num) {
       edt = NULL;
       continue;
     }
-
-    protocolfilter_flags = PF_INCLUDE_CHILDREN; // PF_NONE
-    output_fields = output_fields_new();
-    node_children_grouper =
-        proto_node_group_children_by_json_key; // proto_node_group_children_by_unique
 
     // json root node
     cJSON *proto_tree_json = cJSON_CreateObject();

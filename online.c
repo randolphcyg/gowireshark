@@ -424,9 +424,7 @@ void close_cf_live(capture_file *cf_live) {
 
   cf_live->rfcode = NULL;
   if (cf_live->provider.frames != NULL) {
-    //    free_frame_data_sequence(cf.provider.frames);
-    free(cf_live->provider.frames);
-    cf_live->provider.frames = NULL;
+      free_frame_data_sequence(cf_live->provider.frames);
   }
   if (cf_live->provider.frames_modified_blocks) {
     g_tree_destroy(cf_live->provider.frames_modified_blocks);
