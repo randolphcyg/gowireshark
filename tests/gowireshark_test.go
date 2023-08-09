@@ -10,7 +10,7 @@ import (
 	"github.com/randolphcyg/gowireshark"
 )
 
-const inputFilepath = "../pcaps/s7comm_clean.pcap"
+const inputFilepath = "../pcaps/f1ap.pcapng"
 const inputFilepath2 = "../pcaps/wincc_s400_production.pcap"
 
 func TestEpanVersion(t *testing.T) {
@@ -38,7 +38,7 @@ func TestDissectPrintAllFrame(t *testing.T) {
 }
 
 func TestDissectPrintFirstSeveralFrame(t *testing.T) {
-	err := gowireshark.DissectPrintFirstSeveralFrame(inputFilepath, 200)
+	err := gowireshark.DissectPrintFirstSeveralFrame(inputFilepath, 5)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -46,7 +46,7 @@ func TestDissectPrintFirstSeveralFrame(t *testing.T) {
 }
 
 func TestDissectPrintSpecificFrame(t *testing.T) {
-	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5000)
+	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -56,7 +56,7 @@ func TestCapFileMulSeq(t *testing.T) {
 	var err error
 
 	fmt.Println("@@@@@@@@@@@@@")
-	err = gowireshark.DissectPrintSpecificFrame(inputFilepath, 5000)
+	err = gowireshark.DissectPrintSpecificFrame(inputFilepath, 5)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -94,14 +94,14 @@ func TestCapFileMulSeq(t *testing.T) {
 RESULT: none
 */
 func TestDissectPrintSpecificFrameOutOfBounds(t *testing.T) {
-	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5448)
+	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 10)
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
 func TestGetSpecificFrameHexData(t *testing.T) {
-	res, err := gowireshark.GetSpecificFrameHexData(inputFilepath, 3)
+	res, err := gowireshark.GetSpecificFrameHexData(inputFilepath, 5)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -143,7 +143,7 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 	}
 */
 func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
-	specificFrameDissectRes, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 3)
+	specificFrameDissectRes, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 5)
 	if err != nil {
 		fmt.Println(err)
 	}
