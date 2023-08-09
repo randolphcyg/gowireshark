@@ -62,7 +62,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"reflect"
 	"strconv"
 	"syscall"
 	"unsafe"
@@ -83,8 +82,8 @@ var (
 // result of a single data packet, which is convenient for converting c char to go string
 const SINGLEPKTMAXLEN = 6553500
 
+// Init policies、wtap mod、epan mod.
 func init() {
-	// Init policies、wtap mod、epan mod.
 	initEnvRes := C.init_env()
 	if initEnvRes == 0 {
 		panic("fail to init env")
@@ -99,13 +98,7 @@ func isFileExist(path string) bool {
 
 // CChar2GoStr C string -> Go string
 func CChar2GoStr(src *C.char) string {
-	var s string
-	var sHdr = (*reflect.StringHeader)(unsafe.Pointer(&s))
-	sHdr.Data = uintptr(unsafe.Pointer(src))
-	sHdr.Len = int(C.strlen(src))
-
 	sLen := int(C.strlen(src))
-
 	return string((*[SINGLEPKTMAXLEN]byte)(unsafe.Pointer(src))[:sLen:sLen])
 }
 
@@ -131,7 +124,12 @@ func initCapFile(inputFilepath string) (err error) {
 		return
 	}
 
-	errNo := C.init_cf(C.CString(inputFilepath))
+	inputFilepathCStr := C.CString(inputFilepath)
+	defer func() {
+		C.free(unsafe.Pointer(inputFilepathCStr))
+	}()
+
+	errNo := C.init_cf(inputFilepathCStr)
 	if errNo != 0 {
 		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
 		return
@@ -383,7 +381,12 @@ func GetIfaceNonblockStatus(deviceName string) (isNonblock bool, err error) {
 		return
 	}
 
-	nonblockStatus := C.get_if_nonblock_status(C.CString(deviceName))
+	deviceNameCStr := C.CString(deviceName)
+	defer func() {
+		C.free(unsafe.Pointer(deviceNameCStr))
+	}()
+
+	nonblockStatus := C.get_if_nonblock_status(deviceNameCStr)
 	if nonblockStatus == 0 {
 		isNonblock = false
 	} else if nonblockStatus == 1 {
@@ -407,7 +410,12 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 		setNonblockCode = 1
 	}
 
-	nonblockStatus := C.set_if_nonblock_status(C.CString(deviceName), C.int(setNonblockCode))
+	deviceNameCStr := C.CString(deviceName)
+	defer func() {
+		C.free(unsafe.Pointer(deviceNameCStr))
+	}()
+
+	nonblockStatus := C.set_if_nonblock_status(deviceNameCStr, C.int(setNonblockCode))
 	if nonblockStatus == 0 {
 		status = false
 	} else if nonblockStatus == 1 {
@@ -483,7 +491,14 @@ func DissectPktLive(deviceName, sockServerPath string, num, promisc, timeout int
 		return
 	}
 
-	errMsg := C.handle_packet(C.CString(deviceName), C.CString(sockServerPath), C.int(num), C.int(promisc), C.int(timeout))
+	deviceNameCStr := C.CString(deviceName)
+	sockServerPathCStr := C.CString(sockServerPath)
+	defer func() {
+		C.free(unsafe.Pointer(deviceNameCStr))
+		C.free(unsafe.Pointer(sockServerPathCStr))
+	}()
+
+	errMsg := C.handle_packet(deviceNameCStr, sockServerPathCStr, C.int(num), C.int(promisc), C.int(timeout))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)
@@ -501,7 +516,12 @@ func StopDissectPktLive(deviceName string) (err error) {
 		return
 	}
 
-	errMsg := C.stop_dissect_capture_pkg(C.CString(deviceName))
+	deviceNameCStr := C.CString(deviceName)
+	defer func() {
+		C.free(unsafe.Pointer(deviceNameCStr))
+	}()
+
+	errMsg := C.stop_dissect_capture_pkg(deviceNameCStr)
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)
