@@ -59,7 +59,7 @@ import (
 )
 
 func main() {
-    filepath := "pcaps/s7comm_clean.pcap"
+    filepath := "pcaps/f1ap.pcapng"
     err := gowireshark.DissectPrintFirstFrame(filepath)
     if err != nil {
         fmt.Println(err)
@@ -106,7 +106,7 @@ gowireshark/
 ├── offline.c
 ├── online.c
 ├── pcaps/
-│   ├── s7comm_clean.pcap
+│   ├── f1ap.pcapng
 │   └── wincc_s400_production.pcap
 └── tests/
     └── gowireshark_test.go
