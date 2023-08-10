@@ -44,7 +44,7 @@ int print_specific_frame(int num);
 // Dissect and get hex data of specific frame
 char *get_specific_frame_hex_data(int num);
 // Get proto tree in json format
-char *proto_tree_in_json(int num);
+char *proto_tree_in_json(int num, int descriptive, int debug);
 // Get interface list
 char *get_if_list();
 // Get interface nonblock status
@@ -268,10 +268,21 @@ func UnmarshalDissectResult(src string) (res FrameDissectRes, err error) {
 }
 
 // GetSpecificFrameProtoTreeInJson Transfer specific frame proto tree to json format
-func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int) (allFrameDissectRes map[string]FrameDissectRes, err error) {
+func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptive, isDebug bool) (allFrameDissectRes map[string]FrameDissectRes, err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
+	}
+
+	// is field descriptive
+	descriptive := 0
+	if isDescriptive == true {
+		descriptive = 1
+	}
+
+	debug := 0
+	if isDebug == true {
+		debug = 1
 	}
 
 	counter := 0
@@ -283,7 +294,7 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int) (allFrameDis
 		}
 
 		// get proto dissect result in json format by c
-		srcFrame := C.proto_tree_in_json(C.int(counter))
+		srcFrame := C.proto_tree_in_json(C.int(counter), C.int(descriptive), C.int(debug))
 		if srcFrame != nil {
 			if C.strlen(srcFrame) == 0 {
 				break
@@ -309,17 +320,28 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int) (allFrameDis
 }
 
 // GetAllFrameProtoTreeInJson Transfer proto tree to json format
-func GetAllFrameProtoTreeInJson(inputFilepath string) (allFrameDissectRes map[string]FrameDissectRes, err error) {
+func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebug bool) (allFrameDissectRes map[string]FrameDissectRes, err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
+	}
+
+	// is field descriptive
+	descriptive := 0
+	if isDescriptive == true {
+		descriptive = 1
+	}
+
+	debug := 0
+	if isDebug == true {
+		debug = 1
 	}
 
 	counter := 1
 	allFrameDissectRes = make(map[string]FrameDissectRes)
 	for {
 		// get proto dissect result in json format by c
-		srcFrame := C.proto_tree_in_json(C.int(counter))
+		srcFrame := C.proto_tree_in_json(C.int(counter), C.int(descriptive), C.int(debug))
 		if srcFrame != nil {
 			if C.strlen(srcFrame) == 0 { // loop ends
 				break

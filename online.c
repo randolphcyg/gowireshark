@@ -424,7 +424,7 @@ void close_cf_live(capture_file *cf_live) {
 
   cf_live->rfcode = NULL;
   if (cf_live->provider.frames != NULL) {
-      free_frame_data_sequence(cf_live->provider.frames);
+    free_frame_data_sequence(cf_live->provider.frames);
   }
   if (cf_live->provider.frames_modified_blocks) {
     g_tree_destroy(cf_live->provider.frames_modified_blocks);
@@ -493,10 +493,10 @@ static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
 static gboolean send_data_to_go(struct device_map *device) {
   // transfer each pkt dissect result to json format
   cJSON *proto_tree_json = cJSON_CreateObject();
-  get_proto_tree_json(NULL, print_dissections_expanded, TRUE, NULL,
-                      PF_INCLUDE_CHILDREN, &device->content.edt,
-                      &device->content.cf_live->cinfo,
-                      proto_node_group_children_by_json_key, proto_tree_json);
+  get_proto_tree_json(
+      NULL, print_dissections_expanded, TRUE, NULL, PF_INCLUDE_CHILDREN,
+      &device->content.edt, &device->content.cf_live->cinfo,
+      proto_node_group_children_by_json_key, proto_tree_json, 1);
 
   char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
 
