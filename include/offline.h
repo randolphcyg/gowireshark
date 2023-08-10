@@ -15,4 +15,4 @@ void get_proto_tree_json(output_fields_t *fields,
                          pf_flags protocolfilter_flags, epan_dissect_t *edt,
                          column_info *cinfo,
                          proto_node_children_grouper_func node_children_grouper,
-                         cJSON *proto_tree_json);
+                         cJSON *proto_tree_json, int descriptive);

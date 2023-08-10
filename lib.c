@@ -386,7 +386,7 @@ char *get_specific_frame_hex_data(int num) {
  *  @param num the index of frame which you want to dissect
  *  @return char of protocol tree dissect result, include hex data
  */
-char *proto_tree_in_json(int num) {
+char *proto_tree_in_json(int num, int descriptive, int debug) {
   epan_dissect_t *edt;
   static output_fields_t *output_fields = NULL;
   output_fields = output_fields_new();
@@ -406,8 +406,16 @@ char *proto_tree_in_json(int num) {
     cJSON *proto_tree_json = cJSON_CreateObject();
     get_proto_tree_json(NULL, print_dissections_expanded, TRUE, NULL,
                         protocolfilter_flags, edt, &cf.cinfo,
-                        node_children_grouper, proto_tree_json);
-    char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
+                        node_children_grouper, proto_tree_json, descriptive);
+
+    char *proto_tree_json_str;
+    if (debug) {
+      proto_tree_json_str = cJSON_Print(proto_tree_json);
+      printf("JSON:%s\n", proto_tree_json_str);
+    } else {
+      proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
+    }
+
     cJSON_Delete(proto_tree_json);
 
     epan_dissect_free(edt);

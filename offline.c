@@ -191,14 +191,16 @@ typedef void (*proto_node_value_writer)(proto_node *, write_json_data *);
 
 static void write_json_proto_node_list(GSList *proto_node_list_head,
                                        write_json_data *data,
-                                       cJSON *obj_current_node);
+                                       cJSON *obj_current_node,
+                                       int descriptive);
 static void
 write_json_proto_node_value_list(GSList *node_values_head,
                                  proto_node_value_writer value_writer,
                                  write_json_data *data);
 static void write_json_proto_node_children(proto_node *node,
                                            write_json_data *data,
-                                           cJSON *obj_current_node);
+                                           cJSON *obj_current_node,
+                                           int descriptive);
 static void write_json_proto_node_no_value(proto_node *node,
                                            write_json_data *data,
                                            cJSON *obj_current_node);
@@ -388,7 +390,8 @@ static void write_json_proto_node_no_value(proto_node *node,
  */
 static void write_json_proto_node_list(GSList *proto_node_list_head,
                                        write_json_data *pdata,
-                                       cJSON *obj_current_node) {
+                                       cJSON *obj_current_node,
+                                       int descriptive) {
   GSList *current_node = proto_node_list_head;
 
   while (current_node != NULL) {
@@ -402,7 +405,24 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
     field_info *fi = first_value->finfo;
     char *value_string_repr = fvalue_to_string_repr(
         NULL, &fi->value, FTREPR_DISPLAY, fi->hfinfo->display);
-    // printf("@@@ %s %s \n", json_key, value_string_repr);
+
+    // descriptive values
+    if (descriptive) {
+      // printf("# json_key【%s】value【%s】 \n", json_key, value_string_repr);
+      gchar label_str[ITEM_LABEL_LENGTH];
+      gchar *label_ptr;
+
+      /* was a free format label produced? */
+      if (!fi->rep) { /* no, make a generic label */
+        label_ptr = label_str;
+        proto_item_fill_label(fi, label_str);
+        char *value_ptr = strstr(label_ptr, ": ");
+        if (value_ptr != NULL) {
+          value_string_repr = (char *)value_ptr + 2;
+          // printf("### json_key 【%s】 value 【%s】 \n", json_key, value);
+        }
+      }
+    }
 
     // has child node ?
     gboolean has_children = any_has_children(node_values_list);
@@ -413,7 +433,6 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
     // if has value, just insert
     if (pdata->print_text && has_value) {
       cJSON_AddStringToObject(obj_current_node, json_key, value_string_repr);
-      wmem_free(NULL, value_string_repr);
     }
 
     // has chil node ?
@@ -439,7 +458,8 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
       if (first_value->first_child == NULL) {
         write_json_proto_node_no_value(first_value, pdata, cjson_tmp_child);
       } else {
-        write_json_proto_node_children(first_value, pdata, cjson_tmp_child);
+        write_json_proto_node_children(first_value, pdata, cjson_tmp_child,
+                                       descriptive);
       }
     }
 
@@ -454,9 +474,11 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
  */
 static void write_json_proto_node_children(proto_node *node,
                                            write_json_data *data,
-                                           cJSON *obj_current_node) {
+                                           cJSON *obj_current_node,
+                                           int descriptive) {
   GSList *grouped_children_list = data->node_children_grouper(node);
-  write_json_proto_node_list(grouped_children_list, data, obj_current_node);
+  write_json_proto_node_list(grouped_children_list, data, obj_current_node,
+                             descriptive);
   g_slist_free_full(grouped_children_list, (GDestroyNotify)g_slist_free);
 }
 
@@ -490,7 +512,7 @@ void get_proto_tree_json(output_fields_t *fields,
                          pf_flags protocolfilter_flags, epan_dissect_t *edt,
                          column_info *cinfo,
                          proto_node_children_grouper_func node_children_grouper,
-                         cJSON *proto_tree_json) {
+                         cJSON *proto_tree_json, int descriptive) {
   write_json_data data;
 
   // set json obj common value
@@ -528,7 +550,7 @@ void get_proto_tree_json(output_fields_t *fields,
     }
     data.node_children_grouper = node_children_grouper;
     // core logic
-    write_json_proto_node_children(edt->tree, &data, layers);
+    write_json_proto_node_children(edt->tree, &data, layers, descriptive);
   }
 
   return;
