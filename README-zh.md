@@ -372,19 +372,34 @@ apt install bison
 - [x] 优化代码并解决内存泄漏问题，使实时接口可以长时间运行
 - [x] 支持停止实时接口
 - [ ] :punch: 支持多个设备的数据包捕获，并根据设备名称停止实时接口 (TODO bug待修复)
+- [x] 离线 JSON 解析器接口支持描述性值
  
 
 ## 5. 格式说明
 
-无论是直接读取文件还是抓包输出为json格式，原始json键值格式如下：
+无论是直接读取文件还是抓包输出为json格式,原始json键值格式如下:
 
 原生wireshark中的字段加了如下三个字段：
 offset 偏移量
 hex 16进制数据
 ascii ascii字符
 
-1. 原先字段不带解释性说明：
+接口GetSpecificFrameProtoTreeInJson参数isDescriptive,指定为false则字段不带描述性值，指定为true则字段带描述性值；
 
+参考了wireshark源码的`print.c`函数`proto_tree_print_node(proto_node *node, gpointer data)`中的实现;
+
+主要用到`proto.h`函数`proto_item_fill_label`:
+```c
+/** Fill given label_str with a simple string representation of field.
+ @param finfo the item to get the info from
+ @param label_str the string to fill
+ @todo think about changing the parameter profile */
+WS_DLL_PUBLIC void
+proto_item_fill_label(field_info *finfo, gchar *label_str);
+```
+
+<details>
+<summary>1.字段不带描述性值</summary>
 ```shell
 {
   "_index": "packets-2020-12-14",
@@ -572,11 +587,12 @@ ascii ascii字符
   }
 }
 ```
+</details>
 
-2. 现在字段带解释性说明
+2. 字段带描述性值
 
-字段带描述性文字的想法来自原生的打印接口：
-
+<details>
+<summary>2.字段带描述性值</summary>
 ```shell
 {
 	"_index": "packets-2020-12-14",
@@ -742,6 +758,7 @@ ascii ascii字符
 	}
 }
 ```
+</details>
 
 ## 6. 联系
 
