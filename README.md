@@ -70,7 +70,7 @@ func main() {
 ```
 
 <details>
-<summary>descriptive values</summary>
+<summary>JSON output with descriptive values</summary>
 
 ```shell
 {
@@ -547,7 +547,7 @@ apt install bison
 - [x] Optimize memory leakage and improve the performance of real-time packet capture and parsing interfaces
 - [ ] :punch: Supports packet capture for multiple devices and stops packet capture based on device name (TODO Bugs to be fixed)
 - [ ] handle_packet func: memory leakage
-- [ ] offline json parser interface support descriptive values
+- [x] offline json parser interface support descriptive values
 
 
 ## 5. Contact
