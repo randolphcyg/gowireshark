@@ -2,23 +2,26 @@
 
 README: [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md) | [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md)
 
-- Gowireshark 是一个 Golang 库，它允许我们的 Golang 程序具有 wireshark 的协议解析功能，它可以离线解析 pcap 数据包文件或实时监听设备并获得协议解析结果。
-- Gowireshark基于[libpcap 1.10.4](https://www.tcpdump.org/release/)与[wireshark 4.0.7](https://www.wireshark.org/#download)编译后的动态链接库开发。
+- Gowireshark是一个`Go`库,拥有`Wireshark`的协议解析功能,支持离线或在线数据包解析。
+- 基于[libpcap 1.10.4](https://www.tcpdump.org/release/)与[Wireshark 4.0.7](https://www.wireshark.org/#download)动态链接库。
 
 ---
 
 # Contents
 
-- [1. 安装](#1-安装)
-    - [1.1. 前置条件](#11-前置条件)
-    - [1.2. 用法](#12-用法)
-- [2. 详细说明](#2-详细说明)
-    - [2.1. 项目目录](#21-项目目录)
-    - [2.2. 调用链](#22-调用链)
-    - [2.3. 编译dll](#23-编译dll)
-- [3. 开发](#3-开发)
-- [4. 路线图](#4-路线图)
-- [5. 联系](#5-联系)
+- [Gowireshark](#gowireshark)
+- [Contents](#contents)
+    - [1. 安装](#1-安装)
+        - [1.1. 前置条件](#11-前置条件)
+        - [1.2. 用法](#12-用法)
+    - [2. 详细说明](#2-详细说明)
+        - [2.1. 项目目录](#21-项目目录)
+        - [2.2. 调用链](#22-调用链)
+        - [2.3. 编译dll](#23-编译dll)
+        - [2.4. 解析结果格式说明](#24-解析结果格式说明)
+    - [3. 开发测试](#3-开发测试)
+    - [4. 路线图](#4-路线图)
+    - [5. 联系](#5-联系)
 
 ---
 
@@ -310,7 +313,389 @@ apt install bison
 ```
 </details>
 
-## 3. 开发
+### 2.4. 解析结果格式说明
+
+1. 增加的字段,在原生wireshark解析结果基础上增加了三个字段：
+    - offset 偏移量
+    - hex 16进制数据
+    - ascii ascii字符
+
+2. 描述性值逻辑来源
+    - 原生的打印协议树接口`proto_tree_print`包含描述性值,而协议json输出接口`write_json_proto_tree`不包含描述性值,通过借鉴前者的实现逻辑`proto_tree_print_node`可以完善这个功能;
+    - 修改后接口`GetSpecificFrameProtoTreeInJson`参数`isDescriptive`,对应c接口`proto_tree_in_json`的`descriptive`参数;设置为`false`则字段不带描述性值,设置为`true`则字段带描述性值;
+    - 主要参考`proto.h`函数的`proto_item_fill_label`函数:
+        ```c
+        /** Fill given label_str with a simple string representation of field.
+         @param finfo the item to get the info from
+         @param label_str the string to fill
+         @todo think about changing the parameter profile */
+        WS_DLL_PUBLIC void
+        proto_item_fill_label(field_info *finfo, gchar *label_str);
+        ```
+
+    <details>
+    <summary>1.字段不带描述性值</summary>
+   
+    ```shell
+    {
+      "_index": "packets-2020-12-14",
+      "offset": [
+        "0000",
+        "0010",
+        "0020",
+        "0030",
+        "0040",
+        "0050",
+        "0060"
+      ],
+      "hex": [
+        "00 00 00 00 00 00 00 00 00 00 00 00 08 00 45 02",
+        "00 58 00 01 40 00 40 84 3c 1d 7f 00 00 01 7f 00",
+        "00 01 98 3a 96 48 a6 25 c3 63 00 00 00 00 00 03",
+        "00 38 e3 0b 04 a7 00 00 00 00 00 00 00 3e 40 01",
+        "00 0e 00 00 02 00 4e 00 02 00 14 00 00 00 01 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 d0 55",
+        "79 4b 65 55 00 00                              "
+      ],
+      "ascii": [
+        "..............E.",
+        ".X..@.@.\u003c.......",
+        "...:.H.%.c......",
+        ".8...........\u003e@.",
+        "......N.........",
+        "...............U",
+        "yKeU.."
+      ],
+      "_source": {
+        "layers": {
+          "eth": {
+            "eth.dst": "00:00:00:00:00:00",
+            "eth.dst_tree": {
+              "eth.addr": "00:00:00:00:00:00",
+              "eth.addr.oui": "0",
+              "eth.addr_resolved": "00:00:00:00:00:00",
+              "eth.dst.ig": "0",
+              "eth.dst.lg": "0",
+              "eth.dst.oui": "0",
+              "eth.dst_resolved": "00:00:00:00:00:00",
+              "eth.ig": "0",
+              "eth.lg": "0"
+            },
+            "eth.src": "00:00:00:00:00:00",
+            "eth.src_tree": {
+              "eth.addr": "00:00:00:00:00:00",
+              "eth.addr.oui": "0",
+              "eth.addr_resolved": "00:00:00:00:00:00",
+              "eth.ig": "0",
+              "eth.lg": "0",
+              "eth.src.ig": "0",
+              "eth.src.lg": "0",
+              "eth.src.oui": "0",
+              "eth.src_resolved": "00:00:00:00:00:00"
+            },
+            "eth.type": "0x0800"
+          },
+          "f1ap": {
+            "f1ap.F1AP_PDU": "1",
+            "f1ap.F1AP_PDU_tree": {
+              "f1ap.successfulOutcome_element": {
+                "f1ap.criticality": "0",
+                "f1ap.procedureCode": "1",
+                "f1ap.value_element": {
+                  "f1ap.F1SetupResponse_element": {
+                    "f1ap.protocolIEs": "2",
+                    "f1ap.protocolIEs_tree": {
+                      "Item 0: id-TransactionID": {
+                        "f1ap.ProtocolIE_Field_element": {
+                          "f1ap.criticality": "0",
+                          "f1ap.id": "78",
+                          "f1ap.value_element": {
+                            "f1ap.TransactionID": "20",
+                            "per.extension_present_bit": "0"
+                          },
+                          "per.enum_index": "0",
+                          "per.open_type_length": "2"
+                        }
+                      },
+                      "Item 1: id-Cause": {
+                        "f1ap.ProtocolIE_Field_element": {
+                          "f1ap.criticality": "0",
+                          "f1ap.id": "0",
+                          "f1ap.value_element": {
+                            "f1ap.Cause": "0",
+                            "f1ap.Cause_tree": {
+                              "f1ap.radioNetwork": "0",
+                              "per.enum_index": "0",
+                              "per.extension_present_bit": "0"
+                            },
+                            "per.choice_index": "0"
+                          },
+                          "per.enum_index": "0",
+                          "per.open_type_length": "1"
+                        }
+                      }
+                    },
+                    "per.extension_bit": "0",
+                    "per.sequence_of_length": "2"
+                  }
+                },
+                "per.enum_index": "0",
+                "per.open_type_length": "14"
+              }
+            },
+            "per.choice_index": "1"
+          },
+          "frame": {
+            "frame.cap_len": "102",
+            "frame.encap_type": "1",
+            "frame.ignored": "0",
+            "frame.interface_id": "0",
+            "frame.len": "102",
+            "frame.marked": "0",
+            "frame.number": "5",
+            "frame.offset_shift": "0.000000000",
+            "frame.protocols": "eth:ethertype:ip:sctp:f1ap",
+            "frame.section_number": "1",
+            "frame.time": "Dec 14, 2020 16:01:11.974420814 UTC",
+            "frame.time_delta": "0.000021538",
+            "frame.time_delta_displayed": "0.000021538",
+            "frame.time_epoch": "1607961671.974420814",
+            "frame.time_relative": "0.000000000"
+          },
+          "ip": {
+            "ip.addr": "127.0.0.1",
+            "ip.checksum": "0x3c1d",
+            "ip.checksum.status": "2",
+            "ip.dsfield": "0x02",
+            "ip.dsfield_tree": {
+              "ip.dsfield.dscp": "0",
+              "ip.dsfield.ecn": "2"
+            },
+            "ip.dst": "127.0.0.1",
+            "ip.dst_host": "127.0.0.1",
+            "ip.flags": "0x02",
+            "ip.flags_tree": {
+              "ip.flags.df": "1",
+              "ip.flags.mf": "0",
+              "ip.flags.rb": "0"
+            },
+            "ip.frag_offset": "0",
+            "ip.hdr_len": "20",
+            "ip.host": "127.0.0.1",
+            "ip.id": "0x0001",
+            "ip.len": "88",
+            "ip.proto": "132",
+            "ip.src": "127.0.0.1",
+            "ip.src_host": "127.0.0.1",
+            "ip.ttl": "64",
+            "ip.version": "4"
+          },
+          "sctp": {
+            "DATA chunk (ordered, complete segment, TSN: 0, SID: 0, SSN: 0, PPID: 62, payload length: 40 bytes)": {
+              "sctp.chunk_flags": "0x03",
+              "sctp.chunk_flags_tree": {
+                "sctp.data_b_bit": "1",
+                "sctp.data_e_bit": "1",
+                "sctp.data_i_bit": "0",
+                "sctp.data_u_bit": "0"
+              },
+              "sctp.chunk_length": "56",
+              "sctp.chunk_type": "0",
+              "sctp.chunk_type_tree": {
+                "sctp.chunk_bit_1": "0",
+                "sctp.chunk_bit_2": "0"
+              },
+              "sctp.data_payload_proto_id": "62",
+              "sctp.data_sid": "0x0000",
+              "sctp.data_ssn": "0",
+              "sctp.data_tsn": "0",
+              "sctp.data_tsn_raw": "3809150119"
+            },
+            "sctp.assoc_index": "65535",
+            "sctp.checksum": "0x00000000",
+            "sctp.checksum.status": "2",
+            "sctp.dstport": "38472",
+            "sctp.port": "38970",
+            "sctp.srcport": "38970",
+            "sctp.verification_tag": "0xa625c363"
+          }
+        }
+      }
+    }
+    ```
+    </details>
+
+    <details>
+    <summary>2.字段带描述性值</summary>
+
+    ```shell
+    {
+        "_index": "packets-2020-12-14",
+        "_type": "doc",
+        "_score": {},
+        "offset": ["0000", "0010", "0020", "0030", "0040", "0050", "0060"],
+        "hex": ["00 00 00 00 00 00 00 00 00 00 00 00 08 00 45 02", "00 58 00 01 40 00 40 84 3c 1d 7f 00 00 01 7f 00", "00 01 98 3a 96 48 a6 25 c3 63 00 00 00 00 00 03", "00 38 e3 0b 04 a7 00 00 00 00 00 00 00 3e 40 01", "00 0e 00 00 02 00 4e 00 02 00 14 00 00 00 01 00", "00 00 00 00 00 00 00 00 00 00 00 00 00 00 d0 55", "79 4b 65 55 00 00                              "],
+        "ascii": ["..............E.", ".X..@.@.<.......", "...:.H.%.c......", ".8...........>@.", "......N.........", "...............U", "yKeU.."],
+        "_source": {
+            "layers": {
+                "frame": {
+                    "frame.section_number": "1",
+                    "frame.interface_id": "0",
+                    "frame.encap_type": "Ethernet (1)",
+                    "frame.time": "Dec 14, 2020 16:01:11.974420814 UTC",
+                    "frame.offset_shift": "0.000000000 seconds",
+                    "frame.time_epoch": "1607961671.974420814 seconds",
+                    "frame.time_delta": "0.000021538 seconds",
+                    "frame.time_delta_displayed": "0.000021538 seconds",
+                    "frame.time_relative": "0.000000000 seconds",
+                    "frame.number": "5",
+                    "frame.len": "102",
+                    "frame.cap_len": "102",
+                    "frame.marked": "False",
+                    "frame.ignored": "False",
+                    "frame.protocols": "eth:ethertype:ip:sctp:f1ap"
+                },
+                "eth": {
+                    "eth.dst": "00:00:00:00:00:00 (00:00:00:00:00:00)",
+                    "eth.dst_tree": {
+                        "eth.dst_resolved": "00:00:00:00:00:00",
+                        "eth.dst.oui": "00:00:00",
+                        "eth.addr": "00:00:00:00:00:00 (00:00:00:00:00:00)",
+                        "eth.addr_resolved": "00:00:00:00:00:00",
+                        "eth.addr.oui": "00:00:00",
+                        "eth.dst.lg": "Globally unique address (factory default)",
+                        "eth.lg": "Globally unique address (factory default)",
+                        "eth.dst.ig": "Individual address (unicast)",
+                        "eth.ig": "Individual address (unicast)"
+                    },
+                    "eth.src": "00:00:00:00:00:00 (00:00:00:00:00:00)",
+                    "eth.src_tree": {
+                        "eth.src_resolved": "00:00:00:00:00:00",
+                        "eth.src.oui": "00:00:00",
+                        "eth.addr": "00:00:00:00:00:00 (00:00:00:00:00:00)",
+                        "eth.addr_resolved": "00:00:00:00:00:00",
+                        "eth.addr.oui": "00:00:00",
+                        "eth.src.lg": "Globally unique address (factory default)",
+                        "eth.lg": "Globally unique address (factory default)",
+                        "eth.src.ig": "Individual address (unicast)",
+                        "eth.ig": "Individual address (unicast)"
+                    },
+                    "eth.type": "IPv4 (0x0800)"
+                },
+                "ip": {
+                    "ip.version": "4",
+                    "ip.hdr_len": "20",
+                    "ip.dsfield": "0x02",
+                    "ip.dsfield_tree": {
+                        "ip.dsfield.dscp": "Default (0)",
+                        "ip.dsfield.ecn": "ECN-Capable Transport codepoint '10' (2)"
+                    },
+                    "ip.len": "88",
+                    "ip.id": "0x0001 (1)",
+                    "ip.flags": "0x02",
+                    "ip.flags_tree": {
+                        "ip.flags.rb": "Not set",
+                        "ip.flags.df": "Set",
+                        "ip.flags.mf": "Not set"
+                    },
+                    "ip.frag_offset": "0",
+                    "ip.ttl": "64",
+                    "ip.proto": "SCTP (132)",
+                    "ip.checksum": "0x3c1d",
+                    "ip.checksum.status": "Unverified",
+                    "ip.src": "127.0.0.1",
+                    "ip.addr": "127.0.0.1",
+                    "ip.src_host": "127.0.0.1",
+                    "ip.host": "127.0.0.1",
+                    "ip.dst": "127.0.0.1",
+                    "ip.dst_host": "127.0.0.1"
+                },
+                "sctp": {
+                    "sctp.srcport": "38970",
+                    "sctp.dstport": "38472",
+                    "sctp.verification_tag": "0xa625c363",
+                    "sctp.assoc_index": "65535",
+                    "sctp.port": "38970",
+                    "sctp.checksum": "0x00000000",
+                    "sctp.checksum.status": "Unverified",
+                    "DATA chunk (ordered, complete segment, TSN: 0, SID: 0, SSN: 0, PPID: 62, payload length: 40 bytes)": {
+                        "sctp.chunk_type": "DATA (0)",
+                        "sctp.chunk_type_tree": {
+                            "sctp.chunk_bit_1": "Stop processing of the packet",
+                            "sctp.chunk_bit_2": "Do not report"
+                        },
+                        "sctp.chunk_flags": "0x03",
+                        "sctp.chunk_flags_tree": {
+                            "sctp.data_i_bit": "Possibly delay SACK",
+                            "sctp.data_u_bit": "Ordered delivery",
+                            "sctp.data_b_bit": "First segment",
+                            "sctp.data_e_bit": "Last segment"
+                        },
+                        "sctp.chunk_length": "56",
+                        "sctp.data_tsn": "0",
+                        "sctp.data_tsn_raw": "3809150119",
+                        "sctp.data_sid": "0x0000",
+                        "sctp.data_ssn": "0",
+                        "sctp.data_payload_proto_id": "F1 AP (62)"
+                    }
+                },
+                "f1ap": {
+                    "per.choice_index": "1",
+                    "f1ap.F1AP_PDU": "successfulOutcome (1)",
+                    "f1ap.F1AP_PDU_tree": {
+                        "f1ap.successfulOutcome_element": {
+                            "f1ap.procedureCode": "id-F1Setup (1)",
+                            "per.enum_index": "0",
+                            "f1ap.criticality": "reject (0)",
+                            "per.open_type_length": "14",
+                            "f1ap.value_element": {
+                                "f1ap.F1SetupResponse_element": {
+                                    "per.extension_bit": "0",
+                                    "per.sequence_of_length": "2",
+                                    "f1ap.protocolIEs": "2",
+                                    "f1ap.protocolIEs_tree": {
+                                        "Item 0: id-TransactionID": {
+                                            "f1ap.ProtocolIE_Field_element": {
+                                                "f1ap.id": "id-TransactionID (78)",
+                                                "per.enum_index": "0",
+                                                "f1ap.criticality": "reject (0)",
+                                                "per.open_type_length": "2",
+                                                "f1ap.value_element": {
+                                                    "per.extension_present_bit": "0",
+                                                    "f1ap.TransactionID": "20"
+                                                }
+                                            }
+                                        },
+                                        "Item 1: id-Cause": {
+                                            "f1ap.ProtocolIE_Field_element": {
+                                                "f1ap.id": "id-Cause (0)",
+                                                "per.enum_index": "0",
+                                                "f1ap.criticality": "reject (0)",
+                                                "per.open_type_length": "1",
+                                                "f1ap.value_element": {
+                                                    "per.choice_index": "0",
+                                                    "f1ap.Cause": "radioNetwork (0)",
+                                                    "f1ap.Cause_tree": {
+                                                        "per.extension_present_bit": "0",
+                                                        "per.enum_index": "0",
+                                                        "f1ap.radioNetwork": "unspecified (0)"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ```
+    </details>
+
+## 3. 开发测试
 
 ---
 
@@ -372,395 +757,9 @@ apt install bison
 - [x] 优化代码并解决内存泄漏问题，使实时接口可以长时间运行
 - [x] 支持停止实时接口
 - [ ] :punch: 支持多个设备的数据包捕获，并根据设备名称停止实时接口 (TODO bug待修复)
-- [x] 离线 JSON 解析器接口支持描述性值
- 
+- [x] 解析结果支持描述性值
 
-## 5. 格式说明
-
-无论是直接读取文件还是抓包输出为json格式,原始json键值格式如下:
-
-原生wireshark中的字段加了如下三个字段：
-offset 偏移量
-hex 16进制数据
-ascii ascii字符
-
-接口GetSpecificFrameProtoTreeInJson参数isDescriptive,指定为false则字段不带描述性值，指定为true则字段带描述性值；
-
-参考了wireshark源码的`print.c`函数`proto_tree_print_node(proto_node *node, gpointer data)`中的实现;
-
-主要用到`proto.h`函数`proto_item_fill_label`:
-```c
-/** Fill given label_str with a simple string representation of field.
- @param finfo the item to get the info from
- @param label_str the string to fill
- @todo think about changing the parameter profile */
-WS_DLL_PUBLIC void
-proto_item_fill_label(field_info *finfo, gchar *label_str);
-```
-
-<details>
-<summary>1.字段不带描述性值</summary>
-```shell
-{
-  "_index": "packets-2020-12-14",
-  "offset": [
-    "0000",
-    "0010",
-    "0020",
-    "0030",
-    "0040",
-    "0050",
-    "0060"
-  ],
-  "hex": [
-    "00 00 00 00 00 00 00 00 00 00 00 00 08 00 45 02",
-    "00 58 00 01 40 00 40 84 3c 1d 7f 00 00 01 7f 00",
-    "00 01 98 3a 96 48 a6 25 c3 63 00 00 00 00 00 03",
-    "00 38 e3 0b 04 a7 00 00 00 00 00 00 00 3e 40 01",
-    "00 0e 00 00 02 00 4e 00 02 00 14 00 00 00 01 00",
-    "00 00 00 00 00 00 00 00 00 00 00 00 00 00 d0 55",
-    "79 4b 65 55 00 00                              "
-  ],
-  "ascii": [
-    "..............E.",
-    ".X..@.@.\u003c.......",
-    "...:.H.%.c......",
-    ".8...........\u003e@.",
-    "......N.........",
-    "...............U",
-    "yKeU.."
-  ],
-  "_source": {
-    "layers": {
-      "eth": {
-        "eth.dst": "00:00:00:00:00:00",
-        "eth.dst_tree": {
-          "eth.addr": "00:00:00:00:00:00",
-          "eth.addr.oui": "0",
-          "eth.addr_resolved": "00:00:00:00:00:00",
-          "eth.dst.ig": "0",
-          "eth.dst.lg": "0",
-          "eth.dst.oui": "0",
-          "eth.dst_resolved": "00:00:00:00:00:00",
-          "eth.ig": "0",
-          "eth.lg": "0"
-        },
-        "eth.src": "00:00:00:00:00:00",
-        "eth.src_tree": {
-          "eth.addr": "00:00:00:00:00:00",
-          "eth.addr.oui": "0",
-          "eth.addr_resolved": "00:00:00:00:00:00",
-          "eth.ig": "0",
-          "eth.lg": "0",
-          "eth.src.ig": "0",
-          "eth.src.lg": "0",
-          "eth.src.oui": "0",
-          "eth.src_resolved": "00:00:00:00:00:00"
-        },
-        "eth.type": "0x0800"
-      },
-      "f1ap": {
-        "f1ap.F1AP_PDU": "1",
-        "f1ap.F1AP_PDU_tree": {
-          "f1ap.successfulOutcome_element": {
-            "f1ap.criticality": "0",
-            "f1ap.procedureCode": "1",
-            "f1ap.value_element": {
-              "f1ap.F1SetupResponse_element": {
-                "f1ap.protocolIEs": "2",
-                "f1ap.protocolIEs_tree": {
-                  "Item 0: id-TransactionID": {
-                    "f1ap.ProtocolIE_Field_element": {
-                      "f1ap.criticality": "0",
-                      "f1ap.id": "78",
-                      "f1ap.value_element": {
-                        "f1ap.TransactionID": "20",
-                        "per.extension_present_bit": "0"
-                      },
-                      "per.enum_index": "0",
-                      "per.open_type_length": "2"
-                    }
-                  },
-                  "Item 1: id-Cause": {
-                    "f1ap.ProtocolIE_Field_element": {
-                      "f1ap.criticality": "0",
-                      "f1ap.id": "0",
-                      "f1ap.value_element": {
-                        "f1ap.Cause": "0",
-                        "f1ap.Cause_tree": {
-                          "f1ap.radioNetwork": "0",
-                          "per.enum_index": "0",
-                          "per.extension_present_bit": "0"
-                        },
-                        "per.choice_index": "0"
-                      },
-                      "per.enum_index": "0",
-                      "per.open_type_length": "1"
-                    }
-                  }
-                },
-                "per.extension_bit": "0",
-                "per.sequence_of_length": "2"
-              }
-            },
-            "per.enum_index": "0",
-            "per.open_type_length": "14"
-          }
-        },
-        "per.choice_index": "1"
-      },
-      "frame": {
-        "frame.cap_len": "102",
-        "frame.encap_type": "1",
-        "frame.ignored": "0",
-        "frame.interface_id": "0",
-        "frame.len": "102",
-        "frame.marked": "0",
-        "frame.number": "5",
-        "frame.offset_shift": "0.000000000",
-        "frame.protocols": "eth:ethertype:ip:sctp:f1ap",
-        "frame.section_number": "1",
-        "frame.time": "Dec 14, 2020 16:01:11.974420814 UTC",
-        "frame.time_delta": "0.000021538",
-        "frame.time_delta_displayed": "0.000021538",
-        "frame.time_epoch": "1607961671.974420814",
-        "frame.time_relative": "0.000000000"
-      },
-      "ip": {
-        "ip.addr": "127.0.0.1",
-        "ip.checksum": "0x3c1d",
-        "ip.checksum.status": "2",
-        "ip.dsfield": "0x02",
-        "ip.dsfield_tree": {
-          "ip.dsfield.dscp": "0",
-          "ip.dsfield.ecn": "2"
-        },
-        "ip.dst": "127.0.0.1",
-        "ip.dst_host": "127.0.0.1",
-        "ip.flags": "0x02",
-        "ip.flags_tree": {
-          "ip.flags.df": "1",
-          "ip.flags.mf": "0",
-          "ip.flags.rb": "0"
-        },
-        "ip.frag_offset": "0",
-        "ip.hdr_len": "20",
-        "ip.host": "127.0.0.1",
-        "ip.id": "0x0001",
-        "ip.len": "88",
-        "ip.proto": "132",
-        "ip.src": "127.0.0.1",
-        "ip.src_host": "127.0.0.1",
-        "ip.ttl": "64",
-        "ip.version": "4"
-      },
-      "sctp": {
-        "DATA chunk (ordered, complete segment, TSN: 0, SID: 0, SSN: 0, PPID: 62, payload length: 40 bytes)": {
-          "sctp.chunk_flags": "0x03",
-          "sctp.chunk_flags_tree": {
-            "sctp.data_b_bit": "1",
-            "sctp.data_e_bit": "1",
-            "sctp.data_i_bit": "0",
-            "sctp.data_u_bit": "0"
-          },
-          "sctp.chunk_length": "56",
-          "sctp.chunk_type": "0",
-          "sctp.chunk_type_tree": {
-            "sctp.chunk_bit_1": "0",
-            "sctp.chunk_bit_2": "0"
-          },
-          "sctp.data_payload_proto_id": "62",
-          "sctp.data_sid": "0x0000",
-          "sctp.data_ssn": "0",
-          "sctp.data_tsn": "0",
-          "sctp.data_tsn_raw": "3809150119"
-        },
-        "sctp.assoc_index": "65535",
-        "sctp.checksum": "0x00000000",
-        "sctp.checksum.status": "2",
-        "sctp.dstport": "38472",
-        "sctp.port": "38970",
-        "sctp.srcport": "38970",
-        "sctp.verification_tag": "0xa625c363"
-      }
-    }
-  }
-}
-```
-</details>
-
-2. 字段带描述性值
-
-<details>
-<summary>2.字段带描述性值</summary>
-```shell
-{
-	"_index": "packets-2020-12-14",
-	"_type": "doc",
-	"_score": {},
-	"offset": ["0000", "0010", "0020", "0030", "0040", "0050", "0060"],
-	"hex": ["00 00 00 00 00 00 00 00 00 00 00 00 08 00 45 02", "00 58 00 01 40 00 40 84 3c 1d 7f 00 00 01 7f 00", "00 01 98 3a 96 48 a6 25 c3 63 00 00 00 00 00 03", "00 38 e3 0b 04 a7 00 00 00 00 00 00 00 3e 40 01", "00 0e 00 00 02 00 4e 00 02 00 14 00 00 00 01 00", "00 00 00 00 00 00 00 00 00 00 00 00 00 00 d0 55", "79 4b 65 55 00 00                              "],
-	"ascii": ["..............E.", ".X..@.@.<.......", "...:.H.%.c......", ".8...........>@.", "......N.........", "...............U", "yKeU.."],
-	"_source": {
-		"layers": {
-			"frame": {
-				"frame.section_number": "1",
-				"frame.interface_id": "0",
-				"frame.encap_type": "Ethernet (1)",
-				"frame.time": "Dec 14, 2020 16:01:11.974420814 UTC",
-				"frame.offset_shift": "0.000000000 seconds",
-				"frame.time_epoch": "1607961671.974420814 seconds",
-				"frame.time_delta": "0.000021538 seconds",
-				"frame.time_delta_displayed": "0.000021538 seconds",
-				"frame.time_relative": "0.000000000 seconds",
-				"frame.number": "5",
-				"frame.len": "102",
-				"frame.cap_len": "102",
-				"frame.marked": "False",
-				"frame.ignored": "False",
-				"frame.protocols": "eth:ethertype:ip:sctp:f1ap"
-			},
-			"eth": {
-				"eth.dst": "00:00:00:00:00:00 (00:00:00:00:00:00)",
-				"eth.dst_tree": {
-					"eth.dst_resolved": "00:00:00:00:00:00",
-					"eth.dst.oui": "00:00:00",
-					"eth.addr": "00:00:00:00:00:00 (00:00:00:00:00:00)",
-					"eth.addr_resolved": "00:00:00:00:00:00",
-					"eth.addr.oui": "00:00:00",
-					"eth.dst.lg": "Globally unique address (factory default)",
-					"eth.lg": "Globally unique address (factory default)",
-					"eth.dst.ig": "Individual address (unicast)",
-					"eth.ig": "Individual address (unicast)"
-				},
-				"eth.src": "00:00:00:00:00:00 (00:00:00:00:00:00)",
-				"eth.src_tree": {
-					"eth.src_resolved": "00:00:00:00:00:00",
-					"eth.src.oui": "00:00:00",
-					"eth.addr": "00:00:00:00:00:00 (00:00:00:00:00:00)",
-					"eth.addr_resolved": "00:00:00:00:00:00",
-					"eth.addr.oui": "00:00:00",
-					"eth.src.lg": "Globally unique address (factory default)",
-					"eth.lg": "Globally unique address (factory default)",
-					"eth.src.ig": "Individual address (unicast)",
-					"eth.ig": "Individual address (unicast)"
-				},
-				"eth.type": "IPv4 (0x0800)"
-			},
-			"ip": {
-				"ip.version": "4",
-				"ip.hdr_len": "20",
-				"ip.dsfield": "0x02",
-				"ip.dsfield_tree": {
-					"ip.dsfield.dscp": "Default (0)",
-					"ip.dsfield.ecn": "ECN-Capable Transport codepoint '10' (2)"
-				},
-				"ip.len": "88",
-				"ip.id": "0x0001 (1)",
-				"ip.flags": "0x02",
-				"ip.flags_tree": {
-					"ip.flags.rb": "Not set",
-					"ip.flags.df": "Set",
-					"ip.flags.mf": "Not set"
-				},
-				"ip.frag_offset": "0",
-				"ip.ttl": "64",
-				"ip.proto": "SCTP (132)",
-				"ip.checksum": "0x3c1d",
-				"ip.checksum.status": "Unverified",
-				"ip.src": "127.0.0.1",
-				"ip.addr": "127.0.0.1",
-				"ip.src_host": "127.0.0.1",
-				"ip.host": "127.0.0.1",
-				"ip.dst": "127.0.0.1",
-				"ip.dst_host": "127.0.0.1"
-			},
-			"sctp": {
-				"sctp.srcport": "38970",
-				"sctp.dstport": "38472",
-				"sctp.verification_tag": "0xa625c363",
-				"sctp.assoc_index": "65535",
-				"sctp.port": "38970",
-				"sctp.checksum": "0x00000000",
-				"sctp.checksum.status": "Unverified",
-				"DATA chunk (ordered, complete segment, TSN: 0, SID: 0, SSN: 0, PPID: 62, payload length: 40 bytes)": {
-					"sctp.chunk_type": "DATA (0)",
-					"sctp.chunk_type_tree": {
-						"sctp.chunk_bit_1": "Stop processing of the packet",
-						"sctp.chunk_bit_2": "Do not report"
-					},
-					"sctp.chunk_flags": "0x03",
-					"sctp.chunk_flags_tree": {
-						"sctp.data_i_bit": "Possibly delay SACK",
-						"sctp.data_u_bit": "Ordered delivery",
-						"sctp.data_b_bit": "First segment",
-						"sctp.data_e_bit": "Last segment"
-					},
-					"sctp.chunk_length": "56",
-					"sctp.data_tsn": "0",
-					"sctp.data_tsn_raw": "3809150119",
-					"sctp.data_sid": "0x0000",
-					"sctp.data_ssn": "0",
-					"sctp.data_payload_proto_id": "F1 AP (62)"
-				}
-			},
-			"f1ap": {
-				"per.choice_index": "1",
-				"f1ap.F1AP_PDU": "successfulOutcome (1)",
-				"f1ap.F1AP_PDU_tree": {
-					"f1ap.successfulOutcome_element": {
-						"f1ap.procedureCode": "id-F1Setup (1)",
-						"per.enum_index": "0",
-						"f1ap.criticality": "reject (0)",
-						"per.open_type_length": "14",
-						"f1ap.value_element": {
-							"f1ap.F1SetupResponse_element": {
-								"per.extension_bit": "0",
-								"per.sequence_of_length": "2",
-								"f1ap.protocolIEs": "2",
-								"f1ap.protocolIEs_tree": {
-									"Item 0: id-TransactionID": {
-										"f1ap.ProtocolIE_Field_element": {
-											"f1ap.id": "id-TransactionID (78)",
-											"per.enum_index": "0",
-											"f1ap.criticality": "reject (0)",
-											"per.open_type_length": "2",
-											"f1ap.value_element": {
-												"per.extension_present_bit": "0",
-												"f1ap.TransactionID": "20"
-											}
-										}
-									},
-									"Item 1: id-Cause": {
-										"f1ap.ProtocolIE_Field_element": {
-											"f1ap.id": "id-Cause (0)",
-											"per.enum_index": "0",
-											"f1ap.criticality": "reject (0)",
-											"per.open_type_length": "1",
-											"f1ap.value_element": {
-												"per.choice_index": "0",
-												"f1ap.Cause": "radioNetwork (0)",
-												"f1ap.Cause_tree": {
-													"per.extension_present_bit": "0",
-													"per.enum_index": "0",
-													"f1ap.radioNetwork": "unspecified (0)"
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-```
-</details>
-
-## 6. 联系
+## 5. 联系
 
 有任何想讨论的，可以加QQ群:
 
