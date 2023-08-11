@@ -2,23 +2,26 @@
 
 README: [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md) | [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md)
 
-- Gowireshark is a Golang library that allows our Golang program to have wireshark's protocol parsing function, which can parse pcap packet files offline or listen to the device in real time and obtain protocol parsing results.
-- Gowireshark is developed based on the dynamic link library compiled by [libpcap 1.10.4](https://www.tcpdump.org/release/)、[wireshark 4.0.7](https://www.wireshark.org/#download).
+- Gowireshark is a Go library, which has protocol parsing functionality of Wireshark.Support offline or online parsing of data packets. 
+- Based on [libpcap 1.10.4](https://www.tcpdump.org/release/) and [Wireshark 4.0.7](https://www.wireshark.org/#download) dynamic link library.
 
 ---
 
 # Contents
 
-- [1. Installation](#1-installation)
-   - [1.1. Requirements](#11-requirements)
-   - [1.2. Usage](#12-usage)
-- [2. Detailed description](#2-detailed-description)
-   - [2.1. Project directory structure](#21-project-directory)
-   - [2.2. Call chain](#22-call-chain)
-   - [2.3. Compile dll](#23-compile-dll)
-- [3. Develop](#3-develop)
-- [4. Roadmap](#4-roadmap)
-- [5. Contact](#5-contact)
+- [Gowireshark](#gowireshark)
+- [Contents](#contents)
+    - [1. Installation](#1-installation)
+        - [1.1. Requirements](#11-requirements)
+        - [1.2. Usage](#12-usage)
+    - [2. Detailed description](#2-detailed-description)
+        - [2.1. Project directory](#21-project-directory)
+        - [2.2. Call chain](#22-call-chain)
+        - [2.3. Compile dll](#23-compile-dll)
+        - [2.4. Parsing result format description](#24-parsing-result-format-description)
+    - [3. Develop&Test](#3-developtest)
+    - [4. Roadmap](#4-roadmap)
+    - [5. Contact](#5-contact)
 
 ---
 
@@ -68,176 +71,6 @@ func main() {
 	fmt.Println(specificFrameDissectRes)
 }
 ```
-
-<details>
-<summary>JSON output with descriptive values</summary>
-
-```shell
-{
-	"_index": "packets-2020-12-14",
-	"_type": "doc",
-	"_score": {},
-	"offset": ["0000", "0010", "0020", "0030", "0040", "0050", "0060"],
-	"hex": ["00 00 00 00 00 00 00 00 00 00 00 00 08 00 45 02", "00 58 00 01 40 00 40 84 3c 1d 7f 00 00 01 7f 00", "00 01 98 3a 96 48 a6 25 c3 63 00 00 00 00 00 03", "00 38 e3 0b 04 a7 00 00 00 00 00 00 00 3e 40 01", "00 0e 00 00 02 00 4e 00 02 00 14 00 00 00 01 00", "00 00 00 00 00 00 00 00 00 00 00 00 00 00 d0 55", "79 4b 65 55 00 00                              "],
-	"ascii": ["..............E.", ".X..@.@.<.......", "...:.H.%.c......", ".8...........>@.", "......N.........", "...............U", "yKeU.."],
-	"_source": {
-		"layers": {
-			"frame": {
-				"frame.section_number": "1",
-				"frame.interface_id": "0",
-				"frame.encap_type": "Ethernet (1)",
-				"frame.time": "Dec 14, 2020 16:01:11.974420814 UTC",
-				"frame.offset_shift": "0.000000000 seconds",
-				"frame.time_epoch": "1607961671.974420814 seconds",
-				"frame.time_delta": "0.000021538 seconds",
-				"frame.time_delta_displayed": "0.000021538 seconds",
-				"frame.time_relative": "0.000000000 seconds",
-				"frame.number": "5",
-				"frame.len": "102",
-				"frame.cap_len": "102",
-				"frame.marked": "False",
-				"frame.ignored": "False",
-				"frame.protocols": "eth:ethertype:ip:sctp:f1ap"
-			},
-			"eth": {
-				"eth.dst": "00:00:00:00:00:00 (00:00:00:00:00:00)",
-				"eth.dst_tree": {
-					"eth.dst_resolved": "00:00:00:00:00:00",
-					"eth.dst.oui": "00:00:00",
-					"eth.addr": "00:00:00:00:00:00 (00:00:00:00:00:00)",
-					"eth.addr_resolved": "00:00:00:00:00:00",
-					"eth.addr.oui": "00:00:00",
-					"eth.dst.lg": "Globally unique address (factory default)",
-					"eth.lg": "Globally unique address (factory default)",
-					"eth.dst.ig": "Individual address (unicast)",
-					"eth.ig": "Individual address (unicast)"
-				},
-				"eth.src": "00:00:00:00:00:00 (00:00:00:00:00:00)",
-				"eth.src_tree": {
-					"eth.src_resolved": "00:00:00:00:00:00",
-					"eth.src.oui": "00:00:00",
-					"eth.addr": "00:00:00:00:00:00 (00:00:00:00:00:00)",
-					"eth.addr_resolved": "00:00:00:00:00:00",
-					"eth.addr.oui": "00:00:00",
-					"eth.src.lg": "Globally unique address (factory default)",
-					"eth.lg": "Globally unique address (factory default)",
-					"eth.src.ig": "Individual address (unicast)",
-					"eth.ig": "Individual address (unicast)"
-				},
-				"eth.type": "IPv4 (0x0800)"
-			},
-			"ip": {
-				"ip.version": "4",
-				"ip.hdr_len": "20",
-				"ip.dsfield": "0x02",
-				"ip.dsfield_tree": {
-					"ip.dsfield.dscp": "Default (0)",
-					"ip.dsfield.ecn": "ECN-Capable Transport codepoint '10' (2)"
-				},
-				"ip.len": "88",
-				"ip.id": "0x0001 (1)",
-				"ip.flags": "0x02",
-				"ip.flags_tree": {
-					"ip.flags.rb": "Not set",
-					"ip.flags.df": "Set",
-					"ip.flags.mf": "Not set"
-				},
-				"ip.frag_offset": "0",
-				"ip.ttl": "64",
-				"ip.proto": "SCTP (132)",
-				"ip.checksum": "0x3c1d",
-				"ip.checksum.status": "Unverified",
-				"ip.src": "127.0.0.1",
-				"ip.addr": "127.0.0.1",
-				"ip.src_host": "127.0.0.1",
-				"ip.host": "127.0.0.1",
-				"ip.dst": "127.0.0.1",
-				"ip.dst_host": "127.0.0.1"
-			},
-			"sctp": {
-				"sctp.srcport": "38970",
-				"sctp.dstport": "38472",
-				"sctp.verification_tag": "0xa625c363",
-				"sctp.assoc_index": "65535",
-				"sctp.port": "38970",
-				"sctp.checksum": "0x00000000",
-				"sctp.checksum.status": "Unverified",
-				"DATA chunk (ordered, complete segment, TSN: 0, SID: 0, SSN: 0, PPID: 62, payload length: 40 bytes)": {
-					"sctp.chunk_type": "DATA (0)",
-					"sctp.chunk_type_tree": {
-						"sctp.chunk_bit_1": "Stop processing of the packet",
-						"sctp.chunk_bit_2": "Do not report"
-					},
-					"sctp.chunk_flags": "0x03",
-					"sctp.chunk_flags_tree": {
-						"sctp.data_i_bit": "Possibly delay SACK",
-						"sctp.data_u_bit": "Ordered delivery",
-						"sctp.data_b_bit": "First segment",
-						"sctp.data_e_bit": "Last segment"
-					},
-					"sctp.chunk_length": "56",
-					"sctp.data_tsn": "0",
-					"sctp.data_tsn_raw": "3809150119",
-					"sctp.data_sid": "0x0000",
-					"sctp.data_ssn": "0",
-					"sctp.data_payload_proto_id": "F1 AP (62)"
-				}
-			},
-			"f1ap": {
-				"per.choice_index": "1",
-				"f1ap.F1AP_PDU": "successfulOutcome (1)",
-				"f1ap.F1AP_PDU_tree": {
-					"f1ap.successfulOutcome_element": {
-						"f1ap.procedureCode": "id-F1Setup (1)",
-						"per.enum_index": "0",
-						"f1ap.criticality": "reject (0)",
-						"per.open_type_length": "14",
-						"f1ap.value_element": {
-							"f1ap.F1SetupResponse_element": {
-								"per.extension_bit": "0",
-								"per.sequence_of_length": "2",
-								"f1ap.protocolIEs": "2",
-								"f1ap.protocolIEs_tree": {
-									"Item 0: id-TransactionID": {
-										"f1ap.ProtocolIE_Field_element": {
-											"f1ap.id": "id-TransactionID (78)",
-											"per.enum_index": "0",
-											"f1ap.criticality": "reject (0)",
-											"per.open_type_length": "2",
-											"f1ap.value_element": {
-												"per.extension_present_bit": "0",
-												"f1ap.TransactionID": "20"
-											}
-										}
-									},
-									"Item 1: id-Cause": {
-										"f1ap.ProtocolIE_Field_element": {
-											"f1ap.id": "id-Cause (0)",
-											"per.enum_index": "0",
-											"f1ap.criticality": "reject (0)",
-											"per.open_type_length": "1",
-											"f1ap.value_element": {
-												"per.choice_index": "0",
-												"f1ap.Cause": "radioNetwork (0)",
-												"f1ap.Cause_tree": {
-													"per.extension_present_bit": "0",
-													"per.enum_index": "0",
-													"f1ap.radioNetwork": "unspecified (0)"
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-```
-</details>
 
 Other examples can refer to the [test file](https://github.com/randolphcyg/gowireshark/blob/main/tests/gowireshark_test.go).
 
@@ -484,7 +317,392 @@ apt install bison
 ```
 </details>
 
-## 3. Develop
+### 2.4. Parsing result format description
+
+1. New fields,Three fields have been added to the native wireshark parsing result：
+   - offset
+   - hex
+   - ascii
+
+2. Descriptive values
+   - The native printing protocol tree interface`proto_tree_print`contains descriptive values, while the protocol JSON output interface`write_json_proto_tree`does not contain descriptive values,
+     which can be improved by borrowing the implementation logic`proto_tree_print_node`of the former;
+   - The modified interface`GetSpecificFrameProtoTreeInJson`parameter`isDescriptive`,corresponds to the`descriptive`parameter of the c interface`proto_tree_in_json`参数;
+     Set to `false` to have no descriptive value for the field, and set to `true` for the field with a descriptive value;
+   - Refer to`proto_item_fill_label`in`proto.h`:
+       ```c
+       /** Fill given label_str with a simple string representation of field.
+        @param finfo the item to get the info from
+        @param label_str the string to fill
+        @todo think about changing the parameter profile */
+       WS_DLL_PUBLIC void
+       proto_item_fill_label(field_info *finfo, gchar *label_str);
+       ```
+
+    <details>
+    <summary>1.output fields are original</summary>
+
+    ```shell
+    {
+      "_index": "packets-2020-12-14",
+      "offset": [
+        "0000",
+        "0010",
+        "0020",
+        "0030",
+        "0040",
+        "0050",
+        "0060"
+      ],
+      "hex": [
+        "00 00 00 00 00 00 00 00 00 00 00 00 08 00 45 02",
+        "00 58 00 01 40 00 40 84 3c 1d 7f 00 00 01 7f 00",
+        "00 01 98 3a 96 48 a6 25 c3 63 00 00 00 00 00 03",
+        "00 38 e3 0b 04 a7 00 00 00 00 00 00 00 3e 40 01",
+        "00 0e 00 00 02 00 4e 00 02 00 14 00 00 00 01 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 d0 55",
+        "79 4b 65 55 00 00                              "
+      ],
+      "ascii": [
+        "..............E.",
+        ".X..@.@.\u003c.......",
+        "...:.H.%.c......",
+        ".8...........\u003e@.",
+        "......N.........",
+        "...............U",
+        "yKeU.."
+      ],
+      "_source": {
+        "layers": {
+          "eth": {
+            "eth.dst": "00:00:00:00:00:00",
+            "eth.dst_tree": {
+              "eth.addr": "00:00:00:00:00:00",
+              "eth.addr.oui": "0",
+              "eth.addr_resolved": "00:00:00:00:00:00",
+              "eth.dst.ig": "0",
+              "eth.dst.lg": "0",
+              "eth.dst.oui": "0",
+              "eth.dst_resolved": "00:00:00:00:00:00",
+              "eth.ig": "0",
+              "eth.lg": "0"
+            },
+            "eth.src": "00:00:00:00:00:00",
+            "eth.src_tree": {
+              "eth.addr": "00:00:00:00:00:00",
+              "eth.addr.oui": "0",
+              "eth.addr_resolved": "00:00:00:00:00:00",
+              "eth.ig": "0",
+              "eth.lg": "0",
+              "eth.src.ig": "0",
+              "eth.src.lg": "0",
+              "eth.src.oui": "0",
+              "eth.src_resolved": "00:00:00:00:00:00"
+            },
+            "eth.type": "0x0800"
+          },
+          "f1ap": {
+            "f1ap.F1AP_PDU": "1",
+            "f1ap.F1AP_PDU_tree": {
+              "f1ap.successfulOutcome_element": {
+                "f1ap.criticality": "0",
+                "f1ap.procedureCode": "1",
+                "f1ap.value_element": {
+                  "f1ap.F1SetupResponse_element": {
+                    "f1ap.protocolIEs": "2",
+                    "f1ap.protocolIEs_tree": {
+                      "Item 0: id-TransactionID": {
+                        "f1ap.ProtocolIE_Field_element": {
+                          "f1ap.criticality": "0",
+                          "f1ap.id": "78",
+                          "f1ap.value_element": {
+                            "f1ap.TransactionID": "20",
+                            "per.extension_present_bit": "0"
+                          },
+                          "per.enum_index": "0",
+                          "per.open_type_length": "2"
+                        }
+                      },
+                      "Item 1: id-Cause": {
+                        "f1ap.ProtocolIE_Field_element": {
+                          "f1ap.criticality": "0",
+                          "f1ap.id": "0",
+                          "f1ap.value_element": {
+                            "f1ap.Cause": "0",
+                            "f1ap.Cause_tree": {
+                              "f1ap.radioNetwork": "0",
+                              "per.enum_index": "0",
+                              "per.extension_present_bit": "0"
+                            },
+                            "per.choice_index": "0"
+                          },
+                          "per.enum_index": "0",
+                          "per.open_type_length": "1"
+                        }
+                      }
+                    },
+                    "per.extension_bit": "0",
+                    "per.sequence_of_length": "2"
+                  }
+                },
+                "per.enum_index": "0",
+                "per.open_type_length": "14"
+              }
+            },
+            "per.choice_index": "1"
+          },
+          "frame": {
+            "frame.cap_len": "102",
+            "frame.encap_type": "1",
+            "frame.ignored": "0",
+            "frame.interface_id": "0",
+            "frame.len": "102",
+            "frame.marked": "0",
+            "frame.number": "5",
+            "frame.offset_shift": "0.000000000",
+            "frame.protocols": "eth:ethertype:ip:sctp:f1ap",
+            "frame.section_number": "1",
+            "frame.time": "Dec 14, 2020 16:01:11.974420814 UTC",
+            "frame.time_delta": "0.000021538",
+            "frame.time_delta_displayed": "0.000021538",
+            "frame.time_epoch": "1607961671.974420814",
+            "frame.time_relative": "0.000000000"
+          },
+          "ip": {
+            "ip.addr": "127.0.0.1",
+            "ip.checksum": "0x3c1d",
+            "ip.checksum.status": "2",
+            "ip.dsfield": "0x02",
+            "ip.dsfield_tree": {
+              "ip.dsfield.dscp": "0",
+              "ip.dsfield.ecn": "2"
+            },
+            "ip.dst": "127.0.0.1",
+            "ip.dst_host": "127.0.0.1",
+            "ip.flags": "0x02",
+            "ip.flags_tree": {
+              "ip.flags.df": "1",
+              "ip.flags.mf": "0",
+              "ip.flags.rb": "0"
+            },
+            "ip.frag_offset": "0",
+            "ip.hdr_len": "20",
+            "ip.host": "127.0.0.1",
+            "ip.id": "0x0001",
+            "ip.len": "88",
+            "ip.proto": "132",
+            "ip.src": "127.0.0.1",
+            "ip.src_host": "127.0.0.1",
+            "ip.ttl": "64",
+            "ip.version": "4"
+          },
+          "sctp": {
+            "DATA chunk (ordered, complete segment, TSN: 0, SID: 0, SSN: 0, PPID: 62, payload length: 40 bytes)": {
+              "sctp.chunk_flags": "0x03",
+              "sctp.chunk_flags_tree": {
+                "sctp.data_b_bit": "1",
+                "sctp.data_e_bit": "1",
+                "sctp.data_i_bit": "0",
+                "sctp.data_u_bit": "0"
+              },
+              "sctp.chunk_length": "56",
+              "sctp.chunk_type": "0",
+              "sctp.chunk_type_tree": {
+                "sctp.chunk_bit_1": "0",
+                "sctp.chunk_bit_2": "0"
+              },
+              "sctp.data_payload_proto_id": "62",
+              "sctp.data_sid": "0x0000",
+              "sctp.data_ssn": "0",
+              "sctp.data_tsn": "0",
+              "sctp.data_tsn_raw": "3809150119"
+            },
+            "sctp.assoc_index": "65535",
+            "sctp.checksum": "0x00000000",
+            "sctp.checksum.status": "2",
+            "sctp.dstport": "38472",
+            "sctp.port": "38970",
+            "sctp.srcport": "38970",
+            "sctp.verification_tag": "0xa625c363"
+          }
+        }
+      }
+    }
+    ```
+    </details>
+
+    <details>
+    <summary>2.output fields are descriptive</summary>
+
+    ```shell
+    {
+        "_index": "packets-2020-12-14",
+        "_type": "doc",
+        "_score": {},
+        "offset": ["0000", "0010", "0020", "0030", "0040", "0050", "0060"],
+        "hex": ["00 00 00 00 00 00 00 00 00 00 00 00 08 00 45 02", "00 58 00 01 40 00 40 84 3c 1d 7f 00 00 01 7f 00", "00 01 98 3a 96 48 a6 25 c3 63 00 00 00 00 00 03", "00 38 e3 0b 04 a7 00 00 00 00 00 00 00 3e 40 01", "00 0e 00 00 02 00 4e 00 02 00 14 00 00 00 01 00", "00 00 00 00 00 00 00 00 00 00 00 00 00 00 d0 55", "79 4b 65 55 00 00                              "],
+        "ascii": ["..............E.", ".X..@.@.<.......", "...:.H.%.c......", ".8...........>@.", "......N.........", "...............U", "yKeU.."],
+        "_source": {
+            "layers": {
+                "frame": {
+                    "frame.section_number": "1",
+                    "frame.interface_id": "0",
+                    "frame.encap_type": "Ethernet (1)",
+                    "frame.time": "Dec 14, 2020 16:01:11.974420814 UTC",
+                    "frame.offset_shift": "0.000000000 seconds",
+                    "frame.time_epoch": "1607961671.974420814 seconds",
+                    "frame.time_delta": "0.000021538 seconds",
+                    "frame.time_delta_displayed": "0.000021538 seconds",
+                    "frame.time_relative": "0.000000000 seconds",
+                    "frame.number": "5",
+                    "frame.len": "102",
+                    "frame.cap_len": "102",
+                    "frame.marked": "False",
+                    "frame.ignored": "False",
+                    "frame.protocols": "eth:ethertype:ip:sctp:f1ap"
+                },
+                "eth": {
+                    "eth.dst": "00:00:00:00:00:00 (00:00:00:00:00:00)",
+                    "eth.dst_tree": {
+                        "eth.dst_resolved": "00:00:00:00:00:00",
+                        "eth.dst.oui": "00:00:00",
+                        "eth.addr": "00:00:00:00:00:00 (00:00:00:00:00:00)",
+                        "eth.addr_resolved": "00:00:00:00:00:00",
+                        "eth.addr.oui": "00:00:00",
+                        "eth.dst.lg": "Globally unique address (factory default)",
+                        "eth.lg": "Globally unique address (factory default)",
+                        "eth.dst.ig": "Individual address (unicast)",
+                        "eth.ig": "Individual address (unicast)"
+                    },
+                    "eth.src": "00:00:00:00:00:00 (00:00:00:00:00:00)",
+                    "eth.src_tree": {
+                        "eth.src_resolved": "00:00:00:00:00:00",
+                        "eth.src.oui": "00:00:00",
+                        "eth.addr": "00:00:00:00:00:00 (00:00:00:00:00:00)",
+                        "eth.addr_resolved": "00:00:00:00:00:00",
+                        "eth.addr.oui": "00:00:00",
+                        "eth.src.lg": "Globally unique address (factory default)",
+                        "eth.lg": "Globally unique address (factory default)",
+                        "eth.src.ig": "Individual address (unicast)",
+                        "eth.ig": "Individual address (unicast)"
+                    },
+                    "eth.type": "IPv4 (0x0800)"
+                },
+                "ip": {
+                    "ip.version": "4",
+                    "ip.hdr_len": "20",
+                    "ip.dsfield": "0x02",
+                    "ip.dsfield_tree": {
+                        "ip.dsfield.dscp": "Default (0)",
+                        "ip.dsfield.ecn": "ECN-Capable Transport codepoint '10' (2)"
+                    },
+                    "ip.len": "88",
+                    "ip.id": "0x0001 (1)",
+                    "ip.flags": "0x02",
+                    "ip.flags_tree": {
+                        "ip.flags.rb": "Not set",
+                        "ip.flags.df": "Set",
+                        "ip.flags.mf": "Not set"
+                    },
+                    "ip.frag_offset": "0",
+                    "ip.ttl": "64",
+                    "ip.proto": "SCTP (132)",
+                    "ip.checksum": "0x3c1d",
+                    "ip.checksum.status": "Unverified",
+                    "ip.src": "127.0.0.1",
+                    "ip.addr": "127.0.0.1",
+                    "ip.src_host": "127.0.0.1",
+                    "ip.host": "127.0.0.1",
+                    "ip.dst": "127.0.0.1",
+                    "ip.dst_host": "127.0.0.1"
+                },
+                "sctp": {
+                    "sctp.srcport": "38970",
+                    "sctp.dstport": "38472",
+                    "sctp.verification_tag": "0xa625c363",
+                    "sctp.assoc_index": "65535",
+                    "sctp.port": "38970",
+                    "sctp.checksum": "0x00000000",
+                    "sctp.checksum.status": "Unverified",
+                    "DATA chunk (ordered, complete segment, TSN: 0, SID: 0, SSN: 0, PPID: 62, payload length: 40 bytes)": {
+                        "sctp.chunk_type": "DATA (0)",
+                        "sctp.chunk_type_tree": {
+                            "sctp.chunk_bit_1": "Stop processing of the packet",
+                            "sctp.chunk_bit_2": "Do not report"
+                        },
+                        "sctp.chunk_flags": "0x03",
+                        "sctp.chunk_flags_tree": {
+                            "sctp.data_i_bit": "Possibly delay SACK",
+                            "sctp.data_u_bit": "Ordered delivery",
+                            "sctp.data_b_bit": "First segment",
+                            "sctp.data_e_bit": "Last segment"
+                        },
+                        "sctp.chunk_length": "56",
+                        "sctp.data_tsn": "0",
+                        "sctp.data_tsn_raw": "3809150119",
+                        "sctp.data_sid": "0x0000",
+                        "sctp.data_ssn": "0",
+                        "sctp.data_payload_proto_id": "F1 AP (62)"
+                    }
+                },
+                "f1ap": {
+                    "per.choice_index": "1",
+                    "f1ap.F1AP_PDU": "successfulOutcome (1)",
+                    "f1ap.F1AP_PDU_tree": {
+                        "f1ap.successfulOutcome_element": {
+                            "f1ap.procedureCode": "id-F1Setup (1)",
+                            "per.enum_index": "0",
+                            "f1ap.criticality": "reject (0)",
+                            "per.open_type_length": "14",
+                            "f1ap.value_element": {
+                                "f1ap.F1SetupResponse_element": {
+                                    "per.extension_bit": "0",
+                                    "per.sequence_of_length": "2",
+                                    "f1ap.protocolIEs": "2",
+                                    "f1ap.protocolIEs_tree": {
+                                        "Item 0: id-TransactionID": {
+                                            "f1ap.ProtocolIE_Field_element": {
+                                                "f1ap.id": "id-TransactionID (78)",
+                                                "per.enum_index": "0",
+                                                "f1ap.criticality": "reject (0)",
+                                                "per.open_type_length": "2",
+                                                "f1ap.value_element": {
+                                                    "per.extension_present_bit": "0",
+                                                    "f1ap.TransactionID": "20"
+                                                }
+                                            }
+                                        },
+                                        "Item 1: id-Cause": {
+                                            "f1ap.ProtocolIE_Field_element": {
+                                                "f1ap.id": "id-Cause (0)",
+                                                "per.enum_index": "0",
+                                                "f1ap.criticality": "reject (0)",
+                                                "per.open_type_length": "1",
+                                                "f1ap.value_element": {
+                                                    "per.choice_index": "0",
+                                                    "f1ap.Cause": "radioNetwork (0)",
+                                                    "f1ap.Cause_tree": {
+                                                        "per.extension_present_bit": "0",
+                                                        "per.enum_index": "0",
+                                                        "f1ap.radioNetwork": "unspecified (0)"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ```
+    </details>
+
+
+## 3. Develop&Test
 
 ---
    
@@ -547,7 +765,7 @@ apt install bison
 - [x] Optimize memory leakage and improve the performance of real-time packet capture and parsing interfaces
 - [ ] :punch: Supports packet capture for multiple devices and stops packet capture based on device name (TODO Bugs to be fixed)
 - [ ] handle_packet func: memory leakage
-- [x] offline json parser interface support descriptive values
+- [x] parser result support descriptive values
 
 
 ## 5. Contact
