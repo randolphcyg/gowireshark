@@ -11,13 +11,13 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.0.7"
+#define VERSION "4.0.8"
 #define VERSION_MAJOR 4
 #define VERSION_MINOR 0
-#define VERSION_MICRO 7
+#define VERSION_MICRO 8
 
 /* Version number of Logray and associated utilities */
-#define LOG_VERSION "0.8.7"
+#define LOG_VERSION "0.8.8"
 
 #define PLUGIN_PATH_ID "4.0"
 #define VERSION_FLAVOR ""

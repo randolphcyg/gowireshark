@@ -525,6 +525,7 @@ void WiresharkMainWindow::captureCaptureUpdateStarted(capture_session *session) 
     /* We've done this in "prepared" above, but it will be cleared while
        switching to the next multiple file. */
     setTitlebarForCaptureInProgress();
+    setWindowIcon(mainApp->captureIcon());
 
     bool handle_toolbars = (session->session_will_restart ? false : true);
     setForCaptureInProgress(true, handle_toolbars, session->capture_opts->ifaces);
@@ -1375,6 +1376,7 @@ void WiresharkMainWindow::setMenusForSelectedTreeRow(FieldInformation *finfo) {
         char *tmp_field = proto_construct_match_selected_string(fi, capture_file_.capFile()->edt);
         field_filter = tmp_field;
         wmem_free(NULL, tmp_field);
+        emit fieldFilterChanged(field_filter);
 
         field_id = fi->hfinfo->id;
         /* if the selected field isn't a protocol, get its parent */
@@ -1429,7 +1431,6 @@ void WiresharkMainWindow::setMenusForSelectedTreeRow(FieldInformation *finfo) {
     if (!proto_tree_ || !proto_tree_->hasFocus()) return;
 
     emit packetInfoChanged(capture_file_.packetInfo());
-    emit fieldFilterChanged(field_filter);
 
     //    set_menu_sensitivity(ui_manager_tree_view_menu, "/TreeViewPopup/ResolveName",
     //                         frame_selected && (gbl_resolv_flags.mac_name || gbl_resolv_flags.network_name ||
@@ -2835,7 +2836,7 @@ void WiresharkMainWindow::connectGoMenuActions()
     connect(main_ui_->actionGoPreviousHistoryPacket, &QAction::triggered,
             packet_list_, &PacketList::goPreviousHistoryPacket);
 
-    connect(main_ui_->actionGoAutoScroll, &QAction::triggered, this,
+    connect(main_ui_->actionGoAutoScroll, &QAction::toggled, this,
             [this](bool checked) { packet_list_->setVerticalAutoScroll(checked); });
 }
 

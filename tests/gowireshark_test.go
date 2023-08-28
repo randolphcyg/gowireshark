@@ -163,7 +163,7 @@ func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
 }
 
 func TestGetAllFrameProtoTreeInJson(t *testing.T) {
-	allFrameDissectRes, err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath, true)
+	allFrameDissectRes, err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath, true, true)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -171,7 +171,7 @@ func TestGetAllFrameProtoTreeInJson(t *testing.T) {
 	// Do not print the content in case the amount of data is too large
 	fmt.Printf("frame count:%d\n", len(allFrameDissectRes))
 
-	allFrameDissectRes2, err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath, true)
+	allFrameDissectRes2, err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath, true, true)
 	if err != nil {
 		fmt.Println(err)
 	}
