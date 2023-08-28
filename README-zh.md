@@ -3,7 +3,7 @@
 README: [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md) | [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md)
 
 - Gowireshark是一个`Go`库,拥有`Wireshark`的协议解析功能,支持离线或在线数据包解析。
-- 基于[libpcap 1.10.4](https://www.tcpdump.org/release/)与[Wireshark 4.0.7](https://www.wireshark.org/#download)动态链接库。
+- 基于[libpcap 1.10.4](https://www.tcpdump.org/release/)与[Wireshark 4.0.8](https://www.wireshark.org/#download)动态链接库。
 
 ---
 
@@ -99,14 +99,14 @@ gowireshark/
 ├── lib.c
 ├── libs/
 │   ├── libpcap.so.1
-│   ├── libwireshark.so -> libwireshark.so.16*
-│   ├── libwireshark.so.16 -> libwireshark.so.16.0.7*
-│   ├── libwireshark.so.16.0.7*
-│   ├── libwiretap.so -> libwiretap.so.13*
-│   ├── libwiretap.so.13 -> libwiretap.so.13.0.7*
-│   ├── libwiretap.so.13.0.7*
-│   ├── libwsutil.so -> libwsutil.so.14*
-│   ├── libwsutil.so.14 -> libwsutil.so.14.0.0*
+│   ├── libwireshark.so*
+│   ├── libwireshark.so.16*
+│   ├── libwireshark.so.16.0.8*
+│   ├── libwiretap.so*
+│   ├── libwiretap.so.13*
+│   ├── libwiretap.so.13.0.8*
+│   ├── libwsutil.so*
+│   ├── libwsutil.so.14*
 │   └── libwsutil.so.14.0.0*
 ├── offline.c
 ├── online.c
@@ -159,7 +159,7 @@ graph LR
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.0.7
+export WIRESHARKV=4.0.8
 # 到/opt目录下操作
 cd /opt/
 # 下载源码

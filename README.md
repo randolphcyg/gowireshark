@@ -3,7 +3,7 @@
 README: [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md) | [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md)
 
 - Gowireshark is a Go library, which has protocol parsing functionality of Wireshark.Support offline or online parsing of data packets. 
-- Based on [libpcap 1.10.4](https://www.tcpdump.org/release/) and [Wireshark 4.0.7](https://www.wireshark.org/#download) dynamic link library.
+- Based on [libpcap 1.10.4](https://www.tcpdump.org/release/) and [Wireshark 4.0.8](https://www.wireshark.org/#download) dynamic link library.
 
 ---
 
@@ -100,14 +100,14 @@ gowireshark/
 ├── lib.c
 ├── libs/
 │   ├── libpcap.so.1
-│   ├── libwireshark.so -> libwireshark.so.16*
-│   ├── libwireshark.so.16 -> libwireshark.so.16.0.7*
-│   ├── libwireshark.so.16.0.7*
-│   ├── libwiretap.so -> libwiretap.so.13*
-│   ├── libwiretap.so.13 -> libwiretap.so.13.0.7*
-│   ├── libwiretap.so.13.0.7*
-│   ├── libwsutil.so -> libwsutil.so.14*
-│   ├── libwsutil.so.14 -> libwsutil.so.14.0.0*
+│   ├── libwireshark.so*
+│   ├── libwireshark.so.16*
+│   ├── libwireshark.so.16.0.8*
+│   ├── libwiretap.so*
+│   ├── libwiretap.so.13*
+│   ├── libwiretap.so.13.0.8*
+│   ├── libwsutil.so*
+│   ├── libwsutil.so.14*
 │   └── libwsutil.so.14.0.0*
 ├── offline.c
 ├── online.c
@@ -165,7 +165,7 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 
 ```shell
 # Determine the latest release version and set environment variables
-export WIRESHARKV=4.0.7
+export WIRESHARKV=4.0.8
 # Operate in the /opt directory
 cd /opt/
 # Download the source code
