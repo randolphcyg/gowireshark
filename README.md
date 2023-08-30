@@ -2,8 +2,9 @@
 
 README: [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md) | [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md)
 
-- Gowireshark is a Go library, which has protocol parsing functionality of Wireshark.Support offline or online parsing of data packets. 
-- Based on [libpcap 1.10.4](https://www.tcpdump.org/release/) and [Wireshark 4.0.8](https://www.wireshark.org/#download) dynamic link library.
+- Provide the same packet processing capabilities as wireshark for Go
+- Support offline or online parsing of data packets
+- Based on [wireshark](https://www.wireshark.org/#download)、[libpcap](https://www.tcpdump.org/release/) dynamic link library
 
 ---
 
