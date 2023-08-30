@@ -2,8 +2,9 @@
 
 README: [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md) | [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md)
 
-- Gowireshark是一个`Go`库,拥有`Wireshark`的协议解析功能,支持离线或在线数据包解析。
-- 基于[libpcap 1.10.4](https://www.tcpdump.org/release/)与[Wireshark 4.0.8](https://www.wireshark.org/#download)动态链接库。
+- 为Go提供与wireshark相同的数据包处理能力
+- 支持离线、在线数据包解析
+- 基于[wireshark](https://www.wireshark.org/#download)、[libpcap](https://www.tcpdump.org/release/)动态链接库
 
 ---
 
