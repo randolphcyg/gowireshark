@@ -80,7 +80,7 @@ func main() {
 
 ### 2.1. 项目目录
 ```
-gowireshark/
+gowireshark
 ├── README-zh.md
 ├── README.md
 ├── cJSON.c
@@ -100,15 +100,15 @@ gowireshark/
 ├── lib.c
 ├── libs/
 │   ├── libpcap.so.1
-│   ├── libwireshark.so*
-│   ├── libwireshark.so.16*
-│   ├── libwireshark.so.16.0.8*
-│   ├── libwiretap.so*
-│   ├── libwiretap.so.13*
-│   ├── libwiretap.so.13.0.8*
-│   ├── libwsutil.so*
-│   ├── libwsutil.so.14*
-│   └── libwsutil.so.14.0.0*
+│   ├── libwireshark.so
+│   ├── libwireshark.so.16
+│   ├── libwireshark.so.16.0.10
+│   ├── libwiretap.so
+│   ├── libwiretap.so.13
+│   ├── libwiretap.so.13.0.10
+│   ├── libwsutil.so
+│   ├── libwsutil.so.14
+│   └── libwsutil.so.14.0.0
 ├── offline.c
 ├── online.c
 ├── pcaps/
@@ -160,7 +160,7 @@ graph LR
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.0.8
+export WIRESHARKV=4.0.10
 # 到/opt目录下操作
 cd /opt/
 # 下载源码
@@ -175,33 +175,25 @@ cd /opt/wireshark/
 # 根据输出的红色错误日志解决依赖项问题，直到发生 qt5 错误时忽略这些问题
 cmake -LH ./
 
-# 如果您没有 cmake3.20，请先安装它
-wget https://cmake.org/files/LatestRelease/cmake-3.24.2.tar.gz
-sudo tar -xzf cmake-3.24.2.tar.gz
-cd cmake-3.24.2/
+# 如果没有 cmake，请先安装它
+sudo wget https://cmake.org/files/LatestRelease/cmake-3.27.7.tar.gz
+sudo tar -xzf cmake-3.27.7.tar.gz
+cd cmake-3.27.7/
 sudo ./bootstrap
-sudo apt install build-essential -y
-
-# 如果未安装 openSSL，请执行
-sudo apt install libssl-dev  -y
 sudo make
 sudo make install
 cmake --version
 
 # 可能需要安装的依赖项
-apt install libgcrypt-dev -y
-apt install libc-ares-dev -y
-apt install flex -y
-apt install libglib2.0-dev -y
-apt install libssl-dev -y
-apt install ninja-build -y
-apt install pcaputils -y
-apt install libpcap-dev -y
-# 我们不使用与 Qt5 相关的依赖项，可以忽略
-apt install qtbase5-dev -y
-apt install qttools5-dev-tools -y
-apt install qttools5-dev -y
-apt install qtmultimedia5-dev -y
+sudo apt install build-essential -y
+sudo apt install libgcrypt-dev -y
+sudo apt install libc-ares-dev -y
+sudo apt install flex -y
+sudo apt install libglib2.0-dev -y
+sudo apt install libssl-dev -y
+sudo apt install ninja-build -y
+sudo apt install pcaputils -y
+sudo apt install libpcap-dev -y
 
 # 根据问题解决完成情况，删除测试生成的文件
 rm CMakeCache.txt
@@ -243,7 +235,7 @@ tree -L 2 -F gowireshark
 cp /opt/wireshark/build/ws_version.h /opt/wireshark/ws_version.h
 cp /opt/wireshark/build/config.h /opt/wireshark/config.h
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 ==>
 #include "include/ws_symbol_export.h"
 
