@@ -210,16 +210,21 @@ absolute_val_from_string(fvalue_t *fv, const char *s, size_t len _U_, char **err
 		curptr = ws_strptime(s + 4, "%d, %Y %H:%M:%S", &tm);
 
 	if (curptr == NULL) {
-		has_seconds = FALSE;
-		curptr = ws_strptime(s,"%Y-%m-%d %H:%M", &tm);
+		curptr = ws_strptime(s,"%Y-%m-%d %H:%M:%S", &tm);
+		if (curptr == NULL) {
+			has_seconds = FALSE;
+			curptr = ws_strptime(s,"%Y-%m-%d %H:%M", &tm);
+			if (curptr == NULL)
+				curptr = ws_strptime(s,"%Y-%m-%d %H", &tm);
+			if (curptr == NULL)
+				curptr = ws_strptime(s,"%Y-%m-%d", &tm);
+			if (curptr == NULL)
+				goto fail;
+		}
 	}
-	if (curptr == NULL)
-		curptr = ws_strptime(s,"%Y-%m-%d %H", &tm);
-	if (curptr == NULL)
-		curptr = ws_strptime(s,"%Y-%m-%d", &tm);
-	if (curptr == NULL)
-		goto fail;
-	tm.tm_isdst = -1;	/* let the computer figure out if it's DST */
+
+	/* Let the computer figure out if it's DST. */
+	tm.tm_isdst = -1;
 
 	if (*curptr == '.') {
 		/* Nanoseconds */
@@ -345,7 +350,6 @@ abs_time_to_ftrepr_dfilter(wmem_allocator_t *scope,
 {
 	struct tm *tm;
 	char datetime_format[128];
-	int nsecs;
 	char nsecs_buf[32];
 
 	if (use_utc) {
@@ -367,11 +371,7 @@ abs_time_to_ftrepr_dfilter(wmem_allocator_t *scope,
 	if (nstime->nsecs == 0)
 		return wmem_strdup_printf(scope, datetime_format, "");
 
-	nsecs = nstime->nsecs;
-	while (nsecs > 0 && (nsecs % 10) == 0) {
-		nsecs /= 10;
-	}
-	snprintf(nsecs_buf, sizeof(nsecs_buf), ".%d", nsecs);
+	snprintf(nsecs_buf, sizeof(nsecs_buf), ".%09d", nstime->nsecs);
 
 	return wmem_strdup_printf(scope, datetime_format, nsecs_buf);
 }

@@ -11,19 +11,19 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.0.8"
+#define VERSION "4.0.10"
 #define VERSION_MAJOR 4
 #define VERSION_MINOR 0
-#define VERSION_MICRO 8
+#define VERSION_MICRO 10
 
 /* Version number of Logray and associated utilities */
-#define LOG_VERSION "0.8.8"
+#define LOG_VERSION "0.8.10"
 
 #define PLUGIN_PATH_ID "4.0"
 #define VERSION_FLAVOR ""
 
 /* Build wsutil with SIMD optimization */
-#define HAVE_SSE4_2 1
+/* #undef HAVE_SSE4_2 */
 
 /* Define to 1 if we want to enable plugins */
 #define HAVE_PLUGINS 1
