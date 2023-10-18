@@ -108,11 +108,11 @@ func EpanVersion() string {
 }
 
 // EpanPluginsSupported
-/** Returns_
- *     0 if plugins can be loaded for all of libwireshark (tap, dissector, epan).
- *     1 if plugins are not supported by the platform.
- *    -1 if plugins were disabled in the build configuration.
- */
+//
+//	@Description:
+//	@return int: 0 if plugins can be loaded for all of libwireshark (tap, dissector, epan);
+//	1 if plugins are not supported by the platform;
+//	-1 if plugins were disabled in the build configuration.
 func EpanPluginsSupported() int {
 	return int(C.epan_plugins_supported())
 }
@@ -162,7 +162,11 @@ func DissectPrintAllFrame(inputFilepath string) (err error) {
 	return
 }
 
-// DissectPrintFirstSeveralFrame Dissect and print the first several frames
+// DissectPrintFirstSeveralFrame
+//
+//	@Description: Dissect and print the first several frames
+//	@param inputFilepath: Pcap src file path
+//	@param count: The index of the first several frame you want to dissect
 func DissectPrintFirstSeveralFrame(inputFilepath string, count int) (err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
@@ -179,7 +183,11 @@ func DissectPrintFirstSeveralFrame(inputFilepath string, count int) (err error) 
 	return
 }
 
-// DissectPrintSpecificFrame Dissect and print the Specific frame
+// DissectPrintSpecificFrame
+//
+//	@Description: Dissect and print the Specific frame
+//	@param inputFilepath: Pcap src file path
+//	@param num: The index value of the specific frame you want to dissect
 func DissectPrintSpecificFrame(inputFilepath string, num int) (err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
@@ -233,11 +241,8 @@ func GetSpecificFrameHexData(inputFilepath string, num int) (hexData HexData, er
 		}
 	}
 
-	// transfer c char to go string
-	srcHexStr := CChar2GoStr(srcHex)
-
 	// unmarshal dissect result
-	hexData, err = UnmarshalHexData(srcHexStr)
+	hexData, err = UnmarshalHexData(CChar2GoStr(srcHex))
 	if err != nil {
 		err = errors.Wrap(ErrUnmarshalObj, "Frame num "+strconv.Itoa(num))
 		return
@@ -267,26 +272,32 @@ func UnmarshalDissectResult(src string) (res FrameDissectRes, err error) {
 	return
 }
 
-// GetSpecificFrameProtoTreeInJson Transfer specific frame proto tree to json format
-func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptive, isDebug bool) (allFrameDissectRes map[string]FrameDissectRes, err error) {
+// GetSpecificFrameProtoTreeInJson
+//
+//	@Description: Transfer specific frame proto tree to json format
+//	@param inputFilepath: Pcap src file path
+//	@param num: The max frame index value of the JSON results
+//	@param isDescriptive: Whether the JSON result has descriptive fields
+//	@param isDebug: Whether to print JSON result in C logic
+//	@return res: Contains specific frame's JSON dissect result
+func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptive, isDebug bool) (res map[string]FrameDissectRes, err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
 	}
 
-	// is field descriptive
 	descriptive := 0
-	if isDescriptive == true {
+	if isDescriptive {
 		descriptive = 1
 	}
 
 	debug := 0
-	if isDebug == true {
+	if isDebug {
 		debug = 1
 	}
 
 	counter := 0
-	allFrameDissectRes = make(map[string]FrameDissectRes)
+	res = make(map[string]FrameDissectRes)
 	for {
 		counter++
 		if counter < num && num != counter {
@@ -301,17 +312,15 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptiv
 			}
 		}
 
-		// transfer c char to go string
-		srcFrameStr := CChar2GoStr(srcFrame)
-
 		// unmarshal dissect result
-		singleFrameData, err := UnmarshalDissectResult(srcFrameStr)
+		singleFrame, err := UnmarshalDissectResult(CChar2GoStr(srcFrame))
 		if err != nil {
 			err = errors.Wrap(ErrUnmarshalObj, "Frame num "+strconv.Itoa(counter))
 			fmt.Println(err)
 			break
 		}
-		allFrameDissectRes[strconv.Itoa(counter)] = singleFrameData
+
+		res[strconv.Itoa(counter)] = singleFrame
 
 		break
 	}
@@ -319,26 +328,30 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptiv
 	return
 }
 
-// GetAllFrameProtoTreeInJson Transfer proto tree to json format
-func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebug bool) (allFrameDissectRes map[string]FrameDissectRes, err error) {
+// GetAllFrameProtoTreeInJson
+//
+//	@Description: Transfer proto tree to json format
+//	@param inputFilepath: Pcap src file path
+//	@param isDescriptive: Whether the JSON result has descriptive fields
+//	@param isDebug: Whether to print JSON result in C logic
+//	@param ch: Save dissect result one by one
+func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebug bool, ch chan map[int]FrameDissectRes) (err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
 	}
 
-	// is field descriptive
 	descriptive := 0
-	if isDescriptive == true {
+	if isDescriptive {
 		descriptive = 1
 	}
 
 	debug := 0
-	if isDebug == true {
+	if isDebug {
 		debug = 1
 	}
 
 	counter := 1
-	allFrameDissectRes = make(map[string]FrameDissectRes)
 	for {
 		// get proto dissect result in json format by c
 		srcFrame := C.proto_tree_in_json(C.int(counter), C.int(descriptive), C.int(debug))
@@ -348,19 +361,20 @@ func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebu
 			}
 		}
 
-		// transfer c char to go string
-		srcFrameStr := CChar2GoStr(srcFrame)
-
 		// unmarshal dissect result
-		singleFrameData, err := UnmarshalDissectResult(srcFrameStr)
+		singleFrame, err := UnmarshalDissectResult(CChar2GoStr(srcFrame))
 		if err != nil {
 			err = errors.Wrap(ErrUnmarshalObj, "Frame num "+strconv.Itoa(counter))
 			fmt.Println(err)
 			break
 		}
-		allFrameDissectRes[strconv.Itoa(counter)] = singleFrameData
+
+		ch <- map[int]FrameDissectRes{counter: singleFrame}
 		counter++
 	}
+
+	// close channel
+	defer close(ch)
 
 	return
 }
@@ -384,10 +398,8 @@ func UnmarshalIFace(src string) (res map[string]IFace, err error) {
 
 // GetIfaceList Get interface list
 func GetIfaceList() (res map[string]IFace, err error) {
-	src := C.get_if_list()
-	// transfer c char to go string
 	// unmarshal interface device list obj
-	res, err = UnmarshalIFace(CChar2GoStr(src))
+	res, err = UnmarshalIFace(CChar2GoStr(C.get_if_list()))
 	if err != nil {
 		err = ErrUnmarshalObj
 		return
@@ -449,7 +461,7 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 	return
 }
 
-// RunSock Unix domain socket(AF_UNIX) server:  start socket and read data.
+// RunSock Unix domain socket(AF_UNIX) server: start socket and read data.
 func RunSock(sockServerPath string, sockBuffSize int, listener *net.UnixConn, pkgChan chan FrameDissectRes) (err error) {
 	if sockServerPath == "" {
 		err = errors.Wrap(err, "sockServerPath is blank")
@@ -500,8 +512,14 @@ func readSock(listener *net.UnixConn, pkgChan chan FrameDissectRes, sockBuffSize
 	}
 }
 
-// DissectPktLive start Unix domain socket(AF_UNIX) client, capture and dissect packet.
-// promisc: 0 indicates a non-promiscuous mode, and any other value indicates a promiscuous mode
+// DissectPktLive
+//
+//	@Description: Start up Unix domain socket(AF_UNIX) client, capture and dissect packet.
+//	@param deviceName
+//	@param sockServerPath
+//	@param num
+//	@param promisc: 0 indicates a non-promiscuous mode, and any other value indicates a promiscuous mode
+//	@param timeout
 func DissectPktLive(deviceName, sockServerPath string, num, promisc, timeout int) (err error) {
 	if deviceName == "" {
 		err = errors.Wrap(err, "device name is blank")
