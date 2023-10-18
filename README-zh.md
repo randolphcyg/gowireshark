@@ -328,7 +328,7 @@ apt install bison
 
     <details>
     <summary>1.字段不带描述性值</summary>
-   
+
     ```shell
     {
       "_index": "packets-2020-12-14",
@@ -699,7 +699,7 @@ apt install bison
 5. 使用 clang 格式工具格式化自定义的 C 代码和头文件：
    例如：`clang-format -i lib.c`，参数`-i`表示此命令直接格式化指定的文件，删除`-i`进行预览。
    修改根目录中的所有 .c 文件和 `include/` 目录中的所有 .h 头文件(注意用grep去掉第三方库文件例如cJSON)
-  （只有当前目录是级别 1，不要向下遍历查找，即不格式化`include/wireshark/`与`include/libpcap/`下的源码文件）：
+   （只有当前目录是级别 1，不要向下遍历查找，即不格式化`include/wireshark/`与`include/libpcap/`下的源码文件）：
 
    ```shell
    find . -maxdepth 1 -name '*.c' | grep -v 'cJSON.c' | grep -v 'frame_tvbuff.c' | xargs clang-format -i
@@ -707,12 +707,14 @@ apt install bison
    ```
 6. 如何测试(cd tests/):
 
-    可以在`tests/`目录下编写测试函数，直接测试：
+   可以在`tests/`目录下编写测试函数，直接测试：
    ```shell
    # Parse and output the first frame
    go test -v -run TestDissectPrintFirstFrame
    # Parse and output a frame in JSON format
    go test -v -run TestGetSpecificFrameProtoTreeInJson
+   # Parse and output all frame in JSON format
+   go test -v -run TestGetAllFrameProtoTreeInJson
    # Parses and outputs a frame of HEX data
    go test -v -run TestGetSpecificFrameHexData
    # Parse packets in real time
@@ -724,7 +726,7 @@ apt install bison
 
 7. `gowireshark.go`的原理:
 
-    在序文中存在一些C语法的声明和导入，也有一些cgo参数，这样使用`go build`编译此go项目时，会自动将内部的C项目也编译进去：
+   在序文中存在一些C语法的声明和导入，也有一些cgo参数，这样使用`go build`编译此go项目时，会自动将内部的C项目也编译进去：
     ```cgo
     # 可以在 Go 代码中调用动态链接库，需要的操作是：
     
@@ -754,8 +756,4 @@ apt install bison
 
 ## 5. 联系
 
-有任何想讨论的，可以加QQ群:
-
-- **301969140**
-
-**内存泄露问题还未解决**
+QQ群: **301969140**

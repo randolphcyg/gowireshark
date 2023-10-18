@@ -320,7 +320,7 @@ apt install bison
 2. Descriptive values
    - The native printing protocol tree interface`proto_tree_print`contains descriptive values, while the protocol JSON output interface`write_json_proto_tree`does not contain descriptive values,
      which can be improved by borrowing the implementation logic`proto_tree_print_node`of the former;
-   - The modified interface`GetSpecificFrameProtoTreeInJson`parameter`isDescriptive`,corresponds to the`descriptive`parameter of the c interface`proto_tree_in_json`参数;
+   - The modified interface`GetSpecificFrameProtoTreeInJson`parameter`isDescriptive`,corresponds to the`descriptive`parameter of the c interface`proto_tree_in_json`;
      Set to `false` to have no descriptive value for the field, and set to `true` for the field with a descriptive value;
    - Refer to`proto_item_fill_label`in`proto.h`:
        ```c
@@ -698,7 +698,7 @@ apt install bison
 ## 3. Develop&Test
 
 ---
-   
+
 1. You can create a new C file in `lib.c, offline.c, online.c`'` or in the root directory and add interfaces for custom functions;
 2. After the interface is completed, you need to add a declaration in the H header file with the same name in the `include/` directory, and if the interface is also used in `gowireshark.go`, you need to add the same declaration in the cgo preamble of this file;
 3. encapsulate the interface in `gowireshark.go`;
@@ -718,6 +718,8 @@ apt install bison
    go test -v -run TestDissectPrintFirstFrame
    # Parse and output a frame in JSON format
    go test -v -run TestGetSpecificFrameProtoTreeInJson
+   # Parse and output all frame in JSON format
+   go test -v -run TestGetAllFrameProtoTreeInJson
    # Parses and outputs a frame of HEX data
    go test -v -run TestGetSpecificFrameHexData
    # Parse packets in real time
@@ -757,12 +759,4 @@ apt install bison
 - [x] Stop real-time packet capture parsing
 - [x] Optimize memory leakage and improve the performance of real-time packet capture and parsing interfaces
 - [ ] :punch: Supports packet capture for multiple devices and stops packet capture based on device name (TODO Bugs to be fixed)
-- [ ] handle_packet func: memory leakage
 - [x] parser result support descriptive values
-
-
-## 5. Contact
-
-If you have anything you want to communicate, please join the QQ group: 
-
-- **301969140**
