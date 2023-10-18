@@ -12,6 +12,7 @@ import (
 
 const inputFilepath = "../pcaps/f1ap.pcapng"
 const inputFilepath2 = "../pcaps/wincc_s400_production.pcap"
+const inputFilepath3 = "../pcaps/1234.pcap"
 
 func TestEpanVersion(t *testing.T) {
 	fmt.Println(gowireshark.EpanVersion())
@@ -143,12 +144,12 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 	}
 */
 func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
-	specificFrameDissectRes, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 5, true, true)
+	res, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 5, true, true)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	for k, frameData := range specificFrameDissectRes {
+	for k, frameData := range res {
 		fmt.Println("# Frame num:" + k)
 		fmt.Println("## WsIndex:", frameData.WsIndex)
 		fmt.Println("## Offset:", frameData.Offset)
@@ -163,21 +164,19 @@ func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
 }
 
 func TestGetAllFrameProtoTreeInJson(t *testing.T) {
-	allFrameDissectRes, err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath, true, true)
-	if err != nil {
-		fmt.Println(err)
+	ch := make(chan map[int]gowireshark.FrameDissectRes, 1)
+	go func() {
+		err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath, true, false, ch)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	// read frame from channel
+	for frame := range ch {
+		fmt.Println("## Frame:", frame)
+		fmt.Println("======================================================")
 	}
-
-	// Do not print the content in case the amount of data is too large
-	fmt.Printf("frame count:%d\n", len(allFrameDissectRes))
-
-	allFrameDissectRes2, err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath, true, true)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// Do not print the content in case the amount of data is too large
-	fmt.Printf("frame count:%d\n", len(allFrameDissectRes2))
 }
 
 /*
