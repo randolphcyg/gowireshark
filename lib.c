@@ -1,6 +1,6 @@
-#include <include/cJSON.h>
-#include <include/lib.h>
-#include <include/offline.h>
+#include <cJSON.h>
+#include <lib.h>
+#include <offline.h>
 
 // global capture file variable
 capture_file cf;
