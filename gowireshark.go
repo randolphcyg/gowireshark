@@ -8,9 +8,9 @@ package gowireshark
 #cgo CFLAGS: -I${SRCDIR}/include/wireshark
 #cgo CFLAGS: -I${SRCDIR}/include/libpcap
 
-#include <lib.h>
-#include <online.h>
-#include <offline.h>
+#include "lib.h"
+#include "online.h"
+#include "offline.h"
 */
 import "C"
 import (
