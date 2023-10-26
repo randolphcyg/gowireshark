@@ -2,59 +2,15 @@ package gowireshark
 
 /*
 #cgo pkg-config: glib-2.0
-#cgo LDFLAGS: -L${SRCDIR}/libs -lwiretap -lwsutil -lwireshark -lpcap
 #cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/libs
+#cgo LDFLAGS: -L${SRCDIR}/libs -lwiretap -lwsutil -lwireshark -lpcap
+#cgo CFLAGS: -I${SRCDIR}/include
 #cgo CFLAGS: -I${SRCDIR}/include/wireshark
 #cgo CFLAGS: -I${SRCDIR}/include/libpcap
 
-#include <cfile.h>
-#include <epan/charsets.h>
-#include <epan/column.h>
-#include <epan/epan.h>
-#include <epan/epan_dissect.h>
-#include <epan/frame_data.h>
-#include <epan/frame_data_sequence.h>
-#include <epan/print.h>
-#include <epan/print_stream.h>
-#include <epan/print_stream.h>
-#include <epan/tap.h>
-#include <epan/tvbuff.h>
-#include <include/cJSON.h>
-#include <include/offline.h>
-#include <pcap/pcap.h>
-#include <stdio.h>
-#include <wiretap/wtap-int.h>
-#include <wiretap/wtap.h>
-#include <wsutil/json_dumper.h>
-#include <wsutil/nstime.h>
-#include <wsutil/privileges.h>
-#include <epan/tap.h>
-// Init policies、wtap mod、epan mod
-int init_env();
-// Init capture file
-int init_cf(char *filename);
-// Dissect and print all frames
-void print_all_frame();
-// Dissect and print the first frame
-void print_first_frame();
-// Dissect and print the first several frames
-void print_first_several_frame(int count);
-// Dissect and print specific frame
-int print_specific_frame(int num);
-// Dissect and get hex data of specific frame
-char *get_specific_frame_hex_data(int num);
-// Get proto tree in json format
-char *proto_tree_in_json(int num, int descriptive, int debug);
-// Get interface list
-char *get_if_list();
-// Get interface nonblock status
-int get_if_nonblock_status(char *device_name);
-// Set interface nonblock status
-int set_if_nonblock_status(char *device_name, int nonblock);
-// Capture and dissect packet in real time
-char *handle_packet(char *device_name, char *sock_server_path, int num, int promisc, int to_ms);
-// Stop capture packet live and free all memory allocated
-char *stop_dissect_capture_pkg(char *device_name);
+#include <lib.h>
+#include <online.h>
+#include <offline.h>
 */
 import "C"
 import (

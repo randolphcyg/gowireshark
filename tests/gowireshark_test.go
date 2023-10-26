@@ -12,7 +12,6 @@ import (
 
 const inputFilepath = "../pcaps/f1ap.pcapng"
 const inputFilepath2 = "../pcaps/wincc_s400_production.pcap"
-const inputFilepath3 = "../pcaps/1234.pcap"
 
 func TestEpanVersion(t *testing.T) {
 	fmt.Println(gowireshark.EpanVersion())
@@ -69,28 +68,6 @@ func TestCapFileMulSeq(t *testing.T) {
 	}
 }
 
-//func TestCapFileMulGoroutine(t *testing.T) {
-//	var err error
-//
-//	go func() {
-//		fmt.Println("@@@@@@@@@@@@@")
-//		err = gowireshark.DissectPrintSpecificFrame(inputFilepath, 5000)
-//		if err != nil {
-//			fmt.Println(err)
-//		}
-//	}()
-//
-//	go func() {
-//		fmt.Println("$$$$$$$$$$$$$")
-//		err = gowireshark.DissectPrintSpecificFrame(inputFilepath2, 50)
-//		if err != nil {
-//			fmt.Println(err)
-//		}
-//	}()
-//
-//	time.Sleep(time.Second * 3)
-//}
-
 /*
 RESULT: none
 */
@@ -118,33 +95,8 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 	}
 }
 
-/*
-	{
-		"1": {
-			"_index": "packets-20xx-0x-0x",
-			"offset": ["0000", "0010", ...],
-			"hex": ["00 1c 06 1c 69 e4 20 47 47 87 d4 96 08 00 45 00", ...],
-			"ascii": ["....i. GG.....E.", ...],
-			"_source": {
-				"layers": {
-	                "frame": {
-						...
-					},
-					"eth": {
-						"eth.dst": "00:1c:06:1c:69:e4",
-						"eth.dst_tree": {
-	                        ...
-						}
-					},
-	                ...
-				}
-			}
-		},
-	    ...
-	}
-*/
 func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
-	res, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 5, true, true)
+	res, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath2, 5, false, true)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -287,7 +239,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	// sockBuffSize The maximum length of packet detail data transmitted by the Unix domain socket;
 	// Beyond this length will be safely truncated at c; The truncated data will not be properly deserialized into a golang struct.
 	sockBuffSize := 655350
-	ifName := "ens33"
+	ifName := "en0"
 	pktNum := 20
 	promisc := 1
 	timeout := 20
