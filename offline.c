@@ -1,4 +1,4 @@
-#include <include/lib.h>
+#include <lib.h>
 
 typedef struct {
   GSList *src_list;
