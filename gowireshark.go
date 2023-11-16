@@ -38,7 +38,7 @@ var (
 // result of a single data packet, which is convenient for converting c char to go string
 const SINGLEPKTMAXLEN = 6553500
 
-// Init policies、wtap mod、epan mod.
+// Init policies、WTAP mod、EPAN mod.
 func init() {
 	initEnvRes := C.init_env()
 	if initEnvRes == 0 {
@@ -81,10 +81,6 @@ func initCapFile(inputFilepath string) (err error) {
 	}
 
 	inputFilepathCStr := C.CString(inputFilepath)
-	defer func() {
-		C.free(unsafe.Pointer(inputFilepathCStr))
-	}()
-
 	errNo := C.init_cf(inputFilepathCStr)
 	if errNo != 0 {
 		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
@@ -371,12 +367,7 @@ func GetIfaceNonblockStatus(deviceName string) (isNonblock bool, err error) {
 		return
 	}
 
-	deviceNameCStr := C.CString(deviceName)
-	defer func() {
-		C.free(unsafe.Pointer(deviceNameCStr))
-	}()
-
-	nonblockStatus := C.get_if_nonblock_status(deviceNameCStr)
+	nonblockStatus := C.get_if_nonblock_status(C.CString(deviceName))
 	if nonblockStatus == 0 {
 		isNonblock = false
 	} else if nonblockStatus == 1 {
@@ -400,12 +391,7 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 		setNonblockCode = 1
 	}
 
-	deviceNameCStr := C.CString(deviceName)
-	defer func() {
-		C.free(unsafe.Pointer(deviceNameCStr))
-	}()
-
-	nonblockStatus := C.set_if_nonblock_status(deviceNameCStr, C.int(setNonblockCode))
+	nonblockStatus := C.set_if_nonblock_status(C.CString(deviceName), C.int(setNonblockCode))
 	if nonblockStatus == 0 {
 		status = false
 	} else if nonblockStatus == 1 {
@@ -487,14 +473,7 @@ func DissectPktLive(deviceName, sockServerPath string, num, promisc, timeout int
 		return
 	}
 
-	deviceNameCStr := C.CString(deviceName)
-	sockServerPathCStr := C.CString(sockServerPath)
-	defer func() {
-		C.free(unsafe.Pointer(deviceNameCStr))
-		C.free(unsafe.Pointer(sockServerPathCStr))
-	}()
-
-	errMsg := C.handle_packet(deviceNameCStr, sockServerPathCStr, C.int(num), C.int(promisc), C.int(timeout))
+	errMsg := C.handle_packet(C.CString(deviceName), C.CString(sockServerPath), C.int(num), C.int(promisc), C.int(timeout))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)
@@ -512,12 +491,7 @@ func StopDissectPktLive(deviceName string) (err error) {
 		return
 	}
 
-	deviceNameCStr := C.CString(deviceName)
-	defer func() {
-		C.free(unsafe.Pointer(deviceNameCStr))
-	}()
-
-	errMsg := C.stop_dissect_capture_pkg(deviceNameCStr)
+	errMsg := C.stop_dissect_capture_pkg(C.CString(deviceName))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)
