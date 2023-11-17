@@ -345,6 +345,10 @@ extern "C" {
 #define ETHERTYPE_EAPOL			0x888E	/* 802.1x Authentication */
 #endif
 
+#ifndef ETHERTYPE_FORTINET_FGCP_HB  /* Not register https://community.fortinet.com/t5/FortiGate/Technical-Tip-FortiGate-HA-Heartbeat-packet-Ethertypes/ta-p/197807 */
+#define ETHERTYPE_FORTINET_FGCP_HB	0x8890	/* Fortinet FGCP HeartBeat */
+#endif
+
 #ifndef ETHERTYPE_PROFINET
 #define ETHERTYPE_PROFINET		0x8892	/* PROFIBUS PROFINET protocol */
 #endif
@@ -519,7 +523,7 @@ extern "C" {
 #endif
 
 #ifndef ETHERTYPE_CFM
-#define ETHERTYPE_CFM			0x8902	/* IEEE 802.1ag Connectivity Fault Management(CFM) protocol */
+#define ETHERTYPE_CFM			0x8902	/* IEEE 802.1Q Connectivity Fault Management(CFM) protocol */
 #endif
 
 #ifndef ETHERTYPE_DCE
@@ -623,7 +627,7 @@ extern "C" {
 #endif
 
 #ifndef ETHERTYPE_TECMP
-#define ETHERTYPE_TECMP			0x99FE	/* Technically Enhanced Capture Module Protocol (TECMP) */
+#define ETHERTYPE_TECMP			0x99FE	/* Technically Enhanced Capture Module Protocol (TECMP) and ASAM Capture Module Protocol (CMP)*/
 #endif
 
 #ifndef ETHERTYPE_6LOWPAN

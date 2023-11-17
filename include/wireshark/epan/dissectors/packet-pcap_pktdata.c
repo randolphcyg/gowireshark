@@ -16,10 +16,9 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 
-#include <wiretap/wtap.h>
 #include <wiretap/pcap-encap.h>
 
-#include <epan/dissectors/packet-pcap_pktdata.h>
+#include "packet-pcap_pktdata.h"
 
 void proto_register_pcap_pktdata(void);
 void proto_reg_handoff_pcap_pktdata(void);
@@ -180,7 +179,7 @@ const value_string link_type_vals[] = {
     { 215,  "IEEE802_15_4_NONASK_PHY" },
     { 216,  "LINUX_EVDEV" },            /* Linux evdev messages */
     { 217,  "GSMTAP_UM" },              /* "gsmtap" header followed by GSM Um interface packets */
-    { 218,  "GSMTAP_UM" },              /* "gsmtap" header followed by GSM Abis interface packets */
+    { 218,  "GSMTAP_Abis" },            /* "gsmtap" header followed by GSM Abis interface packets */
     { 219,  "MPLS" },                   /* MPLS label (stack?) as the link-layer header */
     { 220,  "USB_LINUX_MMAPPED" },
     { 221,  "DECT" },                   /* DECT packets, with a pseudo-header */

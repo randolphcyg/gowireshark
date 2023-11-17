@@ -12,7 +12,6 @@
 #include "config.h"
 
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
 #include "wtap-int.h"
 #include "file_wrappers.h"
@@ -666,7 +665,6 @@ static gboolean nettl_dump_open(wtap_dumper *wdh, int *err, gchar **err_info _U_
     file_hdr.unknown=g_htons(0x406);
     if (!wtap_dump_file_write(wdh, &file_hdr, sizeof file_hdr, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof(file_hdr);
 
     return TRUE;
 }
@@ -697,7 +695,17 @@ static gboolean nettl_dump(wtap_dumper *wdh,
     /* HP-UX 11.X header should be 68 bytes */
     rec_hdr.hdr_len = g_htons(sizeof(rec_hdr) + 4);
     rec_hdr.kind = g_htonl(NETTL_HDR_PDUIN);
-    rec_hdr.sec = g_htonl(rec->ts.secs);
+    /*
+     * Probably interpreted as signed in other programs that read it.
+     * Maybe HPE will decide to make it unsigned, which could probably
+     * be made to work once the last 32-bit UN*X is gone and time_t
+     * is universally 64-bit.
+     */
+    if (rec->ts.secs < 0 || rec->ts.secs > G_MAXINT32) {
+        *err = WTAP_ERR_TIME_STAMP_NOT_SUPPORTED;
+        return FALSE;
+    }
+    rec_hdr.sec = g_htonl((guint32)rec->ts.secs);
     rec_hdr.usec = g_htonl(rec->ts.nsecs/1000);
     rec_hdr.caplen = g_htonl(rec->rec_header.packet_header.caplen);
     rec_hdr.length = g_htonl(rec->rec_header.packet_header.len);
@@ -764,7 +772,6 @@ static gboolean nettl_dump(wtap_dumper *wdh,
 
     if (!wtap_dump_file_write(wdh, &rec_hdr, sizeof(rec_hdr), err))
         return FALSE;
-    wdh->bytes_dumped += sizeof(rec_hdr);
 
     /* Write out 4 extra bytes of unknown stuff for HP-UX11
      * header format.
@@ -772,20 +779,17 @@ static gboolean nettl_dump(wtap_dumper *wdh,
     memset(dummyc, 0, sizeof dummyc);
     if (!wtap_dump_file_write(wdh, dummyc, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     if ((rec->rec_header.packet_header.pkt_encap == WTAP_ENCAP_FDDI_BITSWAPPED) ||
         (rec->rec_header.packet_header.pkt_encap == WTAP_ENCAP_NETTL_FDDI)) {
         /* add those weird 3 bytes of padding */
         if (!wtap_dump_file_write(wdh, dummyc, 3, err))
             return FALSE;
-        wdh->bytes_dumped += 3;
     }
 /*
   } else if (rec->rec_header.packet_header.pkt_encap == WTAP_ENCAP_NETTL_X25) {
   if (!wtap_dump_file_write(wdh, dummyc, 24, err))
   return FALSE;
-  wdh->bytes_dumped += 24;
   }
 */
 
@@ -793,7 +797,6 @@ static gboolean nettl_dump(wtap_dumper *wdh,
 
     if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err))
         return FALSE;
-    wdh->bytes_dumped += rec->rec_header.packet_header.caplen;
 
     return TRUE;
 }

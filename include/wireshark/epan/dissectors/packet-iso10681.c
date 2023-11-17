@@ -234,7 +234,7 @@ dissect_iso10681(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 fr
     offset = 4;
 
     ti_type = proto_tree_add_item_ret_uint(iso10681_tree, hf_iso10681_type, tvb, offset, 1, ENC_BIG_ENDIAN, &type);
-    col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str(type, iso10681_message_types, "Unknown (0x%02x)"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(type, iso10681_message_types, "Unknown (0x%02x)"));
 
     switch (type) {
         case ISO10681_TYPE_START_FRAME: {
@@ -390,7 +390,7 @@ dissect_iso10681(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 fr
                 next_tvb = new_tvb;
                 complete = TRUE;
             } else {
-                next_tvb = tvb_new_subset_length_caplen(tvb, offset, data_length, data_length);
+                next_tvb = tvb_new_subset_length(tvb, offset, data_length);
             }
         }
     }
@@ -525,6 +525,7 @@ proto_register_iso10681(void) {
             "ISO 10681",         /* short name */
             "iso10681"           /* abbrev     */
     );
+    iso10681_handle_flexray = register_dissector("iso10681", dissect_iso10681_flexray, proto_iso10681);
 
     /* Register configuration options */
     iso10681_module = prefs_register_protocol(proto_iso10681, proto_reg_handoff_iso10681);
@@ -555,7 +556,6 @@ proto_reg_handoff_iso10681(void) {
     static gboolean initialized = FALSE;
 
     if (!initialized) {
-        iso10681_handle_flexray = create_dissector_handle(dissect_iso10681_flexray, proto_iso10681);
         dissector_add_for_decode_as("flexray.subdissector", iso10681_handle_flexray);
 
         initialized = TRUE;

@@ -230,8 +230,8 @@ dissect_k12(tvbuff_t* tvb,packet_info* pinfo,proto_tree* tree, void* data _U_)
 
 	if (! handles ) {
 		for (i=0 ; i < nk12_handles; i++) {
-			if ( ws_strcasestr(pinfo->pseudo_header->k12.stack_file, k12_handles[i].match)
-			     || ws_strcasestr(pinfo->pseudo_header->k12.input_name, k12_handles[i].match) ) {
+			if ( ws_ascii_strcasestr(pinfo->pseudo_header->k12.stack_file, k12_handles[i].match)
+			     || ws_ascii_strcasestr(pinfo->pseudo_header->k12.input_name, k12_handles[i].match) ) {
 				handles = k12_handles[i].handles;
 				break;
 			}
@@ -287,7 +287,7 @@ dissect_k12(tvbuff_t* tvb,packet_info* pinfo,proto_tree* tree, void* data _U_)
 	return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 k12_update_cb(void* r, char** err)
 {
 	k12_handles_t* h = (k12_handles_t *)r;
@@ -350,7 +350,7 @@ k12_free_cb(void* r)
 }
 
 
-static gboolean
+static bool
 protos_chk_cb(void* r _U_, const char* p, guint len, const void* u1 _U_, const void* u2 _U_, char** err)
 {
 	gchar** protos;

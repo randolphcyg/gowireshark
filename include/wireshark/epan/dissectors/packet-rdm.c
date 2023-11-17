@@ -38,6 +38,8 @@
 void proto_register_rdm(void);
 void proto_reg_handoff_rdm(void);
 
+static dissector_handle_t rdm_handle;
+
 #define RDM_SC_RDM          0xCC
 #define RDM_SC_SUB_MESSAGE  0x01
 
@@ -3055,6 +3057,7 @@ dissect_rdm_pd_endpoint_list(tvbuff_t *tvb, guint offset, proto_tree *tree, guin
   switch(cc) {
   case RDM_CC_GET_COMMAND_RESPONSE:
     rdm_proto_tree_add_numeric_item(tree, hf_rdm_pd_endpoint_list_change_number, tvb, &offset, 4);
+    len -= 4;
     while (len >= 3) {
       rdm_proto_tree_add_numeric_item(tree, hf_rdm_pd_endpoint_list_endpoint_id, tvb, &offset, 2);
       rdm_proto_tree_add_numeric_item(tree, hf_rdm_pd_endpoint_list_endpoint_type, tvb, &offset, 1);
@@ -3290,6 +3293,7 @@ dissect_rdm_pd_endpoint_responders(tvbuff_t *tvb, guint offset, proto_tree *tree
   case RDM_CC_GET_COMMAND_RESPONSE:
     rdm_proto_tree_add_numeric_item(tree, hf_rdm_pd_endpoint_responders_endpoint_id, tvb, &offset, 2);
     rdm_proto_tree_add_numeric_item(tree, hf_rdm_pd_endpoint_responders_change_number, tvb, &offset, 4);
+    len -= 6;
     while (len >= 6) {
       rdm_proto_tree_add_bytes_item(tree, hf_rdm_pd_endpoint_responders_uid, tvb, &offset, 6);
       len -= 6;
@@ -6914,14 +6918,14 @@ proto_register_rdm(void)
   proto_rdm = proto_register_protocol("Remote Device Management", "RDM", "rdm");
   proto_register_field_array(proto_rdm, hf, array_length(hf));
   proto_register_subtree_array(ett, array_length(ett));
-  register_dissector("rdm", dissect_rdm, proto_rdm);
+  rdm_handle = register_dissector("rdm", dissect_rdm, proto_rdm);
   expert_rdm = expert_register_protocol(proto_rdm);
   expert_register_field_array(expert_rdm, ei, array_length(ei));
 }
 
 void
 proto_reg_handoff_rdm(void) {
-  dissector_add_uint("dmx", 0xCC, create_dissector_handle(dissect_rdm, proto_rdm));
+  dissector_add_uint("dmx", 0xCC, rdm_handle);
 }
 
 /*

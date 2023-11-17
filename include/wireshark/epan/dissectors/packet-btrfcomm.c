@@ -134,12 +134,12 @@ static uat_rfcomm_channels_t  *rfcomm_channels          = NULL;
 static guint                  num_rfcomm_channels       = 0;
 
 UAT_DEC_CB_DEF(rfcomm_channels, channel, uat_rfcomm_channels_t)
-UAT_PROTO_DEF(rfcomm_channels, payload_proto, payload_proto, payload_proto_name, uat_rfcomm_channels_t)
+UAT_DISSECTOR_DEF(rfcomm_channels, payload_proto, payload_proto, payload_proto_name, uat_rfcomm_channels_t)
 
 static uat_field_t uat_rfcomm_channels_fields[] = {
     UAT_FLD_DEC(rfcomm_channels, channel, "RFCOMM Channel",
             "Range: 0-32"),
-    UAT_FLD_PROTO(rfcomm_channels, payload_proto, "Payload protocol",
+    UAT_FLD_DISSECTOR(rfcomm_channels, payload_proto, "Payload dissector",
             "Dissector name used to decode RFCOMM channel"),
     UAT_END_FIELDS
 };
@@ -234,12 +234,6 @@ static const value_string vs_ctl[] = {
 static const value_string vs_ea[] = {
     {1, "Last field octet"},
     {0, "More field octets following"},
-    {0, NULL}
-};
-
-static const value_string vs_cr[] = {
-    {1, "Command"},
-    {0, "Response"},
     {0, NULL}
 };
 
@@ -736,7 +730,7 @@ dissect_btrfcomm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
                     val_to_str_const(frame_type, vs_frame_type_short, "Unknown"), dlci >> 1);
     if (dlci && (frame_type == FRAME_TYPE_SABM) && service_info) {
         if (service_info->uuid.size==16)
-            col_append_fstr(pinfo->cinfo, COL_INFO, "(UUID128: %s) ", print_bluetooth_uuid(&service_info->uuid));
+            col_append_fstr(pinfo->cinfo, COL_INFO, "(UUID128: %s) ", print_bluetooth_uuid(pinfo->pool, &service_info->uuid));
         else
             col_append_fstr(pinfo->cinfo, COL_INFO, "(%s) ",
                     val_to_str_ext_const(service_info->uuid.bt_uuid, &bluetooth_uuid_vals_ext, "Unknown"));
@@ -845,7 +839,7 @@ dissect_btrfcomm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
                 p_get_proto_data(pinfo->pool, pinfo, proto_bluetooth, PROTO_DATA_BLUETOOTH_SERVICE_UUID) == NULL) {
             guint8 *value_data;
 
-            value_data = wmem_strdup(wmem_file_scope(), print_numeric_bluetooth_uuid(&service_info->uuid));
+            value_data = wmem_strdup(wmem_file_scope(), print_numeric_bluetooth_uuid(pinfo->pool, &service_info->uuid));
 
             p_add_proto_data(pinfo->pool, pinfo, proto_bluetooth, PROTO_DATA_BLUETOOTH_SERVICE_UUID, value_data);
         }
@@ -853,7 +847,7 @@ dissect_btrfcomm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
         if (!dissector_try_uint_new(rfcomm_dlci_dissector_table, (guint32) dlci,
                 next_tvb, pinfo, tree, TRUE, rfcomm_data)) {
             if (service_info && (service_info->uuid.size == 0 ||
-                !dissector_try_string(bluetooth_uuid_table, print_numeric_bluetooth_uuid(&service_info->uuid),
+                !dissector_try_string(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &service_info->uuid),
                     next_tvb, pinfo, tree, rfcomm_data))) {
                 decode_by_dissector = find_proto_by_channel(dlci >> 1);
                 if (rfcomm_channels_enabled && decode_by_dissector) {
@@ -941,7 +935,7 @@ proto_register_btrfcomm(void)
         },
         { &hf_cr,
           { "C/R Flag", "btrfcomm.cr",
-            FT_UINT8, BASE_HEX, VALS(vs_cr), 0x02,
+            FT_BOOLEAN, 8, TFS(&tfs_command_response), 0x02,
             "Command/Response flag", HFILL}
         },
         { &hf_mcc,
@@ -966,7 +960,7 @@ proto_register_btrfcomm(void)
         },
         { &hf_mcc_cr,
           { "C/R Flag", "btrfcomm.mcc.cr",
-            FT_UINT8, BASE_HEX, VALS(vs_cr), 0x02,
+            FT_BOOLEAN, 8, TFS(&tfs_command_response), 0x02,
             "Command/Response flag", HFILL}
         },
         { &hf_mcc_const_1,

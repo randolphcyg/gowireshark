@@ -118,8 +118,7 @@ dissect_nwp_ann(tvbuff_t *tvb, proto_tree *nwp_tree, guint8 hid_count,
 		NWPH_HWAD + ha_len, hid_count * NWP_XID_LEN, ENC_NA);
 	hid_tree = proto_item_add_subtree(ti, ett_nwp_ann_hid_tree);
 
-	buf = wmem_strbuf_sized_new(wmem_packet_scope(),
-		NWP_HID_STR_LEN, NWP_HID_STR_LEN);
+	buf = wmem_strbuf_new_sized(wmem_packet_scope(), NWP_HID_STR_LEN);
 
 	/* Add HIDs. */
 	offset = NWPH_HWAD + ha_len;
@@ -157,8 +156,8 @@ dissect_nwp_nl(tvbuff_t *tvb, proto_tree *nwp_tree, guint8 hid_count,
 	guint i;
 	guint8 offset = NWPH_NLST;
 
-	wmem_strbuf_t *hid_buf = wmem_strbuf_sized_new(wmem_packet_scope(),
-		NWP_HID_STR_LEN, NWP_HID_STR_LEN);
+	wmem_strbuf_t *hid_buf = wmem_strbuf_new_sized(wmem_packet_scope(),
+		NWP_HID_STR_LEN);
 
 	/* Set up tree for neighbor list. */
 	pi = proto_tree_add_item(nwp_tree, hf_nwp_neigh_list,
@@ -330,10 +329,7 @@ proto_register_nwp(void)
 
 	expert_module_t *expert_nwp;
 
-	proto_nwp = proto_register_protocol(
-		"Neighborhood Watch Protocol",
-		"NWP",
-	        "nwp");
+	proto_nwp = proto_register_protocol("Neighborhood Watch Protocol", "NWP", "nwp");
 
 	nwp_handle = register_dissector("nwp", dissect_nwp, proto_nwp);
 	proto_register_field_array(proto_nwp, hf, array_length(hf));

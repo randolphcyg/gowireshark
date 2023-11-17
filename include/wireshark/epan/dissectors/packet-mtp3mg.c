@@ -270,7 +270,7 @@ static const value_string japan_test_message_type_acro_values[] = {
 #define ANSI_COO_SLC_MASK  0x000f
 #define ANSI_COO_FSN_MASK  0x07f0
 #define ITU_COO_LENGTH     1
-#define ITU_COO_FSN_MASK   0x007f
+#define ITU_COO_FSN_MASK   0x7f
 #define ANSI_XCO_LENGTH    4
 #define ANSI_XCO_SLC_MASK  0x0000000f
 #define ANSI_XCO_FSN_MASK  0x0ffffff0
@@ -304,8 +304,8 @@ static const value_string japan_test_message_type_acro_values[] = {
 #define ANSI_MIM_SLC_MASK 0x0f
 
 #define ANSI_DLC_LENGTH    3
-#define ANSI_DLC_SLC_MASK  0x0000f
-#define ANSI_DLC_LINK_MASK 0x3fff0
+#define ANSI_DLC_SLC_MASK  0x00000f
+#define ANSI_DLC_LINK_MASK 0x03fff0
 #define ITU_DLC_LENGTH     2
 #define ITU_DLC_LINK_MASK  0x0fff
 
@@ -319,7 +319,7 @@ static const value_string japan_test_message_type_acro_values[] = {
 #define TEST_LENGTH_MASK    0xf0
 #define TEST_LENGTH_SHIFT   4
 #define TEST_PATTERN_OFFSET TEST_LENGTH
-#define ANSI_TEST_SLC_MASK  0x000f
+#define ANSI_TEST_SLC_MASK  0x0f
 
 #define JAPAN_SPARE_LENGTH 1
 #define JAPAN_H0H1_OFFSET JAPAN_SPARE_LENGTH
@@ -1203,11 +1203,11 @@ proto_register_mtp3mg(void)
               "Message type", HFILL }},
         { &hf_mtp3mg_coo_ansi_slc,
             { "Signalling Link Code", "mtp3mg.slc",
-              FT_UINT8, BASE_DEC, NULL, ANSI_COO_SLC_MASK,
+              FT_UINT16, BASE_DEC, NULL, ANSI_COO_SLC_MASK,
               "SLC of affected link", HFILL }},
         { &hf_mtp3mg_coo_ansi_fsn,
             { "Forward Sequence Number", "mtp3mg.fsn",
-              FT_UINT8, BASE_DEC, NULL, ANSI_COO_FSN_MASK,
+              FT_UINT16, BASE_DEC, NULL, ANSI_COO_FSN_MASK,
               "Forward Sequence Number of last accepted message", HFILL }},
         { &hf_mtp3mg_coo_itu_fsn,
             { "Forward Sequence Number", "mtp3mg.fsn",
@@ -1271,7 +1271,7 @@ proto_register_mtp3mg(void)
               NULL, HFILL }},
         { &hf_mtp3mg_tfc_itu_status,
             { "Status", "mtp3mg.status",
-              FT_UINT8, BASE_DEC, NULL, ITU_TFC_STATUS_MASK,
+              FT_UINT16, BASE_DEC, NULL, ITU_TFC_STATUS_MASK,
               "Congestion status", HFILL }},
         { &hf_mtp3mg_chinese_apc,
             { "Affected Point Code", "mtp3mg.chinese_apc",
@@ -1315,15 +1315,15 @@ proto_register_mtp3mg(void)
               "SLC of affected link", HFILL }},
         { &hf_mtp3mg_dlc_ansi_slc,
             { "Signalling Link Code", "mtp3mg.slc",
-              FT_UINT8, BASE_DEC, NULL, ANSI_DLC_SLC_MASK,
+              FT_UINT24, BASE_DEC, NULL, ANSI_DLC_SLC_MASK,
               "SLC of affected link", HFILL }},
         { &hf_mtp3mg_dlc_ansi_link,
             { "Link", "mtp3mg.link",
-              FT_UINT8, BASE_DEC, NULL, ANSI_DLC_LINK_MASK,
+              FT_UINT24, BASE_DEC, NULL, ANSI_DLC_LINK_MASK,
               "CIC of BIC used to carry data", HFILL }},
         { &hf_mtp3mg_dlc_itu_link,
             { "Link", "mtp3mg.link",
-              FT_UINT8, BASE_DEC, NULL, ITU_DLC_LINK_MASK,
+              FT_UINT16, BASE_DEC, NULL, ITU_DLC_LINK_MASK,
               "CIC of BIC used to carry data", HFILL }},
         { &hf_mtp3mg_upu_user,
             { "User", "mtp3mg.user",

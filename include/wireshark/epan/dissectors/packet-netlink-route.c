@@ -1443,7 +1443,7 @@ proto_register_netlink_route(void)
 		},
 		{ &hf_netlink_route_ifla_carrier,
 			{ "Carrier", "netlink-route.ifla_carrier",
-			  FT_BOOLEAN, 32, TFS(&tfs_restricted_not_restricted), 0x01,
+			  FT_BOOLEAN, 32, TFS(&tfs_restricted_not_restricted), 0x00000001,
 			  NULL, HFILL }
 		},
 		{ &hf_netlink_route_ifla_qdisc,
@@ -1776,7 +1776,7 @@ proto_register_netlink_route(void)
 	proto_register_field_array(proto_netlink_route, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
 
-	netlink_route_handle = create_dissector_handle(dissect_netlink_route, proto_netlink_route);
+	netlink_route_handle = register_dissector("netlink-route", dissect_netlink_route, proto_netlink_route);
 }
 
 void

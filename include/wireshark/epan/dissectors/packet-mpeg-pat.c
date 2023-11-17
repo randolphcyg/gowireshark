@@ -17,6 +17,8 @@
 void proto_register_mpeg_pat(void);
 void proto_reg_handoff_mpeg_pat(void);
 
+static dissector_handle_t mpeg_pat_handle;
+
 static int proto_mpeg_pat = -1;
 static int hf_mpeg_pat_transport_stream_id = -1;
 static int hf_mpeg_pat_reserved = -1;
@@ -39,12 +41,6 @@ static gint ett_mpeg_pat_prog = -1;
 
 #define MPEG_PAT_PROGRAM_RESERVED_MASK          0xE000
 #define MPEG_PAT_PROGRAM_MAP_PID_MASK           0x1FFF
-
-static const true_false_string mpeg_pat_cur_next_vals = {
-
-    "Currently applicable", "Not yet applicable"
-
-};
 
 static int
 dissect_mpeg_pat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
@@ -127,7 +123,7 @@ proto_register_mpeg_pat(void)
 
         { &hf_mpeg_pat_current_next_indicator, {
             "Current/Next Indicator", "mpeg_pat.cur_next_ind",
-            FT_BOOLEAN, 8, TFS(&mpeg_pat_cur_next_vals), MPEG_PAT_CURRENT_NEXT_INDICATOR_MASK, NULL, HFILL
+            FT_BOOLEAN, 8, TFS(&tfs_current_not_yet), MPEG_PAT_CURRENT_NEXT_INDICATOR_MASK, NULL, HFILL
         } },
 
         { &hf_mpeg_pat_section_number, {
@@ -167,14 +163,12 @@ proto_register_mpeg_pat(void)
     proto_register_field_array(proto_mpeg_pat, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
 
+    mpeg_pat_handle = register_dissector("mpeg_pat", dissect_mpeg_pat, proto_mpeg_pat);
 }
 
 
 void proto_reg_handoff_mpeg_pat(void)
 {
-    dissector_handle_t mpeg_pat_handle;
-
-    mpeg_pat_handle = create_dissector_handle(dissect_mpeg_pat, proto_mpeg_pat);
     dissector_add_uint("mpeg_sect.tid", MPEG_PAT_TID, mpeg_pat_handle);
 }
 

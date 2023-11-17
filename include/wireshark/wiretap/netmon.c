@@ -508,6 +508,9 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, gchar **err_info)
 	 * they stuff a FILETIME, which is the number of 100-nanosecond
 	 * intervals since 1601-01-01 00:00:00 "UTC", there, instead
 	 * of stuffing a SYSTEMTIME, which is time-zone-dependent, there?).
+	 *
+	 * Eventually they went with per-packet FILETIMEs in a later
+	 * version.
 	 */
 	netmon->start_nsecs = pletoh16(&hdr.ts_msec)*1000000;
 
@@ -964,12 +967,14 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, gchar **err_info)
 
 	case 2:
 		/*
-		 * Version 1.x of the file format supports
-		 * 100-nanosecond precision; we don't
-		 * currently support that, so say
-		 * "nanosecond precision" for now.
+		 * Versions 2.0 through 2.2 support microsecond
+		 * precision; version 2.3 supports 100-nanosecond
+		 * precision (2.3 was the last version).
 		 */
-		wth->file_tsprec = WTAP_TSPREC_NSEC;
+		if (netmon->version_minor >= 3)
+			wth->file_tsprec = WTAP_TSPREC_100_NSEC;
+		else
+			wth->file_tsprec = WTAP_TSPREC_USEC;
 		break;
 	}
 	return WTAP_OPEN_MINE;
@@ -1197,28 +1202,20 @@ netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
 	 * For version 2.1 and later, there's additional information
 	 * after the frame data.
 	 */
-	if ((netmon->version_major == 2 && netmon->version_minor >= 1) ||
-	    netmon->version_major > 2) {
-		if (netmon->version_major > 2) {
-			/*
-			 * Assume 2.3 format, for now.
-			 */
+	if (netmon->version_major == 2 && netmon->version_minor >= 1) {
+		switch (netmon->version_minor) {
+
+		case 1:
+			trlr_size = (int)sizeof (struct netmonrec_2_1_trlr);
+			break;
+
+		case 2:
+			trlr_size = (int)sizeof (struct netmonrec_2_2_trlr);
+			break;
+
+		default:
 			trlr_size = (int)sizeof (struct netmonrec_2_3_trlr);
-		} else {
-			switch (netmon->version_minor) {
-
-			case 1:
-				trlr_size = (int)sizeof (struct netmonrec_2_1_trlr);
-				break;
-
-			case 2:
-				trlr_size = (int)sizeof (struct netmonrec_2_2_trlr);
-				break;
-
-			default:
-				trlr_size = (int)sizeof (struct netmonrec_2_3_trlr);
-				break;
-			}
+			break;
 		}
 
 		if (!wtap_read_bytes(fh, &trlr, trlr_size, err, err_info))
@@ -1350,7 +1347,12 @@ netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
 		}
 
 		rec->rec_header.packet_header.pkt_encap = pkt_encap;
-		if (netmon->version_major > 2 || netmon->version_minor > 2) {
+		if (netmon->version_minor >= 3) {
+			/*
+			 * This is a 2.3 or later file.  That format
+			 * contains a UTC per-packet time stamp; use
+			 * that instead of the start time and offset.
+			 */
 			guint64 d;
 
 			d = pletoh64(trlr.trlr_2_3.utc_timestamp);
@@ -1623,6 +1625,7 @@ static gboolean netmon_dump_open(wtap_dumper *wdh, gboolean is_v2,
 	if (wtap_dump_file_seek(wdh, CAPTUREFILE_HEADER_SIZE, SEEK_SET, err) == -1)
 		return FALSE;
 
+	wdh->bytes_dumped = CAPTUREFILE_HEADER_SIZE;
 	wdh->subtype_write = netmon_dump;
 	wdh->subtype_finish = netmon_dump_finish;
 
@@ -1684,7 +1687,7 @@ static gboolean netmon_dump(wtap_dumper *wdh, const wtap_rec *rec,
 		 * Make sure this packet doesn't have a link-layer type that
 		 * differs from the one for the file.
 		 */
-		if (wdh->encap != rec->rec_header.packet_header.pkt_encap) {
+		if (wdh->file_encap != rec->rec_header.packet_header.pkt_encap) {
 			*err = WTAP_ERR_ENCAP_PER_PACKET_UNSUPPORTED;
 			return FALSE;
 		}
@@ -1699,7 +1702,7 @@ static gboolean netmon_dump(wtap_dumper *wdh, const wtap_rec *rec,
 		}
 	}
 
-	if (wdh->encap == WTAP_ENCAP_PER_PACKET) {
+	if (wdh->file_encap == WTAP_ENCAP_PER_PACKET) {
 		/*
 		 * Is this network type supported?
 		 */
@@ -1748,7 +1751,7 @@ static gboolean netmon_dump(wtap_dumper *wdh, const wtap_rec *rec,
 		netmon->got_first_record_time = TRUE;
 	}
 
-	if (wdh->encap == WTAP_ENCAP_ATM_PDUS)
+	if (wdh->file_encap == WTAP_ENCAP_ATM_PDUS)
 		atm_hdrsize = sizeof (struct netmon_atm_hdr);
 	else
 		atm_hdrsize = 0;
@@ -1803,7 +1806,7 @@ static gboolean netmon_dump(wtap_dumper *wdh, const wtap_rec *rec,
 		return FALSE;
 	rec_size += hdr_size;
 
-	if (wdh->encap == WTAP_ENCAP_ATM_PDUS) {
+	if (wdh->file_encap == WTAP_ENCAP_ATM_PDUS) {
 		/*
 		 * Write the ATM header.
 		 * We supply all-zero destination and source addresses.
@@ -1821,7 +1824,7 @@ static gboolean netmon_dump(wtap_dumper *wdh, const wtap_rec *rec,
 		return FALSE;
 	rec_size += rec->rec_header.packet_header.caplen;
 
-	if (wdh->encap == WTAP_ENCAP_PER_PACKET) {
+	if (wdh->file_encap == WTAP_ENCAP_PER_PACKET) {
 		/*
 		 * Write out the trailer.
 		 */
@@ -1894,6 +1897,7 @@ static gboolean netmon_dump_finish(wtap_dumper *wdh, int *err,
 	const char *magicp;
 	size_t magic_size;
 	struct tm *tm;
+	gint64 saved_bytes_dumped;
 
 	/* Write out the frame table.  "netmon->frame_table_index" is
 	   the number of entries we've put into it. */
@@ -1904,6 +1908,10 @@ static gboolean netmon_dump_finish(wtap_dumper *wdh, int *err,
 	/* Now go fix up the file header. */
 	if (wtap_dump_file_seek(wdh, 0, SEEK_SET, err) == -1)
 		return FALSE;
+	/* Save bytes_dumped since following calls to wtap_dump_file_write()
+	 * will still (mistakenly) increase it.
+	 */
+	saved_bytes_dumped = wdh->bytes_dumped;
 	memset(&file_hdr, '\0', sizeof file_hdr);
 	if (netmon->is_v2) {
 		magicp = netmon_2_x_magic;
@@ -1926,7 +1934,7 @@ static gboolean netmon_dump_finish(wtap_dumper *wdh, int *err,
 		 */
 		file_hdr.ver_major = 2;
 		file_hdr.ver_minor =
-		    (wdh->encap == WTAP_ENCAP_PER_PACKET) ? 1 : 0;
+		    (wdh->file_encap == WTAP_ENCAP_PER_PACKET) ? 1 : 0;
 	} else {
 		magicp = netmon_1_x_magic;
 		magic_size = sizeof netmon_1_x_magic;
@@ -1937,7 +1945,7 @@ static gboolean netmon_dump_finish(wtap_dumper *wdh, int *err,
 	if (!wtap_dump_file_write(wdh, magicp, magic_size, err))
 		return FALSE;
 
-	if (wdh->encap == WTAP_ENCAP_PER_PACKET) {
+	if (wdh->file_encap == WTAP_ENCAP_PER_PACKET) {
 		/*
 		 * We're writing NetMon 2.1 format, so the media
 		 * type in the file header is irrelevant.  Set it
@@ -1945,7 +1953,7 @@ static gboolean netmon_dump_finish(wtap_dumper *wdh, int *err,
 		 */
 		file_hdr.network = GUINT16_TO_LE(1);
 	} else
-		file_hdr.network = GUINT16_TO_LE(wtap_encap[wdh->encap]);
+		file_hdr.network = GUINT16_TO_LE(wtap_encap[wdh->file_encap]);
 	tm = localtime(&netmon->first_record_time.secs);
 	if (tm != NULL) {
 		file_hdr.ts_year  = GUINT16_TO_LE(1900 + tm->tm_year);
@@ -1971,6 +1979,7 @@ static gboolean netmon_dump_finish(wtap_dumper *wdh, int *err,
 	if (!wtap_dump_file_write(wdh, &file_hdr, sizeof file_hdr, err))
 		return FALSE;
 
+	wdh->bytes_dumped = saved_bytes_dumped;
 	return TRUE;
 }
 

@@ -24,7 +24,7 @@
 #include <epan/addr_resolv.h>
 #include <epan/wmem_scopes.h>
 #include <epan/conversation.h>
-#include <epan/dissectors/packet-tcp.h>
+#include "packet-tcp.h"
 
 #define RTITCP_MAGIC_NUMBER             0xdd54dd55
 #define RTPS_MAGIC_NUMBER               0x52545053
@@ -324,7 +324,7 @@ static guint dissect_attribute(tvbuff_t *tvb, packet_info *pinfo,
             attributes_list_offset+offset, 2, ENC_BIG_ENDIAN);
     proto_tree_add_item(attribute, hf_rtitcp_control_attribute_length, tvb,
             attributes_list_offset+offset+2, 2, ENC_BIG_ENDIAN);
-    proto_item_set_text(attribute,"%s", val_to_str(attribute_type, attribute_types_vals, "Unknown attribute"));
+    proto_item_set_text(attribute,"%s", val_to_str_const(attribute_type, attribute_types_vals, "Unknown attribute"));
 
     switch (attribute_type) {
         case RTPS_LOCATOR_PORT_ATTRIBUTE_TYPE: {
@@ -377,10 +377,10 @@ static guint dissect_attribute(tvbuff_t *tvb, packet_info *pinfo,
             }
             proto_item_append_text(rtitcp_message, "%s%s",
                 (*first_attribute) ? "" : ", ",
-                val_to_str(attribute_connection_type, rtitcp_attribute_connection_type_vals, "Unknown attribute"));
+                val_to_str_const(attribute_connection_type, rtitcp_attribute_connection_type_vals, "Unknown attribute"));
             col_append_fstr(pinfo->cinfo, COL_INFO, "%s%s",
                 (*first_attribute) ? "" : ", ",
-                val_to_str(attribute_connection_type, rtitcp_attribute_connection_type_vals, "Unknown attribute"));
+                val_to_str_const(attribute_connection_type, rtitcp_attribute_connection_type_vals, "Unknown attribute"));
             (*first_attribute) = FALSE;
             break;
         }
@@ -486,10 +486,10 @@ static guint16 dissect_control_message(proto_tree *rtitcp_tree, tvbuff_t *tvb, p
     /* Check the control message kind */
     control_message_kind = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
     col_append_sep_str(pinfo->cinfo, COL_INFO, ", ",
-                val_to_str(control_message_kind,ctrl_message_types_vals, "Unknown control message"));
+                val_to_str_const(control_message_kind,ctrl_message_types_vals, "Unknown control message"));
     proto_tree_add_uint(rtitcp_message, hf_rtitcp_control_kind, tvb, offset, 2, control_message_kind);
     proto_item_set_text(rtitcp_message,"RTI TCP Control Message , Kind: %s",
-            val_to_str(control_message_kind,ctrl_message_types_vals, "Unknown control message"));
+            val_to_str_const(control_message_kind,ctrl_message_types_vals, "Unknown control message"));
     offset += 2;
 
     /* Take the length in bytes of the attributes list */
@@ -615,19 +615,16 @@ static guint16 dissect_control_message(proto_tree *rtitcp_tree, tvbuff_t *tvb, p
 
 /* This function dissects all the control messages found */
 static guint dissect_rtitcp_control_protocol(proto_tree *rtitcp_tree, tvbuff_t *tvb, packet_info *pinfo) {
-    guint messages_count, offset;
+    guint offset;
     guint16 msg_length;
     guint32 tvb_len;
 
     offset = 0;
     tvb_len = tvb_reported_length(tvb);
 
-    messages_count = 0;
-
     while (offset < tvb_len) {
         msg_length = dissect_control_message(rtitcp_tree, tvb, pinfo, offset);
         offset += msg_length;
-        ++messages_count;
     }
 
     return offset;
@@ -783,7 +780,7 @@ proto_register_rtitcp(void)
 
         { &hf_rtitcp_header_control_byte, {
             "Control Byte", "rtitcp.header.control_byte",
-            FT_UINT8, BASE_HEX, NULL, 0,
+            FT_UINT16, BASE_HEX, NULL, 0,
             0, HFILL }
         },
 

@@ -75,9 +75,6 @@ static gboolean ip_tso_supported = TRUE;
 /* Use heuristics to determine subdissector */
 static gboolean try_heuristic_first = FALSE;
 
-/* Look up addresses via mmdbresolve */
-static gboolean ip_use_geoip = TRUE;
-
 /* Interpret the reserved flag as security flag (RFC 3514) */
 static gboolean ip_security_flag = FALSE;
 
@@ -543,13 +540,13 @@ ip_endpoint_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, const
 }
 
 static gboolean
-ip_filter_valid(packet_info *pinfo)
+ip_filter_valid(packet_info *pinfo, void *user_data _U_)
 {
     return proto_is_frame_protocol(pinfo->layers, "ip");
 }
 
 static gchar*
-ip_build_filter(packet_info *pinfo)
+ip_build_filter(packet_info *pinfo, void *user_data _U_)
 {
     return ws_strdup_printf("ip.addr eq %s and ip.addr eq %s",
                 address_to_str(pinfo->pool, &pinfo->net_src),
@@ -2226,7 +2223,7 @@ dissect_ip_v4(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
       proto_item_set_hidden(item);
     }
 
-    if (ip_use_geoip) {
+    if (gbl_resolv_flags.maxmind_geoip) {
       add_geoip_info(ip_tree, pinfo, tvb, offset, src32, dst32);
     }
   }
@@ -2995,10 +2992,8 @@ proto_register_ip(void)
     "Support packet-capture from IP TSO-enabled hardware",
     "Whether to correct for TSO-enabled (TCP segmentation offload) hardware "
     "captures, such as spoofing the IP packet length", &ip_tso_supported);
-  prefs_register_bool_preference(ip_module, "use_geoip",
-    "Enable IPv4 geolocation",
-    "Whether to look up IP addresses in each MaxMind database we have loaded",
-    &ip_use_geoip);
+
+  prefs_register_obsolete_preference(ip_module, "use_geoip");
   prefs_register_bool_preference(ip_module, "security_flag" ,
     "Interpret Reserved flag as Security flag (RFC 3514)",
     "Whether to interpret the originally reserved flag as security flag",
@@ -3007,6 +3002,10 @@ proto_register_ip(void)
     "Try heuristic sub-dissectors first",
     "Try to decode a packet using an heuristic sub-dissector before using a sub-dissector registered to a specific port",
     &try_heuristic_first);
+
+  prefs_register_static_text_preference(ip_module, "text_use_geoip",
+    "IP geolocation settings can be changed in the Name Resolution preferences",
+    "IP geolocation settings can be changed in the Name Resolution preferences");
 
   ip_handle = register_dissector("ip", dissect_ip, proto_ip);
   reassembly_table_register(&ip_reassembly_table,
@@ -3018,7 +3017,7 @@ proto_register_ip(void)
 
   register_decode_as(&ip_da);
   register_conversation_table(proto_ip, TRUE, ip_conversation_packet, ip_endpoint_packet);
-  register_conversation_filter("ip", "IPv4", ip_filter_valid, ip_build_filter);
+  register_conversation_filter("ip", "IPv4", ip_filter_valid, ip_build_filter, NULL);
 
   ip_cap_handle = register_capture_dissector("ip", capture_ip, proto_ip);
 

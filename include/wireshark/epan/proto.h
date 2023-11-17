@@ -253,21 +253,19 @@ void proto_report_dissector_bug(const char *format, ...)
    __DISSECTOR_ASSERT_STATIC_ANALYSIS_HINT((hfinfo)->type == t)
 
 #define DISSECTOR_ASSERT_FIELD_TYPE_IS_INTEGRAL(hfinfo)  \
-  ((void) ((IS_FT_INT((hfinfo)->type) || \
-            IS_FT_UINT((hfinfo)->type)) ? (void)0 : \
+  ((void) ((FT_IS_INTEGER((hfinfo)->type)) ? (void)0 : \
    REPORT_DISSECTOR_BUG("%s:%u: field %s is not of type FT_CHAR or an FT_{U}INTn type", \
          __FILE__, __LINE__, (hfinfo)->abbrev))) \
-   __DISSECTOR_ASSERT_STATIC_ANALYSIS_HINT(IS_FT_INT((hfinfo)->type) || \
-                                           IS_FT_UINT((hfinfo)->type))
+   __DISSECTOR_ASSERT_STATIC_ANALYSIS_HINT(FT_IS_INTEGER((hfinfo)->type))
 
 #define __DISSECTOR_ASSERT_FIELD_TYPE_IS_STRING(hfinfo) \
-  (REPORT_DISSECTOR_BUG("%s:%u: field %s is not of type FT_STRING, FT_STRINGZ, FT_STRINGZPAD, or FT_STRINGZTRUNC", \
+  (REPORT_DISSECTOR_BUG("%s:%u: field %s is not of type FT_STRING, FT_STRINGZ, FT_STRINGZPAD, FT_STRINGZTRUNC, or FT_UINT_STRING", \
         __FILE__, __LINE__, (hfinfo)->abbrev))
 
 #define DISSECTOR_ASSERT_FIELD_TYPE_IS_STRING(hfinfo)  \
-  ((void) (IS_FT_STRING((hfinfo)->type) ? (void)0 : \
+  ((void) (FT_IS_STRING((hfinfo)->type) ? (void)0 : \
    __DISSECTOR_ASSERT_FIELD_TYPE_IS_STRING ((hfinfo)))) \
-   __DISSECTOR_ASSERT_STATIC_ANALYSIS_HINT(IS_FT_STRING((hfinfo)->type))
+   __DISSECTOR_ASSERT_STATIC_ANALYSIS_HINT(FT_IS_STRING((hfinfo)->type))
 
 #define __DISSECTOR_ASSERT_FIELD_TYPE_IS_TIME(hfinfo) \
   (REPORT_DISSECTOR_BUG("%s:%u: field %s is not of type FT_ABSOLUTE_TIME or FT_RELATIVE_TIME", \
@@ -363,19 +361,15 @@ void proto_report_dissector_bug(const char *format, ...)
  * values are encoded in all but the top bit (which is the byte-order
  * bit, required for FT_UINT_STRING and for UCS-2 and UTF-16 strings)
  * and the bottom bit (which we ignore for now so that programs that
- * pass TRUE for the encoding just do ASCII).  (The encodings are given
- * directly as even numbers in hex, so that make-init-lua.py can just
- * turn them into numbers for use in init.lua.)
+ * pass TRUE for the encoding just do ASCII).
  *
- * We don't yet process ASCII and UTF-8 differently.  Ultimately, for
- * ASCII, all bytes with the 8th bit set should be mapped to some "this
- * is not a valid character" code point, as ENC_ASCII should mean "this
- * is ASCII, not some extended variant thereof".  We should also map
- * 0x00 to that as well - null-terminated and null-padded strings
- * never have NULs in them, but counted strings might.  (Either that,
- * or the values for strings should be counted, not null-terminated.)
- * For UTF-8, invalid UTF-8 sequences should be mapped to the same
- * code point.
+ * For ENC_ASCII, we map ASCII characters with the high bit set to the UTF-8
+ * REPLACEMENT CHARACTER, and do the same for ENC_UTF_8 with invalid UTF-8
+ * sequences. We should also map 0x00 to that as well - null-terminated and
+ * null-padded strings never have NULs in them, but counted strings might.
+ * Either that, or strings should be counted, not null-terminated. Note
+ * that conversion of ASCII and UTF-8 can change the length of the string,
+ * as with any other encoding, due to REPLACEMENT CHARACTERs.
  *
  * For display, perhaps we should also map control characters to the
  * Unicode glyphs showing the name of the control character in small
@@ -428,6 +422,9 @@ void proto_report_dissector_bug(const char *format, ...)
 #define ENC_GB18030                       0x00000050
 #define ENC_EUC_KR                        0x00000052
 #define ENC_APN_STR                       0x00000054 /* The encoding the APN/DNN field follows 3GPP TS 23.003 [2] clause 9.1.*/
+#define ENC_DECT_STANDARD_8BITS           0x00000056 /* DECT standard character set as defined in ETSI EN 300 175-5 Annex D */
+#define ENC_DECT_STANDARD_4BITS_TBCD      0x00000058 /* DECT standard 4bits character set as defined in ETSI EN 300 175-5 Annex D (BCD with 0xb = SPACE)*/
+#define ENC_EBCDIC_CP500                  0x00000060
 /*
  * TODO:
  *
@@ -460,6 +457,16 @@ void proto_report_dissector_bug(const char *format, ...)
  * and the number of octets in the value is 0.
  */
 #define ENC_ZIGBEE               0x40000000
+
+/*
+ * This is a modifier for ENC_UTF_16, ENC_UCS_2, and ENC_UCS_4
+ * indicating that if the first two (or four, for UCS-4) octets
+ * are a big-endian or little-endian BOM, use that to determine
+ * the serialization order and ignore the ENC_LITTLE_ENDIAN or
+ * ENC_BIG_ENDIAN flag. This can't collide with ENC_ZIGBEE because
+ * it could be used simultaneously.
+ */
+#define ENC_BOM                  0x20000000
 
 /*
  * For cases where either native type or string encodings could both be
@@ -588,10 +595,6 @@ void proto_report_dissector_bug(const char *format, ...)
  *
  *  ENC_TIME_CLASSIC_MAC_OS_SECS - 4-8 bytes, representing a count of seconds
  *  since January 1, 1904, 00:00:00 UTC.
- *
- * The backwards-compatibility names are defined as hex numbers so that
- * the script to generate init.lua will add them as global variables,
- * along with the new names.
  */
 #define ENC_TIME_SECS_NSECS          0x00000000
 #define ENC_TIME_TIMESPEC            0x00000000 /* for backwards source compatibility */
@@ -621,8 +624,9 @@ void proto_report_dissector_bug(const char *format, ...)
 #define ENC_ISO_8601_DATE             0x00010000
 #define ENC_ISO_8601_TIME             0x00020000
 #define ENC_ISO_8601_DATE_TIME        0x00030000
-#define ENC_RFC_822                   0x00040000
-#define ENC_RFC_1123                  0x00080000
+#define ENC_IMF_DATE_TIME             0x00040000 /* Internet Message Format - RFCs 822, 1123, 2822, 5322 */
+#define ENC_RFC_822                   0x00040000 /* backwards compatibility */
+#define ENC_RFC_1123                  0x00040000 /* backwards source compatibility - not binary */
 #define ENC_ISO_8601_DATE_TIME_BASIC  0x00100000
 /* a convenience macro for the above - for internal use only */
 #define ENC_STR_TIME_MASK             0x001F0000
@@ -645,8 +649,13 @@ void proto_report_dissector_bug(const char *format, ...)
  * See https://developers.google.com/protocol-buffers/docs/encoding?csw=1#types
  */
 #define ENC_VARINT_ZIGZAG        0x00000008
+/*
+ * Decodes a variable-length integer used in DTN protocols
+ * See https://www.rfc-editor.org/rfc/rfc6256.html
+ */
+#define ENC_VARINT_SDNV          0x00000010
 
-#define ENC_VARINT_MASK          (ENC_VARINT_PROTOBUF|ENC_VARINT_QUIC|ENC_VARINT_ZIGZAG)
+#define ENC_VARINT_MASK          (ENC_VARINT_PROTOBUF|ENC_VARINT_QUIC|ENC_VARINT_ZIGZAG|ENC_VARINT_SDNV)
 
 /* Values for header_field_info.display */
 
@@ -656,52 +665,51 @@ void proto_report_dissector_bug(const char *format, ...)
 /** FIELD_DISPLAY_E_MASK selects the field_display_e value. */
 #define FIELD_DISPLAY_E_MASK 0xFF
 
-/*
- * Note that this enum values are parsed in make-init-lua.py so make sure
- * any changes here still makes valid entries in init.lua.
- * XXX The script requires the equals sign.
- */
 typedef enum {
     BASE_NONE    = 0,   /**< none */
 
 /* Integral and float types */
-    BASE_DEC     = 1,   /**< decimal [integer, float] */
-    BASE_HEX     = 2,   /**< hexadecimal [integer, float] */
-    BASE_OCT     = 3,   /**< octal [integer] */
-    BASE_DEC_HEX = 4,   /**< decimal (hexadecimal) [integer] */
-    BASE_HEX_DEC = 5,   /**< hexadecimal (decimal) [integer] */
-    BASE_CUSTOM  = 6,   /**< call custom routine to format [integer, float] */
-    BASE_EXP     = 7,   /**< exponential [float] */
+    BASE_DEC,           /**< decimal [integer, float] */
+    BASE_HEX,           /**< hexadecimal [integer, float] */
+    BASE_OCT,           /**< octal [integer] */
+    BASE_DEC_HEX,       /**< decimal (hexadecimal) [integer] */
+    BASE_HEX_DEC,       /**< hexadecimal (decimal) [integer] */
+    BASE_CUSTOM,        /**< call custom routine to format [integer, float] */
+    BASE_EXP,           /**< exponential [float] */
 
 /* Byte separators */
-    SEP_DOT      = 8,   /**< hexadecimal bytes with a period (.) between each byte */
-    SEP_DASH     = 9,   /**< hexadecimal bytes with a dash (-) between each byte */
-    SEP_COLON    = 10,  /**< hexadecimal bytes with a colon (:) between each byte */
-    SEP_SPACE    = 11,  /**< hexadecimal bytes with a space between each byte */
+    SEP_DOT,            /**< hexadecimal bytes with a period (.) between each byte */
+    SEP_DASH,           /**< hexadecimal bytes with a dash (-) between each byte */
+    SEP_COLON,          /**< hexadecimal bytes with a colon (:) between each byte */
+    SEP_SPACE,          /**< hexadecimal bytes with a space between each byte */
 
 /* Address types */
-    BASE_NETMASK = 12,  /**< Used for IPv4 address that shouldn't be resolved (like for netmasks) */
+    BASE_NETMASK,       /**< Used for IPv4 address that shouldn't be resolved (like for netmasks) */
 
 /* Port types */
-    BASE_PT_UDP  = 13,  /**< UDP port */
-    BASE_PT_TCP  = 14,  /**< TCP port */
-    BASE_PT_DCCP = 15,  /**< DCCP port */
-    BASE_PT_SCTP = 16,  /**< SCTP port */
+    BASE_PT_UDP,        /**< UDP port */
+    BASE_PT_TCP,        /**< TCP port */
+    BASE_PT_DCCP,       /**< DCCP port */
+    BASE_PT_SCTP,       /**< SCTP port */
 
 /* OUI types */
-    BASE_OUI     = 17,  /**< OUI resolution */
+    BASE_OUI,           /**< OUI resolution */
 
 /* Time types */
-    ABSOLUTE_TIME_LOCAL   = 18,     /**< local time in our time zone, with month and day */
-    ABSOLUTE_TIME_UTC     = 19,     /**< UTC, with month and day */
-    ABSOLUTE_TIME_DOY_UTC = 20,     /**< UTC, with 1-origin day-of-year */
-    ABSOLUTE_TIME_NTP_UTC = 21,     /**< UTC, with "NULL" when timestamp is all zeros */
+    ABSOLUTE_TIME_LOCAL,        /**< local time in our time zone, with month and day */
+    ABSOLUTE_TIME_UTC,          /**< UTC, with month and day */
+    ABSOLUTE_TIME_DOY_UTC,      /**< UTC, with 1-origin day-of-year */
+    ABSOLUTE_TIME_NTP_UTC,      /**< UTC, with "NULL" when timestamp is all zeros */
+    ABSOLUTE_TIME_UNIX,         /**< Unix time */
+
+/* String types */
+    BASE_STR_WSP,       /**< Replace all whitespace characters (newline, formfeed, etc) with "space". */
 } field_display_e;
 
 #define FIELD_DISPLAY(d) ((d) & FIELD_DISPLAY_E_MASK)
 
 #define FIELD_DISPLAY_IS_ABSOLUTE_TIME(d) \
-        (FIELD_DISPLAY(d) >= ABSOLUTE_TIME_LOCAL && FIELD_DISPLAY(d) <= ABSOLUTE_TIME_NTP_UTC)
+        (FIELD_DISPLAY(d) >= ABSOLUTE_TIME_LOCAL && FIELD_DISPLAY(d) <= ABSOLUTE_TIME_UNIX)
 
 /* Following constants have to be ORed with a field_display_e when dissector
  * want to use specials value-string MACROs for a header_field_info */
@@ -797,7 +805,7 @@ typedef struct field_info {
     guint32              flags;           /**< bitfield like FI_GENERATED, ... */
     item_label_t        *rep;             /**< string for GUI tree */
     tvbuff_t            *ds_tvb;          /**< data source tvbuff */
-    fvalue_t             value;
+    fvalue_t            *value;
     int                 total_layer_num;        /**< Hierarchical layer number, for all protocols in the tree. */
     int                 proto_layer_num;        /**< Protocol layer number, so 1st, 2nd, 3rd, ... for protocol X. */
 } field_info;
@@ -896,7 +904,6 @@ typedef proto_node proto_item;
  * the bottom up.
  */
 
-/* do not modify the PI_SEVERITY_MASK name - it's used by make-init-lua.py */
 /* expert severities */
 #define PI_SEVERITY_MASK        0x00F00000  /**< mask usually for internal use only! */
 /** Packet comment */
@@ -910,7 +917,6 @@ typedef proto_node proto_item;
 /** Serious problems, e.g. a malformed packet */
 #define PI_ERROR                0x00800000
 
-/* do not modify the PI_GROUP_MASK name - it's used by make-init-lua.py */
 /* expert "event groups" */
 #define PI_GROUP_MASK           0xFF000000  /**< mask usually for internal use only! */
 /** The protocol field has a bad checksum, usually uses PI_WARN severity */
@@ -1146,7 +1152,7 @@ WS_DLL_PUBLIC void proto_item_set_len(proto_item *pi, const gint length);
 WS_DLL_PUBLIC void proto_item_set_end(proto_item *pi, tvbuff_t *tvb, gint end);
 
 /** Get length of a proto_item. Useful after using proto_tree_add_item()
- * to add a variable-length field (e.g., FT_NSTRING_UINT8).
+ * to add a variable-length field (e.g., FT_UINT_STRING).
  @param pi the item to get the length from
  @return the current length */
 WS_DLL_PUBLIC int proto_item_get_len(const proto_item *pi);
@@ -1324,6 +1330,78 @@ proto_tree_add_item_ret_boolean(proto_tree *tree, int hfindex, tvbuff_t *tvb,
 WS_DLL_PUBLIC proto_item *
 proto_tree_add_item_ret_ipv4(proto_tree *tree, int hfindex, tvbuff_t *tvb,
     const gint start, gint length, const guint encoding, ws_in4_addr *retval);
+
+/**
+ * @brief Parse an ipv6 address from the buffer and add it to the tree,
+ * writing the value to the pointer specified by the caller. The pointer
+ * must not be null.
+ *
+ * @param tree the tree
+ * @param hfindex the field
+ * @param tvb the tv buffer
+ * @param start the start index of data in tvb
+ * @param length the length of data. calls REPORT_DISSECTOR_BUG if not equal to FT_IPv6_LEN
+ * @param encoding encodings not yet supported. calls REPORT_DISSECTOR_BUG if not equal to 0
+ * @param retval where the address should be written, must not be null
+ * @return the newly created item
+ */
+WS_DLL_PUBLIC proto_item *
+proto_tree_add_item_ret_ipv6(proto_tree *tree, int hfindex, tvbuff_t *tvb,
+    const gint start, gint length, const guint encoding, ws_in6_addr *retval);
+
+/**
+ * @brief Parse an ethernet address from the buffer and add it to the tree,
+ * writing the value to the pointer specified by the caller. The pointer
+ * must not be null.
+ *
+ * @param tree the tree
+ * @param hfindex the field
+ * @param tvb the tv buffer
+ * @param start the start index of data in tvb
+ * @param length the length of data. calls REPORT_DISSECTOR_BUG if not equal to FT_ETHER_LEN
+ * @param encoding encodings not yet supported. calls REPORT_DISSECTOR_BUG if not equal to 0
+ * @param retval a buffer of at least FT_ETHER_LEN bytes for the address, must not be null
+ * @return the newly created item
+ */
+WS_DLL_PUBLIC proto_item *
+proto_tree_add_item_ret_ether(proto_tree *tree, int hfindex, tvbuff_t *tvb,
+    const gint start, gint length, const guint encoding, guint8 *retval);
+
+/**
+ * @brief Parse a float from the buffer and add it to the tree,
+ * returning the item added and the parsed value via retval.
+ *
+ * @param tree the tree
+ * @param hfindex the field
+ * @param tvb the tv buffer
+ * @param start start index of data in tvb
+ * @param length the length of data. calls REPORT_DISSECTOR_BUG if not equal to 4
+ * @param encoding ENC_LITTLE_ENDIAN or ENC_BIG_ENDIAN
+ * @param[out] retval for the decoded value
+ * @return the newly created item
+ */
+WS_DLL_PUBLIC proto_item *
+proto_tree_add_item_ret_float(proto_tree *tree, int hfindex, tvbuff_t *tvb,
+                                const gint start, gint length,
+                                const guint encoding, gfloat *retval);
+
+/**
+ * @brief Parse a double from the buffer and add it to the tree,
+ * returning the item added and the parsed value via retval
+ *
+ * @param tree the tree
+ * @param hfindex the field
+ * @param tvb the tv buffer
+ * @param start start index of data in tvb
+ * @param length length of data. calls REPORT_DISSECTOR_BUG if not equal to 8
+ * @param encoding ENC_LITTLE_ENDIAN or ENC_BIG_ENDIAN
+ * @param[out] retval for the decoded value
+ * @return the newly created item and retval is set to the decoded value
+ */
+WS_DLL_PUBLIC proto_item *
+proto_tree_add_item_ret_double(proto_tree *tree, int hfindex, tvbuff_t *tvb,
+                                const gint start, gint length,
+                                const guint encoding, gdouble *retval);
 
 /** Add an string item to a proto_tree, using the text label registered to
 that item.
@@ -1602,7 +1680,7 @@ proto_tree_add_bytes_with_length(proto_tree *tree, int hfindex, tvbuff_t *tvb, g
  @param encoding data encoding (e.g, ENC_LITTLE_ENDIAN, or ENC_UTF_8|ENC_STR_HEX)
  @param[in,out] retval points to a GByteArray which will be set to the bytes from the Tvb.
  @param[in,out] endoff if not NULL, gets set to the character after those consumed.
- @param[in,out] err if not NULL, gets set to 0 if no failure, else the errno code (e.g., EDOM, ERANGE).
+ @param[in,out] err if not NULL, gets set to 0 if no failure, else the errno code (e.g., EINVAL).
  @return the newly created item, and retval is set to the decoded value
  */
 WS_DLL_PUBLIC proto_item *
@@ -1681,7 +1759,7 @@ proto_tree_add_time(proto_tree *tree, int hfindex, tvbuff_t *tvb, gint start,
  @param encoding data encoding (e.g, ENC_LITTLE_ENDIAN, ENC_UTF_8|ENC_ISO_8601_DATE_TIME, etc.)
  @param[in,out] retval points to a nstime_t which will be set to the value
  @param[in,out] endoff if not NULL, gets set to the character after those consumed.
- @param[in,out] err if not NULL, gets set to 0 if no failure, else the errno code (e.g., EDOM, ERANGE).
+ @param[in,out] err if not NULL, gets set to 0 if no failure, else EINVAL.
  @return the newly created item, and retval is set to the decoded value
  */
 WS_DLL_PUBLIC proto_item *
@@ -1988,7 +2066,17 @@ proto_tree_add_oid_format(proto_tree *tree, int hfindex, tvbuff_t *tvb, gint sta
     gint length, const guint8* value_ptr, const char *format, ...) G_GNUC_PRINTF(7,8);
 
 /** Add an FT_STRING, FT_STRINGZ, FT_STRINGZPAD, or FT_STRINGZTRUNC to a
-    proto_tree.
+    proto_tree. The value passed in should be a UTF-8 encoded null terminated
+    string, such as produced by tvb_get_string_enc(), regardless of the original
+    packet data.
+
+    This function is used to add a custom string *value* to the protocol tree.
+    Do not format the string value for display, for example by using format_text().
+    The input string represents packet data, not a display label. Formatting
+    labels is a concern of the UI. Doing that here would change the meaning of the packet
+    data, restrict the options for formatting later and make display filtering unintuitive
+    for whitespace and other special characters.
+
  @param tree the tree to append this item to
  @param hfindex field index
  @param tvb the tv buffer of the current data
@@ -2441,6 +2529,8 @@ proto_register_protocol_in_name_only(const char *name, const char *short_name, c
     int parent_proto, enum ftenum field_type);
 
 /** Deregister a protocol.
+ This is only used internally for reloading Lua plugins and must not be used
+ by dissectors or plugins.
  @param short_name abbreviated name of the protocol
  @return TRUE if protocol is removed */
 gboolean
@@ -2689,6 +2779,9 @@ WS_DLL_PUBLIC void proto_disable_by_default(const int proto_id);
  @param enabled enable / disable the protocol */
 WS_DLL_PUBLIC void proto_set_decoding(const int proto_id, const gboolean enabled);
 
+/** Disable all protocols. */
+WS_DLL_PUBLIC void proto_disable_all(void);
+
 /** Re-enable all protocols that are not marked as disabled by default. */
 WS_DLL_PUBLIC void proto_reenable_all(void);
 
@@ -2753,6 +2846,9 @@ WS_DLL_PUBLIC gboolean proto_registrar_dump_fieldcount(void);
 
 /** Dumps a glossary of the protocol and field registrations to STDOUT. */
 WS_DLL_PUBLIC void proto_registrar_dump_fields(void);
+
+/** Dumps protocol and field abbreviations to STDOUT which start with prefix. */
+WS_DLL_PUBLIC gboolean proto_registrar_dump_field_completions(char *prefix);
 
 /** Dumps a glossary field types and descriptive names to STDOUT */
 WS_DLL_PUBLIC void proto_registrar_dump_ftypes(void);
@@ -3313,6 +3409,28 @@ proto_tree_add_checksum(proto_tree *tree, tvbuff_t *tvb, const guint offset,
         const int hf_checksum, const int hf_checksum_status, struct expert_field* bad_checksum_expert,
         packet_info *pinfo, guint32 computed_checksum, const guint encoding, const guint flags);
 
+/** Add a checksum bytes arry filed to a proto_tree.
+ This standardizes the display of a checksum field as well as any
+ status and expert info supporting it.
+ @param tree the tree to append this item to
+ @param tvb the tv buffer of the current data
+ @param offset start of data in tvb
+ @param hf_checksum checksum field index
+ @param hf_checksum_status optional checksum status field index.  If none
+ exists, just pass -1
+ @param bad_checksum_expert optional expert info for a bad checksum.  If
+ none exists, just pass NULL
+ @param pinfo Packet info used for optional expert info.  If unused, NULL can
+ be passed
+ @param computed_checksum Checksum as bytes array to verify against
+ @param checksum_len Checksum size in bytes
+ @param flags bitmask field of PROTO_CHECKSUM_ options. PROTO_CHECKSUM_IN_CKSUM is ignored
+ @return the newly created item */
+WS_DLL_PUBLIC proto_item*
+proto_tree_add_checksum_bytes(proto_tree *tree, tvbuff_t *tvb, const guint offset,
+		const int hf_checksum, const int hf_checksum_status, struct expert_field* bad_checksum_expert,
+		packet_info *pinfo, const uint8_t *computed_checksum, size_t checksum_len, const guint flags);
+
 typedef enum
 {
     PROTO_CHECKSUM_E_BAD = 0,
@@ -3345,9 +3463,9 @@ WS_DLL_PUBLIC guchar
 proto_check_field_name_lower(const gchar *field_name);
 
 
-/** Check if given string is a valid field name
+/** Set the column text for a custom column
  @param tree the tree to append this item to
- @param field_id the field id used for custom column
+ @param field_id the field ids used for custom column
  @param occurrence the occurrence of the field used for custom column
  @param result the buffer to fill with the field string
  @param expr the filter expression
@@ -3358,7 +3476,18 @@ proto_custom_set(proto_tree* tree, GSList *field_id,
                              gchar *result,
                              gchar *expr, const int size );
 
+/** Construct a display filter string for a custom column
+ @param edt epan dissecting
+ @param field_id the field ids used for custom column
+ @param occurrence the occurrence of the field used for custom column
+ @return allocated display filter string.  Needs to be freed with g_free(...) */
+gchar *
+proto_custom_get_filter(struct epan_dissect *edt, GSList *field_id, gint occurrence);
+
 /** @} */
+
+const char *
+hfinfo_char_value_format_display(int display, char buf[7], guint32 value);
 
 #ifdef __cplusplus
 }

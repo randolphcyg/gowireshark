@@ -21,6 +21,7 @@
 #include <epan/show_exception.h>
 #include <epan/decode_as.h>
 #include <wiretap/erf_record.h>
+#include <wiretap/wtap.h>
 
 #include "packet-infiniband.h"
 
@@ -376,7 +377,7 @@ static const value_string LinkWidthEnabled[]= {
     {0x000C, "8x or 12x"},
     {0x000D, "1x or 8x or 12x"},
     {0x000E, "4x or 8x or 12x"},
-    {0x000E, "1x or 4x or 8x or 12x"},
+    {0x000F, "1x or 4x or 8x or 12x"},
     {0x00FF, "Set to LinkWidthSupported Value - Response contains actual LinkWidthSupported"},
     { 0, NULL}
 };
@@ -8086,7 +8087,7 @@ void proto_register_infiniband(void)
         },
         { &hf_infiniband_MultiPathRecord_SL, {
                 "SL", "infiniband.multipathrecord.sl",
-                FT_UINT8, BASE_HEX, NULL, 0x0F, NULL, HFILL}
+                FT_UINT16, BASE_HEX, NULL, 0x000F, NULL, HFILL}
         },
         { &hf_infiniband_MultiPathRecord_MTUSelector, {
                 "MTUSelector", "infiniband.multipathrecord.mtuselector",
@@ -8168,7 +8169,7 @@ void proto_register_infiniband(void)
         },
         { &hf_infiniband_ClassPortInfo_RedirectFL, {
                 "RedirectFL", "infiniband.classportinfo.redirectfl",
-                FT_UINT24, BASE_HEX, NULL, 0xFFFFF, NULL, HFILL}
+                FT_UINT24, BASE_HEX, NULL, 0x0FFFFF, NULL, HFILL}
         },
         { &hf_infiniband_ClassPortInfo_RedirectLID, {
                 "RedirectLID", "infiniband.classportinfo.redirectlid",
@@ -8204,7 +8205,7 @@ void proto_register_infiniband(void)
         },
         { &hf_infiniband_ClassPortInfo_TrapFL, {
                 "TrapFL", "infiniband.classportinfo.trapfl",
-                FT_UINT24, BASE_HEX, NULL, 0xFFFFF, NULL, HFILL}
+                FT_UINT24, BASE_HEX, NULL, 0x0FFFFF, NULL, HFILL}
         },
         { &hf_infiniband_ClassPortInfo_TrapLID, {
                 "TrapLID", "infiniband.classportinfo.traplid",

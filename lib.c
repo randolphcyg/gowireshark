@@ -27,6 +27,11 @@ int init_env() {
    * MUST be called before calling this.
    */
   relinquish_special_privs_perm();
+
+  timestamp_set_type(TS_RELATIVE);
+  timestamp_set_precision(TS_PREC_AUTO);
+  timestamp_set_seconds_type(TS_SECONDS_DEFAULT);
+
   /**
    * @brief Initialize the Wiretap library.
    *
@@ -196,21 +201,7 @@ gboolean read_packet(epan_dissect_t **edt_r) {
   static gint64 data_offset = 0;
   wtap_rec rec;
   wtap_rec_init(&rec);
-  /** Read the next record in the file, filling in *phdr and *buf.
-   *
-   * @wth a wtap * returned by a call that opened a file for reading.
-   * @rec a pointer to a wtap_rec, filled in with information about the
-   * record.
-   * @buf a pointer to a Buffer, filled in with data from the record.
-   * @param err a positive "errno" value, or a negative number indicating
-   * the type of error, if the read failed.
-   * @param err_info for some errors, a string giving more details of
-   * the error
-   * @param offset a pointer to a gint64, set to the offset in the file
-   * that should be used on calls to wtap_seek_read() to reread that record,
-   * if the read succeeded.
-   * @return TRUE on success, FALSE on failure.
-   */
+
   if (wtap_read(cf.provider.wth, &rec, &cf.buf, &err, &err_info,
                 &data_offset)) {
     cf.count++;
@@ -220,9 +211,6 @@ gboolean read_packet(epan_dissect_t **edt_r) {
     data_offset = fd.pkt_len;
     edt = epan_dissect_new(cf.epan, TRUE, TRUE);
     prime_epan_dissect_with_postdissector_wanted_hfids(edt);
-    /**
-     * Sets the frame data struct values before dissection.
-     */
     frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref,
                                   cf.provider.prev_dis);
     cf.provider.ref = &fd;
@@ -252,7 +240,7 @@ void print_all_frame() {
   print_stream = print_stream_text_stdio_new(stdout);
   // start reading packets
   while (read_packet(&edt)) {
-    proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
+    proto_tree_print(print_dissections_expanded, false, edt, NULL,
                      print_stream);
     epan_dissect_free(edt);
     edt = NULL;
@@ -271,7 +259,7 @@ void print_first_frame() {
   print_stream = print_stream_text_stdio_new(stdout);
   // start reading packets
   if (read_packet(&edt)) {
-    proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
+    proto_tree_print(print_dissections_expanded, false, edt, NULL,
                      print_stream);
     // print hex data
     print_hex_data(print_stream, edt,
@@ -295,7 +283,7 @@ void print_first_several_frame(int count) {
   // start reading packets
   while (read_packet(&edt)) {
     // print proto tree
-    proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
+    proto_tree_print(print_dissections_expanded, false, edt, NULL,
                      print_stream);
     // print hex data
     print_hex_data(print_stream, edt,
@@ -323,7 +311,7 @@ int print_specific_frame(int num) {
   while (read_packet(&edt)) {
     if (num == cf.count) {
       // print proto tree
-      proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
+      proto_tree_print(print_dissections_expanded, false, edt, NULL,
                        print_stream);
       // print hex data
       print_hex_data(print_stream, edt,

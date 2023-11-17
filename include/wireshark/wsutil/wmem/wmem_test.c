@@ -42,7 +42,7 @@ wmem_allocator_force_new(const wmem_allocator_type_t type)
     allocator = wmem_new(NULL, wmem_allocator_t);
     allocator->type = type;
     allocator->callbacks = NULL;
-    allocator->in_scope = TRUE;
+    allocator->in_scope = true;
 
     switch (type) {
         case WMEM_ALLOCATOR_SIMPLE:
@@ -70,21 +70,21 @@ wmem_allocator_force_new(const wmem_allocator_type_t type)
 
 /* A helper for generating pseudo-random strings. Just uses glib's random number
  * functions to generate 'numbers' in the printable character range. */
-static gchar *
-wmem_test_rand_string(wmem_allocator_t *allocator, gint minlen, gint maxlen)
+static char *
+wmem_test_rand_string(wmem_allocator_t *allocator, int minlen, int maxlen)
 {
-    gchar *str;
-    gint len, i;
+    char *str;
+    int len, i;
 
     len = g_random_int_range(minlen, maxlen);
 
     /* +1 for null-terminator */
-    str = (gchar*)wmem_alloc(allocator, len + 1);
+    str = (char*)wmem_alloc(allocator, len + 1);
     str[len] = '\0';
 
     for (i=0; i<len; i++) {
         /* ASCII normal printable range is 32 (space) to 126 (tilde) */
-        str[i] = (gchar) g_random_int_range(32, 126);
+        str[i] = (char) g_random_int_range(32, 126);
     }
 
     return str;
@@ -93,10 +93,10 @@ wmem_test_rand_string(wmem_allocator_t *allocator, gint minlen, gint maxlen)
 static int
 wmem_test_compare_guint32(const void *a, const void *b)
 {
-    guint32 l, r;
+    uint32_t l, r;
 
-    l = *(const guint32*)a;
-    r = *(const guint32*)b;
+    l = *(const uint32_t*)a;
+    r = *(const uint32_t*)b;
 
     return l - r;
 }
@@ -107,9 +107,9 @@ void             *expected_user_data;
 wmem_cb_event_t   expected_event;
 int               cb_called_count;
 int               cb_continue_count;
-gboolean          value_seen[CONTAINER_ITERS];
+bool              value_seen[CONTAINER_ITERS];
 
-static gboolean
+static bool
 wmem_test_cb(wmem_allocator_t *allocator, wmem_cb_event_t event,
         void *user_data)
 {
@@ -118,16 +118,16 @@ wmem_test_cb(wmem_allocator_t *allocator, wmem_cb_event_t event,
 
     cb_called_count++;
 
-    return *(gboolean*)user_data;
+    return *(bool*)user_data;
 }
 
-static gboolean
+static bool
 wmem_test_foreach_cb(const void *key _U_, void *value, void *user_data)
 {
     g_assert_true(user_data == expected_user_data);
 
     g_assert_true(! value_seen[GPOINTER_TO_INT(value)]);
-    value_seen[GPOINTER_TO_INT(value)] = TRUE;
+    value_seen[GPOINTER_TO_INT(value)] = true;
 
     cb_called_count++;
     cb_continue_count--;
@@ -141,9 +141,9 @@ static void
 wmem_test_allocator_callbacks(void)
 {
     wmem_allocator_t *allocator;
-    gboolean t = TRUE;
-    gboolean f = FALSE;
-    guint    cb_id;
+    bool t = true;
+    bool f = false;
+    unsigned cb_id;
 
     allocator = wmem_allocator_new(WMEM_ALLOCATOR_STRICT);
 
@@ -196,7 +196,7 @@ wmem_test_allocator_callbacks(void)
 
 static void
 wmem_test_allocator_det(wmem_allocator_t *allocator, wmem_verify_func verify,
-        guint len)
+        unsigned len)
 {
     int i;
     char *ptrs[MAX_SIMULTANEOUS_ALLOCS];
@@ -297,8 +297,8 @@ wmem_test_allocator(wmem_allocator_type_t type, wmem_verify_func verify,
 
     /* Run enough iterations to fill the array 32 times */
     for (i=0; i<iterations; i++) {
-        gint ptrs_index;
-        gint new_size;
+        int ptrs_index;
+        int new_size;
 
         /* returns value 0 <= x < MAX_SIMULTANEOUS_ALLOCS which is a valid
          * index into ptrs */
@@ -636,14 +636,14 @@ wmem_test_array(void)
     wmem_allocator_t   *allocator;
     wmem_array_t       *array;
     unsigned int        i, j, k;
-    guint32             val, *buf;
-    guint32             vals[8];
-    guint32            *raw;
-    guint32            lastint;
+    uint32_t            val, *buf;
+    uint32_t            vals[8];
+    uint32_t           *raw;
+    uint32_t            lastint;
 
     allocator = wmem_allocator_new(WMEM_ALLOCATOR_STRICT);
 
-    array = wmem_array_new(allocator, sizeof(guint32));
+    array = wmem_array_new(allocator, sizeof(uint32_t));
     g_assert_true(array);
     g_assert_true(wmem_array_get_count(array) == 0);
 
@@ -652,7 +652,7 @@ wmem_test_array(void)
         wmem_array_append_one(array, val);
         g_assert_true(wmem_array_get_count(array) == i+1);
 
-        val = *(guint32*)wmem_array_index(array, i);
+        val = *(uint32_t*)wmem_array_index(array, i);
         g_assert_true(val == i);
         g_assert_true(wmem_array_try_index(array, i, &val) == 0);
         g_assert_true(val == i);
@@ -662,7 +662,7 @@ wmem_test_array(void)
     wmem_strict_check_canaries(allocator);
 
     for (i=0; i<CONTAINER_ITERS; i++) {
-        val = *(guint32*)wmem_array_index(array, i);
+        val = *(uint32_t*)wmem_array_index(array, i);
         g_assert_true(val == i);
         g_assert_true(wmem_array_try_index(array, i, &val) == 0);
         g_assert_true(val == i);
@@ -670,7 +670,7 @@ wmem_test_array(void)
 
     wmem_destroy_array(array);
 
-    array = wmem_array_sized_new(allocator, sizeof(guint32), 73);
+    array = wmem_array_sized_new(allocator, sizeof(uint32_t), 73);
     wmem_array_set_null_terminator(array);
     for (i=0; i<75; i++)
         g_assert_true(wmem_array_try_index(array, i, &val) < 0);
@@ -685,7 +685,7 @@ wmem_test_array(void)
     }
     wmem_strict_check_canaries(allocator);
 
-    buf = (guint32*)wmem_array_get_raw(array);
+    buf = (uint32_t*)wmem_array_get_raw(array);
     for (i=0; i<CONTAINER_ITERS; i++) {
         for (j=0; j<8; j++) {
             g_assert_true(buf[i*8 + j] == i+j);
@@ -695,21 +695,21 @@ wmem_test_array(void)
     wmem_array_sort(array, wmem_test_compare_guint32);
     for (i=0, k=0; i<8; i++) {
         for (j=0; j<=i; j++, k++) {
-            val = *(guint32*)wmem_array_index(array, k);
+            val = *(uint32_t*)wmem_array_index(array, k);
             g_assert_true(val == i);
             g_assert_true(wmem_array_try_index(array, k, &val) == 0);
             g_assert_true(val == i);
         }
     }
     for (j=k; k<8*(CONTAINER_ITERS+1)-j; k++) {
-            val = *(guint32*)wmem_array_index(array, k);
+            val = *(uint32_t*)wmem_array_index(array, k);
             g_assert_true(val == ((k-j)/8)+8);
             g_assert_true(wmem_array_try_index(array, k, &val) == 0);
             g_assert_true(val == ((k-j)/8)+8);
     }
     for (i=0; i<7; i++) {
         for (j=0; j<7-i; j++, k++) {
-            val = *(guint32*)wmem_array_index(array, k);
+            val = *(uint32_t*)wmem_array_index(array, k);
             g_assert_true(val == CONTAINER_ITERS+i);
             g_assert_true(wmem_array_try_index(array, k, &val) == 0);
             g_assert_true(val == CONTAINER_ITERS+i);
@@ -720,7 +720,7 @@ wmem_test_array(void)
     lastint = 77;
     wmem_array_append_one(array, lastint);
 
-    raw = (guint32*)wmem_array_get_raw(array);
+    raw = (uint32_t*)wmem_array_get_raw(array);
     g_assert_true(raw[wmem_array_get_count(array)] == 0);
     g_assert_true(raw[wmem_array_get_count(array) - 1] == lastint);
 
@@ -730,12 +730,12 @@ wmem_test_array(void)
 }
 
 static void
-check_val_list(gpointer val, gpointer val_to_check)
+check_val_list(void * val, void * val_to_check)
 {
     g_assert_true(val == val_to_check);
 }
 
-static gint
+static int
 str_compare(gconstpointer a, gconstpointer b)
 {
     return strcmp((const char*)a, (const char*)b);
@@ -846,6 +846,7 @@ wmem_test_list(void)
     wmem_list_insert_sorted(list, GINT_TO_POINTER(1), wmem_compare_int);
     wmem_list_insert_sorted(list, GINT_TO_POINTER(2), wmem_compare_int);
     wmem_list_insert_sorted(list, GINT_TO_POINTER(9), wmem_compare_int);
+    g_assert_true(wmem_list_count(list) == 5);
     frame = wmem_list_head(list);
     int1 = GPOINTER_TO_INT(wmem_list_frame_data(frame));
     while ((frame = wmem_list_frame_next(frame))) {
@@ -862,6 +863,7 @@ wmem_test_list(void)
     wmem_list_insert_sorted(list, GINT_TO_POINTER(3), wmem_compare_int);
     wmem_list_insert_sorted(list, GINT_TO_POINTER(2), wmem_compare_int);
     wmem_list_insert_sorted(list, GINT_TO_POINTER(2), wmem_compare_int);
+    g_assert_true(wmem_list_count(list) == 6);
     frame = wmem_list_head(list);
     int1 = GPOINTER_TO_INT(wmem_list_frame_data(frame));
     while ((frame = wmem_list_frame_next(frame))) {
@@ -878,6 +880,7 @@ wmem_test_list(void)
     wmem_list_insert_sorted(list, "bbb", str_compare);
     wmem_list_insert_sorted(list, "zzz", str_compare);
     wmem_list_insert_sorted(list, "ggg", str_compare);
+    g_assert_true(wmem_list_count(list) == 6);
     frame = wmem_list_head(list);
     str1 = (char*)wmem_list_frame_data(frame);
     while ((frame = wmem_list_frame_next(frame))) {
@@ -889,9 +892,15 @@ wmem_test_list(void)
 }
 
 static void
-check_val_map(gpointer key _U_, gpointer val, gpointer user_data)
+check_val_map(void * key _U_, void * val, void * user_data)
 {
     g_assert_true(val == user_data);
+}
+
+static gboolean
+equal_val_map(void * key _U_, void * val, void * user_data)
+{
+    return val == user_data;
 }
 
 static void
@@ -899,7 +908,7 @@ wmem_test_map(void)
 {
     wmem_allocator_t   *allocator, *extra_allocator;
     wmem_map_t       *map;
-    gchar            *str_key;
+    char             *str_key;
     const void       *str_key_ret;
     unsigned int      i;
     unsigned int     *key_ret;
@@ -924,7 +933,7 @@ wmem_test_map(void)
     for (i=0; i<CONTAINER_ITERS; i++) {
         ret = wmem_map_lookup(map, GINT_TO_POINTER(i));
         g_assert_true(ret == GINT_TO_POINTER(i));
-        g_assert_true(wmem_map_contains(map, GINT_TO_POINTER(i)) == TRUE);
+        g_assert_true(wmem_map_contains(map, GINT_TO_POINTER(i)) == true);
         g_assert_true(wmem_map_lookup_extended(map, GINT_TO_POINTER(i), NULL, NULL));
         key_ret = NULL;
         g_assert_true(wmem_map_lookup_extended(map, GINT_TO_POINTER(i), GINT_TO_POINTER(&key_ret), NULL));
@@ -939,7 +948,7 @@ wmem_test_map(void)
         g_assert_true(value_ret == GINT_TO_POINTER(i));
         ret = wmem_map_remove(map, GINT_TO_POINTER(i));
         g_assert_true(ret == GINT_TO_POINTER(i));
-        g_assert_true(wmem_map_contains(map, GINT_TO_POINTER(i)) == FALSE);
+        g_assert_true(wmem_map_contains(map, GINT_TO_POINTER(i)) == false);
         ret = wmem_map_lookup(map, GINT_TO_POINTER(i));
         g_assert_true(ret == NULL);
         ret = wmem_map_remove(map, GINT_TO_POINTER(i));
@@ -973,10 +982,10 @@ wmem_test_map(void)
         wmem_map_insert(map, str_key, GINT_TO_POINTER(i));
         ret = wmem_map_lookup(map, str_key);
         g_assert_true(ret == GINT_TO_POINTER(i));
-        g_assert_true(wmem_map_contains(map, str_key) == TRUE);
+        g_assert_true(wmem_map_contains(map, str_key) == true);
         str_key_ret = NULL;
         value_ret = NULL;
-        g_assert_true(wmem_map_lookup_extended(map, str_key, &str_key_ret, GINT_TO_POINTER(&value_ret)) == TRUE);
+        g_assert_true(wmem_map_lookup_extended(map, str_key, &str_key_ret, GINT_TO_POINTER(&value_ret)) == true);
         g_assert_true(g_str_equal(str_key_ret, str_key));
         g_assert_true(value_ret == GINT_TO_POINTER(i));
     }
@@ -990,6 +999,9 @@ wmem_test_map(void)
     }
     wmem_map_foreach(map, check_val_map, GINT_TO_POINTER(2));
 
+    wmem_map_foreach_remove(map, equal_val_map, GINT_TO_POINTER(2));
+    g_assert_true(wmem_map_size(map) == 0);
+
     /* test size */
     map = wmem_map_new(allocator, g_direct_hash, g_direct_equal);
     g_assert_true(map);
@@ -997,6 +1009,11 @@ wmem_test_map(void)
         wmem_map_insert(map, GINT_TO_POINTER(i), GINT_TO_POINTER(i));
     }
     g_assert_true(wmem_map_size(map) == CONTAINER_ITERS);
+
+    for (i=0; i<CONTAINER_ITERS; i+=2) {
+        wmem_map_foreach_remove(map, equal_val_map, GINT_TO_POINTER(i));
+    }
+    g_assert_true(wmem_map_size(map) == CONTAINER_ITERS/2);
 
     wmem_destroy_allocator(extra_allocator);
     wmem_destroy_allocator(allocator);
@@ -1074,7 +1091,6 @@ wmem_test_strbuf(void)
     wmem_allocator_t   *allocator;
     wmem_strbuf_t      *strbuf;
     int                 i;
-    char               *str;
 
     allocator = wmem_allocator_new(WMEM_ALLOCATOR_STRICT);
 
@@ -1099,6 +1115,10 @@ wmem_test_strbuf(void)
     g_assert_cmpstr(wmem_strbuf_get_str(strbuf), ==, "TESTFUZZ3aq\xC2\xA9");
     g_assert_cmpuint(wmem_strbuf_get_len(strbuf), ==, 13);
 
+    wmem_strbuf_append_c_count(strbuf, '+', 8);
+    g_assert_cmpstr(wmem_strbuf_get_str(strbuf), ==, "TESTFUZZ3aq\xC2\xA9++++++++");
+    g_assert_cmpuint(wmem_strbuf_get_len(strbuf), ==, 21);
+
     wmem_strbuf_truncate(strbuf, 32);
     wmem_strbuf_truncate(strbuf, 24);
     wmem_strbuf_truncate(strbuf, 16);
@@ -1113,35 +1133,6 @@ wmem_test_strbuf(void)
     wmem_strbuf_append_len(strbuf, "TFUZZ1234", 5);
     g_assert_cmpstr(wmem_strbuf_get_str(strbuf), ==, "TESTFUZZ");
     g_assert_cmpuint(wmem_strbuf_get_len(strbuf), ==, 8);
-
-    strbuf = wmem_strbuf_sized_new(allocator, 10, 10);
-    g_assert_true(strbuf);
-    g_assert_cmpstr(wmem_strbuf_get_str(strbuf), ==, "");
-    g_assert_cmpuint(wmem_strbuf_get_len(strbuf), ==, 0);
-
-    wmem_strbuf_append(strbuf, "FUZZ");
-    g_assert_cmpstr(wmem_strbuf_get_str(strbuf), ==, "FUZZ");
-    g_assert_cmpuint(wmem_strbuf_get_len(strbuf), ==, 4);
-
-    wmem_strbuf_append_printf(strbuf, "%d%s", 3, "abcdefghijklmnop");
-    g_assert_cmpstr(wmem_strbuf_get_str(strbuf), ==, "FUZZ3abcd");
-    g_assert_cmpuint(wmem_strbuf_get_len(strbuf), ==, 9);
-
-    wmem_strbuf_append(strbuf, "abcdefghijklmnopqrstuvwxyz");
-    g_assert_cmpstr(wmem_strbuf_get_str(strbuf), ==, "FUZZ3abcd");
-    g_assert_cmpuint(wmem_strbuf_get_len(strbuf), ==, 9);
-
-    wmem_strbuf_append_c(strbuf, 'q');
-    g_assert_cmpstr(wmem_strbuf_get_str(strbuf), ==, "FUZZ3abcd");
-    g_assert_cmpuint(wmem_strbuf_get_len(strbuf), ==, 9);
-
-    wmem_strbuf_append_unichar(strbuf, g_utf8_get_char("\xC2\xA9"));
-    g_assert_cmpstr(wmem_strbuf_get_str(strbuf), ==, "FUZZ3abcd");
-    g_assert_cmpuint(wmem_strbuf_get_len(strbuf), ==, 9);
-
-    str = wmem_strbuf_finalize(strbuf);
-    g_assert_cmpstr(str, ==, "FUZZ3abcd");
-    g_assert_cmpuint(strlen(str), ==, 9);
 
     wmem_free_all(allocator);
 
@@ -1162,14 +1153,42 @@ wmem_test_strbuf(void)
 }
 
 static void
+wmem_test_strbuf_validate(void)
+{
+    wmem_strbuf_t *strbuf;
+    const char *endptr;
+
+    strbuf = wmem_strbuf_new(NULL, "TEST\xEF ABC");
+    g_assert_false(wmem_strbuf_utf8_validate(strbuf, &endptr));
+    g_assert_true(endptr == &strbuf->str[4]);
+    wmem_strbuf_destroy(strbuf);
+
+    strbuf = wmem_strbuf_new(NULL, NULL);
+    wmem_strbuf_append_len(strbuf, "TEST\x00\x00 ABC", 10);
+    g_assert_true(wmem_strbuf_utf8_validate(strbuf, &endptr));
+    wmem_strbuf_destroy(strbuf);
+
+    strbuf = wmem_strbuf_new(NULL, NULL);
+    wmem_strbuf_append_len(strbuf, "TEST\x00\xEF ABC", 10);
+    g_assert_false(wmem_strbuf_utf8_validate(strbuf, &endptr));
+    g_assert_true(endptr == &strbuf->str[5]);
+    wmem_strbuf_destroy(strbuf);
+
+    strbuf = wmem_strbuf_new(NULL, NULL);
+    wmem_strbuf_append_len(strbuf, "TEST\x00 ABC \x00 DEF \x00", 17);
+    g_assert_true(wmem_strbuf_utf8_validate(strbuf, &endptr));
+    wmem_strbuf_destroy(strbuf);
+}
+
+static void
 wmem_test_tree(void)
 {
     wmem_allocator_t   *allocator, *extra_allocator;
     wmem_tree_t        *tree;
-    guint32             i;
+    uint32_t            i;
     int                 seen_values = 0;
     int                 j;
-    gchar              *str_key;
+    char               *str_key;
 #define WMEM_TREE_MAX_KEY_COUNT 8
 #define WMEM_TREE_MAX_KEY_LEN   4
     int                 key_count;
@@ -1197,7 +1216,7 @@ wmem_test_tree(void)
 
     tree = wmem_tree_new(allocator);
     for (i=0; i<CONTAINER_ITERS; i++) {
-        guint32 rand_int;
+        uint32_t rand_int;
         do {
             rand_int = g_test_rand_int();
         } while (wmem_tree_lookup32(tree, rand_int));
@@ -1232,7 +1251,7 @@ wmem_test_tree(void)
     keys[key_count].length = 0;
     for (i=0; i<CONTAINER_ITERS; i++) {
         for (j=0; j<key_count; j++) {
-            keys[j].key    = (guint32*)wmem_test_rand_string(allocator,
+            keys[j].key    = (uint32_t*)wmem_test_rand_string(allocator,
                     (keys[j].length*4), (keys[j].length*4)+1);
         }
         wmem_tree_insert32_array(tree, keys, GINT_TO_POINTER(i));
@@ -1242,7 +1261,7 @@ wmem_test_tree(void)
 
     tree = wmem_tree_new(allocator);
     keys[0].length = 1;
-    keys[0].key    = wmem_new(allocator, guint32);
+    keys[0].key    = wmem_new(allocator, uint32_t);
     *(keys[0].key) = 0;
     keys[1].length = 0;
     for (i=0; i<CONTAINER_ITERS; i++) {
@@ -1285,11 +1304,11 @@ wmem_test_tree(void)
     tree = wmem_tree_new(allocator);
     expected_user_data = GINT_TO_POINTER(g_test_rand_int());
     for (i=0; i<CONTAINER_ITERS; i++) {
-        gint tmp;
+        int tmp;
         do {
             tmp = g_test_rand_int();
         } while (wmem_tree_lookup32(tree, tmp));
-        value_seen[i] = FALSE;
+        value_seen[i] = false;
         wmem_tree_insert32(tree, tmp, GINT_TO_POINTER(i));
     }
 
@@ -1301,7 +1320,7 @@ wmem_test_tree(void)
 
     for (i=0; i<CONTAINER_ITERS; i++) {
         g_assert_true(value_seen[i]);
-        value_seen[i] = FALSE;
+        value_seen[i] = false;
     }
 
     cb_called_count    = 0;
@@ -1325,12 +1344,12 @@ wmem_test_tree(void)
 /* to be used as userdata in the callback wmem_test_itree_check_overlap_cb*/
 typedef struct wmem_test_itree_user_data {
     wmem_range_t range;
-    guint counter;
+    unsigned counter;
 } wmem_test_itree_user_data_t;
 
 
 /* increase userData counter in case the range match the userdata range */
-static gboolean
+static bool
 wmem_test_itree_check_overlap_cb (const void *key, void *value _U_, void *userData)
 {
     const wmem_range_t *ckey = (const wmem_range_t *)key;
@@ -1342,12 +1361,12 @@ wmem_test_itree_check_overlap_cb (const void *key, void *value _U_, void *userDa
         d->counter++;
     }
 
-    return FALSE;
+    return false;
 }
 
 
-static gboolean
-wmem_test_overlap(guint64 low, guint64 high, guint64 lowbis, guint64 highbis)
+static bool
+wmem_test_overlap(uint64_t low, uint64_t high, uint64_t lowbis, uint64_t highbis)
 {
     wmem_range_t r1 = {low, high, 0};
     wmem_range_t r2 = {lowbis, highbis, 0};
@@ -1360,7 +1379,7 @@ wmem_test_itree(void)
     wmem_allocator_t   *allocator, *extra_allocator;
     wmem_itree_t       *tree;
     int i = 0;
-    gint32 max_rand = 0;
+    int32_t max_rand = 0;
     wmem_test_itree_user_data_t userData;
     wmem_range_t range, r2;
 
@@ -1389,13 +1408,13 @@ wmem_test_itree(void)
 
     tree = wmem_itree_new(allocator);
 
-    /* even though keys are uint64_t, we use G_MAXINT32 as a max because of the type returned by
+    /* even though keys are uint64_t, we use INT32_MAX as a max because of the type returned by
       g_test_rand_int_range.
      */
-    max_rand = G_MAXINT32;
+    max_rand = INT32_MAX;
     r2.max_edge = range.max_edge = 0;
     range.low = g_test_rand_int_range(0, max_rand);
-    range.high = g_test_rand_int_range( (gint32)range.low, (gint32)max_rand);
+    range.high = g_test_rand_int_range( (int32_t)range.low, (int32_t)max_rand);
     userData.range = range;
 
     for (i=0; i<CONTAINER_ITERS; i++) {
@@ -1404,8 +1423,8 @@ wmem_test_itree(void)
 
         /* reset the search */
         userData.counter = 0;
-        r2.low = (guint64)g_test_rand_int_range(0, 100);
-        r2.high = (guint64)g_test_rand_int_range( (gint32)r2.low, 100);
+        r2.low = (uint64_t)g_test_rand_int_range(0, 100);
+        r2.high = (uint64_t)g_test_rand_int_range( (int32_t)r2.low, 100);
 
         wmem_itree_insert(tree, r2.low, r2.high, GINT_TO_POINTER(i));
 
@@ -1452,6 +1471,7 @@ main(int argc, char **argv)
     g_test_add_func("/wmem/datastruct/queue",  wmem_test_queue);
     g_test_add_func("/wmem/datastruct/stack",  wmem_test_stack);
     g_test_add_func("/wmem/datastruct/strbuf", wmem_test_strbuf);
+    g_test_add_func("/wmem/datastruct/strbuf/validate", wmem_test_strbuf_validate);
     g_test_add_func("/wmem/datastruct/tree",   wmem_test_tree);
     g_test_add_func("/wmem/datastruct/itree",  wmem_test_itree);
 

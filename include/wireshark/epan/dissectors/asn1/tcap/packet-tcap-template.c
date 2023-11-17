@@ -104,7 +104,7 @@ static dissector_handle_t data_handle;
 static dissector_handle_t ansi_tcap_handle;
 
 static int dissect_tcap_param(asn1_ctx_t *actx, proto_tree *tree, tvbuff_t *tvb, int offset);
-static gboolean dissect_tcap_ITU_ComponentPDU(gboolean implicit_tag _U_, tvbuff_t *tvb, int offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index _U_);
+static bool dissect_tcap_ITU_ComponentPDU(bool implicit_tag _U_, tvbuff_t *tvb, int offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index _U_);
 
 static dissector_table_t ansi_sub_dissectors = NULL;
 static dissector_table_t itu_sub_dissectors = NULL;
@@ -1823,7 +1823,7 @@ dissect_tcap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* d
   dissector_handle_t subdissector_handle;
   asn1_ctx_t asn1_ctx;
   gint8 ber_class;
-  gboolean pc;
+  bool pc;
   gint tag;
   struct tcap_private_t *p_tcap_private;
 
@@ -2063,9 +2063,7 @@ proto_register_tcap(void)
                                  10, &gtcap_LostTimeout);
 
   /* 'globally' register dissector */
-  register_dissector("tcap", dissect_tcap, proto_tcap);
-
-  tcap_handle = create_dissector_handle(dissect_tcap, proto_tcap);
+  tcap_handle = register_dissector("tcap", dissect_tcap, proto_tcap);
 
   /* hash-tables for SRT */
   tcaphash_context = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(), tcaphash_context_calchash, tcaphash_context_equal);
@@ -2122,12 +2120,12 @@ dissect_tcap_param(asn1_ctx_t *actx, proto_tree *tree, tvbuff_t *tvb, int offset
   tvbuff_t *next_tvb;
   proto_tree *subtree;
   gint8 ber_class;
-  gboolean pc;
+  bool pc;
   gint32 tag;
   guint32 len;
   guint32 tag_length;
   guint32 len_length;
-  gboolean ind_field;
+  bool ind_field;
 
   while (tvb_reported_length_remaining(tvb, offset) > 0)
   {
@@ -2194,8 +2192,8 @@ dissect_tcap_param(asn1_ctx_t *actx, proto_tree *tree, tvbuff_t *tvb, int offset
 /*
  * Call ITU Subdissector to decode the Tcap Component
  */
-static gboolean
-dissect_tcap_ITU_ComponentPDU(gboolean implicit_tag _U_, tvbuff_t *tvb, int offset _U_, asn1_ctx_t *actx, proto_tree *tree, int hf_index _U_)
+static bool
+dissect_tcap_ITU_ComponentPDU(bool implicit_tag _U_, tvbuff_t *tvb, int offset _U_, asn1_ctx_t *actx, proto_tree *tree, int hf_index _U_)
 {
   dissector_handle_t subdissector_handle=NULL;
   gboolean is_subdissector=FALSE;

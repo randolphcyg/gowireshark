@@ -422,62 +422,62 @@ proto_register_netlink_generic(void)
 		},
 		{ &hf_genl_ctrl_op_flags_admin_perm,
 			{ "GENL_ADMIN_PERM", "genl.ctrl.op_flags.admin_perm",
-			  FT_BOOLEAN, 32, NULL, 0x01,
+			  FT_BOOLEAN, 32, NULL, 0x00000001,
 			  NULL, HFILL }
 		},
 		{ &hf_genl_ctrl_op_flags_cmd_cap_do,
 			{ "GENL_CMD_CAP_DO", "genl.ctrl.op_flags.cmd_cap_do",
-			  FT_BOOLEAN, 32, NULL, 0x02,
+			  FT_BOOLEAN, 32, NULL, 0x00000002,
 			  NULL, HFILL }
 		},
 		{ &hf_genl_ctrl_op_flags_cmd_cap_dump,
 			{ "GENL_CMD_CAP_DUMP", "genl.ctrl.op_flags.cmd_cap_dump",
-			  FT_BOOLEAN, 32, NULL, 0x04,
+			  FT_BOOLEAN, 32, NULL, 0x00000004,
 			  NULL, HFILL }
 		},
 		{ &hf_genl_ctrl_op_flags_cmd_cap_haspol,
 			{ "GENL_CMD_CAP_HASPOL", "genl.ctrl.op_flags.cmd_cap_haspol",
-			  FT_BOOLEAN, 32, NULL, 0x08,
+			  FT_BOOLEAN, 32, NULL, 0x00000008,
 			  NULL, HFILL }
 		},
 		{ &hf_genl_ctrl_op_flags_uns_admin_perm,
 			{ "GENL_UNS_ADMIN_PERM", "genl.ctrl.op_flags.uns_admin_perm",
-			  FT_BOOLEAN, 32, NULL, 0x10,
+			  FT_BOOLEAN, 32, NULL, 0x00000010,
 			  NULL, HFILL }
 		},
 		{ &hf_genl_ctrl_group_name,
 			{ "Group Name", "genl.ctrl.group_name",
-			  FT_STRINGZ, BASE_NONE, NULL, 0x00,
+			  FT_STRINGZ, BASE_NONE, NULL, 0x0,
 			  NULL, HFILL }
 		},
 		{ &hf_genl_ctrl_group_id,
 			{ "Group ID", "genl.ctrl.group_id",
-			  FT_UINT32, BASE_HEX, NULL, 0x00,
+			  FT_UINT32, BASE_HEX, NULL, 0x0,
 			  NULL, HFILL }
 		},
 		{ &hf_genl_ctrl_family_id,
 			{ "Family ID", "genl.ctrl.family_id",
-			  FT_UINT16, BASE_HEX, NULL, 0x00,
+			  FT_UINT16, BASE_HEX, NULL, 0x0,
 			  NULL, HFILL }
 		},
 		{ &hf_genl_ctrl_family_name,
 			{ "Family Name", "genl.ctrl.family_name",
-			  FT_STRINGZ, BASE_NONE, NULL, 0x00,
+			  FT_STRINGZ, BASE_NONE, NULL, 0x0,
 			  NULL, HFILL }
 		},
 		{ &hf_genl_ctrl_version,
 			{ "Version", "genl.ctrl.version",
-			  FT_UINT32, BASE_DEC, NULL, 0x00,
+			  FT_UINT32, BASE_DEC, NULL, 0x0,
 			  "Family-specific version number", HFILL }
 		},
 		{ &hf_genl_ctrl_hdrsize,
 			{ "Header Size", "genl.ctrl.hdrsize",
-			  FT_UINT32, BASE_DEC, NULL, 0x00,
+			  FT_UINT32, BASE_DEC, NULL, 0x0,
 			  "Size of family-specific header", HFILL }
 		},
 		{ &hf_genl_ctrl_maxattr,
 			{ "Maximum Attributes", "genl.ctrl.maxattr",
-			  FT_UINT32, BASE_DEC, NULL, 0x00,
+			  FT_UINT32, BASE_DEC, NULL, 0x0,
 			  "Maximum number of attributes", HFILL }
 		},
 		{ &hf_genl_ctrl_ops_attr,
@@ -492,7 +492,7 @@ proto_register_netlink_generic(void)
 		},
 		{ &hf_genl_ctrl_cmd,
 			{ "Command", "genl.ctrl.cmd",
-			  FT_UINT8, BASE_DEC, VALS(genl_ctrl_cmds), 0x00,
+			  FT_UINT8, BASE_DEC, VALS(genl_ctrl_cmds), 0x0,
 			  "Generic Netlink command", HFILL }
 		},
 		{ &hf_genl_ctrl_attr,
@@ -513,7 +513,7 @@ proto_register_netlink_generic(void)
 		{ &hf_genl_version,
 			{ "Family Version", "genl.version",
 			  FT_UINT8, BASE_DEC, NULL, 0x00,
-			  "Family-specfic version", HFILL }
+			  "Family-specific version", HFILL }
 		},
 		{ &hf_genl_reserved,
 			{ "Reserved", "genl.reserved",
@@ -537,13 +537,13 @@ proto_register_netlink_generic(void)
 	proto_register_field_array(proto_netlink_generic, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
 
-	netlink_generic = create_dissector_handle(dissect_netlink_generic, proto_netlink_generic);
-	netlink_generic_ctrl = create_dissector_handle(dissect_genl_ctrl, proto_netlink_generic);
+	netlink_generic = register_dissector("genl", dissect_netlink_generic, proto_netlink_generic);
+	netlink_generic_ctrl = register_dissector("genl_ctrl", dissect_genl_ctrl, proto_netlink_generic);
 	genl_dissector_table = register_dissector_table(
 		"genl.family",
 		"Linux Generic Netlink family name",
 		proto_netlink_generic, FT_STRING,
-		BASE_NONE
+		STRING_CASE_SENSITIVE
 	);
 
 	genl_family_map = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(), g_direct_hash, g_direct_equal);

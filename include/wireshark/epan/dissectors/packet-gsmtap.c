@@ -35,7 +35,8 @@
 
 #include <epan/packet.h>
 #include <epan/conversation.h>
-#include <epan/dissectors/packet-gsm_rlcmac.h>
+#include "packet-gsm_rlcmac.h"
+#include <wiretap/wtap.h>
 
 #include "packet-gsmtap.h"
 #include "packet-lapdm.h"
@@ -43,6 +44,8 @@
 
 void proto_register_gsmtap(void);
 void proto_reg_handoff_gsmtap(void);
+
+static dissector_handle_t gsmtap_handle;
 
 static int proto_gsmtap = -1;
 
@@ -110,6 +113,12 @@ enum {
 	GSMTAP_SUB_LTE_NAS,
 	GSMTAP_SUB_LAPD,
 	GSMTAP_SUB_FR,
+	GSMTAP_SUB_V5EF,
+	GSMTAP_SUB_GSM_RLP,
+	/* E1/T1 */
+	GSMTAP_SUB_PPP,
+	GSMTAP_SUB_V120,
+	GSMTAP_SUB_X75,
 
 	GSMTAP_SUB_MAX
 };
@@ -439,6 +448,7 @@ static const value_string gsmtap_types[] = {
 	{ GSMTAP_TYPE_QC_DIAG,		"Qualcomm DIAG" },
 	{ GSMTAP_TYPE_LTE_NAS,		"LTE NAS" },
 	{ GSMTAP_TYPE_E1T1,		"E1/T1" },
+	{ GSMTAP_TYPE_GSM_RLP,		"GSM RLP" },
 	{ 0,			NULL },
 };
 
@@ -465,6 +475,12 @@ static const value_string gsmtap_um_e1t1_types[] = {
 	{ GSMTAP_E1T1_RAW,			"RAW" },	/* RAW/transparent B-channels */
 	{ GSMTAP_E1T1_TRAU16,			"TRAU 16k" },	/* 16k/s sub-channels (I.460) with GSM TRAU frames */
 	{ GSMTAP_E1T1_TRAU8,			"TRAU 8k" },	/* 8k/s sub-channels (I.460) with GSM TRAU frames */
+	{ GSMTAP_E1T1_V5EF,			"V5-EF" },	/* V5 Envelope Function */
+	{ GSMTAP_E1T1_X75,			"X.75" },	/* X.75 B-channel data */
+	{ GSMTAP_E1T1_V120,			"V.120" },	/* V.120 B-channel data */
+	{ GSMTAP_E1T1_V110,			"V.110" },	/* V.110 B-channel data */
+	{ GSMTAP_E1T1_H221,			"H.221" },	/* H.221 B-channel data */
+	{ GSMTAP_E1T1_PPP,			"PPP" },	/* PPP */
 	{ 0,					NULL },
 };
 
@@ -537,11 +553,15 @@ handle_lapdm(guint8 sub_type, tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 {
 	lapdm_data_t ld;
 
-	ld.hdr_type = LAPDM_HDR_FMT_B;
-	/* only downlink SACCH frames use B4 header format */
-	if (sub_type & GSMTAP_CHANNEL_ACCH && pinfo->p2p_dir == P2P_DIR_RECV)
-		ld.hdr_type = LAPDM_HDR_FMT_B4;
+	ld.is_acch = (sub_type & GSMTAP_CHANNEL_ACCH) != 0;
 	call_dissector_with_data(sub_handles[GSMTAP_SUB_UM_LAPDM], tvb, pinfo, tree, &ld);
+}
+
+static void
+handle_rach(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
+{
+	guint8 channel_type = GSMTAP_CHANNEL_RACH;
+	call_dissector_with_data(sub_handles[GSMTAP_SUB_UM], tvb, pinfo, tree, &channel_type);
 }
 
 static void
@@ -1003,6 +1023,9 @@ dissect_gsmtap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 			return tvb_captured_length(tvb);
 
 		case GSMTAP_CHANNEL_RACH:
+			handle_rach(payload_tvb, pinfo, tree);
+			return tvb_captured_length(tvb);
+
 		default:
 			sub_handle = GSMTAP_SUB_DATA;
 			break;
@@ -1083,10 +1106,49 @@ dissect_gsmtap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 		case GSMTAP_E1T1_FR:
 			sub_handle = GSMTAP_SUB_FR;
 			break;
+		case GSMTAP_E1T1_V5EF:
+			sub_handle = GSMTAP_SUB_V5EF;
+			if (sub_handles[sub_handle]) {
+				struct isdn_phdr isdn;
+				isdn.uton = pinfo->p2p_dir == P2P_DIR_SENT ? 1 : 0;
+				isdn.channel = 0;
+				call_dissector_with_data(sub_handles[sub_handle], payload_tvb, pinfo, tree, &isdn);
+			}
+			return tvb_captured_length(tvb);
+		case GSMTAP_E1T1_PPP:
+			sub_handle = GSMTAP_SUB_PPP;
+			if (sub_handles[sub_handle]) {
+				struct isdn_phdr isdn;
+				isdn.uton = pinfo->p2p_dir == P2P_DIR_SENT ? 1 : 0;
+				isdn.channel = 0;
+				call_dissector_with_data(sub_handles[sub_handle], payload_tvb, pinfo, tree, &isdn);
+			}
+			return tvb_captured_length(tvb);
+		case GSMTAP_E1T1_V120:
+			sub_handle = GSMTAP_SUB_V120;
+			if (sub_handles[sub_handle]) {
+				struct isdn_phdr isdn;
+				isdn.uton = pinfo->p2p_dir == P2P_DIR_SENT ? 1 : 0;
+				isdn.channel = 0;
+				call_dissector_with_data(sub_handles[sub_handle], payload_tvb, pinfo, tree, &isdn);
+			}
+			return tvb_captured_length(tvb);
+		case GSMTAP_E1T1_X75:
+			sub_handle = GSMTAP_SUB_X75;
+			if (sub_handles[sub_handle]) {
+				struct isdn_phdr isdn;
+				isdn.uton = pinfo->p2p_dir == P2P_DIR_SENT ? 1 : 0;
+				isdn.channel = 0;
+				call_dissector_with_data(sub_handles[sub_handle], payload_tvb, pinfo, tree, &isdn);
+			}
+			return tvb_captured_length(tvb);
 		default:
 			sub_handle = GSMTAP_SUB_DATA;
 			break;
 		}
+		break;
+	case GSMTAP_TYPE_GSM_RLP:
+		sub_handle = GSMTAP_SUB_GSM_RLP;
 		break;
 	case GSMTAP_TYPE_UM_BURST:
 	default:
@@ -1114,11 +1176,6 @@ dissect_gsmtap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 	/* TODO: warn user that the WiMAX plugin must be enabled for some types */
 	return tvb_captured_length(tvb);
 }
-
-static const true_false_string sacch_l1h_fpc_mode_vals = {
-	"In use",
-	"Not in use"
-};
 
 void
 proto_register_gsmtap(void)
@@ -1164,7 +1221,7 @@ proto_register_gsmtap(void)
 		{ &hf_sacch_l1h_power_lev, { "MS power level", "gsmtap.sacch_l1.power_lev",
 		  FT_UINT8, BASE_DEC, NULL, 0x1f, NULL, HFILL } },
 		{ &hf_sacch_l1h_fpc, { "FPC (Fast Power Control)", "gsmtap.sacch_l1.fpc",
-		  FT_BOOLEAN, 8, TFS(&sacch_l1h_fpc_mode_vals), 0x20, NULL, HFILL } },
+		  FT_BOOLEAN, 8, TFS(&tfs_inuse_not_inuse), 0x20, NULL, HFILL } },
 		{ &hf_sacch_l1h_sro_srr, { "SRO/SRR (SACCH Repetition)", "gsmtap.sacch_l1.sro_srr",
 		  FT_BOOLEAN, 8, TFS(&tfs_required_not_required), 0x40, NULL, HFILL } },
 		{ &hf_sacch_l1h_ta, { "Actual Timing Advance", "gsmtap.sacch_l1.ta",
@@ -1192,13 +1249,13 @@ proto_register_gsmtap(void)
 
 	gsmtap_dissector_table = register_dissector_table("gsmtap.type",
 						"GSMTAP type", proto_gsmtap, FT_UINT8, BASE_HEX);
+
+	gsmtap_handle = register_dissector("gsmtap", dissect_gsmtap, proto_gsmtap);
 }
 
 void
 proto_reg_handoff_gsmtap(void)
 {
-	dissector_handle_t gsmtap_handle;
-
 	/* TODO: some dissectors may be NULL if not loaded */
 	sub_handles[GSMTAP_SUB_DATA] = find_dissector("data");
 	sub_handles[GSMTAP_SUB_UM] = find_dissector_add_dependency("gsm_a_ccch", proto_gsmtap);
@@ -1222,6 +1279,11 @@ proto_reg_handoff_gsmtap(void)
 	sub_handles[GSMTAP_SUB_UMTS_RRC] = find_dissector_add_dependency("rrc", proto_gsmtap);
 	sub_handles[GSMTAP_SUB_LAPD] = find_dissector_add_dependency("lapd-phdr", proto_gsmtap);
 	sub_handles[GSMTAP_SUB_FR] = find_dissector_add_dependency("fr", proto_gsmtap);
+	sub_handles[GSMTAP_SUB_V5EF] = find_dissector_add_dependency("v5ef", proto_gsmtap);
+	sub_handles[GSMTAP_SUB_GSM_RLP] = find_dissector_add_dependency("gsm_rlp", proto_gsmtap);
+	sub_handles[GSMTAP_SUB_PPP] = find_dissector_add_dependency("ppp", proto_gsmtap);
+	sub_handles[GSMTAP_SUB_V120] = find_dissector_add_dependency("v120", proto_gsmtap);
+	sub_handles[GSMTAP_SUB_X75] = find_dissector_add_dependency("x75", proto_gsmtap);
 
 	rrc_sub_handles[GSMTAP_RRC_SUB_DL_DCCH_Message] = find_dissector_add_dependency("rrc.dl.dcch", proto_gsmtap);
 	rrc_sub_handles[GSMTAP_RRC_SUB_UL_DCCH_Message] = find_dissector_add_dependency("rrc.ul.dcch", proto_gsmtap);
@@ -1313,7 +1375,6 @@ proto_reg_handoff_gsmtap(void)
 	lte_nas_sub_handles[GSMTAP_LTE_NAS_PLAIN] = find_dissector_add_dependency("nas-eps_plain", proto_gsmtap);
 	lte_nas_sub_handles[GSMTAP_LTE_NAS_SEC_HEADER] = find_dissector_add_dependency("nas-eps", proto_gsmtap);
 
-	gsmtap_handle = create_dissector_handle(dissect_gsmtap, proto_gsmtap);
 	dissector_add_uint_with_preference("udp.port", GSMTAP_UDP_PORT, gsmtap_handle);
 }
 

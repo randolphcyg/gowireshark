@@ -20,15 +20,16 @@
 #include <wsutil/ws_assert.h>
 
 typedef struct {
-	guint32	   magic;
+	uint32_t	   magic;
 	header_field_info *hfinfo;
 	drange_t  *drange;
+	bool raw;
 } field_t;
 
 #define FIELD_MAGIC	0xfc2002cf
 
-static gpointer
-field_new(gpointer hfinfo)
+static void *
+field_new(void *hfinfo)
 {
 	field_t *field;
 
@@ -36,11 +37,12 @@ field_new(gpointer hfinfo)
 	field->magic = FIELD_MAGIC;
 	field->hfinfo = hfinfo;
 	field->drange = NULL;
+	field->raw = false;
 
 	return field;
 }
 
-static gpointer
+static void *
 field_dup(gconstpointer data)
 {
 	const field_t *org = data;
@@ -50,12 +52,13 @@ field_dup(gconstpointer data)
 	field = field_new(NULL);
 	field->hfinfo = org->hfinfo;
 	field->drange = drange_dup(org->drange);
+	field->raw = org->raw;
 
 	return field;
 }
 
 static void
-field_free(gpointer data)
+field_free(void *data)
 {
 	field_t *field = data;
 	ws_assert_magic(field, FIELD_MAGIC);
@@ -66,25 +69,37 @@ field_free(gpointer data)
 }
 
 static char *
-field_tostr(const void *data, gboolean pretty _U_)
+field_tostr(const void *data, bool pretty _U_)
 {
 	const field_t *field = data;
 	ws_assert_magic(field, FIELD_MAGIC);
-	char *repr, *drange_str;
+	wmem_strbuf_t *repr;
+	char *drange_str = NULL;
 
-	if (field->drange && (drange_str = drange_tostr(field->drange))) {
-		repr = ws_strdup_printf("%s#[%s] <%s>",
-				field->hfinfo->abbrev,
-				drange_str,
-				ftype_name(field->hfinfo->type));
+
+	repr = wmem_strbuf_new(NULL, NULL);
+
+	if (field->raw) {
+		wmem_strbuf_append_c(repr, '@');
+	}
+
+	wmem_strbuf_append(repr, field->hfinfo->abbrev);
+
+	if (field->drange) {
+		drange_str = drange_tostr(field->drange);
+		wmem_strbuf_append_printf(repr, "#[%s]", drange_str);
 		g_free(drange_str);
 	}
+
+	if (field->raw) {
+		wmem_strbuf_append(repr, " <FT_BYTES>");
+	}
 	else {
-		repr = ws_strdup_printf("%s <%s>", field->hfinfo->abbrev,
-					ftype_name(field->hfinfo->type));
+		wmem_strbuf_append_printf(repr, " <%s>",
+				ftype_name(field->hfinfo->type));
 	}
 
-	return repr;
+	return wmem_strbuf_finalize(repr);
 }
 
 header_field_info *
@@ -100,6 +115,8 @@ sttype_field_ftenum(stnode_t *node)
 {
 	field_t *field = node->data;
 	ws_assert_magic(field, FIELD_MAGIC);
+	if (field->raw)
+		return FT_BYTES;
 	return field->hfinfo->type;
 }
 
@@ -109,6 +126,14 @@ sttype_field_drange(stnode_t *node)
 	field_t *field = node->data;
 	ws_assert_magic(field, FIELD_MAGIC);
 	return field->drange;
+}
+
+bool
+sttype_field_raw(stnode_t *node)
+{
+	field_t *field = node->data;
+	ws_assert_magic(field, FIELD_MAGIC);
+	return field->raw;
 }
 
 drange_t *
@@ -150,6 +175,14 @@ sttype_field_set_drange(stnode_t *node, drange_t *dr)
 	ws_assert_magic(field, FIELD_MAGIC);
 	ws_assert(field->drange == NULL);
 	field->drange = dr;
+}
+
+void
+sttype_field_set_raw(stnode_t *node, bool raw)
+{
+	field_t *field = stnode_data(node);
+	ws_assert_magic(field, FIELD_MAGIC);
+	field->raw = raw;
 }
 
 char *

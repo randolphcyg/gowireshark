@@ -44,7 +44,8 @@ void proto_reg_handoff_dvbci(void);
 #define AES_BLOCK_LEN 16
 #define AES_KEY_LEN 16
 
-#define EXPORTED_SAC_MSG_PROTO "CI+ SAC message"
+#define EXPORTED_SAC_MSG_PROTO "ciplus_sac_msg"
+#define EXPORTED_SAC_MSG_DESCRIPTION "CI+ SAC message"
 
 #define IS_DATA_TRANSFER(e) (e==DVBCI_EVT_DATA_CAM_TO_HOST || e==DVBCI_EVT_DATA_HOST_TO_CAM)
 
@@ -3491,7 +3492,7 @@ dissect_dvbci_exported_sac_msg(
     if (!IS_DATA_TRANSFER(evt))
         return 0;
 
-    col_append_sep_str(pinfo->cinfo, COL_PROTOCOL, NULL, EXPORTED_SAC_MSG_PROTO);
+    col_append_sep_str(pinfo->cinfo, COL_PROTOCOL, NULL, EXPORTED_SAC_MSG_DESCRIPTION);
     col_clear(pinfo->cinfo, COL_INFO);
 
     /* we only export cc_sac_data_req and _cnf, therefore, the tag can be
@@ -6056,7 +6057,7 @@ proto_register_dvbci(void)
         },
         { &hf_dvbci_lsc_dst_port,
           { "Destination port", "dvb-ci.lsc.dst_port",
-            FT_UINT8, BASE_DEC, NULL, 0, NULL, HFILL }
+            FT_UINT16, BASE_DEC, NULL, 0, NULL, HFILL }
         },
         { &hf_dvbci_lsc_proto,
           { "Protocol", "dvb-ci.lsc.protocol",
@@ -6150,15 +6151,15 @@ proto_register_dvbci(void)
         },
         { &hf_dvbci_dlv_sys_hint_t,
           { "terrestrial network (DVB-T/T2)", "dvb-ci.opp.dlv_sys_hint.t",
-             FT_BOOLEAN, 4, TFS(&tfs_set_notset), 0x04, NULL, HFILL }
+             FT_BOOLEAN, 4, TFS(&tfs_set_notset), 0x4, NULL, HFILL }
         },
         { &hf_dvbci_dlv_sys_hint_s,
           { "satellite network (DVB-S/S2)", "dvb-ci.opp.dlv_sys_hint.s",
-             FT_BOOLEAN, 4, TFS(&tfs_set_notset), 0x02, NULL, HFILL }
+             FT_BOOLEAN, 4, TFS(&tfs_set_notset), 0x2, NULL, HFILL }
         },
         { &hf_dvbci_dlv_sys_hint_c,
           { "cable network (DVB-C/C2)", "dvb-ci.opp.dlv_sys_hint.c",
-             FT_BOOLEAN, 4, TFS(&tfs_set_notset), 0x01, NULL, HFILL }
+             FT_BOOLEAN, 4, TFS(&tfs_set_notset), 0x1, NULL, HFILL }
         },
         { &hf_dvbci_refr_req_date,
           { "Refresh request date", "dvb-ci.opp.refresh_req_date",
@@ -6447,7 +6448,7 @@ proto_register_dvbci(void)
             &dvbci_dissect_lsc_msg);
 
     sas_msg_dissector_table = register_dissector_table("dvb-ci.sas.app_id_str",
-                "SAS application id", proto_dvbci, FT_STRING, BASE_NONE);
+                "SAS application id", proto_dvbci, FT_STRING, STRING_CASE_SENSITIVE);
 
     register_init_routine(dvbci_init);
     reassembly_table_register(&tpdu_reassembly_table,
@@ -6457,7 +6458,8 @@ proto_register_dvbci(void)
 
 
     /* the dissector for decrypted CI+ SAC messages which we can export */
-    register_dissector(EXPORTED_SAC_MSG_PROTO,
+    register_dissector_with_description(EXPORTED_SAC_MSG_PROTO,
+        EXPORTED_SAC_MSG_DESCRIPTION,
         dissect_dvbci_exported_sac_msg, proto_dvbci);
 
     exported_pdu_tap = register_export_pdu_tap("DVB-CI");

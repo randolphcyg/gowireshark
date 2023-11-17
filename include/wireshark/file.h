@@ -12,11 +12,10 @@
 #ifndef __FILE_H__
 #define __FILE_H__
 
-#include <errno.h>
-
 #include <wiretap/wtap.h>
 #include <epan/epan.h>
 #include <epan/print.h>
+#include <epan/fifo_string_cache.h>
 #include <ui/packet_range.h>
 
 #ifdef __cplusplus
@@ -144,10 +143,10 @@ cf_status_t cf_reload(capture_file *cf);
  * Read all packets of a capture file into the internal structures.
  *
  * @param cf the capture file to be read
- * @param from_save reread asked from cf_save_records
+ * @param reloading reread asked for from cf_save_records()
  * @return one of cf_read_status_t
  */
-cf_read_status_t cf_read(capture_file *cf, gboolean from_save);
+cf_read_status_t cf_read(capture_file *cf, gboolean reloading);
 
 /**
  * Read the metadata and raw data for a record.  It will pop
@@ -189,7 +188,8 @@ gboolean cf_read_current_record(capture_file *cf);
  * @return one of cf_read_status_t
  */
 cf_read_status_t cf_continue_tail(capture_file *cf, volatile int to_read,
-                                  wtap_rec *rec, Buffer *buf, int *err);
+                                  wtap_rec *rec, Buffer *buf, int *err,
+                                  fifo_string_cache_t *frame_dup_cache, GChecksum *frame_cksum);
 
 /**
  * Fake reading packets from the "end" of a capture file.
@@ -208,7 +208,8 @@ void cf_fake_continue_tail(capture_file *cf);
  * @return one of cf_read_status_t
  */
 cf_read_status_t cf_finish_tail(capture_file *cf, wtap_rec *rec,
-                                Buffer *buf, int *err);
+                                Buffer *buf, int *err,
+                                fifo_string_cache_t *frame_dup_cache, GChecksum *frame_cksum);
 
 /**
  * Determine whether this capture file (or a range of it) can be written
@@ -518,15 +519,14 @@ gboolean cf_find_packet_protocol_tree(capture_file *cf, const char *string,
                                       search_direction dir);
 
 /**
- * Find field with a label that contains text string cfile->sfilter.
+ * Find field with a label that contains the text string cfile->sfilter in
+ * a protocol tree.
  *
  * @param cf the capture file
  * @param tree the protocol tree
- * @param mdata the first field (mdata->finfo) that matched the string
- * @return TRUE if a packet was found, FALSE otherwise
+ * @return The first field in the tree that matched the string if found, NULL otherwise
  */
-extern gboolean cf_find_string_protocol_tree(capture_file *cf, proto_tree *tree,
-                                             match_data *mdata);
+extern field_info* cf_find_string_protocol_tree(capture_file *cf, proto_tree *tree);
 
 /**
  * Find packet whose summary line contains a specified text string.
@@ -702,6 +702,10 @@ wtap_block_t cf_get_packet_block(capture_file *cf, const frame_data *fd);
  * @param cf the capture file
  * @param fd the frame_data structure for the frame
  * @param new_block the block replacing the old block
+ *
+ * @return TRUE if the block is modified for the first time. FALSE if
+ * the block was already modified before, in which case the caller is
+ * responsible for updating the comment count.
  */
 gboolean cf_set_modified_block(capture_file *cf, frame_data *fd, const wtap_block_t new_block);
 

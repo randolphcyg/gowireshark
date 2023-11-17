@@ -69,6 +69,7 @@ WS_DLL_PUBLIC GSList * output_fields_valid(output_fields_t* info);
 WS_DLL_PUBLIC gsize output_fields_num_fields(output_fields_t* info);
 WS_DLL_PUBLIC gboolean output_fields_set_option(output_fields_t* info, gchar* option);
 WS_DLL_PUBLIC void output_fields_list_options(FILE *fh);
+WS_DLL_PUBLIC bool output_fields_add_protocolfilter(output_fields_t* info, const char* field, pf_flags filter_flags);
 WS_DLL_PUBLIC gboolean output_fields_has_cols(output_fields_t* info);
 
 /*
@@ -76,21 +77,10 @@ WS_DLL_PUBLIC gboolean output_fields_has_cols(output_fields_t* info);
  */
 
 WS_DLL_PUBLIC gboolean proto_tree_print(print_dissections_e print_dissections,
-                                        gboolean print_hex_data,
+                                        bool print_hex_data,
                                         epan_dissect_t *edt,
                                         GHashTable *output_only_tables,
                                         print_stream_t *stream);
-
-/*
- * Hexdump options for ASCII:
- */
-
-#define HEXDUMP_ASCII_MASK            (0x0003U)
-#define HEXDUMP_ASCII_OPTION(option)  ((option) & HEXDUMP_ASCII_MASK)
-
-#define HEXDUMP_ASCII_INCLUDE         (0x0000U) /* include ASCII section no delimiters (legacy tshark behavior) */
-#define HEXDUMP_ASCII_DELIMIT         (0x0001U) /* include ASCII section with delimiters, useful for reliable detection of last hexdata */
-#define HEXDUMP_ASCII_EXCLUDE         (0x0002U) /* exclude ASCII section from hexdump reports, if we really don't want or need it */
 
 /*
  * Hexdump option for displaying data sources:
@@ -102,10 +92,10 @@ WS_DLL_PUBLIC gboolean proto_tree_print(print_dissections_e print_dissections,
 #define HEXDUMP_SOURCE_MULTI          (0x0000U) /* create hexdumps for all data sources assigned to a frame (legacy tshark behavor) */
 #define HEXDUMP_SOURCE_PRIMARY        (0x0004U) /* create hexdumps for only the frame data */
 
-WS_DLL_PUBLIC gboolean print_hex_data(print_stream_t *stream, epan_dissect_t *edt, guint hexdump_options);
+WS_DLL_PUBLIC bool print_hex_data(print_stream_t *stream, epan_dissect_t *edt, guint hexdump_options);
 
 WS_DLL_PUBLIC void write_pdml_preamble(FILE *fh, const gchar* filename);
-WS_DLL_PUBLIC void write_pdml_proto_tree(output_fields_t* fields, gchar **protocolfilter, pf_flags protocolfilter_flags, epan_dissect_t *edt, column_info *cinfo, FILE *fh, gboolean use_color);
+WS_DLL_PUBLIC void write_pdml_proto_tree(output_fields_t* fields, epan_dissect_t *edt, column_info *cinfo, FILE *fh, gboolean use_color);
 WS_DLL_PUBLIC void write_pdml_finale(FILE *fh);
 
 // Implementations of proto_node_children_grouper_func
@@ -117,9 +107,7 @@ WS_DLL_PUBLIC GSList *proto_node_group_children_by_json_key(proto_node *node);
 WS_DLL_PUBLIC json_dumper write_json_preamble(FILE *fh);
 WS_DLL_PUBLIC void write_json_proto_tree(output_fields_t* fields,
                                          print_dissections_e print_dissections,
-                                         gboolean print_hex_data,
-                                         gchar **protocolfilter,
-                                         pf_flags protocolfilter_flags,
+                                         bool print_hex_data,
                                          epan_dissect_t *edt,
                                          column_info *cinfo,
                                          proto_node_children_grouper_func node_children_grouper,
@@ -127,10 +115,8 @@ WS_DLL_PUBLIC void write_json_proto_tree(output_fields_t* fields,
 WS_DLL_PUBLIC void write_json_finale(json_dumper *dumper);
 
 WS_DLL_PUBLIC void write_ek_proto_tree(output_fields_t* fields,
-                                       gboolean print_summary,
-                                       gboolean print_hex_data,
-                                       gchar **protocolfilter,
-                                       pf_flags protocolfilter_flags,
+                                       bool print_summary,
+                                       bool print_hex_data,
                                        epan_dissect_t *edt,
                                        column_info *cinfo, FILE *fh);
 

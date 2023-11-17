@@ -36,6 +36,8 @@
 void proto_register_sercosiii(void);
 void proto_reg_handoff_sercosiii(void);
 
+static dissector_handle_t siii_handle;
+
 /* Initialize the protocol and registered fields */
 static gint proto_siii = -1;
 
@@ -1155,8 +1157,8 @@ dissect_siii(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
   proto_item *ti;
   proto_tree *siii_tree;
   guint       type;
-  const char *tel_ch   = "?";
-  const char *tel_type = "?";
+  const char *tel_ch;
+  const char *tel_type;
   guint       tel_no   = 0;
   heur_dtbl_entry_t *hdtbl_entry;
 
@@ -1224,28 +1226,28 @@ proto_register_sercosiii(void)
     },
     { &hf_siii_mdt_version_num_mdt_at_cp1_2,
       { "Number of MDTs and ATS in CP1 and CP2", "siii.mdt.version.num_mdt_at_cp1_2",
-      FT_UINT32, BASE_HEX, VALS(siii_mdt_version_num_mdtat_cp1_2_text), 0x30000,
+      FT_UINT32, BASE_HEX, VALS(siii_mdt_version_num_mdtat_cp1_2_text), 0x00030000,
       NULL, HFILL }
     },
     { &hf_siii_mdt_version_transmission_of_communication_parameters_mdt0_cp0,
       { "Transmission of Communication parameters", "siii.mdt.version.mdt0_cp0_transm_comm_parameter",
-      FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x100000,
+      FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00100000,
       NULL, HFILL }
     },
     { &hf_siii_mdt_version_fast_cp_switch,
       { "Fast CP switch", "siii.mdt.version.mdt0_cp0_fast_cp_switch",
-      FT_BOOLEAN, 32, TFS(&siii_mdt_version_fast_cp_switch_text), 0x200000,
+      FT_BOOLEAN, 32, TFS(&siii_mdt_version_fast_cp_switch_text), 0x00200000,
       NULL, HFILL }
     },
 
     { &hf_siii_mdt_version_switch_off_sercos_telegrams,
       { "Switch off Sercos III telegrams", "siii.mdt.version.mdt0_cp0_switch_off_sercos_telegram",
-      FT_BOOLEAN, 32, TFS(&siii_switch_off_sercos_telegram_text), 0x400000,
+      FT_BOOLEAN, 32, TFS(&siii_switch_off_sercos_telegram_text), 0x00400000,
       NULL, HFILL }
     },
     { &hf_siii_mdt_version_initprocvers,
       { "Initialization Procedure Version Number", "siii.mdt.version.initprocvers",
-      FT_BOOLEAN, 32, TFS(&siii_mdt_version_initprocvers_text), 0xFF00,
+      FT_BOOLEAN, 32, TFS(&siii_mdt_version_initprocvers_text), 0x0000FF00,
       NULL, HFILL }
     },
 
@@ -1357,37 +1359,37 @@ proto_register_sercosiii(void)
     },
     { &hf_siii_mdt_svch_dbe,
       { "Data block element", "siii.mdt.svch.dbe",
-      FT_UINT16, BASE_DEC, VALS(siii_mdt_svch_dbe_text), 0x38,
+      FT_UINT16, BASE_DEC, VALS(siii_mdt_svch_dbe_text), 0x0038,
       NULL, HFILL }
     },
     { &hf_siii_mdt_svch_eot,
       {"End of element transmission", "siii.mdt.svch.eot",
-      FT_BOOLEAN, 16, TFS(&siii_mdt_svch_eot_text), 0x04,
+      FT_BOOLEAN, 16, TFS(&siii_mdt_svch_eot_text), 0x0004,
       NULL, HFILL }
     },
     { &hf_siii_mdt_svch_rw,
       {"Read/Write", "siii.mdt.svch.rw",
-      FT_BOOLEAN, 16, TFS(&siii_mdt_svch_rw_text), 0x02,
+      FT_BOOLEAN, 16, TFS(&siii_mdt_svch_rw_text), 0x0002,
       NULL, HFILL }
     },
     { &hf_siii_mdt_svch_mhs,
       {"Master Handshake", "siii.mdt.svch.mhs",
-      FT_UINT16, BASE_DEC, NULL, 0x01,
+      FT_UINT16, BASE_DEC, NULL, 0x0001,
       NULL, HFILL }
     },
     { &hf_siii_at_svch_valid,
       { "SVC process", "siii.mdt.svch.proc",
-      FT_BOOLEAN, 16, TFS(&tfs_valid_not_valid), 0x08,
+      FT_BOOLEAN, 16, TFS(&tfs_valid_not_valid), 0x0008,
       NULL, HFILL }
     },
     { &hf_siii_at_svch_error,
       {"SVC Error", "siii.mdt.svch.error",
-      FT_BOOLEAN, 16, TFS(&siii_at_svch_error_text), 0x04,
+      FT_BOOLEAN, 16, TFS(&siii_at_svch_error_text), 0x0004,
       NULL, HFILL }
     },
     { &hf_siii_at_svch_busy,
       {"Busy", "siii.mdt.svch.busy",
-      FT_BOOLEAN, 16, TFS(&siii_at_svch_busy_text), 0x02,
+      FT_BOOLEAN, 16, TFS(&siii_at_svch_busy_text), 0x0002,
       NULL, HFILL }
     },
     { &hf_siii_at_svch_ahs,
@@ -1503,23 +1505,23 @@ proto_register_sercosiii(void)
     },
     { &hf_siii_mdt_hotplug_control_svc_switch,
       {"Switch to SVC", "siii.mdt.hp.switch",
-        FT_UINT16, BASE_DEC, VALS(siii_mdt_hotplug_control_svc_switch_text), 0x100,
+      FT_UINT16, BASE_DEC, VALS(siii_mdt_hotplug_control_svc_switch_text), 0x0100,
         NULL, HFILL }
     },
 
     { &hf_siii_at_hotplug_status_param,
       {"Parameter Received", "siii.at.hp.parameter",
-        FT_UINT16, BASE_DEC, VALS(siii_mdt_hotplug_status_ackcode_text), 0xFF,
+      FT_UINT16, BASE_DEC, VALS(siii_mdt_hotplug_status_ackcode_text), 0x00FF,
         NULL, HFILL }
     },
     { &hf_siii_at_hotplug_status_hp0_finished,
       {"HP/SVC", "siii.at.hp.hp0_finished",
-        FT_UINT16, BASE_DEC, NULL, 0x100,
+      FT_UINT16, BASE_DEC, NULL, 0x0100,
         NULL, HFILL }
     },
     { &hf_siii_at_hotplug_status_error,
       {"Error", "siii.at.hp.error",
-        FT_UINT16, BASE_DEC, VALS(siii_at_hotplug_status_error_text), 0x200,
+      FT_UINT16, BASE_DEC, VALS(siii_at_hotplug_status_error_text), 0x0200,
         NULL, HFILL }
     },
     { &hf_siii_service_channels,
@@ -1607,7 +1609,7 @@ proto_register_sercosiii(void)
   proto_siii = proto_register_protocol("SERCOS III V1.1",
       "SERCOS III V1.1", "siii");
 
-  register_dissector("sercosiii", dissect_siii, proto_siii);
+  siii_handle = register_dissector("sercosiii", dissect_siii, proto_siii);
 
   /* subdissector code */
   heur_subdissector_list = register_heur_dissector_list("sercosiii", proto_siii);
@@ -1622,9 +1624,6 @@ proto_register_sercosiii(void)
 void
 proto_reg_handoff_sercosiii(void)
 {
-  dissector_handle_t siii_handle;
-
-  siii_handle = create_dissector_handle(dissect_siii, proto_siii);
   dissector_add_uint("ethertype", ETHERTYPE_SERCOS, siii_handle);
 }
 

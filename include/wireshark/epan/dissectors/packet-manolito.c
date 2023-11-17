@@ -19,6 +19,8 @@
 void proto_register_manolito(void);
 void proto_reg_handoff_manolito(void);
 
+static dissector_handle_t manolito_handle;
+
 #define MANOLITO_PORT   41170 /* Not IANA registered */
 
 static int proto_manolito = -1;
@@ -157,7 +159,7 @@ dissect_manolito(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* diss
 			proto_tree_add_string_format(manolito_tree, hf_manolito_string, tvb, start,
 					4+length, str, "%s (%s): %s",
 					field_name_str,
-					val_to_str_ext(field_name, &field_longname_ext, "unknown"),
+					val_to_str_ext_const(field_name, &field_longname_ext, "unknown"),
 					str);
 			offset += length;
 		}
@@ -192,7 +194,7 @@ dissect_manolito(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* diss
 				proto_tree_add_uint64_format(manolito_tree, hf_manolito_integer, tvb, start,
 						4+length, n, "%s (%s): %" PRIu64,
 						field_name_str,
-						val_to_str_ext(field_name, &field_longname_ext, "unknown"),
+						val_to_str_ext_const(field_name, &field_longname_ext, "unknown"),
 						n);
 			}
 			else {
@@ -276,15 +278,14 @@ proto_register_manolito(void)
 	proto_register_subtree_array(ett, array_length(ett));
 	expert_manolito = expert_register_protocol(proto_manolito);
 	expert_register_field_array(expert_manolito, ei, array_length(ei));
+
+	manolito_handle = register_dissector("manolito", dissect_manolito, proto_manolito);
 }
 
 
 void
 proto_reg_handoff_manolito(void)
 {
-	dissector_handle_t manolito_handle;
-
-	manolito_handle = create_dissector_handle(dissect_manolito, proto_manolito);
 	dissector_add_uint_with_preference("udp.port", MANOLITO_PORT, manolito_handle);
 }
 

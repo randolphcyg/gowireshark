@@ -34,12 +34,13 @@
            Information Using BGP
  * RFC8092 BGP Large Communities Attribute
  * RFC8214 Virtual Private Wire Service Support in Ethernet VPN
+ * RFC9234 Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages
  * draft-ietf-idr-dynamic-cap
  * draft-ietf-idr-bgp-enhanced-route-refresh-02
  * draft-knoll-idr-qos-attribute-03
  * draft-nalawade-kapoor-tunnel-safi-05
  * draft-ietf-idr-add-paths-04 Additional-Path for BGP-4
- * draft-gredler-idr-bgp-ls-segment-routing-ext-01
+ * RFC9085 Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing
  * draft-ietf-idr-custom-decision-07 BGP Custom Decision Process
  * draft-rabadan-l2vpn-evpn-prefix-advertisement IP Prefix Advertisement
  *     in EVPN
@@ -53,6 +54,9 @@
  * draft-ietf-bess-srv6-services-05
  * RFC9104 Distribution of Traffic Engineering Extended Administrative Groups
            Using the Border Gateway Protocol - Link State
+ * RFC8365 A Network Virtualization Overlay Solution Using Ethernet VPN (EVPN)
+ * draft-abraitis-bgp-version-capability-13
+ * draft-ietf-idr-bgp-bfd-strict-mode
 
  * TODO:
  * Destination Preference Attribute for BGP (work in progress)
@@ -77,6 +81,7 @@
 #include <epan/ipproto.h>
 #include <wsutil/str_util.h>
 #include "packet-ip.h"
+#include "packet-tcp.h"
 #include "packet-ldp.h"
 #include "packet-bgp.h"
 #include "packet-eigrp.h"
@@ -148,6 +153,7 @@ static dissector_handle_t bgp_handle;
 /* OPEN message Optional Parameter types  */
 #define BGP_OPTION_AUTHENTICATION    1   /* RFC1771 */
 #define BGP_OPTION_CAPABILITY        2   /* RFC2842 */
+#define BGP_OPTION_EXTENDED_LEN        255     /* RFC9072 */
 
 /* https://www.iana.org/assignments/capability-codes/capability-codes.xhtml (last updated 2018-08-21) */
 /* BGP capability code */
@@ -160,7 +166,7 @@ static dissector_handle_t bgp_handle;
 #define BGP_CAPABILITY_EXTENDED_MESSAGE              6  /* draft-ietf-idr-bgp-extended-messages */
 #define BGP_CAPABILITY_BGPSEC                        7  /* RFC8205 */
 #define BGP_CAPABILITY_MULTIPLE_LABELS               8  /* RFC8277 */
-#define BGP_CAPABILITY_BGP_ROLE                      9  /* draft-ietf-idr-bgp-open-policy */
+#define BGP_CAPABILITY_BGP_ROLE                      9  /* RFC9234 */
 #define BGP_CAPABILITY_GRACEFUL_RESTART             64  /* RFC4724 */
 #define BGP_CAPABILITY_4_OCTET_AS_NUMBER            65  /* RFC6793 */
 #define BGP_CAPABILITY_DYNAMIC_CAPABILITY_CISCO     66  /* Cisco Dynamic capabaility*/
@@ -171,6 +177,8 @@ static dissector_handle_t bgp_handle;
 #define BGP_CAPABILITY_LONG_LIVED_GRACEFUL_RESTART  71  /* draft-uttaro-idr-bgp-persistence */
 #define BGP_CAPABILITY_CP_ORF                       72  /* [RFC7543] */
 #define BGP_CAPABILITY_FQDN                         73  /* draft-walton-bgp-hostname-capability */
+#define BGP_CAPABILITY_BFD_STRICT                   74  /* draft-ietf-idr-bgp-bfd-strict-mode */
+#define BGP_CAPABILITY_SOFT_VERSION                 75  /* draft-abraitis-bgp-version-capability */
 #define BGP_CAPABILITY_ROUTE_REFRESH_CISCO         128  /* Cisco */
 #define BGP_CAPABILITY_ORF_CISCO                   130  /* Cisco */
 #define BGP_CAPABILITY_MULTISESSION_CISCO          131  /* Cisco */
@@ -242,6 +250,7 @@ static dissector_handle_t bgp_handle;
 #define BGPTYPE_31                  31 /* Deprecated [RFC8093] */
 #define BGPTYPE_LARGE_COMMUNITY     32 /* RFC8092 */
 #define BGPTYPE_BGPSEC_PATH         33 /* BGPsec_PATH [RFC8205] */
+#define BGPTYPE_OTC                 35 /* BGP Only to Customer [RFC9234] */
 #define BGPTYPE_D_PATH              36 /* https://tools.ietf.org/html/draft-rabadan-sajassi-bess-evpn-ipvpn-interworking-02 */
 #define BGPTYPE_BGP_PREFIX_SID      40 /* BGP Prefix-SID [RFC8669] */
 #define BGPTYPE_LINK_STATE_OLD_ATTR 99 /* squatted value used by at least 2
@@ -331,6 +340,7 @@ static dissector_handle_t bgp_handle;
 #define BGP_EXT_COM_TYPE_HIGH_TR_FLOW_I     0x07    /* FlowSpec Transitive Extended Communities [draft-ietf-idr-flowspec-interfaceset] */
 #define BGP_EXT_COM_TYPE_HIGH_TR_FLOW       0x08    /* Flow spec redirect/mirror to IP next-hop [draft-simpson-idr-flowspec-redirect] */
 #define BGP_EXT_COM_TYPE_HIGH_TR_FLOW_R     0x09    /* FlowSpec Redirect to indirection-id Extended Community [draft-ietf-idr-flowspec-path-redirect] */
+#define BGP_EXT_COM_TYPE_HIGH_TR_MUP        0x0c    /* Transitive MUP Extended Community */
 #define BGP_EXT_COM_TYPE_HIGH_TR_EXP        0x80    /* Generic Transitive Experimental Extended Community */
 #define BGP_EXT_COM_TYPE_HIGH_TR_EXP_2      0x81    /* Generic Transitive Experimental Use Extended Community Part 2 [RFC7674] */
 #define BGP_EXT_COM_TYPE_HIGH_TR_EXP_3      0x82    /* Generic Transitive Experimental Use Extended Community Part 3 [RFC7674] */
@@ -488,6 +498,9 @@ static dissector_handle_t bgp_handle;
 
 #define BGP_EXT_COM_STYPE_OPA_OR_VAL_ST 0x00    /* BGP Origin Validation State [draft-ietf-sidr-origin-validation-signaling] */
 
+/* Transitive MUP Extended Community Sub-Types */
+#define BGP_EXT_COM_STYPE_MUP_DIRECT_SEG 0x00
+
 /* BGP Generic Transitive Experimental Use Extended Community Sub-Types */
 
 #define BGP_EXT_COM_STYPE_EXP_OSPF_RT   0x00    /* OSPF Route Type, deprecated [RFC4577] */
@@ -604,6 +617,7 @@ static dissector_handle_t bgp_handle;
 #define SAFNUM_CT              76  /* draft-kaliraj-idr-bgp-classful-transport-planes-07 */
 #define SAFNUM_FLOWSPEC        77  /* draft-ietf-idr-flowspec-nvo3-13 */
 #define SAFNUM_MCAST_TREE      78  /* draft-ietf-bess-bgp-multicast-03 */
+#define SAFNUM_BGP_MUP         85  /* draft-mpmz-bess-mup-safi-00 */
 #define SAFNUM_LAB_VPNUNICAST 128  /* RFC4364, RFC8277 */
 #define SAFNUM_LAB_VPNMULCAST 129  /* RFC6513, RFC6514 */
 #define SAFNUM_LAB_VPNUNIMULC 130  /* Obsolete and reserved, see RFC4760 */
@@ -725,6 +739,7 @@ static dissector_handle_t bgp_handle;
 #define LINK_STATE_LINK_NLRI                    2
 #define LINK_STATE_IPV4_TOPOLOGY_PREFIX_NLRI    3
 #define LINK_STATE_IPV6_TOPOLOGY_PREFIX_NLRI    4
+#define LINK_STATE_SRV6_SID_NLRI                6
 
 /* Link-State NLRI Protocol-ID values */
 #define BGP_LS_NLRI_PROTO_ID_UNKNOWN       0
@@ -766,6 +781,7 @@ static dissector_handle_t bgp_handle;
 #define BGP_NLRI_TLV_AREA_ID                        514
 #define BGP_NLRI_TLV_IGP_ROUTER_ID                  515
 #define BGP_NLRI_TLV_BGP_ROUTER_ID                  516
+#define BGP_NLRI_TLV_SRV6_SID_INFO                  518
 
 #define BGP_NLRI_TLV_NODE_FLAG_BITS                 1024
 #define BGP_NLRI_TLV_OPAQUE_NODE_PROPERTIES         1025
@@ -826,10 +842,12 @@ static dissector_handle_t bgp_handle;
 #define BGP_NLRI_TLV_LEN_PREFIX_METRIC                  4
 #define BGP_NLRI_TLV_LEN_NODE_FLAG_BITS                 1
 
-/* draft-gredler-idr-bgp-ls-segment-routing-ext-01 */
+/* rfc9085 */
+/* draft-ietf-idr-bgpls-srv6-ext-14 */
 #define BGP_LS_SR_TLV_SR_CAPABILITY                 1034
 #define BGP_LS_SR_TLV_SR_ALGORITHM                  1035
 #define BGP_LS_SR_TLV_SR_LOCAL_BLOCK                1036
+#define BGP_LS_SR_TLV_SRV6_CAPABILITY               1038
 #define BGP_LS_SR_TLV_FLEX_ALGO_DEF                 1039
 #define BGP_LS_SR_TLV_FLEX_ALGO_EXC_ANY_AFFINITY    1040
 #define BGP_LS_SR_TLV_FLEX_ALGO_INC_ANY_AFFINITY    1041
@@ -839,18 +857,15 @@ static dissector_handle_t bgp_handle;
 #define BGP_LS_SR_TLV_PEER_NODE_SID                 1101
 #define BGP_LS_SR_TLV_PEER_ADJ_SID                  1102
 #define BGP_LS_SR_TLV_PEER_SET_SID                  1103
+#define BGP_LS_SR_TLV_SRV6_END_X_SID                1106
+#define BGP_LS_SR_TLV_SRV6_LAN_END_X_SID            1107
 #define BGP_LS_SR_TLV_PREFIX_SID                    1158
 #define BGP_LS_SR_TLV_RANGE                         1159
-#define BGP_LS_SR_TLV_BINDING_SID                   1160
-#define BGP_LS_SR_SUBTLV_BINDING_SID_LABEL          1161
-#define BGP_LS_SR_SUBTLV_BINDING_ERO_METRIC         1162
-#define BGP_LS_SR_SUBTLV_BINDING_IPV4_ERO           1163
-#define BGP_LS_SR_SUBTLV_BINDING_IPV6_ERO           1164
-#define BGP_LS_SR_SUBTLV_BINDING_UNNUM_IFID_ERO     1165
-#define BGP_LS_SR_SUBTLV_BINDING_IPV4_BAK_ERO       1166
-#define BGP_LS_SR_SUBTLV_BINDING_IPV6_BAK_ERO       1167
-#define BGP_LS_SR_SUBTLV_BINDING_UNNUM_IFID_BAK_ERO 1168
+#define BGP_LS_SR_TLV_SRV6_LOCATOR                  1162
 #define BGP_LS_SR_TLV_PREFIX_ATTR_FLAGS             1170
+#define BGP_LS_SR_TLV_SOURCE_ROUTER_ID              1171
+#define BGP_LS_SR_TLV_SRV6_ENDPOINT_BEHAVIOR        1250
+#define BGP_LS_SR_TLV_SRV6_SID_STRUCT               1252
 
 /* RFC8571 BGP-LS Advertisement of IGP TE Metric Extensions */
 #define BGP_LS_IGP_TE_METRIC_DELAY                  1114
@@ -965,6 +980,37 @@ static dissector_handle_t bgp_handle;
 #define BGP_LS_APP_SPEC_LINK_ATTRS_SABM_F  0x20000000
 #define BGP_LS_APP_SPEC_LINK_ATTRS_SABM_X  0x10000000
 
+/* SRv6 Capabilities TLV flags, draft-ietf-idr-bgpls-srv6-ext-14
+
+                            0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
+                            +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+   if Protocol-ID is IS-IS  |  |O | Reserved                                | rfc9352
+                            +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ */
+#define BGP_LS_SRV6_CAP_FLAG_O         0x4000
+#define BGP_LS_SRV6_CAP_FLAG_RESERVED  0x3fff
+
+/* SRv6 End.X SID TLV flags, draft-ietf-idr-bgpls-srv6-ext-14
+
+                            0  1  2  3  4  5  6  7
+                            +--+--+--+--+--+--+--+--+
+   if Protocol-ID is IS-IS  |B |S |P |  |  |  |  |  | rfc9352
+                            +--+--+--+--+--+--+--+--+
+*/
+#define BGP_LS_SRV6_ENDX_SID_FLAG_B         0x80
+#define BGP_LS_SRV6_ENDX_SID_FLAG_S         0x40
+#define BGP_LS_SRV6_ENDX_SID_FLAG_P         0x20
+#define BGP_LS_SRV6_ENDX_SID_FLAG_RESERVED  0x1f
+
+/* SRv6 Locator TLV flags, draft-ietf-idr-bgpls-srv6-ext-14
+
+                            0  1  2  3  4  5  6  7  8
+                            +--+--+--+--+--+--+--+--+
+   if Protocol-ID is IS-IS  |D | Reserved           | rfc9352
+                            +--+--+--+--+--+--+--+--+
+*/
+#define BGP_LS_SRV6_LOC_FLAG_D         0x80
+#define BGP_LS_SRV6_LOC_FLAG_RESERVED  0x7f
 
 /* BGP Prefix-SID TLV type */
 #define BGP_PREFIX_SID_TLV_LABEL_INDEX     1 /* Label-Index [RFC8669]                           */
@@ -1047,6 +1093,10 @@ static dissector_handle_t bgp_handle;
 #define SRV6_ENDPOINT_BEHAVIOR_END_DX2V_CSID          0x0042 /* End.DX2V with NEXT-CSID [draft-filsfils-spring-net-pgm-extension-srv6-usid]              */
 #define SRV6_ENDPOINT_BEHAVIOR_END_DT2U_CSID          0x0043 /* End.DT2U with NEXT-CSID [draft-filsfils-spring-net-pgm-extension-srv6-usid]              */
 #define SRV6_ENDPOINT_BEHAVIOR_END_DT2M_CSID          0x0044 /* End.DT2M with NEXT-CSID [draft-filsfils-spring-net-pgm-extension-srv6-usid]              */
+#define SRV6_ENDPOINT_BEHAVIOR_END_M_GTP6D            0x0045 /* End.M.GTP6.D [draft-ietf-dmm-srv6-mobile-uplane]                                         */
+#define SRV6_ENDPOINT_BEHAVIOR_END_M_GTP6DI           0x0046 /* End.M.GTP6.Di [draft-ietf-dmm-srv6-mobile-uplane]                                        */
+#define SRV6_ENDPOINT_BEHAVIOR_END_M_GTP6E            0x0047 /* End.M.GTP6.E [draft-ietf-dmm-srv6-mobile-uplane]                                         */
+#define SRV6_ENDPOINT_BEHAVIOR_END_M_GTP4E            0x0048 /* End.M.GTP4.E [draft-ietf-dmm-srv6-mobile-uplane]                                         */
 #define SRV6_ENDPOINT_BEHAVIOR_OPAQUE                 0xFFFF /* Opaque [draft-ietf-spring-srv6-network-programming]                                      */
 
 static const value_string bgptypevals[] = {
@@ -1090,7 +1140,7 @@ static const value_string evpn_nlri_esi_type[] = {
 #define BGP_MAJOR_ERROR_HT_EXPIRED    4
 #define BGP_MAJOR_ERROR_STATE_MACHINE 5
 #define BGP_MAJOR_ERROR_CEASE         6
-#define BGP_MAJOR_ERROR_CAP_MSG       7
+#define BGP_MAJOR_ERROR_ROUTE_REFRESH 7
 
 static const value_string bgpnotify_major[] = {
     { BGP_MAJOR_ERROR_MSG_HDR,       "Message Header Error" },
@@ -1099,7 +1149,7 @@ static const value_string bgpnotify_major[] = {
     { BGP_MAJOR_ERROR_HT_EXPIRED,    "Hold Timer Expired" },
     { BGP_MAJOR_ERROR_STATE_MACHINE, "Finite State Machine Error" },
     { BGP_MAJOR_ERROR_CEASE,         "Cease" },
-    { BGP_MAJOR_ERROR_CAP_MSG,       "CAPABILITY Message Error" },
+    { BGP_MAJOR_ERROR_ROUTE_REFRESH, "ROUTE-REFRESH Message Error" },    /* RFC 7313 - Enhanced Route Refresh Capability for BGP-4 */
     { 0, NULL }
 };
 
@@ -1153,6 +1203,7 @@ static const value_string bgpnotify_minor_state_machine[] = {
 #define BGP_CEASE_MINOR_CONN_COLLISION    7
 #define BGP_CEASE_MINOR_OUT_RESOURCES     8
 #define BGP_CEASE_MINOR_HARD_RESET        9
+#define BGP_CEASE_MINOR_BFD_DOWN          10
 
 /* RFC4486 Subcodes for BGP Cease Notification Message */
 static const value_string bgpnotify_minor_cease[] = {
@@ -1165,14 +1216,13 @@ static const value_string bgpnotify_minor_cease[] = {
     { BGP_CEASE_MINOR_CONN_COLLISION,    "Connection Collision Resolution"},
     { BGP_CEASE_MINOR_OUT_RESOURCES,     "Out of Resources"},
     { BGP_CEASE_MINOR_HARD_RESET,        "Hard Reset"},
+    { BGP_CEASE_MINOR_BFD_DOWN,          "BFD Down"},
     { 0,                                 NULL }
 };
 
-static const value_string bgpnotify_minor_cap_msg[] = {
-    { 1, "Invalid Action Value" },
-    { 2, "Invalid Capability Length" },
-    { 3, "Malformed Capability Value" },
-    { 4, "Unsupported Capability Code" },
+/* RFC7313 - Enhanced Route Refresh Capability for BGP-4 */
+static const value_string bgpnotify_minor_rr_msg[] = {
+    { 1, "Invalid Message Length" },
     { 0, NULL }
 };
 
@@ -1186,6 +1236,7 @@ static const value_string bgpattr_origin[] = {
 static const value_string bgp_open_opt_vals[] = {
     { BGP_OPTION_AUTHENTICATION, "Authentication" },
     { BGP_OPTION_CAPABILITY, "Capability" },
+    { BGP_OPTION_EXTENDED_LEN, "Extended Length"},
     { 0, NULL }
 };
 
@@ -1233,6 +1284,7 @@ static const value_string bgpattr_type[] = {
     { BGPTYPE_31,                  "Deprecated" },
     { BGPTYPE_LARGE_COMMUNITY,     "LARGE_COMMUNITY" },
     { BGPTYPE_BGPSEC_PATH,         "BGPsec_PATH" },
+    { BGPTYPE_OTC,                 "OTC" },
     { BGPTYPE_D_PATH,              "D_PATH" },
     { BGPTYPE_BGP_PREFIX_SID,      "BGP Prefix-SID" },
     { BGPTYPE_LINK_STATE_OLD_ATTR, "LINK_STATE (unofficial code point)" },
@@ -1356,6 +1408,7 @@ static const value_string bgpext_com_type_high[] = {
     { BGP_EXT_COM_TYPE_HIGH_TR_FLOW_I,      "FlowSpec Transitive" },
     { BGP_EXT_COM_TYPE_HIGH_TR_FLOW,        "Transitive Flow spec redirect/mirror to IP next-hop" },
     { BGP_EXT_COM_TYPE_HIGH_TR_FLOW_R,      "Transitive FlowSpec Redirect to indirection-id" },
+    { BGP_EXT_COM_TYPE_HIGH_TR_MUP,         "Transitive MUP" },
     { BGP_EXT_COM_TYPE_HIGH_TR_EXP,         "Generic Transitive Experimental Use"},
     { BGP_EXT_COM_TYPE_HIGH_TR_EXP_2,       "Generic Transitive Experimental Use Part 2"},
     { BGP_EXT_COM_TYPE_HIGH_TR_EXP_3,       "Generic Transitive Experimental Use Part 3 "},
@@ -1523,6 +1576,11 @@ static const value_string bgpext_com_stype_tr_eigrp[] = {
     { 0, NULL}
 };
 
+static const value_string bgpext_com_stype_tr_mup[] = {
+    { BGP_EXT_COM_STYPE_MUP_DIRECT_SEG, "MUP Direct-Type Segment Identifier"},
+    { 0, NULL}
+};
+
 static const value_string flow_spec_op_len_val[] = {
     { 0, "1 byte: 1 <<"  },
     { 1, "2 bytes: 1 <<" },
@@ -1624,6 +1682,7 @@ static const value_string bgpattr_nlri_safi[] = {
     { SAFNUM_CT,                "Classful Transport Planes" },
     { SAFNUM_FLOWSPEC,          "Tunneled Traffic Flowspec" },
     { SAFNUM_MCAST_TREE,        "MCAST-TREE" },
+    { SAFNUM_BGP_MUP,           "BGP-MUP" },
     { SAFNUM_LAB_VPNUNICAST,    "Labeled VPN Unicast" },
     { SAFNUM_LAB_VPNMULCAST,    "Labeled VPN Multicast" },
     { SAFNUM_LAB_VPNUNIMULC,    "Labeled VPN Unicast+Multicast (Deprecated)" },
@@ -1680,6 +1739,16 @@ static const value_string bgpsec_send_receive_vals[] = {
     { 0,        NULL }
 };
 
+/* BGP Role, RFC9234 */
+static const value_string bgprole_vals[] = {
+    { 0,        "Provider" },
+    { 1,        "RS" },
+    { 2,        "RS-Client" },
+    { 3,        "Customer" },
+    { 4,        "Peer" },
+    { 0,        NULL }
+};
+
 static const value_string capability_vals[] = {
     { BGP_CAPABILITY_RESERVED,                      "Reserved capability" },
     { BGP_CAPABILITY_MULTIPROTOCOL,                 "Multiprotocol extensions capability" },
@@ -1704,6 +1773,8 @@ static const value_string capability_vals[] = {
     { BGP_CAPABILITY_ROUTE_REFRESH_CISCO,           "Route refresh capability (Cisco)" },
     { BGP_CAPABILITY_ORF_CISCO,                     "Cooperative route filtering capability (Cisco)" },
     { BGP_CAPABILITY_MULTISESSION_CISCO,            "Multisession BGP Capability (Cisco)" },
+    { BGP_CAPABILITY_BFD_STRICT,                    "BFD Strict-Mode capability" },
+    { BGP_CAPABILITY_SOFT_VERSION,                  "Software Version Capability" },
     { 0, NULL }
 };
 
@@ -1742,6 +1813,7 @@ static const value_string bgp_ls_nlri_type_vals[] = {
         { LINK_STATE_NODE_NLRI,                 "Node NLRI" },
         { LINK_STATE_IPV4_TOPOLOGY_PREFIX_NLRI, "IPv4 Topology Prefix NLRI" },
         { LINK_STATE_IPV6_TOPOLOGY_PREFIX_NLRI, "IPv6 Topology Prefix NLRI" },
+        { LINK_STATE_SRV6_SID_NLRI,             "SRv6 SID NLRI" },
         {0, NULL },
 };
 
@@ -1914,8 +1986,41 @@ static const value_string srv6_endpoint_behavior[] = {
     { SRV6_ENDPOINT_BEHAVIOR_END_DX2V_CSID,          "End.DX2V with NEXT-CSID" },
     { SRV6_ENDPOINT_BEHAVIOR_END_DT2U_CSID,          "End.DT2U with NEXT-CSID" },
     { SRV6_ENDPOINT_BEHAVIOR_END_DT2M_CSID,          "End.DT2M with NEXT-CSID" },
+    { SRV6_ENDPOINT_BEHAVIOR_END_M_GTP6D,            "End.M.GTP6.D" },
+    { SRV6_ENDPOINT_BEHAVIOR_END_M_GTP6DI,           "End.M.GTP6.Di" },
+    { SRV6_ENDPOINT_BEHAVIOR_END_M_GTP6E,            "End.M.GTP6.E" },
+    { SRV6_ENDPOINT_BEHAVIOR_END_M_GTP4E,            "End.M.GTP4.E" },
     { SRV6_ENDPOINT_BEHAVIOR_OPAQUE,                 "Opaque" },
     { 0,  NULL }
+};
+
+#define BGP_MUP_AT_3GPP_5G 1
+#define BGP_MUP_RT_INTERWORK_SEGMENT_DISCOVERY 1
+#define BGP_MUP_RT_DIRECT_SEGMENT_DISCOVERY 2
+#define BGP_MUP_RT_TYPE_1_SESSION_TRANSFORMED 3
+#define BGP_MUP_RT_TYPE_2_SESSION_TRANSFORMED 4
+
+static const value_string bgp_mup_architecture_types[] = {
+    { BGP_MUP_AT_3GPP_5G,         "3gpp-5g" },
+    { 0, NULL }
+};
+
+static const value_string bgp_mup_route_types[] = {
+    { BGP_MUP_RT_INTERWORK_SEGMENT_DISCOVERY, "Interwork Segment Discovery route" },
+    { BGP_MUP_RT_DIRECT_SEGMENT_DISCOVERY,    "Direct Segment Discovery route" },
+    { BGP_MUP_RT_TYPE_1_SESSION_TRANSFORMED,  "Type 1 Session Transformed (ST) route" },
+    { BGP_MUP_RT_TYPE_2_SESSION_TRANSFORMED,  "Type 2 Session Transformed (ST) route" },
+    { 0, NULL }
+};
+
+static const value_string bgp_ext_com_local_admin_types[] = {
+    { 0, "VID (802.1Q VLAN ID)" },
+    { 1, "VXLAN" },
+    { 2, "NVGRE" },
+    { 3, "I-SID" },
+    { 4, "EVI" },
+    { 5, "dual-VID (QinQ VLAN ID)" },
+    { 0, NULL }
 };
 
 static const true_false_string tfs_non_transitive_transitive = { "Non-transitive", "Transitive" };
@@ -1924,6 +2029,7 @@ static const true_false_string tfs_ospf_rt_mt = { "Type-2", "Type-1" };
 static const true_false_string tfs_eigrp_rtype = { "Internal" , "External" };
 static const true_false_string tfs_cost_replace = { "Replaces the original attribute value", "Evaluated after the original attribute value" };
 static const true_false_string tfs_exclude_include = { "Exclude", "Include" };
+static const true_false_string tfs_manually_auto_derived = { "manually derived", "auto-derived"};
 
 /* Maximal size of an IP address string */
 #define MAX_SIZE_OF_IP_ADDR_STRING      16
@@ -1965,6 +2071,9 @@ static int hf_bgp_open_myas = -1;
 static int hf_bgp_open_holdtime = -1;
 static int hf_bgp_open_identifier = -1;
 static int hf_bgp_open_opt_len = -1;
+static int hf_bgp_open_opt_extension = -1;
+static int hf_bgp_open_opt_extension_mark = -1;
+static int hf_bgp_open_opt_extension_len = -1;
 static int hf_bgp_open_opt_params = -1;
 static int hf_bgp_open_opt_param = -1;
 static int hf_bgp_open_opt_param_type = -1;
@@ -1981,7 +2090,7 @@ static int hf_bgp_notify_minor_update_msg = -1;
 static int hf_bgp_notify_minor_ht_expired = -1;
 static int hf_bgp_notify_minor_state_machine = -1;
 static int hf_bgp_notify_minor_cease = -1;
-static int hf_bgp_notify_minor_cap_msg = -1;
+static int hf_bgp_notify_minor_rr_msg = -1;
 static int hf_bgp_notify_minor_unknown = -1;
 static int hf_bgp_notify_data = -1;
 static int hf_bgp_notify_error_open_bad_peer_as = -1;
@@ -2018,6 +2127,7 @@ static int hf_bgp_cap_mp_safi = -1;
 static int hf_bgp_cap_enh_afi = -1;
 static int hf_bgp_cap_enh_safi = -1;
 static int hf_bgp_cap_enh_nhafi = -1;
+static int hf_bgp_cap_role = -1;
 static int hf_bgp_cap_gr_timers = -1;
 static int hf_bgp_cap_gr_timers_restart_flag = -1;
 static int hf_bgp_cap_gr_timers_notification_flag = -1;
@@ -2046,6 +2156,8 @@ static int hf_bgp_cap_bgpsec_version = -1;
 static int hf_bgp_cap_bgpsec_sendreceive = -1;
 static int hf_bgp_cap_bgpsec_reserved = -1;
 static int hf_bgp_cap_bgpsec_afi = -1;
+static int hf_bgp_cap_soft_version = -1;
+static int hf_bgp_cap_soft_version_len = -1;
 
 /* BGP update global header field */
 static int hf_bgp_update_withdrawn_routes_length = -1;
@@ -2110,6 +2222,7 @@ static int hf_bgp_update_path_attribute_bgpsec_sp_len = -1;
 static int hf_bgp_update_path_attribute_bgpsec_ski = -1;
 static int hf_bgp_update_path_attribute_bgpsec_sig_len = -1;
 static int hf_bgp_update_path_attribute_bgpsec_sig = -1;
+static int hf_bgp_update_path_attribute_otc = -1;
 static int hf_bgp_update_path_attribute_d_path = -1;
 static int hf_bgp_d_path_ga = -1;
 static int hf_bgp_d_path_la = -1;
@@ -2260,6 +2373,7 @@ static int hf_bgp_pmsi_tunnel_pimssm_pmc_group = -1;
 static int hf_bgp_pmsi_tunnel_pimbidir_sender = -1;
 static int hf_bgp_pmsi_tunnel_pimbidir_pmc_group = -1;
 static int hf_bgp_pmsi_tunnel_ingress_rep_addr = -1;
+static int hf_bgp_pmsi_tunnel_ingress_rep_addr6 = -1;
 
 /* RFC 7311 attribute */
 static int hf_bgp_aigp_type = -1;
@@ -2342,6 +2456,7 @@ static int hf_bgp_ls_nlri_length = -1;
 static int hf_bgp_ls_nlri_link_nlri_type = -1;
 static int hf_bgp_ls_nlri_link_descriptors_tlv = -1;
 static int hf_bgp_ls_nlri_prefix_descriptors_tlv = -1;
+static int hf_bgp_ls_nlri_srv6_sid_descriptors_tlv = -1;
 static int hf_bgp_ls_nlri_link_local_identifier = -1;
 static int hf_bgp_ls_nlri_link_remote_identifier = -1;
 static int hf_bgp_ls_nlri_ipv4_interface_address = -1;
@@ -2357,6 +2472,7 @@ static int hf_bgp_ls_nlri_node_protocol_id = -1;
 static int hf_bgp_ls_nlri_node_identifier = -1;
 static int hf_bgp_ls_ipv4_topology_prefix_nlri_type = -1;
 static int hf_bgp_ls_ipv6_topology_prefix_nlri_type = -1;
+static int hf_bgp_ls_nlri_srv6_sid_nlri_type = -1;
 
 /* BGP-LS + SR */
 static int hf_bgp_ls_sr_tlv_capabilities = -1;
@@ -2375,6 +2491,11 @@ static int hf_bgp_ls_sr_tlv_local_block_flags = -1;
 static int hf_bgp_ls_sr_tlv_local_block_range_size = -1;
 static int hf_bgp_ls_sr_tlv_local_block_sid_label = -1;
 static int hf_bgp_ls_sr_tlv_local_block_sid_index = -1;
+static int hf_bgp_ls_sr_tlv_srv6_cap = -1;                         /* 1037 */
+static int hf_bgp_ls_sr_tlv_srv6_cap_flags = -1;
+static int hf_bgp_ls_sr_tlv_srv6_cap_flags_o = -1;
+static int hf_bgp_ls_sr_tlv_srv6_cap_flags_reserved = -1;
+static int hf_bgp_ls_sr_tlv_srv6_cap_reserved = -1;
 static int hf_bgp_ls_sr_tlv_flex_algo_def = -1;                    /* 1039 */
 static int hf_bgp_ls_sr_tlv_flex_algo_algorithm = -1;
 static int hf_bgp_ls_sr_tlv_flex_algo_metric_type = -1;
@@ -2421,6 +2542,27 @@ static int hf_bgp_ls_sr_tlv_peer_sid_flags_p = -1;
 static int hf_bgp_ls_sr_tlv_peer_sid_weight = -1;
 static int hf_bgp_ls_sr_tlv_peer_sid_label = -1;
 static int hf_bgp_ls_sr_tlv_peer_sid_index = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid = -1;                   /* 1106 */
+static int hf_bgp_ls_sr_tlv_srv6_lan_endx_sid = -1;               /* 1107 */
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_endpoint_behavior = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_flags = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_b = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_s = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_p = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_reserved = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_algo = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_weight = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_reserved = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_neighbor_isis = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_neighbor_ospf = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endx_sid_sid = -1;
+static int hf_bgp_ls_sr_tlv_srv6_locator = -1;                     /* 1162 */
+static int hf_bgp_ls_sr_tlv_srv6_locator_flags = -1;
+static int hf_bgp_ls_sr_tlv_srv6_locator_flags_d = -1;
+static int hf_bgp_ls_sr_tlv_srv6_locator_flags_reserved = -1;
+static int hf_bgp_ls_sr_tlv_srv6_locator_algo = -1;
+static int hf_bgp_ls_sr_tlv_srv6_locator_reserved = -1;
+static int hf_bgp_ls_sr_tlv_srv6_locator_metric = -1;
 static int hf_bgp_ls_sr_tlv_prefix_attr_flags = -1;                /* 1170 */
 static int hf_bgp_ls_sr_tlv_prefix_attr_flags_flags = -1;
 static int hf_bgp_ls_sr_tlv_prefix_attr_flags_flags_unknown= -1;
@@ -2431,6 +2573,24 @@ static int hf_bgp_ls_sr_tlv_prefix_attr_flags_flags_xi = -1;
 static int hf_bgp_ls_sr_tlv_prefix_attr_flags_flags_ri = -1;
 static int hf_bgp_ls_sr_tlv_prefix_attr_flags_flags_ni = -1;
 static int hf_bgp_ls_sr_tlv_prefix_attr_flags_flags_ei = -1;
+static int hf_bgp_ls_sr_tlv_source_router_id = -1;                 /* 1171 */
+static int hf_bgp_ls_sr_tlv_srv6_endpoint_behavior = -1;           /* 1250 */
+static int hf_bgp_ls_sr_tlv_srv6_endpoint_behavior_endpoint_behavior = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endpoint_behavior_flags = -1;
+static int hf_bgp_ls_sr_tlv_srv6_endpoint_behavior_algo = -1;
+static int hf_bgp_ls_sr_tlv_srv6_sid_struct = -1;                  /* 1252 */
+static int hf_bgp_ls_sr_tlv_srv6_sid_struct_lb_len = -1;
+static int hf_bgp_ls_sr_tlv_srv6_sid_struct_ln_len = -1;
+static int hf_bgp_ls_sr_tlv_srv6_sid_struct_fun_len = -1;
+static int hf_bgp_ls_sr_tlv_srv6_sid_struct_arg_len = -1;
+
+static int * const srv6_endx_sid_flags[] = {
+    &hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_b,
+    &hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_s,
+    &hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_p,
+    &hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_reserved,
+    NULL
+};
 
 /* RFC7752 TLVs */
 static int hf_bgp_ls_tlv_local_node_descriptors = -1;              /* 256 */
@@ -2458,6 +2618,8 @@ static int hf_bgp_ls_tlv_igp_router = -1;                          /* 515 */
 static int hf_bgp_ls_tlv_igp_router_id = -1;
 static int hf_bgp_ls_tlv_bgp_router_id = -1;                       /* 516 */
 static int hf_bgp_ls_tlv_bgp_router_id_id = -1;
+static int hf_bgp_ls_tlv_srv6_sid_info = -1;                       /* 518 */
+static int hf_bgp_ls_tlv_srv6_sid_info_sid = -1;
 
 static int hf_bgp_ls_tlv_node_flags_bits = -1;                     /* 1024 */
 static int hf_bgp_ls_tlv_opaque_node_properties = -1;              /* 1025 */
@@ -2678,6 +2840,7 @@ static int hf_bgp_ext_com_stype_ntr_IP4 = -1;
 static int hf_bgp_ext_com_stype_tr_opaque = -1;
 static int hf_bgp_ext_com_stype_ntr_opaque = -1;
 static int hf_bgp_ext_com_tunnel_type = -1;
+static int hf_bgp_ext_com_stype_tr_mup = -1;
 static int hf_bgp_ext_com_stype_tr_exp = -1;
 static int hf_bgp_ext_com_stype_tr_exp_2 = -1;
 static int hf_bgp_ext_com_stype_tr_exp_3 = -1;
@@ -2695,6 +2858,11 @@ static int hf_bgp_ext_com_value_ospf_rt_options = -1;
 static int hf_bgp_ext_com_value_ospf_rt_options_mt = -1;
 static int hf_bgp_ext_com_value_ospf_rid = -1;
 static int hf_bgp_ext_com_value_fs_remark = -1;
+static int hf_bgp_ext_com_local_admin_flags = -1;
+static int hf_bgp_ext_com_local_admin_auto_derived_flag = -1;
+static int hf_bgp_ext_com_local_admin_type = -1;
+static int hf_bgp_ext_com_local_admin_domain_id = -1;
+static int hf_bgp_ext_com_local_admin_service_id = -1;
 
 /* BGP QoS propagation draft-knoll-idr-qos-attribute */
 
@@ -2794,6 +2962,11 @@ static int hf_bgp_ext_com_eigrp_e_rid = -1;
 static int hf_bgp_ext_com_eigrp_e_pid = -1;
 static int hf_bgp_ext_com_eigrp_e_m = -1;
 
+/* MUP extended community */
+
+static int hf_bgp_ext_com_mup_segment_id2 = -1;
+static int hf_bgp_ext_com_mup_segment_id4 = -1;
+
 /* RFC8571 BGP-LS Advertisement of IGP TE Metric Extensions */
 static int hf_bgp_ls_igp_te_metric_flags = -1;
 static int hf_bgp_ls_igp_te_metric_flags_a = -1;
@@ -2814,6 +2987,30 @@ static int hf_bgp_ls_igp_te_metric_bandwidth_available_value = -1;
 static int hf_bgp_ls_igp_te_metric_bandwidth_utilized = -1;
 static int hf_bgp_ls_igp_te_metric_bandwidth_utilized_value = -1;
 static int hf_bgp_ls_igp_te_metric_reserved = -1;
+
+/* draft-mpmz-bess-mup-safi-00 */
+static int hf_bgp_mup_nlri = -1;
+static int hf_bgp_mup_nlri_at = -1;
+static int hf_bgp_mup_nlri_rt = -1;
+static int hf_bgp_mup_nlri_len = -1;
+static int hf_bgp_mup_nlri_rd = -1;
+static int hf_bgp_mup_nlri_prefixlen = -1;
+static int hf_bgp_mup_nlri_ip_prefix = -1;
+static int hf_bgp_mup_nlri_ipv6_prefix = -1;
+static int hf_bgp_mup_nlri_ip_addr = -1;
+static int hf_bgp_mup_nlri_ipv6_addr = -1;
+static int hf_bgp_mup_nlri_3gpp_5g_type1_st_route = -1;
+static int hf_bgp_mup_nlri_3gpp_5g_teid = -1;
+static int hf_bgp_mup_nlri_3gpp_5g_qfi = -1;
+static int hf_bgp_mup_nlri_3gpp_5g_ep_addr_len = -1;
+static int hf_bgp_mup_nlri_3gpp_5g_ep_ip_addr = -1;
+static int hf_bgp_mup_nlri_3gpp_5g_ep_ipv6_addr = -1;
+static int hf_bgp_mup_nlri_3gpp_5g_type2_st_route = -1;
+static int hf_bgp_mup_nlri_ep_len = -1;
+static int hf_bgp_mup_nlri_ep_ip_addr = -1;
+static int hf_bgp_mup_nlri_ep_ipv6_addr = -1;
+static int hf_bgp_mup_nlri_3gpp_5g_ep_teid = -1;
+static int hf_bgp_mup_nlri_unknown_data = -1;
 
 static int * const ls_igp_te_metric_flags[] = {
        &hf_bgp_ls_igp_te_metric_flags_a,
@@ -2844,6 +3041,7 @@ static gint ett_bgp_community = -1;
 static gint ett_bgp_cluster_list = -1;  /* cluster list tree          */
 static gint ett_bgp_options = -1;       /* optional parameters tree   */
 static gint ett_bgp_option = -1;        /* an optional parameter tree */
+static gint ett_bgp_options_ext = -1;
 static gint ett_bgp_cap = -1;           /* an cap parameter tree */
 static gint ett_bgp_extended_communities = -1; /* extended communities list tree */
 static gint ett_bgp_extended_community = -1; /* extended community tree for each community of BGP update */
@@ -2908,6 +3106,9 @@ static gint ett_bgp_prefix_sid_srv6_l2vpn_sub_sub_tlvs = -1;
 static gint ett_bgp_prefix_sid_srv6_l2vpn_sid_structure = -1;
 static gint ett_bgp_prefix_sid_srv6_l2vpn_sid_unknown = -1;
 static gint ett_bgp_prefix_sid_srv6_l2vpn_unknown = -1;
+static gint ett_bgp_mup_nlri = -1;
+static gint ett_bgp_mup_nlri_3gpp_5g_type1_st_route = -1;
+static gint ett_bgp_mup_nlri_3gpp_5g_type2_st_route = -1;
 
 static expert_field ei_bgp_marker_invalid = EI_INIT;
 static expert_field ei_bgp_cap_len_bad = EI_INIT;
@@ -2935,6 +3136,10 @@ static expert_field ei_bgp_evpn_nlri_rt_type_err = EI_INIT;
 static expert_field ei_bgp_evpn_nlri_rt_len_err = EI_INIT;
 static expert_field ei_bgp_evpn_nlri_esi_type_err = EI_INIT;
 static expert_field ei_bgp_evpn_nlri_rt4_no_ip = EI_INIT;
+
+static expert_field ei_bgp_mup_unknown_at = EI_INIT;
+static expert_field ei_bgp_mup_unknown_rt = EI_INIT;
+static expert_field ei_bgp_mup_nlri_addr_len_err = EI_INIT;
 
 /* desegmentation */
 static gboolean bgp_desegment = TRUE;
@@ -3033,6 +3238,33 @@ static path_attr_data*
 load_path_attr_data(packet_info *pinfo) {
     path_attr_data *data =
         (path_attr_data*)p_get_proto_data(wmem_file_scope(), pinfo, proto_bgp, PATH_ATTR_DATA_KEY);
+    return data;
+}
+
+typedef struct _afi_safi_data {
+    guint16 afi;
+    guint8  safi;  /* offset at which the LINK_STATE path attribute starts */
+} afi_safi_data;
+
+#define AFI_SAFI_DATA_KEY 2
+
+static void
+save_afi_safi_data(packet_info *pinfo, guint16 afi, guint8 safi) {
+    afi_safi_data *data =
+        (afi_safi_data*)p_get_proto_data(wmem_file_scope(), pinfo, proto_bgp, AFI_SAFI_DATA_KEY);
+    if (!data) {
+        data = wmem_new0(wmem_file_scope(), afi_safi_data);
+    }
+    data->afi  = afi;
+    data->safi = safi;
+    p_add_proto_data(wmem_file_scope(), pinfo, proto_bgp, AFI_SAFI_DATA_KEY, data);
+    return;
+}
+
+static afi_safi_data*
+load_afi_safi_data(packet_info *pinfo) {
+    afi_safi_data *data =
+        (afi_safi_data*)p_get_proto_data(wmem_file_scope(), pinfo, proto_bgp, AFI_SAFI_DATA_KEY);
     return data;
 }
 
@@ -3289,7 +3521,7 @@ decode_bgp_rd(wmem_allocator_t *pool, tvbuff_t *tvb, gint offset)
     wmem_strbuf_t *strbuf;
 
     rd_type = tvb_get_ntohs(tvb,offset);
-    strbuf = wmem_strbuf_new_label(pool);
+    strbuf = wmem_strbuf_create(pool);
 
     switch (rd_type) {
         case FORMAT_AS2_LOC:
@@ -4270,7 +4502,7 @@ decode_mp_next_hop(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint16 
     int            length, offset = 0;
     wmem_strbuf_t *strbuf;
 
-    strbuf = wmem_strbuf_new_label(pinfo->pool);
+    strbuf = wmem_strbuf_create(pinfo->pool);
 
     /* BGP Multiprotocol Next Hop Principles
      *
@@ -4345,6 +4577,7 @@ decode_mp_next_hop(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint16 
                                             * draft-ietf-idr-tunnel-encaps-22
                                             */
                 case SAFNUM_ROUTE_TARGET:  /* RFC 4684 */
+                case SAFNUM_BGP_MUP:       /* draft-mpmz-bess-mup-safi-00 */
                     /* IPv4 or IPv6, differentiated by field length, according
                      * to the RFCs cited above. RFC 8950 explicitly addresses
                      * the possible link-local IPv6 address. RFC 6514 depending
@@ -4411,6 +4644,7 @@ decode_mp_next_hop(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint16 
                 case SAFNUM_MCAST_VPN:     /* RFC 6514 */
                 case SAFNUM_ENCAPSULATION: /* RFC 5512, but "never been used" */
                 case SAFNUM_TUNNEL:        /* Expired Internet Draft */
+                case SAFNUM_BGP_MUP:       /* draft-mpmz-bess-mup-safi-00 */
                     /* IPv6 address, possibly followed by link-local address */
                     length = decode_mp_next_hop_ipv6(tvb, next_hop_t, offset, pinfo, strbuf, nhlen);
                     break;
@@ -4666,7 +4900,7 @@ static int decode_bgp_link_node_nlri_common_fields(tvbuff_t *tvb,
     length -= dissected_length;
 
     /* dissect Local Node Descriptors TLV */
-    if (length > 0 && length < 4) {
+    if (length < 4) {
         expert_add_info_format(pinfo, tree, &ei_bgp_ls_error,
                 "Unknown data in Link-State Link NLRI! length = %d bytes", length);
         return dissected_length;
@@ -4949,6 +5183,96 @@ static int decode_bgp_link_nlri_prefix_descriptors(tvbuff_t *tvb,
 }
 
 /*
+ * Decode SRv6 SID Descriptors
+ */
+static int decode_bgp_link_nlri_srv6_sid_descriptors(tvbuff_t *tvb,
+        proto_tree *tree, gint offset, packet_info *pinfo, int length) {
+
+    guint16 sub_length;
+    guint16 type;
+    guint16 diss_length;
+    guint16 tmp16;
+
+    proto_item* tlv_item;
+    proto_tree* tlv_tree;
+    proto_item* tlv_sub_item;
+    proto_tree* tlv_sub_tree;
+
+    tlv_item = proto_tree_add_item(tree, hf_bgp_ls_nlri_srv6_sid_descriptors_tlv, tvb, offset, length + 4, ENC_NA);
+    tlv_tree = proto_item_add_subtree(tlv_item, ett_bgp_mp_reach_nlri);
+
+    diss_length = 0;
+    while (length > 0) {
+        if (length < 4) {
+            expert_add_info_format(pinfo, tree, &ei_bgp_ls_error,
+                    "Unknown data in Link-State SRv6 SID NLRI!");
+            diss_length += length;
+            break;
+        }
+
+        type = tvb_get_ntohs(tvb, offset);
+        sub_length = tvb_get_ntohs(tvb, offset + 2);
+        switch (type) {
+        case BGP_NLRI_TLV_MULTI_TOPOLOGY_ID:
+            if(sub_length != BGP_NLRI_TLV_LEN_MULTI_TOPOLOGY_ID){
+                expert_add_info_format(pinfo, tlv_tree, &ei_bgp_ls_error,
+                                       "Unexpected Multi Topology ID TLV's length (%u), it must be %u bytes!",
+                                       sub_length, BGP_NLRI_TLV_LEN_MULTI_TOPOLOGY_ID);
+                return -1;
+            }
+            tlv_sub_item = proto_tree_add_item(tlv_tree,
+                                               hf_bgp_ls_tlv_multi_topology_id, tvb, offset, sub_length + 4,
+                                               ENC_NA);
+            tlv_sub_tree = proto_item_add_subtree(tlv_sub_item, ett_bgp_mp_reach_nlri);
+            break;
+
+        case BGP_NLRI_TLV_SRV6_SID_INFO:
+            if (sub_length != 16) {
+                expert_add_info_format(pinfo, tlv_tree, &ei_bgp_ls_error,
+                                       "Unexpected SRv6 SID Information TLV's length (%u), it must be 16 bytes!",
+                                       sub_length);
+                return -1;
+            }
+            tlv_sub_item = proto_tree_add_item(tlv_tree,
+                                               hf_bgp_ls_tlv_srv6_sid_info, tvb, offset, sub_length + 4,
+                                               ENC_NA);
+            tlv_sub_tree = proto_item_add_subtree(tlv_sub_item, ett_bgp_mp_reach_nlri);
+            break;
+
+        default:
+            expert_add_info_format(pinfo, tlv_tree, &ei_bgp_ls_error,
+                                   "Unknown SRv6 SID Descriptor TLV Code (%u)!", type);
+            return -1;
+        }
+
+        proto_tree_add_item(tlv_sub_tree, hf_bgp_ls_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+        proto_tree_add_item(tlv_sub_tree, hf_bgp_ls_length, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
+
+        switch (type) {
+        case BGP_NLRI_TLV_MULTI_TOPOLOGY_ID:
+            tmp16 = tvb_get_ntohs(tvb, offset + 4);
+            tmp16 >>= 12;
+            if (tmp16) {
+                expert_add_info_format(pinfo, tlv_sub_tree, &ei_bgp_ls_error, "Reserved bits of Multi Topology ID must be set to zero! (%u)", tmp16);
+            }
+            proto_tree_add_item(tlv_sub_tree, hf_bgp_ls_nlri_multi_topology_id,
+                                tvb, offset + 4, BGP_NLRI_TLV_LEN_MULTI_TOPOLOGY_ID, ENC_BIG_ENDIAN);
+            break;
+
+        case BGP_NLRI_TLV_SRV6_SID_INFO:
+            proto_tree_add_item(tlv_sub_tree, hf_bgp_ls_tlv_srv6_sid_info_sid,
+                                tvb, offset + 4, 16, ENC_NA);
+            break;
+        }
+
+        length -= 4 + sub_length;
+        offset += 4 + sub_length;
+        diss_length += 4 + sub_length;
+    }
+    return diss_length;
+}
+
+/*
  * Decode Flex Algo sub-TLVs in BGP-LS attributes
  */
 static int
@@ -5201,6 +5525,29 @@ decode_link_state_attribute_tlv(proto_tree *tree, tvbuff_t *tvb, gint offset, pa
                     offset2 += 1;
                     remaining_data -= 1;
                 }
+            }
+            break;
+
+        case BGP_LS_SR_TLV_SRV6_CAPABILITY:
+            {
+                static int * const srv6_cap_flags[] = {
+                    &hf_bgp_ls_sr_tlv_srv6_cap_flags_o,
+                    &hf_bgp_ls_sr_tlv_srv6_cap_flags_reserved,
+                    NULL
+                };
+                tlv_item = proto_tree_add_item(tree, hf_bgp_ls_sr_tlv_srv6_cap, tvb, offset, length + 4, ENC_NA);
+                tlv_tree = proto_item_add_subtree(tlv_item, ett_bgp_link_state);
+                proto_tree_add_item(tlv_tree, hf_bgp_ls_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+                ti = proto_tree_add_item(tlv_tree, hf_bgp_ls_length, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
+                if (length != 4) {
+                    expert_add_info_format(pinfo, ti, &ei_bgp_ls_error,
+                                           "Unexpected TLV Length (%u) in BGP-LS %s TLV, it must be %u bytes!",
+                                           length, "SRv6 Capabilities", 4);
+                    break;
+                }
+                proto_tree_add_bitmask(tlv_tree, tvb, offset + 4, hf_bgp_ls_sr_tlv_srv6_cap_flags,
+                                       ett_bgp_link_state, srv6_cap_flags, ENC_BIG_ENDIAN);
+                proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_cap_reserved, tvb, offset + 6, 2, ENC_BIG_ENDIAN);
             }
             break;
 
@@ -5625,6 +5972,78 @@ decode_link_state_attribute_tlv(proto_tree *tree, tvbuff_t *tvb, gint offset, pa
             }
             break;
 
+        case BGP_LS_SR_TLV_SRV6_END_X_SID:
+            tlv_item = proto_tree_add_item(tree, hf_bgp_ls_sr_tlv_srv6_endx_sid,
+                                           tvb, offset, length + 4, ENC_NA);
+            tlv_tree = proto_item_add_subtree(tlv_item, ett_bgp_link_state);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+            ti = proto_tree_add_item(tlv_tree, hf_bgp_ls_length, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
+            if (length < 20) {
+                expert_add_info_format(pinfo, ti, &ei_bgp_ls_error,
+                                       "Unexpected TLV Length (%u) in BGP-LS %s TLV, it must be %u bytes or more!",
+                                       length, "SRv6 End.X SID", 20);
+                break;
+            }
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_endpoint_behavior, tvb, offset + 4, 2, ENC_NA);
+            proto_tree_add_bitmask(tlv_tree, tvb, offset + 6,
+                                   hf_bgp_ls_sr_tlv_srv6_endx_sid_flags,
+                                   ett_bgp_link_state, srv6_endx_sid_flags, ENC_BIG_ENDIAN);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_algo, tvb, offset + 7, 1, ENC_NA);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_weight, tvb, offset + 8, 1, ENC_BIG_ENDIAN);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_reserved, tvb, offset + 9, 1, ENC_BIG_ENDIAN);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_sid, tvb, offset + 10, 16, ENC_NA);
+            local_offset = offset + 26;
+            while (local_offset < offset + length) {
+                advance = decode_link_state_attribute_tlv(tlv_tree, tvb, local_offset, pinfo, protocol_id);
+                if (advance < 0) {
+                    break;
+                }
+                local_offset += advance;
+            }
+            break;
+
+        case BGP_LS_SR_TLV_SRV6_LAN_END_X_SID:
+            tlv_item = proto_tree_add_item(tree, hf_bgp_ls_sr_tlv_srv6_lan_endx_sid,
+                                           tvb, offset, length+4, ENC_NA);
+            tlv_tree = proto_item_add_subtree(tlv_item, ett_bgp_link_state);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+            ti = proto_tree_add_item(tlv_tree, hf_bgp_ls_length, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
+            if ((protocol_id == BGP_LS_NLRI_PROTO_ID_OSPF && length < 26) ||
+                ((protocol_id == BGP_LS_NLRI_PROTO_ID_IS_IS_LEVEL_1 ||
+                  protocol_id == BGP_LS_NLRI_PROTO_ID_IS_IS_LEVEL_2) && length < 28)) {
+                expert_add_info_format(pinfo, ti, &ei_bgp_ls_error,
+                                       "Unexpected TLV Length (%u) in BGP-LS %s TLV, it must be %u bytes or more!",
+                                       length, "SRv6 LAN End.X SID",
+                                       protocol_id == BGP_LS_NLRI_PROTO_ID_OSPF ? 26 : 28);
+                break;
+            }
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_endpoint_behavior, tvb, offset + 4, 2, ENC_NA);
+            proto_tree_add_bitmask(tlv_tree, tvb, offset + 6,
+                                   hf_bgp_ls_sr_tlv_srv6_endx_sid_flags,
+                                   ett_bgp_link_state, srv6_endx_sid_flags, ENC_BIG_ENDIAN);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_algo, tvb, offset + 7, 1, ENC_NA);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_weight, tvb, offset + 8, 1, ENC_BIG_ENDIAN);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_reserved, tvb, offset + 9, 1, ENC_BIG_ENDIAN);
+            local_offset = offset + 10;
+            if (protocol_id == BGP_LS_NLRI_PROTO_ID_OSPF) {
+                proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_neighbor_ospf, tvb, local_offset, 6, ENC_BIG_ENDIAN);
+                local_offset += 4;
+            } else {
+                /* FF: most common case is IS-IS, so if it is not OSPF we go that way */
+                proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_neighbor_isis, tvb, local_offset, 6, ENC_BIG_ENDIAN);
+                local_offset += 6;
+            }
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endx_sid_sid, tvb, local_offset, 16, ENC_NA);
+            local_offset += 16;
+            while (local_offset < offset + length) {
+                advance = decode_link_state_attribute_tlv(tlv_tree, tvb, local_offset, pinfo, protocol_id);
+                if (advance < 0) {
+                    break;
+                }
+                local_offset += advance;
+            }
+            break;
+
         case BGP_LS_APP_SPEC_LINK_ATTR:
             tlv_item = proto_tree_add_item(tree, hf_bgp_ls_tlv_app_spec_link_attrs, tvb, offset, length + 4, ENC_NA);
             tlv_tree = proto_item_add_subtree(tlv_item, ett_bgp_link_state);
@@ -5853,7 +6272,29 @@ decode_link_state_attribute_tlv(proto_tree *tree, tvbuff_t *tvb, gint offset, pa
         case BGP_LS_SR_TLV_RANGE:
             break;
 
-        case BGP_LS_SR_TLV_BINDING_SID:
+        case BGP_LS_SR_TLV_SRV6_LOCATOR:
+            {
+                static int * const srv6_locator_flags[] = {
+                    &hf_bgp_ls_sr_tlv_srv6_locator_flags_d,
+                    &hf_bgp_ls_sr_tlv_srv6_locator_flags_reserved,
+                    NULL
+                };
+                tlv_item = proto_tree_add_item(tree, hf_bgp_ls_sr_tlv_srv6_locator, tvb, offset, length+4, ENC_NA);
+                tlv_tree = proto_item_add_subtree(tlv_item, ett_bgp_link_state);
+                proto_tree_add_item(tlv_tree, hf_bgp_ls_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+                ti = proto_tree_add_item(tlv_tree, hf_bgp_ls_length, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
+                if (length < 8) {
+                    expert_add_info_format(pinfo, ti, &ei_bgp_ls_error,
+                                           "Unexpected TLV Length (%u) in BGP-LS %s TLV, it must be %u bytes or more!",
+                                           length, "SRv6 Locator", 8);
+                    break;
+                }
+                proto_tree_add_bitmask(tlv_tree, tvb, offset + 4, hf_bgp_ls_sr_tlv_srv6_locator_flags,
+                                       ett_bgp_link_state, srv6_locator_flags, ENC_NA);
+                proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_locator_algo, tvb, offset + 5, 1, ENC_BIG_ENDIAN);
+                proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_locator_reserved, tvb, offset + 6, 2, ENC_BIG_ENDIAN);
+                proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_locator_metric, tvb, offset + 8, 4, ENC_BIG_ENDIAN);
+            }
             break;
 
         case BGP_LS_SR_TLV_PREFIX_ATTR_FLAGS:
@@ -5890,6 +6331,58 @@ decode_link_state_attribute_tlv(proto_tree *tree, tvbuff_t *tvb, gint offset, pa
                                        "Unknown Protocol-ID (%u) for Prefix Attribute Flags TLV",
                                        protocol_id);
             }
+            break;
+
+        case BGP_LS_SR_TLV_SOURCE_ROUTER_ID:
+            tlv_item = proto_tree_add_item(tree, hf_bgp_ls_sr_tlv_source_router_id, tvb, offset, length+4, ENC_NA);
+            tlv_tree = proto_item_add_subtree(tlv_item, ett_bgp_link_state);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+            ti = proto_tree_add_item(tlv_tree, hf_bgp_ls_length, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
+            if (length == BGP_NLRI_TLV_LEN_IPV4_ROUTER_ID) {
+                proto_tree_add_item(tlv_tree, hf_bgp_ls_tlv_ipv4_router_id_value, tvb, offset + 4, BGP_NLRI_TLV_LEN_IPV4_ROUTER_ID, ENC_NA);
+            } else if (length == BGP_NLRI_TLV_LEN_IPV6_ROUTER_ID) {
+                proto_tree_add_item(tlv_tree, hf_bgp_ls_tlv_ipv6_router_id_value, tvb, offset + 4, BGP_NLRI_TLV_LEN_IPV6_ROUTER_ID, ENC_NA);
+            } else {
+                expert_add_info_format(pinfo, ti, &ei_bgp_ls_error,
+                                       "Unexpected TLV Length (%u) in BGP-LS %s TLV, it must be either %u or %u bytes!",
+                                       length, "Source Router-ID",
+                                       BGP_NLRI_TLV_LEN_IPV4_ROUTER_ID,
+                                       BGP_NLRI_TLV_LEN_IPV6_ROUTER_ID);
+            }
+            break;
+
+        /* SID Attribute TLVs */
+        case BGP_LS_SR_TLV_SRV6_ENDPOINT_BEHAVIOR:
+            tlv_item = proto_tree_add_item(tree, hf_bgp_ls_sr_tlv_srv6_endpoint_behavior, tvb, offset, length+4, ENC_NA);
+            tlv_tree = proto_item_add_subtree(tlv_item, ett_bgp_link_state);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+            ti = proto_tree_add_item(tlv_tree, hf_bgp_ls_length, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
+            if (length != 4) {
+                expert_add_info_format(pinfo, ti, &ei_bgp_ls_error,
+                                       "Unexpected TLV Length (%u) in BGP-LS %s TLV, it must be %u bytes!",
+                                       length, "SRv6 Endpoint Behavior", 4);
+                break;
+            }
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endpoint_behavior_endpoint_behavior, tvb, offset + 4, 2, ENC_BIG_ENDIAN);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endpoint_behavior_flags, tvb, offset + 6, 1, ENC_BIG_ENDIAN);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_endpoint_behavior_algo, tvb, offset + 7, 1, ENC_BIG_ENDIAN);
+            break;
+
+        case BGP_LS_SR_TLV_SRV6_SID_STRUCT:
+            tlv_item = proto_tree_add_item(tree, hf_bgp_ls_sr_tlv_srv6_sid_struct, tvb, offset, length + 4, ENC_NA);
+            tlv_tree = proto_item_add_subtree(tlv_item, ett_bgp_link_state);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+            ti = proto_tree_add_item(tlv_tree, hf_bgp_ls_length, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
+            if (length != 4) {
+                expert_add_info_format(pinfo, ti, &ei_bgp_ls_error,
+                                       "Unexpected TLV Length (%u) in BGP-LS %s TLV, it must be %u bytes!",
+                                       length, "SRv6 SID Structure", 4);
+                break;
+            }
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_sid_struct_lb_len, tvb, offset + 4, 1, ENC_NA);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_sid_struct_ln_len, tvb, offset + 5, 1, ENC_NA);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_sid_struct_fun_len, tvb, offset + 6, 1, ENC_NA);
+            proto_tree_add_item(tlv_tree, hf_bgp_ls_sr_tlv_srv6_sid_struct_arg_len, tvb, offset + 7, 1, ENC_NA);
             break;
 
         case BGP_LS_IGP_TE_METRIC_DELAY:
@@ -6519,6 +7012,341 @@ static int decode_evpn_nlri(proto_tree *tree, tvbuff_t *tvb, gint offset, packet
     return total_length;
 }
 
+static int decode_bgp_mup_nlri_variable_prefix(proto_tree *tree, tvbuff_t *tvb, gint offset, packet_info *pinfo, guint16 afi) {
+
+    int reader_offset = offset;
+    guint32 total_length = 0;
+
+    int         byte_length;
+    ws_in4_addr ipv4_prefix;
+    address     ipv4_prefix_addr;
+    ws_in6_addr ipv6_prefix;
+    address     ipv6_prefix_addr;
+    gchar       *prefix_str;
+    guint8      prefix_length;
+
+    prefix_length = tvb_get_guint8(tvb, reader_offset);
+    proto_tree_add_item(tree, hf_bgp_mup_nlri_prefixlen, tvb, reader_offset, 1, ENC_BIG_ENDIAN);
+    reader_offset++;
+
+    switch (afi) {
+    case AFNUM_INET:
+        byte_length = tvb_get_ipv4_addr_with_prefix_len(tvb, reader_offset, &ipv4_prefix, prefix_length);
+        if (byte_length == -1) {
+            proto_tree_add_expert_format(tree, pinfo, &ei_bgp_prefix_length_invalid, tvb, reader_offset, -1,
+                                         "IPv4 prefix has an invalid length: %d bits", prefix_length);
+            return -1;
+        }
+        set_address(&ipv4_prefix_addr, AT_IPv4, 4, &ipv4_prefix);
+        prefix_str = address_to_str(pinfo->pool, &ipv4_prefix_addr);
+        proto_tree_add_ipv4_format_value(tree, hf_bgp_mup_nlri_ip_prefix, tvb, reader_offset, byte_length,
+                                         ipv4_prefix, "%s/%d", prefix_str, prefix_length);
+        reader_offset += byte_length;
+        break;
+
+    case AFNUM_INET6:
+        byte_length = tvb_get_ipv6_addr_with_prefix_len(tvb, reader_offset, &ipv6_prefix, prefix_length);
+        if (byte_length == -1) {
+            proto_tree_add_expert_format(tree, pinfo, &ei_bgp_prefix_length_invalid, tvb, reader_offset, -1,
+                                         "IPv6 prefix has an invalid length: %d bits", prefix_length);
+            return -1;
+        }
+        set_address(&ipv6_prefix_addr, AT_IPv6, 16, ipv6_prefix.bytes);
+        prefix_str = address_to_str(pinfo->pool, &ipv6_prefix_addr);
+        proto_tree_add_ipv6_format_value(tree, hf_bgp_mup_nlri_ipv6_prefix, tvb, reader_offset, byte_length,
+                                         &ipv6_prefix, "%s/%d", prefix_str, prefix_length);
+        reader_offset += byte_length;
+        break;
+    }
+    total_length = reader_offset - offset;
+    return total_length;
+}
+
+
+static int decode_bgp_mup_nlri_type1_st_route(proto_tree *tree, tvbuff_t *tvb, gint offset, packet_info *pinfo,
+                                              guint16 afi, guint8 architecture_type) {
+    /*
+        +-----------------------------------+
+        |           RD  (8 octets)          |
+        +-----------------------------------+
+        |      Prefix Length (1 octet)      |
+        +-----------------------------------+
+        |         Prefix (variable)         |
+        +-----------------------------------+
+        | Architecture specific (variable)  |
+        +-----------------------------------+
+    */
+    int reader_offset = offset;
+    guint32 total_length = 0;
+
+    proto_item  *item;
+    guint8      endpoint_address_length;
+    proto_item  *arch_spec_item;
+    proto_tree  *arch_spec_tree;
+    int         arch_spec_byte;
+
+    item = proto_tree_add_item(tree, hf_bgp_mup_nlri_rd, tvb, reader_offset, 8, ENC_NA);
+    proto_item_append_text(item, " (%s)", decode_bgp_rd(pinfo->pool, tvb, reader_offset));
+    reader_offset += 8;
+
+    reader_offset += decode_bgp_mup_nlri_variable_prefix(tree, tvb, reader_offset, pinfo, afi);
+
+    switch (architecture_type) {
+    case BGP_MUP_AT_3GPP_5G:
+        /*
+            +-----------------------------------1
+            |          TEID (4 octets)          |
+            +-----------------------------------+
+            |          QFI (1 octet)            |
+            +-----------------------------------+
+            | Endpoint Address Length (1 octet) |
+            +-----------------------------------+
+            |    Endpoint Address (variable)    |
+            +-----------------------------------+
+        */
+        endpoint_address_length = tvb_get_guint8(tvb, reader_offset+5); // should be multiple of 8
+        arch_spec_byte = 6 + endpoint_address_length/8;
+
+        arch_spec_item = proto_tree_add_item(tree, hf_bgp_mup_nlri_3gpp_5g_type1_st_route, tvb, reader_offset, arch_spec_byte, ENC_NA);
+        arch_spec_tree = proto_item_add_subtree(arch_spec_item, ett_bgp_mup_nlri_3gpp_5g_type1_st_route);
+
+        proto_tree_add_item(arch_spec_tree, hf_bgp_mup_nlri_3gpp_5g_teid, tvb, reader_offset, 4, ENC_BIG_ENDIAN);
+        reader_offset += 4;
+
+        proto_tree_add_item(arch_spec_tree, hf_bgp_mup_nlri_3gpp_5g_qfi, tvb, reader_offset, 1, ENC_BIG_ENDIAN);
+        reader_offset++;
+
+        proto_tree_add_item(arch_spec_tree, hf_bgp_mup_nlri_3gpp_5g_ep_addr_len, tvb, reader_offset, 1, ENC_BIG_ENDIAN);
+        reader_offset++;
+
+        if (endpoint_address_length==32) {
+            proto_tree_add_item(arch_spec_tree, hf_bgp_mup_nlri_3gpp_5g_ep_ip_addr, tvb, reader_offset, 4, ENC_NA);
+            reader_offset += 4;
+        } else if (endpoint_address_length==128) {
+            proto_tree_add_item(arch_spec_tree, hf_bgp_mup_nlri_3gpp_5g_ep_ipv6_addr, tvb, reader_offset, 16, ENC_NA);
+            reader_offset += 16;
+        } else {
+            expert_add_info_format(pinfo, arch_spec_tree, &ei_bgp_mup_nlri_addr_len_err,
+                                   "Invalid length (%u) of Endpoint Address Length", endpoint_address_length);
+            return -1;
+        }
+        break;
+    default:
+        /* return error because the length is unknown */
+        proto_tree_add_expert_format(tree, pinfo, &ei_bgp_mup_unknown_at, tvb, reader_offset, -1,
+                                     "Architecture specific type 1 ST route for unknown architecture type: %d", architecture_type);
+        return -1;
+    }
+
+    total_length = reader_offset - offset;
+    return total_length;
+}
+
+static int decode_bgp_mup_nlri_type2_st_route(proto_tree *tree, tvbuff_t *tvb, gint offset, packet_info *pinfo,
+                                              guint16 afi, guint8 architecture_type) {
+    /*
+        +-----------------------------------+
+        |           RD  (8 octets)          |
+        +-----------------------------------+
+        |      Endpoint Length (1 octet)    |
+        +-----------------------------------+
+        |      Endpoint Address (variable)  |
+        +-----------------------------------+
+        | Architecture specific Endpoint    |
+        |         Identifier (variable)     |
+        +-----------------------------------+
+    */
+    int reader_offset = offset;
+    guint32 total_length = 0;
+
+    proto_item  *rd_pi;
+    int         byte_length = 0;
+    ws_in4_addr ipv4_prefix;
+    address     ipv4_prefix_addr;
+    ws_in6_addr ipv6_prefix;
+    address     ipv6_prefix_addr;
+    gchar       *prefix_str;
+    guint8      prefix_length = 0;
+    guint8      endpoint_length = 0;
+
+    guint8      arch_spec_endpoint_length = 0;
+    proto_item  *arch_spec_item;
+    proto_tree  *arch_spec_tree;
+    guint32     arch_spec_3gpp_5g_teid;
+
+    rd_pi = proto_tree_add_item(tree, hf_bgp_mup_nlri_rd, tvb, reader_offset, 8, ENC_NA);
+    proto_item_append_text(rd_pi, " (%s)", decode_bgp_rd(pinfo->pool, tvb, reader_offset));
+    reader_offset += 8;
+
+    endpoint_length = tvb_get_guint8(tvb, reader_offset);
+    proto_tree_add_item(tree, hf_bgp_mup_nlri_ep_len, tvb, reader_offset, 1, ENC_BIG_ENDIAN);
+    reader_offset++;
+
+    switch (afi) {
+    case AFNUM_INET:
+        prefix_length = endpoint_length>32 ? 32 : endpoint_length;
+        byte_length = tvb_get_ipv4_addr_with_prefix_len(tvb, reader_offset, &ipv4_prefix, prefix_length);
+        set_address(&ipv4_prefix_addr, AT_IPv4, 4, &ipv4_prefix);
+        prefix_str = address_to_str(pinfo->pool, &ipv4_prefix_addr);
+
+        proto_tree_add_ipv4_format_value(tree, hf_bgp_mup_nlri_ep_ip_addr, tvb, reader_offset, byte_length,
+                                         ipv4_prefix, "%s/%d", prefix_str, prefix_length);
+        reader_offset += byte_length;
+
+        if (endpoint_length>32) {
+            arch_spec_endpoint_length = endpoint_length - 32;
+        }
+        break;
+    case AFNUM_INET6:
+        prefix_length = endpoint_length>128 ? 128 : endpoint_length;
+        byte_length = tvb_get_ipv6_addr_with_prefix_len(tvb, reader_offset, &ipv6_prefix, prefix_length);
+        set_address(&ipv6_prefix_addr, AT_IPv6, 16, ipv6_prefix.bytes);
+        prefix_str = address_to_str(pinfo->pool, &ipv6_prefix_addr);
+
+        proto_tree_add_ipv6_format_value(tree, hf_bgp_mup_nlri_ep_ipv6_addr, tvb, reader_offset, byte_length,
+                        &ipv6_prefix, "%s/%d", prefix_str, prefix_length);
+        reader_offset += byte_length;
+
+        if (endpoint_length>128) {
+            arch_spec_endpoint_length = endpoint_length - 128;
+        }
+        break;
+    }
+    if (arch_spec_endpoint_length>0) {
+        switch (architecture_type) {
+        case BGP_MUP_AT_3GPP_5G:
+            /*
+            +-----------------------------------+
+            |          TEID (0-4 octets)        |
+            +-----------------------------------+
+            */
+            byte_length = tvb_get_ipv4_addr_with_prefix_len(tvb, reader_offset, &arch_spec_3gpp_5g_teid, arch_spec_endpoint_length);
+
+            arch_spec_item = proto_tree_add_item(tree, hf_bgp_mup_nlri_3gpp_5g_type2_st_route, tvb, reader_offset, byte_length, ENC_NA);
+            arch_spec_tree = proto_item_add_subtree(arch_spec_item, ett_bgp_mup_nlri_3gpp_5g_type2_st_route);
+            proto_tree_add_uint_format_value(arch_spec_tree, hf_bgp_mup_nlri_3gpp_5g_ep_teid, tvb, reader_offset, byte_length, arch_spec_3gpp_5g_teid,
+                                            "0x%08x/%d", g_ntohl(arch_spec_3gpp_5g_teid), arch_spec_endpoint_length);
+            reader_offset += byte_length;
+            break;
+        default:
+            /* for unknown architecture types, just decode as binary */
+            byte_length = (arch_spec_endpoint_length-1)/8 + 1;
+            proto_tree_add_item(tree, hf_bgp_mup_nlri_unknown_data, tvb, reader_offset, byte_length, ENC_NA);
+            reader_offset += byte_length;
+
+            proto_tree_add_expert_format(tree, pinfo, &ei_bgp_mup_unknown_at, tvb, reader_offset, -1,
+                                         "Architecture specific type 2 ST route for unknown architecture type: %d", architecture_type);
+            break;
+        }
+    }
+
+    total_length = reader_offset - offset;
+    return total_length;
+}
+
+/* draft-mpmz-bess-mup-safi-00 */
+static int decode_bgp_mup_nlri(proto_tree *tree, tvbuff_t *tvb, gint offset, packet_info *pinfo, guint16 afi) {
+
+    int reader_offset = offset;
+
+    proto_tree *prefix_tree;
+    proto_item *nlri_pi;
+    proto_item *rd_pi;
+    guint8 architecture_type;
+    guint16 route_type;
+    guint8 nlri_len;
+
+    int decoded_length = 0;
+
+    architecture_type = tvb_get_guint8(tvb, offset);
+    route_type = tvb_get_guint16(tvb, offset + 1, ENC_BIG_ENDIAN);
+    nlri_len = tvb_get_guint8(tvb, offset + 3);
+
+    nlri_pi = proto_tree_add_item(tree, hf_bgp_mup_nlri, tvb, reader_offset, nlri_len+4, ENC_NA);
+
+    prefix_tree = proto_item_add_subtree(nlri_pi, ett_bgp_mup_nlri);
+
+    proto_tree_add_item(prefix_tree, hf_bgp_mup_nlri_at, tvb, reader_offset, 1, ENC_BIG_ENDIAN);
+    proto_item_append_text(nlri_pi, ": %s", val_to_str(architecture_type, bgp_mup_architecture_types,
+                           "Unknown architecture type %d"));
+    reader_offset++;
+
+    proto_tree_add_item(prefix_tree, hf_bgp_mup_nlri_rt, tvb, reader_offset, 2, ENC_BIG_ENDIAN);
+    proto_item_append_text(nlri_pi, ": %s", val_to_str(route_type, bgp_mup_route_types,
+                           "Unknown route type %d"));
+    reader_offset += 2;
+
+    proto_tree_add_item(prefix_tree, hf_bgp_mup_nlri_len, tvb, reader_offset, 1, ENC_BIG_ENDIAN);
+    reader_offset++;
+
+    switch (route_type) {
+    case BGP_MUP_RT_INTERWORK_SEGMENT_DISCOVERY:
+        /*
+         +-----------------------------------+
+         |           RD  (8 octets)          |
+         +-----------------------------------+
+         |       Prefix Length (1 octet)     |
+         +-----------------------------------+
+         |        Prefix (variable)          |
+         +-----------------------------------+
+        */
+        rd_pi = proto_tree_add_item(prefix_tree, hf_bgp_mup_nlri_rd, tvb, reader_offset, 8, ENC_NA);
+        proto_item_append_text(rd_pi, " (%s)", decode_bgp_rd(pinfo->pool, tvb, reader_offset));
+        reader_offset += 8;
+
+        decoded_length = decode_bgp_mup_nlri_variable_prefix(prefix_tree, tvb, reader_offset, pinfo, afi);
+        if (decoded_length < 0) {
+            return -1;
+        }
+        break;
+
+    case BGP_MUP_RT_DIRECT_SEGMENT_DISCOVERY:
+        /*
+         +-----------------------------------+
+         |           RD  (8 octets)          |
+         +-----------------------------------+
+         |        Address (4 or 16 octets)   |
+         +-----------------------------------+
+        */
+        rd_pi = proto_tree_add_item(prefix_tree, hf_bgp_mup_nlri_rd, tvb, reader_offset, 8, ENC_NA);
+        proto_item_append_text(rd_pi, " (%s)", decode_bgp_rd(pinfo->pool, tvb, reader_offset));
+        reader_offset += 8;
+        switch (afi) {
+        case AFNUM_INET:
+            proto_tree_add_item(prefix_tree, hf_bgp_mup_nlri_ip_addr, tvb, reader_offset, 4, ENC_NA);
+            break;
+        case AFNUM_INET6:
+            proto_tree_add_item(prefix_tree, hf_bgp_mup_nlri_ipv6_addr, tvb, reader_offset, 16, ENC_NA);
+            break;
+        }
+        break;
+
+    case BGP_MUP_RT_TYPE_1_SESSION_TRANSFORMED:
+        decoded_length = decode_bgp_mup_nlri_type1_st_route(prefix_tree, tvb, reader_offset, pinfo, afi, architecture_type);
+        if (decoded_length < 0) {
+            return -1;
+        }
+        break;
+
+    case BGP_MUP_RT_TYPE_2_SESSION_TRANSFORMED:
+        decoded_length = decode_bgp_mup_nlri_type2_st_route(prefix_tree, tvb, reader_offset, pinfo, afi, architecture_type);
+        if (decoded_length < 0) {
+            return -1;
+        }
+        break;
+
+    default:
+        /* for unknown route types, just decode as binary */
+        proto_tree_add_item(prefix_tree, hf_bgp_mup_nlri_unknown_data, tvb, reader_offset, nlri_len, ENC_NA);
+        reader_offset += nlri_len;
+        proto_tree_add_expert_format(prefix_tree, pinfo, &ei_bgp_mup_unknown_rt, tvb, reader_offset, -1,
+                                     "Unknown route type: %d", route_type);
+        break;
+    }
+
+    return nlri_len+4;
+}
+
 
 /*
  * Decode a multiprotocol prefix
@@ -6545,7 +7373,6 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
     ws_in4_addr         ip4addr;            /* IPv4 address                 */
     address addr;
     ws_in6_addr         ip6addr;            /* IPv6 address                 */
-    guint16             rd_type;            /* Route Distinguisher type     */
     guint16             nlri_type;          /* NLRI Type                    */
     guint16             tmp16;
     guint32             path_identifier=0;
@@ -6588,7 +7415,7 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
                 }
                 /* snarf length */
                 plen =  tvb_get_guint8(tvb, offset);
-                stack_strbuf = wmem_strbuf_new_label(pinfo->pool);
+                stack_strbuf = wmem_strbuf_create(pinfo->pool);
                 labnum = decode_MPLS_stack(tvb, offset + 1, stack_strbuf);
 
                 offset += (1 + labnum * 3);
@@ -6659,7 +7486,7 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
                 }
 
                 length = (plen + 7)/8;
-                comm_strbuf = wmem_strbuf_new_label(pinfo->pool);
+                comm_strbuf = wmem_strbuf_create(pinfo->pool);
 
                 switch (tvb_get_ntohs(tvb, offset + 1 + 4)) {
                 case BGP_EXT_COM_RT_AS2:
@@ -6746,7 +7573,7 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
             case SAFNUM_LAB_VPNMULCAST:
             case SAFNUM_LAB_VPNUNIMULC:
                 plen =  tvb_get_guint8(tvb, offset);
-                stack_strbuf = wmem_strbuf_new_label(pinfo->pool);
+                stack_strbuf = wmem_strbuf_create(pinfo->pool);
                 labnum = decode_MPLS_stack(tvb, offset + 1, stack_strbuf);
 
                 offset += (1 + labnum * 3);
@@ -6794,6 +7621,9 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
                return(-1);
              total_length++;
            break;
+            case SAFNUM_BGP_MUP:
+                total_length = decode_bgp_mup_nlri(tree, tvb, offset, pinfo, afi);
+                break;
            default:
                 proto_tree_add_expert_format(tree, pinfo, &ei_bgp_unknown_safi, tvb, start_offset, 0,
                                     "Unknown SAFI (%u) for AFI %u", safi, afi);
@@ -6833,7 +7663,7 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
                 }
                 /* snarf length */
                 plen =  tvb_get_guint8(tvb, offset);
-                stack_strbuf = wmem_strbuf_new_label(pinfo->pool);
+                stack_strbuf = wmem_strbuf_create(pinfo->pool);
                 labnum = decode_MPLS_stack(tvb, offset + 1, stack_strbuf);
 
                 offset += (1 + labnum * 3);
@@ -6935,11 +7765,14 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
                     return -1;
                 break;
 
+            case SAFNUM_BGP_MUP:
+                total_length = decode_bgp_mup_nlri(tree, tvb, offset, pinfo, afi);
+                break;
             case SAFNUM_LAB_VPNUNICAST:
             case SAFNUM_LAB_VPNMULCAST:
             case SAFNUM_LAB_VPNUNIMULC:
                 plen =  tvb_get_guint8(tvb, offset);
-                stack_strbuf = wmem_strbuf_new_label(pinfo->pool);
+                stack_strbuf = wmem_strbuf_create(pinfo->pool);
                 labnum = decode_MPLS_stack(tvb, offset + 1, stack_strbuf);
 
                 offset += (1 + labnum * 3);
@@ -6950,7 +7783,6 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
                 }
                 plen -= (labnum * 3*8);
 
-                rd_type = tvb_get_ntohs(tvb,offset);
                 if (plen < 8*8) {
                     proto_tree_add_expert_format(tree, pinfo, &ei_bgp_prefix_length_invalid, tvb, start_offset, 1,
                                         "%s Labeled VPN IPv6 prefix length %u invalid",
@@ -6959,76 +7791,25 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
                 }
                 plen -= 8*8;
 
-                switch (rd_type) {
+                length = tvb_get_ipv6_addr_with_prefix_len(tvb, offset + 8, &ip6addr, plen);
+                if (length < 0) {
+                    proto_tree_add_expert_format(tree, pinfo, &ei_bgp_prefix_length_invalid, tvb, start_offset, 1,
+                                                 "%s Labeled VPN IPv6 prefix length %u invalid",
+                                                 tag, plen + (labnum * 3*8) + 8*8);
+                    return -1;
+                }
 
-                    case FORMAT_AS2_LOC:
-                        length = tvb_get_ipv6_addr_with_prefix_len(tvb, offset + 8, &ip6addr, plen);
-                        if (length < 0) {
-                            proto_tree_add_expert_format(tree, pinfo, &ei_bgp_prefix_length_invalid, tvb, start_offset, 1,
-                                                "%s Labeled VPN IPv6 prefix length %u invalid",
-                                                tag, plen + (labnum * 3*8) + 8*8);
-                            return -1;
-                        }
+                proto_tree_add_item(tree, hf_bgp_prefix_length, tvb, start_offset, 1, ENC_NA);
+                proto_tree_add_string(tree, hf_bgp_label_stack, tvb, start_offset + 1, labnum * 3, wmem_strbuf_get_str(stack_strbuf));
+                proto_tree_add_string(tree, hf_bgp_rd, tvb, offset, 8, decode_bgp_rd(pinfo->pool, tvb, offset));
 
-                        /* XXX - break up into multiple fields */
-                        set_address(&addr, AT_IPv6, 16, ip6addr.bytes);
-                        proto_tree_add_string_format(tree, hf_bgp_label_stack, tvb, start_offset,
-                                            (offset + 8 + length) - start_offset,
-                                            wmem_strbuf_get_str(stack_strbuf), "Label Stack=%s RD=%u:%u, IPv6=%s/%u",
-                                            wmem_strbuf_get_str(stack_strbuf),
-                                            tvb_get_ntohs(tvb, offset + 2),
-                                            tvb_get_ntohl(tvb, offset + 4),
-                                            address_to_str(pinfo->pool, &addr), plen);
-                        total_length = (1 + labnum * 3 + 8) + length;
-                        break;
 
-                    case FORMAT_IP_LOC:
-                        length = tvb_get_ipv6_addr_with_prefix_len(tvb, offset + 8, &ip6addr, plen);
-                        if (length < 0) {
-                            proto_tree_add_expert_format(tree, pinfo, &ei_bgp_prefix_length_invalid, tvb, start_offset, 1,
-                                                "%s Labeled VPN IPv6 prefix length %u invalid",
-                                                tag, plen + (labnum * 3*8) + 8*8);
-                            return -1;
-                        }
+                set_address(&addr, AT_IPv6, 16, ip6addr.bytes);
+                proto_tree_add_ipv6_format_value(tree, hf_addr6, tvb, offset + 8, length,
+                                                 &ip6addr, "%s/%u", address_to_str(pinfo->pool, &addr), plen);
 
-                        /* XXX - break up into multiple fields */
-                        set_address(&addr, AT_IPv6, 16, &ip6addr);
-                        proto_tree_add_string_format(tree, hf_bgp_label_stack, tvb, start_offset,
-                                            (offset + 8 + length) - start_offset,
-                                            wmem_strbuf_get_str(stack_strbuf), "Label Stack=%s RD=%s:%u, IPv6=%s/%u",
-                                            wmem_strbuf_get_str(stack_strbuf),
-                                            tvb_ip_to_str(pinfo->pool, tvb, offset + 2),
-                                            tvb_get_ntohs(tvb, offset + 6),
-                                            address_to_str(pinfo->pool, &addr), plen);
-                        total_length = (1 + labnum * 3 + 8) + length;
-                        break;
+                total_length = (1 + labnum * 3 + 8) + length;
 
-                    case FORMAT_AS4_LOC:
-                        length = tvb_get_ipv6_addr_with_prefix_len(tvb, offset + 8, &ip6addr, plen);
-                        if (length < 0) {
-                            proto_tree_add_expert_format(tree, pinfo, &ei_bgp_prefix_length_invalid, tvb, start_offset, 1,
-                                                "%s Labeled VPN IPv6 prefix length %u invalid",
-                                                tag, plen + (labnum * 3*8) + 8*8);
-                            return -1;
-                        }
-
-                        /* XXX - break up into multiple fields */
-                        set_address(&addr, AT_IPv6, 16, ip6addr.bytes);
-                        proto_tree_add_string_format(tree, hf_bgp_label_stack, tvb, start_offset,
-                                            (offset + 8 + length) - start_offset,
-                                            "Label Stack=%s RD=%u.%u:%u, IPv6=%s/%u",
-                                            wmem_strbuf_get_str(stack_strbuf),
-                                            tvb_get_ntohs(tvb, offset + 2),
-                                            tvb_get_ntohs(tvb, offset + 4),
-                                            tvb_get_ntohs(tvb, offset + 6),
-                                            address_to_str(pinfo->pool, &addr), plen);
-                        total_length = (1 + labnum * 3 + 8) + length;
-                        break;
-                    default:
-                        proto_tree_add_expert_format(tree, pinfo, &ei_bgp_unknown_label_vpn, tvb, start_offset, 0,
-                                            "Unknown labeled VPN IPv6 address format %u", rd_type);
-                        return -1;
-                } /* switch (rd_type) */
                 break;
             case SAFNUM_FSPEC_RULE:
             case SAFNUM_FSPEC_VPN_RULE:
@@ -7075,7 +7856,7 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
 
                     proto_tree_add_item(tree, hf_bgp_vplsbgp_labelblock_offset, tvb, offset+12, 2, ENC_BIG_ENDIAN);
                     proto_tree_add_item(tree, hf_bgp_vplsbgp_labelblock_size, tvb, offset+14, 2, ENC_BIG_ENDIAN);
-                    stack_strbuf = wmem_strbuf_new_label(pinfo->pool);
+                    stack_strbuf = wmem_strbuf_create(pinfo->pool);
                     decode_MPLS_stack(tvb, offset + 16, stack_strbuf);
                     proto_tree_add_string(tree, hf_bgp_vplsbgp_labelblock_base, tvb, offset+16, plen-14, wmem_strbuf_get_str(stack_strbuf));
 
@@ -7288,6 +8069,35 @@ decode_prefix_MP(proto_tree *tree, int hf_path_id, int hf_addr4, int hf_addr6,
 
             break;
 
+        case LINK_STATE_SRV6_SID_NLRI:
+            nlri_ti = proto_tree_add_item(prefix_tree,
+                    hf_bgp_ls_nlri_srv6_sid_nlri_type, tvb, offset, length,
+                    ENC_NA);
+            nlri_tree = proto_item_add_subtree(nlri_ti, ett_bgp_mp_reach_nlri);
+            tmp_length = decode_bgp_link_node_nlri_common_fields(tvb, nlri_tree,
+                    offset, pinfo, length);
+            if (tmp_length < 1)
+                return -1;
+
+            offset += tmp_length;
+            length -= tmp_length;
+
+            /* dissect SRv6 SID Descriptors NLRI */
+            if (length > 0 && length < 4) {
+                expert_add_info_format(pinfo, nlri_tree, &ei_bgp_ls_error,
+                        "Unknown data in Link-State SRv6 SID NLRI!");
+                break;
+            }
+            if (length < 1)
+                break;
+
+            tmp_length = decode_bgp_link_nlri_srv6_sid_descriptors(tvb, nlri_tree,
+                    offset, pinfo, length);
+            if (tmp_length < 1)
+                return -1;
+
+            break;
+
         default:
             proto_tree_add_expert_format(tree, pinfo,  &ei_bgp_ls_error, tvb, start_offset, 0,
                                          "Unknown Link-State NLRI type (%u)", afi);
@@ -7383,6 +8193,17 @@ dissect_bgp_capability_item(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo,
                     proto_tree_add_item(cap_tree, hf_bgp_cap_unknown, tvb, offset, eclen - offset, ENC_NA);
                     offset = eclen;
                 }
+            }
+            break;
+        case BGP_CAPABILITY_BGP_ROLE:
+            if (clen != 1) {
+                expert_add_info_format(pinfo, ti_len, &ei_bgp_cap_len_bad, "Capability length %u is wrong, must be = 1", clen);
+                proto_tree_add_item(cap_tree, hf_bgp_cap_unknown, tvb, offset, clen, ENC_NA);
+                offset += clen;
+            }
+            else {
+                proto_tree_add_item(cap_tree, hf_bgp_cap_role, tvb, offset, 1, ENC_BIG_ENDIAN);
+                offset += 1;
             }
             break;
         case BGP_CAPABILITY_GRACEFUL_RESTART:
@@ -7583,6 +8404,25 @@ dissect_bgp_capability_item(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo,
             }
 
             break;
+
+        case BGP_CAPABILITY_BFD_STRICT:
+            if (clen != 0) {
+                expert_add_info_format(pinfo, ti_len, &ei_bgp_cap_len_bad, "Capability length %u wrong, must be = 0", clen);
+                proto_tree_add_item(cap_tree, hf_bgp_cap_unknown, tvb, offset, clen, ENC_NA);
+            }
+            offset += clen;
+            break;
+        case BGP_CAPABILITY_SOFT_VERSION:{
+            guint8 soft_version_len;
+
+            proto_tree_add_item(cap_tree, hf_bgp_cap_soft_version_len, tvb, offset, 1, ENC_NA);
+            soft_version_len = tvb_get_guint8(tvb, offset);
+            offset += 1;
+
+            proto_tree_add_item(cap_tree, hf_bgp_cap_soft_version, tvb, offset, soft_version_len, ENC_ASCII);
+            offset += soft_version_len;
+            }
+            break;
             /* unknown capability */
         default:
             if (clen != 0) {
@@ -7601,7 +8441,7 @@ dissect_bgp_capability_item(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo,
 static void
 dissect_bgp_open(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo)
 {
-    guint8          optlen;    /* Option Length */
+    uint16_t        optlen;    /* Option Length */
     int             ptype;     /* parameter type        */
     int             plen;      /* parameter length      */
     int             cend;      /* capabilities end      */
@@ -7611,6 +8451,7 @@ dissect_bgp_open(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo)
     proto_item      *ti;       /* tree item             */
     proto_tree      *opt_tree;  /* subtree for options   */
     proto_tree      *par_tree;  /* subtree for par options   */
+    proto_tree      *opt_extension_tree;  /* subtree for par options   */
 
     offset = BGP_MARKER_SIZE + 2 + 1;
 
@@ -7635,7 +8476,20 @@ dissect_bgp_open(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo)
 
     /* optional parameters */
     if (optlen > 0) {
-        oend = offset + optlen;
+        ptype = tvb_get_guint8(tvb, offset);
+        if (ptype == BGP_OPTION_EXTENDED_LEN) {  /* Extended Length covered by RFC9072 */
+            optlen = tvb_get_guint16(tvb, offset+1, ENC_BIG_ENDIAN);
+
+            ti =  proto_tree_add_item(tree, hf_bgp_open_opt_extension, tvb, offset, 3, ENC_NA);
+            opt_extension_tree = proto_item_add_subtree(ti, ett_bgp_options_ext);
+            proto_tree_add_item(opt_extension_tree, hf_bgp_open_opt_extension_mark, tvb, offset, 1, ENC_NA);
+            proto_tree_add_item(opt_extension_tree, hf_bgp_open_opt_extension_len, tvb, offset +1, 2, ENC_BIG_ENDIAN);
+
+            oend = offset + 3 + optlen;
+            offset += 3;
+        } else {
+            oend = offset + optlen;
+        }
 
         /* add a subtree */
         ti = proto_tree_add_item(tree, hf_bgp_open_opt_params, tvb, offset, optlen, ENC_NA);
@@ -7820,6 +8674,7 @@ dissect_bgp_update_ext_com(proto_tree *parent_tree, tvbuff_t *tvb, guint16 tlen,
     proto_item      *community_item=NULL;
     proto_item      *community_type_item=NULL;
     guint32         encaps_tunnel_type;
+    afi_safi_data   *data = NULL;
 
     offset = tvb_off ;
     end = tvb_off + tlen ;
@@ -7876,9 +8731,24 @@ dissect_bgp_update_ext_com(proto_tree *parent_tree, tvbuff_t *tvb, guint16 tlen,
 
         switch (com_type_high_byte) {
             case BGP_EXT_COM_TYPE_HIGH_TR_AS2: /* Transitive Two-Octet AS-Specific Extended Community */
+
                 proto_tree_add_item(community_tree, hf_bgp_ext_com_stype_tr_as2, tvb, offset+1, 1, ENC_BIG_ENDIAN);
                 proto_tree_add_item(community_tree, hf_bgp_ext_com_value_as2, tvb, offset+2, 2, ENC_BIG_ENDIAN);
-                proto_tree_add_item(community_tree, hf_bgp_ext_com_value_an4, tvb, offset+4, 4, ENC_BIG_ENDIAN);
+                data = load_afi_safi_data(pinfo);
+
+                if(data && data->afi == AFNUM_L2VPN && data->safi == SAFNUM_EVPN) {
+                        static int * const local_admin_flags[] = {
+                            &hf_bgp_ext_com_local_admin_auto_derived_flag,
+                            &hf_bgp_ext_com_local_admin_type,
+                            &hf_bgp_ext_com_local_admin_domain_id,
+                            NULL
+                        };
+                        proto_tree_add_bitmask(community_tree, tvb, offset+4, hf_bgp_ext_com_local_admin_flags,
+                                ett_bgp_vxlan, local_admin_flags, ENC_BIG_ENDIAN);
+                        proto_tree_add_item(community_tree, hf_bgp_ext_com_local_admin_service_id, tvb, offset+5, 3, ENC_BIG_ENDIAN);
+                } else {
+                        proto_tree_add_item(community_tree, hf_bgp_ext_com_value_an4, tvb, offset+4, 4, ENC_BIG_ENDIAN);
+                }
 
                 proto_item_set_text(community_item, "%s: %u:%u",
                         val_to_str(com_stype_low_byte, bgpext_com_stype_tr_as2, "Unknown subtype 0x%02x"),
@@ -8238,6 +9108,30 @@ dissect_bgp_update_ext_com(proto_tree *parent_tree, tvbuff_t *tvb, guint16 tlen,
                 }
                 break;
 
+            case BGP_EXT_COM_TYPE_HIGH_TR_MUP:
+                proto_tree_add_item(community_tree, hf_bgp_ext_com_stype_tr_mup, tvb, offset+1, 1, ENC_BIG_ENDIAN);
+
+                proto_item_set_text(community_item, "%s:",
+                        val_to_str(com_stype_low_byte, bgpext_com_stype_tr_mup, "Unknown subtype 0x%02x"));
+                switch (com_stype_low_byte) {
+                    case BGP_EXT_COM_STYPE_MUP_DIRECT_SEG:
+                        /* format of this community is open, then display it in 2-byte:4-byte decimal format like route target */
+                        proto_tree_add_item(community_tree, hf_bgp_ext_com_mup_segment_id2, tvb, offset+2, 2, ENC_BIG_ENDIAN);
+                        proto_tree_add_item(community_tree, hf_bgp_ext_com_mup_segment_id4, tvb, offset+4, 4, ENC_BIG_ENDIAN);
+                        proto_item_append_text(community_item, " %u:%u", tvb_get_ntohs(tvb,offset+2), tvb_get_ntohl(tvb, offset+4));
+                        break;
+                    default:
+                        proto_tree_add_uint64_format_value(community_tree, hf_bgp_ext_com_value_raw, tvb, offset+2, 6,
+                                tvb_get_ntoh48 (tvb, offset+2), "0x%04x 0x%04x 0x%04x",
+                                tvb_get_ntohs(tvb,offset+2),
+                                tvb_get_ntohs(tvb,offset+4),
+                                tvb_get_ntohs(tvb,offset+6));
+
+                        proto_item_append_text(community_item, " 0x%04x 0x%04x 0x%04x",
+                                tvb_get_ntohs(tvb,offset+2), tvb_get_ntohs(tvb,offset+4), tvb_get_ntohs(tvb,offset+6));
+                        break;
+                }
+                break;
             case BGP_EXT_COM_TYPE_HIGH_TR_EXP: /* Generic Transitive Experimental Extended Community */
                 proto_tree_add_item(community_tree, hf_bgp_ext_com_stype_tr_exp, tvb, offset+1, 1, ENC_BIG_ENDIAN);
 
@@ -8544,7 +9438,7 @@ dissect_bgp_update_ext_com(proto_tree *parent_tree, tvbuff_t *tvb, guint16 tlen,
                         tvb_get_ntohs(tvb,offset+2), tvb_get_ntohs(tvb,offset+4), tvb_get_ntohs(tvb,offset+6));
                 break;
         }
-        proto_item_append_text (community_item, " [%s]", val_to_str(com_type_high_byte, bgpext_com_type_high, "Unknown community"));
+        proto_item_append_text (community_item, " [%s]", val_to_str_const(com_type_high_byte, bgpext_com_type_high, "Unknown community"));
         offset = offset + 8;
     }
     return(0);
@@ -8604,10 +9498,10 @@ dissect_bgp_update_pmsi_attr(packet_info *pinfo, proto_tree *parent_tree, tvbuff
             proto_tree_add_item(tunnel_id_tree, hf_bgp_pmsi_tunnel_mldp_fec_el_afi, tvb, offset+6, 2, ENC_BIG_ENDIAN);
             proto_tree_add_item(tunnel_id_tree, hf_bgp_pmsi_tunnel_mldp_fec_el_adr_len, tvb, offset+8, 1, ENC_BIG_ENDIAN);
             rn_addr_length = tvb_get_guint8(tvb, offset+8);
-            if( rn_addr_length ==4)
-                proto_tree_add_item(tunnel_id_tree, hf_bgp_pmsi_tunnel_mldp_fec_el_root_nodev4, tvb, offset+9, 4, ENC_NA);
+            if(rn_addr_length == 4)
+                proto_tree_add_item(tunnel_id_tree, hf_bgp_pmsi_tunnel_mldp_fec_el_root_nodev4, tvb, offset+9, 4, ENC_BIG_ENDIAN);
             else
-                proto_tree_add_item(tunnel_id_tree, hf_bgp_pmsi_tunnel_mldp_fec_el_root_nodev6, tvb, offset+9, 4, ENC_NA);
+                proto_tree_add_item(tunnel_id_tree, hf_bgp_pmsi_tunnel_mldp_fec_el_root_nodev6, tvb, offset+9, 16, ENC_NA);
 
             proto_tree_add_item(tunnel_id_tree, hf_bgp_pmsi_tunnel_mldp_fec_el_opa_len, tvb, offset+9+rn_addr_length, 2, ENC_BIG_ENDIAN);
             opaque_value_type_item = proto_tree_add_item(tunnel_id_tree, hf_bgp_pmsi_tunnel_mldp_fec_el_opa_val_type,
@@ -8655,9 +9549,15 @@ dissect_bgp_update_pmsi_attr(packet_info *pinfo, proto_tree *parent_tree, tvbuff
                                    tvb_ip_to_str(pinfo->pool, tvb, offset+9));
             break;
         case PMSI_TUNNEL_INGRESS:
-            proto_tree_add_item(tunnel_id_tree, hf_bgp_pmsi_tunnel_ingress_rep_addr, tvb, offset+5, 4, ENC_BIG_ENDIAN);
-            proto_item_append_text(tunnel_id_item, ": tunnel end point -> %s",
-                                   tvb_ip_to_str(pinfo->pool, tvb, offset+5));
+            if(tunnel_id_len == 4){
+                proto_tree_add_item(tunnel_id_tree, hf_bgp_pmsi_tunnel_ingress_rep_addr, tvb, offset+5, 4, ENC_BIG_ENDIAN);
+                proto_item_append_text(tunnel_id_item, ": tunnel end point -> %s",
+                                       tvb_ip_to_str(pinfo->pool, tvb, offset+5));
+            } else {
+                proto_tree_add_item(tunnel_id_tree, hf_bgp_pmsi_tunnel_ingress_rep_addr6, tvb, offset+5, 16, ENC_NA);
+                proto_item_append_text(tunnel_id_item, ": tunnel end point -> %s",
+                                       tvb_ip6_to_str(pinfo->pool, tvb, offset+5));
+            }
             break;
         default:
             expert_add_info_format(pinfo, pmsi_tunnel_type_item, &ei_bgp_attr_pmsi_tunnel_type,
@@ -9050,6 +9950,7 @@ dissect_bgp_path_attr(proto_tree *subtree, tvbuff_t *tvb, guint16 path_attr_len,
                 proto_tree_add_item_ret_uint(subtree2, hf_bgp_update_path_attribute_mp_reach_nlri_safi, tvb,
                                     o + i + aoff + 2, 1, ENC_BIG_ENDIAN, &saf);
                 nexthop_len = tvb_get_guint8(tvb, o + i + aoff + 3);
+                save_afi_safi_data(pinfo, (guint16)af, (guint8)saf);
 
                 decode_mp_next_hop(tvb_new_subset_length(tvb, o + i + aoff + 3, nexthop_len + 1), subtree2, pinfo, af, saf, nexthop_len);
 
@@ -9107,6 +10008,7 @@ dissect_bgp_path_attr(proto_tree *subtree, tvbuff_t *tvb, guint16 path_attr_len,
                 saf = tvb_get_guint8(tvb, o + i + aoff + 2) ;
                 proto_tree_add_item(subtree2, hf_bgp_update_path_attribute_mp_unreach_nlri_safi, tvb,
                                     o + i + aoff+2, 1, ENC_BIG_ENDIAN);
+                save_afi_safi_data(pinfo, (guint16)af, (guint8)saf);
 
                 ti = proto_tree_add_item(subtree2, hf_bgp_update_path_attribute_mp_unreach_nlri, tvb, o + i + aoff + 3, tlen - 3, ENC_NA);
                 subtree3 = proto_item_add_subtree(ti, ett_bgp_mp_unreach_nlri);
@@ -9436,12 +10338,11 @@ dissect_bgp_path_attr(proto_tree *subtree, tvbuff_t *tvb, guint16 path_attr_len,
                                                 q += 1;
                                                 proto_tree_add_item(subtree8, hf_bgp_update_encaps_tunnel_subtlv_segment_list_subtlv_mpls_label,
                                                         tvb, q, 3, ENC_BIG_ENDIAN);
-                                                q += 2;
                                                 proto_tree_add_item(subtree8, hf_bgp_update_encaps_tunnel_subtlv_segment_list_subtlv_traffic_class,
-                                                        tvb, q, 1, ENC_BIG_ENDIAN);
+                                                        tvb, q, 3, ENC_BIG_ENDIAN);
                                                 proto_tree_add_item(subtree8, hf_bgp_update_encaps_tunnel_subtlv_segment_list_subtlv_bottom_stack,
-                                                        tvb, q, 1, ENC_BIG_ENDIAN);
-                                                q += 1;
+                                                        tvb, q, 3, ENC_BIG_ENDIAN);
+                                                q += 3;
                                                 proto_tree_add_item(subtree8, hf_bgp_update_encaps_tunnel_subtlv_segment_list_subtlv_ttl,
                                                         tvb, q, 1, ENC_BIG_ENDIAN);
                                                 q += 1;
@@ -9506,7 +10407,7 @@ dissect_bgp_path_attr(proto_tree *subtree, tvbuff_t *tvb, guint16 path_attr_len,
                 q = o + i + aoff;
                 end = q + tlen;
                 wmem_strbuf_t *comm_strbuf;
-                comm_strbuf = wmem_strbuf_new_label(pinfo->pool);
+                comm_strbuf = wmem_strbuf_create(pinfo->pool);
                 while (q < end) {
                     guint32 ga, ldp1, ldp2;
                     ga = tvb_get_ntohl(tvb, q);
@@ -9901,6 +10802,17 @@ dissect_bgp_path_attr(proto_tree *subtree, tvbuff_t *tvb, guint16 path_attr_len,
                                                  alen, plurality(alen, "", "s"));
                 }
                 break;
+            case BGPTYPE_OTC:
+                if (tlen != 4) {
+                    proto_tree_add_expert_format(subtree2, pinfo, &ei_bgp_length_invalid, tvb, o + i + aoff, tlen,
+                                                 "Only to Customer (invalid): %u byte%s", tlen,
+                                                 plurality(tlen, "", "s"));
+                } else {
+                    proto_tree_add_item(subtree2, hf_bgp_update_path_attribute_otc, tvb,
+                                        o + i + aoff, tlen, ENC_BIG_ENDIAN);
+                    proto_item_append_text(ti_pa, ": %u", tvb_get_ntohl(tvb, o + i + aoff));
+                }
+                break;
             case BGPTYPE_D_PATH:
                 if(tlen < 8){
                     proto_tree_add_expert_format(subtree2, pinfo, &ei_bgp_length_invalid, tvb, o + i + aoff, tlen,
@@ -9911,7 +10823,7 @@ dissect_bgp_path_attr(proto_tree *subtree, tvbuff_t *tvb, guint16 path_attr_len,
                 q = o + i + aoff;
                 end = q + tlen;
                 wmem_strbuf_t *dpath_strbuf;
-                dpath_strbuf = wmem_strbuf_new_label(pinfo->pool);
+                dpath_strbuf = wmem_strbuf_create(pinfo->pool);
                 guint8 dpath_len;
                 dpath_len = tvb_get_guint8(tvb, q);
                 proto_tree_add_item(subtree2, hf_bgp_d_path_length, tvb,
@@ -10124,8 +11036,8 @@ dissect_bgp_notification(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo)
         case BGP_MAJOR_ERROR_CEASE:
             proto_tree_add_item(tree, hf_bgp_notify_minor_cease, tvb, offset, 1, ENC_BIG_ENDIAN);
         break;
-        case BGP_MAJOR_ERROR_CAP_MSG:
-            proto_tree_add_item(tree, hf_bgp_notify_minor_cap_msg, tvb, offset, 1, ENC_BIG_ENDIAN);
+        case BGP_MAJOR_ERROR_ROUTE_REFRESH:
+            proto_tree_add_item(tree, hf_bgp_notify_minor_rr_msg, tvb, offset, 1, ENC_BIG_ENDIAN);
         break;
         default:
             ti = proto_tree_add_item(tree, hf_bgp_notify_minor_unknown, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -10175,6 +11087,8 @@ dissect_bgp_route_refresh(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo)
     guint8          entryflag;  /* ORF Entry flag: action(add,del,delall) match(permit,deny) */
     int             entrylen;   /* ORF Entry length */
     int             advance;    /* tmp                      */
+    guint32         afi;
+    guint32         safi;
 
 
 /*
@@ -10200,7 +11114,7 @@ example 2
     p = BGP_HEADER_SIZE;
 
     /* AFI */
-    proto_tree_add_item(tree, hf_bgp_route_refresh_afi, tvb, p, 2, ENC_BIG_ENDIAN);
+    proto_tree_add_item_ret_uint(tree, hf_bgp_route_refresh_afi, tvb, p, 2, ENC_BIG_ENDIAN, &afi);
     p += 2;
 
     /*  Subtype in draft-ietf-idr-bgp-enhanced-route-refresh-02 (for Enhanced Route Refresh Capability) before Reserved*/
@@ -10208,8 +11122,9 @@ example 2
     p++;
 
     /* SAFI */
-    proto_tree_add_item(tree, hf_bgp_route_refresh_safi, tvb, p, 1, ENC_BIG_ENDIAN);
+    proto_tree_add_item_ret_uint(tree, hf_bgp_route_refresh_safi, tvb, p, 1, ENC_BIG_ENDIAN, &safi);
     p++;
+    save_afi_safi_data(pinfo, (guint16)afi, (guint8)safi);
 
     if ( hlen == BGP_HEADER_SIZE + 4 )
         return;
@@ -10222,11 +11137,11 @@ example 2
         proto_tree_add_item(subtree, hf_bgp_route_refresh_orf_flag, tvb, p, 1, ENC_BIG_ENDIAN);
         p += 1;
 
-        ti1 = proto_tree_add_item(subtree, hf_bgp_route_refresh_orf_type, tvb, p , 1, ENC_BIG_ENDIAN);
+        ti1 = proto_tree_add_item(subtree, hf_bgp_route_refresh_orf_type, tvb, p, 1, ENC_BIG_ENDIAN);
         orftype = tvb_get_guint8(tvb, p);
         p += 1;
 
-        proto_tree_add_item(subtree, hf_bgp_route_refresh_orf_length, tvb, p , 2, ENC_BIG_ENDIAN);
+        proto_tree_add_item(subtree, hf_bgp_route_refresh_orf_length, tvb, p, 2, ENC_BIG_ENDIAN);
         orflen = tvb_get_ntohs(tvb, p);
         proto_item_set_len(ti, orflen + 4);
         p += 2;
@@ -10271,13 +11186,14 @@ example 2
     }
 }
 
-static void
+static int
 dissect_bgp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                gboolean first)
+                void *data _U_)
 {
     guint16       bgp_len;          /* Message length             */
     guint8        bgp_type;         /* Message type               */
     const char    *typ;             /* Message type (string)      */
+    proto_item    *ti = NULL;
     proto_item    *ti_marker = NULL;/* marker item                */
     proto_item    *ti_len = NULL;   /* length item                */
     proto_tree    *bgp_tree = NULL; /* BGP packet tree            */
@@ -10290,13 +11206,10 @@ dissect_bgp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     bgp_type = tvb_get_guint8(tvb, BGP_MARKER_SIZE + 2);
     typ = val_to_str(bgp_type, bgptypevals, "Unknown message type (0x%02x)");
 
-    if (first)
-        col_add_str(pinfo->cinfo, COL_INFO, typ);
-    else
-        col_append_fstr(pinfo->cinfo, COL_INFO, ", %s", typ);
+    col_set_str(pinfo->cinfo, COL_PROTOCOL, "BGP");
+    col_append_sep_str(pinfo->cinfo, COL_INFO, NULL, typ);
 
     if (tree) {
-        proto_item *ti;
         ti = proto_tree_add_item(tree, proto_bgp, tvb, 0, -1, ENC_NA);
         proto_item_append_text(ti, " - %s", typ);
 
@@ -10337,7 +11250,11 @@ dissect_bgp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     if (bgp_len < BGP_HEADER_SIZE || bgp_len > BGP_MAX_PACKET_SIZE) {
         expert_add_info_format(pinfo, ti_len, &ei_bgp_length_invalid, "Length is invalid %u", bgp_len);
-        return;
+        return tvb_captured_length(tvb);
+    }
+
+    if (tree) {
+        proto_item_set_len(ti, bgp_len);
     }
 
     proto_tree_add_item(bgp_tree, hf_bgp_type, tvb, 16 + 2, 1, ENC_BIG_ENDIAN);
@@ -10365,6 +11282,13 @@ dissect_bgp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     default:
         break;
     }
+    return bgp_len;
+}
+
+static guint
+get_bgp_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
+{
+    return tvb_get_ntohs(tvb, offset + BGP_MARKER_SIZE);
 }
 
 /*
@@ -10374,187 +11298,60 @@ static int
 dissect_bgp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
     volatile int  offset = 0;   /* offset into the tvbuff           */
-    gint          reported_length_remaining;
-    guint8        bgp_marker[BGP_MARKER_SIZE];    /* Marker (should be all ones */
     static guchar marker[] = {   /* BGP message marker               */
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     };
     proto_item    *ti;           /* tree item                        */
     proto_tree    *bgp_tree;     /* BGP packet tree                  */
-    guint16       bgp_len;       /* Message length             */
-    int           offset_before;
-    guint         length_remaining;
-    guint         length;
-    volatile gboolean first = TRUE;  /* TRUE for the first BGP message in packet */
-    tvbuff_t *volatile next_tvb;
-
-    col_set_str(pinfo->cinfo, COL_PROTOCOL, "BGP");
-    col_clear(pinfo->cinfo, COL_INFO);
+    tvbuff_t *volatile this_tvb; /* for tcp_dissect_pdus()           */
 
     /*
      * Scan through the TCP payload looking for a BGP marker.
      */
-    while ((reported_length_remaining = tvb_reported_length_remaining(tvb, offset))
-                > 0) {
+    while (tvb_reported_length_remaining(tvb, offset) > 0) {
         /*
-         * "reported_length_remaining" is the number of bytes of TCP payload
-         * remaining.  If it's more than the length of a BGP marker,
-         * we check only the number of bytes in a BGP marker.
+         * Start with a quick search for 0xFFFF, then do the heavier
+         * tvb_memeql() once we find it.
          */
-        if (reported_length_remaining > BGP_MARKER_SIZE)
-            reported_length_remaining = BGP_MARKER_SIZE;
-
-        /*
-         * OK, is there a BGP marker starting at the specified offset -
-         * or, at least, the beginning of a BGP marker running to the end
-         * of the TCP payload?
-         *
-         * This will throw an exception if the frame is short; that's what
-         * we want.
-         */
-        tvb_memcpy(tvb, bgp_marker, offset, reported_length_remaining);
-        if (memcmp(bgp_marker, marker, reported_length_remaining) == 0) {
-            /*
-             * Yes - stop scanning and start processing BGP packets.
-             */
+        offset = tvb_find_guint16(tvb, offset, -1, 0xFFFF);
+        if (offset < 0) {
+            /* Didn't find even the start of a marker */
+            return 0;
+        }
+        else if (0 == tvb_memeql(tvb, offset, marker, BGP_MARKER_SIZE)) {
+            /* Found the marker - stop scanning and start processing BGP packets. */
             break;
         }
-
-        /*
-         * No - keep scanning through the tvbuff to try to find a marker.
-         */
-        offset++;
+        else {
+            /* Keep scanning through the tvbuff to try to find a marker. */
+            offset++;
+        }
     }
+
+    col_clear(pinfo->cinfo, COL_INFO);
 
     /*
      * If we skipped any bytes, mark it as a BGP continuation.
      */
     if (offset > 0) {
-        ti = proto_tree_add_item(tree, proto_bgp, tvb, 0, -1, ENC_NA);
+        ti = proto_tree_add_item(tree, proto_bgp, tvb, 0, offset, ENC_NA);
         bgp_tree = proto_item_add_subtree(ti, ett_bgp);
-
+        proto_item_append_text(bgp_tree, " - Continuation");
         proto_tree_add_item(bgp_tree, hf_bgp_continuation, tvb, 0, offset, ENC_NA);
+
+        /* Don't include the continuation in PDU reassembly */
+        this_tvb = tvb_new_subset_remaining(tvb, offset);
+    }
+    else {
+        this_tvb = tvb;
     }
 
     /*
      * Now process the BGP packets in the TCP payload.
-     *
-     * XXX - perhaps "tcp_dissect_pdus()" should take a starting
-     * offset, in which case we can replace the loop below with
-     * a call to "tcp_dissect_pdus()".
      */
-    while (tvb_reported_length_remaining(tvb, offset) > 0) {
-        /*
-         * This will throw an exception if we don't have any data left.
-         * That's what we want.  (See "tcp_dissect_pdus()", which is
-         * similar.)
-         */
-        length_remaining = tvb_ensure_captured_length_remaining(tvb, offset);
-
-        /*
-         * Can we do reassembly?
-         */
-        if (bgp_desegment && pinfo->can_desegment) {
-            /*
-             * Yes - would a BGP header starting at this offset be split
-             * across segment boundaries?
-             */
-            if (length_remaining < BGP_HEADER_SIZE) {
-                /*
-                 * Yes.  Tell the TCP dissector where the data for this message
-                 * starts in the data it handed us and that we need "some more
-                 * data."  Don't tell it exactly how many bytes we need because
-                 * if/when we ask for even more (after the header) that will
-                 * break reassembly.
-                 */
-                pinfo->desegment_offset = offset;
-                pinfo->desegment_len = DESEGMENT_ONE_MORE_SEGMENT;
-                return tvb_captured_length(tvb);
-            }
-        }
-
-        /*
-         * Get the length and type from the BGP header.
-         */
-        bgp_len = tvb_get_ntohs(tvb, offset + BGP_MARKER_SIZE);
-        if (bgp_len < BGP_HEADER_SIZE) {
-            /*
-             * The BGP length doesn't include the BGP header; report that
-             * as an error.
-             */
-            show_reported_bounds_error(tvb, pinfo, tree);
-            return tvb_captured_length(tvb);
-        }
-
-        /*
-         * Can we do reassembly?
-         */
-        if (bgp_desegment && pinfo->can_desegment) {
-            /*
-             * Yes - is the PDU split across segment boundaries?
-             */
-            if (length_remaining < bgp_len) {
-                /*
-                 * Yes.  Tell the TCP dissector where the data for this
-                 * message starts in the data it handed us, and how many
-                 * more bytes we need, and return.
-                 */
-                pinfo->desegment_offset = offset;
-                pinfo->desegment_len = DESEGMENT_ONE_MORE_SEGMENT;
-                return tvb_captured_length(tvb);
-            }
-        }
-
-        /*
-         * Construct a tvbuff containing the amount of the payload we have
-         * available.  Make its reported length the amount of data in the PDU.
-         *
-         * XXX - if reassembly isn't enabled. the subdissector will throw a
-         * BoundsError exception, rather than a ReportedBoundsError exception.
-         * We really want a tvbuff where the length is "length", the reported
-         * length is "plen", and the "if the snapshot length were infinite"
-         * length is the minimum of the reported length of the tvbuff handed
-         * to us and "plen", with a new type of exception thrown if the offset
-         * is within the reported length but beyond that third length, with
-         * that exception getting the "Unreassembled Packet" error.
-         */
-        length = length_remaining;
-        if (length > bgp_len)
-            length = bgp_len;
-        next_tvb = tvb_new_subset_length_caplen(tvb, offset, length, bgp_len);
-
-        /*
-         * Dissect the PDU.
-         *
-         * If it gets an error that means there's no point in
-         * dissecting any more PDUs, rethrow the exception in
-         * question.
-         *
-         * If it gets any other error, report it and continue, as that
-         * means that PDU got an error, but that doesn't mean we should
-         * stop dissecting PDUs within this frame or chunk of reassembled
-         * data.
-         */
-        TRY {
-            dissect_bgp_pdu(next_tvb, pinfo, tree, first);
-        }
-        CATCH_NONFATAL_ERRORS {
-            show_exception(tvb, pinfo, tree, EXCEPT_CODE, GET_MESSAGE);
-        }
-        ENDTRY;
-
-        first = FALSE;
-
-        /*
-         * Step to the next PDU.
-         * Make sure we don't overflow.
-         */
-        offset_before = offset;
-        offset += bgp_len;
-        if (offset <= offset_before)
-            break;
-    }
+    tcp_dissect_pdus(this_tvb, pinfo, tree, bgp_desegment, BGP_HEADER_SIZE,
+                     get_bgp_len, dissect_bgp_pdu, NULL);
     return tvb_captured_length(tvb);
 }
 
@@ -10640,6 +11437,15 @@ proto_register_bgp(void)
       { &hf_bgp_open_opt_len,
         { "Optional Parameters Length", "bgp.open.opt.len", FT_UINT8, BASE_DEC,
           NULL, 0x0, "The total length of the Optional Parameters field in octets", HFILL }},
+      { &hf_bgp_open_opt_extension,
+        { "Optional Parameter Extension", "bgp.open.opt.extension", FT_NONE, BASE_NONE,
+          NULL, 0x0, "Optional Parameters Extension detected", HFILL }},
+      { &hf_bgp_open_opt_extension_mark,
+        { "Extension Mark", "bgp.open.opt.extension.mark", FT_UINT8, BASE_DEC,
+          NULL, 0x0, "Optional Parameters Extension detected", HFILL }},
+      { &hf_bgp_open_opt_extension_len,
+        { "Extended Length", "bgp.open.opt.extension_len", FT_UINT16, BASE_DEC,
+          NULL, 0x0, "The total extended length of the Optional Parameters field in octets", HFILL }},
       { &hf_bgp_open_opt_params,
         { "Optional Parameters", "bgp.open.opt", FT_NONE, BASE_NONE,
           NULL, 0x0, "List of optional parameters", HFILL }},
@@ -10680,9 +11486,9 @@ proto_register_bgp(void)
       { &hf_bgp_notify_minor_cease,
         { "Minor error Code (Cease)", "bgp.notify.minor_error_cease", FT_UINT8, BASE_DEC,
           VALS(bgpnotify_minor_cease), 0x0, NULL, HFILL }},
-      { &hf_bgp_notify_minor_cap_msg,
-        { "Minor error Code (Capability Message)", "bgp.notify.minor_error_capability", FT_UINT8, BASE_DEC,
-          VALS(bgpnotify_minor_cap_msg), 0x0, NULL, HFILL }},
+      { &hf_bgp_notify_minor_rr_msg,
+        { "Minor error Code (Route-Refresh message)", "bgp.notify.minor_error_route_refresh", FT_UINT8, BASE_DEC,
+          VALS(bgpnotify_minor_rr_msg), 0x0, NULL, HFILL }},
       { &hf_bgp_notify_minor_unknown,
         { "Minor error Code (Unknown)", "bgp.notify.minor_error_unknown", FT_UINT8, BASE_DEC,
           NULL, 0x0, NULL, HFILL }},
@@ -10719,7 +11525,7 @@ proto_register_bgp(void)
         { "ORF type", "bgp.route_refresh.orf.type", FT_UINT8, BASE_DEC,
           VALS(orf_type_vals), 0x0, NULL, HFILL }},
       { &hf_bgp_route_refresh_orf_length,
-        { "ORF length", "bgp.route_refresh.orf.length", FT_UINT8, BASE_DEC,
+        { "ORF length", "bgp.route_refresh.orf.length", FT_UINT16, BASE_DEC,
           NULL, 0x0, NULL, HFILL }},
       { &hf_bgp_route_refresh_orf_entry_prefixlist,
         { "ORFEntry PrefixList", "bgp.route_refresh.orf.entry", FT_NONE, BASE_NONE,
@@ -10777,6 +11583,9 @@ proto_register_bgp(void)
       { &hf_bgp_cap_enh_nhafi,
         { "Next hop AFI", "bgp.cap.enh.nhafi", FT_UINT16, BASE_DEC,
           VALS(afn_vals), 0x0, NULL, HFILL }},
+      { &hf_bgp_cap_role,
+        { "BGP Role", "bgp.cap.role", FT_UINT8, BASE_DEC,
+          VALS(bgprole_vals), 0x0, NULL, HFILL }},
       { &hf_bgp_cap_gr_timers,
         { "Restart Timers", "bgp.cap.gr.timers", FT_UINT16, BASE_HEX,
           NULL, 0x0, NULL, HFILL }},
@@ -10861,6 +11670,12 @@ proto_register_bgp(void)
       { &hf_bgp_cap_bgpsec_afi,
         { "AFI", "bgp.cap.bgpsec.afi", FT_UINT16, BASE_DEC,
           VALS(afn_vals), 0x0, NULL, HFILL }},
+      { &hf_bgp_cap_soft_version_len,
+        { "Software Version Length", "bgp.cap.software_version.len", FT_UINT8, BASE_DEC,
+          NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_cap_soft_version,
+        { "Software Version", "bgp.cap.software_version", FT_STRING, BASE_NONE,
+          NULL, 0x0, NULL, HFILL }},
       /* BGP update */
 
       { &hf_bgp_update_withdrawn_routes_length,
@@ -11128,6 +11943,14 @@ proto_register_bgp(void)
       { &hf_bgp_pmsi_tunnel_ingress_rep_addr,
         {"Tunnel type ingress replication IP end point", "bgp.update.path_attribute.pmsi.ingress_rep_ip", FT_IPv4, BASE_NONE,
         NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_pmsi_tunnel_ingress_rep_addr6,
+        {"Tunnel type ingress replication IP end point", "bgp.update.path_attribute.pmsi.ingress_rep_ip6", FT_IPv6, BASE_NONE,
+        NULL, 0x0, NULL, HFILL}},
+
+        /* BGP Only to Customer (OTC) Attribute, RFC9234 */
+      { &hf_bgp_update_path_attribute_otc,
+        { "Only to Customer", "bgp.update.path_attribute.otc", FT_UINT32, BASE_DEC,
+          NULL, 0x0, NULL, HFILL}},
 
         /* https://tools.ietf.org/html/draft-rabadan-sajassi-bess-evpn-ipvpn-interworking-02 */
       { &hf_bgp_update_path_attribute_d_path,
@@ -11297,7 +12120,7 @@ proto_register_bgp(void)
         { "Transposition Offset", "bgp.prefix_sid.srv6_l3vpn.sid.trans_offset", FT_UINT8, BASE_DEC,
           NULL, 0x0, NULL, HFILL }},
       { &hf_bgp_prefix_sid_srv6_l2vpn,
-        { "SRv6 L3 Service", "bgp.prefix_sid.srv6_l2vpn", FT_NONE, BASE_NONE,
+        { "SRv6 L2 Service", "bgp.prefix_sid.srv6_l2vpn", FT_NONE, BASE_NONE,
           NULL, 0x0, NULL, HFILL }},
       { &hf_bgp_prefix_sid_srv6_l2vpn_sub_tlvs,
         { "SRv6 Service Sub-TLVs", "bgp.prefix_sid.srv6_l2vpn.sub_tlvs", FT_NONE, BASE_NONE,
@@ -11527,11 +12350,11 @@ proto_register_bgp(void)
         { "MPLS Label", "bgp.update.encaps_tunnel_tlv_subtlv.segment_list_subtlv.mpls_label", FT_UINT24,
           BASE_HEX, NULL, BGP_MPLS_LABEL, NULL, HFILL}},
       { &hf_bgp_update_encaps_tunnel_subtlv_segment_list_subtlv_traffic_class,
-        { "Traffic Class", "bgp.update.encaps_tunnel_tlv_subtlv.segment_list_subtlv.traffic_class", FT_UINT8,
+        { "Traffic Class", "bgp.update.encaps_tunnel_tlv_subtlv.segment_list_subtlv.traffic_class", FT_UINT24,
           BASE_HEX, NULL, BGP_MPLS_TRAFFIC_CLASS, NULL, HFILL}},
       { &hf_bgp_update_encaps_tunnel_subtlv_segment_list_subtlv_bottom_stack,
         { "Bottom-of-Stack", "bgp.update.encaps_tunnel_tlv_subtlv.segment_list_subtlv.bottom_stack", FT_BOOLEAN,
-          8, NULL, BGP_MPLS_BOTTOM_L_STACK, NULL, HFILL}},
+          24, NULL, BGP_MPLS_BOTTOM_L_STACK, NULL, HFILL}},
       { &hf_bgp_update_encaps_tunnel_subtlv_segment_list_subtlv_ttl,
         { "TTL", "bgp.update.encaps_tunnel_tlv_subtlv.segment_list_subtlv.ttl", FT_UINT8,
           BASE_DEC, NULL, 0x0, NULL, HFILL}},
@@ -11627,7 +12450,7 @@ proto_register_bgp(void)
         { "Originating Router", "bgp.mcast_vpn_nlri_origin_router_ipv6", FT_IPv6,
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_mcast_vpn_nlri_source_as,
-        { "Source AS", "bgp.mcast_vpn_nlri_source_as", FT_UINT16,
+        { "Source AS", "bgp.mcast_vpn_nlri_source_as", FT_UINT32,
           BASE_DEC, NULL, 0x0, NULL, HFILL}},
        { &hf_bgp_mcast_vpn_nlri_source_length,
         { "Multicast Source Length", "bgp.mcast_vpn_nlri_source_length", FT_UINT8,
@@ -11726,16 +12549,16 @@ proto_register_bgp(void)
           TFS(&tfs_set_notset), BGPNLRI_FSPEC_UNUSED_BIT5, "Unused (must be zero)", HFILL}},
       { &hf_bgp_flowspec_nlri_dec_val_8,
         { "Decimal value", "bgp.flowspec_nlri.dec_val_8", FT_UINT8, BASE_DEC,
-          NULL, 0X0, NULL, HFILL }},
+          NULL, 0x0, NULL, HFILL }},
       { &hf_bgp_flowspec_nlri_dec_val_16,
         { "Decimal value", "bgp.flowspec_nlri.dec_val_16", FT_UINT16, BASE_DEC,
-          NULL, 0X0, NULL, HFILL }},
+          NULL, 0x0, NULL, HFILL }},
       { &hf_bgp_flowspec_nlri_dec_val_32,
         { "Decimal value", "bgp.flowspec_nlri.dec_val_32", FT_UINT32, BASE_DEC,
-          NULL, 0X0, NULL, HFILL }},
+          NULL, 0x0, NULL, HFILL }},
       { &hf_bgp_flowspec_nlri_dec_val_64,
         { "Decimal value", "bgp.flowspec_nlri.dec_val_64", FT_UINT64, BASE_DEC,
-          NULL, 0X0, NULL, HFILL }},
+          NULL, 0x0, NULL, HFILL }},
       { &hf_bgp_flowspec_nlri_op_lt,
         { "less than", "bgp.flowspec_nlri.op.lt", FT_BOOLEAN, 8,
           TFS(&tfs_set_notset), BGPNLRI_FSPEC_LESS_THAN, NULL, HFILL }},
@@ -11868,6 +12691,9 @@ proto_register_bgp(void)
       { &hf_bgp_ext_com_tunnel_type,
         { "Tunnel type", "bgp.ext_com.tunnel_type", FT_UINT16, BASE_DEC,
           VALS(bgpext_com_tunnel_type), 0x0, "Tunnel encapsulation type", HFILL}},
+      { &hf_bgp_ext_com_stype_tr_mup,
+        { "Subtype (MUP)", "bgp.ext_com.stype_tr_mup", FT_UINT8, BASE_HEX,
+          VALS(bgpext_com_stype_tr_mup), 0x0, "MUP Extended Community subtype", HFILL}},
       { &hf_bgp_ext_com_stype_tr_exp,
         { "Subtype (Experimental)", "bgp.ext_com.stype_tr_exp", FT_UINT8, BASE_HEX,
           VALS(bgpext_com_stype_tr_exp), 0x0, "Experimental Transitive Extended Community subtype", HFILL}},
@@ -11913,6 +12739,21 @@ proto_register_bgp(void)
       { &hf_bgp_ext_com_value_fs_remark,
         { "Remarking value", "bgp.ext_com.value_fs_dscp", FT_UINT8, BASE_HEX | BASE_EXT_STRING,
           &dscp_vals_ext, BGPNLRI_FSPEC_DSCP_BITMASK, NULL, HFILL }},
+      { &hf_bgp_ext_com_local_admin_flags,
+        { "Local Administrator", "bgp.ext_com.local_admin", FT_UINT8, BASE_HEX,
+          NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ext_com_local_admin_auto_derived_flag,
+        { "A-Bit", "bgp.ext_com.local_admin.auto_derived", FT_BOOLEAN, 8,
+          TFS(&tfs_manually_auto_derived), 0x80, NULL, HFILL }},
+      { &hf_bgp_ext_com_local_admin_type,
+        { "Type", "bgp.ext_com.local_admin.type", FT_UINT8, BASE_DEC,
+          VALS(bgp_ext_com_local_admin_types), 0x70, NULL, HFILL }},
+      { &hf_bgp_ext_com_local_admin_domain_id,
+        { "Domain Id", "bgp.ext_com.local_admin.domain_id", FT_UINT8, BASE_DEC,
+          NULL, 0x0F, NULL, HFILL }},
+      { &hf_bgp_ext_com_local_admin_service_id,
+        { "Service Id", "bgp.ext_com.local_admin.service_id", FT_UINT24, BASE_DEC,
+          NULL, 0x00, NULL, HFILL }},
       { &hf_bgp_ext_com_value_raw,
         { "Raw Value", "bgp.ext_com.value_raw", FT_UINT48, BASE_HEX,
           NULL, 0x0, "Raw value of the lowmost 6 octets of the Extended Community attribute", HFILL }},
@@ -12017,10 +12858,10 @@ proto_register_bgp(void)
         { "Reserved", "bgp.ext_com_etree.flag_reserved",FT_UINT16, BASE_HEX,
           NULL, BGP_EXT_COM_ETREE_FLAG_RESERVED, NULL, HFILL }},
       { &hf_bgp_ext_com_etree_flag_p,
-        { "P", "bgp.ext_com_etree.flag_p",FT_BOOLEAN, 8,
+        { "P", "bgp.ext_com_etree.flag_p",FT_BOOLEAN, 16,
           TFS(&tfs_set_notset), BGP_EXT_COM_ETREE_FLAG_P, "PE is attached with leaf nodes only", HFILL }},
       { &hf_bgp_ext_com_etree_flag_v,
-        { "V", "bgp.ext_com_etree.flag_v",FT_BOOLEAN, 8,
+        { "V", "bgp.ext_com_etree.flag_v",FT_BOOLEAN, 16,
           TFS(&tfs_set_notset), BGP_EXT_COM_ETREE_FLAG_V, "VLAN mapping", HFILL }},
       { &hf_bgp_ext_com_evpn_mmac_flag,
         { "Flags", "bgp.ext_com_evpn.mmac.flags", FT_UINT8, BASE_HEX,
@@ -12138,6 +12979,13 @@ proto_register_bgp(void)
       { &hf_bgp_ext_com_eigrp_e_m,
         { "External metric", "bgp.ext_com_eigrp.e_metric", FT_UINT32, BASE_DEC,
           NULL, 0x0, "Original metric of the route before its redistribution into EIGRP", HFILL }},
+      { &hf_bgp_ext_com_mup_segment_id2,
+        { "Segment Identifier 2-byte", "bgp.ext_com_mup.segment_id2", FT_UINT16, BASE_DEC,
+          NULL, 0x0, "Configurable segment identifier value 2-byte", HFILL }},
+      { &hf_bgp_ext_com_mup_segment_id4,
+        { "Segment Identifier 4-byte", "bgp.ext_com_mup.segment_id4", FT_UINT32, BASE_DEC,
+          NULL, 0x0, "Configurable segment identifier value 4-byte", HFILL }},
+
       /* idr-ls-03 */
       { &hf_bgp_ls_type,
         { "Type", "bgp.ls.type", FT_UINT16, BASE_DEC,
@@ -12187,6 +13035,9 @@ proto_register_bgp(void)
       { &hf_bgp_ls_nlri_prefix_descriptors_tlv,
         { "Prefix Descriptors TLV", "bgp.ls.nlri_prefix_descriptors_tlv", FT_NONE,
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_nlri_srv6_sid_descriptors_tlv,
+        { "SRv6 SID Descriptors TLV", "bgp.ls.nlri_srv6_sid_descriptors_tlv", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_ls_nlri_link_local_identifier,
         { "Link Local Identifier", "bgp.ls.nlri_link_local_identifier", FT_UINT32,
           BASE_HEX_DEC, NULL, 0x0, NULL, HFILL}},
@@ -12232,6 +13083,9 @@ proto_register_bgp(void)
       { &hf_bgp_ls_ipv6_topology_prefix_nlri_type,
         { "Link-State NLRI IPv6 Topology Prefix", "bgp.ls.ipv6_topology_prefix", FT_NONE,
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_nlri_srv6_sid_nlri_type,
+        { "Link-State NLRI SRv6 SID NLRI", "bgp.ls.nlri_srv6_sid", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
        /* NLRI TLVs */
       { &hf_bgp_ls_tlv_local_node_descriptors,
         { "Local Node Descriptors TLV", "bgp.ls.tlv.local_node_descriptors", FT_NONE,
@@ -12267,7 +13121,7 @@ proto_register_bgp(void)
         { "IPv6 Router-ID of Local Node TLV", "bgp.ls.tlv.ipv6_router_id_of_local_node", FT_NONE,
           BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_bgp_ls_tlv_ipv6_router_id_value,
-        { "IPv6 Router-ID", "bgp.ls.tlv.ipv6_router_id_of_local_node_value", FT_IPv6,
+        { "IPv6 Router-ID", "bgp.ls.tlv.ipv6_router_id_value", FT_IPv6,
           BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_bgp_ls_tlv_ipv4_router_id_of_remote_node,
         { "IPv4 Router-ID of Remote Node TLV", "bgp.ls.tlv.ipv4_router_id_of_remote_node", FT_NONE,
@@ -12291,10 +13145,10 @@ proto_register_bgp(void)
         { "IPv6 neighbor address TLV", "bgp.ls.tlv.ipv6_neighbor_address", FT_NONE,
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_ls_tlv_node_msd,
-        { "Node MSD", "bgp.ls.tlv.node_msd", FT_NONE,
+        { "Node MSD TLV", "bgp.ls.tlv.node_msd", FT_NONE,
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_ls_tlv_link_msd,
-        { "Link MSD", "bgp.ls.tlv.link_msd", FT_NONE,
+        { "Link MSD TLV", "bgp.ls.tlv.link_msd", FT_NONE,
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_ls_tlv_igp_msd_type,
         { "MSD Type", "bgp.ls.tlv.igp_msd_type", FT_UINT8,
@@ -12336,7 +13190,7 @@ proto_register_bgp(void)
         { "TE Default Metric TLV", "bgp.ls.tlv.te_default_metric", FT_NONE,
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_ls_tlv_te_default_metric_value_old,
-        { "TE Default Metric (old format)", "bgp.ls.tlv.te_default_metric_value", FT_UINT24,
+        { "TE Default Metric (old format)", "bgp.ls.tlv.te_default_metric_value.old", FT_UINT24,
           BASE_HEX_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_bgp_ls_tlv_te_default_metric_value,
         { "TE Default Metric", "bgp.ls.tlv.te_default_metric_value", FT_UINT32,
@@ -12433,6 +13287,12 @@ proto_register_bgp(void)
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_ls_tlv_bgp_router_id_id,
         { "BGP Router-ID", "bgp.ls.tlv.bgp_router_id.id", FT_IPv4,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_tlv_srv6_sid_info,
+        { "SRv6 SID Information TLV", "bgp.ls.tlv.srv6_sid_info", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_tlv_srv6_sid_info_sid,
+        { "SID", "bgp.ls.tlv.srv6_sid_info.sid", FT_IPv6,
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_ls_tlv_node_flags_bits,
         { "Node Flags Bits TLV", "bgp.ls.tlv.node_flags_bits", FT_NONE,
@@ -12624,7 +13484,7 @@ proto_register_bgp(void)
         { "From Index", "bgp.ls.sr.tlv.capabilities.sid.index", FT_UINT32,
           BASE_DEC, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_ls_sr_tlv_algorithm,
-        { "SR Algorithm", "bgp.ls.sr.tlv.algorithm", FT_NONE,
+        { "SR Algorithm TLV", "bgp.ls.sr.tlv.algorithm", FT_NONE,
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_ls_sr_tlv_algorithm_value,
         { "SR Algorithm", "bgp.ls.sr.tlv.algorithm.value", FT_UINT8,
@@ -12632,6 +13492,21 @@ proto_register_bgp(void)
       { &hf_bgp_ls_sr_tlv_local_block,
         { "SR Local Block", "bgp.ls.sr.tlv.local_block", FT_NONE,
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_cap,
+        { "SRv6 Capabilities TLV", "bgp.ls.sr.tlv.srv6_capabilities", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_cap_flags,
+        { "Flags", "bgp.ls.sr.tlv.srv6_capabilities.flags", FT_UINT16,
+          BASE_HEX, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_cap_flags_o,
+        { "OAM flag (O)", "bgp.ls.sr.tlv.srv6_capabilities.flags.o", FT_BOOLEAN,
+          16, TFS(&tfs_set_notset), BGP_LS_SRV6_CAP_FLAG_O, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_cap_flags_reserved,
+        { "Reserved", "bgp.ls.sr.tlv.srv6_capabilities.flags.reserved", FT_UINT16,
+          BASE_HEX, NULL, 0x3fff, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_cap_reserved,
+        { "Reserved", "bgp.ls.sr.tlv.srv6_capabilities.reserved", FT_UINT16,
+          BASE_HEX, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_ls_sr_tlv_local_block_flags,
         { "Flags", "bgp.ls.sr.tlv.local_block.flags", FT_UINT8,
           BASE_HEX, NULL, 0x0, NULL, HFILL}},
@@ -12708,6 +13583,27 @@ proto_register_bgp(void)
       { &hf_bgp_ls_sr_tlv_prefix_sid_index,
         { "SID/Index", "bgp.ls.sr.tlv.prefix.sid.index", FT_UINT32,
           BASE_DEC, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_locator,
+        { "SRv6 Locator TLV", "bgp.ls.sr.tlv.srv6_locator", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_locator_flags,
+        { "Flags", "bgp.ls.sr.tlv.srv6_locator.flags", FT_UINT8,
+          BASE_HEX, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_locator_flags_d,
+        { "Down flag (D)", "bgp.ls.sr.tlv.srv6_locator.flags.d", FT_BOOLEAN,
+          8, TFS(&tfs_set_notset), BGP_LS_SRV6_LOC_FLAG_D, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_locator_flags_reserved,
+        { "Reserved", "bgp.ls.sr.tlv.srv6_locator.flags.reserved", FT_UINT8,
+          BASE_HEX, NULL, BGP_LS_SRV6_LOC_FLAG_RESERVED, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_locator_algo,
+        { "Algorithm", "bgp.ls.sr.tlv.srv6_locator.algorithm",
+          FT_UINT8, BASE_DEC, VALS(igp_algo_types), 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_locator_reserved,
+        { "Reserved", "bgp.ls.sr.tlv.srv6_locator.reserved", FT_UINT16,
+          BASE_HEX, NULL, 0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_locator_metric,
+        { "Metric", "bgp.ls.sr.tlv.srv6_locator.metric", FT_UINT32,
+          BASE_DEC, NULL, 0x0, NULL, HFILL}},
       { &hf_bgp_ls_sr_tlv_prefix_attr_flags,
         { "Prefix Attribute Flags TLV", "bgp.ls.sr.tlv.prefix.attribute_flags", FT_NONE,
           BASE_NONE, NULL, 0x0, NULL, HFILL}},
@@ -12738,6 +13634,22 @@ proto_register_bgp(void)
       { &hf_bgp_ls_sr_tlv_prefix_attr_flags_flags_ei,
         { "ELC (E)", "bgp.ls.sr.tlv.prefix.attribute_flags.flags.e", FT_BOOLEAN,
           8, TFS(&tfs_set_notset), BGP_LS_SR_PREFIX_ATTR_FLAGS_FLAG_EI, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_source_router_id,
+        { "Source Router-ID TLV", "bgp.ls.sr.tlv.source_router_id", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+     /* SID Attribute TLVs */
+      { &hf_bgp_ls_sr_tlv_srv6_endpoint_behavior,
+        { "SRv6 Endpoint Behavior TLV", "bgp.ls.sr.tlv.srv6_endpoint_behavior", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_endpoint_behavior_endpoint_behavior,
+        { "Endpoint Behavior", "bgp.ls.sr.tlv.srv6_endpoint_behavior.endpoint_behavior", FT_UINT16,
+          BASE_HEX, VALS(srv6_endpoint_behavior), 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_endpoint_behavior_flags,
+        { "Flags", "bgp.ls.sr.tlv.srv6_endpoint_behavior.flags", FT_UINT8,
+          BASE_HEX, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_endpoint_behavior_algo,
+        { "Algorithm", "bgp.ls.sr.tlv.srv6_endpoint_behavior.algorithm",
+          FT_UINT8, BASE_DEC, VALS(igp_algo_types), 0x0, NULL, HFILL}},
      /* Adjacency Attribute TLVs */
       { &hf_bgp_ls_sr_tlv_adjacency_sid,
         { "Adjacency SID TLV", "bgp.ls.sr.tlv.adjacency.sid", FT_NONE,
@@ -12814,6 +13726,63 @@ proto_register_bgp(void)
       { &hf_bgp_ls_sr_tlv_peer_sid_index,
         { "SID/Index", "bgp.ls.sr.tlv.peer.sid.index", FT_UINT32,
           BASE_DEC, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid,
+        { "SRv6 End.X SID TLV", "bgp.ls.sr.tlv.srv6_endx_sid", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_lan_endx_sid,
+        { "SRv6 LAN End.X SID TLV", "bgp.ls.sr.tlv.srv6_lan_endx_sid", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_endpoint_behavior,
+        { "Endpoint Behavior", "bgp.ls.sr.tlv.srv6_endx_sid.endpoint_behavior",
+          FT_UINT16, BASE_DEC, VALS(srv6_endpoint_behavior), 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_flags,
+        { "Flags", "bgp.ls.sr.tlv.srv6_endx_sid.flags", FT_UINT8,
+          BASE_HEX, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_b,
+        { "Backup flag", "bgp.ls.sr.tlv.srv6_endx_sid.flags.b",
+          FT_BOOLEAN, 8, TFS(&tfs_set_notset), BGP_LS_SRV6_ENDX_SID_FLAG_B, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_s,
+        { "Set flag", "bgp.ls.sr.tlv.srv6_endx_sid.flags.s",
+          FT_BOOLEAN, 8, TFS(&tfs_set_notset), BGP_LS_SRV6_ENDX_SID_FLAG_S, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_p,
+        { "Persistent flag", "bgp.ls.sr.tlv.srv6_endx_sid.flags.p",
+          FT_BOOLEAN, 8, TFS(&tfs_set_notset), BGP_LS_SRV6_ENDX_SID_FLAG_P, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_flags_reserved,
+        { "Reserved", "bgp.ls.sr.tlv.srv6_endx_sid.flags.reserved",
+          FT_UINT8, BASE_HEX, NULL, BGP_LS_SRV6_ENDX_SID_FLAG_RESERVED, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_algo,
+        { "Algorithm", "bgp.ls.sr.tlv.srv6_endx_sid.algorithm",
+          FT_UINT8, BASE_DEC, VALS(igp_algo_types), 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_weight,
+        { "Weight", "bgp.ls.sr.tlv.srv6_endx_sid.weight",
+          FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_reserved,
+        { "Reserved", "bgp.ls.sr.tlv.srv6_endx_sid.reserved",
+          FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_neighbor_ospf,
+        { "Neighbor-ID", "bgp.ls.tlv.srv6_endx_sid.neighbor_id_ospf", FT_IPv4,
+          BASE_NONE, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_neighbor_isis,
+        { "Neighbor-ID", "bgp.ls.tlv.srv6_endx_sid.neighbor_id_isis", FT_SYSTEM_ID,
+          BASE_NONE, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_endx_sid_sid,
+        { "SID", "bgp.ls.sr.tlv.srv6_endx_sid.sid",
+          FT_IPv6, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_sid_struct,
+        { "SRv6 SID Structure TLV", "bgp.ls.sr.tlv.srv6_sid_structure", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_sid_struct_lb_len,
+        { "Locator Block Length", "bgp.ls.sr.tlv.srv6_sid_structure.locator_block_len",
+          FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_sid_struct_ln_len,
+        { "Locator Node Length", "bgp.ls.sr.tlv.srv6_sid_structure.locator_node_len",
+          FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_sid_struct_fun_len,
+        { "Function Length", "bgp.ls.sr.tlv.srv6_sid_structure.fun_len",
+          FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+      { &hf_bgp_ls_sr_tlv_srv6_sid_struct_arg_len,
+        { "Arguments Length", "bgp.ls.sr.tlv.srv6_sid_structure.arg_len",
+          FT_UINT8, BASE_DEC, NULL, 0x0,NULL, HFILL }},
       { &hf_bgp_ls_igp_te_metric_flags,
         { "TE Metric Flags", "bgp.ls.igp_te_metric.flags", FT_UINT8,
           BASE_HEX, NULL, 0x0, NULL, HFILL}},
@@ -12928,7 +13897,75 @@ proto_register_bgp(void)
           8, TFS(&tfs_exclude_include), EVPN_IGMP_MC_FLAG_IE, "Group Type (Include/Exclude Flag)", HFILL}},
       { &hf_bgp_evpn_nlri_igmp_mc_flags_reserved,
         { "Reserved", "bgp.evpn.nlri.igmp_mc_flags.reserved", FT_UINT8,
-          BASE_HEX, NULL, EVPN_IGMP_MC_FLAG_RESERVED, NULL, HFILL}}
+          BASE_HEX, NULL, EVPN_IGMP_MC_FLAG_RESERVED, NULL, HFILL}},
+
+        /* draft-mpmz-bess-mup-safi-00 */
+      { &hf_bgp_mup_nlri,
+        { "BGP-MUP NLRI", "bgp.mup.nlri", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_at,
+        { "Architecture Type", "bgp.mup.nlri.at", FT_UINT8, BASE_DEC,
+          VALS(bgp_mup_architecture_types), 0x0, NULL, HFILL }},
+      { &hf_bgp_mup_nlri_rt,
+        { "Route Type", "bgp.mup.nlri.rt", FT_UINT16, BASE_DEC,
+          VALS(bgp_mup_route_types), 0x0, NULL, HFILL }},
+      { &hf_bgp_mup_nlri_len,
+        { "Length", "bgp.mup.nlri.len", FT_UINT8,
+          BASE_DEC, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_rd,
+        { "Route Distinguisher", "bgp.mup.nlri.rd", FT_BYTES,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_prefixlen,
+        { "Prefix Length", "bgp.mup.nlri.prefixlen", FT_UINT8,
+          BASE_DEC, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_ip_prefix,
+        { "IPv4 Prefix", "bgp.mup.nlri.ip_prefix", FT_IPv4,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_ipv6_prefix,
+        { "IPv6 Prefix", "bgp.mup.nlri.ipv6_prefix", FT_IPv6,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_ip_addr,
+        { "IPv4 Address", "bgp.mup.nlri.ip_addr", FT_IPv4,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_ipv6_addr,
+        { "IPv6 Address", "bgp.mup.nlri.ipv6_addr", FT_IPv6,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_3gpp_5g_teid,
+        { "TEID", "bgp.mup.nlri.3gpp_5g.teid", FT_UINT32,
+          BASE_HEX, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_3gpp_5g_qfi,
+        { "QFI", "bgp.mup.nlri.3gpp_5g.qfi", FT_UINT8,
+          BASE_HEX, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_3gpp_5g_ep_addr_len,
+        { "Endpoint Length", "bgp.mup.nlri.3gpp_5g.ep.len", FT_UINT8,
+          BASE_DEC, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_3gpp_5g_ep_ip_addr,
+        { "Endpoint Address", "bgp.mup.nlri.3gpp_5g.ep.ip_addr", FT_IPv4,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_3gpp_5g_ep_ipv6_addr,
+        { "Endpoint Address", "bgp.mup.nlri.3gpp_5g.ep.ipv6_addr", FT_IPv6,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_ep_len,
+        { "Endpoint Length", "bgp.mup.nlri.ep.len", FT_UINT8,
+          BASE_DEC, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_ep_ip_addr,
+        { "Endpoint Address", "bgp.mup.nlri.ep.ip_addr", FT_IPv4,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_ep_ipv6_addr,
+        { "Endpoint Address", "bgp.mup.nlri.ep.ipv6_addr", FT_IPv6,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_3gpp_5g_ep_teid,
+        { "Endpoint TEID", "bgp.mup.nlri.3gpp_5g.ep.teid", FT_UINT32,
+          BASE_DEC, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_3gpp_5g_type1_st_route,
+        { "3gpp-5g specific Type 1 ST route", "bgp.mup.nlri.3gpp_5g.type1_st_route", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_3gpp_5g_type2_st_route,
+        { "3gpp-5g specific Type 2 ST route", "bgp.mup.nlri.3gpp_5g.type2_st_route", FT_NONE,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
+      { &hf_bgp_mup_nlri_unknown_data,
+        { "Unknown Data", "bgp.mup.nlri.unknown_data", FT_BYTES,
+          BASE_NONE, NULL, 0x0, NULL, HFILL}},
 };
 
     static gint *ett[] = {
@@ -12955,6 +13992,7 @@ proto_register_bgp(void)
       &ett_bgp_cluster_list,
       &ett_bgp_options,
       &ett_bgp_option,
+      &ett_bgp_options_ext,
       &ett_bgp_cap,
       &ett_bgp_extended_communities,
       &ett_bgp_extended_community,
@@ -13019,6 +14057,9 @@ proto_register_bgp(void)
       &ett_bgp_prefix_sid_srv6_l2vpn_sid_structure,
       &ett_bgp_prefix_sid_srv6_l2vpn_sid_unknown,
       &ett_bgp_prefix_sid_srv6_l2vpn_unknown,
+      &ett_bgp_mup_nlri,
+      &ett_bgp_mup_nlri_3gpp_5g_type1_st_route,
+      &ett_bgp_mup_nlri_3gpp_5g_type2_st_route,
     };
     static ei_register_info ei[] = {
         { &ei_bgp_marker_invalid, { "bgp.marker_invalid", PI_MALFORMED, PI_ERROR, "Marker is not all ones", EXPFILL }},
@@ -13046,6 +14087,9 @@ proto_register_bgp(void)
         { &ei_bgp_attr_as_path_as_len_err, { "bgp.attr.as_path.as_len", PI_UNDECODED, PI_ERROR, "unable to determine 4 or 2 bytes ASN", EXPFILL}},
         { &ei_bgp_next_hop_ipv6_scope, { "bgp.next_hop.ipv6.scope", PI_PROTOCOL, PI_WARN, "Invalid IPv6 address scope", EXPFILL}},
         { &ei_bgp_next_hop_rd_nonzero, { "bgp.next_hop.rd.nonzero", PI_PROTOCOL, PI_WARN, "Route Distinguisher in Next Hop Network Address nonzero", EXPFILL}},
+        { &ei_bgp_mup_unknown_at, { "bgp.mup.unknown_at", PI_PROTOCOL, PI_ERROR, "Unknown architecture type", EXPFILL }},
+        { &ei_bgp_mup_unknown_rt, { "bgp.mup.unknown_rt", PI_PROTOCOL, PI_ERROR, "Unknown route type", EXPFILL }},
+        { &ei_bgp_mup_nlri_addr_len_err, { "bgp.mup.nlri.addr_len_err", PI_PROTOCOL, PI_ERROR, "Address length invalid", EXPFILL }},
     };
 
     module_t *bgp_module;
@@ -13077,6 +14121,7 @@ proto_register_bgp(void)
       &bgp_asn_len, asn_len, FALSE);
 
     bgp_handle = register_dissector("bgp", dissect_bgp, proto_bgp);
+    register_dissector("bgp.pdu", dissect_bgp_pdu, proto_bgp);
 }
 
 void

@@ -484,9 +484,9 @@ mpls_pm_build_cinfo(tvbuff_t *tvb, packet_info *pinfo, const char *str_pmt,
         col_add_fstr(pinfo->cinfo, COL_INFO,
                      "Response, sid: %u, code: %s (%u)",
                      *sid,
-                     rval_to_str(*code,
-                                 mpls_pm_response_ctrl_code_rvals,
-                                 "Unknown"),
+                     rval_to_str_const(*code,
+                                       mpls_pm_response_ctrl_code_rvals,
+                                       "Unknown"),
                      *code);
     }
 }
@@ -869,7 +869,7 @@ proto_register_mpls_pm(void)
             &hf_mpls_pm_flags_r,
             {
                 "Response indicator (R)", "mpls_pm.flags.r",
-                FT_BOOLEAN, 4, TFS(&tfs_set_notset), MPLS_PM_FLAGS_R,
+                FT_BOOLEAN, 8, TFS(&tfs_set_notset), MPLS_PM_FLAGS_R,
                 NULL, HFILL
             }
         },
@@ -878,7 +878,7 @@ proto_register_mpls_pm(void)
             {
                 "Traffic-class-specific measurement indicator (T)",
                 "mpls_pm.flags.t",
-                FT_BOOLEAN, 4, TFS(&tfs_set_notset), MPLS_PM_FLAGS_T,
+                FT_BOOLEAN, 8, TFS(&tfs_set_notset), MPLS_PM_FLAGS_T,
                 NULL, HFILL
             }
         },
@@ -887,7 +887,7 @@ proto_register_mpls_pm(void)
             {
                 "Reserved",
                 "mpls_pm.flags.res",
-                FT_BOOLEAN, 4, TFS(&tfs_set_notset), MPLS_PM_FLAGS_RES,
+                FT_BOOLEAN, 8, TFS(&tfs_set_notset), MPLS_PM_FLAGS_RES,
                 NULL, HFILL
             }
         },
@@ -932,7 +932,7 @@ proto_register_mpls_pm(void)
             &hf_mpls_pm_dflags_x,
             {
                 "Extended counter format indicator (X)", "mpls_pm.dflags.x",
-                FT_BOOLEAN, 4, TFS(&tfs_set_notset), MPLS_PM_DFLAGS_X,
+                FT_BOOLEAN, 8, TFS(&tfs_set_notset), MPLS_PM_DFLAGS_X,
                 NULL, HFILL
             }
         },
@@ -940,7 +940,7 @@ proto_register_mpls_pm(void)
             &hf_mpls_pm_dflags_b,
             {
                 "Octet/Byte count indicator (B)", "mpls_pm.dflags.b",
-                FT_BOOLEAN, 4, TFS(&tfs_set_notset), MPLS_PM_DFLAGS_B,
+                FT_BOOLEAN, 8, TFS(&tfs_set_notset), MPLS_PM_DFLAGS_B,
                 NULL, HFILL
             }
         },
@@ -949,7 +949,7 @@ proto_register_mpls_pm(void)
             {
                 "Reserved",
                 "mpls_pm.dflags.res",
-                FT_BOOLEAN, 4, NULL, MPLS_PM_DFLAGS_RES,
+                FT_BOOLEAN, 8, NULL, MPLS_PM_DFLAGS_RES,
                 NULL, HFILL
             }
         },

@@ -26,6 +26,7 @@
 
 void proto_register_olsr(void);
 void proto_reg_handoff_olsr(void);
+static dissector_handle_t olsr_handle;
 
 #define UDP_PORT_OLSR   698
 #define HELLO   1
@@ -276,7 +277,7 @@ static int dissect_olsr_hello(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ols
   proto_item *ti;
   proto_tree *link_type_tree;
 
-  guint16     message_size = 0;
+  guint16     message_size;
 
   if (message_end - offset < 4) {
     proto_tree_add_expert_format(olsr_tree, pinfo, &ei_olsr_not_enough_bytes, tvb, offset, message_end - offset,
@@ -964,6 +965,7 @@ void proto_register_olsr(void) {
   }
 
   proto_olsr = proto_register_protocol("Optimized Link State Routing Protocol", "OLSR", "olsr");
+  olsr_handle = register_dissector("olsr", dissect_olsr, proto_olsr);
 
   proto_register_field_array(proto_olsr, hf, array_length(hf));
   proto_register_subtree_array(ett, array_length(ett));
@@ -980,9 +982,6 @@ void proto_register_olsr(void) {
 }
 
 void proto_reg_handoff_olsr(void) {
-  dissector_handle_t olsr_handle;
-
-  olsr_handle = create_dissector_handle(dissect_olsr, proto_olsr);
   dissector_add_uint_with_preference("udp.port", UDP_PORT_OLSR, olsr_handle);
 }
 

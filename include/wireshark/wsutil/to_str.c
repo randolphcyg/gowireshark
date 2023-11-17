@@ -9,19 +9,17 @@
  */
 
 #include "config.h"
+#include "to_str.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <glib.h>
-
-#include "to_str.h"
 
 #include <wsutil/utf8_entities.h>
 #include <wsutil/wslog.h>
 #include <wsutil/inet_addr.h>
 #include <wsutil/pint.h>
-#include <wsutil/ws_return.h>
+#include <wsutil/time_util.h>
 
 /*
  * If a user _does_ pass in a too-small buffer, this is probably
@@ -73,7 +71,7 @@ static const char fast_strings[][4] = {
 };
 
 static inline char
-low_nibble_of_octet_to_hex(guint8 oct)
+low_nibble_of_octet_to_hex(uint8_t oct)
 {
 	/* At least one version of Apple's C compiler/linker is buggy, causing
 	   a complaint from the linker about the "literal C string section"
@@ -81,7 +79,7 @@ low_nibble_of_octet_to_hex(guint8 oct)
 	   a 16-character string, the fact that initializing such an array with
 	   such a string is perfectly legitimate ANSI C nonwithstanding, the 17th
 	   '\0' byte in the string nonwithstanding. */
-	static const gchar hex_digits[16] =
+	static const char hex_digits[16] =
 	{ '0', '1', '2', '3', '4', '5', '6', '7',
 	  '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
@@ -89,7 +87,7 @@ low_nibble_of_octet_to_hex(guint8 oct)
 }
 
 static inline char *
-byte_to_hex(char *out, guint32 dword)
+byte_to_hex(char *out, uint32_t dword)
 {
 	*out++ = low_nibble_of_octet_to_hex(dword >> 4);
 	*out++ = low_nibble_of_octet_to_hex(dword);
@@ -97,13 +95,13 @@ byte_to_hex(char *out, guint32 dword)
 }
 
 char *
-guint8_to_hex(char *out, guint8 val)
+guint8_to_hex(char *out, uint8_t val)
 {
 	return byte_to_hex(out, val);
 }
 
 char *
-word_to_hex(char *out, guint16 word)
+word_to_hex(char *out, uint16_t word)
 {
 	out = byte_to_hex(out, word >> 8);
 	out = byte_to_hex(out, word);
@@ -111,7 +109,7 @@ word_to_hex(char *out, guint16 word)
 }
 
 char *
-word_to_hex_punct(char *out, guint16 word, char punct)
+word_to_hex_punct(char *out, uint16_t word, char punct)
 {
 	out = byte_to_hex(out, word >> 8);
 	*out++ = punct;
@@ -120,20 +118,20 @@ word_to_hex_punct(char *out, guint16 word, char punct)
 }
 
 char *
-word_to_hex_npad(char *out, guint16 word)
+word_to_hex_npad(char *out, uint16_t word)
 {
 	if (word >= 0x1000)
-		*out++ = low_nibble_of_octet_to_hex((guint8)(word >> 12));
+		*out++ = low_nibble_of_octet_to_hex((uint8_t)(word >> 12));
 	if (word >= 0x0100)
-		*out++ = low_nibble_of_octet_to_hex((guint8)(word >> 8));
+		*out++ = low_nibble_of_octet_to_hex((uint8_t)(word >> 8));
 	if (word >= 0x0010)
-		*out++ = low_nibble_of_octet_to_hex((guint8)(word >> 4));
-	*out++ = low_nibble_of_octet_to_hex((guint8)(word >> 0));
+		*out++ = low_nibble_of_octet_to_hex((uint8_t)(word >> 4));
+	*out++ = low_nibble_of_octet_to_hex((uint8_t)(word >> 0));
 	return out;
 }
 
 char *
-dword_to_hex(char *out, guint32 dword)
+dword_to_hex(char *out, uint32_t dword)
 {
 	out = word_to_hex(out, dword >> 16);
 	out = word_to_hex(out, dword);
@@ -141,7 +139,7 @@ dword_to_hex(char *out, guint32 dword)
 }
 
 char *
-dword_to_hex_punct(char *out, guint32 dword, char punct)
+dword_to_hex_punct(char *out, uint32_t dword, char punct)
 {
 	out = word_to_hex_punct(out, dword >> 16, punct);
 	*out++ = punct;
@@ -150,19 +148,19 @@ dword_to_hex_punct(char *out, guint32 dword, char punct)
 }
 
 char *
-qword_to_hex(char *out, guint64 qword)
+qword_to_hex(char *out, uint64_t qword)
 {
-	out = dword_to_hex(out, (guint32)(qword >> 32));
-	out = dword_to_hex(out, (guint32)(qword & 0xffffffff));
+	out = dword_to_hex(out, (uint32_t)(qword >> 32));
+	out = dword_to_hex(out, (uint32_t)(qword & 0xffffffff));
 	return out;
 }
 
 char *
-qword_to_hex_punct(char *out, guint64 qword, char punct)
+qword_to_hex_punct(char *out, uint64_t qword, char punct)
 {
-	out = dword_to_hex_punct(out, (guint32)(qword >> 32), punct);
+	out = dword_to_hex_punct(out, (uint32_t)(qword >> 32), punct);
 	*out++ = punct;
-	out = dword_to_hex_punct(out, (guint32)(qword & 0xffffffff), punct);
+	out = dword_to_hex_punct(out, (uint32_t)(qword & 0xffffffff), punct);
 	return out;
 }
 
@@ -175,11 +173,11 @@ qword_to_hex_punct(char *out, guint64 qword, char punct)
  * There needs to be at least len * 2 bytes left in the buffer.
  */
 char *
-bytes_to_hexstr(char *out, const guint8 *ad, size_t len)
+bytes_to_hexstr(char *out, const uint8_t *ad, size_t len)
 {
 	size_t i;
 
-	ws_return_val_if_null(ad, NULL);
+	ws_return_val_if(!ad, NULL);
 
 	for (i = 0; i < len; i++)
 		out = byte_to_hex(out, ad[i]);
@@ -195,11 +193,11 @@ bytes_to_hexstr(char *out, const guint8 *ad, size_t len)
  * There needs to be at least len * 3 - 1 bytes left in the buffer.
  */
 char *
-bytes_to_hexstr_punct(char *out, const guint8 *ad, size_t len, char punct)
+bytes_to_hexstr_punct(char *out, const uint8_t *ad, size_t len, char punct)
 {
 	size_t i;
 
-	ws_return_val_if_null(ad, NULL);
+	ws_return_val_if(!ad, NULL);
 
 	out = byte_to_hex(out, ad[0]);
 	for (i = 1; i < len; i++) {
@@ -218,7 +216,7 @@ bytes_to_hexstr_punct(char *out, const guint8 *ad, size_t len, char punct)
  */
 char *
 bytes_to_str_punct_maxlen(wmem_allocator_t *scope,
-			const guint8 *src, size_t src_size,
+			const uint8_t *src, size_t src_size,
 			char punct, size_t max_bytes_len)
 {
 	char *buf;
@@ -226,8 +224,8 @@ bytes_to_str_punct_maxlen(wmem_allocator_t *scope,
 	char *buf_ptr;
 	int truncated = 0;
 
-	ws_return_str_if_null(scope, src);
-	ws_return_str_if_zero(scope, src_size);
+	ws_return_str_if(!src, scope);
+	ws_return_str_if(!src_size, scope);
 
 	if (!punct)
 		return bytes_to_str_maxlen(scope, src, src_size, max_bytes_len);
@@ -257,7 +255,7 @@ bytes_to_str_punct_maxlen(wmem_allocator_t *scope,
 
 char *
 bytes_to_str_maxlen(wmem_allocator_t *scope,
-			const guint8 *src, size_t src_size,
+			const uint8_t *src, size_t src_size,
 			size_t max_bytes_len)
 {
 	char *buf;
@@ -265,8 +263,8 @@ bytes_to_str_maxlen(wmem_allocator_t *scope,
 	char *buf_ptr;
 	int truncated = 0;
 
-	ws_return_str_if_null(scope, src);
-	ws_return_str_if_zero(scope, src_size);
+	ws_return_str_if(!src, scope);
+	ws_return_str_if(!src_size, scope);
 
 	if (max_bytes_len == 0 || max_bytes_len > src_size) {
 		max_bytes_len = src_size;
@@ -293,7 +291,7 @@ bytes_to_str_maxlen(wmem_allocator_t *scope,
  */
 
 char *
-oct_to_str_back(char *ptr, guint32 value)
+oct_to_str_back(char *ptr, uint32_t value)
 {
 	while (value) {
 		*(--ptr) = '0' + (value & 0x7);
@@ -305,7 +303,7 @@ oct_to_str_back(char *ptr, guint32 value)
 }
 
 char *
-oct64_to_str_back(char *ptr, guint64 value)
+oct64_to_str_back(char *ptr, uint64_t value)
 {
 	while (value) {
 		*(--ptr) = '0' + (value & 0x7);
@@ -317,7 +315,7 @@ oct64_to_str_back(char *ptr, guint64 value)
 }
 
 char *
-hex_to_str_back_len(char *ptr, guint32 value, int len)
+hex_to_str_back_len(char *ptr, uint32_t value, int len)
 {
 	do {
 		*(--ptr) = low_nibble_of_octet_to_hex(value);
@@ -338,7 +336,7 @@ hex_to_str_back_len(char *ptr, guint32 value, int len)
 }
 
 char *
-hex64_to_str_back_len(char *ptr, guint64 value, int len)
+hex64_to_str_back_len(char *ptr, uint64_t value, int len)
 {
 	do {
 		*(--ptr) = low_nibble_of_octet_to_hex(value & 0xF);
@@ -359,7 +357,7 @@ hex64_to_str_back_len(char *ptr, guint64 value, int len)
 }
 
 char *
-uint_to_str_back(char *ptr, guint32 value)
+uint_to_str_back(char *ptr, uint32_t value)
 {
 	char const *p;
 
@@ -383,7 +381,7 @@ uint_to_str_back(char *ptr, guint32 value)
 }
 
 char *
-uint64_to_str_back(char *ptr, guint64 value)
+uint64_to_str_back(char *ptr, uint64_t value)
 {
 	char const *p;
 
@@ -408,7 +406,7 @@ uint64_to_str_back(char *ptr, guint64 value)
 }
 
 char *
-uint_to_str_back_len(char *ptr, guint32 value, int len)
+uint_to_str_back_len(char *ptr, uint32_t value, int len)
 {
 	char *new_ptr;
 
@@ -428,7 +426,7 @@ uint_to_str_back_len(char *ptr, guint32 value, int len)
 }
 
 char *
-uint64_to_str_back_len(char *ptr, guint64 value, int len)
+uint64_to_str_back_len(char *ptr, uint64_t value, int len)
 {
 	char *new_ptr;
 
@@ -448,7 +446,7 @@ uint64_to_str_back_len(char *ptr, guint64 value, int len)
 }
 
 char *
-int_to_str_back(char *ptr, gint32 value)
+int_to_str_back(char *ptr, int32_t value)
 {
 	if (value < 0) {
 		ptr = uint_to_str_back(ptr, -value);
@@ -460,7 +458,7 @@ int_to_str_back(char *ptr, gint32 value)
 }
 
 char *
-int64_to_str_back(char *ptr, gint64 value)
+int64_to_str_back(char *ptr, int64_t value)
 {
 	if (value < 0) {
 		ptr = uint64_to_str_back(ptr, -value);
@@ -472,7 +470,7 @@ int64_to_str_back(char *ptr, gint64 value)
 }
 
 static size_t
-guint32_to_str_buf_len(const guint32 u)
+guint32_to_str_buf_len(const uint32_t u)
 {
 	/* ((2^32)-1) == 2147483647 */
 	if (u >= 1000000000)return 10;
@@ -489,11 +487,11 @@ guint32_to_str_buf_len(const guint32 u)
 }
 
 void
-guint32_to_str_buf(guint32 u, gchar *buf, size_t buf_len)
+guint32_to_str_buf(uint32_t u, char *buf, size_t buf_len)
 {
 	size_t str_len = guint32_to_str_buf_len(u)+1;
 
-	gchar *bp = &buf[str_len];
+	char *bp = &buf[str_len];
 
 	_return_if_nospace(str_len, buf, buf_len);
 
@@ -503,7 +501,7 @@ guint32_to_str_buf(guint32 u, gchar *buf, size_t buf_len)
 }
 
 static size_t
-guint64_to_str_buf_len(const guint64 u)
+guint64_to_str_buf_len(const uint64_t u)
 {
 	/* ((2^64)-1) == 18446744073709551615 */
 
@@ -531,11 +529,11 @@ guint64_to_str_buf_len(const guint64 u)
 }
 
 void
-guint64_to_str_buf(guint64 u, gchar *buf, size_t buf_len)
+guint64_to_str_buf(uint64_t u, char *buf, size_t buf_len)
 {
 	size_t str_len = guint64_to_str_buf_len(u)+1;
 
-	gchar *bp = &buf[str_len];
+	char *bp = &buf[str_len];
 
 	_return_if_nospace(str_len, buf, buf_len);
 
@@ -549,10 +547,10 @@ guint64_to_str_buf(guint64 u, gchar *buf, size_t buf_len)
    XXX update the address_to_str stuff to use this function.
    */
 void
-ip_to_str_buf(const guint8 *ad, gchar *buf, const int buf_len)
+ip_to_str_buf(const uint8_t *ad, char *buf, const int buf_len)
 {
-	register gchar const *p;
-	register gchar *b=buf;
+	register char const *p;
+	register char *b=buf;
 
 	_return_if_nospace(WS_INET_ADDRSTRLEN, buf, buf_len);
 
@@ -585,7 +583,7 @@ ip_to_str_buf(const guint8 *ad, gchar *buf, const int buf_len)
 	*b=0;
 }
 
-char *ip_to_str(wmem_allocator_t *scope, const guint8 *ad)
+char *ip_to_str(wmem_allocator_t *scope, const uint8_t *ad)
 {
 	char *buf = wmem_alloc(scope, WS_INET_ADDRSTRLEN * sizeof(char));
 
@@ -595,14 +593,14 @@ char *ip_to_str(wmem_allocator_t *scope, const guint8 *ad)
 }
 
 void
-ip6_to_str_buf(const ws_in6_addr *addr, gchar *buf, size_t buf_size)
+ip6_to_str_buf(const ws_in6_addr *addr, char *buf, size_t buf_size)
 {
 	/*
 	 * If there is not enough space then ws_inet_ntop6() will leave
 	 * an error message in the buffer, we don't need
 	 * to use _return_if_nospace().
 	 */
-	ws_inet_ntop6(addr, buf, (guint)buf_size);
+	ws_inet_ntop6(addr, buf, (unsigned)buf_size);
 }
 
 char *ip6_to_str(wmem_allocator_t *scope, const ws_in6_addr *ad)
@@ -614,32 +612,367 @@ char *ip6_to_str(wmem_allocator_t *scope, const ws_in6_addr *ad)
 	return buf;
 }
 
-gchar *
-ipxnet_to_str_punct(wmem_allocator_t *allocator, const guint32 ad, const char punct)
+char *
+ipxnet_to_str_punct(wmem_allocator_t *allocator, const uint32_t ad, const char punct)
 {
-    gchar *buf = (gchar *)wmem_alloc(allocator, 12);
+	char *buf = (char *)wmem_alloc(allocator, 12);
 
-    *dword_to_hex_punct(buf, ad, punct) = '\0';
-    return buf;
+	*dword_to_hex_punct(buf, ad, punct) = '\0';
+	return buf;
 }
 
-#define WS_EUI64_STRLEN    24
+#define WS_EUI64_STRLEN	24
 
-gchar *
-eui64_to_str(wmem_allocator_t *scope, const guint64 ad) {
-	gchar *buf, *tmp;
-	guint8 *p_eui64;
+char *
+eui64_to_str(wmem_allocator_t *scope, const uint64_t ad) {
+	char *buf, *tmp;
+	uint8_t *p_eui64;
 
-	p_eui64=(guint8 *)wmem_alloc(NULL, 8);
-	buf=(gchar *)wmem_alloc(scope, WS_EUI64_STRLEN);
+	p_eui64=(uint8_t *)wmem_alloc(NULL, 8);
+	buf=(char *)wmem_alloc(scope, WS_EUI64_STRLEN);
 
 	/* Copy and convert the address to network byte order. */
-	*(guint64 *)(void *)(p_eui64) = pntoh64(&(ad));
+	*(uint64_t *)(void *)(p_eui64) = pntoh64(&(ad));
 
 	tmp = bytes_to_hexstr_punct(buf, p_eui64, 8, ':');
 	*tmp = '\0'; /* NULL terminate */
 	wmem_free(NULL, p_eui64);
 	return buf;
+}
+
+/*
+ * Number of characters required by a 64-bit signed number.
+ */
+#define CHARS_64_BIT_SIGNED	20	/* sign plus 19 digits */
+
+/*
+ * Number of characters required by a fractional part, in nanoseconds,
+ * not counting the decimal point.
+ */
+#define CHARS_NANOSECONDS	9	/* 000000001 */
+
+/*
+ * Format the fractional part of a time, with the specified precision.
+ * Returns the number of bytes formatted.
+ */
+int
+format_fractional_part_nsecs(char *buf, size_t buflen, uint32_t nsecs, const char *decimal_point, int precision)
+{
+	char *ptr;
+	size_t remaining;
+	int num_bytes;
+	size_t decimal_point_len;
+	uint32_t frac_part;
+	int8_t num_buf[CHARS_NANOSECONDS];
+	int8_t *num_end = &num_buf[CHARS_NANOSECONDS];
+	int8_t *num_ptr;
+	size_t num_len;
+
+	ws_assert(precision != 0);
+
+	if (buflen == 0) {
+		/*
+		 * No room in the buffer for anything, including
+		 * a terminating '\0'.
+		 */
+		return 0;
+	}
+
+	/*
+	 * If the fractional part is >= 1, don't show it as a
+	 * fractional part.
+	 */
+	if (nsecs >= 1000000000U) {
+		num_bytes = snprintf(buf, buflen, "%s(%u nanoseconds)",
+		    decimal_point, nsecs);
+		if ((unsigned int)num_bytes >= buflen) {
+			/*
+			 * That filled up or would have overflowed
+			 * the buffer.  Nothing more to do; return
+			 * the remaining space in the buffer, minus
+			 * one byte for the terminating '\0',* as
+			 * that's the number of bytes we copied.
+			 */
+			return (int)(buflen - 1);
+		}
+		return num_bytes;
+	}
+
+	ptr = buf;
+	remaining = buflen;
+	num_bytes = 0;
+
+	/*
+	 * Copy the decimal point.
+	 * (We assume here that the locale's decimal point does
+	 * not contain so many characters that its size doesn't
+	 * fit in an int. :-))
+	 */
+	decimal_point_len = g_strlcpy(buf, decimal_point, buflen);
+	if (decimal_point_len >= buflen) {
+		/*
+		 * The decimal point didn't fit in the buffer
+		 * and was truncated.  Nothing more to do;
+		 * return the remaining space in the buffer,
+		 * minus one byte for the terminating '\0',
+		 * as that's the number of bytes we copied.
+		 */
+		return (int)(buflen - 1);
+	}
+	ptr += decimal_point_len;
+	remaining -= decimal_point_len;
+	num_bytes += (int)decimal_point_len;
+
+	/*
+	 * Fill in num_buf with the nanoseconds value, padded with
+	 * leading zeroes, to the specified precision.
+	 *
+	 * We scale the fractional part in advance, as that just
+	 * takes one division by a constant (which may be
+	 * optimized to a faster multiplication by a constant)
+	 * and gets rid of some divisions and remainders by 100
+	 * done to generate the digits.
+	 *
+	 * We pass preciions as the last argument to
+	 * uint_to_str_back_len(), as that might mean that
+	 * all of the cases end up using common code to
+	 * do part of the call to uint_to_str_back_len().
+	 */
+	switch (precision) {
+
+	case 1:
+		/*
+		 * Scale down to units of 1/10 second.
+		 */
+		frac_part = nsecs / 100000000U;
+		break;
+
+	case 2:
+		/*
+		 * Scale down to units of 1/100 second.
+		 */
+		frac_part = nsecs / 10000000U;
+		break;
+
+	case 3:
+		/*
+		 * Scale down to units of 1/1000 second.
+		 */
+		frac_part = nsecs / 1000000U;
+		break;
+
+	case 4:
+		/*
+		 * Scale down to units of 1/10000 second.
+		 */
+		frac_part = nsecs / 100000U;
+		break;
+
+	case 5:
+		/*
+		 * Scale down to units of 1/100000 second.
+		 */
+		frac_part = nsecs / 10000U;
+		break;
+
+	case 6:
+		/*
+		 * Scale down to units of 1/1000000 second.
+		 */
+		frac_part = nsecs / 1000U;
+		break;
+
+	case 7:
+		/*
+		 * Scale down to units of 1/10000000 second.
+		 */
+		frac_part = nsecs / 100U;
+		break;
+
+	case 8:
+		/*
+		 * Scale down to units of 1/100000000 second.
+		 */
+		frac_part = nsecs / 10U;
+		break;
+
+	case 9:
+		/*
+		 * We're already in units of 1/1000000000 second.
+		 */
+		frac_part = nsecs;
+		break;
+
+	default:
+		ws_assert_not_reached();
+		break;
+	}
+
+	num_ptr = uint_to_str_back_len(num_end, frac_part, precision);
+
+	/*
+	 * The length of the string that we want to copy to the buffer
+	 * is the minimum of:
+	 *
+	 *    the length of the digit string;
+	 *    the remaining space in the buffer, minus 1 for the
+	 *      terminating '\0'.
+	 */
+	num_len = MIN((size_t)(num_end - num_ptr), remaining - 1);
+	if (num_len == 0) {
+		/*
+		 * Not enough room to copy anything.
+		 * Return the number of bytes we've generated.
+		 */
+		return num_bytes;
+	}
+
+	/*
+	 * Copy over the fractional part.
+	 * (We assume here that the fractional part does not contain
+	 * so many characters that its size doesn't fit in an int. :-))
+	 */
+	memcpy(ptr, num_ptr, num_len);
+	ptr += num_len;
+	num_bytes += (int)num_len;
+
+	/*
+	 * '\0'-terminate it.
+	 */
+	*ptr = '\0';
+	return num_bytes;
+}
+
+void
+display_epoch_time(char *buf, size_t buflen, const nstime_t *ns, int precision)
+{
+	display_signed_time(buf, buflen, ns, precision);
+}
+
+void
+display_signed_time(char *buf, size_t buflen, const nstime_t *ns, int precision)
+{
+	int nsecs;
+	/* this buffer is not NUL terminated */
+	int8_t num_buf[CHARS_64_BIT_SIGNED];
+	int8_t *num_end = &num_buf[CHARS_64_BIT_SIGNED];
+	int8_t *num_ptr;
+	size_t num_len;
+
+	if (buflen < 1)
+		return;
+
+	/* If the fractional part of the time stamp is negative,
+	   print its absolute value and, if the seconds part isn't
+	   (the seconds part should be zero in that case), stick
+	   a "-" in front of the entire time stamp. */
+	nsecs = ns->nsecs;
+	if (nsecs < 0) {
+		nsecs = -nsecs;
+		if (ns->secs >= 0) {
+			buf[0] = '-';
+			buf++;
+			buflen--;
+		}
+	}
+
+	/*
+	 * Fill in num_buf with the seconds value.
+	 */
+	num_ptr = int64_to_str_back(num_end, ns->secs);
+
+	/*
+	 * The length of the string that we want to copy to the buffer
+	 * is the minimum of:
+	 *
+	 *    the length of the digit string;
+	 *    the size of the buffer, minus 1 for the terminating
+	 *      '\0'.
+	 */
+	num_len = MIN((size_t)(num_end - num_ptr), buflen - 1);
+	if (num_len == 0) {
+		/*
+		 * Not enough room to copy anything.
+		 */
+		return;
+	}
+
+	/*
+	 * Copy over the seconds value.
+	 */
+	memcpy(buf, num_ptr, num_len);
+	buf += num_len;
+	buflen -= num_len;
+
+	if (precision == 0) {
+		/*
+		 * Seconds precision, so no nanosecond.
+		 * Nothing more to do other than to
+		 * '\0'-terminate the string.
+		 */
+		*buf = '\0';
+		return;
+	}
+
+	/*
+	 * Append the fractional part.
+	 */
+	format_fractional_part_nsecs(buf, buflen, (uint32_t)nsecs, ".", precision);
+}
+
+void
+format_nstime_as_iso8601(char *buf, size_t buflen, const nstime_t *ns,
+    char *decimal_point, bool local, int precision)
+{
+	struct tm tm, *tmp;
+	char *ptr;
+	size_t remaining;
+	int num_bytes;
+
+	if (local)
+		tmp = ws_localtime_r(&ns->secs, &tm);
+	else
+		tmp = ws_gmtime_r(&ns->secs, &tm);
+	if (tmp == NULL) {
+		snprintf(buf, buflen, "Not representable");
+		return;
+	}
+	ptr = buf;
+	remaining = buflen;
+	num_bytes = snprintf(ptr, remaining,
+	    "%04d-%02d-%02d %02d:%02d:%02d",
+	    tmp->tm_year + 1900,
+	    tmp->tm_mon + 1,
+	    tmp->tm_mday,
+	    tmp->tm_hour,
+	    tmp->tm_min,
+	    tmp->tm_sec);
+	if (num_bytes < 0) {
+		/*
+		 * That got an error.
+		 * Not much else we can do.
+		 */
+		snprintf(buf, buflen, "snprintf() failed");
+		return;
+	}
+	if ((unsigned int)num_bytes >= remaining) {
+		/*
+		 * That filled up or would have overflowed the buffer.
+		 * Nothing more we can do.
+		 */
+		return;
+	}
+	ptr += num_bytes;
+	remaining -= num_bytes;
+
+	if (precision != 0) {
+		/*
+		 * Append the fractional part.
+		 * Get the nsecs as a 32-bit unsigned value, as it should
+		 * never be negative, so we treat it as unsigned.
+		 */
+		format_fractional_part_nsecs(ptr, remaining, (uint32_t)ns->nsecs, decimal_point, precision);
+	}
 }
 
 /*

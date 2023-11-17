@@ -2,6 +2,7 @@
  * Dissector for Osmocom Generic Subscriber Update Protocol (GSUP)
  *
  * (C) 2017-2018 by Harald Welte <laforge@gnumonks.org>
+ * Contributions by sysmocom - s.f.m.c. GmbH
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -28,6 +29,7 @@
 #include <epan/expert.h>
 #include <epan/conversation.h>
 #include <epan/asn1.h>
+#include <epan/strutil.h>
 
 #include "packet-gsm_a_common.h"
 #include "packet-gsm_map.h"
@@ -89,6 +91,8 @@ enum osmo_gsup_iei {
 	OSMO_GSUP_AUTS_IE			= 0x26,
 	OSMO_GSUP_RES_IE			= 0x27,
 	OSMO_GSUP_CN_DOMAIN_IE			= 0x28,
+	OSMO_GSUP_SUPPORTED_RAT_TYPES_IE	= 0x29,
+	OSMO_GSUP_CURRENT_RAT_TYPE_IE		= 0x2a,
 	OSMO_GSUP_SESSION_ID_IE			= 0x30,
 	OSMO_GSUP_SESSION_STATE_IE		= 0x31,
 	OSMO_GSUP_SS_INFO_IE			= 0x35,
@@ -103,6 +107,7 @@ enum osmo_gsup_iei {
 
 	OSMO_GSUP_IMEI_IE			= 0x50,
 	OSMO_GSUP_IMEI_RESULT_IE		= 0x51,
+	OSMO_GSUP_NUM_VECTORS_REQ_IE		= 0x52,
 
 	/* Inter-MSC handover related */
 	OSMO_GSUP_SOURCE_NAME_IE		= 0x60,
@@ -185,6 +190,13 @@ enum osmo_gsup_message_type {
 #define OSMO_GSUP_IS_MSGT_REQUEST(msgt) (((msgt) & 0b00000011) == 0b00)
 #define OSMO_GSUP_IS_MSGT_ERROR(msgt)   (((msgt) & 0b00000011) == 0b01)
 #define OSMO_GSUP_TO_MSGT_ERROR(msgt)   (((msgt) & 0b11111100) | 0b01)
+
+enum osmo_gsup_rat_type {
+	OSMO_GSUP_RAT_UNKNOWN			= 0,
+	OSMO_GSUP_RAT_GERAN_A			= 1,
+	OSMO_GSUP_RAT_UTRAN_IU			= 2,
+	OSMO_GSUP_RAT_EUTRAN_SGS		= 3,
+};
 
 enum osmo_gsup_cancel_type {
 	OSMO_GSUP_CANCEL_TYPE_UPDATE		= 0,
@@ -285,12 +297,15 @@ static int hf_gsup_sm_rp_cause = -1;
 static int hf_gsup_sm_rp_mms = -1;
 static int hf_gsup_sm_alert_rsn = -1;
 static int hf_gsup_imei_result = -1;
+static int hf_gsup_num_vectors_req = -1;
 static int hf_gsup_msg_class = -1;
 static int hf_gsup_an_type = -1;
 static int hf_gsup_source_name = -1;
 static int hf_gsup_source_name_text = -1;
 static int hf_gsup_destination_name = -1;
 static int hf_gsup_destination_name_text = -1;
+static int hf_gsup_supported_rat_type = -1;
+static int hf_gsup_current_rat_type = -1;
 
 static gint ett_gsup = -1;
 static gint ett_gsup_ie = -1;
@@ -300,6 +315,7 @@ static expert_field ei_sm_rp_oa_invalid = EI_INIT;
 static expert_field ei_gsup_ie_len_invalid = EI_INIT;
 
 static dissector_handle_t gsm_map_handle;
+static dissector_handle_t gsup_handle;
 static dissector_handle_t gsm_sms_handle;
 static dissector_handle_t bssap_imei_handle;
 static dissector_handle_t bssap_handle;
@@ -329,6 +345,8 @@ static const value_string gsup_iei_types[] = {
 	{ OSMO_GSUP_AUTS_IE,		"AUTS" },
 	{ OSMO_GSUP_RES_IE,		"RES" },
 	{ OSMO_GSUP_CN_DOMAIN_IE,	"CN Domain" },
+	{ OSMO_GSUP_SUPPORTED_RAT_TYPES_IE, "Supported RAT Types" },
+	{ OSMO_GSUP_CURRENT_RAT_TYPE_IE, "Current RAT Type" },
 	{ OSMO_GSUP_SESSION_ID_IE,	"Session Id" },
 	{ OSMO_GSUP_SESSION_STATE_IE,	"Session State" },
 	{ OSMO_GSUP_SS_INFO_IE,		"Supplementary Service Info"},
@@ -341,6 +359,7 @@ static const value_string gsup_iei_types[] = {
 	{ OSMO_GSUP_SM_ALERT_RSN_IE,	"SM Alert Reason" },
 	{ OSMO_GSUP_IMEI_IE,		"IMEI" },
 	{ OSMO_GSUP_IMEI_RESULT_IE,	"IMEI Check Result" },
+	{ OSMO_GSUP_NUM_VECTORS_REQ_IE,	"Number of Vectors Requested" },
 	{ OSMO_GSUP_MESSAGE_CLASS_IE,	"Message Class" },
 	{ OSMO_GSUP_SOURCE_NAME_IE,	"Source Name"},
 	{ OSMO_GSUP_DESTINATION_NAME_IE,"Destination Name"},
@@ -400,6 +419,14 @@ static const value_string gsup_msg_types[] = {
 	{ OSMO_GSUP_MSGT_E_CLOSE,			"E Close"},
 	{ OSMO_GSUP_MSGT_E_ABORT,			"E Abort"},
 	{ OSMO_GSUP_MSGT_E_ROUTING_ERROR,		"E Routing Error"},
+	{ 0, NULL }
+};
+
+static const value_string gsup_rat_types[] = {
+	{ OSMO_GSUP_RAT_UNKNOWN,		"Unknown" },
+	{ OSMO_GSUP_RAT_GERAN_A,		"GERAN (A)" },
+	{ OSMO_GSUP_RAT_UTRAN_IU,		"UTRAN (IU)" },
+	{ OSMO_GSUP_RAT_EUTRAN_SGS,		"EUTRAN (SGS)" },
 	{ 0, NULL }
 };
 
@@ -465,8 +492,8 @@ static void dissect_ss_info_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, 
 {
 	guint saved_offset;
 	gint8 appclass;
-	gboolean pc;
-	gboolean ind = FALSE;
+	bool pc;
+	bool ind = FALSE;
 	guint32 component_len = 0;
 	guint32 header_end_offset;
 	guint32 header_len;
@@ -683,6 +710,7 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 		const gchar *str;
 		gint apn_len;
 		guint32 ui32;
+		guint8 i;
 
 		tag = tvb_get_guint8(tvb, offset);
 		offset++;
@@ -735,6 +763,15 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 		case OSMO_GSUP_CN_DOMAIN_IE:
 			proto_tree_add_item(att_tree, hf_gsup_cn_domain, tvb, offset, len, ENC_NA);
 			break;
+		case OSMO_GSUP_SUPPORTED_RAT_TYPES_IE:
+			for (i = 0; i < len; i++) {
+				proto_tree_add_item(att_tree, hf_gsup_supported_rat_type,
+						    tvb, offset + i, 1, ENC_NA);
+			}
+			break;
+		case OSMO_GSUP_CURRENT_RAT_TYPE_IE:
+			proto_tree_add_item(att_tree, hf_gsup_current_rat_type, tvb, offset, len, ENC_NA);
+			break;
 		case OSMO_GSUP_CANCEL_TYPE_IE:
 			proto_tree_add_item(att_tree, hf_gsup_cancel_type, tvb, offset, len, ENC_NA);
 			break;
@@ -755,9 +792,12 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 				if (ch == '*')
 					proto_item_append_text(ti, ", '*' (Wildcard)");
 			} else {
+                                char *name_out;
+
 				get_dns_name(tvb, offset, len, 0, &apn, &apn_len);
-				proto_tree_add_string(att_tree, hf_gsup_apn, tvb, offset, len, apn);
-				proto_item_append_text(ti, ", %s", apn);
+				name_out = format_text(pinfo->pool, apn, apn_len);
+				proto_tree_add_string(att_tree, hf_gsup_apn, tvb, offset, len, name_out);
+				proto_item_append_text(ti, ", %s", name_out);
 			}
 			break;
 		case OSMO_GSUP_PDP_CONTEXT_ID_IE:
@@ -811,6 +851,9 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 			break;
 		case OSMO_GSUP_IMEI_RESULT_IE:
 			proto_tree_add_item(att_tree, hf_gsup_imei_result, tvb, offset, len, ENC_NA);
+			break;
+		case OSMO_GSUP_NUM_VECTORS_REQ_IE:
+			proto_tree_add_item(att_tree, hf_gsup_num_vectors_req, tvb, offset, len, ENC_NA);
 			break;
 		case OSMO_GSUP_MESSAGE_CLASS_IE:
 			proto_tree_add_item_ret_uint(att_tree, hf_gsup_msg_class, tvb, offset, len, ENC_NA, &ui32);
@@ -912,6 +955,10 @@ proto_register_gsup(void)
 
 		{ &hf_gsup_cn_domain, { "CN Domain Indicator", "gsup.cn_domain",
 		  FT_UINT8, BASE_DEC, VALS(gsup_cndomain_types), 0, NULL, HFILL } },
+		{ &hf_gsup_supported_rat_type, { "Supported RAT Type", "gsup.supported_rat_type",
+		  FT_UINT8, BASE_DEC, VALS(gsup_rat_types), 0, NULL, HFILL } },
+		{ &hf_gsup_current_rat_type, { "Current RAT Type", "gsup.current_rat_type",
+		  FT_UINT8, BASE_DEC, VALS(gsup_rat_types), 0, NULL, HFILL } },
 		{ &hf_gsup_cancel_type, { "Cancel Type", "gsup.cancel_type",
 		  FT_UINT8, BASE_DEC, VALS(gsup_cancel_types), 0, NULL, HFILL } },
 		{ &hf_gsup_pdp_info_compl, { "PDP Information Complete", "gsup.pdp_info_compl",
@@ -944,6 +991,8 @@ proto_register_gsup(void)
 		  FT_UINT8, BASE_DEC, VALS(osmo_gsup_sms_sm_alert_rsn_types), 0, NULL, HFILL } },
 		{ &hf_gsup_imei_result, { "IMEI Check Result", "gsup.imei_check_res",
 		  FT_UINT8, BASE_DEC, VALS(gsup_imei_result_types), 0, NULL, HFILL } },
+		{ &hf_gsup_num_vectors_req, { "Number of Vectors Requested", "gsup.num_vectors_req",
+		  FT_UINT8, BASE_DEC, NULL, 0, NULL, HFILL } },
 		{ &hf_gsup_msg_class, { "Message Class", "gsup.msg_class",
 		  FT_UINT8, BASE_DEC, VALS(gsup_msg_class_types), 0, NULL, HFILL } },
 		{ &hf_gsup_an_type, { "Access Network Type", "gsup.an_type",
@@ -981,6 +1030,8 @@ proto_register_gsup(void)
 	proto_register_field_array(proto_gsup, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
 
+	gsup_handle = register_dissector("gsup", dissect_gsup, proto_gsup);
+
 	expert_gsup = expert_register_protocol(proto_gsup);
 	expert_register_field_array(expert_gsup, ei, array_length(ei));
 
@@ -995,8 +1046,6 @@ proto_register_gsup(void)
 void
 proto_reg_handoff_gsup(void)
 {
-	dissector_handle_t gsup_handle;
-	gsup_handle = create_dissector_handle(dissect_gsup, proto_gsup);
 	dissector_add_uint_with_preference("ipa.osmo.protocol", IPAC_PROTO_EXT_GSUP, gsup_handle);
 	gsm_map_handle = find_dissector_add_dependency("gsm_map", proto_gsup);
 	gsm_sms_handle = find_dissector_add_dependency("gsm_sms", proto_gsup);

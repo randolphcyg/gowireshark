@@ -126,7 +126,7 @@ dissect_text_interface_identifier_parameter(tvbuff_t *parameter_tvb, proto_tree 
   interface_id_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
 
   proto_tree_add_item(parameter_tree, hf_text_interface_id, parameter_tvb, TEXT_INTERFACE_ID_OFFSET, interface_id_length, ENC_ASCII);
-  proto_item_append_text(parameter_item, " (%.*s)", interface_id_length,
+  proto_item_append_text(parameter_item, " (%s)",
                          tvb_format_text(wmem_packet_scope(), parameter_tvb, TEXT_INTERFACE_ID_OFFSET, interface_id_length));
 }
 
@@ -139,7 +139,7 @@ dissect_info_string_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tre
 
   info_string_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   proto_tree_add_item(parameter_tree, hf_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII);
-  proto_item_append_text(parameter_item, " (%.*s)", info_string_length,
+  proto_item_append_text(parameter_item, " (%s)",
                          tvb_format_text(wmem_packet_scope(), parameter_tvb, INFO_STRING_OFFSET, info_string_length));
 }
 
@@ -531,7 +531,7 @@ static const value_string parameter_tag_values[] = {
   { ERROR_CODE_PARAMETER_TAG,                              "Error code" },
   { STATUS_TYPE_INDENTIFICATION_PARAMETER_TAG,             "Status type/identification" },
   { PROTOCOL_DATA_PARAMETER_TAG,                           "Protocol data" },
-  { RELEASE_REASON_PARAMETER_TAG,                          "Reason" },
+  { RELEASE_REASON_PARAMETER_TAG,                          "Release Reason" },
   { TEI_STATUS_PARAMETER_TAG,                              "TEI status" },
   { 0,                           NULL } };
 
@@ -547,7 +547,7 @@ static const value_string parameter_tag_ig_values[] = {
   { ERROR_CODE_PARAMETER_TAG,                              "Error code" },
   { STATUS_TYPE_INDENTIFICATION_PARAMETER_TAG,             "Status type/identification" },
   { PROTOCOL_DATA_PARAMETER_TAG,                           "Protocol data" },
-  { RELEASE_REASON_PARAMETER_TAG,                          "Reason" },
+  { RELEASE_REASON_PARAMETER_TAG,                          "Release Reason" },
   { TEI_STATUS_PARAMETER_TAG,                              "TEI status" },
   { ASP_IDENTIFIER_PARAMETER_TAG,                          "ASP identifier"},
   { 0,                           NULL } };

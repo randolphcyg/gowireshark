@@ -719,8 +719,11 @@ static int hf_gsm_a_geo_loc_uncertainty_semi_minor = -1;
 static int hf_gsm_a_geo_loc_orientation_of_major_axis = -1;
 static int hf_gsm_a_geo_loc_uncertainty_altitude = -1;
 static int hf_gsm_a_geo_loc_confidence = -1;
+static int hf_gsm_a_geo_loc_uncertainty_range = -1;
 static int hf_gsm_a_geo_loc_horizontal_confidence = -1;
+static int hf_gsm_a_geo_loc_horizontal_uncertainty_range = -1;
 static int hf_gsm_a_geo_loc_vertical_confidence = -1;
+static int hf_gsm_a_geo_loc_vertical_uncertainty_range = -1;
 static int hf_gsm_a_geo_loc_high_acc_uncertainty_alt = -1;
 static int hf_gsm_a_geo_loc_no_of_points = -1;
 static int hf_gsm_a_geo_loc_high_acc_deg_of_lat = -1;
@@ -782,6 +785,8 @@ gint ett_gsm_common_elem[NUM_GSM_COMMON_ELEM];
 #define  ELLIPSOID_ARC 10
 #define  HIGH_ACC_ELLIPSOID_PNT_WITH_UNCERT_ELLIPSE 11
 #define  HIGH_ACC_ELLIPSOID_PNT_WITH_ALT_AND_UNCERT_ELLIPSOID 12
+#define  HIGH_ACC_ELLIPSOID_PNT_WITH_SCALABLE_UNCERT_ELLIPSE 13
+#define  HIGH_ACC_ELLIPSOID_PNT_WITH_ALT_AND_SCALABLE_UNCERT_ELLIPSOID 14
 /*
 4 3 2 1
 0 0 0 0 Ellipsoid Point
@@ -793,20 +798,24 @@ gint ett_gsm_common_elem[NUM_GSM_COMMON_ELEM];
 1 0 1 0 Ellipsoid Arc
 1 0 1 1 High Accuracy Ellipsoid point with uncertainty ellipse
 1 1 0 0 High Accuracy Ellipsoid point with altitude and uncertainty ellipsoid
+1 1 0 1 High Accuracy Ellipsoid point with scalable uncertainty ellipse
+1 1 1 0 High Accuracy Ellipsoid point with altitude and scalable uncertainty ellipsoid
 other values reserved for future use
 */
 
 /* TS 23 032 Table 2a: Coding of Type of Shape */
 static const value_string type_of_shape_vals[] = {
-    { ELLIPSOID_POINT,                                          "Ellipsoid Point"},
-    { ELLIPSOID_POINT_WITH_UNCERT_CIRC,                         "Ellipsoid point with uncertainty Circle"},
-    { ELLIPSOID_POINT_WITH_UNCERT_ELLIPSE,                      "Ellipsoid point with uncertainty Ellipse"},
-    { POLYGON,                                                  "Polygon"},
-    { ELLIPSOID_POINT_WITH_ALT,                                 "Ellipsoid point with altitude"},
-    { ELLIPSOID_POINT_WITH_ALT_AND_UNCERT_ELLIPSOID,            "Ellipsoid point with altitude and uncertainty Ellipsoid"},
-    { ELLIPSOID_ARC,                                            "Ellipsoid Arc"},
-    { HIGH_ACC_ELLIPSOID_PNT_WITH_UNCERT_ELLIPSE,             "High Accuracy Ellipsoid point with uncertainty ellipse"},
-    { HIGH_ACC_ELLIPSOID_PNT_WITH_ALT_AND_UNCERT_ELLIPSOID,    "High Accuracy Ellipsoid point with altitude and uncertainty ellipsoid"},
+    { ELLIPSOID_POINT,                                                  "Ellipsoid Point"},
+    { ELLIPSOID_POINT_WITH_UNCERT_CIRC,                                 "Ellipsoid point with uncertainty Circle"},
+    { ELLIPSOID_POINT_WITH_UNCERT_ELLIPSE,                              "Ellipsoid point with uncertainty Ellipse"},
+    { POLYGON,                                                          "Polygon"},
+    { ELLIPSOID_POINT_WITH_ALT,                                         "Ellipsoid point with altitude"},
+    { ELLIPSOID_POINT_WITH_ALT_AND_UNCERT_ELLIPSOID,                    "Ellipsoid point with altitude and uncertainty Ellipsoid"},
+    { ELLIPSOID_ARC,                                                    "Ellipsoid Arc"},
+    { HIGH_ACC_ELLIPSOID_PNT_WITH_UNCERT_ELLIPSE,                       "High Accuracy Ellipsoid point with uncertainty ellipse"},
+    { HIGH_ACC_ELLIPSOID_PNT_WITH_ALT_AND_UNCERT_ELLIPSOID,             "High Accuracy Ellipsoid point with altitude and uncertainty ellipsoid"},
+    { HIGH_ACC_ELLIPSOID_PNT_WITH_SCALABLE_UNCERT_ELLIPSE,              "High Accuracy Ellipsoid point with scalable uncertainty ellipse"},
+    { HIGH_ACC_ELLIPSOID_PNT_WITH_ALT_AND_SCALABLE_UNCERT_ELLIPSOID,    "High Accuracy Ellipsoid point with altitude and scalable uncertainty ellipsoid"},
     { 0,    NULL }
 };
 
@@ -820,6 +829,12 @@ static const value_string sign_of_latitude_vals[] = {
 static const value_string dir_of_alt_vals[] = {
     { 0,  "Altitude expresses height"},
     { 1,  "Altitude expresses depth"},
+    { 0,  NULL }
+};
+
+static const value_string uncertainty_range[] = {
+    { 0,  "High Accuracy default uncertainty range used"},
+    { 1,  "High Accuracy Extended Uncertainty Range used"},
     { 0,  NULL }
 };
 
@@ -1032,6 +1047,7 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
     }
         break;
     case HIGH_ACC_ELLIPSOID_PNT_WITH_UNCERT_ELLIPSE:
+    case HIGH_ACC_ELLIPSOID_PNT_WITH_SCALABLE_UNCERT_ELLIPSE:
         loc_offset = offset;
         lat_item = proto_tree_add_item_ret_int(tree, hf_gsm_a_geo_loc_high_acc_deg_of_lat, tvb, offset, 4, ENC_BIG_ENDIAN, &svalue32);
         deg_lat_str = wmem_strdup_printf(pinfo->pool, "%s%.5f",
@@ -1059,7 +1075,12 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
         offset++;
         /* Confidence */
         proto_tree_add_item(tree, hf_gsm_a_geo_loc_confidence, tvb, offset, 1, ENC_BIG_ENDIAN);
+        if (type_of_shape == HIGH_ACC_ELLIPSOID_PNT_WITH_SCALABLE_UNCERT_ELLIPSE) {
+            /* Uncertainty Range */
+            proto_tree_add_item(tree, hf_gsm_a_geo_loc_uncertainty_range, tvb, offset, 1, ENC_BIG_ENDIAN);
+        }
         offset++;
+
         osm_uri = wmem_strdup_printf(pinfo->pool, "https://www.openstreetmap.org/?mlat=%s&mlon=%s&zoom=12", deg_lat_str, deg_lon_str);
         loc_uri_item = proto_tree_add_string(tree, hf_gsm_a_geo_loc_osm_uri, tvb, loc_offset, 6, osm_uri);
         proto_item_set_url(loc_uri_item);
@@ -1067,6 +1088,7 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 
         break;
     case HIGH_ACC_ELLIPSOID_PNT_WITH_ALT_AND_UNCERT_ELLIPSOID:
+    case HIGH_ACC_ELLIPSOID_PNT_WITH_ALT_AND_SCALABLE_UNCERT_ELLIPSOID:
         lat_item = proto_tree_add_item_ret_int(tree, hf_gsm_a_geo_loc_high_acc_deg_of_lat, tvb, offset, 4, ENC_BIG_ENDIAN, &svalue32);
         deg_lat_str = wmem_strdup_printf(pinfo->pool, "%s%.5f",
             (svalue32 & 0x80000000) ? "-" : "",
@@ -1103,6 +1125,10 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 
         /* Horizontal confidence */
         proto_tree_add_item(tree, hf_gsm_a_geo_loc_horizontal_confidence, tvb, offset, 1, ENC_BIG_ENDIAN);
+        if (type_of_shape == HIGH_ACC_ELLIPSOID_PNT_WITH_ALT_AND_SCALABLE_UNCERT_ELLIPSOID) {
+            /* Horizontal Uncertainty Range */
+            proto_tree_add_item(tree, hf_gsm_a_geo_loc_horizontal_uncertainty_range, tvb, offset, 1, ENC_BIG_ENDIAN);
+        }
         offset++;
 
         /* High accuracy uncertenty altitude */
@@ -1113,6 +1139,10 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 
         /* Vertical confidence*/
         proto_tree_add_item(tree, hf_gsm_a_geo_loc_vertical_confidence, tvb, offset, 1, ENC_BIG_ENDIAN);
+        if (type_of_shape == HIGH_ACC_ELLIPSOID_PNT_WITH_ALT_AND_SCALABLE_UNCERT_ELLIPSOID) {
+            /* Vertical Uncertainty Range */
+            proto_tree_add_item(tree, hf_gsm_a_geo_loc_vertical_uncertainty_range, tvb, offset, 1, ENC_BIG_ENDIAN);
+        }
         offset++;
         break;
 
@@ -4049,17 +4079,17 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_pgsm_supported,
         { "P-GSM Supported", "gsm_a.classmark3.pgsmSupported",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x0,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
         NULL, HFILL}
     },
     { &hf_gsm_a_egsm_supported,
         { "E-GSM or R-GSM Supported", "gsm_a.classmark3.egsmSupported",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x0,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
         NULL, HFILL}
     },
     { &hf_gsm_a_gsm1800_supported,
         { "GSM 1800 Supported", "gsm_a.classmark3.gsm1800Supported",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x0,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
         NULL, HFILL}
     },
     { &hf_gsm_a_ass_radio_cap1,
@@ -4079,7 +4109,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_rsupport,
         { "R Support", "gsm_a.classmark3.rsupport",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x0,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
         NULL, HFILL}
     },
     { &hf_gsm_a_r_capabilities,
@@ -4089,7 +4119,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_multislot_capabilities,
         { "HSCSD Multi Slot Capability", "gsm_a.classmark3.multislot_capabilities",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x0,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
         NULL, HFILL}
     },
     { &hf_gsm_a_multislot_class,
@@ -4104,12 +4134,12 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_extended_measurement_cap,
         { "Extended Measurement Capability", "gsm_a.classmark3.ext_meas_cap",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x0,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
         NULL, HFILL}
     },
     { &hf_gsm_a_ms_measurement_capability,
         { "MS measurement capability", "gsm_a.classmark3.ms_measurement_capability",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x0,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
         NULL, HFILL}
     },
     { &hf_gsm_a_sms_value,
@@ -4124,7 +4154,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_ms_pos_method_cap_present,
         { "MS Positioning Method Capability present", "gsm_a.classmark3.ms_pos_method_cap_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_ms_pos_method,
@@ -4159,7 +4189,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_ecsd_multi_slot_capability,
         { "ECSD Multi Slot Capability present", "gsm_a.classmark3.ecsd_multi_slot_capability",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_ecsd_multi_slot_class,
@@ -4169,7 +4199,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_8_psk_struct_present,
         { "8-PSK Struct present", "gsm_a.classmark3.8_psk_struct_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_8_psk_struct,
@@ -4184,7 +4214,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_8_psk_rf_power_capability_1_present,
         { "8-PSK RF Power Capability 1 present", "gsm_a.classmark3.8_psk_rf_power_capability_1_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_8_psk_rf_power_capability_1,
@@ -4194,7 +4224,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_8_psk_rf_power_capability_2_present,
         { "8-PSK RF Power Capability 2 present", "gsm_a.classmark3.8_psk_rf_power_capability_2_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_8_psk_rf_power_capability_2,
@@ -4204,7 +4234,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_gsm_400_band_info_present,
         { "GSM 400 Band Information present", "gsm_a.classmark3.gsm_400_band_info_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_gsm_400_bands_supported,
@@ -4219,7 +4249,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_gsm_850_assoc_radio_cap_present,
         { "GSM 850 Associated Radio Capability present", "gsm_a.classmark3.gsm_850_assoc_radio_cap_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_gsm_850_assoc_radio_cap,
@@ -4229,7 +4259,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_gsm_1900_assoc_radio_cap_present,
         { "GSM 1900 Associated Radio Capability present", "gsm_a.classmark3.gsm_1900_assoc_radio_cap_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_gsm_1900_assoc_radio_cap,
@@ -4254,7 +4284,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_dtm_e_gprs_multi_slot_info_present,
         { "DTM E/GPRS Multi Slot Information present", "gsm_a.classmark3.dtm_e_gprs_multi_slot_info_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_dtm_gprs_multi_slot_class,
@@ -4269,7 +4299,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_dtm_egprs_multi_slot_class_present,
         { "DTM EGPRS Multi Slot Class present", "gsm_a.classmark3.dtm_egprs_multi_slot_class_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_dtm_egprs_multi_slot_class,
@@ -4279,7 +4309,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_single_band_support,
         { "Single Band Support", "gsm_a.classmark3.single_band_support",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_gsm_band,
@@ -4289,7 +4319,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_gsm_750_assoc_radio_cap_present,
         { "GSM 750 Associated Radio Capability present", "gsm_a.classmark3.gsm_750_assoc_radio_cap_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_gsm_750_assoc_radio_cap,
@@ -4309,7 +4339,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_ext_dtm_e_gprs_multi_slot_info_present,
         { "Extended DTM E/GPRS Multi Slot Information present", "gsm_a.classmark3.ext_dtm_e_gprs_info_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_ext_dtm_gprs_multi_slot_class,
@@ -4324,7 +4354,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_high_multislot_cap_present,
         { "High Multislot Capability present", "gsm_a.classmark3.high_multislot_cap_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_high_multislot_cap,
@@ -4334,7 +4364,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_geran_iu_mode_support,
         { "GERAN Iu Mode Support", "gsm_a.classmark3.geran_iu_mode_support",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_geran_iu_mode_cap,
@@ -4369,7 +4399,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_t_gsm_400_band_info_present,
         { "T-GSM 400 Band Information present", "gsm_a.classmark3.gsm_400_band_info_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_t_gsm_400_bands_supported,
@@ -4384,7 +4414,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_t_gsm_900_assoc_radio_cap_present,
         { "T-GSM 900 Associated Radio Capability present", "gsm_a.classmark3.t_gsm_900_assoc_radio_cap_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_t_gsm_900_assoc_radio_cap,
@@ -4404,7 +4434,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_dtm_e_gprs_high_multi_slot_info_present,
         { "DTM E/GPRS High Multi Slot Information present", "gsm_a.classmark3.dtm_e_gprs_high_mutli_slot_info_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_dtm_gprs_high_multi_slot_class,
@@ -4419,7 +4449,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_dtm_egprs_high_multi_slot_class_present,
         { "DTM EGPRS High Multi Slot Class present", "gsm_a.classmark3.dtm_egprs_high_multi_slot_class_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_dtm_egprs_high_multi_slot_class,
@@ -4434,7 +4464,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_gsm_710_assoc_radio_cap_present,
         { "GSM 710 Associated Radio Capability present", "gsm_a.classmark3.gsm_710_assoc_radio_cap_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_gsm_710_assoc_radio_cap,
@@ -4444,7 +4474,7 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_t_gsm_810_assoc_radio_cap_present,
         { "T-GSM 810 Associated Radio Capability present", "gsm_a.classmark3.t_gsm_810_assoc_radio_cap_present",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_t_gsm_810_assoc_radio_cap,
@@ -4514,32 +4544,32 @@ proto_register_gsm_a_common(void)
     },
     { &hf_gsm_a_geran_network_sharing_support,
         { "GERAN Network Sharing support", "gsm_a.classmark3.geran_network_sharing_support",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_eutra_wb_rsrq_support,
         { "E-UTRA Wideband RSRQ measurements support", "gsm_a.classmark3.eutra_wb_rsrq_support",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_er_band_support,
         { "ER Band support", "gsm_a.classmark3.er_band_support",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_utra_mfbi_support,
         { "UTRA Multiple Frequency Band Indicators support", "gsm_a.classmark3.utra_mfbi_support",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_eutra_mfbi_support,
         { "E-UTRA Multiple Frequency Band Indicators support", "gsm_a.classmark3.eutra_mfbi_support",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_ext_tsc_set_cap_support,
         { "Extended TSC Set Capability support", "gsm_a.classmark3.ext_tsc_set_cap_support",
-        FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0x00,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
     { &hf_gsm_a_ext_earfcn_value_range,
@@ -4602,14 +4632,29 @@ proto_register_gsm_a_common(void)
         FT_UINT8, BASE_DEC, NULL, 0x7f,
         NULL, HFILL }
     },
+    { &hf_gsm_a_geo_loc_uncertainty_range,
+        { "Uncertainty Range", "gsm_a.gad.uncertainty_range",
+        FT_UINT8, BASE_DEC, VALS(uncertainty_range), 0x80,
+        NULL, HFILL }
+    },
     { &hf_gsm_a_geo_loc_horizontal_confidence,
         { "Horizontal confidence(%)", "gsm_a.gad.horizontal_confidence",
         FT_UINT8, BASE_DEC, NULL, 0x7f,
         NULL, HFILL }
     },
+    { &hf_gsm_a_geo_loc_horizontal_uncertainty_range,
+        { "Horizontal Uncertainty Range", "gsm_a.gad.horizontal_uncertainty_range",
+        FT_UINT8, BASE_DEC, VALS(uncertainty_range), 0x80,
+        NULL, HFILL }
+    },
     { &hf_gsm_a_geo_loc_vertical_confidence,
         { "Vertical Confidence(%)", "gsm_a.gad.vertical_confidence",
         FT_UINT8, BASE_DEC, NULL, 0x7f,
+        NULL, HFILL }
+    },
+    { &hf_gsm_a_geo_loc_vertical_uncertainty_range,
+        { "Vertical Uncertainty Range", "gsm_a.gad.vertical_uncertainty_range",
+        FT_UINT8, BASE_DEC, VALS(uncertainty_range), 0x80,
         NULL, HFILL }
     },
     { &hf_gsm_a_geo_loc_high_acc_uncertainty_alt,

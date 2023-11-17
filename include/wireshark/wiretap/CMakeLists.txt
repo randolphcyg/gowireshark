@@ -9,6 +9,7 @@
 
 set(WIRETAP_PUBLIC_HEADERS
 	file_wrappers.h
+	introspection.h
 	merge.h
 	pcap-encap.h
 	pcapng_module.h
@@ -33,6 +34,7 @@ set(WIRETAP_C_MODULE_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/aethra.c
 	${CMAKE_CURRENT_SOURCE_DIR}/ascendtext.c
 	${CMAKE_CURRENT_SOURCE_DIR}/atm.c
+	${CMAKE_CURRENT_SOURCE_DIR}/autosar_dlt.c
 	${CMAKE_CURRENT_SOURCE_DIR}/ber.c
 	${CMAKE_CURRENT_SOURCE_DIR}/blf.c
 	${CMAKE_CURRENT_SOURCE_DIR}/btsnoop.c
@@ -79,9 +81,10 @@ set(WIRETAP_C_MODULE_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/pcap-common.c
 	${CMAKE_CURRENT_SOURCE_DIR}/peekclassic.c
 	${CMAKE_CURRENT_SOURCE_DIR}/peektagged.c
-	${CMAKE_CURRENT_SOURCE_DIR}/rfc7468.c
 	${CMAKE_CURRENT_SOURCE_DIR}/pppdump.c
 	${CMAKE_CURRENT_SOURCE_DIR}/radcom.c
+	${CMAKE_CURRENT_SOURCE_DIR}/rfc7468.c
+	${CMAKE_CURRENT_SOURCE_DIR}/rtpdump.c
 	${CMAKE_CURRENT_SOURCE_DIR}/ruby_marshal.c
 	${CMAKE_CURRENT_SOURCE_DIR}/snoop.c
 	${CMAKE_CURRENT_SOURCE_DIR}/stanag4607.c
@@ -111,6 +114,7 @@ set(WIRETAP_MODULE_FILES
 set(WIRETAP_NONGENERATED_C_FILES
 	${WIRETAP_C_MODULE_FILES}
 	${CMAKE_CURRENT_SOURCE_DIR}/pcapng.c
+	${CMAKE_CURRENT_SOURCE_DIR}/introspection.c
 	${CMAKE_CURRENT_SOURCE_DIR}/libpcap.c
 	${CMAKE_CURRENT_SOURCE_DIR}/file_access.c
 	${CMAKE_CURRENT_SOURCE_DIR}/file_wrappers.c
@@ -147,7 +151,7 @@ file(GENERATE
 )
 add_custom_command(
 	OUTPUT wtap_modules.c
-	COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/make-regs.py wtap_modules wtap_modules.c @wtap_modules.in.txt
+	COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/make-regs.py wtap_modules wtap_modules.c @wtap_modules.in.txt
 	DEPENDS ${CMAKE_SOURCE_DIR}/tools/make-regs.py ${WIRETAP_MODULE_FILES}
 		"${CMAKE_CURRENT_BINARY_DIR}/wtap_modules.in.txt"
 	COMMENT "Making wtap_modules.c"
@@ -157,7 +161,7 @@ add_custom_command(
 # All files are warning-clean.  (Let's keep it that way.)
 #
 set_source_files_properties(
-	${WIRETAP_FILES}
+	${WIRETAP_NONGENERATED_C_FILES}
 	PROPERTIES
 	COMPILE_FLAGS "${WERROR_COMMON_FLAGS}"
 )
@@ -171,7 +175,7 @@ set_target_properties(wiretap PROPERTIES
 	PREFIX "lib"
 	COMPILE_DEFINITIONS "WS_BUILD_DLL"
 	LINK_FLAGS "${WS_LINK_FLAGS}"
-	VERSION "13.0.10" SOVERSION 13
+	VERSION "14.0.0" SOVERSION 14
 	FOLDER "DLLs"
 	INSTALL_RPATH "${LIBRARY_INSTALL_RPATH}"
 )
@@ -182,6 +186,7 @@ endif()
 target_link_libraries(wiretap
 	PUBLIC
 		wsutil
+		${GLIB2_LIBRARIES}
 	PRIVATE
 		${ZLIB_LIBRARIES}
 		${ZSTD_LIBRARIES}
@@ -208,6 +213,8 @@ install(TARGETS wiretap
 
 install(FILES ${WIRETAP_PUBLIC_HEADERS}
 	DESTINATION "${PROJECT_INSTALL_INCLUDEDIR}/wiretap"
+	COMPONENT "Development"
+	EXCLUDE_FROM_ALL
 )
 
 CHECKAPI(
@@ -220,14 +227,6 @@ CHECKAPI(
 #	  ${LEX_FILES}
 	  ${LEMON_FILES}
 )
-
-if(ABI_DUMPER_EXECUTABLE)
-	get_target_property(_soversion wiretap VERSION)
-	add_custom_target(wiretap-abi-dump
-		COMMAND abi-dumper $<TARGET_FILE:wiretap> -o ${CMAKE_BINARY_DIR}/wiretap-abi-${_soversion}.dump -lver ${_soversion}
-		DEPENDS wiretap
-	)
-endif()
 
 #
 # Editor modelines  -  https://www.wireshark.org/tools/modelines.html

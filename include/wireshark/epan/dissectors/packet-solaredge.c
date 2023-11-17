@@ -17,7 +17,6 @@
 #include <epan/prefs.h>
 #include <epan/strutil.h>
 #include <range.h>
-#include <wiretap/wtap.h>
 #include <wsutil/crc16-plain.h>
 #include <wsutil/pint.h>
 #include <wsutil/wsgcrypt.h>
@@ -477,6 +476,8 @@ typedef struct solaredge_conversion_data {
 
 void proto_reg_handoff_solaredge(void);
 void proto_register_solaredge(void);
+
+static dissector_handle_t solaredge_handle;
 
 static gboolean global_show_unknown_fields = TRUE;
 
@@ -1273,11 +1274,11 @@ dissect_solaredge_recursive(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree 
 	header.command_type = tvb_get_guint16(tvb, current_offset, ENC_LITTLE_ENDIAN);
 	proto_tree_add_item(solaredge_header_tree, hf_solaredge_command_type, tvb, current_offset, 2, ENC_LITTLE_ENDIAN);
 	current_offset += 2;
-	col_append_str(pinfo->cinfo, COL_INFO, val_to_str(header.command_type, solaredge_packet_commandtypes,"Unknown command"));
+	col_append_str(pinfo->cinfo, COL_INFO, val_to_str_const(header.command_type, solaredge_packet_commandtypes, "Unknown command"));
 
 	switch (header.command_type) {
 		case SOLAREDGE_COMMAND_MISC_ENCRYPTED:
-			proto_tree_add_item(solaredge_header_tree, hf_solaredge_payload_type, tvb, current_offset, header.length, BASE_NONE);
+			proto_tree_add_item(solaredge_header_tree, hf_solaredge_payload_type, tvb, current_offset, header.length, ENC_NA);
 			conv_data = (t_solaredge_conversion_data *)conversation_get_proto_data(conv, proto_solaredge);
 			if ((conv_data != NULL) && (conv_data->session_key_found == TRUE)) {
 				guint8 *decrypted_buffer = (guint8*)wmem_alloc(pinfo->pool, header.length);
@@ -1296,7 +1297,7 @@ dissect_solaredge_recursive(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree 
 			dissect_solaredge_devicedata(tvb, pinfo, solaredge_payload_tree, current_offset, header.length);
 		break;
 		case SOLAREDGE_COMMAND_SERVER_SET_KEY:
-			proto_tree_add_item(solaredge_header_tree, hf_solaredge_session_key_type, tvb, current_offset, header.length, BASE_NONE);
+			proto_tree_add_item(solaredge_header_tree, hf_solaredge_session_key_type, tvb, current_offset, header.length, ENC_NA);
 			if (!gcry_cipher_open(&cipher_hd_system, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_ECB, 0)) {
 				/* Load the system key to generate session key */
 				system_key = g_byte_array_new();
@@ -1358,8 +1359,6 @@ dissect_solaredge(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void 
 void
 proto_reg_handoff_solaredge(void)
 {
-	dissector_handle_t solaredge_handle;
-	solaredge_handle = create_dissector_handle(dissect_solaredge, proto_solaredge);
 	dissector_add_for_decode_as("tcp.port", solaredge_handle);
 }
 
@@ -1659,6 +1658,7 @@ proto_register_solaredge(void)
 		"SolarEdge",
 		"solaredge"
 	);
+	solaredge_handle = register_dissector("solaredge", dissect_solaredge, proto_solaredge);
 
 	module_t * module_solaredge = prefs_register_protocol(proto_solaredge, NULL);
 	prefs_register_bool_preference(module_solaredge, "unknown", "Show unknown fields", "Show unidentified fields (\"padding\") in packet dissections", &global_show_unknown_fields);

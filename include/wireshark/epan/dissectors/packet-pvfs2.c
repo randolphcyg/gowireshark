@@ -7,6 +7,9 @@
  * By Gerald Combs <gerald@wireshark.org>
  * Copyright 1998 Gerald Combs
  *
+ * Dissector for Parallel Virtual File System (PVFS) version 2.
+ * https://web.archive.org/web/20160701052501/http://www.pvfs.org/
+ *
  * Copied from packet-smb.c and others
  *
  * TODO
@@ -25,6 +28,7 @@
 #include <epan/prefs.h>
 #include <epan/strutil.h>
 #include <epan/expert.h>
+#include <epan/charsets.h>
 #include <wsutil/ws_roundup.h>
 #include "packet-tcp.h"
 
@@ -41,6 +45,8 @@ static gboolean pvfs_desegment = TRUE;
 /* Forward declaration we need below */
 void proto_register_pvfs(void);
 void proto_reg_handoff_pvfs(void);
+
+static dissector_handle_t pvfs_handle;
 
 /* Initialize the protocol and registered fields */
 static int proto_pvfs = -1;
@@ -711,7 +717,7 @@ dissect_pvfs2_attrmask(tvbuff_t *tvb, proto_tree *tree, int offset,
 
 	for (i = 0; i < 32; i++)
 	{
-		if (attrmask & (1 << i))
+		if (attrmask & (1u << i))
 			proto_tree_add_uint(attrtree, hf_pvfs_attr, tvb, offset, 4, i);
 	}
 
@@ -858,22 +864,16 @@ dissect_pvfs_opaque_data(tvbuff_t *tvb, int offset,
 	}
 
 	if (string_data) {
-		char *tmpstr;
-
-		tmpstr = (char *) tvb_get_string_enc(pinfo->pool, tvb, data_offset,
-				string_length_copy, ENC_ASCII);
-
-		string_buffer = (char *)memcpy(wmem_alloc(pinfo->pool, string_length_copy+1), tmpstr, string_length_copy);
+		string_buffer = tvb_get_string_enc(pinfo->pool, tvb, data_offset, string_length_copy, ENC_ASCII);
 	} else {
 		string_buffer = (char *) tvb_memcpy(tvb,
 				wmem_alloc(pinfo->pool, string_length_copy+1), data_offset, string_length_copy);
+		string_buffer[string_length_copy] = '\0';
 	}
-
-	string_buffer[string_length_copy] = '\0';
 
 	/* calculate a nice printable string */
 	if (string_length) {
-		if (string_length != string_length_copy) {
+		if (string_length != strlen(string_buffer)) {
 			if (string_data) {
 				char *formatted;
 				size_t string_buffer_size = 0;
@@ -887,7 +887,7 @@ dissect_pvfs_opaque_data(tvbuff_t *tvb, int offset,
 				/* alloc maximum data area */
 				string_buffer_temp = (char*) wmem_alloc(pinfo->pool, string_buffer_size);
 				/* copy over the data */
-				snprintf(string_buffer_temp, (gulong)string_buffer_size,
+				snprintf(string_buffer_temp, string_buffer_size,
 						"%s<TRUNCATED>", formatted);
 				/* append <TRUNCATED> */
 				/* This way, we get the TRUNCATED even
@@ -2367,8 +2367,8 @@ dissect_pvfs2_getconfig_response(tvbuff_t *tvb, proto_tree *parent_tree,
 
 		*pentry= '\0';
 
-		tmp_entry = entry;
-		tmp_entry_length = entry_length;
+		tmp_entry = get_ascii_string(pinfo->pool, entry, entry_length);
+		tmp_entry_length = (guint32)strlen(tmp_entry);
 
 		/* Remove all whitespace from front of entry */
 		while ((tmp_entry_length > 0) && (!g_ascii_isalnum(*tmp_entry)) &&
@@ -3575,6 +3575,7 @@ proto_register_pvfs(void)
 	/* Register the protocol name and description */
 	proto_pvfs = proto_register_protocol("Parallel Virtual File System",
 			"PVFS", "pvfs");
+	pvfs_handle = register_dissector("pvfs", dissect_pvfs_heur, proto_pvfs);
 
 	/*
 	 * Required function calls to register the header fields and
@@ -3599,9 +3600,6 @@ proto_register_pvfs(void)
 void
 proto_reg_handoff_pvfs(void)
 {
-	dissector_handle_t pvfs_handle;
-
-	pvfs_handle = create_dissector_handle(dissect_pvfs_heur, proto_pvfs);
 	dissector_add_uint_with_preference("tcp.port", TCP_PORT_PVFS2, pvfs_handle);
 
 	heur_dissector_add("tcp", dissect_pvfs_heur, "PVFS over TCP", "pvfs_tcp", proto_pvfs, HEURISTIC_ENABLE);

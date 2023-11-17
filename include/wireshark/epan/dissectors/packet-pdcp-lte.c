@@ -28,7 +28,6 @@
 /* #define HAVE_SNOW3G */
 /* #define HAVE_ZUC */
 
-#include "packet-rlc-lte.h"
 #include "packet-pdcp-lte.h"
 
 void proto_register_pdcp_lte(void);
@@ -133,7 +132,7 @@ static int hf_pdcp_lte_security_count = -1;
 static int hf_pdcp_lte_security_cipher_key = -1;
 static int hf_pdcp_lte_security_integrity_key = -1;
 
-
+static int hf_pdcp_lte_security_deciphered_data = -1;
 
 /* Protocol subtree. */
 static int ett_pdcp = -1;
@@ -279,7 +278,7 @@ static void update_key_from_string(const char *stringKey, guint8 *binaryKey, gbo
 }
 
 /* Update by checking whether the 3 key strings are valid or not, and storing result */
-static gboolean uat_ue_keys_record_update_cb(void* record, char** error) {
+static bool uat_ue_keys_record_update_cb(void* record, char** error) {
     uat_ue_keys_record_t* rec = (uat_ue_keys_record_t *)record;
 
     /* Check and convert RRC key */
@@ -1200,6 +1199,8 @@ static wmem_map_t *pdcp_security_result_hash = NULL;
 /* Write the given formatted text to:
    - the info column
    - the top-level RLC PDU item */
+static void write_pdu_label_and_info(proto_item *pdu_ti,
+                                     packet_info *pinfo, const char *format, ...) G_GNUC_PRINTF(3, 4);
 static void write_pdu_label_and_info(proto_item *pdu_ti,
                                      packet_info *pinfo, const char *format, ...)
 {
@@ -2476,6 +2477,12 @@ static int dissect_pdcp_lte(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     payload_tvb = decipher_payload(tvb, pinfo, &offset, &pdu_security_settings, p_pdcp_info,
                                    pdu_security ? pdu_security->seen_next_ul_pdu: FALSE, &payload_deciphered);
 
+    /* Add deciphered data as a filterable field */
+    if (payload_deciphered) {
+        proto_tree_add_item(pdcp_tree, hf_pdcp_lte_security_deciphered_data,
+                            payload_tvb, 0, tvb_reported_length(payload_tvb), ENC_NA);
+    }
+
     if (p_pdcp_info->plane == SIGNALING_PLANE) {
         guint32 data_length;
         guint32 mac;
@@ -2538,8 +2545,8 @@ static int dissect_pdcp_lte(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
         if (p_pdcp_info->channelType == Channel_DCCH) {
             /* Last 4 bytes are MAC */
-            mac = tvb_get_ntohl(payload_tvb, offset);
-            mac_ti = proto_tree_add_item(pdcp_tree, hf_pdcp_lte_mac, payload_tvb, offset, 4, ENC_BIG_ENDIAN);
+            mac_ti = proto_tree_add_item_ret_uint(pdcp_tree, hf_pdcp_lte_mac, payload_tvb, offset, 4,
+                                                  ENC_BIG_ENDIAN, &mac);
             offset += 4;
 
             if (digest_was_calculated) {
@@ -3036,6 +3043,12 @@ void proto_register_pdcp_lte(void)
         { &hf_pdcp_lte_security_integrity_key,
             { "INTEGRITY KEY",
               "pdcp-lte.security-config.integrity-key", FT_STRING, BASE_NONE, NULL, 0x0,
+              NULL, HFILL
+            }
+        },
+        { &hf_pdcp_lte_security_deciphered_data,
+            { "Deciphered Data",
+              "pdcp-lte.deciphered-data", FT_BYTES, BASE_NONE, NULL, 0x0,
               NULL, HFILL
             }
         }

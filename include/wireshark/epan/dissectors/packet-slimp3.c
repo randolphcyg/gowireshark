@@ -21,6 +21,8 @@
 void proto_register_slimp3(void);
 void proto_reg_handoff_slimp3(void);
 
+static dissector_handle_t slimp3_handle;
+
 static int proto_slimp3 = -1;
 static int hf_slimp3_opcode = -1;
 static int hf_slimp3_control = -1;
@@ -672,7 +674,7 @@ proto_register_slimp3(void)
             NULL, HFILL }},
 
         /* Generated from convert_proto_tree_add_text.pl */
-        { &hf_slimp3_display_delay, { "Delay", "slimp3.display_delay", FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_milliseconds, 0x0, NULL, HFILL }},
+        { &hf_slimp3_display_delay, { "Delay", "slimp3.display_delay", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_milliseconds, 0x0, NULL, HFILL }},
         { &hf_slimp3_display_string, { "String", "slimp3.display_string", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_slimp3_display_command, { "Command", "slimp3.display_command", FT_UINT8, BASE_DEC, VALS(slimp3_display_commands), 0x0, NULL, HFILL }},
         { &hf_slimp3_display_unknown, { "Unknown", "slimp3.display_unknown", FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL }},
@@ -691,14 +693,13 @@ proto_register_slimp3(void)
     proto_slimp3 = proto_register_protocol("SliMP3 Communication Protocol", "SliMP3", "slimp3");
     proto_register_field_array(proto_slimp3, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
+
+    slimp3_handle = register_dissector("slimp3", dissect_slimp3, proto_slimp3);
 }
 
 void
 proto_reg_handoff_slimp3(void)
 {
-    dissector_handle_t slimp3_handle;
-
-    slimp3_handle = create_dissector_handle(dissect_slimp3, proto_slimp3);
     dissector_add_uint_range_with_preference("udp.port", UDP_PORT_SLIMP3_RANGE, slimp3_handle);
 }
 

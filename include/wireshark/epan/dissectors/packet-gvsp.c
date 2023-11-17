@@ -3017,7 +3017,7 @@ void proto_register_gvsp(void)
         }},
 
         {&hf_gvsp_sc_zone11_direction,
-        { "Zone 11 Direction", "gvsp.zone1direction",
+        { "Zone 11 Direction", "gvsp.zone11direction",
         FT_BOOLEAN, 32, TFS(&zonedirectionnames), 0x00100000,
         NULL, HFILL
         }},
@@ -3564,7 +3564,7 @@ void proto_register_gvsp(void)
         } },
 
         { &hf_gvsp_gendc_part_header_flags_v2_2,
-        { "Reserved", "gvsp.gendc.part.header.flags",
+        { "Flags", "gvsp.gendc.part.header.flags",
         FT_UINT16, BASE_HEX, NULL, 0x0,
         NULL, HFILL
         } },

@@ -20,6 +20,7 @@
 
 void proto_register_tsdns(void);
 void proto_reg_handoff_tsdns(void);
+static dissector_handle_t tsdns_handle;
 
 static int proto_tsdns = -1;
 
@@ -51,10 +52,10 @@ static int dissect_tsdns(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 
   if (request) {
     col_set_str(pinfo->cinfo, COL_INFO, "Request");
-    col_append_fstr(pinfo->cinfo, COL_INFO, " %.*s", pLen - 5, tvb_get_string_enc(pinfo->pool, tvb, 0, pLen - 5, ENC_ASCII|ENC_NA));
+    col_append_fstr(pinfo->cinfo, COL_INFO, " %s", tvb_get_string_enc(pinfo->pool, tvb, 0, pLen - 5, ENC_ASCII));
   } else {
     col_set_str(pinfo->cinfo, COL_INFO, "Response");
-    col_append_fstr(pinfo->cinfo, COL_INFO, " %.*s", pLen, tvb_get_string_enc(pinfo->pool, tvb, 0, pLen, ENC_ASCII|ENC_NA));
+    col_append_fstr(pinfo->cinfo, COL_INFO, " %s", tvb_get_string_enc(pinfo->pool, tvb, 0, pLen, ENC_ASCII));
   }
 
   proto_tree *tsdns_tree;
@@ -137,14 +138,12 @@ void proto_register_tsdns(void)
   proto_register_subtree_array(ett, array_length(ett));
   expert_tsdns = expert_register_protocol(proto_tsdns);
   expert_register_field_array(expert_tsdns, ei, array_length(ei));
+
+  tsdns_handle = register_dissector("tsdns", dissect_tsdns, proto_tsdns);
 }
 
 void proto_reg_handoff_tsdns(void)
 {
-  dissector_handle_t tsdns_handle;
-
-  tsdns_handle = create_dissector_handle(dissect_tsdns, proto_tsdns);
-
   /* Default port to not dissect the protocol*/
   dissector_add_uint_with_preference("tcp.port", 0, tsdns_handle);
 }

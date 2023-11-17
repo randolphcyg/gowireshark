@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-c1222.c                                                             */
-/* asn2wrs.py -b -p c1222 -c ./c1222.cnf -s ./packet-c1222-template -D . -O ../.. c1222.asn */
+/* asn2wrs.py -b -L -p c1222 -c ./c1222.cnf -s ./packet-c1222-template -D . -O ../.. c1222.asn */
 
-/* Input file: packet-c1222-template.c */
-
-#line 1 "./asn1/c1222/packet-c1222-template.c"
 /* packet-c1222.c
  * Routines for ANSI C12.22 packet dissection
  * Copyright 2010, Edward J. Beroset, edward.beroset@elster.com
@@ -80,9 +77,6 @@ static dissector_handle_t c1222_udp_handle=NULL;
 /* Initialize the protocol and registered fields */
 static int proto_c1222 = -1;
 
-
-/*--- Included file: packet-c1222-hf.c ---*/
-#line 1 "./asn1/c1222/packet-c1222-hf.c"
 static int hf_c1222_MESSAGE_PDU = -1;             /* MESSAGE */
 static int hf_c1222_aSO_context = -1;             /* ASO_qualifier */
 static int hf_c1222_called_AP_title = -1;         /* Called_AP_title */
@@ -108,9 +102,6 @@ static int hf_c1222_iv_element = -1;              /* Iv_element */
 static int hf_c1222_c1221_auth_identification = -1;  /* OCTET_STRING_SIZE_CONSTR001 */
 static int hf_c1222_c1221_auth_request = -1;      /* OCTET_STRING_SIZE_1_255 */
 static int hf_c1222_c1221_auth_response = -1;     /* OCTET_STRING_SIZE_CONSTR002 */
-
-/*--- End of included file: packet-c1222-hf.c ---*/
-#line 76 "./asn1/c1222/packet-c1222-template.c"
 /* These are the EPSEM pieces */
 /* first, the flag components */
 static int hf_c1222_epsem_flags = -1;
@@ -218,9 +209,6 @@ static guint32 calling_AP_title_allocated = 0;
 static guint32 key_id_element_allocated = 0;
 static guint32 iv_element_allocated = 0;
 
-
-/*--- Included file: packet-c1222-ett.c ---*/
-#line 1 "./asn1/c1222/packet-c1222-ett.c"
 static gint ett_c1222_MESSAGE_U = -1;
 static gint ett_c1222_Called_AP_title = -1;
 static gint ett_c1222_Calling_AP_title = -1;
@@ -229,9 +217,6 @@ static gint ett_c1222_Authentication_value_encoding = -1;
 static gint ett_c1222_Calling_authentication_value_single_asn1 = -1;
 static gint ett_c1222_Calling_authentication_value_c1222_U = -1;
 static gint ett_c1222_Calling_authentication_value_c1221_U = -1;
-
-/*--- End of included file: packet-c1222-ett.c ---*/
-#line 184 "./asn1/c1222/packet-c1222-template.c"
 
 static expert_field ei_c1222_command_truncated = EI_INIT;
 static expert_field ei_c1222_bad_checksum = EI_INIT;
@@ -799,7 +784,7 @@ c1222_uat_data_copy_cb(void *dest, const void *source, size_t len _U_)
  * \param err is updated to point to an error string if needed
  * \return FALSE if error; TRUE otherwise
  */
-static gboolean
+static bool
 c1222_uat_data_update_cb(void* n, char** err)
 {
   c1222_uat_data_t* new_rec = (c1222_uat_data_t *)n;
@@ -1005,7 +990,7 @@ dissect_epsem(tvbuff_t *tvb, int offset, guint32 len, packet_info *pinfo, proto_
   int local_offset;
   gint len2;
   int cmd_err;
-  gboolean ind;
+  bool ind;
   guchar *buffer;
   tvbuff_t *epsem_buffer = NULL;
   gboolean crypto_good = FALSE;
@@ -1122,18 +1107,13 @@ dissect_epsem(tvbuff_t *tvb, int offset, guint32 len, packet_info *pinfo, proto_
 }
 
 
-/*--- Included file: packet-c1222-fn.c ---*/
-#line 1 "./asn1/c1222/packet-c1222-fn.c"
-
 
 static int
-dissect_c1222_ASO_qualifier(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 50 "./asn1/c1222/c1222.cnf"
+dissect_c1222_ASO_qualifier(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   FILL_START;
     offset = dissect_ber_object_identifier(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   FILL_TABLE(aSO_context);
-
 
 
   return offset;
@@ -1142,7 +1122,7 @@ dissect_c1222_ASO_qualifier(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int of
 
 
 static int
-dissect_c1222_OBJECT_IDENTIFIER(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_OBJECT_IDENTIFIER(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_object_identifier(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   return offset;
@@ -1151,7 +1131,7 @@ dissect_c1222_OBJECT_IDENTIFIER(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
 
 
 static int
-dissect_c1222_RELATIVE_OID(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_RELATIVE_OID(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_relative_oid(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   return offset;
@@ -1171,8 +1151,7 @@ static const ber_choice_t Called_AP_title_choice[] = {
 };
 
 static int
-dissect_c1222_Called_AP_title(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 55 "./asn1/c1222/c1222.cnf"
+dissect_c1222_Called_AP_title(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   FILL_START;
     offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  Called_AP_title_choice, hf_index, ett_c1222_Called_AP_title,
@@ -1181,14 +1160,13 @@ dissect_c1222_Called_AP_title(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
   FILL_TABLE_APTITLE(called_AP_title);
 
 
-
   return offset;
 }
 
 
 
 static int
-dissect_c1222_AP_invocation_id(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_AP_invocation_id(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1198,13 +1176,11 @@ dissect_c1222_AP_invocation_id(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int
 
 
 static int
-dissect_c1222_Called_AP_invocation_id(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 60 "./asn1/c1222/c1222.cnf"
+dissect_c1222_Called_AP_invocation_id(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   FILL_START;
     offset = dissect_c1222_AP_invocation_id(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   FILL_TABLE(called_AP_invocation_id);
-
 
 
   return offset;
@@ -1224,8 +1200,7 @@ static const ber_choice_t Calling_AP_title_choice[] = {
 };
 
 static int
-dissect_c1222_Calling_AP_title(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 85 "./asn1/c1222/c1222.cnf"
+dissect_c1222_Calling_AP_title(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   FILL_START;
     offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  Calling_AP_title_choice, hf_index, ett_c1222_Calling_AP_title,
@@ -1234,14 +1209,13 @@ dissect_c1222_Calling_AP_title(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int
   FILL_TABLE_APTITLE(calling_AP_title);
 
 
-
   return offset;
 }
 
 
 
 static int
-dissect_c1222_AE_qualifier(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_AE_qualifier(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1251,52 +1225,46 @@ dissect_c1222_AE_qualifier(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int off
 
 
 static int
-dissect_c1222_Calling_AE_qualifier(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 65 "./asn1/c1222/c1222.cnf"
+dissect_c1222_Calling_AE_qualifier(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   FILL_START;
     offset = dissect_c1222_AE_qualifier(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   FILL_TABLE(calling_AE_qualifier);
 
 
-
   return offset;
 }
 
 
 
 static int
-dissect_c1222_Calling_AP_invocation_id(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 70 "./asn1/c1222/c1222.cnf"
+dissect_c1222_Calling_AP_invocation_id(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   FILL_START;
     offset = dissect_c1222_AP_invocation_id(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   FILL_TABLE(calling_AP_invocation_id);
 
 
-
   return offset;
 }
 
 
 
 static int
-dissect_c1222_Mechanism_name(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 75 "./asn1/c1222/c1222.cnf"
+dissect_c1222_Mechanism_name(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   FILL_START;
     offset = dissect_ber_object_identifier(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   FILL_TABLE(mechanism_name);
 
 
-
   return offset;
 }
 
 
 
 static int
-dissect_c1222_INTEGER(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_INTEGER(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1306,8 +1274,7 @@ dissect_c1222_INTEGER(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
 
 
 static int
-dissect_c1222_Key_id_element(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 90 "./asn1/c1222/c1222.cnf"
+dissect_c1222_Key_id_element(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   FILL_START;
     offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
@@ -1315,21 +1282,18 @@ dissect_c1222_Key_id_element(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int o
   FILL_TABLE(key_id_element);
 
 
-
   return offset;
 }
 
 
 
 static int
-dissect_c1222_Iv_element(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 95 "./asn1/c1222/c1222.cnf"
+dissect_c1222_Iv_element(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   FILL_START;
     offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
   FILL_TABLE(iv_element);
-
 
 
   return offset;
@@ -1343,7 +1307,7 @@ static const ber_sequence_t Calling_authentication_value_c1222_U_sequence[] = {
 };
 
 static int
-dissect_c1222_Calling_authentication_value_c1222_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_Calling_authentication_value_c1222_U(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Calling_authentication_value_c1222_U_sequence, hf_index, ett_c1222_Calling_authentication_value_c1222_U);
 
@@ -1353,7 +1317,7 @@ dissect_c1222_Calling_authentication_value_c1222_U(gboolean implicit_tag _U_, tv
 
 
 static int
-dissect_c1222_Calling_authentication_value_c1222(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_Calling_authentication_value_c1222(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
                                       hf_index, BER_CLASS_CON, 1, TRUE, dissect_c1222_Calling_authentication_value_c1222_U);
 
@@ -1363,7 +1327,7 @@ dissect_c1222_Calling_authentication_value_c1222(gboolean implicit_tag _U_, tvbu
 
 
 static int
-dissect_c1222_OCTET_STRING_SIZE_CONSTR001(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_OCTET_STRING_SIZE_CONSTR001(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -1373,7 +1337,7 @@ dissect_c1222_OCTET_STRING_SIZE_CONSTR001(gboolean implicit_tag _U_, tvbuff_t *t
 
 
 static int
-dissect_c1222_OCTET_STRING_SIZE_1_255(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_OCTET_STRING_SIZE_1_255(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -1383,7 +1347,7 @@ dissect_c1222_OCTET_STRING_SIZE_1_255(gboolean implicit_tag _U_, tvbuff_t *tvb _
 
 
 static int
-dissect_c1222_OCTET_STRING_SIZE_CONSTR002(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_OCTET_STRING_SIZE_CONSTR002(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -1406,7 +1370,7 @@ static const ber_choice_t Calling_authentication_value_c1221_U_choice[] = {
 };
 
 static int
-dissect_c1222_Calling_authentication_value_c1221_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_Calling_authentication_value_c1221_U(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  Calling_authentication_value_c1221_U_choice, hf_index, ett_c1222_Calling_authentication_value_c1221_U,
                                  NULL);
@@ -1417,7 +1381,7 @@ dissect_c1222_Calling_authentication_value_c1221_U(gboolean implicit_tag _U_, tv
 
 
 static int
-dissect_c1222_Calling_authentication_value_c1221(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_Calling_authentication_value_c1221(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
                                       hf_index, BER_CLASS_CON, 0, TRUE, dissect_c1222_Calling_authentication_value_c1221_U);
 
@@ -1438,7 +1402,7 @@ static const ber_choice_t Calling_authentication_value_single_asn1_choice[] = {
 };
 
 static int
-dissect_c1222_Calling_authentication_value_single_asn1(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_Calling_authentication_value_single_asn1(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  Calling_authentication_value_single_asn1_choice, hf_index, ett_c1222_Calling_authentication_value_single_asn1,
                                  NULL);
@@ -1449,7 +1413,7 @@ dissect_c1222_Calling_authentication_value_single_asn1(gboolean implicit_tag _U_
 
 
 static int
-dissect_c1222_OCTET_STRING(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_OCTET_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -1470,7 +1434,7 @@ static const ber_choice_t Authentication_value_encoding_choice[] = {
 };
 
 static int
-dissect_c1222_Authentication_value_encoding(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_Authentication_value_encoding(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  Authentication_value_encoding_choice, hf_index, ett_c1222_Authentication_value_encoding,
                                  NULL);
@@ -1486,7 +1450,7 @@ static const ber_sequence_t Calling_authentication_value_U_sequence[] = {
 };
 
 static int
-dissect_c1222_Calling_authentication_value_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_Calling_authentication_value_U(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Calling_authentication_value_U_sequence, hf_index, ett_c1222_Calling_authentication_value_U);
 
@@ -1496,14 +1460,12 @@ dissect_c1222_Calling_authentication_value_U(gboolean implicit_tag _U_, tvbuff_t
 
 
 static int
-dissect_c1222_Calling_authentication_value(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 80 "./asn1/c1222/c1222.cnf"
+dissect_c1222_Calling_authentication_value(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   FILL_START;
     offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
                                       hf_index, BER_CLASS_CON, 2, TRUE, dissect_c1222_Calling_authentication_value_U);
 
   FILL_TABLE(calling_authentication_value);
-
 
 
   return offset;
@@ -1512,10 +1474,9 @@ dissect_c1222_Calling_authentication_value(gboolean implicit_tag _U_, tvbuff_t *
 
 
 static int
-dissect_c1222_User_information(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 26 "./asn1/c1222/c1222.cnf"
+dissect_c1222_User_information(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   gint8 end_device_class;
-  gboolean pc, ind;
+  bool pc, ind;
   gint32 tag;
   guint32 len;
   proto_item *tf = NULL;
@@ -1538,7 +1499,6 @@ dissect_c1222_User_information(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int
   }
 
 
-
   return offset;
 }
 
@@ -1557,7 +1517,7 @@ static const ber_sequence_t MESSAGE_U_sequence[] = {
 };
 
 static int
-dissect_c1222_MESSAGE_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_c1222_MESSAGE_U(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    MESSAGE_U_sequence, hf_index, ett_c1222_MESSAGE_U);
 
@@ -1567,12 +1527,10 @@ dissect_c1222_MESSAGE_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset
 
 
 static int
-dissect_c1222_MESSAGE(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 100 "./asn1/c1222/c1222.cnf"
+dissect_c1222_MESSAGE(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   clear_canon();
     offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
                                       hf_index, BER_CLASS_APP, 0, TRUE, dissect_c1222_MESSAGE_U);
-
 
 
   return offset;
@@ -1588,9 +1546,6 @@ static int dissect_MESSAGE_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_
   return offset;
 }
 
-
-/*--- End of included file: packet-c1222-fn.c ---*/
-#line 1074 "./asn1/c1222/packet-c1222-template.c"
 
 /**
  * Dissects a a full (reassembled) C12.22 message.
@@ -1627,7 +1582,7 @@ get_c1222_message_len(packet_info *pinfo, tvbuff_t *tvb, int offset, void *data 
 {
   int orig_offset;
   guint length;
-  gboolean ind;
+  bool ind;
 
   orig_offset = offset;
   /* note that this assumes a Tag length of 1 which is always valid for C12.22 */
@@ -1895,9 +1850,6 @@ void proto_register_c1222(void) {
     NULL, 0x0,
     "True: crypto bad; False: crypto ok or not checked", HFILL }
    },
-
-/*--- Included file: packet-c1222-hfarr.c ---*/
-#line 1 "./asn1/c1222/packet-c1222-hfarr.c"
     { &hf_c1222_MESSAGE_PDU,
       { "MESSAGE", "c1222.MESSAGE_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -1998,9 +1950,6 @@ void proto_register_c1222(void) {
       { "c1221-auth-response", "c1222.c1221_auth_response",
         FT_BYTES, BASE_NONE, NULL, 0,
         "OCTET_STRING_SIZE_CONSTR002", HFILL }},
-
-/*--- End of included file: packet-c1222-hfarr.c ---*/
-#line 1379 "./asn1/c1222/packet-c1222-template.c"
   };
 
   /* List of subtrees */
@@ -2010,9 +1959,6 @@ void proto_register_c1222(void) {
                   &ett_c1222_flags,
                   &ett_c1222_crypto,
                   &ett_c1222_cmd,
-
-/*--- Included file: packet-c1222-ettarr.c ---*/
-#line 1 "./asn1/c1222/packet-c1222-ettarr.c"
     &ett_c1222_MESSAGE_U,
     &ett_c1222_Called_AP_title,
     &ett_c1222_Calling_AP_title,
@@ -2021,9 +1967,6 @@ void proto_register_c1222(void) {
     &ett_c1222_Calling_authentication_value_single_asn1,
     &ett_c1222_Calling_authentication_value_c1222_U,
     &ett_c1222_Calling_authentication_value_c1221_U,
-
-/*--- End of included file: packet-c1222-ettarr.c ---*/
-#line 1389 "./asn1/c1222/packet-c1222-template.c"
   };
 
   static ei_register_info ei[] = {
@@ -2054,6 +1997,10 @@ void proto_register_c1222(void) {
   proto_register_subtree_array(ett, array_length(ett));
   expert_c1222 = expert_register_protocol(proto_c1222);
   expert_register_field_array(expert_c1222, ei, array_length(ei));
+  /* Register dissectors */
+  c1222_handle = register_dissector("c1222.tcp", dissect_c1222, proto_c1222);
+  c1222_udp_handle = register_dissector("c1222.udp", dissect_c1222_common, proto_c1222);
+  /* Register dissection preferences */
   c1222_module = prefs_register_protocol(proto_c1222, proto_reg_handoff_c1222);
   prefs_register_bool_preference(c1222_module, "desegment",
         "Reassemble all C12.22 messages spanning multiple TCP segments",
@@ -2101,8 +2048,6 @@ proto_reg_handoff_c1222(void)
   guint8 *temp = NULL;
 
   if( !initialized ) {
-    c1222_handle = create_dissector_handle(dissect_c1222, proto_c1222);
-    c1222_udp_handle = create_dissector_handle(dissect_c1222_common, proto_c1222);
     dissector_add_uint_with_preference("tcp.port", C1222_PORT, c1222_handle);
     dissector_add_uint_with_preference("udp.port", C1222_PORT, c1222_udp_handle);
     initialized = TRUE;

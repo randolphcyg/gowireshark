@@ -14,6 +14,7 @@
 
 #include <epan/packet.h>
 #include <epan/strutil.h>
+#include <epan/exceptions.h>
 
 #include "packet-xmpp.h"
 #include "packet-xmpp-core.h"
@@ -284,7 +285,7 @@ xmpp_unknown_attrs(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_, xmpp
                 proto_tree_add_string(tree, hf_xmpp_xmlns, tvb, attr->offset, attr->length, attr->value);
             else {
                 /*xmlns may looks like xmlns:abbrev="sth"*/
-                const gchar *xmlns_needle = ws_strcasestr((const char *)keys->data, "xmlns:");
+                const gchar *xmlns_needle = ws_ascii_strcasestr((const char *)keys->data, "xmlns:");
                 if (xmlns_needle && xmlns_needle == keys->data) {
                     proto_tree_add_string_format(tree, hf_xmpp_xmlns, tvb, attr->offset, attr->length, attr->value,"%s: %s", (gchar*)keys->data, attr->value);
                 } else {
@@ -509,6 +510,14 @@ xmpp_get_first_element(xmpp_element_t *packet)
         return NULL;
 }
 
+static void
+xmpp_element_t_cleanup(void* userdata)
+{
+    xmpp_element_t *node = (xmpp_element_t*)userdata;
+
+    xmpp_element_t_tree_free(node);
+}
+
 /*
 Function converts xml_frame_t structure to xmpp_element_t (simpler representation)
 */
@@ -542,6 +551,12 @@ xmpp_xml_frame_to_element_t(wmem_allocator_t *pool, xml_frame_t *xml_frame, xmpp
 
     node->offset = xml_frame->start_offset;
     node->length = xml_frame->length;
+
+    /* We might throw an exception recursively creating child nodes.
+     * Make sure we free the GHashTables created above (and the GList
+     * or child nodes already added) if that happens.
+     */
+    CLEANUP_PUSH(xmpp_element_t_cleanup, node);
 
     tt = tvbparse_init(pool, tvb,node->offset,-1,NULL,want_ignore);
 
@@ -581,7 +596,7 @@ xmpp_xml_frame_to_element_t(wmem_allocator_t *pool, xml_frame_t *xml_frame, xmpp
                 g_hash_table_insert(node->attrs,(gpointer)attr->name,(gpointer)attr);
 
                 /*checking that attr->name looks like xmlns:ns*/
-                xmlns_needle = ws_strcasestr(attr->name, "xmlns");
+                xmlns_needle = ws_ascii_strcasestr(attr->name, "xmlns");
 
                 if(xmlns_needle == attr->name)
                 {
@@ -625,6 +640,9 @@ xmpp_xml_frame_to_element_t(wmem_allocator_t *pool, xml_frame_t *xml_frame, xmpp
 
         child = child->next_sibling;
     }
+
+    CLEANUP_POP;
+
     return node;
 }
 
@@ -654,7 +672,7 @@ attr_find_pred(gpointer key, gpointer value _U_, gpointer user_data)
 
     if( strcmp(attr_name, "xmlns") == 0 )
     {
-        const gchar *first_occur = ws_strcasestr((const char *)key, "xmlns:");
+        const gchar *first_occur = ws_ascii_strcasestr((const char *)key, "xmlns:");
         if(first_occur && first_occur == key)
             return TRUE;
         else

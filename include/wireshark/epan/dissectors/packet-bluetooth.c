@@ -18,6 +18,8 @@
 
 #include <string.h>
 #include <epan/packet.h>
+#include <epan/prefs.h>
+#include <epan/uat.h>
 #include <epan/to_str.h>
 #include <epan/conversation_table.h>
 #include <epan/decode_as.h>
@@ -27,6 +29,11 @@
 #include <epan/oui.h>
 
 #include "packet-bluetooth.h"
+
+static dissector_handle_t bluetooth_handle;
+static dissector_handle_t bluetooth_bthci_handle;
+static dissector_handle_t bluetooth_btmon_handle;
+static dissector_handle_t bluetooth_usb_handle;
 
 int proto_bluetooth = -1;
 
@@ -63,6 +70,14 @@ wmem_tree_t *bluetooth_uuids = NULL;
 static int bluetooth_tap = -1;
 int bluetooth_device_tap = -1;
 int bluetooth_hci_summary_tap = -1;
+
+// UAT structure
+typedef struct _bt_uuid_t {
+    gchar *uuid;
+    gchar *label;
+} bt_uuid_t;
+static bt_uuid_t *bt_uuids;
+static guint num_bt_uuids;
 
 // Registery updated to published status of 12 March 2022
 
@@ -4271,6 +4286,86 @@ guint32 bluetooth_max_disconnect_in_frame = G_MAXUINT32;
 void proto_register_bluetooth(void);
 void proto_reg_handoff_bluetooth(void);
 
+/* UAT routines */
+static bool
+bt_uuids_update_cb(void *r, char **err)
+{
+    bt_uuid_t *rec = (bt_uuid_t *)r;
+
+    if (rec->uuid == NULL) {
+        *err = g_strdup("UUID can't be empty");
+        return FALSE;
+    }
+    g_strstrip(rec->uuid);
+    if (rec->uuid[0] == 0) {
+        *err = g_strdup("UUID can't be empty");
+        return FALSE;
+    }
+
+    if (rec->label == NULL) {
+        *err = g_strdup("UUID Name can't be empty");
+        return FALSE;
+    }
+    g_strstrip(rec->label);
+    if (rec->label[0] == 0) {
+        *err = g_strdup("UUID Name can't be empty");
+        return FALSE;
+    }
+
+    *err = NULL;
+    return TRUE;
+}
+
+static void *
+bt_uuids_copy_cb(void* n, const void* o, size_t siz _U_)
+{
+    bt_uuid_t* new_rec = (bt_uuid_t*)n;
+    const bt_uuid_t* old_rec = (const bt_uuid_t*)o;
+
+    new_rec->uuid = g_strdup(old_rec->uuid);
+    new_rec->label = g_strdup(old_rec->label);
+
+    return new_rec;
+}
+
+static void
+bt_uuids_free_cb(void*r)
+{
+    bt_uuid_t* rec = (bt_uuid_t*)r;
+
+    const gchar *found_label;
+
+    found_label = wmem_tree_lookup_string(bluetooth_uuids, rec->uuid, 0);
+
+    if (found_label != NULL && !strcmp(found_label, rec->label)) {
+        wmem_tree_remove_string(bluetooth_uuids, rec->uuid, 0);
+    }
+
+    g_free(rec->uuid);
+    g_free(rec->label);
+}
+
+static void
+bt_uuids_post_update_cb(void)
+{
+    if (num_bt_uuids) {
+        for (guint i = 0; i < num_bt_uuids; i++) {
+            wmem_tree_insert_string(bluetooth_uuids, bt_uuids[i].uuid,
+                                    bt_uuids[i].label,
+                                    0);
+        }
+    }
+}
+
+static void
+bt_uuids_reset_cb(void)
+{
+}
+
+UAT_CSTRING_CB_DEF(bt_uuids, uuid, bt_uuid_t)
+UAT_CSTRING_CB_DEF(bt_uuids, label, bt_uuid_t)
+
+/* Decode As routines */
 static void bluetooth_uuid_prompt(packet_info *pinfo, gchar* result)
 {
     gchar *value_data;
@@ -4314,7 +4409,7 @@ dissect_bd_addr(gint hf_bd_addr, packet_info *pinfo, proto_tree *tree,
     if (have_tap_listener(bluetooth_device_tap)) {
         bluetooth_device_tap_t  *tap_device;
 
-        tap_device = wmem_new(wmem_packet_scope(), bluetooth_device_tap_t);
+        tap_device = wmem_new(pinfo->pool, bluetooth_device_tap_t);
         tap_device->interface_id = interface_id;
         tap_device->adapter_id   = adapter_id;
         memcpy(tap_device->bd_addr, bd_addr, 6);
@@ -4330,6 +4425,13 @@ dissect_bd_addr(gint hf_bd_addr, packet_info *pinfo, proto_tree *tree,
     return offset;
 }
 
+void bluetooth_unit_1p25_ms(gchar *buf, guint32 value) {
+    snprintf(buf, ITEM_LABEL_LENGTH, "%g ms (%u)", 1.25 * value, value);
+}
+
+void bluetooth_unit_0p125_ms(gchar *buf, guint32 value) {
+    snprintf(buf, ITEM_LABEL_LENGTH, "%g ms (%u)", 0.125 * value, value);
+}
 
 void
 save_local_device_name_from_eir_ad(tvbuff_t *tvb, gint offset, packet_info *pinfo,
@@ -4353,7 +4455,7 @@ save_local_device_name_from_eir_ad(tvbuff_t *tvb, gint offset, packet_info *pinf
         switch(tvb_get_guint8(tvb, offset + i + 1)) {
         case 0x08: /* Device Name, shortened */
         case 0x09: /* Device Name, full */
-            name = tvb_get_string_enc(wmem_packet_scope(), tvb, offset + i + 2, length - 1, ENC_ASCII);
+            name = tvb_get_string_enc(pinfo->pool, tvb, offset + i + 2, length - 1, ENC_ASCII);
 
             k_interface_id = bluetooth_data->interface_id;
             k_adapter_id = bluetooth_data->adapter_id;
@@ -4531,17 +4633,17 @@ get_bluetooth_uuid(tvbuff_t *tvb, gint offset, gint size)
 }
 
 const gchar *
-print_numeric_bluetooth_uuid(bluetooth_uuid_t *uuid)
+print_numeric_bluetooth_uuid(wmem_allocator_t *pool, bluetooth_uuid_t *uuid)
 {
     if (!(uuid && uuid->size > 0))
         return NULL;
 
     if (uuid->size != 16) {
-        return bytes_to_str(wmem_packet_scope(), uuid->data, uuid->size);
+        return bytes_to_str(pool, uuid->data, uuid->size);
     } else {
         gchar *text;
 
-        text = (gchar *) wmem_alloc(wmem_packet_scope(), 38);
+        text = (gchar *) wmem_alloc(pool, 38);
         bytes_to_hexstr(&text[0], uuid->data, 4);
         text[8] = '-';
         bytes_to_hexstr(&text[9], uuid->data + 4, 2);
@@ -4560,7 +4662,7 @@ print_numeric_bluetooth_uuid(bluetooth_uuid_t *uuid)
 }
 
 const gchar *
-print_bluetooth_uuid(bluetooth_uuid_t *uuid)
+print_bluetooth_uuid(wmem_allocator_t *pool, bluetooth_uuid_t *uuid)
 {
     const gchar *description;
 
@@ -4584,7 +4686,7 @@ print_bluetooth_uuid(bluetooth_uuid_t *uuid)
          */
     }
 
-    description = print_numeric_bluetooth_uuid(uuid);
+    description = print_numeric_bluetooth_uuid(pool, uuid);
 
     if (description) {
         description = (const gchar *) wmem_tree_lookup_string(bluetooth_uuids, description, 0);
@@ -4627,7 +4729,7 @@ dissect_bluetooth_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     main_item = proto_tree_add_item(tree, proto_bluetooth, tvb, 0, tvb_captured_length(tvb), ENC_NA);
     main_tree = proto_item_add_subtree(main_item, ett_bluetooth);
 
-    bluetooth_data = (bluetooth_data_t *) wmem_new(wmem_packet_scope(), bluetooth_data_t);
+    bluetooth_data = (bluetooth_data_t *) wmem_new(pinfo->pool, bluetooth_data_t);
     if (pinfo->rec->presence_flags & WTAP_HAS_INTERFACE_ID)
         bluetooth_data->interface_id = pinfo->rec->rec_header.packet_header.interface_id;
     else
@@ -4647,7 +4749,7 @@ dissect_bluetooth_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     if (have_tap_listener(bluetooth_tap)) {
         bluetooth_tap_data_t  *bluetooth_tap_data;
 
-        bluetooth_tap_data                = wmem_new(wmem_packet_scope(), bluetooth_tap_data_t);
+        bluetooth_tap_data                = wmem_new(pinfo->pool, bluetooth_tap_data_t);
         bluetooth_tap_data->interface_id  = bluetooth_data->interface_id;
         bluetooth_tap_data->adapter_id    = bluetooth_data->adapter_id;
 
@@ -4863,6 +4965,15 @@ proto_register_bluetooth(void)
         &ett_bluetooth,
     };
 
+    // UAT
+    module_t *bluetooth_module;
+    uat_t* bluetooth_uuids_uat;
+    static uat_field_t bluetooth_uuids_uat_fields[] = {
+        UAT_FLD_CSTRING(bt_uuids, uuid, "UUID", "UUID"),
+        UAT_FLD_CSTRING(bt_uuids, label, "UUID Name", "Readable label"),
+        UAT_END_FIELDS
+    };
+
     /* Decode As handling */
     static build_valid_func bluetooth_uuid_da_build_value[1] = {bluetooth_uuid_value};
     static decode_as_value_t bluetooth_uuid_da_values = {bluetooth_uuid_prompt, 1, bluetooth_uuid_da_build_value};
@@ -4898,21 +5009,43 @@ proto_register_bluetooth(void)
     bluetooth_device_tap = register_tap("bluetooth.device");
     bluetooth_hci_summary_tap = register_tap("bluetooth.hci_summary");
 
-    bluetooth_uuid_table = register_dissector_table("bluetooth.uuid", "BT Service UUID", proto_bluetooth, FT_STRING, BASE_NONE);
+    bluetooth_uuid_table = register_dissector_table("bluetooth.uuid", "BT Service UUID", proto_bluetooth, FT_STRING, STRING_CASE_SENSITIVE);
     llc_add_oui(OUI_BLUETOOTH, "llc.bluetooth_pid", "LLC Bluetooth OUI PID", oui_hf, proto_bluetooth);
 
     register_conversation_table(proto_bluetooth, TRUE, bluetooth_conversation_packet, bluetooth_endpoint_packet);
 
     register_decode_as(&bluetooth_uuid_da);
+
+    bluetooth_module = prefs_register_protocol(proto_bluetooth, NULL);
+    bluetooth_uuids_uat = uat_new("Custom Bluetooth UUID names",
+                                  sizeof(bt_uuid_t),
+                                  "bluetooth_uuids",
+                                  TRUE,
+                                  &bt_uuids,
+                                  &num_bt_uuids,
+                                  UAT_AFFECTS_DISSECTION,
+                                  NULL,
+                                  bt_uuids_copy_cb,
+                                  bt_uuids_update_cb,
+                                  bt_uuids_free_cb,
+                                  bt_uuids_post_update_cb,
+                                  bt_uuids_reset_cb,
+                                  bluetooth_uuids_uat_fields);
+
+    prefs_register_uat_preference(bluetooth_module, "uuids",
+                                  "Custom Bluetooth UUID names",
+                                  "Assign readable names to custom UUIDs",
+                                  bluetooth_uuids_uat);
+
+    bluetooth_handle = register_dissector("bluetooth", dissect_bluetooth, proto_bluetooth);
+    bluetooth_bthci_handle = register_dissector("bluetooth.bthci", dissect_bluetooth_bthci, proto_bluetooth);
+    bluetooth_btmon_handle = register_dissector("bluetooth.btmon", dissect_bluetooth_btmon, proto_bluetooth);
+    bluetooth_usb_handle = register_dissector("bluetooth.usb", dissect_bluetooth_usb, proto_bluetooth);
 }
 
 void
 proto_reg_handoff_bluetooth(void)
 {
-    dissector_handle_t bluetooth_handle = create_dissector_handle(dissect_bluetooth, proto_bluetooth);
-    dissector_handle_t bluetooth_bthci_handle = create_dissector_handle(dissect_bluetooth_bthci, proto_bluetooth);
-    dissector_handle_t bluetooth_btmon_handle = create_dissector_handle(dissect_bluetooth_btmon, proto_bluetooth);
-    dissector_handle_t bluetooth_usb_handle = create_dissector_handle(dissect_bluetooth_usb, proto_bluetooth);
     dissector_handle_t eapol_handle;
     dissector_handle_t btl2cap_handle;
 
@@ -5185,7 +5318,7 @@ proto_register_btad_gaen(void)
 void
 proto_reg_handoff_btad_gaen(void)
 {
-    dissector_add_for_decode_as("btcommon.eir_ad.manufacturer_company_id", btad_gaen);
+    dissector_add_string("btcommon.eir_ad.entry.uuid", "fd6f", btad_gaen);
 }
 
 /*

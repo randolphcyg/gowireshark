@@ -20,6 +20,8 @@
 void proto_register_aol(void);
 void proto_reg_handoff_aol(void);
 
+static dissector_handle_t aol_handle;
+
 /* AOL's port */
 #define AOL_PORT 5190
 
@@ -243,14 +245,12 @@ static int dissect_aol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 				offset = dissect_aol_init(tvb,pinfo,offset,aol_tree);
 			} else {
 				if (pdu_len >= 2) {
-					guint16 token;
+					const guint8* token;
 					/* Get the token */
-					token = tvb_get_ntohs(tvb,offset);
-
+					proto_tree_add_item_ret_string(aol_tree,hf_aol_token,tvb,offset,2,ENC_ASCII,pinfo->pool,&token);
 					/* Add it */
-					col_append_fstr(pinfo->cinfo,COL_INFO," [Token: '%c%c']",(token & 0xFF00) >> 8,token & 0xFF);
-					proto_item_append_text(ti," [Token: '%c%c']",(token & 0xFF00) >> 8,token & 0xFF);
-					proto_tree_add_uint_format_value(aol_tree,hf_aol_token,tvb,offset,2,token,"'%c%c'",(token & 0xFF00) >> 8,token & 0xFF);
+					col_append_fstr(pinfo->cinfo,COL_INFO," [Token: '%s']", token);
+					proto_item_append_text(ti," [Token: '%s']", token);
 					offset += 2; pdu_len -= 2;
 				}
 
@@ -314,7 +314,7 @@ void proto_register_aol(void) {
 		{ &hf_aol_tx_seq, { "Tx Sequence",    "aol.tx_seq",   FT_UINT8,  BASE_HEX,  NULL,               0x00, NULL, HFILL }},
 		{ &hf_aol_rx_seq, { "Rx Sequence",    "aol.rx_seq",   FT_UINT8,  BASE_HEX,  NULL,               0x00, NULL, HFILL }},
 		{ &hf_aol_type,   { "Type",           "aol.type",     FT_UINT8,  BASE_HEX,  VALS(aol_p3_types), 0x00, NULL, HFILL }},
-		{ &hf_aol_token,  { "Token",          "aol.token",    FT_UINT16, BASE_HEX,  NULL,               0x00, NULL, HFILL }},
+		{ &hf_aol_token,  { "Token",          "aol.token",    FT_STRING, BASE_NONE, NULL,               0x00, NULL, HFILL }},
 		{ &hf_aol_data,   { "Data",           "aol.data",     FT_BYTES,  BASE_NONE, NULL,               0x00, NULL, HFILL }},
 		{ &hf_aol_end,    { "End of Frame",   "aol.end",      FT_UINT8,  BASE_HEX,  NULL,               0x00, NULL, HFILL }},
 
@@ -376,6 +376,9 @@ void proto_register_aol(void) {
 	    "Whether the AOL dissector should reassemble messages spanning multiple TCP segments. "
 	    "To use this option, you must also enable \"Allow subdissectors to reassemble TCP streams\" "
 	    "in the TCP protocol settings.",&aol_desegment);
+
+	/* Register the dissector */
+	aol_handle = register_dissector("aol", dissect_aol,proto_aol);
 }
 
 /**
@@ -384,9 +387,6 @@ void proto_register_aol(void) {
  * Initialize the dissector.
  */
 void proto_reg_handoff_aol(void) {
-	dissector_handle_t aol_handle;
-
-	aol_handle = create_dissector_handle(dissect_aol,proto_aol);
 	dissector_add_uint_with_preference("tcp.port",AOL_PORT,aol_handle);
 }
 

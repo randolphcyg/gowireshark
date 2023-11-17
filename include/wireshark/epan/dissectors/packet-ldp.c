@@ -45,6 +45,8 @@
 void proto_register_ldp(void);
 void proto_reg_handoff_ldp(void);
 
+static dissector_handle_t ldp_tcp_handle, ldp_handle;
+
 static int proto_ldp = -1;
 
 /* Delete the following if you do not use it, or add to it if you need */
@@ -1064,11 +1066,11 @@ static const true_false_string tlv_upstr_sbit_vals = {
     "LSR is withdrawing the capability to distribute and receive upstream-assigned label bindings"
 };
 
-#define PW_NOT_FORWARDING               0x1
-#define PW_LAC_INGRESS_RECV_FAULT       0x2
-#define PW_LAC_EGRESS_TRANS_FAULT       0x4
-#define PW_PSN_PW_INGRESS_RECV_FAULT    0x8
-#define PW_PSN_PW_EGRESS_TRANS_FAULT    0x10
+#define PW_NOT_FORWARDING               0x00000001
+#define PW_LAC_INGRESS_RECV_FAULT       0x00000002
+#define PW_LAC_EGRESS_TRANS_FAULT       0x00000004
+#define PW_PSN_PW_INGRESS_RECV_FAULT    0x00000008
+#define PW_PSN_PW_EGRESS_TRANS_FAULT    0x00000010
 
 static void
 dissect_subtlv_interface_parameters(tvbuff_t *tvb, guint offset, proto_tree *tree, int rem, int *interface_parameters_hf[]);
@@ -1919,11 +1921,10 @@ static void
 dissect_tlv_mac(tvbuff_t *tvb, packet_info *pinfo, guint offset, proto_tree *tree, int rem)
 {
     proto_tree   *val_tree;
-    guint8        ix;
 
     val_tree=proto_tree_add_subtree(tree, tvb, offset, rem, ett_ldp_tlv_val, NULL, "MAC addresses");
 
-    for(ix=1; rem >= 6; ix++, offset += 6, rem -= 6) {
+    for(; rem >= 6; offset += 6, rem -= 6) {
         proto_tree_add_item(val_tree, hf_ldp_tlv_mac, tvb, offset, 6, ENC_NA);
     }
     if (rem)
@@ -4591,6 +4592,9 @@ proto_register_ldp(void)
     expert_ldp = expert_register_protocol(proto_ldp);
     expert_register_field_array(expert_ldp, ei, array_length(ei));
 
+    ldp_handle = register_dissector("ldp", dissect_ldp, proto_ldp);
+    ldp_tcp_handle = register_dissector("ldp.tcp", dissect_ldp_tcp, proto_ldp);
+
     /* Register our configuration options for , particularly our port */
 
     ldp_module = prefs_register_protocol(proto_ldp, NULL);
@@ -4607,10 +4611,6 @@ proto_register_ldp(void)
 void
 proto_reg_handoff_ldp(void)
 {
-    dissector_handle_t ldp_tcp_handle, ldp_handle;
-
-    ldp_tcp_handle = create_dissector_handle(dissect_ldp_tcp, proto_ldp);
-    ldp_handle = create_dissector_handle(dissect_ldp, proto_ldp);
     dissector_add_uint_with_preference("tcp.port", TCP_PORT_LDP, ldp_tcp_handle);
     dissector_add_uint_with_preference("udp.port", UDP_PORT_LDP, ldp_handle);
 }

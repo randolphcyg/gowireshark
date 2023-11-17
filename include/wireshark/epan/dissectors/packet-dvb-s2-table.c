@@ -592,7 +592,7 @@ static const value_string table_modcods[] = {
 #define DVB_S2_TABLE_MULTIPLEX_TRANSPORT_DESC_LENGTH_MASK 0x0FFF
 #define DVB_S2_TABLE_SVN_PREFIX_SIZE_MASK 0x1F
 #define DVB_S2_TABLE_PT_MS_MCAST_PREFIX_SIZE_MASK 0x1F
-#define DVB_S2_TABLE_TX_TYPE_TX_START_OFFSET_MASK 0x000FFFFF
+#define DVB_S2_TABLE_TX_TYPE_TX_START_OFFSET_MASK 0x0FFFFF
 #define DVB_S2_TABLE_TX_TYPE_QX_MASK 0x0F
 #define DVB_S2_TABLE_TX_TYPE_W_Y_PERIOD_MASK 0x1F
 #define DVB_S2_TABLE_TX_TYPE_PILOT_PERIOD_MASK 0x0FFF
@@ -3487,12 +3487,12 @@ void proto_register_dvb_s2_table(void)
         },
         {&hf_dvb_s2_tdt_date, {
                 "Date", "dvb-s2_table.date",
-                FT_UINT8, BASE_HEX, NULL, 0x0,
+                FT_UINT16, BASE_HEX, NULL, 0x0,
                 NULL, HFILL}
         },
         {&hf_dvb_s2_tdt_hour, {
                 "Hour", "dvb-s2_table.hour",
-                FT_UINT8, BASE_HEX, NULL, 0x0,
+                FT_UINT16, BASE_HEX, NULL, 0x0,
                 NULL, HFILL}
         },
         {&hf_dvb_s2_tdt_minute, {
@@ -4153,7 +4153,7 @@ void proto_register_dvb_s2_table(void)
         },
         {&hf_dvb_s2_table_desc_sync_frame_nbr, {
                 "Descriptor SYNC frame number", "dvb-s2_table.desc.sync_frame_number",
-                FT_UINT8, BASE_DEC, NULL, DVB_S2_TABLE_DESC_SYNC_FRAME_NBR_MASK,
+                FT_UINT8, BASE_DEC, NULL, 0x0,
                 NULL, HFILL}
         },
         {&hf_dvb_s2_table_desc_sync_repeat_period, {

@@ -15,6 +15,7 @@
 #include <epan/prefs.h>
 #include <epan/expert.h>
 #include <epan/conversation.h>
+#include <epan/proto_data.h>
 
 #include "packet-rdp.h"
 #include "packet-rdpudp.h"
@@ -122,7 +123,9 @@ static int pf_rdpudp2_DelayAckMax = -1;
 static int pf_rdpudp2_DelayAckTimeout = -1;
 static int pf_rdpudp2_AckOfAcksSeqNum = -1;
 static int pf_rdpudp2_DataSeqNumber = -1;
+static int pf_rdpudp2_DataFullSeqNumber = -1;
 static int pf_rdpudp2_DataChannelSeqNumber = -1;
+static int pf_rdpudp2_DataChannelFullSeqNumber = -1;
 static int pf_rdpudp2_Data = -1;
 static int pf_rdpudp2_AckvecBaseSeq = -1;
 static int pf_rdpudp2_AckvecCodecAckVecSize = -1;
@@ -147,6 +150,11 @@ static int * const rdpudp2_flags[] = {
 
 static dissector_handle_t tls_handle;
 static dissector_handle_t dtls_handle;
+
+enum {
+	RDPUDP_FULL_DATA_SEQ_KEY = 1,
+	RDPUDP_FULL_CHANNEL_SEQ_KEY = 2
+};
 
 enum {
 	RDPUDP_SYN = 0x0001,
@@ -401,8 +409,53 @@ unwrap_udp_v2(tvbuff_t *tvb, packet_info *pinfo)
 	return tvb_new_child_real_data(tvb, buffer, len, len);
 }
 
+static guint64
+computeAndUpdateSeqContext(rdpudp_seq_context_t *context, guint16 seq)
+{
+	guint16 diff = (context->last_received > seq) ? (context->last_received - seq) : (seq - context->last_received);
+
+
+	if (diff < 8000) {
+		/* not too much difference between last and seq, so we keep the same base
+		 *         seq   seq
+		 *          |     |
+		 *  [0 ...................... 0xffff]
+		 *             |
+		 *           last
+		 */
+		if (seq > context->last_received)
+			context->last_received = seq;
+		return (context->current_base + seq);
+	}
+
+	/* when diff is bigger than 8000 that means that either we've just switched
+	 * the base, or that it is a sequence number from the previous base
+	 */
+	if (seq < context->last_received) {
+		/* in this case we have
+		 *  [0 ...................... 0xffff]
+		 *     |                    |
+		 *    seq                 last
+		 *
+		 * so the new sequence number is in fact after last_received: we've just
+		 * switched the base
+		 */
+		context->last_received = seq;
+		context->current_base += 0x10000;
+		return (context->current_base + seq);
+	}
+
+	/* this is a sequence number from the previous base
+	 *
+	 *  [0 ........................ 0xffff]
+	 *      |                   |
+	 *     last                seq
+	 */
+	return (context->current_base + seq - 0x10000);
+}
+
 static int
-dissect_rdpudp_v2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
+dissect_rdpudp_v2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, rdpudp_conv_info_t *rdpudp)
 {
 	proto_item *item;
 	proto_tree *subtree, *data_tree = NULL;
@@ -470,9 +523,27 @@ dissect_rdpudp_v2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 	}
 
 	if (flags & RDPUDP2_DATA) {
+		guint32 rawSeq;
+		guint64 *seqPtr;
+		gboolean is_server_target = rdp_isServerAddressTarget(pinfo);
+		rdpudp_seq_context_t *target_seq_context = is_server_target ? &rdpudp->client_data_seq : &rdpudp->server_data_seq;
+
 		gboolean isDummy = !!(packet_type == 0x8);
 		data_tree = proto_tree_add_subtree(tree, tvb2, offset, 1, ett_rdpudp2_data, NULL, isDummy ? "Dummy data" : "Data");
-		proto_tree_add_item(data_tree, pf_rdpudp2_DataSeqNumber, tvb2, offset, 2, ENC_LITTLE_ENDIAN);
+		proto_tree_add_item_ret_uint(data_tree, pf_rdpudp2_DataSeqNumber, tvb2, offset, 2, ENC_LITTLE_ENDIAN, &rawSeq);
+
+		if (!PINFO_FD_VISITED(pinfo)) {
+			seqPtr = wmem_alloc(wmem_file_scope(), sizeof(*seqPtr));
+			*seqPtr = computeAndUpdateSeqContext(target_seq_context, rawSeq);
+
+			p_set_proto_data(wmem_file_scope(), pinfo, proto_rdpudp, RDPUDP_FULL_DATA_SEQ_KEY, seqPtr);
+		} else {
+			seqPtr = (guint64 *)p_get_proto_data(wmem_file_scope(), pinfo, proto_rdpudp, RDPUDP_FULL_DATA_SEQ_KEY);
+		}
+		proto_item_set_generated(
+				proto_tree_add_uint(data_tree, pf_rdpudp2_DataFullSeqNumber, tvb2, offset, 2, (guint32)*seqPtr)
+		);
+
 		offset += 2;
 
 		col_append_sep_str(pinfo->cinfo, COL_INFO, ",", isDummy ? "DUMMY" : "DATA");
@@ -548,12 +619,48 @@ dissect_rdpudp_v2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 	}
 
 	if ((flags & RDPUDP2_DATA) && (packet_type != 0x8)) {
-		proto_tree_add_item(data_tree, pf_rdpudp2_DataChannelSeqNumber, tvb2, offset, 2, ENC_LITTLE_ENDIAN);
+		tvbuff_t *data_tvb;
+		tvbuff_t *chunk;
+		guint32 rawSeq;
+		guint64 *seqPtr;
+		gboolean is_server_target = rdp_isServerAddressTarget(pinfo);
+		wmem_tree_t *targetTree = is_server_target ? rdpudp->client_chunks : rdpudp->server_chunks;
+		rdpudp_seq_context_t *target_seq_context = is_server_target ? &rdpudp->client_channel_seq : &rdpudp->server_channel_seq;
+
+		proto_tree_add_item_ret_uint(data_tree, pf_rdpudp2_DataChannelSeqNumber, tvb2, offset, 2, ENC_LITTLE_ENDIAN, &rawSeq);
+		if (!PINFO_FD_VISITED(pinfo)) {
+			seqPtr = wmem_alloc(wmem_file_scope(), sizeof(*seqPtr));
+			*seqPtr = computeAndUpdateSeqContext(target_seq_context, rawSeq);
+
+			p_set_proto_data(wmem_file_scope(), pinfo, proto_rdpudp, RDPUDP_FULL_CHANNEL_SEQ_KEY, seqPtr);
+		} else {
+			seqPtr = (guint64 *)p_get_proto_data(wmem_file_scope(), pinfo, proto_rdpudp, RDPUDP_FULL_CHANNEL_SEQ_KEY);
+		}
+		proto_item_set_generated(
+				proto_tree_add_uint(data_tree, pf_rdpudp2_DataChannelFullSeqNumber, tvb2, offset, 2, (guint32)*seqPtr)
+		);
 		offset += 2;
 
+		chunk = wmem_tree_lookup32(targetTree, (guint32)*seqPtr);
+		data_tvb = tvb_new_composite();
+
+		if (chunk)
+			tvb_composite_prepend(data_tvb, chunk);
+
 		subtvb = tvb_new_subset_length(tvb2, offset, tvb_captured_length_remaining(tvb2, offset));
-		add_new_data_source(pinfo, subtvb, "SSL fragment");
-		call_dissector(tls_handle, subtvb, pinfo, data_tree);
+		tvb_composite_append(data_tvb, subtvb);
+		tvb_composite_finalize(data_tvb);
+
+		add_new_data_source(pinfo, data_tvb, "SSL fragment");
+		pinfo->can_desegment = 2;
+
+		call_dissector(tls_handle, data_tvb, pinfo, data_tree);
+
+		if (!PINFO_FD_VISITED(pinfo) && pinfo->desegment_len) {
+			gint remaining = tvb_captured_length_remaining(subtvb, pinfo->desegment_offset);
+			chunk = tvb_clone_offset_len(data_tvb, pinfo->desegment_offset, remaining);
+			wmem_tree_insert32(targetTree, (guint32)(*seqPtr + 1), chunk);
+		}
 
 		offset = tvb_captured_length(tvb2);
 	}
@@ -576,6 +683,8 @@ dissect_rdpudp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void 
 		rdpudp_info = wmem_new0(wmem_file_scope(), rdpudp_conv_info_t);
 		rdpudp_info->start_v2_at = G_MAXUINT32;
 		rdpudp_info->is_lossy = FALSE;
+		rdpudp_info->client_chunks = wmem_tree_new(wmem_file_scope());
+		rdpudp_info->server_chunks = wmem_tree_new(wmem_file_scope());
 
 		conversation_add_proto_data(conversation, proto_rdpudp, rdpudp_info);
 	}
@@ -586,7 +695,7 @@ dissect_rdpudp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void 
 	if (rdpudp_info->start_v2_at > pinfo->num)
 		return dissect_rdpudp_v1(tvb, pinfo, tree, rdpudp_info);
 	else
-		return dissect_rdpudp_v2(tvb, pinfo, tree);
+		return dissect_rdpudp_v2(tvb, pinfo, tree, rdpudp_info);
 }
 
 /*--- proto_register_rdpudp -------------------------------------------*/
@@ -770,8 +879,14 @@ proto_register_rdpudp(void) {
 	  { &pf_rdpudp2_DataSeqNumber,
 		{"Sequence number", "rdpudp2.data.seqnum", FT_UINT16, BASE_HEX, NULL, 0, NULL, HFILL}
 	  },
+	  { &pf_rdpudp2_DataFullSeqNumber,
+		{"Full sequence number", "rdpudp2.data.fullseqnum", FT_UINT32, BASE_HEX, NULL, 0, NULL, HFILL}
+	  },
 	  { &pf_rdpudp2_DataChannelSeqNumber,
 		{"Channel sequence number", "rdpudp2.data.channelseqnumber", FT_UINT16, BASE_HEX, NULL, 0, NULL, HFILL}
+	  },
+	  { &pf_rdpudp2_DataChannelFullSeqNumber,
+		{"Channel full sequence number", "rdpudp2.data.channelfullseqnumber", FT_UINT32, BASE_HEX, NULL, 0, NULL, HFILL}
 	  },
 	  { &pf_rdpudp2_Data,
 		{"Data", "rdpudp2.data", FT_BYTES, BASE_NONE, NULL, 0, NULL, HFILL}

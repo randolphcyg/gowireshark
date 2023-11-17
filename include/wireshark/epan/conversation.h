@@ -143,6 +143,9 @@ typedef enum {
 #define ENDPOINT_IWARP_MPA	CONVERSATION_IWARP_MPA
 #define ENDPOINT_BT_UTP		CONVERSATION_BT_UTP
 #define ENDPOINT_LOG		CONVERSATION_LOG
+#define ENDPOINT_MCTP		CONVERSATION_MCTP
+#define ENDPOINT_NVME_MI	CONVERSATION_NVME_MI
+#define ENDPOINT_SNMP		CONVERSATION_SNMP
 
 typedef conversation_type endpoint_type;
 
@@ -156,6 +159,7 @@ typedef enum {
     CE_STRING,			/* string */
     CE_UINT,			/* unsigned integer not representing a port */
     CE_UINT64,			/* 64-bit unsigned integer */
+    CE_INT,             /* signed integer */
 } conversation_element_type;
 
 /**
@@ -188,6 +192,7 @@ typedef struct conversation_element {
         const char *str_val;
         unsigned int uint_val;
         uint64_t uint64_val;
+        int int_val;
     };
 } conversation_element_t;
 

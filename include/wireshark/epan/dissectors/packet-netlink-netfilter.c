@@ -112,6 +112,8 @@ enum ws_ip_conntrack_status {
 	WS_IPS_HELPER = (1 << WS_IPS_HELPER_BIT),
 	WS_IPS_OFFLOAD_BIT = 14,
 	WS_IPS_OFFLOAD = (1 << WS_IPS_OFFLOAD_BIT),
+	WS_IPS_HW_OFFLOAD_BIT = 15,
+	WS_IPS_HW_OFFLOAD = (1 << WS_IPS_HW_OFFLOAD_BIT),
 };
 
 enum nfexp_flags {
@@ -403,6 +405,7 @@ static int hf_nfct_attr_status_flag_dying = -1;
 static int hf_nfct_attr_status_flag_expected = -1;
 static int hf_nfct_attr_status_flag_fixed_timeout = -1;
 static int hf_nfct_attr_status_flag_helper = -1;
+static int hf_nfct_attr_status_flag_hw_offload = -1;
 static int hf_nfct_attr_status_flag_offload = -1;
 static int hf_nfct_attr_status_flag_seen_reply = -1;
 static int hf_nfct_attr_status_flag_seq_adjust = -1;
@@ -648,6 +651,7 @@ static const value_string nfct_seqadj_attr_vals[] = {
 };
 
 static int * const hf_nfct_attr_status_flags[] = {
+	&hf_nfct_attr_status_flag_hw_offload,
 	&hf_nfct_attr_status_flag_offload,
 	&hf_nfct_attr_status_flag_helper,
 	&hf_nfct_attr_status_flag_untracked,
@@ -1788,6 +1792,11 @@ proto_register_netlink_netfilter(void)
 			  FT_UINT32, BASE_DEC, NULL, WS_IPS_OFFLOAD,
 			  NULL, HFILL }
 		},
+		{ &hf_nfct_attr_status_flag_hw_offload,
+			{ "HW offload", "netlink-netfilter.ct_attr.status.hw_offload",
+			  FT_UINT32, BASE_DEC, NULL, WS_IPS_HW_OFFLOAD,
+			  NULL, HFILL }
+		},
 		{ &hf_nfct_attr_status,
 			{ "Status", "netlink-netfilter.ct_attr.status",
 			  FT_UINT32, BASE_HEX, NULL, 0x00,
@@ -2139,7 +2148,7 @@ proto_register_netlink_netfilter(void)
 	proto_register_field_array(proto_netlink_netfilter, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
 
-	netlink_netfilter = create_dissector_handle(dissect_netlink_netfilter, proto_netlink_netfilter);
+	netlink_netfilter = register_dissector("netfilter", dissect_netlink_netfilter, proto_netlink_netfilter);
 }
 
 void

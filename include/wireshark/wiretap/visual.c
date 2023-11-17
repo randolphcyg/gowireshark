@@ -9,7 +9,6 @@
  */
 
 #include "config.h"
-#include <errno.h>
 #include <string.h>
 #include "wtap-int.h"
 #include "file_wrappers.h"
@@ -136,7 +135,7 @@ struct visual_read_info
 /* Additional information for writing Visual files */
 struct visual_write_info
 {
-    time_t  start_time;         /* Capture start time in seconds */
+    guint32 start_time;         /* Capture start time in seconds */
     int     index_table_index;  /* Index of the next index entry */
     int     index_table_size;   /* Allocated size of the index table */
     guint32 * index_table;      /* File offsets for the packets */
@@ -656,7 +655,7 @@ static gboolean visual_dump(wtap_dumper *wdh, const wtap_rec *rec,
      * Make sure this packet doesn't have a link-layer type that
      * differs from the one for the file.
      */
-    if (wdh->encap != rec->rec_header.packet_header.pkt_encap) {
+    if (wdh->file_encap != rec->rec_header.packet_header.pkt_encap) {
         *err = WTAP_ERR_ENCAP_PER_PACKET_UNSUPPORTED;
         return FALSE;
     }
@@ -678,8 +677,18 @@ static gboolean visual_dump(wtap_dumper *wdh, const wtap_rec *rec,
        file start time. */
     if (visual->index_table_index == 0)
     {
-        /* This is the first packet.  Save its start time as the file time. */
-        visual->start_time = rec->ts.secs;
+        /*
+         * This is the first packet.  Save its start time as the file time.
+         *
+         * XXX - is the start time signed, or unsigned?  If it's signed,
+         * in which case we should check against G_MININT32 and G_MAXINT32
+         * and make start_time a gint32.
+         */
+        if (rec->ts.secs < 0 || rec->ts.secs > WTAP_NSTIME_32BIT_SECS_MAX) {
+            *err = WTAP_ERR_TIME_STAMP_NOT_SUPPORTED;
+            return FALSE;
+        }
+        visual->start_time = (guint32)rec->ts.secs;
 
         /* Initialize the index table */
         visual->index_table = (guint32 *)g_malloc(1024 * sizeof *visual->index_table);
@@ -696,7 +705,7 @@ static gboolean visual_dump(wtap_dumper *wdh, const wtap_rec *rec,
     vpkt_hdr.incl_len = GUINT16_TO_LE(rec->rec_header.packet_header.caplen);
 
     /* Fill in the encapsulation hint for the file's media type. */
-    switch (wdh->encap)
+    switch (wdh->file_encap)
     {
     case WTAP_ENCAP_ETHERNET:   /* Ethernet */
         vpkt_hdr.encap_hint = 2;
@@ -725,7 +734,7 @@ static gboolean visual_dump(wtap_dumper *wdh, const wtap_rec *rec,
        X.25 pseudo header.  It would probably be better to move this up
        into the phdr. */
     packet_status = 0;
-    switch (wdh->encap)
+    switch (wdh->file_encap)
     {
     case WTAP_ENCAP_CHDLC_WITH_PHDR:
         packet_status |= (pseudo_header->p2p.sent ? PS_SENT : 0x00);
@@ -812,7 +821,7 @@ static gboolean visual_dump_finish(wtap_dumper *wdh, int *err,
     (void) g_strlcpy(vfile_hdr.description, "Wireshark file", 64);
 
     /* Translate the encapsulation type */
-    switch (wdh->encap)
+    switch (wdh->file_encap)
     {
     case WTAP_ENCAP_ETHERNET:
         vfile_hdr.media_type = GUINT16_TO_LE(6);

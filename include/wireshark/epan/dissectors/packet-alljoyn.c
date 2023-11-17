@@ -13,9 +13,13 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <wsutil/ws_roundup.h>
+#include <wsutil/str_util.h>
 
 void proto_register_AllJoyn(void);
 void proto_reg_handoff_AllJoyn(void);
+
+static dissector_handle_t alljoyn_handle_ns;
+static dissector_handle_t alljoyn_handle_ardp;
 
 #define ALLJOYN_NAME_SERVER_PORT      9956 /* IANA lists only UDP as being registered (dissector also uses TCP port) */
 #define ALLJOYN_MESSAGE_PORT      9955
@@ -639,6 +643,28 @@ handle_message_header_expected_byte(tvbuff_t   *tvb,
 #define ARG_STRUCT            '('    /* AllJoyn struct container type */
 #define ARG_DICT_ENTRY        '{'    /* AllJoyn dictionary or map container type - an array of key-value pairs */
 
+static const value_string header_type_vals[] = {
+    { ARG_INVALID,    "invalid" },
+    { ARG_ARRAY,      "array" },
+    { ARG_BOOLEAN,    "boolean" },
+    { ARG_DOUBLE,     "IEEE 754 double" },
+    { ARG_SIGNATURE,  "signature" },
+    { ARG_HANDLE,     "socket handle" },
+    { ARG_INT32,      "int32" },
+    { ARG_INT16,      "int16" },
+    { ARG_OBJ_PATH,   "object path" },
+    { ARG_UINT16,     "uint16" },
+    { ARG_STRING,     "string" },
+    { ARG_UINT64,     "uint64" },
+    { ARG_UINT32,     "uint32" },
+    { ARG_VARIANT,    "variant" },
+    { ARG_INT64,      "int64" },
+    { ARG_BYTE,       "byte" },
+    { ARG_STRUCT,     "structure" },
+    { ARG_DICT_ENTRY, "dictionary" },
+    { 0, NULL }
+};
+
 static gint
 pad_according_to_type(gint offset, gint field_starting_offset, gint max_offset, guint8 type)
 {
@@ -708,6 +734,7 @@ append_struct_signature(proto_item   *item,
     int    depth            = 0;
     guint8 type_start;
     gint   signature_length = 0;
+    char c;
 
     proto_item_append_text(item, "%c", ' ');
     type_start = *signature;
@@ -721,7 +748,8 @@ append_struct_signature(proto_item   *item,
             depth--;
         }
 
-        proto_item_append_text(item, "%c", *signature++);
+        c = *signature++;
+        proto_item_append_text(item, "%c", g_ascii_isprint(c) ? c : '?');
     } while(depth > 0 && ++signature_length < signature_max_length);
 
     if(signature_length >= signature_max_length) {
@@ -825,11 +853,11 @@ static void add_padding_item(gint padding_start, gint padding_end, tvbuff_t *tvb
  * @param tvb is the incoming network data buffer.
  * @param pinfo contains information about the incoming packet which
  *         we update as we dissect the packet.
- * @param header_item, if not NULL, is appended with the text name of the data type.
+ * @param header_item if not NULL, is appended with the text name of the data type.
  * @param encoding indicates big (ENC_BIG_ENDIAN) or little (ENC_LITTLE_ENDIAN)
  * @param offset is the offset into tvb to get the field from.
  * @param field_tree is the tree to which this argument should be attached.
- * @param is_reply_to, if TRUE, means this uint32 value should be used to update
+ * @param is_reply_to if TRUE, means this uint32 value should be used to update
  *         header_item and pinfo->cinfo with a special message.
  * @param type_id is the type of this argument.
  * @param field_code is the type of header, or HDR_INVALID if not used, which this
@@ -865,12 +893,10 @@ parse_arg(tvbuff_t      *tvb,
     gint length;
     gint padding_start;
     gint saved_offset = offset;
-    const gchar *header_type_name = NULL;
 
     switch(type_id)
     {
     case ARG_INVALID:
-        header_type_name = "invalid";
         offset = round_to_8byte(offset + 1, field_starting_offset);
         break;
 
@@ -884,10 +910,8 @@ parse_arg(tvbuff_t      *tvb,
             gint          number_of_items      = 0;
             gint          packet_length        = (gint)tvb_reported_length(tvb);
 
-            header_type_name = "array";
-
             if(*signature == NULL || *signature_length < 1) {
-                col_add_fstr(pinfo->cinfo, COL_INFO, "BAD DATA: A %s argument needs a signature.", header_type_name);
+                col_add_fstr(pinfo->cinfo, COL_INFO, "BAD DATA: An array argument needs a signature.");
                 return tvb_reported_length(tvb);
             }
 
@@ -949,13 +973,12 @@ parse_arg(tvbuff_t      *tvb,
             }
 
             if(item) {
-                proto_item_append_text(item, " of %d '%c' elements", number_of_items, *sig_saved);
+                proto_item_append_text(item, " of %d '%s' elements", number_of_items, format_char(pinfo->pool, *sig_saved));
             }
         }
         break;
 
     case ARG_BOOLEAN:    /* AllJoyn boolean basic type */
-        header_type_name = "boolean";
         padding_start = offset;
         offset = round_to_4byte(offset, field_starting_offset);
         add_padding_item(padding_start, offset, tvb, field_tree);
@@ -965,7 +988,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     case ARG_DOUBLE:     /* AllJoyn IEEE 754 double basic type */
-        header_type_name = "IEEE 754 double";
         padding_start = offset;
         offset = round_to_8byte(offset, field_starting_offset);
         add_padding_item(padding_start, offset, tvb, field_tree);
@@ -975,7 +997,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     case ARG_SIGNATURE:  /* AllJoyn signature basic type */
-        header_type_name  = "signature";
         length = tvb_get_guint8(tvb, offset);
 
         if (length + 2 > tvb_reported_length_remaining(tvb, offset)) {
@@ -1005,7 +1026,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     case ARG_HANDLE:     /* AllJoyn socket handle basic type. */
-        header_type_name = "socket handle";
         padding_start = offset;
         offset = round_to_4byte(offset, field_starting_offset);
         add_padding_item(padding_start, offset, tvb, field_tree);
@@ -1015,7 +1035,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     case ARG_INT32:      /* AllJoyn 32-bit signed integer basic type. */
-        header_type_name = "int32";
         padding_start = offset;
         offset = round_to_4byte(offset, field_starting_offset);
         add_padding_item(padding_start, offset, tvb, field_tree);
@@ -1025,7 +1044,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     case ARG_INT16:      /* AllJoyn 16-bit signed integer basic type. */
-        header_type_name = "int16";
         padding_start = offset;
         offset = round_to_2byte(offset, field_starting_offset);
         add_padding_item(padding_start, offset, tvb, field_tree);
@@ -1035,7 +1053,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     case ARG_OBJ_PATH:   /* AllJoyn Name of an AllJoyn object instance basic type */
-        header_type_name = "object path";
         length = get_uint32(tvb, offset, encoding) + 1;
 
         /* The + 4 is for the length specifier. Object paths may be of "any length"
@@ -1054,7 +1071,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     case ARG_UINT16:     /* AllJoyn 16-bit unsigned integer basic type */
-        header_type_name = "uint16";
         padding_start = offset;
         offset = round_to_2byte(offset, field_starting_offset);
         add_padding_item(padding_start, offset, tvb, field_tree);
@@ -1067,7 +1083,6 @@ parse_arg(tvbuff_t      *tvb,
         {
         const guint8 *member_name;
 
-        header_type_name = "string";
         padding_start = offset;
         offset = round_to_4byte(offset, field_starting_offset);
         add_padding_item(padding_start, offset, tvb, field_tree);
@@ -1097,7 +1112,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     case ARG_UINT64:     /* AllJoyn 64-bit unsigned integer basic type */
-        header_type_name = "uint64";
         padding_start = offset;
         offset = round_to_8byte(offset, field_starting_offset);
         add_padding_item(padding_start, offset, tvb, field_tree);
@@ -1107,7 +1121,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     case ARG_UINT32:     /* AllJoyn 32-bit unsigned integer basic type */
-        header_type_name = "uint32";
         padding_start = offset;
         offset = round_to_4byte(offset, field_starting_offset);
         add_padding_item(padding_start, offset, tvb, field_tree);
@@ -1140,8 +1153,6 @@ parse_arg(tvbuff_t      *tvb,
             const guint8 *sig_pointer;
             guint8        variant_sig_length;
 
-            header_type_name = "variant";
-
             variant_sig_length = tvb_get_guint8(tvb, offset);
             length = variant_sig_length;
 
@@ -1171,7 +1182,7 @@ parse_arg(tvbuff_t      *tvb,
 
             /* The signature of the variant has now been taken care of.  So now take care of the variant data. */
             while(((sig_pointer - sig_saved) < (length - 1)) && (tvb_reported_length_remaining(tvb, offset) > 0)) {
-                proto_item_append_text(item, "%c", *sig_pointer);
+                proto_item_append_text(item, "%c", g_ascii_isprint(*sig_pointer) ? *sig_pointer : '?');
 
                 offset = parse_arg(tvb, pinfo, header_item, encoding, offset, tree, is_reply_to,
                                    *sig_pointer, field_code, &sig_pointer, &variant_sig_length, field_starting_offset);
@@ -1183,7 +1194,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     case ARG_INT64:      /* AllJoyn 64-bit signed integer basic type */
-        header_type_name = "int64";
         padding_start = offset;
         offset = round_to_8byte(offset, field_starting_offset);
         add_padding_item(padding_start, offset, tvb, field_tree);
@@ -1193,7 +1203,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     case ARG_BYTE:       /* AllJoyn 8-bit unsigned integer basic type */
-        header_type_name = "byte";
 
         proto_tree_add_item(field_tree, hf_alljoyn_uint8, tvb, offset, 1, encoding);
         offset += 1;
@@ -1208,17 +1217,15 @@ parse_arg(tvbuff_t      *tvb,
             guint8      type_stop;
 
             if(type_id == ARG_STRUCT) {
-                header_type_name = "structure";
                 hf = hf_alljoyn_mess_body_structure;
                 type_stop = ')';
             } else {
-                header_type_name = "dictionary";
                 hf = hf_alljoyn_mess_body_dictionary_entry;
                 type_stop = '}';
             }
 
             if(*signature == NULL || *signature_length < 1) {
-                col_add_fstr(pinfo->cinfo, COL_INFO, "BAD DATA: A %s argument needs a signature.", header_type_name);
+                col_add_fstr(pinfo->cinfo, COL_INFO, "BAD DATA: A %s argument needs a signature.", val_to_str_const(type_id, header_type_vals, "Unexpected type"));
                 return tvb_reported_length(tvb);
             }
 
@@ -1256,7 +1263,6 @@ parse_arg(tvbuff_t      *tvb,
         break;
 
     default:
-        header_type_name = "unexpected";
         /* Just say we are done with this packet. */
         offset = tvb_reported_length(tvb);
         break;
@@ -1265,12 +1271,6 @@ parse_arg(tvbuff_t      *tvb,
     if (*signature && *signature_length > 0 && ARG_ARRAY != type_id && HDR_INVALID == field_code) {
         (*signature)++;
         (*signature_length)--;
-    }
-
-    if(NULL != header_item && NULL != header_type_name) {
-        /* Using "%s" and the argument "header_type_name" because some compilers don't like
-           "header_type_name" by itself. */
-        proto_item_append_text(header_item, "%s", header_type_name);
     }
 
     /* Make sure we never return something longer than the buffer for an offset. */
@@ -1286,18 +1286,12 @@ parse_arg(tvbuff_t      *tvb,
     return offset;
 }
 
-static void
-alljoyn_typeid( gchar *result, guint32 type )
-{
-   snprintf( result, ITEM_LABEL_LENGTH, "'%c' => ", type);
-}
-
 /* This is called by handle_message_header_fields() to handle a single
  * message header field.
  * @param tvb is the incoming network data buffer.
  * @param pinfo contains information about the incoming packet which
  *         we update as we dissect the packet.
- * @param header_item is the subtree that we connect data items to.
+ * @param header_tree is the subtree that we connect data items to.
  * @param encoding indicates big (ENC_BIG_ENDIAN) or little (ENC_LITTLE_ENDIAN)
  * @param offset is the offset into tvb to get the field from.
  *         endianness.
@@ -2757,7 +2751,7 @@ proto_register_AllJoyn(void)
         },
         {&hf_alljoyn_mess_body_header_typeid,
          {"Type ID", "alljoyn.message.typeid",
-          FT_UINT8, BASE_CUSTOM, CF_FUNC(alljoyn_typeid), 0,
+          FT_CHAR, BASE_HEX, VALS(header_type_vals), 0,
           NULL, HFILL}
         },
 
@@ -3005,6 +2999,7 @@ proto_register_AllJoyn(void)
 
     /* Name service protocols. */                        /* name, short name, abbrev */
     proto_AllJoyn_ns = proto_register_protocol("AllJoyn Name Service Protocol", "AllJoyn NS", "ajns");
+    alljoyn_handle_ns = register_dissector("ajns", dissect_AllJoyn_name_server, proto_AllJoyn_ns);
 
     /* Message protocols */
     proto_AllJoyn_mess = proto_register_protocol("AllJoyn Message Protocol", "AllJoyn", "aj");
@@ -3016,16 +3011,12 @@ proto_register_AllJoyn(void)
 
     /* ARDP */                        /* name, short name, abbrev */
     proto_AllJoyn_ardp = proto_register_protocol("AllJoyn Reliable Datagram Protocol", "AllJoyn ARDP", "ardp");
+    alljoyn_handle_ardp = register_dissector("ardp", dissect_AllJoyn_ardp, proto_AllJoyn_ardp);
 }
 
 void
 proto_reg_handoff_AllJoyn(void)
 {
-    dissector_handle_t alljoyn_handle_ns;
-    dissector_handle_t alljoyn_handle_ardp;
-
-    alljoyn_handle_ns = create_dissector_handle(dissect_AllJoyn_name_server, proto_AllJoyn_ns);
-    alljoyn_handle_ardp = create_dissector_handle(dissect_AllJoyn_ardp, proto_AllJoyn_ardp);
     dissector_add_uint_with_preference("tcp.port", ALLJOYN_NAME_SERVER_PORT, alljoyn_handle_ns);
     dissector_add_uint_with_preference("tcp.port", ALLJOYN_MESSAGE_PORT, alljoyn_handle_ardp);
 

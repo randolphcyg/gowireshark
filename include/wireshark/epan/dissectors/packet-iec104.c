@@ -36,6 +36,10 @@ void proto_reg_handoff_iec60870_5_103(void);
 void proto_register_iec60870_asdu(void);
 
 static dissector_handle_t iec60870_asdu_handle;
+static dissector_handle_t iec60870_104_handle;
+static dissector_handle_t iec60870_101_handle;
+static dissector_handle_t iec60870_5_103_handle;
+
 
 /* the asdu header structure */
 struct asduheader {
@@ -741,6 +745,7 @@ static int hf_qcc = -1;
 static int hf_qcc_rqt = -1;
 static int hf_qcc_frz = -1;
 static int hf_qrp  = -1;
+static int hf_bcr = -1;
 static int hf_bcr_count = -1;
 static int hf_bcr_sq = -1;
 static int hf_bcr_cy = -1;
@@ -1455,14 +1460,20 @@ static void get_BSIspt(tvbuff_t *tvb, guint8 *offset, proto_tree *iec104_header_
    ==================================================================== */
 static void get_BCR(tvbuff_t *tvb, guint8 *offset, proto_tree *iec104_header_tree)
 {
-	proto_tree_add_item(iec104_header_tree, hf_bcr_count, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
-	*offset += 4;
+	proto_item* ti;
+	proto_tree* bcr_tree;
 
-	proto_tree_add_item(iec104_header_tree, hf_bcr_sq, tvb, *offset, 1, ENC_LITTLE_ENDIAN);
-	proto_tree_add_item(iec104_header_tree, hf_bcr_cy, tvb, *offset, 1, ENC_LITTLE_ENDIAN);
-	proto_tree_add_item(iec104_header_tree, hf_bcr_ca, tvb, *offset, 1, ENC_LITTLE_ENDIAN);
-	proto_tree_add_item(iec104_header_tree, hf_bcr_iv, tvb, *offset, 1, ENC_LITTLE_ENDIAN);
-	*offset += 1;
+	ti = proto_tree_add_item(iec104_header_tree, hf_bcr, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+	bcr_tree = proto_item_add_subtree(ti, ett_vti);
+
+	proto_tree_add_item(bcr_tree, hf_bcr_count, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+	(*offset) += 4;
+
+	proto_tree_add_item(bcr_tree, hf_bcr_sq, tvb, *offset, 1, ENC_LITTLE_ENDIAN);
+	proto_tree_add_item(bcr_tree, hf_bcr_cy, tvb, *offset, 1, ENC_LITTLE_ENDIAN);
+	proto_tree_add_item(bcr_tree, hf_bcr_ca, tvb, *offset, 1, ENC_LITTLE_ENDIAN);
+	proto_tree_add_item(bcr_tree, hf_bcr_iv, tvb, *offset, 1, ENC_LITTLE_ENDIAN);
+	(*offset)++;
 }
 
 /* ====================================================================
@@ -1665,7 +1676,7 @@ static int dissect_iec60870_asdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 	it104 = proto_tree_add_item(tree, proto_iec60870_asdu, tvb, offset, -1, ENC_NA);
 	it104tree = proto_item_add_subtree(it104, ett_asdu);
 
-	res = wmem_strbuf_new_label(pinfo->pool);
+	res = wmem_strbuf_create(pinfo->pool);
 
 	/* Type identification */
 	asduh.TypeId = tvb_get_guint8(tvb, offset);
@@ -2074,7 +2085,7 @@ static int dissect_iec60870_104(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 	it104 = proto_tree_add_item(tree, proto_iec60870_104, tvb, 0, -1, ENC_NA);
 	it104tree = proto_item_add_subtree(it104, ett_apci);
 
-	res = wmem_strbuf_new_label(pinfo->pool);
+	res = wmem_strbuf_create(pinfo->pool);
 
 	Start = 0;
 	for (Off = 0; Off <= TcpLen - 2; Off++) {
@@ -2306,6 +2317,9 @@ proto_register_iec60870_104(void)
 	proto_register_subtree_array(ett_ap, array_length(ett_ap));
 
 	prefs_register_protocol(proto_iec60870_104, NULL);
+
+	iec60870_104_handle = register_dissector("iec60870_104", dissect_iec60870_104_tcp, proto_iec60870_104);
+
 }
 
 /* Register ASDU dissection, shared by the '101 and '104 dissectors */
@@ -2575,11 +2589,11 @@ proto_register_iec60870_asdu(void)
 		    NULL, HFILL }},
 
 		{ &hf_coi_r,
-		  { "R", "iec60870_asdu.coi_r", FT_UINT8, BASE_DEC, VALS(coi_r_types), 0x7F,
+		  { "R", "iec60870_asdu.coi.r", FT_UINT8, BASE_DEC, VALS(coi_r_types), 0x7F,
 		    "COI R", HFILL }},
 
 		{ &hf_coi_i,
-		  { "I", "iec60870_asdu.coi_i", FT_BOOLEAN, 8, TFS(&tfs_coi_i), 0x80,
+		  { "I", "iec60870_asdu.coi.i", FT_BOOLEAN, 8, TFS(&tfs_coi_i), 0x80,
 		    "COI I", HFILL }},
 
 		{ &hf_qoi,
@@ -2591,19 +2605,23 @@ proto_register_iec60870_asdu(void)
 		    NULL, HFILL } },
 
 		{ &hf_qcc_rqt,
-		  { "RQT", "iec60870_asdu.rqt", FT_UINT8, BASE_DEC, VALS(rqt_r_types), 0x3F,
+		  { "RQT", "iec60870_asdu.qcc.rqt", FT_UINT8, BASE_DEC, VALS(rqt_r_types), 0x3F,
 		    NULL, HFILL } },
 
 		{ &hf_qcc_frz,
-		  { "FRZ", "iec60870_asdu.frz", FT_UINT8, BASE_DEC, VALS(frz_r_types), 0xC0,
+		  { "FRZ", "iec60870_asdu.qcc.frz", FT_UINT8, BASE_DEC, VALS(frz_r_types), 0xC0,
 		    NULL, HFILL } },
 
 		{ &hf_qrp,
 		  { "QRP", "iec60870_asdu.qrp", FT_UINT8, BASE_DEC, VALS(qrp_r_types), 0,
 		    NULL, HFILL }},
 
+		{ &hf_bcr,
+		  { "BCR", "iec60870_asdu.bcr", FT_INT32, BASE_DEC, NULL, 0x0,
+		    "Binary Counter", HFILL }},
+
 		{ &hf_bcr_count,
-		  { "Binary Counter", "iec60870_asdu.bcr.count", FT_INT32, BASE_DEC, NULL, 0x0,
+		  { "Value", "iec60870_asdu.bcr.count", FT_INT32, BASE_DEC, NULL, 0x0,
 		    NULL, HFILL }},
 
 		{ &hf_bcr_sq,
@@ -2674,7 +2692,7 @@ proto_register_iec60870_asdu(void)
 	expert_module_t* expert_iec60870;
 
 	proto_iec60870_asdu = proto_register_protocol("IEC 60870-5-101/104 ASDU", "IEC 60870-5-101/104 ASDU", "iec60870_asdu");
-	iec60870_asdu_handle = create_dissector_handle(dissect_iec60870_asdu, proto_iec60870_asdu);
+	iec60870_asdu_handle = register_dissector("iec60870_asdu", dissect_iec60870_asdu, proto_iec60870_asdu);
 
 	/* Provide an alias to the previous name of this dissector */
 	proto_register_alias(proto_iec60870_asdu, "104asdu");
@@ -2690,10 +2708,6 @@ proto_register_iec60870_asdu(void)
 void
 proto_reg_handoff_iec60870_104(void)
 {
-	dissector_handle_t iec60870_104_handle;
-
-	iec60870_104_handle = create_dissector_handle(dissect_iec60870_104_tcp, proto_iec60870_104);
-
 	dissector_add_uint_with_preference("tcp.port", IEC104_PORT, iec60870_104_handle);
 }
 
@@ -2795,6 +2809,8 @@ proto_register_iec60870_101(void)
 	proto_register_field_array(proto_iec60870_101, iec60870_101_hf, array_length(iec60870_101_hf));
 	proto_register_subtree_array(ett_serial, array_length(ett_serial));
 
+	iec60870_101_handle = register_dissector("iec60870_101", dissect_iec60870_101_tcp, proto_iec60870_101);
+
 	/* Register required preferences for IEC 101 configurable field lengths */
 	iec60870_101_module = prefs_register_protocol(proto_iec60870_101, NULL);
 
@@ -2849,10 +2865,6 @@ proto_register_iec60870_101(void)
 void
 proto_reg_handoff_iec60870_101(void)
 {
-	dissector_handle_t iec60870_101_handle;
-
-	iec60870_101_handle = create_dissector_handle(dissect_iec60870_101_tcp, proto_iec60870_101);
-
 	/* Add decode-as connection to determine user-customized TCP port */
 	dissector_add_for_decode_as_with_preference("tcp.port", iec60870_101_handle);
 	/* Add dissection for serial pcap files generated by the RTAC */
@@ -3173,15 +3185,12 @@ proto_register_iec60870_5_103(void)
 	proto_register_field_array(proto_iec60870_5_103, iec60870_5_103_hf, array_length(iec60870_5_103_hf));
 	proto_register_subtree_array(ett_serial, array_length(ett_serial));
 
+	iec60870_5_103_handle = register_dissector("iec60870_5_103", dissect_iec60870_5_103_tcp, proto_iec60870_5_103);
 }
 
 void
 proto_reg_handoff_iec60870_5_103(void)
 {
-	dissector_handle_t iec60870_5_103_handle;
-
-	iec60870_5_103_handle = create_dissector_handle(dissect_iec60870_5_103_tcp, proto_iec60870_5_103);
-
 	/* Add decode-as connection to determine user-customized TCP port */
 	dissector_add_for_decode_as_with_preference("tcp.port", iec60870_5_103_handle);
 	/* Add dissection for serial pcap files generated by the RTAC */

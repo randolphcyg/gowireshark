@@ -1850,7 +1850,7 @@ proto_register_openwire(void)
         { "Value", "openwire.connectionid.value", FT_STRINGZ, BASE_NONE, NULL, 0x0, "Openwire ConnectionId Value", HFILL }},
 
      { &hf_openwire_sessionid_connectionid,
-        { "Connection", "openwire.sessionid.connectionid", FT_STRINGZ, BASE_NONE, NULL, 0x0, "Openwire SessionId ConnectionId", HFILL }},
+        { "ConnectionId", "openwire.sessionid.connectionid", FT_STRINGZ, BASE_NONE, NULL, 0x0, "Openwire SessionId ConnectionId", HFILL }},
 
      { &hf_openwire_sessionid_value,
         { "Value", "openwire.sessionid.value", FT_INT64, BASE_DEC, NULL, 0x0, "Openwire SessionId Value", HFILL }},
@@ -1977,6 +1977,8 @@ proto_register_openwire(void)
     expert_openwire = expert_register_protocol(proto_openwire);
     expert_register_field_array(expert_openwire, ei, array_length(ei));
 
+    openwire_tcp_handle = register_dissector("openwire", dissect_openwire_tcp, proto_openwire);
+
     openwire_module = prefs_register_protocol(proto_openwire, NULL);
     prefs_register_bool_preference(openwire_module, "desegment",
         "Reassemble Openwire messages spanning multiple TCP segments",
@@ -1993,7 +1995,6 @@ void
 proto_reg_handoff_openwire(void)
 {
     heur_dissector_add("tcp", dissect_openwire_heur, "OpenWire over TCP", "openwire_tcp", proto_openwire, HEURISTIC_ENABLE);
-    openwire_tcp_handle = create_dissector_handle(dissect_openwire_tcp, proto_openwire);
     dissector_add_for_decode_as_with_preference("tcp.port", openwire_tcp_handle);
 }
 

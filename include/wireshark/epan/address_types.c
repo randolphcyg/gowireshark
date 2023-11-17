@@ -11,6 +11,9 @@
 
 #include <string.h>     /* for memcmp */
 #include <stdio.h>
+
+#include <glib.h>
+
 #include "packet.h"
 #include "address_types.h"
 #include "to_str.h"
@@ -19,7 +22,6 @@
 #include "wsutil/str_util.h"
 #include "wsutil/inet_addr.h"
 #include <wsutil/ws_assert.h>
-#include <wsutil/pint.h>
 
 struct _address_type_t {
     int                     addr_type; /* From address_type enumeration or registered value */
@@ -383,7 +385,7 @@ static const gchar* fcwwn_name_res_str(const address* addr)
     case FC_NH_NAA_IEEE_E:
 
         memcpy (oui, &addrp[2], 6);
-        return get_manuf_name(oui);
+        return get_manuf_name(oui, sizeof(oui));
 
     case FC_NH_NAA_IEEE_R:
         oui[0] = ((addrp[0] & 0x0F) << 4) | ((addrp[1] & 0xF0) >> 4);
@@ -393,7 +395,7 @@ static const gchar* fcwwn_name_res_str(const address* addr)
         oui[4] = ((addrp[4] & 0x0F) << 4) | ((addrp[5] & 0xF0) >> 4);
         oui[5] = ((addrp[5] & 0x0F) << 4) | ((addrp[6] & 0xF0) >> 4);
 
-        return get_manuf_name(oui);
+        return get_manuf_name(oui, sizeof(oui));
     }
 
     return "";
@@ -584,6 +586,28 @@ static int numeric_addr_to_str(const address* addr, gchar *buf, int buf_len)
 }
 
 /******************************************************************************
+ * AT_MCTP
+ ******************************************************************************/
+
+static int mctp_addr_to_str(const address* addr, gchar *buf, int buf_len _U_)
+{
+	const guint8 *addr_data = (const guint8 *)addr->data;
+	gchar *bufp = buf;
+
+	return snprintf(bufp, 4, "%d", addr_data[0]);
+}
+
+static int mctp_addr_str_len(const address* addr _U_)
+{
+	return 4;
+}
+
+static int mctp_len(void)
+{
+	return 1;
+}
+
+/******************************************************************************
  * END OF PROVIDED ADDRESS TYPES
  ******************************************************************************/
 
@@ -759,6 +783,18 @@ void address_types_initialize(void)
         NULL,              /* addr_name_res_str */
         NULL,              /* addr_name_res_len */
     };
+    static address_type_t mctp_address = {
+        AT_MCTP,           /* addr_type */
+        "AT_MCTP" ,        /* name */
+        "MCTP Address",    /* pretty_name */
+        mctp_addr_to_str,  /* addr_to_str */
+        mctp_addr_str_len, /* addr_str_len */
+        NULL,              /* addr_to_byte */
+        NULL,              /* addr_col_filter */
+        mctp_len,          /* addr_fixed_len */
+        NULL,              /* addr_name_res_str */
+        NULL,              /* addr_name_res_len */
+    };
 
     num_dissector_addr_type = 0;
 
@@ -779,6 +815,7 @@ void address_types_initialize(void)
     address_type_register(AT_AX25, &ax25_address );
     address_type_register(AT_VINES, &vines_address );
     address_type_register(AT_NUMERIC, &numeric_address );
+    address_type_register(AT_MCTP, &mctp_address );
 }
 
 /* Given an address type id, return an address_type_t* */
@@ -916,7 +953,6 @@ static void address_with_resolution_to_str_buf(const address* addr, gchar *buf, 
     address_type_t *at;
     int addr_len;
     gsize pos;
-    gboolean empty;
 
     if (!buf || !buf_len)
         return;
@@ -940,28 +976,58 @@ static void address_with_resolution_to_str_buf(const address* addr, gchar *buf, 
     /* Copy the resolved name */
     g_strlcpy(buf, at->addr_name_res_str(addr), buf_len);
 
-    /* Don't wrap "emptyness" in parentheses */
-    if (addr->type == AT_NONE)
-        return;
-
-    /* Make sure there is enough room for the address string wrapped in parentheses */
+    /* Get the length of the copied resolved name */
     pos = strlen(buf);
-    if ((int)(pos + 4 + at->addr_str_len(addr)) >= buf_len)
+
+    /* Get an upper bound on the length of the address string. */
+    addr_len = at->addr_str_len(addr);
+    /*
+     * That includes the terminating '\0', so we subtract 1
+     * to get the length prior to the terminator.
+     */
+    addr_len--;
+
+    /*
+     * If the upper bound is 0, that means that the address string is
+     * empty, so don't add it after the resolved name.
+     */
+    if (addr_len == 0)
         return;
 
-    empty = (pos < 1) ? TRUE : FALSE;
+    /*
+     * If the resolved name is an empty string, don't wrap parentheses
+     * around the address string.
+     */
+    if (pos == 0) {
+        /*
+         * The resolved name is an empty string.
+         * Make sure there's room in the buffer for the address string;
+         * addr_len + 1 includes the terminating '\0', and buf_len
+         * includes room for the terminating '\0', so if the former
+         * is greater than the latter, there isn't room.
+         */
+        if (addr_len + 1 > buf_len)
+            return;
 
-    if (!empty)
-    {
+        /* There is; just put the address string into the buffer. */
+        at->addr_to_str(addr, buf, buf_len);
+    } else {
+        /*
+         * Make sure there is enough room for the maximum length of the
+         * address string wrapped in parentheses.  That's pos (the
+         * length of the resolved name plus 2 (for " (" plus addr_len
+         * (the length of the address string) plus 2 (for ")\0");
+         * it must not be greater than the buffer length.
+         */
+        if ((int)(pos + 4 + addr_len) > buf_len)
+            return;
+
         buf[pos++] = ' ';
         buf[pos++] = '(';
-    }
 
-    addr_len = at->addr_to_str(addr, &buf[pos], (int)(buf_len-pos));
-    pos += addr_len - 1; /* addr_len includes the trailing '\0' */
+        addr_len = at->addr_to_str(addr, &buf[pos], (int)(buf_len-pos));
+        pos += addr_len - 1; /* addr_len includes the trailing '\0' */
 
-    if (!empty)
-    {
         buf[pos++] = ')';
         buf[pos++] = '\0';
     }

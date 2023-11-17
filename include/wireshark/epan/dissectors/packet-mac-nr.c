@@ -15,7 +15,6 @@
 #include <epan/exceptions.h>
 #include <epan/expert.h>
 #include <epan/proto_data.h>
-#include <epan/tfs.h>
 #include <epan/uat.h>
 
 #include "packet-mac-nr.h"
@@ -1099,6 +1098,8 @@ static int dissect_mac_nr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
    - 1 or 2 other labels (optional)
 */
 static void write_pdu_label_and_info(proto_item *ti1, proto_item *ti2,
+                                     packet_info *pinfo, const char *format, ...) G_GNUC_PRINTF(4,5);
+static void write_pdu_label_and_info(proto_item *ti1, proto_item *ti2,
                                      packet_info *pinfo, const char *format, ...)
 {
     #define MAX_INFO_BUFFER 256
@@ -1308,10 +1309,10 @@ static void dissect_rar(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
                 write_pdu_label_and_info(pdu_ti, subheader_ti, pinfo,
                                          "(RAPID=%u TA=%u Temp C-RNTI=%u) ", rapid, ta, c_rnti);
             }
-            else {
-                write_pdu_label_and_info(pdu_ti, subheader_ti, pinfo,
-                                         "(RAPID=%u) ", rapid);
-            }
+            //else {
+            //    write_pdu_label_and_info(pdu_ti, subheader_ti, pinfo,
+            //                             "(RAPID=%u) ", rapid);
+            //}
         }
         /* Set subheader (+subpdu..) length */
         proto_item_set_end(subheader_ti, tvb, offset);

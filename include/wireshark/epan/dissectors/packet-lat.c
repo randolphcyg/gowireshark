@@ -25,6 +25,8 @@ void proto_reg_handoff_lat(void);
  *	http://www.bitsavers.org/pdf/dec/ethernet/lat/AA-NL26A-TE_LAT_Specification_Jun89.pdf
  */
 
+static dissector_handle_t lat_handle;
+
 static int proto_lat = -1;
 static int hf_lat_rrf = -1;
 static int hf_lat_master = -1;
@@ -1700,7 +1702,7 @@ proto_register_lat(void)
 	    { &hf_lat_data_b_slot_control_flags_report_port_char,
 	        { "Report port characteristics",
 	          "lat.data_b_slot.control_flags.report_port_characteristics",
-	          FT_BOOLEAN, 8, NULL, 0x20, NULL, HFILL }},
+	          FT_BOOLEAN, 8, NULL, 0x40, NULL, HFILL }},
 
 	    { &hf_lat_data_b_slot_stop_output_channel_char,
 	        { "Output channel stop character",
@@ -2088,6 +2090,7 @@ proto_register_lat(void)
 
 	proto_lat = proto_register_protocol("Local Area Transport",
 	    "LAT", "lat");
+	lat_handle = register_dissector("lat", dissect_lat, proto_lat);
 	proto_register_field_array(proto_lat, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
 	expert_lat = expert_register_protocol(proto_lat);
@@ -2097,9 +2100,6 @@ proto_register_lat(void)
 void
 proto_reg_handoff_lat(void)
 {
-	dissector_handle_t lat_handle;
-
-	lat_handle = create_dissector_handle(dissect_lat, proto_lat);
 	dissector_add_uint("ethertype", ETHERTYPE_LAT, lat_handle);
 }
 

@@ -1,6 +1,6 @@
 # nr-rrc.cnf
 # nr-rrc conformation file
-# Copyright 2018-2022 Pascal Quantin
+# Copyright 2018-2023 Pascal Quantin
 
 #.OPT
 PER
@@ -24,8 +24,8 @@ DRX-Config/drx-RetransmissionTimerDL
 DRX-Config/drx-RetransmissionTimerUL
 DRX-Config/drx-LongCycleStartOffset
 DRX-Config/shortDRX/drx-ShortCycle
-DRX-ConfigSecondaryGroup/drx-onDurationTimer/milliSeconds
-DRX-ConfigSecondaryGroup/drx-InactivityTimer
+DRX-ConfigSecondaryGroup-r16/drx-onDurationTimer-r16/milliSeconds
+DRX-ConfigSecondaryGroup-r16/drx-InactivityTimer-r16
 DRX-Info/drx-LongCycleStartOffset
 DRX-Info/shortDRX/drx-ShortCycle
 DRX-Info2/drx-onDurationTimer/milliSeconds
@@ -63,12 +63,15 @@ DRX-Config_PDU
 CG-Config_PDU
 CG-ConfigInfo_PDU
 CondReconfigExecCondSCG-r17_PDU
+ConfigRestrictInfoDAPS-r16_PDU
 ConfigRestrictInfoSCG_PDU
 FeatureSetEntryIndex_PDU
 FreqBandList_PDU
 HandoverCommand_PDU
 HandoverPreparationInformation_PDU
 LocationMeasurementInfo_PDU
+MBS-NeighbourCellList-r17_PDU
+MBSInterestIndication-r17_PDU
 MeasConfig_PDU
 MeasGapConfig_PDU
 MeasGapSharingConfig_PDU
@@ -76,6 +79,12 @@ MeasObjectToAddMod_PDU
 MeasResultSCG-Failure_PDU
 MeasurementTimingConfiguration_PDU
 MIB_PDU
+MRB-PDCP-ConfigBroadcast-r17_PDU
+MUSIM-GapConfig-r17_PDU
+NeedForGapsInfoNR-r16_PDU
+NeedForGapNCSG-InfoEUTRA-r17_PDU
+NeedForGapNCSG-InfoNR-r17_PDU
+NonCellDefiningSSB-r17_PDU
 NZP-CSI-RS-Resource_PDU
 OverheatingAssistance_PDU
 OverheatingAssistance-r17_PDU
@@ -83,6 +92,8 @@ P-Max_PDU
 PDCCH-ConfigSIB1_PDU
 PH-TypeListMCG_PDU
 PH-TypeListSCG_PDU
+PosMeasGapPreConfigToAddModList-r17_PDU
+PosMeasGapPreConfigToReleaseList-r17_PDU
 RA-ReportList-r16_PDU
 RACH-ConfigCommon_PDU
 RadioBearerConfig_PDU
@@ -92,6 +103,7 @@ RLC-BearerConfig_PDU
 RRCReconfiguration_PDU
 RRCReconfigurationComplete_PDU
 SchedulingRequestResourceConfig_PDU
+SDT-MAC-PHY-CG-Config-r17_PDU
 SIB1_PDU
 SIB2_PDU
 SIB3_PDU
@@ -106,10 +118,20 @@ SIB11-r16_PDU
 SIB12-r16_PDU
 SIB13-r16_PDU
 SIB14-r16_PDU
+SIB15-r17_PDU
+SIB16-r17_PDU
+SIB17-r17_PDU
+SIB18-r17_PDU
+SIB19-r17_PDU
+SIB20-r17_PDU
+SIB21-r17_PDU
 SidelinkParametersNR-r16_PDU
 SidelinkUEInformationNR-r16_PDU
 SL-ConfigDedicatedEUTRA-Info-r16_PDU
+SL-ConfigDedicatedNR-r16_PDU
 SL-PHY-MAC-RLC-Config-r16_PDU
+SL-RLC-ChannelToAddModList-r17_PDU
+SRS-PosRRC-InactiveConfig-r17_PDU
 SuccessHO-Report-r17_PDU
 TDD-UL-DL-ConfigCommon_PDU
 UE-CapabilityRAT-ContainerList_PDU
@@ -120,7 +142,9 @@ UE-NR-Capability_PDU
 UEAssistanceInformation_PDU
 UERadioPagingInformation_PDU
 UL-DCCH-Message_PDU
+UL-GapFR2-Config-r17_PDU
 UplinkTxDirectCurrentList_PDU
+UplinkTxDirectCurrentTwoCarrierList-r16_PDU
 VisitedCellInfoList-r16_PDU
 
 #.PDU
@@ -131,6 +155,7 @@ BCCH-BCH-Message                   @bcch.bch
 BCCH-DL-SCH-Message                @bcch.dl.sch
 CellGroupConfig
 CondReconfigExecCondSCG-r17
+ConfigRestrictInfoDAPS-r16
 CG-Config
 CG-ConfigInfo
 ConfigRestrictInfoSCG
@@ -142,6 +167,8 @@ FreqBandList
 HandoverCommand
 HandoverPreparationInformation
 LocationMeasurementInfo
+MBS-NeighbourCellList-r17
+MBSInterestIndication-r17
 MCCH-Message-r17                   @mcch
 MeasConfig
 MeasGapConfig
@@ -150,6 +177,12 @@ MeasObjectToAddMod
 MeasResultSCG-Failure
 MeasurementTimingConfiguration
 MIB
+MRB-PDCP-ConfigBroadcast-r17
+MUSIM-GapConfig-r17
+NeedForGapsInfoNR-r16
+NeedForGapNCSG-InfoEUTRA-r17
+NeedForGapNCSG-InfoNR-r17
+NonCellDefiningSSB-r17
 NZP-CSI-RS-Resource
 OverheatingAssistance
 OverheatingAssistance-r17
@@ -158,6 +191,8 @@ PCCH-Message                       @pcch
 PDCCH-ConfigSIB1
 PH-TypeListMCG
 PH-TypeListSCG
+PosMeasGapPreConfigToAddModList-r17
+PosMeasGapPreConfigToReleaseList-r17
 RA-ReportList-r16
 RACH-ConfigCommon
 RadioBearerConfig
@@ -165,16 +200,13 @@ ReferenceTime-r16
 ReportConfigToAddMod
 RLC-BearerConfig
 RRCReconfiguration                 @rrc_reconf
-RRCReconfigurationComplete
+RRCReconfigurationComplete         @rrc_reconf_compl
 SBCCH-SL-BCH-Message               @sbcch.sl.bch
 SCCH-Message                       @scch
 SchedulingRequestResourceConfig
+SDT-MAC-PHY-CG-Config-r17
 SidelinkParametersNR-r16
 SidelinkUEInformationNR-r16
-SL-ConfigDedicatedEUTRA-Info-r16
-SL-MeasResultListRelay-r17
-SL-MeasResultRelay-r17
-SL-PHY-MAC-RLC-Config-r16
 SIB1
 SIB2
 SIB3
@@ -189,6 +221,20 @@ SIB11-r16
 SIB12-r16
 SIB13-r16
 SIB14-r16
+SIB15-r17
+SIB16-r17
+SIB17-r17
+SIB18-r17
+SIB19-r17
+SIB20-r17
+SIB21-r17
+SL-ConfigDedicatedEUTRA-Info-r16
+SL-ConfigDedicatedNR-r16
+SL-MeasResultListRelay-r17
+SL-MeasResultRelay-r17
+SL-PHY-MAC-RLC-Config-r16
+SL-RLC-ChannelToAddModList-r17
+SRS-PosRRC-InactiveConfig-r17
 SuccessHO-Report-r17
 TDD-UL-DL-ConfigCommon
 UE-CapabilityRAT-ContainerList
@@ -203,7 +249,9 @@ UERadioPagingInformation           @ue_radio_paging_info
 UL-CCCH-Message                    @ul.ccch
 UL-CCCH1-Message                   @ul.ccch1
 UL-DCCH-Message                    @ul.dcch
+UL-GapFR2-Config-r17
 UplinkTxDirectCurrentList
+UplinkTxDirectCurrentTwoCarrierList-r16
 VisitedCellInfoList-r16
 #.END
 

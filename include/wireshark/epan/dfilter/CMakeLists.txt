@@ -93,6 +93,8 @@ set_target_properties(dfilter PROPERTIES
 
 install(FILES ${DFILTER_PUBLIC_HEADERS}
 	DESTINATION "${PROJECT_INSTALL_INCLUDEDIR}/epan/dfilter"
+	COMPONENT "Development"
+	EXCLUDE_FROM_ALL
 )
 
 CHECKAPI(
@@ -101,9 +103,6 @@ CHECKAPI(
 	SWITCHES
 	SOURCES
 	  ${DFILTER_NONGENERATED_FILES}
-# LEX files commented out due to use of malloc, free etc.
-#	  ${LEX_FILES}
-	  ${LEMON_FILES}
 )
 
 #

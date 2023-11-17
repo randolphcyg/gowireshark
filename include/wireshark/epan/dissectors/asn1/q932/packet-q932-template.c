@@ -64,6 +64,9 @@ dissector_table_t etsi_err_local_dissector_table;
 static gint g_facility_encoding = FACILITY_QSIG;
 
 void proto_reg_handoff_q932(void);
+
+static dissector_handle_t q932_ie_handle;
+
 /* Subdissectors */
 static dissector_handle_t q932_ros_handle;
 
@@ -133,7 +136,7 @@ static const value_string str_nd[] = {
 static void
 dissect_q932_facility_ie(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, int length) {
   gint8 appclass;
-  gboolean pc;
+  bool pc;
   gint32 tag;
   guint32 len;
   int hoffset, eoffset;
@@ -326,6 +329,7 @@ void proto_register_q932(void) {
   /* Register protocol and dissector */
   proto_q932 = proto_register_protocol(PNAME, PSNAME, PFNAME);
   register_dissector("q932.apdu", dissect_q932_apdu, proto_q932);
+  q932_ie_handle = register_dissector("q932.ie", dissect_q932_ie, proto_q932);
 
   /* Register fields and subtrees */
   proto_register_field_array(proto_q932, hf, array_length(hf));
@@ -336,9 +340,9 @@ void proto_register_q932(void) {
   rose_ctx_init(&q932_rose_ctx);
 
   /* Register dissector tables */
-  q932_rose_ctx.arg_global_dissector_table = register_dissector_table("q932.ros.global.arg", "Q.932 Operation Argument (global opcode)", proto_q932, FT_STRING, BASE_NONE);
-  q932_rose_ctx.res_global_dissector_table = register_dissector_table("q932.ros.global.res", "Q.932 Operation Result (global opcode)", proto_q932, FT_STRING, BASE_NONE);
-  q932_rose_ctx.err_global_dissector_table = register_dissector_table("q932.ros.global.err", "Q.932 Error (global opcode)", proto_q932, FT_STRING, BASE_NONE);
+  q932_rose_ctx.arg_global_dissector_table = register_dissector_table("q932.ros.global.arg", "Q.932 Operation Argument (global opcode)", proto_q932, FT_STRING, STRING_CASE_SENSITIVE);
+  q932_rose_ctx.res_global_dissector_table = register_dissector_table("q932.ros.global.res", "Q.932 Operation Result (global opcode)", proto_q932, FT_STRING, STRING_CASE_SENSITIVE);
+  q932_rose_ctx.err_global_dissector_table = register_dissector_table("q932.ros.global.err", "Q.932 Error (global opcode)", proto_q932, FT_STRING, STRING_CASE_SENSITIVE);
 
   qsig_arg_local_dissector_table = register_dissector_table("q932.ros.local.arg", "Q.932 Operation Argument (local opcode)", proto_q932, FT_UINT32, BASE_HEX);
   qsig_res_local_dissector_table = register_dissector_table("q932.ros.local.res", "Q.932 Operation Result (local opcode)", proto_q932, FT_UINT32, BASE_HEX);
@@ -358,12 +362,9 @@ void proto_register_q932(void) {
 
 /*--- proto_reg_handoff_q932 ------------------------------------------------*/
 void proto_reg_handoff_q932(void) {
-  dissector_handle_t q932_ie_handle;
-
   static gboolean q931_prefs_initialized = FALSE;
 
   if (!q931_prefs_initialized) {
-    q932_ie_handle = create_dissector_handle(dissect_q932_ie, proto_q932);
     /* Facility */
     dissector_add_uint("q931.ie", (0x00 << 8) | Q932_IE_FACILITY, q932_ie_handle);
     /* Notification indicator */

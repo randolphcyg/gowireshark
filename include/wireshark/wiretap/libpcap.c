@@ -10,7 +10,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include "wtap-int.h"
 #include "file_wrappers.h"
 #include "required_file_handlers.h"
@@ -446,7 +445,8 @@ wtap_open_return_val libpcap_open(wtap *wth, int *err, gchar **err_info)
 	libpcap->fcs_len = -1;
 	if (LT_FCS_LENGTH_PRESENT(hdr.network)) {
 		/*
-		 * We have an FCS length.
+		 * We have an FCS length, in units of 16 bits.
+		 * Convert it to bits.
 		 */
 		libpcap->fcs_len = LT_FCS_LENGTH(hdr.network) * 16;
 	}
@@ -1111,7 +1111,6 @@ static gboolean libpcap_dump_write_file_header(wtap_dumper *wdh, guint32 magic,
 
 	if (!wtap_dump_file_write(wdh, &magic, sizeof magic, err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof magic;
 
 	/* current "libpcap" format is 2.4 */
 	file_hdr.version_major = 2;
@@ -1131,11 +1130,10 @@ static gboolean libpcap_dump_write_file_header(wtap_dumper *wdh, guint32 magic,
 	 * link-layer type we'll be writing.
 	 */
 	file_hdr.snaplen = (wdh->snaplen != 0) ? (guint)wdh->snaplen :
-						 wtap_max_snaplen_for_encap(wdh->encap);
-	file_hdr.network = wtap_wtap_encap_to_pcap_encap(wdh->encap);
+						 wtap_max_snaplen_for_encap(wdh->file_encap);
+	file_hdr.network = wtap_wtap_encap_to_pcap_encap(wdh->file_encap);
 	if (!wtap_dump_file_write(wdh, &file_hdr, sizeof file_hdr, err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof file_hdr;
 
 	return TRUE;
 }
@@ -1246,7 +1244,7 @@ libpcap_dump_write_packet(wtap_dumper *wdh, const wtap_rec *rec,
 	const union wtap_pseudo_header *pseudo_header = &rec->rec_header.packet_header.pseudo_header;
 	int phdrsize;
 
-	phdrsize = pcap_get_phdr_size(wdh->encap, pseudo_header);
+	phdrsize = pcap_get_phdr_size(wdh->file_encap, pseudo_header);
 
 	/* We can only write packet records. */
 	if (rec->rec_type != REC_TYPE_PACKET) {
@@ -1258,7 +1256,7 @@ libpcap_dump_write_packet(wtap_dumper *wdh, const wtap_rec *rec,
 	 * Make sure this packet doesn't have a link-layer type that
 	 * differs from the one for the file.
 	 */
-	if (wdh->encap != rec->rec_header.packet_header.pkt_encap) {
+	if (wdh->file_encap != rec->rec_header.packet_header.pkt_encap) {
 		*err = WTAP_ERR_ENCAP_PER_PACKET_UNSUPPORTED;
 		return FALSE;
 	}
@@ -1267,7 +1265,7 @@ libpcap_dump_write_packet(wtap_dumper *wdh, const wtap_rec *rec,
 	 * Don't write anything we're not willing to read.
 	 * (The cast is to prevent an overflow.)
 	 */
-	if ((guint64)rec->rec_header.packet_header.caplen + phdrsize > wtap_max_snaplen_for_encap(wdh->encap)) {
+	if ((guint64)rec->rec_header.packet_header.caplen + phdrsize > wtap_max_snaplen_for_encap(wdh->file_encap)) {
 		*err = WTAP_ERR_PACKET_TOO_LARGE;
 		return FALSE;
 	}
@@ -1277,14 +1275,12 @@ libpcap_dump_write_packet(wtap_dumper *wdh, const wtap_rec *rec,
 
 	if (!wtap_dump_file_write(wdh, hdr, hdr_size, err))
 		return FALSE;
-	wdh->bytes_dumped += hdr_size;
 
-	if (!pcap_write_phdr(wdh, wdh->encap, pseudo_header, err))
+	if (!pcap_write_phdr(wdh, wdh->file_encap, pseudo_header, err))
 		return FALSE;
 
 	if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err))
 		return FALSE;
-	wdh->bytes_dumped += rec->rec_header.packet_header.caplen;
 	return TRUE;
 }
 
@@ -1297,6 +1293,15 @@ libpcap_dump_pcap(wtap_dumper *wdh, const wtap_rec *rec, const guint8 *pd,
 {
 	struct pcaprec_hdr rec_hdr;
 
+	/*
+	 * Some code that reads libpcap files may handle time
+	 * stamps as unsigned, but most of it probably handles
+	 * them as signed.
+	 */
+	if (rec->ts.secs < 0 || rec->ts.secs > G_MAXINT32) {
+		*err = WTAP_ERR_TIME_STAMP_NOT_SUPPORTED;
+		return FALSE;
+	}
 	rec_hdr.ts_sec = (guint32) rec->ts.secs;
 	rec_hdr.ts_usec = rec->ts.nsecs / 1000;
 	return libpcap_dump_write_packet(wdh, rec, &rec_hdr, sizeof rec_hdr,
@@ -1312,6 +1317,15 @@ libpcap_dump_pcap_nsec(wtap_dumper *wdh, const wtap_rec *rec, const guint8 *pd,
 {
 	struct pcaprec_hdr rec_hdr;
 
+	/*
+	 * Some code that reads libpcap files may handle time
+	 * stamps as unsigned, but most of it probably handles
+	 * them as signed.
+	 */
+	if (rec->ts.secs < 0 || rec->ts.secs > G_MAXINT32) {
+		*err = WTAP_ERR_TIME_STAMP_NOT_SUPPORTED;
+		return FALSE;
+	}
 	rec_hdr.ts_sec = (guint32) rec->ts.secs;
 	rec_hdr.ts_usec = rec->ts.nsecs;
 	return libpcap_dump_write_packet(wdh, rec, &rec_hdr, sizeof rec_hdr,
@@ -1327,6 +1341,15 @@ libpcap_dump_pcap_ss990417(wtap_dumper *wdh, const wtap_rec *rec,
 {
 	struct pcaprec_modified_hdr rec_hdr;
 
+	/*
+	 * Some code that reads libpcap files may handle time
+	 * stamps as unsigned, but most of it probably handles
+	 * them as signed.
+	 */
+	if (rec->ts.secs < 0 || rec->ts.secs > G_MAXINT32) {
+		*err = WTAP_ERR_TIME_STAMP_NOT_SUPPORTED;
+		return FALSE;
+	}
 	rec_hdr.hdr.ts_sec = (guint32) rec->ts.secs;
 	rec_hdr.hdr.ts_usec = rec->ts.nsecs / 1000;
 	/* XXX - what should we supply here?
@@ -1364,6 +1387,15 @@ libpcap_dump_pcap_ss990915(wtap_dumper *wdh, const wtap_rec *rec,
 {
 	struct pcaprec_ss990915_hdr rec_hdr;
 
+	/*
+	 * Some code that reads libpcap files may handle time
+	 * stamps as unsigned, but most of it probably handles
+	 * them as signed.
+	 */
+	if (rec->ts.secs < 0 || rec->ts.secs > G_MAXINT32) {
+		*err = WTAP_ERR_TIME_STAMP_NOT_SUPPORTED;
+		return FALSE;
+	}
 	rec_hdr.hdr.ts_sec = (guint32) rec->ts.secs;
 	rec_hdr.hdr.ts_usec = rec->ts.nsecs / 1000;
 	rec_hdr.ifindex = 0;
@@ -1384,6 +1416,15 @@ libpcap_dump_pcap_ss991029(wtap_dumper *wdh, const wtap_rec *rec,
 {
 	struct pcaprec_modified_hdr rec_hdr;
 
+	/*
+	 * Some code that reads libpcap files may handle time
+	 * stamps as unsigned, but most of it probably handles
+	 * them as signed.
+	 */
+	if (rec->ts.secs < 0 || rec->ts.secs > G_MAXINT32) {
+		*err = WTAP_ERR_TIME_STAMP_NOT_SUPPORTED;
+		return FALSE;
+	}
 	rec_hdr.hdr.ts_sec = (guint32) rec->ts.secs;
 	rec_hdr.hdr.ts_usec = rec->ts.nsecs / 1000;
 	/* XXX - what should we supply here?
@@ -1422,6 +1463,15 @@ libpcap_dump_pcap_nokia(wtap_dumper *wdh, const wtap_rec *rec,
 	struct pcaprec_nokia_hdr rec_hdr;
 	const union wtap_pseudo_header *pseudo_header = &rec->rec_header.packet_header.pseudo_header;
 
+	/*
+	 * Some code that reads libpcap files may handle time
+	 * stamps as unsigned, but most of it probably handles
+	 * them as signed.
+	 */
+	if (rec->ts.secs < 0 || rec->ts.secs > G_MAXINT32) {
+		*err = WTAP_ERR_TIME_STAMP_NOT_SUPPORTED;
+		return FALSE;
+	}
 	rec_hdr.hdr.ts_sec = (guint32) rec->ts.secs;
 	rec_hdr.hdr.ts_usec = rec->ts.nsecs / 1000;
 	/* restore the "mysterious stuff" that came with the packet */

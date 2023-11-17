@@ -34,6 +34,8 @@
 void proto_register_icep(void);
 void proto_reg_handoff_icep(void);
 
+static dissector_handle_t icep_tcp_handle, icep_udp_handle;
+
 #if 0
 #define DBG(...)       do {\
                                         fprintf(stdout, \
@@ -1270,8 +1272,7 @@ void proto_register_icep(void)
     /* Register the protocol name and description */
 
     proto_icep =
-        proto_register_protocol("Internet Communications Engine Protocol",
-                    "ICEP", "icep");
+        proto_register_protocol("Internet Communications Engine Protocol", "ICEP", "icep");
 
     /* Required function calls to register the header fields and subtrees used */
 
@@ -1295,17 +1296,15 @@ void proto_register_icep(void)
                                   "Maximum context pairs",
                                   "Maximum number of context pairs allowed",
                                   10, &icep_max_ice_context_pairs);
+
+    icep_tcp_handle = register_dissector("iecp.tcp", dissect_icep_tcp, proto_icep);
+    icep_udp_handle = register_dissector("iecp.udp", dissect_icep_udp, proto_icep);
 }
 
 
 void proto_reg_handoff_icep(void)
 {
-    dissector_handle_t icep_tcp_handle, icep_udp_handle;
-
     /* Register as a heuristic TCP/UDP dissector */
-    icep_tcp_handle = create_dissector_handle(dissect_icep_tcp, proto_icep);
-    icep_udp_handle = create_dissector_handle(dissect_icep_udp, proto_icep);
-
     heur_dissector_add("tcp", dissect_icep_tcp, "ICEP over TCP", "icep_tcp", proto_icep, HEURISTIC_ENABLE);
     heur_dissector_add("udp", dissect_icep_udp, "ICEP over UDP", "icep_udp", proto_icep, HEURISTIC_ENABLE);
 

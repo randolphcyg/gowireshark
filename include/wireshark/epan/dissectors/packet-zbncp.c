@@ -11,10 +11,11 @@
 
 #include <config.h>
 #include <epan/packet.h>
+#include <epan/conversation.h>
+#include <wiretap/wtap.h>
 
 #include "packet-ieee802154.h"
 #include "packet-zbncp.h"
-#include "conversation.h"
 
 void proto_reg_handoff_zbncp(void);
 void proto_register_zbncp(void);
@@ -390,7 +391,7 @@ static int hf_ieee802154_cinfo_sec_capable = -1;
 static int hf_ieee802154_cinfo_alloc_addr = -1;
 
 /* ZBNCP traffic dump */
-static int hf_zbncp_dump_preambule = -1;
+static int hf_zbncp_dump_preamble = -1;
 static int hf_zbncp_dump_version = -1;
 static int hf_zbncp_dump_type = -1;
 static int hf_zbncp_dump_options = -1;
@@ -1160,7 +1161,7 @@ dissect_zbncp_dump_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 
     zbncp_dump_info_tree = proto_tree_add_subtree(tree, tvb, 0, ZBNCP_DUMP_INFO_SIZE, ett_zbncp_dump, NULL, "ZBNCP Dump");
 
-    proto_tree_add_item(zbncp_dump_info_tree, hf_zbncp_dump_preambule, tvb, 0, ZBNCP_DUMP_INFO_SIGN_SIZE, (ENC_ASCII | ENC_NA));
+    proto_tree_add_item(zbncp_dump_info_tree, hf_zbncp_dump_preamble, tvb, 0, ZBNCP_DUMP_INFO_SIGN_SIZE, ENC_ASCII|ENC_NA);
     offset = ZBNCP_DUMP_INFO_SIGN_SIZE;
 
     proto_tree_add_item(zbncp_dump_info_tree, hf_zbncp_dump_version, tvb, offset, 1, ENC_NA);
@@ -5231,11 +5232,11 @@ void proto_register_zbncp(void)
 
         {&hf_zbncp_data_flags_user_desc_av,
          {"User desc available", "zbncp.data.flags.user_desc_av", FT_BOOLEAN, 16, NULL,
-          0x10, NULL, HFILL}},
+          0x0010, NULL, HFILL}},
 
         {&hf_zbncp_data_flags_freq_868,
          {"868MHz BPSK Band", "zbncp.data.flags.freq.868mhz", FT_BOOLEAN, 16, NULL,
-          0x800, NULL, HFILL}},
+          0x0800, NULL, HFILL}},
 
         {&hf_zbncp_data_flags_freq_902,
          {"902MHz BPSK Band", "zbncp.data.flags.freq.902mhz", FT_BOOLEAN, 16, NULL,
@@ -5254,19 +5255,19 @@ void proto_register_zbncp(void)
 
         {&hf_zbncp_data_srv_msk_prim_tc,
          {"Primary Trust Center", "zbncp.data.srv_msk.prim_tc", FT_BOOLEAN, 16, NULL,
-          0x1, NULL, HFILL}},
+          0x0001, NULL, HFILL}},
 
         {&hf_zbncp_data_srv_msk_backup_tc,
          {"Backup Trust Center", "zbncp.data.srv_msk.backup_tc", FT_BOOLEAN, 16, NULL,
-          0x2, NULL, HFILL}},
+          0x0002, NULL, HFILL}},
 
         {&hf_zbncp_data_srv_msk_prim_bind_tbl_cache,
          {"Primary Binding Table Cache", "zbncp.data.srv_msk.prim_bind_tbl_cache", FT_BOOLEAN, 16, NULL,
-          0x4, NULL, HFILL}},
+          0x0004, NULL, HFILL}},
 
         {&hf_zbncp_data_srv_msk_backup_bind_tbl_cache,
          {"Backup Binding Table Cache", "zbncp.data.srv_msk.backup_bind_tbl_cache", FT_BOOLEAN, 16, NULL,
-          0x8, NULL, HFILL}},
+          0x0008, NULL, HFILL}},
 
         {&hf_zbncp_data_remote_bind_offset,
          {"Remote Bind Offset", "zbncp.data.remote_bind_access", FT_UINT8, BASE_HEX, NULL,
@@ -5277,15 +5278,15 @@ void proto_register_zbncp(void)
 
         {&hf_zbncp_data_srv_msk_prim_disc_cache,
          {"Primary Discovery Cache", "zbncp.data.srv_msk.prim_disc_cache", FT_BOOLEAN, 16, NULL,
-          0x10, NULL, HFILL}},
+          0x0010, NULL, HFILL}},
 
         {&hf_zbncp_data_srv_msk_backup_disc_cache,
          {"Backup Discovery Cache", "zbncp.data.srv_msk.backup_disc_cache", FT_BOOLEAN, 16, NULL,
-          0x20, NULL, HFILL}},
+          0x0020, NULL, HFILL}},
 
         {&hf_zbncp_data_srv_msk_nwk_manager,
          {"Network Manager", "zbncp.data.srv_msk.nwk_manager", FT_BOOLEAN, 16, NULL,
-          0x40, NULL, HFILL}},
+          0x0040, NULL, HFILL}},
 
         {&hf_zbncp_data_srv_msk_stack_compl_rev,
          {"Stack Compliance Revision", "zbncp.data.srv_msk.stack_compl_rev", FT_UINT16, BASE_DEC, NULL,
@@ -5766,8 +5767,8 @@ void proto_register_zbncp(void)
          {"Production config body", "zbncp.data.prod_conf.body", FT_BYTES, BASE_NONE, NULL, 0, NULL, HFILL}},
 
         /* ZBOSS NCP dump */
-        {&hf_zbncp_dump_preambule,
-         {"ZBNCP Dump preambule", "zbncp.dump.preambule", FT_STRING, BASE_NONE, NULL, 0x0,
+        {&hf_zbncp_dump_preamble,
+         {"ZBNCP Dump preamble", "zbncp.dump.preamble", FT_STRING, BASE_NONE, NULL, 0x0,
           NULL, HFILL}},
 
         {&hf_zbncp_dump_version,
@@ -5865,6 +5866,5 @@ void proto_register_zbncp(void)
 
 void proto_reg_handoff_zbncp(void)
 {
-    zbncp_handle = create_dissector_handle(dissect_zbncp, zbncp_frame);
     dissector_add_uint("wtap_encap", WTAP_ENCAP_ZBNCP, zbncp_handle);
 }

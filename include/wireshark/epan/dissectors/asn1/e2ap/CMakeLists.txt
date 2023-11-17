@@ -12,7 +12,7 @@ set( PROTOCOL_NAME e2ap )
 set( PROTO_OPT )
 
 set( EXPORT_FILES
-	${PROTOCOL_NAME}-exp.cnf
+        ${PROTOCOL_NAME}-exp.cnf
 )
 
 set( EXT_ASN_FILE_LIST
@@ -25,7 +25,10 @@ set( ASN_FILE_LIST
     E2AP-IEs.asn
     E2AP-PDU-Contents.asn
     E2AP-PDU-Descriptions.asn
-    e2sm-kpm-v1.asn
+    e2sm-v3.01.asn
+    e2sm-rc-v1.03.asn
+    e2sm-kpm-v3.00.asn
+    e2sm-ni-v1.00.asn
 )
 
 set( EXTRA_DIST

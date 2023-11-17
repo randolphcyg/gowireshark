@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-ilp.c                                                               */
-/* asn2wrs.py -p ilp -c ./ilp.cnf -s ./packet-ilp-template -D . -O ../.. ILP.asn ILP-Components.asn */
+/* asn2wrs.py -L -p ilp -c ./ilp.cnf -s ./packet-ilp-template -D . -O ../.. ILP.asn ILP-Components.asn */
 
-/* Input file: packet-ilp-template.c */
-
-#line 1 "./asn1/ilp/packet-ilp-template.c"
 /* packet-ilp.c
  * Routines for OMA Internal Location Protocol packet dissection
  * Copyright 2006, e.yimjia <jy.m12.0@gmail.com>
@@ -57,9 +54,6 @@ static int proto_ilp = -1;
 
 static gboolean ilp_desegment = TRUE;
 
-
-/*--- Included file: packet-ilp-hf.c ---*/
-#line 1 "./asn1/ilp/packet-ilp-hf.c"
 static int hf_ilp_ILP_PDU_PDU = -1;               /* ILP_PDU */
 static int hf_ilp_length = -1;                    /* INTEGER_0_65535 */
 static int hf_ilp_version = -1;                   /* Version */
@@ -499,17 +493,11 @@ static int hf_ilp_GANSSSignals_signal8 = -1;
 static int hf_ilp_T_addPosMode_standalone = -1;
 static int hf_ilp_T_addPosMode_setBased = -1;
 static int hf_ilp_T_addPosMode_setAssisted = -1;
-
-/*--- End of included file: packet-ilp-hf.c ---*/
-#line 53 "./asn1/ilp/packet-ilp-template.c"
 static int hf_ilp_mobile_directory_number = -1;
 
 /* Initialize the subtree pointers */
 static gint ett_ilp = -1;
 static gint ett_ilp_setid = -1;
-
-/*--- Included file: packet-ilp-ett.c ---*/
-#line 1 "./asn1/ilp/packet-ilp-ett.c"
 static gint ett_ilp_ILP_PDU = -1;
 static gint ett_ilp_IlpMessage = -1;
 static gint ett_ilp_PREQ = -1;
@@ -662,13 +650,7 @@ static gint ett_ilp_MultiPosPayLoad = -1;
 static gint ett_ilp_T_lPPPayload = -1;
 static gint ett_ilp_T_tia801Payload = -1;
 
-/*--- End of included file: packet-ilp-ett.c ---*/
-#line 59 "./asn1/ilp/packet-ilp-template.c"
-
 /* Include constants */
-
-/*--- Included file: packet-ilp-val.h ---*/
-#line 1 "./asn1/ilp/packet-ilp-val.h"
 #define maxGANSS                       16
 #define maxGANSSSat                    32
 #define maxLidSize                     64
@@ -681,13 +663,7 @@ static gint ett_ilp_T_tia801Payload = -1;
 #define maxTS                          14
 #define maxPosSize                     1024
 
-/*--- End of included file: packet-ilp-val.h ---*/
-#line 62 "./asn1/ilp/packet-ilp-template.c"
 
-
-
-/*--- Included file: packet-ilp-fn.c ---*/
-#line 1 "./asn1/ilp/packet-ilp-fn.c"
 
 
 static int
@@ -818,7 +794,6 @@ dissect_ilp_SlcSessionID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 
 static int
 dissect_ilp_T_msisdn(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 83 "./asn1/ilp/ilp.cnf"
   tvbuff_t *msisdn_tvb;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        8, 8, FALSE, &msisdn_tvb);
@@ -831,7 +806,6 @@ dissect_ilp_T_msisdn(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
   }
 
 
-
   return offset;
 }
 
@@ -839,7 +813,6 @@ dissect_ilp_T_msisdn(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
 
 static int
 dissect_ilp_T_mdn(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 93 "./asn1/ilp/ilp.cnf"
   tvbuff_t *mdn_tvb;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        8, 8, FALSE, &mdn_tvb);
@@ -850,7 +823,6 @@ dissect_ilp_T_mdn(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto
     subtree = proto_item_add_subtree(actx->created_item, ett_ilp_setid);
     proto_tree_add_item(subtree, hf_ilp_mobile_directory_number, mdn_tvb, 0, 8, ENC_BCD_DIGITS_0_9);
   }
-
 
 
   return offset;
@@ -870,7 +842,6 @@ dissect_ilp_BIT_STRING_SIZE_34(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 
 static int
 dissect_ilp_T_imsi(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 103 "./asn1/ilp/ilp.cnf"
   tvbuff_t *imsi_tvb;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        8, 8, FALSE, &imsi_tvb);
@@ -883,7 +854,6 @@ dissect_ilp_T_imsi(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, prot
   }
 
 
-
   return offset;
 }
 
@@ -892,7 +862,8 @@ dissect_ilp_T_imsi(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, prot
 static int
 dissect_ilp_IA5String_SIZE_1_1000(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_IA5String(tvb, offset, actx, tree, hf_index,
-                                          1, 1000, FALSE);
+                                          1, 1000, FALSE,
+                                          NULL);
 
   return offset;
 }
@@ -2769,7 +2740,8 @@ dissect_ilp_MultipleLocationIds(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_ilp_UTCTime(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_VisibleString(tvb, offset, actx, tree, hf_index,
-                                        NO_BOUND, NO_BOUND, FALSE);
+                                        NO_BOUND, NO_BOUND, FALSE,
+                                        NULL);
 
   return offset;
 }
@@ -3965,7 +3937,6 @@ dissect_ilp_OCTET_STRING_SIZE_1_8192(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 
 static int
 dissect_ilp_T_rrlpPayload(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 65 "./asn1/ilp/ilp.cnf"
   tvbuff_t *rrlp_tvb;
 
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -3977,7 +3948,6 @@ dissect_ilp_T_rrlpPayload(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
   }
 
 
-
   return offset;
 }
 
@@ -3985,7 +3955,6 @@ dissect_ilp_T_rrlpPayload(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 
 static int
 dissect_ilp_T_lPPPayload_item(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 74 "./asn1/ilp/ilp.cnf"
   tvbuff_t *lpp_tvb;
 
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
@@ -3995,7 +3964,6 @@ dissect_ilp_T_lPPPayload_item(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
   if (lpp_tvb && lpp_handle) {
     call_dissector(lpp_handle, lpp_tvb, actx->pinfo, tree);
   }
-
 
 
   return offset;
@@ -4655,7 +4623,6 @@ static const per_choice_t IlpMessage_choice[] = {
 
 static int
 dissect_ilp_IlpMessage(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 55 "./asn1/ilp/ilp.cnf"
 
 guint32 IlpMessage;
 
@@ -4664,8 +4631,7 @@ guint32 IlpMessage;
                                  &IlpMessage);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, "%s ", val_to_str(IlpMessage,ilp_IlpMessage_vals,"Unknown"));
-
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, "%s ", val_to_str_const(IlpMessage,ilp_IlpMessage_vals,"Unknown"));
 
 
   return offset;
@@ -4682,7 +4648,6 @@ static const per_sequence_t ILP_PDU_sequence[] = {
 
 static int
 dissect_ilp_ILP_PDU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 40 "./asn1/ilp/ilp.cnf"
   proto_item *it;
   proto_tree *ilp_tree;
 
@@ -4691,11 +4656,8 @@ dissect_ilp_ILP_PDU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 
   col_set_str(actx->pinfo->cinfo, COL_PROTOCOL, PSNAME);
   col_clear(actx->pinfo->cinfo, COL_INFO);
-
-#line 51 "./asn1/ilp/ilp.cnf"
   offset = dissect_per_sequence(tvb, offset, actx, ilp_tree, hf_index,
                                    ett_ilp_ILP_PDU, ILP_PDU_sequence);
-
 
 
   return offset;
@@ -4712,9 +4674,6 @@ static int dissect_ILP_PDU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_
   return offset;
 }
 
-
-/*--- End of included file: packet-ilp-fn.c ---*/
-#line 65 "./asn1/ilp/packet-ilp-template.c"
 
 
 static guint
@@ -4740,9 +4699,6 @@ void proto_register_ilp(void) {
   /* List of fields */
   static hf_register_info hf[] = {
 
-
-/*--- Included file: packet-ilp-hfarr.c ---*/
-#line 1 "./asn1/ilp/packet-ilp-hfarr.c"
     { &hf_ilp_ILP_PDU_PDU,
       { "ILP-PDU", "ilp.ILP_PDU_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -6495,9 +6451,6 @@ void proto_register_ilp(void) {
       { "setAssisted", "ilp.T.addPosMode.setAssisted",
         FT_BOOLEAN, 8, NULL, 0x20,
         NULL, HFILL }},
-
-/*--- End of included file: packet-ilp-hfarr.c ---*/
-#line 91 "./asn1/ilp/packet-ilp-template.c"
     { &hf_ilp_mobile_directory_number,
       { "Mobile Directory Number", "ilp.mobile_directory_number",
         FT_STRING, BASE_NONE, NULL, 0,
@@ -6508,9 +6461,6 @@ void proto_register_ilp(void) {
   static gint *ett[] = {
     &ett_ilp,
     &ett_ilp_setid,
-
-/*--- Included file: packet-ilp-ettarr.c ---*/
-#line 1 "./asn1/ilp/packet-ilp-ettarr.c"
     &ett_ilp_ILP_PDU,
     &ett_ilp_IlpMessage,
     &ett_ilp_PREQ,
@@ -6662,9 +6612,6 @@ void proto_register_ilp(void) {
     &ett_ilp_MultiPosPayLoad,
     &ett_ilp_T_lPPPayload,
     &ett_ilp_T_tia801Payload,
-
-/*--- End of included file: packet-ilp-ettarr.c ---*/
-#line 102 "./asn1/ilp/packet-ilp-template.c"
   };
 
   module_t *ilp_module;

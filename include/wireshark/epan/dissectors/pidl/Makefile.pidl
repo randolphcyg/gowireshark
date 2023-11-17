@@ -35,6 +35,7 @@ SUBDIRS = \
 	frstrans	\
 	fsrvp		\
 	initshutdown	\
+	iwbemlevel1login	\
 	lsa		\
 	mapi		\
 	mdssvc		\
@@ -42,6 +43,7 @@ SUBDIRS = \
 	nspi		\
 	rfr		\
 	samr		\
+	svcctl		\
 	winreg		\
 	winspool	\
 	witness		\
@@ -108,13 +110,18 @@ $(SUBDIRS) $(DONT_BUILD_SUBDIRS): %: ../packet-dcerpc-%.c ../packet-dcerpc-%.h
 					lsa/lsa.idl idl_types.h
 	cd $(<D) && $(PIDL) $(pidl_out) $(pidl_inc) -- $(<F)
 
+../packet-dcerpc-iwbemlevel1login.c \
+../packet-dcerpc-iwbemlevel1login.h: iwbemlevel1login/iwbemlevel1login.idl \
+					iwbemlevel1login/iwbemlevel1login.cnf \
+					idl_types.h
+	cd $(<D) && $(PIDL) $(pidl_out) $(pidl_inc) -- $(<F)
+
 ../packet-dcerpc-lsa.c \
 ../packet-dcerpc-lsa.h: lsa/lsa.idl lsa/lsa.cnf idl_types.h
 	cd $(<D) && $(PIDL) $(pidl_out) $(pidl_inc) -- $(<F)
 
 ../packet-dcerpc-mapi.c \
 ../packet-dcerpc-mapi.h: mapi/mapi.idl mapi/mapi.cnf \
-				mapi/request.cnf.c mapi/response.cnf.c \
 				idl_types.h mapicodes_enum.h mapitags_enum.h
 	cd $(<D) && $(PIDL) $(pidl_out) $(pidl_inc) -- $(<F)
 
@@ -143,6 +150,10 @@ $(SUBDIRS) $(DONT_BUILD_SUBDIRS): %: ../packet-dcerpc-%.c ../packet-dcerpc-%.h
 
 ../packet-dcerpc-srvsvc.c \
 ../packet-dcerpc-srvsvc.h: srvsvc/srvsvc.idl srvsvc/srvsvc.cnf idl_types.h
+	cd $(<D) && $(PIDL) $(pidl_out) $(pidl_inc) -- $(<F)
+
+../packet-dcerpc-svcctl.c \
+../packet-dcerpc-svcctl.h: svcctl/svcctl.idl svcctl/svcctl.cnf
 	cd $(<D) && $(PIDL) $(pidl_out) $(pidl_inc) -- $(<F)
 
 ../packet-dcerpc-winreg.c \

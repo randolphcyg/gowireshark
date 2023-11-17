@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-rrlp.c                                                              */
-/* asn2wrs.py -p rrlp -c ./rrlp.cnf -s ./packet-rrlp-template -D . -O ../.. ../gsm_map/MAP-ExtensionDataTypes.asn ../gsm_map/MAP-LCS-DataTypes.asn RRLP-Messages.asn RRLP-Components.asn */
+/* asn2wrs.py -L -p rrlp -c ./rrlp.cnf -s ./packet-rrlp-template -D . -O ../.. ../gsm_map/MAP-ExtensionDataTypes.asn ../gsm_map/MAP-LCS-DataTypes.asn RRLP-Messages.asn RRLP-Components.asn */
 
-/* Input file: packet-rrlp-template.c */
-
-#line 1 "./asn1/rrlp/packet-rrlp-template.c"
 /* packet-rrlp.c
  * Routines for 3GPP Radio Resource LCS Protocol (RRLP) packet dissection
  * Copyright 2006, Anders Broman <anders.broman@ericsson.com>
@@ -47,9 +44,6 @@ void proto_reg_handoff_rrlp(void);
 static int proto_rrlp = -1;
 
 
-
-/*--- Included file: packet-rrlp-hf.c ---*/
-#line 1 "./asn1/rrlp/packet-rrlp-hf.c"
 static int hf_rrlp_PDU_PDU = -1;                  /* PDU */
 static int hf_rrlp_privateExtensionList = -1;     /* PrivateExtensionList */
 static int hf_rrlp_pcs_Extensions = -1;           /* PCS_Extensions */
@@ -872,14 +866,8 @@ static int hf_rrlp_GANSSModelID_model6 = -1;
 static int hf_rrlp_GANSSModelID_model7 = -1;
 static int hf_rrlp_GANSSModelID_model8 = -1;
 
-/*--- End of included file: packet-rrlp-hf.c ---*/
-#line 43 "./asn1/rrlp/packet-rrlp-template.c"
-
 /* Initialize the subtree pointers */
 static gint ett_rrlp = -1;
-
-/*--- Included file: packet-rrlp-ett.c ---*/
-#line 1 "./asn1/rrlp/packet-rrlp-ett.c"
 static gint ett_rrlp_ExtensionContainer = -1;
 static gint ett_rrlp_PrivateExtensionList = -1;
 static gint ett_rrlp_PrivateExtension = -1;
@@ -1133,25 +1121,13 @@ static gint ett_rrlp_GANSSAdditionalAssistanceChoicesForOneGANSS = -1;
 static gint ett_rrlp_GANSSModelID = -1;
 static gint ett_rrlp_AssistanceNeeded = -1;
 
-/*--- End of included file: packet-rrlp-ett.c ---*/
-#line 47 "./asn1/rrlp/packet-rrlp-template.c"
-
 /* Include constants */
-
-/*--- Included file: packet-rrlp-val.h ---*/
-#line 1 "./asn1/rrlp/packet-rrlp-val.h"
 #define maxNumOfPrivateExtensions      10
 #define maxExt_GeographicalInformation 20
 #define maxGPSAssistanceData           40
 #define maxGANSSAssistanceData         40
 
-/*--- End of included file: packet-rrlp-val.h ---*/
-#line 50 "./asn1/rrlp/packet-rrlp-template.c"
 
-
-
-/*--- Included file: packet-rrlp-fn.c ---*/
-#line 1 "./asn1/rrlp/packet-rrlp-fn.c"
 
 
 static int
@@ -1231,7 +1207,6 @@ dissect_rrlp_ExtensionContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 
 static int
 dissect_rrlp_Ext_GeographicalInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 33 "./asn1/rrlp/rrlp.cnf"
 
 tvbuff_t *parameter_tvb = NULL;
 
@@ -1241,7 +1216,6 @@ tvbuff_t *parameter_tvb = NULL;
 
   if(parameter_tvb)
 	dissect_geographical_description(parameter_tvb, actx->pinfo, tree);
-
 
   return offset;
 }
@@ -7183,12 +7157,10 @@ static const per_sequence_t PDU_sequence[] = {
 
 static int
 dissect_rrlp_PDU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 25 "./asn1/rrlp/rrlp.cnf"
 
 	proto_tree_add_item(tree, proto_rrlp, tvb, 0, -1, ENC_NA);
 
 	col_append_sep_str(actx->pinfo->cinfo, COL_PROTOCOL, "/", "RRLP");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_rrlp_PDU, PDU_sequence);
 
@@ -7207,9 +7179,6 @@ static int dissect_PDU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree
 }
 
 
-/*--- End of included file: packet-rrlp-fn.c ---*/
-#line 53 "./asn1/rrlp/packet-rrlp-template.c"
-
 
 /*--- proto_register_rrlp -------------------------------------------*/
 void proto_register_rrlp(void) {
@@ -7217,9 +7186,6 @@ void proto_register_rrlp(void) {
   /* List of fields */
   static hf_register_info hf[] = {
 
-
-/*--- Included file: packet-rrlp-hfarr.c ---*/
-#line 1 "./asn1/rrlp/packet-rrlp-hfarr.c"
     { &hf_rrlp_PDU_PDU,
       { "PDU", "rrlp.PDU_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -10500,17 +10466,11 @@ void proto_register_rrlp(void) {
       { "model8", "rrlp.GANSSModelID.model8",
         FT_BOOLEAN, 8, NULL, 0x01,
         NULL, HFILL }},
-
-/*--- End of included file: packet-rrlp-hfarr.c ---*/
-#line 62 "./asn1/rrlp/packet-rrlp-template.c"
   };
 
   /* List of subtrees */
   static gint *ett[] = {
 	  &ett_rrlp,
-
-/*--- Included file: packet-rrlp-ettarr.c ---*/
-#line 1 "./asn1/rrlp/packet-rrlp-ettarr.c"
     &ett_rrlp_ExtensionContainer,
     &ett_rrlp_PrivateExtensionList,
     &ett_rrlp_PrivateExtension,
@@ -10763,9 +10723,6 @@ void proto_register_rrlp(void) {
     &ett_rrlp_GANSSAdditionalAssistanceChoicesForOneGANSS,
     &ett_rrlp_GANSSModelID,
     &ett_rrlp_AssistanceNeeded,
-
-/*--- End of included file: packet-rrlp-ettarr.c ---*/
-#line 68 "./asn1/rrlp/packet-rrlp-template.c"
   };
 
 

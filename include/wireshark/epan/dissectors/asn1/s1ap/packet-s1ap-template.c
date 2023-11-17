@@ -10,7 +10,7 @@
  *
  * Based on the RANAP dissector
  *
- * References: 3GPP TS 36.413 V17.1.0 (2022-06)
+ * References: 3GPP TS 36.413 V17.5.0 (2023-06)
  */
 
 #include "config.h"
@@ -85,6 +85,7 @@ static int hf_s1ap_encryptionAlgorithms_Reserved = -1;
 static int hf_s1ap_integrityProtectionAlgorithms_EIA1 = -1;
 static int hf_s1ap_integrityProtectionAlgorithms_EIA2 = -1;
 static int hf_s1ap_integrityProtectionAlgorithms_EIA3 = -1;
+static int hf_s1ap_integrityProtectionAlgorithms_EIA7 = -1;
 static int hf_s1ap_integrityProtectionAlgorithms_Reserved = -1;
 static int hf_s1ap_SerialNumber_gs = -1;
 static int hf_s1ap_SerialNumber_msg_code = -1;
@@ -270,6 +271,12 @@ static void
 s1ap_Threshold_RSRQ_fmt(gchar *s, guint32 v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-20, v);
+}
+
+static void
+s1ap_Hysteresis_fmt(gchar *s, guint32 v)
+{
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", (float)v/2, v);
 }
 
 static const true_false_string s1ap_tfs_interfacesToTrace = {
@@ -587,9 +594,13 @@ void proto_register_s1ap(void) {
       { "128-EIA3", "s1ap.integrityProtectionAlgorithms.EIA3",
         FT_BOOLEAN, 16, TFS(&tfs_supported_not_supported), 0x2000,
         NULL, HFILL }},
+    { &hf_s1ap_integrityProtectionAlgorithms_EIA7,
+      { "EIA7", "s1ap.integrityProtectionAlgorithms.EIA7",
+        FT_BOOLEAN, 16, TFS(&tfs_supported_not_supported), 0x0200,
+        NULL, HFILL }},
     { &hf_s1ap_integrityProtectionAlgorithms_Reserved,
       { "Reserved", "s1ap.integrityProtectionAlgorithms.Reserved",
-        FT_UINT16, BASE_HEX, NULL, 0x1fff,
+        FT_UINT16, BASE_HEX, NULL, 0x1dff,
         NULL, HFILL }},
     { &hf_s1ap_SerialNumber_gs,
       { "Geographical Scope", "s1ap.SerialNumber.gs",

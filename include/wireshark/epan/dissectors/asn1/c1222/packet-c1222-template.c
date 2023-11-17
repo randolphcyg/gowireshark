@@ -748,7 +748,7 @@ c1222_uat_data_copy_cb(void *dest, const void *source, size_t len _U_)
  * \param err is updated to point to an error string if needed
  * \return FALSE if error; TRUE otherwise
  */
-static gboolean
+static bool
 c1222_uat_data_update_cb(void* n, char** err)
 {
   c1222_uat_data_t* new_rec = (c1222_uat_data_t *)n;
@@ -954,7 +954,7 @@ dissect_epsem(tvbuff_t *tvb, int offset, guint32 len, packet_info *pinfo, proto_
   int local_offset;
   gint len2;
   int cmd_err;
-  gboolean ind;
+  bool ind;
   guchar *buffer;
   tvbuff_t *epsem_buffer = NULL;
   gboolean crypto_good = FALSE;
@@ -1107,7 +1107,7 @@ get_c1222_message_len(packet_info *pinfo, tvbuff_t *tvb, int offset, void *data 
 {
   int orig_offset;
   guint length;
-  gboolean ind;
+  bool ind;
 
   orig_offset = offset;
   /* note that this assumes a Tag length of 1 which is always valid for C12.22 */
@@ -1416,6 +1416,10 @@ void proto_register_c1222(void) {
   proto_register_subtree_array(ett, array_length(ett));
   expert_c1222 = expert_register_protocol(proto_c1222);
   expert_register_field_array(expert_c1222, ei, array_length(ei));
+  /* Register dissectors */
+  c1222_handle = register_dissector("c1222.tcp", dissect_c1222, proto_c1222);
+  c1222_udp_handle = register_dissector("c1222.udp", dissect_c1222_common, proto_c1222);
+  /* Register dissection preferences */
   c1222_module = prefs_register_protocol(proto_c1222, proto_reg_handoff_c1222);
   prefs_register_bool_preference(c1222_module, "desegment",
         "Reassemble all C12.22 messages spanning multiple TCP segments",
@@ -1463,8 +1467,6 @@ proto_reg_handoff_c1222(void)
   guint8 *temp = NULL;
 
   if( !initialized ) {
-    c1222_handle = create_dissector_handle(dissect_c1222, proto_c1222);
-    c1222_udp_handle = create_dissector_handle(dissect_c1222_common, proto_c1222);
     dissector_add_uint_with_preference("tcp.port", C1222_PORT, c1222_handle);
     dissector_add_uint_with_preference("udp.port", C1222_PORT, c1222_udp_handle);
     initialized = TRUE;

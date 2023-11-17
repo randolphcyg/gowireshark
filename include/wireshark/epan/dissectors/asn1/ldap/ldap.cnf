@@ -34,10 +34,11 @@ DirSyncFlags TYPE = FT_UINT32 DISPLAY = BASE_HEX STRINGS = NULL
 Simple TYPE = FT_STRING  DISPLAY = BASE_NONE  STRINGS = NULL
 
 #.REGISTER
-SearchControlValue              B "1.2.840.113556.1.4.319" "pagedResultsControl"
-SortKeyList                     B "1.2.840.113556.1.4.473" "sortKeyList"
-SortResult                      B "1.2.840.113556.1.4.474" "sortResult"
-DirSyncControlValue             B "1.2.840.113556.1.4.841" "dirsync"
+#[MS-ADTS]
+SearchControlValue              B "1.2.840.113556.1.4.319" "LDAP_PAGED_RESULT_OID_STRING"
+SortKeyList                     B "1.2.840.113556.1.4.473" "LDAP_SERVER_SORT_OID"
+SortResult                      B "1.2.840.113556.1.4.474" "LDAP_SERVER_RESP_SORT_OID"
+DirSyncControlValue             B "1.2.840.113556.1.4.841" "LDAP_SERVER_DIRSYNC_OID"
 #RFC 3062
 PasswdModifyRequestValue        B "1.3.6.1.4.1.4203.1.11.1" "passwdModifyOID"
 #RFC 3909
@@ -191,7 +192,7 @@ char *mechanism = NULL;
 tvbuff_t *parameter_tvb;
 ldap_conv_info_t *ldap_info;
 gint8 ber_class;
-gboolean pc;
+bool pc;
 gint32 tag;
 
 %(DEFAULT_BODY)s
@@ -276,7 +277,7 @@ ldap_conv_info_t *ldap_info;
        * NTLMSSP blob
        */
       if ( (tvb_reported_length(parameter_tvb)>=7)
-        &&   (!tvb_memeql(parameter_tvb, 0, "NTLMSSP", 7))){
+        &&   (!tvb_memeql(parameter_tvb, 0, (const guint8*)"NTLMSSP", 7))){
         call_dissector(ntlmssp_handle, parameter_tvb, actx->pinfo, tree);
         break;
       }
@@ -600,7 +601,7 @@ ldap_conv_info_t *ldap_info;
   Filter_string=wmem_strdup_printf(actx->pinfo->pool, "(!%s)",string_or_null(Filter_string));
 
 #.FN_BODY MatchingRuleAssertion/dnAttributes
-  gboolean val;
+  bool val;
 
   offset = dissect_ber_boolean(implicit_tag, actx, tree, tvb, offset, hf_index, &val);
 
@@ -700,7 +701,7 @@ ldap_conv_info_t *ldap_info;
 
   if(  new_tvb
   &&  (tvb_reported_length(new_tvb)>=7)
-  &&  (!tvb_memeql(new_tvb, 0, "NTLMSSP", 7))){
+  &&  (!tvb_memeql(new_tvb, 0, (const guint8*)"NTLMSSP", 7))){
 
     /* make sure the protocol op comes first */
     ldap_do_protocolop(actx->pinfo);
@@ -710,7 +711,7 @@ ldap_conv_info_t *ldap_info;
 
 #.FN_BODY Control/controlValue
   gint8 ber_class;
-  gboolean pc, ind;
+  bool pc, ind;
   gint32 tag;
   guint32 len;
 
@@ -754,7 +755,7 @@ ldap_conv_info_t *ldap_info;
 
 #.FN_BODY DirSyncFlags
   gint8 ber_class;
-  gboolean pc;
+  bool pc;
   gint32 tag;
   guint32 len;
   gint32 val;

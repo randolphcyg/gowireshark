@@ -1,14 +1,11 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-m2ap.c                                                              */
-/* asn2wrs.py -p m2ap -c ./m2ap.cnf -s ./packet-m2ap-template -D . -O ../.. M2AP-CommonDataTypes.asn M2AP-Constants.asn M2AP-Containers.asn M2AP-IEs.asn M2AP-PDU-Contents.asn M2AP-PDU-Descriptions.asn */
+/* asn2wrs.py -L -p m2ap -c ./m2ap.cnf -s ./packet-m2ap-template -D . -O ../.. M2AP-CommonDataTypes.asn M2AP-Constants.asn M2AP-Containers.asn M2AP-IEs.asn M2AP-PDU-Contents.asn M2AP-PDU-Descriptions.asn */
 
-/* Input file: packet-m2ap-template.c */
-
-#line 1 "./asn1/m2ap/packet-m2ap-template.c"
 /* packet-m2ap.c
  * Routines for M2 Application Protocol packet dissection
- * Copyright 2016, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2016-2023, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -16,7 +13,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * Reference: 3GPP TS 36.443 v15.0.0
+ * Reference: 3GPP TS 36.443 v17.0.1
  */
 
 #include "config.h"
@@ -40,9 +37,6 @@ void proto_reg_handoff_m2ap(void);
 /* M2AP uses port 36443 as recommended by IANA. */
 #define M2AP_PORT 36443
 
-
-/*--- Included file: packet-m2ap-val.h ---*/
-#line 1 "./asn1/m2ap/packet-m2ap-val.h"
 #define maxPrivateIEs                  65535
 #define maxProtocolExtensions          65535
 #define maxProtocolIEs                 65535
@@ -121,20 +115,19 @@ typedef enum _ProtocolIE_ID_enum {
   id_Repetition_PeriodExtended =  47,
   id_MCH_Scheduling_PeriodExtended2 =  48,
   id_Subcarrier_SpacingMBMS =  49,
-  id_SubframeAllocationExtended =  50
+  id_SubframeAllocationExtended =  50,
+  id_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item =  51,
+  id_MCCHrelatedBCCH_ExtConfigPerMBSFNArea =  52,
+  id_SubframeAllocationFurtherExtension =  53,
+  id_AdditionalConfigParameters =  54
 } ProtocolIE_ID_enum;
-
-/*--- End of included file: packet-m2ap-val.h ---*/
-#line 36 "./asn1/m2ap/packet-m2ap-template.c"
 
 /* Initialize the protocol and registered fields */
 static int proto_m2ap = -1;
 
 static int hf_m2ap_IPAddress_v4 = -1;
 static int hf_m2ap_IPAddress_v6 = -1;
-
-/*--- Included file: packet-m2ap-hf.c ---*/
-#line 1 "./asn1/m2ap/packet-m2ap-hf.c"
+static int hf_m2ap_AdditionalConfigParameters_PDU = -1;  /* AdditionalConfigParameters */
 static int hf_m2ap_Cause_PDU = -1;                /* Cause */
 static int hf_m2ap_CriticalityDiagnostics_PDU = -1;  /* CriticalityDiagnostics */
 static int hf_m2ap_ENB_MBMS_Configuration_data_Item_PDU = -1;  /* ENB_MBMS_Configuration_data_Item */
@@ -150,6 +143,7 @@ static int hf_m2ap_MBSFN_Area_ID_PDU = -1;        /* MBSFN_Area_ID */
 static int hf_m2ap_MBSFN_Subframe_Configuration_PDU = -1;  /* MBSFN_Subframe_Configuration */
 static int hf_m2ap_MCCH_Update_Time_PDU = -1;     /* MCCH_Update_Time */
 static int hf_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea_Item_PDU = -1;  /* MCCHrelatedBCCH_ConfigPerMBSFNArea_Item */
+static int hf_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item_PDU = -1;  /* MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item */
 static int hf_m2ap_MCE_MBMS_M2AP_ID_PDU = -1;     /* MCE_MBMS_M2AP_ID */
 static int hf_m2ap_MCEname_PDU = -1;              /* MCEname */
 static int hf_m2ap_MCH_Scheduling_PeriodExtended_PDU = -1;  /* MCH_Scheduling_PeriodExtended */
@@ -161,6 +155,7 @@ static int hf_m2ap_Repetition_PeriodExtended_PDU = -1;  /* Repetition_PeriodExte
 static int hf_m2ap_SC_PTM_Information_PDU = -1;   /* SC_PTM_Information */
 static int hf_m2ap_Subcarrier_SpacingMBMS_PDU = -1;  /* Subcarrier_SpacingMBMS */
 static int hf_m2ap_SubframeAllocationExtended_PDU = -1;  /* SubframeAllocationExtended */
+static int hf_m2ap_SubframeAllocationFurtherExtension_PDU = -1;  /* SubframeAllocationFurtherExtension */
 static int hf_m2ap_TimeToWait_PDU = -1;           /* TimeToWait */
 static int hf_m2ap_TMGI_PDU = -1;                 /* TMGI */
 static int hf_m2ap_TNL_Information_PDU = -1;      /* TNL_Information */
@@ -184,6 +179,7 @@ static int hf_m2ap_M2SetupRequest_PDU = -1;       /* M2SetupRequest */
 static int hf_m2ap_ENB_MBMS_Configuration_data_List_PDU = -1;  /* ENB_MBMS_Configuration_data_List */
 static int hf_m2ap_M2SetupResponse_PDU = -1;      /* M2SetupResponse */
 static int hf_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea_PDU = -1;  /* MCCHrelatedBCCH_ConfigPerMBSFNArea */
+static int hf_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_PDU = -1;  /* MCCHrelatedBCCH_ExtConfigPerMBSFNArea */
 static int hf_m2ap_M2SetupFailure_PDU = -1;       /* M2SetupFailure */
 static int hf_m2ap_ENBConfigurationUpdate_PDU = -1;  /* ENBConfigurationUpdate */
 static int hf_m2ap_ENB_MBMS_Configuration_data_List_ConfigUpdate_PDU = -1;  /* ENB_MBMS_Configuration_data_List_ConfigUpdate */
@@ -223,10 +219,11 @@ static int hf_m2ap_extensionValue = -1;           /* T_extensionValue */
 static int hf_m2ap_PrivateIE_Container_item = -1;  /* PrivateIE_Field */
 static int hf_m2ap_private_id = -1;               /* PrivateIE_ID */
 static int hf_m2ap_private_value = -1;            /* T_private_value */
+static int hf_m2ap_pmch_Bandwidth = -1;           /* PMCH_Bandwidth */
+static int hf_m2ap_iE_Extensions = -1;            /* ProtocolExtensionContainer */
 static int hf_m2ap_priorityLevel = -1;            /* PriorityLevel */
 static int hf_m2ap_pre_emptionCapability = -1;    /* Pre_emptionCapability */
 static int hf_m2ap_pre_emptionVulnerability = -1;  /* Pre_emptionVulnerability */
-static int hf_m2ap_iE_Extensions = -1;            /* ProtocolExtensionContainer */
 static int hf_m2ap_radioNetwork = -1;             /* CauseRadioNetwork */
 static int hf_m2ap_transport = -1;                /* CauseTransport */
 static int hf_m2ap_nAS = -1;                      /* CauseNAS */
@@ -279,6 +276,12 @@ static int hf_m2ap_modificationPeriod = -1;       /* T_modificationPeriod */
 static int hf_m2ap_subframeAllocationInfo = -1;   /* BIT_STRING_SIZE_6 */
 static int hf_m2ap_modulationAndCodingScheme = -1;  /* T_modulationAndCodingScheme */
 static int hf_m2ap_cellInformationList = -1;      /* Cell_Information_List */
+static int hf_m2ap_repetitionPeriodExpanded = -1;  /* T_repetitionPeriodExpanded */
+static int hf_m2ap_modificationPeriodExpanded = -1;  /* T_modificationPeriodExpanded */
+static int hf_m2ap_subframeAllocationInfoExpanded = -1;  /* BIT_STRING_SIZE_10 */
+static int hf_m2ap_modulationAndCodingScheme_01 = -1;  /* T_modulationAndCodingScheme_01 */
+static int hf_m2ap_subcarrier_SpacingMBMSExpanded = -1;  /* T_subcarrier_SpacingMBMSExpanded */
+static int hf_m2ap_timeSeparation = -1;           /* T_timeSeparation */
 static int hf_m2ap_allocatedSubframesEnd = -1;    /* AllocatedSubframesEnd */
 static int hf_m2ap_dataMCS = -1;                  /* INTEGER_0_28 */
 static int hf_m2ap_mchSchedulingPeriod = -1;      /* MCH_Scheduling_Period */
@@ -287,6 +290,8 @@ static int hf_m2ap_mbms_E_RAB_QoS_Parameters = -1;  /* MBMS_E_RAB_QoS_Parameters
 static int hf_m2ap_oneFrameExtension = -1;        /* BIT_STRING_SIZE_2 */
 static int hf_m2ap_fourFrameExtension = -1;       /* BIT_STRING_SIZE_8 */
 static int hf_m2ap_choice_extension = -1;         /* ProtocolIE_Single_Container */
+static int hf_m2ap_oneFrameFurtherExtension = -1;  /* BIT_STRING_SIZE_2 */
+static int hf_m2ap_fourFrameFurtherExtension = -1;  /* BIT_STRING_SIZE_8 */
 static int hf_m2ap_pLMNidentity = -1;             /* PLMN_Identity */
 static int hf_m2ap_serviceID = -1;                /* OCTET_STRING_SIZE_3 */
 static int hf_m2ap_iPMCAddress = -1;              /* IPAddress */
@@ -303,6 +308,7 @@ static int hf_m2ap_sfn = -1;                      /* SFN */
 static int hf_m2ap_mbms_Sessions_To_Be_Suspended_List = -1;  /* MBMSsessionsToBeSuspendedListPerPMCH_Item */
 static int hf_m2ap_ENB_MBMS_Configuration_data_List_item = -1;  /* ProtocolIE_Single_Container */
 static int hf_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea_item = -1;  /* ProtocolIE_Single_Container */
+static int hf_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_item = -1;  /* ProtocolIE_Single_Container */
 static int hf_m2ap_ENB_MBMS_Configuration_data_List_ConfigUpdate_item = -1;  /* ProtocolIE_Single_Container */
 static int hf_m2ap_m2_Interface = -1;             /* ResetAll */
 static int hf_m2ap_partOfM2_Interface = -1;       /* MBMS_Service_associatedLogicalM2_ConnectionListRes */
@@ -321,16 +327,10 @@ static int hf_m2ap_initiatingMessage_value = -1;  /* InitiatingMessage_value */
 static int hf_m2ap_successfulOutcome_value = -1;  /* SuccessfulOutcome_value */
 static int hf_m2ap_unsuccessfulOutcome_value = -1;  /* UnsuccessfulOutcome_value */
 
-/*--- End of included file: packet-m2ap-hf.c ---*/
-#line 43 "./asn1/m2ap/packet-m2ap-template.c"
-
 /* Initialize the subtree pointers */
 static int ett_m2ap = -1;
 static int ett_m2ap_PLMN_Identity = -1;
 static int ett_m2ap_IPAddress = -1;
-
-/*--- Included file: packet-m2ap-ett.c ---*/
-#line 1 "./asn1/m2ap/packet-m2ap-ett.c"
 static gint ett_m2ap_PrivateIE_ID = -1;
 static gint ett_m2ap_ProtocolIE_Container = -1;
 static gint ett_m2ap_ProtocolIE_Field = -1;
@@ -338,6 +338,7 @@ static gint ett_m2ap_ProtocolExtensionContainer = -1;
 static gint ett_m2ap_ProtocolExtensionField = -1;
 static gint ett_m2ap_PrivateIE_Container = -1;
 static gint ett_m2ap_PrivateIE_Field = -1;
+static gint ett_m2ap_AdditionalConfigParameters = -1;
 static gint ett_m2ap_AllocationAndRetentionPriority = -1;
 static gint ett_m2ap_Cause = -1;
 static gint ett_m2ap_Cell_Information = -1;
@@ -363,9 +364,11 @@ static gint ett_m2ap_MBMSsessionsToBeSuspendedListPerPMCH_Item_item = -1;
 static gint ett_m2ap_MBSFN_Subframe_Configuration = -1;
 static gint ett_m2ap_T_subframeAllocation = -1;
 static gint ett_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea_Item = -1;
+static gint ett_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item = -1;
 static gint ett_m2ap_PMCH_Configuration = -1;
 static gint ett_m2ap_SC_PTM_Information = -1;
 static gint ett_m2ap_SubframeAllocationExtended = -1;
+static gint ett_m2ap_SubframeAllocationFurtherExtension = -1;
 static gint ett_m2ap_TMGI = -1;
 static gint ett_m2ap_TNL_Information = -1;
 static gint ett_m2ap_SessionStartRequest = -1;
@@ -388,6 +391,7 @@ static gint ett_m2ap_M2SetupRequest = -1;
 static gint ett_m2ap_ENB_MBMS_Configuration_data_List = -1;
 static gint ett_m2ap_M2SetupResponse = -1;
 static gint ett_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea = -1;
+static gint ett_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea = -1;
 static gint ett_m2ap_M2SetupFailure = -1;
 static gint ett_m2ap_ENBConfigurationUpdate = -1;
 static gint ett_m2ap_ENB_MBMS_Configuration_data_List_ConfigUpdate = -1;
@@ -418,9 +422,6 @@ static gint ett_m2ap_M2AP_PDU = -1;
 static gint ett_m2ap_InitiatingMessage = -1;
 static gint ett_m2ap_SuccessfulOutcome = -1;
 static gint ett_m2ap_UnsuccessfulOutcome = -1;
-
-/*--- End of included file: packet-m2ap-ett.c ---*/
-#line 49 "./asn1/m2ap/packet-m2ap-template.c"
 
 static expert_field ei_m2ap_invalid_ip_address_len = EI_INIT;
 
@@ -464,9 +465,6 @@ m2ap_get_private_data(packet_info *pinfo)
   return m2ap_data;
 }
 
-
-/*--- Included file: packet-m2ap-fn.c ---*/
-#line 1 "./asn1/m2ap/packet-m2ap-fn.c"
 
 static const value_string m2ap_Criticality_vals[] = {
   {   0, "reject" },
@@ -604,6 +602,10 @@ static const value_string m2ap_ProtocolIE_ID_vals[] = {
   { id_MCH_Scheduling_PeriodExtended2, "id-MCH-Scheduling-PeriodExtended2" },
   { id_Subcarrier_SpacingMBMS, "id-Subcarrier-SpacingMBMS" },
   { id_SubframeAllocationExtended, "id-SubframeAllocationExtended" },
+  { id_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item, "id-MCCHrelatedBCCH-ExtConfigPerMBSFNArea-Item" },
+  { id_MCCHrelatedBCCH_ExtConfigPerMBSFNArea, "id-MCCHrelatedBCCH-ExtConfigPerMBSFNArea" },
+  { id_SubframeAllocationFurtherExtension, "id-SubframeAllocationFurtherExtension" },
+  { id_AdditionalConfigParameters, "id-AdditionalConfigParameters" },
   { 0, NULL }
 };
 
@@ -615,11 +617,9 @@ dissect_m2ap_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
                                                             0U, maxProtocolIEs, &ProtocolIE_ID, FALSE);
 
-#line 47 "./asn1/m2ap/m2ap.cnf"
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s", val_to_str_ext(ProtocolIE_ID, &m2ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
   }
-
   return offset;
 }
 
@@ -762,6 +762,38 @@ dissect_m2ap_PrivateIE_Container(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_m2ap_PrivateIE_Container, PrivateIE_Container_sequence_of,
                                                   1, maxPrivateIEs, FALSE);
+
+  return offset;
+}
+
+
+static const value_string m2ap_PMCH_Bandwidth_vals[] = {
+  {   0, "n40" },
+  {   1, "n35" },
+  {   2, "n30" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_m2ap_PMCH_Bandwidth(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     3, NULL, TRUE, 0, NULL);
+
+  return offset;
+}
+
+
+static const per_sequence_t AdditionalConfigParameters_sequence[] = {
+  { &hf_m2ap_pmch_Bandwidth , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_m2ap_PMCH_Bandwidth },
+  { &hf_m2ap_iE_Extensions  , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_m2ap_ProtocolExtensionContainer },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_m2ap_AdditionalConfigParameters(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_m2ap_AdditionalConfigParameters, AdditionalConfigParameters_sequence);
 
   return offset;
 }
@@ -977,7 +1009,6 @@ dissect_m2ap_Cause(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, prot
 
 static int
 dissect_m2ap_PLMN_Identity(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 70 "./asn1/m2ap/m2ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   struct m2ap_private_data *m2ap_data = m2ap_get_private_data(actx->pinfo);
   e212_number_type_t number_type = m2ap_data->number_type;
@@ -989,7 +1020,6 @@ dissect_m2ap_PLMN_Identity(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
     proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_m2ap_PLMN_Identity);
     dissect_e212_mcc_mnc(parameter_tvb, actx->pinfo, subtree, 0, number_type, FALSE);
   }
-
 
   return offset;
 }
@@ -1014,12 +1044,10 @@ static const per_sequence_t ECGI_sequence[] = {
 
 static int
 dissect_m2ap_ECGI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 82 "./asn1/m2ap/m2ap.cnf"
   struct m2ap_private_data *m2ap_data = m2ap_get_private_data(actx->pinfo);
   m2ap_data->number_type = E212_ECGI;
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_ECGI, ECGI_sequence);
-
 
 
 
@@ -1279,7 +1307,8 @@ dissect_m2ap_ENB_MBMS_M2AP_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_m2ap_ENBname(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_PrintableString(tvb, offset, actx, tree, hf_index,
-                                          1, 150, TRUE);
+                                          1, 150, TRUE,
+                                          NULL);
 
   return offset;
 }
@@ -1356,7 +1385,6 @@ dissect_m2ap_GTP_TEID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 
 static int
 dissect_m2ap_IPAddress(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 87 "./asn1/m2ap/m2ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        4, 16, FALSE, &parameter_tvb);
@@ -1377,7 +1405,6 @@ dissect_m2ap_IPAddress(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
         break;
       }
     }
-
 
   return offset;
 }
@@ -1764,11 +1791,146 @@ dissect_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea_Item(tvbuff_t *tvb _U_, int offs
 }
 
 
+static const value_string m2ap_T_repetitionPeriodExpanded_vals[] = {
+  {   0, "rf1" },
+  {   1, "rf2" },
+  {   2, "rf4" },
+  {   3, "rf8" },
+  {   4, "rf16" },
+  {   5, "rf32" },
+  {   6, "rf64" },
+  {   7, "rf128" },
+  {   8, "rf256" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_m2ap_T_repetitionPeriodExpanded(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     9, NULL, TRUE, 0, NULL);
+
+  return offset;
+}
+
+
+static const value_string m2ap_T_modificationPeriodExpanded_vals[] = {
+  {   0, "rf1" },
+  {   1, "rf2" },
+  {   2, "rf4" },
+  {   3, "rf8" },
+  {   4, "rf16" },
+  {   5, "rf32" },
+  {   6, "rf64" },
+  {   7, "rf128" },
+  {   8, "rf256" },
+  {   9, "rf512" },
+  {  10, "rf1024" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_m2ap_T_modificationPeriodExpanded(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     11, NULL, TRUE, 0, NULL);
+
+  return offset;
+}
+
+
+
+static int
+dissect_m2ap_BIT_STRING_SIZE_10(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
+                                     10, 10, FALSE, NULL, 0, NULL, NULL);
+
+  return offset;
+}
+
+
+static const value_string m2ap_T_modulationAndCodingScheme_01_vals[] = {
+  {   0, "n2" },
+  {   1, "n7" },
+  {   2, "n13" },
+  {   3, "n19" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_m2ap_T_modulationAndCodingScheme_01(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     4, NULL, FALSE, 0, NULL);
+
+  return offset;
+}
+
+
+static const value_string m2ap_T_subcarrier_SpacingMBMSExpanded_vals[] = {
+  {   0, "khz-7dot5" },
+  {   1, "khz-2dot5" },
+  {   2, "khz-1dot25" },
+  {   3, "khz-0dot37" },
+  {   4, "kHz-15" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_m2ap_T_subcarrier_SpacingMBMSExpanded(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     4, NULL, TRUE, 1, NULL);
+
+  return offset;
+}
+
+
+static const value_string m2ap_T_timeSeparation_vals[] = {
+  {   0, "sl2" },
+  {   1, "sl4" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_m2ap_T_timeSeparation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     2, NULL, TRUE, 0, NULL);
+
+  return offset;
+}
+
+
+static const per_sequence_t MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item_sequence[] = {
+  { &hf_m2ap_mbsfnArea      , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_m2ap_MBSFN_Area_ID },
+  { &hf_m2ap_repetitionPeriodExpanded, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_m2ap_T_repetitionPeriodExpanded },
+  { &hf_m2ap_offset         , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_m2ap_INTEGER_0_10 },
+  { &hf_m2ap_modificationPeriodExpanded, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_m2ap_T_modificationPeriodExpanded },
+  { &hf_m2ap_subframeAllocationInfoExpanded, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_m2ap_BIT_STRING_SIZE_10 },
+  { &hf_m2ap_modulationAndCodingScheme_01, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_m2ap_T_modulationAndCodingScheme_01 },
+  { &hf_m2ap_subcarrier_SpacingMBMSExpanded, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_m2ap_T_subcarrier_SpacingMBMSExpanded },
+  { &hf_m2ap_timeSeparation , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_m2ap_T_timeSeparation },
+  { &hf_m2ap_cellInformationList, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_m2ap_Cell_Information_List },
+  { &hf_m2ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_m2ap_ProtocolExtensionContainer },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item, MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item_sequence);
+
+  return offset;
+}
+
+
 
 static int
 dissect_m2ap_MCEname(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_PrintableString(tvb, offset, actx, tree, hf_index,
-                                          1, 150, TRUE);
+                                          1, 150, TRUE,
+                                          NULL);
 
   return offset;
 }
@@ -2013,6 +2175,30 @@ dissect_m2ap_SubframeAllocationExtended(tvbuff_t *tvb _U_, int offset _U_, asn1_
 }
 
 
+static const value_string m2ap_SubframeAllocationFurtherExtension_vals[] = {
+  {   0, "oneFrameFurtherExtension" },
+  {   1, "fourFrameFurtherExtension" },
+  {   2, "choice-extension" },
+  { 0, NULL }
+};
+
+static const per_choice_t SubframeAllocationFurtherExtension_choice[] = {
+  {   0, &hf_m2ap_oneFrameFurtherExtension, ASN1_EXTENSION_ROOT    , dissect_m2ap_BIT_STRING_SIZE_2 },
+  {   1, &hf_m2ap_fourFrameFurtherExtension, ASN1_EXTENSION_ROOT    , dissect_m2ap_BIT_STRING_SIZE_8 },
+  {   2, &hf_m2ap_choice_extension, ASN1_EXTENSION_ROOT    , dissect_m2ap_ProtocolIE_Single_Container },
+  { 0, NULL, 0, NULL }
+};
+
+static int
+dissect_m2ap_SubframeAllocationFurtherExtension(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_choice(tvb, offset, actx, tree, hf_index,
+                                 ett_m2ap_SubframeAllocationFurtherExtension, SubframeAllocationFurtherExtension_choice,
+                                 NULL);
+
+  return offset;
+}
+
+
 static const value_string m2ap_TimeToWait_vals[] = {
   {   0, "v1s" },
   {   1, "v2s" },
@@ -2057,9 +2243,7 @@ static const per_sequence_t SessionStartRequest_sequence[] = {
 
 static int
 dissect_m2ap_SessionStartRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 111 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Session Start Request");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_SessionStartRequest, SessionStartRequest_sequence);
 
@@ -2074,9 +2258,7 @@ static const per_sequence_t SessionStartResponse_sequence[] = {
 
 static int
 dissect_m2ap_SessionStartResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 113 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Session Start Response");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_SessionStartResponse, SessionStartResponse_sequence);
 
@@ -2091,9 +2273,7 @@ static const per_sequence_t SessionStartFailure_sequence[] = {
 
 static int
 dissect_m2ap_SessionStartFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 115 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Session Start Failure");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_SessionStartFailure, SessionStartFailure_sequence);
 
@@ -2108,9 +2288,7 @@ static const per_sequence_t SessionStopRequest_sequence[] = {
 
 static int
 dissect_m2ap_SessionStopRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 117 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Session Stop Request");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_SessionStopRequest, SessionStopRequest_sequence);
 
@@ -2125,9 +2303,7 @@ static const per_sequence_t SessionStopResponse_sequence[] = {
 
 static int
 dissect_m2ap_SessionStopResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 119 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Session Stop Response");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_SessionStopResponse, SessionStopResponse_sequence);
 
@@ -2142,9 +2318,7 @@ static const per_sequence_t SessionUpdateRequest_sequence[] = {
 
 static int
 dissect_m2ap_SessionUpdateRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 121 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Session Update Request");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_SessionUpdateRequest, SessionUpdateRequest_sequence);
 
@@ -2159,9 +2333,7 @@ static const per_sequence_t SessionUpdateResponse_sequence[] = {
 
 static int
 dissect_m2ap_SessionUpdateResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 123 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Session Update Response");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_SessionUpdateResponse, SessionUpdateResponse_sequence);
 
@@ -2176,9 +2348,7 @@ static const per_sequence_t SessionUpdateFailure_sequence[] = {
 
 static int
 dissect_m2ap_SessionUpdateFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 125 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Session Update Failure");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_SessionUpdateFailure, SessionUpdateFailure_sequence);
 
@@ -2193,9 +2363,7 @@ static const per_sequence_t MbmsSchedulingInformation_sequence[] = {
 
 static int
 dissect_m2ap_MbmsSchedulingInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 127 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Scheduling Information");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_MbmsSchedulingInformation, MbmsSchedulingInformation_sequence);
 
@@ -2298,9 +2466,7 @@ static const per_sequence_t MbmsSchedulingInformationResponse_sequence[] = {
 
 static int
 dissect_m2ap_MbmsSchedulingInformationResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 129 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Scheduling Information Response");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_MbmsSchedulingInformationResponse, MbmsSchedulingInformationResponse_sequence);
 
@@ -2315,9 +2481,7 @@ static const per_sequence_t M2SetupRequest_sequence[] = {
 
 static int
 dissect_m2ap_M2SetupRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 131 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "M2 Setup Request");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_M2SetupRequest, M2SetupRequest_sequence);
 
@@ -2346,9 +2510,7 @@ static const per_sequence_t M2SetupResponse_sequence[] = {
 
 static int
 dissect_m2ap_M2SetupResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 133 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "M2 Setup Response");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_M2SetupResponse, M2SetupResponse_sequence);
 
@@ -2370,6 +2532,20 @@ dissect_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea(tvbuff_t *tvb _U_, int offset _U
 }
 
 
+static const per_sequence_t MCCHrelatedBCCH_ExtConfigPerMBSFNArea_sequence_of[1] = {
+  { &hf_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_item, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_m2ap_ProtocolIE_Single_Container },
+};
+
+static int
+dissect_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
+                                                  ett_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea, MCCHrelatedBCCH_ExtConfigPerMBSFNArea_sequence_of,
+                                                  1, maxnoofMBSFNareas, FALSE);
+
+  return offset;
+}
+
+
 static const per_sequence_t M2SetupFailure_sequence[] = {
   { &hf_m2ap_protocolIEs    , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_m2ap_ProtocolIE_Container },
   { NULL, 0, 0, NULL }
@@ -2377,9 +2553,7 @@ static const per_sequence_t M2SetupFailure_sequence[] = {
 
 static int
 dissect_m2ap_M2SetupFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 135 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "M2 Setup Failure");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_M2SetupFailure, M2SetupFailure_sequence);
 
@@ -2394,9 +2568,7 @@ static const per_sequence_t ENBConfigurationUpdate_sequence[] = {
 
 static int
 dissect_m2ap_ENBConfigurationUpdate(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 137 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "eNB Configuration Update");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_ENBConfigurationUpdate, ENBConfigurationUpdate_sequence);
 
@@ -2425,9 +2597,7 @@ static const per_sequence_t ENBConfigurationUpdateAcknowledge_sequence[] = {
 
 static int
 dissect_m2ap_ENBConfigurationUpdateAcknowledge(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 139 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "eNB Configuration Update Acknowledge");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_ENBConfigurationUpdateAcknowledge, ENBConfigurationUpdateAcknowledge_sequence);
 
@@ -2442,9 +2612,7 @@ static const per_sequence_t ENBConfigurationUpdateFailure_sequence[] = {
 
 static int
 dissect_m2ap_ENBConfigurationUpdateFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 141 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "eNB Configuration Update Failure");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_ENBConfigurationUpdateFailure, ENBConfigurationUpdateFailure_sequence);
 
@@ -2459,9 +2627,7 @@ static const per_sequence_t MCEConfigurationUpdate_sequence[] = {
 
 static int
 dissect_m2ap_MCEConfigurationUpdate(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 143 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MCE Configuration Update");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_MCEConfigurationUpdate, MCEConfigurationUpdate_sequence);
 
@@ -2476,9 +2642,7 @@ static const per_sequence_t MCEConfigurationUpdateAcknowledge_sequence[] = {
 
 static int
 dissect_m2ap_MCEConfigurationUpdateAcknowledge(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 145 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MCE Configuration Update Acknowledge");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_MCEConfigurationUpdateAcknowledge, MCEConfigurationUpdateAcknowledge_sequence);
 
@@ -2493,9 +2657,7 @@ static const per_sequence_t MCEConfigurationUpdateFailure_sequence[] = {
 
 static int
 dissect_m2ap_MCEConfigurationUpdateFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 147 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MCE Configuration Update Failure");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_MCEConfigurationUpdateFailure, MCEConfigurationUpdateFailure_sequence);
 
@@ -2510,9 +2672,7 @@ static const per_sequence_t ErrorIndication_sequence[] = {
 
 static int
 dissect_m2ap_ErrorIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 149 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "Error Indication");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_ErrorIndication, ErrorIndication_sequence);
 
@@ -2527,9 +2687,7 @@ static const per_sequence_t Reset_sequence[] = {
 
 static int
 dissect_m2ap_Reset(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 151 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "Reset");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_Reset, Reset_sequence);
 
@@ -2595,9 +2753,7 @@ static const per_sequence_t ResetAcknowledge_sequence[] = {
 
 static int
 dissect_m2ap_ResetAcknowledge(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 153 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "Reset Acknowledge");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_ResetAcknowledge, ResetAcknowledge_sequence);
 
@@ -2626,9 +2782,7 @@ static const per_sequence_t PrivateMessage_sequence[] = {
 
 static int
 dissect_m2ap_PrivateMessage(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 155 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "Private Message");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_PrivateMessage, PrivateMessage_sequence);
 
@@ -2643,9 +2797,7 @@ static const per_sequence_t MbmsServiceCountingRequest_sequence[] = {
 
 static int
 dissect_m2ap_MbmsServiceCountingRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 157 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Service Counting Request");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_MbmsServiceCountingRequest, MbmsServiceCountingRequest_sequence);
 
@@ -2689,9 +2841,7 @@ static const per_sequence_t MbmsServiceCountingResponse_sequence[] = {
 
 static int
 dissect_m2ap_MbmsServiceCountingResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 159 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Service Counting Response");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_MbmsServiceCountingResponse, MbmsServiceCountingResponse_sequence);
 
@@ -2706,9 +2856,7 @@ static const per_sequence_t MbmsServiceCountingFailure_sequence[] = {
 
 static int
 dissect_m2ap_MbmsServiceCountingFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 161 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Service Counting Failure");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_MbmsServiceCountingFailure, MbmsServiceCountingFailure_sequence);
 
@@ -2723,9 +2871,7 @@ static const per_sequence_t MbmsServiceCountingResultsReport_sequence[] = {
 
 static int
 dissect_m2ap_MbmsServiceCountingResultsReport(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 163 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Service Counting Results Report");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_MbmsServiceCountingResultsReport, MbmsServiceCountingResultsReport_sequence);
 
@@ -2780,9 +2926,7 @@ static const per_sequence_t MbmsOverloadNotification_sequence[] = {
 
 static int
 dissect_m2ap_MbmsOverloadNotification(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 165 "./asn1/m2ap/m2ap.cnf"
   col_set_str(actx->pinfo->cinfo, COL_INFO, "MBMS Overload Notification");
-
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_m2ap_MbmsOverloadNotification, MbmsOverloadNotification_sequence);
@@ -2838,9 +2982,7 @@ dissect_m2ap_Active_MBMS_Session_List(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 
 static int
 dissect_m2ap_InitiatingMessage_value(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 59 "./asn1/m2ap/m2ap.cnf"
   message_type = INITIATING_MESSAGE;
-
 
   offset = dissect_per_open_type_pdu_new(tvb, offset, actx, tree, hf_index, dissect_InitiatingMessageValue);
 
@@ -2867,9 +3009,7 @@ dissect_m2ap_InitiatingMessage(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 
 static int
 dissect_m2ap_SuccessfulOutcome_value(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 63 "./asn1/m2ap/m2ap.cnf"
   message_type = SUCCESSFUL_OUTCOME;
-
 
   offset = dissect_per_open_type_pdu_new(tvb, offset, actx, tree, hf_index, dissect_SuccessfulOutcomeValue);
 
@@ -2896,9 +3036,7 @@ dissect_m2ap_SuccessfulOutcome(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 
 static int
 dissect_m2ap_UnsuccessfulOutcome_value(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 67 "./asn1/m2ap/m2ap.cnf"
   message_type = UNSUCCESSFUL_OUTCOME;
-
 
   offset = dissect_per_open_type_pdu_new(tvb, offset, actx, tree, hf_index, dissect_UnsuccessfulOutcomeValue);
 
@@ -2947,6 +3085,14 @@ dissect_m2ap_M2AP_PDU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 
 /*--- PDUs ---*/
 
+static int dissect_AdditionalConfigParameters_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_m2ap_AdditionalConfigParameters(tvb, offset, &asn1_ctx, tree, hf_m2ap_AdditionalConfigParameters_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
 static int dissect_Cause_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
@@ -3067,6 +3213,14 @@ static int dissect_MCCHrelatedBCCH_ConfigPerMBSFNArea_Item_PDU(tvbuff_t *tvb _U_
   offset += 7; offset >>= 3;
   return offset;
 }
+static int dissect_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item(tvb, offset, &asn1_ctx, tree, hf_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
 static int dissect_MCE_MBMS_M2AP_ID_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
@@ -3152,6 +3306,14 @@ static int dissect_SubframeAllocationExtended_PDU(tvbuff_t *tvb _U_, packet_info
   asn1_ctx_t asn1_ctx;
   asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
   offset = dissect_m2ap_SubframeAllocationExtended(tvb, offset, &asn1_ctx, tree, hf_m2ap_SubframeAllocationExtended_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
+static int dissect_SubframeAllocationFurtherExtension_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_m2ap_SubframeAllocationFurtherExtension(tvb, offset, &asn1_ctx, tree, hf_m2ap_SubframeAllocationFurtherExtension_PDU);
   offset += 7; offset >>= 3;
   return offset;
 }
@@ -3336,6 +3498,14 @@ static int dissect_MCCHrelatedBCCH_ConfigPerMBSFNArea_PDU(tvbuff_t *tvb _U_, pac
   asn1_ctx_t asn1_ctx;
   asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
   offset = dissect_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea(tvb, offset, &asn1_ctx, tree, hf_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea_PDU);
+  offset += 7; offset >>= 3;
+  return offset;
+}
+static int dissect_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  offset = dissect_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea(tvb, offset, &asn1_ctx, tree, hf_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_PDU);
   offset += 7; offset >>= 3;
   return offset;
 }
@@ -3557,9 +3727,6 @@ static int dissect_M2AP_PDU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto
 }
 
 
-/*--- End of included file: packet-m2ap-fn.c ---*/
-#line 93 "./asn1/m2ap/packet-m2ap-template.c"
-
 static int
 dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
@@ -3625,9 +3792,10 @@ proto_register_m2ap(void) {
          FT_IPv6, BASE_NONE, NULL, 0,
          NULL, HFILL }
     },
-
-/*--- Included file: packet-m2ap-hfarr.c ---*/
-#line 1 "./asn1/m2ap/packet-m2ap-hfarr.c"
+    { &hf_m2ap_AdditionalConfigParameters_PDU,
+      { "AdditionalConfigParameters", "m2ap.AdditionalConfigParameters_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
     { &hf_m2ap_Cause_PDU,
       { "Cause", "m2ap.Cause",
         FT_UINT32, BASE_DEC, VALS(m2ap_Cause_vals), 0,
@@ -3688,6 +3856,10 @@ proto_register_m2ap(void) {
       { "MCCHrelatedBCCH-ConfigPerMBSFNArea-Item", "m2ap.MCCHrelatedBCCH_ConfigPerMBSFNArea_Item_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
+    { &hf_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item_PDU,
+      { "MCCHrelatedBCCH-ExtConfigPerMBSFNArea-Item", "m2ap.MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
     { &hf_m2ap_MCE_MBMS_M2AP_ID_PDU,
       { "MCE-MBMS-M2AP-ID", "m2ap.MCE_MBMS_M2AP_ID",
         FT_UINT32, BASE_DEC, NULL, 0,
@@ -3731,6 +3903,10 @@ proto_register_m2ap(void) {
     { &hf_m2ap_SubframeAllocationExtended_PDU,
       { "SubframeAllocationExtended", "m2ap.SubframeAllocationExtended",
         FT_UINT32, BASE_DEC, VALS(m2ap_SubframeAllocationExtended_vals), 0,
+        NULL, HFILL }},
+    { &hf_m2ap_SubframeAllocationFurtherExtension_PDU,
+      { "SubframeAllocationFurtherExtension", "m2ap.SubframeAllocationFurtherExtension",
+        FT_UINT32, BASE_DEC, VALS(m2ap_SubframeAllocationFurtherExtension_vals), 0,
         NULL, HFILL }},
     { &hf_m2ap_TimeToWait_PDU,
       { "TimeToWait", "m2ap.TimeToWait",
@@ -3822,6 +3998,10 @@ proto_register_m2ap(void) {
         NULL, HFILL }},
     { &hf_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea_PDU,
       { "MCCHrelatedBCCH-ConfigPerMBSFNArea", "m2ap.MCCHrelatedBCCH_ConfigPerMBSFNArea",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        NULL, HFILL }},
+    { &hf_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_PDU,
+      { "MCCHrelatedBCCH-ExtConfigPerMBSFNArea", "m2ap.MCCHrelatedBCCH_ExtConfigPerMBSFNArea",
         FT_UINT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
     { &hf_m2ap_M2SetupFailure_PDU,
@@ -3980,6 +4160,14 @@ proto_register_m2ap(void) {
       { "value", "m2ap.value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "T_private_value", HFILL }},
+    { &hf_m2ap_pmch_Bandwidth,
+      { "pmch-Bandwidth", "m2ap.pmch_Bandwidth",
+        FT_UINT32, BASE_DEC, VALS(m2ap_PMCH_Bandwidth_vals), 0,
+        NULL, HFILL }},
+    { &hf_m2ap_iE_Extensions,
+      { "iE-Extensions", "m2ap.iE_Extensions",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "ProtocolExtensionContainer", HFILL }},
     { &hf_m2ap_priorityLevel,
       { "priorityLevel", "m2ap.priorityLevel",
         FT_UINT32, BASE_DEC, VALS(m2ap_PriorityLevel_vals), 0,
@@ -3992,10 +4180,6 @@ proto_register_m2ap(void) {
       { "pre-emptionVulnerability", "m2ap.pre_emptionVulnerability",
         FT_UINT32, BASE_DEC, VALS(m2ap_Pre_emptionVulnerability_vals), 0,
         NULL, HFILL }},
-    { &hf_m2ap_iE_Extensions,
-      { "iE-Extensions", "m2ap.iE_Extensions",
-        FT_UINT32, BASE_DEC, NULL, 0,
-        "ProtocolExtensionContainer", HFILL }},
     { &hf_m2ap_radioNetwork,
       { "radioNetwork", "m2ap.radioNetwork",
         FT_UINT32, BASE_DEC, VALS(m2ap_CauseRadioNetwork_vals), 0,
@@ -4204,6 +4388,30 @@ proto_register_m2ap(void) {
       { "cellInformationList", "m2ap.cellInformationList",
         FT_UINT32, BASE_DEC, NULL, 0,
         "Cell_Information_List", HFILL }},
+    { &hf_m2ap_repetitionPeriodExpanded,
+      { "repetitionPeriodExpanded", "m2ap.repetitionPeriodExpanded",
+        FT_UINT32, BASE_DEC, VALS(m2ap_T_repetitionPeriodExpanded_vals), 0,
+        NULL, HFILL }},
+    { &hf_m2ap_modificationPeriodExpanded,
+      { "modificationPeriodExpanded", "m2ap.modificationPeriodExpanded",
+        FT_UINT32, BASE_DEC, VALS(m2ap_T_modificationPeriodExpanded_vals), 0,
+        NULL, HFILL }},
+    { &hf_m2ap_subframeAllocationInfoExpanded,
+      { "subframeAllocationInfoExpanded", "m2ap.subframeAllocationInfoExpanded",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "BIT_STRING_SIZE_10", HFILL }},
+    { &hf_m2ap_modulationAndCodingScheme_01,
+      { "modulationAndCodingScheme", "m2ap.modulationAndCodingScheme",
+        FT_UINT32, BASE_DEC, VALS(m2ap_T_modulationAndCodingScheme_01_vals), 0,
+        "T_modulationAndCodingScheme_01", HFILL }},
+    { &hf_m2ap_subcarrier_SpacingMBMSExpanded,
+      { "subcarrier-SpacingMBMSExpanded", "m2ap.subcarrier_SpacingMBMSExpanded",
+        FT_UINT32, BASE_DEC, VALS(m2ap_T_subcarrier_SpacingMBMSExpanded_vals), 0,
+        NULL, HFILL }},
+    { &hf_m2ap_timeSeparation,
+      { "timeSeparation", "m2ap.timeSeparation",
+        FT_UINT32, BASE_DEC, VALS(m2ap_T_timeSeparation_vals), 0,
+        NULL, HFILL }},
     { &hf_m2ap_allocatedSubframesEnd,
       { "allocatedSubframesEnd", "m2ap.allocatedSubframesEnd",
         FT_UINT32, BASE_DEC, NULL, 0,
@@ -4236,6 +4444,14 @@ proto_register_m2ap(void) {
       { "choice-extension", "m2ap.choice_extension_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "ProtocolIE_Single_Container", HFILL }},
+    { &hf_m2ap_oneFrameFurtherExtension,
+      { "oneFrameFurtherExtension", "m2ap.oneFrameFurtherExtension",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "BIT_STRING_SIZE_2", HFILL }},
+    { &hf_m2ap_fourFrameFurtherExtension,
+      { "fourFrameFurtherExtension", "m2ap.fourFrameFurtherExtension",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "BIT_STRING_SIZE_8", HFILL }},
     { &hf_m2ap_pLMNidentity,
       { "pLMNidentity", "m2ap.pLMNidentity",
         FT_BYTES, BASE_NONE, NULL, 0,
@@ -4297,6 +4513,10 @@ proto_register_m2ap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea_item,
+      { "ProtocolIE-Single-Container", "m2ap.ProtocolIE_Single_Container_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_item,
       { "ProtocolIE-Single-Container", "m2ap.ProtocolIE_Single_Container_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
@@ -4368,9 +4588,6 @@ proto_register_m2ap(void) {
       { "value", "m2ap.value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "UnsuccessfulOutcome_value", HFILL }},
-
-/*--- End of included file: packet-m2ap-hfarr.c ---*/
-#line 160 "./asn1/m2ap/packet-m2ap-template.c"
   };
 
   /* List of subtrees */
@@ -4378,9 +4595,6 @@ proto_register_m2ap(void) {
     &ett_m2ap,
     &ett_m2ap_PLMN_Identity,
     &ett_m2ap_IPAddress,
-
-/*--- Included file: packet-m2ap-ettarr.c ---*/
-#line 1 "./asn1/m2ap/packet-m2ap-ettarr.c"
     &ett_m2ap_PrivateIE_ID,
     &ett_m2ap_ProtocolIE_Container,
     &ett_m2ap_ProtocolIE_Field,
@@ -4388,6 +4602,7 @@ proto_register_m2ap(void) {
     &ett_m2ap_ProtocolExtensionField,
     &ett_m2ap_PrivateIE_Container,
     &ett_m2ap_PrivateIE_Field,
+    &ett_m2ap_AdditionalConfigParameters,
     &ett_m2ap_AllocationAndRetentionPriority,
     &ett_m2ap_Cause,
     &ett_m2ap_Cell_Information,
@@ -4413,9 +4628,11 @@ proto_register_m2ap(void) {
     &ett_m2ap_MBSFN_Subframe_Configuration,
     &ett_m2ap_T_subframeAllocation,
     &ett_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea_Item,
+    &ett_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item,
     &ett_m2ap_PMCH_Configuration,
     &ett_m2ap_SC_PTM_Information,
     &ett_m2ap_SubframeAllocationExtended,
+    &ett_m2ap_SubframeAllocationFurtherExtension,
     &ett_m2ap_TMGI,
     &ett_m2ap_TNL_Information,
     &ett_m2ap_SessionStartRequest,
@@ -4438,6 +4655,7 @@ proto_register_m2ap(void) {
     &ett_m2ap_ENB_MBMS_Configuration_data_List,
     &ett_m2ap_M2SetupResponse,
     &ett_m2ap_MCCHrelatedBCCH_ConfigPerMBSFNArea,
+    &ett_m2ap_MCCHrelatedBCCH_ExtConfigPerMBSFNArea,
     &ett_m2ap_M2SetupFailure,
     &ett_m2ap_ENBConfigurationUpdate,
     &ett_m2ap_ENB_MBMS_Configuration_data_List_ConfigUpdate,
@@ -4468,9 +4686,6 @@ proto_register_m2ap(void) {
     &ett_m2ap_InitiatingMessage,
     &ett_m2ap_SuccessfulOutcome,
     &ett_m2ap_UnsuccessfulOutcome,
-
-/*--- End of included file: packet-m2ap-ettarr.c ---*/
-#line 168 "./asn1/m2ap/packet-m2ap-template.c"
   };
 
   expert_module_t* expert_m2ap;
@@ -4502,9 +4717,6 @@ proto_reg_handoff_m2ap(void)
 {
   dissector_add_uint("sctp.ppi", PROTO_3GPP_M2AP_PROTOCOL_ID, m2ap_handle);
   dissector_add_uint("sctp.port", M2AP_PORT, m2ap_handle);
-
-/*--- Included file: packet-m2ap-dis-tab.c ---*/
-#line 1 "./asn1/m2ap/packet-m2ap-dis-tab.c"
   dissector_add_uint("m2ap.ies", id_MCE_MBMS_M2AP_ID, create_dissector_handle(dissect_MCE_MBMS_M2AP_ID_PDU, proto_m2ap));
   dissector_add_uint("m2ap.ies", id_ENB_MBMS_M2AP_ID, create_dissector_handle(dissect_ENB_MBMS_M2AP_ID_PDU, proto_m2ap));
   dissector_add_uint("m2ap.ies", id_TMGI, create_dissector_handle(dissect_TMGI_PDU, proto_m2ap));
@@ -4546,6 +4758,8 @@ proto_reg_handoff_m2ap(void)
   dissector_add_uint("m2ap.ies", id_MBMS_Suspension_Notification_List, create_dissector_handle(dissect_MBMS_Suspension_Notification_List_PDU, proto_m2ap));
   dissector_add_uint("m2ap.ies", id_MBMS_Suspension_Notification_Item, create_dissector_handle(dissect_MBMS_Suspension_Notification_Item_PDU, proto_m2ap));
   dissector_add_uint("m2ap.ies", id_SC_PTM_Information, create_dissector_handle(dissect_SC_PTM_Information_PDU, proto_m2ap));
+  dissector_add_uint("m2ap.ies", id_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item, create_dissector_handle(dissect_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_Item_PDU, proto_m2ap));
+  dissector_add_uint("m2ap.ies", id_MCCHrelatedBCCH_ExtConfigPerMBSFNArea, create_dissector_handle(dissect_MCCHrelatedBCCH_ExtConfigPerMBSFNArea_PDU, proto_m2ap));
   dissector_add_uint("m2ap.extension", id_Modulation_Coding_Scheme2, create_dissector_handle(dissect_Modulation_Coding_Scheme2_PDU, proto_m2ap));
   dissector_add_uint("m2ap.extension", id_MCH_Scheduling_PeriodExtended, create_dissector_handle(dissect_MCH_Scheduling_PeriodExtended_PDU, proto_m2ap));
   dissector_add_uint("m2ap.extension", id_Repetition_PeriodExtended, create_dissector_handle(dissect_Repetition_PeriodExtended_PDU, proto_m2ap));
@@ -4553,6 +4767,8 @@ proto_reg_handoff_m2ap(void)
   dissector_add_uint("m2ap.extension", id_MCH_Scheduling_PeriodExtended2, create_dissector_handle(dissect_MCH_Scheduling_PeriodExtended2_PDU, proto_m2ap));
   dissector_add_uint("m2ap.extension", id_SubframeAllocationExtended, create_dissector_handle(dissect_SubframeAllocationExtended_PDU, proto_m2ap));
   dissector_add_uint("m2ap.extension", id_Subcarrier_SpacingMBMS, create_dissector_handle(dissect_Subcarrier_SpacingMBMS_PDU, proto_m2ap));
+  dissector_add_uint("m2ap.extension", id_SubframeAllocationFurtherExtension, create_dissector_handle(dissect_SubframeAllocationFurtherExtension_PDU, proto_m2ap));
+  dissector_add_uint("m2ap.extension", id_AdditionalConfigParameters, create_dissector_handle(dissect_AdditionalConfigParameters_PDU, proto_m2ap));
   dissector_add_uint("m2ap.proc.imsg", id_sessionStart, create_dissector_handle(dissect_SessionStartRequest_PDU, proto_m2ap));
   dissector_add_uint("m2ap.proc.sout", id_sessionStart, create_dissector_handle(dissect_SessionStartResponse_PDU, proto_m2ap));
   dissector_add_uint("m2ap.proc.uout", id_sessionStart, create_dissector_handle(dissect_SessionStartFailure_PDU, proto_m2ap));
@@ -4582,7 +4798,4 @@ proto_reg_handoff_m2ap(void)
   dissector_add_uint("m2ap.proc.imsg", id_mbmsServiceCountingResultsReport, create_dissector_handle(dissect_MbmsServiceCountingResultsReport_PDU, proto_m2ap));
   dissector_add_uint("m2ap.proc.imsg", id_mbmsOverloadNotification, create_dissector_handle(dissect_MbmsOverloadNotification_PDU, proto_m2ap));
 
-
-/*--- End of included file: packet-m2ap-dis-tab.c ---*/
-#line 200 "./asn1/m2ap/packet-m2ap-template.c"
 }

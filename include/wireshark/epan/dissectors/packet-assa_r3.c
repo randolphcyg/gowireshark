@@ -4351,25 +4351,25 @@ dissect_r3_upstreammfgfield_cpuregisters (tvbuff_t *tvb, guint32 start_offset, g
 
   cr_tree = proto_tree_add_subtree(tree, tvb, start_offset, -1, ett_r3cpuregisters, NULL, "CPU Registers");
 
-  tmp_tree [ 0] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_intcon,  tvb,  0, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [ 1] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_intcon2, tvb,  1, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [ 2] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_intcon3, tvb,  2, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [ 3] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_pir1,    tvb,  3, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [ 4] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_pir2,    tvb,  4, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [ 5] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_pir3,    tvb,  5, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [ 6] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_pie1,    tvb,  6, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [ 7] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_pie2,    tvb,  7, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [ 8] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_pie3,    tvb,  8, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [ 9] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_ipr1,    tvb,  9, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [10] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_ipr2,    tvb, 10, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [11] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_ipr3,    tvb, 11, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [12] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_rcon,    tvb, 12, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [13] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_osccon,  tvb, 13, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [14] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_rcsta,   tvb, 14, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [15] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_txsta,   tvb, 15, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [16] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_rcsta2,  tvb, 16, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [17] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_txsta2,  tvb, 17, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
-  tmp_tree [18] = proto_item_add_subtree (proto_tree_add_item (cr_tree, hf_r3_cpuregisters_wdtcon,  tvb, 18, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [ 0] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_intcon,  tvb,  0, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [ 1] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_intcon2, tvb,  1, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [ 2] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_intcon3, tvb,  2, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [ 3] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_pir1,    tvb,  3, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [ 4] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_pir2,    tvb,  4, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [ 5] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_pir3,    tvb,  5, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [ 6] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_pie1,    tvb,  6, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [ 7] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_pie2,    tvb,  7, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [ 8] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_pie3,    tvb,  8, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [ 9] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_ipr1,    tvb,  9, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [10] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_ipr2,    tvb, 10, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [11] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_ipr3,    tvb, 11, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [12] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_rcon,    tvb, 12, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [13] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_osccon,  tvb, 13, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [14] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_rcsta,   tvb, 14, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [15] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_txsta,   tvb, 15, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [16] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_rcsta2,  tvb, 16, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [17] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_txsta2,  tvb, 17, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
+  tmp_tree [18] = proto_item_add_subtree (proto_tree_add_item(cr_tree, hf_r3_cpuregisters_wdtcon,  tvb, 18, 1, ENC_LITTLE_ENDIAN), ett_r3cpuregister);
 
   proto_tree_add_item (tmp_tree [ 0], hf_r3_cpuregisters_intcon_rbif,     tvb,  0, 1, ENC_LITTLE_ENDIAN);
   proto_tree_add_item (tmp_tree [ 0], hf_r3_cpuregisters_intcon_int0if,   tvb,  0, 1, ENC_LITTLE_ENDIAN);
@@ -7618,37 +7618,37 @@ void proto_register_r3 (void)
       },
       { &hf_r3_definetimezone_daymap0,
         { "Sunday", "r3.definetimezone.daymap.sunday",
-          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x00000001,
+          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x01,
           NULL, HFILL }
       },
       { &hf_r3_definetimezone_daymap1,
         { "Monday", "r3.definetimezone.daymap.monday",
-          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x00000002,
+          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x02,
           NULL, HFILL }
       },
       { &hf_r3_definetimezone_daymap2,
         { "Tuesday", "r3.definetimezone.daymap.tuesday",
-          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x00000004,
+          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x04,
           NULL, HFILL }
       },
       { &hf_r3_definetimezone_daymap3,
         { "Wednesday", "r3.definetimezone.daymap.wednesday",
-          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x00000008,
+          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x08,
           NULL, HFILL }
       },
       { &hf_r3_definetimezone_daymap4,
         { "Thursday", "r3.definetimezone.daymap.thursday",
-          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x00000010,
+          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x10,
           NULL, HFILL }
       },
       { &hf_r3_definetimezone_daymap5,
         { "Friday", "r3.definetimezone.daymap.friday",
-          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x00000020,
+          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x20,
           NULL, HFILL }
       },
       { &hf_r3_definetimezone_daymap6,
         { "Saturday", "r3.definetimezone.daymap.saturday",
-          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x00000040,
+          FT_BOOLEAN, 8, TFS (&tfs_enabled_disabled), 0x40,
           NULL, HFILL }
       },
       { &hf_r3_definetimezone_exceptiongroup,
@@ -7843,82 +7843,82 @@ void proto_register_r3 (void)
       },
       { &hf_r3_nvramclearoptions0,
         { "NVRAMCLEAROPTIONS_CFGINSTALLER", "r3.nvramclear.cfginstaller",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000001,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0001,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions1,
         { "NVRAMCLEAROPTIONS_CFGADMIN", "r3.nvramclear.cfgadmin",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000002,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0002,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions2,
         { "NVRAMCLEAROPTIONS_EXCEPTIONS", "r3.nvramclear.exceptions",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000004,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0004,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions3,
         { "NVRAMCLEAROPTIONS_EXCEPTIONGROUPS", "r3.nvramclear.exceptiongroups",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000008,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0008,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions4,
         { "NVRAMCLEAROPTIONS_CALENDARS", "r3.nvramclear.calendars",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000010,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0010,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions5,
         { "NVRAMCLEAROPTIONS_TIMEZONES", "r3.nvramclear.timezones",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000020,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0020,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions6,
         { "NVRAMCLEAROPTIONS_FILTERS", "r3.nvramclear.filters",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000040,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0040,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions7,
         { "NVRAMCLEAROPTIONS_EVENTLOG", "r3.nvramclear.eventlog",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000080,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0080,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions8,
         { "NVRAMCLEAROPTIONS_USERDATA", "r3.nvramclear.userdata",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000100,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0100,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions9,
         { "NVRAMCLEAROPTIONS_DECLINEDLOG", "r3.nvramclear.declinedlog",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000200,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0200,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions10,
         { "NVRAMCLEAROPTIONS_ALARMLOG", "r3.nvramclear.alarmlog",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000400,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0400,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions11,
         { "NVRAMCLEAROPTIONS_LRUCACHE", "r3.nvramclear.lrucache",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00000800,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x0800,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions12,
         { "NVRAMCLEAROPTIONS_DBHASH", "r3.nvramclear.dbhash",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00001000,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x1000,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions13,
         { "NVRAMCLEAROPTIONS_CFGSYSTEM", "r3.nvramclear.cfgsystem",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00002000,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x2000,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions14,
         { "NVRAMCLEAROPTIONS_UNUSED", "r3.nvramclear.unused",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00004000,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x4000,
           NULL, HFILL }
       },
       { &hf_r3_nvramclearoptions15,
         { "NVRAMCLEAROPTIONS_USEBACKUP", "r3.nvramclear.usebackup",
-          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x00008000,
+          FT_BOOLEAN, 16, TFS (&tfs_enabled_disabled), 0x8000,
           NULL, HFILL }
       },
 
@@ -8171,22 +8171,22 @@ void proto_register_r3 (void)
 
       { &hf_r3_mortisepins_s1,
         { "Mortise Pin S1", "r3.mortisepins.s1",
-          FT_BOOLEAN, 8, TFS (&tfs_high_low), 0x00000001,
+          FT_BOOLEAN, 8, TFS (&tfs_high_low), 0x01,
           NULL, HFILL }
       },
       { &hf_r3_mortisepins_s2,
         { "Mortise Pin S2", "r3.mortisepins.s2",
-          FT_BOOLEAN, 8, TFS (&tfs_high_low), 0x00000002,
+          FT_BOOLEAN, 8, TFS (&tfs_high_low), 0x02,
           NULL, HFILL }
       },
       { &hf_r3_mortisepins_s3,
         { "Mortise Pin S3", "r3.mortisepins.s3",
-          FT_BOOLEAN, 8, TFS (&tfs_high_low), 0x00000004,
+          FT_BOOLEAN, 8, TFS (&tfs_high_low), 0x04,
           NULL, HFILL }
       },
       { &hf_r3_mortisepins_s4,
         { "Mortise Pin S4", "r3.mortisepins.s4",
-          FT_BOOLEAN, 8, TFS (&tfs_high_low), 0x00000008,
+          FT_BOOLEAN, 8, TFS (&tfs_high_low), 0x08,
           NULL, HFILL }
       },
 
@@ -8285,7 +8285,7 @@ void proto_register_r3 (void)
 
       { &hf_r3_firmwaredownload_length,
         { "Length", "r3.firmwaredownload.length",
-          FT_UINT8, BASE_HEX_DEC, NULL, 0x0,
+          FT_UINT16, BASE_HEX_DEC, NULL, 0x0,
           NULL, HFILL }
       },
       { &hf_r3_firmwaredownload_record,
@@ -8374,112 +8374,112 @@ void proto_register_r3 (void)
 
       { &hf_r3_lockstate_passage,
         { "Passage", "r3.lockstate.passage",
-          FT_BOOLEAN, 24, NULL, 0x00000001,
+          FT_BOOLEAN, 24, NULL, 0x000001,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_panic,
         { "Panic", "r3.lockstate.panic",
-          FT_BOOLEAN, 24, NULL, 0x00000002,
+          FT_BOOLEAN, 24, NULL, 0x000002,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_lockout,
         { "Lockout", "r3.lockstate.lockout",
-          FT_BOOLEAN, 24, NULL, 0x00000004,
+          FT_BOOLEAN, 24, NULL, 0x000004,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_relock,
         { "Relock", "r3.lockstate.relock",
-          FT_BOOLEAN, 24, NULL, 0x00000008,
+          FT_BOOLEAN, 24, NULL, 0x000008,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_autoopen,
         { "Auto Open", "r3.lockstate.autoopen",
-          FT_BOOLEAN, 24, NULL, 0x00000010,
+          FT_BOOLEAN, 24, NULL, 0x000010,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_nextauto,
         { "Next Auto", "r3.lockstate.nextauto",
-          FT_BOOLEAN, 24, NULL, 0x00000020,
+          FT_BOOLEAN, 24, NULL, 0x000020,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_lockstate,
         { "Lock State", "r3.lockstate.lockstate",
-          FT_BOOLEAN, 24, NULL, 0x00000040,
+          FT_BOOLEAN, 24, NULL, 0x000040,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_wantstate,
         { "Want State", "r3.lockstate.wantstate",
-          FT_BOOLEAN, 24, NULL, 0x00000080,
+          FT_BOOLEAN, 24, NULL, 0x000080,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_remote,
         { "Remote", "r3.lockstate.remote",
-          FT_BOOLEAN, 24, NULL, 0x00000100,
+          FT_BOOLEAN, 24, NULL, 0x000100,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_update,
         { "Update", "r3.lockstate.update",
-          FT_BOOLEAN, 24, NULL, 0x00000200,
+          FT_BOOLEAN, 24, NULL, 0x000200,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_exceptionspresent,
         { "Exceptions Present", "r3.lockstate.exceptionspresent",
-          FT_BOOLEAN, 24, NULL, 0x00000400,
+          FT_BOOLEAN, 24, NULL, 0x000400,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_exceptionsactive,
         { "Exceptions Active", "r3.lockstate.exceptionsactive",
-          FT_BOOLEAN, 24, NULL, 0x00000800,
+          FT_BOOLEAN, 24, NULL, 0x000800,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_timezonespresent,
         { "Timezones Presents", "r3.lockstate.timezonespresent",
-          FT_BOOLEAN, 24, NULL, 0x00001000,
+          FT_BOOLEAN, 24, NULL, 0x001000,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_timezonesactive,
         { "Timezones Active", "r3.lockstate.timezonesactive",
-          FT_BOOLEAN, 24, NULL, 0x00002000,
+          FT_BOOLEAN, 24, NULL, 0x002000,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_autounlockspresent,
         { "Auto Unlocks Present", "r3.lockstate.autounlockspresent",
-          FT_BOOLEAN, 24, NULL, 0x00004000,
+          FT_BOOLEAN, 24, NULL, 0x004000,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_autounlocksactive,
         { "Auto Unlocks Active", "r3.lockstate.autounlocksactive",
-          FT_BOOLEAN, 24, NULL, 0x00008000,
+          FT_BOOLEAN, 24, NULL, 0x008000,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_uapmspresent,
         { "UAPMs Present", "r3.lockstate.uapmspresent",
-          FT_BOOLEAN, 24, NULL, 0x00010000,
+          FT_BOOLEAN, 24, NULL, 0x010000,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_uapmsactive,
         { "UAPMs Active", "r3.lockstate.uapmsactive",
-          FT_BOOLEAN, 24, NULL, 0x00020000,
+          FT_BOOLEAN, 24, NULL, 0x020000,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_uapmrelockspresent,
         { "UAPM Relocks Present", "r3.lockstate.uapmrelockspresent",
-          FT_BOOLEAN, 24, NULL, 0x00040000,
+          FT_BOOLEAN, 24, NULL, 0x040000,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_uapmreslocksactive,
         { "UAPM Relocks Active", "r3.lockstate.uapmreslocksactive",
-          FT_BOOLEAN, 24, NULL, 0x00080000,
+          FT_BOOLEAN, 24, NULL, 0x080000,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_nvramprotect,
         { "NVRAM Protect", "r3.lockstate.nvramprotect",
-          FT_BOOLEAN, 24, NULL, 0x00100000,
+          FT_BOOLEAN, 24, NULL, 0x100000,
           NULL, HFILL }
       },
       { &hf_r3_lockstate_nvramchecksum,
         { "MVRAM Checksum", "r3.lockstate.nvramchecksum",
-          FT_BOOLEAN, 24, NULL, 0x00200000,
+          FT_BOOLEAN, 24, NULL, 0x200000,
           NULL, HFILL }
       },
 
@@ -8502,7 +8502,7 @@ void proto_register_r3 (void)
       },
       { &hf_r3_mortisestatelog_waiting,
         { "Waiting For Door Closed", "r3.mortisestatelog.waiting",
-          FT_BOOLEAN, BASE_NONE, TFS (&tfs_true_false ), 0x00,
+          FT_BOOLEAN, BASE_NONE, NULL, 0x00,
           NULL, HFILL }
       },
       { &hf_r3_mortisestatelog_state,

@@ -58,7 +58,6 @@
 #include <wsutil/curve25519.h>
 #include <wsutil/pint.h>
 #include <wsutil/wslog.h>
-#include <ui/version_info.h>
 #include <epan/secrets.h>
 #include <wiretap/secrets-types.h>
 
@@ -215,6 +214,11 @@ struct ssh_flow_data {
     ssh_bignum      new_keys[6];
     ssh_channel_info_t *channel_info;
 };
+
+typedef struct {
+    gchar      *type;
+    ssh_bignum *key_material;
+} ssh_key_map_entry_t;
 
 static GHashTable * ssh_master_key_map = NULL;
 
@@ -1145,7 +1149,7 @@ ssh_tree_add_hostsignature(tvbuff_t *tvb, packet_info *pinfo, int offset, proto_
     }
 
     if(offset-offset0!=(int)(4+sig_len)){
-        expert_add_info_format(pinfo, ti, &ei_ssh_packet_decode, "Decoded %d bytes, but packet legnth is %d bytes", offset-offset0, sig_len);
+        expert_add_info_format(pinfo, ti, &ei_ssh_packet_decode, "Decoded %d bytes, but packet length is %d bytes", offset-offset0, sig_len);
     }
 
     return 4+sig_len;
@@ -1919,6 +1923,7 @@ ssh_keylog_read_file(void)
     if (ssh_keylog_file && file_needs_reopen(ws_fileno(ssh_keylog_file),
                 pref_keylog_file)) {
         ssh_keylog_reset();
+        g_hash_table_remove_all(ssh_master_key_map);
     }
 
     if (!ssh_keylog_file) {
@@ -1930,10 +1935,13 @@ ssh_keylog_read_file(void)
         }
     }
 
-    /* File format: each line follows the format "<cookie> <key>".
+    /* File format: each line follows the format "<cookie> <type> <key>".
      * <cookie> is the hex-encoded (client or server) 16 bytes cookie
      * (32 characters) found in the SSH_MSG_KEXINIT of the endpoint whose
      * private random is disclosed.
+     * <type> is either SHARED_SECRET or PRIVATE_KEY depending on the
+     * type of key provided. PRIVAT_KEY is only supported for DH,
+     * DH group exchange, and ECDH (including Curve25519) key exchanges.
      * <key> is the private random number that is used to generate the DH
      * negotiation (length depends on algorithm). In RFC4253 it is called
      * x for the client and y for the server.
@@ -1942,10 +1950,11 @@ ssh_keylog_read_file(void)
      * for groupN in file kexdh.c function kex_dh_compute_key
      * for custom group in file kexgexs.c function input_kex_dh_gex_init
      * For openssh and curve25519, it can be found in function kex_c25519_enc
-     * in variable server_key.
+     * in variable server_key. One may also provide the shared secret
+     * directly if <type> is set to SHARED_SECRET.
      *
      * Example:
-     *  90d886612f9c35903db5bb30d11f23c2 DEF830C22F6C927E31972FFB20B46C96D0A5F2D5E7BE5A3A8804D6BFC431619ED10AF589EEDFF4750DEA00EFD7AFDB814B6F3528729692B1F2482041521AE9DC
+     *  90d886612f9c35903db5bb30d11f23c2 PRIVATE_KEY DEF830C22F6C927E31972FFB20B46C96D0A5F2D5E7BE5A3A8804D6BFC431619ED10AF589EEDFF4750DEA00EFD7AFDB814B6F3528729692B1F2482041521AE9DC
      */
     for (;;) {
         char buf[512];
@@ -1955,6 +1964,7 @@ ssh_keylog_read_file(void)
             if (ferror(ssh_keylog_file)) {
                 ws_debug("Error while reading %s, closing it.", pref_keylog_file);
                 ssh_keylog_reset();
+                g_hash_table_remove_all(ssh_master_key_map);
             }
             break;
         }
@@ -1999,19 +2009,26 @@ ssh_keylog_process_line(const char *line)
 {
     ws_noisy("ssh: process line: %s", line);
 
-    gchar **split = g_strsplit(line, " ", 2);
-    gchar *cookie, *key;
+    gchar **split = g_strsplit(line, " ", 3);
+    gchar *cookie, *type, *key;
     size_t cookie_len, key_len;
 
-    if (g_strv_length(split) != 2) {
+    if (g_strv_length(split) == 3) {
+        // New format: [hex-encoded cookie] [key type] [hex-encoded key material]
+        cookie = split[0];
+        type = split[1];
+        key = split[2];
+    } else if (g_strv_length(split) == 2) {
+        // Old format: [hex-encoded cookie] [hex-encoded private key]
+        ws_debug("ssh keylog: detected old keylog format without explicit key type");
+        type = "PRIVATE_KEY";
+        cookie = split[0];
+        key = split[1];
+    } else {
         ws_debug("ssh keylog: invalid format");
         g_strfreev(split);
         return;
     }
-
-// [cookie of corresponding key] [key]
-    cookie = split[0];
-    key = split[1];
 
     key_len = strlen(key);
     cookie_len = strlen(cookie);
@@ -2044,7 +2061,6 @@ ssh_keylog_process_line(const char *line)
 
         bn_priv->data[i] = c;
     }
-
     for (size_t i = 0; i < cookie_len/2; i ++) {
         gchar v0 = cookie[i * 2];
         gint8 h0 = (v0>='0' && v0<='9')?v0-'0':(v0>='a' && v0<='f')?v0-'a'+10:(v0>='A' && v0<='F')?v0-'A'+10:-1;
@@ -2061,8 +2077,18 @@ ssh_keylog_process_line(const char *line)
 
         bn_cookie->data[i] = c;
     }
+    ssh_bignum * bn_priv_ht = g_new(ssh_bignum, 1);
+    bn_priv_ht->length = bn_priv->length;
+    bn_priv_ht->data = (guint8 *) g_memdup2(bn_priv->data, bn_priv->length);
+    ssh_bignum * bn_cookie_ht = g_new(ssh_bignum, 1);
+    bn_cookie_ht->length = bn_cookie->length;
+    bn_cookie_ht->data = (guint8 *) g_memdup2(bn_cookie->data, bn_cookie->length);
 
-    g_hash_table_insert(ssh_master_key_map, bn_cookie, bn_priv);
+    gchar * type_ht = (gchar *) g_memdup2(type, strlen(type) + 1);
+    ssh_key_map_entry_t * entry_ht = g_new(ssh_key_map_entry_t, 1);
+    entry_ht->type = type_ht;
+    entry_ht->key_material = bn_priv_ht;
+    g_hash_table_insert(ssh_master_key_map, bn_cookie_ht, entry_ht);
     g_strfreev(split);
 }
 
@@ -2188,26 +2214,43 @@ ssh_keylog_hash_write_secret(struct ssh_flow_data *global_data)
      */
 
     gcry_md_hd_t hd;
-    ssh_bignum *secret = NULL, *priv;
+    ssh_key_map_entry_t *entry;
+    ssh_bignum *secret = NULL;
     int length;
+    gboolean client_cookie = FALSE;
 
     ssh_keylog_read_file();
 
     guint kex_type = ssh_kex_type(global_data->kex);
     guint kex_hash_type = ssh_kex_hash_type(global_data->kex);
 
-    priv = (ssh_bignum *)g_hash_table_lookup(ssh_master_key_map, global_data->peer_data[SERVER_PEER_DATA].bn_cookie);
-    if(priv){
-        secret = ssh_kex_shared_secret(kex_type, global_data->kex_e, priv, global_data->kex_gex_p);
-    }else{
-        priv = (ssh_bignum *)g_hash_table_lookup(ssh_master_key_map, global_data->peer_data[CLIENT_PEER_DATA].bn_cookie);
-        if(priv){
-            secret = ssh_kex_shared_secret(kex_type, global_data->kex_f, priv, global_data->kex_gex_p);
+    entry = (ssh_key_map_entry_t *)g_hash_table_lookup(ssh_master_key_map, global_data->peer_data[SERVER_PEER_DATA].bn_cookie);
+    if (!entry) {
+        entry = (ssh_key_map_entry_t *)g_hash_table_lookup(ssh_master_key_map, global_data->peer_data[CLIENT_PEER_DATA].bn_cookie);
+        client_cookie = TRUE;
+    }
+    if (!entry) {
+        ws_debug("ssh decryption: no entry in keylog file for this session");
+        global_data->do_decrypt = FALSE;
+        return;
+    }
+
+    if (!strcmp(entry->type, "PRIVATE_KEY")) {
+        if (client_cookie) {
+            secret = ssh_kex_shared_secret(kex_type, global_data->kex_f, entry->key_material, global_data->kex_gex_p);
+        } else {
+            secret = ssh_kex_shared_secret(kex_type, global_data->kex_e, entry->key_material, global_data->kex_gex_p);
         }
+    } else if (!strcmp(entry->type, "SHARED_SECRET")) {
+        secret = ssh_kex_make_bignum(entry->key_material->data, entry->key_material->length);
+    } else {
+        ws_debug("ssh decryption: unknown key type in keylog file");
+        global_data->do_decrypt = FALSE;
+        return;
     }
 
     if (!secret) {
-        ws_debug("ssh decryption: no private key for this session");
+        ws_debug("ssh decryption: no key material for this session");
         global_data->do_decrypt = FALSE;
         return;
     }
@@ -2712,6 +2755,16 @@ ssh_decryption_set_mac_id(struct ssh_peer_data *peer)
     }
 }
 
+static bool
+gcry_cipher_destroy_cb(wmem_allocator_t *allocator _U_, wmem_cb_event_t event _U_, void *user_data)
+{
+    gcry_cipher_hd_t hd = (gcry_cipher_hd_t)user_data;
+
+    gcry_cipher_close(hd);
+
+    return FALSE;
+}
+
 static void
 ssh_decryption_setup_cipher(struct ssh_peer_data *peer_data,
         ssh_bignum *iv, ssh_bignum *key)
@@ -2757,9 +2810,13 @@ ssh_decryption_setup_cipher(struct ssh_peer_data *peer_data,
             ws_debug("ssh: can't set chacha20 cipher key %s", gcry_strerror(err));
             return;
         }
+
+        wmem_register_callback(wmem_file_scope(), gcry_cipher_destroy_cb, *hd1);
+        wmem_register_callback(wmem_file_scope(), gcry_cipher_destroy_cb, *hd2);
+
     } else if (CIPHER_AES128_CBC == peer_data->cipher_id  || CIPHER_AES192_CBC == peer_data->cipher_id || CIPHER_AES256_CBC == peer_data->cipher_id) {
         gint iKeyLen = CIPHER_AES128_CBC == peer_data->cipher_id?16:CIPHER_AES192_CBC == peer_data->cipher_id?24:32;
-        if (gcry_cipher_open(hd1, CIPHER_AES128_CBC == peer_data->cipher_id?GCRY_CIPHER_AES128:CIPHER_AES192_CBC == peer_data->cipher_id?GCRY_CIPHER_AES192:GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CBC, GCRY_CIPHER_CBC_CTS)) {
+        if (gcry_cipher_open(hd1, CIPHER_AES128_CBC == peer_data->cipher_id?GCRY_CIPHER_AES128:CIPHER_AES192_CBC == peer_data->cipher_id?GCRY_CIPHER_AES192:GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CBC, 0)) {
             gcry_cipher_close(*hd1);
             ws_debug("ssh: can't open aes%d cipher handle", iKeyLen*8);
             return;
@@ -2793,6 +2850,8 @@ ssh_decryption_setup_cipher(struct ssh_peer_data *peer_data,
             ws_debug("libgcrypt: %d %s %s", gcry_err_code(err), gcry_strsource(err), gcry_strerror(err));
             return;
         }
+
+        wmem_register_callback(wmem_file_scope(), gcry_cipher_destroy_cb, *hd1);
 
     } else if (CIPHER_AES128_CTR == peer_data->cipher_id  || CIPHER_AES192_CTR == peer_data->cipher_id || CIPHER_AES256_CTR == peer_data->cipher_id) {
         gint iKeyLen = CIPHER_AES128_CTR == peer_data->cipher_id?16:CIPHER_AES192_CTR == peer_data->cipher_id?24:32;
@@ -2831,6 +2890,7 @@ ssh_decryption_setup_cipher(struct ssh_peer_data *peer_data,
             return;
         }
 
+        wmem_register_callback(wmem_file_scope(), gcry_cipher_destroy_cb, *hd1);
 
     } else if (CIPHER_AES128_GCM == peer_data->cipher_id  || CIPHER_AES256_GCM == peer_data->cipher_id) {
         gint iKeyLen = CIPHER_AES128_GCM == peer_data->cipher_id?16:32;
@@ -2862,6 +2922,8 @@ ssh_decryption_setup_cipher(struct ssh_peer_data *peer_data,
             ws_debug("libgcrypt: %d %s %s", gcry_err_code(err), gcry_strsource(err), gcry_strerror(err));
             return;
         }
+
+        wmem_register_callback(wmem_file_scope(), gcry_cipher_destroy_cb, *hd1);
 
     } else {
         ssh_debug_printf("ssh: cipher (%d) is unknown or not set\n", peer_data->cipher_id);
@@ -3036,6 +3098,7 @@ ssh_decrypt_packet(tvbuff_t *tvb, packet_info *pinfo,
         *pmessage = message;
     }
 
+    gcry_error_t err;
     guint message_length = 0, seqnr;
     gchar *plain = NULL, *mac;
     guint mac_len;
@@ -3093,6 +3156,7 @@ ssh_decrypt_packet(tvbuff_t *tvb, packet_info *pinfo,
         }
         size_t buflen = DIGEST_MAX_SIZE;
         gcry_mac_read(mac_hd, message->calc_mac, &buflen);
+        gcry_mac_close(mac_hd);
 
         message->plain_data = plain;
         message->data_len   = message_length + 4;
@@ -3104,30 +3168,50 @@ ssh_decrypt_packet(tvbuff_t *tvb, packet_info *pinfo,
 
         mac_len = peer_data->mac_length;
 
-        const gchar *plain_buf = (const gchar *)tvb_get_ptr(tvb, offset, 4);
-        message_length = pntoh32(plain_buf);
+        /* AES GCM for Secure Shell [RFC 5647] */
+        /* The message length is Additional Authenticated Data */
+        /* XXX: If there are fewer than 4 octets available, we need to
+         * ask the TCP dissector for DESEGMENT_ONE_MORE_SEGMENT instead
+         * of throwing an exception here, if we're desegmenting.
+         */
+        message_length = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
         guint remaining = tvb_reported_length_remaining(tvb, offset);
         ssh_debug_printf("length: %d, remaining: %d\n", message_length, remaining);
+        /* The minimum size of a packet (not counting mac) is 16. */
+        if (message_length < 16) {
+            ws_debug("ssh: unreasonable message length %u", message_length);
+            return tvb_captured_length(tvb);
+        }
+
+        /* SSH requires that the data to be encrypted (not including the AAD,
+         * so message_length) be a multiple of the block size, 16 octets */
+        if (message_length % 16 != 0) {
+            ssh_debug_printf("length not a multiple of block length (16)!\n");
+        }
 
         if(message->plain_data && message->data_len){
         }else{
 
-            const gchar *ctl = (const gchar *)tvb_get_ptr(tvb, offset,
-                    message_length+4);
-            const gchar *ctext = ctl + 4;
+            /* If tvb_reported_length_remaining(tvb, offset + 4) is less
+             * than message_length + mac_len, then we should ask the TCP
+             * dissector for more data if we're desegmenting. That is
+             * simpler than trying to handle fragmentation ourselves.
+             */
+            const gchar *ctext = (const gchar *)tvb_get_ptr(tvb, offset + 4,
+                    message_length);
             plain = (gchar *)wmem_alloc(wmem_file_scope(), message_length+4);
-            plain[0] = message_length >> 24; plain[1] = message_length >> 16; plain[2] = message_length >>  8; plain[3] = message_length >>  0;
+            phton32(plain, message_length);
 
-            gcry_error_t err;
             /* gcry_cipher_setiv(peer_data->cipher, iv, 12); */
             if ((err = gcry_cipher_setiv(peer_data->cipher, peer_data->iv, 12))) {
-                gcry_cipher_close(peer_data->cipher);
+                //gcry_cipher_close(peer_data->cipher);
+                //Don't close this unless we also remove the wmem callback
 // TODO: temporary work-around as long as a Windows python bug is triggered by automated tests
 #ifndef _WIN32
                 ws_debug("ssh: can't set aes128 cipher iv");
                 ws_debug("libgcrypt: %d %s %s", gcry_err_code(err), gcry_strsource(err), gcry_strerror(err));
 #endif	//ndef _WIN32
-                return offset;
+                return tvb_captured_length(tvb);
             }
             int idx = 12;
             do{
@@ -3140,22 +3224,17 @@ ssh_decrypt_packet(tvbuff_t *tvb, packet_info *pinfo,
 #ifndef _WIN32
                 ws_debug("can't authenticate using aes128-gcm: %s\n", gpg_strerror(err));
 #endif	//ndef _WIN32
-                return offset;
+                return tvb_captured_length(tvb);
             }
 
-            guint offs = 0;
-            if(remaining>message_length+4){remaining=message_length;}
-            while(offs<remaining){
-                if (gcry_cipher_decrypt(peer_data->cipher, plain+4+offs, 16,
-                        ctext+offs, 16))
-                {
+            if ((err = gcry_cipher_decrypt(peer_data->cipher, plain+4, message_length,
+                    ctext, message_length))) {
 // TODO: temporary work-around as long as a Windows python bug is triggered by automated tests
 #ifndef _WIN32
-                    ws_debug("can\'t decrypt aes128");
+                ws_debug("can't decrypt aes-gcm %d %s %s", gcry_err_code(err), gcry_strsource(err), gcry_strerror(err));
+
 #endif	//ndef _WIN32
-                    return offset;
-                }
-                offs += 16;
+                return tvb_captured_length(tvb);
             }
 
             if (gcry_cipher_gettag (peer_data->cipher, message->calc_mac, 16)) {
@@ -3163,7 +3242,7 @@ ssh_decrypt_packet(tvbuff_t *tvb, packet_info *pinfo,
 #ifndef _WIN32
                 ws_debug ("aes128-gcm, gcry_cipher_gettag() failed\n");
 #endif	//ndef _WIN32
-                return offset;
+                return tvb_captured_length(tvb);
             }
 
             if ((err = gcry_cipher_reset(peer_data->cipher))) {
@@ -3171,7 +3250,7 @@ ssh_decrypt_packet(tvbuff_t *tvb, packet_info *pinfo,
 #ifndef _WIN32
                 ws_debug("aes-gcm, gcry_cipher_reset failed: %s\n", gpg_strerror (err));
 #endif	//ndef _WIN32
-                return offset;
+                return tvb_captured_length(tvb);
             }
 
             message->plain_data = plain;
@@ -3198,40 +3277,62 @@ ssh_decrypt_packet(tvbuff_t *tvb, packet_info *pinfo,
 // TODO: see how to handle fragmentation...
 //            const gchar *ctext = NULL;
             ws_noisy("Getting raw bytes of length %d", tvb_reported_length_remaining(tvb, offset));
-            const gchar *cypher_buf0 = (const gchar *)tvb_get_ptr(tvb, offset, tvb_reported_length_remaining(tvb, offset));
+            /* In CBC and CTR mode, the message length is encrypted as well.
+             * We need to decrypt one block to get the length.
+             * If we have fewer than 16 octets, and we're doing desegmentation,
+             * we should tell the TCP dissector we need ONE_MORE_SEGMENT.
+             */
+            const gchar *cypher_buf0 = (const gchar *)tvb_get_ptr(tvb, offset, 16);
 
             gchar   plain0[16];
             if (gcry_cipher_decrypt(peer_data->cipher, plain0, 16, cypher_buf0, 16))
             {
                 ws_debug("can\'t decrypt aes128");
-                return offset;
+                return tvb_captured_length(tvb);
             }
-//            ctext = cypher_buf0;
+
             guint message_length_decrypted = pntoh32(plain0);
             guint remaining = tvb_reported_length_remaining(tvb, offset);
 
-            if(message_length_decrypted>32768){
+            /* The message_length value doesn't include the length of the
+             * message_length field itself, so it must be at least 12 bytes.
+             */
+            if(message_length_decrypted>32768 || message_length_decrypted < 12){
                 ws_debug("ssh: unreasonable message length %u/%u", message_length_decrypted, message_length);
                 return tvb_captured_length(tvb);
             }else{
 
                 message_length = message_length_decrypted;
+                /* SSH requires that the data to be encrypted (message_length+4)
+                 * be a multiple of the block size, 16 octets. */
+                if (message_length % 16 != 12) {
+                    ssh_debug_printf("total length not a multiple of block length (16)!\n");
+                }
                 message->plain_data = (gchar *)wmem_alloc(wmem_file_scope(), message_length+4);
                 memcpy(message->plain_data, plain0, 16);
                 plain = message->plain_data;
 
-                guint offs = 16;
-                if(remaining>message_length+4){remaining=message_length+4;}
-                while(offs<remaining){
-                    gchar *ct = (gchar *)tvb_get_ptr(tvb, offset+offs, 16);
-                    if (gcry_cipher_decrypt(peer_data->cipher, plain+offs, 16, ct, 16))
+                /* If we're desegmenting, we want to test if we have enough
+                 * remaining bytes here. It's easier to have the TCP
+                 * dissector put together a PDU based on our length.
+                 */
+
+                if (message_length - 12 > 0) {
+                    /* All of these functions actually do handle the case where
+                     * there is no data left, so the check is unnecessary.
+                     */
+                    gchar *ct = (gchar *)tvb_get_ptr(tvb, offset + 16, message_length - 12);
+                    if ((err = gcry_cipher_decrypt(peer_data->cipher, plain + 16, message_length - 12, ct, message_length - 12)))
                     {
-                        ws_debug("can\'t decrypt aes128");
-                        return offset;
+                        ws_debug("can't decrypt aes-cbc/ctr %d %s %s", gcry_err_code(err), gcry_strsource(err), gcry_strerror(err));
+                        return tvb_captured_length(tvb);
                     }
-                    offs += 16;
                 }
 
+                /* XXX: Need to test if we have enough data above if we're
+                 * doing desegmentation; the tvb_get_ptr() calls will throw
+                 * exceptions if there's not enough data before we get here.
+                 */
                 if(message_length_decrypted>remaining){
                     // Need desegmentation
                     ws_noisy("  need_desegmentation: offset = %d, reported_length_remaining = %d\n",
@@ -3255,6 +3356,10 @@ ssh_decrypt_packet(tvbuff_t *tvb, packet_info *pinfo,
         message_length = message->data_len - 4;
         mac = (gchar *)tvb_get_ptr(tvb, offset + 4 + message_length, mac_len);
         if(!memcmp(mac, message->calc_mac, mac_len)){ws_noisy("MAC OK");}else{ws_debug("MAC ERR");}
+        /* XXX: The TLS dissector, by default, when the MAC is invalid regards
+         * the packet as having failed decryption, and does not display it
+         * as here. (There is a preference to disable that for testing.)
+         */
     }
 
     if(plain){
@@ -3263,6 +3368,10 @@ ssh_decrypt_packet(tvbuff_t *tvb, packet_info *pinfo,
                                                PROTO_CHECKSUM_VERIFY|PROTO_CHECKSUM_IN_CKSUM);
         proto_tree_add_uint(tree, hf_ssh_seq_num, tvb, offset + 4 + message_length, mac_len, message->sequence_number);
     }
+    /* If decryption fails, we should present it as a still encrypted packet.
+     * We also should not try to decrypt on future passes if it failed the
+     * first pass, because the cipher state will be wrong anyway.
+     */
 
     offset += message_length + peer_data->mac_length + 4;
     return offset;
@@ -3532,8 +3641,8 @@ ssh_dissect_decrypted_packet(tvbuff_t *tvb, packet_info *pinfo,
         proto_tree_add_item(msg_type_tree, hf_ssh_payload, packet_tvb, offset, len, ENC_NA);
     }
     if(dissected_len!=(int)len){
-//        expert_add_info_format(pinfo, ti, &ei_ssh_packet_decode, "Decoded %d bytes, but packet legnth is %d bytes", dissected_len, len);
-        expert_add_info_format(pinfo, ti, &ei_ssh_packet_decode, "Decoded %d bytes, but packet legnth is %d bytes [%d]", dissected_len, len, msg_code);
+//        expert_add_info_format(pinfo, ti, &ei_ssh_packet_decode, "Decoded %d bytes, but packet length is %d bytes", dissected_len, len);
+        expert_add_info_format(pinfo, ti, &ei_ssh_packet_decode, "Decoded %d bytes, but packet length is %d bytes [%d]", dissected_len, len, msg_code);
     }
     offset +=len;
 
@@ -3640,7 +3749,7 @@ ssh_dissect_userauth_generic(tvbuff_t *packet_tvb, packet_info *pinfo,
 //        proto_tree_add_item(blob_tree, hf_ssh2_msg_code, packet_tvb, offset, 1, ENC_BIG_ENDIAN);
                         dissected_len = ssh_dissect_public_key_blob(packet_tvb, pinfo, offset, blob_tree) - offset;
                         if(dissected_len!=(int)slen){
-                            expert_add_info_format(pinfo, blob_tree, &ei_ssh_packet_decode, "Decoded %d bytes, but packet legnth is %d bytes", dissected_len, slen);
+                            expert_add_info_format(pinfo, blob_tree, &ei_ssh_packet_decode, "Decoded %d bytes, but packet length is %d bytes", dissected_len, slen);
                         }
                         offset += slen;
                         if(bHaveSignature){
@@ -3651,7 +3760,7 @@ ssh_dissect_userauth_generic(tvbuff_t *packet_tvb, packet_info *pinfo,
                                 signature_tree = proto_tree_add_subtree(msg_type_tree, packet_tvb, offset, slen, ett_userauth_pk_signautre, NULL, "Public key signature");
                                 dissected_len = ssh_dissect_public_key_signature(packet_tvb, pinfo, offset, signature_tree) - offset;
                                 if(dissected_len!=(int)slen){
-                                    expert_add_info_format(pinfo, signature_tree, &ei_ssh_packet_decode, "Decoded %d bytes, but packet legnth is %d bytes", dissected_len, slen);
+                                    expert_add_info_format(pinfo, signature_tree, &ei_ssh_packet_decode, "Decoded %d bytes, but packet length is %d bytes", dissected_len, slen);
                                 }
                                 offset += slen;
                         }
@@ -3707,7 +3816,7 @@ ssh_dissect_userauth_specific(tvbuff_t *packet_tvb, packet_info *pinfo,
                 blob_tree = proto_tree_add_subtree(msg_type_tree, packet_tvb, offset, slen, ett_userauth_pk_blob, NULL, "Public key blob");
                 dissected_len = ssh_dissect_public_key_blob(packet_tvb, pinfo, offset, blob_tree) - offset;
                 if(dissected_len!=(int)slen){
-                    expert_add_info_format(pinfo, ti, &ei_ssh_packet_decode, "Decoded %d bytes, but packet legnth is %d bytes", dissected_len, slen);
+                    expert_add_info_format(pinfo, ti, &ei_ssh_packet_decode, "Decoded %d bytes, but packet length is %d bytes", dissected_len, slen);
                 }
                 offset += slen;
         }
@@ -3867,7 +3976,7 @@ ssh_dissect_connection_generic(tvbuff_t *packet_tvb, packet_info *pinfo,
                     blob_tree = proto_tree_add_subtree(msg_type_tree, packet_tvb, offset, alen, ett_userauth_pk_blob, NULL, "Public key blob");
                     dissected_len = ssh_dissect_public_key_blob(packet_tvb, pinfo, offset, blob_tree) - offset;
                     if(dissected_len!=(int)alen){
-                        expert_add_info_format(pinfo, ti, &ei_ssh_packet_decode, "Decoded %d bytes, but packet legnth is %d bytes", dissected_len, alen);
+                        expert_add_info_format(pinfo, ti, &ei_ssh_packet_decode, "Decoded %d bytes, but packet length is %d bytes", dissected_len, alen);
                     }
                     offset += alen;
                 }
@@ -4067,7 +4176,39 @@ ssh_hash  (gconstpointer v)
 
     return hash;
 }
+
+static void
+ssh_free_glib_allocated_bignum(gpointer data)
+{
+    ssh_bignum * bignum;
+    if (data == NULL) {
+        return;
+    }
+
+    bignum = (ssh_bignum *) data;
+    g_free(bignum->data);
+    g_free(bignum);
+}
+
+static void
+ssh_free_glib_allocated_entry(gpointer data)
+{
+    ssh_key_map_entry_t * entry;
+    if (data == NULL) {
+        return;
+    }
+
+    entry = (ssh_key_map_entry_t *) data;
+    g_free(entry->type);
+    ssh_free_glib_allocated_bignum(entry->key_material);
+    g_free(entry);
+}
 /* Functions for SSH random hashtables. }}} */
+
+static void
+ssh_shutdown(void) {
+    g_hash_table_destroy(ssh_master_key_map);
+}
 
 void
 proto_register_ssh(void)
@@ -4783,10 +4924,10 @@ proto_register_ssh(void)
                        "To use this option, you must also enable \"Allow subdissectors to reassemble TCP streams\" in the TCP protocol settings.",
                        &ssh_desegment);
 
-    ssh_master_key_map = g_hash_table_new(ssh_hash, ssh_equal);
+    ssh_master_key_map = g_hash_table_new_full(ssh_hash, ssh_equal, ssh_free_glib_allocated_bignum, ssh_free_glib_allocated_entry);
     prefs_register_filename_preference(ssh_module, "keylog_file", "Key log filename",
             "The path to the file which contains a list of key exchange secrets in the following format:\n"
-            "\"<hex-encoded-cookie> <hex-encoded-key>\" (without quotes or leading spaces).\n",
+            "\"<hex-encoded-cookie> <PRIVATE_KEY|SHARED_SECRET> <hex-encoded-key>\" (without quotes or leading spaces).\n",
             &pref_keylog_file, FALSE);
 
     prefs_register_filename_preference(ssh_module, "debug_file", "SSH debug file",
@@ -4797,6 +4938,7 @@ proto_register_ssh(void)
     secrets_register_type(SECRETS_TYPE_SSH, ssh_secrets_block_callback);
 
     ssh_handle = register_dissector("ssh", dissect_ssh, proto_ssh);
+    register_shutdown_routine(ssh_shutdown);
 }
 
 void

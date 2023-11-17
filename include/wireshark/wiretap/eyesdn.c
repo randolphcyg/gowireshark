@@ -13,7 +13,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 static int eyesdn_file_type_subtype = -1;
 
@@ -350,7 +349,6 @@ static gboolean eyesdn_dump_open(wtap_dumper *wdh, int *err, gchar **err_info _U
 	if (!wtap_dump_file_write(wdh, eyesdn_hdr_magic,
 	    EYESDN_HDR_MAGIC_SIZE, err))
 		return FALSE;
-	wdh->bytes_dumped += EYESDN_HDR_MAGIC_SIZE;
 	*err=0;
 	return TRUE;
 }

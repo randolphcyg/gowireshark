@@ -18,6 +18,8 @@
 void proto_register_dvb_bat(void);
 void proto_reg_handoff_dvb_bat(void);
 
+static dissector_handle_t dvb_bat_handle;
+
 static int proto_dvb_bat = -1;
 static int hf_dvb_bat_bouquet_id = -1;
 static int hf_dvb_bat_reserved1 = -1;
@@ -53,13 +55,6 @@ static gint ett_dvb_bat_transport_stream = -1;
 
 #define DVB_BAT_RESERVED4_MASK                    0xF000
 #define DVB_BAT_TRANSPORT_DESCRIPTORS_LENGTH_MASK 0x0FFF
-
-static const value_string dvb_bat_cur_next_vals[] = {
-    { 0, "Not yet applicable" },
-    { 1, "Currently applicable" },
-
-    { 0, NULL }
-};
 
 #if 0
 static const value_string dvb_bat_running_status_vals[] = {
@@ -176,7 +171,7 @@ proto_register_dvb_bat(void)
 
         { &hf_dvb_bat_current_next_indicator, {
             "Current/Next Indicator", "dvb_bat.cur_next_ind",
-            FT_UINT8, BASE_DEC, VALS(dvb_bat_cur_next_vals), DVB_BAT_CURRENT_NEXT_INDICATOR_MASK, NULL, HFILL
+            FT_BOOLEAN, 8, TFS(&tfs_current_not_yet), DVB_BAT_CURRENT_NEXT_INDICATOR_MASK, NULL, HFILL
         } },
 
         { &hf_dvb_bat_section_number, {
@@ -237,6 +232,7 @@ proto_register_dvb_bat(void)
     };
 
     proto_dvb_bat = proto_register_protocol("DVB Bouquet Association Table", "DVB BAT", "dvb_bat");
+    dvb_bat_handle = register_dissector("dvb_bat", dissect_dvb_bat, proto_dvb_bat);
 
     proto_register_field_array(proto_dvb_bat, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
@@ -246,10 +242,6 @@ proto_register_dvb_bat(void)
 
 void proto_reg_handoff_dvb_bat(void)
 {
-    dissector_handle_t dvb_bat_handle;
-
-    dvb_bat_handle = create_dissector_handle(dissect_dvb_bat, proto_dvb_bat);
-
     dissector_add_uint("mpeg_sect.tid", DVB_BAT_TID, dvb_bat_handle);
 }
 

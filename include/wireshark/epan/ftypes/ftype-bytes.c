@@ -27,52 +27,87 @@ bytes_fvalue_new(fvalue_t *fv)
 static void
 bytes_fvalue_copy(fvalue_t *dst, const fvalue_t *src)
 {
-	dst->value.bytes = g_byte_array_new();
-	dst->value.bytes->data = g_memdup2(src->value.bytes->data, src->value.bytes->len);
-	dst->value.bytes->len = src->value.bytes->len;
+	dst->value.bytes = g_bytes_ref(src->value.bytes);
 }
 
 static void
 bytes_fvalue_free(fvalue_t *fv)
 {
 	if (fv->value.bytes) {
-		g_byte_array_free(fv->value.bytes, TRUE);
-		fv->value.bytes=NULL;
+		g_bytes_unref(fv->value.bytes);
+		fv->value.bytes = NULL;
 	}
 }
 
 
 static void
-bytes_fvalue_set(fvalue_t *fv, GByteArray *value)
+bytes_fvalue_set(fvalue_t *fv, GBytes *value)
 {
 	/* Free up the old value, if we have one */
 	bytes_fvalue_free(fv);
 
-	fv->value.bytes = value;
+	fv->value.bytes = g_bytes_ref(value);
+}
+
+static GBytes *
+bytes_fvalue_get(fvalue_t *fv)
+{
+	return g_bytes_ref(fv->value.bytes);
 }
 
 static char *
 oid_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_)
 {
-	return oid_encoded2string(scope, fv->value.bytes->data,fv->value.bytes->len);
+	return oid_encoded2string(scope, g_bytes_get_data(fv->value.bytes, NULL), (unsigned)g_bytes_get_size(fv->value.bytes));
 }
 
 static char *
 rel_oid_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_)
 {
-	return rel_oid_encoded2string(scope, fv->value.bytes->data,fv->value.bytes->len);
+	return rel_oid_encoded2string(scope,  g_bytes_get_data(fv->value.bytes, NULL), (unsigned)g_bytes_get_size(fv->value.bytes));
 }
 
 static char *
 system_id_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_)
 {
-	return print_system_id(scope, fv->value.bytes->data, fv->value.bytes->len);
+	return print_system_id(scope,  g_bytes_get_data(fv->value.bytes, NULL), (unsigned)g_bytes_get_size(fv->value.bytes));
+}
+
+char *
+bytes_to_dfilter_repr(wmem_allocator_t *scope,
+			const uint8_t *src, size_t src_size)
+{
+	char *buf;
+	size_t max_char_size;
+	char *buf_ptr;
+
+	/* Include space for extra punct and '\0'. */
+	max_char_size = src_size * 3 + 1;
+
+	buf = wmem_alloc(scope, max_char_size);
+	buf_ptr = bytes_to_hexstr_punct(buf, src, src_size, ':');
+	if (src_size == 1)
+		*buf_ptr++ = ':';
+	*buf_ptr = '\0';
+	return buf;
 }
 
 static char *
 bytes_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype, int field_display)
 {
 	char separator;
+	const uint8_t *bytes;
+	size_t bytes_size;
+
+	bytes = g_bytes_get_data(fv->value.bytes, &bytes_size);
+
+	if (rtype == FTREPR_DFILTER) {
+		if (bytes_size == 0) {
+			/* An empty byte array in a display filter is represented as "" */
+			return wmem_strdup(scope, "\"\"");
+		}
+		return bytes_to_dfilter_repr(scope, bytes, bytes_size);
+	}
 
 	switch(FIELD_DISPLAY(field_display))
 	{
@@ -90,78 +125,15 @@ bytes_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype, int f
 		break;
 	}
 
-	if (fv->value.bytes->len) {
-		return bytes_to_str_punct_maxlen(scope, fv->value.bytes->data, fv->value.bytes->len, separator, 0);
-	}
-
-	if (rtype == FTREPR_DFILTER) {
-		/* An empty byte array in a display filter is represented as "" */
-		return wmem_strdup(scope, "\"\"");
+	if (bytes_size) {
+		return bytes_to_str_punct_maxlen(scope, bytes, bytes_size, separator, 0);
 	}
 
 	return wmem_strdup(scope, "");
 }
 
-static void
-common_fvalue_set(fvalue_t *fv, const guint8* data, guint len)
-{
-	/* Free up the old value, if we have one */
-	bytes_fvalue_free(fv);
-
-	fv->value.bytes = g_byte_array_new();
-	g_byte_array_append(fv->value.bytes, data, len);
-}
-
-static void
-ax25_fvalue_set(fvalue_t *fv, const guint8 *value)
-{
-	common_fvalue_set(fv, value, FT_AX25_ADDR_LEN);
-}
-
-static void
-vines_fvalue_set(fvalue_t *fv, const guint8 *value)
-{
-	common_fvalue_set(fv, value, FT_VINES_ADDR_LEN);
-}
-
-static void
-ether_fvalue_set(fvalue_t *fv, const guint8 *value)
-{
-	common_fvalue_set(fv, value, FT_ETHER_LEN);
-}
-
-static void
-fcwwn_fvalue_set(fvalue_t *fv, const guint8 *value)
-{
-	common_fvalue_set(fv, value, FT_FCWWN_LEN);
-}
-
-static void
-oid_fvalue_set(fvalue_t *fv, GByteArray *value)
-{
-	/* Free up the old value, if we have one */
-	bytes_fvalue_free(fv);
-
-	fv->value.bytes = value;
-}
-
-static void
-system_id_fvalue_set(fvalue_t *fv, GByteArray *value)
-{
-	/* Free up the old value, if we have one */
-	bytes_fvalue_free(fv);
-
-	fv->value.bytes = value;
-}
-
-static const guint8 *
-bytes_fvalue_get(fvalue_t *fv)
-{
-	return fv->value.bytes->data;
-}
-
-static gboolean
-bytes_from_string(fvalue_t *fv, const char *s, size_t len, gchar **err_msg _U_)
+static bool
+bytes_from_string(fvalue_t *fv, const char *s, size_t len, char **err_msg _U_)
 {
 	GByteArray	*bytes;
 
@@ -170,20 +142,20 @@ bytes_from_string(fvalue_t *fv, const char *s, size_t len, gchar **err_msg _U_)
 	if (len == 0)
 		len = strlen(s);
 
-	g_byte_array_append(bytes, (const guint8 *)s, (guint)len);
+	g_byte_array_append(bytes, (const uint8_t *)s, (unsigned)len);
 
 	/* Free up the old value, if we have one */
 	bytes_fvalue_free(fv);
-	fv->value.bytes = bytes;
+	fv->value.bytes = g_byte_array_free_to_bytes(bytes);
 
-	return TRUE;
+	return true;
 }
 
 GByteArray *
-byte_array_from_literal(const char *s, gchar **err_msg)
+byte_array_from_literal(const char *s, char **err_msg)
 {
 	GByteArray	*bytes;
-	gboolean	res;
+	bool	res;
 
 	/* Skip leading colon if any. */
 	if (*s == ':')
@@ -210,43 +182,43 @@ byte_array_from_literal(const char *s, gchar **err_msg)
 		char *endptr;
 		long number = strtol(s + 2, &endptr, 2);
 		if (errno == 0 && *endptr == '\0' && number >= 0x0 && number <= 0xff) {
-			guint8 byte = (guint8)number;
+			uint8_t byte = (uint8_t)number;
 			g_byte_array_append(bytes, &byte, 1);
 			return bytes;
 		}
 	}
 
-	res = hex_str_to_bytes(s, bytes, FALSE);
+	res = hex_str_to_bytes(s, bytes, false);
 
 	if (!res) {
 		if (err_msg != NULL)
 			*err_msg = ws_strdup_printf("\"%s\" is not a valid byte string.", s);
-		g_byte_array_free(bytes, TRUE);
+		g_byte_array_free(bytes, true);
 		return NULL;
 	}
 
 	return bytes;
 }
 
-static gboolean
-bytes_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, gchar **err_msg)
+static bool
+bytes_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value _U_, char **err_msg)
 {
 	GByteArray	*bytes;
 
 	bytes = byte_array_from_literal(s, err_msg);
 	if (bytes == NULL)
-		return FALSE;
+		return false;
 
 	/* Free up the old value, if we have one */
 	bytes_fvalue_free(fv);
 
-	fv->value.bytes = bytes;
+	fv->value.bytes = g_byte_array_free_to_bytes(bytes);
 
-	return TRUE;
+	return true;
 }
 
 GByteArray *
-byte_array_from_charconst(unsigned long num, gchar **err_msg)
+byte_array_from_charconst(unsigned long num, char **err_msg)
 {
 	if (num > UINT8_MAX) {
 		if (err_msg) {
@@ -261,48 +233,48 @@ byte_array_from_charconst(unsigned long num, gchar **err_msg)
 	return bytes;
 }
 
-static gboolean
-bytes_from_charconst(fvalue_t *fv, unsigned long num, gchar **err_msg)
+static bool
+bytes_from_charconst(fvalue_t *fv, unsigned long num, char **err_msg)
 {
 	GByteArray	*bytes;
 
 	bytes = byte_array_from_charconst(num, err_msg);
 	if (bytes == NULL)
-		return FALSE;
+		return false;
 
 	/* Free up the old value, if we have one */
 	bytes_fvalue_free(fv);
 
-	fv->value.bytes = bytes;
+	fv->value.bytes = g_byte_array_free_to_bytes(bytes);
 
-	return TRUE;
+	return true;
 }
 
-static gboolean
-ax25_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value, gchar **err_msg)
+static bool
+ax25_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value, char **err_msg)
 {
 	/*
 	 * Don't request an error message if bytes_from_literal fails;
 	 * if it does, we'll report an error specific to this address
 	 * type.
 	 */
-	if (bytes_from_literal(fv, s, TRUE, NULL)) {
-		if (fv->value.bytes->len > FT_AX25_ADDR_LEN) {
+	if (bytes_from_literal(fv, s, true, NULL)) {
+		if (g_bytes_get_size(fv->value.bytes) > FT_AX25_ADDR_LEN) {
 			if (err_msg != NULL) {
 				*err_msg = ws_strdup_printf("\"%s\" contains too many bytes to be a valid AX.25 address.",
 				    s);
 			}
-			return FALSE;
+			return false;
 		}
-		else if (fv->value.bytes->len < FT_AX25_ADDR_LEN && !allow_partial_value) {
+		else if (g_bytes_get_size(fv->value.bytes) < FT_AX25_ADDR_LEN && !allow_partial_value) {
 			if (err_msg != NULL) {
 				*err_msg = ws_strdup_printf("\"%s\" contains too few bytes to be a valid AX.25 address.",
 				    s);
 			}
-			return FALSE;
+			return false;
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	/*
@@ -338,82 +310,82 @@ ax25_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value, gch
 	 */
 	if (err_msg != NULL)
 		*err_msg = ws_strdup_printf("\"%s\" is not a valid AX.25 address.", s);
-	return FALSE;
+	return false;
 }
 
-static gboolean
-vines_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value, gchar **err_msg)
+static bool
+vines_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value, char **err_msg)
 {
 	/*
 	 * Don't request an error message if bytes_from_literal fails;
 	 * if it does, we'll report an error specific to this address
 	 * type.
 	 */
-	if (bytes_from_literal(fv, s, TRUE, NULL)) {
-		if (fv->value.bytes->len > FT_VINES_ADDR_LEN) {
+	if (bytes_from_literal(fv, s, true, NULL)) {
+		if (g_bytes_get_size(fv->value.bytes) > FT_VINES_ADDR_LEN) {
 			if (err_msg != NULL) {
 				*err_msg = ws_strdup_printf("\"%s\" contains too many bytes to be a valid Vines address.",
 				    s);
 			}
-			return FALSE;
+			return false;
 		}
-		else if (fv->value.bytes->len < FT_VINES_ADDR_LEN && !allow_partial_value) {
+		else if (g_bytes_get_size(fv->value.bytes) < FT_VINES_ADDR_LEN && !allow_partial_value) {
 			if (err_msg != NULL) {
 				*err_msg = ws_strdup_printf("\"%s\" contains too few bytes to be a valid Vines address.",
 				    s);
 			}
-			return FALSE;
+			return false;
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	/* XXX - need better validation of Vines address */
 
 	if (err_msg != NULL)
 		*err_msg = ws_strdup_printf("\"%s\" is not a valid Vines address.", s);
-	return FALSE;
+	return false;
 }
 
-static gboolean
-ether_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value, gchar **err_msg)
+static bool
+ether_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value, char **err_msg)
 {
 	/*
 	 * Don't request an error message if bytes_from_literal fails;
 	 * if it does, we'll report an error specific to this address
 	 * type.
 	 */
-	if (bytes_from_literal(fv, s, TRUE, NULL)) {
-		if (fv->value.bytes->len > FT_ETHER_LEN) {
+	if (bytes_from_literal(fv, s, true, NULL)) {
+		if (g_bytes_get_size(fv->value.bytes) > FT_ETHER_LEN) {
 			if (err_msg != NULL) {
 				*err_msg = ws_strdup_printf("\"%s\" contains too many bytes to be a valid Ethernet address.",
 				    s);
 			}
-			return FALSE;
+			return false;
 		}
-		else if (fv->value.bytes->len < FT_ETHER_LEN && !allow_partial_value) {
+		else if (g_bytes_get_size(fv->value.bytes) < FT_ETHER_LEN && !allow_partial_value) {
 			if (err_msg != NULL) {
 				*err_msg = ws_strdup_printf("\"%s\" contains too few bytes to be a valid Ethernet address.",
 				    s);
 			}
-			return FALSE;
+			return false;
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	/* XXX - Try resolving as an Ethernet host name and parse that? */
 
 	if (err_msg != NULL)
 		*err_msg = ws_strdup_printf("\"%s\" is not a valid Ethernet address.", s);
-	return FALSE;
+	return false;
 }
 
-static gboolean
-oid_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, gchar **err_msg)
+static bool
+oid_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value _U_, char **err_msg)
 {
 	GByteArray	*bytes;
-	gboolean	res;
+	bool	res;
 
 
 #if 0
@@ -423,8 +395,8 @@ oid_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, 
 	 * we'll log a message.
 	 */
 	/* do not try it as '.' is handled as valid separator for hexbytes :( */
-	if (bytes_from_literal(fv, s, TRUE, NULL)) {
-		return TRUE;
+	if (bytes_from_literal(fv, s, true, NULL)) {
+		return true;
 	}
 #endif
 
@@ -433,187 +405,192 @@ oid_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, 
 	if (!res) {
 		if (err_msg != NULL)
 			*err_msg = ws_strdup_printf("\"%s\" is not a valid OBJECT IDENTIFIER.", s);
-		g_byte_array_free(bytes, TRUE);
-		return FALSE;
+		g_byte_array_free(bytes, true);
+		return false;
 	}
 
 	/* Free up the old value, if we have one */
 	bytes_fvalue_free(fv);
-	fv->value.bytes = bytes;
+	fv->value.bytes = g_byte_array_free_to_bytes(bytes);
 
-	return TRUE;
+	return true;
 }
 
-static gboolean
-rel_oid_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, gchar **err_msg)
+static bool
+rel_oid_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value _U_, char **err_msg)
 {
 	GByteArray	*bytes;
-	gboolean	res;
+	bool	res;
 
 	bytes = g_byte_array_new();
-	res = rel_oid_str_to_bytes(s, bytes, FALSE);
+	res = rel_oid_str_to_bytes(s, bytes, false);
 	if (!res) {
 		if (err_msg != NULL)
 			*err_msg = ws_strdup_printf("\"%s\" is not a valid RELATIVE-OID.", s);
-		g_byte_array_free(bytes, TRUE);
-		return FALSE;
+		g_byte_array_free(bytes, true);
+		return false;
 	}
 
 	/* Free up the old value, if we have one */
 	bytes_fvalue_free(fv);
-	fv->value.bytes = bytes;
+	fv->value.bytes = g_byte_array_free_to_bytes(bytes);
 
-	return TRUE;
+	return true;
 }
 
-static gboolean
-system_id_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, gchar **err_msg)
+static bool
+system_id_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value _U_, char **err_msg)
 {
 	/*
 	 * Don't request an error message if bytes_from_literal fails;
 	 * if it does, we'll report an error specific to this address
 	 * type.
 	 */
-	if (bytes_from_literal(fv, s, TRUE, NULL)) {
-		if (fv->value.bytes->len > MAX_SYSTEMID_LEN) {
+	if (bytes_from_literal(fv, s, true, NULL)) {
+		if (g_bytes_get_size(fv->value.bytes) > MAX_SYSTEMID_LEN) {
 			if (err_msg != NULL) {
 				*err_msg = ws_strdup_printf("\"%s\" contains too many bytes to be a valid OSI System-ID.",
 				    s);
 			}
-			return FALSE;
+			return false;
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	/* XXX - need better validation of OSI System-ID address */
 
 	if (err_msg != NULL)
 		*err_msg = ws_strdup_printf("\"%s\" is not a valid OSI System-ID.", s);
-	return FALSE;
+	return false;
 }
 
-static gboolean
-fcwwn_from_literal(fvalue_t *fv, const char *s, gboolean allow_partial_value _U_, gchar **err_msg)
+static bool
+fcwwn_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value _U_, char **err_msg)
 {
 	/*
 	 * Don't request an error message if bytes_from_literal fails;
 	 * if it does, we'll report an error specific to this address
 	 * type.
 	 */
-	if (bytes_from_literal(fv, s, TRUE, NULL)) {
-		if (fv->value.bytes->len > FT_FCWWN_LEN) {
+	if (bytes_from_literal(fv, s, true, NULL)) {
+		if (g_bytes_get_size(fv->value.bytes) > FT_FCWWN_LEN) {
 			if (err_msg != NULL) {
 				*err_msg = ws_strdup_printf("\"%s\" contains too many bytes to be a valid FCWWN.",
 				    s);
 			}
-			return FALSE;
+			return false;
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	/* XXX - need better validation of FCWWN address */
 
 	if (err_msg != NULL)
 		*err_msg = ws_strdup_printf("\"%s\" is not a valid FCWWN.", s);
-	return FALSE;
+	return false;
 }
 
-static guint
+static unsigned
 len(fvalue_t *fv)
 {
-	return fv->value.bytes->len;
+	return (unsigned)g_bytes_get_size(fv->value.bytes);
 }
 
 static void
-slice(fvalue_t *fv, GByteArray *bytes, guint offset, guint length)
+slice(fvalue_t *fv, GByteArray *bytes, unsigned offset, unsigned length)
 {
-	guint8* data;
-
-	data = fv->value.bytes->data + offset;
-
+	const uint8_t *data = (const uint8_t *)g_bytes_get_data(fv->value.bytes, NULL) + offset;
 	g_byte_array_append(bytes, data, length);
 }
 
 static enum ft_result
 cmp_order(const fvalue_t *fv_a, const fvalue_t *fv_b, int *cmp)
 {
-	GByteArray	*a = fv_a->value.bytes;
-	GByteArray	*b = fv_b->value.bytes;
-
-	if (a->len != b->len)
-		*cmp = a->len < b->len ? -1 : 1;
-	else
-		*cmp = memcmp(a->data, b->data, a->len);
-
+	*cmp = g_bytes_compare(fv_a->value.bytes, fv_b->value.bytes);
 	return FT_OK;
 }
 
 static enum ft_result
 bytes_bitwise_and(fvalue_t *fv_dst, const fvalue_t *fv_a, const fvalue_t *fv_b, char **err_ptr _U_)
 {
-	GByteArray	*a = fv_a->value.bytes;
-	GByteArray	*b = fv_b->value.bytes;
 	GByteArray	*dst;
-	unsigned char *p_a, *p_b;
+	const uint8_t *p_a, *p_b;
+	size_t size_a, size_b;
 
-	guint len = MIN(a->len, b->len);
+	p_a = g_bytes_get_data(fv_a->value.bytes, &size_a);
+	p_b = g_bytes_get_data(fv_b->value.bytes, &size_b);
+
+	size_t len = MIN(size_a, size_b);
 	if (len == 0) {
-		fv_dst->value.bytes = g_byte_array_new();
+		fv_dst->value.bytes = g_bytes_new(NULL, 0);
 		return FT_OK;
 	}
-	dst = g_byte_array_sized_new(len);
 
-	p_a = a->data;
-	p_b = b->data;
-	for (guint i = 0; i < len; i++) {
-		guint8 byte = p_a[i] & p_b[i];
+	dst = g_byte_array_sized_new((unsigned)len);
+	for (size_t i = 0; i < len; i++) {
+		uint8_t byte = p_a[i] & p_b[i];
 		g_byte_array_append(dst, &byte, 1);
 	}
-	fv_dst->value.bytes = dst;
+	fv_dst->value.bytes = g_byte_array_free_to_bytes(dst);
 	return FT_OK;
 }
 
 static enum ft_result
-cmp_contains(const fvalue_t *fv_a, const fvalue_t *fv_b, gboolean *contains)
+cmp_contains(const fvalue_t *fv_a, const fvalue_t *fv_b, bool *contains)
 {
-	GByteArray	*a = fv_a->value.bytes;
-	GByteArray	*b = fv_b->value.bytes;
+	const void *data_a, *data_b;
+	size_t size_a, size_b;
 
-	if (ws_memmem(a->data, a->len, b->data, b->len)) {
-		*contains = TRUE;
+	data_a = g_bytes_get_data(fv_a->value.bytes, &size_a);
+	data_b = g_bytes_get_data(fv_b->value.bytes, &size_b);
+
+	if (ws_memmem(data_a, size_a, data_b, size_b)) {
+		*contains = true;
 	}
 	else {
-		*contains = FALSE;
+		*contains = false;
 	}
 
 	return FT_OK;
 }
 
 static enum ft_result
-cmp_matches(const fvalue_t *fv, const ws_regex_t *regex, gboolean *matches)
+cmp_matches(const fvalue_t *fv, const ws_regex_t *regex, bool *matches)
 {
-	GByteArray *a = fv->value.bytes;
+	const void *data;
+	size_t data_size;
 
-	*matches = ws_regex_matches_length(regex, a->data, a->len);
+	data = g_bytes_get_data(fv->value.bytes, &data_size);
+
+	*matches = ws_regex_matches_length(regex, data, data_size);
 	return FT_OK;
 }
 
-static gboolean
-bytes_is_zero(const fvalue_t *fv_a)
+static unsigned
+bytes_hash(const fvalue_t *fv)
 {
-	GByteArray *a = fv_a->value.bytes;
+	return g_bytes_hash(fv->value.bytes);
+}
 
-	if (a->len == 0)
-		return TRUE;
+static bool
+bytes_is_zero(const fvalue_t *fv)
+{
+	const uint8_t *data;
+	size_t data_size;
 
-	for (guint i = 0; i < a->len; i++) {
-		if (a->data[i] != 0) {
-			return FALSE;
+	data = g_bytes_get_data(fv->value.bytes, &data_size);
+
+	if (data_size == 0)
+		return true;
+
+	for (size_t i = 0; i < data_size; i++) {
+		if (data[i] != 0) {
+			return false;
 		}
 	}
-	return TRUE;
+	return true;
 }
 
 void
@@ -636,17 +613,18 @@ ftype_register_bytes(void)
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
 
-		{ .set_value_byte_array = bytes_fvalue_set },	/* union set_value */
+		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
 
 		cmp_order,
 		cmp_contains,
 		cmp_matches,
 
+		bytes_hash,			/* hash */
 		bytes_is_zero,			/* is_zero */
 		NULL,				/* is_negative */
 		len,
-		slice,
+		(FvalueSlice)slice,
 		bytes_bitwise_and,		/* bitwise_and */
 		NULL,				/* unary_minus */
 		NULL,				/* add */
@@ -672,17 +650,18 @@ ftype_register_bytes(void)
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
 
-		{ .set_value_byte_array = bytes_fvalue_set },	/* union set_value */
+		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
 
 		cmp_order,
 		cmp_contains,
 		NULL,				/* cmp_matches */
 
+		bytes_hash,			/* hash */
 		bytes_is_zero,			/* is_zero */
 		NULL,				/* is_negative */
 		len,
-		slice,
+		(FvalueSlice)slice,
 		bytes_bitwise_and,		/* bitwise_and */
 		NULL,				/* unary_minus */
 		NULL,				/* add */
@@ -708,17 +687,18 @@ ftype_register_bytes(void)
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
 
-		{ .set_value_bytes = ax25_fvalue_set },	/* union set_value */
+		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
 
 		cmp_order,
 		cmp_contains,
 		cmp_matches,
 
+		bytes_hash,			/* hash */
 		bytes_is_zero,			/* is_zero */
 		NULL,				/* is_negative */
 		len,
-		slice,
+		(FvalueSlice)slice,
 		bytes_bitwise_and,		/* bitwise_and */
 		NULL,				/* unary_minus */
 		NULL,				/* add */
@@ -744,17 +724,18 @@ ftype_register_bytes(void)
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
 
-		{ .set_value_bytes = vines_fvalue_set },	/* union set_value */
+		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
 
 		cmp_order,
 		cmp_contains,
 		cmp_matches,
 
+		bytes_hash,			/* hash */
 		bytes_is_zero,			/* is_zero */
 		NULL,				/* is_negative */
 		len,
-		slice,
+		(FvalueSlice)slice,
 		bytes_bitwise_and,		/* bitwise_and */
 		NULL,				/* unary_minus */
 		NULL,				/* add */
@@ -780,17 +761,18 @@ ftype_register_bytes(void)
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
 
-		{ .set_value_bytes = ether_fvalue_set },	/* union set_value */
+		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
 
 		cmp_order,
 		cmp_contains,
 		cmp_matches,
 
+		bytes_hash,			/* hash */
 		bytes_is_zero,			/* is_zero */
 		NULL,				/* is_negative */
 		len,
-		slice,
+		(FvalueSlice)slice,
 		bytes_bitwise_and,		/* bitwise_and */
 		NULL,				/* unary_minus */
 		NULL,				/* add */
@@ -816,17 +798,18 @@ ftype_register_bytes(void)
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
 
-		{ .set_value_byte_array = oid_fvalue_set },	/* union set_value */
+		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
 
 		cmp_order,
 		cmp_contains,
 		NULL,				/* cmp_matches */
 
+		bytes_hash,			/* hash */
 		bytes_is_zero,			/* is_zero */
 		NULL,				/* is_negative */
 		len,
-		slice,
+		(FvalueSlice)slice,
 		bytes_bitwise_and,		/* bitwise_and */
 		NULL,				/* unary_minus */
 		NULL,				/* add */
@@ -852,17 +835,18 @@ ftype_register_bytes(void)
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
 
-		{ .set_value_byte_array = oid_fvalue_set },	/* union set_value */
+		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
 
 		cmp_order,
 		cmp_contains,
 		NULL,				/* cmp_matches */
 
+		bytes_hash,			/* hash */
 		bytes_is_zero,			/* is_zero */
 		NULL,				/* is_negative */
 		len,
-		slice,
+		(FvalueSlice)slice,
 		bytes_bitwise_and,		/* bitwise_and */
 		NULL,				/* unary_minus */
 		NULL,				/* add */
@@ -888,17 +872,18 @@ ftype_register_bytes(void)
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
 
-		{ .set_value_byte_array = system_id_fvalue_set }, /* union set_value */
+		{ .set_value_bytes = bytes_fvalue_set }, /* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
 
 		cmp_order,
 		cmp_contains,
 		NULL,				/* cmp_matches */
 
+		bytes_hash,			/* hash */
 		bytes_is_zero,			/* is_zero */
 		NULL,				/* is_negative */
 		len,
-		slice,
+		(FvalueSlice)slice,
 		bytes_bitwise_and,		/* bitwise_and */
 		NULL,				/* unary_minus */
 		NULL,				/* add */
@@ -924,17 +909,18 @@ ftype_register_bytes(void)
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
 
-		{ .set_value_bytes = fcwwn_fvalue_set },	/* union set_value */
+		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
 
 		cmp_order,
 		cmp_contains,
 		cmp_matches,
 
+		bytes_hash,			/* hash */
 		bytes_is_zero,			/* is_zero */
 		NULL,				/* is_negative */
 		len,
-		slice,
+		(FvalueSlice)slice,
 		bytes_bitwise_and,		/* bitwise_and */
 		NULL,				/* unary_minus */
 		NULL,				/* add */

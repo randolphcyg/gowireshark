@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-lppe.c                                                              */
-/* asn2wrs.py -p lppe -c ./lppe.cnf -s ./packet-lppe-template -D . -O ../.. LPPe.asn */
+/* asn2wrs.py -L -p lppe -c ./lppe.cnf -s ./packet-lppe-template -D . -O ../.. LPPe.asn */
 
-/* Input file: packet-lppe-template.c */
-
-#line 1 "./asn1/lppe/packet-lppe-template.c"
 /* packet-lppe.c
  * Routines for LPP Extensions (LLPe) packet dissection
  * Copyright 2012-2021, Pascal Quantin <pascal@wireshark.org>
@@ -45,9 +42,6 @@ static int proto_lppe = -1;
 
 static dissector_handle_t xml_handle;
 
-
-/*--- Included file: packet-lppe-hf.c ---*/
-#line 1 "./asn1/lppe/packet-lppe-hf.c"
 static int hf_lppe_OMA_LPPe_MessageExtension_PDU = -1;  /* OMA_LPPe_MessageExtension */
 static int hf_lppe_lppeCompatibilityLevel = -1;   /* OMA_LPPe_LPPeCompatibilityLevel */
 static int hf_lppe_lppeVersion = -1;              /* OMA_LPPe_LPPeVersion */
@@ -1668,15 +1662,9 @@ static int hf_lppe_T_supportedAssistanceData_antennaPattern = -1;
 static int hf_lppe_T_srnMeasurements_rssi = -1;
 static int hf_lppe_T_srnMeasurements_rtd = -1;
 
-/*--- End of included file: packet-lppe-hf.c ---*/
-#line 41 "./asn1/lppe/packet-lppe-template.c"
-
 /* Initialize the subtree pointers */
 static gint ett_lppe = -1;
 static gint ett_lppe_civicLocation = -1;
-
-/*--- Included file: packet-lppe-ett.c ---*/
-#line 1 "./asn1/lppe/packet-lppe-ett.c"
 static gint ett_lppe_OMA_LPPe_MessageExtension = -1;
 static gint ett_lppe_OMA_LPPe_LPPeVersion = -1;
 static gint ett_lppe_OMA_LPPe_MessageExtensionBody = -1;
@@ -2315,13 +2303,7 @@ static gint ett_lppe_OMA_LPPe_SRN_Technologies = -1;
 static gint ett_lppe_OMA_LPPe_SRN_MeasurementMask = -1;
 static gint ett_lppe_T_srnMeasurements = -1;
 
-/*--- End of included file: packet-lppe-ett.c ---*/
-#line 46 "./asn1/lppe/packet-lppe-template.c"
-
 /* Include constants */
-
-/*--- Included file: packet-lppe-val.h ---*/
-#line 1 "./asn1/lppe/packet-lppe-val.h"
 #define maxAssistanceContainerList     16
 #define maxLocationInformationContainerDataList 10
 #define maxVendorOrOperatorIDList      32
@@ -2354,13 +2336,7 @@ static gint ett_lppe_T_srnMeasurements = -1;
 #define maxWimaxBSMeas                 32
 #define maxChannels                    512
 
-/*--- End of included file: packet-lppe-val.h ---*/
-#line 49 "./asn1/lppe/packet-lppe-template.c"
 
-
-
-/*--- Included file: packet-lppe-fn.c ---*/
-#line 1 "./asn1/lppe/packet-lppe-fn.c"
 
 
 static int
@@ -6482,11 +6458,9 @@ dissect_lppe_SEQUENCE_SIZE_1_8_OF_OMA_LPPe_ReferencePointRelationship(tvbuff_t *
 
 static int
 dissect_lppe_OMA_LPPe_Uri(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 37 "./asn1/lppe/lppe.cnf"
   offset = dissect_per_restricted_character_string(tvb, offset, actx, tree, hf_index,
                                                       NO_BOUND, NO_BOUND, FALSE, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:/?#[]@!$&'()*+,;=-._~%", 85,
                                                       NULL);
-
 
 
   return offset;
@@ -6567,7 +6541,8 @@ dissect_lppe_T_mapProvider(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_lppe_VisibleString_SIZE_1_64(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_VisibleString(tvb, offset, actx, tree, hf_index,
-                                          1, 64, FALSE);
+                                          1, 64, FALSE,
+                                          NULL);
 
   return offset;
 }
@@ -13422,7 +13397,6 @@ dissect_lppe_OMA_LPPe_LocationSource(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 
 static int
 dissect_lppe_T_civicLocation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 42 "./asn1/lppe/lppe.cnf"
   tvbuff_t *xml_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        NO_BOUND, NO_BOUND, FALSE, &xml_tvb);
@@ -13431,7 +13405,6 @@ dissect_lppe_T_civicLocation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
     proto_tree *xml_tree = proto_item_add_subtree(actx->created_item, ett_lppe_civicLocation);
     call_dissector(xml_handle, xml_tvb, actx->pinfo, xml_tree);
   }
-
 
   return offset;
 }
@@ -15520,7 +15493,8 @@ dissect_lppe_PressureStats(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_lppe_UTCTime(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_VisibleString(tvb, offset, actx, tree, hf_index,
-                                        NO_BOUND, NO_BOUND, FALSE);
+                                        NO_BOUND, NO_BOUND, FALSE,
+                                        NULL);
 
   return offset;
 }
@@ -15876,12 +15850,10 @@ static const per_sequence_t OMA_LPPe_MessageExtension_sequence[] = {
 
 static int
 dissect_lppe_OMA_LPPe_MessageExtension(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 31 "./asn1/lppe/lppe.cnf"
 
   proto_tree_add_item(tree, proto_lppe, tvb, 0, -1, ENC_NA);
 
   col_append_sep_str(actx->pinfo->cinfo, COL_PROTOCOL, "/", "LPPe");
-
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_lppe_OMA_LPPe_MessageExtension, OMA_LPPe_MessageExtension_sequence);
@@ -15901,9 +15873,6 @@ static int dissect_OMA_LPPe_MessageExtension_PDU(tvbuff_t *tvb _U_, packet_info 
 }
 
 
-/*--- End of included file: packet-lppe-fn.c ---*/
-#line 52 "./asn1/lppe/packet-lppe-template.c"
-
 
 /*--- proto_register_lpp -------------------------------------------*/
 void proto_register_lppe(void) {
@@ -15911,9 +15880,6 @@ void proto_register_lppe(void) {
   /* List of fields */
   static hf_register_info hf[] = {
 
-
-/*--- Included file: packet-lppe-hfarr.c ---*/
-#line 1 "./asn1/lppe/packet-lppe-hfarr.c"
     { &hf_lppe_OMA_LPPe_MessageExtension_PDU,
       { "OMA-LPPe-MessageExtension", "lppe.OMA_LPPe_MessageExtension_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -22386,18 +22352,12 @@ void proto_register_lppe(void) {
       { "rtd", "lppe.T.srnMeasurements.rtd",
         FT_BOOLEAN, 8, NULL, 0x40,
         NULL, HFILL }},
-
-/*--- End of included file: packet-lppe-hfarr.c ---*/
-#line 61 "./asn1/lppe/packet-lppe-template.c"
   };
 
   /* List of subtrees */
   static gint *ett[] = {
 	  &ett_lppe,
       &ett_lppe_civicLocation,
-
-/*--- Included file: packet-lppe-ettarr.c ---*/
-#line 1 "./asn1/lppe/packet-lppe-ettarr.c"
     &ett_lppe_OMA_LPPe_MessageExtension,
     &ett_lppe_OMA_LPPe_LPPeVersion,
     &ett_lppe_OMA_LPPe_MessageExtensionBody,
@@ -23035,9 +22995,6 @@ void proto_register_lppe(void) {
     &ett_lppe_OMA_LPPe_SRN_Technologies,
     &ett_lppe_OMA_LPPe_SRN_MeasurementMask,
     &ett_lppe_T_srnMeasurements,
-
-/*--- End of included file: packet-lppe-ettarr.c ---*/
-#line 68 "./asn1/lppe/packet-lppe-template.c"
   };
 
 

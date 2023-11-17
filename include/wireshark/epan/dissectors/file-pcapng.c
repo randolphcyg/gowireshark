@@ -19,11 +19,11 @@
 #include <epan/exceptions.h>
 #include <epan/show_exception.h>
 #include <epan/addr_resolv.h>
-#include <epan/wmem_scopes.h>
+#include <wiretap/pcapng_module.h>
 #include <wiretap/secrets-types.h>
 
-#include <epan/dissectors/file-pcapng.h>
-#include <epan/dissectors/packet-pcap_pktdata.h>
+#include "file-pcapng.h"
+#include "packet-pcap_pktdata.h"
 
 static int proto_pcapng = -1;
 
@@ -115,7 +115,7 @@ static int hf_pcapng_interface_description_snap_length = -1;
 static int hf_pcapng_packet_block_interface_id = -1;
 static int hf_pcapng_packet_block_drops_count = -1;
 static int hf_pcapng_captured_length = -1;
-static int hf_pcapng_packet_length = -1;
+static int hf_pcapng_original_length = -1;
 static int hf_pcapng_packet_data = -1;
 static int hf_pcapng_packet_padding = -1;
 static int hf_pcapng_interface_id = -1;
@@ -136,20 +136,23 @@ static int hf_pcapng_dsb_secrets_type = -1;
 static int hf_pcapng_dsb_secrets_length = -1;
 static int hf_pcapng_dsb_secrets_data = -1;
 
-static int hf_pcapng_darwin_process_id = -1;
-static int hf_pcapng_option_code_darwin_process_info = -1;
-static int hf_pcapng_option_darwin_process_name = -1;
-static int hf_pcapng_option_darwin_process_uuid = -1;
+static int hf_pcapng_cb_pen = -1;
+static int hf_pcapng_cb_data = -1;
+static int hf_pcapng_cb_option_string = -1;
+static int hf_pcapng_cb_option_data = -1;
+
 static int hf_pcapng_option_data_packet_darwin_dpeb_id = -1;
 static int hf_pcapng_option_data_packet_darwin_svc_class = -1;
 static int hf_pcapng_option_data_packet_darwin_edpeb_id = -1;
 static int hf_pcapng_option_data_packet_darwin_flags = -1;
 static int hf_pcapng_option_data_packet_darwin_flags_reserved = -1;
+static int hf_pcapng_option_data_packet_darwin_flags_wk = -1;
 static int hf_pcapng_option_data_packet_darwin_flags_ch = -1;
 static int hf_pcapng_option_data_packet_darwin_flags_so = -1;
 static int hf_pcapng_option_data_packet_darwin_flags_re = -1;
 static int hf_pcapng_option_data_packet_darwin_flags_ka = -1;
 static int hf_pcapng_option_data_packet_darwin_flags_nf = -1;
+static int hf_pcapng_option_data_packet_darwin_flow_id = -1;
 
 static expert_field ei_invalid_byte_order_magic = EI_INIT;
 static expert_field ei_block_length_below_block_minimum = EI_INIT;
@@ -163,6 +166,7 @@ static expert_field ei_missing_idb = EI_INIT;
 static gint ett_pcapng = -1;
 static gint ett_pcapng_section_header_block = -1;
 static gint ett_pcapng_block_data = -1;
+static gint ett_pcapng_block_type = -1;
 static gint ett_pcapng_options = -1;
 static gint ett_pcapng_option = -1;
 static gint ett_pcapng_records = -1;
@@ -196,14 +200,9 @@ static int * const hfx_pcapng_option_data_packet_flags[] = {
     NULL
 };
 
-static int * const hfx_pcapng_block_type[] = {
-    &hf_pcapng_block_type_vendor,
-    &hf_pcapng_block_type_value,
-    NULL
-};
-
 static int * const hfx_pcapng_option_data_packet_darwin_flags[] = {
     &hf_pcapng_option_data_packet_darwin_flags_reserved,
+    &hf_pcapng_option_data_packet_darwin_flags_wk,
     &hf_pcapng_option_data_packet_darwin_flags_ch,
     &hf_pcapng_option_data_packet_darwin_flags_so,
     &hf_pcapng_option_data_packet_darwin_flags_re,
@@ -214,138 +213,90 @@ static int * const hfx_pcapng_option_data_packet_darwin_flags[] = {
 
 static gboolean pref_dissect_next_layer = FALSE;
 
-#define BLOCK_INTERFACE_DESCRIPTION  0x00000001
-#define BLOCK_PACKET                 0x00000002
-#define BLOCK_SIMPLE_PACKET          0x00000003
-#define BLOCK_NAME_RESOLUTION        0x00000004
-#define BLOCK_INTERFACE_STATISTICS   0x00000005
-#define BLOCK_ENHANCED_PACKET        0x00000006
-#define BLOCK_IRIG_TIMESTAMP         0x00000007
-#define BLOCK_ARINC_429              0x00000008
-#define BLOCK_SYSTEMD_JOURNAL_EXPORT 0x00000009
-#define BLOCK_DSB                    0x0000000a
-#define BLOCK_SECTION_HEADER         0x0A0D0D0A
-#define BLOCK_DARWIN_PROCESS         0x80000001
-
 static const value_string block_type_vals[] = {
-    { 0x00000001,  "Interface Description Block" },
-    { 0x00000002,  "Packet Block" },
-    { 0x00000003,  "Simple Packet Block" },
-    { 0x00000004,  "Name Resolution Block" },
-    { 0x00000005,  "Interface Statistics Block" },
-    { 0x00000006,  "Enhanced Packet Block" },
-    { 0x00000007,  "IRIG Timestamp Block" },
-    { 0x00000008,  "Arinc 429 in AFDX Encapsulation Information Block" },
-    { 0x00000009,  "systemd Journal Export Block" },
-    { 0x0000000A,  "Decryption Secrets Block" },
-    { 0x00000204,  "Sysdig Event Block" },
-    { 0x00000208,  "Sysdig Event Block with flags" },
-    { 0x00000216,  "Sysdig Event Block v2" },
-    { 0x00000217,  "Sysdig Event Block with flags v2" },
-    { 0x00000221,  "Sysdig Event Block v2 large payload" },
-    { 0x00000222,  "Sysdig Event Block with flags v2 large payload" },
-    { 0x0A0D0D0A,  "Section Header Block" },
-    { 0x80000001,  "Darwin Process Event Block" },
+    { BLOCK_TYPE_IDB,                       "Interface Description Block" },
+    { BLOCK_TYPE_PB,                        "Packet Block" },
+    { BLOCK_TYPE_SPB,                       "Simple Packet Block" },
+    { BLOCK_TYPE_NRB,                       "Name Resolution Block" },
+    { BLOCK_TYPE_ISB,                       "Interface Statistics Block" },
+    { BLOCK_TYPE_EPB,                       "Enhanced Packet Block" },
+    { BLOCK_TYPE_IRIG_TS,                   "IRIG Timestamp Block" },
+    { BLOCK_TYPE_ARINC_429,                 "Arinc 429 in AFDX Encapsulation Information Block" },
+    { BLOCK_TYPE_SYSTEMD_JOURNAL_EXPORT,    "systemd Journal Export Block" },
+    { BLOCK_TYPE_DSB,                       "Decryption Secrets Block" },
+    { BLOCK_TYPE_SYSDIG_MI,                 "Sysdig Machine Info Block" },
+    { BLOCK_TYPE_SYSDIG_PL_V1,              "Sysdig Process List Block" },
+    { BLOCK_TYPE_SYSDIG_FDL_V1,             "Sysdig File Descriptor List Block" },
+    { BLOCK_TYPE_SYSDIG_EVENT,              "Sysdig Event Block" },
+    { BLOCK_TYPE_SYSDIG_IL_V1,              "Sysdig Interface List Block" },
+    { BLOCK_TYPE_SYSDIG_UL_V1,              "Sysdig User List Block" },
+    { BLOCK_TYPE_SYSDIG_PL_V2,              "Sysdig Process List Block version 2" },
+    { BLOCK_TYPE_SYSDIG_EVF,                "Sysdig Event Block with flags" },
+    { BLOCK_TYPE_SYSDIG_PL_V3,              "Sysdig Process List Block version 3" },
+    { BLOCK_TYPE_SYSDIG_PL_V4,              "Sysdig Process List Block version 4" },
+    { BLOCK_TYPE_SYSDIG_PL_V5,              "Sysdig Process List Block version 5" },
+    { BLOCK_TYPE_SYSDIG_PL_V6,              "Sysdig Process List Block version 6" },
+    { BLOCK_TYPE_SYSDIG_PL_V7,              "Sysdig Process List Block version 7" },
+    { BLOCK_TYPE_SYSDIG_PL_V8,              "Sysdig Process List Block version 8" },
+    { BLOCK_TYPE_SYSDIG_PL_V9,              "Sysdig Process List Block version 9" },
+    { BLOCK_TYPE_SYSDIG_EVENT_V2,           "Sysdig Event Block v2" },
+    { BLOCK_TYPE_SYSDIG_EVF_V2,             "Sysdig Event Block with flags v2" },
+    { BLOCK_TYPE_SYSDIG_FDL_V2,             "Sysdig File Descriptor List Block" },
+    { BLOCK_TYPE_SYSDIG_IL_V2,              "Sysdig Interface List Block version 2" },
+    { BLOCK_TYPE_SYSDIG_UL_V2,              "Sysdig User List Block version 2" },
+    { BLOCK_TYPE_SYSDIG_EVENT_V2_LARGE,     "Sysdig Event Block v2 large payload" },
+    { BLOCK_TYPE_SYSDIG_EVF_V2_LARGE,       "Sysdig Event Block with flags v2 large payload" },
+    { BLOCK_TYPE_CB_COPY,                   "Custom Block which can be copied"},
+    { BLOCK_TYPE_CB_NO_COPY,                "Custom Block which should not be copied"},
+    { BLOCK_TYPE_SHB,                       "Section Header Block" },
     { 0, NULL }
 };
 
+
+/* blockId-> local_block_callback_info_t* */
+static GHashTable *s_local_block_callback_table = NULL;
+
+#define OPTION_CODE_CUSTOM_OPTIONS \
+    { 2988,  "Custom Option UTF-8 string which can be copied" }, \
+    { 2989,  "Custom Option which can be copied" }, \
+    { 19372, "Custom Option UTF-8 string which should not be copied" }, \
+    { 19373, "Custom Option which should not be copied" }
+
+static const value_string option_code_section_header_vals[] = {
+    { 0,  "End of Options" },
+    { 1,  "Comment" },
+
+    { 2,  "Hardware Description" },
+    { 3,  "OS Description" },
+    { 4,  "User Application" },
+    OPTION_CODE_CUSTOM_OPTIONS,
+    { 0, NULL }
+};
+
+static const value_string option_code_interface_description_vals[] = {
+    { 0,  "End of Options" },
+    { 1,  "Comment" },
+
+    { 2,  "Interface Name" },
+    { 3,  "Interface Description" },
+    { 4,  "IPv4 Address" },
+    { 5,  "IPv6 Address" },
+    { 6,  "MAC Address" },
+    { 7,  "EUI Address" },
+    { 8,  "Speed" },
+    { 9,  "Timestamp Resolution" },
+    { 10, "Timezone" },
+    { 11, "Filter" },
+    { 12, "OS" },
+    { 13, "FCS Length" },
+    { 14, "Timestamp Offset" },
+    { 15, "Hardware" },
+    OPTION_CODE_CUSTOM_OPTIONS,
+    { 0, NULL }
+};
+
+
 /*
- * Apple's Pcapng Darwin Process Event Block
- *
- *    A Darwin Process Event Block (DPEB) is an Apple defined container
- *    for information describing a Darwin process.
- *
- *    Tools that write / read the capture file associate an incrementing
- *    32-bit number (starting from '0') to each Darwin Process Event Block,
- *    called the DPEB ID for the process in question.  This number is
- *    unique within each Section and identifies a specific DPEB; a DPEB ID
- *    is only unique inside the current section. Two Sections can have different
- *    processes identified by the same DPEB ID values.  DPEB ID are referenced
- *    by Enhanced Packet Blocks that include options to indicate the Darwin
- *    process to which the EPB refers.
- *
- *
- *         0                   1                   2                   3
- *         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- *         +---------------------------------------------------------------+
- *       0 |                   Block Type = 0x80000001                     |
- *         +---------------------------------------------------------------+
- *       4 |                     Block Total Length                        |
- *         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *       8 |                          Process ID                           |
- *         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *      12 /                                                               /
- *         /                      Options (variable)                       /
- *         /                                                               /
- *         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *         |                     Block Total Length                        |
- *         +---------------------------------------------------------------+
- *
- *                   Figure XXX.1: Darwin Process Event Block
- *
- *    The meaning of the fields are:
- *
- *    o  Block Type: The block type of a Darwin Process Event Block is 2147483649.
- *
- *       Note: This specific block type number falls into the range defined
- *       for "local use" but has in fact been available publically since Darwin
- *       13.0 for pcapng files generated by Apple's tcpdump when using the PKTAP
- *       enhanced interface.
- *
- *    o  Block Total Length: Total size of this block, as described in
- *       Pcapng Section 3.1 (General Block Structure).
- *
- *    o  Process ID: The process ID (PID) of the process.
- *
- *       Note: It is not known if this field is officially defined as a 32 bits
- *       (4 octets) or something smaller since Darwin PIDs currently appear to
- *       be limited to maximum value of 100000.
- *
- *    o  Options: A list of options (formatted according to the rules defined
- *       in Section 3.5) can be present.
- *
- *    In addition to the options defined in Section 3.5, the following
- *    Apple defined Darwin options are valid within this block:
- *
- *           +------------------+------+----------+-------------------+
- *           | Name             | Code | Length   | Multiple allowed? |
- *           +------------------+------+----------+-------------------+
- *           | darwin_proc_name | 2    | variable | no                |
- *           | darwin_proc_uuid | 4    | 16       | no                |
- *           +------------------+------+----------+-------------------+
- *
- *              Table XXX.1: Darwin Process Description Block Options
- *
- *    darwin_proc_name:
- *            The darwin_proc_name option is a UTF-8 string containing the
- *            name of a process producing or consuming an EPB.
- *
- *            Examples: "mDNSResponder", "GoogleSoftwareU".
- *
- *            Note: It appears that Apple's tcpdump currently truncates process
- *            names to a maximum of 15 octets followed by a NUL character.
- *            Multi-byte UTF-8 sequences in process names might be truncated
- *            resulting in an invalid final UTF-8 character.
- *
- *            This is probably because the process name comes from the
- *            p_comm field in a proc structure in the kernel; that field
- *            is MAXCOMLEN+1 bytes long, with the +1 being for the NUL
- *            terminator.  That would give 16 characters, but the
- *            proc_info kernel interface has a structure with a
- *            process name field of only MAXCOMLEN bytes.
- *
- *            This all ultimately dates back to the "kernel accounting"
- *            mechanism that appeared in V7 UNIX, with an "accounting
- *            file" with entries appended whenever a process exits; not
- *            surprisingly, that code thinks a file name is just a bunch
- *            of "char"s, with no multi-byte encodings (1979 called, they
- *            want their character encoding back), so, yes, this can
- *            mangle UTF-8 file names containing non-ASCII characters.
- *
- *    darwin_proc_uuid:
- *            The darwin_proc_uuid option is a set of 16 octets representing
- *            the process UUID.
- *
  * Enhanced Packet Block (EPB) options for supporting Darwin process information
  *
  *    Enhanced Packet Blocks may be augmented with an Apple defined Darwin
@@ -371,6 +322,7 @@ static const value_string block_type_vals[] = {
  *          | darwin_svc_class | 32770 | 4      | no?               |
  *          | darwin_edpeb_id  | 32771 | 4      | no?               |
  *          | darwin_flags     | 32772 | 4      | no?               |
+ *          | darwin_flow_id   | 32773 | 4      | no?               |
  *          +------------------+------+---------+-------------------+
  *
  *           Table XXX.2: Darwin options for Enhanced Packet Blocks
@@ -426,6 +378,7 @@ static const value_string block_type_vals[] = {
  *                          +-------------------------+
  *                          |     FLAG_MASK    | Flag |
  *                          +-------------------------+
+ *                          |    0x00000020    |  wk  |
  *                          |    0x00000010    |  ch  |
  *                          |    0x00000008    |  so  |
  *                          |    0x00000004    |  re  |
@@ -434,43 +387,19 @@ static const value_string block_type_vals[] = {
  *                          +-------------------------+
  *
  *                           Table XXX.4: Darwin Flags
- * nf = New Flow
- * ka = Keep Alive
- * re = ReXmit (I assume this means Re-Transmit)
- * so = Socket
- * ch = Nexus Channel
+ *
+ *      wk = Wake Packet
+ *      ch = Nexus Channel
+ *      so = Socket
+ *      re = ReXmit
+ *      ka = Keep Alive
+ *      nf = New Flow
+ *
+ *    darwin_flow_id:
+ *            The darwin_flow_id option is a 32 bit value that
+ *            identifies a specific flow this packet is a part of.
  */
 
-static const value_string option_code_section_header_vals[] = {
-    { 0,  "End of Options" },
-    { 1,  "Comment" },
-
-    { 2,  "Hardware Description" },
-    { 3,  "OS Description" },
-    { 4,  "User Application" },
-    { 0, NULL }
-};
-
-static const value_string option_code_interface_description_vals[] = {
-    { 0,  "End of Options" },
-    { 1,  "Comment" },
-
-    { 2,  "Interface Name" },
-    { 3,  "Interface Description" },
-    { 4,  "IPv4 Address" },
-    { 5,  "IPv6 Address" },
-    { 6,  "MAC Address" },
-    { 7,  "EUI Address" },
-    { 8,  "Speed" },
-    { 9,  "Timestamp Resolution" },
-    { 10, "Timezone" },
-    { 11, "Filter" },
-    { 12, "OS" },
-    { 13, "FCS Length" },
-    { 14, "Timestamp Offset" },
-    { 15, "Hardware" },
-    { 0, NULL }
-};
 
 static const value_string option_code_enhanced_packet_vals[] = {
     { 0,  "End of Options" },
@@ -482,10 +411,12 @@ static const value_string option_code_enhanced_packet_vals[] = {
     { 5,  "Packet ID" },
     { 6,  "Queue" },
     { 7,  "Verdict" },
+    OPTION_CODE_CUSTOM_OPTIONS,
     { 32769,   "Darwin DPEB ID" },
     { 32770,   "Darwin Service Class" },
     { 32771,   "Darwin Effective DPEB ID" },
     { 32772,   "Darwin Flags" },
+    { 32773,   "Darwin Flow ID" },
     { 0, NULL }
 };
 
@@ -495,6 +426,7 @@ static const value_string option_code_packet_vals[] = {
 
     { 2,  "Flags" },
     { 3,  "Hash" },
+    OPTION_CODE_CUSTOM_OPTIONS,
     { 0, NULL }
 };
 
@@ -505,6 +437,7 @@ static const value_string option_code_name_resolution_vals[] = {
     { 2,  "DNS Name" },
     { 3,  "DNS IPv4 Address" },
     { 4,  "DNS IPv6 Address" },
+    OPTION_CODE_CUSTOM_OPTIONS,
     { 0, NULL }
 };
 
@@ -519,15 +452,7 @@ static const value_string option_code_interface_statistics_vals[] = {
     { 6,  "Number of Accepted Packets" },
     { 7,  "Number of Packets Dropped by OS" },
     { 8,  "Number of Packets Delivered to the User" },
-    { 0, NULL }
-};
-
-static const value_string option_code_darwin_process_info_vals[] = {
-    { 0,  "End of Options" },
-    { 1,  "Comment" },
-
-    { 2,  "Darwin Process Name" },
-    { 4,  "Darwin Process UUID" },
+    OPTION_CODE_CUSTOM_OPTIONS,
     { 0, NULL }
 };
 
@@ -559,7 +484,7 @@ static const value_string timestamp_resolution_base_vals[] = {
 };
 
 static const value_string interface_filter_type_vals[] = {
-    { 0, "libpcap string" },
+    { 0, "Libpcap string" },
     { 1, "BPF program" },
     { 0, NULL }
 };
@@ -597,8 +522,11 @@ static const value_string flags_reception_type_vals[] = {
 };
 
 static const value_string dsb_secrets_types_vals[] = {
-    { SECRETS_TYPE_TLS,         "TLS Key Log" },
-    { SECRETS_TYPE_WIREGUARD,   "WireGuard Key Log" },
+    { SECRETS_TYPE_TLS,             "TLS Key Log" },
+    { SECRETS_TYPE_SSH,             "SSH Key Log" },
+    { SECRETS_TYPE_WIREGUARD,       "WireGuard Key Log" },
+    { SECRETS_TYPE_ZIGBEE_NWK_KEY,  "Zigbee NWK Key" },
+    { SECRETS_TYPE_ZIGBEE_APS_KEY,  "Zigbee APS Key" },
     { 0, NULL }
 };
 
@@ -614,7 +542,27 @@ static const guint8 pcapng_little_endian_magic[BYTE_ORDER_MAGIC_SIZE] = {
     0x4D, 0x3C, 0x2B, 0x1A
 };
 
-static gint dissect_options(proto_tree *tree, packet_info *pinfo,
+static
+void dissect_custom_options(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset,
+                            guint32 option_code, guint32 option_length, guint encoding)
+{
+    proto_tree_add_item(tree, hf_pcapng_cb_pen, tvb, offset, 4, encoding);
+    offset += 4;
+
+    /* Todo: Add known PEN custom options dissection. */
+    switch (option_code) {
+    case 2988:
+    case 19372:
+        proto_tree_add_item(tree, hf_pcapng_cb_option_string, tvb, offset, option_length - 4, ENC_UTF_8);
+        break;
+    case 2989:
+    case 19373:
+        proto_tree_add_item(tree, hf_pcapng_cb_option_data, tvb, offset, option_length - 4, encoding);
+        break;
+    }
+}
+
+gint dissect_options(proto_tree *tree, packet_info *pinfo,
         guint32 block_type, tvbuff_t *tvb, int offset, guint encoding,
         void *user_data)
 {
@@ -637,10 +585,18 @@ static gint dissect_options(proto_tree *tree, packet_info *pinfo,
     guint8        value_u8;
     guint32       value_u32;
     guint64       value_u64;
-    e_guid_t      uuid;
 
     if (tvb_reported_length_remaining(tvb, offset) <= 0)
         return 0;
+
+    /* Lookup handlers for known local block type */
+    local_block_callback_info_t *p_local_block_callback = NULL;
+    if (block_type >= 0x80000000) {
+        p_local_block_callback = (local_block_callback_info_t*)g_hash_table_lookup(s_local_block_callback_table, GUINT_TO_POINTER(block_type));
+        DISSECTOR_ASSERT((p_local_block_callback->option_root_hf > 0) &&
+                          p_local_block_callback->option_dissector &&
+                          p_local_block_callback->option_vals);
+    }
 
     options_item = proto_tree_add_item(tree, hf_pcapng_options, tvb, offset, -1, ENC_NA);
     options_tree = proto_item_add_subtree(options_item, ett_pcapng_options);
@@ -650,37 +606,42 @@ static gint dissect_options(proto_tree *tree, packet_info *pinfo,
         option_item = proto_tree_add_item(options_tree, hf_pcapng_option, tvb, offset, -1, ENC_NA);
         option_tree = proto_item_add_subtree(option_item, ett_pcapng_option);
 
+        /* TODO: could have done this once outside of loop? */
         switch (block_type) {
-        case BLOCK_SECTION_HEADER:
+        case BLOCK_TYPE_SHB:
             hfj_pcapng_option_code = hf_pcapng_option_code_section_header;
             vals = option_code_section_header_vals;
             break;
-        case BLOCK_INTERFACE_DESCRIPTION:
+        case BLOCK_TYPE_IDB:
             hfj_pcapng_option_code = hf_pcapng_option_code_interface_description;
             vals = option_code_interface_description_vals;
             break;
-        case BLOCK_ENHANCED_PACKET:
+        case BLOCK_TYPE_EPB:
             hfj_pcapng_option_code = hf_pcapng_option_code_enhanced_packet;
             vals = option_code_enhanced_packet_vals;
             break;
-        case BLOCK_PACKET:
+        case BLOCK_TYPE_PB:
             hfj_pcapng_option_code = hf_pcapng_option_code_packet;
             vals = option_code_packet_vals;
             break;
-        case BLOCK_NAME_RESOLUTION:
+        case BLOCK_TYPE_NRB:
             hfj_pcapng_option_code = hf_pcapng_option_code_name_resolution;
             vals = option_code_name_resolution_vals;
             break;
-        case BLOCK_INTERFACE_STATISTICS:
+        case BLOCK_TYPE_ISB:
             hfj_pcapng_option_code = hf_pcapng_option_code_interface_statistics;
             vals = option_code_interface_statistics_vals;
             break;
-        case BLOCK_DARWIN_PROCESS:
-            hfj_pcapng_option_code = hf_pcapng_option_code_darwin_process_info;
-            vals = option_code_darwin_process_info_vals;
-            break;
+
         default:
-            hfj_pcapng_option_code = hf_pcapng_option_code;
+            /* Use and handling we have for a local lock type */
+            if (p_local_block_callback) {
+                hfj_pcapng_option_code = p_local_block_callback->option_root_hf;
+                vals = p_local_block_callback->option_vals;
+            }
+            else {
+                hfj_pcapng_option_code = hf_pcapng_option_code;
+            }
         }
 
         proto_tree_add_item_ret_uint(option_tree, hfj_pcapng_option_code, tvb, offset, 2, encoding, &option_code);
@@ -700,8 +661,11 @@ static gint dissect_options(proto_tree *tree, packet_info *pinfo,
             proto_tree_add_item_ret_display_string(option_tree, hf_pcapng_option_data_comment, tvb, offset, option_length, ENC_NA | ENC_UTF_8, pinfo->pool, &str);
             proto_item_append_text(option_item, " = %s", str);
             offset += option_length;
+        } else if (option_code == 2988 || option_code == 2989 || option_code == 19372 || option_code == 19373) {
+            dissect_custom_options(option_tree, pinfo, tvb, offset, option_code, option_length, encoding);
+            offset += option_length;
         } else switch (block_type) {
-        case BLOCK_SECTION_HEADER:
+        case BLOCK_TYPE_SHB:
             switch (option_code) {
             case 2:
                 proto_tree_add_item_ret_display_string(option_tree, hf_pcapng_option_data_section_header_hardware, tvb, offset, option_length, ENC_NA | ENC_UTF_8, pinfo->pool, &str);
@@ -723,7 +687,7 @@ static gint dissect_options(proto_tree *tree, packet_info *pinfo,
                 offset += option_length;
             }
             break;
-        case BLOCK_INTERFACE_DESCRIPTION: {
+        case BLOCK_TYPE_IDB: {
             struct interface_description  *interface_description = (struct interface_description *) user_data;
 
             switch (option_code) {
@@ -1017,7 +981,7 @@ static gint dissect_options(proto_tree *tree, packet_info *pinfo,
             }
             }
             break;
-        case BLOCK_PACKET:
+        case BLOCK_TYPE_PB:
             switch (option_code) {
             case 2:
                 if (option_length != 4) {
@@ -1055,7 +1019,7 @@ static gint dissect_options(proto_tree *tree, packet_info *pinfo,
             }
 
             break;
-        case BLOCK_NAME_RESOLUTION:
+        case BLOCK_TYPE_NRB:
             switch (option_code) {
             case 2:
                 proto_tree_add_item_ret_display_string(option_tree, hf_pcapng_option_data_dns_name, tvb, offset, option_length, ENC_NA | ENC_UTF_8, pinfo->pool, &str);
@@ -1099,7 +1063,7 @@ static gint dissect_options(proto_tree *tree, packet_info *pinfo,
             }
 
             break;
-        case BLOCK_INTERFACE_STATISTICS:
+        case BLOCK_TYPE_ISB:
             switch (option_code) {
             case 2:
                 if (option_length != 8) {
@@ -1189,7 +1153,7 @@ static gint dissect_options(proto_tree *tree, packet_info *pinfo,
             }
 
             break;
-        case BLOCK_ENHANCED_PACKET:
+        case BLOCK_TYPE_EPB:
             switch (option_code) {
             case 2:
                 if (option_length != 4) {
@@ -1306,40 +1270,33 @@ static gint dissect_options(proto_tree *tree, packet_info *pinfo,
                 offset += option_length;
 
                 break;
+            case 32773: /* Darwin Flow ID */
+                proto_tree_add_item_ret_uint(option_tree, hf_pcapng_option_data_packet_darwin_flow_id, tvb, offset, option_length, encoding, &value_u32);
+                offset += option_length;
+
+                proto_item_append_text(option_item, " = %u", value_u32);
+
+                break;
             default:
                 proto_tree_add_item(option_tree, hf_pcapng_option_data, tvb, offset, option_length, ENC_NA);
                 offset += option_length;
             }
 
             break;
-        case BLOCK_DARWIN_PROCESS:
-            switch (option_code) {
-            case 2: /* Darwin Process Name */
-                proto_tree_add_item_ret_display_string(option_tree, hf_pcapng_option_darwin_process_name, tvb, offset, option_length, ENC_NA | ENC_UTF_8, pinfo->pool, &str);
-                offset += option_length;
-                break;
 
-            case 4: /* Darwin Process UUID */
-                proto_tree_add_item(option_tree, hf_pcapng_option_darwin_process_uuid, tvb, offset, option_length, ENC_BIG_ENDIAN);
-                tvb_get_guid(tvb, offset, &uuid, ENC_BIG_ENDIAN);
-                offset += option_length;
-
-                proto_item_append_text(option_item, " = %s",
-                    guid_to_str(pinfo->pool, &uuid));
-
-                break;
-            default:
-                proto_tree_add_item(option_tree, hf_pcapng_option_data, tvb, offset, option_length, ENC_NA);
-                offset += option_length;
-                break;
-            }
-
-            break;
         default:
-            proto_tree_add_item(option_tree, hf_pcapng_option_data, tvb, offset, option_length, ENC_NA);
+            /* Use local block handling if available */
+            if (p_local_block_callback) {
+                 p_local_block_callback->option_dissector(option_tree, option_item, pinfo, tvb, offset,
+                                                          hf_pcapng_option_data, option_code, option_length, encoding);
+            }
+            else {
+                proto_tree_add_item(option_tree, hf_pcapng_option_data, tvb, offset, option_length, ENC_NA);
+            }
             offset += option_length;
         }
 
+        /* Pad this option out to next 4 bytes */
         if ((option_length % 4) != 0) {
             proto_item_set_len(option_item, option_length + 2 * 2 + (4 - option_length % 4));
             option_length = 4 - option_length % 4;
@@ -1448,14 +1405,7 @@ process_block_length(proto_tree *block_tree, packet_info *pinfo,
     return tvb_new_subset_length(tvb, offset, block_data_length);
 }
 
-/*
- * Structure to pass to block data dissectors.
- */
-typedef struct {
-    proto_item *block_item;
-    proto_tree *block_tree;
-    struct info *info;
-} block_data_arg;
+
 
 static gboolean
 dissect_shb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
@@ -1484,7 +1434,7 @@ dissect_shb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
     proto_tree_add_item(tree, hf_pcapng_section_header_section_length, tvb, offset, 8, argp->info->encoding);
     offset += 8;
 
-    dissect_options(tree, pinfo, BLOCK_SECTION_HEADER, tvb, offset, argp->info->encoding, NULL);
+    dissect_options(tree, pinfo, BLOCK_TYPE_SHB, tvb, offset, argp->info->encoding, NULL);
 
     return TRUE;
 }
@@ -1513,7 +1463,7 @@ dissect_idb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
     interface_description.snap_len = tvb_get_guint32(tvb, offset, argp->info->encoding);
     offset += 4;
 
-    dissect_options(tree, pinfo, BLOCK_INTERFACE_DESCRIPTION, tvb, offset, argp->info->encoding, &interface_description);
+    dissect_options(tree, pinfo, BLOCK_TYPE_IDB, tvb, offset, argp->info->encoding, &interface_description);
 
     wmem_array_append_one(argp->info->interfaces, interface_description);
 }
@@ -1526,7 +1476,7 @@ dissect_pb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
     guint32 interface_id;
     struct interface_description *interface_description;
     guint32 captured_length;
-    guint32 reported_length;
+    guint32 original_length;
     proto_item *packet_data_item;
 
     proto_item_append_text(argp->block_item, " %u", argp->info->frame_number);
@@ -1546,7 +1496,7 @@ dissect_pb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
     proto_tree_add_item_ret_uint(tree, hf_pcapng_captured_length, tvb, offset, 4, argp->info->encoding, &captured_length);
     offset += 4;
 
-    proto_tree_add_item_ret_uint(tree, hf_pcapng_packet_length, tvb, offset, 4, argp->info->encoding, &reported_length);
+    proto_tree_add_item_ret_uint(tree, hf_pcapng_original_length, tvb, offset, 4, argp->info->encoding, &original_length);
     offset += 4;
 
     packet_data_item = proto_tree_add_item(tree, hf_pcapng_packet_data, tvb, offset, captured_length, argp->info->encoding);
@@ -1557,7 +1507,7 @@ dissect_pb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
         pinfo->num = argp->info->frame_number;
 
         TRY {
-            call_dissector_with_data(pcap_pktdata_handle, tvb_new_subset_length_caplen(tvb, offset, captured_length, reported_length),
+            call_dissector_with_data(pcap_pktdata_handle, tvb_new_subset_length_caplen(tvb, offset, captured_length, original_length),
                                      pinfo, packet_data_tree, &interface_description->link_type);
         }
         CATCH_BOUNDS_ERRORS {
@@ -1573,7 +1523,7 @@ dissect_pb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
         offset += ((captured_length % 4) ?(4 - (captured_length % 4)):0);
     }
 
-    dissect_options(tree, pinfo, BLOCK_PACKET, tvb, offset, argp->info->encoding, NULL);
+    dissect_options(tree, pinfo, BLOCK_TYPE_PB, tvb, offset, argp->info->encoding, NULL);
 }
 
 static void
@@ -1584,7 +1534,7 @@ dissect_spb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
     struct interface_description *interface_description;
     proto_item *ti;
     volatile guint32 captured_length;
-    guint32 reported_length;
+    guint32 original_length;
     proto_item *packet_data_item;
 
     interface_description = get_interface_description(argp->info, 0,
@@ -1592,12 +1542,12 @@ dissect_spb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
 
     proto_item_append_text(argp->block_item, " %u", argp->info->frame_number);
 
-    proto_tree_add_item_ret_uint(tree, hf_pcapng_packet_length, tvb, offset, 4, argp->info->encoding, &reported_length);
+    proto_tree_add_item_ret_uint(tree, hf_pcapng_original_length, tvb, offset, 4, argp->info->encoding, &original_length);
     offset += 4;
 
-    captured_length = reported_length;
+    captured_length = original_length;
     if (interface_description && interface_description->snap_len != 0) {
-        captured_length = MIN(reported_length, interface_description->snap_len);
+        captured_length = MIN(original_length, interface_description->snap_len);
     }
     ti = proto_tree_add_uint(tree, hf_pcapng_captured_length, tvb, 0, 0, captured_length);
     proto_item_set_generated(ti);
@@ -1745,7 +1695,7 @@ dissect_nrb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
     }
     proto_item_set_end(records_item, tvb, offset);
 
-    dissect_options(tree, pinfo, BLOCK_NAME_RESOLUTION, tvb, offset, argp->info->encoding, NULL);
+    dissect_options(tree, pinfo, BLOCK_TYPE_NRB, tvb, offset, argp->info->encoding, NULL);
 }
 
 static void
@@ -1765,7 +1715,7 @@ dissect_isb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
     pcapng_add_timestamp(tree, pinfo, tvb, offset, argp->info->encoding, interface_description);
     offset += 8;
 
-    dissect_options(tree, pinfo, BLOCK_INTERFACE_STATISTICS, tvb, offset, argp->info->encoding, NULL);
+    dissect_options(tree, pinfo, BLOCK_TYPE_ISB, tvb, offset, argp->info->encoding, NULL);
 }
 
 static void
@@ -1776,7 +1726,7 @@ dissect_epb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
     guint32 interface_id;
     struct interface_description *interface_description;
     guint32 captured_length;
-    guint32 reported_length;
+    guint32 original_length;
     proto_item *packet_data_item;
 
     proto_item_append_text(argp->block_item, " %u", argp->info->frame_number);
@@ -1793,7 +1743,7 @@ dissect_epb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
     proto_tree_add_item_ret_uint(tree, hf_pcapng_captured_length, tvb, offset, 4, argp->info->encoding, &captured_length);
     offset += 4;
 
-    proto_tree_add_item_ret_uint(tree, hf_pcapng_packet_length, tvb, offset, 4, argp->info->encoding, &reported_length);
+    proto_tree_add_item_ret_uint(tree, hf_pcapng_original_length, tvb, offset, 4, argp->info->encoding, &original_length);
     offset += 4;
 
     packet_data_item = proto_tree_add_item(tree, hf_pcapng_packet_data, tvb, offset, captured_length, argp->info->encoding);
@@ -1804,7 +1754,7 @@ dissect_epb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
         pinfo->num = argp->info->frame_number;
 
         TRY {
-            call_dissector_with_data(pcap_pktdata_handle, tvb_new_subset_length_caplen(tvb, offset, captured_length, reported_length),
+            call_dissector_with_data(pcap_pktdata_handle, tvb_new_subset_length_caplen(tvb, offset, captured_length, original_length),
                                      pinfo, packet_data_tree, &interface_description->link_type);
         }
         CATCH_BOUNDS_ERRORS {
@@ -1820,7 +1770,7 @@ dissect_epb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
         offset += ((captured_length % 4) ?(4 - (captured_length % 4)):0);
     }
 
-    dissect_options(tree, pinfo, BLOCK_ENHANCED_PACKET, tvb, offset, argp->info->encoding, NULL);
+    dissect_options(tree, pinfo, BLOCK_TYPE_EPB, tvb, offset, argp->info->encoding, NULL);
 }
 
 static void
@@ -1843,28 +1793,33 @@ dissect_dsb_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
         offset += padlen;
     }
 
-    dissect_options(tree, pinfo, BLOCK_DSB, tvb, offset, argp->info->encoding, NULL);
+    dissect_options(tree, pinfo, BLOCK_TYPE_DSB, tvb, offset, argp->info->encoding, NULL);
 }
 
 static void
-dissect_darwin_process_data(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
-                            block_data_arg *argp)
+dissect_cb_data(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb,
+                block_data_arg *argp)
 {
     int offset = 0;
 
-    proto_item_append_text(argp->block_item, " %u", argp->info->darwin_process_event_number);
-    argp->info->darwin_process_event_number += 1;
-
-    proto_tree_add_item(tree, hf_pcapng_darwin_process_id, tvb, offset, 4, argp->info->encoding);
+    proto_tree_add_item(tree, hf_pcapng_cb_pen, tvb, offset, 4, argp->info->encoding);
     offset += 4;
 
-    dissect_options(tree, pinfo, BLOCK_DARWIN_PROCESS, tvb, offset, argp->info->encoding, NULL);
+    /* Todo: Add known PEN custom data dissection. */
+    proto_tree_add_item(tree, hf_pcapng_cb_data, tvb, offset, tvb_reported_length(tvb) - offset, argp->info->encoding);
+
+    /*
+     * The pcapng spec does not tell the size of the custom data without knowing the data content,
+     * so it's not possible to dissect options.
+     *
+     * dissect_options(tree, pinfo, BLOCK_CB_COPY, tvb, offset, argp->info->encoding, NULL);
+     */
 }
 
 gint dissect_block(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, struct info *info)
 {
-    proto_tree      *block_tree;
-    proto_item      *block_item;
+    proto_tree      *block_tree, *block_type_tree;
+    proto_item      *block_item, *block_type_item;
     proto_tree      *block_data_tree;
     proto_item      *block_length_item;
     proto_item      *block_length_trailer_item;
@@ -1879,18 +1834,42 @@ gint dissect_block(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, struct i
     block_type = tvb_get_guint32(tvb, offset + 0, info->encoding);
     length     = tvb_get_guint32(tvb, offset + 4, info->encoding);
 
+    /* Lookup handlers for known local block type */
+    local_block_callback_info_t *volatile p_local_block_callback = NULL;
+    if (block_type >= 0x80000000) {
+        p_local_block_callback = (local_block_callback_info_t*)g_hash_table_lookup(s_local_block_callback_table, GUINT_TO_POINTER(block_type));
+    }
+
+    /* Create block tree */
     block_item = proto_tree_add_item(tree, hf_pcapng_block, tvb, offset, length, ENC_NA);
     block_tree = proto_item_add_subtree(block_item, ett_pcapng_section_header_block);
-    proto_item_append_text(block_item, ": %s", val_to_str_const(block_type, block_type_vals, "Unknown"));
 
-    proto_tree_add_bitmask_with_flags(block_tree, tvb, offset, hf_pcapng_block_type, ett_pcapng_option, hfx_pcapng_block_type, info->encoding, BMT_NO_APPEND);
+    /* Block type */
+    block_type_item = proto_tree_add_item(block_tree, hf_pcapng_block_type, tvb, offset, 4, info->encoding);
+    block_type_tree = proto_item_add_subtree(block_type_item, ett_pcapng_block_type);
+
+    proto_tree_add_item(block_type_tree, hf_pcapng_block_type_vendor, tvb, offset, 4, info->encoding);
+    proto_item *block_type_value_item = proto_tree_add_item(block_type_tree, hf_pcapng_block_type_value, tvb, offset, 4, info->encoding);
     offset += 4;
+
+    /* Name is either from local 'name', or from fixed block_type_vals */
+    if (p_local_block_callback) {
+        proto_item_append_text(block_item, " %u: %s", info->block_number, p_local_block_callback->name);
+        proto_item_append_text(block_type_item, ": (%s)", p_local_block_callback->name);
+        proto_item_append_text(block_type_value_item, ": (%s)", p_local_block_callback->name);
+    }
+    else {
+        proto_item_append_text(block_item, " %u: %s", info->block_number, val_to_str_const(block_type, block_type_vals, "Unknown"));
+        proto_item_append_text(block_type_item, ": (%s)", val_to_str_const(block_type, block_type_vals, "Unknown"));
+        proto_item_append_text(block_type_value_item, ": (%s)", val_to_str_const(block_type, block_type_vals, "Unknown"));
+    }
+    info->block_number += 1;
 
     arg.block_item = block_item;
     arg.block_tree = block_tree;
     arg.info = info;
 
-    if (block_type == BLOCK_SECTION_HEADER) {
+    if (block_type == BLOCK_TYPE_SHB) {
         /* Section Header Block - this needs special byte-order handling */
         volatile gboolean byte_order_magic_bad = FALSE;
 
@@ -1958,40 +1937,47 @@ gint dissect_block(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, struct i
         }
         offset += 4;
 
-	/*
-	 * Dissect the block data.
-	 * Catch exceptions; ReportedBoundsError means that the body
-	 * doesn't fit in the block.
-	 */
-	TRY {
+    /*
+     * Dissect the block data.
+     * Catch exceptions; ReportedBoundsError means that the body
+     * doesn't fit in the block.
+     */
+    TRY {
             switch (block_type) {
-            case BLOCK_INTERFACE_DESCRIPTION:
+            case BLOCK_TYPE_IDB:
                 dissect_idb_data(block_data_tree, pinfo, next_tvb, &arg);
                 break;
-            case BLOCK_PACKET:
+            case BLOCK_TYPE_PB:
                 dissect_pb_data(block_data_tree, pinfo, next_tvb, &arg);
                 break;
-            case BLOCK_SIMPLE_PACKET:
+            case BLOCK_TYPE_SPB:
                 dissect_spb_data(block_data_tree, pinfo, next_tvb, &arg);
                 break;
-            case BLOCK_NAME_RESOLUTION:
+            case BLOCK_TYPE_NRB:
                 dissect_nrb_data(block_data_tree, pinfo, next_tvb, &arg);
                 break;
-            case BLOCK_INTERFACE_STATISTICS:
+            case BLOCK_TYPE_ISB:
                 dissect_isb_data(block_data_tree, pinfo, next_tvb, &arg);
                 break;
-            case BLOCK_ENHANCED_PACKET:
+            case BLOCK_TYPE_EPB:
                 dissect_epb_data(block_data_tree, pinfo, next_tvb, &arg);
                 break;
-            case BLOCK_DSB:
+            case BLOCK_TYPE_DSB:
                 dissect_dsb_data(block_data_tree, pinfo, next_tvb, &arg);
                 break;
-            case BLOCK_DARWIN_PROCESS:
-                dissect_darwin_process_data(block_data_tree, pinfo, next_tvb, &arg);
+            case BLOCK_TYPE_CB_COPY:
+            case BLOCK_TYPE_CB_NO_COPY:
+                dissect_cb_data(block_data_tree, pinfo, next_tvb, &arg);
                 break;
-            case BLOCK_IRIG_TIMESTAMP:
-            case BLOCK_ARINC_429:
+            case BLOCK_TYPE_IRIG_TS:
+            case BLOCK_TYPE_ARINC_429:
+                break;
+
             default:
+                /* Use local block type handling if available */
+                if (p_local_block_callback) {
+                    p_local_block_callback->dissector(block_data_tree, pinfo, next_tvb, &arg);
+                }
                 break;
             }
         }
@@ -2055,6 +2041,7 @@ dissect_pcapng(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
         return 0;
     }
 
+    info.block_number = 1;
     info.section_number = 1;
     info.interface_number = 0;
     info.darwin_process_event_number = 0;
@@ -2084,10 +2071,24 @@ dissect_pcapng(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
     return offset;
 }
 
+static void pcapng_shutdown_protocol(void)
+{
+    /* Create table for local block dissectors */
+    g_hash_table_destroy(s_local_block_callback_table);
+    s_local_block_callback_table = NULL;
+}
+
 static gboolean
 dissect_pcapng_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     return dissect_pcapng(tvb, pinfo, tree, NULL) > 0;
+}
+
+/* Expected to be called by an external dissector.  For an in-tree example, please see file-pcap-darwin.c */
+void register_pcapng_local_block_dissector(guint32 block_number, local_block_callback_info_t *block_callback_info)
+{
+    /* Add this entry into table. */
+    g_hash_table_insert(s_local_block_callback_table, GUINT_TO_POINTER(block_number), block_callback_info);
 }
 
 void
@@ -2104,7 +2105,7 @@ proto_register_pcapng(void)
         },
         { &hf_pcapng_block_type,
             { "Block Type",                                "pcapng.block.type",
-            FT_UINT32, BASE_HEX, VALS(block_type_vals), 0x00,
+            FT_UINT32, BASE_HEX, NULL, 0x00,
             NULL, HFILL }
         },
         { &hf_pcapng_block_type_vendor,
@@ -2114,7 +2115,7 @@ proto_register_pcapng(void)
         },
         { &hf_pcapng_block_type_value,
             { "Block Type Value",                          "pcapng.block.type.value",
-            FT_UINT32, BASE_HEX, VALS(block_type_vals), 0x7FFFFFFF,
+            FT_UINT32, BASE_HEX, NULL, 0x7FFFFFFF,
             NULL, HFILL }
         },
         { &hf_pcapng_block_length,
@@ -2165,11 +2166,6 @@ proto_register_pcapng(void)
         { &hf_pcapng_option_code_interface_statistics,
             { "Code",                                      "pcapng.options.option.code",
             FT_UINT16, BASE_DEC, VALS(option_code_interface_statistics_vals), 0x00,
-            NULL, HFILL }
-        },
-        { &hf_pcapng_option_code_darwin_process_info,
-            { "Code",                                      "pcapng.options.option.code",
-            FT_UINT16, BASE_DEC, VALS(option_code_darwin_process_info_vals), 0x00,
             NULL, HFILL }
         },
         { &hf_pcapng_option_code,
@@ -2474,32 +2470,42 @@ proto_register_pcapng(void)
         },
         { &hf_pcapng_option_data_packet_darwin_flags_reserved,
             { "Reserved",                                  "pcapng.options.option.data.packet.darwin.flags.reserved",
-            FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xFFFFFFE0,
+            FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xFFFFFFC0,
+            NULL, HFILL }
+        },
+        { &hf_pcapng_option_data_packet_darwin_flags_wk,
+            { "Wake Packet(wk)",                           "pcapng.options.option.data.packet.darwin.flags.wk",
+            FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000020,
             NULL, HFILL }
         },
         { &hf_pcapng_option_data_packet_darwin_flags_ch,
-            { "Nexus Channel(ch)",                                        "pcapng.options.option.data.packet.darwin.flags.ch",
+            { "Nexus Channel(ch)",                         "pcapng.options.option.data.packet.darwin.flags.ch",
             FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000010,
             NULL, HFILL }
         },
         { &hf_pcapng_option_data_packet_darwin_flags_so,
-            { "Socket(so)",                                        "pcapng.options.option.data.packet.darwin.flags.so",
+            { "Socket(so)",                                "pcapng.options.option.data.packet.darwin.flags.so",
             FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000008,
             NULL, HFILL }
         },
         { &hf_pcapng_option_data_packet_darwin_flags_re,
-            { "ReXmit(re)",                                        "pcapng.options.option.data.packet.darwin.flags.re",
+            { "ReXmit(re)",                                "pcapng.options.option.data.packet.darwin.flags.re",
             FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000004,
             NULL, HFILL }
         },
         { &hf_pcapng_option_data_packet_darwin_flags_ka,
-            { "Keep Alive(ka)",                                        "pcapng.options.option.data.packet.darwin.flags.ka",
+            { "Keep Alive(ka)",                            "pcapng.options.option.data.packet.darwin.flags.ka",
             FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000002,
             NULL, HFILL }
         },
         { &hf_pcapng_option_data_packet_darwin_flags_nf,
-            { "New Flow(nf)",                                        "pcapng.options.option.data.packet.darwin.flags.nf",
+            { "New Flow(nf)",                              "pcapng.options.option.data.packet.darwin.flags.nf",
             FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000001,
+            NULL, HFILL }
+        },
+        { &hf_pcapng_option_data_packet_darwin_flow_id,
+            { "Flow ID",                                   "pcapng.options.option.data.packet.darwin.flow_id",
+            FT_UINT32, BASE_DEC, NULL, 0x00,
             NULL, HFILL }
         },
         { &hf_pcapng_option_data_dns_name,
@@ -2568,13 +2574,13 @@ proto_register_pcapng(void)
             NULL, HFILL }
         },
         { &hf_pcapng_captured_length,
-            { "Captured Length",                           "pcapng.packet.captured_length",
-            FT_UINT16, BASE_DEC, NULL, 0x00,
+            { "Captured Packet Length",                    "pcapng.packet.captured_length",
+            FT_UINT32, BASE_DEC, NULL, 0x00,
             NULL, HFILL }
         },
-        { &hf_pcapng_packet_length,
-            { "Packet Length",                             "pcapng.packet.packet_length",
-            FT_UINT16, BASE_DEC, NULL, 0x00,
+        { &hf_pcapng_original_length,
+            { "Original Packet Length",                    "pcapng.packet.original_length",
+            FT_UINT32, BASE_DEC, NULL, 0x00,
             NULL, HFILL }
         },
         { &hf_pcapng_packet_data,
@@ -2667,19 +2673,24 @@ proto_register_pcapng(void)
             FT_BYTES, BASE_NONE, NULL, 0x00,
             NULL, HFILL }
         },
-        { &hf_pcapng_darwin_process_id,
-            { "Darwin Process ID",                         "pcapng.darwin.process_id",
-            FT_UINT32, BASE_DEC_HEX, NULL, 0x00,
+        { &hf_pcapng_cb_pen,
+            { "Private Enterprise Number (PEN)",           "pcapng.cb.pen",
+            FT_UINT32, BASE_ENTERPRISES, STRINGS_ENTERPRISES, 0x00,
             NULL, HFILL }
         },
-        { &hf_pcapng_option_darwin_process_name,
-            { "Darwin Process Name",                       "pcapng.darwin.process_name",
+        { &hf_pcapng_cb_data,
+            { "Custom Data",                               "pcapng.cb.custom_data",
+            FT_BYTES, BASE_NONE, NULL, 0x00,
+            NULL, HFILL }
+        },
+        { &hf_pcapng_cb_option_string,
+            { "Custom Option String",                        "pcapng.cb.custom_option.string",
             FT_STRING, BASE_NONE, NULL, 0x00,
             NULL, HFILL }
         },
-        { &hf_pcapng_option_darwin_process_uuid,
-            { "Darwin Process UUID",                       "pcapng.darwin.process_uuid",
-            FT_GUID, BASE_NONE, NULL, 0x00,
+        { &hf_pcapng_cb_option_data,
+            { "Custom Option Binary",                        "pcapng.cb.custom_option.data",
+            FT_BYTES, BASE_NONE, NULL, 0x00,
             NULL, HFILL }
         },
     };
@@ -2699,6 +2710,7 @@ proto_register_pcapng(void)
         &ett_pcapng,
         &ett_pcapng_section_header_block,
         &ett_pcapng_block_data,
+        &ett_pcapng_block_type,
         &ett_pcapng_options,
         &ett_pcapng_option,
         &ett_pcapng_records,
@@ -2724,6 +2736,12 @@ proto_register_pcapng(void)
 
     expert_module = expert_register_protocol(proto_pcapng);
     expert_register_field_array(expert_module, ei, array_length(ei));
+
+    /* Create table for local block dissectors */
+    s_local_block_callback_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+    /* Ensure this table will be deleted */
+    register_shutdown_routine(&pcapng_shutdown_protocol);
 }
 
 void

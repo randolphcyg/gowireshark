@@ -1106,7 +1106,7 @@ dissect_aprs( tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *
 
 	dti	 = tvb_get_guint8( tvb, offset );
 
-	sb = wmem_strbuf_new_label(wmem_packet_scope());
+	sb = wmem_strbuf_create(wmem_packet_scope());
 
 	if (dti != '!')
 		wmem_strbuf_append(sb, val_to_str_ext_const(dti, &aprs_description_ext, ""));
@@ -1440,7 +1440,7 @@ proto_register_aprs( void )
 		{ &hf_aprs_map_feature,
 			{ "Map Feature",		"aprs.map_feature",
 			FT_BYTES, BASE_NONE, NULL, 0x0,
-			"[Reserved - Map Feature", HFILL }
+                        "Reserved - Map Feature", HFILL }
 		},
 		{ &hf_aprs_shelter_data,
 			{ "Shelter data",		"aprs.shelter_data",

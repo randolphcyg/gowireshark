@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-pkixac.c                                                            */
-/* asn2wrs.py -b -p pkixac -c ./pkixac.cnf -s ./packet-pkixac-template -D . -O ../.. PKIXAttributeCertificate.asn */
+/* asn2wrs.py -b -L -p pkixac -c ./pkixac.cnf -s ./packet-pkixac-template -D . -O ../.. PKIXAttributeCertificate.asn */
 
-/* Input file: packet-pkixac-template.c */
-
-#line 1 "./asn1/pkixac/packet-pkixac-template.c"
 /* packet-pkixac.c
  *
  * Routines for PKIXAttributeCertificate (RFC3281) packet dissection.
@@ -39,9 +36,6 @@ void proto_reg_handoff_pkixac(void);
 
 /* Initialize the protocol and registered fields */
 static int proto_pkixac = -1;
-
-/*--- Included file: packet-pkixac-hf.c ---*/
-#line 1 "./asn1/pkixac/packet-pkixac-hf.c"
 static int hf_pkixac_Targets_PDU = -1;            /* Targets */
 static int hf_pkixac_IetfAttrSyntax_PDU = -1;     /* IetfAttrSyntax */
 static int hf_pkixac_SvceAuthInfo_PDU = -1;       /* SvceAuthInfo */
@@ -94,14 +88,8 @@ static int hf_pkixac_ClassList_confidential = -1;
 static int hf_pkixac_ClassList_secret = -1;
 static int hf_pkixac_ClassList_topSecret = -1;
 
-/*--- End of included file: packet-pkixac-hf.c ---*/
-#line 35 "./asn1/pkixac/packet-pkixac-template.c"
-
 /* Initialize the subtree pointers */
 static gint ett_pkixac = -1;
-
-/*--- Included file: packet-pkixac-ett.c ---*/
-#line 1 "./asn1/pkixac/packet-pkixac-ett.c"
 static gint ett_pkixac_ObjectDigestInfo = -1;
 static gint ett_pkixac_IssuerSerial = -1;
 static gint ett_pkixac_Targets = -1;
@@ -121,14 +109,8 @@ static gint ett_pkixac_AAControls = -1;
 static gint ett_pkixac_AttrSpec = -1;
 static gint ett_pkixac_ProxyInfo = -1;
 
-/*--- End of included file: packet-pkixac-ett.c ---*/
-#line 39 "./asn1/pkixac/packet-pkixac-template.c"
-
 static const char *object_identifier_id;
 
-
-/*--- Included file: packet-pkixac-fn.c ---*/
-#line 1 "./asn1/pkixac/packet-pkixac-fn.c"
 
 static const value_string pkixac_T_digestedObjectType_vals[] = {
   {   0, "publicKey" },
@@ -139,7 +121,7 @@ static const value_string pkixac_T_digestedObjectType_vals[] = {
 
 
 static int
-dissect_pkixac_T_digestedObjectType(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_T_digestedObjectType(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -149,7 +131,7 @@ dissect_pkixac_T_digestedObjectType(gboolean implicit_tag _U_, tvbuff_t *tvb _U_
 
 
 static int
-dissect_pkixac_OBJECT_IDENTIFIER(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_OBJECT_IDENTIFIER(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_object_identifier(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   return offset;
@@ -158,7 +140,7 @@ dissect_pkixac_OBJECT_IDENTIFIER(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, i
 
 
 static int
-dissect_pkixac_BIT_STRING(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_BIT_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_bitstring(implicit_tag, actx, tree, tvb, offset,
                                     NULL, 0, hf_index, -1,
                                     NULL);
@@ -176,7 +158,7 @@ static const ber_sequence_t ObjectDigestInfo_sequence[] = {
 };
 
 static int
-dissect_pkixac_ObjectDigestInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_ObjectDigestInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    ObjectDigestInfo_sequence, hf_index, ett_pkixac_ObjectDigestInfo);
 
@@ -192,7 +174,7 @@ static const ber_sequence_t IssuerSerial_sequence[] = {
 };
 
 static int
-dissect_pkixac_IssuerSerial(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_IssuerSerial(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    IssuerSerial_sequence, hf_index, ett_pkixac_IssuerSerial);
 
@@ -208,7 +190,7 @@ static const ber_sequence_t TargetCert_sequence[] = {
 };
 
 static int
-dissect_pkixac_TargetCert(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_TargetCert(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    TargetCert_sequence, hf_index, ett_pkixac_TargetCert);
 
@@ -231,7 +213,7 @@ static const ber_choice_t Target_choice[] = {
 };
 
 static int
-dissect_pkixac_Target(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_Target(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  Target_choice, hf_index, ett_pkixac_Target,
                                  NULL);
@@ -245,7 +227,7 @@ static const ber_sequence_t Targets_sequence_of[1] = {
 };
 
 static int
-dissect_pkixac_Targets(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_Targets(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       Targets_sequence_of, hf_index, ett_pkixac_Targets);
 
@@ -255,7 +237,7 @@ dissect_pkixac_Targets(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset 
 
 
 static int
-dissect_pkixac_OCTET_STRING(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_OCTET_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -265,7 +247,7 @@ dissect_pkixac_OCTET_STRING(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int of
 
 
 static int
-dissect_pkixac_UTF8String(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_UTF8String(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_restricted_string(implicit_tag, BER_UNI_TAG_UTF8String,
                                             actx, tree, tvb, offset, hf_index,
                                             NULL);
@@ -289,7 +271,7 @@ static const ber_choice_t T_values_item_choice[] = {
 };
 
 static int
-dissect_pkixac_T_values_item(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_T_values_item(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  T_values_item_choice, hf_index, ett_pkixac_T_values_item,
                                  NULL);
@@ -303,7 +285,7 @@ static const ber_sequence_t T_values_sequence_of[1] = {
 };
 
 static int
-dissect_pkixac_T_values(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_T_values(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       T_values_sequence_of, hf_index, ett_pkixac_T_values);
 
@@ -318,7 +300,7 @@ static const ber_sequence_t IetfAttrSyntax_sequence[] = {
 };
 
 static int
-dissect_pkixac_IetfAttrSyntax(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_IetfAttrSyntax(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    IetfAttrSyntax_sequence, hf_index, ett_pkixac_IetfAttrSyntax);
 
@@ -334,7 +316,7 @@ static const ber_sequence_t SvceAuthInfo_sequence[] = {
 };
 
 static int
-dissect_pkixac_SvceAuthInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_SvceAuthInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SvceAuthInfo_sequence, hf_index, ett_pkixac_SvceAuthInfo);
 
@@ -349,7 +331,7 @@ static const ber_sequence_t RoleSyntax_sequence[] = {
 };
 
 static int
-dissect_pkixac_RoleSyntax(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_RoleSyntax(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RoleSyntax_sequence, hf_index, ett_pkixac_RoleSyntax);
 
@@ -368,7 +350,7 @@ static int * const ClassList_bits[] = {
 };
 
 static int
-dissect_pkixac_ClassList(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_ClassList(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_bitstring(implicit_tag, actx, tree, tvb, offset,
                                     ClassList_bits, 6, hf_index, ett_pkixac_ClassList,
                                     NULL);
@@ -379,7 +361,7 @@ dissect_pkixac_ClassList(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offse
 
 
 static int
-dissect_pkixac_T_type(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_T_type(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_object_identifier_str(implicit_tag, actx, tree, tvb, offset, hf_index, &object_identifier_id);
 
   return offset;
@@ -388,11 +370,9 @@ dissect_pkixac_T_type(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
 
 
 static int
-dissect_pkixac_T_value(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 59 "./asn1/pkixac/pkixac.cnf"
+dissect_pkixac_T_value(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
    if (object_identifier_id)
       offset = call_ber_oid_callback (object_identifier_id, tvb, offset, actx->pinfo, tree, NULL);
-
 
 
   return offset;
@@ -406,12 +386,10 @@ static const ber_sequence_t SecurityCategory_sequence[] = {
 };
 
 static int
-dissect_pkixac_SecurityCategory(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 52 "./asn1/pkixac/pkixac.cnf"
+dissect_pkixac_SecurityCategory(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   object_identifier_id = NULL;
     offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SecurityCategory_sequence, hf_index, ett_pkixac_SecurityCategory);
-
 
 
 
@@ -424,7 +402,7 @@ static const ber_sequence_t SET_OF_SecurityCategory_set_of[1] = {
 };
 
 static int
-dissect_pkixac_SET_OF_SecurityCategory(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_SET_OF_SecurityCategory(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_set_of(implicit_tag, actx, tree, tvb, offset,
                                  SET_OF_SecurityCategory_set_of, hf_index, ett_pkixac_SET_OF_SecurityCategory);
 
@@ -440,7 +418,7 @@ static const ber_sequence_t Clearance_sequence[] = {
 };
 
 static int
-dissect_pkixac_Clearance(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_Clearance(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Clearance_sequence, hf_index, ett_pkixac_Clearance);
 
@@ -456,7 +434,7 @@ static const ber_sequence_t RFC3281Clearance_sequence[] = {
 };
 
 static int
-dissect_pkixac_RFC3281Clearance(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_RFC3281Clearance(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RFC3281Clearance_sequence, hf_index, ett_pkixac_RFC3281Clearance);
 
@@ -466,7 +444,7 @@ dissect_pkixac_RFC3281Clearance(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
 
 
 static int
-dissect_pkixac_INTEGER_0_MAX(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_INTEGER_0_MAX(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer64(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -479,7 +457,7 @@ static const ber_sequence_t AttrSpec_sequence_of[1] = {
 };
 
 static int
-dissect_pkixac_AttrSpec(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_AttrSpec(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       AttrSpec_sequence_of, hf_index, ett_pkixac_AttrSpec);
 
@@ -489,7 +467,7 @@ dissect_pkixac_AttrSpec(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset
 
 
 static int
-dissect_pkixac_BOOLEAN(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_BOOLEAN(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_boolean(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   return offset;
@@ -505,7 +483,7 @@ static const ber_sequence_t AAControls_sequence[] = {
 };
 
 static int
-dissect_pkixac_AAControls(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_AAControls(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    AAControls_sequence, hf_index, ett_pkixac_AAControls);
 
@@ -518,7 +496,7 @@ static const ber_sequence_t ProxyInfo_sequence_of[1] = {
 };
 
 static int
-dissect_pkixac_ProxyInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkixac_ProxyInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       ProxyInfo_sequence_of, hf_index, ett_pkixac_ProxyInfo);
 
@@ -585,17 +563,11 @@ static int dissect_ProxyInfo_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, prot
 }
 
 
-/*--- End of included file: packet-pkixac-fn.c ---*/
-#line 43 "./asn1/pkixac/packet-pkixac-template.c"
-
 /*--- proto_register_pkixac ----------------------------------------------*/
 void proto_register_pkixac(void) {
 
   /* List of fields */
   static hf_register_info hf[] = {
-
-/*--- Included file: packet-pkixac-hfarr.c ---*/
-#line 1 "./asn1/pkixac/packet-pkixac-hfarr.c"
     { &hf_pkixac_Targets_PDU,
       { "Targets", "pkixac.Targets",
         FT_UINT32, BASE_DEC, NULL, 0,
@@ -796,17 +768,11 @@ void proto_register_pkixac(void) {
       { "topSecret", "pkixac.ClassList.topSecret",
         FT_BOOLEAN, 8, NULL, 0x04,
         NULL, HFILL }},
-
-/*--- End of included file: packet-pkixac-hfarr.c ---*/
-#line 50 "./asn1/pkixac/packet-pkixac-template.c"
   };
 
   /* List of subtrees */
   static gint *ett[] = {
 	&ett_pkixac,
-
-/*--- Included file: packet-pkixac-ettarr.c ---*/
-#line 1 "./asn1/pkixac/packet-pkixac-ettarr.c"
     &ett_pkixac_ObjectDigestInfo,
     &ett_pkixac_IssuerSerial,
     &ett_pkixac_Targets,
@@ -825,9 +791,6 @@ void proto_register_pkixac(void) {
     &ett_pkixac_AAControls,
     &ett_pkixac_AttrSpec,
     &ett_pkixac_ProxyInfo,
-
-/*--- End of included file: packet-pkixac-ettarr.c ---*/
-#line 56 "./asn1/pkixac/packet-pkixac-template.c"
   };
 
   /* Register protocol */
@@ -837,24 +800,15 @@ void proto_register_pkixac(void) {
   proto_register_field_array(proto_pkixac, hf, array_length(hf));
   proto_register_subtree_array(ett, array_length(ett));
 
-
-/*--- Included file: packet-pkixac-syn-reg.c ---*/
-#line 1 "./asn1/pkixac/packet-pkixac-syn-reg.c"
   /*--- Syntax registrations ---*/
   register_ber_syntax_dissector("Clearance", proto_pkixac, dissect_Clearance_PDU);
   register_ber_syntax_dissector("RFC3281Clearance", proto_pkixac, dissect_RFC3281Clearance_PDU);
-
-/*--- End of included file: packet-pkixac-syn-reg.c ---*/
-#line 66 "./asn1/pkixac/packet-pkixac-template.c"
 
 }
 
 
 /*--- proto_reg_handoff_pkixac -------------------------------------------*/
 void proto_reg_handoff_pkixac(void) {
-
-/*--- Included file: packet-pkixac-dis-tab.c ---*/
-#line 1 "./asn1/pkixac/packet-pkixac-dis-tab.c"
   register_ber_oid_dissector("1.3.6.1.5.5.7.1.6", dissect_AAControls_PDU, proto_pkixac, "id-pe-aaControls");
   register_ber_oid_dissector("1.3.6.1.5.5.7.1.10", dissect_ProxyInfo_PDU, proto_pkixac, "id-pe-ac-proxying");
   register_ber_oid_dissector("1.3.6.1.5.5.7.10.1", dissect_SvceAuthInfo_PDU, proto_pkixac, "id-aca-authenticationInfo");
@@ -866,8 +820,5 @@ void proto_reg_handoff_pkixac(void) {
   register_ber_oid_dissector("2.5.4.72", dissect_RoleSyntax_PDU, proto_pkixac, "id-at-role");
   register_ber_oid_dissector("2.5.29.55", dissect_Targets_PDU, proto_pkixac, "id-ce-targetInformation");
 
-
-/*--- End of included file: packet-pkixac-dis-tab.c ---*/
-#line 73 "./asn1/pkixac/packet-pkixac-template.c"
 }
 

@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-sbc-ap.c                                                            */
-/* asn2wrs.py -p sbc-ap -c ./sbc-ap.cnf -s ./packet-sbc-ap-template -D . -O ../.. SBC-AP-CommonDataTypes.asn SBC-AP-Constants.asn SBC-AP-Containers.asn SBC-AP-IEs.asn SBC-AP-PDU-Contents.asn SBC-AP-PDU-Descriptions.asn */
+/* asn2wrs.py -L -p sbc-ap -c ./sbc-ap.cnf -s ./packet-sbc-ap-template -D . -O ../.. SBC-AP-CommonDataTypes.asn SBC-AP-Constants.asn SBC-AP-Containers.asn SBC-AP-IEs.asn SBC-AP-PDU-Contents.asn SBC-AP-PDU-Descriptions.asn */
 
-/* Input file: packet-sbc-ap-template.c */
-
-#line 1 "./asn1/sbc-ap/packet-sbc-ap-template.c"
 /* packet-sbc-ap.c
  * Routines for SBc Application Part (SBc-AP) packet dissection
  *
@@ -47,9 +44,6 @@ void proto_reg_handoff_sbc_ap(void);
 static dissector_handle_t sbc_ap_handle=NULL;
 
 
-
-/*--- Included file: packet-sbc-ap-val.h ---*/
-#line 1 "./asn1/sbc-ap/packet-sbc-ap-val.h"
 #define maxNrOfErrors                  256
 #define maxnoofCellID                  65535
 #define maxnoofCellinEAI               65535
@@ -132,9 +126,6 @@ typedef enum _ProtocolIE_ID_enum {
   id_Warning_Area_Coordinates =  46
 } ProtocolIE_ID_enum;
 
-/*--- End of included file: packet-sbc-ap-val.h ---*/
-#line 43 "./asn1/sbc-ap/packet-sbc-ap-template.c"
-
 /* Initialize the protocol and registered fields */
 static int proto_sbc_ap = -1;
 
@@ -146,9 +137,6 @@ static int hf_sbc_ap_Warning_Type_emergency_user_alert = -1;
 static int hf_sbc_ap_Warning_Type_popup = -1;
 static int hf_sbc_ap_Warning_Message_Contents_nb_pages = -1;
 static int hf_sbc_ap_Warning_Message_Contents_decoded_page = -1;
-
-/*--- Included file: packet-sbc-ap-hf.c ---*/
-#line 1 "./asn1/sbc-ap/packet-sbc-ap-hf.c"
 static int hf_sbc_ap_Broadcast_Scheduled_Area_List_PDU = -1;  /* Broadcast_Scheduled_Area_List */
 static int hf_sbc_ap_Broadcast_Scheduled_Area_List_5GS_PDU = -1;  /* Broadcast_Scheduled_Area_List_5GS */
 static int hf_sbc_ap_Broadcast_Cancelled_Area_List_PDU = -1;  /* Broadcast_Cancelled_Area_List */
@@ -299,9 +287,6 @@ static int hf_sbc_ap_initiatingMessagevalue = -1;  /* InitiatingMessage_value */
 static int hf_sbc_ap_successfulOutcome_value = -1;  /* SuccessfulOutcome_value */
 static int hf_sbc_ap_unsuccessfulOutcome_value = -1;  /* UnsuccessfulOutcome_value */
 
-/*--- End of included file: packet-sbc-ap-hf.c ---*/
-#line 56 "./asn1/sbc-ap/packet-sbc-ap-template.c"
-
 /* Initialize the subtree pointers */
 static int ett_sbc_ap = -1;
 static int ett_sbc_ap_Serial_Number = -1;
@@ -309,9 +294,6 @@ static int ett_sbc_ap_Warning_Type = -1;
 static int ett_sbc_ap_Data_Coding_Scheme = -1;
 static int ett_sbc_ap_Warning_Message_Contents = -1;
 
-
-/*--- Included file: packet-sbc-ap-ett.c ---*/
-#line 1 "./asn1/sbc-ap/packet-sbc-ap-ett.c"
 static gint ett_sbc_ap_ProtocolIE_Container = -1;
 static gint ett_sbc_ap_ProtocolIE_Field = -1;
 static gint ett_sbc_ap_ProtocolExtensionContainer = -1;
@@ -399,9 +381,6 @@ static gint ett_sbc_ap_InitiatingMessage = -1;
 static gint ett_sbc_ap_SuccessfulOutcome = -1;
 static gint ett_sbc_ap_UnsuccessfulOutcome = -1;
 
-/*--- End of included file: packet-sbc-ap-ett.c ---*/
-#line 65 "./asn1/sbc-ap/packet-sbc-ap-template.c"
-
 enum{
 	INITIATING_MESSAGE,
 	SUCCESSFUL_OUTCOME,
@@ -444,9 +423,6 @@ sbc_ap_get_private_data(packet_info *pinfo)
   return sbc_ap_data;
 }
 
-
-/*--- Included file: packet-sbc-ap-fn.c ---*/
-#line 1 "./asn1/sbc-ap/packet-sbc-ap-fn.c"
 
 static const value_string sbc_ap_Criticality_vals[] = {
   {   0, "reject" },
@@ -553,11 +529,9 @@ dissect_sbc_ap_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
                                                             0U, 65535U, &ProtocolIE_ID, FALSE);
 
-#line 48 "./asn1/sbc-ap/sbc-ap.cnf"
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s", val_to_str(ProtocolIE_ID, VALS(sbc_ap_ProtocolIE_ID_vals), "unknown (%d)"));
   }
-
   return offset;
 }
 
@@ -662,7 +636,6 @@ dissect_sbc_ap_ProtocolExtensionContainer(tvbuff_t *tvb _U_, int offset _U_, asn
 
 static int
 dissect_sbc_ap_PLMNidentity(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 98 "./asn1/sbc-ap/sbc-ap.cnf"
   tvbuff_t *parameter_tvb=NULL;
   struct sbc_ap_private_data *sbc_ap_data = sbc_ap_get_private_data(actx->pinfo);
   e212_number_type_t number_type = sbc_ap_data->number_type;
@@ -676,7 +649,6 @@ dissect_sbc_ap_PLMNidentity(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
     if (!parameter_tvb)
         return offset;
     dissect_e212_mcc_mnc(parameter_tvb, actx->pinfo, tree, 0, number_type, FALSE);
-
 
   return offset;
 }
@@ -701,12 +673,10 @@ static const per_sequence_t EUTRAN_CGI_sequence[] = {
 
 static int
 dissect_sbc_ap_EUTRAN_CGI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 117 "./asn1/sbc-ap/sbc-ap.cnf"
   struct sbc_ap_private_data *sbc_ap_data = sbc_ap_get_private_data(actx->pinfo);
   sbc_ap_data->number_type = E212_ECGI;
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_EUTRAN_CGI, EUTRAN_CGI_sequence);
-
 
 
 
@@ -746,7 +716,6 @@ dissect_sbc_ap_CellId_Broadcast_List(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 
 static int
 dissect_sbc_ap_TAC(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 134 "./asn1/sbc-ap/sbc-ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        2, 2, FALSE, &parameter_tvb);
@@ -754,7 +723,6 @@ dissect_sbc_ap_TAC(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, prot
   if (parameter_tvb) {
     actx->created_item = proto_tree_add_item(tree, hf_index, parameter_tvb, 0, 2, ENC_BIG_ENDIAN);
   }
-
 
 
   return offset;
@@ -770,12 +738,10 @@ static const per_sequence_t TAI_sequence[] = {
 
 static int
 dissect_sbc_ap_TAI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 127 "./asn1/sbc-ap/sbc-ap.cnf"
   struct sbc_ap_private_data *sbc_ap_data = sbc_ap_get_private_data(actx->pinfo);
   sbc_ap_data->number_type = E212_TAI;
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_TAI, TAI_sequence);
-
 
 
 
@@ -947,12 +913,10 @@ static const per_sequence_t NR_CGI_sequence[] = {
 
 static int
 dissect_sbc_ap_NR_CGI(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 122 "./asn1/sbc-ap/sbc-ap.cnf"
   struct sbc_ap_private_data *sbc_ap_data = sbc_ap_get_private_data(actx->pinfo);
   sbc_ap_data->number_type = E212_NRCGI;
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_NR_CGI, NR_CGI_sequence);
-
 
 
 
@@ -992,7 +956,6 @@ dissect_sbc_ap_CellId_Broadcast_List_5GS(tvbuff_t *tvb _U_, int offset _U_, asn1
 
 static int
 dissect_sbc_ap_TAC_5GS(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 148 "./asn1/sbc-ap/sbc-ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, -1,
                                        3, 3, FALSE, &parameter_tvb);
@@ -1000,7 +963,6 @@ dissect_sbc_ap_TAC_5GS(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
   if (parameter_tvb) {
     actx->created_item = proto_tree_add_item(tree, hf_index, parameter_tvb, 0, 3, ENC_BIG_ENDIAN);
   }
-
 
 
 
@@ -1017,12 +979,10 @@ static const per_sequence_t TAI_5GS_sequence[] = {
 
 static int
 dissect_sbc_ap_TAI_5GS(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 141 "./asn1/sbc-ap/sbc-ap.cnf"
   struct sbc_ap_private_data *sbc_ap_data = sbc_ap_get_private_data(actx->pinfo);
   sbc_ap_data->number_type = E212_5GSTAI;
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_TAI_5GS, TAI_5GS_sequence);
-
 
 
 
@@ -1700,7 +1660,6 @@ dissect_sbc_ap_Criticality_Diagnostics(tvbuff_t *tvb _U_, int offset _U_, asn1_c
 
 static int
 dissect_sbc_ap_Data_Coding_Scheme(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 346 "./asn1/sbc-ap/sbc-ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      8, 8, FALSE, NULL, 0, &parameter_tvb, NULL);
@@ -1712,7 +1671,6 @@ dissect_sbc_ap_Data_Coding_Scheme(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
     subtree = proto_item_add_subtree(actx->created_item, ett_sbc_ap_Data_Coding_Scheme);
     sbc_ap_data->data_coding_scheme = dissect_cbs_data_coding_scheme(parameter_tvb, actx->pinfo, subtree, 0);
   }
-
 
 
   return offset;
@@ -1886,7 +1844,6 @@ dissect_sbc_ap_List_of_5GS_TAI_for_Restart(tvbuff_t *tvb _U_, int offset _U_, as
 
 static int
 dissect_sbc_ap_Message_Identifier(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 312 "./asn1/sbc-ap/sbc-ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, -1,
                                      16, 16, FALSE, NULL, 0, &parameter_tvb, NULL);
@@ -1894,7 +1851,6 @@ dissect_sbc_ap_Message_Identifier(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
   if (parameter_tvb) {
     actx->created_item = proto_tree_add_item(tree, hf_index, parameter_tvb, 0, 2, ENC_BIG_ENDIAN);
   }
-
 
 
   return offset;
@@ -2021,7 +1977,6 @@ dissect_sbc_ap_Send_Stop_Warning_Indication(tvbuff_t *tvb _U_, int offset _U_, a
 
 static int
 dissect_sbc_ap_Serial_Number(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 319 "./asn1/sbc-ap/sbc-ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
                                      16, 16, FALSE, NULL, 0, &parameter_tvb, NULL);
@@ -2032,7 +1987,6 @@ dissect_sbc_ap_Serial_Number(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
     proto_tree_add_item(subtree, hf_sbc_ap_Serial_Number_msg_code, parameter_tvb, 0, 2, ENC_BIG_ENDIAN);
     proto_tree_add_item(subtree, hf_sbc_ap_Serial_Number_upd_nb, parameter_tvb, 0, 2, ENC_BIG_ENDIAN);
   }
-
 
 
   return offset;
@@ -2109,7 +2063,6 @@ dissect_sbc_ap_Warning_Area_List(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 
 static int
 dissect_sbc_ap_Warning_Message_Content(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 357 "./asn1/sbc-ap/sbc-ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        1, 9600, FALSE, &parameter_tvb);
@@ -2119,7 +2072,6 @@ dissect_sbc_ap_Warning_Message_Content(tvbuff_t *tvb _U_, int offset _U_, asn1_c
     proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_sbc_ap_Warning_Message_Contents);
     dissect_s1ap_warningMessageContents(parameter_tvb, subtree, actx->pinfo, sbc_ap_data->data_coding_scheme, hf_sbc_ap_Warning_Message_Contents_nb_pages, hf_sbc_ap_Warning_Message_Contents_decoded_page);
   }
-
 
 
 
@@ -2150,7 +2102,6 @@ dissect_sbc_ap_Warning_Security_Information(tvbuff_t *tvb _U_, int offset _U_, a
 
 static int
 dissect_sbc_ap_Warning_Type(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 335 "./asn1/sbc-ap/sbc-ap.cnf"
   tvbuff_t *parameter_tvb = NULL;
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
                                        2, 2, FALSE, &parameter_tvb);
@@ -2161,7 +2112,6 @@ dissect_sbc_ap_Warning_Type(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
     proto_tree_add_item(subtree, hf_sbc_ap_Warning_Type_emergency_user_alert, parameter_tvb, 0, 2, ENC_BIG_ENDIAN);
     proto_tree_add_item(subtree, hf_sbc_ap_Warning_Type_popup, parameter_tvb, 0, 2, ENC_BIG_ENDIAN);
   }
-
 
 
 
@@ -2203,9 +2153,7 @@ static const per_sequence_t Write_Replace_Warning_Request_sequence[] = {
 
 static int
 dissect_sbc_ap_Write_Replace_Warning_Request(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 293 "./asn1/sbc-ap/sbc-ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "Write-Replace-Warning-Request");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_Write_Replace_Warning_Request, Write_Replace_Warning_Request_sequence);
 
@@ -2221,9 +2169,7 @@ static const per_sequence_t Write_Replace_Warning_Response_sequence[] = {
 
 static int
 dissect_sbc_ap_Write_Replace_Warning_Response(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 295 "./asn1/sbc-ap/sbc-ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "Write-Replace-Warning-Response");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_Write_Replace_Warning_Response, Write_Replace_Warning_Response_sequence);
 
@@ -2239,9 +2185,7 @@ static const per_sequence_t Stop_Warning_Request_sequence[] = {
 
 static int
 dissect_sbc_ap_Stop_Warning_Request(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 297 "./asn1/sbc-ap/sbc-ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "Stop-Warning-Request");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_Stop_Warning_Request, Stop_Warning_Request_sequence);
 
@@ -2257,9 +2201,7 @@ static const per_sequence_t Stop_Warning_Response_sequence[] = {
 
 static int
 dissect_sbc_ap_Stop_Warning_Response(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 299 "./asn1/sbc-ap/sbc-ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "Stop-Warning-Response");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_Stop_Warning_Response, Stop_Warning_Response_sequence);
 
@@ -2275,9 +2217,7 @@ static const per_sequence_t Write_Replace_Warning_Indication_sequence[] = {
 
 static int
 dissect_sbc_ap_Write_Replace_Warning_Indication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 303 "./asn1/sbc-ap/sbc-ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "Write-Replace-Warning-Indication");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_Write_Replace_Warning_Indication, Write_Replace_Warning_Indication_sequence);
 
@@ -2293,9 +2233,7 @@ static const per_sequence_t Stop_Warning_Indication_sequence[] = {
 
 static int
 dissect_sbc_ap_Stop_Warning_Indication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 305 "./asn1/sbc-ap/sbc-ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "Stop-Warning-Indication");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_Stop_Warning_Indication, Stop_Warning_Indication_sequence);
 
@@ -2311,9 +2249,7 @@ static const per_sequence_t PWS_Restart_Indication_sequence[] = {
 
 static int
 dissect_sbc_ap_PWS_Restart_Indication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 307 "./asn1/sbc-ap/sbc-ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "PWS-Restart-Indication");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_PWS_Restart_Indication, PWS_Restart_Indication_sequence);
 
@@ -2329,9 +2265,7 @@ static const per_sequence_t PWS_Failure_Indication_sequence[] = {
 
 static int
 dissect_sbc_ap_PWS_Failure_Indication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 309 "./asn1/sbc-ap/sbc-ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "PWS-Failure-Indication");
-
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_PWS_Failure_Indication, PWS_Failure_Indication_sequence);
@@ -2347,9 +2281,7 @@ static const per_sequence_t Error_Indication_sequence[] = {
 
 static int
 dissect_sbc_ap_Error_Indication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 301 "./asn1/sbc-ap/sbc-ap.cnf"
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "Error-Indication");
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_sbc_ap_Error_Indication, Error_Indication_sequence);
 
@@ -2851,9 +2783,6 @@ static int dissect_SBC_AP_PDU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, pro
 }
 
 
-/*--- End of included file: packet-sbc-ap-fn.c ---*/
-#line 109 "./asn1/sbc-ap/packet-sbc-ap-template.c"
-
 static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   return (dissector_try_uint(sbc_ap_ies_dissector_table, ProtocolIE_ID, tvb, pinfo, tree)) ? tvb_captured_length(tvb) : 0;
@@ -2946,9 +2875,6 @@ void proto_register_sbc_ap(void) {
       { "Decoded Page", "sbc-ap.WarningMessageContents.decoded_page",
         FT_STRING, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-
-/*--- Included file: packet-sbc-ap-hfarr.c ---*/
-#line 1 "./asn1/sbc-ap/packet-sbc-ap-hfarr.c"
     { &hf_sbc_ap_Broadcast_Scheduled_Area_List_PDU,
       { "Broadcast-Scheduled-Area-List", "sbc-ap.Broadcast_Scheduled_Area_List_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -3545,9 +3471,6 @@ void proto_register_sbc_ap(void) {
       { "value", "sbc-ap.value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "UnsuccessfulOutcome_value", HFILL }},
-
-/*--- End of included file: packet-sbc-ap-hfarr.c ---*/
-#line 203 "./asn1/sbc-ap/packet-sbc-ap-template.c"
   };
 
   /* List of subtrees */
@@ -3557,9 +3480,6 @@ void proto_register_sbc_ap(void) {
                   &ett_sbc_ap_Warning_Type,
                   &ett_sbc_ap_Data_Coding_Scheme,
                   &ett_sbc_ap_Warning_Message_Contents,
-
-/*--- Included file: packet-sbc-ap-ettarr.c ---*/
-#line 1 "./asn1/sbc-ap/packet-sbc-ap-ettarr.c"
     &ett_sbc_ap_ProtocolIE_Container,
     &ett_sbc_ap_ProtocolIE_Field,
     &ett_sbc_ap_ProtocolExtensionContainer,
@@ -3646,9 +3566,6 @@ void proto_register_sbc_ap(void) {
     &ett_sbc_ap_InitiatingMessage,
     &ett_sbc_ap_SuccessfulOutcome,
     &ett_sbc_ap_UnsuccessfulOutcome,
-
-/*--- End of included file: packet-sbc-ap-ettarr.c ---*/
-#line 213 "./asn1/sbc-ap/packet-sbc-ap-template.c"
   };
 
 
@@ -3658,6 +3575,8 @@ void proto_register_sbc_ap(void) {
   proto_register_field_array(proto_sbc_ap, hf, array_length(hf));
   proto_register_subtree_array(ett, array_length(ett));
 
+  /* Register dissector */
+  sbc_ap_handle = register_dissector(PFNAME, dissect_sbc_ap, proto_sbc_ap);
 
   /* Register dissector tables */
   sbc_ap_ies_dissector_table = register_dissector_table("sbc_ap.ies", "SBC-AP-PROTOCOL-IES", proto_sbc_ap, FT_UINT32, BASE_DEC);
@@ -3678,12 +3597,8 @@ proto_reg_handoff_sbc_ap(void)
 	static guint SctpPort;
 
     if( !inited ) {
-        sbc_ap_handle = create_dissector_handle(dissect_sbc_ap, proto_sbc_ap);
         dissector_add_uint("sctp.ppi", SBC_AP_PAYLOAD_PROTOCOL_ID,   sbc_ap_handle);
         inited = TRUE;
-
-/*--- Included file: packet-sbc-ap-dis-tab.c ---*/
-#line 1 "./asn1/sbc-ap/packet-sbc-ap-dis-tab.c"
   dissector_add_uint("sbc_ap.ies", id_Cause, create_dissector_handle(dissect_Cause_PDU, proto_sbc_ap));
   dissector_add_uint("sbc_ap.ies", id_Criticality_Diagnostics, create_dissector_handle(dissect_Criticality_Diagnostics_PDU, proto_sbc_ap));
   dissector_add_uint("sbc_ap.ies", id_Data_Coding_Scheme, create_dissector_handle(dissect_Data_Coding_Scheme_PDU, proto_sbc_ap));
@@ -3734,9 +3649,6 @@ proto_reg_handoff_sbc_ap(void)
   dissector_add_uint("sbc_ap.proc.imsg", id_PWS_Restart_Indication, create_dissector_handle(dissect_PWS_Restart_Indication_PDU, proto_sbc_ap));
   dissector_add_uint("sbc_ap.proc.imsg", id_PWS_Failure_Indication, create_dissector_handle(dissect_PWS_Failure_Indication_PDU, proto_sbc_ap));
 
-
-/*--- End of included file: packet-sbc-ap-dis-tab.c ---*/
-#line 246 "./asn1/sbc-ap/packet-sbc-ap-template.c"
 	} else {
 		if (SctpPort != 0) {
 			dissector_delete_uint("sctp.port", SctpPort, sbc_ap_handle);

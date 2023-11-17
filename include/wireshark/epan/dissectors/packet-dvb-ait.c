@@ -22,6 +22,8 @@
 void proto_register_dvb_ait(void);
 void proto_reg_handoff_dvb_ait(void);
 
+static dissector_handle_t dvb_ait_handle;
+
 static int proto_dvb_ait = -1;
 
 static gint ett_dvb_ait       = -1;
@@ -549,20 +551,18 @@ proto_register_dvb_ait(void)
                 FT_UINT8, BASE_HEX, VALS(app_ctrl_code), 0, NULL, HFILL } }
     };
 
-    proto_dvb_ait = proto_register_protocol(
-            "DVB Application Information Table", "DVB AIT", "dvb_ait");
+    proto_dvb_ait = proto_register_protocol("DVB Application Information Table", "DVB AIT", "dvb_ait");
 
     proto_register_field_array(proto_dvb_ait, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
+
+    dvb_ait_handle = register_dissector("dvb_ait", dissect_dvb_ait, proto_dvb_ait);
 }
 
 
 void
 proto_reg_handoff_dvb_ait(void)
 {
-    dissector_handle_t dvb_ait_handle;
-
-    dvb_ait_handle = create_dissector_handle(dissect_dvb_ait, proto_dvb_ait);
     dissector_add_uint("mpeg_sect.tid", DVB_AIT_TID, dvb_ait_handle);
 }
 

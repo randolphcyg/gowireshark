@@ -85,6 +85,7 @@ static gint ett_mdshdr = -1;
 static gint ett_mdshdr_hdr = -1;
 static gint ett_mdshdr_trlr = -1;
 
+static dissector_handle_t mdshdr_handle;
 static dissector_handle_t fc_dissector_handle;
 
 static gboolean decode_if_zero_etype = FALSE;
@@ -248,10 +249,10 @@ proto_register_mdshdr(void)
           {"Packet Len", "mdshdr.plen", FT_UINT16, BASE_DEC, NULL, 0x1FFF, NULL, HFILL}},
 
         { &hf_mdshdr_dstidx,
-          {"Dst Index", "mdshdr.dstidx", FT_UINT16, BASE_HEX, NULL, 0xFFC, NULL, HFILL}},
+          {"Dst Index", "mdshdr.dstidx", FT_UINT16, BASE_HEX, NULL, 0x0FFC, NULL, HFILL}},
 
         { &hf_mdshdr_srcidx,
-          {"Src Index", "mdshdr.srcidx", FT_UINT16, BASE_HEX, NULL, 0x3FF, NULL, HFILL}},
+          {"Src Index", "mdshdr.srcidx", FT_UINT16, BASE_HEX, NULL, 0x03FF, NULL, HFILL}},
 
         { &hf_mdshdr_vsan,
           {"VSAN", "mdshdr.vsan", FT_UINT16, BASE_DEC, NULL, 0x0FFF, NULL, HFILL}},
@@ -291,12 +292,14 @@ proto_register_mdshdr(void)
                                    "don't want ethertype zero to be decoded as MDSHDR. "
                                    "This might be useful to avoid problems with test frames.",
                                    &decode_if_zero_etype);
+
+/* Register the dissector */
+    mdshdr_handle = register_dissector("mdshdr", dissect_mdshdr, proto_mdshdr);
 }
 
 void
 proto_reg_handoff_mdshdr(void)
 {
-    static dissector_handle_t mdshdr_handle;
     static gboolean           registered_for_zero_etype = FALSE;
     static gboolean           mdshdr_prefs_initialized  = FALSE;
 
@@ -308,7 +311,6 @@ proto_reg_handoff_mdshdr(void)
          * ethertype ETHERTYPE_FCFT, and fetch the data and Fibre
          * Channel handles.
          */
-        mdshdr_handle = create_dissector_handle(dissect_mdshdr, proto_mdshdr);
         dissector_add_uint("ethertype", ETHERTYPE_FCFT, mdshdr_handle);
         fc_dissector_handle = find_dissector_add_dependency("fc", proto_mdshdr);
         mdshdr_prefs_initialized = TRUE;

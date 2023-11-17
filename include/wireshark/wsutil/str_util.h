@@ -19,20 +19,33 @@ extern "C" {
 #endif /* __cplusplus */
 
 WS_DLL_PUBLIC
-gchar *
-wmem_strconcat(wmem_allocator_t *allocator, const gchar *first, ...)
+char *
+wmem_strconcat(wmem_allocator_t *allocator, const char *first, ...)
 G_GNUC_MALLOC G_GNUC_NULL_TERMINATED;
 
 WS_DLL_PUBLIC
-gchar *
+char *
 wmem_strjoin(wmem_allocator_t *allocator,
-             const gchar *separator, const gchar *first, ...)
+             const char *separator, const char *first, ...)
 G_GNUC_MALLOC G_GNUC_NULL_TERMINATED;
 
+/**
+ * As g_strjoinv, with the returned string wmem allocated.
+ * Joins a number of strings together to form one long string,
+ * with the optional separator inserted between each of them.
+ *
+ * @param allocator  The wmem scope to use to allocate the returned string
+ * @param separator A string to insert between each of the strings, or NULL.
+ * @param str_array A NULL-terminated array of strings to join
+ *
+ * @note If str_array has no items, the return value is an empty string.
+ * str_array should not be NULL (NULL is returned with an warning.)
+ * NULL as a separator is equivalent to the empty string.
+ */
 WS_DLL_PUBLIC
-gchar *
+char *
 wmem_strjoinv(wmem_allocator_t *allocator,
-              const gchar *separator, gchar **str_array)
+              const char *separator, char **str_array)
 G_GNUC_MALLOC;
 
 /**
@@ -47,9 +60,9 @@ G_GNUC_MALLOC;
  * Do not use with a NULL allocator, use g_strsplit instead.
  */
 WS_DLL_PUBLIC
-gchar **
-wmem_strsplit(wmem_allocator_t *allocator, const gchar *src,
-        const gchar *delimiter, int max_tokens);
+char **
+wmem_strsplit(wmem_allocator_t *allocator, const char *src,
+        const char *delimiter, int max_tokens);
 
 /**
  * wmem_ascii_strdown:
@@ -67,8 +80,8 @@ wmem_strsplit(wmem_allocator_t *allocator, const gchar *src,
  *               the string in place.)
  **/
 WS_DLL_PUBLIC
-gchar*
-wmem_ascii_strdown(wmem_allocator_t *allocator, const gchar *str, gssize len);
+char*
+wmem_ascii_strdown(wmem_allocator_t *allocator, const char *str, ssize_t len);
 
 /** Convert all upper-case ASCII letters to their ASCII lower-case
  *  equivalents, in place, with a simple non-locale-dependent
@@ -86,7 +99,7 @@ wmem_ascii_strdown(wmem_allocator_t *allocator, const gchar *str, gssize len);
  * @return    ptr to the string
  */
 WS_DLL_PUBLIC
-gchar *ascii_strdown_inplace(gchar *str);
+char *ascii_strdown_inplace(char *str);
 
 /** Convert all lower-case ASCII letters to their ASCII upper-case
  *  equivalents, in place, with a simple non-locale-dependent
@@ -104,15 +117,15 @@ gchar *ascii_strdown_inplace(gchar *str);
  * @return    ptr to the string
  */
 WS_DLL_PUBLIC
-gchar *ascii_strup_inplace(gchar *str);
+char *ascii_strup_inplace(char *str);
 
 /** Check if an entire string consists of printable characters
  *
  * @param str    The string to be checked
- * @return       TRUE if the entire string is printable, otherwise FALSE
+ * @return       true if the entire string is printable, otherwise false
  */
 WS_DLL_PUBLIC
-gboolean isprint_string(const gchar *str);
+bool isprint_string(const char *str);
 
 /** Given a not-necessarily-null-terminated string, expected to be in
  *  UTF-8 but possibly containing invalid sequences (as it may have come
@@ -137,22 +150,29 @@ gboolean isprint_string(const gchar *str);
  *
  * @param str    The string to be checked
  * @param length The number of bytes to validate
- * @return       TRUE if the entire string is valid and printable UTF-8,
- *               otherwise FALSE
+ * @return       true if the entire string is valid and printable UTF-8,
+ *               otherwise false
  */
 WS_DLL_PUBLIC
-gboolean isprint_utf8_string(const gchar *str, const guint length);
+bool isprint_utf8_string(const char *str, const unsigned length);
 
 /** Check if an entire string consists of digits
  *
  * @param str    The string to be checked
- * @return       TRUE if the entire string is digits, otherwise FALSE
+ * @return       true if the entire string is digits, otherwise false
  */
 WS_DLL_PUBLIC
-gboolean isdigit_string(const guchar *str);
+bool isdigit_string(const unsigned char *str);
 
 /** Finds the first occurrence of string 'needle' in string 'haystack'.
- *  The matching is done in a case insensitive manner.
+ *  The matching is done ignoring the case of ASCII characters in a
+ *  non-locale-dependent way.
+ *
+ *  The string is assumed to be in a character encoding, such as
+ *  an ISO 8859 or other EUC encoding, or UTF-8, in which all
+ *  bytes in the range 0x00 through 0x7F are ASCII characters and
+ *  non-ASCII characters are constructed from one or more bytes in
+ *  the range 0x80 through 0xFF.
  *
  * @param haystack The string possibly containing the substring
  * @param needle The substring to be searched
@@ -160,7 +180,7 @@ gboolean isdigit_string(const guchar *str);
  *   Otherwise it returns NULL.
  */
 WS_DLL_PUBLIC
-const char *ws_strcasestr(const char *haystack, const char *needle);
+const char *ws_ascii_strcasestr(const char *haystack, const char *needle);
 
 WS_DLL_PUBLIC
 char *ws_escape_string(wmem_allocator_t *alloc, const char *string, bool add_quotes);
@@ -205,13 +225,158 @@ char *format_size_wmem(wmem_allocator_t *allocator, int64_t size,
     format_size_wmem(NULL, size, unit, flags)
 
 WS_DLL_PUBLIC
-gchar printable_char_or_period(gchar c);
+char printable_char_or_period(char c);
 
 WS_DLL_PUBLIC WS_RETNONNULL
 const char *ws_strerrorname_r(int errnum, char *buf, size_t buf_size);
 
 WS_DLL_PUBLIC
 char *ws_strdup_underline(wmem_allocator_t *allocator, long offset, size_t len);
+
+/** Given a wmem scope, a not-necessarily-null-terminated string,
+ *  expected to be in UTF-8 but possibly containing invalid sequences
+ *  (as it may have come from packet data), and the length of the string,
+ *  generate a valid UTF-8 string from it, allocated in the specified
+ *  wmem scope, that:
+ *
+ *   shows printable Unicode characters as themselves;
+ *
+ *   shows non-printable ASCII characters as C-style escapes (octal
+ *   if not one of the standard ones such as LF -> '\n');
+ *
+ *   shows non-printable Unicode-but-not-ASCII characters as
+ *   their universal character names;
+ *
+ *   Replaces illegal UTF-8 sequences with U+FFFD (replacement character) ;
+ *
+ *  and return a pointer to it.
+ *
+ * @param allocator The wmem scope
+ * @param string A pointer to the input string
+ * @param len The length of the input string
+ * @return A pointer to the formatted string
+ *
+ * @see tvb_format_text()
+ */
+WS_DLL_PUBLIC
+char *format_text(wmem_allocator_t* allocator, const char *string, size_t len);
+
+/** Same as format_text() but accepts a nul-terminated string.
+ *
+ * @param allocator The wmem scope
+ * @param string A pointer to the input string
+ * @return A pointer to the formatted string
+ *
+ * @see tvb_format_text()
+ */
+WS_DLL_PUBLIC
+char *format_text_string(wmem_allocator_t* allocator, const char *string);
+
+/**
+ * Same as format_text() but replaces any whitespace characters
+ * (space, tab, carriage return, new line, vertical tab, or formfeed)
+ * with a space.
+ *
+ * @param allocator The wmem scope
+ * @param line A pointer to the input string
+ * @param len The length of the input string
+ * @return A pointer to the formatted string
+ *
+ */
+WS_DLL_PUBLIC
+char *format_text_wsp(wmem_allocator_t* allocator, const char *line, size_t len);
+
+/**
+ * Given a string, generate a string from it that shows non-printable
+ * characters as the chr parameter passed, except a whitespace character
+ * (space, tab, carriage return, new line, vertical tab, or formfeed)
+ * which will be replaced by a space, and return a pointer to it.
+ *
+ * This does *not* treat the input string as UTF-8.
+ *
+ * This is useful for displaying binary data that frequently but not always
+ * contains text; otherwise the number of C escape codes makes it unreadable.
+ *
+ * @param allocator The wmem scope
+ * @param string A pointer to the input string
+ * @param len The length of the input string
+ * @param chr The character to use to replace non-printable characters
+ * @return A pointer to the formatted string
+ *
+ */
+WS_DLL_PUBLIC
+char *format_text_chr(wmem_allocator_t *allocator,
+                        const char *string, size_t len, char chr);
+
+/** Given a wmem scope and an 8-bit character
+ *  generate a valid UTF-8 string from it, allocated in the specified
+ *  wmem scope, that:
+ *
+ *   shows printable Unicode characters as themselves;
+ *
+ *   shows non-printable ASCII characters as C-style escapes (hex
+ *   if not one of the standard ones such as LF -> '\n');
+ *
+ *  and return a pointer to it.
+ *
+ * @param allocator The wmem scope
+ * @param c A character to format
+ * @return A pointer to the formatted string
+ */
+WS_DLL_PUBLIC
+char *format_char(wmem_allocator_t *allocator, char c);
+
+/**
+ * Truncate a UTF-8 string in place so that it is no larger than len bytes,
+ * ensuring that the string is null terminated and ends with a complete
+ * character instead of a partial sequence (e.g., possibly truncating up
+ * to 3 additional bytes if the terminal character is 4 bytes long).
+ *
+ * The buffer holding the string must be large enough (at least len + 1
+ * including the null terminator), and the first len bytes of the buffer
+ * must be a valid UTF-8 string, except for possibly ending in a partial
+ * sequence or not being null terminated. This is a convenience function
+ * that for speed does not check either of those conditions.
+ *
+ * A common use case is when a valid UTF-8 string has been copied into a
+ * buffer of length len+1 via snprintf, strlcpy, or strlcat and truncated,
+ * to ensure that the final UTF-8 character is not a partial sequence.
+ *
+ * @param string A pointer to the input string
+ * @param len The maximum length to truncate to
+ * @return    ptr to the string
+ */
+WS_DLL_PUBLIC
+char* ws_utf8_truncate(char *string, size_t len);
+
+WS_DLL_PUBLIC
+void EBCDIC_to_ASCII(uint8_t *buf, unsigned bytes);
+
+WS_DLL_PUBLIC
+uint8_t EBCDIC_to_ASCII1(uint8_t c);
+
+/* Types of character encodings */
+typedef enum {
+    HEXDUMP_ENC_ASCII     = 0, /* ASCII */
+    HEXDUMP_ENC_EBCDIC    = 1  /* EBCDIC */
+} hex_dump_enc;
+
+/*
+ * Hexdump options for ASCII:
+ */
+
+#define HEXDUMP_ASCII_MASK            (0x0003U)
+#define HEXDUMP_ASCII_OPTION(option)  ((option) & HEXDUMP_ASCII_MASK)
+
+#define HEXDUMP_ASCII_INCLUDE         (0x0000U) /* include ASCII section no delimiters (legacy tshark behavior) */
+#define HEXDUMP_ASCII_DELIMIT         (0x0001U) /* include ASCII section with delimiters, useful for reliable detection of last hexdata */
+#define HEXDUMP_ASCII_EXCLUDE         (0x0002U) /* exclude ASCII section from hexdump reports, if we really don't want or need it */
+
+WS_DLL_PUBLIC
+bool hex_dump_buffer(bool (*print_line)(void *, const char *), void *fp,
+                                    const unsigned char *cp, unsigned length,
+                                    hex_dump_enc encoding,
+                                    unsigned ascii_option);
 
 /* To pass one of two strings, singular or plural */
 #define plurality(d,s,p) ((d) == 1 ? (s) : (p))

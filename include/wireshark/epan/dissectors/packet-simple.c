@@ -176,6 +176,7 @@ static const value_string Link11_Role[] = {
 
 static int proto_simple = -1;
 
+static dissector_handle_t simple_dissector_handle;
 static dissector_handle_t link16_handle;
 
 static gint hf_simple_sync_byte_1 = -1;
@@ -464,7 +465,7 @@ static int dissect_simple(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     proto_tree_add_item(simple_tree, hf_simple_transit_time, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
 
-    packet_type_string = val_to_str(packet_type, PacketType_Strings, "Unknown");
+    packet_type_string = val_to_str_const(packet_type, PacketType_Strings, "Unknown");
     col_add_fstr(pinfo->cinfo, COL_INFO, "%s", packet_type_string);
     packet_tree = proto_tree_add_subtree_format(simple_tree, tvb, offset, packet_size, ett_packet, NULL, "%s Packet", packet_type_string);
 
@@ -576,25 +577,25 @@ void proto_register_simple(void)
           { "Relay Hop", "simple.status.relay_hop", FT_BYTES, BASE_NONE, NULL, 0x0,
             NULL, HFILL }},
         { &hf_simple_status_dx_flag_system_messages,
-          { "DX System Messages", "simple.status.dx_flag.system_messages", FT_BOOLEAN, 16, NULL, 0x1,
+          { "DX System Messages", "simple.status.dx_flag.system_messages", FT_BOOLEAN, 16, NULL, 0x0001,
             NULL, HFILL }},
         { &hf_simple_status_dx_flag_common_tims_bims,
-          { "DX Common TIMS/BIMS", "simple.status.dx_flag.common_tims_bims", FT_BOOLEAN, 16, NULL, 0x2,
+          { "DX Common TIMS/BIMS", "simple.status.dx_flag.common_tims_bims", FT_BOOLEAN, 16, NULL, 0x0002,
             NULL, HFILL }},
         { &hf_simple_status_dx_flag_common_toms_boms,
-          { "DX Common TOMS/BOMS", "simple.status.dx_flag.common_toms_boms", FT_BOOLEAN, 16, NULL, 0x4,
+          { "DX Common TOMS/BOMS", "simple.status.dx_flag.common_toms_boms", FT_BOOLEAN, 16, NULL, 0x0004,
             NULL, HFILL }},
         { &hf_simple_status_dx_flag_simple_receive,
           { "DX SIMPLE Receive", "simple.status.dx_flag.simple_receive", FT_BOOLEAN, 16, NULL, 0x8,
             NULL, HFILL }},
         { &hf_simple_status_dx_flag_simple_transmit,
-          { "DX SIMPLE Transmit", "simple.status.dx_flag.simple_transmit", FT_BOOLEAN, 16, NULL, 0x10,
+          { "DX SIMPLE Transmit", "simple.status.dx_flag.simple_transmit", FT_BOOLEAN, 16, NULL, 0x0010,
             NULL, HFILL }},
         { &hf_simple_status_dx_flag_all_tims_bims,
-          { "DX All TIMS/BIMS", "simple.status.dx_flag.all_tims_bims", FT_BOOLEAN, 16, NULL, 0x20,
+          { "DX All TIMS/BIMS", "simple.status.dx_flag.all_tims_bims", FT_BOOLEAN, 16, NULL, 0x0020,
             NULL, HFILL }},
         { &hf_simple_status_dx_flag_all_toms_boms,
-          { "DX All TOMS/BOMS", "simple.status.dx_flag.all_toms_boms", FT_BOOLEAN, 16, NULL, 0x40,
+          { "DX All TOMS/BOMS", "simple.status.dx_flag.all_toms_boms", FT_BOOLEAN, 16, NULL, 0x0040,
             NULL, HFILL }},
         { &hf_simple_status_dx_file_id,
           { "DX File Id", "simple.status.dx_file_id", FT_STRING, BASE_NONE, NULL, 0x0,
@@ -660,13 +661,11 @@ void proto_register_simple(void)
     proto_register_subtree_array(ett, array_length(ett));
     expert_simple = expert_register_protocol(proto_simple);
     expert_register_field_array(expert_simple, ei, array_length(ei));
-    register_dissector("simple", dissect_simple, proto_simple);
+    simple_dissector_handle = register_dissector("simple", dissect_simple, proto_simple);
 }
 
 void proto_reg_handoff_simple(void)
 {
-    dissector_handle_t simple_dissector_handle;
-    simple_dissector_handle = create_dissector_handle(dissect_simple, proto_simple);
     dissector_add_for_decode_as_with_preference("udp.port", simple_dissector_handle);
     dissector_add_for_decode_as_with_preference("tcp.port", simple_dissector_handle);
 

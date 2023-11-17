@@ -903,7 +903,7 @@ static int hf_nfapi_maximum_transmit_power = -1;
 static int hf_nfapi_maximum_transmit_power_2 = -1;
 static int hf_nfapi_earfcn = -1;
 static int hf_nfapi_minimum_transmit_power = -1;
-static int hf_nfapi_number_of_antennas_suppported = -1;
+static int hf_nfapi_number_of_antennas_supported = -1;
 static int hf_nfapi_minimum_downlink_frequency = -1;
 static int hf_nfapi_maximum_downlink_frequency = -1;
 static int hf_nfapi_minimum_uplink_frequency = -1;
@@ -1681,7 +1681,7 @@ static void dissect_pnf_rf_config_value(ptvcursor_t * ptvc, packet_info* pinfo)
 	ptvcursor_add(ptvc, hf_nfapi_maximum_transmit_power, 2, ENC_BIG_ENDIAN);
 	ptvcursor_add(ptvc, hf_nfapi_minimum_transmit_power, 2, ENC_BIG_ENDIAN);
 
-	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_antennas_suppported, 1, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_antennas_supported, 1, ENC_BIG_ENDIAN, &test_value);
 	switch (test_value)
 	{
 	case 1:
@@ -8756,12 +8756,12 @@ void proto_register_nfapi(void)
 			"The offset from VNF SFN/SF 0/0 time reference of the message transmission at the transport layer, in microseconds, with a range of 0 to 10239999", HFILL }
 		},
 		{ &hf_nfapi_tl_tag,
-			{ "TLV Tag", "nfapi.tl_tag",
+			{ "TLV Tag", "nfapi.tlv_tag",
 			FT_UINT16, BASE_CUSTOM, CF_FUNC(nfapi_tag_vals_fn), 0x0,
 			NULL, HFILL }
 		},
 		{ &hf_nfapi_tl_length,
-			{ "TLV Length", "nfapi.tl_length",
+			{ "TLV Length", "nfapi.tlv_length",
 			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_byte_bytes, 0x0,
 			NULL, HFILL }
 		},
@@ -9102,7 +9102,7 @@ void proto_register_nfapi(void)
 		{ &hf_nfapi_multi_carrier_type,
 			{ "Multi carrier type", "nfapi.multi.carrier.type",
 			FT_UINT16, BASE_DEC, VALS(nfapi_laa_carrier_type_vals), 0x0,
-			"Indicates multi carrier type configuration of L1 (according to L1 capabilities and L2 scheduler requirements", HFILL }
+			"Indicates multi carrier type configuration of L1 (according to L1 capabilities and L2 scheduler requirements)", HFILL }
 		},
 		{ &hf_nfapi_multi_carrier_tx,
 			{ "Multi carrier TX", "nfapi.multi.carrier.tx",
@@ -9407,12 +9407,12 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_shared_bands,
 			{ "Shared bands", "nfapi.shared.bands",
-			FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x0,
+			FT_BOOLEAN, 8, NULL, 0x0,
 			"Indication that the PNF device shares the list of RF band options available across all available PHYs, so each may only be used with a single PHY.", HFILL }
 		},
 		{ &hf_nfapi_shared_pa,
 			{ "Shared pa", "nfapi.shared.pa",
-			FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x0,
+			FT_BOOLEAN, 8, NULL, 0x0,
 			"Indication that the PNF device shares a single RF PA across all available PHYs, so that the maximum Total Power is shared across all available PHYs.", HFILL }
 		},
 		{ &hf_nfapi_maximum_total_power,
@@ -9551,8 +9551,8 @@ void proto_register_nfapi(void)
 			FT_UINT16, BASE_CUSTOM, CF_FUNC(max_transmit_power_conversion_fn), 0x0,
 			"The minimum transmit power for the RF chain operating at the maximum supported bandwidth as defined in 3GPP TS 36.104.", HFILL }
 		},
-		{ &hf_nfapi_number_of_antennas_suppported,
-			{ "Number of Supported Antennas", "nfapi.number_of_antennas_suppported",
+		{ &hf_nfapi_number_of_antennas_supported,
+			{ "Number of Supported Antennas", "nfapi.number_of_antennas_supported",
 			FT_UINT8, BASE_DEC, NULL, 0x0,
 			"The maximum number of antennas supported.", HFILL }
 		},
@@ -9567,12 +9567,12 @@ void proto_register_nfapi(void)
 			"The maximum supported downlink frequency in 100kHz units", HFILL }
 		},
 		{ &hf_nfapi_minimum_uplink_frequency,
-			{ "Minimum uplink frequency", "nfapi.minimum_downlink_frequency",
+			{ "Minimum uplink frequency", "nfapi.minimum_uplink_frequency",
 			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &khz_100_units_db, 0x0,
 			"The minimum supported uplink frequency in 100kHz units", HFILL }
 		},
 		{ &hf_nfapi_maximum_uplink_frequency,
-			{ "Maximum uplink frequency", "nfapi.maximum_downlink_frequency",
+			{ "Maximum uplink frequency", "nfapi.maximum_uplink_frequency",
 			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &khz_100_units_db, 0x0,
 			"The maximum supported uplink frequency in 100kHz units", HFILL }
 		},
@@ -9702,7 +9702,7 @@ void proto_register_nfapi(void)
 			"Indicates if PHY supports CSI-RS enhancements (FD-MIMO Class A). Equivalent to csi-RS-EnhancementsTDD-r13 in TS36.306", HFILL }
 		},
 		{ &hf_nfapi_drms_enhancements_supported,
-			{ "DMRS enhancements supported", "nfapi.pnf.phy_rel13.drms_enhancements_supported",
+			{ "DRMS enhancements supported", "nfapi.pnf.phy_rel13.drms_enhancements_supported",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports DMRS enhancements added in Release 13. Equivalent to dmrs-Enhancements-r13 in TS36.306", HFILL }
 		},
@@ -11114,7 +11114,7 @@ void proto_register_nfapi(void)
 			"The format of the ACK/NACK response expected", HFILL }
 		},
 		{ &hf_nfapi_number_of_ack_nack,
-			{ "Number of ACK/NACK", "nfapi.uint16.tag",
+			{ "Number of ACK/NACK", "nfapi.num-ack-nack",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"The number of ACK/NACK results reported for this UE", HFILL }
 		},
@@ -11426,7 +11426,7 @@ void proto_register_nfapi(void)
 		{ &hf_nfapi_si_index,
 			{ "SI Index", "nfapi.si.index",
 			FT_UINT8, BASE_DEC, NULL, 0x0,
-			"The Index of this SIB in the SIB1 SchedulingInfoList:", HFILL }
+			"The Index of this SIB in the SIB1 SchedulingInfoList", HFILL }
 		},
 		{ &hf_nfapi_number_of_si_periodicity,
 			{ "Number of SI Periodicity", "nfapi.number.of.si.periodicity",
@@ -11641,7 +11641,7 @@ void proto_reg_handoff_nfapi(void)
 {
 	dissector_handle_t handle;
 
-	handle = create_dissector_handle( dissect_nfapi_ul_p7, -1 );
+	handle = create_dissector_handle( dissect_nfapi_ul_p7, proto_nfapi );
 	dissector_add_uint("nfapi.msg_id", NFAPI_HARQ_INDICATION_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_CRC_INDICATION_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_RX_ULSCH_INDICATION_MSG_ID, handle);
@@ -11650,7 +11650,7 @@ void proto_reg_handoff_nfapi(void)
 	dissector_add_uint("nfapi.msg_id", NFAPI_RX_SR_INDICATION_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_RX_CQI_INDICATION_MSG_ID, handle);
 
-	handle = create_dissector_handle( dissect_nfapi_dl_p7, -1 );
+	handle = create_dissector_handle( dissect_nfapi_dl_p7, proto_nfapi );
 	dissector_add_uint("nfapi.msg_id", NFAPI_DL_CONFIG_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_UL_CONFIG_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_HI_DCI0_REQUEST_MSG_ID, handle);
@@ -11658,7 +11658,7 @@ void proto_reg_handoff_nfapi(void)
 	dissector_add_uint("nfapi.msg_id", NFAPI_LBT_DL_CONFIG_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_LBT_DL_INDICATION_MSG_ID, handle);
 
-	handle = create_dissector_handle( dissect_p45_header, -1 );
+	handle = create_dissector_handle( dissect_p45_header, proto_nfapi );
 	dissector_add_uint("nfapi.msg_id", NFAPI_PNF_START_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_PNF_STOP_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_PARAM_REQUEST_MSG_ID, handle);
@@ -11666,12 +11666,12 @@ void proto_reg_handoff_nfapi(void)
 	dissector_add_uint("nfapi.msg_id", NFAPI_STOP_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_NMM_STOP_REQUEST_MSG_ID, handle);
 
-	handle = create_dissector_handle( dissect_p45_header_with_list, -1 );
+	handle = create_dissector_handle( dissect_p45_header_with_list, proto_nfapi );
 	dissector_add_uint("nfapi.msg_id", NFAPI_PNF_PARAM_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_PNF_CONFIG_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_MEASUREMENT_REQUEST_MSG_ID, handle);
 
-	handle = create_dissector_handle( dissect_p45_header_with_error, -1 );
+	handle = create_dissector_handle( dissect_p45_header_with_error, proto_nfapi );
 	dissector_add_uint("nfapi.msg_id", NFAPI_PNF_CONFIG_RESPONSE_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_PNF_START_RESPONSE_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_PNF_STOP_RESPONSE_MSG_ID, handle);
@@ -11679,7 +11679,7 @@ void proto_reg_handoff_nfapi(void)
 	dissector_add_uint("nfapi.msg_id", NFAPI_START_RESPONSE_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_STOP_RESPONSE_MSG_ID, handle);
 
-	handle = create_dissector_handle( dissect_p45_header_with_p4_error, -1 );
+	handle = create_dissector_handle( dissect_p45_header_with_p4_error, proto_nfapi );
 	dissector_add_uint("nfapi.msg_id", NFAPI_RSSI_RESPONSE_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_CELL_SEARCH_RESPONSE_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_BROADCAST_DETECT_RESPONSE_MSG_ID, handle);
@@ -11687,29 +11687,29 @@ void proto_reg_handoff_nfapi(void)
 	dissector_add_uint("nfapi.msg_id", NFAPI_SYSTEM_INFORMATION_RESPONSE_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_NMM_STOP_RESPONSE_MSG_ID, handle);
 
-	handle = create_dissector_handle( dissect_p45_header_with_error_and_list, -1 );
+	handle = create_dissector_handle( dissect_p45_header_with_error_and_list, proto_nfapi );
 	dissector_add_uint("nfapi.msg_id", NFAPI_PNF_PARAM_RESPONSE_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_MEASUREMENT_RESPONSE_MSG_ID, handle);
 
-	handle = create_dissector_handle( dissect_p45_header_with_p4_error_and_list, -1 );
+	handle = create_dissector_handle( dissect_p45_header_with_p4_error_and_list, proto_nfapi );
 	dissector_add_uint("nfapi.msg_id", NFAPI_RSSI_INDICATION_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_CELL_SEARCH_INDICATION_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_BROADCAST_DETECT_INDICATION_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_SYSTEM_INFORMATION_SCHEDULE_INDICATION_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_SYSTEM_INFORMATION_INDICATION_MSG_ID, handle);
 
-	handle = create_dissector_handle( dissect_p45_header_with_rat_type_list, -1 );
+	handle = create_dissector_handle( dissect_p45_header_with_rat_type_list, proto_nfapi );
 	dissector_add_uint("nfapi.msg_id", NFAPI_RSSI_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_CELL_SEARCH_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_BROADCAST_DETECT_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_SYSTEM_INFORMATION_SCHEDULE_REQUEST_MSG_ID, handle);
 	dissector_add_uint("nfapi.msg_id", NFAPI_SYSTEM_INFORMATION_REQUEST_MSG_ID, handle);
 
-	dissector_add_uint("nfapi.msg_id", NFAPI_CONFIG_REQUEST_MSG_ID, create_dissector_handle( dissect_p45_config_request_msg_id, -1 ));
-	dissector_add_uint("nfapi.msg_id", NFAPI_PARAM_RESPONSE_MSG_ID, create_dissector_handle( dissect_p45_param_response_msg_id, -1 ));
-	dissector_add_uint("nfapi.msg_id", NFAPI_DL_NODE_SYNC_MSG_ID, create_dissector_handle( dissect_p7_dl_node_sync_msg_id, -1 ));
-	dissector_add_uint("nfapi.msg_id", NFAPI_UL_NODE_SYNC_MSG_ID, create_dissector_handle( dissect_p7_ul_node_sync_msg_id, -1 ));
-	dissector_add_uint("nfapi.msg_id", NFAPI_TIMING_INFO_MSG_ID, create_dissector_handle( dissect_p7_timing_info_msg_id, -1 ));
+	dissector_add_uint("nfapi.msg_id", NFAPI_CONFIG_REQUEST_MSG_ID, create_dissector_handle( dissect_p45_config_request_msg_id, proto_nfapi ));
+	dissector_add_uint("nfapi.msg_id", NFAPI_PARAM_RESPONSE_MSG_ID, create_dissector_handle( dissect_p45_param_response_msg_id, proto_nfapi ));
+	dissector_add_uint("nfapi.msg_id", NFAPI_DL_NODE_SYNC_MSG_ID, create_dissector_handle( dissect_p7_dl_node_sync_msg_id, proto_nfapi ));
+	dissector_add_uint("nfapi.msg_id", NFAPI_UL_NODE_SYNC_MSG_ID, create_dissector_handle( dissect_p7_ul_node_sync_msg_id, proto_nfapi ));
+	dissector_add_uint("nfapi.msg_id", NFAPI_TIMING_INFO_MSG_ID, create_dissector_handle( dissect_p7_timing_info_msg_id, proto_nfapi ));
 
 	dissector_add_for_decode_as("sctp.port", nfapi_handle);
 	dissector_add_for_decode_as("udp.port", nfapi_handle);

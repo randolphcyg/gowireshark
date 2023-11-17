@@ -338,7 +338,7 @@ proto_register_hdcp2(void)
                 NULL, 0, NULL, HFILL } },
         { &hf_hdcp2_tx_loc_precompute,
             { "Locality Precompute", "hdcp2.txinf_cap", FT_BOOLEAN, 16,
-                NULL, 0x01, NULL, HFILL } },
+                NULL, 0x0001, NULL, HFILL } },
         { &hf_hdcp2_rx_length,
             { "LENGTH", "hdcp2.rxinf_len", FT_UINT16, BASE_DEC,
                 NULL, 0, NULL, HFILL } },
@@ -347,7 +347,7 @@ proto_register_hdcp2(void)
                 NULL, 0, NULL, HFILL } },
         { &hf_hdcp2_rx_loc_precompute,
             { "Locality Precompute", "hdcp2.rxinf_cap", FT_BOOLEAN, 16,
-                NULL, 0x01, NULL, HFILL } },
+                NULL, 0x0001, NULL, HFILL } },
 
 };
 
@@ -372,9 +372,7 @@ proto_register_hdcp2(void)
                 (gpointer)(&msg_info[i]));
     }
 
-    proto_hdcp2 = proto_register_protocol(
-            "High bandwidth Digital Content Protection version 2",
-            "HDCP2", "hdcp2");
+    proto_hdcp2 = proto_register_protocol("High bandwidth Digital Content Protection version 2", "HDCP2", "hdcp2");
 
     hdcp2_module = prefs_register_protocol_obsolete(proto_hdcp2);
     prefs_register_obsolete_preference(hdcp2_module, "enable");

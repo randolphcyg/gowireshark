@@ -24,7 +24,7 @@
 #include <wsutil/json_dumper.h>
 #include <wsutil/wslog.h>
 #include <wsutil/ws_assert.h>
-#include <ui/version_info.h>
+#include <wsutil/version_info.h>
 
 #include <wiretap/merge.h>
 
@@ -74,7 +74,8 @@
 #endif
 
 static gboolean read_record(capture_file *cf, wtap_rec *rec, Buffer *buf,
-    dfilter_t *dfcode, epan_dissect_t *edt, column_info *cinfo, gint64 offset);
+    dfilter_t *dfcode, epan_dissect_t *edt, column_info *cinfo, gint64 offset,
+    fifo_string_cache_t *frame_dup_cache, GChecksum *frame_cksum);
 
 static void rescan_packets(capture_file *cf, const char *action, const char *action_item, gboolean redissect);
 
@@ -216,19 +217,16 @@ compute_elapsed(capture_file *cf, gint64 start_time)
 static const nstime_t *
 ws_get_frame_ts(struct packet_provider_data *prov, guint32 frame_num)
 {
-    if (prov->prev_dis && prov->prev_dis->num == frame_num)
-        return &prov->prev_dis->abs_ts;
-
-    if (prov->prev_cap && prov->prev_cap->num == frame_num)
-        return &prov->prev_cap->abs_ts;
-
-    if (prov->frames) {
-        frame_data *fd = frame_data_sequence_find(prov->frames, frame_num);
-
-        return (fd) ? &fd->abs_ts : NULL;
+    const frame_data *fd = NULL;
+    if (prov->prev_dis && prov->prev_dis->num == frame_num) {
+        fd = prov->prev_dis;
+    } else if (prov->prev_cap && prov->prev_cap->num == frame_num) {
+        fd = prov->prev_cap;
+    } else if (prov->frames) {
+        fd = frame_data_sequence_find(prov->frames, frame_num);
     }
 
-    return NULL;
+    return (fd && fd->has_ts) ? &fd->abs_ts : NULL;
 }
 
 static epan_t *
@@ -346,7 +344,7 @@ void
 cf_close(capture_file *cf)
 {
     cf->stop_flag = FALSE;
-    if (cf->state == FILE_CLOSED)
+    if (cf->state == FILE_CLOSED || cf->state == FILE_READ_PENDING)
         return; /* Nothing to do */
 
     /* Die if we're in the middle of reading a file. */
@@ -428,7 +426,7 @@ cf_close(capture_file *cf)
 
 /*
  * TRUE if the progress dialog doesn't exist and it looks like we'll
- * take > 2s to load, FALSE otherwise.
+ * take > PROGBAR_SHOW_DELAY (500ms) to load, FALSE otherwise.
  */
 static inline gboolean
 progress_is_slow(progdlg_t *progdlg, GTimer *prog_timer, gint64 size, gint64 pos)
@@ -437,7 +435,10 @@ progress_is_slow(progdlg_t *progdlg, GTimer *prog_timer, gint64 size, gint64 pos
 
     if (progdlg) return FALSE;
     elapsed = g_timer_elapsed(prog_timer, NULL);
-    if ((elapsed / 2 > PROGBAR_SHOW_DELAY && (size / pos) > 2) /* It looks like we're going to be slow. */
+    /* This only gets checked between reading records, which doesn't help if
+     * a single record takes a very long time, e.g., the first TLS packet if
+     * the SSLKEYLOGFILE is very large. (#17051) */
+    if ((elapsed * 2 > PROGBAR_SHOW_DELAY && (size / pos) >= 2) /* It looks like we're going to be slow. */
             || elapsed > PROGBAR_SHOW_DELAY) { /* We are indeed slow. */
         return TRUE;
     }
@@ -490,7 +491,7 @@ cf_read(capture_file *cf, gboolean reloading)
     epan_dissect_t       edt;
     wtap_rec             rec;
     Buffer               buf;
-    dfilter_t           *dfcode;
+    dfilter_t           *dfcode = NULL;
     column_info         *cinfo;
     volatile gboolean    create_proto_tree;
     guint                tap_flags;
@@ -513,8 +514,10 @@ cf_read(capture_file *cf, gboolean reloading)
      * We assume this will not fail since cf->dfilter is only set in
      * cf_filter IFF the filter was valid.
      */
-    compiled = dfilter_compile(cf->dfilter, &dfcode, NULL);
-    ws_assert(!cf->dfilter || (compiled && dfcode));
+    if (cf->dfilter) {
+        compiled = dfilter_compile(cf->dfilter, &dfcode, NULL);
+        ws_assert(compiled && dfcode);
+    }
 
     /* Get the union of the flags for all tap listeners. */
     tap_flags = union_of_tap_listener_flags();
@@ -549,7 +552,7 @@ cf_read(capture_file *cf, gboolean reloading)
        XXX - do we know this at open time? */
     cf->compression_type = wtap_get_compression_type(cf->provider.wth);
 
-    /* The packet list window will be empty until the file is completly loaded */
+    /* The packet list window will be empty until the file is completely loaded */
     packet_list_freeze();
 
     cf->stop_flag = FALSE;
@@ -557,11 +560,23 @@ cf_read(capture_file *cf, gboolean reloading)
 
     epan_dissect_init(&edt, cf->epan, create_proto_tree, FALSE);
 
-    /* If any tap listeners require the columns, construct them. */
-    cinfo = (tap_flags & TL_REQUIRES_COLUMNS) ? &cf->cinfo : NULL;
+    /* If the display filter or any tap listeners require the columns,
+     * construct them. */
+    cinfo = (tap_listeners_require_columns() ||
+        dfilter_requires_columns(dfcode)) ? &cf->cinfo : NULL;
 
     /* Find the size of the file. */
     size = wtap_file_size(cf->provider.wth, NULL);
+
+    /* If we are to ignore duplicate frames, we need a container to store
+     * hashes frame contents */
+    fifo_string_cache_t frame_dup_cache;
+    GChecksum *volatile cksum = NULL;
+
+    if (prefs.ignore_dup_frames) {
+        fifo_string_cache_init(&frame_dup_cache, prefs.ignore_dup_frames_cache_entries, g_free);
+        cksum = g_checksum_new(G_CHECKSUM_SHA256);
+    }
 
     g_timer_start(prog_timer);
 
@@ -569,8 +584,6 @@ cf_read(capture_file *cf, gboolean reloading)
     ws_buffer_init(&buf, 1514);
 
     TRY {
-        guint32 count             = 0;
-
         gint64  file_pos;
         gint64  data_offset;
 
@@ -588,7 +601,6 @@ cf_read(capture_file *cf, gboolean reloading)
                     too_many_records = TRUE;
                     break;
                 }
-                count++;
                 file_pos = wtap_read_so_far(cf->provider.wth);
 
                 /* Create the progress bar if necessary. */
@@ -637,7 +649,7 @@ cf_read(capture_file *cf, gboolean reloading)
                    hours even on fast machines) just to see that it was the wrong file. */
                 break;
             }
-            read_record(cf, &rec, &buf, dfcode, &edt, cinfo, data_offset);
+            read_record(cf, &rec, &buf, dfcode, &edt, cinfo, data_offset, &frame_dup_cache, cksum);
             wtap_rec_reset(&rec);
         }
     }
@@ -654,6 +666,14 @@ cf_read(capture_file *cf, gboolean reloading)
 #endif
     }
     ENDTRY;
+
+    // If we're ignoring duplicate frames, clear the data structures.
+    // We really could look at prefs.ignore_dup_frames here, but it's even
+    // safer to check if we had allocated 'cksum'.
+    if (cksum != NULL) {
+        fifo_string_cache_free(&frame_dup_cache);
+        g_checksum_free(cksum);
+    }
 
     /* We're done reading sequentially through the file. */
     cf->state = FILE_READ_DONE;
@@ -692,6 +712,11 @@ cf_read(capture_file *cf, gboolean reloading)
     cf->current_frame = frame_data_sequence_find(cf->provider.frames, cf->first_displayed);
 
     packet_list_thaw();
+
+    /* It is safe again to execute redissections or sort. */
+    ws_assert(cf->read_lock);
+    cf->read_lock = FALSE;
+
     if (reloading)
         cf_callback_invoke(cf_cb_file_reload_finished, cf);
     else
@@ -702,10 +727,6 @@ cf_read(capture_file *cf, gboolean reloading)
     if (cf->first_displayed != 0) {
         packet_list_select_row_from_data(NULL);
     }
-
-    /* It is safe again to execute redissections. */
-    ws_assert(cf->read_lock);
-    cf->read_lock = FALSE;
 
     if (is_read_aborted) {
         /*
@@ -759,11 +780,11 @@ cf_read(capture_file *cf, gboolean reloading)
 #ifdef HAVE_LIBPCAP
 cf_read_status_t
 cf_continue_tail(capture_file *cf, volatile int to_read, wtap_rec *rec,
-        Buffer *buf, int *err)
+        Buffer *buf, int *err, fifo_string_cache_t *frame_dup_cache, GChecksum *frame_cksum)
 {
     gchar            *err_info;
     volatile int      newly_displayed_packets = 0;
-    dfilter_t        *dfcode;
+    dfilter_t        *dfcode = NULL;
     epan_dissect_t    edt;
     gboolean          create_proto_tree;
     guint             tap_flags;
@@ -773,8 +794,10 @@ cf_continue_tail(capture_file *cf, volatile int to_read, wtap_rec *rec,
      * We assume this will not fail since cf->dfilter is only set in
      * cf_filter IFF the filter was valid.
      */
-    compiled = dfilter_compile(cf->dfilter, &dfcode, NULL);
-    ws_assert(!cf->dfilter || (compiled && dfcode));
+    if (cf->dfilter) {
+        compiled = dfilter_compile(cf->dfilter, &dfcode, NULL);
+        ws_assert(compiled && dfcode);
+    }
 
     /* Get the union of the flags for all tap listeners. */
     tap_flags = union_of_tap_listener_flags();
@@ -807,8 +830,10 @@ cf_continue_tail(capture_file *cf, volatile int to_read, wtap_rec *rec,
         gint64 data_offset = 0;
         column_info *cinfo;
 
-        /* If any tap listeners require the columns, construct them. */
-        cinfo = (tap_flags & TL_REQUIRES_COLUMNS) ? &cf->cinfo : NULL;
+        /* If the display filter or any tap listeners require the columns,
+         * construct them. */
+        cinfo = (tap_listeners_require_columns() ||
+            dfilter_requires_columns(dfcode)) ? &cf->cinfo : NULL;
 
         while (to_read != 0) {
             wtap_cleareof(cf->provider.wth);
@@ -822,7 +847,7 @@ cf_continue_tail(capture_file *cf, volatile int to_read, wtap_rec *rec,
                    aren't any packets left to read) exit. */
                 break;
             }
-            if (read_record(cf, rec, buf, dfcode, &edt, cinfo, data_offset)) {
+            if (read_record(cf, rec, buf, dfcode, &edt, cinfo, data_offset, frame_dup_cache, frame_cksum)) {
                 newly_displayed_packets++;
             }
             to_read--;
@@ -887,15 +912,18 @@ cf_continue_tail(capture_file *cf, volatile int to_read, wtap_rec *rec,
 void
 cf_fake_continue_tail(capture_file *cf)
 {
-    cf->state = FILE_READ_DONE;
+    if (cf->state == FILE_CLOSED) {
+        cf->state = FILE_READ_PENDING;
+    }
 }
 
 cf_read_status_t
-cf_finish_tail(capture_file *cf, wtap_rec *rec, Buffer *buf, int *err)
+cf_finish_tail(capture_file *cf, wtap_rec *rec, Buffer *buf, int *err,
+        fifo_string_cache_t *frame_dup_cache, GChecksum *frame_cksum)
 {
     gchar     *err_info;
     gint64     data_offset;
-    dfilter_t *dfcode;
+    dfilter_t *dfcode = NULL;
     column_info *cinfo;
     epan_dissect_t edt;
     gboolean   create_proto_tree;
@@ -906,14 +934,18 @@ cf_finish_tail(capture_file *cf, wtap_rec *rec, Buffer *buf, int *err)
      * We assume this will not fail since cf->dfilter is only set in
      * cf_filter IFF the filter was valid.
      */
-    compiled = dfilter_compile(cf->dfilter, &dfcode, NULL);
-    ws_assert(!cf->dfilter || (compiled && dfcode));
+    if (cf->dfilter) {
+        compiled = dfilter_compile(cf->dfilter, &dfcode, NULL);
+        ws_assert(compiled && dfcode);
+    }
 
     /* Get the union of the flags for all tap listeners. */
     tap_flags = union_of_tap_listener_flags();
 
-    /* If any tap listeners require the columns, construct them. */
-    cinfo = (tap_flags & TL_REQUIRES_COLUMNS) ? &cf->cinfo : NULL;
+    /* If the display filter or any tap listeners require the columns,
+     * construct them. */
+    cinfo = (tap_listeners_require_columns() ||
+        dfilter_requires_columns(dfcode)) ? &cf->cinfo : NULL;
 
     /*
      * Determine whether we need to create a protocol tree.
@@ -949,7 +981,7 @@ cf_finish_tail(capture_file *cf, wtap_rec *rec, Buffer *buf, int *err)
                aren't any packets left to read) exit. */
             break;
         }
-        read_record(cf, rec, buf, dfcode, &edt, cinfo, data_offset);
+        read_record(cf, rec, buf, dfcode, &edt, cinfo, data_offset, frame_dup_cache, frame_cksum);
         wtap_rec_reset(rec);
     }
 
@@ -1197,12 +1229,12 @@ add_packet_to_packet_list(frame_data *fdata, capture_file *cf,
     if (dfcode != NULL) {
         fdata->passed_dfilter = dfilter_apply_edt(dfcode, edt) ? 1 : 0;
 
-        if (fdata->passed_dfilter) {
+        if (fdata->passed_dfilter && edt->pi.fd->dependent_frames) {
             /* This frame passed the display filter but it may depend on other
              * (potentially not displayed) frames.  Find those frames and mark them
              * as depended upon.
              */
-            g_slist_foreach(edt->pi.dependent_frames, find_and_mark_frame_depended_upon, cf->provider.frames);
+            g_hash_table_foreach(edt->pi.fd->dependent_frames, find_and_mark_frame_depended_upon, cf->provider.frames);
         }
     } else
         fdata->passed_dfilter = 1;
@@ -1218,7 +1250,16 @@ add_packet_to_packet_list(frame_data *fdata, capture_file *cf,
     if (fdata->passed_dfilter || fdata->ref_time)
     {
         frame_data_set_after_dissect(fdata, &cf->cum_bytes);
-        cf->provider.prev_dis = fdata;
+        /* The only way we use prev_dis is to get the time stamp of
+         * the previous displayed frame, so ignore it if it doesn't
+         * have a time stamp, because we're presumably interested in
+         * the timestamp of the previously displayed frame with a
+         * time. XXX: What if in the future we want to use the previously
+         * displayed frame for something else, too?
+         */
+        if (fdata->has_ts) {
+            cf->provider.prev_dis = fdata;
+        }
 
         /* If we haven't yet seen the first frame, this is it. */
         if (cf->first_displayed == 0)
@@ -1238,12 +1279,15 @@ add_packet_to_packet_list(frame_data *fdata, capture_file *cf,
  */
 static gboolean
 read_record(capture_file *cf, wtap_rec *rec, Buffer *buf, dfilter_t *dfcode,
-        epan_dissect_t *edt, column_info *cinfo, gint64 offset)
+        epan_dissect_t *edt, column_info *cinfo, gint64 offset,
+        fifo_string_cache_t *frame_dup_cache, GChecksum *frame_cksum)
 {
     frame_data    fdlocal;
     frame_data   *fdata;
     gboolean      passed = TRUE;
     gboolean      added = FALSE;
+    const gchar   *cksum_string;
+    gboolean      was_in_cache;
 
     /* Add this packet's link-layer encapsulation type to cf->linktypes, if
        it's not already there.
@@ -1261,12 +1305,16 @@ read_record(capture_file *cf, wtap_rec *rec, Buffer *buf, dfilter_t *dfcode,
 
     if (cf->rfcode) {
         epan_dissect_t rf_edt;
+        column_info *rf_cinfo = NULL;
 
         epan_dissect_init(&rf_edt, cf->epan, TRUE, FALSE);
         epan_dissect_prime_with_dfilter(&rf_edt, cf->rfcode);
+        if (dfilter_requires_columns(cf->rfcode)) {
+                rf_cinfo = &cf->cinfo;
+        }
         epan_dissect_run(&rf_edt, cf->cd_t, rec,
                 frame_tvbuff_new_buffer(&cf->provider, &fdlocal, buf),
-                &fdlocal, NULL);
+                &fdlocal, rf_cinfo);
         passed = dfilter_apply_edt(cf->rfcode, &rf_edt);
         epan_dissect_cleanup(&rf_edt);
     }
@@ -1280,7 +1328,21 @@ read_record(capture_file *cf, wtap_rec *rec, Buffer *buf, dfilter_t *dfcode,
         cf->count++;
         if (rec->block != NULL)
             cf->packet_comment_count += wtap_block_count_option(rec->block, OPT_COMMENT);
-        cf->f_datalen = offset + fdlocal.cap_len;
+         cf->f_datalen = offset + fdlocal.cap_len;
+
+        // Should we check if the frame data is a duplicate, and thus, ignore
+        // this frame?
+        if (frame_cksum != NULL && rec->rec_type == REC_TYPE_PACKET) {
+            g_checksum_reset(frame_cksum);
+            g_checksum_update(frame_cksum, ws_buffer_start_ptr(buf), ws_buffer_length(buf));
+            cksum_string = g_strdup(g_checksum_get_string(frame_cksum));
+            was_in_cache = fifo_string_cache_insert(frame_dup_cache, cksum_string);
+            if (was_in_cache) {
+                g_free((gpointer)cksum_string);
+                fdata->ignored = TRUE;
+                cf->ignored_count++;
+            }
+        }
 
         /* When a redissection is in progress (or queued), do not process packets.
          * This will be done once all (new) packets have been scanned. */
@@ -1478,7 +1540,7 @@ cf_filter_packets(capture_file *cf, gchar *dftext, gboolean force)
     const char *filter_new = dftext ? dftext : "";
     const char *filter_old = cf->dfilter ? cf->dfilter : "";
     dfilter_t  *dfcode;
-    gchar      *err_msg;
+    df_error_t *df_err;
 
     /* if new filter equals old one, do nothing unless told to do so */
     if (!force && strcmp(filter_new, filter_old) == 0) {
@@ -1497,13 +1559,13 @@ cf_filter_packets(capture_file *cf, gchar *dftext, gboolean force)
          * and try to compile it.
          */
         dftext = g_strdup(dftext);
-        if (!dfilter_compile(dftext, &dfcode, &err_msg)) {
+        if (!dfilter_compile(dftext, &dfcode, &df_err)) {
             /* The attempt failed; report an error. */
             simple_message_box(ESD_TYPE_ERROR, NULL,
                     "See the help for a description of the display filter syntax.",
                     "\"%s\" isn't a valid display filter: %s",
-                    dftext, err_msg);
-            g_free(err_msg);
+                    dftext, df_err->msg);
+            df_error_free(&df_err);
             g_free(dftext);
             return CF_ERROR;
         }
@@ -1629,14 +1691,19 @@ rescan_packets(capture_file *cf, const char *action, const char *action_item, gb
     gint64      start_time;
     gchar       status_str[100];
     epan_dissect_t  edt;
-    dfilter_t  *dfcode;
+    dfilter_t  *dfcode = NULL;
     column_info *cinfo;
     gboolean    create_proto_tree;
+    gboolean    filtering_tap_listeners = FALSE;
     guint       tap_flags;
     gboolean    add_to_packet_list = FALSE;
     gboolean    compiled _U_;
     guint32     frames_count;
     gboolean    queued_rescan_type = RESCAN_NONE;
+
+    if (cf->state == FILE_CLOSED || cf->state == FILE_READ_PENDING) {
+        return;
+    }
 
     /* Rescan in progress, clear pending actions. */
     cf->redissection_queued = RESCAN_NONE;
@@ -1650,24 +1717,35 @@ rescan_packets(capture_file *cf, const char *action, const char *action_item, gb
      * We assume this will not fail since cf->dfilter is only set in
      * cf_filter IFF the filter was valid.
      */
-    compiled = dfilter_compile(cf->dfilter, &dfcode, NULL);
-    ws_assert(!cf->dfilter || (compiled && dfcode));
+    if (cf->dfilter) {
+        compiled = dfilter_compile(cf->dfilter, &dfcode, NULL);
+        ws_assert(compiled && dfcode);
+    }
 
-    /* Update references in display filter (if any) for the protocol
+    /* Do we have any tap listeners with filters? */
+    filtering_tap_listeners = have_filtering_tap_listeners();
+
+    /* Update references in filters (if any) for the protocol
      * tree corresponding to the currently selected frame in the GUI. */
-    if (dfcode && cf->edt != NULL && cf->edt->tree != NULL)
-        dfilter_load_field_references(dfcode, cf->edt->tree);
+    if (cf->edt != NULL && cf->edt->tree != NULL) {
+        if (dfcode)
+            dfilter_load_field_references(dfcode, cf->edt->tree);
+        if (filtering_tap_listeners)
+            tap_listeners_load_field_references(cf->edt);
+    }
 
     if (dfcode != NULL) {
-        dfilter_log_full(LOG_DOMAIN_DFILTER, LOG_LEVEL_DEBUG, NULL, -1, NULL,
+        dfilter_log_full(LOG_DOMAIN_DFILTER, LOG_LEVEL_NOISY, NULL, -1, NULL,
                         dfcode, "Rescanning packets with display filter");
     }
 
     /* Get the union of the flags for all tap listeners. */
     tap_flags = union_of_tap_listener_flags();
 
-    /* If any tap listeners require the columns, construct them. */
-    cinfo = (tap_flags & TL_REQUIRES_COLUMNS) ? &cf->cinfo : NULL;
+    /* If the display filter or any tap listeners require the columns,
+     * construct them. */
+    cinfo = (tap_listeners_require_columns() ||
+        dfilter_requires_columns(dfcode)) ? &cf->cinfo : NULL;
 
     /*
      * Determine whether we need to create a protocol tree.
@@ -1683,7 +1761,7 @@ rescan_packets(capture_file *cf, const char *action, const char *action_item, gb
      *    values or protocols on the first pass.
      */
     create_proto_tree =
-        (dfcode != NULL || have_filtering_tap_listeners() ||
+        (dfcode != NULL || filtering_tap_listeners ||
          (tap_flags & TL_REQUIRES_PROTO_TREE) ||
          (redissect && postdissectors_want_hfids()));
 
@@ -1726,6 +1804,9 @@ rescan_packets(capture_file *cf, const char *action, const char *action_item, gb
            called via epan_new() / init_dissection() when reloading Lua plugins. */
         if (!create_proto_tree && have_filtering_tap_listeners()) {
             create_proto_tree = TRUE;
+        }
+        if (!cinfo && tap_listeners_require_columns()) {
+            cinfo = &cf->cinfo;
         }
 
         /* We need to redissect the packets so we have to discard our old
@@ -1777,13 +1858,16 @@ rescan_packets(capture_file *cf, const char *action, const char *action_item, gb
 
     if (redissect) {
         /*
-         * Decryption secrets are read while sequentially processing records and
-         * then passed to the dissector. During redissection, the previous secrets
-         * are lost (see epan_free above), but they are not read again from the
-         * file as only packet records are re-read. Therefore reset the wtap secrets
-         * callback such that wtap resupplies the secrets callback with previously
-         * read secrets.
+         * Decryption secrets and name resolution blocks are read while
+         * sequentially processing records and then passed to the dissector.
+         * During redissection, the previous information is lost (see epan_free
+         * above), but they are not read again from the file as only packet
+         * records are re-read. Therefore reset the wtap secrets and name
+         * resolution callbacks such that wtap resupplies the callbacks with
+         * previously read information.
          */
+        wtap_set_cb_new_ipv4(cf->provider.wth, add_ipv4_name);
+        wtap_set_cb_new_ipv6(cf->provider.wth, (wtap_new_ipv6_callback_t) add_ipv6_name);
         wtap_set_cb_new_secrets(cf->provider.wth, secrets_wtap_callback);
     }
 
@@ -1934,6 +2018,10 @@ rescan_packets(capture_file *cf, const char *action, const char *action_item, gb
 
     packet_list_thaw();
 
+    /* It is safe again to execute redissections or sort. */
+    ws_assert(cf->read_lock);
+    cf->read_lock = FALSE;
+
     cf_callback_invoke(cf_cb_file_rescan_finished, cf);
 
     if (selected_frame_num == -1) {
@@ -1997,10 +2085,6 @@ rescan_packets(capture_file *cf, const char *action, const char *action_item, gb
     /* Cleanup and release all dfilter resources */
     dfilter_free(dfcode);
 
-    /* It is safe again to execute redissections. */
-    ws_assert(cf->read_lock);
-    cf->read_lock = FALSE;
-
     /* If another rescan (due to dfilter change) or redissection (due to profile
      * change) was requested, the rescan above is aborted and restarted here. */
     if (queued_rescan_type != RESCAN_NONE) {
@@ -2013,7 +2097,7 @@ rescan_packets(capture_file *cf, const char *action, const char *action_item, gb
 /*
  * Scan through all frame data and recalculate the ref time
  * without rereading the file.
- * XXX - do we need a progres bar or is this fast enough?
+ * XXX - do we need a progress bar or is this fast enough?
  */
 void
 cf_reftime_packets(capture_file* cf)
@@ -2033,44 +2117,59 @@ cf_reftime_packets(capture_file* cf)
         fdata->cum_bytes = cf->cum_bytes + fdata->pkt_len;
 
         /*
-         *Timestamps
+         * Timestamps
          */
 
-        /* If we don't have the time stamp of the first packet in the
-           capture, it's because this is the first packet.  Save the time
-           stamp of this packet as the time stamp of the first packet. */
-        if (cf->provider.ref == NULL)
-            cf->provider.ref = fdata;
-        /* if this frames is marked as a reference time frame, reset
-           firstsec and firstusec to this frame */
-        if (fdata->ref_time)
-            cf->provider.ref = fdata;
+        if (fdata->has_ts) {
+            /* If we don't have the time stamp of the first packet in the
+               capture, it's because this is the first packet.  Save the time
+               stamp of this packet as the time stamp of the first packet. */
+            if (cf->provider.ref == NULL)
+                cf->provider.ref = fdata;
+            /* if this frames is marked as a reference time frame, reset
+               firstsec and firstusec to this frame */
+            if (fdata->ref_time)
+                cf->provider.ref = fdata;
 
-        /* Get the time elapsed between the first packet and this packet. */
-        fdata->frame_ref_num = (fdata != cf->provider.ref) ? cf->provider.ref->num : 0;
-        nstime_delta(&rel_ts, &fdata->abs_ts, &cf->provider.ref->abs_ts);
+            /* Get the time elapsed between the first packet and this one. */
+            fdata->frame_ref_num = (fdata != cf->provider.ref) ? cf->provider.ref->num : 0;
+            nstime_delta(&rel_ts, &fdata->abs_ts, &cf->provider.ref->abs_ts);
 
-        /* If it's greater than the current elapsed time, set the elapsed time
-           to it (we check for "greater than" so as not to be confused by
-           time moving backwards). */
-        if ((gint32)cf->elapsed_time.secs < rel_ts.secs
-                || ((gint32)cf->elapsed_time.secs == rel_ts.secs && (gint32)cf->elapsed_time.nsecs < rel_ts.nsecs)) {
-            cf->elapsed_time = rel_ts;
-        }
-
-        /* If this frame is displayed, get the time elapsed between the
-           previous displayed packet and this packet. */
-        if ( fdata->passed_dfilter ) {
-            /* If we don't have the time stamp of the previous displayed packet,
-               it's because this is the first displayed packet.  Save the time
-               stamp of this packet as the time stamp of the previous displayed
-               packet. */
-            if (cf->provider.prev_dis == NULL) {
-                cf->provider.prev_dis = fdata;
+            /* If it's greater than the current elapsed time, set the elapsed
+               time to it (we check for "greater than" so as not to be
+               confused by time moving backwards). */
+            if ((gint32)cf->elapsed_time.secs < rel_ts.secs
+                    || ((gint32)cf->elapsed_time.secs == rel_ts.secs && (gint32)cf->elapsed_time.nsecs < rel_ts.nsecs)) {
+                cf->elapsed_time = rel_ts;
             }
 
-            fdata->prev_dis_num = cf->provider.prev_dis->num;
-            cf->provider.prev_dis = fdata;
+            /* If this frame is displayed, get the time elapsed between the
+               previous displayed packet and this packet. */
+            /* XXX: What if in the future we want to use the previously
+             * displayed frame for something else, too? Then we'd want
+             * to store this frame as prev_dis even if it doesn't have a
+             * timestamp. */
+            if ( fdata->passed_dfilter ) {
+                /* If we don't have the time stamp of the previous displayed
+                   packet, it's because this is the first displayed packet.
+                   Save the time stamp of this packet as the time stamp of
+                   the previous displayed packet. */
+                if (cf->provider.prev_dis == NULL) {
+                    cf->provider.prev_dis = fdata;
+                }
+
+                fdata->prev_dis_num = cf->provider.prev_dis->num;
+                cf->provider.prev_dis = fdata;
+            }
+        } else {
+            /* If this frame doesn't have a timestamp, don't calculate
+               anything with relative times. */
+            /* However, if this frame is marked as a reference time frame,
+               clear the reference frame so that the next frame with a
+               timestamp becomes the reference frame. */
+            if (fdata->ref_time) {
+                cf->provider.ref = NULL;
+            }
         }
 
         /*
@@ -2252,6 +2351,7 @@ cf_retap_packets(capture_file *cf)
     packet_range_t        range;
     retap_callback_args_t callback_args;
     gboolean              create_proto_tree;
+    gboolean              filtering_tap_listeners;
     guint                 tap_flags;
     psp_return_t          ret;
 
@@ -2262,11 +2362,21 @@ cf_retap_packets(capture_file *cf)
 
     cf_callback_invoke(cf_cb_file_retap_started, cf);
 
+    /* Do we have any tap listeners with filters? */
+    filtering_tap_listeners = have_filtering_tap_listeners();
+
+    /* Update references in filters (if any) for the protocol
+     * tree corresponding to the currently selected frame in the GUI. */
+    if (cf->edt != NULL && cf->edt->tree != NULL) {
+        if (filtering_tap_listeners)
+            tap_listeners_load_field_references(cf->edt);
+    }
+
     /* Get the union of the flags for all tap listeners. */
     tap_flags = union_of_tap_listener_flags();
 
     /* If any tap listeners require the columns, construct them. */
-    callback_args.cinfo = (tap_flags & TL_REQUIRES_COLUMNS) ? &cf->cinfo : NULL;
+    callback_args.cinfo = (tap_listeners_require_columns()) ? &cf->cinfo : NULL;
 
     /*
      * Determine whether we need to create a protocol tree.
@@ -2277,7 +2387,7 @@ cf_retap_packets(capture_file *cf)
      *    one of the tap listeners requires a protocol tree.
      */
     create_proto_tree =
-        (have_filtering_tap_listeners() || (tap_flags & TL_REQUIRES_PROTO_TREE));
+        (filtering_tap_listeners || (tap_flags & TL_REQUIRES_PROTO_TREE));
 
     /* Reset the tap listeners. */
     reset_tap_listeners();
@@ -2693,7 +2803,7 @@ write_pdml_packet(capture_file *cf, frame_data *fdata, wtap_rec *rec,
             fdata, NULL);
 
     /* Write out the information in that tree. */
-    write_pdml_proto_tree(NULL, NULL, PF_NONE, &args->edt, &cf->cinfo, args->fh, FALSE);
+    write_pdml_proto_tree(NULL, &args->edt, &cf->cinfo, args->fh, FALSE);
 
     epan_dissect_reset(&args->edt);
 
@@ -2992,7 +3102,7 @@ write_json_packet(capture_file *cf, frame_data *fdata, wtap_rec *rec,
 
     /* Write out the information in that tree. */
     write_json_proto_tree(NULL, args->print_args->print_dissections,
-            args->print_args->print_hex, NULL, PF_NONE,
+            args->print_args->print_hex,
             &args->edt, &cf->cinfo, proto_node_group_children_by_unique,
             &args->jdumper);
 
@@ -3069,16 +3179,18 @@ cf_find_packet_protocol_tree(capture_file *cf, const char *string,
     return find_packet(cf, match_protocol_tree, &mdata, dir);
 }
 
-gboolean
-cf_find_string_protocol_tree(capture_file *cf, proto_tree *tree,  match_data *mdata)
+field_info*
+cf_find_string_protocol_tree(capture_file *cf, proto_tree *tree)
 {
-    mdata->frame_matched = FALSE;
-    mdata->string = convert_string_case(cf->sfilter, cf->case_type);
-    mdata->string_len = strlen(mdata->string);
-    mdata->cf = cf;
+    match_data mdata;
+    mdata.frame_matched = FALSE;
+    mdata.string = convert_string_case(cf->sfilter, cf->case_type);
+    mdata.string_len = strlen(mdata.string);
+    mdata.cf = cf;
     /* Iterate through all the nodes looking for matching text */
-    proto_tree_children_foreach(tree, match_subtree_text, mdata);
-    return mdata->frame_matched ? MR_MATCHED : MR_NOTMATCHED;
+    proto_tree_children_foreach(tree, match_subtree_text, &mdata);
+    g_free((char *)mdata.string);
+    return mdata.frame_matched ? mdata.finfo : NULL;
 }
 
 static match_result
@@ -3120,7 +3232,7 @@ match_subtree_text(proto_node *node, gpointer data)
     gchar         label_str[ITEM_LABEL_LENGTH];
     gchar        *label_ptr;
     size_t        label_len;
-    guint32       i;
+    guint32       i, i_restart;
     guint8        c_char;
     size_t        c_match    = 0;
 
@@ -3151,13 +3263,18 @@ match_subtree_text(proto_node *node, gpointer data)
             mdata->finfo = fi;
             return;
         }
-    } else {
-        /* Does that label match? */
+    } else if (cf->case_type) {
+        /* Case insensitive match */
         label_len = strlen(label_ptr);
+        i_restart = 0;
         for (i = 0; i < label_len; i++) {
+            if (i_restart == 0 && c_match == 0 && (label_len - i < string_len))
+                break;
             c_char = label_ptr[i];
-            if (cf->case_type)
-                c_char = g_ascii_toupper(c_char);
+            c_char = g_ascii_toupper(c_char);
+            /* If c_match is non-zero, save candidate for retrying full match. */
+            if (c_match > 0 && i_restart == 0 && c_char == string[0])
+                i_restart = i;
             if (c_char == string[c_match]) {
                 c_match++;
                 if (c_match == string_len) {
@@ -3166,9 +3283,18 @@ match_subtree_text(proto_node *node, gpointer data)
                     mdata->finfo = fi;
                     return;
                 }
+            } else if (i_restart) {
+                i = i_restart;
+                c_match = 1;
+                i_restart = 0;
             } else
                 c_match = 0;
         }
+    } else if (strstr(label_ptr, string) != NULL) {
+        /* Case sensitive match */
+        mdata->frame_matched = TRUE;
+        mdata->finfo = fi;
+        return;
     }
 
     /* Recurse into the subtree, if it exists */
@@ -3199,7 +3325,7 @@ match_summary_line(capture_file *cf, frame_data *fdata,
     size_t          info_column_len;
     match_result    result     = MR_NOTMATCHED;
     gint            colx;
-    guint32         i;
+    guint32         i, i_restart;
     guint8          c_char;
     size_t          c_match    = 0;
 
@@ -3227,20 +3353,33 @@ match_summary_line(capture_file *cf, frame_data *fdata,
                     result = MR_MATCHED;
                     break;
                 }
-            } else {
+            } else if (cf->case_type) {
+                /* Case insensitive match */
+                i_restart = 0;
                 for (i = 0; i < info_column_len; i++) {
+                    if (i_restart == 0 && c_match == 0 && (info_column_len - i < string_len))
+                        break;
                     c_char = info_column[i];
-                    if (cf->case_type)
-                        c_char = g_ascii_toupper(c_char);
+                    c_char = g_ascii_toupper(c_char);
+                    /* If c_match is non-zero, save candidate for retrying full match. */
+                    if (c_match > 0 && i_restart == 0 && c_char == string[0])
+                        i_restart = i;
                     if (c_char == string[c_match]) {
                         c_match++;
                         if (c_match == string_len) {
                             result = MR_MATCHED;
                             break;
                         }
+                    } else if (i_restart) {
+                        i = i_restart;
+                        c_match = 1;
+                        i_restart = 0;
                     } else
                         c_match = 0;
                 }
+            } else if (strstr(info_column, string) != NULL) {
+                /* Case sensitive match */
+                result = MR_MATCHED;
             }
             break;
         }
@@ -4074,7 +4213,7 @@ cf_goto_framenum(capture_file *cf)
         hfinfo = cf->finfo_selected->hfinfo;
         ws_assert(hfinfo);
         if (hfinfo->type == FT_FRAMENUM) {
-            framenum = fvalue_get_uinteger(&cf->finfo_selected->value);
+            framenum = fvalue_get_uinteger(cf->finfo_selected->value);
             if (framenum != 0)
                 return cf_goto_frame(cf, framenum);
         }
@@ -4288,9 +4427,11 @@ cf_set_modified_block(capture_file *cf, frame_data *fd, const wtap_block_t new_b
     if (pkt_block == new_block) {
         /* No need to save anything here, the caller changes went right
          * onto the block.
-         * Unfortunately we don't have a way to know how many comments were in the block
-         * before the caller modified it.
+         * Unfortunately we don't have a way to know how many comments were
+         * in the block before the caller modified it, so tell the caller
+         * it is its responsibility to update the comment count.
          */
+        return FALSE;
     }
     else {
         if (pkt_block)
@@ -4366,6 +4507,7 @@ typedef struct {
     wtap_dumper *pdh;
     const char  *fname;
     int          file_type;
+    gboolean     export;
 } save_callback_args_t;
 
 /*
@@ -4396,13 +4538,33 @@ save_record(capture_file *cf, frame_data *fdata, wtap_rec *rec,
         pkt_block = rec->block;
     new_rec.block  = pkt_block;
     new_rec.block_was_modified = fdata->has_modified_block ? TRUE : FALSE;
-    /* XXX - what if times have been shifted? */
+
+    if (!nstime_is_zero(&fdata->shift_offset)) {
+        if (new_rec.presence_flags & WTAP_HAS_TS) {
+            nstime_add(&new_rec.ts, &fdata->shift_offset);
+        }
+    }
 
     /* and save the packet */
     if (!wtap_dump(args->pdh, &new_rec, ws_buffer_start_ptr(buf), &err, &err_info)) {
         cfile_write_failure_alert_box(NULL, args->fname, err, err_info, fdata->num,
                 args->file_type);
         return FALSE;
+    }
+
+    /* If we are saving (i.e., replacing the current file with the one we're
+     * writing), then update the frame data to clear the shift offset.
+     * This keeps us from having to re-read the entire file.
+     * We could do this in rescan_file(), but
+     * 1) Ideally we shouldn't have to call rescan_file if all we're doing
+     * is changing the timestamps, since that shouldn't change the offsets.
+     * 2) The long term goal is to try to do the offset adjustment here
+     * instead of using rescan_file, which should be faster (#1257).
+     *
+     * If we're exporting to a different file, then don't do that.
+     */
+    if (!args->export && new_rec.presence_flags & WTAP_HAS_TS) {
+        nstime_set_zero(&fdata->shift_offset);
     }
 
     return TRUE;
@@ -4533,7 +4695,6 @@ rescan_file(capture_file *cf, const char *fname, gboolean is_tempfile)
     gchar                status_str[100];
     guint32              framenum;
     frame_data          *fdata;
-    int                  count          = 0;
 
     /* Close the old handle. */
     wtap_close(cf->provider.wth);
@@ -4543,7 +4704,8 @@ rescan_file(capture_file *cf, const char *fname, gboolean is_tempfile)
        now rescan_file() is only used when a file is being saved to a different
        format than the original, and the user is not given a choice of which
        reader to use (only which format to save it in), so doing this makes
-       sense for now. */
+       sense for now. (XXX: Now it is also used when saving a changed file,
+       e.g. comments or time-shifted frames.) */
     cf->provider.wth = wtap_open_offline(fname, WTAP_TYPE_AUTO, &err, &err_info, TRUE);
     if (cf->provider.wth == NULL) {
         cfile_open_failure_alert_box(fname, err, err_info);
@@ -4557,6 +4719,9 @@ rescan_file(capture_file *cf, const char *fname, gboolean is_tempfile)
     /* Set the file name because we need it to set the follow stream filter.
        XXX - is that still true?  We need it for other reasons, though,
        in any case. */
+    if (cf->filename != NULL) {
+        g_free(cf->filename);
+    }
     cf->filename = g_strdup(fname);
 
     /* Indicate whether it's a permanent or temporary file. */
@@ -4566,6 +4731,9 @@ rescan_file(capture_file *cf, const char *fname, gboolean is_tempfile)
     cf->unsaved_changes = FALSE;
 
     cf->cd_t        = wtap_file_type_subtype(cf->provider.wth);
+    if (cf->linktypes != NULL) {
+        g_array_free(cf->linktypes, TRUE);
+    }
     cf->linktypes = g_array_sized_new(FALSE, FALSE, (guint) sizeof(int), 1);
 
     cf->snap      = wtap_snapshot_length(cf->provider.wth);
@@ -4597,7 +4765,6 @@ rescan_file(capture_file *cf, const char *fname, gboolean is_tempfile)
             fdata->file_off = data_offset;
         }
         if (size >= 0) {
-            count++;
             cf->f_datalen = wtap_read_so_far(cf->provider.wth);
 
             /* Create the progress bar if necessary. */
@@ -4639,6 +4806,7 @@ rescan_file(capture_file *cf, const char *fname, gboolean is_tempfile)
         if (rec.rec_type == REC_TYPE_PACKET) {
             cf_add_encapsulation_type(cf, rec.rec_header.packet_header.pkt_encap);
         }
+        wtap_rec_reset(&rec);
     }
     wtap_rec_cleanup(&rec);
     ws_buffer_free(&buf);
@@ -4704,6 +4872,7 @@ cf_save_records(capture_file *cf, const char *fname, guint save_format,
         SAVE_WITH_WTAP
     }                    how_to_save;
     save_callback_args_t callback_args;
+    callback_args.export = FALSE;
     gboolean needs_reload = FALSE;
 
     /* XXX caller should avoid saving the file while a read is pending
@@ -4803,11 +4972,11 @@ cf_save_records(capture_file *cf, const char *fname, guint save_format,
         wtap_dump_params params;
         int encap;
 
-        /* XXX: what free's params.shb_hdr? */
+        how_to_save = SAVE_WITH_WTAP;
         wtap_dump_params_init(&params, cf->provider.wth);
 
         /* Determine what file encapsulation type we should use. */
-        encap = wtap_dump_file_encap_type(cf->linktypes);
+        encap = wtap_dump_required_file_encap_type(cf->linktypes);
         params.encap = encap;
 
         /* Use the snaplen from cf (XXX - does wtap_dump_params_init handle that?) */
@@ -4860,6 +5029,7 @@ cf_save_records(capture_file *cf, const char *fname, guint save_format,
                 if (fname_new != NULL)
                     ws_unlink(fname_new);
                 cf_callback_invoke(cf_cb_file_save_stopped, NULL);
+                wtap_dump_params_cleanup(&params);
                 return CF_WRITE_ABORTED;
 
             case PSP_FAILED:
@@ -4868,15 +5038,17 @@ cf_save_records(capture_file *cf, const char *fname, guint save_format,
                 if (fname_new != NULL)
                     ws_unlink(fname_new);
                 wtap_dump_close(pdh, NULL, &err, &err_info);
+                wtap_dump_params_cleanup(&params);
                 goto fail;
         }
 
         if (!wtap_dump_close(pdh, &needs_reload, &err, &err_info)) {
             cfile_close_failure_alert_box(fname, err, err_info);
+            wtap_dump_params_cleanup(&params);
             goto fail;
         }
 
-        how_to_save = SAVE_WITH_WTAP;
+        wtap_dump_params_cleanup(&params);
     }
 
     if (fname_new != NULL) {
@@ -4979,7 +5151,7 @@ cf_save_records(capture_file *cf, const char *fname, guint save_format,
                    In that case, we need to reload the whole file */
                 if(needs_reload) {
                     if (cf_open(cf, fname, WTAP_TYPE_AUTO, FALSE, &err) == CF_OK) {
-                        if (cf_read(cf, TRUE) != CF_READ_OK) {
+                        if (cf_read(cf, /*reloading=*/TRUE) != CF_READ_OK) {
                             /* The rescan failed; just close the file.  Either
                                a dialog was popped up for the failure, so the
                                user knows what happened, or they stopped the
@@ -5052,6 +5224,7 @@ cf_export_specified_packets(capture_file *cf, const char *fname,
     wtap_dump_params             params;
     int                          encap;
 
+    callback_args.export = TRUE;
     packet_range_process_init(range);
 
     /* We're writing out specified packets from the specified capture
@@ -5059,11 +5232,10 @@ cf_export_specified_packets(capture_file *cf, const char *fname,
        written, don't special-case the operation - read each packet
        and then write it out if it's one of the specified ones. */
 
-    /* XXX: what free's params.shb_hdr? */
     wtap_dump_params_init(&params, cf->provider.wth);
 
     /* Determine what file encapsulation type we should use. */
-    encap = wtap_dump_file_encap_type(cf->linktypes);
+    encap = wtap_dump_required_file_encap_type(cf->linktypes);
     params.encap = encap;
 
     /* Use the snaplen from cf (XXX - does wtap_dump_params_init handle that?) */
@@ -5123,6 +5295,8 @@ cf_export_specified_packets(capture_file *cf, const char *fname,
                 ws_unlink(fname_new);
                 g_free(fname_new);
             }
+            wtap_dump_params_cleanup(&params);
+
             return CF_WRITE_ABORTED;
             break;
 
@@ -5152,6 +5326,7 @@ cf_export_specified_packets(capture_file *cf, const char *fname,
         }
         g_free(fname_new);
     }
+    wtap_dump_params_cleanup(&params);
 
     return CF_WRITE_OK;
 
@@ -5166,6 +5341,8 @@ fail:
         ws_unlink(fname_new);
         g_free(fname_new);
     }
+    wtap_dump_params_cleanup(&params);
+
     return CF_WRITE_ERROR;
 }
 
@@ -5235,7 +5412,7 @@ cf_reload(capture_file *cf)
     is_tempfile = cf->is_tempfile;
     cf->is_tempfile = FALSE;
     if (cf_open(cf, filename, cf->open_type, is_tempfile, &err) == CF_OK) {
-        switch (cf_read(cf, TRUE)) {
+        switch (cf_read(cf, /*reloading=*/TRUE)) {
 
             case CF_READ_OK:
             case CF_READ_ERROR:

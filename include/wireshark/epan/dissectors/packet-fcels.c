@@ -25,6 +25,8 @@
 void proto_register_fcels(void);
 void proto_reg_handoff_fcels(void);
 
+static dissector_handle_t els_handle;
+
 #define FC_ELS_RPLY 0
 #define FC_ELS_REQ  1
 
@@ -2103,7 +2105,7 @@ proto_register_fcels (void)
           {"Vendor Unique", "fcels.rjt.vnduniq", FT_UINT8, BASE_HEX, NULL,
            0x0, NULL, HFILL}},
         { &hf_fcels_b2b,
-          {"B2B Credit", "fcels.logi.b2b", FT_UINT8, BASE_DEC, NULL, 0x0, NULL,
+          {"B2B Credit", "fcels.logi.b2b", FT_UINT16, BASE_DEC, NULL, 0x0, NULL,
            HFILL}},
         { &hf_fcels_cmnfeatures,
           {"Common Svc Parameters", "fcels.logi.cmnfeatures", FT_UINT16, BASE_HEX, NULL,
@@ -2121,7 +2123,7 @@ proto_register_fcels (void)
           {"Relative Offset By Info Cat", "fcels.logi.reloff", FT_UINT16, BASE_DEC,
            NULL, 0x0, NULL, HFILL}},
         { &hf_fcels_edtov,
-          {"E_D_TOV", "fcels.edtov", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL}},
+          {"E_D_TOV", "fcels.edtov", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL}},
         { &hf_fcels_npname,
           {"N_Port Port_Name", "fcels.npname", FT_FCWWN, BASE_NONE, NULL, 0x0,
            NULL, HFILL}},
@@ -2155,13 +2157,13 @@ proto_register_fcels (void)
           {"Class Recv Size", "fcels.logi.clsrcvsize", FT_UINT16, BASE_DEC, NULL,
            0x0, NULL, HFILL}},
         { &hf_fcels_conseq,
-          {"Total Concurrent Seq", "fcels.logi.totconseq", FT_UINT8, BASE_DEC, NULL,
+          {"Total Concurrent Seq", "fcels.logi.totconseq", FT_UINT16, BASE_DEC, NULL,
            0x0, NULL, HFILL}},
         { &hf_fcels_e2e,
           {"End2End Credit", "fcels.logi.e2e", FT_UINT16, BASE_DEC, NULL, 0x0, NULL,
            HFILL}},
         { &hf_fcels_openseq,
-          {"Open Seq Per Exchg", "fcels.logi.openseq", FT_UINT8, BASE_DEC, NULL, 0x0,
+          {"Open Seq Per Exchg", "fcels.logi.openseq", FT_UINT16, BASE_DEC, NULL, 0x0,
            NULL, HFILL}},
         { &hf_fcels_nportid,
           {"Originator S_ID", "fcels.portid", FT_BYTES, SEP_DOT, NULL, 0x0,
@@ -2426,22 +2428,22 @@ proto_register_fcels (void)
            TFS(&tfs_fc_fcels_fcpflags_retry), 1 << 8, NULL, HFILL}},
         { &hf_fcels_fcpflags_ccomp,
           {"Comp", "fcels.fcpflags.ccomp", FT_BOOLEAN, 32,
-           TFS(&tfs_fc_fcels_fcpflags_ccomp), 0x0080, NULL, HFILL}},
+           TFS(&tfs_fc_fcels_fcpflags_ccomp), 0x00000080, NULL, HFILL}},
         { &hf_fcels_fcpflags_datao,
           {"Data Overlay", "fcels.fcpflags.datao", FT_BOOLEAN, 32,
-           TFS(&tfs_fc_fcels_fcpflags_datao), 0x0040, NULL, HFILL}},
+           TFS(&tfs_fc_fcels_fcpflags_datao), 0x00000040, NULL, HFILL}},
         { &hf_fcels_fcpflags_initiator,
           {"Initiator", "fcels.fcpflags.initiator", FT_BOOLEAN, 32,
-           TFS(&tfs_fc_fcels_fcpflags_initiator), 0x0020, NULL, HFILL}},
+           TFS(&tfs_fc_fcels_fcpflags_initiator), 0x00000020, NULL, HFILL}},
         { &hf_fcels_fcpflags_target,
           {"Target", "fcels.fcpflags.target", FT_BOOLEAN, 32,
-           TFS(&tfs_fc_fcels_fcpflags_target), 0x0010, NULL, HFILL}},
+           TFS(&tfs_fc_fcels_fcpflags_target), 0x00000010, NULL, HFILL}},
         { &hf_fcels_fcpflags_rdxr,
           {"Rd Xfer_Rdy Dis", "fcels.fcpflags.rdxr", FT_BOOLEAN, 32,
-           TFS(&tfs_fc_fcels_fcpflags_rdxr), 0x0002, NULL, HFILL}},
+           TFS(&tfs_fc_fcels_fcpflags_rdxr), 0x00000002, NULL, HFILL}},
         { &hf_fcels_fcpflags_wrxr,
           {"Wr Xfer_Rdy Dis", "fcels.fcpflags.wrxr", FT_BOOLEAN, 32,
-           TFS(&tfs_fc_fcels_fcpflags_wrxr), 0x0001, NULL, HFILL}},
+           TFS(&tfs_fc_fcels_fcpflags_wrxr), 0x00000001, NULL, HFILL}},
         { &hf_fcels_prliloflags,
           {"PRLILO Flags", "fcels.prliloflags", FT_UINT8, BASE_HEX, NULL, 0x0, NULL,
            HFILL}},
@@ -2592,14 +2594,13 @@ proto_register_fcels (void)
     expert_fcels = expert_register_protocol(proto_fcels);
     expert_register_field_array(expert_fcels, ei, array_length(ei));
     fcels_req_hash = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(), fcels_hash, fcels_equal);
+
+    els_handle = register_dissector("fcels", dissect_fcels, proto_fcels);
 }
 
 void
 proto_reg_handoff_fcels (void)
 {
-    dissector_handle_t els_handle;
-
-    els_handle = create_dissector_handle (dissect_fcels, proto_fcels);
     dissector_add_uint("fc.ftype", FC_FTYPE_ELS, els_handle);
 
     fcsp_handle = find_dissector_add_dependency ("fcsp", proto_fcels);

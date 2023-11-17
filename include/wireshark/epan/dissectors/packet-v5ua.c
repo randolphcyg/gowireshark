@@ -38,6 +38,8 @@
 void proto_register_v5ua(void);
 void proto_reg_handoff_v5ua(void);
 
+static dissector_handle_t v5ua_handle;
+
 static int paddingl = 0;
 static int dlci_efa = -1;
 
@@ -180,8 +182,8 @@ dissect_text_interface_identifier_parameter(packet_info *pinfo, tvbuff_t *parame
 
    if_id_length = tvb_get_ntohs(parameter_tvb, TEXT_IF_ID_LENGTH_OFFSET) - TEXT_IF_ID_HEADER_LENGTH;
 
-   proto_tree_add_item_ret_string(parameter_tree, hf_text_if_id, parameter_tvb, TEXT_IF_ID_VALUE_OFFSET, if_id_length, ENC_ASCII|ENC_NA, pinfo->pool, &str);
-   proto_item_append_text(parameter_item, " (0x%.*s)", if_id_length, str);
+   proto_tree_add_item_ret_string(parameter_tree, hf_text_if_id, parameter_tvb, TEXT_IF_ID_VALUE_OFFSET, if_id_length, ENC_ASCII, pinfo->pool, &str);
+   proto_item_append_text(parameter_item, " (0x%s)", str);
 }
 /*----------------------Text Interface Identifier (RFC)------------------------*/
 
@@ -246,7 +248,7 @@ dissect_dlci_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, prot
             "ISDN (%u)", efa);
       proto_item_append_text(parameter_item, " (SAPI:%u TEI:%u EFA:ISDN (%u))",sapi,tei,efa);
    }
-   else if (efa > 8175 && efa <= 8180){
+   else if (efa <= 8180){
       proto_tree_add_uint_format_value(parameter_tree, hf_efa,  parameter_tvb, offset, EFA_LENGTH, efa,
             "%s (%u)", val_to_str_const(efa, efa_values, "unknown EFA"),tvb_get_ntohs(parameter_tvb, offset));
       proto_item_append_text(parameter_item, " (SAPI:%u TEI:%u EFA:%s (%u))",sapi,tei,val_to_str_const(efa, efa_values, "unknown EFA-value"),efa);
@@ -457,8 +459,8 @@ dissect_asp_msg_parameter(packet_info *pinfo, tvbuff_t *parameter_tvb, proto_tre
    const guint8* str;
    guint16 adaptation_layer_id_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET);
 
-   proto_tree_add_item_ret_string(parameter_tree, hf_adaptation_layer_id, parameter_tvb, PARAMETER_VALUE_OFFSET, adaptation_layer_id_length, ENC_ASCII|ENC_NA, pinfo->pool, &str);
-   proto_item_append_text(parameter_item, " (%.*s)", adaptation_layer_id_length, str);
+   proto_tree_add_item_ret_string(parameter_tree, hf_adaptation_layer_id, parameter_tvb, PARAMETER_VALUE_OFFSET, adaptation_layer_id_length, ENC_ASCII, pinfo->pool, &str);
+   proto_item_append_text(parameter_item, " (%s)", str);
 }
 
 static void
@@ -466,8 +468,8 @@ dissect_scn_protocol_id_parameter(packet_info *pinfo, tvbuff_t *parameter_tvb, p
 {
    const guint8* str;
    guint16 id_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET);
-   proto_tree_add_item_ret_string(parameter_tree, hf_scn_protocol_id, parameter_tvb, PARAMETER_VALUE_OFFSET, id_length, ENC_ASCII|ENC_NA, pinfo->pool, &str);
-   proto_item_append_text(parameter_item, " (%.*s)", id_length, str);
+   proto_tree_add_item_ret_string(parameter_tree, hf_scn_protocol_id, parameter_tvb, PARAMETER_VALUE_OFFSET, id_length, ENC_ASCII, pinfo->pool, &str);
+   proto_item_append_text(parameter_item, " (%s)", str);
 }
 
 /*----------------------ASP (Draft)--------------------------------------------*/
@@ -758,8 +760,8 @@ dissect_info_string_parameter(packet_info *pinfo, tvbuff_t *parameter_tvb, proto
    if(iua_version == DRAFT) info_string_length += 4;
    if(info_string_length > 4){
       info_string_length -= PARAMETER_HEADER_LENGTH;
-      proto_tree_add_item_ret_string(parameter_tree, hf_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII|ENC_NA, pinfo->pool, &str);
-      proto_item_append_text(parameter_item, " (%.*s)", info_string_length, str);
+      proto_tree_add_item_ret_string(parameter_tree, hf_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII, pinfo->pool, &str);
+      proto_item_append_text(parameter_item, " (%s)", str);
    }
 }
 
@@ -1619,6 +1621,9 @@ proto_register_v5ua(void)
    /* Required function calls to register the header fields and subtrees used */
    proto_register_field_array(proto_v5ua, hf, array_length(hf));
    proto_register_subtree_array(ett, array_length(ett));
+
+   /* Register the dissector handle */
+   v5ua_handle = register_dissector("v5ua", dissect_v5ua, proto_v5ua);
 }
 
 
@@ -1629,9 +1634,6 @@ proto_register_v5ua(void)
 void
 proto_reg_handoff_v5ua(void)
 {
-   dissector_handle_t v5ua_handle;
-
-   v5ua_handle = create_dissector_handle(dissect_v5ua, proto_v5ua);
    q931_handle = find_dissector_add_dependency("q931", proto_v5ua);
    v52_handle = find_dissector_add_dependency("v52", proto_v5ua);
 

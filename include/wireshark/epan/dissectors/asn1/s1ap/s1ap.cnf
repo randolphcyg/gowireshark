@@ -26,7 +26,7 @@ EUTRAN-CGI_PDU
 Global-ENB-ID_PDU
 Global-ENB-ID
 HandoverRestrictionList_PDU
-ImmediateMDT_PDU
+IntersystemSONConfigurationTransfer_PDU
 LastVisitedEUTRANCellInformation_PDU
 LastVisitedGERANCellInformation_PDU
 MDTMode_PDU
@@ -47,7 +47,7 @@ EN-DCSONConfigurationTransfer
 ENB-StatusTransfer-TransparentContainer
 EUTRAN-CGI
 HandoverRestrictionList
-ImmediateMDT
+IntersystemSONConfigurationTransfer
 LastVisitedEUTRANCellInformation
 LastVisitedGERANCellInformation
 MDTMode
@@ -246,7 +246,7 @@ MAX_VAL = asn1_param_get_integer(%(ACTX)s,"upperBound")
 # PLMNidentity ::= TBCD-STRING (SIZE (3))
 # TBCD-STRING ::= OCTET STRING
 
-#.FN_BODY PLMNidentity  VAL_PTR = parameter_tvb
+#.FN_BODY PLMNidentity  VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb=NULL;
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   e212_number_type_t number_type = s1ap_data->number_type;
@@ -268,7 +268,7 @@ MAX_VAL = asn1_param_get_integer(%(ACTX)s,"upperBound")
   }
 #.END
 
-#.FN_BODY ENBname VAL_PTR = parameter_tvb
+#.FN_BODY ENBname VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb=NULL;
   int length;
   gboolean is_ascii;
@@ -284,7 +284,7 @@ MAX_VAL = asn1_param_get_integer(%(ACTX)s,"upperBound")
   if (is_ascii)
      proto_item_append_text(actx->created_item," (%%s)",tvb_format_text(actx->pinfo->pool, parameter_tvb, 0, length));
 
-#.FN_BODY MMEname VAL_PTR = parameter_tvb
+#.FN_BODY MMEname VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb=NULL;
   int length;
   gboolean is_ascii;
@@ -411,7 +411,7 @@ Port-Number TYPE = FT_UINT16 DISPLAY = BASE_DEC
     show_exception(tvb, actx->pinfo, tree, EXCEPT_CODE, GET_MESSAGE);
   }
   ENDTRY;
-    offset = _offset;
+  offset = _offset;
 
 
 
@@ -491,8 +491,8 @@ Port-Number TYPE = FT_UINT16 DISPLAY = BASE_DEC
   }
 
 #.FN_BODY TargeteNB-ToSourceeNB-TransparentContainer
-    struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
-    volatile guint32 _offset;
+  struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
+  volatile guint32 _offset;
 
   s1ap_data->transparent_container_type = TARGET_TO_SOURCE_TRANSPARENT_CONTAINER;
   _offset = offset;
@@ -504,7 +504,7 @@ Port-Number TYPE = FT_UINT16 DISPLAY = BASE_DEC
     show_exception(tvb, actx->pinfo, tree, EXCEPT_CODE, GET_MESSAGE);
   }
   ENDTRY;
-    offset = _offset;
+  offset = _offset;
 
 #.FN_BODY Target-ToSource-TransparentContainer VAL_PTR = &parameter_tvb
 # I think the message is "directly encoded" into the octet string(no "double encoding")
@@ -614,6 +614,7 @@ Port-Number TYPE = FT_UINT16 DISPLAY = BASE_DEC
   if (g_s1ap_dissect_container) {
     struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_RRCContainer);
+    volatile int saved_offset = offset;
 
     switch(s1ap_data->transparent_container_type){
       case SOURCE_TO_TARGET_TRANSPARENT_CONTAINER:
@@ -650,6 +651,7 @@ Port-Number TYPE = FT_UINT16 DISPLAY = BASE_DEC
       default:
         break;
     }
+    offset = saved_offset;
   }
 
 #.FN_BODY UE-HistoryInformationFromTheUE VAL_PTR = &parameter_tvb
@@ -707,6 +709,9 @@ Threshold-RSRP DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(s1ap_Threshold_RSRP_fmt)
 
 #.TYPE_ATTR
 Threshold-RSRQ DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(s1ap_Threshold_RSRQ_fmt)
+
+#.TYPE_ATTR
+Hysteresis DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(s1ap_Hysteresis_fmt)
 
 #.FN_BODY RAT-RestrictionsItem/rAT-RestrictionInformation VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb = NULL;
@@ -820,6 +825,7 @@ if (gcsna_handle) {
 
   if (g_s1ap_dissect_container) {
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_CELevel);
+    volatile int saved_offset = offset;
     if ((s1ap_is_nbiot_ue(actx->pinfo) && (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_AUTOMATIC)) ||
         (g_s1ap_dissect_lte_container_as == S1AP_LTE_CONTAINER_NBIOT)) {
       TRY {
@@ -838,6 +844,7 @@ if (gcsna_handle) {
       }
       ENDTRY;
     }
+    offset = saved_offset;
   }
 
 #.FN_BODY UE-RLF-Report-Container VAL_PTR = &parameter_tvb
@@ -851,13 +858,15 @@ if (gcsna_handle) {
 
   if (g_s1ap_dissect_container) {
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_UE_RLF_Report_Container);
-      TRY {
-        dissect_lte_rrc_RLF_Report_r9_PDU(parameter_tvb, actx->pinfo, subtree, NULL);
-      }
-      CATCH_BOUNDS_ERRORS {
-        show_exception(parameter_tvb, actx->pinfo, subtree, EXCEPT_CODE, GET_MESSAGE);
-      }
-      ENDTRY;
+    volatile int saved_offset = offset;
+    TRY {
+      dissect_lte_rrc_RLF_Report_r9_PDU(parameter_tvb, actx->pinfo, subtree, NULL);
+    }
+    CATCH_BOUNDS_ERRORS {
+      show_exception(parameter_tvb, actx->pinfo, subtree, EXCEPT_CODE, GET_MESSAGE);
+    }
+    ENDTRY;
+    offset = saved_offset;
   }
 
 #.FN_BODY UE-RLF-Report-Container-for-extended-bands VAL_PTR = &parameter_tvb
@@ -871,6 +880,7 @@ if (gcsna_handle) {
 
   if (g_s1ap_dissect_container) {
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_UE_RLF_Report_Container_for_extended_bands);
+    volatile int saved_offset = offset;
     TRY {
       dissect_lte_rrc_RLF_Report_v9e0_PDU(parameter_tvb, actx->pinfo, subtree, NULL);
     }
@@ -878,6 +888,7 @@ if (gcsna_handle) {
       show_exception(parameter_tvb, actx->pinfo, subtree, EXCEPT_CODE, GET_MESSAGE);
     }
     ENDTRY;
+    offset = saved_offset;
   }
 
 #.FN_BODY NB-IoT-RLF-Report-Container VAL_PTR = &parameter_tvb
@@ -889,6 +900,7 @@ if (gcsna_handle) {
 
   if (g_s1ap_dissect_container) {
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_NB_IoT_RLF_Report_Container);
+    volatile int saved_offset = offset;
     TRY {
       dissect_lte_rrc_RLF_Report_NB_r16_PDU(parameter_tvb, actx->pinfo, subtree, NULL);
     }
@@ -896,6 +908,7 @@ if (gcsna_handle) {
       show_exception(parameter_tvb, actx->pinfo, subtree, EXCEPT_CODE, GET_MESSAGE);
     }
     ENDTRY;
+    offset = saved_offset;
   }
 
 #.FN_BODY TooEarlyInterRATHOReportReportFromEUTRAN/uERLFReportContainer VAL_PTR = &parameter_tvb
@@ -909,6 +922,7 @@ if (gcsna_handle) {
 
   if (g_s1ap_dissect_container) {
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_UE_RLF_Report_Container);
+    volatile int saved_offset = offset;
     TRY {
       dissect_lte_rrc_RLF_Report_r9_PDU(parameter_tvb, actx->pinfo, subtree, NULL);
     }
@@ -916,6 +930,7 @@ if (gcsna_handle) {
       show_exception(parameter_tvb, actx->pinfo, subtree, EXCEPT_CODE, GET_MESSAGE);
     }
     ENDTRY;
+    offset = saved_offset;
   }
 
 #.TYPE_ATTR
@@ -1069,6 +1084,7 @@ MME-Group-ID TYPE = FT_UINT16 DISPLAY = BASE_DEC_HEX
       &hf_s1ap_integrityProtectionAlgorithms_EIA1,
       &hf_s1ap_integrityProtectionAlgorithms_EIA2,
       &hf_s1ap_integrityProtectionAlgorithms_EIA3,
+      &hf_s1ap_integrityProtectionAlgorithms_EIA7,
       &hf_s1ap_integrityProtectionAlgorithms_Reserved,
       NULL
     };
@@ -1107,6 +1123,7 @@ RecommendedCellItem/timeStayedInCell DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&
 
   if (g_s1ap_dissect_container) {
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_LastVisitedNGRANCellInformation);
+    volatile int saved_offset = offset;
     TRY {
       dissect_ngap_LastVisitedNGRANCellInformation_PDU(parameter_tvb, actx->pinfo, subtree, NULL);
     }
@@ -1114,6 +1131,7 @@ RecommendedCellItem/timeStayedInCell DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&
       show_exception(parameter_tvb, actx->pinfo, subtree, EXCEPT_CODE, GET_MESSAGE);
     }
     ENDTRY;
+    offset = saved_offset;
   }
 
 #.FN_BODY LastVisitedUTRANCellInformation VAL_PTR = &parameter_tvb
@@ -1125,6 +1143,7 @@ RecommendedCellItem/timeStayedInCell DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&
 
   if (g_s1ap_dissect_container) {
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_LastVisitedUTRANCellInformation);
+    volatile int saved_offset = offset;
     TRY {
       dissect_ranap_LastVisitedUTRANCell_Item_PDU(parameter_tvb, actx->pinfo, subtree, NULL);
     }
@@ -1132,6 +1151,7 @@ RecommendedCellItem/timeStayedInCell DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&
       show_exception(parameter_tvb, actx->pinfo, subtree, EXCEPT_CODE, GET_MESSAGE);
     }
     ENDTRY;
+    offset = saved_offset;
   }
 
 #.TYPE_ATTR
@@ -1936,6 +1956,8 @@ id-SourceNodeTransportLayerAddress                  ProtocolIE-ID
 id-E-RABToBeUpdatedList                             ProtocolIE-ID
 id-E-RABToBeUpdatedItem                             ProtocolIE-ID
 id-SourceSNID                                       ProtocolIE-ID
+id-LoggedMDTTrigger                                 ProtocolIE-ID
+id-SensorMeasurementConfiguration                   ProtocolIE-ID
 
 #.END
 
@@ -2271,6 +2293,8 @@ ENB-UE-S1AP-ID                          N s1ap.extension id-UEContextReferenceat
 LTE-NTN-TAI-Information                 N s1ap.extension id-LTE-NTN-TAI-Information
 TransportLayerAddress                   N s1ap.extension id-SourceNodeTransportLayerAddress
 Global-RAN-NODE-ID                      N s1ap.extension id-SourceSNID
+LoggedMDTTrigger                        N s1ap.extension id-LoggedMDTTrigger
+SensorMeasurementConfiguration          N s1ap.extension id-SensorMeasurementConfiguration
 
 #S1AP-ELEMENTARY-PROCEDURE
 HandoverRequired                        N s1ap.proc.imsg id-HandoverPreparation
@@ -2677,13 +2701,12 @@ MMEEarlyStatusTransfer                  N s1ap.proc.imsg id-MMEEarlyStatusTransf
 %(DEFAULT_BODY)s
 
 #.FIELD_ATTR
-EUTRAN-CGI/cell-ID ABBREV=CellIdentity TYPE=FT_UINT32 DISPLAY=BASE_HEX
+EUTRAN-CGI/cell-ID ABBREV=CellIdentity TYPE=FT_UINT32 DISPLAY=BASE_HEX BITMASK=0xFFFFFFF0
 #.FN_BODY CellIdentity VAL_PTR = &cell_id_tvb HF_INDEX=-1
   tvbuff_t *cell_id_tvb = NULL;
 %(DEFAULT_BODY)s
   if (cell_id_tvb) {
-    guint32 cell_id = tvb_get_bits32(cell_id_tvb, 0, 28, ENC_BIG_ENDIAN);
-    actx->created_item = proto_tree_add_uint(tree, hf_index, cell_id_tvb, 0, 4, cell_id);
+    actx->created_item = proto_tree_add_item(tree, hf_index, cell_id_tvb, 0, 4, ENC_BIG_ENDIAN);
   }
 #.END
 

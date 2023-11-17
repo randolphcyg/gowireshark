@@ -72,6 +72,9 @@
 void proto_register_ncp(void);
 void proto_reg_handoff_ncp(void);
 
+static dissector_handle_t ncp_handle;
+static dissector_handle_t ncp_tcp_handle;
+
 int proto_ncp = -1;
 static int hf_ncp_ip_ver = -1;
 static int hf_ncp_ip_length = -1;
@@ -806,7 +809,7 @@ ncp_endpoint_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, cons
 #define SYS 0x80        /* System packet */
 
 #define LIP_ECHO_MAGIC_LEN 16
-static char lip_echo_magic[LIP_ECHO_MAGIC_LEN] = {
+static const unsigned char lip_echo_magic[LIP_ECHO_MAGIC_LEN] = {
     'L', 'I', 'P', ' ', 'E', 'c', 'h', 'o', ' ', 'D', 'a', 't', 'a', ' ', ' ', ' '
 };
 
@@ -981,7 +984,7 @@ dissect_ncp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         proto_tree_add_uint(ncp_tree, hf_ncp_seq, tvb, commhdr + 2, 1, header.sequence);
         proto_tree_add_uint(ncp_tree, hf_ncp_connection,tvb, commhdr + 3, 3, nw_connection);
         proto_tree_add_item(ncp_tree, hf_ncp_task, tvb, commhdr + 4, 1, ENC_BIG_ENDIAN);
-        proto_tree_add_item(ncp_tree, hf_ncp_oplock_flag, tvb, commhdr + 9, 1, tvb_get_guint8(tvb, commhdr+9));
+        proto_tree_add_item(ncp_tree, hf_ncp_oplock_flag, tvb, commhdr + 9, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(ncp_tree, hf_ncp_oplock_handle, tvb, commhdr + 10, 4, ENC_BIG_ENDIAN);
         if ((tvb_get_guint8(tvb, commhdr+9)==0x24) && ncp_echo_file) {
             expert_add_info_format(pinfo, NULL, &ei_ncp_oplock_handle, "Server requesting station to clear oplock on handle - %08x", tvb_get_ntohl(tvb, commhdr+10));
@@ -1425,7 +1428,7 @@ proto_register_ncp(void)
             NULL, HFILL }},
         { &hf_ncp_oplock_handle,
           { "File Handle",                      "ncp.oplock_handle",
-            FT_UINT16, BASE_HEX, NULL, 0x0,
+            FT_UINT32, BASE_HEX, NULL, 0x0,
             NULL, HFILL }},
         { &hf_ncp_stream_type,
           { "Stream Type",                      "ncp.stream_type",
@@ -1571,6 +1574,9 @@ proto_register_ncp(void)
     expert_ncp = expert_register_protocol(proto_ncp);
     expert_register_field_array(expert_ncp, ei, array_length(ei));
 
+    ncp_handle = register_dissector("ncp", dissect_ncp, proto_ncp);
+    ncp_tcp_handle = register_dissector("ncp.tcp", dissect_ncp_tcp, proto_ncp);
+
     ncp_module = prefs_register_protocol(proto_ncp, NULL);
     prefs_register_obsolete_preference(ncp_module, "initial_hash_size");
     prefs_register_bool_preference(ncp_module, "desegment",
@@ -1618,11 +1624,6 @@ proto_register_ncp(void)
 void
 proto_reg_handoff_ncp(void)
 {
-    dissector_handle_t ncp_handle;
-    dissector_handle_t ncp_tcp_handle;
-
-    ncp_handle = create_dissector_handle(dissect_ncp, proto_ncp);
-    ncp_tcp_handle = create_dissector_handle(dissect_ncp_tcp, proto_ncp);
     dissector_add_uint_with_preference("tcp.port", TCP_PORT_NCP, ncp_tcp_handle);
     dissector_add_uint("udp.port", UDP_PORT_NCP, ncp_handle);
     dissector_add_uint("ipx.packet_type", IPX_PACKET_TYPE_NCP, ncp_handle);

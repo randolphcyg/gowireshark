@@ -8,10 +8,11 @@
  */
 
 #include "config.h"
+#include "epan.h"
 
 #include <stdarg.h>
 
-#include <wsutil/wsgcrypt.h>
+#include <gcrypt.h>
 
 #ifdef HAVE_LIBGNUTLS
 #include <gnutls/gnutls.h>
@@ -23,7 +24,6 @@
 
 #include <epan/exceptions.h>
 
-#include "epan.h"
 #include "epan/frame_data.h"
 
 #include "dfilter/dfilter.h"
@@ -32,8 +32,7 @@
 #include <wsutil/nstime.h>
 #include <wsutil/wslog.h>
 #include <wsutil/ws_assert.h>
-
-#include <ui/version_info.h>
+#include <wsutil/version_info.h>
 
 #include "conversation.h"
 #include "except.h"
@@ -88,6 +87,10 @@
 
 #ifdef HAVE_NGHTTP2
 #include <nghttp2/nghttp2.h>
+#endif
+
+#ifdef HAVE_NGHTTP3
+#include <nghttp3/nghttp3.h>
 #endif
 
 #ifdef HAVE_BROTLI
@@ -220,7 +223,7 @@ void epan_register_plugin(const epan_plugin *plug _U_)
 int epan_plugins_supported(void)
 {
 #ifdef HAVE_PLUGINS
-	return g_module_supported() ? 0 : 1;
+	return plugins_supported() ? 0 : 1;
 #else
 	return -1;
 #endif
@@ -279,6 +282,15 @@ epan_init(register_cb cb, gpointer client_data, gboolean load_plugins)
 	}
 
 	/* initialize libgcrypt (beware, it won't be thread-safe) */
+#if GCRYPT_VERSION_NUMBER >= 0x010a00
+	/* Ensure FIPS mode is disabled; it makes it impossible to decrypt
+	 * non-NIST approved algorithms. We're decrypting, not promising
+	 * security. This overrides any file or environment variables that
+	 * would normally turn on FIPS mode, and has to be done prior to
+	 * gcry_check_version().
+	 */
+	gcry_control (GCRYCTL_NO_FIPS_MODE);
+#endif
 	gcry_check_version(NULL);
 #if defined(_WIN32)
 	gcry_set_log_handler (quiet_gcrypt_logger, NULL);
@@ -287,6 +299,11 @@ epan_init(register_cb cb, gpointer client_data, gboolean load_plugins)
 	gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
 #ifdef HAVE_LIBGNUTLS
 	gnutls_global_init();
+#if GNUTLS_VERSION_NUMBER >= 0x030602
+	if (gnutls_fips140_mode_enabled()) {
+		gnutls_fips140_set_mode(GNUTLS_FIPS140_LAX, 0);
+	}
+#endif
 #endif
 #ifdef HAVE_LIBXML2
 	xmlInitParser();
@@ -308,7 +325,7 @@ epan_init(register_cb cb, gpointer client_data, gboolean load_plugins)
 		conversation_init();
 		capture_dissector_init();
 		reassembly_tables_init();
-        conversation_filters_init();
+		conversation_filters_init();
 		g_slist_foreach(epan_plugins, epan_plugin_init, NULL);
 		proto_init(epan_plugin_register_all_procotols, epan_plugin_register_all_handoffs, cb, client_data);
 		g_slist_foreach(epan_plugins, epan_plugin_register_all_tap_listeners, NULL);
@@ -495,8 +512,10 @@ epan_get_frame_ts(const epan_t *session, guint32 frame_num)
 	if (session && session->funcs.get_frame_ts)
 		abs_ts = session->funcs.get_frame_ts(session->prov, frame_num);
 
-	if (!abs_ts)
-		ws_warning("!!! couldn't get frame ts for %u !!!\n", frame_num);
+	if (!abs_ts) {
+		/* This can happen if frame_num doesn't have a ts */
+		ws_debug("!!! couldn't get frame ts for %u !!!\n", frame_num);
+	}
 
 	return abs_ts;
 }
@@ -573,7 +592,6 @@ epan_dissect_reset(epan_dissect_t *edt)
 	wtap_block_unref(edt->pi.rec->block);
 
 	g_slist_free(edt->pi.proto_data);
-	g_slist_free(edt->pi.dependent_frames);
 
 	/* Free the data sources list. */
 	free_data_sources(&edt->pi);
@@ -684,7 +702,6 @@ epan_dissect_cleanup(epan_dissect_t* edt)
 	g_slist_foreach(epan_plugins, epan_plugin_dissect_cleanup, edt);
 
 	g_slist_free(edt->pi.proto_data);
-	g_slist_free(edt->pi.dependent_frames);
 
 	/* Free the data sources list. */
 	free_data_sources(&edt->pi);
@@ -779,10 +796,17 @@ epan_dissect_packet_contains_field(epan_dissect_t* edt,
 void
 epan_gather_compile_info(feature_list l)
 {
+	gather_zlib_compile_info(l);
+	gather_pcre2_compile_info(l);
+
 	/* Lua */
 #ifdef HAVE_LUA
+#ifdef HAVE_LUA_UNICODE
+	with_feature(l, "%s", LUA_RELEASE" (with UfW patches)");
+#else /* HAVE_LUA_UNICODE */
 	with_feature(l, "%s", LUA_RELEASE);
-#else
+#endif /* HAVE_LUA_UNICODE */
+#else /* HAVE_LUA */
 	without_feature(l, "Lua");
 #endif /* HAVE_LUA */
 
@@ -822,6 +846,13 @@ epan_gather_compile_info(feature_list l)
 #else
 	without_feature(l, "nghttp2");
 #endif /* HAVE_NGHTTP2 */
+
+	/* nghttp3 */
+#ifdef HAVE_NGHTTP3
+	with_feature(l, "nghttp3 %s", NGHTTP3_VERSION);
+#else
+	without_feature(l, "nghttp3");
+#endif /* HAVE_NGHTTP3 */
 
 	/* brotli */
 #ifdef HAVE_BROTLI
@@ -872,6 +903,9 @@ epan_gather_compile_info(feature_list l)
 void
 epan_gather_runtime_info(feature_list l)
 {
+	gather_zlib_runtime_info(l);
+	gather_pcre2_runtime_info(l);
+
 	/* c-ares */
 	with_feature(l, "c-ares %s", ares_version(NULL));
 
@@ -888,6 +922,12 @@ epan_gather_runtime_info(feature_list l)
 	nghttp2_info *nghttp2_ptr = nghttp2_version(0);
 	with_feature(l, "nghttp2 %s",  nghttp2_ptr->version_str);
 #endif /* NGHTTP2_VERSION_AGE */
+
+	/* nghttp3 */
+#if NGHTTP3_VERSION_AGE >= 1
+	const nghttp3_info *nghttp3_ptr = nghttp3_version(0);
+	with_feature(l, "nghttp3 %s", nghttp3_ptr->version_str);
+#endif /* NGHTTP3_VERSION_AGE */
 
 	/* brotli */
 #ifdef HAVE_BROTLI

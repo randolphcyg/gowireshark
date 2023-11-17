@@ -38,6 +38,8 @@
 void proto_register_norm(void);
 void proto_reg_handoff_norm(void);
 
+static dissector_handle_t norm_handle;
+
 /* String tables */
 
 #define NORM_INFO       1
@@ -452,7 +454,7 @@ static guint dissect_norm_cmd_squelch(proto_tree *tree, packet_info *pinfo,
     offset = dissect_feccode(tree, tvb, offset, pinfo, 0);
 
     while (tvb_reported_length_remaining(tvb, offset) > 0) {
-        proto_tree_add_item(tree, hf_cc_transport_id, tvb, offset, 4, ENC_BIG_ENDIAN); offset += 2;
+        proto_tree_add_item(tree, hf_cc_transport_id, tvb, offset, 2, ENC_BIG_ENDIAN); offset += 2;
     }
     return offset;
 }
@@ -954,6 +956,8 @@ void proto_register_norm(void)
     expert_rmt_norm = expert_register_protocol(proto_rmt_norm);
     expert_register_field_array(expert_rmt_norm, ei, array_length(ei));
 
+    /* Register the subdissector handle */
+    norm_handle = register_dissector("norm", dissect_norm, proto_rmt_norm);
 
     /* Register preferences */
     module = prefs_register_protocol(proto_rmt_norm, NULL);
@@ -962,10 +966,7 @@ void proto_register_norm(void)
 
 void proto_reg_handoff_norm(void)
 {
-    static dissector_handle_t handle;
-
-    handle = create_dissector_handle(dissect_norm, proto_rmt_norm);
-    dissector_add_for_decode_as_with_preference("udp.port", handle);
+    dissector_add_for_decode_as_with_preference("udp.port", norm_handle);
     heur_dissector_add("udp", dissect_norm_heur, "NORM over UDP", "rmt_norm_udp", proto_rmt_norm, HEURISTIC_DISABLE);
 
     rmt_fec_handle = find_dissector_add_dependency("rmt-fec", proto_rmt_norm);

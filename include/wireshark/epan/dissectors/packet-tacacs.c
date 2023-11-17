@@ -34,9 +34,11 @@
 
 void proto_reg_handoff_tacacs(void);
 void proto_register_tacacs(void);
+static dissector_handle_t tacacs_handle;
 
 void proto_reg_handoff_tacplus(void);
 void proto_register_tacplus(void);
+static dissector_handle_t tacplus_handle;
 
 static void md5_xor( guint8 *data, const char *key, int data_len, guint8 *session_id, guint8 version, guint8 seq_no );
 static int  dissect_tacplus_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data);
@@ -261,14 +263,12 @@ proto_register_tacacs(void)
 	proto_tacacs = proto_register_protocol("TACACS", "TACACS", "tacacs");
 	proto_register_field_array(proto_tacacs, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
+	tacacs_handle = register_dissector("tacacs", dissect_tacacs, proto_tacacs);
 }
 
 void
 proto_reg_handoff_tacacs(void)
 {
-	dissector_handle_t tacacs_handle;
-
-	tacacs_handle = create_dissector_handle(dissect_tacacs, proto_tacacs);
 	dissector_add_uint_with_preference("udp.port", UDP_PORT_TACACS, tacacs_handle);
 }
 
@@ -349,6 +349,7 @@ static gint ett_tacplus_flags = -1;
 static gint ett_tacplus_acct_flags = -1;
 
 static expert_field ei_tacplus_packet_len_invalid = EI_INIT;
+static expert_field ei_tacplus_unencrypted = EI_INIT;
 static expert_field ei_tacplus_bogus_data = EI_INIT;
 
 typedef struct _tacplus_key_entry {
@@ -936,8 +937,11 @@ dissect_tacplus_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 		    (flags&FLAGS_UNENCRYPTED) ? "Unencrypted" : "Encrypted",
 		    (flags&FLAGS_SINGLE) ? "Single connection" : "Multiple Connections" );
 		flags_tree = proto_item_add_subtree(tf, ett_tacplus_flags);
-		proto_tree_add_boolean(flags_tree, hf_tacplus_flags_payload_type,
+		tmp_pi = proto_tree_add_boolean(flags_tree, hf_tacplus_flags_payload_type,
 		    tvb, 3, 1, flags);
+		if (flags&FLAGS_UNENCRYPTED) {
+			expert_add_info(pinfo, tmp_pi, &ei_tacplus_unencrypted);
+		}
 		proto_tree_add_boolean(flags_tree, hf_tacplus_flags_connection_type,
 		    tvb, 3, 1, flags);
 		proto_tree_add_item(tacplus_tree, hf_tacplus_session_id, tvb, 4, 4,
@@ -1012,7 +1016,7 @@ proto_register_tacplus(void)
 	  { &hf_tacplus_flags_payload_type,
 	    { "Unencrypted", "tacplus.flags.unencrypted",
 	      FT_BOOLEAN, 8, TFS(&tfs_set_notset), FLAGS_UNENCRYPTED,
-	      "Is payload unencrypted?", HFILL }},
+	      "Is payload unencrypted? (deprecated)", HFILL }},
 	  { &hf_tacplus_flags_connection_type,
 	    { "Single Connection", "tacplus.flags.singleconn",
 	      FT_BOOLEAN, 8, TFS(&tfs_set_notset), FLAGS_SINGLE,
@@ -1245,6 +1249,7 @@ proto_register_tacplus(void)
 
 	static ei_register_info ei[] = {
 		{ &ei_tacplus_packet_len_invalid, { "tacplus.packet_len.invalid", PI_PROTOCOL, PI_WARN, "Invalid length", EXPFILL }},
+		{ &ei_tacplus_unencrypted, { "tacplus.flags.unencrypted.deprecated", PI_SECURITY, PI_WARN, "Unencrypted payload option MUST NOT be used in production", EXPFILL }},
 		{ &ei_tacplus_bogus_data, { "tacplus.bogus_data", PI_PROTOCOL, PI_WARN, "Bogus data", EXPFILL }},
 	};
 
@@ -1254,6 +1259,7 @@ proto_register_tacplus(void)
 	proto_tacplus = proto_register_protocol("TACACS+", "TACACS+", "tacplus");
 	proto_register_field_array(proto_tacplus, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
+	tacplus_handle = register_dissector("tacplus", dissect_tacplus, proto_tacplus);
 	expert_tacplus = expert_register_protocol(proto_tacplus);
 	expert_register_field_array(expert_tacplus, ei, array_length(ei));
 	tacplus_module = prefs_register_protocol (proto_tacplus, tacplus_pref_cb );
@@ -1267,10 +1273,6 @@ proto_register_tacplus(void)
 void
 proto_reg_handoff_tacplus(void)
 {
-	dissector_handle_t tacplus_handle;
-
-	tacplus_handle = create_dissector_handle(dissect_tacplus,
-	    proto_tacplus);
 	dissector_add_uint_with_preference("tcp.port", TCP_PORT_TACACS, tacplus_handle);
 }
 

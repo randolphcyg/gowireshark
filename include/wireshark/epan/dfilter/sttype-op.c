@@ -11,7 +11,7 @@
 #include "sttype-op.h"
 
 typedef struct {
-	guint32		magic;
+	uint32_t		magic;
 	stnode_op_t	op;
 	stmatch_t	how;
 	stnode_t	*val1;
@@ -20,8 +20,8 @@ typedef struct {
 
 #define OPER_MAGIC	0xab9009ba
 
-static gpointer
-oper_new(gpointer junk)
+static void *
+oper_new(void *junk _U_)
 {
 	oper_t *oper;
 
@@ -38,7 +38,7 @@ oper_new(gpointer junk)
 	return oper;
 }
 
-static gpointer
+static void *
 oper_dup(gconstpointer data)
 {
 	const oper_t *org = data;
@@ -48,13 +48,13 @@ oper_dup(gconstpointer data)
 	oper->op = org->op;
 	oper->how = org->how;
 	oper->val1 = stnode_dup(org->val1);
-	oper->val2 = stnode_dup(org->val1);
+	oper->val2 = stnode_dup(org->val2);
 
 	return oper;
 }
 
 static void
-oper_free(gpointer value)
+oper_free(void *value)
 {
 	oper_t *oper = value;
 	ws_assert_magic(oper, OPER_MAGIC);
@@ -134,6 +134,9 @@ oper_todisplay(const oper_t *oper)
 		case STNODE_OP_IN:
 			s = "in";
 			break;
+		case STNODE_OP_NOT_IN:
+			s = "not in";
+			break;
 		case STNODE_OP_UNINITIALIZED:
 			s = "<uninitialized>";
 			break;
@@ -210,6 +213,9 @@ oper_todebug(const oper_t *oper)
 		case STNODE_OP_IN:
 			s = "TEST_IN";
 			break;
+		case STNODE_OP_NOT_IN:
+			s = "TEST_NOT_IN";
+			break;
 		case STNODE_OP_UNINITIALIZED:
 			s = "<uninitialized>";
 			break;
@@ -223,7 +229,7 @@ oper_todebug(const oper_t *oper)
 }
 
 static char *
-oper_tostr(const void *value, gboolean pretty)
+oper_tostr(const void *value, bool pretty)
 {
 	const oper_t *oper = value;
 	ws_assert_magic(oper, OPER_MAGIC);
@@ -261,6 +267,7 @@ num_operands(stnode_op_t op)
 		case STNODE_OP_CONTAINS:
 		case STNODE_OP_MATCHES:
 		case STNODE_OP_IN:
+		case STNODE_OP_NOT_IN:
 			return 2;
 	}
 	ws_assert_not_reached();

@@ -27,9 +27,6 @@
 #endif
 
 #include <sys/types.h>
-#ifdef HAVE_SYS_WAIT_H
-#include <sys/wait.h>
-#endif
 
 #include <glib.h>
 
@@ -43,14 +40,13 @@
 #include <wsutil/tempfile.h>
 #include <wsutil/wslog.h>
 #include <wsutil/ws_assert.h>
+#include <wsutil/version_info.h>
 
 #include "capture/capture_session.h"
 #include "capture_opts.h"
 
 #include "extcap.h"
 #include "extcap_parser.h"
-
-#include "ui/version_info.h"
 
 /* Number of seconds to wait for extcap process to exit after cleanup.
  * If extcap does not exit before the timeout, it is forcefully terminated.
@@ -272,10 +268,7 @@ extcap_get_extcap_paths(void)
 {
     GSList *paths = NULL;
 
-    char *persconffile_path = get_persconffile_path("extcap", FALSE);
-    paths = extcap_get_extcap_paths_from_dir(paths, persconffile_path);
-    g_free(persconffile_path);
-
+    paths = extcap_get_extcap_paths_from_dir(paths, get_extcap_pers_dir());
     paths = extcap_get_extcap_paths_from_dir(paths, get_extcap_dir());
 
     return paths;
@@ -675,7 +668,7 @@ extcap_get_help_for_ifname(const char *ifname)
 }
 
 GList *
-append_extcap_interface_list(GList *list, char **err_str _U_)
+append_extcap_interface_list(GList *list)
 {
     GList *interface_list = NULL;
     extcap_interface *data = NULL;
@@ -1022,7 +1015,7 @@ extcap_get_if_configuration_values(const char * ifname, const char * argname, GH
 }
 
 gboolean
-extcap_has_configuration(const char *ifname, gboolean is_required)
+_extcap_requires_configuration_int(const char *ifname, gboolean check_required)
 {
     GList *arguments = 0;
     GList *walker = 0, * item = 0;
@@ -1042,10 +1035,11 @@ extcap_has_configuration(const char *ifname, gboolean is_required)
             {
                 extcap_arg *arg = (extcap_arg *)(item->data);
                 /* Should required options be present, or any kind of options */
-                if (!is_required)
+                if (!check_required)
                 {
                     found = TRUE;
                 }
+                /* Following branch is executed when check of required items is requested */
                 else if (arg->is_required)
                 {
                     const gchar *stored = NULL;
@@ -1063,13 +1057,7 @@ extcap_has_configuration(const char *ifname, gboolean is_required)
 
                     if (arg->is_required)
                     {
-                        /* If stored and defval is identical and the argument is required,
-                         * configuration is needed */
-                        if (defval && stored && g_strcmp0(stored, defval) == 0)
-                        {
-                            found = TRUE;
-                        }
-                        else if (!defval && (!stored || !*stored))
+                        if (!defval && (!stored || !*stored))
                         {
                             found = TRUE;
                         }
@@ -1092,6 +1080,18 @@ extcap_has_configuration(const char *ifname, gboolean is_required)
     extcap_free_if_configuration(arguments, TRUE);
 
     return found;
+}
+
+gboolean
+extcap_has_configuration(const char *ifname)
+{
+  return _extcap_requires_configuration_int(ifname, FALSE);
+}
+
+gboolean
+extcap_requires_configuration(const char *ifname)
+{
+  return _extcap_requires_configuration_int(ifname, TRUE);
 }
 
 static gboolean cb_verify_filter(extcap_callback_info_t cb_info)
@@ -1255,8 +1255,8 @@ void extcap_request_stop(capture_session *cap_session)
             continue;
         }
 
-        ws_debug("Extcap [%s] - Requesting stop PID: %d", interface_opts->name,
-              interface_opts->extcap_pid);
+        ws_debug("Extcap [%s] - Requesting stop PID: %"PRIdMAX, interface_opts->name,
+              (intmax_t)interface_opts->extcap_pid);
 
 #ifndef _WIN32
         if (interface_opts->extcap_pid != WS_INVALID_PID)
@@ -1343,8 +1343,19 @@ gboolean extcap_session_stop(capture_session *cap_session)
 #else
         if (interface_opts->extcap_fifo != NULL && file_exists(interface_opts->extcap_fifo))
         {
+            /* If extcap didn't open the fifo, dumpcap would be waiting on it
+             * until user manually stops capture. Simply open and close fifo
+             * here to let dumpcap return from the select() call. This has no
+             * effect if dumpcap is not waiting.
+             */
+            int fd = ws_open(interface_opts->extcap_fifo, O_WRONLY|O_NONBLOCK, 0000);
+            if (fd != -1) {
+                close(fd);
+            }
             /* the fifo will not be freed here, but with the other capture_opts in capture_sync */
             ws_unlink(interface_opts->extcap_fifo);
+            get_dirname(interface_opts->extcap_fifo);
+            rmdir(interface_opts->extcap_fifo);
             interface_opts->extcap_fifo = NULL;
         }
         if (interface_opts->extcap_control_in && file_exists(interface_opts->extcap_control_in))
@@ -1488,8 +1499,8 @@ static void extcap_child_watch_cb(GPid pid, gint status _U_, gpointer user_data)
         interface_opts = &g_array_index(capture_opts->ifaces, interface_options, i);
         if (interface_opts->extcap_pid == pid)
         {
-            ws_debug("Extcap [%s] - Closing spawned PID: %d", interface_opts->name,
-                     interface_opts->extcap_pid);
+            ws_debug("Extcap [%s] - Closing spawned PID: %"PRIdMAX, interface_opts->name,
+                     (intmax_t)interface_opts->extcap_pid);
             interface_opts->extcap_pid = WS_INVALID_PID;
             extcap_watch_removed(cap_session, interface_opts);
             break;
@@ -1637,13 +1648,13 @@ static gboolean extcap_create_pipe(const gchar *ifname, gchar **fifo, HANDLE *ha
 
     if (*handle_out == INVALID_HANDLE_VALUE)
     {
-        ws_debug("Error creating pipe => (%d)", GetLastError());
+        ws_debug("Error creating pipe => (%ld)", GetLastError());
         g_free (pipename);
         return FALSE;
     }
     else
     {
-        ws_debug("Wireshark Created pipe =>(%s) handle (%" PRIuPTR ")", pipename, *handle_out);
+        ws_debug("Wireshark Created pipe =>(%s) handle (%" PRIuMAX ")", pipename, (uintmax_t)*handle_out);
         *fifo = g_strdup(pipename);
     }
 
@@ -1652,33 +1663,27 @@ static gboolean extcap_create_pipe(const gchar *ifname, gchar **fifo, HANDLE *ha
 #else
 static gboolean extcap_create_pipe(const gchar *ifname, gchar **fifo, const gchar *temp_dir, const gchar *pipe_prefix)
 {
-    gchar *temp_name = NULL;
-    int fd = 0;
+    gchar *subdir_tmpl = g_strdup_printf("%s_%s_XXXXXX", pipe_prefix, ifname);
+    gchar *temp_subdir = create_tempdir(temp_dir, subdir_tmpl, NULL);
 
-    gchar *pfx = g_strconcat(pipe_prefix, "_", ifname, NULL);
-    if ((fd = create_tempfile(temp_dir, &temp_name, pfx, NULL, NULL)) < 0)
+    g_free(subdir_tmpl);
+    if (temp_subdir == NULL)
     {
-        g_free(pfx);
         return FALSE;
     }
-    g_free(pfx);
 
-    ws_close(fd);
+    gchar *fifo_path = g_build_path(G_DIR_SEPARATOR_S, temp_subdir, "fifo", NULL);
+    g_free(temp_subdir);
 
-    ws_debug("Extcap - Creating fifo: %s", temp_name);
+    ws_debug("Extcap - Creating fifo: %s", fifo_path);
 
-    if (file_exists(temp_name))
+    if (mkfifo(fifo_path, 0600) == 0)
     {
-        ws_unlink(temp_name);
-    }
-
-    if (mkfifo(temp_name, 0600) == 0)
-    {
-        *fifo = temp_name;
+        *fifo = fifo_path;
     }
     else
     {
-        g_free(temp_name);
+        g_free(fifo_path);
     }
     return TRUE;
 }
@@ -1941,7 +1946,7 @@ process_new_extcap(const char *extcap, char *output)
             ws_debug("Interface found %s\n", int_iter->call);
 
         /* Help is not necessarily stored with the interface, but rather with the version string.
-         * As the version string allways comes in front of the interfaces, this ensures, that it get's
+         * As the version string always comes in front of the interfaces, this ensures, that it gets
          * properly stored with the interface */
         if (int_iter->if_type == EXTCAP_SENTENCE_EXTCAP)
         {

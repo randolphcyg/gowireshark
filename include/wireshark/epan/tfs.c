@@ -9,13 +9,19 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "config.h"
+/*
+ * Note: Adding a true_false_string here must be accompanied by an addition to
+ * both tfs.h and libwireshark*.symbols.
+ */
 
+#include "config.h"
 #include "tfs.h"
 
 /** Returns the string representing the true or false value. */
 const char *tfs_get_string(gboolean value, const true_false_string *tfs)
 {
+    if (tfs == NULL)
+        return value ? "True" : "False";
     return value ? tfs->true_string : tfs->false_string;
 }
 
@@ -23,7 +29,6 @@ const char *tfs_get_string(gboolean value, const true_false_string *tfs)
  * A default set of true/false strings that dissectors can use for
  * FT_BOOLEAN header fields.
  */
-const true_false_string tfs_true_false = { "True", "False" };
 const true_false_string tfs_yes_no = { "Yes", "No" };
 const true_false_string tfs_no_yes = { "No", "Yes" };
 const true_false_string tfs_set_notset = { "Set", "Not set" };
@@ -39,6 +44,7 @@ const true_false_string tfs_odd_even = { "Odd", "Even" };
 const true_false_string tfs_allow_block = { "Allow", "Block" };
 const true_false_string tfs_restricted_allowed = { "Restricted", "Allowed" };
 const true_false_string tfs_restricted_not_restricted = { "Restricted", "Not restricted" };
+const true_false_string tfs_not_restricted_restricted = { "Not restricted", "Restricted" };
 const true_false_string tfs_accept_reject = { "Accept", "Reject" };
 const true_false_string tfs_more_nomore = { "More", "No more" };
 const true_false_string tfs_present_absent = { "Present", "Absent" };
@@ -108,6 +114,7 @@ const true_false_string tfs_add_drop = { "Add", "Drop" };
 const true_false_string tfs_no_extension_extension = { "No Extension", "Extension" };
 const true_false_string tfs_user_provider = { "User", "Provider" };
 const true_false_string tfs_applicable_not_applicable = { "Applicable", "Not Applicable" };
+const true_false_string tfs_current_not_yet = { "Currently Applicable", "Not yet Applicable" };
 
 /*
  * Editor modelines  -  https://www.wireshark.org/tools/modelines.html

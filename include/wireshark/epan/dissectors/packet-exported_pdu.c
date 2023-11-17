@@ -16,6 +16,7 @@
 #include <epan/to_str.h>
 #include <epan/address_types.h>
 #include <epan/exported_pdu.h>
+#include <epan/expert.h>
 #include "packet-mtp3.h"
 #include "packet-dvbci.h"
 #include "packet-tcp.h"
@@ -39,6 +40,13 @@ static int hf_exported_pdu_heur_prot_name = -1;
 static int hf_exported_pdu_dis_table_name = -1;
 static int hf_exported_pdu_p2p_dir = -1;
 static int hf_exported_pdu_dissector_data = -1;
+static int hf_exported_pdu_ddata_version = -1;
+static int hf_exported_pdu_ddata_seq = -1;
+static int hf_exported_pdu_ddata_nxtseq = -1;
+static int hf_exported_pdu_ddata_lastackseq = -1;
+static int hf_exported_pdu_ddata_is_reassembled = -1;
+static int hf_exported_pdu_ddata_flags = -1;
+static int hf_exported_pdu_ddata_urgent_pointer = -1;
 static int hf_exported_pdu_ipv4_src = -1;
 static int hf_exported_pdu_ipv4_dst = -1;
 static int hf_exported_pdu_ipv6_src = -1;
@@ -54,6 +62,7 @@ static int hf_exported_pdu_dvbci_evt = -1;
 static int hf_exported_pdu_exported_pdu = -1;
 static int hf_exported_pdu_dis_table_val = -1;
 static int hf_exported_pdu_col_proto_str = -1;
+static int hf_exported_pdu_col_info_str = -1;
 
 /* Initialize the subtree pointers */
 static gint ett_exported_pdu = -1;
@@ -62,6 +71,11 @@ static gint ett_exported_pdu_tag = -1;
 static int ss7pc_address_type = -1;
 
 static dissector_handle_t exported_pdu_handle;
+
+static expert_field ei_exported_pdu_unsupported_version = EI_INIT;
+static expert_field ei_exported_pdu_unknown_tag = EI_INIT;
+
+static const gchar *user_data_pdu = "data";
 
 #define EXPORTED_PDU_NEXT_DISSECTOR_STR      0
 #define EXPORTED_PDU_NEXT_HEUR_DISSECTOR_STR 1
@@ -96,6 +110,8 @@ static const value_string exported_pdu_tag_vals[] = {
    { EXP_PDU_TAG_COL_PROT_TEXT,         "Column Protocol String" },
    { EXP_PDU_TAG_TCP_INFO_DATA,         "TCP Dissector Data" },
    { EXP_PDU_TAG_P2P_DIRECTION,         "P2P direction" },
+   { EXP_PDU_TAG_COL_INFO_TEXT,         "Column Information String" },
+   { EXP_PDU_TAG_USER_DATA_PDU,         "User Data PDU" },
 
    { 0,        NULL   }
 };
@@ -185,6 +201,7 @@ dissect_exported_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     const guint8 *proto_name = NULL;
     const guint8 *dissector_table = NULL;
     const guint8 *col_proto_str = NULL;
+    const guint8* col_info_str = NULL;
     dissector_handle_t proto_handle;
     mtp3_addr_pc_t *mtp3_addr;
     guint8 dvb_ci_dir;
@@ -309,31 +326,48 @@ dissect_exported_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
             case EXP_PDU_TAG_TCP_INFO_DATA:
                 {
                 struct tcpinfo* tcpdata = wmem_new0(pinfo->pool, struct tcpinfo);
-                guint16 version;
-                proto_tree_add_item(tag_tree, hf_exported_pdu_dissector_data, tvb, offset, tag_len, ENC_NA);
+                guint32 u32;
 
-                version = tvb_get_ntohs(tvb, offset);
-                DISSECTOR_ASSERT(version == 1); /* Only version 1 is currently supported */
+                item = proto_tree_add_item(tag_tree, hf_exported_pdu_dissector_data, tvb, offset, tag_len, ENC_NA);
 
-                tcpdata->seq = tvb_get_ntohl(tvb, offset+2);
-                tcpdata->nxtseq = tvb_get_ntohl(tvb, offset+6);
-                tcpdata->lastackseq = tvb_get_ntohl(tvb, offset+10);
-                tcpdata->is_reassembled = tvb_get_guint8(tvb, offset+14);
-                tcpdata->flags = tvb_get_ntohs(tvb, offset+15);
-                tcpdata->urgent_pointer = tvb_get_ntohs(tvb, offset+17);
+                proto_tree_add_item_ret_uint(tag_tree, hf_exported_pdu_ddata_version, tvb, offset, 2, ENC_BIG_ENDIAN, &u32);
+                if (u32 == 1) {
+                    /* Keep old bytes-only field, but hide it */
+                    proto_item_set_hidden(item);
 
-                dissector_data = tcpdata;
+                    proto_tree_add_item_ret_uint(tag_tree, hf_exported_pdu_ddata_seq, tvb, offset+2, 4, ENC_BIG_ENDIAN, &tcpdata->seq);
+                    proto_tree_add_item_ret_uint(tag_tree, hf_exported_pdu_ddata_nxtseq, tvb, offset+6, 4, ENC_BIG_ENDIAN, &tcpdata->nxtseq);
+                    proto_tree_add_item_ret_uint(tag_tree, hf_exported_pdu_ddata_lastackseq, tvb, offset+10, 4, ENC_BIG_ENDIAN, &tcpdata->lastackseq);
+                    proto_tree_add_item_ret_boolean(tag_tree, hf_exported_pdu_ddata_is_reassembled, tvb, offset+14, 1, ENC_BIG_ENDIAN, &tcpdata->is_reassembled);
+                    proto_tree_add_item_ret_uint(tag_tree, hf_exported_pdu_ddata_flags, tvb, offset+15, 2, ENC_BIG_ENDIAN, &u32);
+                    tcpdata->flags = u32;
+                    proto_tree_add_item_ret_uint(tag_tree, hf_exported_pdu_ddata_urgent_pointer, tvb, offset+17, 2, ENC_BIG_ENDIAN, &u32);
+                    tcpdata->urgent_pointer = u32;
+
+                    dissector_data = tcpdata;
+                }
+                else { /* Only version 1 is currently supported */
+                    proto_tree_add_expert(tag_tree, pinfo, &ei_exported_pdu_unsupported_version, tvb, offset, tag_len);
+                }
+
                 }
                 break;
             case EXP_PDU_TAG_P2P_DIRECTION:
                 pinfo->p2p_dir = tvb_get_ntohl(tvb, offset);
                 proto_tree_add_item(tag_tree, hf_exported_pdu_p2p_dir, tvb, offset, 4, ENC_NA);
                 break;
+            case EXP_PDU_TAG_COL_INFO_TEXT:
+                proto_tree_add_item_ret_string(tag_tree, hf_exported_pdu_col_info_str, tvb, offset, tag_len, ENC_UTF_8 | ENC_NA, pinfo->pool, &col_info_str);
+                break;
+            case EXP_PDU_TAG_USER_DATA_PDU:
+                next_proto_type = EXPORTED_PDU_NEXT_DISSECTOR_STR;
+                proto_name = user_data_pdu;
+                break;
             case EXP_PDU_TAG_END_OF_OPT:
                 break;
             default:
                 proto_tree_add_item(tag_tree, hf_exported_pdu_unknown_tag_val, tvb, offset, tag_len, ENC_NA);
-                /* Add an expert item too? */
+                proto_tree_add_expert(tag_tree, pinfo, &ei_exported_pdu_unknown_tag, tvb, offset, tag_len);
                 break;
         }
 
@@ -356,6 +390,12 @@ dissect_exported_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
                 } else {
                     col_clear(pinfo->cinfo, COL_PROTOCOL);
                 }
+                if (col_info_str) {
+                    col_add_str(pinfo->cinfo, COL_INFO, col_info_str);
+                }
+                else {
+                    col_clear(pinfo->cinfo, COL_INFO);
+                }
                 call_dissector_with_data(proto_handle, payload_tvb, pinfo, tree, dissector_data);
             }
             break;
@@ -367,6 +407,12 @@ dissect_exported_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
                     col_add_str(pinfo->cinfo, COL_PROTOCOL, col_proto_str);
                 } else {
                     col_clear(pinfo->cinfo, COL_PROTOCOL);
+                }
+                if (col_info_str) {
+                    col_add_str(pinfo->cinfo, COL_INFO, col_info_str);
+                }
+                else {
+                    col_clear(pinfo->cinfo, COL_INFO);
                 }
                 call_heur_dissector_direct(heur_diss, payload_tvb, pinfo, tree, dissector_data);
             }
@@ -380,6 +426,12 @@ dissect_exported_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
                     col_add_str(pinfo->cinfo, COL_PROTOCOL, col_proto_str);
                 } else {
                     col_clear(pinfo->cinfo, COL_PROTOCOL);
+                }
+                if (col_info_str) {
+                    col_add_str(pinfo->cinfo, COL_INFO, col_info_str);
+                }
+                else {
+                    col_clear(pinfo->cinfo, COL_INFO);
                 }
                 dissector_try_uint_new(dis_tbl, dissector_table_val, payload_tvb, pinfo, tree, FALSE, dissector_data);
             }
@@ -436,8 +488,43 @@ proto_register_exported_pdu(void)
               NULL, HFILL }
         },
         { &hf_exported_pdu_dissector_data,
-            { "Dissector Data", "exported_pdu.dissector_data",
+            { "TCP Dissector Data", "exported_pdu.tcp_dissector_data",
                FT_BYTES, BASE_NONE, NULL, 0,
+              NULL, HFILL }
+        },
+        { &hf_exported_pdu_ddata_version,
+            { "TCP Dissector Data version", "exported_pdu.tcp_dissector_data.version",
+               FT_UINT16, BASE_DEC, NULL, 0,
+              NULL, HFILL }
+        },
+        { &hf_exported_pdu_ddata_seq,
+            { "Sequence number", "exported_pdu.tcp_dissector_data.seq",
+               FT_UINT32, BASE_DEC, NULL, 0,
+              NULL, HFILL }
+        },
+        { &hf_exported_pdu_ddata_nxtseq,
+            { "Next sequence number", "exported_pdu.tcp_dissector_data.nxtseq",
+               FT_UINT32, BASE_DEC, NULL, 0,
+              NULL, HFILL }
+        },
+        { &hf_exported_pdu_ddata_lastackseq,
+            { "Last acked sequence number", "exported_pdu.tcp_dissector_data.lastackseq",
+               FT_UINT32, BASE_DEC, NULL, 0,
+              NULL, HFILL }
+        },
+        { &hf_exported_pdu_ddata_is_reassembled,
+            { "Is reassembled", "exported_pdu.tcp_dissector_data.is_reassembled",
+               FT_BOOLEAN, BASE_NONE, NULL, 0,
+              NULL, HFILL }
+        },
+        { &hf_exported_pdu_ddata_flags,
+            { "Flags", "exported_pdu.tcp_dissector_data.flags",
+               FT_UINT16, BASE_HEX, NULL, 0,
+              NULL, HFILL }
+        },
+        { &hf_exported_pdu_ddata_urgent_pointer,
+            { "Urgent pointer", "exported_pdu.tcp_dissector_data.urgent_pointer",
+               FT_UINT16, BASE_DEC, NULL, 0,
               NULL, HFILL }
         },
         { &hf_exported_pdu_ipv4_src,
@@ -496,8 +583,8 @@ proto_register_exported_pdu(void)
               NULL, HFILL }
         },
         { &hf_exported_pdu_exported_pdu,
-            { "Exported PDU", "exported_pdu.exported_pdu",
-               FT_BYTES, BASE_NONE, NULL, 0,
+            { "Exported PDU data", "exported_pdu.exported_pdu",
+               FT_BYTES, BASE_NONE|BASE_NO_DISPLAY_VALUE, NULL, 0,
               NULL, HFILL }
         },
         { &hf_exported_pdu_dis_table_val,
@@ -510,6 +597,11 @@ proto_register_exported_pdu(void)
                FT_STRINGZPAD, BASE_NONE, NULL, 0,
               NULL, HFILL }
         },
+        { &hf_exported_pdu_col_info_str,
+            { "Column information string", "exported_pdu.col_info_str",
+               FT_STRINGZPAD, BASE_NONE, NULL, 0,
+              NULL, HFILL }
+        },
     };
 
     /* Setup protocol subtree array */
@@ -518,15 +610,36 @@ proto_register_exported_pdu(void)
         &ett_exported_pdu_tag
     };
 
+    /* Setup expert information */
+    static ei_register_info ei[] = {
+        { &ei_exported_pdu_unsupported_version,
+            { "exported_pdu.tcp_dissector_data.version.invalid",
+                PI_PROTOCOL, PI_WARN, "Unsupported TCP Dissector Data version", EXPFILL }
+        },
+        { &ei_exported_pdu_unknown_tag,
+            { "exported_pdu.tag.unknown",
+                PI_PROTOCOL, PI_WARN, "Unrecognized tag", EXPFILL }
+        },
+    };
+    expert_module_t *expert_exported_pdu;
+    module_t *exported_pdu_module;
+
     /* Register the protocol name and description */
-    proto_exported_pdu = proto_register_protocol("EXPORTED_PDU",
-            "exported_pdu", "exported_pdu");
+    proto_exported_pdu = proto_register_protocol("EXPORTED_PDU", "Exported PDU", "exported_pdu");
+
+    expert_exported_pdu = expert_register_protocol(proto_exported_pdu);
+    expert_register_field_array(expert_exported_pdu, ei, array_length(ei));
 
     exported_pdu_handle = register_dissector("exported_pdu", dissect_exported_pdu, proto_exported_pdu);
 
     /* Required function calls to register the header fields and subtrees */
     proto_register_field_array(proto_exported_pdu, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
+
+    /* Register configuration preferences */
+    exported_pdu_module = prefs_register_protocol(proto_exported_pdu, NULL);
+    prefs_register_string_preference(exported_pdu_module, "user_data_pdu",
+        "User Data PDU dissector", "The dissector to use for User Data PDU", &user_data_pdu);
 
     /* Register for tapping
      * The tap is registered here but it is to be used by dissectors that

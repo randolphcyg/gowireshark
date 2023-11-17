@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-nist-csor.c                                                         */
-/* asn2wrs.py -b -p nist-csor -c ./nist-csor.cnf -s ./packet-nist-csor-template -D . -O ../.. aes1.asn */
+/* asn2wrs.py -b -L -p nist-csor -c ./nist-csor.cnf -s ./packet-nist-csor-template -D . -O ../.. aes1.asn */
 
-/* Input file: packet-nist-csor-template.c */
-
-#line 1 "./asn1/nist-csor/packet-nist-csor-template.c"
 /* packet-nist-csor.c
  *
  * Wireshark - Network traffic analyzer
@@ -35,33 +32,18 @@ void proto_reg_handoff_nist_csor(void);
 
 /* Initialize the protocol and registered fields */
 static int proto_nist_csor = -1;
-
-/*--- Included file: packet-nist-csor-hf.c ---*/
-#line 1 "./asn1/nist-csor/packet-nist-csor-hf.c"
 static int hf_nist_csor_CFBParameters_PDU = -1;   /* CFBParameters */
 static int hf_nist_csor_AES_IV_PDU = -1;          /* AES_IV */
 static int hf_nist_csor_ShakeOutputLen_PDU = -1;  /* ShakeOutputLen */
 static int hf_nist_csor_aes_IV = -1;              /* AES_IV */
 static int hf_nist_csor_numberOfBits = -1;        /* NumberOfBits */
 
-/*--- End of included file: packet-nist-csor-hf.c ---*/
-#line 31 "./asn1/nist-csor/packet-nist-csor-template.c"
-
 /* Initialize the subtree pointers */
-
-/*--- Included file: packet-nist-csor-ett.c ---*/
-#line 1 "./asn1/nist-csor/packet-nist-csor-ett.c"
 static gint ett_nist_csor_CFBParameters = -1;
-
-/*--- End of included file: packet-nist-csor-ett.c ---*/
-#line 34 "./asn1/nist-csor/packet-nist-csor-template.c"
-
-/*--- Included file: packet-nist-csor-fn.c ---*/
-#line 1 "./asn1/nist-csor/packet-nist-csor-fn.c"
 
 
 int
-dissect_nist_csor_AES_IV(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_nist_csor_AES_IV(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -71,7 +53,7 @@ dissect_nist_csor_AES_IV(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offse
 
 
 int
-dissect_nist_csor_NumberOfBits(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_nist_csor_NumberOfBits(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -86,7 +68,7 @@ static const ber_sequence_t CFBParameters_sequence[] = {
 };
 
 int
-dissect_nist_csor_CFBParameters(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_nist_csor_CFBParameters(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    CFBParameters_sequence, hf_index, ett_nist_csor_CFBParameters);
 
@@ -96,7 +78,7 @@ dissect_nist_csor_CFBParameters(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
 
 
 int
-dissect_nist_csor_ShakeOutputLen(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_nist_csor_ShakeOutputLen(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -128,18 +110,12 @@ static int dissect_ShakeOutputLen_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_,
 }
 
 
-/*--- End of included file: packet-nist-csor-fn.c ---*/
-#line 35 "./asn1/nist-csor/packet-nist-csor-template.c"
-
 
 /*--- proto_register_nist-csor ----------------------------------------------*/
 void proto_register_nist_csor(void) {
 
   /* List of fields */
   static hf_register_info hf[] = {
-
-/*--- Included file: packet-nist-csor-hfarr.c ---*/
-#line 1 "./asn1/nist-csor/packet-nist-csor-hfarr.c"
     { &hf_nist_csor_CFBParameters_PDU,
       { "CFBParameters", "nist-csor.CFBParameters_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -160,20 +136,11 @@ void proto_register_nist_csor(void) {
       { "numberOfBits", "nist-csor.numberOfBits",
         FT_UINT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
-
-/*--- End of included file: packet-nist-csor-hfarr.c ---*/
-#line 43 "./asn1/nist-csor/packet-nist-csor-template.c"
   };
 
   /* List of subtrees */
   static gint *ett[] = {
-
-/*--- Included file: packet-nist-csor-ettarr.c ---*/
-#line 1 "./asn1/nist-csor/packet-nist-csor-ettarr.c"
     &ett_nist_csor_CFBParameters,
-
-/*--- End of included file: packet-nist-csor-ettarr.c ---*/
-#line 48 "./asn1/nist-csor/packet-nist-csor-template.c"
   };
 
   /* Register protocol */
@@ -187,9 +154,6 @@ void proto_register_nist_csor(void) {
 
 /*--- proto_reg_handoff_nist_csor -------------------------------------------*/
 void proto_reg_handoff_nist_csor(void) {
-
-/*--- Included file: packet-nist-csor-dis-tab.c ---*/
-#line 1 "./asn1/nist-csor/packet-nist-csor-dis-tab.c"
   register_ber_oid_dissector("2.16.840.1.101.3.4.1.2", dissect_AES_IV_PDU, proto_nist_csor, "id-aes128-CBC");
   register_ber_oid_dissector("2.16.840.1.101.3.4.1.3", dissect_AES_IV_PDU, proto_nist_csor, "id-aes128-OFB");
   register_ber_oid_dissector("2.16.840.1.101.3.4.1.4", dissect_CFBParameters_PDU, proto_nist_csor, "id-aes128-CFB");
@@ -202,9 +166,6 @@ void proto_reg_handoff_nist_csor(void) {
   register_ber_oid_dissector("2.16.840.1.101.3.4.2.17", dissect_ShakeOutputLen_PDU, proto_nist_csor, "id-shake128-len");
   register_ber_oid_dissector("2.16.840.1.101.3.4.2.18", dissect_ShakeOutputLen_PDU, proto_nist_csor, "id-shake256-len");
 
-
-/*--- End of included file: packet-nist-csor-dis-tab.c ---*/
-#line 62 "./asn1/nist-csor/packet-nist-csor-template.c"
   oid_add_from_string("id-data","1.2.840.113549.1.7.1");
 
 /* AES  */

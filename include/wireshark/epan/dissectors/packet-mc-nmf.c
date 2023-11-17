@@ -31,6 +31,8 @@ void proto_register_mc_nmf(void);
 static dissector_handle_t ms_nns_handle;
 static dissector_handle_t tls_handle;
 
+static dissector_handle_t mc_nmf_handle;
+
 /* Initialize the protocol and registered fields */
 
 #define MC_NMF_REC_VERSION      0
@@ -115,7 +117,10 @@ static int hf_mc_nmf_upgrade_proto_data = -1;
 
 static expert_field ei_mc_nmf_size_too_big = EI_INIT;
 
-#define MC_NMF_TCP_PORT 0
+// [MC-NMF] does not have a defined port https://learn.microsoft.com/en-us/openspecs/windows_protocols/mc-nmf/51b5eb53-f488-4b74-b21d-8a498f016b61
+// but 9389 is ADWS port https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-adcap/cfff3d7f-e7cd-4529-86a0-4de89efe3855
+// which relies on [MC-NMF], so by doing this, all ADWS trafic on port 9389 is properly dissected by default
+#define MC_NMF_TCP_PORT 9389
 
 /* Initialize the subtree pointers */
 static gint ett_mc_nmf = -1;
@@ -125,7 +130,7 @@ static gint ett_mc_nmf_rec = -1;
 
 static gboolean get_size_length(tvbuff_t *tvb, int *offset, guint *len_length, packet_info *pinfo, guint32 *out_size) {
     guint8    lbyte;
-    gint64    size = 0;
+    guint64   size = 0;
     guint     shiftcount = 0;
 
     lbyte = tvb_get_guint8(tvb, *offset);
@@ -135,13 +140,20 @@ static gboolean get_size_length(tvbuff_t *tvb, int *offset, guint *len_length, p
     while ( lbyte & 0x80 ) {
         lbyte = tvb_get_guint8(tvb, *offset);
         *offset += 1;
+        /* Guard against the pathological case of a sequence of 0x80
+         * bytes (which add nothing to size).
+         */
+        if (*len_length >= 5) {
+            expert_add_info(pinfo, NULL, &ei_mc_nmf_size_too_big);
+            return FALSE;
+        }
         shiftcount = 7 * *len_length;
-        size = ((lbyte & 0x7F) << shiftcount) | (size);
+        size = ((lbyte & UINT64_C(0x7F)) << shiftcount) | (size);
         *len_length += 1;
         /*
          * Check if size if is too big to prevent against overflow.
          * According to spec an implementation SHOULD support record sizes as
-         * large as 0xffffffff octets.
+         * large as 0xffffffff octets (encoded size requires five octets).
          */
         if (size > 0xffffffff) {
             expert_add_info(pinfo, NULL, &ei_mc_nmf_size_too_big);
@@ -438,13 +450,12 @@ void proto_register_mc_nmf(void)
     proto_register_subtree_array(ett, array_length(ett));
     expert_mc_nmf = expert_register_protocol(proto_mc_nmf);
     expert_register_field_array(expert_mc_nmf, ei, array_length(ei));
+
+    mc_nmf_handle = register_dissector("mc-nmf", dissect_mc_nmf, proto_mc_nmf);
 }
 
 void proto_reg_handoff_mc_nmf(void)
 {
-    dissector_handle_t mc_nmf_handle;
-
-    mc_nmf_handle = create_dissector_handle(dissect_mc_nmf, proto_mc_nmf);
     dissector_add_uint_with_preference("tcp.port", MC_NMF_TCP_PORT, mc_nmf_handle);
     ms_nns_handle = find_dissector_add_dependency("ms-nns", proto_mc_nmf);
     tls_handle = find_dissector("tls");

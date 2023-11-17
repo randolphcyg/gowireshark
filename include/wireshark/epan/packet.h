@@ -47,6 +47,12 @@ struct epan_range;
 	((guint)(offset) + (guint)(len) > (guint)(offset) && \
 	 (guint)(offset) + (guint)(len) <= (guint)(captured_len))
 
+/* 0 is case insenstive for backwards compatibility with tables that
+ * used FALSE or BASE_NONE for case sensitive, which was the default.
+ */
+#define STRING_CASE_SENSITIVE 0
+#define STRING_CASE_INSENSITIVE 1
+
 extern void packet_init(void);
 extern void packet_cache_proto_handles(void);
 extern void packet_cleanup(void);
@@ -166,9 +172,9 @@ WS_DLL_PUBLIC void dissector_all_tables_foreach_table (DATFunc_table func,
 
 /* a protocol uses the function to register a sub-dissector table
  *
- * 'param' is the display base for integer tables, and TRUE/FALSE for
- * string tables (true indicating case-insensitive, false indicating
- * case-sensitive)
+ * 'param' is the display base for integer tables, STRING_CASE_SENSITIVE
+ * or STRING_CASE_INSENSITIVE for string tables, and ignored for other
+ * table types.
  */
 WS_DLL_PUBLIC dissector_table_t register_dissector_table(const char *name,
     const char *ui_name, const int proto, const ftenum_t type, const int param);
@@ -178,7 +184,8 @@ WS_DLL_PUBLIC dissector_table_t register_dissector_table(const char *name,
  * to store subdissectors.
  */
 WS_DLL_PUBLIC dissector_table_t register_custom_dissector_table(const char *name,
-    const char *ui_name, const int proto, GHashFunc hash_func, GEqualFunc key_equal_func);
+    const char *ui_name, const int proto, GHashFunc hash_func, GEqualFunc key_equal_func,
+    GDestroyNotify key_destroy_func);
 
 /** Register a dissector table alias.
  * This is for dissectors whose original name has changed, e.g. SSL to TLS.
@@ -464,7 +471,7 @@ typedef struct heur_dtbl_entry {
  *  Call this in the parent dissectors proto_register function.
  *
  * @param name the name of this protocol
- * @param proto the value obtained when regestering the protocol
+ * @param proto the value obtained when registering the protocol
  */
 WS_DLL_PUBLIC heur_dissector_list_t register_heur_dissector_list(const char *name, const int proto);
 
@@ -496,7 +503,7 @@ WS_DLL_PUBLIC void heur_dissector_table_foreach(const char *table_name,
 WS_DLL_PUBLIC void dissector_all_heur_tables_foreach_table (DATFunc_heur_table func,
     gpointer user_data, GCompareFunc compare_key_func);
 
-/* true if a heur_dissector list of that anme exists to be registered into */
+/* true if a heur_dissector list of that name exists to be registered into */
 WS_DLL_PUBLIC gboolean has_heur_dissector_list(const gchar *name);
 
 /** Try all the dissectors in a given heuristic dissector list. This is done,
@@ -584,7 +591,7 @@ WS_DLL_PUBLIC GList* get_dissector_names(void);
 /** Find a dissector by name. */
 WS_DLL_PUBLIC dissector_handle_t find_dissector(const char *name);
 
-/** Find a dissector by name and add parent protocol as a depedency*/
+/** Find a dissector by name and add parent protocol as a dependency. */
 WS_DLL_PUBLIC dissector_handle_t find_dissector_add_dependency(const char *name, const int parent_proto);
 
 /** Get a dissector name from handle. */
@@ -597,6 +604,11 @@ WS_DLL_PUBLIC dissector_handle_t create_dissector_handle_with_name(dissector_t d
     const int proto, const char* name);
 WS_DLL_PUBLIC dissector_handle_t create_dissector_handle_with_name_and_description(dissector_t dissector,
     const int proto, const char* name, const char* description);
+WS_DLL_PUBLIC dissector_handle_t create_dissector_handle_with_data(dissector_cb_t dissector,
+    const int proto, void* cb_data);
+
+/* Dump all registered dissectors to the standard output */
+WS_DLL_PUBLIC void dissector_dump_dissectors(void);
 
 /** Call a dissector through a handle and if no dissector was found
  * pass it over to the "data" dissector instead.
@@ -664,7 +676,7 @@ WS_DLL_PUBLIC gboolean register_depend_dissector(const char* parent, const char*
 /** Unregister a protocol dependency
  * This is done automatically when removing from a dissector or
  * heuristic table.  This is for "manual" deregistration for things
- * like Lua
+ * like Lua.
  *
  *   @param parent "Parent" protocol short name
  *   @param dependent "Dependent" protocol short name
@@ -701,16 +713,17 @@ WS_DLL_PUBLIC void set_actual_length(tvbuff_t *tvb, const guint specified_len);
 WS_DLL_PUBLIC void register_init_routine(void (*func)(void));
 
 /**
- * Allows protocols to register "cleanup" routines which are called
+ * Allows protocols to register "cleanup" routines, which are called
  * after closing a capture file (or when preferences are changed, in
  * that case these routines are called before the init routines are
  * executed). It can be used to release resources that are allocated in
- * register_init_routine.
+ * an "init" routine.
  */
 WS_DLL_PUBLIC void register_cleanup_routine(void (*func)(void));
 
 /*
- * Register a shutdown routine to call once just before program exit
+ * Allows protocols to register "shutdown" routines, which are called
+ * once, just before program exit
  */
 WS_DLL_PUBLIC void register_shutdown_routine(void (*func)(void));
 
@@ -735,7 +748,7 @@ WS_DLL_PUBLIC void postseq_cleanup_all_protocols(void);
  * subsystems, liked dfilters, have finished initializing. This is
  * useful for dissector registration routines which need to compile
  * display filters. dfilters can't initialize itself until all protocols
- * have registereed themselvs. */
+ * have registered themselves. */
 WS_DLL_PUBLIC void
 register_final_registration_routine(void (*func)(void));
 
@@ -767,11 +780,11 @@ extern void free_data_sources(packet_info *pinfo);
 
 /* Mark another frame as depended upon by the current frame.
  *
- * This information is used to ensure that the dependend-upon frame is saved
+ * This information is used to ensure that the depended-upon frame is saved
  * if the user does a File->Save-As of only the Displayed packets and the
  * current frame passed the display filter.
  */
-WS_DLL_PUBLIC void mark_frame_as_depended_upon(packet_info *pinfo, guint32 frame_num);
+WS_DLL_PUBLIC void mark_frame_as_depended_upon(frame_data *fd, guint32 frame_num);
 
 /* Structure passed to the frame dissector */
 typedef struct frame_data_s

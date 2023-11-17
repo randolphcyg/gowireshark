@@ -16,12 +16,14 @@
 #include <epan/ipproto.h>
 #include <epan/to_str.h>
 #include <wsutil/str_util.h>
+#include <wiretap/wtap.h>
+#include <wiretap/erf_record.h>
+
 #include "packet-erf.h"
 #include "packet-ptp.h"
 
 /*
 */
-#include "wiretap/erf_record.h"
 
 void proto_register_erf(void);
 void proto_reg_handoff_erf(void);
@@ -112,6 +114,8 @@ static int hf_erf_ehdr_signature_flow_hash = -1;
 /* Flow ID extension header */
 static int hf_erf_ehdr_flow_id_source_id = -1;
 static int hf_erf_ehdr_flow_id_hash_type = -1;
+static int hf_erf_ehdr_flow_id_hash_type_type = -1;
+static int hf_erf_ehdr_flow_id_hash_type_inner = -1;
 static int hf_erf_ehdr_flow_id_stack_type = -1;
 static int hf_erf_ehdr_flow_id_flow_hash = -1;
 
@@ -238,6 +242,7 @@ static int hf_erf_meta_tag_unknown  = -1;
 static gint ett_erf            = -1;
 static gint ett_erf_pseudo_hdr = -1;
 static gint ett_erf_rectype    = -1;
+static gint ett_erf_hash_type  = -1;
 static gint ett_erf_flags      = -1;
 static gint ett_erf_mc_hdlc    = -1;
 static gint ett_erf_mc_raw     = -1;
@@ -298,6 +303,10 @@ static dissector_handle_t sdh_handle;
 #define ERF_HDR_RXE_MASK 0x10
 #define ERF_HDR_DSE_MASK 0x20
 #define ERF_HDR_RES_MASK 0xC0
+
+/* ERF Extension Header */
+#define ERF_EHDR_FLOW_ID_HASH_TYPE_TYPE_MASK 0x7f
+#define ERF_EHDR_FLOW_ID_HASH_TYPE_INNER_MASK 0x80
 
 /* Classification */
 #define EHDR_CLASS_FLAGS_MASK 0x00ffffff
@@ -832,6 +841,8 @@ static const erf_meta_hf_template_t erf_meta_tags[] = {
   { ERF_META_TAG_relative_snaplen,  { "Relative Snap Length",               "relative_snaplen",  FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_temperature,       { "Temperature",                        "temperature",       FT_FLOAT,         BASE_NONE|BASE_UNIT_STRING, &units_degree_celsius, 0x0, NULL, HFILL } },
   { ERF_META_TAG_power,             { "Power Consumption",                  "power",             FT_FLOAT,         BASE_NONE|BASE_UNIT_STRING, &units_watt, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_vendor,            { "Vendor",                             "vendor",            FT_STRING,        BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_cpu_threads,       { "CPU Threads",                        "cpu_threads",       FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
 
   { ERF_META_TAG_if_num,            { "Interface Number",                   "if_num",            FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_if_vc,             { "Interface Virtual Circuit",          "if_vc",             FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
@@ -895,8 +906,32 @@ static const erf_meta_hf_template_t erf_meta_tags[] = {
   { ERF_META_TAG_dpi_application,       { "DPI Application",                "dpi_application",   FT_STRING,        BASE_NONE,         NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_dpi_confidence,        { "DPI Confidence",                 "dpi_confidence",    FT_STRING,        BASE_NONE,         NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_dpi_state,             { "DPI State",                      "dpi_state",         FT_UINT32,        BASE_NONE,         VALS(erf_dpi_state), 0x0, NULL, HFILL } },
-  { ERF_META_TAG_dpi_protocol_stack,    { "DPI Protocol Stack",             "dpi_protocol_stack", FT_STRING,        BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_dpi_protocol_stack,    { "DPI Protocol Stack",             "dpi_protocol_stack", FT_STRING,       BASE_NONE,         NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_flow_state,            { "Flow State",                     "flow_state",        FT_UINT32,        BASE_NONE,         VALS(erf_flow_state), 0x0, NULL, HFILL } },
+  { ERF_META_TAG_vlan_id,           { "VLAN ID",                            "vlan_id",           FT_INT32,         BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_mpls_label,        { "MPLS Label",                         "mpls_label",        FT_INT32,         BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_vlan_pcp,          { "VLAN PCP",                           "vlan_pcp",          FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_mpls_tc,           { "MPLS_TC",                            "mpls_tc",           FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_dscp,              { "DSCP",                               "dscp",              FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_initiator_mpls_label, { "Initiator MPLS Label",            "initiator_mpls_label", FT_INT32,      BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_responder_mpls_label, { "Responder MPLS Label",            "responder_mpls_label", FT_INT32,      BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_initiator_mpls_tc, { "Initiator MPLS TC",                  "initiator_mpls_tc", FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_responder_mpls_tc, { "Responder MPLS TC",                  "responder_mpls_tc", FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_initiator_ipv4,    { "Initiator IPv4",                     "initiator_ipv4",    FT_IPv4,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_responder_ipv4,    { "Responder IPv4",                     "responder_ipv4",    FT_IPv4,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_initiator_ipv6,    { "Initiator IPv6",                     "initiator_ipv6",    FT_IPv6,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_responder_ipv6,    { "Responder IPv6",                     "responder_ipv6",    FT_IPv6,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_initiator_mac,     { "Initiator MAC Address",              "initiator_mac",     FT_ETHER,         BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_responder_mac,     { "Responder MAC Address",              "responder_mac",     FT_ETHER,         BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_initiator_port,    { "Initiator Port",                     "initiator_port",    FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_responder_port,    { "Responder Port",                     "responder_port",    FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_initiator_retx,    { "Initiator Retransmissions",          "initiator_retx",    FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_responder_retx,    { "Responder Retransmissions",          "responder_retx",    FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_initiator_zwin,    { "Initiator Zero Window Count",        "initiator_zwin",    FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_responder_zwin,    { "Responder Zero Window Count",        "responder_zwin",    FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_initiator_tcp_flags, { "Initiator TCP Flags",              "initiator_zwin",    FT_BYTES,         BASE_NONE,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_responder_tcp_flags, { "Responder TCP Flags",              "responder_zwin",    FT_BYTES,         BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_tcp_irtt,          { "TCP Initial Round Trip Time",        "tcp_irtt",          FT_RELATIVE_TIME, BASE_NONE,         NULL, 0x0, NULL, HFILL } },
 
   { ERF_META_TAG_start_time,        { "Start Time",                         "start_time",        FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_end_time,          { "End Time",                           "end_time",          FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL, 0x0, NULL, HFILL } },
@@ -923,6 +958,27 @@ static const erf_meta_hf_template_t erf_meta_tags[] = {
   { ERF_META_TAG_stat_buf_drop,     { "Buffer Drop",                        "stat_buf_drop",     FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_stream_drop,       { "Stream Drop",                        "stream_drop",       FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_stream_buf_drop,   { "Stream Buffer Drop",                 "stream_buf_drop",   FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_pkt_drop,          { "Packet Drop",                        "packet_drop",       FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_record_drop,       { "Record Drop",                        "record_drop",       FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_bandwidth,         { "Bandwidth",                          "bandwidth",         FT_UINT64,        BASE_DEC|BASE_UNIT_STRING, &units_bit_sec, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_duration,          { "Duration",                           "packet_drop",       FT_RELATIVE_TIME, BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_top_index,         { "Top N Index",                        "top_index",         FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_concurrent_flows,  { "Concurrent Flows",                   "concurrent_flows",  FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_active_flows,      { "Active Flows",                       "active_flows",      FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_created_flows,     { "Created Flows",                      "created_flows",     FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_deleted_flows,     { "Deleted Flows",                      "deleted_flows",     FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_active_endpoints,  { "Active Endpoints",                   "active_endpoints",  FT_UINT32,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_tx_pkts,           { "Transmitted Packets",                "tx_packets",        FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_tx_bytes,          { "Transmitted Bytes",                  "tx_bytes",          FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_rx_bandwidth,      { "Receive Bandwidth",                  "rx_bandwidth",      FT_UINT64,        BASE_DEC|BASE_UNIT_STRING, &units_bit_sec, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_tx_bandwidth,      { "Transmit Bandwidth",                 "tx_bandwidth",      FT_UINT64,        BASE_DEC|BASE_UNIT_STRING, &units_bit_sec, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_records,           { "Records",                            "records",           FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_record_bytes,      { "Record Bytes",                       "record_bytes",      FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_pkt_drop_bytes,    { "Packet Drop Bytes",                  "packet_drop_bytes", FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_record_drop_bytes, { "Record Drop Bytes",                  "record_drop_bytes", FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_drop_bandwidth,    { "Drop Bandwidth",                     "drop_bandwidth",    FT_UINT64,        BASE_DEC|BASE_UNIT_STRING, &units_bit_sec, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_retx_pkts,         { "Retransmitted Packets",              "retx_packets",      FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_zwin_pkts,         { "Zero-Window Packets",                "zwin_packets",      FT_UINT64,        BASE_DEC,          NULL, 0x0, NULL, HFILL } },
 
   { ERF_META_TAG_ns_host_ipv4,      { "IPv4 Name",                          "ns_host_ipv4",      FT_IPv4,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_ns_host_ipv6,      { "IPv6 Name",                          "ns_host_ipv6",      FT_IPv6,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
@@ -938,6 +994,7 @@ static const erf_meta_hf_template_t erf_meta_tags[] = {
   { ERF_META_TAG_exthdr,            { "ERF Extension Header",               "exthdr",            FT_BYTES,         BASE_NONE,         NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_pcap_ng_block,     { "Pcapng Block",                       "pcap_ng_block",     FT_BYTES,         BASE_NONE,         NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_asn1,              { "ASN.1",                              "asn1",              FT_BYTES,         BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_section_ref,       { "Section Reference",                  "section_ref",       FT_BYTES,         BASE_NONE,         NULL, 0x0, NULL, HFILL } },
 
   { ERF_META_TAG_clk_source,             { "Clock Source",                  "clk_source",             FT_UINT32,   BASE_DEC,          VALS(erf_clk_source), 0x0, NULL, HFILL } },
   { ERF_META_TAG_clk_state,              { "Clock State",                   "clk_state",              FT_UINT32,   BASE_DEC,          VALS(erf_clk_state), 0x0, NULL, HFILL } },
@@ -962,15 +1019,15 @@ static const erf_meta_hf_template_t erf_meta_tags[] = {
   { ERF_META_TAG_ptp_domain_num,         { "PTP Domain Number",             "ptp_domain_num",         FT_UINT32,   BASE_DEC,          NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_ptp_steps_removed,      { "PTP Steps Removed",             "ptp_steps_removed",      FT_UINT32,   BASE_DEC,          NULL, 0x0, NULL, HFILL } },
   /* PTP TimeInterval scaled nanoseconds, using FT_RELATIVE_TIME so can compare with clk_threshold */
-  { ERF_META_TAG_ptp_offset_from_master, { "PTP Offset From Master",        "ptp_offset_from_master", FT_RELATIVE_TIME, BASE_NONE,         NULL, 0x0, NULL, HFILL } },
-  { ERF_META_TAG_ptp_mean_path_delay,    { "PTP Mean Path Delay",           "ptp_mean_path_delay",    FT_RELATIVE_TIME, BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_ptp_offset_from_master, { "PTP Offset From Master",        "ptp_offset_from_master", FT_RELATIVE_TIME, BASE_NONE,    NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_ptp_mean_path_delay,    { "PTP Mean Path Delay",           "ptp_mean_path_delay",    FT_RELATIVE_TIME, BASE_NONE,    NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_ptp_parent_identity,    { "PTP Parent Clock Identity",     "ptp_parent_identity",    FT_EUI64,    BASE_NONE,         NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_ptp_parent_port_num,    { "PTP Parent Port Number",        "ptp_parent_port_num",    FT_UINT32,   BASE_DEC,          NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_ptp_gm_identity,        { "PTP Grandmaster Identity",      "ptp_gm_identity",        FT_EUI64,    BASE_NONE,         NULL, 0x0, NULL, HFILL } },
   /* PTP ClockQuality combined field, see erf_ptp_clock_quality */
   { ERF_META_TAG_ptp_gm_clock_quality,   { "PTP Grandmaster Clock Quality", "ptp_gm_clock_quality",   FT_UINT32,   BASE_HEX,          NULL, 0x0, NULL, HFILL } },
   /* Integer seconds, using FT_RELATIVE_TIME so can compare with clk_phc_offset */
-  { ERF_META_TAG_ptp_current_utc_offset, { "PTP Current UTC Offset",        "ptp_current_utc_offset", FT_RELATIVE_TIME, BASE_NONE,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_ptp_current_utc_offset, { "PTP Current UTC Offset",        "ptp_current_utc_offset", FT_RELATIVE_TIME, BASE_NONE,    NULL, 0x0, NULL, HFILL } },
   /* PTP TIME_PROPERTIES_DATA_SET flags, see erf_ptp_time_properties_flags */
   { ERF_META_TAG_ptp_time_properties,    { "PTP Time Properties",           "ptp_time_properties",    FT_UINT32,   BASE_HEX,          NULL, 0x0, NULL, HFILL } },
   { ERF_META_TAG_ptp_time_source,        { "PTP Time Source",               "ptp_time_source",        FT_UINT32,   BASE_DEC | BASE_EXT_STRING, &ptp_v2_timeSource_vals_ext, 0x0, NULL, HFILL } },
@@ -979,7 +1036,17 @@ static const erf_meta_hf_template_t erf_meta_tags[] = {
   { ERF_META_TAG_ptp_port_state,         { "PTP Port State",                "ptp_port_state",         FT_UINT32,   BASE_DEC | BASE_EXT_STRING, &ptp_v2_portState_vals_ext, 0x0, NULL, HFILL } },
   { ERF_META_TAG_ptp_delay_mechanism,    { "PTP Delay Mechanism",           "ptp_delay_mechanism",    FT_UINT32,   BASE_DEC, VALS(ptp_v2_delayMechanism_vals), 0x0, NULL, HFILL } },
 
-  { ERF_META_TAG_clk_port_proto,         { "Clock Input Port Protocol",     "clk_port_proto",         FT_UINT32,   BASE_DEC, VALS(erf_clk_port_proto), 0x0, NULL, HFILL } }
+  { ERF_META_TAG_clk_port_proto,         { "Clock Input Port Protocol",     "clk_port_proto",         FT_UINT32,   BASE_DEC, VALS(erf_clk_port_proto), 0x0, NULL, HFILL } },
+
+  { ERF_META_TAG_ntp_status,             { "NTP Status",                    "ntp_status",             FT_UINT32,   BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_ntp_stratum,            { "NTP Stratum",                   "ntp_stratum",            FT_UINT32,   BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_ntp_rootdelay,          { "NTP Root Delay",                "ntp_root_delay",         FT_INT32,    BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_ntp_rootdisp,           { "NTP Root Dispersion",           "ntp_root_dispersion",    FT_UINT32,   BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_ntp_offset,             { "NTP Offset",                    "ntp_offset",             FT_INT32,    BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_ntp_frequency,          { "NTP Frequency",                 "ntp_frequency",          FT_INT32,    BASE_DEC|BASE_UNIT_STRING, &units_hz, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_ntp_sys_jitter,         { "NTP System Jitter",             "ntp_sys_jitter",         FT_UINT32,   BASE_DEC,          NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_ntp_peer_remote,        { "NTP Peer Remote",               "ntp_peer_remote",        FT_STRING,   BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_TAG_ntp_peer_refid,         { "NTP Peer Refid",                "ntp_peer_refid",         FT_STRING,   BASE_NONE,         NULL, 0x0, NULL, HFILL } }
 };
 
 /* Sections are also tags, but enumerate them seperately to make logic simpler */
@@ -1002,7 +1069,11 @@ static const erf_meta_hf_template_t erf_meta_sections[] = {
   { ERF_META_SECTION_STREAM,        { "Stream Section",                     "section_stream",    FT_NONE,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
   { ERF_META_SECTION_TRANSFORM,     { "Transform Section",                  "section_transform", FT_NONE,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
   { ERF_META_SECTION_DNS,           { "DNS Section",                        "section_dns",       FT_NONE,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
-  { ERF_META_SECTION_SOURCE,        { "Source Section",                     "section_source",    FT_NONE,          BASE_NONE,         NULL, 0x0, NULL, HFILL } }
+  { ERF_META_SECTION_SOURCE,        { "Source Section",                     "section_source",    FT_NONE,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_SECTION_NETWORK,       { "Network Section",                    "section_network",   FT_NONE,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_SECTION_ENDPOINT,      { "Endpoint Section",                   "section_endpoint",  FT_NONE,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_SECTION_INPUT,         { "Input Section",                      "section_input",     FT_NONE,          BASE_NONE,         NULL, 0x0, NULL, HFILL } },
+  { ERF_META_SECTION_OUTPUT,        { "Output Section",                     "section_output",    FT_NONE,          BASE_NONE,         NULL, 0x0, NULL, HFILL } }
 };
 
 static int erf_type_has_color(unsigned int type) {
@@ -1704,7 +1775,7 @@ dissect_channelised_ex_header(tvbuff_t *tvb,  packet_info *pinfo, proto_tree *tr
   guint8             vc_size          = (guint8)((hdr >> 16) & 0xFF);
   guint8             line_rate        = (guint8)((hdr >> 8) & 0xFF);
   sdh_g707_format_t  g707_format;
-  wmem_strbuf_t     *vc_id_string = wmem_strbuf_new_label(pinfo->pool);
+  wmem_strbuf_t     *vc_id_string = wmem_strbuf_create(pinfo->pool);
 
   channelised_fill_sdh_g707_format(&g707_format, vc_id, vc_size, line_rate);
   channelised_fill_vc_id_string(vc_id_string, &g707_format);
@@ -1769,9 +1840,25 @@ dissect_flow_id_ex_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, i
 {
   if(tree) {
     guint64     hdr = pinfo->pseudo_header->erf.ehdr_list[idx].ehdr;
+    guint8      hash_type = (guint8)((hdr >> 40) & 0xFF);
+    proto_item *hash_type_item;
+    proto_tree *hash_type_tree;
 
     proto_tree_add_uint(tree, hf_erf_ehdr_flow_id_source_id,  tvb, 0, 0, (guint8)((hdr >> 48) & 0xFF));
-    proto_tree_add_uint(tree, hf_erf_ehdr_flow_id_hash_type,  tvb, 0, 0, (guint8)((hdr >> 40) & 0xFF));
+
+    hash_type_item = proto_tree_add_uint_format_value(tree, hf_erf_ehdr_flow_id_hash_type, tvb, 0, 0, hash_type,
+                                                    "0x%02x (%s%s)",
+                                                    hash_type,
+                                                    (hash_type & ERF_EHDR_FLOW_ID_HASH_TYPE_INNER_MASK) ? "Inner " : "",
+                                                    val_to_str_const(
+                                                      (hash_type & ERF_EHDR_FLOW_ID_HASH_TYPE_TYPE_MASK),
+                                                      erf_hash_type,
+                                                      "Unknown Type"));
+
+    hash_type_tree = proto_item_add_subtree(hash_type_item, ett_erf_hash_type);
+    proto_tree_add_uint(hash_type_tree, hf_erf_ehdr_flow_id_hash_type_type,  tvb, 0, 0, hash_type);
+    proto_tree_add_uint(hash_type_tree, hf_erf_ehdr_flow_id_hash_type_inner, tvb, 0, 0, hash_type);
+
     proto_tree_add_uint(tree, hf_erf_ehdr_flow_id_stack_type, tvb, 0, 0, (guint8)((hdr >> 32) & 0xFF));
     proto_tree_add_uint(tree, hf_erf_ehdr_flow_id_flow_hash,  tvb, 0, 0, (guint32)(hdr & 0xFFFFFFFF));
   }
@@ -1879,7 +1966,7 @@ static void dissect_host_anchor_id(tvbuff_t *tvb, packet_info *pinfo, proto_tree
         proto_item_set_generated(pi);
         /* XXX: Need to do this each time because pinfo is discarded. Filtering does not reset visited as it does not do a full redissect.
         We also might not catch all frames in the first pass (e.g. comment after record). */
-        mark_frame_as_depended_upon(pinfo, anchored_info->frame_num);
+        mark_frame_as_depended_upon(pinfo->fd, anchored_info->frame_num);
       }
       frame = wmem_list_frame_next(frame);
     }
@@ -1925,12 +2012,12 @@ dissect_host_id_source_id(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, g
       pi = proto_tree_add_uint(hostid_tree, hf_erf_source_next, tvb, 0, 0, fnum_next);
       proto_item_set_generated(pi);
       /* XXX: Save the surrounding nearest periodic records when we do a filtered save so we keep native ERF metadata */
-      mark_frame_as_depended_upon(pinfo, fnum_next);
+      mark_frame_as_depended_upon(pinfo->fd, fnum_next);
     }
     if (fnum != G_MAXUINT32) {
       pi = proto_tree_add_uint(hostid_tree, hf_erf_source_prev, tvb, 0, 0, fnum);
       proto_item_set_generated(pi);
-      mark_frame_as_depended_upon(pinfo, fnum);
+      mark_frame_as_depended_upon(pinfo->fd, fnum);
     }
   }
 }
@@ -2583,7 +2670,7 @@ meta_tag_expected_length(erf_meta_tag_info_t *tag_info) {
       break;
 
     default:
-      expected_length = ftype_length(ftype); /* Returns 0 if unknown */
+      expected_length = ftype_wire_size(ftype); /* Returns 0 if unknown */
       break;
   }
 
@@ -2648,7 +2735,7 @@ dissect_meta_record_tags(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree) {
   int captured_length = (int) tvb_captured_length(tvb);
 
   /* Set column heading title*/
-  col_set_str(pinfo->cinfo, COL_INFO, "Provenance Metadata Record");
+  col_set_str(pinfo->cinfo, COL_INFO, "Provenance Metadata");
 
   /* Go through the sections and their tags */
   /* Not using tvb_captured_length because want to check for overrun */
@@ -2720,6 +2807,7 @@ dissect_meta_record_tags(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree) {
       DISSECTOR_ASSERT(tag_info->extra);
 
       tagvalstring = val_to_str(tagtype, erf_to_value_string(erf_meta_index.vs_list), "Unknown Section (0x%x)");
+      col_append_sep_fstr(pinfo->cinfo, COL_INFO, NULL, "%s", tagvalstring);
       section_tree = proto_tree_add_subtree(tree, tvb, offset, 0, tag_info->extra->ett_value, &section_pi, tagvalstring);
       tag_tree = proto_tree_add_subtree_format(section_tree, tvb, offset, MIN(taglength + 4, remaining_len), tag_info->ett, &tag_pi, "Provenance %s Header", tagvalstring);
 
@@ -2822,7 +2910,7 @@ dissect_meta_record_tags(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree) {
             val_to_str(value32, erf_to_value_string(erf_meta_index.vs_list), "Unknown Section (%u)"), tvb_get_ntohs(tvb, offset + 4 + 2));
 
         proto_tree_add_uint_format_value(tag_tree, tag_info->extra->hf_values[0], tvb, offset + 4, MIN(2, taglength), value32, "%s (%u)",
-            val_to_str(value32, erf_to_value_string(erf_meta_index.vs_abbrev_list), "Unknown"), value32);
+            val_to_str_const(value32, erf_to_value_string(erf_meta_index.vs_abbrev_list), "Unknown"), value32);
         proto_tree_add_item(tag_tree, tag_info->extra->hf_values[1], tvb, offset + 6, MIN(2, taglength - 2), ENC_BIG_ENDIAN);
         break;
 
@@ -2852,7 +2940,7 @@ dissect_meta_record_tags(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree) {
       case ERF_META_TAG_ns_host_ib_lid:
       case ERF_META_TAG_ns_host_fc_id:
       {
-        int addr_len = ftype_length(tag_ft);
+        int addr_len = ftype_wire_size(tag_ft);
 
         DISSECTOR_ASSERT(tag_info->extra);
 
@@ -2920,11 +3008,11 @@ dissect_meta_record_tags(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree) {
 
       /* If not special case, dissect generically from template */
       if (!dissected) {
-        if (IS_FT_INT(tag_ft) || IS_FT_UINT(tag_ft)) {
+        if (FT_IS_INT(tag_ft) || FT_IS_UINT(tag_ft)) {
           tag_pi = proto_tree_add_item(section_tree, tag_info->hf_value, tvb, offset + 4, taglength, ENC_BIG_ENDIAN);
-        } else if (IS_FT_STRING(tag_ft)) {
+        } else if (FT_IS_STRING(tag_ft)) {
           tag_pi = proto_tree_add_item(section_tree, tag_info->hf_value, tvb, offset + 4, taglength, ENC_UTF_8);
-        } else if (IS_FT_TIME(tag_ft)) {
+        } else if (FT_IS_TIME(tag_ft)) {
           /*
            * ERF timestamps are conveniently the same as NTP/PTP timestamps but
            * little endian.
@@ -2964,7 +3052,7 @@ dissect_meta_record_tags(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree) {
      * XXX: Formatting value manually because don't have erf_meta_vs_list
      * populated at registration time.
      */
-    proto_tree_add_uint_format_value(tag_tree, hf_erf_meta_tag_type, tvb, offset, 2, tagtype, "%s (%u)", val_to_str(tagtype, erf_to_value_string(erf_meta_index.vs_abbrev_list), "Unknown"), tagtype);
+    proto_tree_add_uint_format_value(tag_tree, hf_erf_meta_tag_type, tvb, offset, 2, tagtype, "%s (%u)", val_to_str_const(tagtype, erf_to_value_string(erf_meta_index.vs_abbrev_list), "Unknown"), tagtype);
     proto_tree_add_uint(tag_tree, hf_erf_meta_tag_len, tvb, offset + 2, 2, taglength);
 
     /* Add truncated expertinfo if needed */
@@ -3457,7 +3545,13 @@ proto_register_erf(void)
         FT_UINT8, BASE_DEC, NULL, 0, NULL, HFILL } },
     { &hf_erf_ehdr_flow_id_hash_type,
       { "Hash Type", "erf.ehdr.flowid.hashtype",
-        FT_UINT8, BASE_HEX, VALS(erf_hash_type), 0, NULL, HFILL } },
+        FT_UINT8, BASE_HEX, NULL, 0, NULL, HFILL } },
+    { &hf_erf_ehdr_flow_id_hash_type_type,
+      { "Type", "erf.ehdr.flowid.hashtype.type",
+        FT_UINT8, BASE_DEC, VALS(erf_hash_type), ERF_EHDR_FLOW_ID_HASH_TYPE_TYPE_MASK, NULL, HFILL } },
+    { &hf_erf_ehdr_flow_id_hash_type_inner,
+      { "Hash is for Tunnel Inner", "erf.ehdr.flowid.hashtype.inner",
+        FT_UINT8, BASE_DEC, NULL, ERF_EHDR_FLOW_ID_HASH_TYPE_INNER_MASK, NULL, HFILL } },
     { &hf_erf_ehdr_flow_id_stack_type,
       { "Stack Type", "erf.ehdr.flowid.stacktype",
         FT_UINT8, BASE_HEX, VALS(erf_stack_type), 0, NULL, HFILL } },
@@ -3770,6 +3864,7 @@ proto_register_erf(void)
     &ett_erf,
     &ett_erf_pseudo_hdr,
     &ett_erf_rectype,
+    &ett_erf_hash_type,
     &ett_erf_flags,
     &ett_erf_mc_hdlc,
     &ett_erf_mc_raw,

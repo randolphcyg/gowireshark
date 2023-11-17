@@ -91,13 +91,13 @@
 #define DOT11_FLAG_FCS_INVALID  0x0004
 #define DOT11_FLAG_PHY_ERROR    0x0008
 
-#define DOT11N_FLAG_GREENFIELD      0x0001
-#define DOT11N_FLAG_HT40            0x0002
-#define DOT11N_FLAG_SHORT_GI        0x0004
-#define DOT11N_FLAG_DUPLICATE_RX    0x0008
-#define DOT11N_FLAG_IS_AGGREGATE    0x0010
-#define DOT11N_FLAG_MORE_AGGREGATES 0x0020
-#define DOT11N_FLAG_AGG_CRC_ERROR   0x0040
+#define DOT11N_FLAG_GREENFIELD      0x00000001
+#define DOT11N_FLAG_HT40            0x00000002
+#define DOT11N_FLAG_SHORT_GI        0x00000004
+#define DOT11N_FLAG_DUPLICATE_RX    0x00000008
+#define DOT11N_FLAG_IS_AGGREGATE    0x00000010
+#define DOT11N_FLAG_MORE_AGGREGATES 0x00000020
+#define DOT11N_FLAG_AGG_CRC_ERROR   0x00000040
 
 #define DOT11N_IS_AGGREGATE(flags)      (flags & DOT11N_FLAG_IS_AGGREGATE)
 #define DOT11N_MORE_AGGREGATES(flags)   ( \
@@ -1107,9 +1107,10 @@ dissect_ppi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
         /* Make sure we aren't going to go past AGGREGATE_MAX
          * and caclulate our full A-MPDU length */
         fd_head = fragment_get(&ampdu_reassembly_table, pinfo, ampdu_id, NULL);
-        while (fd_head) {
-            ampdu_len += fd_head->len + PADDING4(fd_head->len) + 4;
-            fd_head = fd_head->next;
+        if (fd_head) {
+            for (ft_fdh = fd_head->next; ft_fdh; ft_fdh = ft_fdh->next) {
+                ampdu_len += ft_fdh->len + PADDING4(ft_fdh->len) + 4;
+            }
         }
         if (ampdu_len > AGGREGATE_MAX) {
             proto_tree_add_expert_format(ppi_tree, pinfo, &ei_ppi_invalid_length, tvb, offset, -1, "Aggregate length greater than maximum (%u)", AGGREGATE_MAX);
@@ -1132,7 +1133,7 @@ dissect_ppi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 
         /* Show our fragments */
         if (fd_head && tree) {
-            ft_fdh = fd_head;
+            ft_fdh = fd_head->next;
             /* List our fragments */
             seg_tree = proto_tree_add_subtree_format(ppi_tree, tvb, offset, -1,
                     ett_ampdu_segments, &ti, "A-MPDU (%u bytes w/hdrs):", ampdu_len);
@@ -1168,18 +1169,17 @@ dissect_ppi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
                 agg_tree = proto_item_add_subtree(ti, ett_ampdu);
             }
 
-            while (fd_head) {
-                if (fd_head->tvb_data && fd_head->len) {
+            for (ft_fdh = fd_head->next; ft_fdh; ft_fdh = ft_fdh->next) {
+                if (ft_fdh->tvb_data && ft_fdh->len) {
                     mpdu_count++;
                     mpdu_str = wmem_strdup_printf(pinfo->pool, "MPDU #%d", mpdu_count);
 
-                    next_tvb = tvb_new_chain(tvb, fd_head->tvb_data);
+                    next_tvb = tvb_new_chain(tvb, ft_fdh->tvb_data);
                     add_new_data_source(pinfo, next_tvb, mpdu_str);
 
                     ampdu_tree = proto_tree_add_subtree(agg_tree, next_tvb, 0, -1, ett_ampdu_segment, NULL, mpdu_str);
                     call_dissector_with_data(ieee80211_radio_handle, next_tvb, pinfo, ampdu_tree, &phdr);
                 }
-                fd_head = fd_head->next;
             }
             proto_tree_add_uint(seg_tree, hf_ampdu_count, tvb, 0, 0, mpdu_count);
             pinfo->fragmented=FALSE;
@@ -1322,25 +1322,25 @@ proto_register_ppi(void)
          FT_UINT32, BASE_HEX, NULL, 0x0, "PPI 802.11n MAC flags", HFILL } },
     { &hf_80211n_mac_flags_greenfield,
        { "Greenfield flag", "ppi.80211n-mac.flags.greenfield",
-         FT_BOOLEAN, 32, TFS(&tfs_true_false), DOT11N_FLAG_GREENFIELD, "PPI 802.11n MAC Greenfield Flag", HFILL } },
+         FT_BOOLEAN, 32, NULL, DOT11N_FLAG_GREENFIELD, "PPI 802.11n MAC Greenfield Flag", HFILL } },
     { &hf_80211n_mac_flags_ht20_40,
        { "HT20/HT40 flag", "ppi.80211n-mac.flags.ht20_40",
          FT_BOOLEAN, 32, TFS(&tfs_ht20_40), DOT11N_FLAG_HT40, "PPI 802.11n MAC HT20/HT40 Flag", HFILL } },
     { &hf_80211n_mac_flags_rx_guard_interval,
        { "RX Short Guard Interval (SGI) flag", "ppi.80211n-mac.flags.rx.short_guard_interval",
-         FT_BOOLEAN, 32, TFS(&tfs_true_false), DOT11N_FLAG_SHORT_GI, "PPI 802.11n MAC RX Short Guard Interval (SGI) Flag", HFILL } },
+         FT_BOOLEAN, 32, NULL, DOT11N_FLAG_SHORT_GI, "PPI 802.11n MAC RX Short Guard Interval (SGI) Flag", HFILL } },
     { &hf_80211n_mac_flags_duplicate_rx,
        { "Duplicate RX flag", "ppi.80211n-mac.flags.rx.duplicate",
-         FT_BOOLEAN, 32, TFS(&tfs_true_false), DOT11N_FLAG_DUPLICATE_RX, "PPI 802.11n MAC Duplicate RX Flag", HFILL } },
+         FT_BOOLEAN, 32, NULL, DOT11N_FLAG_DUPLICATE_RX, "PPI 802.11n MAC Duplicate RX Flag", HFILL } },
     { &hf_80211n_mac_flags_aggregate,
        { "Aggregate flag", "ppi.80211n-mac.flags.agg",
-         FT_BOOLEAN, 32, TFS(&tfs_true_false), DOT11N_FLAG_IS_AGGREGATE, "PPI 802.11 MAC Aggregate Flag", HFILL } },
+         FT_BOOLEAN, 32, NULL, DOT11N_FLAG_IS_AGGREGATE, "PPI 802.11 MAC Aggregate Flag", HFILL } },
     { &hf_80211n_mac_flags_more_aggregates,
        { "More aggregates flag", "ppi.80211n-mac.flags.more_agg",
-         FT_BOOLEAN, 32, TFS(&tfs_true_false), DOT11N_FLAG_MORE_AGGREGATES, "PPI 802.11n MAC More Aggregates Flag", HFILL } },
+         FT_BOOLEAN, 32, NULL, DOT11N_FLAG_MORE_AGGREGATES, "PPI 802.11n MAC More Aggregates Flag", HFILL } },
     { &hf_80211n_mac_flags_delimiter_crc_after,
        { "A-MPDU Delimiter CRC error after this frame flag", "ppi.80211n-mac.flags.delim_crc_error_after",
-         FT_BOOLEAN, 32, TFS(&tfs_true_false), DOT11N_FLAG_AGG_CRC_ERROR, "PPI 802.11n MAC A-MPDU Delimiter CRC Error After This Frame Flag", HFILL } },
+         FT_BOOLEAN, 32, NULL, DOT11N_FLAG_AGG_CRC_ERROR, "PPI 802.11n MAC A-MPDU Delimiter CRC Error After This Frame Flag", HFILL } },
     { &hf_80211n_mac_ampdu_id,
        { "AMPDU-ID", "ppi.80211n-mac.ampdu_id",
          FT_UINT32, BASE_HEX, NULL, 0x0, "PPI 802.11n MAC AMPDU-ID", HFILL } },
@@ -1491,25 +1491,25 @@ proto_register_ppi(void)
             FT_UINT32, BASE_HEX, NULL, 0x0, "PPI 802.3 Extension Flags", HFILL } },
     { &hf_8023_extension_flags_fcs_present,
        { "FCS Present Flag", "ppi.8023_extension.flags.fcs_present",
-            FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0001, "FCS (4 bytes) is present at the end of the packet", HFILL } },
+            FT_BOOLEAN, 32, NULL, 0x00000001, "FCS (4 bytes) is present at the end of the packet", HFILL } },
     { &hf_8023_extension_errors,
        { "Errors", "ppi.8023_extension.errors",
             FT_UINT32, BASE_HEX, NULL, 0x0, "PPI 802.3 Extension Errors", HFILL } },
     { &hf_8023_extension_errors_fcs,
        { "FCS Error", "ppi.8023_extension.errors.fcs",
-            FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0001,
+            FT_BOOLEAN, 32, NULL, 0x00000001,
             "PPI 802.3 Extension FCS Error", HFILL } },
     { &hf_8023_extension_errors_sequence,
        { "Sequence Error", "ppi.8023_extension.errors.sequence",
-            FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0002,
+            FT_BOOLEAN, 32, NULL, 0x00000002,
             "PPI 802.3 Extension Sequence Error", HFILL } },
     { &hf_8023_extension_errors_symbol,
        { "Symbol Error", "ppi.8023_extension.errors.symbol",
-            FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0004,
+            FT_BOOLEAN, 32, NULL, 0x00000004,
             "PPI 802.3 Extension Symbol Error", HFILL } },
     { &hf_8023_extension_errors_data,
        { "Data Error", "ppi.8023_extension.errors.data",
-            FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0008,
+            FT_BOOLEAN, 32, NULL, 0x00000008,
             "PPI 802.3 Extension Data Error", HFILL } },
 
       /* Generated from convert_proto_tree_add_text.pl */

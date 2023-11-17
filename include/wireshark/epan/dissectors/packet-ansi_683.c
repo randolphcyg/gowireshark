@@ -25,6 +25,7 @@
 void proto_register_ansi_683(void);
 void proto_reg_handoff_ansi_683(void);
 
+static dissector_handle_t ansi_683_handle;
 
 static const char *ansi_proto_name = "ANSI IS-683 (OTA (Mobile))";
 
@@ -3382,9 +3383,9 @@ proto_register_ansi_683(void)
         },
 
       /* Generated from convert_proto_tree_add_text.pl */
-      { &hf_ansi_683_fresh_incl16, { "FRESH_INCL", "ansi_683.fresh_incl", FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x8000, NULL, HFILL }},
+      { &hf_ansi_683_fresh_incl16, { "FRESH_INCL", "ansi_683.fresh_incl", FT_BOOLEAN, 16, NULL, 0x8000, NULL, HFILL }},
       { &hf_ansi_683_fresh, { "FRESH", "ansi_683.fresh", FT_UINT16, BASE_DEC, NULL, 0x7fff, NULL, HFILL }},
-      { &hf_ansi_683_fresh_incl8, { "FRESH_INCL", "ansi_683.fresh_incl", FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x80, NULL, HFILL }},
+      { &hf_ansi_683_fresh_incl8, { "FRESH_INCL", "ansi_683.fresh_incl", FT_BOOLEAN, 8, NULL, 0x80, NULL, HFILL }},
       { &hf_ansi_683_firstchp, { "First paging channel (FIRSTCHP) used in the home system", "ansi_683.firstchp", FT_UINT16, BASE_DEC, NULL, 0xffe0, NULL, HFILL }},
       { &hf_ansi_683_home_sid, { "Home system identification (HOME_SID)", "ansi_683.home_sid", FT_UINT24, BASE_DEC, NULL, 0x1fffc0, NULL, HFILL }},
       { &hf_ansi_683_extended_address_indicator, { "Extended address indicator (EX)", "ansi_683.extended_address_indicator", FT_UINT8, BASE_DEC, NULL, 0x20, NULL, HFILL }},
@@ -3412,7 +3413,7 @@ proto_register_ansi_683(void)
       { &hf_ansi_683_sid_nid_pairs_3fff, { "SID/NID pairs", "ansi_683.sid_nid_pairs", FT_UINT16, BASE_DEC, NULL, 0x3fff, NULL, HFILL }},
       { &hf_ansi_683_n_digits, { "Number of digits (N_DIGITS)", "ansi_683.n_digits", FT_UINT8, BASE_DEC, NULL, 0xf0, NULL, HFILL }},
       { &hf_ansi_683_slotted_mode, { "Slotted Mode", "ansi_683.slotted_mode", FT_UINT8, BASE_DEC, NULL, 0x20, NULL, HFILL }},
-      { &hf_ansi_683_mob_p_rev_ff, { "Mobile station protocol revision number (MOB_P_REV)", "ansi_683.mob_p_rev", FT_UINT8, BASE_DEC, NULL, 0xFF, NULL, HFILL }},
+      { &hf_ansi_683_mob_p_rev_ff, { "Mobile station protocol revision number (MOB_P_REV)", "ansi_683.mob_p_rev", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_ansi_683_imsi_m_class8000, { "IMSI_M Class assignment of the mobile station (IMSI_M_CLASS)", "ansi_683.imsi_m_class", FT_UINT16, BASE_DEC, NULL, 0x8000, NULL, HFILL }},
       { &hf_ansi_683_imsi_m_addr_num_7000, { "Number of IMSI_M address digits (IMSI_M_ADDR_NUM)", "ansi_683.imsi_m_addr_num", FT_UINT16, BASE_DEC, NULL, 0x7000, NULL, HFILL }},
       { &hf_ansi_683_mcc_m_0ffc, { "Mobile country code (MCC_M)", "ansi_683.mcc_m", FT_UINT16, BASE_DEC, NULL, 0x0ffc, NULL, HFILL }},
@@ -3463,7 +3464,7 @@ proto_register_ansi_683(void)
       { &hf_ansi_683_authr, { "Authentication signature data (AUTHR)", "ansi_683.authr", FT_UINT24, BASE_DEC, NULL, 0xffffc0, NULL, HFILL }},
       { &hf_ansi_683_randc, { "Random challenge value (RANDC)", "ansi_683.randc", FT_UINT16, BASE_DEC, NULL, 0x3fc0, NULL, HFILL }},
       { &hf_ansi_683_call_history_parameter, { "Call history parameter (COUNT)", "ansi_683.call_history_parameter", FT_UINT8, BASE_DEC, NULL, 0x3f, NULL, HFILL }},
-      { &hf_ansi_683_authentication_data_input_parameter, { "Authentication Data input parameter (AUTH_DATA)", "ansi_683.authentication_data_input_parameter", FT_UINT24, BASE_DEC, NULL, 0xffffff, NULL, HFILL }},
+      { &hf_ansi_683_authentication_data_input_parameter, { "Authentication Data input parameter (AUTH_DATA)", "ansi_683.authentication_data_input_parameter", FT_UINT24, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_ansi_683_data_commit_result_code, { "Data commit result code", "ansi_683.data_commit_result_code", FT_UINT8, BASE_DEC|BASE_RANGE_STRING, RVALS(result_codes_rvals), 0x0, NULL, HFILL }},
       { &hf_ansi_683_mobile_station_fw_rev, { "Mobile station firmware revision number", "ansi_683.mobile_station_fw_rev", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_ansi_683_mobile_station_manuf_model_number, { "Mobile station manufacturer's model number", "ansi_683.mobile_station_manuf_model_number", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
@@ -3554,16 +3555,15 @@ proto_register_ansi_683(void)
     proto_register_subtree_array(ett, array_length(ett));
     expert_ansi_683 = expert_register_protocol(proto_ansi_683);
     expert_register_field_array(expert_ansi_683, ei, array_length(ei));
+
+    /* Register the dissector */
+    ansi_683_handle = register_dissector("ansi_683", dissect_ansi_683, proto_ansi_683);
 }
 
 
 void
 proto_reg_handoff_ansi_683(void)
 {
-    dissector_handle_t  ansi_683_handle;
-
-    ansi_683_handle = create_dissector_handle(dissect_ansi_683, proto_ansi_683);
-
     dissector_add_uint("ansi_map.ota", ANSI_683_FORWARD, ansi_683_handle);
     dissector_add_uint("ansi_map.ota", ANSI_683_REVERSE, ansi_683_handle);
     dissector_add_uint("ansi_a.ota", ANSI_683_FORWARD, ansi_683_handle);

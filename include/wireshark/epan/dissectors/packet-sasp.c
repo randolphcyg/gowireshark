@@ -22,6 +22,8 @@
 void proto_register_sasp(void);
 void proto_reg_handoff_sasp(void);
 
+static dissector_handle_t sasp_handle;
+
 static void dissect_reg_req(tvbuff_t *tvb, proto_tree *tree, guint32 offset);
 static void dissect_dereg_req(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset);
 static void dissect_reg_rep(tvbuff_t *tvb, proto_tree *tree, guint32 offset);
@@ -512,7 +514,7 @@ static void dissect_dereg_req(tvbuff_t *tvb, packet_info *pinfo, proto_tree *pay
     proto_tree      *dereg_req_data;
     guint8           reason_flag;
     static gboolean  first_flag         = TRUE;
-    wmem_strbuf_t   *reasonflags_strbuf = wmem_strbuf_new_label(pinfo->pool);
+    wmem_strbuf_t   *reasonflags_strbuf = wmem_strbuf_create(pinfo->pool);
     static const gchar *fstr[] = {"No Reason", "Learned & Purposeful" };
 
     dereg_req_data = proto_tree_add_subtree(pay_load, tvb, offset, -1, ett_sasp_dereg_req_sz, NULL, "DeReg Request");
@@ -1508,6 +1510,7 @@ void proto_register_sasp(void)
     expert_module_t* expert_sasp;
 
     proto_sasp = proto_register_protocol("Server/Application State Protocol", "SASP", "sasp");
+    sasp_handle = register_dissector("sasp", dissect_sasp, proto_sasp);
 
     proto_register_field_array(proto_sasp, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
@@ -1530,9 +1533,6 @@ void proto_register_sasp(void)
 void
 proto_reg_handoff_sasp(void)
 {
-    dissector_handle_t sasp_handle;
-
-    sasp_handle = create_dissector_handle(dissect_sasp, proto_sasp);
     dissector_add_uint_with_preference("tcp.port", SASP_GLOBAL_PORT, sasp_handle);
 }
 

@@ -191,6 +191,7 @@ setup_rlc_mac_priv(RlcMacPrivateData_t *rm, gboolean is_uplink,
 {
 	guint nc, dbl = 0, dbo[2] = {0,0};
 
+	DISSECTOR_ASSERT(rm->mcs < G_N_ELEMENTS(data_block_len_by_mcs));
 	dbl = data_block_len_by_mcs[rm->mcs];
 
 	switch (rm->block_format) {
@@ -601,7 +602,7 @@ proto_register_abis_pgsl(void)
 		{ &hf_pgsl_codec_delay,
 			{ "Codec Delay", "gsm_abis_pgsl.codec_delay",
 			  FT_UINT8, BASE_DEC, NULL, 0xe0,
-			  "Estimated Accss Delay Deviation", HFILL }
+			  "Estimated Access Delay Deviation", HFILL }
 		},
 		{ &hf_pgsl_codec_cs,
 			{ "Codec CS", "gsm_abis_pgsl.codec_csy",

@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-tcap.h                                                              */
-/* asn2wrs.py -b -p tcap -c ./tcap.cnf -s ./packet-tcap-template -D . -O ../.. tcap.asn UnidialoguePDUs.asn DialoguePDUs.asn */
+/* asn2wrs.py -b -L -p tcap -c ./tcap.cnf -s ./packet-tcap-template -D . -O ../.. tcap.asn UnidialoguePDUs.asn DialoguePDUs.asn */
 
-/* Input file: packet-tcap-template.h */
-
-#line 1 "./asn1/tcap/packet-tcap-template.h"
 /* packet-tcap.h
  *
  * Copyright 2004, Tim Endean <endeant@hotmail.com>
@@ -217,15 +214,9 @@ WS_DLL_PUBLIC void delete_itu_tcap_subdissector(guint32 ssn, dissector_handle_t 
 
 extern void call_tcap_dissector(dissector_handle_t, tvbuff_t*, packet_info*, proto_tree*);
 
-
-/*--- Included file: packet-tcap-exp.h ---*/
-#line 1 "./asn1/tcap/packet-tcap-exp.h"
 extern const value_string tcap_UniDialoguePDU_vals[];
 extern const value_string tcap_DialoguePDU_vals[];
-int dissect_tcap_UniDialoguePDU(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
-int dissect_tcap_DialoguePDU(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
-
-/*--- End of included file: packet-tcap-exp.h ---*/
-#line 213 "./asn1/tcap/packet-tcap-template.h"
+int dissect_tcap_UniDialoguePDU(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
+int dissect_tcap_DialoguePDU(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
 
 #endif  /* PACKET_tcap_H */

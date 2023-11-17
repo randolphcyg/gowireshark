@@ -47,6 +47,8 @@
 void proto_register_dcerpc(void);
 void proto_reg_handoff_dcerpc(void);
 
+static dissector_handle_t dcerpc_tcp_handle;
+
 static int dcerpc_tap = -1;
 
 /* 32bit Network Data Representation, see DCE/RPC Appendix I */
@@ -995,7 +997,7 @@ dcerpc_decode_as_change(const char *name, gconstpointer pattern, gconstpointer h
 {
     const decode_dcerpc_bind_values_t *binding = (const decode_dcerpc_bind_values_t*)pattern;
     decode_dcerpc_bind_values_t *stored_binding;
-    guid_key     *key = *((guid_key *const *)handle);
+    const guid_key     *key = (const guid_key *)handle;
 
     /* remove a probably existing old binding */
     decode_dcerpc_binding_reset(name, binding);
@@ -1199,7 +1201,7 @@ void register_dcerpc_auth_subdissector(guint8 auth_level, guint8 auth_type,
 
     d->auth_level = auth_level;
     d->auth_type = auth_type;
-    memcpy(&d->auth_fns, fns, sizeof(dcerpc_auth_subdissector_fns));
+    d->auth_fns = *fns;
 
     dcerpc_auth_subdissector_list = g_slist_append(dcerpc_auth_subdissector_list, d);
 }
@@ -5546,14 +5548,6 @@ dissect_dcerpc_cn(tvbuff_t *tvb, int offset, packet_info *pinfo,
     hdr.call_id = dcerpc_tvb_get_ntohl(tvb, offset, hdr.drep);
     /*offset += 4;*/
 
-    if (decode_data->dcectxid == 0) {
-        col_append_fstr(pinfo->cinfo, COL_DCE_CALL, "%u", hdr.call_id);
-    } else {
-        /* this is not the first DCE-RPC request/response in this (TCP?-)PDU,
-         * prepend a delimiter */
-        col_append_fstr(pinfo->cinfo, COL_DCE_CALL, "#%u", hdr.call_id);
-    }
-
     if (can_desegment && pinfo->can_desegment
         && !tvb_bytes_exist(tvb, start_offset, hdr.frag_len)) {
         pinfo->desegment_offset = start_offset;
@@ -6582,7 +6576,6 @@ dissect_dcerpc_dg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
     if (tree)
         proto_tree_add_uint(dcerpc_tree, hf_dcerpc_dg_seqnum, tvb, offset, 4, hdr.seqnum);
     col_append_fstr(pinfo->cinfo, COL_INFO, ": seq: %u", hdr.seqnum);
-    col_append_fstr(pinfo->cinfo, COL_DCE_CALL, "%u", hdr.seqnum);
     offset += 4;
 
     if (tree)
@@ -6812,9 +6805,9 @@ proto_register_dcerpc(void)
         { &hf_dcerpc_cn_bind_trans_btfn, /* [MS-RPCE] 2.2.2.14 */
           {"Bind Time Features", "dcerpc.cn_bind_trans_btfn", FT_UINT16, BASE_HEX, NULL, 0, NULL, HFILL }},
         { &hf_dcerpc_cn_bind_trans_btfn_01,
-          { "Security Context Multiplexing Supported", "dcerpc.cn_bind_trans_btfn.01", FT_BOOLEAN, 16, NULL, 0x01, NULL, HFILL }},
+          { "Security Context Multiplexing Supported", "dcerpc.cn_bind_trans_btfn.01", FT_BOOLEAN, 16, NULL, 0x0001, NULL, HFILL }},
         { &hf_dcerpc_cn_bind_trans_btfn_02,
-          { "Keep Connection On Orphan Supported", "dcerpc.cn_bind_trans_btfn.02", FT_BOOLEAN, 16, NULL, 0x02, NULL, HFILL }},
+          { "Keep Connection On Orphan Supported", "dcerpc.cn_bind_trans_btfn.02", FT_BOOLEAN, 16, NULL, 0x0002, NULL, HFILL }},
         { &hf_dcerpc_cn_alloc_hint,
           { "Alloc hint", "dcerpc.cn_alloc_hint", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_dcerpc_cn_sec_addr_len,
@@ -7180,7 +7173,7 @@ proto_register_dcerpc(void)
     expert_dcerpc = expert_register_protocol(proto_dcerpc);
     expert_register_field_array(expert_dcerpc, ei, array_length(ei));
 
-    uuid_dissector_table = register_dissector_table("dcerpc.uuid", "DCE/RPC UUIDs", proto_dcerpc, FT_GUID, BASE_HEX);
+    uuid_dissector_table = register_dissector_table(DCERPC_TABLE_NAME, "DCE/RPC UUIDs", proto_dcerpc, FT_GUID, BASE_HEX);
 
     /* structures and data for BIND */
     dcerpc_binds = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(), dcerpc_bind_hash, dcerpc_bind_equal);
@@ -7235,14 +7228,14 @@ proto_register_dcerpc(void)
                                               sizeof(TRAILER_SIGNATURE),
                                               sizeof(TRAILER_SIGNATURE));
 
+    dcerpc_tcp_handle = register_dissector("dcerpc.tcp", dissect_dcerpc_tcp, proto_dcerpc);
+
     register_shutdown_routine(dcerpc_shutdown);
 }
 
 void
 proto_reg_handoff_dcerpc(void)
 {
-    dissector_handle_t dcerpc_tcp_handle;
-
     heur_dissector_add("tcp", dissect_dcerpc_tcp_heur, "DCE/RPC over TCP", "dcerpc_tcp", proto_dcerpc, HEURISTIC_ENABLE);
     heur_dissector_add("netbios", dissect_dcerpc_cn_pk, "DCE/RPC over NetBios", "dcerpc_netbios", proto_dcerpc, HEURISTIC_ENABLE);
     heur_dissector_add("udp", dissect_dcerpc_dg, "DCE/RPC over UDP", "dcerpc_udp", proto_dcerpc, HEURISTIC_ENABLE);
@@ -7251,7 +7244,6 @@ proto_reg_handoff_dcerpc(void)
     heur_dissector_add("http", dissect_dcerpc_cn_bs, "DCE/RPC over HTTP", "dcerpc_http", proto_dcerpc, HEURISTIC_ENABLE);
     dcerpc_smb_init(proto_dcerpc);
 
-    dcerpc_tcp_handle = create_dissector_handle(dissect_dcerpc_tcp, proto_dcerpc);
     dissector_add_for_decode_as("tcp.port", dcerpc_tcp_handle);
 
     guids_add_uuid(&uuid_data_repr_proto, "32bit NDR");

@@ -283,7 +283,7 @@ dissect_applemidi_heur( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	   address/port-tuple to cause RTP-dissector to call the RTP-MIDI-dissector for payload-decoding */
 
 	rtp_dyn_payload = rtp_dyn_payload_new();
-	rtp_dyn_payload_insert(rtp_dyn_payload, 97, "rtp-midi", 10000);
+	rtp_dyn_payload_insert(rtp_dyn_payload, 97, "rtp-midi", 10000, 1);
 	rtp_add_address( pinfo, PT_UDP, &pinfo->src, pinfo->srcport, 0, APPLEMIDI_DISSECTOR_SHORTNAME,
 			 pinfo->num, FALSE, rtp_dyn_payload);
 
@@ -500,14 +500,11 @@ proto_register_applemidi( void )
 	proto_register_field_array( proto_applemidi, hf, array_length( hf ) );
 	proto_register_subtree_array( ett, array_length( ett ) );
 
+	applemidi_handle = register_dissector( "applemidi", dissect_applemidi, proto_applemidi );
 }
 
 void
 proto_reg_handoff_applemidi( void ) {
-
-
-	applemidi_handle = create_dissector_handle( dissect_applemidi, proto_applemidi );
-
 	/* If we cannot decode the data it will be RTP-MIDI since the Apple session protocol uses
 	 * two ports: the control-port and the MIDI-port.  On both ports an invitation is being sent.
 	 * The second port is then used for the RTP-MIDI-data. So if we can't find valid AppleMidi

@@ -15,12 +15,11 @@
 #include <include/ws_symbol_export.h>
 #include <wsutil/nstime.h>
 
-#include <wiretap/wtap.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
+typedef struct wtap_rec wtap_rec;
 struct _packet_info;
 struct epan_session;
 
@@ -71,6 +70,7 @@ typedef struct _frame_data {
      LLP64 (64-bit Windows) platforms.  Put them here, one after the
      other, so they don't require padding between them. */
   GSList      *pfd;          /**< Per frame proto data */
+  GHashTable  *dependent_frames;     /**< A hash table of frames which this one depends on */
   const struct _color_filter *color_filter;  /**< Per-packet matching color_filter_t object */
   guint16      subnum;       /**< subframe number, for protocols that require this */
   /* Keep the bitfields below to 16 bits, so this plus the previous field
@@ -91,6 +91,7 @@ typedef struct _frame_data {
   nstime_t     shift_offset; /**< How much the abs_tm of the frame is shifted */
   guint32      frame_ref_num; /**< Previous reference frame (0 if this is one) */
   guint32      prev_dis_num; /**< Previous displayed frame (0 if first one) */
+  guint8       tcp_snd_manual_analysis;   /**< TCP SEQ Analysis Overriding, 0 = none, 1 = OOO, 2 = RET , 3 = Fast RET, 4 = Spurious RET */
 } frame_data;
 DIAG_ON_PEDANTIC
 

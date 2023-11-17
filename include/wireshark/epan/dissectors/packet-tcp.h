@@ -304,14 +304,14 @@ typedef enum {
 typedef struct tcp_analyze_seq_flow_info_t {
 	tcp_unacked_t *segments;/* List of segments for which we haven't seen an ACK */
 	guint16 segment_count;	/* How many unacked segments we're currently storing */
-    guint32 lastack;	/* Last seen ack for the reverse flow */
+	guint32 lastack;	/* Last seen ack for the reverse flow */
 	nstime_t lastacktime;	/* Time of the last ack packet */
 	guint32 lastnondupack;	/* frame number of last seen non dupack */
 	guint32 dupacknum;	/* dupack number */
 	guint32 nextseq;	/* highest seen nextseq */
 	guint32 maxseqtobeacked;/* highest seen continuous seq number (without hole in the stream) from the fwd party,
 				 * this is the maximum seq number that can be acked by the rev party in normal case.
-				 * If the rev party sends an ACK beyond this seq number it indicates TCP_A_ACK_LOST_PACKET contition */
+				 * If the rev party sends an ACK beyond this seq number it indicates TCP_A_ACK_LOST_PACKET condition */
 	guint32 nextseqframe;	/* frame number for segment with highest
 				 * sequence number
 				 */
@@ -319,6 +319,8 @@ typedef struct tcp_analyze_seq_flow_info_t {
 				 * distinguish between retransmission,
 				 * fast retransmissions and outoforder
 				 */
+
+	guint8  lastacklen;     /* length of the last fwd ACK packet - 0 means pure ACK */
 
 	/*
 	 * Handling of SACK blocks
@@ -492,6 +494,9 @@ struct tcp_analysis {
 	 */
 	guint8          conversation_completeness;
 
+	/* Stores the value as a String to be displayed in the appropriate field */
+	gchar           *conversation_completeness_str;
+
 	/* Track AccECN support */
 	gboolean had_acc_ecn_setup_syn;
 	gboolean had_acc_ecn_setup_syn_ack;
@@ -504,6 +509,7 @@ struct tcp_analysis {
  */
 struct tcp_per_packet_data_t {
 	nstime_t	ts_del;
+	guint8		tcp_snd_manual_analysis;
 };
 
 /* Structure that keeps per packet data. Some operations are cpu-intensive and are

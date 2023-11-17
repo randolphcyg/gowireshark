@@ -134,6 +134,7 @@ static gint ett_rtmpt_video_control = -1;
 static gint ett_rtmpt_tag = -1;
 static gint ett_rtmpt_tag_data = -1;
 
+static dissector_handle_t amf_handle;
 static dissector_handle_t rtmpt_tcp_handle;
 static dissector_handle_t rtmpt_http_handle;
 
@@ -296,12 +297,13 @@ static const value_string rtmpt_video_types[] = {
 
 /* from FLV v10.1 section E.4.3.1 */
 static const value_string rtmpt_video_codecs[] = {
-        { 2,                                "Sorensen H.263" },
-        { 3,                                "Screen video" },
-        { 4,                                "On2 VP6" },
-        { 5,                                "On2 VP6+alpha" },
-        { 6,                                "Screen video version 2" },
-        { 7,                                "H.264" },
+        {  2,                               "Sorensen H.263" },
+        {  3,                               "Screen video" },
+        {  4,                               "On2 VP6" },
+        {  5,                               "On2 VP6+alpha" },
+        {  6,                               "Screen video version 2" },
+        {  7,                               "H.264" },
+        { 12,                               "H.265" },
         { 0, NULL }
 };
 
@@ -2747,6 +2749,9 @@ proto_register_rtmpt(void)
         proto_register_field_array(proto_rtmpt, hf, array_length(hf));
         proto_register_subtree_array(ett, array_length(ett));
 
+        rtmpt_tcp_handle = register_dissector("rtmpt.tcp", dissect_rtmpt_tcp, proto_rtmpt);
+        rtmpt_http_handle = register_dissector("rtmpt.http", dissect_rtmpt_http, proto_rtmpt);
+
         rtmpt_module = prefs_register_protocol(proto_rtmpt, NULL);
         prefs_register_bool_preference(rtmpt_module, "desegment",
                                        "Reassemble RTMPT messages spanning multiple TCP segments",
@@ -2970,21 +2975,17 @@ proto_register_amf(void)
         proto_register_subtree_array(ett, array_length(ett));
         expert_amf = expert_register_protocol(proto_amf);
         expert_register_field_array(expert_amf, ei, array_length(ei));
+
+        amf_handle = register_dissector("amf", dissect_amf, proto_amf);
 }
 
 void
 proto_reg_handoff_rtmpt(void)
 {
-        dissector_handle_t amf_handle;
-
         heur_dissector_add("tcp", dissect_rtmpt_heur, "RTMPT over TCP", "rtmpt_tcp", proto_rtmpt, HEURISTIC_DISABLE);
-        rtmpt_tcp_handle = create_dissector_handle(dissect_rtmpt_tcp, proto_rtmpt);
         dissector_add_uint_with_preference("tcp.port", RTMP_PORT, rtmpt_tcp_handle);
 
-        rtmpt_http_handle = create_dissector_handle(dissect_rtmpt_http, proto_rtmpt);
         dissector_add_string("media_type", "application/x-fcs", rtmpt_http_handle);
-
-        amf_handle = create_dissector_handle(dissect_amf, proto_amf);
         dissector_add_string("media_type", "application/x-amf", amf_handle);
 }
 

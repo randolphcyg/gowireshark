@@ -18,6 +18,8 @@
 void proto_reg_handoff_hicp(void);
 void proto_register_hicp(void);
 
+static dissector_handle_t hicp_handle;
+
 /* Protocols and header fields. */
 static int proto_hicp = -1;
 static int hf_hicp_cmd = -1;
@@ -89,7 +91,7 @@ dissect_hicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
     gint lengthp = 0;
     gdouble ext_value = 0;
 
-    const guint8* parameters_ptr = NULL;
+    const char* parameters_ptr = NULL;
     gchar** parameters = NULL;
     gchar* parameter_value = NULL;
 
@@ -105,7 +107,7 @@ dissect_hicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 
     hicp_tree = proto_item_add_subtree(ti, ett_hicp);
 
-    parameters_ptr = tvb_get_const_stringz(tvb, offset, &lengthp);
+    parameters_ptr = tvb_get_stringz_enc(pinfo->pool, tvb, offset, &lengthp, ENC_ASCII);
     parameters = wmem_strsplit(pinfo->pool, (const gchar*)parameters_ptr, HICP_DELIMITER, -1);
     for (guint i = 0; i < g_strv_length(parameters); i++) {
         if (g_strrstr(parameters[i], " = ") != NULL) {
@@ -380,25 +382,20 @@ proto_register_hicp(void)
         }
     };
 
-    proto_hicp = proto_register_protocol(
-        "Host IP Configuration Protocol",
-        "HICP",
-        "hicp");
+    proto_hicp = proto_register_protocol("Host IP Configuration Protocol", "HICP", "hicp");
 
     proto_register_field_array(proto_hicp, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
 
     expert_hicp = expert_register_protocol(proto_hicp);
     expert_register_field_array(expert_hicp, ei, array_length(ei));
+
+    hicp_handle = register_dissector("hicp", dissect_hicp, proto_hicp);
 }
 
 void
 proto_reg_handoff_hicp(void)
 {
-    static dissector_handle_t hicp_handle;
-
-    hicp_handle = create_dissector_handle(dissect_hicp, proto_hicp);
-
     dissector_add_uint("udp.port", HICP_PORT, hicp_handle);
 }
 

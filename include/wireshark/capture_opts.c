@@ -10,6 +10,8 @@
 
 #include <config.h>
 
+#include <include/wireshark.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -19,33 +21,30 @@
 
 #ifdef HAVE_LIBPCAP
 
-#include <string.h>
-
 #include <errno.h>
 
-#include <glib.h>
+#include <ws_exit_codes.h>
 
 #include "capture_opts.h"
 #include "ringbuffer.h"
 
-#include <ui/clopts_common.h>
-#include <ui/cmdarg_err.h>
-#include <ui/exit_codes.h>
+#include <wsutil/clopts_common.h>
+#include <wsutil/cmdarg_err.h>
 #include <wsutil/file_util.h>
 #include <wsutil/ws_pipe.h>
 #include <wsutil/ws_assert.h>
+#include <wsutil/filter_files.h>
 
 #include "capture/capture_ifinfo.h"
 #include "capture/capture-pcap-util.h"
-
-#include "ui/filter_files.h"
 
 static gboolean capture_opts_output_to_pipe(const char *save_file, gboolean *is_pipe);
 
 
 void
-capture_opts_init(capture_options *capture_opts)
+capture_opts_init(capture_options *capture_opts, GList *(*get_iface_list)(int *, gchar **))
 {
+    capture_opts->get_iface_list                  = get_iface_list;
     capture_opts->ifaces                          = g_array_new(FALSE, FALSE, sizeof(interface_options));
     capture_opts->all_ifaces                      = g_array_new(FALSE, FALSE, sizeof(interface_t));
     capture_opts->num_selected                    = 0;
@@ -99,6 +98,7 @@ capture_opts_init(capture_options *capture_opts)
     capture_opts->save_file                       = NULL;
     capture_opts->group_read_access               = FALSE;
     capture_opts->use_pcapng                      = TRUE;             /* Save as pcapng by default */
+    capture_opts->update_interval                 = DEFAULT_UPDATE_INTERVAL; /* 100 ms */
     capture_opts->real_time_mode                  = TRUE;
     capture_opts->show_info                       = TRUE;
     capture_opts->restart                         = FALSE;
@@ -194,7 +194,7 @@ capture_opts_log(const char *log_domain, enum ws_log_level log_level, capture_op
         ws_log(log_domain, log_level, "Promiscuous Mode[%02d]: %s", i, interface_opts->promisc_mode?"TRUE":"FALSE");
         ws_log(log_domain, log_level, "Extcap[%02d]          : %s", i, interface_opts->extcap ? interface_opts->extcap : "(unspecified)");
         ws_log(log_domain, log_level, "Extcap FIFO[%02d]     : %s", i, interface_opts->extcap_fifo ? interface_opts->extcap_fifo : "(unspecified)");
-        ws_log(log_domain, log_level, "Extcap PID[%02d]      : %d", i, interface_opts->extcap_pid);
+        ws_log(log_domain, log_level, "Extcap PID[%02d]      : %"PRIdMAX, i, (intmax_t)interface_opts->extcap_pid);
 #ifdef CAN_SET_CAPTURE_BUFFER_SIZE
         ws_log(log_domain, log_level, "Buffer size[%02d]     : %d (MB)", i, interface_opts->buffer_size);
 #endif
@@ -270,6 +270,7 @@ capture_opts_log(const char *log_domain, enum ws_log_level log_level, capture_op
     ws_log(log_domain, log_level, "SaveFile            : %s", (capture_opts->save_file) ? capture_opts->save_file : "");
     ws_log(log_domain, log_level, "GroupReadAccess     : %u", capture_opts->group_read_access);
     ws_log(log_domain, log_level, "Fileformat          : %s", (capture_opts->use_pcapng) ? "PCAPNG" : "PCAP");
+    ws_log(log_domain, log_level, "UpdateInterval      : %u (ms)", capture_opts->update_interval);
     ws_log(log_domain, log_level, "RealTimeMode        : %u", capture_opts->real_time_mode);
     ws_log(log_domain, log_level, "ShowInfo            : %u", capture_opts->show_info);
 
@@ -372,7 +373,7 @@ static gboolean get_filter_arguments(capture_options* capture_opts, const char* 
     }
 
     if (filter_exp == NULL) {
-        /* No filter expression found yet; fallback to previous implemention
+        /* No filter expression found yet; fallback to previous implementation
            and assume the arg contains a filter expression */
         if (colonp) {
             *colonp = ':';      /* restore colon */
@@ -601,19 +602,14 @@ fill_in_interface_opts_from_ifinfo(interface_options *interface_opts,
     interface_opts->extcap = g_strdup(if_info->extcap);
 }
 
-static gboolean
-fill_in_interface_opts_from_ifinfo_by_name(interface_options *interface_opts,
-                                           const char *name)
+static if_info_t*
+find_ifinfo_by_name(GList *if_list, const char *name)
 {
-    gboolean    matched;
-    GList       *if_list;
-    int         err;
     GList       *if_entry;
-    if_info_t   *if_info;
+    if_info_t   *matched_if_info;
     size_t      prefix_length;
 
-    matched = FALSE;
-    if_list = capture_interface_list(&err, NULL, NULL);
+    matched_if_info = NULL;
     if (if_list != NULL) {
         /*
          * Try and do an exact match (case insensitive) on  the
@@ -623,7 +619,7 @@ fill_in_interface_opts_from_ifinfo_by_name(interface_options *interface_opts,
         for (if_entry = g_list_first(if_list); if_entry != NULL;
              if_entry = g_list_next(if_entry))
         {
-            if_info = (if_info_t *)if_entry->data;
+            if_info_t *if_info = (if_info_t *)if_entry->data;
 
             /*
              * Does the specified name match the interface name
@@ -633,7 +629,7 @@ fill_in_interface_opts_from_ifinfo_by_name(interface_options *interface_opts,
                 /*
                  * Yes.
                  */
-                matched = TRUE;
+                matched_if_info = if_info;
                 break;
             }
 
@@ -647,7 +643,7 @@ fill_in_interface_opts_from_ifinfo_by_name(interface_options *interface_opts,
                 /*
                  * Yes.
                  */
-                matched = TRUE;
+                matched_if_info = if_info;
                 break;
             }
 
@@ -664,17 +660,17 @@ fill_in_interface_opts_from_ifinfo_by_name(interface_options *interface_opts,
                     /*
                      * Yes.
                      */
-                    matched = TRUE;
+                    matched_if_info = if_info;
                 }
                 g_string_free(combined_name, TRUE);
-                if (matched == TRUE) {
+                if (matched_if_info != NULL) {
                     break;
                 }
             }
 #endif
         }
 
-        if (!matched) {
+        if (matched_if_info == NULL) {
             /*
              * We didn't find it; attempt a case-insensitive prefix match
              * of the friendly name.
@@ -683,7 +679,7 @@ fill_in_interface_opts_from_ifinfo_by_name(interface_options *interface_opts,
             for (if_entry = g_list_first(if_list); if_entry != NULL;
                  if_entry = g_list_next(if_entry))
             {
-                if_info = (if_info_t *)if_entry->data;
+                if_info_t *if_info = (if_info_t *)if_entry->data;
 
                 if (if_info->friendly_name != NULL &&
                     g_ascii_strncasecmp(if_info->friendly_name, name, prefix_length) == 0) {
@@ -691,21 +687,14 @@ fill_in_interface_opts_from_ifinfo_by_name(interface_options *interface_opts,
                      * We found an interface whose friendly name matches
                      * with a case-insensitive prefix match.
                      */
-                    matched = TRUE;
+                    matched_if_info = if_info;
                     break;
                 }
             }
         }
     }
 
-    if (matched) {
-        /*
-         * We found an interface that matches.
-         */
-        fill_in_interface_opts_from_ifinfo(interface_opts, if_info);
-    }
-    free_interface_list(if_list);
-    return matched;
+    return matched_if_info;
 }
 
 static int
@@ -753,7 +742,7 @@ capture_opts_add_iface_opt(capture_options *capture_opts, const char *optarg_str
             cmdarg_err("There is no interface with that adapter index");
             return 1;
         }
-        if_list = capture_interface_list(&err, &err_str, NULL);
+        if_list = capture_opts->get_iface_list(&err, &err_str);
         if (if_list == NULL) {
             if (err == 0)
                 cmdarg_err("There are no interfaces on which a capture can be done");
@@ -782,9 +771,26 @@ capture_opts_add_iface_opt(capture_options *capture_opts, const char *optarg_str
         /*
          * Search for that name in the interface list and, if we found
          * it, fill in fields in the interface_opts structure.
+         *
+         * XXX - if we can't get the interface list, we don't report
+         * an error, as, on Windows, that might be due to WinPcap or
+         * Npcap not being installed, but the specified "interface"
+         * might be the standard input ("=") or a pipe, and dumpcap
+         * should support capturing from the standard input or from
+         * a pipe even if there's no capture support from *pcap.
+         *
+         * Perhaps doing something similar to what was suggested
+         * for numerical interfaces should be done.
          */
-        if (!fill_in_interface_opts_from_ifinfo_by_name(&interface_opts,
-                                                        optarg_str_p)) {
+        if_list = capture_opts->get_iface_list(&err, &err_str);
+        if_info = find_ifinfo_by_name(if_list, optarg_str_p);
+        if (if_info != NULL) {
+            /*
+             * We found the interface in the list; fill in the
+             * interface_opts structure from its if_info.
+             */
+            fill_in_interface_opts_from_ifinfo(&interface_opts, if_info);
+        } else {
             /*
              * We didn't find the interface in the list; just use
              * the specified name, so that, for example, if an
@@ -800,6 +806,7 @@ capture_opts_add_iface_opt(capture_options *capture_opts, const char *optarg_str
             interface_opts.if_type = capture_opts->default_options.if_type;
             interface_opts.extcap = g_strdup(capture_opts->default_options.extcap);
         }
+        free_interface_list(if_list);
     }
 
     interface_opts.cfilter = g_strdup(capture_opts->default_options.cfilter);
@@ -1078,6 +1085,9 @@ capture_opts_add_opt(capture_options *capture_opts, int opt, const char *optarg_
 #endif /* S_IRWXU */
         capture_opts->temp_dir = g_strdup(optarg_str_p);
         break;
+    case LONGOPT_UPDATE_INTERVAL:  /* capture update interval */
+        capture_opts->update_interval = get_positive_int(optarg_str_p, "update interval");
+        break;
     default:
         /* the caller is responsible to send us only the right opt's */
         ws_assert_not_reached();
@@ -1097,7 +1107,7 @@ capture_opts_print_if_capabilities(if_capabilities_t *caps,
         if (caps->data_link_types == NULL) {
             cmdarg_err("The capture device \"%s\" has no data link types.",
                        interface_opts->name);
-            return IFACE_HAS_NO_LINK_TYPES;
+            return WS_EXIT_IFACE_HAS_NO_LINK_TYPES;
         }
         if (caps->can_set_rfmon)
             printf("Data link types of interface %s when %sin monitor mode (use option -y to set):\n",
@@ -1122,7 +1132,7 @@ capture_opts_print_if_capabilities(if_capabilities_t *caps,
         if (caps->timestamp_types == NULL) {
             cmdarg_err("The capture device \"%s\" has no timestamp types.",
                        interface_opts->name);
-            return IFACE_HAS_NO_TIMESTAMP_TYPES;
+            return WS_EXIT_IFACE_HAS_NO_TIMESTAMP_TYPES;
         }
         printf("Timestamp types of the interface (use option --time-stamp-type to set):\n");
         for (ts_entry = caps->timestamp_types; ts_entry != NULL;

@@ -4803,13 +4803,13 @@ dissect_btmesh_model_layer(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         } else {
         /* Two octet opcode */
         proto_tree_add_item_ret_uint(sub_tree, hf_btmesh_model_layer_opcode, tvb, offset, 2, ENC_NA, &opcode);
-        col_set_str(pinfo->cinfo, COL_INFO, val_to_str(opcode, btmesh_models_opcode_vals, "Access Message Unknown"));
+        col_set_str(pinfo->cinfo, COL_INFO, val_to_str_const(opcode, btmesh_models_opcode_vals, "Access Message Unknown"));
         offset+=2;
         }
     } else {
         /* One octet opcode */
         proto_tree_add_item(sub_tree, hf_btmesh_model_layer_opcode, tvb, offset, 1, ENC_NA);
-        col_set_str(pinfo->cinfo, COL_INFO, val_to_str(opcode, btmesh_models_opcode_vals, "Access Message Unknown"));
+        col_set_str(pinfo->cinfo, COL_INFO, val_to_str_const(opcode, btmesh_models_opcode_vals, "Access Message Unknown"));
         offset++;
     }
 
@@ -8201,7 +8201,7 @@ compute_ascii_key(guchar **ascii_key, const gchar *key, const gchar *key_name, g
     return key_len;
 }
 
-static gboolean
+static bool
 uat_btmesh_record_update_cb(void *r, char **err)
 {
     uat_btmesh_record_t *rec = (uat_btmesh_record_t *)r;
@@ -8298,7 +8298,7 @@ UAT_CSTRING_CB_DEF(uat_btmesh_records, network_key_string, uat_btmesh_record_t)
 UAT_CSTRING_CB_DEF(uat_btmesh_records, application_key_string, uat_btmesh_record_t)
 UAT_CSTRING_CB_DEF(uat_btmesh_records, ivindex_string, uat_btmesh_record_t)
 
-static gboolean
+static bool
 uat_btmesh_dev_key_record_update_cb(void *r, char **err)
 {
     uat_btmesh_dev_key_record_t *rec = (uat_btmesh_dev_key_record_t *)r;
@@ -8364,7 +8364,7 @@ uat_btmesh_dev_key_record_free_cb(void *r)
 UAT_CSTRING_CB_DEF(uat_btmesh_dev_key_records, device_key_string, uat_btmesh_dev_key_record_t)
 UAT_CSTRING_CB_DEF(uat_btmesh_dev_key_records, src_string, uat_btmesh_dev_key_record_t)
 
-static gboolean
+static bool
 uat_btmesh_label_uuid_record_update_cb(void *r, char **err)
 {
     uat_btmesh_label_uuid_record_t *rec = (uat_btmesh_label_uuid_record_t *)r;
@@ -8648,22 +8648,22 @@ proto_register_btmesh(void)
         },
         { &hf_btmesh_cntr_feature_relay,
             { "Relay feature in use", "btmesh.cntr.feature.relay",
-                FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0001,
+                FT_BOOLEAN, 16, NULL, 0x0001,
                 NULL, HFILL }
         },
         { &hf_btmesh_cntr_feature_proxy,
             { "Proxy feature in use", "btmesh.cntr.feature.proxy",
-                FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0002,
+                FT_BOOLEAN, 16, NULL, 0x0002,
                 NULL, HFILL }
         },
         { &hf_btmesh_cntr_feature_friend,
             { "Friend feature in use", "btmesh.cntr.feature.friend",
-                FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0004,
+                FT_BOOLEAN, 16, NULL, 0x0004,
                 NULL, HFILL }
         },
         { &hf_btmesh_cntr_feature_low_power,
             { "Low Power feature in use", "btmesh.cntr.feature.lowpower",
-                FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0008,
+                FT_BOOLEAN, 16, NULL, 0x0008,
                 NULL, HFILL }
         },
         { &hf_btmesh_cntr_feature_rfu,
@@ -8841,7 +8841,7 @@ proto_register_btmesh(void)
         },
         { &hf_btmesh_config_appkey_add_netkeyindexandappkeyindex_net,
             { "NetKeyIndex", "btmesh.model.config_appkey_add.netkeyindexandappkeyindex.net",
-            FT_UINT24, BASE_CUSTOM, CF_FUNC(format_key_index), 0xFFF,
+            FT_UINT24, BASE_CUSTOM, CF_FUNC(format_key_index), 0x000FFF,
             NULL, HFILL }
         },
         { &hf_btmesh_config_appkey_add_netkeyindexandappkeyindex_app,
@@ -8861,7 +8861,7 @@ proto_register_btmesh(void)
         },
         { &hf_btmesh_config_appkey_update_netkeyindexandappkeyindex_net,
             { "NetKeyIndex", "btmesh.model.config_appkey_update.netkeyindexandappkeyindex.net",
-            FT_UINT24, BASE_CUSTOM, CF_FUNC(format_key_index), 0xFFF,
+            FT_UINT24, BASE_CUSTOM, CF_FUNC(format_key_index), 0x000FFF,
             NULL, HFILL }
         },
         { &hf_btmesh_config_appkey_update_netkeyindexandappkeyindex_app,
@@ -9086,22 +9086,22 @@ proto_register_btmesh(void)
         },
         { &hf_btmesh_config_heartbeat_publication_status_features_relay,
             { "Relay feature change triggers a Heartbeat message", "btmesh.model.config_heartbeat_publication_status.features.relay",
-            FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0001,
+            FT_BOOLEAN, 16, NULL, 0x0001,
             NULL, HFILL }
         },
         { &hf_btmesh_config_heartbeat_publication_status_features_proxy,
             { "Proxy feature change triggers a Heartbeat message", "btmesh.model.config_heartbeat_publication_status.features.proxy",
-            FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0002,
+            FT_BOOLEAN, 16, NULL, 0x0002,
             NULL, HFILL }
         },
         { &hf_btmesh_config_heartbeat_publication_status_features_friend,
             { "Friend feature change triggers a Heartbeat message", "btmesh.model.config_heartbeat_publication_status.features.friend",
-            FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0004,
+            FT_BOOLEAN, 16, NULL, 0x0004,
             NULL, HFILL }
         },
         { &hf_btmesh_config_heartbeat_publication_status_features_low_power,
             { "Low Power feature change triggers a Heartbeat message", "btmesh.model.config_heartbeat_publication_status.features.low_power",
-            FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0008,
+            FT_BOOLEAN, 16, NULL, 0x0008,
             NULL, HFILL }
         },
         { &hf_btmesh_config_heartbeat_publication_status_features_rfu,
@@ -9136,7 +9136,7 @@ proto_register_btmesh(void)
         },
         { &hf_btmesh_config_appkey_delete_netkeyindexandappkeyindex_net,
             { "NetKeyIndex", "btmesh.model.config_appkey_delete.netkeyindexandappkeyindex.net",
-            FT_UINT24, BASE_CUSTOM, CF_FUNC(format_key_index), 0xFFF,
+            FT_UINT24, BASE_CUSTOM, CF_FUNC(format_key_index), 0x000FFF,
             NULL, HFILL }
         },
         { &hf_btmesh_config_appkey_delete_netkeyindexandappkeyindex_app,
@@ -9201,7 +9201,7 @@ proto_register_btmesh(void)
         },
         { &hf_btmesh_config_appkey_status_netkeyindexandappkeyindex_net,
             { "NetKeyIndex", "btmesh.model.config_appkey_status.netkeyindexandappkeyindex.net",
-            FT_UINT24, BASE_CUSTOM, CF_FUNC(format_key_index), 0xFFF,
+            FT_UINT24, BASE_CUSTOM, CF_FUNC(format_key_index), 0x000FFF,
             NULL, HFILL }
         },
         { &hf_btmesh_config_appkey_status_netkeyindexandappkeyindex_app,
@@ -9876,22 +9876,22 @@ proto_register_btmesh(void)
         },
         { &hf_btmesh_config_heartbeat_publication_set_features_relay,
             { "Relay feature change triggers a Heartbeat message", "btmesh.model.config_heartbeat_publication_set.features.relay",
-            FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0001,
+            FT_BOOLEAN, 16, NULL, 0x0001,
             NULL, HFILL }
         },
         { &hf_btmesh_config_heartbeat_publication_set_features_proxy,
             { "Proxy feature change triggers a Heartbeat message", "btmesh.model.config_heartbeat_publication_set.features.proxy",
-            FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0002,
+            FT_BOOLEAN, 16, NULL, 0x0002,
             NULL, HFILL }
         },
         { &hf_btmesh_config_heartbeat_publication_set_features_friend,
             { "Friend feature change triggers a Heartbeat message", "btmesh.model.config_heartbeat_publication_set.features.friend",
-            FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0004,
+            FT_BOOLEAN, 16, NULL, 0x0004,
             NULL, HFILL }
         },
         { &hf_btmesh_config_heartbeat_publication_set_features_low_power,
             { "Low Power feature change triggers a Heartbeat message", "btmesh.model.config_heartbeat_publication_set.features.low_power",
-            FT_BOOLEAN, 16, TFS(&tfs_true_false), 0x0008,
+            FT_BOOLEAN, 16, NULL, 0x0008,
             NULL, HFILL }
         },
         { &hf_btmesh_config_heartbeat_publication_set_features_rfu,

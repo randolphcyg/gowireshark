@@ -340,7 +340,7 @@ dissect_twamp_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
     it = proto_tree_add_item(tree, proto_twamp_control, tvb, 0, -1, ENC_NA);
     twamp_tree = proto_item_add_subtree(it, ett_twamp_control);
 
-    col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str_const(cp->state, twamp_control_state_vals, "Unknown"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str_const(cp->state, twamp_control_state_vals, "Unknown"));
 
     switch (cp->state) {
     case CONTROL_STATE_GREETING:
@@ -818,10 +818,7 @@ void proto_register_twamp(void)
 
 
     /* Register the protocol */
-    proto_twamp_test = proto_register_protocol(
-        "TwoWay Active Measurement Test Protocol",
-        "TWAMP-Test",
-        "twamp.test");
+    proto_twamp_test = proto_register_protocol("TwoWay Active Measurement Test Protocol", "TWAMP-Test", "twamp.test");
 
     /* Register the field array */
     proto_register_field_array (proto_twamp_test, hf_twamp_test,
@@ -831,11 +828,11 @@ void proto_register_twamp(void)
     proto_register_subtree_array (ett_twamp_test_arr,
                       array_length(ett_twamp_test_arr));
 
+    /* Register the dissector handle */
+    twamp_test_handle = register_dissector("twamp.test", dissect_twamp_test, proto_twamp_test);
+
     /* Register the protocol */
-    proto_twamp_control = proto_register_protocol(
-        "TwoWay Active Measurement Control Protocol",
-        "TWAMP-Control",
-        "twamp.control");
+    proto_twamp_control = proto_register_protocol("TwoWay Active Measurement Control Protocol", "TWAMP-Control", "twamp.control");
 
     /* Register the field array */
     proto_register_field_array (proto_twamp_control, hf_twamp_control,
@@ -845,20 +842,18 @@ void proto_register_twamp(void)
     proto_register_subtree_array (ett_twamp_control_arr,
                       array_length(ett_twamp_control_arr));
 
-    proto_owamp_test = proto_register_protocol(
-        "One-way Active Measurement Protocol",
-        "OWAMP-Test",
-        "owamp.test");
+    /* Register the dissector handle */
+    twamp_control_handle = register_dissector("twamp.control", dissect_twamp_server_greeting, proto_twamp_control);
 
+    /* Register the protocol */
+    proto_owamp_test = proto_register_protocol("One-way Active Measurement Protocol", "OWAMP-Test", "owamp.test");
+
+    /* Register the dissector handle */
+    owamp_test_handle = register_dissector("owamp.test", dissect_owamp_test, proto_owamp_test);
 }
 
 void proto_reg_handoff_twamp(void)
 {
-    twamp_test_handle = create_dissector_handle(dissect_twamp_test, proto_twamp_test);
-
-    owamp_test_handle = create_dissector_handle(dissect_owamp_test, proto_owamp_test);
-
-    twamp_control_handle = create_dissector_handle(dissect_twamp_server_greeting, proto_twamp_control);
     dissector_add_uint("tcp.port", TWAMP_CONTROL_PORT, twamp_control_handle);
 
     dissector_add_for_decode_as("udp.port", twamp_test_handle);

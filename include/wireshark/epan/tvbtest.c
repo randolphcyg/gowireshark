@@ -16,8 +16,11 @@
 #include <string.h>
 
 #include "tvbuff.h"
+#include "proto.h"
 #include "exceptions.h"
 #include "wsutil/pint.h"
+
+#include <include/ws_diag_control.h>
 
 gboolean failed = FALSE;
 
@@ -605,6 +608,201 @@ run_tests(void)
 	tvb_free_chain(tvb_parent);  /* should free all tvb's and associated data */
 }
 
+typedef struct
+{
+	// Raw bytes
+	gint enc_len;
+	const guint8 *enc;
+	// Varint parameters
+	int encoding;
+	int maxlen;
+	// Results
+	unsigned long expect_except;
+	guint64 expect_val;
+	guint expect_len;
+} varint_test_s;
+
+DIAG_OFF_PEDANTIC
+varint_test_s varint[] = {
+	{0, (const guint8 *)"", 0, FT_VARINT_MAX_LEN, DissectorError, 0, 0}, // no encoding specified
+	// ENC_VARINT_PROTOBUF
+	{0, (const guint8 *)"", ENC_VARINT_PROTOBUF, FT_VARINT_MAX_LEN, ReportedBoundsError, 0, 0},
+	{1, (const guint8 *)"\x00", ENC_VARINT_PROTOBUF, FT_VARINT_MAX_LEN, 0, 0, 1},
+	{1, (const guint8 *)"\x01", ENC_VARINT_PROTOBUF, FT_VARINT_MAX_LEN, 0, 1, 1},
+	{1, (const guint8 *)"\x7f", ENC_VARINT_PROTOBUF, FT_VARINT_MAX_LEN, 0, 0x7f, 1},
+	{2, (const guint8 *)"\x80\x01", ENC_VARINT_PROTOBUF, FT_VARINT_MAX_LEN, 0, G_GUINT64_CONSTANT(1)<<7, 2},
+	{1, (const guint8 *)"\x80", ENC_VARINT_PROTOBUF, FT_VARINT_MAX_LEN, ReportedBoundsError, 0, 0}, // truncated data
+	{2, (const guint8 *)"\x80\x01", ENC_VARINT_PROTOBUF, 1, 0, 0, 0}, // truncated read
+	{5, (const guint8 *)"\x80\x80\x80\x80\x01", ENC_VARINT_PROTOBUF, FT_VARINT_MAX_LEN, 0, G_GUINT64_CONSTANT(1)<<28, 5},
+	{10, (const guint8 *)"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01", ENC_VARINT_PROTOBUF, FT_VARINT_MAX_LEN, 0, G_GUINT64_CONSTANT(1)<<63, 10},
+	{10, (const guint8 *)"\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01", ENC_VARINT_PROTOBUF, FT_VARINT_MAX_LEN, 0, 0xffffffffffffffff, 10},
+	{10, (const guint8 *)"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x02", ENC_VARINT_PROTOBUF, FT_VARINT_MAX_LEN, 0, 0, 10}, // overflow
+	// ENC_VARINT_SDNV
+	{0, (const guint8 *)"", ENC_VARINT_SDNV, FT_VARINT_MAX_LEN, ReportedBoundsError, 0, 0},
+	{1, (const guint8 *)"\x00", ENC_VARINT_SDNV, FT_VARINT_MAX_LEN, 0, 0, 1},
+	{1, (const guint8 *)"\x01", ENC_VARINT_SDNV, FT_VARINT_MAX_LEN, 0, 1, 1},
+	{1, (const guint8 *)"\x7f", ENC_VARINT_SDNV, FT_VARINT_MAX_LEN, 0, 0x7f, 1},
+	{2, (const guint8 *)"\x81\x00", ENC_VARINT_SDNV, FT_VARINT_MAX_LEN, 0, G_GUINT64_CONSTANT(1)<<7, 2},
+	{1, (const guint8 *)"\x81", ENC_VARINT_SDNV, FT_VARINT_MAX_LEN, ReportedBoundsError, 1, 0}, // truncated data
+	{2, (const guint8 *)"\x81\x00", ENC_VARINT_SDNV, 1, 0, 1, 0}, // truncated read
+	{5, (const guint8 *)"\x81\x80\x80\x80\x00", ENC_VARINT_SDNV, FT_VARINT_MAX_LEN, 0, G_GUINT64_CONSTANT(1)<<28, 5},
+	{10, (const guint8 *)"\x81\x80\x80\x80\x80\x80\x80\x80\x80\x00", ENC_VARINT_SDNV, FT_VARINT_MAX_LEN, 0, G_GUINT64_CONSTANT(1)<<63, 10},
+	{10, (const guint8 *)"\x81\xff\xff\xff\xff\xff\xff\xff\xff\x7f", ENC_VARINT_SDNV, FT_VARINT_MAX_LEN, 0, 0xffffffffffffffff, 10},
+	{10, (const guint8 *)"\x82\x80\x80\x80\x80\x80\x80\x80\x80\x00", ENC_VARINT_SDNV, FT_VARINT_MAX_LEN, 0, G_GUINT64_CONSTANT(1)<<57, 0}, // overflow
+};
+DIAG_ON_PEDANTIC
+
+static void
+varint_tests(void)
+{
+	tvbuff_t	*tvb_parent, *tvb;
+	volatile unsigned long got_ex;
+	guint64 got_val;
+	volatile guint got_len;
+
+	tvb_parent = tvb_new_real_data((const guint8*)"", 0, 0);
+
+	for (size_t ix = 0; ix < (sizeof(varint) / sizeof(varint_test_s)); ++ix) {
+		const varint_test_s *vit = &varint[ix];
+		tvb = tvb_new_child_real_data(tvb_parent, vit->enc, vit->enc_len, vit->enc_len);
+
+		got_ex = 0;
+		got_val = 0;
+		got_len = 0;
+		TRY {
+			got_len = tvb_get_varint(tvb, 0, vit->maxlen, &got_val, vit->encoding);
+		}
+		CATCH_ALL {
+			got_ex = exc->except_id.except_code;
+		}
+		ENDTRY;
+		if (got_ex != vit->expect_except) {
+			printf("Failed varint #%zu with exception=%lu while expected exception=%lu\n",
+				   ix, got_ex, vit->expect_except);
+			failed = TRUE;
+			continue;
+		}
+		if (got_val != vit->expect_val) {
+			printf("Failed varint #%zu value=%" PRIu64 " while expected value=%" PRIu64 "\n",
+				   ix, got_val, vit->expect_val);
+			failed = TRUE;
+			continue;
+		}
+		if (got_len != vit->expect_len) {
+			printf("Failed varint #%zu length=%u while expected length=%u\n",
+				   ix, got_len, vit->expect_len);
+			failed = TRUE;
+			continue;
+		}
+		printf("Passed varint #%zu\n", ix);
+	}
+
+	tvb_free_chain(tvb_parent);  /* should free all tvb's and associated data */
+}
+
+#define DATA_AND_LEN(X) .data = X, .len = sizeof(X) - 1
+
+static void
+zstd_tests (void) {
+#ifdef HAVE_ZSTD
+	typedef struct {
+		const char* desc;
+		const uint8_t* data;
+		size_t len;
+		const char* expect;
+	} zstd_testcase;
+
+	zstd_testcase tests[] = {
+		{
+			.desc = "Uncompressing 'foobar'",
+			DATA_AND_LEN ("\x28\xb5\x2f\xfd\x20\x07\x39\x00\x00\x66\x6f\x6f\x62\x61\x72\x00"),
+			.expect = "foobar"
+		},
+		{
+			.desc = "Uncompressing invalid data",
+			DATA_AND_LEN ("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"),
+			.expect = NULL
+		},
+		{
+			.desc = "Uncompressing too short length",
+			.data = "\x28\xb5\x2f\xfd\x20\x07\x39\x00\x00\x66\x6f\x6f\x62\x61\x72\x00",
+			.len = 1,
+			.expect = NULL
+		},
+		{
+			.desc = "Uncompressing two frames of data",
+			// data is two frames of compressed data with compression level 1.
+			// the first frame is the string "foo" with no null terminator.
+			// the second frame is the string "bar" with a null terminator.
+			DATA_AND_LEN ("\x28\xb5\x2f\xfd\x20\x03\x19\x00\x00\x66\x6f\x6f"
+				      "\x28\xb5\x2f\xfd\x20\x04\x21\x00\x00\x62\x61\x72\x00"),
+			.expect = "foobar"
+		},
+		{
+			.desc = "Uncompressing two frames of data. 2nd frame has too short length.",
+			// data is two frames of compressed data with compression level 1.
+			// the first frame is the string "foo" with no null terminator.
+			// the second frame is the string "bar" with a null terminator.
+			.data ="\x28\xb5\x2f\xfd\x20\x03\x19\x00\x00\x66\x6f\x6f"
+			       "\x28\xb5\x2f\xfd\x20\x04\x21\x00\x00\x62\x61\x72\x00",
+			.len = 13,
+			.expect = NULL
+		},
+		{
+			.desc = "Uncompressing two frames of data. 2nd frame is malformed.",
+			// data is two frames of compressed data with compression level 1.
+			// the first frame is the string "foo" with no null terminator.
+			// the second frame is malformed.
+			DATA_AND_LEN ("\x28\xb5\x2f\xfd\x20\x03\x19\x00\x00\x66\x6f\x6f"
+			              "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"),
+			.expect = NULL
+		},
+		{
+			.desc = "Uncompressing no data",
+			.data = "\0",
+			.len = 0,
+			.expect = ""
+		},
+
+	};
+
+	for (size_t i = 0; i < sizeof tests / sizeof tests[0]; i++) {
+		zstd_testcase *t = tests + i;
+
+		printf ("ZSTD test: %s ... begin\n", t->desc);
+
+		tvbuff_t *tvb = tvb_new_real_data (t->data, (const guint) t->len, (const guint) t->len);
+		tvbuff_t *got = tvb_uncompress_zstd (tvb, 0, (int) t->len);
+		if (!t->expect) {
+			if (got) {
+				fprintf (stderr, "ZSTD test: %s ... FAIL: Expected error, but got non-NULL from uncompress\n", t->desc);
+				failed = TRUE;
+				return;
+			}
+		} else {
+			if (!got) {
+				printf ("ZSTD test: %s ... FAIL: Expected success, but got NULL from uncompress.\n", t->desc);
+				failed = TRUE;
+				return;
+			}
+			char * got_str = tvb_get_string_enc (NULL, got, 0, tvb_reported_length (got), ENC_ASCII);
+			if (0 != strcmp (got_str, t->expect)) {
+				printf ("ZSTD test: %s ... FAIL: Expected \"%s\", got \"%s\".\n", t->desc, t->expect, got_str);
+				failed = TRUE;
+				return;
+			}
+			wmem_free (NULL, got_str);
+			tvb_free (got);
+		}
+
+		tvb_free (tvb);
+
+		printf ("ZSTD test: %s ... OK\n", t->desc);
+	}
+#else
+	printf ("Skipping ZSTD test. ZSTD is not available.\n");
+#endif
+}
 /* Note: valgrind can be used to check for tvbuff memory leaks */
 int
 main(void)
@@ -615,6 +813,8 @@ main(void)
 
 	except_init();
 	run_tests();
+	varint_tests();
+	zstd_tests ();
 	except_deinit();
 	exit(failed?1:0);
 }

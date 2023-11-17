@@ -24,9 +24,9 @@
 
 #include <wsutil/utf8_entities.h>
 
-#define PROTOCOL_NAME	    "IEEE C37.118 Synchrophasor Protocol"
-#define PROTOCOL_SHORT_NAME "SYNCHROPHASOR"
-#define PROTOCOL_ABBREV	    "synphasor"
+#define PNAME "IEEE C37.118 Synchrophasor Protocol"
+#define PSNAME "SYNCHROPHASOR"
+#define PFNAME "synphasor"
 
 /* forward references */
 void proto_register_synphasor(void);
@@ -174,6 +174,7 @@ static expert_field ei_synphasor_data_error		= EI_INIT;
 static expert_field ei_synphasor_pmu_not_sync		= EI_INIT;
 
 static dissector_handle_t synphasor_udp_handle;
+static dissector_handle_t synphasor_tcp_handle;
 
 /* the different frame types for this protocol */
 enum FrameType {
@@ -1631,7 +1632,7 @@ static int dissect_config_3_frame(tvbuff_t *tvb, proto_item *config_item)
 		pmu_elev = tvb_get_ntohieee_float(tvb, offset + 8);
 
 		/* PMU_LAT */
-		if ((isinf(pmu_lat) == 1) || (isinf(pmu_lat) == -1)) {
+		if (isinf(pmu_lat)) {
 			proto_tree_add_float_format_value(wgs84_tree, hf_conf_pmu_lat_unknown, tvb, offset,
 					      4, INFINITY, "%s", unspecified_location);
 		}
@@ -1641,7 +1642,7 @@ static int dissect_config_3_frame(tvbuff_t *tvb, proto_item *config_item)
 		offset += 4;
 
 		/* PMU_LON */
-		if ((isinf(pmu_long) == 1) || (isinf(pmu_long) == -1)) {
+		if (isinf(pmu_long)) {
 			proto_tree_add_float_format_value(wgs84_tree, hf_conf_pmu_lon_unknown, tvb, offset,
 					      4, INFINITY, "%s", unspecified_location);
 		}
@@ -1651,7 +1652,7 @@ static int dissect_config_3_frame(tvbuff_t *tvb, proto_item *config_item)
 		offset += 4;
 
 		/* PMU_ELEV */
-		if ((isinf(pmu_elev) == 1) || (isinf(pmu_elev) == -1)) {
+		if (isinf(pmu_elev)) {
 			proto_tree_add_float_format_value(wgs84_tree, hf_conf_pmu_elev_unknown, tvb, offset,
 					      4, INFINITY, "%s", unspecified_location);
 		}
@@ -1849,11 +1850,11 @@ static int dissect_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
 		return 0;
 
 	/* write the protocol name to the info column */
-	col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTOCOL_SHORT_NAME);
+	col_set_str(pinfo->cinfo, COL_PROTOCOL, PSNAME);
 
 	frame_type = tvb_get_guint8(tvb, 1) >> 4;
 
-	col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str_const(frame_type, typenames, "invalid packet type"));
+	col_add_str(pinfo->cinfo, COL_INFO, val_to_str_const(frame_type, typenames, "invalid packet type"));
 
 	/* CFG-2, CFG3, and DATA frames need special treatment during the first run:
 	 * For CFG-2 & CFG-3 frames, a 'config_frame' struct is created to hold the
@@ -2274,7 +2275,7 @@ void proto_register_synphasor(void)
 	/* Data type for command frame */
 		{ &hf_command,
 		{ "Command", "synphasor.command", FT_UINT16, BASE_HEX|BASE_RANGE_STRING,
-		  RVALS(command_names), 0xFFFF, NULL, HFILL }},
+		  RVALS(command_names), 0x0, NULL, HFILL }},
 
       /* Generated from convert_proto_tree_add_text.pl */
       { &hf_synphasor_data, { "Data", "synphasor.data", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
@@ -2340,12 +2341,11 @@ void proto_register_synphasor(void)
 	expert_module_t* expert_synphasor;
 
 	/* register protocol */
-	proto_synphasor = proto_register_protocol(PROTOCOL_NAME,
-						  PROTOCOL_SHORT_NAME,
-						  PROTOCOL_ABBREV);
+	proto_synphasor = proto_register_protocol(PNAME, PSNAME, PFNAME);
 
 	/* Registering protocol to be called by another dissector */
 	synphasor_udp_handle = register_dissector("synphasor", dissect_udp, proto_synphasor);
+	synphasor_tcp_handle = register_dissector("synphasor.tcp", dissect_tcp, proto_synphasor);
 
 	proto_register_field_array(proto_synphasor, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
@@ -2357,13 +2357,9 @@ void proto_register_synphasor(void)
 /* called at startup and when the preferences change */
 void proto_reg_handoff_synphasor(void)
 {
-	dissector_handle_t synphasor_tcp_handle;
-
-	synphasor_tcp_handle = create_dissector_handle(dissect_tcp, proto_synphasor);
 	dissector_add_for_decode_as("rtacser.data", synphasor_udp_handle);
 	dissector_add_uint_with_preference("udp.port", SYNPHASOR_UDP_PORT, synphasor_udp_handle);
 	dissector_add_uint_with_preference("tcp.port", SYNPHASOR_TCP_PORT, synphasor_tcp_handle);
-
 } /* proto_reg_handoff_synphasor() */
 
 /*

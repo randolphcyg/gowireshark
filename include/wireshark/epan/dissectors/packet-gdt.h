@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-gdt.h                                                               */
-/* asn2wrs.py -b -p gdt -c ./gdt.cnf -s ./packet-gdt-template -D . -O ../.. gdt.asn */
+/* asn2wrs.py -b -L -p gdt -c ./gdt.cnf -s ./packet-gdt-template -D . -O ../.. gdt.asn */
 
-/* Input file: packet-gdt-template.h */
-
-#line 1 "./asn1/gdt/packet-gdt-template.h"
 /* packet-gdt-template.h
  *
  * Copyright 2022, Damir Franusic <damir.franusic@gmail.com>

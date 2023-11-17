@@ -556,7 +556,7 @@ dissect_asphodel_heur_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
         return FALSE;
     }
 
-    if (tvb_memeql(tvb, 2, "Asphodel", 9) != 0)
+    if (tvb_memeql(tvb, 2, (const guint8*)"Asphodel", 9) != 0)
     {
         return FALSE;
     }
@@ -756,6 +756,11 @@ proto_register_asphodel(void)
     /* Register the protocol name and description */
     proto_asphodel = proto_register_protocol("Asphodel", "Asphodel", "asphodel");
 
+    /* Register the dissectors */
+    asphodel_inquiry_handle = register_dissector("asphodel_inquiry", dissect_asphodel_inquiry, proto_asphodel);
+    asphodel_response_handle = register_dissector("asphodel_response", dissect_asphodel_response, proto_asphodel);
+    asphodel_tcp_handle = register_dissector("asphodel_tcp", dissect_asphodel_tcp, proto_asphodel);
+
     /* Required function calls to register the header fields and subtrees */
     proto_register_field_array(proto_asphodel, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
@@ -768,10 +773,6 @@ proto_register_asphodel(void)
 void
 proto_reg_handoff_asphodel(void)
 {
-    asphodel_inquiry_handle = create_dissector_handle(dissect_asphodel_inquiry, proto_asphodel);
-    asphodel_response_handle = create_dissector_handle(dissect_asphodel_response, proto_asphodel);
-    asphodel_tcp_handle = create_dissector_handle(dissect_asphodel_tcp, proto_asphodel);
-
     heur_dissector_add("udp", dissect_asphodel_heur_udp, "Asphodel over UDP",
                        "asphodel_inquiry", proto_asphodel, HEURISTIC_ENABLE);
     dissector_add_for_decode_as("udp.port", asphodel_response_handle);

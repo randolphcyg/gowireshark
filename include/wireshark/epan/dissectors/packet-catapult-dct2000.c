@@ -215,12 +215,6 @@ static const value_string ccpri_opcode_vals[] = {
     { 0,             NULL}
 };
 
-static const value_string ccpri_status_vals[] = {
-    { 0,     "OK"},
-    { 1,     "ERROR"},
-    { 0,     NULL}
-};
-
 static const value_string rlc_rbid_vals[] = {
     { 1,     "DCH1"},
     { 2,     "DCH2"},
@@ -252,12 +246,6 @@ static value_string_ext rlc_rbid_vals_ext = VALUE_STRING_EXT_INIT(rlc_rbid_vals)
 static const value_string ueid_type_vals[] = {
     { 0,     "URNTI"},
     { 1,     "CRNTI"},
-    { 0,     NULL}
-};
-
-static const value_string tx_priority_vals[] = {
-    { 0,     "Normal"},
-    { 1,     "High"},
     { 0,     NULL}
 };
 
@@ -1143,7 +1131,8 @@ static void dissect_rrc_lte_nr(tvbuff_t *tvb, gint offset,
 
             /* Now should be Auth params (required) */
             guint32 integrity_algorithm;
-            tag = tvb_get_guint8(tvb, offset++);
+            /* Skip tag */
+            offset++;
 
             len = tvb_get_guint8(tvb, offset++);
 
@@ -2448,10 +2437,10 @@ dissect_catapult_dct2000(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     /* by the wiretap module                                             */
 
     /* Context Name */
-    context_name = tvb_get_const_stringz(tvb, offset, &context_length);
+    context_name = tvb_get_stringz_enc(pinfo->pool, tvb, offset, &context_length, ENC_ASCII);
     if (dct2000_tree) {
-        proto_tree_add_item(dct2000_tree, hf_catapult_dct2000_context, tvb,
-                            offset, context_length, ENC_ASCII);
+        proto_tree_add_string(dct2000_tree, hf_catapult_dct2000_context, tvb,
+                            offset, context_length, context_name);
     }
     offset += context_length;
 
@@ -2464,7 +2453,7 @@ dissect_catapult_dct2000(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     offset++;
 
     /* Timestamp in file */
-    timestamp_string = tvb_get_const_stringz(tvb, offset, &timestamp_length);
+    timestamp_string = tvb_get_stringz_enc(pinfo->pool, tvb, offset, &timestamp_length, ENC_ASCII);
     if (dct2000_tree) {
         /* g_ascii_strtod(timestamp_string, NULL)) is much simpler, but *very* slow..
            There will be seconds, a dot, and 4 decimal places.
@@ -2497,10 +2486,10 @@ dissect_catapult_dct2000(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 
 
     /* DCT2000 protocol name */
-    protocol_name = tvb_get_const_stringz(tvb, offset, &protocol_length);
+    protocol_name = tvb_get_stringz_enc(pinfo->pool, tvb, offset, &protocol_length, ENC_ASCII);
     if (dct2000_tree) {
-        proto_tree_add_item(dct2000_tree, hf_catapult_dct2000_protocol, tvb,
-                            offset, protocol_length, ENC_ASCII);
+        proto_tree_add_string(dct2000_tree, hf_catapult_dct2000_protocol, tvb,
+                            offset, protocol_length, protocol_name);
     }
     is_comment = (strcmp(protocol_name, "comment") == 0);
     if (!is_comment) {
@@ -2510,18 +2499,18 @@ dissect_catapult_dct2000(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 
 
     /* Protocol Variant */
-    variant_string = tvb_get_const_stringz(tvb, offset, &variant_length);
+    variant_string = tvb_get_stringz_enc(pinfo->pool, tvb, offset, &variant_length, ENC_ASCII);
     if (!is_comment && !is_sprint) {
-        proto_tree_add_item(dct2000_tree, hf_catapult_dct2000_variant, tvb,
-                            offset, variant_length, ENC_ASCII);
+        proto_tree_add_string(dct2000_tree, hf_catapult_dct2000_variant, tvb,
+                            offset, variant_length, variant_string);
     }
     offset += variant_length;
 
     /* Outhdr (shown as string) */
-    outhdr_string = tvb_get_const_stringz(tvb, offset, &outhdr_length);
+    outhdr_string = tvb_get_stringz_enc(pinfo->pool, tvb, offset, &outhdr_length, ENC_ASCII);
     if (!is_comment && !is_sprint && (outhdr_length > 1)) {
-        proto_tree_add_item(dct2000_tree, hf_catapult_dct2000_outhdr, tvb,
-                            offset, outhdr_length, ENC_ASCII);
+        proto_tree_add_string(dct2000_tree, hf_catapult_dct2000_outhdr, tvb,
+                            offset, outhdr_length, outhdr_string);
     }
     offset += outhdr_length;
 
@@ -3702,7 +3691,7 @@ void proto_register_catapult_dct2000(void)
 
         { &hf_catapult_dct2000_ueid,
             { "UE Id",
-              "dct2000.ueid", FT_UINT16, BASE_DEC, NULL, 0x0,
+              "dct2000.ueid", FT_UINT32, BASE_DEC, NULL, 0x0,
               "User Equipment Identifier", HFILL
             }
         },
@@ -3830,7 +3819,7 @@ void proto_register_catapult_dct2000(void)
         },
         { &hf_catapult_dct2000_lte_ccpri_status,
             { "Status",
-              "dct2000.lte.ccpri.status", FT_UINT8, BASE_DEC, VALS(ccpri_status_vals), 0x0,
+              "dct2000.lte.ccpri.status", FT_BOOLEAN, 8, TFS(&tfs_error_ok), 0x0,
               NULL, HFILL
             }
         },
@@ -3922,7 +3911,7 @@ void proto_register_catapult_dct2000(void)
         },
         { &hf_catapult_dct2000_tx_priority,
             { "Tx Priority",
-              "dct2000.tx-priority", FT_UINT8, BASE_DEC, VALS(tx_priority_vals), 0x0,
+              "dct2000.tx-priority", FT_BOOLEAN, 8, TFS(&tfs_high_normal), 0x0,
               NULL, HFILL
             }
         },

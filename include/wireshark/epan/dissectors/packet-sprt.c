@@ -880,7 +880,9 @@ dissect_sprt_data(tvbuff_t *tvb,
         payload_length--;
 
         /* what kind of message is this? */
-        col_append_fstr(pinfo->cinfo, COL_INFO, ", %s(%d)", rval_to_str(payload_msgid, sprt_modem_relay_msg_id_name, "Unknown"), payload_msgid);
+        col_append_fstr(pinfo->cinfo, COL_INFO, ", %s(%d)",
+                        rval_to_str_const(payload_msgid, sprt_modem_relay_msg_id_name, "Unknown"),
+                        payload_msgid);
 
         /* now parse payload stuff after ext. bit & msgid */
         switch(payload_msgid)
@@ -2247,7 +2249,7 @@ proto_register_sprt(void)
             &hf_sprt_payload_msg_jminfo_mod_v26bis,
             {
                 "V.26bis",
-                "sprt.payload.msg_jminfo.mod_v16bis",
+                "sprt.payload.msg_jminfo.mod_v26bis",
                 FT_BOOLEAN,
                 16,
                 TFS(&tfs_available_not_available),

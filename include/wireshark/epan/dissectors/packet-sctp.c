@@ -21,7 +21,7 @@
  * - RFC 6525
  * - RFC 7053
  * - https://tools.ietf.org/html/draft-stewart-sctp-pktdrprep-02
- * - https://tools.ietf.org/html/draft-ladha-sctp-nonce-02
+ * - https://www.ietf.org/archive/id/draft-ietf-tsvwg-sctp-zero-checksum-01.html
  *
  * Still to do (so stay tuned)
  * - error checking mode
@@ -185,6 +185,8 @@ static int hf_add_outgoing_streams_number_streams = -1;
 static int hf_add_outgoing_streams_reserved = -1;
 static int hf_add_incoming_streams_number_streams = -1;
 static int hf_add_incoming_streams_reserved = -1;
+
+static int hf_zero_checksum_edmid = -1;
 
 static int hf_random_number = -1;
 static int hf_chunks_to_auth = -1;
@@ -450,7 +452,7 @@ sctp_chunk_type_free_cb(void* r)
   g_free(rec->type_name);
 }
 
-static gboolean
+static bool
 sctp_chunk_type_update_cb(void *r, char **err)
 {
   type_field_t *rec = (type_field_t *)r;
@@ -1618,6 +1620,21 @@ dissect_ecn_parameter(tvbuff_t *parameter_tvb _U_)
 {
 }
 
+#define ZERO_CHECKSUM_PARAMETER_EDMID_LENGTH 4
+#define ZERO_CHECKSUM_PARAMETER_EDMID_OFFSET PARAMETER_VALUE_OFFSET
+
+static const value_string edmid_values[] = {
+  { 1, "SCTP over DTLS" },
+  { 0, NULL             }
+};
+
+static void
+dissect_zero_checksum_acceptable_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+{
+  proto_tree_add_item(parameter_tree, hf_zero_checksum_edmid, parameter_tvb, ZERO_CHECKSUM_PARAMETER_EDMID_OFFSET, ZERO_CHECKSUM_PARAMETER_EDMID_LENGTH, ENC_BIG_ENDIAN);
+  proto_item_append_text(parameter_item, " (EDMID: %s)", val_to_str_const(tvb_get_ntohl(parameter_tvb, ZERO_CHECKSUM_PARAMETER_EDMID_OFFSET), edmid_values, "Unknown"));
+}
+
 #define RANDOM_NUMBER_OFFSET PARAMETER_VALUE_OFFSET
 
 static void
@@ -1812,6 +1829,7 @@ dissect_unknown_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, p
 #define ADD_OUTGOING_STREAMS_REQUEST_PARAMETER_ID 0x0011
 #define ADD_INCOMING_STREAMS_REQUEST_PARAMETER_ID 0x0012
 #define ECN_PARAMETER_ID                          0x8000
+#define ZERO_CHECKSUM_ACCEPTABLE_PARAMETER_ID     0x8001
 #define RANDOM_PARAMETER_ID                       0x8002
 #define CHUNKS_PARAMETER_ID                       0x8003
 #define HMAC_ALGO_PARAMETER_ID                    0x8004
@@ -1840,6 +1858,7 @@ static const value_string parameter_identifier_values[] = {
   { ADD_INCOMING_STREAMS_REQUEST_PARAMETER_ID, "Add incoming streams request" },
   { SUPPORTED_ADDRESS_TYPES_PARAMETER_ID,      "Supported address types"      },
   { ECN_PARAMETER_ID,                          "ECN"                          },
+  { ZERO_CHECKSUM_ACCEPTABLE_PARAMETER_ID,     "Zero checksum acceptable"     },
   { RANDOM_PARAMETER_ID,                       "Random"                       },
   { CHUNKS_PARAMETER_ID,                       "Authenticated Chunk list"     },
   { HMAC_ALGO_PARAMETER_ID,                    "Requested HMAC Algorithm"     },
@@ -1955,6 +1974,8 @@ dissect_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo,
   case ECN_PARAMETER_ID:
     dissect_ecn_parameter(parameter_tvb);
     break;
+  case ZERO_CHECKSUM_ACCEPTABLE_PARAMETER_ID:
+    dissect_zero_checksum_acceptable_parameter(parameter_tvb, parameter_tree, parameter_item);
     break;
   case RANDOM_PARAMETER_ID:
     dissect_random_parameter(parameter_tvb, parameter_tree);
@@ -2910,7 +2931,7 @@ fragment_reassembly(tvbuff_t *tvb, sctp_fragment *fragment,
                                      frag_i->frame_num, offset, offset + frag_i->len - 1, frag_i->len);
           offset += frag_i->len;
 
-          mark_frame_as_depended_upon(pinfo, frag_i->frame_num);
+          mark_frame_as_depended_upon(pinfo->fd, frag_i->frame_num);
         }
 
         for (frag_i = msg->fragments;
@@ -2922,7 +2943,7 @@ fragment_reassembly(tvbuff_t *tvb, sctp_fragment *fragment,
                                      frag_i->frame_num, offset, offset + frag_i->len - 1, frag_i->len);
           offset += frag_i->len;
 
-          mark_frame_as_depended_upon(pinfo, frag_i->frame_num);
+          mark_frame_as_depended_upon(pinfo->fd, frag_i->frame_num);
         }
       } else {
         for (frag_i = find_fragment(message->begin, stream_id, stream_seq_num, u_bit);
@@ -2934,7 +2955,7 @@ fragment_reassembly(tvbuff_t *tvb, sctp_fragment *fragment,
                                      frag_i->frame_num, offset, offset + frag_i->len - 1, frag_i->len);
           offset += frag_i->len;
 
-          mark_frame_as_depended_upon(pinfo, frag_i->frame_num);
+          mark_frame_as_depended_upon(pinfo->fd, frag_i->frame_num);
         }
       }
 
@@ -3149,7 +3170,7 @@ fragment_reassembly(tvbuff_t *tvb, sctp_fragment *fragment,
                                  frag_i->frame_num, offset, offset + frag_i->len - 1, frag_i->len);
       offset += frag_i->len;
 
-      mark_frame_as_depended_upon(pinfo, frag_i->frame_num);
+      mark_frame_as_depended_upon(pinfo->fd, frag_i->frame_num);
     }
 
     for (frag_i = msg->fragments;
@@ -3161,7 +3182,7 @@ fragment_reassembly(tvbuff_t *tvb, sctp_fragment *fragment,
                                  frag_i->frame_num, offset, offset + frag_i->len - 1, frag_i->len);
       offset += frag_i->len;
 
-      mark_frame_as_depended_upon(pinfo, frag_i->frame_num);
+      mark_frame_as_depended_upon(pinfo->fd, frag_i->frame_num);
     }
   } else {
     for (frag_i = find_fragment(message->begin, stream_id, stream_seq_num, u_bit);
@@ -3173,7 +3194,7 @@ fragment_reassembly(tvbuff_t *tvb, sctp_fragment *fragment,
                                  frag_i->frame_num, offset, offset + frag_i->len - 1, frag_i->len);
       offset += frag_i->len;
 
-      mark_frame_as_depended_upon(pinfo, frag_i->frame_num);
+      mark_frame_as_depended_upon(pinfo->fd, frag_i->frame_num);
     }
   }
 
@@ -4818,7 +4839,7 @@ dissect_sctp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "SCTP");
 
   /* Clear entries in Info column on summary display */
-  col_set_str(pinfo->cinfo, COL_INFO, "");
+  col_clear(pinfo->cinfo, COL_INFO);
 
 
   for(number_of_ppid = 0; number_of_ppid < MAX_NUMBER_OF_PPIDS; number_of_ppid++) {
@@ -4901,7 +4922,7 @@ proto_register_sctp(void)
     { &hf_data_chunk_b_bit,                         { "B-Bit",                                          "sctp.data_b_bit",                                      FT_BOOLEAN, 8,         TFS(&sctp_data_chunk_b_bit_value),              SCTP_DATA_CHUNK_B_BIT,              NULL, HFILL } },
     { &hf_data_chunk_u_bit,                         { "U-Bit",                                          "sctp.data_u_bit",                                      FT_BOOLEAN, 8,         TFS(&sctp_data_chunk_u_bit_value),              SCTP_DATA_CHUNK_U_BIT,              NULL, HFILL } },
     { &hf_data_chunk_i_bit,                         { "I-Bit",                                          "sctp.data_i_bit",                                      FT_BOOLEAN, 8,         TFS(&sctp_data_chunk_i_bit_value),              SCTP_DATA_CHUNK_I_BIT,              NULL, HFILL } },
-    { &hf_sack_chunk_ns,                            { "Nounce sum",                                     "sctp.sack_nounce_sum",                                 FT_UINT8,   BASE_DEC,  NULL,                                           SCTP_SACK_CHUNK_NS_BIT,             NULL, HFILL } },
+    { &hf_sack_chunk_ns,                            { "Nonce sum",                                      "sctp.sack_nonce_sum",                                  FT_UINT8,   BASE_DEC,  NULL,                                           SCTP_SACK_CHUNK_NS_BIT,             NULL, HFILL } },
     { &hf_sack_chunk_cumulative_tsn_ack,            { "Cumulative TSN ACK (relative)",                  "sctp.sack_cumulative_tsn_ack",                         FT_UINT32,  BASE_DEC,  NULL,                                           0x0,                                NULL, HFILL } },
     { &hf_sack_chunk_cumulative_tsn_ack_raw,        { "Cumulative TSN ACK (absolute)",                  "sctp.sack_cumulative_tsn_ack_raw",                     FT_UINT32,  BASE_DEC,  NULL,                                           0x0,                                NULL, HFILL } },
     { &hf_sack_chunk_adv_rec_window_credit,         { "Advertised receiver window credit (a_rwnd)",     "sctp.sack_a_rwnd",                                     FT_UINT32,  BASE_DEC,  NULL,                                           0x0,                                NULL, HFILL } },
@@ -4913,7 +4934,7 @@ proto_register_sctp(void)
     { &hf_sack_chunk_gap_block_end_tsn,             { "End TSN",                                        "sctp.sack_gap_block_end_tsn",                          FT_UINT32,  BASE_DEC,  NULL,                                           0x0,                                NULL, HFILL } },
     { &hf_sack_chunk_number_tsns_gap_acked,         { "Number of TSNs in gap acknowledgement blocks",   "sctp.sack_number_of_tsns_gap_acked",                   FT_UINT32,  BASE_DEC,  NULL,                                           0x0,                                NULL, HFILL } },
     { &hf_sack_chunk_duplicate_tsn,                 { "Duplicate TSN",                                  "sctp.sack_duplicate_tsn",                              FT_UINT32,  BASE_DEC,  NULL,                                           0x0,                                NULL, HFILL } },
-    { &hf_nr_sack_chunk_ns,                         { "Nounce sum",                                     "sctp.nr_sack_nounce_sum",                              FT_UINT8,   BASE_DEC,  NULL,                                           SCTP_NR_SACK_CHUNK_NS_BIT,          NULL, HFILL } },
+    { &hf_nr_sack_chunk_ns,                         { "Nonce sum",                                      "sctp.nr_sack_nonce_sum",                               FT_UINT8,   BASE_DEC,  NULL,                                           SCTP_NR_SACK_CHUNK_NS_BIT,          NULL, HFILL } },
     { &hf_nr_sack_chunk_cumulative_tsn_ack,         { "Cumulative TSN ACK",                             "sctp.nr_sack_cumulative_tsn_ack",                      FT_UINT32,  BASE_DEC,  NULL,                                           0x0,                                NULL, HFILL } },
     { &hf_nr_sack_chunk_adv_rec_window_credit,      { "Advertised receiver window credit (a_rwnd)",     "sctp.nr_sack_a_rwnd",                                  FT_UINT32,  BASE_DEC,  NULL,                                           0x0,                                NULL, HFILL } },
     { &hf_nr_sack_chunk_number_of_gap_blocks,       { "Number of gap acknowledgement blocks",           "sctp.nr_sack_number_of_gap_blocks",                    FT_UINT16,  BASE_DEC,  NULL,                                           0x0,                                NULL, HFILL } },
@@ -4973,6 +4994,7 @@ proto_register_sctp(void)
     { &hf_asconf_ack_seq_nr,                        { "Sequence number",                                "sctp.asconf_ack_seq_nr_number",                        FT_UINT32,  BASE_HEX,  NULL,                                           0x0,                                NULL, HFILL } },
     { &hf_correlation_id,                           { "Correlation_id",                                 "sctp.correlation_id",                                  FT_UINT32,  BASE_HEX,  NULL,                                           0x0,                                NULL, HFILL } },
     { &hf_adap_indication,                          { "Indication",                                     "sctp.adaptation_layer_indication",                     FT_UINT32,  BASE_HEX,  NULL,                                           0x0,                                NULL, HFILL } },
+    { &hf_zero_checksum_edmid,                      { "Error Detection Method Identifier",              "sctp.edmid",                                           FT_UINT32,  BASE_DEC,  VALS(edmid_values),                             0x0,                                NULL, HFILL } },
     { &hf_random_number,                            { "Random number",                                  "sctp.random_number",                                   FT_BYTES,   BASE_NONE, NULL,                                           0x0,                                NULL, HFILL } },
     { &hf_chunks_to_auth,                           { "Chunk type",                                     "sctp.chunk_type_to_auth",                              FT_UINT8,   BASE_DEC,  VALS(chunk_type_values),                        0x0,                                NULL, HFILL } },
     { &hf_hmac_id,                                  { "HMAC identifier",                                "sctp.hmac_id",                                         FT_UINT16,  BASE_DEC,  VALS(hmac_id_values),                           0x0,                                NULL, HFILL } },
@@ -5196,6 +5218,7 @@ proto_reg_handoff_sctp(void)
   dissector_add_uint("wtap_encap", WTAP_ENCAP_SCTP, sctp_handle);
   dissector_add_uint("ip.proto", IP_PROTO_SCTP, sctp_handle);
   dissector_add_uint_with_preference("udp.port", UDP_TUNNELING_PORT, sctp_handle);
+  dissector_add_uint_with_preference("dtls.port", UDP_TUNNELING_PORT, sctp_handle);
   sctp_cap_handle = create_capture_dissector_handle(capture_sctp, proto_sctp);
   capture_dissector_add_uint("ip.proto", IP_PROTO_SCTP, sctp_cap_handle);
 }

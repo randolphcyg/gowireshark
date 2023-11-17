@@ -923,9 +923,9 @@ static const value_string QueryGuid_IDS[] = {
 	{0x04, "System.Search.HitCount"},
 	{0x05, "System.Search.EntryID"},
 	{0x06, "All"},
-	{0x8, "System.Search.ReverseFileName"},
+	{0x08, "System.Search.ReverseFileName"},
 	{0x09, "System.ItemURL"},
-	{0xa, "System.ContentUrl"},
+	{0x0a, "System.ContentUrl"},
 	{0, NULL}
 };
 
@@ -6930,7 +6930,7 @@ proto_register_mswsp(void)
 			&hf_mswsp_ccategspec_type,
 			{
 				"type", "mswsp.ccategspec.type",
-				FT_UINT8, BASE_DEC, NULL, 0, NULL, HFILL
+				FT_UINT32, BASE_DEC, NULL, 0, NULL, HFILL
 			}
 		},
 		{
@@ -7976,7 +7976,7 @@ proto_register_mswsp(void)
 	static ei_register_info ei[] = {
 		{ &ei_mswsp_invalid_variant_type, { "mswsp.invalid_variant_type", PI_PROTOCOL, PI_ERROR, "Invalid variant type", EXPFILL }},
 		{ &ei_missing_msg_context, { "mswsp.msg.cpmgetrows.missing_msg_context", PI_SEQUENCE, PI_WARN, "previous messages needed for context not captured", EXPFILL }},
-		{ &ei_mswsp_msg_cpmsetbinding_ccolumns, { "mswsp.msg.cpmsetbinding.ccolumns.invalude", PI_PROTOCOL, PI_WARN, "Invalid number of cColumns for packet", EXPFILL }}
+		{ &ei_mswsp_msg_cpmsetbinding_ccolumns, { "mswsp.msg.cpmsetbinding.ccolumns.invalid", PI_PROTOCOL, PI_WARN, "Invalid number of cColumns for packet", EXPFILL }}
 	};
 	int i;
 

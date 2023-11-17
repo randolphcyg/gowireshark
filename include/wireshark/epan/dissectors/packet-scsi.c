@@ -960,7 +960,7 @@ scsistat_init(struct register_srt* srt, GArray* srt_array)
     scsi_srt_table = init_srt_table(tap_data->prog, NULL, srt_array, SCSI_NUM_PROCEDURES, NULL, tap_data->hf_name, tap_data);
     for (i = 0; i < SCSI_NUM_PROCEDURES; i++)
     {
-        init_srt_table_row(scsi_srt_table, i, val_to_str_ext_const(i, tap_data->cdbnames_ext, "Unknown-0x%02x"));
+        init_srt_table_row(scsi_srt_table, i, val_to_str_ext(i, tap_data->cdbnames_ext, "Unknown-0x%02x"));
     }
 }
 
@@ -5340,7 +5340,7 @@ dissect_spc_mgmt_protocol_in(tvbuff_t *tvb_a, packet_info *pinfo _U_,
         cdata->itlq->flags=service_action;
     }
     col_append_str(pinfo->cinfo, COL_INFO,
-            val_to_str(service_action, mpi_action_vals, "Unknown"));
+            val_to_str_const(service_action, mpi_action_vals, "Unknown"));
 
     proto_tree_add_item(tree, hf_scsi_mpi_service_action, tvb_a,
             offset_a, 1, ENC_BIG_ENDIAN);
@@ -6940,7 +6940,7 @@ proto_register_scsi(void)
           {"PC Flags", "scsi.log.pc.flags", FT_UINT8, BASE_HEX, NULL, 0,
            NULL, HFILL}},
         { &hf_scsi_log_parameter_ptr,
-          {"Parameter Pointer", "scsi.log.param_ptr", FT_UINT8, BASE_HEX, NULL,
+          {"Parameter Pointer", "scsi.log.param_ptr", FT_UINT16, BASE_HEX, NULL,
            0, NULL, HFILL}},
         { &hf_scsi_log_page_length,
           {"Page Length", "scsi.log.page_length", FT_UINT16, BASE_DEC, NULL, 0,

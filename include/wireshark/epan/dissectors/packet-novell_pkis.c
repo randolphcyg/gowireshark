@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-novell_pkis.c                                                       */
-/* asn2wrs.py -b -u -p novell_pkis -c ./novell_pkis.cnf -s ./packet-novell_pkis-template -D . -O ../.. novell_pkis.asn */
+/* asn2wrs.py -b -u -L -p novell_pkis -c ./novell_pkis.cnf -s ./packet-novell_pkis-template -D . -O ../.. novell_pkis.asn */
 
-/* Input file: packet-novell_pkis-template.c */
-
-#line 1 "./asn1/novell_pkis/packet-novell_pkis-template.c"
 /* packet-novell_pkis.c
  *
  * Wireshark - Network traffic analyzer
@@ -27,9 +24,6 @@
 #include "packet-per.h"
 #include "packet-ber.h"
 
-
-/*--- Included file: packet-novell_pkis-hf.c ---*/
-#line 1 "./asn1/novell_pkis/packet-novell_pkis-hf.c"
 static int hf_novell_pkis_SecurityAttributes_PDU = -1;  /* SecurityAttributes */
 static int hf_novell_pkis_RelianceLimits_PDU = -1;  /* RelianceLimits */
 static int hf_novell_pkis_versionNumber = -1;     /* OCTET_STRING_SIZE_2 */
@@ -75,12 +69,6 @@ static int hf_novell_pkis_perCertificateLimit = -1;  /* MonetaryValue */
 static int hf_novell_pkis_currency = -1;          /* Currency */
 static int hf_novell_pkis_amount = -1;            /* INTEGER */
 static int hf_novell_pkis_amtExp10 = -1;          /* INTEGER */
-
-/*--- End of included file: packet-novell_pkis-hf.c ---*/
-#line 23 "./asn1/novell_pkis/packet-novell_pkis-template.c"
-
-/*--- Included file: packet-novell_pkis-ett.c ---*/
-#line 1 "./asn1/novell_pkis/packet-novell_pkis-ett.c"
 static gint ett_novell_pkis_SecurityAttributes = -1;
 static gint ett_novell_pkis_GLBExtensions = -1;
 static gint ett_novell_pkis_Quality = -1;
@@ -98,15 +86,9 @@ static gint ett_novell_pkis_SingletonRange = -1;
 static gint ett_novell_pkis_RelianceLimits = -1;
 static gint ett_novell_pkis_MonetaryValue = -1;
 
-/*--- End of included file: packet-novell_pkis-ett.c ---*/
-#line 24 "./asn1/novell_pkis/packet-novell_pkis-template.c"
-
-/*--- Included file: packet-novell_pkis-fn.c ---*/
-#line 1 "./asn1/novell_pkis/packet-novell_pkis-fn.c"
-
 
 static int
-dissect_novell_pkis_OCTET_STRING_SIZE_2(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_OCTET_STRING_SIZE_2(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -116,7 +98,7 @@ dissect_novell_pkis_OCTET_STRING_SIZE_2(gboolean implicit_tag _U_, tvbuff_t *tvb
 
 
 static int
-dissect_novell_pkis_BOOLEAN(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_BOOLEAN(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_boolean(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   return offset;
@@ -125,7 +107,7 @@ dissect_novell_pkis_BOOLEAN(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int of
 
 
 static int
-dissect_novell_pkis_T_securityTM(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_T_securityTM(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_restricted_string(implicit_tag, BER_UNI_TAG_PrintableString,
                                             actx, tree, tvb, offset, hf_index,
                                             NULL);
@@ -136,7 +118,7 @@ dissect_novell_pkis_T_securityTM(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, i
 
 
 static int
-dissect_novell_pkis_IA5String(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_IA5String(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_restricted_string(implicit_tag, BER_UNI_TAG_IA5String,
                                             actx, tree, tvb, offset, hf_index,
                                             NULL);
@@ -147,7 +129,7 @@ dissect_novell_pkis_IA5String(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_novell_pkis_INTEGER_0_255(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_INTEGER_0_255(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -162,7 +144,7 @@ static const ber_sequence_t CompusecQualityPair_sequence[] = {
 };
 
 static int
-dissect_novell_pkis_CompusecQualityPair(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_CompusecQualityPair(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    CompusecQualityPair_sequence, hf_index, ett_novell_pkis_CompusecQualityPair);
 
@@ -175,7 +157,7 @@ static const ber_sequence_t CompusecQuality_sequence_of[1] = {
 };
 
 static int
-dissect_novell_pkis_CompusecQuality(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_CompusecQuality(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       CompusecQuality_sequence_of, hf_index, ett_novell_pkis_CompusecQuality);
 
@@ -190,7 +172,7 @@ static const ber_sequence_t CryptoQualityPair_sequence[] = {
 };
 
 static int
-dissect_novell_pkis_CryptoQualityPair(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_CryptoQualityPair(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    CryptoQualityPair_sequence, hf_index, ett_novell_pkis_CryptoQualityPair);
 
@@ -203,7 +185,7 @@ static const ber_sequence_t CryptoQuality_sequence_of[1] = {
 };
 
 static int
-dissect_novell_pkis_CryptoQuality(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_CryptoQuality(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       CryptoQuality_sequence_of, hf_index, ett_novell_pkis_CryptoQuality);
 
@@ -220,7 +202,7 @@ static const ber_sequence_t Quality_sequence[] = {
 };
 
 static int
-dissect_novell_pkis_Quality(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_Quality(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Quality_sequence, hf_index, ett_novell_pkis_Quality);
 
@@ -230,7 +212,7 @@ dissect_novell_pkis_Quality(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int of
 
 
 static int
-dissect_novell_pkis_KeyQuality(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_KeyQuality(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_novell_pkis_Quality(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -239,7 +221,7 @@ dissect_novell_pkis_KeyQuality(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int
 
 
 static int
-dissect_novell_pkis_CryptoProcessQuality(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_CryptoProcessQuality(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_novell_pkis_Quality(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -253,7 +235,7 @@ static const ber_sequence_t CertificateClass_sequence[] = {
 };
 
 static int
-dissect_novell_pkis_CertificateClass(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_CertificateClass(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    CertificateClass_sequence, hf_index, ett_novell_pkis_CertificateClass);
 
@@ -263,7 +245,7 @@ dissect_novell_pkis_CertificateClass(gboolean implicit_tag _U_, tvbuff_t *tvb _U
 
 
 static int
-dissect_novell_pkis_BIT_STRING_SIZE_96(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_BIT_STRING_SIZE_96(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_bitstring(implicit_tag, actx, tree, tvb, offset,
                                     NULL, 0, hf_index, -1,
                                     NULL);
@@ -274,7 +256,7 @@ dissect_novell_pkis_BIT_STRING_SIZE_96(gboolean implicit_tag _U_, tvbuff_t *tvb 
 
 
 static int
-dissect_novell_pkis_BIT_STRING_SIZE_64(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_BIT_STRING_SIZE_64(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_bitstring(implicit_tag, actx, tree, tvb, offset,
                                     NULL, 0, hf_index, -1,
                                     NULL);
@@ -285,7 +267,7 @@ dissect_novell_pkis_BIT_STRING_SIZE_64(gboolean implicit_tag _U_, tvbuff_t *tvb 
 
 
 static int
-dissect_novell_pkis_INTEGER_0_9223372036854775807(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_INTEGER_0_9223372036854775807(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer64(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -301,7 +283,7 @@ static const ber_sequence_t SingletonRange_sequence[] = {
 };
 
 static int
-dissect_novell_pkis_SingletonRange(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_SingletonRange(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SingletonRange_sequence, hf_index, ett_novell_pkis_SingletonRange);
 
@@ -322,7 +304,7 @@ static const ber_choice_t SingletonChoice_choice[] = {
 };
 
 static int
-dissect_novell_pkis_SingletonChoice(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_SingletonChoice(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  SingletonChoice_choice, hf_index, ett_novell_pkis_SingletonChoice,
                                  NULL);
@@ -336,7 +318,7 @@ static const ber_sequence_t Singletons_sequence_of[1] = {
 };
 
 static int
-dissect_novell_pkis_Singletons(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_Singletons(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       Singletons_sequence_of, hf_index, ett_novell_pkis_Singletons);
 
@@ -356,7 +338,7 @@ static const ber_sequence_t SecurityLabelType1_sequence[] = {
 };
 
 static int
-dissect_novell_pkis_SecurityLabelType1(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_SecurityLabelType1(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SecurityLabelType1_sequence, hf_index, ett_novell_pkis_SecurityLabelType1);
 
@@ -369,7 +351,7 @@ static const ber_sequence_t SEQUENCE_SIZE_1_1_OF_SecurityLabelType1_sequence_of[
 };
 
 static int
-dissect_novell_pkis_SEQUENCE_SIZE_1_1_OF_SecurityLabelType1(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_SEQUENCE_SIZE_1_1_OF_SecurityLabelType1(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       SEQUENCE_SIZE_1_1_OF_SecurityLabelType1_sequence_of, hf_index, ett_novell_pkis_SEQUENCE_SIZE_1_1_OF_SecurityLabelType1);
 
@@ -385,7 +367,7 @@ static const ber_sequence_t EnterpriseId_sequence[] = {
 };
 
 static int
-dissect_novell_pkis_EnterpriseId(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_EnterpriseId(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    EnterpriseId_sequence, hf_index, ett_novell_pkis_EnterpriseId);
 
@@ -402,7 +384,7 @@ static const ber_sequence_t GLBExtensions_sequence[] = {
 };
 
 static int
-dissect_novell_pkis_GLBExtensions(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_GLBExtensions(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    GLBExtensions_sequence, hf_index, ett_novell_pkis_GLBExtensions);
 
@@ -420,7 +402,7 @@ static const ber_sequence_t SecurityAttributes_sequence[] = {
 };
 
 static int
-dissect_novell_pkis_SecurityAttributes(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_SecurityAttributes(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SecurityAttributes_sequence, hf_index, ett_novell_pkis_SecurityAttributes);
 
@@ -430,7 +412,7 @@ dissect_novell_pkis_SecurityAttributes(gboolean implicit_tag _U_, tvbuff_t *tvb 
 
 
 static int
-dissect_novell_pkis_Currency(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_Currency(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -440,7 +422,7 @@ dissect_novell_pkis_Currency(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int o
 
 
 static int
-dissect_novell_pkis_INTEGER(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_INTEGER(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -456,7 +438,7 @@ static const ber_sequence_t MonetaryValue_sequence[] = {
 };
 
 static int
-dissect_novell_pkis_MonetaryValue(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_MonetaryValue(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    MonetaryValue_sequence, hf_index, ett_novell_pkis_MonetaryValue);
 
@@ -471,7 +453,7 @@ static const ber_sequence_t RelianceLimits_sequence[] = {
 };
 
 static int
-dissect_novell_pkis_RelianceLimits(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_novell_pkis_RelianceLimits(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RelianceLimits_sequence, hf_index, ett_novell_pkis_RelianceLimits);
 
@@ -496,9 +478,6 @@ static int dissect_RelianceLimits_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_,
 }
 
 
-/*--- End of included file: packet-novell_pkis-fn.c ---*/
-#line 25 "./asn1/novell_pkis/packet-novell_pkis-template.c"
-
 void proto_register_novell_pkis (void);
 void proto_reg_handoff_novell_pkis(void);
 
@@ -506,23 +485,14 @@ static int proto_novell_pkis = -1;
 
 void proto_reg_handoff_novell_pkis(void)
 {
-
-/*--- Included file: packet-novell_pkis-dis-tab.c ---*/
-#line 1 "./asn1/novell_pkis/packet-novell_pkis-dis-tab.c"
   register_ber_oid_dissector("2.16.840.1.113719.1.9.4.1", dissect_SecurityAttributes_PDU, proto_novell_pkis, "pa-sa");
   register_ber_oid_dissector("2.16.840.1.113719.1.9.4.2", dissect_RelianceLimits_PDU, proto_novell_pkis, "pa-rl");
 
-
-/*--- End of included file: packet-novell_pkis-dis-tab.c ---*/
-#line 34 "./asn1/novell_pkis/packet-novell_pkis-template.c"
 }
 
 void proto_register_novell_pkis (void)
 {
   static hf_register_info hf[] = {
-
-/*--- Included file: packet-novell_pkis-hfarr.c ---*/
-#line 1 "./asn1/novell_pkis/packet-novell_pkis-hfarr.c"
     { &hf_novell_pkis_SecurityAttributes_PDU,
       { "SecurityAttributes", "novell_pkis.SecurityAttributes_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -703,14 +673,8 @@ void proto_register_novell_pkis (void)
       { "amtExp10", "novell_pkis.amtExp10",
         FT_INT32, BASE_DEC, NULL, 0,
         "INTEGER", HFILL }},
-
-/*--- End of included file: packet-novell_pkis-hfarr.c ---*/
-#line 40 "./asn1/novell_pkis/packet-novell_pkis-template.c"
   };
   static gint *ett[] = {
-
-/*--- Included file: packet-novell_pkis-ettarr.c ---*/
-#line 1 "./asn1/novell_pkis/packet-novell_pkis-ettarr.c"
     &ett_novell_pkis_SecurityAttributes,
     &ett_novell_pkis_GLBExtensions,
     &ett_novell_pkis_Quality,
@@ -727,9 +691,6 @@ void proto_register_novell_pkis (void)
     &ett_novell_pkis_SingletonRange,
     &ett_novell_pkis_RelianceLimits,
     &ett_novell_pkis_MonetaryValue,
-
-/*--- End of included file: packet-novell_pkis-ettarr.c ---*/
-#line 43 "./asn1/novell_pkis/packet-novell_pkis-template.c"
   };
 
   /* execute protocol initialization only once */

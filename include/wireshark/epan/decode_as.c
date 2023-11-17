@@ -150,31 +150,27 @@ gboolean decode_as_default_reset(const gchar *name, gconstpointer pattern)
 
 gboolean decode_as_default_change(const gchar *name, gconstpointer pattern, gconstpointer handle, const gchar *list_name _U_)
 {
-    const dissector_handle_t* dissector = (const dissector_handle_t*)handle;
-    if (dissector != NULL) {
-        switch (get_dissector_table_selector_type(name)) {
-        case FT_UINT8:
-        case FT_UINT16:
-        case FT_UINT24:
-        case FT_UINT32:
-            dissector_change_uint(name, GPOINTER_TO_UINT(pattern), *dissector);
-            return TRUE;
-        case FT_NONE:
-            dissector_change_payload(name, *dissector);
-            return TRUE;
-        case FT_STRING:
-        case FT_STRINGZ:
-        case FT_UINT_STRING:
-        case FT_STRINGZPAD:
-        case FT_STRINGZTRUNC:
-            dissector_change_string(name, (!pattern)?"":(const gchar *) pattern, *dissector);
-            return TRUE;
-        default:
-            return FALSE;
-        };
-
+    const dissector_handle_t dissector = (const dissector_handle_t)handle;
+    switch (get_dissector_table_selector_type(name)) {
+    case FT_UINT8:
+    case FT_UINT16:
+    case FT_UINT24:
+    case FT_UINT32:
+        dissector_change_uint(name, GPOINTER_TO_UINT(pattern), dissector);
+        return TRUE;
+    case FT_NONE:
+        dissector_change_payload(name, dissector);
+        return TRUE;
+    case FT_STRING:
+    case FT_STRINGZ:
+    case FT_UINT_STRING:
+    case FT_STRINGZPAD:
+    case FT_STRINGZTRUNC:
+        dissector_change_string(name, (!pattern)?"":(const gchar *) pattern, dissector);
+        return TRUE;
+    default:
         return FALSE;
-    }
+    };
 
     return TRUE;
 }
@@ -232,7 +228,7 @@ read_set_decode_as_entries(gchar *key, const gchar *value,
             }
 
             if (is_valid) {
-                if (IS_FT_STRING(selector_type)) {
+                if (FT_IS_STRING(selector_type)) {
                     dissector_change_string(values[0], values[1], handle);
                 } else {
                     char *p;

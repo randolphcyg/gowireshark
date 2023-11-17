@@ -90,6 +90,7 @@ static guint16 packet_count = 0;
 static gboolean first_pkt = TRUE;                /* start of capture */
 
 static dissector_handle_t fc_dissector_handle;
+static dissector_handle_t brdwlk_handle;
 
 
 static const true_false_string tfs_error_plp = {
@@ -339,7 +340,7 @@ proto_register_brdwlk(void)
           {"Packet Dropped", "brdwlk.drop", FT_BOOLEAN, BASE_NONE, NULL, 0x0,
            NULL, HFILL}},
         { &hf_brdwlk_vsan,
-          {"VSAN", "brdwlk.vsan", FT_UINT16, BASE_DEC, NULL, 0xFFF, NULL,
+          {"VSAN", "brdwlk.vsan", FT_UINT16, BASE_DEC, NULL, 0x0FFF, NULL,
            HFILL}},
         { &hf_brdwlk_plen,
           {"Original Packet Length", "brdwlk.plen", FT_UINT32, BASE_DEC, NULL, 0x0, NULL,
@@ -377,23 +378,22 @@ proto_register_brdwlk(void)
     };
 
 /* Register the protocol name and description */
-    proto_brdwlk = proto_register_protocol("Boardwalk",
-                                           "Boardwalk", "brdwlk");
+    proto_brdwlk = proto_register_protocol("Boardwalk", "Boardwalk", "brdwlk");
 
 /* Required function calls to register the header fields and subtrees used */
     proto_register_field_array(proto_brdwlk, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
 
     register_init_routine(&brdwlk_init);
+
+/* Register the dissector */
+    brdwlk_handle = register_dissector("brdwlk", dissect_brdwlk, proto_brdwlk);
 }
 
 
 void
 proto_reg_handoff_brdwlk(void)
 {
-    dissector_handle_t brdwlk_handle;
-
-    brdwlk_handle = create_dissector_handle(dissect_brdwlk, proto_brdwlk);
     dissector_add_uint("ethertype", ETHERTYPE_BRDWALK, brdwlk_handle);
     dissector_add_uint("ethertype", 0xABCD, brdwlk_handle);
     fc_dissector_handle = find_dissector_add_dependency("fc", proto_brdwlk);

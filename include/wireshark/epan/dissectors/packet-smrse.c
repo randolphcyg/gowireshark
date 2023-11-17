@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-smrse.c                                                             */
-/* asn2wrs.py -b -p smrse -c ./smrse.cnf -s ./packet-smrse-template -D . -O ../.. SMRSE.asn */
+/* asn2wrs.py -b -L -p smrse -c ./smrse.cnf -s ./packet-smrse-template -D . -O ../.. SMRSE.asn */
 
-/* Input file: packet-smrse-template.c */
-
-#line 1 "./asn1/smrse/packet-smrse-template.c"
 /* packet-smrse.c
  * Routines for SMRSE Short Message Relay Service packet dissection
  *   Ronnie Sahlberg 2004
@@ -34,15 +31,14 @@
 void proto_register_smrse(void);
 void proto_reg_handoff_smrse(void);
 
+static dissector_handle_t smrse_handle;
+
 /* Initialize the protocol and registered fields */
 static int proto_smrse = -1;
 static int hf_smrse_reserved = -1;
 static int hf_smrse_tag = -1;
 static int hf_smrse_length = -1;
 static int hf_smrse_Octet_Format = -1;
-
-/*--- Included file: packet-smrse-hf.c ---*/
-#line 1 "./asn1/smrse/packet-smrse-hf.c"
 static int hf_smrse_sc_address = -1;              /* SMS_Address */
 static int hf_smrse_password = -1;                /* Password */
 static int hf_smrse_address_type = -1;            /* T_address_type */
@@ -70,14 +66,8 @@ static int hf_smrse_alerting_MS_ISDN = -1;        /* SMS_Address */
 static int hf_smrse_sm_diag_info = -1;            /* RP_UD */
 static int hf_smrse_ms_address = -1;              /* SMS_Address */
 
-/*--- End of included file: packet-smrse-hf.c ---*/
-#line 36 "./asn1/smrse/packet-smrse-template.c"
-
 /* Initialize the subtree pointers */
 static gint ett_smrse = -1;
-
-/*--- Included file: packet-smrse-ett.c ---*/
-#line 1 "./asn1/smrse/packet-smrse-ett.c"
 static gint ett_smrse_SMR_Bind = -1;
 static gint ett_smrse_SMS_Address = -1;
 static gint ett_smrse_T_address_value = -1;
@@ -90,13 +80,7 @@ static gint ett_smrse_RPAck = -1;
 static gint ett_smrse_RPError = -1;
 static gint ett_smrse_RPAlertSC = -1;
 
-/*--- End of included file: packet-smrse-ett.c ---*/
-#line 40 "./asn1/smrse/packet-smrse-template.c"
 
-
-
-/*--- Included file: packet-smrse-fn.c ---*/
-#line 1 "./asn1/smrse/packet-smrse-fn.c"
 
 static const value_string smrse_T_address_type_vals[] = {
   {   0, "unknown-type" },
@@ -109,7 +93,7 @@ static const value_string smrse_T_address_type_vals[] = {
 
 
 static int
-dissect_smrse_T_address_type(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_T_address_type(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -129,7 +113,7 @@ static const value_string smrse_T_numbering_plan_vals[] = {
 
 
 static int
-dissect_smrse_T_numbering_plan(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_T_numbering_plan(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -140,12 +124,11 @@ dissect_smrse_T_numbering_plan(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int
 
 
 static int
-dissect_smrse_T_octet_format(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 19 "./asn1/smrse/smrse.cnf"
+dissect_smrse_T_octet_format(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
 	char *strp,tmpstr[21];
 	guint32 i, start_offset;
 	gint8 ber_class;
-	gboolean pc, ind;
+	bool pc, ind;
 	gint32 tag;
 	guint32 len;
 	static char n2a[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
@@ -168,10 +151,6 @@ dissect_smrse_T_octet_format(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int o
 
 	proto_tree_add_string(tree, hf_smrse_Octet_Format, tvb, start_offset, offset-start_offset, tmpstr);
 
-	return offset;
-
-
-
   return offset;
 }
 
@@ -187,7 +166,7 @@ static const ber_choice_t T_address_value_choice[] = {
 };
 
 static int
-dissect_smrse_T_address_value(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_T_address_value(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  T_address_value_choice, hf_index, ett_smrse_T_address_value,
                                  NULL);
@@ -204,7 +183,7 @@ static const ber_sequence_t SMS_Address_sequence[] = {
 };
 
 static int
-dissect_smrse_SMS_Address(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_SMS_Address(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SMS_Address_sequence, hf_index, ett_smrse_SMS_Address);
 
@@ -214,7 +193,7 @@ dissect_smrse_SMS_Address(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offs
 
 
 static int
-dissect_smrse_Password(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_Password(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_restricted_string(implicit_tag, BER_UNI_TAG_PrintableString,
                                             actx, tree, tvb, offset, hf_index,
                                             NULL);
@@ -230,7 +209,7 @@ static const ber_sequence_t SMR_Bind_sequence[] = {
 };
 
 static int
-dissect_smrse_SMR_Bind(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_SMR_Bind(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SMR_Bind_sequence, hf_index, ett_smrse_SMR_Bind);
 
@@ -240,7 +219,7 @@ dissect_smrse_SMR_Bind(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset 
 
 
 static int
-dissect_smrse_IMSI_Address(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_IMSI_Address(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -253,7 +232,7 @@ static const ber_sequence_t SMR_Bind_Confirm_sequence[] = {
 };
 
 static int
-dissect_smrse_SMR_Bind_Confirm(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_SMR_Bind_Confirm(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SMR_Bind_Confirm_sequence, hf_index, ett_smrse_SMR_Bind_Confirm);
 
@@ -273,7 +252,7 @@ static const value_string smrse_Connect_fail_vals[] = {
 
 
 static int
-dissect_smrse_Connect_fail(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_Connect_fail(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -287,7 +266,7 @@ static const ber_sequence_t SMR_Bind_Failure_sequence[] = {
 };
 
 static int
-dissect_smrse_SMR_Bind_Failure(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_SMR_Bind_Failure(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SMR_Bind_Failure_sequence, hf_index, ett_smrse_SMR_Bind_Failure);
 
@@ -300,7 +279,7 @@ static const ber_sequence_t SMR_Unbind_sequence[] = {
 };
 
 static int
-dissect_smrse_SMR_Unbind(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_SMR_Unbind(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SMR_Unbind_sequence, hf_index, ett_smrse_SMR_Unbind);
 
@@ -310,7 +289,7 @@ dissect_smrse_SMR_Unbind(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offse
 
 
 static int
-dissect_smrse_BOOLEAN(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_BOOLEAN(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_boolean(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   return offset;
@@ -319,7 +298,7 @@ dissect_smrse_BOOLEAN(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
 
 
 static int
-dissect_smrse_RP_MR(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_RP_MR(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -329,7 +308,7 @@ dissect_smrse_RP_MR(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_
 
 
 static int
-dissect_smrse_RP_UD(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_RP_UD(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -339,7 +318,7 @@ dissect_smrse_RP_UD(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_
 
 
 static int
-dissect_smrse_SM_TC(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_SM_TC(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -360,7 +339,7 @@ static const ber_sequence_t RPDataMT_sequence[] = {
 };
 
 static int
-dissect_smrse_RPDataMT(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_RPDataMT(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RPDataMT_sequence, hf_index, ett_smrse_RPDataMT);
 
@@ -378,7 +357,7 @@ static const ber_sequence_t RPDataMO_sequence[] = {
 };
 
 static int
-dissect_smrse_RPDataMO(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_RPDataMO(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RPDataMO_sequence, hf_index, ett_smrse_RPDataMO);
 
@@ -392,7 +371,7 @@ static const ber_sequence_t RPAck_sequence[] = {
 };
 
 static int
-dissect_smrse_RPAck(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_RPAck(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RPAck_sequence, hf_index, ett_smrse_RPAck);
 
@@ -425,7 +404,7 @@ static const value_string smrse_Error_reason_vals[] = {
 
 
 static int
-dissect_smrse_Error_reason(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_Error_reason(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -443,7 +422,7 @@ static const ber_sequence_t RPError_sequence[] = {
 };
 
 static int
-dissect_smrse_RPError(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_RPError(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RPError_sequence, hf_index, ett_smrse_RPError);
 
@@ -458,16 +437,13 @@ static const ber_sequence_t RPAlertSC_sequence[] = {
 };
 
 static int
-dissect_smrse_RPAlertSC(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_smrse_RPAlertSC(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RPAlertSC_sequence, hf_index, ett_smrse_RPAlertSC);
 
   return offset;
 }
 
-
-/*--- End of included file: packet-smrse-fn.c ---*/
-#line 43 "./asn1/smrse/packet-smrse-template.c"
 
 static const value_string tag_vals[] = {
 	{  1,	"AliveTest" },
@@ -570,9 +546,6 @@ void proto_register_smrse(void) {
         FT_STRING, BASE_NONE, NULL, 0,
         "SMS-Address/address-value/octet-format", HFILL }},
 
-
-/*--- Included file: packet-smrse-hfarr.c ---*/
-#line 1 "./asn1/smrse/packet-smrse-hfarr.c"
     { &hf_smrse_sc_address,
       { "sc-address", "smrse.sc_address_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -677,17 +650,11 @@ void proto_register_smrse(void) {
       { "ms-address", "smrse.ms_address_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "SMS_Address", HFILL }},
-
-/*--- End of included file: packet-smrse-hfarr.c ---*/
-#line 146 "./asn1/smrse/packet-smrse-template.c"
   };
 
   /* List of subtrees */
   static gint *ett[] = {
     &ett_smrse,
-
-/*--- Included file: packet-smrse-ettarr.c ---*/
-#line 1 "./asn1/smrse/packet-smrse-ettarr.c"
     &ett_smrse_SMR_Bind,
     &ett_smrse_SMS_Address,
     &ett_smrse_T_address_value,
@@ -699,13 +666,13 @@ void proto_register_smrse(void) {
     &ett_smrse_RPAck,
     &ett_smrse_RPError,
     &ett_smrse_RPAlertSC,
-
-/*--- End of included file: packet-smrse-ettarr.c ---*/
-#line 152 "./asn1/smrse/packet-smrse-template.c"
   };
 
   /* Register protocol */
   proto_smrse = proto_register_protocol(PNAME, PSNAME, PFNAME);
+
+  /* Register dissector */
+  smrse_handle = register_dissector(PFNAME, dissect_smrse, proto_smrse);
 
   /* Register fields and subtrees */
   proto_register_field_array(proto_smrse, hf, array_length(hf));
@@ -716,9 +683,6 @@ void proto_register_smrse(void) {
 
 /*--- proto_reg_handoff_smrse -------------------------------------------*/
 void proto_reg_handoff_smrse(void) {
-  dissector_handle_t smrse_handle;
-
-  smrse_handle = create_dissector_handle(dissect_smrse, proto_smrse);
   dissector_add_uint_with_preference("tcp.port",TCP_PORT_SMRSE, smrse_handle);
 }
 

@@ -63,7 +63,6 @@
 
 #include "packet-rtcp.h"
 #include "packet-rtp.h"
-#include "packet-e212.h"
 #include "packet-gsm_a_common.h"
 
 #include <epan/conversation.h>
@@ -6601,7 +6600,7 @@ proto_register_rtcp(void)
                 FT_UINT8,
                 BASE_DEC,
                 NULL,
-                0xff,
+                0x0,
                 NULL, HFILL
             }
         },
@@ -8121,7 +8120,7 @@ proto_register_rtcp(void)
         &preferences_application_specific_encoding, rtcp_application_specific_encoding_vals, FALSE);
 
     /* Register table for sub-dissetors */
-    rtcp_dissector_table = register_dissector_table("rtcp.app.name", "RTCP Application Name", proto_rtcp, FT_STRING, BASE_NONE);
+    rtcp_dissector_table = register_dissector_table("rtcp.app.name", "RTCP Application Name", proto_rtcp, FT_STRING, STRING_CASE_SENSITIVE);
     rtcp_psfb_dissector_table = register_dissector_table("rtcp.psfb.fmt", "RTCP Payload Specific Feedback Message Format", proto_rtcp, FT_UINT8, BASE_DEC);
     rtcp_rtpfb_dissector_table = register_dissector_table("rtcp.rtpfb.fmt", "RTCP Generic RTP Feedback Message Format", proto_rtcp, FT_UINT8, BASE_DEC);
 }

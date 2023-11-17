@@ -24,9 +24,10 @@
 #include <epan/packet.h>
 #include <epan/uat.h>
 #include <epan/expert.h>
-#include <epan/dissectors/packet-tcp.h>
-#include <epan/dissectors/packet-tls.h>
-#include <epan/dissectors/packet-doip.h>
+
+#include "packet-tcp.h"
+#include "packet-tls.h"
+#include "packet-doip.h"
 
 void proto_register_doip(void);
 void proto_reg_handoff_doip(void);
@@ -469,7 +470,7 @@ copy_generic_one_id_string_cb(void* n, const void* o, size_t size _U_) {
     return new_rec;
 }
 
-static gboolean
+static bool
 update_generic_one_identifier_16bit(void *r, char **err) {
     generic_one_id_string_t *rec = (generic_one_id_string_t *)r;
 
@@ -758,7 +759,7 @@ add_diagnostic_message_fields(proto_tree *doip_tree, tvbuff_t *tvb, packet_info 
     doip_info.target_address = tmp;
 
     if (uds_handle != 0) {
-        call_dissector_with_data(uds_handle, tvb_new_subset_length_caplen(tvb, DOIP_DIAG_MESSAGE_DATA_OFFSET, -1, -1), pinfo, parent_tree, &doip_info);
+        call_dissector_with_data(uds_handle, tvb_new_subset_length(tvb, DOIP_DIAG_MESSAGE_DATA_OFFSET, -1), pinfo, parent_tree, &doip_info);
     } else if (tvb_reported_length_remaining(tvb, DOIP_DIAG_MESSAGE_DATA_OFFSET) > 0) {
         proto_tree_add_item(doip_tree, hf_data, tvb, DOIP_DIAG_MESSAGE_DATA_OFFSET, tvb_reported_length_remaining(tvb, DOIP_DIAG_MESSAGE_DATA_OFFSET), ENC_NA);
     }
@@ -807,7 +808,7 @@ dissect_doip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
         version == ISO13400_2012 ||
         version == ISO13400_2019 ||
         version == ISO13400_2019_AMD1 ||
-        (version == DEFAULT_VALUE && (payload_type >= DOIP_VEHICLE_IDENTIFICATION_REQ && payload_type <= DOIP_VEHICLE_IDENTIFICATION_REQ_EID))
+        (version == DEFAULT_VALUE && (payload_type >= DOIP_VEHICLE_IDENTIFICATION_REQ && payload_type <= DOIP_VEHICLE_IDENTIFICATION_REQ_VIN))
         ) {
         col_add_fstr(pinfo->cinfo, COL_INFO, "%s", resolve_doip_payload_type(payload_type, true));
     } else {
@@ -891,7 +892,7 @@ dissect_doip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
             doip_info_t doip_info;
             doip_info.source_address = tvb_get_guint16(tvb, DOIP_DIAG_COMMON_SOURCE_OFFSET, ENC_BIG_ENDIAN);
             doip_info.target_address = tvb_get_guint16(tvb, DOIP_DIAG_COMMON_TARGET_OFFSET, ENC_BIG_ENDIAN);
-            call_dissector_with_data(uds_handle, tvb_new_subset_length_caplen(tvb, DOIP_DIAG_MESSAGE_DATA_OFFSET, -1, -1), pinfo, NULL, &doip_info);
+            call_dissector_with_data(uds_handle, tvb_new_subset_length(tvb, DOIP_DIAG_MESSAGE_DATA_OFFSET, -1), pinfo, NULL, &doip_info);
         }
     }
 }

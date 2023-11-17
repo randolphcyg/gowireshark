@@ -22,6 +22,8 @@
 void proto_reg_handoff_qnet6(void);
 void proto_register_qnet6(void);
 
+static dissector_handle_t qnet6_handle;
+
 static int proto_qnet6_l4 = -1;
 static int proto_qnet6_qos = -1;
 static int proto_qnet6_lr = -1;
@@ -5260,12 +5262,12 @@ proto_register_qnet6(void)
     },
     {&hf_qnet6_kif_msg_io_read_xtypes_0_7,
      {"Xtype", "qnet6.kif.msgsend.msg.read.xtypes0-7",
-      FT_UINT32, BASE_HEX, VALS(qnet6_kif_msgsend_msg_io_read_xtypes_vals), 0xff,
+      FT_UINT32, BASE_HEX, VALS(qnet6_kif_msgsend_msg_io_read_xtypes_vals), 0x000000ff,
       "Extended types 0-7 bits", HFILL}
     },
     {&hf_qnet6_kif_msg_io_read_xtypes_8,
      {"DirExtraHint", "qnet6.kif.msgsend.msg.read.xtypes8",
-      FT_UINT32, BASE_HEX, NULL, 0x100,
+      FT_UINT32, BASE_HEX, NULL, 0x00000100,
       "_IO_XFLAG_DIR_EXTRA_HINT", HFILL}
     },
     {&hf_qnet6_kif_msg_io_read_xtypes_14,
@@ -5316,22 +5318,22 @@ proto_register_qnet6(void)
     },
     {&hf_qnet6_kif_msg_io_write_xtypes_0_7,
      {"Xtype", "qnet6.kif.msgsend.msg.write.xtypes0-7",
-      FT_UINT32, BASE_HEX, VALS(qnet6_kif_msgsend_msg_io_read_xtypes_vals), 0xff,
+      FT_UINT32, BASE_HEX, VALS(qnet6_kif_msgsend_msg_io_read_xtypes_vals), 0x000000ff,
       "Extended types 0-7 bits", HFILL}
     },
     {&hf_qnet6_kif_msg_io_write_xtypes_8,
      {"DirExtraHint", "qnet6.kif.msgsend.msg.write.xtypes8",
-      FT_UINT32, BASE_HEX, NULL, 0x100,
+      FT_UINT32, BASE_HEX, NULL, 0x00000100,
       "_IO_XFLAG_DIR_EXTRA_HINT", HFILL}
     },
     {&hf_qnet6_kif_msg_io_write_xtypes_14,
      {"Nonblock", "qnet6.kif.msgsend.msg.write.xtypes0-7",
-      FT_UINT32, BASE_HEX, NULL, 0x4000,
+      FT_UINT32, BASE_HEX, NULL, 0x00004000,
       "_IO_XFLAG_NONBLOCK", HFILL}
     },
     {&hf_qnet6_kif_msg_io_write_xtypes_15,
      {"Block", "qnet6.kif.msgsend.msg.write.xtypes0-7",
-      FT_UINT32, BASE_HEX, NULL, 0x8000,
+      FT_UINT32, BASE_HEX, NULL, 0x00008000,
       "_IO_XFLAG_BLOCK", HFILL}
     },
     {&hf_qnet6_kif_msg_io_write_xoffset,
@@ -5698,17 +5700,17 @@ proto_register_qnet6(void)
     },
     {&hf_qnet6_kif_msg_io_mmap_prot_read,
      {"Read", "qnet6.kif.msgsend.msg.mmap.prot.read",
-      FT_BOOLEAN, 32, NULL, 0x100,
+      FT_BOOLEAN, 32, NULL, 0x00000100,
       "protection field of mmap", HFILL}
     },
     {&hf_qnet6_kif_msg_io_mmap_prot_write,
      {"Write", "qnet6.kif.msgsend.msg.mmap.prot.write",
-      FT_BOOLEAN, 32, NULL, 0x200,
+      FT_BOOLEAN, 32, NULL, 0x00000200,
       "protection field of mmap", HFILL}
     },
     {&hf_qnet6_kif_msg_io_mmap_prot_exec,
      {"Exec", "qnet6.kif.msgsend.msg.mmap.prot.exec",
-      FT_BOOLEAN, 32, NULL, 0x400,
+      FT_BOOLEAN, 32, NULL, 0x00000400,
       "protection field of mmap", HFILL}
     },
     {&hf_qnet6_kif_msg_io_mmap_offset,
@@ -5952,6 +5954,9 @@ proto_register_qnet6(void)
 
   proto_qnet6_nr =  proto_register_protocol("QNX6 QNET Network Resolver protocol", "NR", "nr");
 
+  /* Register the dissector handle */
+  qnet6_handle = register_dissector("lwl4", dissect_qnet6, proto_qnet6_l4);
+
   /* Required function calls to register the header fields and subtrees used */
   proto_register_field_array(proto_qnet6_l4, hf, array_length(hf));
   proto_register_subtree_array(ett, array_length(ett));
@@ -5980,9 +5985,6 @@ proto_register_qnet6(void)
 void
 proto_reg_handoff_qnet6(void)
 {
-  dissector_handle_t qnet6_handle;
-
-  qnet6_handle = create_dissector_handle(dissect_qnet6, proto_qnet6_l4);
   dissector_add_uint("ethertype", ETHERTYPE_QNX_QNET6, qnet6_handle);
   dissector_add_uint("ip.proto", IP_PROTO_QNX, qnet6_handle);
 }

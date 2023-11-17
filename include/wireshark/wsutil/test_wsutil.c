@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <glib.h>
 #include <wsutil/utf8_entities.h>
+#include <wsutil/time_util.h>
 
 #include "inet_addr.h"
 
@@ -185,6 +186,74 @@ static void test_str_ascii(void)
     wmem_destroy_allocator(allocator);
 }
 
+static void test_format_text(void)
+{
+    const char *have, *want;
+    char *res;
+
+    /* ASCII */
+    have = "abcdef";
+    want = "abcdef";
+    res = format_text_string(NULL, have);
+    g_assert_cmpstr(res, ==, want);
+    g_free(res);
+
+    /* ASCII with special escape characters. */
+    have = "abc\td\fe\nf";
+    want = "abc\\td\\fe\\nf";
+    res = format_text_string(NULL, have);
+    g_assert_cmpstr(res, ==, want);
+    g_free(res);
+
+    /* ASCII with non-printable characters. */
+    have = "abc \004 def";
+    want = "abc \\004 def";
+    res = format_text_string(NULL, have);
+    g_assert_cmpstr(res, ==, want);
+    g_free(res);
+
+    /* UTF-8 */
+    have = u8"Γαζέες καὶ μυρτιὲς δὲν θὰ βρῶ πιὰ στὸ χρυσαφὶ ξέφωτο";
+    want = u8"Γαζέες καὶ μυρτιὲς δὲν θὰ βρῶ πιὰ στὸ χρυσαφὶ ξέφωτο";
+    res = format_text_string(NULL, have);
+    g_assert_cmpstr(res, ==, want);
+    g_free(res);
+
+    /* UTF-8 with non-ASCII non-printable characters. */
+    have = u8"String with BOM \ufeff";
+    want = u8"String with BOM \\uFEFF";
+    res = format_text_string(NULL, have);
+    g_assert_cmpstr(res, ==, want);
+    g_free(res);
+
+}
+
+#define RESOURCE_USAGE_START get_resource_usage(&start_utime, &start_stime)
+
+#define RESOURCE_USAGE_END \
+    get_resource_usage(&end_utime, &end_stime); \
+    utime_ms = (end_utime - start_utime) * 1000.0; \
+    stime_ms = (end_stime - start_stime) * 1000.0
+
+static void test_format_text_perf(void)
+{
+#define LOOP_COUNT (1 * 1000 * 1000)
+    char               *str;
+    int                 i;
+    double              start_utime, start_stime, end_utime, end_stime, utime_ms, stime_ms;
+
+    const char *text = "The quick brown fox\tjumps over the lazy \001dog"UTF8_HORIZONTAL_ELLIPSIS"\n";
+
+    RESOURCE_USAGE_START;
+    for (i = 0; i < LOOP_COUNT; i++) {
+        str = format_text_string(NULL, text);
+        g_free(str);
+    }
+    RESOURCE_USAGE_END;
+    g_test_minimized_result(utime_ms + stime_ms,
+        "format_text_string(): u %.3f ms s %.3f ms", utime_ms, stime_ms);
+}
+
 #include "to_str.h"
 
 static void test_word_to_hex(void)
@@ -239,7 +308,7 @@ static void test_bytes_to_str(void)
 {
     char *str;
 
-    const guint8 buf[] = { 1, 2, 3};
+    const uint8_t buf[] = { 1, 2, 3};
 
     str = bytes_to_str(NULL, buf, sizeof(buf));
     g_assert_cmpstr(str, ==, "010203");
@@ -250,7 +319,7 @@ static void test_bytes_to_str_punct(void)
 {
     char *str;
 
-    const guint8 buf[] = { 1, 2, 3};
+    const uint8_t buf[] = { 1, 2, 3};
 
     str = bytes_to_str_punct(NULL, buf, sizeof(buf), ':');
     g_assert_cmpstr(str, ==, "01:02:03");
@@ -261,7 +330,7 @@ static void test_bytes_to_str_punct_maxlen(void)
 {
     char *str;
 
-    const guint8 buf[] = { 1, 2, 3};
+    const uint8_t buf[] = { 1, 2, 3};
 
     str = bytes_to_str_punct_maxlen(NULL, buf, sizeof(buf), ':', 4);
     g_assert_cmpstr(str, ==, "01:02:03");
@@ -288,7 +357,7 @@ static void test_bytes_to_str_maxlen(void)
 {
     char *str;
 
-    const guint8 buf[] = { 1, 2, 3};
+    const uint8_t buf[] = { 1, 2, 3};
 
     str = bytes_to_str_maxlen(NULL, buf, sizeof(buf), 4);
     g_assert_cmpstr(str, ==, "010203");
@@ -315,7 +384,7 @@ static void test_bytes_to_string_trunc1(void)
 {
     char *str;
 
-    const guint8 buf[] = {
+    const uint8_t buf[] = {
         0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
         0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
         0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
@@ -339,7 +408,7 @@ static void test_bytes_to_string_punct_trunc1(void)
 {
     char *str;
 
-    const guint8 buf[] = {
+    const uint8_t buf[] = {
         0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
         0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
         0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
@@ -507,7 +576,7 @@ static void test_int64_to_str_back(void)
 void test_nstime_from_iso8601(void)
 {
     char *str;
-    size_t chars;
+    const char *endp;
     nstime_t result, expect;
     struct tm tm1;
 
@@ -524,8 +593,9 @@ void test_nstime_from_iso8601(void)
     str = "2013-05-30T23:45:25.349124";
     expect.secs = mktime(&tm1);
     expect.nsecs = 349124 * 1000;
-    chars = iso8601_to_nstime(&result, str, ISO8601_DATETIME_AUTO);
-    g_assert_cmpuint(chars, ==, strlen(str));
+    endp = iso8601_to_nstime(&result, str, ISO8601_DATETIME_AUTO);
+    g_assert_nonnull(endp);
+    g_assert(*endp == '\0');
     g_assert_cmpint(result.secs, ==, expect.secs);
     g_assert_cmpint(result.nsecs, ==, expect.nsecs);
 
@@ -533,8 +603,9 @@ void test_nstime_from_iso8601(void)
     str = "2013-05-30T23:45:25.349124Z";
     expect.secs = mktime_utc(&tm1);
     expect.nsecs = 349124 * 1000;
-    chars = iso8601_to_nstime(&result, str, ISO8601_DATETIME_AUTO);
-    g_assert_cmpuint(chars, ==, strlen(str));
+    endp = iso8601_to_nstime(&result, str, ISO8601_DATETIME_AUTO);
+    g_assert_nonnull(endp);
+    g_assert(*endp == '\0');
     g_assert_cmpint(result.secs, ==, expect.secs);
     g_assert_cmpint(result.nsecs, ==, expect.nsecs);
 
@@ -542,8 +613,9 @@ void test_nstime_from_iso8601(void)
     str = "2013-05-30T23:45:25.349124+01:00";
     expect.secs = mktime_utc(&tm1) - 1 * 60 * 60;
     expect.nsecs = 349124 * 1000;
-    chars = iso8601_to_nstime(&result, str, ISO8601_DATETIME_AUTO);
-    g_assert_cmpuint(chars, ==, strlen(str));
+    endp = iso8601_to_nstime(&result, str, ISO8601_DATETIME_AUTO);
+    g_assert_nonnull(endp);
+    g_assert(*endp == '\0');
     g_assert_cmpint(result.secs, ==, expect.secs);
     g_assert_cmpint(result.nsecs, ==, expect.nsecs);
 
@@ -551,8 +623,9 @@ void test_nstime_from_iso8601(void)
     str = "2013-05-30T23:45:25.349124+0100";
     expect.secs = mktime_utc(&tm1) - 1 * 60 * 60;
     expect.nsecs = 349124 * 1000;
-    chars = iso8601_to_nstime(&result, str, ISO8601_DATETIME_AUTO);
-    g_assert_cmpuint(chars, ==, strlen(str));
+    endp = iso8601_to_nstime(&result, str, ISO8601_DATETIME_AUTO);
+    g_assert_nonnull(endp);
+    g_assert(*endp == '\0');
     g_assert_cmpint(result.secs, ==, expect.secs);
     g_assert_cmpint(result.nsecs, ==, expect.nsecs);
 
@@ -560,8 +633,9 @@ void test_nstime_from_iso8601(void)
     str = "2013-05-30T23:45:25.349124+01";
     expect.secs = mktime_utc(&tm1) - 1 * 60 * 60;
     expect.nsecs = 349124 * 1000;
-    chars = iso8601_to_nstime(&result, str, ISO8601_DATETIME_AUTO);
-    g_assert_cmpuint(chars, ==, strlen(str));
+    endp = iso8601_to_nstime(&result, str, ISO8601_DATETIME_AUTO);
+    g_assert_nonnull(endp);
+    g_assert(*endp == '\0');
     g_assert_cmpint(result.secs, ==, expect.secs);
     g_assert_cmpint(result.nsecs, ==, expect.nsecs);
 }
@@ -743,6 +817,8 @@ int main(int argc, char **argv)
 {
     int ret;
 
+    ws_log_init("test_wsutil", NULL);
+
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/inet_addr/inet_pton4", test_inet_pton4_test1);
@@ -755,6 +831,11 @@ int main(int argc, char **argv)
     g_test_add_func("/str_util/strconcat", test_strconcat);
     g_test_add_func("/str_util/strsplit", test_strsplit);
     g_test_add_func("/str_util/str_ascii", test_str_ascii);
+    g_test_add_func("/str_util/format_text", test_format_text);
+
+    if (g_test_perf()) {
+        g_test_add_func("/str_util/format_text_perf", test_format_text_perf);
+    }
 
     g_test_add_func("/to_str/word_to_hex", test_word_to_hex);
     g_test_add_func("/to_str/bytes_to_str", test_bytes_to_str);

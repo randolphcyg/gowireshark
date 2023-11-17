@@ -31,7 +31,7 @@
 #include <wsutil/str_util.h>
 
 #include "packet-jxta.h"
-#include "packet-http.h"
+#include "packet-media-type.h"
 
 void proto_register_jxta(void);
 void proto_reg_handoff_jxta(void);
@@ -465,7 +465,7 @@ static int dissect_jxta_udp(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tr
             break;
         }
 
-        if (tvb_memeql(tvb, offset, JXTA_UDP_SIG, sizeof(JXTA_UDP_SIG)) != 0) {
+        if (tvb_memeql(tvb, offset, (const guint8*)JXTA_UDP_SIG, sizeof(JXTA_UDP_SIG)) != 0) {
             /* not ours */
             return 0;
         }
@@ -571,7 +571,7 @@ static int dissect_jxta_stream(tvbuff_t * tvb, packet_info * pinfo, proto_tree *
         goto Common_Exit;
     }
 
-    if (0 == tvb_memeql(tvb, 0, JXTA_WELCOME_MSG_SIG, sizeof(JXTA_WELCOME_MSG_SIG))) {
+    if (0 == tvb_memeql(tvb, 0, (const guint8*)JXTA_WELCOME_MSG_SIG, sizeof(JXTA_WELCOME_MSG_SIG))) {
         /* The beginning of a JXTA stream connection */
         address *welcome_addr;
         gboolean initiator = FALSE;
@@ -802,7 +802,7 @@ static int dissect_jxta_welcome(tvbuff_t * tvb, packet_info * pinfo, proto_tree 
         return (gint) (available - sizeof(JXTA_WELCOME_MSG_SIG));
     }
 
-    if (0 != tvb_memeql(tvb, 0, JXTA_WELCOME_MSG_SIG, sizeof(JXTA_WELCOME_MSG_SIG))) {
+    if (0 != tvb_memeql(tvb, 0, (const guint8*)JXTA_WELCOME_MSG_SIG, sizeof(JXTA_WELCOME_MSG_SIG))) {
         /* not ours! */
         return 0;
     }
@@ -1176,7 +1176,7 @@ static int dissect_jxta_message(tvbuff_t * tvb, packet_info * pinfo, proto_tree 
             break;
         }
 
-        if (tvb_memeql(tvb, offset, JXTA_MSG_SIG, sizeof(JXTA_MSG_SIG)) != 0) {
+        if (tvb_memeql(tvb, offset, (const guint8*)JXTA_MSG_SIG, sizeof(JXTA_MSG_SIG)) != 0) {
             /* It is not one of ours */
             return 0;
         }
@@ -1308,9 +1308,9 @@ static int dissect_jxta_message(tvbuff_t * tvb, packet_info * pinfo, proto_tree 
         return -needed;
     }
 
-    src_addr = wmem_strbuf_new_label(pinfo->pool);
+    src_addr = wmem_strbuf_create(pinfo->pool);
     wmem_strbuf_append(src_addr, address_to_str(pinfo->pool, &pinfo->src));
-    dst_addr = wmem_strbuf_new_label(pinfo->pool);
+    dst_addr = wmem_strbuf_create(pinfo->pool);
     wmem_strbuf_append(dst_addr, address_to_str(pinfo->pool, &pinfo->dst));
 
     /* append the port if appropriate */
@@ -1478,7 +1478,7 @@ static int dissect_jxta_message_element_1(tvbuff_t * tvb, packet_info * pinfo, p
             needed = (gint) (sizeof(JXTA_MSGELEM_SIG) - available);
         }
 
-        if (tvb_memeql(tvb, offset, JXTA_MSGELEM_SIG, sizeof(JXTA_MSGELEM_SIG)) != 0) {
+        if (tvb_memeql(tvb, offset, (const guint8*)JXTA_MSGELEM_SIG, sizeof(JXTA_MSGELEM_SIG)) != 0) {
             /* It is not one of ours */
             return 0;
         }
@@ -1726,7 +1726,7 @@ static int dissect_jxta_message_element_2(tvbuff_t * tvb, packet_info * pinfo, p
             needed = (gint) (sizeof(JXTA_MSGELEM_SIG) - available);
         }
 
-        if (tvb_memeql(tvb, offset, JXTA_MSGELEM_SIG, sizeof(JXTA_MSGELEM_SIG)) != 0) {
+        if (tvb_memeql(tvb, offset, (const guint8*)JXTA_MSGELEM_SIG, sizeof(JXTA_MSGELEM_SIG)) != 0) {
             /* It is not one of ours */
             return 0;
         }
@@ -2021,11 +2021,11 @@ static int dissect_media( const gchar* fullmediatype, tvbuff_t * tvb, packet_inf
         gchar *mediatype = wmem_strdup(pinfo->pool, fullmediatype);
         gchar *parms_at = strchr(mediatype, ';');
         const char *save_match_string = pinfo->match_string;
-        http_message_info_t message_info = { HTTP_OTHERS, NULL, NULL, NULL };
+        media_content_info_t content_info = { MEDIA_CONTAINER_OTHER, NULL, NULL, NULL };
 
         /* Based upon what is done in packet-media.c we set up type and params */
         if (NULL != parms_at) {
-            message_info.media_str = wmem_strdup( pinfo->pool, parms_at + 1 );
+            content_info.media_str = wmem_strdup( pinfo->pool, parms_at + 1 );
             *parms_at = '\0';
         }
 
@@ -2055,7 +2055,7 @@ static int dissect_media( const gchar* fullmediatype, tvbuff_t * tvb, packet_inf
                 }
             }
         } else {
-            dissected = dissector_try_string(media_type_dissector_table, mediatype, tvb, pinfo, tree, &message_info) ? tvb_captured_length(tvb) : 0;
+            dissected = dissector_try_string(media_type_dissector_table, mediatype, tvb, pinfo, tree, &content_info) ? tvb_captured_length(tvb) : 0;
 
             if( dissected != (int) tvb_captured_length(tvb) ) {
                 /* ws_message( "%s : %d expected, %d dissected", mediatype, tvb_captured_length(tvb), dissected ); */
@@ -2063,7 +2063,7 @@ static int dissect_media( const gchar* fullmediatype, tvbuff_t * tvb, packet_inf
         }
 
         if (0 == dissected) {
-            dissected = call_dissector_with_data(media_handle, tvb, pinfo, tree, &message_info);
+            dissected = call_dissector_with_data(media_handle, tvb, pinfo, tree, &content_info);
         }
 
         pinfo->match_string = save_match_string;
@@ -2196,11 +2196,11 @@ void proto_register_jxta(void)
           "JXTA Message Flags", HFILL}
          },
         {&hf_jxta_message_flag_utf16be,
-         {"UTF16BE", "jxta.message.flags.UTF-16BE", FT_BOOLEAN, 2, TFS(&tfs_set_notset), 0x01,
+         {"UTF16BE", "jxta.message.flags.UTF-16BE", FT_BOOLEAN, 2, TFS(&tfs_set_notset), 0x1,
           "JXTA Message Element Flag -- UTF16-BE Strings", HFILL}
          },
         {&hf_jxta_message_flag_ucs32be,
-         {"UCS32BE", "jxta.message.flags.UCS32BE", FT_BOOLEAN, 2, TFS(&tfs_set_notset), 0x02,
+         {"UCS32BE", "jxta.message.flags.UCS32BE", FT_BOOLEAN, 2, TFS(&tfs_set_notset), 0x2,
           "JXTA Message Flag -- UCS32-BE Strings", HFILL}
          },
         {&hf_jxta_message_names_count,
@@ -2236,15 +2236,15 @@ void proto_register_jxta(void)
           "JXTA Message Element Flags", HFILL}
          },
         {&hf_jxta_element1_flag_hasType,
-         {"hasType", "jxta.message.element.flags.hasType", FT_BOOLEAN, 3, TFS(&tfs_set_notset), 0x01,
+         {"hasType", "jxta.message.element.flags.hasType", FT_BOOLEAN, 3, TFS(&tfs_set_notset), 0x1,
           "JXTA Message Element Flag -- hasType", HFILL}
          },
         {&hf_jxta_element1_flag_hasEncoding,
-         {"hasEncoding", "jxta.message.element.flags.hasEncoding", FT_BOOLEAN, 3, TFS(&tfs_set_notset), 0x02,
+         {"hasEncoding", "jxta.message.element.flags.hasEncoding", FT_BOOLEAN, 3, TFS(&tfs_set_notset), 0x2,
           "JXTA Message Element Flag -- hasEncoding", HFILL}
          },
         {&hf_jxta_element1_flag_hasSignature,
-         {"hasSignature", "jxta.message.element.flags.hasSignature", FT_BOOLEAN, 3, TFS(&tfs_set_notset), 0x04,
+         {"hasSignature", "jxta.message.element.flags.hasSignature", FT_BOOLEAN, 3, TFS(&tfs_set_notset), 0x4,
           "JXTA Message Element Flag -- hasSignature", HFILL}
          },
         {&hf_jxta_element2_flag_64bitlens,

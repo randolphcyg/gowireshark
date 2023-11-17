@@ -11,15 +11,15 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.0.10"
+#define VERSION "4.2.0"
 #define VERSION_MAJOR 4
-#define VERSION_MINOR 0
-#define VERSION_MICRO 10
+#define VERSION_MINOR 2
+#define VERSION_MICRO 0
 
 /* Version number of Logray and associated utilities */
-#define LOG_VERSION "0.8.10"
+#define LOG_VERSION "0.8.3"
 
-#define PLUGIN_PATH_ID "4.0"
+#define PLUGIN_PATH_ID "4-2"
 #define VERSION_FLAVOR ""
 
 /* Build wsutil with SIMD optimization */
@@ -34,6 +34,9 @@
 /* Link Wireshark libraries statically */
 /* #undef ENABLE_STATIC */
 
+/* Enable AddressSanitizer (and LeakSanitizer on clang/gcc) */
+/* #undef ENABLE_ASAN */
+
 /* Enable AirPcap */
 /* #undef HAVE_AIRPCAP */
 
@@ -45,6 +48,18 @@
 
 /* Define to 1 if you have the `timespec_get` function. */
 #define HAVE_TIMESPEC_GET 1
+
+/* Define to 1 if you have the `localtime_r` function. */
+#define HAVE_LOCALTIME_R 1
+
+/* Define to 1 if you have the `gmtime_r` function. */
+#define HAVE_GMTIME_R 1
+
+/* Define to 1 if you have the `timegm` function. */
+#define HAVE_TIMEGM 1
+
+/* Define to 1 if you have the `tzset` function. */
+#define HAVE_TZSET 1
 
 /* Define to use the MaxMind DB library */
 /* #undef HAVE_MAXMINDDB */
@@ -89,25 +104,25 @@
 #define HAVE_INFLATEPRIME 1
 
 /* Define to 1 if you have the `issetugid' function. */
-/* #undef HAVE_ISSETUGID */
+#define HAVE_ISSETUGID 1
 
 /* Define to use kerberos */
-/* #undef HAVE_KERBEROS */
-
-/* Define to use PCRE2 library */
-#define HAVE_PCRE2 1
+#define HAVE_KERBEROS 1
 
 /* Define to use nghttp2 */
-/* #undef HAVE_NGHTTP2 */
+#define HAVE_NGHTTP2 1
+
+/* Define to use nghttp3 */
+/* #undef HAVE_NGHTTP3 */
 
 /* Define to use the libcap library */
 /* #undef HAVE_LIBCAP */
 
 /* Define to use GnuTLS library */
-/* #undef HAVE_LIBGNUTLS */
+#define HAVE_LIBGNUTLS 1
 
 /* Define to 1 if GnuTLS was built with pkcs11 support. */
-/* #undef HAVE_GNUTLS_PKCS11 */
+#define HAVE_GNUTLS_PKCS11 1
 
 /* Enable libnl support */
 /* #undef HAVE_LIBNL */
@@ -140,31 +155,34 @@
 /* #undef HAVE_MZCOMPAT_DOS_DATE */
 
 /* Define to use brotli library */
-/* #undef HAVE_BROTLI */
+#define HAVE_BROTLI 1
 
 /* Define to use lz4 library */
-/* #undef HAVE_LZ4 */
+#define HAVE_LZ4 1
 
 /* Check for lz4frame */
-/* #undef HAVE_LZ4FRAME_H */
+#define HAVE_LZ4FRAME_H 1
 
 /* Define to use snappy library */
 /* #undef HAVE_SNAPPY */
 
 /* Define to use zstd library */
-/* #undef HAVE_ZSTD */
+#define HAVE_ZSTD 1
 
 /* Define to 1 if you have the <linux/sockios.h> header file. */
-#define HAVE_LINUX_SOCKIOS_H 1
+/* #undef HAVE_LINUX_SOCKIOS_H */
 
 /* Define to 1 if you have the <linux/if_bonding.h> header file. */
-#define HAVE_LINUX_IF_BONDING_H 1
+/* #undef HAVE_LINUX_IF_BONDING_H */
 
 /* Define to use Lua */
 /* #undef HAVE_LUA */
 
+/* Define to 1 if we have Lua with Unicode for Windows patches. */
+/* #undef HAVE_LUA_UNICODE */
+
 /* Define to use MIT kerberos */
-/* #undef HAVE_MIT_KERBEROS */
+#define HAVE_MIT_KERBEROS 1
 
 /* Define to 1 if you have the <netdb.h> header file. */
 #define HAVE_NETDB_H 1
@@ -185,10 +203,10 @@
 /* #undef HAVE_NL80211_VHT_CAPABILITY */
 
 /* Define to 1 if you have macOS frameworks */
-/* #undef HAVE_MACOS_FRAMEWORKS */
+#define HAVE_MACOS_FRAMEWORKS 1
 
 /* Define to 1 if you have the macOS CFPropertyListCreateWithStream function */
-/* #undef HAVE_CFPROPERTYLISTCREATEWITHSTREAM */
+#define HAVE_CFPROPERTYLISTCREATEWITHSTREAM 1
 
 /* Define to 1 if you have the `pcap_create' function. */
 #define HAVE_PCAP_CREATE 1
@@ -217,6 +235,12 @@
 /* Define to 1 if you have the `pcap_set_tstamp_type' function. */
 #define HAVE_PCAP_SET_TSTAMP_TYPE 1
 
+/* Define to 1 if you have the `PCAP_ERROR_PROMISC_PERM_DENIED' symbol. */
+#define HAVE_PCAP_ERROR_PROMISC_PERM_DENIED 1
+
+/* Define to 1 if you have the `PCAP_WARNING_TSTAMP_TYPE_NOTSUP' symbol. */
+#define HAVE_PCAP_WARNING_TSTAMP_TYPE_NOTSUP 1
+
 /* Define to 1 if you have the <pwd.h> header file. */
 #define HAVE_PWD_H 1
 
@@ -229,23 +253,23 @@
 /* Define to 1 if you have the bcg729 library. */
 /* #undef HAVE_BCG729 */
 
+/* Define to 1 if you have the opencore-amrnb library. */
+/* #undef HAVE_AMRNB */
+
 /* Define to 1 if you have the ilbc library. */
 /* #undef HAVE_ILBC */
 
 /* Define to 1 if you have the opus library. */
 /* #undef HAVE_OPUS */
 
-/* Define to 1 if you have the speexdsp library. */
-/* #undef HAVE_SPEEXDSP */
-
 /* Define to 1 if you have the lixbml2 library. */
-/* #undef HAVE_LIBXML2 */
+#define HAVE_LIBXML2 1
 
 /* Define to 1 if you have the `setresgid' function. */
-#define HAVE_SETRESGID 1
+/* #undef HAVE_SETRESGID */
 
 /* Define to 1 if you have the `setresuid' function. */
-#define HAVE_SETRESUID 1
+/* #undef HAVE_SETRESUID */
 
 /* Define to 1 if you have the Sparkle or WinSparkle library */
 /* #undef HAVE_SOFTWARE_UPDATE */
@@ -256,17 +280,14 @@
 /* Define if you have the 'memmem' function. */
 #define HAVE_MEMMEM 1
 
-/* Define if you have the 'strcasestr' function. */
-#define HAVE_STRCASESTR 1
-
 /* Define if you have the 'strerrorname_np' function. */
-#define HAVE_STRERRORNAME_NP 1
+/* #undef HAVE_STRERRORNAME_NP */
 
 /* Define if you have the 'vasprintf' function. */
 #define HAVE_VASPRINTF 1
 
 /* Define to 1 if `st_birthtime' is a member of `struct stat'. */
-/* #undef HAVE_STRUCT_STAT_ST_BIRTHTIME */
+#define HAVE_STRUCT_STAT_ST_BIRTHTIME 1
 
 /* Define if st_blksize field exists in struct stat */
 #define HAVE_STRUCT_STAT_ST_BLKSIZE 1
@@ -285,6 +306,9 @@
 
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #define HAVE_SYS_WAIT_H 1
+
+/* Define if tm_gmtoff field exists in struct tm */
+#define HAVE_STRUCT_TM_TM_GMTOFF 1
 
 /* Define if tm_zone field exists in struct tm */
 #define HAVE_STRUCT_TM_TM_ZONE 1
@@ -309,6 +333,9 @@
 /* Define to 1 if the 'ssize_t' type exists. */
 #define HAVE_SSIZE_T 1
 
+/* Define to 1 if we are using the msys2 environment to build. */
+/* #undef HAVE_MSYSTEM */
+
 #if defined(_MSC_VER)
 #  define strncasecmp strnicmp
 #  define popen       _popen
@@ -324,10 +351,73 @@
 #  ifndef __STDC__
 #    define __STDC__ 0
 #  endif
+
+/*
+ * Make sure everyone is using the same API and that it's sufficient
+ * for our needs.
+ * This should match the following:
+ * - The <compatibility><application> section in resources\wireshark.exe.manifest.in
+ * - The GetWindowsVersion parts of packaging\nsis\wireshark.nsi
+ * - The VersionNT parts of packaging\wix\Prerequisites.wxi
+ */
+#  ifndef NTDDI_VERSION
+#  define NTDDI_VERSION   NTDDI_WIN7
+#  endif
+
+#  ifndef _WIN32_WINNT
+#  define _WIN32_WINNT    _WIN32_WINNT_WIN7
+#  endif
 #endif
 
-#ifdef HAVE_PCRE2
 #define PCRE2_CODE_UNIT_WIDTH  8
+
+/*
+ * If HAVE_PCAP_REMOTE is defined, it forces the WinPcap header files to
+ * define things required for remote capture, by defining HAVE_REMOTE.
+ *
+ * With all versions of the WinPcap SDK, if:
+ *
+ *    1) you are building with any current WinPcap SDK;
+ *    2) you do not define HAVE_REMOTE before including pcap.h (or
+ *       pcap/pcap.h);
+ *    3) you define a struct pcap_stat and pass it to a call to
+ *       pcap_stats();
+ *    4) the system you're running on has WinPcap, rather than Npcap,
+ *       installed;
+ *
+ * whatever is in memory after the struct pcap_stat may get overwritten,
+ * with unpredictable results, because the pcap_stats() implementation for
+ * WinPcap will assume that the structure has the additional members that
+ * are added if and only if HAVE_REMOTE is defined, and will fill them in,
+ * even if they're not there.
+ *
+ * Yes, this is q WinPcap bug; if your project has a public header file
+ * that checks or otherwise uses a #define that's defined by your project's
+ * configuration process, and don't ensure that it's always defined
+ * appropriately when that header file is included, before its first use,
+ * you have made a mistake.
+ *
+ * In libpcap 1.7.0 and later, the pcap_stats() implementation for WinPcap
+ * will not fill those fields in; however, no WinPcap implementation was
+ * based on that recent a libpcap release, so they all have the bug.
+ *
+ * Npcap was originally based on libpcap 1.8.0, and later releases are
+ * based on later releases of libpcap, so they will not overwrite memory
+ * past the end of the structure.
+ *
+ * The header file bug is fixed in libpcap 1.9.0 or later - the fields
+ * are present on Windows, regardless of whether HAVE_REMOTE is defined
+ * or not when the header is included (and are not present on UN*X), so
+ * if you build with an SDK with libpcap 1.9.0 or later headers, you
+ * do not need to define HAVE_REMOTE before including pcap.h (including it
+ * will make no difference).
+ *
+ * No version of the WinPcap SDK provided libpcap 1.9.0-or-later headers.
+ * The Npcap SDK, as of SDK version 1.04, provides them, so this is
+ * only necessary for building with the WinPcap SDK.
+ */
+#ifdef HAVE_PCAP_REMOTE
+#define HAVE_REMOTE
 #endif
 
 #include <include/ws_log_defs.h>

@@ -265,6 +265,7 @@ UE-NGAP-IDs/aMF-UE-NGAP-ID ABBREV=AMF_UE_NGAP_ID
     } else {
       if (nas_5gs_handle) {
         proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_ngap_NAS_PDU);
+        volatile int saved_offset = offset;
         TRY {
           call_dissector(nas_5gs_handle, parameter_tvb, actx->pinfo, subtree);
         }
@@ -272,6 +273,7 @@ UE-NGAP-IDs/aMF-UE-NGAP-ID ABBREV=AMF_UE_NGAP_ID
           show_exception(tvb, actx->pinfo, subtree, EXCEPT_CODE, GET_MESSAGE);
         }
         ENDTRY;
+        offset = saved_offset;
       }
     }
   }
@@ -492,6 +494,9 @@ EPS-TAC TYPE = FT_UINT16 DISPLAY = BASE_DEC_HEX
   }
 
 #.TYPE_ATTR
+CommonNetworkInstance TYPE=FT_BYTES DISPLAY = BASE_SHOW_UTF_8_PRINTABLE
+
+#.TYPE_ATTR
 SurvivalTime DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_microseconds
 
 #.TYPE_ATTR
@@ -615,14 +620,13 @@ TimeSynchronizationAssistanceInformation/uuTimeSynchronizationErrorBudget DISPLA
 %(DEFAULT_BODY)s
 
 #.FIELD_ATTR
-NR-CGI/nRCellIdentity ABBREV=NRCellIdentity TYPE=FT_UINT40 DISPLAY=BASE_HEX
+NR-CGI/nRCellIdentity ABBREV=NRCellIdentity TYPE=FT_UINT40 DISPLAY=BASE_HEX BITMASK=0xFFFFFFFFF0
 
 #.FN_BODY NRCellIdentity VAL_PTR = &cell_id_tvb HF_INDEX=-1
   tvbuff_t *cell_id_tvb = NULL;
 %(DEFAULT_BODY)s
   if (cell_id_tvb) {
-    guint64 cell_id = tvb_get_bits64(cell_id_tvb, 0, 36, ENC_BIG_ENDIAN);
-    actx->created_item = proto_tree_add_uint64(tree, hf_index, cell_id_tvb, 0, 5, cell_id);
+    actx->created_item = proto_tree_add_item(tree, hf_index, cell_id_tvb, 0, 5, ENC_BIG_ENDIAN);
   }
 
 #.FN_BODY EUTRA-CGI
@@ -631,14 +635,13 @@ NR-CGI/nRCellIdentity ABBREV=NRCellIdentity TYPE=FT_UINT40 DISPLAY=BASE_HEX
 %(DEFAULT_BODY)s
 
 #.FIELD_ATTR
-EUTRA-CGI/eUTRACellIdentity ABBREV=EUTRACellIdentity TYPE=FT_UINT32 DISPLAY=BASE_HEX
+EUTRA-CGI/eUTRACellIdentity ABBREV=EUTRACellIdentity TYPE=FT_UINT32 DISPLAY=BASE_HEX BITMASK=0xFFFFFFF0
 
 #.FN_BODY EUTRACellIdentity VAL_PTR = &cell_id_tvb HF_INDEX=-1
   tvbuff_t *cell_id_tvb = NULL;
 %(DEFAULT_BODY)s
   if (cell_id_tvb) {
-    guint32 cell_id = tvb_get_bits32(cell_id_tvb, 0, 28, ENC_BIG_ENDIAN);
-    actx->created_item = proto_tree_add_uint(tree, hf_index, cell_id_tvb, 0, 4, cell_id);
+    actx->created_item = proto_tree_add_item(tree, hf_index, cell_id_tvb, 0, 4, ENC_BIG_ENDIAN);
   }
 
 #.TYPE_ATTR
@@ -888,6 +891,7 @@ TimeSyncAssistanceInfo/uUTimeSyncErrorBudget DISPLAY=BASE_DEC|BASE_UNIT_STRING S
       &hf_ngap_EUTRAintegrityProtectionAlgorithms_eia1,
       &hf_ngap_EUTRAintegrityProtectionAlgorithms_eia2,
       &hf_ngap_EUTRAintegrityProtectionAlgorithms_eia3,
+      &hf_ngap_EUTRAintegrityProtectionAlgorithms_eia7,
       &hf_ngap_EUTRAintegrityProtectionAlgorithms_reserved,
       NULL
     };
@@ -1026,6 +1030,7 @@ BluetoothName TYPE=FT_STRING DISPLAY = BASE_NONE
 %(DEFAULT_BODY)s
   if (cov_enh_level_tvb && ngap_dissect_container) {
     subtree = proto_item_add_subtree(actx->created_item, ett_ngap_CoverageEnhancementLevel);
+    volatile int saved_offset = offset;
     if ((ngap_is_nbiot_ue(actx->pinfo) && (ngap_dissect_lte_container_as == NGAP_LTE_CONTAINER_AUTOMATIC)) ||
         (ngap_dissect_lte_container_as == NGAP_LTE_CONTAINER_NBIOT)) {
       TRY {
@@ -1044,6 +1049,7 @@ BluetoothName TYPE=FT_STRING DISPLAY = BASE_NONE
       }
       ENDTRY;
     }
+    offset = saved_offset;
   }
 
 #.TYPE_ATTR
@@ -1654,7 +1660,7 @@ id-M5ReportAmount                                  ProtocolIE-ID
 id-M6ReportAmount                                  ProtocolIE-ID
 id-M7ReportAmount                                  ProtocolIE-ID
 id-IncludeBeamMeasurementsIndication               ProtocolIE-ID
-id-M6DelayThreshold                                ProtocolIE-ID
+id-ExcessPacketDelayThresholdConfiguration         ProtocolIE-ID
 id-PagingCause                                     ProtocolIE-ID
 id-PagingCauseIndicationForVoiceService            ProtocolIE-ID
 id-PEIPSassistanceInformation                      ProtocolIE-ID
@@ -1673,6 +1679,13 @@ id-NGAPIESupportInformationResponseList            ProtocolIE-ID
 id-MBS-SessionFSAIDList                            ProtocolIE-ID
 id-MBSSessionReleaseResponseTransfer               ProtocolIE-ID
 id-ManagementBasedMDTPLMNModificationList          ProtocolIE-ID
+id-EarlyMeasurement                                ProtocolIE-ID
+id-BeamMeasurementsReportConfiguration             ProtocolIE-ID
+id-HFCNode-ID-new                                  ProtocolIE-ID
+id-GlobalCable-ID-new                              ProtocolIE-ID
+id-TargetHomeENB-ID                                ProtocolIE-ID
+id-HashedUEIdentityIndexValue                      ProtocolIE-ID
+
 #.END
 
 
@@ -1944,8 +1957,11 @@ MBSSessionSetupOrModResponseTransfer-OCTET-STRING        N ngap.ies id-MBSSessio
 QosFlowListWithCause                                     N ngap.ies id-MBS-QoSFlowToReleaseList
 MBS-SessionTNLInfo5GC                                    N ngap.ies id-MBS-SessionTNLInfo5GC
 MBS-SessionFSAIDList                                     N ngap.ies id-MBS-SessionFSAIDList
-MBSSessionReleaseResponseTransfer                        N ngap.ies id-MBSSessionReleaseResponseTransfer
+MBSSessionReleaseResponseTransfer-OCTET-STRING           N ngap.ies id-MBSSessionReleaseResponseTransfer
 MDTPLMNModificationList                                  N ngap.ies id-ManagementBasedMDTPLMNModificationList
+HFCNode-ID-new                                           N ngap.ies id-HFCNode-ID-new
+GlobalCable-ID-new                                       N ngap.ies id-GlobalCable-ID-new
+TargetHomeENB-ID                                         N ngap.ies id-TargetHomeENB-ID
 
 #NGAP-PROTOCOL-EXTENSION
 
@@ -2036,13 +2052,18 @@ M5ReportAmountMDT                                      N ngap.extension id-M5Rep
 M6ReportAmountMDT                                      N ngap.extension id-M6ReportAmount
 M7ReportAmountMDT                                      N ngap.extension id-M7ReportAmount
 IncludeBeamMeasurementsIndication                      N ngap.extension id-IncludeBeamMeasurementsIndication
-M6DelayThreshold                                       N ngap.extension id-M6DelayThreshold
+ExcessPacketDelayThresholdConfiguration                N ngap.extension id-ExcessPacketDelayThresholdConfiguration
 PagingCauseIndicationForVoiceService                   N ngap.extension id-PagingCauseIndicationForVoiceService
 PEIPSassistanceInformation                             N ngap.extension id-PEIPSassistanceInformation
 TAINSAGSupportList                                     N ngap.extension id-TAINSAGSupportList
 TransportLayerAddress                                  N ngap.extension id-SourceNodeTNLAddrInfo
 NGAPIESupportInformationRequestList                    N ngap.extension id-NGAPIESupportInformationRequestList
 NGAPIESupportInformationResponseList                   N ngap.extension id-NGAPIESupportInformationResponseList
+EarlyMeasurement                                       N ngap.extension id-EarlyMeasurement
+BeamMeasurementsReportConfiguration                    N ngap.extension id-BeamMeasurementsReportConfiguration
+TAI                                                    N ngap.extension id-TAI
+NR-CGI                                                 N ngap.extension id-NR-CGI
+HashedUEIdentityIndexValue                             N ngap.extension id-HashedUEIdentityIndexValue
 
 #NGAP-ELEMENTARY-PROCEDURE
 

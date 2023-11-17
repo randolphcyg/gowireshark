@@ -102,12 +102,11 @@ struct pref_custom_cbs {
 #define PREF_DECODE_AS_RANGE  (1u << 13) /* use and not as a generic protocol preference */
 #define PREF_OPEN_FILENAME    (1u << 14)
 #define PREF_PASSWORD         (1u << 15) /* like string, but never saved to prefs file */
-
-typedef enum {
-	GUI_ALL,
-	GUI_GTK,
-	GUI_QT
-} gui_type_t;
+/**
+ * Dedicated to TCP PROTOCOL for handling manual SEQ interpretation,
+ * and allow users manage the sender traffic ambiguities
+ */
+#define PREF_PROTO_TCP_SNDAMB_ENUM   (1u << 16)
 
 /* read_prefs_file: read in a generic config file and do a callback to */
 /* pref_set_pair_fct() for every key/value pair found */
@@ -131,9 +130,6 @@ const char* prefs_get_name(pref_t *pref);
 
 WS_DLL_PUBLIC
 int prefs_get_type(pref_t *pref);
-
-WS_DLL_PUBLIC
-gui_type_t prefs_get_gui_type(pref_t *pref);
 
 WS_DLL_PUBLIC guint32 prefs_get_max_value(pref_t *pref);
 

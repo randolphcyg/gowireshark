@@ -20,7 +20,7 @@
 #include "packet-cfdp.h"
 
 /* The CFDP standard can be found here:
- * http://public.ccsds.org/publications/archive/727x0b4.pdf
+ * https://public.ccsds.org/Pubs/727x0b4s.pdf
  *
  * The Store and Forward Overlay Operations are not included.
  */
@@ -46,6 +46,7 @@ static int hf_cfdp_version = -1;
 static int hf_cfdp_pdu_type = -1;
 static int hf_cfdp_direction = -1;
 static int hf_cfdp_trans_mode = -1;
+static int hf_cfdp_trans_mode_2 = -1;
 static int hf_cfdp_crc_flag = -1;
 static int hf_cfdp_res1 = -1;
 static int hf_cfdp_data_length = -1;
@@ -68,6 +69,7 @@ static int hf_cfdp_spare_one_2 = -1;
 static int hf_cfdp_spare_two = -1;
 static int hf_cfdp_spare_four = -1;
 static int hf_cfdp_spare_five = -1;
+static int hf_cfdp_spare_five_2 = -1;
 static int hf_cfdp_spare_seven = -1;
 static int hf_cfdp_spare_seven_2 = -1;
 static int hf_cfdp_trans_stat_ack = -1;
@@ -77,9 +79,13 @@ static int hf_cfdp_end_system_stat = -1;
 static int hf_cfdp_delivery_code = -1;
 static int hf_cfdp_file_stat = -1;
 static int hf_cfdp_segment_control = -1;
+static int hf_cfdp_src_file_name_len = -1;
 static int hf_cfdp_src_file_name = -1;
+static int hf_cfdp_dst_file_name_len = -1;
 static int hf_cfdp_dst_file_name = -1;
+static int hf_cfdp_first_file_name_len = -1;
 static int hf_cfdp_first_file_name = -1;
+static int hf_cfdp_second_file_name_len = -1;
 static int hf_cfdp_second_file_name = -1;
 static int hf_cfdp_nak_st_scope = -1;
 static int hf_cfdp_nak_sp_scope = -1;
@@ -109,6 +115,7 @@ static int hf_cfdp_suspension_ind = -1;
 static int hf_cfdp_tlv_len = - 1;
 
 /* Generated from convert_proto_tree_add_text.pl */
+static int hf_cfdp_filestore_message_len = -1;
 static int hf_cfdp_filestore_message = -1;
 static int hf_cfdp_entity = -1;
 static int hf_cfdp_message_to_user = -1;
@@ -481,7 +488,7 @@ static int * const cfdp_proxy_fault_hdl_overr[] = {
 
 static int * const cfdp_proxy_trans_mode [] = {
     &hf_cfdp_spare_seven_2,
-    &hf_cfdp_trans_mode,
+    &hf_cfdp_trans_mode_2,
     NULL
 };
 
@@ -494,7 +501,6 @@ static int * const cfdp_proxy_segment_control_byte [] = {
 static int * const cfdp_proxy_put_resp [] = {
     &hf_cfdp_condition_code,
     &hf_cfdp_spare_one,
-    &hf_cfdp_condition_code,
     &hf_cfdp_proxy_delivery_code,
     &hf_cfdp_file_stat,
     NULL
@@ -535,6 +541,7 @@ static int * const cfdp_finish_pdu_flags [] = {
     NULL
 };
 
+/* 6.6.3.2 (1 byte) */
 static int * const cfdp_remote_suspend_resume_req [] = {
     &hf_cfdp_spare_one_2,
     &hf_cfdp_entid_length,
@@ -544,10 +551,11 @@ static int * const cfdp_remote_suspend_resume_req [] = {
 };
 
 
+/* 6.6.4.2 (2 bytes) */
 static int * const cfdp_remote_suspend_resume_resp [] = {
     &hf_cfdp_suspension_ind,
     &hf_cfdp_trans_stat_2,
-    &hf_cfdp_spare_five,
+    &hf_cfdp_spare_five_2,
     &hf_cfdp_spare_one_2,
     &hf_cfdp_entid_length,
     &hf_cfdp_spare_one,
@@ -599,6 +607,7 @@ static guint32 dissect_cfdp_filestore_req_tlv(tvbuff_t *tvb, proto_tree *tree, g
     guint8 tlv_len;
 
     guint32 offset = ext_offset;
+    guint32 length;
 
     /* Get field length */
     tlv_len = tvb_get_guint8(tvb, offset);
@@ -618,17 +627,19 @@ static guint32 dissect_cfdp_filestore_req_tlv(tvbuff_t *tvb, proto_tree *tree, g
         proto_tree_add_uint(cfdp_filestore_req_tree, hf_cfdp_spare_four, tvb, offset, 1, aux_byte);
         offset += 1;
 
-        aux_byte = tvb_get_guint8(tvb, offset);
+        proto_tree_add_item_ret_uint(cfdp_filestore_req_tree, hf_cfdp_first_file_name_len, tvb, offset, 1, ENC_NA, &length);
         offset += 1;
-        proto_tree_add_item(cfdp_filestore_req_tree, hf_cfdp_first_file_name, tvb, offset, aux_byte, ENC_ASCII);
-        offset += aux_byte;
-
-        aux_byte = tvb_get_guint8(tvb, offset);
-        offset += 1;
-        if(aux_byte > 0){
-            proto_tree_add_item(cfdp_filestore_req_tree, hf_cfdp_second_file_name, tvb, offset, aux_byte, ENC_ASCII);
-            offset += aux_byte;
+        if(length > 0){
+            proto_tree_add_item(cfdp_filestore_req_tree, hf_cfdp_first_file_name, tvb, offset, length, ENC_ASCII);
         }
+        offset += length;
+
+        proto_tree_add_item_ret_uint(cfdp_filestore_req_tree, hf_cfdp_second_file_name_len, tvb, offset, 1, ENC_NA, &length);
+        offset += 1;
+        if(length > 0){
+            proto_tree_add_item(cfdp_filestore_req_tree, hf_cfdp_second_file_name, tvb, offset, length, ENC_ASCII);
+        }
+        offset += length;
     }
 
     return offset;
@@ -647,6 +658,7 @@ static guint32 dissect_cfdp_filestore_resp_tlv(tvbuff_t *tvb, proto_tree *tree, 
     if(tlv_len > 0){
         proto_tree  *cfdp_filestore_resp_tree;
         guint8 aux_byte;
+        guint32 length;
 
         /* Create a subtree */
         cfdp_filestore_resp_tree = proto_tree_add_subtree(tree, tvb, offset-2, tlv_len+2,
@@ -687,25 +699,27 @@ static guint32 dissect_cfdp_filestore_resp_tlv(tvbuff_t *tvb, proto_tree *tree, 
         }
         offset += 1;
 
-        aux_byte = tvb_get_guint8(tvb, offset);
+        proto_tree_add_item_ret_uint(cfdp_filestore_resp_tree, hf_cfdp_first_file_name_len, tvb, offset, 1, ENC_NA, &length);
         offset += 1;
-        proto_tree_add_item(cfdp_filestore_resp_tree, hf_cfdp_first_file_name, tvb, offset, aux_byte, ENC_ASCII);
-        offset += aux_byte;
-
-        aux_byte = tvb_get_guint8(tvb, offset);
-        offset += 1;
-        if(aux_byte > 0){
-            proto_tree_add_item(cfdp_filestore_resp_tree, hf_cfdp_second_file_name, tvb, offset, aux_byte, ENC_ASCII);
-            offset += aux_byte;
+        if(length > 0){
+            proto_tree_add_item(cfdp_filestore_resp_tree, hf_cfdp_first_file_name, tvb, offset, length, ENC_ASCII);
         }
+        offset += length;
+
+        proto_tree_add_item_ret_uint(cfdp_filestore_resp_tree, hf_cfdp_second_file_name_len, tvb, offset, 1, ENC_NA, &length);
+        offset += 1;
+        if(length > 0){
+            proto_tree_add_item(cfdp_filestore_resp_tree, hf_cfdp_second_file_name, tvb, offset, length, ENC_ASCII);
+        }
+        offset += length;
 
         /* Filestore Message */
-        aux_byte = tvb_get_guint8(tvb, offset);
+        proto_tree_add_item_ret_uint(cfdp_filestore_resp_tree, hf_cfdp_filestore_message_len, tvb, offset, 1, ENC_NA, &length);
         offset += 1;
-        if(aux_byte > 0){
-            proto_tree_add_item(cfdp_filestore_resp_tree, hf_cfdp_filestore_message, tvb, offset, tlv_len, ENC_NA);
-            offset += aux_byte;
+        if(length > 0){
+            proto_tree_add_item(cfdp_filestore_resp_tree, hf_cfdp_filestore_message, tvb, offset, length, ENC_NA);
         }
+        offset += length;
     }
 
     return offset+1;
@@ -740,7 +754,6 @@ static guint32 dissect_cfdp_fault_location_tlv(tvbuff_t *tvb, proto_tree *tree, 
 /* Dissect the Message to User TLV */
 static guint32 dissect_cfdp_msg_to_user_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 ext_offset){
 
-    guint8 aux_byte;
     guint8 tlv_type;
     guint8 tlv_len;
     proto_tree  *cfdp_msg_to_user_tree;
@@ -882,8 +895,7 @@ static guint32 dissect_cfdp_msg_to_user_tlv(tvbuff_t *tvb, packet_info *pinfo, p
 
             case DIRECTORY_LIST_RESP:
                 /* Listing Response Code */
-                aux_byte = tvb_get_guint8(tvb, offset);
-                proto_tree_add_uint(cfdp_msg_to_user_tree, hf_cfdp_listing_resp_code, tvb, offset, 1, aux_byte);
+                proto_tree_add_item(cfdp_msg_to_user_tree, hf_cfdp_listing_resp_code, tvb, offset, 1, ENC_NA);
                 offset += 1;
                 /* Directory Name */
                 tlv_len =  tvb_get_guint8(tvb, offset);
@@ -1145,6 +1157,7 @@ static guint32 dissect_cfdp_metadata_pdu(tvbuff_t *tvb, packet_info *pinfo, prot
 
     guint8 aux_byte, tlv_type;
     guint  cfdp_packet_data_length = ext_packet_len;
+    guint32 length;
 
     guint32 offset = ext_offset;
 
@@ -1154,16 +1167,18 @@ static guint32 dissect_cfdp_metadata_pdu(tvbuff_t *tvb, packet_info *pinfo, prot
     offset += 1;
     proto_tree_add_item(tree, hf_cfdp_file_size, tvb, offset, 4, ENC_BIG_ENDIAN);
     offset += 4;
-    aux_byte = tvb_get_guint8(tvb, offset);
-    if(aux_byte >0){
-        proto_tree_add_item(tree, hf_cfdp_src_file_name, tvb, offset+1, aux_byte, ENC_ASCII);
+    proto_tree_add_item_ret_uint(tree, hf_cfdp_src_file_name_len, tvb, offset, 1, ENC_NA, &length);
+    offset += 1;
+    if(length >0){
+        proto_tree_add_item(tree, hf_cfdp_src_file_name, tvb, offset, length, ENC_ASCII);
     }
-    offset += aux_byte+1;
-    aux_byte = tvb_get_guint8(tvb, offset);
-    if(aux_byte >0){
-        proto_tree_add_item(tree, hf_cfdp_dst_file_name, tvb, offset+1, aux_byte, ENC_ASCII);
+    offset += length;
+    proto_tree_add_item_ret_uint(tree, hf_cfdp_dst_file_name_len, tvb, offset, 1, ENC_NA, &length);
+    offset += 1;
+    if(length >0){
+        proto_tree_add_item(tree, hf_cfdp_dst_file_name, tvb, offset, length, ENC_ASCII);
     }
-    offset += aux_byte+1;
+    offset += length;
     /* Add TLV fields */
     while(offset < cfdp_packet_data_length){
         tlv_type = tvb_get_guint8(tvb, offset);
@@ -1622,6 +1637,11 @@ proto_register_cfdp(void)
             FT_UINT8, BASE_DEC, VALS(cfdp_trans_mode), HDR_TMODE,
             NULL, HFILL }
         },
+        { &hf_cfdp_trans_mode_2,
+            { "Trans. Mode", "cfdp.trans_mode",
+            FT_UINT8, BASE_DEC, VALS(cfdp_trans_mode), 0x01,
+            NULL, HFILL }
+        },
         { &hf_cfdp_crc_flag,
             { "CRC Flag", "cfdp.crc_flag",
             FT_UINT8, BASE_DEC, VALS(cfdp_crc_flag), HDR_CRCF,
@@ -1713,7 +1733,7 @@ proto_register_cfdp(void)
         },
         { &hf_cfdp_spare_one_2,
             { "Spare", "cfdp.spare_one_2",
-            FT_UINT8, BASE_DEC, NULL, 0x80,
+            FT_UINT16, BASE_DEC, NULL, 0x0080,
             NULL, HFILL }
         },
         { &hf_cfdp_spare_two,
@@ -1729,6 +1749,11 @@ proto_register_cfdp(void)
         { &hf_cfdp_spare_five,
             { "Spare", "cfdp.spare_five_b",
             FT_UINT16, BASE_DEC, NULL, 0x3E00,
+            NULL, HFILL }
+        },
+        { &hf_cfdp_spare_five_2,
+            { "Spare", "cfdp.spare_five_b",
+            FT_UINT16, BASE_DEC, NULL, 0x1F00,
             NULL, HFILL }
         },
         { &hf_cfdp_spare_seven,
@@ -1753,7 +1778,7 @@ proto_register_cfdp(void)
         },
         { &hf_cfdp_trans_stat_2,
             { "Transaction status", "cfdp.trans_stat_2_b",
-            FT_UINT8, BASE_DEC, VALS(cfdp_trans_stat_ack), 0x60,
+            FT_UINT16, BASE_DEC, VALS(cfdp_trans_stat_ack), 0x6000,
             NULL, HFILL }
         },
         { &hf_cfdp_file_checksum,
@@ -1791,16 +1816,32 @@ proto_register_cfdp(void)
             FT_UINT8, BASE_DEC, NULL, 0x0,
             NULL, HFILL }
         },
+        { &hf_cfdp_src_file_name_len,
+            {"Length of source file name", "cfdp.src_file_name_len", FT_UINT32, BASE_DEC, NULL, 0x0,
+            NULL, HFILL}
+        },
         { &hf_cfdp_src_file_name,
             {"Source file name", "cfdp.src_file_name", FT_STRING, BASE_NONE, NULL, 0x0,
+            NULL, HFILL}
+        },
+        { &hf_cfdp_dst_file_name_len,
+            {"Length of destination file name", "cfdp.dst_file_name_len", FT_UINT32, BASE_DEC, NULL, 0x0,
             NULL, HFILL}
         },
         { &hf_cfdp_dst_file_name,
             {"Destination file name", "cfdp.dst_file_name", FT_STRING, BASE_NONE, NULL, 0x0,
             NULL, HFILL}
         },
+        { &hf_cfdp_first_file_name_len,
+            {"Length of first file name", "cfdp.first_file_name_len", FT_UINT32, BASE_DEC, NULL, 0x0,
+            NULL, HFILL}
+        },
         { &hf_cfdp_first_file_name,
             {"First file name", "cfdp.first_file_name", FT_STRING, BASE_NONE, NULL, 0x0,
+            NULL, HFILL}
+        },
+        { &hf_cfdp_second_file_name_len,
+            {"Length of second file name", "cfdp.second_file_name_len", FT_UINT32, BASE_DEC, NULL, 0x0,
             NULL, HFILL}
         },
         { &hf_cfdp_second_file_name,
@@ -1904,7 +1945,11 @@ proto_register_cfdp(void)
         },
         { &hf_cfdp_suspension_ind,
             {"Suspension indicator", "cfdp.suspension_ind_b",
-            FT_UINT8, BASE_DEC, VALS(cfdp_suspension_ind), 0x80,
+            FT_UINT16, BASE_DEC, VALS(cfdp_suspension_ind), 0x8000,
+            NULL, HFILL}
+        },
+        { &hf_cfdp_filestore_message_len,
+            {"Length of filestore message", "cfdp.filestore_message_len", FT_UINT32, BASE_DEC, NULL, 0x0,
             NULL, HFILL}
         },
 

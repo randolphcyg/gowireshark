@@ -955,7 +955,7 @@ static const value_string glusterfs_error_codes[] = {
 
 	/* Solaris */
 	{801, "Facility is not active"},	/* GF_ERROR_CODE_NOTACTIVE */
-	{802, "locked lock was unmapped"},	/* GF_ERROR_CODE_LOCKUNMAPPED */
+	{802, "Locked lock was unmapped"},	/* GF_ERROR_CODE_LOCKUNMAPPED */
 
 	/* BSD system */
 	{901, "Too many processes"},	/* GF_ERROR_CODE_PROCLIM */
@@ -4014,6 +4014,7 @@ proto_register_glusterfs(void)
 			{ "O_NOFOLLOW", "glusterfs.flags.nofollow", FT_BOOLEAN, 32,
 				TFS(&tfs_set_notset), 00400000, NULL, HFILL }
 		},
+		/* TODO: These 2 have the same mask.  Which one is correct? */
 		{ &hf_glusterfs_flags_nonblock,
 			{ "O_NONBLOCK", "glusterfs.flags.nonblock", FT_BOOLEAN, 32,
 				TFS(&tfs_set_notset), 00004000, NULL, HFILL }
@@ -4022,6 +4023,7 @@ proto_register_glusterfs(void)
 			{ "O_NDELAY", "glusterfs.flags.ndelay", FT_BOOLEAN, 32,
 				TFS(&tfs_set_notset), 00004000, NULL, HFILL }
 		},
+		/* TODO: These 2 have the same mask.  Which one is correct? */
 		{ &hf_glusterfs_flags_sync,
 			{ "O_SYNC", "glusterfs.flags.sync", FT_BOOLEAN, 32,
 				TFS(&tfs_set_notset), 00010000, NULL, HFILL }
@@ -4408,37 +4410,37 @@ proto_register_glusterfs(void)
 		/* setattr.valid flags from libglusterfs/src/xlator.h */
 		{ &hf_glusterfs_setattr_set_mode,
 			{ "SET_ATTR_MODE", "glusterfs.setattr.set_mode",
-				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x1,
+				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000001,
 				NULL, HFILL }
 		},
 		{ &hf_glusterfs_setattr_set_uid,
 			{ "SET_ATTR_UID", "glusterfs.setattr.set_uid",
-				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x2,
+				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000002,
 				NULL, HFILL }
 		},
 		{ &hf_glusterfs_setattr_set_gid,
 			{ "SET_ATTR_GID", "glusterfs.setattr.set_gid",
-				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x4,
+				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000004,
 				NULL, HFILL }
 		},
 		{ &hf_glusterfs_setattr_set_size,
 			{ "SET_ATTR_SIZE", "glusterfs.setattr.set_size",
-				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x8,
+				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000008,
 				NULL, HFILL }
 		},
 		{ &hf_glusterfs_setattr_set_atime,
 			{ "SET_ATTR_ATIME", "glusterfs.setattr.set_atime",
-				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x10,
+				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000010,
 				NULL, HFILL }
 		},
 		{ &hf_glusterfs_setattr_set_mtime,
 			{ "SET_ATTR_MTIME", "glusterfs.setattr.set_mtime",
-				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x20,
+				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000020,
 				NULL, HFILL }
 		},
 		{ &hf_glusterfs_setattr_set_reserved,
 			{ "Reserved", "glusterfs.setattr.set_reserved",
-				FT_BOOLEAN, 32, TFS(&tfs_set_notset), ~0x3f,
+				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xffffffcf,
 				NULL, HFILL }
 		},
 		{ &hf_glusterfs_xflags,

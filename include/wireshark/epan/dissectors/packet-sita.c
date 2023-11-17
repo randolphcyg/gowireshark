@@ -69,7 +69,7 @@ format_flags_string(guchar value, const gchar *array[])
     wmem_strbuf_t   *buf;
     const char  *sep = "";
 
-    buf = wmem_strbuf_sized_new(wmem_packet_scope(), MAX_FLAGS_LEN, MAX_FLAGS_LEN);
+    buf = wmem_strbuf_new_sized(wmem_packet_scope(), MAX_FLAGS_LEN);
     for (i = 0; i < 8; i++) {
         bpos = 1 << i;
         if (value & bpos) {
@@ -127,7 +127,7 @@ dissect_sita(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
         col_set_str(pinfo->cinfo, COL_DEF_SRC, REMOTE);
     }
 
-    col_set_str(pinfo->cinfo, COL_INFO, "");
+    col_clear(pinfo->cinfo, COL_INFO);
 
     if (tree) {
         ti = proto_tree_add_protocol_format(tree, proto_sita, tvb, 0, 0, "Link Layer");

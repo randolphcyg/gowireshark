@@ -1,5 +1,5 @@
 /* packet-wccp.c
- * Routines for Web Cache Communication Protocol dissection
+ * Routines for Web Cache C* Protocol dissection
  * Jerry Talkington <jtalkington@users.sourceforge.net>
  *
  * Wireshark - Network traffic analyzer
@@ -19,6 +19,8 @@
 
 void proto_register_wccp(void);
 void proto_reg_handoff_wccp(void);
+
+static dissector_handle_t wccp_handle;
 
 static int proto_wccp = -1;
 static int hf_wccp_message_type = -1;   /* the message type */
@@ -270,19 +272,22 @@ static expert_field ei_wccp_a_zero_not_c = EI_INIT;
 /*
  * At
  *
- *      https://tools.ietf.org/html/draft-forster-wrec-wccp-v1-00
+ *      https://datatracker.ietf.org/doc/html/draft-forster-wrec-wccp-v1-00
  *
- * is a copy of the now-expired Internet-Draft for WCCP 1.0.
+ * is the now-expired Internet-Draft for WCCP 1.0 (Web Cache Coordination
+ * Protocol V1.0).
  *
  * At
  *
- *      https://tools.ietf.org/html/draft-wilson-wrec-wccp-v2-01
+ *      https://datatracker.ietf.org/doc/html/draft-wilson-wrec-wccp-v2-01
  *
- * is an Internet-Draft for WCCP 2.0.
+ * is the now-expired Internet-Draft for WCCP 2.0 (Web Cache Communication
+ * Protocol V2.0).
  *
- *      https://tools.ietf.org/html/draft-param-wccp-v2rev1-01
+ *      https://datatracker.ietf.org/doc/html/draft-param-wccp-v2rev1-01
  *
- * is the current draft for WCCP 2.01.
+ * is the now-expired Internet-Draft for WCCP 2.01 (Web Cache Communication
+ * Protocol V2, Revision 1).
  */
 
 /* This is NOT IANA assigned */
@@ -832,17 +837,17 @@ static const value_string service_type_vals[] = {
 /*
  * Service flags.
  */
-#define WCCP2_SI_SRC_IP_HASH                    0x0001
-#define WCCP2_SI_DST_IP_HASH                    0x0002
-#define WCCP2_SI_SRC_PORT_HASH                  0x0004
-#define WCCP2_SI_DST_PORT_HASH                  0x0008
-#define WCCP2_SI_PORTS_DEFINED                  0x0010
-#define WCCP2_SI_PORTS_SOURCE                   0x0020
-#define WCCP2r1_SI_REDIRECT_ONLY_PROTOCOL_0     0x0040
-#define WCCP2_SI_SRC_IP_ALT_HASH                0x0100
-#define WCCP2_SI_DST_IP_ALT_HASH                0x0200
-#define WCCP2_SI_SRC_PORT_ALT_HASH              0x0400
-#define WCCP2_SI_DST_PORT_ALT_HASH              0x0800
+#define WCCP2_SI_SRC_IP_HASH                    0x00000001
+#define WCCP2_SI_DST_IP_HASH                    0x00000002
+#define WCCP2_SI_SRC_PORT_HASH                  0x00000004
+#define WCCP2_SI_DST_PORT_HASH                  0x00000008
+#define WCCP2_SI_PORTS_DEFINED                  0x00000010
+#define WCCP2_SI_PORTS_SOURCE                   0x00000020
+#define WCCP2r1_SI_REDIRECT_ONLY_PROTOCOL_0     0x00000040
+#define WCCP2_SI_SRC_IP_ALT_HASH                0x00000100
+#define WCCP2_SI_DST_IP_ALT_HASH                0x00000200
+#define WCCP2_SI_SRC_PORT_ALT_HASH              0x00000400
+#define WCCP2_SI_DST_PORT_ALT_HASH              0x00000800
 
 
 static gint
@@ -1511,7 +1516,7 @@ dissect_wccp2r1_address_table_info(tvbuff_t *tvb, int offset, int length,
       if ((wccp_wccp_address_table->in_use == FALSE) &&
           (wccp_wccp_address_table->table_ipv4 != NULL) &&
           (i < wccp_wccp_address_table->table_length))
-        wccp_wccp_address_table->table_ipv4[i] = tvb_get_ntohl(tvb, offset);
+        wccp_wccp_address_table->table_ipv4[i] = tvb_get_ipv4(tvb, offset);
       break;
     case 2:
       /* IPv6 */
@@ -2824,7 +2829,7 @@ proto_register_wccp(void)
         NULL, HFILL }
     },
     { &hf_hash_flag_u,
-      { "Hash information", "wccp.hash_flag.u", FT_BOOLEAN, 32, TFS(&tfs_historical_current), 0x10000,
+      { "Hash information", "wccp.hash_flag.u", FT_BOOLEAN, 32, TFS(&tfs_historical_current), 0x00010000,
         NULL, HFILL }
     },
     { &hf_recvd_id,
@@ -3552,14 +3557,12 @@ proto_register_wccp(void)
   proto_register_subtree_array(ett, array_length(ett));
   expert_wccp = expert_register_protocol(proto_wccp);
   expert_register_field_array(expert_wccp, ei, array_length(ei));
+  wccp_handle = register_dissector("wccp", dissect_wccp, proto_wccp);
 }
 
 void
 proto_reg_handoff_wccp(void)
 {
-  dissector_handle_t wccp_handle;
-
-  wccp_handle = create_dissector_handle(dissect_wccp, proto_wccp);
   dissector_add_uint_with_preference("udp.port", UDP_PORT_WCCP, wccp_handle);
 }
 

@@ -12,10 +12,10 @@
  */
 
 #include <config.h>
+#define WS_LOG_DOMAIN  LOG_DOMAIN_MAIN
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <glib.h>
 
 #include <wsutil/ws_getopt.h>
@@ -24,8 +24,8 @@
 
 #include <wiretap/wtap.h>
 
-#include <ui/clopts_common.h>
-#include <ui/cmdarg_err.h>
+#include <wsutil/clopts_common.h>
+#include <wsutil/cmdarg_err.h>
 #include <wsutil/filesystem.h>
 #include <wsutil/file_util.h>
 #include <wsutil/privileges.h>
@@ -34,7 +34,7 @@
 #include <wsutil/wslog.h>
 
 #include <cli_main.h>
-#include <ui/version_info.h>
+#include <wsutil/version_info.h>
 
 #ifdef HAVE_PLUGINS
 #include <wsutil/plugins.h>
@@ -224,6 +224,8 @@ main(int argc, char *argv[])
 
     /* Early logging command-line initialization. */
     ws_log_parse_args(&argc, argv, vcmdarg_err, 1);
+
+    ws_noisy("Finished log init and parsing command line log arguments");
 
 #ifdef _WIN32
     create_app_running_mutex();

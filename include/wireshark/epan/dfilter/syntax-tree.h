@@ -16,6 +16,7 @@
 #include <wsutil/ws_assert.h>
 #include <wsutil/wslog.h>
 #include <epan/ftypes/ftypes.h>
+#include "dfilter-loc.h"
 
 /** @file
  */
@@ -37,10 +38,10 @@ typedef enum {
 	STTYPE_NUM_TYPES
 } sttype_id_t;
 
-typedef gpointer        (*STTypeNewFunc)(gpointer);
-typedef gpointer        (*STTypeDupFunc)(gconstpointer);
-typedef void            (*STTypeFreeFunc)(gpointer);
-typedef char*           (*STTypeToStrFunc)(gconstpointer, gboolean pretty);
+typedef void *          (*STTypeNewFunc)(void *);
+typedef void *          (*STTypeDupFunc)(gconstpointer);
+typedef void            (*STTypeFreeFunc)(void *);
+typedef char*           (*STTypeToStrFunc)(gconstpointer, bool pretty);
 
 
 /* Type information */
@@ -53,20 +54,20 @@ typedef struct {
 	STTypeToStrFunc		func_tostr;
 } sttype_t;
 
-typedef struct {
-	long col_start;
-	size_t col_len;
-} stloc_t;
+
+/* Lexical value is ambiguous (can be a protocol field or a literal). */
+#define STFLAG_UNPARSED		(1 << 0)
 
 /** Node (type instance) information */
 typedef struct {
 	uint32_t	magic;
 	sttype_t	*type;
-	gpointer	data;
+	void *	data;
 	char 		*repr_token;
 	char 		*repr_display;
 	char 		*repr_debug;
-	stloc_t		location;
+	df_loc_t	location;
+	uint16_t	flags;
 } stnode_t;
 
 typedef enum {
@@ -85,6 +86,7 @@ typedef enum {
 	STNODE_OP_CONTAINS,
 	STNODE_OP_MATCHES,
 	STNODE_OP_IN,
+	STNODE_OP_NOT_IN,
 	STNODE_OP_BITWISE_AND,
 	STNODE_OP_UNARY_MINUS,
 	STNODE_OP_ADD,
@@ -119,7 +121,10 @@ void
 sttype_register(sttype_t *type);
 
 stnode_t*
-stnode_new(sttype_id_t type_id, gpointer data, char *token, const stloc_t *loc);
+stnode_new(sttype_id_t type_id, void *data, char *token, df_loc_t loc);
+
+stnode_t*
+stnode_new_empty(sttype_id_t type_id);
 
 stnode_t*
 stnode_dup(const stnode_t *org);
@@ -128,10 +133,10 @@ void
 stnode_clear(stnode_t *node);
 
 void
-stnode_init(stnode_t *node, sttype_id_t type_id, gpointer data, char *token, const stloc_t *loc);
+stnode_init(stnode_t *node, sttype_id_t type_id, void *data, char *token, df_loc_t loc);
 
 void
-stnode_replace(stnode_t *node, sttype_id_t type_id, gpointer data);
+stnode_replace(stnode_t *node, sttype_id_t type_id, void *data);
 
 void
 stnode_free(stnode_t *node);
@@ -142,27 +147,39 @@ stnode_type_name(stnode_t *node);
 sttype_id_t
 stnode_type_id(stnode_t *node);
 
-gpointer
+void *
 stnode_data(stnode_t *node);
 
 GString *
 stnode_string(stnode_t *node);
 
-gpointer
+void *
 stnode_steal_data(stnode_t *node);
 
 const char *
 stnode_token(stnode_t *node);
 
-stloc_t *
+df_loc_t
 stnode_location(stnode_t *node);
 
+void
+stnode_set_location(stnode_t *node, df_loc_t loc);
+
+bool
+stnode_get_flags(stnode_t *node, uint16_t flags);
+
+void
+stnode_set_flags(stnode_t *node, uint16_t flags);
+
+void
+stnode_merge_location(stnode_t *dst, stnode_t *n1, stnode_t *n2);
+
 const char *
-stnode_tostr(stnode_t *node, gboolean pretty);
+stnode_tostr(stnode_t *node, bool pretty);
 
-#define stnode_todisplay(node) stnode_tostr(node, TRUE)
+#define stnode_todisplay(node) stnode_tostr(node, true)
 
-#define stnode_todebug(node) stnode_tostr(node, FALSE)
+#define stnode_todebug(node) stnode_tostr(node, false)
 
 void
 log_node_full(enum ws_log_level level,
@@ -174,11 +191,7 @@ log_test_full(enum ws_log_level level,
 			const char *file, int line, const char *func,
 			stnode_t *node, const char *msg);
 
-#ifdef WS_DISABLE_DEBUG
-#define log_node(node) (void)0;
-#define log_test(node) (void)0;
-#define LOG_NODE(node) (void)0;
-#else
+#ifdef WS_DEBUG
 #define log_node(node) \
 	log_node_full(LOG_LEVEL_NOISY, __FILE__, __LINE__, __func__, node, #node)
 #define log_test(node) \
@@ -190,6 +203,10 @@ log_test_full(enum ws_log_level level,
 		else					\
 			log_node(node);			\
 	} while (0)
+#else
+#define log_node(node) (void)0
+#define log_test(node) (void)0
+#define LOG_NODE(node) (void)0
 #endif
 
 char *
@@ -198,20 +215,20 @@ dump_syntax_tree_str(stnode_t *root);
 void
 log_syntax_tree(enum ws_log_level, stnode_t *root, const char *msg, char **cache_ptr);
 
-#ifdef WS_DISABLE_DEBUG
-#define ws_assert_magic(obj, mnum) (void)0
-#else
+#ifdef WS_DEBUG
 #define ws_assert_magic(obj, mnum) \
 	do { \
 		ws_assert(obj); \
 		if ((obj)->magic != (mnum)) { \
-			ws_log_full(LOG_DOMAIN_DFILTER, LOG_LEVEL_CRITICAL, \
+			ws_log_full(LOG_DOMAIN_DFILTER, LOG_LEVEL_ERROR, \
 				__FILE__, __LINE__, __func__, \
 				"Magic num is 0x%08"PRIx32", " \
 				"but should be 0x%08"PRIx32, \
 				(obj)->magic, (mnum)); \
 		} \
 	} while(0)
+#else
+#define ws_assert_magic(obj, mnum) (void)0
 #endif
 
 #endif /* SYNTAX_TREE_H */

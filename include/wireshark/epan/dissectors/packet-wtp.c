@@ -53,11 +53,6 @@ static const true_false_string UP_truth = {
     "User Acknowledgement optional"
 };
 
-static const true_false_string TVETOK_truth = {
-    "True",
-    "False"
-};
-
 static const value_string vals_wtp_pdu_type[] = {
     { 0, "Not Allowed" },
     { 1, "Invoke" },
@@ -864,7 +859,7 @@ proto_register_wtp(void)
         },
         { &hf_wtp_header_Ack_flag_TVETOK,
             { "Tve/Tok flag", "wtp.ack.tvetok",
-                FT_BOOLEAN, 8, TFS( &TVETOK_truth ), 0x04,
+                FT_BOOLEAN, 8, NULL, 0x04,
                 NULL, HFILL
             }
     },
@@ -1024,13 +1019,8 @@ proto_register_wtp(void)
     };
 
     /* Register the protocol name and description */
-    proto_wtp = proto_register_protocol(
-            "Wireless Transaction Protocol",   /* protocol name for use by wireshark */
-            "WTP",                             /* short version of name */
-            "wtp"                              /* Abbreviated protocol name, should Match IANA
-                                                  < URL:http://www.iana.org/assignments/port-numbers/ >
-                                                */
-            );
+    /* Abbreviated protocol name should Match IANA: https://www.iana.org/assignments/port-numbers/ */
+    proto_wtp = proto_register_protocol("Wireless Transaction Protocol", "WTP", "wtp");
 
     /* Required calls to register the header fields and subtrees used */
     proto_register_field_array(proto_wtp, hf, array_length(hf));

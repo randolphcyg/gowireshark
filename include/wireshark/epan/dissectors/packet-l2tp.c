@@ -962,6 +962,7 @@ static dissector_handle_t llc_handle;
 
 static dissector_handle_t l2tp_udp_handle;
 static dissector_handle_t l2tp_ip_handle;
+static dissector_handle_t atm_oam_llc_handle;
 
 #define L2TP_HMAC_MD5  0
 #define L2TP_HMAC_SHA1 1
@@ -1771,7 +1772,7 @@ static int dissect_l2tp_ericsson_tei_sc_map(tvbuff_t *tvb, proto_tree *parent_tr
     return offset;
 }
 
-static int dissect_l2tp_ericsson_avps(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint32 ccid)
+static int dissect_l2tp_ericsson_avps(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint32 ccid _U_)
 {
     int offset = 0;
     int         avp_type;
@@ -1811,8 +1812,6 @@ static int dissect_l2tp_ericsson_avps(tvbuff_t *tvb, packet_info *pinfo _U_, pro
     proto_tree_add_uint(l2tp_avp_tree, hf_l2tp_ericsson_avp_type, tvb, offset, 2, avp_type);
     offset += 2;
     avp_len -= 2;
-
-    ccid++;
 
     switch (avp_type) {
     case ERICSSON_MSG_TYPE:
@@ -3238,7 +3237,7 @@ proto_register_l2tp(void)
             NULL, HFILL }},
 
         { &hf_l2tp_avp_vendor_id,
-          { "Vendor ID", "l2tp.avp.vendor_id", FT_UINT16, BASE_ENTERPRISES, STRINGS_ENTERPRISES, 0,
+          { "Vendor ID", "l2tp.avp.vendor_id", FT_UINT32, BASE_ENTERPRISES, STRINGS_ENTERPRISES, 0,
             "AVP Vendor ID", HFILL }},
 
         { &hf_l2tp_avp_type,
@@ -3617,10 +3616,10 @@ proto_register_l2tp(void)
       { &hf_l2tp_avp_error_message, { "Error Message", "l2tp.avp.error_message", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_l2tp_avp_protocol_version, { "Version", "l2tp.avp.protocol_version", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_l2tp_avp_protocol_revision, { "Revision", "l2tp.avp.protocol_revision", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-      { &hf_l2tp_avp_async_framing_supported, { "Async Framing Supported", "l2tp.avp.async_framing_supported", FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0002, NULL, HFILL }},
-      { &hf_l2tp_avp_sync_framing_supported, { "Sync Framing Supported", "l2tp.avp.sync_framing_supported", FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0001, NULL, HFILL }},
-      { &hf_l2tp_avp_analog_access_supported, { "Analog Access Supported", "l2tp.avp.analog_access_supported", FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0002, NULL, HFILL }},
-      { &hf_l2tp_avp_digital_access_supported, { "Digital Access Supported", "l2tp.avp.digital_access_supported", FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0001, NULL, HFILL }},
+      { &hf_l2tp_avp_async_framing_supported, { "Async Framing Supported", "l2tp.avp.async_framing_supported", FT_BOOLEAN, 32, NULL, 0x00000002, NULL, HFILL }},
+      { &hf_l2tp_avp_sync_framing_supported, { "Sync Framing Supported", "l2tp.avp.sync_framing_supported", FT_BOOLEAN, 32, NULL, 0x00000001, NULL, HFILL }},
+      { &hf_l2tp_avp_analog_access_supported, { "Analog Access Supported", "l2tp.avp.analog_access_supported", FT_BOOLEAN, 32, NULL, 0x00000002, NULL, HFILL }},
+      { &hf_l2tp_avp_digital_access_supported, { "Digital Access Supported", "l2tp.avp.digital_access_supported", FT_BOOLEAN, 32, NULL, 0x00000001, NULL, HFILL }},
       { &hf_l2tp_avp_firmware_revision, { "Firmware Revision", "l2tp.avp.firmware_revision", FT_UINT16, BASE_DEC_HEX, NULL, 0x0, NULL, HFILL }},
       { &hf_l2tp_avp_host_name, { "Host Name", "l2tp.avp.host_name", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_l2tp_avp_vendor_name, { "Vendor Name", "l2tp.avp.vendor_name", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
@@ -3633,10 +3632,10 @@ proto_register_l2tp(void)
       { &hf_l2tp_avp_call_serial_number, { "Call Serial Number", "l2tp.avp.call_serial_number", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_l2tp_avp_minimum_bps, { "Minimum BPS", "l2tp.avp.minimum_bps", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_l2tp_avp_maximum_bps, { "Maximum BPS", "l2tp.avp.maximum_bps", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-      { &hf_l2tp_avp_analog_bearer_type, { "Analog Bearer Type", "l2tp.avp.analog_bearer_type", FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0002, NULL, HFILL }},
-      { &hf_l2tp_avp_digital_bearer_type, { "Digital Bearer Type", "l2tp.avp.digital_bearer_type", FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0001, NULL, HFILL }},
-      { &hf_l2tp_avp_async_framing_type, { "Async Framing Type", "l2tp.avp.async_framing_type", FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0002, NULL, HFILL }},
-      { &hf_l2tp_avp_sync_framing_type, { "Sync Framing Type", "l2tp.avp.sync_framing_type", FT_BOOLEAN, 32, TFS(&tfs_true_false), 0x0001, NULL, HFILL }},
+      { &hf_l2tp_avp_analog_bearer_type, { "Analog Bearer Type", "l2tp.avp.analog_bearer_type", FT_BOOLEAN, 32, NULL, 0x00000002, NULL, HFILL }},
+      { &hf_l2tp_avp_digital_bearer_type, { "Digital Bearer Type", "l2tp.avp.digital_bearer_type", FT_BOOLEAN, 32, NULL, 0x00000001, NULL, HFILL }},
+      { &hf_l2tp_avp_async_framing_type, { "Async Framing Type", "l2tp.avp.async_framing_type", FT_BOOLEAN, 32, NULL, 0x00000002, NULL, HFILL }},
+      { &hf_l2tp_avp_sync_framing_type, { "Sync Framing Type", "l2tp.avp.sync_framing_type", FT_BOOLEAN, 32, NULL, 0x00000001, NULL, HFILL }},
       { &hf_l2tp_avp_sub_address, { "Sub-Address", "l2tp.avp.sub_address", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_l2tp_avp_connect_speed, { "Connect Speed", "l2tp.avp.connect_speed", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_l2tp_avp_physical_channel, { "Physical Channel", "l2tp.avp.physical_channel", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
@@ -3711,8 +3710,10 @@ proto_register_l2tp(void)
     static decode_as_t l2tp_da = {"l2tp", "l2tp.pw_type", 1, 0, &l2tp_da_values, NULL, NULL,
                                     decode_as_default_populate_list, decode_as_default_reset, decode_as_default_change, NULL};
 
-    proto_l2tp = proto_register_protocol(
-        "Layer 2 Tunneling Protocol", "L2TP", "l2tp");
+    proto_l2tp = proto_register_protocol("Layer 2 Tunneling Protocol", "L2TP", "l2tp");
+    l2tp_udp_handle = register_dissector("lt2p_udp", dissect_l2tp_udp, proto_l2tp);
+    l2tp_ip_handle = register_dissector("l2tp_ip", dissect_l2tp_ip, proto_l2tp);
+    atm_oam_llc_handle = register_dissector("atm_oam_llc",  dissect_atm_oam_llc, proto_l2tp );
     proto_register_field_array(proto_l2tp, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
     expert_l2tp = expert_register_protocol(proto_l2tp);
@@ -3742,7 +3743,7 @@ proto_register_l2tp(void)
     prefs_register_static_text_preference(l2tp_module, "protocol",
         "Dissection of pseudowire types is configured through \"Decode As\". "
         "Type 0 is used for sessions with unknown pseudowire type.",
-        "Pseudowire Type \"Decode As\" instuctions");
+        "Pseudowire Type \"Decode As\" instructions");
 
     prefs_register_string_preference(l2tp_module,"shared_secret","Shared Secret",
                                    "Shared secret used for control message digest authentication",
@@ -3755,12 +3756,7 @@ proto_register_l2tp(void)
 void
 proto_reg_handoff_l2tp(void)
 {
-    dissector_handle_t atm_oam_llc_handle;
-
-    l2tp_udp_handle = create_dissector_handle(dissect_l2tp_udp, proto_l2tp);
     dissector_add_uint_with_preference("udp.port", UDP_PORT_L2TP, l2tp_udp_handle);
-
-    l2tp_ip_handle = create_dissector_handle(dissect_l2tp_ip, proto_l2tp);
     dissector_add_uint("ip.proto", IP_PROTO_L2TP, l2tp_ip_handle);
 
     /*
@@ -3779,7 +3775,6 @@ proto_reg_handoff_l2tp(void)
     atm_oam_handle        = find_dissector_add_dependency("atm_oam_cell", proto_l2tp);
     llc_handle            = find_dissector_add_dependency("llc", proto_l2tp);
 
-    atm_oam_llc_handle = create_dissector_handle( dissect_atm_oam_llc, proto_l2tp );
     dissector_add_uint("l2tp.pw_type", L2TPv3_PW_AAL5, atm_oam_llc_handle);
 
     /*

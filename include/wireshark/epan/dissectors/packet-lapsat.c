@@ -203,12 +203,6 @@ static const value_string lapsat_ctl_u_modifier_vals_resp[] = {
  * Fragment stuff
  */
 
-static const value_string true_false_vals[] = {
-	{ 0, "False" },
-	{ 1, "True" },
-	{ 0, NULL },
-};
-
 
 static const fragment_items lapsat_frag_items = {
 	/* Fragment subtrees */
@@ -486,7 +480,7 @@ dissect_lapsat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dissec
 		payload = tvb_new_child_real_data(tvb, data, plen, plen);
 	} else {
 		/* Last nibble doesn't need merging */
-		payload = tvb_new_subset_length_caplen(tvb, hlen, plen, plen);
+		payload = tvb_new_subset_length(tvb, hlen, plen);
 	}
 
 	add_new_data_source(pinfo, payload, "LAPSat Payload");
@@ -634,17 +628,17 @@ proto_register_lapsat(void)
 		},
 		{ &hf_lapsat_ctl_p,
 		  { "Poll", "lapsat.control.p",
-		    FT_UINT16, BASE_DEC, VALS(true_false_vals), LAPSAT_CTL_P_F << 4,
+		    FT_BOOLEAN, 16, NULL, LAPSAT_CTL_P_F << 4,
 		    NULL, HFILL }
 		},
 		{ &hf_lapsat_ctl_f,
 		  { "Final", "lapsat.control.f",
-		    FT_UINT16, BASE_DEC, VALS(true_false_vals), LAPSAT_CTL_P_F << 4,
+		    FT_BOOLEAN, 16, NULL, LAPSAT_CTL_P_F << 4,
 		    NULL, HFILL }
 		},
 		{ &hf_lapsat_ctl_mii,
 		  { "MII", "lapsat.control.mii",
-		    FT_UINT16, BASE_DEC, VALS(true_false_vals), LAPSAT_CTL_MII << 4,
+		    FT_BOOLEAN, 16, NULL, LAPSAT_CTL_MII << 4,
 		    "Mobile Identity Indicator", HFILL }
 		},
 

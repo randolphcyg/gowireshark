@@ -18,12 +18,12 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/to_str.h>
-#include <packet-lbm.h>
+#include "packet-lbm.h"
 #include <epan/proto.h>
 #include <epan/prefs.h>
 #include <epan/uat.h>
 #include <wsutil/pint.h>
-#include <dissectors/packet-tcp.h>
+#include "packet-tcp.h"
 
 
 
@@ -634,7 +634,7 @@ static const value_string rSocketErrorCodeNames[] =
 /*----------------------------------------------------------------------------*/
 /* UAT callback functions.                                                    */
 /*----------------------------------------------------------------------------*/
-static gboolean lbmsrs_tag_update_cb(void * record, char * * error_string)
+static bool lbmsrs_tag_update_cb(void * record, char * * error_string)
 {
     lbmsrs_tag_entry_t * tag = (lbmsrs_tag_entry_t *)record;
 
@@ -2740,7 +2740,7 @@ void proto_register_lbmsrs(void)
         { &hf_lbmsrs_resp_local_domain_id,
         { "Local Domain ID", "lbmsrs.registration_response.local_domain_id", FT_UINT32, BASE_DEC,NULL, 0x0, NULL, HFILL } },
         { &hf_lbmsrs_reg_resp_protocol_version,
-        { "Protocol Version", "lbmsrs.registration_response.protocol_version", FT_UINT8, BASE_DEC,NULL, 0x0, NULL, HFILL } },
+        { "Protocol Version", "lbmsrs.registration_response.protocol_version", FT_UINT32, BASE_DEC,NULL, 0x0, NULL, HFILL } },
         /*SRS Registration Response items end*/
 
         /*SRS Stream Request items start*/
@@ -2990,6 +2990,8 @@ void proto_register_lbmsrs(void)
     expert_module_t *expert_lbmsrs = expert_register_protocol(proto_lbmsrs);
     expert_register_field_array(expert_lbmsrs, ei, array_length(ei));
 
+    lbmsrs_dissector_handle = register_dissector("lbmsrs", dissect_lbmsrs, proto_lbmsrs);
+
     /*Set the preference menu items*/
     module_t* lbmsrs_module = prefs_register_protocol_subtree("29West", proto_lbmsrs, proto_reg_handoff_lbmsrs);
 
@@ -3045,7 +3047,6 @@ void proto_reg_handoff_lbmsrs(void)
 
     if (!already_registered)
     {
-        lbmsrs_dissector_handle = create_dissector_handle(dissect_lbmsrs, proto_lbmsrs);
         dissector_add_for_decode_as_with_preference("tcp.port", lbmsrs_dissector_handle);
         heur_dissector_add("tcp", test_lbmsrs_packet, "LBM Stateful Resolution Service over RSocket", "lbmsrs_tcp", proto_lbmsrs, HEURISTIC_ENABLE);
     }

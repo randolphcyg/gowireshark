@@ -18,6 +18,8 @@
 void proto_register_lltd(void);
 void proto_reg_handoff_lltd(void);
 
+static dissector_handle_t lltd_handle;
+
 static int proto_lltd = -1;
 
 static int hf_lltd_version                  = -1;
@@ -554,7 +556,7 @@ dissect_lltd_discovery(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int 
 
     func = tvb_get_guint8(tvb, offset);
     proto_tree_add_item(tree, hf_lltd_discovery_func, tvb, offset, 1, ENC_NA);
-    col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str(func, lltd_discovery_vals, "Unknown (0x%02x)"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(func, lltd_discovery_vals, "Unknown (0x%02x)"));
     offset++;
 
     /* Demultiplex header */
@@ -671,7 +673,7 @@ dissect_lltd_qos(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset
 
     func = tvb_get_guint8(tvb, offset);
     proto_tree_add_item(tree, hf_lltd_qos_diag_func, tvb, offset, 1, ENC_NA);
-    col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str(func, lltd_qos_diag_vals, "Unknown (0x%02x)"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(func, lltd_qos_diag_vals, "Unknown (0x%02x)"));
     offset++;
 
     header_tree = proto_tree_add_subtree(tree, tvb, offset, 14, ett_base_header, &header_item, "Base header");
@@ -824,11 +826,11 @@ proto_register_lltd(void)
         { &hf_lltd_tlv_type, {"Type", "lltd.tlv.type", FT_UINT8, BASE_HEX, VALS(lltd_tlv_type_vals), 0, NULL, HFILL }},
         { &hf_lltd_tlv_length, {"Length", "lltd.tlv.length", FT_UINT8, BASE_DEC, NULL, 0, NULL, HFILL }},
         { &hf_lltd_host_id, { "Host ID", "lltd.host_id", FT_ETHER, BASE_NONE, NULL, 0, NULL, HFILL }},
-        { &hf_lltd_char_p, {"Public NAT", "lltd.characteristic.public_nat", FT_BOOLEAN, 32, TFS(&tfs_true_false), LLTD_CHARACTERISTIC_P_MASK, NULL, HFILL }},
-        { &hf_lltd_char_x, {"Private NAT", "lltd.characteristic.private_nat", FT_BOOLEAN, 32, TFS(&tfs_true_false), LLTD_CHARACTERISTIC_X_MASK, NULL, HFILL }},
+        { &hf_lltd_char_p, {"Public NAT", "lltd.characteristic.public_nat", FT_BOOLEAN, 32, NULL, LLTD_CHARACTERISTIC_P_MASK, NULL, HFILL }},
+        { &hf_lltd_char_x, {"Private NAT", "lltd.characteristic.private_nat", FT_BOOLEAN, 32, NULL, LLTD_CHARACTERISTIC_X_MASK, NULL, HFILL }},
         { &hf_lltd_char_f, {"Duplex", "lltd.characteristic.duplex", FT_BOOLEAN, 32, TFS(&tfs_full_half_duplex), LLTD_CHARACTERISTIC_F_MASK, NULL, HFILL }},
         { &hf_lltd_char_m, {"Management Web Page", "lltd.characteristic.web_page", FT_BOOLEAN, 32, TFS(&tfs_present_absent), LLTD_CHARACTERISTIC_M_MASK, NULL, HFILL }},
-        { &hf_lltd_char_l, {"Looping Outbound Packets", "lltd.characteristic.loop", FT_BOOLEAN, 32, TFS(&tfs_true_false), LLTD_CHARACTERISTIC_L_MASK, NULL, HFILL }},
+        { &hf_lltd_char_l, {"Looping Outbound Packets", "lltd.characteristic.loop", FT_BOOLEAN, 32, NULL, LLTD_CHARACTERISTIC_L_MASK, NULL, HFILL }},
         { &hf_lltd_char_reserved, {"Reserved", "lltd.characteristic.reserved", FT_UINT32, BASE_HEX, NULL, LLTD_CHARACTERISTIC_RESERVE_MASK, NULL, HFILL }},
         { &hf_lltd_physical_medium, {"Physical Medium", "lltd.physical_medium", FT_UINT32, BASE_DEC, NULL, 0, NULL, HFILL }},
         { &hf_lltd_wireless_mode, {"Wireless Mode", "lltd.wireless_mode", FT_UINT8, BASE_HEX, VALS(lltd_wireless_mode_vals), 0, NULL, HFILL }},
@@ -843,7 +845,7 @@ proto_register_lltd(void)
         { &hf_lltd_machine_name, { "Machine Name", "lltd.machine_name", FT_STRING /*FT_UCS2_LE */, BASE_NONE, NULL, 0, NULL, HFILL }},
         { &hf_lltd_support_info, { "Support Information", "lltd.support_info", FT_STRING /*FT_UCS2_LE */, BASE_NONE, NULL, 0, NULL, HFILL }},
         { &hf_lltd_device_uuid, { "Device UUID", "lltd.device_uuid", FT_GUID, BASE_NONE, NULL, 0, NULL, HFILL }},
-        { &hf_lltd_qos_char_e, {"Layer 2 Forwarding", "lltd.qos_characteristic.layer2_forwarding", FT_BOOLEAN, 32, TFS(&tfs_true_false), LLTD_QOS_CHARACTERISTIC_E_MASK, NULL, HFILL }},
+        { &hf_lltd_qos_char_e, {"Layer 2 Forwarding", "lltd.qos_characteristic.layer2_forwarding", FT_BOOLEAN, 32, NULL, LLTD_QOS_CHARACTERISTIC_E_MASK, NULL, HFILL }},
         { &hf_lltd_qos_char_q, {"802.1q VLAN", "lltd.qos_characteristic.vlan", FT_BOOLEAN, 32, TFS(&tfs_supported_not_supported), LLTD_QOS_CHARACTERISTIC_Q_MASK, NULL, HFILL }},
         { &hf_lltd_qos_char_p, {"802.1q Priority Tagging", "lltd.qos_characteristic.tagging", FT_BOOLEAN, 32, TFS(&tfs_supported_not_supported), LLTD_QOS_CHARACTERISTIC_P_MASK, NULL, HFILL }},
         { &hf_lltd_qos_char_reserved, {"Reserved", "lltd.qos_characteristic.reserved", FT_UINT32, BASE_HEX, NULL, LLTD_QOS_CHARACTERISTIC_RESERVE_MASK, NULL, HFILL }},
@@ -855,8 +857,8 @@ proto_register_lltd(void)
         { &hf_lltd_emit_pause, {"Pause (ms)", "lltd.emit.pause", FT_UINT8, BASE_DEC, NULL, 0, NULL, HFILL }},
         { &hf_lltd_emit_src_addr, { "Source Address", "lltd.emit.src_addr", FT_ETHER, BASE_NONE, NULL, 0, NULL, HFILL }},
         { &hf_lltd_emit_dest_addr, { "Destination Address", "lltd.emit.dest_addr", FT_ETHER, BASE_NONE, NULL, 0, NULL, HFILL }},
-        { &hf_lltd_queryresp_more_descs, {"More RecveeDescs", "lltd.queryresp.more", FT_BOOLEAN, 16, TFS(&tfs_true_false), LLTD_QUERY_RESP_M_MASK, NULL, HFILL }},
-        { &hf_lltd_queryresp_memory_descs, {"No memory left", "lltd.queryresp.memory", FT_BOOLEAN, 16, TFS(&tfs_true_false), LLTD_QUERY_RESP_E_MASK, NULL, HFILL }},
+        { &hf_lltd_queryresp_more_descs, {"More RecveeDescs", "lltd.queryresp.more", FT_BOOLEAN, 16, NULL, LLTD_QUERY_RESP_M_MASK, NULL, HFILL }},
+        { &hf_lltd_queryresp_memory_descs, {"No memory left", "lltd.queryresp.memory", FT_BOOLEAN, 16, NULL, LLTD_QUERY_RESP_E_MASK, NULL, HFILL }},
         { &hf_lltd_queryresp_num_descs, {"Number of RecveeDescs", "lltd.queryresp.num_descs", FT_UINT16, BASE_DEC, NULL, LLTD_QUERY_RESP_NUM_DESCS_MASK, NULL, HFILL }},
         { &hf_lltd_queryresp_type, {"Type", "lltd.queryresp.type", FT_UINT16, BASE_HEX, VALS(lltd_queryresp_type_vals), 0, NULL, HFILL }},
         { &hf_lltd_queryresp_real_src_addr, { "Real Source Address", "lltd.queryresp.real_src_addr", FT_ETHER, BASE_NONE, NULL, 0, NULL, HFILL }},
@@ -866,8 +868,8 @@ proto_register_lltd(void)
         { &hf_lltd_flat_crc_packets, {"Current Transmit Credit (packets)", "lltd.flat.crc_packets", FT_UINT8, BASE_DEC, NULL, 0, NULL, HFILL }},
         { &hf_lltd_query_large_tlv_type, {"Type", "lltd.query_large_tlv.type", FT_UINT8, BASE_HEX, VALS(lltd_query_large_tlv_type_vals), 0, NULL, HFILL }},
         { &hf_lltd_query_large_tlv_offset, {"Offset", "lltd.query_large_tlv.offset", FT_UINT24, BASE_DEC, NULL, 0, NULL, HFILL }},
-        { &hf_lltd_querylargeresp_more_descs, {"More RecveeDescs", "lltd.querylargeresp.more", FT_BOOLEAN, 16, TFS(&tfs_true_false), LLTD_QUERY_RESP_M_MASK, NULL, HFILL }},
-        { &hf_lltd_querylargeresp_memory_descs, {"No memory left", "lltd.querylargeresp.memory", FT_BOOLEAN, 16, TFS(&tfs_true_false), LLTD_QUERY_RESP_E_MASK, NULL, HFILL }},
+        { &hf_lltd_querylargeresp_more_descs, {"More RecveeDescs", "lltd.querylargeresp.more", FT_BOOLEAN, 16, NULL, LLTD_QUERY_RESP_M_MASK, NULL, HFILL }},
+        { &hf_lltd_querylargeresp_memory_descs, {"No memory left", "lltd.querylargeresp.memory", FT_BOOLEAN, 16, NULL, LLTD_QUERY_RESP_E_MASK, NULL, HFILL }},
         { &hf_lltd_querylargeresp_num_descs, {"Number of RecveeDescs", "lltd.querylargeresp.num_descs", FT_UINT16, BASE_DEC, NULL, LLTD_QUERY_RESP_NUM_DESCS_MASK, NULL, HFILL }},
         { &hf_lltd_querylargeresp_data, { "Data", "lltd.querylargeresp.data", FT_BYTES, BASE_NONE, NULL, 0, NULL, HFILL }},
 
@@ -888,8 +890,8 @@ proto_register_lltd(void)
         { &hf_lltd_qos_probe_payload, {"Payload", "lltd.qos_probe.payload", FT_BYTES, BASE_NONE, NULL, 0, NULL, HFILL }},
         { &hf_lltd_qos_error_value, {"Error Code", "lltd.qos_error", FT_UINT16, BASE_DEC, VALS(lltd_qos_error_vals), 0, NULL, HFILL }},
         { &hf_lltd_qos_count_snapshot_history, {"History Size", "lltd.qos_count_snapshot.history", FT_UINT8, BASE_DEC, NULL, 0, NULL, HFILL }},
-        { &hf_lltd_qos_query_resp_r, {"Receipt", "lltd.qos_query_resp.receipt", FT_BOOLEAN, 16, TFS(&tfs_true_false), LLTD_QUERY_RESP_M_MASK, NULL, HFILL }},
-        { &hf_lltd_qos_query_resp_e, {"No memory left", "lltd.qos_query_resp.memory", FT_BOOLEAN, 16, TFS(&tfs_true_false), LLTD_QUERY_RESP_E_MASK, NULL, HFILL }},
+        { &hf_lltd_qos_query_resp_r, {"Receipt", "lltd.qos_query_resp.receipt", FT_BOOLEAN, 16, NULL, LLTD_QUERY_RESP_M_MASK, NULL, HFILL }},
+        { &hf_lltd_qos_query_resp_e, {"No memory left", "lltd.qos_query_resp.memory", FT_BOOLEAN, 16, NULL, LLTD_QUERY_RESP_E_MASK, NULL, HFILL }},
         { &hf_lltd_qos_query_resp_num_events, {"Number of Events", "lltd.qos_query_resp.num_events", FT_UINT16, BASE_DEC, NULL, LLTD_QUERY_RESP_NUM_DESCS_MASK, NULL, HFILL }},
         { &hf_lltd_qos_query_resp_controller_timestamp, {"Controller Transmit Timestamp", "lltd.qos_query_resp.controller_timestamp", FT_UINT64, BASE_DEC, NULL, 0, NULL, HFILL }},
         { &hf_lltd_qos_query_resp_sink_timestamp, {"Sink Receive Timestamp", "lltd.qos_query_resp.sink_timestamp", FT_UINT64, BASE_DEC, NULL, 0, NULL, HFILL }},
@@ -942,13 +944,13 @@ proto_register_lltd(void)
     proto_register_subtree_array(ett, array_length(ett));
     expert_lltd = expert_register_protocol(proto_lltd);
     expert_register_field_array(expert_lltd, ei, array_length(ei));
+
+    lltd_handle = register_dissector("lltd", dissect_lltd, proto_lltd);
 }
 
 void
 proto_reg_handoff_lltd(void)
 {
-    dissector_handle_t lltd_handle;
-    lltd_handle = create_dissector_handle(dissect_lltd, proto_lltd);
     dissector_add_uint("ethertype", ETHERTYPE_LLTD, lltd_handle);
 }
 

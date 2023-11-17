@@ -257,6 +257,7 @@ void t38_add_address(packet_info *pinfo,
         p_conversation_data->src_t38_info.time_first_t4_data = 0;
         p_conversation_data->src_t38_info.additional_hdlc_data_field_counter = 0;
         p_conversation_data->src_t38_info.seqnum_prev_data_field = -1;
+        p_conversation_data->src_t38_info.next = NULL;
 
         p_conversation_data->dst_t38_info.reass_ID = 0;
         p_conversation_data->dst_t38_info.reass_start_seqnum = -1;
@@ -267,6 +268,7 @@ void t38_add_address(packet_info *pinfo,
         p_conversation_data->dst_t38_info.time_first_t4_data = 0;
         p_conversation_data->dst_t38_info.additional_hdlc_data_field_counter = 0;
         p_conversation_data->dst_t38_info.seqnum_prev_data_field = -1;
+        p_conversation_data->dst_t38_info.next = NULL;
 }
 
 
@@ -437,6 +439,7 @@ init_t38_info_conv(packet_info *pinfo)
 		p_t38_conv->src_t38_info.time_first_t4_data = 0;
 		p_t38_conv->src_t38_info.additional_hdlc_data_field_counter = 0;
 		p_t38_conv->src_t38_info.seqnum_prev_data_field = -1;
+		p_t38_conv->src_t38_info.next = NULL;
 
 		p_t38_conv->dst_t38_info.reass_ID = 0;
 		p_t38_conv->dst_t38_info.reass_start_seqnum = -1;
@@ -447,6 +450,7 @@ init_t38_info_conv(packet_info *pinfo)
 		p_t38_conv->dst_t38_info.time_first_t4_data = 0;
 		p_t38_conv->dst_t38_info.additional_hdlc_data_field_counter = 0;
 		p_t38_conv->dst_t38_info.seqnum_prev_data_field = -1;
+		p_t38_conv->dst_t38_info.next = NULL;
 
 		conversation_add_proto_data(p_conv, proto_t38, p_t38_conv);
 	}
@@ -706,7 +710,9 @@ proto_register_t38(void)
 	proto_register_subtree_array(ett, array_length(ett));
 	expert_t38 = expert_register_protocol(proto_t38);
 	expert_register_field_array(expert_t38, ei, array_length(ei));
-	register_dissector("t38_udp", dissect_t38_udp, proto_t38);
+	t38_udp_handle=register_dissector("t38_udp", dissect_t38_udp, proto_t38);
+	t38_tcp_handle=register_dissector("t38_tcp", dissect_t38_tcp, proto_t38);
+	t38_tcp_pdu_handle=register_dissector("t38_tcp_pdu", dissect_t38_tcp_pdu, proto_t38);
 
 	/* Register reassemble tables for HDLC */
 	reassembly_table_register(&data_reassembly_table,
@@ -749,9 +755,6 @@ proto_register_t38(void)
 void
 proto_reg_handoff_t38(void)
 {
-	t38_udp_handle=create_dissector_handle(dissect_t38_udp, proto_t38);
-	t38_tcp_handle=create_dissector_handle(dissect_t38_tcp, proto_t38);
-	t38_tcp_pdu_handle=create_dissector_handle(dissect_t38_tcp_pdu, proto_t38);
 	rtp_handle = find_dissector_add_dependency("rtp", proto_t38);
 	t30_hdlc_handle = find_dissector_add_dependency("t30.hdlc", proto_t38);
 	proto_acdr = proto_get_id_by_filter_name("acdr");

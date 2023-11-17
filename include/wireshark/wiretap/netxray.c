@@ -8,7 +8,6 @@
 
 #include "config.h"
 
-#include <errno.h>
 #include <string.h>
 #include "wtap-int.h"
 #include "file_wrappers.h"
@@ -1687,7 +1686,7 @@ netxray_guess_atm_type(wtap *wth, wtap_rec *rec, Buffer *buf)
 
 typedef struct {
 	gboolean first_frame;
-	nstime_t start;
+	guint32 start_secs;
 	guint32	nframes;
 } netxray_dump_t;
 
@@ -1751,8 +1750,7 @@ netxray_dump_open_1_1(wtap_dumper *wdh, int *err, gchar **err_info _U_)
 	netxray = g_new(netxray_dump_t, 1);
 	wdh->priv = (void *)netxray;
 	netxray->first_frame = TRUE;
-	netxray->start.secs = 0;
-	netxray->start.nsecs = 0;
+	netxray->start_secs = 0;
 	netxray->nframes = 0;
 
 	return TRUE;
@@ -1780,7 +1778,7 @@ netxray_dump_1_1(wtap_dumper *wdh,
 	 * Make sure this packet doesn't have a link-layer type that
 	 * differs from the one for the file.
 	 */
-	if (wdh->encap != rec->rec_header.packet_header.pkt_encap) {
+	if (wdh->file_encap != rec->rec_header.packet_header.pkt_encap) {
 		*err = WTAP_ERR_ENCAP_PER_PACKET_UNSUPPORTED;
 		return FALSE;
 	}
@@ -1804,12 +1802,25 @@ netxray_dump_1_1(wtap_dumper *wdh,
 	   the stamp of the first packet with the microseconds part 0. */
 	if (netxray->first_frame) {
 		netxray->first_frame = FALSE;
-		netxray->start = rec->ts;
+		/*
+		 * XXX - NetXRay ran on Windows, where MSVC's localtime()
+		 * can't handle time_t < 0, so *maybe* it makes sense
+		 * to allow time stamps up to 2^32-1 "seconds since the
+		 * Epoch", but maybe the start time in those files is
+		 * signed, in which case we should check against
+		 * G_MININT32 and G_MAXINT32 and make start_secs a
+		 * gint32.
+		 */
+		if (rec->ts.secs < 0 || rec->ts.secs > WTAP_NSTIME_32BIT_SECS_MAX) {
+			*err = WTAP_ERR_TIME_STAMP_NOT_SUPPORTED;
+			return FALSE;
+		}
+		netxray->start_secs = (guint32)rec->ts.secs;
 	}
 
 	/* build the header for each packet */
 	memset(&rec_hdr, '\0', sizeof(rec_hdr));
-	timestamp = ((guint64)rec->ts.secs - (guint64)netxray->start.secs)*1000000
+	timestamp = ((guint64)rec->ts.secs - (guint64)netxray->start_secs)*1000000
 		+ ((guint64)rec->ts.nsecs)/1000;
 	t32 = (guint32)(timestamp%G_GINT64_CONSTANT(4294967296));
 	rec_hdr.timelo = GUINT32_TO_LE(t32);
@@ -1820,12 +1831,10 @@ netxray_dump_1_1(wtap_dumper *wdh,
 
 	if (!wtap_dump_file_write(wdh, &rec_hdr, sizeof(rec_hdr), err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof(rec_hdr);
 
 	/* write the packet data */
 	if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err))
 		return FALSE;
-	wdh->bytes_dumped += rec->rec_header.packet_header.caplen;
 
 	netxray->nframes++;
 
@@ -1856,12 +1865,12 @@ netxray_dump_finish_1_1(wtap_dumper *wdh, int *err, gchar **err_info _U_)
 	/* "sniffer" version ? */
 	memset(&file_hdr, '\0', sizeof file_hdr);
 	memcpy(file_hdr.version, vers_1_1, sizeof vers_1_1);
-	file_hdr.start_time = GUINT32_TO_LE(netxray->start.secs);
+	file_hdr.start_time = GUINT32_TO_LE(netxray->start_secs);
 	file_hdr.nframes = GUINT32_TO_LE(netxray->nframes);
 	file_hdr.start_offset = GUINT32_TO_LE(CAPTUREFILE_HEADER_SIZE);
 	/* XXX - large files? */
 	file_hdr.end_offset = GUINT32_TO_LE((guint32)filelen);
-	file_hdr.network = wtap_encap_to_netxray_1_1_encap(wdh->encap);
+	file_hdr.network = wtap_encap_to_netxray_1_1_encap(wdh->file_encap);
 	file_hdr.timelo = GUINT32_TO_LE(0);
 	file_hdr.timehi = GUINT32_TO_LE(0);
 
@@ -1870,6 +1879,8 @@ netxray_dump_finish_1_1(wtap_dumper *wdh, int *err, gchar **err_info _U_)
 	if (!wtap_dump_file_write(wdh, hdr_buf, sizeof hdr_buf, err))
 		return FALSE;
 
+	/* Don't double-count the size of the file header */
+	wdh->bytes_dumped = filelen;
 	return TRUE;
 }
 
@@ -1932,14 +1943,12 @@ netxray_dump_open_2_0(wtap_dumper *wdh, int *err, gchar **err_info _U_)
 	   skip over the header for now. */
 	if (wtap_dump_file_seek(wdh, CAPTUREFILE_HEADER_SIZE, SEEK_SET, err) == -1)
 		return FALSE;
-
 	wdh->bytes_dumped += CAPTUREFILE_HEADER_SIZE;
 
 	netxray = g_new(netxray_dump_t, 1);
 	wdh->priv = (void *)netxray;
 	netxray->first_frame = TRUE;
-	netxray->start.secs = 0;
-	netxray->start.nsecs = 0;
+	netxray->start_secs = 0;
 	netxray->nframes = 0;
 
 	return TRUE;
@@ -1968,7 +1977,7 @@ netxray_dump_2_0(wtap_dumper *wdh,
 	 * Make sure this packet doesn't have a link-layer type that
 	 * differs from the one for the file.
 	 */
-	if (wdh->encap != rec->rec_header.packet_header.pkt_encap) {
+	if (wdh->file_encap != rec->rec_header.packet_header.pkt_encap) {
 		*err = WTAP_ERR_ENCAP_PER_PACKET_UNSUPPORTED;
 		return FALSE;
 	}
@@ -1991,12 +2000,25 @@ netxray_dump_2_0(wtap_dumper *wdh,
 	   the stamp of the first packet with the microseconds part 0. */
 	if (netxray->first_frame) {
 		netxray->first_frame = FALSE;
-		netxray->start = rec->ts;
+		/*
+		 * XXX - NetXRay ran on Windows, where MSVC's localtime()
+		 * can't handle time_t < 0, so *maybe* it makes sense
+		 * to allow time stamps up to 2^32-1 "seconds since the
+		 * Epoch", but maybe the start time in those files is
+		 * signed, in which case we should check against
+		 * G_MININT32 and G_MAXINT32 and make start_secs a
+		 * gint32.
+		 */
+		if (rec->ts.secs < 0 || rec->ts.secs > WTAP_NSTIME_32BIT_SECS_MAX) {
+			*err = WTAP_ERR_TIME_STAMP_NOT_SUPPORTED;
+			return FALSE;
+		}
+		netxray->start_secs = (guint32)rec->ts.secs;
 	}
 
 	/* build the header for each packet */
 	memset(&rec_hdr, '\0', sizeof(rec_hdr));
-	timestamp = ((guint64)rec->ts.secs - (guint64)netxray->start.secs)*1000000
+	timestamp = ((guint64)rec->ts.secs - (guint64)netxray->start_secs)*1000000
 		+ ((guint64)rec->ts.nsecs)/1000;
 	t32 = (guint32)(timestamp%G_GINT64_CONSTANT(4294967296));
 	rec_hdr.timelo = GUINT32_TO_LE(t32);
@@ -2038,12 +2060,10 @@ netxray_dump_2_0(wtap_dumper *wdh,
 
 	if (!wtap_dump_file_write(wdh, &rec_hdr, sizeof(rec_hdr), err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof(rec_hdr);
 
 	/* write the packet data */
 	if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err))
 		return FALSE;
-	wdh->bytes_dumped += rec->rec_header.packet_header.caplen;
 
 	netxray->nframes++;
 
@@ -2074,15 +2094,15 @@ netxray_dump_finish_2_0(wtap_dumper *wdh, int *err, gchar **err_info _U_)
 	/* "sniffer" version ? */
 	memset(&file_hdr, '\0', sizeof file_hdr);
 	memcpy(file_hdr.version, vers_2_001, sizeof vers_2_001);
-	file_hdr.start_time = GUINT32_TO_LE(netxray->start.secs);
+	file_hdr.start_time = GUINT32_TO_LE(netxray->start_secs);
 	file_hdr.nframes = GUINT32_TO_LE(netxray->nframes);
 	file_hdr.start_offset = GUINT32_TO_LE(CAPTUREFILE_HEADER_SIZE);
 	/* XXX - large files? */
 	file_hdr.end_offset = GUINT32_TO_LE((guint32)filelen);
-	file_hdr.network = wtap_encap_to_netxray_2_0_encap(wdh->encap);
+	file_hdr.network = wtap_encap_to_netxray_2_0_encap(wdh->file_encap);
 	file_hdr.timelo = GUINT32_TO_LE(0);
 	file_hdr.timehi = GUINT32_TO_LE(0);
-	switch (wdh->encap) {
+	switch (wdh->file_encap) {
 
 	case WTAP_ENCAP_PPP_WITH_PHDR:
 		file_hdr.captype = WAN_CAPTYPE_PPP;
@@ -2111,6 +2131,8 @@ netxray_dump_finish_2_0(wtap_dumper *wdh, int *err, gchar **err_info _U_)
 	if (!wtap_dump_file_write(wdh, hdr_buf, sizeof hdr_buf, err))
 		return FALSE;
 
+	/* Don't double-count the size of the file header */
+	wdh->bytes_dumped = filelen;
 	return TRUE;
 }
 

@@ -159,12 +159,13 @@ static gboolean preload_protos = FALSE;
 static gboolean display_json_mapping = FALSE;
 static gboolean use_utc_fmt = FALSE;
 
-enum add_default_value_policy_t {
-    ADD_DEFAULT_VALUE_NONE,
-    ADD_DEFAULT_VALUE_DECLARED,
-    ADD_DEFAULT_VALUE_ENUM_BOOL,
-    ADD_DEFAULT_VALUE_ALL,
-};
+#define add_default_value_policy_vals_ENUM_VAL_T_LIST(XXX) \
+    XXX(ADD_DEFAULT_VALUE_NONE,      0, "none", "None") \
+    XXX(ADD_DEFAULT_VALUE_DECLARED,  1, "decl", "Only Explicitly-Declared (proto2)") \
+    XXX(ADD_DEFAULT_VALUE_ENUM_BOOL, 2, "enbl", "Explicitly-Declared, ENUM and BOOL") \
+    XXX(ADD_DEFAULT_VALUE_ALL,       3, "all",  "All")
+
+typedef ENUM_VAL_T_ENUM(add_default_value_policy_vals) add_default_value_policy_t;
 
 static gint add_default_value = (gint) ADD_DEFAULT_VALUE_NONE;
 
@@ -251,7 +252,7 @@ protobuf_udp_message_types_copy_cb(void* n, const void* o, size_t siz _U_)
     return new_rec;
 }
 
-static gboolean
+static bool
 protobuf_udp_message_types_update_cb(void *r, char **err)
 {
     protobuf_udp_message_type_t* rec = (protobuf_udp_message_type_t*)r;
@@ -507,13 +508,13 @@ abs_time_to_rfc3339(wmem_allocator_t *scope, const nstime_t *nstime, bool use_ut
     if (use_utc) {
         tm = gmtime(&nstime->secs);
         if (tm != NULL)
-            strftime(datetime_format, sizeof(datetime_format), "%FT%T%%sZ", tm);
+            strftime(datetime_format, sizeof(datetime_format), "%Y-%m-%dT%H:%M:%S%%sZ", tm);
         else
             snprintf(datetime_format, sizeof(datetime_format), "Not representable");
     } else {
         tm = localtime(&nstime->secs);
         if (tm != NULL)
-            strftime(datetime_format, sizeof(datetime_format), "%FT%T%%s%z", tm);
+            strftime(datetime_format, sizeof(datetime_format), "%Y-%m-%dT%H:%M:%S%%s%z", tm);
         else
             snprintf(datetime_format, sizeof(datetime_format), "Not representable");
     }
@@ -761,10 +762,9 @@ protobuf_dissect_field_value(proto_tree *value_tree, tvbuff_t *tvb, guint offset
                 proto_item_append_text(ti_field, "= %s", buf);
             }
         } else if (hf_id_ptr) {
-            ti = proto_tree_add_bytes_format_value(pbf_tree, *hf_id_ptr, tvb, offset, length, NULL, "(%u bytes)", length);
-            subtree = proto_item_add_subtree(ti, ett_protobuf_message);
+            proto_tree_add_bytes_format_value(pbf_tree, *hf_id_ptr, tvb, offset, length, NULL, "(%u bytes)", length);
         } else {
-            /* we don't continue with unknown mssage type */
+            /* we don't continue with unknown message type */
         }
         break;
 
@@ -1373,7 +1373,7 @@ dissect_protobuf_message(tvbuff_t *tvb, guint offset, guint length, packet_info 
     const PbwDescriptor* message_desc, int hf_msg, gboolean is_top_level, json_dumper *dumper, wmem_allocator_t* scope, char** retval)
 {
     proto_tree *message_tree;
-    proto_item *ti_message, *ti, *ti_parent = proto_tree_get_parent(protobuf_tree);
+    proto_item *ti_message, *ti;
     const gchar* message_name = "<UNKNOWN> Message Type";
     guint max_offset = offset + length;
     const PbwFieldDescriptor* field_desc;
@@ -1393,18 +1393,15 @@ dissect_protobuf_message(tvbuff_t *tvb, guint offset, guint length, packet_info 
 
         if (strcmp(message_name, "google.protobuf.Timestamp") == 0) {
             /* parse this message as timestamp */
-            if (tvb_get_protobuf_time(tvb, offset, length, &timestamp)) {
-                value_label = abs_time_to_rfc3339(scope ? scope : pinfo->pool, &timestamp, use_utc_fmt);
-                if (hf_msg != -1) {
-                    ti = proto_tree_add_time_format_value(protobuf_tree, hf_msg, tvb, offset, length, &timestamp, "%s", value_label);
-                    protobuf_tree = proto_item_add_subtree(ti, ett_protobuf_message);
-                }
-                if (dumper) {
-                    json_dumper_value_string(dumper, value_label);
-                    dumper = NULL; /* this message will not dump as JSON object */
-                }
-            } else {
-                expert_add_info(pinfo, ti_parent, &ei_protobuf_failed_parse_field);
+            tvb_get_protobuf_time(tvb, offset, length, &timestamp);
+            value_label = abs_time_to_rfc3339(scope ? scope : pinfo->pool, &timestamp, use_utc_fmt);
+            if (hf_msg != -1) {
+                ti = proto_tree_add_time_format_value(protobuf_tree, hf_msg, tvb, offset, length, &timestamp, "%s", value_label);
+                protobuf_tree = proto_item_add_subtree(ti, ett_protobuf_message);
+            }
+            if (dumper) {
+                json_dumper_value_string(dumper, value_label);
+                dumper = NULL; /* this message will not dump as JSON object */
             }
         } else if (hf_msg != -1) {
             ti = proto_tree_add_bytes_format_value(protobuf_tree, hf_msg, tvb, offset, length, NULL, "(%u bytes)", length);
@@ -1708,7 +1705,7 @@ buffer_error(const gchar *fmt, ...)
     va_start(ap, fmt);
 
     if (err_msg_buf == NULL)
-        err_msg_buf = wmem_strbuf_sized_new(wmem_epan_scope(), MIN_ERR_STR_BUF_SIZE, MAX_ERR_STR_BUF_SIZE);
+        err_msg_buf = wmem_strbuf_new_sized(wmem_epan_scope(), MIN_ERR_STR_BUF_SIZE);
 
     wmem_strbuf_append_vprintf(err_msg_buf, fmt, ap);
 
@@ -2170,13 +2167,7 @@ proto_register_protobuf(void)
         },
     };
 
-    static const enum_val_t add_default_value_policy_vals[] = {
-        {"none", "None", ADD_DEFAULT_VALUE_NONE},
-        {"decl", "Only Explicitly-Declared (proto2)", ADD_DEFAULT_VALUE_DECLARED},
-        {"enbl", "Explicitly-Declared, ENUM and BOOL", ADD_DEFAULT_VALUE_ENUM_BOOL},
-        {"all",  "All", ADD_DEFAULT_VALUE_ALL},
-        {NULL, NULL, -1}
-    };
+    ENUM_VAL_T_ARRAY_STATIC(add_default_value_policy_vals);
 
     module_t *protobuf_module;
     expert_module_t *expert_protobuf;
@@ -2318,7 +2309,7 @@ proto_register_protobuf(void)
 
     protobuf_field_subdissector_table =
         register_dissector_table("protobuf_field", "Protobuf field subdissector table",
-            proto_protobuf, FT_STRING, BASE_NONE);
+            proto_protobuf, FT_STRING, STRING_CASE_SENSITIVE);
 
     expert_protobuf = expert_register_protocol(proto_protobuf);
     expert_register_field_array(expert_protobuf, ei, array_length(ei));

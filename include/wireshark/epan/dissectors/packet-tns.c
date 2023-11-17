@@ -66,6 +66,8 @@ void proto_register_tns(void);
 /* desegmentation of TNS over TCP */
 static gboolean tns_desegment = TRUE;
 
+static dissector_handle_t tns_handle;
+
 static int proto_tns = -1;
 static int hf_tns_request = -1;
 static int hf_tns_response = -1;
@@ -694,7 +696,7 @@ static void dissect_tns_data(tvbuff_t *tvb, int offset, packet_info *pinfo, prot
 				proto_tree_add_item(data_tree, hf_tns_data_opi_version2_banner, tvb, offset, len, ENC_ASCII);
 				offset += len + (skip == 1 ? 1 : 0);
 
-				proto_tree_add_item(data_tree, hf_tns_data_opi_version2_vsnum, tvb, offset, 4, skip == 1 ? ENC_BIG_ENDIAN : ENC_LITTLE_ENDIAN);
+				proto_tree_add_item(data_tree, hf_tns_data_opi_version2_vsnum, tvb, offset, 4, (skip == 1) ? ENC_BIG_ENDIAN : ENC_LITTLE_ENDIAN);
 				offset += 4;
 			}
 			else if ( opi == OPI_OSESSKEY || opi == OPI_OAUTH )
@@ -1275,7 +1277,7 @@ void proto_register_tns(void)
 			"Request", "tns.request", FT_BOOLEAN, BASE_NONE,
 			NULL, 0x0, "TRUE if TNS request", HFILL }},
 		{ &hf_tns_length, {
-			"Packet Length", "tns.length", FT_UINT16, BASE_DEC,
+			"Packet Length", "tns.length", FT_UINT32, BASE_DEC,
 			NULL, 0x0, "Length of TNS packet", HFILL }},
 		{ &hf_tns_packet_checksum, {
 			"Packet Checksum", "tns.packet_checksum", FT_UINT16, BASE_HEX,
@@ -1522,22 +1524,22 @@ void proto_register_tns(void)
 			NULL, 0x8, NULL, HFILL }},
 		{ &hf_tns_data_flag_more, {
 			"More Data to Come", "tns.data_flag.more", FT_BOOLEAN, 16,
-			NULL, 0x20, NULL, HFILL }},
+			NULL, 0x0020, NULL, HFILL }},
 		{ &hf_tns_data_flag_eof, {
 			"End of File", "tns.data_flag.eof", FT_BOOLEAN, 16,
-			NULL, 0x40, NULL, HFILL }},
+			NULL, 0x0040, NULL, HFILL }},
 		{ &hf_tns_data_flag_dic, {
 			"Do Immediate Confirmation", "tns.data_flag.dic", FT_BOOLEAN, 16,
-			NULL, 0x80, NULL, HFILL }},
+			NULL, 0x0080, NULL, HFILL }},
 		{ &hf_tns_data_flag_rts, {
 			"Request To Send", "tns.data_flag.rts", FT_BOOLEAN, 16,
-			NULL, 0x100, NULL, HFILL }},
+			NULL, 0x0100, NULL, HFILL }},
 		{ &hf_tns_data_flag_sntt, {
 			"Send NT Trailer", "tns.data_flag.sntt", FT_BOOLEAN, 16,
-			NULL, 0x200, NULL, HFILL }},
+			NULL, 0x0200, NULL, HFILL }},
 
 		{ &hf_tns_data_id, {
-			"Data ID", "tns.data_id", FT_UINT8, BASE_HEX,
+			"Data ID", "tns.data_id", FT_UINT32, BASE_HEX,
 			VALS(tns_data_funcs), 0x0, NULL, HFILL }},
 		{ &hf_tns_data_length, {
 			"Data Length", "tns.data_length", FT_UINT16, BASE_DEC,
@@ -1635,10 +1637,10 @@ void proto_register_tns(void)
 	};
 	module_t *tns_module;
 
-	proto_tns = proto_register_protocol(
-		"Transparent Network Substrate Protocol", "TNS", "tns");
+	proto_tns = proto_register_protocol("Transparent Network Substrate Protocol", "TNS", "tns");
 	proto_register_field_array(proto_tns, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
+	tns_handle = register_dissector("tns", dissect_tns, proto_tns);
 
 	tns_module = prefs_register_protocol(proto_tns, NULL);
 	prefs_register_bool_preference(tns_module, "desegment_tns_messages",
@@ -1651,9 +1653,6 @@ void proto_register_tns(void)
 void
 proto_reg_handoff_tns(void)
 {
-	dissector_handle_t tns_handle;
-
-	tns_handle = create_dissector_handle(dissect_tns, proto_tns);
 	dissector_add_uint_with_preference("tcp.port", TCP_PORT_TNS, tns_handle);
 }
 

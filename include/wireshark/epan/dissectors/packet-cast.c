@@ -22,6 +22,8 @@
 void proto_register_cast(void);
 void proto_reg_handoff_cast(void);
 
+static dissector_handle_t cast_handle;
+
 /* I will probably need this again when I change things
  * to function pointers, but let me use the existing
  * infrastructure for now
@@ -1575,49 +1577,49 @@ proto_register_cast(void)
 
     { &hf_cast_partyPIRestrictionBits_CallingPartyName,
       { "RestrictCallingPartyName", "cast.partyPIRestrictionBits.CallingPartyName",
-        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x01,
+        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000001,
         NULL, HFILL }
     },
 
     { &hf_cast_partyPIRestrictionBits_CallingPartyNumber,
       { "RestrictCallingPartyNumber", "cast.partyPIRestrictionBits.CallingPartyNumber",
-        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x02,
+        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000002,
         NULL, HFILL }
     },
 
     { &hf_cast_partyPIRestrictionBits_CalledPartyName,
       { "RestrictCalledPartyName", "cast.partyPIRestrictionBits.CalledPartyName",
-        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x04,
+        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000004,
         NULL, HFILL }
     },
 
     { &hf_cast_partyPIRestrictionBits_CalledPartyNumber,
       { "RestrictCalledPartyNumber", "cast.partyPIRestrictionBits.CalledPartyNumber",
-        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x08,
+        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000008,
         NULL, HFILL }
     },
 
     { &hf_cast_partyPIRestrictionBits_OriginalCalledPartyName,
       { "RestrictOriginalCalledPartyName", "cast.partyPIRestrictionBits.OriginalCalledPartyName",
-        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x10,
+        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000010,
         NULL, HFILL }
     },
 
     { &hf_cast_partyPIRestrictionBits_OriginalCalledPartyNumber,
       { "RestrictOriginalCalledPartyNumber", "cast.partyPIRestrictionBits.OriginalCalledPartyNumber",
-        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x20,
+        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000020,
         NULL, HFILL }
     },
 
     { &hf_cast_partyPIRestrictionBits_LastRedirectPartyName,
       { "RestrictLastRedirectPartyName", "cast.partyPIRestrictionBits.LastRedirectPartyName",
-        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x40,
+        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000040,
         NULL, HFILL }
     },
 
     { &hf_cast_partyPIRestrictionBits_LastRedirectPartyNumber,
       { "RestrictLastRedirectPartyNumber", "cast.partyPIRestrictionBits.LastRedirectPartyNumber",
-        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x80,
+        FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000080,
         NULL, HFILL }
     },
 
@@ -1688,14 +1690,13 @@ proto_register_cast(void)
     "Whether the CAST dissector should reassemble messages spanning multiple TCP segments."
     " To use this option, you must also enable \"Allow subdissectors to reassemble TCP streams\" in the TCP protocol settings.",
     &cast_desegment);
+
+  cast_handle = register_dissector("cast", dissect_cast, proto_cast);
 }
 
 void
 proto_reg_handoff_cast(void)
 {
-  dissector_handle_t cast_handle;
-
-  cast_handle = create_dissector_handle(dissect_cast, proto_cast);
   dissector_add_uint_with_preference("tcp.port", TCP_PORT_CAST, cast_handle);
 }
 

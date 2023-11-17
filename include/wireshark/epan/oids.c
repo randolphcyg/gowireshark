@@ -213,11 +213,11 @@ extern void oid_add_from_encoded(const char* name, const guint8 *oid, gint oid_l
 
 static void smi_free(void *ptr) {
 
-#if (SMI_VERSION_MAJOR >= 0) && (SMI_VERSION_MINOR >= 4) && (SMI_VERSION_PATCHLEVEL >= 8)
+#if (SMI_VERSION_MAJOR > 0) || (SMI_VERSION_MINOR > 4) || (SMI_VERSION_PATCHLEVEL >= 8)
        smiFree(ptr);
 #else
  #ifdef _WIN32
- #error Invalid Windows libsmi version ?? !!
+ #error Unsupported Windows libsmi version < 0.4.8
  #endif
 #define xx_free free  /* hack so checkAPIs.pl doesn't complain */
        xx_free(ptr);
@@ -899,6 +899,7 @@ char* rel_oid_subid2string(wmem_allocator_t *scope, guint32* subids, guint len, 
 	return wmem_strbuf_finalize(oid_str);
 }
 
+/* If a valid OID string, return number of numbers */
 static guint check_num_oid(const char* str) {
 	const char* r = str;
 	char c = '.';
@@ -925,6 +926,7 @@ static guint check_num_oid(const char* str) {
 	return n;
 }
 
+/* Set subids_p to an array of found numbers, return number of numbers */
 guint oid_string2subid(wmem_allocator_t *scope, const char* str, guint32** subids_p) {
 	const char* r = str;
 	guint32* subids;

@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-gdt.c                                                               */
-/* asn2wrs.py -b -p gdt -c ./gdt.cnf -s ./packet-gdt-template -D . -O ../.. gdt.asn */
+/* asn2wrs.py -b -L -p gdt -c ./gdt.cnf -s ./packet-gdt-template -D . -O ../.. gdt.asn */
 
-/* Input file: packet-gdt-template.c */
-
-#line 1 "./asn1/gdt/packet-gdt-template.c"
 /* packet-gdt-template.c
  *
  * Copyright 2022, Damir Franusic <damir.franusic@gmail.com>
@@ -39,9 +36,6 @@
 static int proto_gdt = -1;
 static dissector_handle_t gdt_handle = NULL;
 
-
-/*--- Included file: packet-gdt-hf.c ---*/
-#line 1 "./asn1/gdt/packet-gdt-hf.c"
 static int hf_gdt_GDTMessage_PDU = -1;            /* GDTMessage */
 static int hf_gdt_version = -1;                   /* INTEGER */
 static int hf_gdt_source = -1;                    /* EndPointDescriptor */
@@ -93,14 +87,8 @@ static int hf_gdt_header = -1;                    /* Header */
 static int hf_gdt_body = -1;                      /* Body */
 static int hf_gdt_enc_type = -1;                  /* OCTET_STRING */
 
-/*--- End of included file: packet-gdt-hf.c ---*/
-#line 35 "./asn1/gdt/packet-gdt-template.c"
-
 /* Initialize the subtree pointers */
 static int ett_gdt = -1;
-
-/*--- Included file: packet-gdt-ett.c ---*/
-#line 1 "./asn1/gdt/packet-gdt-ett.c"
 static gint ett_gdt_Header = -1;
 static gint ett_gdt_EndPointDescriptor = -1;
 static gint ett_gdt_Body = -1;
@@ -123,16 +111,10 @@ static gint ett_gdt_HopInfo = -1;
 static gint ett_gdt_GDTMessage = -1;
 static gint ett_gdt_EncryptionInfo = -1;
 
-/*--- End of included file: packet-gdt-ett.c ---*/
-#line 39 "./asn1/gdt/packet-gdt-template.c"
-
-
-/*--- Included file: packet-gdt-fn.c ---*/
-#line 1 "./asn1/gdt/packet-gdt-fn.c"
 
 
 static int
-dissect_gdt_INTEGER(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_INTEGER(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -142,7 +124,7 @@ dissect_gdt_INTEGER(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_
 
 
 static int
-dissect_gdt_IA5String(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_IA5String(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_restricted_string(implicit_tag, BER_UNI_TAG_IA5String,
                                             actx, tree, tvb, offset, hf_index,
                                             NULL);
@@ -158,7 +140,7 @@ static const ber_sequence_t EndPointDescriptor_sequence[] = {
 };
 
 static int
-dissect_gdt_EndPointDescriptor(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_EndPointDescriptor(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    EndPointDescriptor_sequence, hf_index, ett_gdt_EndPointDescriptor);
 
@@ -168,7 +150,7 @@ dissect_gdt_EndPointDescriptor(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int
 
 
 static int
-dissect_gdt_OCTET_STRING(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_OCTET_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -190,7 +172,7 @@ static const value_string gdt_SequenceFlag_vals[] = {
 
 
 static int
-dissect_gdt_SequenceFlag(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_SequenceFlag(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -425,7 +407,7 @@ static const value_string gdt_ParameterType_vals[] = {
 
 
 static int
-dissect_gdt_ParameterType(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_ParameterType(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -438,7 +420,7 @@ static const ber_sequence_t T_value_sequence_of[1] = {
 };
 
 static int
-dissect_gdt_T_value(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_T_value(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       T_value_sequence_of, hf_index, ett_gdt_T_value);
 
@@ -453,7 +435,7 @@ static const ber_sequence_t Parameter_sequence[] = {
 };
 
 static int
-dissect_gdt_Parameter(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_Parameter(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Parameter_sequence, hf_index, ett_gdt_Parameter);
 
@@ -466,7 +448,7 @@ static const ber_sequence_t Parameters_sequence_of[1] = {
 };
 
 static int
-dissect_gdt_Parameters(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_Parameters(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       Parameters_sequence_of, hf_index, ett_gdt_Parameters);
 
@@ -481,7 +463,7 @@ static const ber_sequence_t EncryptionInfo_sequence[] = {
 };
 
 static int
-dissect_gdt_EncryptionInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_EncryptionInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    EncryptionInfo_sequence, hf_index, ett_gdt_EncryptionInfo);
 
@@ -496,7 +478,7 @@ static const ber_sequence_t HopInfo_sequence[] = {
 };
 
 static int
-dissect_gdt_HopInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_HopInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    HopInfo_sequence, hf_index, ett_gdt_HopInfo);
 
@@ -519,7 +501,7 @@ static const value_string gdt_ErrorCode_vals[] = {
 
 
 static int
-dissect_gdt_ErrorCode(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_ErrorCode(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -541,7 +523,7 @@ static const ber_sequence_t Header_sequence[] = {
 };
 
 static int
-dissect_gdt_Header(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_Header(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Header_sequence, hf_index, ett_gdt_Header);
 
@@ -581,7 +563,7 @@ static const value_string gdt_PayloadType_vals[] = {
 
 
 static int
-dissect_gdt_PayloadType(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_PayloadType(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -597,7 +579,7 @@ static const ber_sequence_t PacketFwdMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_PacketFwdMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_PacketFwdMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    PacketFwdMessage_sequence, hf_index, ett_gdt_PacketFwdMessage);
 
@@ -613,7 +595,7 @@ static const value_string gdt_FilterAction_vals[] = {
 
 
 static int
-dissect_gdt_FilterAction(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_FilterAction(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -628,7 +610,7 @@ static const ber_sequence_t FilterMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_FilterMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_FilterMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    FilterMessage_sequence, hf_index, ett_gdt_FilterMessage);
 
@@ -646,7 +628,7 @@ static const value_string gdt_DataRetentionAction_vals[] = {
 
 
 static int
-dissect_gdt_DataRetentionAction(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_DataRetentionAction(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -663,7 +645,7 @@ static const ber_sequence_t DataRetentionMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_DataRetentionMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_DataRetentionMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DataRetentionMessage_sequence, hf_index, ett_gdt_DataRetentionMessage);
 
@@ -684,7 +666,7 @@ static const value_string gdt_ConfigAction_vals[] = {
 
 
 static int
-dissect_gdt_ConfigAction(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_ConfigAction(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -700,7 +682,7 @@ static const ber_sequence_t ConfigMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_ConfigMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_ConfigMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    ConfigMessage_sequence, hf_index, ett_gdt_ConfigMessage);
 
@@ -716,7 +698,7 @@ static const value_string gdt_StatsAction_vals[] = {
 
 
 static int
-dissect_gdt_StatsAction(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_StatsAction(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -731,7 +713,7 @@ static const ber_sequence_t StatsMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_StatsMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_StatsMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    StatsMessage_sequence, hf_index, ett_gdt_StatsMessage);
 
@@ -747,7 +729,7 @@ static const value_string gdt_AuthAction_vals[] = {
 
 
 static int
-dissect_gdt_AuthAction(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_AuthAction(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -762,7 +744,7 @@ static const ber_sequence_t AuthMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_AuthMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_AuthMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    AuthMessage_sequence, hf_index, ett_gdt_AuthMessage);
 
@@ -778,7 +760,7 @@ static const value_string gdt_RegistrationAction_vals[] = {
 
 
 static int
-dissect_gdt_RegistrationAction(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_RegistrationAction(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -793,7 +775,7 @@ static const ber_sequence_t RegistrationMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_RegistrationMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_RegistrationMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RegistrationMessage_sequence, hf_index, ett_gdt_RegistrationMessage);
 
@@ -803,7 +785,7 @@ dissect_gdt_RegistrationMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
 
 
 static int
-dissect_gdt_NotifyMessageType(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_NotifyMessageType(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -819,7 +801,7 @@ static const ber_sequence_t NotifyMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_NotifyMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_NotifyMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    NotifyMessage_sequence, hf_index, ett_gdt_NotifyMessage);
 
@@ -835,7 +817,7 @@ static const ber_sequence_t DataMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_DataMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_DataMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DataMessage_sequence, hf_index, ett_gdt_DataMessage);
 
@@ -852,7 +834,7 @@ static const value_string gdt_RoutingAction_vals[] = {
 
 
 static int
-dissect_gdt_RoutingAction(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_RoutingAction(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -867,7 +849,7 @@ static const ber_sequence_t RoutingMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_RoutingMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_RoutingMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RoutingMessage_sequence, hf_index, ett_gdt_RoutingMessage);
 
@@ -887,7 +869,7 @@ static const value_string gdt_ServiceId_vals[] = {
 
 
 static int
-dissect_gdt_ServiceId(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_ServiceId(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -905,7 +887,7 @@ static const value_string gdt_ServiceAction_vals[] = {
 
 
 static int
-dissect_gdt_ServiceAction(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_ServiceAction(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -921,7 +903,7 @@ static const ber_sequence_t ServiceMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_ServiceMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_ServiceMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    ServiceMessage_sequence, hf_index, ett_gdt_ServiceMessage);
 
@@ -936,7 +918,7 @@ static const value_string gdt_StateAction_vals[] = {
 
 
 static int
-dissect_gdt_StateAction(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_StateAction(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -952,7 +934,7 @@ static const ber_sequence_t StateMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_StateMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_StateMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    StateMessage_sequence, hf_index, ett_gdt_StateMessage);
 
@@ -995,7 +977,7 @@ static const ber_choice_t Body_choice[] = {
 };
 
 static int
-dissect_gdt_Body(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_Body(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  Body_choice, hf_index, ett_gdt_Body,
                                  NULL);
@@ -1011,7 +993,7 @@ static const ber_sequence_t GDTMessage_sequence[] = {
 };
 
 static int
-dissect_gdt_GDTMessage(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_gdt_GDTMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    GDTMessage_sequence, hf_index, ett_gdt_GDTMessage);
 
@@ -1029,9 +1011,6 @@ static int dissect_GDTMessage_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, pro
 }
 
 
-/*--- End of included file: packet-gdt-fn.c ---*/
-#line 41 "./asn1/gdt/packet-gdt-template.c"
-
 static int dissect_gdt(tvbuff_t *tvb,
                        packet_info *pinfo,
                        proto_tree *tree,
@@ -1044,7 +1023,7 @@ static int dissect_gdt(tvbuff_t *tvb,
 
     /* create the gdt protocol tree */
     if (tree) {
-        gdt_item = proto_tree_add_item(tree, proto_gdt, tvb, 0, -1, FALSE);
+        gdt_item = proto_tree_add_item(tree, proto_gdt, tvb, 0, -1, ENC_NA);
         gdt_tree = proto_item_add_subtree(gdt_item, ett_gdt);
         dissect_GDTMessage_PDU(tvb, pinfo, gdt_tree, 0);
     }
@@ -1055,9 +1034,6 @@ static int dissect_gdt(tvbuff_t *tvb,
 void proto_register_gdt(void) {
     /* List of fields */
     static hf_register_info hf[] = {
-
-/*--- Included file: packet-gdt-hfarr.c ---*/
-#line 1 "./asn1/gdt/packet-gdt-hfarr.c"
     { &hf_gdt_GDTMessage_PDU,
       { "GDTMessage", "gdt.GDTMessage_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -1258,17 +1234,11 @@ void proto_register_gdt(void) {
       { "enc-type", "gdt.enc_type",
         FT_BYTES, BASE_NONE, NULL, 0,
         "OCTET_STRING", HFILL }},
-
-/*--- End of included file: packet-gdt-hfarr.c ---*/
-#line 66 "./asn1/gdt/packet-gdt-template.c"
     };
 
     /* List of subtrees */
     static gint *ett[] = {
         &ett_gdt,
-
-/*--- Included file: packet-gdt-ettarr.c ---*/
-#line 1 "./asn1/gdt/packet-gdt-ettarr.c"
     &ett_gdt_Header,
     &ett_gdt_EndPointDescriptor,
     &ett_gdt_Body,
@@ -1290,9 +1260,6 @@ void proto_register_gdt(void) {
     &ett_gdt_HopInfo,
     &ett_gdt_GDTMessage,
     &ett_gdt_EncryptionInfo,
-
-/*--- End of included file: packet-gdt-ettarr.c ---*/
-#line 72 "./asn1/gdt/packet-gdt-template.c"
     };
 
     /* Register protocol */
@@ -1301,6 +1268,9 @@ void proto_register_gdt(void) {
     /* Register fields and subtrees */
     proto_register_field_array(proto_gdt, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
+
+    /* Register dissector */
+    gdt_handle = register_dissector("gdt", dissect_gdt, proto_gdt);
 }
 
 /*--- proto_reg_handoff_gdt -------------------------------------------*/
@@ -1308,7 +1278,6 @@ void proto_reg_handoff_gdt(void) {
     static gboolean initialized = FALSE;
 
     if (!initialized) {
-        gdt_handle = create_dissector_handle(dissect_gdt, proto_gdt);
         dissector_add_for_decode_as("sctp.ppi", gdt_handle);
         dissector_add_uint("sctp.ppi", GDT_PROTOCOL_ID, gdt_handle);
         initialized = TRUE;

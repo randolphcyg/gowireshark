@@ -11,7 +11,7 @@
 #ifndef __FILE_UTIL_H__
 #define __FILE_UTIL_H__
 
-#include <glib.h>
+#include <stdbool.h>
 
 #include "include/ws_symbol_export.h"
 
@@ -78,15 +78,15 @@ extern "C" {
  *  removing the target if necessary.
  */
 
-WS_DLL_PUBLIC int ws_stdio_open (const gchar *filename, int flags, int mode);
-WS_DLL_PUBLIC int ws_stdio_rename (const gchar *oldfilename, const gchar *newfilename);
-WS_DLL_PUBLIC int ws_stdio_mkdir (const gchar *filename, int mode);
-WS_DLL_PUBLIC int ws_stdio_stat64 (const gchar *filename, ws_statb64 *buf);
-WS_DLL_PUBLIC int ws_stdio_unlink (const gchar *filename);
-WS_DLL_PUBLIC int ws_stdio_remove (const gchar *filename);
+WS_DLL_PUBLIC int ws_stdio_open (const char *filename, int flags, int mode);
+WS_DLL_PUBLIC int ws_stdio_rename (const char *oldfilename, const char *newfilename);
+WS_DLL_PUBLIC int ws_stdio_mkdir (const char *filename, int mode);
+WS_DLL_PUBLIC int ws_stdio_stat64 (const char *filename, ws_statb64 *buf);
+WS_DLL_PUBLIC int ws_stdio_unlink (const char *filename);
+WS_DLL_PUBLIC int ws_stdio_remove (const char *filename);
 
-WS_DLL_PUBLIC FILE * ws_stdio_fopen (const gchar *filename, const gchar *mode);
-WS_DLL_PUBLIC FILE * ws_stdio_freopen (const gchar *filename, const gchar *mode, FILE *stream);
+WS_DLL_PUBLIC FILE * ws_stdio_fopen (const char *filename, const char *mode);
+WS_DLL_PUBLIC FILE * ws_stdio_freopen (const char *filename, const char *mode, FILE *stream);
 
 #define ws_open		ws_stdio_open
 #define ws_rename	ws_stdio_rename
@@ -130,10 +130,10 @@ typedef signed int ws_file_ssize_t;
 /** Try to remove the current directory from the DLL search path.
  * SetDllDirectory is tried, then SetCurrentDirectory(program_dir)
  *
- * @return TRUE if we were able to call SetDllDirectory, FALSE otherwise.
+ * @return true if we were able to call SetDllDirectory, false otherwise.
  */
 WS_DLL_PUBLIC
-gboolean ws_init_dll_search_path(void);
+bool ws_init_dll_search_path(void);
 
 /** Load a DLL using LoadLibrary.
  * Only the system and program directories are searched.
@@ -143,17 +143,15 @@ gboolean ws_init_dll_search_path(void);
  */
 
 WS_DLL_PUBLIC
-void *ws_load_library(const gchar *library_name);
+void *ws_load_library(const char *library_name);
 
-/** Load a DLL using g_module_open.
+/** Load wpcap.dll using g_module_open.
  * Only the system and program directories are searched.
  *
- * @param module_name The name of the DLL.
- * @param flags Flags to be passed to g_module_open.
  * @return A handle to the DLL if found, NULL on failure.
  */
 WS_DLL_PUBLIC
-GModule *ws_module_open(gchar *module_name, GModuleFlags flags);
+GModule *load_wpcap_module(void);
 
 /** Create or open a "Wireshark is running" mutex.
  * Create or open a mutex which signals that Wireshark or its associated

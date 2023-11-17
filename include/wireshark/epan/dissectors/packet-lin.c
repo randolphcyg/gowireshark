@@ -2,7 +2,7 @@
  *
  * LIN dissector.
  * By Dr. Lars Voelker <lars.voelker@technica-engineering.de>
- * Copyright 2021-2021 Dr. Lars Voelker
+ * Copyright 2021-2023 Dr. Lars Voelker
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -20,7 +20,7 @@
 #include <epan/expert.h>
 #include <epan/uat.h>
 
-#include <packet-lin.h>
+#include "packet-lin.h"
 
  /*
   * Dissector for the Local Interconnect Network (LIN) bus.
@@ -36,6 +36,8 @@ static heur_dissector_list_t                 heur_subdissector_list;
 static heur_dtbl_entry_t                    *heur_dtbl_entry;
 
 static int proto_lin = -1;
+
+static dissector_handle_t lin_handle;
 
 /* header field */
 static int hf_lin_msg_format_rev = -1;
@@ -139,18 +141,18 @@ copy_interface_config_cb(void *n, const void *o, size_t size _U_) {
     return new_rec;
 }
 
-static gboolean
+static bool
 update_interface_config(void *r, char **err) {
     interface_config_t *rec = (interface_config_t *)r;
 
     if (rec->interface_id > 0xffffffff) {
-        *err = ws_strdup_printf("We currently only support 32 bit identifiers (ID: %i  Name: %s)",
+        *err = ws_strdup_printf("We currently only support 32 bit identifiers (ID: 0x%x  Name: %s)",
                                rec->interface_id, rec->interface_name);
         return FALSE;
     }
 
     if (rec->bus_id > 0xffff) {
-        *err = ws_strdup_printf("We currently only support 16 bit bus identifiers (ID: %i  Name: %s  Bus-ID: %i)",
+        *err = ws_strdup_printf("We currently only support 16 bit bus identifiers (ID: 0x%x  Name: %s  Bus-ID: 0x%x)",
                                 rec->interface_id, rec->interface_name, rec->bus_id);
         return FALSE;
     }
@@ -278,6 +280,139 @@ get_bus_id(packet_info *pinfo) {
     return 0;
 }
 
+/* Senders and Receivers UAT */
+typedef struct _sender_receiver_config {
+    guint     bus_id;
+    guint     lin_id;
+    gchar    *sender_name;
+    gchar    *receiver_name;
+} sender_receiver_config_t;
+
+#define DATAFILE_LIN_SENDER_RECEIVER "LIN_senders_receivers"
+
+static GHashTable *data_sender_receiver = NULL;
+static sender_receiver_config_t* sender_receiver_configs = NULL;
+static guint sender_receiver_config_num = 0;
+
+UAT_HEX_CB_DEF(sender_receiver_configs, bus_id, sender_receiver_config_t)
+UAT_HEX_CB_DEF(sender_receiver_configs, lin_id, sender_receiver_config_t)
+UAT_CSTRING_CB_DEF(sender_receiver_configs, sender_name, sender_receiver_config_t)
+UAT_CSTRING_CB_DEF(sender_receiver_configs, receiver_name, sender_receiver_config_t)
+
+static void *
+copy_sender_receiver_config_cb(void *n, const void *o, size_t size _U_) {
+    sender_receiver_config_t *new_rec = (sender_receiver_config_t *)n;
+    const sender_receiver_config_t *old_rec = (const sender_receiver_config_t *)o;
+
+    new_rec->bus_id = old_rec->bus_id;
+    new_rec->lin_id = old_rec->lin_id;
+    new_rec->sender_name = g_strdup(old_rec->sender_name);
+    new_rec->receiver_name = g_strdup(old_rec->receiver_name);
+    return new_rec;
+}
+
+static bool
+update_sender_receiver_config(void *r, char **err) {
+    sender_receiver_config_t *rec = (sender_receiver_config_t *)r;
+
+    if (rec->lin_id > 0x3f) {
+        *err = ws_strdup_printf("LIN IDs need to be between 0x00 and 0x3f (Bus ID: %i  LIN ID: %i)", rec->bus_id, rec->lin_id);
+        return FALSE;
+    }
+
+    if (rec->bus_id > 0xffff) {
+        *err = ws_strdup_printf("We currently only support 16 bit bus identifiers (Bus ID: %i  LIN ID: %i)", rec->bus_id, rec->lin_id);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static void
+free_sender_receiver_config_cb(void *r) {
+    sender_receiver_config_t *rec = (sender_receiver_config_t *)r;
+    /* freeing result of g_strdup */
+    g_free(rec->sender_name);
+    rec->sender_name = NULL;
+    g_free(rec->receiver_name);
+    rec->receiver_name = NULL;
+}
+
+static guint64
+sender_receiver_key(guint16 bus_id, guint32 lin_id) {
+    return ((guint64)bus_id << 32) | lin_id;
+}
+
+static sender_receiver_config_t *
+ht_lookup_sender_receiver_config(guint16 bus_id, guint32 lin_id) {
+    sender_receiver_config_t *tmp = NULL;
+    guint64                   key = 0;
+
+    if (sender_receiver_configs == NULL) {
+        return NULL;
+    }
+
+    key = sender_receiver_key(bus_id, lin_id);
+    tmp = (sender_receiver_config_t *)g_hash_table_lookup(data_sender_receiver, &key);
+
+    if (tmp == NULL) {
+        key = sender_receiver_key(0, lin_id);
+        tmp = (sender_receiver_config_t *)g_hash_table_lookup(data_sender_receiver, &key);
+    }
+
+    return tmp;
+}
+
+static void
+sender_receiver_free_key(gpointer key) {
+    wmem_free(wmem_epan_scope(), key);
+}
+
+static void
+post_update_sender_receiver_cb(void) {
+    guint    i;
+    guint64 *key_id = NULL;
+
+    /* destroy old hash table, if it exist */
+    if (data_sender_receiver) {
+        g_hash_table_destroy(data_sender_receiver);
+        data_sender_receiver = NULL;
+    }
+
+    /* create new hash table */
+    data_sender_receiver = g_hash_table_new_full(g_int64_hash, g_int64_equal, &sender_receiver_free_key, NULL);
+
+    if (data_sender_receiver == NULL || sender_receiver_configs == NULL || sender_receiver_config_num == 0) {
+        return;
+    }
+
+    for (i = 0; i < sender_receiver_config_num; i++) {
+        key_id = wmem_new(wmem_epan_scope(), guint64);
+        *key_id = sender_receiver_key(sender_receiver_configs[i].bus_id, sender_receiver_configs[i].lin_id);
+        g_hash_table_insert(data_sender_receiver, key_id, &sender_receiver_configs[i]);
+    }
+}
+
+gboolean
+lin_set_source_and_destination_columns(packet_info* pinfo, lin_info_t *lininfo) {
+    sender_receiver_config_t *tmp = ht_lookup_sender_receiver_config(lininfo->bus_id, lininfo->id);
+
+    if (tmp != NULL) {
+        /* remove all addresses to support LIN as payload (e.g., TECMP) */
+        clear_address(&pinfo->net_src);
+        clear_address(&pinfo->dl_src);
+        clear_address(&pinfo->src);
+        clear_address(&pinfo->net_dst);
+        clear_address(&pinfo->dl_dst);
+        clear_address(&pinfo->dst);
+
+        col_add_fstr(pinfo->cinfo, COL_DEF_SRC, "%s", tmp->sender_name);
+        col_add_fstr(pinfo->cinfo, COL_DEF_DST, "%s", tmp->receiver_name);
+        return true;
+    }
+    return false;
+}
+
 static int
 dissect_lin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
     proto_item *ti;
@@ -311,6 +446,10 @@ dissect_lin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
         proto_tree_add_item_ret_uint(lin_id_tree, hf_lin_id, tvb, 5, 1, ENC_BIG_ENDIAN, &(lininfo.id));
 
         proto_tree_add_item(lin_tree, hf_lin_checksum, tvb, 6, 1, ENC_BIG_ENDIAN);
+
+        lininfo.bus_id = (guint16)get_bus_id(pinfo);
+        lininfo.len = 0;
+        lin_set_source_and_destination_columns(pinfo, &lininfo);
     }
     proto_tree_add_bitmask(lin_tree, tvb, 7, hf_lin_err_errors, ett_errors, error_fields, ENC_BIG_ENDIAN);
 
@@ -331,9 +470,8 @@ dissect_lin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
             next_tvb = tvb_new_subset_length(tvb, 8, payload_length);
             proto_item_set_end(ti_root, tvb, 8 + payload_length);
             lininfo.len = (guint16)payload_length;
-            lininfo.bus_id = (guint16)get_bus_id(pinfo);
-            guint32 bus_frame_id = lininfo.id | (lininfo.bus_id << 16);
 
+            guint32 bus_frame_id = lininfo.id | (lininfo.bus_id << 16);
             if (!dissector_try_uint_new(subdissector_table, bus_frame_id, next_tvb, pinfo, tree, TRUE, &lininfo)) {
                 if (!dissector_try_uint_new(subdissector_table, lininfo.id, next_tvb, pinfo, tree, TRUE, &lininfo)) {
                     if (!dissector_try_heuristic(heur_subdissector_list, next_tvb, pinfo, tree, &heur_dtbl_entry, &lininfo)) {
@@ -361,6 +499,7 @@ void
 proto_register_lin(void) {
     module_t   *lin_module;
     uat_t      *lin_interface_uat = NULL;
+    uat_t      *sender_receiver_uat = NULL;
 
     static hf_register_info hf[] = {
         { &hf_lin_msg_format_rev,
@@ -428,7 +567,7 @@ proto_register_lin(void) {
     proto_register_field_array(proto_lin, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
 
-    register_dissector(LIN_NAME_FILTER, dissect_lin, proto_lin);
+    lin_handle = register_dissector(LIN_NAME_FILTER, dissect_lin, proto_lin);
 
     /* the lin.frame_id subdissector table carries the bus id in the higher 16 bits */
     subdissector_table = register_dissector_table("lin.frame_id", "LIN Frame ID", proto_lin, FT_UINT8, BASE_HEX);
@@ -459,12 +598,37 @@ proto_register_lin(void) {
 
     prefs_register_uat_preference(lin_module, "_lin_interface_mapping", "Interface Mapping",
         "A table to define the mapping between interface and Bus ID.", lin_interface_uat);
+
+    static uat_field_t sender_receiver_mapping_uat_fields[] = {
+            UAT_FLD_HEX(sender_receiver_configs,     bus_id,        "Bus ID",        "Bus ID of the Interface with 0 meaning any (hex uint16 without leading 0x)."),
+            UAT_FLD_HEX(sender_receiver_configs,     lin_id,        "LIN ID",        "ID of the LIN Message (hex uint6 without leading 0x)"),
+            UAT_FLD_CSTRING(sender_receiver_configs, sender_name,   "Sender Name",   "Name of Sender(s)"),
+            UAT_FLD_CSTRING(sender_receiver_configs, receiver_name, "Receiver Name", "Name of Receiver(s)"),
+            UAT_END_FIELDS
+    };
+
+    sender_receiver_uat = uat_new("Sender Receiver Config",
+        sizeof(sender_receiver_config_t),       /* record size           */
+        DATAFILE_LIN_SENDER_RECEIVER,           /* filename              */
+        TRUE,                                   /* from profile          */
+        (void**)&sender_receiver_configs,       /* data_ptr              */
+        &sender_receiver_config_num,            /* numitems_ptr          */
+        UAT_AFFECTS_DISSECTION,                 /* but not fields        */
+        NULL,                                   /* help                  */
+        copy_sender_receiver_config_cb,         /* copy callback         */
+        update_sender_receiver_config,          /* update callback       */
+        free_sender_receiver_config_cb,         /* free callback         */
+        post_update_sender_receiver_cb,         /* post update callback  */
+        NULL,                                   /* reset callback        */
+        sender_receiver_mapping_uat_fields      /* UAT field definitions */
+    );
+
+    prefs_register_uat_preference(lin_module, "_sender_receiver_config", "Sender Receiver Config",
+        "A table to define the mapping between Bus ID and LIN ID to Sender and Receiver.", sender_receiver_uat);
 }
 
 void
 proto_reg_handoff_lin(void) {
-    static dissector_handle_t lin_handle;
-    lin_handle = create_dissector_handle(dissect_lin, proto_lin);
     dissector_add_uint("wtap_encap", WTAP_ENCAP_LIN, lin_handle);
 }
 

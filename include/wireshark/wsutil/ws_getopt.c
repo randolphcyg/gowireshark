@@ -25,6 +25,8 @@
  * ----------------------------------------------------------------------
  */
 
+#include <wsutil/ws_getopt.h>
+
 #include <stddef.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -32,7 +34,7 @@
 #include <string.h>
 #include <wchar.h>
 
-#include <wsutil/ws_getopt.h>
+#include <include/ws_codepoints.h>
 
 char *ws_optarg;
 int ws_optind=1, ws_opterr=1, ws_optopt, ws_optpos, ws_optreset=0;
@@ -94,7 +96,7 @@ int ws_getopt(int argc, char * const argv[], const char *optstring)
 	if (!ws_optpos) ws_optpos++;
 	if ((k = mbtowc(&c, argv[ws_optind]+ws_optpos, MB_LEN_MAX)) < 0) {
 		k = 1;
-		c = 0xfffd; /* replacement char */
+		c = UNICODE_REPLACEMENT_CHARACTER; /* replacement char */
 	}
 	optchar = argv[ws_optind]+ws_optpos;
 	ws_optpos += k;

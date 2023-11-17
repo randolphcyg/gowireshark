@@ -153,6 +153,7 @@ static int hf_isakmp_notify_data = -1;
 static int hf_isakmp_notify_data_dpd_are_you_there = -1;
 static int hf_isakmp_notify_data_dpd_are_you_there_ack = -1;
 static int hf_isakmp_notify_data_unity_load_balance = -1;
+static int hf_isakmp_notify_data_fortinet_network_overlay_id = -1;
 static int hf_isakmp_notify_data_accepted_dh_group = -1;
 static int hf_isakmp_notify_data_ipcomp_cpi = -1;
 static int hf_isakmp_notify_data_ipcomp_transform_id = -1;
@@ -1514,8 +1515,12 @@ static const range_string notifmsg_v2_3gpp_type[] = {
   { 55505,55505,      "UP_IP6_ADDRESS" },                           /* TS 24.502 */
   { 55506,55506,      "NAS_TCP_PORT" },                             /* TS 24.502 */
   { 55507,55507,      "N3GPP_BACKOFF_TIMER" },                      /* TS 24.502 */
-  { 55508,65535,      "Private Use - STATUS TYPES" },
-
+  { 55508,61471,      "Private Use - STATUS TYPES" },
+  { 61472,61472,      "Auto-Discovery Sender (Fortinet)" },
+  { 61473,61473,      "Auto-Discovery Receiver (Fortinet)" },
+  { 61474,61519,      "Private Use - STATUS TYPES" },
+  { 61520,61520,      "Network Overlay ID (Fortinet" },
+  { 61521,65535,      "Private Use - STATUS TYPES" },
   { 0,0,        NULL },
 };
 
@@ -5055,6 +5060,9 @@ dissect_notif(tvbuff_t *tvb, packet_info *pinfo, int offset, int length, proto_t
           }
         }
         break;
+      case 61520: /* Network Overlay ID (Fortinet) */
+        proto_tree_add_item(tree, hf_isakmp_notify_data_fortinet_network_overlay_id, tvb, offset, length, ENC_BIG_ENDIAN);
+        break;
       default:
         /* No Default Action */
         break;
@@ -6318,7 +6326,7 @@ isakmp_cleanup_protocol(void) {
 UAT_BUFFER_CB_DEF(ikev1_users, icookie, ikev1_uat_data_key_t, icookie, icookie_len)
 UAT_BUFFER_CB_DEF(ikev1_users, key, ikev1_uat_data_key_t, key, key_len)
 
-static gboolean ikev1_uat_data_update_cb(void* p, char** err) {
+static bool ikev1_uat_data_update_cb(void* p, char** err) {
   ikev1_uat_data_key_t *ud = (ikev1_uat_data_key_t *)p;
 
   if (ud->icookie_len != COOKIE_SIZE) {
@@ -6403,7 +6411,7 @@ ikev2_uat_data_copy_cb(void *dest, const void *source, size_t len _U_)
   return dest;
 }
 
-static gboolean ikev2_uat_data_update_cb(void* p, char** err) {
+static bool ikev2_uat_data_update_cb(void* p, char** err) {
   ikev2_uat_data_t *ud = (ikev2_uat_data_t *)p;
 
   if (ud->key.spii_len != COOKIE_SIZE) {
@@ -6781,6 +6789,10 @@ proto_register_isakmp(void)
     { &hf_isakmp_notify_data_unity_load_balance,
       { "UNITY LOAD BALANCE", "isakmp.notify.data.unity.load_balance",
         FT_IPv4, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }},
+    { &hf_isakmp_notify_data_fortinet_network_overlay_id,
+      { "Network Overlay ID", "isakmp.notify.data.fortinet.network_overlay_id",
+        FT_UINT8, BASE_DEC_HEX, NULL, 0x0,
         NULL, HFILL }},
     { &hf_isakmp_notify_data_accepted_dh_group,
       { "Accepted DH group number", "isakmp.notify.data.accepted_dh_group",
@@ -7605,7 +7617,7 @@ proto_register_isakmp(void)
         FT_UINT8, BASE_DEC, NULL, 0x00,
         NULL, HFILL }},
     { &hf_isakmp_cfg_attr_internal_ip6_netmask,
-      { "INTERNAL IP4 NETMASK", "isakmp.cfg.attr.internal_ip6_netmask",
+      { "INTERNAL IP6 NETMASK", "isakmp.cfg.attr.internal_ip6_netmask",
         FT_IPv6, BASE_NONE, NULL, 0x00,
         "The internal network's netmask", HFILL }},
     { &hf_isakmp_cfg_attr_internal_ip6_dns,
@@ -7799,7 +7811,7 @@ proto_register_isakmp(void)
         NULL, HFILL }},
     { &hf_isakmp_sat_src_id_length,
       { "SRC ID Data Length", "isakmp.sat.src_id_length",
-        FT_UINT8, BASE_DEC, NULL, 0x0,
+        FT_UINT16, BASE_DEC, NULL, 0x0,
         NULL, HFILL }},
     { &hf_isakmp_sat_src_id_data,
       { "SRC ID Data", "isakmp.sat.src_id_data",
@@ -7815,7 +7827,7 @@ proto_register_isakmp(void)
         NULL, HFILL }},
     { &hf_isakmp_sat_dst_id_length,
       { "DST ID Data Length", "isakmp.sat.dst_id_length",
-        FT_UINT8, BASE_DEC, NULL, 0x0,
+        FT_UINT16, BASE_DEC, NULL, 0x0,
         NULL, HFILL }},
     { &hf_isakmp_sat_dst_id_data,
       { "DST ID Data", "isakmp.sat.dst_id_data",

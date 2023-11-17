@@ -1,7 +1,7 @@
 /* packet-ngap.c
  * Routines for NG-RAN NG Application Protocol (NGAP) packet dissection
  * Copyright 2018, Anders Broman <anders.broman@ericsson.com>
- * Copyright 2018-2022, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2018-2023, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * References: 3GPP TS 38.413 v17.1.1 (2022-06)
+ * References: 3GPP TS 38.413 v17.5.0 (2023-06)
  */
 
 #include "config.h"
@@ -41,7 +41,7 @@
 #include "packet-cell_broadcast.h"
 #include "packet-ntp.h"
 #include "packet-gsm_a_common.h"
-#include "packet-http.h"
+#include "packet-media-type.h"
 
 #define PNAME  "NG Application Protocol"
 #define PSNAME "NGAP"
@@ -120,6 +120,7 @@ static int hf_ngap_EUTRAencryptionAlgorithms_reserved = -1;
 static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia1 = -1;
 static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia2 = -1;
 static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia3 = -1;
+static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia7 = -1;
 static int hf_ngap_EUTRAintegrityProtectionAlgorithms_reserved = -1;
 static int hf_ngap_MeasurementsToActivate_M1 = -1;
 static int hf_ngap_MeasurementsToActivate_M2 = -1;
@@ -371,7 +372,6 @@ static const value_string mtype_names[] = {
     { MTYPE_HANDOVER_SUCCESS,                            "HandoverSuccess" },
     { MTYPE_INITIAL_CONTEXT_SETUP_REQUEST,               "InitialContextSetupRequest" },
     { MTYPE_INITIAL_CONTEXT_SETUP_RESPONSE,              "InitialContextSetupResponse" },
-    { MTYPE_INITIAL_CONTEXT_SETUP_FAILURE,               "InitialContextSetupFailure" },
     { MTYPE_INITIAL_CONTEXT_SETUP_FAILURE,               "InitialContextSetupFailure" },
     { MTYPE_INITIAL_UE_MESSAGE,                          "InitialUEMessage" },
     { MTYPE_LOCATION_REPORT,                             "LocationReport" },
@@ -948,9 +948,9 @@ dissect_ngap_media_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
   jsmntok_t *tokens, *cur_tok;
   dissector_handle_t subdissector = NULL;
   tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(pinfo->pool, pinfo, proto_json, 0);
-  http_message_info_t *message_info = (http_message_info_t *)data;
+  media_content_info_t *content_info = (media_content_info_t *)data;
 
-  if (!json_tvb || !message_info || !message_info->content_id)
+  if (!json_tvb || !content_info || !content_info->content_id)
     return 0;
 
   json_data = tvb_get_string_enc(pinfo->pool, json_tvb, 0, tvb_reported_length(json_tvb), ENC_UTF_8|ENC_NA);
@@ -971,19 +971,19 @@ dissect_ngap_media_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
       if (!strcmp(n2_info_class, "SM")) {
         cur_tok = json_get_object(json_data, cur_tok, "smInfo");
         if (cur_tok && find_n2_info_content(json_data, cur_tok, "n2InfoContent",
-                                            message_info->content_id, &subdissector))
+                                            content_info->content_id, &subdissector))
           goto found;
       }
       if (!strcmp(n2_info_class, "RAN")) {
         cur_tok = json_get_object(json_data, cur_tok, "ranInfo");
         if (cur_tok && find_n2_info_content(json_data, cur_tok, "n2InfoContent",
-                                            message_info->content_id, &subdissector))
+                                            content_info->content_id, &subdissector))
           goto found;
       }
       if (!strcmp(n2_info_class, "NRPPa")) {
         cur_tok = json_get_object(json_data, cur_tok, "nrppaInfo");
         if (cur_tok && find_n2_info_content(json_data, cur_tok, "nrppaPdu",
-                                            message_info->content_id, &subdissector))
+                                            content_info->content_id, &subdissector))
           goto found;
       }
       if (!strcmp(n2_info_class, "PWS") ||
@@ -991,7 +991,7 @@ dissect_ngap_media_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
           !strcmp(n2_info_class, "PWS-RF")) {
         cur_tok = json_get_object(json_data, cur_tok, "pwsInfo");
         if (cur_tok && find_n2_info_content(json_data, cur_tok, "pwsContainer",
-                                            message_info->content_id, &subdissector))
+                                            content_info->content_id, &subdissector))
           goto found;
       }
     }
@@ -999,7 +999,7 @@ dissect_ngap_media_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
   cur_tok = json_get_object(json_data, tokens, "n2SmInfo");
   if (cur_tok) {
     const char *content_id_str = json_get_string(json_data, cur_tok, "contentId");
-    if (content_id_str && !strcmp(content_id_str, message_info->content_id)) {
+    if (content_id_str && !strcmp(content_id_str, content_info->content_id)) {
       const char *str = json_get_string(json_data, tokens, "n2SmInfoType");
       if (str)
         subdissector = dissector_get_string_handle(ngap_n2_ie_type_dissector_table, str);
@@ -1015,21 +1015,21 @@ dissect_ngap_media_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     for (i = 0; i < count; i++) {
       jsmntok_t *array_tok = json_get_array_index(cur_tok, i);
       if (find_n2_info_content(json_data, array_tok, "n2InfoContent",
-                               message_info->content_id, &subdissector))
+                               content_info->content_id, &subdissector))
         goto found;
     }
   }
   if (find_n2_info_content(json_data, tokens, "sourceToTargetData",
-                           message_info->content_id, &subdissector))
+                           content_info->content_id, &subdissector))
     goto found;
   if (find_n2_info_content(json_data, tokens, "targetToSourceData",
-                           message_info->content_id, &subdissector))
+                           content_info->content_id, &subdissector))
     goto found;
   if (find_n2_info_content(json_data, tokens, "targetToSourceFailureData",
-                           message_info->content_id, &subdissector))
+                           content_info->content_id, &subdissector))
     goto found;
   if (find_n2_info_content(json_data, tokens, "ueRadioCapability",
-                           message_info->content_id, &subdissector))
+                           content_info->content_id, &subdissector))
     goto found;
 
 found:
@@ -1293,9 +1293,13 @@ void proto_register_ngap(void) {
       { "128-EIA3", "ngap.EUTRAintegrityProtectionAlgorithms.eia3",
         FT_BOOLEAN, 16, TFS(&tfs_supported_not_supported), 0x2000,
         NULL, HFILL }},
+    { &hf_ngap_EUTRAintegrityProtectionAlgorithms_eia7,
+      { "EIA7", "ngap.EUTRAintegrityProtectionAlgorithms.eia7",
+        FT_BOOLEAN, 16, TFS(&tfs_supported_not_supported), 0x0200,
+        NULL, HFILL }},
     { &hf_ngap_EUTRAintegrityProtectionAlgorithms_reserved,
       { "Reserved", "ngap.EUTRAintegrityProtectionAlgorithms.reserved",
-        FT_UINT16, BASE_HEX, NULL, 0x1fff,
+        FT_UINT16, BASE_HEX, NULL, 0x1dff,
         NULL, HFILL }},
     { &hf_ngap_MeasurementsToActivate_M1,
       { "M1", "ngap.MeasurementsToActivate.M1",
@@ -1431,7 +1435,7 @@ void proto_register_ngap(void) {
   ngap_proc_imsg_dissector_table = register_dissector_table("ngap.proc.imsg", "NGAP-ELEMENTARY-PROCEDURE InitiatingMessage", proto_ngap, FT_UINT32, BASE_DEC);
   ngap_proc_sout_dissector_table = register_dissector_table("ngap.proc.sout", "NGAP-ELEMENTARY-PROCEDURE SuccessfulOutcome", proto_ngap, FT_UINT32, BASE_DEC);
   ngap_proc_uout_dissector_table = register_dissector_table("ngap.proc.uout", "NGAP-ELEMENTARY-PROCEDURE UnsuccessfulOutcome", proto_ngap, FT_UINT32, BASE_DEC);
-  ngap_n2_ie_type_dissector_table = register_dissector_table("ngap.n2_ie_type", "NGAP N2 IE Type", proto_ngap, FT_STRING, FALSE);
+  ngap_n2_ie_type_dissector_table = register_dissector_table("ngap.n2_ie_type", "NGAP N2 IE Type", proto_ngap, FT_STRING, STRING_CASE_SENSITIVE);
 
   /* Register configuration options for ports */
   ngap_module = prefs_register_protocol(proto_ngap, apply_ngap_prefs);

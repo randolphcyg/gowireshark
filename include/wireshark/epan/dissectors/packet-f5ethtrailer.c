@@ -196,8 +196,8 @@ Notes:
 #include <epan/proto.h>
 #include <epan/proto_data.h>
 #include <epan/conversation_filter.h>
-#include <epan/dissectors/packet-ip.h>
-#include <epan/dissectors/packet-tcp.h>
+#include "packet-ip.h"
+#include "packet-tcp.h"
 #include <epan/etypes.h>
 #include <epan/to_str.h>
 #include <epan/stats_tree.h>
@@ -219,6 +219,10 @@ void proto_register_f5ethtrailer(void);
 
 void proto_reg_handoff_f5fileinfo(void);
 void proto_register_f5fileinfo(void);
+
+static dissector_handle_t f5dpt_noise_handle;
+static dissector_handle_t f5dpt_tls_handle;
+
 
 /* Common Fields */
 static gint hf_provider    = -1;
@@ -415,7 +419,7 @@ ptype_to_ipproto(const port_type ptype)
  * @return        True if it is valid IP/IPv6, false otherwise
  */
 static gboolean
-f5_ip_conv_valid(packet_info *pinfo)
+f5_ip_conv_valid(packet_info *pinfo, void *user_data _U_)
 {
     gboolean is_ip = FALSE;
     gboolean is_f5ethtrailer = FALSE;
@@ -436,7 +440,7 @@ f5_ip_conv_valid(packet_info *pinfo)
  * @return        True if it is valid IP/IPv6 + TCP, false otherwise
  */
 static gboolean
-f5_tcp_conv_valid(packet_info *pinfo)
+f5_tcp_conv_valid(packet_info *pinfo, void *user_data _U_)
 {
     gboolean is_ip  = FALSE;
     gboolean is_tcp = FALSE;
@@ -458,7 +462,7 @@ f5_tcp_conv_valid(packet_info *pinfo)
  * @return        True if it is valid IP/IPv6 + UDP, false otherwise
  */
 static gboolean
-f5_udp_conv_valid(packet_info *pinfo)
+f5_udp_conv_valid(packet_info *pinfo, void *user_data _U_)
 {
     gboolean is_ip  = FALSE;
     gboolean is_udp = FALSE;
@@ -485,7 +489,7 @@ f5_udp_conv_valid(packet_info *pinfo)
  *             (as of WS 1.12).
  */
 static gchar *
-f5_ip_conv_filter(packet_info *pinfo)
+f5_ip_conv_filter(packet_info *pinfo, void *user_data _U_)
 {
     gchar *buf = NULL;
     gchar src_addr[WS_INET6_ADDRSTRLEN];
@@ -540,7 +544,7 @@ f5_ip_conv_filter(packet_info *pinfo)
  *             (as of WS 1.12).
  */
 static gchar *
-f5_tcp_conv_filter(packet_info *pinfo)
+f5_tcp_conv_filter(packet_info *pinfo, void *user_data _U_)
 {
     gchar *buf = NULL;
     gchar src_addr[WS_INET6_ADDRSTRLEN];
@@ -600,7 +604,7 @@ f5_tcp_conv_filter(packet_info *pinfo)
  *             (as of WS 1.12).
  */
 static gchar *
-f5_udp_conv_filter(packet_info *pinfo)
+f5_udp_conv_filter(packet_info *pinfo, void *user_data _U_)
 {
     gchar *buf = NULL;
     gchar src_addr[WS_INET6_ADDRSTRLEN];
@@ -2039,7 +2043,7 @@ dissect_low_trailer(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint o
      * and "OUT", but rather can continue to use typical boolean values.  "IN"
      * and "OUT" are provided as convenience. */
     proto_tree_add_boolean_format_value(tree, hf_ingress, tvb, o, 1, ingress, "%s (%s)",
-            tfs_get_string(ingress, &tfs_true_false),
+            tfs_get_true_false(ingress),
             tfs_get_string(ingress, &f5tfs_ing));
     o++;
 
@@ -2442,7 +2446,7 @@ dissect_dpt_trailer_noise_low(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
      * and "OUT", but rather can continue to use typical boolean values.  "IN"
      * and "OUT" are provided as convenience. */
     pi = proto_tree_add_boolean_format_value(tree, hf_ingress, tvb, offset, 1, ingress,
-        "%s (%s)", tfs_get_string(ingress, &tfs_true_false),
+        "%s (%s)", tfs_get_true_false(ingress),
             tfs_get_string(ingress, &f5tfs_ing));
     if (ver > 2) {
         /* The old ingress field is now a flag field.  Leave the old ingress field
@@ -4015,8 +4019,7 @@ proto_register_f5ethtrailer(void)
                 "This version of Wireshark does not understand how to decode this value", EXPFILL } },
     };
 
-    proto_f5ethtrailer = proto_register_protocol(
-        "F5 Ethernet Trailer Protocol", "F5 Ethernet trailer", "f5ethtrailer");
+    proto_f5ethtrailer = proto_register_protocol("F5 Ethernet Trailer Protocol", "F5 Ethernet trailer", "f5ethtrailer");
 
     expert_f5ethtrailer = expert_register_protocol(proto_f5ethtrailer);
     expert_register_field_array(expert_f5ethtrailer, ei, array_length(ei));
@@ -4113,10 +4116,14 @@ proto_register_f5ethtrailer(void)
     tls_subdissector_table = register_dissector_table("f5ethtrailer.tls_type_ver",
         "F5 Ethernet Trailer TLS", proto_f5ethtrailer, FT_UINT32, BASE_DEC);
 
+    f5dpt_noise_handle =
+        register_dissector("f5ethtrailer.noise", dissect_dpt_trailer_noise, proto_f5ethtrailer_dpt_noise);
+    f5dpt_tls_handle = register_dissector("f5ethtrailer.tls", dissect_dpt_trailer_tls, proto_f5ethtrailer_dpt_tls);
+
     /* Analyze Menu Items */
-    register_conversation_filter("f5ethtrailer", "F5 TCP", f5_tcp_conv_valid, f5_tcp_conv_filter);
-    register_conversation_filter("f5ethtrailer", "F5 UDP", f5_udp_conv_valid, f5_udp_conv_filter);
-    register_conversation_filter("f5ethtrailer", "F5 IP", f5_ip_conv_valid, f5_ip_conv_filter);
+    register_conversation_filter("f5ethtrailer", "F5 TCP", f5_tcp_conv_valid, f5_tcp_conv_filter, NULL);
+    register_conversation_filter("f5ethtrailer", "F5 UDP", f5_udp_conv_valid, f5_udp_conv_filter, NULL);
+    register_conversation_filter("f5ethtrailer", "F5 IP", f5_ip_conv_valid, f5_ip_conv_filter, NULL);
 
     /* Register the f5ethtrailer tap for statistics */
     tap_f5ethtrailer = register_tap("f5ethtrailer");
@@ -4139,40 +4146,34 @@ proto_register_f5ethtrailer(void)
 void
 proto_reg_handoff_f5ethtrailer(void)
 {
-    dissector_handle_t f5dpt_noise_handle;
-    dissector_handle_t f5dpt_tls_handle;
-
     heur_dissector_add("eth.trailer", dissect_f5ethtrailer, "F5 Ethernet Trailer",
             "f5ethtrailer", proto_f5ethtrailer, HEURISTIC_ENABLE);
 
     /* Register helper dissectors */
     /* Noise Provider */
-    f5dpt_noise_handle =
-        create_dissector_handle(dissect_dpt_trailer_noise, proto_f5ethtrailer_dpt_noise);
     dissector_add_uint("f5ethtrailer.provider", F5_DPT_PROVIDER_NOISE, f5dpt_noise_handle);
     dissector_add_uint("f5ethtrailer.noise_type_ver", F5TYPE_LOW << 16 | 2,
-        create_dissector_handle(dissect_dpt_trailer_noise_low, -1));
+        create_dissector_handle(dissect_dpt_trailer_noise_low, proto_f5ethtrailer_dpt_noise));
     dissector_add_uint("f5ethtrailer.noise_type_ver", F5TYPE_LOW << 16 | 3,
-        create_dissector_handle(dissect_dpt_trailer_noise_low, -1));
+        create_dissector_handle(dissect_dpt_trailer_noise_low, proto_f5ethtrailer_dpt_noise));
     dissector_add_uint("f5ethtrailer.noise_type_ver", F5TYPE_LOW << 16 | 4,
-        create_dissector_handle(dissect_dpt_trailer_noise_low, -1));
+        create_dissector_handle(dissect_dpt_trailer_noise_low, proto_f5ethtrailer_dpt_noise));
     dissector_add_uint("f5ethtrailer.noise_type_ver", F5TYPE_MED << 16 | 4,
-        create_dissector_handle(dissect_dpt_trailer_noise_med, -1));
+        create_dissector_handle(dissect_dpt_trailer_noise_med, proto_f5ethtrailer_dpt_noise));
     dissector_add_uint("f5ethtrailer.noise_type_ver", F5TYPE_HIGH << 16 | 1,
-        create_dissector_handle(dissect_dpt_trailer_noise_high, -1));
+        create_dissector_handle(dissect_dpt_trailer_noise_high, proto_f5ethtrailer_dpt_noise));
     /* TLS provider */
-    f5dpt_tls_handle = create_dissector_handle(dissect_dpt_trailer_tls, proto_f5ethtrailer_dpt_tls);
     dissector_add_uint("f5ethtrailer.provider", F5_DPT_PROVIDER_TLS, f5dpt_tls_handle);
     dissector_add_uint("f5ethtrailer.tls_type_ver", F5_DPT_TLS_PRE13_STD << 16 | 0,
-        create_dissector_handle(dissect_dpt_trailer_tls_type0, -1));
+        create_dissector_handle(dissect_dpt_trailer_tls_type0, proto_f5ethtrailer_dpt_tls));
     dissector_add_uint("f5ethtrailer.tls_type_ver", F5_DPT_TLS_PRE13_EXT << 16 | 0,
-        create_dissector_handle(dissect_dpt_trailer_tls_extended, -1));
+        create_dissector_handle(dissect_dpt_trailer_tls_extended, proto_f5ethtrailer_dpt_tls));
     dissector_add_uint("f5ethtrailer.tls_type_ver", F5_DPT_TLS_13_STD << 16 | 0,
-        create_dissector_handle(dissect_dpt_trailer_tls_type2, -1));
+        create_dissector_handle(dissect_dpt_trailer_tls_type2, proto_f5ethtrailer_dpt_tls));
     dissector_add_uint("f5ethtrailer.tls_type_ver", F5_DPT_TLS_13_STD << 16 | 1,
-        create_dissector_handle(dissect_dpt_trailer_tls_type2, -1));
+        create_dissector_handle(dissect_dpt_trailer_tls_type2, proto_f5ethtrailer_dpt_tls));
     dissector_add_uint("f5ethtrailer.tls_type_ver", F5_DPT_TLS_13_EXT << 16 | 0,
-        create_dissector_handle(dissect_dpt_trailer_tls_extended, -1));
+        create_dissector_handle(dissect_dpt_trailer_tls_extended, proto_f5ethtrailer_dpt_tls));
 
     /* These fields are duplicates of other, well-known fields so that
      * filtering on these fields will also pick up data out of the
@@ -4304,6 +4305,7 @@ dissect_f5fileinfo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
     guint offset = 0;
     const guint8 *object;
     const gchar *platform = NULL;
+    const gchar *platform_name = NULL;
     gint objlen;
     struct f5fileinfo_tap_data *tap_data;
 
@@ -4326,20 +4328,19 @@ dissect_f5fileinfo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
     tap_data->magic = F5FILEINFO_TAP_MAGIC;
 
     while (tvb_captured_length_remaining(tvb, offset)) {
-        object = tvb_get_const_stringz(tvb, offset, &objlen);
+        object = tvb_get_stringz_enc(wmem_packet_scope(), tvb, offset, &objlen, ENC_ASCII);
 
         if (objlen <= 0 || object == NULL)
             break;
 
         if (strncmp(object, "CMD: ", 5) == 0) {
-            proto_tree_add_item(tree, hf_fi_command, tvb, offset + 5, objlen - 5, ENC_ASCII);
+            proto_tree_add_string(tree, hf_fi_command, tvb, offset + 5, objlen - 5, &object[5]);
             col_add_str(pinfo->cinfo, COL_INFO, &object[5]);
         } else if (strncmp(object, "VER: ", 5) == 0) {
             guint i;
             const guint8 *c;
 
-            proto_tree_add_item(
-                tree, hf_fi_version, tvb, offset + 5, objlen - 5, ENC_ASCII | ENC_NA);
+            proto_tree_add_string(tree, hf_fi_version, tvb, offset + 5, objlen - 5, &object[5]);
             for (c = object; *c && (*c < '0' || *c > '9'); c++);
             for (i = 0; i < 6 && *c; c++) {
                 if (*c < '0' || *c > '9') {
@@ -4349,19 +4350,15 @@ dissect_f5fileinfo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
                 tap_data->ver[i] = (tap_data->ver[i] * 10) + (*c - '0');
             }
         } else if (strncmp(object, "HOST: ", 6) == 0)
-            proto_tree_add_item(
-                tree, hf_fi_hostname, tvb, offset + 6, objlen - 6, ENC_ASCII | ENC_NA);
+            proto_tree_add_string(tree, hf_fi_hostname, tvb, offset + 6, objlen - 6, &object[6]);
         else if (strncmp(object, "PLAT: ", 6) == 0) {
-            proto_tree_add_item(
-                tree, hf_fi_platform, tvb, offset + 6, objlen - 6, ENC_ASCII | ENC_NA);
-            platform =
-                tvb_get_string_enc(pinfo->pool, tvb, offset + 6, objlen - 6, ENC_ASCII);
-            proto_tree_add_string_format(tree, hf_fi_platformname, tvb, offset + 6, objlen - 6, "",
-                "%s: %s", platform,
-                str_to_str(platform, f5info_platform_strings, "Unknown, please report"));
+            proto_tree_add_string(tree, hf_fi_platform, tvb, offset + 6, objlen - 6, &object[6]);
+            platform = &object[6];
+            platform_name = str_to_str(platform, f5info_platform_strings, "Unknown, please report");
+            proto_tree_add_string_format(tree, hf_fi_platformname, tvb, offset + 6, objlen - 6, platform_name,
+                "%s: %s", platform, platform_name);
         } else if (strncmp(object, "PROD: ", 6) == 0)
-            proto_tree_add_item(
-                tree, hf_fi_product, tvb, offset + 6, objlen - 6, ENC_ASCII | ENC_NA);
+            proto_tree_add_string(tree, hf_fi_product, tvb, offset + 6, objlen - 6, &object[6]);
 
         offset += objlen;
     }

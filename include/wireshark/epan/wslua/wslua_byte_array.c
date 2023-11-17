@@ -219,6 +219,334 @@ WSLUA_METHOD ByteArray_get_index(lua_State* L) {
     WSLUA_RETURN(1); /* The value [0-255] of the byte. */
 }
 
+WSLUA_METHOD ByteArray_le_int(lua_State* L) {
+    /* Read a little endian encoded signed integer in a <<lua_class_ByteArray,`ByteArray`>> beginning at given offset with given length.
+
+    @since 4.1.0
+    */
+#define WSLUA_OPTARG_ByteArray_le_int_OFFSET 2 /* The position of the first byte. Default is 0, or the first byte. */
+#define WSLUA_OPTARG_ByteArray_le_int_LENGTH 3 /* The length of the integer. Default is -1, or the remaining bytes in the <<lua_class_ByteArray,`ByteArray`>>. */
+    ByteArray ba = checkByteArray(L, 1);
+    int offset = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_le_int_OFFSET, 0);
+    int len = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_le_int_LENGTH, -1);
+
+    if (offset < 0 || (guint)offset >= ba->len) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_le_int_OFFSET, "offset out of bounds");
+        return 0;
+    }
+
+    if (len == -1) {
+        len = ba->len - offset; /* Use remaining bytes. */
+    }
+
+    if (len < 1 || len > 4) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_le_int_LENGTH, "bad length");
+        return 0;
+    }
+
+    if ((guint)(offset + len) > ba->len) {
+        luaL_error(L, "range out of bounds");;
+        return 0;
+    }
+
+    gint32 value = (gint8)ba->data[offset + len - 1];
+    for (int i = len - 2; i >= 0; i--) {
+        value <<= 8;
+        value |= (guint8)ba->data[offset + i];
+    }
+
+    lua_pushnumber(L, value);
+
+    WSLUA_RETURN(1); /* The value of the little endian encoded signed integer beginning at given offset with given length. */
+}
+
+WSLUA_METHOD ByteArray_le_int64(lua_State* L) {
+    /* Read a little endian encoded 64 bit signed integer in a <<lua_class_ByteArray,`ByteArray`>> beginning at given offset with given length.
+
+    @since 4.1.0
+    */
+#define WSLUA_OPTARG_ByteArray_le_int64_OFFSET 2 /* The position of the first byte. Default is 0, or the first byte. */
+#define WSLUA_OPTARG_ByteArray_le_int64_LENGTH 3 /* The length of the integer. Default is -1, or the remaining bytes in the <<lua_class_ByteArray,`ByteArray`>>. */
+    ByteArray ba = checkByteArray(L, 1);
+    int offset = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_le_int64_OFFSET, 0);
+    int len = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_le_int64_LENGTH, -1);
+
+    if (offset < 0 || (guint)offset >= ba->len) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_le_int64_OFFSET, "offset out of bounds");
+        return 0;
+    }
+
+    if (len == -1) {
+        len = ba->len - offset; /* Use remaining bytes. */
+    }
+
+    if (len < 1 || len > 8) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_le_int64_LENGTH, "bad length");
+        return 0;
+    }
+
+    if ((guint)(offset + len) > ba->len) {
+        luaL_error(L, "range out of bounds");;
+        return 0;
+    }
+
+    gint64 value = (gint8)ba->data[offset + len - 1];
+    for (int i = len - 2; i >= 0; i--) {
+        value <<= 8;
+        value |= (guint8)ba->data[offset + i];
+    }
+
+    pushInt64(L, value);
+
+    WSLUA_RETURN(1); /* The value of the little endian encoded 64 bit signed integer as a <<lua_class_Int64,`Int64`>> object beginning at given offset with given length. */
+}
+
+WSLUA_METHOD ByteArray_le_uint(lua_State* L) {
+    /* Read a little endian encoded unsigned integer in a <<lua_class_ByteArray,`ByteArray`>> beginning at given offset with given length.
+
+    @since 4.1.0
+    */
+#define WSLUA_OPTARG_ByteArray_le_uint_OFFSET 2 /* The position of the first byte. Default is 0, or the first byte. */
+#define WSLUA_OPTARG_ByteArray_le_uint_LENGTH 3 /* The length of the integer. Default is -1, or the remaining bytes in the <<lua_class_ByteArray,`ByteArray`>>. */
+    ByteArray ba = checkByteArray(L, 1);
+    int offset = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_le_uint_OFFSET, 0);
+    int len = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_le_uint_LENGTH, -1);
+
+    if (offset < 0 || (guint)offset >= ba->len) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_le_uint_OFFSET, "offset out of bounds");
+        return 0;
+    }
+
+    if (len == -1) {
+        len = ba->len - offset; /* Use remaining bytes. */
+    }
+
+    if (len < 1 || len > 4) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_le_uint_LENGTH, "bad length");
+        return 0;
+    }
+
+    if ((guint)(offset + len) > ba->len) {
+        luaL_error(L, "range out of bounds");;
+        return 0;
+    }
+
+    guint32 value = (guint8)ba->data[offset + len - 1];
+    for (int i = len - 2; i >= 0; i--) {
+        value <<= 8;
+        value |= (guint8)ba->data[offset + i];
+    }
+
+    lua_pushnumber(L, value);
+
+    WSLUA_RETURN(1); /* The value of the little endian encoded unsigned integer beginning at given offset with given length. */
+}
+
+WSLUA_METHOD ByteArray_le_uint64(lua_State* L) {
+    /* Read a little endian encoded 64 bit unsigned integer in a <<lua_class_ByteArray,`ByteArray`>> beginning at given offset with given length.
+
+    @since 4.1.0
+    */
+#define WSLUA_OPTARG_ByteArray_le_uint64_OFFSET 2 /* The position of the first byte. Default is 0, or the first byte. */
+#define WSLUA_OPTARG_ByteArray_le_uint64_LENGTH 3 /* The length of the integer. Default is -1, or the remaining bytes in the <<lua_class_ByteArray,`ByteArray`>>. */
+    ByteArray ba = checkByteArray(L, 1);
+    int offset = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_le_uint64_OFFSET, 0);
+    int len = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_le_uint64_LENGTH, -1);
+
+    if (offset < 0 || (guint)offset >= ba->len) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_le_uint64_OFFSET, "offset out of bounds");
+        return 0;
+    }
+
+    if (len == -1) {
+        len = ba->len - offset; /* Use remaining bytes. */
+    }
+
+    if (len < 1 || len > 8) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_le_uint64_LENGTH, "bad length");
+        return 0;
+    }
+
+    if ((guint)(offset + len) > ba->len) {
+        luaL_error(L, "range out of bounds");;
+        return 0;
+    }
+
+    guint64 value = (guint8)ba->data[offset + len - 1];
+    for (int i = len - 2; i >= 0; i--) {
+        value <<= 8;
+        value |= (guint8)ba->data[offset + i];
+    }
+
+    pushUInt64(L, value);
+
+    WSLUA_RETURN(1); /* The value of the little endian encoded 64 bit unsigned integer as a <<lua_class_UInt64,`UInt64`>> object beginning at given offset with given length. */
+}
+
+WSLUA_METHOD ByteArray_int(lua_State* L) {
+    /* Read a big endian encoded signed integer in a <<lua_class_ByteArray,`ByteArray`>> beginning at given offset with given length.
+
+    @since 4.1.0
+    */
+#define WSLUA_OPTARG_ByteArray_int_OFFSET 2 /* The position of the first byte. Default is 0, or the first byte. */
+#define WSLUA_OPTARG_ByteArray_int_LENGTH 3 /* The length of the integer. Default is -1, or the remaining bytes in the <<lua_class_ByteArray,`ByteArray`>>. */
+    ByteArray ba = checkByteArray(L, 1);
+    int offset = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_int_OFFSET, 0);
+    int len = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_int_LENGTH, -1);
+
+    if (offset < 0 || (guint)offset >= ba->len) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_int_OFFSET, "offset out of bounds");
+        return 0;
+    }
+
+    if (len == -1) {
+        len = ba->len - offset; /* Use remaining bytes. */
+    }
+
+    if (len < 1 || len > 4) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_int_LENGTH, "bad length");
+        return 0;
+    }
+
+    if ((guint)(offset + len) > ba->len) {
+        luaL_error(L, "range out of bounds");;
+        return 0;
+    }
+
+    gint32 value = (gint8)ba->data[offset];
+    for (int i = 1; i < len; i++) {
+        value <<= 8;
+        value |= (guint8)ba->data[offset + i];
+    }
+
+    lua_pushnumber(L, value);
+
+    WSLUA_RETURN(1); /* The value of the big endian encoded 32 bit signed integer beginning at given offset with given length. */
+}
+
+WSLUA_METHOD ByteArray_int64(lua_State* L) {
+    /* Read a big endian encoded 64 bit signed integer in a <<lua_class_ByteArray,`ByteArray`>> beginning at given offset with given length.
+
+    @since 4.1.0
+    */
+#define WSLUA_OPTARG_ByteArray_int64_OFFSET 2 /* The position of the first byte. Default is 0, or the first byte. */
+#define WSLUA_OPTARG_ByteArray_int64_LENGTH 3 /* The length of the integer. Default is -1, or the remaining bytes in the <<lua_class_ByteArray,`ByteArray`>>. */
+    ByteArray ba = checkByteArray(L, 1);
+    int offset = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_int64_OFFSET, 0);
+    int len = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_int64_LENGTH, -1);
+
+    if (offset < 0 || (guint)offset >= ba->len) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_int64_OFFSET, "offset out of bounds");
+        return 0;
+    }
+
+    if (len == -1) {
+        len = ba->len - offset; /* Use remaining bytes. */
+    }
+
+    if (len < 1 || len > 8) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_int64_LENGTH, "bad length");
+        return 0;
+    }
+
+    if ((guint)(offset + len) > ba->len) {
+        luaL_error(L, "range out of bounds");;
+        return 0;
+    }
+
+    gint64 value = (gint8)ba->data[offset];
+    for (int i = 1; i < len; i++) {
+        value <<= 8;
+        value |= (guint8)ba->data[offset + i];
+    }
+
+    pushInt64(L, value);
+
+    WSLUA_RETURN(1); /* The value of the big endian encoded 64 bit signed integer as a <<lua_class_Int64,`Int64`>> object beginning at given offset and given length. */
+}
+
+WSLUA_METHOD ByteArray_uint(lua_State* L) {
+    /* Read a big endian encoded unsigned integer in a <<lua_class_ByteArray,`ByteArray`>> beginning at given offset with given length.
+
+    @since 4.1.0
+    */
+#define WSLUA_OPTARG_ByteArray_uint_OFFSET 2 /* The position of the first byte. Default is 0, or the first byte. */
+#define WSLUA_OPTARG_ByteArray_uint_LENGTH 3 /* The length of the integer. Default is -1, or the remaining bytes in the <<lua_class_ByteArray,`ByteArray`>>. */
+    ByteArray ba = checkByteArray(L, 1);
+    int offset = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_uint_OFFSET, 0);
+    int len = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_uint_LENGTH, -1);
+
+    if (offset < 0 || (guint)offset >= ba->len) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_uint_OFFSET, "offset out of bounds");
+        return 0;
+    }
+
+    if (len == -1) {
+        len = ba->len - offset; /* Use remaining bytes. */
+    }
+
+    if (len < 1 || len > 4) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_uint_LENGTH, "bad length");
+        return 0;
+    }
+
+    if ((guint)(offset + len) > ba->len) {
+        luaL_error(L, "range out of bounds");;
+        return 0;
+    }
+
+    guint32 value = (guint8)ba->data[offset];
+    for (int i = 1; i < len; i++) {
+        value <<= 8;
+        value |= (guint8)ba->data[offset + i];
+    }
+
+    lua_pushnumber(L, value);
+
+    WSLUA_RETURN(1); /* The value of the big endian encoded 32 bit unsigned integer beginning at given offset with given length. */
+}
+
+WSLUA_METHOD ByteArray_uint64(lua_State* L) {
+    /* Read a big endian encoded 64 bit unsigned integer in a <<lua_class_ByteArray,`ByteArray`>> beginning at given offset with given length.
+
+    @since 4.1.0
+    */
+#define WSLUA_OPTARG_ByteArray_uint64_OFFSET 2 /* The position of the first byte. Default is 0, or the first byte. */
+#define WSLUA_OPTARG_ByteArray_uint64_LENGTH 3 /* The length of the integer. Default is -1, or the remaining bytes in the <<lua_class_ByteArray,`ByteArray`>>. */
+    ByteArray ba = checkByteArray(L, 1);
+    int offset = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_uint64_OFFSET, 0);
+    int len = (int)luaL_optinteger(L, WSLUA_OPTARG_ByteArray_uint64_LENGTH, -1);
+
+    if (offset < 0 || (guint)offset >= ba->len) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_uint64_OFFSET, "offset out of bounds");
+        return 0;
+    }
+
+    if (len == -1) {
+        len = ba->len - offset; /* Use remaining bytes. */
+    }
+
+    if (len < 1 || len > 8) {
+        luaL_argerror(L, WSLUA_OPTARG_ByteArray_uint64_LENGTH, "bad length");
+        return 0;
+    }
+
+    if ((guint)(offset + len) > ba->len) {
+        luaL_error(L, "range out of bounds");;
+        return 0;
+    }
+
+    guint64 value = (guint8)ba->data[offset];
+    for (int i = 1; i < len; i++) {
+        value <<= 8;
+        value |= (guint8)ba->data[offset + i];
+    }
+
+    pushUInt64(L, value);
+
+    WSLUA_RETURN(1); /* The value of the big endian encoded 64 bit unsigned integer as a <<lua_class_UInt64,`UInt64`>> object beginning at given offset with given length. */
+}
+
 WSLUA_METHOD ByteArray_len(lua_State* L) {
     /* Obtain the length of a <<lua_class_ByteArray,`ByteArray`>>. */
     ByteArray ba = checkByteArray(L,1);
@@ -387,6 +715,14 @@ WSLUA_METHOD ByteArray_tvb (lua_State *L) {
 
 WSLUA_METHODS ByteArray_methods[] = {
     WSLUA_CLASS_FNREG(ByteArray,new),
+    WSLUA_CLASS_FNREG(ByteArray,le_int),
+    WSLUA_CLASS_FNREG(ByteArray,le_int64),
+    WSLUA_CLASS_FNREG(ByteArray,le_uint),
+    WSLUA_CLASS_FNREG(ByteArray,le_uint64),
+    WSLUA_CLASS_FNREG(ByteArray,int),
+    WSLUA_CLASS_FNREG(ByteArray,int64),
+    WSLUA_CLASS_FNREG(ByteArray,uint),
+    WSLUA_CLASS_FNREG(ByteArray,uint64),
     WSLUA_CLASS_FNREG(ByteArray,len),
     WSLUA_CLASS_FNREG(ByteArray,prepend),
     WSLUA_CLASS_FNREG(ByteArray,append),

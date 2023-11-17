@@ -17,6 +17,7 @@
 #include <wsutil/wsgcrypt.h>
 #include <wsutil/sober128.h>
 
+static dissector_handle_t corosync_totemnet_handle;
 static dissector_handle_t corosync_totemsrp_handle;
 
 /* This dissector deals packets defined in totemnet.c of corosync
@@ -284,12 +285,12 @@ dissect_corosynec_totemnet_with_decryption(tvbuff_t *tvb,
   /*
    * Generate MAC, CIPHER, IV keys from private key
    */
-  memset (keys, 0, sizeof(keys));
-  sober128_start (&keygen_prng_state);
+  memset(keys, 0, sizeof(keys));
+  sober128_start(&keygen_prng_state);
   sober128_add_entropy(private_key,
-                                  (unsigned long)private_key_len, &keygen_prng_state);
-  sober128_add_entropy (salt, SALT_SIZE, &keygen_prng_state);
-  sober128_read (keys, sizeof (keys), &keygen_prng_state);
+                       (unsigned long)private_key_len, &keygen_prng_state);
+  sober128_add_entropy(salt, SALT_SIZE, &keygen_prng_state);
+  sober128_read(keys, sizeof (keys), &keygen_prng_state);
 
   /*
    * Setup stream cipher
@@ -312,9 +313,9 @@ dissect_corosynec_totemnet_with_decryption(tvbuff_t *tvb,
    * Decrypt the contents of the message with the cipher key
    */
 
-  sober128_read (io_base + HASH_SHA1_LENGTH + SALT_SIZE,
-                            io_len - (HASH_SHA1_LENGTH + SALT_SIZE),
-                            &stream_prng_state);
+  sober128_read(io_base + HASH_SHA1_LENGTH + SALT_SIZE,
+                io_len - (HASH_SHA1_LENGTH + SALT_SIZE),
+                &stream_prng_state);
 
 
   /*
@@ -334,9 +335,8 @@ dissect_corosynec_totemnet_with_decryption(tvbuff_t *tvb,
     dissect_corosync_totemnet_security_header(decrypted_tvb, pinfo, parent_tree,
                                               check_crypt_type, key_for_trial);
 
-    next_tvb = tvb_new_subset_length_caplen(decrypted_tvb,
+    next_tvb = tvb_new_subset_length(decrypted_tvb,
                               HASH_SHA1_LENGTH + SALT_SIZE,
-                              io_len - (HASH_SHA1_LENGTH + SALT_SIZE),
                               io_len - (HASH_SHA1_LENGTH + SALT_SIZE));
 
     return call_dissector(corosync_totemsrp_handle, next_tvb, pinfo, parent_tree) + HASH_SHA1_LENGTH + SALT_SIZE;
@@ -451,18 +451,17 @@ proto_register_corosync_totemnet(void)
                                    (const gchar **)&corosync_totemnet_private_keys);
 
   register_shutdown_routine(corosync_totemnet_shutdown);
+
+  corosync_totemnet_handle = register_dissector("corosync_totemnet", dissect_corosynec_totemnet, proto_corosync_totemnet);
 }
 
 void
 proto_reg_handoff_corosync_totemnet(void)
 {
   static gboolean initialized = FALSE;
-  static dissector_handle_t corosync_totemnet_handle;
-
 
   if (!initialized)
   {
-    corosync_totemnet_handle = create_dissector_handle(dissect_corosynec_totemnet, proto_corosync_totemnet);
     corosync_totemsrp_handle = find_dissector_add_dependency("corosync_totemsrp", proto_corosync_totemnet);
 
     dissector_add_uint_range_with_preference("udp.port", PORT_COROSYNC_TOTEMNET_RANGE, corosync_totemnet_handle);

@@ -440,7 +440,7 @@ create_data_tree(proto_tree *tree, int hfindex, tvbuff_t *tvb, guint32* offset)
 
   /* data */
   proto_tree_add_item(subtree, hf_data_value, tvb, *offset, data_length,
-                      ENC_ASCII|ENC_NA);
+                      BASE_SHOW_UTF_8_PRINTABLE);
   *offset += data_length;
 
   return subtree;
@@ -1174,7 +1174,7 @@ dissect_bitcoin_msg_merkleblock(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
   offset += length;
 
   /* The cast to guint is save because bitcoin messages are always smaller than 0x02000000 bytes. */
-  proto_tree_add_item(subtree, hf_msg_merkleblock_flags_data, tvb, offset, (guint)count, ENC_ASCII|ENC_NA);
+  proto_tree_add_item(subtree, hf_msg_merkleblock_flags_data, tvb, offset, (guint)count, BASE_SHOW_UTF_8_PRINTABLE);
   offset += (guint32)count;
 
   return offset;
@@ -2077,7 +2077,7 @@ proto_register_bitcoin(void)
   expert_bitcoin = expert_register_protocol(proto_bitcoin);
   expert_register_field_array(expert_bitcoin, ei, array_length(ei));
 
-  bitcoin_command_table = register_dissector_table("bitcoin.command", "Bitcoin Command", proto_bitcoin, FT_STRING, BASE_NONE);
+  bitcoin_command_table = register_dissector_table("bitcoin.command", "Bitcoin Command", proto_bitcoin, FT_STRING, STRING_CASE_SENSITIVE);
 
   bitcoin_handle = register_dissector("bitcoin", dissect_bitcoin, proto_bitcoin);
 

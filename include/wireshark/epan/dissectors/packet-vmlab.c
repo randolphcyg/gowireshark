@@ -36,6 +36,7 @@
 void proto_register_vmlab(void);
 void proto_reg_handoff_vmlab(void);
 
+static dissector_handle_t vmlab_handle;
 static dissector_handle_t ethertype_handle;
 
 static int proto_vmlab = -1;
@@ -52,12 +53,6 @@ static int hf_vmlab_etype = -1;
 static int hf_vmlab_trailer = -1;
 
 static gint ett_vmlab = -1;
-
-static const value_string fragment_vals[] = {
-    { 0, "Not set" },
-    { 1, "Set" },
-    { 0, NULL }
-};
 
 static int
 dissect_vmlab(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
@@ -138,7 +133,7 @@ proto_register_vmlab(void)
         { &hf_vmlab_flags_part1,    { "Unknown", "vmlab.unknown1",
             FT_UINT8, BASE_HEX,  NULL, 0xF8, NULL, HFILL }},
         { &hf_vmlab_flags_fragment, { "More Fragments", "vmlab.fragment",
-            FT_UINT8, BASE_DEC, VALS(fragment_vals), 0x04, NULL, HFILL }},
+            FT_BOOLEAN, 8, TFS(&tfs_set_notset), 0x04, NULL, HFILL }},
         { &hf_vmlab_flags_part2,    { "Unknown", "vmlab.unknown2",
             FT_UINT8, BASE_HEX,  NULL, 0x03, NULL, HFILL }},
 
@@ -162,15 +157,12 @@ proto_register_vmlab(void)
     proto_vmlab = proto_register_protocol("VMware Lab Manager", "VMLAB", "vmlab");
     proto_register_field_array(proto_vmlab, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
+    vmlab_handle = register_dissector("vmlab", dissect_vmlab, proto_vmlab);
 }
 
 void
 proto_reg_handoff_vmlab(void)
 {
-    dissector_handle_t vmlab_handle;
-
-    vmlab_handle = create_dissector_handle(dissect_vmlab, proto_vmlab);
-
     dissector_add_uint("ethertype", ETHERTYPE_VMLAB, vmlab_handle);
 
     ethertype_handle = find_dissector_add_dependency("ethertype", proto_vmlab);

@@ -36,6 +36,9 @@ void proto_reg_handoff_pktc(void);
 void proto_register_pktc_mtafqdn(void);
 void proto_reg_handoff_pktc_mtafqdn(void);
 
+static dissector_handle_t pktc_handle;
+static dissector_handle_t pktc_mtafqdn_handle;
+
 static int proto_pktc = -1;
 static int proto_pktc_mtafqdn = -1;
 static gint hf_pktc_app_spec_data = -1;
@@ -409,6 +412,8 @@ dissect_pktc_rekey(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int offs
     guint32 snonce;
     guint string_len;
     const guint8 *timestr;
+    char *display;
+    int yy, mm, dd, hh, _mm, ss;
 
     /* Server Nonce */
     snonce=tvb_get_ntohl(tvb, offset);
@@ -422,10 +427,13 @@ dissect_pktc_rekey(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int offs
 
     /* Timestamp: YYMMDDhhmmssZ */
     /* They really came up with a two-digit year in late 1990s! =8o */
-    timestr=tvb_get_string_enc(pinfo->pool, tvb, offset, 13, ENC_ASCII);
-    proto_tree_add_string_format_value(tree, hf_pktc_timestamp, tvb, offset, 13, timestr,
-                                "%.2s-%.2s-%.2s %.2s:%.2s:%.2s",
-                                 timestr, timestr+2, timestr+4, timestr+6, timestr+8, timestr+10);
+    timestr=display=tvb_get_string_enc(pinfo->pool, tvb, offset, 13, ENC_ASCII);
+    if (sscanf(timestr, "%2d%2d%2d%2d%2d%2dZ", &yy, &mm, &dd, &hh, &_mm, &ss) == 6) {
+        display = wmem_strdup_printf(pinfo->pool, "%02d-%02d-%02d %02d:%02d:%02d",
+                                            yy, mm, dd, hh, _mm, ss);
+    }
+    proto_tree_add_string_format_value(tree, hf_pktc_timestamp, tvb,
+                                offset, 13, timestr, "%s", display);
     offset+=13;
 
     /* app specific data */
@@ -539,7 +547,7 @@ dissect_pktc_mtafqdn(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     proto_item *item;
     tvbuff_t *pktc_mtafqdn_tvb;
     gint8              ber_class;
-    gboolean           pc;
+    bool               pc;
     gint32             tag;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "PKTC");
@@ -730,14 +738,13 @@ proto_register_pktc(void)
     proto_pktc = proto_register_protocol("PacketCable", "PKTC", "pktc");
     proto_register_field_array(proto_pktc, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
+
+    pktc_handle = register_dissector("pktc", dissect_pktc, proto_pktc);
 }
 
 void
 proto_reg_handoff_pktc(void)
 {
-    dissector_handle_t pktc_handle;
-
-    pktc_handle = create_dissector_handle(dissect_pktc, proto_pktc);
     dissector_add_uint_with_preference("udp.port", PKTC_PORT, pktc_handle);
 }
 
@@ -791,14 +798,13 @@ proto_register_pktc_mtafqdn(void)
     proto_register_subtree_array(ett, array_length(ett));
     expert_pktc = expert_register_protocol(proto_pktc_mtafqdn);
     expert_register_field_array(expert_pktc, ei, array_length(ei));
+
+    pktc_mtafqdn_handle = register_dissector("pktc.mtafqdn", dissect_pktc_mtafqdn, proto_pktc_mtafqdn);
 }
 
 void
 proto_reg_handoff_pktc_mtafqdn(void)
 {
-    dissector_handle_t pktc_mtafqdn_handle;
-
-    pktc_mtafqdn_handle = create_dissector_handle(dissect_pktc_mtafqdn, proto_pktc_mtafqdn);
     dissector_add_uint_with_preference("udp.port", PKTC_MTAFQDN_PORT, pktc_mtafqdn_handle);
 }
 

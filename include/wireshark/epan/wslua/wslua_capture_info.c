@@ -84,7 +84,7 @@ static int CaptureInfo__gc(lua_State* L) {
 
 /* WSLUA_ATTRIBUTE CaptureInfo_encap RW The packet encapsulation type for the whole file.
 
-    See `wtap_encaps` in `init.lua` for available types.  Set to `wtap_encaps.PER_PACKET` if packets can
+    See `wtap_encaps` for available types.  Set to `wtap_encaps.PER_PACKET` if packets can
     have different types, then later set `FrameInfo.encap` for each packet during `read()`/`seek_read()`.
  */
 WSLUA_ATTRIBUTE_NAMED_NUMBER_GETTER(CaptureInfo,encap,wth->file_encap);
@@ -92,7 +92,7 @@ WSLUA_ATTRIBUTE_NAMED_NUMBER_SETTER(CaptureInfo,encap,wth->file_encap,int);
 
 /* WSLUA_ATTRIBUTE CaptureInfo_time_precision RW The precision of the packet timestamps in the file.
 
-    See `wtap_file_tsprec` in `init.lua` for available precisions.
+    See `wtap_file_tsprec` for available precisions.
  */
 WSLUA_ATTRIBUTE_NAMED_NUMBER_GETTER(CaptureInfo,time_precision,wth->file_tsprec);
 WSLUA_ATTRIBUTE_NAMED_NUMBER_SETTER(CaptureInfo,time_precision,wth->file_tsprec,int);
@@ -190,7 +190,7 @@ static int CaptureInfo_set_hosts(lua_State* L) {
             }
             name = luaL_checklstring(L,-1,&name_len);
 
-            wth->add_new_ipv4(v4_addr, name);
+            wth->add_new_ipv4(v4_addr, name, FALSE);
 
             /* removes 'value'; keeps 'key' for next iteration */
             lua_pop(L, 1);
@@ -233,7 +233,7 @@ static int CaptureInfo_set_hosts(lua_State* L) {
             }
             name = luaL_checklstring(L,-1,&name_len);
 
-            wth->add_new_ipv6((const void *)(&v6_addr), name);
+            wth->add_new_ipv6((const void *)(&v6_addr), name, FALSE);
 
             /* removes 'value'; keeps 'key' for next iteration */
             lua_pop(L, 1);
@@ -337,7 +337,7 @@ WSLUA_METAMETHOD CaptureInfoConst__tostring(lua_State* L) {
     } else {
         wtap_dumper *wdh = fi->wdh;
         lua_pushfstring(L, "CaptureInfoConst: file_type_subtype=%d, snaplen=%d, encap=%d, compression_type=%d",
-            wdh->file_type_subtype, wdh->snaplen, wdh->encap, wdh->compression_type);
+            wdh->file_type_subtype, wdh->snaplen, wdh->file_encap, wdh->compression_type);
     }
 
     WSLUA_RETURN(1); /* String of debug information. */
@@ -353,9 +353,9 @@ WSLUA_ATTRIBUTE_NAMED_NUMBER_GETTER(CaptureInfoConst,snapshot_length,wdh->snaple
 
 /* WSLUA_ATTRIBUTE CaptureInfoConst_encap RO The packet encapsulation type for the whole file.
 
-    See `wtap_encaps` in init.lua for available types.  It is set to `wtap_encaps.PER_PACKET` if packets can
+    See `wtap_encaps` for available types.  It is set to `wtap_encaps.PER_PACKET` if packets can
     have different types, in which case each Frame identifies its type, in `FrameInfo.packet_encap`. */
-WSLUA_ATTRIBUTE_NAMED_NUMBER_GETTER(CaptureInfoConst,encap,wdh->encap);
+WSLUA_ATTRIBUTE_NAMED_NUMBER_GETTER(CaptureInfoConst,encap,wdh->file_encap);
 
 /* WSLUA_ATTRIBUTE CaptureInfoConst_comment RW A comment for the whole capture file, if the
     `wtap_presence_flags.COMMENTS` was set in the presence flags; nil if there is no comment. */

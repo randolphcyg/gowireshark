@@ -1,4 +1,4 @@
--- 3GPP TS 38.331 V17.1.0 (2022-06)
+-- 3GPP TS 38.331 V17.5.0 (2023-06)
 
 NR-Sidelink-Preconf DEFINITIONS AUTOMATIC TAGS ::=
 
@@ -6,8 +6,7 @@ BEGIN
 
 IMPORTS
     SL-RemoteUE-Config-r17,
-    SL-DRX-Config-GC-BC-r17,
-    ffsUpperLimit, -- to be removed later
+    SL-DRX-ConfigGC-BC-r17,
     SL-FreqConfigCommon-r16,
     SL-RadioBearerConfig-r16,
     SL-RLC-BearerConfig-r16,
@@ -38,7 +37,7 @@ SidelinkPreconfigNR-r16 ::=                 SEQUENCE {
     sl-MeasPreConfig-r16                        SL-MeasConfigCommon-r16                                               OPTIONAL,
     sl-OffsetDFN-r16                            INTEGER (1..1000)                                                     OPTIONAL,
     t400-r16                                    ENUMERATED{ms100, ms200, ms300, ms400, ms600, ms1000, ms1500, ms2000} OPTIONAL,
-    sl-MaxNumConsecutiveDTX-r16                 ENUMERATED {n1, n2, n3, n4, n6, n8, n16, n32}	                      OPTIONAL,
+    sl-MaxNumConsecutiveDTX-r16                 ENUMERATED {n1, n2, n3, n4, n6, n8, n16, n32}                         OPTIONAL,
     sl-SSB-PriorityNR-r16                       INTEGER (1..8)                                                        OPTIONAL,
     sl-PreconfigGeneral-r16                     SL-PreconfigGeneral-r16                                               OPTIONAL,
     sl-UE-SelectedPreConfig-r16                 SL-UE-SelectedConfig-r16                                              OPTIONAL,
@@ -47,7 +46,7 @@ SidelinkPreconfigNR-r16 ::=                 SEQUENCE {
     sl-MaxCID-r16                               INTEGER (1..16383)                                                    DEFAULT 15,
     ...,
     [[
-    sl-DRX-PreConfig-GC-BC-r17                  SL-DRX-Config-GC-BC-r17                                               OPTIONAL,
+    sl-DRX-PreConfigGC-BC-r17                   SL-DRX-ConfigGC-BC-r17                                               OPTIONAL,
     sl-TxProfileList-r17                        SL-TxProfileList-r17                                                  OPTIONAL,
     sl-PreconfigDiscConfig-r17                  SL-RemoteUE-Config-r17                                                OPTIONAL
     ]]

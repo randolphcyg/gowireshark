@@ -185,6 +185,7 @@ typedef enum {
     WTAP_BLOCK_FT_SPECIFIC_REPORT,
     WTAP_BLOCK_FT_SPECIFIC_EVENT,
     WTAP_BLOCK_SYSDIG_EVENT,
+    WTAP_BLOCK_SYSDIG_META_EVENT,
     WTAP_BLOCK_SYSTEMD_JOURNAL_EXPORT,
     WTAP_BLOCK_CUSTOM,
     MAX_WTAP_BLOCK_TYPE_VALUE
@@ -228,6 +229,14 @@ typedef struct wtapng_if_descr_mandatory_s {
 } wtapng_if_descr_mandatory_t;
 
 /**
+ * Holds the required data from a WTAP_BLOCK_NAME_RESOLUTION.
+ */
+typedef struct wtapng_nrb_mandatory_s {
+    GList       *ipv4_addr_list;
+    GList       *ipv6_addr_list;
+}  wtapng_nrb_mandatory_t;
+
+/**
  * Holds the required data from a WTAP_BLOCK_IF_STATISTICS.
  */
 typedef struct wtapng_if_stats_mandatory_s {
@@ -244,6 +253,15 @@ typedef struct wtapng_dsb_mandatory_s {
     guint32                secrets_len;             /** Length of the secrets data in bytes */
     guint8                *secrets_data;            /** Buffer of secrets (not NUL-terminated) */
 } wtapng_dsb_mandatory_t;
+
+/**
+ * Holds the required data from a WTAP_BLOCK_SYSDIG_META_EVENT.
+ */
+typedef struct wtapng_sysdig_mev_mandatory_s {
+    uint32_t               mev_type;            /** pcapng block type of the event, e.g. BLOCK_TYPE_SYSDIG_MI */
+    uint32_t               mev_data_len;        /** Length of the mev data in bytes */
+    uint8_t               *mev_data;            /** Buffer of mev data (not NUL-terminated) */
+} wtapng_sysdig_mev_mandatory_t;
 
 /**
  * Holds the required data from a WTAP_BLOCK_PACKET.
@@ -271,7 +289,13 @@ typedef struct wtapng_ft_specific_mandatory_s {
     guint     record_type;      /* the type of record this is - file type-specific value */
 } wtapng_ft_specific_mandatory_t;
 
-/* Currently supported option types */
+/*
+ * Currently supported option types.  These are not option types
+ * in the sense that each one corresponds to a particular option,
+ * they are data types for the data of an option, so, for example,
+ * all options with a 32-bit unsigned integer value have the type
+ * WTAP_OPTTYPE_UINT32.
+ */
 typedef enum {
     WTAP_OPTTYPE_UINT8,
     WTAP_OPTTYPE_UINT32,
@@ -282,7 +306,8 @@ typedef enum {
     WTAP_OPTTYPE_IPv6,
     WTAP_OPTTYPE_CUSTOM,
     WTAP_OPTTYPE_IF_FILTER,
-    WTAP_OPTTYPE_PACKET_VERDICT
+    WTAP_OPTTYPE_PACKET_VERDICT,
+    WTAP_OPTTYPE_PACKET_HASH,
 } wtap_opttype_e;
 
 typedef enum {
@@ -378,6 +403,11 @@ typedef struct packet_verdict_opt_s {
     }               data;
 } packet_verdict_opt_t;
 
+typedef struct packet_hash_opt_s {
+    guint8 type;
+    GByteArray *hash_bytes;
+} packet_hash_opt_t;
+
 /*
  * Structure describing a value of an option.
  */
@@ -392,6 +422,7 @@ typedef union {
     custom_opt_t custom_opt;
     if_filter_opt_t if_filterval;
     packet_verdict_opt_t packet_verdictval;
+    packet_hash_opt_t packet_hash;
 } wtap_optval_t;
 
 /*
@@ -517,8 +548,6 @@ struct nflx_tcpinfo {
 
     guint32 tlb_len;
 };
-
-struct wtap_dumper;
 
 typedef void (*wtap_block_create_func)(wtap_block_t block);
 typedef void (*wtap_mand_free_func)(wtap_block_t block);
@@ -774,6 +803,17 @@ wtap_block_get_ipv6_option_value(wtap_block_t block, guint option_id, ws_in6_add
  */
 WS_DLL_PUBLIC wtap_opttype_return_val
 wtap_block_add_string_option(wtap_block_t block, guint option_id, const char *value, gsize value_length);
+
+/** Add a string option to a block taking ownership of the null-terminated string.
+ *
+ * @param[in] block Block to which to add the option
+ * @param[in] option_id Identifier value for option
+ * @param[in] value Value of option
+ * @return wtap_opttype_return_val - WTAP_OPTTYPE_SUCCESS if successful,
+ * error code otherwise
+ */
+WS_DLL_PUBLIC wtap_opttype_return_val
+wtap_block_add_string_option_owned(wtap_block_t block, guint option_id, char *value);
 
 /** Add a string option to a block with a printf-formatted string as its value
  *
@@ -1046,6 +1086,20 @@ wtap_block_get_nth_packet_verdict_option_value(wtap_block_t block, guint option_
 
 WS_DLL_PUBLIC void
 wtap_packet_verdict_free(packet_verdict_opt_t* verdict);
+
+/** Add a packet_hash option value to a block
+ *
+ * @param[in] block Block to which to add the option
+ * @param[in] option_id Identifier value for option
+ * @param[in] value Value of option
+ * @return wtap_opttype_return_val - WTAP_OPTTYPE_SUCCESS if successful,
+ * error code otherwise
+ */
+WS_DLL_PUBLIC wtap_opttype_return_val
+wtap_block_add_packet_hash_option(wtap_block_t block, guint option_id, packet_hash_opt_t* value);
+
+WS_DLL_PUBLIC void
+wtap_packet_hash_free(packet_hash_opt_t* hash);
 
 /** Remove an option from a block
  *

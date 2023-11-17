@@ -60,9 +60,9 @@
 #include "file_util.h"
 #include "include/ws_attributes.h"
 
-static gchar *program_path = NULL;
-static gchar *system_path = NULL;
-static gchar *npcap_path = NULL;
+static char *program_path = NULL;
+static char *system_path = NULL;
+static char *npcap_path = NULL;
 
 /**
  * g_open:
@@ -85,7 +85,7 @@ static gchar *npcap_path = NULL;
  * Since: 2.6
  */
 int
-ws_stdio_open (const gchar *filename, int flags, int mode)
+ws_stdio_open (const char *filename, int flags, int mode)
 {
     wchar_t *wfilename = g_utf8_to_utf16 (filename, -1, NULL, NULL, NULL);
     int retval;
@@ -125,7 +125,7 @@ ws_stdio_open (const gchar *filename, int flags, int mode)
  * Since: 2.6
  */
 int
-ws_stdio_rename (const gchar *oldfilename, const gchar *newfilename)
+ws_stdio_rename (const char *oldfilename, const char *newfilename)
 {
     wchar_t *woldfilename = g_utf8_to_utf16 (oldfilename, -1, NULL, NULL, NULL);
     wchar_t *wnewfilename;
@@ -191,7 +191,7 @@ ws_stdio_rename (const gchar *oldfilename, const gchar *newfilename)
  * Since: 2.6
  */
 int
-ws_stdio_mkdir (const gchar *filename, int mode _U_)
+ws_stdio_mkdir (const char *filename, int mode _U_)
 {
     wchar_t *wfilename = g_utf8_to_utf16 (filename, -1, NULL, NULL, NULL);
     int retval;
@@ -229,7 +229,7 @@ ws_stdio_mkdir (const gchar *filename, int mode _U_)
  * Since: 2.6
  */
 int
-ws_stdio_stat64 (const gchar *filename, ws_statb64 *buf)
+ws_stdio_stat64 (const char *filename, ws_statb64 *buf)
 {
     wchar_t *wfilename = g_utf8_to_utf16 (filename, -1, NULL, NULL, NULL);
     int retval;
@@ -277,7 +277,7 @@ ws_stdio_stat64 (const gchar *filename, ws_statb64 *buf)
  */
 
 int
-ws_stdio_unlink (const gchar *filename)
+ws_stdio_unlink (const char *filename)
 {
     wchar_t *wfilename = g_utf8_to_utf16 (filename, -1, NULL, NULL, NULL);
     int retval;
@@ -325,7 +325,7 @@ ws_stdio_unlink (const gchar *filename)
  * Since: 2.6
  */
 int
-ws_stdio_remove (const gchar *filename)
+ws_stdio_remove (const char *filename)
 {
     wchar_t *wfilename = g_utf8_to_utf16 (filename, -1, NULL, NULL, NULL);
     int retval;
@@ -365,7 +365,7 @@ ws_stdio_remove (const gchar *filename)
  * Since: 2.6
  */
 FILE *
-ws_stdio_fopen (const gchar *filename, const gchar *mode)
+ws_stdio_fopen (const char *filename, const char *mode)
 {
     wchar_t *wfilename = g_utf8_to_utf16 (filename, -1, NULL, NULL, NULL);
     wchar_t *wmode;
@@ -415,7 +415,7 @@ ws_stdio_fopen (const gchar *filename, const gchar *mode)
  * Since: 2.6
  */
 FILE *
-ws_stdio_freopen (const gchar *filename, const gchar *mode, FILE *stream)
+ws_stdio_freopen (const char *filename, const char *mode, FILE *stream)
 {
     wchar_t *wfilename = g_utf8_to_utf16 (filename, -1, NULL, NULL, NULL);
     wchar_t *wmode;
@@ -449,21 +449,21 @@ ws_stdio_freopen (const gchar *filename, const gchar *mode, FILE *stream)
 
 
 /* DLL loading */
-static gboolean
-init_dll_load_paths()
+static bool
+init_dll_load_paths(void)
 {
     TCHAR path_w[MAX_PATH];
 
     if (program_path && system_path && npcap_path)
-        return TRUE;
+        return true;
 
     /* XXX - Duplicate code in filesystem.c:configuration_init */
     if (GetModuleFileName(NULL, path_w, MAX_PATH) == 0 || GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
-        return FALSE;
+        return false;
     }
 
     if (!program_path) {
-        gchar *app_path;
+        char *app_path;
         app_path = g_utf16_to_utf8(path_w, -1, NULL, NULL, NULL);
         /* We could use PathRemoveFileSpec here but we'd have to link to Shlwapi.dll */
         program_path = g_path_get_dirname(app_path);
@@ -471,7 +471,7 @@ init_dll_load_paths()
     }
 
     if (GetSystemDirectory(path_w, MAX_PATH) == 0) {
-        return FALSE;
+        return false;
     }
 
     if (!system_path) {
@@ -485,15 +485,15 @@ init_dll_load_paths()
     }
 
     if (program_path && system_path && npcap_path)
-        return TRUE;
+        return true;
 
-    return FALSE;
+    return false;
 }
 
-gboolean
-ws_init_dll_search_path()
+bool
+ws_init_dll_search_path(void)
 {
-    gboolean dll_dir_set = FALSE;
+    bool dll_dir_set = false;
     wchar_t *program_path_w;
 
     /* Remove the current directory from the default DLL search path. */
@@ -517,9 +517,9 @@ ws_init_dll_search_path()
  */
 
 void *
-ws_load_library(const gchar *library_name)
+ws_load_library(const char *library_name)
 {
-    gchar   *full_path;
+    char    *full_path;
     wchar_t *full_path_w;
     HMODULE  dll_h;
 
@@ -527,7 +527,7 @@ ws_load_library(const gchar *library_name)
         return NULL;
 
     /* First try the program directory */
-    full_path = g_module_build_path(program_path, library_name);
+    full_path = g_strconcat(program_path, G_DIR_SEPARATOR_S, library_name, NULL);
     full_path_w = g_utf8_to_utf16(full_path, -1, NULL, NULL, NULL);
 
     if (full_path && full_path_w) {
@@ -540,7 +540,7 @@ ws_load_library(const gchar *library_name)
     }
 
     /* Next try the system directory */
-    full_path = g_module_build_path(system_path, library_name);
+    full_path = g_strconcat(system_path, G_DIR_SEPARATOR_S, library_name, NULL);
     full_path_w = g_utf8_to_utf16(full_path, -1, NULL, NULL, NULL);
 
     if (full_path && full_path_w) {
@@ -556,7 +556,7 @@ ws_load_library(const gchar *library_name)
 }
 
 static GModule *
-load_npcap_module(const gchar *full_path, GModuleFlags flags)
+load_npcap_module(const char *full_path, GModuleFlags flags)
 {
     /*
      * Npcap's wpcap.dll requires packet.dll from the same directory. Either
@@ -580,16 +580,18 @@ load_npcap_module(const gchar *full_path, GModuleFlags flags)
 }
 
 GModule *
-ws_module_open(gchar *module_name, GModuleFlags flags)
+load_wpcap_module(void)
 {
-    gchar   *full_path;
+    char    *module_name = "wpcap.dll";
+    char    *full_path;
     GModule *mod;
+    GModuleFlags flags = 0;
 
-    if (!init_dll_load_paths() || !module_name)
+    if (!init_dll_load_paths())
         return NULL;
 
     /* First try the program directory */
-    full_path = g_module_build_path(program_path, module_name);
+    full_path = g_strconcat(program_path, G_DIR_SEPARATOR_S, module_name, NULL);
 
     if (full_path) {
         mod = g_module_open(full_path, flags);
@@ -600,7 +602,7 @@ ws_module_open(gchar *module_name, GModuleFlags flags)
     }
 
     /* Next try the Npcap directory */
-    full_path = g_module_build_path(npcap_path, module_name);
+    full_path = g_strconcat(npcap_path, G_DIR_SEPARATOR_S, module_name, NULL);
 
     if (full_path) {
         mod = load_npcap_module(full_path, flags);
@@ -611,7 +613,7 @@ ws_module_open(gchar *module_name, GModuleFlags flags)
     }
 
     /* At last try the system directory */
-    full_path = g_module_build_path(system_path, module_name);
+    full_path = g_strconcat(system_path, G_DIR_SEPARATOR_S, module_name, NULL);
 
     if (full_path) {
         mod = g_module_open(full_path, flags);
@@ -631,13 +633,13 @@ ws_module_open(gchar *module_name, GModuleFlags flags)
 static HANDLE local_running_mutex = NULL;
 static HANDLE global_running_mutex = NULL;
 
-void create_app_running_mutex() {
+void create_app_running_mutex(void) {
     SECURITY_DESCRIPTOR sec_descriptor;
     SECURITY_ATTRIBUTES sec_attributes;
     SECURITY_ATTRIBUTES *sa;
     memset(&sec_descriptor, 0, sizeof(SECURITY_DESCRIPTOR));
     if (!InitializeSecurityDescriptor(&sec_descriptor, SECURITY_DESCRIPTOR_REVISION) ||
-        !SetSecurityDescriptorDacl(&sec_descriptor, TRUE, NULL, FALSE)) {
+        !SetSecurityDescriptorDacl(&sec_descriptor, true, NULL, false)) {
         /*
          * We couldn't set up the security descriptor, so use the default
          * security attributes when creating the mutexes.
@@ -651,14 +653,14 @@ void create_app_running_mutex() {
         memset(&sec_attributes, 0, sizeof(SECURITY_ATTRIBUTES));
         sec_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
         sec_attributes.lpSecurityDescriptor = &sec_descriptor;
-        sec_attributes.bInheritHandle = TRUE;
+        sec_attributes.bInheritHandle = true;
         sa = &sec_attributes;
     }
-    local_running_mutex = CreateMutex(sa, FALSE, _T("Wireshark-is-running-{") _T(WIRESHARK_IS_RUNNING_UUID) _T("}"));
-    global_running_mutex = CreateMutex(sa, FALSE, _T("Global\\Wireshark-is-running-{") _T(WIRESHARK_IS_RUNNING_UUID) _T("}"));
+    local_running_mutex = CreateMutex(sa, false, _T("Wireshark-is-running-{") _T(WIRESHARK_IS_RUNNING_UUID) _T("}"));
+    global_running_mutex = CreateMutex(sa, false, _T("Global\\Wireshark-is-running-{") _T(WIRESHARK_IS_RUNNING_UUID) _T("}"));
 }
 
-void close_app_running_mutex() {
+void close_app_running_mutex(void) {
     if (local_running_mutex) {
         CloseHandle(local_running_mutex);
         local_running_mutex = NULL;

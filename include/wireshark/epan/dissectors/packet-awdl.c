@@ -18,13 +18,16 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
-#include <epan/dissectors/packet-llc.h>
-#include <epan/dissectors/packet-ieee80211.h>
-#include <epan/dissectors/packet-dns.h>
+#include "packet-llc.h"
+#include "packet-ieee80211.h"
+#include "packet-dns.h"
 #include <epan/oui.h>
 
 void proto_register_awdl(void);
 void proto_reg_handoff_awdl(void);
+
+static dissector_handle_t awdl_action_handle;
+static dissector_handle_t awdl_data_handle;
 
 typedef struct awdl_tagged_field_data
 {
@@ -700,10 +703,11 @@ awdl_tag_service_params(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 }
 
 static int
-awdl_tag_channel_sequence(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void* data _U_) {
+awdl_tag_channel_sequence(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
   proto_item *chanlist_item, *channel_item;
   proto_tree *chanlist_tree, *channel_tree;
-  guint channels, chan_number;
+  guint channels;
+  guint32 chan_number;
   wmem_strbuf_t *strbuf;
   int offset = 0;
 
@@ -730,7 +734,7 @@ awdl_tag_channel_sequence(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
   offset += 2;
 
   /* make sufficient space for channel decodings: 5 chars/channel (3-digit number + ', ') */
-  strbuf = wmem_strbuf_sized_new(wmem_packet_scope(), 5 * channels, 5 * channels);
+  strbuf = wmem_strbuf_new_sized(pinfo->pool, 5 * channels);
 
   switch (seq_enc) {
   case AWDL_CHANSEQ_ENC_CHANNELNUMBER:
@@ -752,8 +756,9 @@ awdl_tag_channel_sequence(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
     chanlist_item = proto_tree_add_item(tree, hf_awdl_channelseq_channel_list, tvb, offset, 2 * channels, ENC_NA);
     chanlist_tree = proto_item_add_subtree(chanlist_item, ett_awdl_channelseq_channel_list);
     for (guint i = 0; i < channels; i++) {
-      chan_number = tvb_get_guint8(tvb, offset + 1);
-      channel_item = proto_tree_add_uint(chanlist_tree, hf_awdl_channelseq_channel, tvb, offset, 2, chan_number);
+      /* channel number is 2nd byte */
+      channel_item = proto_tree_add_item_ret_uint(chanlist_tree, hf_awdl_channelseq_channel, tvb, offset, 2,
+                                                  ENC_LITTLE_ENDIAN, &chan_number);
       channel_tree = proto_item_add_subtree(channel_item, ett_awdl_channelseq_channel);
       proto_tree_add_bitmask(channel_tree, tvb, offset, hf_awdl_channelseq_channel_flags,
                              ett_awdl_channelseq_flags, flags_fields, ENC_LITTLE_ENDIAN);
@@ -773,8 +778,9 @@ awdl_tag_channel_sequence(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
     chanlist_item = proto_tree_add_item(tree, hf_awdl_channelseq_channel_list, tvb, offset, 2 * channels, ENC_NA);
     chanlist_tree = proto_item_add_subtree(chanlist_item, ett_awdl_channelseq_channel_list);
     for (guint i = 0; i < channels; i++) {
-      chan_number = tvb_get_guint8(tvb, offset);
-      channel_item = proto_tree_add_uint(chanlist_tree, hf_awdl_channelseq_channel, tvb, offset, 2, chan_number);
+      /* channel number is 2nd byte */
+      channel_item = proto_tree_add_item_ret_uint(chanlist_tree, hf_awdl_channelseq_channel, tvb, offset, 2,
+                                                  ENC_LITTLE_ENDIAN, &chan_number);
       channel_tree = proto_item_add_subtree(channel_item, ett_awdl_channelseq_channel);
       proto_tree_add_item(channel_tree, hf_awdl_channelseq_channel_number, tvb, offset, 1, ENC_LITTLE_ENDIAN);
       offset += 1;
@@ -1133,13 +1139,13 @@ awdl_tag_ht_capabilities(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
  */
 static int
 add_awdl_dns_name(proto_tree *tree, int hfindex_regular, int hfindex_compressed,
-                  tvbuff_t *tvb, int offset, int len, const gchar **name) {
+                  tvbuff_t *tvb, int offset, int len, wmem_allocator_t *scope, const gchar **name) {
   int start_offset = offset;
   guint8 component_len;
   const guchar *component;
   wmem_strbuf_t *strbuf;
 
-  strbuf = wmem_strbuf_sized_new(wmem_packet_scope(), MAX_DNAME_LEN, MAX_DNAME_LEN);
+  strbuf = wmem_strbuf_new_sized(scope, MAX_DNAME_LEN);
 
   while (offset < (len + start_offset)) {
     component_len = tvb_get_guint8(tvb, offset);
@@ -1157,7 +1163,7 @@ add_awdl_dns_name(proto_tree *tree, int hfindex_regular, int hfindex_compressed,
     } else {
       /* regular label */
       guint label_len;
-      proto_tree_add_item_ret_string_and_length(tree, hfindex_regular, tvb, offset, 1, ENC_ASCII, wmem_packet_scope(), &component, &label_len);
+      proto_tree_add_item_ret_string_and_length(tree, hfindex_regular, tvb, offset, 1, ENC_ASCII, scope, &component, &label_len);
       offset += label_len;
     }
     if (component) {
@@ -1174,7 +1180,7 @@ add_awdl_dns_name(proto_tree *tree, int hfindex_regular, int hfindex_compressed,
 }
 
 static int
-add_awdl_dns_entry(proto_tree *tree, gint ett,
+add_awdl_dns_entry(packet_info *pinfo, proto_tree *tree, gint ett,
                    int hfindex_entry, int hfindex_regular, int hfindex_compressed,
                    tvbuff_t *tvb, int offset, int len, const gchar **name) {
   int start_offset = offset;
@@ -1184,7 +1190,7 @@ add_awdl_dns_entry(proto_tree *tree, gint ett,
 
   entry_item = proto_tree_add_item(tree, hfindex_entry, tvb, offset, 0, ENC_NA);
   entry_tree = proto_item_add_subtree(entry_item, ett);
-  offset += add_awdl_dns_name(entry_tree, hfindex_regular, hfindex_compressed, tvb, offset, len, &n);
+  offset += add_awdl_dns_name(entry_tree, hfindex_regular, hfindex_compressed, tvb, offset, len, pinfo->pool, &n);
   proto_item_set_end(entry_item, tvb, offset);
   proto_item_append_text(entry_item, ": %s", n);
 
@@ -1195,20 +1201,20 @@ add_awdl_dns_entry(proto_tree *tree, gint ett,
 }
 
 static int
-awdl_tag_arpa(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void* data _U_) {
+awdl_tag_arpa(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
   int offset = 0;
   int tag_len = tvb_reported_length(tvb);
 
   proto_tree_add_item(tree, hf_awdl_arpa_flags, tvb, offset, 1, ENC_NA);
   offset += 1;
-  offset += add_awdl_dns_entry(tree, ett_awdl_dns_name, hf_awdl_arpa, hf_awdl_arpa_name,
+  offset += add_awdl_dns_entry(pinfo, tree, ett_awdl_dns_name, hf_awdl_arpa, hf_awdl_arpa_name,
                                hf_awdl_arpa_short, tvb, offset, tag_len - offset, NULL);
 
   return offset;
 }
 
 static int
-awdl_tag_service_response(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void* data _U_) {
+awdl_tag_service_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
   proto_item *rr_item;
   proto_tree *rr_tree, *data_len;
   const gchar *name;
@@ -1223,7 +1229,7 @@ awdl_tag_service_response(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
 
   // len field includes the following type value
   len -= 1;
-  offset += add_awdl_dns_entry(rr_tree, ett_awdl_dns_name, hf_awdl_dns_name, hf_awdl_dns_name_label,
+  offset += add_awdl_dns_entry(pinfo, rr_tree, ett_awdl_dns_name, hf_awdl_dns_name, hf_awdl_dns_name_label,
                                hf_awdl_dns_name_short, tvb, offset, len, &name);
 
   proto_tree_add_item_ret_uint(rr_tree, hf_awdl_dns_type, tvb, offset, 1, ENC_LITTLE_ENDIAN, &type);
@@ -1243,7 +1249,7 @@ awdl_tag_service_response(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
       const guchar *txt;
       gint label_len;
       proto_tree_add_item_ret_string_and_length(rr_tree, hf_awdl_dns_txt, tvb, offset, 1, ENC_ASCII,
-                                                wmem_packet_scope(), &txt, &label_len);
+                                                pinfo->pool, &txt, &label_len);
       offset += label_len;
       proto_item_append_text(rr_item, ", %s", txt);
       if (label_len > (gint) len) {
@@ -1263,12 +1269,12 @@ awdl_tag_service_response(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
     offset += 2;
     // length field includes above fields
     len -= 6;
-    offset += add_awdl_dns_entry(rr_tree, ett_awdl_dns_name, hf_awdl_dns_target, hf_awdl_dns_target_label,
+    offset += add_awdl_dns_entry(pinfo, rr_tree, ett_awdl_dns_name, hf_awdl_dns_target, hf_awdl_dns_target_label,
                                  hf_awdl_dns_target_short, tvb, offset, len, &name);
     proto_item_append_text(rr_item, ", priority %u, weight %u, port %u, target %s", prio, weight, port, name);
     break;
   case T_PTR:
-    offset += add_awdl_dns_entry(rr_tree, ett_awdl_dns_name, hf_awdl_dns_ptr, hf_awdl_dns_ptr_label,
+    offset += add_awdl_dns_entry(pinfo, rr_tree, ett_awdl_dns_name, hf_awdl_dns_ptr, hf_awdl_dns_ptr_label,
                                  hf_awdl_dns_ptr_short, tvb, offset, len, &name);
     proto_item_append_text(rr_item, ", %s", name);
     break;
@@ -1478,18 +1484,18 @@ dissect_awdl_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 static void
 awdl_register_tags(void)
 {
-  dissector_add_uint("awdl.tag.number", AWDL_SERVICE_RESPONSE_TLV, create_dissector_handle(awdl_tag_service_response, -1));
-  dissector_add_uint("awdl.tag.number", AWDL_SYNCHRONIZATON_PARAMETERS_TLV, create_dissector_handle(awdl_tag_sync_params, -1));
-  dissector_add_uint("awdl.tag.number", AWDL_ELECTION_PARAMETERS_TLV, create_dissector_handle(awdl_tag_election_params, -1));
-  dissector_add_uint("awdl.tag.number", AWDL_SERVICE_PARAMETERS_TLV, create_dissector_handle(awdl_tag_service_params, -1));
-  dissector_add_uint("awdl.tag.number", AWDL_ENHANCED_DATA_RATE_CAPABILITIES_TLV, create_dissector_handle(awdl_tag_ht_capabilities, -1));
-  dissector_add_uint("awdl.tag.number", AWDL_DATA_PATH_STATE_TLV, create_dissector_handle(awdl_tag_datapath_state, -1));
-  dissector_add_uint("awdl.tag.number", AWDL_ARPA_TLV, create_dissector_handle(awdl_tag_arpa, -1));
-  dissector_add_uint("awdl.tag.number", AWDL_IEEE80211_CONTAINER_TLV, create_dissector_handle(awdl_tag_ieee80211_container, -1));
-  dissector_add_uint("awdl.tag.number", AWDL_CHAN_SEQ_TLV, create_dissector_handle(awdl_tag_channel_sequence, -1));
-  dissector_add_uint("awdl.tag.number", AWDL_SYNCHRONIZATION_TREE_TLV, create_dissector_handle(awdl_tag_sync_tree, -1));
-  dissector_add_uint("awdl.tag.number", AWDL_VERSION_TLV, create_dissector_handle(awdl_tag_version, -1));
-  dissector_add_uint("awdl.tag.number", AWDL_ELECTION_PARAMETERS_V2_TLV, create_dissector_handle(awdl_tag_election_params_v2, -1));
+  dissector_add_uint("awdl.tag.number", AWDL_SERVICE_RESPONSE_TLV, create_dissector_handle(awdl_tag_service_response, proto_awdl));
+  dissector_add_uint("awdl.tag.number", AWDL_SYNCHRONIZATON_PARAMETERS_TLV, create_dissector_handle(awdl_tag_sync_params, proto_awdl));
+  dissector_add_uint("awdl.tag.number", AWDL_ELECTION_PARAMETERS_TLV, create_dissector_handle(awdl_tag_election_params, proto_awdl));
+  dissector_add_uint("awdl.tag.number", AWDL_SERVICE_PARAMETERS_TLV, create_dissector_handle(awdl_tag_service_params, proto_awdl));
+  dissector_add_uint("awdl.tag.number", AWDL_ENHANCED_DATA_RATE_CAPABILITIES_TLV, create_dissector_handle(awdl_tag_ht_capabilities, proto_awdl));
+  dissector_add_uint("awdl.tag.number", AWDL_DATA_PATH_STATE_TLV, create_dissector_handle(awdl_tag_datapath_state, proto_awdl));
+  dissector_add_uint("awdl.tag.number", AWDL_ARPA_TLV, create_dissector_handle(awdl_tag_arpa, proto_awdl));
+  dissector_add_uint("awdl.tag.number", AWDL_IEEE80211_CONTAINER_TLV, create_dissector_handle(awdl_tag_ieee80211_container, proto_awdl));
+  dissector_add_uint("awdl.tag.number", AWDL_CHAN_SEQ_TLV, create_dissector_handle(awdl_tag_channel_sequence, proto_awdl));
+  dissector_add_uint("awdl.tag.number", AWDL_SYNCHRONIZATION_TREE_TLV, create_dissector_handle(awdl_tag_sync_tree, proto_awdl));
+  dissector_add_uint("awdl.tag.number", AWDL_VERSION_TLV, create_dissector_handle(awdl_tag_version, proto_awdl));
+  dissector_add_uint("awdl.tag.number", AWDL_ELECTION_PARAMETERS_V2_TLV, create_dissector_handle(awdl_tag_election_params_v2, proto_awdl));
 }
 
 void proto_register_awdl(void)
@@ -1634,42 +1640,42 @@ void proto_register_awdl(void)
     },
     { &hf_awdl_datastate_flags_0,
       { "Infrastructure BSSID and Channel", "awdl.datastate.flags.0",
-        FT_BOOLEAN, 16, NULL, 0x1, NULL, HFILL
+        FT_BOOLEAN, 16, NULL, 0x0001, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_1,
       { "Infrastructure Address", "awdl.datastate.flags.1",
-        FT_BOOLEAN, 16, NULL, 0x2, NULL, HFILL
+        FT_BOOLEAN, 16, NULL, 0x0002, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_2,
       { "AWDL Address", "awdl.datastate.flags.2",
-        FT_BOOLEAN, 16, NULL, 0x4, NULL, HFILL
+        FT_BOOLEAN, 16, NULL, 0x0004, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_3,
       { "Bit 3", "awdl.datastate.flags.3",
-        FT_BOOLEAN, 16, NULL, 0x8, NULL, HFILL
+        FT_BOOLEAN, 16, NULL, 0x0008, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_4,
       { "UMI", "awdl.datastate.flags.4",
-        FT_BOOLEAN, 16, NULL, 0x10, NULL, HFILL
+        FT_BOOLEAN, 16, NULL, 0x0010, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_5,
       { "Bit 5", "awdl.datastate.flags.5",
-        FT_BOOLEAN, 16, NULL, 0x20, NULL, HFILL
+        FT_BOOLEAN, 16, NULL, 0x0020, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_6,
       { "Is AirPlay (?)", "awdl.datastate.flags.6",
-        FT_BOOLEAN, 16, NULL, 0x40, NULL, HFILL
+        FT_BOOLEAN, 16, NULL, 0x0040, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_7,
-      { "Bit 6", "awdl.datastate.flags.7",
-        FT_BOOLEAN, 16, NULL, 0x80, NULL, HFILL
+      { "Bit 7", "awdl.datastate.flags.7",
+        FT_BOOLEAN, 16, NULL, 0x0080, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_8,
@@ -1975,7 +1981,7 @@ void proto_register_awdl(void)
     },
     { &hf_awdl_channelseq_channel_number,
       { "Channel Number", "awdl.channelseq.channel.number",
-        FT_UINT8, BASE_DEC, NULL, 0, NULL, HFILL
+        FT_UINT16, BASE_DEC, NULL, 0, NULL, HFILL
       }
     },
     { &hf_awdl_channelseq_channel_operating_class,
@@ -2215,7 +2221,7 @@ void proto_register_awdl(void)
       }
     },
     { &hf_awdl_serviceparams_enc_values,
-      { "Encoded Values", "awdl.serviceparams.valuess",
+      { "Encoded Values", "awdl.serviceparams.values",
         FT_NONE, BASE_NONE, NULL, 0,
         "Encodes up to 256 unique 1-byte values. Calculation adds offsets to values.", HFILL
       }
@@ -2237,122 +2243,122 @@ void proto_register_awdl(void)
      */
     { &hf_awdl_serviceparams_bitmask_0,
       { "0", "awdl.serviceparams.bitmask.0",
-        FT_BOOLEAN, 32, NULL, 0x1, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000001, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_1,
       { "1", "awdl.serviceparams.bitmask.1",
-        FT_BOOLEAN, 32, NULL, 0x2, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000002, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_2,
       { "2", "awdl.serviceparams.bitmask.2",
-        FT_BOOLEAN, 32, NULL, 0x4, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000004, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_3,
       { "3", "awdl.serviceparams.bitmask.3",
-        FT_BOOLEAN, 32, NULL, 0x8, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000008, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_4,
       { "4", "awdl.serviceparams.bitmask.4",
-        FT_BOOLEAN, 32, NULL, 0x10, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000010, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_5,
       { "5", "awdl.serviceparams.bitmask.5",
-        FT_BOOLEAN, 32, NULL, 0x20, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000020, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_6,
       { "6", "awdl.serviceparams.bitmask.6",
-        FT_BOOLEAN, 32, NULL, 0x40, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000040, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_7,
       { "7", "awdl.serviceparams.bitmask.7",
-        FT_BOOLEAN, 32, NULL, 0x80, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000080, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_8,
       { "8", "awdl.serviceparams.bitmask.8",
-        FT_BOOLEAN, 32, NULL, 0x0100, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000100, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_9,
       { "9", "awdl.serviceparams.bitmask.9",
-        FT_BOOLEAN, 32, NULL, 0x0200, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000200, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_10,
       { "10", "awdl.serviceparams.bitmask.10",
-        FT_BOOLEAN, 32, NULL, 0x0400, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000400, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_11,
       { "11", "awdl.serviceparams.bitmask.11",
-        FT_BOOLEAN, 32, NULL, 0x0800, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00000800, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_12,
       { "12", "awdl.serviceparams.bitmask.12",
-        FT_BOOLEAN, 32, NULL, 0x1000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00001000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_13,
       { "13", "awdl.serviceparams.bitmask.13",
-        FT_BOOLEAN, 32, NULL, 0x2000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00002000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_14,
       { "14", "awdl.serviceparams.bitmask.14",
-        FT_BOOLEAN, 32, NULL, 0x4000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00004000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_15,
       { "15", "awdl.serviceparams.bitmask.15",
-        FT_BOOLEAN, 32, NULL, 0x8000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00008000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_16,
       { "16", "awdl.serviceparams.bitmask.16",
-        FT_BOOLEAN, 32, NULL, 0x010000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00010000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_17,
       { "17", "awdl.serviceparams.bitmask.17",
-        FT_BOOLEAN, 32, NULL, 0x020000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00020000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_18,
       { "18", "awdl.serviceparams.bitmask.18",
-        FT_BOOLEAN, 32, NULL, 0x040000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00040000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_19,
       { "19", "awdl.serviceparams.bitmask.19",
-        FT_BOOLEAN, 32, NULL, 0x080000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00080000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_20,
       { "20", "awdl.serviceparams.bitmask.20",
-        FT_BOOLEAN, 32, NULL, 0x100000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00100000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_21,
       { "21", "awdl.serviceparams.bitmask.21",
-        FT_BOOLEAN, 32, NULL, 0x200000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00200000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_22,
       { "22", "awdl.serviceparams.bitmask.22",
-        FT_BOOLEAN, 32, NULL, 0x400000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00400000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_23,
       { "23", "awdl.serviceparams.bitmask.23",
-        FT_BOOLEAN, 32, NULL, 0x800000, NULL, HFILL
+        FT_BOOLEAN, 32, NULL, 0x00800000, NULL, HFILL
       }
     },
     { &hf_awdl_serviceparams_bitmask_24,
@@ -2630,8 +2636,10 @@ void proto_register_awdl(void)
   expert_module_t *expert_awdl;
 
   proto_awdl_data = proto_register_protocol("Apple Wireless Direct Link data frame", "AWDL data", "awdl_data");
+  awdl_data_handle = register_dissector("awdl_data", dissect_awdl_data, proto_awdl_data);
 
   proto_awdl = proto_register_protocol("Apple Wireless Direct Link action frame", "AWDL", "awdl");
+  awdl_action_handle = register_dissector("awdl", dissect_awdl_action, proto_awdl);
 
   expert_awdl = expert_register_protocol(proto_awdl);
   expert_register_field_array(expert_awdl, ei, array_length(ei));
@@ -2646,12 +2654,7 @@ void proto_register_awdl(void)
 }
 
 void proto_reg_handoff_awdl(void) {
-  static dissector_handle_t awdl_action_handle, awdl_data_handle;
-
-  awdl_action_handle = create_dissector_handle(dissect_awdl_action, proto_awdl);
   dissector_add_uint("wlan.action.vendor_specific", OUI_APPLE_AWDL, awdl_action_handle);
-
-  awdl_data_handle = create_dissector_handle(dissect_awdl_data, proto_awdl_data);
   dissector_add_uint("llc.apple_awdl_pid", 0x0800, awdl_data_handle);
 
   ethertype_subdissector_table = find_dissector_table("ethertype");

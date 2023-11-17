@@ -38,7 +38,7 @@
 #endif
 
 #include <wsutil/strtoi.h>
-#include <ui/version_info.h>
+#include <wsutil/version_info.h>
 
 #include "sharkd.h"
 
@@ -130,7 +130,7 @@ socket_init(char *path)
             return INVALID_SOCKET;
 
         s_in.sin_family = AF_INET;
-        ws_inet_pton4(path, &(s_in.sin_addr.s_addr));
+        ws_inet_pton4(path, (ws_in4_addr *)&(s_in.sin_addr.s_addr));
         s_in.sin_port = g_htons(port);
         *port_sep = ':';
 
@@ -274,7 +274,7 @@ sharkd_init(int argc, char **argv)
            In Daemon Mode, we will come through here twice; once when we start the Daemon and
            once again after we have forked the session process.  The second time through, the
            session process has already had its stdin and stdout wired up to the TCP or UNIX
-           socket and so in the orignal version of sharkd the session process is invoked with
+           socket and so in the original version of sharkd the session process is invoked with
            the command line: sharkd -
 
            When not using the classic command line, we want to spawn the session process with
@@ -312,6 +312,7 @@ sharkd_init(int argc, char **argv)
                     break;
 
                 case 'h':
+                    show_help_header("Daemon variant of Wireshark");
                     print_usage(stderr);
                     exit(0);
                     break;
@@ -423,7 +424,7 @@ sharkd_loop(int argc _U_, char* argv[])
             handles[i_handles++] = si.hStdError;
         }
 
-        exename = ws_strdup_printf("%s\\%s", get_progfile_dir(), "sharkd.exe");
+        exename = get_executable_path("sharkd");
 
         // we need to pass in all of the command line parameters except the -a parameter
         // passing in -a at this point would could a loop, each iteration of which would generate a new session process

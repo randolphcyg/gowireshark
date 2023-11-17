@@ -57,6 +57,8 @@ http://developer.apple.com/mac/library/documentation/Networking/Conceptual/AFP/I
 void proto_register_dsi(void);
 void proto_reg_handoff_dsi(void);
 
+static dissector_handle_t dsi_handle;
+
 static int proto_dsi = -1;
 static int hf_dsi_flags = -1;
 static int hf_dsi_command = -1;
@@ -434,11 +436,11 @@ proto_register_dsi(void)
 		    "Attention flag, don't reconnect bit", HFILL }},
 		{ &hf_dsi_attn_flag_time,
 		  { "Minutes",          "dsi.attn_flag.time",
-		    FT_UINT16, BASE_DEC, NULL, 0xfff,
+		    FT_UINT16, BASE_DEC, NULL, 0x0fff,
 		    "Number of minutes", HFILL }},
 		{ &hf_dsi_attn_flag_bitmap,
 		  { "Bitmap",          "dsi.attn_flag.bitmap",
-		    FT_UINT16, BASE_HEX, NULL, 0xfff,
+		    FT_UINT16, BASE_HEX, NULL, 0x0fff,
 		    "Attention extended bitmap", HFILL }},
 	};
 
@@ -460,14 +462,13 @@ proto_register_dsi(void)
 				       "Whether the DSI dissector should reassemble messages spanning multiple TCP segments."
 				       " To use this option, you must also enable \"Allow subdissectors to reassemble TCP streams\" in the TCP protocol settings.",
 				       &dsi_desegment);
+
+	dsi_handle = register_dissector("dsi", dissect_dsi, proto_dsi);
 }
 
 void
 proto_reg_handoff_dsi(void)
 {
-	dissector_handle_t dsi_handle;
-
-	dsi_handle = create_dissector_handle(dissect_dsi, proto_dsi);
 	dissector_add_uint_with_preference("tcp.port", TCP_PORT_DSI, dsi_handle);
 
 	afp_handle = find_dissector_add_dependency("afp", proto_dsi);

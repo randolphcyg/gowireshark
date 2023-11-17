@@ -10,12 +10,12 @@
  */
 
 #include <config.h>
+#define WS_LOG_DOMAIN  LOG_DOMAIN_MAIN
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
-#include <errno.h>
 #include <signal.h>
 
 #include <glib.h>
@@ -23,14 +23,14 @@
 #include <epan/exceptions.h>
 #include <epan/epan.h>
 
-#include <ui/clopts_common.h>
-#include <ui/cmdarg_err.h>
+#include <wsutil/clopts_common.h>
+#include <wsutil/cmdarg_err.h>
 #include <wsutil/filesystem.h>
 #include <wsutil/file_util.h>
 #include <wsutil/privileges.h>
 #include <wsutil/report_message.h>
 #include <wsutil/wslog.h>
-#include <ui/version_info.h>
+#include <wsutil/version_info.h>
 #include <wiretap/wtap_opttypes.h>
 
 #include <epan/decode_as.h>
@@ -45,7 +45,7 @@
 #include "ui/util.h"
 #include "ui/ws_ui_util.h"
 #include "ui/decode_as_utils.h"
-#include "ui/filter_files.h"
+#include "wsutil/filter_files.h"
 #include "ui/tap_export_pdu.h"
 #include "ui/failure_message.h"
 #include "wtap.h"
@@ -65,8 +65,8 @@
 
 #include "sharkd.h"
 
-#define INIT_FAILED 1
-#define EPAN_INIT_FAIL 2
+#define SHARKD_INIT_FAILED 1
+#define SHARKD_EPAN_INIT_FAIL 2
 
 capture_file cfile;
 
@@ -122,7 +122,9 @@ main(int argc, char *argv[])
     ws_log_init("sharkd", vcmdarg_err);
 
     /* Early logging command-line initialization. */
-    ws_log_parse_args(&argc, argv, vcmdarg_err, INIT_FAILED);
+    ws_log_parse_args(&argc, argv, vcmdarg_err, SHARKD_INIT_FAILED);
+
+    ws_noisy("Finished log init and parsing command line log arguments");
 
     /*
      * Get credential information for later use, and drop privileges
@@ -150,7 +152,7 @@ main(int argc, char *argv[])
     if (sharkd_init(argc, argv) < 0)
     {
         printf("cannot initialize sharkd\n");
-        ret = INIT_FAILED;
+        ret = SHARKD_INIT_FAILED;
         goto clean_exit;
     }
 
@@ -172,7 +174,7 @@ main(int argc, char *argv[])
        dissectors, and we must do it before we read the preferences, in
        case any dissectors register preferences. */
     if (!epan_init(NULL, NULL, TRUE)) {
-        ret = EPAN_INIT_FAIL;
+        ret = SHARKD_EPAN_INIT_FAIL;
         goto clean_exit;
     }
 
@@ -201,7 +203,7 @@ main(int argc, char *argv[])
 #ifdef HAVE_MAXMINDDB
     /* mmdbresolve is started from mmdb_resolve_start(), which is called from epan_load_settings via: read_prefs -> (...) uat_load_all -> maxmind_db_post_update_cb.
      * Need to stop it, otherwise all sharkd will have same mmdbresolve process, including pipe descriptors to read and write. */
-    uat_clear(uat_get_table_by_name("MaxMind Database Paths"));
+    uat_get_table_by_name("MaxMind Database Paths")->reset_cb();
 #endif
 
     ret = sharkd_loop(argc, argv);
@@ -217,22 +219,18 @@ clean_exit:
 static const nstime_t *
 sharkd_get_frame_ts(struct packet_provider_data *prov, guint32 frame_num)
 {
-    if (prov->ref && prov->ref->num == frame_num)
-        return &prov->ref->abs_ts;
-
-    if (prov->prev_dis && prov->prev_dis->num == frame_num)
-        return &prov->prev_dis->abs_ts;
-
-    if (prov->prev_cap && prov->prev_cap->num == frame_num)
-        return &prov->prev_cap->abs_ts;
-
-    if (prov->frames) {
-        frame_data *fd = frame_data_sequence_find(prov->frames, frame_num);
-
-        return (fd) ? &fd->abs_ts : NULL;
+    const frame_data *fd = NULL;
+    if (prov->ref && prov->ref->num == frame_num) {
+        fd = prov->ref;
+    } else if (prov->prev_dis && prov->prev_dis->num == frame_num) {
+        fd = prov->prev_dis;
+    } else if (prov->prev_cap && prov->prev_cap->num == frame_num) {
+        fd = prov->prev_cap;
+    } else if (prov->frames) {
+        fd = frame_data_sequence_find(prov->frames, frame_num);
     }
 
-    return NULL;
+    return (fd && fd->has_ts) ? &fd->abs_ts : NULL;
 }
 
 static epan_t *
@@ -306,14 +304,14 @@ process_packet(capture_file *cf, epan_dissect_t *edt,
         cf->provider.prev_cap = cf->provider.prev_dis = frame_data_sequence_add(cf->provider.frames, &fdlocal);
 
         /* If we're not doing dissection then there won't be any dependent frames.
-         * More importantly, edt.pi.dependent_frames won't be initialized because
+         * More importantly, edt.pi.fd.dependent_frames won't be initialized because
          * epan hasn't been initialized.
          * if we *are* doing dissection, then mark the dependent frames, but only
          * if a display filter was given and it matches this packet.
          */
         if (edt && cf->dfcode) {
-            if (dfilter_apply_edt(cf->dfcode, edt)) {
-                g_slist_foreach(edt->pi.dependent_frames, find_and_mark_frame_depended_upon, cf->provider.frames);
+            if (dfilter_apply_edt(cf->dfcode, edt) && edt->pi.fd->dependent_frames) {
+                g_hash_table_foreach(edt->pi.fd->dependent_frames, find_and_mark_frame_depended_upon, cf->provider.frames);
             }
         }
 
@@ -582,7 +580,7 @@ sharkd_retap(void)
     tap_flags = union_of_tap_listener_flags();
 
     /* If any tap listeners require the columns, construct them. */
-    cinfo = (tap_flags & TL_REQUIRES_COLUMNS) ? &cfile.cinfo : NULL;
+    cinfo = (tap_listeners_require_columns()) ? &cfile.cinfo : NULL;
 
     /*
      * Determine whether we need to create a protocol tree.
@@ -643,8 +641,7 @@ sharkd_filter(const char *dftext, guint8 **result)
 
     epan_dissect_t edt;
 
-    if (!dfilter_compile(dftext, &dfcode, &err_info)) {
-        g_free(err_info);
+    if (!dfilter_compile(dftext, &dfcode, NULL)) {
         return -1;
     }
 

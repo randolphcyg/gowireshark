@@ -16,7 +16,6 @@
 #include <epan/expert.h>
 #include <wsutil/inet_ipv6.h>
 #include <wsutil/utf8_entities.h>
-#include <wiretap/wtap.h>
 
 #include "packet-netmon.h"
 #include "packet-windows-common.h"
@@ -1619,7 +1618,7 @@ void proto_register_message_analyzer(void)
 			FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
 		},
 		{ &hf_etw_ndis_ipsec_offload_v1_net_buffer_list_info,
-			{ "IPsecOffloadV2NetBufferListInfo", "etw.ndis.ipsec_offload_v1_net_buffer_list_info",
+			{ "IPsecOffloadV1NetBufferListInfo", "etw.ndis.ipsec_offload_v1_net_buffer_list_info",
 			FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
 		},
 		{ &hf_etw_ndis_tcp_large_send_net_buffer_list_info,

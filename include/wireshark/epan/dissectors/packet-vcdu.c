@@ -104,7 +104,7 @@ static expert_field ei_vcdu_fhp_too_close_to_end_of_vcdu = EI_INIT;
 #define FHP_CONTINUATION      0x7ff
 
 #define LBP_MASK 0x3fff
-#define FHP_MASK 0x7ff
+#define FHP_MASK 0x07ff
 
 /* leap year macro */
 #ifndef Leap
@@ -170,7 +170,7 @@ static guint          num_channels_uat = 0;
 
 UAT_DEC_CB_DEF(uat_bitchannels, channel, uat_channel_t)
 
-static gboolean
+static bool
 vcdu_uat_data_update_cb(void *p, char **err) {
     uat_channel_t *ud = (uat_channel_t *)p;
 
@@ -546,7 +546,7 @@ proto_register_vcdu(void)
 #if 0
         { &hf_smex_spare,
           { "Spare",           "vcdu.smex.spare",
-            FT_UINT16, BASE_DEC, NULL, 0x03f,
+            FT_UINT16, BASE_DEC, NULL, 0x003f,
             "SMEX Spare", HFILL }
         },
 #endif
@@ -568,7 +568,7 @@ proto_register_vcdu(void)
         },
         { &hf_vcdu_seq,
           { "Sequence Count",           "vcdu.seq",
-            FT_UINT24, BASE_DEC, NULL, 0xffffff,
+            FT_UINT24, BASE_DEC, NULL, 0x0,
             "VCDU Sequence Count", HFILL }
         },
         { &hf_vcdu_replay,

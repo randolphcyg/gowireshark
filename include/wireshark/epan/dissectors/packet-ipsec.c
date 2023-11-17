@@ -119,6 +119,9 @@ static expert_field ei_esp_sequence_analysis_wrong_sequence_number = EI_INIT;
 
 static gint exported_pdu_tap = -1;
 
+static dissector_handle_t ipcomp_handle;
+static capture_dissector_handle_t ah_cap_handle;
+
 static dissector_handle_t data_handle;
 
 static dissector_table_t ip_dissector_table;
@@ -384,7 +387,7 @@ compute_ascii_key(gchar **ascii_key, const gchar *key, char **err)
 }
 
 
-static gboolean uat_esp_sa_record_update_cb(void* r, char** err) {
+static bool uat_esp_sa_record_update_cb(void* r, char** err) {
   uat_esp_sa_record_t* rec = (uat_esp_sa_record_t *)r;
 
   /* Compute keys & lengths once and for all */
@@ -2134,10 +2137,9 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 
           if (err)
           {
+            gcry_cipher_close(*cipher_hd);
             REPORT_DISSECTOR_BUG("<IPsec/ESP Dissector> Error in Algorithm %s, Mode %d, gcry_cipher_decrypt failed: %s\n",
                                  gcry_cipher_algo_name(crypt_algo_libgcrypt), crypt_mode_libgcrypt, gcry_strerror(err));
-            gcry_cipher_close(*cipher_hd);
-            decrypt_ok = FALSE;
           }
           else
           {
@@ -2373,7 +2375,7 @@ dissect_ipcomp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dissec
     /*
      * try to uncompress as if it were DEFLATEd.  With negotiated
      * CPIs, we don't know the algorithm beforehand; if we get it
-     * wrong, tvb_uncompress() returns NULL and nothing is displayed.
+     * wrong, tvb_child_uncompress() returns NULL and nothing is displayed.
      */
     decomp = tvb_child_uncompress(data, data, 0, tvb_captured_length(data));
     if (decomp) {
@@ -2531,12 +2533,10 @@ proto_register_ipsec(void)
   proto_ah = proto_register_protocol("Authentication Header", "AH", "ah");
   proto_register_field_array(proto_ah, hf_ah, array_length(hf_ah));
 
-  proto_esp = proto_register_protocol("Encapsulating Security Payload",
-                                      "ESP", "esp");
+  proto_esp = proto_register_protocol("Encapsulating Security Payload", "ESP", "esp");
   proto_register_field_array(proto_esp, hf_esp, array_length(hf_esp));
 
-  proto_ipcomp = proto_register_protocol("IP Payload Compression",
-                                         "IPComp", "ipcomp");
+  proto_ipcomp = proto_register_protocol("IP Payload Compression", "IPComp", "ipcomp");
   proto_register_field_array(proto_ipcomp, hf_ipcomp, array_length(hf_ipcomp));
 
   proto_register_subtree_array(ett, array_length(ett));
@@ -2601,26 +2601,26 @@ proto_register_ipsec(void)
   register_dissector("esp", dissect_esp, proto_esp);
   register_dissector("ah", dissect_ah, proto_ah);
 
+  ipcomp_handle = register_dissector("ipcomp", dissect_ipcomp, proto_ipcomp);
+  ah_cap_handle = register_capture_dissector("ah", capture_ah, proto_ah);
+
   register_decode_as(&ah_da);
 }
 
 void
 proto_reg_handoff_ipsec(void)
 {
-  dissector_handle_t esp_handle, ah_handle, ipcomp_handle;
-  capture_dissector_handle_t ah_cap_handle;
+  dissector_handle_t esp_handle, ah_handle;
 
   data_handle = find_dissector("data");
   ah_handle = find_dissector("ah");
   dissector_add_uint("ip.proto", IP_PROTO_AH, ah_handle);
   esp_handle = find_dissector("esp");
   dissector_add_uint("ip.proto", IP_PROTO_ESP, esp_handle);
-  ipcomp_handle = create_dissector_handle(dissect_ipcomp, proto_ipcomp);
   dissector_add_uint("ip.proto", IP_PROTO_IPCOMP, ipcomp_handle);
 
   ip_dissector_table = find_dissector_table("ip.proto");
 
-  ah_cap_handle = create_capture_dissector_handle(capture_ah, proto_ah);
   capture_dissector_add_uint("ip.proto", IP_PROTO_AH, ah_cap_handle);
 
   exported_pdu_tap = find_tap_id(EXPORT_PDU_TAP_NAME_LAYER_3);

@@ -31,6 +31,9 @@
 
 void proto_reg_handoff_edonkey(void);
 
+static dissector_handle_t edonkey_tcp_handle;
+static dissector_handle_t edonkey_udp_handle;
+
 static int proto_edonkey = -1;
 
 static int hf_edonkey_message  = -1;
@@ -3323,7 +3326,7 @@ void proto_register_edonkey(void) {
       { &hf_edonkey_end_offset_64, { "End Offset", "edonkey.end_offset64", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_edonkey_emule_file_length, { "File Length", "edonkey.emule.file_length", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_edonkey_overnet_peer_type, { "Peer Type", "edonkey.overnet_peer_type", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-      { &hf_edonkey_more_search_file_results, { "More", "edonkey.more_search_file_results", FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x0, NULL, HFILL }},
+      { &hf_edonkey_more_search_file_results, { "More", "edonkey.more_search_file_results", FT_BOOLEAN, 8, NULL, 0x0, NULL, HFILL }},
       { &hf_edonkey_file_size, { "File size", "edonkey.file_size", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_edonkey_large_file_size, { "Large file size", "edonkey.large_file_size", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_edonkey_number_of_users, { "Number of Users", "edonkey.number_of_users", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
@@ -3385,6 +3388,9 @@ void proto_register_edonkey(void) {
     expert_edonkey = expert_register_protocol(proto_edonkey);
     expert_register_field_array(expert_edonkey, ei, array_length(ei));
 
+    edonkey_tcp_handle = register_dissector("edonkey.tcp", dissect_edonkey_tcp, proto_edonkey);
+    edonkey_udp_handle = register_dissector("edonkey.udp", dissect_edonkey_udp, proto_edonkey);
+
     edonkey_module = prefs_register_protocol(proto_edonkey, NULL);
     prefs_register_bool_preference(edonkey_module, "desegment",
                                    "Reassemble eDonkey messages spanning multiple TCP segments",
@@ -3394,12 +3400,6 @@ void proto_register_edonkey(void) {
 }
 
 void proto_reg_handoff_edonkey(void) {
-
-    dissector_handle_t edonkey_tcp_handle;
-    dissector_handle_t edonkey_udp_handle;
-
-    edonkey_tcp_handle = create_dissector_handle(dissect_edonkey_tcp, proto_edonkey);
-    edonkey_udp_handle = create_dissector_handle(dissect_edonkey_udp, proto_edonkey);
 
     dissector_add_uint_range_with_preference("tcp.port", EDONKEY_TCP_PORT_RANGE, edonkey_tcp_handle);
     dissector_add_uint_range_with_preference("udp.port", EDONKEY_UDP_PORT_RANGE, edonkey_udp_handle);

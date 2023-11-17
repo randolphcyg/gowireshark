@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-h323.h                                                              */
-/* asn2wrs.py -p h323 -c ./h323.cnf -s ./packet-h323-template -D . -O ../.. RAS-PROTOCOL-TUNNEL.asn ROBUSTNESS-DATA.asn */
+/* asn2wrs.py -L -p h323 -c ./h323.cnf -s ./packet-h323-template -D . -O ../.. RAS-PROTOCOL-TUNNEL.asn ROBUSTNESS-DATA.asn */
 
-/* Input file: packet-h323-template.h */
-
-#line 1 "./asn1/h323/packet-h323-template.h"
 /* packet-h323.h
  * Routines for H.235 packet dissection
  * 2007  Tomas Kukosa

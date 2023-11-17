@@ -20,6 +20,7 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
+#include <epan/strutil.h>
 #include "packet-btrfcomm.h"
 #include "packet-btsdp.h"
 
@@ -1919,9 +1920,7 @@ dissect_at_command(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         if (i_at_cmd && i_at_cmd->name == NULL) {
             char *name;
 
-            name = (char *) wmem_alloc(wmem_packet_scope(), i_char + 2);
-            (void) g_strlcpy(name, at_command, i_char + 1);
-            name[i_char + 1] = '\0';
+            name = format_text(wmem_packet_scope(), at_command, i_char + 1);
             proto_item_append_text(command_item, ": %s (Unknown)", name);
             proto_item_append_text(pitem, " (Unknown - Non-Standard HFP Command)");
             expert_add_info(pinfo, pitem, &ei_non_mandatory_command);
@@ -2438,12 +2437,11 @@ dissect_bthfp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
             }
         }
     } else {
-        col_append_fstr(pinfo->cinfo, COL_INFO, "Fragment: %s",
-                tvb_format_text_wsp(wmem_packet_scope(), tvb, offset, tvb_captured_length_remaining(tvb, offset)));
         pitem = proto_tree_add_item(main_tree, hf_fragmented, tvb, 0, 0, ENC_NA);
         proto_item_set_generated(pitem);
-        proto_tree_add_item(main_tree, hf_fragment, tvb, offset,
-                tvb_captured_length_remaining(tvb, offset), ENC_ASCII | ENC_NA);
+        char *display_str;
+        proto_tree_add_item_ret_display_string(main_tree, hf_fragment, tvb, offset, -1, ENC_ASCII, pinfo->pool, &display_str);
+        col_append_fstr(pinfo->cinfo, COL_INFO, "Fragment: %s", display_str);
         offset = tvb_captured_length(tvb);
     }
 

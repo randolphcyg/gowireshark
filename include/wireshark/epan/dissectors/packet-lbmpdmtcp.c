@@ -141,7 +141,7 @@ static uat_field_t lbmpdm_tcp_tag_array[] =
 /*----------------------------------------------------------------------------*/
 /* UAT callback functions.                                                    */
 /*----------------------------------------------------------------------------*/
-static gboolean lbmpdm_tcp_tag_update_cb(void * record, char * * error_string)
+static bool lbmpdm_tcp_tag_update_cb(void * record, char * * error_string)
 {
     lbmpdm_tcp_tag_entry_t * tag = (lbmpdm_tcp_tag_entry_t *)record;
 
@@ -419,6 +419,8 @@ void proto_register_lbmpdm_tcp(void)
         "LBMPDM-TCP Tags",
         "A table to define LBMPDM-TCP tags",
         tag_uat);
+
+    lbmpdm_tcp_dissector_handle = register_dissector("lbmpdm_tcp", dissect_lbmpdm_tcp, lbmpdm_tcp_protocol_handle);
 }
 
 /* The registration hand-off routine */
@@ -428,7 +430,6 @@ void proto_reg_handoff_lbmpdm_tcp(void)
 
     if (!already_registered)
     {
-        lbmpdm_tcp_dissector_handle = create_dissector_handle(dissect_lbmpdm_tcp, lbmpdm_tcp_protocol_handle);
         dissector_add_for_decode_as_with_preference("tcp.port", lbmpdm_tcp_dissector_handle);
         heur_dissector_add("tcp", test_lbmpdm_tcp_packet, "LBMPDM over TCP", "lbmpdm_tcp", lbmpdm_tcp_protocol_handle, HEURISTIC_ENABLE);
     }

@@ -216,7 +216,7 @@ gcsna_message_GCSNA1xCircuitService(proto_item *item, tvbuff_t *tvb, packet_info
     proto_tree_add_item(tree, hf_gcsna_tlacEncapsulated, tvb, *offset, -1, ENC_NA);
 
     if (cdma2k_handle) {
-        new_tvb = tvb_new_subset_length_caplen(tvb, *offset, -1, -1);
+        new_tvb = tvb_new_subset_length(tvb, *offset, -1);
         call_dissector(cdma2k_handle, new_tvb, pinfo, mainTree);
     }
     /* set the offset to the end of the message */
@@ -431,13 +431,9 @@ proto_register_gcsna(void)
 
     expert_module_t* expert_gcsna;
 
-    proto_gcsna = proto_register_protocol(
-        "GCSNA",    /* name */
-        "GCSNA",    /* short name */
-        "gcsna"     /* abbrev */
-    );
+    proto_gcsna = proto_register_protocol("GCSNA", "GCSNA", "gcsna");
 
-    register_dissector("gcsna", dissect_gcsna, proto_gcsna);
+    gcsna_handle = register_dissector("gcsna", dissect_gcsna, proto_gcsna);
 
     proto_register_field_array(proto_gcsna, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
@@ -450,12 +446,5 @@ proto_register_gcsna(void)
 void
 proto_reg_handoff_gcsna(void)
 {
-    static int once = 1;
-
-    if (once == 1)
-    {
-        cdma2k_handle = find_dissector("cdma2k");
-        gcsna_handle = create_dissector_handle(dissect_gcsna, proto_gcsna);
-        once = 0;
-    }
+    cdma2k_handle = find_dissector("cdma2k");
 }

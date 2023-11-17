@@ -1,6 +1,6 @@
 /* packet-f1ap.c
  * Routines for E-UTRAN F1 Application Protocol (F1AP) packet dissection
- * Copyright 2018-2022, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2018-2023, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * References: 3GPP TS 38.473 V16.9.0 (2022-04)
+ * References: 3GPP TS 38.473 V17.5.0 (2023-06)
  */
 
 #include "config.h"
@@ -121,12 +121,34 @@ static gint ett_f1ap_SIB10_message = -1;
 static gint ett_f1ap_SIB12_message = -1;
 static gint ett_f1ap_SIB13_message = -1;
 static gint ett_f1ap_SIB14_message = -1;
+static gint ett_f1ap_SIB15_message = -1;
+static gint ett_f1ap_SIB17_message = -1;
+static gint ett_f1ap_SIB20_message = -1;
 static gint ett_f1ap_SL_PHY_MAC_RLC_Config = -1;
+static gint ett_f1ap_SL_RLC_ChannelToAddModList = -1;
 static gint ett_f1ap_SL_ConfigDedicatedEUTRA_Info = -1;
 static gint ett_f1ap_TDD_UL_DLConfigCommonNR = -1;
 static gint ett_f1ap_UEAssistanceInformationEUTRA = -1;
 static gint ett_f1ap_PosAssistance_Information = -1;
 static gint ett_f1ap_LocationMeasurementInformation = -1;
+static gint ett_f1ap_MUSIM_GapConfig = -1;
+static gint ett_f1ap_SDT_MAC_PHY_CG_Config = -1;
+static gint ett_f1ap_SDTRLCBearerConfiguration = -1;
+static gint ett_f1ap_MBSInterestIndication = -1;
+static gint ett_f1ap_NeedForGapsInfoNR = -1;
+static gint ett_f1ap_NeedForGapNCSGInfoNR = -1;
+static gint ett_f1ap_NeedForGapNCSGInfoEUTRA = -1;
+static gint ett_f1ap_MBS_Broadcast_NeighbourCellList = -1;
+static gint ett_f1ap_mRB_PDCP_Config_Broadcast = -1;
+static gint ett_f1ap_posMeasGapPreConfigToAddModList = -1;
+static gint ett_f1ap_posMeasGapPreConfigToReleaseList = -1;
+static gint ett_f1ap_SidelinkConfigurationContainer = -1;
+static gint ett_f1ap_SRSPosRRCInactiveConfig = -1;
+static gint ett_f1ap_successfulHOReportContainer = -1;
+static gint ett_f1ap_UL_GapFR2_Config = -1;
+static gint ett_f1ap_ConfigRestrictInfoDAPS = -1;
+static gint ett_f1ap_UplinkTxDirectCurrentTwoCarrierListInfo = -1;
+static gint ett_f1ap_Ncd_SSB_RedCapInitialBWP_SDT = -1;
 #include "packet-f1ap-ett.c"
 
 enum{
@@ -150,107 +172,143 @@ struct f1ap_tap_t {
     gint f1ap_mtype;
 };
 
-#define MTYPE_RESET                                       1
-#define MTYPE_RESET_ACK                                   2
-#define MTYPE_F1_SETUP_REQUEST                            3
-#define MTYPE_F1_SETUP_RESPONSE                           4
-#define MTYPE_F1_SETUP_FAILURE                            5
-#define MTYPE_GNB_DU_CONFIGURATION_UPDATE                 6
-#define MTYPE_GNB_DU_CONFIGURATION_UPDATE_ACKNOWLEDGE     7
-#define MTYPE_GNB_DU_CONFIGURATION_UPDATE_FAILURE         8
-#define MTYPE_GNB_CU_CONFIGURATION_UPDATE                 9
-#define MTYPE_GNB_CU_CONFIGURATION_UPDATE_ACKNOWLEDGE     10
-#define MTYPE_GNB_CU_CONFIGURATION_UPDATE_FAILURE         11
-#define MTYPE_UE_CONTEXT_SETUP_REQUEST                    12
-#define MTYPE_UE_CONTEXT_SETUP_RESPONSE                   13
-#define MTYPE_UE_CONTEXT_SETUP_FAILURE                    14
-#define MTYPE_UE_CONTEXT_RELEASE_COMMAND                  15
-#define MTYPE_UE_CONTEXT_RELEASE_COMPLETE                 16
-#define MTYPE_UE_CONTEXT_MODIFICATION_REQUEST             17
-#define MTYPE_UE_CONTEXT_MODIFICATION_RESPONSE            18
-#define MTYPE_UE_CONTEXT_MODIFICATION_FAILURE             19
-#define MTYPE_UE_CONTEXT_MODIFICATION_REQUIRED            20
-#define MTYPE_UE_CONTEXT_MODIFICATION_CONFIRM             21
-#define MTYPE_UE_CONTEXT_MODIFICATION_REFUSE              22
-#define MTYPE_WRITE_REPLACE_WARNING_REQUEST               23
-#define MTYPE_WRITE_REPLACE_WARNING_RESPONSE              24
-#define MTYPE_PWS_CANCEL_REQUEST                          25
-#define MTYPE_PWS_CANCEL_RESPONSE                         25
-#define MTYPE_ERROR_INDICATION                            26
-#define MTYPE_UE_CONTEXT_RELEASE_REQUEST                  27
-#define MTYPE_INITIAL_UL_RRC_MESSAGE_TRANSFER             28
-#define MTYPE_DL_RRC_MESSAGE_TRANSFER                     29
-#define MTYPE_UL_RRC_MESSAGE_TRANSFER                     30
-#define MTYPE_UE_INACTIVITY_NOTIFICATION                  31
-#define MTYPE_GNB_DU_RESOURCE_COORDINATION_REQUEST        32
-#define MTYPE_GNB_DU_RESOURCE_COORDINATION_RESPONSE       33
-#define MTYPE_PRIVATE_MESSAGE                             34
-#define MTYPE_SYSTEM_INFORMATION_DELIVERY_COMMAND         35
-#define MTYPE_PAGING                                      36
-#define MTYPE_NOTIFY                                      37
-#define MTYPE_NETWORK_ACCESS_RATE_REDUCTION               38
-#define MTYPE_PWS_RESTART_INDICATION                      39
-#define MTYPE_PWS_FAILURE_INDICATION                      40
-#define MTYPE_GNB_DU_STATUS_INDICATION                    41
-#define MTYPE_RRC_DELIVERY_REPORT                         42
-#define MTYPE_F1_REMOVAL_REQUEST                          43
-#define MTYPE_F1_REMOVAL_RESPONSE                         44
-#define MTYPE_F1_REMOVAL_FAILURE                          45
-#define MTYPE_TRACE_START                                 46
-#define MTYPE_DEACTIVATE_TRACE                            47
-#define MTYPE_DU_CU_RADIO_INFORMATION_TRANSFER            48
-#define MTYPE_CU_DU_RADIO_INFORMATION_TRANSFER            49
-#define MTYPE_BAP_MAPPING_CONFIGURATION                   50
-#define MTYPE_BAP_MAPPING_CONFIGURATION_ACKNOWLEDGE       51
-#define MTYPE_BAP_MAPPING_CONFIGURATION_FAILURE           52
-#define MTYPE_GNB_DU_RESOURCE_CONFIGURATION               53
-#define MTYPE_GNB_DU_RESOURCE_CONFIGURATION_ACKNOWLEDGE   54
-#define MTYPE_GNB_DU_RESOURCE_CONFIGURATION_FAILURE       55
-#define MTYPE_IAB_TNL_ADDRESS_REQUEST                     56
-#define MTYPE_IAB_TNL_ADDRESS_RESPONSE                    57
-#define MTYPE_IAB_TNL_ADDRESS_FAILURE                     58
-#define MTYPE_IAB_UP_CONFIGURATION_UPDATE_REQUEST         59
-#define MTYPE_IAB_UP_CONFIGURATION_UPDATE_RESPONSE        60
-#define MTYPE_IAB_UP_CONFIGURATION_UPDATE_FAILURE         61
-#define MTYPE_RESOURCE_STATUS_REQUEST                     62
-#define MTYPE_RESOURCE_STATUS_RESPONSE                    63
-#define MTYPE_RESOURCE_STATUS_FAILURE                     64
-#define MTYPE_RESOURCE_STATUS_UPDATE                      65
-#define MTYPE_ACCESS_AND_MOBILITY_INDICATION              66
-#define MTYPE_REFERENCE_TIME_INFORMATION_REPORTING_CONTROL 67
-#define MTYPE_REFERENCE_TIME_INFORMATION_REPORT           68
-#define MTYPE_ACCESS_SUCCESS                              69
-#define MTYPE_CELL_TRAFFIC_TRACE                          70
-#define MTYPE_POSITIONING_ASSISTANCE_INFORMATION_CONTROL  71
-#define MTYPE_POSITIONING_ASSISTANCE_INFORMATION_FEEDBACK 72
-#define MTYPE_POSITIONING_MEASUREMENT_REQUEST             73
-#define MTYPE_POSITIONING_MEASUREMENT_RESPONSE            74
-#define MTYPE_POSITIONING_MEASUREMENT_FAILURE             75
-#define MTYPE_POSITIONING_MEASUREMENT_REPORT              76
-#define MTYPE_POSITIONING_MEASUREMENT_ABORT               77
-#define MTYPE_POSITIONING_MEASUREMENT_FAILURE_INDICATION  78
-#define MTYPE_POSITIONING_MEASUREMENT_UPDATE              79
-#define MTYPE_TRP_INFORMATION_REQUEST                     80
-#define MTYPE_TRP_INFORMATION_RESPONSE                    81
-#define MTYPE_TRP_INFORMATION_FAILURE                     82
-#define MTYPE_POSITIONING_INFORMATION_REQUEST             83
-#define MTYPE_POSITIONING_INFORMATION_RESPONSE            84
-#define MTYPE_POSITIONING_INFORMATION_FAILURE             85
-#define MTYPE_POSITIONING_ACTIVATION_REQUEST              86
-#define MTYPE_POSITIONING_ACTIVATION_RESPONSE             87
-#define MTYPE_POSITIONING_ACTIVATION_FAILURE              88
-#define MTYPE_POSITIONING_DEACTIVATION                    89
-#define MTYPE_E_CID_MEASUREMENT_INITIATION_REQUEST        90
-#define MTYPE_E_CID_MEASUREMENT_INITIATION_RESPONSE       91
-#define MTYPE_E_CID_MEASUREMENT_INITIATION_FAILURE        92
-#define MTYPE_E_CID_MEASUREMENT_FAILURE_INDICATION        93
-#define MTYPE_E_CID_MEASUREMENT_REPORT                    94
-#define MTYPE_E_CID_MEASUREMENT_TERMINATION_COMMAND       95
-#define MTYPE_POSITIONING_INFORMATION_UPDATE              96
+#define MTYPE_RESET                                        1
+#define MTYPE_RESET_ACK                                    2
+#define MTYPE_F1_SETUP_REQUEST                             3
+#define MTYPE_F1_SETUP_RESPONSE                            4
+#define MTYPE_F1_SETUP_FAILURE                             5
+#define MTYPE_GNB_DU_CONFIGURATION_UPDATE                  6
+#define MTYPE_GNB_DU_CONFIGURATION_UPDATE_ACKNOWLEDGE      7
+#define MTYPE_GNB_DU_CONFIGURATION_UPDATE_FAILURE          8
+#define MTYPE_GNB_CU_CONFIGURATION_UPDATE                  9
+#define MTYPE_GNB_CU_CONFIGURATION_UPDATE_ACKNOWLEDGE      10
+#define MTYPE_GNB_CU_CONFIGURATION_UPDATE_FAILURE          11
+#define MTYPE_UE_CONTEXT_SETUP_REQUEST                     12
+#define MTYPE_UE_CONTEXT_SETUP_RESPONSE                    13
+#define MTYPE_UE_CONTEXT_SETUP_FAILURE                     14
+#define MTYPE_UE_CONTEXT_RELEASE_COMMAND                   15
+#define MTYPE_UE_CONTEXT_RELEASE_COMPLETE                  16
+#define MTYPE_UE_CONTEXT_MODIFICATION_REQUEST              17
+#define MTYPE_UE_CONTEXT_MODIFICATION_RESPONSE             18
+#define MTYPE_UE_CONTEXT_MODIFICATION_FAILURE              19
+#define MTYPE_UE_CONTEXT_MODIFICATION_REQUIRED             20
+#define MTYPE_UE_CONTEXT_MODIFICATION_CONFIRM              21
+#define MTYPE_UE_CONTEXT_MODIFICATION_REFUSE               22
+#define MTYPE_WRITE_REPLACE_WARNING_REQUEST                23
+#define MTYPE_WRITE_REPLACE_WARNING_RESPONSE               24
+#define MTYPE_PWS_CANCEL_REQUEST                           25
+#define MTYPE_PWS_CANCEL_RESPONSE                          26
+#define MTYPE_ERROR_INDICATION                             27
+#define MTYPE_UE_CONTEXT_RELEASE_REQUEST                   28
+#define MTYPE_INITIAL_UL_RRC_MESSAGE_TRANSFER              29
+#define MTYPE_DL_RRC_MESSAGE_TRANSFER                      30
+#define MTYPE_UL_RRC_MESSAGE_TRANSFER                      31
+#define MTYPE_UE_INACTIVITY_NOTIFICATION                   32
+#define MTYPE_GNB_DU_RESOURCE_COORDINATION_REQUEST         33
+#define MTYPE_GNB_DU_RESOURCE_COORDINATION_RESPONSE        34
+#define MTYPE_PRIVATE_MESSAGE                              35
+#define MTYPE_SYSTEM_INFORMATION_DELIVERY_COMMAND          36
+#define MTYPE_PAGING                                       37
+#define MTYPE_NOTIFY                                       38
+#define MTYPE_NETWORK_ACCESS_RATE_REDUCTION                39
+#define MTYPE_PWS_RESTART_INDICATION                       40
+#define MTYPE_PWS_FAILURE_INDICATION                       41
+#define MTYPE_GNB_DU_STATUS_INDICATION                     42
+#define MTYPE_RRC_DELIVERY_REPORT                          43
+#define MTYPE_F1_REMOVAL_REQUEST                           44
+#define MTYPE_F1_REMOVAL_RESPONSE                          45
+#define MTYPE_F1_REMOVAL_FAILURE                           46
+#define MTYPE_TRACE_START                                  47
+#define MTYPE_DEACTIVATE_TRACE                             48
+#define MTYPE_DU_CU_RADIO_INFORMATION_TRANSFER             49
+#define MTYPE_CU_DU_RADIO_INFORMATION_TRANSFER             50
+#define MTYPE_BAP_MAPPING_CONFIGURATION                    51
+#define MTYPE_BAP_MAPPING_CONFIGURATION_ACKNOWLEDGE        52
+#define MTYPE_BAP_MAPPING_CONFIGURATION_FAILURE            53
+#define MTYPE_GNB_DU_RESOURCE_CONFIGURATION                54
+#define MTYPE_GNB_DU_RESOURCE_CONFIGURATION_ACKNOWLEDGE    55
+#define MTYPE_GNB_DU_RESOURCE_CONFIGURATION_FAILURE        56
+#define MTYPE_IAB_TNL_ADDRESS_REQUEST                      57
+#define MTYPE_IAB_TNL_ADDRESS_RESPONSE                     58
+#define MTYPE_IAB_TNL_ADDRESS_FAILURE                      59
+#define MTYPE_IAB_UP_CONFIGURATION_UPDATE_REQUEST          60
+#define MTYPE_IAB_UP_CONFIGURATION_UPDATE_RESPONSE         61
+#define MTYPE_IAB_UP_CONFIGURATION_UPDATE_FAILURE          62
+#define MTYPE_RESOURCE_STATUS_REQUEST                      63
+#define MTYPE_RESOURCE_STATUS_RESPONSE                     64
+#define MTYPE_RESOURCE_STATUS_FAILURE                      65
+#define MTYPE_RESOURCE_STATUS_UPDATE                       66
+#define MTYPE_ACCESS_AND_MOBILITY_INDICATION               67
+#define MTYPE_REFERENCE_TIME_INFORMATION_REPORTING_CONTROL 68
+#define MTYPE_REFERENCE_TIME_INFORMATION_REPORT            69
+#define MTYPE_ACCESS_SUCCESS                               70
+#define MTYPE_CELL_TRAFFIC_TRACE                           71
+#define MTYPE_POSITIONING_ASSISTANCE_INFORMATION_CONTROL   72
+#define MTYPE_POSITIONING_ASSISTANCE_INFORMATION_FEEDBACK  73
+#define MTYPE_POSITIONING_MEASUREMENT_REQUEST              74
+#define MTYPE_POSITIONING_MEASUREMENT_RESPONSE             75
+#define MTYPE_POSITIONING_MEASUREMENT_FAILURE              76
+#define MTYPE_POSITIONING_MEASUREMENT_REPORT               77
+#define MTYPE_POSITIONING_MEASUREMENT_ABORT                78
+#define MTYPE_POSITIONING_MEASUREMENT_FAILURE_INDICATION   79
+#define MTYPE_POSITIONING_MEASUREMENT_UPDATE               80
+#define MTYPE_TRP_INFORMATION_REQUEST                      81
+#define MTYPE_TRP_INFORMATION_RESPONSE                     82
+#define MTYPE_TRP_INFORMATION_FAILURE                      83
+#define MTYPE_POSITIONING_INFORMATION_REQUEST              84
+#define MTYPE_POSITIONING_INFORMATION_RESPONSE             85
+#define MTYPE_POSITIONING_INFORMATION_FAILURE              86
+#define MTYPE_POSITIONING_ACTIVATION_REQUEST               87
+#define MTYPE_POSITIONING_ACTIVATION_RESPONSE              88
+#define MTYPE_POSITIONING_ACTIVATION_FAILURE               89
+#define MTYPE_POSITIONING_DEACTIVATION                     90
+#define MTYPE_E_CID_MEASUREMENT_INITIATION_REQUEST         91
+#define MTYPE_E_CID_MEASUREMENT_INITIATION_RESPONSE        92
+#define MTYPE_E_CID_MEASUREMENT_INITIATION_FAILURE         93
+#define MTYPE_E_CID_MEASUREMENT_FAILURE_INDICATION         94
+#define MTYPE_E_CID_MEASUREMENT_REPORT                     95
+#define MTYPE_E_CID_MEASUREMENT_TERMINATION_COMMAND        96
+#define MTYPE_POSITIONING_INFORMATION_UPDATE               97
+#define MTYPE_BROADCAST_CONTEXT_SETUP_REQUEST              98
+#define MTYPE_BROADCAST_CONTEXT_SETUP_RESPONSE             99
+#define MTYPE_BROADCAST_CONTEXT_SETUP_FAILURE              100
+#define MTYPE_BROADCAST_CONTEXT_RELEASE_COMMAND            101
+#define MTYPE_BROADCAST_CONTEXT_RELEASE_COMPLETE           102
+#define MTYPE_BROADCAST_CONTEXT_RELEASE_REQUEST            103
+#define MTYPE_BROADCAST_CONTEXT_MODIFICATION_REQUEST       104
+#define MTYPE_BROADCAST_CONTEXT_MODIFICATION_RESPONSE      105
+#define MTYPE_BROADCAST_CONTEXT_MODIFICATION_FAILURE       106
+#define MTYPE_MULTICAST_GROUP_PAGING                       107
+#define MTYPE_MULTICAST_CONTEXT_SETUP_REQUEST              108
+#define MTYPE_MULTICAST_CONTEXT_SETUP_RESPONSE             109
+#define MTYPE_MULTICAST_CONTEXT_SETUP_FAILURE              110
+#define MTYPE_MULTICAST_CONTEXT_RELEASE_COMMAND            111
+#define MTYPE_MULTICAST_CONTEXT_RELEASE_COMPLETE           112
+#define MTYPE_MULTICAST_CONTEXT_RELEASE_REQUEST            113
+#define MTYPE_MULTICAST_CONTEXT_MODIFICATION_REQUEST       114
+#define MTYPE_MULTICAST_CONTEXT_MODIFICATION_RESPONSE      115
+#define MTYPE_MULTICAST_CONTEXT_MODIFICATION_FAILURE       116
+#define MTYPE_MULTICAST_DISTRIBUTION_SETUP_REQUEST         117
+#define MTYPE_MULTICAST_DISTRIBUTION_SETUP_RESPONSE        118
+#define MTYPE_MULTICAST_DISTRIBUTION_SETUP_FAILURE         119
+#define MTYPE_MULTICAST_DISTRIBUTION_RELEASE_COMMAND       120
+#define MTYPE_MULTICAST_DISTRIBUTION_RELEASE_COMPLETE      121
+#define MTYPE_PDCP_MEASUREMENT_INITIATION_REQUEST          122
+#define MTYPE_PDCP_MEASUREMENT_INITIATION_RESPONSE         123
+#define MTYPE_PDCP_MEASUREMENT_INITIATION_FAILURE          124
+#define MTYPE_PDCP_MEASUREMENT_REPORT                      125
+#define MTYPE_PDCP_MEASUREMENT_TERMINATION_COMMAND         126
+#define MTYPE_PDCP_MEASUREMENT_FAILURE_INDICATION          127
+#define MTYPE_PRS_CONFIGURATION_REQUEST                    128
+#define MTYPE_PRS_CONFIGURATION_RESPONSE                   129
+#define MTYPE_PRS_CONFIGURATION_FAILURE                    130
+#define MTYPE_MEASUREMENT_PRECONFIGURATION_REQUIRED        131
+#define MTYPE_MEASUREMENT_PRECONFIGURATION_CONFIRM         132
+#define MTYPE_MEASUREMENT_PRECONFIGURATION_REFUSE          133
+#define MTYPE_MEASUREMENT_ACTIVATION                       134
+#define MTYPE_QOE_INFORMATION_TRANSFER                     135
+#define MTYPE_POS_SYSTEM_INFORMATION_DELIVERY_COMMAND      136
 
-
-
-/* Value Strings. TODO: ext? */
 static const value_string mtype_names[] = {
     { MTYPE_RESET,     "Reset" },
     { MTYPE_RESET_ACK, "ResetAcknowledge" },
@@ -349,9 +407,48 @@ static const value_string mtype_names[] = {
     { MTYPE_E_CID_MEASUREMENT_REPORT,              "E-CIDMeasurementReport" },
     { MTYPE_E_CID_MEASUREMENT_TERMINATION_COMMAND, "E-CIDMeasurementTerminationCommand" },
     { MTYPE_POSITIONING_INFORMATION_UPDATE, "PositioningInformationUpdate" },
+    { MTYPE_BROADCAST_CONTEXT_SETUP_REQUEST, "BroadcastContextSetupRequest" },
+    { MTYPE_BROADCAST_CONTEXT_SETUP_RESPONSE, "BroadcastContextSetupResponse" },
+    { MTYPE_BROADCAST_CONTEXT_SETUP_FAILURE, "BroadcastContextSetupFailure" },
+    { MTYPE_BROADCAST_CONTEXT_RELEASE_COMMAND, "BroadcastContextReleaseCommand" },
+    { MTYPE_BROADCAST_CONTEXT_RELEASE_COMPLETE, "BroadcastContextReleaseComplete" },
+    { MTYPE_BROADCAST_CONTEXT_RELEASE_REQUEST, "BroadcastContextReleaseRequest" },
+    { MTYPE_BROADCAST_CONTEXT_MODIFICATION_REQUEST, "BroadcastContextModificationRequest" },
+    { MTYPE_BROADCAST_CONTEXT_MODIFICATION_RESPONSE, "BroadcastContextModificationResponse" },
+    { MTYPE_BROADCAST_CONTEXT_MODIFICATION_FAILURE, "BroadcastContextModificationFailure" },
+    { MTYPE_MULTICAST_GROUP_PAGING, "MulticastGroupPaging" },
+    { MTYPE_MULTICAST_CONTEXT_SETUP_REQUEST, "MulticastContextSetupRequest" },
+    { MTYPE_MULTICAST_CONTEXT_SETUP_RESPONSE, "MulticastContextSetupResponse" },
+    { MTYPE_MULTICAST_CONTEXT_SETUP_FAILURE, "MulticastContextSetupFailure" },
+    { MTYPE_MULTICAST_CONTEXT_RELEASE_COMMAND, "MulticastContextReleaseCommand" },
+    { MTYPE_MULTICAST_CONTEXT_RELEASE_COMPLETE, "MulticastContextReleaseComplete" },
+    { MTYPE_MULTICAST_CONTEXT_RELEASE_REQUEST, "MulticastContextReleaseRequest" },
+    { MTYPE_MULTICAST_CONTEXT_MODIFICATION_REQUEST, "MulticastContextModificationRequest" },
+    { MTYPE_MULTICAST_CONTEXT_MODIFICATION_RESPONSE, "MulticastContextModificationResponse" },
+    { MTYPE_MULTICAST_CONTEXT_MODIFICATION_FAILURE, "MulticastContextModificationFailure" },
+    { MTYPE_MULTICAST_DISTRIBUTION_SETUP_REQUEST, "MulticastDistributionSetupRequest" },
+    { MTYPE_MULTICAST_DISTRIBUTION_SETUP_RESPONSE, "MulticastDistributionSetupResponse" },
+    { MTYPE_MULTICAST_DISTRIBUTION_SETUP_FAILURE, "MulticastDistributionSetupFailure" },
+    { MTYPE_MULTICAST_DISTRIBUTION_RELEASE_COMMAND, "MulticastDistributionReleaseCommand" },
+    { MTYPE_MULTICAST_DISTRIBUTION_RELEASE_COMPLETE, "MulticastDistributionReleaseComplete" },
+    { MTYPE_PDCP_MEASUREMENT_INITIATION_REQUEST, "PDCMeasurementInitiationRequest" },
+    { MTYPE_PDCP_MEASUREMENT_INITIATION_RESPONSE, "PDCMeasurementInitiationResponse" },
+    { MTYPE_PDCP_MEASUREMENT_INITIATION_FAILURE, "PDCMeasurementInitiationFailure" },
+    { MTYPE_PDCP_MEASUREMENT_REPORT, "PDCMeasurementReport" },
+    { MTYPE_PDCP_MEASUREMENT_TERMINATION_COMMAND, "PDCMeasurementTerminationCommand" },
+    { MTYPE_PDCP_MEASUREMENT_FAILURE_INDICATION, "PDCMeasurementFailureIndication" },
+    { MTYPE_PRS_CONFIGURATION_REQUEST, "PRSConfigurationRequest" },
+    { MTYPE_PRS_CONFIGURATION_RESPONSE, "PRSConfigurationResponse" },
+    { MTYPE_PRS_CONFIGURATION_FAILURE, "PRSConfigurationFailure" },
+    { MTYPE_MEASUREMENT_PRECONFIGURATION_REQUIRED, "MeasurementPreconfigurationRequired" },
+    { MTYPE_MEASUREMENT_PRECONFIGURATION_CONFIRM, "MeasurementPreconfigurationConfirm" },
+    { MTYPE_MEASUREMENT_PRECONFIGURATION_REFUSE, "MeasurementPreconfigurationRefuse" },
+    { MTYPE_MEASUREMENT_ACTIVATION, "MeasurementActivation" },
+    { MTYPE_QOE_INFORMATION_TRANSFER, "QoEInformationTransfer" },
+    { MTYPE_POS_SYSTEM_INFORMATION_DELIVERY_COMMAND, "PosSystemInformationDeliveryCommand" },
     { 0,  NULL }
 };
-
+static value_string_ext mtype_names_ext = VALUE_STRING_EXT_INIT(mtype_names);
 
 
 typedef struct {
@@ -404,7 +501,7 @@ static proto_tree *top_tree = NULL;
 
 static void set_message_label(asn1_ctx_t *actx, int type)
 {
-  const char *label = val_to_str_const(type, mtype_names, "Unknown");
+  const char *label = val_to_str_ext_const(type, &mtype_names_ext, "Unknown");
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, label);
   /* N.B. would like to be able to use actx->subTree.top_tree, but not easy to set.. */
   proto_item_append_text(top_tree, " (%s)", label);
@@ -527,8 +624,8 @@ f1ap_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_,
 
     tick_stat_node(st, st_str_packets, 0, FALSE);
     stats_tree_tick_pivot(st, st_node_packet_types,
-                          val_to_str(pi->f1ap_mtype, mtype_names,
-                                     "Unknown packet type (%d)"));
+                          val_to_str_ext(pi->f1ap_mtype, &mtype_names_ext,
+                                         "Unknown packet type (%d)"));
     return TAP_PACKET_REDRAW;
 }
 
@@ -728,12 +825,34 @@ void proto_register_f1ap(void) {
     &ett_f1ap_SIB12_message,
     &ett_f1ap_SIB13_message,
     &ett_f1ap_SIB14_message,
+    &ett_f1ap_SIB15_message,
+    &ett_f1ap_SIB17_message,
+    &ett_f1ap_SIB20_message,
     &ett_f1ap_SL_PHY_MAC_RLC_Config,
+    &ett_f1ap_SL_RLC_ChannelToAddModList,
     &ett_f1ap_SL_ConfigDedicatedEUTRA_Info,
     &ett_f1ap_TDD_UL_DLConfigCommonNR,
     &ett_f1ap_UEAssistanceInformationEUTRA,
     &ett_f1ap_PosAssistance_Information,
     &ett_f1ap_LocationMeasurementInformation,
+    &ett_f1ap_MUSIM_GapConfig,
+    &ett_f1ap_SDT_MAC_PHY_CG_Config,
+    &ett_f1ap_SDTRLCBearerConfiguration,
+    &ett_f1ap_MBSInterestIndication,
+    &ett_f1ap_NeedForGapsInfoNR,
+    &ett_f1ap_NeedForGapNCSGInfoNR,
+    &ett_f1ap_NeedForGapNCSGInfoEUTRA,
+    &ett_f1ap_MBS_Broadcast_NeighbourCellList,
+    &ett_f1ap_mRB_PDCP_Config_Broadcast,
+    &ett_f1ap_posMeasGapPreConfigToAddModList,
+    &ett_f1ap_posMeasGapPreConfigToReleaseList,
+    &ett_f1ap_SidelinkConfigurationContainer,
+    &ett_f1ap_SRSPosRRCInactiveConfig,
+    &ett_f1ap_successfulHOReportContainer,
+    &ett_f1ap_UL_GapFR2_Config,
+    &ett_f1ap_ConfigRestrictInfoDAPS,
+    &ett_f1ap_UplinkTxDirectCurrentTwoCarrierListInfo,
+    &ett_f1ap_Ncd_SSB_RedCapInitialBWP_SDT,
 #include "packet-f1ap-ettarr.c"
   };
 

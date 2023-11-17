@@ -90,6 +90,7 @@ bitstream_copyraw_advance(bitstream_t *b, guint8 *dest, guint nbytes)
 		return FALSE;
 
 	b->offset += nbytes;
+	b->remainingBits -= (nbytes * 8);
 	return TRUE;
 }
 
@@ -256,6 +257,8 @@ zgfx_write_raw(zgfx_context_t *zgfx, bitstream_t *b, guint32 count)
 	if (!bitstream_copyraw(b, &(zgfx->outputSegment[zgfx->outputCount]), count))
 		return FALSE;
 
+	zgfx->outputCount += count;
+
 	/* then update the history buffer */
 	rest = (zgfx->historyBufferSize - zgfx->historyIndex);
 	tocopy = count;
@@ -336,6 +339,9 @@ rdp8_decompress_segment(zgfx_context_t *zgfx, tvbuff_t *tvb)
 	if (!(flags & ZGX_PACKET_COMPRESSED)) {
 		tvbuff_t *raw = tvb_new_subset_remaining(tvb, 1);
 		zgfx_write_history_buffer_tvb(zgfx, raw, len);
+
+		tvb_memcpy(tvb, zgfx->outputSegment, 1, len);
+		zgfx->outputCount += len;
 		return TRUE;
 	}
 
@@ -437,6 +443,9 @@ rdp8_decompress_segment(zgfx_context_t *zgfx, tvbuff_t *tvb)
 					if (!ok)
 						return FALSE;
 				}
+
+				if (count > sizeof(zgfx->outputSegment) - zgfx->outputCount)
+					return FALSE;
 
 				if (!zgfx_write_from_history(zgfx, distance, count))
 					return FALSE;

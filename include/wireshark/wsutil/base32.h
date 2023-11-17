@@ -10,7 +10,7 @@
 #ifndef __BASE32_H__
 #define __BASE32_H__
 
-#include "include/ws_symbol_export.h"
+#include <include/wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,8 +23,8 @@ extern "C" {
 
 /* Encoding of a base32 byte array */
 WS_DLL_PUBLIC
-int ws_base32_decode(guint8* output, const guint32 outputLength,
-						const guint8* in, const guint32 inputLength);
+int ws_base32_decode(uint8_t* output, const uint32_t outputLength,
+						const uint8_t* in, const uint32_t inputLength);
 
 #ifdef __cplusplus
 }

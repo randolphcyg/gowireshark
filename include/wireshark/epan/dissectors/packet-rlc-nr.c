@@ -336,6 +336,8 @@ static void dissect_rlc_nr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
    - the top-level RLC PDU item
    - another subtree item (if supplied) */
 static void write_pdu_label_and_info(proto_item *pdu_ti, proto_item *sub_ti,
+                                     packet_info *pinfo, const char *format, ...) G_GNUC_PRINTF(4, 5);
+static void write_pdu_label_and_info(proto_item *pdu_ti, proto_item *sub_ti,
                                      packet_info *pinfo, const char *format, ...)
 {
     #define MAX_INFO_BUFFER 256
@@ -637,6 +639,7 @@ static guint32 get_reassembly_start_frame(packet_info *pinfo, guint32 seg_info,
     return frame_id;
 }
 
+/* On first pass - if this SN is complete, don't try to add any more fragments to it */
 static void reassembly_frame_complete(packet_info *pinfo,
                                       rlc_nr_info *p_rlc_nr_info, guint32 sn)
 {
@@ -650,7 +653,7 @@ static void reassembly_frame_complete(packet_info *pinfo,
 
         /* Set Key. */
         wmem_tree_key_t key[2];
-        key[0].length = 4;       /* Ignoring this frame num */
+        key[0].length = 5;
         key[0].key = key_values;
         key[1].length = 0;
         key[1].key = NULL;
@@ -672,7 +675,6 @@ static void dissect_rlc_nr_um(tvbuff_t *tvb, packet_info *pinfo,
     proto_item *um_ti;
     proto_tree *um_header_tree;
     proto_item *um_header_ti;
-    gboolean is_truncated = FALSE;
     proto_item *truncated_ti;
     proto_item *reserved_ti;
     int start_offset = offset;
@@ -736,7 +738,7 @@ static void dissect_rlc_nr_um(tvbuff_t *tvb, packet_info *pinfo,
 
     if (global_rlc_nr_headers_expected) {
         /* There might not be any data, if only headers (plus control data) were logged */
-        is_truncated = (tvb_captured_length_remaining(tvb, offset) == 0);
+        gboolean is_truncated = (tvb_captured_length_remaining(tvb, offset) == 0);
         truncated_ti = proto_tree_add_boolean(tree, hf_rlc_nr_header_only, tvb, 0, 0,
                                               is_truncated);
         if (is_truncated) {
@@ -1003,7 +1005,6 @@ static void dissect_rlc_nr_am(tvbuff_t *tvb, packet_info *pinfo,
     proto_tree *am_header_tree;
     proto_item *am_header_ti;
     gint   start_offset = offset;
-    gboolean is_truncated = FALSE;
     proto_item *truncated_ti;
     proto_item *reserved_ti;
     guint32 so = 0;
@@ -1089,7 +1090,7 @@ static void dissect_rlc_nr_am(tvbuff_t *tvb, packet_info *pinfo,
 
     /* There might not be any data, if only headers (plus control data) were logged */
     if (global_rlc_nr_headers_expected) {
-        is_truncated = (tvb_captured_length_remaining(tvb, offset) == 0);
+        gboolean is_truncated = (tvb_captured_length_remaining(tvb, offset) == 0);
         truncated_ti = proto_tree_add_boolean(tree, hf_rlc_nr_header_only, tvb, 0, 0,
                                               is_truncated);
         if (is_truncated) {

@@ -1518,8 +1518,7 @@ dissect_execute_cdb_reply(tvbuff_t *tvb, int offset, packet_info *pinfo,
 	offset=dissect_error(tvb, offset, pinfo, tree, seq);
 
 	/* status */
-	proto_tree_add_item(tree, hf_ndmp_execute_cdb_status, tvb, offset, 4, ENC_BIG_ENDIAN);
-	status=tvb_get_ntohl(tvb, offset);
+	proto_tree_add_item_ret_uint(tree, hf_ndmp_execute_cdb_status, tvb, offset, 4, ENC_BIG_ENDIAN, &status);
 	if(ndmp_conv_data->task && ndmp_conv_data->task->itlq){
 		dissect_scsi_rsp(tvb, pinfo, top_tree, ndmp_conv_data->task->itlq, get_itl_nexus(pinfo, FALSE), (guint8)status);
 	}
@@ -3742,7 +3741,7 @@ proto_register_ndmp(void)
 #endif
 
 	{ &hf_ndmp_execute_cdb_status, {
-		"Status", "ndmp.execute_cdb.status", FT_UINT8, BASE_DEC,
+		"Status", "ndmp.execute_cdb.status", FT_UINT32, BASE_DEC,
 		VALS(scsi_status_val), 0, "SCSI status", HFILL }},
 
 	{ &hf_ndmp_execute_cdb_dataout_len, {
@@ -4204,6 +4203,8 @@ proto_register_ndmp(void)
 	expert_ndmp = expert_register_protocol(proto_ndmp);
 	expert_register_field_array(expert_ndmp, ei, array_length(ei));
 
+	ndmp_handle = register_dissector("ndmp", dissect_ndmp, proto_ndmp);
+
 	/* desegmentation */
 	ndmp_module = prefs_register_protocol(proto_ndmp, NULL);
 	prefs_register_obsolete_preference(ndmp_module, "protocol_version");
@@ -4230,7 +4231,6 @@ proto_register_ndmp(void)
 void
 proto_reg_handoff_ndmp(void)
 {
-	ndmp_handle = create_dissector_handle(dissect_ndmp, proto_ndmp);
 	dissector_add_uint_with_preference("tcp.port",TCP_PORT_NDMP, ndmp_handle);
 	heur_dissector_add("tcp", dissect_ndmp_heur, "NDMP over TCP", "ndmp_tcp", proto_ndmp, HEURISTIC_ENABLE);
 }

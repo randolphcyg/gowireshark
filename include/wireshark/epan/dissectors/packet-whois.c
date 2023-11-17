@@ -21,6 +21,8 @@
 void proto_register_whois(void);
 void proto_reg_handoff_whois(void);
 
+static dissector_handle_t whois_handle;
+
 static int proto_whois = -1;
 static int hf_whois_query = -1;
 static int hf_whois_answer = -1;
@@ -86,7 +88,7 @@ dissect_whois(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     if (!PINFO_FD_VISITED(pinfo)) {
         if (pinfo->can_desegment) {
             if (is_query) {
-                if ((len < 2) || (tvb_memeql(tvb, len - 2, "\r\n", 2))) {
+                if ((len < 2) || (tvb_memeql(tvb, len - 2, (const guint8*)"\r\n", 2))) {
                     pinfo->desegment_len = DESEGMENT_ONE_MORE_SEGMENT;
                     pinfo->desegment_offset = 0;
                     return -1;
@@ -136,7 +138,7 @@ dissect_whois(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
      */
     if (is_query) {
         expert_ti = proto_tree_add_item(whois_tree, hf_whois_query, tvb, 0, -1, ENC_ASCII);
-        if ((len < 2) || (tvb_memeql(tvb, len - 2, "\r\n", 2))) {
+        if ((len < 2) || (tvb_memeql(tvb, len - 2, (const guint8*)"\r\n", 2))) {
             /*
              * From RFC3912, section 2:
              * All requests are terminated with ASCII CR and then ASCII LF.
@@ -239,14 +241,12 @@ proto_register_whois(void)
     proto_register_subtree_array(ett, array_length(ett));
     expert_whois = expert_register_protocol(proto_whois);
     expert_register_field_array(expert_whois, ei, array_length(ei));
+    whois_handle = register_dissector("whois", dissect_whois, proto_whois);
 }
 
 void
 proto_reg_handoff_whois(void)
 {
-    static dissector_handle_t whois_handle;
-
-    whois_handle = create_dissector_handle(dissect_whois, proto_whois);
     dissector_add_uint_with_preference("tcp.port", WHOIS_PORT, whois_handle);
 }
 

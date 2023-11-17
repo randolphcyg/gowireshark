@@ -90,7 +90,9 @@ static dissector_handle_t dissector_ipv6;
 static dissector_handle_t dissector_ip;
 static dissector_handle_t dissector_pw_ach;
 static dissector_handle_t dissector_pw_eth_heuristic;
-static dissector_handle_t dissector_pw_ach_mcc;
+static dissector_handle_t mpls_handle;
+static dissector_handle_t mpls_pwcw_handle;
+static dissector_handle_t mpls_mcc_handle;
 
 /* For RFC6391 - Flow aware transport of pseudowire over a mpls PSN*/
 static gboolean mpls_bos_flowlabel = FALSE;
@@ -115,10 +117,6 @@ static expert_field ei_mpls_pw_ach_error_processing_message = EI_INIT;
 static expert_field ei_mpls_pw_ach_res = EI_INIT;
 static expert_field ei_mpls_pw_mcw_error_processing_message = EI_INIT;
 static expert_field ei_mpls_invalid_label = EI_INIT;
-
-static dissector_handle_t mpls_handle;
-static dissector_handle_t mpls_pwcw_handle;
-static dissector_handle_t mpls_mcc_handle;
 
 #if 0 /*not used yet*/
 /*
@@ -581,7 +579,7 @@ proto_register_mpls(void)
 
         {&hf_mpls_ttl,
          {"MPLS TTL", "mpls.ttl",
-          FT_UINT32, BASE_DEC, NULL, 0x0000000FF,
+          FT_UINT32, BASE_DEC, NULL, 0x000000FF,
           NULL, HFILL }
         },
 
@@ -659,14 +657,10 @@ proto_register_mpls(void)
     expert_module_t* expert_mpls;
     module_t * module_mpls;
 
-    proto_mpls = proto_register_protocol("MultiProtocol Label Switching Header",
-                                         "MPLS", "mpls");
-    proto_pw_ach = proto_register_protocol(PW_ACH,
-                                           "PW Associated Channel", "pwach");
-    proto_pw_mcw = proto_register_protocol("PW MPLS Control Word (generic/preferred)",
-                                           "Generic PW (with CW)", "pwmcw");
-    proto_pw_ach_mcc = proto_register_protocol("Management Communication Channel (MCC)",
-                                               "PW Associated Management Communication Channel", "mcc");
+    proto_mpls = proto_register_protocol("MultiProtocol Label Switching Header", "MPLS", "mpls");
+    proto_pw_ach = proto_register_protocol(PW_ACH, "PW Associated Channel", "pwach");
+    proto_pw_mcw = proto_register_protocol("PW MPLS Control Word (generic/preferred)", "Generic PW (with CW)", "pwmcw");
+    proto_pw_ach_mcc = proto_register_protocol("Management Communication Channel (MCC)", "PW Associated Management Communication Channel", "mcc");
 
     proto_register_field_array(proto_mpls, mplsf_info, array_length(mplsf_info));
     proto_register_subtree_array(ett, array_length(ett));
@@ -674,8 +668,9 @@ proto_register_mpls(void)
     expert_register_field_array(expert_mpls, ei, array_length(ei));
 
     mpls_handle = register_dissector("mpls", dissect_mpls, proto_mpls);
-    mpls_mcc_handle = register_dissector("mplsmcc", dissect_pw_ach_mcc,proto_pw_ach_mcc);
-    mpls_pwcw_handle = register_dissector("mplspwcw", dissect_pw_mcw, proto_pw_mcw );
+    mpls_mcc_handle = register_dissector("mplsmcc", dissect_pw_ach_mcc, proto_pw_ach_mcc);
+    mpls_pwcw_handle = register_dissector("mplspwcw", dissect_pw_mcw, proto_pw_mcw);
+    dissector_pw_ach = register_dissector("mplspwach", dissect_pw_ach, proto_pw_ach );
 
     /* FF: mpls subdissector table is indexed by label */
     mpls_subdissector_table = register_dissector_table("mpls.label",
@@ -731,9 +726,6 @@ proto_reg_handoff_mpls(void)
     dissector_ipv6                  = find_dissector_add_dependency("ipv6", proto_pw_mcw );
     dissector_ip                    = find_dissector_add_dependency("ip", proto_pw_mcw );
     dissector_pw_eth_heuristic      = find_dissector_add_dependency("pw_eth_heuristic", proto_pw_mcw);
-
-    dissector_pw_ach                = create_dissector_handle(dissect_pw_ach, proto_pw_ach );
-    dissector_pw_ach_mcc            = create_dissector_handle(dissect_pw_ach_mcc, proto_pw_ach_mcc );
 }
 
 /*

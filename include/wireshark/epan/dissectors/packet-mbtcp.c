@@ -416,7 +416,7 @@ dissect_mbtcp_pdu_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, in
     proto_tree    *mbtcp_tree;
     int           offset;
     tvbuff_t      *next_tvb;
-    const char    *func_string = "";
+    const char    *func_string;
     const char    *pkt_type_str = "";
     const char    *err_str = "";
     guint16       transaction_id, protocol_id, len;
@@ -559,7 +559,7 @@ dissect_mbrtu_pdu_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, ra
     proto_tree    *mbrtu_tree;
     int           offset;
     tvbuff_t      *next_tvb;
-    const char    *func_string = "";
+    const char    *func_string;
     const char    *pkt_type_str = "";
     const char    *err_str = "";
     guint16       len, calc_crc16;
@@ -2170,7 +2170,7 @@ proto_register_modbus(void)
     mbudp_handle = register_dissector("mbudp", dissect_mbudp, proto_mbudp);
 
     /* Registering subdissectors table */
-    modbus_data_dissector_table = register_dissector_table("modbus.data", "Modbus Data", proto_modbus, FT_STRING, BASE_NONE);
+    modbus_data_dissector_table = register_dissector_table("modbus.data", "Modbus Data", proto_modbus, FT_STRING, STRING_CASE_SENSITIVE);
     modbus_dissector_table = register_dissector_table("mbtcp.prot_id", "Modbus/TCP protocol identifier", proto_mbtcp, FT_UINT16, BASE_DEC);
 
     /* Required function calls to register the header fields and subtrees used */

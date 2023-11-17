@@ -2961,22 +2961,22 @@ proto_register_eigrp(void)
  */
         { &hf_eigrp_metric_flags_srcwd,
           { "Source Withdraw", "eigrp.metric.flags.srcwd",
-            FT_BOOLEAN, 8, TFS(&tfs_true_false), EIGRP_OPAQUE_SRCWD,
+            FT_BOOLEAN, 8, NULL, EIGRP_OPAQUE_SRCWD,
             "Route Source Withdraw", HFILL }
         },
         { &hf_eigrp_metric_flags_cd,
           { "Candidate Default", "eigrp.metric.flags.cd",
-            FT_BOOLEAN, 8, TFS(&tfs_true_false), EIGRP_OPAQUE_CD,
+            FT_BOOLEAN, 8, NULL, EIGRP_OPAQUE_CD,
             NULL, HFILL }
         },
         { &hf_eigrp_metric_flags_active,
           { "Route is Active", "eigrp.metric.flags.active",
-            FT_BOOLEAN, 8, TFS(&tfs_true_false), EIGRP_OPAQUE_ACTIVE,
+            FT_BOOLEAN, 8, NULL, EIGRP_OPAQUE_ACTIVE,
             "Route is currently in active state", HFILL }
         },
         { &hf_eigrp_metric_flags_repl,
           { "Route is Replicated", "eigrp.metric.flags.repl",
-            FT_BOOLEAN, 8, TFS(&tfs_true_false), EIGRP_OPAQUE_REPL,
+            FT_BOOLEAN, 8, NULL, EIGRP_OPAQUE_REPL,
             "Route is replicated from different tableid", HFILL }
         },
 
@@ -3031,12 +3031,12 @@ proto_register_eigrp(void)
 
         { &hf_eigrp_extdata_flag_ext,
           { "Route is External", "eigrp.opaque.flag.ext",
-            FT_BOOLEAN, 8, TFS(&tfs_true_false), EIGRP_OPAQUE_EXT,
+            FT_BOOLEAN, 8, NULL, EIGRP_OPAQUE_EXT,
             "External route", HFILL }
         },
         { &hf_eigrp_extdata_flag_cd,
           { "Route is Candidate Default", "eigrp.opaque.flag.cd",
-            FT_BOOLEAN, 8, TFS(&tfs_true_false), EIGRP_OPAQUE_CD,
+            FT_BOOLEAN, 8, NULL, EIGRP_OPAQUE_CD,
             "Candidate-Default route", HFILL }
         },
 
@@ -3353,11 +3353,8 @@ proto_register_eigrp(void)
     expert_module_t* expert_eigrp;
 
     /* Register the protocol name and description */
-    proto_eigrp = proto_register_protocol(
-        "Enhanced Interior Gateway Routing Protocol",   /* name         */
-        "EIGRP",                                        /* short name   */
-        "eigrp"                                         /* abbrev       */
-        );
+    proto_eigrp = proto_register_protocol("Enhanced Interior Gateway Routing Protocol", "EIGRP", "eigrp");
+    register_dissector("eigrp", dissect_eigrp, proto_eigrp);
 
     /* Required function calls to register the header fields and subtrees used */
     proto_register_field_array(proto_eigrp, hf, array_length(hf));
@@ -3386,12 +3383,10 @@ proto_register_eigrp(void)
 void
 proto_reg_handoff_eigrp(void)
 {
-    dissector_handle_t eigrp_handle;
+    dissector_handle_t eigrp_handle = find_dissector("eigrp");
 
     ipxsap_handle = find_dissector_add_dependency("ipxsap", proto_eigrp);
     media_type_table = find_dissector_table("media_type");
-
-    eigrp_handle = create_dissector_handle(dissect_eigrp, proto_eigrp);
 
     dissector_add_uint("ip.proto", IP_PROTO_EIGRP, eigrp_handle);
     dissector_add_uint("ddp.type", DDP_EIGRP, eigrp_handle);

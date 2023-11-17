@@ -182,7 +182,7 @@ static const value_string comp_tlv_tag_vals[] = {
 	{ 0x19, "Event list" },
 	{ 0x1a, "GSM/3G Cause" },
 	{ 0x1b, "Location status" },
-	{ 0x1c, "transaction identifier" },
+	{ 0x1c, "Transaction identifier" },
 	{ 0x1d, "GSM/3G BCCH channel list" },
 	{ 0x1e, "Icon identifier" },
 	{ 0x1f, "Item Icon identifier list" },
@@ -680,8 +680,8 @@ static const value_string bearer_vals[] = {
 static const value_string bearer_descr_vals[] = {
 	{ 0x01, "CSD" },
 	{ 0x02, "GPRS / UTRAN packet service / E-UTRAN" },
-	{ 0x03, "default bearer for requested transport layer" },
-	{ 0x04, "local link technology independent" },
+	{ 0x03, "Default bearer for requested transport layer" },
+	{ 0x04, "Local link technology independent" },
 	{ 0x05, "Bluetooth" },
 	{ 0x06, "IrDA" },
 	{ 0x07, "RS232" },
@@ -1410,7 +1410,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 				proto_tree_add_item(elem_tree, hf_ctlv_bearer_utran_delivery_erroneous_sdus, tvb, pos+14, 1, ENC_BIG_ENDIAN);
 				proto_tree_add_item(elem_tree, hf_ctlv_bearer_utran_transfer_delay, tvb, pos+15, 1, ENC_BIG_ENDIAN);
 				proto_tree_add_item(elem_tree, hf_ctlv_bearer_utran_traffic_handling_prio, tvb, pos+16, 1, ENC_BIG_ENDIAN);
-				proto_tree_add_item(elem_tree, hf_ctlv_bearer_utran_pdp_type, tvb, pos+1, 17, ENC_BIG_ENDIAN);
+				proto_tree_add_item(elem_tree, hf_ctlv_bearer_utran_pdp_type, tvb, pos+1, 1, ENC_BIG_ENDIAN);
 				break;
 			case 0x0a:
 				break;

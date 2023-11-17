@@ -407,7 +407,7 @@ static gchar *print_tsap(tvbuff_t *tvb, int offset, int length)
 
 } /* print_tsap */
 
-static const true_false_string tfs_vp_opt_sel_class1_use = { "Receipt confirmation", "explicit AK variant" };
+static const true_false_string tfs_vp_opt_sel_class1_use = { "Receipt confirmation", "Explicit AK variant" };
 
 static gboolean ositp_decode_var_part(tvbuff_t *tvb, int offset, int vp_length,
                                       int class_option, int tpdu_len,
@@ -2075,7 +2075,7 @@ static gint dissect_ositp_internal(tvbuff_t *tvb, packet_info *pinfo,
 
   /* Initialize the COL_INFO field; each of the TPDUs will have its
      information appended. */
-  col_set_str(pinfo->cinfo, COL_INFO, "");
+  col_clear(pinfo->cinfo, COL_INFO);
 
   while (tvb_offset_exists(tvb, offset)) {
     if (!first_tpdu) {

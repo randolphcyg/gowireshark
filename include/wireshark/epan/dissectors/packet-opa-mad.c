@@ -591,7 +591,7 @@ static const value_string LinkDownReason[] = {
     { 36, "Neighbor Unknown (not locally initiated)" },
     { 39, "FM initiated bounce" },
     { 40, "Link outside speed policy" },
-    { 41, "link downgrade outside" },
+    { 41, "Link downgrade outside" },
     { 49, "Disconnected" },
     { 50, "Local media not installed" },
     { 51, "Not installed" },
@@ -2525,7 +2525,7 @@ static const fragment_items opa_rmpp_frag_items = {
  * @param[out] num_ports optional: pointer to a number of ports in set in port
  *                                 select mask and portlist if provided.
  * @return gchar* pointer to range string allocated using
- *                wmem_strbuf_sized_new(wmem_packet_scope(),...)
+ *                wmem_strbuf_new_sized(wmem_packet_scope(),...)
  */
 static gchar *opa_format_port_select_mask(tvbuff_t *tvb, gint offset, guint8 **port_list, guint8 *num_ports)
 {
@@ -2542,7 +2542,7 @@ static gchar *opa_format_port_select_mask(tvbuff_t *tvb, gint offset, guint8 **p
     psm[2] = tvb_get_ntoh64(tvb, offset + 16);
     psm[3] = tvb_get_ntoh64(tvb, offset + 24);
 
-    buf = wmem_strbuf_sized_new(wmem_packet_scope(), 0, ITEM_LABEL_LENGTH);
+    buf = wmem_strbuf_create(wmem_packet_scope());
 
     if (port_list) {
         /* Allocate list of ports; max = 256 = 64 * 4 */
@@ -2897,6 +2897,7 @@ static gboolean parse_RMPP(proto_tree *parentTree, packet_info *pinfo, tvbuff_t 
     proto_item *RMPP_type_item;
     proto_item *RMPP_segment_number_item;
     proto_tree *RMPP_header_tree;
+    guint32 val;
 
     RMPP_header_item = proto_tree_add_item(parentTree, hf_opa_rmpp, tvb, local_offset, 12, ENC_NA);
     RMPP_header_tree = proto_item_add_subtree(RMPP_header_item, ett_rmpp);
@@ -2905,8 +2906,9 @@ static gboolean parse_RMPP(proto_tree *parentTree, packet_info *pinfo, tvbuff_t 
     RMPP->Version = tvb_get_guint8(tvb, local_offset);
     local_offset += 1;
 
-    RMPP_type_item = proto_tree_add_item(RMPP_header_tree, hf_opa_rmpp_type, tvb, local_offset, 1, ENC_BIG_ENDIAN);
-    RMPP->Type = tvb_get_guint8(tvb, local_offset);
+    RMPP_type_item = proto_tree_add_item_ret_uint(RMPP_header_tree, hf_opa_rmpp_type, tvb,
+                                                  local_offset, 1, ENC_BIG_ENDIAN, &val);
+    RMPP->Type = val;
     local_offset += 1;
     proto_tree_add_item(RMPP_header_tree, hf_opa_rmpp_r_resp_time, tvb, local_offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(RMPP_header_tree, hf_opa_rmpp_flags_last, tvb, local_offset, 1, ENC_BIG_ENDIAN);
@@ -2915,8 +2917,9 @@ static gboolean parse_RMPP(proto_tree *parentTree, packet_info *pinfo, tvbuff_t 
     RMPP->resptime_flags = tvb_get_guint8(tvb, local_offset);
     local_offset += 1;
 
-    proto_tree_add_item(RMPP_header_tree, hf_opa_rmpp_status, tvb, local_offset, 1, ENC_BIG_ENDIAN);
-    RMPP->Status = tvb_get_guint8(tvb, local_offset);
+    proto_tree_add_item_ret_uint(RMPP_header_tree, hf_opa_rmpp_status, tvb,
+                                 local_offset, 1, ENC_BIG_ENDIAN, &val);
+    RMPP->Status = val;
     local_offset += 1;
 
     if (!(RMPP->resptime_flags & RMPP_FLAG_ACTIVE_MASK) && RMPP->Type == RMPP_ILLEGAL) {
@@ -5564,7 +5567,7 @@ static gint parse_QuarantinedNodeRecord(proto_tree *parentTree, tvbuff_t *tvb, g
 
     proto_tree_add_item(QuarantinedNodeRecord_header_tree, hf_opa_QuarantinedNodeRecord_QuarantineReasons, tvb, local_offset, 4, ENC_BIG_ENDIAN);
     local_offset += 4;
-    proto_tree_add_item(QuarantinedNodeRecord_header_tree, hf_opa_QuarantinedNodeRecord_ExpectedNodeDesc, tvb, local_offset, 64, ENC_BIG_ENDIAN);
+    proto_tree_add_item(QuarantinedNodeRecord_header_tree, hf_opa_QuarantinedNodeRecord_ExpectedNodeDesc, tvb, local_offset, 64, ENC_NA);
     local_offset += 64;
     proto_tree_add_item(QuarantinedNodeRecord_header_tree, hf_opa_QuarantinedNodeRecord_ExpectedNodeGUID, tvb, local_offset, 8, ENC_BIG_ENDIAN);
     local_offset += 8;
@@ -6063,8 +6066,7 @@ static void parse_SUBNADMN(proto_tree *parentTree, packet_info *pinfo, tvbuff_t 
         old_offset = *offset;
         label = val_to_str_const(MAD.AttributeID, SUBA_Attributes, "Attribute (Unknown SA Attribute!)");
         SA_record_tree = proto_tree_add_subtree_format(parentTree, tvb, old_offset,
-            (SA_HEADER.AttributeOffset * 8), ett_rmpp_sa_record, NULL, "%.*s Record %u: ",
-            (gint)strlen(&label[11]) - 1, &label[11], r);
+            (SA_HEADER.AttributeOffset * 8), ett_rmpp_sa_record, NULL, "%s Record %u: ", label, r);
 
         if (!parse_SUBA_Attribute(SA_record_tree, tvb, offset, &MAD, &RMPP, &SA_HEADER)) {
             expert_add_info_format(pinfo, NULL, &ei_opa_mad_no_attribute_dissector,
@@ -8742,7 +8744,7 @@ void proto_register_opa_mad(void)
         },
         { &hf_opa_rmpp_status, {
                 "RMPP Status", "opa.rmpp.rmppstatus",
-                FT_UINT8, BASE_HEX, VALS(RMPP_Status), 0xFF, NULL, HFILL }
+                FT_UINT8, BASE_HEX, VALS(RMPP_Status), 0x0, NULL, HFILL }
         },
         { &hf_opa_rmpp_data1, {
                 "RMPP Data 1", "opa.rmpp.data1",
@@ -9928,7 +9930,7 @@ void proto_register_opa_mad(void)
         },
         { &hf_opa_PortInfo_BufferUnits_VL15CreditRate, {
                 "BufferUnits VL15Credit", "opa.portinfo.bufferunits.vl15credit",
-                FT_UINT32, BASE_HEX, NULL, 0x0000007C0, NULL, HFILL }
+                FT_UINT32, BASE_HEX, NULL, 0x000007C0, NULL, HFILL }
         },
         { &hf_opa_PortInfo_BufferUnits_CreditAck, {
                 "BufferUnits CreditAck", "opa.portinfo.bufferunits.creditack",
@@ -11012,7 +11014,7 @@ void proto_register_opa_mad(void)
         },
         { &hf_opa_MCMemberRecord_MLID, {
                 "MLID", "opa.mcmemberrecord.mlid",
-                FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL }
+                FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }
         },
         { &hf_opa_MCMemberRecord_MTUSelector, {
                 "MTU Selector", "opa.mcmemberrecord.mtuselector",
@@ -12217,11 +12219,11 @@ void proto_register_opa_mad(void)
         },
         { &hf_opa_GetGroupInfo_maxInternalMBps, {
                 "maxInternalMBps", "opa.pa.getgroupinfo.maxinternalmbps",
-                FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }
+                FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }
         },
         { &hf_opa_GetGroupInfo_maxExternalMBps, {
                 "maxExternalMBps", "opa.pa.getgroupinfo.maxexternalmbps",
-                FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }
+                FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }
         },
 
         /* GetGroupConfig */
@@ -12929,7 +12931,7 @@ void proto_register_opa_mad(void)
         },
         { &hf_opa_GetImageInfo_lid, {
                 "lid", "opa.pa.getimageinfo.sminfo.lid",
-                FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL }
+                FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }
         },
         { &hf_opa_GetImageInfo_state, {
                 "state", "opa.pa.getimageinfo.sminfo.state",
@@ -13087,7 +13089,7 @@ void proto_register_opa_mad(void)
         },
         { &hf_opa_GetVFConfig_Port_NodeLID, {
                 "NodeLID", "opa.pa.getvfconfig.port.nodelid",
-                FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL }
+                FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }
         },
         { &hf_opa_GetVFConfig_Port_PortNumber, {
                 "PortNumber", "opa.pa.getvfconfig.port.portnumber",
@@ -13277,7 +13279,7 @@ void proto_register_opa_mad(void)
         },
         { &hf_opa_GetVFFocusPorts_nodeLID, {
                 "nodeLID", "opa.pa.getvffocusports.nodelid",
-                FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL }
+                FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }
         },
         { &hf_opa_GetVFFocusPorts_portNumber, {
                 "portNumber", "opa.pa.getvffocusports.portnumber",
@@ -13313,7 +13315,7 @@ void proto_register_opa_mad(void)
         },
         { &hf_opa_GetVFFocusPorts_neighborLid, {
                 "neighborLid", "opa.pa.getvffocusports.neighborlid",
-                FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL }
+                FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }
         },
         { &hf_opa_GetVFFocusPorts_neighborPortNumber, {
                 "neighborPortNumber", "opa.pa.getvffocusports.neighborportnumber",
@@ -13452,7 +13454,7 @@ void proto_register_opa_mad(void)
         },
         { &hf_opa_QuarantinedNodeRecord_ExpectedNodeDesc, {
                 "Expected Node Desc", "opa.quarantinednoderecord.expectednodedesc",
-                FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }
+                FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }
         },
         { &hf_opa_QuarantinedNodeRecord_ExpectedNodeGUID, {
                 "Expected Node GUID", "opa.quarantinednoderecord.expectednodeguid",

@@ -27,6 +27,8 @@
 void proto_register_hazelcast(void);
 void proto_reg_handoff_hazelcast(void);
 
+static dissector_handle_t hazelcast_handle;
+
 static int proto_hazelcast = -1;
 static int hazelcast_tap = -1;
 
@@ -306,7 +308,7 @@ static int dissect_hazelcast_message(tvbuff_t *tvb, packet_info *pinfo _U_, prot
 
     proto_tree_add_item(hcast_tree, hf_hazelcast_operation, tvb, offset, 1, ENC_BIG_ENDIAN);
     operation = tvb_get_guint8(tvb, offset);
-    col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str(operation, operationTypes, "Unknown (0x%02x)"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(operation, operationTypes, "Unknown (0x%02x)"));
     offset += 1;
 
     proto_tree_add_item(hcast_tree, hf_hazelcast_blockID, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -561,16 +563,12 @@ void proto_register_hazelcast(void) {
 
     hazelcast_tap = register_tap("hzlcst");
 
+    hazelcast_handle = register_dissector("hzlcst", dissect_hazelcast, proto_hazelcast);
 }
 
 
 void
 proto_reg_handoff_hazelcast(void) {
-
-    dissector_handle_t hazelcast_handle;
-
-    hazelcast_handle = create_dissector_handle(dissect_hazelcast, proto_hazelcast);
-
     dissector_add_uint_with_preference("tcp.port", HAZELCAST_PORT, hazelcast_handle);
 }
 

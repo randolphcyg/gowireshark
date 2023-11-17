@@ -28,6 +28,8 @@
 void proto_register_h261(void);
 void proto_reg_handoff_h261(void);
 
+static dissector_handle_t h261_handle;
+
 /* H.261 header fields             */
 static int proto_h261          = -1;
 static int hf_h261_sbit        = -1;
@@ -66,33 +68,32 @@ dissect_h261( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 
 	col_set_str(pinfo->cinfo, COL_INFO, "H.261 message");
 
-	if ( tree ) {
-		ti = proto_tree_add_item( tree, proto_h261, tvb, offset, -1, ENC_NA );
-		h261_tree = proto_item_add_subtree( ti, ett_h261 );
+	ti = proto_tree_add_item( tree, proto_h261, tvb, offset, -1, ENC_NA);
+	h261_tree = proto_item_add_subtree( ti, ett_h261 );
 
-		proto_tree_add_bitmask_list(h261_tree, tvb, offset, 1, bits, ENC_NA);
-		offset++;
+	proto_tree_add_bitmask_list(h261_tree, tvb, offset, 1, bits, ENC_NA);
+	offset++;
 
-		/* GOBN 2nd octet, 4 bits */
-		proto_tree_add_item( h261_tree, hf_h261_gobn, tvb, offset, 1, ENC_NA);
-		/* MBAP 2nd octet, 4 bits, 3rd octet 1 bit */
-		proto_tree_add_item( h261_tree, hf_h261_mbap, tvb, offset, 2, ENC_BIG_ENDIAN);
-		offset++;
+	/* GOBN 2nd octet, 4 bits */
+	proto_tree_add_item( h261_tree, hf_h261_gobn, tvb, offset, 1, ENC_NA);
+	/* MBAP 2nd octet, 4 bits, 3rd octet 1 bit */
+	proto_tree_add_item( h261_tree, hf_h261_mbap, tvb, offset, 2, ENC_BIG_ENDIAN);
+	offset++;
 
-		/* QUANT 3rd octet, 5 bits (starting at bit 2!) */
-		proto_tree_add_item( h261_tree, hf_h261_quant, tvb, offset, 1, ENC_NA );
+	/* QUANT 3rd octet, 5 bits (starting at bit 2!) */
+	proto_tree_add_item( h261_tree, hf_h261_quant, tvb, offset, 1, ENC_NA);
 
-		/* HMVD 3rd octet 2 bits, 4th octet 3 bits */
-		proto_tree_add_item( h261_tree, hf_h261_hmvd, tvb, offset, 2, ENC_BIG_ENDIAN);
-		offset++;
+	/* HMVD 3rd octet 2 bits, 4th octet 3 bits */
+	proto_tree_add_item( h261_tree, hf_h261_hmvd, tvb, offset, 2, ENC_BIG_ENDIAN);
+	offset++;
 
-		/* VMVD 4th octet, last 5 bits */
-		proto_tree_add_item( h261_tree, hf_h261_vmvd, tvb, offset, 1, ENC_NA);
-		offset++;
+	/* VMVD 4th octet, last 5 bits */
+	proto_tree_add_item( h261_tree, hf_h261_vmvd, tvb, offset, 1, ENC_NA);
+	offset++;
 
-		/* The rest of the packet is the H.261 stream */
-		proto_tree_add_item( h261_tree, hf_h261_data, tvb, offset, -1, ENC_NA );
-	}
+	/* The rest of the packet is the H.261 stream */
+	proto_tree_add_item( h261_tree, hf_h261_data, tvb, offset, -1, ENC_NA);
+
 	return tvb_captured_length(tvb);
 }
 
@@ -233,14 +234,13 @@ proto_register_h261(void)
 	    "H.261", "h261");
 	proto_register_field_array(proto_h261, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
+
+	h261_handle = register_dissector("h261", dissect_h261, proto_h261);
 }
 
 void
 proto_reg_handoff_h261(void)
 {
-	dissector_handle_t h261_handle;
-
-	h261_handle = create_dissector_handle(dissect_h261, proto_h261);
 	dissector_add_uint("rtp.pt", PT_H261, h261_handle);
 	dissector_add_uint("iax2.codec", AST_FORMAT_H261, h261_handle);
 }

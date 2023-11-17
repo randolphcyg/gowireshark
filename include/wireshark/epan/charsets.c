@@ -21,8 +21,15 @@
 
 #include "charsets.h"
 
-/* REPLACEMENT CHARACTER */
-#define UNREPL 0xFFFD
+/*
+ * 6-character abbreviation for "Unicode REPLACEMENT CHARACTER", so it
+ * takes up the same amount of space as the 6-character hex values for
+ * Basic Multilingual Plane code points in the tables below.
+ */
+#define UNREPL UNICODE_REPLACEMENT_CHARACTER
+
+/* ZERO WIDTH NON-BREAKING SPACE, also known informally as BOM */
+#define BYTE_ORDER_MARK 0xFEFF
 
 /*
  * Wikipedia's "Character encoding" template, giving a pile of character
@@ -53,6 +60,14 @@
  * The IBM pages are no longer available; the versions archived on the
  * Wayback Machine are, but the links to the PDF and text versions of
  * the code pages don't all work (do *any* work?).
+ *
+ * Mappings to Unicode at the Unicode Consortium:
+ *
+ *    https://www.unicode.org/Public/MAPPINGS/
+ *
+ * Of note, the VENDORS/MICSFT directory not only has various Windows
+ * and DOS code pages, but also several of the common MAC and EBCDIC
+ * code page mappings to Unicode.
  */
 
 /*
@@ -68,148 +83,37 @@ guint8 *
 get_ascii_string(wmem_allocator_t *scope, const guint8 *ptr, gint length)
 {
     wmem_strbuf_t *str;
+    const guint8 *prev = ptr;
+    size_t valid_bytes = 0;
 
-    str = wmem_strbuf_sized_new(scope, length+1, 0);
+    str = wmem_strbuf_new_sized(scope, length+1);
 
     while (length > 0) {
-        guint8 ch = *ptr;
+        guint8 ch = *ptr++;
 
-        if (ch < 0x80)
-            wmem_strbuf_append_c(str, ch);
-        else
-            wmem_strbuf_append_unichar(str, UNREPL);
-        ptr++;
+        if (ch < 0x80) {
+            valid_bytes++;
+        } else {
+            if (valid_bytes) {
+                wmem_strbuf_append_len(str, prev, valid_bytes);
+                valid_bytes = 0;
+            }
+            prev = ptr;
+            wmem_strbuf_append_unichar_repl(str);
+        }
         length--;
+    }
+    if (valid_bytes) {
+        wmem_strbuf_append_len(str, prev, valid_bytes);
     }
 
     return (guint8 *) wmem_strbuf_finalize(str);
 }
 
-/*
- * Given a wmem scope, a pointer, and a length, treat the string of bytes
- * referred to by the pointer and length as a UTF-8 string, and return a
- * pointer to a UTF-8 string, allocated using the wmem scope, with all
- * ill-formed sequences replaced with the Unicode REPLACEMENT CHARACTER
- * according to the recommended "best practices" given in the Unicode
- * Standard and specified by W3C/WHATWG.
- *
- * Note that in conformance with the Unicode Standard, this treats three
- * byte sequences corresponding to UTF-16 surrogate halves (paired or unpaired)
- * and two byte overlong encodings of 7-bit ASCII characters as invalid and
- * substitutes REPLACEMENT CHARACTER for them. Explicit support for nonstandard
- * derivative encoding formats (e.g. CESU-8, Java Modified UTF-8, WTF-8) could
- * be added later.
- */
 guint8 *
 get_utf_8_string(wmem_allocator_t *scope, const guint8 *ptr, gint length)
 {
-    wmem_strbuf_t *str;
-    guint8 ch;
-    const guint8 *prev;
-
-    str = wmem_strbuf_sized_new(scope, length+1, 0);
-
-    /* See the Unicode Standard conformance chapter at
-     * https://www.unicode.org/versions/Unicode13.0.0/ch03.pdf especially
-     * Table 3-7 "Well-Formed UTF-8 Byte Sequences" and
-     * U+FFFD Substitution of Maximal Subparts. */
-    while (length > 0) {
-        gsize unichar_len;
-        ch = *ptr;
-
-        if (ch < 0x80) {
-            wmem_strbuf_append_c(str, ch);
-        } else if (ch < 0xc2 || ch > 0xf4) {
-            wmem_strbuf_append_unichar(str, UNREPL);
-        } else {
-            prev = ptr;
-            if (ch < 0xe0) { /* 110xxxxx, 2 byte char */
-                unichar_len = 2;
-            } else if (ch < 0xf0) { /* 1110xxxx, 3 byte char */
-                unichar_len = 3;
-                ptr++;
-                length--;
-                if (length < 1) {
-                    wmem_strbuf_append_unichar(str, UNREPL);
-                    continue;
-                }
-                switch (ch) {
-                    case 0xe0:
-                        if (*ptr < 0xa0 || *ptr > 0xbf) {
-                            wmem_strbuf_append_unichar(str, UNREPL);
-                            continue;
-                        }
-                        break;
-                    case 0xed:
-                        if (*ptr < 0x80 || *ptr > 0x9f) {
-                            wmem_strbuf_append_unichar(str, UNREPL);
-                            continue;
-                        }
-                        break;
-                    default:
-                        if (*ptr < 0x80 || *ptr > 0xbf) {
-                            wmem_strbuf_append_unichar(str, UNREPL);
-                            continue;
-                        }
-                }
-            } else { /* 11110xxx, 4 byte char - > 0xf4 excluded above */
-                unichar_len = 4;
-                ptr++;
-                length--;
-                if (length < 1) {
-                    wmem_strbuf_append_unichar(str, UNREPL);
-                    continue;
-                }
-                switch (ch) {
-                    case 0xf0:
-                        if (*ptr < 0x90 || *ptr > 0xbf) {
-                            wmem_strbuf_append_unichar(str, UNREPL);
-                            continue;
-                        }
-                        break;
-                    case 0xf4:
-                        if (*ptr < 0x80 || *ptr > 0x8f) {
-                            wmem_strbuf_append_unichar(str, UNREPL);
-                            continue;
-                        }
-                        break;
-                    default:
-                        if (*ptr < 0x80 || *ptr > 0xbf) {
-                            wmem_strbuf_append_unichar(str, UNREPL);
-                            continue;
-                        }
-                }
-                ptr++;
-                length--;
-                if (length < 1) {
-                    wmem_strbuf_append_unichar(str, UNREPL);
-                    continue;
-                }
-                if (*ptr < 0x80 || *ptr > 0xbf) {
-                    wmem_strbuf_append_unichar(str, UNREPL);
-                    continue;
-                }
-            }
-
-            ptr++;
-            length--;
-            if (length < 1) {
-                wmem_strbuf_append_unichar(str, UNREPL);
-                continue;
-            }
-            if (*ptr < 0x80 || *ptr > 0xbf) {
-                wmem_strbuf_append_unichar(str, UNREPL);
-                continue;
-            } else {
-                wmem_strbuf_append_len(str, prev, unichar_len);
-            }
-        }
-
-        ptr++;
-        length--;
-    }
-
-    return (guint8 *) wmem_strbuf_finalize(str);
+    return ws_utf8_make_valid(scope, ptr, length);
 }
 
 /*
@@ -249,7 +153,7 @@ get_iso_646_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, cons
 {
     wmem_strbuf_t *str;
 
-    str = wmem_strbuf_sized_new(scope, length+1, 0);
+    str = wmem_strbuf_new_sized(scope, length+1);
 
     while (length > 0) {
         guint8 ch = *ptr;
@@ -257,7 +161,7 @@ get_iso_646_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, cons
         if (ch < 0x80)
             wmem_strbuf_append_unichar(str, table[ch]);
         else
-            wmem_strbuf_append_unichar(str, UNREPL);
+            wmem_strbuf_append_unichar_repl(str);
         ptr++;
         length--;
     }
@@ -275,7 +179,7 @@ get_8859_1_string(wmem_allocator_t *scope, const guint8 *ptr, gint length)
 {
     wmem_strbuf_t *str;
 
-    str = wmem_strbuf_sized_new(scope, length+1, 0);
+    str = wmem_strbuf_new_sized(scope, length+1);
 
     while (length > 0) {
         guint8 ch = *ptr;
@@ -775,7 +679,7 @@ get_unichar2_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, con
 {
     wmem_strbuf_t *str;
 
-    str = wmem_strbuf_sized_new(scope, length+1, 0);
+    str = wmem_strbuf_new_sized(scope, length+1);
 
     while (length > 0) {
         guint8 ch = *ptr;
@@ -798,37 +702,48 @@ get_unichar2_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, con
  * Unicode, and return a pointer to a UTF-8 string, allocated with the
  * wmem scope.
  *
- * Encoding parameter should be ENC_BIG_ENDIAN or ENC_LITTLE_ENDIAN.
+ * Encoding parameter should be ENC_BIG_ENDIAN or ENC_LITTLE_ENDIAN,
+ * possibly ORed with ENC_BOM.
  *
  * Specify length in bytes.
- *
- * XXX - should map lead and trail surrogate values to REPLACEMENT
- * CHARACTERs (0xFFFD)?
- * XXX - if there are an odd number of bytes, should put a
- * REPLACEMENT CHARACTER at the end.
  */
 guint8 *
-get_ucs_2_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, const guint encoding)
+get_ucs_2_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, guint encoding)
 {
     gunichar2      uchar;
-    gint           i;       /* Byte counter for string */
+    gint           i = 0;       /* Byte counter for string */
     wmem_strbuf_t *strbuf;
 
-    strbuf = wmem_strbuf_sized_new(scope, length+1, 0);
+    strbuf = wmem_strbuf_new_sized(scope, length+1);
 
-    for(i = 0; i + 1 < length; i += 2) {
-        if (encoding == ENC_BIG_ENDIAN){
+    if (encoding & ENC_BOM && length >= 2) {
+        if (pletoh16(ptr) == BYTE_ORDER_MARK) {
+            encoding = ENC_LITTLE_ENDIAN;
+            i += 2;
+        } else if (pntoh16(ptr) == BYTE_ORDER_MARK) {
+            encoding = ENC_BIG_ENDIAN;
+            i += 2;
+        }
+    }
+
+    encoding = encoding & ENC_LITTLE_ENDIAN;
+
+    for(; i + 1 < length; i += 2) {
+        if (encoding == ENC_BIG_ENDIAN) {
             uchar = pntoh16(ptr + i);
-        }else{
+        } else {
             uchar = pletoh16(ptr + i);
         }
-        wmem_strbuf_append_unichar(strbuf, uchar);
+        wmem_strbuf_append_unichar_validated(strbuf, uchar);
     }
 
     /*
-     * XXX - if i < length, this means we were handed an odd
-     * number of bytes, so we're not a valid UCS-2 string.
+     * If i < length, this means we were handed an odd number of bytes;
+     * insert a REPLACEMENT CHARACTER to mark the error.
      */
+    if (i < length) {
+        wmem_strbuf_append_unichar_repl(strbuf);
+    }
     return (guint8 *) wmem_strbuf_finalize(strbuf);
 }
 
@@ -839,23 +754,34 @@ get_ucs_2_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, const 
  *
  * See RFC 2781 section 2.2.
  *
- * Encoding parameter should be ENC_BIG_ENDIAN or ENC_LITTLE_ENDIAN.
+ * Encoding parameter should be ENC_BIG_ENDIAN or ENC_LITTLE_ENDIAN,
+ * possibly ORed with ENC_BOM.
  *
  * Specify length in bytes.
- *
- * XXX - should map invalid Unicode characters to REPLACEMENT CHARACTERs.
  */
 guint8 *
-get_utf_16_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, const guint encoding)
+get_utf_16_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, guint encoding)
 {
     wmem_strbuf_t *strbuf;
     gunichar2      uchar2, lead_surrogate;
     gunichar       uchar;
-    gint           i;       /* Byte counter for string */
+    gint           i = 0;       /* Byte counter for string */
 
-    strbuf = wmem_strbuf_sized_new(scope, length+1, 0);
+    strbuf = wmem_strbuf_new_sized(scope, length+1);
 
-    for(i = 0; i + 1 < length; i += 2) {
+    if (encoding & ENC_BOM && length >= 2) {
+        if (pletoh16(ptr) == BYTE_ORDER_MARK) {
+            encoding = ENC_LITTLE_ENDIAN;
+            i += 2;
+        } else if (pntoh16(ptr) == BYTE_ORDER_MARK) {
+            encoding = ENC_BIG_ENDIAN;
+            i += 2;
+        }
+    }
+
+    encoding = encoding & ENC_LITTLE_ENDIAN;
+
+    for(; i + 1 < length; i += 2) {
         if (encoding == ENC_BIG_ENDIAN)
             uchar2 = pntoh16(ptr + i);
         else
@@ -932,36 +858,45 @@ get_utf_16_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, const
  * Encoding parameter should be ENC_BIG_ENDIAN or ENC_LITTLE_ENDIAN
  *
  * Specify length in bytes
- *
- * XXX - should map lead and trail surrogate values to a "substitute"
- * UTF-8 character?
- * XXX - should map code points > 10FFFF to REPLACEMENT CHARACTERs.
- * XXX - if the number of bytes isn't a multiple of 4, should put a
- * REPLACEMENT CHARACTER at the end.
  */
 guint8 *
-get_ucs_4_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, const guint encoding)
+get_ucs_4_string(wmem_allocator_t *scope, const guint8 *ptr, gint length, guint encoding)
 {
     gunichar       uchar;
-    gint           i;       /* Byte counter for string */
+    gint           i = 0;       /* Byte counter for string */
     wmem_strbuf_t *strbuf;
 
-    strbuf = wmem_strbuf_sized_new(scope, length+1, 0);
+    strbuf = wmem_strbuf_new_sized(scope, length+1);
 
-    for(i = 0; i + 3 < length; i += 4) {
+    if (encoding & ENC_BOM && length >= 4) {
+        if (pletoh32(ptr) == BYTE_ORDER_MARK) {
+            encoding = ENC_LITTLE_ENDIAN;
+            i += 4;
+        } else if (pntoh32(ptr) == BYTE_ORDER_MARK) {
+            encoding = ENC_BIG_ENDIAN;
+            i += 4;
+        }
+    }
+
+    encoding = encoding & ENC_LITTLE_ENDIAN;
+
+    for(; i + 3 < length; i += 4) {
         if (encoding == ENC_BIG_ENDIAN)
             uchar = pntoh32(ptr + i);
         else
             uchar = pletoh32(ptr + i);
 
-        wmem_strbuf_append_unichar(strbuf, uchar);
+        wmem_strbuf_append_unichar_validated(strbuf, uchar);
     }
 
     /*
-     * XXX - if i < length, this means we were handed a number
-     * of bytes that's not a multiple of 4, so we're not a valid
-     * UCS-4 string.
+     * if i < length, this means we were handed a number of bytes
+     * that's not a multiple of 4, so not a valid UCS-4 string.
+     * Insert a REPLACEMENT CHARACTER for the remaining bytes.
      */
+    if (i < length) {
+        wmem_strbuf_append_unichar(strbuf, UNREPL);
+    }
     return (guint8 *)wmem_strbuf_finalize(strbuf);
 }
 
@@ -1076,7 +1011,7 @@ get_ts_23_038_7bits_string_packed(wmem_allocator_t *scope, const guint8 *ptr,
     gboolean       saw_escape = FALSE;
     int            bits;
 
-    strbuf = wmem_strbuf_sized_new(scope, no_of_chars+1, 0);
+    strbuf = wmem_strbuf_new_sized(scope, no_of_chars+1);
 
     bits = bit_offset & 0x07;
     if (!bits) {
@@ -1145,7 +1080,7 @@ get_ts_23_038_7bits_string_unpacked(wmem_allocator_t *scope, const guint8 *ptr,
     gint           i;       /* Byte counter for string */
     gboolean       saw_escape = FALSE;
 
-    strbuf = wmem_strbuf_sized_new(scope, length+1, 0);
+    strbuf = wmem_strbuf_new_sized(scope, length+1);
 
     for (i = 0; i < length; i++)
         saw_escape = handle_ts_23_038_char(strbuf, *ptr++, saw_escape);
@@ -1221,7 +1156,7 @@ get_etsi_ts_102_221_annex_a_string(wmem_allocator_t *scope, const guint8 *ptr,
     ptr++;
     length--;
 
-    strbuf = wmem_strbuf_sized_new(scope, 2*string_len+1, 0);
+    strbuf = wmem_strbuf_new_sized(scope, 2*string_len+1);
 
     /*
      * Get the UCS-2 base.
@@ -1272,13 +1207,11 @@ get_etsi_ts_102_221_annex_a_string(wmem_allocator_t *scope, const guint8 *ptr,
             /*
              * XXX - if saw_escape is true, this is bogus.
              *
-             * XXX - should map lead and trail surrogate values to
-             * REPLACEMENT CHARACTERs (0xFFFD)?
              * XXX - if there are an odd number of bytes, should put a
              * REPLACEMENT CHARACTER at the end.
              */
             uchar = ucs2_base + (byte & 0x7f);
-            wmem_strbuf_append_unichar(strbuf, uchar);
+            wmem_strbuf_append_unichar_validated(strbuf, uchar);
         }
     }
 
@@ -1300,7 +1233,7 @@ get_ascii_7bits_string(wmem_allocator_t *scope, const guint8 *ptr,
         bits = 7;
     }
 
-    strbuf = wmem_strbuf_sized_new(scope, no_of_chars+1, 0);
+    strbuf = wmem_strbuf_new_sized(scope, no_of_chars+1);
     for(char_count = 0; char_count < no_of_chars; ptr++) {
         /* Get the next byte from the string. */
         in_byte = *ptr;
@@ -1343,125 +1276,17 @@ get_ascii_7bits_string(wmem_allocator_t *scope, const guint8 *ptr,
     return (guint8 *)wmem_strbuf_finalize(strbuf);
 }
 
-/* ASCII/EBCDIC conversion tables from
- * https://web.archive.org/web/20060813174742/http://www.room42.com/store/computer_center/code_tables.shtml
- */
-#if 0
-static const guint8 ASCII_translate_EBCDIC [ 256 ] = {
-    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-    0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
-    0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
-    0x40, 0x5A, 0x7F, 0x7B, 0x5B, 0x6C, 0x50, 0x7D, 0x4D,
-    0x5D, 0x5C, 0x4E, 0x6B, 0x60, 0x4B, 0x61,
-    0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8,
-    0xF9, 0x7A, 0x5E, 0x4C, 0x7E, 0x6E, 0x6F,
-    0x7C, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8,
-    0xC9, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6,
-    0xD7, 0xD8, 0xD9, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7,
-    0xE8, 0xE9, 0xAD, 0xE0, 0xBD, 0x5F, 0x6D,
-    0x7D, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88,
-    0x89, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96,
-    0x97, 0x98, 0x99, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7,
-    0xA8, 0xA9, 0xC0, 0x6A, 0xD0, 0xA1, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B,
-    0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B, 0x4B
-};
-
-void
-ASCII_to_EBCDIC(guint8 *buf, guint bytes)
-{
-    guint    i;
-    guint8    *bufptr;
-
-    bufptr = buf;
-
-    for (i = 0; i < bytes; i++, bufptr++) {
-        *bufptr = ASCII_translate_EBCDIC[*bufptr];
-    }
-}
-
-guint8
-ASCII_to_EBCDIC1(guint8 c)
-{
-    return ASCII_translate_EBCDIC[c];
-}
-#endif
-
-static const guint8 EBCDIC_translate_ASCII [ 256 ] = {
-    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-    0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
-    0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
-    0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
-    0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
-    0x2E, 0x2E, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
-    0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x2E, 0x3F,
-    0x20, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x2E, 0x2E, 0x2E, 0x2E, 0x3C, 0x28, 0x2B, 0x7C,
-    0x26, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x2E, 0x2E, 0x21, 0x24, 0x2A, 0x29, 0x3B, 0x5E,
-    0x2D, 0x2F, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x2E, 0x2E, 0x7C, 0x2C, 0x25, 0x5F, 0x3E, 0x3F,
-    0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x2E, 0x2E, 0x3A, 0x23, 0x40, 0x27, 0x3D, 0x22,
-    0x2E, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
-    0x68, 0x69, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x2E, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70,
-    0x71, 0x72, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x2E, 0x7E, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78,
-    0x79, 0x7A, 0x2E, 0x2E, 0x2E, 0x5B, 0x2E, 0x2E,
-    0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x5D, 0x2E, 0x2E,
-    0x7B, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
-    0x48, 0x49, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x7D, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50,
-    0x51, 0x52, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x5C, 0x2E, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58,
-    0x59, 0x5A, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
-    0x38, 0x39, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E
-};
-
-void
-EBCDIC_to_ASCII(guint8 *buf, guint bytes)
-{
-    guint   i;
-    guint8 *bufptr;
-
-    bufptr = buf;
-
-    for (i = 0; i < bytes; i++, bufptr++) {
-        *bufptr = EBCDIC_translate_ASCII[*bufptr];
-    }
-}
-
-guint8
-EBCDIC_to_ASCII1(guint8 c)
-{
-    return EBCDIC_translate_ASCII[c];
-}
-
 /* Tables for EBCDIC code pages */
 
 /* EBCDIC common; based on the table in appendix H of ESA/370 Principles
    of Operation, but with some code points that don't correspond to
    the same characters in code pages 037 and 1158 mapped to REPLACEMENT
    CHARACTER - there may be more code points of that sort */
+
+/* There are a few EBCDIC control codes that, strictly speaking, do not
+ * map to any control codes in ASCII or Unicode for that matter. The
+ * customary treatment is to map them in a particular way to ASCII C1
+ * control codes that have no exact equivalent in EBCDIC, as below. */
 const gunichar2 charset_table_ebcdic[256] = {
     0x0000, 0x0001, 0x0002, 0x0003, 0x009c, 0x0009, 0x0086, 0x007f,
     0x0097, 0x008d, 0x008e, 0x000b, 0x000c, 0x000d, 0x000e, 0x000f,
@@ -1533,6 +1358,48 @@ const gunichar2 charset_table_ebcdic_cp037[256] = {
     0x0038, 0x0039, 0x00b3, 0x00db, 0x00dc, 0x00d9, 0x00da, 0x009f,
 };
 
+/* EBCDIC code page 500
+ * https://www.ibm.com/support/pages/conversion-character-differences-between-ccsid-037-and-ccsid-500
+ * CCSID 500 ("International Latin-1") has exactly the same repertoire as 37,
+ * covering all of ISO-8559-1, but with seven code points permuted.
+ * It is notable because it is the default code page for DRDA:
+ * https://www.ibm.com/support/pages/drda-user-id-and-password-not-being-transmitted-correctly-when-containing-characters-%C2%AC-%C2%A2?lnk=hm
+ */
+const gunichar2 charset_table_ebcdic_cp500[256] = {
+    0x0000, 0x0001, 0x0002, 0x0003, 0x009c, 0x0009, 0x0086, 0x007f,
+    0x0097, 0x008d, 0x008e, 0x000b, 0x000c, 0x000d, 0x000e, 0x000f,
+    0x0010, 0x0011, 0x0012, 0x0013, 0x009d, 0x0085, 0x0008, 0x0087,
+    0x0018, 0x0019, 0x0092, 0x008f, 0x001c, 0x001d, 0x001e, 0x001f,
+    0x0080, 0x0081, 0x0082, 0x0083, 0x0084, 0x000a, 0x0017, 0x001b,
+    0x0088, 0x0089, 0x008a, 0x008b, 0x008c, 0x0005, 0x0006, 0x0007,
+    0x0090, 0x0091, 0x0016, 0x0093, 0x0094, 0x0095, 0x0096, 0x0004,
+    0x0098, 0x0099, 0x009a, 0x009b, 0x0014, 0x0015, 0x009e, 0x001a,
+    0x0020, 0x00a0, 0x00e2, 0x00e4, 0x00e0, 0x00e1, 0x00e3, 0x00e5,
+    0x00e7, 0x00f1, 0x005b, 0x002e, 0x003c, 0x0028, 0x002b, 0x0021,
+    0x0026, 0x00e9, 0x00ea, 0x00eb, 0x00e8, 0x00ed, 0x00ee, 0x00ef,
+    0x00ec, 0x00df, 0x005d, 0x0024, 0x002a, 0x0029, 0x003b, 0x005e,
+    0x002d, 0x002f, 0x00c2, 0x00c4, 0x00c0, 0x00c1, 0x00c3, 0x00c5,
+    0x00c7, 0x00d1, 0x00a6, 0x002c, 0x0025, 0x005f, 0x003e, 0x003f,
+    0x00f8, 0x00c9, 0x00ca, 0x00cb, 0x00c8, 0x00cd, 0x00ce, 0x00cf,
+    0x00cc, 0x0060, 0x003a, 0x0023, 0x0040, 0x0027, 0x003d, 0x0022,
+    0x00d8, 0x0061, 0x0062, 0x0063, 0x0064, 0x0065, 0x0066, 0x0067,
+    0x0068, 0x0069, 0x00ab, 0x00bb, 0x00f0, 0x00fd, 0x00fe, 0x00b1,
+    0x00b0, 0x006a, 0x006b, 0x006c, 0x006d, 0x006e, 0x006f, 0x0070,
+    0x0071, 0x0072, 0x00aa, 0x00ba, 0x00e6, 0x00b8, 0x00c6, 0x00a4,
+    0x00b5, 0x007e, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077, 0x0078,
+    0x0079, 0x007a, 0x00a1, 0x00bf, 0x00d0, 0x00dd, 0x00de, 0x00ae,
+    0x00a2, 0x00a3, 0x00a5, 0x00b7, 0x00a9, 0x00a7, 0x00b6, 0x00bc,
+    0x00bd, 0x00be, 0x00ac, 0x007c, 0x00af, 0x00a8, 0x00b4, 0x00d7,
+    0x007b, 0x0041, 0x0042, 0x0043, 0x0044, 0x0045, 0x0046, 0x0047,
+    0x0048, 0x0049, 0x00ad, 0x00f4, 0x00f6, 0x00f2, 0x00f3, 0x00f5,
+    0x007d, 0x004a, 0x004b, 0x004c, 0x004d, 0x004e, 0x004f, 0x0050,
+    0x0051, 0x0052, 0x00b9, 0x00fb, 0x00fc, 0x00f9, 0x00fa, 0x00ff,
+    0x005c, 0x00f7, 0x0053, 0x0054, 0x0055, 0x0056, 0x0057, 0x0058,
+    0x0059, 0x005a, 0x00b2, 0x00d4, 0x00d6, 0x00d2, 0x00d3, 0x00d5,
+    0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037,
+    0x0038, 0x0039, 0x00b3, 0x00db, 0x00dc, 0x00d9, 0x00da, 0x009f,
+};
+
 /*
  * Given a wmem scope, a pointer, a length, and a translation table with
  * 256 entries, treat the string of bytes referred to by the pointer and
@@ -1546,7 +1413,7 @@ get_nonascii_unichar2_string(wmem_allocator_t *scope, const guint8 *ptr, gint le
 {
     wmem_strbuf_t *str;
 
-    str = wmem_strbuf_sized_new(scope, length+1, 0);
+    str = wmem_strbuf_new_sized(scope, length+1);
 
     while (length > 0) {
         guint8 ch = *ptr;
@@ -1589,7 +1456,7 @@ get_string_enc_iconv(wmem_allocator_t *scope, const guint8 *ptr, gint length, co
     }
 
     inbytes = length;
-    str = wmem_strbuf_sized_new(scope, length+1, 0);
+    str = wmem_strbuf_new_sized(scope, length+1);
     /* XXX: If speed becomes an issue, the faster way to do this would
      * involve passing the wmem_strbuf_t's string buffer directly into
      * g_iconv to avoid a memcpy later, but that requires changes to the
@@ -1609,7 +1476,7 @@ get_string_enc_iconv(wmem_allocator_t *scope, const guint8 *ptr, gint length, co
             switch (errno) {
                 case EINVAL:
                     /* Incomplete sequence at the end, not an error */
-                    wmem_strbuf_append_unichar(str, UNREPL);
+                    wmem_strbuf_append_unichar_repl(str);
                     inbytes = 0;
                     break;
                 case E2BIG:
@@ -1627,7 +1494,7 @@ get_string_enc_iconv(wmem_allocator_t *scope, const guint8 *ptr, gint length, co
                     max_subpart = MAX(1, max_subpart-1);
                     ptr += max_subpart;
                     inbytes -= max_subpart;
-                    wmem_strbuf_append_unichar(str, UNREPL);
+                    wmem_strbuf_append_unichar_repl(str);
                     outptr = tempstr;
                     outbytes = tempstr_size;
                     break;
@@ -1964,7 +1831,7 @@ get_t61_string(wmem_allocator_t *scope, const guint8 *ptr, gint length)
     const guint8  *c;
     wmem_strbuf_t *strbuf;
 
-    strbuf = wmem_strbuf_sized_new(scope, length+1, 0);
+    strbuf = wmem_strbuf_new_sized(scope, length+1);
 
     for (i = 0, c = ptr; i < length; c++, i++) {
         if (!t61_tab[*c]) {
@@ -1998,6 +1865,48 @@ get_t61_string(wmem_allocator_t *scope, const guint8 *ptr, gint length)
     return (guint8 *)wmem_strbuf_finalize(strbuf);
 }
 
+/* The DECT standard charset from ETSI EN 300 175-5 Annex D
+ */
+static const gunichar2 dect_standard_8bits_code_table[] = {
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+    ' ',  '!',  '\"', '#',  '$',  '%',  '&',  '\'',
+    '(',  ')',  '*',  '+',  ',',  '-',  '.',  '/',
+    '0',  '1',  '2',  '3',  '4',  '5',  '6',  '7',
+    '8',  '9',  ':',  ';',  '<',  '=',  '>',  '?',
+    '@',  'A',  'B',  'C',  'D',  'E',  'F',  'G',
+    'H',  'I',  'J',  'K',  'L',  'M',  'N',  'O',
+    'P',  'Q',  'R',  'S',  'T',  'U',  'V',  'W',
+    'X',  'Y',  'Z',  '[', '\\',  ']',  '^',  '_',
+    '`',  'a',  'b',  'c',  'd',  'e',  'f',  'g',
+    'h',  'i',  'j',  'k',  'l',  'm',  'n',  'o',
+    'p',  'q',  'r',  's',  't',  'u',  'v',  'w',
+    'x',  'y',  'z',  '{',  '|',  '}',  '~', 0x7f,
+};
+
+guint8 *
+get_dect_standard_8bits_string(wmem_allocator_t *scope, const guint8 *ptr, gint length)
+{
+    gint           position;
+    const guint8  *current_byte_ptr;
+    wmem_strbuf_t *strbuf;
+
+    strbuf = wmem_strbuf_new_sized(scope, length+1);
+
+    for (position = 0, current_byte_ptr = ptr; position < length; current_byte_ptr++, position++) {
+        if (*current_byte_ptr & 0x80) {
+            wmem_strbuf_append_unichar(strbuf, UNREPL);
+        } else if (!dect_standard_8bits_code_table[*current_byte_ptr]) {
+            wmem_strbuf_append_unichar(strbuf, UNREPL);
+        } else {
+            wmem_strbuf_append_unichar(strbuf, dect_standard_8bits_code_table[*current_byte_ptr]);
+        }
+    }
+
+    return (guint8 *)wmem_strbuf_finalize(strbuf);
+}
 /*
  * Editor modelines  -  https://www.wireshark.org/tools/modelines.html
  *

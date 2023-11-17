@@ -26,11 +26,15 @@
 #include <epan/expert.h>
 #include <epan/to_str.h>
 #include <epan/strutil.h>
+#include <epan/iana_charsets.h>
 #include "packet-wap.h"
 #include "packet-wsp.h"
 
 void proto_register_mmse(void);
 void proto_reg_handoff_mmse(void);
+
+static dissector_handle_t mmse_standalone_handle;
+static dissector_handle_t mmse_encapsulated_handle;
 
 #define MM_QUOTE                0x7F    /* Quoted string        */
 
@@ -453,12 +457,17 @@ get_text_string(tvbuff_t *tvb, guint offset, wmem_allocator_t *pool, const char 
 
     DebugLog(("get_text_string(tvb = %p, offset = %u, **strval) - start\n",
                 tvb, offset));
-    len = tvb_strsize(tvb, offset);
-    DebugLog((" [1] tvb_strsize(tvb, offset) == %u\n", len));
-    if (tvb_get_guint8(tvb, offset) == MM_QUOTE)
-        *strval = (const char *)tvb_memdup(pool, tvb, offset+1, len-1);
-    else
-        *strval = (const char *)tvb_memdup(pool, tvb, offset, len);
+    /* OMA-TS-MMS-CONF says that Text-string encoding is always US-ASCII.
+     * (In other WSP protocols it might be the document encoding.)
+     * It is allowed to be Base64 or Quoted-Printable encoded, but
+     * we won't bother with that.
+     */
+    if (tvb_get_guint8(tvb, offset) == MM_QUOTE) {
+        *strval = (const char *)tvb_get_stringz_enc(pool, tvb, offset+1, &len, ENC_ASCII);
+        len += 1;
+    } else {
+        *strval = (const char *)tvb_get_stringz_enc(pool, tvb, offset, &len, ENC_ASCII);
+    }
     DebugLog((" [3] Return(len) == %u\n", len));
     return len;
 }
@@ -499,40 +508,6 @@ get_value_length(tvbuff_t *tvb, guint offset, guint *byte_count, packet_info *pi
      */
     tvb_ensure_bytes_exist(tvb, offset, field);
     return field;
-}
-
-/*!
- * Decodes an Encoded-string-value from the protocol data
- *      Encoded-string-value = Text-string | Value-length Char-set Text-string
- *
- * \param       tvb     The buffer with PDU-data
- * \param       offset  Offset within that buffer
- * \param       strval  Pointer to variable into which to put pointer to
- *                      buffer allocated to hold the text; must be freed
- *                      when no longer used
- *
- * \return              The length in bytes of the entire field
- */
-static guint
-get_encoded_strval(tvbuff_t *tvb, guint offset, const char **strval, packet_info *pinfo)
-{
-    guint        field;
-    guint        length;
-    guint        count;
-
-    field = tvb_get_guint8(tvb, offset);
-
-    if (field < 32) {
-        length = get_value_length(tvb, offset, &count, pinfo);
-        if (length < 2) {
-            *strval = "";
-        } else {
-            /* \todo    Something with "Char-set", skip for now */
-            *strval = (char *)tvb_get_string_enc(pinfo->pool, tvb, offset + count + 1, length - 1, ENC_ASCII);
-        }
-        return count + length;
-    } else
-        return get_text_string(tvb, offset, pinfo->pool, strval);
 }
 
 /*!
@@ -629,6 +604,48 @@ get_integer_value(tvbuff_t *tvb, guint offset, guint *byte_count)
     }
     (*byte_count)++;
     return val;
+}
+
+/*!
+ * Decodes an Encoded-string-value from the protocol data
+ *      Encoded-string-value = Text-string | Value-length Char-set Text-string
+ *
+ * \param       tvb     The buffer with PDU-data
+ * \param       offset  Offset within that buffer
+ * \param       strval  Pointer to variable into which to put pointer to
+ *                      buffer allocated to hold the text; must be freed
+ *                      when no longer used
+ *
+ * \return              The length in bytes of the entire field
+ */
+static guint
+get_encoded_strval(tvbuff_t *tvb, guint offset, const char **strval, packet_info *pinfo)
+{
+    guint        field;
+    guint        length;
+    guint        count, count1;
+    guint        charset;
+
+    field = tvb_get_guint8(tvb, offset);
+
+    if (field < 32) {
+        length = get_value_length(tvb, offset, &count, pinfo);
+        if (length < 2) {
+            *strval = "";
+        } else {
+            /* OMA-TS-MMS-CONF says that char-set is encoded as an integer
+             * value, so don't bother to handle the string case. */
+            field = tvb_get_guint8(tvb, offset + count);
+            if ((field < 32) | (field & 0x80)) {
+                charset = get_integer_value(tvb, offset + count, &count1);
+                *strval = (char *)tvb_get_string_enc(pinfo->pool, tvb, offset + count + count1, length - count1, mibenum_charset_to_encoding(charset));
+            } else {
+                *strval = (char *)tvb_get_string_enc(pinfo->pool, tvb, offset + count, length, ENC_ASCII);
+            }
+        }
+        return count + length;
+    } else
+        return get_text_string(tvb, offset, pinfo->pool, strval);
 }
 
 /* Code to actually dissect the packets */
@@ -1607,6 +1624,10 @@ proto_register_mmse(void)
 
     expert_mmse = expert_register_protocol(proto_mmse);
     expert_register_field_array(expert_mmse, ei, array_length(ei));
+
+    /* Register the dissectors */
+    mmse_standalone_handle = register_dissector("mmse", dissect_mmse_standalone, proto_mmse);
+    mmse_encapsulated_handle = register_dissector("mmse_encapsulated", dissect_mmse_encapsulated, proto_mmse);
 }
 
 /* If this dissector uses sub-dissector registration add registration routine.
@@ -1616,14 +1637,7 @@ proto_register_mmse(void)
 void
 proto_reg_handoff_mmse(void)
 {
-    dissector_handle_t mmse_standalone_handle;
-    dissector_handle_t mmse_encapsulated_handle;
-
     heur_dissector_add("wsp", dissect_mmse_heur, "MMS Message Encapsulation over WSP", "mmse_wsp", proto_mmse, HEURISTIC_ENABLE);
-    mmse_standalone_handle = create_dissector_handle(
-            dissect_mmse_standalone, proto_mmse);
-    mmse_encapsulated_handle = create_dissector_handle(
-            dissect_mmse_encapsulated, proto_mmse);
         /* As the media types for WSP and HTTP are the same, the WSP dissector
          * uses the same string dissector table as the HTTP protocol. */
     dissector_add_string("media_type",

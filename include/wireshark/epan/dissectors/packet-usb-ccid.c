@@ -102,8 +102,20 @@ static int hf_ccid_bmSlotICCState_slot6Changed = -1;
 static int hf_ccid_bmSlotICCState_slot7Current = -1;
 static int hf_ccid_bmSlotICCState_slot7Changed = -1;
 static int hf_ccid_bHardwareErrorCode = -1;
+static int hf_ccid_bmFindexDindex = -1;
+static int hf_ccid_bmTCCKST0 = -1;
+static int hf_ccid_bmTCCKST1 = -1;
+static int hf_ccid_bGuardTimeT0 = -1;
+static int hf_ccid_bGuardTimeT1 = -1;
+static int hf_ccid_bWaitingIntegerT0 = -1;
+static int hf_ccid_bmWaitingIntegersT1 = -1;
+static int hf_ccid_bClockStop = -1;
+static int hf_ccid_bIFSC = -1;
+static int hf_ccid_bNadValue = -1;
 
 static dissector_handle_t usb_ccid_handle;
+static dissector_handle_t usb_ccid_descr_handle;
+
 
 static int * const bVoltageLevel_fields[] = {
     &hf_ccid_bVoltageSupport18,
@@ -339,6 +351,7 @@ static const value_string ccid_status_cmd_status_vals[] = {
 /* Subtree handles: set by register_subtree_array */
 static gint ett_ccid      = -1;
 static gint ett_ccid_desc = -1;
+static gint ett_ccid_protocol_data_structure = -1;
 static gint ett_ccid_voltage_level = -1;
 static gint ett_ccid_protocols = -1;
 static gint ett_ccid_features = -1;
@@ -473,6 +486,8 @@ dissect_ccid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     tvbuff_t   *next_tvb;
     usb_conv_info_t  *usb_conv_info;
     int len_remaining;
+    guint8 bProtocolNum;
+    proto_tree *protocol_tree;
 
     /* Reject the packet if data is NULL */
     if (data == NULL)
@@ -501,10 +516,36 @@ dissect_ccid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
         /* Placeholder for abRFU */
         proto_tree_add_item(ccid_tree, hf_ccid_Reserved, tvb, 8, 2, ENC_LITTLE_ENDIAN);
-        if (tvb_get_letohl(tvb, 1) != 0)
+
+        payload_len = tvb_get_letohl(tvb, 1);
+
+        /* abProtocolDataStructure */
+        bProtocolNum = tvb_get_guint8(tvb, 7);
+        switch (bProtocolNum)
         {
-            next_tvb = tvb_new_subset_remaining(tvb, 10);
-            call_data_dissector(next_tvb, pinfo, tree);
+            case 0: /* T=0 */
+                protocol_tree = proto_tree_add_subtree(tree, tvb, 10, payload_len, ett_ccid_protocol_data_structure, NULL, "Protocol Data Structure for Protocol T=0");
+                proto_tree_add_item(protocol_tree, hf_ccid_bmFindexDindex, tvb, 10, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bmTCCKST0, tvb, 11, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bGuardTimeT0, tvb, 12, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bWaitingIntegerT0, tvb, 13, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bClockStop, tvb, 14, 1, ENC_LITTLE_ENDIAN);
+                break;
+
+            case 1: /* T=1 */
+                protocol_tree = proto_tree_add_subtree(tree, tvb, 10, payload_len, ett_ccid_protocol_data_structure, NULL, "Protocol Data Structure for Protocol T=1");
+                proto_tree_add_item(protocol_tree, hf_ccid_bmFindexDindex, tvb, 10, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bmTCCKST1, tvb, 11, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bGuardTimeT1, tvb, 12, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bmWaitingIntegersT1, tvb, 13, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bClockStop, tvb, 14, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bIFSC, tvb, 15, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bNadValue, tvb, 16, 1, ENC_LITTLE_ENDIAN);
+                break;
+
+            default:
+                next_tvb = tvb_new_subset_remaining(tvb, 10);
+                call_data_dissector(next_tvb, pinfo, tree);
         }
         break;
 
@@ -610,7 +651,38 @@ dissect_ccid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         proto_tree_add_item(ccid_tree, hf_ccid_bSeq, tvb, 6, 1, ENC_LITTLE_ENDIAN);
         proto_tree_add_bitmask(ccid_tree, tvb, 7, hf_ccid_bStatus, ett_ccid_status, bStatus_fields, ENC_LITTLE_ENDIAN);
         proto_tree_add_item(ccid_tree, hf_ccid_bError, tvb, 8, 1, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item(ccid_tree, hf_ccid_bProtocolNum, tvb, 8, 1, ENC_LITTLE_ENDIAN);
+        proto_tree_add_item(ccid_tree, hf_ccid_bProtocolNum, tvb, 9, 1, ENC_LITTLE_ENDIAN);
+
+        payload_len = tvb_get_letohl(tvb, 1);
+
+        /* abProtocolDataStructure */
+        bProtocolNum = tvb_get_guint8(tvb, 9);
+        switch (bProtocolNum)
+        {
+            case 0: /* T=0 */
+                protocol_tree = proto_tree_add_subtree(tree, tvb, 10, payload_len, ett_ccid_protocol_data_structure, NULL, "Protocol Data Structure for Protocol T=0");
+                proto_tree_add_item(protocol_tree, hf_ccid_bmFindexDindex, tvb, 10, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bmTCCKST0, tvb, 11, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bGuardTimeT0, tvb, 12, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bWaitingIntegerT0, tvb, 13, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bClockStop, tvb, 14, 1, ENC_LITTLE_ENDIAN);
+                break;
+
+            case 1: /* T=1 */
+                protocol_tree = proto_tree_add_subtree(tree, tvb, 10, payload_len, ett_ccid_protocol_data_structure, NULL, "Protocol Data Structure for Protocol T=1");
+                proto_tree_add_item(protocol_tree, hf_ccid_bmFindexDindex, tvb, 10, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bmTCCKST1, tvb, 11, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bGuardTimeT1, tvb, 12, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bmWaitingIntegersT1, tvb, 13, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bClockStop, tvb, 14, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bIFSC, tvb, 15, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(protocol_tree, hf_ccid_bNadValue, tvb, 16, 1, ENC_LITTLE_ENDIAN);
+                break;
+
+            default:
+                next_tvb = tvb_new_subset_remaining(tvb, 10);
+                call_data_dissector(next_tvb, pinfo, tree);
+        }
         break;
 
     /*Interupt IN*/
@@ -691,7 +763,7 @@ proto_register_ccid(void)
          { "Block Wait Time Integer", "usbccid.bBWI", FT_UINT8, BASE_HEX,
            NULL, 0x0, NULL, HFILL }},
         {&hf_ccid_wLevelParameter,
-         { "Level Parameter", "usbccid.wLevelParameter", FT_UINT8, BASE_HEX,
+         { "Level Parameter", "usbccid.wLevelParameter", FT_UINT16, BASE_HEX,
            NULL, 0x0, NULL, HFILL }},
         {&hf_ccid_bcdCCID,
          { "bcdCCID", "usbccid.bcdCCID", FT_UINT16, BASE_HEX,
@@ -716,10 +788,10 @@ proto_register_ccid(void)
            NULL, 0x0, NULL, HFILL }},
         {&hf_ccid_dwProtocols_t0,
          { "T=0", "usbccid.dwProtocols.t0", FT_BOOLEAN, 32,
-            TFS(&tfs_supported_not_supported), 0x01, NULL, HFILL }},
+            TFS(&tfs_supported_not_supported), 0x00000001, NULL, HFILL }},
         {&hf_ccid_dwProtocols_t1,
          { "T=1", "usbccid.dwProtocols.t1", FT_BOOLEAN, 32,
-            TFS(&tfs_supported_not_supported), 0x02, NULL, HFILL }},
+            TFS(&tfs_supported_not_supported), 0x00000002, NULL, HFILL }},
         {&hf_ccid_dwDefaultClock,
          { "default clock frequency", "usbccid.dwDefaultClock",
              FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_khz, 0x0, NULL, HFILL }},
@@ -753,55 +825,55 @@ proto_register_ccid(void)
         {&hf_ccid_dwFeatures_autoIccActivation,
          { "Automatic activation of ICC on inserting",
              "usbccid.dwFeatures.autoIccActivation", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x04, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00000004, NULL, HFILL }},
         {&hf_ccid_dwFeatures_autoIccVoltSelect,
          { "Automatic ICC voltage selection",
              "usbccid.dwFeatures.autoParamNegotiation", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x08, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00000008, NULL, HFILL }},
         {&hf_ccid_dwFeatures_autoParam,
          { "Automatic parameter configuration based on ATR",
              "usbccid.dwFeatures.autoParam", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x02, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00000002, NULL, HFILL }},
         {&hf_ccid_dwFeatures_autoIccClk,
          { "Automatic ICC clock frequency change",
              "usbccid.dwFeatures.autoIccClk", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x10, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00000010, NULL, HFILL }},
         {&hf_ccid_dwFeatures_autoBaudRate,
          { "Automatic baud rate change",
              "usbccid.dwFeatures.autoBaudRate", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x20, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00000020, NULL, HFILL }},
         {&hf_ccid_dwFeatures_autoParamNegotiation,
          { "Automatic parameters negotiation",
              "usbccid.dwFeatures.autoParamNegotiation", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x40, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00000040, NULL, HFILL }},
         {&hf_ccid_dwFeatures_autoPPS,
          { "Automatic PPS",
              "usbccid.dwFeatures.autoPPS", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x80, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00000080, NULL, HFILL }},
         {&hf_ccid_dwFeatures_stopIccClk,
          { "CCID can set ICC in clock stop mode",
              "usbccid.dwFeatures.stopIccClk", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x100, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00000100, NULL, HFILL }},
         {&hf_ccid_dwFeatures_nadValNot0accept,
          { "NAD value other than 00 accepted",
              "usbccid.dwFeatures.nadValNot0accept", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x200, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00000200, NULL, HFILL }},
         {&hf_ccid_dwFeatures_autoIfsd,
          { "Automatic IFSD exchange as first exchange",
              "usbccid.dwFeatures.autoIfsd", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x400, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00000400, NULL, HFILL }},
         {&hf_ccid_dwFeatures_levelExchangeTDPU,
          { "TPDU level exchanges",
              "usbccid.dwFeatures.levelExchangeTDPU", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x010000, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00010000, NULL, HFILL }},
         {&hf_ccid_dwFeatures_levelExchangeShortAPDU,
          { "Short APDU level exchange",
              "usbccid.dwFeatures.levelExchangeShortAPDU", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x020000, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00020000, NULL, HFILL }},
         {&hf_ccid_dwFeatures_levelExchangeShortExtendedAPDU,
          { "Short and Extended APDU level exchange",
              "usbccid.dwFeatures.levelExchangeShortExtendedAPDU", FT_BOOLEAN, 32,
-             TFS(&tfs_supported_not_supported), 0x040000, NULL, HFILL }},
+             TFS(&tfs_supported_not_supported), 0x00040000, NULL, HFILL }},
         {&hf_ccid_dwFeatures_UsbWakeUp,
          { "USB Wake up signaling supported on card insertion and removal",
              "usbccid.dwFeatures.UsbWakeUp", FT_BOOLEAN, 32,
@@ -893,11 +965,42 @@ proto_register_ccid(void)
         { &hf_ccid_bHardwareErrorCode,
          { "Hardware Error Code", "usbccid.hf_ccid_bHardwareErrorCode",
              FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL } },
+        {&hf_ccid_bmFindexDindex,
+         { "Fi/Di selecting clock rate", "usbccid.bmFindexDindex", FT_UINT8, BASE_HEX,
+           NULL, 0x0, NULL, HFILL }},
+        {&hf_ccid_bmTCCKST0,
+         { "Convention used", "usbccid.bmTCCKST0", FT_UINT8, BASE_HEX,
+           NULL, 0x0, NULL, HFILL }},
+        {&hf_ccid_bmTCCKST1,
+         { "Checksum type - Convention used", "usbccid.bmTCCKST1", FT_UINT8, BASE_HEX,
+           NULL, 0x0, NULL, HFILL }},
+        {&hf_ccid_bGuardTimeT0,
+         { "Extra Guardtime between two characters", "usbccid.bGuardTimeT0", FT_UINT8, BASE_HEX,
+           NULL, 0x0, NULL, HFILL }},
+        {&hf_ccid_bGuardTimeT1,
+         { "Extra Guardtime", "usbccid.bGuardTimeT1", FT_UINT8, BASE_HEX,
+           NULL, 0x0, NULL, HFILL }},
+        {&hf_ccid_bmWaitingIntegersT1,
+         { "BWI - CWI", "usbccid.bmWaitingIntegersT1", FT_UINT8, BASE_HEX,
+           NULL, 0x0, NULL, HFILL }},
+        {&hf_ccid_bClockStop,
+         { "ICC Clock Stop Support", "usbccid.bClockStop", FT_UINT8, BASE_HEX,
+           NULL, 0x0, NULL, HFILL }},
+        {&hf_ccid_bIFSC,
+         { "Size of negotiated IFSC", "usbccid.bIFSC", FT_UINT8, BASE_HEX,
+           NULL, 0x0, NULL, HFILL }},
+        {&hf_ccid_bNadValue,
+         { "NAD", "usbccid.bNadValue", FT_UINT8, BASE_HEX,
+           NULL, 0x0, NULL, HFILL }},
+        {&hf_ccid_bWaitingIntegerT0,
+         { "WI for T= 0 used to define WWT", "usbccid.bWaitingIntegerT0", FT_UINT8, BASE_HEX,
+           NULL, 0x0, NULL, HFILL }},
     };
 
     static gint *ett[] = {
         &ett_ccid,
         &ett_ccid_desc,
+        &ett_ccid_protocol_data_structure,
         &ett_ccid_voltage_level,
         &ett_ccid_protocols,
         &ett_ccid_features,
@@ -917,6 +1020,7 @@ proto_register_ccid(void)
     prefs_register_obsolete_preference(pref_mod, "prtype");
 
     usb_ccid_handle = register_dissector("usbccid", dissect_ccid, proto_ccid);
+    usb_ccid_descr_handle = register_dissector("usbccid.descriptor", dissect_usb_ccid_descriptor, proto_ccid);
 
     subdissector_table = register_decode_as_next_proto(proto_ccid, "usbccid.subdissector", "USB CCID payload", NULL);
 }
@@ -925,10 +1029,6 @@ proto_register_ccid(void)
 void
 proto_reg_handoff_ccid(void)
 {
-    dissector_handle_t usb_ccid_descr_handle;
-
-    usb_ccid_descr_handle = create_dissector_handle(
-            dissect_usb_ccid_descriptor, proto_ccid);
     dissector_add_uint("usb.descriptor", IF_CLASS_SMART_CARD, usb_ccid_descr_handle);
 
     dissector_add_uint("usb.bulk", IF_CLASS_SMART_CARD, usb_ccid_handle);

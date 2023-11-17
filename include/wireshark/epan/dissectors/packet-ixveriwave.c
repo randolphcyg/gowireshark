@@ -2260,14 +2260,15 @@ wlantap_dissect_octo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     tvbuff_t   *next_tvb;
     guint       length;
     gint8       dbm;
-    guint8      rate_mcs_index = 0, vw_plcp_info, vw_bssid;
+    guint8      rate_mcs_index = 0, vw_bssid;
     guint8      plcp_type;
     guint8      vht_ndp_flag, vht_mu_mimo_flg;
     float       phyRate;
 
     proto_tree *vwict, *vw_infoC_tree = NULL;
-    guint16     vw_vcid, vw_seqnum, mpdu_length;
-    guint8      vht_user_pos;
+    guint16     vw_vcid, mpdu_length;
+    guint32     vw_seqnum;
+    guint32     vht_user_pos;
     guint8      plcp_default;
 
     proto_item *vwl1i;
@@ -2500,10 +2501,9 @@ wlantap_dissect_octo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     if (plcp_type == PLCP_TYPE_VHT_MIXED)
     {
         // Extract SU/MU MIMO flag from RX L1 Info
-        vht_user_pos = tvb_get_guint8(tvb, offset);
-
+        vht_user_pos  = tvb_get_guint8(tvb, offset);
         vwict = proto_tree_add_item(vw_l1info_tree,
-                hf_radiotap_l1infoc, tvb, offset, 1, vht_user_pos);
+                hf_radiotap_l1infoc, tvb, offset, 1, ENC_NA);
         vw_infoC_tree = proto_item_add_subtree(vwict, ett_radiotap_infoc);
 
         vht_ndp_flag = (vht_user_pos & 0x80) >> 7;
@@ -2528,14 +2528,14 @@ wlantap_dissect_octo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     mpdu_length = tvb_get_letohs(tvb, offset);
     if (cmd_type != 1) //Checking for Rx and Tx
     {
-        proto_tree_add_item(vw_l1info_tree, hf_ixveriwave_frame_length, tvb, offset, 2, mpdu_length);
+        proto_tree_add_item(vw_l1info_tree, hf_ixveriwave_frame_length, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     }
     offset      += 2;
 
     //RadioTapHeader New format for PLCP section
-    vw_plcp_info = tvb_get_guint8(tvb, offset);
+    //vw_plcp_info = tvb_get_guint8(tvb, offset);
 
-    vwplt = proto_tree_add_item(tap_tree, hf_radiotap_plcp_info, tvb, offset, 16, vw_plcp_info);
+    vwplt = proto_tree_add_item(tap_tree, hf_radiotap_plcp_info, tvb, offset, 16, ENC_NA);
     vw_plcpinfo_tree = proto_item_add_subtree(vwplt, ett_radiotap_plcp);
 
     switch (plcp_type)
@@ -2832,9 +2832,8 @@ wlantap_dissect_octo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     proto_tree_add_item(vw_l2l4info_tree, hf_radiotap_flowvalid, tvb, offset, 1, ENC_NA);
     offset++;
 
-    vw_seqnum = tvb_get_guint8(tvb, offset);
-    proto_tree_add_item(vw_l2l4info_tree, hf_ixveriwave_vw_seqnum,
-                            tvb, offset, 1, vw_seqnum);
+    proto_tree_add_item_ret_uint(vw_l2l4info_tree, hf_ixveriwave_vw_seqnum,
+                                 tvb, offset, 1, ENC_NA, &vw_seqnum);
     offset++;
     if (flowv == 1)
     {
@@ -3403,7 +3402,7 @@ void proto_register_ixveriwave(void)
 
     { &hf_ixveriwave_vw_l4id,
         { "Layer 4 ID", "ixveriwave.layer4id",
-        FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL } },
+        FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL } },
 
     /* Ethernet fields */
 
@@ -3449,50 +3448,50 @@ framing signal deasserted.  this is caused by software setting the drain all reg
     /* rx-only */
     { &hf_ixveriwave_vw_error_1_alignment_error,
         { "Alignment error", "ixveriwave.eth_error.rx_alignment_error",
-        FT_BOOLEAN, 12, NULL, 0x0001, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x001, NULL, HFILL } },
     /* rx and tx */
     { &hf_ixveriwave_vw_error_1_packet_fcs_error,
         { "Packet FCS error", "ixveriwave.eth_error.rx_packet_fcs_error",
-        FT_BOOLEAN, 12, NULL, 0x0002, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x002, NULL, HFILL } },
     /* rx-only */
     { &hf_ixveriwave_vw_error_1_bad_magic_byte_signature,
         { "Bad magic byte signature", "ixveriwave.eth_error.rx_bad_magic_byte_signature",
-        FT_BOOLEAN, 12, NULL, 0x0004, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x004, NULL, HFILL } },
     /* rx-only */
     { &hf_ixveriwave_vw_error_1_bad_payload_checksum,
         { "Bad payload checksum", "ixveriwave.eth_error.rx_bad_payload_checksum",
-        FT_BOOLEAN, 12, NULL, 0x0008, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x008, NULL, HFILL } },
     /* rx-only */
     { &hf_ixveriwave_vw_error_1_frame_too_long,
         { "Frame too long error", "ixveriwave.eth_error.rx_frame_too_long",
-        FT_BOOLEAN, 12, NULL, 0x0010, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x010, NULL, HFILL } },
     /* rx and tx */
     { &hf_ixveriwave_vw_error_1_ip_checksum_error,
         { "IP checksum error", "ixveriwave.eth_error.rx_ip_checksum_error",
-        FT_BOOLEAN, 12, NULL, 0x0020, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x020, NULL, HFILL } },
     /* rx-only */
     { &hf_ixveriwave_vw_error_1_l4_checksum_error,
         { "L4 (TCP/ICMP/IGMP/UDP) checksum error", "ixveriwave.eth_error.rx_l4_checksum_error",
-        FT_BOOLEAN, 12, NULL, 0x0040, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x040, NULL, HFILL } },
     /* rx-only */
     { &hf_ixveriwave_vw_error_1_id_mismatch,
         { "ID mismatch(for fpga510012)", "ixveriwave.eth_error.rx_id_mismatch",
-        FT_BOOLEAN, 12, NULL, 0x0080, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x080, NULL, HFILL } },
     /* rx-only */
     { &hf_ixveriwave_vw_error_1_length_error,
         { "Length error", "ixveriwave.eth_error.rx_length_error",
-        FT_BOOLEAN, 12, NULL, 0x0100, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x100, NULL, HFILL } },
     /* rx and tx */
     { &hf_ixveriwave_vw_error_1_underflow,
         { "Underflow", "ixveriwave.eth_error.rx_underflow",
-        FT_BOOLEAN, 12, NULL, 0x0200, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x200, NULL, HFILL } },
     /* tx-only */
     { &hf_ixveriwave_vw_error_1_late_collision,
         { "Late collision", "ixveriwave.eth_error.late_collision",
-        FT_BOOLEAN, 12, NULL, 0x0400, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x400, NULL, HFILL } },
     { &hf_ixveriwave_vw_error_1_excessive_collisions,
         { "Excessive collisions", "ixveriwave.eth_error.excessive_collisions",
-        FT_BOOLEAN, 12, NULL, 0x0800, NULL, HFILL } },
+        FT_BOOLEAN, 12, NULL, 0x800, NULL, HFILL } },
     /*all other bits are reserved */
 
     /* WLAN fields */
@@ -3835,7 +3834,7 @@ framing signal deasserted.  this is caused by software setting the drain all reg
         FT_UINT24, BASE_DEC, VALS(fec_encoding_vals), 0x000040, NULL, HFILL } },
     { &hf_radiotap_ht_short_gi,
         { "Short GI", "ixveriwave.ht.short_gi",
-        FT_BOOLEAN, 24, NULL, 0x0000080, NULL, HFILL } },
+        FT_BOOLEAN, 24, NULL, 0x000080, NULL, HFILL } },
     { &hf_radiotap_ht_ness,
         { "Number of Extension Spatial Streams", "ixveriwave.ness",
         FT_UINT24, BASE_DEC, NULL, 0x000300, NULL, HFILL } },

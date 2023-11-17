@@ -631,12 +631,12 @@ proto_register_netlink(void)
 		},
 		{ &hf_netlink_attr_type_nested,
 			{ "Nested", "netlink.attr_type.nested",
-			  FT_BOOLEAN, 16, TFS(&tfs_true_false), NLA_F_NESTED,
+			  FT_BOOLEAN, 16, NULL, NLA_F_NESTED,
 			  "Carries nested attributes", HFILL }
 		},
 		{ &hf_netlink_attr_type_net_byteorder,
 			{ "Network byte order", "netlink.attr_type.net_byteorder",
-			  FT_BOOLEAN, 16, TFS(&tfs_true_false), NLA_F_NET_BYTEORDER,
+			  FT_BOOLEAN, 16, NULL, NLA_F_NET_BYTEORDER,
 			  "Payload stored in host or network byte order", HFILL }
 		},
 		{ &hf_netlink_attr_index,
@@ -668,7 +668,7 @@ proto_register_netlink(void)
 	proto_register_field_array(proto_netlink, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
 
-	netlink_handle = create_dissector_handle(dissect_netlink, proto_netlink);
+	netlink_handle = register_dissector("netlink", dissect_netlink, proto_netlink);
 
 	netlink_dissector_table = register_dissector_table(
 		"netlink.protocol",
@@ -676,7 +676,6 @@ proto_register_netlink(void)
 		proto_netlink, FT_UINT16,
 		BASE_HEX
 	);
-	register_dissector("netlink", dissect_netlink, proto_netlink);
 }
 
 void

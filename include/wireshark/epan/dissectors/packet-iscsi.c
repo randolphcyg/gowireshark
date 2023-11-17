@@ -2501,7 +2501,7 @@ dissect_iscsi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean chec
         }
 
         if (offset == 0)
-            col_set_str(pinfo->cinfo, COL_INFO, "");
+            col_clear(pinfo->cinfo, COL_INFO);
         else
             col_append_str(pinfo->cinfo, COL_INFO, ", ");
 
@@ -2872,7 +2872,7 @@ proto_register_iscsi(void)
         },
         { &hf_iscsi_ISID_Qualifier,
           { "ISID_Qualifier", "iscsi.isid.qualifier",
-            FT_UINT8, BASE_HEX, NULL, 0,
+            FT_UINT16, BASE_HEX, NULL, 0,
             "Initiator part of session identifier - qualifier", HFILL }
         },
 /* #else */

@@ -103,15 +103,6 @@ typedef enum {
 } layout_pane_content_e;
 
 /*
- * open console behaviour (win32 only)
- */
-typedef enum {
-    console_open_never,
-    console_open_auto,
-    console_open_always
-} console_open_e;
-
-/*
  * Places version information will show up
  */
 typedef enum {
@@ -150,7 +141,7 @@ typedef struct _e_prefs {
   color_t      gui_text_valid, gui_text_invalid, gui_text_deprecated;
   gboolean     restore_filter_after_following_stream;
   gint         gui_toolbar_main_style;
-  gchar       *gui_qt_font_name;
+  gchar       *gui_font_name;
   color_t      gui_active_fg;
   color_t      gui_active_bg;
   gint         gui_active_style;
@@ -166,12 +157,12 @@ typedef struct _e_prefs {
   gboolean     gui_geometry_save_position;
   gboolean     gui_geometry_save_size;
   gboolean     gui_geometry_save_maximized;
-  console_open_e gui_console_open;
   guint        gui_recent_df_entries_max;
   guint        gui_recent_files_count_max;
   guint        gui_fileopen_style;
   gchar       *gui_fileopen_dir;
   guint        gui_fileopen_preview;
+  gchar       *gui_tlskeylog_command;
   gboolean     gui_ask_unsaved;
   gboolean     gui_autocomplete_filter;
   gboolean     gui_find_wrap;
@@ -190,6 +181,7 @@ typedef struct _e_prefs {
   gboolean     gui_interfaces_show_hidden;
   gboolean     gui_interfaces_remote_display;
   gboolean     gui_io_graph_automatic_update;
+  gboolean     gui_io_graph_enable_legend;
   gboolean     gui_packet_details_show_byteview;
   gchar       *capture_device;
   gchar       *capture_devices_linktypes;
@@ -203,7 +195,7 @@ typedef struct _e_prefs {
   gboolean     capture_prom_mode;
   gboolean     capture_pcap_ng;
   gboolean     capture_real_time;
-  gboolean     capture_auto_scroll; /* XXX - Move to recent */
+  guint        capture_update_interval;
   gboolean     capture_no_interface_load;
   gboolean     capture_no_extcap;
   gboolean     capture_show_info;
@@ -214,22 +206,25 @@ typedef struct _e_prefs {
   gboolean     enable_incomplete_dissectors_check;
   gboolean     incomplete_dissectors_check_debug;
   gboolean     strict_conversation_tracking_heuristics;
+  gboolean     ignore_dup_frames;
+  guint        ignore_dup_frames_cache_entries;
   gboolean     filter_expressions_old;  /* TRUE if old filter expressions preferences were loaded. */
   gboolean     gui_update_enabled;
   software_update_channel_e gui_update_channel;
   gint         gui_update_interval;
+  gint         gui_debounce_timer;
   gchar       *saved_at_version;
   gboolean     unknown_prefs; /* unknown or obsolete pref(s) */
-  gboolean     unknown_colorfilters; /* Warn when saving unknown or obsolete color filters. */
-  gboolean     gui_qt_packet_list_separator;
-  gboolean     gui_qt_packet_header_column_definition;
-  gboolean     gui_qt_packet_list_hover_style; /* Enable/Disable mouse-over colorization */
-  gboolean     gui_qt_show_selected_packet;
-  gboolean     gui_qt_show_file_load_time;
+  gboolean     gui_packet_list_separator;
+  gboolean     gui_packet_header_column_definition;
+  gboolean     gui_packet_list_hover_style; /* Enable/Disable mouse-over colorization */
+  gboolean     gui_show_selected_packet;
+  gboolean     gui_show_file_load_time;
   elide_mode_e gui_packet_list_elide_mode;
   gboolean     gui_packet_list_show_related;
   gboolean     gui_packet_list_show_minimap;
   gboolean     gui_packet_list_sortable;
+  guint        gui_packet_list_cached_rows_max;
   gint         gui_decimal_places1; /* Used for type 1 calculations */
   gint         gui_decimal_places2; /* Used for type 2 calculations */
   gint         gui_decimal_places3; /* Used for type 3 calculations */
@@ -785,6 +780,30 @@ WS_DLL_PUBLIC void prefs_register_password_preference(module_t *module, const ch
  */
 WS_DLL_PUBLIC void prefs_register_obsolete_preference(module_t *module,
     const char *name);
+
+/**
+ * Register a preference with an enumerated value.
+ * @param module the preferences module returned by prefs_register_protocol() or
+ *               prefs_register_protocol_subtree()
+ * @param name the preference's identifier. This is appended to the name of the
+ *             protocol, with a "." between them, to create a unique identifier.
+ *             The identifier should not include the protocol name, as the name in
+ *             the preference file will already have it. Make sure that
+ *             only lower-case ASCII letters, numbers, underscores and
+ *             dots appear in the preference name.
+ * @param title Field's title in the preferences dialog
+ * @param description description to include in the preferences file
+ *                    and shown as tooltip in the GUI, or NULL
+ * @param var pointer to the storage location that is updated when the
+ *                    field is changed in the preference dialog box
+ * @param enumvals a null-terminated array of enum_val_t structures
+ * @param radio_buttons TRUE if the field is to be displayed in the
+ *                  preferences dialog as a set of radio buttons,
+ *                  FALSE if it is to be displayed as an option menu
+ */
+WS_DLL_PUBLIC void prefs_register_custom_preference_TCP_Analysis(module_t *module, const char *name,
+    const char *title, const char *description, gint *var,
+    const enum_val_t *enumvals, gboolean radio_buttons);
 
 /**
  * Mark a preference that affects fields change. This works for bool, enum,

@@ -12,6 +12,8 @@
 
 #include "config.h"
 
+#define WS_LOG_DOMAIN LOG_DOMAIN_WIRETAP
+
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -30,7 +32,7 @@
 #define MAX_PROTOCOL_NAME          64
 #define MAX_PROTOCOL_PAR_STRING    64
 
-/* 's' or 'r' of a packet as read from .out file */
+/* 'u' or 'd' of a packet as read from file */
 typedef enum packet_direction_t
 {
     uplink,
@@ -100,27 +102,6 @@ static void log3gpp_close(wtap* wth)
     g_free(log3gpp);
     wth->priv = NULL;
 }
-
-#if 0
-static gboolean
-log3gpp_dump(wtap_dumper* wdh _U_, const wtap_rec* rec _U_,
-    const guchar* buf _U_, int* err _U_, gchar** err_info _U_)
-{
-    return TRUE;
-}
-#endif
-
-
-/******************************************************/
-/* Close a file we've been writing to.                */
-/******************************************************/
-#if 0
-static gboolean
-log3gpp_dump_finish(wtap_dumper* wdh _U_, int* err _U_)
-{
-    return TRUE;
-}
-#endif
 
 /********************************************/
 /* Open file (for reading)                 */
@@ -465,52 +446,6 @@ log3gpp_seek_read(wtap *wth, gint64 seek_off,
     return FALSE;
 }
 
-
-/***************************/
-/* Dump functions          */
-/***************************/
-
-/*****************************************************/
-/* The file that we are writing to has been opened.  */
-/* Set other dump callbacks.                         */
-/*****************************************************/
-#if 0
-gboolean log3gpp_dump_open(wtap_dumper *wdh, gboolean cant_seek _U_, int *err _U_)
-{
-    /* Fill in other dump callbacks */
-    wdh->subtype_write = log3gpp_dump;
-    wdh->subtype_finish = log3gpp_dump_finish;
-
-    return TRUE;
-}
-#endif
-
-/*****************************************/
-/* Write a single packet out to the file */
-/*****************************************/
-/*
-static gboolean do_fwrite(const void *data, size_t size, size_t count, FILE *stream, int *err_p)
-{
-    size_t nwritten;
-
-    nwritten = fwrite(data, size, count, stream);
-    if (nwritten != count) {
-        if (nwritten == 0 && ferror(stream))
-        {
-            *err_p = errno;
-        }
-        else
-        {
-            *err_p = WTAP_ERR_SHORT_WRITE;
-        }
-
-        return FALSE;
-    }
-    return TRUE;
-}*/
-
-
-
 /****************************/
 /* Private helper functions */
 /****************************/
@@ -554,7 +489,6 @@ read_new_line(FILE_T fh, gint* length,
 
 /**********************************************************************/
 /* Parse a line from buffer, by identifying:                          */
-/* - context, port and direction of packet                            */
 /* - timestamp                                                        */
 /* - data position and length                                         */
 /* Return TRUE if this packet looks valid and can be displayed        */
@@ -565,8 +499,6 @@ gboolean parse_line(gchar* linebuff, gint line_length, gint *seconds, gint *usec
                     gboolean *is_text_data)
 {
     int  n = 0;
-    /*not used int  variant_digits = 0;*/
-    /*not used int  variant = 1;*/
     int  protocol_chars = 0;
     int  prot_option_chars = 0;
     char seconds_buff[MAX_SECONDS_CHARS+1];
@@ -625,9 +557,7 @@ gboolean parse_line(gchar* linebuff, gint line_length, gint *seconds, gint *usec
 
     /* Subsecond decimal digits (expect 4-digit accuracy) */
     for (subsecond_decimals_chars = 0;
-         (linebuff[n] != ' ') &&
-         (subsecond_decimals_chars <= MAX_SUBSECOND_DECIMALS) &&
-         (n < line_length);
+         (linebuff[n] != ' ') && (subsecond_decimals_chars < MAX_SUBSECOND_DECIMALS) && (n < line_length);
          n++, subsecond_decimals_chars++)
     {
         if (!g_ascii_isdigit((guchar)linebuff[n]))
@@ -636,18 +566,20 @@ gboolean parse_line(gchar* linebuff, gint line_length, gint *seconds, gint *usec
         }
         subsecond_decimals_buff[subsecond_decimals_chars] = linebuff[n];
     }
+
     if (subsecond_decimals_chars > MAX_SUBSECOND_DECIMALS || n >= line_length)
     {
         /* More numbers than expected - give up */
         return FALSE;
     }
+
     /* Convert found value into microseconds */
     subsecond_decimals_buff[subsecond_decimals_chars] = '\0';
     /* Already know they are digits, so avoid expense of ws_strtoi32() */
     *useconds = ((subsecond_decimals_buff[0] - '0') * 100000) +
-        ((subsecond_decimals_buff[1] - '0') * 10000) +
-        ((subsecond_decimals_buff[2] - '0') * 1000) +
-        ((subsecond_decimals_buff[3] - '0') * 100);
+                ((subsecond_decimals_buff[1] - '0') * 10000) +
+                ((subsecond_decimals_buff[2] - '0') * 1000) +
+                ((subsecond_decimals_buff[3] - '0') * 100);
 
     /* Space character must follow end of timestamp */
     if (linebuff[n] != ' ')
@@ -659,7 +591,6 @@ gboolean parse_line(gchar* linebuff, gint line_length, gint *seconds, gint *usec
     /*********************************************************************/
     /* Find and read protocol name                                       */
     /*********************************************************************/
-    /* Read context name until find ' ' */
     for (protocol_chars = 0;
          (linebuff[n] != ' ') && (protocol_chars < MAX_PROTOCOL_NAME) && (n < line_length);
          n++, protocol_chars++)
@@ -912,22 +843,6 @@ void register_log3gpp(void)
     wtap_register_backwards_compatibility_lua_name("LOG_3GPP",
                                                    log3gpp_file_type_subtype);
 }
-
-#if 0
-/* Register with wtap */
-void wtap_register_phonelog(void) {
-        static struct file_type_subtype_info fi =
-        { "3GPP Log", "3gpp_log", "*.log", NULL, TRUE, FALSE, 0, NULL, NULL, NULL };
-
-        static struct open_info phonelog_oi =
-        { "3gpp_log", OPEN_INFO_MAGIC, log3gpp_open, "*.log", NULL, NULL };
-
-        wtap_register_open_info(&phonelog_oi, TRUE);
-
-        encap_3gpp_log = wtap_register_encap_type("3GPP Log","3gpp_log");
-        wf_3gpp_log =  wtap_register_file_type_subtype(&fi, WTAP_FILE_TYPE_SUBTYPE_UNKNOWN);
-}
-#endif
 
 /*
  * Editor modelines  -  https://www.wireshark.org/tools/modelines.html

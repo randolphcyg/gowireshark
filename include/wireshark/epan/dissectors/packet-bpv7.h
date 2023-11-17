@@ -35,6 +35,20 @@ extern "C" {
  *
  * There is a BTSD heuristic dissector table "bpv7.btsd" which uses
  * bp_dissector_data_t* as dissector user data.
+ *
+ * Payload block (block type 1) dissection is additionally handled based on
+ * bundle flags and destination EID as:
+ * - If the bundle flags mark it as administrative, it is dissected as such.
+ * - If the destination is a well-known SSP, the dissector table
+ *   "bpv7.payload.dtn_wkssp" is used with the scheme-specific part.
+ * - If the destination is "dtn" scheme, the dissector table
+ *   "bpv7.payload.dtn_serv" is used with the service demux (text string).
+ *   There is also Decode As behavior for dtn service demux.
+ * - If the destination is "ipn" scheme, the dissector table
+ *   "bpv7.payload.ipn_serv" is used with the service number (uint value).
+ *   There is also Decode As behavior for ipn service number.
+ * - Finally, fall through to BTSD heuristic dissection.
+ * All payload dissection uses bp_dissector_data_t* as dissector user data.
  */
 
 /** Bundle CRC types.
@@ -130,16 +144,6 @@ typedef struct {
     guint64 seqno;
 } bp_creation_ts_t;
 
-/** Construct a new timestamp.
- */
-WS_DLL_PUBLIC
-bp_creation_ts_t * bp_creation_ts_alloc(wmem_allocator_t *alloc);
-
-/** Function to match the GDestroyNotify signature.
- */
-WS_DLL_PUBLIC
-void bp_creation_ts_free(wmem_allocator_t *alloc, bp_creation_ts_t *obj);
-
 /** Function to match the GCompareDataFunc signature.
  */
 WS_DLL_PUBLIC
@@ -156,15 +160,15 @@ typedef enum {
 typedef struct {
     /// Scheme ID number
     gint64 scheme;
-    /// Derived URI text
-    const char *uri;
+    /// Derived URI text as address
+    address uri;
 
-    /// Optional DTN well-known SSP
+    /// Optional DTN-scheme well-known SSP
     const char *dtn_wkssp;
-    /// Optional URI authority part
-//    const char *node_name;
-    /// Optional DTN service name
+    /// Optional DTN-scheme service name
     const char *dtn_serv;
+    /// Optional IPN-scheme service name
+    guint64 *ipn_serv;
 } bp_eid_t;
 
 /** Construct a new timestamp.
@@ -211,7 +215,7 @@ typedef struct {
     /// Optional bundle total length
     guint64 *total_len;
     /// CRC type code (assumed zero)
-    BundleCrcType crc_type;
+    guint64 crc_type;
     /// Raw bytes of CRC field
     tvbuff_t *crc_field;
 
@@ -242,7 +246,7 @@ typedef struct {
     /// All flags on this block
     guint64 flags;
     /// CRC type code (assumed zero)
-    BundleCrcType crc_type;
+    guint64 crc_type;
     /// Raw bytes of CRC field
     tvbuff_t *crc_field;
 
@@ -267,24 +271,29 @@ void bp_block_canonical_delete(wmem_allocator_t *alloc, bp_block_canonical_t *ob
 /// Identification of an individual bundle
 typedef struct {
     /// Normalized EID URI for the Source Node ID
-    const char *src;
-    /// Pointer to an external Creation Timestamp
-    bp_creation_ts_t *ts;
+    address src;
+    /// Creation Timestamp
+    bp_creation_ts_t ts;
     /// Pointer to external optional fragment start offset
-    guint64 *frag_offset;
+    const guint64 *frag_offset;
     /// Pointer to external optional bundle total length
-    guint64 *total_len;
+    const guint64 *total_len;
 } bp_bundle_ident_t;
 
 /** Construct a new object on the file allocator.
+ * @param alloc The allocator to use.
+ * @param src The non-null pointer to source EID.
+ * @param ts The non-null pointer to Timestamp.
+ * @param off Optional fragment offset value.
+ * @param len Optional fragment length value.
  */
 WS_DLL_PUBLIC
-bp_bundle_ident_t * bp_bundle_ident_new(wmem_allocator_t *alloc, bp_eid_t *src, bp_creation_ts_t *ts, guint64 *off, guint64 *len);
+bp_bundle_ident_t * bp_bundle_ident_new(wmem_allocator_t *alloc, const bp_eid_t *src, const bp_creation_ts_t *ts, const guint64 *off, const guint64 *len);
 
 WS_DLL_PUBLIC
 void bp_bundle_ident_free(wmem_allocator_t *alloc, bp_bundle_ident_t *obj);
 
-/** Function to match the GCompareFunc signature.
+/** Function to match the GEqualFunc signature.
  */
 WS_DLL_PUBLIC
 gboolean bp_bundle_ident_equal(gconstpointer a, gconstpointer b);
@@ -298,6 +307,8 @@ guint bp_bundle_ident_hash(gconstpointer key);
 typedef struct {
     /// Index of the frame
     guint32 frame_num;
+    /// Layer within the frame
+    guint8 layer_num;
     /// Timestamp on the frame (end time if reassembled)
     nstime_t frame_time;
     /// Bundle identity derived from #primary data
@@ -312,6 +323,11 @@ typedef struct {
     /// Map from block type code (guint64) to sequence (wmem_list_t) of
     /// pointers to block of that type (bp_block_canonical_t owned by #blocks)
     wmem_map_t *block_types;
+
+    /// Payload BTSD start offset in bundle TVB
+    guint *pyld_start;
+    /// Payload BTSD length
+    guint *pyld_len;
 } bp_bundle_t;
 
 /** Construct a new object on the file allocator.
@@ -341,7 +357,7 @@ proto_item * proto_tree_add_cbor_eid(proto_tree *tree, int hfindex, int hfindex_
 
 /// Metadata for an entire file
 typedef struct {
-    /// Map from a bundle ID (bp_bundle_ident_t) to bundle (bp_bundle_t)
+    /// Map from a bundle ID (bp_bundle_ident_t) to wmem_list_t of bundle (bp_bundle_t)
     wmem_map_t *bundles;
     /// Map from subject bundle ID (bp_bundle_ident_t) to
     /// map from references (bp_bundle_ident_t) of status bundles to NULL

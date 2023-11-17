@@ -11,7 +11,7 @@
 #ifndef STTYPE_FIELD_H
 #define STTYPE_FIELD_H
 
-#include "syntax-tree.h"
+#include "dfilter-int.h"
 #include "drange.h"
 
 
@@ -27,6 +27,9 @@ sttype_field_drange(stnode_t *node);
 drange_t *
 sttype_field_drange_steal(stnode_t *node);
 
+bool
+sttype_field_raw(stnode_t *node);
+
 /* Set a range */
 void
 sttype_field_set_range(stnode_t *node, GSList* drange_list);
@@ -36,6 +39,9 @@ sttype_field_set_range1(stnode_t *node, drange_node *rn);
 
 void
 sttype_field_set_drange(stnode_t *node, drange_t *dr);
+
+void
+sttype_field_set_raw(stnode_t *node, bool raw);
 
 char *
 sttype_field_set_number(stnode_t *node, const char *number_str);

@@ -592,7 +592,7 @@ typedef struct _dof_packet_data
      * NON-DPS FIELDS, USED FOR WIRESHARK COMMUNICATION/PROCESSING
      * Protocol-specific data.
      */
-    GSList *data_list;
+    wmem_list_t *data_list;
 
     /**
      * The Wireshark frame. Note that a single frame can have multiple DPS packets.
@@ -835,9 +835,6 @@ static void dof_session_delete_proto_data(dof_session_data *session, int proto);
 
 static void dof_packet_add_proto_data(dof_packet_data *packet, int proto, void *proto_data);
 static void* dof_packet_get_proto_data(dof_packet_data *packet, int proto);
-#if 0 /* TODO not used yet */
-static void dof_packet_delete_proto_data(dof_packet_data *packet, int proto);
-#endif
 
 /* DOF PROTOCOL STACK */
 #define DOF_PROTOCOL_STACK "DOF Protocol Stack"
@@ -1933,7 +1930,7 @@ static const value_string sgmp_opcode_strings[] = {
 
 
 #if 0 /* TODO not used yet */
-static gboolean sgmp_validate_session_key(sgmp_packet_data *cmd_data, guint8 *confirmation, guint8 *kek, guint8 *key)
+static bool sgmp_validate_session_key(sgmp_packet_data *cmd_data, guint8 *confirmation, guint8 *kek, guint8 *key)
 {
     gcry_mac_hd_t hmac;
     gcry_error_t result;
@@ -2404,7 +2401,7 @@ static const value_string dof_2008_16_security_12_m[] = {
 static int hf_security_12_count = -1;
 static int hf_security_12_permission_group_identifier = -1;
 
-static gboolean
+static bool
 dof_sessions_destroy_cb(wmem_allocator_t *allocator _U_, wmem_cb_event_t event _U_, void *user_data)
 {
     ccm_session_data *ccm_data = (ccm_session_data*) user_data;
@@ -2653,7 +2650,7 @@ static int dissect_2008_16_security_4(tvbuff_t *tvb, packet_info *pinfo, proto_t
     }
 
     {
-        tvbuff_t *start = tvb_new_subset_length_caplen(tvb, offset, (flag & 0x0F) + 1, (flag & 0x0F) + 1);
+        tvbuff_t *start = tvb_new_subset_length(tvb, offset, (flag & 0x0F) + 1);
         if (return_data)
             return_data->nonce = start;
 
@@ -3188,7 +3185,7 @@ static int dissect_2009_11_type_5(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     case 0:
     case 2:
     {
-        tvbuff_t *packet = tvb_new_subset_length_caplen(tvb, offset, attribute_length_byte, attribute_length_byte);
+        tvbuff_t *packet = tvb_new_subset_length(tvb, offset, attribute_length_byte);
         proto_tree *attribute_tree;
 
         ti = proto_tree_add_item(tree, hf_oid_attribute_oid, tvb, offset, -1, ENC_NA);
@@ -3345,7 +3342,7 @@ static void secmode_list_post_update_cb(void)
 {
 }
 
-static gboolean secmode_list_update_cb(void *r, char **err)
+static bool secmode_list_update_cb(void *r, char **err)
 {
     secmode_field_t *rec = (secmode_field_t *)r;
     guint32 size;
@@ -3413,7 +3410,7 @@ static void seckey_list_post_update_cb(void)
 {
 }
 
-static gboolean seckey_list_update_cb(void *r, char **err)
+static bool seckey_list_update_cb(void *r, char **err)
 {
     seckey_field_t *rec = (seckey_field_t *)r;
 
@@ -3453,7 +3450,7 @@ static void identsecret_list_post_update_cb(void)
 {
 }
 
-static gboolean identsecret_list_update_cb(void *r, char **err)
+static bool identsecret_list_update_cb(void *r, char **err)
 {
     identsecret_field_t *rec = (identsecret_field_t *)r;
     guint32 size;
@@ -3639,7 +3636,7 @@ static guint assign_addr_port_id(address *addr, guint16 port)
 
 /* Wireshark Configuration Dialog Routines*/
 
-static gboolean identsecret_chk_cb(void *r _U_, const char *p _U_, unsigned len _U_, const void *u1 _U_, const void *u2 _U_, char **err _U_)
+static bool identsecret_chk_cb(void *r _U_, const char *p _U_, unsigned len _U_, const void *u1 _U_, const void *u2 _U_, char **err _U_)
 {
 #if 0
     gchar** protos;
@@ -5673,6 +5670,7 @@ static dof_packet_data* create_packet_data(packet_info *pinfo)
     /* Create the packet data. */
     dof_packet_data *packet = wmem_new0(wmem_file_scope(), dof_packet_data);
 
+    packet->data_list = wmem_list_new(wmem_file_scope());
     packet->frame = pinfo->fd->num;
     packet->dof_frame = next_dof_frame++;
 
@@ -5986,7 +5984,7 @@ static int dissect_dof_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
              * multiple DPS packets in a single Wireshark frame.
              */
             {
-                tvbuff_t *next_tvb = tvb_new_subset_length_caplen(tvb, offset, packet_length, packet_length);
+                tvbuff_t *next_tvb = tvb_new_subset_length(tvb, offset, packet_length);
                 tcp_dof_packet_ref *ref;
                 gint raw_offset = tvb_raw_offset(tvb) + offset;
                 gboolean ref_is_new = FALSE;
@@ -6191,7 +6189,7 @@ static int dissect_tunnel_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             * multiple DPS packets in a single Wireshark frame.
             */
             {
-                tvbuff_t *next_tvb = tvb_new_subset_length_caplen(tvb, offset, packet_length, packet_length);
+                tvbuff_t *next_tvb = tvb_new_subset_length(tvb, offset, packet_length);
                 tcp_dof_packet_ref *ref;
                 gint raw_offset = tvb_raw_offset(tvb) + offset;
                 gboolean ref_is_new = FALSE;
@@ -6680,7 +6678,7 @@ static int dissect_dpp_v2_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 
         oid_tree = proto_tree_add_subtree(opid_tree, tvb, offset, 0, ett_2009_12_dpp_2_opid, NULL, "Source Identifier");
 
-        next_tvb = tvb_new_subset_length_caplen(tvb, offset, -1, tvb_reported_length(tvb) - offset);
+        next_tvb = tvb_new_subset_length(tvb, offset, tvb_reported_length(tvb) - offset);
         opid_len = call_dissector_only(dof_oid_handle, next_tvb, pinfo, oid_tree, NULL);
 
         learn_sender_sid(api_data, opid_len, tvb_get_ptr(next_tvb, 0, opid_len));
@@ -6865,7 +6863,7 @@ static int dissect_dpp_2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 
                 oid_tree = proto_tree_add_subtree(opid_tree, tvb, offset, 0, ett_2009_12_dpp_2_opid, NULL, "Source Identifier");
 
-                next_tvb = tvb_new_subset_length_caplen(tvb, offset, -1, tvb_reported_length(tvb) - offset);
+                next_tvb = tvb_new_subset_length(tvb, offset, tvb_reported_length(tvb) - offset);
                 opid_len = call_dissector_only(dof_oid_handle, next_tvb, pinfo, oid_tree, NULL);
                 proto_item_set_len(oid_tree, opid_len);
 
@@ -7225,7 +7223,7 @@ static int dissect_dpp_2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
         */
         {
             guint16 app;
-            tvbuff_t *next_tvb = tvb_new_subset_length_caplen(tvb, offset, -1, tvb_reported_length(tvb) - offset);
+            tvbuff_t *next_tvb = tvb_new_subset_length(tvb, offset, tvb_reported_length(tvb) - offset);
 
             read_c2(tvb, offset, &app, NULL);
             if (app == 0x7FFF)
@@ -7856,7 +7854,7 @@ static int dissect_ccm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
                 /* There is still a MAC involved, and even though we don't need a new
                 * buffer we need to adjust the length of the existing buffer.
                 */
-                app = tvb_new_subset_length_caplen(tvb, offset, e_len - session->mac_len, e_len - session->mac_len);
+                app = tvb_new_subset_length(tvb, offset, e_len - session->mac_len);
                 dof_packet->decrypted_tvb = app;
                 dof_packet->decrypted_offset = 0;
             }
@@ -8719,7 +8717,7 @@ static int dissect_sgmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
             offset = dof_dissect_pdu_as_field(dissect_2008_16_security_9, tvb, pinfo, sgmp_tree,
                                               offset, hf_initial_state, ett_initial_state, NULL);
 #if 0 /*TODO check this */
-            initial_state = tvb_new_subset_length_caplen(tvb, start_offset, offset - start_offset, offset - start_offset);
+            initial_state = tvb_new_subset_length(tvb, start_offset, offset - start_offset);
 #endif
         }
 
@@ -8869,7 +8867,7 @@ static int dissect_sgmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
                 offset = dof_dissect_pdu_as_field(dissect_2008_16_security_9, tvb, pinfo, sgmp_tree,
                                                   offset, hf_initial_state, ett_initial_state, NULL);
 #if 0 /*TODO check this */
-                initial_state = tvb_new_subset_length_caplen(tvb, start_offset, offset - start_offset, offset - start_offset);
+                initial_state = tvb_new_subset_length(tvb, start_offset, offset - start_offset);
 #endif
             }
 
@@ -10445,7 +10443,7 @@ static void dof_tun_register(void)
     proto_register_field_array(proto_2012_1_tunnel, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
 
-    register_dissector(TUNNEL_PROTOCOL_STACK, dissect_tunnel_common, proto_2012_1_tunnel);
+    register_dissector_with_description("dof.tunnel", TUNNEL_PROTOCOL_STACK, dissect_tunnel_common, proto_2012_1_tunnel);
     dof_tun_app_dissectors = register_dissector_table("dof.tunnel.app", "DOF Tunnel Version", proto_2012_1_tunnel, FT_UINT8, BASE_DEC);
 }
 
@@ -10462,7 +10460,7 @@ static void dof_tun_handoff(void)
 {
     static dissector_handle_t tcp_handle;
 
-    register_dissector(TUNNEL_APPLICATION_PROTOCOL, dissect_tun_app_common, proto_2008_1_app);
+    register_dissector_with_description("dof.app", TUNNEL_APPLICATION_PROTOCOL, dissect_tun_app_common, proto_2008_1_app);
 
     tcp_handle = create_dissector_handle(dissect_tunnel_tcp, proto_2012_1_tunnel);
 
@@ -10913,7 +10911,7 @@ static void dof_handoff(void)
 {
     static dissector_handle_t tcp_handle;
 
-    dof_oid_handle = register_dissector(DOF_OBJECT_IDENTIFIER, dissect_2009_11_type_4, oid_proto);
+    dof_oid_handle = register_dissector_with_description("dof.oid", DOF_OBJECT_IDENTIFIER, dissect_2009_11_type_4, oid_proto);
 
     tcp_handle = create_dissector_handle(dissect_dof_tcp, proto_2008_1_dof);
     dof_udp_handle = create_dissector_handle(dissect_dof_udp, proto_2008_1_dof);
@@ -12448,48 +12446,28 @@ static void dof_packet_add_proto_data(dof_packet_data *packet, int proto, void *
 
     /* Add it to the list of items for this conversation. */
 
-    packet->data_list = g_slist_insert_sorted(packet->data_list, (gpointer *)p1, p_compare);
+    wmem_list_insert_sorted(packet->data_list, (gpointer *)p1, p_compare);
 }
 
 static void *dof_packet_get_proto_data(dof_packet_data *packet, int proto)
 {
     dof_proto_data temp, *p1;
-    GSList *item;
+    wmem_list_frame_t *item;
 
     temp.proto = proto;
     temp.proto_data = NULL;
 
-    item = g_slist_find_custom(packet->data_list, (gpointer *)&temp,
+    item = wmem_list_find_custom(packet->data_list, (gpointer *)&temp,
                                p_compare);
 
     if (item != NULL)
     {
-        p1 = (dof_proto_data *)item->data;
+        p1 = (dof_proto_data *)wmem_list_frame_data(item);
         return p1->proto_data;
     }
 
     return NULL;
 }
-
-#if 0 /* TODO not used yet */
-static void dof_packet_delete_proto_data(dof_packet_data *packet, int proto)
-{
-    dof_proto_data temp;
-    GSList *item;
-
-    temp.proto = proto;
-    temp.proto_data = NULL;
-
-    item = g_slist_find_custom(packet->data_list, (gpointer *)&temp,
-                               p_compare);
-
-    while (item)
-    {
-        packet->data_list = g_slist_remove(packet->data_list, item->data);
-        item = item->next;
-    }
-}
-#endif
 
 static gint dof_dissect_pdu_as_field(dissector_t dissector, tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, int item, int ett, void *result)
 {

@@ -11,6 +11,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <wiretap/wtap.h>
 
 void proto_register_rfc7468(void);
 void proto_reg_handoff_rfc7468(void);
@@ -26,6 +27,7 @@ static int hf_rfc7468_preeb_label = -1;
 static int hf_rfc7468_ber_data = -1;
 static int hf_rfc7468_posteb_label = -1;
 
+static dissector_handle_t rfc7468_handle = NULL;
 static dissector_handle_t ber_handle = NULL;
 
 static dissector_table_t rfc7468_label_table;
@@ -458,16 +460,15 @@ proto_register_rfc7468(void)
 
     rfc7468_label_table = register_dissector_table("rfc7468.preeb_label", "FFF",
                                                    proto_rfc7468, FT_STRING,
-                                                   TRUE);
+                                                   STRING_CASE_INSENSITIVE);
+
+    rfc7468_handle = register_dissector("rfc7468", dissect_rfc7468, proto_rfc7468);
 }
 
 void
 proto_reg_handoff_rfc7468(void)
 {
-    dissector_handle_t rfc7468_handle;
-
     heur_dissector_add("wtap_file", dissect_rfc7468_heur, "RFC 7468 file", "rfc7468_wtap", proto_rfc7468, HEURISTIC_ENABLE);
-    rfc7468_handle = create_dissector_handle(dissect_rfc7468, proto_rfc7468);
     dissector_add_uint("wtap_encap", WTAP_ENCAP_RFC7468, rfc7468_handle);
 
     ber_handle = find_dissector("ber");

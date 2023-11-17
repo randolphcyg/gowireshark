@@ -28,6 +28,9 @@ static int dissect_af (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, v
 static int dissect_pft (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data);
 
 static dissector_handle_t dcp_etsi_handle;
+static dissector_handle_t af_handle;
+static dissector_handle_t pft_handle;
+static dissector_handle_t tpl_handle;
 
 static dissector_table_t dcp_dissector_table;
 static dissector_table_t af_dissector_table;
@@ -316,10 +319,12 @@ dissect_pft_fec_detailed(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
     got = (guint32 *)wmem_alloc(pinfo->pool, fcount*sizeof(guint32));
 
     /* make a list of the findex (offset) numbers of the fragments we have */
-    fd = fragment_get(&dcp_reassembly_table, pinfo, seq, NULL);
-    for (fd_head = fd; fd_head != NULL && fragments < fcount; fd_head = fd_head->next) {
-      if(fd_head->tvb_data) {
-        got[fragments++] = fd_head->offset; /* this is the findex of the fragment */
+    fd_head = fragment_get(&dcp_reassembly_table, pinfo, seq, NULL);
+    if (fd_head) {
+      for (fd = fd_head->next; fd != NULL && fragments < fcount; fd = fd->next) {
+        if(fd->tvb_data) {
+          got[fragments++] = fd->offset; /* this is the findex of the fragment */
+        }
       }
     }
     /* have we got enough for Reed Solomon to try to correct ? */
@@ -593,7 +598,7 @@ dissect_af (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data _
   pt = tvb_get_guint8 (tvb, offset);
   proto_tree_add_item (af_tree, hf_edcp_pt, tvb, offset, 1, ENC_ASCII);
   offset += 1;
-  next_tvb = tvb_new_subset_length_caplen (tvb, offset, payload_len, payload_len);
+  next_tvb = tvb_new_subset_length(tvb, offset, payload_len);
   offset += payload_len;
   ci = proto_tree_add_item (af_tree, hf_edcp_crc, tvb, offset, 2, ENC_BIG_ENDIAN);
   if (ver & 0x80) { /* crc valid */
@@ -644,7 +649,7 @@ dissect_tpl(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data _
             offset, 8+bytes, NULL,
             "%s (%u bits)", tag, bits);
 
-    next_tvb = tvb_new_subset_length_caplen (tvb, offset+8, bytes, bytes);
+    next_tvb = tvb_new_subset_length(tvb, offset+8, bytes);
     dissector_try_string(tpl_dissector_table, tag, next_tvb, pinfo, tree, NULL);
 
     offset += (8+bytes);
@@ -656,14 +661,6 @@ dissect_tpl(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data _
 void
 proto_reg_handoff_dcp_etsi (void)
 {
-  dissector_handle_t af_handle;
-  dissector_handle_t pft_handle;
-  dissector_handle_t tpl_handle;
-
-  dcp_etsi_handle = register_dissector("dcp-etsi", dissect_dcp_etsi, proto_dcp_etsi);
-  af_handle = create_dissector_handle(dissect_af, proto_af);
-  pft_handle = create_dissector_handle(dissect_pft, proto_pft);
-  tpl_handle = create_dissector_handle(dissect_tpl, proto_tpl);
   heur_dissector_add("udp", dissect_dcp_etsi_heur, "DCP (ETSI) over UDP", "dcp_etsi_udp", proto_dcp_etsi, HEURISTIC_ENABLE);
   dissector_add_for_decode_as("udp.port", dcp_etsi_handle);
   dissector_add_string("dcp-etsi.sync", "AF", af_handle);
@@ -904,15 +901,20 @@ proto_register_dcp_etsi (void)
 
   /* subdissector code */
   dcp_dissector_table = register_dissector_table("dcp-etsi.sync",
-            "DCP Sync", proto_dcp_etsi, FT_STRING, BASE_NONE);
+            "DCP Sync", proto_dcp_etsi, FT_STRING, STRING_CASE_SENSITIVE);
   af_dissector_table = register_dissector_table("dcp-af.pt",
             "DCP-AF Payload Type", proto_dcp_etsi, FT_UINT8, BASE_DEC);
 
   tpl_dissector_table = register_dissector_table("dcp-tpl.ptr",
-            "DCP-TPL Protocol Type & Revision", proto_dcp_etsi, FT_STRING, BASE_NONE);
+            "DCP-TPL Protocol Type & Revision", proto_dcp_etsi, FT_STRING, STRING_CASE_SENSITIVE);
 
   reassembly_table_register (&dcp_reassembly_table,
                          &addresses_reassembly_table_functions);
+
+  dcp_etsi_handle = register_dissector("dcp-etsi", dissect_dcp_etsi, proto_dcp_etsi);
+  af_handle = register_dissector("dcp-af", dissect_af, proto_af);
+  pft_handle = register_dissector("dcp-pft", dissect_pft, proto_pft);
+  tpl_handle = register_dissector("dcp-tpl", dissect_tpl, proto_tpl);
 }
 
 /*

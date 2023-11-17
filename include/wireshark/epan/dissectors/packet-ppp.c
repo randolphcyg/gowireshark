@@ -5224,7 +5224,7 @@ dissect_pppmux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
     static guint16  pid;
     tvbuff_t       *next_tvb;
     int             offset       = 0, length_remaining;
-    int             length_field = 0, pid_field = 0, hdr_length = 0;
+    int             length_field, pid_field, hdr_length;
     static int * const subframe_flags[] = {
         &hf_pppmux_flags_pid,
         &hf_pppmux_flags_field_length,
@@ -5708,7 +5708,7 @@ static guint mp_max_fragments = 6;
  * memory use significantly. */
 static guint mp_fragment_aging = 4000; /* Short sequence numbers only 12 bit */
 
-#define MP_FRAG_MASK           0xFC
+#define MP_FRAG_MASK           0xFF
 #define MP_FRAG_MASK_SHORT     0xF0
 #define MP_FRAG_FIRST          0x80
 #define MP_FRAG_LAST           0x40
@@ -5789,7 +5789,7 @@ dissect_mp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
             NULL, mp_tree);
 
         if (frag_mp) {
-            if (pinfo->num == frag_mp->reassembled_in) {
+            if (next_tvb) {
                 dissect_ppp(next_tvb, pinfo, tree, NULL);
             } else {
                 col_append_fstr(pinfo->cinfo, COL_INFO,
@@ -5990,15 +5990,34 @@ dissect_ppp_raw_hdlc( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void*
         col_set_str(pinfo->cinfo, COL_INFO, "PPP Fragment");
         length = offset;
         proto_tree_add_item(bs_tree, hf_ppp_hdlc_fragment, tvb, 0, length, ENC_NA);
-        if (length != 0) {
-            ppp_tvb = remove_escape_chars(tvb, pinfo, 0, length - 1);
-            if (ppp_tvb != NULL) {
-                add_new_data_source(pinfo, ppp_tvb, "PPP Fragment");
-                call_data_dissector(ppp_tvb, pinfo, tree);
-            }
+        ppp_tvb = remove_escape_chars(tvb, pinfo, 0, length - 1);
+        if (ppp_tvb != NULL) {
+            add_new_data_source(pinfo, ppp_tvb, "PPP Fragment");
+            call_data_dissector(ppp_tvb, pinfo, tree);
         }
     }
+
+    /* These frames within the byte stream need to be treated like independent
+     * frames / PDUs, not encapsulated in each other, which means that much of
+     * the various information stored in the packet_info struct should be reset
+     * with each frame.
+     * In particular, the "most recent conservation" elements should be reset
+     * at the start of a new frame, if that frame is dissected, and possibly
+     * for fragments that are put on a reassembly table (if the reassembly
+     * functions use elements from the pinfo struct for matching). (#18278)
+     * On the other hand, we do want to keep the last set information for use
+     * in displaying the address of the packet, conversation filtering, etc.
+     */
+    gboolean save_use_conv_addr_port_endpoints;
+    struct conversation_addr_port_endpoints *save_conv_addr_port_endpoints;
+    struct conversation_element *save_conv_elements;
+
+    save_use_conv_addr_port_endpoints = pinfo->use_conv_addr_port_endpoints;
+    save_conv_addr_port_endpoints = pinfo->conv_addr_port_endpoints;
+    save_conv_elements = pinfo->conv_elements;
+
     while (tvb_reported_length_remaining(tvb, offset) > 0) {
+
         /*
          * Look for the next frame delimiter.
          */
@@ -6053,6 +6072,9 @@ dissect_ppp_raw_hdlc( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void*
         if (length > 1) {
             ppp_tvb = remove_escape_chars(tvb, pinfo, data_offset, data_length);
             if (ppp_tvb != NULL) {
+                pinfo->use_conv_addr_port_endpoints = save_use_conv_addr_port_endpoints;
+                pinfo->conv_addr_port_endpoints = save_conv_addr_port_endpoints;
+                pinfo->conv_elements = save_conv_elements;
                 add_new_data_source(pinfo, ppp_tvb, "PPP Message");
                 dissect_ppp_hdlc_common(ppp_tvb, pinfo, tree);
                 first = FALSE;
@@ -6131,8 +6153,7 @@ proto_register_ppp_raw_hdlc(void)
         &ett_ppp_hdlc_data
     };
 
-    proto_ppp_hdlc = proto_register_protocol("PPP In HDLC-Like Framing",
-        "PPP-HDLC", "ppp_hdlc");
+    proto_ppp_hdlc = proto_register_protocol("PPP In HDLC-Like Framing", "PPP-HDLC", "ppp_hdlc");
     ppp_raw_hdlc_handle = register_dissector("ppp_raw_hdlc", dissect_ppp_raw_hdlc, proto_ppp_hdlc);
     proto_register_subtree_array(ett, array_length(ett));
     proto_register_field_array(proto_ppp_hdlc, hf, array_length(hf));
@@ -7999,8 +8020,7 @@ proto_register_chap(void)
                 NULL, HFILL }},
         };
 
-    proto_chap = proto_register_protocol(
-        "PPP Challenge Handshake Authentication Protocol", "PPP CHAP", "chap");
+    proto_chap = proto_register_protocol("PPP Challenge Handshake Authentication Protocol", "PPP CHAP", "chap");
     chap_handle = register_dissector("chap", dissect_chap,
         proto_chap);
     proto_register_field_array(proto_chap, hf, array_length(hf));
@@ -8255,7 +8275,7 @@ proto_register_iphc_crtp(void)
                 "The invalid bit of the context state packet.", HFILL }},
         { &hf_iphc_crtp_ip_id,
             { "IP-ID", "crtp.ip-id", FT_UINT16, BASE_HEX_DEC, NULL, 0x0,
-                "The IPv4 Identification Field is RANDOM and thus included in a compressed Non TCP packet (RFC 2507 6a), 7.13a). Only IPv4 is supported in this dissector.", HFILL }},
+                "The IPv4 Identification Field is RANDOM and thus included in a compressed Non TCP packet (RFC 2507 6a, 7.13a). Only IPv4 is supported in this dissector.", HFILL }},
         { &hf_iphc_crtp_data,
             { "Data", "crtp.data", FT_BYTES, BASE_NONE, NULL, 0x0,
                 NULL, HFILL }},

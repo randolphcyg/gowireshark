@@ -2656,9 +2656,8 @@ dissect_pipe_lanman(tvbuff_t *pd_tvb, tvbuff_t *p_tvb, tvbuff_t *d_tvb,
 		}
 
 		/* parameter descriptor */
-		param_descrip = tvb_get_const_stringz(p_tvb, offset, &descriptor_len);
-		proto_tree_add_item(tree, hf_param_desc, p_tvb, offset,
-		    descriptor_len, ENC_ASCII);
+		param_descrip = tvb_get_stringz_enc(pinfo->pool, p_tvb, offset, &descriptor_len, ENC_ASCII);
+		proto_tree_add_string(tree, hf_param_desc, p_tvb, offset, descriptor_len, param_descrip);
 		if (!pinfo->fd->visited) {
 			/*
 			 * Save the parameter descriptor for future use.
@@ -2669,9 +2668,8 @@ dissect_pipe_lanman(tvbuff_t *pd_tvb, tvbuff_t *p_tvb, tvbuff_t *d_tvb,
 		offset += descriptor_len;
 
 		/* return descriptor */
-		data_descrip = tvb_get_const_stringz(p_tvb, offset, &descriptor_len);
-		proto_tree_add_item(tree, hf_return_desc, p_tvb, offset,
-		    descriptor_len, ENC_ASCII);
+		data_descrip = tvb_get_stringz_enc(pinfo->pool, p_tvb, offset, &descriptor_len, ENC_ASCII);
+		proto_tree_add_string(tree, hf_return_desc, p_tvb, offset, descriptor_len, data_descrip);
 		if (!pinfo->fd->visited) {
 			/*
 			 * Save the return descriptor for future use.
@@ -2694,9 +2692,8 @@ dissect_pipe_lanman(tvbuff_t *pd_tvb, tvbuff_t *p_tvb, tvbuff_t *d_tvb,
 			 * There are more parameters left, so the next
 			 * item is the auxiliary data descriptor.
 			 */
-			aux_data_descrip = tvb_get_const_stringz(p_tvb, offset, &descriptor_len);
-			proto_tree_add_item(tree, hf_aux_data_desc, p_tvb, offset,
-			    descriptor_len, ENC_ASCII);
+			aux_data_descrip = tvb_get_stringz_enc(pinfo->pool, p_tvb, offset, &descriptor_len, ENC_ASCII);
+			proto_tree_add_string(tree, hf_aux_data_desc, p_tvb, offset, descriptor_len, aux_data_descrip);
 			if (!pinfo->fd->visited) {
 				/*
 				 * Save the auxiliary data descriptor for
@@ -2767,8 +2764,8 @@ dissect_pipe_lanman(tvbuff_t *pd_tvb, tvbuff_t *p_tvb, tvbuff_t *d_tvb,
 		/* ok we have seen this one before */
 
 		/* if it looks like an interim response, update COL_INFO and return */
-		if( ( (p_tvb==NULL) || (tvb_reported_length(p_tvb)==0) )
-		&&  ( (d_tvb==NULL) || (tvb_reported_length(d_tvb)==0) ) ){
+		if( ( tvb_reported_length(p_tvb)==0 )
+		&&  ( tvb_reported_length(d_tvb)==0 ) ){
 			/* command */
 			col_add_fstr(pinfo->cinfo, COL_INFO, "%s Interim Response",
 					     val_to_str_ext(trp->lanman_cmd, &commands_ext, "Unknown Command (%u)"));
@@ -3223,8 +3220,7 @@ proto_register_pipe_lanman(void)
 		&ett_lanman_share,
 	};
 
-	proto_smb_lanman = proto_register_protocol(
-		"Microsoft Windows Lanman Remote API Protocol", "LANMAN", "lanman");
+	proto_smb_lanman = proto_register_protocol("Microsoft Windows Lanman Remote API Protocol", "LANMAN", "lanman");
 	proto_register_field_array(proto_smb_lanman, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
 }
@@ -3242,6 +3238,7 @@ dissect_pipe_dcerpc(tvbuff_t *d_tvb, packet_info *pinfo, proto_tree *parent_tree
 	guint reported_len;
 
 	fragment_head *fd_head;
+	fragment_item *fd_i;
 	tvbuff_t *new_tvb;
 	proto_item *frag_tree_item;
 
@@ -3328,12 +3325,10 @@ dissect_pipe_dcerpc(tvbuff_t *d_tvb, packet_info *pinfo, proto_tree *parent_tree
 		   we might pick up from the Read/Write calls instead of
 		   assuming we always get them in the correct order
 		*/
-		while(fd_head->next){
-			fd_head=fd_head->next;
-		}
+		for (fd_i = fd_head->next; fd_i->next; fd_i = fd_i->next) {}
 		fd_head=fragment_add_check(&dcerpc_reassembly_table,
 			d_tvb, 0, pinfo, fid, NULL,
-			fd_head->offset+fd_head->len,
+			fd_i->offset+fd_i->len,
 			reported_len, TRUE);
 
 		/* if we completed reassembly */
@@ -3758,6 +3753,7 @@ dissect_pipe_smb(tvbuff_t *sp_tvb, tvbuff_t *s_tvb, tvbuff_t *pd_tvb,
 
 			dissect_file_data(d_tvb, pipe_tree, 0,
 			    (guint16) tvb_reported_length(d_tvb),
+			    -1,
 			    (guint16) tvb_reported_length(d_tvb));
 		}
 		break;
@@ -3770,6 +3766,7 @@ dissect_pipe_smb(tvbuff_t *sp_tvb, tvbuff_t *s_tvb, tvbuff_t *pd_tvb,
 
 			dissect_file_data(d_tvb, pipe_tree,
 			    offset, (guint16) tvb_reported_length(d_tvb),
+			    -1,
 			    (guint16) tvb_reported_length(d_tvb));
 		} else {
 			if (p_tvb == NULL)

@@ -19,6 +19,7 @@
 #include <epan/expert.h>
 #include <epan/ptvcursor.h>
 #include <wsutil/ws_roundup.h>
+#include <epan/conversation.h>
 #include "packet-tcp.h"
 
 #define DBUS_MAX_ARRAY_LEN (64 * 1024 * 1024)
@@ -52,6 +53,7 @@ void proto_reg_handoff_dbus(void);
 
 static int proto_dbus = -1;
 static gboolean dbus_desegment = TRUE;
+static gboolean dbus_resolve_names = TRUE;
 
 static dissector_handle_t dbus_handle;
 static dissector_handle_t dbus_handle_tcp;
@@ -90,7 +92,7 @@ static const value_string field_code_vals[] = {
 	{ DBUS_HEADER_FIELD_ERROR_NAME, "Error name" },
 	{ DBUS_HEADER_FIELD_REPLY_SERIAL, "Reply serial" },
 	{ DBUS_HEADER_FIELD_DESTINATION, "Destination" },
-	{ DBUS_HEADER_FIELD_SENDER, "Sender" },
+	{ DBUS_HEADER_FIELD_SENDER, "sender" },
 	{ DBUS_HEADER_FIELD_SIGNATURE, "Signature" },
 	{ DBUS_HEADER_FIELD_UNIX_FDS, "Unix FDs" },
 	{ 0, NULL }
@@ -101,6 +103,11 @@ static const value_string endianness_vals[] = {
 	{ 'B', "big-endian" },
 	{ 0, NULL }
 };
+
+#define DBUS_FLAGS_NO_REPLY_EXPECTED_MASK 0x01
+#define DBUS_FLAGS_NO_AUTO_START_MASK 0x02
+#define DBUS_FLAGS_ALLOW_INTERACTIVE_AUTHORIZATION_MASK 0x04
+
 static const true_false_string allow_vals = { "Allow", "Don't allow" };
 static const true_false_string no_start_vals = { "Don't start", "Start" };
 static const true_false_string not_expected_vals = { "Not expected", "Expected" };
@@ -146,6 +153,9 @@ static int hf_dbus_type_variant_signature = -1;
 static int hf_dbus_type_dict_entry = -1;
 static int hf_dbus_type_dict_entry_key = -1;
 static int hf_dbus_type_unix_fd = -1;
+static int hf_dbus_response_in = -1;
+static int hf_dbus_response_to = -1;
+static int hf_dbus_response_time = -1;
 
 static int ett_dbus = -1;
 static int ett_dbus_flags = -1;
@@ -184,6 +194,7 @@ typedef struct {
 	packet_info *pinfo;
 	guint enc;
 	guint32 message_type;
+	guint8 flags;
 	guint32 body_len;
 	guint32 serial;
 
@@ -225,6 +236,22 @@ typedef union {
 	double double_;
 	const char *string;
 } dbus_val_t;
+
+typedef struct {
+	guint32 req_frame;
+	guint32 rep_frame;
+	nstime_t req_time;
+	const char *path;
+	const char *interface;
+	const char *member;
+} dbus_transaction_t;
+
+typedef struct {
+	wmem_map_t *packets;
+} dbus_conv_info_t;
+
+static wmem_map_t *request_info_map;
+static wmem_map_t *unique_name_map;
 
 static gboolean
 is_ascii_digit(char c) {
@@ -920,6 +947,182 @@ dissect_dbus_body(dbus_packet_t *packet) {
 	return err;
 }
 
+static void
+update_unique_name_map(const gchar *name1, const gchar *name2) {
+	const gchar *unique_name;
+	const gchar *well_known_name;
+
+	if (!dbus_resolve_names) {
+		return;
+	}
+
+	if (name1[0] == ':' && name2[0] != ':') {
+		unique_name = name1;
+		well_known_name = name2;
+	} else if (name2[0] == ':' && name1[0] != ':') {
+		unique_name = name2;
+		well_known_name = name1;
+	} else {
+		// both are well-known or both are unique names
+		return;
+	}
+	if (!wmem_map_contains(unique_name_map, unique_name)) {
+		wmem_map_insert(unique_name_map,
+				wmem_strdup(wmem_file_scope(), unique_name),
+				wmem_strdup(wmem_file_scope(), well_known_name));
+	}
+}
+
+static void
+add_conversation(dbus_packet_t *packet, proto_tree *header_field_tree) {
+	gboolean is_request;
+	gchar *request_dest;
+	gchar *key;
+
+	if (!packet->sender || !packet->destination) {
+		// in a peer-to-peer setup, sender and destination can be unset, in which case conversation tracking
+		// doesn't make sense.
+		return;
+	}
+
+	switch (packet->message_type) {
+	case DBUS_MESSAGE_TYPE_METHOD_CALL:
+		if (packet->flags & DBUS_FLAGS_NO_REPLY_EXPECTED_MASK) {
+			// there won't be a response, no need to track
+			return;
+		}
+		is_request = TRUE;
+
+		// There are cases where the destination address of the request doesn't match the sender address of the
+		// response, for example:
+		// - The request is sent to the well-known bus name (e.g. org.freedesktop.PolicyKit1), but the reply is
+		//   sent from the unique connection name (e.g. :1.10). Both names refer to the same connection and for
+		//   every unique connection name, there can be multiple well-known names.
+		// - The D-Bus daemon (org.freedesktop.DBus) sends the reply, instead of the recipient, e.g.
+		//   org.freedesktop.DBus.Error.AccessDenied
+		// To find the correct response, match the request sender + serial with the response destination +
+		// reply serial.
+		if (!PINFO_FD_VISITED(packet->pinfo)) {
+			request_dest = wmem_strdup(wmem_file_scope(), packet->destination);
+			key = wmem_strdup_printf(wmem_file_scope(), "%s %u", packet->sender, packet->serial);
+			wmem_map_insert(request_info_map, key, request_dest);
+		}
+		break;
+	case DBUS_MESSAGE_TYPE_METHOD_RETURN:
+	case DBUS_MESSAGE_TYPE_ERROR:
+		is_request = FALSE;
+
+		key = wmem_strdup_printf(wmem_packet_scope(), "%s %u", packet->destination, packet->reply_serial);
+		request_dest = (gchar *)wmem_map_lookup(request_info_map, key);
+		if (request_dest && !g_str_equal(request_dest, packet->sender)) {
+			// Replace the sender address of the response with the destination address of the request, so
+			// the conversation can be found.
+			address sender_addr;
+			set_address(&sender_addr, AT_STRINGZ, (int)strlen(request_dest)+1, request_dest);
+			conversation_set_conv_addr_port_endpoints(packet->pinfo, &sender_addr, &packet->pinfo->dst,
+					conversation_pt_to_endpoint_type(packet->pinfo->ptype),
+					packet->pinfo->srcport, packet->pinfo->destport);
+
+			if (!PINFO_FD_VISITED(packet->pinfo) && packet->message_type == DBUS_MESSAGE_TYPE_METHOD_RETURN) {
+				update_unique_name_map(request_dest, packet->sender);
+			}
+		}
+		break;
+	case DBUS_MESSAGE_TYPE_SIGNAL:
+	default:
+		// signals don't have a response, no need to track
+		return;
+	}
+
+	conversation_t *conversation = find_or_create_conversation(packet->pinfo);
+	dbus_conv_info_t *conv_info = (dbus_conv_info_t *)conversation_get_proto_data(conversation, proto_dbus);
+
+	if (!conv_info) {
+		conv_info = wmem_new(wmem_file_scope(), dbus_conv_info_t);
+		conv_info->packets = wmem_map_new(wmem_file_scope(), g_direct_hash, g_direct_equal);
+		conversation_add_proto_data(conversation, proto_dbus, conv_info);
+	}
+
+	dbus_transaction_t *trans;
+	if (!PINFO_FD_VISITED(packet->pinfo)) {
+		if (is_request) {
+			trans = wmem_new(wmem_file_scope(), dbus_transaction_t);
+			*trans = (dbus_transaction_t){
+				.req_frame = packet->pinfo->num,
+				.req_time = packet->pinfo->fd->abs_ts,
+				.path = wmem_strdup(wmem_file_scope(), packet->path),
+				.interface = wmem_strdup(wmem_file_scope(), packet->interface),
+				.member = wmem_strdup(wmem_file_scope(), packet->member),
+			};
+			wmem_map_insert(conv_info->packets, GUINT_TO_POINTER(packet->serial), (void *)trans);
+		} else {
+			trans = (dbus_transaction_t *)wmem_map_lookup(conv_info->packets, GUINT_TO_POINTER(packet->reply_serial));
+			if (trans) {
+				trans->rep_frame = packet->pinfo->num;
+			}
+		}
+	} else {
+		guint32 request_serial = is_request ? packet->serial : packet->reply_serial;
+		trans = (dbus_transaction_t *)wmem_map_lookup(conv_info->packets, GUINT_TO_POINTER(request_serial));
+	}
+
+	if (!trans) {
+		return;
+	}
+
+	if (is_request) {
+		proto_item *it = proto_tree_add_uint(header_field_tree, hf_dbus_response_in, ptvcursor_tvbuff(packet->cursor), 0, 0, trans->rep_frame);
+		proto_item_set_generated(it);
+	} else {
+		nstime_t ns;
+		proto_item *it;
+		tvbuff_t *tvb = ptvcursor_tvbuff(packet->cursor);
+
+		it = proto_tree_add_string(header_field_tree, hf_dbus_path, tvb, 0, 0, trans->path);
+		proto_item_set_generated(it);
+		packet->path = trans->path;
+
+		it = proto_tree_add_string(header_field_tree, hf_dbus_interface, tvb, 0, 0, trans->interface);
+		proto_item_set_generated(it);
+		packet->interface = trans->interface;
+
+		it = proto_tree_add_string(header_field_tree, hf_dbus_member, tvb, 0, 0, trans->member);
+		proto_item_set_generated(it);
+		packet->member = trans->member;
+
+		it = proto_tree_add_uint(header_field_tree, hf_dbus_response_to, tvb, 0, 0, trans->req_frame);
+		proto_item_set_generated(it);
+
+		nstime_delta(&ns, &packet->pinfo->fd->abs_ts, &trans->req_time);
+		it = proto_tree_add_time(header_field_tree, hf_dbus_response_time, tvb, 0, 0, &ns);
+		proto_item_set_generated(it);
+	}
+}
+
+static void
+resolve_unique_name(dbus_packet_t *packet, proto_tree *header_field_tree) {
+	proto_item *it;
+	tvbuff_t *tvb = ptvcursor_tvbuff(packet->cursor);
+
+	if (packet->sender) {
+		const gchar *sender_well_known = (const gchar *)wmem_map_lookup(unique_name_map, packet->sender);
+		if (sender_well_known) {
+			set_address(&packet->pinfo->src, AT_STRINGZ, (int)strlen(sender_well_known)+1, sender_well_known);
+			it = proto_tree_add_string(header_field_tree, hf_dbus_sender, tvb, 0, 0, sender_well_known);
+			proto_item_set_generated(it);
+		}
+	}
+
+	if (packet->destination) {
+		const gchar *destination_well_known = (const gchar *)wmem_map_lookup(unique_name_map, packet->destination);
+		if (destination_well_known) {
+			set_address(&packet->pinfo->dst, AT_STRINGZ, (int)strlen(destination_well_known)+1, destination_well_known);
+			it = proto_tree_add_string(header_field_tree, hf_dbus_destination, tvb, 0, 0, destination_well_known);
+			proto_item_set_generated(it);
+		}
+	}
+}
+
 static int
 dissect_dbus_header_fields(dbus_packet_t *packet) {
 	dbus_type_reader_t root_reader = {
@@ -1089,18 +1292,36 @@ dissect_dbus_header_fields(dbus_packet_t *packet) {
 		return 1;
 	}
 
+	add_conversation(packet, proto_item_get_subtree(header_field_array_pi));
+	if (dbus_resolve_names) {
+		resolve_unique_name(packet, proto_item_get_subtree(header_field_array_pi));
+	}
+
 	switch(packet->message_type) {
 	case DBUS_MESSAGE_TYPE_METHOD_CALL:
-		col_add_fstr(packet->pinfo->cinfo, COL_INFO, "%s() @ %s", packet->member, packet->path);
+		col_add_fstr(packet->pinfo->cinfo, COL_INFO, "%s(%s) @ %s", packet->member, packet->signature, packet->path);
 		break;
 	case DBUS_MESSAGE_TYPE_SIGNAL:
-		col_add_fstr(packet->pinfo->cinfo, COL_INFO, "* %s() @ %s", packet->member, packet->path);
+		col_add_fstr(packet->pinfo->cinfo, COL_INFO, "* %s(%s) @ %s", packet->member, packet->signature, packet->path);
 		break;
 	case DBUS_MESSAGE_TYPE_ERROR:
-		col_add_fstr(packet->pinfo->cinfo, COL_INFO, "-> %s", packet->error_name);
+		if (packet->member) {
+			col_add_fstr(packet->pinfo->cinfo, COL_INFO, "! %s: %s", packet->member, packet->error_name);
+		} else {
+			col_add_fstr(packet->pinfo->cinfo, COL_INFO, "! %s", packet->error_name);
+		}
 		break;
 	case DBUS_MESSAGE_TYPE_METHOD_RETURN:
-		col_add_fstr(packet->pinfo->cinfo, COL_INFO, "-> '%s'", packet->signature);
+		if (packet->member) {
+			if (*packet->signature != '\0') {
+				col_add_fstr(packet->pinfo->cinfo, COL_INFO, "-> %s: '%s'", packet->member, packet->signature);
+			} else {
+				col_add_fstr(packet->pinfo->cinfo, COL_INFO, "-> %s: OK", packet->member);
+
+			}
+		} else {
+			col_add_fstr(packet->pinfo->cinfo, COL_INFO, "-> '%s'", packet->signature);
+		}
 		break;
 	default:
 		DISSECTOR_ASSERT_NOT_REACHED();
@@ -1148,6 +1369,7 @@ dissect_dbus_header(dbus_packet_t *packet) {
 	ptvcursor_add_no_advance(packet->cursor, hf_dbus_flags_no_reply_expected, 1, packet->enc);
 	ptvcursor_add_no_advance(packet->cursor, hf_dbus_flags_no_auto_start, 1, packet->enc);
 	ptvcursor_add_no_advance(packet->cursor, hf_dbus_flags_allow_interactive_authorization, 1, packet->enc);
+	packet->flags = tvb_get_guint8(ptvcursor_tvbuff(packet->cursor), ptvcursor_current_offset(packet->cursor));
 	ptvcursor_advance(packet->cursor, 1);
 	ptvcursor_pop_subtree(packet->cursor);
 
@@ -1241,11 +1463,14 @@ proto_register_dbus(void) {
 		{ &hf_dbus_flags, { "Message Flags", "dbus.flags",
 			FT_UINT8, BASE_HEX, NULL, 0x00, NULL, HFILL }},
 		{ &hf_dbus_flags_no_reply_expected, { "No Reply Expected", "dbus.flags.no_reply_expected",
-			FT_BOOLEAN, 8, TFS(&not_expected_vals), 0x01, NULL, HFILL }},
+			FT_BOOLEAN, 8, TFS(&not_expected_vals),
+			DBUS_FLAGS_NO_REPLY_EXPECTED_MASK, NULL, HFILL }},
 		{ &hf_dbus_flags_no_auto_start, { "No Auto Start", "dbus.flags.no_auto_start",
-			FT_BOOLEAN, 8, TFS(&no_start_vals), 0x02, NULL, HFILL }},
+			FT_BOOLEAN, 8, TFS(&no_start_vals),
+			DBUS_FLAGS_NO_AUTO_START_MASK, NULL, HFILL }},
 		{ &hf_dbus_flags_allow_interactive_authorization, { "Allow Interactive Authorization", "dbus.flags.allow_interactive_authorization",
-			FT_BOOLEAN, 8, TFS(&allow_vals), 0x04, NULL, HFILL }},
+			FT_BOOLEAN, 8, TFS(&allow_vals),
+			DBUS_FLAGS_ALLOW_INTERACTIVE_AUTHORIZATION_MASK, NULL, HFILL }},
 		{ &hf_dbus_version, { "Protocol Version", "dbus.version",
 			FT_UINT8, BASE_DEC, NULL, 0x00, NULL, HFILL }},
 		{ &hf_dbus_body_length, { "Message Body Length", "dbus.body_length",
@@ -1316,6 +1541,15 @@ proto_register_dbus(void) {
 			FT_BYTES, BASE_NO_DISPLAY_VALUE, NULL, 0x00, NULL, HFILL }},
 		{ &hf_dbus_type_unix_fd, { "Unix FD", "dbus.type.unix_fd",
 			FT_UINT32, BASE_DEC, NULL, 0x00, NULL, HFILL }},
+		{ &hf_dbus_response_in, { "Response In", "dbus.response_in",
+			FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
+			"The response to this D-Bus call is in this frame", HFILL }},
+		{ &hf_dbus_response_to, { "Response To", "dbus.response_to",
+			FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0,
+			"This is a response to the D-Bus call in this frame", HFILL }},
+		{ &hf_dbus_response_time, { "Response Time", "dbus.response_time",
+			FT_RELATIVE_TIME, BASE_NONE, NULL, 0x0,
+			"The time between the Call and the Reply", HFILL }},
 	};
 
 	static gint *ett[] = {
@@ -1376,6 +1610,7 @@ proto_register_dbus(void) {
 	};
 
 	expert_module_t *expert_dbus;
+	module_t *dbus_module;
 
 	proto_dbus = proto_register_protocol("D-Bus", "D-Bus", "dbus");
 	proto_register_field_array(proto_dbus, hf, array_length(hf));
@@ -1383,8 +1618,16 @@ proto_register_dbus(void) {
 	expert_dbus = expert_register_protocol(proto_dbus);
 	expert_register_field_array(expert_dbus, ei, array_length(ei));
 
-	dbus_handle = create_dissector_handle(dissect_dbus, proto_dbus);
-	dbus_handle_tcp = create_dissector_handle(dissect_dbus_tcp, proto_dbus);
+	dbus_handle = register_dissector("dbus", dissect_dbus, proto_dbus);
+	dbus_handle_tcp = register_dissector("dbus.tcp", dissect_dbus_tcp, proto_dbus);
+
+	dbus_module = prefs_register_protocol(proto_dbus, NULL);
+	prefs_register_bool_preference(dbus_module, "resolve_names",
+			"Resolve unique names into well-known names",
+			"Show the first inferred well-known bus name (e.g. \"com.example.MusicPlayer1\") instead of the unique connection name (e.g. \":1.18\"). Might be confusing if a connection owns more than one well-known name.", &dbus_resolve_names);
+
+	request_info_map = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(), wmem_str_hash, g_str_equal);
+	unique_name_map = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(), wmem_str_hash, g_str_equal);
 }
 
 void

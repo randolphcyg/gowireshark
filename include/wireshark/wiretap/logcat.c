@@ -267,15 +267,14 @@ wtap_open_return_val logcat_open(wtap *wth, int *err, gchar **err_info)
             return WTAP_OPEN_ERROR; /* I/O error */
         if (tmp_version == 0)
             return WTAP_OPEN_NOT_MINE;  /* not a logcat file */
-        if (tmp_version != -2) {
-            /*
-             * we've read three packets and the first two have the same
-             * version; does the third have the same version?
-             */
-            if (tmp_version != version) {
-                /* no, so this is presumably not a logcat file */
-                return WTAP_OPEN_NOT_MINE;
-            }
+
+        /*
+         * we've read three packets and the first two have the same
+         * version; does the third have the same version?
+         */
+        if (tmp_version != version) {
+            /* no, so this is presumably not a logcat file */
+            return WTAP_OPEN_NOT_MINE;
         }
     }
 
@@ -333,7 +332,7 @@ static gboolean logcat_binary_dump(wtap_dumper *wdh,
      * Make sure this packet doesn't have a link-layer type that
      * differs from the one for the file.
      */
-    if (wdh->encap != rec->rec_header.packet_header.pkt_encap) {
+    if (wdh->file_encap != rec->rec_header.packet_header.pkt_encap) {
         *err = WTAP_ERR_ENCAP_PER_PACKET_UNSUPPORTED;
         return FALSE;
     }
@@ -341,7 +340,7 @@ static gboolean logcat_binary_dump(wtap_dumper *wdh,
     caplen = rec->rec_header.packet_header.caplen;
 
     /* Skip EXPORTED_PDU*/
-    if (wdh->encap == WTAP_ENCAP_WIRESHARK_UPPER_PDU) {
+    if (wdh->file_encap == WTAP_ENCAP_WIRESHARK_UPPER_PDU) {
         gint skipped_length;
 
         skipped_length = logcat_exported_pdu_length(pd);
@@ -351,8 +350,6 @@ static gboolean logcat_binary_dump(wtap_dumper *wdh,
 
     if (!wtap_dump_file_write(wdh, pd, caplen, err))
         return FALSE;
-
-    wdh->bytes_dumped += caplen;
 
     return TRUE;
 }

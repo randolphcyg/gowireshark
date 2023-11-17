@@ -1,7 +1,8 @@
 /* packet-dlt.c
  * DLT Dissector
- * By Dr. Lars Voelker <lars.voelker@bmw.de> / <lars.voelker@technica-engineering.de>
- * Copyright 2013-2022 Dr. Lars Voelker
+ * By Dr. Lars Voelker <lars.voelker@technica-engineering.de>
+ * Copyright 2013-2019 Dr. Lars Voelker, BMW
+ * Copyright 2020-2023 Dr. Lars Voelker, Technica Engineering GmbH
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -12,7 +13,7 @@
 
 /*
  * For further information about the "Diagnostic Log and Trace" (DLT) protocol see:
- * - GENIVI Alliance (https://www.genivi.org and https://github.com/GENIVI/)
+ * - GENIVI Alliance (https://covesa.global/ and https://github.com/GENIVI/)
  * - AUTOSAR (https://www.autosar.org) -> AUTOSAR_SWS_DiagnosticLogAndTrace.pdf
  */
 
@@ -21,8 +22,8 @@
 #include <config.h>
 
 #include <epan/packet.h>
-#include <epan/dissectors/packet-tcp.h>
-#include <epan/dissectors/packet-udp.h>
+#include "packet-tcp.h"
+#include "packet-udp.h"
 #include <epan/exceptions.h>
 #include <epan/expert.h>
 #include <epan/show_exception.h>
@@ -31,15 +32,23 @@
 
 #include <epan/to_str.h>
 #include <epan/uat.h>
+#include <wiretap/wtap.h>
 
-#include <epan/dissectors/packet-dlt.h>
+#include "packet-dlt.h"
 
 void proto_register_dlt(void);
 void proto_reg_handoff_dlt(void);
 
-#define DLT_NAME                                        "DLT"
-#define DLT_NAME_LONG                                   "Diagnostic Log and Trace (DLT)"
-#define DLT_NAME_FILTER                                 "dlt"
+void proto_register_dlt_storage_header(void);
+void proto_reg_handoff_dlt_storage_header(void);
+
+#define PNAME                                           "DLT"
+#define PSNAME                                          "Diagnostic Log and Trace (DLT)"
+#define PFNAME                                          "dlt"
+
+#define DLT_STORAGE_HEADER_NAME                         "DLT Storage Header (short)"
+#define DLT_STORAGE_HEADER_NAME_LONG                    "Shortened Diagnostic Log and Trace (DLT) Storage Header"
+#define DLT_STORAGE_HEADER_NAME_FILTER                  "dlt.storage"
 
 #define DLT_MIN_SIZE_FOR_PARSING                        4
 
@@ -153,9 +162,11 @@ void proto_reg_handoff_dlt(void);
 #define DLT_SERVICE_OPTIONS_WITH_LOG_TRACE_TEXT         7
 
 static int proto_dlt = -1;
+static int proto_dlt_storage_header = -1;
 
 static dissector_handle_t dlt_handle_udp = NULL;
 static dissector_handle_t dlt_handle_tcp = NULL;
+static dissector_handle_t dlt_handle_storage = NULL;
 
 /* Subdissectors */
 static heur_dissector_list_t heur_subdissector_list;
@@ -222,6 +233,11 @@ static int hf_dlt_service_count                         = -1;
 static int hf_dlt_service_app_desc                      = -1;
 static int hf_dlt_service_ctx_desc                      = -1;
 
+static int hf_dlt_storage_tstamp_s                      = -1;
+static int hf_dlt_storage_tstamp_us                     = -1;
+static int hf_dlt_storage_ecu_name                      = -1;
+static int hf_dlt_storage_reserved                      = -1;
+
 /* subtrees */
 static gint ett_dlt                                     = -1;
 static gint ett_dlt_hdr_type                            = -1;
@@ -231,6 +247,8 @@ static gint ett_dlt_payload                             = -1;
 static gint ett_dlt_service_app_ids                     = -1;
 static gint ett_dlt_service_app_id                      = -1;
 static gint ett_dlt_service_ctx_id                      = -1;
+
+static gint ett_dlt_storage                             = -1;
 
 /***************************
  ****** String Tables ******
@@ -712,7 +730,7 @@ dissect_dlt_verbose_parameter_string(tvbuff_t *tvb, packet_info *pinfo, proto_tr
         return -1;
     }
 
-    subtvb = tvb_new_subset_length_caplen(tvb, offset, str_len, str_len);
+    subtvb = tvb_new_subset_length(tvb, offset, str_len);
 
     if (encoding == DLT_MSG_VERB_PARAM_SCOD_ASCII) {
         buf = tvb_get_stringz_enc(pinfo->pool, subtvb, 0, &tmp_length, ENC_ASCII);
@@ -1020,10 +1038,10 @@ dissect_dlt_non_verbose_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *r
             proto_item_append_text(ti, " (%s)", message_id_name);
         }
 
-        subtvb = tvb_new_subset_length_caplen(tvb, offset, tvb_captured_length_remaining(tvb, offset), tvb_captured_length_remaining(tvb, offset));
+        subtvb = tvb_new_subset_remaining(tvb, offset);
         dissect_dlt_non_verbose_payload_message(subtvb, pinfo, tree, 0, payload_le, msg_type, msg_type_info_comb, message_id);
     } else if(msg_type == DLT_MSG_TYPE_LOG_MSG) {
-        subtvb = tvb_new_subset_length_caplen(tvb, offset, tvb_captured_length_remaining(tvb, offset), tvb_captured_length_remaining(tvb, offset));
+        subtvb = tvb_new_subset_remaining(tvb, offset);
         if (dissect_dlt_non_verbose_payload_message_handoff(subtvb, pinfo, root_tree, payload_le, msg_type, msg_type_info_comb, message_id, ecu_id) <= 0) {
             proto_tree_add_item(tree, hf_dlt_payload_data, tvb, offset, tvb_captured_length_remaining(tvb, offset), payload_le);
         }
@@ -1035,12 +1053,12 @@ dissect_dlt_non_verbose_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *r
 }
 
 static int
-dissect_dlt_msg (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_) {
+dissect_dlt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_, guint32 offset_orig) {
     proto_item     *ti;
     proto_tree     *dlt_tree = NULL;
     proto_tree     *ext_hdr_tree = NULL;
     proto_tree     *subtree = NULL;
-    guint32         offset = 0;
+    guint32         offset = offset_orig;
 
     guint8          header_type = 0;
     gboolean        ext_header = FALSE;
@@ -1060,20 +1078,20 @@ dissect_dlt_msg (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 
     const guint8   *ecu_id = NULL;
 
-    col_set_str(pinfo->cinfo, COL_PROTOCOL, DLT_NAME);
+    col_set_str(pinfo->cinfo, COL_PROTOCOL, PNAME);
     col_clear(pinfo->cinfo, COL_INFO);
-    col_append_sep_fstr(pinfo->cinfo, COL_INFO, ", ", "%s", DLT_NAME);
+    col_append_sep_fstr(pinfo->cinfo, COL_INFO, ", ", "%s", PNAME);
 
     if (captured_length < DLT_MIN_SIZE_FOR_PARSING) {
         expert_dlt_buffer_too_short(tree, pinfo, tvb, offset, captured_length);
         return captured_length;
     }
 
-    header_type = tvb_get_guint8( tvb, 0 );
+    header_type = tvb_get_guint8(tvb, offset);
     ext_header = ((header_type & DLT_HDR_TYPE_EXT_HEADER) == DLT_HDR_TYPE_EXT_HEADER);
     payload_le = ((header_type & DLT_HDR_TYPE_MSB_FIRST) != DLT_HDR_TYPE_MSB_FIRST);
 
-    ti = proto_tree_add_item(tree, proto_dlt, tvb, 0, -1, ENC_NA);
+    ti = proto_tree_add_item(tree, proto_dlt, tvb, offset, -1, ENC_NA);
     dlt_tree = proto_item_add_subtree(ti, ett_dlt);
 
     ti = proto_tree_add_item(dlt_tree, hf_dlt_header_type, tvb, offset, 1, ENC_NA);
@@ -1127,7 +1145,7 @@ dissect_dlt_msg (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 
         proto_tree_add_item(subtree, hf_dlt_mi_msg_type, tvb, offset, 1, ENC_NA);
         proto_tree_add_uint_format_value(subtree, hf_dlt_mi_msg_type_info, tvb, offset, 1, msg_info, "%s (%d)",
-            val_to_str(msg_type_info_comb, dlt_msg_type_info, "Unknown Message Type Info"), msg_type_info);
+            val_to_str_const(msg_type_info_comb, dlt_msg_type_info, "Unknown Message Type Info"), msg_type_info);
         offset += 1;
 
         num_of_args = tvb_get_guint8(tvb, offset);
@@ -1153,23 +1171,53 @@ dissect_dlt_msg (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
     }
 
     col_set_fence(pinfo->cinfo, COL_INFO);
-    return offset;
-}
-
-static guint
-get_dlt_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset _U_, void* data _U_) {
-    return tvb_get_ntohs(tvb, offset+2);
+    return offset - offset_orig;
 }
 
 static int
-dissect_dlt_tcp(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data) {
+dissect_dlt_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
+    return dissect_dlt(tvb, pinfo, tree, data, 0);
+}
+
+static guint
+get_dlt_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void* data _U_) {
+    return tvb_get_ntohs(tvb, offset + 2);
+}
+
+static int
+dissect_dlt_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
     tcp_dissect_pdus(tvb, pinfo, tree, TRUE, DLT_MIN_SIZE_FOR_PARSING, get_dlt_message_len, dissect_dlt_msg, data);
     return tvb_reported_length(tvb);
 }
 
 static int
-dissect_dlt_udp(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data) {
+dissect_dlt_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
     return udp_dissect_pdus(tvb, pinfo, tree, DLT_MIN_SIZE_FOR_PARSING, NULL, get_dlt_message_len, dissect_dlt_msg, data);
+}
+
+static int
+dissect_dlt_storage_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
+    proto_tree *dlt_storage_tree;
+    proto_item *ti;
+
+    guint32     offset = 0;
+
+    ti = proto_tree_add_item(tree, proto_dlt_storage_header, tvb, offset, 16, ENC_NA);
+    dlt_storage_tree = proto_item_add_subtree(ti, ett_dlt_storage);
+
+    proto_tree_add_item(dlt_storage_tree, hf_dlt_storage_tstamp_s, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+    offset += 4;
+
+    proto_tree_add_item(dlt_storage_tree, hf_dlt_storage_tstamp_us, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+    offset += 4;
+
+    /* setting source to ECU Name of the encapsulation header */
+    set_address_tvb(&(pinfo->src), AT_STRINGZ, 4, tvb, offset);
+    proto_tree_add_item(dlt_storage_tree, hf_dlt_storage_ecu_name, tvb, offset, 5, ENC_ASCII);
+    offset += 5;
+
+    proto_tree_add_item(dlt_storage_tree, hf_dlt_storage_reserved, tvb, offset, 3, ENC_NA);
+    return 16 + dissect_dlt(tvb, pinfo, tree, data, 16);
 }
 
 void proto_register_dlt(void) {
@@ -1376,7 +1424,10 @@ void proto_register_dlt(void) {
     };
 
     /* Register the protocol name and description */
-    proto_dlt = proto_register_protocol(DLT_NAME_LONG, DLT_NAME, DLT_NAME_FILTER);
+    proto_dlt = proto_register_protocol(PSNAME, PNAME, PFNAME);
+    dlt_handle_tcp = register_dissector("dlt_tcp", dissect_dlt_tcp, proto_dlt);
+    dlt_handle_udp = register_dissector("dlt_udp", dissect_dlt_udp, proto_dlt);
+    dlt_handle_storage = register_dissector("dlt_storage", dissect_dlt_storage_header, proto_dlt_storage_header);
     proto_register_subtree_array(ett, array_length(ett));
     proto_register_field_array(proto_dlt, hf_dlt, array_length(hf_dlt));
 
@@ -1388,13 +1439,40 @@ void proto_register_dlt(void) {
 }
 
 void proto_reg_handoff_dlt(void) {
-    dlt_handle_udp = create_dissector_handle(dissect_dlt_udp, proto_dlt);
     dissector_add_uint_with_preference("udp.port", 0, dlt_handle_udp);
-
-    dlt_handle_tcp = create_dissector_handle(dissect_dlt_tcp, proto_dlt);
     dissector_add_uint_with_preference("tcp.port", 0, dlt_handle_tcp);
 }
 
+void proto_register_dlt_storage_header(void) {
+    static hf_register_info hfs[] = {
+        { &hf_dlt_storage_tstamp_s, {
+            "Timestamp s", "dlt.storage.timestamp_s",
+            FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_dlt_storage_tstamp_us, {
+            "Timestamp us", "dlt.storage.timestamp_us",
+            FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_dlt_storage_ecu_name, {
+            "ECU Name", "dlt.storage.ecu_name",
+            FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_dlt_storage_reserved, {
+            "Reserved", "dlt.storage.reserved",
+            FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+
+    };
+
+    static gint *ett[] = {
+        &ett_dlt_storage,
+    };
+
+    /* Register the protocol name and description */
+    proto_dlt_storage_header = proto_register_protocol(DLT_STORAGE_HEADER_NAME_LONG, DLT_STORAGE_HEADER_NAME, DLT_STORAGE_HEADER_NAME_FILTER);
+    proto_register_subtree_array(ett, array_length(ett));
+    proto_register_field_array(proto_dlt, hfs, array_length(hfs));
+}
+
+void proto_reg_handoff_dlt_storage_header(void) {
+    dissector_add_uint("wtap_encap", WTAP_ENCAP_AUTOSAR_DLT, dlt_handle_storage);
+}
 /*
  * Editor modelines
  *

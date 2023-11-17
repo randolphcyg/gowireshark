@@ -17,10 +17,13 @@
 
 #include <epan/packet.h>
 #include <epan/prefs.h>
+#include <epan/charsets.h>
 #include "packet-tcp.h"
 
 void proto_register_wow(void);
 void proto_reg_handoff_wow(void);
+
+static dissector_handle_t wow_handle;
 
 typedef enum {
 	AUTH_LOGON_CHALLENGE       = 0x00,
@@ -457,6 +460,7 @@ parse_logon_reconnect_challenge_server_to_client(tvbuff_t *tvb, proto_tree *wow_
 static void
 parse_logon_challenge_client_to_server(packet_info *pinfo, tvbuff_t *tvb, proto_tree *wow_tree, guint32 offset) {
 	guint8 srp_i_len;
+	char   buffer[5];
 	gchar *string;
 
 	proto_tree_add_item(wow_tree, hf_wow_protocol_version, tvb,
@@ -467,11 +471,11 @@ parse_logon_challenge_client_to_server(packet_info *pinfo, tvbuff_t *tvb, proto_
 			tvb, offset, 2, ENC_LITTLE_ENDIAN);
 	offset += 2;
 
-	string = g_strreverse(tvb_get_string_enc(pinfo->pool, tvb, offset, 4, ENC_ASCII));
+	tvb_get_raw_bytes_as_string(tvb, offset, buffer, 5);
+	string = get_ascii_string(pinfo->pool, g_strreverse(buffer), 4);
 	proto_tree_add_string(wow_tree, hf_wow_gamename,
 			tvb, offset, 4, string);
 	offset += 4;
-
 
 
 	client_game_version.major_version = tvb_get_guint8(tvb, offset);
@@ -494,17 +498,20 @@ parse_logon_challenge_client_to_server(packet_info *pinfo, tvbuff_t *tvb, proto_
 			offset, 2, ENC_LITTLE_ENDIAN);
 	offset += 2;
 
-	string = g_strreverse(tvb_get_string_enc(pinfo->pool, tvb, offset, 4, ENC_ASCII));
+	tvb_get_raw_bytes_as_string(tvb, offset, buffer, 5);
+	string = get_ascii_string(pinfo->pool, g_strreverse(buffer), 4);
 	proto_tree_add_string(wow_tree, hf_wow_platform,
 			tvb, offset, 4, string);
 	offset += 4;
 
-	string = g_strreverse(tvb_get_string_enc(pinfo->pool, tvb, offset, 4, ENC_ASCII));
+	tvb_get_raw_bytes_as_string(tvb, offset, buffer, 5);
+	string = get_ascii_string(pinfo->pool, g_strreverse(buffer), 4);
 	proto_tree_add_string(wow_tree, hf_wow_os, tvb,
 			offset, 4, string);
 	offset += 4;
 
-	string = g_strreverse(tvb_get_string_enc(pinfo->pool, tvb, offset, 4, ENC_ASCII));
+	tvb_get_raw_bytes_as_string(tvb, offset, buffer, 5);
+	string = get_ascii_string(pinfo->pool, g_strreverse(buffer), 4);
 	proto_tree_add_string(wow_tree, hf_wow_country,
 			tvb, offset, 4, string);
 	offset += 4;
@@ -993,6 +1000,8 @@ proto_register_wow(void)
 	proto_register_field_array(proto_wow, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
 
+	wow_handle = register_dissector("wow", dissect_wow, proto_wow);
+
 	wow_module = prefs_register_protocol(proto_wow, NULL);
 
 	prefs_register_bool_preference(wow_module, "desegment", "Reassemble wow messages spanning multiple TCP segments.", "Whether the wow dissector should reassemble messages spanning multiple TCP segments.  To use this option, you must also enable \"Allow subdissectors to reassemble TCP streams\" in the TCP protocol settings.", &wow_preference_desegment);
@@ -1002,11 +1011,7 @@ proto_register_wow(void)
 void
 proto_reg_handoff_wow(void)
 {
-	dissector_handle_t wow_handle;
-
-	wow_handle = create_dissector_handle(dissect_wow, proto_wow);
 	dissector_add_uint_with_preference("tcp.port", WOW_PORT, wow_handle);
-
 }
 
 /*

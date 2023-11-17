@@ -21,9 +21,13 @@
 #include <epan/conversation.h>
 #include <epan/wmem_scopes.h>
 #include "packet-http.h"
+#include "packet-media-type.h"
+#include "packet-tls.h"
 
 void proto_register_ipp(void);
 void proto_reg_handoff_ipp(void);
+
+static dissector_handle_t ipp_handle;
 
 static int proto_ipp = -1;
 /* Generated from convert_proto_tree_add_text.pl */
@@ -394,7 +398,7 @@ dissect_ipp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     proto_tree  *ipp_tree;
     proto_item  *ti;
     int         offset     = 0;
-    http_message_info_t *message_info = (http_message_info_t *)data;
+    media_content_info_t *content_info = (media_content_info_t *)data;
     gboolean    is_request;
     guint16     operation_status;
     const gchar *status_type;
@@ -403,14 +407,14 @@ dissect_ipp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     ipp_conv_info_t *ipp_info;
     ipp_transaction_t *ipp_trans;
 
-    if (message_info != NULL) {
-        switch (message_info->type) {
+    if (content_info != NULL) {
+        switch (content_info->type) {
 
-        case HTTP_REQUEST:
+        case MEDIA_CONTAINER_HTTP_REQUEST:
             is_request = TRUE;
             break;
 
-        case HTTP_RESPONSE:
+        case MEDIA_CONTAINER_HTTP_RESPONSE:
             is_request = FALSE;
             break;
 
@@ -786,7 +790,7 @@ add_integer_tree(proto_tree *tree, tvbuff_t *tvb, int offset,
                  int name_length, const gchar *name, int value_length, guint8 tag)
 {
     int count = 0;
-    const char *type = val_to_str_const(tag, tag_vals, "unknown-%02x");
+    const char *type = val_to_str(tag, tag_vals, "unknown-%02x");
     gchar *value = NULL;
     int valoffset = offset;
 
@@ -873,28 +877,28 @@ add_integer_tree(proto_tree *tree, tvbuff_t *tvb, int offset,
                     temp = "???";
                 } else {
                     if (!strncmp(name, "printer-state", 13)) {
-                        temp = val_to_str_const(tvb_get_ntohl(tvb, valoffset), printer_state_vals, "unknown-%d");
+                        temp = val_to_str(tvb_get_ntohl(tvb, valoffset), printer_state_vals, "unknown-%d");
                     }
                     else if (!strncmp(name, "job-state", 9)) {
-                        temp = val_to_str_const(tvb_get_ntohl(tvb, valoffset), job_state_vals, "unknown-%d");
+                        temp = val_to_str(tvb_get_ntohl(tvb, valoffset), job_state_vals, "unknown-%d");
                     }
                     else if (!strncmp(name, "document-state", 14)) {
-                        temp = val_to_str_const(tvb_get_ntohl(tvb, valoffset), document_state_vals, "unknown-%d");
+                        temp = val_to_str(tvb_get_ntohl(tvb, valoffset), document_state_vals, "unknown-%d");
                     }
                     else if (!strncmp(name, "operations-supported", 20)) {
-                        temp = val_to_str_const(tvb_get_ntohl(tvb, valoffset), operation_vals, "unknown-%04x");
+                        temp = val_to_str(tvb_get_ntohl(tvb, valoffset), operation_vals, "unknown-%04x");
                     }
                     else if (!strncmp(name, "finishings", 10)) {
-                        temp = val_to_str_const(tvb_get_ntohl(tvb, valoffset), finishings_vals, "unknown-%d");
+                        temp = val_to_str(tvb_get_ntohl(tvb, valoffset), finishings_vals, "unknown-%d");
                     }
                     else if (!strncmp(name, "orientation-requested", 21) || !strncmp(name, "media-feed-orientation", 22)) {
-                        temp = val_to_str_const(tvb_get_ntohl(tvb, valoffset), orientation_vals, "unknown-%d");
+                        temp = val_to_str(tvb_get_ntohl(tvb, valoffset), orientation_vals, "unknown-%d");
                     }
                     else if (!strncmp(name, "print-quality", 13)) {
-                        temp = val_to_str_const(tvb_get_ntohl(tvb, valoffset), quality_vals, "unknown-%d");
+                        temp = val_to_str(tvb_get_ntohl(tvb, valoffset), quality_vals, "unknown-%d");
                     }
                     else if (!strncmp(name, "transmission-status", 19)) {
-                        temp = val_to_str_const(tvb_get_ntohl(tvb, valoffset), transmission_status_vals, "unknown-%d");
+                        temp = val_to_str(tvb_get_ntohl(tvb, valoffset), transmission_status_vals, "unknown-%d");
                     }
                     else {
                         temp = wmem_strdup_printf(wmem_packet_scope(), "%d", tvb_get_ntohl(tvb, offset + 1 + 2 + name_length + 2));
@@ -1006,7 +1010,7 @@ static proto_tree *
 add_octetstring_tree(proto_tree *tree, tvbuff_t *tvb, int offset, int name_length, const gchar *name, int value_length, guint8 tag)
 {
     int count = 0;
-    const char *type = val_to_str_const(tag, tag_vals, "unknown-%02x");
+    const char *type = val_to_str(tag, tag_vals, "unknown-%02x");
     gchar *value = NULL;
     int valoffset = offset;
 
@@ -1054,6 +1058,10 @@ add_octetstring_tree(proto_tree *tree, tvbuff_t *tvb, int offset, int name_lengt
                 guint8 seconds = tvb_get_guint8(tvb, valoffset + 6);
                 guint8 decisecs = tvb_get_guint8(tvb, valoffset + 7);
                 guint8 utcsign = tvb_get_guint8(tvb, valoffset + 8);
+                if (utcsign != '+' && utcsign != '-') {
+                    // XXX Add expert info
+                    utcsign = '?';
+                }
                 guint8 utchours = tvb_get_guint8(tvb, valoffset + 9);
                 guint8 utcminutes = tvb_get_guint8(tvb, valoffset + 10);
 
@@ -1286,6 +1294,10 @@ add_octetstring_value(const gchar *tag_desc, proto_tree *tree, tvbuff_t *tvb,
                 guint8 seconds = tvb_get_guint8(tvb, valoffset + 6);
                 guint8 decisecs = tvb_get_guint8(tvb, valoffset + 7);
                 guint8 utcsign = tvb_get_guint8(tvb, valoffset + 8);
+                if (utcsign != '+' && utcsign != '-') {
+                    // XXX Add expert info
+                    utcsign = '?';
+                }
                 guint8 utchours = tvb_get_guint8(tvb, valoffset + 9);
                 guint8 utcminutes = tvb_get_guint8(tvb, valoffset + 10);
 
@@ -1362,7 +1374,7 @@ add_charstring_tree(proto_tree *tree, tvbuff_t *tvb, int offset,
                     guint8 tag, int name_length, const gchar *name, int value_length)
 {
     int count = 0, valoffset = offset;
-    const char *type = val_to_str_const(tag, tag_vals, "unknown-%02x");
+    const char *type = val_to_str(tag, tag_vals, "unknown-%02x");
     gchar *value = NULL;
 
     do {
@@ -1419,6 +1431,7 @@ static void
 add_charstring_value(const gchar *tag_desc, proto_tree *tree, tvbuff_t *tvb,
                      int offset, int name_length, const gchar *name _U_, int value_length, guint8 tag)
 {
+    proto_item *ti;
     int valoffset = offset + 1 + 2 + name_length + 2;
 
     if (name_length > 0)
@@ -1426,8 +1439,14 @@ add_charstring_value(const gchar *tag_desc, proto_tree *tree, tvbuff_t *tvb,
 
     if (tag == TAG_MEMBERATTRNAME)
         proto_tree_add_item(tree, hf_ipp_memberattrname, tvb, valoffset, value_length, ENC_ASCII);
-    else
-        proto_tree_add_string_format(tree, hf_ipp_charstring_value, tvb, valoffset, value_length, NULL, "%s value: '%s'", tag_desc, tvb_format_text(wmem_packet_scope(), tvb, valoffset, value_length));
+    else {
+        ti = proto_tree_add_item(tree, hf_ipp_charstring_value, tvb, valoffset, value_length, ENC_ASCII);
+        if (strcmp(tag_desc, "") == 0) {
+            proto_item_prepend_text(ti, "string ");
+        } else {
+            proto_item_prepend_text(ti, "%s ", tag_desc);
+        }
+    }
 }
 
 static int
@@ -1437,6 +1456,11 @@ ipp_fmt_collection(tvbuff_t *tvb, int valoffset, char *buffer, int bufsize)
     guint8 tag;
     int name_length, value_length;
     int overflow = 0;
+
+    /* Should be larger to be meaningful, but at least prevent illegal
+     * memory accesses.
+     */
+    DISSECTOR_ASSERT_CMPINT(bufsize, >=, 2);
 
     *bufptr++ = '{';
     buffer ++;
@@ -1493,6 +1517,10 @@ ipp_fmt_collection(tvbuff_t *tvb, int valoffset, char *buffer, int bufsize)
       *bufptr++ = '}';
 
     *bufptr = '\0';
+    if (bufptr == bufend) {
+        /* buffer was already advanced past the initial '{' */
+        ws_utf8_truncate(buffer, bufsize - 2);
+    }
 
     return (valoffset);
 }
@@ -1527,7 +1555,7 @@ proto_register_ipp(void)
       { &hf_ipp_enum_value_print_quality, { "print-quality", "ipp.enum_value", FT_INT32, BASE_DEC, VALS(quality_vals), 0x0, NULL, HFILL }},
       { &hf_ipp_enum_value_transmission_status, { "transmission-status", "ipp.enum_value", FT_INT32, BASE_DEC, VALS(transmission_status_vals), 0x0, NULL, HFILL }},
       { &hf_ipp_outofband_value, { "out-of-band value", "ipp.outofband_value", FT_UINT8, BASE_HEX, VALS(tag_vals), 0x0, NULL, HFILL }},
-      { &hf_ipp_charstring_value, { "string value", "ipp.charstring_value", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+      { &hf_ipp_charstring_value, { "value", "ipp.charstring_value", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_ipp_octetstring_value, { "octetString value", "ipp.octetstring_value", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_ipp_datetime_value, { "dateTime value", "ipp.datetime_value", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_ipp_resolution_value, { "resolution value", "ipp.resolution_value", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
@@ -1550,18 +1578,42 @@ proto_register_ipp(void)
 
     proto_register_field_array(proto_ipp, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
+
+    ipp_handle = register_dissector("ipp", dissect_ipp, proto_ipp);
 }
 
 void
 proto_reg_handoff_ipp(void)
 {
-    dissector_handle_t ipp_handle;
-
     /*
-     * Register ourselves as running atop HTTP and using port 631.
+     * IPP uses the same well-known TCP port, 631, for both running atop HTTP
+     * and atop HTTP over TLS (IPPS, RFC 7472). The latter includes both
+     * connections that start out as HTTP and upgrade to using TLS (RFC 2817)
+     * as well as connections that begin as TLS. Despite RFC 8010:
+     *   the "Content-Type" of the message body in each request and response
+     *   MUST be "application/ipp"
+     * a number of implementations fail to include the Content-Type in their
+     * chunked responses. (#18825, #5718, #6765).
+     *
+     * For that reason, we register IPP in the HTTP port-based dissector so
+     * that packets without a Content-Type on port 631 will use this dissector.
+     * (RFC 8010 also notes that HTTP/2 is an OPTIONAL transport layer; we
+     * don't have a port-based dissector dissector for HTTP/2, but hopefully
+     * any implementations that use HTTP/2 always send the Content-Type.)
+     * Note we check for port-based dissectors after the Content-Type; this
+     * is good because many IPP servers will respond to non-IPP HTTP requests
+     * on port 631 just as they would on ports 80 or 443.
+     *
+     * We can only have a single dissector in the TCP dissector table for
+     * port 631. If we don't register a fake helper protocol that tries
+     * each of TLS, HTTP/2, and HTTP in order (cf. #16541, #18016), we're
+     * currently better off having TLS be the registered dissector and HTTP
+     * be detected heuristically, because the non-heuristic HTTP dissector
+     * never rejects packets, even when it doesn't add anything to the tree.
      */
-    ipp_handle = create_dissector_handle(dissect_ipp, proto_ipp);
+    dissector_handle_t http_tls_handle = find_dissector_add_dependency("http-over-tls", proto_ipp);
     http_tcp_dissector_add(631, ipp_handle);
+    ssl_dissector_add(631, http_tls_handle);
     dissector_add_string("media_type", "application/ipp", ipp_handle);
 }
 

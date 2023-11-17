@@ -13,14 +13,19 @@
  */
 
 #include "config.h"
+#define WS_LOG_DOMAIN LOG_DOMAIN_WSLUA
 
 #include "wslua.h"
 #include "init_wslua.h"
+
 #include <epan/dissectors/packet-frame.h>
+#include <errno.h>
 #include <math.h>
 #include <stdio.h>
 #include <epan/expert.h>
 #include <epan/ex-opt.h>
+#include <epan/introspection.h>
+#include <wiretap/introspection.h>
 #include <wsutil/privileges.h>
 #include <wsutil/file_util.h>
 #include <wsutil/wslog.h>
@@ -37,12 +42,15 @@ static wslua_plugin *wslua_plugin_list = NULL;
 
 static lua_State* L = NULL;
 
+static void (*wslua_gui_print_func_ptr)(const char *, void *) = NULL;
+static void *wslua_gui_print_data_ptr = NULL;
+static int wslua_lua_print_func_ref = LUA_NOREF;
+
 /* XXX: global variables? Really?? Yuck. These could be done differently,
    using the Lua registry */
 packet_info* lua_pinfo;
 struct _wslua_treeitem* lua_tree;
 tvbuff_t* lua_tvb;
-wslua_logger_t wslua_logger;
 int lua_dissectors_table_ref = LUA_NOREF;
 int lua_heur_dissectors_table_ref = LUA_NOREF;
 
@@ -137,7 +145,9 @@ static expert_field ei_lua_proto_deprecated_note    = EI_INIT;
 static expert_field ei_lua_proto_deprecated_warn    = EI_INIT;
 static expert_field ei_lua_proto_deprecated_error   = EI_INIT;
 
-static gboolean
+static gint ett_wslua_traceback = -1;
+
+static bool
 lua_pinfo_end(wmem_allocator_t *allocator _U_, wmem_cb_event_t event _U_,
         void *user_data _U_)
 {
@@ -165,6 +175,103 @@ int get_hf_wslua_text(void) {
     return hf_wslua_text;
 }
 
+#if LUA_VERSION_NUM >= 502
+// Attach the lua traceback to the proto_tree
+static int dissector_error_handler(lua_State *LS) {
+    // Entering, stack: [ error_handler, dissector, errmsg ]
+
+    proto_item *tb_item;
+    proto_tree *tb_tree;
+
+    // Add the expert info Lua error message
+    proto_tree_add_expert_format(lua_tree->tree, lua_pinfo, &ei_lua_error, lua_tvb, 0, 0,
+            "Lua Error: %s", lua_tostring(LS,-1));
+
+    // Create a new proto sub_tree for the traceback
+    tb_item = proto_tree_add_text_internal(lua_tree->tree, lua_tvb, 0, 0, "Lua Traceback");
+    tb_tree = proto_item_add_subtree(tb_item, ett_wslua_traceback);
+
+    // Push the traceback onto the stack
+    // After call, stack: [ error_handler, dissector, errmsg, tb_string ]
+    luaL_traceback(LS, LS, NULL, 1);
+
+    // Get the string length of the traceback. Note that the string
+    // has a terminating NUL, but string_length doesn't include it.
+    // The lua docs say the string can have NULs in it too, but we
+    // ignore that because the traceback string shouldn't have them.
+    // This function does not own the string; it's still owned by lua.
+    size_t string_length;
+    const char *orig_tb_string = lua_tolstring(LS, -1, &string_length);
+
+    // We make the copy so we can modify the string. Don't forget the
+    // extra byte for the terminating NUL!
+    char *tb_string = (char*) g_memdup2(orig_tb_string, string_length+1);
+
+    // The string has tabs and new lines in it
+    // We will add proto_items for each new-line-delimited sub-string.
+    // We also convert tabs to spaces, because the Wireshark GUI
+    // shows tabs literally as "\t".
+
+    // 'beginning' is the beginning of the sub-string
+    char *beginning = tb_string;
+
+    // 'p' is the pointer to the byte as we iterate over the string
+    char *p = tb_string;
+
+    size_t i;
+    bool skip_initial_tabs = true;
+    size_t last_eol_i = 0;
+    for (i = 0 ; i < string_length ; i++) {
+        // At the beginning of a sub-string, we will convert tabs to spaces
+        if (skip_initial_tabs) {
+            if (*p == '\t') {
+                *p = ' ';
+            } else {
+                // Once we hit the first non-tab character in a substring,
+                // we won't convert tabs (until the next substring)
+                skip_initial_tabs = false;
+            }
+        }
+        // If we see a newline, we add the substring to the proto tree
+        if (*p == '\n') {
+            // Terminate the string.
+            *p = '\0';
+            proto_tree_add_text_internal(tb_tree, lua_tvb, 0, 0, "%s", beginning);
+            beginning = ++p;
+            skip_initial_tabs = true;
+            last_eol_i = i;
+        } else {
+            ++p;
+        }
+    }
+
+    // The last portion of the string doesn't have a newline, so add it here
+    // after the loop. But to be sure, check that we didn't just add it, in
+    // case lua decides to change it in the future.
+    if ( last_eol_i < i-1 ) {
+        proto_tree_add_text_internal(tb_tree, lua_tvb, 0, 0, "%s", beginning);
+    }
+
+    // Cleanup
+    g_free(tb_string);
+
+    // Return the same original error message
+    return -2;
+}
+
+#else
+
+static int dissector_error_handler(lua_State *LS) {
+    // Entering, stack: [ error_handler, dissector, errmsg ]
+    proto_tree_add_expert_format(lua_tree->tree, lua_pinfo, &ei_lua_error, lua_tvb, 0, 0,
+            "Lua Error: %s", lua_tostring(LS,-1));
+
+    // Return the same error message
+    return -1;
+}
+
+#endif
+
 int dissect_lua(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_) {
     int consumed_bytes = tvb_captured_length(tvb);
     tvbuff_t *saved_lua_tvb = lua_tvb;
@@ -178,25 +285,42 @@ int dissect_lua(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data 
      * dissectors[current_proto](tvb,pinfo,tree)
      */
 
+    // set the stack top be index 0
     lua_settop(L,0);
 
+    // After call, stack: [ error_handler_func ]
+    lua_pushcfunction(L, dissector_error_handler);
+
+    // Push the dissectors table onto the the stack
+    // After call, stack: [ error_handler_func, dissectors_table ]
     lua_rawgeti(L, LUA_REGISTRYINDEX, lua_dissectors_table_ref);
 
+    // Push a copy of the current_proto string onto the stack
+    // After call, stack: [ error_handler_func, dissectors_table, current_proto ]
     lua_pushstring(L, pinfo->current_proto);
+
+    // dissectors_table[current_proto], a dissector, goes into the stack
+    // The key (current_proto) is popped off the stack.
+    // After call, stack: [ error_handler_func, dissectors_table, dissector ]
     lua_gettable(L, -2);
 
-    lua_remove(L,1);
+    // We don't need the dissectors_table in the stack
+    // After call, stack: [ error_handler_func, dissector ]
+    lua_remove(L,2);
 
+    // Is the dissector a function?
+    if (lua_isfunction(L,2)) {
 
-    if (lua_isfunction(L,1)) {
-
+        // After call, stack: [ error_handler_func, dissector, tvb ]
         push_Tvb(L,tvb);
+        // After call, stack: [ error_handler_func, dissector, tvb, pinfo ]
         push_Pinfo(L,pinfo);
+        // After call, stack: [ error_handler_func, dissector, tvb, pinfo, TreeItem ]
         lua_tree = push_TreeItem(L, tree, proto_tree_add_item(tree, hf_wslua_fake, tvb, 0, 0, ENC_NA));
         proto_item_set_hidden(lua_tree->item);
 
-        if  ( lua_pcall(L,3,1,0) ) {
-            proto_tree_add_expert_format(tree, pinfo, &ei_lua_error, tvb, 0, 0, "Lua Error: %s", lua_tostring(L,-1));
+        if  ( lua_pcall(L, /*num_args=*/3, /*num_results=*/1, /*error_handler_func_stack_position=*/1) ) {
+            // do nothing; the traceback error message handler function does everything
         } else {
 
             /* if the Lua dissector reported the consumed bytes, pass it to our caller */
@@ -609,20 +733,13 @@ static gboolean lua_load_plugin_script(const gchar* name,
                                        const gchar* dirname,
                                        const int file_count)
 {
+    ws_debug("Loading lua script: %s", filename);
     if (lua_load_script(filename, dirname, file_count)) {
         wslua_add_plugin(name, get_current_plugin_version(), filename);
         clear_current_plugin_version();
         return TRUE;
     }
     return FALSE;
-}
-
-
-static void basic_logger(const gchar *log_domain,
-                          enum ws_log_level log_level,
-                          const gchar *message,
-                          gpointer user_data _U_) {
-    ws_log(log_domain, log_level, "%s", message);
 }
 
 static int wslua_panic(lua_State* LS) {
@@ -651,8 +768,12 @@ static int lua_load_plugins(const char *dirname, register_cb cb, gpointer client
         while ((file = ws_dir_read_name(dir)) != NULL) {
             name = ws_dir_get_name(file);
 
-            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
-                continue;        /* skip "." and ".." */
+            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 ||
+                                            strcmp(name, "init.lua") == 0) {
+                /* skip "." and ".." */
+                /* init.lua was already loaded if it exists, skip */
+                continue;
+            }
 
             filename = ws_strdup_printf("%s" G_DIR_SEPARATOR_S "%s", dirname, name);
             if (test_for_directory(filename) == EISDIR) {
@@ -751,18 +872,10 @@ static int lua_load_pers_plugins(register_cb cb, gpointer client_data,
 }
 
 int wslua_count_plugins(void) {
-    gchar* filename;
     int plugins_counter;
 
     /* count global scripts */
     plugins_counter = lua_load_global_plugins(NULL, NULL, TRUE);
-
-    /* count users init.lua */
-    filename = get_persconffile_path("init.lua", FALSE);
-    if ((file_exists(filename))) {
-        plugins_counter++;
-    }
-    g_free(filename);
 
     /* count user scripts */
     plugins_counter += lua_load_pers_plugins(NULL, NULL, TRUE);
@@ -828,9 +941,445 @@ wslua_allocf(void *ud _U_, void *ptr, size_t osize _U_, size_t nsize)
     return g_realloc(ptr, nsize);
 }
 
+#define WSLUA_EPAN_ENUMS_TABLE  "_EPAN"
+#define WSLUA_WTAP_ENUMS_TABLE  "_WTAP"
+
+#define WSLUA_BASE_TABLE        "base"
+#define WSLUA_FTYPE_TABLE       "ftypes"
+#define WSLUA_FRAMETYPE_TABLE   "frametype"
+#define WSLUA_EXPERT_TABLE      "expert"
+#define WSLUA_EXPERT_GROUP_TABLE    "group"
+#define WSLUA_EXPERT_SEVERITY_TABLE "severity"
+#define WSLUA_WTAP_ENCAPS_TABLE     "wtap_encaps"
+#define WSLUA_WTAP_TSPREC_TABLE     "wtap_tsprecs"
+#define WSLUA_WTAP_COMMENTS_TABLE   "wtap_comments"
+#define WSLUA_WTAP_RECTYPES_TABLE   "wtap_rec_types"
+#define WSLUA_WTAP_PRESENCE_FLAGS_TABLE "wtap_presence_flags"
+
+static void
+add_table_symbol(const char *table, const char *name, int value)
+{
+    /* Get table from the global environment. */
+    lua_getglobal(L, table);
+    /* Set symbol in table. */
+    lua_pushstring(L, name);
+    lua_pushnumber(L, value);
+    lua_settable(L, -3);
+    /* Pop table from stack. */
+    lua_pop(L, 1);
+}
+
+static void
+add_global_symbol(const char *name, int value)
+{
+    /* Set symbol in global environment. */
+    lua_pushnumber(L, value);
+    lua_setglobal(L, name);
+}
+
+static void
+add_pi_severity_symbol(const char *name, int value)
+{
+    lua_getglobal(L, WSLUA_EXPERT_TABLE);
+    lua_getfield(L, -1, WSLUA_EXPERT_SEVERITY_TABLE);
+    lua_pushnumber(L, value);
+    lua_setfield(L, -2, name);
+    lua_pop(L, 2);
+}
+
+static void
+add_pi_group_symbol(const char *name, int value)
+{
+    lua_getglobal(L, WSLUA_EXPERT_TABLE);
+    lua_getfield(L, -1, WSLUA_EXPERT_GROUP_TABLE);
+    lua_pushnumber(L, value);
+    lua_setfield(L, -2, name);
+    lua_pop(L, 2);
+}
+
+static void
+add_menu_group_symbol(const char *name, int value)
+{
+    /* Set symbol in global environment. */
+    lua_pushnumber(L, value);
+    char *str = g_strdup(name);
+    char *s = strstr(str, "_GROUP_");
+    if (s == NULL)
+        return;
+    *s = '\0';
+    s += strlen("_GROUP_");
+    char *str2 = ws_strdup_printf("MENU_%s_%s", str, s);
+    lua_setglobal(L, str2);
+    g_free(str);
+    g_free(str2);
+}
+
+/*
+ * Read introspection constants and add them according to the historical
+ * (sometimes arbitrary) rules of make-init-lua.py. For efficiency reasons
+ * we only loop the enums array once.
+ */
+static void
+wslua_add_introspection(void)
+{
+    const ws_enum_t *ep;
+
+    /* Add empty tables to be populated. */
+    lua_newtable(L);
+    lua_setglobal(L, WSLUA_BASE_TABLE);
+    lua_newtable(L);
+    lua_setglobal(L, WSLUA_FTYPE_TABLE);
+    lua_newtable(L);
+    lua_setglobal(L, WSLUA_FRAMETYPE_TABLE);
+    lua_newtable(L);
+    lua_pushstring(L, WSLUA_EXPERT_GROUP_TABLE);
+    lua_newtable(L);
+    lua_settable(L, -3);
+    lua_pushstring(L, WSLUA_EXPERT_SEVERITY_TABLE);
+    lua_newtable(L);
+    lua_settable(L, -3);
+    lua_setglobal(L, WSLUA_EXPERT_TABLE);
+    /* Add catch-all _EPAN table. */
+    lua_newtable(L);
+    lua_setglobal(L, WSLUA_EPAN_ENUMS_TABLE);
+
+    for (ep = epan_inspect_enums(); ep->symbol != NULL; ep++) {
+
+        if (g_str_has_prefix(ep->symbol, "BASE_")) {
+            add_table_symbol(WSLUA_BASE_TABLE, ep->symbol + strlen("BASE_"), ep->value);
+        }
+        else if (g_str_has_prefix(ep->symbol, "SEP_")) {
+            add_table_symbol(WSLUA_BASE_TABLE, ep->symbol + strlen("SEP_"), ep->value);
+        }
+        else if (g_str_has_prefix(ep->symbol, "ABSOLUTE_TIME_")) {
+            add_table_symbol(WSLUA_BASE_TABLE, ep->symbol + strlen("ABSOLUTE_TIME_"), ep->value);
+        }
+        else if (g_str_has_prefix(ep->symbol, "ENC_")) {
+            add_global_symbol(ep->symbol, ep->value);
+        }
+        else if (g_str_has_prefix(ep->symbol, "FT_FRAMENUM_")) {
+            add_table_symbol(WSLUA_FRAMETYPE_TABLE, ep->symbol + strlen("FT_FRAMENUM_"), ep->value);
+        }
+        else if (g_str_has_prefix(ep->symbol, "FT_")) {
+            add_table_symbol(WSLUA_FTYPE_TABLE, ep->symbol + strlen("FT_"), ep->value);
+        }
+        else if (g_str_has_prefix(ep->symbol, "PI_")) {
+            if (ep->value & PI_SEVERITY_MASK) {
+                add_pi_severity_symbol(ep->symbol + strlen("PI_"), ep->value);
+            }
+            else {
+                 add_pi_group_symbol(ep->symbol + strlen("PI_"), ep->value);
+            }
+            /* For backward compatibility. */
+            add_global_symbol(ep->symbol, ep->value);
+        }
+        else if (g_str_has_prefix(ep->symbol, "REGISTER_")) {
+            add_menu_group_symbol(ep->symbol + strlen("REGISTER_"), ep->value);
+        }
+        add_table_symbol(WSLUA_EPAN_ENUMS_TABLE, ep->symbol, ep->value);
+    }
+
+    /* Add empty tables to be populated. */
+    lua_newtable(L);
+    lua_setglobal(L, WSLUA_WTAP_ENCAPS_TABLE);
+    lua_newtable(L);
+    lua_setglobal(L, WSLUA_WTAP_TSPREC_TABLE);
+    lua_newtable(L);
+    lua_setglobal(L, WSLUA_WTAP_COMMENTS_TABLE);
+    lua_newtable(L);
+    lua_setglobal(L, WSLUA_WTAP_RECTYPES_TABLE);
+    lua_newtable(L);
+    lua_setglobal(L, WSLUA_WTAP_PRESENCE_FLAGS_TABLE);
+    /* Add catch-all _WTAP table. */
+    lua_newtable(L);
+    lua_setglobal(L, WSLUA_WTAP_ENUMS_TABLE);
+
+    for (ep = wtap_inspect_enums(); ep->symbol != NULL; ep++) {
+
+        if (g_str_has_prefix(ep->symbol, "WTAP_ENCAP_")) {
+            add_table_symbol(WSLUA_WTAP_ENCAPS_TABLE, ep->symbol + strlen("WTAP_ENCAP_"), ep->value);
+        }
+        else if (g_str_has_prefix(ep->symbol, "WTAP_TSPREC_")) {
+            add_table_symbol(WSLUA_WTAP_TSPREC_TABLE, ep->symbol + strlen("WTAP_TSPREC_"), ep->value);
+        }
+        else if (g_str_has_prefix(ep->symbol, "WTAP_COMMENT_")) {
+            add_table_symbol(WSLUA_WTAP_COMMENTS_TABLE, ep->symbol + strlen("WTAP_COMMENT_"), ep->value);
+        }
+        else if (g_str_has_prefix(ep->symbol, "REC_TYPE_")) {
+            add_table_symbol(WSLUA_WTAP_RECTYPES_TABLE, ep->symbol + strlen("REC_TYPE_"), ep->value);
+        }
+        else if (g_str_has_prefix(ep->symbol, "WTAP_HAS_")) {
+            add_table_symbol(WSLUA_WTAP_PRESENCE_FLAGS_TABLE, ep->symbol + strlen("WTAP_HAS_"), ep->value);
+        }
+        add_table_symbol(WSLUA_WTAP_ENUMS_TABLE, ep->symbol, ep->value);
+    }
+}
+
+static void wslua_add_deprecated(void)
+{
+    /* For backward compatibility. */
+    lua_getglobal(L, "wtap_encaps");
+    lua_setglobal(L, "wtap");
+
+    /*
+     * Generate the wtap_filetypes items for file types, for backwards
+     * compatibility.
+     * We no longer have WTAP_FILE_TYPE_SUBTYPE_ #defines;
+     * built-in file types are registered the same way that
+     * plugin file types are registered.
+     *
+     * New code should use wtap_name_to_file_type_subtype to
+     * look up file types by name.
+     */
+    wslua_init_wtap_filetypes(L);
+
+    /* Old / deprecated menu groups. These shoudn't be used in new code. */
+    lua_getglobal(L, "MENU_PACKET_ANALYZE_UNSORTED");
+    lua_setglobal(L, "MENU_ANALYZE_UNSORTED");
+    lua_getglobal(L, "MENU_ANALYZE_CONVERSATION_FILTER");
+    lua_setglobal(L, "MENU_ANALYZE_CONVERSATION");
+    lua_getglobal(L, "MENU_STAT_CONVERSATION_LIST");
+    lua_setglobal(L, "MENU_STAT_CONVERSATION");
+    lua_getglobal(L, "MENU_STAT_ENDPOINT_LIST");
+    lua_setglobal(L, "MENU_STAT_ENDPOINT");
+    lua_getglobal(L, "MENU_STAT_RESPONSE_TIME");
+    lua_setglobal(L, "MENU_STAT_RESPONSE");
+    lua_getglobal(L, "MENU_PACKET_STAT_UNSORTED");
+    lua_setglobal(L, "MENU_STAT_UNSORTED");
+
+    /* deprecated function names */
+    lua_getglobal(L, "Dir");
+    lua_getfield(L, -1, "global_config_path");
+    lua_setglobal(L, "datafile_path");
+    lua_getfield(L, -1, "personal_config_path");
+    lua_setglobal(L, "persconffile_path");
+    lua_pop(L, 1);
+}
+
+static int wslua_console_print(lua_State *_L);
+
+static const char *lua_error_msg(int code)
+{
+    switch (code) {
+        case LUA_ERRSYNTAX: return "syntax error during precompilation";
+        case LUA_ERRMEM:    return "memory allocation error";
+#if LUA_VERSION_NUM == 502
+        case LUA_ERRGCMM:   return "error while running a __gc metamethod";
+#endif
+        case LUA_ERRRUN:    return "runtime error";
+        case LUA_ERRERR:    return "error while running the message handler";
+        default:            break; /* Should not happen. */
+    }
+    return "unknown error";
+}
+
+#if LUA_VERSION_NUM == 501
+#define LUA_OK 0
+#endif
+
+static int lua_funnel_console_eval(const char *console_input,
+                                        char **error_ptr,
+                                        char **error_hint,
+                                        void *callback_data _U_)
+{
+    int lcode;
+
+    const int curr_top = lua_gettop(L);
+
+    // If it starts with an equals sign replace it with "return"
+    char *codestr;
+    while (g_ascii_isspace(*console_input))
+        console_input++;
+    if (*console_input == '=')
+        codestr = ws_strdup_printf("return %s", console_input+1);
+    else
+        codestr = (char *)console_input; /* Violate const safety to avoid a strdup() */
+
+    ws_noisy("Console input: %s", codestr);
+    lcode = luaL_loadstring(L, codestr);
+    /* Free only if we called strdup(). */
+    if (codestr != console_input)
+        g_free(codestr);
+    codestr = NULL;
+
+    if (lcode != LUA_OK) {
+        ws_debug("luaL_loadstring(): %s (%d)", lua_error_msg(lcode), lcode);
+        if (error_hint) {
+            *error_hint = g_strdup(lua_error_msg(lcode));
+        }
+        /* If we have an error message return it. */
+        if (error_ptr && !lua_isnil(L, -1)) {
+            *error_ptr = g_strdup(lua_tostring(L, -1));
+        }
+        return -1;
+    }
+
+    lcode = lua_pcall(L, 0, LUA_MULTRET, 0);
+    if (lcode != LUA_OK) {
+        ws_debug("lua_pcall(): %s (%d)", lua_error_msg(lcode), lcode);
+        if (error_hint) {
+            *error_hint = g_strdup(lua_error_msg(lcode));
+        }
+        /* If we have an error message return it. */
+        if (error_ptr && !lua_isnil(L, -1)) {
+            *error_ptr = g_strdup(lua_tostring(L, -1));
+        }
+        return 1;
+    }
+
+    // If we have values returned print them all
+    if (lua_gettop(L) > curr_top) {  /* any arguments? */
+        lua_pushcfunction(L, wslua_console_print);
+        lua_insert(L, curr_top+1);
+        lcode = lua_pcall(L, lua_gettop(L)-curr_top-1, 0, 0);
+        if (lcode != LUA_OK) {
+            /* Error printing result */
+            if (error_hint)
+                *error_hint = ws_strdup_printf("error printing return values: %s", lua_error_msg(lcode));
+            return 1;
+        }
+    }
+
+    // Maintain stack discipline
+    if (lua_gettop(L) != curr_top) {
+        ws_critical("Expected stack top == %d, have %d", curr_top, lua_gettop(L));
+    }
+
+    ws_noisy("Success");
+    return 0;
+}
+
+#if LUA_VERSION_NUM == 501
+static const char *luaL_tolstring (lua_State *_L, int idx, size_t *len) {
+  if (!luaL_callmeta(_L, idx, "__tostring")) {  /* no metafield? */
+    switch (lua_type(_L, idx)) {
+      case LUA_TNUMBER:
+      case LUA_TSTRING:
+        lua_pushvalue(_L, idx);
+        break;
+      case LUA_TBOOLEAN:
+        lua_pushstring(_L, (lua_toboolean(_L, idx) ? "true" : "false"));
+        break;
+      case LUA_TNIL:
+        lua_pushliteral(_L, "nil");
+        break;
+      default:
+        lua_pushfstring(_L, "%s: %p", luaL_typename(_L, idx),
+                                            lua_topointer(_L, idx));
+        break;
+    }
+  }
+  return lua_tolstring(_L, -1, len);
+}
+#endif /* LUA_VERSION_NUM == 501 */
+
+/* Receives C print function pointer as first upvalue. */
+/* Receives C print function data pointer as second upvalue. */
+static int wslua_console_print(lua_State *_L)
+{
+    GString *gstr = g_string_new(NULL);
+    const char *repr;
+
+    /* Print arguments. */
+    for (int i = 1; i <= lua_gettop(_L); i++) {
+            repr = luaL_tolstring(_L, i, NULL);
+            if (i > 1)
+                g_string_append_c(gstr, '\t');
+            g_string_append(gstr, repr);
+            lua_pop(_L, 1);
+    }
+    g_string_append_c(gstr, '\n');
+
+    if (wslua_gui_print_func_ptr == NULL) {
+        ws_critical("GUI print function not registered; Trying to print: %s", gstr->str);
+    }
+    else {
+        wslua_gui_print_func_ptr(gstr->str, wslua_gui_print_data_ptr);
+    }
+    g_string_free(gstr, TRUE);
+    return 0;
+}
+
+// Replace lua print function with a custom print function.
+// We will place the original function in the Lua registry and return the reference.
+static void lua_funnel_console_open(void (*print_func_ptr)(const char *, void *),
+                                        void *print_data_ptr,
+                                        void *callback_data _U_)
+{
+    /* Store original print value in the registry (even if it is nil). */
+    lua_getglobal(L, "print");
+    wslua_lua_print_func_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+    /* Set new "print" function (to output to the GUI) */
+    lua_pushcfunction(L, wslua_console_print);
+    lua_setglobal(L, "print");
+
+    /* Save the globals */
+    ws_assert(print_func_ptr);
+    wslua_gui_print_func_ptr = print_func_ptr;
+    wslua_gui_print_data_ptr = print_data_ptr;
+}
+
+// Restore original Lua print function. Clean state.
+static void lua_funnel_console_close(void *callback_data _U_)
+{
+    /* Restore the original print function. */
+    int ref = (int)wslua_lua_print_func_ref;
+    /* push original function into stack */
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+    lua_setglobal(L, "print");
+    /* Release reference */
+    luaL_unref(L, LUA_REGISTRYINDEX, ref);
+
+    /* Clear the globals. */
+    wslua_gui_print_func_ptr = NULL;
+    wslua_gui_print_data_ptr = NULL;
+    wslua_lua_print_func_ref = LUA_NOREF;
+}
+
+static int wslua_file_exists(lua_State *_L)
+{
+    const char *path = luaL_checkstring(_L, 1);
+    lua_pushboolean(_L, g_file_test(path, G_FILE_TEST_EXISTS));
+    return 1;
+}
+
+static int wslua_lua_typeof(lua_State *_L)
+{
+    const char *classname = wslua_typeof(_L, 1);
+    lua_pushstring(_L, classname);
+    return 1;
+}
+
+/* Other useful constants */
+void wslua_add_useful_constants(void)
+{
+    const funnel_ops_t *ops = funnel_get_funnel_ops();
+    char *path;
+
+    WSLUA_REG_GLOBAL_BOOL(L,"GUI_ENABLED",ops && ops->new_dialog);
+
+    /* DATA_DIR has a trailing directory separator. */
+    path = get_datafile_path("");
+    lua_pushfstring(L, "%s"G_DIR_SEPARATOR_S, path);
+    g_free(path);
+    lua_setglobal(L, "DATA_DIR");
+
+    /* USER_DIR has a trailing directory separator. */
+    path = get_persconffile_path("", FALSE);
+    lua_pushfstring(L, "%s"G_DIR_SEPARATOR_S, path);
+    g_free(path);
+    lua_setglobal(L, "USER_DIR");
+
+    lua_pushcfunction(L, wslua_file_exists);
+    lua_setglobal(L, "file_exists");
+
+    lua_pushcfunction(L, wslua_lua_typeof);
+    lua_setglobal(L, "typeof");
+}
+
 void wslua_init(register_cb cb, gpointer client_data) {
     gchar* filename;
-    const funnel_ops_t* ops = funnel_get_funnel_ops();
     gboolean enable_lua = TRUE;
     gboolean run_anyway = FALSE;
     expert_module_t* expert_lua;
@@ -846,6 +1395,9 @@ void wslua_init(register_cb cb, gpointer client_data) {
         { &hf_wslua_text,
           { "Wireshark Lua text",     "_ws.lua.text",
             FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+    };
+    static gint *ett[] = {
+            &ett_wslua_traceback,
     };
 
     static ei_register_info ei[] = {
@@ -951,9 +1503,6 @@ void wslua_init(register_cb cb, gpointer client_data) {
         ws_lua_ei_len = array_length(ei);
     }
 
-    /* set up the logger */
-    wslua_logger = ops ? ops->logger : basic_logger;
-
     if (!L) {
         L = lua_newstate(wslua_allocf, NULL);
     }
@@ -971,6 +1520,7 @@ void wslua_init(register_cb cb, gpointer client_data) {
     if (first_time) {
         proto_lua = proto_register_protocol("Lua Dissection", "Lua Dissection", "_ws.lua");
         proto_register_field_array(proto_lua, hf, array_length(hf));
+        proto_register_subtree_array(ett, array_length(ett));
         expert_lua = expert_register_protocol(proto_lua);
         expert_register_field_array(expert_lua, ei, array_length(ei));
     }
@@ -1021,13 +1571,57 @@ void wslua_init(register_cb cb, gpointer client_data) {
     /* see dissect_lua() for notes */
     WSLUA_REG_GLOBAL_NUMBER(L,"DESEGMENT_ONE_MORE_SEGMENT",DESEGMENT_ONE_MORE_SEGMENT);
 
-    /* load system's init.lua */
-    filename = get_datafile_path("init.lua");
-    if (( file_exists(filename))) {
-        lua_load_internal_script(filename);
+    /* the possible values for Pinfo's p2p_dir attribute */
+    WSLUA_REG_GLOBAL_NUMBER(L,"P2P_DIR_UNKNOWN",-1);
+    WSLUA_REG_GLOBAL_NUMBER(L,"P2P_DIR_SENT",0);
+    WSLUA_REG_GLOBAL_NUMBER(L,"P2P_DIR_RECV",1);
+
+    wslua_add_introspection();
+
+    wslua_add_useful_constants();
+
+    wslua_add_deprecated();
+
+    // Register Lua's console menu (in the GUI)
+    if (first_time) {
+        funnel_register_console_menu("Lua",
+                                        lua_funnel_console_eval,
+                                        lua_funnel_console_open,
+                                        lua_funnel_console_close,
+                                        NULL, NULL);
+    }
+    else if (wslua_gui_print_func_ptr) {
+        // If we we have an open GUI console dialog re-register the global "print to console" function
+        lua_funnel_console_open(wslua_gui_print_func_ptr, wslua_gui_print_data_ptr, NULL);
     }
 
+    /* load system's init.lua */
+    filename = g_build_filename(get_plugins_dir(), "init.lua", (char *)NULL);
+    if (file_exists(filename)) {
+        ws_debug("Loading init.lua file: %s", filename);
+        lua_load_internal_script(filename);
+    }
     g_free(filename);
+
+    /* load user's init.lua */
+    /* if we are indeed superuser run user scripts only if told to do so */
+    if (!started_with_special_privs() || run_anyway) {
+        filename = g_build_filename(get_plugins_pers_dir(), "init.lua", (char *)NULL);
+        if (file_exists(filename)) {
+            ws_debug("Loading init.lua file: %s", filename);
+            lua_load_internal_script(filename);
+        }
+        g_free(filename);
+
+        /* For backward compatibility also load it from the configuration directory. */
+        filename = get_persconffile_path("init.lua", FALSE);
+        if (file_exists(filename)) {
+            ws_message("Loading init.lua file from deprecated path: %s", filename);
+            lua_load_internal_script(filename);
+        }
+        g_free(filename);
+    }
+
     filename = NULL;
 
     /* check if lua is to be disabled */
@@ -1063,15 +1657,7 @@ void wslua_init(register_cb cb, gpointer client_data) {
     lua_pop(L,1);  /* pop the getglobal result */
 
     /* if we are indeed superuser run user scripts only if told to do so */
-    if ( (!started_with_special_privs()) || run_anyway ) {
-        /* load users init.lua */
-        filename = get_persconffile_path("init.lua", FALSE);
-        if ((file_exists(filename))) {
-            if (cb)
-                (*cb)(RA_LUA_PLUGINS, get_basename(filename), client_data);
-            lua_load_internal_script(filename);
-        }
-        g_free(filename);
+    if (!started_with_special_privs() || run_anyway) {
 
         /* load user scripts */
         lua_load_pers_plugins(cb, client_data, FALSE);

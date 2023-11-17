@@ -20,6 +20,7 @@
 void proto_register_gdsdb(void);
 void proto_reg_handoff_gdsdb(void);
 
+static dissector_handle_t gdsdb_handle;
 #define TCP_PORT	3050
 
 static int proto_gdsdb = -1;
@@ -1595,7 +1596,7 @@ proto_register_gdsdb(void)
 		},
 		{ &hf_gdsdb_receive_offset,
 			{ "Scroll offset", "gdsdb.receive.offset",
-			FT_UINT32, BASE_DEC, NULL, 0x0,
+			FT_UINT64, BASE_DEC, NULL, 0x0,
 			NULL, HFILL }
 		},
 		/* gdsdb_send */
@@ -2041,25 +2042,19 @@ proto_register_gdsdb(void)
 			"Invalid length", EXPFILL }},
 	};
 
-	proto_gdsdb = proto_register_protocol(
-		"Firebird SQL Database Remote Protocol",
-		"FB/IB GDS DB", "gdsdb");
+	proto_gdsdb = proto_register_protocol("Firebird SQL Database Remote Protocol", "FB/IB GDS DB", "gdsdb");
 
 	proto_register_field_array(proto_gdsdb, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
 	expert_module_t *expert_gdsdb = expert_register_protocol(proto_gdsdb);
 	expert_register_field_array(expert_gdsdb, ei, array_length(ei));
+
+	gdsdb_handle = register_dissector("gdsdb", dissect_gdsdb, proto_gdsdb);
 }
 
 void
 proto_reg_handoff_gdsdb(void)
 {
-	/* Main dissector */
-
-	dissector_handle_t gdsdb_handle;
-
-	gdsdb_handle = create_dissector_handle(dissect_gdsdb,
-								 proto_gdsdb);
 	dissector_add_uint_with_preference("tcp.port", TCP_PORT, gdsdb_handle);
 }
 

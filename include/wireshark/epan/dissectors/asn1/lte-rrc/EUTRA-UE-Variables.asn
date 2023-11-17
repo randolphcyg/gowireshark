@@ -1,4 +1,4 @@
--- 3GPP TS 36.331 V17.1.0 (2022-06)
+-- 3GPP TS 36.331 V17.5.0 (2023-06)
 
 EUTRA-UE-Variables DEFINITIONS AUTOMATIC TAGS ::=
 
@@ -74,7 +74,7 @@ FROM EUTRA-RRC-Definitions;
 
 
 VarConditionalReconfiguration ::= SEQUENCE {
-    -- Conditional reconfigurations list
+	 -- Conditional reconfigurations list
 	condReconfigurationList-r16			CondReconfigurationToAddModList-r16
 	OPTIONAL
 }

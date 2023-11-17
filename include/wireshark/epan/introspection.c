@@ -19,11 +19,6 @@ const ws_enum_t *epan_inspect_enums(void)
     return all_enums;
 }
 
-static int compare_enum(const void *needle, const void *memb)
-{
-    return strcmp(needle, ((const ws_enum_t *)memb)->symbol);
-}
-
 size_t epan_inspect_enums_count(void)
 {
     /* Exclude null terminator */
@@ -32,6 +27,5 @@ size_t epan_inspect_enums_count(void)
 
 const ws_enum_t *epan_inspect_enums_bsearch(const char *needle)
 {
-    return bsearch(needle, all_enums, epan_inspect_enums_count(),
-                        sizeof(ws_enum_t), compare_enum);
+    return ws_enums_bsearch(all_enums, epan_inspect_enums_count(), needle);
 }

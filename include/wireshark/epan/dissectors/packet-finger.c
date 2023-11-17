@@ -19,6 +19,8 @@
 void proto_register_finger(void);
 void proto_reg_handoff_finger(void);
 
+static dissector_handle_t finger_handle;
+
 #define FINGER_PORT     79  /* This is the registered IANA port */
 
 static int proto_finger = -1;
@@ -71,7 +73,7 @@ dissect_finger(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     if (!PINFO_FD_VISITED(pinfo)) {
         if (pinfo->can_desegment) {
             if (is_query) {
-                if ((len < 2) || (tvb_memeql(tvb, len - 2, "\r\n", 2))) {
+                if ((len < 2) || (tvb_memeql(tvb, len - 2, (const guint8*)"\r\n", 2))) {
                     pinfo->desegment_len = DESEGMENT_ONE_MORE_SEGMENT;
                     pinfo->desegment_offset = 0;
                     return -1;
@@ -112,7 +114,7 @@ dissect_finger(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     if (is_query) {
         expert_ti = proto_tree_add_item(finger_tree, hf_finger_query, tvb, 0, -1, ENC_ASCII);
-        if ((len < 2) || (tvb_memeql(tvb, len - 2, "\r\n", 2))) {
+        if ((len < 2) || (tvb_memeql(tvb, len - 2, (const guint8*)"\r\n", 2))) {
             /*
              * From RFC742, Send a single "command line", ending with <CRLF>.
              */
@@ -185,6 +187,7 @@ proto_register_finger(void)
     };
 
     proto_finger = proto_register_protocol("finger", "FINGER", "finger");
+    finger_handle = register_dissector("finger", dissect_finger, proto_finger);
     proto_register_field_array(proto_finger, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
     expert_finger = expert_register_protocol(proto_finger);
@@ -194,9 +197,6 @@ proto_register_finger(void)
 void
 proto_reg_handoff_finger(void)
 {
-    static dissector_handle_t finger_handle;
-
-    finger_handle = create_dissector_handle(dissect_finger, proto_finger);
     dissector_add_uint_with_preference("tcp.port", FINGER_PORT, finger_handle);
 }
 

@@ -24,6 +24,7 @@
 #include <stdarg.h>
 #include <glib.h>
 #include <assert.h>
+#include <include/ws_diag_control.h>
 #include <wsutil/file_util.h>
 #include "protobuf_lang_tree.h"
 #include "protobuf_lang_parser.h"
@@ -47,7 +48,12 @@ void pbl_parser_error(protobuf_lang_state_t *state, const char *fmt, ...);
    pbl_set_node_name() later. */
 #define CUR_LINENO (protobuf_lang_get_lineno(state->scanner))
 
+DIAG_OFF_LEMON()
 } /* end of %include */
+
+%code {
+DIAG_ON_LEMON()
+}
 
 %name ProtobufLangParser
 
@@ -624,15 +630,13 @@ int run_pbl_parser(pbl_descriptor_pool_t* pool)
 {
     protobuf_lang_state_t state = {0};
     yyscan_t scanner;
-    GSList* it;
     FILE * fp;
     int status = 0;
     int token_id;
     const char* filepath;
 
-    it = pool->proto_files_to_be_parsed;
-    while (it) {
-        filepath = (const char*) it->data;
+    while (!g_queue_is_empty(pool->proto_files_to_be_parsed)) {
+        filepath = (const char*) g_queue_peek_head(pool->proto_files_to_be_parsed);
         /* reinit state and scanner */
         pbl_reinit_state(&state, pool, filepath);
         scanner = NULL;
@@ -673,7 +677,7 @@ int run_pbl_parser(pbl_descriptor_pool_t* pool)
         }
 
         /* remove the parsed file from list */
-        pool->proto_files_to_be_parsed = it = g_slist_delete_link(pool->proto_files_to_be_parsed, it);
+        g_queue_pop_head(pool->proto_files_to_be_parsed);
     }
 
 finish:

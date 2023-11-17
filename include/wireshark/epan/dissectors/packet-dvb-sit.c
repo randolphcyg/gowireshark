@@ -18,6 +18,8 @@
 void proto_register_dvb_sit(void);
 void proto_reg_handoff_dvb_sit(void);
 
+static dissector_handle_t dvb_sit_handle;
+
 static int proto_dvb_sit = -1;
 
 static int hf_dvb_sit_reserved_future_use1 = -1;
@@ -46,13 +48,6 @@ static gint ett_dvb_sit_service = -1;
 #define DVB_SIT_RESERVED_FUTURE_USE3_MASK       0x8000
 #define DVB_SIT_RUNNING_STATUS_MASK             0x7000
 #define DVB_SIT_SERVICE_DESCRIPTORS_LENGTH_MASK 0x0FFF
-
-static const value_string dvb_sit_cur_next_vals[] = {
-    { 0, "Not yet applicable" },
-    { 1, "Currently applicable" },
-
-    { 0, NULL }
-};
 
 static const value_string dvb_sit_running_status_vals[] = {
     { 0, "Undefined" },
@@ -159,7 +154,7 @@ proto_register_dvb_sit(void)
 
         { &hf_dvb_sit_current_next_indicator, {
             "Current/Next Indicator", "dvb_sit.cur_next_ind",
-            FT_UINT8, BASE_DEC, VALS(dvb_sit_cur_next_vals), DVB_SIT_CURRENT_NEXT_INDICATOR_MASK, NULL, HFILL
+            FT_BOOLEAN, 8, TFS(&tfs_current_not_yet), DVB_SIT_CURRENT_NEXT_INDICATOR_MASK, NULL, HFILL
         } },
 
         { &hf_dvb_sit_section_number, {
@@ -210,6 +205,7 @@ proto_register_dvb_sit(void)
     };
 
     proto_dvb_sit = proto_register_protocol("DVB Selection Information Table", "DVB SIT", "dvb_sit");
+    dvb_sit_handle = register_dissector("dvb_sit", dissect_dvb_sit, proto_dvb_sit);
 
     proto_register_field_array(proto_dvb_sit, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
@@ -219,9 +215,6 @@ proto_register_dvb_sit(void)
 
 void proto_reg_handoff_dvb_sit(void)
 {
-    dissector_handle_t dvb_sit_handle;
-
-    dvb_sit_handle = create_dissector_handle(dissect_dvb_sit, proto_dvb_sit);
     dissector_add_uint("mpeg_sect.tid", DVB_SIT_TID, dvb_sit_handle);
 }
 

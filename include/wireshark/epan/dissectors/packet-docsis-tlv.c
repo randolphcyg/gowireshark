@@ -33,6 +33,7 @@ void proto_reg_handoff_docsis_tlv(void);
 /* Initialize the protocol and registered fields */
 static dissector_handle_t docsis_vsif_handle;
 static dissector_handle_t docsis_ucd_handle;
+static dissector_handle_t docsis_rba_handle;
 
 static int proto_docsis_tlv = -1;
 static int hf_docsis_tlv_down_freq = -1;
@@ -223,7 +224,20 @@ static int hf_docsis_tlv_mcap_dipl_up_upper_band_edge_65 = -1;
 static int hf_docsis_tlv_mcap_dipl_up_upper_band_edge_85 = -1;
 static int hf_docsis_tlv_mcap_dipl_up_upper_band_edge_117 = -1;
 static int hf_docsis_tlv_mcap_dipl_up_upper_band_edge_204 = -1;
+static int hf_docsis_tlv_mcap_advanced_band_plan = -1;
+static int hf_docsis_tlv_mcap_advanced_band_plan_fdx_l = -1;
+static int hf_docsis_tlv_mcap_advanced_band_plan_fdx = -1;
+static int hf_docsis_tlv_mcap_advanced_band_plan_fdd = -1;
+static int hf_docsis_tlv_mcap_advanced_band_plan_reserved = -1;
+static int hf_docsis_tlv_mcap_ext_sf_cluster_assign_sup = -1;
 static int hf_docsis_tlv_mcap_low_latency_sup = -1;
+static int hf_docsis_tlv_mcap_adv_down_lower_band_edge_conf = -1;
+static int hf_docsis_tlv_mcap_adv_down_upper_band_edge_conf = -1;
+static int hf_docsis_tlv_mcap_adv_up_upper_band_edge_conf = -1;
+static int hf_docsis_tlv_mcap_adv_down_lower_band_edge_option = -1;
+static int hf_docsis_tlv_mcap_adv_down_upper_band_edge_option = -1;
+static int hf_docsis_tlv_mcap_adv_up_upper_band_edge_option = -1;
+static int hf_docsis_tlv_mcap_extended_power_options = -1;
 
 static int hf_docsis_tlv_clsfr_ref = -1;
 static int hf_docsis_tlv_clsfr_id = -1;
@@ -363,6 +377,9 @@ static int hf_docsis_tlv_tcc_init_tech= -1;
 static int hf_docsis_tlv_tcc_dyn_rng_win= -1;
 static int hf_docsis_tlv_tcc_p_16hi = -1;
 static int hf_docsis_tlv_tcc_oudp_iuc = -1;
+static int hf_docsis_tlv_tcc_extended_drw = -1;
+static int hf_docsis_tlv_tcc_extended_us_rng_pwr = -1;
+static int hf_docsis_tlv_tcc_oudp_sounding_sid = -1;
 /* static int hf_docsis_tlv_tcc_err = -1; */
 
 static int hf_docsis_rng_parms_us_ch_id = -1;
@@ -475,6 +492,11 @@ static int hf_docsis_tlv_em_mode_ind = -1;
 
 static int hf_docsis_tlv_em_id_list_for_cm_em_id = -1;
 
+static int hf_docsis_tlv_fdx_reset = -1;
+
+static int hf_docsis_tlv_fdx_tg_assignment_tg_id = -1;
+static int hf_docsis_tlv_fdx_tg_assignment_rba_type = -1;
+
 static int hf_docsis_tlv_unknown = -1;
 static int hf_docsis_tlv_unknown_type = -1;
 static int hf_docsis_tlv_unknown_length = -1;
@@ -509,6 +531,10 @@ static gint ett_docsis_tlv_mcap_down_upper_band_edge_conf = -1;
 static gint ett_docsis_tlv_mcap_dipl_down_lower_band_edge = -1;
 static gint ett_docsis_tlv_mcap_dipl_down_upper_band_edge = -1;
 static gint ett_docsis_tlv_mcap_dipl_up_upper_band_edge = -1;
+static gint ett_docsis_tlv_mcap_advanced_band_plan = -1;
+static gint ett_docsis_tlv_mcap_dipl_down_lower_band_edge_options_list = -1;
+static gint ett_docsis_tlv_mcap_dipl_down_upper_band_edge_options_list = -1;
+static gint ett_docsis_tlv_mcap_dipl_up_upper_band_edge_options_list = -1;
 static gint ett_docsis_tlv_clsfr = -1;
 static gint ett_docsis_tlv_clsfr_ip = -1;
 static gint ett_docsis_tlv_clsfr_ip6 = -1;
@@ -559,6 +585,7 @@ static gint ett_docsis_tlv_sec_assoc = -1;
 static gint ett_docsis_tlv_ch_asgn = -1;
 static gint ett_docsis_cmts_mc_sess_enc = -1;
 static gint ett_docsis_em_id_list_for_cm = -1;
+static gint ett_docsis_tlv_tg_assignment = -1;
 static gint ett_docsis_tlv_unknown = -1;
 static gint ett_docsis_ucd_fragments = -1;
 static gint ett_docsis_ucd_fragment = -1;
@@ -568,12 +595,6 @@ static gint ett_docsis_ucd_reassembled = -1;
 static expert_field ei_docsis_tlv_tlvlen_bad = EI_INIT;
 static expert_field ei_docsis_tlv_tlvval_bad = EI_INIT;
 
-
-static const value_string on_off_vals[] = {
-  {0, "Off"},
-  {1, "On"},
-  {0, NULL},
-};
 
 static const true_false_string ena_dis_tfs = {
   "Enable",
@@ -597,6 +618,7 @@ static const value_string docs_ver_vals[] = {
   {2, "v2.0"},
   {3, "v3.0"},
   {4, "v3.1"},
+  {5, "v4.0"},
   {0, NULL},
 };
 
@@ -793,6 +815,10 @@ static const value_string init_tech_vals[] = {
   {2, "Perform unicast ranging before normal ops"},
   {3, "Perform either broadcast or unicast ranging before normal ops"},
   {4, "Use new channel directly without reinitializing or ranging"},
+  {5, "Perform probing before normal ops"},
+  {6, "Perform unicast initial ranging before normal ops"},
+  {7, "Perform station ranging before normal ops"},
+  {8, "Use FDX channel directly"},
   {0, NULL},
 };
 
@@ -847,6 +873,14 @@ static const value_string init_reason_vals[] = {
   {17, "No Primary SF on US Channel"},
   {18, "CM Control Init"},
   {19, "Dynamic Range Window Violation"},
+  {20, "IP Provisioning Mode Override"},
+  {21, "SW Upgrade Reboot"},
+  {22, "SNMP Reset"},
+  {23, "REG-RSP Missing RCC"},
+  {24, "REG-RSP Missing TCC"},
+  {25, "REG-RSP MTC Not Enabled"},
+  {26, "DHCPv6 Bad Reply"},
+  {27, "Reset Due To Diplexer Change"},
   {0, NULL},
 };
 
@@ -910,6 +944,33 @@ static const value_string docsis_time_prot_perf_sup_vals[] = {
   {6, "DTP supported but with no specified performance"},
   {0, NULL},
 };
+
+static const value_string rba_type_vals[] = {
+  {0, "Use RBA-SW"},
+  {1, "Use RBA-HW"},
+  {0, NULL},
+};
+
+static const value_string fdx_reset_vals[] = {
+  {0, "Do not reset FDX state"},
+  {1, "Reset FDX state and restart FDX initialization"},
+  {0, NULL},
+};
+
+static const value_string docsis_mcap_ext_sf_cluster_assign_sup_vals[] = {
+  {0, "No support"},
+  {1, "Support available"},
+  {0, NULL},
+};
+
+static const value_string extended_power_options_vals[] = {
+  {0, "No battery backup"},
+  {1, "Battery backup"},
+  {2, "Modem capacitance"},
+  {0, NULL},
+};
+
+static const unit_name_string local_units_mhz = { " MHz", NULL };
 
 static void
 fourth_db(char *buf, guint32 value)
@@ -2324,8 +2385,9 @@ dissect_modemcap (tvbuff_t * tvb, packet_info* pinfo, proto_tree * tree, int sta
                   guint16 len)
 {
   guint8 type, length;
-  proto_tree *mcap_tree;
-  proto_tree *mcap_item;
+  guint32 tlv_value;
+  proto_tree *mcap_tree, *tlv_tree;
+  proto_tree *mcap_item, *tlv_item;
   int pos = start;
 
   mcap_tree =
@@ -3058,10 +3120,145 @@ dissect_modemcap (tvbuff_t * tvb, packet_info* pinfo, proto_tree * tree, int sta
                 expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
               }
             break;
+          case CAP_ADVANCED_BAND_PLAN:
+            if (length == 1)
+              {
+                static int * const advanved_band_plan[] = {
+                  &hf_docsis_tlv_mcap_advanced_band_plan_fdx_l,
+                  &hf_docsis_tlv_mcap_advanced_band_plan_fdx,
+                  &hf_docsis_tlv_mcap_advanced_band_plan_fdd,
+                  &hf_docsis_tlv_mcap_advanced_band_plan_reserved,
+                  NULL
+                };
+
+                proto_tree_add_bitmask(mcap_tree, tvb, pos, hf_docsis_tlv_mcap_advanced_band_plan,
+                         ett_docsis_tlv_mcap_advanced_band_plan, advanved_band_plan, ENC_BIG_ENDIAN);
+              }
+            else
+              {
+                expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
+          case CAP_EXTENDED_SF_SID_CLUSTER_ASSIGN:
+            if (length == 1)
+              {
+                proto_tree_add_item (mcap_tree, hf_docsis_tlv_mcap_ext_sf_cluster_assign_sup, tvb,
+                                     pos, length, ENC_BIG_ENDIAN);
+              }
+            else
+              {
+                expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
           case CAP_LOW_LATENCY_SUP:
             if (length == 1)
               {
-                proto_tree_add_item (mcap_tree, hf_docsis_tlv_mcap_low_latency_sup, tvb,
+                tlv_item = proto_tree_add_item_ret_uint (mcap_tree, hf_docsis_tlv_mcap_low_latency_sup, tvb,
+                                      pos, length, ENC_BIG_ENDIAN, &tlv_value);
+                if (tlv_value > 0)
+                  {
+                    proto_item_append_text(tlv_item, " %s", (tlv_value == 1) ? "ASF" : "ASFs" );
+                  }
+              }
+            else
+              {
+                expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
+          case CAP_ADVANCED_DOWN_LOWER_BAND_EDGE_CONF:
+            if (length == 2)
+              {
+                proto_tree_add_item (mcap_tree, hf_docsis_tlv_mcap_adv_down_lower_band_edge_conf, tvb,
+                                     pos, length, ENC_BIG_ENDIAN);
+              }
+            else
+              {
+                expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
+          case CAP_ADVANCED_DOWN_UPPER_BAND_EDGE_CONF:
+            if (length == 2)
+              {
+                proto_tree_add_item (mcap_tree, hf_docsis_tlv_mcap_adv_down_upper_band_edge_conf, tvb,
+                                     pos, length, ENC_BIG_ENDIAN);
+              }
+            else
+              {
+                expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
+          case CAP_ADVANCED_UP_UPPER_BAND_EDGE_CONF:
+            if (length == 2)
+              {
+                proto_tree_add_item (mcap_tree, hf_docsis_tlv_mcap_adv_up_upper_band_edge_conf, tvb,
+                                     pos, length, ENC_BIG_ENDIAN);
+              }
+            else
+              {
+                expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
+          case CAP_ADVANCED_DOWN_LOWER_BAND_EDGE_OPTIONS_LIST:
+            if (length > 0 && length % 2 == 0)
+              {
+                tlv_tree = proto_tree_add_subtree_format(mcap_tree, tvb, pos, length,
+                                  ett_docsis_tlv_mcap_dipl_down_lower_band_edge_options_list, &tlv_item,
+                                  ".82 Advanced Diplexer Downstream Lower Band Edge Options List");
+
+                for (guint8 i = 0; i < length; i = i + 2)
+                  {
+                    proto_tree_add_item_ret_uint (tlv_tree, hf_docsis_tlv_mcap_adv_down_lower_band_edge_option,
+                                      tvb, pos + i, 2, ENC_BIG_ENDIAN, &tlv_value);
+                    proto_item_append_text(tlv_item, "%s %d MHz", (i == 0) ? ":" : ",", tlv_value);
+                  }
+              }
+            else
+              {
+                expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
+          case CAP_ADVANCED_DOWN_UPPER_BAND_EDGE_OPTIONS_LIST:
+            if (length > 0 && length % 2 == 0)
+              {
+                tlv_tree = proto_tree_add_subtree_format(mcap_tree, tvb, pos, length,
+                                  ett_docsis_tlv_mcap_dipl_down_upper_band_edge_options_list, &tlv_item,
+                                  ".83 Advanced Diplexer Downstream Upper Band Edge Options List");
+
+                for (guint8 i = 0; i < length; i = i + 2)
+                  {
+                    proto_tree_add_item_ret_uint (tlv_tree, hf_docsis_tlv_mcap_adv_down_upper_band_edge_option,
+                                      tvb, pos + i, 2, ENC_BIG_ENDIAN, &tlv_value);
+                    proto_item_append_text(tlv_item, "%s %d MHz", (i == 0) ? ":" : ",", tlv_value);
+                  }
+              }
+            else
+              {
+                expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
+          case CAP_ADVANCED_UP_UPPER_BAND_EDGE_OPTIONS_LIST:
+            if (length > 0 && length % 2 == 0)
+              {
+                tlv_tree = proto_tree_add_subtree_format(mcap_tree, tvb, pos, length,
+                                  ett_docsis_tlv_mcap_dipl_up_upper_band_edge_options_list, &tlv_item,
+                                  ".84 Advanced Diplexer Upstream Upper Band Edge Options List");
+
+                for (guint8 i = 0; i < length; i = i + 2)
+                  {
+                    proto_tree_add_item_ret_uint (tlv_tree, hf_docsis_tlv_mcap_adv_up_upper_band_edge_option,
+                                      tvb, pos + i, 2, ENC_BIG_ENDIAN, &tlv_value);
+                    proto_item_append_text(tlv_item, "%s %d MHz", (i == 0) ? ":" : ",", tlv_value);
+                  }
+              }
+            else
+              {
+                expert_add_info_format(pinfo, mcap_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
+            case CAP_EXTENDED_POWER_OPTIONS:
+            if (length == 1)
+              {
+                proto_tree_add_item (mcap_tree, hf_docsis_tlv_mcap_extended_power_options, tvb,
                                      pos, length, ENC_BIG_ENDIAN);
               }
             else
@@ -4007,6 +4204,42 @@ dissect_tcc(tvbuff_t * tvb, packet_info * pinfo,
             break;
           case TLV_TCC_ASSIGN_OFDMA_UP_DATA_PROF:
             dissect_tcc_oudp(tvb, tcc_tree, pos, length);
+            break;
+          case TLV_TCC_EXTENDED_DRW:
+            if (length == 1)
+              {
+                proto_tree_add_item (tcc_tree,
+                                     hf_docsis_tlv_tcc_extended_drw, tvb, pos,
+                                     length, ENC_BIG_ENDIAN);
+              }
+            else
+              {
+                expert_add_info_format(pinfo, tcc_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
+          case TLV_TCC_EXTENDED_US_RNG_PWR:
+            if (length == 2)
+              {
+                proto_tree_add_item (tcc_tree,
+                                     hf_docsis_tlv_tcc_extended_us_rng_pwr, tvb, pos,
+                                     length, ENC_BIG_ENDIAN);
+              }
+            else
+              {
+                expert_add_info_format(pinfo, tcc_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
+            break;
+          case TLV_TCC_OUDP_SOUNDING_SID:
+            if (length == 2)
+              {
+                proto_tree_add_item (tcc_tree,
+                                     hf_docsis_tlv_tcc_oudp_sounding_sid, tvb, pos,
+                                     length, ENC_BIG_ENDIAN);
+              }
+            else
+              {
+                expert_add_info_format(pinfo, tcc_item, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+              }
             break;
           case TLV_TCC_ERR:
             dissect_tcc_err(tvb, pinfo, tcc_tree, pos, length);
@@ -5112,6 +5345,63 @@ dissect_em_id_list_for_cm(tvbuff_t * tvb, proto_tree *tree, int start, guint16 l
     }
 }
 
+static void
+dissect_fdx_tg_assignment(tvbuff_t * tvb, packet_info* pinfo, proto_tree *tree, int start, guint16 len)
+{
+  guint8 type, length;
+  proto_tree *tg_assignment_tree;
+  proto_item *tg_assignment_item;
+  int pos = start;
+  tvbuff_t *rba_tvb;
+
+  tg_assignment_tree =
+    proto_tree_add_subtree_format(tree, tvb, start, len, ett_docsis_tlv_tg_assignment, &tg_assignment_item,
+                                  "85 FDX Transmission Group Assignment (Length = %u)", len);
+
+  while (pos < (start + len))
+    {
+      type = tvb_get_guint8 (tvb, pos++);
+      length = tvb_get_guint8 (tvb, pos++);
+      switch (type)
+        {
+          case TLV_FDX_TG_ASSIGNMENT_TG_ID:
+            if (length == 1)
+              {
+                proto_tree_add_item (tg_assignment_tree,
+                                     hf_docsis_tlv_fdx_tg_assignment_tg_id, tvb, pos,
+                                     length, ENC_BIG_ENDIAN);
+              }
+            else
+              {
+                expert_add_info_format(pinfo, tg_assignment_item, &ei_docsis_tlv_tlvlen_bad,
+                                       "Wrong TLV length: %u", length);
+              }
+            break;
+          case TLV_FDX_TG_ASSIGNMENT_RBA_TYPE:
+            if (length == 1)
+              {
+                proto_tree_add_item (tg_assignment_tree,
+                                     hf_docsis_tlv_fdx_tg_assignment_rba_type, tvb, pos,
+                                     length, ENC_BIG_ENDIAN);
+              }
+            else
+              {
+                expert_add_info_format(pinfo, tg_assignment_item, &ei_docsis_tlv_tlvlen_bad,
+                                       "Wrong TLV length: %u", length);
+              }
+            break;
+          case TLV_FDX_TG_ASSIGNMENT_RBA_MESSAGE:
+            rba_tvb = tvb_new_subset_length (tvb, pos, length);
+            call_dissector (docsis_rba_handle, rba_tvb, pinfo, tg_assignment_tree);
+            break;
+          default:
+            dissect_unknown_tlv (tvb, pinfo, tg_assignment_tree, pos - 2, length + 2);
+            break;
+        }                       /* switch */
+      pos = pos + length;
+    }                           /* while */
+}
+
 static int
 dissect_docsis_tlv (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data _U_)
 {
@@ -5558,6 +5848,19 @@ dissect_docsis_tlv (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void
             case TLV_EM_ID_LIST_FOR_CM:
               dissect_em_id_list_for_cm(tvb, tlv_tree, pos, length);
               break;
+            case TLV_FDX_TG_ASSIGNMENT:
+              dissect_fdx_tg_assignment(tvb, pinfo, tlv_tree, pos, length);
+              break;
+            case TLV_FDX_RESET:
+              if (length == 1)
+                {
+                  proto_tree_add_item (tlv_tree, hf_docsis_tlv_fdx_reset, tvb, pos, length, ENC_BIG_ENDIAN);
+                }
+              else
+                {
+                  expert_add_info_format(pinfo, it, &ei_docsis_tlv_tlvlen_bad, "Wrong TLV length: %u", length);
+                }
+              break;
             case TLV_END:
               break;
             default:
@@ -5688,12 +5991,12 @@ proto_register_docsis_tlv (void)
     },
     {&hf_docsis_tlv_mcap_8021P_filter,
      {".9 802.1P Filtering Support", "docsis_tlv.mcap.dot1pfiltering",
-      FT_UINT8, BASE_DEC, VALS (on_off_vals), 0x80,
+      FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x80,
       "802.1P Filtering Support", HFILL}
     },
     {&hf_docsis_tlv_mcap_8021Q_filter,
      {".9 802.1Q Filtering Support", "docsis_tlv.mcap.dot1qfilt",
-      FT_UINT8, BASE_DEC, VALS (on_off_vals), 0x40,
+      FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x40,
       "802.1Q Filtering Support", HFILL}
     },
     {&hf_docsis_tlv_mcap_xmit_eq_taps_per_sym,
@@ -5728,25 +6031,25 @@ proto_register_docsis_tlv (void)
     },
     {&hf_docsis_tlv_mcap_rnghoff_cm,
      {".16 Ranging Hold-Off (CM)","docsis_tlv.mcap.rnghoffcm",
-      FT_UINT32, BASE_DEC, VALS (on_off_vals), 0x1,
+      FT_BOOLEAN, 32, TFS(&tfs_on_off), 0x00000001,
       "Ranging Hold-Off (CM)", HFILL}
     },
     {&hf_docsis_tlv_mcap_rnghoff_erouter,
      {".16 Ranging Hold-Off (ePS or eRouter)",
       "docsis_tlv.mcap.rnghofferouter",
-      FT_UINT32, BASE_DEC, VALS (on_off_vals), 0x2,
+      FT_BOOLEAN, 32, TFS(&tfs_on_off), 0x00000002,
       "Ranging Hold-Off (ePS or eRouter)", HFILL}
     },
     {&hf_docsis_tlv_mcap_rnghoff_emta,
      {".16 Ranging Hold-Off (eMTA or EDVA)",
       "docsis_tlv.mcap.rnghoffemta",
-      FT_UINT32, BASE_DEC, VALS (on_off_vals), 0x4,
+      FT_BOOLEAN, 32, TFS(&tfs_on_off), 0x00000004,
       "Ranging Hold-Off (eMTA or EDVA)", HFILL}
     },
     {&hf_docsis_tlv_mcap_rnghoff_estb,
      {".16 Ranging Hold-Off (DSG/eSTB)",
       "docsis_tlv.mcap.rnghoffestb",
-      FT_UINT32, BASE_DEC, VALS (on_off_vals), 0x8,
+      FT_BOOLEAN, 32, TFS(&tfs_on_off), 0x00000008,
       "Ranging Hold-Off (DSG/eSTB)", HFILL}
     },
     {&hf_docsis_tlv_mcap_l2vpn,
@@ -5774,37 +6077,37 @@ proto_register_docsis_tlv (void)
     {&hf_docsis_tlv_mcap_us_srate_160,
      {".21 Upstream Symbol Rate 160ksps supported",
       "docsis_tlv.mcap.srate160",
-      FT_UINT8, BASE_DEC, VALS (on_off_vals), 0x1,
+      FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x01,
       "Upstream Symbol Rate 160ksps supported", HFILL}
     },
     {&hf_docsis_tlv_mcap_us_srate_320,
      {".21 Upstream Symbol Rate 320ksps supported",
       "docsis_tlv.mcap.srate320",
-      FT_UINT8, BASE_DEC, VALS (on_off_vals), 0x2,
+      FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x02,
       "Upstream Symbol Rate 320ksps supported", HFILL}
     },
     {&hf_docsis_tlv_mcap_us_srate_640,
      {".21 Upstream Symbol Rate 640ksps supported",
       "docsis_tlv.mcap.srate640",
-      FT_UINT8, BASE_DEC, VALS (on_off_vals), 0x4,
+      FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x04,
       "Upstream Symbol Rate 640ksps supported", HFILL}
     },
     {&hf_docsis_tlv_mcap_us_srate_1280,
      {".21 Upstream Symbol Rate 1280ksps supported",
       "docsis_tlv.mcap.srate1280",
-      FT_UINT8, BASE_DEC, VALS (on_off_vals), 0x8,
+      FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x08,
       "Upstream Symbol Rate 1280ksps supported", HFILL}
     },
     {&hf_docsis_tlv_mcap_us_srate_2560,
      {".21 Upstream Symbol Rate 2560ksps supported",
       "docsis_tlv.mcap.srate2560",
-      FT_UINT8, BASE_DEC, VALS (on_off_vals), 0x10,
+      FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x10,
       "Upstream Symbol Rate 2560ksps supported", HFILL}
     },
     {&hf_docsis_tlv_mcap_us_srate_5120,
      {".21 Upstream Symbol Rate 5120ksps supported",
       "docsis_tlv.mcap.srate5120",
-      FT_UINT8, BASE_DEC, VALS (on_off_vals), 0x20,
+      FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x20,
       "Upstream Symbol Rate 5120ksps supported", HFILL}
     },
     {&hf_docsis_tlv_mcap_sac,
@@ -6292,11 +6595,89 @@ proto_register_docsis_tlv (void)
       FT_BOOLEAN, 8, NULL, 0x10,
       NULL, HFILL}
     },
-    {&hf_docsis_tlv_mcap_low_latency_sup,
-     {".62 Low Latency Support",
-      "docsis_tlv.mcap.low_latancy_sup",
+    {&hf_docsis_tlv_mcap_advanced_band_plan,
+     {".63 Advanced Band Plan",
+      "docsis_tlv.mcap.advanced_band_plan",
       FT_UINT8, BASE_HEX, NULL, 0x0,
+      "Advanced Band Plan", HFILL}
+    },
+    {&hf_docsis_tlv_mcap_advanced_band_plan_fdx_l,
+     {"FDX-L support",
+      "docsis_tlv.mcap.advanced_band_plan.fdx_l",
+      FT_BOOLEAN, 8, NULL, 0x01,
+      NULL, HFILL}
+    },
+    {&hf_docsis_tlv_mcap_advanced_band_plan_fdx,
+     {"FDX support",
+      "docsis_tlv.mcap.advanced_band_plan.fdx",
+      FT_BOOLEAN, 8, NULL, 0x02,
+      NULL, HFILL}
+    },
+    {&hf_docsis_tlv_mcap_advanced_band_plan_fdd,
+     {"FDD support",
+      "docsis_tlv.mcap.advanced_band_plan.fdd",
+      FT_BOOLEAN, 8, NULL, 0x04,
+      NULL, HFILL}
+    },
+    {&hf_docsis_tlv_mcap_advanced_band_plan_reserved,
+     {"Reserved",
+      "docsis_tlv.mcap.advanced_band_plan.reserved",
+      FT_BOOLEAN, 8, NULL, 0xF8,
+      NULL, HFILL}
+    },
+    {&hf_docsis_tlv_mcap_ext_sf_cluster_assign_sup,
+     {".74 Extended Service Flow SID Cluster Assignments Support",
+      "docsis_tlv.mcap.ext_sf_cluster_assign_sup",
+      FT_UINT8, BASE_DEC, VALS(docsis_mcap_ext_sf_cluster_assign_sup_vals), 0x0,
+      "The ability of CM to handle TLV 89", HFILL}
+    },
+    {&hf_docsis_tlv_mcap_low_latency_sup,
+     {".76 Low Latency Support",
+      "docsis_tlv.mcap.low_latancy_sup",
+      FT_UINT8, BASE_DEC, NULL, 0x0,
       "Low Latency Support", HFILL}
+    },
+    {&hf_docsis_tlv_mcap_adv_down_lower_band_edge_conf,
+     {".79 Advanced Downstream Lower Band Edge Configuration",
+      "docsis_tlv.mcap.adv_down_lower_band_edge_conf",
+      FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &local_units_mhz, 0x0,
+      "Advanced Downstream Lower Band Edge Configuration", HFILL}
+    },
+    {&hf_docsis_tlv_mcap_adv_down_upper_band_edge_conf,
+     {".80 Advanced Downstream Upper Band Edge Configuration",
+      "docsis_tlv.mcap.adv_down_upper_band_edge_conf",
+      FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &local_units_mhz, 0x0,
+      "Advanced Downstream Upper Band Edge Configuration", HFILL}
+    },
+    {&hf_docsis_tlv_mcap_adv_up_upper_band_edge_conf,
+     {".81 Advanced Upstream Upper Band Edge Configuration",
+      "docsis_tlv.mcap.adv_up_upper_band_edge_conf",
+      FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &local_units_mhz, 0x0,
+      "Advanced Upstream Upper Band Edge Configuration", HFILL}
+    },
+    {&hf_docsis_tlv_mcap_adv_down_lower_band_edge_option,
+     {"Advanced Diplexer Downstream Lower Band Edge Option",
+      "docsis_tlv.mcap.adv_down_lower_band_edge_option",
+      FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &local_units_mhz, 0x0,
+      NULL, HFILL}
+    },
+    {&hf_docsis_tlv_mcap_adv_down_upper_band_edge_option,
+     {"Advanced Diplexer Downstream Upper Band Edge Option",
+      "docsis_tlv.mcap.adv_down_upper_band_edge_option",
+      FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &local_units_mhz, 0x0,
+      NULL, HFILL}
+    },
+    {&hf_docsis_tlv_mcap_adv_up_upper_band_edge_option,
+     {"Advanced Diplexer Upstream Upper Band Edge Option",
+      "docsis_tlv.mcap.adv_up_upper_band_edge_option",
+      FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &local_units_mhz, 0x0,
+      NULL, HFILL}
+    },
+    {&hf_docsis_tlv_mcap_extended_power_options,
+     {".85 Extended Power Options",
+      "docsis_tlv.mcap.extended_power_options",
+      FT_UINT8, BASE_DEC, VALS(extended_power_options_vals), 0x0,
+      "Extended Power Options", HFILL}
     },
     {&hf_docsis_tlv_cm_mic,
      {"6 CM MIC", "docsis_tlv.cmmic",
@@ -6310,7 +6691,7 @@ proto_register_docsis_tlv (void)
     },
     {&hf_docsis_tlv_vendor_id,
      {"8 Vendor ID", "docsis_tlv.vendorid",
-      FT_BYTES, BASE_NONE, NULL, 0x0,
+      FT_UINT24, BASE_OUI, NULL, 0x0,
       "Vendor Identifier", HFILL}
     },
     {&hf_docsis_tlv_sw_file,
@@ -6724,47 +7105,47 @@ proto_register_docsis_tlv (void)
     },
     {&hf_docsis_tlv_sflow_reqxmit_all_cm_broadcast,
      {"Service flow use \"all CMs\" broadcast request opportunities", "docsis_tlv.sflow.reqxmitpol.all_cm_broadcast",
-      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x01,
+      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x00000001,
       NULL, HFILL}
     },
     {&hf_docsis_tlv_sflow_reqxmit_priority_multicast,
      {"Service flow use priority multicast request opportunities", "docsis_tlv.sflow.reqxmitpol.priority_multicast",
-      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x02,
+      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x00000002,
       NULL, HFILL}
     },
     {&hf_docsis_tlv_sflow_reqxmit_req_data_requests,
      {"Service flow use Request/Data opportunities for requests", "docsis_tlv.sflow.reqxmitpol.req_data_requests",
-      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x04,
+      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x00000004,
       NULL, HFILL}
     },
     {&hf_docsis_tlv_sflow_reqxmit_req_data_data,
      {"Service flow use Request/Data opportunities for data", "docsis_tlv.sflow.reqxmitpol.req_data_data",
-      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x08,
+      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x00000008,
       NULL, HFILL}
     },
     {&hf_docsis_tlv_sflow_reqxmit_piggy_back,
      {"Service flow use piggy back requests with data", "docsis_tlv.sflow.reqxmitpol.piggy_back",
-      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x10,
+      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x00000010,
       NULL, HFILL}
     },
     {&hf_docsis_tlv_sflow_reqxmit_concatenate_data,
      {"Service flow concatenate data", "docsis_tlv.sflow.reqxmitpol.concatenate_data",
-      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x20,
+      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x00000020,
       NULL, HFILL}
     },
     {&hf_docsis_tlv_sflow_reqxmit_fragment,
      {"Service flow fragment data", "docsis_tlv.sflow.reqxmitpol.fragment",
-      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x40,
+      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x00000040,
       NULL, HFILL}
     },
     {&hf_docsis_tlv_sflow_reqxmit_suppress_payload,
      {"Service flow suppress payload headers", "docsis_tlv.sflow.reqxmitpol.suppress_payload",
-      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x80,
+      FT_BOOLEAN, 32, TFS(&tfs_must_not_must), 0x00000080,
       NULL, HFILL}
     },
     {&hf_docsis_tlv_sflow_reqxmit_drop_packets,
      {"Service flow drop packets that do not fit in the UGS size", "docsis_tlv.sflow.reqxmitpol.drop_packets",
-      FT_BOOLEAN, 32, TFS(&tfs_must_must_not), 0x100,
+      FT_BOOLEAN, 32, TFS(&tfs_must_must_not), 0x00000100,
       NULL, HFILL}
     },
     {&hf_docsis_tlv_sflow_nominal_polling,
@@ -7194,6 +7575,21 @@ proto_register_docsis_tlv (void)
      {"OUDP IUC", "docsis_tlv.tcc.oudp_iuc",
       FT_UINT8, BASE_DEC, NULL, 0x0,
       NULL, HFILL}
+    },
+    {&hf_docsis_tlv_tcc_extended_drw,
+     {".14 Extended Dynamic Range Window", "docsis_tlv.tcc.extended_dynrngwin",
+      FT_UINT8, BASE_CUSTOM, CF_FUNC(fourth_db), 0x0,
+      "Extended Dynamic Range Window", HFILL}
+    },
+    {&hf_docsis_tlv_tcc_extended_us_rng_pwr,
+     {".15 Extended US Ranging Power", "docsis_tlv.tcc.extended_us_rng_pwr",
+      FT_UINT16, BASE_CUSTOM, CF_FUNC(fourth_db), 0x0,
+      "Extended US Ranging Power", HFILL}
+    },
+    {&hf_docsis_tlv_tcc_oudp_sounding_sid,
+     {".16 OUDP Sounding SID", "docsis_tlv.tcc.oudp_sounding_sid",
+      FT_UINT16, BASE_DEC, NULL, 0x0,
+      "OUDP Sounding SID", HFILL}
     },
 #if 0
     {&hf_docsis_tlv_tcc_err,
@@ -7723,6 +8119,21 @@ proto_register_docsis_tlv (void)
        FT_UINT16, BASE_DEC, NULL, 0x0,
        NULL, HFILL}
     },
+    {&hf_docsis_tlv_fdx_tg_assignment_tg_id,
+      {"Transmission Group ID", "docsis_tlv.fdx_tg_assignment_tg_id",
+       FT_UINT8, BASE_DEC, NULL, 0x0,
+       NULL, HFILL}
+    },
+    {&hf_docsis_tlv_fdx_tg_assignment_rba_type,
+      {"RBA Type", "docsis_tlv.fdx_tg_assignment_rba_type",
+       FT_UINT8, BASE_DEC, VALS (rba_type_vals), 0x0,
+       NULL, HFILL}
+    },
+    {&hf_docsis_tlv_fdx_reset,
+     {"86 FDX Reset", "docsis_tlv.fdx_reset",
+      FT_UINT8, BASE_DEC, VALS (fdx_reset_vals), 0x0,
+      "FDX Reset", HFILL}
+    },
     {&hf_docsis_tlv_unknown,
       {"Unknown TLV", "docsis_tlv.unknown",
        FT_BYTES, BASE_NONE, NULL, 0x0,
@@ -7819,6 +8230,10 @@ proto_register_docsis_tlv (void)
     &ett_docsis_tlv_mcap_dipl_down_lower_band_edge,
     &ett_docsis_tlv_mcap_dipl_down_upper_band_edge,
     &ett_docsis_tlv_mcap_dipl_up_upper_band_edge,
+    &ett_docsis_tlv_mcap_advanced_band_plan,
+    &ett_docsis_tlv_mcap_dipl_down_lower_band_edge_options_list,
+    &ett_docsis_tlv_mcap_dipl_down_upper_band_edge_options_list,
+    &ett_docsis_tlv_mcap_dipl_up_upper_band_edge_options_list,
     &ett_docsis_tlv_clsfr,
     &ett_docsis_tlv_clsfr_ip,
     &ett_docsis_tlv_clsfr_ip6,
@@ -7869,6 +8284,7 @@ proto_register_docsis_tlv (void)
     &ett_docsis_tlv_ch_asgn,
     &ett_docsis_cmts_mc_sess_enc,
     &ett_docsis_em_id_list_for_cm,
+    &ett_docsis_tlv_tg_assignment,
     &ett_docsis_tlv_unknown,
     &ett_docsis_ucd_fragment,
     &ett_docsis_ucd_fragments,
@@ -7904,6 +8320,7 @@ proto_reg_handoff_docsis_tlv (void)
 
   docsis_vsif_handle = find_dissector("docsis_vsif");
   docsis_ucd_handle = find_dissector("docsis_ucd");
+  docsis_rba_handle = find_dissector("docsis_rba");
 
   reassembly_table_register(&ucd_reassembly_table,
                         &addresses_reassembly_table_functions);

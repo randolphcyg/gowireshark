@@ -17,6 +17,8 @@
 #include <epan/prefs.h>
 #include <epan/show_exception.h>
 #include <epan/to_str.h>
+#include <epan/charsets.h>
+#include <wsutil/str_util.h>
 
 #include "packet-dns.h"
 #include "packet-netbios.h"
@@ -24,6 +26,8 @@
 
 void proto_register_nbt(void);
 void proto_reg_handoff_nbt(void);
+
+static dissector_handle_t nbns_handle, nbdgm_handle, nbss_handle;
 
 static int proto_nbns = -1;
 static int hf_nbns_flags = -1;
@@ -396,12 +400,20 @@ get_nbns_name(tvbuff_t *tvb, int offset, int nbns_data_offset,
     /* This one is; make its name printable. */
     name_type = process_netbios_name(nbname, name_ret, name_ret_len);
     pname_ret += MIN(strlen(name_ret), (size_t) name_ret_len);
-    pname_ret += MIN(name_ret_len-(pname_ret-name_ret),
-                     snprintf(pname_ret, name_ret_len-(gulong)(pname_ret-name_ret), "<%02x>", name_type));
+    snprintf(pname_ret, name_ret_len-(pname_ret-name_ret), "<%02x>", name_type);
     if (cname == '.') {
         /* We have a scope ID, starting at "pname"; append that to
          * the decoded host name. */
-        snprintf(pname_ret, name_ret_len-(gulong)(pname_ret-name_ret), "%s", pname);
+        /* RFC 1001 says that scope IDs "meet the restricted character set
+         * of the domain system and has a leading period." Convert it from
+         * ASCII before appending it to our NBName, so we have a valid
+         * UTF-8 string.
+         */
+        const char* scope_id = get_ascii_string(wmem_packet_scope(), pname, (int)strlen(pname));
+        int bytes_attempted = (int)g_strlcat(name_ret, scope_id, name_ret_len);
+        if (bytes_attempted >= name_ret_len) {
+            ws_utf8_truncate(name_ret, name_ret_len - 1);
+        }
     }
     if (name_type_ret != NULL)
         *name_type_ret = name_type;
@@ -412,7 +424,7 @@ bad:
         *name_type_ret = -1;
     /* This is only valid because nbname is always assigned an error string
      * before jumping to bad: Otherwise nbname wouldn't be \0 terminated */
-    snprintf(pname_ret, name_ret_len-(gulong)(pname_ret-name_ret), "%s", nbname);
+    snprintf(pname_ret, name_ret_len-(pname_ret-name_ret), "%s", nbname);
     return used_bytes;
 }
 
@@ -1944,16 +1956,19 @@ proto_register_nbt(void)
     expert_module_t* expert_nbns;
 
     proto_nbns = proto_register_protocol("NetBIOS Name Service", "NBNS", "nbns");
+    nbns_handle = register_dissector("nbns", dissect_nbns, proto_nbns);
     proto_register_field_array(proto_nbns, hf_nbns, array_length(hf_nbns));
     expert_nbns = expert_register_protocol(proto_nbns);
     expert_register_field_array(expert_nbns, ei, array_length(ei));
 
     proto_nbdgm = proto_register_protocol("NetBIOS Datagram Service",
                                           "NBDS", "nbdgm");
+    nbdgm_handle = register_dissector("nbds", dissect_nbdgm, proto_nbdgm);
     proto_register_field_array(proto_nbdgm, hf_nbdgm, array_length(hf_nbdgm));
 
     proto_nbss = proto_register_protocol("NetBIOS Session Service",
                                          "NBSS", "nbss");
+    nbss_handle  = register_dissector("nbss", dissect_nbss, proto_nbss);
     proto_register_field_array(proto_nbss, hf_nbss, array_length(hf_nbss));
 
     proto_register_subtree_array(ett, array_length(ett));
@@ -1970,15 +1985,8 @@ proto_register_nbt(void)
 void
 proto_reg_handoff_nbt(void)
 {
-    dissector_handle_t nbns_handle, nbdgm_handle, nbss_handle;
-
-    nbns_handle  = create_dissector_handle(dissect_nbns, proto_nbns);
     dissector_add_uint_with_preference("udp.port", UDP_PORT_NBNS, nbns_handle);
-
-    nbdgm_handle = create_dissector_handle(dissect_nbdgm, proto_nbdgm);
     dissector_add_uint_with_preference("udp.port", UDP_PORT_NBDGM, nbdgm_handle);
-
-    nbss_handle  = create_dissector_handle(dissect_nbss, proto_nbss);
     dissector_add_uint_range_with_preference("tcp.port", TCP_NBSS_PORT_RANGE, nbss_handle);
 
     netbios_heur_subdissector_list = find_heur_dissector_list("netbios");

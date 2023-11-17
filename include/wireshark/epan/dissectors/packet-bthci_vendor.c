@@ -798,7 +798,7 @@ dissect_bthci_vendor_broadcom(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         col_add_fstr(pinfo->cinfo, COL_INFO, "Rcvd Broadcom ");
 
         event_code = tvb_get_guint8(tvb, offset);
-        description = val_to_str_ext_const(event_code, &bthci_evt_evt_code_vals_ext, "Unknown 0x%08x");
+        description = val_to_str_ext(event_code, &bthci_evt_evt_code_vals_ext, "Unknown 0x%08x");
         col_append_str(pinfo->cinfo, COL_INFO, description);
         proto_tree_add_item(main_tree, hf_broadcom_event_code, tvb, offset, 1, ENC_NA);
         offset += 1;
@@ -1395,7 +1395,7 @@ proto_register_bthci_vendor_broadcom(void)
             NULL, HFILL }
         },
         { &hf_broadcom_le_multi_advertising_instance_id,
-            { "Full Max",                                  "bthci_vendor.broadcom.le.multi_advertising.instance_id",
+            { "Instance Id",                                  "bthci_vendor.broadcom.le.multi_advertising.instance_id",
             FT_UINT8, BASE_DEC, NULL, 0x0,
             NULL, HFILL }
         },
@@ -1435,12 +1435,12 @@ proto_register_bthci_vendor_broadcom(void)
             NULL, HFILL }
         },
         { &hf_broadcom_le_multi_advertising_channel_map_38,
-            { "Channel 39",                                "bthci_vendor.broadcom.le.multi_advertising.channel_map.38",
+            { "Channel 38",                                "bthci_vendor.broadcom.le.multi_advertising.channel_map.38",
             FT_UINT8, BASE_HEX, NULL, 0x02,
             NULL, HFILL }
         },
         { &hf_broadcom_le_multi_advertising_channel_map_37,
-            { "Channel 39",                                "bthci_vendor.broadcom.le.multi_advertising.channel_map.37",
+            { "Channel 37",                                "bthci_vendor.broadcom.le.multi_advertising.channel_map.37",
             FT_UINT8, BASE_HEX, NULL, 0x01,
             NULL, HFILL }
         },
@@ -2106,9 +2106,9 @@ dissect_bthci_vendor_intel(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         event_code = tvb_get_guint8(tvb, offset);
 
         if (try_val_to_str(event_code, intel_event_code_vals))
-            description = val_to_str_const(event_code, intel_event_code_vals, "Unknown 0x%08x");
+            description = val_to_str(event_code, intel_event_code_vals, "Unknown 0x%08x");
         else
-            description = val_to_str_ext_const(event_code, &bthci_evt_evt_code_vals_ext, "Unknown 0x%08x");
+            description = val_to_str_ext(event_code, &bthci_evt_evt_code_vals_ext, "Unknown 0x%08x");
         col_append_str(pinfo->cinfo, COL_INFO, description);
         proto_tree_add_item(main_tree, hf_intel_event_code, tvb, offset, 1, ENC_NA);
         offset += 1;
@@ -2800,62 +2800,62 @@ proto_register_bthci_vendor_intel(void)
         },
         { &hf_intel_set_event_mask_firmware_trace_string,
           { "Firmware Trace String",                       "bthci_vendor.intel.event_mask.firmware_trace_string",
-            FT_BOOLEAN, 64, NULL, 0x4000,
+            FT_BOOLEAN, 64, NULL, 0x0000000000004000,
             NULL, HFILL }
         },
         { &hf_intel_set_event_mask_le_link_established,
           { "LE Link_Established",                         "bthci_vendor.intel.event_mask.le_link_established",
-            FT_BOOLEAN, 64, NULL, 0x2000,
+            FT_BOOLEAN, 64, NULL, 0x0000000000002000,
             NULL, HFILL }
         },
         { &hf_intel_set_event_mask_reserved_12,
           { "Reserved",                                    "bthci_vendor.intel.event_mask.reserved.12",
-            FT_UINT64, BASE_HEX, NULL, 0x1000,
+            FT_UINT64, BASE_HEX, NULL, 0x0000000000001000,
             NULL, HFILL }
         },
         { &hf_intel_set_event_mask_system_exception,
           { "System Exception",                            "bthci_vendor.intel.event_mask.system_exception",
-            FT_BOOLEAN, 64, NULL, 0x0800,
+            FT_BOOLEAN, 64, NULL, 0x0000000000000800,
             NULL, HFILL }
         },
         { &hf_intel_set_event_mask_fatal_exception,
           { "Fatal Exception",                             "bthci_vendor.intel.event_mask.fatal_exception",
-            FT_BOOLEAN, 64, NULL, 0x0400,
+            FT_BOOLEAN, 64, NULL, 0x0000000000000400,
             NULL, HFILL }
         },
         { &hf_intel_set_event_mask_debug_exception,
           { "Debug Exception",                             "bthci_vendor.intel.event_mask.debug_exception",
-            FT_BOOLEAN, 64, NULL, 0x0200,
+            FT_BOOLEAN, 64, NULL, 0x0000000000000200,
             NULL, HFILL }
         },
         { &hf_intel_set_event_mask_reserved_8,
           { "Reserved",                                    "bthci_vendor.intel.event_mask.reserved",
-            FT_UINT64, BASE_HEX, NULL, 0x0100,
+            FT_UINT64, BASE_HEX, NULL, 0x0000000000000100,
             NULL, HFILL }
         },
         { &hf_intel_set_event_mask_scan_status,
           { "Scan Status",                                 "bthci_vendor.intel.event_mask.scan_status",
-            FT_BOOLEAN, 64, NULL, 0x0080,
+            FT_BOOLEAN, 64, NULL, 0x0000000000000080,
             NULL, HFILL }
         },
         { &hf_intel_set_event_mask_reserved_3_6,
           { "Reserved",                                    "bthci_vendor.intel.event_mask.reserved.3_6",
-            FT_UINT64, BASE_HEX, NULL, 0x0078,
+            FT_UINT64, BASE_HEX, NULL, 0x0000000000000078,
             NULL, HFILL }
         },
         { &hf_intel_set_event_mask_ptt_switch_notification,
           { "PTT Switch Notification",                     "bthci_vendor.intel.event_mask.ptt_switch_notification",
-            FT_BOOLEAN, 64, NULL, 0x0004,
+            FT_BOOLEAN, 64, NULL, 0x0000000000000004,
             NULL, HFILL }
         },
         { &hf_intel_set_event_mask_sco_rejected_via_lmp,
           { "SCO Rejected via LMP",                        "bthci_vendor.intel.event_mask.sco_rejected_via_lmp",
-            FT_BOOLEAN, 64, NULL, 0x0002,
+            FT_BOOLEAN, 64, NULL, 0x0000000000000002,
             NULL, HFILL }
         },
         { &hf_intel_set_event_mask_bootup,
           { "Bootup",                                      "bthci_vendor.intel.event_mask.bootup",
-            FT_BOOLEAN, 64, NULL, 0x0001,
+            FT_BOOLEAN, 64, NULL, 0x0000000000000001,
             NULL, HFILL }
         },
         { &hf_intel_data,

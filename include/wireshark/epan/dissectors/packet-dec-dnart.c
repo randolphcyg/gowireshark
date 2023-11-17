@@ -81,6 +81,8 @@ typedef enum {
 void proto_register_dec_rt(void);
 void proto_reg_handoff_dec_rt(void);
 
+static dissector_handle_t dec_rt_handle;
+
 static int proto_dec_rt = -1;
 
 static int hf_dec_routing_flags = -1;
@@ -1258,14 +1260,14 @@ proto_register_dec_rt(void)
             NULL, HFILL }},
         { &hf_dec_rt_segnum,
           { "Message number",        "dec_dna.nsp.segnum",
-            FT_UINT16,    BASE_DEC,    NULL,   0xfff,
+            FT_UINT16,    BASE_DEC,    NULL,   0x0fff,
             "Segment number", HFILL }},
         { &hf_dec_rt_delay,
           { "Delayed ACK allowed",  "dec_dna.nsp.delay",
             FT_BOOLEAN,    16,        TFS(&tfs_yes_no),    0x1000,
             "Delayed ACK allowed?", HFILL }},
         { &hf_dec_rt_visited_nodes,
-          { "Nodes visited ty this package", "dec_dna.vst_node",
+          { "Nodes visited by this package", "dec_dna.vst_node",
             FT_UINT8,    BASE_DEC,    NULL,   0x0,
             "Nodes visited", HFILL }},
         /* Control message items */
@@ -1291,7 +1293,7 @@ proto_register_dec_rt(void)
             NULL, HFILL }},
         { &hf_dec_rt_tiinfo,
           { "Routing information",    "dec_dna.ctl.tiinfo",
-            FT_UINT8,    BASE_HEX,    VALS(rt_tiinfo_vals), 0x0,
+            FT_UINT16,    BASE_HEX,    VALS(rt_tiinfo_vals), 0x0,
             NULL, HFILL }},
         { &hf_dec_rt_blk_size,
           { "Block size",            "dec_dna.ctl.blk_size",
@@ -1457,15 +1459,14 @@ proto_register_dec_rt(void)
     proto_register_subtree_array(ett, array_length(ett));
     expert_dec_rt = expert_register_protocol(proto_dec_rt);
     expert_register_field_array(expert_dec_rt, ei, array_length(ei));
+
+    dec_rt_handle = register_dissector("dec_dna", dissect_dec_rt,
+                                            proto_dec_rt);
 }
 
 void
 proto_reg_handoff_dec_rt(void)
 {
-    dissector_handle_t dec_rt_handle;
-
-    dec_rt_handle = create_dissector_handle(dissect_dec_rt,
-                                            proto_dec_rt);
     dissector_add_uint("ethertype", ETHERTYPE_DNA_RT, dec_rt_handle);
     dissector_add_uint("chdlc.protocol", ETHERTYPE_DNA_RT, dec_rt_handle);
     dissector_add_uint("ppp.protocol", PPP_DEC4, dec_rt_handle);

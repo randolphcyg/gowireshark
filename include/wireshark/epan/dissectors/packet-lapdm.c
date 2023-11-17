@@ -218,29 +218,34 @@ dissect_lapdm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     int available_length;
     gboolean is_response = FALSE;
     enum lapdm_hdr_type hdr_type = LAPDM_HDR_FMT_B;
+    gboolean is_acch = FALSE, is_ui_frame = FALSE;
 
     if (data) {
         lapdm_data_t *ld = (lapdm_data_t *) data;
-        hdr_type = ld->hdr_type;
-    }
-
-    switch (hdr_type) {
-    case LAPDM_HDR_FMT_A:
-    case LAPDM_HDR_FMT_B:
-        length = tvb_get_guint8(tvb, 2);
-        header_len = LAPDM_HEADER_LEN;
-        break;
-    case LAPDM_HDR_FMT_B4:
-        length = 0;
-        header_len = LAPDM_HEADER_LEN_B4;
-        break;
-    default:
-        return 0;
+        is_acch = ld->is_acch;
     }
 
     /* Check that there's enough data */
-    if (tvb_captured_length(tvb) < header_len)
+    if (tvb_captured_length(tvb) < LAPDM_HEADER_LEN_B4)
         return 0;
+
+    control = tvb_get_guint8(tvb, 1);
+    is_ui_frame = (control & XDLC_S_U_MASK) == XDLC_U && (control & XDLC_U_MODIFIER_MASK) == XDLC_UI;
+
+    /* only downlink UI SACCH frames use B4 header format */
+    if (is_acch && is_ui_frame && pinfo->p2p_dir == P2P_DIR_RECV) {
+        hdr_type = LAPDM_HDR_FMT_B4;
+        header_len = LAPDM_HEADER_LEN_B4;
+        length = 0;
+    } else {
+        header_len = LAPDM_HEADER_LEN;
+
+        /* Check that there's enough data */
+        if (tvb_captured_length(tvb) < header_len)
+            return 0;
+
+        length = tvb_get_guint8(tvb, 2);
+    }
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "LAPDm");
 
@@ -356,6 +361,11 @@ dissect_lapdm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
                 if (!dissector_try_uint(lapdm_sapi_dissector_table, sapi,
                                         reassembled, pinfo, tree))
                     call_data_dissector(reassembled, pinfo, tree);
+
+                if (!PINFO_FD_VISITED(pinfo)) {
+                    /* If reassembling is done, allow fragment_id reuse */
+                    wmem_map_remove(lapdm_last_n_s_map, GUINT_TO_POINTER(fragment_id));
+                }
             }
             else {
                 col_append_str(pinfo->cinfo, COL_INFO, " (Fragment)");
@@ -430,11 +440,11 @@ proto_register_lapdm(void)
 
         { &hf_lapdm_p,
           { "Poll", "lapdm.control.p", FT_BOOLEAN, 8,
-            TFS(&tfs_true_false), XDLC_P_F, NULL, HFILL }},
+            NULL, XDLC_P_F, NULL, HFILL }},
 
         { &hf_lapdm_f,
           { "Final", "lapdm.control.f", FT_BOOLEAN, 8,
-            TFS(&tfs_true_false), XDLC_P_F, NULL, HFILL }},
+            NULL, XDLC_P_F, NULL, HFILL }},
 
         { &hf_lapdm_s_ftype,
           { "Supervisory frame type", "lapdm.control.s_ftype", FT_UINT8, BASE_HEX,

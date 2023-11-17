@@ -23,6 +23,8 @@
 void proto_register_ajp13(void);
 void proto_reg_handoff_ajp13(void);
 
+static dissector_handle_t ajp13_handle;
+
 #define AJP13_TCP_PORT 8009 /* Not IANA registered */
 
 /* IMPORTANT IMPLEMENTATION NOTES
@@ -308,7 +310,7 @@ ajp13_get_nstring(tvbuff_t *tvb, gint offset, guint16* ret_len)
   if (len == 0xFFFF)
     len = 0;
 
-  return tvb_format_text(wmem_packet_scope(), tvb, offset+2, MIN(len, ITEM_LABEL_LENGTH));
+  return tvb_format_text(wmem_packet_scope(), tvb, offset+2, len);
 }
 
 
@@ -1086,7 +1088,7 @@ proto_register_ajp13(void)
         HFILL }
     },
     { &hf_ajp13_rsmsg,
-      { "RSMSG",  "ajp13.rmsg", FT_STRING, BASE_NONE, NULL, 0x0, "HTTP Status Message",
+      { "RSMSG",  "ajp13.rsmsg", FT_STRING, BASE_NONE, NULL, 0x0, "HTTP Status Message",
         HFILL }
     },
     { &hf_ajp13_data,
@@ -1113,6 +1115,8 @@ proto_register_ajp13(void)
 
   expert_ajp13 = expert_register_protocol(proto_ajp13);
   expert_register_field_array(expert_ajp13, ei, array_length(ei));
+
+  ajp13_handle = register_dissector("ajp13", dissect_ajp13, proto_ajp13);
 }
 
 
@@ -1120,8 +1124,6 @@ proto_register_ajp13(void)
 void
 proto_reg_handoff_ajp13(void)
 {
-  dissector_handle_t ajp13_handle;
-  ajp13_handle = create_dissector_handle(dissect_ajp13, proto_ajp13);
   dissector_add_uint_with_preference("tcp.port", AJP13_TCP_PORT, ajp13_handle);
 }
 

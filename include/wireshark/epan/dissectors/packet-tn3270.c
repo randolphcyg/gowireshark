@@ -5837,7 +5837,7 @@ proto_register_tn3270(void)
          NULL, HFILL }
     },
     { &hf_tn3270_extended_ps_lh,
-      {  "Number of Y-units in character cell (depth ofcharacter matrixes)",
+      {  "Number of Y-units in character cell (depth of character matrixes)",
          "tn3270.extended_ps_lh",
          FT_UINT8, BASE_HEX, NULL, 0x0,
          NULL, HFILL }
@@ -5930,7 +5930,7 @@ proto_register_tn3270(void)
     { &hf_tn3270_bsc,
       {  "SNA BSC",
          "tn3270.bsc",
-         FT_UINT8, BASE_HEX, NULL, 0x0,
+         FT_UINT16, BASE_HEX, NULL, 0x0,
          NULL, HFILL }
     },
     /* END - 5.16 - Outbound 3270DS */
@@ -6002,7 +6002,7 @@ proto_register_tn3270(void)
     { &hf_tn3270_interval,
       {  "Checkpoint interval",
          "tn3270.interval",
-         FT_UINT8, BASE_HEX, NULL, 0x0,
+         FT_UINT16, BASE_HEX, NULL, 0x0,
          "Specifies the number of pages in the interval between terminal checkpoints", HFILL }
     },
     /* End - 5.26 - Set Checkpoint Interval */
@@ -7531,7 +7531,7 @@ proto_register_tn3270(void)
     { &hf_tn3270_resbytes,
       {  "Flags (Reserved)",
          "tn3270.resbytes",
-         FT_UINT8, BASE_HEX, NULL, 0x0,
+         FT_UINT16, BASE_HEX, NULL, 0x0,
          NULL, HFILL }
     },
     { &hf_tn3270_res_twobytes,

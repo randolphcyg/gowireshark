@@ -7,7 +7,6 @@
  */
 
 #include "config.h"
-#include <errno.h>
 #include <string.h>
 
 #include "wtap-int.h"
@@ -365,7 +364,7 @@ static gboolean _5views_dump(wtap_dumper *wdh,
 	 * Make sure this packet doesn't have a link-layer type that
 	 * differs from the one for the file.
 	 */
-	if (wdh->encap != rec->rec_header.packet_header.pkt_encap) {
+	if (wdh->file_encap != rec->rec_header.packet_header.pkt_encap) {
 		*err = WTAP_ERR_ENCAP_PER_PACKET_UNSUPPORTED;
 		return FALSE;
 	}
@@ -386,7 +385,16 @@ static gboolean _5views_dump(wtap_dumper *wdh,
 	HeaderFrame.RecNb = GUINT32_TO_LE(1);
 
 	/* record-dependent fields */
-	HeaderFrame.Utc = GUINT32_TO_LE(rec->ts.secs);
+	/*
+	 * XXX - is the frame time signed, or unsigned?  If it's signed,
+	 * we should check against G_MININT32 and G_MAXINT32 and make
+	 * Utc a gint32.
+	 */
+	if (rec->ts.secs < 0 || rec->ts.secs > WTAP_NSTIME_32BIT_SECS_MAX) {
+		*err = WTAP_ERR_TIME_STAMP_NOT_SUPPORTED;
+		return FALSE;
+	}
+	HeaderFrame.Utc = GUINT32_TO_LE((guint32)rec->ts.secs);
 	HeaderFrame.NanoSecondes = GUINT32_TO_LE(rec->ts.nsecs);
 	HeaderFrame.RecSize = GUINT32_TO_LE(rec->rec_header.packet_header.len);
 	HeaderFrame.RecInfo = GUINT32_TO_LE(0);
@@ -422,7 +430,7 @@ static gboolean _5views_dump_finish(wtap_dumper *wdh, int *err, gchar **err_info
 					+ sizeof(t_5VW_Attributes_Header)
 					+ sizeof(guint32));
 					/* Total size of data included in the Info Record (except the header size) */
-	file_hdr.Info_Header.FileType = GUINT32_TO_LE(wtap_encap[wdh->encap]);	/* Type of the file */
+	file_hdr.Info_Header.FileType = GUINT32_TO_LE(wtap_encap[wdh->file_encap]);	/* Type of the file */
 	file_hdr.Info_Header.Reserved[0] = 0;	/* Reserved for future use */
 	file_hdr.Info_Header.Reserved[1] = 0;	/* Reserved for future use */
 	file_hdr.Info_Header.Reserved[2] = 0;	/* Reserved for future use */

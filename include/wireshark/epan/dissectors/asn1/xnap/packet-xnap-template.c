@@ -1,7 +1,7 @@
 /* packet-xnap.c
  * Routines for dissecting NG-RAN Xn application protocol (XnAP)
  * 3GPP TS 38.423 packet dissection
- * Copyright 2018-2022, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2018-2023, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Ref:
- * 3GPP TS 38.423 V17.1.0 (2022-06)
+ * 3GPP TS 38.423 V17.5.0 (2023-06)
  */
 
 #include "config.h"
@@ -132,6 +132,8 @@ static gint ett_xnap_RACH_Config_Common_IAB = -1;
 static gint ett_xnap_ReportConfigContainer = -1;
 static gint ett_xnap_RLC_Bearer_Configuration = -1;
 static gint ett_xnap_SuccessfulHOReportContainer = -1;
+static gint ett_xnap_UERLFReportContainerLTEExtendBand = -1;
+static gint ett_xnap_MDTMode_EUTRA = -1;
 #include "packet-xnap-ett.c"
 
 enum {
@@ -532,6 +534,8 @@ void proto_register_xnap(void) {
     &ett_xnap_ReportConfigContainer,
     &ett_xnap_RLC_Bearer_Configuration,
     &ett_xnap_SuccessfulHOReportContainer,
+    &ett_xnap_UERLFReportContainerLTEExtendBand,
+    &ett_xnap_MDTMode_EUTRA,
 #include "packet-xnap-ettarr.c"
   };
 

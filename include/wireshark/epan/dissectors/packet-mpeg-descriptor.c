@@ -1721,11 +1721,11 @@ static const value_string mpeg_descr_component_content_type_vals[] = {
     { 0x0205, "MPEG-1 Layer 2 audio, surround sound" },
     { 0x0240, "MPEG-1 Layer 2 audio description for the visually impaired" },
     { 0x0241, "MPEG-1 Layer 2 audio for the hard of hearing" },
-    { 0x0242, "receiver-mixed supplementary audio as per annex E of TS 101 154 [9]" },
+    { 0x0242, "Receiver-mixed supplementary audio as per annex E of TS 101 154 [9]" },
     { 0x0247, "MPEG-1 Layer 2 audio, receiver mix audio description as per annex E of TS 101 154 [9]" },
     { 0x0248, "MPEG-1 Layer 2 audio, broadcaster mix audio description" },
     { 0x0301, "EBU Teletext subtitles" },
-    { 0x0302, "associated EBU Teletext" },
+    { 0x0302, "Associated EBU Teletext" },
     { 0x0303, "VBI data" },
     { 0x0310, "DVB subtitles (normal) with no monitor aspect ratio criticality" },
     { 0x0311, "DVB subtitles (normal) for display on 4:3 aspect ratio monitor" },
@@ -2733,19 +2733,18 @@ proto_mpeg_descriptor_dissect_multilng_network_name_desc(tvbuff_t *tvb, guint of
 
     while (cnt > 0)
     {
-        guint8 lng[4];
+        char *lng_str;
         proto_tree * lng_tree;
+        proto_item * lng_item;
 
         if (cnt < 3) return;
         guint lng_len = proto_mpeg_descriptor_dissect_multilng_network_name_desc_measure_lng_len(tvb, offset, cnt);
-        lng[0] = tvb_get_guint8(tvb, offset + 0);
-        lng[1] = tvb_get_guint8(tvb, offset + 1);
-        lng[2] = tvb_get_guint8(tvb, offset + 2);
-        lng[3] = 0;
-        lng_tree = proto_tree_add_subtree_format(tree, tvb, offset, lng_len,
-                    ett_mpeg_descriptor_multilng_network_name_desc_lng, NULL, "Language \"%s\"", lng);
+        lng_tree = proto_tree_add_subtree(tree, tvb, offset, lng_len,
+                    ett_mpeg_descriptor_multilng_network_name_desc_lng, &lng_item, NULL);
 
-        proto_tree_add_item(lng_tree, hf_mpeg_descr_multilng_network_name_desc_iso639_language_code, tvb, offset, 3, ENC_ASCII);
+        proto_tree_add_item_ret_display_string(lng_tree, hf_mpeg_descr_multilng_network_name_desc_iso639_language_code, tvb, offset, 3, ENC_ASCII,
+                                                wmem_packet_scope(), &lng_str);
+        proto_item_set_text(lng_item, "Language \"%s\"", lng_str);
         offset += 3;
         cnt    -= 3;
 
@@ -2803,19 +2802,18 @@ proto_mpeg_descriptor_dissect_multilng_bouquet_name_desc(tvbuff_t *tvb, guint of
 
     while (cnt > 0)
     {
-        guint8 lng[4];
+        char* lng_str;
         proto_tree * lng_tree;
+        proto_item * lng_item;
 
         if (cnt < 3) return;
         guint lng_len = proto_mpeg_descriptor_dissect_multilng_bouquet_name_desc_measure_lng_len(tvb, offset, cnt);
-        lng[0] = tvb_get_guint8(tvb, offset + 0);
-        lng[1] = tvb_get_guint8(tvb, offset + 1);
-        lng[2] = tvb_get_guint8(tvb, offset + 2);
-        lng[3] = 0;
-        lng_tree = proto_tree_add_subtree_format(tree, tvb, offset, lng_len,
-                    ett_mpeg_descriptor_multilng_bouquet_name_desc_lng, NULL, "Language \"%s\"", lng);
+        lng_tree = proto_tree_add_subtree(tree, tvb, offset, lng_len,
+                    ett_mpeg_descriptor_multilng_bouquet_name_desc_lng, &lng_item, NULL);
 
-        proto_tree_add_item(lng_tree, hf_mpeg_descr_multilng_bouquet_name_desc_iso639_language_code, tvb, offset, 3, ENC_ASCII);
+        proto_tree_add_item_ret_display_string(lng_tree, hf_mpeg_descr_multilng_bouquet_name_desc_iso639_language_code, tvb, offset, 3, ENC_ASCII,
+                                                wmem_packet_scope(), &lng_str);
+        proto_item_set_text(lng_item, "Language \"%s\"", lng_str);
         offset += 3;
         cnt    -= 3;
 
@@ -2885,19 +2883,18 @@ proto_mpeg_descriptor_dissect_multilng_srv_name_desc(tvbuff_t *tvb, guint offset
 
     while (cnt > 0)
     {
-        guint8 lng[4];
+        char *lng_str;
         proto_tree * lng_tree;
+        proto_item * lng_item;
 
         if (cnt < 3) return;
         guint lng_len = proto_mpeg_descriptor_dissect_multilng_srv_name_desc_measure_lng_len(tvb, offset, cnt);
-        lng[0] = tvb_get_guint8(tvb, offset + 0);
-        lng[1] = tvb_get_guint8(tvb, offset + 1);
-        lng[2] = tvb_get_guint8(tvb, offset + 2);
-        lng[3] = 0;
-        lng_tree = proto_tree_add_subtree_format(tree, tvb, offset, lng_len,
-                    ett_mpeg_descriptor_multilng_srv_name_desc_lng, NULL, "Language \"%s\"", lng);
+        lng_tree = proto_tree_add_subtree(tree, tvb, offset, lng_len,
+                    ett_mpeg_descriptor_multilng_srv_name_desc_lng, &lng_item, NULL);
 
-        proto_tree_add_item(lng_tree, hf_mpeg_descr_multilng_srv_name_desc_iso639_language_code, tvb, offset, 3, ENC_ASCII);
+        proto_tree_add_item_ret_display_string(lng_tree, hf_mpeg_descr_multilng_srv_name_desc_iso639_language_code, tvb, offset, 3, ENC_ASCII,
+                                                wmem_packet_scope(), &lng_str);
+        proto_item_set_text(lng_item, "Language \"%s\"", lng_str);
         offset += 3;
         cnt    -= 3;
 
@@ -2976,19 +2973,18 @@ proto_mpeg_descriptor_dissect_multilng_component_desc(tvbuff_t *tvb, guint offse
 
     while (cnt > 0)
     {
-        guint8 lng[4];
+        char *lng_str;
         proto_tree * lng_tree;
+        proto_item * lng_item;
 
         if (cnt < 3) return;
         guint lng_len = proto_mpeg_descriptor_dissect_multilng_component_desc_measure_lng_len(tvb, offset, cnt);
-        lng[0] = tvb_get_guint8(tvb, offset + 0);
-        lng[1] = tvb_get_guint8(tvb, offset + 1);
-        lng[2] = tvb_get_guint8(tvb, offset + 2);
-        lng[3] = 0;
-        lng_tree = proto_tree_add_subtree_format(tree, tvb, offset, lng_len,
-                    ett_mpeg_descriptor_multilng_component_desc_lng, NULL, "Language \"%s\"", lng);
+        lng_tree = proto_tree_add_subtree(tree, tvb, offset, lng_len,
+                    ett_mpeg_descriptor_multilng_component_desc_lng, &lng_item, NULL);
 
-        proto_tree_add_item(lng_tree, hf_mpeg_descr_multilng_component_desc_iso639_language_code, tvb, offset, 3, ENC_ASCII);
+        proto_tree_add_item_ret_display_string(lng_tree, hf_mpeg_descr_multilng_component_desc_iso639_language_code, tvb, offset, 3, ENC_ASCII,
+                                                wmem_packet_scope(), &lng_str);
+        proto_item_set_text(lng_item, "Language \"%s\"", lng_str);
         offset += 3;
         cnt    -= 3;
 
@@ -4055,7 +4051,6 @@ proto_mpeg_descriptor_dissect_nordig_lcd_v2(tvbuff_t *tvb, guint offset, guint l
         guint8  channel_list_id;
         guint8  channel_list_name_length;
         guint8  descriptor_length;
-        if (cnt < 1) return;
 
         channel_list_id = tvb_get_guint8(tvb, offset);
         channel_list_tree = proto_tree_add_subtree_format(tree, tvb, offset, ch_list_len,
@@ -4170,18 +4165,18 @@ static int hf_mpeg_descr_logon_initialize_rbdc_timeout = -1;
 #define MPEG_DESCR_LOGON_INITIALIZE_RETURN_CTRL_MNGM_PID_MASK                   0x1FFF
 
 #define MPEG_DESCR_LOGON_INITIALIZE_CONNECTIVITY_MASK                           0x1000
-#define MPEG_DESCR_LOGON_INITIALIZE_RETURN_VPI_RESERVED_MASK                    0x0F00
-#define MPEG_DESCR_LOGON_INITIALIZE_RETURN_VPI_MASK                             0x00FF
+#define MPEG_DESCR_LOGON_INITIALIZE_RETURN_VPI_RESERVED_MASK                    0xF0
+#define MPEG_DESCR_LOGON_INITIALIZE_RETURN_VPI_MASK                             0x0F
 
-#define MPEG_DESCR_LOGON_INITIALIZE_RETURN_SIGNALLING_VPI_RESERVED_MASK         0x0F00
-#define MPEG_DESCR_LOGON_INITIALIZE_RETURN_SIGNALLING_VPI_MASK                  0x00FF
+#define MPEG_DESCR_LOGON_INITIALIZE_RETURN_SIGNALLING_VPI_RESERVED_MASK         0xF0
+#define MPEG_DESCR_LOGON_INITIALIZE_RETURN_SIGNALLING_VPI_MASK                  0x0F
 #define MPEG_DESCR_LOGON_INITIALIZE_FORWARD_SIGNALLING_VPI_RESERVED_MASK        0xFF00
 #define MPEG_DESCR_LOGON_INITIALIZE_FORWARD_SIGNALLING_VPI_MASK                 0x00FF
 
 #define MPEG_DESCR_LOGON_INITIALIZE_VDBC_MAX_RESERVED_MASK                      0xF800
-#define MPEG_DESCR_LOGON_INITIALIZE_VDBC_MAX_MASK                               0x0700
+#define MPEG_DESCR_LOGON_INITIALIZE_VDBC_MAX_MASK                               0x07FF
 
-
+/* ETSI EN 301 790 - 8.5.5.10.4 Logon Initialize descriptor */
 static void
 proto_mpeg_descriptor_dissect_logon_initialize(tvbuff_t *tvb, guint offset, guint len, proto_tree *tree)
 {
@@ -4221,28 +4216,40 @@ proto_mpeg_descriptor_dissect_logon_initialize(tvbuff_t *tvb, guint offset, guin
         proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_capacity_type_flag_reserved, tvb, offset, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_capacity_type_flag,          tvb, offset, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_traffic_burst_type,          tvb, offset, 1, ENC_BIG_ENDIAN);
+        /* If (Traffic_burst_type == 0) { */
         if (flags & MPEG_DESCR_LOGON_INITIALIZE_TRAFFIC_BURST_TYPE_MASK) {
+            /* Connectivity */
             proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_connectivity, tvb, offset, 2, ENC_BIG_ENDIAN);
             flags2 = tvb_get_ntohs(tvb, offset);
             if (flags2 & MPEG_DESCR_LOGON_INITIALIZE_CONNECTIVITY_MASK) {
+                /* Else    { (out of order) */
+
+                /* Return_signalling_VPI (4 bits reserved, 4 bits) */
                 proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_return_signalling_vpi_reserved, tvb, offset, 1, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_return_signalling_vpi, tvb, offset, 1, ENC_BIG_ENDIAN);
                 offset += 1;
 
+                /* Return_signalling_VCI (16 bits) */
                 proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_return_signalling_vci, tvb, offset, 2, ENC_BIG_ENDIAN);
                 offset += 2;
 
+                /* Forward_signalling_VPI (4 bits reserved, then 4 bits) */
                 proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_forward_signalling_vpi_reserved, tvb, offset, 1, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_forward_signalling_vpi, tvb, offset, 1, ENC_BIG_ENDIAN);
                 offset += 1;
 
+                /* Forward_signalling_VCI (16 bits) */
                 proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_forward_signalling_vci, tvb, offset, 2, ENC_BIG_ENDIAN);
                 offset += 2;
             } else {
+                /* If (Connectivity == 0) {  */
+
+                /* Return_signalling_VPI (4 bits reserved, then 4 bits) */
                 proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_return_vpi_reserved, tvb, offset, 1, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_return_vpi, tvb, offset, 1, ENC_BIG_ENDIAN);
                 offset += 1;
 
+                /* Return_signalling_VCI (16 bits) */
                 proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_return_vci, tvb, offset, 2, ENC_BIG_ENDIAN);
                 offset += 2;
 
@@ -4258,16 +4265,20 @@ proto_mpeg_descriptor_dissect_logon_initialize(tvbuff_t *tvb, guint offset, guin
 
         if ((offset < end) && (flags & MPEG_DESCR_LOGON_INITIALIZE_CAPACITY_TYPE_FLAG_MASK)) {
 
+            /* CRA_level (3 bytes) */
             proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_cra_level,         tvb, offset, 3, ENC_BIG_ENDIAN);
             offset += 3;
 
+            /* VBDC_max (5 bits reserved, 11 bits) */
             proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_vbdc_max_reserved, tvb, offset, 2, ENC_BIG_ENDIAN);
             proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_vbdc_max,          tvb, offset, 2, ENC_BIG_ENDIAN);
             offset += 2;
 
+            /* RBDC_max (3 bytes) */
             proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_rbdc_max,          tvb, offset, 3, ENC_BIG_ENDIAN);
             offset += 3;
 
+            /* RBDC timeout (2 bytes) */
             proto_tree_add_item(tree, hf_mpeg_descr_logon_initialize_rbdc_timeout,      tvb, offset, 2, ENC_BIG_ENDIAN);
             /*offset += 2;*/
         }
@@ -6507,12 +6518,12 @@ proto_register_mpeg_descriptor(void)
 
         { &hf_mpeg_descr_ac3_sysa_langcode, {
             "Language Code (Deprecated)", "mpeg_descr.ac3.sysa_langcode",
-            FT_UINT8, BASE_HEX, NULL,  0xff, NULL, HFILL
+            FT_UINT8, BASE_HEX, NULL,  0x0, NULL, HFILL
         } },
 
         { &hf_mpeg_descr_ac3_sysa_langcode2, {
             "Language Code 2 (Deprecated)", "mpeg_descr.ac3.sysa_langcode2",
-            FT_UINT8, BASE_HEX, NULL,  0xff, NULL, HFILL
+            FT_UINT8, BASE_HEX, NULL,  0x0, NULL, HFILL
         } },
 
         { &hf_mpeg_descr_ac3_sysa_mainid, {

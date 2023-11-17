@@ -23,11 +23,12 @@
  */
 
 #include <config.h>
-#include <wsutil/str_util.h>
 
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/conversation.h>
+#include <wsutil/str_util.h>
+#include <wsutil/inet_addr.h>
 
 /* Prototypes */
 void proto_reg_handoff_srt(void);
@@ -69,6 +70,7 @@ static int hf_srt_handshake_isn = -1;
 static int hf_srt_handshake_mtu = -1;
 static int hf_srt_handshake_flow_window = -1;
 static int hf_srt_handshake_reqtype = -1;
+static int hf_srt_handshake_failure_type = -1;
 static int hf_srt_handshake_id = -1;
 static int hf_srt_handshake_cookie = -1;
 static int hf_srt_handshake_peerip = -1;
@@ -90,7 +92,7 @@ static int hf_srt_srths_peer_latency = -1; // TSBPD delay
 static int hf_srt_srtkm_msg = -1;
 static int hf_srt_srtkm_error = -1;
 static int hf_srt_srths_sid = -1;
-static int hf_srt_srths_conjestcontrol = -1;
+static int hf_srt_srths_congestcontrol = -1;
 
 static gint ett_srt = -1;
 static gint ett_srt_handshake_ext_flags = -1;
@@ -193,7 +195,7 @@ enum UDTMessageType
 #define SRT_CMD_KMREQ       3
 #define SRT_CMD_KMRSP       4
 #define SRT_CMD_SID         5
-#define SRT_CMD_CONJESTCTRL 6
+#define SRT_CMD_CONGESTCTRL 6
 
 enum SrtDataStruct
 {
@@ -213,9 +215,7 @@ enum UDTRequestType
     URQ_WAVEAHAND     =    0,
     URQ_INDUCTION     =    1,
 
-    URQ_FAILURE_TYPES = 1000,
-    URQ_REJECT        = 1002,
-    URQ_INVALID       = 1004
+    URQ_FAILURE_TYPES = 1000
 };
 
 
@@ -249,7 +249,7 @@ static const value_string srt_ctrlmsg_exttypes[] = {
     {SRT_CMD_KMREQ,       "SRT_CMD_KMREQ"},
     {SRT_CMD_KMRSP,       "SRT_CMD_KMRSP"},
     {SRT_CMD_SID,         "SRT_CMD_SID"},
-    {SRT_CMD_CONJESTCTRL, "SRT_CMD_CONJESTCTRL"},
+    {SRT_CMD_CONGESTCTRL, "SRT_CMD_CONGESTCTRL"},
 
     { 0, NULL },
 };
@@ -300,8 +300,6 @@ static const value_string srt_hs_request_types[] = {
     {URQ_CONCLUSION, "URQ_CONCLUSION"},
     {URQ_WAVEAHAND,  "URQ_WAVEAHAND (rendezvous invocation)"},
     {URQ_AGREEMENT,  "URQ_AGREEMENT (rendezvous finalization)"},
-    {URQ_REJECT,     "!REJECT"},
-    {URQ_INVALID,    "!INVALID"},
     {0, NULL}
 };
 
@@ -439,17 +437,64 @@ static void dissect_srt_hs_ext_field(proto_tree* tree,
 }
 
 
+/*
+ * UTF-8 string packed as 32 bit little endian words (what?!)
+ * https://datatracker.ietf.org/doc/html/draft-sharabayko-srt-01#section-3.2.1.3
+ *
+ * THe spec says
+ *
+ *     The actual size is determined by the Extension Length field,
+ *     which defines the length in four byte blocks.  If the actual
+ *     payload is less than the declared length, the remaining bytes
+ *     are set to zeros.
+ *
+ *     The content is stored as 32-bit little endian words.
+ *
+ * This means that the octets of the string are in the rather peculiar
+ * order:
+ *
+ *    octet 3
+ *    octet 2
+ *    octet 1
+ *    octet 0
+ *    octet 8
+ *    octet 7
+ *    octet 6
+ *    octet 5
+ *
+ * and so on, with null padding (not null termination).
+ */
 static void format_text_reorder_32(proto_tree* tree, tvbuff_t* tvb, int hfinfo, int baseoff, int blocklen)
 {
-    wmem_strbuf_t *sid = wmem_strbuf_new(wmem_packet_scope(), "");
+    wmem_strbuf_t *sid = wmem_strbuf_create(wmem_packet_scope());
     for (int ii = 0; ii < blocklen; ii += 4)
     {
+        //
+        // Yes, this is fetching the 32-bit word as big-endian
+        // rather than little-endian.
+        //
+        // However, it's then taking the low-order byte of the
+        // result as the first octet, followed by the byte above
+        // that, followed by the byte above that, followed by
+        // the high-order byte.
+        //
+        // This is equivalent t fetching the 32-bit word as little-endian
+        // and then taking the high-order byte of the result as the
+        // first octet, etc.
+        //
+        // And both of those implement what's described above.
+        //
+        // No, I have no idea why they chose this representation for
+        // strings.
+        //
         const guint32 u = tvb_get_ntohl(tvb, baseoff + ii);
         wmem_strbuf_append_c(sid, 0xFF & (u >>  0));
         wmem_strbuf_append_c(sid, 0xFF & (u >>  8));
         wmem_strbuf_append_c(sid, 0xFF & (u >> 16));
         wmem_strbuf_append_c(sid, 0xFF & (u >> 24));
     }
+    if (!wmem_strbuf_utf8_validate(sid, NULL))
+        wmem_strbuf_utf8_make_valid(sid);
     proto_tree_add_string(tree, hfinfo, tvb,
                           baseoff, blocklen, wmem_strbuf_get_str(sid));
 }
@@ -532,6 +577,7 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
             const int version = tvb_get_ntohl(tvb, 16);
             const int final_length = tvb_reported_length(tvb);
             int baselen = 64;
+            int handshake_reqtype;
 
             /* This contains the handshake version (currently 4 or 5) */
             proto_tree_add_item(tree, hf_srt_handshake_version, tvb,
@@ -565,8 +611,21 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
                         28,  4, ENC_BIG_ENDIAN);
             proto_tree_add_item(tree, hf_srt_handshake_flow_window, tvb,
                         32,  4, ENC_BIG_ENDIAN);
-            proto_tree_add_item(tree, hf_srt_handshake_reqtype, tvb,
+            handshake_reqtype = tvb_get_ntohl(tvb, 36);
+            if (handshake_reqtype < URQ_FAILURE_TYPES)
+            {
+                proto_tree_add_item(tree, hf_srt_handshake_reqtype, tvb,
                         36,  4, ENC_BIG_ENDIAN);
+            }
+            else
+            {
+                int error_code = handshake_reqtype - URQ_FAILURE_TYPES;
+                proto_tree_add_uint_format_value(tree, hf_srt_handshake_failure_type, tvb, 36, 4, handshake_reqtype,
+                        "%d (%s)", error_code,
+                        error_code < 1000 ? "SRT internal" :
+                        error_code < 2000 ? "SRT predefined" : "user-defined");
+            }
+
             proto_tree_add_item(tree, hf_srt_handshake_id, tvb,
                         40,  4, ENC_BIG_ENDIAN);
             proto_tree_add_item(tree, hf_srt_handshake_cookie, tvb,
@@ -623,8 +682,8 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
                         format_text_reorder_32(tree, tvb, hf_srt_srths_sid, begin, 4 * blocklen);
                         break;
 
-                    case SRT_CMD_CONJESTCTRL:
-                        format_text_reorder_32(tree, tvb, hf_srt_srths_conjestcontrol, begin, 4 * blocklen);
+                    case SRT_CMD_CONGESTCTRL:
+                        format_text_reorder_32(tree, tvb, hf_srt_srths_congestcontrol, begin, 4 * blocklen);
                         break;
 
                     default:
@@ -689,6 +748,21 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
                 {
                     proto_item_set_len(srt_item, (4 + 4) * 4);
                 }
+            }
+        }
+        break;
+    case UMSG_DROPREQ:
+        {
+            guint len = tvb_reported_length(tvb);
+            if (len > (4 + 0) * 4)
+            {
+                guint lo = tvb_get_ntohl(tvb, (4 + 0) * 4);
+                guint hi = tvb_get_ntohl(tvb, (4 + 1) * 4);
+
+                proto_tree_add_expert_format(tree, pinfo, &ei_srt_nak_seqno,
+                        tvb, 16, 8, "Drop sequence range: %u-%u",
+                        lo, hi);
+                proto_item_set_len(srt_item, (gint) len);
             }
         }
         break;
@@ -1035,6 +1109,11 @@ void proto_register_srt(void)
             FT_INT32, BASE_DEC,
             VALS(srt_hs_request_types), 0, NULL, HFILL}},
 
+        {&hf_srt_handshake_failure_type, {
+            "Handshake FAILURE code", "srt.hs.failtype",
+            FT_UINT32, BASE_DEC,
+            NULL, 0, NULL, HFILL}},
+
         {&hf_srt_handshake_id, {
             "Socket ID", "srt.hs.id",
             FT_UINT32, BASE_HEX,
@@ -1147,8 +1226,8 @@ void proto_register_srt(void)
             FT_STRING, BASE_NONE,
             NULL, 0, NULL, HFILL}},
 
-        {&hf_srt_srths_conjestcontrol, {
-            "Congestion Control Type", "srt.hs.conjestctrl",
+        {&hf_srt_srths_congestcontrol, {
+            "Congestion Control Type", "srt.hs.congestctrl",
             FT_STRING, BASE_NONE,
             NULL, 0, NULL, HFILL}}
     };
@@ -1180,14 +1259,12 @@ void proto_register_srt(void)
     expert_srt = expert_register_protocol(proto_srt);
     expert_register_field_array(expert_srt, ei, array_length(ei));
 
-    register_dissector("srt", dissect_srt_udp, proto_srt);
+    srt_udp_handle = register_dissector("srt", dissect_srt_udp, proto_srt);
 }
 
 
 void proto_reg_handoff_srt(void)
 {
-    srt_udp_handle  = create_dissector_handle(dissect_srt_udp, proto_srt);
-
     /* register as heuristic dissector for UDP */
     heur_dissector_add("udp", dissect_srt_heur_udp, "SRT over UDP",
                        "srt_udp", proto_srt, HEURISTIC_ENABLE);

@@ -11,13 +11,17 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * BFCP Message structure is defined in RFC 4582bis
+ * BFCP Message structure is defined in RFC 8855
  */
 #include "config.h"
 
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
+#include <epan/conversation.h>
+#include <epan/proto_data.h>
+
+#include "packet-bfcp.h"
 
 void proto_register_bfcp(void);
 void proto_reg_handoff_bfcp(void);
@@ -33,6 +37,8 @@ static int hf_bfcp_payload_length = -1;
 static int hf_bfcp_conference_id = -1;
 static int hf_bfcp_transaction_id = -1;
 static int hf_bfcp_user_id = -1;
+static int hf_bfcp_fragment_offset = -1;
+static int hf_bfcp_fragment_length = -1;
 static int hf_bfcp_payload = -1;
 static int hf_bfcp_attribute_types = -1;
 static int hf_bfcp_attribute_types_m_bit = -1;
@@ -54,14 +60,21 @@ static int hf_bfcp_user_uri = -1;
 static int hf_bfcp_req_by_id = -1;
 static int hf_bfcp_padding = -1;
 static int hf_bfcp_error_specific_details = -1;
+/* BFCP setup fields */
+static int hf_bfcp_setup        = -1;
+static int hf_bfcp_setup_frame  = -1;
+static int hf_bfcp_setup_method = -1;
 
 /* Initialize subtree pointers */
 static gint ett_bfcp = -1;
+static gint ett_bfcp_setup = -1;
 static gint ett_bfcp_attr = -1;
 
 static expert_field ei_bfcp_attribute_length_too_small = EI_INIT;
 
 static dissector_handle_t bfcp_handle;
+
+#define BFCP_HDR_LEN 12
 
 /* Initialize BFCP primitives */
 static const value_string map_bfcp_primitive[] = {
@@ -150,6 +163,122 @@ static const value_string bfcp_error_code_valuse[] = {
 #define BFCP_OFFSET_TRANSACTION_ID         8
 #define BFCP_OFFSET_USER_ID               10
 #define BFCP_OFFSET_PAYLOAD               12
+
+/* Set up an BFCP conversation using the info given */
+void
+bfcp_add_address( packet_info *pinfo, port_type ptype,
+		address *addr, int port,
+		const gchar *setup_method, guint32 setup_frame_number)
+{
+	address null_addr;
+	conversation_t* p_conv;
+	struct _bfcp_conversation_info *p_conv_data = NULL;
+
+	/*
+	* If this isn't the first time this packet has been processed,
+	* we've already done this work, so we don't need to do it
+	* again.
+	*/
+	if (PINFO_FD_VISITED(pinfo)) {
+		return;
+	}
+
+	clear_address(&null_addr);
+
+	/*
+	* Check if the ip address and port combination is not
+	* already registered as a conversation.
+	*/
+	p_conv = find_conversation( pinfo->num, addr, &null_addr, conversation_pt_to_conversation_type(ptype), port, 0,
+				NO_ADDR_B | NO_PORT_B);
+
+	/*
+	* If not, create a new conversation.
+	*/
+	if (!p_conv) {
+		p_conv = conversation_new( pinfo->num, addr, &null_addr, conversation_pt_to_conversation_type(ptype),
+				   (guint32)port, 0,
+				   NO_ADDR2 | NO_PORT2);
+	}
+
+	/* Set dissector */
+	conversation_set_dissector(p_conv, bfcp_handle);
+
+	/*
+	* Check if the conversation has data associated with it.
+	*/
+	p_conv_data = (struct _bfcp_conversation_info *)conversation_get_proto_data(p_conv, proto_bfcp);
+
+	/*
+	* If not, add a new data item.
+	*/
+	if (!p_conv_data) {
+	/* Create conversation data */
+		p_conv_data = wmem_new0(wmem_file_scope(), struct _bfcp_conversation_info);
+		conversation_add_proto_data(p_conv, proto_bfcp, p_conv_data);
+	}
+
+	/*
+	* Update the conversation data.
+	*/
+	p_conv_data->setup_method_set = TRUE;
+	(void) g_strlcpy(p_conv_data->setup_method, setup_method, MAX_BFCP_SETUP_METHOD_SIZE);
+	p_conv_data->setup_frame_number = setup_frame_number;
+}
+
+/* Look for conversation info and display any setup info found */
+static void
+show_setup_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
+{
+	/* Conversation and current data */
+	conversation_t *p_conv = NULL;
+	struct _bfcp_conversation_info *p_conv_data = NULL;
+
+	/* Use existing packet data if available */
+	p_conv_data = (struct _bfcp_conversation_info *)p_get_proto_data(wmem_file_scope(), pinfo, proto_bfcp, 0);
+
+	if (!p_conv_data) {
+	/* First time, get info from conversation */
+	p_conv = find_conversation(pinfo->num, &pinfo->net_dst, &pinfo->net_src,
+				   conversation_pt_to_conversation_type(pinfo->ptype),
+				   pinfo->destport, pinfo->srcport, 0);
+
+		if (p_conv) {
+			/* Look for data in conversation */
+			struct _bfcp_conversation_info *p_conv_packet_data;
+			p_conv_data = (struct _bfcp_conversation_info *)conversation_get_proto_data(p_conv, proto_bfcp);
+
+			if (p_conv_data) {
+				/* Save this conversation info into packet info */
+				p_conv_packet_data = (struct _bfcp_conversation_info *)wmem_memdup(wmem_file_scope(),
+				p_conv_data, sizeof(struct _bfcp_conversation_info));
+
+				p_add_proto_data(wmem_file_scope(), pinfo, proto_bfcp, 0, p_conv_packet_data);
+			}
+		}
+	}
+
+	/* Create setup info subtree with summary info. */
+	if (p_conv_data && p_conv_data->setup_method_set) {
+		proto_tree *bfcp_setup_tree;
+		proto_item *ti =  proto_tree_add_string_format(tree, hf_bfcp_setup, tvb, 0, 0,
+							       "",
+							       "Stream setup by %s (frame %u)",
+							       p_conv_data->setup_method,
+							       p_conv_data->setup_frame_number);
+		proto_item_set_generated(ti);
+		bfcp_setup_tree = proto_item_add_subtree(ti, ett_bfcp_setup);
+		if (bfcp_setup_tree) {
+			/* Add details into subtree */
+			proto_item* item = proto_tree_add_uint(bfcp_setup_tree, hf_bfcp_setup_frame,
+						   tvb, 0, 0, p_conv_data->setup_frame_number);
+			proto_item_set_generated(item);
+			item = proto_tree_add_string(bfcp_setup_tree, hf_bfcp_setup_method,
+					 tvb, 0, 0, p_conv_data->setup_method);
+			proto_item_set_generated(item);
+		}
+	}
+}
 
 static int
 dissect_bfcp_attributes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, int bfcp_payload_length)
@@ -384,17 +513,18 @@ dissect_bfcp_heur_check(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree 
 
 
 	/* Size of smallest BFCP packet: 12 octets */
-	if (tvb_captured_length(tvb) < 12)
+	if (tvb_captured_length(tvb) < BFCP_HDR_LEN)
 		return FALSE;
 
 	/* Check version and reserved bits in first byte */
 	first_byte = tvb_get_guint8(tvb, 0);
 
 	/* If first_byte of bfcp_packet is a combination of the
-	 * version and the I bit. The value must be either 0x20 or 0x30
+	 * version, the R-bit and the F-bit. The value must be:
+	 * 0x20 || 0x30 || 0x40 || 0x48 || 0x50 || 0x58
 	 * if the bit is set, otherwise it is not BFCP.
 	 */
-	if ((first_byte != 0x20) && (first_byte != 0x30))
+	if ((first_byte != 0x20) && (first_byte != 0x30) && (first_byte != 0x40) && (first_byte != 0x48) && (first_byte != 0x50) && (first_byte != 0x58))
 		return FALSE;
 
 	primitive = tvb_get_guint8(tvb, 1);
@@ -417,6 +547,7 @@ dissect_bfcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 	guint8       primitive;
 	const gchar *str;
 	gint         bfcp_payload_length;
+	gboolean     f_bit;
 	proto_tree  *bfcp_tree;
 	proto_item	*ti;
 
@@ -432,6 +563,7 @@ dissect_bfcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 
 	ti = proto_tree_add_item(tree, proto_bfcp, tvb, 0, -1, ENC_NA);
 	bfcp_tree = proto_item_add_subtree(ti, ett_bfcp);
+	show_setup_info(tvb, pinfo, bfcp_tree);
 /*
   The following is the format of the common header.
 
@@ -452,7 +584,16 @@ dissect_bfcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 	/* Add items to BFCP tree */
 	proto_tree_add_item(bfcp_tree, hf_bfcp_version, tvb, offset, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(bfcp_tree, hf_bfcp_hdr_r_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
-	proto_tree_add_item(bfcp_tree, hf_bfcp_hdr_f_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
+	proto_tree_add_item_ret_boolean(bfcp_tree, hf_bfcp_hdr_f_bit, tvb, offset, 1, ENC_BIG_ENDIAN, &f_bit);
+	/* Ver should be 1 over a reliable transport (TCP) and 2 over an
+	 * unreliable transport (UDP). R and F should only be set on an
+	 * unreliable transport. They should be ignored on a reliable
+	 * transport.
+	 *
+	 * XXX: If it's version 1 and an unreliable transport, it may be
+	 * a draft implementation.
+	 * ( https://www.ietf.org/archive/id/draft-sandbakken-dispatch-bfcp-udp-03.html )
+	 */
 	offset++;
 	proto_tree_add_item(bfcp_tree, hf_bfcp_primitive, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -464,6 +605,12 @@ dissect_bfcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 	offset+=2;
 	proto_tree_add_item(bfcp_tree, hf_bfcp_user_id, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset+=2;
+	if (f_bit) {
+		proto_tree_add_item(bfcp_tree, hf_bfcp_fragment_offset, tvb, offset, 2, ENC_BIG_ENDIAN);
+		offset+=2;
+		proto_tree_add_item(bfcp_tree, hf_bfcp_fragment_length, tvb, offset, 2, ENC_BIG_ENDIAN);
+		offset+=2;
+	}
 
 	bfcp_payload_length = tvb_get_ntohs(tvb,
 						BFCP_OFFSET_PAYLOAD_LENGTH) * 4;
@@ -498,13 +645,13 @@ void proto_register_bfcp(void)
 		{
 			&hf_bfcp_hdr_r_bit,
 			{ "Transaction Responder (R)", "bfcp.hdr_r_bit",
-			  FT_BOOLEAN, 8, NULL, 0x10,
+			  FT_BOOLEAN, 8, TFS(&tfs_set_notset), 0x10,
 			  NULL, HFILL }
 		},
 		{
 			&hf_bfcp_hdr_f_bit,
 			{ "Fragmentation (F)", "bfcp.hdr_f_bit",
-			  FT_BOOLEAN, 8, NULL, 0x08,
+			  FT_BOOLEAN, 8, TFS(&tfs_set_notset), 0x08,
 			  NULL, HFILL }
 		},
 		{
@@ -517,7 +664,7 @@ void proto_register_bfcp(void)
 			&hf_bfcp_payload_length,
 			{ "Payload Length", "bfcp.payload_length",
 			  FT_UINT16, BASE_DEC, NULL, 0x0,
-			  NULL, HFILL }
+			  "Length in 4-octet units, excluding the COMMON-HEADER", HFILL }
 		},
 		{
 			&hf_bfcp_conference_id,
@@ -536,6 +683,18 @@ void proto_register_bfcp(void)
 			{ "User ID", "bfcp.user_id",
 			  FT_UINT16, BASE_DEC, NULL, 0x0,
 			  NULL, HFILL }
+		},
+		{
+			&hf_bfcp_fragment_offset,
+			{ "Fragment Offset", "bfcp.fragment_offset",
+			  FT_UINT16, BASE_DEC, NULL, 0x0,
+			  "Number of 4-octet units contained in previous fragments, excluding the COMMON-HEADER", HFILL }
+		},
+		{
+			&hf_bfcp_fragment_length,
+			{ "Fragment Length", "bfcp.fragment_length",
+			  FT_UINT16, BASE_DEC, NULL, 0x0,
+			  "Number of 4-octet units contained in this fragment, excluding the COMMON-HEADER", HFILL }
 		},
 		{
 			&hf_bfcp_payload,
@@ -663,10 +822,26 @@ void proto_register_bfcp(void)
 			  FT_BYTES, BASE_NONE, NULL, 0x0,
 			  NULL, HFILL }
 		},
+		{ &hf_bfcp_setup,
+			{ "Stream setup", "bfcp.setup",
+			  FT_STRING, BASE_NONE, NULL, 0x0,
+			  "Stream setup, method and frame number", HFILL}
+		},
+		{ &hf_bfcp_setup_frame,
+			{ "Setup frame", "bfcp.setup-frame",
+			  FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+			  "Frame that set up this stream", HFILL}
+		},
+		{ &hf_bfcp_setup_method,
+			{ "Setup Method", "bfcp.setup-method",
+			  FT_STRING, BASE_NONE, NULL, 0x0,
+			  "Method used to set up this stream", HFILL}
+		},
 	};
 
 	static gint *ett[] = {
 		&ett_bfcp,
+		&ett_bfcp_setup,
 		&ett_bfcp_attr,
 	};
 

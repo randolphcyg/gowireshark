@@ -68,8 +68,8 @@ static int hf_t_flags_signature             = -1;
 static int hf_t_flags_force_data            = -1;
 static int hf_t_flags_tso                   = -1;
 static int hf_t_flags_toe                   = -1;
-static int hf_t_flags_unused_0              = -1;
 static int hf_t_flags_unused_1              = -1;
+static int hf_t_flags_unused_2              = -1;
 static int hf_t_flags_lost_rtx_detection    = -1;
 static int hf_t_flags_be_in_cong_recovery   = -1;
 static int hf_t_flags_was_in_cong_recovery  = -1;
@@ -153,8 +153,8 @@ static int * const bblog_t_flags[] = {
   &hf_t_flags_force_data,
   &hf_t_flags_tso,
   &hf_t_flags_toe,
-  &hf_t_flags_unused_0,
   &hf_t_flags_unused_1,
+  &hf_t_flags_unused_2,
   &hf_t_flags_lost_rtx_detection,
   &hf_t_flags_be_in_cong_recovery,
   &hf_t_flags_was_in_cong_recovery,
@@ -177,6 +177,101 @@ static int * const bblog_t_flags2[] = {
 };
 
 /*
+ * The PRU constants are taken from
+ * https://cgit.freebsd.org/src/tree/sys/netinet/in_kdrace.h
+ */
+
+#define BBLOG_TCP_PRU_ATTACH      0
+#define BBLOG_TCP_PRU_DETACH      1
+#define BBLOG_TCP_PRU_BIND        2
+#define BBLOG_TCP_PRU_LISTEN      3
+#define BBLOG_TCP_PRU_CONNECT     4
+#define BBLOG_TCP_PRU_ACCEPT      5
+#define BBLOG_TCP_PRU_DISCONNECT  6
+#define BBLOG_TCP_PRU_SHUTDOWN    7
+#define BBLOG_TCP_PRU_RCVD        8
+#define BBLOG_TCP_PRU_SEND        9
+#define BBLOG_TCP_PRU_ABORT      10
+#define BBLOG_TCP_PRU_CONTROL    11
+#define BBLOG_TCP_PRU_SENSE      12
+#define BBLOG_TCP_PRU_RCVOOB     13
+#define BBLOG_TCP_PRU_SENDOOB    14
+#define BBLOG_TCP_PRU_SOCKADDR   15
+#define BBLOG_TCP_PRU_PEERADDR   16
+#define BBLOG_TCP_PRU_CONNECT2   17
+#define BBLOG_TCP_PRU_FASTTIMO   18
+#define BBLOG_TCP_PRU_SLOWTIMO   19
+#define BBLOG_TCP_PRU_PROTORCV   20
+#define BBLOG_TCP_PRU_PROTOSEND  21
+#define BBLOG_TCP_PRU_SEND_EOF   22
+#define BBLOG_TCP_PRU_SOSETLABEL 23
+#define BBLOG_TCP_PRU_CLOSE      24
+#define BBLOG_TCP_PRU_FLUSH      25
+
+static const value_string tcp_pru_values[] = {
+  { BBLOG_TCP_PRU_ATTACH,     "ATTACH" },
+  { BBLOG_TCP_PRU_DETACH,     "DETACH" },
+  { BBLOG_TCP_PRU_BIND,       "BIND" },
+  { BBLOG_TCP_PRU_LISTEN,     "LISTEN" },
+  { BBLOG_TCP_PRU_CONNECT,    "CONNECT" },
+  { BBLOG_TCP_PRU_ACCEPT,     "ACCEPT" },
+  { BBLOG_TCP_PRU_DISCONNECT, "DISCONNECT" },
+  { BBLOG_TCP_PRU_SHUTDOWN,   "SHUTDOWN" },
+  { BBLOG_TCP_PRU_RCVD,       "RCVD" },
+  { BBLOG_TCP_PRU_SEND,       "SEND" },
+  { BBLOG_TCP_PRU_ABORT,      "ABORT" },
+  { BBLOG_TCP_PRU_CONTROL,    "CONTROL" },
+  { BBLOG_TCP_PRU_SENSE,      "SENSE" },
+  { BBLOG_TCP_PRU_RCVOOB,     "RCVOOB" },
+  { BBLOG_TCP_PRU_SENDOOB,    "SENDOOB" },
+  { BBLOG_TCP_PRU_SOCKADDR,   "SOCKADDR" },
+  { BBLOG_TCP_PRU_PEERADDR,   "PEERADDR" },
+  { BBLOG_TCP_PRU_CONNECT2,   "CONNECT2" },
+  { BBLOG_TCP_PRU_FASTTIMO,   "FASTTIMO" },
+  { BBLOG_TCP_PRU_SLOWTIMO,   "SLOWTIMO" },
+  { BBLOG_TCP_PRU_PROTORCV,   "PROTORCV" },
+  { BBLOG_TCP_PRU_PROTOSEND,  "PROTOSEND" },
+  { BBLOG_TCP_PRU_SEND_EOF,   "SEND_EOF" },
+  { BBLOG_TCP_PRU_SOSETLABEL, "SOSETLABEL" },
+  { BBLOG_TCP_PRU_CLOSE,      "CLOSE" },
+  { BBLOG_TCP_PRU_FLUSH,      "FLUSH" },
+  { 0, NULL } };
+
+#define BBLOG_TCP_PRU_MASK   0x000000ff
+#define BBLOG_TCP_PRU_SHIFT  0
+
+#define BBLOG_TCP_TIMER_TYPE_RETRANSMIT 0
+#define BBLOG_TCP_TIMER_TYPE_PERSIST    1
+#define BBLOG_TCP_TIMER_TYPE_KEEPALIVE  2
+#define BBLOG_TCP_TIMER_TYPE_2MSL       3
+#define BBLOG_TCP_TIMER_TYPE_DELACK     4
+
+static const value_string tcp_timer_type_values[] = {
+  { BBLOG_TCP_TIMER_TYPE_RETRANSMIT, "Retransmission" },
+  { BBLOG_TCP_TIMER_TYPE_PERSIST,    "Persist" },
+  { BBLOG_TCP_TIMER_TYPE_KEEPALIVE,  "Keepalive" },
+  { BBLOG_TCP_TIMER_TYPE_2MSL,       "2 MSL" },
+  { BBLOG_TCP_TIMER_TYPE_DELACK,     "Delayed ACK" },
+  { 0, NULL } };
+
+#define BBLOG_TCP_TIMER_EVENT_PROCESSING 0
+#define BBLOG_TCP_TIMER_EVENT_PROCESSED  1
+#define BBLOG_TCP_TIMER_EVENT_STARTING   2
+#define BBLOG_TCP_TIMER_EVENT_STOPPING   3
+
+static const value_string tcp_timer_event_values[] = {
+  { BBLOG_TCP_TIMER_EVENT_PROCESSING, "Processing" },
+  { BBLOG_TCP_TIMER_EVENT_PROCESSED,  "Processed" },
+  { BBLOG_TCP_TIMER_EVENT_STARTING,   "Starting" },
+  { BBLOG_TCP_TIMER_EVENT_STOPPING,   "Stopping" },
+  { 0, NULL } };
+
+#define BBLOG_TCP_TIMER_TYPE_MASK   0x000000ff
+#define BBLOG_TCP_TIMER_TYPE_SHIFT  0
+#define BBLOG_TCP_TIMER_EVENT_MASK  0x0000ff00
+#define BBLOG_TCP_TIMER_EVENT_SHIFT 8
+
+/*
  * The structures used here are defined in
  * https://cgit.freebsd.org/src/tree/sys/netinet/tcp_log_buf.h
  */
@@ -186,10 +281,42 @@ dissect_bblog(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
 {
     proto_item *bblog_item;
     proto_tree *bblog_tree;
+    const gchar *event_name;
+    guint32 flex1, flex2;
     guint16 event_flags;
+    guint8 event_identifier;
+    guint8 pru;
+    guint8 timer_type, timer_event;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "BBLog");
-    col_append_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str_const(tvb_get_guint8(tvb, 25), event_identifier_values, "Unknown"));
+    event_identifier = tvb_get_guint8(tvb, 25);
+    flex1 = tvb_get_letohl(tvb, 140);
+    flex2 = tvb_get_letohl(tvb, 144);
+    switch (event_identifier) {
+    case TCP_LOG_PRU:
+        pru = (flex1 & BBLOG_TCP_PRU_MASK) >> BBLOG_TCP_PRU_SHIFT;
+        col_append_fstr(pinfo->cinfo, COL_INFO, "PRU: %s",
+                        val_to_str(pru, tcp_pru_values, "UNKNOWN (0x%02x)"));
+        break;
+    case BBLOG_TCP_LOG_TIMER:
+        timer_type = (flex1 & BBLOG_TCP_TIMER_TYPE_MASK) >> BBLOG_TCP_TIMER_TYPE_SHIFT;
+        timer_event = (flex1 & BBLOG_TCP_TIMER_EVENT_MASK) >> BBLOG_TCP_TIMER_EVENT_SHIFT;
+        col_append_fstr(pinfo->cinfo, COL_INFO, "%s %s timer",
+                        val_to_str(timer_event, tcp_timer_event_values, "Unknown operation (0x%02x) for"),
+                        val_to_str(timer_type, tcp_timer_type_values, "Unknown (0x%02x)"));
+        if (timer_event == BBLOG_TCP_TIMER_EVENT_STARTING) {
+            col_append_fstr(pinfo->cinfo, COL_INFO, ": %u ms", flex2);
+        }
+        break;
+    default:
+        event_name = try_val_to_str(event_identifier, event_identifier_values);
+        if (event_name != NULL) {
+            col_append_fstr(pinfo->cinfo, COL_INFO, "%s", event_name);
+        } else {
+            col_append_fstr(pinfo->cinfo, COL_INFO, "Unknown (flex1 0x%08x, flex2 0x%08x0)", flex1, flex2);
+        }
+        break;
+    }
 
     bblog_item = proto_tree_add_item(tree, proto_bblog, tvb, 0, -1, ENC_NA);
     bblog_tree = proto_item_add_subtree(bblog_item, ett_bblog);
@@ -263,7 +390,7 @@ proto_register_bblog(void)
         { &hf_event_flags_hdr,                { "TCP header",                                           "bblog.event_flags_hdr",               FT_BOOLEAN, 16,        TFS(&tfs_available_not_available), BBLOG_EVENT_FLAG_HDR,                NULL, HFILL} },
         { &hf_event_flags_verbose,            { "Additional information",                               "bblog.event_flags_verbose",           FT_BOOLEAN, 16,        TFS(&tfs_available_not_available), BBLOG_EVENT_FLAG_VERBOSE,            NULL, HFILL} },
         { &hf_event_flags_stack,              { "Stack specific information",                           "bblog.event_flags_stack",             FT_BOOLEAN, 16,        TFS(&tfs_available_not_available), BBLOG_EVENT_FLAG_STACKINFO,          NULL, HFILL} },
-        { &hf_errno,                          { "Error Number",                                         "bblog.errno",                         FT_INT32,   BASE_DEC,  NULL,                              0x0,                                 NULL, HFILL} },
+        { &hf_errno,                          { "Error Number",                                         "bblog.errno",                         FT_INT32,   BASE_DEC,  VALS(errno_values),                0x0,                                 NULL, HFILL} },
         { &hf_rxb_acc,                        { "Receive Buffer ACC",                                   "bblog.rxb_acc",                       FT_UINT32,  BASE_DEC,  NULL,                              0x0,                                 NULL, HFILL} },
         { &hf_rxb_ccc,                        { "Receive Buffer CCC",                                   "bblog.rxb_ccc",                       FT_UINT32,  BASE_DEC,  NULL,                              0x0,                                 NULL, HFILL} },
         { &hf_rxb_spare,                      { "Receive Buffer Spare",                                 "bblog.rxb_spare",                     FT_UINT32,  BASE_DEC,  NULL,                              0x0,                                 NULL, HFILL} },
@@ -289,7 +416,7 @@ proto_register_bblog(void)
         { &hf_t_flags_no_push,                { "No push",                                              "bblog.t_flags_no_push",               FT_BOOLEAN, 32,        TFS(&tfs_enabled_disabled),        BBLOG_T_FLAGS_NOPUSH,                NULL, HFILL} },
         { &hf_t_flags_prev_valid,             { "Saved values for bad retransmission valid",            "bblog.t_flags_prev_valid",            FT_BOOLEAN, 32,        TFS(&tfs_yes_no),                  BBLOG_T_FLAGS_PREVVALID,             NULL, HFILL} },
         { &hf_t_flags_wake_socket_receive,    { "Wakeup receive socket",                                "bblog.t_flags_wake_socket_receive",   FT_BOOLEAN, 32,        TFS(&tfs_yes_no),                  BBLOG_T_FLAGS_WAKESOR,               NULL, HFILL} },
-        { &hf_t_flags_goodput_in_progress,    { "Goodput measurement in progress",                      "bblog.t_flags_goodput_in_progress",   FT_BOOLEAN, 32,        TFS(&tfs_true_false),              BBLOG_T_FLAGS_GPUTINPROG,            NULL, HFILL} },
+        { &hf_t_flags_goodput_in_progress,    { "Goodput measurement in progress",                      "bblog.t_flags_goodput_in_progress",   FT_BOOLEAN, 32,        NULL,              BBLOG_T_FLAGS_GPUTINPROG,            NULL, HFILL} },
         { &hf_t_flags_more_to_come,           { "More to come",                                         "bblog.t_flags_more_to_come",          FT_BOOLEAN, 32,        TFS(&tfs_yes_no),                  BBLOG_T_FLAGS_MORETOCOME,            NULL, HFILL} },
         { &hf_t_flags_listen_queue_overflow,  { "Listen queue overflow",                                "bblog.t_flags_listen_queue_overflow", FT_BOOLEAN, 32,        TFS(&tfs_yes_no),                  BBLOG_T_FLAGS_LQ_OVERFLOW,           NULL, HFILL} },
         { &hf_t_flags_last_idle,              { "Connection was previously idle",                       "bblog.t_flags_last_idle",             FT_BOOLEAN, 32,        TFS(&tfs_yes_no),                  BBLOG_T_FLAGS_LASTIDLE,              NULL, HFILL} },
@@ -300,8 +427,8 @@ proto_register_bblog(void)
         { &hf_t_flags_force_data,             { "Force data",                                           "bblog.t_flags_force_data",            FT_BOOLEAN, 32,        TFS(&tfs_yes_no),                  BBLOG_T_FLAGS_FORCEDATA,             NULL, HFILL} },
         { &hf_t_flags_tso,                    { "TSO",                                                  "bblog.t_flags_tso",                   FT_BOOLEAN, 32,        TFS(&tfs_enabled_disabled),        BBLOG_T_FLAGS_TSO,                   NULL, HFILL} },
         { &hf_t_flags_toe,                    { "TOE",                                                  "bblog.t_flags_toe",                   FT_BOOLEAN, 32,        TFS(&tfs_enabled_disabled),        BBLOG_T_FLAGS_TOE,                   NULL, HFILL} },
-        { &hf_t_flags_unused_0,               { "Unused 1",                                             "bblog.t_flags_unused_0",              FT_BOOLEAN, 32,        TFS(&tfs_true_false),              BBLOG_T_FLAGS_UNUSED0,               NULL, HFILL} },
-        { &hf_t_flags_unused_1,               { "Unused 2",                                             "bblog.t_flags_unused_1",              FT_BOOLEAN, 32,        TFS(&tfs_true_false),              BBLOG_T_FLAGS_UNUSED1,               NULL, HFILL} },
+        { &hf_t_flags_unused_1,               { "Unused 1",                                             "bblog.t_flags_unused_1",              FT_BOOLEAN, 32,        NULL,              BBLOG_T_FLAGS_UNUSED0,               NULL, HFILL} },
+        { &hf_t_flags_unused_2,               { "Unused 2",                                             "bblog.t_flags_unused_2",              FT_BOOLEAN, 32,        NULL,              BBLOG_T_FLAGS_UNUSED1,               NULL, HFILL} },
         { &hf_t_flags_lost_rtx_detection,     { "Lost retransmission detection",                        "bblog.t_flags_lost_rtx_detection",    FT_BOOLEAN, 32,        TFS(&tfs_enabled_disabled),        BBLOG_T_FLAGS_LRD,                   NULL, HFILL} },
         { &hf_t_flags_be_in_cong_recovery,    { "Currently in congestion avoidance",                    "bblog.t_flags_be_in_cong_recovery",   FT_BOOLEAN, 32,        TFS(&tfs_yes_no),                  BBLOG_T_FLAGS_CONGRECOVERY,          NULL, HFILL} },
         { &hf_t_flags_was_in_cong_recovery,   { "Was in congestion avoidance",                          "bblog.t_flags_was_in_cong_recovery",  FT_BOOLEAN, 32,        TFS(&tfs_yes_no),                  BBLOG_T_FLAGS_WASCRECOVERY,          NULL, HFILL} },

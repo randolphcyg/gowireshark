@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-t38.h                                                               */
-/* asn2wrs.py -p t38 -c ./t38.cnf -s ./packet-t38-template -D . -O ../.. T38_2002.asn */
+/* asn2wrs.py -L -p t38 -c ./t38.cnf -s ./packet-t38-template -D . -O ../.. T38_2002.asn */
 
-/* Input file: packet-t38-template.h */
-
-#line 1 "./asn1/t38/packet-t38-template.h"
 /* packet-t38.h
  *
  * Routines for T38 dissection
@@ -43,11 +40,13 @@ typedef struct _t38_packet_info {
 
 
 /* Info to save the State to reassemble Data (e.g. HDLC) and the Setup (e.g. SDP) in T38 conversations */
-typedef struct _t38_conv_info
-{
+typedef struct _t38_conv_info t38_conv_info;
+
+struct _t38_conv_info {
 
 	guint32 reass_ID;
 	int reass_start_seqnum;
+	guint32 reass_start_data_field;
 	guint32 reass_data_type;
 	gint32 last_seqnum; /* used to avoid duplicated seq num shown in the Graph Analysis */
 	guint32 packet_lost;
@@ -55,8 +54,9 @@ typedef struct _t38_conv_info
 	double time_first_t4_data;
 	guint32 additional_hdlc_data_field_counter;
 	gint32 seqnum_prev_data_field;
+	t38_conv_info *next;
 
-} t38_conv_info;
+};
 
 /* Info to save the State to reassemble Data (e.g. HDLC) and the Setup (e.g. SDP) in T38 conversations */
 typedef struct _t38_conv
@@ -75,14 +75,8 @@ void t38_add_address(packet_info *pinfo,
                      const gchar *setup_method, guint32 setup_frame_number);
 
 
-
-/*--- Included file: packet-t38-exp.h ---*/
-#line 1 "./asn1/t38/packet-t38-exp.h"
 WS_DLL_PUBLIC const value_string t38_T30_indicator_vals[];
 WS_DLL_PUBLIC const value_string t38_T30_data_vals[];
-
-/*--- End of included file: packet-t38-exp.h ---*/
-#line 71 "./asn1/t38/packet-t38-template.h"
 
 
 

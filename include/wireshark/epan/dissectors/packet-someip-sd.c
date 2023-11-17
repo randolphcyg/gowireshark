@@ -21,8 +21,8 @@
 #include <epan/uat.h>
 #include <epan/stats_tree.h>
 
-#include <packet-udp.h>
-#include <packet-someip.h>
+#include "packet-udp.h"
+#include "packet-someip.h"
 
  /*
   * Dissector for SOME/IP Service Discovery (SOME/IP-SD).
@@ -36,6 +36,8 @@
 #define SOMEIP_SD_NAME_FILTER                   "someipsd"
 
 #define SOMEIP_SD_MESSAGEID                     0xffff8100
+#define SOMEIP_SD_SERVICE_ID_OTHER_SERVICE      0xfffe
+
 
  /* Header */
 #define SOMEIP_SD_REBOOT_FLAG                   0x80
@@ -80,6 +82,9 @@
 
 #define SD_OPTION_L4PROTO_TCP                   6
 #define SD_OPTION_L4PROTO_UDP                   17
+
+/* option start 0..255, num 0..15 -> 0..270 */
+#define SD_MAX_NUM_OPTIONS                      271
 
 /* ID wireshark identifies the dissector by */
 static int proto_someip_sd = -1;
@@ -242,9 +247,31 @@ static expert_field ef_someipsd_config_string_malformed = EI_INIT;
 void proto_register_someip_sd(void);
 void proto_reg_handoff_someip_sd(void);
 
+static dissector_handle_t someip_sd_handle;
+
 /**************************************
  ******** SOME/IP-SD Dissector ********
  *************************************/
+
+static void
+someip_sd_register_ports(guint32 opt_index, guint32 opt_num, guint32 option_count, guint32 option_ports[]) {
+    guint i;
+
+    for (i = opt_index; i < opt_index + opt_num && i < option_count; i++) {
+        guint32 l4port = 0x0000ffff & option_ports[i];
+        guint32 l4proto = (0xff000000 & option_ports[i]) >> 24;
+
+        if (l4proto == SD_OPTION_L4PROTO_UDP && !value_is_in_range(someip_ignore_ports_udp, l4port)) {
+            register_someip_port_udp(l4port);
+        }
+        if (l4proto == SD_OPTION_L4PROTO_TCP && !value_is_in_range(someip_ignore_ports_tcp, l4port)) {
+            register_someip_port_tcp(l4port);
+        }
+
+        /* delete port from list to ensure only registering once per SD message */
+        option_ports[i] = 0;
+    }
+}
 
 static void
 dissect_someip_sd_pdu_option_configuration(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint32 length, int optionnum) {
@@ -310,7 +337,7 @@ dissect_someip_sd_pdu_option_loadbalancing(tvbuff_t *tvb, packet_info *pinfo _U_
 }
 
 static void
-dissect_someip_sd_pdu_option_ipv4(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint32 length, int optionnum) {
+dissect_someip_sd_pdu_option_ipv4(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint32 length, int optionnum, guint32 option_ports[]) {
     guint8              type = 255;
     const gchar        *description = NULL;
     guint32             l4port = 0;
@@ -360,21 +387,17 @@ dissect_someip_sd_pdu_option_ipv4(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 
     proto_item_append_text(ti_top, " (%s:%d (%s))", ipstring, l4port, l4protoname);
 
-    if (l4proto == SD_OPTION_L4PROTO_UDP && !value_is_in_range(someip_ignore_ports_udp, l4port)) {
-        register_someip_port_udp(l4port);
-    }
-    if (l4proto == SD_OPTION_L4PROTO_TCP && !value_is_in_range(someip_ignore_ports_tcp, l4port)) {
-        register_someip_port_tcp(l4port);
-    }
+    option_ports[optionnum] = ((guint32)l4proto << 24) + l4port;
 }
 
 static void
-dissect_someip_sd_pdu_option_ipv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint32 length, int optionnum) {
+dissect_someip_sd_pdu_option_ipv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint32 length, int optionnum, guint32 option_ports[]) {
     guint8              type = 255;
     const gchar        *description = NULL;
     guint32             l4port = 0;
     guint32             l4proto = 0;
     const gchar        *l4protoname = NULL;
+    const gchar        *ipstring = NULL;
     proto_item         *ti = NULL;
     proto_item         *ti_top = NULL;
 
@@ -398,6 +421,7 @@ dissect_someip_sd_pdu_option_ipv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     offset += 1;
 
     proto_tree_add_item(tree, hf_someip_sd_option_ipv6, tvb, offset, 16, ENC_NA);
+    ipstring = tvb_ip6_to_str(pinfo->pool, tvb, offset);
     offset += 16;
 
     proto_tree_add_item(tree, hf_someip_sd_option_reserved2, tvb, offset, 1, ENC_NA);
@@ -414,14 +438,9 @@ dissect_someip_sd_pdu_option_ipv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 
     proto_tree_add_item_ret_uint(tree, hf_someip_sd_option_port, tvb, offset, 2, ENC_BIG_ENDIAN, &l4port);
 
-    proto_item_append_text(ti_top, " (%s)", l4protoname);
+    proto_item_append_text(ti_top, " (%s:%d (%s))", ipstring, l4port, l4protoname);
 
-    if (l4proto == SD_OPTION_L4PROTO_UDP && !value_is_in_range(someip_ignore_ports_udp, l4port)) {
-        register_someip_port_udp(l4port);
-    }
-    if (l4proto == SD_OPTION_L4PROTO_TCP && !value_is_in_range(someip_ignore_ports_tcp, l4port)) {
-        register_someip_port_tcp(l4port);
-    }
+    option_ports[optionnum] = ((guint32)l4proto << 24) + l4port;
 }
 
 static void
@@ -451,7 +470,7 @@ dissect_someip_sd_pdu_option_unknown(tvbuff_t *tvb, packet_info *pinfo, proto_tr
 }
 
 static int
-dissect_someip_sd_pdu_options(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *ti, guint32 offset_orig, guint32 length) {
+dissect_someip_sd_pdu_options(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *ti, guint32 offset_orig, guint32 length, guint32 option_ports[], guint *option_count) {
     guint16             real_length = 0;
     guint8              option_type = 0;
     int                 optionnum = 0;
@@ -465,6 +484,9 @@ dissect_someip_sd_pdu_options(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     }
 
     while (tvb_bytes_exist(tvb, offset, SD_OPTION_MINLENGTH)) {
+        ws_assert(optionnum >= 0 && optionnum < SD_MAX_NUM_OPTIONS);
+        option_ports[optionnum] = 0;
+
         real_length = tvb_get_ntohs(tvb, offset) + 3;
         option_type = tvb_get_guint8(tvb, offset + 2);
 
@@ -485,13 +507,13 @@ dissect_someip_sd_pdu_options(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         case SD_OPTION_IPV4_ENDPOINT:
         case SD_OPTION_IPV4_MULTICAST:
         case SD_OPTION_IPV4_SD_ENDPOINT:
-            dissect_someip_sd_pdu_option_ipv4(subtvb, pinfo, tree, 0, real_length, optionnum);
+            dissect_someip_sd_pdu_option_ipv4(subtvb, pinfo, tree, 0, real_length, optionnum, option_ports);
             break;
 
         case SD_OPTION_IPV6_ENDPOINT:
         case SD_OPTION_IPV6_MULTICAST:
         case SD_OPTION_IPV6_SD_ENDPOINT:
-            dissect_someip_sd_pdu_option_ipv6(subtvb, pinfo, tree, 0, real_length, optionnum);
+            dissect_someip_sd_pdu_option_ipv6(subtvb, pinfo, tree, 0, real_length, optionnum, option_ports);
             break;
 
         default:
@@ -502,11 +524,13 @@ dissect_someip_sd_pdu_options(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         offset += real_length;
     }
 
+    *option_count = optionnum;
+
     return offset;
 }
 
 static void
-dissect_someip_sd_pdu_entry(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset_orig, guint32 length, guint32 *entry_flags, guint32 *stop_entry_flags) {
+dissect_someip_sd_pdu_entry(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset_orig, guint32 length, guint32 *entry_flags, guint32 *stop_entry_flags, guint32 option_ports[], guint option_count) {
     guint8              type = 255;
     guint32             serviceid = 0;
     guint32             instanceid = 0;
@@ -604,9 +628,7 @@ dissect_someip_sd_pdu_entry(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     /* Add specific fields - i.e. the last line */
     if (category == SD_ENTRY_SERVICE) {
         proto_tree_add_item_ret_uint(tree, hf_someip_sd_entry_minorver, tvb, offset, 4, ENC_BIG_ENDIAN, &minorver);
-        /* offset += 4; */
-
-        proto_item_append_text(ti_top, " (Service ID 0x%04x, Instance ID 0x%04x, Version %u.%u)", serviceid, instanceid, majorver, minorver);
+        proto_item_append_text(ti_top, " (Service ID 0x%04x, Instance ID 0x%04x, Version %u.%u, Options: %s)", serviceid, instanceid, majorver, minorver, buf_opt_ref);
     } else if (category == SD_ENTRY_EVENTGROUP) {
         proto_tree_add_item(tree, hf_someip_sd_entry_reserved, tvb, offset, 1, ENC_NA);
         offset += 1;
@@ -625,7 +647,7 @@ dissect_someip_sd_pdu_entry(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             proto_item_set_hidden(ti);
         }
 
-        proto_item_append_text(ti_top, " (Service ID 0x%04x, Instance ID 0x%04x, Eventgroup ID 0x%04x, Version %u)", serviceid, instanceid, eventgroupid, majorver);
+        proto_item_append_text(ti_top, " (Service ID 0x%04x, Instance ID 0x%04x, Eventgroup ID 0x%04x, Version %u, Options: %s)", serviceid, instanceid, eventgroupid, majorver, buf_opt_ref);
     }
 
     /* mark for attaching to info column */
@@ -672,6 +694,12 @@ dissect_someip_sd_pdu_entry(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     proto_item_set_hidden(ti);
 
+    /* register ports but we skip 0xfffe because of other-serv */
+    if (serviceid != SOMEIP_SD_SERVICE_ID_OTHER_SERVICE && !PINFO_FD_VISITED(pinfo)) {
+        someip_sd_register_ports(opt_index1, opt_num1, option_count, option_ports);
+        someip_sd_register_ports(opt_index2, opt_num2, option_count, option_ports);
+    }
+
     /* TAP */
     if (have_tap_listener(tap_someip_sd_entries)) {
         someip_sd_entries_tap_t *data = wmem_alloc(pinfo->pool, sizeof(someip_sd_entries_tap_t));
@@ -688,12 +716,12 @@ dissect_someip_sd_pdu_entry(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 }
 
 static int
-dissect_someip_sd_pdu_entries(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *ti, guint32 offset, guint32 length) {
+dissect_someip_sd_pdu_entries(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *ti, guint32 offset, guint32 length, guint32 option_ports[], guint option_count) {
     guint32     entry_flags = 0;
     guint32     stop_entry_flags = 0;
 
     while (length >= SD_ENTRY_LENGTH) {
-        dissect_someip_sd_pdu_entry(tvb, pinfo, tree, offset, SD_ENTRY_LENGTH, &entry_flags, &stop_entry_flags);
+        dissect_someip_sd_pdu_entry(tvb, pinfo, tree, offset, SD_ENTRY_LENGTH, &entry_flags, &stop_entry_flags, option_ports, option_count);
         offset += SD_ENTRY_LENGTH;
         length -= SD_ENTRY_LENGTH;
     }
@@ -751,6 +779,10 @@ dissect_someip_sd_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
     proto_tree     *someip_sd_options_tree = NULL;
     gboolean        stop_parsing_after_entries = FALSE;
     guint32         offset_entriesarray;
+
+    /* format for option_ports entries: 1 byte proto | 1 byte reserved | 2 byte port number*/
+    static guint32  option_ports[SD_MAX_NUM_OPTIONS];
+    guint           option_count = 0;
 
     static int * const someipsd_flags[] = {
         &hf_someip_sd_rebootflag,
@@ -826,7 +858,7 @@ dissect_someip_sd_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
                         proto_item_set_len(ti, length_optionsarray);
                     }
 
-                    dissect_someip_sd_pdu_options(tvb, pinfo, someip_sd_options_tree, ti, offset, length_optionsarray);
+                    dissect_someip_sd_pdu_options(tvb, pinfo, someip_sd_options_tree, ti, offset, length_optionsarray, option_ports, &option_count);
                     offset += length_optionsarray;
                 } else {
                     expert_add_info(pinfo, ti, &ef_someipsd_message_truncated);
@@ -835,9 +867,8 @@ dissect_someip_sd_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
         }
     }
 
-    /* Possible improvement: it would be nice, if entries referenced options. */
     if (length_entriesarray >= SD_ENTRY_LENGTH) {
-        offset += dissect_someip_sd_pdu_entries(tvb, pinfo, someip_sd_entries_tree, ti_sd_entries, offset_entriesarray, length_entriesarray);
+        offset += dissect_someip_sd_pdu_entries(tvb, pinfo, someip_sd_entries_tree, ti_sd_entries, offset_entriesarray, length_entriesarray, option_ports, option_count);
     } else {
         expert_add_info(pinfo, ti_sd_entries, &ef_someipsd_entry_array_empty);
     }
@@ -1166,16 +1197,17 @@ proto_register_someip_sd(void) {
         { &ef_someipsd_config_string_malformed,{ "someipsd.config_string_malformed", PI_MALFORMED, PI_ERROR, "SOME/IP-SD Configuration String malformed!", EXPFILL } },
     };
 
-    /* Register Protocol, Fields, ETTs, Expert Info, Taps */
+    /* Register Protocol, Fields, ETTs, Expert Info, Taps, Dissector */
     proto_someip_sd = proto_register_protocol(SOMEIP_SD_NAME_LONG, SOMEIP_SD_NAME, SOMEIP_SD_NAME_FILTER);
     proto_register_field_array(proto_someip_sd, hf_sd, array_length(hf_sd));
     proto_register_subtree_array(ett_sd, array_length(ett_sd));
     expert_module_someip_sd = expert_register_protocol(proto_someip_sd);
     expert_register_field_array(expert_module_someip_sd, ei_sd, array_length(ei_sd));
     tap_someip_sd_entries = register_tap("someipsd_entries");
+    someip_sd_handle = register_dissector(SOMEIP_SD_NAME_FILTER, dissect_someip_sd_pdu, proto_someip_sd);
 
     /* Register preferences */
-    someipsd_module = prefs_register_protocol(proto_someip_sd, &proto_reg_handoff_someip_sd);
+    someipsd_module = prefs_register_protocol(proto_someip_sd, NULL);
 
     range_convert_str(wmem_epan_scope(), &someip_ignore_ports_udp, "", 65535);
     prefs_register_range_preference(someipsd_module, "ports.udp.ignore", "UDP Ports ignored",
@@ -1190,19 +1222,8 @@ proto_register_someip_sd(void) {
 
 void
 proto_reg_handoff_someip_sd(void) {
-    static gboolean             initialized = FALSE;
-    static dissector_handle_t   someip_sd_handle = NULL;
-
-    if (!initialized) {
-        someip_sd_handle = create_dissector_handle(dissect_someip_sd_pdu, proto_someip_sd);
-        dissector_add_uint("someip.messageid", SOMEIP_SD_MESSAGEID, someip_sd_handle);
-
-        stats_tree_register("someipsd_entries", "someipsd_entries", "SOME/IP-SD Entries", 0, someipsd_entries_stats_tree_packet, someipsd_entries_stats_tree_init, NULL);
-
-        initialized = TRUE;
-    }
-
-    /* nothing to do here right now */
+    dissector_add_uint("someip.messageid", SOMEIP_SD_MESSAGEID, someip_sd_handle);
+    stats_tree_register("someipsd_entries", "someipsd_entries", "SOME/IP-SD Entries", 0, someipsd_entries_stats_tree_packet, someipsd_entries_stats_tree_init, NULL);
 }
 
 /*

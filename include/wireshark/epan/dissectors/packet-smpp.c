@@ -49,6 +49,7 @@
 #include <epan/proto_data.h>
 #include <wsutil/time_util.h>
 #include "packet-tcp.h"
+#include "packet-tls.h"
 #include "packet-smpp.h"
 #include <epan/strutil.h>
 
@@ -74,6 +75,8 @@ static int st_smpp_res                                = -1;
 static int st_smpp_res_status                         = -1;
 
 static int hf_smpp_command_id                         = -1;
+static int hf_smpp_command_request                    = -1;
+static int hf_smpp_command_response                   = -1;
 static int hf_smpp_command_length                     = -1;
 static int hf_smpp_command_status                     = -1;
 static int hf_smpp_sequence_number                    = -1;
@@ -303,6 +306,8 @@ static int smpp_tap             = -1;
 
 
 #define SMPP_COMMAND_ID_RESPONSE_MASK       0x80000000
+
+#define SMPP_UDHI_MASK 0x40
 
 /*
  * Value-arrays for field-contents
@@ -1921,7 +1926,7 @@ bind_receiver(proto_tree *tree, tvbuff_t *tvb, int offset)
     offset += 1;
     proto_tree_add_item(tree, hf_smpp_addr_npi, tvb, offset, 1, ENC_NA);
     offset += 1;
-    smpp_handle_string(tree, tvb, hf_smpp_address_range, &offset);
+    smpp_handle_string_z(tree, tvb, hf_smpp_address_range, &offset, "NULL");
 }
 
 static void
@@ -1966,7 +1971,7 @@ submit_sm(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int offset)
     offset += 1;
     dst_str = smpp_handle_string_return(tree, tvb, pinfo, hf_smpp_destination_addr, &offset);
 
-    smpp_data->udhi = tvb_get_guint8(tvb, offset) & 0x40;
+    smpp_data->udhi = tvb_get_guint8(tvb, offset) & SMPP_UDHI_MASK;
     proto_tree_add_bitmask_list(tree, tvb, offset, 1, submit_msg_fields, ENC_NA);
     offset++;
 
@@ -2099,6 +2104,7 @@ submit_multi(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int offset)
 
     smpp_handle_dlist(tree, tvb, &offset);
 
+    smpp_data->udhi = tvb_get_guint8(tvb, offset) & SMPP_UDHI_MASK;
     proto_tree_add_bitmask_list(tree, tvb, offset, 1, submit_msg_fields, ENC_NA);
     offset++;
     proto_tree_add_item(tree, hf_smpp_protocol_id, tvb, offset, 1, ENC_NA);
@@ -2176,6 +2182,7 @@ data_sm(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int offset)
     proto_tree_add_item(tree, hf_smpp_dest_addr_npi, tvb, offset, 1, ENC_NA);
     offset += 1;
     dst_str = smpp_handle_string_return(tree, tvb, pinfo, hf_smpp_destination_addr, &offset);
+    smpp_data->udhi = tvb_get_guint8(tvb, offset) & SMPP_UDHI_MASK;
     proto_tree_add_bitmask_list(tree, tvb, offset, 1, submit_msg_fields, ENC_NA);
     offset++;
     proto_tree_add_bitmask_list(tree, tvb, offset, 1, regdel_fields, ENC_NA);
@@ -2497,18 +2504,25 @@ dissect_smpp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
      * Create display subtree for the PDU
      */
     proto_tree_add_uint(smpp_tree, hf_smpp_command_length, tvb, 0, 4, command_length);
+    if (command_id & SMPP_COMMAND_ID_RESPONSE_MASK) {
+        ti = proto_tree_add_boolean(smpp_tree, hf_smpp_command_response, tvb, 4, 4, TRUE);
+    }
+    else {
+        ti = proto_tree_add_boolean(smpp_tree, hf_smpp_command_request, tvb, 4, 4, TRUE);
+    }
+    proto_item_set_generated(ti);
     proto_tree_add_uint(smpp_tree, hf_smpp_command_id, tvb, 4, 4, command_id);
-    proto_item_append_text(ti, ", Command: %s", command_str);
+    proto_item_append_text(smpp_tree, ", Command: %s", command_str);
 
     /*
      * Status is only meaningful with responses
      */
     if (command_id & SMPP_COMMAND_ID_RESPONSE_MASK) {
         proto_tree_add_uint(smpp_tree, hf_smpp_command_status, tvb, 8, 4, command_status);
-        proto_item_append_text (ti, ", Status: \"%s\"", command_status_str);
+        proto_item_append_text (smpp_tree, ", Status: \"%s\"", command_status_str);
     }
     proto_tree_add_uint(smpp_tree, hf_smpp_sequence_number, tvb, 12, 4, sequence_number);
-    proto_item_append_text(ti, ", Seq: %u, Len: %u", sequence_number, command_length);
+    proto_item_append_text(smpp_tree, ", Seq: %u, Len: %u", sequence_number, command_length);
 
     if (command_length <= tvb_reported_length(tvb))
     {
@@ -2763,6 +2777,20 @@ proto_register_smpp(void)
             {   "Operation", "smpp.command_id",
                 FT_UINT32, BASE_HEX, VALS(vals_command_id), 0x00,
                 "Defines the SMPP PDU.",
+                HFILL
+            }
+        },
+        {   &hf_smpp_command_request,
+            {   "Request", "smpp.request",
+                FT_BOOLEAN, BASE_NONE, NULL, 0x00,
+                "TRUE if this is a SMPP request.",
+                HFILL
+            }
+        },
+        {   &hf_smpp_command_response,
+            {   "Response", "smpp.response",
+                FT_BOOLEAN, BASE_NONE, NULL, 0x00,
+                "TRUE if this is a SMPP response.",
                 HFILL
             }
         },
@@ -3821,7 +3849,9 @@ proto_reg_handoff_smpp(void)
      * however.
      */
     dissector_add_for_decode_as_with_preference("tcp.port", smpp_handle);
+    ssl_dissector_add(0, smpp_handle);
     heur_dissector_add("tcp", dissect_smpp_heur, "SMPP over TCP Heuristics", "smpp_tcp", proto_smpp, HEURISTIC_ENABLE);
+    heur_dissector_add("tls", dissect_smpp_heur, "SMPP over TLS Heuristics", "smpp_tls", proto_smpp, HEURISTIC_ENABLE);
     heur_dissector_add("x.25", dissect_smpp_heur, "SMPP over X.25 Heuristics", "smpp_x25", proto_smpp, HEURISTIC_ENABLE);
 
     /* Required for call_dissector() */

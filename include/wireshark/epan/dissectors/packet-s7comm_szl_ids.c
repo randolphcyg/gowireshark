@@ -1839,50 +1839,50 @@ s7comm_get_szl_id_index_description_text(guint16 id, guint16 idx)
     const gchar* str = NULL;
     switch (id) {
         case 0x0111:
-            str = val_to_str(idx, szl_0111_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0111_index_names, "No description available");
             break;
         case 0x0112:
-            str = val_to_str(idx, szl_0112_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0112_index_names, "No description available");
             break;
         case 0x0113:
-            str = val_to_str(idx, szl_0113_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0113_index_names, "No description available");
             break;
         case 0x0114:
-            str = val_to_str(idx, szl_0114_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0114_index_names, "No description available");
             break;
         case 0x0115:
-            str = val_to_str(idx, szl_0115_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0115_index_names, "No description available");
             break;
         case 0x0116:
-            str = val_to_str(idx, szl_0116_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0116_index_names, "No description available");
             break;
         case 0x0118:
-            str = val_to_str(idx, szl_0118_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0118_index_names, "No description available");
             break;
         case 0x0119:
-            str = val_to_str(idx, szl_0119_0174_ledid_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0119_0174_ledid_index_names, "No description available");
             break;
         case 0x0121:
-            str = val_to_str(idx, szl_0121_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0121_index_names, "No description available");
             break;
         case 0x0222:
-            str = val_to_str(idx, szl_0222_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0222_index_names, "No description available");
             break;
         case 0x0524:
-            str = val_to_str(idx, szl_0524_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0524_index_names, "No description available");
             break;
         case 0x0131:
-            str = val_to_str(idx, szl_0131_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0131_index_names, "No description available");
             break;
         case 0x0132:
-            str = val_to_str(idx, szl_0132_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0132_index_names, "No description available");
             break;
         case 0x0174:
-            str = val_to_str(idx, szl_0119_0174_ledid_index_names, "No description available");
+            str = val_to_str_const(idx, szl_0119_0174_ledid_index_names, "No description available");
             break;
         case 0x011c:
         case 0x031c:
-            str = val_to_str(idx, szl_xy1c_index_names, "No description available");
+            str = val_to_str_const(idx, szl_xy1c_index_names, "No description available");
             break;
     }
     return str;
@@ -2233,37 +2233,37 @@ s7comm_szl_xy22_00xx_register(int proto)
         { "al1 (Processing identifiers)", "s7comm.szl.xy22.00xx.al1", FT_UINT16, BASE_HEX, NULL, 0x0,
           NULL, HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al1_0,
-        { "Interrupt event is caused by parameters disabled", "s7comm.szl.xy22.00xx.al1.evpd", FT_BOOLEAN, 16, NULL, 0x01,
+        { "Interrupt event is caused by parameters disabled", "s7comm.szl.xy22.00xx.al1.evpd", FT_BOOLEAN, 16, NULL, 0x0001,
           "Bit 0: Interrupt event is caused by parameters, 0=Enabled, 1=Disabled", HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al1_1,
-        { "Interrupt event as per SFC 39 locked", "s7comm.szl.xy22.00xx.al1.iel", FT_BOOLEAN, 16, NULL, 0x02,
+        { "Interrupt event as per SFC 39 locked", "s7comm.szl.xy22.00xx.al1.iel", FT_BOOLEAN, 16, NULL, 0x0002,
           "Bit 1: Interrupt event as per SFC 39, 0=Not locked, 1=Locked", HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al1_2,
-        { "Interrupt source is active", "s7comm.szl.xy22.00xx.al1.isia", FT_BOOLEAN, 16, NULL, 0x04,
+        { "Interrupt source is active", "s7comm.szl.xy22.00xx.al1.isia", FT_BOOLEAN, 16, NULL, 0x0004,
           "Bit 2: Interrupt source is active", HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al1_4,
-        { "Interrupt OB is loaded", "s7comm.szl.xy22.00xx.al1.ioil", FT_BOOLEAN, 16, NULL, 0x10,
+        { "Interrupt OB is loaded", "s7comm.szl.xy22.00xx.al1.ioil", FT_BOOLEAN, 16, NULL, 0x0010,
           "Bit 4: Interrupt OB, 0=Is not loaded, 1=Is loaded", HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al1_5,
-        { "Interrupt OB is locked by TIS", "s7comm.szl.xy22.00xx.al1.ioilbt", FT_BOOLEAN, 16, NULL, 0x20,
+        { "Interrupt OB is locked by TIS", "s7comm.szl.xy22.00xx.al1.ioilbt", FT_BOOLEAN, 16, NULL, 0x0020,
           "Bit 5: Interrupt OB is by TIS, 1=Locked", HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al1_6,
-        { "Entry in diagnostic buffer locked", "s7comm.szl.xy22.00xx.al1.eidbl", FT_BOOLEAN, 16, NULL, 0x40,
+        { "Entry in diagnostic buffer locked", "s7comm.szl.xy22.00xx.al1.eidbl", FT_BOOLEAN, 16, NULL, 0x0040,
           "Bit 6: Entry in diagnostic buffer, 1=Locked", HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al2,
         { "al2 (Reaction with not loaded/locked OB)", "s7comm.szl.xy22.00xx.al2", FT_UINT16, BASE_HEX, NULL, 0x0,
           NULL, HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al2_0,
-        { "Lock interrupt source", "s7comm.szl.xy22.00xx.al2.lis", FT_BOOLEAN, 16, NULL, 0x01,
+        { "Lock interrupt source", "s7comm.szl.xy22.00xx.al2.lis", FT_BOOLEAN, 16, NULL, 0x0001,
           "Bit 0: Lock interrupt source", HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al2_1,
-        { "Generate interrupt event error", "s7comm.szl.xy22.00xx.al2.giee", FT_BOOLEAN, 16, NULL, 0x02,
+        { "Generate interrupt event error", "s7comm.szl.xy22.00xx.al2.giee", FT_BOOLEAN, 16, NULL, 0x0002,
           "Bit 1: Generate interrupt event error", HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al2_2,
-        { "CPU goes into STOP mode", "s7comm.szl.xy22.00xx.al2.gism", FT_BOOLEAN, 16, NULL, 0x04,
+        { "CPU goes into STOP mode", "s7comm.szl.xy22.00xx.al2.gism", FT_BOOLEAN, 16, NULL, 0x0004,
           "Bit 2: CPU goes into STOP mode", HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al2_3,
-        { "Interrupt only discarded", "s7comm.szl.xy22.00xx.al2.iod", FT_BOOLEAN, 16, NULL, 0x08,
+        { "Interrupt only discarded", "s7comm.szl.xy22.00xx.al2.iod", FT_BOOLEAN, 16, NULL, 0x0008,
           "Bit 3: Interrupt only discarded", HFILL }},
         { &hf_s7comm_szl_xy22_00xx_al3,
         { "al3 (Discarded by TIS functions)", "s7comm.szl.xy22.00xx.al3", FT_UINT32, BASE_HEX, NULL, 0x0,
@@ -5158,13 +5158,13 @@ s7comm_szl_xy91_0000_register(int proto)
           NULL, HFILL }},
         { &hf_s7comm_szl_0091_0000_logadr,
         { "Logadr", "s7comm.szl.0091.0000.logadr", FT_UINT16, BASE_DEC, NULL, 0x0,
-          "Logadr (First assigned logical I/O address (base address)", HFILL }},
+          "Logadr (First assigned logical I/O address (base address))", HFILL }},
         { &hf_s7comm_szl_0091_0000_solltyp,
         { "Expected type", "s7comm.szl.0091.0000.exptype", FT_UINT16, BASE_HEX, NULL, 0x0,
-          "Solltyp (PROFINET IO: expected (configured) type, otherwise reserved", HFILL }},
+          "Solltyp (PROFINET IO: expected (configured) type, otherwise reserved)", HFILL }},
         { &hf_s7comm_szl_0091_0000_isttyp,
         { "Actual type", "s7comm.szl.0091.0000.acttype", FT_UINT16, BASE_HEX, NULL, 0x0,
-          "Isttyp (PROFINET IO: actual type, otherwise reserved", HFILL }},
+          "Isttyp (PROFINET IO: actual type, otherwise reserved)", HFILL }},
         /* Field depends on the first byte of the SZL-ID */
         { &hf_s7comm_szl_0091_0000_res1,
         { "Reserved", "s7comm.szl.0091.0000.res1", FT_UINT16, BASE_HEX, NULL, 0x0,
@@ -5685,7 +5685,7 @@ s7comm_szl_0424_0000_register(int proto)
           "ae (B#16#FF)", HFILL }},
         { &hf_s7comm_szl_0424_0000_bzu_id,
         { "bzu-id", "s7comm.szl.0424.0000.bzu_id", FT_UINT8, BASE_HEX, NULL, 0x0,
-          "bzu-id (ID of the mode change divided into 4 bits, Bit 0 to 3: Requested mode, Bit 4 to 7: Previous mode", HFILL }},
+          "bzu-id (ID of the mode change divided into 4 bits, Bit 0 to 3: Requested mode, Bit 4 to 7: Previous mode)", HFILL }},
         { &hf_s7comm_szl_0424_0000_bzu_id_req,
         { "Requested mode", "s7comm.szl.0424.0000.bzu_id.req", FT_UINT8, BASE_HEX, VALS(szl_0424_0000_bzu_id_names), 0x0f,
           "bzu-id Requested mode", HFILL }},
@@ -5761,6 +5761,7 @@ s7comm_register_szl_types(int proto)
         { "SZL-ID", "s7comm.data.userdata.szl_id", FT_UINT16, BASE_HEX, NULL, 0x0,
           "SZL-ID (System Status List) Bits 15-12: Diagnostic type, Bits 11-8: Number of the partial list extract, Bits 7-0: Number of the partial list", HFILL }},
 
+        /* N.B. 2nd member of the bitfield test covers all 16 bits.. */
         { &hf_s7comm_userdata_szl_id_type,
         { "Diagnostic type", "s7comm.data.userdata.szl_id.diag_type", FT_UINT16, BASE_HEX, VALS(szl_module_type_names), 0xf000,
           NULL, HFILL }},

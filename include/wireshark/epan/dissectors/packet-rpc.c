@@ -29,8 +29,8 @@
 
 #include "packet-rpc.h"
 #include "packet-tcp.h"
+#include "packet-tls.h"
 #include "packet-nfs.h"
-#include "packet-dcerpc.h"
 #include "packet-gssapi.h"
 
 /*
@@ -58,6 +58,10 @@ void proto_register_rpc(void);
 void proto_reg_handoff_rpc(void);
 
 #define RPC_TCP_PORT 111
+
+#define RPC_UDP 0
+#define RPC_TCP 1
+#define RPC_TLS 2
 
 /* desegmentation of RPC over TCP */
 static gboolean rpc_desegment = TRUE;
@@ -98,6 +102,7 @@ const value_string rpc_auth_flavor[] = {
 	{ AUTH_DES,		     "AUTH_DES" },
 	{ AUTH_RSA,		     "AUTH_RSA/Gluster" },
 	{ RPCSEC_GSS,		     "RPCSEC_GSS" },
+	{ AUTH_TLS,		     "AUTH_TLS" },
 	{ AUTH_GSSAPI,		     "AUTH_GSSAPI" },
 	{ RPCSEC_GSS_KRB5,	     "RPCSEC_GSS_KRB5" },
 	{ RPCSEC_GSS_KRB5I,	     "RPCSEC_GSS_KRB5I" },
@@ -109,6 +114,7 @@ const value_string rpc_auth_flavor[] = {
 	{ RPCSEC_GSS_SPKM3I,	     "RPCSEC_GSS_SPKM3I" },
 	{ RPCSEC_GSS_SPKM3P,	     "RPCSEC_GSS_SPKM3P" },
 	{ AUTH_GLUSTERFS,	     "AUTH_GLUSTERFS" },
+	{ AUTH_GLUSTERFS_V3,	     "AUTH_GLUSTERFS_V3" },
 	{ 0, NULL }
 };
 
@@ -277,6 +283,7 @@ static dissector_handle_t rpc_tcp_handle;
 static dissector_handle_t rpc_handle;
 static dissector_handle_t gssapi_handle;
 static dissector_handle_t data_handle;
+static dissector_handle_t rpc_tls_handle;
 
 static dissector_table_t  subdissector_call_table;
 static dissector_table_t  subdissector_reply_table;
@@ -306,7 +313,7 @@ static const fragment_items rpc_frag_items = {
 GHashTable *rpc_progs = NULL;
 
 typedef gboolean (*rec_dissector_t)(tvbuff_t *, packet_info *, proto_tree *,
-	tvbuff_t *, fragment_head *, gboolean, guint32, gboolean, gboolean);
+	tvbuff_t *, fragment_head *, int, guint32, gboolean, gboolean);
 
 static void show_rpc_fraginfo(tvbuff_t *tvb, tvbuff_t *frag_tvb, proto_tree *tree,
 			      guint32 rpc_rm, fragment_head *ipfd_head, packet_info *pinfo);
@@ -714,7 +721,8 @@ dissect_rpc_opaque_data(tvbuff_t *tvb, int offset,
 	/* int string_item_offset; */
 
 	char *string_buffer = NULL;
-	const char *string_buffer_print = NULL;
+	uint8_t *bytes_buffer;
+	const char *formatted_text = NULL;
 
 	if (fixed_length) {
 		string_length = length;
@@ -780,9 +788,9 @@ dissect_rpc_opaque_data(tvbuff_t *tvb, int offset,
 	if (string_data) {
 		string_buffer = tvb_get_string_enc(wmem_packet_scope(), tvb, data_offset, string_length_copy, ENC_ASCII);
 	} else {
-		string_buffer = (char *)tvb_memcpy(tvb, wmem_alloc(wmem_packet_scope(), string_length_copy+1), data_offset, string_length_copy);
+		bytes_buffer = tvb_memcpy(tvb, wmem_alloc(wmem_packet_scope(), string_length_copy), data_offset, string_length_copy);
 	}
-	string_buffer[string_length_copy] = '\0';
+
 	/* calculate a nice printable string */
 	if (string_length) {
 		if (string_length != string_length_copy) {
@@ -791,25 +799,25 @@ dissect_rpc_opaque_data(tvbuff_t *tvb, int offset,
 
 				formatted = format_text(wmem_packet_scope(), string_buffer, strlen(string_buffer));
 				/* copy over the data and append <TRUNCATED> */
-				string_buffer_print=wmem_strdup_printf(wmem_packet_scope(), "%s%s", formatted, RPC_STRING_TRUNCATED);
+				formatted_text=wmem_strdup_printf(wmem_packet_scope(), "%s%s", formatted, RPC_STRING_TRUNCATED);
 			} else {
-				string_buffer_print=RPC_STRING_DATA RPC_STRING_TRUNCATED;
+				formatted_text=RPC_STRING_DATA RPC_STRING_TRUNCATED;
 			}
 		} else {
 			if (string_data) {
-				string_buffer_print = format_text(wmem_packet_scope(), string_buffer, strlen(string_buffer));
+				formatted_text = format_text(wmem_packet_scope(), string_buffer, strlen(string_buffer));
 			} else {
-				string_buffer_print=RPC_STRING_DATA;
+				formatted_text=RPC_STRING_DATA;
 			}
 		}
 	} else {
-		string_buffer_print=RPC_STRING_EMPTY;
+		formatted_text=RPC_STRING_EMPTY;
 	}
 
 	/* string_item_offset = offset; */
 	string_tree = proto_tree_add_subtree_format(tree, tvb,offset, -1,
 			ett_rpc_string, &string_item, "%s: %s", proto_registrar_get_name(hfindex),
-			string_buffer_print);
+			formatted_text);
 
 	if (!fixed_length) {
 		proto_tree_add_uint(string_tree, hf_rpc_opaque_length, tvb,offset, 4, string_length);
@@ -821,12 +829,12 @@ dissect_rpc_opaque_data(tvbuff_t *tvb, int offset,
 			proto_tree_add_string_format(string_tree,
 			    hfindex, tvb, offset, string_length_copy,
 			    string_buffer,
-			    "contents: %s", string_buffer_print);
+			    "contents: %s", formatted_text);
 		} else {
 			proto_tree_add_bytes_format(string_tree,
 			    hfindex, tvb, offset, string_length_copy,
-			    string_buffer,
-			    "contents: %s", string_buffer_print);
+			    bytes_buffer,
+			    "contents: %s", formatted_text);
 		}
 	}
 
@@ -847,7 +855,7 @@ dissect_rpc_opaque_data(tvbuff_t *tvb, int offset,
 	proto_item_set_end(string_item, tvb, offset);
 
 	if (string_buffer_ret != NULL)
-		*string_buffer_ret = string_buffer_print;
+		*string_buffer_ret = formatted_text;
 
 	/*
 	 * If the data was truncated, throw the appropriate exception,
@@ -1228,11 +1236,11 @@ dissect_rpc_authglusterfs_v3_cred(tvbuff_t* tvb, proto_tree* tree, int offset)
 	offset = dissect_rpc_uint32(tvb, tree, hf_rpc_auth_gid, offset);
 	offset = dissect_rpc_uint32(tvb, tree, hf_rpc_auth_flags, offset);
 	timestamp.secs = tvb_get_ntohl(tvb, offset);
-	timestamp.nsecs = tvb_get_ntohl(tvb, offset + 4);
+	timestamp.nsecs = (int)tvb_get_ntohi64(tvb, offset + 4);
 	if (tree)
 		proto_tree_add_time(tree, hf_rpc_auth_ctime, tvb,
-					offset, 8, &timestamp);
-	offset += 8;
+					offset, 12, &timestamp);
+	offset += 12;
 
 	offset = dissect_rpc_authunix_groups(tvb, tree, offset);
 
@@ -2205,7 +2213,7 @@ looks_like_rpc_reply(tvbuff_t *tvb, packet_info *pinfo, int offset)
 
 static gboolean
 dissect_rpc_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-		    tvbuff_t *frag_tvb, fragment_head *ipfd_head, gboolean is_tcp,
+		    tvbuff_t *frag_tvb, fragment_head *ipfd_head, int tp_type,
 		    guint32 rpc_rm, gboolean first_pdu, gboolean can_defragment)
 {
 	guint32	msg_type;
@@ -2218,6 +2226,7 @@ dissect_rpc_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 	unsigned int prog = 0;
 	unsigned int vers = 0;
 	unsigned int proc = 0;
+	unsigned int cred_flavor = 0;
 	flavor_t flavor = FLAVOR_UNKNOWN;
 	unsigned int gss_proc = 0;
 	unsigned int gss_svc = 0;
@@ -2244,7 +2253,7 @@ dissect_rpc_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 	proto_item *pitem = NULL;
 	proto_tree *ptree = NULL;
-	int offset = (is_tcp && tvb == frag_tvb) ? 4 : 0;
+	int offset = (tp_type != RPC_UDP && tvb == frag_tvb) ? 4 : 0;
 
 	rpc_proc_info_key	key;
 	conversation_t* conversation;
@@ -2292,7 +2301,7 @@ dissect_rpc_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 		return FALSE;
 	}
 
-	if (is_tcp) {
+	if (tp_type != RPC_UDP) {
 		/*
 		 * This is RPC-over-TCP; check if this is the last
 		 * fragment.
@@ -2316,7 +2325,7 @@ dissect_rpc_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 		    ENC_NA);
 	rpc_tree = proto_item_add_subtree(rpc_item, ett_rpc);
 
-	if (is_tcp) {
+	if (tp_type != RPC_UDP) {
 		show_rpc_fraginfo(tvb, frag_tvb, rpc_tree, rpc_rm,
 		    ipfd_head, pinfo);
 	}
@@ -2386,7 +2395,8 @@ dissect_rpc_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 		/* Check for RPCSEC_GSS and AUTH_GSSAPI */
 		if (tvb_bytes_exist(tvb, offset+16, 4)) {
-			switch (tvb_get_ntohl(tvb, offset+16)) {
+			cred_flavor = tvb_get_ntohl(tvb, offset+16);
+			switch (cred_flavor) {
 
 			case RPCSEC_GSS:
 				/*
@@ -2475,8 +2485,10 @@ dissect_rpc_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 		/* Make the dissector for this conversation the non-heuristic
 		   RPC dissector. */
-		conversation_set_dissector(conversation,
-			(pinfo->ptype == PT_TCP) ? rpc_tcp_handle : rpc_handle);
+		if (tp_type != RPC_TLS && cred_flavor != AUTH_TLS) {
+			conversation_set_dissector(conversation,
+				(pinfo->ptype == PT_TCP) ? rpc_tcp_handle : rpc_handle);
+		}
 
 		/* look up the request */
 		rpc_call = (rpc_call_info_value *)wmem_tree_lookup32(rpc_conv_info->xids, xid);
@@ -3037,14 +3049,14 @@ dissect_rpc_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 static gboolean
 dissect_rpc_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	return dissect_rpc_message(tvb, pinfo, tree, NULL, NULL, FALSE, 0,
+	return dissect_rpc_message(tvb, pinfo, tree, NULL, NULL, RPC_UDP, 0,
 	    TRUE, FALSE);
 }
 
 static int
 dissect_rpc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	if (!dissect_rpc_message(tvb, pinfo, tree, NULL, NULL, FALSE, 0,
+	if (!dissect_rpc_message(tvb, pinfo, tree, NULL, NULL, RPC_UDP, 0,
 	    TRUE, FALSE)) {
 		if (tvb_reported_length(tvb) != 0)
 			dissect_rpc_continuation(tvb, pinfo, tree);
@@ -3176,8 +3188,8 @@ show_rpc_fraginfo(tvbuff_t *tvb, tvbuff_t *frag_tvb, proto_tree *tree,
 static gboolean
 call_message_dissector(tvbuff_t *tvb, tvbuff_t *rec_tvb, packet_info *pinfo,
 		       proto_tree *tree, tvbuff_t *frag_tvb, rec_dissector_t dissector,
-		       fragment_head *ipfd_head, guint32 rpc_rm, gboolean first_pdu,
-		       gboolean can_defragment)
+		       fragment_head *ipfd_head, int tp_type, guint32 rpc_rm,
+		       gboolean first_pdu, gboolean can_defragment)
 {
 	const char *saved_proto;
 	volatile gboolean rpc_succeeded;
@@ -3186,7 +3198,7 @@ call_message_dissector(tvbuff_t *tvb, tvbuff_t *rec_tvb, packet_info *pinfo,
 	rpc_succeeded = FALSE;
 	TRY {
 		rpc_succeeded = (*dissector)(rec_tvb, pinfo, tree,
-		    frag_tvb, ipfd_head, TRUE, rpc_rm, first_pdu,
+		    frag_tvb, ipfd_head, tp_type, rpc_rm, first_pdu,
 		    can_defragment);
 	}
 	CATCH_NONFATAL_ERRORS {
@@ -3215,13 +3227,14 @@ call_message_dissector(tvbuff_t *tvb, tvbuff_t *rec_tvb, packet_info *pinfo,
 }
 
 static int
-dissect_rpc_fragment(tvbuff_t *tvb, int offset, packet_info *pinfo,
-		     proto_tree *tree, rec_dissector_t dissector, gboolean is_heur,
-		     int proto, int ett, gboolean first_pdu, struct tcpinfo *tcpinfo)
+dissect_rpc_fragment(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree,
+		     rec_dissector_t dissector, gboolean is_heur, int proto, int ett,
+		     gboolean first_pdu, struct tcpinfo *tcpinfo, struct tlsinfo *tlsinfo)
 {
 	guint32 seq;
 	guint32 rpc_rm;
 	guint32 len;
+	int tp_type;
 	gint tvb_len, tvb_reported_len;
 	tvbuff_t *frag_tvb;
 	conversation_t *conversation = NULL;
@@ -3232,11 +3245,12 @@ dissect_rpc_fragment(tvbuff_t *tvb, int offset, packet_info *pinfo,
 	fragment_head *ipfd_head;
 	tvbuff_t *rec_tvb;
 
-	if (pinfo == NULL || tcpinfo == NULL) {
+	if (pinfo == NULL || (tcpinfo == NULL && tlsinfo == NULL)) {
 		return 0;
 	}
 
-	seq = tcpinfo->seq + offset;
+	seq = (tcpinfo != NULL ? tcpinfo->seq : tlsinfo->seq) + offset;
+	tp_type = (tcpinfo != NULL ? RPC_TCP : RPC_TLS);
 
 	/*
 	 * Get the record mark.
@@ -3321,8 +3335,9 @@ dissect_rpc_fragment(tvbuff_t *tvb, int offset, packet_info *pinfo,
 			   dissector for it the non-heuristic RPC
 			   dissector for RPC-over-TCP. */
 			conversation = find_or_create_conversation(pinfo);
-			conversation_set_dissector(conversation,
-			    rpc_tcp_handle);
+			if (tcpinfo != NULL) {
+				conversation_set_dissector(conversation, rpc_tcp_handle);
+			}
 		}
 
 		/* OK, we think it is RPC. Can we desegment? */
@@ -3375,8 +3390,8 @@ dissect_rpc_fragment(tvbuff_t *tvb, int offset, packet_info *pinfo,
 		save_fragmented = pinfo->fragmented;
 		pinfo->fragmented = TRUE;
 		rpc_succeeded = call_message_dissector(tvb, rec_tvb, pinfo,
-		    tree, frag_tvb, dissector, ipfd_head, rpc_rm, first_pdu,
-		    can_defragment);
+		    tree, frag_tvb, dissector, ipfd_head, tp_type, rpc_rm,
+		    first_pdu, can_defragment);
 		pinfo->fragmented = save_fragmented;
 		if (!rpc_succeeded)
 			return 0;	/* not RPC */
@@ -3423,7 +3438,7 @@ dissect_rpc_fragment(tvbuff_t *tvb, int offset, packet_info *pinfo,
 			 * an exception.
 			 */
 			if (!(*dissector)(frag_tvb, pinfo, tree, frag_tvb,
-			    NULL, TRUE, rpc_rm, first_pdu, can_defragment))
+			    NULL, tp_type, rpc_rm, first_pdu, can_defragment))
 				return 0;	/* not valid */
 
 			/*
@@ -3608,8 +3623,8 @@ dissect_rpc_fragment(tvbuff_t *tvb, int offset, packet_info *pinfo,
 	 * dissector.
 	 */
 	if (!call_message_dissector(tvb, rec_tvb, pinfo, tree,
-	    frag_tvb, dissector, ipfd_head, rpc_rm, first_pdu,
-	    can_defragment))
+	    frag_tvb, dissector, ipfd_head, tp_type, rpc_rm,
+	    first_pdu, can_defragment))
 		return 0;	/* not RPC */
 	return len;
 }  /* end of dissect_rpc_fragment() */
@@ -3765,8 +3780,8 @@ find_rpc_over_tcp_reply_start(tvbuff_t *tvb, int offset)
 static int
 find_and_dissect_rpc_fragment(tvbuff_t *tvb, int offset, packet_info *pinfo,
 			      proto_tree *tree, rec_dissector_t dissector,
-			      gboolean is_heur,
-			      int proto, int ett, struct tcpinfo* tcpinfo)
+			      gboolean is_heur, int proto, int ett,
+			      struct tcpinfo *tcpinfo, struct tlsinfo *tlsinfo)
 {
 
 	int   offReply;
@@ -3781,7 +3796,7 @@ find_and_dissect_rpc_fragment(tvbuff_t *tvb, int offset, packet_info *pinfo,
 	len = dissect_rpc_fragment(tvb, offReply,
 				   pinfo, tree,
 				   dissector, is_heur, proto, ett,
-				   TRUE /* force first-pdu state */, tcpinfo);
+				   TRUE /* force first-pdu state */, tcpinfo, tlsinfo);
 
 	/* misses are reported as-is */
 	if (len == 0)
@@ -3812,7 +3827,7 @@ find_and_dissect_rpc_fragment(tvbuff_t *tvb, int offset, packet_info *pinfo,
  */
 static gboolean
 dissect_rpc_tcp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-		       gboolean is_heur, struct tcpinfo* tcpinfo)
+		       gboolean is_heur, struct tcpinfo *tcpinfo, struct tlsinfo *tlsinfo)
 {
 	int offset = 0;
 	gboolean saw_rpc = FALSE;
@@ -3825,7 +3840,7 @@ dissect_rpc_tcp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 		 */
 		len = dissect_rpc_fragment(tvb, offset, pinfo, tree,
 		    dissect_rpc_message, is_heur, proto_rpc, ett_rpc,
-		    first_pdu, tcpinfo);
+		    first_pdu, tcpinfo, tlsinfo);
 
 		if ((len == 0) && first_pdu && rpc_find_fragment_start) {
 			/*
@@ -3834,7 +3849,7 @@ dissect_rpc_tcp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 			 */
 			len = find_and_dissect_rpc_fragment(tvb, offset, pinfo, tree,
 				 dissect_rpc_message, is_heur, proto_rpc, ett_rpc,
-				 tcpinfo);
+				 tcpinfo, tlsinfo);
 		}
 
 		first_pdu = FALSE;
@@ -3892,7 +3907,7 @@ dissect_rpc_tcp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 {
 	struct tcpinfo* tcpinfo = (struct tcpinfo *)data;
 
-	return dissect_rpc_tcp_common(tvb, pinfo, tree, TRUE, tcpinfo);
+	return dissect_rpc_tcp_common(tvb, pinfo, tree, TRUE, tcpinfo, NULL);
 }
 
 static int
@@ -3900,8 +3915,38 @@ dissect_rpc_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
 	struct tcpinfo* tcpinfo = (struct tcpinfo *)data;
 
-	if (!dissect_rpc_tcp_common(tvb, pinfo, tree, FALSE, tcpinfo))
+	if (!dissect_rpc_tcp_common(tvb, pinfo, tree, FALSE, tcpinfo, NULL))
 		dissect_rpc_continuation(tvb, pinfo, tree);
+
+	return tvb_reported_length(tvb);
+}
+
+static gboolean
+dissect_rpc_tls_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+{
+	struct tlsinfo *tlsinfo = (struct tlsinfo *)data;
+
+	if (dissect_rpc_tcp_common(tvb, pinfo, tree, TRUE, NULL, tlsinfo)) {
+		if (tlsinfo != NULL) {
+			*(tlsinfo->app_handle) = rpc_tls_handle;
+		}
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static int
+dissect_rpc_tls(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
+{
+	struct tlsinfo* tlsinfo = (struct tlsinfo *)data;
+
+	col_set_writable(pinfo->cinfo, COL_PROTOCOL, TRUE);
+	if (dissect_rpc_tcp_common(tvb, pinfo, tree, FALSE, NULL, tlsinfo)) {
+		col_set_writable(pinfo->cinfo, COL_PROTOCOL, FALSE);
+		col_set_writable(pinfo->cinfo, COL_INFO, FALSE);
+	} else {
+		dissect_rpc_continuation(tvb, pinfo, tree);
+	}
 
 	return tvb_reported_length(tvb);
 }
@@ -4358,8 +4403,8 @@ proto_register_rpc(void)
 
 	proto_rpc = proto_register_protocol("Remote Procedure Call", "RPC", "rpc");
 
-	subdissector_call_table = register_custom_dissector_table("rpc.call", "RPC Call Functions", proto_rpc, rpc_proc_hash, rpc_proc_equal);
-	subdissector_reply_table = register_custom_dissector_table("rpc.reply", "RPC Reply Functions", proto_rpc, rpc_proc_hash, rpc_proc_equal);
+	subdissector_call_table = register_custom_dissector_table("rpc.call", "RPC Call Functions", proto_rpc, rpc_proc_hash, rpc_proc_equal, g_free);
+	subdissector_reply_table = register_custom_dissector_table("rpc.reply", "RPC Reply Functions", proto_rpc, rpc_proc_hash, rpc_proc_equal, g_free);
 
 	/* this is a dummy dissector for all those unknown rpc programs */
 	proto_register_field_array(proto_rpc, hf, array_length(hf));
@@ -4400,6 +4445,7 @@ proto_register_rpc(void)
 
 	rpc_handle = register_dissector("rpc", dissect_rpc, proto_rpc);
 	rpc_tcp_handle = register_dissector("rpc-tcp", dissect_rpc_tcp, proto_rpc);
+	rpc_tls_handle = register_dissector("rpc-with-tls", dissect_rpc_tls, proto_rpc);
 	rpc_tap = register_tap("rpc");
 
 	register_srt_table(proto_rpc, NULL, 1, rpcstat_packet, rpcstat_init, rpcstat_param);
@@ -4440,6 +4486,7 @@ proto_reg_handoff_rpc(void)
 
 	heur_dissector_add("tcp", dissect_rpc_tcp_heur, "RPC over TCP", "rpc_tcp", proto_rpc, HEURISTIC_ENABLE);
 	heur_dissector_add("udp", dissect_rpc_heur, "RPC over UDP", "rpc_udp", proto_rpc, HEURISTIC_ENABLE);
+	heur_dissector_add("tls", dissect_rpc_tls_heur, "RPC with TLS", "rpc_tls", proto_rpc, HEURISTIC_ENABLE);
 	gssapi_handle = find_dissector_add_dependency("gssapi", proto_rpc);
 	spnego_krb5_wrap_handle = find_dissector_add_dependency("spnego-krb5-wrap", proto_rpc);
 	data_handle = find_dissector("data");

@@ -88,11 +88,13 @@ SubjectKeyIdentifier
 ScramblerCapabilities
 CiplusInfo
 CicamBrandId
+SecurityLevel
 
 #.PDU
 ScramblerCapabilities
 CiplusInfo
 CicamBrandId
+SecurityLevel
 
 
 #.REGISTER
@@ -128,6 +130,7 @@ ToBeRevokedSyntax         B "2.5.29.58" "id-ce-toBeRevoked"
 RevokedGroupsSyntax       B "2.5.29.59" "id-ce-RevokedGroups"
 ExpiredCertsOnCRL         B "2.5.29.60" "id-ce-expiredCertsOnCRL"
 AAIssuingDistPointSyntax  B "2.5.29.61" "id-ce-aAissuingDistributionPoint"
+NFTypes                   B "1.3.6.1.5.5.7.1.34" "id-pe-nftype"
 
 CertificateAssertion      B "2.5.13.35" "id-mr-certificateMatch"
 CertificatePairExactAssertion B "2.5.13.36" "id-mr-certificatePairExactMatch"
@@ -146,6 +149,8 @@ EnhancedCertificateAssertion  B "2.5.13.65" "id-mr-enhancedCertificateMatch"
 # Microsoft extensions
 CertificateTemplate       B "1.3.6.1.4.1.311.21.7"  "id-ms-certificate-template"
 CertificatePoliciesSyntax B "1.3.6.1.4.1.311.21.10" "id-ms-application-certificate-policies"
+NtdsCaSecurity            B "1.3.6.1.4.1.311.25.2" "id-ms-ntds-ca-security"
+NtdsObjectSid             B "1.3.6.1.4.1.311.25.2.1" "id-ms-ntds-object-sid"
 
 # Entrust extensions
 EntrustVersionInfo        B "1.2.840.113533.7.65.0" "id-ce-entrustVersionInfo"
@@ -153,6 +158,10 @@ EntrustVersionInfo        B "1.2.840.113533.7.65.0" "id-ce-entrustVersionInfo"
 #.NO_EMIT
 
 #.TYPE_RENAME
+
+#.TYPE_ATTR
+ScramblerCapabilities/capability DISPLAY = BASE_DEC STRINGS = VALS64(ciplus_scr_cap)
+SecurityLevel DISPLAY = BASE_DEC STRINGS = VALS64(ciplus_security_level)
 
 #.FIELD_RENAME
 CRLReferral/issuer  crlr_issuer

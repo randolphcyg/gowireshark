@@ -14,7 +14,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include "wtap-int.h"
 #include "file_wrappers.h"
 #include "atm.h"
@@ -482,6 +481,9 @@ static const struct {
 	/* USB 2.0/1.1/1.0 packets as transmitted over the cable */
 	{ 288,		WTAP_ENCAP_USB_2_0 },
 
+	/* ATSC Link-Layer Protocol (A/330) packets */
+	{ 289,		WTAP_ENCAP_ATSC_ALP },
+
 	/* Event Tracing for Windows records */
 	{ 290,		WTAP_ENCAP_ETW },
 
@@ -492,6 +494,18 @@ static const struct {
 	{ 293,		WTAP_ENCAP_USB_2_0_LOW_SPEED },
 	{ 294,		WTAP_ENCAP_USB_2_0_FULL_SPEED },
 	{ 295,		WTAP_ENCAP_USB_2_0_HIGH_SPEED },
+
+	/* Auerswald log file captured from any supported Auerswald device */
+	{ 296,		WTAP_ENCAP_AUERSWALD_LOG },
+
+	/* Silicon Labs debug channel */
+	{ 298,		WTAP_ENCAP_SILABS_DEBUG_CHANNEL },
+
+	/* Ultra-wideband (UWB) controller interface protocol (UCI) */
+	{ 299,		WTAP_ENCAP_FIRA_UCI },
+
+	/* MDB (Multi-Drop Bus) */
+	{ 300,		WTAP_ENCAP_MDB },
 
 	/*
 	 * To repeat:
@@ -982,7 +996,6 @@ pcap_write_sunatm_pseudoheader(wtap_dumper *wdh,
 	phtons(&atm_hdr[SUNATM_VCI], pseudo_header->atm.vci);
 	if (!wtap_dump_file_write(wdh, atm_hdr, sizeof(atm_hdr), err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof(atm_hdr);
 	return TRUE;
 }
 
@@ -1040,7 +1053,6 @@ pcap_write_irda_pseudoheader(wtap_dumper *wdh,
 	phtons(&irda_hdr[IRDA_SLL_PROTOCOL_OFFSET], 0x0017);
 	if (!wtap_dump_file_write(wdh, irda_hdr, sizeof(irda_hdr), err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof(irda_hdr);
 	return TRUE;
 }
 
@@ -1094,7 +1106,6 @@ pcap_write_mtp2_pseudoheader(wtap_dumper *wdh,
 	    pseudo_header->mtp2.link_number);
 	if (!wtap_dump_file_write(wdh, mtp2_hdr, sizeof(mtp2_hdr), err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof(mtp2_hdr);
 	return TRUE;
 }
 
@@ -1160,7 +1171,6 @@ pcap_write_lapd_pseudoheader(wtap_dumper *wdh,
 	    pseudo_header->lapd.we_network?0x01:0x00;
 	if (!wtap_dump_file_write(wdh, lapd_hdr, sizeof(lapd_hdr), err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof(lapd_hdr);
 	return TRUE;
 }
 
@@ -1219,7 +1229,6 @@ pcap_write_sita_pseudoheader(wtap_dumper *wdh,
 	sita_hdr[SITA_PROTO_OFFSET]   = pseudo_header->sita.sita_proto;
 	if (!wtap_dump_file_write(wdh, sita_hdr, sizeof(sita_hdr), err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof(sita_hdr);
 	return TRUE;
 }
 
@@ -1268,7 +1277,6 @@ pcap_write_bt_pseudoheader(wtap_dumper *wdh,
 	bt_hdr.direction = GUINT32_TO_BE(direction);
 	if (!wtap_dump_file_write(wdh, &bt_hdr, sizeof bt_hdr, err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof bt_hdr;
 	return TRUE;
 }
 
@@ -1318,7 +1326,6 @@ pcap_write_bt_monitor_pseudoheader(wtap_dumper *wdh,
 
 	if (!wtap_dump_file_write(wdh, &bt_monitor_hdr, sizeof bt_monitor_hdr, err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof bt_monitor_hdr;
 	return TRUE;
 }
 
@@ -1359,7 +1366,6 @@ pcap_write_llcp_pseudoheader(wtap_dumper *wdh,
 	phdr[LLCP_FLAGS_OFFSET] = pseudo_header->llcp.flags;
 	if (!wtap_dump_file_write(wdh, &phdr, sizeof phdr, err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof phdr;
 	return TRUE;
 }
 
@@ -1407,7 +1413,6 @@ pcap_write_ppp_pseudoheader(wtap_dumper *wdh,
 	ppp_hdr.direction = (pseudo_header->p2p.sent ? 1 : 0);
 	if (!wtap_dump_file_write(wdh, &ppp_hdr, sizeof ppp_hdr, err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof ppp_hdr;
 	return TRUE;
 }
 
@@ -1606,7 +1611,6 @@ pcap_write_erf_pseudoheader(wtap_dumper *wdh,
 	phtons(&erf_hdr[14], pseudo_header->erf.phdr.wlen);
 	if (!wtap_dump_file_write(wdh, erf_hdr,  sizeof(struct erf_phdr), err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof(struct erf_phdr);
 
 	/*
 	 * Now write out the extension headers.
@@ -1624,7 +1628,6 @@ pcap_write_erf_pseudoheader(wtap_dumper *wdh,
 				erf_exhdr[0] = erf_exhdr[0] & 0x7F;
 			if (!wtap_dump_file_write(wdh, erf_exhdr, 8, err))
 				return FALSE;
-			wdh->bytes_dumped += 8;
 			i++;
 		} while (type & 0x80 && i < max);
 	}
@@ -1644,14 +1647,12 @@ pcap_write_erf_pseudoheader(wtap_dumper *wdh,
 		if (!wtap_dump_file_write(wdh, erf_subhdr,
 		    sizeof(struct erf_mc_hdr), err))
 			return FALSE;
-		wdh->bytes_dumped += sizeof(struct erf_mc_hdr);;
 		break;
 	case ERF_TYPE_AAL2:
 		phtonl(&erf_subhdr[0], pseudo_header->erf.subhdr.aal2_hdr);
 		if (!wtap_dump_file_write(wdh, erf_subhdr,
 		    sizeof(struct erf_aal2_hdr), err))
 			return FALSE;
-		wdh->bytes_dumped += sizeof(struct erf_aal2_hdr);;
 		break;
 	case ERF_TYPE_ETH:
 	case ERF_TYPE_COLOR_ETH:
@@ -1661,7 +1662,6 @@ pcap_write_erf_pseudoheader(wtap_dumper *wdh,
 		if (!wtap_dump_file_write(wdh, erf_subhdr,
 		    sizeof(struct erf_eth_hdr), err))
 			return FALSE;
-		wdh->bytes_dumped += sizeof(struct erf_eth_hdr);
 		break;
 	default:
 		break;
@@ -1719,7 +1719,6 @@ pcap_write_i2c_linux_pseudoheader(wtap_dumper *wdh,
 	phtonl((guint8 *)&i2c_linux_hdr.flags, pseudo_header->i2c.flags);
 	if (!wtap_dump_file_write(wdh, &i2c_linux_hdr, sizeof(i2c_linux_hdr), err))
 		return FALSE;
-	wdh->bytes_dumped += sizeof(i2c_linux_hdr);
 	return TRUE;
 }
 
@@ -2578,7 +2577,15 @@ pcap_read_post_process(gboolean is_nokia, int wtap_encap,
 		break;
 
 	case WTAP_ENCAP_ETHERNET:
-		rec->rec_header.packet_header.pseudo_header.eth.fcs_len = fcs_len;
+		/*
+		 * The FCS length is supposed to be in bits.
+		 * If it's < 8, assume it's in bytes; otherwise,
+		 * convert it to bytes.
+		 */
+		if (fcs_len < 8)
+			rec->rec_header.packet_header.pseudo_header.eth.fcs_len = fcs_len;
+		else
+			rec->rec_header.packet_header.pseudo_header.eth.fcs_len = fcs_len/8;
 		break;
 
 	case WTAP_ENCAP_SLL:

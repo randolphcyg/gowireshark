@@ -23,12 +23,17 @@
 void proto_register_jdwp(void);
 void proto_reg_handoff_jdwp(void);
 
+static dissector_handle_t jdwp_handle;
+
 /* IMPORTANT IMPLEMENTATION NOTES
  *
  * You need to be looking at:
  *
  *     https://docs.oracle.com/javase/8/docs/technotes/guides/jpda/jdwp-spec.html
  *
+ * Last update: up to Java 19
+ *
+ *     https://docs.oracle.com/en/java/javase/19/docs/specs/jdwp/jdwp-protocol.html
  *
  */
 
@@ -57,6 +62,7 @@ void proto_reg_handoff_jdwp(void);
 #define COMMAND_SET_EVENTREQUEST 15
 #define COMMAND_SET_STACKFRAME 16
 #define COMMAND_SET_CLASSOBJECTREFERENCE 17
+#define COMMAND_SET_MODULEREFERENCE 18
 #define COMMAND_SET_EVENT 64
 
 static int proto_jdwp = -1;
@@ -82,6 +88,7 @@ static int hf_jdwp_commandset_classloaderreference = -1;
 static int hf_jdwp_commandset_eventrequest = -1;
 static int hf_jdwp_commandset_stackframe = -1;
 static int hf_jdwp_commandset_classobjectreference = -1;
+static int hf_jdwp_commandset_modulereference = -1;
 static int hf_jdwp_commandset_event = -1;
 static int hf_jdwp_errorcode = -1;
 static int hf_jdwp_data = -1;
@@ -109,6 +116,7 @@ static const value_string commandsetnames[] = {
   {15, "EventRequest"},
   {16, "StackFrame"},
   {17, "ClassObjectReference"},
+  {18, "ModuleReference"},
   {64, "Event"},
   {0, NULL}
 };
@@ -136,6 +144,7 @@ static const value_string commandset_virtualmachine[] = {
   {19, "SetDefaultStratum"},
   {20, "AllClassesWithGeneric"},
   {21, "InstanceCounts"},
+  {22, "AllModules"},
   {0, NULL}
 };
 
@@ -159,6 +168,7 @@ static const value_string commandset_referencetype[] = {
   {16, "Instances"},
   {17, "ClassFileVersion"},
   {18, "ConstantPool"},
+  {19, "Module"},
   {0, NULL}
 };
 
@@ -234,6 +244,7 @@ static const value_string commandset_threadreference[] = {
   {12, "SuspendCount"},
   {13, "OwnedMonitorsStackDepthInfo"},
   {14, "ForceEarlyReturn"},
+  {15, "IsVirtual"},
   {0, NULL}
 };
 
@@ -279,6 +290,13 @@ static const value_string commandset_stackframe[] = {
 // contains the commands for the command set of type ClassObject Reference
 static const value_string commandset_classobjectreference[] = {
   {1, "ReflectedType"},
+  {0, NULL}
+};
+
+// contains the commands for the command set of type Module Reference
+static const value_string commandset_modulereference[] = {
+  {1, "Name"},
+  {2, "ClassLoader"},
   {0, NULL}
 };
 
@@ -527,6 +545,11 @@ dissect_jdwp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
           offset += 1;
           break;
 
+        case COMMAND_SET_MODULEREFERENCE:
+          proto_tree_add_item(jdwp_tree, hf_jdwp_commandset_modulereference, tvb, offset, 1, ENC_BIG_ENDIAN);
+          offset += 1;
+          break;
+
         case COMMAND_SET_EVENT:
           proto_tree_add_item(jdwp_tree, hf_jdwp_commandset_event, tvb, offset, 1, ENC_BIG_ENDIAN);
           offset += 1;
@@ -674,12 +697,16 @@ proto_register_jdwp(void)
       { "command",  "jdwp.command", FT_UINT8, BASE_DEC, VALS(commandset_classobjectreference), 0x0, NULL,
         HFILL }
     },
+    { &hf_jdwp_commandset_modulereference,
+      { "command",  "jdwp.command", FT_UINT8, BASE_DEC, VALS(commandset_modulereference), 0x0, NULL,
+        HFILL }
+    },
     { &hf_jdwp_commandset_event,
       { "command",  "jdwp.command", FT_UINT8, BASE_DEC, VALS(commandset_event), 0x0, NULL,
         HFILL }
     },
     { &hf_jdwp_errorcode,
-      { "error code",  "jdwp.errorcode", FT_UINT8, BASE_DEC, VALS(error_codes), 0x0, NULL,
+      { "error code",  "jdwp.errorcode", FT_UINT16, BASE_DEC, VALS(error_codes), 0x0, NULL,
         HFILL }
     },
     { &hf_jdwp_data,
@@ -698,6 +725,7 @@ proto_register_jdwp(void)
   };
 
   proto_jdwp = proto_register_protocol("Java Debug Wire Protocol", "JDWP", "jdwp");
+  jdwp_handle = register_dissector("jdwp", dissect_jdwp, proto_jdwp);
   proto_register_field_array(proto_jdwp, hf, array_length(hf));
   proto_register_subtree_array(ett, array_length(ett));
   expert_jdwp = expert_register_protocol(proto_jdwp);
@@ -708,9 +736,6 @@ proto_register_jdwp(void)
 void
 proto_reg_handoff_jdwp(void)
 {
-  dissector_handle_t jdwp_handle;
-
-  jdwp_handle = create_dissector_handle(dissect_jdwp, proto_jdwp);
   dissector_add_uint_with_preference("tcp.port", JDWP_PORT, jdwp_handle);
 }
 

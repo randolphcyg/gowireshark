@@ -8,16 +8,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef _INTROSPECTION_H_
-#define _INTROSPECTION_H_
+#ifndef _EPAN_INTROSPECTION_H_
+#define _EPAN_INTROSPECTION_H_
 
 #include <stddef.h>
 #include <include/ws_symbol_export.h>
-
-typedef struct {
-    const char *symbol;
-    int value;
-} ws_enum_t;
+#include <wsutil/introspection.h>
 
 /** Returns an array of ws_enum_t elements. The array is sorted and
  * ends with {NULL, 0}.

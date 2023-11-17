@@ -18,6 +18,8 @@
 void proto_register_dvb_eit(void);
 void proto_reg_handoff_dvb_eit(void);
 
+static dissector_handle_t dvb_eit_handle;
+
 static int proto_dvb_eit = -1;
 static int hf_dvb_eit_service_id = -1;
 static int hf_dvb_eit_reserved = -1;
@@ -49,13 +51,6 @@ static gint ett_dvb_eit_event = -1;
 #define DVB_EIT_RUNNING_STATUS_MASK             0xE000
 #define DVB_EIT_FREE_CA_MODE_MASK               0x1000
 #define DVB_EIT_DESCRIPTORS_LOOP_LENGTH_MASK    0x0FFF
-
-static const value_string dvb_eit_cur_next_vals[] = {
-    { 0, "Not yet applicable" },
-    { 1, "Currently applicable" },
-
-    { 0, NULL }
-};
 
 static const value_string dvb_eit_running_status_vals[] = {
     { 0, "Undefined" },
@@ -139,7 +134,7 @@ dissect_dvb_eit(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
         proto_tree_add_item(dvb_eit_event_tree, hf_dvb_eit_event_id, tvb, offset, 2, ENC_BIG_ENDIAN);
         offset += 2;
 
-        if (tvb_memeql(tvb, offset, "\xFF\xFF\xFF\xFF\xFF", 5)) {
+        if (tvb_memeql(tvb, offset, (const guint8*)"\xFF\xFF\xFF\xFF\xFF", 5)) {
             if (packet_mpeg_sect_mjd_to_utc_time(tvb, offset, &start_time) < 0) {
                 proto_tree_add_time_format(dvb_eit_event_tree, hf_dvb_eit_start_time, tvb, offset, 5,
                                     &start_time, "Unparseable time");
@@ -199,7 +194,7 @@ proto_register_dvb_eit(void)
 
         { &hf_dvb_eit_current_next_indicator, {
             "Current/Next Indicator", "dvb_eit.cur_next_ind",
-            FT_UINT8, BASE_DEC, VALS(dvb_eit_cur_next_vals), DVB_EIT_CURRENT_NEXT_INDICATOR_MASK, NULL, HFILL
+            FT_BOOLEAN, 8, TFS(&tfs_current_not_yet), DVB_EIT_CURRENT_NEXT_INDICATOR_MASK, NULL, HFILL
         } },
 
         { &hf_dvb_eit_section_number, {
@@ -273,15 +268,13 @@ proto_register_dvb_eit(void)
     proto_register_field_array(proto_dvb_eit, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
 
+    dvb_eit_handle = register_dissector("dvb_eit", dissect_dvb_eit, proto_dvb_eit);
 }
 
 
 void proto_reg_handoff_dvb_eit(void)
 {
     int tid;
-    dissector_handle_t dvb_eit_handle;
-
-    dvb_eit_handle = create_dissector_handle(dissect_dvb_eit, proto_dvb_eit);
 
     for (tid = DVB_EIT_TID_MIN; tid <= DVB_EIT_TID_MAX; tid++)
         dissector_add_uint("mpeg_sect.tid", tid, dvb_eit_handle);

@@ -15,7 +15,6 @@
 #include "config.h"
 
 #include <stdio.h>	/* for sscanf() */
-#include <stdbool.h>
 
 #include <epan/packet.h>
 #include <epan/prefs.h>
@@ -691,6 +690,10 @@ static int hf_nfs4_io_error_op = -1;
 static int hf_nfs4_io_hints_mask = -1;
 static int hf_nfs4_io_hint_count = -1;
 static int hf_nfs4_io_advise_hint = -1;
+static int hf_nfs4_cb_recall_any_objs = -1;
+static int hf_nfs4_cb_recall_any_count = -1;
+static int hf_nfs4_cb_recall_any_mask = -1;
+static int hf_nfs4_cb_recall_any_item = -1;
 static int hf_nfs4_bytes_copied = -1;
 static int hf_nfs4_read_plus_contents = -1;
 static int hf_nfs4_read_plus_content_type = -1;
@@ -1320,7 +1323,7 @@ nfs_full_name_snoop(packet_info *pinfo, nfs_name_snoop_t *nns, int *len, char **
 		nfs_full_name_snoop(pinfo, parent_nns, len, name, pos);
 		if (*name) {
 			/* make sure components are '/' separated */
-			*pos += snprintf(*pos, (*len+1) - (gulong)(*pos-*name), "%s%s",
+			*pos += snprintf(*pos, (*len+1) - (*pos-*name), "%s%s",
 					   ((*pos)[-1] != '/')?"/":"", nns->name);
 			DISSECTOR_ASSERT((*pos-*name) <= *len);
 		}
@@ -7030,11 +7033,11 @@ dissect_nfs4_mode(tvbuff_t *tvb, int offset, proto_tree *tree)
 	return dissect_nfs2_mode(tvb, offset, tree);
 }
 
-#define FH4_PERSISTENT 0x00000000
+#define FH4_PERSISTENT         0x00000000
 #define FH4_NOEXPIRE_WITH_OPEN 0x00000001
-#define FH4_VOLATILE_ANY 0x00000002
-#define FH4_VOL_MIGRATION 0x00000004
-#define FH4_VOL_RENAME 0x00000008
+#define FH4_VOLATILE_ANY       0x00000002
+#define FH4_VOL_MIGRATION      0x00000004
+#define FH4_VOL_RENAME         0x00000008
 
 static const value_string nfs4_fattr4_fh_expire_type_names[] = {
 	{ FH4_PERSISTENT, "FH4_PERSISTENT" },
@@ -8700,6 +8703,49 @@ dissect_nfs4_io_hints(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree 
 	return dissect_nfs4_bitmap(tvb, offset, pinfo, tree, NULL, &bitmap_info, NFS4_BITMAP_MASK, NULL);
 }
 
+static const value_string cb_recall_any_names[] = {
+/* RFC 5661 Network File System (NFS) Version 4 Minor Version 1 Protocol */
+#define RCA4_TYPE_MASK_RDATA_DLG		0
+	{	RCA4_TYPE_MASK_RDATA_DLG,		"Read Delegation"	},
+#define RCA4_TYPE_MASK_WDATA_DLG		1
+	{	RCA4_TYPE_MASK_WDATA_DLG,		"Write Delegation"	},
+#define RCA4_TYPE_MASK_DIR_DLG			2
+	{	RCA4_TYPE_MASK_DIR_DLG,			"Directory Delegation"	},
+#define RCA4_TYPE_MASK_FILE_LAYOUT		3
+	{	RCA4_TYPE_MASK_FILE_LAYOUT,		"File Layout"	},
+#define RCA4_TYPE_MASK_BLK_LAYOUT		4
+	{	RCA4_TYPE_MASK_BLK_LAYOUT,		"Block Layout"	},
+#define RCA4_TYPE_MASK_OBJ_LAYOUT_MIN		8
+	{	RCA4_TYPE_MASK_OBJ_LAYOUT_MIN,		"Object Layout Min"	},
+#define RCA4_TYPE_MASK_OBJ_LAYOUT_MAX		9
+	{	RCA4_TYPE_MASK_OBJ_LAYOUT_MAX,		"Object Layout Max"	},
+#define RCA4_TYPE_MASK_OTHER_LAYOUT_MIN		12
+	{	RCA4_TYPE_MASK_OTHER_LAYOUT_MIN,	"Other Layout Min"	},
+#define RCA4_TYPE_MASK_OTHER_LAYOUT_MAX		15
+	{	RCA4_TYPE_MASK_OTHER_LAYOUT_MAX,	"Other Layout Max"	},
+
+/* RFC 8435 Parallel NFS (pNFS) Flexible File Layout */
+#define RCA4_TYPE_MASK_FF_LAYOUT_MIN		16
+	{	RCA4_TYPE_MASK_FF_LAYOUT_MIN,		"Flexible File Layout Min"	},
+#define RCA4_TYPE_MASK_FF_LAYOUT_MAX		17
+	{	RCA4_TYPE_MASK_FF_LAYOUT_MAX,		"Flexible File Layout Max"	},
+	{	0,	NULL	}
+};
+static value_string_ext cb_recall_any_names_ext = VALUE_STRING_EXT_INIT(cb_recall_any_names);
+
+static int
+dissect_nfs4_cb_recall_any_mask(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree)
+{
+	static nfs4_bitmap_info_t bitmap_info = {
+		.vse_names_ext = &cb_recall_any_names_ext,
+		.hf_mask_count = &hf_nfs4_cb_recall_any_count,
+		.hf_mask_label = &hf_nfs4_cb_recall_any_mask,
+		.hf_item_label = &hf_nfs4_cb_recall_any_item,
+	};
+
+	return dissect_nfs4_bitmap(tvb, offset, pinfo, tree, NULL, &bitmap_info, NFS4_BITMAP_MASK, NULL);
+}
+
 static int
 dissect_nfs4_app_data_block(tvbuff_t *tvb, int offset, proto_tree *tree, guint32 *hash)
 {
@@ -9277,7 +9323,7 @@ dissect_nfs4_write_response(tvbuff_t *tvb, int offset, proto_tree *tree)
 
 	subtree = proto_item_add_subtree(sub_fitem, ett_nfs4_callback_stateids_sub);
 	for (i = 0; i < count; i++) {
-		ss_fitem = proto_tree_add_item(subtree,
+		ss_fitem = proto_tree_add_uint(subtree,
 				hf_nfs4_callback_stateids_index,
 				tvb, offset, 4, i);
 
@@ -9310,7 +9356,7 @@ dissect_nfs4_source_servers(tvbuff_t *tvb, int offset, proto_tree *tree)
 
 	subtree = proto_item_add_subtree(sub_fitem, ett_nfs4_source_servers_sub);
 	for (i = 0; i < source_servers; i++) {
-		ss_fitem = proto_tree_add_item(subtree,
+		ss_fitem = proto_tree_add_uint(subtree,
 				hf_nfs4_source_server_index,
 				tvb, offset, 4, i);
 
@@ -10414,7 +10460,7 @@ dissect_nfs4_request_op(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tre
 					" Offset: %" PRIu64
 					" Len: %" PRIu64,
 					sid_hash, file_offset, length64);
-			offset = dissect_nfs4_io_hints(tvb, offset, pinfo, tree);
+			offset = dissect_nfs4_io_hints(tvb, offset, pinfo, newftree);
 			break;
 
 		case NFS4_OP_OFFLOAD_CANCEL:
@@ -11006,7 +11052,7 @@ dissect_nfs4_response_op(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tr
 			break;
 
 		case NFS4_OP_IO_ADVISE:
-			offset = dissect_nfs4_io_hints(tvb, offset, pinfo, tree);
+			offset = dissect_nfs4_io_hints(tvb, offset, pinfo, newftree);
 			break;
 
 		case NFS4_OP_OFFLOAD_STATUS:
@@ -11603,9 +11649,12 @@ dissect_nfs4_cb_request(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tre
 		case NFS4_OP_CB_LAYOUTRECALL:
 			offset = dissect_nfs4_cb_layoutrecall(tvb, offset, newftree, pinfo, civ);
 			break;
+		case NFS4_OP_CB_RECALL_ANY:
+			offset = dissect_rpc_uint32(tvb, newftree, hf_nfs4_cb_recall_any_objs, offset);
+			offset = dissect_nfs4_cb_recall_any_mask(tvb, offset, pinfo, newftree);
+			break;
 		case NFS4_OP_CB_NOTIFY:
 		case NFS4_OP_CB_PUSH_DELEG:
-		case NFS4_OP_CB_RECALL_ANY:
 		case NFS4_OP_CB_RECALLABLE_OBJ_AVAIL:
 		case NFS4_OP_CB_RECALL_SLOT:
 			break;
@@ -11914,10 +11963,10 @@ proto_register_nfs(void)
 			NULL, 0x0, "minor file system ID", HFILL }},
 		{ &hf_nfs_fh_fsid_major32, {
 			"major", "nfs.fh.fsid.major", FT_UINT32, BASE_DEC,
-			NULL, 0xfffc, "major file system ID", HFILL }},
+			NULL, 0xfffc0000, "major file system ID", HFILL }},
 		{ &hf_nfs_fh_fsid_minor32, {
 			"minor", "nfs.fh.fsid.minor", FT_UINT32, BASE_DEC,
-			NULL, 0x03ffff, "minor file system ID", HFILL }},
+			NULL, 0x0003ffff, "minor file system ID", HFILL }},
 		{ &hf_nfs_fh_fsid_inode, {
 			"inode", "nfs.fh.fsid.inode", FT_UINT32, BASE_DEC,
 			NULL, 0, "file system inode", HFILL }},
@@ -12620,15 +12669,15 @@ proto_register_nfs(void)
 		{ &hf_nfs4_fattr_fh_expiry_volatile_any, {
 			"volatile_any", "nfs.fattr4_fh_expire_type.volatile_any",
 			FT_BOOLEAN, 32,
-			NULL, FH4_NOEXPIRE_WITH_OPEN, NULL, HFILL }},
+			NULL, FH4_VOLATILE_ANY, NULL, HFILL }},
 		{ &hf_nfs4_fattr_fh_expiry_vol_migration, {
 			"vol_migration", "nfs.fattr4_fh_expire_type.vol_migration",
 			FT_BOOLEAN, 32,
-			NULL, FH4_NOEXPIRE_WITH_OPEN, NULL, HFILL }},
+			NULL, FH4_VOL_MIGRATION, NULL, HFILL }},
 		{ &hf_nfs4_fattr_fh_expiry_vol_rename, {
 			"vol_rename", "nfs.fattr4_fh_expire_type.vol_rename",
 			FT_BOOLEAN, 32,
-			NULL, FH4_NOEXPIRE_WITH_OPEN, NULL, HFILL }},
+			NULL, FH4_VOL_RENAME, NULL, HFILL }},
 
 		{ &hf_nfs4_fattr_hidden, {
 			"fattr4_hidden", "nfs.fattr4_hidden", FT_BOOLEAN, BASE_NONE,
@@ -13869,51 +13918,51 @@ proto_register_nfs(void)
 
 		{ &hf_nfs3_mode_suid, {
 			"S_ISUID", "nfs.mode3.suid", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x800, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000800, NULL, HFILL }},
 
 		{ &hf_nfs3_mode_sgid, {
 			"S_ISGID", "nfs.mode3.sgid", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x400, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000400, NULL, HFILL }},
 
 		{ &hf_nfs3_mode_sticky, {
 			"S_ISVTX", "nfs.mode3.sticky", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x200, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000200, NULL, HFILL }},
 
 		{ &hf_nfs3_mode_rusr, {
 			"S_IRUSR", "nfs.mode3.rusr", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x100, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000100, NULL, HFILL }},
 
 		{ &hf_nfs3_mode_wusr, {
 			"S_IWUSR", "nfs.mode3.wusr", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x080, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000080, NULL, HFILL }},
 
 		{ &hf_nfs3_mode_xusr, {
 			"S_IXUSR", "nfs.mode3.xusr", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x040, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000040, NULL, HFILL }},
 
 		{ &hf_nfs3_mode_rgrp, {
 			"S_IRGRP", "nfs.mode3.rgrp", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x020, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000020, NULL, HFILL }},
 
 		{ &hf_nfs3_mode_wgrp, {
 			"S_IWGRP", "nfs.mode3.wgrp", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x010, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000010, NULL, HFILL }},
 
 		{ &hf_nfs3_mode_xgrp, {
 			"S_IXGRP", "nfs.mode3.xgrp", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x008, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000008, NULL, HFILL }},
 
 		{ &hf_nfs3_mode_roth, {
 			"S_IROTH", "nfs.mode3.roth", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x004, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000004, NULL, HFILL }},
 
 		{ &hf_nfs3_mode_woth, {
 			"S_IWOTH", "nfs.mode3.woth", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x002, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000002, NULL, HFILL }},
 
 		{ &hf_nfs3_mode_xoth, {
 			"S_IXOTH", "nfs.mode3.xoth", FT_BOOLEAN, 32,
-			TFS(&tfs_yes_no), 0x001, NULL, HFILL }},
+			TFS(&tfs_yes_no), 0x00000001, NULL, HFILL }},
 
 		{ &hf_nfs2_ftype, {
 			"type", "nfs.ftype", FT_UINT32, BASE_DEC|BASE_EXT_STRING,
@@ -14183,6 +14232,22 @@ proto_register_nfs(void)
 		{ &hf_nfs4_io_advise_hint, {
 			"Hint", "nfs.hint.hint", FT_UINT32, BASE_DEC | BASE_EXT_STRING,
 			&io_advise_names_ext, 0, NULL, HFILL }},
+
+		{ &hf_nfs4_cb_recall_any_objs, {
+			"Objects to keep", "nfs.objects_to_keep", FT_UINT32, BASE_DEC,
+			NULL, 0, NULL, HFILL }},
+
+		{ &hf_nfs4_cb_recall_any_count, {
+			"Number of masks", "nfs.mask.count", FT_UINT32, BASE_DEC,
+			NULL, 0, NULL, HFILL }},
+
+		{ &hf_nfs4_cb_recall_any_mask, {
+			"Type mask", "nfs.mask", FT_UINT32, BASE_HEX,
+			NULL, 0, NULL, HFILL }},
+
+		{ &hf_nfs4_cb_recall_any_item, {
+			"Type", "nfs.mask.item", FT_UINT32, BASE_DEC | BASE_EXT_STRING,
+			&cb_recall_any_names_ext, 0, NULL, HFILL }},
 
 		{ &hf_nfs4_bytes_copied, {
 			"bytes copied", "nfs.bytes_copied", FT_UINT64, BASE_DEC,

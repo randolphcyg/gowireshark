@@ -611,7 +611,7 @@ tree_add_fragment_list(struct rlc_sdu *sdu, tvbuff_t *tvb,packet_info *pinfo, pr
                 sdufrag->frame_num, sdufrag->seq);
         }
 
-        mark_frame_as_depended_upon(pinfo, sdufrag->frame_num);
+        mark_frame_as_depended_upon(pinfo->fd, sdufrag->frame_num);
 
         offset += sdufrag->len;
         sdufrag = sdufrag->next;
@@ -646,6 +646,9 @@ tree_add_fragment_list_incomplete(struct rlc_sdu *sdu, tvbuff_t *tvb, proto_tree
 }
 
 /* Add the same description to too the two given proto_items */
+static void
+add_description(proto_item *li_ti, proto_item *length_ti,
+                const char *format, ...)  G_GNUC_PRINTF(3, 4);
 static void
 add_description(proto_item *li_ti, proto_item *length_ti,
                 const char *format, ...)

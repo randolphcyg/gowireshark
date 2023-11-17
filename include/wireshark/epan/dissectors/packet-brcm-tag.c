@@ -19,6 +19,8 @@
 void proto_register_brcm_tag(void);
 void proto_reg_handoff_brcm_tag(void);
 
+static dissector_handle_t brcm_tag_handle;
+
 #define BRCM_TAG_LEN                    4
 #define BRCM_TAG_OPCODE_MASK            0x7
 #define BRCM_TAG_DEV_ID_MASK            0x3
@@ -137,7 +139,7 @@ proto_register_brcm_tag(void)
       },
       { &hf_brcm_tag_frame_octet_cnt,
          { "Frame octet count", "brcm_tag.frame_octet_cnt",
-            FT_UINT16, BASE_DEC, NULL, 0xFFF, NULL, HFILL }
+            FT_UINT16, BASE_DEC, NULL, 0x0FFF, NULL, HFILL }
       },
       { &hf_brcm_tag_dest_dev_id,
          { "Destination device ID", "brcm_tag.dest_dev_id",
@@ -165,14 +167,13 @@ proto_register_brcm_tag(void)
    proto_register_field_array(proto_brcm_tag, hf, array_length(hf));
 
    proto_register_subtree_array(ett, array_length(ett));
+
+   brcm_tag_handle = register_dissector("brcm-tag", dissect_brcm_tag, proto_brcm_tag);
 }
 
 void
 proto_reg_handoff_brcm_tag(void)
 {
-   dissector_handle_t brcm_tag_handle;
-
-   brcm_tag_handle = create_dissector_handle(dissect_brcm_tag, proto_brcm_tag);
    dissector_add_uint("ethertype", ETHERTYPE_BRCM_TYPE, brcm_tag_handle);
 }
 

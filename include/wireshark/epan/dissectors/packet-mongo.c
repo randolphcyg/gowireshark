@@ -23,6 +23,8 @@
 #include <epan/exceptions.h>
 #include <epan/expert.h>
 #include <epan/proto_data.h>
+#include <wsutil/crc32.h> // CRC32C_PRELOAD
+#include <epan/crc32-tvb.h> // crc32c_tvb_offset_calculate
 #include "packet-tcp.h"
 #include "packet-tls.h"
 #ifdef HAVE_SNAPPY
@@ -96,11 +98,13 @@ static const value_string section_kind_vals[] = {
 #define MONGO_COMPRESSOR_NOOP    0
 #define MONGO_COMPRESSOR_SNAPPY  1
 #define MONGO_COMPRESSOR_ZLIB    2
+#define MONGO_COMPRESSOR_ZSTD    3
 
 static const value_string compressor_vals[] = {
   { MONGO_COMPRESSOR_NOOP,   "Noop (Uncompressed)" },
   { MONGO_COMPRESSOR_SNAPPY, "Snappy" },
   { MONGO_COMPRESSOR_ZLIB,   "Zlib" },
+  { MONGO_COMPRESSOR_ZSTD,   "Zstd" },
   { 0,  NULL }
 };
 
@@ -124,6 +128,7 @@ static const value_string compressor_vals[] = {
 #define BSON_ELEMENT_TYPE_INT32         16  /* 0x10 */
 #define BSON_ELEMENT_TYPE_TIMESTAMP     17  /* 0x11 */
 #define BSON_ELEMENT_TYPE_INT64         18  /* 0x12 */
+#define BSON_ELEMENT_TYPE_DECIMAL128    19  /* 0x13 */
 #define BSON_ELEMENT_TYPE_MIN_KEY      255  /* 0xFF */
 #define BSON_ELEMENT_TYPE_MAX_KEY      127  /* 0x7F */
 
@@ -146,6 +151,7 @@ static const value_string element_type_vals[] = {
   { BSON_ELEMENT_TYPE_INT32,          "Int32" },
   { BSON_ELEMENT_TYPE_TIMESTAMP,      "Timestamp" },
   { BSON_ELEMENT_TYPE_INT64,          "Int64" },
+  { BSON_ELEMENT_TYPE_DECIMAL128,     "128-bit decimal floating point" },
   { BSON_ELEMENT_TYPE_MIN_KEY,        "Min Key" },
   { BSON_ELEMENT_TYPE_MAX_KEY,        "Max Key" },
   { 0, NULL }
@@ -221,6 +227,7 @@ static int hf_mongo_element_length = -1;
 static int hf_mongo_element_value_boolean = -1;
 static int hf_mongo_element_value_int32 = -1;
 static int hf_mongo_element_value_int64 = -1;
+static int hf_mongo_element_value_decimal128 = -1;
 static int hf_mongo_element_value_double = -1;
 static int hf_mongo_element_value_string = -1;
 static int hf_mongo_element_value_string_length = -1;
@@ -260,6 +267,8 @@ static int hf_mongo_msg_sections_section_body = -1;
 static int hf_mongo_msg_sections_section_doc_sequence = -1;
 static int hf_mongo_msg_sections_section_size = -1;
 static int hf_mongo_msg_sections_section_doc_sequence_id = -1;
+static int hf_mongo_msg_checksum = -1;
+static int hf_mongo_msg_checksum_status = -1;
 
 static gint ett_mongo = -1;
 static gint ett_mongo_doc = -1;
@@ -281,6 +290,7 @@ static expert_field ei_mongo_document_length_bad = EI_INIT;
 static expert_field ei_mongo_unknown = EI_INIT;
 static expert_field ei_mongo_unsupported_compression = EI_INIT;
 static expert_field ei_mongo_too_large_compressed = EI_INIT;
+static expert_field ei_mongo_msg_checksum = EI_INIT;
 
 static int
 dissect_fullcollectionname(tvbuff_t *tvb, guint offset, proto_tree *tree)
@@ -463,6 +473,12 @@ dissect_bson_document(tvbuff_t *tvb, packet_info *pinfo, guint offset, proto_tre
       case BSON_ELEMENT_TYPE_INT64:
         proto_tree_add_item(element_sub_tree, hf_mongo_element_value_int64, tvb, offset, 8, ENC_LITTLE_ENDIAN);
         offset += 8;
+        break;
+      case BSON_ELEMENT_TYPE_DECIMAL128:
+        /* TODO Implement routine to convert to decimal128 for now, simply display bytes */
+        /* https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst */
+        proto_tree_add_item(element_sub_tree, hf_mongo_element_value_decimal128, tvb, offset, 16, ENC_NA);
+        offset += 16;
         break;
       default:
         break;
@@ -752,6 +768,22 @@ dissect_mongo_op_compressed(tvbuff_t *tvb, packet_info *pinfo, guint offset, pro
   } break;
 #endif
 
+#ifdef HAVE_ZSTD
+  case MONGO_COMPRESSOR_ZSTD:
+  {
+    tvbuff_t *uncompressed_tvb = tvb_child_uncompress_zstd (tvb, tvb, offset, tvb_captured_length_remaining (tvb, offset));
+    if (!uncompressed_tvb) {
+      expert_add_info_format(pinfo, ti, &ei_mongo_unsupported_compression, "Error uncompressing zstd data");
+    } else {
+      add_new_data_source(pinfo, uncompressed_tvb, "Decompressed Data");
+      dissect_opcode_types(uncompressed_tvb, pinfo, 0, tree, opcode, effective_opcode);
+    }
+
+    offset = tvb_reported_length(tvb);
+  }
+  break;
+#endif
+
   case MONGO_COMPRESSOR_ZLIB: {
     tvbuff_t* compressed_tvb = NULL;
 
@@ -840,12 +872,24 @@ dissect_mongo_op_msg(tvbuff_t *tvb, packet_info *pinfo, guint offset, proto_tree
     &hf_mongo_msg_flags_exhaustallowed,
     NULL
   };
+  gint64 op_msg_flags;
+  bool checksum_present = false;
 
-  proto_tree_add_bitmask(tree, tvb, offset, hf_mongo_msg_flags, ett_mongo_msg_flags, mongo_msg_flags, ENC_LITTLE_ENDIAN);
+  proto_tree_add_bitmask_ret_uint64 (tree, tvb, offset, hf_mongo_msg_flags, ett_mongo_msg_flags, mongo_msg_flags, ENC_LITTLE_ENDIAN, &op_msg_flags);
+  if (op_msg_flags & 0x00000001) {
+    checksum_present = true;
+  }
+
   offset += 4;
 
-  while (tvb_reported_length_remaining(tvb, offset) > 0){
+  while (tvb_reported_length_remaining(tvb, offset) > (checksum_present ? 4 : 0)){
     offset += dissect_op_msg_section(tvb, pinfo, offset, tree);
+  }
+
+  if (checksum_present) {
+    guint32 calculated_checksum = ~crc32c_tvb_offset_calculate (tvb, 0, tvb_reported_length (tvb) - 4, CRC32C_PRELOAD);
+    proto_tree_add_checksum(tree, tvb, offset, hf_mongo_msg_checksum, hf_mongo_msg_checksum_status, &ei_mongo_msg_checksum, pinfo, calculated_checksum, ENC_BIG_ENDIAN, PROTO_CHECKSUM_VERIFY);
+    offset += 4;
   }
 
   return offset;
@@ -1272,6 +1316,16 @@ proto_register_mongo(void)
       FT_STRING, BASE_NONE, NULL, 0x0,
       "Document sequence identifier", HFILL }
     },
+    { &hf_mongo_msg_checksum,
+      { "Checksum", "mongo.msg.checksum",
+      FT_UINT32, BASE_HEX, NULL, 0x0,
+      "CRC32C checksum.", HFILL }
+    },
+    { &hf_mongo_msg_checksum_status,
+      { "Checksum Status", "mongo.msg.checksum.status",
+      FT_UINT8, BASE_NONE, VALS(proto_checksum_vals), 0x0,
+      NULL, HFILL }
+    },
     { &hf_mongo_number_of_cursor_ids,
       { "Number of Cursor IDS", "mongo.number_to_cursor_ids",
       FT_INT32, BASE_DEC, NULL, 0x0,
@@ -1310,6 +1364,11 @@ proto_register_mongo(void)
     { &hf_mongo_element_value_int64,
       { "Value", "mongo.element.value.int64",
       FT_INT64, BASE_DEC, NULL, 0x0,
+      "Element Value", HFILL }
+    },
+    { &hf_mongo_element_value_decimal128,
+      { "Value", "mongo.element.value.decimal128",
+      FT_BYTES, BASE_NONE, NULL, 0x0,
       "Element Value", HFILL }
     },
     { &hf_mongo_element_value_double,
@@ -1452,6 +1511,7 @@ proto_register_mongo(void)
      { &ei_mongo_unknown, { "mongo.unknown.expert", PI_UNDECODED, PI_WARN, "Unknown Data (not interpreted)", EXPFILL }},
      { &ei_mongo_unsupported_compression, { "mongo.unsupported_compression.expert", PI_UNDECODED, PI_WARN, "This packet was compressed with an unsupported compressor", EXPFILL }},
      { &ei_mongo_too_large_compressed, { "mongo.too_large_compressed.expert", PI_UNDECODED, PI_WARN, "The size of the uncompressed packet exceeded the maximum allowed value", EXPFILL }},
+     { &ei_mongo_msg_checksum, { "mongo.bad_checksum.expert", PI_UNDECODED, PI_ERROR, "Bad checksum", EXPFILL }},
   };
 
   proto_mongo = proto_register_protocol("Mongo Wire Protocol", "MONGO", "mongo");

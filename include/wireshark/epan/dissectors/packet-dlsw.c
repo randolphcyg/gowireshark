@@ -22,6 +22,9 @@
 void proto_register_dlsw(void);
 void proto_reg_handoff_dlsw(void);
 
+static dissector_handle_t dlsw_udp_handle;
+static dissector_handle_t dlsw_tcp_handle;
+
 static int proto_dlsw = -1;
 static int hf_dlsw_flow_control_indication = -1;
 static int hf_dlsw_flow_control_ack = -1;
@@ -633,13 +636,13 @@ proto_register_dlsw(void)
     { &hf_dlsw_gds_id, { "GDS ID", "dlsw.gds_id", FT_UINT16, BASE_DEC, VALS(dlsw_gds_vals), 0x0, NULL, HFILL }},
     { &hf_dlsw_sap_list_support, { "SAP List Support", "dlsw.sap_list_support", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }},
     { &hf_dlsw_sap_list_support_x0, { "x0", "dlsw.sap_list_support.x0", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x80, NULL, HFILL }},
-    { &hf_dlsw_sap_list_support_x2, { "x0", "dlsw.sap_list_support.x2", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x40, NULL, HFILL }},
-    { &hf_dlsw_sap_list_support_x4, { "x0", "dlsw.sap_list_support.x4", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x20, NULL, HFILL }},
-    { &hf_dlsw_sap_list_support_x6, { "x0", "dlsw.sap_list_support.x6", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x10, NULL, HFILL }},
-    { &hf_dlsw_sap_list_support_x8, { "x0", "dlsw.sap_list_support.x8", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x08, NULL, HFILL }},
-    { &hf_dlsw_sap_list_support_xA, { "x0", "dlsw.sap_list_support.xA", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x04, NULL, HFILL }},
-    { &hf_dlsw_sap_list_support_xC, { "x0", "dlsw.sap_list_support.xC", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x02, NULL, HFILL }},
-    { &hf_dlsw_sap_list_support_xE, { "x0", "dlsw.sap_list_support.xE", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x01, NULL, HFILL }},
+    { &hf_dlsw_sap_list_support_x2, { "x2", "dlsw.sap_list_support.x2", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x40, NULL, HFILL }},
+    { &hf_dlsw_sap_list_support_x4, { "x4", "dlsw.sap_list_support.x4", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x20, NULL, HFILL }},
+    { &hf_dlsw_sap_list_support_x6, { "x6", "dlsw.sap_list_support.x6", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x10, NULL, HFILL }},
+    { &hf_dlsw_sap_list_support_x8, { "x8", "dlsw.sap_list_support.x8", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x08, NULL, HFILL }},
+    { &hf_dlsw_sap_list_support_xA, { "xA", "dlsw.sap_list_support.xA", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x04, NULL, HFILL }},
+    { &hf_dlsw_sap_list_support_xC, { "xC", "dlsw.sap_list_support.xC", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x02, NULL, HFILL }},
+    { &hf_dlsw_sap_list_support_xE, { "xE", "dlsw.sap_list_support.xE", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x01, NULL, HFILL }},
   };
 
   static gint *ett[] = {
@@ -666,17 +669,14 @@ proto_register_dlsw(void)
   expert_dlsw = expert_register_protocol(proto_dlsw);
   expert_register_field_array(expert_dlsw, ei, array_length(ei));
 
+  dlsw_udp_handle = register_dissector("dlsw.udp", dissect_dlsw_udp, proto_dlsw);
+  dlsw_tcp_handle = register_dissector("dlsw.tcp", dissect_dlsw_tcp, proto_dlsw);
 }
 
 void
 proto_reg_handoff_dlsw(void)
 {
-  dissector_handle_t dlsw_udp_handle, dlsw_tcp_handle;
-
-  dlsw_udp_handle = create_dissector_handle(dissect_dlsw_udp, proto_dlsw);
   dissector_add_uint_with_preference("udp.port", UDP_PORT_DLSW, dlsw_udp_handle);
-
-  dlsw_tcp_handle = create_dissector_handle(dissect_dlsw_tcp, proto_dlsw);
   dissector_add_uint_with_preference("tcp.port", TCP_PORT_DLSW, dlsw_tcp_handle);
 }
 

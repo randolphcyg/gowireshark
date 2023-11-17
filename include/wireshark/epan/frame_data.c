@@ -14,10 +14,10 @@
 #include <glib.h>
 
 #include <epan/epan.h>
-#include <wiretap/wtap.h>
 #include <epan/frame_data.h>
 #include <epan/column-utils.h>
 #include <epan/timestamp.h>
+#include <wiretap/wtap.h>
 #include <wsutil/ws_assert.h>
 
 #define COMPARE_FRAME_NUM()     ((fdata1->num < fdata2->num) ? -1 : \
@@ -161,12 +161,14 @@ frame_data_init(frame_data *fdata, guint32 num, const wtap_rec *rec,
   fdata->subnum = 0;
   fdata->passed_dfilter = 0;
   fdata->dependent_of_displayed = 0;
+  fdata->dependent_frames = NULL;
   fdata->encoding = PACKET_CHAR_ENC_CHAR_ASCII;
   fdata->visited = 0;
   fdata->marked = 0;
   fdata->ref_time = 0;
   fdata->ignored = 0;
   fdata->has_ts = (rec->presence_flags & WTAP_HAS_TS) ? 1 : 0;
+  fdata->tcp_snd_manual_analysis = 0;
   switch (rec->rec_type) {
 
   case REC_TYPE_PACKET:
@@ -244,6 +246,22 @@ frame_data_set_before_dissect(frame_data *fdata,
 {
   nstime_t rel_ts;
 
+  /* If this frame doesn't have a time stamp, don't set it as the
+   * reference frame used for calculating time deltas, set elapsed
+   * time, etc. We also won't need to calculate the delta of this
+   * frame's timestamp to any other frame.
+   */
+  if (!fdata->has_ts) {
+    /* If it was marked as a reference time frame anyway (should we
+     * allow that?), clear the existing reference frame so that the
+     * next frame with a time stamp will become the reference frame.
+     */
+    if(fdata->ref_time) {
+      *frame_ref = NULL;
+    }
+    return;
+  }
+
   /* Don't have the reference frame, set to current */
   if (*frame_ref == NULL)
     *frame_ref = fdata;
@@ -296,6 +314,11 @@ frame_data_reset(frame_data *fdata)
     g_slist_free(fdata->pfd);
     fdata->pfd = NULL;
   }
+
+  if (fdata->dependent_frames) {
+    g_hash_table_destroy(fdata->dependent_frames);
+    fdata->dependent_frames = NULL;
+  }
 }
 
 void
@@ -304,6 +327,11 @@ frame_data_destroy(frame_data *fdata)
   if (fdata->pfd) {
     g_slist_free(fdata->pfd);
     fdata->pfd = NULL;
+  }
+
+  if (fdata->dependent_frames) {
+    g_hash_table_destroy(fdata->dependent_frames);
+    fdata->dependent_frames = NULL;
   }
 }
 

@@ -12,13 +12,13 @@
  */
 
 #include <config.h>
+#define WS_LOG_DOMAIN  LOG_DOMAIN_MAIN
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <locale.h>
-#include <errno.h>
 
 #include <wsutil/ws_getopt.h>
 
@@ -26,12 +26,12 @@
 
 #include <wiretap/wtap.h>
 
-#include <ui/cmdarg_err.h>
+#include <wsutil/cmdarg_err.h>
 #include <wsutil/file_util.h>
 #include <wsutil/filesystem.h>
 #include <wsutil/privileges.h>
 #include <cli_main.h>
-#include <ui/version_info.h>
+#include <wsutil/version_info.h>
 
 #ifdef HAVE_PLUGINS
 #include <wsutil/plugins.h>
@@ -120,6 +120,8 @@ main(int argc, char *argv[])
 
     /* Early logging command-line initialization. */
     ws_log_parse_args(&argc, argv, vcmdarg_err, 1);
+
+    ws_noisy("Finished log init and parsing command line log arguments");
 
     /* Initialize the version information. */
     ws_init_version_info("Captype", NULL, NULL);

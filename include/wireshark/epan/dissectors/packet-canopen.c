@@ -18,6 +18,8 @@
 void proto_register_canopen(void);
 void proto_reg_handoff_canopen(void);
 
+static dissector_handle_t canopen_handle;
+
 /* Initialize the protocol and registered fields */
 static int proto_canopen = -1;
 static int hf_canopen_cob_id = -1;
@@ -1121,7 +1123,7 @@ dissect_lss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *canopen_type_tree, gu
             case LSS_CS_IDENT_REMOTE_SERIAL_LOW:
             case LSS_CS_IDENT_REMOTE_SERIAL_HIGH:
                 col_append_fstr(pinfo->cinfo, COL_INFO, ", %s 0x%08x",
-                        val_to_str(lss_cs, lss_id_remote_slave, "(Unknown)"), tvb_get_letohl(tvb, offset));
+                        val_to_str_const(lss_cs, lss_id_remote_slave, "(Unknown)"), tvb_get_letohl(tvb, offset));
 
                 proto_tree_add_item(canopen_type_tree,
                         *hf_canopen_lss_addr_ident[lss_cs - LSS_CS_IDENT_REMOTE_VENDOR], tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -1203,7 +1205,7 @@ dissect_lss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *canopen_type_tree, gu
             case LSS_CS_INQ_REV_NUMBER:
             case LSS_CS_INQ_SERIAL_NUMBER:
                 col_append_fstr(pinfo->cinfo, COL_INFO,
-                        ", %s 0x%08x", val_to_str(lss_cs, lss_inquire_id, "(Unknown)"), tvb_get_letohl(tvb, offset));
+                        ", %s 0x%08x", val_to_str_const(lss_cs, lss_inquire_id, "(Unknown)"), tvb_get_letohl(tvb, offset));
 
                 proto_tree_add_item(canopen_type_tree,
                         *hf_canopen_lss_addr_inquire[lss_cs - LSS_CS_INQ_VENDOR_ID], tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -1212,7 +1214,7 @@ dissect_lss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *canopen_type_tree, gu
                 break;
             case LSS_CS_INQ_NODE_ID:
                 col_append_fstr(pinfo->cinfo, COL_INFO,
-                        ", %s 0x%08x", val_to_str(lss_cs, lss_inquire_id, "(Unknown)"), tvb_get_letohl(tvb, offset));
+                        ", %s 0x%08x", val_to_str_const(lss_cs, lss_inquire_id, "(Unknown)"), tvb_get_letohl(tvb, offset));
 
                 proto_tree_add_item(canopen_type_tree,
                         hf_canopen_lss_nid, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -1336,7 +1338,7 @@ dissect_canopen(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
         break;
     case MT_NMT_ERR_CTRL:
         if (tvb_reported_length(tvb) > 0) {
-            col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str(tvb_get_bits8(tvb, 1, 7), nmt_guard_state, "(Unknown)"));
+            col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str_const(tvb_get_bits8(tvb, 1, 7), nmt_guard_state, "(Unknown)"));
 
             proto_tree_add_item(canopen_type_tree,
                 hf_canopen_nmt_guard_toggle, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -1426,7 +1428,7 @@ proto_register_canopen(void)
         },
         { &hf_canopen_function_code,
           { "Function code", "canopen.function_code",
-            FT_UINT32, BASE_HEX, NULL, 0x780,
+            FT_UINT32, BASE_HEX, NULL, 0x00000780,
             NULL, HFILL }
         },
         { &hf_canopen_node_id,
@@ -1616,7 +1618,7 @@ proto_register_canopen(void)
         },
         { &hf_canopen_nmt_ctrl_cs,
           { "Command specifier", "canopen.nmt_ctrl.cd",
-            FT_UINT8, BASE_HEX, VALS(nmt_ctrl_cs), 0xFF,
+            FT_UINT8, BASE_HEX, VALS(nmt_ctrl_cs), 0x0,
             NULL, HFILL }
         },
         { &hf_canopen_nmt_ctrl_node_id,
@@ -1778,20 +1780,17 @@ proto_register_canopen(void)
         &ett_canopen_em_er
     };
 
-    proto_canopen = proto_register_protocol("CANopen",
-                                            "CANOPEN",
-                                            "canopen");
+    proto_canopen = proto_register_protocol("CANopen", "CANOPEN", "canopen");
 
     proto_register_field_array(proto_canopen, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
+
+    canopen_handle = register_dissector("canopen",  dissect_canopen, proto_canopen );
 }
 
 void
 proto_reg_handoff_canopen(void)
 {
-   dissector_handle_t canopen_handle;
-
-   canopen_handle = create_dissector_handle( dissect_canopen, proto_canopen );
    dissector_add_for_decode_as("can.subdissector", canopen_handle );
 }
 

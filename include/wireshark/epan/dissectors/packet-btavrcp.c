@@ -2359,7 +2359,7 @@ proto_register_btavrcp(void)
         },
         { &hf_btavrcp_unit_unknown,
             { "Unknown",                         "btavrcp.unit.unknown",
-            FT_UINT8, BASE_HEX, NULL, 0xFF,
+            FT_UINT8, BASE_HEX, NULL, 0x0,
             NULL, HFILL }
         },
         { &hf_btavrcp_unit_type,
@@ -2699,12 +2699,12 @@ proto_register_btavrcp(void)
             NULL, HFILL }
         },
         { &hf_btavrcp_attribute_name_length,
-            { "Value Length",                    "btavrcp.attribute_name.length",
+            { "Name Length",                    "btavrcp.attribute_name.length",
             FT_UINT8, BASE_DEC, NULL, 0x00,
             NULL, HFILL }
         },
         { &hf_btavrcp_attribute_name,
-            { "Value",                           "btavrcp.attribute_name",
+            { "Name",                           "btavrcp.attribute_name",
             FT_STRING, BASE_NONE, NULL, 0x00,
             NULL, HFILL }
         },

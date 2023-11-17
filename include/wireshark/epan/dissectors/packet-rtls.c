@@ -21,6 +21,8 @@
 void proto_reg_handoff_rtls(void);
 void proto_register_rtls(void);
 
+static dissector_handle_t rtls_handle;
+
 static int proto_rtls = -1;
 static int hf_rtls_message_type = -1;
 static int hf_rtls_message_id = -1;
@@ -355,7 +357,7 @@ hf_rtls_nack_flags, ett_rtls_nack_flags, rtls_nack_flags, ENC_BIG_ENDIAN, BMT_NO
             while(cmr_messages){
                 guint32 data_length;
                 type = tvb_get_ntohs(tvb, offset);
-                sub_tree = proto_tree_add_subtree_format(rtls_tree, tvb, offset, -1, ett_rtls_message, NULL, "%s", val_to_str_const(type, rtls_message_type_vals, "(unknown %d)"));
+                sub_tree = proto_tree_add_subtree_format(rtls_tree, tvb, offset, -1, ett_rtls_message, NULL, "%s", val_to_str(type, rtls_message_type_vals, "(unknown %d)"));
 
                 offset = dissect_rtls_header(tvb, pinfo, sub_tree, offset, &data_length);
 
@@ -399,7 +401,7 @@ dissect_rtls(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 
     /* RTLS Header */
     type = tvb_get_ntohs(tvb, offset);
-    col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str_const(type, rtls_message_type_vals, "(unknown %d)"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(type, rtls_message_type_vals, "(unknown %d)"));
 
     offset = dissect_rtls_header(tvb, pinfo, rtls_tree, offset, NULL);
 
@@ -436,7 +438,7 @@ proto_register_rtls(void)
             NULL, HFILL }
         },
         { &hf_rtls_version_minor,
-          { "Version Major", "rtls.version_minor",
+          { "Version Minor", "rtls.version_minor",
             FT_UINT8, BASE_DEC, NULL, 0x0,
             NULL, HFILL }
         },
@@ -496,7 +498,7 @@ proto_register_rtls(void)
         },
         { &hf_rtls_nack_flags_reserved,
           { "Reserved", "rtls.nack.flags.reserved",
-            FT_UINT16, BASE_HEX, NULL, 0x0D,
+            FT_UINT16, BASE_HEX, NULL, 0xFC,
             NULL, HFILL }
         },
 
@@ -759,6 +761,7 @@ proto_register_rtls(void)
 
 
     proto_rtls = proto_register_protocol("Real Time Location System", "RTLS", "rtls");
+    rtls_handle = register_dissector("rtls", dissect_rtls, proto_rtls);
 
     proto_register_field_array(proto_rtls, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
@@ -771,9 +774,6 @@ proto_register_rtls(void)
 void
 proto_reg_handoff_rtls(void)
 {
-    dissector_handle_t rtls_handle;
-
-    rtls_handle = create_dissector_handle(dissect_rtls, proto_rtls);
     dissector_add_for_decode_as_with_preference("udp.port", rtls_handle);
 }
 

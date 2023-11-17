@@ -107,7 +107,7 @@ WSLUA_FUNCTION wslua_register_menu(lua_State* L) { /*  Register a menu item in o
     register_stat_group_t group = (register_stat_group_t)wslua_optguint(L,WSLUA_OPTARG_register_menu_GROUP,REGISTER_STAT_GROUP_GENERIC);
 
     if ( group > REGISTER_TOOLS_GROUP_UNSORTED) {
-        WSLUA_OPTARG_ERROR(register_menu,GROUP,"Must be a defined MENU_* (see init.lua)");
+        WSLUA_OPTARG_ERROR(register_menu,GROUP,"Must be a defined MENU_*");
         return 0;
     }
 
@@ -135,6 +135,93 @@ WSLUA_FUNCTION wslua_register_menu(lua_State* L) { /*  Register a menu item in o
 
 void wslua_deregister_menus(void) {
     funnel_deregister_menus(lua_menu_callback);
+}
+
+/**
+ * Error handler used by lua_custom_packet_menu_callback when calling the user-supplied callback
+ *
+ * @param L State of the Lua interpreter
+ * @return Always returns 0
+ */
+static int packet_menu_cb_error_handler(lua_State* L) {
+    const gchar* error =  lua_tostring(L,1);
+    report_failure("Lua: Error During execution of Packet Menu Callback:\n %s",error);
+    return 0;
+}
+
+/**
+ * Wrapper used to call the user-supplied Lua callback when a custom packet
+ * context menu is clicked.
+ *
+ * @param data Lua menu data
+ * @param finfo_array packet data
+ */
+static void lua_custom_packet_menu_callback(gpointer data, GPtrArray *finfo_array) {
+    // _lua_menu_data is State + the integer index of a callback.
+    struct _lua_menu_data* md = (struct _lua_menu_data *)data;
+    lua_State* L = md->L;
+
+    lua_settop(L,0);
+    lua_pushcfunction(L,packet_menu_cb_error_handler);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, md->cb_ref);
+
+    // Push the packet data as arguments to the Lua callback:
+    int items_found = 0;
+    for (guint i = 0; i < finfo_array->len; i ++) {
+        field_info *fi = (field_info *)g_ptr_array_index (finfo_array, i);
+        push_FieldInfo(L, fi);
+        items_found++;
+    }
+
+    switch ( lua_pcall(L,items_found,0,1) ) {
+        case 0:
+            break;
+        case LUA_ERRRUN:
+            g_warning("Runtime error while calling custom_packet_menu callback");
+            break;
+        case LUA_ERRMEM:
+            g_warning("Memory alloc error while calling custom_packet_menu callback");
+            break;
+        default:
+            g_assert_not_reached();
+            break;
+    }
+
+    return;
+}
+
+/**
+ * Lua function exposed to users: register_packet_menu
+ */
+WSLUA_FUNCTION wslua_register_packet_menu(lua_State* L) { /*  Register a menu item in the packet list. */
+#define WSLUA_ARG_register_packet_menu_NAME 1 /* The name of the menu item. Use slashes to separate submenus. (e.g. level1/level2/name). (string) */
+#define WSLUA_ARG_register_packet_menu_ACTION 2 /* The function to be called when the menu item is invoked. The function must take a variable number of arguments and return nothing. The arguments will be FieldInfo objects, one for each field present in the selected packet. */
+#define WSLUA_OPTARG_register_packet_menu_REQUIRED_FIELDS 3 /* A comma-separated list of packet fields (e.g., http.host,dns.qry.name) which all must be present for the menu to be displayed. If omitted, the packet menu will be displayed for all packets. */
+
+    const gchar* name = luaL_checkstring(L,WSLUA_ARG_register_packet_menu_NAME);
+    const gchar* required_fields = luaL_optstring(L,WSLUA_OPTARG_register_packet_menu_REQUIRED_FIELDS,"");
+
+    struct _lua_menu_data* md;
+    gboolean retap = FALSE;
+
+    if (!lua_isfunction(L,WSLUA_ARG_register_packet_menu_ACTION)) {
+        WSLUA_ARG_ERROR(register_packet_menu,ACTION,"Must be a function");
+        return 0;
+    }
+
+    md = g_new0(struct _lua_menu_data, 1);
+    md->L = L;
+
+    lua_pushvalue(L, 2);
+    md->cb_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    lua_remove(L,2);
+
+    funnel_register_packet_menu(name,
+                                required_fields,
+                                lua_custom_packet_menu_callback,
+                                md,
+                                retap);
+    WSLUA_RETURN(0);
 }
 
 struct _dlg_cb_data {
@@ -264,8 +351,8 @@ WSLUA_FUNCTION wslua_new_dialog(lua_State* L) { /*
     */
 #define WSLUA_ARG_new_dialog_TITLE 1 /* The title of the dialog. */
 #define WSLUA_ARG_new_dialog_ACTION 2 /* Action to be performed when the user presses btn:[OK]. */
-/* WSLUA_MOREARGS new_dialog Strings to be used a labels of the dialog's fields. Each string creates a new labeled field. The first field is required.
-Instead of a strings it is possible to provide tables with fields 'name' and 'value' of type string. Then the created dialog's field will labeld with the content of name and prefilled with the content of value.*/
+/* WSLUA_MOREARGS new_dialog Strings to be used as labels of the dialog's fields. Each string creates a new labeled field. The first field is required.
+Instead of a string it is possible to provide tables with fields 'name' and 'value' of type string. Then the created dialog's field will be labeled with the content of name and prefilled with the content of value.*/
 
     const gchar* title;
     int top = lua_gettop(L);
@@ -605,7 +692,7 @@ WSLUA_CONSTRUCTOR TextWindow_new(lua_State* L) { /*
             end
     end)
 
-    -- print "closing" to stdout when the user closes the text windw
+    -- print "closing" to stdout when the user closes the text window
     win:set_atclose(function() print("closing") end)
     ----
 

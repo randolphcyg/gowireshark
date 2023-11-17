@@ -46,6 +46,7 @@ static int proto_cip_class_s_validator    = -1;
 static int proto_cip                      = -1;
 
 static dissector_table_t subdissector_class_table;
+static dissector_handle_t cip_class_s_supervisor_handle;
 static dissector_handle_t cip_class_s_validator_handle;
 
 /* CIP Safety field identifiers */
@@ -2537,35 +2538,35 @@ proto_register_cipsafety(void)
       },
       { &hf_cip_ssupervisor_reset_attr_bitmap_macid,
         { "Preserve MacID", "cipsafety.ssupervisor.reset.attr_bitmap.macid",
-          FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x01, NULL, HFILL }
+          FT_BOOLEAN, 8, NULL, 0x01, NULL, HFILL }
       },
       { &hf_cip_ssupervisor_reset_attr_bitmap_baudrate,
         { "Preserve Baud Rate", "cipsafety.ssupervisor.reset.attr_bitmap.baudrate",
-          FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x02, NULL, HFILL }
+          FT_BOOLEAN, 8, NULL, 0x02, NULL, HFILL }
       },
       { &hf_cip_ssupervisor_reset_attr_bitmap_tunid,
         { "Preserve TUNID", "cipsafety.ssupervisor.reset.attr_bitmap.tunid",
-          FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x04, NULL, HFILL }
+          FT_BOOLEAN, 8, NULL, 0x04, NULL, HFILL }
       },
       { &hf_cip_ssupervisor_reset_attr_bitmap_password,
         { "Preserve Password", "cipsafety.ssupervisor.reset.attr_bitmap.password",
-          FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x08, NULL, HFILL }
+          FT_BOOLEAN, 8, NULL, 0x08, NULL, HFILL }
       },
       { &hf_cip_ssupervisor_reset_attr_bitmap_cfunid,
         { "Preserve CFUNID", "cipsafety.ssupervisor.reset.attr_bitmap.cfunid",
-          FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x10, NULL, HFILL }
+          FT_BOOLEAN, 8, NULL, 0x10, NULL, HFILL }
       },
       { &hf_cip_ssupervisor_reset_attr_bitmap_ocpunid,
         { "Preserve OPCUNID", "cipsafety.ssupervisor.reset.attr_bitmap.ocpunid",
-          FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x20, NULL, HFILL }
+          FT_BOOLEAN, 8, NULL, 0x20, NULL, HFILL }
       },
       { &hf_cip_ssupervisor_reset_attr_bitmap_reserved,
         { "Reserved", "cipsafety.ssupervisor.reset.attr_bitmap.reserved",
-          FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x40, NULL, HFILL }
+          FT_BOOLEAN, 8, NULL, 0x40, NULL, HFILL }
       },
       { &hf_cip_ssupervisor_reset_attr_bitmap_extended,
         { "Use Extended Map", "cipsafety.ssupervisor.reset.attr_bitmap.extended",
-          FT_BOOLEAN, 8, TFS(&tfs_true_false), 0x80, NULL, HFILL }
+          FT_BOOLEAN, 8, NULL, 0x80, NULL, HFILL }
       },
       { &hf_cip_ssupervisor_reset_password_data_size,
         { "Data Size", "cipsafety.ssupervisor.reset_password.data_size",
@@ -2685,11 +2686,11 @@ proto_register_cipsafety(void)
       },
       { &hf_cip_ssupervisor_alarm_enable,
         { "Exception Detail Alarm", "cipsafety.ssupervisor.alarm_enable",
-          FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0, NULL, HFILL }
+          FT_BOOLEAN, BASE_NONE, NULL, 0, NULL, HFILL }
       },
       { &hf_cip_ssupervisor_warning_enable,
         { "Exception Detail Warning", "cipsafety.ssupervisor.warning_enable",
-          FT_BOOLEAN, BASE_NONE, TFS(&tfs_true_false), 0, NULL, HFILL }
+          FT_BOOLEAN, BASE_NONE, NULL, 0, NULL, HFILL }
       },
       { &hf_cip_ssupervisor_time,
         { "Time", "cipsafety.ssupervisor.time",
@@ -3059,6 +3060,7 @@ proto_register_cipsafety(void)
    /* Register CIP Safety objects */
    proto_cip_class_s_supervisor = proto_register_protocol("CIP Safety Supervisor",
        "CIPSSupervisor", "cipssupervisor");
+   cip_class_s_supervisor_handle = register_dissector("cipssupervisor",  dissect_cip_class_s_supervisor, proto_cip_class_s_supervisor );
    proto_register_field_array(proto_cip_class_s_supervisor, hf_ssupervisor, array_length(hf_ssupervisor));
    proto_register_subtree_array(ett_ssupervisor, array_length(ett_ssupervisor));
    expert_cip_class_s_supervisor = expert_register_protocol(proto_cip_class_s_supervisor);
@@ -3066,6 +3068,7 @@ proto_register_cipsafety(void)
 
    proto_cip_class_s_validator = proto_register_protocol("CIP Safety Validator",
        "CIPSValidator", "cipsvalidator");
+   cip_class_s_validator_handle = register_dissector("cipsvalidator",  dissect_cip_class_s_validator, proto_cip_class_s_validator );
    proto_register_field_array(proto_cip_class_s_validator, hf_svalidator, array_length(hf_svalidator));
    proto_register_subtree_array(ett_svalidator, array_length(ett_svalidator));
    expert_cip_class_s_validator = expert_register_protocol(proto_cip_class_s_validator);
@@ -3083,14 +3086,10 @@ proto_register_cipsafety(void)
 void
 proto_reg_handoff_cipsafety(void)
 {
-   dissector_handle_t cip_class_s_supervisor_handle;
-
-   /* Create and register dissector handle for Safety Supervisor */
-   cip_class_s_supervisor_handle = create_dissector_handle( dissect_cip_class_s_supervisor, proto_cip_class_s_supervisor );
+   /* Register dissector handle for Safety Supervisor */
    dissector_add_uint( "cip.class.iface", CI_CLS_SAFETY_SUPERVISOR, cip_class_s_supervisor_handle );
 
-   /* Create and register dissector handle for Safety Validator */
-   cip_class_s_validator_handle = create_dissector_handle( dissect_cip_class_s_validator, proto_cip_class_s_validator );
+   /* Register dissector handle for Safety Validator */
    dissector_add_uint( "cip.class.iface", CI_CLS_SAFETY_VALIDATOR, cip_class_s_validator_handle );
    heur_dissector_add("cip.sc", dissect_class_svalidator_heur, "CIP Safety Validator", "s_validator_cip", proto_cip_class_s_validator, HEURISTIC_ENABLE);
 

@@ -25,10 +25,12 @@
 #include <epan/expert.h>
 #include <epan/packet.h>
 #include <epan/prefs.h>
-#include <epan/dissectors/packet-tcp.h>
+#include "packet-tcp.h"
 
 void proto_reg_handoff_scylla(void);
 void proto_register_scylla(void);
+
+static dissector_handle_t scylla_handle;
 
 #define SCYLLA_PORT 0 /* Not IANA registered, 7000 is the expected value */
 
@@ -527,14 +529,13 @@ proto_register_scylla(void)
     proto_register_subtree_array(ett, array_length(ett));
     expert_scylla = expert_register_protocol(proto_scylla);
     expert_register_field_array(expert_scylla, ei, array_length(ei));
+
+    scylla_handle = register_dissector("scylla", dissect_scylla, proto_scylla);
 }
 
 void
 proto_reg_handoff_scylla(void)
 {
-    static dissector_handle_t scylla_handle;
-
-    scylla_handle = create_dissector_handle(dissect_scylla, proto_scylla);
     dissector_add_uint_with_preference("tcp.port", SCYLLA_PORT, scylla_handle);
 }
 

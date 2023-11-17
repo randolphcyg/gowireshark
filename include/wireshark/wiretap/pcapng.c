@@ -16,6 +16,7 @@
  */
 
 #include "config.h"
+#include "wtap_opttypes.h"
 
 #define WS_LOG_DOMAIN LOG_DOMAIN_WIRETAP
 
@@ -28,6 +29,7 @@
 #include <wsutil/glib-compat.h>
 #include <wsutil/ws_assert.h>
 #include <wsutil/ws_roundup.h>
+#include <wsutil/unicode-utils.h>
 
 #include "wtap-int.h"
 #include "file_wrappers.h"
@@ -51,6 +53,9 @@ pcapng_close(wtap *wth);
 
 static gboolean
 pcapng_encap_is_ft_specific(int encap);
+
+static gboolean
+pcapng_write_if_descr_block(wtap_dumper *wdh, wtap_block_t int_data, int *err);
 
 /*
  * Minimum block size = size of block header + size of block trailer.
@@ -191,6 +196,14 @@ struct pcapng_option {
 #define OPT_VERDICT_TYPE_TC  1
 #define OPT_VERDICT_TYPE_XDP 2
 
+/* OPT_EPB_HASH sub-types */
+#define OPT_HASH_2COMP    0
+#define OPT_HASH_XOR	  1
+#define OPT_HASH_CRC32    2
+#define OPT_HASH_MD5      3
+#define OPT_HASH_SHA1     4
+#define OPT_HASH_TOEPLITZ 5
+
 /*
  * In order to keep from trying to allocate large chunks of memory,
  * which could either fail or, even if it succeeds, chew up so much
@@ -242,8 +255,6 @@ typedef struct interface_info_s {
 typedef struct {
     guint current_section_number; /**< Section number of the current section being read sequentially */
     GArray *sections;             /**< Sections found in the capture file. */
-    wtap_new_ipv4_callback_t add_new_ipv4;
-    wtap_new_ipv6_callback_t add_new_ipv6;
 } pcapng_t;
 
 /*
@@ -287,9 +298,26 @@ register_pcapng_block_type_handler(guint block_type, block_reader reader,
     case BLOCK_TYPE_DSB:
     case BLOCK_TYPE_CB_COPY:
     case BLOCK_TYPE_CB_NO_COPY:
+    case BLOCK_TYPE_SYSDIG_MI:
+    case BLOCK_TYPE_SYSDIG_PL_V1:
+    case BLOCK_TYPE_SYSDIG_FDL_V1:
     case BLOCK_TYPE_SYSDIG_EVENT:
+    case BLOCK_TYPE_SYSDIG_IL_V1:
+    case BLOCK_TYPE_SYSDIG_UL_V1:
+    case BLOCK_TYPE_SYSDIG_PL_V2:
+    case BLOCK_TYPE_SYSDIG_EVF:
+    case BLOCK_TYPE_SYSDIG_PL_V3:
+    case BLOCK_TYPE_SYSDIG_PL_V4:
+    case BLOCK_TYPE_SYSDIG_PL_V5:
+    case BLOCK_TYPE_SYSDIG_PL_V6:
+    case BLOCK_TYPE_SYSDIG_PL_V7:
+    case BLOCK_TYPE_SYSDIG_PL_V8:
+    case BLOCK_TYPE_SYSDIG_PL_V9:
     case BLOCK_TYPE_SYSDIG_EVENT_V2:
-    case BLOCK_TYPE_SYSDIG_EVENT_V2_LARGE:
+    case BLOCK_TYPE_SYSDIG_EVF_V2:
+    case BLOCK_TYPE_SYSDIG_FDL_V2:
+    case BLOCK_TYPE_SYSDIG_IL_V2:
+    case BLOCK_TYPE_SYSDIG_UL_V2:
     case BLOCK_TYPE_SYSTEMD_JOURNAL_EXPORT:
         /*
          * Yes; we already handle it, and don't allow a replacement to
@@ -303,9 +331,6 @@ register_pcapng_block_type_handler(guint block_type, block_reader reader,
 
     case BLOCK_TYPE_IRIG_TS:
     case BLOCK_TYPE_ARINC_429:
-    case BLOCK_TYPE_SYSDIG_EVF:
-    case BLOCK_TYPE_SYSDIG_EVF_V2:
-    case BLOCK_TYPE_SYSDIG_EVF_V2_LARGE:
         /*
          * Yes, and we don't already handle it.  Allow a plugin to
          * handle it.
@@ -419,6 +444,80 @@ typedef struct {
 
 static GHashTable *option_handlers[NUM_BT_INDICES];
 
+/* Return whether this block type is handled interally, or
+ * if it is returned to the caller in pcapng_read().
+ * This is used by pcapng_open() to decide if it can process
+ * the block.
+ * Note that for block types that are registered from plugins,
+ * we don't know the true answer without actually reading the block,
+ * or even if there is a fixed answer for all blocks of that type,
+ * so we err on the side of not processing.
+ */
+static bool
+get_block_type_internal(unsigned block_type)
+{
+    switch (block_type) {
+
+    case BLOCK_TYPE_SHB:
+    case BLOCK_TYPE_IDB:
+    case BLOCK_TYPE_NRB:
+    case BLOCK_TYPE_DSB:
+    case BLOCK_TYPE_ISB: /* XXX: ISBs should probably not be internal. */
+    case BLOCK_TYPE_SYSDIG_MI:
+    case BLOCK_TYPE_SYSDIG_PL_V1:
+    case BLOCK_TYPE_SYSDIG_FDL_V1:
+    case BLOCK_TYPE_SYSDIG_IL_V1:
+    case BLOCK_TYPE_SYSDIG_UL_V1:
+    case BLOCK_TYPE_SYSDIG_PL_V2:
+    case BLOCK_TYPE_SYSDIG_PL_V3:
+    case BLOCK_TYPE_SYSDIG_PL_V4:
+    case BLOCK_TYPE_SYSDIG_PL_V5:
+    case BLOCK_TYPE_SYSDIG_PL_V6:
+    case BLOCK_TYPE_SYSDIG_PL_V7:
+    case BLOCK_TYPE_SYSDIG_PL_V8:
+    case BLOCK_TYPE_SYSDIG_PL_V9:
+    case BLOCK_TYPE_SYSDIG_FDL_V2:
+    case BLOCK_TYPE_SYSDIG_IL_V2:
+    case BLOCK_TYPE_SYSDIG_UL_V2:
+        return true;
+
+    case BLOCK_TYPE_PB:
+    case BLOCK_TYPE_EPB:
+    case BLOCK_TYPE_SPB:
+        return false;
+
+    case BLOCK_TYPE_CB_COPY:
+    case BLOCK_TYPE_CB_NO_COPY:
+    case BLOCK_TYPE_SYSDIG_EVENT:
+    case BLOCK_TYPE_SYSDIG_EVENT_V2:
+    case BLOCK_TYPE_SYSDIG_EVENT_V2_LARGE:
+    case BLOCK_TYPE_SYSTEMD_JOURNAL_EXPORT:
+        return false;
+
+    default:
+#ifdef HAVE_PLUGINS
+        /*
+         * Do we have a handler for this block type?
+         */
+        if (block_handlers != NULL &&
+            (g_hash_table_lookup(block_handlers, GUINT_TO_POINTER(block_type))) != NULL) {
+                /* Yes. We don't know if the handler sets this block internal
+                 * or needs to return it to the pcap_read() caller without
+                 * reading it. Since this is called by pcap_open(), play it
+                 * safe and tell pcap_open() to stop processing blocks.
+                 * (XXX: Maybe the block type handler registration interface
+                 * should include some way of indicating whether blocks are
+                 * handled internally, which should hopefully be the same
+                 * for all blocks of a type.)
+                 */
+                return FALSE;
+        }
+#endif
+        return TRUE;
+    }
+    return FALSE;
+}
+
 static gboolean
 get_block_type_index(guint block_type, guint *bt_index)
 {
@@ -451,7 +550,22 @@ get_block_type_index(guint block_type, guint *bt_index)
         case BLOCK_TYPE_SYSDIG_EVENT:
         case BLOCK_TYPE_SYSDIG_EVENT_V2:
         case BLOCK_TYPE_SYSDIG_EVENT_V2_LARGE:
-        /* case BLOCK_TYPE_SYSDIG_EVF: */
+        case BLOCK_TYPE_SYSDIG_MI:
+        case BLOCK_TYPE_SYSDIG_PL_V1:
+        case BLOCK_TYPE_SYSDIG_FDL_V1:
+        case BLOCK_TYPE_SYSDIG_IL_V1:
+        case BLOCK_TYPE_SYSDIG_UL_V1:
+        case BLOCK_TYPE_SYSDIG_PL_V2:
+        case BLOCK_TYPE_SYSDIG_PL_V3:
+        case BLOCK_TYPE_SYSDIG_PL_V4:
+        case BLOCK_TYPE_SYSDIG_PL_V5:
+        case BLOCK_TYPE_SYSDIG_PL_V6:
+        case BLOCK_TYPE_SYSDIG_PL_V7:
+        case BLOCK_TYPE_SYSDIG_PL_V8:
+        case BLOCK_TYPE_SYSDIG_PL_V9:
+        case BLOCK_TYPE_SYSDIG_FDL_V2:
+        case BLOCK_TYPE_SYSDIG_IL_V2:
+        case BLOCK_TYPE_SYSDIG_UL_V2:
             *bt_index = BT_INDEX_EVT;
             break;
 
@@ -692,7 +806,14 @@ void
 pcapng_process_string_option(wtapng_block_t *wblock, guint16 option_code,
                              guint16 option_length, const guint8 *option_content)
 {
-    wtap_block_add_string_option(wblock->block, option_code, (const char *)option_content, option_length);
+    const char *opt = (const char *)option_content;
+    size_t optlen = option_length;
+    char *str;
+
+    /* Validate UTF-8 encoding. */
+    str = ws_utf8_make_valid(NULL, opt, optlen);
+
+    wtap_block_add_string_option_owned(wblock->block, option_code, str);
 }
 
 void
@@ -836,7 +957,7 @@ pcapng_process_custom_option(wtapng_block_t *wblock,
         break;
     default:
         ret = wtap_block_add_custom_option(wblock->block, option_code, pen, option_content + 4, option_length - 4) == WTAP_OPTTYPE_SUCCESS;
-        ws_debug("Custom option type 0x%04x with unknown pen %u with custom data of length %u", option_code, pen, option_length - 4);
+        ws_debug("Custom option type %u (0x%04x) with unknown pen %u with custom data of length %u", option_code, option_code, pen, option_length - 4);
         break;
     }
     ws_debug("returning %d", ret);
@@ -1197,6 +1318,7 @@ pcapng_read_section_header_block(FILE_T fh, pcapng_block_header_t *bh,
         return PCAPNG_BLOCK_ERROR;
     }
 
+    memset(section_info, 0, sizeof(section_info_t));
     section_info->byte_swapped  = byte_swapped;
     section_info->version_major = version_major;
     section_info->version_minor = version_minor;
@@ -1421,7 +1543,9 @@ pcapng_read_if_descr_block(wtap *wth, FILE_T fh, pcapng_block_header_t *bh,
                            section_info_t *section_info,
                            wtapng_block_t *wblock, int *err, gchar **err_info)
 {
-    guint64 time_units_per_second = 1000000; /* default = 10^6 */
+    /* Default time stamp resolution is 10^6 */
+    guint64 time_units_per_second = 1000000;
+    int     tsprecision = 6;
     guint   opt_cont_buf_len;
     pcapng_interface_description_block_t idb;
     wtapng_if_descr_mandatory_t* if_descr_mand;
@@ -1497,24 +1621,108 @@ pcapng_read_if_descr_block(wtap *wth, FILE_T fh, pcapng_block_header_t *bh,
         /*
          * Yes.  Set time_units_per_second appropriately.
          */
-        guint64 base;
-        guint64 result;
-        guint8 i, exponent;
+        guint8 exponent;
 
-        if (if_tsresol & 0x80) {
-            base = 2;
-        } else {
-            base = 10;
-        }
         exponent = (guint8)(if_tsresol & 0x7f);
-        if (((base == 2) && (exponent < 64)) || ((base == 10) && (exponent < 20))) {
+        if (if_tsresol & 0x80) {
+            /*
+             * 2^63 fits in a 64-bit unsigned number; 2^64 does not.
+             *
+             * ((2^64-1)/(2^63) is about 1.99, so, in practice, that
+             * fine a time stamp resolution works only if you start
+             * capturing at the Unix/POSIX epoch and capture for about
+             * 1.9 seconds, so the maximum useful power-of-2 exponent
+             * in a pcapng file is less than 63.)
+             */
+            if (exponent > 63) {
+                /*
+                 * Time units per second won't fit in a 64-bit integer,
+                 * so Wireshark's current code can't read the file.
+                 */
+                *err = WTAP_ERR_UNSUPPORTED;
+                *err_info = ws_strdup_printf("pcapng: IDB power-of-2 time stamp resolution %u > 63",
+                                             exponent);
+                return FALSE;
+            }
+
+            /* 2^exponent */
+            time_units_per_second = G_GUINT64_CONSTANT(1) << exponent;
+
+            /*
+             * Set the display precision to a value large enough to
+             * show the fractional time units we get, so that we
+             * don't display more digits than are justified.
+             *
+             * (That's also used as the base-10 if_tsresol value we use
+             * if we write this file as a pcapng file.  Yes, that means
+             * that we won't write out the exact value we read in.
+             *
+             * Dealing with base-2 time stamps is a bit of a mess,
+             * thanks to humans counting with their fingers rather
+             * than their hands, and it applies to mroe files than
+             * pcapng files, e.g. ERF files.)
+             */
+            if (time_units_per_second >= 1000000000)
+                tsprecision = WTAP_TSPREC_NSEC;
+            else if (time_units_per_second >= 100000000)
+                tsprecision = WTAP_TSPREC_10_NSEC;
+            else if (time_units_per_second >= 10000000)
+                tsprecision = WTAP_TSPREC_100_NSEC;
+            else if (time_units_per_second >= 1000000)
+                tsprecision = WTAP_TSPREC_USEC;
+            else if (time_units_per_second >= 100000)
+                tsprecision = WTAP_TSPREC_10_USEC;
+            else if (time_units_per_second >= 10000)
+                tsprecision = WTAP_TSPREC_100_USEC;
+            else if (time_units_per_second >= 1000)
+                tsprecision = WTAP_TSPREC_MSEC;
+            else if (time_units_per_second >= 100)
+                tsprecision = WTAP_TSPREC_10_MSEC;
+            else if (time_units_per_second >= 10)
+                tsprecision = WTAP_TSPREC_100_MSEC;
+            else
+                tsprecision = WTAP_TSPREC_SEC;
+        } else {
+            /*
+             * 10^19 fits in a 64-bit unsigned number; 10^20 does not.
+             *
+             * ((2^64-1)/(10^19) is about 1.84, so, in practice, that
+             * fine a time stamp resolution works only if you start
+             * capturing at the Unix/POSIX epoch and capture for about
+             * 1.8 seconds, so the maximum useful power-of-10 exponent
+             * in a pcapng file is less than 19.)
+             */
+            guint64 result;
+
+            if (exponent > 19) {
+                /*
+                 * Time units per second won't fit in a 64-bit integer,
+                 * so Wireshark's current code can't read the file.
+                 */
+                *err = WTAP_ERR_UNSUPPORTED;
+                *err_info = ws_strdup_printf("pcapng: IDB power-of-10 time stamp resolution %u > 19",
+                                             exponent);
+                return FALSE;
+            }
+
+            /* 10^exponent */
             result = 1;
-            for (i = 0; i < exponent; i++) {
-                result *= base;
+            for (guint i = 0; i < exponent; i++) {
+                result *= 10U;
             }
             time_units_per_second = result;
-        } else {
-            time_units_per_second = G_MAXUINT64;
+
+            /*
+             * Set the display precision to min(exponent, WS_TSPREC_MAX),
+             * so that we don't display more digits than are justified.
+             * (That's also used as the base-10 if_tsresol value we use
+             * if we write this file as a pcapng file.)
+             */
+            if (exponent <= WS_TSPREC_MAX) {
+                tsprecision = exponent;
+            } else {
+                tsprecision = WS_TSPREC_MAX;
+            }
         }
         if (time_units_per_second > (((guint64)1) << 32)) {
             ws_debug("time conversion might be inaccurate");
@@ -1525,18 +1733,13 @@ pcapng_read_if_descr_block(wtap *wth, FILE_T fh, pcapng_block_header_t *bh,
      * Set the time units per second for this interface.
      */
     if_descr_mand->time_units_per_second = time_units_per_second;
-    if (time_units_per_second >= 1000000000)
-        if_descr_mand->tsprecision = WTAP_TSPREC_NSEC;
-    else if (time_units_per_second >= 1000000)
-        if_descr_mand->tsprecision = WTAP_TSPREC_USEC;
-    else if (time_units_per_second >= 1000)
-        if_descr_mand->tsprecision = WTAP_TSPREC_MSEC;
-    else if (time_units_per_second >= 100)
-        if_descr_mand->tsprecision = WTAP_TSPREC_CSEC;
-    else if (time_units_per_second >= 10)
-        if_descr_mand->tsprecision = WTAP_TSPREC_DSEC;
-    else
-        if_descr_mand->tsprecision = WTAP_TSPREC_SEC;
+
+    /*
+     * Set the number of digits of precision to display (and the
+     * number to use for this interface if saving to a pcapng
+     * file).
+     */
+    if_descr_mand->tsprecision = tsprecision;
 
     /*
      * If the per-file encapsulation isn't known, set it to this
@@ -1548,7 +1751,7 @@ pcapng_read_if_descr_block(wtap *wth, FILE_T fh, pcapng_block_header_t *bh,
      * so it probably doesn't have a single encapsulation for all
      * packets in the file.
      */
-    if (wth->file_encap == WTAP_ENCAP_UNKNOWN) {
+    if (wth->file_encap == WTAP_ENCAP_NONE) {
         wth->file_encap = if_descr_mand->wtap_encap;
     } else {
         if (wth->file_encap != if_descr_mand->wtap_encap) {
@@ -1634,6 +1837,55 @@ pcapng_read_decryption_secrets_block(FILE_T fh, pcapng_block_header_t *bh,
     return TRUE;
 }
 
+static bool
+pcapng_read_sysdig_meta_event_block(FILE_T fh, pcapng_block_header_t *bh,
+                                     wtapng_block_t *wblock,
+                                     int *err, gchar **err_info)
+{
+    guint to_read;
+    wtapng_sysdig_mev_mandatory_t *mev_mand;
+
+    /*
+     * Set wblock->block to a newly-allocated Sysdig meta event block.
+     */
+    wblock->block = wtap_block_create(WTAP_BLOCK_SYSDIG_META_EVENT);
+
+    /*
+     * Set the mandatory values for the block.
+     */
+    mev_mand = (wtapng_sysdig_mev_mandatory_t *)wtap_block_get_mandatory_data(wblock->block);
+    mev_mand->mev_type = bh->block_type;
+    mev_mand->mev_data_len = bh->block_total_length -
+        (int)sizeof(pcapng_block_header_t) -
+        (int)sizeof(bh->block_total_length);
+
+    /* Sanity check: assume event data can't be larger than 1 GiB */
+    if (mev_mand->mev_data_len > 1024 * 1024 * 1024) {
+      *err = WTAP_ERR_BAD_FILE;
+      *err_info = ws_strdup_printf("pcapng: Sysdig mev block is too large: %u", mev_mand->mev_data_len);
+      return false;
+    }
+    mev_mand->mev_data = (uint8_t *)g_malloc(mev_mand->mev_data_len);
+    if (!wtap_read_bytes(fh, mev_mand->mev_data, mev_mand->mev_data_len, err, err_info)) {
+        ws_debug("failed to read Sysdig mev");
+        return false;
+    }
+
+    /* Skip past padding and discard options (not supported yet). */
+    to_read = bh->block_total_length - MIN_BLOCK_SIZE - mev_mand->mev_data_len;
+    if (!wtap_read_bytes(fh, NULL, to_read, err, err_info)) {
+        ws_debug("failed to read Sysdig mev options");
+        return FALSE;
+    }
+
+    /*
+     * We don't return these to the caller in pcapng_read().
+     */
+    wblock->internal = true;
+
+    return true;
+}
+
 static gboolean
 pcapng_process_packet_block_option(wtapng_block_t *wblock,
                                    const section_info_t *section_info,
@@ -1644,6 +1896,7 @@ pcapng_process_packet_block_option(wtapng_block_t *wblock,
 {
     guint64 tmp64;
     packet_verdict_opt_t packet_verdict;
+    packet_hash_opt_t packet_hash;
 
     /*
      * Handle option content.
@@ -1677,8 +1930,22 @@ pcapng_process_packet_block_option(wtapng_block_t *wblock,
                                          option_content);
             break;
         case(OPT_EPB_HASH):
-            ws_debug("epb_hash %u currently not handled - ignoring %u bytes",
-                     option_code, option_length);
+            if (option_length < 1) {
+                *err = WTAP_ERR_BAD_FILE;
+                *err_info = ws_strdup_printf("pcapng: packet block hash option length %u is < 1",
+                                            option_length);
+                /* XXX - free anything? */
+                return FALSE;
+            }
+            packet_hash.type = option_content[0];
+            packet_hash.hash_bytes =
+                g_byte_array_new_take((guint8 *)g_memdup2(&option_content[1],
+                                                          option_length - 1),
+                                      option_length - 1);
+            wtap_block_add_packet_hash_option(wblock->block, option_code, &packet_hash);
+            wtap_packet_hash_free(&packet_hash);
+            ws_debug("hash type %u, data len %u",
+                     option_content[0], option_length - 1);
             break;
         case(OPT_EPB_DROPCOUNT):
             if (option_length != 8) {
@@ -2011,8 +2278,11 @@ pcapng_read_packet_block(FILE_T fh, pcapng_block_header_t *bh,
      */
     if (WTAP_OPTTYPE_SUCCESS == wtap_block_get_uint32_option_value(wblock->block, OPT_PKT_FLAGS, &flags)) {
         if (PACK_FLAGS_FCS_LENGTH(flags) != 0) {
-            /* The FCS length is present */
-            fcslen = PACK_FLAGS_FCS_LENGTH(flags);
+            /*
+             * The FCS length is present, but in units of octets, not
+             * bits; convert it to bits.
+             */
+            fcslen = PACK_FLAGS_FCS_LENGTH(flags)*8;
         }
     }
     /*
@@ -2272,7 +2542,6 @@ pcapng_process_name_resolution_block_option(wtapng_block_t *wblock,
 
 static gboolean
 pcapng_read_name_resolution_block(FILE_T fh, pcapng_block_header_t *bh,
-                                  pcapng_t *pn,
                                   section_info_t *section_info,
                                   wtapng_block_t *wblock,
                                   int *err, gchar **err_info)
@@ -2285,6 +2554,7 @@ pcapng_read_name_resolution_block(FILE_T fh, pcapng_block_header_t *bh,
     guint record_len, opt_cont_buf_len;
     char *namep;
     int namelen;
+    wtapng_nrb_mandatory_t *nrb_mand;
 
     /*
      * Is this block long enough to be an NRB?
@@ -2307,6 +2577,11 @@ pcapng_read_name_resolution_block(FILE_T fh, pcapng_block_header_t *bh,
     if (wblock->block == NULL) {
         wblock->block = wtap_block_create(WTAP_BLOCK_NAME_RESOLUTION);
     }
+
+    /*
+     * Set the mandatory values for the block.
+     */
+    nrb_mand = (wtapng_nrb_mandatory_t *)wtap_block_get_mandatory_data(wblock->block);
 
     /*
      * Start out with a buffer big enough for an IPv6 address and one
@@ -2383,29 +2658,30 @@ pcapng_read_name_resolution_block(FILE_T fh, pcapng_block_header_t *bh,
                 }
                 block_read += nrb.record_len;
 
-                if (pn->add_new_ipv4) {
+                /*
+                 * Scan through all the names in
+                 * the record and add them.
+                 */
+                memcpy(&v4_addr,
+                       ws_buffer_start_ptr(&nrb_rec), 4);
+                /* IPv4 address is in big-endian order in the file always, which is how we store
+                   it internally as well, so don't byte-swap it */
+                for (namep = (char *)ws_buffer_start_ptr(&nrb_rec) + 4, record_len = nrb.record_len - 4;
+                     record_len != 0;
+                     namep += namelen, record_len -= namelen) {
                     /*
-                     * Scan through all the names in
-                     * the record and add them.
+                     * Scan forward for a null
+                     * byte.
                      */
-                    memcpy(&v4_addr,
-                           ws_buffer_start_ptr(&nrb_rec), 4);
-                    /* IPv4 address is in big-endian order in the file always, which is how we store
-                       it internally as well, so don't byte-swap it */
-                    for (namep = (char *)ws_buffer_start_ptr(&nrb_rec) + 4, record_len = nrb.record_len - 4;
-                         record_len != 0;
-                         namep += namelen, record_len -= namelen) {
-                        /*
-                         * Scan forward for a null
-                         * byte.
-                         */
-                        namelen = name_resolution_block_find_name_end(namep, record_len, err, err_info);
-                        if (namelen == -1) {
-                            ws_buffer_free(&nrb_rec);
-                            return FALSE;      /* fail */
-                        }
-                        pn->add_new_ipv4(v4_addr, namep);
+                    namelen = name_resolution_block_find_name_end(namep, record_len, err, err_info);
+                    if (namelen == -1) {
+                        ws_buffer_free(&nrb_rec);
+                        return FALSE;      /* fail */
                     }
+                    hashipv4_t *tp = g_new0(hashipv4_t, 1);
+                    tp->addr = v4_addr;
+                    (void) g_strlcpy(tp->name, namep, MAXNAMELEN);
+                    nrb_mand->ipv4_addr_list = g_list_prepend(nrb_mand->ipv4_addr_list, tp);
                 }
 
                 if (!wtap_read_bytes(fh, NULL, PADDING4(nrb.record_len), err, err_info)) {
@@ -2451,22 +2727,22 @@ pcapng_read_name_resolution_block(FILE_T fh, pcapng_block_header_t *bh,
                 }
                 block_read += nrb.record_len;
 
-                if (pn->add_new_ipv6) {
-                    for (namep = (char *)ws_buffer_start_ptr(&nrb_rec) + 16, record_len = nrb.record_len - 16;
-                         record_len != 0;
-                         namep += namelen, record_len -= namelen) {
-                        /*
-                         * Scan forward for a null
-                         * byte.
-                         */
-                        namelen = name_resolution_block_find_name_end(namep, record_len, err, err_info);
-                        if (namelen == -1) {
-                            ws_buffer_free(&nrb_rec);
-                            return FALSE;      /* fail */
-                        }
-                        pn->add_new_ipv6(ws_buffer_start_ptr(&nrb_rec),
-                                         namep);
+                for (namep = (char *)ws_buffer_start_ptr(&nrb_rec) + 16, record_len = nrb.record_len - 16;
+                     record_len != 0;
+                     namep += namelen, record_len -= namelen) {
+                    /*
+                     * Scan forward for a null
+                     * byte.
+                     */
+                    namelen = name_resolution_block_find_name_end(namep, record_len, err, err_info);
+                    if (namelen == -1) {
+                        ws_buffer_free(&nrb_rec);
+                        return FALSE;      /* fail */
                     }
+                    hashipv6_t *tp = g_new0(hashipv6_t, 1);
+                    memcpy(tp->addr, ws_buffer_start_ptr(&nrb_rec), sizeof tp->addr);
+                    (void) g_strlcpy(tp->name, namep, MAXNAMELEN);
+                    nrb_mand->ipv6_addr_list = g_list_prepend(nrb_mand->ipv6_addr_list, tp);
                 }
 
                 if (!wtap_read_bytes(fh, NULL, PADDING4(nrb.record_len), err, err_info)) {
@@ -3003,7 +3279,7 @@ pcapng_read_systemd_journal_export_block(wtap *wth, FILE_T fh, pcapng_block_head
      */
     wblock->internal = FALSE;
 
-    if (wth->file_encap == WTAP_ENCAP_UNKNOWN) {
+    if (wth->file_encap == WTAP_ENCAP_NONE) {
         /*
          * Nothing (most notably an IDB) has set a file encap at this point.
          * Do so here.
@@ -3148,7 +3424,7 @@ pcapng_read_block(wtap *wth, FILE_T fh, pcapng_t *pn,
          */
         wblock->type = bh.block_type;
 
-        ws_debug("block_type 0x%08x", bh.block_type);
+        ws_debug("block_type BLOCK_TYPE_SHB (0x%08x)", bh.block_type);
 
         /*
          * Fill in the section_info_t passed to us for use when
@@ -3207,7 +3483,7 @@ pcapng_read_block(wtap *wth, FILE_T fh, pcapng_t *pn,
 
         wblock->type = bh.block_type;
 
-        ws_debug("block_type 0x%08x", bh.block_type);
+        ws_noisy("block_type 0x%08x", bh.block_type);
 
         /* Don't try to allocate memory for a huge number of options, as
            that might fail and, even if it succeeds, it might not leave
@@ -3249,7 +3525,7 @@ pcapng_read_block(wtap *wth, FILE_T fh, pcapng_t *pn,
                     return FALSE;
                 break;
             case(BLOCK_TYPE_NRB):
-                if (!pcapng_read_name_resolution_block(fh, &bh, pn, section_info, wblock, err, err_info))
+                if (!pcapng_read_name_resolution_block(fh, &bh, section_info, wblock, err, err_info))
                     return FALSE;
                 break;
             case(BLOCK_TYPE_ISB):
@@ -3258,6 +3534,25 @@ pcapng_read_block(wtap *wth, FILE_T fh, pcapng_t *pn,
                 break;
             case(BLOCK_TYPE_DSB):
                 if (!pcapng_read_decryption_secrets_block(fh, &bh, section_info, wblock, err, err_info))
+                    return FALSE;
+                break;
+            case BLOCK_TYPE_SYSDIG_MI:
+            case BLOCK_TYPE_SYSDIG_PL_V1:
+            case BLOCK_TYPE_SYSDIG_FDL_V1:
+            case BLOCK_TYPE_SYSDIG_IL_V1:
+            case BLOCK_TYPE_SYSDIG_UL_V1:
+            case BLOCK_TYPE_SYSDIG_PL_V2:
+            case BLOCK_TYPE_SYSDIG_PL_V3:
+            case BLOCK_TYPE_SYSDIG_PL_V4:
+            case BLOCK_TYPE_SYSDIG_PL_V5:
+            case BLOCK_TYPE_SYSDIG_PL_V6:
+            case BLOCK_TYPE_SYSDIG_PL_V7:
+            case BLOCK_TYPE_SYSDIG_PL_V8:
+            case BLOCK_TYPE_SYSDIG_PL_V9:
+            case BLOCK_TYPE_SYSDIG_FDL_V2:
+            case BLOCK_TYPE_SYSDIG_IL_V2:
+            case BLOCK_TYPE_SYSDIG_UL_V2:
+                if (!pcapng_read_sysdig_meta_event_block(fh, &bh, wblock, err, err_info))
                     return FALSE;
                 break;
             case(BLOCK_TYPE_CB_COPY):
@@ -3329,6 +3624,19 @@ pcapng_process_idb(wtap *wth, section_info_t *section_info,
     g_array_append_val(section_info->interfaces, iface_info);
 }
 
+/* Process an NRB that we have just read. */
+static void
+pcapng_process_nrb(wtap *wth, wtapng_block_t *wblock)
+{
+    wtapng_process_nrb(wth, wblock->block);
+
+    if (wth->nrbs == NULL) {
+        wth->nrbs = g_array_new(FALSE, FALSE, sizeof(wtap_block_t));
+    }
+    /* Store NRB such that it can be saved by the dumper. */
+    g_array_append_val(wth->nrbs, wblock->block);
+}
+
 /* Process a DSB that we have just read. */
 static void
 pcapng_process_dsb(wtap *wth, wtapng_block_t *wblock)
@@ -3337,6 +3645,144 @@ pcapng_process_dsb(wtap *wth, wtapng_block_t *wblock)
 
     /* Store DSB such that it can be saved by the dumper. */
     g_array_append_val(wth->dsbs, wblock->block);
+}
+
+/* Process a Sysdig meta event block that we have just read. */
+static void
+pcapng_process_sysdig_mev(wtap *wth, wtapng_block_t *wblock)
+{
+    // XXX add wtapng_process_sysdig_meb(wth, wblock->block);
+
+    /* Store meta event such that it can be saved by the dumper. */
+    g_array_append_val(wth->sysdig_meta_events, wblock->block);
+}
+
+static void
+pcapng_process_internal_block(wtap *wth, pcapng_t *pcapng, section_info_t *current_section, section_info_t new_section, wtapng_block_t *wblock, const gint64 *data_offset)
+{
+    wtap_block_t wtapng_if_descr;
+    wtap_block_t if_stats;
+    wtapng_if_stats_mandatory_t *if_stats_mand_block, *if_stats_mand;
+    wtapng_if_descr_mandatory_t *wtapng_if_descr_mand;
+
+    switch (wblock->type) {
+
+        case(BLOCK_TYPE_SHB):
+            ws_debug("another section header block");
+
+            /*
+             * Add this SHB to the table of SHBs.
+             */
+            g_array_append_val(wth->shb_hdrs, wblock->block);
+
+            /*
+             * Update the current section number, and add
+             * the updated section_info_t to the array of
+             * section_info_t's for this file.
+             */
+            pcapng->current_section_number++;
+            new_section.interfaces = g_array_new(FALSE, FALSE, sizeof(interface_info_t));
+            new_section.shb_off = *data_offset;
+            g_array_append_val(pcapng->sections, new_section);
+            break;
+
+        case(BLOCK_TYPE_IDB):
+            /* A new interface */
+            ws_debug("block type BLOCK_TYPE_IDB");
+            pcapng_process_idb(wth, current_section, wblock);
+            wtap_block_unref(wblock->block);
+            break;
+
+        case(BLOCK_TYPE_DSB):
+            /* Decryption secrets. */
+            ws_debug("block type BLOCK_TYPE_DSB");
+            pcapng_process_dsb(wth, wblock);
+            /* Do not free wblock->block, it is consumed by pcapng_process_dsb */
+            break;
+
+        case(BLOCK_TYPE_NRB):
+            /* More name resolution entries */
+            ws_debug("block type BLOCK_TYPE_NRB");
+            pcapng_process_nrb(wth, wblock);
+            /* Do not free wblock->block, it is consumed by pcapng_process_nrb */
+            break;
+
+        case(BLOCK_TYPE_ISB):
+            /*
+             * Another interface statistics report
+             *
+             * XXX - given that they're reports, we should be
+             * supplying them in read calls, and displaying them
+             * in the "packet" list, so you can see what the
+             * statistics were *at the time when the report was
+             * made*.
+             *
+             * The statistics from the *last* ISB could be displayed
+             * in the summary, but if there are packets after the
+             * last ISB, that could be misleading.
+             *
+             * If we only display them if that ISB has an isb_endtime
+             * option, which *should* only appear when capturing ended
+             * on that interface (so there should be no more packet
+             * blocks or ISBs for that interface after that point,
+             * that would be the best way of showing "summary"
+             * statistics.
+             */
+            ws_debug("block type BLOCK_TYPE_ISB");
+            if_stats_mand_block = (wtapng_if_stats_mandatory_t*)wtap_block_get_mandatory_data(wblock->block);
+            if (wth->interface_data->len <= if_stats_mand_block->interface_id) {
+                ws_debug("BLOCK_TYPE_ISB wblock.if_stats.interface_id %u >= number_of_interfaces",
+                         if_stats_mand_block->interface_id);
+            } else {
+                /* Get the interface description */
+                wtapng_if_descr = g_array_index(wth->interface_data, wtap_block_t, if_stats_mand_block->interface_id);
+                wtapng_if_descr_mand = (wtapng_if_descr_mandatory_t*)wtap_block_get_mandatory_data(wtapng_if_descr);
+                if (wtapng_if_descr_mand->num_stat_entries == 0) {
+                    /* First ISB found, no previous entry */
+                    ws_debug("block type BLOCK_TYPE_ISB. First ISB found, no previous entry");
+                    wtapng_if_descr_mand->interface_statistics = g_array_new(FALSE, FALSE, sizeof(wtap_block_t));
+                }
+
+                if_stats = wtap_block_create(WTAP_BLOCK_IF_STATISTICS);
+                if_stats_mand = (wtapng_if_stats_mandatory_t*)wtap_block_get_mandatory_data(if_stats);
+                if_stats_mand->interface_id  = if_stats_mand_block->interface_id;
+                if_stats_mand->ts_high       = if_stats_mand_block->ts_high;
+                if_stats_mand->ts_low        = if_stats_mand_block->ts_low;
+
+                wtap_block_copy(if_stats, wblock->block);
+                g_array_append_val(wtapng_if_descr_mand->interface_statistics, if_stats);
+                wtapng_if_descr_mand->num_stat_entries++;
+            }
+            wtap_block_unref(wblock->block);
+            break;
+
+        case BLOCK_TYPE_SYSDIG_MI:
+        case BLOCK_TYPE_SYSDIG_PL_V1:
+        case BLOCK_TYPE_SYSDIG_FDL_V1:
+        case BLOCK_TYPE_SYSDIG_IL_V1:
+        case BLOCK_TYPE_SYSDIG_UL_V1:
+        case BLOCK_TYPE_SYSDIG_PL_V2:
+        case BLOCK_TYPE_SYSDIG_PL_V3:
+        case BLOCK_TYPE_SYSDIG_PL_V4:
+        case BLOCK_TYPE_SYSDIG_PL_V5:
+        case BLOCK_TYPE_SYSDIG_PL_V6:
+        case BLOCK_TYPE_SYSDIG_PL_V7:
+        case BLOCK_TYPE_SYSDIG_PL_V8:
+        case BLOCK_TYPE_SYSDIG_PL_V9:
+        case BLOCK_TYPE_SYSDIG_FDL_V2:
+        case BLOCK_TYPE_SYSDIG_IL_V2:
+        case BLOCK_TYPE_SYSDIG_UL_V2:
+            /* Decryption secrets. */
+            ws_debug("block type Sysdig meta event");
+            pcapng_process_sysdig_mev(wth, wblock);
+            /* Do not free wblock->block, it is consumed by pcapng_process_sysdig_meb */
+            break;
+
+        default:
+            /* XXX - improve handling of "unknown" blocks */
+            ws_debug("Unknown block type 0x%08x", wblock->type);
+            break;
+    }
 }
 
 /* classic wtap: open capture file */
@@ -3453,7 +3899,7 @@ pcapng_open(wtap *wth, int *err, gchar **err_info)
     wtap_block_unref(wblock.block);
     wblock.block = NULL;
 
-    wth->file_encap = WTAP_ENCAP_UNKNOWN;
+    wth->file_encap = WTAP_ENCAP_NONE;
     wth->snapshot_length = 0;
     wth->file_tsprec = WTAP_TSPREC_UNKNOWN;
     pcapng = g_new(pcapng_t, 1);
@@ -3481,24 +3927,34 @@ pcapng_open(wtap *wth, int *err, gchar **err_info)
     pcapng->sections = g_array_sized_new(FALSE, FALSE, sizeof(section_info_t), 1);
     g_array_append_val(pcapng->sections, first_section);
 
-    /*
-     * Set the callbacks for new addresses to null; if our caller wants
-     * to be called, they will set them to point to the appropriate
-     * caller.
-     */
-    pcapng->add_new_ipv4 = NULL;
-    pcapng->add_new_ipv6 = NULL;
-
     wth->subtype_read = pcapng_read;
     wth->subtype_seek_read = pcapng_seek_read;
     wth->subtype_close = pcapng_close;
     wth->file_type_subtype = pcapng_file_type_subtype;
 
-    /* Always initialize the list of Decryption Secret Blocks such that a
-     * wtap_dumper can refer to it right after opening the capture file. */
+    /* Always initialize the lists of Decryption Secret Blocks, Name
+     * Resolution Blocks, and Sysdig meta event blocks such that a
+     * wtap_dumper can refer to them right after opening the capture
+     * file. */
     wth->dsbs = g_array_new(FALSE, FALSE, sizeof(wtap_block_t));
+    wth->nrbs = g_array_new(FALSE, FALSE, sizeof(wtap_block_t));
+    wth->sysdig_meta_events = g_array_new(FALSE, FALSE, sizeof(wtap_block_t));
 
-    /* Loop over all IDBs that appear before any packets */
+    /* Most other capture types (such as pcap) support a single link-layer
+     * type, indicated in the header, and don't support WTAP_ENCAP_PER_PACKET.
+     * Most programs that write such capture files want to know the link-layer
+     * type when initially opening the destination file, and (unlike Wireshark)
+     * don't want to read the entire source file to find all the link-layer
+     * types before writing (particularly if reading from a pipe or FIFO.)
+     *
+     * In support of this, read all the internally-processed, non packet
+     * blocks that appear before the first packet block (EPB or SPB).
+     *
+     * Note that such programs will still have issues when trying to read
+     * a pcapng that has a new link-layer type in an IDB in the middle of
+     * the file, as they will discover in the middle that no, they can't
+     * successfully write the output file as desired.
+     */
     while (1) {
         /* peek at next block */
         /* Try to read the (next) block header */
@@ -3506,10 +3962,10 @@ pcapng_open(wtap *wth, int *err, gchar **err_info)
         if (!wtap_read_bytes_or_eof(wth->fh, &bh, sizeof bh, err, err_info)) {
             if (*err == 0) {
                 /* EOF */
-                ws_debug("No more IDBs available...");
+                ws_debug("No more blocks available...");
                 break;
             }
-            ws_debug("Check for more IDBs, wtap_read_bytes_or_eof() failed, err = %d.",
+            ws_debug("Check for more initial blocks, wtap_read_bytes_or_eof() failed, err = %d.",
                      *err);
             return WTAP_OPEN_ERROR;
         }
@@ -3527,27 +3983,36 @@ pcapng_open(wtap *wth, int *err, gchar **err_info)
             bh.block_type         = GUINT32_SWAP_LE_BE(bh.block_type);
         }
 
-        ws_debug("Check for more IDBs, block_type 0x%08x",
+        ws_debug("Check for more initial internal blocks, block_type 0x%08x",
                  bh.block_type);
 
-        /* XXX - This code expects that the PCAPNG Sections start with IDBs but the PCAPNG RFC does not say that!? */
-        if (bh.block_type != BLOCK_TYPE_IDB) {
-            break;  /* No more IDBs */
+        if (!get_block_type_internal(bh.block_type)) {
+            break;  /* Next block has to be returned in pcap_read */
         }
-
+        /* Note that some custom block types, unlike packet blocks,
+         * don't need to be preceded by an IDB and so theoretically
+         * we could skip past them here. However, then there's no good
+         * way to both later return those blocks in pcap_read() and
+         * ensure that we don't read and process the IDBs (and other
+         * internal block types) a second time.
+         *
+         * pcapng_read_systemd_journal_export_block() sets the file level
+         * link-layer type if it's still UNKNOWN. We could do the same here
+         * for it and possibly other types based on block type, even without
+         * reading them.
+         */
         if (!pcapng_read_block(wth, wth->fh, pcapng, current_section,
                               &new_section, &wblock, err, err_info)) {
             wtap_block_unref(wblock.block);
             if (*err == 0) {
-                ws_debug("No more IDBs available...");
+                ws_debug("No more initial blocks available...");
                 break;
             } else {
-                ws_debug("couldn't read IDB");
+                ws_debug("couldn't read block");
                 return WTAP_OPEN_ERROR;
             }
         }
-        pcapng_process_idb(wth, current_section, &wblock);
-        wtap_block_unref(wblock.block);
+        pcapng_process_internal_block(wth, pcapng, current_section, new_section, &wblock, &saved_offset);
         ws_debug("Read IDB number_of_interfaces %u, wtap_encap %i",
                  wth->interface_data->len, wth->file_encap);
     }
@@ -3562,21 +4027,14 @@ pcapng_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
     pcapng_t *pcapng = (pcapng_t *)wth->priv;
     section_info_t *current_section, new_section;
     wtapng_block_t wblock;
-    wtap_block_t wtapng_if_descr;
-    wtap_block_t if_stats;
-    wtapng_if_stats_mandatory_t *if_stats_mand_block, *if_stats_mand;
-    wtapng_if_descr_mandatory_t *wtapng_if_descr_mand;
 
     wblock.frame_buffer  = buf;
     wblock.rec = rec;
 
-    pcapng->add_new_ipv4 = wth->add_new_ipv4;
-    pcapng->add_new_ipv6 = wth->add_new_ipv6;
-
     /* read next block */
     while (1) {
         *data_offset = file_tell(wth->fh);
-        ws_debug("data_offset is %" PRId64, *data_offset);
+        ws_noisy("data_offset is %" PRId64, *data_offset);
 
         /*
          * Get the section_info_t for the current section.
@@ -3589,7 +4047,7 @@ pcapng_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
          */
         if (!pcapng_read_block(wth, wth->fh, pcapng, current_section,
                                &new_section, &wblock, err, err_info)) {
-            ws_debug("data_offset is finally %" PRId64, *data_offset);
+            ws_noisy("data_offset is finally %" PRId64, *data_offset);
             ws_debug("couldn't read packet block");
             wtap_block_unref(wblock.block);
             return FALSE;
@@ -3599,7 +4057,7 @@ pcapng_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
             /*
              * This is a block type we return to the caller to process.
              */
-            ws_debug("rec_type %u", wblock.rec->rec_type);
+            ws_noisy("rec_type %u", wblock.rec->rec_type);
             break;
         }
 
@@ -3607,108 +4065,11 @@ pcapng_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
          * This is a block type we process internally, rather than
          * returning it for the caller to process.
          */
-        switch (wblock.type) {
-
-            case(BLOCK_TYPE_SHB):
-                ws_debug("another section header block");
-
-                /*
-                 * Add this SHB to the table of SHBs.
-                 */
-                g_array_append_val(wth->shb_hdrs, wblock.block);
-
-                /*
-                 * Update the current section number, and add
-                 * the updated section_info_t to the array of
-                 * section_info_t's for this file.
-                 */
-                pcapng->current_section_number++;
-                new_section.interfaces = g_array_new(FALSE, FALSE, sizeof(interface_info_t));
-                new_section.shb_off = *data_offset;
-                g_array_append_val(pcapng->sections, new_section);
-                break;
-
-            case(BLOCK_TYPE_IDB):
-                /* A new interface */
-                ws_debug("block type BLOCK_TYPE_IDB");
-                pcapng_process_idb(wth, current_section, &wblock);
-                wtap_block_unref(wblock.block);
-                break;
-
-            case(BLOCK_TYPE_DSB):
-                /* Decryption secrets. */
-                ws_debug("block type BLOCK_TYPE_DSB");
-                pcapng_process_dsb(wth, &wblock);
-                /* Do not free wblock.block, it is consumed by pcapng_process_dsb */
-                break;
-
-            case(BLOCK_TYPE_NRB):
-                /* More name resolution entries */
-                ws_debug("block type BLOCK_TYPE_NRB");
-                if (wth->nrb_hdrs == NULL) {
-                    wth->nrb_hdrs = g_array_new(FALSE, FALSE, sizeof(wtap_block_t));
-                }
-                g_array_append_val(wth->nrb_hdrs, wblock.block);
-                break;
-
-            case(BLOCK_TYPE_ISB):
-                /*
-                 * Another interface statistics report
-                 *
-                 * XXX - given that they're reports, we should be
-                 * supplying them in read calls, and displaying them
-                 * in the "packet" list, so you can see what the
-                 * statistics were *at the time when the report was
-                 * made*.
-                 *
-                 * The statistics from the *last* ISB could be displayed
-                 * in the summary, but if there are packets after the
-                 * last ISB, that could be misleading.
-                 *
-                 * If we only display them if that ISB has an isb_endtime
-                 * option, which *should* only appear when capturing ended
-                 * on that interface (so there should be no more packet
-                 * blocks or ISBs for that interface after that point,
-                 * that would be the best way of showing "summary"
-                 * statistics.
-                 */
-                ws_debug("block type BLOCK_TYPE_ISB");
-                if_stats_mand_block = (wtapng_if_stats_mandatory_t*)wtap_block_get_mandatory_data(wblock.block);
-                if (wth->interface_data->len <= if_stats_mand_block->interface_id) {
-                    ws_debug("BLOCK_TYPE_ISB wblock.if_stats.interface_id %u >= number_of_interfaces",
-                             if_stats_mand_block->interface_id);
-                } else {
-                    /* Get the interface description */
-                    wtapng_if_descr = g_array_index(wth->interface_data, wtap_block_t, if_stats_mand_block->interface_id);
-                    wtapng_if_descr_mand = (wtapng_if_descr_mandatory_t*)wtap_block_get_mandatory_data(wtapng_if_descr);
-                    if (wtapng_if_descr_mand->num_stat_entries == 0) {
-                        /* First ISB found, no previous entry */
-                        ws_debug("block type BLOCK_TYPE_ISB. First ISB found, no previous entry");
-                        wtapng_if_descr_mand->interface_statistics = g_array_new(FALSE, FALSE, sizeof(wtap_block_t));
-                    }
-
-                    if_stats = wtap_block_create(WTAP_BLOCK_IF_STATISTICS);
-                    if_stats_mand = (wtapng_if_stats_mandatory_t*)wtap_block_get_mandatory_data(if_stats);
-                    if_stats_mand->interface_id  = if_stats_mand_block->interface_id;
-                    if_stats_mand->ts_high       = if_stats_mand_block->ts_high;
-                    if_stats_mand->ts_low        = if_stats_mand_block->ts_low;
-
-                    wtap_block_copy(if_stats, wblock.block);
-                    g_array_append_val(wtapng_if_descr_mand->interface_statistics, if_stats);
-                    wtapng_if_descr_mand->num_stat_entries++;
-                }
-                wtap_block_unref(wblock.block);
-                break;
-
-            default:
-                /* XXX - improve handling of "unknown" blocks */
-                ws_debug("Unknown block type 0x%08x", wblock.type);
-                break;
-        }
+        pcapng_process_internal_block(wth, pcapng, current_section, new_section, &wblock, data_offset);
     }
 
     /*ws_debug("Read length: %u Packet length: %u", bytes_read, rec->rec_header.packet_header.caplen);*/
-    ws_debug("data_offset is finally %" PRId64, *data_offset);
+    ws_noisy("data_offset is finally %" PRId64, *data_offset);
 
     /* Provide the section number */
     rec->presence_flags |= WTAP_HAS_SECTION_NUMBER;
@@ -3732,7 +4093,7 @@ pcapng_seek_read(wtap *wth, gint64 seek_off,
     if (file_seek(wth->random_fh, seek_off, SEEK_SET, err) < 0) {
         return FALSE;   /* Seek error */
     }
-    ws_debug("reading at offset %" PRIu64, seek_off);
+    ws_noisy("reading at offset %" PRIu64, seek_off);
 
     /*
      * Find the section_info_t for the section in which this block
@@ -3907,6 +4268,39 @@ static guint32 pcapng_compute_custom_option_size(wtap_optval_t *optval)
     return (guint32)size;
 }
 
+static guint32 pcapng_compute_packet_hash_option_size(wtap_optval_t *optval)
+{
+    packet_hash_opt_t* hash = &optval->packet_hash;
+    guint32 size;
+    guint32 pad;
+
+    switch (hash->type) {
+    case OPT_HASH_CRC32:
+        size = 4;
+        break;
+    case OPT_HASH_MD5:
+        size = 16;
+        break;
+    case OPT_HASH_SHA1:
+        size = 20;
+        break;
+    case OPT_HASH_TOEPLITZ:
+        size = 4;
+        break;
+    default:
+        /* 2COMP and XOR size not defined in standard (yet) */
+        size = hash->hash_bytes->len;
+        break;
+    }
+    if ((size % 4)) {
+        pad = 4 - (size % 4);
+    } else {
+        pad = 0;
+    }
+    size += pad;
+    return size;
+}
+
 static guint32 pcapng_compute_packet_verdict_option_size(wtap_optval_t *optval)
 {
     packet_verdict_opt_t* verdict = &optval->packet_verdictval;
@@ -3943,7 +4337,7 @@ static guint32 pcapng_compute_packet_verdict_option_size(wtap_optval_t *optval)
 static gboolean
 compute_block_option_size(wtap_block_t block _U_, guint option_id, wtap_opttype_e option_type, wtap_optval_t *optval, void *user_data)
 {
-    compute_options_size_t* compute_options_size = (compute_options_size_t*)user_data;
+    compute_options_size_t* options_size = (compute_options_size_t*)user_data;
     guint32 size = 0;
 
     /*
@@ -3971,7 +4365,7 @@ compute_block_option_size(wtap_block_t block _U_, guint option_id, wtap_opttype_
         break;
     default:
         /* Block-type dependent; call the callback. */
-        size = (*compute_options_size->compute_option_size)(block, option_id, option_type, optval);
+        size = (*options_size->compute_option_size)(block, option_id, option_type, optval);
         break;
     }
 
@@ -3983,15 +4377,15 @@ compute_block_option_size(wtap_block_t block _U_, guint option_id, wtap_opttype_
          * Yes.  Add the size of the option header to the size of the
          * option data.
          */
-        compute_options_size->size += 4;
+        options_size->size += 4;
 
         /* Now add the size of the option value. */
-        compute_options_size->size += size;
+        options_size->size += size;
 
         /* Add optional padding to 32 bits */
         if ((size & 0x03) != 0)
         {
-            compute_options_size->size += 4 - (size & 0x03);
+            options_size->size += 4 - (size & 0x03);
         }
     }
     return TRUE; /* we always succeed */
@@ -4056,7 +4450,6 @@ static gboolean pcapng_write_option_eofopt(wtap_dumper *wdh, int *err)
     option_hdr.value_length = 0;
     if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
     return TRUE;
 }
 
@@ -4069,15 +4462,12 @@ static gboolean pcapng_write_uint8_option(wtap_dumper *wdh, guint option_id, wta
     option_hdr.value_length = (guint16)1;
     if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     if (!wtap_dump_file_write(wdh, &optval->uint8val, 1, err))
         return FALSE;
-    wdh->bytes_dumped += 1;
 
     if (!wtap_dump_file_write(wdh, &zero_pad, 3, err))
         return FALSE;
-    wdh->bytes_dumped += 3;
 
     return TRUE;
 }
@@ -4090,11 +4480,9 @@ static gboolean pcapng_write_uint32_option(wtap_dumper *wdh, guint option_id, wt
     option_hdr.value_length = (guint16)4;
     if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     if (!wtap_dump_file_write(wdh, &optval->uint32val, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     return TRUE;
 }
@@ -4107,11 +4495,9 @@ static gboolean pcapng_write_uint64_option(wtap_dumper *wdh, guint option_id, wt
     option_hdr.value_length = (guint16)8;
     if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     if (!wtap_dump_file_write(wdh, &optval->uint64val, 8, err))
         return FALSE;
-    wdh->bytes_dumped += 8;
 
     return TRUE;
 }
@@ -4125,16 +4511,13 @@ static gboolean pcapng_write_timestamp_option(wtap_dumper *wdh, guint option_id,
     option_hdr.value_length = (guint16)8;
     if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     high = (guint32)(optval->uint64val >> 32);
     low = (guint32)(optval->uint64val >> 0);
     if (!wtap_dump_file_write(wdh, &high, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
     if (!wtap_dump_file_write(wdh, &low, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     return TRUE;
 }
@@ -4163,11 +4546,9 @@ static gboolean pcapng_write_string_option(wtap_dumper *wdh, guint option_id, wt
     option_hdr.value_length = (guint16)size;
     if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     if (!wtap_dump_file_write(wdh, optval->stringval, size, err))
         return FALSE;
-    wdh->bytes_dumped += size;
 
     if ((size % 4)) {
         pad = 4 - (size % 4);
@@ -4179,8 +4560,6 @@ static gboolean pcapng_write_string_option(wtap_dumper *wdh, guint option_id, wt
     if (pad != 0) {
         if (!wtap_dump_file_write(wdh, &zero_pad, pad, err))
             return FALSE;
-
-        wdh->bytes_dumped += pad;
     }
 
     return TRUE;
@@ -4211,11 +4590,9 @@ static gboolean pcapng_write_bytes_option(wtap_dumper *wdh, guint option_id, wta
     option_hdr.value_length = (guint16)size;
     if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     if (!wtap_dump_file_write(wdh, optval->stringval, size, err))
         return FALSE;
-    wdh->bytes_dumped += size;
 
     if ((size % 4)) {
         pad = 4 - (size % 4);
@@ -4227,8 +4604,6 @@ static gboolean pcapng_write_bytes_option(wtap_dumper *wdh, guint option_id, wta
     if (pad != 0) {
         if (!wtap_dump_file_write(wdh, &zero_pad, pad, err))
             return FALSE;
-
-        wdh->bytes_dumped += pad;
     }
 
     return TRUE;
@@ -4242,11 +4617,9 @@ static gboolean pcapng_write_ipv4_option(wtap_dumper *wdh, guint option_id, wtap
     option_hdr.value_length = (guint16)4;
     if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     if (!wtap_dump_file_write(wdh, &optval->ipv4val, 1, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     return TRUE;
 }
@@ -4259,11 +4632,9 @@ static gboolean pcapng_write_ipv6_option(wtap_dumper *wdh, guint option_id, wtap
     option_hdr.value_length = (guint16)IPv6_ADDR_SIZE;
     if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     if (!wtap_dump_file_write(wdh, &optval->ipv6val.bytes, IPv6_ADDR_SIZE, err))
         return FALSE;
-    wdh->bytes_dumped += IPv6_ADDR_SIZE;
 
     return TRUE;
 }
@@ -4324,12 +4695,10 @@ static gboolean pcapng_write_if_filter_option(wtap_dumper *wdh, guint option_id,
     option_hdr.value_length = size;
     if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
         return FALSE;
-    wdh->bytes_dumped += 4;
 
     /* Write the filter type */
     if (!wtap_dump_file_write(wdh, &filter_type, 1, err))
         return FALSE;
-    wdh->bytes_dumped += 1;
 
     switch (filter->type) {
 
@@ -4337,13 +4706,11 @@ static gboolean pcapng_write_if_filter_option(wtap_dumper *wdh, guint option_id,
         /* Write the filter string */
         if (!wtap_dump_file_write(wdh, filter->data.filter_str, filter_data_len, err))
             return FALSE;
-        wdh->bytes_dumped += filter_data_len;
         break;
 
     case if_filter_bpf:
         if (!wtap_dump_file_write(wdh, filter->data.bpf_prog.bpf_prog, filter_data_len, err))
             return FALSE;
-        wdh->bytes_dumped += filter_data_len;
         break;
 
     default:
@@ -4355,7 +4722,6 @@ static gboolean pcapng_write_if_filter_option(wtap_dumper *wdh, guint option_id,
     if (pad != 0) {
         if (!wtap_dump_file_write(wdh, &zero_pad, pad, err))
             return FALSE;
-        wdh->bytes_dumped += pad;
     }
     return TRUE;
 }
@@ -4403,7 +4769,6 @@ static gboolean pcapng_write_custom_option(wtap_dumper *wdh, guint option_id, wt
     }
     if (!wtap_dump_file_write(wdh, &option_hdr, sizeof(struct pcapng_option_header), err))
         return FALSE;
-    wdh->bytes_dumped += sizeof(struct pcapng_option_header);
 
     /* write PEN */
     pen = optval->custom_opt.pen;
@@ -4412,7 +4777,6 @@ static gboolean pcapng_write_custom_option(wtap_dumper *wdh, guint option_id, wt
     }
     if (!wtap_dump_file_write(wdh, &pen, sizeof(guint32), err))
         return FALSE;
-    wdh->bytes_dumped += sizeof(guint32);
 
     switch (optval->custom_opt.pen) {
     case PEN_NFLX:
@@ -4421,19 +4785,16 @@ static gboolean pcapng_write_custom_option(wtap_dumper *wdh, guint option_id, wt
         ws_debug("type=%d", type);
         if (!wtap_dump_file_write(wdh, &type, sizeof(guint32), err))
             return FALSE;
-        wdh->bytes_dumped += sizeof(guint32);
         /* write custom data */
         if (!wtap_dump_file_write(wdh, optval->custom_opt.data.nflx_data.custom_data, optval->custom_opt.data.nflx_data.custom_data_len, err)) {
             return FALSE;
         }
-        wdh->bytes_dumped += optval->custom_opt.data.nflx_data.custom_data_len;
         break;
     default:
         /* write custom data */
         if (!wtap_dump_file_write(wdh, optval->custom_opt.data.generic_data.custom_data, optval->custom_opt.data.generic_data.custom_data_len, err)) {
             return FALSE;
         }
-        wdh->bytes_dumped += optval->custom_opt.data.generic_data.custom_data_len;
         break;
     }
 
@@ -4447,7 +4808,6 @@ static gboolean pcapng_write_custom_option(wtap_dumper *wdh, guint option_id, wt
         if (!wtap_dump_file_write(wdh, &zero_pad, pad, err)) {
             return FALSE;
         }
-        wdh->bytes_dumped += pad;
     }
     ws_debug("Wrote custom option: type %u, length %u", option_hdr.type, option_hdr.value_length);
 
@@ -4480,17 +4840,14 @@ static gboolean pcapng_write_packet_verdict_option(wtap_dumper *wdh, guint optio
         option_hdr.value_length = (guint16)size;
         if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
             return FALSE;
-        wdh->bytes_dumped += 4;
 
         type = packet_verdict_hardware;
         if (!wtap_dump_file_write(wdh, &type, sizeof(guint8), err))
             return FALSE;
-        wdh->bytes_dumped += 1;
 
         if (!wtap_dump_file_write(wdh, verdict->data.verdict_bytes->data, size,
                                   err))
             return FALSE;
-        wdh->bytes_dumped += size;
         break;
 
     case packet_verdict_linux_ebpf_tc:
@@ -4499,17 +4856,14 @@ static gboolean pcapng_write_packet_verdict_option(wtap_dumper *wdh, guint optio
         option_hdr.value_length = (guint16)size;
         if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
             return FALSE;
-        wdh->bytes_dumped += 4;
 
         type = packet_verdict_linux_ebpf_tc;
         if (!wtap_dump_file_write(wdh, &type, sizeof(guint8), err))
             return FALSE;
-        wdh->bytes_dumped += 1;
 
         if (!wtap_dump_file_write(wdh, &verdict->data.verdict_linux_ebpf_tc,
                                   sizeof(guint64), err))
             return FALSE;
-        wdh->bytes_dumped += 8;
         break;
 
     case packet_verdict_linux_ebpf_xdp:
@@ -4518,17 +4872,14 @@ static gboolean pcapng_write_packet_verdict_option(wtap_dumper *wdh, guint optio
         option_hdr.value_length = (guint16)size;
         if (!wtap_dump_file_write(wdh, &option_hdr, 4, err))
             return FALSE;
-        wdh->bytes_dumped += 4;
 
         type = packet_verdict_linux_ebpf_xdp;
         if (!wtap_dump_file_write(wdh, &type, sizeof(guint8), err))
             return FALSE;
-        wdh->bytes_dumped += 1;
 
         if (!wtap_dump_file_write(wdh, &verdict->data.verdict_linux_ebpf_xdp,
                                   sizeof(guint64), err))
             return FALSE;
-        wdh->bytes_dumped += 8;
         break;
 
     default:
@@ -4541,15 +4892,13 @@ static gboolean pcapng_write_packet_verdict_option(wtap_dumper *wdh, guint optio
         pad = 4 - (size % 4);
         if (!wtap_dump_file_write(wdh, &zero_pad, pad, err))
             return FALSE;
-
-        wdh->bytes_dumped += pad;
     }
     return TRUE;
 }
 
 static gboolean write_block_option(wtap_block_t block, guint option_id, wtap_opttype_e option_type _U_, wtap_optval_t *optval, void* user_data)
 {
-    write_options_t* write_options = (write_options_t*)user_data;
+    write_options_t* options = (write_options_t*)user_data;
 
     /*
      * Process the option IDs that are the same for all block types here;
@@ -4558,12 +4907,12 @@ static gboolean write_block_option(wtap_block_t block, guint option_id, wtap_opt
     switch(option_id)
     {
     case OPT_COMMENT:
-        if (!pcapng_write_string_option(write_options->wdh, option_id, optval, write_options->err))
+        if (!pcapng_write_string_option(options->wdh, option_id, optval, options->err))
             return FALSE;
         break;
     case OPT_CUSTOM_STR_COPY:
     case OPT_CUSTOM_BIN_COPY:
-        if (!pcapng_write_custom_option(write_options->wdh, option_id, optval, write_options->err))
+        if (!pcapng_write_custom_option(options->wdh, option_id, optval, options->err))
             return FALSE;
         break;
     case OPT_CUSTOM_STR_NO_COPY:
@@ -4578,8 +4927,8 @@ static gboolean write_block_option(wtap_block_t block, guint option_id, wtap_opt
         break;
     default:
         /* Block-type dependent; call the callback, if we have one. */
-        if (write_options->write_option != NULL &&
-            !(*write_options->write_option)(write_options->wdh, block, option_id, option_type, optval, write_options->err))
+        if (options->write_option != NULL &&
+            !(*options->write_option)(options->wdh, block, option_id, option_type, optval, options->err))
             return FALSE;
         break;
     }
@@ -4589,12 +4938,12 @@ static gboolean write_block_option(wtap_block_t block, guint option_id, wtap_opt
 static gboolean
 write_options(wtap_dumper *wdh, wtap_block_t block, write_option_func write_option, int *err)
 {
-    write_options_t write_options;
+    write_options_t options;
 
-    write_options.wdh = wdh;
-    write_options.err = err;
-    write_options.write_option = write_option;
-    if (!wtap_block_foreach_option(block, write_block_option, &write_options))
+    options.wdh = wdh;
+    options.err = err;
+    options.write_option = write_option;
+    if (!wtap_block_foreach_option(block, write_block_option, &options))
         return FALSE;
 
     /* Write end of options */
@@ -4652,7 +5001,6 @@ pcapng_write_section_header_block(wtap_dumper *wdh, int *err)
 
     if (!wtap_dump_file_write(wdh, &bh, sizeof bh, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof bh;
 
     /* write block fixed content */
     shb.magic = 0x1A2B3C4D;
@@ -4667,7 +5015,6 @@ pcapng_write_section_header_block(wtap_dumper *wdh, int *err)
 
     if (!wtap_dump_file_write(wdh, &shb, sizeof shb, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof shb;
 
     if (wdh_shb) {
         /* Write options, if we have any */
@@ -4681,7 +5028,6 @@ pcapng_write_section_header_block(wtap_dumper *wdh, int *err)
     if (!wtap_dump_file_write(wdh, &bh.block_total_length,
                               sizeof bh.block_total_length, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof bh.block_total_length;
 
     return TRUE;
 }
@@ -4757,6 +5103,9 @@ compute_epb_option_size(wtap_block_t block _U_, guint option_id, wtap_opttype_e 
     case OPT_EPB_VERDICT:
         size = pcapng_compute_packet_verdict_option_size(optval);
         break;
+    case OPT_EPB_HASH:
+        size = pcapng_compute_packet_hash_option_size(optval);
+        break;
     default:
         /* Unknown options - size by datatype? */
         size = 0;
@@ -4813,7 +5162,7 @@ pcapng_write_enhanced_packet_block(wtap_dumper *wdh, const wtap_rec *rec,
     wtapng_if_descr_mandatory_t *int_data_mand;
 
     /* Don't write anything we're not willing to read. */
-    if (rec->rec_header.packet_header.caplen > wtap_max_snaplen_for_encap(wdh->encap)) {
+    if (rec->rec_header.packet_header.caplen > wtap_max_snaplen_for_encap(wdh->file_encap)) {
         *err = WTAP_ERR_PACKET_TOO_LARGE;
         return FALSE;
     }
@@ -4830,29 +5179,39 @@ pcapng_write_enhanced_packet_block(wtap_dumper *wdh, const wtap_rec *rec,
         options_size = compute_options_size(rec->block, compute_epb_option_size);
     }
 
-    /* write (enhanced) packet block header */
-    bh.block_type = BLOCK_TYPE_EPB;
-    bh.block_total_length = (guint32)sizeof(bh) + (guint32)sizeof(epb) + phdr_len + rec->rec_header.packet_header.caplen + pad_len + options_total_length + options_size + 4;
-
-    if (!wtap_dump_file_write(wdh, &bh, sizeof bh, err))
-        return FALSE;
-    wdh->bytes_dumped += sizeof bh;
-
-    /* write block fixed content */
+    /*
+     * Check the interface ID. Do this before writing the header,
+     * in case we need to add a new IDB.
+     */
     if (rec->presence_flags & WTAP_HAS_INTERFACE_ID)
         epb.interface_id        = rec->rec_header.packet_header.interface_id;
     else {
         /*
-         * XXX - we should support writing WTAP_ENCAP_PER_PACKET
-         * data to pcapng files even if we *don't* have interface
-         * IDs.
+         * The source isn't sending us IDBs. See if we already have a
+         * matching interface, and use it if so.
          */
-        epb.interface_id        = 0;
+        for (epb.interface_id = 0; epb.interface_id < wdh->interface_data->len; ++epb.interface_id) {
+            int_data = g_array_index(wdh->interface_data, wtap_block_t,
+                                     epb.interface_id);
+            int_data_mand = (wtapng_if_descr_mandatory_t*)wtap_block_get_mandatory_data(int_data);
+            if (int_data_mand->wtap_encap == rec->rec_header.packet_header.pkt_encap) {
+                if (int_data_mand->tsprecision == rec->tsprec || (!(rec->presence_flags & WTAP_HAS_TS))) {
+                    break;
+                }
+            }
+        }
+        if (epb.interface_id == wdh->interface_data->len) {
+            /*
+             * We don't have a matching IDB. Generate a new one
+             * and write it to the file.
+             */
+            int_data = wtap_rec_generate_idb(rec);
+            g_array_append_val(wdh->interface_data, int_data);
+            if (!pcapng_write_if_descr_block(wdh, int_data, err)) {
+                return FALSE;
+            }
+        }
     }
-    /*
-     * Split the 64-bit timestamp into two 32-bit pieces, using
-     * the time stamp resolution for the interface.
-     */
     if (epb.interface_id >= wdh->interface_data->len) {
         /*
          * Our caller is doing something bad.
@@ -4876,6 +5235,19 @@ pcapng_write_enhanced_packet_block(wtap_dumper *wdh, const wtap_rec *rec,
                                     rec->rec_header.packet_header.pkt_encap);
         return FALSE;
     }
+
+    /* write (enhanced) packet block header */
+    bh.block_type = BLOCK_TYPE_EPB;
+    bh.block_total_length = (guint32)sizeof(bh) + (guint32)sizeof(epb) + phdr_len + rec->rec_header.packet_header.caplen + pad_len + options_total_length + options_size + 4;
+
+    if (!wtap_dump_file_write(wdh, &bh, sizeof bh, err))
+        return FALSE;
+
+    /* write block fixed content */
+    /*
+     * Split the 64-bit timestamp into two 32-bit pieces, using
+     * the time stamp resolution for the interface.
+     */
     ts = ((guint64)rec->ts.secs) * int_data_mand->time_units_per_second +
         (((guint64)rec->ts.nsecs) * int_data_mand->time_units_per_second) / 1000000000;
     epb.timestamp_high      = (guint32)(ts >> 32);
@@ -4885,24 +5257,20 @@ pcapng_write_enhanced_packet_block(wtap_dumper *wdh, const wtap_rec *rec,
 
     if (!wtap_dump_file_write(wdh, &epb, sizeof epb, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof epb;
 
     /* write pseudo header */
     if (!pcap_write_phdr(wdh, rec->rec_header.packet_header.pkt_encap, pseudo_header, err)) {
         return FALSE;
     }
-    wdh->bytes_dumped += phdr_len;
 
     /* write packet data */
     if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err))
         return FALSE;
-    wdh->bytes_dumped += rec->rec_header.packet_header.caplen;
 
     /* write padding (if any) */
     if (pad_len != 0) {
         if (!wtap_dump_file_write(wdh, &zero_pad, pad_len, err))
             return FALSE;
-        wdh->bytes_dumped += pad_len;
     }
 
     /* Write options, if we have any */
@@ -4915,7 +5283,6 @@ pcapng_write_enhanced_packet_block(wtap_dumper *wdh, const wtap_rec *rec,
     if (!wtap_dump_file_write(wdh, &bh.block_total_length,
                               sizeof bh.block_total_length, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof bh.block_total_length;
 
     return TRUE;
 }
@@ -4976,7 +5343,6 @@ pcapng_write_sysdig_event_block(wtap_dumper *wdh, const wtap_rec *rec,
 
     if (!wtap_dump_file_write(wdh, &bh, sizeof bh, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof bh;
 
     /* Sysdig is always LE? */
     cpu_id = GUINT16_TO_LE(rec->rec_header.syscall_header.cpu_id);
@@ -4988,34 +5354,27 @@ pcapng_write_sysdig_event_block(wtap_dumper *wdh, const wtap_rec *rec,
 
     if (!wtap_dump_file_write(wdh, &cpu_id, sizeof cpu_id, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof cpu_id;
 
     if (!wtap_dump_file_write(wdh, &ts, sizeof ts, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof ts;
 
     if (!wtap_dump_file_write(wdh, &thread_id, sizeof thread_id, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof thread_id;
 
     if (!wtap_dump_file_write(wdh, &event_len, sizeof event_len, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof event_len;
 
     if (!wtap_dump_file_write(wdh, &event_type, sizeof event_type, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof event_type;
 
     /* write event data */
     if (!wtap_dump_file_write(wdh, pd, rec->rec_header.syscall_header.event_filelen, err))
         return FALSE;
-    wdh->bytes_dumped += rec->rec_header.syscall_header.event_filelen;
 
     /* write padding (if any) */
     if (pad_len != 0) {
         if (!wtap_dump_file_write(wdh, &zero_pad, pad_len, err))
             return FALSE;
-        wdh->bytes_dumped += pad_len;
     }
 
     /* XXX Write comment? */
@@ -5059,18 +5418,15 @@ pcapng_write_systemd_journal_export_block(wtap_dumper *wdh, const wtap_rec *rec,
 
     if (!wtap_dump_file_write(wdh, &bh, sizeof bh, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof bh;
 
     /* write entry data */
     if (!wtap_dump_file_write(wdh, pd, rec->rec_header.systemd_journal_export_header.record_len, err))
         return FALSE;
-    wdh->bytes_dumped += rec->rec_header.systemd_journal_export_header.record_len;
 
     /* write padding (if any) */
     if (pad_len != 0) {
         if (!wtap_dump_file_write(wdh, &zero_pad, pad_len, err))
             return FALSE;
-        wdh->bytes_dumped += pad_len;
     }
 
     /* write block footer */
@@ -5117,28 +5473,24 @@ pcapng_write_custom_block(wtap_dumper *wdh, const wtap_rec *rec,
     if (!wtap_dump_file_write(wdh, &bh, sizeof bh, err)) {
         return FALSE;
     }
-    wdh->bytes_dumped += sizeof bh;
 
     /* write custom block header */
     cb.pen = rec->rec_header.custom_block_header.pen;
     if (!wtap_dump_file_write(wdh, &cb, sizeof cb, err)) {
         return FALSE;
     }
-    wdh->bytes_dumped += sizeof cb;
     ws_debug("wrote PEN = %u", cb.pen);
 
     /* write custom data */
     if (!wtap_dump_file_write(wdh, pd, rec->rec_header.custom_block_header.length, err)) {
         return FALSE;
     }
-    wdh->bytes_dumped += rec->rec_header.custom_block_header.length;
 
     /* write padding (if any) */
     if (pad_len > 0) {
         if (!wtap_dump_file_write(wdh, &zero_pad, pad_len, err)) {
             return FALSE;
         }
-        wdh->bytes_dumped += pad_len;
     }
 
     /* write block footer */
@@ -5146,7 +5498,6 @@ pcapng_write_custom_block(wtap_dumper *wdh, const wtap_rec *rec,
                               sizeof bh.block_total_length, err)) {
         return FALSE;
     }
-    wdh->bytes_dumped += sizeof bh.block_total_length;
 
     return TRUE;
 }
@@ -5173,14 +5524,12 @@ pcapng_write_bblog_block(wtap_dumper *wdh, const wtap_rec *rec,
     if (!wtap_dump_file_write(wdh, &bh, sizeof(bh), err)) {
         return FALSE;
     }
-    wdh->bytes_dumped += sizeof bh;
 
     /* write PEN */
     pen = PEN_NFLX;
     if (!wtap_dump_file_write(wdh, &pen, sizeof(guint32), err)) {
         return FALSE;
     }
-    wdh->bytes_dumped += sizeof(guint32);
     ws_debug("wrote PEN = %u", pen);
 
     /* write type */
@@ -5188,7 +5537,6 @@ pcapng_write_bblog_block(wtap_dumper *wdh, const wtap_rec *rec,
     if (!wtap_dump_file_write(wdh, &type, sizeof(guint32), err)) {
         return FALSE;
     }
-    wdh->bytes_dumped += sizeof(guint32);
     ws_debug("wrote type = %u", rec->rec_header.custom_block_header.custom_data_header.nflx_custom_data_header.type);
 
     if (rec->rec_header.custom_block_header.custom_data_header.nflx_custom_data_header.type == BBLOG_TYPE_SKIPPED_BLOCK) {
@@ -5196,7 +5544,6 @@ pcapng_write_bblog_block(wtap_dumper *wdh, const wtap_rec *rec,
         if (!wtap_dump_file_write(wdh, &skipped, sizeof(guint32), err)) {
             return FALSE;
         }
-        wdh->bytes_dumped += sizeof(guint32);
         ws_debug("wrote skipped = %u", rec->rec_header.custom_block_header.custom_data_header.nflx_custom_data_header.skipped);
     }
 
@@ -5215,7 +5562,6 @@ pcapng_write_bblog_block(wtap_dumper *wdh, const wtap_rec *rec,
                               sizeof bh.block_total_length, err)) {
         return FALSE;
     }
-    wdh->bytes_dumped += sizeof bh.block_total_length;
 
     return TRUE;
 }
@@ -5235,32 +5581,60 @@ pcapng_write_decryption_secrets_block(wtap_dumper *wdh, wtap_block_t sdata, int 
 
     if (!wtap_dump_file_write(wdh, &bh, sizeof bh, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof bh;
 
     /* write block fixed content */
     dsb.secrets_type = mand_data->secrets_type;
     dsb.secrets_len = mand_data->secrets_len;
     if (!wtap_dump_file_write(wdh, &dsb, sizeof dsb, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof dsb;
 
     if (!wtap_dump_file_write(wdh, mand_data->secrets_data, mand_data->secrets_len, err))
         return FALSE;
-    wdh->bytes_dumped += mand_data->secrets_len;
     if (pad_len) {
         const guint32 zero_pad = 0;
         if (!wtap_dump_file_write(wdh, &zero_pad, pad_len, err))
             return FALSE;
-        wdh->bytes_dumped += pad_len;
     }
 
     /* write block footer */
     if (!wtap_dump_file_write(wdh, &bh.block_total_length,
                               sizeof bh.block_total_length, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof bh.block_total_length;
 
     return TRUE;
+}
+
+static bool
+pcapng_write_sysdig_meta_event_block(wtap_dumper *wdh, wtap_block_t mev_data, int *err)
+{
+    pcapng_block_header_t bh;
+    wtapng_sysdig_mev_mandatory_t *mand_data = (wtapng_sysdig_mev_mandatory_t *)wtap_block_get_mandatory_data(mev_data);
+    unsigned pad_len = (4 - (mand_data->mev_data_len & 3)) & 3;
+
+    /* write block header */
+    bh.block_type = mand_data->mev_type;
+    bh.block_total_length = MIN_BLOCK_SIZE + mand_data->mev_data_len + pad_len;
+    ws_debug("Sysdig mev total len %u", bh.block_total_length);
+
+    if (!wtap_dump_file_write(wdh, &bh, sizeof bh, err))
+        return false;
+
+    /* write block fixed content */
+    if (!wtap_dump_file_write(wdh, mand_data->mev_data, mand_data->mev_data_len, err))
+        return false;
+
+    if (pad_len) {
+        const uint32_t zero_pad = 0;
+        if (!wtap_dump_file_write(wdh, &zero_pad, pad_len, err))
+            return false;
+    }
+
+    /* write block footer */
+    if (!wtap_dump_file_write(wdh, &bh.block_total_length,
+                              sizeof bh.block_total_length, err))
+        return false;
+
+    return true;
 }
 
 /*
@@ -5393,26 +5767,24 @@ put_nrb_option(wtap_block_t block _U_, guint option_id, wtap_opttype_e option_ty
 }
 
 static void
-put_nrb_options(wtap_dumper *wdh, guint8 *opt_ptr)
+put_nrb_options(wtap_dumper *wdh _U_, wtap_block_t nrb, guint8 *opt_ptr)
 {
-    if (wdh->nrb_hdrs && wdh->nrb_hdrs->len > 0) {
-        wtap_block_t nrb_hdr = g_array_index(wdh->nrb_hdrs, wtap_block_t, 0);
-        struct pcapng_option option_hdr;
+    struct pcapng_option option_hdr;
 
-        wtap_block_foreach_option(nrb_hdr, put_nrb_option, &opt_ptr);
+    wtap_block_foreach_option(nrb, put_nrb_option, &opt_ptr);
 
-        /* Put end of options */
-        option_hdr.type = OPT_EOFOPT;
-        option_hdr.value_length = 0;
-        memcpy(opt_ptr, &option_hdr, 4);
-    }
+    /* Put end of options */
+    option_hdr.type = OPT_EOFOPT;
+    option_hdr.value_length = 0;
+    memcpy(opt_ptr, &option_hdr, 4);
 }
 
 static gboolean
-pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
+pcapng_write_name_resolution_block(wtap_dumper *wdh, wtap_block_t sdata, int *err)
 {
     pcapng_block_header_t bh;
     pcapng_name_resolution_block_t nrb;
+    wtapng_nrb_mandatory_t *mand_data = (wtapng_nrb_mandatory_t *)wtap_block_get_mandatory_data(sdata);
     guint32 options_size;
     size_t max_rec_data_size;
     guint8 *block_data;
@@ -5424,7 +5796,7 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
     hashipv6_t *ipv6_hash_list_entry;
     int i;
 
-    if (wtap_addrinfo_list_empty(wdh->addrinfo_lists)) {
+    if (!mand_data) {
         /*
          * No name/address pairs to write.
          * XXX - what if we have options?
@@ -5433,13 +5805,7 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
     }
 
     /* Calculate the space needed for options. */
-    options_size = 0;
-    if (wdh->nrb_hdrs && wdh->nrb_hdrs->len > 0) {
-        wtap_block_t nrb_hdr = g_array_index(wdh->nrb_hdrs, wtap_block_t, 0);
-
-        /* Compute size of all the options */
-        options_size = compute_options_size(nrb_hdr, compute_nrb_option_size);
-    }
+    options_size = compute_options_size(sdata, compute_nrb_option_size);
 
     /*
      * Make sure we can fit at least one maximum-sized record, plus
@@ -5482,9 +5848,9 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
     /*
      * Write out the IPv4 resolved addresses, if any.
      */
-    if (wdh->addrinfo_lists->ipv4_addr_list){
+    if (mand_data->ipv4_addr_list){
         i = 0;
-        ipv4_hash_list_entry = (hashipv4_t *)g_list_nth_data(wdh->addrinfo_lists->ipv4_addr_list, i);
+        ipv4_hash_list_entry = (hashipv4_t *)g_list_nth_data(mand_data->ipv4_addr_list, i);
         while(ipv4_hash_list_entry != NULL){
 
             nrb.record_type = NRES_IP4RECORD;
@@ -5495,7 +5861,7 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
                  * discard it.
                  */
                 i++;
-                ipv4_hash_list_entry = (hashipv4_t *)g_list_nth_data(wdh->addrinfo_lists->ipv4_addr_list, i);
+                ipv4_hash_list_entry = (hashipv4_t *)g_list_nth_data(mand_data->ipv4_addr_list, i);
                 continue;
             }
             namelen = (guint16)(hostnamelen + 1);
@@ -5517,10 +5883,8 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
 
                 /*
                  * Put the options into the block.
-                 *
-                 * XXX - this puts the same options in all NRBs.
                  */
-                put_nrb_options(wdh, block_data + block_off);
+                put_nrb_options(wdh, sdata, block_data + block_off);
                 block_off += options_size;
                 bh.block_total_length += options_size;
 
@@ -5537,7 +5901,6 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
                     g_free(block_data);
                     return FALSE;
                 }
-                wdh->bytes_dumped += bh.block_total_length;
 
                 /*Start a new NRB */
                 block_off = 8; /* block type + block total length */
@@ -5557,15 +5920,13 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
             ws_debug("added IPv4 record for %s", ipv4_hash_list_entry->name);
 
             i++;
-            ipv4_hash_list_entry = (hashipv4_t *)g_list_nth_data(wdh->addrinfo_lists->ipv4_addr_list, i);
+            ipv4_hash_list_entry = (hashipv4_t *)g_list_nth_data(mand_data->ipv4_addr_list, i);
         }
-        g_list_free(wdh->addrinfo_lists->ipv4_addr_list);
-        wdh->addrinfo_lists->ipv4_addr_list = NULL;
     }
 
-    if (wdh->addrinfo_lists->ipv6_addr_list){
+    if (mand_data->ipv6_addr_list){
         i = 0;
-        ipv6_hash_list_entry = (hashipv6_t *)g_list_nth_data(wdh->addrinfo_lists->ipv6_addr_list, i);
+        ipv6_hash_list_entry = (hashipv6_t *)g_list_nth_data(mand_data->ipv6_addr_list, i);
         while(ipv6_hash_list_entry != NULL){
 
             nrb.record_type = NRES_IP6RECORD;
@@ -5576,7 +5937,7 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
                  * discard it.
                  */
                 i++;
-                ipv6_hash_list_entry = (hashipv6_t *)g_list_nth_data(wdh->addrinfo_lists->ipv6_addr_list, i);
+                ipv6_hash_list_entry = (hashipv6_t *)g_list_nth_data(mand_data->ipv6_addr_list, i);
                 continue;
             }
             namelen = (guint16)(hostnamelen + 1);
@@ -5598,10 +5959,8 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
 
                 /*
                  * Put the options into the block.
-                 *
-                 * XXX - this puts the same options in all NRBs.
                  */
-                put_nrb_options(wdh, block_data + block_off);
+                put_nrb_options(wdh, sdata, block_data + block_off);
                 block_off += options_size;
                 bh.block_total_length += options_size;
 
@@ -5618,7 +5977,6 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
                     g_free(block_data);
                     return FALSE;
                 }
-                wdh->bytes_dumped += bh.block_total_length;
 
                 /*Start a new NRB */
                 block_off = 8; /* block type + block total length */
@@ -5638,10 +5996,8 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
             ws_debug("added IPv6 record for %s", ipv6_hash_list_entry->name);
 
             i++;
-            ipv6_hash_list_entry = (hashipv6_t *)g_list_nth_data(wdh->addrinfo_lists->ipv6_addr_list, i);
+            ipv6_hash_list_entry = (hashipv6_t *)g_list_nth_data(mand_data->ipv6_addr_list, i);
         }
-        g_list_free(wdh->addrinfo_lists->ipv6_addr_list);
-        wdh->addrinfo_lists->ipv6_addr_list = NULL;
     }
 
     /* Append the end-of-records record */
@@ -5652,7 +6008,7 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
     /*
      * Put the options into the block.
      */
-    put_nrb_options(wdh, block_data + block_off);
+    put_nrb_options(wdh, sdata, block_data + block_off);
     block_off += options_size;
     bh.block_total_length += options_size;
 
@@ -5669,7 +6025,6 @@ pcapng_write_name_resolution_block(wtap_dumper *wdh, int *err)
         g_free(block_data);
         return FALSE;
     }
-    wdh->bytes_dumped += bh.block_total_length;
 
     g_free(block_data);
 
@@ -5745,7 +6100,6 @@ pcapng_write_interface_statistics_block(wtap_dumper *wdh, wtap_block_t if_stats,
 
     if (!wtap_dump_file_write(wdh, &bh, sizeof bh, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof bh;
 
     /* write block fixed content */
     isb.interface_id                = mand_data->interface_id;
@@ -5754,7 +6108,6 @@ pcapng_write_interface_statistics_block(wtap_dumper *wdh, wtap_block_t if_stats,
 
     if (!wtap_dump_file_write(wdh, &isb, sizeof isb, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof isb;
 
     /* Write options */
     if (options_size != 0) {
@@ -5766,7 +6119,6 @@ pcapng_write_interface_statistics_block(wtap_dumper *wdh, wtap_block_t if_stats,
     if (!wtap_dump_file_write(wdh, &bh.block_total_length,
                               sizeof bh.block_total_length, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof bh.block_total_length;
     return TRUE;
 }
 
@@ -5868,7 +6220,6 @@ pcapng_write_if_descr_block(wtap_dumper *wdh, wtap_block_t int_data, int *err)
 
     if (!wtap_dump_file_write(wdh, &bh, sizeof bh, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof bh;
 
     /* write block fixed content */
     idb.linktype    = link_type;
@@ -5877,7 +6228,6 @@ pcapng_write_if_descr_block(wtap_dumper *wdh, wtap_block_t int_data, int *err)
 
     if (!wtap_dump_file_write(wdh, &idb, sizeof idb, err))
         return FALSE;
-    wdh->bytes_dumped += sizeof idb;
 
     if (options_size != 0) {
         /* Write options */
@@ -5890,7 +6240,6 @@ pcapng_write_if_descr_block(wtap_dumper *wdh, wtap_block_t int_data, int *err)
                               sizeof bh.block_total_length, err))
         return FALSE;
 
-    wdh->bytes_dumped += sizeof bh.block_total_length;
     return TRUE;
 }
 
@@ -5912,13 +6261,8 @@ static gboolean pcapng_add_idb(wtap_dumper *wdh, wtap_block_t idb,
 	return pcapng_write_if_descr_block(wdh, idb_copy, err);
 }
 
-static gboolean pcapng_dump(wtap_dumper *wdh,
-                            const wtap_rec *rec,
-                            const guint8 *pd, int *err, gchar **err_info)
+static gboolean pcapng_write_internal_blocks(wtap_dumper *wdh, int *err)
 {
-#ifdef HAVE_PLUGINS
-    block_handler *handler;
-#endif
 
     /* Write (optional) Decryption Secrets Blocks that were collected while
      * reading packet blocks. */
@@ -5933,6 +6277,93 @@ static gboolean pcapng_dump(wtap_dumper *wdh,
         }
     }
 
+    /* Write (optional) Sysdig Meta Event Blocks that were collected while
+     * reading packet blocks. */
+    if (wdh->sysdig_mev_growing) {
+        for (unsigned i = wdh->sysdig_mev_growing_written; i < wdh->sysdig_mev_growing->len; i++) {
+            ws_debug("writing Sysdig mev %u", i);
+            wtap_block_t mev = g_array_index(wdh->sysdig_mev_growing, wtap_block_t, i);
+            if (!pcapng_write_sysdig_meta_event_block(wdh, mev, err)) {
+                return false;
+            }
+            ++wdh->sysdig_mev_growing_written;
+        }
+    }
+
+    /* Write any hostname resolution info from wtap_dump_set_addrinfo_list() */
+    if (!wtap_addrinfo_list_empty(wdh->addrinfo_lists)) {
+        /*
+         * XXX: get_addrinfo_list() returns a list of all known and used
+         * resolved addresses, regardless of origin: existing NRBs, externally
+         * resolved, DNS packet data, a hosts file, and manual host resolution
+         * through the GUI. It does not include the source for each.
+         *
+         * If it did, we could instead create multiple NRBs, one for each
+         * server (as the options can only be included once per block.)
+         * Instead, we copy the options from the first already existing NRB
+         * (if there is one), since some of the name resolutions may be
+         * from that block.
+         */
+        wtap_block_t nrb;
+        if (wdh->nrbs_growing && wdh->nrbs_growing->len) {
+            nrb = wtap_block_make_copy(g_array_index(wdh->nrbs_growing, wtap_block_t, 0));
+        } else {
+            nrb = wtap_block_create(WTAP_BLOCK_NAME_RESOLUTION);
+        }
+        wtapng_nrb_mandatory_t *mand_data = (wtapng_nrb_mandatory_t *)wtap_block_get_mandatory_data(nrb);
+        mand_data->ipv4_addr_list = wdh->addrinfo_lists->ipv4_addr_list;
+        mand_data->ipv6_addr_list = wdh->addrinfo_lists->ipv6_addr_list;
+
+        if (!pcapng_write_name_resolution_block(wdh, nrb, err)) {
+            return FALSE;
+        }
+        mand_data->ipv4_addr_list = NULL;
+        mand_data->ipv6_addr_list = NULL;
+        wtap_block_unref(nrb);
+        g_list_free(wdh->addrinfo_lists->ipv4_addr_list);
+        wdh->addrinfo_lists->ipv4_addr_list = NULL;
+        g_list_free(wdh->addrinfo_lists->ipv6_addr_list);
+        wdh->addrinfo_lists->ipv6_addr_list = NULL;
+        /* Since the addrinfo lists include information from existing NRBs,
+         * avoid writing them to avoid duplication.
+         *
+         * XXX: Perhaps we don't want to include information from the NRBs
+         * in get_addrinfo_list at all, so that we could write existing
+         * NRBs as-is.
+         *
+         * This is still not well oriented for one-pass programs, where we
+         * don't have addrinfo_lists until we've already written the
+         * NRBs. We should not write both in such a situation. See bug 15502.
+         */
+        wtap_dump_discard_name_resolution(wdh);
+    }
+
+    /* Write (optional) Name Resolution Blocks that were collected while
+     * reading packet blocks. */
+    if (wdh->nrbs_growing) {
+        for (guint i = wdh->nrbs_growing_written; i < wdh->nrbs_growing->len; i++) {
+            wtap_block_t nrb = g_array_index(wdh->nrbs_growing, wtap_block_t, i);
+            if (!pcapng_write_name_resolution_block(wdh, nrb, err)) {
+                return FALSE;
+            }
+            ++wdh->nrbs_growing_written;
+        }
+    }
+
+    return TRUE;
+}
+
+static gboolean pcapng_dump(wtap_dumper *wdh,
+                            const wtap_rec *rec,
+                            const guint8 *pd, int *err, gchar **err_info)
+{
+#ifdef HAVE_PLUGINS
+    block_handler *handler;
+#endif
+
+    if (!pcapng_write_internal_blocks(wdh, err)) {
+        return FALSE;
+    }
 
     ws_debug("encap = %d (%s) rec type = %u",
              rec->rec_header.packet_header.pkt_encap,
@@ -6017,8 +6448,10 @@ static gboolean pcapng_dump_finish(wtap_dumper *wdh, int *err,
 {
     guint i, j;
 
-    /* Flush any hostname resolution info we may have */
-    pcapng_write_name_resolution_block(wdh, err);
+    /* Flush any hostname resolution or decryption secrets info we may have */
+    if (!pcapng_write_internal_blocks(wdh, err)) {
+        return FALSE;
+    }
 
     for (i = 0; i < wdh->interface_data->len; i++) {
 
@@ -6104,6 +6537,10 @@ static int pcapng_dump_can_write_encap(int wtap_encap)
 
     /* Per-packet encapsulation is supported. */
     if (wtap_encap == WTAP_ENCAP_PER_PACKET)
+        return 0;
+
+    /* No encapsulation type (yet) is supported. */
+    if (wtap_encap == WTAP_ENCAP_NONE)
         return 0;
 
     /* Is it a filetype-specific encapsulation that we support? */
@@ -6210,6 +6647,15 @@ static const struct supported_option_type decryption_secrets_block_options_suppo
     { OPT_CUSTOM_BIN_NO_COPY, MULTIPLE_OPTIONS_SUPPORTED }
 };
 
+/* Options for Sysdig meta event blocks. */
+static const struct supported_option_type sysdig_meta_events_block_options_supported[] = {
+    { OPT_COMMENT, MULTIPLE_OPTIONS_SUPPORTED },
+    { OPT_CUSTOM_STR_COPY, MULTIPLE_OPTIONS_SUPPORTED },
+    { OPT_CUSTOM_BIN_COPY, MULTIPLE_OPTIONS_SUPPORTED },
+    { OPT_CUSTOM_STR_NO_COPY, MULTIPLE_OPTIONS_SUPPORTED },
+    { OPT_CUSTOM_BIN_NO_COPY, MULTIPLE_OPTIONS_SUPPORTED }
+};
+
 /* Options for packet blocks. */
 static const struct supported_option_type packet_block_options_supported[] = {
     { OPT_COMMENT, MULTIPLE_OPTIONS_SUPPORTED },
@@ -6267,6 +6713,9 @@ static const struct supported_block_type pcapng_blocks_supported[] = {
 
     /* Multiple blocks of decryption secrets. */
     { WTAP_BLOCK_DECRYPTION_SECRETS, MULTIPLE_BLOCKS_SUPPORTED, OPTION_TYPES_SUPPORTED(decryption_secrets_block_options_supported) },
+
+    /* Multiple blocks of decryption secrets. */
+    { WTAP_BLOCK_SYSDIG_META_EVENT, MULTIPLE_BLOCKS_SUPPORTED, OPTION_TYPES_SUPPORTED(sysdig_meta_events_block_options_supported) },
 
     /* And, obviously, multiple packets. */
     { WTAP_BLOCK_PACKET, MULTIPLE_BLOCKS_SUPPORTED, OPTION_TYPES_SUPPORTED(packet_block_options_supported) },

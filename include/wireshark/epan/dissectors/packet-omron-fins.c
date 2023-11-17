@@ -26,6 +26,9 @@
 void proto_register_omron_fins(void);
 void proto_reg_handoff_omron_fins(void);
 
+static dissector_handle_t omron_fins_tcp_handle;
+static dissector_handle_t omron_fins_udp_handle;
+
 #define OMRON_FINS_TCP_PORT 9600 /* Not IANA registered */
 #define OMRON_FINS_UDP_PORT 9600 /* Not IANA registered */
 #define OMRON_FINS_TCP_MAGIC_BYTES 0x46494e53 /* ASCII 'FINS' */
@@ -3943,7 +3946,7 @@ proto_register_omron_fins(void)
         { &hf_omron_block_record_no_of_total_words,
         { "No. of total words", "omron.block_record.no_of_total_words", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_omron_status_flags,
-        { "Status flags", "omron.status_flags", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+        { "Status flags", "omron.status_flags", FT_UINT24, BASE_HEX, NULL, 0x0, NULL, HFILL }},
         { &hf_omron_status_flags_slave_master,
         { "Status Type", "omron.status_flags.slave_master", FT_BOOLEAN, 8, TFS(&boolean_status_flags_slave_master), 0x80, NULL, HFILL }},
         { &hf_omron_status_flags_data_link,
@@ -4219,6 +4222,9 @@ proto_register_omron_fins(void)
     expert_omron_fins = expert_register_protocol(proto_omron_fins);
     expert_register_field_array(expert_omron_fins, ei, array_length(ei));
 
+    omron_fins_tcp_handle = register_dissector("omron.tcp", dissect_omron_fins_tcp, proto_omron_fins);
+    omron_fins_udp_handle = register_dissector("omron.udp", dissect_omron_fins_udp, proto_omron_fins);
+
 #if 0
     /*Register preferences module (See Section 2.6 for more on preferences) */
     omron_fins_module = prefs_register_protocol(proto_omron_fins, NULL);
@@ -4234,13 +4240,7 @@ proto_register_omron_fins(void)
 void
 proto_reg_handoff_omron_fins(void)
 {
-    dissector_handle_t omron_fins_tcp_handle;
-    dissector_handle_t omron_fins_udp_handle;
-
-    omron_fins_tcp_handle = create_dissector_handle(dissect_omron_fins_tcp, proto_omron_fins);
     dissector_add_uint_with_preference("tcp.port", OMRON_FINS_TCP_PORT, omron_fins_tcp_handle);
-
-    omron_fins_udp_handle = create_dissector_handle(dissect_omron_fins_udp, proto_omron_fins);
     dissector_add_uint_with_preference("udp.port", OMRON_FINS_UDP_PORT, omron_fins_udp_handle);
 }
 

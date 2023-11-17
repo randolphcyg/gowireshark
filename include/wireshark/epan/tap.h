@@ -248,11 +248,22 @@ WS_DLL_PUBLIC void remove_tap_listener(void *tapdata);
  */
 WS_DLL_PUBLIC gboolean tap_listeners_require_dissection(void);
 
+/**
+ * Return TRUE if we have one or more tap listeners that require the columns,
+ * FALSE otherwise.
+ */
+WS_DLL_PUBLIC gboolean tap_listeners_require_columns(void);
+
 /** Returns TRUE there is an active tap listener for the specified tap id. */
 WS_DLL_PUBLIC gboolean have_tap_listener(int tap_id);
 
 /** Return TRUE if we have any tap listeners with filters, FALSE otherwise. */
 WS_DLL_PUBLIC gboolean have_filtering_tap_listeners(void);
+
+/** If any tap listeners have a filter with references to the currently
+ * selected frame in the GUI (edt->tree), update them.
+ */
+WS_DLL_PUBLIC void tap_listeners_load_field_references(epan_dissect_t *edt);
 
 /**
  * Get the union of all the flags for all the tap listeners; that gives

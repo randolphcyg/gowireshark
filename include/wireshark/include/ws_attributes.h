@@ -28,7 +28,7 @@ extern "C" {
   /* This includes clang */
   #define _U_ __attribute__((unused))
 #elif defined(_MSC_VER)
-  #define _U_ __pragma(warning(suppress:4100))
+  #define _U_ __pragma(warning(suppress:4100 4189))
 #else
   #define _U_
 #endif
@@ -76,6 +76,27 @@ extern "C" {
 #endif
 
 /*
+ * WS_DEPRECATED, before a function declaration, means "this function
+ * should not be used anymore and will be removed in a future version".
+ * WS_DEPRECATED_X() optionally takes a message saying what should be done
+ * instead (strongly recommended).
+ *
+ * This is not implemented on purpose with MSVC because that compiler has no
+ * equivalent to -Wno-error=deprecated-declarations, making it impossible
+ * to build with -Werror and deprecated declarations. The Microsoft developer
+ * team seems to not understand the requirement.
+ * https://developercommunity.visualstudio.com/t/cant-treat-deprecated-warning-as-warning-with-wx/786502
+ * https://developercommunity.visualstudio.com/t/impossible-to-treat-warning-as-error-except-specif/473936
+ */
+#if __has_attribute(deprecated)
+  #define WS_DEPRECATED         __attribute__((deprecated))
+  #define WS_DEPRECATED_X(msg)  __attribute__((deprecated(msg)))
+#else
+  #define WS_DEPRECATED
+  #define WS_DEPRECATED_X(msg)
+#endif
+
+/*
  * WS_THREAD_LOCAL means "this variable should go in thread-local
  * storage.
  *
@@ -86,10 +107,23 @@ extern "C" {
  * the major UN*X C compilers support __thread and the major Windows C
  * compilers support __declspec(thread).
  */
-#ifdef _WIN32
+#ifdef _MSC_VER
   #define WS_THREAD_LOCAL __declspec(thread)
 #else
   #define WS_THREAD_LOCAL __thread
+#endif
+
+/*
+ * The warn_unused_result attribute causes a warning to be emitted if a caller
+ * of the function with this attribute does not use its return value. This is
+ * useful for functions where not checking the result is either a security
+ * problem or always a bug, such as realloc.
+ */
+#if defined(__GNUC__)
+  /* This includes clang */
+  #define WS_WARN_UNUSED __attribute__((warn_unused_result))
+#else
+  #define WS_WARN_UNUSED
 #endif
 
 #ifdef __cplusplus

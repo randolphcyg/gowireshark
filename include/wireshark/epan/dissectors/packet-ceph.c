@@ -1610,20 +1610,11 @@ void c_set_type(c_pkt_data *data, const char *type)
 	proto_item_append_text(data->item_root, " %s", type);
 }
 
-static
-void c_append_text(c_pkt_data *data, proto_item *ti, const char *fmt, ...)
-{
-	va_list ap;
-	char buf[ITEM_LABEL_LENGTH];
-	va_start(ap, fmt);
-
-	vsnprintf(buf, sizeof(buf), fmt, ap);
-
-	proto_item_append_text(ti,		"%s", buf);
-	proto_item_append_text(data->item_root, "%s", buf);
-
-	va_end(ap);
-}
+#define c_append_text(data, ti, ...) \
+	do { \
+		proto_item_append_text(ti, __VA_ARGS__); \
+		proto_item_append_text(data->item_root, __VA_ARGS__); \
+	} while (0);
 
 /** Format a timespec.
  *
@@ -1836,9 +1827,7 @@ guint c_dissect_str(proto_tree *root, int hf, c_str *out,
 	d.str  = (char*)tvb_get_string_enc(wmem_packet_scope(),
 					   tvb, off+4, d.size, ENC_ASCII);
 
-	ti = proto_tree_add_string_format_value(root, hf, tvb, off, 4+d.size,
-						d.str,
-						"%s", d.str);
+	ti = proto_tree_add_string(root, hf, tvb, off, 4+d.size, d.str);
 	tree = proto_item_add_subtree(ti, ett_str);
 
 	proto_tree_add_item(tree, hf_string_size,
@@ -7118,7 +7107,7 @@ proto_register_ceph(void)
 		} },
 		{ &hf_node_type, {
 			"Source Node Type", "ceph.node_type",
-			FT_UINT8, BASE_HEX, VALS(c_node_type_strings), 0,
+			FT_UINT32, BASE_HEX, VALS(c_node_type_strings), 0,
 			"The type of source node.", HFILL
 		} },
 		{ &hf_node_nonce, {
@@ -7625,17 +7614,17 @@ proto_register_ceph(void)
 		} },
 		{ &hf_pgpool_flag_hashpool, {
 			"Hash Seed and Pool Together", "ceph.pgpool.flag.hashpool",
-			FT_BOOLEAN, 32, TFS(&tfs_true_false), C_PGPOOL_FLAG_HASHPSPOOL,
+			FT_BOOLEAN, 32, NULL, C_PGPOOL_FLAG_HASHPSPOOL,
 			NULL, HFILL
 		} },
 		{ &hf_pgpool_flag_full, {
 			"Pool Full", "ceph.pgpool.flag.full",
-			FT_BOOLEAN, 32, TFS(&tfs_true_false), C_PGPOOL_FLAG_FULL,
+			FT_BOOLEAN, 32, NULL, C_PGPOOL_FLAG_FULL,
 			NULL, HFILL
 		} },
 		{ &hf_pgpool_flag_fake_ec_pool, {
 			"Fake Erasure-Coded Pool", "ceph.pgpool.flag.fake_ec_pool",
-			FT_BOOLEAN, 32, TFS(&tfs_true_false), C_PGPOOL_FLAG_FAKE_EC_POOL,
+			FT_BOOLEAN, 32, NULL, C_PGPOOL_FLAG_FAKE_EC_POOL,
 			NULL, HFILL
 		} },
 		{ &hf_monmap, {
@@ -9301,7 +9290,7 @@ proto_register_ceph(void)
 		} },
 		{ &hf_msg_client_req_flags, {
 			"Flags", "ceph.msg.client_req.flags",
-			FT_UINT8, BASE_HEX, NULL, 0,
+			FT_UINT32, BASE_HEX, NULL, 0,
 			NULL, HFILL
 		} },
 		{ &hf_msg_client_req_retry, {
@@ -9601,7 +9590,7 @@ proto_register_ceph(void)
 		} },
 		{ &hf_msg_osd_opreply_ops_len, {
 			"Operation Count", "ceph.msg.osd_opreply.ops_len",
-			FT_UINT16, BASE_DEC, NULL, 0,
+			FT_UINT32, BASE_DEC, NULL, 0,
 			NULL, HFILL
 		} },
 		{ &hf_msg_osd_opreply_op, {
@@ -10506,13 +10495,13 @@ proto_register_ceph(void)
 	proto_register_subtree_array(ett, array_length(ett));
 	expert_ceph = expert_register_protocol(proto_ceph);
 	expert_register_field_array(expert_ceph, ei, array_length(ei));
+
+	ceph_handle = register_dissector("ceph", dissect_ceph_old, proto_ceph);
 }
 
 void
 proto_reg_handoff_ceph(void)
 {
-	ceph_handle = create_dissector_handle(dissect_ceph_old, proto_ceph);
-
 	heur_dissector_add("tcp", dissect_ceph_heur, "Ceph over TCP", "ceph_tcp", proto_ceph, HEURISTIC_ENABLE);
 }
 

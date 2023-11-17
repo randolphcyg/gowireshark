@@ -14,10 +14,14 @@
 #include "include/ws_symbol_export.h"
 #include <epan/packet.h>
 
-/** Maps Session-ID to pre-master secrets. */
-WS_DLL_PUBLIC GHashTable *ssl_session_hash;
-/** Maps Client Random to pre-master secrets. */
-WS_DLL_PUBLIC GHashTable *ssl_crandom_hash;
+struct tlsinfo {
+        guint32 seq; /* The sequence number within the TLS stream. */
+        gboolean is_reassembled;
+        gboolean end_of_stream; /* TCP FIN, close_notify, etc. */
+        /* The app handle for the session, set by heuristic dissectors
+         * to be called in the future. */
+        dissector_handle_t *app_handle;
+};
 
 WS_DLL_PUBLIC void ssl_dissector_add(guint port, dissector_handle_t handle);
 WS_DLL_PUBLIC void ssl_dissector_delete(guint port, dissector_handle_t handle);

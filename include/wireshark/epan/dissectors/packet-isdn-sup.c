@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-isdn-sup.c                                                          */
-/* asn2wrs.py -b -p isdn-sup -c ./isdn-sup.cnf -s ./packet-isdn-sup-template -D . -O ../.. Addressing-Data-Elements.asn Basic-Service-Elements.asn Embedded-Q931-Types.asn General-Errors.asn Advice-of-Charge-Operations.asn Closed-User-Group-Service-Operations.asn Conference-Add-On-Operations.asn Diversion-Operations.asn MCID-Operations.asn User-To-User-Signalling-Operations.asn Freephone-Operations.asn MLPP-Operations-And-Errors.asn */
+/* asn2wrs.py -b -L -p isdn-sup -c ./isdn-sup.cnf -s ./packet-isdn-sup-template -D . -O ../.. Addressing-Data-Elements.asn Basic-Service-Elements.asn Embedded-Q931-Types.asn General-Errors.asn Advice-of-Charge-Operations.asn Closed-User-Group-Service-Operations.asn Conference-Add-On-Operations.asn Diversion-Operations.asn MCID-Operations.asn User-To-User-Signalling-Operations.asn Freephone-Operations.asn MLPP-Operations-And-Errors.asn */
 
-/* Input file: packet-isdn-sup-template.c */
-
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-template.c"
 /* packet-isdn-sup-template.c
  * Routines for ETSI Integrated Services Digital Network (ISDN)
  * supplementary services
@@ -33,13 +30,11 @@
 void proto_register_isdn_sup(void);
 void proto_reg_handoff_isdn_sup(void);
 
+static dissector_handle_t isdn_sup_arg_handle;
+static dissector_handle_t isdn_sup_res_handle;
+static dissector_handle_t isdn_sup_err_handle;
 
-/*--- Included file: packet-isdn-sup-val.h ---*/
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-val.h"
 #define fPHOID                         "0.4.0.210.1"
-
-/*--- End of included file: packet-isdn-sup-val.h ---*/
-#line 29 "./asn1/isdn-sup/packet-isdn-sup-template.c"
 
 /* Initialize the protocol and registered fields */
 static int proto_isdn_sup = -1;
@@ -72,9 +67,6 @@ typedef struct isdn_sup_err_t {
 } isdn_sup_err_t;
 
 static const value_string isdn_sup_str_operation[] = {
-
-/*--- Included file: packet-isdn-sup-table10.c ---*/
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-table10.c"
   {   1, "userUserService" },
   {   2, "cUGcall" },
   {   3, "mCIDRequest" },
@@ -107,17 +99,11 @@ static const value_string isdn_sup_str_operation[] = {
   {  44, "isolateCONF" },
   {  45, "reattachCONF" },
   {  46, "partyDISC" },
-
-/*--- End of included file: packet-isdn-sup-table10.c ---*/
-#line 62 "./asn1/isdn-sup/packet-isdn-sup-template.c"
   {   0, NULL}
 };
 
 
 static const value_string isdn_sup_str_error[] = {
-
-/*--- Included file: packet-isdn-sup-table20.c ---*/
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-table20.c"
   {    0, "notSubscribed" },
   {    3, "notAvailable" },
   {    4, "notImplemented" },
@@ -149,17 +135,11 @@ static const value_string isdn_sup_str_error[] = {
   {    1, "rejectedByTheNetwork" },
   {    2, "rejectedByTheUser" },
   {   44, "unauthorizedPrecedenceLevel" },
-
-/*--- End of included file: packet-isdn-sup-table20.c ---*/
-#line 68 "./asn1/isdn-sup/packet-isdn-sup-template.c"
   {   0, NULL}
 };
 
 static int hf_isdn_sup = -1;
 
-
-/*--- Included file: packet-isdn-sup-hf.c ---*/
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-hf.c"
 static int hf_isdn_sup_ChargingRequestArg_PDU = -1;  /* ChargingRequestArg */
 static int hf_isdn_sup_ChargingRequestRes_PDU = -1;  /* ChargingRequestRes */
 static int hf_isdn_sup_AOCSCurrencyArg_PDU = -1;  /* AOCSCurrencyArg */
@@ -329,16 +309,10 @@ static int hf_isdn_sup_mlppSvcDomn = -1;          /* MLPPSvcDomn */
 static int hf_isdn_sup_statusQuery = -1;          /* StatusQuery */
 static int hf_isdn_sup_location = -1;             /* Location */
 
-/*--- End of included file: packet-isdn-sup-hf.c ---*/
-#line 74 "./asn1/isdn-sup/packet-isdn-sup-template.c"
-
 
 /* Initialize the subtree pointers */
 static gint ett_isdn_sup = -1;
 
-
-/*--- Included file: packet-isdn-sup-ett.c ---*/
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-ett.c"
 static gint ett_isdn_sup_PresentedAddressScreened = -1;
 static gint ett_isdn_sup_PresentedAddressUnscreened = -1;
 static gint ett_isdn_sup_PresentedNumberScreened = -1;
@@ -407,9 +381,6 @@ static gint ett_isdn_sup_MLPPLFBArg = -1;
 static gint ett_isdn_sup_MLPPParams = -1;
 static gint ett_isdn_sup_MLPPLFBResp = -1;
 
-/*--- End of included file: packet-isdn-sup-ett.c ---*/
-#line 80 "./asn1/isdn-sup/packet-isdn-sup-template.c"
-
 /* static expert_field ei_isdn_sup_unsupported_arg_type = EI_INIT; */
 static expert_field ei_isdn_sup_unsupported_result_type = EI_INIT;
 static expert_field ei_isdn_sup_unsupported_error_type = EI_INIT;
@@ -419,12 +390,9 @@ static expert_field ei_isdn_sup_unsupported_error_type = EI_INIT;
 /* Global variables */
 
 
-/*--- Included file: packet-isdn-sup-fn.c ---*/
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-fn.c"
-
 
 static int
-dissect_isdn_sup_NumberDigits(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_NumberDigits(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_restricted_string(implicit_tag, BER_UNI_TAG_NumericString,
                                             actx, tree, tvb, offset, hf_index,
                                             NULL);
@@ -445,7 +413,7 @@ static const value_string isdn_sup_PublicTypeOfNumber_vals[] = {
 
 
 static int
-dissect_isdn_sup_PublicTypeOfNumber(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PublicTypeOfNumber(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -460,7 +428,7 @@ static const ber_sequence_t PublicPartyNumber_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_PublicPartyNumber(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PublicPartyNumber(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    PublicPartyNumber_sequence, hf_index, ett_isdn_sup_PublicPartyNumber);
 
@@ -470,7 +438,7 @@ dissect_isdn_sup_PublicPartyNumber(gboolean implicit_tag _U_, tvbuff_t *tvb _U_,
 
 
 static int
-dissect_isdn_sup_NsapEncodedNumber(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_NsapEncodedNumber(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -490,7 +458,7 @@ static const value_string isdn_sup_PrivateTypeOfNumber_vals[] = {
 
 
 static int
-dissect_isdn_sup_PrivateTypeOfNumber(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PrivateTypeOfNumber(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -505,7 +473,7 @@ static const ber_sequence_t PrivatePartyNumber_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_PrivatePartyNumber(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PrivatePartyNumber(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    PrivatePartyNumber_sequence, hf_index, ett_isdn_sup_PrivatePartyNumber);
 
@@ -536,7 +504,7 @@ static const ber_choice_t PartyNumber_choice[] = {
 };
 
 static int
-dissect_isdn_sup_PartyNumber(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PartyNumber(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  PartyNumber_choice, hf_index, ett_isdn_sup_PartyNumber,
                                  NULL);
@@ -555,7 +523,7 @@ static const value_string isdn_sup_ScreeningIndicator_vals[] = {
 
 
 static int
-dissect_isdn_sup_ScreeningIndicator(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ScreeningIndicator(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -565,7 +533,7 @@ dissect_isdn_sup_ScreeningIndicator(gboolean implicit_tag _U_, tvbuff_t *tvb _U_
 
 
 static int
-dissect_isdn_sup_SubaddressInformation(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_SubaddressInformation(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -575,7 +543,7 @@ dissect_isdn_sup_SubaddressInformation(gboolean implicit_tag _U_, tvbuff_t *tvb 
 
 
 static int
-dissect_isdn_sup_BOOLEAN(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_BOOLEAN(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_boolean(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   return offset;
@@ -589,7 +557,7 @@ static const ber_sequence_t UserSpecifiedSubaddress_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_UserSpecifiedSubaddress(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_UserSpecifiedSubaddress(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    UserSpecifiedSubaddress_sequence, hf_index, ett_isdn_sup_UserSpecifiedSubaddress);
 
@@ -599,7 +567,7 @@ dissect_isdn_sup_UserSpecifiedSubaddress(gboolean implicit_tag _U_, tvbuff_t *tv
 
 
 static int
-dissect_isdn_sup_NSAPSubaddress(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_NSAPSubaddress(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -620,7 +588,7 @@ static const ber_choice_t PartySubaddress_choice[] = {
 };
 
 static int
-dissect_isdn_sup_PartySubaddress(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PartySubaddress(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  PartySubaddress_choice, hf_index, ett_isdn_sup_PartySubaddress,
                                  NULL);
@@ -637,7 +605,7 @@ static const ber_sequence_t AddressScreened_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_AddressScreened(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AddressScreened(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    AddressScreened_sequence, hf_index, ett_isdn_sup_AddressScreened);
 
@@ -647,7 +615,7 @@ dissect_isdn_sup_AddressScreened(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, i
 
 
 static int
-dissect_isdn_sup_NULL(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_NULL(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_null(implicit_tag, actx, tree, tvb, offset, hf_index);
 
   return offset;
@@ -671,7 +639,7 @@ static const ber_choice_t PresentedAddressScreened_choice[] = {
 };
 
 static int
-dissect_isdn_sup_PresentedAddressScreened(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PresentedAddressScreened(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  PresentedAddressScreened_choice, hf_index, ett_isdn_sup_PresentedAddressScreened,
                                  NULL);
@@ -687,7 +655,7 @@ static const ber_sequence_t Address_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_Address(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Address(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Address_sequence, hf_index, ett_isdn_sup_Address);
 
@@ -715,7 +683,7 @@ static const ber_choice_t PresentedNumberUnscreened_choice[] = {
 };
 
 static int
-dissect_isdn_sup_PresentedNumberUnscreened(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PresentedNumberUnscreened(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  PresentedNumberUnscreened_choice, hf_index, ett_isdn_sup_PresentedNumberUnscreened,
                                  NULL);
@@ -726,7 +694,7 @@ dissect_isdn_sup_PresentedNumberUnscreened(gboolean implicit_tag _U_, tvbuff_t *
 
 
 static int
-dissect_isdn_sup_PresentationAllowedIndicator(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PresentationAllowedIndicator(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_boolean(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   return offset;
@@ -756,7 +724,7 @@ static const value_string isdn_sup_BasicService_vals[] = {
 
 
 static int
-dissect_isdn_sup_BasicService(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_BasicService(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -766,7 +734,7 @@ dissect_isdn_sup_BasicService(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_isdn_sup_OCTET_STRING(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_OCTET_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -776,7 +744,7 @@ dissect_isdn_sup_OCTET_STRING(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_isdn_sup_Q931InformationElement(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Q931InformationElement(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
                                       hf_index, BER_CLASS_APP, 0, TRUE, dissect_isdn_sup_OCTET_STRING);
 
@@ -793,7 +761,7 @@ static const value_string isdn_sup_ChargingCase_vals[] = {
 
 
 static int
-dissect_isdn_sup_ChargingCase(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ChargingCase(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -803,7 +771,7 @@ dissect_isdn_sup_ChargingCase(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_isdn_sup_ChargingRequestArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ChargingRequestArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_ChargingCase(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -821,7 +789,7 @@ static const value_string isdn_sup_ChargedItem_vals[] = {
 
 
 static int
-dissect_isdn_sup_ChargedItem(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ChargedItem(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -831,7 +799,7 @@ dissect_isdn_sup_ChargedItem(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int o
 
 
 static int
-dissect_isdn_sup_Currency(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Currency(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_restricted_string(implicit_tag, BER_UNI_TAG_IA5String,
                                             actx, tree, tvb, offset, hf_index,
                                             NULL);
@@ -842,7 +810,7 @@ dissect_isdn_sup_Currency(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offs
 
 
 static int
-dissect_isdn_sup_CurrencyAmount(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_CurrencyAmount(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -863,7 +831,7 @@ static const value_string isdn_sup_Multiplier_vals[] = {
 
 
 static int
-dissect_isdn_sup_Multiplier(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Multiplier(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -878,7 +846,7 @@ static const ber_sequence_t Amount_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_Amount(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Amount(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Amount_sequence, hf_index, ett_isdn_sup_Amount);
 
@@ -894,7 +862,7 @@ static const value_string isdn_sup_ChargingType_vals[] = {
 
 
 static int
-dissect_isdn_sup_ChargingType(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ChargingType(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -904,7 +872,7 @@ dissect_isdn_sup_ChargingType(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_isdn_sup_LengthOfTimeUnit(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_LengthOfTimeUnit(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -925,7 +893,7 @@ static const value_string isdn_sup_Scale_vals[] = {
 
 
 static int
-dissect_isdn_sup_Scale(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Scale(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -940,7 +908,7 @@ static const ber_sequence_t Time_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_Time(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Time(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Time_sequence, hf_index, ett_isdn_sup_Time);
 
@@ -958,7 +926,7 @@ static const ber_sequence_t DurationCurrency_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_DurationCurrency(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_DurationCurrency(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DurationCurrency_sequence, hf_index, ett_isdn_sup_DurationCurrency);
 
@@ -973,7 +941,7 @@ static const ber_sequence_t FlatRateCurrency_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_FlatRateCurrency(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_FlatRateCurrency(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    FlatRateCurrency_sequence, hf_index, ett_isdn_sup_FlatRateCurrency);
 
@@ -990,7 +958,7 @@ static const value_string isdn_sup_VolumeUnit_vals[] = {
 
 
 static int
-dissect_isdn_sup_VolumeUnit(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_VolumeUnit(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -1006,7 +974,7 @@ static const ber_sequence_t VolumeRateCurrency_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_VolumeRateCurrency(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_VolumeRateCurrency(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    VolumeRateCurrency_sequence, hf_index, ett_isdn_sup_VolumeRateCurrency);
 
@@ -1029,7 +997,7 @@ static const ber_choice_t AOCSChargingTypeSpecificCurrency_choice[] = {
 };
 
 static int
-dissect_isdn_sup_AOCSChargingTypeSpecificCurrency(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCSChargingTypeSpecificCurrency(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  AOCSChargingTypeSpecificCurrency_choice, hf_index, ett_isdn_sup_AOCSChargingTypeSpecificCurrency,
                                  NULL);
@@ -1040,7 +1008,7 @@ dissect_isdn_sup_AOCSChargingTypeSpecificCurrency(gboolean implicit_tag _U_, tvb
 
 
 static int
-dissect_isdn_sup_SpecialChargingCode(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_SpecialChargingCode(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1065,7 +1033,7 @@ static const ber_choice_t T_chargingtype_choice[] = {
 };
 
 static int
-dissect_isdn_sup_T_chargingtype(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_T_chargingtype(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  T_chargingtype_choice, hf_index, ett_isdn_sup_T_chargingtype,
                                  NULL);
@@ -1081,7 +1049,7 @@ static const ber_sequence_t AOCSCurrencyInfo_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_AOCSCurrencyInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCSCurrencyInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    AOCSCurrencyInfo_sequence, hf_index, ett_isdn_sup_AOCSCurrencyInfo);
 
@@ -1094,7 +1062,7 @@ static const ber_sequence_t AOCSCurrencyInfoList_sequence_of[1] = {
 };
 
 static int
-dissect_isdn_sup_AOCSCurrencyInfoList(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCSCurrencyInfoList(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       AOCSCurrencyInfoList_sequence_of, hf_index, ett_isdn_sup_AOCSCurrencyInfoList);
 
@@ -1104,7 +1072,7 @@ dissect_isdn_sup_AOCSCurrencyInfoList(gboolean implicit_tag _U_, tvbuff_t *tvb _
 
 
 static int
-dissect_isdn_sup_AOCSSpecialArrInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCSSpecialArrInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1127,7 +1095,7 @@ static const ber_choice_t ChargingRequestRes_choice[] = {
 };
 
 static int
-dissect_isdn_sup_ChargingRequestRes(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ChargingRequestRes(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  ChargingRequestRes_choice, hf_index, ett_isdn_sup_ChargingRequestRes,
                                  NULL);
@@ -1149,7 +1117,7 @@ static const ber_choice_t AOCSCurrencyArg_choice[] = {
 };
 
 static int
-dissect_isdn_sup_AOCSCurrencyArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCSCurrencyArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  AOCSCurrencyArg_choice, hf_index, ett_isdn_sup_AOCSCurrencyArg,
                                  NULL);
@@ -1171,7 +1139,7 @@ static const ber_choice_t AOCSSpecialArrArg_choice[] = {
 };
 
 static int
-dissect_isdn_sup_AOCSSpecialArrArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCSSpecialArrArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  AOCSSpecialArrArg_choice, hf_index, ett_isdn_sup_AOCSSpecialArrArg,
                                  NULL);
@@ -1187,7 +1155,7 @@ static const ber_sequence_t RecordedCurrency_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_RecordedCurrency(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_RecordedCurrency(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RecordedCurrency_sequence, hf_index, ett_isdn_sup_RecordedCurrency);
 
@@ -1203,7 +1171,7 @@ static const value_string isdn_sup_TypeOfChargingInfo_vals[] = {
 
 
 static int
-dissect_isdn_sup_TypeOfChargingInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_TypeOfChargingInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -1220,7 +1188,7 @@ static const value_string isdn_sup_AOCDBillingId_vals[] = {
 
 
 static int
-dissect_isdn_sup_AOCDBillingId(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCDBillingId(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -1236,7 +1204,7 @@ static const ber_sequence_t AOCDSpecificCurrency_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_AOCDSpecificCurrency(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCDSpecificCurrency(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    AOCDSpecificCurrency_sequence, hf_index, ett_isdn_sup_AOCDSpecificCurrency);
 
@@ -1257,7 +1225,7 @@ static const ber_choice_t AOCDCurrencyInfo_choice[] = {
 };
 
 static int
-dissect_isdn_sup_AOCDCurrencyInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCDCurrencyInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  AOCDCurrencyInfo_choice, hf_index, ett_isdn_sup_AOCDCurrencyInfo,
                                  NULL);
@@ -1279,7 +1247,7 @@ static const ber_choice_t AOCDCurrencyArg_choice[] = {
 };
 
 static int
-dissect_isdn_sup_AOCDCurrencyArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCDCurrencyArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  AOCDCurrencyArg_choice, hf_index, ett_isdn_sup_AOCDCurrencyArg,
                                  NULL);
@@ -1290,7 +1258,7 @@ dissect_isdn_sup_AOCDCurrencyArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, i
 
 
 static int
-dissect_isdn_sup_NumberOfUnits(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_NumberOfUnits(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1311,7 +1279,7 @@ static const ber_choice_t RecoredUnitsCc_choice[] = {
 };
 
 static int
-dissect_isdn_sup_RecoredUnitsCc(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_RecoredUnitsCc(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  RecoredUnitsCc_choice, hf_index, ett_isdn_sup_RecoredUnitsCc,
                                  NULL);
@@ -1322,7 +1290,7 @@ dissect_isdn_sup_RecoredUnitsCc(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
 
 
 static int
-dissect_isdn_sup_TypeOfUnit(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_TypeOfUnit(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1337,7 +1305,7 @@ static const ber_sequence_t RecordedUnits_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_RecordedUnits(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_RecordedUnits(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RecordedUnits_sequence, hf_index, ett_isdn_sup_RecordedUnits);
 
@@ -1350,7 +1318,7 @@ static const ber_sequence_t RecordedUnitsList_sequence_of[1] = {
 };
 
 static int
-dissect_isdn_sup_RecordedUnitsList(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_RecordedUnitsList(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       RecordedUnitsList_sequence_of, hf_index, ett_isdn_sup_RecordedUnitsList);
 
@@ -1366,7 +1334,7 @@ static const ber_sequence_t AOCDSpecificChargingUnits_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_AOCDSpecificChargingUnits(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCDSpecificChargingUnits(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    AOCDSpecificChargingUnits_sequence, hf_index, ett_isdn_sup_AOCDSpecificChargingUnits);
 
@@ -1387,7 +1355,7 @@ static const ber_choice_t AOCDChargingUnitInfo_choice[] = {
 };
 
 static int
-dissect_isdn_sup_AOCDChargingUnitInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCDChargingUnitInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  AOCDChargingUnitInfo_choice, hf_index, ett_isdn_sup_AOCDChargingUnitInfo,
                                  NULL);
@@ -1409,7 +1377,7 @@ static const ber_choice_t AOCDChargingUnitArg_choice[] = {
 };
 
 static int
-dissect_isdn_sup_AOCDChargingUnitArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCDChargingUnitArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  AOCDChargingUnitArg_choice, hf_index, ett_isdn_sup_AOCDChargingUnitArg,
                                  NULL);
@@ -1432,7 +1400,7 @@ static const value_string isdn_sup_AOCEBillingId_vals[] = {
 
 
 static int
-dissect_isdn_sup_AOCEBillingId(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCEBillingId(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -1447,7 +1415,7 @@ static const ber_sequence_t AOCECcSpecificCurrency_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_AOCECcSpecificCurrency(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCECcSpecificCurrency(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    AOCECcSpecificCurrency_sequence, hf_index, ett_isdn_sup_AOCECcSpecificCurrency);
 
@@ -1468,7 +1436,7 @@ static const ber_choice_t AOCECurrencyCc_choice[] = {
 };
 
 static int
-dissect_isdn_sup_AOCECurrencyCc(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCECurrencyCc(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  AOCECurrencyCc_choice, hf_index, ett_isdn_sup_AOCECurrencyCc,
                                  NULL);
@@ -1479,7 +1447,7 @@ dissect_isdn_sup_AOCECurrencyCc(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
 
 
 static int
-dissect_isdn_sup_ChargeIdentifier(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ChargeIdentifier(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1500,7 +1468,7 @@ static const ber_choice_t ChargingAssociation_choice[] = {
 };
 
 static int
-dissect_isdn_sup_ChargingAssociation(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ChargingAssociation(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  ChargingAssociation_choice, hf_index, ett_isdn_sup_ChargingAssociation,
                                  NULL);
@@ -1516,7 +1484,7 @@ static const ber_sequence_t AOCECurrencyInfo_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_AOCECurrencyInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCECurrencyInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    AOCECurrencyInfo_sequence, hf_index, ett_isdn_sup_AOCECurrencyInfo);
 
@@ -1537,7 +1505,7 @@ static const ber_choice_t AOCECurrencyArg_choice[] = {
 };
 
 static int
-dissect_isdn_sup_AOCECurrencyArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCECurrencyArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  AOCECurrencyArg_choice, hf_index, ett_isdn_sup_AOCECurrencyArg,
                                  NULL);
@@ -1553,7 +1521,7 @@ static const ber_sequence_t AOCECcSpecificChargingUnits_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_AOCECcSpecificChargingUnits(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCECcSpecificChargingUnits(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    AOCECcSpecificChargingUnits_sequence, hf_index, ett_isdn_sup_AOCECcSpecificChargingUnits);
 
@@ -1574,7 +1542,7 @@ static const ber_choice_t AOCEChargingUnitCc_choice[] = {
 };
 
 static int
-dissect_isdn_sup_AOCEChargingUnitCc(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCEChargingUnitCc(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  AOCEChargingUnitCc_choice, hf_index, ett_isdn_sup_AOCEChargingUnitCc,
                                  NULL);
@@ -1590,7 +1558,7 @@ static const ber_sequence_t AOCEChargingUnitInfo_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_AOCEChargingUnitInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCEChargingUnitInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    AOCEChargingUnitInfo_sequence, hf_index, ett_isdn_sup_AOCEChargingUnitInfo);
 
@@ -1611,7 +1579,7 @@ static const ber_choice_t AOCEChargingUnitArg_choice[] = {
 };
 
 static int
-dissect_isdn_sup_AOCEChargingUnitArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AOCEChargingUnitArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  AOCEChargingUnitArg_choice, hf_index, ett_isdn_sup_AOCEChargingUnitArg,
                                  NULL);
@@ -1622,7 +1590,7 @@ dissect_isdn_sup_AOCEChargingUnitArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U
 
 
 static int
-dissect_isdn_sup_OARequested(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_OARequested(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
                                       hf_index, BER_CLASS_CON, 1, TRUE, dissect_isdn_sup_BOOLEAN);
 
@@ -1632,7 +1600,7 @@ dissect_isdn_sup_OARequested(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int o
 
 
 static int
-dissect_isdn_sup_INTEGER_0_32767(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_INTEGER_0_32767(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1642,7 +1610,7 @@ dissect_isdn_sup_INTEGER_0_32767(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, i
 
 
 static int
-dissect_isdn_sup_CUGIndex(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_CUGIndex(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
                                       hf_index, BER_CLASS_CON, 2, TRUE, dissect_isdn_sup_INTEGER_0_32767);
 
@@ -1657,7 +1625,7 @@ static const ber_sequence_t CUGcallArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_CUGcallArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_CUGcallArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    CUGcallArg_sequence, hf_index, ett_isdn_sup_CUGcallArg);
 
@@ -1667,7 +1635,7 @@ dissect_isdn_sup_CUGcallArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int of
 
 
 static int
-dissect_isdn_sup_ConfSize(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ConfSize(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1677,7 +1645,7 @@ dissect_isdn_sup_ConfSize(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offs
 
 
 static int
-dissect_isdn_sup_BeginCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_BeginCONFArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_ConfSize(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -1686,7 +1654,7 @@ dissect_isdn_sup_BeginCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_isdn_sup_ConferenceId(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ConferenceId(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1696,7 +1664,7 @@ dissect_isdn_sup_ConferenceId(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_isdn_sup_PartyId(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PartyId(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1711,7 +1679,7 @@ static const ber_sequence_t BeginCONFRes_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_BeginCONFRes(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_BeginCONFRes(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    BeginCONFRes_sequence, hf_index, ett_isdn_sup_BeginCONFRes);
 
@@ -1721,7 +1689,7 @@ dissect_isdn_sup_BeginCONFRes(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_isdn_sup_AddCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AddCONFArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_ConferenceId(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -1730,7 +1698,7 @@ dissect_isdn_sup_AddCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int of
 
 
 static int
-dissect_isdn_sup_AddCONFRes(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_AddCONFRes(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_PartyId(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -1744,7 +1712,7 @@ static const ber_sequence_t SplitCONFArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_SplitCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_SplitCONFArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SplitCONFArg_sequence, hf_index, ett_isdn_sup_SplitCONFArg);
 
@@ -1754,7 +1722,7 @@ dissect_isdn_sup_SplitCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_isdn_sup_DropCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_DropCONFArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_PartyId(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -1763,7 +1731,7 @@ dissect_isdn_sup_DropCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int o
 
 
 static int
-dissect_isdn_sup_IsolateCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_IsolateCONFArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_PartyId(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -1772,7 +1740,7 @@ dissect_isdn_sup_IsolateCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
 
 
 static int
-dissect_isdn_sup_ReattachCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ReattachCONFArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_PartyId(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -1781,7 +1749,7 @@ dissect_isdn_sup_ReattachCONFArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, i
 
 
 static int
-dissect_isdn_sup_PartyDISCArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PartyDISCArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_PartyId(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -1797,7 +1765,7 @@ static const value_string isdn_sup_Procedure_vals[] = {
 
 
 static int
-dissect_isdn_sup_Procedure(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Procedure(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -1818,7 +1786,7 @@ static const ber_choice_t ServedUserNr_choice[] = {
 };
 
 static int
-dissect_isdn_sup_ServedUserNr(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ServedUserNr(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  ServedUserNr_choice, hf_index, ett_isdn_sup_ServedUserNr,
                                  NULL);
@@ -1829,7 +1797,7 @@ dissect_isdn_sup_ServedUserNr(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_isdn_sup_NoReplyTimer(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_NoReplyTimer(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -1847,7 +1815,7 @@ static const ber_sequence_t ActivationDiversionArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_ActivationDiversionArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ActivationDiversionArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    ActivationDiversionArg_sequence, hf_index, ett_isdn_sup_ActivationDiversionArg);
 
@@ -1863,7 +1831,7 @@ static const ber_sequence_t DeactivationDiversionArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_DeactivationDiversionArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_DeactivationDiversionArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DeactivationDiversionArg_sequence, hf_index, ett_isdn_sup_DeactivationDiversionArg);
 
@@ -1880,7 +1848,7 @@ static const ber_sequence_t ActivationStatusNotificationDivArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_ActivationStatusNotificationDivArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ActivationStatusNotificationDivArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    ActivationStatusNotificationDivArg_sequence, hf_index, ett_isdn_sup_ActivationStatusNotificationDivArg);
 
@@ -1896,7 +1864,7 @@ static const ber_sequence_t DeactivationStatusNotificationDivArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_DeactivationStatusNotificationDivArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_DeactivationStatusNotificationDivArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DeactivationStatusNotificationDivArg_sequence, hf_index, ett_isdn_sup_DeactivationStatusNotificationDivArg);
 
@@ -1912,7 +1880,7 @@ static const ber_sequence_t InterrogationDiversionArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_InterrogationDiversionArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_InterrogationDiversionArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    InterrogationDiversionArg_sequence, hf_index, ett_isdn_sup_InterrogationDiversionArg);
 
@@ -1929,7 +1897,7 @@ static const ber_sequence_t IntResult_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_IntResult(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_IntResult(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    IntResult_sequence, hf_index, ett_isdn_sup_IntResult);
 
@@ -1942,7 +1910,7 @@ static const ber_sequence_t IntResultList_set_of[1] = {
 };
 
 static int
-dissect_isdn_sup_IntResultList(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_IntResultList(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_set_of(implicit_tag, actx, tree, tvb, offset,
                                  IntResultList_set_of, hf_index, ett_isdn_sup_IntResultList);
 
@@ -1952,7 +1920,7 @@ dissect_isdn_sup_IntResultList(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int
 
 
 static int
-dissect_isdn_sup_InterrogationDiversionRes(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_InterrogationDiversionRes(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_IntResultList(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -1964,7 +1932,7 @@ static const ber_sequence_t ServedUserNumberList_set_of[1] = {
 };
 
 static int
-dissect_isdn_sup_ServedUserNumberList(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_ServedUserNumberList(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_set_of(implicit_tag, actx, tree, tvb, offset,
                                  ServedUserNumberList_set_of, hf_index, ett_isdn_sup_ServedUserNumberList);
 
@@ -1974,7 +1942,7 @@ dissect_isdn_sup_ServedUserNumberList(gboolean implicit_tag _U_, tvbuff_t *tvb _
 
 
 static int
-dissect_isdn_sup_InterrogateServedUserNumbersRes(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_InterrogateServedUserNumbersRes(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_ServedUserNumberList(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -1993,7 +1961,7 @@ static const value_string isdn_sup_DiversionReason_vals[] = {
 
 
 static int
-dissect_isdn_sup_DiversionReason(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_DiversionReason(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -2014,7 +1982,7 @@ static const ber_sequence_t DiversionInformationArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_DiversionInformationArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_DiversionInformationArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DiversionInformationArg_sequence, hf_index, ett_isdn_sup_DiversionInformationArg);
 
@@ -2029,7 +1997,7 @@ static const ber_sequence_t CallDeflectionArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_CallDeflectionArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_CallDeflectionArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    CallDeflectionArg_sequence, hf_index, ett_isdn_sup_CallDeflectionArg);
 
@@ -2039,7 +2007,7 @@ dissect_isdn_sup_CallDeflectionArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_,
 
 
 static int
-dissect_isdn_sup_DiversionCounter(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_DiversionCounter(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -2056,7 +2024,7 @@ static const value_string isdn_sup_SubscriptionOption_vals[] = {
 
 
 static int
-dissect_isdn_sup_SubscriptionOption(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_SubscriptionOption(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -2076,7 +2044,7 @@ static const ber_sequence_t CallRerouteingArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_CallRerouteingArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_CallRerouteingArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    CallRerouteingArg_sequence, hf_index, ett_isdn_sup_CallRerouteingArg);
 
@@ -2092,7 +2060,7 @@ static const ber_sequence_t DivertingLegInformation1Arg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_DivertingLegInformation1Arg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_DivertingLegInformation1Arg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DivertingLegInformation1Arg_sequence, hf_index, ett_isdn_sup_DivertingLegInformation1Arg);
 
@@ -2109,7 +2077,7 @@ static const ber_sequence_t DivertingLegInformation2Arg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_DivertingLegInformation2Arg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_DivertingLegInformation2Arg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DivertingLegInformation2Arg_sequence, hf_index, ett_isdn_sup_DivertingLegInformation2Arg);
 
@@ -2119,7 +2087,7 @@ dissect_isdn_sup_DivertingLegInformation2Arg(gboolean implicit_tag _U_, tvbuff_t
 
 
 static int
-dissect_isdn_sup_DivertingLegInformation3Arg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_DivertingLegInformation3Arg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_PresentationAllowedIndicator(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -2135,7 +2103,7 @@ static const value_string isdn_sup_Service_vals[] = {
 
 
 static int
-dissect_isdn_sup_Service(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Service(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -2145,7 +2113,7 @@ dissect_isdn_sup_Service(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offse
 
 
 static int
-dissect_isdn_sup_Preferred(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Preferred(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_boolean(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   return offset;
@@ -2159,7 +2127,7 @@ static const ber_sequence_t UserUserServiceArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_UserUserServiceArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_UserUserServiceArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    UserUserServiceArg_sequence, hf_index, ett_isdn_sup_UserUserServiceArg);
 
@@ -2169,7 +2137,7 @@ dissect_isdn_sup_UserUserServiceArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_
 
 
 static int
-dissect_isdn_sup_CalledFreephoneNr(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_CalledFreephoneNr(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_PartyNumber(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -2178,7 +2146,7 @@ dissect_isdn_sup_CalledFreephoneNr(gboolean implicit_tag _U_, tvbuff_t *tvb _U_,
 
 
 static int
-dissect_isdn_sup_CalledFreephoneNrArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_CalledFreephoneNrArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_CalledFreephoneNr(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -2187,7 +2155,7 @@ dissect_isdn_sup_CalledFreephoneNrArg(gboolean implicit_tag _U_, tvbuff_t *tvb _
 
 
 static int
-dissect_isdn_sup_QueueIdentity(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_QueueIdentity(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -2203,7 +2171,7 @@ static const ber_sequence_t Monitor_T_FPHArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_Monitor_T_FPHArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Monitor_T_FPHArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Monitor_T_FPHArg_sequence, hf_index, ett_isdn_sup_Monitor_T_FPHArg);
 
@@ -2213,7 +2181,7 @@ dissect_isdn_sup_Monitor_T_FPHArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, 
 
 
 static int
-dissect_isdn_sup_FPHReference(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_FPHReference(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -2228,7 +2196,7 @@ static const ber_sequence_t Free_T_FPHArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_Free_T_FPHArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Free_T_FPHArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Free_T_FPHArg_sequence, hf_index, ett_isdn_sup_Free_T_FPHArg);
 
@@ -2243,7 +2211,7 @@ static const ber_sequence_t Call_T_FPHArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_Call_T_FPHArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Call_T_FPHArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Call_T_FPHArg_sequence, hf_index, ett_isdn_sup_Call_T_FPHArg);
 
@@ -2262,7 +2230,7 @@ static const value_string isdn_sup_PrecLevel_vals[] = {
 
 
 static int
-dissect_isdn_sup_PrecLevel(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PrecLevel(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -2279,7 +2247,7 @@ static const value_string isdn_sup_LFBIndictn_vals[] = {
 
 
 static int
-dissect_isdn_sup_LFBIndictn(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_LFBIndictn(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -2289,7 +2257,7 @@ dissect_isdn_sup_LFBIndictn(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int of
 
 
 static int
-dissect_isdn_sup_MLPPSvcDomn(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_MLPPSvcDomn(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -2305,7 +2273,7 @@ static const ber_sequence_t MLPPParams_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_MLPPParams(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_MLPPParams(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    MLPPParams_sequence, hf_index, ett_isdn_sup_MLPPParams);
 
@@ -2315,7 +2283,7 @@ dissect_isdn_sup_MLPPParams(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int of
 
 
 static int
-dissect_isdn_sup_IEArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_IEArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_Q931InformationElement(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -2329,7 +2297,7 @@ static const ber_sequence_t MLPPLFBArg_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_MLPPLFBArg(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_MLPPLFBArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    MLPPLFBArg_sequence, hf_index, ett_isdn_sup_MLPPLFBArg);
 
@@ -2349,7 +2317,7 @@ static const value_string isdn_sup_StatusQuery_vals[] = {
 
 
 static int
-dissect_isdn_sup_StatusQuery(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_StatusQuery(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -2359,7 +2327,7 @@ dissect_isdn_sup_StatusQuery(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int o
 
 
 static int
-dissect_isdn_sup_Location(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_Location(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_isdn_sup_Q931InformationElement(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -2373,7 +2341,7 @@ static const ber_sequence_t MLPPLFBResp_sequence[] = {
 };
 
 static int
-dissect_isdn_sup_MLPPLFBResp(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_MLPPLFBResp(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    MLPPLFBResp_sequence, hf_index, ett_isdn_sup_MLPPLFBResp);
 
@@ -2391,7 +2359,7 @@ static const value_string isdn_sup_StatusRequest_vals[] = {
 
 
 static int
-dissect_isdn_sup_StatusRequest(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_StatusRequest(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -2407,7 +2375,7 @@ static const value_string isdn_sup_PreemptParams_vals[] = {
 
 
 static int
-dissect_isdn_sup_PreemptParams(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_isdn_sup_PreemptParams(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -2705,13 +2673,7 @@ static int dissect_PreemptParams_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, 
 }
 
 
-/*--- End of included file: packet-isdn-sup-fn.c ---*/
-#line 90 "./asn1/isdn-sup/packet-isdn-sup-template.c"
-
 static const isdn_sup_op_t isdn_sup_op_tab[] = {
-
-/*--- Included file: packet-isdn-sup-table11.c ---*/
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-table11.c"
   /* chargingRequest          */ {  30, dissect_ChargingRequestArg_PDU, dissect_ChargingRequestRes_PDU },
   /* aOCSCurrency             */ {  31, dissect_AOCSCurrencyArg_PDU, NULL },
   /* aOCSSpecialArr           */ {  32, dissect_AOCSSpecialArrArg_PDU, NULL },
@@ -2744,30 +2706,18 @@ static const isdn_sup_op_t isdn_sup_op_tab[] = {
   /* mLPPLFBQuery             */ {  24, dissect_MLPPLFBArg_PDU, dissect_MLPPLFBResp_PDU },
   /* mLPPCallRequest          */ {  25, dissect_MLPPParams_PDU, dissect_StatusRequest_PDU },
   /* mLPPCallPreemption       */ {  26, dissect_PreemptParams_PDU, NULL },
-
-/*--- End of included file: packet-isdn-sup-table11.c ---*/
-#line 93 "./asn1/isdn-sup/packet-isdn-sup-template.c"
 };
 
 
 static const isdn_sup_global_op_t isdn_sup_global_op_tab[] = {
 
-
-/*--- Included file: packet-isdn-sup-table31.c ---*/
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-table31.c"
   /* callFPH                  */ { fPHOID".1", dissect_CalledFreephoneNrArg_PDU, NULL },
   /* monitor-T-FPH            */ { fPHOID".2", dissect_Monitor_T_FPHArg_PDU, NULL },
   /* free-T-FPH               */ { fPHOID".3", dissect_Free_T_FPHArg_PDU, NULL },
   /* call-T-FPH               */ { fPHOID".4", dissect_Call_T_FPHArg_PDU, NULL },
-
-/*--- End of included file: packet-isdn-sup-table31.c ---*/
-#line 99 "./asn1/isdn-sup/packet-isdn-sup-template.c"
 };
 
 static const isdn_sup_err_t isdn_sup_err_tab[] = {
-
-/*--- Included file: packet-isdn-sup-table21.c ---*/
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-table21.c"
   /* notSubscribed            */ {    0, NULL },
   /* notAvailable             */ {    3, NULL },
   /* notImplemented           */ {    4, NULL },
@@ -2799,9 +2749,6 @@ static const isdn_sup_err_t isdn_sup_err_tab[] = {
   /* rejectedByTheNetwork     */ {    1, NULL },
   /* rejectedByTheUser        */ {    2, NULL },
   /* unauthorizedPrecedenceLevel */ {   44, NULL },
-
-/*--- End of included file: packet-isdn-sup-table21.c ---*/
-#line 103 "./asn1/isdn-sup/packet-isdn-sup-template.c"
 };
 
 
@@ -2982,30 +2929,20 @@ void proto_reg_handoff_isdn_sup(void) {
   int i;
 #if 0
   dissector_handle_t q931_handle;
-#endif
-  dissector_handle_t isdn_sup_arg_handle;
-  dissector_handle_t isdn_sup_res_handle;
-  dissector_handle_t isdn_sup_err_handle;
-
-#if 0
   q931_handle = find_dissector("q931");
 #endif
 
-  isdn_sup_arg_handle = create_dissector_handle(dissect_isdn_sup_arg, proto_isdn_sup);
-  isdn_sup_res_handle = create_dissector_handle(dissect_isdn_sup_res, proto_isdn_sup);
   for (i=0; i<(int)array_length(isdn_sup_op_tab); i++) {
     dissector_add_uint("q932.ros.etsi.local.arg", isdn_sup_op_tab[i].opcode, isdn_sup_arg_handle);
     dissector_add_uint("q932.ros.etsi.local.res", isdn_sup_op_tab[i].opcode, isdn_sup_res_handle);
   }
 
   for (i=0; i<(int)array_length(isdn_sup_global_op_tab); i++) {
-	  if(isdn_sup_global_op_tab->arg_pdu)
+	  if(isdn_sup_global_op_tab[i].arg_pdu)
 		  dissector_add_string("q932.ros.global.arg", isdn_sup_global_op_tab[i].oid, create_dissector_handle(isdn_sup_global_op_tab[i].arg_pdu, proto_isdn_sup));
-	  if(isdn_sup_global_op_tab->res_pdu)
+	  if(isdn_sup_global_op_tab[i].res_pdu)
 		  dissector_add_string("q932.ros.global.res", isdn_sup_global_op_tab[i].oid, create_dissector_handle(isdn_sup_global_op_tab[i].res_pdu, proto_isdn_sup));
   }
-
-  isdn_sup_err_handle = create_dissector_handle(dissect_isdn_sup_err, proto_isdn_sup);
 
   for (i=0; i<(int)array_length(isdn_sup_err_tab); i++) {
     dissector_add_uint("q932.ros.etsi.local.err", isdn_sup_err_tab[i].errcode, isdn_sup_err_handle);
@@ -3034,9 +2971,6 @@ void proto_register_isdn_sup(void) {
         NULL, HFILL }
 	},
 
-
-/*--- Included file: packet-isdn-sup-hfarr.c ---*/
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-hfarr.c"
     { &hf_isdn_sup_ChargingRequestArg_PDU,
       { "ChargingRequestArg", "isdn-sup.ChargingRequestArg",
         FT_UINT32, BASE_DEC, VALS(isdn_sup_ChargingCase_vals), 0,
@@ -3709,18 +3643,12 @@ void proto_register_isdn_sup(void) {
       { "location", "isdn-sup.location",
         FT_BYTES, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-
-/*--- End of included file: packet-isdn-sup-hfarr.c ---*/
-#line 336 "./asn1/isdn-sup/packet-isdn-sup-template.c"
   };
 
   /* List of subtrees */
   static gint *ett[] = {
     &ett_isdn_sup,
 
-
-/*--- Included file: packet-isdn-sup-ettarr.c ---*/
-#line 1 "./asn1/isdn-sup/packet-isdn-sup-ettarr.c"
     &ett_isdn_sup_PresentedAddressScreened,
     &ett_isdn_sup_PresentedAddressUnscreened,
     &ett_isdn_sup_PresentedNumberScreened,
@@ -3788,9 +3716,6 @@ void proto_register_isdn_sup(void) {
     &ett_isdn_sup_MLPPLFBArg,
     &ett_isdn_sup_MLPPParams,
     &ett_isdn_sup_MLPPLFBResp,
-
-/*--- End of included file: packet-isdn-sup-ettarr.c ---*/
-#line 343 "./asn1/isdn-sup/packet-isdn-sup-template.c"
   };
 
   static ei_register_info ei[] = {
@@ -3811,4 +3736,9 @@ void proto_register_isdn_sup(void) {
   proto_register_subtree_array(ett, array_length(ett));
   expert_isdn_sup = expert_register_protocol(proto_isdn_sup);
   expert_register_field_array(expert_isdn_sup, ei, array_length(ei));
+
+  /* Register dissectors */
+  isdn_sup_arg_handle = register_dissector(PFNAME "_arg", dissect_isdn_sup_arg, proto_isdn_sup);
+  isdn_sup_res_handle = register_dissector(PFNAME "_res", dissect_isdn_sup_res, proto_isdn_sup);
+  isdn_sup_err_handle = register_dissector(PFNAME "_err", dissect_isdn_sup_err, proto_isdn_sup);
 }

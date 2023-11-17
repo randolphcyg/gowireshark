@@ -32,6 +32,8 @@
 void proto_register_usb_i1d3(void);
 void proto_reg_handoff_usb_i1d3(void);
 
+static dissector_handle_t usb_i1d3_dissector;
+
 #define USB_I1D3_PACKET_LENGTH (64)
 #define USB_I1D3_CLOCK_FREQUENCY (12e6)  // 12 MHz
 #define USB_I1D3_LED_OFFTIME_FACTOR (USB_I1D3_CLOCK_FREQUENCY / (1 << 19))
@@ -718,9 +720,7 @@ static int dissect_usb_i1d3(
 
 void proto_register_usb_i1d3(void)
 {
-    proto_usb_i1d3 = proto_register_protocol(
-            "X-Rite i1 Display Pro (and derivatives) USB protocol",
-            "X-Rite i1 Display Pro", "i1d3");
+    proto_usb_i1d3 = proto_register_protocol("X-Rite i1 Display Pro (and derivatives) USB protocol", "X-Rite i1 Display Pro", "i1d3");
 
     static gint *ett[] = {
         &ett_usb_i1d3,
@@ -957,11 +957,11 @@ void proto_register_usb_i1d3(void)
     expert_module_t *expert_usb_i1d3 = expert_register_protocol(
             proto_usb_i1d3);
     expert_register_field_array(expert_usb_i1d3, ei, array_length(ei));
+    usb_i1d3_dissector = register_dissector("i1d3",
+            dissect_usb_i1d3, proto_usb_i1d3);
 }
 
 void proto_reg_handoff_usb_i1d3(void) {
-    dissector_handle_t usb_i1d3_dissector = create_dissector_handle(
-            dissect_usb_i1d3, proto_usb_i1d3);
     dissector_add_for_decode_as("usb.device", usb_i1d3_dissector);
     dissector_add_uint("usb.product", 0x7655020, usb_i1d3_dissector);
 }

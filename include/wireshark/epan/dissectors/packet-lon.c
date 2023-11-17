@@ -22,6 +22,8 @@
 void proto_register_lon(void);
 void proto_reg_handoff_lon(void);
 
+static dissector_handle_t lon_handle;
+
 static const value_string pdu_fmt_vs[]=
 {
 	{0x00, "TPDU"},
@@ -388,6 +390,7 @@ dissect_lon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 		break;
 	case 2: /* AuthPDU */
 		{
+		/* TODO: these masks are not correct - have { 0xc0, 0x02, 0x0f } */
 		static int * const authpdu_fields[] = {
 			&hf_lon_authpdu_fmt,
 			&hf_lon_authpdu_authpdu_type,
@@ -634,7 +637,7 @@ proto_register_lon(void)
 		},
 		{&hf_lon_authpdu_authpdu_type,
 			{"AuthPDU type", "lon.authpdu_type",
-			FT_UINT8, BASE_HEX, VALS(authpdu_type_vs), 0x2,
+			FT_UINT8, BASE_HEX, VALS(authpdu_type_vs), 0x02,
 			NULL, HFILL }
 		},
 		{&hf_lon_nv,
@@ -739,16 +742,14 @@ proto_register_lon(void)
 	proto_register_subtree_array (ett, array_length (ett));
 	expert_lon = expert_register_protocol(proto_lon);
 	expert_register_field_array(expert_lon, ei, array_length(ei));
+
+	lon_handle = register_dissector("lon", dissect_lon, proto_lon);
 }
 
 
 void
 proto_reg_handoff_lon(void)
 {
-	dissector_handle_t lon_handle;
-
-	lon_handle = create_dissector_handle(dissect_lon, proto_lon);
-
 	dissector_add_uint("cnip.protocol", 0, lon_handle);
 }
 

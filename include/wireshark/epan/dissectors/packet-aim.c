@@ -1656,13 +1656,13 @@ dissect_aim(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 static int
 dissect_aim_ssl_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-	dissector_handle_t *app_handle = (dissector_handle_t *) data;
+	struct tlsinfo *tlsinfo = (struct tlsinfo *) data;
 	/* XXX improve heuristics */
 	if (tvb_reported_length(tvb) < 1 || tvb_get_guint8(tvb, 0) != 0x2a) {
 		return FALSE;
 	}
 	dissect_aim(tvb, pinfo, tree, NULL);
-	*app_handle = aim_handle;
+	*(tlsinfo->app_handle) = aim_handle;
 	return TRUE;
 }
 
@@ -2292,8 +2292,7 @@ static const aim_tlv aim_motd_tlvs[] = {
 static int dissect_aim_generic_motd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gen_tree)
 {
 	int offset = 0;
-	proto_tree_add_item(gen_tree, hf_generic_motd_motdtype, tvb, offset,
-	                    2, tvb_get_ntohs(tvb, offset));
+	proto_tree_add_item(gen_tree, hf_generic_motd_motdtype, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset+=2;
 	return dissect_aim_tlv_sequence(tvb, pinfo, offset, gen_tree, aim_motd_tlvs);
 }
@@ -2406,10 +2405,15 @@ static int dissect_aim_generic_ext_status_repl(tvbuff_t *tvb, packet_info *pinfo
 {
 	guint8 length;
 	int offset = 0;
-	proto_tree_add_item(gen_tree, hf_generic_ext_status_type, tvb, offset, 2, ENC_BIG_ENDIAN); offset += 2;
-	proto_tree_add_item(gen_tree, hf_generic_ext_status_flags, tvb, offset, 1, ENC_BIG_ENDIAN); offset += 1;
-	proto_tree_add_item(gen_tree, hf_generic_ext_status_length, tvb, offset, 1, ENC_BIG_ENDIAN); length = tvb_get_guint8(tvb, offset); offset += 1;
-	proto_tree_add_item(gen_tree, hf_generic_ext_status_data, tvb, offset, length, ENC_NA); offset += 1;
+	proto_tree_add_item(gen_tree, hf_generic_ext_status_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+	offset += 2;
+	proto_tree_add_item(gen_tree, hf_generic_ext_status_flags, tvb, offset, 1, ENC_BIG_ENDIAN);
+	offset += 1;
+	proto_tree_add_item(gen_tree, hf_generic_ext_status_length, tvb, offset, 1, ENC_BIG_ENDIAN);
+	length = tvb_get_guint8(tvb, offset);
+	offset += 1;
+	proto_tree_add_item(gen_tree, hf_generic_ext_status_data, tvb, offset, length, ENC_NA);
+	offset += 1;
 	return offset;
 }
 
@@ -2967,8 +2971,8 @@ static const value_string extended_data_message_types[] = {
 };
 
 #define EXTENDED_DATA_MFLAG_NORMAL 0x01
-#define EXTENDED_DATA_MFLAG_AUTO 0x03
-#define EXTENDED_DATA_MFLAG_MULTI 0x80
+#define EXTENDED_DATA_MFLAG_AUTO   0x02
+#define EXTENDED_DATA_MFLAG_MULTI  0x80
 
 #define EVIL_ORIGIN_ANONYMOUS		1
 #define EVIL_ORIGIN_NONANONYMOUS 	2
@@ -4136,10 +4140,10 @@ proto_register_aim(void)
 		  { "Privilege flags", "aim_generic.privilege_flags", FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL },
 		},
 		{ &hf_generic_allow_idle_see,
-		  { "Allow other users to see idle time", "aim_generic.privilege_flags.allow_idle", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x0001, NULL, HFILL },
+		  { "Allow other users to see idle time", "aim_generic.privilege_flags.allow_idle", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000001, NULL, HFILL },
 		},
 		{ &hf_generic_allow_member_see,
-		  { "Allow other users to see how long account has been a member", "aim_generic.privilege_flags.allow_member", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x0002, NULL, HFILL },
+		  { "Allow other users to see how long account has been a member", "aim_generic.privilege_flags.allow_member", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000002, NULL, HFILL },
 		},
 		{ &hf_generic_selfinfo_warninglevel,
 		    { "Warning level", "aim_generic.selfinfo.warn_level", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL },

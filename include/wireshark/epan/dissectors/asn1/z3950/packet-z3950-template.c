@@ -643,7 +643,7 @@ static const value_string z3950_bib1_diagconditions[] = {
     { 1067, "Encapsulation: Encapsulated sequence of PDUs not supported" },
     { 1068, "Encapsulation: Base operation (and encapsulated PDUs) not executed based on pre-screening analysis" },
     { 1069, "No syntaxes available for this request" },
-    { 1070, "user not authorized to receive record(s) in requested syntax" },
+    { 1070, "User not authorized to receive record(s) in requested syntax" },
     { 1071, "preferredRecordSyntax not supplied" },
     { 1072, "Query term includes characters that do not translate into the target character set" },
     { 1073, "Database records do not contain data associated with access point" },
@@ -882,7 +882,7 @@ static const value_string marc_tag_names[] = {
 };
 
 static int
-dissect_z3950_printable_OCTET_STRING(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_z3950_printable_OCTET_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
     tvbuff_t *next_tvb = NULL;
     int hf_alternate = -1;
     guint old_offset = offset;
@@ -933,7 +933,7 @@ dissect_z3950(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
     col_set_str(pinfo->cinfo, COL_PROTOCOL, PSNAME);
 
     /* create the z3950 protocol tree */
-    z3950_item = proto_tree_add_item(tree, proto_z3950, tvb, 0, -1, FALSE);
+    z3950_item = proto_tree_add_item(tree, proto_z3950, tvb, 0, -1, ENC_NA);
     z3950_tree = proto_item_add_subtree(z3950_item, ett_z3950);
 
     return dissect_z3950_PDU(FALSE, tvb, offset, &asn1_ctx, z3950_tree, -1);

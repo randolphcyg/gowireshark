@@ -1,6 +1,6 @@
 # lte-rrc.cnf
 # lte-rrc conformation file
-# Copyright 2008 Vincent Helfre, 2009-2022 Pascal Quantin
+# Copyright 2008 Vincent Helfre, 2009-2023 Pascal Quantin
 
 #.OPT
 PER
@@ -777,8 +777,6 @@ BCCH-DL-SCH-Message-MBMS     @bcch.dl.sch.mbms
 
 #.OMIT_ASSIGNMENT
 # Get rid of unused code warnings
-CE-PUCCH-TxDurationConfig-r17
-NPUSCH-ConfigDedicated-NB-v1700
 RSRP-RangeSL3-r12
 
 #.NO_EMIT ONLY_VALS
@@ -1187,7 +1185,7 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
     de_emm_sec_par_to_eutra(nas_sec_param_to_eutra_tvb, subtree, actx->pinfo, 0, length, NULL, 0);
   }
 
-#.FN_BODY SecurityConfigHO-v1530/handoverType-v1530/intra5GC-r15/nas-Container-r15 VAL_PTR = &nas_cont_tvb
+#.FN_BODY SecurityConfigHO-v1530/handoverType-v1530/intra5GC/nas-Container-r15 VAL_PTR = &nas_cont_tvb
   tvbuff_t *nas_cont_tvb = NULL;
 
 %(DEFAULT_BODY)s
@@ -1196,7 +1194,7 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
     de_nas_5gs_intra_n1_mode_nas_transparent_cont(nas_cont_tvb, subtree, actx->pinfo);
   }
 
-#.FN_BODY SecurityConfigHO-v1530/handoverType-v1530/epc-To5GC-r15/nas-Container-r15 VAL_PTR = &nas_cont_tvb
+#.FN_BODY SecurityConfigHO-v1530/handoverType-v1530/epc-To5GC/nas-Container-r15 VAL_PTR = &nas_cont_tvb
   tvbuff_t *nas_cont_tvb = NULL;
 
 %(DEFAULT_BODY)s

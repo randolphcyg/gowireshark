@@ -26,6 +26,8 @@
 void proto_register_m2tp(void);
 void proto_reg_handoff_m2tp(void);
 
+static dissector_handle_t m2tp_handle;
+
 #define SCTP_PORT_M2TP        9908  /* unassigned port number (not assigned by IANA) */
 
 #define VERSION_LENGTH         1
@@ -276,7 +278,7 @@ dissect_m2tp_common_header(tvbuff_t *common_header_tvb, packet_info *pinfo, prot
 
 /* Interface Identifier */
 static void
-dissect_m2tp_interface_identifier_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_m2tp_interface_identifier_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo _U_, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   guint32 parameter_value;
 
@@ -289,7 +291,7 @@ dissect_m2tp_interface_identifier_parameter(tvbuff_t *parameter_tvb, proto_tree 
 
 /* Master Slave Indicator */
 static void
-dissect_m2tp_master_slave_parameter (tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_m2tp_master_slave_parameter (tvbuff_t *parameter_tvb, packet_info *pinfo _U_, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   guint32 parameter_value;
 
@@ -302,7 +304,7 @@ dissect_m2tp_master_slave_parameter (tvbuff_t *parameter_tvb, proto_tree *parame
 
 /* M2tp User Identifier */
 static void
-dissect_m2tp_user_identifier_parameter (tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_m2tp_user_identifier_parameter (tvbuff_t *parameter_tvb, packet_info *pinfo _U_, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   guint32 parameter_value;
 
@@ -315,7 +317,7 @@ dissect_m2tp_user_identifier_parameter (tvbuff_t *parameter_tvb, proto_tree *par
 
 /* Info String */
 static void
-dissect_m2tp_info_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_m2tp_info_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   guint16 length, info_string_length;
   const guint8 *info_string;
@@ -323,14 +325,14 @@ dissect_m2tp_info_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree,
   if (parameter_tree) {
     length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET);
     info_string_length = length - PARAMETER_HEADER_LENGTH;
-    proto_tree_add_item_ret_string(parameter_tree, hf_m2tp_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII, wmem_packet_scope(), &info_string);
-    proto_item_set_text(parameter_item, "Info String (%.*s)", info_string_length, info_string);
+    proto_tree_add_item_ret_string(parameter_tree, hf_m2tp_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII, pinfo->pool, &info_string);
+    proto_item_set_text(parameter_item, "Info String (%s)", info_string);
   }
 }
 
 /* Diagnostic Information */
 static void
-dissect_m2tp_diagnostic_information_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_m2tp_diagnostic_information_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo _U_, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   guint16 length, diagnostic_info_length;
 
@@ -344,7 +346,7 @@ dissect_m2tp_diagnostic_information_parameter(tvbuff_t *parameter_tvb, proto_tre
 
 /* Heartbeat Data */
 static void
-dissect_m2tp_heartbeat_data_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_m2tp_heartbeat_data_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo _U_, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   guint16 length, heartbeat_data_length;
 
@@ -358,7 +360,7 @@ dissect_m2tp_heartbeat_data_parameter(tvbuff_t *parameter_tvb, proto_tree *param
 
 /* Reason Parameter */
 static void
-dissect_m2tp_reason_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_m2tp_reason_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo _U_, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   guint32 reason;
 
@@ -371,7 +373,7 @@ dissect_m2tp_reason_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tre
 
 /* Error Code */
 static void
-dissect_m2tp_error_code_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_m2tp_error_code_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo _U_, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   guint32 error_code;
 
@@ -384,7 +386,7 @@ dissect_m2tp_error_code_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter
 
 /* Protocol Data */
 static void
-dissect_m2tp_protocol_data_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item, packet_info *pinfo, proto_item *m2tp_item, proto_tree *tree)
+dissect_m2tp_protocol_data_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *parameter_tree, proto_item *parameter_item, proto_item *m2tp_item, proto_tree *tree)
 {
   guint16 length, protocol_data_length, padding_length;
   tvbuff_t *mtp2_tvb;
@@ -406,7 +408,7 @@ dissect_m2tp_protocol_data_parameter(tvbuff_t *parameter_tvb, proto_tree *parame
 
 /* Unknown Parameter */
 static void
-dissect_m2tp_unknown_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_m2tp_unknown_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo _U_, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   guint16 tag, length, parameter_value_length;
 
@@ -449,34 +451,34 @@ dissect_m2tp_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *
 
   switch(tag) {
     case INTERFACE_IDENTIFIER_PARAMETER_TAG:
-      dissect_m2tp_interface_identifier_parameter(parameter_tvb, parameter_tree, parameter_item);
+      dissect_m2tp_interface_identifier_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
       break;
     case MASTER_SLAVE_INDICATOR_PARAMETER_TAG:
-      dissect_m2tp_master_slave_parameter(parameter_tvb, parameter_tree, parameter_item);
+      dissect_m2tp_master_slave_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
       break;
     case M2TP_USER_IDENTIFIER_PARAMETER_TAG:
-      dissect_m2tp_user_identifier_parameter(parameter_tvb, parameter_tree, parameter_item);
+      dissect_m2tp_user_identifier_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
       break;
     case INFO_PARAMETER_TAG:
-      dissect_m2tp_info_parameter(parameter_tvb, parameter_tree, parameter_item);
+      dissect_m2tp_info_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
       break;
     case DIAGNOSTIC_INFORMATION_PARAMETER_TAG:
-      dissect_m2tp_diagnostic_information_parameter(parameter_tvb, parameter_tree, parameter_item);
+      dissect_m2tp_diagnostic_information_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
       break;
     case HEARTBEAT_DATA_PARAMETER_TAG:
-      dissect_m2tp_heartbeat_data_parameter(parameter_tvb, parameter_tree, parameter_item);
+      dissect_m2tp_heartbeat_data_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
       break;
     case REASON_PARAMETER_TAG:
-      dissect_m2tp_reason_parameter(parameter_tvb, parameter_tree, parameter_item);
+      dissect_m2tp_reason_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
       break;
     case ERROR_CODE_PARAMETER_TAG:
-      dissect_m2tp_error_code_parameter(parameter_tvb, parameter_tree, parameter_item);
+      dissect_m2tp_error_code_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
       break;
     case PROTOCOL_DATA_PARAMETER_TAG:
-      dissect_m2tp_protocol_data_parameter(parameter_tvb, parameter_tree, parameter_item, pinfo, m2tp_item, tree);
+      dissect_m2tp_protocol_data_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item, m2tp_item, tree);
       break;
     default:
-      dissect_m2tp_unknown_parameter(parameter_tvb, parameter_tree, parameter_item);
+      dissect_m2tp_unknown_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
       break;
   };
 
@@ -636,14 +638,15 @@ proto_register_m2tp(void)
   /* Required function calls to register the header fields and subtrees used */
   proto_register_field_array(proto_m2tp, hf, array_length(hf));
   proto_register_subtree_array(ett, array_length(ett));
+
+  /* Register the dissector */
+  m2tp_handle = register_dissector("m2tp", dissect_m2tp, proto_m2tp);
 }
 
 void
 proto_reg_handoff_m2tp(void)
 {
-  dissector_handle_t m2tp_handle;
-  mtp2_handle   = find_dissector_add_dependency("mtp2", proto_m2tp);
-  m2tp_handle   = create_dissector_handle(dissect_m2tp, proto_m2tp);
+  mtp2_handle = find_dissector_add_dependency("mtp2", proto_m2tp);
   dissector_add_uint("sctp.ppi",  M2TP_PAYLOAD_PROTOCOL_ID, m2tp_handle);
   dissector_add_uint("sctp.port", SCTP_PORT_M2TP, m2tp_handle);
 }

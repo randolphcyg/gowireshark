@@ -51,9 +51,9 @@ typedef struct _e_addr_resolve {
   gboolean transport_name;                    /**< Whether to resolve TCP/UDP/DCCP/SCTP ports into service names */
   gboolean dns_pkt_addr_resolution;           /**< Whether to resolve addresses using captured DNS packets */
   gboolean use_external_net_name_resolver;    /**< Whether to system's configured DNS server to resolve names */
-  gboolean load_hosts_file_from_profile_only; /**< Whether to only load the hosts in the current profile, not hosts files */
   gboolean vlan_name;                         /**< Whether to resolve VLAN IDs to names */
   gboolean ss7pc_name;                        /**< Whether to resolve SS7 Point Codes to names */
+  gboolean maxmind_geoip;                     /**< Whether to lookup geolocation information with mmdbresolve */
 } e_addr_resolve;
 
 #define ADDR_RESOLV_MACADDR(at) \
@@ -86,6 +86,7 @@ typedef struct _resolved_name {
 #define TRIED_RESOLVE_ADDRESS    (1U<<0)  /* XXX - what does this bit *really* mean? */
 #define NAME_RESOLVED            (1U<<1)  /* the name field contains a host name, not a printable address */
 #define RESOLVED_ADDRESS_USED    (1U<<2)  /* a get_hostname* call returned the host name */
+#define STATIC_HOSTNAME          (1U<<3)  /* do not update entries from hosts file with DNS responses */
 
 #define TRIED_OR_RESOLVED_MASK   (TRIED_RESOLVE_ADDRESS | NAME_RESOLVED)
 #define USED_AND_RESOLVED_MASK   (NAME_RESOLVED | RESOLVED_ADDRESS_USED)
@@ -223,19 +224,19 @@ const gchar *get_ether_name_if_known(const guint8 *addr);
  * Given a sequence of 3 octets containing an OID, get_manuf_name()
  * returns the vendor name, or "%02x:%02x:%02x" if not known.
  */
-extern const gchar *get_manuf_name(const guint8 *addr);
+extern const gchar *get_manuf_name(const guint8 *addr, size_t size);
 
 /*
  * Given a sequence of 3 octets containing an OID, get_manuf_name_if_known()
  * returns the vendor name, or NULL if not known.
  */
-WS_DLL_PUBLIC const gchar *get_manuf_name_if_known(const guint8 *addr);
+WS_DLL_PUBLIC const gchar *get_manuf_name_if_known(const guint8 *addr, size_t size);
 
 /*
  * Given an integer containing a 24-bit OID, uint_get_manuf_name_if_known()
  * returns the vendor name, or NULL if not known.
  */
-extern const gchar *uint_get_manuf_name_if_known(const guint oid);
+extern const gchar *uint_get_manuf_name_if_known(const guint32 oid);
 
 /*
  * Given a tvbuff and an offset in that tvbuff for a 3-octet OID,
@@ -271,10 +272,10 @@ WS_DLL_PUBLIC char* get_hash_manuf_resolved_name(hashmanuf_t* manuf);
 
 
 /* adds a hostname/IPv4 in the hash table */
-WS_DLL_PUBLIC void add_ipv4_name(const guint addr, const gchar *name);
+WS_DLL_PUBLIC void add_ipv4_name(const guint addr, const gchar *name, const gboolean static_entry);
 
 /* adds a hostname/IPv6 in the hash table */
-WS_DLL_PUBLIC void add_ipv6_name(const ws_in6_addr *addr, const gchar *name);
+WS_DLL_PUBLIC void add_ipv6_name(const ws_in6_addr *addr, const gchar *name, const gboolean static_entry);
 
 /** Add an additional "hosts" file for IPv4 and IPv6 name resolution.
  *

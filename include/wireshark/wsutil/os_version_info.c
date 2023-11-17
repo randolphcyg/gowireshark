@@ -10,6 +10,8 @@
 
 #include "config.h"
 
+#include <wsutil/os_version_info.h>
+
 #include <string.h>
 #include <errno.h>
 
@@ -22,11 +24,7 @@
 #include <wsutil/cfutils.h>
 #endif
 
-#include <glib.h>
-
 #include <wsutil/unicode-utils.h>
-
-#include <wsutil/os_version_info.h>
 
 /*
  * Handles the rather elaborate process of getting OS version information
@@ -56,12 +54,12 @@ get_string_from_dictionary(CFPropertyListRef dict, CFStringRef key)
 
 /*
  * Get the macOS version information, and append it to the GString.
- * Return TRUE if we succeed, FALSE if we fail.
+ * Return true if we succeed, false if we fail.
  *
  * XXX - this gives the OS name as "Mac OS X" even if Apple called/calls
  * it "OS X" or "macOS".
  */
-static gboolean
+static bool
 get_macos_version_info(GString *str)
 {
 	static const UInt8 server_version_plist_path[] =
@@ -90,12 +88,12 @@ get_macos_version_info(GString *str)
 	    server_version_plist_path, sizeof server_version_plist_path - 1,
 	    false);
 	if (version_plist_file_url == NULL)
-		return FALSE;
+		return false;
 	version_plist_stream = CFReadStreamCreateWithFile(NULL,
 	    version_plist_file_url);
 	CFRelease(version_plist_file_url);
 	if (version_plist_stream == NULL)
-		return FALSE;
+		return false;
 	if (!CFReadStreamOpen(version_plist_stream)) {
 		CFRelease(version_plist_stream);
 
@@ -106,15 +104,15 @@ get_macos_version_info(GString *str)
 		    system_version_plist_path, sizeof system_version_plist_path - 1,
 		    false);
 		if (version_plist_file_url == NULL)
-			return FALSE;
+			return false;
 		version_plist_stream = CFReadStreamCreateWithFile(NULL,
 		    version_plist_file_url);
 		CFRelease(version_plist_file_url);
 		if (version_plist_stream == NULL)
-			return FALSE;
+			return false;
 		if (!CFReadStreamOpen(version_plist_stream)) {
 			CFRelease(version_plist_stream);
-			return FALSE;
+			return false;
 		}
 	}
 #ifdef HAVE_CFPROPERTYLISTCREATEWITHSTREAM
@@ -128,14 +126,14 @@ get_macos_version_info(GString *str)
 #endif
 	if (version_dict == NULL) {
 		CFRelease(version_plist_stream);
-		return FALSE;
+		return false;
 	}
 	if (CFGetTypeID(version_dict) != CFDictionaryGetTypeID()) {
 		/* This is *supposed* to be a dictionary.  Punt. */
 		CFRelease(version_dict);
 		CFReadStreamClose(version_plist_stream);
 		CFRelease(version_plist_stream);
-		return FALSE;
+		return false;
 	}
 	/* Get the product name string. */
 	string = get_string_from_dictionary(version_dict,
@@ -144,7 +142,7 @@ get_macos_version_info(GString *str)
 		CFRelease(version_dict);
 		CFReadStreamClose(version_plist_stream);
 		CFRelease(version_plist_stream);
-		return FALSE;
+		return false;
 	}
 	g_string_append_printf(str, "%s", string);
 	g_free(string);
@@ -156,7 +154,7 @@ get_macos_version_info(GString *str)
 		CFRelease(version_dict);
 		CFReadStreamClose(version_plist_stream);
 		CFRelease(version_plist_stream);
-		return FALSE;
+		return false;
 	}
 	g_string_append_printf(str, " %s", string);
 	g_free(string);
@@ -168,14 +166,14 @@ get_macos_version_info(GString *str)
 		CFRelease(version_dict);
 		CFReadStreamClose(version_plist_stream);
 		CFRelease(version_plist_stream);
-		return FALSE;
+		return false;
 	}
 	g_string_append_printf(str, ", build %s", string);
 	g_free(string);
 	CFRelease(version_dict);
 	CFReadStreamClose(version_plist_stream);
 	CFRelease(version_plist_stream);
-	return TRUE;
+	return true;
 }
 #endif
 
@@ -185,6 +183,39 @@ typedef LONG (WINAPI * RtlGetVersionProc) (OSVERSIONINFOEX *);
 #define STATUS_SUCCESS 0
 #endif
 #include <stdlib.h>
+
+/*
+ * Determine whether it's 32-bit or 64-bit Windows based on the
+ * instruction set; this only tests for the instruction sets
+ * that we currently support for Windows, it doesn't bother with MIPS,
+ * PowerPC, Alpha, or IA-64, nor does it bother wieth 32-bit ARM.
+ */
+static void
+add_os_bitsize(GString *str, SYSTEM_INFO *system_info)
+{
+	switch (system_info->wProcessorArchitecture) {
+	case PROCESSOR_ARCHITECTURE_AMD64:
+#ifdef PROCESSOR_ARCHITECTURE_ARM64
+	case PROCESSOR_ARCHITECTURE_ARM64:
+#endif
+		g_string_append(str, "64-bit ");
+		break;
+	case PROCESSOR_ARCHITECTURE_INTEL:
+		g_string_append(str, "32-bit ");
+		break;
+	default:
+		break;
+	}
+}
+
+/*
+ * Test whether the OS an "NT Workstation" version, meaning "not server".
+ */
+static bool
+is_nt_workstation(OSVERSIONINFOEX *win_version_info)
+{
+	return win_version_info->wProductType == VER_NT_WORKSTATION;
+}
 #endif // _WIN32
 
 /*
@@ -208,7 +239,9 @@ get_os_version_info(GString *str)
 
 	HMODULE ntdll_module = LoadLibrary(_T("ntdll.dll"));
 	if (ntdll_module) {
+DIAG_OFF(cast-function-type)
 		RtlGetVersionP = (RtlGetVersionProc) GetProcAddress(ntdll_module, "RtlGetVersion");
+DIAG_ON(cast-function-type)
 	}
 
 	if (RtlGetVersionP) {
@@ -230,8 +263,33 @@ get_os_version_info(GString *str)
 
 	SYSTEM_INFO system_info;
 	memset(&system_info, '\0', sizeof system_info);
-	/* Look for and use the GetNativeSystemInfo() function to get the correct processor architecture
-	 * even when running 32-bit Wireshark in WOW64 (x86 emulation on 64-bit Windows) */
+	/*
+	 * Look for and use the GetNativeSystemInfo() function to get the
+	 * correct processor architecture even when running 32-bit Wireshark
+	 * in WOW64 (x86 emulation on 64-bit Windows).
+	 *
+	 * However, the documentation for GetNativeSystemInfo() says
+	 *
+	 *   If the function is called from an x86 or x64 application
+	 *   running on a 64-bit system that does not have an Intel64
+	 *   or x64 processor (such as ARM64), it will return information
+	 *   as if the system is x86 only if x86 emulation is supported
+	 *   (or x64 if x64 emulation is also supported).
+	 *
+	 * so it appears that it will *not* return the correct processor
+	 * architecture if running x86-64 Wireshark on ARM64 with
+	 * x86-64 emulation - it will presumably say "x86-64", not "ARM64".
+	 *
+	 * So we use it to say "32-bit" or "64-bit", but we don't use
+	 * it to say "N-bit x86" or "N-bit ARM".
+	 *
+	 * It Would Be Nice if there were some way to report that
+	 * Wireshark is running in emulation on an ARM64 system;
+	 * that might be important if, for example, a user is
+	 * reporting a capture problem, as there currently isn't
+	 * a version of Npcap that can support x86-64 programs on
+	 * an ARM64 system.
+	 */
 	GetNativeSystemInfo(&system_info);
 
 	switch (win_version_info.dwPlatformId) {
@@ -347,7 +405,7 @@ get_os_version_info(GString *str)
 				break;
 
 			case 2:
-				if ((win_version_info.wProductType == VER_NT_WORKSTATION) &&
+				if (is_nt_workstation(&win_version_info) &&
 				    (system_info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)) {
 					g_string_append_printf(str, "Windows XP Professional x64 Edition");
 				} else {
@@ -368,30 +426,19 @@ get_os_version_info(GString *str)
 			/*
 			 * Vista, W7, W8, W8.1, and their server versions.
 			 */
-			gboolean is_nt_workstation;
-
-			if (system_info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
-				g_string_append(str, "64-bit ");
-			else if (system_info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL)
-				g_string_append(str, "32-bit ");
-#ifndef VER_NT_WORKSTATION
-#define VER_NT_WORKSTATION 0x01
-			is_nt_workstation = ((win_version_info.wReserved[1] & 0xff) == VER_NT_WORKSTATION);
-#else
-			is_nt_workstation = (win_version_info.wProductType == VER_NT_WORKSTATION);
-#endif
+			add_os_bitsize(str, &system_info);
 			switch (win_version_info.dwMinorVersion) {
 			case 0:
-				g_string_append_printf(str, is_nt_workstation ? "Windows Vista" : "Windows Server 2008");
+				g_string_append_printf(str, is_nt_workstation(&win_version_info) ? "Windows Vista" : "Windows Server 2008");
 				break;
 			case 1:
-				g_string_append_printf(str, is_nt_workstation ? "Windows 7" : "Windows Server 2008 R2");
+				g_string_append_printf(str, is_nt_workstation(&win_version_info) ? "Windows 7" : "Windows Server 2008 R2");
 				break;
 			case 2:
-				g_string_append_printf(str, is_nt_workstation ? "Windows 8" : "Windows Server 2012");
+				g_string_append_printf(str, is_nt_workstation(&win_version_info) ? "Windows 8" : "Windows Server 2012");
 				break;
 			case 3:
-				g_string_append_printf(str, is_nt_workstation ? "Windows 8.1" : "Windows Server 2012 R2");
+				g_string_append_printf(str, is_nt_workstation(&win_version_info) ? "Windows 8.1" : "Windows Server 2012 R2");
 				break;
 			default:
 				g_string_append_printf(str, "Windows NT, unknown version %lu.%lu",
@@ -405,20 +452,15 @@ get_os_version_info(GString *str)
 			/*
 			 * W10, W11, and their server versions.
 			 */
-			gboolean is_nt_workstation;
                         TCHAR ReleaseId[10];
                         DWORD ridSize = _countof(ReleaseId);
 
-			if (system_info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
-				g_string_append(str, "64-bit ");
-			else if (system_info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL)
-				g_string_append(str, "32-bit ");
-			is_nt_workstation = (win_version_info.wProductType == VER_NT_WORKSTATION);
+			add_os_bitsize(str, &system_info);
 			switch (win_version_info.dwMinorVersion) {
 			case 0:
 				/* List of BuildNumber from https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_versions
 				 * and https://docs.microsoft.com/en-us/windows/release-health/windows11-release-information */
-				if (is_nt_workstation) {
+				if (is_nt_workstation(&win_version_info)) {
 					if (win_version_info.dwBuildNumber < 10240) {
 						/* XXX - W10 builds before 10240? */
 						g_string_append_printf(str, "Windows");
@@ -641,10 +683,6 @@ get_os_version_info(GString *str)
 		 *
 		 * I've seen references to /etc/redhat-release as well.
 		 *
-		 * At least on my Ubuntu 7 system, /etc/debian_version
-		 * doesn't contain anything interesting (just some Debian
-		 * codenames).
-		 *
 		 * See also
 		 *
 		 *	http://bugs.python.org/issue1322
@@ -656,9 +694,9 @@ get_os_version_info(GString *str)
 		 * and the Lib/Platform.py file in recent Python 2.x
 		 * releases.
 		 *
-		 * And then there's
+		 * And then there's /etc/os-release:
 		 *
-		 *	http://0pointer.de/blog/projects/os-release
+		 *	https://0pointer.de/blog/projects/os-release
 		 *
 		 * which, apparently, is something that all distributions
 		 * with systemd have, which seems to mean "most distributions"
@@ -670,6 +708,81 @@ get_os_version_info(GString *str)
 		 * means older versions *did* support them:
 		 *
 		 *	https://lists.freedesktop.org/archives/systemd-devel/2012-February/004475.html
+		 *
+		 * At least on my Ubuntu 7 system, /etc/debian_version
+		 * doesn't contain anything interesting (just some Debian
+		 * codenames).  It does have /etc/lsb-release.  My Ubuntu
+		 * 22.04 system has /etc/lsb-release and /etc/os-release.
+		 *
+		 * My Fedora 9 system has /etc/fedora-release, with
+		 * /etc/redhat-release and /etc/system-release as symlinks
+		 * to it.  They all just contain a one-line relase
+		 * description.  My Fedora 38 system has that, plus
+		 * /etc/os-release.
+		 *
+		 * A quick Debian 3.1a installation I did has only
+		 * /etc/debian_version. My Debian 11.3 system has
+		 * /etc/os-release.
+		 *
+		 * See
+		 *
+		 *	https://gist.github.com/natefoo/814c5bf936922dad97ff
+		 *
+		 * for descriptions of what some versions of some
+		 * distributions offer.
+		 *
+		 * So maybe have a table of files to try, with each
+		 * entry having a pathname, a pointer to a file parser
+		 * routine, and a pointer to a string giving a
+		 * parameter name passed to that routine, with entries
+		 * for:
+		 *
+		 *   /etc/os-release, regular parser, "PRETTY_NAME"
+		 *   /etc/lsb-release, regular parser, "DISTRIB_DESCRIPTION"
+		 *   /etc/system-release, first line parser, NULL
+		 *   /etc/redhat-release, first line parser, NULL
+		 *   /etc/fedora-release, first line parser, NULL
+		 *   /etc/centos-release, first line parser, NULL
+		 *   /etc/debian_version, first line parser, "Debian"
+		 *   /etc/SuSE-release, first line parser, NULL
+		 *   /etc/slackware-version:, first line parser, NULL
+		 *   /etc/gentoo-release, first line parser, NULL
+		 *   /etc/antix-version, first line parser, NULL
+		 *
+		 * Each line is tried in order.  If the open fails, go to
+		 * the next one.  If the open succeeds but the parser
+		 * fails, close the file and go on to the next one.
+		 *
+		 * The regular parser parses files of the form
+		 * <param>="value".  It's passed the value of <param>
+		 * for which to look; if not found, it fails.
+		 *
+		 * The first line parser reads the first line of the file.
+		 * If a string is passed to it, it constructs a distribution
+		 * name string by concatenating the parameter, a space,
+		 * and the contents of that line (iwth the newline removed),
+		 * otherwise it constructs it from the contents of the line.
+		 *
+		 * Fall back on just "Linux" if nothing works.
+		 *
+		 * Then use the uname() information to indicate what
+		 * kernel version the machine is running.
+		 *
+		 * XXX - for Gentoo, PRETTY_NAME might not give a version,
+		 * so fall back on /etc/gentoo-release?  Gentoo is
+		 * a rolling-release distribution, so what *is* the
+		 * significance of the contnets of /etc/gentoo-release?
+		 *
+		 * XXX - MX appears to be a Debian-based distribution
+		 * whose /etc/os-release gives its Debian version and
+		 * whose /etc/mx-version and /etc/antix-version give
+		 * the MX version.  Are there any other Debian derivatives
+		 * that do this?  (The Big One calls itself "Ubuntu"
+		 * in PRETTY_NAME.)
+		 *
+		 * XXX - use ID_LIKE in /etc/os-release to check for,
+		 * for example, Debian-like distributions, e.g. when
+		 * suggesting how to give dumpcap capture privileges?
 		 */
 		g_string_append_printf(str, "%s %s", name.sysname, name.release);
 #endif /* HAVE_MACOS_FRAMEWORKS */

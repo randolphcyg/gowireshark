@@ -158,9 +158,9 @@ typedef struct _stream_connection_handle_pair_t {
     guint32  change_in_frame;
 } stream_connection_handle_pair_t;
 
-#define ROLE_UNKNOWN  0
-#define ROLE_MASTER   1
-#define ROLE_SLAVE    2
+#define ROLE_UNKNOWN    0
+#define ROLE_CENTRAL    1
+#define ROLE_PERIPHERAL 2
 
 typedef struct _localhost_bdaddr_entry_t {
     guint32  interface_id;
@@ -312,9 +312,12 @@ extern gint dissect_bd_addr(gint hf_bd_addr, packet_info *pinfo, proto_tree *tre
         tvbuff_t *tvb, gint offset, gboolean is_local_bd_addr,
         guint32 interface_id, guint32 adapter_id, guint8 *bdaddr);
 
+extern void bluetooth_unit_1p25_ms(gchar *buf, guint32 value);
+extern void bluetooth_unit_0p125_ms(gchar *buf, guint32 value);
+
 extern bluetooth_uuid_t  get_bluetooth_uuid(tvbuff_t *tvb, gint offset, gint size);
-WS_DLL_PUBLIC const gchar  *print_bluetooth_uuid(bluetooth_uuid_t *uuid);
-WS_DLL_PUBLIC const gchar  *print_numeric_bluetooth_uuid(bluetooth_uuid_t *uuid);
+WS_DLL_PUBLIC const gchar  *print_bluetooth_uuid(wmem_allocator_t *pool, bluetooth_uuid_t *uuid);
+WS_DLL_PUBLIC const gchar  *print_numeric_bluetooth_uuid(wmem_allocator_t *pool, bluetooth_uuid_t *uuid);
 
 extern void save_local_device_name_from_eir_ad(tvbuff_t *tvb, gint offset,
         packet_info *pinfo, guint8 size, bluetooth_data_t *bluetooth_data);

@@ -72,7 +72,7 @@
 
 #include "packet-windows-common.h"
 #include "packet-tcp.h"
-#include <packet-tls.h>
+#include "packet-tls.h"
 
 #include "packet-mq.h"
 
@@ -1309,7 +1309,7 @@ static gint dissect_mq_encoding(proto_tree* tree, int hfindex, tvbuff_t* tvb, co
     pEnc = sEnc;
 
 #define CHECK_ENC(M, T) ((uEnc & M) == T)
-#define DOPRT(A) pEnc += snprintf(pEnc, (gulong)(sizeof(sEnc)-1-(pEnc-sEnc)), A);
+#define DOPRT(A) pEnc += snprintf(pEnc, sizeof(sEnc)-1-(pEnc-sEnc), A);
     if (CHECK_ENC(MQ_MQENC_FLOAT_MASK, MQ_MQENC_FLOAT_UNDEFINED))
     {
         DOPRT("FLT_UNDEFINED");
@@ -4001,8 +4001,8 @@ static gboolean    dissect_mq_heur_nontcp(tvbuff_t* tvb, packet_info* pinfo, pro
 
 static gboolean    dissect_mq_heur_ssl(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data)
 {
-    dissector_handle_t* app_handle = (dissector_handle_t*)data;
-    return dissect_mq_heur(tvb, pinfo, tree, FALSE, app_handle);
+    struct tlsinfo *tlsinfo = (struct tlsinfo*)data;
+    return dissect_mq_heur(tvb, pinfo, tree, FALSE, tlsinfo->app_handle);
 }
 
 void proto_register_mq(void)
@@ -4351,7 +4351,7 @@ void proto_register_mq(void)
         {&hf_mq_md_persistence, {"Persist..", "mq.md.persistence", FT_UINT32, BASE_DEC, VALS(GET_VALSV(MQPER)), 0x0, "MD persistence", HFILL}},
         {&hf_mq_md_msgid, {"Msg ID...", "mq.md.msgid", FT_BYTES, BASE_NONE, NULL, 0x0, "MD Message Id", HFILL}},
         {&hf_mq_md_correlid, {"CorrelID.", "mq.md.correlid", FT_BYTES, BASE_NONE, NULL, 0x0, "MD Correlation Id", HFILL}},
-        {&hf_mq_md_backoutcnt, {"BackoCnt.", "mq.md.backount", FT_UINT32, BASE_DEC, NULL, 0x0, "MD Backout count", HFILL}},
+        {&hf_mq_md_backoutcnt, {"BackoCnt.", "mq.md.backoutcnt", FT_UINT32, BASE_DEC, NULL, 0x0, "MD Backout count", HFILL}},
         {&hf_mq_md_replytoq, {"ReplyToQ.", "mq.md.replytoq", FT_STRING, BASE_NONE, NULL, 0x0, "MD ReplyTo queue", HFILL}},
         {&hf_mq_md_replytoqmgr, {"RepToQMgr", "mq.md.replytoqmgr", FT_STRING, BASE_NONE, NULL, 0x0, "MD ReplyTo queue manager", HFILL}},
         {&hf_mq_md_userid, {"UserId...", "mq.md.userid", FT_STRING, BASE_NONE, NULL, 0x0, "MD UserId", HFILL}},
@@ -4449,8 +4449,8 @@ void proto_register_mq(void)
         {&hf_mq_lpoo_defreadahead, {"DefReadAHead..", "mq.lpoo.defreadahead", FT_INT32, BASE_DEC, VALS(GET_VALSV(MQREADA)), 0x0, "LPOO Default Read AHead", HFILL}},
         {&hf_mq_lpoo_propertyctl, {"PropertyCtl...", "mq.lpoo.propertyctl", FT_INT32, BASE_DEC, NULL, 0x0, "LPOO Property Control", HFILL}},
         {&hf_mq_lpoo_qprotect, {"qprotect......", "mq.lpoo.qprotect", FT_STRING, BASE_NONE, NULL, 0x0, "LPOO queue protection", HFILL}},
-        {&hf_mq_lpoo_qprotect_val1, {"qprotect_val1.", "mq.lpoo.qprotect.val2", FT_INT32, BASE_DEC, NULL, 0x0, "LPOO queue protection val1", HFILL}},
-        {&hf_mq_lpoo_qprotect_val2, {"qprotect_val2.", "mq.lpoo.qprotect.val1", FT_INT32, BASE_DEC, NULL, 0x0, "LPOO queue protection val2", HFILL}},
+        {&hf_mq_lpoo_qprotect_val1, {"qprotect_val1.", "mq.lpoo.qprotect.val1", FT_INT32, BASE_DEC, NULL, 0x0, "LPOO queue protection val1", HFILL}},
+        {&hf_mq_lpoo_qprotect_val2, {"qprotect_val2.", "mq.lpoo.qprotect.val2", FT_INT32, BASE_DEC, NULL, 0x0, "LPOO queue protection val2", HFILL}},
 
         {&hf_mq_pmo_StructID, {"StructID...", "mq.pmo.structid", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL}},
         {&hf_mq_pmo_version, {"Version....", "mq.pmo.version", FT_UINT32, BASE_DEC, NULL, 0x0, "PMO version", HFILL}},
@@ -4612,7 +4612,7 @@ void proto_register_mq(void)
         {&hf_mq_cih_startcode, {"StartCode....", "mq.cih.startcode", FT_STRING, BASE_NONE, NULL, 0x0, "Transaction Start Code", HFILL}},
         {&hf_mq_cih_cancelcode, {"CancelCode...", "mq.cih.cancelcode", FT_STRING, BASE_NONE, NULL, 0x0, "Abend transaction code", HFILL}},
         {&hf_mq_cih_nexttransid, {"NextTransId..", "mq.cih.nexttransid", FT_STRING, BASE_NONE, NULL, 0x0, "Next transaction to attach", HFILL}},
-        {&hf_mq_cih_reserved2, {"Reserved3....", "mq.cih.reserved2", FT_STRING, BASE_NONE, NULL, 0x0, "Reserved 2", HFILL}},
+        {&hf_mq_cih_reserved2, {"Reserved2....", "mq.cih.reserved2", FT_STRING, BASE_NONE, NULL, 0x0, "Reserved 2", HFILL}},
         {&hf_mq_cih_reserved3, {"Reserved3....", "mq.cih.reserved3", FT_STRING, BASE_NONE, NULL, 0x0, "Reserved 3", HFILL}},
         {&hf_mq_cih_cursorpos, {"CursorPos....", "mq.cih.cursorpos", FT_UINT32, BASE_DEC_HEX, NULL, 0x0, "Cursor Position", HFILL}},
         {&hf_mq_cih_erroroffset, {"ErrorOffset..", "mq.cih.erroroffset", FT_UINT32, BASE_DEC_HEX, NULL, 0x0, "Offset of error in message", HFILL}},
@@ -4736,6 +4736,8 @@ void proto_register_mq(void)
 
     mq_module = prefs_register_protocol(proto_mq, NULL);
     mq_handle = register_dissector("mq", dissect_mq_tcp, proto_mq);
+    mq_spx_handle = register_dissector("mq.spx", dissect_mq_spx, proto_mq);
+
 
     prefs_register_bool_preference(mq_module, "desegment",
         "Reassemble MQ messages spanning multiple TCP segments",
@@ -4753,8 +4755,6 @@ void proto_reg_handoff_mq(void)
     /*  Unlike some protocol (HTTP, POP3, ...) that clearly map to a standard
     *  class of applications (web browser, e-mail client, ...) and have a very well
     *  known port number, the MQ applications are most often specific to a business application */
-
-    mq_spx_handle = create_dissector_handle(dissect_mq_spx, proto_mq);
 
     dissector_add_for_decode_as_with_preference("tcp.port", mq_handle);
     ssl_dissector_add(0, mq_handle);

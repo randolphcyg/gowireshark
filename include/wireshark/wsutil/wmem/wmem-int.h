@@ -14,12 +14,7 @@
 #define __WMEM_INT_H__
 
 #include <glib.h>
-
-#ifdef WS_DISABLE_ASSERT
-#define ASSERT(...)     (void)0
-#else
-#define ASSERT(...)     g_assert(__VA_ARGS__)
-#endif /* WS_DISABLE_ASSERT */
+#include <wsutil/ws_assert.h>
 
 #endif /* __WMEM_INT_H__ */
 

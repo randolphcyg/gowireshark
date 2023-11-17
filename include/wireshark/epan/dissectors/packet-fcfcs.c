@@ -21,6 +21,8 @@
 void proto_register_fcfcs(void);
 void proto_reg_handoff_fcfcs(void);
 
+static dissector_handle_t fcs_handle;
+
 /*
  * See the FC-GS3 specification.
  */
@@ -949,8 +951,8 @@ proto_register_fcfcs (void)
           {"Platform Node Name", "fcs.platform.nodename", FT_FCWWN, BASE_NONE,
            NULL, 0x0, NULL, HFILL}},
         { &hf_fcs_platformtype,
-          {"Platform Type", "fcs.platform.type", FT_UINT8, BASE_HEX,
-           VALS (fc_fcs_plat_type_val), 0x0, NULL, HFILL}},
+          {"Platform Type", "fcs.platform.type", FT_UINT32, BASE_HEX,
+           VALS(fc_fcs_plat_type_val), 0x0, NULL, HFILL}},
         { &hf_fcs_platformaddr,
           {"Management Address", "fcs.platform.mgmtaddr", FT_UINT_STRING, BASE_NONE,
            NULL, 0x0, NULL, HFILL}},
@@ -1016,15 +1018,13 @@ proto_register_fcfcs (void)
     expert_register_field_array(expert_fcfcs, ei, array_length(ei));
 
     fcfcs_req_hash = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(), fcfcs_hash, fcfcs_equal);
+
+    fcs_handle = register_dissector("fcs", dissect_fcfcs, proto_fcfcs);
 }
 
 void
 proto_reg_handoff_fcfcs (void)
 {
-    dissector_handle_t fcs_handle;
-
-    fcs_handle = create_dissector_handle (dissect_fcfcs, proto_fcfcs);
-
     dissector_add_uint("fcct.server", FCCT_GSRVR_FCS, fcs_handle);
 }
 

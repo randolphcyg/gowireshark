@@ -1706,7 +1706,7 @@ dissect_fastmsg_readresp_frame(tvbuff_t *tvb, proto_tree *fastmsg_tree, packet_i
     offset += 6;
 
     /* Setup a new tvb representing just the data payload of this particular message */
-    data_tvb = tvb_new_subset_length_caplen( tvb, offset, (tvb_reported_length_remaining(tvb, offset)-2), (tvb_reported_length_remaining(tvb, offset)-2));
+    data_tvb = tvb_new_subset_length(tvb, offset, (tvb_reported_length_remaining(tvb, offset)-2));
 
     save_fragmented = pinfo->fragmented;
 
@@ -2075,7 +2075,7 @@ dissect_fastmsg_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int o
                Save this word for use in the element index printing but don't print the word itself until the end of the tree dissection */
             for (cnt = offset; cnt < len; cnt++) {
 
-                if (tvb_memeql(tvb, cnt, "\xFF\xFF\xFF\xFE", 4) == 0) {
+                if (tvb_memeql(tvb, cnt, (const guint8*)"\xFF\xFF\xFF\xFE", 4) == 0) {
                     elmt_status32_ofs = cnt+4;
                 }
             }
@@ -2311,7 +2311,7 @@ dissect_fastmsg_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int o
             /* 'reserved' space for the control regions.  Detect these and skip if they are present */
             if (tvb_reported_length_remaining(tvb, offset) > 2) {
 
-                if (tvb_memeql(tvb, offset, "\x00\x00\x00\x00\x00\x00\x00\x00", 8) == 0) {
+                if (tvb_memeql(tvb, offset, (const guint8*)"\x00\x00\x00\x00\x00\x00\x00\x00", 8) == 0) {
                     offset += 8;
                 }
             }
@@ -2356,7 +2356,7 @@ dissect_fastmsg_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int o
 
             /* find the null separators and add the bit label text strings to the tree */
             for (null_offset = offset; null_offset < len; null_offset++) {
-                if ((tvb_memeql(tvb, null_offset, "\x00", 1) == 0) && (tvb_reported_length_remaining(tvb, offset) > 2)) {
+                if ((tvb_memeql(tvb, null_offset, (const guint8*)"\x00", 1) == 0) && (tvb_reported_length_remaining(tvb, offset) > 2)) {
                     gchar* str = tvb_format_text(pinfo->pool, tvb, offset, (null_offset-offset));
                     proto_tree_add_string_format(fastmsg_tree, hf_selfm_fastmsg_bit_label_name, tvb, offset, (null_offset-offset), str,
                             "Bit Label #%d Name: %s", cnt, str);
@@ -2557,7 +2557,7 @@ dissect_selfm(tvbuff_t *selfm_tvb, packet_info *pinfo, proto_tree *tree, void* d
         selfm_tree = proto_item_add_subtree(selfm_item, ett_selfm);
 
         /* Set INFO column with SEL Protocol Message Type */
-        col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str_ext_const(msg_type, &selfm_msgtype_vals_ext, "Unknown Message Type"));
+        col_add_str(pinfo->cinfo, COL_INFO, val_to_str_ext_const(msg_type, &selfm_msgtype_vals_ext, "Unknown Message Type"));
 
         /* Add Message Type to Protocol Tree */
         proto_tree_add_item(selfm_tree, hf_selfm_msgtype, selfm_tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -2776,7 +2776,7 @@ proto_register_selfm(void)
         { &hf_selfm_fmconfig_ai_sf_type,
         { "Analog Channel Scale Factor Type", "selfm.fmconfig.ai_sf_type", FT_UINT8, BASE_DEC, VALS(selfm_fmconfig_ai_sftype_vals), 0x0, NULL, HFILL }},
         { &hf_selfm_fmconfig_ai_sf_ofs,
-        { "Analog Channel Scale Factor Offset", "selfm.fmconfig.ai_sf_ofs", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { "Analog Channel Scale Factor Offset", "selfm.fmconfig.ai_sf_ofs", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_selfm_fmconfig_cblk_rot,
         { "Rotation", "selfm.fmconfig.cblk_rot", FT_UINT8, BASE_HEX, VALS(selfm_fmconfig_cblk_rot_vals), 0x01, NULL, HFILL }},
         { &hf_selfm_fmconfig_cblk_vconn,

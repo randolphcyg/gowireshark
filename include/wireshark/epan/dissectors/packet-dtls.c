@@ -836,6 +836,14 @@ dissect_dtls_record(tvbuff_t *tvb, packet_info *pinfo,
      */
     col_append_sep_str(pinfo->cinfo, COL_INFO, NULL, "Continuation Data");
 
+    /* If GUI, show unrecognized data in tree */
+    ti = proto_tree_add_item(tree, hf_dtls_record, tvb,
+                                offset, dtls_record_length, ENC_NA);
+    dtls_record_tree = proto_item_add_subtree(ti, ett_dtls_record);
+    proto_item_set_text(dtls_record_tree, "%s Record Layer: unrecognized content type 0x%02x",
+                        val_to_str_const(session->version, ssl_version_short_names, "DTLS"),
+                        content_type);
+
     /* Set the protocol column */
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "DTLS");
     return offset + dtls_record_length;
@@ -1450,6 +1458,9 @@ dissect_dtls_handshake(tvbuff_t *tvb, packet_info *pinfo,
             ssl_dissect_hnd_cli_hello(&dissect_dtls_hf, sub_tvb, pinfo,
                                       ssl_hand_tree, 0, length, session, ssl,
                                       &dtls_hfs);
+            if (ssl) {
+                tls_save_crandom(ssl, tls_get_master_key_map(FALSE));
+            }
             break;
 
           case SSL_HND_SERVER_HELLO:
@@ -1519,7 +1530,7 @@ dissect_dtls_handshake(tvbuff_t *tvb, packet_info *pinfo,
 
             /* try to find master key from pre-master key */
             if (!ssl_generate_pre_master_secret(ssl, length, sub_tvb, 0,
-                                                dtls_options.psk,
+                                                dtls_options.psk, pinfo,
 #ifdef HAVE_LIBGNUTLS
                                                 dtls_key_hash,
 #endif
@@ -1875,7 +1886,7 @@ UAT_CSTRING_CB_DEF(sslkeylist_uats,protocol,ssldecrypt_assoc_t)
 UAT_FILENAME_CB_DEF(sslkeylist_uats,keyfile,ssldecrypt_assoc_t)
 UAT_CSTRING_CB_DEF(sslkeylist_uats,password,ssldecrypt_assoc_t)
 
-static gboolean
+static bool
 dtlsdecrypt_uat_fld_protocol_chk_cb(void* r _U_, const char* p, guint len _U_, const void* u1 _U_, const void* u2 _U_, char** err)
 {
     if (!p || strlen(p) == 0u) {
@@ -2318,6 +2329,10 @@ proto_reg_handoff_dtls(void)
     heur_dissector_add("stun", dissect_dtls_heur, "DTLS over STUN", "dtls_stun", proto_dtls, HEURISTIC_DISABLE);
     heur_dissector_add("classicstun", dissect_dtls_heur, "DTLS over CLASSICSTUN", "dtls_classicstun", proto_dtls, HEURISTIC_DISABLE);
     dissector_add_uint("sctp.ppi", DIAMETER_DTLS_PROTOCOL_ID, dtls_handle);
+    dissector_add_uint("sctp.ppi", NGAP_OVER_DTLS_PROTOCOL_ID, dtls_handle);
+    dissector_add_uint("sctp.ppi", XNAP_OVER_DTLS_PROTOCOL_ID, dtls_handle);
+    dissector_add_uint("sctp.ppi", F1AP_OVER_DTLS_PROTOCOL_ID, dtls_handle);
+    dissector_add_uint("sctp.ppi", E1AP_OVER_DTLS_PROTOCOL_ID, dtls_handle);
     exported_pdu_tap = find_tap_id(EXPORT_PDU_TAP_NAME_LAYER_7);
   }
 

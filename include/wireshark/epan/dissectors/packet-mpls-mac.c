@@ -17,6 +17,8 @@
 void proto_register_mpls_mac(void);
 void proto_reg_handoff_mpls_mac(void);
 
+static dissector_handle_t mpls_mac_handle;
+
 static gint proto_mpls_mac = -1;
 
 static gint ett_mpls_mac = -1;
@@ -216,20 +218,17 @@ proto_register_mpls_mac(void)
     };
 
     proto_mpls_mac =
-        proto_register_protocol("MPLS-MAC",
-                                "Media Access Control (MAC) Address Withdrawal over Static Pseudowire",
-                                "mpls_mac");
+        proto_register_protocol("Media Access Control (MAC) Address Withdrawal over Static Pseudowire", "MPLS-MAC", "mpls_mac");
 
     proto_register_field_array(proto_mpls_mac, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
+
+    mpls_mac_handle = register_dissector("mpls_mac", dissect_mpls_mac, proto_mpls_mac);
 }
 
 void
 proto_reg_handoff_mpls_mac(void)
 {
-    dissector_handle_t mpls_mac_handle;
-
-    mpls_mac_handle    = create_dissector_handle( dissect_mpls_mac, proto_mpls_mac );
     dissector_add_uint("pwach.channel_type", PW_ACH_TYPE_MAC, mpls_mac_handle);
 }
 

@@ -35,6 +35,7 @@
 #include "packet-vxlan.h"
 #include "packet-nsh.h"
 #include "packet-acdr.h"
+#include "packet-mctp.h"
 #include <epan/crc32-tvb.h>
 #include <wiretap/erf_record.h>
 
@@ -194,13 +195,13 @@ eth_endpoint_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, cons
 }
 
 static gboolean
-eth_filter_valid(packet_info *pinfo)
+eth_filter_valid(packet_info *pinfo, void *user_data _U_)
 {
     return (pinfo->dl_src.type == AT_ETHER);
 }
 
 static gchar*
-eth_build_filter(packet_info *pinfo)
+eth_build_filter(packet_info *pinfo, void *user_data _U_)
 {
     return ws_strdup_printf("eth.addr eq %s and eth.addr eq %s",
                 address_to_str(pinfo->pool, &pinfo->dl_src),
@@ -1155,7 +1156,7 @@ proto_register_eth(void)
   eth_tap = register_tap("eth");
 
   register_conversation_table(proto_eth, TRUE, eth_conversation_packet, eth_endpoint_packet);
-  register_conversation_filter("eth", "Ethernet", eth_filter_valid, eth_build_filter);
+  register_conversation_filter("eth", "Ethernet", eth_filter_valid, eth_build_filter, NULL);
 
   register_capture_dissector("eth", capture_eth, proto_eth);
 }
@@ -1186,6 +1187,7 @@ proto_reg_handoff_eth(void)
   dissector_add_uint("ip.proto", IP_PROTO_ETHERNET, eth_maybefcs_handle);
 
   dissector_add_uint("chdlc.protocol", ETHERTYPE_ETHBRIDGE, eth_withoutfcs_handle);
+  dissector_add_for_decode_as("gre.subproto", eth_withoutfcs_handle);
   dissector_add_uint("gre.proto", ETHERTYPE_ETHBRIDGE, eth_withoutfcs_handle);
   dissector_add_uint("gre.proto", GRE_MIKROTIK_EOIP, eth_withoutfcs_handle);
   dissector_add_uint("juniper.proto", JUNIPER_PROTO_ETHER, eth_withoutfcs_handle);
@@ -1197,6 +1199,7 @@ proto_reg_handoff_eth(void)
 
   dissector_add_uint("acdr.media_type", ACDR_Control, eth_withoutfcs_handle);
   dissector_add_uint("acdr.media_type", ACDR_DSP_SNIFFER, eth_withoutfcs_handle);
+  dissector_add_uint("mctp.encap-type", MCTP_TYPE_ETHERNET, eth_withoutfcs_handle);
 
   /*
    * This is to handle the output for the Cisco CMTS "cable intercept"

@@ -379,7 +379,7 @@ static gboolean communityid_calc(communityid_cfg_t *cfg, guint8 proto,
         gsize len = strlen(CID_VERSION_PREFIX) + strlen(str) + 1;
 
         *result = (gchar*) g_malloc(len);
-        snprintf(*result, (gulong) len, "%s%s", CID_VERSION_PREFIX, str);
+        snprintf(*result, len, "%s%s", CID_VERSION_PREFIX, str);
         g_free(str);
     } else {
         /* Convert binary SHA-1 to ASCII representation.
@@ -606,7 +606,7 @@ void proto_register_communityid(void)
     proto_register_field_array(proto_communityid, hf, array_length(hf));
     proto_disable_by_default(proto_communityid);
 
-    communityid_handle = create_dissector_handle(communityid_dissector,
+    communityid_handle = register_dissector("communityid", communityid_dissector,
                                                  proto_communityid);
     register_postdissector(communityid_handle);
 

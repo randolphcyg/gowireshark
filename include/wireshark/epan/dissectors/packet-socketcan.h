@@ -15,20 +15,17 @@
 #include <epan/proto.h>
 
 /* Flags for CAN FD frames. */
-#define CANFD_BRS	0x01 /* Bit Rate Switch (second bitrate for payload data) */
-#define CANFD_ESI	0x02 /* Error State Indicator of the transmitting node */
-#define CANFD_FDF	0x04 /* FD flag - if set, this is an FD frame */
+#define CANFD_BRS 0x01 /* Bit Rate Switch (second bitrate for payload data) */
+#define CANFD_ESI 0x02 /* Error State Indicator of the transmitting node */
+#define CANFD_FDF 0x04 /* FD flag - if set, this is an FD frame */
 
 /* Structure that gets passed between dissectors. */
-struct can_info
-{
-	guint32 id;
-	guint32 len;
-	gboolean fd;
-	guint16 bus_id;
-};
-
-typedef struct can_info can_info_t;
+typedef struct can_info {
+    guint32 id;
+    guint32 len;
+    gboolean fd;
+    guint16 bus_id;
+} can_info_t;
 
 /* controller area network (CAN) kernel definitions
  * These masks are usually defined within <linux/can.h> but are not
@@ -59,8 +56,41 @@ typedef struct can_info can_info_t;
 #define CAN_ERR_RESTARTED    0x00000100U /* controller restarted */
 #define CAN_ERR_RESERVED     0x1FFFFE00U /* reserved bits */
 
+/* error in CAN protocol (type) / data[2] */
+#define CAN_ERR_PROT_UNSPEC      0x00 /* unspecified */
+#define CAN_ERR_PROT_BIT         0x01 /* single bit error */
+#define CAN_ERR_PROT_FORM        0x02 /* frame format error */
+#define CAN_ERR_PROT_STUFF       0x04 /* bit stuffing error */
+#define CAN_ERR_PROT_BIT0        0x08 /* unable to send dominant bit */
+#define CAN_ERR_PROT_BIT1        0x10 /* unable to send recessive bit */
+#define CAN_ERR_PROT_OVERLOAD    0x20 /* bus overload */
+#define CAN_ERR_PROT_ACTIVE      0x40 /* active error announcement */
+#define CAN_ERR_PROT_TX          0x80 /* error occurred on transmission */
+
+/* error in CAN protocol (location) / data[3] */
+#define CAN_ERR_PROT_LOC_UNSPEC  0x00 /* unspecified */
+#define CAN_ERR_PROT_LOC_SOF     0x03 /* start of frame */
+#define CAN_ERR_PROT_LOC_ID28_21 0x02 /* ID bits 28 - 21 (SFF: 10 - 3) */
+#define CAN_ERR_PROT_LOC_ID20_18 0x06 /* ID bits 20 - 18 (SFF: 2 - 0 )*/
+#define CAN_ERR_PROT_LOC_SRTR    0x04 /* substitute RTR (SFF: RTR) */
+#define CAN_ERR_PROT_LOC_IDE     0x05 /* identifier extension */
+#define CAN_ERR_PROT_LOC_ID17_13 0x07 /* ID bits 17-13 */
+#define CAN_ERR_PROT_LOC_ID12_05 0x0F /* ID bits 12-5 */
+#define CAN_ERR_PROT_LOC_ID04_00 0x0E /* ID bits 4-0 */
+#define CAN_ERR_PROT_LOC_RTR     0x0C /* RTR */
+#define CAN_ERR_PROT_LOC_RES1    0x0D /* reserved bit 1 */
+#define CAN_ERR_PROT_LOC_RES0    0x09 /* reserved bit 0 */
+#define CAN_ERR_PROT_LOC_DLC     0x0B /* data length code */
+#define CAN_ERR_PROT_LOC_DATA    0x0A /* data section */
+#define CAN_ERR_PROT_LOC_CRC_SEQ 0x08 /* CRC sequence */
+#define CAN_ERR_PROT_LOC_CRC_DEL 0x18 /* CRC delimiter */
+#define CAN_ERR_PROT_LOC_ACK     0x19 /* ACK slot */
+#define CAN_ERR_PROT_LOC_ACK_DEL 0x1B /* ACK delimiter */
+#define CAN_ERR_PROT_LOC_EOF     0x1A /* end of frame */
+#define CAN_ERR_PROT_LOC_INTERM  0x12 /* intermission */
 
 gboolean socketcan_call_subdissectors(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, struct can_info *can_info, const gboolean use_heuristics_first);
+gboolean socketcan_set_source_and_destination_columns(packet_info* pinfo, can_info_t *caninfo);
 
 #endif /* __PACKET_SOCKETCAN_H__ */
 
@@ -68,11 +98,11 @@ gboolean socketcan_call_subdissectors(tvbuff_t *tvb, packet_info *pinfo, proto_t
  * Editor modelines  -  https://www.wireshark.org/tools/modelines.html
  *
  * Local variables:
- * c-basic-offset: 8
+ * c-basic-offset: 4
  * tab-width: 8
- * indent-tabs-mode: t
+ * indent-tabs-mode: nil
  * End:
  *
- * vi: set shiftwidth=8 tabstop=8 noexpandtab:
- * :indentSize=8:tabSize=8:noTabs=false:
+ * vi: set shiftwidth=4 tabstop=8 expandtab:
+ * :indentSize=4:tabSize=8:noTabs=true:
  */

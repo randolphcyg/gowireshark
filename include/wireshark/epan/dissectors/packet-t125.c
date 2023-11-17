@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-t125.c                                                              */
-/* asn2wrs.py -b -p t125 -c ./t125.cnf -s ./packet-t125-template -D . -O ../.. MCS-PROTOCOL.asn */
+/* asn2wrs.py -b -L -p t125 -c ./t125.cnf -s ./packet-t125-template -D . -O ../.. MCS-PROTOCOL.asn */
 
-/* Input file: packet-t125-template.c */
-
-#line 1 "./asn1/t125/packet-t125-template.c"
 /* packet-t125.c
  * Routines for t125 packet dissection
  * Copyright 2007, Ronnie Sahlberg
@@ -49,9 +46,6 @@ void proto_reg_handoff_t125(void);
 /* Initialize the protocol and registered fields */
 static int proto_t125 = -1;
 static proto_tree *top_tree = NULL;
-
-/*--- Included file: packet-t125-hf.c ---*/
-#line 1 "./asn1/t125/packet-t125-hf.c"
 static int hf_t125_ConnectMCSPDU_PDU = -1;        /* ConnectMCSPDU */
 static int hf_t125_maxChannelIds = -1;            /* INTEGER_0_MAX */
 static int hf_t125_maxUserIds = -1;               /* INTEGER_0_MAX */
@@ -78,15 +72,9 @@ static int hf_t125_connect_response = -1;         /* Connect_Response */
 static int hf_t125_connect_additional = -1;       /* Connect_Additional */
 static int hf_t125_connect_result = -1;           /* Connect_Result */
 
-/*--- End of included file: packet-t125-hf.c ---*/
-#line 45 "./asn1/t125/packet-t125-template.c"
-
 /* Initialize the subtree pointers */
 static int ett_t125 = -1;
 
-
-/*--- Included file: packet-t125-ett.c ---*/
-#line 1 "./asn1/t125/packet-t125-ett.c"
 static gint ett_t125_DomainParameters = -1;
 static gint ett_t125_Connect_Initial_U = -1;
 static gint ett_t125_Connect_Response_U = -1;
@@ -94,14 +82,8 @@ static gint ett_t125_Connect_Additional_U = -1;
 static gint ett_t125_Connect_Result_U = -1;
 static gint ett_t125_ConnectMCSPDU = -1;
 
-/*--- End of included file: packet-t125-ett.c ---*/
-#line 50 "./asn1/t125/packet-t125-template.c"
-
 static heur_dissector_list_t t125_heur_subdissector_list;
 
-
-/*--- Included file: packet-t125-fn.c ---*/
-#line 1 "./asn1/t125/packet-t125-fn.c"
 
 static const value_string t125_DataPriority_vals[] = {
   {   0, "top" },
@@ -113,7 +95,7 @@ static const value_string t125_DataPriority_vals[] = {
 
 
 static int
-dissect_t125_DataPriority(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_DataPriority(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -123,7 +105,7 @@ dissect_t125_DataPriority(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offs
 
 
 static int
-dissect_t125_INTEGER_0_MAX(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_INTEGER_0_MAX(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer64(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -144,7 +126,7 @@ static const ber_sequence_t DomainParameters_sequence[] = {
 };
 
 static int
-dissect_t125_DomainParameters(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_DomainParameters(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DomainParameters_sequence, hf_index, ett_t125_DomainParameters);
 
@@ -154,7 +136,7 @@ dissect_t125_DomainParameters(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_t125_OCTET_STRING(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_OCTET_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -164,7 +146,7 @@ dissect_t125_OCTET_STRING(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offs
 
 
 static int
-dissect_t125_BOOLEAN(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_BOOLEAN(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_boolean(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   return offset;
@@ -173,8 +155,7 @@ dissect_t125_BOOLEAN(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U
 
 
 static int
-dissect_t125_T_userData(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 98 "./asn1/t125/t125.cnf"
+dissect_t125_T_userData(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
     tvbuff_t	*next_tvb = NULL;
 	heur_dtbl_entry_t *hdtbl_entry;
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
@@ -183,7 +164,6 @@ dissect_t125_T_userData(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset
     if(next_tvb)
     	dissector_try_heuristic(t125_heur_subdissector_list, next_tvb,
 	     actx->pinfo, top_tree, &hdtbl_entry, NULL);
-
 
   return offset;
 }
@@ -201,7 +181,7 @@ static const ber_sequence_t Connect_Initial_U_sequence[] = {
 };
 
 static int
-dissect_t125_Connect_Initial_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_Connect_Initial_U(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Connect_Initial_U_sequence, hf_index, ett_t125_Connect_Initial_U);
 
@@ -211,7 +191,7 @@ dissect_t125_Connect_Initial_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int
 
 
 static int
-dissect_t125_Connect_Initial(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_Connect_Initial(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
                                       hf_index, BER_CLASS_APP, 101, TRUE, dissect_t125_Connect_Initial_U);
 
@@ -241,7 +221,7 @@ static const value_string t125_Result_vals[] = {
 
 
 static int
-dissect_t125_Result(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_Result(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                   NULL);
 
@@ -251,8 +231,7 @@ dissect_t125_Result(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_
 
 
 static int
-dissect_t125_T_userData_01(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 108 "./asn1/t125/t125.cnf"
+dissect_t125_T_userData_01(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
     tvbuff_t	*next_tvb = NULL;
 	heur_dtbl_entry_t *hdtbl_entry;
 
@@ -262,7 +241,6 @@ dissect_t125_T_userData_01(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int off
     if(next_tvb)
     	dissector_try_heuristic(t125_heur_subdissector_list, next_tvb,
 	     actx->pinfo, top_tree, &hdtbl_entry, NULL);
-
 
   return offset;
 }
@@ -277,7 +255,7 @@ static const ber_sequence_t Connect_Response_U_sequence[] = {
 };
 
 static int
-dissect_t125_Connect_Response_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_Connect_Response_U(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Connect_Response_U_sequence, hf_index, ett_t125_Connect_Response_U);
 
@@ -287,7 +265,7 @@ dissect_t125_Connect_Response_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
 
 
 static int
-dissect_t125_Connect_Response(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_Connect_Response(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
                                       hf_index, BER_CLASS_APP, 102, TRUE, dissect_t125_Connect_Response_U);
 
@@ -302,7 +280,7 @@ static const ber_sequence_t Connect_Additional_U_sequence[] = {
 };
 
 static int
-dissect_t125_Connect_Additional_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_Connect_Additional_U(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Connect_Additional_U_sequence, hf_index, ett_t125_Connect_Additional_U);
 
@@ -312,7 +290,7 @@ dissect_t125_Connect_Additional_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, 
 
 
 static int
-dissect_t125_Connect_Additional(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_Connect_Additional(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
                                       hf_index, BER_CLASS_APP, 103, TRUE, dissect_t125_Connect_Additional_U);
 
@@ -326,7 +304,7 @@ static const ber_sequence_t Connect_Result_U_sequence[] = {
 };
 
 static int
-dissect_t125_Connect_Result_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_Connect_Result_U(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Connect_Result_U_sequence, hf_index, ett_t125_Connect_Result_U);
 
@@ -336,7 +314,7 @@ dissect_t125_Connect_Result_U(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 
 static int
-dissect_t125_Connect_Result(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_Connect_Result(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
                                       hf_index, BER_CLASS_APP, 104, TRUE, dissect_t125_Connect_Result_U);
 
@@ -361,7 +339,7 @@ static const ber_choice_t ConnectMCSPDU_choice[] = {
 };
 
 static int
-dissect_t125_ConnectMCSPDU(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_t125_ConnectMCSPDU(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  ConnectMCSPDU_choice, hf_index, ett_t125_ConnectMCSPDU,
                                  NULL);
@@ -380,16 +358,13 @@ static int dissect_ConnectMCSPDU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, 
 }
 
 
-/*--- End of included file: packet-t125-fn.c ---*/
-#line 54 "./asn1/t125/packet-t125-template.c"
-
 static int
 dissect_t125(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *data _U_)
 {
   proto_item *item = NULL;
   proto_tree *tree = NULL;
   gint8 ber_class;
-  gboolean pc;
+  bool pc;
   gint32 tag;
 
   top_tree = parent_tree;
@@ -416,9 +391,9 @@ static gboolean
 dissect_t125_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *data _U_)
 {
   gint8 ber_class;
-  gboolean pc;
+  bool pc;
   gint32 tag;
-  volatile gboolean failed;
+  volatile bool failed;
 
   /*
    * We must catch all the "ran past the end of the packet" exceptions
@@ -473,9 +448,6 @@ void proto_register_t125(void) {
 
   /* List of fields */
   static hf_register_info hf[] = {
-
-/*--- Included file: packet-t125-hfarr.c ---*/
-#line 1 "./asn1/t125/packet-t125-hfarr.c"
     { &hf_t125_ConnectMCSPDU_PDU,
       { "ConnectMCSPDU", "t125.ConnectMCSPDU",
         FT_UINT32, BASE_DEC, VALS(t125_ConnectMCSPDU_vals), 0,
@@ -576,26 +548,17 @@ void proto_register_t125(void) {
       { "connect-result", "t125.connect_result_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-
-/*--- End of included file: packet-t125-hfarr.c ---*/
-#line 146 "./asn1/t125/packet-t125-template.c"
   };
 
   /* List of subtrees */
   static gint *ett[] = {
 	  &ett_t125,
-
-/*--- Included file: packet-t125-ettarr.c ---*/
-#line 1 "./asn1/t125/packet-t125-ettarr.c"
     &ett_t125_DomainParameters,
     &ett_t125_Connect_Initial_U,
     &ett_t125_Connect_Response_U,
     &ett_t125_Connect_Additional_U,
     &ett_t125_Connect_Result_U,
     &ett_t125_ConnectMCSPDU,
-
-/*--- End of included file: packet-t125-ettarr.c ---*/
-#line 152 "./asn1/t125/packet-t125-template.c"
   };
 
   /* Register protocol */

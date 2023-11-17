@@ -52,7 +52,7 @@
 #include "packet-e164.h"
 #include "packet-charging_ase.h"
 #include "packet-mtp3.h"
-#include "packet-http.h"
+#include "packet-media-type.h"
 
 void proto_register_isup(void);
 void proto_reg_handoff_isup(void);
@@ -2134,7 +2134,7 @@ static const value_string isup_generic_name_type_value[] = {
 
 static const true_false_string isup_INN_ind_value = {
   "routing to internal network number not allowed",
-  "routing to internal network number allowed "
+  "routing to internal network number allowed"
 };
 static const true_false_string isup_NI_ind_value = {
   "incomplete",
@@ -3440,7 +3440,7 @@ dissect_isup_digits_common(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto
     return NULL;
   }
 
-  strbuf_number = wmem_strbuf_sized_new(pinfo->pool, MAXDIGITS+1, 0);
+  strbuf_number = wmem_strbuf_new_sized(pinfo->pool, MAXDIGITS+1);
 
   /* Make the digit string, looping on captured length (in case a snaplen was set) */
   captured_length = tvb_captured_length_remaining(tvb, offset);
@@ -5698,10 +5698,6 @@ dissect_isup_optional_backward_call_indicators_parameter(tvbuff_t *parameter_tvb
 /* ------------------------------------------------------------------
   Dissector Parameter User-to-user indicators
  */
-static const true_false_string isup_UUI_type_value = {
-  "Response",
-  "Request"
-};
 static const value_string isup_UUI_request_service_values[] = {
   { 0,  "No information"},
   { 1,  "Spare"},
@@ -7151,7 +7147,7 @@ dissect_japan_isup_network_poi_cad(tvbuff_t *parameter_tvb, packet_info *pinfo, 
   guint8         carrier_info_length;
   gint           num_octets_with_digits = 0;
   gint           digit_index = 0;
-  wmem_strbuf_t *ca_number = wmem_strbuf_sized_new(pinfo->pool, MAXDIGITS+1, 0);
+  wmem_strbuf_t *ca_number = wmem_strbuf_new_sized(pinfo->pool, MAXDIGITS+1);
 
   /* POI Hierarchy information
 
@@ -7518,7 +7514,7 @@ dissect_japan_isup_carrier_information(tvbuff_t *parameter_tvb, packet_info *pin
         /* Lets now load up the digits.*/
         /* If the odd indicator is set... drop the Filler from the last octet.*/
         /* This loop also loads up ca_number with the digits for display*/
-        ca_number = wmem_strbuf_sized_new(pinfo->pool, MAXDIGITS+1, 0);
+        ca_number = wmem_strbuf_new_sized(pinfo->pool, MAXDIGITS+1);
         digit_index = 0;
         while (num_octets_with_digits > 0) {
           offset += 1;
@@ -7588,7 +7584,7 @@ dissect_japan_isup_carrier_information(tvbuff_t *parameter_tvb, packet_info *pin
         /* Lets now load up the digits.*/
         /* If the odd indicator is set... drop the Filler from the last octet.*/
         /* This loop also loads up cid_number with the digits for display*/
-        cid_number = wmem_strbuf_sized_new(pinfo->pool, MAXDIGITS+1, 0);
+        cid_number = wmem_strbuf_new_sized(pinfo->pool, MAXDIGITS+1);
         digit_index = 0;
         while (num_octets_with_digits > 0) {
           offset += 1;
@@ -7718,7 +7714,7 @@ dissect_japan_isup_charge_area_info(tvbuff_t *parameter_tvb, packet_info *pinfo,
   gint odd_even;
   gint digit_index = 0;
 
-  wmem_strbuf_t *ca_number = wmem_strbuf_sized_new(pinfo->pool, MAXDIGITS+1, 0);
+  wmem_strbuf_t *ca_number = wmem_strbuf_new_sized(pinfo->pool, MAXDIGITS+1);
 
   /*Octet 1 : Indicator*/
   octet = tvb_get_guint8(parameter_tvb, 0);
@@ -8063,11 +8059,11 @@ dissect_isup_optional_parameter(tvbuff_t *optional_parameters_tvb, packet_info *
                                      "%u (%s)",
                                      parameter_type,
                                      val_to_str_ext_const(parameter_type, &japan_isup_parameter_type_value_ext, "unknown"));
-          proto_item_append_text(parameter_tree, ": %s", val_to_str_ext(parameter_type, &japan_isup_parameter_type_value_ext, "Unknown"));
+          proto_item_append_text(parameter_tree, ": %s", val_to_str_ext_const(parameter_type, &japan_isup_parameter_type_value_ext, "Unknown"));
           break;
         default:
           proto_tree_add_uint(parameter_tree, hf_isup_opt_parameter_type, optional_parameters_tvb, offset, PARAMETER_TYPE_LENGTH, parameter_type);
-          proto_item_append_text(parameter_tree, ": %s", val_to_str_ext(parameter_type, &ansi_isup_parameter_type_value_ext, "Unknown"));
+          proto_item_append_text(parameter_tree, ": %s", val_to_str_ext_const(parameter_type, &ansi_isup_parameter_type_value_ext, "Unknown"));
           break;
 
       }
@@ -8425,7 +8421,8 @@ dissect_ansi_isup_optional_parameter(tvbuff_t *optional_parameters_tvb, packet_i
 
       parameter_tree = proto_tree_add_subtree_format(isup_tree, optional_parameters_tvb,
                                            offset, parameter_length  + PARAMETER_TYPE_LENGTH + PARAMETER_LENGTH_IND_LENGTH,
-                                           ett_isup_parameter, &parameter_item, "Parameter: (t=%u, l=%u): %s", parameter_type, parameter_length, val_to_str_ext(parameter_type, &ansi_isup_parameter_type_value_ext, "Unknown"));
+                                           ett_isup_parameter, &parameter_item, "Parameter: (t=%u, l=%u): %s",
+                                           parameter_type, parameter_length, val_to_str_ext_const(parameter_type, &ansi_isup_parameter_type_value_ext, "Unknown"));
       proto_tree_add_uint(parameter_tree, hf_isup_opt_parameter_type, optional_parameters_tvb, offset,
                                  PARAMETER_TYPE_LENGTH, parameter_type);
       offset += PARAMETER_TYPE_LENGTH;
@@ -10550,10 +10547,10 @@ dissect_application_isup(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
   guint8      itu_isup_variant = ISUP_ITU_STANDARD_VARIANT; /* Default */
 
   if (data) {
-    http_message_info_t *message_info = (http_message_info_t *)data;
-    if (message_info->media_str) {
-      version = ws_find_media_type_parameter(pinfo->pool, message_info->media_str, "version");
-      base = ws_find_media_type_parameter(pinfo->pool, message_info->media_str, "base");
+    media_content_info_t *content_info = (media_content_info_t *)data;
+    if (content_info->media_str) {
+      version = ws_find_media_type_parameter(pinfo->pool, content_info->media_str, "version");
+      base = ws_find_media_type_parameter(pinfo->pool, content_info->media_str, "base");
       if ((version && g_ascii_strncasecmp(version, "ansi", 4) == 0) ||
           (base && g_ascii_strncasecmp(base, "ansi", 4) == 0) ||
           (version && g_ascii_strncasecmp(version, "gr", 2) == 0) ||
@@ -11201,7 +11198,7 @@ proto_register_isup(void)
 
     { &hf_isup_UUI_type,
       { "User-to-User indicator type",  "isup.UUI_type",
-        FT_BOOLEAN, 8, TFS(&isup_UUI_type_value), A_8BIT_MASK,
+        FT_BOOLEAN, 8, TFS(&tfs_response_request), A_8BIT_MASK,
         NULL, HFILL }},
 
     { &hf_isup_UUI_req_service1,

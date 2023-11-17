@@ -20,6 +20,8 @@
 void proto_register_oipf(void);
 void proto_reg_handoff_oipf(void);
 
+static dissector_handle_t oipf_ciplus_handle;
+
 static int proto_oipf_ciplus = -1;
 
 static gint ett_oipf_ciplus = -1;
@@ -143,22 +145,16 @@ proto_register_oipf(void)
                 NULL, 0, NULL, HFILL } }
     };
 
-    proto_oipf_ciplus = proto_register_protocol(
-            "Open IPTV Forum CSPG-CI+", "OIPF CI+", "oipf.ciplus");
+    proto_oipf_ciplus = proto_register_protocol("Open IPTV Forum CSPG-CI+", "OIPF CI+", "oipf.ciplus");
     proto_register_field_array(proto_oipf_ciplus, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
 
+    oipf_ciplus_handle = register_dissector("oipf.ciplus", dissect_oipf_ciplus, proto_oipf_ciplus);
 }
-
 
 void
 proto_reg_handoff_oipf(void)
 {
-    dissector_handle_t oipf_ciplus_handle;
-
-    oipf_ciplus_handle =
-        create_dissector_handle(dissect_oipf_ciplus, proto_oipf_ciplus);
-
     dissector_add_string("dvb-ci.sas.app_id_str",
             sas_app_id_str_oipf, oipf_ciplus_handle);
 }

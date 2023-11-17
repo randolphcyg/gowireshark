@@ -25,7 +25,6 @@
 #include "config.h"
 
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
 
 #include "wtap-int.h"
@@ -424,8 +423,6 @@ commview_ncf_dump_open(wtap_dumper *wdh, int *err _U_, gchar **err_info _U_)
 	wdh->subtype_write = commview_ncf_dump;
 
 	/* There is no file header to write out */
-	wdh->bytes_dumped = 0;
-
 	return TRUE;
 }
 
@@ -631,12 +628,8 @@ commview_ncf_dump(wtap_dumper *wdh, const wtap_rec *rec, const guint8 *pd,
 		return FALSE;
 	if (!wtap_dump_file_write(wdh, &cv_hdr.noise_level_dbm, 1, err))
 		return FALSE;
-	wdh->bytes_dumped += COMMVIEW_NCF_HEADER_SIZE;
-
 	if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err))
 		return FALSE;
-	wdh->bytes_dumped += rec->rec_header.packet_header.caplen;
-
 	return TRUE;
 }
 
@@ -1178,8 +1171,6 @@ commview_ncfx_dump_open(wtap_dumper *wdh, int *err _U_, gchar **err_info _U_)
 	wdh->subtype_write = commview_ncfx_dump;
 
 	/* There is no file header to write out */
-	wdh->bytes_dumped = 0;
-
 	return TRUE;
 }
 
@@ -1339,13 +1330,11 @@ commview_ncfx_dump(wtap_dumper *wdh, const wtap_rec *rec, const guint8 *pd,
 		return FALSE;
 	if (!wtap_dump_file_write(wdh, &cv_hdr.reserved2, 1, err))
 		return FALSE;
-	wdh->bytes_dumped += COMMVIEW_NCFX_HEADER_SIZE;
 
 	/* XXX - RF and MCS headers */
 
 	if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err))
 		return FALSE;
-	wdh->bytes_dumped += rec->rec_header.packet_header.caplen;
 
 	return TRUE;
 }

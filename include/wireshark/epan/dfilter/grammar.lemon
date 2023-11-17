@@ -1,6 +1,7 @@
 
 %include {
 #include "config.h"
+#define WS_LOG_DOMAIN LOG_DOMAIN_DFILTER
 
 #include <assert.h>
 
@@ -15,27 +16,35 @@
 
 #include "grammar.h"
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #pragma warning(disable:4671)
 #endif
 
 static stnode_t *
-new_function(dfwork_t *dfw, stnode_t *node);
+new_function(dfsyntax_t *dfs, stnode_t *node);
 
-#define FAIL(dfw, node, ...) dfilter_fail(dfw, stnode_location(node), __VA_ARGS__)
+#define FAIL(dfs, node, ...) \
+    do { \
+        ws_noisy("Parsing failed here."); \
+        dfilter_fail(dfs, DF_ERROR_GENERIC, stnode_location(node), __VA_ARGS__); \
+    } while (0)
 
-/* End of C code */
+DIAG_OFF_LEMON()
+} /* end of %include */
+
+%code {
+DIAG_ON_LEMON()
 }
 
 /* Parser Information */
 %name           Dfilter
 %token_prefix   TOKEN_
-%extra_argument {dfwork_t *dfw}
+%extra_argument {dfsyntax_t *dfs}
 
 /* Terminal and Non-Terminal types and destructors */
 %token_type                     {stnode_t*}
 %token_destructor               {
-    (void)dfw;
+    (void)dfs;
     stnode_free($$);
 }
 
@@ -45,40 +54,30 @@ new_function(dfwork_t *dfw, stnode_t *node);
 %type           range_node_list {GSList*}
 %destructor     range_node_list {drange_node_free_list($$);}
 
-%type           layer           {GSList*}
-%destructor     layer           {drange_node_free_list($$);}
-
-%type           function_params {GSList*}
-%destructor     function_params {st_funcparams_free($$);}
+%type           func_params_list {GSList*}
+%destructor     func_params_list {st_funcparams_free($$);}
 
 %type           set_list        {GSList*}
 %destructor     set_list        {set_nodelist_free($$);}
 
-%type           set_element     {GSList*}
-%destructor     set_element     {set_nodelist_free($$);}
+%type           set_element_list {GSList*}
+%destructor     set_element_list {set_nodelist_free($$);}
 
-/* This is called as soon as a syntax error happens. After that, 
+/* This is called as soon as a syntax error happens. After that,
 any "error" symbols are shifted, if possible. */
 %syntax_error {
     if (!TOKEN) {
-        dfilter_fail(dfw, NULL, "Unexpected end of filter expression.");
+        dfilter_fail(dfs, DF_ERROR_UNEXPECTED_END, DFILTER_LOC_EMPTY, "Unexpected end of filter expression.");
         return;
     }
-    FAIL(dfw, TOKEN, "\"%s\" was unexpected in this context.", stnode_token(TOKEN));
-}
-
-/* When a parse fails, mark an error. This occurs after
-the above syntax_error code and after the parser fails to
-use error recovery, shifting an "error" symbol and successfully
-shifting 3 more symbols. */
-%parse_failure {
-    dfw->syntax_error = TRUE;
+    FAIL(dfs, TOKEN, "\"%s\" was unexpected in this context.", stnode_token(TOKEN));
 }
 
 /* ----------------- The grammar -------------- */
 
 /* Associativity */
 %left TEST_OR.
+%left TEST_XOR.
 %left TEST_AND.
 %right TEST_NOT.
 %nonassoc TEST_ALL_EQ TEST_ANY_EQ TEST_ALL_NE TEST_ANY_NE TEST_LT TEST_LE TEST_GT TEST_GE
@@ -89,8 +88,8 @@ shifting 3 more symbols. */
 %nonassoc UNARY_PLUS UNARY_MINUS.
 
 /* Top-level targets */
-sentence ::= expr(X).           { dfw->st_root = X; }
-sentence ::= .                  { dfw->st_root = NULL; }
+sentence ::= expr(X).           { dfs->st_root = X; }
+sentence ::= .                  { dfs->st_root = NULL; }
 
 expr(X) ::= relation(R).        { X = R; }
 expr(X) ::= arithmetic_expr(E). { X = E; }
@@ -100,198 +99,270 @@ expr(X) ::= expr(Y) TEST_AND(T) expr(Z).
 {
     X = T;
     sttype_oper_set2(X, STNODE_OP_AND, Y, Z);
+    stnode_merge_location(X, Y, Z);
 }
 
 expr(X) ::= expr(Y) TEST_OR(T) expr(Z).
 {
     X = T;
     sttype_oper_set2(X, STNODE_OP_OR, Y, Z);
+    stnode_merge_location(X, Y, Z);
+}
+
+expr(X) ::= expr(Y) TEST_XOR(T) expr(Z).
+{
+    stnode_t *A = stnode_new(STTYPE_TEST, NULL, NULL, DFILTER_LOC_EMPTY);
+    sttype_oper_set2(A, STNODE_OP_OR, stnode_dup(Y), stnode_dup(Z));
+
+    stnode_t *B = stnode_new(STTYPE_TEST, NULL, NULL, DFILTER_LOC_EMPTY);
+    sttype_oper_set2(B, STNODE_OP_AND, Y, Z);
+
+    stnode_t *C = stnode_new(STTYPE_TEST, NULL, NULL, DFILTER_LOC_EMPTY);
+    sttype_oper_set1(C, STNODE_OP_NOT, B);
+
+    X = T;
+    sttype_oper_set2(X, STNODE_OP_AND, A, C);
+    stnode_merge_location(X, Y, Z);
 }
 
 expr(X) ::= TEST_NOT(T) expr(Y).
 {
     X = T;
     sttype_oper_set1(X, STNODE_OP_NOT, Y);
+    stnode_merge_location(X, T, Y);
 }
 
 /* Any expression inside parens is simply that expression */
-expr(X) ::= LPAREN expr(Y) RPAREN.  { X = Y; }
+expr(X) ::= LPAREN(L) expr(Y) RPAREN(R).
+{
+    X = Y;
+    stnode_merge_location(X, L, R);
+    stnode_free(L);
+    stnode_free(R);
+}
 
 /* Entities, or things that can be compared/tested/checked */
 atom(A) ::= STRING(S).      { A = S; }
 atom(A) ::= CHARCONST(N).   { A = N; }
 atom(A) ::= LITERAL(S).     { A = S; }
+atom(A) ::= CONSTANT(C).    { A = C; }
 
-layer(R) ::= HASH LBRACKET range_node_list(L) RBRACKET.
+named_field(X) ::= FIELD(F).
 {
-    R = L;
+    X = F;
 }
 
-layer(R) ::= HASH INTEGER(N).
+named_field(X) ::= IDENTIFIER(U).
 {
+    X = U;
+    const char *name = stnode_token(U);
+    header_field_info *hfinfo = dfilter_resolve_unparsed(dfs, name);
+    if (hfinfo == NULL) {
+        FAIL(dfs, U, "\"%s\" is not a valid protocol or protocol field.", name);
+    }
+    stnode_replace(X, STTYPE_FIELD, hfinfo);
+}
+
+layered_field(X) ::= named_field(F).
+{
+    X = F;
+}
+
+layered_field(X) ::= named_field(F) HASH LBRACKET range_node_list(L) RBRACKET(R).
+{
+    X = F;
+    sttype_field_set_range(X, L);
+    g_slist_free(L);
+    stnode_merge_location(X, F, R);
+    stnode_free(R);
+}
+
+layered_field(X) ::= named_field(F) HASH INTEGER(N).
+{
+    X = F;
     char *err_msg = NULL;
     drange_node *range = drange_node_from_str(stnode_token(N), &err_msg);
     if (err_msg != NULL) {
-        FAIL(dfw, N, "%s", err_msg);
+        FAIL(dfs, N, "%s", err_msg);
         g_free(err_msg);
     }
+    sttype_field_set_range1(X, range);
+    stnode_merge_location(X, F, N);
     stnode_free(N);
-    R = g_slist_append(NULL, range);
 }
 
-field(R) ::= FIELD(F).
+rawable_field(X) ::= layered_field(F).
 {
-    R = F;
+    X = F;
 }
 
-field(R) ::= FIELD(F) layer(L).
+rawable_field(X) ::= ATSIGN(A) layered_field(F).
 {
-    R = F;
-    sttype_field_set_range(R, L);
-    g_slist_free(L);
+    X = F;
+    sttype_field_set_raw(X, true);
+    stnode_merge_location(X, A, F);
+    stnode_free(A);
 }
 
-field(R) ::= UNPARSED(U) layer(L).
-{
-    header_field_info *hfinfo = dfilter_resolve_unparsed(dfw, stnode_token(U));
-    if (hfinfo == NULL) {
-        FAIL(dfw, U, "%s is not a valid field", stnode_token(U));
-    }
-    R = stnode_new(STTYPE_FIELD, hfinfo, NULL, stnode_location(U));
-    stnode_free(U);
-    sttype_field_set_range(R, L);
-    g_slist_free(L);
-}
-
-reference(R) ::= DOLLAR LBRACE field(F) RBRACE.
+reference(X) ::= DOLLAR(D) LBRACE rawable_field(F) RBRACE(R).
 {
     /* convert field to reference */
-    R = stnode_new(STTYPE_REFERENCE, sttype_field_hfinfo(F), NULL, stnode_location(F));
-    sttype_field_set_drange(R, sttype_field_drange_steal(F));
+    X = stnode_new(STTYPE_REFERENCE, sttype_field_hfinfo(F), NULL, stnode_location(F));
+    sttype_field_set_drange(X, sttype_field_drange_steal(F));
+    sttype_field_set_raw(X, sttype_field_raw(F));
+    stnode_merge_location(X, D, R);
     stnode_free(F);
-}
-
-reference(R) ::= DOLLAR LBRACE UNPARSED(U) RBRACE.
-{
-    header_field_info *hfinfo = dfilter_resolve_unparsed(dfw, stnode_token(U));
-    if (hfinfo == NULL) {
-        FAIL(dfw, U, "%s is not a valid field", stnode_token(U));
-    }
-    R = stnode_new(STTYPE_REFERENCE, hfinfo, NULL, stnode_location(U));
-    stnode_free(U);
+    stnode_free(D);
+    stnode_free(R);
 }
 
 entity(E) ::= atom(A).          { E = A; }
 entity(E) ::= slice(R).         { E = R; }
 entity(E) ::= function(F).      { E = F; }
-entity(E) ::= field(F).         { E = F; }
+entity(E) ::= rawable_field(F). { E = F; }
 entity(E) ::= reference(R).     { E = R; }
-entity(E) ::= UNPARSED(U).
-{
-    const char *token = stnode_token(U);
-    const stloc_t *loc = stnode_location(U);
-    header_field_info *hfinfo = dfilter_resolve_unparsed(dfw, token);
-    if (hfinfo != NULL) {
-        E = stnode_new(STTYPE_FIELD, hfinfo, g_strdup(token), loc);
-    }
-    else {
-        E = stnode_new(STTYPE_LITERAL, g_strdup(token), g_strdup(token), loc);
-    }
-    stnode_free(U);
-}
 
 arithmetic_expr(T) ::= entity(N).
 {
     T = N;
 }
 
-arithmetic_expr(T) ::= PLUS entity(N).  [UNARY_PLUS]
+arithmetic_expr(T) ::= PLUS(P) arithmetic_expr(N).  [UNARY_PLUS]
 {
     T = N;
+    stnode_merge_location(T, P, N);
+    stnode_free(P);
 }
 
-arithmetic_expr(T) ::= MINUS(M) entity(N). [UNARY_MINUS]
+arithmetic_expr(T) ::= MINUS(M) arithmetic_expr(N). [UNARY_MINUS]
 {
     T = M;
     sttype_oper_set1(T, STNODE_OP_UNARY_MINUS, N);
+    stnode_merge_location(T, M, N);
 }
 
 arithmetic_expr(T) ::= arithmetic_expr(F) BITWISE_AND(O) arithmetic_expr(M).
 {
     T = O;
     sttype_oper_set2(T, STNODE_OP_BITWISE_AND, F, M);
+    stnode_merge_location(T, F, M);
 }
 
 arithmetic_expr(T) ::= arithmetic_expr(F) PLUS(O) arithmetic_expr(M).
 {
     T = O;
     sttype_oper_set2(T, STNODE_OP_ADD, F, M);
+    stnode_merge_location(T, F, M);
 }
 
 arithmetic_expr(T) ::= arithmetic_expr(F) MINUS(O) arithmetic_expr(M).
 {
     T = O;
     sttype_oper_set2(T, STNODE_OP_SUBTRACT, F, M);
+    stnode_merge_location(T, F, M);
 }
 
 arithmetic_expr(T) ::= arithmetic_expr(F) STAR(O) arithmetic_expr(M).
 {
     T = O;
     sttype_oper_set2(T, STNODE_OP_MULTIPLY, F, M);
+    stnode_merge_location(T, F, M);
 }
 
 arithmetic_expr(T) ::= arithmetic_expr(F) RSLASH(O) arithmetic_expr(M).
 {
     T = O;
     sttype_oper_set2(T, STNODE_OP_DIVIDE, F, M);
+    stnode_merge_location(T, F, M);
 }
 
 arithmetic_expr(T) ::= arithmetic_expr(F) PERCENT(O) arithmetic_expr(M).
 {
     T = O;
     sttype_oper_set2(T, STNODE_OP_MODULO, F, M);
+    stnode_merge_location(T, F, M);
 }
 
-arithmetic_expr(T) ::= LBRACE arithmetic_expr(F) RBRACE.
+arithmetic_expr(T) ::= LBRACE(L) arithmetic_expr(F) RBRACE(R).
 {
     T = F;
+    stnode_merge_location(T, L, R);
+    stnode_free(L);
+    stnode_free(R);
 }
 
 /* Relational tests */
-cmp_op(O) ::= TEST_ALL_EQ(L).   { O = L; sttype_oper_set_op(O, STNODE_OP_ALL_EQ); }
-cmp_op(O) ::= TEST_ANY_EQ(L).   { O = L; sttype_oper_set_op(O, STNODE_OP_ANY_EQ); }
-cmp_op(O) ::= TEST_ALL_NE(L).   { O = L; sttype_oper_set_op(O, STNODE_OP_ALL_NE); }
-cmp_op(O) ::= TEST_ANY_NE(L).   { O = L; sttype_oper_set_op(O, STNODE_OP_ANY_NE); }
-cmp_op(O) ::= TEST_GT(L).       { O = L; sttype_oper_set_op(O, STNODE_OP_GT); }
-cmp_op(O) ::= TEST_GE(L).       { O = L; sttype_oper_set_op(O, STNODE_OP_GE); }
-cmp_op(O) ::= TEST_LT(L).       { O = L; sttype_oper_set_op(O, STNODE_OP_LT); }
-cmp_op(O) ::= TEST_LE(L).       { O = L; sttype_oper_set_op(O, STNODE_OP_LE); }
+cmp_op(O) ::= TEST_ALL_EQ(L).
+{
+    O = L;
+    sttype_oper_set_op(O, STNODE_OP_ALL_EQ);
+}
+
+cmp_op(O) ::= TEST_ANY_EQ(L).
+{
+    O = L;
+    sttype_oper_set_op(O, STNODE_OP_ANY_EQ);
+}
+
+cmp_op(O) ::= TEST_ALL_NE(L).
+{
+    O = L;
+    sttype_oper_set_op(O, STNODE_OP_ALL_NE);
+}
+
+cmp_op(O) ::= TEST_ANY_NE(L).
+{
+    O = L;
+    sttype_oper_set_op(O, STNODE_OP_ANY_NE);
+}
+
+cmp_op(O) ::= TEST_GT(L).
+{
+    O = L;
+    sttype_oper_set_op(O, STNODE_OP_GT);
+}
+
+cmp_op(O) ::= TEST_GE(L).
+{
+    O = L;
+    sttype_oper_set_op(O, STNODE_OP_GE);
+}
+
+cmp_op(O) ::= TEST_LT(L).
+{
+    O = L;
+    sttype_oper_set_op(O, STNODE_OP_LT);
+}
+
+cmp_op(O) ::= TEST_LE(L).
+{
+    O = L;
+    sttype_oper_set_op(O, STNODE_OP_LE);
+}
 
 comparison_test(T) ::= arithmetic_expr(E) cmp_op(O) arithmetic_expr(F).
 {
     T = O;
     sttype_oper_set2_args(O, E, F);
+    stnode_merge_location(T, E, F);
 }
 
 /* 'a == b == c' or 'a < b <= c <= d < e' */
 comparison_test(T) ::= arithmetic_expr(E) cmp_op(O) comparison_test(R).
 {
     stnode_t *L, *F;
-    /* for now generate it like E O F  STNODE_OP_AND  F P G, later it could be optimized
-       or semantically checked (to make a <= b >= c or a == b != c invalid)?
-     */
 
     F = R;
-    do {
-        ws_assert(F != NULL && stnode_type_id(F) == STTYPE_TEST);
+    while (stnode_type_id(F) == STTYPE_TEST) {
         sttype_oper_get(F, NULL, &F, NULL);
-    } while (stnode_type_id(F) == STTYPE_TEST);
+    }
 
     L = O;
     sttype_oper_set2_args(L, E, stnode_dup(F));
 
-    T = stnode_new(STTYPE_TEST, NULL, NULL, NULL);
+    T = stnode_new_empty(STTYPE_TEST);
     sttype_oper_set2(T, STNODE_OP_AND, L, R);
+    stnode_merge_location(T, E, R);
 }
 
 relation_test(T) ::= comparison_test(C).    { T = C; }
@@ -300,89 +371,85 @@ relation_test(T) ::= entity(E) TEST_CONTAINS(L) entity(F).
 {
     T = L;
     sttype_oper_set2(T, STNODE_OP_CONTAINS, E, F);
+    stnode_merge_location(T, E, F);
 }
 
 relation_test(T) ::= entity(E) TEST_MATCHES(L) entity(F).
 {
     T = L;
     sttype_oper_set2(T, STNODE_OP_MATCHES, E, F);
+    stnode_merge_location(T, E, F);
 }
 
 relation_test(T) ::= entity(E) TEST_IN(O) set(S).
 {
     T = O;
     sttype_oper_set2(T, STNODE_OP_IN, E, S);
+    stnode_merge_location(T, E, S);
 }
 
-relation_test(T) ::= entity(E) TEST_NOT(P) TEST_IN(O) set(S).
+relation_test(T) ::= entity(E) TEST_NOT TEST_IN(O) set(S).
 {
-    T = P;
-    sttype_oper_set2(O, STNODE_OP_IN, E, S);
-    sttype_oper_set1(T, STNODE_OP_NOT, O);
+    T = O;
+    sttype_oper_set2(O, STNODE_OP_NOT_IN, E, S);
+    stnode_merge_location(T, E, S);
 }
 
 relation(R) ::= relation_test(T).   { R = T; }
 
-relation(R) ::= ANY relation_test(T).
+relation(R) ::= ANY(A) relation_test(T).
 {
     R = T;
     sttype_test_set_match(R, STNODE_MATCH_ANY);
+    stnode_merge_location(R, A, T);
+    stnode_free(A);
 }
 
-relation(R) ::= ALL relation_test(T).
+relation(R) ::= ALL(A) relation_test(T).
 {
     R = T;
     sttype_test_set_match(R, STNODE_MATCH_ALL);
+    stnode_merge_location(R, A, T);
+    stnode_free(A);
 }
 
-set(S) ::= LBRACE set_list(L) RBRACE.
-{
-    S = stnode_new(STTYPE_SET, L, NULL, NULL);
-}
+/* Sets */
 
-set_list(L) ::= set_element(N).
-{
-    L = g_slist_concat(NULL, N);
-}
-
-set_list(L) ::= set_list(P) COMMA set_element(N).
-{
-    L = g_slist_concat(P, N);
-}
-
-set_entity(N) ::= entity(E).
-{
-    N = E;
-}
-
-set_entity(N) ::= MINUS(M) entity(E).
-{
-    N = M;
-    sttype_oper_set1(N, STNODE_OP_UNARY_MINUS, E);
-}
-
-set_entity(N) ::= PLUS entity(E).
-{
-    N = E;
-}
-
-set_element(N) ::= set_entity(X).
+set_element_list(N) ::= arithmetic_expr(X).
 {
     N = g_slist_append(NULL, X);
     N = g_slist_append(N, NULL);
 }
 
-set_element(N) ::= set_entity(X) DOTDOT set_entity(Y).
+set_element_list(N) ::= arithmetic_expr(X) DOTDOT arithmetic_expr(Y).
 {
     N = g_slist_append(NULL, X);
     N = g_slist_append(N, Y);
+}
+
+set_list(L) ::= set_element_list(N).
+{
+    L = g_slist_concat(NULL, N);
+}
+
+set_list(L) ::= set_list(P) COMMA set_element_list(N).
+{
+    L = g_slist_concat(P, N);
+}
+
+set(S) ::= LBRACE(LB) set_list(L) RBRACE(RB).
+{
+    S = stnode_new(STTYPE_SET, L, NULL, DFILTER_LOC_EMPTY);
+    stnode_merge_location(S, LB, RB);
+    stnode_free(LB);
+    stnode_free(RB);
 }
 
 /* Slices */
 
 slice(R) ::= entity(E) LBRACKET range_node_list(L) RBRACKET.
 {
-    R = stnode_new(STTYPE_SLICE, NULL, NULL, NULL);
+    R = stnode_new(STTYPE_SLICE, NULL, NULL, DFILTER_LOC_EMPTY);
     sttype_slice_set(R, E, L);
 
     /* Delete the list, but not the drange_nodes that
@@ -395,7 +462,7 @@ range_node_list(L) ::= RANGE_NODE(N).
     char *err_msg = NULL;
     drange_node *rn = drange_node_from_str(stnode_token(N), &err_msg);
     if (err_msg != NULL) {
-        FAIL(dfw, N, "%s", err_msg);
+        FAIL(dfs, N, "%s", err_msg);
         g_free(err_msg);
     }
     L = g_slist_append(NULL, rn);
@@ -407,7 +474,7 @@ range_node_list(L) ::= range_node_list(P) COMMA RANGE_NODE(N).
     char *err_msg = NULL;
     drange_node *rn = drange_node_from_str(stnode_token(N), &err_msg);
     if (err_msg != NULL) {
-        FAIL(dfw, N, "%s", err_msg);
+        FAIL(dfs, N, "%s", err_msg);
         g_free(err_msg);
     }
     L = g_slist_append(P, rn);
@@ -418,13 +485,13 @@ range_node_list(L) ::= range_node_list(P) COMMA RANGE_NODE(N).
 
 %code {
     static stnode_t *
-    new_function(dfwork_t *dfw, stnode_t *node)
+    new_function(dfsyntax_t *dfs, stnode_t *node)
     {
         const char *name = stnode_token(node);
 
         df_func_def_t *def = df_func_lookup(name);
         if (!def) {
-            FAIL(dfw, node, "Function '%s' does not exist", name);
+            FAIL(dfs, node, "Function '%s' does not exist", name);
         }
         stnode_replace(node, STTYPE_FUNCTION, def);
         return node;
@@ -432,24 +499,38 @@ range_node_list(L) ::= range_node_list(P) COMMA RANGE_NODE(N).
 }
 
 /* A function can have one or more parameters */
-function(F) ::= UNPARSED(U) LPAREN function_params(P) RPAREN.
+function(F) ::= IDENTIFIER(U) LPAREN func_params_list(P) RPAREN(R).
 {
-    F = new_function(dfw, U);
+    F = new_function(dfs, U);
     sttype_function_set_params(F, P);
+    stnode_merge_location(F, U, R);
+    stnode_free(R);
+}
+
+function ::= CONSTANT(U) LPAREN func_params_list RPAREN.
+{
+    FAIL(dfs, U, "Function '%s' does not exist", stnode_token(U));
 }
 
 /* A function can have zero parameters. */
-function(F) ::= UNPARSED(U) LPAREN RPAREN.
+function(F) ::= IDENTIFIER(U) LPAREN RPAREN(R).
 {
-    F = new_function(dfw, U);
+    F = new_function(dfs, U);
+    stnode_merge_location(F, U, R);
+    stnode_free(R);
 }
 
-function_params(P) ::= arithmetic_expr(E).
+function ::= CONSTANT(U) LPAREN RPAREN.
+{
+    FAIL(dfs, U, "Function '%s' does not exist", stnode_token(U));
+}
+
+func_params_list(P) ::= arithmetic_expr(E).
 {
     P = g_slist_append(NULL, E);
 }
 
-function_params(P) ::= function_params(L) COMMA arithmetic_expr(E).
+func_params_list(P) ::= func_params_list(L) COMMA arithmetic_expr(E).
 {
     P = g_slist_append(L, E);
 }

@@ -292,12 +292,6 @@ static const value_string message_block_type[] = {
   {0, NULL}
 };
 
-static const value_string packet_start_pointer_field[] = {
-  {0, "Not Present"},
-  {1, "Present"},
-  {0, NULL}
-};
-
 static const true_false_string zero_bit_loading = {
   "subcarriers are all zero-bit-loaded",
   "subcarriers follow profile"
@@ -376,7 +370,7 @@ dissect_xra(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data _
   proto_item_append_text(it, " (Excentis XRA header: %d bytes). DOCSIS frame is %d bytes.", xra_length, tvb_reported_length_remaining(tvb, xra_length));
   proto_item_set_len(it, xra_length);
 
-  col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str(packet_type, packettype, "Unknown XRA Packet Type: %u"));
+  col_add_str(pinfo->cinfo, COL_INFO, val_to_str(packet_type, packettype, "Unknown XRA Packet Type: %u"));
 
   /* Dissecting TLVs */
   guint segment_header_present = 0;
@@ -710,9 +704,10 @@ static void
 dissect_message_channel_mb(tvbuff_t * tvb, packet_info * pinfo, proto_tree* tree, guint16 remaining_length) {
   proto_tree_add_item (tree, hf_plc_mb_mc_reserved, tvb, 0, 1, ENC_BIG_ENDIAN);
 
-  guint packet_start_pointer_field_present, packet_start_pointer;
+  gboolean packet_start_pointer_field_present;
+  unsigned packet_start_pointer;
 
-  proto_tree_add_item_ret_uint (tree, hf_plc_mb_mc_pspf_present, tvb, 0, 1, FALSE, &packet_start_pointer_field_present);
+  proto_tree_add_item_ret_boolean(tree, hf_plc_mb_mc_pspf_present, tvb, 0, 1, FALSE, &packet_start_pointer_field_present);
 
   /* If not present, this contains stuff from other packet. We can't do much in this case */
   if(packet_start_pointer_field_present) {
@@ -1278,7 +1273,7 @@ proto_register_xra (void)
     },
     {&hf_plc_mb_mc_pspf_present,
       {"Packet Start Pointer Field", "docsis_plc.mb_mc_pspf_present",
-        FT_UINT8, BASE_DEC, VALS(packet_start_pointer_field) , 0x01,
+        FT_BOOLEAN, 8, TFS(&tfs_present_not_present), 0x01,
         NULL, HFILL}
     },
     {&hf_plc_mb_mc_psp,
@@ -1370,7 +1365,7 @@ proto_register_xra (void)
   proto_register_field_array (proto_xra, hf, array_length (hf));
   proto_register_subtree_array (ett, array_length (ett));
 
-  register_dissector ("xra", dissect_xra, proto_xra);
+  xra_handle = register_dissector ("xra", dissect_xra, proto_xra);
 
 }
 
@@ -1379,7 +1374,6 @@ proto_reg_handoff_xra(void)
 {
   docsis_handle = find_dissector ("docsis");
 
-  xra_handle = create_dissector_handle(dissect_xra, proto_xra);
   dissector_add_uint("wtap_encap", WTAP_ENCAP_DOCSIS31_XRA31, xra_handle);
 }
 

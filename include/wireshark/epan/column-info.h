@@ -24,6 +24,10 @@ extern "C" {
  * Column info.
  */
 
+typedef struct _proto_node proto_tree;
+
+#define COLUMN_FIELD_FILTER  "_ws.col."
+
 /** Column expression */
 typedef struct {
   const gchar **col_expr;     /**< Filter expression */
@@ -43,6 +47,7 @@ typedef struct {
   gchar              *col_buf;              /**< Buffer into which to copy data for column */
   int                 col_fence;            /**< Stuff in column buffer before this index is immutable */
   gboolean            writable;             /**< writable or not */
+  int                 hf_id;
 } col_item_t;
 
 /** Column info */
@@ -75,7 +80,7 @@ extern void col_init(column_info *cinfo, const struct epan_session *epan);
  */
 WS_DLL_PUBLIC void col_fill_in_frame_data(const frame_data *fd, column_info *cinfo, const gint col, gboolean const fill_col_exprs);
 
-/** Fill in all columns of the given packet.
+/** Fill in all (non-custom) columns of the given packet.
  */
 WS_DLL_PUBLIC void col_fill_in(packet_info *pinfo, const gboolean fill_col_exprs, const gboolean fill_fd_colums);
 
@@ -94,6 +99,11 @@ void col_custom_set_edt(struct epan_dissect *edt, column_info *cinfo);
 WS_DLL_PUBLIC
 void col_custom_prime_edt(struct epan_dissect *edt, column_info *cinfo);
 
+/** Get a filter expression for a custom column. This string must be g_free'd.
+ */
+WS_DLL_PUBLIC
+char* col_custom_get_filter(struct epan_dissect *edt, column_info *cinfo, const gint col);
+
 WS_DLL_PUBLIC
 gboolean have_custom_cols(column_info *cinfo);
 
@@ -105,6 +115,12 @@ gboolean col_has_time_fmt(column_info *cinfo, const gint col);
 
 WS_DLL_PUBLIC
 gboolean col_based_on_frame_data(column_info *cinfo, const gint col);
+
+void
+col_register_protocol(void);
+
+extern
+void col_dissect(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree);
 
 #ifdef __cplusplus
 }

@@ -39,13 +39,14 @@
 #include <epan/exported_pdu.h>
 #include <epan/asn1.h>
 #include <epan/sctpppids.h>
+#include <epan/charsets.h>
 #include <wsutil/strtoi.h>
 #include "packet-ber.h"
 #include "packet-tpkt.h"
 #include "packet-h245.h"
 #include "packet-h248.h"
 #include "packet-ip.h"
-#include "packet-http.h"
+#include "packet-media-type.h"
 #include "packet-sdp.h"
 
 void proto_register_megaco(void);
@@ -639,7 +640,7 @@ dissect_megaco_text(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
      *
      * tvb_offset = tvb_find_guint8(tvb, tvb_offset, 5, 'M');
      */
-    if(!tvb_get_nstringz0(tvb,tvb_offset,sizeof(word),word)) return tvb_captured_length(tvb);
+    if(!tvb_get_raw_bytes_as_stringz(tvb,tvb_offset,sizeof(word),word)) return tvb_captured_length(tvb);
 
     /* Quick fix for MEGACO packet with Authentication Header,
      * marked as "AU" or "Authentication".
@@ -667,7 +668,7 @@ dissect_megaco_text(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
 
     if (g_ascii_strncasecmp(word, "MEGACO", 6) != 0 && !short_form){
         gint8 ber_class;
-        gboolean pc;
+        bool pc;
         gint32 tag;
         dissector_handle_t handle = data_handle;
 
@@ -1474,6 +1475,7 @@ nextcontext:
                     term = wmem_new0(wmem_packet_scope(), gcp_term_t);
                     wild_term = GCP_WILDCARD_NONE;
                     term->type = GCP_TERM_TYPE_UNKNOWN;
+                    int bytelen;
 
                     switch ( tempchar ){
 
@@ -1482,17 +1484,18 @@ nextcontext:
                             expert_add_info_format(pinfo, sub_ti, &ei_megaco_parse_error, "Parse error: Invalid TermID length (%d)", tokenlen+1);
                             return tvb_captured_length(tvb);
                         }
-                        tvb_get_nstringz0(tvb,tvb_offset,tokenlen+1,TermID);
+                        bytelen = tvb_get_raw_bytes_as_stringz(tvb,tvb_offset,tokenlen+1,TermID);
                         TermID[0] = 'e';
 
-                        term->len = tokenlen;
-                        term->str = (const gchar*)(term->buffer = TermID);
+                        term->buffer = get_utf_8_string(wmem_packet_scope(), TermID, bytelen);
+                        term->len = (int)strlen(term->buffer);
+                        term->str = (const char *)term->buffer;
 
                         gcp_cmd_add_term(msg, trx, cmd, term, wild_term, pinfo, keep_persistent_data);
 
                         /*** TERM ***/
                         proto_tree_add_string(megaco_tree_command_line, hf_megaco_termid, tvb,
-                            tvb_offset, tokenlen, TermID);
+                            tvb_offset, tokenlen, term->str);
                         break;
 
                     case '*':
@@ -2457,7 +2460,7 @@ dissect_megaco_servicechangedescriptor(tvbuff_t *tvb, packet_info* pinfo, proto_
             if ( tvb_current_offset == -1)
                 break;
 
-            tvb_get_nstringz0(tvb,tvb_current_offset,4,ServiceChangeReason_str);
+            tvb_get_raw_bytes_as_stringz(tvb,tvb_current_offset,4,ServiceChangeReason_str);
             reason_valid = ws_strtoi32(ServiceChangeReason_str, NULL, &reason);
             proto_item_append_text(item,"[ %s ]", val_to_str(reason, MEGACO_ServiceChangeReasons_vals,"Unknown (%u)"));
             if (!reason_valid)
@@ -2705,10 +2708,8 @@ dissect_megaco_topologydescriptor(tvbuff_t *tvb, proto_tree *megaco_tree_command
     gint    tokenlen;
 
     tokenlen =  (tvb_RBRKT+1) - tvb_previous_offset;
-    proto_tree_add_string(megaco_tree_command_line, hf_megaco_topology_descriptor, tvb,
-                            tvb_previous_offset, tokenlen,
-                            tvb_format_text_wsp(wmem_packet_scope(), tvb, tvb_previous_offset,
-                            tokenlen));
+    proto_tree_add_item(megaco_tree_command_line, hf_megaco_topology_descriptor, tvb,
+                            tvb_previous_offset, tokenlen, ENC_ASCII);
 
 }
 static void
@@ -2918,7 +2919,7 @@ dissect_megaco_errordescriptor(tvbuff_t *tvb, packet_info* pinfo, proto_tree *me
     error_tree = proto_item_add_subtree(item, ett_megaco_error_descriptor);
 
     /* Get the error code */
-    tvb_get_nstringz0(tvb,tvb_current_offset,4,error);
+    tvb_get_raw_bytes_as_stringz(tvb,tvb_current_offset,4,error);
     error_code_valid = ws_strtoi32(error, NULL, &error_code);
     item = proto_tree_add_uint(error_tree, hf_megaco_error_code, tvb, tvb_current_offset, 3, error_code);
     if (!error_code_valid)
@@ -3028,7 +3029,7 @@ dissect_megaco_LocalRemotedescriptor(tvbuff_t *tvb, proto_tree *megaco_mediadesc
 {
     gint tokenlen;
     tvbuff_t *next_tvb;
-    http_message_info_t message_info = { SIP_DATA, NULL, NULL, NULL };
+    media_content_info_t content_info = { MEDIA_CONTAINER_SIP_DATA, NULL, NULL, NULL };
 
     sdp_setup_info_t setup_info;
 
@@ -3042,7 +3043,7 @@ dissect_megaco_LocalRemotedescriptor(tvbuff_t *tvb, proto_tree *megaco_mediadesc
             setup_info.add_hidden = prefs_get_bool_value(sip_hide_generated_call_ids, pref_current);
         }
         setup_info.trace_id.num = context;
-        message_info.data = &setup_info;
+        content_info.data = &setup_info;
     }
 
     proto_tree  *megaco_localdescriptor_tree;
@@ -3060,7 +3061,7 @@ dissect_megaco_LocalRemotedescriptor(tvbuff_t *tvb, proto_tree *megaco_mediadesc
 
     if ( tokenlen > 3 ){
         next_tvb = tvb_new_subset_length(tvb, tvb_current_offset, tokenlen);
-        call_dissector_with_data(sdp_handle, next_tvb, pinfo, megaco_localdescriptor_tree, &message_info);
+        call_dissector_with_data(sdp_handle, next_tvb, pinfo, megaco_localdescriptor_tree, &content_info);
     }
 }
 
@@ -3274,7 +3275,7 @@ dissect_megaco_LocalControldescriptor(tvbuff_t *tvb, proto_tree *megaco_mediades
             break;
 
         case MEGACO_DS_DSCP:
-            tvb_get_nstringz0(tvb,tvb_current_offset,3,code_str);
+            tvb_get_raw_bytes_as_stringz(tvb,tvb_current_offset,3,code_str);
             item = proto_tree_add_uint(megaco_LocalControl_tree, hf_megaco_ds_dscp, tvb,
                 tvb_help_offset, 1, (guint32) strtoul(code_str,NULL,16));
             proto_item_set_len(item, tvb_offset-tvb_help_offset);
@@ -3753,7 +3754,7 @@ proto_register_megaco(void)
           { "Termination State Descriptor", "megaco.terminationstate", FT_NONE, BASE_NONE, NULL, 0x0,
             "Termination State Descriptor in Media Descriptor", HFILL }},
         { &hf_megaco_topology_descriptor,
-          { "Topology Descriptor", "megaco.topology", FT_STRING, BASE_NONE, NULL, 0x0,
+          { "Topology Descriptor", "megaco.topology", FT_STRING, BASE_STR_WSP, NULL, 0x0,
             "Topology Descriptor of the megaco Command", HFILL }},
         { &hf_megaco_transaction,
           { "Transaction", "megaco.transaction", FT_STRING, BASE_NONE, NULL, 0x0,

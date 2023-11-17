@@ -1765,7 +1765,7 @@ proto_register_atm(void)
       { "GFC",          "atm.GFC", FT_UINT8, BASE_DEC, NULL, 0xF0,
         NULL, HFILL }},
     { &hf_atm_vpi,
-      { "VPI",          "atm.vpi", FT_UINT8, BASE_DEC, NULL, 0x0,
+      { "VPI",          "atm.vpi", FT_UINT16, BASE_DEC, NULL, 0x0,
         NULL, HFILL }},
 
     { &hf_atm_vci,
@@ -1970,7 +1970,7 @@ proto_register_atm(void)
       { "Function-specific information", "atm.aal_oamcell.func_spec", FT_BYTES, BASE_NONE, NULL, 0x0,
         NULL, HFILL }},
     { &hf_atm_aal_oamcell_crc,
-      { "CRC-10", "atm.aal_oamcell.crc", FT_UINT16, BASE_HEX, NULL, 0x3FF,
+      { "CRC-10", "atm.aal_oamcell.crc", FT_UINT16, BASE_HEX, NULL, 0x03FF,
         NULL, HFILL }},
     { &hf_atm_padding,
       { "Padding", "atm.padding", FT_BYTES, BASE_NONE, NULL, 0x0,

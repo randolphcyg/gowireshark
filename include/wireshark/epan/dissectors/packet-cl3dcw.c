@@ -20,6 +20,7 @@
 void proto_register_cl3dcw(void);
 void proto_reg_handoff_cl3dcw(void);
 
+static dissector_handle_t cl3dcw_handle;
 #define SSID_MAX_LENGTH 32
 
 /* persistent handles for this dissector */
@@ -130,7 +131,7 @@ dissect_sta_ack(tvbuff_t * const tvb, packet_info * const pinfo, proto_tree * co
 
     /* add the data channel bond sub-tree item */
     bond_item = proto_tree_add_item(tree, hf_cl3dcw_dcbond, tvb, offset, 6, ENC_NA);
-    proto_item_append_text(bond_item, " -> \"%.*s\"", (guint)ssid_len, ssidbuf);
+    proto_item_append_text(bond_item, " -> \"%s\"", ssidbuf);
     proto_item_set_len(bond_item, 6 + 1 + ssid_len);
     bond_tree = proto_item_add_subtree(bond_item, ett_cl3dcw_dcbond);
 
@@ -143,8 +144,7 @@ dissect_sta_ack(tvbuff_t * const tvb, packet_info * const pinfo, proto_tree * co
      *     without printing it in the string... i suspect there is a better way of doing this
      */
     proto_tree_add_string_format(bond_tree, hf_cl3dcw_dcssid, tvb, offset, 1 + ssid_len,
-                                 "", "Data Channel SSID: %.*s",
-                                 (guint)ssid_len, ssidbuf);
+                                 "", "Data Channel SSID: %s", ssidbuf);
     offset += 1 + ssid_len;
   }
 
@@ -197,8 +197,7 @@ dissect_ap_accept_sta(tvbuff_t * const tvb, packet_info * const pinfo, proto_tre
      *     without printing it in the string... i suspect there is a better way of doing this
      */
     proto_tree_add_string_format(tree, hf_cl3dcw_dcssid, tvb, offset, 1 + ssid_len,
-                                 "", "Data Channel SSID: %.*s",
-                                 (guint)ssid_len, ssidbuf);
+                                 "", "Data Channel SSID: %s", ssidbuf);
     offset += 1 + ssid_len;
   }
 
@@ -319,23 +318,19 @@ proto_register_cl3dcw(void) {
 
   expert_module_t* expert_cl3dcw;
 
-  proto_cl3dcw = proto_register_protocol(
-    "CableLabs Dual-Channel Wi-Fi",  /* name */
-    "cl3dcw",                        /* short name */
-    "cl3dcw"                         /* abbrev */
-  );
+  proto_cl3dcw = proto_register_protocol("CableLabs Dual-Channel Wi-Fi", "cl3dcw", "cl3dcw");
 
   proto_register_field_array(proto_cl3dcw, hf, array_length(hf));
   proto_register_subtree_array(ett, array_length(ett));
   expert_cl3dcw = expert_register_protocol(proto_cl3dcw);
   expert_register_field_array(expert_cl3dcw, ei, array_length(ei));
+
+  cl3dcw_handle = register_dissector("cl3dcw", &dissect_cl3dcw, proto_cl3dcw);
 }
 
 /* hooks in our dissector to be called on matching CL3 (sub-)protocol id */
 void
 proto_reg_handoff_cl3dcw(void) {
-  dissector_handle_t cl3dcw_handle;
-  cl3dcw_handle = create_dissector_handle(&dissect_cl3dcw, proto_cl3dcw);
   dissector_add_uint("cl3.subprotocol", 0x00DC, cl3dcw_handle);
 }
 

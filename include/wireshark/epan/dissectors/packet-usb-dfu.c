@@ -53,6 +53,8 @@ static expert_field ei_descriptor_invalid_length = EI_INIT;
 static expert_field ei_invalid_command_for_request_type = EI_INIT;
 
 static dissector_handle_t usb_dfu_handle;
+static dissector_handle_t usf_dfu_descriptor_handle;
+
 
 static wmem_tree_t *command_info = NULL;
 
@@ -541,6 +543,7 @@ proto_register_usb_dfu(void)
     proto_register_field_array(proto_usb_dfu, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
     usb_dfu_handle = register_dissector("usb_dfu", dissect_usb_dfu, proto_usb_dfu);
+    usf_dfu_descriptor_handle = register_dissector("usb_dfu.descriptor", dissect_usb_dfu_descriptor, proto_usb_dfu);
 
     expert_module = expert_register_protocol(proto_usb_dfu);
     expert_register_field_array(expert_module, ei, array_length(ei));
@@ -551,14 +554,18 @@ proto_register_usb_dfu(void)
             "Version of protocol supported by this dissector.");
 }
 
+#define RUNTIME_KEY USB_PROTOCOL_KEY(IF_CLASS_APPLICATION_SPECIFIC, IF_SUBCLASS_APP_DFU, IF_PROTOCOL_DFU_RUNTIME)
+#define DFU_MODE_KEY USB_PROTOCOL_KEY(IF_CLASS_APPLICATION_SPECIFIC, IF_SUBCLASS_APP_DFU, IF_PROTOCOL_DFU_MODE)
+
 void
 proto_reg_handoff_usb_dfu(void)
 {
-    dissector_handle_t  usf_dfu_descriptor_handle;
-
-    usf_dfu_descriptor_handle = create_dissector_handle(dissect_usb_dfu_descriptor, proto_usb_dfu);
     dissector_add_uint("usb.descriptor", IF_CLASS_APPLICATION_SPECIFIC, usf_dfu_descriptor_handle);
 
+    dissector_add_uint("usb.control", RUNTIME_KEY, usb_dfu_handle);
+    dissector_add_uint("usb.control", DFU_MODE_KEY, usb_dfu_handle);
+
+    dissector_add_uint("usb.product", (0x05ac << 16) | 0x1227, usb_dfu_handle); /* Apple Inc. Mobile Device (DFU Mode) */
     dissector_add_uint("usb.product", (0x1d50 << 16) | 0x1db5, usb_dfu_handle); /* IDBG in DFU mode */
     dissector_add_uint("usb.product", (0x1d50 << 16) | 0x6001, usb_dfu_handle); /* Ubertooth Zero DFU */
     dissector_add_uint("usb.product", (0x1d50 << 16) | 0x6003, usb_dfu_handle); /* Ubertooth One DFU */

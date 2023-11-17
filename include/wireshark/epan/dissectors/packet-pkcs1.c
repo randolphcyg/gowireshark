@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-pkcs1.c                                                             */
-/* asn2wrs.py -b -p pkcs1 -c ./pkcs1.cnf -s ./packet-pkcs1-template -D . -O ../.. PKIXAlgs-2009.asn */
+/* asn2wrs.py -b -L -p pkcs1 -c ./pkcs1.cnf -s ./packet-pkcs1-template -D . -O ../.. PKIXAlgs-2009.asn */
 
-/* Input file: packet-pkcs1-template.c */
-
-#line 1 "./asn1/pkcs1/packet-pkcs1-template.c"
 /* packet-pkcs1.c
  * Routines for PKCS#1/RFC2313 packet dissection
  *  Ronnie Sahlberg 2004
@@ -36,9 +33,6 @@ void proto_reg_handoff_pkcs1(void);
 
 /* Initialize the protocol and registered fields */
 static int proto_pkcs1 = -1;
-
-/*--- Included file: packet-pkcs1-hf.c ---*/
-#line 1 "./asn1/pkcs1/packet-pkcs1-hf.c"
 static int hf_pkcs1_DSA_Params_PDU = -1;          /* DSA_Params */
 static int hf_pkcs1_DomainParameters_PDU = -1;    /* DomainParameters */
 static int hf_pkcs1_KEA_Params_Id_PDU = -1;       /* KEA_Params_Id */
@@ -76,13 +70,7 @@ static int hf_pkcs1_b = -1;                       /* FieldElement */
 static int hf_pkcs1_r = -1;                       /* INTEGER */
 static int hf_pkcs1_s = -1;                       /* INTEGER */
 
-/*--- End of included file: packet-pkcs1-hf.c ---*/
-#line 32 "./asn1/pkcs1/packet-pkcs1-template.c"
-
 /* Initialize the subtree pointers */
-
-/*--- Included file: packet-pkcs1-ett.c ---*/
-#line 1 "./asn1/pkcs1/packet-pkcs1-ett.c"
 static gint ett_pkcs1_RSAPublicKey = -1;
 static gint ett_pkcs1_DigestInfo = -1;
 static gint ett_pkcs1_DSA_Params = -1;
@@ -96,16 +84,10 @@ static gint ett_pkcs1_Curve = -1;
 static gint ett_pkcs1_DSA_Sig_Value = -1;
 static gint ett_pkcs1_ECDSA_Sig_Value = -1;
 
-/*--- End of included file: packet-pkcs1-ett.c ---*/
-#line 35 "./asn1/pkcs1/packet-pkcs1-template.c"
-
-
-/*--- Included file: packet-pkcs1-fn.c ---*/
-#line 1 "./asn1/pkcs1/packet-pkcs1-fn.c"
 
 
 static int
-dissect_pkcs1_INTEGER(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_INTEGER(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -120,7 +102,7 @@ static const ber_sequence_t RSAPublicKey_sequence[] = {
 };
 
 int
-dissect_pkcs1_RSAPublicKey(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_RSAPublicKey(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RSAPublicKey_sequence, hf_index, ett_pkcs1_RSAPublicKey);
 
@@ -130,7 +112,7 @@ dissect_pkcs1_RSAPublicKey(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int off
 
 
 static int
-dissect_pkcs1_DigestAlgorithmIdentifier(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_DigestAlgorithmIdentifier(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_x509af_AlgorithmIdentifier(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -139,7 +121,7 @@ dissect_pkcs1_DigestAlgorithmIdentifier(gboolean implicit_tag _U_, tvbuff_t *tvb
 
 
 static int
-dissect_pkcs1_Digest(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_Digest(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -154,7 +136,7 @@ static const ber_sequence_t DigestInfo_sequence[] = {
 };
 
 int
-dissect_pkcs1_DigestInfo(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_DigestInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DigestInfo_sequence, hf_index, ett_pkcs1_DigestInfo);
 
@@ -170,7 +152,7 @@ static const ber_sequence_t DSA_Params_sequence[] = {
 };
 
 static int
-dissect_pkcs1_DSA_Params(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_DSA_Params(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DSA_Params_sequence, hf_index, ett_pkcs1_DSA_Params);
 
@@ -181,7 +163,7 @@ dissect_pkcs1_DSA_Params(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offse
 
 
 static int
-dissect_pkcs1_BIT_STRING(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_BIT_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_bitstring(implicit_tag, actx, tree, tvb, offset,
                                     NULL, 0, hf_index, -1,
                                     NULL);
@@ -197,7 +179,7 @@ static const ber_sequence_t ValidationParams_sequence[] = {
 };
 
 static int
-dissect_pkcs1_ValidationParams(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_ValidationParams(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    ValidationParams_sequence, hf_index, ett_pkcs1_ValidationParams);
 
@@ -215,7 +197,7 @@ static const ber_sequence_t DomainParameters_sequence[] = {
 };
 
 static int
-dissect_pkcs1_DomainParameters(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_DomainParameters(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    DomainParameters_sequence, hf_index, ett_pkcs1_DomainParameters);
 
@@ -226,7 +208,7 @@ dissect_pkcs1_DomainParameters(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int
 
 
 static int
-dissect_pkcs1_KEA_Params_Id(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_KEA_Params_Id(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -236,7 +218,7 @@ dissect_pkcs1_KEA_Params_Id(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int of
 
 
 static int
-dissect_pkcs1_HashAlgorithm(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_HashAlgorithm(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_x509af_AlgorithmIdentifier(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -245,7 +227,7 @@ dissect_pkcs1_HashAlgorithm(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int of
 
 
 static int
-dissect_pkcs1_MaskGenAlgorithm(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_MaskGenAlgorithm(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_x509af_AlgorithmIdentifier(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
@@ -261,7 +243,7 @@ static const ber_sequence_t RSASSA_PSS_params_sequence[] = {
 };
 
 static int
-dissect_pkcs1_RSASSA_PSS_params(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_RSASSA_PSS_params(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    RSASSA_PSS_params_sequence, hf_index, ett_pkcs1_RSASSA_PSS_params);
 
@@ -271,7 +253,7 @@ dissect_pkcs1_RSASSA_PSS_params(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
 
 
 static int
-dissect_pkcs1_ECPoint(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_ECPoint(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -286,7 +268,7 @@ static const value_string pkcs1_ECPVer_vals[] = {
 
 
 static int
-dissect_pkcs1_ECPVer(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_ECPVer(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -296,7 +278,7 @@ dissect_pkcs1_ECPVer(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U
 
 
 static int
-dissect_pkcs1_T_fieldType(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_T_fieldType(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_object_identifier_str(implicit_tag, actx, tree, tvb, offset, hf_index, &actx->external.direct_reference);
 
   return offset;
@@ -305,10 +287,8 @@ dissect_pkcs1_T_fieldType(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offs
 
 
 static int
-dissect_pkcs1_T_parameters(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-#line 21 "./asn1/pkcs1/pkcs1.cnf"
+dissect_pkcs1_T_parameters(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = call_ber_oid_callback(actx->external.direct_reference, tvb, offset, actx->pinfo, tree, NULL);
-
 
 
   return offset;
@@ -322,7 +302,7 @@ static const ber_sequence_t FieldID_sequence[] = {
 };
 
 static int
-dissect_pkcs1_FieldID(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_FieldID(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    FieldID_sequence, hf_index, ett_pkcs1_FieldID);
 
@@ -332,7 +312,7 @@ dissect_pkcs1_FieldID(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
 
 
 static int
-dissect_pkcs1_FieldElement(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_FieldElement(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
@@ -348,7 +328,7 @@ static const ber_sequence_t Curve_sequence[] = {
 };
 
 static int
-dissect_pkcs1_Curve(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_Curve(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Curve_sequence, hf_index, ett_pkcs1_Curve);
 
@@ -367,7 +347,7 @@ static const ber_sequence_t SpecifiedECDomain_sequence[] = {
 };
 
 static int
-dissect_pkcs1_SpecifiedECDomain(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_SpecifiedECDomain(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    SpecifiedECDomain_sequence, hf_index, ett_pkcs1_SpecifiedECDomain);
 
@@ -377,7 +357,7 @@ dissect_pkcs1_SpecifiedECDomain(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
 
 
 static int
-dissect_pkcs1_OBJECT_IDENTIFIER(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_OBJECT_IDENTIFIER(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_object_identifier(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
 
   return offset;
@@ -397,7 +377,7 @@ static const ber_choice_t ECParameters_choice[] = {
 };
 
 static int
-dissect_pkcs1_ECParameters(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_ECParameters(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
                                  ECParameters_choice, hf_index, ett_pkcs1_ECParameters,
                                  NULL);
@@ -408,7 +388,7 @@ dissect_pkcs1_ECParameters(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int off
 
 
 static int
-dissect_pkcs1_Prime_p(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkcs1_Prime_p(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -470,17 +450,11 @@ static int dissect_Prime_p_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_
 }
 
 
-/*--- End of included file: packet-pkcs1-fn.c ---*/
-#line 37 "./asn1/pkcs1/packet-pkcs1-template.c"
-
 /*--- proto_register_pkcs1 ----------------------------------------------*/
 void proto_register_pkcs1(void) {
 
   /* List of fields */
   static hf_register_info hf[] = {
-
-/*--- Included file: packet-pkcs1-hfarr.c ---*/
-#line 1 "./asn1/pkcs1/packet-pkcs1-hfarr.c"
     { &hf_pkcs1_DSA_Params_PDU,
       { "DSA-Params", "pkcs1.DSA_Params_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -625,16 +599,10 @@ void proto_register_pkcs1(void) {
       { "s", "pkcs1.s",
         FT_INT32, BASE_DEC, NULL, 0,
         "INTEGER", HFILL }},
-
-/*--- End of included file: packet-pkcs1-hfarr.c ---*/
-#line 44 "./asn1/pkcs1/packet-pkcs1-template.c"
   };
 
   /* List of subtrees */
   static gint *ett[] = {
-
-/*--- Included file: packet-pkcs1-ettarr.c ---*/
-#line 1 "./asn1/pkcs1/packet-pkcs1-ettarr.c"
     &ett_pkcs1_RSAPublicKey,
     &ett_pkcs1_DigestInfo,
     &ett_pkcs1_DSA_Params,
@@ -647,9 +615,6 @@ void proto_register_pkcs1(void) {
     &ett_pkcs1_Curve,
     &ett_pkcs1_DSA_Sig_Value,
     &ett_pkcs1_ECDSA_Sig_Value,
-
-/*--- End of included file: packet-pkcs1-ettarr.c ---*/
-#line 49 "./asn1/pkcs1/packet-pkcs1-template.c"
   };
 
   /* Register protocol */
@@ -664,9 +629,6 @@ void proto_register_pkcs1(void) {
 
 /*--- proto_reg_handoff_pkcs1 -------------------------------------------*/
 void proto_reg_handoff_pkcs1(void) {
-
-/*--- Included file: packet-pkcs1-dis-tab.c ---*/
-#line 1 "./asn1/pkcs1/packet-pkcs1-dis-tab.c"
   register_ber_oid_dissector("1.2.840.10040.4.1", dissect_DSA_Params_PDU, proto_pkcs1, "id-dsa");
   register_ber_oid_dissector("1.2.840.10046.2.1", dissect_DomainParameters_PDU, proto_pkcs1, "dhpublicnumber");
   register_ber_oid_dissector("2.16.840.1.101.2.1.1.22", dissect_KEA_Params_Id_PDU, proto_pkcs1, "id-keyExchangeAlgorithm");
@@ -677,9 +639,6 @@ void proto_reg_handoff_pkcs1(void) {
   register_ber_oid_dissector("1.2.840.113549.1.1.8", dissect_HashAlgorithm_PDU, proto_pkcs1, "id-mgf1");
   register_ber_oid_dissector("1.2.840.10045.1.1", dissect_Prime_p_PDU, proto_pkcs1, "prime-field");
 
-
-/*--- End of included file: packet-pkcs1-dis-tab.c ---*/
-#line 64 "./asn1/pkcs1/packet-pkcs1-template.c"
 
 	register_ber_oid_dissector("1.2.840.113549.2.2", dissect_ber_oid_NULL_callback, proto_pkcs1, "md2");
 	register_ber_oid_dissector("1.2.840.113549.2.4", dissect_ber_oid_NULL_callback, proto_pkcs1, "md4");
@@ -705,6 +664,9 @@ void proto_reg_handoff_pkcs1(void) {
 
 	/* ECDSA SHA-1 algorithm from RFC 3279 */
 	register_ber_oid_dissector("1.2.840.10045.4.1", dissect_ber_oid_NULL_callback, proto_pkcs1, "ecdsa-with-SHA1");
+
+	/* SM2-with-SM3 from GM/T 0006 Cryptographic application identifier criterion specification */
+	register_ber_oid_dissector("1.2.156.10197.1.501", dissect_ber_oid_NULL_callback, proto_pkcs1, "SM2-with-SM3");
 
 	/* ECDSA SHA2 algorithms from X9.62, RFC5480, RFC 5758, RFC 5912 */
 	register_ber_oid_dissector("1.2.840.10045.4.3.1", dissect_ber_oid_NULL_callback, proto_pkcs1, "ecdsa-with-SHA224");
@@ -732,11 +694,17 @@ void proto_reg_handoff_pkcs1(void) {
 	oid_add_from_string("sect571k1","1.3.132.0.38");
 	oid_add_from_string("sect571r1","1.3.132.0.39");
 
+	/* SM2 from GM/T 0006 Cryptographic application identifier criterion specification */
+	oid_add_from_string("sm2","1.2.156.10197.1.301");
+
 	/* sha2 family, see RFC3447 and http://www.oid-info.com/get/2.16.840.1.101.3.4.2 */
 	oid_add_from_string("sha256", "2.16.840.1.101.3.4.2.1");
 	oid_add_from_string("sha384", "2.16.840.1.101.3.4.2.2");
 	oid_add_from_string("sha512", "2.16.840.1.101.3.4.2.3");
 	oid_add_from_string("sha224", "2.16.840.1.101.3.4.2.4");
+
+	/* SM3 from GM/T 0006 Cryptographic application identifier criterion specification */
+	oid_add_from_string("sm3","1.2.156.10197.1.401");
 
 	/* PQC digital signature algorithms from OQS-OpenSSL,
 		see https://github.com/open-quantum-safe/openssl/blob/OQS-OpenSSL_1_1_1-stable/oqs-template/oqs-sig-info.md */

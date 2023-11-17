@@ -26,6 +26,8 @@
 void proto_register_mrp_mmrp(void);
 void proto_reg_handoff_mrp_mmrp(void);
 
+static dissector_handle_t mmrp_handle;
+
 /* MMRP End Mark Sequence */
 #define MMRP_END_MARK       0x0000
 
@@ -112,6 +114,9 @@ static int * const vector_header_fields[] = {
 };
 
 static int hf_mmrp_first_value = -1; /* FirstValue is a group of fields */
+
+static int hf_mmrp_mac = -1;
+static int hf_mmrp_ser_req = -1;
 
 static int hf_mmrp_three_packed_event = -1;
 
@@ -206,8 +211,8 @@ dissect_mmrp_three_packed_event(proto_tree *vect_attr_tree, tvbuff_t *tvb, guint
 static int
 dissect_mmrp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
     /* Set up structures needed to add the protocol subtrees and manage them */
-    proto_item *ti, *msg_ti, *attr_list_ti, *vect_attr_ti;
-    proto_tree *mmrp_tree, *msg_tree, *attr_list_tree, *vect_attr_tree;
+    proto_item *ti, *msg_ti, *attr_list_ti, *vect_attr_ti, *first_value_ti;
+    proto_tree *mmrp_tree, *msg_tree, *attr_list_tree, *vect_attr_tree, *first_value_tree;
 
     /* Make entries in Protocol column and Info column on summary display */
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "MRP-MMRP");
@@ -298,24 +303,34 @@ dissect_mmrp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
                 if (attribute_type == MMRP_ATTRIBUTE_TYPE_MAC) {
                     /* MMRP FirstValue is a Mac Address*/
-                    proto_tree_add_item(vect_attr_tree, hf_mmrp_first_value, tvb,
+                    first_value_ti = proto_tree_add_item(vect_attr_tree, hf_mmrp_first_value, tvb,
                                         MMRP_FIRST_VALUE_GROUP_OFFSET + msg_offset + vect_offset,
                                         attribute_length, ENC_NA);
+                    first_value_tree = proto_item_add_subtree(first_value_ti, ett_first_value);
+
+                    /* Add MAC components to First Value tree */
+                    proto_tree_add_item(first_value_tree, hf_mmrp_mac, tvb,
+                                        MMRP_FIRST_VALUE_GROUP_OFFSET + msg_offset + vect_offset, 6, ENC_NA);
+
                     /* Decode three packed events. */
                     offset = dissect_mmrp_three_packed_event(vect_attr_tree, tvb,
                                                              MMRP_MAC_THREE_PACKED_OFFSET + msg_offset + vect_offset,
                                                              number_of_values);
-
                 }
                 else if (attribute_type == MMRP_ATTRIBUTE_TYPE_SERVICE) {
                     /* MMRP Service Requirement*/
-                    proto_tree_add_item(vect_attr_tree, hf_mmrp_first_value, tvb,
+                    first_value_ti = proto_tree_add_item(vect_attr_tree, hf_mmrp_first_value, tvb,
                                         MMRP_FIRST_VALUE_GROUP_OFFSET + msg_offset + vect_offset,
                                         attribute_length, ENC_NA);
+                    first_value_tree = proto_item_add_subtree(first_value_ti, ett_first_value);
+
+                    /* Add ServiceRequirement components to First Value tree */
+                    proto_tree_add_item(first_value_tree, hf_mmrp_ser_req, tvb,
+                                        MMRP_FIRST_VALUE_GROUP_OFFSET + msg_offset + vect_offset, 1, ENC_BIG_ENDIAN);
+
                     offset = dissect_mmrp_three_packed_event(vect_attr_tree, tvb,
                                                              MMRP_SERVICE_THREE_PACKED_OFFSET + msg_offset + vect_offset,
                                                              number_of_values);
-
                 }
 
                 vect_offset += vect_attr_len; /* Move to next Vector Attribute, if there is one */
@@ -323,9 +338,7 @@ dissect_mmrp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
             proto_tree_add_item(attr_list_tree, hf_mmrp_end_mark, tvb, offset, 2, ENC_BIG_ENDIAN); /* VectorAttribute EndMark */
 
-            proto_item_set_len(attr_list_ti, vect_offset); /*without an endmark*/
-            msg_offset += vect_offset + 2; /*  + endmark; Move to next Message, if there is one */
-            proto_item_set_len(msg_ti, vect_offset + 2); /*length of message*/
+            msg_offset += vect_offset + 2/* + VectorHeader */ + 2/* + endmark */;
 
         } /* Multiple Message while() */
 
@@ -380,6 +393,14 @@ proto_register_mrp_mmrp(void)
             { "First Value",           "mrp-mmrp.first_value",
               FT_NONE,  BASE_NONE, NULL, 0x0, NULL, HFILL }
         },
+        { &hf_mmrp_mac,
+            { "MAC",                   "mrp-mmrp.mac",
+              FT_ETHER,  BASE_NONE, NULL, 0x00, NULL, HFILL }
+        },
+        { &hf_mmrp_ser_req,
+            { "Service Requirement",   "mrp-mmrp.service_requirement",
+              FT_UINT8, BASE_DEC,  NULL, 0x0, NULL, HFILL }
+        },
         { &hf_mmrp_three_packed_event,
             { "Attribute Event",       "mrp-mmrp.three_packed_event",
               FT_UINT8, BASE_DEC,  VALS(three_packed_vals), 0x0, NULL, HFILL }
@@ -407,14 +428,14 @@ proto_register_mrp_mmrp(void)
     /* Required function calls to register the header fields and subtrees used */
     proto_register_field_array(proto_mmrp, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
+
+    /* Register the dissector */
+    mmrp_handle = register_dissector("mrp-mmrp", dissect_mmrp, proto_mmrp);
 }
 
 void
 proto_reg_handoff_mrp_mmrp(void)
 {
-    dissector_handle_t mmrp_handle;
-
-    mmrp_handle = create_dissector_handle(dissect_mmrp, proto_mmrp);
     dissector_add_uint("ethertype", ETHERTYPE_MMRP, mmrp_handle);
 }
 

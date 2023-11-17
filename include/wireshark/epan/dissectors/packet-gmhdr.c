@@ -27,6 +27,8 @@
 void proto_register_gmhdr(void);
 void proto_reg_handoff_gmhdr(void);
 
+static dissector_handle_t gmhdr_handle;
+
 #define GMHDR_FTYPE_PKTSIZE             1
 #define GMHDR_FTYPE_SRCPORT_G           2
 #define GMHDR_FTYPE_TIMESTAMP_LOCAL     3
@@ -44,10 +46,10 @@ static const value_string gmhdr_ftype_timestamp[] = {
   { 0,                           NULL }
 };
 
-#define GMHDR_SRCPORT_G_PLFM_MASK   0x00f80000
-#define GMHDR_SRCPORT_G_GID_MASK    0x00078000
-#define GMHDR_SRCPORT_G_BID_MASK    0x00007c00
-#define GMHDR_SRCPORT_G_PID_MASK    0x000003ff
+#define GMHDR_SRCPORT_G_PLFM_MASK   0xf80000
+#define GMHDR_SRCPORT_G_GID_MASK    0x078000
+#define GMHDR_SRCPORT_G_BID_MASK    0x007c00
+#define GMHDR_SRCPORT_G_PID_MASK    0x0003ff
 #define GMHDR_SRCPORT_G_PLFM_SHFT   19
 #define GMHDR_SRCPORT_G_GID_SHFT    15
 #define GMHDR_SRCPORT_G_BID_SHFT    10
@@ -490,6 +492,7 @@ proto_register_gmhdr(void)
   proto_register_subtree_array(ett, array_length(ett));
   expert_gmhdr = expert_register_protocol(proto_gmhdr);
   expert_register_field_array(expert_gmhdr, ei, array_length(ei));
+  gmhdr_handle = register_dissector("gmhdr", dissect_gmhdr, proto_gmhdr);
 
   proto_gmtrailer = proto_register_protocol("Gigamon Trailer", "GMTRAILER", "gmtrailer");
   proto_register_field_array(proto_gmtrailer, gmtrailer_hf, array_length(gmtrailer_hf));
@@ -515,11 +518,8 @@ proto_register_gmhdr(void)
 void
 proto_reg_handoff_gmhdr(void)
 {
-  dissector_handle_t gmhdr_handle;
-
   ethertype_handle = find_dissector_add_dependency("ethertype", proto_gmhdr);
 
-  gmhdr_handle = create_dissector_handle(dissect_gmhdr, proto_gmhdr);
   dissector_add_uint("ethertype", ETHERTYPE_GIGAMON, gmhdr_handle);
   heur_dissector_add("eth.trailer", dissect_gmtrailer, "Gigamon Ethernet header", "gmhdr_eth", proto_gmhdr, HEURISTIC_ENABLE);
 

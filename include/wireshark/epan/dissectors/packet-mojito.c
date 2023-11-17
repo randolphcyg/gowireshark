@@ -19,6 +19,8 @@
 void proto_register_mojito(void);
 void proto_reg_handoff_mojito(void);
 
+static dissector_handle_t mojito_handle;
+
 #define MOJITO_HEADER_LENGTH    38
 
 /* All the Defines for OpCodes */
@@ -286,7 +288,7 @@ dissect_mojito_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 	offset += 4;
 
 	header_data->opcode = tvb_get_guint8(tvb, offset);
-	col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str_const(header_data->opcode, opcodeflags, "Unknown"));
+	col_add_str(pinfo->cinfo, COL_INFO, val_to_str_const(header_data->opcode, opcodeflags, "Unknown"));
 	proto_tree_add_item(header_tree, hf_mojito_opcode, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset += 1;
 
@@ -1006,15 +1008,14 @@ proto_register_mojito(void)
 	proto_register_subtree_array(ett, array_length(ett));
 	expert_mojito = expert_register_protocol(proto_mojito);
 	expert_register_field_array(expert_mojito, ei, array_length(ei));
+
+	mojito_handle = register_dissector("mojito", dissect_mojito, proto_mojito);
 }
 
 /* Control the handoff */
 void
 proto_reg_handoff_mojito(void)
 {
-	dissector_handle_t mojito_handle;
-
-	mojito_handle = create_dissector_handle(dissect_mojito, proto_mojito);
 	heur_dissector_add("udp", dissect_mojito_heuristic, "Mojito over UDP", "mojito_udp", proto_mojito, HEURISTIC_ENABLE);
 	dissector_add_for_decode_as_with_preference("udp.port", mojito_handle);
 }

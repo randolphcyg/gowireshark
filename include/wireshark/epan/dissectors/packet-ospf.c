@@ -68,6 +68,9 @@
 void proto_register_ospf(void);
 void proto_reg_handoff_ospf(void);
 
+static dissector_handle_t ospf_handle;
+static capture_dissector_handle_t ospf_cap_handle;
+
 #define OSPF_VERSION_2 2
 #define OSPF_VERSION_3 3
 #define OSPF_AF_4 4
@@ -117,15 +120,15 @@ static const value_string auth_vals[] = {
 #define OSPF_V2_OPTIONS_DC              0x20
 #define OSPF_V2_OPTIONS_O               0x40
 #define OSPF_V2_OPTIONS_DN              0x80
-#define OSPF_V3_OPTIONS_V6              0x01
-#define OSPF_V3_OPTIONS_E               0x02
-#define OSPF_V3_OPTIONS_MC              0x04
-#define OSPF_V3_OPTIONS_N               0x08
-#define OSPF_V3_OPTIONS_R               0x10
-#define OSPF_V3_OPTIONS_DC              0x20
-#define OSPF_V3_OPTIONS_AF              0x0100
-#define OSPF_V3_OPTIONS_L               0x0200
-#define OSPF_V3_OPTIONS_AT              0x0400
+#define OSPF_V3_OPTIONS_V6              0x000001
+#define OSPF_V3_OPTIONS_E               0x000002
+#define OSPF_V3_OPTIONS_MC              0x000004
+#define OSPF_V3_OPTIONS_N               0x000008
+#define OSPF_V3_OPTIONS_R               0x000010
+#define OSPF_V3_OPTIONS_DC              0x000020
+#define OSPF_V3_OPTIONS_AF              0x000100
+#define OSPF_V3_OPTIONS_L               0x000200
+#define OSPF_V3_OPTIONS_AT              0x000400
 
 /* Bitmask definitions for the informational capabilities bits. */
 #define OSPF_RI_OPTIONS_GRC             0x80
@@ -350,7 +353,7 @@ static const value_string ls_type_vals[] = {
 static const value_string ls_opaque_type_vals[] = {
     {OSPF_LSA_MPLS_TE,      "Traffic Engineering LSA"                   },
     {OSPF_LSA_SYCAMORE,     "Sycamore Optical Topology Descriptions"    },
-    {OSPF_LSA_GRACE,        "grace-LSA"                                 },
+    {OSPF_LSA_GRACE,        "Grace-LSA"                                 },
     {OSPF_LSA_OPAQUE_RI,    "Router Information (RI)"                   },
     {OSPF_LSA_L1VPN,        "L1VPN LSA"                                 },
     {OSPF_LSA_IAS_TE_V2,    "Inter-AS-TE-v2 LSA"                        },
@@ -469,6 +472,7 @@ static const true_false_string tfs_arbitrary_standard = { "Arbitrary", "Standard
 #define OSPF_V2_ROUTER_LSA_FLAG_V 0x04
 #define OSPF_V2_ROUTER_LSA_FLAG_W 0x08
 #define OSPF_V2_ROUTER_LSA_FLAG_N 0x10
+#define OSPF_V2_ROUTER_LSA_FLAG_S 0x20
 #define OSPF_V2_ROUTER_LSA_FLAG_H 0x80
 #define OSPF_V3_ROUTER_LSA_FLAG_B 0x01
 #define OSPF_V3_ROUTER_LSA_FLAG_E 0x02
@@ -885,6 +889,7 @@ static int hf_ospf_v2_router_lsa_flag_e = -1;
 static int hf_ospf_v2_router_lsa_flag_v = -1;
 static int hf_ospf_v2_router_lsa_flag_w = -1;
 static int hf_ospf_v2_router_lsa_flag_n = -1;
+static int hf_ospf_v2_router_lsa_flag_s = -1;
 static int hf_ospf_v2_router_lsa_flag_h = -1;
 static int hf_ospf_v3_router_lsa_flag = -1;
 static int hf_ospf_v3_router_lsa_flag_b = -1;
@@ -1135,6 +1140,7 @@ static int * const bf_v3_lls_relay_options[] = {
 };
 static int * const bf_v2_router_lsa_flags[] = {
     &hf_ospf_v2_router_lsa_flag_h,
+    &hf_ospf_v2_router_lsa_flag_s,
     &hf_ospf_v2_router_lsa_flag_n,
     &hf_ospf_v2_router_lsa_flag_w,
     &hf_ospf_v2_router_lsa_flag_v,
@@ -2724,10 +2730,10 @@ dissect_ospf_lsa_mpls(tvbuff_t *tvb, packet_info *pinfo, int offset, proto_tree 
                 default:
                     stlv_tree = proto_tree_add_subtree_format(tlv_tree, tvb, stlv_offset, stlv_len+4,
                                              ett_ospf_lsa_mpls_link_stlv, NULL, "Unknown Link sub-TLV: %u %s", stlv_type,
-                                             rval_to_str(stlv_type, mpls_te_sub_tlv_rvals, "Unknown"));
+                                             rval_to_str_const(stlv_type, mpls_te_sub_tlv_rvals, "Unknown"));
                     proto_tree_add_uint_format_value(stlv_tree, hf_ospf_tlv_type, tvb, stlv_offset, 2,
                                         stlv_type, "%u: %s %s", stlv_type, stlv_name,
-                                        rval_to_str(stlv_type, mpls_te_sub_tlv_rvals, "Unknown"));
+                                        rval_to_str_const(stlv_type, mpls_te_sub_tlv_rvals, "Unknown"));
                     proto_tree_add_item(stlv_tree, hf_ospf_tlv_length, tvb, stlv_offset+2, 2, ENC_BIG_ENDIAN);
                     proto_tree_add_item(stlv_tree, hf_ospf_tlv_value, tvb, stlv_offset+4, stlv_len, ENC_NA);
                     break;
@@ -2813,9 +2819,9 @@ dissect_ospf_lsa_mpls(tvbuff_t *tvb, packet_info *pinfo, int offset, proto_tree 
         default:
             tlv_tree = proto_tree_add_subtree_format(mpls_tree, tvb, offset, tlv_length+4,
                                      ett_ospf_lsa_mpls_link, NULL, "Unknown LSA: %u %s", tlv_type,
-                                     rval_to_str(tlv_type, mpls_te_tlv_rvals, "Unknown"));
+                                     rval_to_str_const(tlv_type, mpls_te_tlv_rvals, "Unknown"));
             proto_tree_add_uint_format_value(tlv_tree, hf_ospf_tlv_type, tvb, offset, 2, tlv_type, "%u - Unknown %s",
-                                tlv_type, rval_to_str(tlv_type, mpls_te_tlv_rvals, "Unknown"));
+                                tlv_type, rval_to_str_const(tlv_type, mpls_te_tlv_rvals, "Unknown"));
             proto_tree_add_item(tlv_tree, hf_ospf_tlv_length, tvb, offset+2, 2, ENC_BIG_ENDIAN);
             proto_tree_add_item(tlv_tree, hf_ospf_tlv_value, tvb, offset+4, tlv_length, ENC_NA);
             break;
@@ -4248,6 +4254,7 @@ dissect_ospf_v3_lsa(tvbuff_t *tvb, packet_info *pinfo, int offset, proto_tree *t
 
     case OSPF_V3_LSTYPE_OPAQUE_RI:
         dissect_ospf_lsa_opaque_ri(tvb, pinfo, offset, ospf_lsa_tree, ls_length);
+        offset += ls_length;
         break;
 
     default:
@@ -4434,7 +4441,7 @@ proto_register_ospf(void)
 
         /* LS Types */
         {&hf_ospf_ls_type,
-         { "LS Type", "ospf.lsa", FT_UINT8, BASE_DEC,
+         { "LS Type", "ospf.lsa", FT_UINT32, BASE_DEC,
            VALS(ls_type_vals), 0x0, NULL, HFILL }},
         {&hf_ospf_ls_age,
          {"LS Age (seconds)", "ospf.lsa.age", FT_UINT16,
@@ -4655,7 +4662,7 @@ proto_register_ospf(void)
          { "(DC) Demand Circuits", "ospf.v2.options.dc", FT_BOOLEAN, 8,
            TFS(&tfs_supported_not_supported), OSPF_V2_OPTIONS_DC, NULL, HFILL }},
         {&hf_ospf_v2_options_o,
-         { "O", "ospf.v2.options.o", FT_BOOLEAN, 8,
+         { "(O) Opaque", "ospf.v2.options.o", FT_BOOLEAN, 8,
            TFS(&tfs_set_notset), OSPF_V2_OPTIONS_O, NULL, HFILL }},
         {&hf_ospf_v2_options_dn,
          { "DN", "ospf.v2.options.dn", FT_BOOLEAN, 8,
@@ -4760,10 +4767,13 @@ proto_register_ospf(void)
          { "(W) Wild-card multicast receiver", "ospf.v2.router.lsa.flags.w", FT_BOOLEAN, 8,
            TFS(&tfs_yes_no), OSPF_V2_ROUTER_LSA_FLAG_W, NULL, HFILL }},
         {&hf_ospf_v2_router_lsa_flag_n,
-         { "(N) flag", "ospf.v2.router.lsa.flags.n", FT_BOOLEAN, 8,
+         { "(N) NSSA translation", "ospf.v2.router.lsa.flags.n", FT_BOOLEAN, 8,
            TFS(&tfs_yes_no), OSPF_V2_ROUTER_LSA_FLAG_N, NULL, HFILL }},
+        {&hf_ospf_v2_router_lsa_flag_s,
+         { "(S) Shortcut-capable ABR", "ospf.v2.router.lsa.flags.s", FT_BOOLEAN, 8,
+           TFS(&tfs_yes_no), OSPF_V2_ROUTER_LSA_FLAG_S, NULL, HFILL }},
         {&hf_ospf_v2_router_lsa_flag_h,
-         { "(H) flag", "ospf.v2.router.lsa.flags.h", FT_BOOLEAN, 8,
+         { "(H) Host", "ospf.v2.router.lsa.flags.h", FT_BOOLEAN, 8,
            TFS(&tfs_yes_no), OSPF_V2_ROUTER_LSA_FLAG_H, NULL, HFILL }},
         {&hf_ospf_v3_router_lsa_flag,
          { "Flags", "ospf.v3.router.lsa.flags", FT_UINT8, BASE_HEX,
@@ -4864,7 +4874,7 @@ proto_register_ospf(void)
         {&hf_ospf_ls_epfx_stlv,
          { "TLV Type", "ospf.tlv.extpfx.subtlv_type", FT_UINT16, BASE_DEC, VALS(ext_pfx_stlv_type_vals), 0x0, NULL, HFILL }},
         {&hf_ospf_ls_epfx_route_type,
-         { "Route Type", "ospf.tlv.extpfx.rotuetype", FT_UINT16, BASE_DEC, VALS(ext_pfx_tlv_route_vals), 0x0, NULL, HFILL }},
+         { "Route Type", "ospf.tlv.extpfx.routetype", FT_UINT16, BASE_DEC, VALS(ext_pfx_tlv_route_vals), 0x0, NULL, HFILL }},
         {&hf_ospf_ls_epfx_af,
          { "Address Family", "ospf.tlv.extpfx.af", FT_UINT8, BASE_DEC, VALS(ext_pfx_tlv_af_vals), 0x0, NULL, HFILL }},
 
@@ -5131,7 +5141,7 @@ proto_register_ospf(void)
       { &hf_ospf_ls_id_te_lsa_reserved, { "Link State ID TE-LSA Reserved", "ospf.lsid_te_lsa.reserved", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_ospf_ls_id_opaque_id, { "Link State ID Opaque ID", "ospf.lsid.opaque_id", FT_UINT24, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_ospf_lsa_number_of_links, { "Number of Links", "ospf.lsa.number_of_links", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-      { &hf_ospf_v3_lsa_do_not_age, { "Do Not Age", "ospf.v3.lsa.do_not_age", FT_BOOLEAN, 16, TFS(&tfs_true_false), OSPF_DNA_LSA, NULL, HFILL }},
+      { &hf_ospf_v3_lsa_do_not_age, { "Do Not Age", "ospf.v3.lsa.do_not_age", FT_BOOLEAN, 16, NULL, OSPF_DNA_LSA, NULL, HFILL }},
       { &hf_ospf_v3_lsa_interface_id, { "Interface ID", "ospf.v3.lsa.interface_id", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_ospf_v3_lsa_neighbor_interface_id, { "Neighbor Interface ID", "ospf.v3.lsa.neighbor_interface_id", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_ospf_v3_lsa_neighbor_router_id, { "Neighbor Router ID", "ospf.v3.lsa.neighbor_router_id", FT_IPv4, BASE_NONE, NULL, 0x0, NULL, HFILL }},
@@ -5255,6 +5265,8 @@ proto_register_ospf(void)
 
     proto_ospf = proto_register_protocol("Open Shortest Path First",
                                          "OSPF", "ospf");
+    ospf_handle = register_dissector("ospf", dissect_ospf, proto_ospf);
+    ospf_cap_handle = register_capture_dissector("ospf", capture_ospf, proto_ospf);
     proto_register_field_array(proto_ospf, ospff_info, array_length(ospff_info));
     proto_register_subtree_array(ett, array_length(ett));
     expert_ospf = expert_register_protocol(proto_ospf);
@@ -5264,12 +5276,7 @@ proto_register_ospf(void)
 void
 proto_reg_handoff_ospf(void)
 {
-    dissector_handle_t ospf_handle;
-    capture_dissector_handle_t ospf_cap_handle;
-
-    ospf_handle = create_dissector_handle(dissect_ospf, proto_ospf);
     dissector_add_uint("ip.proto", IP_PROTO_OSPF, ospf_handle);
-    ospf_cap_handle = create_capture_dissector_handle(capture_ospf, proto_ospf);
     capture_dissector_add_uint("ip.proto", IP_PROTO_OSPF, ospf_cap_handle);
 }
 

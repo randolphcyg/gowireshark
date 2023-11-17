@@ -86,18 +86,20 @@ static int hf_camel_CAMEL_CallResult = -1;
 
 /* Used by persistent data */
 static int hf_camelsrt_SessionId=-1;
-static int hf_camelsrt_RequestNumber=-1;
+//static int hf_camelsrt_RequestNumber=-1;
 static int hf_camelsrt_Duplicate=-1;
 static int hf_camelsrt_RequestFrame=-1;
 static int hf_camelsrt_ResponseFrame=-1;
-static int hf_camelsrt_DeltaTime=-1;
-static int hf_camelsrt_SessionTime=-1;
+//static int hf_camelsrt_DeltaTime=-1;
+//static int hf_camelsrt_SessionTime=-1;
 static int hf_camelsrt_DeltaTime31=-1;
 static int hf_camelsrt_DeltaTime75=-1;
 static int hf_camelsrt_DeltaTime65=-1;
 static int hf_camelsrt_DeltaTime22=-1;
 static int hf_camelsrt_DeltaTime35=-1;
 static int hf_camelsrt_DeltaTime80=-1;
+static int hf_camel_timeandtimezone_time = -1;
+static int hf_camel_timeandtimezone_tz = -1;
 
 #include "packet-camel-hf.c"
 
@@ -107,11 +109,11 @@ static struct camelsrt_info_t * gp_camelsrt_info;
 static int dissect_invokeData(proto_tree *tree, tvbuff_t *tvb, int offset,asn1_ctx_t *actx);
 static int dissect_returnResultData(proto_tree *tree, tvbuff_t *tvb, int offset,asn1_ctx_t *actx);
 static int dissect_returnErrorData(proto_tree *tree, tvbuff_t *tvb, int offset,asn1_ctx_t *actx);
-static int dissect_camel_CAMEL_AChBillingChargingCharacteristics(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
-static int dissect_camel_CAMEL_AChBillingChargingCharacteristicsV2(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
-static int dissect_camel_CAMEL_CallResult(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
-static int dissect_camel_EstablishTemporaryConnectionArgV2(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
-static int dissect_camel_SpecializedResourceReportArgV23(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
+static int dissect_camel_CAMEL_AChBillingChargingCharacteristics(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
+static int dissect_camel_CAMEL_AChBillingChargingCharacteristicsV2(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
+static int dissect_camel_CAMEL_CallResult(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
+static int dissect_camel_EstablishTemporaryConnectionArgV2(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
+static int dissect_camel_SpecializedResourceReportArgV23(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
 
 /* XXX - can we get rid of these and always do the SRT work? */
 static gboolean gcamel_PersistentSRT=FALSE;
@@ -140,12 +142,15 @@ static gint ett_camel_dTMFDigitsCompleted = -1;
 static gint ett_camel_dTMFDigitsTimeOut = -1;
 static gint ett_camel_number = -1;
 static gint ett_camel_digitsResponse = -1;
+static gint ett_camel_timeandtimezone = -1;
 
 #include "packet-camel-ett.c"
 
 static expert_field ei_camel_unknown_invokeData = EI_INIT;
 static expert_field ei_camel_unknown_returnResultData = EI_INIT;
 static expert_field ei_camel_unknown_returnErrorData = EI_INIT;
+static expert_field ei_camel_par_wrong_length = EI_INIT;
+static expert_field ei_camel_bcd_not_digit = EI_INIT;
 
 /* Preference settings default */
 #define MAX_SSN 254
@@ -399,7 +404,7 @@ dissect_RP_cause_ie(tvbuff_t *tvb, guint32 offset, _U_ guint len,
   return(curr_offset - offset);
 }
 
-static int dissect_camel_InitialDPArgExtensionV2(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
+static int dissect_camel_InitialDPArgExtensionV2(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
 
 #include "packet-camel-fn.c"
 
@@ -1053,7 +1058,7 @@ static guint8 camel_pdu_size = 0;
 
 
 static int
-dissect_camel_camelPDU(gboolean implicit_tag _U_, tvbuff_t *tvb, int offset, asn1_ctx_t *actx _U_,proto_tree *tree,
+dissect_camel_camelPDU(bool implicit_tag _U_, tvbuff_t *tvb, int offset, asn1_ctx_t *actx _U_,proto_tree *tree,
                         int hf_index, struct tcap_private_t * p_private_tcap) {
 
     opcode = 0;
@@ -1375,12 +1380,12 @@ void proto_register_camel(void) {
         FT_UINT32, BASE_DEC, NULL, 0x0,
         NULL, HFILL }
     },
-    { &hf_camelsrt_RequestNumber,
-      { "Request Number",
-        "camel.srt.request_number",
-        FT_UINT64, BASE_DEC, NULL, 0x0,
-        NULL, HFILL }
-    },
+    //{ &hf_camelsrt_RequestNumber,
+    //  { "Request Number",
+    //    "camel.srt.request_number",
+    //    FT_UINT64, BASE_DEC, NULL, 0x0,
+    //    NULL, HFILL }
+    //},
     { &hf_camelsrt_Duplicate,
       { "Request Duplicate",
         "camel.srt.duplicate",
@@ -1399,18 +1404,18 @@ void proto_register_camel(void) {
         FT_FRAMENUM, BASE_NONE, NULL, 0x0,
         "SRT Response Frame", HFILL }
     },
-    { &hf_camelsrt_DeltaTime,
-      { "Service Response Time",
-        "camel.srt.deltatime",
-        FT_RELATIVE_TIME, BASE_NONE, NULL, 0x0,
-        "DeltaTime between Request and Response", HFILL }
-    },
-    { &hf_camelsrt_SessionTime,
-      { "Session duration",
-        "camel.srt.sessiontime",
-        FT_RELATIVE_TIME, BASE_NONE, NULL, 0x0,
-        "Duration of the TCAP session", HFILL }
-    },
+    //{ &hf_camelsrt_DeltaTime,
+    //  { "Service Response Time",
+    //    "camel.srt.deltatime",
+    //    FT_RELATIVE_TIME, BASE_NONE, NULL, 0x0,
+    //    "DeltaTime between Request and Response", HFILL }
+    //},
+    //{ &hf_camelsrt_SessionTime,
+    //  { "Session duration",
+    //    "camel.srt.sessiontime",
+    //    FT_RELATIVE_TIME, BASE_NONE, NULL, 0x0,
+    //    "Duration of the TCAP session", HFILL }
+    //},
     { &hf_camelsrt_DeltaTime31,
       { "Service Response Time",
         "camel.srt.deltatime31",
@@ -1447,7 +1452,18 @@ void proto_register_camel(void) {
         FT_RELATIVE_TIME, BASE_NONE, NULL, 0x0,
         "DeltaTime between EventReportGPRS and ContinueGPRS", HFILL }
     },
-
+    { &hf_camel_timeandtimezone_time,
+      { "Time",
+        "camel.timeandtimezone.time",
+        FT_STRING, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_camel_timeandtimezone_tz,
+      { "Time Zone",
+        "camel.timeandtimezone.timezone",
+        FT_INT8, BASE_DEC, NULL, 0x0,
+        "Difference, expressed in quarters of an hour, between local time and GMT", HFILL }
+    },
 #ifdef REMOVED
 #endif
 #include "packet-camel-hfarr.c"
@@ -1476,6 +1492,7 @@ void proto_register_camel(void) {
     &ett_camel_dTMFDigitsTimeOut,
     &ett_camel_number,
     &ett_camel_digitsResponse,
+    &ett_camel_timeandtimezone,
 
 #include "packet-camel-ettarr.c"
   };
@@ -1484,6 +1501,8 @@ void proto_register_camel(void) {
      { &ei_camel_unknown_invokeData, { "camel.unknown.invokeData", PI_MALFORMED, PI_WARN, "Unknown invokeData", EXPFILL }},
      { &ei_camel_unknown_returnResultData, { "camel.unknown.returnResultData", PI_MALFORMED, PI_WARN, "Unknown returnResultData", EXPFILL }},
      { &ei_camel_unknown_returnErrorData, { "camel.unknown.returnErrorData", PI_MALFORMED, PI_WARN, "Unknown returnResultData", EXPFILL }},
+     { &ei_camel_par_wrong_length, { "camel.par_wrong_length", PI_PROTOCOL, PI_ERROR, "Wrong length of parameter", EXPFILL }},
+     { &ei_camel_bcd_not_digit, { "camel.bcd_not_digit", PI_MALFORMED, PI_WARN, "BCD number contains a value that is not a digit", EXPFILL }},
   };
 
   expert_module_t* expert_camel;

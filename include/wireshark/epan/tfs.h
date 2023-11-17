@@ -38,11 +38,12 @@ typedef struct true_false_string {
  */
 WS_DLL_PUBLIC const char *tfs_get_string(gboolean value, const true_false_string *tfs);
 
+#define tfs_get_true_false(value)   tfs_get_string(value, NULL)
+
 /*
  * A default set of true/false strings that dissectors can use for
- * FT_BOOLEAN header fields.
+ * FT_BOOLEAN header fields. By default { "True", "False" } is used.
  */
-WS_DLL_PUBLIC const true_false_string tfs_true_false;
 WS_DLL_PUBLIC const true_false_string tfs_yes_no;
 WS_DLL_PUBLIC const true_false_string tfs_no_yes;
 WS_DLL_PUBLIC const true_false_string tfs_set_notset;
@@ -58,6 +59,7 @@ WS_DLL_PUBLIC const true_false_string tfs_odd_even;
 WS_DLL_PUBLIC const true_false_string tfs_allow_block;
 WS_DLL_PUBLIC const true_false_string tfs_restricted_allowed;
 WS_DLL_PUBLIC const true_false_string tfs_restricted_not_restricted;
+WS_DLL_PUBLIC const true_false_string tfs_not_restricted_restricted;
 WS_DLL_PUBLIC const true_false_string tfs_accept_reject;
 WS_DLL_PUBLIC const true_false_string tfs_more_nomore;
 WS_DLL_PUBLIC const true_false_string tfs_present_absent;
@@ -127,6 +129,7 @@ WS_DLL_PUBLIC const true_false_string tfs_add_drop;
 WS_DLL_PUBLIC const true_false_string tfs_no_extension_extension;
 WS_DLL_PUBLIC const true_false_string tfs_user_provider;
 WS_DLL_PUBLIC const true_false_string tfs_applicable_not_applicable;
+WS_DLL_PUBLIC const true_false_string tfs_current_not_yet;
 
 #ifdef __cplusplus
 }

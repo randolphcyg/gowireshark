@@ -60,8 +60,8 @@
 #include <epan/addr_resolv.h>
 #include <epan/wmem_scopes.h>
 #include <epan/conversation.h>
-#include <epan/dissectors/packet-tcp.h>
-#include <epan/dissectors/packet-rtps.h>
+#include "packet-tcp.h"
+#include "packet-rtps.h"
 
 
 #define PARAM_ID_ADVANCED_FRAME0               0x000C1
@@ -420,10 +420,7 @@ proto_register_rtps_processed(void)
     };
 
   /* Register the protocol name and description */
-    rtpsproc_tree = proto_register_protocol(
-            "Real-Time Publish-Subscribe Wire Protocol (processed)",
-            "RTPS-PROC",
-            "rtpsproc");
+    rtpsproc_tree = proto_register_protocol("Real-Time Publish-Subscribe Wire Protocol (processed)", "RTPS-PROC", "rtpsproc");
 
     /* Required function calls to register the header fields and subtrees */
     rtpsproc_hf = proto_registrar_get_nth(rtpsproc_tree);

@@ -29,7 +29,7 @@ endif()
 
 add_custom_command(
 	OUTPUT ps.c
-	COMMAND ${PYTHON_EXECUTABLE}
+	COMMAND ${Python3_EXECUTABLE}
 		${CMAKE_SOURCE_DIR}/tools/rdps.py
 		${CMAKE_CURRENT_SOURCE_DIR}/print.ps
 		ps.c
@@ -87,6 +87,7 @@ set(LIBWIRESHARK_PUBLIC_HEADERS
 	expert.h
 	export_object.h
 	exported_pdu.h
+	fifo_string_cache.h
 	filter_expressions.h
 	follow.h
 	frame_data.h
@@ -193,12 +194,14 @@ set(LIBWIRESHARK_NONGENERATED_FILES
 	disabled_protos.c
 	conversation_filter.c
 	dvb_chartbl.c
+	enterprises.c
 	epan.c
 	ex-opt.c
 	except.c
 	expert.c
 	export_object.c
 	exported_pdu.c
+	fifo_string_cache.c
 	filter_expressions.c
 	follow.c
 	frame_data.c
@@ -211,6 +214,7 @@ set(LIBWIRESHARK_NONGENERATED_FILES
 	in_cksum.c
 	introspection.c
 	ipproto.c
+	manuf.c
 	maxmind_db.c
 	media_params.c
 	next_tvb.c
@@ -233,6 +237,7 @@ set(LIBWIRESHARK_NONGENERATED_FILES
 	sctpppids.c
 	secrets.c
 	sequence_analysis.c
+	services.c
 	show_exception.c
 	srt_table.c
 	stat_tap_ui.c
@@ -253,6 +258,7 @@ set(LIBWIRESHARK_NONGENERATED_FILES
 	tvbuff_real.c
 	tvbuff_subset.c
 	tvbuff_zlib.c
+	tvbuff_zstd.c
 	tvbuff_lz77.c
 	tvbuff_lz77huff.c
 	tvbuff_lznt1.c
@@ -285,7 +291,7 @@ add_lemon_files(LEMON_FILES LIBWIRESHARK_FILES
 )
 
 set_source_files_properties(
-	${LIBWIRESHARK_FILES}
+	${LIBWIRESHARK_NONGENERATED_FILES}
 	PROPERTIES
 	COMPILE_FLAGS "${WERROR_COMMON_FLAGS}"
 )
@@ -308,7 +314,7 @@ add_library(epan
 set_target_properties(epan PROPERTIES
 	COMPILE_DEFINITIONS "WS_BUILD_DLL"
 	LINK_FLAGS "${WS_LINK_FLAGS}"
-	VERSION "16.0.10" SOVERSION 16
+	VERSION "17.0.0" SOVERSION 17
 	INSTALL_RPATH "${LIBRARY_INSTALL_RPATH}"
 	# By default the name for a library with target name epan will be libepan,
 	# but Ethereal is now named Wireshark
@@ -322,22 +328,22 @@ endif()
 
 target_link_libraries(epan
 	PUBLIC
-		wiretap
 		wsutil
 		${GLIB2_LIBRARIES}
 	PRIVATE
+		wiretap
 		${BROTLI_LIBRARIES}
 		${CARES_LIBRARIES}
 		${GCRYPT_LIBRARIES}
 		${GIO2_LIBRARIES}
 		${GNUTLS_LIBRARIES}
-		${GTHREAD2_LIBRARIES}
 		${KERBEROS_LIBRARIES}
 		${LIBXML2_LIBRARIES}
 		${LUA_LIBRARIES}
 		${LZ4_LIBRARIES}
 		${M_LIBRARIES}
 		${NGHTTP2_LIBRARIES}
+		${NGHTTP3_LIBRARIES}
 		${SMI_LIBRARIES}
 		${SNAPPY_LIBRARIES}
 		${WIN_PSAPI_LIBRARY}
@@ -365,11 +371,11 @@ target_include_directories(epan
 		${GCRYPT_INCLUDE_DIRS}
 		${GLIB2_INCLUDE_DIRS}
 		${GNUTLS_INCLUDE_DIRS}
-		${GTHREAD2_INCLUDE_DIRS}
 		${LIBXML2_INCLUDE_DIRS}
 		${LUA_INCLUDE_DIRS}
 		${LZ4_INCLUDE_DIRS}
 		${NGHTTP2_INCLUDE_DIRS}
+		${NGHTTP3_INCLUDE_DIRS}
 		${SMI_INCLUDE_DIRS}
 		${ZLIB_INCLUDE_DIRS}
 		${ZSTD_INCLUDE_DIRS}
@@ -389,6 +395,8 @@ install(TARGETS epan
 
 install(FILES ${LIBWIRESHARK_PUBLIC_HEADERS}
 	DESTINATION "${PROJECT_INSTALL_INCLUDEDIR}/epan"
+	COMPONENT "Development"
+	EXCLUDE_FROM_ALL
 )
 
 add_executable(exntest EXCLUDE_FROM_ALL exntest.c except.c)
@@ -397,14 +405,25 @@ set_target_properties(exntest PROPERTIES
 	FOLDER "Tests"
 	EXCLUDE_FROM_DEFAULT_BUILD True
 	COMPILE_DEFINITIONS "WS_BUILD_DLL"
+	COMPILE_FLAGS "${WERROR_COMMON_FLAGS}"
+)
+
+add_executable(fifo_string_cache_test EXCLUDE_FROM_ALL fifo_string_cache_test.c)
+target_link_libraries(fifo_string_cache_test epan)
+set_target_properties(fifo_string_cache_test PROPERTIES
+	FOLDER "Tests"
+	EXCLUDE_FROM_DEFAULT_BUILD True
+	COMPILE_DEFINITIONS "WS_BUILD_DLL"
+	COMPILE_FLAGS "${WERROR_COMMON_FLAGS}"
 )
 
 add_executable(oids_test EXCLUDE_FROM_ALL oids_test.c)
-target_link_libraries(oids_test epan ${ZLIB_LIBRARIES})
+target_link_libraries(oids_test epan)
 set_target_properties(oids_test PROPERTIES
 	FOLDER "Tests"
 	EXCLUDE_FROM_DEFAULT_BUILD True
 	COMPILE_DEFINITIONS "WS_BUILD_DLL"
+	COMPILE_FLAGS "${WERROR_COMMON_FLAGS}"
 )
 
 add_executable(reassemble_test EXCLUDE_FROM_ALL reassemble_test.c)
@@ -412,6 +431,7 @@ target_link_libraries(reassemble_test epan)
 set_target_properties(reassemble_test PROPERTIES
 	FOLDER "Tests"
 	EXCLUDE_FROM_DEFAULT_BUILD True
+	COMPILE_FLAGS "${WERROR_COMMON_FLAGS}"
 )
 
 add_executable(tvbtest EXCLUDE_FROM_ALL tvbtest.c)
@@ -420,6 +440,7 @@ set_target_properties(tvbtest PROPERTIES
 	FOLDER "Tests"
 	EXCLUDE_FROM_DEFAULT_BUILD True
 	COMPILE_DEFINITIONS "WS_BUILD_DLL"
+	COMPILE_FLAGS "${WERROR_COMMON_FLAGS}"
 )
 
 add_executable(wscbor_test EXCLUDE_FROM_ALL wscbor_test.c)
@@ -427,14 +448,15 @@ target_link_libraries(wscbor_test epan)
 set_target_properties(wscbor_test PROPERTIES
     FOLDER "Tests"
     EXCLUDE_FROM_DEFAULT_BUILD True
+    COMPILE_FLAGS "${WERROR_COMMON_FLAGS}"
 )
 
-# This tries to parse C headers using Python to extract enums for
-# introspection. It is slow and has some particular dependencies.
-# It's also not foolproof. It should not be part of the ALL target.
-add_custom_target(gen-enums
-	COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/make-enums.py
-	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+add_executable(test_epan EXCLUDE_FROM_ALL test_epan.c)
+target_link_libraries(test_epan epan)
+set_target_properties(test_epan PROPERTIES
+	FOLDER "Tests"
+	EXCLUDE_FROM_DEFAULT_BUILD True
+	COMPILE_FLAGS "${WERROR_COMMON_FLAGS}"
 )
 
 CHECKAPI(
@@ -444,14 +466,6 @@ CHECKAPI(
 	SOURCES
 	  ${LIBWIRESHARK_NONGENERATED_FILES}
 )
-
-if(ABI_DUMPER_EXECUTABLE)
-	get_target_property(_soversion epan VERSION)
-	add_custom_target(epan-abi-dump
-		COMMAND abi-dumper $<TARGET_FILE:epan> -o ${CMAKE_BINARY_DIR}/epan-abi-${_soversion}.dump -lver ${_soversion}
-		DEPENDS epan
-	)
-endif()
 
 #
 # Editor modelines  -  https://www.wireshark.org/tools/modelines.html

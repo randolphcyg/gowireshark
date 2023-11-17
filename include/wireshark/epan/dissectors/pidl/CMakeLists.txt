@@ -13,6 +13,7 @@ set(PIDL_DISSECTOR_NAMES
 	clusapi
 	dfs
 	dnsserver
+	drsuapi
 	dssetup
 	efs
 	eventlog
@@ -20,6 +21,7 @@ set(PIDL_DISSECTOR_NAMES
 	frstrans
 	fsrvp
 	initshutdown
+	iwbemlevel1login
 	lsa
 	mapi
 	mdssvc
@@ -28,6 +30,7 @@ set(PIDL_DISSECTOR_NAMES
 	rfr
 	samr
 	#srvsvc
+	svcctl
 	winreg
 	winspool
 	witness
@@ -38,7 +41,9 @@ set(PIDL_DISSECTOR_NAMES
 set(PIDL_DISSECTOR_clusapi_EXTRA_DEPS
 	clusapi/clusapi.idl
 )
-
+set(PIDL_DISSECTOR_drsuapi_EXTRA_DEPS
+	misc/misc.idl
+)
 set(PIDL_DISSECTOR_dssetup_EXTRA_DEPS
 	misc/misc.idl
 )
@@ -60,12 +65,13 @@ set(PIDL_DISSECTOR_initshutdown_EXTRA_DEPS
 	lsa/lsa.idl
 	idl_types.h
 )
+set(PIDL_DISSECTOR_iwbemlevel1login_EXTRA_DEPS
+	idl_types.h
+)
 set(PIDL_DISSECTOR_lsa_EXTRA_DEPS
 	idl_types.h
 )
 set(PIDL_DISSECTOR_mapi_EXTRA_DEPS
-	mapi/request.cnf.c
-	mapi/response.cnf.c
 	idl_types.h
 	mapicodes_enum.h
 	mapitags_enum.h

@@ -25,6 +25,9 @@
 void proto_reg_handoff_mausb(void);
 void proto_register_mausb(void);
 
+static dissector_handle_t mausb_tcp_handle;
+static dissector_handle_t mausb_pkt_handle;
+
 /* For SNAP Packets */
 static int hf_llc_mausb_pid = -1;
 
@@ -449,7 +452,7 @@ static const value_string mausb_status_string[] = {
 
 #define MAUSB_TOKEN_MASK  0x03ff
 #define MAUSB_MGMT_PAD_MASK  0xfffc
-#define MAUSB_MGMT_NUM_EP_DES_MASK 0x001f
+#define MAUSB_MGMT_NUM_EP_DES_MASK 0x1f
 #define MAUSB_MGMT_SIZE_EP_DES_OFFSET 5
 #define MAUSB_MGMT_SIZE_EP_DES_MASK (0x003f << MAUSB_MGMT_SIZE_EP_DES_OFFSET)
 
@@ -1915,7 +1918,7 @@ proto_register_mausb(void)
 
         { &hf_mausb_cap_resp_num_ep,
             { "Number of Endpoints", "mausb.cap_resp.num_ep",
-              FT_UINT8, BASE_DEC, NULL, 0,
+              FT_UINT16, BASE_DEC, NULL, 0,
               "the maximum number of endpoints for this device",
               HFILL
             }
@@ -2140,7 +2143,7 @@ proto_register_mausb(void)
         },
         { &hf_mausb_clear_transfers_partial,
             { "Partial Delivery", "mausb.clear_transfers.partial", FT_BOOLEAN, 6,
-              TFS(&tfs_true_false), MAUSB_CLEAR_TRANSFERS_PARTIAL_MASK,
+              NULL, MAUSB_CLEAR_TRANSFERS_PARTIAL_MASK,
               NULL, HFILL
             }
        },
@@ -2251,18 +2254,16 @@ proto_register_mausb(void)
     expert_register_field_array(expert_mausb, ei, array_length(ei));
 
     llc_add_oui(OUI_WFA, "llc.wfa_pid", "LLC WFA OUI PID", oui_hf, proto_mausb);
+
+    /* Register the dissectors */
+    mausb_tcp_handle = register_dissector("mausb", dissect_mausb, proto_mausb);
+    mausb_pkt_handle = register_dissector("mausb.pkt", dissect_mausb_pkt, proto_mausb);
+
 }
 
 void
 proto_reg_handoff_mausb(void)
 {
-    dissector_handle_t mausb_tcp_handle;
-    dissector_handle_t mausb_pkt_handle;
-
-    mausb_tcp_handle = create_dissector_handle(dissect_mausb, proto_mausb);
-
-    mausb_pkt_handle = create_dissector_handle(dissect_mausb_pkt, proto_mausb);
-
     dissector_add_uint("llc.wfa_pid", PID_MAUSB, mausb_pkt_handle);
 
     dissector_add_uint_range_with_preference("tcp.port", "", mausb_tcp_handle);

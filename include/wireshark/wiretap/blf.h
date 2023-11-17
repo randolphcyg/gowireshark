@@ -234,6 +234,70 @@ typedef struct blf_canfdmessage64 {
 } blf_canfdmessage64_t;
 
 
+/* see https://bitbucket.org/tobylorenz/vector_blf/src/master/src/Vector/BLF/CanErrorFrame.h */
+
+typedef struct blf_canerror {
+    guint16  channel;
+    guint16  length;
+} blf_canerror_t;
+
+
+/* see https://bitbucket.org/tobylorenz/vector_blf/src/master/src/Vector/BLF/CanErrorFrameExt.h */
+
+#define BLF_CANERROREXT_FLAG_SJA                   0x01
+#define BLF_CANERROREXT_FLAG_CANCORE               0x02
+#define BLF_CANERROREXT_EXTECC_TX                  0x1000
+#define BLF_CANERROREXT_EXTECC_NOT_ACK             0x2000
+#define BLF_CANERROREXT_ECC_MEANING_BIT_ERROR      0x0
+#define BLF_CANERROREXT_ECC_MEANING_FORM_ERROR     0x1
+#define BLF_CANERROREXT_ECC_MEANING_STUFF_ERROR    0x2
+#define BLF_CANERROREXT_ECC_MEANING_OTHER_ERROR    0x3
+#define BLF_CANERROREXT_ECC_MEANING_CRC_ERROR      0x4
+#define BLF_CANERROREXT_ECC_MEANING_ACKDEL_ERROR   0x5
+#define BLF_CANERROREXT_ECC_MEANING_OTHER_ERROR2   0x6
+#define BLF_CANERROREXT_ECC_MEANING_NACK_ERROR     0x7
+#define BLF_CANERROREXT_ECC_MEANING_OVERLOAD       0x8
+#define BLF_CANERROREXT_ECC_FDF_BIT_ERROR          0x9
+
+typedef struct blf_canerrorext {
+    guint16 channel;
+    guint16 length;
+    guint32 flags;
+    guint8  ecc;
+    guint8  position;
+    guint8  dlc;
+    guint8  reserved1;
+    guint32 frameLength_in_ns;
+    guint32 id;
+    guint16 errorCodeExt;
+    guint16 reserved2;
+} blf_canerrorext_t;
+
+
+/* see https://bitbucket.org/tobylorenz/vector_blf/src/master/src/Vector/BLF/CanFdErrorFrame64.h */
+
+typedef struct blf_canfderror64 {
+    guint8  channel;
+    guint8  dlc;
+    guint8  validDataBytes;
+    guint8  ecc;
+    guint16 flags;
+    guint16 errorCodeExt;
+    guint16 extFlags;
+    guint8  extDataOffset;
+    guint8  reserved1;
+    guint32 id;
+    guint32 frameLength_in_ns;
+    guint32 btrCfgArb;
+    guint32 btrCfgData;
+    guint32 timeOffsetBrsNs;
+    guint32 timeOffsetCrcDelNs;
+    guint32 crc;
+    guint16 errorPosition;
+    guint16 reserved2;
+} blf_canfderror64_t;
+
+
 /* see https://bitbucket.org/tobylorenz/vector_blf/src/master/src/Vector/BLF/FlexRayData.h */
 
 #define BLF_FLEXRAYDATA_FRAME                       0x01
@@ -407,6 +471,8 @@ typedef struct blf_apptext {
 #define BLF_APPTEXT_COMMENT  0x00000000
 #define BLF_APPTEXT_CHANNEL  0x00000001
 #define BLF_APPTEXT_METADATA 0x00000002
+#define BLF_APPTEXT_FAILED   0x000000FF
+
 
 #define BLF_BUSTYPE_CAN 1
 #define BLF_BUSTYPE_LIN 5
@@ -416,6 +482,21 @@ typedef struct blf_apptext {
 #define BLF_BUSTYPE_ETHERNET 11
 #define BLF_BUSTYPE_WLAN 13
 #define BLF_BUSTYPE_AFDX 14
+
+/* see https://bitbucket.org/tobylorenz/vector_blf/src/master/src/Vector/BLF/EthernetStatus.h */
+typedef struct blf_ethernet_status {
+    uint16_t channel;
+    uint16_t flags;
+    uint8_t linkStatus;
+    uint8_t ethernetPhy;
+    uint8_t duplex;
+    uint8_t mdi;
+    uint8_t connector;
+    uint8_t clockMode;
+    uint8_t pairs;
+    uint8_t hardwareChannel;
+    uint32_t bitrate;
+} blf_ethernet_status_t;
 
 
 /* see https://bitbucket.org/tobylorenz/vector_blf/src/master/src/Vector/BLF/ObjectHeaderBase.h */
@@ -542,6 +623,16 @@ typedef struct blf_apptext {
 #define BLF_OBJTYPE_CAN_SETTING_CHANGED         129
 #define BLF_OBJTYPE_DISTRIBUTED_OBJECT_MEMBER   130
 #define BLF_OBJTYPE_ATTRIBUTE_EVENT             131
+
+#define BLF_ETH_STATUS_LINKSTATUS 0x0001
+#define BLF_ETH_STATUS_BITRATE 0x0002
+#define BLF_ETH_STATUS_ETHERNETPHY 0x0004
+#define BLF_ETH_STATUS_DUPLEX 0x0008
+#define BLF_ETH_STATUS_MDITYPE 0x0010
+#define BLF_ETH_STATUS_CONNECTOR 0x0020
+#define BLF_ETH_STATUS_CLOCKMODE  0x0040
+#define BLF_ETH_STATUS_BRPAIR 0x0080
+#define BLF_ETH_STATUS_HARDWARECHANNEL 0x0100
 
 #endif
 

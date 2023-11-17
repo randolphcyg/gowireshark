@@ -691,7 +691,7 @@ get_dwarf_extension_length(guint8 format, guint register_size)
     return 0;
 }
 
-static const guint8 *
+static const char *
 get_section_name_offset(tvbuff_t *tvb, guint64 shoff, guint16 shnum, guint16 shentsize, guint16 shndx, guint64 shstrtab_offset, guint machine_encoding)
 {
     gint     offset;
@@ -702,7 +702,7 @@ get_section_name_offset(tvbuff_t *tvb, guint64 shoff, guint16 shnum, guint16 she
 
     offset = value_guard(shoff + (guint32)shndx * (guint32)shentsize);
     sh_name = (machine_encoding == ENC_BIG_ENDIAN) ? tvb_get_ntohl(tvb, offset) : tvb_get_letohl(tvb, offset);
-    return tvb_get_const_stringz(tvb, value_guard(shstrtab_offset + sh_name), NULL);
+    return tvb_get_stringz_enc(wmem_packet_scope(), tvb, value_guard(shstrtab_offset + sh_name), NULL, ENC_ASCII);
 }
 
 #define MAX_TAG_TO_TYPE 34
@@ -774,7 +774,7 @@ dissect_dynamic(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tree, p
 
         pitem = proto_tree_add_item(entry_tree, hf_elf64_dynamic_tag, tvb, offset, 8, machine_encoding);
         tag = (machine_encoding == ENC_BIG_ENDIAN) ? tvb_get_ntoh64(tvb, offset) : tvb_get_letoh64(tvb, offset);
-        proto_item_append_text(pitem, " (%s)", rval_to_str(value_guard(tag), dynamic_tag_rvals, "Unknown"));
+        proto_item_append_text(pitem, " (%s)", rval_to_str_const(value_guard(tag), dynamic_tag_rvals, "Unknown"));
         offset += 8;
 
         if (tag < MAX_TAG_TO_TYPE && tag_to_type[tag] == DYNAMIC_TYPE_VALUE)
@@ -788,7 +788,7 @@ dissect_dynamic(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tree, p
         offset += 8;
     }
 
-    proto_item_append_text(entry_item, ": %s", rval_to_str(value_guard(tag), dynamic_tag_rvals, "Unknown"));
+    proto_item_append_text(entry_item, ": %s", rval_to_str_const(value_guard(tag), dynamic_tag_rvals, "Unknown"));
 
     return offset;
 }
@@ -803,15 +803,15 @@ dissect_symbol_table(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tr
     proto_tree   *info_tree;
     guint16       shndx;
     guint32       name_index;
-    const guint8 *section_name;
-    const guint8 *name;
+    const char *section_name;
+    const char *name;
     guint8        info_bind;
     guint8        info_type;
 
     pitem = proto_tree_add_item(entry_tree, hf_elf_symbol_table_name_index, tvb, offset, 4, machine_encoding);
     if (strtab_offset) {
         name_index = (machine_encoding == ENC_BIG_ENDIAN) ? tvb_get_ntohl(tvb, offset) : tvb_get_letohl(tvb, offset);
-        name = tvb_get_const_stringz(tvb, value_guard(strtab_offset + name_index), NULL);
+        name = tvb_get_stringz_enc(pinfo->pool, tvb, value_guard(strtab_offset + name_index), NULL, ENC_ASCII);
         if (name) {
             proto_item_append_text(pitem, ": %s", name);
             proto_item_append_text(entry_item, ": %s", name);
@@ -1094,7 +1094,7 @@ dissect_eh_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *segment_tree,
                                 tvb, offset, 1, machine_encoding);
             offset += 1;
 
-            augmentation_string = (const gchar*)tvb_get_const_stringz(tvb, offset, &size);
+            augmentation_string = tvb_get_stringz_enc(pinfo->pool, tvb, offset, &size, ENC_ASCII);
             proto_tree_add_item(entry_tree, hf_elf_eh_frame_augmentation_string,
                                 tvb, offset, size, machine_encoding);
             offset += size;
@@ -1471,7 +1471,7 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
                     tvb_get_ntoh64(tvb, value_guard(length)) : tvb_get_letoh64(tvb, value_guard(length));
         }
 
-        section_name = (const char *)tvb_get_const_stringz(tvb, value_guard(shstrtab_offset + sh_name), NULL);
+        section_name = tvb_get_stringz_enc(pinfo->pool, tvb, value_guard(shstrtab_offset + sh_name), NULL, ENC_ASCII);
 
         if (register_size == REGISTER_64_SIZE && machine_encoding == ENC_BIG_ENDIAN) {
             offset += 4;
@@ -1546,7 +1546,7 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
                     tvb_get_ntoh64(tvb, value_guard(length)) : tvb_get_letoh64(tvb, value_guard(length));
         }
 
-        section_name = (const char*)tvb_get_const_stringz(tvb, value_guard(shstrtab_offset + sh_name), NULL);
+        section_name = tvb_get_stringz_enc(pinfo->pool, tvb, value_guard(shstrtab_offset + sh_name), NULL, ENC_ASCII);
         if (section_name)
             proto_item_append_text(sh_entry_item, ": %s", section_name);
 
@@ -1680,7 +1680,7 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
                     next_offset = value_guard(segment_offset);
                     i = 1;
                     while (next_offset < (gint) (segment_offset + segment_size)) {
-                        tvb_get_const_stringz(tvb, next_offset, &len);
+                        len = tvb_strsize(tvb, next_offset);
                         entry_item = proto_tree_add_item(segment_tree, hf_elf_string, tvb, next_offset, len, ENC_ASCII | ENC_NA);
                         proto_item_append_text(entry_item, " (Number: %u, Index: %u, Length: %u)", (guint) i, (guint) (next_offset - segment_offset), len - 1);
                         next_offset += len;
@@ -1869,12 +1869,12 @@ proto_register_elf(void)
         { &hf_elf_entry,
             { "Entry",                                     "elf.entry",
             FT_UINT32, BASE_HEX, NULL, 0x00,
-            "This member gives the virtual address to which the system first transfers control, thus starting the process. If the file has no associated entry point, this member holds zero. ", HFILL }
+            "This member gives the virtual address to which the system first transfers control, thus starting the process. If the file has no associated entry point, this member holds zero.", HFILL }
         },
         { &hf_elf64_entry,
             { "Entry",                                     "elf.entry64",
             FT_UINT64, BASE_HEX, NULL, 0x00,
-            "This member gives the virtual address to which the system first transfers control, thus starting the process. If the file has no associated entry point, this member holds zero. ", HFILL }
+            "This member gives the virtual address to which the system first transfers control, thus starting the process. If the file has no associated entry point, this member holds zero.", HFILL }
         },
         { &hf_elf_phoff,
             { "Program Header Table File Offset",          "elf.phoff",

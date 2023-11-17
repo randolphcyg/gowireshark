@@ -1,11 +1,8 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-ldap.h                                                              */
-/* asn2wrs.py -b -p ldap -c ./ldap.cnf -s ./packet-ldap-template -D . -O ../.. Lightweight-Directory-Access-Protocol-V3.asn */
+/* asn2wrs.py -b -L -p ldap -c ./ldap.cnf -s ./packet-ldap-template -D . -O ../.. Lightweight-Directory-Access-Protocol-V3.asn */
 
-/* Input file: packet-ldap-template.h */
-
-#line 1 "./asn1/ldap/packet-ldap-template.h"
 /* packet-ldap.h
  * Routines for ros packet dissection
  * Copyright 2005, Anders Broman <anders.broman@ericsson.com>
@@ -97,7 +94,7 @@ typedef struct ldap_call_response {
 } ldap_call_response_t;
 
 WS_DLL_PUBLIC
-int dissect_mscldap_string(tvbuff_t *tvb, int offset, char *str, int max_len, gboolean prepend_dot _U_);
+int dissect_mscldap_string(tvbuff_t *tvb, int offset, int max_len, char **str);
 
 WS_DLL_PUBLIC const value_string ldap_procedure_names[];
 

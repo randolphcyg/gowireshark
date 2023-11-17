@@ -12,10 +12,13 @@
 #ifndef __WMEM_CORE_H__
 #define __WMEM_CORE_H__
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include <glib.h>
 #include <include/ws_symbol_export.h>
 #include <include/ws_attributes.h>
+#include <include/ws_posix_compat.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -87,7 +90,7 @@ G_GNUC_MALLOC;
  * if the number of elements is negative), and the product otherwise.
  */
 #define wmem_safe_mult_type_size(type, num) \
-    ((((num) <= 0) || ((gsize)sizeof(type) > (G_MAXSSIZE / (gsize)(num)))) ? 0 : (sizeof(type) * (num)))
+    ((((num) <= 0) || ((size_t)sizeof(type) > (G_MAXSSIZE / (size_t)(num)))) ? 0 : (sizeof(type) * (num)))
 
 /** Allocate memory sufficient to hold n objects of the given type.
  *
@@ -224,7 +227,7 @@ void
 wmem_leave_scope(wmem_allocator_t *allocator);
 
 WS_DLL_PUBLIC
-gboolean
+bool
 wmem_in_scope(wmem_allocator_t *allocator);
 
 /** @} */

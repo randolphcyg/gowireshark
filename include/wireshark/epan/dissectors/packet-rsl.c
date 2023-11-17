@@ -15,6 +15,8 @@
  * REF: 3GPP TS 48.058 version 6.1.0 Release 6
  * http://www.3gpp.org/ftp/Specs/html-info/48058.htm
  *
+ * Huawei paging encapsulation in RSL from:
+ * https://patents.google.com/patent/EP2192796B1/en
  */
 
 #include "config.h"
@@ -32,6 +34,8 @@
 
 void proto_register_rsl(void);
 void proto_reg_handoff_rsl(void);
+
+guint16 parse_reduced_frame_number(tvbuff_t *tvb, const gint offset);
 
 /* Initialize the protocol and registered fields */
 static int proto_rsl        = -1;
@@ -52,6 +56,7 @@ static int hf_rsl_req_ref_ra_est_cause = -1;
 static int hf_rsl_req_ref_T1prim       = -1;
 static int hf_rsl_req_ref_T3           = -1;
 static int hf_rsl_req_ref_T2           = -1;
+static int hf_rsl_req_ref_rfn          = -1;
 static int hf_rsl_timing_adv           = -1;
 static int hf_rsl_ho_ref               = -1;
 static int hf_rsl_l1inf_power_lev      = -1;
@@ -1152,7 +1157,6 @@ static const value_string rsl_ra_if_data_rte_vals[] = {
     { 0,            NULL }
 };
 
-#if 0
 static const value_string rsl_data_rte_vals[] = {
     {  0x38,    "32 kbit/s" },
     {  0x39,    "29 kbit/s" },
@@ -1165,7 +1169,6 @@ static const value_string rsl_data_rte_vals[] = {
     {  0x15,    "1 200/75 bit/s (1 200 network-to-MS, 75 MS-to-network)" },
     { 0,            NULL }
 };
-#endif
 
 static int
 dissect_rsl_ie_ch_mode(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, gboolean is_mandatory)
@@ -1306,7 +1309,9 @@ static int
 dissect_rsl_ie_frame_no(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, gboolean is_mandatory)
 {
     proto_tree *ie_tree;
+    proto_item *ti;
     guint8      ie_id;
+    guint16     rfn;
 
     if (is_mandatory == FALSE) {
         ie_id = tvb_get_guint8(tvb, offset);
@@ -1320,11 +1325,14 @@ dissect_rsl_ie_frame_no(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     proto_tree_add_item(ie_tree, hf_rsl_ie_id, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
 
+    rfn = parse_reduced_frame_number(tvb, offset);
     proto_tree_add_item(ie_tree, hf_rsl_req_ref_T1prim, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(ie_tree, hf_rsl_req_ref_T3, tvb, offset, 2, ENC_BIG_ENDIAN);
     offset++;
     proto_tree_add_item(ie_tree, hf_rsl_req_ref_T2, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
+    ti = proto_tree_add_uint(ie_tree, hf_rsl_req_ref_rfn, tvb, offset - 2, 2, rfn);
+    proto_item_set_generated(ti);
 
     return offset;
 }
@@ -1848,6 +1856,7 @@ dissect_rsl_ie_req_ref(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, 
 {
     proto_tree *ie_tree, *ra_tree;
     guint8      ie_id;
+    guint16     rfn;
     proto_item *ti;
 
     if (is_mandatory == FALSE) {
@@ -1865,11 +1874,14 @@ dissect_rsl_ie_req_ref(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, 
     ra_tree = proto_item_add_subtree(ti, ett_ie_req_ref_ra);
     proto_tree_add_item(ra_tree, hf_rsl_req_ref_ra_est_cause, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
+    rfn = parse_reduced_frame_number(tvb, offset);
     proto_tree_add_item(ie_tree, hf_rsl_req_ref_T1prim, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(ie_tree, hf_rsl_req_ref_T3, tvb, offset, 2, ENC_BIG_ENDIAN);
     offset++;
     proto_tree_add_item(ie_tree, hf_rsl_req_ref_T2, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
+    ti = proto_tree_add_uint(ie_tree, hf_rsl_req_ref_rfn, tvb, offset - 2, 2, rfn);
+    proto_item_set_generated(ti);
     return offset;
 }
 
@@ -3456,7 +3468,7 @@ static const true_false_string rsl_paging_type_vals = {
 };
 
 static int
-dissect_rsl_paging_group_paras(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, gboolean increse_offset)
+dissect_rsl_paging_group_paras(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset)
 {
     proto_tree *ie_tree;
     guint8     paging_type, i, length;
@@ -3467,7 +3479,7 @@ dissect_rsl_paging_group_paras(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
     if(paging_type == 0){
        length = 2; /* length of Paging Group Paras if it is CS type (2 byte Cs Paging Group Para) */
     }else{
-       length = 9; /* length of Paging Group Paras if it is PS type (1 byte spare, 4x 2 byte of PS Paging Group Para */
+       length = 5; /* length of Paging Group Paras if it is PS type (1 byte spare, 4x 1 byte of PS Paging Group Para */
     }
 
     ie_tree = proto_tree_add_subtree(tree, tvb, offset, length, ett_ie_paging_group_paras, NULL, "Paging Group Paras");
@@ -3486,15 +3498,9 @@ dissect_rsl_paging_group_paras(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
     {
        proto_tree_add_item(ie_tree, hf_rsl_paging_group_ps_spare, tvb, offset, 1, ENC_BIG_ENDIAN);
        offset++;
-       for(i = 1; i <= 5; i++){
+       for(i = 1; i <= 4; i++){
            proto_tree_add_item(ie_tree, hf_rsl_paging_grp, tvb, offset, 1, ENC_BIG_ENDIAN);
            offset++;
-           proto_tree_add_item(ie_tree, hf_rsl_paging_group_empty_package, tvb, offset, 1, ENC_BIG_ENDIAN);
-            if(!increse_offset){
-                return offset; /* it's end of RSL frame */
-            }else{
-                offset++; /* move over empty (0x00) packet */
-            }
        }
 
     }
@@ -3551,7 +3557,6 @@ dissect_rsl_paging_package(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 {
     proto_tree *ie_tree;
     guint8     i, length, paging_type;
-    gboolean increse_offset = TRUE;
 
     for(i = 1; i <= package_number; i++){
        /* Calculating whole length of Paging Package Info */
@@ -3560,7 +3565,7 @@ dissect_rsl_paging_package(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
        if(paging_type == 0){
            length = length + 2; /* length of Paging Group Paras if it is CS type (2 byte Cs Paging Group Para) */
        }else{
-           length = length + 9; /* length of Paging Group Paras if it is PS type (1 byte spare, 4x 2 byte of PS Paging Group Para */
+           length = length + 5; /* length of Paging Group Paras if it is PS type (1 byte spare, 4x 1 byte of PS Paging Group Para */
        }
 
        ie_tree = proto_tree_add_subtree_format(tree, tvb, offset, length, ett_ie_paging_package, NULL, "Paging Package Info %u", i);
@@ -3568,13 +3573,7 @@ dissect_rsl_paging_package(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
        offset = dissect_rsl_paging_package_channel_and_emlpp(tvb, pinfo, ie_tree, offset);
        offset = dissect_rsl_ie_ms_id(tvb, pinfo, ie_tree, offset, TRUE);
 
-        /* if its last dissected packet, incresing offset causes pointing out of RSL frame range - [Malformed Packet] appears */
-       if( i == package_number){
-           increse_offset = FALSE;
-       }else{
-           increse_offset = TRUE;
-       }
-       offset = dissect_rsl_paging_group_paras(tvb, pinfo, ie_tree, offset, increse_offset);
+       offset = dissect_rsl_paging_group_paras(tvb, pinfo, ie_tree, offset);
     }
 
     return offset;
@@ -3893,7 +3892,7 @@ dissct_rsl_ipaccess_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
             dyn_pl_info = (struct dyn_pl_info_t *)conversation_get_proto_data(conv, proto_rsl);
             if (dyn_pl_info && (dyn_pl_info->rtp_codec == 2 || dyn_pl_info->rtp_codec == 5)) {
                 dyn_pl = rtp_dyn_payload_new();
-                rtp_dyn_payload_insert(dyn_pl, dyn_pl_info->rtp_pt, "AMR", 8000);
+                rtp_dyn_payload_insert(dyn_pl, dyn_pl_info->rtp_pt, "AMR", 8000, 1);
             }
             conversation_delete_proto_data(conv, proto_rsl);
             wmem_free(wmem_file_scope(), dyn_pl_info);
@@ -4801,6 +4800,11 @@ void proto_register_rsl(void)
             FT_UINT8, BASE_DEC, NULL, 0x1f,
             NULL, HFILL }
         },
+        { &hf_rsl_req_ref_rfn,
+          { "RFN",          "gsm_abis_rsl.req_ref_rfn",
+            FT_UINT16, BASE_DEC, NULL, 0x0,
+            "Reduced Frame Number", HFILL }
+        },
         { &hf_rsl_timing_adv,
           { "Timing Advance",           "gsm_abis_rsl.timing_adv",
             FT_UINT8, BASE_DEC, NULL, 0x0,
@@ -4988,7 +4992,7 @@ void proto_register_rsl(void)
         },
         { &hf_rsl_data_rte,
           { "Data rate",           "gsm_abis_rsl.data_rte",
-            FT_UINT8, BASE_DEC, VALS(rsl_ra_if_data_rte_vals), 0x3f,
+            FT_UINT8, BASE_DEC, VALS(rsl_data_rte_vals), 0x3f,
             NULL, HFILL }
         },
         { &hf_rsl_alg_id,

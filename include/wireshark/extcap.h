@@ -89,11 +89,10 @@ extcap_get_if_dlts(const gchar * ifname, char ** err_str);
  * Append a list of all extcap capture interfaces to the specified list.
  * Initializes the extcap interface list if that hasn't already been done.
  * @param list An existing GList of if_info_t.
- * @param err_str Set to NULL on success, error description on failure.
  * @return An updated list on success, an unchanged list on failure.
  */
 GList *
-append_extcap_interface_list(GList *list, char **err_str);
+append_extcap_interface_list(GList *list);
 
 /**
  * Retrieves information about an extcap executable.
@@ -185,17 +184,22 @@ extcap_free_if_configuration(GList *list, gboolean free_args);
 
 /**
  * Checks to see if an interface has configurable options.
- * If is_required is FALSE: returns TRUE if the extcap interface has
- * configurable options.
- * If is_required is TRUE: returns TRUE when the extcap interface has
+ * Initializes the extcap interface list if that hasn't already been done.
+ * @param ifname Interface to check.
+ */
+gboolean
+extcap_has_configuration(const char * ifname);
+
+/**
+ * Checks if an interface has configurable options and if all are configured.
+ * Returns TRUE when the extcap interface has
  * configurable options that required modification. (For example, when an
  * argument is required but empty.)
  * Initializes the extcap interface list if that hasn't already been done.
  * @param ifname Interface to check.
- * @param is_required Required configuration flag.
  */
 gboolean
-extcap_has_configuration(const char * ifname, gboolean is_required);
+extcap_requires_configuration(const char * ifname);
 
 /**
  * Checks to see if the interface has an associated toolbar.

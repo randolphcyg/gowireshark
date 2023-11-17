@@ -20,6 +20,8 @@
 void proto_register_lithionics(void);
 void proto_reg_handoff_lithionics(void);
 
+static dissector_handle_t lithionics_handle;
+
 static int proto_lithionics = -1;
 
 static int hf_lithionics_battery_address = -1;
@@ -212,23 +214,23 @@ proto_register_lithionics(void)
 
 	static hf_register_info hf[] = {
 		{ &hf_lithionics_battery_address,
-			{ "Battery address", "lithionics_bms.battery_address", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+			{ "Battery address", "lithionics_bms.battery_address", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
 		{ &hf_lithionics_amp_hours_remain,
 			{ "Amp Hours Remaining", "lithionics_bms.amp_hours_remain", FT_FLOAT, BASE_NONE, NULL, 0x0, NULL, HFILL } },
 		{ &hf_lithionics_volts,
 			{ "Volts", "lithionics_bms.volts", FT_FLOAT, BASE_NONE, NULL, 0x0, NULL, HFILL } },
 		{ &hf_lithionics_bat_gauge,
-			{ "Bat gauge", "lithionics_bms.bat_gauge", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_percent, 0x0, NULL, HFILL } },
+			{ "Bat gauge", "lithionics_bms.bat_gauge", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_percent, 0x0, NULL, HFILL } },
 		{ &hf_lithionics_soc,
-			{ "SoC", "lithionics_bms.soc", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_percent, 0x0, NULL, HFILL } },
+			{ "SoC", "lithionics_bms.soc", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_percent, 0x0, NULL, HFILL } },
 		{ &hf_lithionics_direction,
-			{ "Direction", "lithionics_bms.direction", FT_UINT8, BASE_DEC, VALS(lithionics_direction_vals), 0x0, NULL, HFILL } },
+			{ "Direction", "lithionics_bms.direction", FT_UINT16, BASE_DEC, VALS(lithionics_direction_vals), 0x0, NULL, HFILL } },
 		{ &hf_lithionics_amps,
 			{ "Amps", "lithionics_bms.amps", FT_FLOAT, BASE_NONE, NULL, 0x0, NULL, HFILL } },
 		{ &hf_lithionics_watts,
 			{ "Watts", "lithionics_bms.watts", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_watt, 0x0, NULL, HFILL } },
 		{ &hf_lithionics_temperature,
-			{ "Temperature", "lithionics_bms.temperature", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_degree_degrees, 0x0, NULL, HFILL } },
+			{ "Temperature", "lithionics_bms.temperature", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_degree_degrees, 0x0, NULL, HFILL } },
 		{ &hf_lithionics_temination,
 			{ "Newline Termination", "lithionics_bms.termination", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL } },
 		{ &hf_lithionics_system_status,
@@ -290,14 +292,13 @@ proto_register_lithionics(void)
 	proto_lithionics = proto_register_protocol("Lithionics Battery Management System", "Lithionics BMS", "lithionics_bms");
 	proto_register_field_array(proto_lithionics, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
+
+	lithionics_handle = register_dissector("lithionics_bms", dissect_lithionics, proto_lithionics);
 }
 
 void
 proto_reg_handoff_lithionics(void)
 {
-	dissector_handle_t lithionics_handle;
-
-	lithionics_handle = create_dissector_handle(dissect_lithionics, proto_lithionics);
 	dissector_add_for_decode_as("udp.port", lithionics_handle);
 }
 

@@ -399,7 +399,7 @@ dissect_info_string_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tre
 
   info_string_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   proto_tree_add_item(parameter_tree, hf_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII);
-  proto_item_append_text(parameter_item, " (%.*s)", info_string_length,
+  proto_item_append_text(parameter_item, " (%s)",
                          tvb_format_text(wmem_packet_scope(), parameter_tvb, INFO_STRING_OFFSET, info_string_length));
 }
 
@@ -2128,6 +2128,7 @@ proto_register_m3ua(void)
 
   m3ua_module = prefs_register_protocol(proto_m3ua, NULL);
   prefs_register_enum_preference(m3ua_module, "version", "M3UA Version", "Version used by Wireshark", &version, options, FALSE);
+  prefs_register_static_text_preference(m3ua_module, "text_mtp3_standard", "The SS7 standard used can be changed in the MTP3 preferences", "The SS7 standard used can be changed in the MTP3 preferences");
 
   /* Required function calls to register the header fields and subtrees used */
   proto_register_field_array(proto_m3ua, hf, array_length(hf));

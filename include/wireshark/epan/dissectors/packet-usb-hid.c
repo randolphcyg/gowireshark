@@ -25,6 +25,11 @@
 void proto_register_usb_hid(void);
 void proto_reg_handoff_usb_hid(void);
 
+/* Dissector handles */
+static dissector_handle_t usb_hid_control_handle;
+static dissector_handle_t usb_hid_interrupt_handle;
+static dissector_handle_t usb_hid_descr_handle;
+
 /* protocols and header fields */
 static int proto_usb_hid = -1;
 static int hf_usb_hid_item_bSize = -1;
@@ -4148,7 +4153,7 @@ dissect_usb_hid_report_mainitem_data(packet_info *pinfo _U_, proto_tree *tree, t
             break;
         case USBHID_MAINITEM_TAG_COLLECTION:
             proto_tree_add_item_ret_uint(tree, hf_usb_hid_mainitem_colltype, tvb, offset, 1, ENC_LITTLE_ENDIAN, &val);
-            proto_item_append_text(ti, " (%s)", rval_to_str(val, usb_hid_mainitem_colltype_vals, "Unknown"));
+            proto_item_append_text(ti, " (%s)", rval_to_str_const(val, usb_hid_mainitem_colltype_vals, "Unknown"));
             break;
         case USBHID_MAINITEM_TAG_ENDCOLLECTION:
             /* No item data */
@@ -4704,7 +4709,7 @@ dissect_usb_hid_boot_keyboard_input_report(tvbuff_t *tvb, packet_info *pinfo, pr
 
     if (keycode) {
         if (shortcut_helper) col_append_str(pinfo->cinfo, COL_INFO, " + ");
-        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext(keycode, &keycode_vals_ext, "Unknown"));
+        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext_const(keycode, &keycode_vals_ext, "Unknown"));
         shortcut_helper = TRUE;
     }
 
@@ -4714,7 +4719,7 @@ dissect_usb_hid_boot_keyboard_input_report(tvbuff_t *tvb, packet_info *pinfo, pr
 
     if (keycode) {
         if (shortcut_helper) col_append_str(pinfo->cinfo, COL_INFO, " + ");
-        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext(keycode, &keycode_vals_ext, "Unknown"));
+        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext_const(keycode, &keycode_vals_ext, "Unknown"));
         shortcut_helper = TRUE;
     }
 
@@ -4724,7 +4729,7 @@ dissect_usb_hid_boot_keyboard_input_report(tvbuff_t *tvb, packet_info *pinfo, pr
 
     if (keycode) {
         if (shortcut_helper) col_append_str(pinfo->cinfo, COL_INFO, " + ");
-        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext(keycode, &keycode_vals_ext, "Unknown"));
+        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext_const(keycode, &keycode_vals_ext, "Unknown"));
         shortcut_helper = TRUE;
     }
 
@@ -4734,7 +4739,7 @@ dissect_usb_hid_boot_keyboard_input_report(tvbuff_t *tvb, packet_info *pinfo, pr
 
     if (keycode) {
         if (shortcut_helper) col_append_str(pinfo->cinfo, COL_INFO, " + ");
-        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext(keycode, &keycode_vals_ext, "Unknown"));
+        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext_const(keycode, &keycode_vals_ext, "Unknown"));
         shortcut_helper = TRUE;
     }
 
@@ -4744,7 +4749,7 @@ dissect_usb_hid_boot_keyboard_input_report(tvbuff_t *tvb, packet_info *pinfo, pr
 
     if (keycode) {
         if (shortcut_helper) col_append_str(pinfo->cinfo, COL_INFO, " + ");
-        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext(keycode, &keycode_vals_ext, "Unknown"));
+        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext_const(keycode, &keycode_vals_ext, "Unknown"));
         shortcut_helper = TRUE;
     }
 
@@ -4754,7 +4759,7 @@ dissect_usb_hid_boot_keyboard_input_report(tvbuff_t *tvb, packet_info *pinfo, pr
 
     if (keycode) {
         if (shortcut_helper) col_append_str(pinfo->cinfo, COL_INFO, " + ");
-        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext(keycode, &keycode_vals_ext, "Unknown"));
+        col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext_const(keycode, &keycode_vals_ext, "Unknown"));
         shortcut_helper = TRUE;
     }
 
@@ -5134,7 +5139,7 @@ dissect_usb_hid_keyboard_page(tvbuff_t *tvb, packet_info _U_ *pinfo,
     usage = USAGE_ID(usage);
 
     proto_tree_add_boolean_bits_format_value(tree, hf_usbhid_key, tvb, bit_offset, field->report_size, val, ENC_LITTLE_ENDIAN,
-        "%s (0x%02x): %s", val_to_str_ext(usage, &keycode_vals_ext, "Unknown"), usage, val ? "DOWN" : "UP");
+        "%s (0x%02x): %s", val_to_str_ext_const(usage, &keycode_vals_ext, "Unknown"), usage, val ? "DOWN" : "UP");
     return 0;
 }
 
@@ -5906,22 +5911,17 @@ proto_register_usb_hid(void)
     /*usb_hid_boot_keyboard_input_report_handle  =*/ register_dissector("usbhid.boot_report.keyboard.input",  dissect_usb_hid_boot_keyboard_input_report,  proto_usb_hid);
     /*usb_hid_boot_keyboard_output_report_handle =*/ register_dissector("usbhid.boot_report.keyboard.output", dissect_usb_hid_boot_keyboard_output_report, proto_usb_hid);
     /*usb_hid_boot_mouse_input_report_handle     =*/ register_dissector("usbhid.boot_report.mouse.input",     dissect_usb_hid_boot_mouse_input_report,     proto_usb_hid);
-
+    usb_hid_control_handle                         = register_dissector("usbhid.control", dissect_usb_hid_control, proto_usb_hid);
+    usb_hid_interrupt_handle                       = register_dissector("usbhid.data", dissect_usb_hid_data, proto_usb_hid);
+    usb_hid_descr_handle                           = register_dissector("usbhid.class_descriptors", dissect_usb_hid_class_descriptors, proto_usb_hid);
 }
 
 void
 proto_reg_handoff_usb_hid(void)
 {
-    dissector_handle_t usb_hid_control_handle, usb_hid_interrupt_handle, usb_hid_descr_handle;
-
-    usb_hid_control_handle = create_dissector_handle(dissect_usb_hid_control, proto_usb_hid);
     dissector_add_uint("usb.control", IF_CLASS_HID, usb_hid_control_handle);
     dissector_add_for_decode_as("usb.device", usb_hid_control_handle);
-
-    usb_hid_interrupt_handle = create_dissector_handle(dissect_usb_hid_data, proto_usb_hid);
     dissector_add_uint("usb.interrupt", IF_CLASS_HID, usb_hid_interrupt_handle);
-
-    usb_hid_descr_handle = create_dissector_handle(dissect_usb_hid_class_descriptors, proto_usb_hid);
     dissector_add_uint("usb.descriptor", IF_CLASS_HID, usb_hid_descr_handle);
 }
 

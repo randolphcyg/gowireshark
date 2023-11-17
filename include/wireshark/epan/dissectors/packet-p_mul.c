@@ -1057,7 +1057,7 @@ static int dissect_p_mul (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     break;
 
   case Ack_PDU:
-    message_id_list = wmem_strbuf_new_label(pinfo->pool);
+    message_id_list = wmem_strbuf_create(pinfo->pool);
 
     for (i = 0; i < count; i++) {
       /* Ack Info Entry */
@@ -1416,7 +1416,7 @@ void proto_register_p_mul (void)
       { "Destination ID", "p_mul.dest_id", FT_IPv4, BASE_NONE,
         NULL, 0x0, NULL, HFILL } },
     { &hf_msg_seq_no,
-      { "Message Sequence Number", "p_mul.msg_seq_no", FT_UINT16, BASE_DEC,
+      { "Message Sequence Number", "p_mul.msg_seq_no", FT_UINT32, BASE_DEC,
         NULL, 0x0, NULL, HFILL } },
     { &hf_sym_key,
       { "Symmetric Key", "p_mul.sym_key", FT_NONE, BASE_NONE,

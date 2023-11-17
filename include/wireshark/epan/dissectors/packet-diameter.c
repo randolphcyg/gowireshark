@@ -564,6 +564,7 @@ dissect_diameter_user_name(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 	case DIAM_APPID_3GPP_S6A_S6D:
 	case DIAM_APPID_3GPP_SLH:
 	case DIAM_APPID_3GPP_S7A:
+	case DIAM_APPID_3GPP_S13:
 		str_len = tvb_reported_length(tvb);
 		dissect_e212_utf8_imsi(tvb, pinfo, tree, 0, str_len);
 		return str_len;
@@ -1398,8 +1399,8 @@ dissect_diameter_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	/* Load header fields if not already done */
 	if (hf_diameter_code == -1)
 		proto_registrar_get_byname("diameter.code");
-
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "DIAMETER");
+
 
 	if (have_tap_listener(exported_pdu_tap)){
 		export_diameter_pdu(pinfo,tvb);
@@ -1421,6 +1422,8 @@ dissect_diameter_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	if (flags_bits & 0x0f) {
 		expert_add_info(c->pinfo, pi, &ei_diameter_reserved_bit_set);
 	}
+
+	diam_sub_dis_inf->parent_message_is_request = (flags_bits & DIAM_FLAGS_R) ? TRUE : FALSE;
 
 	cmd_item = proto_tree_add_item_ret_uint(diam_tree, hf_diameter_code, tvb, 5, 3, ENC_BIG_ENDIAN, &cmd);
 	diam_sub_dis_inf->cmd_code = cmd;
@@ -2030,7 +2033,7 @@ strcase_equal(gconstpointer ka, gconstpointer kb)
 	return g_ascii_strcasecmp(a,b) == 0;
 }
 
-static gboolean
+static bool
 ddict_cleanup_cb(wmem_allocator_t* allocator _U_, wmem_cb_event_t event _U_, void *user_data)
 {
 	ddict_t *d = (ddict_t *)user_data;
@@ -2294,7 +2297,7 @@ dictionary_load(void)
 	g_hash_table_destroy(build_dict.avps);
 	g_hash_table_destroy(vendors);
 
-	cmd_vs = (const value_string *)(void *)all_cmds->data;
+	cmd_vs = (const value_string *)g_array_free(all_cmds, FALSE);
 
 	return 1;
 }
@@ -2539,6 +2542,7 @@ proto_register_diameter(void)
 
 	/* Allow dissector to find be found by name. */
 	diameter_sctp_handle = register_dissector("diameter", dissect_diameter, proto_diameter);
+	diameter_udp_handle = create_dissector_handle(dissect_diameter, proto_diameter);
 	diameter_tcp_handle = register_dissector("diameter.tcp", dissect_diameter_tcp, proto_diameter);
 	/* Diameter AVPs without Diameter header, for EAP-TTLS (RFC 5281, Section 10) */
 	register_dissector("diameter_avps", dissect_diameter_avps, proto_diameter);
@@ -2586,7 +2590,6 @@ proto_register_diameter(void)
 void
 proto_reg_handoff_diameter(void)
 {
-	diameter_udp_handle = create_dissector_handle(dissect_diameter, proto_diameter);
 	data_handle = find_dissector("data");
 	eap_handle = find_dissector_add_dependency("eap", proto_diameter);
 

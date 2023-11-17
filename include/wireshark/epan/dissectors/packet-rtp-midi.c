@@ -1315,7 +1315,7 @@ static const value_string rtp_midi_controller_values[] = {
 	{ RTP_MIDI_CTRL_EFFECTS_2_DEPTH,				"Effects 2 Depth (formerly: Tremolo Depth)" },
 	{ RTP_MIDI_CTRL_EFFECTS_3_DEPTH,				"Effects 3 Depth (formerly: Chorus Depth)" },
 	{ RTP_MIDI_CTRL_EFFECTS_4_DEPTH,				"Effects 4 Depth (formerly: Celeste (Detune) Depth)" },
-	{ RTP_MIDI_CTRL_EFFECTS_5_DEPTH,				"Effects 5 Depth (formerly: Phaser Deptch)" },
+	{ RTP_MIDI_CTRL_EFFECTS_5_DEPTH,				"Effects 5 Depth (formerly: Phaser Depth)" },
 	{ RTP_MIDI_CTRL_DATA_INCREMENT,					"Data Increment" },
 	{ RTP_MIDI_CTRL_DATA_DECREMENT,					"Data Decrement" },
 	{ RTP_MIDI_CTRL_NON_REGISTERED_PARAM_LSB,			"Non-Registered Parameter (lsb)" },
@@ -5123,7 +5123,7 @@ decode_cj_chapter_e( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, un
 				ett_rtp_midi_cj_chapter_e, NULL, RTP_MIDI_TREE_NAME_CJ_CHAPTER_E );
 
 	proto_tree_add_item( rtp_midi_cj_chapter_tree, hf_rtp_midi_cj_chapter_e_sflag, tvb, offset, 1, ENC_BIG_ENDIAN );
-	proto_tree_add_item( rtp_midi_cj_chapter_tree, hf_rtp_midi_cj_chapter_e_len, tvb, offset, 2, ENC_BIG_ENDIAN );
+	proto_tree_add_item( rtp_midi_cj_chapter_tree, hf_rtp_midi_cj_chapter_e_len, tvb, offset, 1, ENC_BIG_ENDIAN );
 
 	offset++;
 
@@ -5196,7 +5196,7 @@ decode_cj_chapter_a( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, un
 	rtp_midi_cj_chapter_tree = proto_tree_add_subtree( tree, tvb, offset, 1 + ( log_count * 2 ), ett_rtp_midi_cj_chapter_a, NULL, RTP_MIDI_TREE_NAME_CJ_CHAPTER_A );
 
 	proto_tree_add_item( rtp_midi_cj_chapter_tree, hf_rtp_midi_cj_chapter_a_sflag, tvb, offset, 1, ENC_BIG_ENDIAN );
-	proto_tree_add_item( rtp_midi_cj_chapter_tree, hf_rtp_midi_cj_chapter_a_len, tvb, offset, 2, ENC_BIG_ENDIAN );
+	proto_tree_add_item( rtp_midi_cj_chapter_tree, hf_rtp_midi_cj_chapter_a_len, tvb, offset, 1, ENC_BIG_ENDIAN );
 
 	offset++;
 
@@ -6762,7 +6762,7 @@ proto_register_rtp_midi( void )
 				FT_BOOLEAN,
 				24,
 				TFS(&rtp_midi_cj_flag_p),
-				0x80,
+				0x000080,
 				NULL, HFILL
 			}
 		},
@@ -6774,7 +6774,7 @@ proto_register_rtp_midi( void )
 				FT_BOOLEAN,
 				24,
 				TFS(&rtp_midi_cj_flag_c),
-				0x40,
+				0x000040,
 				NULL, HFILL
 			}
 		},
@@ -6786,7 +6786,7 @@ proto_register_rtp_midi( void )
 				FT_BOOLEAN,
 				24,
 				TFS(&rtp_midi_cj_flag_m),
-				0x20,
+				0x000020,
 				NULL, HFILL
 			}
 		},
@@ -6798,7 +6798,7 @@ proto_register_rtp_midi( void )
 				FT_BOOLEAN,
 				24,
 				TFS(&rtp_midi_cj_flag_w),
-				0x10,
+				0x000010,
 				NULL, HFILL
 			}
 		},
@@ -6810,7 +6810,7 @@ proto_register_rtp_midi( void )
 				FT_BOOLEAN,
 				24,
 				TFS(&rtp_midi_cj_flag_n),
-				0x08,
+				0x000008,
 				NULL, HFILL
 			}
 		},
@@ -6822,7 +6822,7 @@ proto_register_rtp_midi( void )
 				FT_BOOLEAN,
 				24,
 				TFS(&rtp_midi_cj_flag_e),
-				0x04,
+				0x000004,
 				NULL, HFILL
 			}
 		},
@@ -6834,7 +6834,7 @@ proto_register_rtp_midi( void )
 				FT_BOOLEAN,
 				24,
 				TFS(&rtp_midi_cj_flag_t),
-				0x02,
+				0x000002,
 				NULL, HFILL
 			}
 		},
@@ -6846,7 +6846,7 @@ proto_register_rtp_midi( void )
 				FT_BOOLEAN,
 				24,
 				TFS(&rtp_midi_cj_flag_a),
-				0x01,
+				0x000001,
 				NULL, HFILL
 			}
 		},

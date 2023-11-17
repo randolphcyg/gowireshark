@@ -10,6 +10,7 @@
  */
 /* Telnet authentication options as per     RFC2941
  * Kerberos v5 telnet authentication as per RFC2942
+ * VMware Serial Port Proxy documented at https://developer.vmware.com/docs/11763/using-a-proxy-with-virtual-serial-ports
  */
 #include "config.h"
 
@@ -38,6 +39,8 @@ static int hf_telnet_auth_mod_how = -1;
 static int hf_telnet_auth_mod_cred_fwd = -1;
 static int hf_telnet_auth_mod_enc = -1;
 static int hf_telnet_auth_krb5_type = -1;
+static int hf_telnet_auth_ssl_status = -1;
+static int hf_telnet_auth_data = -1;
 
 static int hf_telnet_string_subopt_value = -1;
 static int hf_telnet_naws_subopt_width = -1;
@@ -79,6 +82,17 @@ static int hf_tn3270_regime_subopt_value = -1;
 static int hf_tn3270_regime_cmd = -1;
 
 static int hf_telnet_starttls = -1;
+
+static int hf_telnet_vmware_cmd = -1;
+static int hf_telnet_vmware_known_suboption_code = -1;
+static int hf_telnet_vmware_unknown_subopt_code = -1;
+static int hf_telnet_vmware_vmotion_sequence = -1;
+static int hf_telnet_vmware_proxy_direction = -1;
+static int hf_telnet_vmware_proxy_serviceUri = -1;
+static int hf_telnet_vmware_vm_vc_uuid = -1;
+static int hf_telnet_vmware_vm_bios_uuid = -1;
+static int hf_telnet_vmware_vm_location_uuid = -1;
+static int hf_telnet_vmware_vm_name = -1;
 
 static gint ett_telnet = -1;
 static gint ett_telnet_cmd = -1;
@@ -129,10 +143,10 @@ static expert_field ei_telnet_enc_cmd_unknown = EI_INIT;
 static expert_field ei_telnet_invalid_data_size = EI_INIT;
 static expert_field ei_telnet_invalid_modemstate = EI_INIT;
 static expert_field ei_telnet_invalid_parity = EI_INIT;
-static expert_field ei_telnet_kerberos_blob_too_long = EI_INIT;
 static expert_field ei_telnet_invalid_purge = EI_INIT;
 static expert_field ei_telnet_invalid_baud_rate = EI_INIT;
 static expert_field ei_telnet_invalid_control = EI_INIT;
+static expert_field ei_telnet_vmware_unexp_data = EI_INIT;
 
 static dissector_handle_t telnet_handle;
 
@@ -968,12 +982,8 @@ static const true_false_string auth_mod_cred_fwd = {
   "Client WILL forward auth creds",
   "Client will NOT forward auth creds"
 };
-static const true_false_string auth_mod_who = {
-  "Mask server to client",
-  "Mask client to server"
-};
 static const true_false_string auth_mod_how = {
-  "MUTUAL authentication",
+  "Mutual authentication",
   "One Way authentication"
 };
 #define TN_AM_OFF               0x00
@@ -1019,19 +1029,19 @@ dissect_authentication_type_pair(packet_info *pinfo _U_, tvbuff_t *tvb, int offs
   proto_tree_add_bitmask_list(tree, tvb, offset+1, 1, auth_mods, ENC_BIG_ENDIAN);
 }
 
-/* no kerberos blobs are ever >10kb ? (arbitrary limit) */
-#define MAX_KRB5_BLOB_LEN 10240
+/* Assume no telnet option subnegotiation exceeds 10 kB (arbitrary limit). */
+#define MAX_TELNET_OPTION_SUBNEG_LEN 10240
 
 static tvbuff_t *
 unescape_and_tvbuffify_telnet_option(packet_info *pinfo, tvbuff_t *tvb, int offset, int len)
 {
-  tvbuff_t     *krb5_tvb;
+  tvbuff_t     *option_subneg_tvb;
   guint8       *buf;
   const guint8 *spos;
   guint8       *dpos;
   int           skip, l;
 
-  if(len >= MAX_KRB5_BLOB_LEN)
+  if(len >= MAX_TELNET_OPTION_SUBNEG_LEN)
     return NULL;
 
   spos = tvb_get_ptr(tvb, offset, len);
@@ -1052,10 +1062,10 @@ unescape_and_tvbuffify_telnet_option(packet_info *pinfo, tvbuff_t *tvb, int offs
     *(dpos++) = *(spos++);
     l--;
   }
-  krb5_tvb = tvb_new_child_real_data(tvb, buf, len-skip, len-skip);
-  add_new_data_source(pinfo, krb5_tvb, "Unpacked Telnet Option");
+  option_subneg_tvb = tvb_new_child_real_data(tvb, buf, len-skip, len-skip);
+  add_new_data_source(pinfo, option_subneg_tvb, "Unpacked Telnet Option");
 
-  return krb5_tvb;
+  return option_subneg_tvb;
 }
 
 
@@ -1065,15 +1075,9 @@ dissect_krb5_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, 
 {
   tvbuff_t *krb5_tvb;
   guint8    krb5_cmd;
-  proto_item* ti;
-
-  dissect_authentication_type_pair(pinfo, tvb, offset, tree);
-  offset+=2;
-  len-=2;
-
 
   krb5_cmd=tvb_get_guint8(tvb, offset);
-  ti = proto_tree_add_uint(tree, hf_telnet_auth_krb5_type, tvb, offset, 1, krb5_cmd);
+  proto_tree_add_uint(tree, hf_telnet_auth_krb5_type, tvb, offset, 1, krb5_cmd);
   offset++;
   len--;
 
@@ -1081,11 +1085,8 @@ dissect_krb5_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, 
   /* IAC SB AUTHENTICATION IS <authentication-type-pair> AUTH <Kerberos V5 KRB_AP_REQ message> IAC SE */
   if((acmd==TN_AC_IS)&&(krb5_cmd==TN_KRB5_TYPE_AUTH)){
     if(len){
-      krb5_tvb=unescape_and_tvbuffify_telnet_option(pinfo, tvb, offset, len);
-      if(krb5_tvb)
-        dissect_kerberos_main(krb5_tvb, pinfo, tree, FALSE, NULL);
-      else
-        expert_add_info_format(pinfo, ti, &ei_telnet_kerberos_blob_too_long, "Kerberos blob (too long to dissect - length %u > %u)", len, MAX_KRB5_BLOB_LEN);
+      krb5_tvb=tvb_new_subset_length(tvb, offset, len);
+      dissect_kerberos_main(krb5_tvb, pinfo, tree, FALSE, NULL);
     }
   }
 
@@ -1103,7 +1104,7 @@ dissect_krb5_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, 
   /* IAC SB AUTHENTICATION REPLY <authentication-type-pair> RESPONSE <KRB_AP_REP message> IAC SE */
   if((acmd==TN_AC_REPLY)&&(krb5_cmd==TN_KRB5_TYPE_RESPONSE)){
     if(len){
-      krb5_tvb=unescape_and_tvbuffify_telnet_option(pinfo, tvb, offset, len);
+      krb5_tvb=tvb_new_subset_length(tvb, offset, len);
       dissect_kerberos_main(krb5_tvb, pinfo, tree, FALSE, NULL);
     }
   }
@@ -1122,16 +1123,66 @@ dissect_krb5_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, 
   /* nothing more to dissect */
 }
 
+
+#define TN_AUTH_SSL_START  1
+#define TN_AUTH_SSL_ACCEPT 2
+#define TN_AUTH_SSL_REJECT 3
+
+static const value_string ssl_auth_status[] = {
+  { TN_AUTH_SSL_START,  "Start" },
+  { TN_AUTH_SSL_ACCEPT, "Accepted" },
+  { TN_AUTH_SSL_REJECT, "Rejected" },
+  { 0, NULL }
+};
+
+static void
+dissect_ssl_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, proto_tree *tree, guint8 acmd)
+{
+  guint ssl_status;
+
+  proto_tree_add_item_ret_uint(tree, hf_telnet_auth_ssl_status, tvb, offset, 1, ENC_NA, &ssl_status);
+
+  if (acmd == TN_AC_REPLY && ssl_status == TN_AUTH_SSL_ACCEPT)
+    /* TLS negotiation will immediately follow this packet. */
+    ssl_starttls_ack(tls_handle, pinfo, telnet_handle);
+}
+
+/* as per RFC2941 */
+static void
+dissect_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, int len, proto_tree *tree, guint8 acmd)
+{
+  guint8 auth_type;
+
+  dissect_authentication_type_pair(pinfo, tvb, offset, tree);
+  auth_type = tvb_get_guint8(tvb, offset);
+  offset += 2;
+  len -= 2;
+
+  switch (auth_type) {
+  case TN_AT_NULL:
+    break;
+
+  case TN_AT_SSL:
+    dissect_ssl_authentication_data(pinfo, tvb, offset, tree, acmd);
+    break;
+
+  case TN_AT_KRB5:
+    dissect_krb5_authentication_data(pinfo, tvb, offset, len, tree, acmd);
+    break;
+
+  default:
+    /* We don't (yet) know how to dissect the data for this authentication type. */
+    if (len > 0)
+      proto_tree_add_bytes_format(tree, hf_telnet_auth_data, tvb, offset, len, NULL, "Unhandled authentication data");
+  }
+}
+
 static void
 dissect_authentication_subopt(packet_info *pinfo, const char *optname _U_, tvbuff_t *tvb, int offset, int len,
                               proto_tree *tree, proto_item *item _U_)
 {
   guint8  acmd;
 
-/* XXX here we should really split it up in a conversation struct keeping
-   track of what method we actually use and not just assume it is always
-   kerberos v5
-*/
   acmd=tvb_get_guint8(tvb, offset);
   proto_tree_add_uint(tree, hf_telnet_auth_cmd, tvb, offset, 1, acmd);
   offset++;
@@ -1140,9 +1191,9 @@ dissect_authentication_subopt(packet_info *pinfo, const char *optname _U_, tvbuf
   switch(acmd){
   case TN_AC_REPLY:
   case TN_AC_IS:
-    /* XXX here we shouldn't just assume it is krb5 */
-    dissect_krb5_authentication_data(pinfo, tvb, offset, len, tree, acmd);
+    dissect_authentication_data(pinfo, tvb, offset, len, tree, acmd);
     break;
+
   case TN_AC_SEND:
     while(len>0){
       dissect_authentication_type_pair(pinfo, tvb, offset, tree);
@@ -1150,6 +1201,7 @@ dissect_authentication_subopt(packet_info *pinfo, const char *optname _U_, tvbuf
       len-=2;
     }
     break;
+
   case TN_AC_NAME:
     proto_tree_add_item(tree, hf_telnet_auth_name, tvb, offset, len, ENC_ASCII);
     break;
@@ -1230,7 +1282,213 @@ dissect_encryption_subopt(packet_info *pinfo, const char *optname _U_, tvbuff_t 
   }
 }
 
-static tn_opt options[] = {
+#define VMWARE_TELNET_EXT 232
+
+/* Option Subnegotiation */
+#define VMWARE_KNOWN_SUBOPTIONS_1 0
+#define VMWARE_KNOWN_SUBOPTIONS_2 1
+
+/* Unknown Command Response */
+#define VMWARE_UNKNOWN_SUBOPTION_RCVD_1 2
+#define VMWARE_UNKNOWN_SUBOPTION_RCVD_2 3
+
+/* vMotion Notification */
+#define VMWARE_VMOTION_BEGIN 40
+#define VMWARE_VMOTION_GOAHEAD 41
+#define VMWARE_VMOTION_NOTNOW 43
+#define VMWARE_VMOTION_PEER 44
+#define VMWARE_VMOTION_PEER_OK 45
+#define VMWARE_VMOTION_COMPLETE 46
+#define VMWARE_VMOTION_ABORT 48
+
+/* Proxy operation */
+#define VMWARE_DO_PROXY 70
+#define VMWARE_WILL_PROXY 71
+#define VMWARE_WONT_PROXY 73
+
+/* Virtual machine identification */
+#define VMWARE_VM_VC_UUID 80
+#define VMWARE_GET_VM_VC_UUID 81
+#define VMWARE_VM_NAME 82
+#define VMWARE_GET_VM_NAME 83
+#define VMWARE_VM_BIOS_UUID 84
+#define VMWARE_GET_VM_BIOS_UUID 85
+#define VMWARE_VM_LOCATION_UUID 86
+#define VMWARE_GET_VM_LOCATION_UUID 87
+
+static const value_string vmware_cmd_vals[] = {
+  { VMWARE_KNOWN_SUBOPTIONS_1,       "KNOWN-SUBOPTIONS-1" },
+  { VMWARE_KNOWN_SUBOPTIONS_2,       "KNOWN-SUBOPTIONS-2" },
+  { VMWARE_UNKNOWN_SUBOPTION_RCVD_1, "UNKNOWN-SUBOPTION-RCVD-1" },
+  { VMWARE_UNKNOWN_SUBOPTION_RCVD_2, "UNKNOWN-SUBOPTION-RCVD-2" },
+  { VMWARE_VMOTION_BEGIN,            "VMOTION-BEGIN" },
+  { VMWARE_VMOTION_GOAHEAD,          "VMOTION-GOAHEAD" },
+  { VMWARE_VMOTION_NOTNOW,           "VMOTION-NOTNOW" },
+  { VMWARE_VMOTION_PEER,             "VMOTION-PEER" },
+  { VMWARE_VMOTION_PEER_OK,          "VMOTION-PEER-OK" },
+  { VMWARE_VMOTION_COMPLETE,         "VMOTION-COMPLETE" },
+  { VMWARE_VMOTION_ABORT,            "VMOTION-ABORT" },
+  { VMWARE_DO_PROXY,                 "DO-PROXY" },
+  { VMWARE_WILL_PROXY,               "WILL-PROXY" },
+  { VMWARE_WONT_PROXY,               "WONT-PROXY" },
+  { VMWARE_VM_VC_UUID,               "VM-VC-UUID" },
+  { VMWARE_GET_VM_VC_UUID,           "GET-VM-VC-UUID" },
+  { VMWARE_VM_NAME,                  "VM-NAME" },
+  { VMWARE_GET_VM_NAME,              "GET-VM-NAME" },
+  { VMWARE_VM_BIOS_UUID,             "VM-BIOS-UUID" },
+  { VMWARE_GET_VM_BIOS_UUID,         "GET-VM-BIOS-UUID" },
+  { VMWARE_VM_LOCATION_UUID,         "VM-LOCATION-UUID" },
+  { VMWARE_GET_VM_LOCATION_UUID,     "GET-VM-LOCATION-UUID" },
+  { 0, NULL }
+};
+
+/* Encoding for the "direction" argument to DO-PROXY: */
+#define VMWARE_PROXY_DIRECTION_CLIENT 'C'
+#define VMWARE_PROXY_DIRECTION_SERVER 'S'
+
+static const value_string vmware_proxy_direction_vals[] = {
+  { VMWARE_PROXY_DIRECTION_CLIENT, "Client" },
+  { VMWARE_PROXY_DIRECTION_SERVER, "Server" },
+  { 0, NULL }
+};
+
+static void
+dissect_vmware_subopt(packet_info *pinfo _U_, const char *optname _U_, tvbuff_t *tvb, int offset, int len,
+                      proto_tree *tree, proto_item *item _U_)
+{
+  /*
+   * The VMware virtual serial port proxy uses the Telnet protocol over TCP
+   * port 13370.  Use "Decode As..." or specify "-d tcp.port==13370,telnet" on
+   * the command-line.
+   */
+
+  guint8 vmwcmd;
+
+  vmwcmd = tvb_get_guint8(tvb, offset);
+  proto_tree_add_uint(tree, hf_telnet_vmware_cmd, tvb, offset, 1, vmwcmd);
+  offset++;
+  len--;
+
+  switch (vmwcmd) {
+
+  /* --- Option Subnegotiation --- */
+
+  case VMWARE_KNOWN_SUBOPTIONS_1:
+  case VMWARE_KNOWN_SUBOPTIONS_2:
+    /* Data: suboptions... */
+    while (len > 0) {
+      proto_tree_add_item(tree, hf_telnet_vmware_known_suboption_code, tvb, offset, 1, ENC_NA);
+      offset++;
+      len--;
+    }
+    break;
+
+  /* --- Unknown Command Response --- */
+
+  case VMWARE_UNKNOWN_SUBOPTION_RCVD_1:
+  case VMWARE_UNKNOWN_SUBOPTION_RCVD_2:
+    /* Data: suboption */
+    proto_tree_add_item(tree, hf_telnet_vmware_unknown_subopt_code, tvb, offset, 1, ENC_NA);
+    offset++;
+    len--;
+    break;
+
+  /* --- vMotion Notification --- */
+
+  case VMWARE_VMOTION_BEGIN:
+  case VMWARE_VMOTION_NOTNOW:
+  case VMWARE_VMOTION_PEER_OK:
+  case VMWARE_VMOTION_COMPLETE:
+    /* Data: sequence */
+    proto_tree_add_item(tree, hf_telnet_vmware_vmotion_sequence, tvb, offset, len, ENC_NA);
+    offset += len;
+    len = 0;
+    break;
+
+  case VMWARE_VMOTION_GOAHEAD:
+  case VMWARE_VMOTION_PEER:
+    /* Data: sequence secret */
+    /*
+     * TODO: With no delimiter between "sequence" and "secret", nor any other
+     *       way of determining the lengths of those fields, dissecting them
+     *       will require tracking the vMotion conversation.  For now, ignore
+     *       all data.
+     */
+    offset += len;
+    len = 0;
+    break;
+
+  case VMWARE_VMOTION_ABORT:
+    /* no data */
+    break;
+
+  /* --- Proxy Operation --- */
+
+  case VMWARE_DO_PROXY:
+    /* Data: direction serviceUri */
+    proto_tree_add_item(tree, hf_telnet_vmware_proxy_direction, tvb, offset, 1, ENC_NA);
+    offset++;
+    len--;
+    proto_tree_add_item(tree, hf_telnet_vmware_proxy_serviceUri, tvb, offset, len, ENC_UTF_8);
+    offset += len;
+    len = 0;
+    break;
+
+  case VMWARE_WILL_PROXY:
+  case VMWARE_WONT_PROXY:
+    /* no data */
+    break;
+
+  /* --- Virtual Machine Identification --- */
+
+  case VMWARE_GET_VM_VC_UUID:
+  case VMWARE_GET_VM_NAME:
+  case VMWARE_GET_VM_BIOS_UUID:
+  case VMWARE_GET_VM_LOCATION_UUID:
+    /* no data */
+    break;
+
+  case VMWARE_VM_NAME:
+    /* Data: vm-name */
+    proto_tree_add_item(tree, hf_telnet_vmware_vm_name, tvb, offset, len, ENC_UTF_8);
+    offset += len;
+    len = 0;
+    break;
+
+  case VMWARE_VM_VC_UUID:
+    /* Data: vm-uuid */
+    proto_tree_add_item(tree, hf_telnet_vmware_vm_vc_uuid, tvb, offset, len, ENC_ASCII);
+    offset += len;
+    len = 0;
+    break;
+
+  case VMWARE_VM_BIOS_UUID:
+    /* Data: vm-uuid */
+    proto_tree_add_item(tree, hf_telnet_vmware_vm_bios_uuid, tvb, offset, len, ENC_ASCII);
+    offset += len;
+    len = 0;
+    break;
+
+  case VMWARE_VM_LOCATION_UUID:
+    /* Data: vm-uuid */
+    proto_tree_add_item(tree, hf_telnet_vmware_vm_location_uuid, tvb, offset, len, ENC_ASCII);
+    offset += len;
+    len = 0;
+    break;
+
+  default:
+    expert_add_info_format(pinfo, item, &ei_telnet_invalid_subcommand, "Invalid %s subcommand %u", optname, vmwcmd);
+    if (len > 0)
+      proto_tree_add_item(tree, hf_telnet_subcommand_data, tvb, offset, len, ENC_NA);
+    return;
+  }
+  if (len > 0) {
+    proto_item *pi = proto_tree_add_bytes_format(tree, hf_telnet_subcommand_data, tvb, offset, len, NULL, "Unexpected data");
+    expert_add_info_format(pinfo, pi, &ei_telnet_vmware_unexp_data, "%u bytes unexpected data", len);
+  }
+}
+
+static const tn_opt options[] = {
   {
     "Binary Transmission",                      /* RFC 856 */
     NULL,                                       /* no suboption negotiation */
@@ -1584,21 +1842,46 @@ static tn_opt options[] = {
 
 };
 
-#define NOPTIONS array_length(options)
+static const tn_opt telnet_opt_vmware = {
+  "VMware Virtual Serial Port Proxy",
+  NULL,
+  VARIABLE_LENGTH,
+  1,
+  dissect_vmware_subopt
+};
+
+static const tn_opt telnet_opt_unknown = {
+  "<unknown option>",
+  NULL,
+  VARIABLE_LENGTH,
+  0,
+  NULL
+};
+
+static const tn_opt *
+telnet_find_option(guint8 opt_byte)
+{
+  if (opt_byte < array_length(options))
+    return &options[opt_byte];
+
+  if (opt_byte == VMWARE_TELNET_EXT)
+    return &telnet_opt_vmware;
+
+  return &telnet_opt_unknown;
+}
 
 static int
 telnet_sub_option(packet_info *pinfo, proto_tree *option_tree, proto_item *option_item, tvbuff_t *tvb, int start_offset)
 {
-  int         offset = start_offset;
-  guint8      opt_byte;
-  int         subneg_len;
-  const char *opt;
-  int         iac_offset;
-  guint       len;
-  tvbuff_t   *unescaped_tvb;
-  void      (*dissect)(packet_info *, const char *, tvbuff_t *, int, int, proto_tree *, proto_item*);
-  gint        cur_offset;
-  gboolean    iac_found;
+  int           offset = start_offset;
+  guint8        opt_byte;
+  const tn_opt *opt;
+  int           subneg_len;
+  int           iac_offset;
+  guint         len;
+  tvbuff_t     *unescaped_tvb;
+  gint          cur_offset;
+  gboolean      iac_found;
 
   /*
    * As data with value iac (0xff) is possible, this value must be escaped
@@ -1610,13 +1893,7 @@ telnet_sub_option(packet_info *pinfo, proto_tree *option_tree, proto_item *optio
 
   /* Get the option code */
   opt_byte = tvb_get_guint8(tvb, offset);
-  if (opt_byte >= NOPTIONS) {
-    opt = "<unknown option>";
-    dissect = NULL;
-  } else {
-    opt = options[opt_byte].name;
-    dissect = options[opt_byte].dissect;
-  }
+  opt = telnet_find_option(opt_byte);
   offset++;
 
   /* Search for an unescaped IAC. */
@@ -1629,7 +1906,7 @@ telnet_sub_option(packet_info *pinfo, proto_tree *option_tree, proto_item *optio
       /* None found - run to the end of the packet. */
       offset += len;
     } else {
-      if (((guint)(iac_offset + 1) >= len) ||
+      if (!tvb_offset_exists(tvb, iac_offset + 1) ||
           (tvb_get_guint8(tvb, iac_offset + 1) != TN_IAC)) {
         /* We really found a single IAC, so we're done */
         offset = iac_offset;
@@ -1654,9 +1931,9 @@ telnet_sub_option(packet_info *pinfo, proto_tree *option_tree, proto_item *optio
   if (subneg_len > 0) {
 
     /* Now dissect the suboption parameters. */
-    if (dissect != NULL) {
+    if (opt->dissect != NULL) {
 
-      switch (options[opt_byte].len_type) {
+      switch (opt->len_type) {
 
       case NO_LENGTH:
         /* There isn't supposed to *be* sub-option negotiation for this. */
@@ -1665,16 +1942,16 @@ telnet_sub_option(packet_info *pinfo, proto_tree *option_tree, proto_item *optio
 
       case FIXED_LENGTH:
         /* Make sure the length is what it's supposed to be. */
-        if (subneg_len - iac_data != options[opt_byte].optlen) {
-          expert_add_info_format(pinfo, option_item, &ei_telnet_suboption_length, "Suboption parameter length is %d, should be %d", subneg_len, options[opt_byte].optlen);
+        if (subneg_len - iac_data != opt->optlen) {
+          expert_add_info_format(pinfo, option_item, &ei_telnet_suboption_length, "Suboption parameter length is %d, should be %d", subneg_len, opt->optlen);
           return offset;
         }
         break;
 
       case VARIABLE_LENGTH:
         /* Make sure the length is greater than the minimum. */
-        if (subneg_len - iac_data < options[opt_byte].optlen) {
-          expert_add_info_format(pinfo, option_item, &ei_telnet_suboption_length, "Suboption parameter length is %d, should be at least %d", subneg_len, options[opt_byte].optlen);
+        if (subneg_len - iac_data < opt->optlen) {
+          expert_add_info_format(pinfo, option_item, &ei_telnet_suboption_length, "Suboption parameter length is %d, should be at least %d", subneg_len, opt->optlen);
           return offset;
         }
         break;
@@ -1684,9 +1961,9 @@ telnet_sub_option(packet_info *pinfo, proto_tree *option_tree, proto_item *optio
       if (iac_data > 0) {
         /* Data is escaped, we have to unescape it. */
         unescaped_tvb = unescape_and_tvbuffify_telnet_option(pinfo, tvb, start_offset, subneg_len);
-        (*dissect)(pinfo, opt, unescaped_tvb, 0, subneg_len - iac_data, option_tree, option_item);
+        (*opt->dissect)(pinfo, opt->name, unescaped_tvb, 0, subneg_len - iac_data, option_tree, option_item);
       } else {
-        (*dissect)(pinfo, opt, tvb, start_offset, subneg_len, option_tree, option_item);
+        (*opt->dissect)(pinfo, opt->name, tvb, start_offset, subneg_len, option_tree, option_item);
       }
     } else {
       /* We don't have a dissector for them; just show them as data. */
@@ -1706,24 +1983,19 @@ static void
 telnet_suboption_name(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int* offset, const gchar** optname,
                       proto_tree **opt_tree, proto_item **opt_item, const char *type)
 {
-  guint8      opt_byte;
-  const char *opt;
-  gint        ett = ett_telnet_subopt;
+  guint8        opt_byte;
+  const tn_opt *opt;
+  gint          ett = ett_telnet_subopt;
 
   opt_byte = tvb_get_guint8(tvb, *offset);
-  if (opt_byte >= NOPTIONS) {
-    opt = "<unknown option>";
-  }
-  else {
-    opt = options[opt_byte].name;
-    if (options[opt_byte].subtree_index != NULL)
-      ett = *(options[opt_byte].subtree_index);
-  }
-  *opt_item = proto_tree_add_uint_format_value(tree, hf_telnet_subcmd, tvb, *offset, 1, opt_byte, "%s", opt);
+  opt = telnet_find_option(opt_byte);
+  if (opt->subtree_index != NULL)
+    ett = *(opt->subtree_index);
+  *opt_item = proto_tree_add_uint_format_value(tree, hf_telnet_subcmd, tvb, *offset, 1, opt_byte, "%s", opt->name);
   *opt_tree = proto_item_add_subtree(*opt_item, ett);
 
   (*offset)++;
-  (*optname) = wmem_strdup_printf(pinfo->pool, "%s %s", type, opt);
+  (*optname) = wmem_strdup_printf(pinfo->pool, "%s %s", type, opt->name);
 }
 
 static int
@@ -1949,11 +2221,11 @@ proto_register_telnet(void)
     },
     { &hf_telnet_auth_mod_who,
       { "Who", "telnet.auth.mod.who", FT_BOOLEAN, 8,
-        TFS(&auth_mod_who), 0x01, "Modifier: Who to mask", HFILL }
+        TFS(&tfs_s2c_c2s), 0x01, "Modifier: Who will authenticate", HFILL }
     },
     { &hf_telnet_auth_mod_how,
       { "How", "telnet.auth.mod.how", FT_BOOLEAN, 8,
-        TFS(&auth_mod_how), 0x02, "Modifier: How to mask", HFILL }
+        TFS(&auth_mod_how), 0x02, "Modifier: Authentication flow", HFILL }
     },
     { &hf_telnet_auth_mod_enc,
       { "Encrypt", "telnet.auth.mod.enc", FT_UINT8, BASE_DEC,
@@ -1962,6 +2234,14 @@ proto_register_telnet(void)
     { &hf_telnet_auth_krb5_type,
       { "Command", "telnet.auth.krb5.cmd", FT_UINT8, BASE_DEC,
         VALS(auth_krb5_types), 0, "Krb5 Authentication sub-command", HFILL }
+    },
+    { &hf_telnet_auth_ssl_status,
+      { "Status", "telnet.auth.ssl.status", FT_UINT8, BASE_DEC,
+        VALS(ssl_auth_status), 0, "SSL authentication status", HFILL }
+    },
+    { &hf_telnet_auth_data,
+      { "Authentication data", "telnet.auth.data", FT_BYTES, BASE_NONE,
+        NULL, 0, NULL, HFILL }
     },
     { &hf_telnet_string_subopt_value,
       { "Value", "telnet.string_subopt.value", FT_STRING, BASE_NONE,
@@ -1996,15 +2276,15 @@ proto_register_telnet(void)
         NULL, 0, NULL, HFILL }
     },
     { &hf_telnet_comport_subopt_parity,
-      { "Parity", "telnet.comport_subopt.parity", FT_UINT8, BASE_DEC,
+      { "Parity", "telnet.comport_subopt.parity", FT_UINT16, BASE_DEC,
         NULL, 0, NULL, HFILL }
     },
     { &hf_telnet_comport_subopt_stop,
-      { "Stop Bits", "telnet.comport_subopt.stop", FT_UINT8, BASE_DEC,
+      { "Stop Bits", "telnet.comport_subopt.stop", FT_UINT16, BASE_DEC,
         NULL, 0, NULL, HFILL }
     },
     { &hf_telnet_comport_subopt_control,
-      { "Control", "telnet.comport_subopt.control", FT_UINT8, BASE_DEC,
+      { "Control", "telnet.comport_subopt.control", FT_UINT16, BASE_DEC,
         NULL, 0, NULL, HFILL }
     },
     { &hf_telnet_comport_linestate,
@@ -2032,7 +2312,7 @@ proto_register_telnet(void)
         NULL, 0, NULL, HFILL }
     },
     { &hf_telnet_comport_subopt_purge,
-      { "Purge", "telnet.comport_subopt.purge", FT_UINT8, BASE_DEC,
+      { "Purge", "telnet.comport_subopt.purge", FT_UINT16, BASE_DEC,
         NULL, 0, NULL, HFILL }
     },
     { &hf_telnet_rfc_subopt_cmd,
@@ -2107,6 +2387,46 @@ proto_register_telnet(void)
       { "Follows", "telnet.starttls", FT_UINT8, BASE_DEC,
         NULL, 0, NULL, HFILL }
     },
+    { &hf_telnet_vmware_cmd,
+      { "VMware Serial Port Proxy Cmd", "telnet.vmware.cmd", FT_UINT8, BASE_DEC,
+        VALS(vmware_cmd_vals), 0, "VMware command", HFILL }
+    },
+    { &hf_telnet_vmware_known_suboption_code,
+      { "Suboption", "telnet.vmware.known_suboption_code", FT_UINT8, BASE_DEC,
+        VALS(vmware_cmd_vals), 0, NULL, HFILL }
+    },
+    { &hf_telnet_vmware_unknown_subopt_code,
+      { "Code", "telnet.vmware.unknown_suboption_code", FT_UINT8, BASE_DEC,
+        NULL, 0, NULL, HFILL }
+    },
+    { &hf_telnet_vmware_vmotion_sequence,
+      { "vMotion sequence", "telnet.vmware.vmotion.sequence", FT_BYTES, BASE_NONE,
+        NULL, 0, NULL, HFILL }
+    },
+    { &hf_telnet_vmware_proxy_direction,
+      { "Proxy Direction", "telnet.vmware.proxy.direction", FT_CHAR, BASE_HEX,
+        VALS(vmware_proxy_direction_vals), 0, NULL, HFILL }
+    },
+    { &hf_telnet_vmware_proxy_serviceUri,
+      { "Proxy Service URI", "telnet.vmware.proxy.serviceUri", FT_STRING, BASE_NONE,
+        NULL, 0, NULL, HFILL }
+    },
+    { &hf_telnet_vmware_vm_vc_uuid,
+      { "VM VC UUID", "telnet.vmware.vm.vc_uuid", FT_STRING, BASE_NONE,
+        NULL, 0, NULL, HFILL }
+    },
+    { &hf_telnet_vmware_vm_bios_uuid,
+      { "VM BIOS UUID", "telnet.vmware.vm.bios_uuid", FT_STRING, BASE_NONE,
+        NULL, 0, NULL, HFILL }
+    },
+    { &hf_telnet_vmware_vm_location_uuid,
+      { "VM Location UUID", "telnet.vmware.vm.location_uuid", FT_STRING, BASE_NONE,
+        NULL, 0, NULL, HFILL }
+    },
+    { &hf_telnet_vmware_vm_name,
+      { "VM name", "telnet.vmware.vm.name", FT_STRING, BASE_NONE,
+        NULL, 0, NULL, HFILL }
+    },
   };
   static gint *ett[] = {
     &ett_telnet,
@@ -2161,9 +2481,9 @@ proto_register_telnet(void)
       { &ei_telnet_invalid_linestate, { "telnet.invalid_linestate", PI_PROTOCOL, PI_WARN, "Invalid linestate", EXPFILL }},
       { &ei_telnet_invalid_modemstate, { "telnet.invalid_modemstate", PI_PROTOCOL, PI_WARN, "Invalid Modemstate", EXPFILL }},
       { &ei_telnet_invalid_purge, { "telnet.invalid_purge", PI_PROTOCOL, PI_WARN, "Invalid Purge Packet", EXPFILL }},
-      { &ei_telnet_kerberos_blob_too_long, { "telnet.kerberos_blob_too_long", PI_PROTOCOL, PI_NOTE, "Kerberos blob too long to dissect", EXPFILL }},
       { &ei_telnet_enc_cmd_unknown, { "telnet.enc.cmd.unknown", PI_PROTOCOL, PI_WARN, "Unknown encryption command", EXPFILL }},
       { &ei_telnet_suboption_length, { "telnet.suboption_length.invalid", PI_PROTOCOL, PI_WARN, "Bogus suboption data", EXPFILL }},
+      { &ei_telnet_vmware_unexp_data, { "telnet.vmware.unexpected_data", PI_PROTOCOL, PI_WARN, "Unexpected VMware Serial Port Proxy negotiation data", EXPFILL }},
   };
 
   expert_module_t* expert_telnet;

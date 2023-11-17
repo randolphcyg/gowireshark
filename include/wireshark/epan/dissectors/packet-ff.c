@@ -11548,7 +11548,7 @@ proto_register_ff(void)
         { &hf_ff_sm_find_tag_reply_req_num_of_fda_addr_selectors,
             { "Number Of FDA Address Selectors",
                 "ff.sm.find_tag_reply.req.num_of_fda_addr_selectors",
-                FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+                FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
 
         { &hf_ff_sm_find_tag_reply_req_fda_addr_selector,
             { "FDA Address Selector",
@@ -12761,7 +12761,7 @@ proto_register_ff(void)
         { &hf_ff_fms_gen_init_download_seq_req_idx,
             { "Index",
                 "ff.fms.gen_init_download_seq.req.idx",
-                FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+                FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL } },
 
 
 
@@ -12822,7 +12822,7 @@ proto_register_ff(void)
 
         { &hf_ff_fms_gen_download_seg_req_idx,
             { "Index", "ff.fms.gen_download_seg.req.idx",
-                FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+                FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL } },
 
         { &hf_ff_fms_gen_download_seg_req_more_follows,
             { "More Follows", "ff.fms.gen_download_seg.req.more_follows",
@@ -12891,7 +12891,7 @@ proto_register_ff(void)
 
         { &hf_ff_fms_gen_terminate_download_seq_req_idx,
             { "Index", "ff.fms.gen_terminate_download_seq.req.idx",
-                FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+                FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL } },
 
 
 
@@ -12958,7 +12958,7 @@ proto_register_ff(void)
 
         { &hf_ff_fms_init_download_seq_req_idx,
             { "Index", "ff.fms.init_download_seq.req.idx",
-                FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+                FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL } },
 
 
 
@@ -13017,7 +13017,7 @@ proto_register_ff(void)
 
         { &hf_ff_fms_download_seg_req_idx,
             { "Index", "ff.fms.download_seg.req.idx",
-                FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+                FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL } },
 
 
 
@@ -15274,6 +15274,9 @@ proto_register_ff(void)
     proto_ff = proto_register_protocol("FOUNDATION Fieldbus", "FF", "ff");
     proto_register_field_array(proto_ff, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
+
+    ff_udp_handle = register_dissector("ff.udp", dissect_ff_udp, proto_ff);
+    ff_tcp_handle = register_dissector("ff.tcp", dissect_ff_tcp, proto_ff);
 }
 
 
@@ -15284,8 +15287,6 @@ proto_reg_handoff_ff(void)
     /*
      * 4.8. Using UDP and TCP
      */
-    ff_udp_handle = create_dissector_handle(dissect_ff_udp, proto_ff);
-    ff_tcp_handle = create_dissector_handle(dissect_ff_tcp, proto_ff);
 
     /*
      * 4.8.4.2. Use

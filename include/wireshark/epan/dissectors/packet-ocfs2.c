@@ -24,6 +24,8 @@
 void proto_register_ocfs2(void);
 void proto_reg_handoff_ocfs2(void);
 
+static dissector_handle_t ocfs2_handle;
+
 static gint ett_ocfs2 = -1;
 static gint ett_dtm_lock_flags = -1;
 static gint ett_mres_flags = -1;
@@ -1490,7 +1492,7 @@ void proto_register_ocfs2(void)
 		},
 		{ &hf_dlm_mres_flags,
 			{ "Flags", "ocfs2.dlm.mres_flags", FT_UINT8, BASE_HEX,
-			  NULL, 0x01, "Migres Flags", HFILL
+			  NULL, 0x06, "Migres Flags", HFILL
 			}
 		},
 		{ &hf_dlm_mres_flag_recovery,
@@ -1503,6 +1505,7 @@ void proto_register_ocfs2(void)
 			  NULL, 0x04, NULL, HFILL
 			}
 		},
+		/* TODO: what should this flag be? Should also be added to hf_dlm_mres_flags above */
 		{ &hf_dlm_mres_flag_all_done,
 			{ "all_done", "ocfs2.dlm.mres_flags.all_done", FT_BOOLEAN, 8,
 			  NULL, 0x0, NULL, HFILL
@@ -1666,14 +1669,12 @@ void proto_register_ocfs2(void)
 	proto_ocfs2 = proto_register_protocol("OCFS2 Networking", "OCFS2", "ocfs2");
 	proto_register_field_array(proto_ocfs2, hf, array_length(hf));
 	proto_register_subtree_array(ett, array_length(ett));
+
+	ocfs2_handle = register_dissector("ocfs2", dissect_ocfs2, proto_ocfs2);
 }
 
 void proto_reg_handoff_ocfs2(void)
 {
-	dissector_handle_t ocfs2_handle;
-
-	ocfs2_handle = create_dissector_handle(dissect_ocfs2, proto_ocfs2);
-
 	dissector_add_for_decode_as_with_preference("tcp.port", ocfs2_handle);
 }
 

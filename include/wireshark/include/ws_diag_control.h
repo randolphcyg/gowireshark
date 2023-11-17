@@ -140,7 +140,7 @@ extern "C" {
 #endif
 
 /*
- * Suppress complaints about narrowing converstions and about signed vs.
+ * Suppress complaints about narrowing conversations and about signed vs.
  * unsigned comparison.
  *
  * XXX - this is done solely to squelch complaints from code generated
@@ -164,7 +164,7 @@ extern "C" {
    *   warning C6387: 'XXX' could be '0'
    *   warning C28182: Dereferencing NULL pointer
    */
-  #define DIAG_OFF_FLEX \
+  #define DIAG_OFF_FLEX() \
     __pragma(warning(push)) \
     __pragma(warning(disable:4018)) \
     __pragma(warning(disable:4244)) \
@@ -174,7 +174,8 @@ extern "C" {
     __pragma(warning(disable:6386)) \
     __pragma(warning(disable:6387)) \
     __pragma(warning(disable:28182))
-  #define DIAG_ON_FLEX	__pragma(warning(pop))
+  #define DIAG_ON_FLEX() \
+    __pragma(warning(pop))
 #else
   /*
    * Suppress:
@@ -182,6 +183,8 @@ extern "C" {
    *   -Wsigned-compare warnings
    *   -Wshorten-64-to-32 warnings, if the compiler *has* -Wshorten-64-to-32
    *   -Wunreachable-code warnings
+   * The version of Flex in the macOS Intel build bots triggers documentation warnings.
+   *   -Wdocumentation
    *
    * We use DIAG_OFF() and DIAG_ON(), so we only use features that the
    * compiler supports.
@@ -196,20 +199,37 @@ extern "C" {
    * you know what you're doing" warning that MSVC does?)
    */
   #if defined(__clang__) || defined(__APPLE__)
-    #define DIAG_OFF_FLEX \
+    #define DIAG_OFF_FLEX() \
       DIAG_OFF(sign-compare) \
+      DIAG_OFF(unused-parameter) \
       DIAG_OFF(shorten-64-to-32) \
-      DIAG_OFF(unreachable-code)
-    #define DIAG_ON_FLEX \
+      DIAG_OFF(unreachable-code) \
+      DIAG_OFF(documentation)
+    #define DIAG_ON_FLEX() \
+      DIAG_ON(documentation)    \
       DIAG_ON(unreachable-code) \
       DIAG_ON(shorten-64-to-32) \
+      DIAG_ON(unused-parameter) \
       DIAG_ON(sign-compare)
   #else
-    #define DIAG_OFF_FLEX \
-      DIAG_OFF(sign-compare)
-    #define DIAG_ON_FLEX \
+    #define DIAG_OFF_FLEX() \
+      DIAG_OFF(sign-compare) \
+      DIAG_OFF(unused-parameter)
+    #define DIAG_ON_FLEX() \
+      DIAG_ON(unused-parameter) \
       DIAG_ON(sign-compare)
   #endif
+#endif
+
+/* Disable Lemon warnings. */
+#if defined(_MSC_VER)
+  #define DIAG_OFF_LEMON()
+  #define DIAG_ON_LEMON()
+#else
+  #define DIAG_OFF_LEMON() \
+    DIAG_OFF_CLANG(unreachable-code)
+  #define DIAG_ON_LEMON() \
+    DIAG_ON_CLANG(unreachable-code)
 #endif
 
 /*
@@ -231,6 +251,18 @@ extern "C" {
 #else
   #define DIAG_OFF_CAST_AWAY_CONST
   #define DIAG_ON_CAST_AWAY_CONST
+#endif
+
+/*
+ * This warning is only supported by GCC since version 7.1 (and not
+ * Clang or other compilers that claim GNU C support).
+ */
+#if WS_GCC_VERSION >= 70100
+  #define DIAG_OFF_STRINGOP_OVERFLOW() DIAG_OFF(stringop-overflow=)
+  #define DIAG_ON_STRINGOP_OVERFLOW() DIAG_ON(stringop-overflow=)
+#else
+  #define DIAG_OFF_STRINGOP_OVERFLOW()
+  #define DIAG_ON_STRINGOP_OVERFLOW()
 #endif
 
 /*

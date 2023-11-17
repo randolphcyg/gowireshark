@@ -31,23 +31,25 @@
 void proto_register_devicenet(void);
 void proto_reg_handoff_devicenet(void);
 
+static dissector_handle_t devicenet_handle;
+
 #define DEVICENET_CANID_MASK            CAN_SFF_MASK
-#define MESSAGE_GROUP_1_ID              0x3FF
-#define MESSAGE_GROUP_1_MSG_MASK        0x3C0
-#define MESSAGE_GROUP_1_MAC_ID_MASK     0x03F
+#define MESSAGE_GROUP_1_ID              0x03FF
+#define MESSAGE_GROUP_1_MSG_MASK        0x03C0
+#define MESSAGE_GROUP_1_MAC_ID_MASK     0x003F
 
-#define MESSAGE_GROUP_2_ID              0x5FF
-#define MESSAGE_GROUP_2_MSG_MASK        0x007
-#define MESSAGE_GROUP_2_MAC_ID_MASK     0x1F8
+#define MESSAGE_GROUP_2_ID              0x05FF
+#define MESSAGE_GROUP_2_MSG_MASK        0x0007
+#define MESSAGE_GROUP_2_MAC_ID_MASK     0x01F8
 
-#define MESSAGE_GROUP_3_ID              0x7BF
-#define MESSAGE_GROUP_3_MSG_MASK        0x1C0
-#define MESSAGE_GROUP_3_MAC_ID_MASK     0x03F
-#define MESSAGE_GROUP_3_FRAG_MASK       0x80
-#define MESSAGE_GROUP_3_XID_MASK        0x40
+#define MESSAGE_GROUP_3_ID              0x07BF
+#define MESSAGE_GROUP_3_MSG_MASK        0x01C0
+#define MESSAGE_GROUP_3_MAC_ID_MASK     0x003F
+#define MESSAGE_GROUP_3_FRAG_MASK       0x0080
+#define MESSAGE_GROUP_3_XID_MASK        0x0040
 
-#define MESSAGE_GROUP_4_ID              0x7EF
-#define MESSAGE_GROUP_4_MSG_MASK        0x03F
+#define MESSAGE_GROUP_4_ID              0x07EF
+#define MESSAGE_GROUP_4_MSG_MASK        0x003F
 
 static int proto_devicenet = -1;
 
@@ -123,7 +125,7 @@ static uat_devicenet_record_t *uat_devicenet_records = NULL;
 static uat_t *devicenet_uat = NULL;
 static guint num_devicenet_records_uat = 0;
 
-static gboolean uat_devicenet_record_update_cb(void* r, char** err) {
+static bool uat_devicenet_record_update_cb(void* r, char** err) {
     uat_devicenet_record_t* rec = (uat_devicenet_record_t *)r;
 
     if (rec->mac_id > 63) {
@@ -139,7 +141,7 @@ UAT_VS_DEF(uat_devicenet_records, behavior, uat_devicenet_record_t, enum node_be
 #if 0
 static const enum_val_t bodytype_devicenet_protocol_options[] = {
     { "eightovereight", "8/8", 0 },
-    { "eightoversixten", "8/16", 1 },
+    { "eightoversixteen", "8/16", 1 },
     { "sixteenovereight", "16/8", 2 },
     { "sixteenoversixteen", "16/16", 3 },
     { NULL, NULL, 0 }
@@ -1044,14 +1046,13 @@ void proto_register_devicenet(void)
                                       "Node bodytypes",
                                       "Node bodytypes",
                                       devicenet_uat);
+
+    devicenet_handle = register_dissector("devicenet",  dissect_devicenet, proto_devicenet );
 }
 
 void
 proto_reg_handoff_devicenet(void)
 {
-    dissector_handle_t devicenet_handle;
-
-    devicenet_handle = create_dissector_handle( dissect_devicenet, proto_devicenet );
     dissector_add_for_decode_as("can.subdissector", devicenet_handle );
 }
 

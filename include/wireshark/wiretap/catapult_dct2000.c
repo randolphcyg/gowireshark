@@ -602,6 +602,16 @@ catapult_dct2000_dump(wtap_dumper *wdh, const wtap_rec *rec,
         return FALSE;
     }
 
+    /*
+     * Make sure this packet doesn't have a link-layer type that
+     * differs from the one for the file (which should always
+     * be WTAP_ENCAP_CATAPULT_DCT2000).
+     */
+    if (wdh->file_encap != rec->rec_header.packet_header.pkt_encap) {
+        *err = WTAP_ERR_ENCAP_PER_PACKET_UNSUPPORTED;
+        return FALSE;
+    }
+
     dct2000 = (dct2000_dump_t *)wdh->priv;
     if (dct2000 == NULL) {
 
@@ -819,10 +829,10 @@ parse_line(gchar *linebuff, gint line_length,
     int  n = 0;
     int  port_digits;
     char port_number_string[MAX_PORT_DIGITS+1];
-    int  variant_digits = 0;
+    int  variant_digits;
     int  variant = 1;
-    int  protocol_chars = 0;
-    int  outhdr_chars = 0;
+    int  protocol_chars;
+    int  outhdr_chars;
 
     char seconds_buff[MAX_SECONDS_CHARS+1];
     int  seconds_chars;

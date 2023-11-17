@@ -100,6 +100,7 @@ static int hf_h264_redundant_pic_cnt_present_flag          = -1;
 static int hf_h264_transform_8x8_mode_flag                 = -1;
 static int hf_h264_pic_scaling_matrix_present_flag         = -1;
 static int hf_h264_second_chroma_qp_index_offset           = -1;
+static int hf_h264_primary_pic_type                        = -1;
 static int hf_h264_par_profile                             = -1;
 static int hf_h264_par_profile_b                           = -1;
 static int hf_h264_par_profile_m                           = -1;
@@ -469,6 +470,19 @@ static const value_string h264_slice_group_map_type_vals[] = {
     { 0,    NULL }
 };
 
+/* Table 7-5 Meaning of primary_pic_type */
+static const value_string h264_primary_pic_type_vals[] = {
+    { 0,    "2, 7" },
+    { 1,    "0, 2, 5, 7" },
+    { 2,    "0, 1, 2, 5, 6, 7" },
+    { 3,    "4, 9" },
+    { 4,    "3, 4, 8, 9" },
+    { 5,    "2, 4, 7, 9" },
+    { 6,    "0, 2, 3, 4, 5, 7, 8, 9" },
+    { 7,    "0, 1, 2, 3, 4, 5, 6, 7, 8, 9" },
+    { 0,    NULL }
+};
+
 /* Table 7-6 Name association to slice_type */
 static const value_string h264_slice_type_vals[] = {
     { 0,    "P (P slice)" },
@@ -688,8 +702,8 @@ dissect_h264_exp_golomb_code(proto_tree *tree, int hf_index, tvbuff_t *tvb, gint
         overflow = TRUE;
         codenum = G_MAXUINT32;
         if (descriptor == H264_SE_V) {
-            value = tvb_get_bits32(tvb, bit_offset + leading_zero_bits / 32, leading_zero_bits % 32, ENC_BIG_ENDIAN);
-            if (value % 1) {
+            value = tvb_get_bits32(tvb, bit_offset + 32*(leading_zero_bits / 32), leading_zero_bits % 32, ENC_BIG_ENDIAN);
+            if (value % 2) {
                 se_value = G_MININT32;
             } else {
                 se_value = G_MAXINT32;
@@ -705,7 +719,7 @@ dissect_h264_exp_golomb_code(proto_tree *tree, int hf_index, tvbuff_t *tvb, gint
             if (value != 1) {
                 overflow = TRUE;
             }
-            if (value % 1) {
+            if (value % 2) {
                 se_value = G_MININT32;
             } else {
                 se_value = G_MAXINT32;
@@ -2012,9 +2026,13 @@ dissect_h264_pic_parameter_set_rbsp(proto_tree *tree, tvbuff_t *tvb, packet_info
 static void
 dissect_h264_access_unit_delimiter_rbsp(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
 {
+    gint bit_offset = offset << 3;
     /* primary_pic_type 6 u(3) */
+    proto_tree_add_bits_item(tree, hf_h264_primary_pic_type, tvb, bit_offset, 3, ENC_BIG_ENDIAN);
+    bit_offset += 3;
+
     /* rbsp_trailing_bits( ) 6 */
-    proto_tree_add_expert(tree, pinfo, &ei_h264_undecoded, tvb, offset, -1);
+    dissect_h264_rbsp_trailing_bits(tree, tvb, pinfo, bit_offset);
 }
 
 /*
@@ -2368,13 +2386,15 @@ startover:
     /* In decoder configuration start code may be pressent
      * B.1.1 Byte stream NAL unit syntax
      */
-    dword = tvb_get_bits32(tvb, offset<<3, 32, ENC_BIG_ENDIAN);
-    if (dword == 1) {
-        /* zero_byte + start_code_prefix_one_3bytes */
-        offset+=4;
-    } else if ((dword >> 8) == 1) {
-        /* start_code_prefix_one_3bytes */
-        offset+= 3;
+    if (tvb_reported_length_remaining(tvb, offset<<3) >= 4) {
+        dword = tvb_get_bits32(tvb, offset<<3, 32, ENC_BIG_ENDIAN);
+        if (dword == 1) {
+            /* zero_byte + start_code_prefix_one_3bytes */
+            offset+=4;
+        } else if ((dword >> 8) == 1) {
+            /* start_code_prefix_one_3bytes */
+            offset+= 3;
+        }
     }
     /* Ref: 7.3.1 NAL unit syntax */
     nal_unit_type = tvb_get_guint8(tvb, offset) & 0x1f;
@@ -2456,6 +2476,73 @@ startover:
     }
 }
 
+/* Annex B "Byte stream format" */
+static int
+dissect_h264_bytestream(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+{
+    proto_tree *h264_tree;
+    proto_item *item;
+
+    tvbuff_t *next_tvb, *rbsp_tvb;
+    gint offset = 0, end_offset;
+    guint32 dword;
+
+    /* Look for the first start word. Assume byte aligned. */
+    while (1) {
+        if (tvb_reported_length(tvb) < 4) {
+            return 0;
+        }
+        dword = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+        if ((dword >> 8) == 1 || dword == 1) {
+            break;
+        } else if (dword != 0) {
+            return 0;
+        }
+        offset += 2;
+    }
+
+    col_set_str(pinfo->cinfo, COL_PROTOCOL, "H.264");
+    item = proto_tree_add_item(tree, proto_h264, tvb, 0, -1, ENC_NA);
+    h264_tree = proto_item_add_subtree(item, ett_h264);
+
+    while (tvb_reported_length_remaining(tvb, offset)) {
+        dword = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+        if ((dword >> 8) != 1) {
+            /* zero_byte */
+            offset++;
+        }
+        /* start_code_prefix_one_3bytes */
+        offset += 3;
+        gint nal_length = tvb_reported_length_remaining(tvb, offset);
+        /* Search for either \0\0\1 or \0\0\0\1:
+         * Find \0\0 and then check if \0\1 is in the next offset or
+         * the one after that. (Note none of this throws exceptions.)
+         */
+        end_offset = tvb_find_guint16(tvb, offset, -1, 0);
+        while (end_offset != -1) {
+            if (tvb_find_guint16(tvb, end_offset + 1, 3, 1) != -1) {
+                nal_length = end_offset - offset;
+                break;
+            }
+            end_offset = tvb_find_guint16(tvb, end_offset + 1, -1, 0);
+        }
+
+        /* If end_offset is -1, we got to the end; assume this is the end
+         * of the NAL. To handle a bytestream that fragments NALs across
+         * lower level packets (does any implementation do this?), we would
+         * need to use epan/stream.h
+         */
+
+        /* Unescape NAL unit */
+        next_tvb = tvb_new_subset_length(tvb, offset, nal_length);
+        rbsp_tvb = dissect_h265_unescap_nal_unit(next_tvb, pinfo, 0);
+
+        dissect_h264_nal_unit(rbsp_tvb, pinfo, h264_tree);
+        offset += nal_length;
+    }
+    return tvb_reported_length(tvb);
+}
+
 /* Code to actually dissect the packets */
 static int
 dissect_h264(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
@@ -2533,10 +2620,10 @@ dissect_h264(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
             dissect_h264_slice_layer_without_partitioning_rbsp(stream_tree, rbsp_tvb, pinfo, 0);
             break;
         case 3: /* Coded slice data partition B */
-            dissect_h264_slice_data_partition_b_layer_rbsp(h264_nal_tree, rbsp_tvb, pinfo, 0);
+            dissect_h264_slice_data_partition_b_layer_rbsp(stream_tree, rbsp_tvb, pinfo, 0);
             break;
         case 4: /* Coded slice data partition C */
-            dissect_h264_slice_data_partition_c_layer_rbsp(h264_nal_tree, rbsp_tvb, pinfo, 0);
+            dissect_h264_slice_data_partition_c_layer_rbsp(stream_tree, rbsp_tvb, pinfo, 0);
             break;
         case 5: /* Coded slice of an IDR picture */
             dissect_h264_slice_layer_without_partitioning_rbsp(stream_tree, rbsp_tvb, pinfo, 0);
@@ -2810,7 +2897,7 @@ proto_register_h264(void)
         },
         { &hf_h264_profile_idc,
             { "Profile_idc",           "h264.profile_idc",
-            FT_UINT8, BASE_DEC, VALS(h264_profile_idc_values), 0xff,
+            FT_UINT8, BASE_DEC, VALS(h264_profile_idc_values), 0x0,
             NULL, HFILL }
         },
         { &hf_h264_rbsp_stop_bit,
@@ -2860,7 +2947,7 @@ proto_register_h264(void)
         },
         { &hf_h264_level_idc,
             { "Level_id",           "h264.level_id",
-            FT_UINT8, BASE_DEC, NULL, 0xff,
+            FT_UINT8, BASE_DEC, NULL, 0x0,
             NULL, HFILL }
         },
         { &hf_h264_nal_unit,
@@ -3122,6 +3209,12 @@ proto_register_h264(void)
             { "second_chroma_qp_index_offset",           "h264.second_chroma_qp_index_offset",
             FT_INT32, BASE_DEC, NULL, 0x0,
             NULL, HFILL }
+        },
+
+        { &hf_h264_primary_pic_type,
+            { "primary_pic_type",           "h264.primary_pic_type",
+            FT_INT8, BASE_DEC, VALS(h264_primary_pic_type_vals), 0x0,
+            "slice_type values that may be present in the primary coded picture", HFILL }
         },
 
         { &hf_h264_aspect_ratio_info_present_flag,
@@ -3498,22 +3591,22 @@ proto_register_h264(void)
         },
         { &hf_h264_sei_ms_layer_desc_coded_width,
             { "Coded Width", "h264.sei.ms.layout.desc.coded_width",
-            FT_UINT8, BASE_DEC, NULL, 0x0,
+            FT_UINT16, BASE_DEC, NULL, 0x0,
             NULL, HFILL }
         },
         { &hf_h264_sei_ms_layer_desc_coded_height,
             { "Coded Height", "h264.sei.ms.layout.desc.coded_height",
-            FT_UINT8, BASE_DEC, NULL, 0x0,
+            FT_UINT16, BASE_DEC, NULL, 0x0,
             NULL, HFILL }
         },
         { &hf_h264_sei_ms_layer_desc_display_width,
             { "Display Width", "h264.sei.ms.layout.desc.display_width",
-            FT_UINT8, BASE_DEC, NULL, 0x0,
+            FT_UINT16, BASE_DEC, NULL, 0x0,
             NULL, HFILL }
         },
         { &hf_h264_sei_ms_layer_desc_display_height,
             { "Display Height", "h264.sei.ms.layout.desc.display_height",
-            FT_UINT8, BASE_DEC, NULL, 0x0,
+            FT_UINT16, BASE_DEC, NULL, 0x0,
             NULL, HFILL }
         },
         { &hf_h264_sei_ms_layer_desc_bitrate,
@@ -3693,7 +3786,7 @@ proto_register_h264(void)
         },
         { &hf_h264_pacsi_tl0picidx,
             { "TL0PICIDX", "h264.pacsi.tl0picidx",
-            FT_UINT8, BASE_DEC, NULL, 0xFF,
+            FT_UINT8, BASE_DEC, NULL, 0xff,
             NULL, HFILL }
         },
         { &hf_h264_pacsi_idrpicid,
@@ -3750,6 +3843,7 @@ proto_register_h264(void)
     prefs_register_obsolete_preference(h264_module, "dynamic.payload.type");
 
     h264_handle = register_dissector("h264", dissect_h264, proto_h264);
+    register_dissector_with_description("h264_bytestream", "H.264 Annex B Byte stream format", dissect_h264_bytestream, proto_h264);
 }
 
 
