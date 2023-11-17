@@ -404,7 +404,7 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
 
     field_info *fi = first_value->finfo;
     char *value_string_repr = fvalue_to_string_repr(
-        NULL, &fi->value, FTREPR_DISPLAY, fi->hfinfo->display);
+        NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
 
     // descriptive values
     if (descriptive) {
