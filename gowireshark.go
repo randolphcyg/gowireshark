@@ -287,7 +287,7 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptiv
 //	@param isDescriptive: Whether the JSON result has descriptive fields
 //	@param isDebug: Whether to print JSON result in C logic
 //	@param ch: Save dissect result one by one
-func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebug bool, ch chan map[int]FrameDissectRes) (err error) {
+func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebug bool, ch chan FrameDissectRes) (err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
@@ -321,7 +321,7 @@ func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebu
 			break
 		}
 
-		ch <- map[int]FrameDissectRes{counter: singleFrame}
+		ch <- singleFrame
 		counter++
 	}
 
