@@ -10,8 +10,7 @@ import (
 	"github.com/randolphcyg/gowireshark"
 )
 
-const inputFilepath = "../pcaps/f1ap.pcapng"
-const inputFilepath2 = "../pcaps/wincc_s400_production.pcap"
+const inputFilepath = "../pcaps/mysql.pcapng"
 
 func TestEpanVersion(t *testing.T) {
 	fmt.Println(gowireshark.EpanVersion())
@@ -26,7 +25,6 @@ func TestDissectPrintFirstFrame(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-
 }
 
 func TestDissectPrintAllFrame(t *testing.T) {
@@ -34,7 +32,6 @@ func TestDissectPrintAllFrame(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-
 }
 
 func TestDissectPrintFirstSeveralFrame(t *testing.T) {
@@ -42,11 +39,10 @@ func TestDissectPrintFirstSeveralFrame(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-
 }
 
 func TestDissectPrintSpecificFrame(t *testing.T) {
-	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 5)
+	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 70)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -56,13 +52,13 @@ func TestCapFileMulSeq(t *testing.T) {
 	var err error
 
 	fmt.Println("@@@@@@@@@@@@@")
-	err = gowireshark.DissectPrintSpecificFrame(inputFilepath, 5)
+	err = gowireshark.DissectPrintSpecificFrame(inputFilepath, 65)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	fmt.Println("$$$$$$$$$$$$$")
-	err = gowireshark.DissectPrintSpecificFrame(inputFilepath2, 50)
+	err = gowireshark.DissectPrintSpecificFrame(inputFilepath, 71)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -72,14 +68,14 @@ func TestCapFileMulSeq(t *testing.T) {
 RESULT: none
 */
 func TestDissectPrintSpecificFrameOutOfBounds(t *testing.T) {
-	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 10)
+	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 101)
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
 func TestGetSpecificFrameHexData(t *testing.T) {
-	res, err := gowireshark.GetSpecificFrameHexData(inputFilepath, 5)
+	res, err := gowireshark.GetSpecificFrameHexData(inputFilepath, 65)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -96,7 +92,7 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 }
 
 func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
-	res, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath2, 5, false, true)
+	res, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65, false, true)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -112,13 +108,12 @@ func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
 			fmt.Println("### Layers num:", layer, layerData)
 		}
 	}
-
 }
 
 func TestGetAllFrameProtoTreeInJson(t *testing.T) {
-	ch := make(chan map[int]gowireshark.FrameDissectRes, 1)
+	ch := make(chan gowireshark.FrameDissectRes, 1)
 	go func() {
-		err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath, true, false, ch)
+		err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath, true, true, ch)
 		if err != nil {
 			panic(err)
 		}
@@ -227,7 +222,6 @@ func TestDissectPktLiveInfinite(t *testing.T) {
 	}
 
 	select {}
-
 }
 
 /*
@@ -278,7 +272,6 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	}
 
 	time.Sleep(time.Second)
-
 }
 
 func TestStopDissectPktLive(t *testing.T) {
