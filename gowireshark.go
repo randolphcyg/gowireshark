@@ -32,6 +32,8 @@ var (
 	WarnFrameIndexOutOfBounds = errors.New("frame index is out of bounds")
 	ErrUnmarshalObj           = errors.New("unmarshal obj error")
 	ErrFromCLogic             = errors.New("run c logic occur error")
+	ErrParseDissectRes        = errors.New("fail to parse DissectRes")
+	ErrParseWsCol             = errors.New("fail to parse WsCol")
 )
 
 // SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
@@ -210,15 +212,144 @@ type FrameDissectRes struct {
 	Hex      []string `json:"hex"`
 	Ascii    []string `json:"ascii"`
 	WsSource struct {
-		Layers map[string]interface{} `json:"layers"`
+		Layers map[string]any `json:"layers"`
 	} `json:"_source"`
+}
+
+// Frame wireshark frame
+type Frame struct {
+	SectionNumber      int    `json:"frame.section_number"`
+	InterfaceID        int    `json:"frame.interface_id"`
+	EncapType          string `json:"frame.encap_type"`
+	Time               string `json:"frame.time"`
+	TimeUTC            string `json:"frame.time_utc"`
+	TimeEpoch          string `json:"frame.time_epoch"`
+	OffsetShift        string `json:"frame.offset_shift"`
+	TimeDelta          string `json:"frame.time_delta"`
+	TimeDeltaDisplayed string `json:"frame.time_delta_displayed"`
+	TimeRelative       string `json:"frame.time_relative"`
+	Number             int    `json:"frame.number"`
+	Len                int    `json:"frame.len"`
+	CapLen             int    `json:"frame.cap_len"`
+	Marked             bool   `json:"frame.marked"`
+	Ignored            bool   `json:"frame.ignored"`
+	Protocols          string `json:"frame.protocols"`
+}
+
+func UnmarshalFrame(src any) (frame Frame, err error) {
+	type tmpFrame struct {
+		SectionNumber      string `json:"frame.section_number"`
+		InterfaceID        string `json:"frame.interface_id"`
+		EncapType          string `json:"frame.encap_type"`
+		Time               string `json:"frame.time"`
+		TimeUTC            string `json:"frame.time_utc"`
+		TimeEpoch          string `json:"frame.time_epoch"`
+		OffsetShift        string `json:"frame.offset_shift"`
+		TimeDelta          string `json:"frame.time_delta"`
+		TimeDeltaDisplayed string `json:"frame.time_delta_displayed"`
+		TimeRelative       string `json:"frame.time_relative"`
+		Number             string `json:"frame.number"`
+		Len                string `json:"frame.len"`
+		CapLen             string `json:"frame.cap_len"`
+		Marked             string `json:"frame.marked"`
+		Ignored            string `json:"frame.ignored"`
+		Protocols          string `json:"frame.protocols"`
+	}
+	var tmp tmpFrame
+
+	jsonData, err := json.Marshal(src)
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(jsonData, &tmp)
+	if err != nil {
+		return
+	}
+
+	sectionNumber, _ := strconv.Atoi(tmp.SectionNumber)
+	interfaceID, _ := strconv.Atoi(tmp.InterfaceID)
+	num, _ := strconv.Atoi(tmp.Number)
+	length, _ := strconv.Atoi(tmp.Len)
+	capLen, _ := strconv.Atoi(tmp.CapLen)
+	marked, err := strconv.ParseBool(tmp.Marked)
+	if err != nil {
+		return
+	}
+	ignored, err := strconv.ParseBool(tmp.Ignored)
+	if err != nil {
+		return
+	}
+
+	return Frame{
+		SectionNumber:      sectionNumber,
+		InterfaceID:        interfaceID,
+		EncapType:          tmp.EncapType,
+		Time:               tmp.Time,
+		TimeUTC:            tmp.TimeUTC,
+		TimeEpoch:          tmp.TimeEpoch,
+		OffsetShift:        tmp.OffsetShift,
+		TimeDelta:          tmp.TimeDelta,
+		TimeDeltaDisplayed: tmp.TimeDeltaDisplayed,
+		TimeRelative:       tmp.TimeRelative,
+		Number:             num,
+		Len:                length,
+		CapLen:             capLen,
+		Marked:             marked,
+		Ignored:            ignored,
+		Protocols:          tmp.Protocols,
+	}, nil
+}
+
+// WsCol wireshark _ws.col
+type WsCol struct {
+	Num       int    `json:"_ws.col.number"`
+	DefSrc    string `json:"_ws.col.def_src"`
+	DefDst    string `json:"_ws.col.def_dst"`
+	Protocol  string `json:"_ws.col.protocol"`
+	PacketLen int    `json:"_ws.col.packet_length"`
+	Info      string `json:"_ws.col.info"`
+}
+
+func UnmarshalWsCol(src any) (wsCol WsCol, err error) {
+	type tmpWsCol struct {
+		Num       string `json:"_ws.col.number"`
+		DefSrc    string `json:"_ws.col.def_src"`
+		DefDst    string `json:"_ws.col.def_dst"`
+		Protocol  string `json:"_ws.col.protocol"`
+		PacketLen string `json:"_ws.col.packet_length"`
+		Info      string `json:"_ws.col.info"`
+	}
+	var tmp tmpWsCol
+
+	jsonData, err := json.Marshal(src)
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(jsonData, &tmp)
+	if err != nil {
+		return WsCol{}, ErrParseWsCol
+	}
+
+	num, _ := strconv.Atoi(tmp.Num)
+	packetLen, _ := strconv.Atoi(tmp.PacketLen)
+
+	return WsCol{
+		Num:       num,
+		DefSrc:    tmp.DefSrc,
+		DefDst:    tmp.DefDst,
+		Protocol:  tmp.Protocol,
+		PacketLen: packetLen,
+		Info:      tmp.Info,
+	}, nil
 }
 
 // UnmarshalDissectResult Unmarshal dissect result
 func UnmarshalDissectResult(src string) (res FrameDissectRes, err error) {
 	err = json.Unmarshal([]byte(src), &res)
 	if err != nil {
-		return FrameDissectRes{}, err
+		return FrameDissectRes{}, ErrParseDissectRes
 	}
 
 	return
@@ -232,7 +363,7 @@ func UnmarshalDissectResult(src string) (res FrameDissectRes, err error) {
 //	@param isDescriptive: Whether the JSON result has descriptive fields
 //	@param isDebug: Whether to print JSON result in C logic
 //	@return res: Contains specific frame's JSON dissect result
-func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptive, isDebug bool) (res map[string]FrameDissectRes, err error) {
+func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptive, isDebug bool) (res []FrameDissectRes, err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
@@ -249,7 +380,6 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptiv
 	}
 
 	counter := 0
-	res = make(map[string]FrameDissectRes)
 	for {
 		counter++
 		if counter < num && num != counter {
@@ -272,8 +402,7 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptiv
 			break
 		}
 
-		res[strconv.Itoa(counter)] = singleFrame
-
+		res = append(res, singleFrame)
 		break
 	}
 
@@ -286,8 +415,8 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptiv
 //	@param inputFilepath: Pcap src file path
 //	@param isDescriptive: Whether the JSON result has descriptive fields
 //	@param isDebug: Whether to print JSON result in C logic
-//	@param ch: Save dissect result one by one
-func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebug bool, ch chan FrameDissectRes) (err error) {
+//	@return res: Contains all frame's JSON dissect result
+func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebug bool) (res []FrameDissectRes, err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
@@ -321,12 +450,9 @@ func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebu
 			break
 		}
 
-		ch <- singleFrame
+		res = append(res, singleFrame)
 		counter++
 	}
-
-	// close channel
-	defer close(ch)
 
 	return
 }
@@ -458,11 +584,12 @@ func readSock(listener *net.UnixConn, pkgChan chan FrameDissectRes, sockBuffSize
 //
 //	@Description: Start up Unix domain socket(AF_UNIX) client, capture and dissect packet.
 //	@param deviceName
+//	@param bpfFilter bpf filter
 //	@param sockServerPath
 //	@param num
 //	@param promisc: 0 indicates a non-promiscuous mode, and any other value indicates a promiscuous mode
 //	@param timeout
-func DissectPktLive(deviceName, sockServerPath string, num, promisc, timeout int) (err error) {
+func DissectPktLive(deviceName, bpfFilter, sockServerPath string, num, promisc, timeout int) (err error) {
 	if deviceName == "" {
 		err = errors.Wrap(err, "device name is blank")
 		return
@@ -473,7 +600,7 @@ func DissectPktLive(deviceName, sockServerPath string, num, promisc, timeout int
 		return
 	}
 
-	errMsg := C.handle_packet(C.CString(deviceName), C.CString(sockServerPath), C.int(num), C.int(promisc), C.int(timeout))
+	errMsg := C.handle_packet(C.CString(deviceName), C.CString(bpfFilter), C.CString(sockServerPath), C.int(num), C.int(promisc), C.int(timeout))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)

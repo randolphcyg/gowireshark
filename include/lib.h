@@ -12,6 +12,7 @@
 #include <epan/timestamp.h>
 #include <epan/tvbuff.h>
 #include <frame_tvbuff.h>
+#include <pcap/bpf.h>
 #include <pcap/pcap.h>
 #include <stdio.h>
 #include <wiretap/wtap-int.h>

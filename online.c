@@ -628,7 +628,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  * device
  *  @return char: error message
  */
-char *handle_packet(char *device_name, char *sock_server_path, int num,
+char *handle_packet(char *device_name, char *bpf_expr, char *sock_server_path, int num,
                     int promisc, int to_ms) {
   // add a device to global device map
   err_msg = add_device(device_name, sock_server_path, num, promisc, to_ms);
@@ -654,6 +654,30 @@ char *handle_packet(char *device_name, char *sock_server_path, int num,
 
     return "pcap_open_live() couldn't open device";
   }
+
+  // bpf filter
+  char errbuf[PCAP_ERRBUF_SIZE];
+  struct bpf_program fp;
+  bpf_u_int32 mask;
+  bpf_u_int32 net;
+
+  if (pcap_lookupnet((const char *) device->device_name, &net, &mask, errbuf) == -1) {
+      fprintf(stderr, "Could not get netmask for device %s: %s\n", device->device_name, errbuf);
+      net = 0;
+      mask = 0;
+  }
+
+  if (pcap_compile(device->content.handle, &fp, bpf_expr, 0, net) == -1) {
+       fprintf(stderr, "Could not parse filter %s: %s\n", bpf_expr, pcap_geterr(device->content.handle));
+       return "Could not parse filter";
+  }
+
+  if (pcap_setfilter(device->content.handle, &fp) == -1) {
+         fprintf(stderr, "Could not set filter %s: %s\n", bpf_expr, pcap_geterr(device->content.handle));
+         return "Could not set filter";
+  }
+
+  printf("Start capture packet live sucess on device:%s bpf: %s \n", device->device_name, bpf_expr);
 
   // start Unix domain socket(AF_UNIX) to send data to golang
   err_msg = init_sock(device->device_name);
