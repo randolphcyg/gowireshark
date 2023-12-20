@@ -408,7 +408,6 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
 
     // descriptive values
     if (descriptive) {
-      // printf("# json_key【%s】value【%s】 \n", json_key, value_string_repr);
       gchar label_str[ITEM_LABEL_LENGTH];
       gchar *label_ptr;
 
@@ -419,7 +418,6 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
         char *value_ptr = strstr(label_ptr, ": ");
         if (value_ptr != NULL) {
           value_string_repr = (char *)value_ptr + 2;
-          // printf("### json_key 【%s】 value 【%s】 \n", json_key, value);
         }
       }
     }
@@ -432,10 +430,11 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
 
     // if has value, just insert
     if (pdata->print_text && has_value) {
+      // printf("#【%s】:【%s】 \n", json_key, value_string_repr);
       cJSON_AddStringToObject(obj_current_node, json_key, value_string_repr);
     }
 
-    // has chil node ?
+    // has child node ?
     if (has_children) {
       // create json obj member
       cJSON *cjson_tmp_child = NULL;
