@@ -8,7 +8,12 @@ int get_if_nonblock_status(char *device_name);
 // Set interface nonblock status
 int set_if_nonblock_status(char *device_name, int nonblock);
 // Capture and dissect packet in real time
-char *handle_packet(char *device_name, char *bpf_expr, char *sock_server_path,
-                    int num, int promisc, int to_ms);
-// Stop capture packet live、 free all memory allocated、close socket.
+char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
+                    int to_ms);
+// Stop capture packet live、 free all memory allocated
 char *stop_dissect_capture_pkg(char *device_name);
+
+// Set up callback function for send packet to Go
+typedef void (*DataCallback)(const char *, int, const char *);
+void GoDataCallback(char *data, int length, char *device_name);
+void setDataCallback(DataCallback callback);

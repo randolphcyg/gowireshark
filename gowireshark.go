@@ -16,10 +16,8 @@ import "C"
 import (
 	"encoding/json"
 	"log/slog"
-	"net"
 	"os"
 	"strconv"
-	"syscall"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -40,6 +38,9 @@ var (
 // SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
 // result of a single data packet, which is convenient for converting c char to go string
 const SINGLEPKTMAXLEN = 6553500
+
+// DissectResChans dissect result chan map
+var DissectResChans = make(map[string]chan FrameDissectRes)
 
 // Init policies、WTAP mod、EPAN mod.
 func init() {
@@ -525,78 +526,49 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 	return
 }
 
-// RunSock Unix domain socket(AF_UNIX) server: start socket and read data.
-func RunSock(sockServerPath string, sockBuffSize int, listener *net.UnixConn, pkgChan chan FrameDissectRes) (err error) {
-	if sockServerPath == "" {
-		err = errors.Wrap(err, "sockServerPath is blank")
-		return
+//export GoDataCallback
+func GoDataCallback(data *C.char, length C.int, deviceName *C.char) {
+	goPacket := ""
+	if data != nil {
+		goPacket = C.GoStringN(data, length)
 	}
 
-	addr, err := net.ResolveUnixAddr("unixgram", sockServerPath)
+	deviceNameStr := ""
+	if deviceName != nil {
+		deviceNameStr = C.GoString(deviceName)
+	}
+
+	// unmarshal each pkg dissect result
+	singleFrameData, err := UnmarshalDissectResult(string(goPacket))
 	if err != nil {
-		err = errors.Wrap(err, "fail to resolve UnixAddr")
-		panic(err)
+		err = errors.Wrap(ErrUnmarshalObj, "WsIndex: "+singleFrameData.WsIndex)
+		slog.Warn(err.Error())
 	}
 
-	syscall.Unlink(sockServerPath)
-	if listener == nil {
-		listener, err = net.ListenUnixgram("unixgram", addr)
-		if err != nil {
-			err = errors.Wrap(err, "fail to start Unix domain socket(AF_UNIX) server")
-			return
-		}
-	}
-
-	// read data from c client
-	go readSock(listener, pkgChan, sockBuffSize)
-
-	return
-}
-
-// readSock Unix domain socket(AF_UNIX) server: read data func
-func readSock(listener *net.UnixConn, pkgChan chan FrameDissectRes, sockBuffSize int) {
-	for {
-		buf := make([]byte, sockBuffSize)
-		size, _, err := listener.ReadFromUnix(buf)
-		if err != nil {
-			err = errors.Wrap(err, "fail to read from Unix domain socket(AF_UNIX) client")
-			panic(err)
-		}
-
-		// handle each pkg
-		// unmarshal dissect result
-		singleFrameData, err := UnmarshalDissectResult(string(buf[:size]))
-		if err != nil {
-			err = errors.Wrap(ErrUnmarshalObj, "WsIndex: "+singleFrameData.WsIndex)
-			slog.Warn(err.Error())
-		}
-
-		// write packet dissect result to go pipe
-		pkgChan <- singleFrameData
+	// write packet dissect result to go pipe
+	if ch, ok := DissectResChans[deviceNameStr]; ok {
+		ch <- singleFrameData
 	}
 }
 
 // DissectPktLive
 //
-//	@Description: Start up Unix domain socket(AF_UNIX) client, capture and dissect packet.
+//	@Description: Set up callback function, capture and dissect packet.
 //	@param deviceName
 //	@param bpfFilter bpf filter
-//	@param sockServerPath
 //	@param num
 //	@param promisc: 0 indicates a non-promiscuous mode, and any other value indicates a promiscuous mode
 //	@param timeout
-func DissectPktLive(deviceName, bpfFilter, sockServerPath string, num, promisc, timeout int) (err error) {
+func DissectPktLive(deviceName, bpfFilter string, num, promisc, timeout int) (err error) {
+	// Set up callback function
+	C.setDataCallback((C.DataCallback)(C.GoDataCallback))
+
 	if deviceName == "" {
 		err = errors.Wrap(err, "device name is blank")
 		return
 	}
 
-	if sockServerPath == "" {
-		err = errors.Wrap(err, "sockServerPath is blank")
-		return
-	}
-
-	errMsg := C.handle_packet(C.CString(deviceName), C.CString(bpfFilter), C.CString(sockServerPath), C.int(num), C.int(promisc), C.int(timeout))
+	errMsg := C.handle_packet(C.CString(deviceName), C.CString(bpfFilter), C.int(num), C.int(promisc), C.int(timeout))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)
@@ -607,7 +579,7 @@ func DissectPktLive(deviceName, bpfFilter, sockServerPath string, num, promisc, 
 	return
 }
 
-// StopDissectPktLive Stop capture packet live、 free all memory allocated、close socket.
+// StopDissectPktLive Stop capture packet live、 free all memory allocated.
 func StopDissectPktLive(deviceName string) (err error) {
 	if deviceName == "" {
 		err = errors.Wrap(err, "device name is blank")
