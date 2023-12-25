@@ -92,33 +92,31 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 }
 
 func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
-	res, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65, false, true)
+	frameData, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for idx, frameData := range res {
-		colSrc := frameData.WsSource.Layers["_ws.col"]
-		col, err := gowireshark.UnmarshalWsCol(colSrc)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		frameSrc := frameData.WsSource.Layers["frame"]
-		frame, err := gowireshark.UnmarshalFrame(frameSrc)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		fmt.Println("# Frame index:", col.Num)
-		fmt.Println("## WsIndex:", frameData.WsIndex)
-		fmt.Println("## Offset:", frameData.Offset)
-		fmt.Println("## Hex:", frameData.Hex)
-		fmt.Println("## Ascii:", frameData.Ascii)
-
-		fmt.Println(idx, "【layer _ws.col】:", col)
-		fmt.Println(idx, "【layer frame】:", frame)
+	colSrc := frameData.WsSource.Layers["_ws.col"]
+	col, err := gowireshark.UnmarshalWsCol(colSrc)
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	frameSrc := frameData.WsSource.Layers["frame"]
+	frame, err := gowireshark.UnmarshalFrame(frameSrc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println("# Frame index:", col.Num)
+	fmt.Println("## WsIndex:", frameData.WsIndex)
+	fmt.Println("## Offset:", frameData.Offset)
+	fmt.Println("## Hex:", frameData.Hex)
+	fmt.Println("## Ascii:", frameData.Ascii)
+
+	fmt.Println("【layer _ws.col】:", col)
+	fmt.Println("【layer frame】:", frame)
 }
 
 func TestGetAllFrameProtoTreeInJson(t *testing.T) {
