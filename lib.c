@@ -236,12 +236,13 @@ gboolean read_packet(epan_dissect_t **edt_r) {
  */
 void print_all_frame() {
   epan_dissect_t *edt;
-  print_stream_t *print_stream;
-  print_stream = print_stream_text_stdio_new(stdout);
+  print_stream_t *print_stream = print_stream_text_stdio_new(stdout);
   // start reading packets
   while (read_packet(&edt)) {
-    proto_tree_print(print_dissections_expanded, false, edt, NULL,
-                     print_stream);
+    proto_tree_print(print_dissections_expanded, TRUE, edt, NULL, print_stream);
+    // print hex data
+    print_hex_data(print_stream, edt,
+                   hexdump_source_option | hexdump_ascii_option);
     epan_dissect_free(edt);
     edt = NULL;
   }
@@ -255,12 +256,19 @@ void print_all_frame() {
  */
 void print_first_frame() {
   epan_dissect_t *edt;
-  print_stream_t *print_stream;
-  print_stream = print_stream_text_stdio_new(stdout);
+  print_stream_t *print_stream = print_stream_text_stdio_new(stdout);
   // start reading packets
   if (read_packet(&edt)) {
-    proto_tree_print(print_dissections_expanded, false, edt, NULL,
-                     print_stream);
+    proto_tree_print(print_dissections_expanded, TRUE, edt, NULL, print_stream);
+
+    static proto_node_children_grouper_func node_children_grouper =
+        proto_node_group_children_by_unique;
+    static output_fields_t *output_fields = NULL;
+    output_fields = output_fields_new();
+    static json_dumper jdumper;
+    write_json_proto_tree(output_fields, print_dissections_expanded, TRUE, edt,
+                          &cf.cinfo, node_children_grouper, &jdumper);
+
     // print hex data
     print_hex_data(print_stream, edt,
                    hexdump_source_option | hexdump_ascii_option);
@@ -278,16 +286,12 @@ void print_first_frame() {
  */
 void print_first_several_frame(int count) {
   epan_dissect_t *edt;
-  print_stream_t *print_stream;
-  print_stream = print_stream_text_stdio_new(stdout);
+  print_stream_t *print_stream = print_stream_text_stdio_new(stdout);
   // start reading packets
   while (read_packet(&edt)) {
     // print proto tree
-    proto_tree_print(print_dissections_expanded, false, edt, NULL,
+    proto_tree_print(print_dissections_expanded, FALSE, edt, NULL,
                      print_stream);
-    // print hex data
-    print_hex_data(print_stream, edt,
-                   hexdump_source_option | hexdump_ascii_option);
     epan_dissect_free(edt);
     edt = NULL;
     if (cf.count == count) {
@@ -311,7 +315,7 @@ int print_specific_frame(int num) {
   while (read_packet(&edt)) {
     if (num == cf.count) {
       // print proto tree
-      proto_tree_print(print_dissections_expanded, false, edt, NULL,
+      proto_tree_print(print_dissections_expanded, TRUE, edt, NULL,
                        print_stream);
       // print hex data
       print_hex_data(print_stream, edt,
@@ -380,7 +384,7 @@ char *proto_tree_in_json(int num, int descriptive, int debug) {
   output_fields = output_fields_new();
   static pf_flags protocolfilter_flags = PF_INCLUDE_CHILDREN;
   static proto_node_children_grouper_func node_children_grouper =
-      proto_node_group_children_by_json_key;
+      proto_node_group_children_by_unique;
 
   // start reading packets
   while (read_packet(&edt)) {

@@ -15,7 +15,7 @@ package gowireshark
 import "C"
 import (
 	"encoding/json"
-	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"strconv"
@@ -34,6 +34,7 @@ var (
 	ErrFromCLogic             = errors.New("run c logic occur error")
 	ErrParseDissectRes        = errors.New("fail to parse DissectRes")
 	ErrParseWsCol             = errors.New("fail to parse WsCol")
+	ErrFrameIsBlank           = errors.New("frame data is blank")
 )
 
 // SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
@@ -363,7 +364,7 @@ func UnmarshalDissectResult(src string) (res FrameDissectRes, err error) {
 //	@param isDescriptive: Whether the JSON result has descriptive fields
 //	@param isDebug: Whether to print JSON result in C logic
 //	@return res: Contains specific frame's JSON dissect result
-func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptive, isDebug bool) (res []FrameDissectRes, err error) {
+func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptive, isDebug bool) (frameDissectRes FrameDissectRes, err error) {
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
@@ -390,23 +391,19 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptiv
 		srcFrame := C.proto_tree_in_json(C.int(counter), C.int(descriptive), C.int(debug))
 		if srcFrame != nil {
 			if C.strlen(srcFrame) == 0 {
-				break
+				return frameDissectRes, ErrFrameIsBlank
 			}
 		}
 
 		// unmarshal dissect result
-		singleFrame, err := UnmarshalDissectResult(CChar2GoStr(srcFrame))
+		frameDissectRes, err = UnmarshalDissectResult(CChar2GoStr(srcFrame))
 		if err != nil {
-			err = errors.Wrap(ErrUnmarshalObj, "Frame num "+strconv.Itoa(counter))
-			fmt.Println(err)
-			break
+			err = errors.Wrap(ErrUnmarshalObj, "Counter "+strconv.Itoa(counter))
+			return
 		}
 
-		res = append(res, singleFrame)
-		break
+		return
 	}
-
-	return
 }
 
 // GetAllFrameProtoTreeInJson
@@ -445,9 +442,8 @@ func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebu
 		// unmarshal dissect result
 		singleFrame, err := UnmarshalDissectResult(CChar2GoStr(srcFrame))
 		if err != nil {
-			err = errors.Wrap(ErrUnmarshalObj, "Frame num "+strconv.Itoa(counter))
-			fmt.Println(err)
-			break
+			err = errors.Wrap(ErrUnmarshalObj, "Counter "+strconv.Itoa(counter))
+			slog.Warn(err.Error())
 		}
 
 		res = append(res, singleFrame)
@@ -572,7 +568,7 @@ func readSock(listener *net.UnixConn, pkgChan chan FrameDissectRes, sockBuffSize
 		singleFrameData, err := UnmarshalDissectResult(string(buf[:size]))
 		if err != nil {
 			err = errors.Wrap(ErrUnmarshalObj, "WsIndex: "+singleFrameData.WsIndex)
-			fmt.Println(err)
+			slog.Warn(err.Error())
 		}
 
 		// write packet dissect result to go pipe
