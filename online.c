@@ -1,26 +1,13 @@
-#include <uthash.h>
 #include <lib.h>
 #include <offline.h>
-#include <pthread.h>
+#include <online.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/un.h>
-#include <unistd.h>
-
-#define SOCKBUFFSIZE 655350
+#include <uthash.h>
 
 // device_content Contains the information needed for each device
 typedef struct device_content {
-  char *sock_server_path;
-  int sockfd;
-  char sock_buf[SOCKBUFFSIZE];
-  struct sockaddr_un serveraddr;
-  struct sockaddr_un clientaddr;
-  socklen_t addrlen;
-
   char *device;
   int num;
   int promisc;
@@ -43,12 +30,8 @@ struct device_map {
 // global map to restore device info
 struct device_map *devices = NULL;
 
-char *add_device(char *device_name, char *sock_server_path, int num,
-                 int promisc, int to_ms);
+char *add_device(char *device_name, int num, int promisc, int to_ms);
 struct device_map *find_device(char *device_name);
-
-void *init_sock_send(void *arg);
-char *init_sock(char *device_name);
 
 void cap_file_init(capture_file *cf);
 char *init_cf_live(capture_file *cf_live);
@@ -64,16 +47,17 @@ static gboolean process_packet(struct device_map *device, gint64 offset,
 void before_callback_init(struct device_map *device);
 void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
                              const u_char *packet);
-char *handle_pkt_live(char *device_name, char *sock_server_path, int num,
-                      int promisc, int to_ms);
+char *handle_pkt_live(char *device_name, int num, int promisc, int to_ms);
 char *stop_dissect_capture_pkg(char *device_name);
+// Set up callback function for send packet to Go
+static DataCallback dataCallback;
+void setDataCallback(DataCallback callback) { dataCallback = callback; }
 
 /*
 PART0. Use uthash to implement the logic related to the map of the device
 */
 
-char *add_device(char *device_name, char *sock_server_path, int num,
-                 int promisc, int to_ms) {
+char *add_device(char *device_name, int num, int promisc, int to_ms) {
   struct device_map *s;
   capture_file *cf_tmp;
 
@@ -87,11 +71,9 @@ char *add_device(char *device_name, char *sock_server_path, int num,
     cap_file_init(cf_tmp);
 
     s->device_name = device_name;
-    s->content.sock_server_path = sock_server_path;
     s->content.num = num;
     s->content.promisc = promisc;
     s->content.to_ms = to_ms;
-    s->content.addrlen = sizeof(s->content.clientaddr);
     s->content.cf_live = cf_tmp;
 
     // init capture_file
@@ -122,54 +104,7 @@ struct device_map *find_device(char *device_name) {
 }
 
 /*
-PART1. Unix domain socket(AF_UNIX)
-*/
-
-// init Unix domain socket(AF_UNIX) send data func
-void *init_sock_send(void *arg) {
-  char *device_name = (char *)arg;
-  struct device_map *device = find_device(device_name);
-  if (!device) {
-    printf("device unknown: %s\n", device_name);
-    exit(1);
-  }
-
-  if ((device->content.sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-    printf("fail to init socket: %s\n", device_name);
-    exit(1);
-  }
-  device->content.serveraddr.sun_family = AF_UNIX;
-  strcpy(device->content.serveraddr.sun_path, device->content.sock_server_path);
-}
-
-// init Unix domain socket(AF_UNIX)
-char *init_sock(char *device_name) {
-  int ret;
-  pthread_t send;
-  ret = pthread_create(&send, NULL, init_sock_send, device_name);
-  if (ret != 0) {
-    return "fail to create pthread send";
-  }
-
-  // wait for send thread's end
-  ret = pthread_join(send, NULL);
-  if (ret != 0) {
-    return "fail to recollect send";
-  }
-
-  return NULL;
-}
-
-// safety memcpy
-void *memcpy_safe(void *dest, const void *src, size_t n, size_t left_buf_size) {
-  if (n > left_buf_size) {
-    n = left_buf_size;
-  }
-  return memcpy(dest, src, n);
-}
-
-/*
-PART2. libpcap
+PART1. libpcap
 */
 
 #define SNAP_LEN 65535
@@ -273,7 +208,7 @@ int set_if_nonblock_status(char *device_name, int nonblock) {
 }
 
 /*
-PART3. wireshark
+PART2. wireshark
 */
 
 static const nstime_t *raw_get_frame_ts(struct packet_provider_data *prov,
@@ -481,7 +416,7 @@ static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
 }
 
 /**
- * Use socket to transfer data to the Go program.
+ * Use callback to transfer data to the Go program.
  *
  *  @param device: a device in global device map
  *  @return gboolean: true or false
@@ -495,20 +430,11 @@ static gboolean send_data_to_go(struct device_map *device) {
       proto_node_group_children_by_json_key, proto_tree_json, 1);
 
   char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
-
   int len = strlen(proto_tree_json_str);
-  memset(device->content.sock_buf, 0, len);
-  memcpy_safe(device->content.sock_buf, proto_tree_json_str, len, SOCKBUFFSIZE);
-  if (sendto(device->content.sockfd, device->content.sock_buf, len, 0,
-             (struct sockaddr *)&device->content.serveraddr,
-             device->content.addrlen) < 0) {
-    cJSON_free(proto_tree_json_str);
-    cJSON_Delete(proto_tree_json);
-    epan_dissect_cleanup(&device->content.edt);
-    wtap_rec_cleanup(&device->content.rec);
-    //    printf("socket err, fail to sendto, frame Num:%lu\n",
-    //           (unsigned long int)device->content.cf_live->count);
-    return FALSE;
+
+  // send data to Go
+  if (dataCallback != NULL) {
+    dataCallback(proto_tree_json_str, len, device->device_name);
   }
 
   cJSON_free(proto_tree_json_str);
@@ -616,11 +542,10 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
 }
 
 /**
- * Add a device to global device map、listen to this device、init a socket for
- * this device and capture packet from this device.
+ * Add a device to global device map、listen to this device、
+ * capture packet from this device.
  *
  *  @param device_name: the name of interface device
- *  @param sock_server_path: device's socket server path
  *  @param num: the number of packet you want to capture and dissect
  *  @param promisc: 0 indicates a non-promiscuous mode, and any other value
  * indicates a promiscuous mode
@@ -628,10 +553,10 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  * device
  *  @return char: error message
  */
-char *handle_packet(char *device_name, char *bpf_expr, char *sock_server_path, int num,
-                    int promisc, int to_ms) {
+char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
+                    int to_ms) {
   // add a device to global device map
-  err_msg = add_device(device_name, sock_server_path, num, promisc, to_ms);
+  err_msg = add_device(device_name, num, promisc, to_ms);
   if (err_msg != NULL) {
     if (strlen(err_msg) != 0) {
       return err_msg;
@@ -661,48 +586,43 @@ char *handle_packet(char *device_name, char *bpf_expr, char *sock_server_path, i
   bpf_u_int32 mask;
   bpf_u_int32 net;
 
-  if (pcap_lookupnet((const char *) device->device_name, &net, &mask, errbuf) == -1) {
-      fprintf(stderr, "Could not get netmask for device %s: %s\n", device->device_name, errbuf);
-      net = 0;
-      mask = 0;
+  if (pcap_lookupnet((const char *)device->device_name, &net, &mask, errbuf) !=
+      0) {
+    fprintf(stderr, "Could not get netmask for device %s: %s\n",
+            device->device_name, errbuf);
+    net = 0;
+    mask = 0;
   }
 
-  if (pcap_compile(device->content.handle, &fp, bpf_expr, 0, net) == -1) {
-       fprintf(stderr, "Could not parse filter %s: %s\n", bpf_expr, pcap_geterr(device->content.handle));
-       return "Could not parse filter";
+  if (pcap_compile(device->content.handle, &fp, bpf_expr, 0, net) != 0) {
+    fprintf(stderr, "Could not parse filter %s: %s\n", bpf_expr,
+            pcap_geterr(device->content.handle));
+    return "Could not parse filter";
   }
 
-  if (pcap_setfilter(device->content.handle, &fp) == -1) {
-         fprintf(stderr, "Could not set filter %s: %s\n", bpf_expr, pcap_geterr(device->content.handle));
-         return "Could not set filter";
+  if (pcap_setfilter(device->content.handle, &fp) != 0) {
+    fprintf(stderr, "Could not set filter %s: %s\n", bpf_expr,
+            pcap_geterr(device->content.handle));
+    return "Could not set filter";
   }
 
-  printf("Start capture packet live sucess on device:%s bpf: %s \n", device->device_name, bpf_expr);
-
-  // start Unix domain socket(AF_UNIX) to send data to golang
-  err_msg = init_sock(device->device_name);
-  if (err_msg != NULL) {
-    if (strlen(err_msg) != 0) {
-      return err_msg;
-    }
-  }
+  printf("Start capture packet on device:%s bpf: %s \n", device->device_name,
+         bpf_expr);
 
   // loop and dissect pkg
   before_callback_init(device);
   pcap_loop(device->content.handle, num, process_packet_callback,
-            device->device_name);
+            (u_char *)device->device_name);
   // close libpcap device handler
   pcap_close(device->content.handle);
   // close cf file for live capture
   close_cf_live(device->content.cf_live);
-  // close socket
-  close(device->content.sockfd);
 
   return "";
 }
 
 /**
- * Stop capture packet live、 free all memory allocated、close socket.
+ * Stop capture packet live、 free all memory allocated.
  *
  *  @param device: a device in global device map
  *  @return char: err message
@@ -721,13 +641,6 @@ char *stop_dissect_capture_pkg(char *device_name) {
 
   // close cf file for live capture
   close_cf_live(device->content.cf_live);
-
-  // shutdown socket's write function and close socket
-  int shut_wr_res = shutdown(device->content.sockfd, SHUT_WR);
-  if (shut_wr_res != 0) {
-    printf("SHUT_WR: %s\n", "close socket write failed!");
-  }
-  close(device->content.sockfd);
 
   return "";
 }

@@ -850,7 +850,7 @@ apt install bison
 - [x] Offline packet files parse and output JSON format
 - [x] Offline packet parsing to obtain base-16 related data
 - [x] Listen to interfaces in real time and capture packets
-- [x] Encapsulates the logic for go to invoke real-time parsing - transmits real-time parsing results to golang via Unix domain sockets (AF_UNIX)
+- [x] Encapsulates the logic for go to invoke real-time parsing - transmits real-time parsing results to golang
 - [x] Encapsulates Golang's processing of the received real-time packet parsing results for Golang calling
 - [x] Optimize code to resolve memory leaks
 - [x] Stop real-time packet capture parsing
