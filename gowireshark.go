@@ -18,7 +18,6 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
-	"unsafe"
 
 	"github.com/pkg/errors"
 )
@@ -34,10 +33,6 @@ var (
 	ErrParseWsCol             = errors.New("fail to parse WsCol")
 	ErrFrameIsBlank           = errors.New("frame data is blank")
 )
-
-// SINGLEPKTMAXLEN The maximum length limit of the json object of the parsing
-// result of a single data packet, which is convenient for converting c char to go string
-const SINGLEPKTMAXLEN = 6553500
 
 // DissectResChans dissect result chan map
 var DissectResChans = make(map[string]chan FrameDissectRes)
@@ -58,8 +53,7 @@ func isFileExist(path string) bool {
 
 // CChar2GoStr C string -> Go string
 func CChar2GoStr(src *C.char) string {
-	sLen := int(C.strlen(src))
-	return string((*[SINGLEPKTMAXLEN]byte)(unsafe.Pointer(src))[:sLen:sLen])
+	return C.GoStringN(src, C.int(C.strlen(src)))
 }
 
 // EpanVersion get epan module's version
