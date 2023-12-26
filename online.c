@@ -613,10 +613,6 @@ char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
   before_callback_init(device);
   pcap_loop(device->content.handle, num, process_packet_callback,
             (u_char *)device->device_name);
-  // close libpcap device handler
-  pcap_close(device->content.handle);
-  // close cf file for live capture
-  close_cf_live(device->content.cf_live);
 
   return "";
 }
@@ -633,11 +629,12 @@ char *stop_dissect_capture_pkg(char *device_name) {
     return "The device is not in the global map";
   }
 
-  if (!device->content.handle) {
+  if (!device || !device->content.handle) {
     return "This device has no pcap_handle, no need to close";
   }
 
   pcap_breakloop(device->content.handle);
+  device->content.handle = NULL;
 
   // close cf file for live capture
   close_cf_live(device->content.cf_live);
