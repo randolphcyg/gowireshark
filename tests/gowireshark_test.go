@@ -1,22 +1,21 @@
 package tests
 
 import (
-	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/randolphcyg/gowireshark"
+	"github.com/stretchr/testify/assert"
 )
 
 const inputFilepath = "../pcaps/mysql.pcapng"
 
 func TestEpanVersion(t *testing.T) {
-	fmt.Println(gowireshark.EpanVersion())
+	t.Log(gowireshark.EpanVersion())
 }
 
 func TestEpanPluginsSupported(t *testing.T) {
-	fmt.Println(gowireshark.EpanPluginsSupported())
+	assert.Equal(t, 0, gowireshark.EpanPluginsSupported())
 }
 
 func TestDissectPrintFirstFrame(t *testing.T) {
@@ -48,28 +47,24 @@ func TestDissectPrintSpecificFrame(t *testing.T) {
 }
 
 func TestCapFileMulSeq(t *testing.T) {
-	var err error
-
-	fmt.Println("@@@@@@@@@@@@@")
-	err = gowireshark.DissectPrintSpecificFrame(inputFilepath, 65)
+	t.Log("@@@@@@@ 11111 @@@@@@")
+	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 65)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Println("$$$$$$$$$$$$$")
+	t.Log("$$$$$$ 22222 $$$$$$$")
 	err = gowireshark.DissectPrintSpecificFrame(inputFilepath, 71)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-/*
-RESULT: none
-*/
 func TestDissectPrintSpecificFrameOutOfBounds(t *testing.T) {
 	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 101)
 	if err != nil {
-		t.Fatal(err)
+		t.Log(err)
+		assert.EqualError(t, err, "2: frame index is out of bounds")
 	}
 }
 
@@ -80,13 +75,13 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 	}
 
 	for i, item := range res.Offset {
-		fmt.Println(i, item)
+		t.Log(i, item)
 	}
 	for i, item := range res.Hex {
-		fmt.Println(i, item)
+		t.Log(i, item)
 	}
 	for i, item := range res.Ascii {
-		fmt.Println(i, item)
+		t.Log(i, item)
 	}
 }
 
@@ -108,14 +103,14 @@ func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Println("# Frame index:", col.Num)
-	fmt.Println("## WsIndex:", frameData.WsIndex)
-	fmt.Println("## Offset:", frameData.Offset)
-	fmt.Println("## Hex:", frameData.Hex)
-	fmt.Println("## Ascii:", frameData.Ascii)
+	t.Log("# Frame index:", col.Num)
+	t.Log("## WsIndex:", frameData.WsIndex)
+	t.Log("## Offset:", frameData.Offset)
+	t.Log("## Hex:", frameData.Hex)
+	t.Log("## Ascii:", frameData.Ascii)
 
-	fmt.Println("【layer _ws.col】:", col)
-	fmt.Println("【layer frame】:", frame)
+	t.Log("【layer _ws.col】:", col)
+	t.Log("【layer frame】:", frame)
 }
 
 func TestGetAllFrameProtoTreeInJson(t *testing.T) {
@@ -124,10 +119,7 @@ func TestGetAllFrameProtoTreeInJson(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// read frame from channel
 	for _, frameData := range res {
-		fmt.Println("## Frame:", frameData)
-		fmt.Println("======================================================")
 		colSrc := frameData.WsSource.Layers["_ws.col"]
 		col, err := gowireshark.UnmarshalWsCol(colSrc)
 		if err != nil {
@@ -140,28 +132,19 @@ func TestGetAllFrameProtoTreeInJson(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		fmt.Println("# Frame index:", col.Num)
-		fmt.Println("## WsIndex:", frameData.WsIndex)
-		fmt.Println("## Offset:", frameData.Offset)
-		fmt.Println("## Hex:", frameData.Hex)
-		fmt.Println("## Ascii:", frameData.Ascii)
+		t.Log("# Frame index:", col.Num, "===========================")
+		t.Log("## WsIndex:", frameData.WsIndex)
+		t.Log("## Offset:", frameData.Offset)
+		t.Log("## Hex:", frameData.Hex)
+		t.Log("## Ascii:", frameData.Ascii)
 
-		fmt.Println("【layer _ws.col】:", col)
-		fmt.Println("【layer frame】:", frame)
+		t.Log("【layer _ws.col】:", col)
+		t.Log("【layer frame】:", frame)
 	}
 }
 
 /*
 Get interface device list, TODO but not return addresses of device (cause c logic error)
-Result:
-bluetooth-monitor Bluetooth Linux Monitor 56
-nflog Linux netfilter log (NFLOG) interface 48
-nfqueue Linux netfilter queue (NFQUEUE) interface 48
-dbus-system D-Bus system bus 48
-dbus-session D-Bus session bus 48
-ens33  22
-any Pseudo-device that captures on all interfaces 54
-lo  55
 */
 func TestGetIfaceList(t *testing.T) {
 	iFaces, err := gowireshark.GetIfaceList()
@@ -169,47 +152,49 @@ func TestGetIfaceList(t *testing.T) {
 		t.Fatal(err)
 	}
 	for k, v := range iFaces {
-		fmt.Println(k, v.Description, v.Flags)
+		t.Log(k, v.Description, v.Flags)
 	}
 }
 
 /*
 Get interface device nonblock status, default is false
-Result:
-device: ens33  nonblock status: false
 */
 func TestGetIfaceNonblockStatus(t *testing.T) {
-	ifaceName := "ens33"
+	ifaceName := "en7"
 	status, err := gowireshark.GetIfaceNonblockStatus(ifaceName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("device:", ifaceName, " nonblock status:", status)
+
+	assert.Equal(t, ifaceName, "en7")
+	assert.Equal(t, status, false)
 }
 
 func TestSetIfaceNonblockStatus(t *testing.T) {
-	ifaceName := "ens33"
+	ifaceName := "en7"
 	status, err := gowireshark.SetIfaceNonblockStatus(ifaceName, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("device:", ifaceName, "after set, now nonblock status is:", status)
+
+	assert.Equal(t, ifaceName, "en7")
+	assert.Equal(t, status, true)
 }
 
 /*
-Test infinite loop fetching and parsing packets.
+Test infinite loop capturing and Dissecting packets、stop capturing and Dissecting.
 Set the num parameter of the DissectPktLive function to -1
 to process packets in an infinite loop.
+Stop capturing and Dissecting after 2 seconds
 */
-func TestDissectPktLiveInfinite(t *testing.T) {
+func TestDissectPktLiveInfiniteAndStopCapturePkg(t *testing.T) {
 	ifName := "en7"
-	filter := "tcp and port 3306"
+	filter := ""
 	pktNum := -1
 	promisc := 1
 	timeout := 20
-	livePkgCount := 0
 
-	// PkgDetailLiveChan put pkg detail struct into go pipe
+	// DissectResChans put pkg dissect result struct into go pipe
 	gowireshark.DissectResChans[ifName] = make(chan gowireshark.FrameDissectRes, 100)
 
 	// user read unmarshal data from go channel
@@ -217,46 +202,47 @@ func TestDissectPktLiveInfinite(t *testing.T) {
 		for {
 			select {
 			case frameData := <-gowireshark.DissectResChans[ifName]:
-				livePkgCount++
-				//fmt.Print(pkg)
-				pkgByte, _ := json.Marshal(frameData)
-
-				fmt.Printf("Processed pkg:【%d】pkg len:【%d】\n", livePkgCount, len(pkgByte))
-				//fmt.Println(string(pkgByte))
-				//fmt.Println(pkg)
 				colSrc := frameData.WsSource.Layers["_ws.col"]
 				col, err := gowireshark.UnmarshalWsCol(colSrc)
 				if err != nil {
-					fmt.Println(err)
+					t.Error(err)
 				}
 
 				frameSrc := frameData.WsSource.Layers["frame"]
 				frame, err := gowireshark.UnmarshalFrame(frameSrc)
 				if err != nil {
-					fmt.Println(err)
+					t.Error(err)
 				}
 
-				fmt.Println("# Frame index:", col.Num)
-				fmt.Println("## WsIndex:", frameData.WsIndex)
-				fmt.Println("## Offset:", frameData.Offset)
-				fmt.Println("## Hex:", frameData.Hex)
-				fmt.Println("## Ascii:", frameData.Ascii)
+				t.Log("# Frame index:", col.Num, "===========================")
+				t.Log("## WsIndex:", frameData.WsIndex)
+				t.Log("## Offset:", frameData.Offset)
+				t.Log("## Hex:", frameData.Hex)
+				t.Log("## Ascii:", frameData.Ascii)
 
-				fmt.Println("【layer _ws.col】:", col)
-				fmt.Println("【layer frame】:", frame)
-
+				t.Log("【layer _ws.col】:", col)
+				t.Log("【layer frame】:", frame)
 			default:
 			}
 		}
 	}()
 
-	// capture and dissect packet.
+	go func() {
+		t.Log("Simulate manual stop real-time packet capture!")
+		time.Sleep(time.Second * 2)
+		err := gowireshark.StopDissectPktLive(ifName)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		t.Log("############ stop capture successfully! ##############")
+	}()
+
+	// start c client, capture and dissect packet
 	err := gowireshark.DissectPktLive(ifName, filter, pktNum, promisc, timeout)
 	if err != nil {
-		fmt.Println(err)
+		t.Fatal(err)
 	}
-
-	select {}
 }
 
 /*
@@ -269,77 +255,42 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	pktNum := 20
 	promisc := 1
 	timeout := 20
-	livePkgCount := 0
 
-	// PkgDetailLiveChan put pkg detail struct into go pipe
+	// DissectResChans put pkg dissect result struct into go pipe
 	gowireshark.DissectResChans[ifName] = make(chan gowireshark.FrameDissectRes, 100)
 
 	// user read unmarshal data from go channel
 	go func() {
 		for {
 			select {
-			case pkg := <-gowireshark.DissectResChans[ifName]:
-				livePkgCount++
-				pkgByte, _ := json.Marshal(pkg)
-				fmt.Printf("Processed pkg:【%d】pkg len:【%d】\n", livePkgCount, len(pkgByte))
-				fmt.Println(pkg)
+			case frameData := <-gowireshark.DissectResChans[ifName]:
+				colSrc := frameData.WsSource.Layers["_ws.col"]
+				col, err := gowireshark.UnmarshalWsCol(colSrc)
+				if err != nil {
+					t.Error(err)
+				}
+
+				frameSrc := frameData.WsSource.Layers["frame"]
+				frame, err := gowireshark.UnmarshalFrame(frameSrc)
+				if err != nil {
+					t.Error(err)
+				}
+
+				t.Log("# Frame index:", frame.Number, "===========================")
+				t.Log("## Offset:", frameData.Offset)
+				t.Log("## Hex:", frameData.Hex)
+				t.Log("## Ascii:", frameData.Ascii)
+
+				t.Log("【layer frame】:", frame)
+				t.Log("【layer _ws.col】:", col)
 			default:
 			}
 		}
 	}()
 
-	// capture and dissect packet.
+	// start c client, capture and dissect packet
 	err := gowireshark.DissectPktLive(ifName, filter, pktNum, promisc, timeout)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	time.Sleep(time.Second)
-}
-
-func TestStopDissectPktLive(t *testing.T) {
-	ifName := "en7"
-	filter := ""
-	pktNum := -1
-	promisc := 1
-	timeout := 20
-	livePkgCount := 0
-
-	// PkgDetailLiveChan put pkg detail struct into go pipe
-	gowireshark.DissectResChans[ifName] = make(chan gowireshark.FrameDissectRes, 100)
-
-	// user read unmarshal data from go channel
-	go func() {
-		for {
-			select {
-			case pkg := <-gowireshark.DissectResChans[ifName]:
-				//time.Sleep(time.Millisecond * 200)
-				livePkgCount++
-				pkgByte, _ := json.Marshal(pkg)
-				fmt.Printf("Processed pkg:【%d】pkg len:【%d】\n", livePkgCount, len(pkgByte))
-			default:
-			}
-		}
-
-	}()
-
-	go func() {
-		fmt.Println("Simulate manual stop real-time packet capture!")
-		time.Sleep(time.Second * 2)
-		err := gowireshark.StopDissectPktLive(ifName)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		fmt.Println("############ stop capture successfully! ##############")
-	}()
-
-	fmt.Println("start c client, start capture function")
-	// capture and dissect packet.
-	err := gowireshark.DissectPktLive(ifName, filter, pktNum, promisc, timeout)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	select {}
 }
