@@ -533,7 +533,7 @@ func GoDataCallback(data *C.char, length C.int, deviceName *C.char) {
 	}
 
 	// unmarshal each pkg dissect result
-	singleFrameData, err := UnmarshalDissectResult(string(goPacket))
+	singleFrameData, err := UnmarshalDissectResult(goPacket)
 	if err != nil {
 		err = errors.Wrap(ErrUnmarshalObj, "WsIndex: "+singleFrameData.WsIndex)
 		slog.Warn(err.Error())
