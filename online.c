@@ -9,6 +9,7 @@
 // device_content Contains the information needed for each device
 typedef struct device_content {
   char *device;
+  char *bpf_expr;
   int num;
   int promisc;
   int to_ms;
@@ -30,14 +31,13 @@ struct device_map {
 // global map to restore device info
 struct device_map *devices = NULL;
 
-char *add_device(char *device_name, int num, int promisc, int to_ms);
+char *add_device(char *device_name, char *bpf_expr, int num, int promisc,
+                 int to_ms);
 struct device_map *find_device(char *device_name);
 
 void cap_file_init(capture_file *cf);
 char *init_cf_live(capture_file *cf_live);
 void close_cf_live(capture_file *cf_live);
-
-static frame_data ref_frame;
 
 static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr);
 static gboolean send_data_to_go(struct device_map *device);
@@ -57,7 +57,9 @@ void setDataCallback(DataCallback callback) { dataCallback = callback; }
 PART0. Use uthash to implement the logic related to the map of the device
 */
 
-char *add_device(char *device_name, int num, int promisc, int to_ms) {
+char *add_device(char *device_name, char *bpf_expr, int num, int promisc,
+                 int to_ms) {
+  char *err_msg;
   struct device_map *s;
   capture_file *cf_tmp;
 
@@ -71,6 +73,7 @@ char *add_device(char *device_name, int num, int promisc, int to_ms) {
     cap_file_init(cf_tmp);
 
     s->device_name = device_name;
+    s->content.bpf_expr = bpf_expr;
     s->content.num = num;
     s->content.promisc = promisc;
     s->content.to_ms = to_ms;
@@ -109,10 +112,6 @@ PART1. libpcap
 
 #define SNAP_LEN 65535
 
-char *err_msg;
-// error buffer
-char err_buf[PCAP_ERRBUF_SIZE];
-
 // interface device list
 cJSON *ifaces = NULL;
 
@@ -130,6 +129,7 @@ cJSON *ifaces = NULL;
  * }
  */
 char *get_if_list() {
+  char err_buf[PCAP_ERRBUF_SIZE];
   pcap_if_t *alldevs;
   pcap_findalldevs(&alldevs, err_buf);
 
@@ -160,6 +160,7 @@ char *get_if_list() {
  *  occur error: 2;
  */
 int get_if_nonblock_status(char *device_name) {
+  char err_buf[PCAP_ERRBUF_SIZE];
   pcap_t *handle;
   int is_nonblock;
 
@@ -187,6 +188,7 @@ int get_if_nonblock_status(char *device_name) {
  *  occur error: 2;
  */
 int set_if_nonblock_status(char *device_name, int nonblock) {
+  char err_buf[PCAP_ERRBUF_SIZE];
   pcap_t *handle;
   int is_nonblock;
 
@@ -455,6 +457,7 @@ static gboolean send_data_to_go(struct device_map *device) {
 static gboolean process_packet(struct device_map *device, gint64 offset,
                                const struct pcap_pkthdr *pkthdr,
                                const u_char *packet) {
+
   frame_data fd;
   static guint32 cum_bytes = 0;
 
@@ -466,11 +469,6 @@ static gboolean process_packet(struct device_map *device, gint64 offset,
   frame_data_set_before_dissect(&fd, &device->content.cf_live->elapsed_time,
                                 &device->content.cf_live->provider.ref,
                                 device->content.cf_live->provider.prev_dis);
-
-  if (device->content.cf_live->provider.ref == &fd) {
-    ref_frame = fd;
-    device->content.cf_live->provider.ref = &ref_frame;
-  }
 
   tvbuff_t *tvb =
       frame_tvbuff_new(&device->content.cf_live->provider, &fd, packet);
@@ -555,8 +553,10 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  */
 char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
                     int to_ms) {
+  char *err_msg;
+  char err_buf[PCAP_ERRBUF_SIZE];
   // add a device to global device map
-  err_msg = add_device(device_name, num, promisc, to_ms);
+  err_msg = add_device(device_name, bpf_expr, num, promisc, to_ms);
   if (err_msg != NULL) {
     if (strlen(err_msg) != 0) {
       return err_msg;
@@ -581,38 +581,38 @@ char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
   }
 
   // bpf filter
-  char errbuf[PCAP_ERRBUF_SIZE];
   struct bpf_program fp;
   bpf_u_int32 mask;
   bpf_u_int32 net;
 
-  if (pcap_lookupnet((const char *)device->device_name, &net, &mask, errbuf) !=
+  if (pcap_lookupnet((const char *)device->device_name, &net, &mask, err_buf) !=
       0) {
     fprintf(stderr, "Could not get netmask for device %s: %s\n",
-            device->device_name, errbuf);
+            device->device_name, err_buf);
     net = 0;
     mask = 0;
   }
 
-  if (pcap_compile(device->content.handle, &fp, bpf_expr, 0, net) != 0) {
-    fprintf(stderr, "Could not parse filter %s: %s\n", bpf_expr,
-            pcap_geterr(device->content.handle));
-    return "Could not parse filter";
+  if (pcap_compile(device->content.handle, &fp, device->content.bpf_expr, 0,
+                   net) != 0) {
+    fprintf(stderr, "Could not parse bpf filter %s: %s\n",
+            device->content.bpf_expr, pcap_geterr(device->content.handle));
+    return "Could not parse bpf filter";
   }
 
   if (pcap_setfilter(device->content.handle, &fp) != 0) {
-    fprintf(stderr, "Could not set filter %s: %s\n", bpf_expr,
+    fprintf(stderr, "Could not set filter %s: %s\n", device->content.bpf_expr,
             pcap_geterr(device->content.handle));
-    return "Could not set filter";
+    return "Could not set bpf filter";
   }
 
   printf("Start capture packet on device:%s bpf: %s \n", device->device_name,
-         bpf_expr);
+         device->content.bpf_expr);
 
   // loop and dissect pkg
   before_callback_init(device);
-  pcap_loop(device->content.handle, num, process_packet_callback,
-            (u_char *)device->device_name);
+  pcap_loop(device->content.handle, device->content.num,
+            process_packet_callback, (u_char *)device->device_name);
 
   return "";
 }
