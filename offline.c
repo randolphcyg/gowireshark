@@ -428,15 +428,16 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
     // has value ?
     gboolean has_value = value_string_repr != NULL;
 
-    // if has value, just insert
+    // if it has value, just insert
     if (pdata->print_text && has_value) {
       // Check if the key has occurred before
       cJSON *existingKey =
           cJSON_GetObjectItemCaseSensitive(obj_current_node, json_key);
       if (existingKey != NULL) {
         if (existingKey->type != cJSON_Array) {
-//          printf("#key appears twice【%s】-【%s】:【%s】\n",
-//                 obj_current_node->string, json_key, value_string_repr);
+          //          printf("#key appears twice【%s】-【%s】:【%s】\n",
+          //                 obj_current_node->string, json_key,
+          //                 value_string_repr);
           cJSON *array = cJSON_CreateArray();
           cJSON *existingKeyCopy = cJSON_Duplicate(existingKey, 1);
           cJSON_AddItemToArray(array, existingKeyCopy);
@@ -444,12 +445,12 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
           // Replace the value of the original key with the newly created array
           cJSON_ReplaceItemInObject(obj_current_node, json_key, array);
         } else {
-//          printf("#key appears more than three
-//                         times【 %
-//                         s】 -【% s】
-//                 :【% s】\n ",
-//                      obj_current_node->string,
-//                  json_key, value_string_repr);
+          //          printf("#key appears more than three
+          //                         times【 %
+          //                         s】 -【% s】
+          //                 :【% s】\n ",
+          //                      obj_current_node->string,
+          //                  json_key, value_string_repr);
           // Key already exists as an array, add the current value to the array
           cJSON_AddItemToArray(existingKey,
                                cJSON_CreateString(value_string_repr));
