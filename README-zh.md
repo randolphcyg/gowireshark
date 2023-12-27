@@ -51,7 +51,7 @@ cd tests/
 go test -v -run TestDissectPrintFirstFrame
 ```
 
-如何在我们的 golang 程序中解析 pcap 数据包文件：
+如何解析 pcap 数据包文件的某一帧：
 
 ```go
 package main
@@ -64,12 +64,31 @@ import (
 
 func main() {
 	inputFilepath := "pcaps/mysql.pcapng"
-	specificFrameDissectRes, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65, true, true)
+	frameData, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65, true, true)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	fmt.Println(specificFrameDissectRes)
+	colSrc := frameData.WsSource.Layers["_ws.col"]
+	col, err := gowireshark.UnmarshalWsCol(colSrc)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	frameSrc := frameData.WsSource.Layers["frame"]
+	frame, err := gowireshark.UnmarshalFrame(frameSrc)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println("# Frame index:", col.Num)
+	fmt.Println("## WsIndex:", frameData.WsIndex)
+	fmt.Println("## Offset:", frameData.Offset)
+	fmt.Println("## Hex:", frameData.Hex)
+	fmt.Println("## Ascii:", frameData.Ascii)
+
+	fmt.Println("【layer _ws.col】:", col)
+	fmt.Println("【layer frame】:", frame)
 }
 ```
 其他示例可以参考[测试文件](https://github.com/randolphcyg/gowireshark/blob/main/tests/gowireshark_test.go)。
@@ -81,6 +100,7 @@ func main() {
 ### 2.1. 项目目录
 ```
 gowireshark
+├── LICENSE
 ├── README-zh.md
 ├── README.md
 ├── cJSON.c
@@ -846,9 +866,8 @@ apt install bison
 - [x] 实时监听接口并捕获数据包
 - [x] 封装 go 调用实时解析的逻辑——通过回调函数将实时解析结果传输到 golang
 - [x] 封装 go 对收到的 Golang 调用实时数据包解析结果的处理
-- [x] 优化代码并解决内存泄漏问题，使实时接口可以长时间运行
-- [x] 支持停止实时接口
-- [ ] :punch: 支持多个设备的数据包捕获，并根据设备名称停止实时接口 (TODO bug待修复)
+- [x] 优化代码并解决内存泄漏问题，使实时接口可以长时间运行[TODO]
+- [x] 支持多个设备的数据包捕获，并根据设备名称停止实时接口
 - [x] 解析结果支持描述性值
 
 ## 5. 联系

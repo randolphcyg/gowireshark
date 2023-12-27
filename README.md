@@ -51,25 +51,44 @@ cd tests/
 go test -v -run TestDissectPrintFirstFrame
 ```
 
-how to dissect a pcap file in our golang program:
+how to dissect specific frame of a pcap file:
 
 ```go
 package main
-   
-import (
-    "fmt"
 
-    "github.com/randolphcyg/gowireshark"
+import (
+	"fmt"
+
+	"github.com/randolphcyg/gowireshark"
 )
 
 func main() {
 	inputFilepath := "pcaps/mysql.pcapng"
-	specificFrameDissectRes, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65, true, true)
+	frameData, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65, true, true)
 	if err != nil {
 		fmt.Println(err)
 	}
-	
-	fmt.Println(specificFrameDissectRes)
+
+	colSrc := frameData.WsSource.Layers["_ws.col"]
+	col, err := gowireshark.UnmarshalWsCol(colSrc)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	frameSrc := frameData.WsSource.Layers["frame"]
+	frame, err := gowireshark.UnmarshalFrame(frameSrc)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println("# Frame index:", col.Num)
+	fmt.Println("## WsIndex:", frameData.WsIndex)
+	fmt.Println("## Offset:", frameData.Offset)
+	fmt.Println("## Hex:", frameData.Hex)
+	fmt.Println("## Ascii:", frameData.Ascii)
+
+	fmt.Println("【layer _ws.col】:", col)
+	fmt.Println("【layer frame】:", frame)
 }
 ```
 
@@ -82,6 +101,7 @@ Other examples can refer to the [test file](https://github.com/randolphcyg/gowir
 ### 2.1. Project directory
 ```
 gowireshark
+├── LICENSE
 ├── README-zh.md
 ├── README.md
 ├── cJSON.c
@@ -852,8 +872,6 @@ apt install bison
 - [x] Listen to interfaces in real time and capture packets
 - [x] Encapsulates the logic for go to invoke real-time parsing - transmits real-time parsing results to golang
 - [x] Encapsulates Golang's processing of the received real-time packet parsing results for Golang calling
-- [x] Optimize code to resolve memory leaks
-- [x] Stop real-time packet capture parsing
-- [x] Optimize memory leakage and improve the performance of real-time packet capture and parsing interfaces
-- [ ] :punch: Supports packet capture for multiple devices and stops packet capture based on device name (TODO Bugs to be fixed)
+- [x] Optimize memory leakage and improve the performance of real-time packet capture and parsing interfaces[TODO]
+- [x] Supports packet capture for multiple devices and stops packet capture based on device name
 - [x] parser result support descriptive values
