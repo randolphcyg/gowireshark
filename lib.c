@@ -197,8 +197,8 @@ gboolean read_packet(epan_dissect_t **edt_r) {
   epan_dissect_t *edt;
   int err;
   gchar *err_info = NULL;
-  static guint32 cum_bytes = 0;
-  static gint64 data_offset = 0;
+  guint32 cum_bytes = 0;
+  gint64 data_offset = 0;
   wtap_rec rec;
   wtap_rec_init(&rec);
 
@@ -261,13 +261,10 @@ void print_first_frame() {
   if (read_packet(&edt)) {
     proto_tree_print(print_dissections_expanded, TRUE, edt, NULL, print_stream);
 
-    static proto_node_children_grouper_func node_children_grouper =
-        proto_node_group_children_by_unique;
-    static output_fields_t *output_fields = NULL;
-    output_fields = output_fields_new();
-    static json_dumper jdumper;
-    write_json_proto_tree(output_fields, print_dissections_expanded, TRUE, edt,
-                          &cf.cinfo, node_children_grouper, &jdumper);
+    json_dumper jdumper;
+    write_json_proto_tree(NULL, print_dissections_expanded, TRUE, edt,
+                          &cf.cinfo, proto_node_group_children_by_unique,
+                          &jdumper);
 
     // print hex data
     print_hex_data(print_stream, edt,
@@ -366,7 +363,6 @@ char *get_specific_frame_hex_data(int num) {
     edt = NULL;
 
     return cJSON_PrintUnformatted(cjson_hex_root);
-    break;
   }
   close_cf();
   return "";
@@ -380,11 +376,6 @@ char *get_specific_frame_hex_data(int num) {
  */
 char *proto_tree_in_json(int num, int descriptive, int debug) {
   epan_dissect_t *edt;
-  static output_fields_t *output_fields = NULL;
-  output_fields = output_fields_new();
-  static pf_flags protocolfilter_flags = PF_INCLUDE_CHILDREN;
-  static proto_node_children_grouper_func node_children_grouper =
-      proto_node_group_children_by_unique;
 
   // start reading packets
   while (read_packet(&edt)) {
@@ -397,19 +388,19 @@ char *proto_tree_in_json(int num, int descriptive, int debug) {
     // json root node
     cJSON *proto_tree_json = cJSON_CreateObject();
     get_proto_tree_json(NULL, print_dissections_expanded, TRUE, NULL,
-                        protocolfilter_flags, edt, &cf.cinfo,
-                        node_children_grouper, proto_tree_json, descriptive);
+                        PF_INCLUDE_CHILDREN, edt, &cf.cinfo,
+                        proto_node_group_children_by_unique, proto_tree_json,
+                        descriptive);
 
     char *proto_tree_json_str;
     if (debug) {
       proto_tree_json_str = cJSON_Print(proto_tree_json);
-      printf("JSON:%s\n", proto_tree_json_str);
+      printf("%s\n", proto_tree_json_str);
     } else {
       proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
     }
 
     cJSON_Delete(proto_tree_json);
-
     epan_dissect_free(edt);
     edt = NULL;
 

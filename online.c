@@ -54,7 +54,7 @@ static DataCallback dataCallback;
 void setDataCallback(DataCallback callback) { dataCallback = callback; }
 
 /*
-PART0. Use uthash to implement the logic related to the map of the device
+PART1. Use uthash to implement the logic related to the map of the device
 */
 
 char *add_device(char *device_name, char *bpf_expr, int num, int promisc,
@@ -66,7 +66,6 @@ char *add_device(char *device_name, char *bpf_expr, int num, int promisc,
   HASH_FIND_STR(devices, device_name, s);
   if (s == NULL) {
     s = (struct device_map *)malloc(sizeof *s);
-
     memset(s, 0, sizeof(struct device_map));
 
     cf_tmp = (capture_file *)malloc(sizeof *cf_tmp);
@@ -80,7 +79,7 @@ char *add_device(char *device_name, char *bpf_expr, int num, int promisc,
     s->content.cf_live = cf_tmp;
 
     // init capture_file
-    char *err_msg = init_cf_live(cf_tmp);
+    err_msg = init_cf_live(cf_tmp);
     if (err_msg != NULL) {
       if (strlen(err_msg) != 0) {
         // close cf file
@@ -88,15 +87,11 @@ char *add_device(char *device_name, char *bpf_expr, int num, int promisc,
         return "Add device failed: fail to init cf_live";
       }
     }
-
     HASH_ADD_KEYPTR(hh, devices, s->device_name, strlen(s->device_name), s);
-
     return "";
   } else {
     return "The device is in use";
   }
-
-  return "";
 }
 
 struct device_map *find_device(char *device_name) {
@@ -107,7 +102,7 @@ struct device_map *find_device(char *device_name) {
 }
 
 /*
-PART1. libpcap
+PART2. libpcap
 */
 
 #define SNAP_LEN 65535
@@ -210,7 +205,7 @@ int set_if_nonblock_status(char *device_name, int nonblock) {
 }
 
 /*
-PART2. wireshark
+PART3. wireshark
 */
 
 static const nstime_t *raw_get_frame_ts(struct packet_provider_data *prov,
@@ -410,7 +405,6 @@ static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
   }
 
   if (pkthdr->caplen > WTAP_MAX_PACKET_SIZE_STANDARD) {
-    //    printf("Size is to big, and size is %d\n", pkthdr->caplen);
     return FALSE;
   }
 
@@ -424,7 +418,6 @@ static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
  *  @return gboolean: true or false
  */
 static gboolean send_data_to_go(struct device_map *device) {
-  // transfer each pkt dissect result to json format
   cJSON *proto_tree_json = cJSON_CreateObject();
   get_proto_tree_json(
       NULL, print_dissections_expanded, TRUE, NULL, PF_INCLUDE_CHILDREN,
@@ -459,7 +452,7 @@ static gboolean process_packet(struct device_map *device, gint64 offset,
                                const u_char *packet) {
 
   frame_data fd;
-  static guint32 cum_bytes = 0;
+  guint32 cum_bytes = 0;
 
   device->content.cf_live->count++;
 
