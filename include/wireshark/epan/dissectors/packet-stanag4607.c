@@ -519,6 +519,8 @@ dissect_mission(tvbuff_t *tvb, proto_tree *seg_tree, gint offset)
 #define D21     5*8+4
 #define D24     5*8+1
 #define D28     4*8+5
+#define D29     4*8+4
+#define D30     4*8+3
 #define D31     4*8+2
 #define D32_1   4*8+1
 #define D32_2   4*8+0
@@ -688,9 +690,12 @@ dissect_dwell(tvbuff_t *tvb, proto_tree *seg_tree, gint offset)
 
 	if (SET(mask, D28)) {
 		proto_tree_add_item(seg_tree, hf_4607_dwell_sensor_heading, tvb, offset, 2, ENC_BIG_ENDIAN);
-		offset += 2;
+	}
+	if (SET(mask, D29)) {
 		proto_tree_add_item(seg_tree, hf_4607_dwell_sensor_pitch, tvb, offset, 2, ENC_BIG_ENDIAN);
 		offset += 2;
+	}
+	if (SET(mask, D30)) {
 		proto_tree_add_item(seg_tree, hf_4607_dwell_sensor_roll, tvb, offset, 2, ENC_BIG_ENDIAN);
 		offset += 2;
 	}
@@ -1630,6 +1635,8 @@ proto_register_stanag4607(void)
 void
 proto_reg_handoff_stanag4607(void)
 {
+	dissector_add_for_decode_as("tcp.port", stanag4607_handle);
+	dissector_add_for_decode_as("udp.port", stanag4607_handle);
 	dissector_add_uint("wtap_encap", WTAP_ENCAP_STANAG_4607, stanag4607_handle);
 }
 

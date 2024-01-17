@@ -1626,13 +1626,11 @@ again:
 
         /* Did the subdissector ask us to desegment some more data
          * before it could handle the packet?
-         * If so we have to create some structures in our table but
-         * this is something we only do the first time we see this
-         * packet.
+         * If so we'll have to handle that later.
          */
         if (pinfo->desegment_len) {
+            must_desegment = TRUE;
             if (!PINFO_FD_VISITED(pinfo)) {
-                must_desegment = TRUE;
                 if (msp)
                     msp->flags &= ~MSP_FLAGS_GOT_ALL_SEGMENTS;
             }
@@ -1753,33 +1751,42 @@ again:
         }
     }
 
-    if (must_desegment && !PINFO_FD_VISITED(pinfo)) {
-        // TODO handle DESEGMENT_UNTIL_FIN if needed, maybe use the FIN bit?
+    if (must_desegment) {
 
         guint32 deseg_seq = seq + (deseg_offset - offset);
 
-        if (((nxtseq - deseg_seq) <= 1024*1024)
-            && (!PINFO_FD_VISITED(pinfo))) {
-            if(pinfo->desegment_len == DESEGMENT_ONE_MORE_SEGMENT) {
-                /* The subdissector asked to reassemble using the
-                 * entire next segment.
-                 * Just ask reassembly for one more byte
-                 * but set this msp flag so we can pick it up
-                 * above.
-                 */
-                msp = pdu_store_sequencenumber_of_next_pdu(pinfo, deseg_seq,
-                    nxtseq+1, stream->multisegment_pdus);
-                msp->flags |= MSP_FLAGS_REASSEMBLE_ENTIRE_SEGMENT;
-            } else {
-                msp = pdu_store_sequencenumber_of_next_pdu(pinfo,
-                    deseg_seq, nxtseq+pinfo->desegment_len, stream->multisegment_pdus);
-            }
+        if (!PINFO_FD_VISITED(pinfo)) {
+            // TODO handle DESEGMENT_UNTIL_FIN if needed, maybe use the FIN bit?
+            if ((nxtseq - deseg_seq) <= 1024*1024) {
+                if(pinfo->desegment_len == DESEGMENT_ONE_MORE_SEGMENT) {
+                    /* The subdissector asked to reassemble using the
+                     * entire next segment.
+                     * Just ask reassembly for one more byte
+                     * but set this msp flag so we can pick it up
+                     * above.
+                     */
+                    msp = pdu_store_sequencenumber_of_next_pdu(pinfo, deseg_seq,
+                        nxtseq+1, stream->multisegment_pdus);
+                    msp->flags |= MSP_FLAGS_REASSEMBLE_ENTIRE_SEGMENT;
+                } else {
+                    msp = pdu_store_sequencenumber_of_next_pdu(pinfo,
+                        deseg_seq, nxtseq+pinfo->desegment_len, stream->multisegment_pdus);
+                }
 
-            /* add this segment as the first one for this new pdu */
-            fragment_add(&quic_reassembly_table, tvb, deseg_offset,
-                         pinfo, reassembly_id, NULL,
-                         0, nxtseq - deseg_seq,
-                         nxtseq < msp->nxtpdu);
+                /* add this segment as the first one for this new pdu */
+                fragment_add(&quic_reassembly_table, tvb, deseg_offset,
+                             pinfo, reassembly_id, NULL,
+                             0, nxtseq - deseg_seq,
+                             nxtseq < msp->nxtpdu);
+            }
+        } else {
+            /* If this is not the first time we have seen the packet, then
+             * the MSP should already be created. Retrieve it to see if we
+             * know what later frame the PDU is reassembled in.
+             */
+            if ((msp = (struct tcp_multisegment_pdu *)wmem_tree_lookup32(stream->multisegment_pdus, deseg_seq))) {
+                fh = fragment_get(&quic_reassembly_table, pinfo, reassembly_id, NULL);
+            }
         }
     }
 
@@ -1794,6 +1801,10 @@ again:
                                                    0, fh->reassembled_in);
             proto_item_set_generated(item);
         }
+
+        /* TODO: Show what's left in the packet as a raw QUIC "segment", like
+         * packet-tcp.c does here.
+         */
     }
     pinfo->can_desegment = 0;
     pinfo->desegment_offset = 0;
@@ -1819,8 +1830,16 @@ dissect_quic_stream_payload(tvbuff_t *tvb, int offset, int length, packet_info *
      * preference to disable reassembly.
      */
 
-    pinfo->can_desegment = 2;
-    desegment_quic_stream(tvb, offset, length, pinfo, tree, quic_info, stream_info, stream);
+    if (length > 0) {
+        /* Don't call a subdissector for a zero length segment. It won't
+         * work for dissection (see #12368), and our methods of determing
+         * if desegmentation is needed won't work either (#19497). If there
+         * ever is an app_handle on top of QUIC that needs to be called with
+         * a zero length segment, revisit this. (Cf. #15159)
+         */
+        pinfo->can_desegment = 2;
+        desegment_quic_stream(tvb, offset, length, pinfo, tree, quic_info, stream_info, stream);
+    }
 }
 /* QUIC Streams tracking and reassembly. }}} */
 
@@ -3377,6 +3396,13 @@ quic_get_1rtt_hp_cipher(packet_info *pinfo, quic_info_data_t *quic_info, gboolea
             return NULL;
         }
 
+        /* XXX: What if this is padding (or anything else) that is falsely
+         * detected as a SH packet after the TLS handshake in Initial frames
+         * but before the TLS handshake in the Handshake frames? Then the check
+         * above won't fail and we will retrieve the wrong TLS information,
+         * including ALPN.
+         */
+
         /* Retrieve secrets for both the client and server. */
         if (!quic_get_traffic_secret(pinfo, quic_info->hash_algo, client_pp, TRUE) ||
             !quic_get_traffic_secret(pinfo, quic_info->hash_algo, server_pp, FALSE)) {
@@ -4444,6 +4470,21 @@ check_dcid_on_coalesced_packet(tvbuff_t *tvb, const quic_datagram *dgram_info,
     if (!grease_quic_bit && (first_byte & 0x40) == 0) {
         return false;
     }
+
+    /* If the first QUIC packet in the frame is an Initial or 0-RTT packet,
+     * then subsequent packets cannot be Short Header packets because the
+     * 1-RTT keys have not been negotiated yet on this connection.
+     * (Initial packets can be coalesced with with 0-RTT or Handshake
+     * long header packets, and it might be possible for Handshake long
+     * header packets to be coalesced with 1-RTT packets.)
+     */
+    if (dgram_info->first_packet.packet_type == QUIC_LPT_INITIAL ||
+        dgram_info->first_packet.packet_type == QUIC_LPT_0RTT) {
+        if ((first_byte & 0x80) == 0) {
+            return false;
+        }
+    }
+
     return quic_connection_equal(&dcid, first_packet_dcid);
 }
 

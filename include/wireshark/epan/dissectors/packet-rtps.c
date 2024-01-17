@@ -2807,8 +2807,9 @@ static const true_false_string tfs_little_big_endianness = { "Little-Endian", "B
 /* #19359 - ensure strings we copy aren't truncated halfway through a Unicode codepoint */
 static void rtps_strlcpy(char *dest, const char *src, size_t dest_size)
 {
+  /* Reserving the last character in case ws_utf8_truncate overwites it */
   (void) g_strlcpy(dest, src, dest_size);
-  ws_utf8_truncate(dest, dest_size);
+  ws_utf8_truncate(dest, strlen(dest));
 }
 
 static gint check_offset_addition(gint offset, guint32 value, proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb)
@@ -6494,7 +6495,9 @@ static guint hash_by_participant_guid(gconstpointer key) {
   const endpoint_guid* guid = (const endpoint_guid*)key;
   gint vals[] = { guid->host_id, guid->app_id, guid->instance_id };
   GBytes* gbytes = g_bytes_new(vals, sizeof(vals));
-  return g_bytes_hash(gbytes);
+  guint hash = g_bytes_hash(gbytes);
+  g_bytes_unref(gbytes);
+  return hash;
 }
 
 static guint hash_by_guid(gconstpointer key) {
@@ -13602,7 +13605,7 @@ static gboolean dissect_rtps(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
   guint8       majorRev;
   guint16      version, vendor_id;
   gboolean     is_ping;
-  endpoint_guid guid;
+  endpoint_guid guid = {0};
   endpoint_guid *guid_copy;
   guint32 magic_number;
   gchar domain_id_str[RTPS_UNKNOWN_DOMAIN_ID_STR_LEN] = RTPS_UNKNOWN_DOMAIN_ID_STR;
@@ -13627,9 +13630,6 @@ static gboolean dissect_rtps(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
   majorRev = tvb_get_guint8(tvb,offset+4);
   if ((majorRev != 1) && (majorRev != 2))
     return FALSE;
-
-  /* No fields have been set in GUID yet. */
-  guid.fields_present = 0;
 
   /* Save the begining of the RTPS message */
   rtps_root.tvb = tvb;

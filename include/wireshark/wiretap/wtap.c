@@ -348,8 +348,8 @@ wtap_get_debug_if_descr(const wtap_block_t if_descr,
 	char* tmp_content;
 	wtapng_if_descr_mandatory_t* if_descr_mand;
 	GString *info = g_string_new("");
+	gint64 itmp64;
 	guint64 tmp64;
-	gint8 itmp8;
 	guint8 tmp8;
 	if_filter_opt_t if_filter;
 
@@ -396,10 +396,10 @@ wtap_get_debug_if_descr(const wtap_block_t if_descr,
 			if_descr_mand->snap_len,
 			line_end);
 
-	if (wtap_block_get_uint8_option_value(if_descr, OPT_IDB_FCSLEN, &itmp8) == WTAP_OPTTYPE_SUCCESS) {
+	if (wtap_block_get_uint8_option_value(if_descr, OPT_IDB_FCSLEN, &tmp8) == WTAP_OPTTYPE_SUCCESS) {
 		g_string_append_printf(info,
-				"%*cFCS length = %d%s", indent, ' ',
-				itmp8,
+				"%*cFCS length = %u%s", indent, ' ',
+				tmp8,
 				line_end);
 	}
 
@@ -418,6 +418,13 @@ wtap_get_debug_if_descr(const wtap_block_t if_descr,
 		g_string_append_printf(info,
 				"%*cTime resolution = 0x%.2x%s", indent, ' ',
 				tmp8,
+				line_end);
+	}
+
+	if (wtap_block_get_int64_option_value(if_descr, OPT_IDB_TSOFFSET, &itmp64) == WTAP_OPTTYPE_SUCCESS) {
+		g_string_append_printf(info,
+				"%*cTimestamp offset = %" G_GINT64_FORMAT "%s", indent, ' ',
+				itmp64,
 				line_end);
 	}
 
