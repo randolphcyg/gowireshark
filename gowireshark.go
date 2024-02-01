@@ -30,7 +30,7 @@ var (
 	ErrUnmarshalObj           = errors.New("unmarshal obj error")
 	ErrFromCLogic             = errors.New("run c logic occur error")
 	ErrParseDissectRes        = errors.New("fail to parse DissectRes")
-	ErrParseWsCol             = errors.New("fail to parse WsCol")
+	ErrParseFrame             = errors.New("fail to parse frame")
 	ErrFrameIsBlank           = errors.New("frame data is blank")
 )
 
@@ -297,7 +297,7 @@ func UnmarshalFrame(src any) (frame Frame, err error) {
 	}, nil
 }
 
-// WsCol wireshark _ws.col
+// WsCol wireshark frame._ws.col
 type WsCol struct {
 	Num       int    `json:"_ws.col.number"`
 	DefSrc    string `json:"_ws.col.def_src"`
@@ -325,7 +325,7 @@ func UnmarshalWsCol(src any) (wsCol WsCol, err error) {
 
 	err = json.Unmarshal(jsonData, &tmp)
 	if err != nil {
-		return WsCol{}, ErrParseWsCol
+		return WsCol{}, ErrParseFrame
 	}
 
 	num, _ := strconv.Atoi(tmp.Num)
@@ -338,6 +338,53 @@ func UnmarshalWsCol(src any) (wsCol WsCol, err error) {
 		Protocol:  tmp.Protocol,
 		PacketLen: packetLen,
 		Info:      tmp.Info,
+	}, nil
+}
+
+// Http wireshark frame.http
+type Http struct {
+	Date                string `json:"http.date"`
+	ResponseLine        any    `json:"http.response.line"`
+	LastModified        string `json:"http.last_modified"`
+	ResponseNumber      string `json:"http.response_number"`
+	ContentType         string `json:"http.content_type"`
+	ContentLengthHeader string `json:"http.content_length_header"`
+	FileData            string `json:"http.file_data"`
+	Response            string `json:"http.response"`
+}
+
+func UnmarshalHttp(src any) (http Http, err error) {
+	type tmpHttp struct {
+		Date                string `json:"http.date"`
+		ResponseLine        any    `json:"http.response.line"`
+		LastModified        string `json:"http.last_modified"`
+		ResponseNumber      string `json:"http.response_number"`
+		ContentType         string `json:"http.content_type"`
+		ContentLengthHeader string `json:"http.content_length_header"`
+		FileData            string `json:"http.file_data"`
+		Response            string `json:"http.response"`
+	}
+	var tmp tmpHttp
+
+	jsonData, err := json.Marshal(src)
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(jsonData, &tmp)
+	if err != nil {
+		return Http{}, ErrParseFrame
+	}
+
+	return Http{
+		Date:                tmp.Date,
+		ResponseLine:        tmp.ResponseLine,
+		LastModified:        tmp.LastModified,
+		ResponseNumber:      tmp.ResponseNumber,
+		ContentType:         tmp.ContentType,
+		ContentLengthHeader: tmp.ContentLengthHeader,
+		FileData:            tmp.FileData,
+		Response:            tmp.Response,
 	}, nil
 }
 
