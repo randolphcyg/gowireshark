@@ -86,31 +86,54 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 }
 
 func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
+	// frameData
 	frameData, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65, true, true)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log("# WsIndex:", frameData.WsIndex)
+	t.Log("# Offset:", frameData.Offset)
+	t.Log("# Hex:", frameData.Hex)
+	t.Log("# Ascii:", frameData.Ascii)
 
+	// _ws.col
 	colSrc := frameData.WsSource.Layers["_ws.col"]
 	col, err := gowireshark.UnmarshalWsCol(colSrc)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log("## col.number:", col.Num)
 
+	// frame
 	frameSrc := frameData.WsSource.Layers["frame"]
 	frame, err := gowireshark.UnmarshalFrame(frameSrc)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log("## frame.number:", frame.Number)
 
-	t.Log("# Frame index:", col.Num)
-	t.Log("## WsIndex:", frameData.WsIndex)
-	t.Log("## Offset:", frameData.Offset)
-	t.Log("## Hex:", frameData.Hex)
-	t.Log("## Ascii:", frameData.Ascii)
+	// ip
+	ipSrc := frameData.WsSource.Layers["ip"]
+	if ipSrc == nil {
+		return
+	}
+	ipContent, err := gowireshark.UnmarshalIp(ipSrc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("## ip.src:", ipContent.Src)
+	t.Log("## ip.dst:", ipContent.Dst)
 
-	t.Log("【layer _ws.col】:", col)
-	t.Log("【layer frame】:", frame)
+	// http
+	httpSrc := frameData.WsSource.Layers["http"]
+	if httpSrc == nil {
+		return
+	}
+	httpContent, err := gowireshark.UnmarshalHttp(httpSrc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("## http.date:", httpContent.Date)
 }
 
 func TestGetAllFrameProtoTreeInJson(t *testing.T) {
@@ -126,20 +149,11 @@ func TestGetAllFrameProtoTreeInJson(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		frameSrc := frameData.WsSource.Layers["frame"]
-		frame, err := gowireshark.UnmarshalFrame(frameSrc)
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		t.Log("# Frame index:", col.Num, "===========================")
 		t.Log("## WsIndex:", frameData.WsIndex)
 		t.Log("## Offset:", frameData.Offset)
 		t.Log("## Hex:", frameData.Hex)
 		t.Log("## Ascii:", frameData.Ascii)
-
-		t.Log("【layer _ws.col】:", col)
-		t.Log("【layer frame】:", frame)
 	}
 }
 
