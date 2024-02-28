@@ -341,6 +341,74 @@ func UnmarshalWsCol(src any) (wsCol WsCol, err error) {
 	}, nil
 }
 
+// Ip wireshark frame.ip
+type Ip struct {
+	HdrLen         int    `json:"ip.hdr_len"`
+	ID             string `json:"ip.id"`
+	Proto          string `json:"ip.proto"`
+	Checksum       string `json:"ip.checksum"`
+	Src            string `json:"ip.src"`
+	Dst            string `json:"ip.dst"`
+	Len            int    `json:"ip.len"`
+	DsField        string `json:"ip.dsfield"`
+	Flags          string `json:"ip.flags"`
+	FragOffset     int    `json:"ip.frag_offset"`
+	Ttl            int    `json:"ip.ttl"`
+	Version        int    `json:"ip.version"`
+	ChecksumStatus string `json:"ip.checksum.status"`
+}
+
+func UnmarshalIp(src any) (ip Ip, err error) {
+	type tmpIp struct {
+		HdrLen         string `json:"ip.hdr_len"`
+		ID             string `json:"ip.id"`
+		Proto          string `json:"ip.proto"`
+		Checksum       string `json:"ip.checksum"`
+		Src            string `json:"ip.src"`
+		Dst            string `json:"ip.dst"`
+		Len            string `json:"ip.len"`
+		DsField        string `json:"ip.dsfield"`
+		Flags          string `json:"ip.flags"`
+		FragOffset     string `json:"ip.frag_offset"`
+		Ttl            string `json:"ip.ttl"`
+		Version        string `json:"ip.version"`
+		ChecksumStatus string `json:"ip.checksum.status"`
+	}
+	var tmp tmpIp
+
+	jsonData, err := json.Marshal(src)
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(jsonData, &tmp)
+	if err != nil {
+		return Ip{}, ErrParseFrame
+	}
+
+	hdrLen, _ := strconv.Atoi(tmp.HdrLen)
+	length, _ := strconv.Atoi(tmp.Len)
+	fragOffset, _ := strconv.Atoi(tmp.FragOffset)
+	ttl, _ := strconv.Atoi(tmp.Ttl)
+	version, _ := strconv.Atoi(tmp.Version)
+
+	return Ip{
+		HdrLen:         hdrLen,
+		ID:             tmp.ID,
+		Proto:          tmp.Proto,
+		Checksum:       tmp.Checksum,
+		Src:            tmp.Src,
+		Dst:            tmp.Dst,
+		Len:            length,
+		DsField:        tmp.DsField,
+		Flags:          tmp.Flags,
+		FragOffset:     fragOffset,
+		Ttl:            ttl,
+		Version:        version,
+		ChecksumStatus: tmp.ChecksumStatus,
+	}, nil
+}
+
 // Http wireshark frame.http
 type Http struct {
 	Date                string `json:"http.date"`
