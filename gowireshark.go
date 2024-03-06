@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -214,22 +215,22 @@ type FrameDissectRes struct {
 
 // Frame wireshark frame
 type Frame struct {
-	SectionNumber      int    `json:"frame.section_number"`
-	InterfaceID        int    `json:"frame.interface_id"`
-	EncapType          string `json:"frame.encap_type"`
-	Time               string `json:"frame.time"`
-	TimeUTC            string `json:"frame.time_utc"`
-	TimeEpoch          string `json:"frame.time_epoch"`
-	OffsetShift        string `json:"frame.offset_shift"`
-	TimeDelta          string `json:"frame.time_delta"`
-	TimeDeltaDisplayed string `json:"frame.time_delta_displayed"`
-	TimeRelative       string `json:"frame.time_relative"`
-	Number             int    `json:"frame.number"`
-	Len                int    `json:"frame.len"`
-	CapLen             int    `json:"frame.cap_len"`
-	Marked             bool   `json:"frame.marked"`
-	Ignored            bool   `json:"frame.ignored"`
-	Protocols          string `json:"frame.protocols"`
+	SectionNumber      int     `json:"frame.section_number"`
+	InterfaceID        int     `json:"frame.interface_id"`
+	EncapType          string  `json:"frame.encap_type"`
+	Time               string  `json:"frame.time"`
+	TimeUTC            string  `json:"frame.time_utc"`
+	TimeEpoch          float64 `json:"frame.time_epoch"`
+	OffsetShift        string  `json:"frame.offset_shift"`
+	TimeDelta          string  `json:"frame.time_delta"`
+	TimeDeltaDisplayed string  `json:"frame.time_delta_displayed"`
+	TimeRelative       string  `json:"frame.time_relative"`
+	Number             int     `json:"frame.number"`
+	Len                int     `json:"frame.len"`
+	CapLen             int     `json:"frame.cap_len"`
+	Marked             bool    `json:"frame.marked"`
+	Ignored            bool    `json:"frame.ignored"`
+	Protocols          string  `json:"frame.protocols"`
 }
 
 func UnmarshalFrame(src any) (frame Frame, err error) {
@@ -276,6 +277,7 @@ func UnmarshalFrame(src any) (frame Frame, err error) {
 	if err != nil {
 		return
 	}
+	timeEpoch, err := strconv.ParseFloat(tmp.TimeEpoch, 64)
 
 	return Frame{
 		SectionNumber:      sectionNumber,
@@ -283,7 +285,7 @@ func UnmarshalFrame(src any) (frame Frame, err error) {
 		EncapType:          tmp.EncapType,
 		Time:               tmp.Time,
 		TimeUTC:            tmp.TimeUTC,
-		TimeEpoch:          tmp.TimeEpoch,
+		TimeEpoch:          timeEpoch,
 		OffsetShift:        tmp.OffsetShift,
 		TimeDelta:          tmp.TimeDelta,
 		TimeDeltaDisplayed: tmp.TimeDeltaDisplayed,
@@ -406,6 +408,122 @@ func UnmarshalIp(src any) (ip Ip, err error) {
 		Ttl:            ttl,
 		Version:        version,
 		ChecksumStatus: tmp.ChecksumStatus,
+	}, nil
+}
+
+// Udp wireshark frame.udp
+type Udp struct {
+	SrcPort        int    `json:"udp.srcport"`
+	DstPort        int    `json:"udp.dstport"`
+	Length         int    `json:"udp.length"`
+	ChecksumStatus string `json:"udp.checksum.status"`
+	Port           []int  `json:"udp.port"`
+	Checksum       string `json:"udp.checksum"`
+	Stream         int    `json:"udp.stream"`
+}
+
+func UnmarshalUdp(src any) (udp Udp, err error) {
+	type tmpUdp struct {
+		SrcPort        string   `json:"udp.srcport"`
+		DstPort        string   `json:"udp.dstport"`
+		Length         string   `json:"udp.length"`
+		ChecksumStatus string   `json:"udp.checksum.status"`
+		Port           []string `json:"udp.port"`
+		Checksum       string   `json:"udp.checksum"`
+		Stream         string   `json:"udp.stream"`
+	}
+	var tmp tmpUdp
+
+	jsonData, err := json.Marshal(src)
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(jsonData, &tmp)
+	if err != nil {
+		return Udp{}, ErrParseFrame
+	}
+
+	srcPort, _ := strconv.Atoi(tmp.SrcPort)
+	stream, _ := strconv.Atoi(tmp.Stream)
+	length, _ := strconv.Atoi(tmp.Length)
+	dstPort, _ := strconv.Atoi(tmp.DstPort)
+	var ports []int
+	for _, p := range tmp.Port {
+		pTmp, _ := strconv.Atoi(p)
+		ports = append(ports, pTmp)
+	}
+
+	return Udp{
+		SrcPort:        srcPort,
+		Length:         length,
+		ChecksumStatus: tmp.ChecksumStatus,
+		DstPort:        dstPort,
+		Port:           ports,
+		Checksum:       tmp.Checksum,
+		Stream:         stream,
+	}, nil
+}
+
+// Tcp wireshark frame.tcp
+type Tcp struct {
+	HdrLen         int    `json:"tcp.hdr_len"`
+	SrcPort        int    `json:"tcp.srcport"`
+	DstPort        int    `json:"tcp.dstport"`
+	Len            int    `json:"tcp.len"`
+	ChecksumStatus string `json:"tcp.checksum.status"`
+	Port           []int  `json:"tcp.port"`
+	Checksum       string `json:"tcp.checksum"`
+	Stream         int    `json:"tcp.stream"`
+	SeqRaw         int    `json:"tcp.seq_raw"`
+}
+
+func UnmarshalTcp(src any) (tcp Tcp, err error) {
+	type tmpTcp struct {
+		HdrLen         string   `json:"tcp.hdr_len"`
+		SrcPort        string   `json:"tcp.srcport"`
+		DstPort        string   `json:"tcp.dstport"`
+		Len            string   `json:"tcp.len"`
+		ChecksumStatus string   `json:"tcp.checksum.status"`
+		Port           []string `json:"tcp.port"`
+		Checksum       string   `json:"tcp.checksum"`
+		Stream         string   `json:"tcp.stream"`
+		SeqRaw         string   `json:"tcp.seq_raw"`
+	}
+	var tmp tmpTcp
+
+	jsonData, err := json.Marshal(src)
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(jsonData, &tmp)
+	if err != nil {
+		return Tcp{}, ErrParseFrame
+	}
+
+	hdrLen, _ := strconv.Atoi(tmp.HdrLen)
+	srcPort, _ := strconv.Atoi(tmp.SrcPort)
+	stream, _ := strconv.Atoi(tmp.Stream)
+	length, _ := strconv.Atoi(tmp.Len)
+	dstPort, _ := strconv.Atoi(tmp.DstPort)
+	seqRaw, _ := strconv.Atoi(tmp.SeqRaw)
+	var ports []int
+	for _, p := range tmp.Port {
+		pTmp, _ := strconv.Atoi(p)
+		ports = append(ports, pTmp)
+	}
+
+	return Tcp{
+		HdrLen:         hdrLen,
+		SrcPort:        srcPort,
+		DstPort:        dstPort,
+		Len:            length,
+		ChecksumStatus: tmp.ChecksumStatus,
+		Port:           ports,
+		Checksum:       tmp.Checksum,
+		Stream:         stream,
+		SeqRaw:         seqRaw,
 	}, nil
 }
 
@@ -704,4 +822,11 @@ func StopDissectPktLive(deviceName string) (err error) {
 	}
 
 	return
+}
+
+// TimeEpoch2Time turn wireshark timestamp to time.Time
+func TimeEpoch2Time(wiresharkTimestamp float64) (goTime time.Time) {
+	seconds := int64(wiresharkTimestamp)
+	microseconds := int64((wiresharkTimestamp - float64(seconds)) * 1e6)
+	return time.Unix(seconds, microseconds*1000)
 }
