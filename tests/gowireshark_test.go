@@ -111,29 +111,50 @@ func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("## frame.number:", frame.Number)
+	ti := gowireshark.TimeEpoch2Time(frame.TimeEpoch)
+	t.Log("## frame.TimeEpoch:", ti)
 
 	// ip
 	ipSrc := frameData.WsSource.Layers["ip"]
-	if ipSrc == nil {
-		return
+	if ipSrc != nil {
+		ipContent, err := gowireshark.UnmarshalIp(ipSrc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("## ip.src:", ipContent.Src)
+		t.Log("## ip.dst:", ipContent.Dst)
 	}
-	ipContent, err := gowireshark.UnmarshalIp(ipSrc)
-	if err != nil {
-		t.Fatal(err)
+
+	// tcp
+	tcpSrc := frameData.WsSource.Layers["tcp"]
+	if ipSrc != nil {
+		tcpContent, err := gowireshark.UnmarshalTcp(tcpSrc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("## tcp.srcport:", tcpContent.SrcPort)
 	}
-	t.Log("## ip.src:", ipContent.Src)
-	t.Log("## ip.dst:", ipContent.Dst)
+
+	// udp
+	udpSrc := frameData.WsSource.Layers["udp"]
+	if udpSrc != nil {
+		udpContent, err := gowireshark.UnmarshalUdp(udpSrc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("## udp.srcport:", udpContent.SrcPort)
+	}
 
 	// http
 	httpSrc := frameData.WsSource.Layers["http"]
-	if httpSrc == nil {
-		return
+	if httpSrc != nil {
+		httpContent, err := gowireshark.UnmarshalHttp(httpSrc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("## http.date:", httpContent.Date)
 	}
-	httpContent, err := gowireshark.UnmarshalHttp(httpSrc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("## http.date:", httpContent.Date)
+
 }
 
 func TestGetAllFrameProtoTreeInJson(t *testing.T) {
