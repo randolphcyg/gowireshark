@@ -2408,12 +2408,15 @@ static const value_string gtp_ext_hdr_pdu_ses_cont_pdu_type_vals[] = {
 #define MM_PROTO_SESSION_MGMT           0x0A
 #define MM_PROTO_NON_CALL_RELATED       0x0B
 
-static wmem_map_t *gtpstat_msg_idx_hash = NULL;
+static GHashTable *gtpstat_msg_idx_hash = NULL;
 
 static void
 gtpstat_init(struct register_srt* srt _U_, GArray* srt_array)
 {
-    gtpstat_msg_idx_hash = wmem_map_new(wmem_file_scope(), g_direct_hash, g_direct_equal);
+    if (gtpstat_msg_idx_hash != NULL) {
+        g_hash_table_destroy(gtpstat_msg_idx_hash);
+    }
+    gtpstat_msg_idx_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
 
     init_srt_table("GTP Requests", NULL, srt_array, 0, NULL, NULL, NULL);
 }
@@ -2443,13 +2446,13 @@ gtpstat_packet(void *pss, packet_info *pinfo, epan_dissect_t *edt _U_, const voi
 
     gtp_srt_table = g_array_index(data->srt_array, srt_stat_table*, i);
 
-    idx = GPOINTER_TO_UINT(wmem_map_lookup(gtpstat_msg_idx_hash, GUINT_TO_POINTER(gtp->msgtype)));
+    idx = GPOINTER_TO_UINT(g_hash_table_lookup(gtpstat_msg_idx_hash, GUINT_TO_POINTER(gtp->msgtype)));
 
     /* Store the value incremented by 1 to avoid confusing index 0 with NULL */
     if (idx == 0) {
-        idx = wmem_map_size(gtpstat_msg_idx_hash);
-        wmem_map_insert(gtpstat_msg_idx_hash, GUINT_TO_POINTER(gtp->msgtype), GUINT_TO_POINTER(idx + 1));
-        init_srt_table_row(gtp_srt_table, idx, val_to_str_ext(gtp->msgtype, &gtp_message_type_ext, "Unknown (%d)"));
+        idx = g_hash_table_size(gtpstat_msg_idx_hash);
+        g_hash_table_insert(gtpstat_msg_idx_hash, GUINT_TO_POINTER(gtp->msgtype), GUINT_TO_POINTER(idx + 1));
+        init_srt_table_row(gtp_srt_table, idx, val_to_str_ext_const(gtp->msgtype, &gtp_message_type_ext, "Unknown"));
     } else {
         idx -= 1;
     }
@@ -2987,7 +2990,7 @@ typedef struct {
 /* ---------------------
  * GPRS messages
  * ---------------------*/
-static _gtp_mess_items gprs_mess_items[] = {
+static const _gtp_mess_items gprs_mess_items[] = {
 
     {
         GTP_MSG_ECHO_REQ, {
@@ -3319,7 +3322,7 @@ static _gtp_mess_items gprs_mess_items[] = {
 /* -----------------------------
  * UMTS messages
  * -----------------------------*/
-static _gtp_mess_items umts_mess_items[] = {
+static const _gtp_mess_items umts_mess_items[] = {
     /* 7.2 Path Management Messages */
     {
         GTP_MSG_ECHO_REQ, {
@@ -4391,7 +4394,7 @@ check_field_presence_and_decoder(guint8 message, guint8 field, int *position, ie
 {
 
     guint i = 0;
-    _gtp_mess_items *mess_items;
+    const _gtp_mess_items *mess_items;
 
     switch (gtp_version) {
     case 0:

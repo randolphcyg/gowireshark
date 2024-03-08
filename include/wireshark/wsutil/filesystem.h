@@ -11,7 +11,7 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

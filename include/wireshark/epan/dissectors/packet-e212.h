@@ -13,7 +13,7 @@
 #define __PACKET_E212_H__
 
 #include <epan/value_string.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 extern value_string_ext E212_codes_ext;
 

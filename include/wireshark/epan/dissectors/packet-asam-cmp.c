@@ -1,7 +1,7 @@
 /* packet-asam-cmp.c
  * ASAM Capture Module Protocol dissector.
  * Copyright 2021-2023 Alicia Mediano Schikarski, Technica Engineering GmbH
- * Copyright 2021-2023 Dr. Lars Voelker, Technica Engineering GmbH
+ * Copyright 2021-2024 Dr. Lars Voelker, Technica Engineering GmbH
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -1218,7 +1218,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
                 can_id = can_id | CAN_ERR_FLAG;
             }
 
-            struct can_info can_info = { .id = can_id, .len = msg_payload_type_length, .fd = false, .bus_id = ht_interface_config_to_bus_id(interface_id) };
+            struct can_info can_info = { .id = can_id, .len = msg_payload_type_length, .fd = CAN_TYPE_CAN_CLASSIC, .bus_id = ht_interface_config_to_bus_id(interface_id) };
             if (!socketcan_call_subdissectors(sub_tvb, pinfo, tree, &can_info, heuristic_first)) {
                 call_data_dissector(sub_tvb, pinfo, tree);
             }
@@ -1326,7 +1326,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
                 can_id = can_id | CAN_ERR_FLAG;
             }
 
-            struct can_info can_info = { .id = can_id, .len = msg_payload_type_length, .fd = true, .bus_id = ht_interface_config_to_bus_id(interface_id) };
+            struct can_info can_info = { .id = can_id, .len = msg_payload_type_length, .fd = CAN_TYPE_CAN_FD, .bus_id = ht_interface_config_to_bus_id(interface_id) };
             if (!socketcan_call_subdissectors(sub_tvb, pinfo, tree, &can_info, heuristic_first)) {
                 call_data_dissector(sub_tvb, pinfo, tree);
             }
@@ -1938,7 +1938,6 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
         offset += 2;
 
         if ((asam_cmp_status_msg_vendor_data_length) > 0) {
-            asam_cmp_status_msg_vendor_data_length += (asam_cmp_status_msg_vendor_data_length % 2); /* padding to 16bit */
             proto_tree_add_item(asam_cmp_status_msg_payload_tree, hf_cmp_status_vendor_data, tvb, offset, asam_cmp_status_msg_vendor_data_length, ENC_NA);
             offset += (gint)asam_cmp_status_msg_vendor_data_length;
         }
@@ -2016,7 +2015,6 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
             offset += 2;
 
             if ((asam_cmp_status_msg_vendor_data_length) > 0) {
-                asam_cmp_status_msg_vendor_data_length += (asam_cmp_status_msg_vendor_data_length % 2); /* padding to 16bit */
                 proto_tree_add_item(subtree, hf_cmp_iface_vendor_data, tvb, offset, asam_cmp_status_msg_vendor_data_length, ENC_NA);
                 offset += (gint)asam_cmp_status_msg_vendor_data_length;
             }
@@ -2660,6 +2658,7 @@ proto_reg_handoff_asam_cmp(void) {
     eth_handle = find_dissector("eth_maybefcs");
 
     dissector_add_for_decode_as("ethertype", asam_cmp_handle);
+    dissector_add_for_decode_as_with_preference("udp.port", asam_cmp_handle);
 
     lin_subdissector_table = find_dissector_table("lin.frame_id");
 }

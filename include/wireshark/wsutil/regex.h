@@ -10,7 +10,7 @@
 #ifndef __WSUTIL_REGEX_H__
 #define __WSUTIL_REGEX_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

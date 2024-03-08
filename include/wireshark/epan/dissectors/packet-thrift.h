@@ -16,7 +16,7 @@
 #define __PACKET_THRIFT_H__
 
 #include <epan/expert.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 
 typedef enum {

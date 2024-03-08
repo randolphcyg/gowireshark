@@ -11,7 +11,7 @@
 #ifndef __STRUTIL_H__
 #define __STRUTIL_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include <epan/wmem_scopes.h>
 #include <wsutil/str_util.h>

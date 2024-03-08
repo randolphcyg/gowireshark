@@ -10,7 +10,7 @@
 #ifndef __BASE32_H__
 #define __BASE32_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

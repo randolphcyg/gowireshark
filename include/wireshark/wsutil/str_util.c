@@ -14,7 +14,7 @@
 
 #include <string.h>
 
-#include <include/ws_codepoints.h>
+#include <ws_codepoints.h>
 
 #include <wsutil/to_str.h>
 

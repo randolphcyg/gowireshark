@@ -10,7 +10,7 @@
 
 #ifndef __PACKET_H__
 #define __PACKET_H__
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #include <wiretap/wtap_opttypes.h>
 #include "proto.h"

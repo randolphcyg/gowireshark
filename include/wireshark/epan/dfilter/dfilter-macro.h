@@ -10,7 +10,7 @@
 #ifndef _DFILTER_MACRO_H
 #define _DFILTER_MACRO_H
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 #include "dfilter.h"
 
 #define DFILTER_MACRO_FILENAME "dfilter_macros"

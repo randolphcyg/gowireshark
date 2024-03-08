@@ -27,7 +27,7 @@
 #include <epan/expert.h>
 
 #include "ws_diag_control.h"
-#include "include/ws_compiler_tests.h"
+#include "ws_compiler_tests.h"
 
 #ifdef _MSC_VER
 /* disable warning: "unreference local variable" */

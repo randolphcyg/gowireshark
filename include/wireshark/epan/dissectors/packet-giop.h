@@ -14,7 +14,7 @@
 #ifndef PACKET_GIOP_H
 #define PACKET_GIOP_H
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /*
  * Useful visible data/structs

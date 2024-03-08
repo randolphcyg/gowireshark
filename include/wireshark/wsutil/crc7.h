@@ -23,7 +23,7 @@
 #ifndef __CRC7__H__
 #define __CRC7__H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -12,7 +12,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /*
  * Check whether this could be a TPKT-encapsulated PDU.

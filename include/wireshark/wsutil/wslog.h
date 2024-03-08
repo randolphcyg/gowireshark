@@ -19,10 +19,10 @@
 #include <time.h>
 #include <glib.h>
 
-#include <include/ws_symbol_export.h>
-#include <include/ws_attributes.h>
-#include <include/ws_log_defs.h>
-#include <include/ws_posix_compat.h>
+#include <ws_symbol_export.h>
+#include <ws_attributes.h>
+#include <ws_log_defs.h>
+#include <ws_posix_compat.h>
 
 #ifdef WS_LOG_DOMAIN
 #define _LOG_DOMAIN WS_LOG_DOMAIN

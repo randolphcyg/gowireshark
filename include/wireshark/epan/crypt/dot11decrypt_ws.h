@@ -10,7 +10,7 @@
 #define	_DOT11DECRYPT_WS_H
 
 #include "dot11decrypt_system.h"
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

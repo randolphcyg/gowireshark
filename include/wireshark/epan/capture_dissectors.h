@@ -11,7 +11,7 @@
 #ifndef __CAPTURE_DISSECTORS_H__
 #define __CAPTURE_DISSECTORS_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include <wiretap/wtap.h>
 
 #ifdef __cplusplus

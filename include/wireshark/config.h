@@ -11,15 +11,15 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.2.2"
+#define VERSION "4.2.3"
 #define VERSION_MAJOR 4
 #define VERSION_MINOR 2
-#define VERSION_MICRO 2
+#define VERSION_MICRO 3
 
 /* Version number of Logray and associated utilities */
 #define LOG_VERSION "0.8.3"
 
-#define PLUGIN_PATH_ID "4.2"
+#define PLUGIN_PATH_ID "4-2"
 #define VERSION_FLAVOR ""
 
 /* Build wsutil with SIMD optimization */
@@ -104,13 +104,13 @@
 #define HAVE_INFLATEPRIME 1
 
 /* Define to 1 if you have the `issetugid' function. */
-/* #undef HAVE_ISSETUGID */
+#define HAVE_ISSETUGID 1
 
 /* Define to use kerberos */
-/* #undef HAVE_KERBEROS */
+#define HAVE_KERBEROS 1
 
 /* Define to use nghttp2 */
-/* #undef HAVE_NGHTTP2 */
+#define HAVE_NGHTTP2 1
 
 /* Define to use nghttp3 */
 /* #undef HAVE_NGHTTP3 */
@@ -119,10 +119,10 @@
 /* #undef HAVE_LIBCAP */
 
 /* Define to use GnuTLS library */
-/* #undef HAVE_LIBGNUTLS */
+#define HAVE_LIBGNUTLS 1
 
 /* Define to 1 if GnuTLS was built with pkcs11 support. */
-/* #undef HAVE_GNUTLS_PKCS11 */
+#define HAVE_GNUTLS_PKCS11 1
 
 /* Enable libnl support */
 /* #undef HAVE_LIBNL */
@@ -155,25 +155,25 @@
 /* #undef HAVE_MZCOMPAT_DOS_DATE */
 
 /* Define to use brotli library */
-/* #undef HAVE_BROTLI */
+#define HAVE_BROTLI 1
 
 /* Define to use lz4 library */
-/* #undef HAVE_LZ4 */
+#define HAVE_LZ4 1
 
 /* Check for lz4frame */
-/* #undef HAVE_LZ4FRAME_H */
+#define HAVE_LZ4FRAME_H 1
 
 /* Define to use snappy library */
 /* #undef HAVE_SNAPPY */
 
 /* Define to use zstd library */
-/* #undef HAVE_ZSTD */
+#define HAVE_ZSTD 1
 
 /* Define to 1 if you have the <linux/sockios.h> header file. */
-#define HAVE_LINUX_SOCKIOS_H 1
+/* #undef HAVE_LINUX_SOCKIOS_H */
 
 /* Define to 1 if you have the <linux/if_bonding.h> header file. */
-#define HAVE_LINUX_IF_BONDING_H 1
+/* #undef HAVE_LINUX_IF_BONDING_H */
 
 /* Define to use Lua */
 /* #undef HAVE_LUA */
@@ -182,7 +182,7 @@
 /* #undef HAVE_LUA_UNICODE */
 
 /* Define to use MIT kerberos */
-/* #undef HAVE_MIT_KERBEROS */
+#define HAVE_MIT_KERBEROS 1
 
 /* Define to 1 if you have the <netdb.h> header file. */
 #define HAVE_NETDB_H 1
@@ -203,10 +203,10 @@
 /* #undef HAVE_NL80211_VHT_CAPABILITY */
 
 /* Define to 1 if you have macOS frameworks */
-/* #undef HAVE_MACOS_FRAMEWORKS */
+#define HAVE_MACOS_FRAMEWORKS 1
 
 /* Define to 1 if you have the macOS CFPropertyListCreateWithStream function */
-/* #undef HAVE_CFPROPERTYLISTCREATEWITHSTREAM */
+#define HAVE_CFPROPERTYLISTCREATEWITHSTREAM 1
 
 /* Define to 1 if you have the `pcap_create' function. */
 #define HAVE_PCAP_CREATE 1
@@ -266,10 +266,10 @@
 #define HAVE_LIBXML2 1
 
 /* Define to 1 if you have the `setresgid' function. */
-#define HAVE_SETRESGID 1
+/* #undef HAVE_SETRESGID */
 
 /* Define to 1 if you have the `setresuid' function. */
-#define HAVE_SETRESUID 1
+/* #undef HAVE_SETRESUID */
 
 /* Define to 1 if you have the Sparkle or WinSparkle library */
 /* #undef HAVE_SOFTWARE_UPDATE */
@@ -281,13 +281,13 @@
 #define HAVE_MEMMEM 1
 
 /* Define if you have the 'strerrorname_np' function. */
-#define HAVE_STRERRORNAME_NP 1
+/* #undef HAVE_STRERRORNAME_NP */
 
 /* Define if you have the 'vasprintf' function. */
 #define HAVE_VASPRINTF 1
 
 /* Define to 1 if `st_birthtime' is a member of `struct stat'. */
-/* #undef HAVE_STRUCT_STAT_ST_BIRTHTIME */
+#define HAVE_STRUCT_STAT_ST_BIRTHTIME 1
 
 /* Define if st_blksize field exists in struct stat */
 #define HAVE_STRUCT_STAT_ST_BLKSIZE 1
@@ -357,15 +357,17 @@
  * for our needs.
  * This should match the following:
  * - The <compatibility><application> section in resources\wireshark.exe.manifest.in
- * - The GetWindowsVersion parts of packaging\nsis\wireshark.nsi
+ * - The WinVer parts of packaging\nsis\wireshark.nsi
  * - The VersionNT parts of packaging\wix\Prerequisites.wxi
  */
 #  ifndef NTDDI_VERSION
-#  define NTDDI_VERSION   NTDDI_WIN7
+// #  define NTDDI_VERSION   NTDDI_WIN7
+#  define NTDDI_VERSION   NTDDI_WIN10
 #  endif
 
 #  ifndef _WIN32_WINNT
-#  define _WIN32_WINNT    _WIN32_WINNT_WIN7
+// #  define _WIN32_WINNT    _WIN32_WINNT_WIN7
+#  define _WIN32_WINNT    _WIN32_WINNT_WIN10
 #  endif
 #endif
 
@@ -420,6 +422,6 @@
 #define HAVE_REMOTE
 #endif
 
-#include <include/ws_log_defs.h>
+#include <ws_log_defs.h>
 
 #endif /* __CONFIG_H__ */

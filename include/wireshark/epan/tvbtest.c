@@ -20,7 +20,7 @@
 #include "exceptions.h"
 #include "wsutil/pint.h"
 
-#include <include/ws_diag_control.h>
+#include <ws_diag_control.h>
 
 gboolean failed = FALSE;
 

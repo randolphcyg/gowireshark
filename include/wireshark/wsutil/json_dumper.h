@@ -13,7 +13,7 @@
 #ifndef __JSON_DUMPER_H__
 #define __JSON_DUMPER_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include <inttypes.h>
 #include <stdbool.h>

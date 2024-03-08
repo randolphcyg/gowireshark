@@ -14,7 +14,7 @@
 
 #include "config.h"
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #include <epan/packet.h>
 #include <epan/expert.h>
