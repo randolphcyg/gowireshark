@@ -123,10 +123,10 @@ gowireshark
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
 │   ├── libwireshark.so.17
-│   ├── libwireshark.so.17.0.2
+│   ├── libwireshark.so.17.0.3
 │   ├── libwiretap.so
 │   ├── libwiretap.so.14
-│   ├── libwiretap.so.14.1.0
+│   ├── libwiretap.so.14.1.3
 │   ├── libwsutil.so
 │   ├── libwsutil.so.15
 │   └── libwsutil.so.15.0.0
@@ -185,7 +185,7 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 
 ```shell
 # Determine the latest release version and set environment variables
-export WIRESHARKV=4.2.2
+export WIRESHARKV=4.2.3
 # Operate in the /opt directory
 cd /opt/
 # Download the source code
@@ -201,7 +201,7 @@ cd /opt/wireshark/
 cmake -LH ./
 
 # If you do not have cmake, please install it first
-export CMAKEV=3.28.0
+export CMAKEV=3.28.3
 sudo wget https://cmake.org/files/LatestRelease/cmake-$CMAKEV.tar.gz
 tar -xzf cmake-$CMAKEV.tar.gz
 mv cmake-$CMAKEV cmake
