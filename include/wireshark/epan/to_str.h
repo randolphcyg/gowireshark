@@ -18,7 +18,7 @@
 #include <epan/proto.h>
 #include <epan/packet_info.h>
 #include <epan/ipv6.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 #include <epan/wmem_scopes.h>
 #include <wsutil/to_str.h>
 

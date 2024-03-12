@@ -11,7 +11,7 @@
 #define __PACKET_PPP_H__
 
 #include <epan/params.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 tvbuff_t *decode_fcs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *fh_tree, int fcs_decode, int proto_offset);
 

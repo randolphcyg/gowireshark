@@ -19,7 +19,7 @@
 #include "config.h"
 
 #include "packet-epl.h"
-#include "ws_attributes.h"
+#include "include/ws_attributes.h"
 
 #include <epan/ws_printf.h>
 #include <epan/range.h>

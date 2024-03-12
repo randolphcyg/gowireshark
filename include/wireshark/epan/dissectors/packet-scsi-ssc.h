@@ -15,7 +15,7 @@
 #ifndef __PACKET_SCSI_SSC_H_
 #define __PACKET_SCSI_SSC_H_
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* SSC Commands */
 #define SCSI_SSC_REWIND                         0x01

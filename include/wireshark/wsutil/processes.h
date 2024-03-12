@@ -12,7 +12,7 @@
 #ifndef _WSUTIL_PROCESSES_H_
 #define _WSUTIL_PROCESSES_H_
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef _WIN32
 /*

@@ -13,7 +13,7 @@
 #define __WSUTIL_FEATURE_LIST_H__
 
 #include <glib.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

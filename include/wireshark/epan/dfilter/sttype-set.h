@@ -11,7 +11,7 @@
 #ifndef STTYPE_SET_H
 #define STTYPE_SET_H
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #include "syntax-tree.h"
 

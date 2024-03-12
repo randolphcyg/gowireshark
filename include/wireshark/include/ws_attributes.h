@@ -10,7 +10,7 @@
 #ifndef __WS_ATTRIBUTES_H__
 #define __WS_ATTRIBUTES_H__
 
-#include "ws_compiler_tests.h"
+#include "include/ws_compiler_tests.h"
 
 #ifdef __cplusplus
 extern "C" {

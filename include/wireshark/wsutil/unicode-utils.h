@@ -11,7 +11,7 @@
 #ifndef __UNICODEUTIL_H__
 #define __UNICODEUTIL_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #ifdef _WIN32
 #include <windows.h>

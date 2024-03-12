@@ -13,7 +13,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* Info to save in RTCP conversation / packet-info.
    Note that this structure applies to the destination end of

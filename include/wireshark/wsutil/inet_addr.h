@@ -10,7 +10,7 @@
 #ifndef __WS_INET_ADDR_H__
 #define __WS_INET_ADDR_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #include "inet_ipv4.h"
 #include "inet_ipv6.h"

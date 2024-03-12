@@ -17,7 +17,7 @@
  */
 
 #include "config.h"
-#include <wireshark.h>
+#include <include/wireshark.h>
 #include <epan/packet.h>
 #include <epan/proto_data.h>
 #include <epan/wmem_scopes.h>

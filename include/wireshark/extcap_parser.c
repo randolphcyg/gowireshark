@@ -22,7 +22,7 @@
 
 #include "extcap.h"
 #include "extcap_parser.h"
-#include "ws_attributes.h"
+#include "include/ws_attributes.h"
 
 void extcap_printf_complex(extcap_complex *comp) {
     gchar *ret = extcap_get_complex_as_string(comp);

@@ -12,7 +12,7 @@
 #ifndef __REQ_RESP_HDRS_H__
 #define __REQ_RESP_HDRS_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 #include "wsutil/strtoi.h"
 
 /**

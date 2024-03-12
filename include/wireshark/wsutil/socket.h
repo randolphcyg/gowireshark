@@ -12,7 +12,7 @@
 #ifndef __SOCKET_H__
 #define __SOCKET_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	#include <windows.h>

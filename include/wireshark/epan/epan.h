@@ -10,7 +10,7 @@
 #ifndef __EPAN_H__
 #define __EPAN_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #include <wsutil/feature_list.h>
 #include <epan/tvbuff.h>

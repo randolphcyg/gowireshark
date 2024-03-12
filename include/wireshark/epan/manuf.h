@@ -9,7 +9,7 @@
 #ifndef __MANUF_H__
 #define __MANUF_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

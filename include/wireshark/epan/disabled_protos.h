@@ -17,7 +17,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 #include <glib.h>
-#include <ws_symbol_export.h>
+#include <include/ws_symbol_export.h>
 
 /*
  * Tell if protocols have been enabled/disabled since

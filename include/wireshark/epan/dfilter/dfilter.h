@@ -10,7 +10,7 @@
 #ifndef DFILTER_H
 #define DFILTER_H
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #include "dfilter-loc.h"
 #include <epan/proto.h>

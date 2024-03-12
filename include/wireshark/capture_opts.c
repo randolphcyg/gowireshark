@@ -10,7 +10,7 @@
 
 #include <config.h>
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #include <stdio.h>
 #include <stdlib.h>

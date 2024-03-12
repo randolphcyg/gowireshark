@@ -14,7 +14,7 @@
 #ifndef __WSJSON_H__
 #define __WSJSON_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #include <inttypes.h>
 #include <stdbool.h>

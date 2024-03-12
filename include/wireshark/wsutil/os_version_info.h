@@ -11,7 +11,7 @@
 #ifndef __WSUTIL_OS_VERSION_INFO_H__
 #define __WSUTIL_OS_VERSION_INFO_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -9,7 +9,7 @@
 #ifndef __BER_H__
 #define __BER_H__
 #include <glib.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 wtap_open_return_val ber_open(wtap *wth, int *err, gchar **err_info);
 

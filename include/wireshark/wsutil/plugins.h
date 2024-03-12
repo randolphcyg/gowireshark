@@ -11,7 +11,7 @@
 #ifndef __PLUGINS_H__
 #define __PLUGINS_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

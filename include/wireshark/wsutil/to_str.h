@@ -12,7 +12,7 @@
 #ifndef __WSUTIL_TO_STR_H__
 #define __WSUTIL_TO_STR_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #include <wsutil/wmem/wmem.h>
 #include <wsutil/inet_ipv6.h>

@@ -14,7 +14,7 @@
 #define _INTERFACE_H
 
 #include <glib.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* Return a list of IPv4/IPv6 addresses for local interfaces */
 WS_DLL_PUBLIC

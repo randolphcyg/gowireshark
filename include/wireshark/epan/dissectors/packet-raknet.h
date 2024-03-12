@@ -11,7 +11,7 @@
 #define __PACKET_RAKNET_H__
 
 #include <epan/packet.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /*
  * Different protocols (i.e. games) use different set of message IDs,

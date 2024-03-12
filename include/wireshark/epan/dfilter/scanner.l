@@ -2,7 +2,7 @@
 /* Include this before everything else, for various large-file definitions */
 #include "config.h"
 #define WS_LOG_DOMAIN LOG_DOMAIN_DFILTER
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #include <stdlib.h>
 #include <errno.h>
