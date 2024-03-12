@@ -476,6 +476,7 @@ type Tcp struct {
 	Checksum       string `json:"tcp.checksum"`
 	Stream         int    `json:"tcp.stream"`
 	SeqRaw         int    `json:"tcp.seq_raw"`
+	Payload        string `json:"tcp.payload"`
 }
 
 func UnmarshalTcp(src any) (tcp Tcp, err error) {
@@ -489,6 +490,7 @@ func UnmarshalTcp(src any) (tcp Tcp, err error) {
 		Checksum       string   `json:"tcp.checksum"`
 		Stream         string   `json:"tcp.stream"`
 		SeqRaw         string   `json:"tcp.seq_raw"`
+		Payload        string   `json:"tcp.payload"`
 	}
 	var tmp tmpTcp
 
@@ -524,6 +526,7 @@ func UnmarshalTcp(src any) (tcp Tcp, err error) {
 		Checksum:       tmp.Checksum,
 		Stream:         stream,
 		SeqRaw:         seqRaw,
+		Payload:        tmp.Payload,
 	}, nil
 }
 
