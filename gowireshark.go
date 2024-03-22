@@ -577,6 +577,98 @@ func UnmarshalHttp(src any) (http Http, err error) {
 	}, nil
 }
 
+// Dns wireshark frame.dns
+type Dns struct {
+	DnsID        string      `json:"dns.id"`
+	Flags        string      `json:"dns.flags"`
+	QueriesCount int         `json:"dns.count.queries"`
+	Queries      []DnsQuery  `json:"Queries"`
+	AnswersCount int         `json:"dns.count.answers"`
+	Answers      []DnsAnswer `json:"Answers"`
+}
+
+type DnsQuery struct {
+	DnsQryName     string `json:"dns.qry.name"`
+	DnsQryNameLen  string `json:"dns.qry.name.len"`
+	DnsCountLabels string `json:"dns.count.labels"`
+	DnsQryType     string `json:"dns.qry.type"`
+	DnsQryClass    string `json:"dns.qry.class"`
+}
+
+type DnsAnswer struct {
+	DnsA         string `json:"dns.a"`
+	DnsRespName  string `json:"dns.resp.name"`
+	DnsRespType  string `json:"dns.resp.type"`
+	DnsRespClass string `json:"dns.resp.class"`
+	DnsRespTtl   string `json:"dns.resp.ttl"`
+	DnsRespLen   string `json:"dns.resp.len"`
+}
+
+func UnmarshalDns(src any) (dns Dns, err error) {
+	type tmpDns struct {
+		DnsID        string `json:"dns.id"`
+		Flags        string `json:"dns.flags"`
+		QueriesCount string `json:"dns.count.queries"`
+		Queries      any    `json:"Queries"`
+		AnswersCount string `json:"dns.count.answers"`
+		Answers      any    `json:"Answers"`
+	}
+	var tmp tmpDns
+
+	jsonData, err := json.Marshal(src)
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(jsonData, &tmp)
+	if err != nil {
+		return Dns{}, ErrParseFrame
+	}
+
+	queriesCount, _ := strconv.Atoi(tmp.QueriesCount)
+	queries := make([]DnsQuery, queriesCount)
+	if m, ok := tmp.Queries.(map[string]interface{}); ok {
+		if len(m) == 0 {
+			return
+		}
+
+		mCount := 0
+		for _, v := range m {
+			var queryTmp DnsQuery
+			jsonBytes, _ := json.Marshal(v)
+			_ = json.Unmarshal(jsonBytes, &queryTmp)
+			queries[mCount] = queryTmp
+			mCount++
+		}
+	}
+
+	answersCount, _ := strconv.Atoi(tmp.AnswersCount)
+	answers := make([]DnsAnswer, answersCount)
+	if m, ok := tmp.Answers.(map[string]interface{}); ok {
+		if len(m) == 0 {
+			return
+		}
+
+		mCount := 0
+		for _, v := range m {
+			var answerTmp DnsAnswer
+			jsonBytes, _ := json.Marshal(v)
+			_ = json.Unmarshal(jsonBytes, &answerTmp)
+			answers[mCount] = answerTmp
+			mCount++
+		}
+	}
+
+	return Dns{
+		DnsID:        tmp.DnsID,
+		Flags:        tmp.Flags,
+		QueriesCount: queriesCount,
+		Queries:      queries,
+		AnswersCount: answersCount,
+		Answers:      answers,
+	}, nil
+}
+
 // UnmarshalDissectResult Unmarshal dissect result
 func UnmarshalDissectResult(src string) (res FrameDissectRes, err error) {
 	err = json.Unmarshal([]byte(src), &res)
