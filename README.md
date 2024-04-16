@@ -185,7 +185,7 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 
 ```shell
 # Determine the latest release version and set environment variables
-export WIRESHARKV=4.2.3
+export WIRESHARKV=4.2.4
 # Operate in the /opt directory
 cd /opt/
 # Download the source code
