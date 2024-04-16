@@ -10,7 +10,7 @@
 #ifndef __DVB_CHARTBL_H__
 #define __DVB_CHARTBL_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include <epan/proto.h>
 #include <epan/to_str.h>

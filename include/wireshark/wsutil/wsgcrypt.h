@@ -15,7 +15,7 @@
 #ifndef __WSGCRYPT_H__
 #define __WSGCRYPT_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 #include <gcrypt.h>
 
 #define HASH_MD5_LENGTH      16

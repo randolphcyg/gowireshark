@@ -12,7 +12,7 @@
 #ifndef __PLEASE_REPORT_BUG_H__
 #define __PLEASE_REPORT_BUG_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

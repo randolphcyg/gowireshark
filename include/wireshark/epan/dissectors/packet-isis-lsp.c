@@ -21,8 +21,9 @@
 
 #include "config.h"
 
-#include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/packet.h>
+
 #include "packet-osi.h"
 #include "packet-isis.h"
 #include "packet-isis-clv.h"
@@ -3429,6 +3430,7 @@ dissect_srv6_sid_struct_subsubclv(tvbuff_t *tvb, packet_info* pinfo,
  */
 
 static void
+// NOLINTNEXTLINE(misc-no-recursion)
 dissect_sub_clv_tlv_22_22_23_141_222_223(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree,
     int offset, int subclvs_len)
 {
@@ -3445,6 +3447,8 @@ dissect_sub_clv_tlv_22_22_23_141_222_223(tvbuff_t *tvb, packet_info* pinfo, prot
     gint ssclv_code, ssclv_len;
     proto_tree *subsubtree = NULL;
     proto_item *ti_subsubtree = NULL;
+
+    increment_dissection_depth(pinfo);
 
     while (i < subclvs_len) {
         /* offset for each sub-TLV */
@@ -3705,8 +3709,9 @@ dissect_sub_clv_tlv_22_22_23_141_222_223(tvbuff_t *tvb, packet_info* pinfo, prot
                 proto_tree_add_item(subtree, hf_isis_lsp_ext_is_reachability_value, tvb, sub_tlv_offset, clv_len, ENC_NA);
             break;
         }
-    i += clv_len + 2;
-  }
+        i += clv_len + 2;
+    }
+    decrement_dissection_depth(pinfo);
 }
 
 

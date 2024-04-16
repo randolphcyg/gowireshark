@@ -10,7 +10,7 @@
 
 #ifndef __PACKET_H__
 #define __PACKET_H__
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #include <wiretap/wtap_opttypes.h>
 #include "proto.h"
@@ -886,6 +886,20 @@ WS_DLL_PUBLIC gboolean postdissectors_want_hfids(void);
  */
 WS_DLL_PUBLIC void
 prime_epan_dissect_with_postdissector_wanted_hfids(epan_dissect_t *edt);
+
+/** Increment the dissection depth.
+ * This should be used to limit recursion outside the tree depth checks in
+ * call_dissector and dissector_try_heuristic.
+ * @param pinfo Packet Info.
+ */
+
+WS_DLL_PUBLIC void increment_dissection_depth(packet_info *pinfo);
+
+/** Decrement the dissection depth.
+ * @param pinfo Packet Info.
+ */
+
+WS_DLL_PUBLIC void decrement_dissection_depth(packet_info *pinfo);
 
 /** @} */
 

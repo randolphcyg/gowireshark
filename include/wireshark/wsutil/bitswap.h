@@ -11,7 +11,7 @@
 #ifndef __BITSWAP_H__
 #define __BITSWAP_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

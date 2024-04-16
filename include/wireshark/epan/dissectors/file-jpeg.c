@@ -25,6 +25,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/proto_data.h>
 #include <epan/expert.h>
 #include <wiretap/wtap.h>
 
@@ -770,6 +771,7 @@ process_app0_segment(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint3
 }
 
 static void
+// NOLINTNEXTLINE(misc-no-recursion)
 process_tiff_ifd_chain(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
         guint encoding, guint32 start_ifd_offset,
         int hf_tag, const char *ifd_type_desc)
@@ -893,9 +895,11 @@ process_tiff_ifd_chain(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
 
                             if (extension_ifd_type_desc) {
                                 if (extension_ifd_offset < tvb_reported_length(tvb)) {
+                                    increment_dissection_depth(pinfo);
                                     process_tiff_ifd_chain(tree, tvb, pinfo, encoding,
                                             extension_ifd_offset, extension_hf_ifd_tag,
                                             extension_ifd_type_desc);
+                                    decrement_dissection_depth(pinfo);
                                 } else {
                                     expert_add_info_format(pinfo, value_item, &ei_start_ifd_offset,
                                         "bogus, should be < %u", tvb_reported_length(tvb));

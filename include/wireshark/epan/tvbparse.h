@@ -53,7 +53,7 @@
 
 #include <epan/tvbuff.h>
 #include <glib.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 typedef struct _tvbparse_elem_t tvbparse_elem_t;
 typedef struct _tvbparse_wanted_t tvbparse_wanted_t;

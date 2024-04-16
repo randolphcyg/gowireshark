@@ -1682,8 +1682,9 @@ static icmp_transaction_t *transaction_end(packet_info *pinfo, proto_tree *tree,
 
 } /* transaction_end() */
 
-static int
-dissect_icmpv6_nd_opt(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree)
+// This is recursive, but we'll run out of PDU before we'll run out of stack.
+// NOLINTNEXTLINE(misc-no-recursion)
+static int dissect_icmpv6_nd_opt(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree)
 {
     proto_tree *icmp6opt_tree;
     proto_item *ti, *ti_opt, *ti_opt_len;

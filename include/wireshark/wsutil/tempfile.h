@@ -11,7 +11,7 @@
 #ifndef __TEMPFILE_H__
 #define __TEMPFILE_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

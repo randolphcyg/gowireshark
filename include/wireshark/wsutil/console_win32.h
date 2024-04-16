@@ -12,7 +12,7 @@
 #ifndef __CONSOLE_WIN32_H__
 #define __CONSOLE_WIN32_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

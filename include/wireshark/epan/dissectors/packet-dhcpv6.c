@@ -1843,6 +1843,7 @@ cablelabs_fmt_dpoe_server_version( gchar *result, guint32 revision )
 
 /* Returns the number of bytes consumed by this option. */
 static int
+// NOLINTNEXTLINE(misc-no-recursion)
 dhcpv6_option(tvbuff_t *tvb, packet_info *pinfo, proto_tree *bp_tree,
               int off, int eoff, gboolean *at_end, int protocol, hopcount_info hpi, guint8 msgtype)
 {
@@ -1882,6 +1883,8 @@ dhcpv6_option(tvbuff_t *tvb, packet_info *pinfo, proto_tree *bp_tree,
     proto_tree_add_item(subtree, hf_option_type_num, tvb, off, 2, ENC_BIG_ENDIAN);
     proto_tree_add_item(subtree, hf_option_length, tvb, off + 2, 2, ENC_BIG_ENDIAN);
     off += 4;
+
+    increment_dissection_depth(pinfo);
 
     switch (opttype) {
     case OPTION_CLIENTID:
@@ -2949,12 +2952,15 @@ dhcpv6_option(tvbuff_t *tvb, packet_info *pinfo, proto_tree *bp_tree,
         break;
     }
 
+    decrement_dissection_depth(pinfo);
+
     return 4 + optlen;
 }
 
 
-/* May be called recursively */
+/* May be called recursively via dhcpv6_option */
 static void
+// NOLINTNEXTLINE(misc-no-recursion)
 dissect_dhcpv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                int off, int eoff, hopcount_info hpi)
 {

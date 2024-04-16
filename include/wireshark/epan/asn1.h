@@ -13,7 +13,7 @@
 #ifndef __ASN1_H__
 #define __ASN1_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 typedef enum {
   ASN1_ENC_BER,  /* X.690 - BER, CER, DER */

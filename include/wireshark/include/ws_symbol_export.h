@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "include/ws_compiler_tests.h"
+#include "ws_compiler_tests.h"
 
 /** Reset symbol export behavior.
  * If you {un}define WS_BUILD_DLL on the fly you'll have to define this

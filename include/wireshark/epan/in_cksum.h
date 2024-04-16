@@ -10,7 +10,7 @@
 #ifndef __IN_CKSUM_H__
 #define __IN_CKSUM_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 typedef struct {
 	const guint8 *ptr;

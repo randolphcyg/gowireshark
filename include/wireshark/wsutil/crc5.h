@@ -13,7 +13,7 @@
 #ifndef __CRC5_H__
 #define __CRC5_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

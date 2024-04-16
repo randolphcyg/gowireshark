@@ -12,7 +12,7 @@
 #ifndef __CMDARG_ERR_H__
 #define __CMDARG_ERR_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 #include <stdarg.h>
 
 #ifdef __cplusplus

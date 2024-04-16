@@ -152,7 +152,7 @@ static int File_read_number (lua_State *L, FILE_T ft) {
     buff[buff_end] = '\0';
 
     if (buff_end > 0 && num_digits > 0 && sscanf(buff, "%lf", &d) == 1) {
-        lua_pushnumber(L, d);
+        lua_pushinteger(L, d);
         return 1;
     }
     else {
@@ -338,7 +338,11 @@ WSLUA_METHOD File_seek(lua_State* L) {
     static const char *const modenames[] = {"set", "cur", "end", NULL};
     File f = checkFile(L,1);
     int op = luaL_checkoption(L, 2, "cur", modenames);
+#if LUA_VERSION_NUM >= 503
+    gint64 offset = (gint64)luaL_optinteger(L, 3, 0);
+#else
     gint64 offset = (gint64) luaL_optlong(L, 3, 0);
+#endif
     int err;
 
 
@@ -351,7 +355,7 @@ WSLUA_METHOD File_seek(lua_State* L) {
             return 2;
         }
 
-        lua_pushnumber(L, (lua_Number)(file_tell(f->file)));
+        lua_pushinteger(L, (lua_Integer)(file_tell(f->file)));
     }
     else {
         offset = wtap_dump_file_seek(f->wdh, offset, mode[op], &err);
@@ -370,7 +374,7 @@ WSLUA_METHOD File_seek(lua_State* L) {
             return 2;
         }
 
-        lua_pushnumber(L, (lua_Number)(offset));
+        lua_pushinteger(L, (lua_Integer)(offset));
     }
 
     WSLUA_RETURN(1); /* The current file cursor position as a number. */

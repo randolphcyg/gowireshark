@@ -17,7 +17,7 @@
 #ifndef _IEEE1609DOT2_H_
 #define _IEEE1609DOT2_H_
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #define p2pcd8ByteLearningRequestId    1
 

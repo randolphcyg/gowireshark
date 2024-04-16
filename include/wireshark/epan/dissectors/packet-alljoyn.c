@@ -769,12 +769,14 @@ append_struct_signature(proto_item   *item,
  * @param signature_length is a pointer to the length of the signature.
  */
 static void
-advance_to_end_of_signature(const guint8 **signature,
-                            guint8  *signature_length)
+// NOLINTNEXTLINE(misc-no-recursion)
+advance_to_end_of_signature(packet_info *pinfo, const guint8 **signature, guint8  *signature_length)
 {
     gboolean done = FALSE;
     gint8 current_type;
     gint8 end_type = ARG_INVALID;
+
+    increment_dissection_depth(pinfo);
 
     while (*signature_length > 0 && **signature && !done) {
         current_type = *(++(*signature));
@@ -792,15 +794,15 @@ advance_to_end_of_signature(const guint8 **signature,
         switch(current_type)
         {
         case ARG_ARRAY:
-            advance_to_end_of_signature(signature, signature_length);
+            advance_to_end_of_signature(pinfo, signature, signature_length);
             break;
         case ARG_STRUCT:
             end_type = ')';
-            advance_to_end_of_signature(signature, signature_length);
+            advance_to_end_of_signature(pinfo, signature, signature_length);
             break;
         case ARG_DICT_ENTRY:
             end_type = '}';
-            advance_to_end_of_signature(signature, signature_length);
+            advance_to_end_of_signature(pinfo, signature, signature_length);
             break;
 
         case ARG_BYTE:
@@ -825,6 +827,7 @@ advance_to_end_of_signature(const guint8 **signature,
             break;
         }
     }
+    decrement_dissection_depth(pinfo);
 }
 
 /* This is called to add a padding item. There is not padding done for each call made.
@@ -877,6 +880,7 @@ static void add_padding_item(gint padding_start, gint padding_end, tvbuff_t *tvb
  *         parameters come in.
  */
 static gint
+// NOLINTNEXTLINE(misc-no-recursion)
 parse_arg(tvbuff_t      *tvb,
           packet_info   *pinfo,
           proto_item    *header_item,
@@ -941,9 +945,11 @@ parse_arg(tvbuff_t      *tvb,
             add_padding_item(padding_start, offset, tvb, tree);
 
             if(0 == length) {
-                advance_to_end_of_signature(signature, signature_length);
+                advance_to_end_of_signature(pinfo, signature, signature_length);
             } else {
                 guint8 sig_length_saved = *signature_length - 1;
+
+                increment_dissection_depth(pinfo);
 
                 while((offset - starting_offset) < length) {
                     const guint8 *sig_pointer;
@@ -970,6 +976,7 @@ parse_arg(tvbuff_t      *tvb,
                     *signature = sig_pointer;
                     *signature_length = remaining_sig_length;
                 }
+                decrement_dissection_depth(pinfo);
             }
 
             if(item) {
@@ -1180,14 +1187,18 @@ parse_arg(tvbuff_t      *tvb,
             offset += length;
             sig_pointer = sig_saved;
 
+            increment_dissection_depth(pinfo);
+
             /* The signature of the variant has now been taken care of.  So now take care of the variant data. */
             while(((sig_pointer - sig_saved) < (length - 1)) && (tvb_reported_length_remaining(tvb, offset) > 0)) {
                 proto_item_append_text(item, "%c", g_ascii_isprint(*sig_pointer) ? *sig_pointer : '?');
 
                 offset = parse_arg(tvb, pinfo, header_item, encoding, offset, tree, is_reply_to,
                                    *sig_pointer, field_code, &sig_pointer, &variant_sig_length, field_starting_offset);
+
             }
 
+            decrement_dissection_depth(pinfo);
             proto_item_append_text(item, "'");
             proto_item_set_end(item, tvb, offset);
         }
@@ -1241,6 +1252,8 @@ parse_arg(tvbuff_t      *tvb,
             (*signature)++; /* Advance past the '(' or '{'. */
             (*signature_length)--;
 
+            increment_dissection_depth(pinfo);
+
             /* *signature should never be NULL but just make sure to avoid potential issues. */
             while(*signature && **signature && **signature != type_stop
                     && tvb_reported_length_remaining(tvb, offset) > 0) {
@@ -1257,6 +1270,8 @@ parse_arg(tvbuff_t      *tvb,
                                    signature_length,
                                    field_starting_offset);
             }
+
+            decrement_dissection_depth(pinfo);
 
             proto_item_set_end(item, tvb, offset);
         }

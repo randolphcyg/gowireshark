@@ -17,7 +17,7 @@
 #define __UAT_INT_H__
 
 #include "uat.h"
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

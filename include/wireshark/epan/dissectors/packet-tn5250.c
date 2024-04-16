@@ -4917,6 +4917,7 @@ dissect_tn5250_data_until_next_command(proto_tree *tn5250_tree, tvbuff_t *tvb, g
 #endif
 
 static guint32
+// NOLINTNEXTLINE(misc-no-recursion)
 dissect_outbound_stream(proto_tree *tn5250_tree, packet_info *pinfo, tvbuff_t *tvb, gint offset)
 {
   gint command_code;
@@ -4964,7 +4965,9 @@ dissect_outbound_stream(proto_tree *tn5250_tree, packet_info *pinfo, tvbuff_t *t
       break;
     case RESTORE_SCREEN:
       while (tvb_reported_length_remaining(tvb, offset) > 0) {
+        increment_dissection_depth(pinfo);
         offset += dissect_outbound_stream(cc_tree, pinfo, tvb, offset);
+        decrement_dissection_depth(pinfo);
       }
       break;
     case WRITE_ERROR_CODE_TO_WINDOW:

@@ -12,7 +12,7 @@
 #define __TYPE_UTIL_H__
 
 #include <inttypes.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /*
  * uint64_t to double conversions taken from gstutils.h of GStreamer project

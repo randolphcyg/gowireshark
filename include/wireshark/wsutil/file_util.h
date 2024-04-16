@@ -13,7 +13,7 @@
 
 #include <stdbool.h>
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef _WIN32
 #include <io.h>		/* for _read(), _write(), etc. */

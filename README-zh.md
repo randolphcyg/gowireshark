@@ -179,7 +179,7 @@ graph LR
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.2.3
+export WIRESHARKV=4.2.4
 # 到/opt目录下操作
 cd /opt/
 # 下载源码
