@@ -19,7 +19,7 @@
 #ifndef __EPAN_SEQUENCE_ANALYSIS_H__
 #define __EPAN_SEQUENCE_ANALYSIS_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #include <glib.h>
 

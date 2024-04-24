@@ -7,7 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 typedef enum {
     ws_tcp,

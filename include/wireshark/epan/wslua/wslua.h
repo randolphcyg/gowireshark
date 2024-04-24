@@ -25,7 +25,7 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include <ws_log_defs.h>
+#include <include/ws_log_defs.h>
 
 #include <wiretap/wtap.h>
 

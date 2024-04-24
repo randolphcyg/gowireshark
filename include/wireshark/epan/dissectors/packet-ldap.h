@@ -18,7 +18,7 @@
 #define __PACKET_LDAP_H__
 
 # include <epan/packet.h>  /* for dissector_*_t types */
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /*
  * These are all APPLICATION types; the value is the type tag.

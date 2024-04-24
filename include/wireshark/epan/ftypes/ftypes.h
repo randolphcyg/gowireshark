@@ -12,7 +12,7 @@
 #ifndef __FTYPES_H__
 #define __FTYPES_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #include <wsutil/regex.h>
 #include <epan/wmem_scopes.h>

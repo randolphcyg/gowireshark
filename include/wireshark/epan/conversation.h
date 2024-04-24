@@ -11,7 +11,7 @@
 #ifndef __CONVERSATION_H__
 #define __CONVERSATION_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #include "packet.h"			/* for conversation dissector type */
 #include <epan/wmem_scopes.h>

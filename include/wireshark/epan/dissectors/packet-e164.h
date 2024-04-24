@@ -13,7 +13,7 @@
 #define __PACKET_E164_H__
 
 #include <epan/value_string.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 extern const value_string E164_country_code_value[];
 extern const value_string E164_ISO3166_country_code_short_value[];

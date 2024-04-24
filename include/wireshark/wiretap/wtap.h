@@ -9,7 +9,7 @@
 #ifndef __WTAP_H__
 #define __WTAP_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 #include <time.h>
 #include <wsutil/buffer.h>
 #include <wsutil/nstime.h>

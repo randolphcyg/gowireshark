@@ -12,7 +12,7 @@
 #ifndef __WMEM_STRBUF_H__
 #define __WMEM_STRBUF_H__
 
-#include <ws_codepoints.h>
+#include <include/ws_codepoints.h>
 
 #include "wmem_core.h"
 

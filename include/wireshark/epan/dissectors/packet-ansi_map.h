@@ -17,7 +17,7 @@
 #ifndef PACKET_ANSI_MAP_H
 #define PACKET_ANSI_MAP_H
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 #define	ANSI_MAP_MAX_NUM_MESSAGE_TYPES	256
 

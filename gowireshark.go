@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -37,6 +38,8 @@ var (
 
 // DissectResChans dissect result chan map
 var DissectResChans = make(map[string]chan FrameDissectRes)
+
+var EpanMutex = &sync.Mutex{}
 
 // Init policies、WTAP mod、EPAN mod.
 func init() {
@@ -91,6 +94,9 @@ func initCapFile(inputFilepath string) (err error) {
 
 // DissectPrintFirstFrame Dissect and print the first frame
 func DissectPrintFirstFrame(inputFilepath string) (err error) {
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
@@ -103,6 +109,9 @@ func DissectPrintFirstFrame(inputFilepath string) (err error) {
 
 // DissectPrintAllFrame Dissect and print all frames
 func DissectPrintAllFrame(inputFilepath string) (err error) {
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
@@ -119,6 +128,9 @@ func DissectPrintAllFrame(inputFilepath string) (err error) {
 //	@param inputFilepath: Pcap src file path
 //	@param count: The index of the first several frame you want to dissect
 func DissectPrintFirstSeveralFrame(inputFilepath string, count int) (err error) {
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
@@ -140,6 +152,9 @@ func DissectPrintFirstSeveralFrame(inputFilepath string, count int) (err error) 
 //	@param inputFilepath: Pcap src file path
 //	@param num: The index value of the specific frame you want to dissect
 func DissectPrintSpecificFrame(inputFilepath string, num int) (err error) {
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
@@ -179,6 +194,9 @@ func UnmarshalHexData(src string) (res HexData, err error) {
 
 // GetSpecificFrameHexData Get hex data of specific frame
 func GetSpecificFrameHexData(inputFilepath string, num int) (hexData HexData, err error) {
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
@@ -688,6 +706,9 @@ func UnmarshalDissectResult(src string) (res FrameDissectRes, err error) {
 //	@param isDebug: Whether to print JSON result in C logic
 //	@return res: Contains specific frame's JSON dissect result
 func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptive, isDebug bool) (frameDissectRes FrameDissectRes, err error) {
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return
@@ -737,6 +758,9 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptiv
 //	@param isDebug: Whether to print JSON result in C logic
 //	@return res: Contains all frame's JSON dissect result
 func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebug bool) (res []FrameDissectRes, err error) {
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
 	err = initCapFile(inputFilepath)
 	if err != nil {
 		return

@@ -12,7 +12,7 @@
 #define _EPAN_INTROSPECTION_H_
 
 #include <stddef.h>
-#include <ws_symbol_export.h>
+#include <include/ws_symbol_export.h>
 #include <wsutil/introspection.h>
 
 /** Returns an array of ws_enum_t elements. The array is sorted and

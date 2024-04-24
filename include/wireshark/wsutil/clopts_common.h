@@ -12,7 +12,7 @@
 #ifndef __CLOPTS_COMMON_H__
 #define __CLOPTS_COMMON_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

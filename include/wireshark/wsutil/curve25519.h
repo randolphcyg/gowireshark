@@ -13,7 +13,7 @@
 #ifndef __CURVE25519_H__
 #define __CURVE25519_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 /*
  * Computes Q = X25519(n, P). In other words, given the secret key n, the public

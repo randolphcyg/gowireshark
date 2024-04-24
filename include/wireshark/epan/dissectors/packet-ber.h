@@ -15,7 +15,7 @@
 #include <epan/proto.h>
 #include <epan/to_str.h>
 #include <epan/asn1.h>
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 /* value for value and size constraints */
 #ifndef NO_BOUND

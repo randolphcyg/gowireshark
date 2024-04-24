@@ -422,6 +422,6 @@
 #define HAVE_REMOTE
 #endif
 
-#include <ws_log_defs.h>
+#include <include/ws_log_defs.h>
 
 #endif /* __CONFIG_H__ */

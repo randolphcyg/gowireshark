@@ -20,7 +20,7 @@
 #ifndef __REPORT_MESSAGE_H__
 #define __REPORT_MESSAGE_H__
 
-#include <wireshark.h>
+#include <include/wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

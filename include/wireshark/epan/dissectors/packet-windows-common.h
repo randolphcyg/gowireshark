@@ -11,7 +11,7 @@
 #ifndef __PACKET_WINDOWS_COMMON_H__
 #define __PACKET_WINDOWS_COMMON_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 #include "packet-dcerpc.h"
 
 /* Win32 errors.

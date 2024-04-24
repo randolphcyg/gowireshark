@@ -9,7 +9,7 @@
 #ifndef __PACKET_MTP3_H__
 #define __PACKET_MTP3_H__
 
-#include "ws_symbol_export.h"
+#include "include/ws_symbol_export.h"
 
 typedef enum {
   ITU_STANDARD  = 1,

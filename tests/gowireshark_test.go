@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -176,6 +177,25 @@ func TestGetAllFrameProtoTreeInJson(t *testing.T) {
 		t.Log("## Hex:", frameData.Hex)
 		t.Log("## Ascii:", frameData.Ascii)
 	}
+}
+
+func TestGoroutineGetAllFrameProtoTreeInJson(t *testing.T) {
+	var wg sync.WaitGroup
+	numGoroutines := 100
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			res, err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath, true, false)
+			if err != nil {
+				t.Error(err)
+			}
+			t.Log(i, inputFilepath, " >>>> ", len(res))
+		}(i)
+	}
+
+	wg.Wait()
 }
 
 /*
