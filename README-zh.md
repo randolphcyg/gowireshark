@@ -122,10 +122,10 @@ gowireshark
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
 │   ├── libwireshark.so.17
-│   ├── libwireshark.so.17.0.3
+│   ├── libwireshark.so.17.0.4
 │   ├── libwiretap.so
 │   ├── libwiretap.so.14
-│   ├── libwiretap.so.14.1.3
+│   ├── libwiretap.so.14.1.4
 │   ├── libwsutil.so
 │   ├── libwsutil.so.15
 │   └── libwsutil.so.15.0.0
