@@ -2131,6 +2131,8 @@ ssh_kex_hash_type(gchar *type_string)
         return SSH_KEX_HASH_SHA1;
     }else if (type_string && g_str_has_suffix(type_string, "sha256")) {
         return SSH_KEX_HASH_SHA256;
+    }else if (type_string && g_str_has_suffix(type_string, "sha256@libssh.org")) {
+        return SSH_KEX_HASH_SHA256;
     }else if (type_string && g_str_has_suffix(type_string, "sha512")) {
         return SSH_KEX_HASH_SHA512;
     } else {
@@ -2751,7 +2753,6 @@ ssh_decryption_set_mac_id(struct ssh_peer_data *peer)
     } else if (0 == strcmp(mac_name, "hmac-sha2-256")) {
         peer->mac_id = CIPHER_MAC_SHA2_256;
     } else {
-        peer->mac = NULL;
         ws_debug("decryption MAC not supported: %s", mac_name);
     }
 }

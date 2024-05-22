@@ -13,7 +13,7 @@
 
 #include "config.h"
 
-#include <ws_diag_control.h>
+#include <include/ws_diag_control.h>
 #include <assert.h>
 #include <string.h>
 #include <wiretap/file_wrappers.h>

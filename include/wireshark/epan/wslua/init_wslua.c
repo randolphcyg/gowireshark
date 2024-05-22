@@ -969,7 +969,7 @@ add_table_symbol(const char *table, const char *name, int value)
     lua_getglobal(L, table);
     /* Set symbol in table. */
     lua_pushstring(L, name);
-    lua_pushinteger(L, value);
+    lua_pushnumber(L, value);
     lua_settable(L, -3);
     /* Pop table from stack. */
     lua_pop(L, 1);
@@ -979,7 +979,7 @@ static void
 add_global_symbol(const char *name, int value)
 {
     /* Set symbol in global environment. */
-    lua_pushinteger(L, value);
+    lua_pushnumber(L, value);
     lua_setglobal(L, name);
 }
 
@@ -988,7 +988,7 @@ add_pi_severity_symbol(const char *name, int value)
 {
     lua_getglobal(L, WSLUA_EXPERT_TABLE);
     lua_getfield(L, -1, WSLUA_EXPERT_SEVERITY_TABLE);
-    lua_pushinteger(L, value);
+    lua_pushnumber(L, value);
     lua_setfield(L, -2, name);
     lua_pop(L, 2);
 }
@@ -998,7 +998,7 @@ add_pi_group_symbol(const char *name, int value)
 {
     lua_getglobal(L, WSLUA_EXPERT_TABLE);
     lua_getfield(L, -1, WSLUA_EXPERT_GROUP_TABLE);
-    lua_pushinteger(L, value);
+    lua_pushnumber(L, value);
     lua_setfield(L, -2, name);
     lua_pop(L, 2);
 }
@@ -1007,7 +1007,7 @@ static void
 add_menu_group_symbol(const char *name, int value)
 {
     /* Set symbol in global environment. */
-    lua_pushinteger(L, value);
+    lua_pushnumber(L, value);
     char *str = g_strdup(name);
     char *s = strstr(str, "_GROUP_");
     if (s == NULL)
@@ -1392,6 +1392,7 @@ void wslua_init(register_cb cb, gpointer client_data) {
     int file_count = 1;
     static gboolean first_time = TRUE;
     int i;
+    int error;
 
     static hf_register_info hf[] = {
         { &hf_wslua_fake,
@@ -1704,7 +1705,28 @@ void wslua_init(register_cb cb, gpointer client_data) {
     lua_tree = NULL;
     lua_tvb = NULL;
 
-    Proto_commit(L);
+    /* Unfortunately, by waiting to register the hfi and ei now, Lua
+     * can't figure out which file had the error and provide a traceback,
+     * so no special error handler.
+     */
+    lua_pushcfunction(L, Proto_commit);
+    error = lua_pcall(L, 0, 0, 0);
+    if (error) {
+        switch (error) {
+            case LUA_ERRRUN:
+                report_failure("Lua: Error initializing protocols:\n%s", lua_tostring(L, -1));
+                break;
+            case LUA_ERRMEM:
+                report_failure("Lua: Error initializing protocols: out of memory");
+                break;
+            case LUA_ERRERR:
+                report_failure("Lua: Error initializing protocols: error while retrieving error message");
+                break;
+            default:
+                report_failure("Lua: Error initializing protocols: unknown error %d", error);
+                break;
+        }
+    }
 
     first_time = FALSE;
 }

@@ -24,7 +24,7 @@
 #include <stdarg.h>
 #include <glib.h>
 #include <assert.h>
-#include <ws_diag_control.h>
+#include <include/ws_diag_control.h>
 #include <wsutil/file_util.h>
 #include "protobuf_lang_tree.h"
 #include "protobuf_lang_parser.h"

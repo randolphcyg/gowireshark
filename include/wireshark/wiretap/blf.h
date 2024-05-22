@@ -3,7 +3,7 @@
  * Binary Log File (BLF) file format from Vector Informatik decoder
  * for the Wiretap library.
  *
- * Copyright (c) 2021-2022 by Dr. Lars Voelker <lars.voelker@technica-engineering.de>
+ * Copyright (c) 2021-2024 by Dr. Lars Voelker <lars.voelker@technica-engineering.de>
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -276,6 +276,10 @@ typedef struct blf_canerrorext {
 
 /* see https://bitbucket.org/tobylorenz/vector_blf/src/master/src/Vector/BLF/CanFdErrorFrame64.h */
 
+#define BLF_CANERROR64_FLAG_FDF 0x01
+#define BLF_CANERROR65_FLAG_BRS 0x02
+#define BLF_CANERROR65_FLAG_ESI 0x04
+
 typedef struct blf_canfderror64 {
     guint8  channel;
     guint8  dlc;
@@ -367,14 +371,14 @@ typedef struct blf_flexraymessage {
 #define BLF_FLEXRAYRCVMSG_CHANNELMASK_B           0x02
 #define BLF_FLEXRAYRCVMSG_CHANNELMASK_AB          0x03
 
-#define BLF_FLEXRAYRCVMSG_DATA_FLAG_NULL_FRAME    0x00000001
-#define BLF_FLEXRAYRCVMSG_DATA_FLAG_VALID_DATA    0x00000002
-#define BLF_FLEXRAYRCVMSG_DATA_FLAG_SYNC          0x00000004
-#define BLF_FLEXRAYRCVMSG_DATA_FLAG_STARTUP       0x00000008
-#define BLF_FLEXRAYRCVMSG_DATA_FLAG_PAYLOAD_PREAM 0x00000010
-#define BLF_FLEXRAYRCVMSG_DATA_FLAG_RES_20        0x00000020
-#define BLF_FLEXRAYRCVMSG_DATA_FLAG_ERROR         0x00000040
-#define BLF_FLEXRAYRCVMSG_DATA_FLAG_RES_80        0x00000080
+#define BLF_FLEXRAYRCVMSG_FRAME_FLAG_NULL_FRAME    0x00000001
+#define BLF_FLEXRAYRCVMSG_FRAME_FLAG_VALID_DATA    0x00000002
+#define BLF_FLEXRAYRCVMSG_FRAME_FLAG_SYNC          0x00000004
+#define BLF_FLEXRAYRCVMSG_FRAME_FLAG_STARTUP       0x00000008
+#define BLF_FLEXRAYRCVMSG_FRAME_FLAG_PAYLOAD_PREAM 0x00000010
+#define BLF_FLEXRAYRCVMSG_FRAME_FLAG_RES_20        0x00000020
+#define BLF_FLEXRAYRCVMSG_FRAME_FLAG_ERROR         0x00000040
+#define BLF_FLEXRAYRCVMSG_FRAME_FLAG_RES_80        0x00000080
 
 typedef struct blf_flexrayrcvmessage {
     guint16 channel;
@@ -443,9 +447,7 @@ typedef struct blf_linmessage {
     guint16 channel;
     guint8  id;
     guint8  dlc;
-} blf_linmessage_t;
-
-typedef struct blf_linmessage_trailer {
+    guint8  data[8];
     guint8  fsmId;
     guint8  fsmState;
     guint8  headerTime;
@@ -456,7 +458,7 @@ typedef struct blf_linmessage_trailer {
 /*  This field is optional and skipping does not hurt us.
     guint32 res2;
 */
-} blf_linmessage_trailer_t;
+} blf_linmessage_t;
 
 
 /* see https://bitbucket.org/tobylorenz/vector_blf/src/master/src/Vector/BLF/AppText.h */

@@ -123,7 +123,7 @@ try_add_packet_field(lua_State *L, TreeItem tree_item, TvbRange tvbr, const int 
                 item = proto_tree_add_item_ret_int(tree_item->tree, hfid, tvbr->tvb->ws_tvb,
                                                 tvbr->offset, tvbr->len, encoding,
                                                 &ret);
-                lua_pushinteger(L, (lua_Integer)ret);
+                lua_pushnumber(L, (lua_Number)ret);
                 lua_pushinteger(L, tvbr->offset + tvbr->len);
             }
             break;
@@ -152,7 +152,7 @@ try_add_packet_field(lua_State *L, TreeItem tree_item, TvbRange tvbr, const int 
                 item = proto_tree_add_item_ret_uint(tree_item-> tree, hfid, tvbr->tvb->ws_tvb,
                                                     tvbr->offset, tvbr->len, encoding,
                                                     &ret);
-                lua_pushinteger(L, (lua_Integer)ret);
+                lua_pushnumber(L, (lua_Number)ret);
                 lua_pushinteger(L, tvbr->offset + tvbr->len);
             }
             break;
@@ -502,7 +502,7 @@ static int TreeItem_add_item_any(lua_State *L, gboolean little_endian) {
             switch(type) {
                 case FT_PROTOCOL:
                     item = proto_tree_add_item(tree_item->tree,hfid,tvbr->tvb->ws_tvb,tvbr->offset,tvbr->len,ENC_NA);
-                    lua_pushinteger(L,0);
+                    lua_pushnumber(L,0);
                     lua_insert(L,1);
                     break;
                 case FT_BOOLEAN:
@@ -524,7 +524,7 @@ static int TreeItem_add_item_any(lua_State *L, gboolean little_endian) {
                 case FT_INT16:
                 case FT_INT24:
                 case FT_INT32:
-                    item = proto_tree_add_int(tree_item->tree,hfid,tvbr->tvb->ws_tvb,tvbr->offset,tvbr->len,wslua_checkguint32(L,1));
+                    item = proto_tree_add_int(tree_item->tree,hfid,tvbr->tvb->ws_tvb,tvbr->offset,tvbr->len,wslua_checkgint32(L,1));
                     break;
                 case FT_FLOAT:
                     item = proto_tree_add_float(tree_item->tree,hfid,tvbr->tvb->ws_tvb,tvbr->offset,tvbr->len,(float)luaL_checknumber(L,1));
@@ -664,7 +664,7 @@ WSLUA_METHOD TreeItem_add(lua_State *L) {
     which is invalid for this function).  If the first argument is a non-<<lua_class_ProtoField,`ProtoField`>> and a non-<<lua_class_Proto,`Proto`>> then this argument can
     be either a <<lua_class_TvbRange,`TvbRange`>> or a label, and the value is not in use.
 
-    ==== Example
+    ====== Example
 
     [source,lua]
     ----

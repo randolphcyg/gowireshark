@@ -11,10 +11,10 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.2.4"
+#define VERSION "4.2.5"
 #define VERSION_MAJOR 4
 #define VERSION_MINOR 2
-#define VERSION_MICRO 4
+#define VERSION_MICRO 5
 
 /* Version number of Logray and associated utilities */
 #define LOG_VERSION "0.8.3"
@@ -23,7 +23,7 @@
 #define VERSION_FLAVOR ""
 
 /* Build wsutil with SIMD optimization */
-/* #undef HAVE_SSE4_2 */
+#define HAVE_SSE4_2 1
 
 /* Define to 1 if we want to enable plugins */
 #define HAVE_PLUGINS 1
@@ -263,7 +263,7 @@
 /* #undef HAVE_OPUS */
 
 /* Define to 1 if you have the lixbml2 library. */
-#define HAVE_LIBXML2 1
+/* #undef HAVE_LIBXML2 */
 
 /* Define to 1 if you have the `setresgid' function. */
 #define HAVE_SETRESGID 1
@@ -281,7 +281,7 @@
 #define HAVE_MEMMEM 1
 
 /* Define if you have the 'strerrorname_np' function. */
-#define HAVE_STRERRORNAME_NP 1
+/* #undef HAVE_STRERRORNAME_NP */
 
 /* Define if you have the 'vasprintf' function. */
 #define HAVE_VASPRINTF 1
