@@ -494,6 +494,7 @@ type Tcp struct {
 	Checksum       string `json:"tcp.checksum"`
 	Stream         int    `json:"tcp.stream"`
 	SeqRaw         int    `json:"tcp.seq_raw"`
+	AckRaw         int    `json:"tcp.ack_raw"`
 	Payload        string `json:"tcp.payload"`
 }
 
@@ -508,6 +509,7 @@ func UnmarshalTcp(src any) (tcp Tcp, err error) {
 		Checksum       string   `json:"tcp.checksum"`
 		Stream         string   `json:"tcp.stream"`
 		SeqRaw         string   `json:"tcp.seq_raw"`
+		AckRaw         string   `json:"tcp.ack_raw"`
 		Payload        string   `json:"tcp.payload"`
 	}
 	var tmp tmpTcp
@@ -528,6 +530,7 @@ func UnmarshalTcp(src any) (tcp Tcp, err error) {
 	length, _ := strconv.Atoi(tmp.Len)
 	dstPort, _ := strconv.Atoi(tmp.DstPort)
 	seqRaw, _ := strconv.Atoi(tmp.SeqRaw)
+	ackRaw, _ := strconv.Atoi(tmp.AckRaw)
 	var ports []int
 	for _, p := range tmp.Port {
 		pTmp, _ := strconv.Atoi(p)
@@ -544,32 +547,33 @@ func UnmarshalTcp(src any) (tcp Tcp, err error) {
 		Checksum:       tmp.Checksum,
 		Stream:         stream,
 		SeqRaw:         seqRaw,
+		AckRaw:         ackRaw,
 		Payload:        tmp.Payload,
 	}, nil
 }
 
 // Http wireshark frame.http
 type Http struct {
-	Date                string `json:"http.date"`
-	ResponseLine        any    `json:"http.response.line"`
-	LastModified        string `json:"http.last_modified"`
-	ResponseNumber      string `json:"http.response_number"`
-	ContentType         string `json:"http.content_type"`
-	ContentLengthHeader string `json:"http.content_length_header"`
-	FileData            string `json:"http.file_data"`
-	Response            string `json:"http.response"`
+	Date                string   `json:"http.date"`
+	ResponseLine        []string `json:"http.response.line"`
+	LastModified        string   `json:"http.last_modified"`
+	ResponseNumber      string   `json:"http.response_number"`
+	ContentType         string   `json:"http.content_type"`
+	ContentLengthHeader string   `json:"http.content_length_header"`
+	FileData            string   `json:"http.file_data"`
+	Response            string   `json:"http.response"`
 }
 
 func UnmarshalHttp(src any) (http Http, err error) {
 	type tmpHttp struct {
-		Date                string `json:"http.date"`
-		ResponseLine        any    `json:"http.response.line"`
-		LastModified        string `json:"http.last_modified"`
-		ResponseNumber      string `json:"http.response_number"`
-		ContentType         string `json:"http.content_type"`
-		ContentLengthHeader string `json:"http.content_length_header"`
-		FileData            string `json:"http.file_data"`
-		Response            string `json:"http.response"`
+		Date                string   `json:"http.date"`
+		ResponseLine        []string `json:"http.response.line"`
+		LastModified        string   `json:"http.last_modified"`
+		ResponseNumber      string   `json:"http.response_number"`
+		ContentType         string   `json:"http.content_type"`
+		ContentLengthHeader string   `json:"http.content_length_header"`
+		FileData            string   `json:"http.file_data"`
+		Response            string   `json:"http.response"`
 	}
 	var tmp tmpHttp
 
