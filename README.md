@@ -201,7 +201,7 @@ cd /opt/wireshark/
 cmake -LH ./
 
 # If you do not have cmake, please install it first
-export CMAKEV=3.28.3
+export CMAKEV=3.29.3
 sudo wget https://cmake.org/files/LatestRelease/cmake-$CMAKEV.tar.gz
 tar -xzf cmake-$CMAKEV.tar.gz
 mv cmake-$CMAKEV cmake
