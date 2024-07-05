@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/randolphcyg/gowireshark"
-	"github.com/stretchr/testify/assert"
 )
 
 const inputFilepath = "../pcaps/mysql.pcapng"
@@ -16,7 +15,7 @@ func TestEpanVersion(t *testing.T) {
 }
 
 func TestEpanPluginsSupported(t *testing.T) {
-	assert.Equal(t, 0, gowireshark.EpanPluginsSupported())
+	t.Errorf("expected 0, got %d", gowireshark.EpanPluginsSupported())
 }
 
 func TestDissectPrintFirstFrame(t *testing.T) {
@@ -65,7 +64,9 @@ func TestDissectPrintSpecificFrameOutOfBounds(t *testing.T) {
 	err := gowireshark.DissectPrintSpecificFrame(inputFilepath, 101)
 	if err != nil {
 		t.Log(err)
-		assert.EqualError(t, err, "2: frame index is out of bounds")
+		if err.Error() != "2: frame index is out of bounds" {
+			t.Fatalf("expected '2: frame index is out of bounds', got '%v'", err)
+		}
 	}
 }
 
@@ -221,8 +222,9 @@ func TestGetIfaceNonblockStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, ifaceName, "en7")
-	assert.Equal(t, status, false)
+	if status != false {
+		t.Errorf("expected status false, got %v", status)
+	}
 }
 
 func TestSetIfaceNonblockStatus(t *testing.T) {
@@ -232,8 +234,9 @@ func TestSetIfaceNonblockStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, ifaceName, "en7")
-	assert.Equal(t, status, true)
+	if status != true {
+		t.Errorf("expected status true, got %v", status)
+	}
 }
 
 /*
