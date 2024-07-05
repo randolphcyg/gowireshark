@@ -261,11 +261,6 @@ void print_first_frame() {
   if (read_packet(&edt)) {
     proto_tree_print(print_dissections_expanded, TRUE, edt, NULL, print_stream);
 
-    json_dumper jdumper;
-    write_json_proto_tree(NULL, print_dissections_expanded, TRUE, edt,
-                          &cf.cinfo, proto_node_group_children_by_unique,
-                          &jdumper);
-
     // print hex data
     print_hex_data(print_stream, edt,
                    hexdump_source_option | hexdump_ascii_option);
