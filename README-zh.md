@@ -47,8 +47,7 @@ go get "github.com/randolphcyg/gowireshark"
 如何测试:
 
 ```shell
-cd tests/
-go test -v -run TestDissectPrintFirstFrame
+go test -v -run TestDissectPrintAllFrame
 ```
 
 如何解析 pcap 数据包文件的某一帧：
@@ -91,7 +90,7 @@ func main() {
 	fmt.Println("【layer frame】:", frame)
 }
 ```
-其他示例可以参考[测试文件](https://github.com/randolphcyg/gowireshark/blob/main/tests/gowireshark_test.go)。
+其他示例可以参考[测试文件](https://github.com/randolphcyg/gowireshark/blob/main/gowireshark_test.go)。
 
 ## 2. 详细说明
 
@@ -122,10 +121,10 @@ gowireshark
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
 │   ├── libwireshark.so.17
-│   ├── libwireshark.so.17.0.5
+│   ├── libwireshark.so.17.0.6
 │   ├── libwiretap.so
 │   ├── libwiretap.so.14
-│   ├── libwiretap.so.14.1.5
+│   ├── libwiretap.so.14.1.6
 │   ├── libwsutil.so
 │   ├── libwsutil.so.15
 │   └── libwsutil.so.15.0.0
@@ -133,8 +132,7 @@ gowireshark
 ├── online.c
 ├── pcaps/
 │   └── mysql.pcapng
-└── tests/
-    └── gowireshark_test.go
+└── gowireshark_test.go
 ```
 项目目录结构的详细说明：
 
@@ -145,7 +143,7 @@ gowireshark
 | `frame_tvbuff.c`、`include/frame_tvbuff.h` | wireshark的源码文件、拷贝出来的、必须放在此处                           |
 | `libs/`                                   | wireshark、libpcap最新动态链接库文件                            |
 | `pcaps/`                                  | 用于测试的 pcap 数据包文件                                      |
-| `tests/`                                  | 测试文件夹                                                 |
+| `gowireshark_test.go`                     | 测试文件                                                  |
 | `uthash.h`                                | 第三方 [uthash](https://github.com/troydhanson/uthash) 库 |
 | `cJSON.c、cJSON.h`                         | 第三方[cJSON](https://github.com/DaveGamble/cJSON)库      |
 | `lib.c、offline.c、online.c`                | 用C封装和加强libpcap和wireshark功能的代码                         |
@@ -179,7 +177,7 @@ graph LR
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.2.5
+export WIRESHARKV=4.2.6
 # 到/opt目录下操作
 cd /opt/
 # 下载源码
@@ -812,7 +810,7 @@ apt install bison
 1. 可以在 `lib.c、offline.c、online.c` 中或在根目录中创建一个新的C文件并添加自定义功能的接口;
 2. 接口完成后需要在`include/`目录下同名H头文件增加声明，若`gowireshark.go`中也用到该接口，则需要在此文件的cgo序文中增加相同的声明；
 3. 在`gowireshark.go`中封装该接口;
-4. 在`tests/`目录下增加测试案例;
+4. 在`gowireshark_test.go`文件中增加测试案例;
 5. 使用 clang 格式工具格式化自定义的 C 代码和头文件：
    例如：`clang-format -i lib.c`，参数`-i`表示此命令直接格式化指定的文件，删除`-i`进行预览。
    修改根目录中的所有 .c 文件和 `include/` 目录中的所有 .h 头文件(注意用grep去掉第三方库文件例如cJSON)
@@ -822,21 +820,23 @@ apt install bison
    find . -maxdepth 1 -name '*.c' | grep -v 'cJSON.c' | grep -v 'frame_tvbuff.c' | xargs clang-format -i
    find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | grep -v 'frame_tvbuff.h' | grep -v 'uthash.h' | xargs  clang-format -i
    ```
-6. 如何测试(cd tests/):
+6. 测试:
 
-   可以在`tests/`目录下编写测试函数，直接测试：
+   可以在`gowireshark_test.go`文件中编写测试函数，直接测试：
    ```shell
-   # Parse and output the first frame
-   go test -v -run TestDissectPrintFirstFrame
-   # Parse and output a frame in JSON format
+   # 解析并输出一个流量包文件所有帧
+   go test -v -run TestDissectPrintAllFrame
+   # 解析并输出一个流量包文件特定帧,并以json格式呈现
    go test -v -run TestGetSpecificFrameProtoTreeInJson
-   # Parse and output all frame in JSON format
+   # 解析并输出一个流量包文件多个选定帧,并以json格式呈现
+   go test -v -run TestGetSeveralFrameProtoTreeInJson
+   # 解析并输出一个流量包文件所有帧,并以json格式呈现
    go test -v -run TestGetAllFrameProtoTreeInJson
-   # Parses and outputs a frame of HEX data
+   # 解析并输出一个流量包文件特定帧的16进制数据,并以json格式呈现
    go test -v -run TestGetSpecificFrameHexData
-   # Parse packets in real time
+   # 实时抓包解析
    go test -v -run TestDissectPktLive
-   # Real-time packet capture Read a certain number and parse it
+   # 实时抓取一定数目包并解析
    go test -v -run TestDissectPktLiveSpecificNum
    ```
    或者通过调用此库的方式测试。

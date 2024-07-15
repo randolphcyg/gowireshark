@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -92,21 +93,6 @@ func initCapFile(inputFilepath string) (err error) {
 	return
 }
 
-// DissectPrintFirstFrame Dissect and print the first frame
-func DissectPrintFirstFrame(inputFilepath string) (err error) {
-	EpanMutex.Lock()
-	defer EpanMutex.Unlock()
-
-	err = initCapFile(inputFilepath)
-	if err != nil {
-		return
-	}
-
-	C.print_first_frame()
-
-	return
-}
-
 // DissectPrintAllFrame Dissect and print all frames
 func DissectPrintAllFrame(inputFilepath string) (err error) {
 	EpanMutex.Lock()
@@ -118,59 +104,6 @@ func DissectPrintAllFrame(inputFilepath string) (err error) {
 	}
 
 	C.print_all_frame()
-
-	return
-}
-
-// DissectPrintFirstSeveralFrame
-//
-//	@Description: Dissect and print the first several frames
-//	@param inputFilepath: Pcap src file path
-//	@param count: The index of the first several frame you want to dissect
-func DissectPrintFirstSeveralFrame(inputFilepath string, count int) (err error) {
-	EpanMutex.Lock()
-	defer EpanMutex.Unlock()
-
-	err = initCapFile(inputFilepath)
-	if err != nil {
-		return
-	}
-
-	if count < 1 {
-		err = errors.Wrap(ErrIllegalPara, strconv.Itoa(count))
-		return
-	}
-
-	C.print_first_several_frame(C.int(count))
-
-	return
-}
-
-// DissectPrintSpecificFrame
-//
-//	@Description: Dissect and print the Specific frame
-//	@param inputFilepath: Pcap src file path
-//	@param num: The index value of the specific frame you want to dissect
-func DissectPrintSpecificFrame(inputFilepath string, num int) (err error) {
-	EpanMutex.Lock()
-	defer EpanMutex.Unlock()
-
-	err = initCapFile(inputFilepath)
-	if err != nil {
-		return
-	}
-
-	if num < 1 {
-		err = errors.Wrap(ErrIllegalPara, "Frame num "+strconv.Itoa(num))
-		return
-	}
-
-	// errNo is 2 if num is out of bounds
-	errNo := C.print_specific_frame(C.int(num))
-	if errNo == 2 {
-		err = errors.Wrap(WarnFrameIndexOutOfBounds, strconv.Itoa(int(errNo)))
-		return
-	}
 
 	return
 }
@@ -754,6 +687,69 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, isDescriptiv
 	}
 }
 
+func removeNegativeAndZero(nums []int) []int {
+	var result []int
+	for _, num := range nums {
+		if num > 0 {
+			result = append(result, num)
+		}
+	}
+	return result
+}
+
+// GetSeveralFrameProtoTreeInJson
+//
+//	@Description: Transfer specific frame proto tree to json format
+//	@param inputFilepath: Pcap src file path
+//	@param nums: The frame number that needs to be output
+//	@param isDescriptive: Whether the JSON result has descriptive fields
+//	@param isDebug: Whether to print JSON result in C logic
+//	@return res: Contains specific frame's JSON dissect result
+func GetSeveralFrameProtoTreeInJson(inputFilepath string, nums []int, isDescriptive, isDebug bool) (res []FrameDissectRes, err error) {
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
+	err = initCapFile(inputFilepath)
+	if err != nil {
+		return
+	}
+
+	descriptive := 0
+	if isDescriptive {
+		descriptive = 1
+	}
+
+	debug := 0
+	if isDebug {
+		debug = 1
+	}
+
+	nums = removeNegativeAndZero(nums)
+	// Must sort from smallest to largest
+	slices.Sort(nums)
+
+	for _, num := range nums {
+		// get proto dissect result in json format by c
+		srcFrame := C.proto_tree_in_json(C.int(num), C.int(descriptive), C.int(debug))
+		if srcFrame != nil {
+			if C.strlen(srcFrame) == 0 {
+				continue
+			}
+		}
+
+		// unmarshal dissect result
+		singleFrame, err := UnmarshalDissectResult(CChar2GoStr(srcFrame))
+		if err != nil {
+			err = errors.Wrap(ErrUnmarshalObj, "Num "+strconv.Itoa(num))
+			slog.Warn(err.Error())
+		}
+
+		res = append(res, singleFrame)
+	}
+
+	return
+}
+
 // GetAllFrameProtoTreeInJson
 //
 //	@Description: Transfer proto tree to json format
@@ -785,7 +781,7 @@ func GetAllFrameProtoTreeInJson(inputFilepath string, isDescriptive bool, isDebu
 		// get proto dissect result in json format by c
 		srcFrame := C.proto_tree_in_json(C.int(counter), C.int(descriptive), C.int(debug))
 		if srcFrame != nil {
-			if C.strlen(srcFrame) == 0 { // loop ends
+			if C.strlen(srcFrame) == 0 {
 				break
 			}
 		}
