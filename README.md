@@ -47,8 +47,7 @@ go get "github.com/randolphcyg/gowireshark"
 how to test:
 
 ```shell
-cd tests/
-go test -v -run TestDissectPrintFirstFrame
+go test -v -run TestDissectPrintAllFrame
 ```
 
 how to dissect specific frame of a pcap file:
@@ -92,7 +91,7 @@ func main() {
 }
 ```
 
-Other examples can refer to the [test file](https://github.com/randolphcyg/gowireshark/blob/main/tests/gowireshark_test.go).
+Other examples can refer to the [test file](https://github.com/randolphcyg/gowireshark/blob/main/gowireshark_test.go).
 
 ## 2. Detailed description
 
@@ -123,10 +122,10 @@ gowireshark
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
 │   ├── libwireshark.so.17
-│   ├── libwireshark.so.17.0.5
+│   ├── libwireshark.so.17.0.6
 │   ├── libwiretap.so
 │   ├── libwiretap.so.14
-│   ├── libwiretap.so.14.1.5
+│   ├── libwiretap.so.14.1.6
 │   ├── libwsutil.so
 │   ├── libwsutil.so.15
 │   └── libwsutil.so.15.0.0
@@ -134,8 +133,7 @@ gowireshark
 ├── online.c
 ├── pcaps/
 │   └── mysql.pcapng
-└── tests/
-    └── gowireshark_test.go
+└── gowireshark_test.go
 ```
 Detailed description of the project directory structure：
 
@@ -146,7 +144,7 @@ Detailed description of the project directory structure：
 | `frame_tvbuff.c`、`include/frame_tvbuff.h` | The wireshark source files, copied out, must be placed here                                 |
 | `libs/`                                   | wireshark、libpcap latest dll files                                                          |
 | `pcaps/`                                  | Pcap packet files used for testing                                                          |
-| `tests/`                                  | Test files                                                                                  |
+| `gowireshark_test.go`                     | Test files                                                                                  |
 | `uthash.h`                                | Third-party [uthash](https://github.com/troydhanson/uthash) library                         |
 | `cJSON.c、cJSON.h`                         | Third-party [cJSON](https://github.com/DaveGamble/cJSON) library                            |
 | `lib.c、offline.c、online.c`                | Code that encapsulates and enhances libpcap and wireshark functionality in C                |
@@ -185,7 +183,7 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 
 ```shell
 # Determine the latest release version and set environment variables
-export WIRESHARKV=4.2.5
+export WIRESHARKV=4.2.6
 # Operate in the /opt directory
 cd /opt/
 # Download the source code
@@ -819,7 +817,7 @@ apt install bison
 1. You can create a new C file in `lib.c, offline.c, online.c`'` or in the root directory and add interfaces for custom functions;
 2. After the interface is completed, you need to add a declaration in the H header file with the same name in the `include/` directory, and if the interface is also used in `gowireshark.go`, you need to add the same declaration in the cgo preamble of this file;
 3. encapsulate the interface in `gowireshark.go`;
-4. Add test cases under `tests/` directory;
+4. Add test cases in file `gowireshark_test.go`;
 5. Use the clang-format tool to format custom C code and header files:
    E.g：`clang-format -i lib.c`，With the parameter '-i' indicates that this command directly formats the specified file, remove '-i' to preview.
    Modify all .c files in the root directory and all .h header files in the `include/` directory (note that third-party library files such as cJSON are removed with grep)
@@ -827,14 +825,16 @@ apt install bison
    
    ```shell
    find . -maxdepth 1 -name '*.c' | grep -v 'cJSON.c' | grep -v 'frame_tvbuff.c' | xargs clang-format -i
-   find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | grep -v 'frame_tvbuff.h' | xargs  clang-format -i
+   find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | grep -v 'frame_tvbuff.h' | grep -v 'uthash.h' | xargs  clang-format -i
    ```
-6. how to test(cd tests/):
+6. how to test:
    ```shell
-   # Parse and output the first frame
-   go test -v -run TestDissectPrintFirstFrame
+   # Parse and output all the frame of a pcap file
+   go test -v -run TestDissectPrintAllFrame
    # Parse and output a frame in JSON format
    go test -v -run TestGetSpecificFrameProtoTreeInJson
+   # Parse and output several frame in JSON format
+   go test -v -run TestGetSeveralFrameProtoTreeInJson
    # Parse and output all frame in JSON format
    go test -v -run TestGetAllFrameProtoTreeInJson
    # Parses and outputs a frame of HEX data
