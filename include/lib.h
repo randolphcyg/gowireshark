@@ -26,12 +26,6 @@ int init_env();
 int init_cf(char *filename);
 // Dissect and print all frames
 void print_all_frame();
-// Dissect and print the first frame
-void print_first_frame();
-// Dissect and print the first several frames
-void print_first_several_frame(int count);
-// Dissect and print specific frame
-int print_specific_frame(int num);
 // Dissect and get hex data of specific frame
 char *get_specific_frame_hex_data(int num);
 // Get proto tree in json format

@@ -13,7 +13,7 @@
 #include <include/wireshark.h>
 
 #ifdef HAVE_SSE4_2
-#include "sse2neon.h"
+#include <emmintrin.h>
 #endif
 
 /** The pattern object used for ws_mempbrk_exec().
