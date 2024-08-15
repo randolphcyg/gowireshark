@@ -1,5 +1,4 @@
-*.log
 .DS_Store
-wireshark/*
 .vscode/*
 .idea/
+deps/
