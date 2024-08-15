@@ -872,8 +872,8 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 	return
 }
 
-//export GoDataCallback
-func GoDataCallback(data *C.char, length C.int, deviceName *C.char) {
+//export GetDataCallback
+func GetDataCallback(data *C.char, length C.int, deviceName *C.char) {
 	goPacket := ""
 	if data != nil {
 		goPacket = C.GoStringN(data, length)
@@ -907,7 +907,7 @@ func GoDataCallback(data *C.char, length C.int, deviceName *C.char) {
 //	@param timeout
 func DissectPktLive(deviceName, bpfFilter string, num, promisc, timeout int) (err error) {
 	// Set up callback function
-	C.setDataCallback((C.DataCallback)(C.GoDataCallback))
+	C.setDataCallback((C.DataCallback)(C.GetDataCallback))
 
 	if deviceName == "" {
 		err = errors.Wrap(err, "device name is blank")

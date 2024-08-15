@@ -226,38 +226,35 @@ func TestDissectPktLiveInfiniteAndStopCapturePkg(t *testing.T) {
 	filter := ""
 	pktNum := -1
 	promisc := 1
-	timeout := 20
+	timeout := 5
 
 	// DissectResChans put pkg dissect result struct into go pipe
 	DissectResChans[ifName] = make(chan FrameDissectRes, 100)
+	defer close(DissectResChans[ifName])
 
 	// user read unmarshal data from go channel
 	go func() {
-		for {
-			select {
-			case frameData := <-DissectResChans[ifName]:
-				colSrc := frameData.WsSource.Layers["_ws.col"]
-				col, err := UnmarshalWsCol(colSrc)
-				if err != nil {
-					t.Error(err)
-				}
-
-				frameSrc := frameData.WsSource.Layers["frame"]
-				frame, err := UnmarshalFrame(frameSrc)
-				if err != nil {
-					t.Error(err)
-				}
-
-				t.Log("# Frame index:", col.Num, "===========================")
-				t.Log("## WsIndex:", frameData.WsIndex)
-				t.Log("## Offset:", frameData.Offset)
-				t.Log("## Hex:", frameData.Hex)
-				t.Log("## Ascii:", frameData.Ascii)
-
-				t.Log("【layer _ws.col】:", col)
-				t.Log("【layer frame】:", frame)
-			default:
+		for frameData := range DissectResChans[ifName] {
+			colSrc := frameData.WsSource.Layers["_ws.col"]
+			col, err := UnmarshalWsCol(colSrc)
+			if err != nil {
+				t.Error(err)
 			}
+
+			frameSrc := frameData.WsSource.Layers["frame"]
+			frame, err := UnmarshalFrame(frameSrc)
+			if err != nil {
+				t.Error(err)
+			}
+
+			t.Log("# Frame index:", col.Num, "===========================")
+			t.Log("## WsIndex:", frameData.WsIndex)
+			t.Log("## Offset:", frameData.Offset)
+			t.Log("## Hex:", frameData.Hex)
+			t.Log("## Ascii:", frameData.Ascii)
+
+			t.Log("【layer _ws.col】:", col)
+			t.Log("【layer frame】:", frame)
 		}
 	}()
 
@@ -288,37 +285,40 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	filter := ""
 	pktNum := 20
 	promisc := 1
-	timeout := 20
+	timeout := 5
 
-	// DissectResChans put pkg dissect result struct into go pipe
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
 	DissectResChans[ifName] = make(chan FrameDissectRes, 100)
+	defer close(DissectResChans[ifName])
 
-	// user read unmarshal data from go channel
+	wg.Add(1)
+
 	go func() {
-		for {
-			select {
-			case frameData := <-DissectResChans[ifName]:
-				colSrc := frameData.WsSource.Layers["_ws.col"]
-				col, err := UnmarshalWsCol(colSrc)
-				if err != nil {
-					t.Error(err)
-				}
-
-				frameSrc := frameData.WsSource.Layers["frame"]
-				frame, err := UnmarshalFrame(frameSrc)
-				if err != nil {
-					t.Error(err)
-				}
-
-				t.Log("# Frame index:", frame.Number, "===========================")
-				t.Log("## Offset:", frameData.Offset)
-				t.Log("## Hex:", frameData.Hex)
-				t.Log("## Ascii:", frameData.Ascii)
-
-				t.Log("【layer frame】:", frame)
-				t.Log("【layer _ws.col】:", col)
-			default:
+		defer wg.Done()
+		for frameData := range DissectResChans[ifName] {
+			colSrc := frameData.WsSource.Layers["_ws.col"]
+			col, err := UnmarshalWsCol(colSrc)
+			if err != nil {
+				t.Error(err)
+				continue
 			}
+
+			frameSrc := frameData.WsSource.Layers["frame"]
+			frame, err := UnmarshalFrame(frameSrc)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+
+			t.Log("# Frame index:", frame.Number, "===========================")
+			t.Log("## Offset:", frameData.Offset)
+			t.Log("## Hex:", frameData.Hex)
+			t.Log("## Ascii:", frameData.Ascii)
+
+			t.Log("【layer frame】:", frame)
+			t.Log("【layer _ws.col】:", col)
 		}
 	}()
 
