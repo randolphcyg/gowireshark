@@ -40,14 +40,13 @@ char *init_cf_live(capture_file *cf_live);
 void close_cf_live(capture_file *cf_live);
 
 static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr);
-static gboolean send_data_to_go(struct device_map *device);
+static gboolean send_data_to_wrap(struct device_map *device);
 static gboolean process_packet(struct device_map *device, gint64 offset,
                                const struct pcap_pkthdr *pkthdr,
                                const u_char *packet);
 void before_callback_init(struct device_map *device);
 void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
                              const u_char *packet);
-char *handle_pkt_live(char *device_name, int num, int promisc, int to_ms);
 char *stop_dissect_capture_pkg(char *device_name);
 // Set up callback function for send packet to Go
 static DataCallback dataCallback;
@@ -144,6 +143,27 @@ char *get_if_list() {
   cJSON_Delete(ifaces);
 
   return result;
+}
+
+/**
+ * select the first nic_device available on the machine
+ * @return int:
+ * -1: failure
+ *  0: success
+ */
+int get_first_device(char *device){
+    char err_buf[PCAP_ERRBUF_SIZE];
+    pcap_if_t *first_if;
+
+    if (pcap_findalldevs(&first_if, err_buf) < 0) {
+        fprintf(stderr, "Error: couldn't find any devices %s\n", err_buf);
+        return -1;
+    }
+
+    strncpy(device, first_if->name, 16 - 1);
+    pcap_freealldevs(first_if);
+
+    return 0;
 }
 
 /**
@@ -412,12 +432,12 @@ static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
 }
 
 /**
- * Use callback to transfer data to the Go program.
+ * Use callback to transfer data to the outside wrap program.
  *
  *  @param device: a device in global device map
  *  @return gboolean: true or false
  */
-static gboolean send_data_to_go(struct device_map *device) {
+static gboolean send_data_to_wrap(struct device_map *device) {
   cJSON *proto_tree_json = cJSON_CreateObject();
   get_proto_tree_json(
       NULL, print_dissections_expanded, TRUE, NULL, PF_INCLUDE_CHILDREN,
@@ -478,7 +498,7 @@ static gboolean process_packet(struct device_map *device, gint64 offset,
   device->content.prev_cap_frame = fd;
   device->content.cf_live->provider.prev_cap = &device->content.prev_cap_frame;
 
-  if (!send_data_to_go(device)) {
+  if (!send_data_to_wrap(device)) {
     // free all memory allocated
     epan_dissect_reset(&device->content.edt);
     frame_data_destroy(&fd);
