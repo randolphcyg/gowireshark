@@ -26,15 +26,13 @@ import (
 )
 
 var (
-	ErrFileNotFound           = errors.New("cannot open file, no such file")
-	ErrReadFile               = errors.New("occur error when read file ")
-	ErrIllegalPara            = errors.New("illegal parameter")
-	WarnFrameIndexOutOfBounds = errors.New("frame index is out of bounds")
-	ErrUnmarshalObj           = errors.New("unmarshal obj error")
-	ErrFromCLogic             = errors.New("run c logic occur error")
-	ErrParseDissectRes        = errors.New("fail to parse DissectRes")
-	ErrParseFrame             = errors.New("fail to parse frame")
-	ErrFrameIsBlank           = errors.New("frame data is blank")
+	ErrFileNotFound    = errors.New("cannot open file, no such file")
+	ErrReadFile        = errors.New("occur error when read file ")
+	ErrUnmarshalObj    = errors.New("unmarshal obj error")
+	ErrFromCLogic      = errors.New("run c logic occur error")
+	ErrParseDissectRes = errors.New("fail to parse DissectRes")
+	ErrParseFrame      = errors.New("fail to parse frame")
+	ErrFrameIsBlank    = errors.New("frame data is blank")
 )
 
 // DissectResChans dissect result chan map
