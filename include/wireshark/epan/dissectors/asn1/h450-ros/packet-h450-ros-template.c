@@ -15,6 +15,7 @@
 #include <epan/strutil.h>
 #include <epan/asn1.h>
 #include <epan/expert.h>
+#include <wsutil/array.h>
 
 #include "packet-per.h"
 #include "packet-h450-ros.h"
@@ -27,22 +28,22 @@ void proto_register_h450_ros(void);
 void proto_reg_handoff_h450_ros(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_h450_ros = -1;
+static int proto_h450_ros;
 #include "packet-h450-ros-hf.c"
 
 /* Initialize the subtree pointers */
 #include "packet-h450-ros-ett.c"
 
-static expert_field ei_ros_undecoded = EI_INIT;
+static expert_field ei_ros_undecoded;
 
 /* Preferences */
 
 /* Subdissectors */
-static dissector_handle_t data_handle = NULL;
+static dissector_handle_t data_handle;
 
 /* Global variables */
-static gint32 problem_val;
-static gchar problem_str[64];
+static int32_t problem_val;
+static char problem_str[64];
 static tvbuff_t *arg_next_tvb, *res_next_tvb, *err_next_tvb;
 
 static int
@@ -74,7 +75,7 @@ void proto_register_h450_ros(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 #include "packet-h450-ros-ettarr.c"
   };
 

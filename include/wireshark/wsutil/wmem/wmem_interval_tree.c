@@ -25,7 +25,6 @@
 #include "wmem_interval_tree.h"
 #include "wmem_user_cb.h"
 
-
 static void
 print_range(const void *value)
 {

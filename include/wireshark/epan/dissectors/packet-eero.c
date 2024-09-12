@@ -22,13 +22,13 @@
 void proto_register_eero(void);
 void proto_reg_handoff_eero(void);
 
-static int proto_eero = -1;
+static int proto_eero;
 
-static int hf_eero_type = -1;
-static int hf_eero_src_mac = -1;
-static int hf_eero_data = -1;
+static int hf_eero_type;
+static int hf_eero_src_mac;
+static int hf_eero_data;
 
-static gint ett_eero = -1;
+static int ett_eero;
 
 static dissector_handle_t eero_handle;
 
@@ -36,11 +36,11 @@ static capture_dissector_handle_t eero_cap_handle;
 
 
 
-static gboolean
-capture_eero(const guchar *pd _U_, int offset _U_, int len _U_, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header _U_)
+static bool
+capture_eero(const unsigned char *pd _U_, int offset _U_, int len _U_, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header _U_)
 {
   capture_dissector_increment_count(cpinfo, proto_eero);
-  return TRUE;
+  return true;
 }
 
 static int
@@ -59,7 +59,7 @@ dissect_eero(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
   if (tree)
   {
       int offset=0;
-      int type = tvb_get_guint8(tvb, 0);
+      int type = tvb_get_uint8(tvb, 0);
 
       ti = proto_tree_add_protocol_format(tree, proto_eero, tvb, offset, tot_len, "EERO,  Type 0x%04x", type);
 
@@ -98,7 +98,7 @@ proto_register_eero(void)
               NULL, HFILL }},
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_eero
   };
 

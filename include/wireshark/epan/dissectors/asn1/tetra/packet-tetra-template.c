@@ -22,6 +22,7 @@
 #include <epan/oids.h>
 #include <epan/conversation.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-per.h"
 #include "packet-tetra.h"
@@ -32,50 +33,50 @@ void proto_register_tetra(void);
 void proto_reg_handoff_tetra(void);
 
 /* Wireshark ID of the tetra protocol */
-static int proto_tetra = -1;
+static int proto_tetra;
 
 static dissector_handle_t tetra_handle;
 
 #define TETRA_UDP_PORT  7074 /* Not IANA assigned */
 
 /* Whether the capture data include carrier numbers */
-static gboolean include_carrier_number = TRUE;
+static bool include_carrier_number = true;
 
 /* The following hf_* variables are used to hold the Wireshark IDs of
 * our header fields; they are filled out when we call
 * proto_register_field_array() in proto_register_tetra()
 */
 /** Kts attempt at defining the protocol */
-static gint hf_tetra = -1;
-static gint hf_tetra_header = -1;
-static gint hf_tetra_channels = -1;
-static gint hf_tetra_channel1 = -1;
-static gint hf_tetra_channel2 = -1;
-static gint hf_tetra_channel3 = -1;
-static gint hf_tetra_txreg = -1;
-static gint hf_tetra_timer = -1;
-static gint hf_tetra_pdu = -1;
-static gint hf_tetra_rvstr = -1;
-static gint hf_tetra_carriernumber = -1;
-static gint hf_tetra_rxchannel1 = -1;
-static gint hf_tetra_rxchannel2 = -1;
-static gint hf_tetra_rxchannel3 = -1;
-static gint hf_tetra_crc = -1;
-static gint hf_tetra_len0 = -1;
+static int hf_tetra;
+static int hf_tetra_header;
+static int hf_tetra_channels;
+static int hf_tetra_channel1;
+static int hf_tetra_channel2;
+static int hf_tetra_channel3;
+static int hf_tetra_txreg;
+static int hf_tetra_timer;
+static int hf_tetra_pdu;
+static int hf_tetra_rvstr;
+static int hf_tetra_carriernumber;
+static int hf_tetra_rxchannel1;
+static int hf_tetra_rxchannel2;
+static int hf_tetra_rxchannel3;
+static int hf_tetra_crc;
+static int hf_tetra_len0;
 
 #include "packet-tetra-hf.c"
 
 /* Initialize the subtree pointers */
 /* These are the ids of the subtrees that we may be creating */
-static gint ett_tetra = -1;
-static gint ett_tetra_header = -1;
-static gint ett_tetra_length = -1;
-static gint ett_tetra_txreg = -1;
-static gint ett_tetra_text = -1;
+static int ett_tetra;
+static int ett_tetra_header;
+static int ett_tetra_length;
+static int ett_tetra_txreg;
+static int ett_tetra_text;
 
 #include "packet-tetra-ett.c"
 
-static expert_field ei_tetra_channels_incorrect = EI_INIT;
+static expert_field ei_tetra_channels_incorrect;
 
 #include "packet-tetra-fn.c"
 
@@ -113,9 +114,9 @@ static const value_string recvchanneltypenames[] = {
 };
 
 /* Get the length of received pdu */
-static gint get_rx_pdu_length(guint32 channel_type)
+static int get_rx_pdu_length(uint32_t channel_type)
 {
-	gint len = 0;
+	int len = 0;
 
 	switch(channel_type) {
 	case TETRA_CHAN_AACH:
@@ -160,9 +161,9 @@ static gint get_rx_pdu_length(guint32 channel_type)
 }
 
 /* Get the length of transmitted pdu */
-static gint get_tx_pdu_length(guint32 channel_type)
+static int get_tx_pdu_length(uint32_t channel_type)
 {
-	gint len = 0;
+	int len = 0;
 
 	switch(channel_type) {
 	case TETRA_CHAN_AACH:
@@ -204,7 +205,7 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 {
 	proto_item *tetra_sub_item;
 	proto_tree *tetra_sub_tree;
-	guint8 p;
+	uint8_t p;
 
 	tetra_sub_item = proto_tree_add_item(tree, hf_tetra_pdu,
 					     pdu, 0, tvb_captured_length(pdu), ENC_NA);
@@ -216,7 +217,7 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 		dissect_AACH_PDU(pdu, pinfo, tetra_sub_tree, NULL);
 		break;
 	case TETRA_CHAN_SCH_F:
-		p = tvb_get_guint8(pdu, 0);
+		p = tvb_get_uint8(pdu, 0);
 		switch(p >> 6) {
 		case 0:
 			if (dir == TETRA_DOWNLINK)
@@ -240,7 +241,7 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 		}
 		break;
 	case TETRA_CHAN_SCH_D:
-		p = tvb_get_guint8(pdu, 0);
+		p = tvb_get_uint8(pdu, 0);
 		switch(p >> 6) {
 		case 0:
 			dissect_MAC_RESOURCE_PDU(pdu, pinfo, tetra_sub_tree, NULL);
@@ -257,7 +258,7 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 		}
 		break;
 	case TETRA_CHAN_SCH_HU:
-		p = tvb_get_guint8(pdu, 0);
+		p = tvb_get_uint8(pdu, 0);
 		switch(p >> 7) {
 		case 0: /* MAC-ACCESS */
 			dissect_MAC_ACCESS_PDU(pdu, pinfo, tetra_sub_tree, NULL);
@@ -276,7 +277,7 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 		dissect_BNCH_PDU(pdu, pinfo, tetra_sub_tree, NULL);
 		break;
 	case TETRA_CHAN_STCH:
-		p = tvb_get_guint8(pdu, 0);
+		p = tvb_get_uint8(pdu, 0);
 		switch(p >> 6) {
 		case 0:
 			dissect_MAC_RESOURCE_PDU(pdu, pinfo, tetra_sub_tree, NULL);
@@ -303,10 +304,10 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 
 static void dissect_tetra_UNITDATA_IND(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tetra_tree, int offset)
 {
-	guint32 rxreg = 0;
-	guint32 channels = 0, i;
-	guint32 channel_type;
-	gint pdu_offset = 0;
+	uint32_t rxreg = 0;
+	uint32_t channels = 0, i;
+	uint32_t channel_type;
+	int pdu_offset = 0;
 	proto_item *tetra_sub_item;
 	proto_tree *tetra_header_tree = NULL;
 	tvbuff_t *payload_tvb;
@@ -331,8 +332,8 @@ static void dissect_tetra_UNITDATA_IND(tvbuff_t *tvb, packet_info *pinfo, proto_
 
 	pdu_offset = offset + 4;
 	for(i = 0; i < channels; i++) {
-		gint byte_len, bits_len, remaining_bits;
-		gint hf_channel[3];
+		int byte_len, bits_len, remaining_bits;
+		int hf_channel[3];
 
 		hf_channel[0] = hf_tetra_rxchannel1;
 		hf_channel[1] = hf_tetra_rxchannel2;
@@ -363,10 +364,10 @@ static void dissect_tetra_UNITDATA_IND(tvbuff_t *tvb, packet_info *pinfo, proto_
 
 static void dissect_tetra_UNITDATA_REQ(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tetra_tree, int offset)
 {
-	guint32 txreg = 0;
-	guint32 channels = 0, i;
-	guint32 channel_type;
-	gint pdu_offset = 0;
+	uint32_t txreg = 0;
+	uint32_t channels = 0, i;
+	uint32_t channel_type;
+	int pdu_offset = 0;
 	proto_item *tetra_sub_item = NULL;
 	proto_tree *tetra_header_tree = NULL;
 	tvbuff_t *payload_tvb;
@@ -391,8 +392,8 @@ static void dissect_tetra_UNITDATA_REQ(tvbuff_t *tvb, packet_info *pinfo, proto_
 
 	pdu_offset = offset + 4;
 	for(i = 0; i < channels; i++) {
-		gint byte_len, bits_len, remaining_bits;
-		gint hf_channel[3];
+		int byte_len, bits_len, remaining_bits;
+		int hf_channel[3];
 
 		hf_channel[0] = hf_tetra_channel1;
 		hf_channel[1] = hf_tetra_channel2;
@@ -421,8 +422,8 @@ dissect_tetra(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 	proto_item *tetra_sub_item = NULL;
 	proto_tree *tetra_tree = NULL;
 	proto_tree *tetra_header_tree = NULL;
-	guint16 type = 0;
-	guint8 carriernumber = -1;
+	uint16_t type = 0;
+	uint8_t carriernumber = -1;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTO_TAG_tetra);
 	/* Clear out stuff in the info column */
@@ -432,10 +433,10 @@ dissect_tetra(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 	 * This is not a good way of dissecting packets.  The tvb length should
 	 * be sanity checked so we aren't going past the actual size of the buffer.
 	 */
-	type = tvb_get_guint8(tvb, 0);
+	type = tvb_get_uint8(tvb, 0);
 
 	if(include_carrier_number) {
-		carriernumber = tvb_get_guint8(tvb, 1);
+		carriernumber = tvb_get_uint8(tvb, 1);
 	}
 
 
@@ -445,35 +446,35 @@ dissect_tetra(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ, Carrier: %d",
 					carriernumber);
 		else
-			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ");
+			col_set_str(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ");
 		break;
 	case 2:
 		if(include_carrier_number)
 			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND, Carrier: %d",
 					carriernumber);
 		else
-			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND");
+			col_set_str(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND");
 		break;
 	case 3:
 		if(include_carrier_number)
 			col_add_fstr(pinfo->cinfo, COL_INFO, "MAC-Timer, Carrier: %d",
 					carriernumber);
 		else
-			col_add_fstr(pinfo->cinfo, COL_INFO, "MAC-Timer");
+			col_set_str(pinfo->cinfo, COL_INFO, "MAC-Timer");
 		break;
 	case 127:
 		if(include_carrier_number)
 			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND Done, Carrier: %d",
 					carriernumber);
 		else
-			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND Done");
+			col_set_str(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND Done");
 		break;
 	case 128:
 		if(include_carrier_number)
 			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ Done, Carrier: %d",
 					carriernumber);
 	  else
-			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ Done");
+			col_set_str(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ Done");
 		break;
 	default:
 		col_add_fstr(pinfo->cinfo, COL_INFO, "Unknown command: %d", type);
@@ -481,9 +482,9 @@ dissect_tetra(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 	}
 
 	/* if (tree) */ { /* we are being asked for details */
-		guint32 offset = 0;
-		guint32 txtimer = 0;
-		guint32 tslot = 0;
+		uint32_t offset = 0;
+		uint32_t txtimer = 0;
+		uint32_t tslot = 0;
 
 		tetra_item = proto_tree_add_item(tree, proto_tetra, tvb, 0, -1, ENC_NA);
 		tetra_tree = proto_item_add_subtree(tetra_item, ett_tetra);
@@ -604,7 +605,7 @@ void proto_register_tetra (void)
  	};
 
 	/* List of subtrees */
-  	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_tetra,
 		&ett_tetra_header,
 		&ett_tetra_length,

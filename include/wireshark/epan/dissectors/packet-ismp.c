@@ -24,88 +24,88 @@ void proto_reg_handoff_ismp(void);
 static dissector_handle_t ismp_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_ismp = -1;
-static int hf_ismp_version = -1;
-static int hf_ismp_message_type = -1;
-static int hf_ismp_seq_num = -1;
-static int hf_ismp_code_length = -1;
-static int hf_ismp_auth_data = -1;
+static int proto_ismp;
+static int hf_ismp_version;
+static int hf_ismp_message_type;
+static int hf_ismp_seq_num;
+static int hf_ismp_code_length;
+static int hf_ismp_auth_data;
 
-/* Enterasys/Cabletron Dicovery Protocol fields*/
-static int hf_ismp_edp = -1;
-static int hf_ismp_edp_version = -1;
-static int hf_ismp_edp_module_ip = -1;
-static int hf_ismp_edp_module_mac = -1;
-static int hf_ismp_edp_module_port = -1;
-static int hf_ismp_edp_chassis_mac =-1;
-static int hf_ismp_edp_chassis_ip = -1;
-static int hf_ismp_edp_device_type = -1;
-static int hf_ismp_edp_module_rev = -1;
-static int hf_ismp_edp_options = -1;
-static int hf_ismp_edp_sfs_option_unused1 = -1;
-static int hf_ismp_edp_sfs_option_sfssup = -1;
-static int hf_ismp_edp_sfs_option_lsp = -1;
-static int hf_ismp_edp_sfs_option_flood = -1;
-static int hf_ismp_edp_sfs_option_resolve = -1;
-static int hf_ismp_edp_sfs_option_unused2 = -1;
-static int hf_ismp_edp_sfs_option_tagflood = -1;
-static int hf_ismp_edp_sfs_option_calltap = -1;
-static int hf_ismp_edp_sfs_option_conmsg = -1;
-static int hf_ismp_edp_sfs_option_redun = -1;
-static int hf_ismp_edp_sfs_option_isolated = -1;
-static int hf_ismp_edp_sfs_option_uplink_switch = -1;
-static int hf_ismp_edp_sfs_option_uplink_core = -1;
-static int hf_ismp_edp_sfs_option_uplink_port = -1;
-static int hf_ismp_edp_sfs_option_uplink_flood = -1;
-static int hf_ismp_edp_rtr_option_ssr = -1;
-static int hf_ismp_edp_rtr_option_igmp = -1;
-static int hf_ismp_edp_rtr_option_rip = -1;
-static int hf_ismp_edp_rtr_option_bgp = -1;
-static int hf_ismp_edp_rtr_option_ospf = -1;
-static int hf_ismp_edp_rtr_option_dvmrp = -1;
-static int hf_ismp_edp_rtr_option_8021q = -1;
-static int hf_ismp_edp_rtr_option_gvrp = -1;
-static int hf_ismp_edp_rtr_option_gmrp = -1;
-static int hf_ismp_edp_rtr_option_igmp_snoop = -1;
-static int hf_ismp_edp_rtr_option_route = -1;
-static int hf_ismp_edp_rtr_option_trans = -1;
-static int hf_ismp_edp_rtr_option_level1 = -1;
-static int hf_ismp_edp_switch_option_8021q = -1;
-static int hf_ismp_edp_switch_option_gvrp = -1;
-static int hf_ismp_edp_switch_option_gmrp = -1;
-static int hf_ismp_edp_switch_option_igmp = -1;
-static int hf_ismp_edp_switch_option_route = -1;
-static int hf_ismp_edp_switch_option_trans = -1;
-static int hf_ismp_edp_switch_option_level1 = -1;
-static int hf_ismp_edp_end_station_option_dhcp = -1;
-static int hf_ismp_edp_end_station_option_dns = -1;
-static int hf_ismp_edp_end_station_option_ad = -1;
-static int hf_ismp_edp_num_neighbors = -1;
-static int hf_ismp_edp_neighbors = -1;
-static int hf_ismp_edp_num_tuples = -1;
-static int hf_ismp_edp_tuples = -1;
+/* Enterasys/Cabletron Discovery Protocol fields*/
+static int hf_ismp_edp;
+static int hf_ismp_edp_version;
+static int hf_ismp_edp_module_ip;
+static int hf_ismp_edp_module_mac;
+static int hf_ismp_edp_module_port;
+static int hf_ismp_edp_chassis_mac;
+static int hf_ismp_edp_chassis_ip;
+static int hf_ismp_edp_device_type;
+static int hf_ismp_edp_module_rev;
+static int hf_ismp_edp_options;
+static int hf_ismp_edp_sfs_option_unused1;
+static int hf_ismp_edp_sfs_option_sfssup;
+static int hf_ismp_edp_sfs_option_lsp;
+static int hf_ismp_edp_sfs_option_flood;
+static int hf_ismp_edp_sfs_option_resolve;
+static int hf_ismp_edp_sfs_option_unused2;
+static int hf_ismp_edp_sfs_option_tagflood;
+static int hf_ismp_edp_sfs_option_calltap;
+static int hf_ismp_edp_sfs_option_conmsg;
+static int hf_ismp_edp_sfs_option_redun;
+static int hf_ismp_edp_sfs_option_isolated;
+static int hf_ismp_edp_sfs_option_uplink_switch;
+static int hf_ismp_edp_sfs_option_uplink_core;
+static int hf_ismp_edp_sfs_option_uplink_port;
+static int hf_ismp_edp_sfs_option_uplink_flood;
+static int hf_ismp_edp_rtr_option_ssr;
+static int hf_ismp_edp_rtr_option_igmp;
+static int hf_ismp_edp_rtr_option_rip;
+static int hf_ismp_edp_rtr_option_bgp;
+static int hf_ismp_edp_rtr_option_ospf;
+static int hf_ismp_edp_rtr_option_dvmrp;
+static int hf_ismp_edp_rtr_option_8021q;
+static int hf_ismp_edp_rtr_option_gvrp;
+static int hf_ismp_edp_rtr_option_gmrp;
+static int hf_ismp_edp_rtr_option_igmp_snoop;
+static int hf_ismp_edp_rtr_option_route;
+static int hf_ismp_edp_rtr_option_trans;
+static int hf_ismp_edp_rtr_option_level1;
+static int hf_ismp_edp_switch_option_8021q;
+static int hf_ismp_edp_switch_option_gvrp;
+static int hf_ismp_edp_switch_option_gmrp;
+static int hf_ismp_edp_switch_option_igmp;
+static int hf_ismp_edp_switch_option_route;
+static int hf_ismp_edp_switch_option_trans;
+static int hf_ismp_edp_switch_option_level1;
+static int hf_ismp_edp_end_station_option_dhcp;
+static int hf_ismp_edp_end_station_option_dns;
+static int hf_ismp_edp_end_station_option_ad;
+static int hf_ismp_edp_num_neighbors;
+static int hf_ismp_edp_neighbors;
+static int hf_ismp_edp_num_tuples;
+static int hf_ismp_edp_tuples;
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_ismp_assigned_neighbor_state = -1;
-static int hf_ismp_hold_time = -1;
-static int hf_ismp_interface_name = -1;
-static int hf_ismp_tuple_length = -1;
-static int hf_ismp_neighborhood_mac_address = -1;
-static int hf_ismp_unknown_tuple_data = -1;
-static int hf_ismp_tuple_type = -1;
-static int hf_ismp_system_description = -1;
-static int hf_ismp_interface_ipx_address = -1;
+static int hf_ismp_assigned_neighbor_state;
+static int hf_ismp_hold_time;
+static int hf_ismp_interface_name;
+static int hf_ismp_tuple_length;
+static int hf_ismp_neighborhood_mac_address;
+static int hf_ismp_unknown_tuple_data;
+static int hf_ismp_tuple_type;
+static int hf_ismp_system_description;
+static int hf_ismp_interface_ipx_address;
 
 
 /* Initialize the subtree pointers */
-static gint ett_ismp = -1;
-static gint ett_ismp_edp = -1;
-static gint ett_ismp_edp_options = -1;
-static gint ett_ismp_edp_neighbors = -1;
-static gint ett_ismp_edp_neighbors_leaf = -1;
-static gint ett_ismp_edp_tuples = -1;
-static gint ett_ismp_edp_tuples_leaf = -1;
+static int ett_ismp;
+static int ett_ismp_edp;
+static int ett_ismp_edp_options;
+static int ett_ismp_edp_neighbors;
+static int ett_ismp_edp_neighbors_leaf;
+static int ett_ismp_edp_tuples;
+static int ett_ismp_edp_tuples_leaf;
 
-static expert_field ei_ismp_malformed = EI_INIT;
+static expert_field ei_ismp_malformed;
 
 /* ISMP TYPES */
 #define ISMPTYPE_EDP	2
@@ -144,45 +144,45 @@ static const value_string edp_device_types[] = {
 
 
 /* EDP SFS Options */
-#define EDP_SFS_OPTION_UNUSED1		0x1
-#define EDP_SFS_OPTION_SFSSUP		0x2
-#define EDP_SFS_OPTION_LSP		0x4
-#define EDP_SFS_OPTION_FLOOD		0x8
-#define EDP_SFS_OPTION_RESOLVE		0x10
-#define EDP_SFS_OPTION_UNUSED2		0x20
-#define EDP_SFS_OPTION_TAGFLOOD		0x40
-#define EDP_SFS_OPTION_CALLTAP		0x80
-#define EDP_SFS_OPTION_CONMSG		0x100
-#define EDP_SFS_OPTION_REDUN		0x200
-#define EDP_SFS_OPTION_ISOLATED		0x400
-#define EDP_SFS_OPTION_UPLINK_SWITCH	0x800
-#define EDP_SFS_OPTION_UPLINK_CORE	0x1000
-#define EDP_SFS_OPTION_UPLINK_PORT	0x2000
-#define EDP_SFS_OPTION_UPLINK_FLOOD	0x4000
+#define EDP_SFS_OPTION_UNUSED1		0x00000001
+#define EDP_SFS_OPTION_SFSSUP		0x00000002
+#define EDP_SFS_OPTION_LSP          0x00000004
+#define EDP_SFS_OPTION_FLOOD		0x00000008
+#define EDP_SFS_OPTION_RESOLVE		0x00000010
+#define EDP_SFS_OPTION_UNUSED2		0x00000020
+#define EDP_SFS_OPTION_TAGFLOOD		0x00000040
+#define EDP_SFS_OPTION_CALLTAP		0x00000080
+#define EDP_SFS_OPTION_CONMSG		0x00000100
+#define EDP_SFS_OPTION_REDUN		0x00000200
+#define EDP_SFS_OPTION_ISOLATED		0x00000400
+#define EDP_SFS_OPTION_UPLINK_SWITCH	0x00000800
+#define EDP_SFS_OPTION_UPLINK_CORE	0x00001000
+#define EDP_SFS_OPTION_UPLINK_PORT	0x00002000
+#define EDP_SFS_OPTION_UPLINK_FLOOD	0x00004000
 
 /* EDP Router Options */
-#define EDP_RTR_OPTION_SSR		0x1
-#define EDP_RTR_OPTION_IGMP		0x2
-#define EDP_RTR_OPTION_RIP		0x4
-#define EDP_RTR_OPTION_BGP		0x8
-#define EDP_RTR_OPTION_OSPF		0x10
-#define EDP_RTR_OPTION_DVMRP		0x20
-#define EDP_RTR_OPTION_8021Q		0x40
-#define EDP_RTR_OPTION_GVRP		0x80
-#define EDP_RTR_OPTION_GMRP		0x100
-#define EDP_RTR_OPTION_IGMP_SNOOP	0x200
-#define EDP_RTR_OPTION_ROUTE		0x400
-#define EDP_RTR_OPTION_TRANS		0x800
-#define EDP_RTR_OPTION_LEVEL1		0x1000
+#define EDP_RTR_OPTION_SSR			0x00000001
+#define EDP_RTR_OPTION_IGMP			0x00000002
+#define EDP_RTR_OPTION_RIP			0x00000004
+#define EDP_RTR_OPTION_BGP			0x00000008
+#define EDP_RTR_OPTION_OSPF			0x00000010
+#define EDP_RTR_OPTION_DVMRP		0x00000020
+#define EDP_RTR_OPTION_8021Q		0x00000040
+#define EDP_RTR_OPTION_GVRP			0x00000080
+#define EDP_RTR_OPTION_GMRP			0x00000100
+#define EDP_RTR_OPTION_IGMP_SNOOP	0x00000200
+#define EDP_RTR_OPTION_ROUTE		0x00000400
+#define EDP_RTR_OPTION_TRANS		0x00000800
+#define EDP_RTR_OPTION_LEVEL1		0x00001000
 
 /* EDP Switch Options */
-#define EDP_SWITCH_OPTION_8021Q		0x1
-#define EDP_SWITCH_OPTION_GVRP		0x2
-#define EDP_SWITCH_OPTION_GMRP		0x4
-#define EDP_SWITCH_OPTION_IGMP		0x8
-#define EDP_SWITCH_OPTION_ROUTE		0x10
-#define EDP_SWITCH_OPTION_TRANS		0x20
-#define EDP_SWITCH_OPTION_LEVEL1	0x40
+#define EDP_SWITCH_OPTION_8021Q		0x00000001
+#define EDP_SWITCH_OPTION_GVRP		0x00000002
+#define EDP_SWITCH_OPTION_GMRP		0x00000004
+#define EDP_SWITCH_OPTION_IGMP		0x00000008
+#define EDP_SWITCH_OPTION_ROUTE		0x00000010
+#define EDP_SWITCH_OPTION_TRANS		0x00000020
+#define EDP_SWITCH_OPTION_LEVEL1	0x00000040
 
 /* EDP End Station and Server Options */
 #define EDP_END_STATION_OPTION_DHCP	0x1
@@ -206,23 +206,23 @@ static const value_string edp_tuple_types[] =
 	{ 0,NULL }
 };
 
-static gchar*
-ipx_addr_to_str(const guint32 net, const guint8 *ad)
+static char*
+ipx_addr_to_str(wmem_allocator_t *scope, const uint32_t net, const uint8_t *ad)
 {
-	gchar       *buf;
-	const gchar *name;
+	char        *buf;
+	const char *name;
 
 	name = get_ether_name_if_known(ad);
 
 	if (name) {
-		buf = wmem_strdup_printf(wmem_packet_scope(), "%s.%s",
-				get_ipxnet_name(wmem_packet_scope(), net),
+		buf = wmem_strdup_printf(scope, "%s.%s",
+				get_ipxnet_name(scope, net),
 				name);
 	}
 	else {
-		buf = wmem_strdup_printf(wmem_packet_scope(), "%s.%s",
-				get_ipxnet_name(wmem_packet_scope(), net),
-				bytes_to_str_punct(wmem_packet_scope(), ad, 6, '\0'));
+		buf = wmem_strdup_printf(scope, "%s.%s",
+				get_ipxnet_name(scope, net),
+				bytes_to_str_punct(scope, ad, 6, '\0'));
 	}
 	return buf;
 }
@@ -234,12 +234,12 @@ dissect_ismp_edp(tvbuff_t *tvb, packet_info *pinfo, int offset, proto_tree *ismp
 	/* local variables used for EDP dissection */
 	int neighbors_count = 0;
 	int tuples_count = 0;
-	guint16 device_type = 0;
-	guint16 num_neighbors = 0;
-	guint16 num_tuples = 0;
-	guint16 tuple_type = 0;
-	guint32 tuple_length = 0;
-	gchar* ipx_addr_str;
+	uint16_t device_type = 0;
+	uint16_t num_neighbors = 0;
+	uint16_t num_tuples = 0;
+	uint16_t tuple_type = 0;
+	uint32_t tuple_length = 0;
+	char* ipx_addr_str;
 
 	/* Set up structures needed to add the protocol subtree and manage it */
 	proto_item *edp_ti;
@@ -284,8 +284,8 @@ dissect_ismp_edp(tvbuff_t *tvb, packet_info *pinfo, int offset, proto_tree *ismp
 		proto_tree_add_item(edp_tree, hf_ismp_edp_device_type, tvb, offset, 2, ENC_BIG_ENDIAN);
 		offset += 2;
 		proto_tree_add_uint_format_value(edp_tree, hf_ismp_edp_module_rev, tvb, offset, 4, tvb_get_ntohl(tvb, offset),
-			"%02x.%02x.%02x.%02x", tvb_get_guint8(tvb, offset),
-			tvb_get_guint8(tvb, offset+1), tvb_get_guint8(tvb, offset+2), tvb_get_guint8(tvb, offset+3));
+			"%02x.%02x.%02x.%02x", tvb_get_uint8(tvb, offset),
+			tvb_get_uint8(tvb, offset+1), tvb_get_uint8(tvb, offset+2), tvb_get_uint8(tvb, offset+3));
 		offset += 4;
 
 		/* depending on device_type, show the appropriate options */
@@ -446,7 +446,7 @@ dissect_ismp_edp(tvbuff_t *tvb, packet_info *pinfo, int offset, proto_tree *ismp
 				proto_item_set_len(edp_tuples_leaf_tree, tuple_length);
 				tuple_length -= 4;
 
-				if ((guint)tvb_reported_length_remaining(tvb, offset) >= tuple_length)
+				if ((unsigned)tvb_reported_length_remaining(tvb, offset) >= tuple_length)
 				{
 					switch (tuple_type)
 					{
@@ -466,7 +466,7 @@ dissect_ismp_edp(tvbuff_t *tvb, packet_info *pinfo, int offset, proto_tree *ismp
 								proto_tree_add_expert(edp_tree, pinfo, &ei_ismp_malformed, tvb, offset, tuple_length);
 								return;
 							}
-							ipx_addr_str = ipx_addr_to_str(tvb_get_ntohl(tvb, offset), tvb_get_ptr(tvb, offset+4, tuple_length-4));
+							ipx_addr_str = ipx_addr_to_str(pinfo->pool, tvb_get_ntohl(tvb, offset), tvb_get_ptr(tvb, offset+4, tuple_length-4));
 							proto_tree_add_string(edp_tuples_leaf_tree, hf_ismp_interface_ipx_address ,tvb, offset, tuple_length, ipx_addr_str);
 							break;
 						case EDP_TUPLE_UNKNOWN:
@@ -492,9 +492,9 @@ static int
 dissect_ismp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	int offset = 0;
-	guint16 message_type = 0;
-	guint8 code_length = 0;
-	guint8 weird_stuff[3] = { 0x42, 0x42, 0x03 };
+	uint16_t message_type = 0;
+	uint8_t code_length = 0;
+	uint8_t weird_stuff[3] = { 0x42, 0x42, 0x03 };
 
 /* Set up structures needed to add the protocol subtree and manage it */
 	proto_item *ti;
@@ -526,7 +526,7 @@ dissect_ismp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	offset += 2;
 	proto_tree_add_item(ismp_tree, hf_ismp_seq_num, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset += 2;
-	code_length = tvb_get_guint8(tvb, offset);
+	code_length = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(ismp_tree, hf_ismp_code_length, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset += 1;
 	proto_tree_add_item(ismp_tree, hf_ismp_auth_data, tvb, offset, code_length, ENC_NA);
@@ -846,7 +846,7 @@ proto_register_ismp(void)
 	};
 
 /* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_ismp,
 		&ett_ismp_edp,
 		&ett_ismp_edp_options,

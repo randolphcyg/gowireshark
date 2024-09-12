@@ -21,18 +21,18 @@
 void proto_register_roverride (void);
 void proto_reg_handoff_roverride (void);
 
-static int proto_roverride = -1;
-static int hf_roverride_opnum = -1;
+static int proto_roverride;
+static int hf_roverride_opnum;
 
 
-static gint ett_roverride = -1;
+static int ett_roverride;
 
 
 static e_guid_t uuid_roverride = { 0x5d978990, 0x4851, 0x11ca, { 0x99, 0x37, 0x08, 0x00, 0x1e, 0x03, 0x94, 0x48 } };
-static guint16  ver_roverride = 1;
+static uint16_t ver_roverride = 1;
 
 
-static dcerpc_sub_dissector roverride_dissectors[] = {
+static const dcerpc_sub_dissector roverride_dissectors[] = {
 	{ 0, "roverride_get_login_info",        NULL, NULL},
 	{ 1, "roverride_check_passwd",          NULL, NULL},
 	{ 2, "roverride_is_passwd_overridden",  NULL, NULL},
@@ -51,7 +51,7 @@ proto_register_roverride (void)
 		  { "Operation", "roverride.opnum", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_roverride,
 	};
 	proto_roverride = proto_register_protocol ("Remote Override interface", "roverride", "roverride");

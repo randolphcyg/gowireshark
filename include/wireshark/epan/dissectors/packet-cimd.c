@@ -107,42 +107,42 @@
 
 typedef struct cimd_parameter_t cimd_parameter_t;
 
-typedef void (*cimd_pdissect)(tvbuff_t *tvb, proto_tree *tree, gint pindex, gint startOffset, gint endOffset);
+typedef void (*cimd_pdissect)(tvbuff_t *tvb, proto_tree *tree, int pindex, int startOffset, int endOffset);
 
 struct cimd_parameter_t {
   cimd_pdissect  diss;
-  gint          *ett_p;
-  gint          *hf_p;
+  int           *ett_p;
+  int           *hf_p;
 };
 
 void proto_register_cimd(void);
 void proto_reg_handoff_cimd(void);
-static void dissect_cimd_parameter(tvbuff_t *tvb, proto_tree *tree, gint pindex, gint startOffset, gint endOffset);
-static void dissect_cimd_ud(tvbuff_t *tvb, proto_tree *tree, gint pindex, gint startOffset, gint endOffset);
-static void dissect_cimd_dcs(tvbuff_t *tvb, proto_tree *tree, gint pindex, gint startOffset, gint endOffset);
-static void dissect_cimd_error_code(tvbuff_t *tvb, proto_tree *tree, gint pindex, gint startOffset, gint endOffset);
+static void dissect_cimd_parameter(tvbuff_t *tvb, proto_tree *tree, int pindex, int startOffset, int endOffset);
+static void dissect_cimd_ud(tvbuff_t *tvb, proto_tree *tree, int pindex, int startOffset, int endOffset);
+static void dissect_cimd_dcs(tvbuff_t *tvb, proto_tree *tree, int pindex, int startOffset, int endOffset);
+static void dissect_cimd_error_code(tvbuff_t *tvb, proto_tree *tree, int pindex, int startOffset, int endOffset);
 
 static dissector_handle_t cimd_handle;
 
-static int proto_cimd = -1;
+static int proto_cimd;
 /* Initialize the subtree pointers */
-static gint ett_cimd = -1;
+static int ett_cimd;
 
 /* Initialize the protocol and registered fields */
-static int hf_cimd_opcode_indicator = -1;
-static int hf_cimd_packet_number_indicator = -1;
-static int hf_cimd_checksum_indicator = -1;
-static int hf_cimd_pcode_indicator = -1;
+static int hf_cimd_opcode_indicator;
+static int hf_cimd_packet_number_indicator;
+static int hf_cimd_checksum_indicator;
+static int hf_cimd_pcode_indicator;
 
-static int hf_cimd_dcs_coding_group_indicatorC0 = -1;
-static int hf_cimd_dcs_coding_group_indicatorF0 = -1;
-static int hf_cimd_dcs_compressed_indicator = -1;
-static int hf_cimd_dcs_message_class_meaning_indicator = -1;
-static int hf_cimd_dcs_message_class_indicator = -1;
-static int hf_cimd_dcs_character_set_indicator0C = -1;
-static int hf_cimd_dcs_character_set_indicator04 = -1;
-static int hf_cimd_dcs_indication_sense = -1;
-static int hf_cimd_dcs_indication_type = -1;
+static int hf_cimd_dcs_coding_group_indicatorC0;
+static int hf_cimd_dcs_coding_group_indicatorF0;
+static int hf_cimd_dcs_compressed_indicator;
+static int hf_cimd_dcs_message_class_meaning_indicator;
+static int hf_cimd_dcs_message_class_indicator;
+static int hf_cimd_dcs_character_set_indicator0C;
+static int hf_cimd_dcs_character_set_indicator04;
+static int hf_cimd_dcs_indication_sense;
+static int hf_cimd_dcs_indication_type;
 
 static const value_string vals_hdr_OC[] = {
   /* operation codes array */
@@ -433,10 +433,10 @@ static const cimd_pdissect cimd_pc_handles[] = {
 
 /* Parameters */
 static cimd_parameter_t vals_hdr_PC[MAXPARAMSCOUNT + 1];
-static gint ett_index[MAXPARAMSCOUNT];
-static gint hf_index[MAXPARAMSCOUNT];
+static int ett_index[MAXPARAMSCOUNT];
+static int hf_index[MAXPARAMSCOUNT];
 
-static void dissect_cimd_parameter(tvbuff_t *tvb, proto_tree *tree, gint pindex, gint startOffset, gint endOffset)
+static void dissect_cimd_parameter(tvbuff_t *tvb, proto_tree *tree, int pindex, int startOffset, int endOffset)
 {
   /* Set up structures needed to add the param subtree and manage it */
   proto_tree *param_tree;
@@ -450,17 +450,17 @@ static void dissect_cimd_parameter(tvbuff_t *tvb, proto_tree *tree, gint pindex,
     startOffset + 1 + CIMD_PC_LENGTH + 1, endOffset - (startOffset + 1 + CIMD_PC_LENGTH + 1), ENC_ASCII|ENC_NA);
 }
 
-static void dissect_cimd_ud(tvbuff_t *tvb, proto_tree *tree, gint pindex, gint startOffset, gint endOffset)
+static void dissect_cimd_ud(tvbuff_t *tvb, proto_tree *tree, int pindex, int startOffset, int endOffset)
 {
   /* Set up structures needed to add the param subtree and manage it */
   proto_tree *param_tree;
 
-  guint8 *tmpBuffer1;
-  const guint8* payloadText;
+  uint8_t *tmpBuffer1;
+  const uint8_t* payloadText;
   wmem_strbuf_t *tmpBuffer;
   int    loop;
-  gint   g_offset, g_size;
-  gchar  token[4];
+  int    g_offset, g_size;
+  char   token[4];
 
   /* The user data (33) parameter is used when the data coding scheme (30)
    * indicates that the default GSM character set is being used.
@@ -596,13 +596,13 @@ static void dissect_cimd_ud(tvbuff_t *tvb, proto_tree *tree, gint pindex, gint s
   proto_tree_add_string(param_tree, (*vals_hdr_PC[pindex].hf_p), tvb, g_offset, g_size, tmpBuffer1);
 }
 
-static void dissect_cimd_dcs(tvbuff_t *tvb, proto_tree *tree, gint pindex, gint startOffset, gint endOffset)
+static void dissect_cimd_dcs(tvbuff_t *tvb, proto_tree *tree, int pindex, int startOffset, int endOffset)
 {
   /* Set up structures needed to add the param subtree and manage it */
   proto_tree *param_tree;
-  gint        offset;
-  guint32     dcs;
-  guint32     dcs_cg;           /* coding group */
+  int         offset;
+  uint32_t    dcs;
+  uint32_t    dcs_cg;           /* coding group */
 
   param_tree = proto_tree_add_subtree(tree, tvb,
     startOffset + 1, endOffset - (startOffset + 1),
@@ -613,7 +613,7 @@ static void dissect_cimd_dcs(tvbuff_t *tvb, proto_tree *tree, gint pindex, gint 
     startOffset + 1, CIMD_PC_LENGTH, ENC_ASCII);
 
   offset = startOffset + 1 + CIMD_PC_LENGTH + 1;
-  dcs    = (guint32) strtoul(tvb_get_string_enc(wmem_packet_scope(), tvb, offset, endOffset - offset, ENC_ASCII), NULL, 10);
+  dcs    = (uint32_t) strtoul(tvb_get_string_enc(wmem_packet_scope(), tvb, offset, endOffset - offset, ENC_ASCII), NULL, 10);
   proto_tree_add_uint(param_tree, (*vals_hdr_PC[pindex].hf_p), tvb, offset, endOffset - offset, dcs);
 
   dcs_cg = (dcs & 0xF0) >> 4;
@@ -649,30 +649,30 @@ static void dissect_cimd_dcs(tvbuff_t *tvb, proto_tree *tree, gint pindex, gint 
   }
 }
 
-static void dissect_cimd_error_code( tvbuff_t *tvb, proto_tree *tree, gint pindex, gint startOffset, gint endOffset )
+static void dissect_cimd_error_code( tvbuff_t *tvb, proto_tree *tree, int pindex, int startOffset, int endOffset )
 {
   /* Same routine can be used to dissect CIMD Error,Status and Status Error Codes */
   proto_tree *param_tree;
-  guint32 err_code;
+  uint32_t err_code;
 
   param_tree = proto_tree_add_subtree(tree, tvb, startOffset + 1, endOffset - (startOffset + 1),
                                       (*vals_hdr_PC[pindex].ett_p), NULL, cimd_vals_PC[pindex].strptr);
 
   proto_tree_add_item(param_tree, hf_cimd_pcode_indicator, tvb, startOffset + 1, CIMD_PC_LENGTH, ENC_ASCII);
 
-  err_code = (guint32) strtoul(tvb_get_string_enc(wmem_packet_scope(), tvb,
+  err_code = (uint32_t) strtoul(tvb_get_string_enc(wmem_packet_scope(), tvb,
                                                   startOffset + 1 + CIMD_PC_LENGTH + 1, endOffset - (startOffset + 1 + CIMD_PC_LENGTH + 1), ENC_ASCII),
                                NULL, 10);
   proto_tree_add_uint(param_tree, (*vals_hdr_PC[pindex].hf_p), tvb, startOffset + 1 + CIMD_PC_LENGTH + 1, endOffset - (startOffset + 1 + CIMD_PC_LENGTH + 1), err_code);
 }
 
 static void
-dissect_cimd_operation(tvbuff_t *tvb, proto_tree *tree, gint etxp, guint16 checksum, guint8 last1,guint8 OC, guint8 PN)
+dissect_cimd_operation(tvbuff_t *tvb, proto_tree *tree, int etxp, uint16_t checksum, uint8_t last1,uint8_t OC, uint8_t PN)
 {
-  guint32     PC        = 0;    /* Parameter code */
-  gint        idx;
-  gint        offset    = 0;
-  gint        endOffset = 0;
+  uint32_t    PC        = 0;    /* Parameter code */
+  int         idx;
+  int         offset    = 0;
+  int         endOffset = 0;
   proto_item *cimd_item;
   proto_tree *cimd_tree;
 
@@ -683,13 +683,13 @@ dissect_cimd_operation(tvbuff_t *tvb, proto_tree *tree, gint etxp, guint16 check
   proto_tree_add_uint(cimd_tree, hf_cimd_packet_number_indicator, tvb, CIMD_PN_OFFSET, CIMD_PN_LENGTH, PN);
 
   offset = CIMD_PN_OFFSET + CIMD_PN_LENGTH;
-  while (offset < etxp && tvb_get_guint8(tvb, offset) == CIMD_DELIM)
+  while (offset < etxp && tvb_get_uint8(tvb, offset) == CIMD_DELIM)
   {
-    endOffset = tvb_find_guint8(tvb, offset + 1, etxp, CIMD_DELIM);
+    endOffset = tvb_find_uint8(tvb, offset + 1, etxp, CIMD_DELIM);
     if (endOffset == -1)
       break;
 
-    PC = (guint32) strtoul(tvb_get_string_enc(wmem_packet_scope(), tvb, offset + 1, CIMD_PC_LENGTH, ENC_ASCII), NULL, 10);
+    PC = (uint32_t) strtoul(tvb_get_string_enc(wmem_packet_scope(), tvb, offset + 1, CIMD_PC_LENGTH, ENC_ASCII), NULL, 10);
     try_val_to_str_idx(PC, cimd_vals_PC, &idx);
     if (idx != -1 && tree)
     {
@@ -708,39 +708,39 @@ dissect_cimd_operation(tvbuff_t *tvb, proto_tree *tree, gint etxp, guint16 check
 static int
 dissect_cimd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-  guint8   OC;                  /* Operation Code */
-  guint8   PN;                  /* Packet number */
-  guint16  checksum        = 0; /* Checksum */
-  guint16  pkt_check       = 0;
-  gint     etxp            = 0; /* ETX position */
-  gint     offset          = 0;
-  gboolean checksumIsValid = TRUE;
-  guint8   last1, last2, last3;
+  uint8_t  OC;                  /* Operation Code */
+  uint8_t  PN;                  /* Packet number */
+  uint16_t checksum        = 0; /* Checksum */
+  uint16_t pkt_check       = 0;
+  int      etxp            = 0; /* ETX position */
+  int      offset          = 0;
+  bool checksumIsValid = true;
+  uint8_t  last1, last2, last3;
 
-  etxp = tvb_find_guint8(tvb, CIMD_PN_OFFSET + CIMD_PN_LENGTH, -1, CIMD_ETX);
+  etxp = tvb_find_uint8(tvb, CIMD_PN_OFFSET + CIMD_PN_LENGTH, -1, CIMD_ETX);
   if (etxp == -1) return 0;
 
-  OC = (guint8)strtoul(tvb_get_string_enc(wmem_packet_scope(), tvb, CIMD_OC_OFFSET, CIMD_OC_LENGTH, ENC_ASCII), NULL, 10);
-  PN = (guint8)strtoul(tvb_get_string_enc(wmem_packet_scope(), tvb, CIMD_PN_OFFSET, CIMD_PN_LENGTH, ENC_ASCII), NULL, 10);
+  OC = (uint8_t)strtoul(tvb_get_string_enc(pinfo->pool, tvb, CIMD_OC_OFFSET, CIMD_OC_LENGTH, ENC_ASCII), NULL, 10);
+  PN = (uint8_t)strtoul(tvb_get_string_enc(pinfo->pool, tvb, CIMD_PN_OFFSET, CIMD_PN_LENGTH, ENC_ASCII), NULL, 10);
 
-  last1 = tvb_get_guint8(tvb, etxp - 1);
-  last2 = tvb_get_guint8(tvb, etxp - 2);
-  last3 = tvb_get_guint8(tvb, etxp - 3);
+  last1 = tvb_get_uint8(tvb, etxp - 1);
+  last2 = tvb_get_uint8(tvb, etxp - 2);
+  last3 = tvb_get_uint8(tvb, etxp - 3);
 
   if (last1 == CIMD_DELIM) {
     /* valid packet, CC is missing */
   } else if (last1 != CIMD_DELIM && last2 != CIMD_DELIM && last3 == CIMD_DELIM) {
     /* looks valid, it would be nice to check that last1 and last2 are HEXA */
     /* CC is present */
-    checksum = (guint16)strtoul(tvb_get_string_enc(wmem_packet_scope(), tvb, etxp - 2, 2, ENC_ASCII), NULL, 16);
+    checksum = (uint16_t)strtoul(tvb_get_string_enc(pinfo->pool, tvb, etxp - 2, 2, ENC_ASCII), NULL, 16);
     for (; offset < (etxp - 2); offset++)
     {
-      pkt_check += tvb_get_guint8(tvb, offset);
+      pkt_check += tvb_get_uint8(tvb, offset);
       pkt_check &= 0xFF;
     }
     checksumIsValid = (checksum == pkt_check);
   } else {
-    checksumIsValid = FALSE;
+    checksumIsValid = false;
   }
 
   /* Make entries in Protocol column on summary display */
@@ -759,38 +759,38 @@ dissect_cimd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
  * A 'heuristic dissector' that attemtps to establish whether we have
  * a CIMD MSU here.
  */
-static gboolean
+static bool
 dissect_cimd_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   int    etxp;
-  guint8 opcode = 0;            /* Operation code */
+  uint8_t opcode = 0;            /* Operation code */
 
   if (tvb_captured_length(tvb) < CIMD_MIN_LENGTH)
-    return FALSE;
+    return false;
 
-  if (tvb_get_guint8(tvb, 0) != CIMD_STX)
-    return FALSE;
+  if (tvb_get_uint8(tvb, 0) != CIMD_STX)
+    return false;
 
-  etxp = tvb_find_guint8(tvb, CIMD_OC_OFFSET, -1, CIMD_ETX);
+  etxp = tvb_find_uint8(tvb, CIMD_OC_OFFSET, -1, CIMD_ETX);
   if (etxp == -1)
   { /* XXX - should we have an option to request reassembly? */
-    return FALSE;
+    return false;
   }
 
   /* Try getting the operation-code */
-  opcode = (guint8)strtoul(tvb_get_string_enc(wmem_packet_scope(), tvb, CIMD_OC_OFFSET, CIMD_OC_LENGTH, ENC_ASCII), NULL, 10);
+  opcode = (uint8_t)strtoul(tvb_get_string_enc(pinfo->pool, tvb, CIMD_OC_OFFSET, CIMD_OC_LENGTH, ENC_ASCII), NULL, 10);
   if (try_val_to_str(opcode, vals_hdr_OC) == NULL)
-    return FALSE;
+    return false;
 
-  if (tvb_get_guint8(tvb, CIMD_OC_OFFSET + CIMD_OC_LENGTH) != CIMD_COLON)
-    return FALSE;
+  if (tvb_get_uint8(tvb, CIMD_OC_OFFSET + CIMD_OC_LENGTH) != CIMD_COLON)
+    return false;
 
-  if (tvb_get_guint8(tvb, CIMD_PN_OFFSET + CIMD_PN_LENGTH) != CIMD_DELIM)
-    return FALSE;
+  if (tvb_get_uint8(tvb, CIMD_PN_OFFSET + CIMD_PN_LENGTH) != CIMD_DELIM)
+    return false;
 
   /* Ok, looks like a valid packet, go dissect. */
   dissect_cimd(tvb, pinfo, tree, data);
-  return TRUE;
+  return true;
 }
 
 void
@@ -1050,14 +1050,13 @@ proto_register_cimd(void)
   };
 
   /* Setup protocol subtree array */
-  gint *ett[MAXPARAMSCOUNT + 1];
+  int *ett[MAXPARAMSCOUNT + 1];
   int i;
 
   ett[0] = &ett_cimd;
 
   for(i=0;i<MAXPARAMSCOUNT;i++)
   {
-    ett_index[i]         = -1;
     ett[i + 1]           = &(ett_index[i]);
     vals_hdr_PC[i].ett_p = &(ett_index[i]);
     vals_hdr_PC[i].hf_p  = &(hf_index[i]);

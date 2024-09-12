@@ -38,6 +38,7 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 #include "packet-csn1.h"
 #include "packet-gsm_a_rr.h"
 
@@ -47,38 +48,38 @@
 void proto_register_gsm_rlcmac(void);
 void proto_reg_handoff_gsm_rlcmac(void);
 
-static dissector_handle_t lte_rrc_dl_dcch_handle = NULL;
-static dissector_handle_t rrc_irat_ho_to_utran_cmd_handle = NULL;
+static dissector_handle_t lte_rrc_dl_dcch_handle;
+static dissector_handle_t rrc_irat_ho_to_utran_cmd_handle;
 
 /* private typedefs */
 typedef struct
 {
-  gint   offset;
-  guint8 li;
+  int    offset;
+  uint8_t li;
 } length_indicator_t;
 
 /* local constant tables */
-const guint8 gsm_rlcmac_gprs_cs_to_block_length[] = {
+const uint8_t gsm_rlcmac_gprs_cs_to_block_length[] = {
   23, /* CS1 */
   33, /* CS2 */
   39, /* CS3 */
   53  /* CS4 */
 };
 
-const guint8 gsm_rlcmac_egprs_header_type_to_dl_header_block_length[] = {
+const uint8_t gsm_rlcmac_egprs_header_type_to_dl_header_block_length[] = {
   5, /* RLCMAC_HDR_TYPE_1 */
   4, /* RLCMAC_HDR_TYPE_2 */
   4  /* RLCMAC_HDR_TYPE_3 */
 };
 
-const guint8 gsm_rlcmac_egprs_header_type_to_ul_header_block_length[] = {
+const uint8_t gsm_rlcmac_egprs_header_type_to_ul_header_block_length[] = {
   6, /* RLCMAC_HDR_TYPE_1 */
   5, /* RLCMAC_HDR_TYPE_2 */
   4  /* RLCMAC_HDR_TYPE_3 */
 };
 
 #define MCS_INVALID 10 /* used for reserved CPS codepoints */
-const guint8 gsm_rlcmac_egprs_mcs_to_data_block_length[] = {
+const uint8_t gsm_rlcmac_egprs_mcs_to_data_block_length[] = {
    0, /* MCS0 */
   23, /* MCS1 */
   29,
@@ -94,566 +95,566 @@ const guint8 gsm_rlcmac_egprs_mcs_to_data_block_length[] = {
 
 /* Initialize the protocol and registered fields
 */
-static int proto_gsm_rlcmac = -1;
-static int ett_gsm_rlcmac  = -1;
-static int ett_gsm_rlcmac_data  = -1;
-static int ett_data_segments  = -1;
-static int ett_gsm_rlcmac_container = -1;
+static int proto_gsm_rlcmac;
+static int ett_gsm_rlcmac;
+static int ett_gsm_rlcmac_data;
+static int ett_data_segments;
+static int ett_gsm_rlcmac_container;
 
 /* common MAC header IEs */
-static int hf_usf = -1;
-static int hf_ul_payload_type = -1;
-static int hf_dl_payload_type = -1;
-static int hf_dl_ec_payload_type = -1;
-static int hf_rrbp = -1;
-static int hf_ec_rrbp = -1;
-static int hf_s_p = -1;
-static int hf_es_p = -1;
-static int hf_fbi = -1;
+static int hf_usf;
+static int hf_ul_payload_type;
+static int hf_dl_payload_type;
+static int hf_dl_ec_payload_type;
+static int hf_rrbp;
+static int hf_ec_rrbp;
+static int hf_s_p;
+static int hf_es_p;
+static int hf_fbi;
 
 /* common RLC IEs*/
-static int hf_prach8_message_type_3 = -1;
-static int hf_prach8_message_type_6 = -1;
-static int hf_prach11_message_type_6 = -1;
-static int hf_prach11_message_type_9 = -1;
-static int hf_tlli = -1;
-static int hf_global_tfi = -1;
-static int hf_uplink_tfi = -1;
-static int hf_downlink_tfi = -1;
-static int hf_page_mode = -1;
-static int hf_dl_persistent_level_exist = -1;
-static int hf_dl_persistent_level = -1;
-static int hf_bsn = -1;
-static int hf_bsn2_offset = -1;
-static int hf_e = -1;
-static int hf_li= -1;
-static int hf_pi= -1;
-static int hf_ti= -1;
-static int hf_rsb= -1;
-static int hf_dl_spb= -1;
-static int hf_ul_spb= -1;
-static int hf_cps1= -1;
-static int hf_cps2= -1;
-static int hf_cps3= -1;
-static int hf_me = -1;
+static int hf_prach8_message_type_3;
+static int hf_prach8_message_type_6;
+static int hf_prach11_message_type_6;
+static int hf_prach11_message_type_9;
+static int hf_tlli;
+static int hf_global_tfi;
+static int hf_uplink_tfi;
+static int hf_downlink_tfi;
+static int hf_page_mode;
+static int hf_dl_persistent_level_exist;
+static int hf_dl_persistent_level;
+static int hf_bsn;
+static int hf_bsn2_offset;
+static int hf_e;
+static int hf_li;
+static int hf_pi;
+static int hf_ti;
+static int hf_rsb;
+static int hf_dl_spb;
+static int hf_ul_spb;
+static int hf_cps1;
+static int hf_cps2;
+static int hf_cps3;
+static int hf_me;
 
-static int hf_countdown_value = -1;
-static int hf_ul_data_si = -1;
+static int hf_countdown_value;
+static int hf_ul_data_si;
 
-static int hf_dl_data_spare = -1;
-static int hf_ul_data_spare = -1;
-static int hf_pfi = -1;
+static int hf_dl_data_spare;
+static int hf_ul_data_spare;
+static int hf_pfi;
 
 /* RLC/MAC Downlink control block header */
-static int hf_dl_ctrl_rbsn = -1;
-static int hf_dl_ctrl_rti = -1;
-static int hf_dl_ctrl_fs = -1;
-static int hf_dl_ctrl_ac = -1;
-static int hf_dl_ctrl_pr = -1;
-static int hf_dl_ec_ctrl_pr = -1;
-static int hf_dl_ec_ctrl_pre = -1;
-static int hf_dl_ctrl_d = -1;
+static int hf_dl_ctrl_rbsn;
+static int hf_dl_ctrl_rti;
+static int hf_dl_ctrl_fs;
+static int hf_dl_ctrl_ac;
+static int hf_dl_ctrl_pr;
+static int hf_dl_ec_ctrl_pr;
+static int hf_dl_ec_ctrl_pre;
+static int hf_dl_ctrl_d;
 
-static int hf_dl_ctrl_rbsn_e = -1;
-static int hf_dl_ctrl_fs_e = -1;
-static int hf_dl_ctrl_spare = -1;
-static int hf_startingtime_n32 = -1;
-static int hf_startingtime_n51 = -1;
-static int hf_startingtime_n26 = -1;
+static int hf_dl_ctrl_rbsn_e;
+static int hf_dl_ctrl_fs_e;
+static int hf_dl_ctrl_spare;
+static int hf_startingtime_n32;
+static int hf_startingtime_n51;
+static int hf_startingtime_n26;
 
 /* common uplink ies */
-static int hf_ul_message_type = -1;
-static int hf_ul_mac_header_spare = -1;
-static int hf_ul_retry = -1;
-static int hf_additional_ms_rad_access_cap_id_choice = -1;
+static int hf_ul_message_type;
+static int hf_ul_mac_header_spare;
+static int hf_ul_retry;
+static int hf_additional_ms_rad_access_cap_id_choice;
 
 /* < Global TFI IE > */
 
 /* < Starting Frame Number Description IE > */
-static int hf_starting_frame_number = -1;
-static int hf_starting_frame_number_k = -1;
+static int hf_starting_frame_number;
+static int hf_starting_frame_number_k;
 
 /* < Ack/Nack Description IE > */
-static int hf_final_ack_indication = -1;
-static int hf_starting_sequence_number = -1;
-static int hf_received_block_bitmap = -1;
+static int hf_final_ack_indication;
+static int hf_starting_sequence_number;
+static int hf_received_block_bitmap;
 
 /* < Packet Timing Advance IE > */
-static int hf_timing_advance_value = -1;
-static int hf_timing_advance_value_exist = -1;
-static int hf_timing_advance_index = -1;
-static int hf_timing_advance_index_exist = -1;
-static int hf_timing_advance_timeslot_number = -1;
-static int hf_ul_timing_advance_index_exist = -1;
-static int hf_ul_timing_advance_index = -1;
-static int hf_ul_timing_advance_timeslot_number = -1;
-static int hf_dl_timing_advance_index_exist = -1;
-static int hf_dl_timing_advance_index = -1;
-static int hf_dl_timing_advance_timeslot_number = -1;
+static int hf_timing_advance_value;
+static int hf_timing_advance_value_exist;
+static int hf_timing_advance_index;
+static int hf_timing_advance_index_exist;
+static int hf_timing_advance_timeslot_number;
+static int hf_ul_timing_advance_index_exist;
+static int hf_ul_timing_advance_index;
+static int hf_ul_timing_advance_timeslot_number;
+static int hf_dl_timing_advance_index_exist;
+static int hf_dl_timing_advance_index;
+static int hf_dl_timing_advance_timeslot_number;
 
 /* < Power Control Parameters IE > */
-static int hf_alpha = -1;
-static int hf_gamma = -1;
-static int hf_t_avg_w = -1;
-static int hf_t_avg_t = -1;
-static int hf_pc_meas_chan = -1;
-static int hf_n_avg_i = -1;
+static int hf_alpha;
+static int hf_gamma;
+static int hf_t_avg_w;
+static int hf_t_avg_t;
+static int hf_pc_meas_chan;
+static int hf_n_avg_i;
 
 /* < Global Power Control Parameters IE > */
-static int hf_global_power_control_parameters_pb = -1;
-static int hf_global_power_control_parameters_int_meas_channel_list_avail = -1;
+static int hf_global_power_control_parameters_pb;
+static int hf_global_power_control_parameters_int_meas_channel_list_avail;
 
 /* < Global Packet Timing Advance IE > */
 
 /* < Channel Quality Report struct > */
-static int hf_channel_quality_report_c_value = -1;
-static int hf_channel_quality_report_rxqual = -1;
-static int hf_channel_quality_report_sign_var = -1;
-static int hf_channel_quality_report_slot0_i_level_tn = -1;
-static int hf_channel_quality_report_slot1_i_level_tn = -1;
-static int hf_channel_quality_report_slot2_i_level_tn = -1;
-static int hf_channel_quality_report_slot3_i_level_tn = -1;
-static int hf_channel_quality_report_slot4_i_level_tn = -1;
-static int hf_channel_quality_report_slot5_i_level_tn = -1;
-static int hf_channel_quality_report_slot6_i_level_tn = -1;
-static int hf_channel_quality_report_slot7_i_level_tn = -1;
-static int hf_channel_quality_report_slot0_i_level_tn_exist = -1;
-static int hf_channel_quality_report_slot1_i_level_tn_exist = -1;
-static int hf_channel_quality_report_slot2_i_level_tn_exist = -1;
-static int hf_channel_quality_report_slot3_i_level_tn_exist = -1;
-static int hf_channel_quality_report_slot4_i_level_tn_exist = -1;
-static int hf_channel_quality_report_slot5_i_level_tn_exist = -1;
-static int hf_channel_quality_report_slot6_i_level_tn_exist = -1;
-static int hf_channel_quality_report_slot7_i_level_tn_exist = -1;
+static int hf_channel_quality_report_c_value;
+static int hf_channel_quality_report_rxqual;
+static int hf_channel_quality_report_sign_var;
+static int hf_channel_quality_report_slot0_i_level_tn;
+static int hf_channel_quality_report_slot1_i_level_tn;
+static int hf_channel_quality_report_slot2_i_level_tn;
+static int hf_channel_quality_report_slot3_i_level_tn;
+static int hf_channel_quality_report_slot4_i_level_tn;
+static int hf_channel_quality_report_slot5_i_level_tn;
+static int hf_channel_quality_report_slot6_i_level_tn;
+static int hf_channel_quality_report_slot7_i_level_tn;
+static int hf_channel_quality_report_slot0_i_level_tn_exist;
+static int hf_channel_quality_report_slot1_i_level_tn_exist;
+static int hf_channel_quality_report_slot2_i_level_tn_exist;
+static int hf_channel_quality_report_slot3_i_level_tn_exist;
+static int hf_channel_quality_report_slot4_i_level_tn_exist;
+static int hf_channel_quality_report_slot5_i_level_tn_exist;
+static int hf_channel_quality_report_slot6_i_level_tn_exist;
+static int hf_channel_quality_report_slot7_i_level_tn_exist;
 
 
 /* < EGPRS Ack/Nack Description > */
-static int hf_egprs_acknack_beginning_of_window = -1;
-static int hf_egprs_acknack_end_of_window = -1;
-static int hf_egprs_acknack_crbb_length = -1;
-static int hf_egprs_acknack_crbb_exist = -1;
-static int hf_egprs_acknack_crbb_starting_color_code = -1;
-static int hf_egprs_acknack_crbb_bitmap = -1;
-static int hf_egprs_acknack_urbb_bitmap = -1;
-static int hf_egprs_acknack_dissector = -1;
-static int hf_egprs_acknack = -1;
+static int hf_egprs_acknack_beginning_of_window;
+static int hf_egprs_acknack_end_of_window;
+static int hf_egprs_acknack_crbb_length;
+static int hf_egprs_acknack_crbb_exist;
+static int hf_egprs_acknack_crbb_starting_color_code;
+static int hf_egprs_acknack_crbb_bitmap;
+static int hf_egprs_acknack_urbb_bitmap;
+static int hf_egprs_acknack_dissector;
+static int hf_egprs_acknack;
 
 /* <P1 Rest Octets> */
 
 /* <P2 Rest Octets> */
-/* static int hf_mobileallocationie_length = -1; */
-/* static int hf_single_rf_channel_spare = -1; */
-static int hf_arfcn = -1;
-static int hf_maio = -1;
-static int hf_hsn = -1;
+/* static int hf_mobileallocationie_length; */
+/* static int hf_single_rf_channel_spare; */
+static int hf_arfcn;
+static int hf_maio;
+static int hf_hsn;
 #if 0
-static int hf_channel_description_channel_type_and_tdma_offset = -1;
-static int hf_channel_description_tn = -1;
-static int hf_group_call_reference_value = -1;
-static int hf_group_call_reference_sf = -1;
-static int hf_group_call_reference_af = -1;
-static int hf_group_call_reference_call_priority = -1;
-static int hf_group_call_reference_ciphering_information = -1;
-static int hf_nln_pch = -1;
-static int hf_nln_status = -1;
-static int hf_priority = -1;
-static int hf_p1_rest_octets_packet_page_indication_1 = -1;
-static int hf_p1_rest_octets_packet_page_indication_2 = -1;
-static int hf_p2_rest_octets_cn3 = -1;
+static int hf_channel_description_channel_type_and_tdma_offset;
+static int hf_channel_description_tn;
+static int hf_group_call_reference_value;
+static int hf_group_call_reference_sf;
+static int hf_group_call_reference_af;
+static int hf_group_call_reference_call_priority;
+static int hf_group_call_reference_ciphering_information;
+static int hf_nln_pch;
+static int hf_nln_status;
+static int hf_priority;
+static int hf_p1_rest_octets_packet_page_indication_1;
+static int hf_p1_rest_octets_packet_page_indication_2;
+static int hf_p2_rest_octets_cn3;
 #endif
-static int hf_nln = -1;
-/* static int hf_p2_rest_octets_packet_page_indication_3 = -1; */
+static int hf_nln;
+/* static int hf_p2_rest_octets_packet_page_indication_3; */
 
 /* <IA Rest Octets> */
-static int hf_usf_bitmap = -1;
-static int hf_usf_granularity = -1;
-static int hf_p0 = -1;
-static int hf_pr_mode = -1;
-static int hf_nr_of_radio_blocks_allocated = -1;
-static int hf_bts_pwr_ctrl_mode = -1;
-/* static int hf_polling = -1; */
-static int hf_egprs_channel_coding_command = -1;
-static int hf_tlli_block_channel_coding = -1;
-static int hf_bep_period2 = -1;
-static int hf_resegment = -1;
-static int hf_egprs_windowsize = -1;
-/* static int hf_extendedra = -1; */
-/* static int hf_ia_egprs_uniontype  = -1; */
-/* static int hf_ia_freqparamsbeforetime_length = -1; */
-static int hf_gprs_channel_coding_command = -1;
-static int hf_link_quality_measurement_mode = -1;
-static int hf_rlc_mode = -1;
-/* static int hf_ta_valid = -1; */
-static int hf_tqi = -1;
-static int hf_packet_polling_id_choice = -1;
-static int hf_mobile_bitlength = -1;
-static int hf_mobile_bitmap = -1;
-static int hf_mobile_union = -1;
-static int hf_arfcn_index = -1;
-static int hf_arfcn_index_exist = -1;
-static int hf_gprs_mobile_allocation_rfl_number = -1;
-static int hf_gprs_mobile_allocation_rfl_number_exist = -1;
+static int hf_usf_bitmap;
+static int hf_usf_granularity;
+static int hf_p0;
+static int hf_pr_mode;
+static int hf_nr_of_radio_blocks_allocated;
+static int hf_bts_pwr_ctrl_mode;
+/* static int hf_polling; */
+static int hf_egprs_channel_coding_command;
+static int hf_tlli_block_channel_coding;
+static int hf_bep_period2;
+static int hf_resegment;
+static int hf_egprs_windowsize;
+/* static int hf_extendedra; */
+/* static int hf_ia_egprs_uniontype; */
+/* static int hf_ia_freqparamsbeforetime_length; */
+static int hf_gprs_channel_coding_command;
+static int hf_link_quality_measurement_mode;
+static int hf_rlc_mode;
+/* static int hf_ta_valid; */
+static int hf_tqi;
+static int hf_packet_polling_id_choice;
+static int hf_mobile_bitlength;
+static int hf_mobile_bitmap;
+static int hf_mobile_union;
+static int hf_arfcn_index;
+static int hf_arfcn_index_exist;
+static int hf_gprs_mobile_allocation_rfl_number;
+static int hf_gprs_mobile_allocation_rfl_number_exist;
 
 /* <Packet Polling Request> */
-static int hf_dl_message_type = -1;
-static int hf_dl_message_type_exist = -1;
+static int hf_dl_message_type;
+static int hf_dl_message_type_exist;
 
 /* < SI 13 Rest Octets > */
-static int hf_si_rest_bitmap = -1;
-static int hf_si_length = -1;
-static int hf_gprs_cell_options_nmo = -1;
-static int hf_gprs_cell_options_t3168 = -1;
-static int hf_gprs_cell_options_t3192 = -1;
-static int hf_gprs_cell_options_drx_timer_max = -1;
-static int hf_gprs_cell_options_access_burst_type = -1;
-static int hf_ack_type = -1;
-static int hf_padding = -1;
-static int hf_gprs_cell_options_bs_cv_max = -1;
-static int hf_gprs_cell_options_pan_dec = -1;
-static int hf_gprs_cell_options_pan_inc = -1;
-static int hf_gprs_cell_options_pan_max = -1;
-static int hf_gprs_cell_options_pan_exist = -1;
-static int hf_gprs_cell_options_extension_exist = -1;
-static int hf_rac = -1;
-static int hf_pbcch_not_present_spgc_ccch_sup = -1;
-static int hf_pbcch_not_present_priority_access_thr = -1;
-static int hf_pbcch_not_present_network_control_order = -1;
-static int hf_pbcch_description_pb = -1;
-static int hf_pbcch_description_tn = -1;
-static int hf_pbcch_description_choice = -1;
-static int hf_pbcch_present_psi1_repeat_period = -1;
-static int hf_bcch_change_mark = -1;
-static int hf_si_change_field = -1;
-static int hf_si13_change_mark = -1;
-static int hf_sgsnr = -1;
-static int hf_si_status_ind = -1;
+static int hf_si_rest_bitmap;
+static int hf_si_length;
+static int hf_gprs_cell_options_nmo;
+static int hf_gprs_cell_options_t3168;
+static int hf_gprs_cell_options_t3192;
+static int hf_gprs_cell_options_drx_timer_max;
+static int hf_gprs_cell_options_access_burst_type;
+static int hf_ack_type;
+static int hf_padding;
+static int hf_gprs_cell_options_bs_cv_max;
+static int hf_gprs_cell_options_pan_dec;
+static int hf_gprs_cell_options_pan_inc;
+static int hf_gprs_cell_options_pan_max;
+static int hf_gprs_cell_options_pan_exist;
+static int hf_gprs_cell_options_extension_exist;
+static int hf_rac;
+static int hf_pbcch_not_present_spgc_ccch_sup;
+static int hf_pbcch_not_present_priority_access_thr;
+static int hf_pbcch_not_present_network_control_order;
+static int hf_pbcch_description_pb;
+static int hf_pbcch_description_tn;
+static int hf_pbcch_description_choice;
+static int hf_pbcch_present_psi1_repeat_period;
+static int hf_bcch_change_mark;
+static int hf_si_change_field;
+static int hf_si13_change_mark;
+static int hf_sgsnr;
+static int hf_si_status_ind;
 
 /* < Packet TBF Release message content > */
-static int hf_packetbf_release = -1;
-static int hf_packetbf_padding = -1;
-static int hf_packetbf_release_uplink_release = -1;
-static int hf_packetbf_release_downlink_release = -1;
-static int hf_packetbf_release_tbf_release_cause = -1;
+static int hf_packetbf_release;
+static int hf_packetbf_padding;
+static int hf_packetbf_release_uplink_release;
+static int hf_packetbf_release_downlink_release;
+static int hf_packetbf_release_tbf_release_cause;
 
 /* < Packet Control Acknowledgement message content > */
-static int hf_packet_control_acknowledgement_additionsr6_ctrl_ack_extension = -1;
-static int hf_packet_control_acknowledgement_additionsr5_tn_rrbp = -1;
-static int hf_packet_control_acknowledgement_additionsr5_g_rnti_extension = -1;
-static int hf_packet_control_acknowledgement_ctrl_ack = -1;
-static int hf_packet_control_acknowledgement_ctrl_ack_exist = -1;
-static int hf_packet_control_acknowledgement_additionsr6_ctrl_ack_exist = -1;
-static int hf_packet_control_acknowledgement_additionsr5_tn_rrbp_exist = -1;
-static int hf_packet_control_acknowledgement_additionsr5_g_rnti_extension_exist = -1;
-static int hf_packet_control_acknowledgement_additionsr6_exist = -1;
+static int hf_packet_control_acknowledgement_additionsr6_ctrl_ack_extension;
+static int hf_packet_control_acknowledgement_additionsr5_tn_rrbp;
+static int hf_packet_control_acknowledgement_additionsr5_g_rnti_extension;
+static int hf_packet_control_acknowledgement_ctrl_ack;
+static int hf_packet_control_acknowledgement_ctrl_ack_exist;
+static int hf_packet_control_acknowledgement_additionsr6_ctrl_ack_exist;
+static int hf_packet_control_acknowledgement_additionsr5_tn_rrbp_exist;
+static int hf_packet_control_acknowledgement_additionsr5_g_rnti_extension_exist;
+static int hf_packet_control_acknowledgement_additionsr6_exist;
 
 /* < Packet Downlink Dummy Control Block message content > */
 
 /* < Packet Uplink Dummy Control Block message content > */
 #if 0
-static int hf_receive_n_pdu_number_nsapi = -1;
-static int hf_receive_n_pdu_number_value = -1;
+static int hf_receive_n_pdu_number_nsapi;
+static int hf_receive_n_pdu_number_value;
 #endif
 
 /* < MS Radio Access capability IE > */
-static int hf_dtm_egprs_dtm_egprs_multislot_class = -1;
-static int hf_dtm_egprs_highmultislotclass_dtm_egprs_highmultislotclass = -1;
-static int hf_multislot_capability_hscsd_multislot_class = -1;
-static int hf_multislot_capability_gprs_multislot_class = -1;
-static int hf_multislot_capability_gprs_extended_dynamic_allocation_capability = -1;
-static int hf_multislot_capability_sms_value = -1;
-static int hf_multislot_capability_sm_value = -1;
-static int hf_multislot_capability_ecsd_multislot_class = -1;
-static int hf_multislot_capability_egprs_multislot_class = -1;
-static int hf_multislot_capability_egprs_extended_dynamic_allocation_capability = -1;
-static int hf_multislot_capability_dtm_gprs_multislot_class = -1;
-static int hf_multislot_capability_single_slot_dtm = -1;
-static int hf_dtm_egprs_dtm_egprs_multislot_class_exist = -1;
-static int hf_dtm_egprs_highmultislotclass_dtm_egprs_highmultislotclass_exist = -1;
-static int hf_multislot_capability_hscsd_multislot_class_exist = -1;
-static int hf_multislot_capability_gprs_multislot_class_exist = -1;
-static int hf_multislot_capability_sms_exist = -1;
-static int hf_multislot_capability_ecsd_multislot_class_exist = -1;
-static int hf_multislot_capability_egprs_multislot_class_exist = -1;
-static int hf_multislot_capability_dtm_gprs_multislot_class_exist = -1;
+static int hf_dtm_egprs_dtm_egprs_multislot_class;
+static int hf_dtm_egprs_highmultislotclass_dtm_egprs_highmultislotclass;
+static int hf_multislot_capability_hscsd_multislot_class;
+static int hf_multislot_capability_gprs_multislot_class;
+static int hf_multislot_capability_gprs_extended_dynamic_allocation_capability;
+static int hf_multislot_capability_sms_value;
+static int hf_multislot_capability_sm_value;
+static int hf_multislot_capability_ecsd_multislot_class;
+static int hf_multislot_capability_egprs_multislot_class;
+static int hf_multislot_capability_egprs_extended_dynamic_allocation_capability;
+static int hf_multislot_capability_dtm_gprs_multislot_class;
+static int hf_multislot_capability_single_slot_dtm;
+static int hf_dtm_egprs_dtm_egprs_multislot_class_exist;
+static int hf_dtm_egprs_highmultislotclass_dtm_egprs_highmultislotclass_exist;
+static int hf_multislot_capability_hscsd_multislot_class_exist;
+static int hf_multislot_capability_gprs_multislot_class_exist;
+static int hf_multislot_capability_sms_exist;
+static int hf_multislot_capability_ecsd_multislot_class_exist;
+static int hf_multislot_capability_egprs_multislot_class_exist;
+static int hf_multislot_capability_dtm_gprs_multislot_class_exist;
 
-static int hf_content_rf_power_capability = -1;
-static int hf_content_a5_bits = -1;
-static int hf_content_es_ind = -1;
-static int hf_content_ps = -1;
-static int hf_content_vgcs = -1;
-static int hf_content_vbs = -1;
-static int hf_content_eight_psk_power_capability = -1;
-static int hf_content_compact_interference_measurement_capability = -1;
-static int hf_content_revision_level_indicator = -1;
-static int hf_content_umts_fdd_radio_access_technology_capability = -1;
-static int hf_content_umts_384_tdd_radio_access_technology_capability = -1;
-static int hf_content_cdma2000_radio_access_technology_capability = -1;
-static int hf_content_umts_128_tdd_radio_access_technology_capability = -1;
-static int hf_a5_bits_exist = -1;
-static int hf_multislot_capability_exist = -1;
-static int hf_content_eight_psk_power_capability_exist = -1;
-static int hf_content_extended_dtm_gprs_multislot_class_exist = -1;
-static int hf_content_highmultislotcapability_exist = -1;
-static int hf_content_geran_lu_modecapability_exist = -1;
-static int hf_content_dtm_gprs_highmultislotclass_exist = -1;
-static int hf_content_geran_feature_package_1 = -1;
-static int hf_content_extended_dtm_gprs_multislot_class = -1;
-static int hf_content_extended_dtm_egprs_multislot_class = -1;
-static int hf_content_modulation_based_multislot_class_support = -1;
-static int hf_content_highmultislotcapability = -1;
-static int hf_content_geran_lu_modecapability = -1;
-static int hf_content_gmsk_multislotpowerprofile = -1;
-static int hf_content_eightpsk_multislotprofile = -1;
-static int hf_content_multipletbf_capability = -1;
-static int hf_content_downlinkadvancedreceiverperformance = -1;
-static int hf_content_extendedrlc_mac_controlmessagesegmentionscapability = -1;
-static int hf_content_dtm_enhancementscapability = -1;
-static int hf_content_dtm_gprs_highmultislotclass = -1;
-static int hf_content_ps_handovercapability = -1;
-static int hf_content_dtm_handover_capability = -1;
-static int hf_content_multislot_capability_reduction_for_dl_dual_carrier_exist = -1;
-static int hf_content_multislot_capability_reduction_for_dl_dual_carrier = -1;
-static int hf_content_dual_carrier_for_dtm = -1;
-static int hf_content_flexible_timeslot_assignment = -1;
-static int hf_content_gan_ps_handover_capability = -1;
-static int hf_content_rlc_non_persistent_mode = -1;
-static int hf_content_reduced_latency_capability = -1;
-static int hf_content_uplink_egprs2 = -1;
-static int hf_content_downlink_egprs2 = -1;
-static int hf_content_eutra_fdd_support = -1;
-static int hf_content_eutra_tdd_support = -1;
-static int hf_content_geran_to_eutran_support_in_geran_ptm = -1;
-static int hf_content_priority_based_reselection_support = -1;
-static int hf_additional_accessechnologies_struct_t_access_technology_type = -1;
-static int hf_additional_accessechnologies_struct_t_gmsk_power_class = -1;
-static int hf_additional_accessechnologies_struct_t_eight_psk_power_class = -1;
-static int hf_additional_access_technology_exist = -1;
-/* static int hf_ms_radio_access_capability_iei = -1; */
-/* static int hf_ms_radio_access_capability_length = -1; */
-static int hf_content_dissector = -1;
-static int hf_additional_access_dissector = -1;
-static int hf_ms_ra_capability_value_choice = -1;
-static int hf_ms_ra_capability_value = -1;
+static int hf_content_rf_power_capability;
+static int hf_content_a5_bits;
+static int hf_content_es_ind;
+static int hf_content_ps;
+static int hf_content_vgcs;
+static int hf_content_vbs;
+static int hf_content_eight_psk_power_capability;
+static int hf_content_compact_interference_measurement_capability;
+static int hf_content_revision_level_indicator;
+static int hf_content_umts_fdd_radio_access_technology_capability;
+static int hf_content_umts_384_tdd_radio_access_technology_capability;
+static int hf_content_cdma2000_radio_access_technology_capability;
+static int hf_content_umts_128_tdd_radio_access_technology_capability;
+static int hf_a5_bits_exist;
+static int hf_multislot_capability_exist;
+static int hf_content_eight_psk_power_capability_exist;
+static int hf_content_extended_dtm_gprs_multislot_class_exist;
+static int hf_content_highmultislotcapability_exist;
+static int hf_content_geran_lu_modecapability_exist;
+static int hf_content_dtm_gprs_highmultislotclass_exist;
+static int hf_content_geran_feature_package_1;
+static int hf_content_extended_dtm_gprs_multislot_class;
+static int hf_content_extended_dtm_egprs_multislot_class;
+static int hf_content_modulation_based_multislot_class_support;
+static int hf_content_highmultislotcapability;
+static int hf_content_geran_lu_modecapability;
+static int hf_content_gmsk_multislotpowerprofile;
+static int hf_content_eightpsk_multislotprofile;
+static int hf_content_multipletbf_capability;
+static int hf_content_downlinkadvancedreceiverperformance;
+static int hf_content_extendedrlc_mac_controlmessagesegmentionscapability;
+static int hf_content_dtm_enhancementscapability;
+static int hf_content_dtm_gprs_highmultislotclass;
+static int hf_content_ps_handovercapability;
+static int hf_content_dtm_handover_capability;
+static int hf_content_multislot_capability_reduction_for_dl_dual_carrier_exist;
+static int hf_content_multislot_capability_reduction_for_dl_dual_carrier;
+static int hf_content_dual_carrier_for_dtm;
+static int hf_content_flexible_timeslot_assignment;
+static int hf_content_gan_ps_handover_capability;
+static int hf_content_rlc_non_persistent_mode;
+static int hf_content_reduced_latency_capability;
+static int hf_content_uplink_egprs2;
+static int hf_content_downlink_egprs2;
+static int hf_content_eutra_fdd_support;
+static int hf_content_eutra_tdd_support;
+static int hf_content_geran_to_eutran_support_in_geran_ptm;
+static int hf_content_priority_based_reselection_support;
+static int hf_additional_accessechnologies_struct_t_access_technology_type;
+static int hf_additional_accessechnologies_struct_t_gmsk_power_class;
+static int hf_additional_accessechnologies_struct_t_eight_psk_power_class;
+static int hf_additional_access_technology_exist;
+/* static int hf_ms_radio_access_capability_iei; */
+/* static int hf_ms_radio_access_capability_length; */
+static int hf_content_dissector;
+static int hf_additional_access_dissector;
+static int hf_ms_ra_capability_value_choice;
+static int hf_ms_ra_capability_value;
 
 /* < MS Classmark 3 IE > */
 #if 0
-static int hf_arc_a5_bits = -1;
-static int hf_multiband_a5_bits = -1;
-static int hf_arc_arc2_spare = -1;
-static int hf_arc_arc1 = -1;
-static int hf_edge_rf_pwr_edge_rf_pwrcap1 = -1;
-static int hf_edge_rf_pwr_edge_rf_pwrcap2 = -1;
-static int hf_ms_class3_unpacked_spare1 = -1;
-static int hf_ms_class3_unpacked_r_gsm_arc = -1;
-static int hf_ms_class3_unpacked_multislotclass = -1;
-static int hf_ms_class3_unpacked_ucs2 = -1;
-static int hf_ms_class3_unpacked_extendedmeasurementcapability = -1;
-static int hf_ms_class3_unpacked_sms_value = -1;
-static int hf_ms_class3_unpacked_sm_value = -1;
-static int hf_ms_class3_unpacked_ms_positioningmethod = -1;
-static int hf_ms_class3_unpacked_edge_multislotclass = -1;
-static int hf_ms_class3_unpacked_modulationcapability = -1;
-static int hf_ms_class3_unpacked_gsm400_bands = -1;
-static int hf_ms_class3_unpacked_gsm400_arc = -1;
-static int hf_ms_class3_unpacked_gsm850_arc = -1;
-static int hf_ms_class3_unpacked_pcs1900_arc = -1;
-static int hf_ms_class3_unpacked_umts_fdd_radio_access_technology_capability = -1;
-static int hf_ms_class3_unpacked_umts_384_tdd_radio_access_technology_capability = -1;
-static int hf_ms_class3_unpacked_cdma2000_radio_access_technology_capability = -1;
-static int hf_ms_class3_unpacked_dtm_gprs_multislot_class = -1;
-static int hf_ms_class3_unpacked_single_slot_dtm = -1;
-static int hf_ms_class3_unpacked_gsm_band = -1;
-static int hf_ms_class3_unpacked_gsm_700_associated_radio_capability = -1;
-static int hf_ms_class3_unpacked_umts_128_tdd_radio_access_technology_capability = -1;
-static int hf_ms_class3_unpacked_geran_feature_package_1 = -1;
-static int hf_ms_class3_unpacked_extended_dtm_gprs_multislot_class = -1;
-static int hf_ms_class3_unpacked_extended_dtm_egprs_multislot_class = -1;
-static int hf_ms_class3_unpacked_highmultislotcapability = -1;
-static int hf_ms_class3_unpacked_geran_lu_modecapability = -1;
-static int hf_ms_class3_unpacked_geran_featurepackage_2 = -1;
-static int hf_ms_class3_unpacked_gmsk_multislotpowerprofile = -1;
-static int hf_ms_class3_unpacked_eightpsk_multislotprofile = -1;
-static int hf_ms_class3_unpacked_tgsm_400_bandssupported = -1;
-static int hf_ms_class3_unpacked_tgsm_400_associatedradiocapability = -1;
-static int hf_ms_class3_unpacked_tgsm_900_associatedradiocapability = -1;
-static int hf_ms_class3_unpacked_downlinkadvancedreceiverperformance = -1;
-static int hf_ms_class3_unpacked_dtm_enhancementscapability = -1;
-static int hf_ms_class3_unpacked_dtm_gprs_highmultislotclass = -1;
-static int hf_ms_class3_unpacked_offsetrequired = -1;
-static int hf_ms_class3_unpacked_repeatedsacch_capability = -1;
-static int hf_ms_class3_unpacked_spare2 = -1;
+static int hf_arc_a5_bits;
+static int hf_multiband_a5_bits;
+static int hf_arc_arc2_spare;
+static int hf_arc_arc1;
+static int hf_edge_rf_pwr_edge_rf_pwrcap1;
+static int hf_edge_rf_pwr_edge_rf_pwrcap2;
+static int hf_ms_class3_unpacked_spare1;
+static int hf_ms_class3_unpacked_r_gsm_arc;
+static int hf_ms_class3_unpacked_multislotclass;
+static int hf_ms_class3_unpacked_ucs2;
+static int hf_ms_class3_unpacked_extendedmeasurementcapability;
+static int hf_ms_class3_unpacked_sms_value;
+static int hf_ms_class3_unpacked_sm_value;
+static int hf_ms_class3_unpacked_ms_positioningmethod;
+static int hf_ms_class3_unpacked_edge_multislotclass;
+static int hf_ms_class3_unpacked_modulationcapability;
+static int hf_ms_class3_unpacked_gsm400_bands;
+static int hf_ms_class3_unpacked_gsm400_arc;
+static int hf_ms_class3_unpacked_gsm850_arc;
+static int hf_ms_class3_unpacked_pcs1900_arc;
+static int hf_ms_class3_unpacked_umts_fdd_radio_access_technology_capability;
+static int hf_ms_class3_unpacked_umts_384_tdd_radio_access_technology_capability;
+static int hf_ms_class3_unpacked_cdma2000_radio_access_technology_capability;
+static int hf_ms_class3_unpacked_dtm_gprs_multislot_class;
+static int hf_ms_class3_unpacked_single_slot_dtm;
+static int hf_ms_class3_unpacked_gsm_band;
+static int hf_ms_class3_unpacked_gsm_700_associated_radio_capability;
+static int hf_ms_class3_unpacked_umts_128_tdd_radio_access_technology_capability;
+static int hf_ms_class3_unpacked_geran_feature_package_1;
+static int hf_ms_class3_unpacked_extended_dtm_gprs_multislot_class;
+static int hf_ms_class3_unpacked_extended_dtm_egprs_multislot_class;
+static int hf_ms_class3_unpacked_highmultislotcapability;
+static int hf_ms_class3_unpacked_geran_lu_modecapability;
+static int hf_ms_class3_unpacked_geran_featurepackage_2;
+static int hf_ms_class3_unpacked_gmsk_multislotpowerprofile;
+static int hf_ms_class3_unpacked_eightpsk_multislotprofile;
+static int hf_ms_class3_unpacked_tgsm_400_bandssupported;
+static int hf_ms_class3_unpacked_tgsm_400_associatedradiocapability;
+static int hf_ms_class3_unpacked_tgsm_900_associatedradiocapability;
+static int hf_ms_class3_unpacked_downlinkadvancedreceiverperformance;
+static int hf_ms_class3_unpacked_dtm_enhancementscapability;
+static int hf_ms_class3_unpacked_dtm_gprs_highmultislotclass;
+static int hf_ms_class3_unpacked_offsetrequired;
+static int hf_ms_class3_unpacked_repeatedsacch_capability;
+static int hf_ms_class3_unpacked_spare2;
 #endif
-static int hf_channel_request_description_peak_throughput_class = -1;
-static int hf_channel_request_description_radio_priority = -1;
-static int hf_channel_request_description_llc_pdu_type = -1;
-static int hf_channel_request_description_rlc_octet_count = -1;
-static int hf_packet_resource_request_id_choice = -1;
-static int hf_bep_measurementreport_mean_bep_exist = -1;
-static int hf_bep_measurementreport_mean_bep_union = -1;
-static int hf_interferencemeasurementreport_i_level_exist = -1;
-static int hf_bep_measurements_exist = -1;
-static int hf_interference_measurements_exist = -1;
-static int hf_egprs_bep_linkqualitymeasurements_mean_bep_gmsk_exist = -1;
-static int hf_egprs_bep_linkqualitymeasurements_mean_bep_8psk_exist = -1;
-static int hf_egprs_bep_measurements_exist = -1;
-static int hf_egprs_timeslotlinkquality_measurements_exist = -1;
-static int hf_pfi_exist = -1;
+static int hf_channel_request_description_peak_throughput_class;
+static int hf_channel_request_description_radio_priority;
+static int hf_channel_request_description_llc_pdu_type;
+static int hf_channel_request_description_rlc_octet_count;
+static int hf_packet_resource_request_id_choice;
+static int hf_bep_measurementreport_mean_bep_exist;
+static int hf_bep_measurementreport_mean_bep_union;
+static int hf_interferencemeasurementreport_i_level_exist;
+static int hf_bep_measurements_exist;
+static int hf_interference_measurements_exist;
+static int hf_egprs_bep_linkqualitymeasurements_mean_bep_gmsk_exist;
+static int hf_egprs_bep_linkqualitymeasurements_mean_bep_8psk_exist;
+static int hf_egprs_bep_measurements_exist;
+static int hf_egprs_timeslotlinkquality_measurements_exist;
+static int hf_pfi_exist;
 
 /* < Packet Resource Request message content > */
-static int hf_bep_measurementreport_mean_bep_gmsk = -1;
-static int hf_bep_measurementreport_mean_bep_8psk = -1;
-static int hf_interferencemeasurementreport_i_level = -1;
-static int hf_egprs_bep_linkqualitymeasurements_mean_bep_gmsk = -1;
-static int hf_egprs_bep_linkqualitymeasurements_cv_bep_gmsk = -1;
-static int hf_egprs_bep_linkqualitymeasurements_mean_bep_8psk = -1;
-static int hf_egprs_bep_linkqualitymeasurements_cv_bep_8psk = -1;
-static int hf_prr_additionsr99_ms_rac_additionalinformationavailable = -1;
-static int hf_prr_additionsr99_retransmissionofprr = -1;
-static int hf_packet_resource_request_access_type = -1;
-static int hf_packet_resource_request_change_mark = -1;
-static int hf_packet_resource_request_c_value = -1;
-static int hf_packet_resource_request_sign_var = -1;
-static int hf_packet_resource_request_access_type_exist = -1;
-static int hf_ms_radio_access_capability_exist = -1;
-static int hf_packet_resource_request_change_mark_exist = -1;
-static int hf_packet_resource_request_sign_var_exist = -1;
-static int hf_additionsr99_exist = -1;
-static int hf_egprs_prr_additionsr5_g_rnti_exist = -1;
-static int hf_egprs_prr_additionsr5_g_rnti_extension = -1;
-static int hf_egprs_prr_additionsr5_rb_id = -1;
-static int hf_egprs_prr_additionsr5_radio_priority = -1;
-static int hf_egprs_prr_additionsr5_rlc_block_count_exist = -1;
-static int hf_egprs_prr_additionsr5_rlc_block_count = -1;
-static int hf_iu_mode_chrequest_exist = -1;
-static int hf_egprs_prr_additionsr6_lcc_pdu_exist = -1;
-static int hf_egprs_prr_additionsr6_lcc_pdu = -1;
-static int hf_Ext_Channel_Request_desc_exist = -1;
-static int hf_egprs_prr_additionsr7_gmsk_mean_bep_exist = -1;
-static int hf_egprs_prr_additionsr7_gmsk_mean_bep = -1;
-static int hf_egprs_prr_additionsr7_gmsk_cv_bep = -1;
-static int hf_egprs_prr_additionsr7_8psk_mean_bep_exist = -1;
-static int hf_egprs_prr_additionsr7_8psk_mean_bep = -1;
-static int hf_egprs_prr_additionsr7_8psk_cv_bep = -1;
-static int hf_egprs_prr_additionsr7_qpsk_mean_bep_exist = -1;
-static int hf_egprs_prr_additionsr7_qpsk_mean_bep = -1;
-static int hf_egprs_prr_additionsr7_qpsk_cv_bep = -1;
-static int hf_egprs_prr_additionsr7_16qam_nsr_mean_bep_exist = -1;
-static int hf_egprs_prr_additionsr7_16qam_nsr_mean_bep = -1;
-static int hf_egprs_prr_additionsr7_16qam_nsr_cv_bep = -1;
-static int hf_egprs_prr_additionsr7_32qam_nsr_mean_bep_exist = -1;
-static int hf_egprs_prr_additionsr7_32qam_nsr_mean_bep = -1;
-static int hf_egprs_prr_additionsr7_32qam_nsr_cv_bep = -1;
-static int hf_egprs_prr_additionsr7_16qam_hsr_mean_bep_exist = -1;
-static int hf_egprs_prr_additionsr7_16qam_hsr_mean_bep = -1;
-static int hf_egprs_prr_additionsr7_16qam_hsr_cv_bep = -1;
-static int hf_egprs_prr_additionsr7_32qam_hsr_mean_bep_exist = -1;
-static int hf_egprs_prr_additionsr7_32qam_hsr_mean_bep = -1;
-static int hf_egprs_prr_additionsr7_32qam_hsr_cv_bep = -1;
-static int hf_bep_measurementreport_reported_modulation = -1;
-static int hf_bep_measurementreport_mean_bep_tn = -1;
-static int hf_prr_additionsr99_additionsr5_exist = -1;
-static int hf_egprs_prr_additionsr5_hfn_lsb_exist = -1;
-static int hf_egprs_prr_additionsr5_hfn_lsb = -1;
-static int hf_prr_additionsr5_additionsr6_exist = -1;
-static int hf_prr_additionsr6_additionsr7_exist = -1;
-static int hf_prr_additionsr7_early_tbf_establishment = -1;
-static int hf_egprs_bep_measurements_type2_exist = -1;
-static int hf_egprs_timeslotlinkquality_measurements_type2_exist = -1;
-static int hf_prr_additionsr7_additionsr10_exist = -1;
-static int hf_prr_additionsr10_low_access_priority_signalling = -1;
-static int hf_prr_additionsr10_additionsr12_exist = -1;
-static int hf_egprs_downlink_etfi_exist = -1;
-static int hf_prr_additionsr12_downlink_etfi = -1;
+static int hf_bep_measurementreport_mean_bep_gmsk;
+static int hf_bep_measurementreport_mean_bep_8psk;
+static int hf_interferencemeasurementreport_i_level;
+static int hf_egprs_bep_linkqualitymeasurements_mean_bep_gmsk;
+static int hf_egprs_bep_linkqualitymeasurements_cv_bep_gmsk;
+static int hf_egprs_bep_linkqualitymeasurements_mean_bep_8psk;
+static int hf_egprs_bep_linkqualitymeasurements_cv_bep_8psk;
+static int hf_prr_additionsr99_ms_rac_additionalinformationavailable;
+static int hf_prr_additionsr99_retransmissionofprr;
+static int hf_packet_resource_request_access_type;
+static int hf_packet_resource_request_change_mark;
+static int hf_packet_resource_request_c_value;
+static int hf_packet_resource_request_sign_var;
+static int hf_packet_resource_request_access_type_exist;
+static int hf_ms_radio_access_capability_exist;
+static int hf_packet_resource_request_change_mark_exist;
+static int hf_packet_resource_request_sign_var_exist;
+static int hf_additionsr99_exist;
+static int hf_egprs_prr_additionsr5_g_rnti_exist;
+static int hf_egprs_prr_additionsr5_g_rnti_extension;
+static int hf_egprs_prr_additionsr5_rb_id;
+static int hf_egprs_prr_additionsr5_radio_priority;
+static int hf_egprs_prr_additionsr5_rlc_block_count_exist;
+static int hf_egprs_prr_additionsr5_rlc_block_count;
+static int hf_iu_mode_chrequest_exist;
+static int hf_egprs_prr_additionsr6_lcc_pdu_exist;
+static int hf_egprs_prr_additionsr6_lcc_pdu;
+static int hf_Ext_Channel_Request_desc_exist;
+static int hf_egprs_prr_additionsr7_gmsk_mean_bep_exist;
+static int hf_egprs_prr_additionsr7_gmsk_mean_bep;
+static int hf_egprs_prr_additionsr7_gmsk_cv_bep;
+static int hf_egprs_prr_additionsr7_8psk_mean_bep_exist;
+static int hf_egprs_prr_additionsr7_8psk_mean_bep;
+static int hf_egprs_prr_additionsr7_8psk_cv_bep;
+static int hf_egprs_prr_additionsr7_qpsk_mean_bep_exist;
+static int hf_egprs_prr_additionsr7_qpsk_mean_bep;
+static int hf_egprs_prr_additionsr7_qpsk_cv_bep;
+static int hf_egprs_prr_additionsr7_16qam_nsr_mean_bep_exist;
+static int hf_egprs_prr_additionsr7_16qam_nsr_mean_bep;
+static int hf_egprs_prr_additionsr7_16qam_nsr_cv_bep;
+static int hf_egprs_prr_additionsr7_32qam_nsr_mean_bep_exist;
+static int hf_egprs_prr_additionsr7_32qam_nsr_mean_bep;
+static int hf_egprs_prr_additionsr7_32qam_nsr_cv_bep;
+static int hf_egprs_prr_additionsr7_16qam_hsr_mean_bep_exist;
+static int hf_egprs_prr_additionsr7_16qam_hsr_mean_bep;
+static int hf_egprs_prr_additionsr7_16qam_hsr_cv_bep;
+static int hf_egprs_prr_additionsr7_32qam_hsr_mean_bep_exist;
+static int hf_egprs_prr_additionsr7_32qam_hsr_mean_bep;
+static int hf_egprs_prr_additionsr7_32qam_hsr_cv_bep;
+static int hf_bep_measurementreport_reported_modulation;
+static int hf_bep_measurementreport_mean_bep_tn;
+static int hf_prr_additionsr99_additionsr5_exist;
+static int hf_egprs_prr_additionsr5_hfn_lsb_exist;
+static int hf_egprs_prr_additionsr5_hfn_lsb;
+static int hf_prr_additionsr5_additionsr6_exist;
+static int hf_prr_additionsr6_additionsr7_exist;
+static int hf_prr_additionsr7_early_tbf_establishment;
+static int hf_egprs_bep_measurements_type2_exist;
+static int hf_egprs_timeslotlinkquality_measurements_type2_exist;
+static int hf_prr_additionsr7_additionsr10_exist;
+static int hf_prr_additionsr10_low_access_priority_signalling;
+static int hf_prr_additionsr10_additionsr12_exist;
+static int hf_egprs_downlink_etfi_exist;
+static int hf_prr_additionsr12_downlink_etfi;
 
 /* < Packet Mobile TBF Status message content > */
-static int hf_packet_mobile_tbf_status_tbf_cause = -1;
+static int hf_packet_mobile_tbf_status_tbf_cause;
 
 /* < Packet PSI Status message content > */
-static int hf_psi_message_psix_change_mark = -1;
-static int hf_additional_msg_type = -1;
-static int hf_packet_psi_status_pbcch_change_mark = -1;
-static int hf_psi_message_psix_count_instance_bitmap_exist = -1;
-static int hf_psi_message_psix_count = -1;
-static int hf_psi_message_instance_bitmap = -1;
-static int hf_psi_message_exist = -1;
-static int hf_psi_message_list = -1;
+static int hf_psi_message_psix_change_mark;
+static int hf_additional_msg_type;
+static int hf_packet_psi_status_pbcch_change_mark;
+static int hf_psi_message_psix_count_instance_bitmap_exist;
+static int hf_psi_message_psix_count;
+static int hf_psi_message_instance_bitmap;
+static int hf_psi_message_exist;
+static int hf_psi_message_list;
 
 /* < Packet SI Status message content > */
-static int hf_si_message_type = -1;
-static int hf_si_message_mess_rec = -1;
-static int hf_si_message_list_exist = -1;
-static int hf_si_message_list = -1;
+static int hf_si_message_type;
+static int hf_si_message_mess_rec;
+static int hf_si_message_list_exist;
+static int hf_si_message_list;
 
 /* < Packet Downlink Ack/Nack message content > */
 
 /* < EGPRS Packet Downlink Ack/Nack message content > */
-static int hf_egprs_channelqualityreport_c_value = -1;
-static int hf_egprs_pd_acknack_ms_out_of_memory = -1;
-static int hf_fddarget_cell_t_fdd_arfcn = -1;
-static int hf_fddarget_cell_t_diversity = -1;
-static int hf_fddarget_cell_t_bandwith_fdd = -1;
-static int hf_fddarget_cell_t_scrambling_code = -1;
-static int hf_tddarget_cell_t_tdd_arfcn = -1;
-static int hf_tddarget_cell_t_diversity = -1;
-static int hf_tddarget_cell_t_bandwith_tdd = -1;
-static int hf_tddarget_cell_t_cell_parameter = -1;
-static int hf_tddarget_cell_t_sync_case_tstd = -1;
+static int hf_egprs_channelqualityreport_c_value;
+static int hf_egprs_pd_acknack_ms_out_of_memory;
+static int hf_fddarget_cell_t_fdd_arfcn;
+static int hf_fddarget_cell_t_diversity;
+static int hf_fddarget_cell_t_bandwith_fdd;
+static int hf_fddarget_cell_t_scrambling_code;
+static int hf_tddarget_cell_t_tdd_arfcn;
+static int hf_tddarget_cell_t_diversity;
+static int hf_tddarget_cell_t_bandwith_tdd;
+static int hf_tddarget_cell_t_cell_parameter;
+static int hf_tddarget_cell_t_sync_case_tstd;
 
 
 /* < Packet Cell Change Failure message content > */
-static int hf_packet_cell_change_failure_bsic = -1;
-static int hf_packet_cell_change_failure_cause = -1;
-static int hf_utran_csg_target_cell_ci = -1;
-static int hf_eutran_csg_target_cell_ci = -1;
-static int hf_eutran_csg_target_cell_tac = -1;
+static int hf_packet_cell_change_failure_bsic;
+static int hf_packet_cell_change_failure_cause;
+static int hf_utran_csg_target_cell_ci;
+static int hf_eutran_csg_target_cell_ci;
+static int hf_eutran_csg_target_cell_tac;
 
 
 /* < Packet Uplink Ack/Nack message content > */
-static int hf_pu_acknack_gprs_additionsr99_tbf_est = -1;
-static int hf_pu_acknack_gprs_fixedallocationdummy = -1;
-static int hf_pu_acknack_egprs_00_pre_emptive_transmission = -1;
-static int hf_pu_acknack_egprs_00_prr_retransmission_request = -1;
-static int hf_pu_acknack_egprs_00_arac_retransmission_request = -1;
-static int hf_pu_acknack_egprs_00_tbf_est = -1;
-static int hf_packet_uplink_id_choice = -1;
-static int hf_packet_extended_timing_advance = -1;
+static int hf_pu_acknack_gprs_additionsr99_tbf_est;
+static int hf_pu_acknack_gprs_fixedallocationdummy;
+static int hf_pu_acknack_egprs_00_pre_emptive_transmission;
+static int hf_pu_acknack_egprs_00_prr_retransmission_request;
+static int hf_pu_acknack_egprs_00_arac_retransmission_request;
+static int hf_pu_acknack_egprs_00_tbf_est;
+static int hf_packet_uplink_id_choice;
+static int hf_packet_extended_timing_advance;
 
 /* < Packet Uplink Assignment message content > */
-static int hf_change_mark_change_mark_1 = -1;
-static int hf_change_mark_change_mark_2 = -1;
-static int hf_indirect_encoding_ma_number = -1;
-static int hf_ma_frequency_list_length = -1;
-static int hf_ma_frequency_list = -1;
-static int hf_packet_request_reference_random_access_information = -1;
-static int hf_packet_request_reference_frame_number = -1;
-static int hf_extended_dynamic_allocation = -1;
-static int hf_ppc_timing_advance_id_choice = -1;
-static int hf_rlc_data_blocks_granted = -1;
-static int hf_single_block_allocation_timeslot_number = -1;
-/* static int hf_dtm_single_block_allocation_timeslot_number = -1; */
-static int hf_compact_reducedma_bitmaplength = -1;
-static int hf_compact_reducedma_bitmap = -1;
-static int hf_multiblock_allocation_timeslot_number = -1;
-static int hf_pua_egprs_00_arac_retransmission_request = -1;
-static int hf_pua_egprs_00_access_tech_type = -1;
-static int hf_pua_egprs_00_access_tech_type_exist = -1;
+static int hf_change_mark_change_mark_1;
+static int hf_change_mark_change_mark_2;
+static int hf_indirect_encoding_ma_number;
+static int hf_ma_frequency_list_length;
+static int hf_ma_frequency_list;
+static int hf_packet_request_reference_random_access_information;
+static int hf_packet_request_reference_frame_number;
+static int hf_extended_dynamic_allocation;
+static int hf_ppc_timing_advance_id_choice;
+static int hf_rlc_data_blocks_granted;
+static int hf_single_block_allocation_timeslot_number;
+/* static int hf_dtm_single_block_allocation_timeslot_number; */
+static int hf_compact_reducedma_bitmaplength;
+static int hf_compact_reducedma_bitmap;
+static int hf_multiblock_allocation_timeslot_number;
+static int hf_pua_egprs_00_arac_retransmission_request;
+static int hf_pua_egprs_00_access_tech_type;
+static int hf_pua_egprs_00_access_tech_type_exist;
 
 /* < Packet Downlink Assignment message content > */
-static int hf_measurement_mapping_struct_measurement_interval = -1;
-static int hf_measurement_mapping_struct_measurement_bitmap = -1;
-static int hf_packet_downlink_id_choice = -1;
-static int hf_mac_mode = -1;
-static int hf_control_ack = -1;
-static int hf_dl_timeslot_allocation = -1;
-/* static int hf_dtm_channel_request_description_dtm_pkt_est_cause = -1; */
+static int hf_measurement_mapping_struct_measurement_interval;
+static int hf_measurement_mapping_struct_measurement_bitmap;
+static int hf_packet_downlink_id_choice;
+static int hf_mac_mode;
+static int hf_control_ack;
+static int hf_dl_timeslot_allocation;
+/* static int hf_dtm_channel_request_description_dtm_pkt_est_cause; */
 
 /* < Packet Paging Request message content > */
-static int hf_mobile_identity_length_of_mobile_identity_contents = -1;
-static int hf_page_request_for_rr_conn_channel_needed = -1;
-static int hf_page_request_for_rr_conn_emlpp_priority = -1;
-static int hf_page_request_ptmsi = -1;
-static int hf_page_request_for_rr_conn_tmsi = -1;
-static int hf_packet_pdch_release_timeslots_available = -1;
+static int hf_mobile_identity_length_of_mobile_identity_contents;
+static int hf_page_request_for_rr_conn_channel_needed;
+static int hf_page_request_for_rr_conn_emlpp_priority;
+static int hf_page_request_ptmsi;
+static int hf_page_request_for_rr_conn_tmsi;
+static int hf_packet_pdch_release_timeslots_available;
 
 /* < Packet Power Control/Timing Advance message content > */
 
@@ -662,389 +663,389 @@ static int hf_packet_pdch_release_timeslots_available = -1;
 /* < Packet Timeslot Reconfigure message content > */
 
 /* < Packet PRACH Parameters message content > */
-static int hf_prach_acc_contr_class = -1;
-static int hf_prach_max_retrans = -1;
-static int hf_prach_control_s = -1;
-static int hf_prach_control_tx_int = -1;
-static int hf_cell_allocation_rfl_number = -1;
-static int hf_cell_allocation_rfl_number_exist = -1;
-static int hf_hcs_priority_class = -1;
-static int hf_hcs_hcs_thr = -1;
-static int hf_location_repeat_pbcch_location = -1;
-static int hf_location_repeat_psi1_repeat_period = -1;
-static int hf_si13_pbcch_location_si13_location = -1;
-static int hf_cell_selection_bsic = -1;
-static int hf_cell_bar_access_2 = -1;
-static int hf_cell_selection_same_ra_as_serving_cell = -1;
-static int hf_cell_selection_gprs_rxlev_access_min = -1;
-static int hf_cell_selection_gprs_ms_txpwr_max_cch = -1;
-static int hf_cell_selection_gprs_temporary_offset = -1;
-static int hf_cell_selection_gprs_penalty_time = -1;
-static int hf_cell_selection_gprs_reselect_offset = -1;
-static int hf_cell_selection_param_with_freqdiff = -1;
-static int hf_neighbourcellparameters_start_frequency = -1;
-static int hf_neighbourcellparameters_nr_of_remaining_cells = -1;
-static int hf_neighbourcellparameters_freq_diff_length = -1;
-static int hf_cell_selection_2_same_ra_as_serving_cell = -1;
-static int hf_cell_selection_2_gprs_rxlev_access_min = -1;
-static int hf_cell_selection_2_gprs_ms_txpwr_max_cch = -1;
-static int hf_cell_selection_2_gprs_temporary_offset = -1;
-static int hf_cell_selection_2_gprs_penalty_time = -1;
-static int hf_cell_selection_2_gprs_reselect_offset = -1;
+static int hf_prach_acc_contr_class;
+static int hf_prach_max_retrans;
+static int hf_prach_control_s;
+static int hf_prach_control_tx_int;
+static int hf_cell_allocation_rfl_number;
+static int hf_cell_allocation_rfl_number_exist;
+static int hf_hcs_priority_class;
+static int hf_hcs_hcs_thr;
+static int hf_location_repeat_pbcch_location;
+static int hf_location_repeat_psi1_repeat_period;
+static int hf_si13_pbcch_location_si13_location;
+static int hf_cell_selection_bsic;
+static int hf_cell_bar_access_2;
+static int hf_cell_selection_same_ra_as_serving_cell;
+static int hf_cell_selection_gprs_rxlev_access_min;
+static int hf_cell_selection_gprs_ms_txpwr_max_cch;
+static int hf_cell_selection_gprs_temporary_offset;
+static int hf_cell_selection_gprs_penalty_time;
+static int hf_cell_selection_gprs_reselect_offset;
+static int hf_cell_selection_param_with_freqdiff;
+static int hf_neighbourcellparameters_start_frequency;
+static int hf_neighbourcellparameters_nr_of_remaining_cells;
+static int hf_neighbourcellparameters_freq_diff_length;
+static int hf_cell_selection_2_same_ra_as_serving_cell;
+static int hf_cell_selection_2_gprs_rxlev_access_min;
+static int hf_cell_selection_2_gprs_ms_txpwr_max_cch;
+static int hf_cell_selection_2_gprs_temporary_offset;
+static int hf_cell_selection_2_gprs_penalty_time;
+static int hf_cell_selection_2_gprs_reselect_offset;
 
 /* < Packet Access Reject message content > */
-static int hf_reject_id_choice = -1;
-static int hf_reject_wait_indication = -1;
-static int hf_reject_wait_indication_size = -1;
-static int hf_packet_cell_change_order_id_choice = -1;
+static int hf_reject_id_choice;
+static int hf_reject_wait_indication;
+static int hf_reject_wait_indication_size;
+static int hf_packet_cell_change_order_id_choice;
 
 /* < Packet Cell Change Order message content > */
-/* static int hf_h_freqbsiccell_bsic = -1; */
-static int hf_cellselectionparamswithfreqdiff_bsic = -1;
-static int hf_add_frequency_list_start_frequency = -1;
-static int hf_add_frequency_list_bsic = -1;
-static int hf_add_frequency_list_nr_of_frequencies = -1;
-static int hf_add_frequency_list_freq_diff_length = -1;
-static int hf_nc_frequency_list_nr_of_removed_freq = -1;
-static int hf_removed_freq_index_removed_freq_index = -1;
-static int hf_nc_measurement_parameters_network_control_order = -1;
-static int hf_nc_measurement_parameters_nc_non_drx_period = -1;
-static int hf_nc_measurement_parameters_nc_reporting_period_i = -1;
-static int hf_nc_measurement_parameters_nc_reporting_period_t = -1;
-static int hf_nc_measurement_parameters_with_frequency_list_network_control_order = -1;
-static int hf_nc_measurement_parameters_with_frequency_list_nc_non_drx_period = -1;
-static int hf_nc_measurement_parameters_with_frequency_list_nc_reporting_period_i = -1;
-static int hf_nc_measurement_parameters_with_frequency_list_nc_reporting_period_t = -1;
+/* static int hf_h_freqbsiccell_bsic; */
+static int hf_cellselectionparamswithfreqdiff_bsic;
+static int hf_add_frequency_list_start_frequency;
+static int hf_add_frequency_list_bsic;
+static int hf_add_frequency_list_nr_of_frequencies;
+static int hf_add_frequency_list_freq_diff_length;
+static int hf_nc_frequency_list_nr_of_removed_freq;
+static int hf_removed_freq_index_removed_freq_index;
+static int hf_nc_measurement_parameters_network_control_order;
+static int hf_nc_measurement_parameters_nc_non_drx_period;
+static int hf_nc_measurement_parameters_nc_reporting_period_i;
+static int hf_nc_measurement_parameters_nc_reporting_period_t;
+static int hf_nc_measurement_parameters_with_frequency_list_network_control_order;
+static int hf_nc_measurement_parameters_with_frequency_list_nc_non_drx_period;
+static int hf_nc_measurement_parameters_with_frequency_list_nc_reporting_period_i;
+static int hf_nc_measurement_parameters_with_frequency_list_nc_reporting_period_t;
 
 /* < Packet Cell Change Order message contents > */
-static int hf_ba_ind_ba_ind = -1;
-static int hf_ba_ind_ba_ind_3g = -1;
-static int hf_gprsreportpriority_number_cells = -1;
-static int hf_gprsreportpriority_report_priority = -1;
-static int hf_offsetthreshold_reporting_offset = -1;
-static int hf_offsetthreshold_reporting_threshold = -1;
-static int hf_gprsmeasurementparams_pmo_pcco_multi_band_reporting = -1;
-static int hf_gprsmeasurementparams_pmo_pcco_serving_band_reporting = -1;
-static int hf_gprsmeasurementparams_pmo_pcco_scale_ord = -1;
+static int hf_ba_ind_ba_ind;
+static int hf_ba_ind_ba_ind_3g;
+static int hf_gprsreportpriority_number_cells;
+static int hf_gprsreportpriority_report_priority;
+static int hf_offsetthreshold_reporting_offset;
+static int hf_offsetthreshold_reporting_threshold;
+static int hf_gprsmeasurementparams_pmo_pcco_multi_band_reporting;
+static int hf_gprsmeasurementparams_pmo_pcco_serving_band_reporting;
+static int hf_gprsmeasurementparams_pmo_pcco_scale_ord;
 #if 0
-static int hf_gprsmeasurementparams3g_qsearch_p = -1;
-static int hf_gprsmeasurementparams3g_searchprio3g = -1;
-static int hf_gprsmeasurementparams3g_repquantfdd = -1;
-static int hf_gprsmeasurementparams3g_multiratreportingfdd = -1;
-static int hf_gprsmeasurementparams3g_reportingoffsetfdd = -1;
-static int hf_gprsmeasurementparams3g_reportingthresholdfdd = -1;
-static int hf_gprsmeasurementparams3g_multiratreportingtdd = -1;
-static int hf_gprsmeasurementparams3g_reportingoffsettdd = -1;
-static int hf_gprsmeasurementparams3g_reportingthresholdtdd = -1;
+static int hf_gprsmeasurementparams3g_qsearch_p;
+static int hf_gprsmeasurementparams3g_searchprio3g;
+static int hf_gprsmeasurementparams3g_repquantfdd;
+static int hf_gprsmeasurementparams3g_multiratreportingfdd;
+static int hf_gprsmeasurementparams3g_reportingoffsetfdd;
+static int hf_gprsmeasurementparams3g_reportingthresholdfdd;
+static int hf_gprsmeasurementparams3g_multiratreportingtdd;
+static int hf_gprsmeasurementparams3g_reportingoffsettdd;
+static int hf_gprsmeasurementparams3g_reportingthresholdtdd;
 #endif
-static int hf_multiratparams3g_multiratreporting = -1;
-static int hf_enh_gprsmeasurementparams3g_pmo_qsearch_p = -1;
-static int hf_enh_gprsmeasurementparams3g_pmo_searchprio3g = -1;
-static int hf_enh_gprsmeasurementparams3g_pmo_repquantfdd = -1;
-static int hf_enh_gprsmeasurementparams3g_pmo_multiratreportingfdd = -1;
-static int hf_enh_gprsmeasurementparams3g_pcco_qsearch_p = -1;
-static int hf_enh_gprsmeasurementparams3g_pcco_searchprio3g = -1;
-static int hf_enh_gprsmeasurementparams3g_pcco_repquantfdd = -1;
-static int hf_enh_gprsmeasurementparams3g_pcco_multiratreportingfdd = -1;
-static int hf_n2_removed_3gcell_index = -1;
-static int hf_n2_cell_diff_length_3g = -1;
-static int hf_n2_cell_diff = -1;
-static int hf_n2_count = -1;
-static int hf_n1_count = -1;
-static int hf_cdma2000_description_complete_this = -1;
-static int hf_utran_fdd_neighbourcells_zero = -1;
-static int hf_utran_fdd_neighbourcells_uarfcn = -1;
-static int hf_utran_fdd_neighbourcells_indic0 = -1;
-static int hf_utran_fdd_neighbourcells_nrofcells = -1;
-static int hf_utran_fdd_neighbourcells_cellinfo = -1;
-static int hf_utran_fdd_description_bandwidth = -1;
-static int hf_utran_tdd_neighbourcells_zero = -1;
-static int hf_utran_tdd_neighbourcells_uarfcn = -1;
-static int hf_utran_tdd_neighbourcells_indic0 = -1;
-static int hf_utran_tdd_neighbourcells_nrofcells = -1;
-static int hf_utran_tdd_description_bandwidth = -1;
-static int hf_index_start_3g = -1;
-static int hf_absolute_index_start_emr = -1;
-static int hf_psi3_change_mark = -1;
-static int hf_enh_measurement_parameters_pmo_pmo_ind = -1;
-static int hf_enh_measurement_parameters_pmo_report_type = -1;
-static int hf_enh_measurement_parameters_pmo_reporting_rate = -1;
-static int hf_enh_measurement_parameters_pmo_invalid_bsic_reporting = -1;
-static int hf_enh_measurement_parameters_pcco_pmo_ind = -1;
-static int hf_enh_measurement_parameters_pcco_report_type = -1;
-static int hf_enh_measurement_parameters_pcco_reporting_rate = -1;
-static int hf_enh_measurement_parameters_pcco_invalid_bsic_reporting = -1;
-static int hf_ccn_support_description_number_cells = -1;
-static int hf_ccn_supported = -1;
-static int hf_lu_modecellselectionparameters_cell_bar_qualify_3 = -1;
-static int hf_lu_modeneighbourcellparams_nr_of_frequencies = -1;
-static int hf_lu_modeonlycellselection_cell_bar_qualify_3 = -1;
-static int hf_lu_modeonlycellselection_same_ra_as_serving_cell = -1;
-static int hf_lu_modeonlycellselection_gprs_rxlev_access_min = -1;
-static int hf_lu_modeonlycellselection_gprs_ms_txpwr_max_cch = -1;
-static int hf_lu_modeonlycellselection_gprs_temporary_offset = -1;
-static int hf_lu_modeonlycellselection_gprs_penalty_time = -1;
-static int hf_lu_modeonlycellselection_gprs_reselect_offset = -1;
-static int hf_lu_modeonlycellselectionparamswithfreqdiff = -1;
-static int hf_lu_modeonlycellselectionparamswithfreqdiff_bsic = -1;
-static int hf_add_lu_modeonlyfrequencylist_start_frequency = -1;
-static int hf_add_lu_modeonlyfrequencylist_bsic = -1;
-static int hf_add_lu_modeonlyfrequencylist_nr_of_frequencies = -1;
-static int hf_add_lu_modeonlyfrequencylist_freq_diff_length = -1;
-static int hf_gprs_additionalmeasurementparams3g_fdd_reporting_threshold_2 = -1;
-static int hf_servingcellpriorityparametersdescription_geran_priority = -1;
-static int hf_servingcellpriorityparametersdescription_thresh_priority_search = -1;
-static int hf_servingcellpriorityparametersdescription_thresh_gsm_low = -1;
-static int hf_servingcellpriorityparametersdescription_h_prio = -1;
-static int hf_servingcellpriorityparametersdescription_t_reselection = -1;
-static int hf_repeatedutran_priorityparameters_utran_freq_index = -1;
-static int hf_repeatedutran_priorityparameters_utran_freq_index_exist = -1;
-static int hf_repeatedutran_priorityparameters_utran_priority = -1;
-static int hf_repeatedutran_priorityparameters_thresh_utran_high = -1;
-static int hf_repeatedutran_priorityparameters_thresh_utran_low = -1;
-static int hf_repeatedutran_priorityparameters_utran_qrxlevmin = -1;
-static int hf_priorityparametersdescription3g_pmo_default_utran_priority = -1;
-static int hf_priorityparametersdescription3g_pmo_default_thresh_utran = -1;
-static int hf_priorityparametersdescription3g_pmo_default_utran_qrxlevmin = -1;
-static int hf_eutran_reportinghreshold_offset_t_eutran_fdd_reporting_threshold = -1;
-static int hf_eutran_reportinghreshold_offset_t_eutran_fdd_reporting_threshold_2 = -1;
-static int hf_eutran_reportinghreshold_offset_t_eutran_fdd_reporting_offset = -1;
-static int hf_eutran_reportinghreshold_offset_t_eutran_tdd_reporting_threshold = -1;
-static int hf_eutran_reportinghreshold_offset_t_eutran_tdd_reporting_threshold_2 = -1;
-static int hf_eutran_reportinghreshold_offset_t_eutran_tdd_reporting_offset = -1;
-static int hf_gprs_eutran_measurementparametersdescription_qsearch_p_eutran = -1;
-static int hf_gprs_eutran_measurementparametersdescription_eutran_rep_quant = -1;
-static int hf_gprs_eutran_measurementparametersdescription_eutran_multirat_reporting = -1;
-static int hf_repeatedeutran_cells_earfcn = -1;
-static int hf_repeatedeutran_cells_measurementbandwidth = -1;
-static int hf_repeatedeutran_neighbourcells_eutran_priority = -1;
-static int hf_repeatedeutran_neighbourcells_thresh_eutran_high = -1;
-static int hf_repeatedeutran_neighbourcells_thresh_eutran_low = -1;
-static int hf_repeatedeutran_neighbourcells_eutran_qrxlevmin = -1;
-static int hf_pcid_pattern_pcid_pattern_length = -1;
-static int hf_pcid_pattern_pcid_pattern = -1;
-static int hf_pcid_pattern_pcid_pattern_sense = -1;
-static int hf_pcid_group_ie_pcid_bitmap_group = -1;
-static int hf_pcid_group_ie_pcid = -1;
-static int hf_pcid_group_ie_pcid_exist = -1;
-static int hf_eutran_frequency_index_eutran_frequency_index = -1;
-static int hf_eutran_parametersdescription_pmo_eutran_ccn_active = -1;
-static int hf_psc_pattern_sense = -1;
-static int hf_psc_pattern_length = -1;
-static int hf_psc_pattern = -1;
-static int hf_psc_group_psc = -1;
-static int hf_psc_group_psc_exist = -1;
-static int hf_three3_csg_description_body_utran_freq_index = -1;
-static int hf_three3_csg_description_body_utran_freq_index_exist = -1;
-static int hf_eutran_csg_description_body_eutran_freq_index = -1;
-static int hf_eutran_csg_description_body_eutran_freq_index_exist = -1;
-static int hf_meas_ctrl_param_meas_ctrl_eutran = -1;
-static int hf_meas_ctrl_param_eutran_freq_idx = -1;
-static int hf_meas_ctrl_param_eutran_freq_idx_exist = -1;
-static int hf_meas_ctrl_param_meas_ctrl_utran = -1;
-static int hf_meas_ctrl_param_utran_freq_idx = -1;
-static int hf_meas_ctrl_param_utran_freq_idx_exist = -1;
-static int hf_rept_eutran_enh_cell_resel_param_eutran_qmin = -1;
-static int hf_rept_eutran_enh_cell_resel_param_eutran_freq_index = -1;
-static int hf_rept_eutran_enh_cell_resel_param_eutran_freq_index_exist = -1;
-static int hf_rept_eutran_enh_cell_resel_param_thresh_eutran_high_q = -1;
-static int hf_rept_eutran_enh_cell_resel_param_thresh_eutran_low_q = -1;
-static int hf_rept_eutran_enh_cell_resel_param_thresh_eutran_qqualmin = -1;
-static int hf_rept_eutran_enh_cell_resel_param_thresh_eutran_rsrpmin = -1;
+static int hf_multiratparams3g_multiratreporting;
+static int hf_enh_gprsmeasurementparams3g_pmo_qsearch_p;
+static int hf_enh_gprsmeasurementparams3g_pmo_searchprio3g;
+static int hf_enh_gprsmeasurementparams3g_pmo_repquantfdd;
+static int hf_enh_gprsmeasurementparams3g_pmo_multiratreportingfdd;
+static int hf_enh_gprsmeasurementparams3g_pcco_qsearch_p;
+static int hf_enh_gprsmeasurementparams3g_pcco_searchprio3g;
+static int hf_enh_gprsmeasurementparams3g_pcco_repquantfdd;
+static int hf_enh_gprsmeasurementparams3g_pcco_multiratreportingfdd;
+static int hf_n2_removed_3gcell_index;
+static int hf_n2_cell_diff_length_3g;
+static int hf_n2_cell_diff;
+static int hf_n2_count;
+static int hf_n1_count;
+static int hf_cdma2000_description_complete_this;
+static int hf_utran_fdd_neighbourcells_zero;
+static int hf_utran_fdd_neighbourcells_uarfcn;
+static int hf_utran_fdd_neighbourcells_indic0;
+static int hf_utran_fdd_neighbourcells_nrofcells;
+static int hf_utran_fdd_neighbourcells_cellinfo;
+static int hf_utran_fdd_description_bandwidth;
+static int hf_utran_tdd_neighbourcells_zero;
+static int hf_utran_tdd_neighbourcells_uarfcn;
+static int hf_utran_tdd_neighbourcells_indic0;
+static int hf_utran_tdd_neighbourcells_nrofcells;
+static int hf_utran_tdd_description_bandwidth;
+static int hf_index_start_3g;
+static int hf_absolute_index_start_emr;
+static int hf_psi3_change_mark;
+static int hf_enh_measurement_parameters_pmo_pmo_ind;
+static int hf_enh_measurement_parameters_pmo_report_type;
+static int hf_enh_measurement_parameters_pmo_reporting_rate;
+static int hf_enh_measurement_parameters_pmo_invalid_bsic_reporting;
+static int hf_enh_measurement_parameters_pcco_pmo_ind;
+static int hf_enh_measurement_parameters_pcco_report_type;
+static int hf_enh_measurement_parameters_pcco_reporting_rate;
+static int hf_enh_measurement_parameters_pcco_invalid_bsic_reporting;
+static int hf_ccn_support_description_number_cells;
+static int hf_ccn_supported;
+static int hf_lu_modecellselectionparameters_cell_bar_qualify_3;
+static int hf_lu_modeneighbourcellparams_nr_of_frequencies;
+static int hf_lu_modeonlycellselection_cell_bar_qualify_3;
+static int hf_lu_modeonlycellselection_same_ra_as_serving_cell;
+static int hf_lu_modeonlycellselection_gprs_rxlev_access_min;
+static int hf_lu_modeonlycellselection_gprs_ms_txpwr_max_cch;
+static int hf_lu_modeonlycellselection_gprs_temporary_offset;
+static int hf_lu_modeonlycellselection_gprs_penalty_time;
+static int hf_lu_modeonlycellselection_gprs_reselect_offset;
+static int hf_lu_modeonlycellselectionparamswithfreqdiff;
+static int hf_lu_modeonlycellselectionparamswithfreqdiff_bsic;
+static int hf_add_lu_modeonlyfrequencylist_start_frequency;
+static int hf_add_lu_modeonlyfrequencylist_bsic;
+static int hf_add_lu_modeonlyfrequencylist_nr_of_frequencies;
+static int hf_add_lu_modeonlyfrequencylist_freq_diff_length;
+static int hf_gprs_additionalmeasurementparams3g_fdd_reporting_threshold_2;
+static int hf_servingcellpriorityparametersdescription_geran_priority;
+static int hf_servingcellpriorityparametersdescription_thresh_priority_search;
+static int hf_servingcellpriorityparametersdescription_thresh_gsm_low;
+static int hf_servingcellpriorityparametersdescription_h_prio;
+static int hf_servingcellpriorityparametersdescription_t_reselection;
+static int hf_repeatedutran_priorityparameters_utran_freq_index;
+static int hf_repeatedutran_priorityparameters_utran_freq_index_exist;
+static int hf_repeatedutran_priorityparameters_utran_priority;
+static int hf_repeatedutran_priorityparameters_thresh_utran_high;
+static int hf_repeatedutran_priorityparameters_thresh_utran_low;
+static int hf_repeatedutran_priorityparameters_utran_qrxlevmin;
+static int hf_priorityparametersdescription3g_pmo_default_utran_priority;
+static int hf_priorityparametersdescription3g_pmo_default_thresh_utran;
+static int hf_priorityparametersdescription3g_pmo_default_utran_qrxlevmin;
+static int hf_eutran_reportinghreshold_offset_t_eutran_fdd_reporting_threshold;
+static int hf_eutran_reportinghreshold_offset_t_eutran_fdd_reporting_threshold_2;
+static int hf_eutran_reportinghreshold_offset_t_eutran_fdd_reporting_offset;
+static int hf_eutran_reportinghreshold_offset_t_eutran_tdd_reporting_threshold;
+static int hf_eutran_reportinghreshold_offset_t_eutran_tdd_reporting_threshold_2;
+static int hf_eutran_reportinghreshold_offset_t_eutran_tdd_reporting_offset;
+static int hf_gprs_eutran_measurementparametersdescription_qsearch_p_eutran;
+static int hf_gprs_eutran_measurementparametersdescription_eutran_rep_quant;
+static int hf_gprs_eutran_measurementparametersdescription_eutran_multirat_reporting;
+static int hf_repeatedeutran_cells_earfcn;
+static int hf_repeatedeutran_cells_measurementbandwidth;
+static int hf_repeatedeutran_neighbourcells_eutran_priority;
+static int hf_repeatedeutran_neighbourcells_thresh_eutran_high;
+static int hf_repeatedeutran_neighbourcells_thresh_eutran_low;
+static int hf_repeatedeutran_neighbourcells_eutran_qrxlevmin;
+static int hf_pcid_pattern_pcid_pattern_length;
+static int hf_pcid_pattern_pcid_pattern;
+static int hf_pcid_pattern_pcid_pattern_sense;
+static int hf_pcid_group_ie_pcid_bitmap_group;
+static int hf_pcid_group_ie_pcid;
+static int hf_pcid_group_ie_pcid_exist;
+static int hf_eutran_frequency_index_eutran_frequency_index;
+static int hf_eutran_parametersdescription_pmo_eutran_ccn_active;
+static int hf_psc_pattern_sense;
+static int hf_psc_pattern_length;
+static int hf_psc_pattern;
+static int hf_psc_group_psc;
+static int hf_psc_group_psc_exist;
+static int hf_three3_csg_description_body_utran_freq_index;
+static int hf_three3_csg_description_body_utran_freq_index_exist;
+static int hf_eutran_csg_description_body_eutran_freq_index;
+static int hf_eutran_csg_description_body_eutran_freq_index_exist;
+static int hf_meas_ctrl_param_meas_ctrl_eutran;
+static int hf_meas_ctrl_param_eutran_freq_idx;
+static int hf_meas_ctrl_param_eutran_freq_idx_exist;
+static int hf_meas_ctrl_param_meas_ctrl_utran;
+static int hf_meas_ctrl_param_utran_freq_idx;
+static int hf_meas_ctrl_param_utran_freq_idx_exist;
+static int hf_rept_eutran_enh_cell_resel_param_eutran_qmin;
+static int hf_rept_eutran_enh_cell_resel_param_eutran_freq_index;
+static int hf_rept_eutran_enh_cell_resel_param_eutran_freq_index_exist;
+static int hf_rept_eutran_enh_cell_resel_param_thresh_eutran_high_q;
+static int hf_rept_eutran_enh_cell_resel_param_thresh_eutran_low_q;
+static int hf_rept_eutran_enh_cell_resel_param_thresh_eutran_qqualmin;
+static int hf_rept_eutran_enh_cell_resel_param_thresh_eutran_rsrpmin;
 
-static int hf_utran_csg_fdd_reporting_threshold = -1;
-static int hf_utran_csg_fdd_reporting_threshold2 = -1;
-static int hf_utran_csg_tdd_reporting_threshold = -1;
-static int hf_eutran_csg_fdd_reporting_threshold = -1;
-static int hf_eutran_csg_fdd_reporting_threshold2 = -1;
-static int hf_eutran_csg_tdd_reporting_threshold = -1;
-static int hf_eutran_csg_tdd_reporting_threshold2 = -1;
+static int hf_utran_csg_fdd_reporting_threshold;
+static int hf_utran_csg_fdd_reporting_threshold2;
+static int hf_utran_csg_tdd_reporting_threshold;
+static int hf_eutran_csg_fdd_reporting_threshold;
+static int hf_eutran_csg_fdd_reporting_threshold2;
+static int hf_eutran_csg_tdd_reporting_threshold;
+static int hf_eutran_csg_tdd_reporting_threshold2;
 
 
-static int hf_pmo_additionsr8_ba_ind_3g = -1;
-static int hf_pmo_additionsr8_pmo_ind = -1;
-static int hf_pmo_additionsr7_reporting_offset_700 = -1;
-static int hf_pmo_additionsr7_reporting_threshold_700 = -1;
-static int hf_pmo_additionsr7_reporting_offset_810 = -1;
-static int hf_pmo_additionsr7_reporting_threshold_810 = -1;
-static int hf_pmo_additionsr6_ccn_active_3g = -1;
-static int hf_pcco_additionsr6_ccn_active_3g = -1;
-static int hf_pmo_additionsr5_grnti = -1;
-static int hf_pcco_additionsr5_grnti = -1;
-static int hf_pmo_additionsr4_ccn_active = -1;
-static int hf_pcco_additionsr4_ccn_active = -1;
-static int hf_pcco_additionsr4_container_id = -1;
-static int hf_lsa_id_info_element_lsa_id = -1;
-static int hf_lsa_id_info_element_shortlsa_id = -1;
-static int hf_lsa_parameters_nr_of_freq_or_cells = -1;
-static int hf_target_cell_gsm_immediate_rel = -1;
-static int hf_target_cell_gsm_bsic = -1;
-static int hf_target_cell_3g_immediate_rel = -1;
-static int hf_target_cell_eutran_earfcn = -1;
-static int hf_target_cell_eutran_measurement_bandwidth = -1;
-static int hf_target_cell_eutran_pl_cell_id = -1;
-static int hf_idvd_utran_priority_fdd_arfcn = -1;
-static int hf_idvd_utran_priority_fdd_arfcn_exist = -1;
-static int hf_idvd_utran_priority_tdd_arfcn = -1;
-static int hf_idvd_utran_priority_tdd_arfcn_exist = -1;
-static int hf_idvd_default_utran_priority = -1;
-static int hf_idvd_utran_priority = -1;
-static int hf_idvd_default_eutran_priority = -1;
-static int hf_idvd_eutran_priority = -1;
-static int hf_idvd_eutran_priority_earfcn = -1;
-static int hf_idvd_eutran_priority_earfcn_exist = -1;
-static int hf_idvd_prio_geran_priority = -1;
-static int hf_idvd_prio_t3230_timeout_value = -1;
-static int hf_target_cell_g_rnti_ext = -1;
+static int hf_pmo_additionsr8_ba_ind_3g;
+static int hf_pmo_additionsr8_pmo_ind;
+static int hf_pmo_additionsr7_reporting_offset_700;
+static int hf_pmo_additionsr7_reporting_threshold_700;
+static int hf_pmo_additionsr7_reporting_offset_810;
+static int hf_pmo_additionsr7_reporting_threshold_810;
+static int hf_pmo_additionsr6_ccn_active_3g;
+static int hf_pcco_additionsr6_ccn_active_3g;
+static int hf_pmo_additionsr5_grnti;
+static int hf_pcco_additionsr5_grnti;
+static int hf_pmo_additionsr4_ccn_active;
+static int hf_pcco_additionsr4_ccn_active;
+static int hf_pcco_additionsr4_container_id;
+static int hf_lsa_id_info_element_lsa_id;
+static int hf_lsa_id_info_element_shortlsa_id;
+static int hf_lsa_parameters_nr_of_freq_or_cells;
+static int hf_target_cell_gsm_immediate_rel;
+static int hf_target_cell_gsm_bsic;
+static int hf_target_cell_3g_immediate_rel;
+static int hf_target_cell_eutran_earfcn;
+static int hf_target_cell_eutran_measurement_bandwidth;
+static int hf_target_cell_eutran_pl_cell_id;
+static int hf_idvd_utran_priority_fdd_arfcn;
+static int hf_idvd_utran_priority_fdd_arfcn_exist;
+static int hf_idvd_utran_priority_tdd_arfcn;
+static int hf_idvd_utran_priority_tdd_arfcn_exist;
+static int hf_idvd_default_utran_priority;
+static int hf_idvd_utran_priority;
+static int hf_idvd_default_eutran_priority;
+static int hf_idvd_eutran_priority;
+static int hf_idvd_eutran_priority_earfcn;
+static int hf_idvd_eutran_priority_earfcn_exist;
+static int hf_idvd_prio_geran_priority;
+static int hf_idvd_prio_t3230_timeout_value;
+static int hf_target_cell_g_rnti_ext;
 
 
 
 /* < Packet (Enhanced) Measurement Report message contents > */
-static int hf_ba_used_ba_used = -1;
-static int hf_ba_used_ba_used_3g = -1;
-static int hf_serving_cell_data_rxlev_serving_cell = -1;
-static int hf_nc_measurements_frequency_n = -1;
-static int hf_nc_measurements_bsic_n = -1;
-static int hf_nc_measurements_rxlev_n = -1;
-static int hf_repeatedinvalid_bsic_info_bcch_freq_n = -1;
-static int hf_repeatedinvalid_bsic_info_bsic_n = -1;
-static int hf_repeatedinvalid_bsic_info_rxlev_n = -1;
-static int hf_reporting_quantity_instance_reporting_quantity = -1;
-static int hf_pemr_additionsr8_bitmap_length = -1;
-static int hf_nc_measurement_report_nc_mode = -1;
-static int hf_nc_measurement_report_number_of_nc_measurements = -1;
-static int hf_enh_nc_measurement_report_nc_mode = -1;
-static int hf_enh_nc_measurement_report_pmo_used = -1;
-static int hf_enh_nc_measurement_report_bsic_seen = -1;
-static int hf_enh_nc_measurement_report_scale = -1;
-static int hf_ext_measurement_report_ext_reporting_type = -1;
-static int hf_ext_measurement_report_slot0_i_level = -1;
-static int hf_ext_measurement_report_slot1_i_level = -1;
-static int hf_ext_measurement_report_slot2_i_level = -1;
-static int hf_ext_measurement_report_slot3_i_level = -1;
-static int hf_ext_measurement_report_slot4_i_level = -1;
-static int hf_ext_measurement_report_slot5_i_level = -1;
-static int hf_ext_measurement_report_slot6_i_level = -1;
-static int hf_ext_measurement_report_slot7_i_level = -1;
-static int hf_ext_measurement_report_number_of_ext_measurements = -1;
-static int hf_measurements_3g_cell_list_index_3g = -1;
-static int hf_measurements_3g_reporting_quantity = -1;
-static int hf_pmr_additionsr99_pmo_used = -1;
-static int hf_pmr_additionsr99_n_3g = -1;
-static int hf_pmr_eutran_meas_rpt_freq_idx = -1;
-static int hf_pmr_eutran_meas_rpt_cell_id = -1;
-static int hf_pmr_eutran_meas_rpt_quantity = -1;
-static int hf_eutran_measurement_report_num_eutran = -1;
+static int hf_ba_used_ba_used;
+static int hf_ba_used_ba_used_3g;
+static int hf_serving_cell_data_rxlev_serving_cell;
+static int hf_nc_measurements_frequency_n;
+static int hf_nc_measurements_bsic_n;
+static int hf_nc_measurements_rxlev_n;
+static int hf_repeatedinvalid_bsic_info_bcch_freq_n;
+static int hf_repeatedinvalid_bsic_info_bsic_n;
+static int hf_repeatedinvalid_bsic_info_rxlev_n;
+static int hf_reporting_quantity_instance_reporting_quantity;
+static int hf_pemr_additionsr8_bitmap_length;
+static int hf_nc_measurement_report_nc_mode;
+static int hf_nc_measurement_report_number_of_nc_measurements;
+static int hf_enh_nc_measurement_report_nc_mode;
+static int hf_enh_nc_measurement_report_pmo_used;
+static int hf_enh_nc_measurement_report_bsic_seen;
+static int hf_enh_nc_measurement_report_scale;
+static int hf_ext_measurement_report_ext_reporting_type;
+static int hf_ext_measurement_report_slot0_i_level;
+static int hf_ext_measurement_report_slot1_i_level;
+static int hf_ext_measurement_report_slot2_i_level;
+static int hf_ext_measurement_report_slot3_i_level;
+static int hf_ext_measurement_report_slot4_i_level;
+static int hf_ext_measurement_report_slot5_i_level;
+static int hf_ext_measurement_report_slot6_i_level;
+static int hf_ext_measurement_report_slot7_i_level;
+static int hf_ext_measurement_report_number_of_ext_measurements;
+static int hf_measurements_3g_cell_list_index_3g;
+static int hf_measurements_3g_reporting_quantity;
+static int hf_pmr_additionsr99_pmo_used;
+static int hf_pmr_additionsr99_n_3g;
+static int hf_pmr_eutran_meas_rpt_freq_idx;
+static int hf_pmr_eutran_meas_rpt_cell_id;
+static int hf_pmr_eutran_meas_rpt_quantity;
+static int hf_eutran_measurement_report_num_eutran;
 #if 0
-static int hf_emr_servingcell_dtx_used = -1;
-static int hf_emr_servingcell_rxlev_val = -1;
-static int hf_emr_servingcell_rx_qual_full = -1;
-static int hf_emr_servingcell_mean_bep = -1;
-static int hf_emr_servingcell_cv_bep = -1;
-static int hf_emr_servingcell_nbr_rcvd_blocks = -1;
+static int hf_emr_servingcell_dtx_used;
+static int hf_emr_servingcell_rxlev_val;
+static int hf_emr_servingcell_rx_qual_full;
+static int hf_emr_servingcell_mean_bep;
+static int hf_emr_servingcell_cv_bep;
+static int hf_emr_servingcell_nbr_rcvd_blocks;
 #endif
 #if 0
-static int hf_enhancedmeasurementreport_rr_short_pd = -1;
-static int hf_enhancedmeasurementreport_message_type = -1;
-static int hf_enhancedmeasurementreport_shortlayer2_header = -1;
-static int hf_enhancedmeasurementreport_bsic_seen = -1;
-static int hf_enhancedmeasurementreport_scale = -1;
+static int hf_enhancedmeasurementreport_rr_short_pd;
+static int hf_enhancedmeasurementreport_message_type;
+static int hf_enhancedmeasurementreport_shortlayer2_header;
+static int hf_enhancedmeasurementreport_bsic_seen;
+static int hf_enhancedmeasurementreport_scale;
 #endif
-static int hf_packet_measurement_report_psi5_change_mark = -1;
+static int hf_packet_measurement_report_psi5_change_mark;
 
 /* < Packet Measurement Order message contents > */
 #if 0
-static int hf_ext_frequency_list_start_frequency = -1;
-static int hf_ext_frequency_list_nr_of_frequencies = -1;
-static int hf_ext_frequency_list_freq_diff_length = -1;
+static int hf_ext_frequency_list_start_frequency;
+static int hf_ext_frequency_list_nr_of_frequencies;
+static int hf_ext_frequency_list_freq_diff_length;
 #endif
-static int hf_packet_measurement_order_pmo_index = -1;
-static int hf_packet_measurement_order_pmo_count = -1;
-static int hf_ccn_measurement_report_rxlev_serving_cell = -1;
-static int hf_ccn_measurement_report_number_of_nc_measurements = -1;
-static int hf_target_cell_gsm_notif_bsic = -1;
-static int hf_fdd_target_cell_notif_fdd_arfcn = -1;
-static int hf_fdd_target_cell_notif_bandwith_fdd = -1;
-static int hf_fdd_target_cell_notif_scrambling_code = -1;
-static int hf_target_cell_3g_notif_reporting_quantity = -1;
-static int hf_pccn_additionsr6_ba_used_3g = -1;
-static int hf_pccn_additionsr6_n_3g = -1;
+static int hf_packet_measurement_order_pmo_index;
+static int hf_packet_measurement_order_pmo_count;
+static int hf_ccn_measurement_report_rxlev_serving_cell;
+static int hf_ccn_measurement_report_number_of_nc_measurements;
+static int hf_target_cell_gsm_notif_bsic;
+static int hf_fdd_target_cell_notif_fdd_arfcn;
+static int hf_fdd_target_cell_notif_bandwith_fdd;
+static int hf_fdd_target_cell_notif_scrambling_code;
+static int hf_target_cell_3g_notif_reporting_quantity;
+static int hf_pccn_additionsr6_ba_used_3g;
+static int hf_pccn_additionsr6_n_3g;
 
 /* < Packet Cell Change Notification message contents > */
-static int hf_packet_cell_change_notification_ba_ind = -1;
-static int hf_packet_cell_change_notification_pmo_used = -1;
-static int hf_packet_cell_change_notification_pccn_sending = -1;
-static int hf_packet_cell_change_notification_lte_reporting_quantity = -1;
-static int hf_eutran_ccn_meas_rpt_3g_ba_used = -1;
-static int hf_eutran_ccn_meas_rpt_num_eutran = -1;
-static int hf_eutran_ccn_meas_rpt_freq_idx = -1;
-static int hf_eutran_ccn_meas_cell_id = -1;
-static int hf_eutran_ccn_meas_rpt_quantity = -1;
-static int hf_utran_csg_meas_rpt_cgi = -1;
-static int hf_utran_csg_meas_rpt_csg_id = -1;
-static int hf_utran_csg_meas_rpt_access_mode = -1;
-static int hf_utran_csg_meas_rpt_quantity = -1;
-static int hf_eutran_csg_meas_rpt_cgi = -1;
-static int hf_eutran_csg_meas_rpt_ta = -1;
-static int hf_eutran_csg_meas_rpt_csg_id = -1;
-static int hf_eutran_csg_meas_rpt_access_mode = -1;
-static int hf_eutran_csg_meas_rpt_quantity = -1;
+static int hf_packet_cell_change_notification_ba_ind;
+static int hf_packet_cell_change_notification_pmo_used;
+static int hf_packet_cell_change_notification_pccn_sending;
+static int hf_packet_cell_change_notification_lte_reporting_quantity;
+static int hf_eutran_ccn_meas_rpt_3g_ba_used;
+static int hf_eutran_ccn_meas_rpt_num_eutran;
+static int hf_eutran_ccn_meas_rpt_freq_idx;
+static int hf_eutran_ccn_meas_cell_id;
+static int hf_eutran_ccn_meas_rpt_quantity;
+static int hf_utran_csg_meas_rpt_cgi;
+static int hf_utran_csg_meas_rpt_csg_id;
+static int hf_utran_csg_meas_rpt_access_mode;
+static int hf_utran_csg_meas_rpt_quantity;
+static int hf_eutran_csg_meas_rpt_cgi;
+static int hf_eutran_csg_meas_rpt_ta;
+static int hf_eutran_csg_meas_rpt_csg_id;
+static int hf_eutran_csg_meas_rpt_access_mode;
+static int hf_eutran_csg_meas_rpt_quantity;
 
 
 
 /* < Packet Cell Change Continue message contents > */
-static int hf_packet_cell_change_continue_arfcn = -1;
-static int hf_packet_cell_change_continue_bsic = -1;
-static int hf_packet_cell_change_continue_container_id = -1;
+static int hf_packet_cell_change_continue_arfcn;
+static int hf_packet_cell_change_continue_bsic;
+static int hf_packet_cell_change_continue_container_id;
 
 /* < Packet Neighbour Cell Data message contents > */
-static int hf_pncd_container_with_id_bsic = -1;
-static int hf_pncd_container_choice = -1;
-static int hf_pncd_container_with_id_container = -1;
-static int hf_pncd_container_without_id_container = -1;
-static int hf_packet_neighbour_cell_data_container_id = -1;
-static int hf_packet_neighbour_cell_data_spare = -1;
-static int hf_packet_neighbour_cell_data_container_index = -1;
+static int hf_pncd_container_with_id_bsic;
+static int hf_pncd_container_choice;
+static int hf_pncd_container_with_id_container;
+static int hf_pncd_container_without_id_container;
+static int hf_packet_neighbour_cell_data_container_id;
+static int hf_packet_neighbour_cell_data_spare;
+static int hf_packet_neighbour_cell_data_container_index;
 
 /* < Packet Serving Cell Data message contents > */
-static int hf_packet_serving_cell_data_spare = -1;
-static int hf_packet_serving_cell_data_container_index = -1;
-static int hf_packet_serving_cell_data_container = -1;
+static int hf_packet_serving_cell_data_spare;
+static int hf_packet_serving_cell_data_container_index;
+static int hf_packet_serving_cell_data_container;
 #if 0
-static int hf_servingcelldata_rxlev_serving_cell = -1;
-static int hf_repeated_invalid_bsic_info_bcch_freq_ncell = -1;
-static int hf_repeated_invalid_bsic_info_bsic = -1;
-static int hf_repeated_invalid_bsic_info_rxlev_ncell = -1;
-static int hf_reporting_quantity_reporting_quantity = -1;
-static int hf_nc_measurementreport_nc_mode = -1;
-static int hf_nc_measurementreport_pmo_used = -1;
-static int hf_nc_measurementreport_scale = -1;
+static int hf_servingcelldata_rxlev_serving_cell;
+static int hf_repeated_invalid_bsic_info_bcch_freq_ncell;
+static int hf_repeated_invalid_bsic_info_bsic;
+static int hf_repeated_invalid_bsic_info_rxlev_ncell;
+static int hf_reporting_quantity_reporting_quantity;
+static int hf_nc_measurementreport_nc_mode;
+static int hf_nc_measurementreport_pmo_used;
+static int hf_nc_measurementreport_scale;
 #endif
 
 /* < Packet Handover Command message content > */
-static int hf_globaltimeslotdescription_ms_timeslotallocation = -1;
-static int hf_pho_usf_1_7_usf = -1;
-static int hf_usf_allocationarray_usf_0 = -1;
-static int hf_egprs_description_linkqualitymeasurementmode = -1;
-static int hf_nas_container_for_ps_ho_containerlength = -1;
-static int hf_nas_container_for_ps_ho_spare = -1;
-static int hf_nas_container_for_ps_ho_old_xid = -1;
-static int hf_nas_container_for_ps_ho_type_of_ciphering = -1;
-static int hf_nas_container_for_ps_ho_iov_ui_value = -1;
-static int hf_ps_handoverto_utran_payload_rrc_containerlength = -1;
-static int hf_ps_handoverto_utran_payload_rrc_container = -1;
-static int hf_ps_handoverto_eutran_payload_rrc_containerlength = -1;
-static int hf_ps_handoverto_eutran_payload_rrc_container = -1;
-static int hf_pho_radioresources_handoverreference = -1;
-static int hf_pho_radioresources_si = -1;
-static int hf_pho_radioresources_nci = -1;
-static int hf_pho_radioresources_bsic = -1;
-static int hf_pho_radioresources_ccn_active = -1;
-static int hf_pho_radioresources_ccn_active_3g = -1;
-static int hf_pho_radioresources_networkcontrolorder = -1;
-static int hf_pho_radioresources_rlc_reset = -1;
-static int hf_pho_radioresources_uplinkcontroltimeslot = -1;
-static int hf_packet_handover_command_containerid = -1;
+static int hf_globaltimeslotdescription_ms_timeslotallocation;
+static int hf_pho_usf_1_7_usf;
+static int hf_usf_allocationarray_usf_0;
+static int hf_egprs_description_linkqualitymeasurementmode;
+static int hf_nas_container_for_ps_ho_containerlength;
+static int hf_nas_container_for_ps_ho_spare;
+static int hf_nas_container_for_ps_ho_old_xid;
+static int hf_nas_container_for_ps_ho_type_of_ciphering;
+static int hf_nas_container_for_ps_ho_iov_ui_value;
+static int hf_ps_handoverto_utran_payload_rrc_containerlength;
+static int hf_ps_handoverto_utran_payload_rrc_container;
+static int hf_ps_handoverto_eutran_payload_rrc_containerlength;
+static int hf_ps_handoverto_eutran_payload_rrc_container;
+static int hf_pho_radioresources_handoverreference;
+static int hf_pho_radioresources_si;
+static int hf_pho_radioresources_nci;
+static int hf_pho_radioresources_bsic;
+static int hf_pho_radioresources_ccn_active;
+static int hf_pho_radioresources_ccn_active_3g;
+static int hf_pho_radioresources_networkcontrolorder;
+static int hf_pho_radioresources_rlc_reset;
+static int hf_pho_radioresources_uplinkcontroltimeslot;
+static int hf_packet_handover_command_containerid;
 
 /* < End Packet Handover Command > */
 
@@ -1052,664 +1053,664 @@ static int hf_packet_handover_command_containerid = -1;
 
 /* < End Packet Physical Information > */
 
-/* < Additinal MS Radio Access Capability */
-/* < End Additinal MS Radio Access Capability */
+/* < Additional MS Radio Access Capability */
+/* < End Additional MS Radio Access Capability */
 
 
 /* < Packet Pause > */
 /* < End Packet Pause > */
 
 /* < Packet System Information Type 1 > */
-static int hf_packet_system_info_type1_pbcch_change_mark = -1;
-static int hf_packet_system_info_type1_psi_change_field = -1;
-static int hf_packet_system_info_type1_psi1_repeat_period = -1;
-static int hf_packet_system_info_type1_psi_count_lr = -1;
-static int hf_packet_system_info_type1_psi_count_hr = -1;
-static int hf_packet_system_info_type1_measurement_order = -1;
-static int hf_packet_system_info_type1_psi_status_ind = -1;
-static int hf_packet_system_info_type1_mscr = -1;
-static int hf_packet_system_info_type1_band_indicator = -1;
-static int hf_packet_system_info_type1_lb_ms_txpwr_max_ccch = -1;
-static int hf_rai = -1;
-static int hf_pccch_org_bs_pcc_rel = -1;
-static int hf_pccch_org_pbcch_blks = -1;
-static int hf_pccch_org_pag_blks_res = -1;
-static int hf_pccch_org_prach_blks = -1;
+static int hf_packet_system_info_type1_pbcch_change_mark;
+static int hf_packet_system_info_type1_psi_change_field;
+static int hf_packet_system_info_type1_psi1_repeat_period;
+static int hf_packet_system_info_type1_psi_count_lr;
+static int hf_packet_system_info_type1_psi_count_hr;
+static int hf_packet_system_info_type1_measurement_order;
+static int hf_packet_system_info_type1_psi_status_ind;
+static int hf_packet_system_info_type1_mscr;
+static int hf_packet_system_info_type1_band_indicator;
+static int hf_packet_system_info_type1_lb_ms_txpwr_max_ccch;
+static int hf_rai;
+static int hf_pccch_org_bs_pcc_rel;
+static int hf_pccch_org_pbcch_blks;
+static int hf_pccch_org_pag_blks_res;
+static int hf_pccch_org_prach_blks;
 /* <End Packet System Information Type 1> */
 
 /* <Packet System Information Type 2> */
-static int hf_packet_system_info_type2_change_mark = -1;
-static int hf_packet_system_info_type2_index = -1;
-static int hf_packet_system_info_type2_count = -1;
-static int hf_packet_system_info_type2_ref_freq_num = -1;
-static int hf_packet_system_info_type2_ref_freq_length = -1;
-static int hf_packet_system_info_type2_ref_freq = -1;
-static int hf_packet_system_info_type2_ma_number = -1;
-static int hf_tsc = -1;
-static int hf_packet_system_info_type2_non_hopping_timeslot = -1;
-static int hf_packet_system_info_type2_hopping_ma_num = -1;
-static int hf_packet_system_info_type2_hopping_timeslot = -1;
+static int hf_packet_system_info_type2_change_mark;
+static int hf_packet_system_info_type2_index;
+static int hf_packet_system_info_type2_count;
+static int hf_packet_system_info_type2_ref_freq_num;
+static int hf_packet_system_info_type2_ref_freq_length;
+static int hf_packet_system_info_type2_ref_freq;
+static int hf_packet_system_info_type2_ma_number;
+static int hf_tsc;
+static int hf_packet_system_info_type2_non_hopping_timeslot;
+static int hf_packet_system_info_type2_hopping_ma_num;
+static int hf_packet_system_info_type2_hopping_timeslot;
 
-static int hf_packet_cell_id_cell_identity = -1;
-static int hf_packet_lai_lac = -1;
-static int hf_packet_plmn_mcc1 = -1;
-static int hf_packet_plmn_mcc2 = -1;
-static int hf_packet_plmn_mcc3 = -1;
-static int hf_packet_plmn_mnc1 = -1;
-static int hf_packet_plmn_mnc2 = -1;
-static int hf_packet_plmn_mnc3 = -1;
-static int hf_packet_non_gprs_cell_opt_att = -1;
-static int hf_packet_non_gprs_cell_opt_t3212 = -1;
-static int hf_packet_non_gprs_cell_opt_neci = -1;
-static int hf_packet_non_gprs_cell_opt_pwrc = -1;
-static int hf_packet_non_gprs_cell_opt_dtx = -1;
-static int hf_packet_non_gprs_cell_opt_radio_link_timeout = -1;
-static int hf_packet_non_gprs_cell_opt_bs_ag_blks_res = -1;
-static int hf_packet_non_gprs_cell_opt_ccch_conf = -1;
-static int hf_packet_non_gprs_cell_opt_bs_pa_mfrms = -1;
-static int hf_packet_non_gprs_cell_opt_max_retrans = -1;
-static int hf_packet_non_gprs_cell_opt_tx_int = -1;
-static int hf_packet_non_gprs_cell_opt_ec = -1;
-static int hf_packet_non_gprs_cell_opt_ms_txpwr_max_ccch = -1;
-/* static int hf_packet_non_gprs_cell_opt_ext_len = -1; */
+static int hf_packet_cell_id_cell_identity;
+static int hf_packet_lai_lac;
+static int hf_packet_plmn_mcc1;
+static int hf_packet_plmn_mcc2;
+static int hf_packet_plmn_mcc3;
+static int hf_packet_plmn_mnc1;
+static int hf_packet_plmn_mnc2;
+static int hf_packet_plmn_mnc3;
+static int hf_packet_non_gprs_cell_opt_att;
+static int hf_packet_non_gprs_cell_opt_t3212;
+static int hf_packet_non_gprs_cell_opt_neci;
+static int hf_packet_non_gprs_cell_opt_pwrc;
+static int hf_packet_non_gprs_cell_opt_dtx;
+static int hf_packet_non_gprs_cell_opt_radio_link_timeout;
+static int hf_packet_non_gprs_cell_opt_bs_ag_blks_res;
+static int hf_packet_non_gprs_cell_opt_ccch_conf;
+static int hf_packet_non_gprs_cell_opt_bs_pa_mfrms;
+static int hf_packet_non_gprs_cell_opt_max_retrans;
+static int hf_packet_non_gprs_cell_opt_tx_int;
+static int hf_packet_non_gprs_cell_opt_ec;
+static int hf_packet_non_gprs_cell_opt_ms_txpwr_max_ccch;
+/* static int hf_packet_non_gprs_cell_opt_ext_len; */
 /* <End Packet System Information Type 2> */
 
 
 /* <Packet System Information Type 3> */
-static int hf_packet_system_info_type3_change_mark = -1;
-static int hf_packet_system_info_type3_bis_count = -1;
+static int hf_packet_system_info_type3_change_mark;
+static int hf_packet_system_info_type3_bis_count;
 
-static int hf_exc_acc = -1;
-static int hf_packet_scell_param_gprs_rxlev_access_min = -1;
-static int hf_packet_scell_param_gprs_ms_txpwr_max_cch = -1;
-static int hf_packet_scell_param_multiband_reporting = -1;
+static int hf_exc_acc;
+static int hf_packet_scell_param_gprs_rxlev_access_min;
+static int hf_packet_scell_param_gprs_ms_txpwr_max_cch;
+static int hf_packet_scell_param_multiband_reporting;
 
-static int hf_packet_gen_cell_sel_gprs_cell_resl_hyst = -1;
-static int hf_packet_gen_cell_sel_c31_hyst = -1;
-static int hf_packet_gen_cell_sel_c32_qual = -1;
-static int hf_packet_gen_cell_sel_t_resel = -1;
-static int hf_packet_gen_cell_sel_ra_resel_hyst = -1;
+static int hf_packet_gen_cell_sel_gprs_cell_resl_hyst;
+static int hf_packet_gen_cell_sel_c31_hyst;
+static int hf_packet_gen_cell_sel_c32_qual;
+static int hf_packet_gen_cell_sel_t_resel;
+static int hf_packet_gen_cell_sel_ra_resel_hyst;
 
-static int hf_packet_compact_cell_sel_bsic = -1;
-static int hf_packet_compact_cell_sel_same_as_scell = -1;
-static int hf_packet_compact_cell_sel_gprs_rxlev_access_min = -1;
-static int hf_packet_compact_cell_sel_gprs_ms_txpwr_max_cch = -1;
-static int hf_packet_compact_cell_sel_gprs_temp_offset = -1;
-static int hf_packet_compact_cell_sel_gprs_penalty_time = -1;
-static int hf_packet_compact_cell_sel_gprs_resel_offset = -1;
-static int hf_packet_compact_cell_sel_time_group = -1;
-static int hf_packet_compact_cell_sel_guar_const_pwr_blks = -1;
-static int hf_packet_compact_neighbour_cell_param_freq_diff = -1;
-static int hf_packet_compact_ncell_param_start_freq = -1;
-static int hf_packet_compact_ncell_param_nr_of_remaining_cells = -1;
-static int hf_packet_compact_ncell_param_freq_diff_length = -1;
+static int hf_packet_compact_cell_sel_bsic;
+static int hf_packet_compact_cell_sel_same_as_scell;
+static int hf_packet_compact_cell_sel_gprs_rxlev_access_min;
+static int hf_packet_compact_cell_sel_gprs_ms_txpwr_max_cch;
+static int hf_packet_compact_cell_sel_gprs_temp_offset;
+static int hf_packet_compact_cell_sel_gprs_penalty_time;
+static int hf_packet_compact_cell_sel_gprs_resel_offset;
+static int hf_packet_compact_cell_sel_time_group;
+static int hf_packet_compact_cell_sel_guar_const_pwr_blks;
+static int hf_packet_compact_neighbour_cell_param_freq_diff;
+static int hf_packet_compact_ncell_param_start_freq;
+static int hf_packet_compact_ncell_param_nr_of_remaining_cells;
+static int hf_packet_compact_ncell_param_freq_diff_length;
 /* <End Packet System Information Type 3> */
 
 /* <Packet System Information Type 5> */
-static int hf_gprsmeasurementparams3g_psi5_repquantfdd = -1;
-static int hf_gprsmeasurementparams3g_psi5_multiratreportingfdd = -1;
-static int hf_gprsmeasurementparams3g_psi5_reportingoffsetfdd = -1;
-static int hf_gprsmeasurementparams3g_psi5_reportingthresholdfdd = -1;
-static int hf_gprsmeasurementparams3g_psi5_multiratreportingtdd = -1;
-static int hf_gprsmeasurementparams3g_psi5_reportingoffsettdd = -1;
-static int hf_gprsmeasurementparams3g_psi5_reportingthresholdtdd = -1;
-static int hf_enh_reporting_parameters_report_type = -1;
-static int hf_enh_reporting_parameters_reporting_rate = -1;
-static int hf_enh_reporting_parameters_invalid_bsic_reporting = -1;
-static int hf_enh_reporting_parameters_ncc_permitted = -1;
-static int hf_packet_system_info_type5_change_mark = -1;
-static int hf_packet_system_info_type5_index = -1;
-static int hf_packet_system_info_type5_count = -1;
+static int hf_gprsmeasurementparams3g_psi5_repquantfdd;
+static int hf_gprsmeasurementparams3g_psi5_multiratreportingfdd;
+static int hf_gprsmeasurementparams3g_psi5_reportingoffsetfdd;
+static int hf_gprsmeasurementparams3g_psi5_reportingthresholdfdd;
+static int hf_gprsmeasurementparams3g_psi5_multiratreportingtdd;
+static int hf_gprsmeasurementparams3g_psi5_reportingoffsettdd;
+static int hf_gprsmeasurementparams3g_psi5_reportingthresholdtdd;
+static int hf_enh_reporting_parameters_report_type;
+static int hf_enh_reporting_parameters_reporting_rate;
+static int hf_enh_reporting_parameters_invalid_bsic_reporting;
+static int hf_enh_reporting_parameters_ncc_permitted;
+static int hf_packet_system_info_type5_change_mark;
+static int hf_packet_system_info_type5_index;
+static int hf_packet_system_info_type5_count;
 /* <End Packet System Information Type 5> */
 
 
 /* <Packet System Information Type 13> */
-static int hf_packet_system_info_type13_lb_ms_mxpwr_max_cch = -1;
-static int hf_packet_system_info_type13_si2n_support = -1;
+static int hf_packet_system_info_type13_lb_ms_mxpwr_max_cch;
+static int hf_packet_system_info_type13_si2n_support;
 /* <End Packet System Information Type 13> */
 
 
 
 #if 0
-static int hf_si1_restoctet_nch_position = -1;
-static int hf_si1_restoctet_bandindicator = -1;
-static int hf_selection_parameters_cbq = -1;
-static int hf_selection_parameters_cell_reselect_offset = -1;
-static int hf_selection_parameters_temporary_offset = -1;
-static int hf_selection_parameters_penalty_time = -1;
-static int hf_si3_rest_octet_power_offset = -1;
-static int hf_si3_rest_octet_system_information_2ter_indicator = -1;
-static int hf_si3_rest_octet_early_classmark_sending_control = -1;
-static int hf_si3_rest_octet_where = -1;
-static int hf_si3_rest_octet_ra_colour = -1;
-static int hf_si13_position = -1;
-static int hf_si3_rest_octet_ecs_restriction3g = -1;
-static int hf_si3_rest_octet_si2quaterindicator = -1;
-static int hf_si4_rest_octet_power_offset = -1;
-static int hf_si4_rest_octet_ra_colour = -1;
-static int hf_pch_and_nch_info_pagingchannelrestructuring = -1;
-static int hf_pch_and_nch_info_nln_sacch = -1;
-static int hf_pch_and_nch_info_callpriority = -1;
-static int hf_si6_restoctet_vbs_vgcs_options = -1;
-static int hf_si6_restoctet_max_lapdm = -1;
-static int hf_si6_restoctet_bandindicator = -1;
+static int hf_si1_restoctet_nch_position;
+static int hf_si1_restoctet_bandindicator;
+static int hf_selection_parameters_cbq;
+static int hf_selection_parameters_cell_reselect_offset;
+static int hf_selection_parameters_temporary_offset;
+static int hf_selection_parameters_penalty_time;
+static int hf_si3_rest_octet_power_offset;
+static int hf_si3_rest_octet_system_information_2ter_indicator;
+static int hf_si3_rest_octet_early_classmark_sending_control;
+static int hf_si3_rest_octet_where;
+static int hf_si3_rest_octet_ra_colour;
+static int hf_si13_position;
+static int hf_si3_rest_octet_ecs_restriction3g;
+static int hf_si3_rest_octet_si2quaterindicator;
+static int hf_si4_rest_octet_power_offset;
+static int hf_si4_rest_octet_ra_colour;
+static int hf_pch_and_nch_info_pagingchannelrestructuring;
+static int hf_pch_and_nch_info_nln_sacch;
+static int hf_pch_and_nch_info_callpriority;
+static int hf_si6_restoctet_vbs_vgcs_options;
+static int hf_si6_restoctet_max_lapdm;
+static int hf_si6_restoctet_bandindicator;
 #endif
 
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_gsm_rlcmac_sync_case_tstd = -1;
+static int hf_gsm_rlcmac_sync_case_tstd;
 #if 0
-static int hf_gsm_rlcmac_diversity = -1;
-static int hf_gsm_rlcmac_scrambling_code = -1;
+static int hf_gsm_rlcmac_diversity;
+static int hf_gsm_rlcmac_scrambling_code;
 #endif
-static int hf_gsm_rlcmac_cell_parameter = -1;
-static int hf_gsm_rlcmac_diversity_tdd = -1;
+static int hf_gsm_rlcmac_cell_parameter;
+static int hf_gsm_rlcmac_diversity_tdd;
 
 /* Unsorted FIXED and UNION fields */
-static int hf_pu_acknack_egrps = -1;
-static int hf_pu_acknack = -1;
-static int hf_frequency_parameters = -1;
-static int hf_dynamic_allocation = -1;
-static int hf_pua_grps = -1;
-static int hf_pua_egprs = -1;
-static int hf_pua_assignment = -1;
-static int hf_packet_downlink_assignment = -1;
-static int hf_page_request_tfb_establishment = -1;
-static int hf_page_request_rr_conn = -1;
-static int hf_repeated_page_info = -1;
-static int hf_packet_pdch_release = -1;
-static int hf_global_timing_or_power = -1;
-static int hf_ppc_timing_advance = -1;
-static int hf_packet_queueing_notif = -1;
-static int hf_ptr_egprs = -1;
-static int hf_packet_timeslot_reconfigure = -1;
-static int hf_si_pbcch_location = -1;
-static int hf_enh_measurement_parameters_pmo = -1;
-static int hf_enh_measurement_parameters_pcco = -1;
-static int hf_rept_eutran_enh_cell_resel_param = -1;
-static int hf_idvd_utran_priority_param = -1;
-static int hf_idvd_priorities = -1;
-static int hf_lsa_id_info_element = -1;
-static int hf_target_cell_3g = -1;
-static int hf_packet_cell_change_order = -1;
-static int hf_serving_cell_data = -1;
-static int hf_enh_nc_measurement_report = -1;
-static int hf_pmr_additionsr99 = -1;
-static int hf_packet_measurement_report = -1;
-static int hf_packet_measurement_order = -1;
-static int hf_ccn_measurement_report = -1;
-static int hf_target_cell_csg_notif = -1;
-static int hf_target_other_rat2_notif = -1;
-static int hf_target_other_rat_notif = -1;
-static int hf_target_cell = -1;
-static int hf_packet_cell_change_notification = -1;
-static int hf_packet_cell_change_continue = -1;
-static int hf_packet_neighbour_cell_data = -1;
-static int hf_packet_serving_cell_data = -1;
-static int hf_pho_uplinkassignment = -1;
-static int hf_global_timeslot_description = -1;
-static int hf_pho_gprs = -1;
-static int hf_downlink_tbf = -1;
-static int hf_pho_radio_resources = -1;
-static int hf_ps_handoverto_a_gb_modepayload = -1;
-static int hf_packet_handover_command = -1;
-static int hf_pccch_description = -1;
-static int hf_gen_cell_sel = -1;
-static int hf_psi3_additionr99 = -1;
-static int hf_psi5 = -1;
-static int hf_psi13 = -1;
+static int hf_pu_acknack_egrps;
+static int hf_pu_acknack;
+static int hf_frequency_parameters;
+static int hf_dynamic_allocation;
+static int hf_pua_grps;
+static int hf_pua_egprs;
+static int hf_pua_assignment;
+static int hf_packet_downlink_assignment;
+static int hf_page_request_tfb_establishment;
+static int hf_page_request_rr_conn;
+static int hf_repeated_page_info;
+static int hf_packet_pdch_release;
+static int hf_global_timing_or_power;
+static int hf_ppc_timing_advance;
+static int hf_packet_queueing_notif;
+static int hf_ptr_egprs;
+static int hf_packet_timeslot_reconfigure;
+static int hf_si_pbcch_location;
+static int hf_enh_measurement_parameters_pmo;
+static int hf_enh_measurement_parameters_pcco;
+static int hf_rept_eutran_enh_cell_resel_param;
+static int hf_idvd_utran_priority_param;
+static int hf_idvd_priorities;
+static int hf_lsa_id_info_element;
+static int hf_target_cell_3g;
+static int hf_packet_cell_change_order;
+static int hf_serving_cell_data;
+static int hf_enh_nc_measurement_report;
+static int hf_pmr_additionsr99;
+static int hf_packet_measurement_report;
+static int hf_packet_measurement_order;
+static int hf_ccn_measurement_report;
+static int hf_target_cell_csg_notif;
+static int hf_target_other_rat2_notif;
+static int hf_target_other_rat_notif;
+static int hf_target_cell;
+static int hf_packet_cell_change_notification;
+static int hf_packet_cell_change_continue;
+static int hf_packet_neighbour_cell_data;
+static int hf_packet_serving_cell_data;
+static int hf_pho_uplinkassignment;
+static int hf_global_timeslot_description;
+static int hf_pho_gprs;
+static int hf_downlink_tbf;
+static int hf_pho_radio_resources;
+static int hf_ps_handoverto_a_gb_modepayload;
+static int hf_packet_handover_command;
+static int hf_pccch_description;
+static int hf_gen_cell_sel;
+static int hf_psi3_additionr99;
+static int hf_psi5;
+static int hf_psi13;
 
 /* Fields unique to EC messages (reuse legacy where possible) */
 /*TODO: split exists per message??!? */
-static int hf_ec_dl_message_type = -1;
-static int hf_used_dl_coverage_class = -1;
-static int hf_ec_frequency_parameters_exist = -1;
-static int hf_ec_ma_number = -1;
-static int hf_primary_tsc_set = -1;
-static int hf_dl_coverage_class = -1;
-static int hf_starting_dl_timeslot = -1;
-static int hf_timeslot_multiplicator = -1;
-static int hf_ul_coverage_class = -1;
-static int hf_starting_ul_timeslot_offset = -1;
-static int hf_ec_packet_timing_advance_exist = -1;
-static int hf_ec_p0_and_pr_mode_exist = -1;
-static int hf_ec_gamma_exist = -1;
-static int hf_ec_alpha_enable = -1;
+static int hf_ec_dl_message_type;
+static int hf_used_dl_coverage_class;
+static int hf_ec_frequency_parameters_exist;
+static int hf_ec_ma_number;
+static int hf_primary_tsc_set;
+static int hf_dl_coverage_class;
+static int hf_starting_dl_timeslot;
+static int hf_timeslot_multiplicator;
+static int hf_ul_coverage_class;
+static int hf_starting_ul_timeslot_offset;
+static int hf_ec_packet_timing_advance_exist;
+static int hf_ec_p0_and_pr_mode_exist;
+static int hf_ec_gamma_exist;
+static int hf_ec_alpha_enable;
 
-static int hf_ec_acknack_description = -1;
-static int hf_ec_delay_next_ul_rlc_data_block = -1;
-static int hf_ec_delay_next_ul_rlc_data_block_exist = -1;
+static int hf_ec_acknack_description;
+static int hf_ec_delay_next_ul_rlc_data_block;
+static int hf_ec_delay_next_ul_rlc_data_block_exist;
 
-static int hf_ec_bsn_offset_exist = -1;
-static int hf_ec_bsn_offset = -1;
-static int hf_ec_start_first_ul_rlc_data_block = -1;
-static int hf_ec_egprs_channel_coding_command_exist = -1;
-static int hf_ec_puan_cc_ts_exist = -1;
-static int hf_starting_ul_timeslot = -1;
-static int hf_starting_dl_timeslot_offset = -1;
-static int hf_ec_puan_exist_contres_tlli = -1;
-static int hf_ec_puan_monitor_ec_pacch = -1;
-static int hf_t3238 = -1;
-static int hf_ec_initial_waiting_time = -1;
-static int hf_ec_pacch_monitoring_pattern = -1;
-static int hf_ec_puan_fua_delay_exist = -1;
+static int hf_ec_bsn_offset_exist;
+static int hf_ec_bsn_offset;
+static int hf_ec_start_first_ul_rlc_data_block;
+static int hf_ec_egprs_channel_coding_command_exist;
+static int hf_ec_puan_cc_ts_exist;
+static int hf_starting_ul_timeslot;
+static int hf_starting_dl_timeslot_offset;
+static int hf_ec_puan_exist_contres_tlli;
+static int hf_ec_puan_monitor_ec_pacch;
+static int hf_t3238;
+static int hf_ec_initial_waiting_time;
+static int hf_ec_pacch_monitoring_pattern;
+static int hf_ec_puan_fua_delay_exist;
 
-static int hf_ec_reject_wait_exist = -1;
-static int hf_ec_packet_access_reject_count = -1;
+static int hf_ec_reject_wait_exist;
+static int hf_ec_packet_access_reject_count;
 
-static int hf_ec_t_avg_t_exist = -1;
+static int hf_ec_t_avg_t_exist;
 
-static int hf_ec_uplink_tfi_exist = -1;
-static int hf_ec_overlaid_cdma_code = -1;
+static int hf_ec_uplink_tfi_exist;
+static int hf_ec_overlaid_cdma_code;
 
-static int hf_ec_ul_message_type = -1;
-static int hf_ec_dl_cc_est = -1;
+static int hf_ec_ul_message_type;
+static int hf_ec_dl_cc_est;
 
-static int hf_ec_channel_request_description_exist = -1;
-static int hf_ec_priority = -1;
-static int hf_ec_number_of_ul_data_blocks = -1;
+static int hf_ec_channel_request_description_exist;
+static int hf_ec_priority;
+static int hf_ec_number_of_ul_data_blocks;
 
-static int hf_ec_channel_quality_report_exist = -1;
-static int hf_ec_qual_gmsk_exist = -1;
-static int hf_ec_qual_8psk_exist = -1;
+static int hf_ec_channel_quality_report_exist;
+static int hf_ec_qual_gmsk_exist;
+static int hf_ec_qual_8psk_exist;
 
-static int hf_ecs_p = -1;
-static int hf_cc = -1;
-static int hf_ec_cps3 = -1;
-static int hf_ul_foi = -1;
-static int hf_ul_ri = -1;
-static int hf_rtlli = -1;
+static int hf_ecs_p;
+static int hf_cc;
+static int hf_ec_cps3;
+static int hf_ul_foi;
+static int hf_ul_ri;
+static int hf_rtlli;
 
 /* XXX - "exist" fields generated from perl script.  If humans think changes are necessary, feel free */
-static int hf_packet_downlink_ack_nack_channel_request_description_exist = -1;
-static int hf_egprs_pd_acknack_egprs_channelqualityreport_exist = -1;
-static int hf_egprs_pd_acknack_channelrequestdescription_exist = -1;
-static int hf_egprs_pd_acknack_extensionbits_exist = -1;
-static int hf_fdd_target_cell_bandwith_fdd_exist = -1;
-static int hf_tdd_target_cell_bandwith_tdd_exist = -1;
-static int hf_eutran_target_cell_measurement_bandwidth_exist = -1;
-static int hf_utran_csg_target_cell_plmn_id_exist = -1;
-static int hf_eutran_csg_target_cell_plmn_id_exist = -1;
-static int hf_pccf_additionsr9_utran_csg_target_cell_exist = -1;
-static int hf_pccf_additionsr9_eutran_csg_target_cell_exist = -1;
-static int hf_pccf_additionsr8_eutran_target_cell_exist = -1;
-static int hf_pccf_additionsr5_g_rnti_extention_exist = -1;
-static int hf_pccf_additionsr99_fdd_description_exist = -1;
-static int hf_pccf_additionsr99_tdd_description_exist = -1;
-static int hf_power_control_parameters_slot0_exist = -1;
-static int hf_power_control_parameters_slot1_exist = -1;
-static int hf_power_control_parameters_slot2_exist = -1;
-static int hf_power_control_parameters_slot3_exist = -1;
-static int hf_power_control_parameters_slot4_exist = -1;
-static int hf_power_control_parameters_slot5_exist = -1;
-static int hf_power_control_parameters_slot6_exist = -1;
-static int hf_power_control_parameters_slot7_exist = -1;
-static int hf_pu_acknack_gprs_additionsr99_packetextendedtimingadvance_exist = -1;
-static int hf_pu_acknack_gprs_common_uplink_ack_nack_data_exist_contention_resolution_tlli_exist = -1;
-static int hf_pu_acknack_gprs_common_uplink_ack_nack_data_exist_packet_timing_advance_exist = -1;
-static int hf_pu_acknack_gprs_common_uplink_ack_nack_data_exist_power_control_parameters_exist = -1;
-static int hf_pu_acknack_gprs_common_uplink_ack_nack_data_exist_extension_bits_exist = -1;
-static int hf_pu_acknack_egprs_00_common_uplink_ack_nack_data_exist_contention_resolution_tlli_exist = -1;
-static int hf_pu_acknack_egprs_00_common_uplink_ack_nack_data_exist_packet_timing_advance_exist = -1;
-static int hf_pu_acknack_egprs_00_packet_extended_timing_advance_exist = -1;
-static int hf_pu_acknack_egprs_00_common_uplink_ack_nack_data_exist_power_control_parameters_exist = -1;
-static int hf_pu_acknack_egprs_00_common_uplink_ack_nack_data_exist_extension_bits_exist = -1;
-static int hf_change_mark_change_mark_2_exist = -1;
-static int hf_indirect_encoding_change_mark_exist = -1;
-static int hf_timeslot_allocation_exist_exist = -1;
-static int hf_timeslot_allocation_power_ctrl_param_slot0_exist = -1;
-static int hf_timeslot_allocation_power_ctrl_param_slot1_exist = -1;
-static int hf_timeslot_allocation_power_ctrl_param_slot2_exist = -1;
-static int hf_timeslot_allocation_power_ctrl_param_slot3_exist = -1;
-static int hf_timeslot_allocation_power_ctrl_param_slot4_exist = -1;
-static int hf_timeslot_allocation_power_ctrl_param_slot5_exist = -1;
-static int hf_timeslot_allocation_power_ctrl_param_slot6_exist = -1;
-static int hf_timeslot_allocation_power_ctrl_param_slot7_exist = -1;
-static int hf_dynamic_allocation_p0_exist = -1;
-static int hf_dynamic_allocation_uplink_tfi_assignment_exist = -1;
-static int hf_dynamic_allocation_rlc_data_blocks_granted_exist = -1;
-static int hf_dynamic_allocation_tbf_starting_time_exist = -1;
-static int hf_single_block_allocation_alpha_and_gamma_tn_exist = -1;
-static int hf_single_block_allocation_p0_exist = -1;
-static int hf_pua_gprs_additionsr99_packet_extended_timing_advance_exist = -1;
-static int hf_pua_gprs_frequency_parameters_exist = -1;
-static int hf_compact_reducedma_maio_2_exist = -1;
-static int hf_multiblock_allocation_alpha_gamma_tn_exist = -1;
-static int hf_multiblock_allocation_p0_bts_pwr_ctrl_pr_mode_exist = -1;
-static int hf_pua_egprs_00_contention_resolution_tlli_exist = -1;
-static int hf_pua_egprs_00_compact_reducedma_exist = -1;
-static int hf_pua_egprs_00_bep_period2_exist = -1;
-static int hf_pua_egprs_00_packet_extended_timing_advance_exist = -1;
-static int hf_pua_egprs_00_frequency_parameters_exist = -1;
-static int hf_pda_additionsr99_egprs_params_exist = -1;
-static int hf_pda_additionsr99_bep_period2_exist = -1;
-static int hf_pda_additionsr99_packet_extended_timing_advance_exist = -1;
-static int hf_pda_additionsr99_compact_reducedma_exist = -1;
-static int hf_packet_downlink_assignment_p0_and_bts_pwr_ctrl_mode_exist = -1;
-static int hf_packet_downlink_assignment_frequency_parameters_exist = -1;
-static int hf_packet_downlink_assignment_downlink_tfi_assignment_exist = -1;
-static int hf_packet_downlink_assignment_power_control_parameters_exist = -1;
-static int hf_packet_downlink_assignment_tbf_starting_time_exist = -1;
-static int hf_packet_downlink_assignment_measurement_mapping_exist = -1;
-static int hf_page_request_for_rr_conn_emlpp_priority_exist = -1;
-static int hf_packet_paging_request_nln_exist = -1;
-static int hf_packet_power_control_timing_advance_global_power_control_parameters_exist = -1;
-static int hf_trdynamic_allocation_p0_exist = -1;
-static int hf_trdynamic_allocation_rlc_data_blocks_granted_exist = -1;
-static int hf_trdynamic_allocation_tbf_starting_time_exist = -1;
-static int hf_ptr_gprs_additionsr99_packet_extended_timing_advance_exist = -1;
-static int hf_ptr_gprs_common_timeslot_reconfigure_data_exist_downlink_tfi_assignment_exist = -1;
-static int hf_ptr_gprs_common_timeslot_reconfigure_data_exist_uplink_tfi_assignment_exist = -1;
-static int hf_ptr_gprs_common_timeslot_reconfigure_data_exist_frequency_parameters_exist = -1;
-static int hf_ptr_egprs_00_compact_reducedma_exist = -1;
-static int hf_ptr_egprs_00_downlink_egprs_windowsize_exist = -1;
-static int hf_ptr_egprs_00_uplink_egprs_windowsize_exist = -1;
-static int hf_ptr_egprs_00_packet_extended_timing_advance_exist = -1;
-static int hf_ptr_egprs_00_common_timeslot_reconfigure_data_exist_downlink_tfi_assignment_exist = -1;
-static int hf_ptr_egprs_00_common_timeslot_reconfigure_data_exist_uplink_tfi_assignment_exist = -1;
-static int hf_ptr_egprs_00_common_timeslot_reconfigure_data_exist_frequency_parameters_exist = -1;
-static int hf_cell_selection_rxlev_and_txpwr_exist = -1;
-static int hf_cell_selection_offset_and_time_exist = -1;
-static int hf_cell_selection_gprs_reselect_offset_exist = -1;
-static int hf_cell_selection_hcs_exist = -1;
-static int hf_cell_selection_si13_pbcch_location_exist = -1;
-static int hf_cell_selection_2_rxlev_and_txpwr_exist = -1;
-static int hf_cell_selection_2_offset_and_time_exist = -1;
-static int hf_cell_selection_2_gprs_reselect_offset_exist = -1;
-static int hf_cell_selection_2_hcs_exist = -1;
-static int hf_cell_selection_2_si13_pbcch_location_exist = -1;
-static int hf_reject_wait_exist = -1;
-static int hf_cellselectionparamswithfreqdiff_cellselectionparams_exist = -1;
-static int hf_add_frequency_list_cell_selection_exist = -1;
-static int hf_nc_frequency_list_removed_freq_exist = -1;
-static int hf_nc_measurement_parameters_nc_exist = -1;
-static int hf_nc_measurement_parameters_with_frequency_list_nc_exist = -1;
-static int hf_nc_measurement_parameters_with_frequency_list_nc_frequency_list_exist = -1;
-static int hf_gprsmeasurementparams_pmo_pcco_multi_band_reporting_exist = -1;
-static int hf_gprsmeasurementparams_pmo_pcco_serving_band_reporting_exist = -1;
-static int hf_gprsmeasurementparams_pmo_pcco_offsetthreshold900_exist = -1;
-static int hf_gprsmeasurementparams_pmo_pcco_offsetthreshold1800_exist = -1;
-static int hf_gprsmeasurementparams_pmo_pcco_offsetthreshold400_exist = -1;
-static int hf_gprsmeasurementparams_pmo_pcco_offsetthreshold1900_exist = -1;
-static int hf_gprsmeasurementparams_pmo_pcco_offsetthreshold850_exist = -1;
-static int hf_multiratparams3g_existmultiratreporting_exist = -1;
-static int hf_multiratparams3g_existoffsetthreshold_exist = -1;
-static int hf_enh_gprsmeasurementparams3g_pmo_existrepparamsfdd_exist = -1;
-static int hf_enh_gprsmeasurementparams3g_pmo_existoffsetthreshold_exist = -1;
-static int hf_enh_gprsmeasurementparams3g_pcco_existrepparamsfdd_exist = -1;
-static int hf_enh_gprsmeasurementparams3g_pcco_existoffsetthreshold_exist = -1;
-static int hf_utran_fdd_description_existbandwidth_exist = -1;
-static int hf_utran_tdd_description_existbandwidth_exist = -1;
-static int hf_neighbourcelldescription3g_pmo_index_start_3g_exist = -1;
-static int hf_neighbourcelldescription3g_pmo_absolute_index_start_emr_exist = -1;
-static int hf_neighbourcelldescription3g_pmo_utran_fdd_description_exist = -1;
-static int hf_neighbourcelldescription3g_pmo_utran_tdd_description_exist = -1;
-static int hf_neighbourcelldescription3g_pmo_cdma2000_description_exist = -1;
-static int hf_neighbourcelldescription3g_pmo_removed3gcelldescription_exist = -1;
-static int hf_neighbourcelldescription3g_pcco_index_start_3g_exist = -1;
-static int hf_neighbourcelldescription3g_pcco_absolute_index_start_emr_exist = -1;
-static int hf_neighbourcelldescription3g_pcco_utran_fdd_description_exist = -1;
-static int hf_neighbourcelldescription3g_pcco_utran_tdd_description_exist = -1;
-static int hf_neighbourcelldescription3g_pcco_removed3gcelldescription_exist = -1;
-static int hf_enh_measurement_parameters_pmo_neighbourcelldescription3g_exist = -1;
-static int hf_enh_measurement_parameters_pmo_gprsreportpriority_exist = -1;
-static int hf_enh_measurement_parameters_pmo_gprsmeasurementparams_exist = -1;
-static int hf_enh_measurement_parameters_pmo_gprsmeasurementparams3g_exist = -1;
-static int hf_enh_measurement_parameters_pcco_neighbourcelldescription3g_exist = -1;
-static int hf_enh_measurement_parameters_pcco_gprsreportpriority_exist = -1;
-static int hf_enh_measurement_parameters_pcco_gprsmeasurementparams_exist = -1;
-static int hf_enh_measurement_parameters_pcco_gprsmeasurementparams3g_exist = -1;
-static int hf_lu_modecellselectionparameters_si13_alt_pbcch_location_exist = -1;
-static int hf_lu_modecellselectionparams_lu_modecellselectionparams_exist = -1;
-static int hf_lu_modeonlycellselection_rxlev_and_txpwr_exist = -1;
-static int hf_lu_modeonlycellselection_offset_and_time_exist = -1;
-static int hf_lu_modeonlycellselection_gprs_reselect_offset_exist = -1;
-static int hf_lu_modeonlycellselection_hcs_exist = -1;
-static int hf_lu_modeonlycellselection_si13_alt_pbcch_location_exist = -1;
-static int hf_lu_modeonlycellselectionparamswithfreqdiff_lu_modeonlycellselectionparams_exist = -1;
-static int hf_add_lu_modeonlyfrequencylist_lu_modecellselection_exist = -1;
-static int hf_gprs_additionalmeasurementparams3g_fdd_reporting_threshold_2_exist = -1;
-static int hf_repeatedutran_priorityparameters_existutran_priority_exist = -1;
-static int hf_repeatedutran_priorityparameters_existthresh_utran_low_exist = -1;
-static int hf_repeatedutran_priorityparameters_existutran_qrxlevmin_exist = -1;
-static int hf_priorityparametersdescription3g_pmo_existdefault_utran_parameters_exist = -1;
-static int hf_eutran_reporting_threshold_offset_existeutran_fdd_reporting_threshold_offset_exist = -1;
-static int hf_eutran_reporting_threshold_offset_existeutran_fdd_reporting_threshold_2_exist = -1;
-static int hf_eutran_reporting_threshold_offset_existeutran_fdd_reporting_offset_exist = -1;
-static int hf_eutran_reporting_threshold_offset_existeutran_tdd_reporting_threshold_offset_exist = -1;
-static int hf_eutran_reporting_threshold_offset_existeutran_tdd_reporting_threshold_2_exist = -1;
-static int hf_eutran_reporting_threshold_offset_existeutran_tdd_reporting_offset_exist = -1;
-static int hf_repeatedeutran_cells_existmeasurementbandwidth_exist = -1;
-static int hf_repeatedeutran_neighbourcells_existeutran_priority_exist = -1;
-static int hf_repeatedeutran_neighbourcells_existthresh_eutran_low_exist = -1;
-static int hf_repeatedeutran_neighbourcells_existeutran_qrxlevmin_exist = -1;
-static int hf_pcid_group_ie_existpcid_bitmap_group_exist = -1;
-static int hf_eutran_parametersdescription_pmo_existgprs_eutran_measurementparametersdescription_exist = -1;
-static int hf_meas_ctrl_param_desp_existmeasurement_control_eutran_exist = -1;
-static int hf_meas_ctrl_param_desp_existmeasurement_control_utran_exist = -1;
-static int hf_reselection_based_on_rsrq_existthresh_eutran_low_q_exist = -1;
-static int hf_reselection_based_on_rsrq_existeutran_qqualmin_exist = -1;
-static int hf_reselection_based_on_rsrq_existeutran_rsrpmin_exist = -1;
-static int hf_utran_csg_cells_reporting_desp_existutran_csg_fdd_reporting_threshold_exist = -1;
-static int hf_utran_csg_cells_reporting_desp_existutran_csg_tdd_reporting_threshold_exist = -1;
-static int hf_eutran_csg_cells_reporting_desp_existeutran_csg_fdd_reporting_threshold_exist = -1;
-static int hf_eutran_csg_cells_reporting_desp_existeutran_csg_tdd_reporting_threshold_exist = -1;
-static int hf_csg_cells_reporting_desp_existutran_csg_cells_reporting_description_exist = -1;
-static int hf_csg_cells_reporting_desp_existeutran_csg_cells_reporting_description_exist = -1;
-static int hf_priorityandeutran_parametersdescription_pmo_existservingcellpriorityparametersdescription_exist = -1;
-static int hf_priorityandeutran_parametersdescription_pmo_existpriorityparametersdescription3g_pmo_exist = -1;
-static int hf_priorityandeutran_parametersdescription_pmo_existeutran_parametersdescription_pmo_exist = -1;
-static int hf_threeg_individual_priority_parameters_description_default_utran_priority_exist = -1;
-static int hf_eutran_individual_priority_parameters_description_default_eutran_priority_exist = -1;
-static int hf_provide_individual_priorities_3g_individual_priority_parameters_description_exist = -1;
-static int hf_provide_individual_priorities_eutran_individual_priority_parameters_description_exist = -1;
-static int hf_provide_individual_priorities_t3230_timeout_value_exist = -1;
-static int hf_pmo_additionsr9_existenhanced_cell_reselection_parameters_description_exist = -1;
-static int hf_pmo_additionsr9_existcsg_cells_reporting_description_exist = -1;
-static int hf_pmo_additionsr8_existba_ind_3g_pmo_ind_exist = -1;
-static int hf_pmo_additionsr8_existpriorityandeutran_parametersdescription_pmo_exist = -1;
-static int hf_pmo_additionsr8_existindividualpriorities_pmo_exist = -1;
-static int hf_pmo_additionsr8_existthreeg_csg_description_exist = -1;
-static int hf_pmo_additionsr8_existeutran_csg_description_exist = -1;
-static int hf_pmo_additionsr8_existmeasurement_control_parameters_description_exist = -1;
-static int hf_pmo_additionsr7_existreporting_offset_threshold_700_exist = -1;
-static int hf_pmo_additionsr7_existreporting_offset_threshold_810_exist = -1;
-static int hf_pmo_additionsr5_existgrnti_extension_exist = -1;
-static int hf_pmo_additionsr5_lu_modeneighbourcellparams_exist = -1;
-static int hf_pmo_additionsr5_existnc_lu_modeonlycapablecelllist_exist = -1;
-static int hf_pmo_additionsr5_existgprs_additionalmeasurementparams3g_exist = -1;
-static int hf_pcco_additionsr5_existgrnti_extension_exist = -1;
-static int hf_pcco_additionsr5_lu_modeneighbourcellparams_exist = -1;
-static int hf_pcco_additionsr5_existnc_lu_modeonlycapablecelllist_exist = -1;
-static int hf_pcco_additionsr5_existgprs_additionalmeasurementparams3g_exist = -1;
-static int hf_pmo_additionsr4_ccn_support_description_id_exist = -1;
-static int hf_pmo_additionsr99_enh_measurement_parameters_exist = -1;
-static int hf_pcco_additionsr4_container_id_exist = -1;
-static int hf_pcco_additionsr4_ccn_support_description_id_exist = -1;
-static int hf_pmo_additionsr98_lsa_parameters_exist = -1;
-static int hf_pcco_additionsr98_lsa_parameters_exist = -1;
-static int hf_target_cell_3g_additionsr8_eutran_target_cell_exist = -1;
-static int hf_target_cell_3g_additionsr8_individual_priorities_exist = -1;
-static int hf_target_cell_3g_additionsr5_g_rnti_extention_exist = -1;
-static int hf_target_cell_3g_fdd_description_exist = -1;
-static int hf_target_cell_3g_tdd_description_exist = -1;
-static int hf_nc_measurements_bsic_n_exist = -1;
-static int hf_reporting_quantity_instance_reporting_quantity_exist = -1;
-static int hf_enh_nc_measurement_report_serving_cell_data_exist = -1;
-static int hf_enh_nc_measurement_report_reportbitmap_exist = -1;
-static int hf_ext_measurement_report_slot0_exist = -1;
-static int hf_ext_measurement_report_slot1_exist = -1;
-static int hf_ext_measurement_report_slot2_exist = -1;
-static int hf_ext_measurement_report_slot3_exist = -1;
-static int hf_ext_measurement_report_slot4_exist = -1;
-static int hf_ext_measurement_report_slot5_exist = -1;
-static int hf_ext_measurement_report_slot6_exist = -1;
-static int hf_ext_measurement_report_slot7_exist = -1;
-static int hf_ext_measurement_report_i_level_exist = -1;
-static int hf_utran_csg_measurement_report_plmn_id_exist = -1;
-static int hf_eutran_csg_measurement_report_plmn_id_exist = -1;
-static int hf_pmr_additionsr9_utran_csg_meas_rpt_exist = -1;
-static int hf_pmr_additionsr9_eutran_csg_meas_rpt_exist = -1;
-static int hf_pmr_additionsr8_eutran_meas_rpt_exist = -1;
-static int hf_pmr_additionsr5_grnti_exist = -1;
-static int hf_pmr_additionsr99_info3g_exist = -1;
-static int hf_pmr_additionsr99_measurementreport3g_exist = -1;
-static int hf_packet_measurement_report_psi5_change_mark_exist = -1;
-static int hf_pemr_additionsr9_utran_csg_target_cell_exist = -1;
-static int hf_pemr_additionsr9_eutran_csg_target_cell_exist = -1;
-static int hf_bitmap_report_quantity_reporting_quantity_exist = -1;
-static int hf_pemr_additionsr8_eutran_meas_rpt_exist = -1;
-static int hf_pemr_additionsr5_grnti_ext_exist = -1;
-static int hf_packet_measurement_order_nc_measurement_parameters_exist = -1;
-static int hf_packet_measurement_order_ext_measurement_parameters_exist = -1;
-static int hf_fdd_target_cell_notif_bandwith_fdd_exist = -1;
-static int hf_tdd_target_cell_notif_bandwith_tdd_exist = -1;
-static int hf_target_cell_3g_notif_fdd_description_exist = -1;
-static int hf_target_cell_3g_notif_tdd_description_exist = -1;
-static int hf_target_eutran_cell_notif_measurement_bandwidth_exist = -1;
-static int hf_target_cell_4g_notif_arfcn_exist = -1;
-static int hf_target_cell_4g_notif_3g_target_cell_exist = -1;
-static int hf_target_cell_4g_notif_eutran_target_cell_exist = -1;
-static int hf_target_cell_4g_notif_eutran_ccn_measurement_report_exist = -1;
-static int hf_target_cell_csg_notif_eutran_ccn_measurement_report_exist = -1;
-static int hf_pccn_additionsr6_ba_used_3g_exist = -1;
-static int hf_packet_cell_change_continue_id_exist = -1;
-static int hf_pho_downlinkassignment_egprs_windowsize_exist = -1;
-static int hf_pho_usf_1_7_usf_exist = -1;
-static int hf_pho_uplinkassignment_channelcodingcommand_exist = -1;
-static int hf_pho_uplinkassignment_egprs_channelcodingcommand_exist = -1;
-static int hf_pho_uplinkassignment_egprs_windowsize_exist = -1;
-static int hf_pho_uplinkassignment_tbf_timeslotallocation_exist = -1;
-static int hf_globaltimeslotdescription_ua_pho_ua_exist = -1;
-static int hf_pho_gprs_channelcodingcommand_exist = -1;
-static int hf_pho_gprs_globaltimeslotdescription_ua_exist = -1;
-static int hf_pho_gprs_downlinkassignment_exist = -1;
-static int hf_egprs_description_egprs_windowsize_exist = -1;
-static int hf_egprs_description_bep_period2_exist = -1;
-static int hf_downlinktbf_egprs_description_exist = -1;
-static int hf_downlinktbf_downlinkassignment_exist = -1;
-static int hf_pho_egprs_egprs_windowsize_exist = -1;
-static int hf_pho_egprs_egprs_channelcodingcommand_exist = -1;
-static int hf_pho_egprs_bep_period2_exist = -1;
-static int hf_pho_egprs_globaltimeslotdescription_ua_exist = -1;
-static int hf_pho_egprs_downlinktbf_exist = -1;
-static int hf_pho_timingadvance_packetextendedtimingadvance_exist = -1;
-static int hf_pho_radioresources_handoverreference_exist = -1;
-static int hf_pho_radioresources_ccn_active_exist = -1;
-static int hf_pho_radioresources_ccn_active_3g_exist = -1;
-static int hf_pho_radioresources_ccn_support_description_exist = -1;
-static int hf_pho_radioresources_pho_timingadvance_exist = -1;
-static int hf_pho_radioresources_po_pr_exist = -1;
-static int hf_pho_radioresources_uplinkcontroltimeslot_exist = -1;
-static int hf_ps_handoverto_a_gb_modepayload_nas_container_exist = -1;
-static int hf_psi1_psi_count_hr_exist = -1;
-static int hf_non_gprs_cell_options_t3212_exist = -1;
-static int hf_non_gprs_cell_options_extension_bits_exist = -1;
-static int hf_psi2_cell_identification_exist = -1;
-static int hf_psi2_non_gprs_cell_options_exist = -1;
-static int hf_serving_cell_params_hcs_exist = -1;
-static int hf_gen_cell_sel_t_resel_exist = -1;
-static int hf_gen_cell_sel_ra_reselect_hysteresis_exist = -1;
-static int hf_compact_cell_sel_gprs_rxlev_access_min_exist = -1;
-static int hf_compact_cell_sel_gprs_temporary_offset_exist = -1;
-static int hf_compact_cell_sel_gprs_reselect_offset_exist = -1;
-static int hf_compact_cell_sel_hcs_parm_exist = -1;
-static int hf_compact_cell_sel_time_group_exist = -1;
-static int hf_compact_cell_sel_guar_constant_pwr_blks_exist = -1;
-static int hf_psi3_additionr4_ccn_support_desc_exist = -1;
-static int hf_psi3_additionr99_compact_info_exist = -1;
-static int hf_psi3_additionr99_additionr4_exist = -1;
-static int hf_psi3_additionr98_lsa_parameters_exist = -1;
-static int hf_psi3_additionr98_additionr99_exist = -1;
-static int hf_psi3_additionr98_exist = -1;
-static int hf_measurementparams_multi_band_reporting_exist = -1;
-static int hf_measurementparams_serving_band_reporting_exist = -1;
-static int hf_measurementparams_scale_ord_exist = -1;
-static int hf_measurementparams_offsetthreshold900_exist = -1;
-static int hf_measurementparams_offsetthreshold1800_exist = -1;
-static int hf_measurementparams_offsetthreshold400_exist = -1;
-static int hf_measurementparams_offsetthreshold1900_exist = -1;
-static int hf_measurementparams_offsetthreshold850_exist = -1;
-static int hf_gprsmeasurementparams3g_psi5_existrepparamsfdd_exist = -1;
-static int hf_gprsmeasurementparams3g_psi5_existreportingparamsfdd_exist = -1;
-static int hf_gprsmeasurementparams3g_psi5_existmultiratreportingtdd_exist = -1;
-static int hf_gprsmeasurementparams3g_psi5_existoffsetthresholdtdd_exist = -1;
-static int hf_enh_reporting_parameters_ncc_permitted_exist = -1;
-static int hf_enh_reporting_parameters_gprsmeasurementparams_exist = -1;
-static int hf_enh_reporting_parameters_gprsmeasurementparams3g_exist = -1;
-static int hf_psi5_additions_offsetthreshold_700_exist = -1;
-static int hf_psi5_additions_offsetthreshold_810_exist = -1;
-static int hf_psi5_additions_gprs_additionalmeasurementparams3g_exist = -1;
-static int hf_psi5_additions_additionsr7_exist = -1;
-static int hf_psi5_additionsr_enh_reporting_param_exist = -1;
-static int hf_psi5_additionsr_additionsr5_exist = -1;
-static int hf_psi5_eixst_nc_meas_param_exist = -1;
-static int hf_psi13_additions_lb_ms_txpwr_max_cch_exist = -1;
-static int hf_psi13_additions_additionsr6_exist = -1;
-static int hf_psi13_additionr_additionsr4_exist = -1;
-static int hf_psi13_ma_exist = -1;
-static int hf_pccf_additionsr8_additionsr9_exist = -1;
-static int hf_pccf_additionsr5_additionsr8_exist = -1;
-static int hf_pccf_additionsr99_additionsr5_exist = -1;
-static int hf_pmo_additionsr8_existadditionsr9_exist = -1;
-static int hf_pmo_additionsr7_existadditionsr8_exist = -1;
-static int hf_pmo_additionsr6_existadditionsr7_exist = -1;
-static int hf_pmo_additionsr5_existadditionsr6_exist = -1;
-static int hf_pcco_additionsr5_existadditionsr6_exist = -1;
-static int hf_pmo_additionsr4_additionsr5_exist = -1;
-static int hf_pmo_additionsr99_additionsr4_exist = -1;
-static int hf_pcco_additionsr4_additionsr5_exist = -1;
-static int hf_target_cell_gsm_additionsr98_exist = -1;
-static int hf_target_cell_3g_additionsr5_additionsr8_exist = -1;
-static int hf_target_cell_3g_additionsr5_exist = -1;
-static int hf_pmr_additionsr8_additionsr9_exist = -1;
-static int hf_pmr_additionsr5_additionsr8_exist = -1;
-static int hf_pmr_additionsr99_additionsr5_exist = -1;
-static int hf_pemr_additionsr8_additionsr9_exist = -1;
-static int hf_pemr_additionsr5_additionsr8_exist = -1;
-static int hf_packet_enh_measurement_report_additionsr5_exist = -1;
-static int hf_packet_measurement_order_additionsr98_exist = -1;
-static int hf_packet_cell_change_notification_additionsr6_exist = -1;
-static int hf_psi1_additionsr99_additionsr6_exist = -1;
-static int hf_packet_paging_request_repeated_page_info_exist = -1;
-static int hf_neighbourcelllist_parameters_exist = -1;
-static int hf_nc_frequency_list_add_frequency_exist = -1;
-static int hf_utran_fdd_description_cellparams_exist = -1;
-static int hf_utran_tdd_description_cellparams_exist = -1;
-static int hf_nc_lu_modeonlycapablecelllist_add_lu_modeonlyfrequencylist_exist = -1;
-static int hf_priorityparametersdescription3g_pmo_repeatedutran_priorityparameters_a_exist = -1;
-static int hf_repeatedeutran_neighbourcells_eutran_cells_a_exist = -1;
-static int hf_pcid_group_ie_pcid_pattern_a_exist = -1;
-static int hf_repeatedeutran_notallowedcells_eutran_frequency_index_a_exist = -1;
-static int hf_repeatedeutran_pcid_to_ta_mapping_pcid_tota_mapping_a_exist = -1;
-static int hf_repeatedeutran_pcid_to_ta_mapping_eutran_frequency_index_a_exist = -1;
-static int hf_eutran_parametersdescription_pmo_repeatedeutran_neighbourcells_a_exist = -1;
-static int hf_eutran_parametersdescription_pmo_repeatedeutran_notallowedcells_a_exist = -1;
-static int hf_eutran_parametersdescription_pmo_repeatedeutran_pcid_to_ta_mapping_a_exist = -1;
-static int hf_psc_group_psc_pattern_exist = -1;
-static int hf_threeg_csg_description_threeg_csg_description_body_exist = -1;
-static int hf_eutran_csg_description_eutran_csg_description_body_exist = -1;
-static int hf_enh_cell_reselect_param_desp_repeated_eutran_enhanced_cell_reselection_parameters_exist = -1;
-static int hf_threeg_individual_priority_parameters_description_repeated_individual_utran_priority_parameters_exist = -1;
-static int hf_eutran_individual_priority_parameters_description_repeated_individual_eutran_priority_parameters_exist = -1;
-static int hf_lsa_id_info_lsa_id_info_elements_exist = -1;
-static int hf_compact_info_compact_neighbour_cell_param_exist = -1;
-static int hf_packet_access_reject_reject_exist = -1;
-static int hf_enh_nc_measurement_report_repeatedinvalid_bsic_info_exist = -1;
-static int hf_nonhoppingpccch_carriers_exist = -1;
-static int hf_psi2_reference_frequency_exist = -1;
-static int hf_psi2_gprs_ma_exist = -1;
-static int hf_psi2_pccch_description_exist = -1;
+static int hf_packet_downlink_ack_nack_channel_request_description_exist;
+static int hf_egprs_pd_acknack_egprs_channelqualityreport_exist;
+static int hf_egprs_pd_acknack_channelrequestdescription_exist;
+static int hf_egprs_pd_acknack_extensionbits_exist;
+static int hf_fdd_target_cell_bandwith_fdd_exist;
+static int hf_tdd_target_cell_bandwith_tdd_exist;
+static int hf_eutran_target_cell_measurement_bandwidth_exist;
+static int hf_utran_csg_target_cell_plmn_id_exist;
+static int hf_eutran_csg_target_cell_plmn_id_exist;
+static int hf_pccf_additionsr9_utran_csg_target_cell_exist;
+static int hf_pccf_additionsr9_eutran_csg_target_cell_exist;
+static int hf_pccf_additionsr8_eutran_target_cell_exist;
+static int hf_pccf_additionsr5_g_rnti_extention_exist;
+static int hf_pccf_additionsr99_fdd_description_exist;
+static int hf_pccf_additionsr99_tdd_description_exist;
+static int hf_power_control_parameters_slot0_exist;
+static int hf_power_control_parameters_slot1_exist;
+static int hf_power_control_parameters_slot2_exist;
+static int hf_power_control_parameters_slot3_exist;
+static int hf_power_control_parameters_slot4_exist;
+static int hf_power_control_parameters_slot5_exist;
+static int hf_power_control_parameters_slot6_exist;
+static int hf_power_control_parameters_slot7_exist;
+static int hf_pu_acknack_gprs_additionsr99_packetextendedtimingadvance_exist;
+static int hf_pu_acknack_gprs_common_uplink_ack_nack_data_exist_contention_resolution_tlli_exist;
+static int hf_pu_acknack_gprs_common_uplink_ack_nack_data_exist_packet_timing_advance_exist;
+static int hf_pu_acknack_gprs_common_uplink_ack_nack_data_exist_power_control_parameters_exist;
+static int hf_pu_acknack_gprs_common_uplink_ack_nack_data_exist_extension_bits_exist;
+static int hf_pu_acknack_egprs_00_common_uplink_ack_nack_data_exist_contention_resolution_tlli_exist;
+static int hf_pu_acknack_egprs_00_common_uplink_ack_nack_data_exist_packet_timing_advance_exist;
+static int hf_pu_acknack_egprs_00_packet_extended_timing_advance_exist;
+static int hf_pu_acknack_egprs_00_common_uplink_ack_nack_data_exist_power_control_parameters_exist;
+static int hf_pu_acknack_egprs_00_common_uplink_ack_nack_data_exist_extension_bits_exist;
+static int hf_change_mark_change_mark_2_exist;
+static int hf_indirect_encoding_change_mark_exist;
+static int hf_timeslot_allocation_exist_exist;
+static int hf_timeslot_allocation_power_ctrl_param_slot0_exist;
+static int hf_timeslot_allocation_power_ctrl_param_slot1_exist;
+static int hf_timeslot_allocation_power_ctrl_param_slot2_exist;
+static int hf_timeslot_allocation_power_ctrl_param_slot3_exist;
+static int hf_timeslot_allocation_power_ctrl_param_slot4_exist;
+static int hf_timeslot_allocation_power_ctrl_param_slot5_exist;
+static int hf_timeslot_allocation_power_ctrl_param_slot6_exist;
+static int hf_timeslot_allocation_power_ctrl_param_slot7_exist;
+static int hf_dynamic_allocation_p0_exist;
+static int hf_dynamic_allocation_uplink_tfi_assignment_exist;
+static int hf_dynamic_allocation_rlc_data_blocks_granted_exist;
+static int hf_dynamic_allocation_tbf_starting_time_exist;
+static int hf_single_block_allocation_alpha_and_gamma_tn_exist;
+static int hf_single_block_allocation_p0_exist;
+static int hf_pua_gprs_additionsr99_packet_extended_timing_advance_exist;
+static int hf_pua_gprs_frequency_parameters_exist;
+static int hf_compact_reducedma_maio_2_exist;
+static int hf_multiblock_allocation_alpha_gamma_tn_exist;
+static int hf_multiblock_allocation_p0_bts_pwr_ctrl_pr_mode_exist;
+static int hf_pua_egprs_00_contention_resolution_tlli_exist;
+static int hf_pua_egprs_00_compact_reducedma_exist;
+static int hf_pua_egprs_00_bep_period2_exist;
+static int hf_pua_egprs_00_packet_extended_timing_advance_exist;
+static int hf_pua_egprs_00_frequency_parameters_exist;
+static int hf_pda_additionsr99_egprs_params_exist;
+static int hf_pda_additionsr99_bep_period2_exist;
+static int hf_pda_additionsr99_packet_extended_timing_advance_exist;
+static int hf_pda_additionsr99_compact_reducedma_exist;
+static int hf_packet_downlink_assignment_p0_and_bts_pwr_ctrl_mode_exist;
+static int hf_packet_downlink_assignment_frequency_parameters_exist;
+static int hf_packet_downlink_assignment_downlink_tfi_assignment_exist;
+static int hf_packet_downlink_assignment_power_control_parameters_exist;
+static int hf_packet_downlink_assignment_tbf_starting_time_exist;
+static int hf_packet_downlink_assignment_measurement_mapping_exist;
+static int hf_page_request_for_rr_conn_emlpp_priority_exist;
+static int hf_packet_paging_request_nln_exist;
+static int hf_packet_power_control_timing_advance_global_power_control_parameters_exist;
+static int hf_trdynamic_allocation_p0_exist;
+static int hf_trdynamic_allocation_rlc_data_blocks_granted_exist;
+static int hf_trdynamic_allocation_tbf_starting_time_exist;
+static int hf_ptr_gprs_additionsr99_packet_extended_timing_advance_exist;
+static int hf_ptr_gprs_common_timeslot_reconfigure_data_exist_downlink_tfi_assignment_exist;
+static int hf_ptr_gprs_common_timeslot_reconfigure_data_exist_uplink_tfi_assignment_exist;
+static int hf_ptr_gprs_common_timeslot_reconfigure_data_exist_frequency_parameters_exist;
+static int hf_ptr_egprs_00_compact_reducedma_exist;
+static int hf_ptr_egprs_00_downlink_egprs_windowsize_exist;
+static int hf_ptr_egprs_00_uplink_egprs_windowsize_exist;
+static int hf_ptr_egprs_00_packet_extended_timing_advance_exist;
+static int hf_ptr_egprs_00_common_timeslot_reconfigure_data_exist_downlink_tfi_assignment_exist;
+static int hf_ptr_egprs_00_common_timeslot_reconfigure_data_exist_uplink_tfi_assignment_exist;
+static int hf_ptr_egprs_00_common_timeslot_reconfigure_data_exist_frequency_parameters_exist;
+static int hf_cell_selection_rxlev_and_txpwr_exist;
+static int hf_cell_selection_offset_and_time_exist;
+static int hf_cell_selection_gprs_reselect_offset_exist;
+static int hf_cell_selection_hcs_exist;
+static int hf_cell_selection_si13_pbcch_location_exist;
+static int hf_cell_selection_2_rxlev_and_txpwr_exist;
+static int hf_cell_selection_2_offset_and_time_exist;
+static int hf_cell_selection_2_gprs_reselect_offset_exist;
+static int hf_cell_selection_2_hcs_exist;
+static int hf_cell_selection_2_si13_pbcch_location_exist;
+static int hf_reject_wait_exist;
+static int hf_cellselectionparamswithfreqdiff_cellselectionparams_exist;
+static int hf_add_frequency_list_cell_selection_exist;
+static int hf_nc_frequency_list_removed_freq_exist;
+static int hf_nc_measurement_parameters_nc_exist;
+static int hf_nc_measurement_parameters_with_frequency_list_nc_exist;
+static int hf_nc_measurement_parameters_with_frequency_list_nc_frequency_list_exist;
+static int hf_gprsmeasurementparams_pmo_pcco_multi_band_reporting_exist;
+static int hf_gprsmeasurementparams_pmo_pcco_serving_band_reporting_exist;
+static int hf_gprsmeasurementparams_pmo_pcco_offsetthreshold900_exist;
+static int hf_gprsmeasurementparams_pmo_pcco_offsetthreshold1800_exist;
+static int hf_gprsmeasurementparams_pmo_pcco_offsetthreshold400_exist;
+static int hf_gprsmeasurementparams_pmo_pcco_offsetthreshold1900_exist;
+static int hf_gprsmeasurementparams_pmo_pcco_offsetthreshold850_exist;
+static int hf_multiratparams3g_existmultiratreporting_exist;
+static int hf_multiratparams3g_existoffsetthreshold_exist;
+static int hf_enh_gprsmeasurementparams3g_pmo_existrepparamsfdd_exist;
+static int hf_enh_gprsmeasurementparams3g_pmo_existoffsetthreshold_exist;
+static int hf_enh_gprsmeasurementparams3g_pcco_existrepparamsfdd_exist;
+static int hf_enh_gprsmeasurementparams3g_pcco_existoffsetthreshold_exist;
+static int hf_utran_fdd_description_existbandwidth_exist;
+static int hf_utran_tdd_description_existbandwidth_exist;
+static int hf_neighbourcelldescription3g_pmo_index_start_3g_exist;
+static int hf_neighbourcelldescription3g_pmo_absolute_index_start_emr_exist;
+static int hf_neighbourcelldescription3g_pmo_utran_fdd_description_exist;
+static int hf_neighbourcelldescription3g_pmo_utran_tdd_description_exist;
+static int hf_neighbourcelldescription3g_pmo_cdma2000_description_exist;
+static int hf_neighbourcelldescription3g_pmo_removed3gcelldescription_exist;
+static int hf_neighbourcelldescription3g_pcco_index_start_3g_exist;
+static int hf_neighbourcelldescription3g_pcco_absolute_index_start_emr_exist;
+static int hf_neighbourcelldescription3g_pcco_utran_fdd_description_exist;
+static int hf_neighbourcelldescription3g_pcco_utran_tdd_description_exist;
+static int hf_neighbourcelldescription3g_pcco_removed3gcelldescription_exist;
+static int hf_enh_measurement_parameters_pmo_neighbourcelldescription3g_exist;
+static int hf_enh_measurement_parameters_pmo_gprsreportpriority_exist;
+static int hf_enh_measurement_parameters_pmo_gprsmeasurementparams_exist;
+static int hf_enh_measurement_parameters_pmo_gprsmeasurementparams3g_exist;
+static int hf_enh_measurement_parameters_pcco_neighbourcelldescription3g_exist;
+static int hf_enh_measurement_parameters_pcco_gprsreportpriority_exist;
+static int hf_enh_measurement_parameters_pcco_gprsmeasurementparams_exist;
+static int hf_enh_measurement_parameters_pcco_gprsmeasurementparams3g_exist;
+static int hf_lu_modecellselectionparameters_si13_alt_pbcch_location_exist;
+static int hf_lu_modecellselectionparams_lu_modecellselectionparams_exist;
+static int hf_lu_modeonlycellselection_rxlev_and_txpwr_exist;
+static int hf_lu_modeonlycellselection_offset_and_time_exist;
+static int hf_lu_modeonlycellselection_gprs_reselect_offset_exist;
+static int hf_lu_modeonlycellselection_hcs_exist;
+static int hf_lu_modeonlycellselection_si13_alt_pbcch_location_exist;
+static int hf_lu_modeonlycellselectionparamswithfreqdiff_lu_modeonlycellselectionparams_exist;
+static int hf_add_lu_modeonlyfrequencylist_lu_modecellselection_exist;
+static int hf_gprs_additionalmeasurementparams3g_fdd_reporting_threshold_2_exist;
+static int hf_repeatedutran_priorityparameters_existutran_priority_exist;
+static int hf_repeatedutran_priorityparameters_existthresh_utran_low_exist;
+static int hf_repeatedutran_priorityparameters_existutran_qrxlevmin_exist;
+static int hf_priorityparametersdescription3g_pmo_existdefault_utran_parameters_exist;
+static int hf_eutran_reporting_threshold_offset_existeutran_fdd_reporting_threshold_offset_exist;
+static int hf_eutran_reporting_threshold_offset_existeutran_fdd_reporting_threshold_2_exist;
+static int hf_eutran_reporting_threshold_offset_existeutran_fdd_reporting_offset_exist;
+static int hf_eutran_reporting_threshold_offset_existeutran_tdd_reporting_threshold_offset_exist;
+static int hf_eutran_reporting_threshold_offset_existeutran_tdd_reporting_threshold_2_exist;
+static int hf_eutran_reporting_threshold_offset_existeutran_tdd_reporting_offset_exist;
+static int hf_repeatedeutran_cells_existmeasurementbandwidth_exist;
+static int hf_repeatedeutran_neighbourcells_existeutran_priority_exist;
+static int hf_repeatedeutran_neighbourcells_existthresh_eutran_low_exist;
+static int hf_repeatedeutran_neighbourcells_existeutran_qrxlevmin_exist;
+static int hf_pcid_group_ie_existpcid_bitmap_group_exist;
+static int hf_eutran_parametersdescription_pmo_existgprs_eutran_measurementparametersdescription_exist;
+static int hf_meas_ctrl_param_desp_existmeasurement_control_eutran_exist;
+static int hf_meas_ctrl_param_desp_existmeasurement_control_utran_exist;
+static int hf_reselection_based_on_rsrq_existthresh_eutran_low_q_exist;
+static int hf_reselection_based_on_rsrq_existeutran_qqualmin_exist;
+static int hf_reselection_based_on_rsrq_existeutran_rsrpmin_exist;
+static int hf_utran_csg_cells_reporting_desp_existutran_csg_fdd_reporting_threshold_exist;
+static int hf_utran_csg_cells_reporting_desp_existutran_csg_tdd_reporting_threshold_exist;
+static int hf_eutran_csg_cells_reporting_desp_existeutran_csg_fdd_reporting_threshold_exist;
+static int hf_eutran_csg_cells_reporting_desp_existeutran_csg_tdd_reporting_threshold_exist;
+static int hf_csg_cells_reporting_desp_existutran_csg_cells_reporting_description_exist;
+static int hf_csg_cells_reporting_desp_existeutran_csg_cells_reporting_description_exist;
+static int hf_priorityandeutran_parametersdescription_pmo_existservingcellpriorityparametersdescription_exist;
+static int hf_priorityandeutran_parametersdescription_pmo_existpriorityparametersdescription3g_pmo_exist;
+static int hf_priorityandeutran_parametersdescription_pmo_existeutran_parametersdescription_pmo_exist;
+static int hf_threeg_individual_priority_parameters_description_default_utran_priority_exist;
+static int hf_eutran_individual_priority_parameters_description_default_eutran_priority_exist;
+static int hf_provide_individual_priorities_3g_individual_priority_parameters_description_exist;
+static int hf_provide_individual_priorities_eutran_individual_priority_parameters_description_exist;
+static int hf_provide_individual_priorities_t3230_timeout_value_exist;
+static int hf_pmo_additionsr9_existenhanced_cell_reselection_parameters_description_exist;
+static int hf_pmo_additionsr9_existcsg_cells_reporting_description_exist;
+static int hf_pmo_additionsr8_existba_ind_3g_pmo_ind_exist;
+static int hf_pmo_additionsr8_existpriorityandeutran_parametersdescription_pmo_exist;
+static int hf_pmo_additionsr8_existindividualpriorities_pmo_exist;
+static int hf_pmo_additionsr8_existthreeg_csg_description_exist;
+static int hf_pmo_additionsr8_existeutran_csg_description_exist;
+static int hf_pmo_additionsr8_existmeasurement_control_parameters_description_exist;
+static int hf_pmo_additionsr7_existreporting_offset_threshold_700_exist;
+static int hf_pmo_additionsr7_existreporting_offset_threshold_810_exist;
+static int hf_pmo_additionsr5_existgrnti_extension_exist;
+static int hf_pmo_additionsr5_lu_modeneighbourcellparams_exist;
+static int hf_pmo_additionsr5_existnc_lu_modeonlycapablecelllist_exist;
+static int hf_pmo_additionsr5_existgprs_additionalmeasurementparams3g_exist;
+static int hf_pcco_additionsr5_existgrnti_extension_exist;
+static int hf_pcco_additionsr5_lu_modeneighbourcellparams_exist;
+static int hf_pcco_additionsr5_existnc_lu_modeonlycapablecelllist_exist;
+static int hf_pcco_additionsr5_existgprs_additionalmeasurementparams3g_exist;
+static int hf_pmo_additionsr4_ccn_support_description_id_exist;
+static int hf_pmo_additionsr99_enh_measurement_parameters_exist;
+static int hf_pcco_additionsr4_container_id_exist;
+static int hf_pcco_additionsr4_ccn_support_description_id_exist;
+static int hf_pmo_additionsr98_lsa_parameters_exist;
+static int hf_pcco_additionsr98_lsa_parameters_exist;
+static int hf_target_cell_3g_additionsr8_eutran_target_cell_exist;
+static int hf_target_cell_3g_additionsr8_individual_priorities_exist;
+static int hf_target_cell_3g_additionsr5_g_rnti_extention_exist;
+static int hf_target_cell_3g_fdd_description_exist;
+static int hf_target_cell_3g_tdd_description_exist;
+static int hf_nc_measurements_bsic_n_exist;
+static int hf_reporting_quantity_instance_reporting_quantity_exist;
+static int hf_enh_nc_measurement_report_serving_cell_data_exist;
+static int hf_enh_nc_measurement_report_reportbitmap_exist;
+static int hf_ext_measurement_report_slot0_exist;
+static int hf_ext_measurement_report_slot1_exist;
+static int hf_ext_measurement_report_slot2_exist;
+static int hf_ext_measurement_report_slot3_exist;
+static int hf_ext_measurement_report_slot4_exist;
+static int hf_ext_measurement_report_slot5_exist;
+static int hf_ext_measurement_report_slot6_exist;
+static int hf_ext_measurement_report_slot7_exist;
+static int hf_ext_measurement_report_i_level_exist;
+static int hf_utran_csg_measurement_report_plmn_id_exist;
+static int hf_eutran_csg_measurement_report_plmn_id_exist;
+static int hf_pmr_additionsr9_utran_csg_meas_rpt_exist;
+static int hf_pmr_additionsr9_eutran_csg_meas_rpt_exist;
+static int hf_pmr_additionsr8_eutran_meas_rpt_exist;
+static int hf_pmr_additionsr5_grnti_exist;
+static int hf_pmr_additionsr99_info3g_exist;
+static int hf_pmr_additionsr99_measurementreport3g_exist;
+static int hf_packet_measurement_report_psi5_change_mark_exist;
+static int hf_pemr_additionsr9_utran_csg_target_cell_exist;
+static int hf_pemr_additionsr9_eutran_csg_target_cell_exist;
+static int hf_bitmap_report_quantity_reporting_quantity_exist;
+static int hf_pemr_additionsr8_eutran_meas_rpt_exist;
+static int hf_pemr_additionsr5_grnti_ext_exist;
+static int hf_packet_measurement_order_nc_measurement_parameters_exist;
+static int hf_packet_measurement_order_ext_measurement_parameters_exist;
+static int hf_fdd_target_cell_notif_bandwith_fdd_exist;
+static int hf_tdd_target_cell_notif_bandwith_tdd_exist;
+static int hf_target_cell_3g_notif_fdd_description_exist;
+static int hf_target_cell_3g_notif_tdd_description_exist;
+static int hf_target_eutran_cell_notif_measurement_bandwidth_exist;
+static int hf_target_cell_4g_notif_arfcn_exist;
+static int hf_target_cell_4g_notif_3g_target_cell_exist;
+static int hf_target_cell_4g_notif_eutran_target_cell_exist;
+static int hf_target_cell_4g_notif_eutran_ccn_measurement_report_exist;
+static int hf_target_cell_csg_notif_eutran_ccn_measurement_report_exist;
+static int hf_pccn_additionsr6_ba_used_3g_exist;
+static int hf_packet_cell_change_continue_id_exist;
+static int hf_pho_downlinkassignment_egprs_windowsize_exist;
+static int hf_pho_usf_1_7_usf_exist;
+static int hf_pho_uplinkassignment_channelcodingcommand_exist;
+static int hf_pho_uplinkassignment_egprs_channelcodingcommand_exist;
+static int hf_pho_uplinkassignment_egprs_windowsize_exist;
+static int hf_pho_uplinkassignment_tbf_timeslotallocation_exist;
+static int hf_globaltimeslotdescription_ua_pho_ua_exist;
+static int hf_pho_gprs_channelcodingcommand_exist;
+static int hf_pho_gprs_globaltimeslotdescription_ua_exist;
+static int hf_pho_gprs_downlinkassignment_exist;
+static int hf_egprs_description_egprs_windowsize_exist;
+static int hf_egprs_description_bep_period2_exist;
+static int hf_downlinktbf_egprs_description_exist;
+static int hf_downlinktbf_downlinkassignment_exist;
+static int hf_pho_egprs_egprs_windowsize_exist;
+static int hf_pho_egprs_egprs_channelcodingcommand_exist;
+static int hf_pho_egprs_bep_period2_exist;
+static int hf_pho_egprs_globaltimeslotdescription_ua_exist;
+static int hf_pho_egprs_downlinktbf_exist;
+static int hf_pho_timingadvance_packetextendedtimingadvance_exist;
+static int hf_pho_radioresources_handoverreference_exist;
+static int hf_pho_radioresources_ccn_active_exist;
+static int hf_pho_radioresources_ccn_active_3g_exist;
+static int hf_pho_radioresources_ccn_support_description_exist;
+static int hf_pho_radioresources_pho_timingadvance_exist;
+static int hf_pho_radioresources_po_pr_exist;
+static int hf_pho_radioresources_uplinkcontroltimeslot_exist;
+static int hf_ps_handoverto_a_gb_modepayload_nas_container_exist;
+static int hf_psi1_psi_count_hr_exist;
+static int hf_non_gprs_cell_options_t3212_exist;
+static int hf_non_gprs_cell_options_extension_bits_exist;
+static int hf_psi2_cell_identification_exist;
+static int hf_psi2_non_gprs_cell_options_exist;
+static int hf_serving_cell_params_hcs_exist;
+static int hf_gen_cell_sel_t_resel_exist;
+static int hf_gen_cell_sel_ra_reselect_hysteresis_exist;
+static int hf_compact_cell_sel_gprs_rxlev_access_min_exist;
+static int hf_compact_cell_sel_gprs_temporary_offset_exist;
+static int hf_compact_cell_sel_gprs_reselect_offset_exist;
+static int hf_compact_cell_sel_hcs_parm_exist;
+static int hf_compact_cell_sel_time_group_exist;
+static int hf_compact_cell_sel_guar_constant_pwr_blks_exist;
+static int hf_psi3_additionr4_ccn_support_desc_exist;
+static int hf_psi3_additionr99_compact_info_exist;
+static int hf_psi3_additionr99_additionr4_exist;
+static int hf_psi3_additionr98_lsa_parameters_exist;
+static int hf_psi3_additionr98_additionr99_exist;
+static int hf_psi3_additionr98_exist;
+static int hf_measurementparams_multi_band_reporting_exist;
+static int hf_measurementparams_serving_band_reporting_exist;
+static int hf_measurementparams_scale_ord_exist;
+static int hf_measurementparams_offsetthreshold900_exist;
+static int hf_measurementparams_offsetthreshold1800_exist;
+static int hf_measurementparams_offsetthreshold400_exist;
+static int hf_measurementparams_offsetthreshold1900_exist;
+static int hf_measurementparams_offsetthreshold850_exist;
+static int hf_gprsmeasurementparams3g_psi5_existrepparamsfdd_exist;
+static int hf_gprsmeasurementparams3g_psi5_existreportingparamsfdd_exist;
+static int hf_gprsmeasurementparams3g_psi5_existmultiratreportingtdd_exist;
+static int hf_gprsmeasurementparams3g_psi5_existoffsetthresholdtdd_exist;
+static int hf_enh_reporting_parameters_ncc_permitted_exist;
+static int hf_enh_reporting_parameters_gprsmeasurementparams_exist;
+static int hf_enh_reporting_parameters_gprsmeasurementparams3g_exist;
+static int hf_psi5_additions_offsetthreshold_700_exist;
+static int hf_psi5_additions_offsetthreshold_810_exist;
+static int hf_psi5_additions_gprs_additionalmeasurementparams3g_exist;
+static int hf_psi5_additions_additionsr7_exist;
+static int hf_psi5_additionsr_enh_reporting_param_exist;
+static int hf_psi5_additionsr_additionsr5_exist;
+static int hf_psi5_eixst_nc_meas_param_exist;
+static int hf_psi13_additions_lb_ms_txpwr_max_cch_exist;
+static int hf_psi13_additions_additionsr6_exist;
+static int hf_psi13_additionr_additionsr4_exist;
+static int hf_psi13_ma_exist;
+static int hf_pccf_additionsr8_additionsr9_exist;
+static int hf_pccf_additionsr5_additionsr8_exist;
+static int hf_pccf_additionsr99_additionsr5_exist;
+static int hf_pmo_additionsr8_existadditionsr9_exist;
+static int hf_pmo_additionsr7_existadditionsr8_exist;
+static int hf_pmo_additionsr6_existadditionsr7_exist;
+static int hf_pmo_additionsr5_existadditionsr6_exist;
+static int hf_pcco_additionsr5_existadditionsr6_exist;
+static int hf_pmo_additionsr4_additionsr5_exist;
+static int hf_pmo_additionsr99_additionsr4_exist;
+static int hf_pcco_additionsr4_additionsr5_exist;
+static int hf_target_cell_gsm_additionsr98_exist;
+static int hf_target_cell_3g_additionsr5_additionsr8_exist;
+static int hf_target_cell_3g_additionsr5_exist;
+static int hf_pmr_additionsr8_additionsr9_exist;
+static int hf_pmr_additionsr5_additionsr8_exist;
+static int hf_pmr_additionsr99_additionsr5_exist;
+static int hf_pemr_additionsr8_additionsr9_exist;
+static int hf_pemr_additionsr5_additionsr8_exist;
+static int hf_packet_enh_measurement_report_additionsr5_exist;
+static int hf_packet_measurement_order_additionsr98_exist;
+static int hf_packet_cell_change_notification_additionsr6_exist;
+static int hf_psi1_additionsr99_additionsr6_exist;
+static int hf_packet_paging_request_repeated_page_info_exist;
+static int hf_neighbourcelllist_parameters_exist;
+static int hf_nc_frequency_list_add_frequency_exist;
+static int hf_utran_fdd_description_cellparams_exist;
+static int hf_utran_tdd_description_cellparams_exist;
+static int hf_nc_lu_modeonlycapablecelllist_add_lu_modeonlyfrequencylist_exist;
+static int hf_priorityparametersdescription3g_pmo_repeatedutran_priorityparameters_a_exist;
+static int hf_repeatedeutran_neighbourcells_eutran_cells_a_exist;
+static int hf_pcid_group_ie_pcid_pattern_a_exist;
+static int hf_repeatedeutran_notallowedcells_eutran_frequency_index_a_exist;
+static int hf_repeatedeutran_pcid_to_ta_mapping_pcid_tota_mapping_a_exist;
+static int hf_repeatedeutran_pcid_to_ta_mapping_eutran_frequency_index_a_exist;
+static int hf_eutran_parametersdescription_pmo_repeatedeutran_neighbourcells_a_exist;
+static int hf_eutran_parametersdescription_pmo_repeatedeutran_notallowedcells_a_exist;
+static int hf_eutran_parametersdescription_pmo_repeatedeutran_pcid_to_ta_mapping_a_exist;
+static int hf_psc_group_psc_pattern_exist;
+static int hf_threeg_csg_description_threeg_csg_description_body_exist;
+static int hf_eutran_csg_description_eutran_csg_description_body_exist;
+static int hf_enh_cell_reselect_param_desp_repeated_eutran_enhanced_cell_reselection_parameters_exist;
+static int hf_threeg_individual_priority_parameters_description_repeated_individual_utran_priority_parameters_exist;
+static int hf_eutran_individual_priority_parameters_description_repeated_individual_eutran_priority_parameters_exist;
+static int hf_lsa_id_info_lsa_id_info_elements_exist;
+static int hf_compact_info_compact_neighbour_cell_param_exist;
+static int hf_packet_access_reject_reject_exist;
+static int hf_enh_nc_measurement_report_repeatedinvalid_bsic_info_exist;
+static int hf_nonhoppingpccch_carriers_exist;
+static int hf_psi2_reference_frequency_exist;
+static int hf_psi2_gprs_ma_exist;
+static int hf_psi2_pccch_description_exist;
 
 
-static expert_field ei_li = EI_INIT;
+static expert_field ei_li;
 /* Generated from convert_proto_tree_add_text.pl */
-static expert_field ei_gsm_rlcmac_coding_scheme_invalid = EI_INIT;
-static expert_field ei_gsm_rlcmac_gprs_fanr_header_dissection_not_supported = EI_INIT;
-static expert_field ei_gsm_rlcmac_coding_scheme_unknown = EI_INIT;
-static expert_field ei_gsm_rlcmac_egprs_header_type_not_handled = EI_INIT;
-static expert_field ei_gsm_rlcmac_unexpected_header_extension = EI_INIT;
-static expert_field ei_gsm_rlcmac_unknown_pacch_access_burst = EI_INIT;
-static expert_field ei_gsm_rlcmac_stream_not_supported = EI_INIT;
+static expert_field ei_gsm_rlcmac_coding_scheme_invalid;
+static expert_field ei_gsm_rlcmac_gprs_fanr_header_dissection_not_supported;
+static expert_field ei_gsm_rlcmac_coding_scheme_unknown;
+static expert_field ei_gsm_rlcmac_egprs_header_type_not_handled;
+static expert_field ei_gsm_rlcmac_unexpected_header_extension;
+static expert_field ei_gsm_rlcmac_unknown_pacch_access_burst;
+static expert_field ei_gsm_rlcmac_stream_not_supported;
 
 /* Payload type as defined in TS 44.060 / 10.4.7 */
 #define PAYLOAD_TYPE_DATA              0
@@ -1722,7 +1723,7 @@ static expert_field ei_gsm_rlcmac_stream_not_supported = EI_INIT;
 #define EGPRS_HEADER_TYPE_OFFSET(hT) ((hT)- RLCMAC_HDR_TYPE_1)
 
 /* Coding and Puncturing Scheme indicator field for Header type 1 in EGPRS TBF or EC TBF or downlink EGPRS2 TBF */
-static const guint8 egprs_Header_type1_coding_puncturing_scheme_to_mcs[] = {
+static const uint8_t egprs_Header_type1_coding_puncturing_scheme_to_mcs[] = {
    9 /* 0x00, "(MCS-9/P1 ; MCS-9/P1)" */,
    9 /* 0x01, "(MCS-9/P1 ; MCS-9/P2)" */,
    9 /* 0x02, "(MCS-9/P1 ; MCS-9/P3)" */,
@@ -1758,7 +1759,7 @@ static const guint8 egprs_Header_type1_coding_puncturing_scheme_to_mcs[] = {
 };
 
 /* Coding and Puncturing Scheme indicator field for Header type 2 in (EC-)EGPRS TBF or uplink EGPRS2-A TBF */
-static const guint8 egprs_Header_type2_coding_puncturing_scheme_to_mcs[] = {
+static const uint8_t egprs_Header_type2_coding_puncturing_scheme_to_mcs[] = {
    6 /* {0x00, "MCS-6/P1"} */,
    6 /* {0x01, "MCS-6/P2"} */,
    6 /* {0x02, "MCS-6/P1 with 6 octet padding"} */,
@@ -1769,7 +1770,7 @@ static const guint8 egprs_Header_type2_coding_puncturing_scheme_to_mcs[] = {
    5 /* {0x07, "MCS-6/P2 with 10 octet padding "} */
 };
 
-static const guint8 egprs_Header_type3_coding_puncturing_scheme_to_mcs[] = {
+static const uint8_t egprs_Header_type3_coding_puncturing_scheme_to_mcs[] = {
    4 /* {0x00, "MCS-4/P1"} */,
    4 /* {0x01, "MCS-4/P2"} */,
    4 /* {0x02, "MCS-4/P3"} */,
@@ -1788,7 +1789,7 @@ static const guint8 egprs_Header_type3_coding_puncturing_scheme_to_mcs[] = {
    0 /* {0x0F, "MCS-0"} */
 };
 
-static const guint8 ec_egprs_Header_type3_coding_puncturing_scheme_to_mcs[] = {
+static const uint8_t ec_egprs_Header_type3_coding_puncturing_scheme_to_mcs[] = {
    4 /* {0x00, "MCS-4/P1"} */,
    4 /* {0x01, "MCS-4/P2"} */,
    3 /* {0x02, "MCS-3/P1"} */,
@@ -2017,7 +2018,7 @@ CSN_DESCR_BEGIN   (EGPRS_AckNack_Desc_t)
 CSN_DESCR_END     (EGPRS_AckNack_Desc_t)
 
 /* < EGPRS Ack/Nack Description IE > */
-static gint16 Egprs_Ack_Nack_Desc_w_len_Dissector(proto_tree *tree, csnStream_t* ar, tvbuff_t *tvb, void* data, int ett_csn1 _U_)
+static int16_t Egprs_Ack_Nack_Desc_w_len_Dissector(proto_tree *tree, csnStream_t* ar, tvbuff_t *tvb, void* data, int ett_csn1 _U_)
 {
   return csnStreamDissector(tree, ar, CSNDESCR(EGPRS_AckNack_Desc_t), tvb, data, ett_gsm_rlcmac);
 }
@@ -2255,7 +2256,7 @@ CSN_ChoiceElement_t IA_EGPRS_Choice[] =
 static const
 CSN_DESCR_BEGIN(IA_EGPRS_t)
   M_UINT       (IA_EGPRS_t,  UnionType,  1, &hf_ia_egprs_uniontype ),
-  M_CHOICE     (IA_EGPRS_t, UnionType, IA_EGPRS_Choice, ElementsOf(IA_EGPRS_Choice)),
+  M_CHOICE     (IA_EGPRS_t, UnionType, IA_EGPRS_Choice, array_length(IA_EGPRS_Choice)),
 CSN_DESCR_END  (IA_EGPRS_t)
 
 static const
@@ -2411,7 +2412,7 @@ CSN_ChoiceElement_t PacketPollingID[] =
 
 static const
 CSN_DESCR_BEGIN(PacketPollingID_t)
-  M_CHOICE     (PacketPollingID_t, UnionType, PacketPollingID, ElementsOf(PacketPollingID), &hf_packet_polling_id_choice),
+  M_CHOICE     (PacketPollingID_t, UnionType, PacketPollingID, array_length(PacketPollingID), &hf_packet_polling_id_choice),
 CSN_DESCR_END  (PacketPollingID_t)
 
 static const
@@ -2493,7 +2494,7 @@ CSN_DESCR_BEGIN(PBCCH_Description_t)/*SI13*/
   M_UINT       (PBCCH_Description_t,  TSC, 3, &hf_tsc),
   M_UINT       (PBCCH_Description_t,  TN,  3, &hf_pbcch_description_tn),
 
-  M_CHOICE     (PBCCH_Description_t, UnionType, SI13_PBCCH_Description_Channel, ElementsOf(SI13_PBCCH_Description_Channel), &hf_pbcch_description_choice),
+  M_CHOICE     (PBCCH_Description_t, UnionType, SI13_PBCCH_Description_Channel, array_length(SI13_PBCCH_Description_Channel), &hf_pbcch_description_choice),
 CSN_DESCR_END  (PBCCH_Description_t)
 
 static const
@@ -2635,7 +2636,7 @@ CSN_DESCR_END  (Receive_N_PDU_Number_t)
 #endif
 
 #if 0
-static gint16 Receive_N_PDU_Number_list_Dissector(proto_tree *tree, csnStream_t* ar, tvbuff_t *tvb, void* data, int ett_csn1 _U_)
+static int16_t Receive_N_PDU_Number_list_Dissector(proto_tree *tree, csnStream_t* ar, tvbuff_t *tvb, void* data, int ett_csn1 _U_)
 {
   return csnStreamDissector(tree, ar, CSNDESCR(Receive_N_PDU_Number_t), tvb, data, ett_gsm_rlcmac);
 }
@@ -2767,7 +2768,7 @@ CSN_DESCR_BEGIN       (Content_t)
 
 CSN_DESCR_END         (Content_t)
 
-static gint16 Content_Dissector(proto_tree *tree, csnStream_t* ar, tvbuff_t *tvb, void* data, int ett_csn1 _U_)
+static int16_t Content_Dissector(proto_tree *tree, csnStream_t* ar, tvbuff_t *tvb, void* data, int ett_csn1 _U_)
 {
   return csnStreamDissector(tree, ar, CSNDESCR(Content_t), tvb, data, ett_gsm_rlcmac);
 }
@@ -2784,7 +2785,7 @@ CSN_DESCR_BEGIN       (Additional_access_technologies_t)
   M_REC_TARRAY        (Additional_access_technologies_t, Additional_access_technologies, Additional_access_technologies_struct_t, Count_additional_access_technologies, &hf_additional_access_technology_exist),
 CSN_DESCR_END         (Additional_access_technologies_t)
 
-static gint16 Additional_access_technologies_Dissector(proto_tree *tree, csnStream_t* ar, tvbuff_t *tvb, void* data, int ett_csn1 _U_)
+static int16_t Additional_access_technologies_Dissector(proto_tree *tree, csnStream_t* ar, tvbuff_t *tvb, void* data, int ett_csn1 _U_)
 {
   return csnStreamDissector(tree, ar, CSNDESCR(Additional_access_technologies_t), tvb, data, ett_gsm_rlcmac);
 }
@@ -2811,7 +2812,7 @@ CSN_ChoiceElement_t MS_RA_capability_value_Choice[] =
 
 static const
 CSN_DESCR_BEGIN(MS_RA_capability_value_t)
-  M_CHOICE     (MS_RA_capability_value_t, IndexOfAccTech, MS_RA_capability_value_Choice, ElementsOf(MS_RA_capability_value_Choice), &hf_ms_ra_capability_value_choice),
+  M_CHOICE     (MS_RA_capability_value_t, IndexOfAccTech, MS_RA_capability_value_Choice, array_length(MS_RA_capability_value_Choice), &hf_ms_ra_capability_value_choice),
 CSN_DESCR_END  (MS_RA_capability_value_t)
 
 /*
@@ -2859,7 +2860,7 @@ CSN_ChoiceElement_t MultibandChoice[] =
 #if 0
 static const
 CSN_DESCR_BEGIN(Multiband_t)
-  M_CHOICE     (Multiband_t, Multiband, MultibandChoice, ElementsOf(MultibandChoice)),
+  M_CHOICE     (Multiband_t, Multiband, MultibandChoice, array_length(MultibandChoice)),
 CSN_DESCR_END  (Multiband_t)
 #endif
 
@@ -2985,7 +2986,7 @@ CSN_ChoiceElement_t PacketResourceRequestID[] =
 
 static const
 CSN_DESCR_BEGIN(PacketResourceRequestID_t)
-  M_CHOICE     (PacketResourceRequestID_t, UnionType, PacketResourceRequestID, ElementsOf(PacketResourceRequestID), &hf_packet_resource_request_id_choice),
+  M_CHOICE     (PacketResourceRequestID_t, UnionType, PacketResourceRequestID, array_length(PacketResourceRequestID), &hf_packet_resource_request_id_choice),
 CSN_DESCR_END  (PacketResourceRequestID_t)
 
 static const
@@ -3808,7 +3809,7 @@ CSN_DESCR_END  (h0_Global_TFI_t)
 
 typedef struct
 {
-  guint32 TLLI;/* | 10  < TLLI : bit (32) > */
+  uint32_t TLLI;/* | 10  < TLLI : bit (32) > */
 } h10_TLLI_t;
 
 #if 0
@@ -3821,7 +3822,7 @@ CSN_DESCR_END (h10_TLLI_t)
 
 typedef struct
 {
-  guint16 TQI;/*| 110  < TQI : bit (16) > */
+  uint16_t TQI;/*| 110  < TQI : bit (16) > */
 } h110_TQI_t;
 
 #if 0
@@ -3856,7 +3857,7 @@ CSN_ChoiceElement_t PacketUplinkID[] =
 
 static const
 CSN_DESCR_BEGIN(PacketUplinkID_t)
-  M_CHOICE     (PacketUplinkID_t, UnionType, PacketUplinkID, ElementsOf(PacketUplinkID), &hf_packet_uplink_id_choice),
+  M_CHOICE     (PacketUplinkID_t, UnionType, PacketUplinkID, array_length(PacketUplinkID), &hf_packet_uplink_id_choice),
 CSN_DESCR_END  (PacketUplinkID_t)
 
 static const
@@ -3988,12 +3989,12 @@ CSN_ChoiceElement_t PacketDownlinkID[] =
 
 static const
 CSN_DESCR_BEGIN(PacketDownlinkID_t)
-  M_CHOICE     (PacketDownlinkID_t, UnionType, PacketDownlinkID, ElementsOf(PacketDownlinkID), &hf_packet_downlink_id_choice),
+  M_CHOICE     (PacketDownlinkID_t, UnionType, PacketDownlinkID, array_length(PacketDownlinkID), &hf_packet_downlink_id_choice),
 CSN_DESCR_END  (PacketDownlinkID_t)
 
 static const
 CSN_DESCR_BEGIN(PDA_AdditionsR99_t)
-  M_NEXT_EXIST (PDA_AdditionsR99_t, Exist_EGPRS_Params, 4, &hf_pda_additionsr99_egprs_params_exist), /*if Exist_EGPRS_Params == FALSE then none of the following 4 vars exist */
+  M_NEXT_EXIST (PDA_AdditionsR99_t, Exist_EGPRS_Params, 4, &hf_pda_additionsr99_egprs_params_exist), /*if Exist_EGPRS_Params == false then none of the following 4 vars exist */
   M_UINT       (PDA_AdditionsR99_t,  EGPRS_WindowSize, 5, &hf_egprs_windowsize),
   M_UINT       (PDA_AdditionsR99_t,  LINK_QUALITY_MEASUREMENT_MODE, 2, &hf_link_quality_measurement_mode),
   M_NEXT_EXIST (PDA_AdditionsR99_t,  Exist_BEP_PERIOD2, 1, &hf_pda_additionsr99_bep_period2_exist),
@@ -4134,7 +4135,7 @@ CSN_DESCR_END         (PUAN_Fixed_Uplink_Allocation_t)
 
 static const
 CSN_DESCR_BEGIN       (EC_Packet_Uplink_Ack_Nack_fai0_t)
-  M_CHOICE_IL         (EC_Packet_Uplink_Ack_Nack_fai0_t, EC_AckNack_Description_Type, EC_AckNack_Description_Type_Dependent_Contents, ElementsOf(EC_AckNack_Description_Type_Dependent_Contents), &hf_ec_acknack_description),
+  M_CHOICE_IL         (EC_Packet_Uplink_Ack_Nack_fai0_t, EC_AckNack_Description_Type, EC_AckNack_Description_Type_Dependent_Contents, array_length(EC_AckNack_Description_Type_Dependent_Contents), &hf_ec_acknack_description),
 
   M_TYPE              (EC_Packet_Uplink_Ack_Nack_fai0_t, PUAN_Fixed_Uplink_Allocation, PUAN_Fixed_Uplink_Allocation_t),
   M_UINT              (EC_Packet_Uplink_Ack_Nack_fai0_t, RESEGMENT, 1, &hf_resegment),
@@ -4176,7 +4177,7 @@ CSN_DESCR_BEGIN       (EC_Packet_Uplink_Ack_Nack_t)
   M_UINT              (EC_Packet_Uplink_Ack_Nack_t, USED_DL_COVERAGE_CLASS, 2, &hf_used_dl_coverage_class),
   M_UINT              (EC_Packet_Uplink_Ack_Nack_t, UPLINK_TFI, 5, &hf_uplink_tfi),
 
-  M_CHOICE_IL         (EC_Packet_Uplink_Ack_Nack_t, Final_Ack_Indicator, PUAN_FAI_Value_Dependent_Contents, ElementsOf(PUAN_FAI_Value_Dependent_Contents), &hf_final_ack_indication),
+  M_CHOICE_IL         (EC_Packet_Uplink_Ack_Nack_t, Final_Ack_Indicator, PUAN_FAI_Value_Dependent_Contents, array_length(PUAN_FAI_Value_Dependent_Contents), &hf_final_ack_indication),
 
   M_NEXT_EXIST        (EC_Packet_Uplink_Ack_Nack_t, Exist_EC_Packet_Timing_Advance, 1, &hf_ec_packet_timing_advance_exist),
   M_TYPE              (EC_Packet_Uplink_Ack_Nack_t, EC_Packet_Timing_Advance, EC_Packet_Timing_Advance_t),
@@ -4365,7 +4366,7 @@ CSN_DESCR_BEGIN       (EC_Packet_Downlink_Ack_Nack_t)
   M_UINT              (EC_Packet_Downlink_Ack_Nack_t, MESSAGE_TYPE, 5, &hf_ec_ul_message_type),
   M_UINT              (EC_Packet_Downlink_Ack_Nack_t, DOWNLINK_TFI, 5, &hf_downlink_tfi),
   M_UINT              (EC_Packet_Downlink_Ack_Nack_t, MS_OUT_OF_MEMORY, 1, &hf_egprs_pd_acknack_ms_out_of_memory),
-  M_CHOICE_IL         (EC_Packet_Downlink_Ack_Nack_t, Final_Ack_Indicator, PDAN_FAI_Value_Dependent_Contents, ElementsOf(PDAN_FAI_Value_Dependent_Contents), &hf_final_ack_indication),
+  M_CHOICE_IL         (EC_Packet_Downlink_Ack_Nack_t, Final_Ack_Indicator, PDAN_FAI_Value_Dependent_Contents, array_length(PDAN_FAI_Value_Dependent_Contents), &hf_final_ack_indication),
 
   M_NEXT_EXIST        (EC_Packet_Downlink_Ack_Nack_t, Exist_EC_Channel_Quality_Report, 2, &hf_ec_channel_quality_report_exist),
   M_TYPE              (EC_Packet_Downlink_Ack_Nack_t, EC_Channel_Quality_Report, EC_Channel_Quality_Report_t),
@@ -4485,7 +4486,7 @@ CSN_DESCR_END(DTM_Channel_Request_Description_t)
 /* < Packet Paging Request message content > */
 typedef struct
 {
-  guint8 Length_of_Mobile_Identity_contents;/* bit (4) */
+  uint8_t Length_of_Mobile_Identity_contents;/* bit (4) */
   /* NOTE: the rest is handled by cb_parse_mi() */
 } Mobile_Identity_t; /* helper */
 
@@ -4494,7 +4495,7 @@ static CSN_CallBackStatus_t cb_parse_mi(proto_tree *tree, tvbuff_t *tvb,
                                         int bit_offset, int ett_csn1 _U_,
                                         packet_info *pinfo)
 {
-  guint8 mi_length = *((guint8 *) _mi_length);
+  uint8_t mi_length = *((uint8_t *) _mi_length);
 
   if ((mi_length << 3) != 0) {
     /* de_mid() requires an octet-aligned buffer */
@@ -4587,7 +4588,7 @@ CSN_ChoiceElement_t PacketPowerControlTimingAdvanceID[] =
 
 static const
 CSN_DESCR_BEGIN(PacketPowerControlTimingAdvanceID_t)
-  M_CHOICE     (PacketPowerControlTimingAdvanceID_t, UnionType, PacketPowerControlTimingAdvanceID, ElementsOf(PacketPowerControlTimingAdvanceID), &hf_ppc_timing_advance_id_choice),
+  M_CHOICE     (PacketPowerControlTimingAdvanceID_t, UnionType, PacketPowerControlTimingAdvanceID, array_length(PacketPowerControlTimingAdvanceID), &hf_ppc_timing_advance_id_choice),
 CSN_DESCR_END  (PacketPowerControlTimingAdvanceID_t)
 
 static const
@@ -4821,8 +4822,8 @@ CSN_DESCR_END  (Cell_Selection_Params_With_FreqDiff_t)
 static CSN_CallBackStatus_t callback_init_Cell_Selection_Params_FREQUENCY_DIFF(proto_tree *tree _U_, tvbuff_t *tvb _U_, void* param1, void* param2,
                                                                                int bit_offset _U_, int ett_csn1 _U_, packet_info* pinfo _U_)
 {
-  guint  i;
-  guint8 freq_diff_len = *(guint8*)param1;
+  unsigned  i;
+  uint8_t freq_diff_len = *(uint8_t*)param1;
   Cell_Selection_Params_With_FreqDiff_t *pCell_Sel_Param = (Cell_Selection_Params_With_FreqDiff_t*)param2;
 
   for( i=0; i<16; i++, pCell_Sel_Param++ )
@@ -4887,7 +4888,7 @@ CSN_ChoiceElement_t RejectID[] =
 
 static const
 CSN_DESCR_BEGIN(RejectID_t)
-  M_CHOICE     (RejectID_t, UnionType, RejectID, ElementsOf(RejectID), &hf_reject_id_choice),
+  M_CHOICE     (RejectID_t, UnionType, RejectID, array_length(RejectID), &hf_reject_id_choice),
 CSN_DESCR_END  (RejectID_t)
 
 static const
@@ -4919,7 +4920,7 @@ CSN_ChoiceElement_t PacketCellChangeOrderID[] =
 
 static const
 CSN_DESCR_BEGIN(PacketCellChangeOrderID_t)
-  M_CHOICE     (PacketCellChangeOrderID_t, UnionType, PacketCellChangeOrderID, ElementsOf(PacketCellChangeOrderID), &hf_packet_cell_change_order_id_choice),
+  M_CHOICE     (PacketCellChangeOrderID_t, UnionType, PacketCellChangeOrderID, array_length(PacketCellChangeOrderID), &hf_packet_cell_change_order_id_choice),
 CSN_DESCR_END  (PacketCellChangeOrderID_t)
 
 #if 0
@@ -4942,8 +4943,8 @@ CSN_DESCR_END  (CellSelectionParamsWithFreqDiff_t)
 static CSN_CallBackStatus_t callback_init_Cell_Sel_Param_2_FREQUENCY_DIFF(proto_tree *tree _U_, tvbuff_t *tvb _U_, void* param1, void* param2,
                                                                           int bit_offset _U_, int ett_csn1 _U_, packet_info* pinfo _U_)
 {
-  guint  i;
-  guint8 freq_diff_len = *(guint8*)param1;
+  unsigned  i;
+  uint8_t freq_diff_len = *(uint8_t*)param1;
   CellSelectionParamsWithFreqDiff_t *pCell_Sel_Param = (CellSelectionParamsWithFreqDiff_t*)param2;
 
   for( i=0; i<16; i++, pCell_Sel_Param++ )
@@ -5140,14 +5141,14 @@ CSN_DESCR_BEGIN(CDMA2000_Description_t)
 CSN_DESCR_END  (CDMA2000_Description_t)
 
 #if 0
-static const guint8 NR_OF_FDD_CELLS_map[32] = {0, 10, 19, 28, 36, 44, 52, 60, 67, 74, 81, 88, 95, 102, 109, 116, 122, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const uint8_t NR_OF_FDD_CELLS_map[32] = {0, 10, 19, 28, 36, 44, 52, 60, 67, 74, 81, 88, 95, 102, 109, 116, 122, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 #endif
 #if 0
 static CSN_CallBackStatus_t callback_UTRAN_FDD_map_NrOfFrequencies(proto_tree *tree _U_, tvbuff_t *tvb _U_, void* param1, void* param2,
                                                                    int bit_offset _U_, int ett_csn1 _U_, packet_info* pinfo _U_)
 {   /* TS 44.060 Table 11.2.9b.2.a */
-  guint8 *pNrOfCells = (guint8*)param1;
-  guint8 *pBitsInCellInfo = (guint8*)param2;
+  uint8_t *pNrOfCells = (uint8_t*)param1;
+  uint8_t *pBitsInCellInfo = (uint8_t*)param2;
 
   if ( *pNrOfCells < 32 )
   {
@@ -5166,8 +5167,8 @@ static CSN_CallBackStatus_t callback_UTRAN_FDD_compute_FDD_CELL_INFORMATION(prot
 {
   proto_tree   *subtree;
   UTRAN_FDD_NeighbourCells_t * pUtranFddNcell = (UTRAN_FDD_NeighbourCells_t*)param1;
-  gint xdd_cell_info, wsize, nwi, jwi, w[64], i, iused;
-  gint curr_bit_offset, idx;
+  int xdd_cell_info, wsize, nwi, jwi, w[64], i, iused;
+  int curr_bit_offset, idx;
 
   curr_bit_offset = bit_offset;
   idx = pUtranFddNcell->BitsInCellInfo;
@@ -5244,12 +5245,12 @@ CSN_DESCR_BEGIN(UTRAN_FDD_Description_t)
 CSN_DESCR_END  (UTRAN_FDD_Description_t)
 
 
-static const guint8 NR_OF_TDD_CELLS_map[32] = {0, 9, 17, 25, 32, 39, 46, 53, 59, 65, 71, 77, 83, 89, 95, 101, 106, 111, 116, 121, 126, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const uint8_t NR_OF_TDD_CELLS_map[32] = {0, 9, 17, 25, 32, 39, 46, 53, 59, 65, 71, 77, 83, 89, 95, 101, 106, 111, 116, 121, 126, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static CSN_CallBackStatus_t callback_UTRAN_TDD_map_NrOfFrequencies(proto_tree *tree _U_, tvbuff_t *tvb _U_, void* param1, void* param2,
                                                                    int bit_offset _U_, int ett_csn1 _U_, packet_info* pinfo _U_)
 {  /* TS 44.060 Table 11.2.9b.2.b */
-  guint8 * pNrOfCells = (guint8*)param1;
-  guint8 * pBitsInCellInfo = (guint8*)param2;
+  uint8_t * pNrOfCells = (uint8_t*)param1;
+  uint8_t * pBitsInCellInfo = (uint8_t*)param2;
 
   if ( *pNrOfCells < 32 )
   {
@@ -5268,8 +5269,8 @@ static CSN_CallBackStatus_t callback_UTRAN_TDD_compute_TDD_CELL_INFORMATION(prot
 {
   proto_tree   *subtree;
   UTRAN_TDD_NeighbourCells_t *pUtranTddNcell = (UTRAN_TDD_NeighbourCells_t *)param1;
-  gint xdd_cell_info, wsize, nwi, jwi, w[64], i, iused;
-  gint curr_bit_offset, idx;
+  int xdd_cell_info, wsize, nwi, jwi, w[64], i, iused;
+  int curr_bit_offset, idx;
 
   curr_bit_offset = bit_offset;
   idx = pUtranTddNcell->BitsInCellInfo;
@@ -5487,8 +5488,8 @@ CSN_DESCR_END  (lu_ModeOnlyCellSelectionParamsWithFreqDiff_t)
 static CSN_CallBackStatus_t callback_init_luMode_Cell_Sel_Param_FREQUENCY_DIFF(proto_tree *tree _U_, tvbuff_t *tvb _U_, void* param1, void* param2,
                                                                                int bit_offset _U_, int ett_csn1 _U_, packet_info* pinfo _U_)
 {
-  guint  i;
-  guint8 freq_diff_len = *(guint8*)param1;
+  unsigned  i;
+  uint8_t freq_diff_len = *(uint8_t*)param1;
   lu_ModeOnlyCellSelectionParamsWithFreqDiff_t *pArray = (lu_ModeOnlyCellSelectionParamsWithFreqDiff_t*)param2;
 
   for( i=0; i<16; i++, pArray++ )
@@ -6324,7 +6325,7 @@ CSN_DESCR_BEGIN(EXT_Frequency_List_t)
   M_UINT       (EXT_Frequency_List_t,  FREQ_DIFF_LENGTH,  3, &hf_ext_frequency_list_freq_diff_length),
 
 /* TBD: Count_FREQUENCY_DIFF
- * guint8 FREQUENCY_DIFF[31];
+ * uint8_t FREQUENCY_DIFF[31];
  * bit (FREQ_DIFF_LENGTH) * NR_OF_FREQUENCIES --> MAX is bit(7) * 31
  */
 CSN_DESCR_END  (EXT_Frequency_List_t)
@@ -6537,7 +6538,7 @@ CSN_ChoiceElement_t PNCDContainer[] =
 
 static const
 CSN_DESCR_BEGIN(PNCDContainer_t)
-  M_CHOICE     (PNCDContainer_t, UnionType, PNCDContainer, ElementsOf(PNCDContainer), &hf_pncd_container_choice),
+  M_CHOICE     (PNCDContainer_t, UnionType, PNCDContainer, array_length(PNCDContainer), &hf_pncd_container_choice),
 CSN_DESCR_END  (PNCDContainer_t)
 
 static const
@@ -6757,7 +6758,7 @@ CSN_DESCR_END  (NAS_Container_For_PS_HO_t)
 static CSN_CallBackStatus_t callback_call_handover_to_utran_cmd(proto_tree *tree, tvbuff_t *tvb, void* param1, void* param2 _U_,
                                                                 int bit_offset, int ett_csn1 _U_, packet_info* pinfo)
 {
-  guint8 RRC_ContainerLength = *(guint8*)param1;
+  uint8_t RRC_ContainerLength = *(uint8_t*)param1;
   proto_item *ti;
 
   tvbuff_t *target_rat_msg_cont_tvb = tvb_new_octet_aligned(tvb, bit_offset, RRC_ContainerLength<<3);
@@ -6782,7 +6783,7 @@ CSN_DESCR_END  (PS_HandoverTo_UTRAN_Payload_t)
 static CSN_CallBackStatus_t callback_call_eutran_dl_dcch(proto_tree *tree, tvbuff_t *tvb, void* param1, void* param2 _U_,
                                                          int bit_offset, int ett_csn1 _U_, packet_info* pinfo)
 {
-  guint8 RRC_ContainerLength = *(guint8*)param1;
+  uint8_t RRC_ContainerLength = *(uint8_t*)param1;
   proto_item *ti;
 
   tvbuff_t *target_rat_msg_cont_tvb = tvb_new_octet_aligned(tvb, bit_offset, RRC_ContainerLength<<3);
@@ -6898,7 +6899,7 @@ CSN_ChoiceElement_t AdditionalMsRadAccessCapID[] =
 
 static const
 CSN_DESCR_BEGIN(AdditionalMsRadAccessCapID_t)
-  M_CHOICE     (AdditionalMsRadAccessCapID_t, UnionType, AdditionalMsRadAccessCapID, ElementsOf(AdditionalMsRadAccessCapID), &hf_additional_ms_rad_access_cap_id_choice),
+  M_CHOICE     (AdditionalMsRadAccessCapID_t, UnionType, AdditionalMsRadAccessCapID, array_length(AdditionalMsRadAccessCapID), &hf_additional_ms_rad_access_cap_id_choice),
 CSN_DESCR_END  (AdditionalMsRadAccessCapID_t)
 
 
@@ -7152,8 +7153,8 @@ CSN_DESCR_END  (COMPACT_Neighbour_Cell_Param_Remaining_t)
 static CSN_CallBackStatus_t callback_init_COMP_Ncell_Param_FREQUENCY_DIFF(proto_tree *tree _U_, tvbuff_t *tvb _U_, void* param1, void* param2,
                                                                           int bit_offset _U_, int ett_csn1 _U_, packet_info* pinfo _U_)
 {
-  guint  i;
-  guint8 freq_diff_len = *(guint8*)param1;
+  unsigned  i;
+  uint8_t freq_diff_len = *(uint8_t*)param1;
   COMPACT_Neighbour_Cell_Param_Remaining_t *pCom_NCell_Param_rem = (COMPACT_Neighbour_Cell_Param_Remaining_t*)param2;
 
   for( i=0; i<16; i++, pCom_NCell_Param_rem++ )
@@ -7472,28 +7473,28 @@ static const MT_Strings_t szMT_Uplink[] = {
 };
 
 static const char*
-MT_DL_TextGet(guint8 mt)
+MT_DL_TextGet(uint8_t mt)
 {
-  if (mt < ElementsOf(szMT_Downlink))
+  if (mt < array_length(szMT_Downlink))
   {
-    return(szMT_Downlink[mt]);
+    return szMT_Downlink[mt];
   }
   else
   {
-    return("Unknown message type");
+    return "Unknown message type";
   }
 }
 
 static const char*
-MT_UL_TextGet(guint8 mt)
+MT_UL_TextGet(uint8_t mt)
 {
-  if (mt < ElementsOf(szMT_Uplink))
+  if (mt < array_length(szMT_Uplink))
   {
-    return(szMT_Uplink[mt]);
+    return szMT_Uplink[mt];
   }
   else
   {
-    return("Unknown message type");
+    return "Unknown message type";
   }
 }
 
@@ -8497,10 +8498,10 @@ static const value_string si_message_type_vals[] = {
 };
 static value_string_ext si_message_type_vals_ext = VALUE_STRING_EXT_INIT(si_message_type_vals);
 
-static gint construct_gprs_data_segment_li_array(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint8 initial_offset, guint8 *li_count, length_indicator_t *li_array, guint64 *e)
+static int construct_gprs_data_segment_li_array(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint8_t initial_offset, uint8_t *li_count, length_indicator_t *li_array, uint64_t *e)
 {
-  gint        offset = initial_offset;
-  guint8      li_array_size = *li_count;
+  int         offset = initial_offset;
+  uint8_t     li_array_size = *li_count;
   proto_item *item;
 
   *li_count = 0;
@@ -8509,7 +8510,7 @@ static gint construct_gprs_data_segment_li_array(tvbuff_t *tvb, proto_tree *tree
     item = proto_tree_add_bits_item(tree, hf_li, tvb, offset * 8, 6, ENC_BIG_ENDIAN);
     if (*li_count < li_array_size)
     {
-      li_array[*li_count].li = tvb_get_guint8(tvb, offset);
+      li_array[*li_count].li = tvb_get_uint8(tvb, offset);
       li_array[*li_count].offset = offset;
       (*li_count)++;
     }
@@ -8524,10 +8525,10 @@ static gint construct_gprs_data_segment_li_array(tvbuff_t *tvb, proto_tree *tree
   return (offset - initial_offset);
 }
 
-static gint construct_egprs_data_segment_li_array(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint8 initial_offset, guint8 *li_count, length_indicator_t *li_array, guint64 *e)
+static int construct_egprs_data_segment_li_array(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint8_t initial_offset, uint8_t *li_count, length_indicator_t *li_array, uint64_t *e)
 {
-  gint        offset = initial_offset;
-  guint8      li_array_size = *li_count;
+  int         offset = initial_offset;
+  uint8_t     li_array_size = *li_count;
   proto_item *item;
 
   *li_count = 0;
@@ -8539,7 +8540,7 @@ static gint construct_egprs_data_segment_li_array(tvbuff_t *tvb, proto_tree *tre
     {
       /* store the LI and offset for use later when dissecting the rlc segments */
       li_array[*li_count].offset = offset;
-      li_array[*li_count].li = tvb_get_guint8(tvb, offset);
+      li_array[*li_count].li = tvb_get_uint8(tvb, offset);
       (*li_count)++;
     }
     else
@@ -8551,25 +8552,25 @@ static gint construct_egprs_data_segment_li_array(tvbuff_t *tvb, proto_tree *tre
   return (offset - initial_offset);
 }
 
-static guint8 dissect_gprs_data_segments(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                                         guint8 initial_offset, guint8 octet_length,
-                                         gboolean is_uplink, guint8 cs,
-                                         guint8 li_count, length_indicator_t *li_array)
+static uint8_t dissect_gprs_data_segments(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
+                                         uint8_t initial_offset, uint8_t octet_length,
+                                         bool is_uplink, uint8_t cs,
+                                         uint8_t li_count, length_indicator_t *li_array)
 {
-  guint8      octet_offset = initial_offset;
-  guint8      i;
+  uint8_t     octet_offset = initial_offset;
+  uint8_t     i;
   tvbuff_t*   data_tvb     = NULL;
-  gboolean    more         = TRUE, first_li = TRUE;
+  bool        more         = true, first_li = true;
   proto_tree *subtree      = NULL;
 
-  guint8 blk_length = gsm_rlcmac_gprs_cs_to_block_length[cs - 1];
+  uint8_t blk_length = gsm_rlcmac_gprs_cs_to_block_length[cs - 1];
   if (blk_length > octet_length)
       blk_length = octet_length; /* part of the block or spare bits missing */
 
   /* decode the LIs and any associated LLC Frames */
   for(i = 0; (i < li_count) && more; i++)
   {
-    guint8 li = li_array[i].li >> 2;
+    uint8_t li = li_array[i].li >> 2;
 
     /* if more bit is false, there are no more data segments in this block after the current one */
     more = (li_array[i].li & 2) == 2;
@@ -8617,7 +8618,7 @@ static guint8 dissect_gprs_data_segments(tvbuff_t *tvb, packet_info *pinfo, prot
         octet_offset += li;
         break;
     }
-    first_li = FALSE;
+    first_li = false;
   }
 
   if (octet_offset < blk_length)
@@ -8642,18 +8643,18 @@ static guint8 dissect_gprs_data_segments(tvbuff_t *tvb, packet_info *pinfo, prot
   return octet_length;
 }
 
-static guint16 dissect_egprs_data_segments(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint initial_offset, guint8 octet_length, guint8 li_count, length_indicator_t *li_array)
+static uint16_t dissect_egprs_data_segments(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned initial_offset, uint8_t octet_length, uint8_t li_count, length_indicator_t *li_array)
 {
-  guint       octet_offset = initial_offset;
-  guint8      i;
+  unsigned    octet_offset = initial_offset;
+  uint8_t     i;
   tvbuff_t   *data_tvb     = NULL;
-  gboolean    first_li     = TRUE;
+  bool        first_li     = true;
   proto_tree *subtree      = NULL;
 
   /* decode the LIs and any associated LLC Frames */
   for(i = 0; i < li_count; i++)
   {
-    guint8 li = li_array[i].li >> 1;
+    uint8_t li = li_array[i].li >> 1;
 
     /* if more bit is false, there are no more data segments in this block after the current one */
     switch (li)
@@ -8736,7 +8737,7 @@ static guint16 dissect_egprs_data_segments(tvbuff_t *tvb, packet_info *pinfo, pr
         octet_offset += li;
         break;
     }
-    first_li = FALSE;
+    first_li = false;
   }
   /* if there is space left in the RLC Block, then it is a segment of LLC Frame without LI*/
   if (octet_offset < octet_length)
@@ -8752,12 +8753,12 @@ static guint16 dissect_egprs_data_segments(tvbuff_t *tvb, packet_info *pinfo, pr
 }
 
 static void
-dissect_ul_rlc_control_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, RlcMacUplink_t *data, guint16 bit_length)
+dissect_ul_rlc_control_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, RlcMacUplink_t *data, uint16_t bit_length)
 {
   csnStream_t  ar;
   proto_item  *ti;
   proto_tree  *rlcmac_tree;
-  guint        bit_offset = 0;
+  unsigned     bit_offset = 0;
 
   csnStreamInit(&ar, 0, bit_length, pinfo);
   data->u.MESSAGE_TYPE = tvb_get_bits8(tvb, 8, 6);
@@ -8855,12 +8856,12 @@ dissect_ul_rlc_control_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
 }
 
 static void
-dissect_dl_rlc_control_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, RlcMacDownlink_t *data, guint16 initial_bit_offset, guint16 bit_length)
+dissect_dl_rlc_control_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, RlcMacDownlink_t *data, uint16_t initial_bit_offset, uint16_t bit_length)
 {
   csnStream_t  ar;
   proto_item  *ti;
   proto_tree  *rlcmac_tree;
-  guint16      bit_offset = initial_bit_offset;
+  uint16_t     bit_offset = initial_bit_offset;
 
   ti = proto_tree_add_protocol_format(tree, proto_gsm_rlcmac, tvb, bit_offset >> 3, -1,
                                       "%s (%d) (downlink)",
@@ -9010,22 +9011,23 @@ dissect_dl_gprs_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, RlcMa
   proto_item  *ti          = NULL;
   proto_tree  *rlcmac_tree = NULL;
   csnStream_t  ar;
-  gint         bit_offset  = 0;
-  guint16      bit_length  = tvb_reported_length(tvb) * 8;
+  int          bit_offset  = 0;
+  uint16_t     bit_length  = tvb_reported_length(tvb) * 8;
 
-  guint8 payload_type = tvb_get_bits8(tvb, 0, 2);
-  guint8 s_p  = tvb_get_bits8(tvb, 4, 1);
-  guint8 rbsn = tvb_get_bits8(tvb, 8, 1);
-  guint8 fs   = tvb_get_bits8(tvb, 14, 1);
-  guint8 ac   = tvb_get_bits8(tvb, 15, 1);
+  uint8_t payload_type = tvb_get_bits8(tvb, 0, 2);
+  uint8_t s_p  = tvb_get_bits8(tvb, 4, 1);
+  uint8_t usf  = tvb_get_bits8(tvb, 5, 3);
+  uint8_t rbsn = tvb_get_bits8(tvb, 8, 1);
+  uint8_t fs   = tvb_get_bits8(tvb, 14, 1);
+  uint8_t ac   = tvb_get_bits8(tvb, 15, 1);
 
   col_append_sep_str(pinfo->cinfo, COL_INFO, ":", "GPRS DL");
   if (payload_type == PAYLOAD_TYPE_DATA)
   {
     length_indicator_t  li_array[7];
-    guint8              li_count    = array_length(li_array);
-    guint8              cs = (data->block_format & 0x0F);
-    guint64 e;
+    uint8_t             li_count    = array_length(li_array);
+    uint8_t             cs = (data->block_format & 0x0F);
+    uint64_t e;
 
     col_append_sep_fstr(pinfo->cinfo, COL_INFO, " ", "DATA: CS%d", cs);
     ti = proto_tree_add_protocol_format(tree, proto_gsm_rlcmac, tvb, bit_offset >> 3, -1,
@@ -9060,7 +9062,7 @@ dissect_dl_gprs_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, RlcMa
       /* dissect the data segments */
       /*bit_offset += 8 * */ dissect_gprs_data_segments(tvb, pinfo, rlcmac_tree,
                                                          bit_offset / 8, bit_length / 8,
-                                                         FALSE, cs, li_count, li_array);
+                                                         false, cs, li_count, li_array);
     }
     else
     {
@@ -9085,7 +9087,7 @@ dissect_dl_gprs_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, RlcMa
   else if (data->block_format == RLCMAC_CS1)
   {
     /* First print the message type and create a tree item */
-    guint8 message_type_offset = 8;
+    uint8_t message_type_offset = 8;
     if (payload_type == PAYLOAD_TYPE_CTRL_OPT_OCTET)
     {
       message_type_offset += 8;
@@ -9100,6 +9102,7 @@ dissect_dl_gprs_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, RlcMa
     }
     data->u.MESSAGE_TYPE = tvb_get_bits8(tvb, message_type_offset, 6);
     col_append_sep_fstr(pinfo->cinfo, COL_INFO, " CTRL: ", "%s", val_to_str_ext_const(data->u.MESSAGE_TYPE, &dl_rlc_message_type_vals_ext, "Unknown Message Type"));
+    col_append_str_uint(pinfo->cinfo, COL_INFO, "USF", usf, " ");
     if (s_p)
         col_append_str(pinfo->cinfo, COL_INFO, " [RRBP]");
     ti = proto_tree_add_protocol_format(tree, proto_gsm_rlcmac, tvb, bit_offset >> 3, -1,
@@ -9126,7 +9129,7 @@ dissect_dl_gprs_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, RlcMa
 
       if (ac == 1) /* Indicates presence of TFI optional octet*/
       {
-        guint8 ctrl_d = tvb_get_bits8(tvb, 23, 1);
+        uint8_t ctrl_d = tvb_get_bits8(tvb, 23, 1);
 
         proto_tree_add_bits_item(rlcmac_tree, hf_dl_ctrl_pr, tvb, 16, 2, ENC_BIG_ENDIAN);
         proto_tree_add_bits_item(rlcmac_tree, (ctrl_d?hf_downlink_tfi:hf_uplink_tfi), tvb, 18, 5, ENC_BIG_ENDIAN);
@@ -9164,7 +9167,7 @@ dissect_egprs_dl_header_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     proto_tree  *rlcmac_tree;
     csnStream_t  ar;
 
-    guint16      bit_length = tvb_reported_length(tvb) * 8;
+    uint16_t     bit_length = tvb_reported_length(tvb) * 8;
 
     col_append_sep_str(pinfo->cinfo, COL_INFO, ":", "EGPRS DL DATA:");
     /* Dissect the MAC header */
@@ -9224,7 +9227,7 @@ dissect_ec_egprs_dl_header_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
     proto_tree  *rlcmac_tree;
     csnStream_t  ar;
 
-    guint16      bit_length = tvb_reported_length(tvb) * 8;
+    uint16_t     bit_length = tvb_reported_length(tvb) * 8;
 
     col_append_sep_str(pinfo->cinfo, COL_INFO, ":", "EC-GSM-IoT DL:HEADER");
     /* Dissect the MAC header */
@@ -9299,7 +9302,7 @@ dissect_dl_rlc_ec_control_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree 
   csnStream_t  ar;
   proto_item  *ti;
   proto_tree  *rlcmac_tree;
-  guint16      header_bit_offset;
+  uint16_t     header_bit_offset;
   crumb_spec_t crumbs[3];
 
   header_bit_offset = tvb_get_bits8(tvb, 1, 1) ? 13 : 5;
@@ -9395,7 +9398,7 @@ dissect_ul_pacch_access_burst(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
   proto_item  *ti;
   proto_tree  *rlcmac_tree;
   csnStream_t  ar;
-  guint16      bit_length = tvb_reported_length(tvb) * 8;
+  uint16_t     bit_length = tvb_reported_length(tvb) * 8;
 
   col_append_sep_str(pinfo->cinfo, COL_INFO, ":", "PACCH ACCESS BURST");
   ti = proto_tree_add_protocol_format(tree, proto_gsm_rlcmac, tvb, 0, -1,
@@ -9443,19 +9446,19 @@ static void
 dissect_ul_gprs_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, RlcMacUplink_t * data)
 {
   csnStream_t ar;
-  guint8      payload_type = tvb_get_bits8(tvb, 0, 2);
-  guint16     bit_length   = tvb_reported_length(tvb) * 8;
-  gint        bit_offset   = 0;
+  uint8_t     payload_type = tvb_get_bits8(tvb, 0, 2);
+  uint16_t    bit_length   = tvb_reported_length(tvb) * 8;
+  int         bit_offset   = 0;
 
   col_append_sep_str(pinfo->cinfo, COL_INFO, ":", "GPRS UL");
   if (payload_type == PAYLOAD_TYPE_DATA)
   {
     proto_item *ti;
     proto_tree *rlcmac_tree;
-    guint64     e;
+    uint64_t    e;
     length_indicator_t li_array[10];
-    guint8             li_count = array_length(li_array);
-    guint8             cs = data->block_format & 0x0F;
+    uint8_t            li_count = array_length(li_array);
+    uint8_t            cs = data->block_format & 0x0F;
 
     col_append_sep_fstr(pinfo->cinfo, COL_INFO, " ", "DATA: CS%d", cs);
     ti = proto_tree_add_protocol_format(tree, proto_gsm_rlcmac, tvb, bit_offset >> 3, -1,
@@ -9501,7 +9504,7 @@ dissect_ul_gprs_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, RlcMa
       /* dissect the data segments */
       /*bit_offset += 8 * */ dissect_gprs_data_segments(tvb, pinfo, rlcmac_tree,
                                                          bit_offset / 8, bit_length / 8,
-                                                         TRUE, cs, li_count, li_array);
+                                                         true, cs, li_count, li_array);
     }
     else
     {
@@ -9536,8 +9539,8 @@ dissect_egprs_ul_header_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     proto_item  *ti;
     proto_tree  *rlcmac_tree;
     csnStream_t  ar;
-    guint16      bit_offset = 0;
-    guint16      bit_length = tvb_reported_length(tvb) * 8;
+    uint16_t     bit_offset = 0;
+    uint16_t     bit_length = tvb_reported_length(tvb) * 8;
 
     col_append_sep_str(pinfo->cinfo, COL_INFO, ":",  "EGPRS UL DATA:");
     ti = proto_tree_add_protocol_format(tree, proto_gsm_rlcmac, tvb, bit_offset >> 3, -1,
@@ -9593,8 +9596,8 @@ dissect_ec_egprs_ul_header_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
     proto_item  *ti;
     proto_tree  *rlcmac_tree;
     csnStream_t  ar;
-    guint16      bit_offset = 0;
-    guint16      bit_length = tvb_reported_length(tvb) * 8;
+    uint16_t     bit_offset = 0;
+    uint16_t     bit_length = tvb_reported_length(tvb) * 8;
 
     col_append_sep_str(pinfo->cinfo, COL_INFO, ":",  "EC-GSM-IoT UL:HEADER");
     ti = proto_tree_add_protocol_format(tree, proto_gsm_rlcmac, tvb, bit_offset >> 3, -1,
@@ -9628,11 +9631,11 @@ dissect_egprs_ul_data_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
   proto_item         *ti;
   proto_tree         *data_tree;
-  gint                offset   = 0;
+  int                 offset   = 0;
   length_indicator_t  li_array[20];
-  guint8              li_count = array_length(li_array);
-  guint64             e, tlli_i;
-  guint16             block_number;
+  uint8_t             li_count = array_length(li_array);
+  uint64_t            e, tlli_i;
+  uint16_t            block_number;
 
   block_number = (data->flags & GSM_RLC_MAC_EGPRS_BLOCK2)?egprs_ul_header_info->bsn2:egprs_ul_header_info->bsn1;
 
@@ -9687,11 +9690,11 @@ dissect_egprs_dl_data_block(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
   proto_item         *ti;
   proto_tree         *data_tree;
-  gint                offset   = 0;
-  guint16             block_number;
+  int                 offset   = 0;
+  uint16_t            block_number;
   length_indicator_t  li_array[20];
-  guint8              li_count = array_length(li_array);
-  guint64             fbi, e;
+  uint8_t             li_count = array_length(li_array);
+  uint64_t            fbi, e;
 
   block_number = (data->flags & GSM_RLC_MAC_EGPRS_BLOCK2)?egprs_dl_header_info->bsn2:egprs_dl_header_info->bsn1;
 
@@ -9904,7 +9907,7 @@ void
 proto_register_gsm_rlcmac(void)
 {
   /* Setup protocol subtree array */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_gsm_rlcmac,
     &ett_gsm_rlcmac_data,
     &ett_data_segments,

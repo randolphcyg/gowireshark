@@ -19,27 +19,27 @@
 void proto_register_mpeg_pmt(void);
 void proto_reg_handoff_mpeg_pmt(void);
 
-static int proto_mpeg_pmt = -1;
-static int hf_mpeg_pmt_program_number = -1;
-static int hf_mpeg_pmt_reserved1 = -1;
-static int hf_mpeg_pmt_version_number = -1;
-static int hf_mpeg_pmt_current_next_indicator = -1;
-static int hf_mpeg_pmt_section_number = -1;
-static int hf_mpeg_pmt_last_section_number = -1;
-static int hf_mpeg_pmt_reserved2 = -1;
-static int hf_mpeg_pmt_pcr_pid = -1;
-static int hf_mpeg_pmt_reserved3 = -1;
-static int hf_mpeg_pmt_program_info_length = -1;
+static int proto_mpeg_pmt;
+static int hf_mpeg_pmt_program_number;
+static int hf_mpeg_pmt_reserved1;
+static int hf_mpeg_pmt_version_number;
+static int hf_mpeg_pmt_current_next_indicator;
+static int hf_mpeg_pmt_section_number;
+static int hf_mpeg_pmt_last_section_number;
+static int hf_mpeg_pmt_reserved2;
+static int hf_mpeg_pmt_pcr_pid;
+static int hf_mpeg_pmt_reserved3;
+static int hf_mpeg_pmt_program_info_length;
 
 
-static int hf_mpeg_pmt_stream_type = -1;
-static int hf_mpeg_pmt_stream_reserved1 = -1;
-static int hf_mpeg_pmt_stream_elementary_pid = -1;
-static int hf_mpeg_pmt_stream_reserved2 = -1;
-static int hf_mpeg_pmt_stream_es_info_length = -1;
+static int hf_mpeg_pmt_stream_type;
+static int hf_mpeg_pmt_stream_reserved1;
+static int hf_mpeg_pmt_stream_elementary_pid;
+static int hf_mpeg_pmt_stream_reserved2;
+static int hf_mpeg_pmt_stream_es_info_length;
 
-static gint ett_mpeg_pmt = -1;
-static gint ett_mpeg_pmt_stream = -1;
+static int ett_mpeg_pmt;
+static int ett_mpeg_pmt_stream;
 
 static dissector_handle_t mpeg_pmt_handle;
 
@@ -102,11 +102,11 @@ static int
 dissect_mpeg_pmt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
 
-    guint   offset = 0, length = 0;
-    guint   prog_info_len, es_info_len;
-    guint32 stream_type;
-    guint16 pid;
-    gboolean current;
+    unsigned   offset = 0, length = 0;
+    unsigned   prog_info_len, es_info_len;
+    uint32_t stream_type;
+    uint16_t pid;
+    bool current;
 
     proto_item *ti;
     proto_tree *mpeg_pmt_tree;
@@ -263,7 +263,7 @@ proto_register_mpeg_pmt(void)
 
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_mpeg_pmt,
         &ett_mpeg_pmt_stream,
     };

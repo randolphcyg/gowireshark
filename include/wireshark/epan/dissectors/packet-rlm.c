@@ -41,16 +41,16 @@ void proto_register_rlm(void);
 void proto_reg_handoff_rlm(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_rlm = -1;
+static int proto_rlm;
 
-static int hf_rlm_version = -1;
-static int hf_rlm_type = -1;
-static int hf_rlm_unknown = -1;
-static int hf_rlm_tid = -1;
-static int hf_rlm_unknown2 = -1;
+static int hf_rlm_version;
+static int hf_rlm_type;
+static int hf_rlm_unknown;
+static int hf_rlm_tid;
+static int hf_rlm_unknown2;
 
 /* Initialize the subtree pointers */
-static gint ett_rlm = -1;
+static int ett_rlm;
 
 
 /* RLM definitions - missing some! */
@@ -64,28 +64,28 @@ static gint ett_rlm = -1;
 /* #define ???	?? */
 
 /* Code to actually dissect the packets */
-static gboolean
+static bool
 dissect_rlm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
 	proto_item *ti;
 	proto_tree *rlm_tree;
-	guint8 rlm_type, version;
+	uint8_t rlm_type, version;
 	const char *type_str = NULL;
 
 	if (pinfo->srcport < 3000 || pinfo->srcport > 3015
 			|| pinfo->destport < 3000 || pinfo->destport > 3015
 			|| pinfo->destport != pinfo->srcport)
-		return FALSE;
+		return false;
 
 	if (tvb_captured_length(tvb) < 2)
-		return FALSE;
+		return false;
 
-	version  = tvb_get_guint8(tvb, 0);
-	rlm_type = tvb_get_guint8(tvb, 1);
+	version  = tvb_get_uint8(tvb, 0);
+	rlm_type = tvb_get_uint8(tvb, 1);
 
 	/* we only know about version 2, and I've only seen 8 byte packets */
 	if (tvb_captured_length(tvb) != 8 || version != 2) {
-		return FALSE;
+		return false;
 	}
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "RLM");
@@ -126,7 +126,7 @@ dissect_rlm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 		proto_tree_add_item(rlm_tree, hf_rlm_unknown2, tvb, 6, 2, ENC_BIG_ENDIAN);
 	}
 
-	return TRUE;
+	return true;
 }
 
 
@@ -176,7 +176,7 @@ proto_register_rlm(void)
 	};
 
 /* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_rlm,
 	};
 

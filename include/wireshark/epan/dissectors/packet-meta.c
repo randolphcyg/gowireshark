@@ -75,51 +75,51 @@ enum meta_direction {
     META_DIR_DOWN
 };
 
-static int proto_meta = -1;
+static int proto_meta;
 extern int proto_sscop;
 
 /* fields */
-static int hf_meta_schema = -1;
-static int hf_meta_hdrlen = -1;
-static int hf_meta_proto = -1;
-static int hf_meta_reserved = -1;
-static int hf_meta_item = -1;
-static int hf_meta_item_id = -1;
-static int hf_meta_item_type = -1;
-static int hf_meta_item_len = -1;
-static int hf_meta_item_data = -1;
+static int hf_meta_schema;
+static int hf_meta_hdrlen;
+static int hf_meta_proto;
+static int hf_meta_reserved;
+static int hf_meta_item;
+static int hf_meta_item_id;
+static int hf_meta_item_type;
+static int hf_meta_item_len;
+static int hf_meta_item_data;
 /* specific fields */
-static int hf_meta_item_direction = -1;
-static int hf_meta_item_ts = -1;
-static int hf_meta_item_phylinkid = -1;
-static int hf_meta_item_nsapi = -1;
-static int hf_meta_item_imsi_value = -1;
-static int hf_meta_item_imsi_digits = -1;
-static int hf_meta_item_imei_value = -1;
-static int hf_meta_item_imei_digits = -1;
-static int hf_meta_item_signaling = -1;
-static int hf_meta_item_incomplete = -1;
-static int hf_meta_item_deciphered = -1;
-static int hf_meta_item_apn = -1;
-static int hf_meta_item_rat = -1;
-static int hf_meta_item_aal5proto = -1;
-static int hf_meta_item_cell = -1;
-static int hf_meta_item_localdevid = -1;
-static int hf_meta_item_remotedevid = -1;
-static int hf_meta_item_tapgroupid = -1;
-static int hf_meta_item_tlli = -1;
-static int hf_meta_item_calling = -1;
-static int hf_meta_item_called = -1;
+static int hf_meta_item_direction;
+static int hf_meta_item_ts;
+static int hf_meta_item_phylinkid;
+static int hf_meta_item_nsapi;
+static int hf_meta_item_imsi_value;
+static int hf_meta_item_imsi_digits;
+static int hf_meta_item_imei_value;
+static int hf_meta_item_imei_digits;
+static int hf_meta_item_signaling;
+static int hf_meta_item_incomplete;
+static int hf_meta_item_deciphered;
+static int hf_meta_item_apn;
+static int hf_meta_item_rat;
+static int hf_meta_item_aal5proto;
+static int hf_meta_item_cell;
+static int hf_meta_item_localdevid;
+static int hf_meta_item_remotedevid;
+static int hf_meta_item_tapgroupid;
+static int hf_meta_item_tlli;
+static int hf_meta_item_calling;
+static int hf_meta_item_called;
 
 /* subtrees */
-static gint ett_meta = -1;
-static gint ett_meta_item = -1;
-static gint ett_meta_cell = -1;
-static gint ett_meta_imsi = -1;
-static gint ett_meta_imei = -1;
+static int ett_meta;
+static int ett_meta_item;
+static int ett_meta_cell;
+static int ett_meta_imsi;
+static int ett_meta_imei;
 
-static expert_field ei_meta_malformed = EI_INIT;
-static expert_field ei_meta_invalid_header = EI_INIT;
+static expert_field ei_meta_malformed;
+static expert_field ei_meta_invalid_header;
 
 /* default handle */
 static dissector_handle_t data_handle;
@@ -213,17 +213,17 @@ static const value_string meta_direction_vals[] = {
     { 0,    NULL }
 };
 
-static guint16 skip_item(proto_tree *meta_tree, tvbuff_t *tvb, packet_info *pinfo _U_, guint16 offs)
+static uint16_t skip_item(proto_tree *meta_tree, tvbuff_t *tvb, packet_info *pinfo _U_, uint16_t offs)
 {
-    guint16     id;
-    guint8      type;
-    guint16     len, aligned_len, total_len;
+    uint16_t    id;
+    uint8_t     type;
+    uint16_t    len, aligned_len, total_len;
     proto_tree *item_tree;
     proto_item *subti;
 
     id          = tvb_get_letohs(tvb, offs); offs += 2;
-    type        = tvb_get_guint8(tvb, offs); offs++;
-    len         = tvb_get_guint8(tvb, offs); offs++;
+    type        = tvb_get_uint8(tvb, offs); offs++;
+    len         = tvb_get_uint8(tvb, offs); offs++;
     aligned_len = (len + 3) & 0xfffc;
     total_len   = aligned_len + 4; /* 4: id, type, len fields */
 
@@ -244,26 +244,26 @@ static guint16 skip_item(proto_tree *meta_tree, tvbuff_t *tvb, packet_info *pinf
 /*
 * offs: current offset in tvb
 */
-static guint16 evaluate_meta_item_pcap(proto_tree *meta_tree, tvbuff_t *tvb, packet_info *pinfo, guint16 offs)
+static uint16_t evaluate_meta_item_pcap(proto_tree *meta_tree, tvbuff_t *tvb, packet_info *pinfo, uint16_t offs)
 {
-    guint16     id;
-    guint8      type;
-    guint16     len, aligned_len, total_len;
+    uint16_t    id;
+    uint8_t     type;
+    uint16_t    len, aligned_len, total_len;
     proto_tree *item_tree;
     proto_item *subti;
     /* field values */
-    guint8      dir;
-    guint64     ts;
+    uint8_t     dir;
+    uint64_t    ts;
 
     id          = tvb_get_letohs(tvb, offs); offs += 2;
-    type        = tvb_get_guint8(tvb, offs); offs++;
-    len         = tvb_get_guint8(tvb, offs); offs++;
+    type        = tvb_get_uint8(tvb, offs); offs++;
+    len         = tvb_get_uint8(tvb, offs); offs++;
     aligned_len = (len + 3) & 0xfffc;
     total_len   = aligned_len + 4; /* 4: id, type, len fields */
 
     switch (id) {
         case META_ID_DIRECTION:
-            dir = tvb_get_guint8(tvb, offs);
+            dir = tvb_get_uint8(tvb, offs);
             pinfo->p2p_dir = dir == META_DIR_UP ? P2P_DIR_RECV : P2P_DIR_SENT;
             proto_tree_add_uint(meta_tree, hf_meta_item_direction, tvb, offs, 1, dir);
             break;
@@ -297,31 +297,31 @@ static guint16 evaluate_meta_item_pcap(proto_tree *meta_tree, tvbuff_t *tvb, pac
 /*
 * offs: current offset in tvb
 */
-static guint16 evaluate_meta_item_dxt(proto_tree *meta_tree, tvbuff_t *tvb, packet_info *pinfo, guint16 offs, struct atm_phdr *atm_info)
+static uint16_t evaluate_meta_item_dxt(proto_tree *meta_tree, tvbuff_t *tvb, packet_info *pinfo, uint16_t offs, struct atm_phdr *atm_info)
 {
-    guint16             id;
-    guint8              type;
-    guint16             len, aligned_len, total_len;
+    uint16_t            id;
+    uint8_t             type;
+    uint16_t            len, aligned_len, total_len;
     proto_tree         *item_tree;
     proto_item         *subti;
     /* field values */
-    guint8              dir, nsapi, rat, aal5proto;
-    guint16             phylinkid, localdevid, remotedevid, tapgroupid;
-    guint32             tlli;
-    guint64             ts, cell;
+    uint8_t             dir, nsapi, rat, aal5proto;
+    uint16_t            phylinkid, localdevid, remotedevid, tapgroupid;
+    uint32_t            tlli;
+    uint64_t            ts, cell;
     sscop_payload_info *p_sscop_info;
     proto_item         *cell_item, *imsi_item, *imei_item;
     proto_tree         *cell_tree, *imsi_tree, *imei_tree;
 
     id          = tvb_get_letohs(tvb, offs); offs += 2;
-    type        = tvb_get_guint8(tvb, offs); offs++;
-    len         = tvb_get_guint8(tvb, offs); offs++;
+    type        = tvb_get_uint8(tvb, offs); offs++;
+    len         = tvb_get_uint8(tvb, offs); offs++;
     aligned_len = (len + 3) & 0xfffc;
     total_len   = aligned_len + 4; /* 4: id, type, len fields */
 
     switch (id) {
         case META_ID_DIRECTION:
-            dir = tvb_get_guint8(tvb, offs);
+            dir = tvb_get_uint8(tvb, offs);
             pinfo->p2p_dir = (dir == META_DIR_UP ? P2P_DIR_RECV : P2P_DIR_SENT);
             proto_tree_add_uint(meta_tree, hf_meta_item_direction, tvb, offs, 1, dir);
             break;
@@ -336,20 +336,20 @@ static guint16 evaluate_meta_item_dxt(proto_tree *meta_tree, tvbuff_t *tvb, pack
                 offs, 2, phylinkid);
             break;
         case META_ID_NSAPI:
-            nsapi = tvb_get_guint8(tvb, offs);
+            nsapi = tvb_get_uint8(tvb, offs);
             proto_tree_add_uint(meta_tree, hf_meta_item_nsapi, tvb,
                 offs, 1, nsapi);
             break;
         case META_ID_IMSI:
             imsi_item = proto_tree_add_item(meta_tree, hf_meta_item_imsi_digits, tvb,
-                offs, 8, ENC_BCD_DIGITS_0_9);
+                offs, 8, ENC_BCD_DIGITS_0_9|ENC_LITTLE_ENDIAN);
             imsi_tree = proto_item_add_subtree(imsi_item, ett_meta_imsi);
             proto_tree_add_item(imsi_tree, hf_meta_item_imsi_value,
                 tvb, offs, 8, ENC_LITTLE_ENDIAN);
             break;
         case META_ID_IMEI:
             imei_item = proto_tree_add_item(meta_tree, hf_meta_item_imei_digits, tvb,
-                offs, 8, ENC_BCD_DIGITS_0_9);
+                offs, 8, ENC_BCD_DIGITS_0_9|ENC_LITTLE_ENDIAN);
             imei_tree = proto_item_add_subtree(imei_item, ett_meta_imei);
             proto_tree_add_item(imei_tree, hf_meta_item_imei_value,
                 tvb, offs, 8, ENC_LITTLE_ENDIAN);
@@ -359,7 +359,7 @@ static guint16 evaluate_meta_item_dxt(proto_tree *meta_tree, tvbuff_t *tvb, pack
                 offs, len, ENC_ASCII);
             break;
         case META_ID_RAT:
-            rat = tvb_get_guint8(tvb, offs);
+            rat = tvb_get_uint8(tvb, offs);
             proto_tree_add_uint(meta_tree, hf_meta_item_rat, tvb,
                 offs, 1, rat);
             break;
@@ -384,7 +384,7 @@ static guint16 evaluate_meta_item_dxt(proto_tree *meta_tree, tvbuff_t *tvb, pack
                 offs, 0, 1);
             break;
         case META_ID_AAL5PROTO:
-            aal5proto    = tvb_get_guint8(tvb, offs);
+            aal5proto    = tvb_get_uint8(tvb, offs);
             p_sscop_info = (sscop_payload_info *)p_get_proto_data(wmem_file_scope(), pinfo, proto_sscop, 0);
             if (!p_sscop_info) {
                 p_sscop_info = wmem_new0(wmem_file_scope(), sscop_payload_info);
@@ -463,12 +463,12 @@ static guint16 evaluate_meta_item_dxt(proto_tree *meta_tree, tvbuff_t *tvb, pack
  * offs: current offset within tvb
  * header_length: length of meta header
  */
-static gint32 evaluate_meta_items(guint16 schema, tvbuff_t *tvb, packet_info *pinfo,
-    proto_tree *meta_tree, guint16 offs, gint32 header_length,
+static int32_t evaluate_meta_items(uint16_t schema, tvbuff_t *tvb, packet_info *pinfo,
+    proto_tree *meta_tree, uint16_t offs, int32_t header_length,
     struct atm_phdr *atm_info)
 {
-    gint16 item_len;
-    gint32 total_len = 0;
+    int16_t item_len;
+    int32_t total_len = 0;
 
     while (total_len < header_length) {
         switch (schema) {
@@ -495,9 +495,9 @@ static int
 dissect_meta(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 #define META_HEADER_SIZE 8
-    guint16             schema, proto, hdrlen, reserved;
-    gint32              item_len;
-    guint32             aal2_ext, atm_hdr;
+    uint16_t            schema, proto, hdrlen, reserved;
+    int32_t             item_len;
+    uint32_t            aal2_ext, atm_hdr;
     proto_tree         *meta_tree      = NULL;
     proto_item         *ti             = NULL;
     tvbuff_t           *next_tvb       = NULL;
@@ -756,7 +756,7 @@ proto_register_meta(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_meta,
         &ett_meta_item,
         &ett_meta_cell,

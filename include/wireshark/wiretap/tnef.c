@@ -6,19 +6,19 @@
  */
 
 #include "config.h"
+#include "tnef.h"
 
 #include "wtap-int.h"
 #include "file_wrappers.h"
 #include <wsutil/buffer.h>
-#include "tnef.h"
 
 static int tnef_file_type_subtype = -1;
 
 void register_tnef(void);
 
-wtap_open_return_val tnef_open(wtap *wth, int *err, gchar **err_info)
+wtap_open_return_val tnef_open(wtap *wth, int *err, char **err_info)
 {
-  guint32 magic;
+  uint32_t magic;
 
   if (!wtap_read_bytes(wth->fh, &magic, sizeof magic, err, err_info))
     return (*err != WTAP_ERR_SHORT_READ) ? WTAP_OPEN_ERROR : WTAP_OPEN_NOT_MINE;
@@ -53,7 +53,7 @@ static const struct supported_block_type tnef_blocks_supported[] = {
 
 static const struct file_type_subtype_info tnef_info = {
   "Transport-Neutral Encapsulation Format", "tnef", NULL, NULL,
-  FALSE, BLOCKS_SUPPORTED(tnef_blocks_supported),
+  false, BLOCKS_SUPPORTED(tnef_blocks_supported),
   NULL, NULL, NULL
 };
 

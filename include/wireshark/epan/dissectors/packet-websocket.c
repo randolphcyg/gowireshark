@@ -26,9 +26,16 @@
 #include "packet-http.h"
 #include "packet-tcp.h"
 
+#ifdef HAVE_ZLIBNG
+#define ZLIB_PREFIX(x) zng_ ## x
+#include <zlib-ng.h>
+typedef zng_stream zlib_stream;
+#else
 #ifdef HAVE_ZLIB
-#define ZLIB_CONST
+#define ZLIB_PREFIX(x) x
 #include <zlib.h>
+typedef z_stream zlib_stream;
+#endif /* HAVE_ZLIB */
 #endif
 
 /*
@@ -50,80 +57,92 @@ static dissector_handle_t sip_handle;
 #define WEBSOCKET_JSON 2
 #define WEBSOCKET_SIP 3
 
-/* Use key values counting down from G_MAXUINT32 to avoid clash with pkt_info proto_data key */
-#define OPCODE_KEY (G_MAXUINT32 - 0)
+/* Use key values counting down from UINT32_MAX to avoid clash with pkt_info proto_data key */
+#define OPCODE_KEY (UINT32_MAX - 0)
 
-static gint  pref_text_type             = WEBSOCKET_NONE;
-static gboolean pref_decompress         = TRUE;
+static int   pref_text_type             = WEBSOCKET_NONE;
+static bool pref_decompress         = true;
+
+#define DEFAULT_MAX_UNMASKED_LEN        (1024 * 256)
+static unsigned pref_max_unmasked_len      = DEFAULT_MAX_UNMASKED_LEN;
 
 typedef struct {
   const char   *subprotocol;
-  guint16       server_port;
-  gboolean      permessage_deflate;
+  uint16_t      server_port;
+  bool          permessage_deflate;
+#ifdef HAVE_ZLIBNG
+  bool          permessage_deflate_ok;
+  int8_t        server_wbits;
+  int8_t        client_wbits;
+  zng_streamp     server_take_over_context;
+  zng_streamp     client_take_over_context;
+#else
 #ifdef HAVE_ZLIB
-  gboolean      permessage_deflate_ok;
-  gint8         server_wbits;
-  gint8         client_wbits;
+  bool          permessage_deflate_ok;
+  int8_t        server_wbits;
+  int8_t        client_wbits;
   z_streamp     server_take_over_context;
   z_streamp     client_take_over_context;
 #endif
-  guint32       frag_id;
-  gboolean      first_frag;
-  guint8        first_frag_opcode;
-  gboolean      first_frag_pmc;
+#endif
+  uint32_t      frag_id;
+  bool          first_frag;
+  uint8_t       first_frag_opcode;
+  bool          first_frag_pmc;
 } websocket_conv_t;
 
-#ifdef HAVE_ZLIB
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
 typedef struct {
-  guint8 *decompr_payload;
-  guint decompr_len;
+  uint8_t *decompr_payload;
+  unsigned decompr_len;
 } websocket_packet_t;
 #endif
 
-static int websocket_follow_tap = -1;
+static int websocket_follow_tap;
 
 /* Initialize the protocol and registered fields */
-static int proto_websocket = -1;
-static int proto_http = -1;
+static int proto_websocket;
+static int proto_http;
 
-static int hf_ws_fin = -1;
-static int hf_ws_reserved = -1;
-static int hf_ws_pmc = -1;
-static int hf_ws_opcode = -1;
-static int hf_ws_mask = -1;
-static int hf_ws_payload_length = -1;
-static int hf_ws_payload_length_ext_16 = -1;
-static int hf_ws_payload_length_ext_64 = -1;
-static int hf_ws_masking_key = -1;
-static int hf_ws_payload = -1;
-static int hf_ws_masked_payload = -1;
-static int hf_ws_payload_continue = -1;
-static int hf_ws_payload_text = -1;
-static int hf_ws_payload_close = -1;
-static int hf_ws_payload_close_status_code = -1;
-static int hf_ws_payload_close_reason = -1;
-static int hf_ws_payload_ping = -1;
-static int hf_ws_payload_pong = -1;
-static int hf_ws_payload_unknown = -1;
-static int hf_ws_fragments = -1;
-static int hf_ws_fragment = -1;
-static int hf_ws_fragment_overlap = -1;
-static int hf_ws_fragment_overlap_conflict = -1;
-static int hf_ws_fragment_multiple_tails = -1;
-static int hf_ws_fragment_too_long_fragment = -1;
-static int hf_ws_fragment_error = -1;
-static int hf_ws_fragment_count = -1;
-static int hf_ws_reassembled_length = -1;
+static int hf_ws_fin;
+static int hf_ws_reserved;
+static int hf_ws_pmc;
+static int hf_ws_opcode;
+static int hf_ws_mask;
+static int hf_ws_payload_length;
+static int hf_ws_payload_length_ext_16;
+static int hf_ws_payload_length_ext_64;
+static int hf_ws_masking_key;
+static int hf_ws_payload;
+static int hf_ws_masked_payload;
+static int hf_ws_payload_continue;
+static int hf_ws_payload_text;
+static int hf_ws_payload_close;
+static int hf_ws_payload_close_status_code;
+static int hf_ws_payload_close_reason;
+static int hf_ws_payload_ping;
+static int hf_ws_payload_pong;
+static int hf_ws_payload_unknown;
+static int hf_ws_fragments;
+static int hf_ws_fragment;
+static int hf_ws_fragment_overlap;
+static int hf_ws_fragment_overlap_conflict;
+static int hf_ws_fragment_multiple_tails;
+static int hf_ws_fragment_too_long_fragment;
+static int hf_ws_fragment_error;
+static int hf_ws_fragment_count;
+static int hf_ws_reassembled_length;
 
-static gint ett_ws = -1;
-static gint ett_ws_pl = -1;
-static gint ett_ws_mask = -1;
-static gint ett_ws_control_close = -1;
-static gint ett_ws_fragments = -1;
-static gint ett_ws_fragment = -1;
+static int ett_ws;
+static int ett_ws_pl;
+static int ett_ws_mask;
+static int ett_ws_control_close;
+static int ett_ws_fragments;
+static int ett_ws_fragment;
 
-static expert_field ei_ws_payload_unknown = EI_INIT;
-static expert_field ei_ws_decompression_failed = EI_INIT;
+static expert_field ei_ws_payload_unknown;
+static expert_field ei_ws_decompression_failed;
+static expert_field ei_ws_not_fully_unmasked;
 
 #define WS_CONTINUE 0x0
 #define WS_TEXT     0x1
@@ -191,17 +210,16 @@ static heur_dissector_list_t heur_subdissector_list;
 
 static reassembly_table ws_reassembly_table;
 
-#define MAX_UNMASKED_LEN (1024 * 256)
 static tvbuff_t *
-tvb_unmasked(tvbuff_t *tvb, packet_info *pinfo, const guint offset, guint payload_length, const guint8 *masking_key)
+tvb_unmasked(tvbuff_t *tvb, packet_info *pinfo, const unsigned offset, unsigned payload_length, const uint8_t *masking_key)
 {
 
-  gchar        *data_unmask;
-  guint         i;
-  const guint8 *data_mask;
-  guint         unmasked_length = payload_length > MAX_UNMASKED_LEN ? MAX_UNMASKED_LEN : payload_length;
+  char         *data_unmask;
+  unsigned      i;
+  const uint8_t *data_mask;
+  unsigned      unmasked_length = payload_length > pref_max_unmasked_len ? pref_max_unmasked_len : payload_length;
 
-  data_unmask = (gchar *)wmem_alloc(pinfo->pool, unmasked_length);
+  data_unmask = (char *)wmem_alloc(pinfo->pool, unmasked_length);
   data_mask   = tvb_get_ptr(tvb, offset, unmasked_length);
   /* Unmasked(XOR) Data... */
   for(i=0; i < unmasked_length; i++) {
@@ -211,12 +229,12 @@ tvb_unmasked(tvbuff_t *tvb, packet_info *pinfo, const guint offset, guint payloa
   return tvb_new_child_real_data(tvb, data_unmask, unmasked_length, payload_length);
 }
 
-#ifdef HAVE_ZLIB
-static gint8
-websocket_extract_wbits(const gchar *str)
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+static int8_t
+websocket_extract_wbits(const char *str)
 {
-  guint8 wbits;
-  const gchar *end;
+  uint8_t wbits;
+  const char *end;
 
   if (str && ws_strtou8(str, &end, &wbits) &&
       (*end == '\0' || strchr(";\t ", *end))) {
@@ -242,17 +260,22 @@ websocket_zfree(void *opaque _U_, void *addr)
 {
   wmem_free(wmem_file_scope(), addr);
 }
-
-static z_streamp
-websocket_init_z_stream_context(gint8 wbits)
+#ifdef HAVE_ZLIBNG
+static zng_streamp
+websocket_init_z_stream_context(int8_t wbits)
 {
-  z_streamp z_strm = wmem_new0(wmem_file_scope(), z_stream);
-
+  zng_streamp z_strm = wmem_new0(wmem_file_scope(), zlib_stream);
+#else
+static z_streamp
+websocket_init_z_stream_context(int8_t wbits)
+{
+  z_streamp z_strm = wmem_new0(wmem_file_scope(), zlib_stream);
+#endif
   z_strm->zalloc = websocket_zalloc;
   z_strm->zfree = websocket_zfree;
 
-  if (inflateInit2(z_strm, wbits) != Z_OK) {
-    inflateEnd(z_strm);
+  if (ZLIB_PREFIX(inflateInit2)(z_strm, wbits) != Z_OK) {
+    ZLIB_PREFIX(inflateEnd)(z_strm);
     wmem_free(wmem_file_scope(), z_strm);
     return NULL;
   }
@@ -261,30 +284,34 @@ websocket_init_z_stream_context(gint8 wbits)
 
 /*
  * Decompress the given buffer using the given zlib context. On success, the
- * (possibly empty) buffer is stored as "proto data" and TRUE is returned.
- * Otherwise FALSE is returned.
+ * (possibly empty) buffer is stored as "proto data" and true is returned.
+ * Otherwise false is returned.
  */
-static gboolean
-websocket_uncompress(tvbuff_t *tvb, packet_info *pinfo, z_streamp z_strm, tvbuff_t **uncompressed_tvb, guint32 key)
+static bool
+#ifdef HAVE_ZLIBNG
+websocket_uncompress(tvbuff_t* tvb, packet_info* pinfo, zng_streamp z_strm, tvbuff_t** uncompressed_tvb, uint32_t key)
+#else
+websocket_uncompress(tvbuff_t *tvb, packet_info *pinfo, z_streamp z_strm, tvbuff_t **uncompressed_tvb, uint32_t key)
+#endif
 {
   /*
    * Decompression a message: append "0x00 0x00 0xff 0xff" to the end of
    * message, then apply DEFLATE to the result.
    * https://tools.ietf.org/html/rfc7692#section-7.2.2
    */
-  guint8   *decompr_payload = NULL;
-  guint     decompr_len = 0;
-  guint     compr_len, decompr_buf_len;
-  guint8   *compr_payload, *decompr_buf;
-  gint      err;
+  uint8_t  *decompr_payload = NULL;
+  unsigned  decompr_len = 0;
+  unsigned  compr_len, decompr_buf_len;
+  uint8_t  *compr_payload, *decompr_buf;
+  int       err;
 
   compr_len = tvb_captured_length(tvb) + 4;
-  compr_payload = (guint8 *)wmem_alloc(pinfo->pool, compr_len);
+  compr_payload = (uint8_t *)wmem_alloc(pinfo->pool, compr_len);
   tvb_memcpy(tvb, compr_payload, 0, compr_len-4);
   compr_payload[compr_len-4] = compr_payload[compr_len-3] = 0x00;
   compr_payload[compr_len-2] = compr_payload[compr_len-1] = 0xff;
   decompr_buf_len = 2*compr_len;
-  decompr_buf = (guint8 *)wmem_alloc(pinfo->pool, decompr_buf_len);
+  decompr_buf = (uint8_t *)wmem_alloc(pinfo->pool, decompr_buf_len);
 
   z_strm->next_in = compr_payload;
   z_strm->avail_in = compr_len;
@@ -293,12 +320,12 @@ websocket_uncompress(tvbuff_t *tvb, packet_info *pinfo, z_streamp z_strm, tvbuff
     z_strm->next_out = decompr_buf;
     z_strm->avail_out = decompr_buf_len;
 
-    err = inflate(z_strm, Z_SYNC_FLUSH);
+    err = ZLIB_PREFIX(inflate)(z_strm, Z_SYNC_FLUSH);
 
     if (err == Z_OK || err == Z_STREAM_END || err == Z_BUF_ERROR) {
-      guint avail_bytes = decompr_buf_len - z_strm->avail_out;
+      unsigned avail_bytes = decompr_buf_len - z_strm->avail_out;
       if (avail_bytes) {
-        decompr_payload = (guint8 *)wmem_realloc(wmem_file_scope(), decompr_payload,
+        decompr_payload = (uint8_t *)wmem_realloc(wmem_file_scope(), decompr_payload,
                                                  decompr_len + avail_bytes);
         memcpy(&decompr_payload[decompr_len], decompr_buf, avail_bytes);
         decompr_len += avail_bytes;
@@ -315,21 +342,21 @@ websocket_uncompress(tvbuff_t *tvb, packet_info *pinfo, z_streamp z_strm, tvbuff
       *uncompressed_tvb = tvb_new_child_real_data(tvb, decompr_payload, decompr_len, decompr_len);
     }
     p_add_proto_data(wmem_file_scope(), pinfo, proto_websocket, key, pkt_info);
-    return TRUE;
+    return true;
   } else {
     /* decompression failed */
     wmem_free(wmem_file_scope(), decompr_payload);
-    return FALSE;
+    return false;
   }
 }
 #endif
 
 static void
-dissect_websocket_control_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint8 opcode)
+dissect_websocket_control_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint8_t opcode)
 {
   proto_item         *ti;
   proto_tree         *subtree;
-  const guint         offset = 0, length = tvb_reported_length(tvb);
+  const unsigned      offset = 0, length = tvb_reported_length(tvb);
 
   switch (opcode) {
     case WS_CLOSE: /* Close */
@@ -361,7 +388,7 @@ dissect_websocket_control_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 }
 
 static void
-dissect_websocket_data_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tree *pl_tree, guint8 opcode, websocket_conv_t *websocket_conv, gint raw_offset _U_)
+dissect_websocket_data_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tree *pl_tree, uint8_t opcode, websocket_conv_t *websocket_conv, int raw_offset _U_)
 {
   proto_item         *ti;
   dissector_handle_t  handle = NULL;
@@ -379,14 +406,18 @@ dissect_websocket_data_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     handle = dissector_get_uint_handle(port_subdissector_table, websocket_conv->server_port);
   }
 
-#ifdef HAVE_ZLIB
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
   if (websocket_conv->permessage_deflate_ok && websocket_conv->first_frag_pmc) {
     tvbuff_t   *uncompressed = NULL;
-    gboolean    uncompress_ok = FALSE;
+    bool        uncompress_ok = false;
 
     if (!PINFO_FD_VISITED(pinfo)) {
+#ifdef HAVE_ZLIBNG
+      zng_streamp z_strm;
+#else
       z_streamp z_strm;
-      gint8 wbits;
+#endif
+      int8_t wbits;
 
       if (pinfo->destport == websocket_conv->server_port) {
         z_strm = websocket_conv->server_take_over_context;
@@ -400,17 +431,17 @@ dissect_websocket_data_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
         uncompress_ok = websocket_uncompress(tvb, pinfo, z_strm, &uncompressed, raw_offset);
       } else {
         /* no context take over, initialize a new context */
-        z_strm = wmem_new0(pinfo->pool, z_stream);
-        if (inflateInit2(z_strm, wbits) == Z_OK) {
+        z_strm = wmem_new0(pinfo->pool, zlib_stream);
+        if (ZLIB_PREFIX(inflateInit2)(z_strm, wbits) == Z_OK) {
           uncompress_ok = websocket_uncompress(tvb, pinfo, z_strm, &uncompressed, raw_offset);
         }
-        inflateEnd(z_strm);
+        ZLIB_PREFIX(inflateEnd)(z_strm);
       }
     } else {
       websocket_packet_t *pkt_info =
           (websocket_packet_t *)p_get_proto_data(wmem_file_scope(), pinfo, proto_websocket, raw_offset);
       if (pkt_info) {
-        uncompress_ok = TRUE;
+        uncompress_ok = true;
         if (pkt_info->decompr_len > 0) {
           uncompressed = tvb_new_child_real_data(tvb, pkt_info->decompr_payload, pkt_info->decompr_len, pkt_info->decompr_len);
         }
@@ -444,7 +475,7 @@ dissect_websocket_data_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     case WS_TEXT: /* Text */
     {
       proto_tree_add_item(pl_tree, hf_ws_payload_text, tvb, 0, -1, ENC_UTF_8);
-      const gchar  *saved_match_string = pinfo->match_string;
+      const char   *saved_match_string = pinfo->match_string;
 
       pinfo->match_string = NULL;
       switch (pref_text_type) {
@@ -499,7 +530,7 @@ websocket_parse_extensions(websocket_conv_t *websocket_conv, const char *str)
 
   websocket_conv->permessage_deflate = !!strstr(str, "permessage-deflate")
       || !!strstr(str, "x-webkit-deflate-frame");
-#ifdef HAVE_ZLIB
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
   websocket_conv->permessage_deflate_ok = pref_decompress &&
        websocket_conv->permessage_deflate;
   if (websocket_conv->permessage_deflate_ok) {
@@ -520,9 +551,10 @@ websocket_parse_extensions(websocket_conv_t *websocket_conv, const char *str)
 }
 
 static void
-dissect_websocket_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tree *ws_tree, guint8 fin, guint8 opcode, websocket_conv_t *websocket_conv, gint raw_offset)
+dissect_websocket_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tree *ws_tree, uint8_t fin, uint8_t opcode, websocket_conv_t *websocket_conv, int raw_offset, unsigned masked_payload_length)
 {
-  const guint         offset = 0, length = tvb_reported_length(tvb);
+  const unsigned      offset = 0, length = tvb_reported_length(tvb);
+  const unsigned      capture_length = tvb_captured_length(tvb);
   proto_item         *ti;
   proto_tree         *pl_tree;
   tvbuff_t           *tvb_appdata;
@@ -531,6 +563,12 @@ dissect_websocket_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, p
   /* Payload */
   ti = proto_tree_add_item(ws_tree, hf_ws_payload, tvb, offset, length, ENC_NA);
   pl_tree = proto_item_add_subtree(ti, ett_ws_pl);
+
+  if (masked_payload_length > capture_length) {
+    expert_add_info_format(pinfo, ti, &ei_ws_not_fully_unmasked, "Payload not fully unmasked. "
+      "%u bytes not yet unmasked due to the preference of max unmasked length limit (%u bytes).",
+      masked_payload_length - capture_length, pref_max_unmasked_len);
+  }
 
   /* Extension Data */
   /* TODO: Add dissector of Extension (not extension available for the moment...) */
@@ -546,7 +584,7 @@ dissect_websocket_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, p
     /* Fragmented data frame */
     fragment_head *frag_msg;
 
-    pinfo->fragmented = TRUE;
+    pinfo->fragmented = true;
 
     frag_msg = fragment_add_seq_next(&ws_reassembly_table, tvb, offset,
               pinfo, websocket_conv->frag_id,
@@ -568,9 +606,9 @@ dissect_websocket_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, p
     tvb_appdata = frag_tvb;
 
     /* Lookup opcode from first fragment */
-    guint first_frag_opcode = GPOINTER_TO_UINT(
+    unsigned first_frag_opcode = GPOINTER_TO_UINT(
         p_get_proto_data(wmem_file_scope(),pinfo, proto_websocket, OPCODE_KEY));
-    opcode = (guint8)first_frag_opcode;
+    opcode = (uint8_t)first_frag_opcode;
   } else {
     /* Right now this is exactly the same, this may change when exts. are added.
     tvb_appdata = tvb_new_subset_length(tvb, offset, length);
@@ -593,14 +631,14 @@ dissect_websocket_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, p
 static int
 dissect_websocket_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  static guint32 frag_id_counter = 0;
+  static uint32_t frag_id_counter = 0;
   proto_item   *ti, *ti_len;
-  guint8        fin, opcode;
-  gboolean      mask;
-  guint         short_length, payload_length;
-  guint         payload_offset, mask_offset;
+  uint8_t       fin, opcode;
+  bool          mask;
+  unsigned      short_length, payload_length;
+  unsigned      payload_offset, mask_offset;
   proto_tree   *ws_tree;
-  const guint8 *masking_key = NULL;
+  const uint8_t *masking_key = NULL;
   tvbuff_t     *tvb_payload;
   conversation_t *conv;
   websocket_conv_t *websocket_conv;
@@ -613,7 +651,7 @@ dissect_websocket_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
   websocket_conv = (websocket_conv_t *)conversation_get_proto_data(conv, proto_websocket);
   if (!websocket_conv) {
     websocket_conv = wmem_new0(wmem_file_scope(), websocket_conv_t);
-    websocket_conv->first_frag = TRUE;
+    websocket_conv->first_frag = true;
     websocket_conv->frag_id = ++frag_id_counter;
 
     http_conv_t *http_conv = (http_conv_t *)conversation_get_proto_data(conv, proto_http);
@@ -623,28 +661,48 @@ dissect_websocket_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
       if ( http_conv->websocket_extensions) {
         websocket_parse_extensions(websocket_conv, http_conv->websocket_extensions);
       }
+    } else if (pinfo->match_uint == pinfo->srcport || pinfo->match_uint == pinfo->destport) {
+      /* The session was not set up by HTTP upgrade, but by Decode As.
+       * Assume the matched port is the server port. */
+      websocket_conv->server_port = (uint16_t)pinfo->match_uint;
+    } else {
+      /* match_uint is not one of the ports, which means the session was
+       * set up by the heuristic Websocket dissector. */
+      uint32_t low_port, high_port;
+      if (pinfo->srcport > pinfo->destport) {
+        low_port = pinfo->destport;
+        high_port = pinfo->srcport;
+      } else {
+        low_port = pinfo->srcport;
+        high_port = pinfo->destport;
+      }
+      if (dissector_get_uint_handle(port_subdissector_table, low_port)) {
+        websocket_conv->server_port = (uint16_t)low_port;
+      } else if (dissector_get_uint_handle(port_subdissector_table, high_port)) {
+        websocket_conv->server_port = (uint16_t)high_port;
+      }
     }
 
     conversation_add_proto_data(conv, proto_websocket, websocket_conv);
   } else {
-    websocket_conv->first_frag = FALSE;
+    websocket_conv->first_frag = false;
   }
 
-  short_length = tvb_get_guint8(tvb, 1) & MASK_WS_PAYLOAD_LEN;
+  short_length = tvb_get_uint8(tvb, 1) & MASK_WS_PAYLOAD_LEN;
   mask_offset = 2;
   if (short_length == 126) {
     payload_length = tvb_get_ntohs(tvb, 2);
     mask_offset += 2;
   } else if (short_length == 127) {
-    /* warning C4244: '=' : conversion from 'guint64' to 'guint ', possible loss of data */
-    payload_length = (guint)tvb_get_ntoh64(tvb, 2);
+    /* warning C4244: '=' : conversion from 'uint64_t' to 'unsigned ', possible loss of data */
+    payload_length = (unsigned)tvb_get_ntoh64(tvb, 2);
     mask_offset += 8;
   } else {
     payload_length = short_length;
   }
 
   /* Mask */
-  mask = (tvb_get_guint8(tvb, 1) & MASK_WS_MASK) != 0;
+  mask = (tvb_get_uint8(tvb, 1) & MASK_WS_MASK) != 0;
   payload_offset = mask_offset + (mask ? 4 : 0);
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "WebSocket");
@@ -655,20 +713,20 @@ dissect_websocket_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 
   /* Flags */
   proto_tree_add_item(ws_tree, hf_ws_fin, tvb, 0, 1, ENC_NA);
-  fin = (tvb_get_guint8(tvb, 0) & MASK_WS_FIN) >> 4;
+  fin = (tvb_get_uint8(tvb, 0) & MASK_WS_FIN) >> 4;
   proto_tree_add_item(ws_tree, hf_ws_reserved, tvb, 0, 1, ENC_BIG_ENDIAN);
   if (websocket_conv->permessage_deflate) {
     /* RSV1 is Per-Message Compressed bit (RFC 7692). */
     if (websocket_conv->first_frag) {
       /* First fragment, save pmc flag needed for decompressing continuation fragments */
-      websocket_conv->first_frag_pmc = !!(tvb_get_guint8(tvb, 0) & MASK_WS_RSV1);
+      websocket_conv->first_frag_pmc = !!(tvb_get_uint8(tvb, 0) & MASK_WS_RSV1);
     }
     proto_tree_add_item(ws_tree, hf_ws_pmc, tvb, 0, 1, ENC_BIG_ENDIAN);
   }
 
   /* Opcode */
   proto_tree_add_item(ws_tree, hf_ws_opcode, tvb, 0, 1, ENC_BIG_ENDIAN);
-  opcode = tvb_get_guint8(tvb, 0) & MASK_WS_OPCODE;
+  opcode = tvb_get_uint8(tvb, 0) & MASK_WS_OPCODE;
   if (websocket_conv->first_frag) {
     /* First fragment, save opcode needed when dissecting the reassembled frame */
     websocket_conv->first_frag_opcode = opcode;
@@ -706,22 +764,22 @@ dissect_websocket_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     } else {
       tvb_payload = tvb_new_subset_length(tvb, payload_offset, payload_length);
     }
-    dissect_websocket_payload(tvb_payload, pinfo, tree, ws_tree, fin, opcode, websocket_conv, tvb_raw_offset(tvb));
+    dissect_websocket_payload(tvb_payload, pinfo, tree, ws_tree, fin, opcode, websocket_conv, tvb_raw_offset(tvb), (mask ? payload_length : 0));
   }
 
   return tvb_captured_length(tvb);
 }
 
-static guint
+static unsigned
 get_websocket_frame_length(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-  guint         frame_length, payload_length;
-  gboolean      mask;
+  unsigned      frame_length, payload_length;
+  bool          mask;
 
   frame_length = 2;                 /* flags, opcode and Payload length */
-  mask = tvb_get_guint8(tvb, offset + 1) & MASK_WS_MASK;
+  mask = tvb_get_uint8(tvb, offset + 1) & MASK_WS_MASK;
 
-  payload_length = tvb_get_guint8(tvb, offset + 1) & MASK_WS_PAYLOAD_LEN;
+  payload_length = tvb_get_uint8(tvb, offset + 1) & MASK_WS_PAYLOAD_LEN;
   offset += 2; /* Skip flags, opcode and Payload length */
 
   /* Check for Extended Payload Length. */
@@ -735,7 +793,7 @@ get_websocket_frame_length(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, vo
     if (tvb_reported_length_remaining(tvb, offset) < 8)
       return 0; /* Need more data. */
 
-    payload_length = (guint)tvb_get_ntoh64(tvb, offset);
+    payload_length = (unsigned)tvb_get_ntoh64(tvb, offset);
     frame_length += 8;              /* Extended payload length */
   }
 
@@ -749,36 +807,36 @@ static int
 dissect_websocket(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   /* Need at least two bytes for flags, opcode and Payload length. */
-  tcp_dissect_pdus(tvb, pinfo, tree, TRUE, 2,
+  tcp_dissect_pdus(tvb, pinfo, tree, true, 2,
                    get_websocket_frame_length, dissect_websocket_frame, data);
   return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 test_websocket(packet_info* pinfo _U_, tvbuff_t* tvb, int offset _U_, void* data _U_)
 {
-  guint buffer_length = tvb_captured_length(tvb);
+  unsigned buffer_length = tvb_captured_length(tvb);
 
   // At least 2 bytes are required for a websocket header
   if (buffer_length < 2)
   {
-    return FALSE;
+    return false;
   }
-  guint8 first_byte = tvb_get_guint8(tvb, 0);
-  guint8 second_byte = tvb_get_guint8(tvb, 1);
+  uint8_t first_byte = tvb_get_uint8(tvb, 0);
+  uint8_t second_byte = tvb_get_uint8(tvb, 1);
 
   // Reserved bits RSV1, RSV2 and RSV3 need to be 0
   if ((first_byte & 0x70) > 0)
   {
-    return FALSE;
+    return false;
   }
 
-  guint8 op_code = first_byte & 0x0F;
+  uint8_t op_code = first_byte & 0x0F;
 
   // op_code must be one of WS_CONTINUE, WS_TEXT, WS_BINARY, WS_CLOSE, WS_PING or WS_PONG
   if (!(op_code == WS_CONTINUE || op_code == WS_TEXT || op_code == WS_BINARY || op_code == WS_CLOSE || op_code == WS_PING || op_code == WS_PONG))
   {
-    return FALSE;
+    return false;
   }
 
   // It is necessary to prevent that HTTP connection setups are treated as websocket.
@@ -787,24 +845,24 @@ test_websocket(packet_info* pinfo _U_, tvbuff_t* tvb, int offset _U_, void* data
   if (((first_byte >= 'a' && first_byte <= 'z') || (first_byte >= 'A' && first_byte <= 'Z')) &&
     ((second_byte >= 'a' && second_byte <= 'z') || (second_byte >= 'A' && second_byte <= 'Z')))
   {
-    return FALSE;
+    return false;
   }
 
-  return TRUE;
+  return true;
 }
 
-static gboolean
+static bool
 dissect_websocket_heur_tcp(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data)
 {
   if (!test_websocket(pinfo, tvb, 0, data))
   {
-    return FALSE;
+    return false;
   }
   conversation_t* conversation = find_or_create_conversation(pinfo);
   conversation_set_dissector(conversation, websocket_handle);
 
-  tcp_dissect_pdus(tvb, pinfo, tree, TRUE, 2, get_websocket_frame_length, dissect_websocket_frame, data);
-  return TRUE;
+  tcp_dissect_pdus(tvb, pinfo, tree, true, 2, get_websocket_frame_length, dissect_websocket_frame, data);
+  return true;
 }
 
 void
@@ -911,7 +969,7 @@ proto_register_websocket(void)
     { &hf_ws_fragments,
       { "Reassembled websocket Fragments", "websocket.fragments",
       FT_NONE, BASE_NONE, NULL, 0x0,
-      "Fragments", HFILL }
+      NULL, HFILL }
     },
     { &hf_ws_fragment,
       { "Websocket Fragment", "websocket.fragment",
@@ -956,7 +1014,7 @@ proto_register_websocket(void)
   };
 
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_ws,
     &ett_ws_pl,
     &ett_ws_mask,
@@ -968,6 +1026,7 @@ proto_register_websocket(void)
   static ei_register_info ei[] = {
     { &ei_ws_payload_unknown, { "websocket.payload.unknown.expert", PI_UNDECODED, PI_NOTE, "Dissector for Websocket Opcode", EXPFILL }},
     { &ei_ws_decompression_failed, { "websocket.decompression.failed.expert", PI_PROTOCOL, PI_WARN, "Decompression failed", EXPFILL }},
+    { &ei_ws_not_fully_unmasked, { "websocket.payload.not.fully.unmasked", PI_UNDECODED, PI_NOTE, "Payload not fully unmasked", EXPFILL }},
   };
 
   static const enum_val_t text_types[] = {
@@ -988,7 +1047,7 @@ proto_register_websocket(void)
    * this table using the standard heur_dissector_add()
    * function.
    */
-  heur_subdissector_list = register_heur_dissector_list("ws", proto_websocket);
+  heur_subdissector_list = register_heur_dissector_list_with_description("ws", "WebSocket data frame", proto_websocket);
 
   port_subdissector_table = register_dissector_table("ws.port",
       "TCP port for protocols using WebSocket", proto_websocket, FT_UINT16, BASE_DEC);
@@ -1019,6 +1078,10 @@ proto_register_websocket(void)
 
   prefs_register_bool_preference(websocket_module, "decompress",
         "Try to decompress permessage-deflate payload", NULL, &pref_decompress);
+
+  prefs_register_uint_preference(websocket_module, "max_unmasked_len", "Max unmasked payload length",
+    "The default value is 256KB (1024x256) bytes. If the preference is too large, it may affect the parsing speed.",
+    10, &pref_max_unmasked_len);
 }
 
 void

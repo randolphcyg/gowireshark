@@ -54,44 +54,44 @@ static const int RESPONSE_METADATA = 2;
 static const int RESPONSE_DATA = 3;
 #endif
 
-static int proto_hdfsdata = -1;
-static int hf_hdfsdata_version = -1;
-static int hf_hdfsdata_cmd = -1;
-static int hf_hdfsdata_blockid = -1;
-static int hf_hdfsdata_timestamp = -1;
-static int hf_hdfsdata_startoffset = -1;
-static int hf_hdfsdata_blocklen = -1;
-static int hf_hdfsdata_clientlen = -1;
-static int hf_hdfsdata_clientid = -1;
-static int hf_hdfsdata_tokenlen = -1;
-static int hf_hdfsdata_tokenid = -1;
-static int hf_hdfsdata_tokenpassword = -1;
-static int hf_hdfsdata_tokentype = -1;
-static int hf_hdfsdata_tokenservice = -1;
-static int hf_hdfsdata_status = -1;
-static int hf_hdfsdata_checksumtype = -1;
-static int hf_hdfsdata_chunksize = -1;
-static int hf_hdfsdata_chunkoffset = -1;
-static int hf_hdfsdata_datalength = -1;
-static int hf_hdfsdata_inblockoffset = -1;
-static int hf_hdfsdata_seqnum = -1;
-static int hf_hdfsdata_last = -1;
-static int hf_hdfsdata_crc32 = -1;
-static int hf_hdfsdata_datalen = -1;
-static int hf_hdfsdata_rest = -1;
-static int hf_hdfsdata_end = -1;
-static int hf_hdfsdata_packetsize = -1;
-static int hf_hdfsdata_chunklength = -1;
-static int hf_hdfsdata_crc64 = -1;
-static int hf_hdfsdata_pipelinestatus = -1;
+static int proto_hdfsdata;
+static int hf_hdfsdata_version;
+static int hf_hdfsdata_cmd;
+static int hf_hdfsdata_blockid;
+static int hf_hdfsdata_timestamp;
+static int hf_hdfsdata_startoffset;
+static int hf_hdfsdata_blocklen;
+static int hf_hdfsdata_clientlen;
+static int hf_hdfsdata_clientid;
+static int hf_hdfsdata_tokenlen;
+static int hf_hdfsdata_tokenid;
+static int hf_hdfsdata_tokenpassword;
+static int hf_hdfsdata_tokentype;
+static int hf_hdfsdata_tokenservice;
+static int hf_hdfsdata_status;
+static int hf_hdfsdata_checksumtype;
+static int hf_hdfsdata_chunksize;
+static int hf_hdfsdata_chunkoffset;
+static int hf_hdfsdata_datalength;
+static int hf_hdfsdata_inblockoffset;
+static int hf_hdfsdata_seqnum;
+static int hf_hdfsdata_last;
+static int hf_hdfsdata_crc32;
+static int hf_hdfsdata_datalen;
+static int hf_hdfsdata_rest;
+static int hf_hdfsdata_end;
+static int hf_hdfsdata_packetsize;
+static int hf_hdfsdata_chunklength;
+static int hf_hdfsdata_crc64;
+static int hf_hdfsdata_pipelinestatus;
 
-static int hf_hdfsdata_pipelinenum = -1;
-static int hf_hdfsdata_recovery = -1;
-static int hf_hdfsdata_sourcenode = -1;
-static int hf_hdfsdata_currentpipeline = -1;
-static int hf_hdfsdata_node = -1;
+static int hf_hdfsdata_pipelinenum;
+static int hf_hdfsdata_recovery;
+static int hf_hdfsdata_sourcenode;
+static int hf_hdfsdata_currentpipeline;
+static int hf_hdfsdata_node;
 
-static gint ett_hdfsdata = -1;
+static int ett_hdfsdata;
 
 static dissector_handle_t hdfsdata_handle;
 
@@ -100,7 +100,7 @@ static dissector_handle_t hdfsdata_handle;
    value is the first byte of the vint/vlong
    returns the total number of bytes (1 to 9) */
 static int
-decode_vint_size (gint8 value) {
+decode_vint_size (int8_t value) {
   if (value >= -112) {
     return 1;
   } else if (value < -120) {
@@ -112,14 +112,14 @@ decode_vint_size (gint8 value) {
 /* Taken from HDFS
    converts a variable length number into a long and discovers how many bytes it is
    returns the decoded number */
-static guint
+static unsigned
 dissect_variable_length_long (tvbuff_t *tvb, proto_tree *hdfsdata_tree, int* offset)
 {
   int byte_count = 1;
   int idx = 0;
-  guint i = 0;
-  gint8 first_byte = tvb_get_guint8(tvb, *offset);
-  guint size = 0;
+  unsigned i = 0;
+  int8_t first_byte = tvb_get_uint8(tvb, *offset);
+  unsigned size = 0;
 
   int len = decode_vint_size(first_byte);
   if (len == 1) {
@@ -129,7 +129,7 @@ dissect_variable_length_long (tvbuff_t *tvb, proto_tree *hdfsdata_tree, int* off
   }
 
   for  (idx = 0; idx < len-1; idx++) {
-    char b = tvb_get_guint8(tvb, *offset + byte_count);
+    char b = tvb_get_uint8(tvb, *offset + byte_count);
     byte_count++;
     i = i << 8;
     i = i | (b & 0xFF);
@@ -145,7 +145,7 @@ dissect_variable_length_long (tvbuff_t *tvb, proto_tree *hdfsdata_tree, int* off
 static void
 dissect_variable_int_string(tvbuff_t *tvb, proto_tree *hdfsdata_tree, int *offset)
 {
-  /* Get the variable length int that represents the length of the next feild */
+  /* Get the variable length int that represents the length of the next field */
   int len = dissect_variable_length_long (tvb, hdfsdata_tree, offset);
 
   /* client id = amount of bytes in previous */
@@ -160,7 +160,7 @@ dissect_access_tokens(tvbuff_t *tvb, proto_tree *hdfsdata_tree, int *offset)
 {
   int len = 0;
 
-  len = tvb_get_guint8(tvb, *offset);
+  len = tvb_get_uint8(tvb, *offset);
   proto_tree_add_item(hdfsdata_tree, hf_hdfsdata_tokenlen, tvb, *offset, 1, ENC_BIG_ENDIAN);
   *offset += 1;
 
@@ -168,7 +168,7 @@ dissect_access_tokens(tvbuff_t *tvb, proto_tree *hdfsdata_tree, int *offset)
   proto_tree_add_item(hdfsdata_tree, hf_hdfsdata_tokenid, tvb, *offset, len, ENC_ASCII);
   *offset += len;
 
-  len = tvb_get_guint8(tvb, *offset);
+  len = tvb_get_uint8(tvb, *offset);
   proto_tree_add_item(hdfsdata_tree, hf_hdfsdata_tokenlen, tvb, *offset, 1, ENC_BIG_ENDIAN);
   *offset += 1;
 
@@ -176,7 +176,7 @@ dissect_access_tokens(tvbuff_t *tvb, proto_tree *hdfsdata_tree, int *offset)
   proto_tree_add_item(hdfsdata_tree, hf_hdfsdata_tokenpassword, tvb, *offset, len, ENC_ASCII);
   *offset += len;
 
-  len = tvb_get_guint8(tvb, *offset);
+  len = tvb_get_uint8(tvb, *offset);
   proto_tree_add_item(hdfsdata_tree, hf_hdfsdata_tokenlen, tvb, *offset, 1, ENC_BIG_ENDIAN);
   *offset += 1;
 
@@ -184,7 +184,7 @@ dissect_access_tokens(tvbuff_t *tvb, proto_tree *hdfsdata_tree, int *offset)
   proto_tree_add_item(hdfsdata_tree, hf_hdfsdata_tokentype, tvb, *offset, len, ENC_ASCII);
   *offset += len;
 
-  len = tvb_get_guint8(tvb, *offset);
+  len = tvb_get_uint8(tvb, *offset);
   proto_tree_add_item(hdfsdata_tree, hf_hdfsdata_tokenlen, tvb, *offset, 1, ENC_BIG_ENDIAN);
   *offset += 1;
 
@@ -198,7 +198,7 @@ static void
 dissect_read_response(tvbuff_t *tvb, proto_tree *hdfsdata_tree, int offset)
 {
   int len = 0;
-  guint32 chunksize;
+  uint32_t chunksize;
 
   /* 4 bytes = data length */
   proto_tree_add_item(hdfsdata_tree, hf_hdfsdata_datalength, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -224,7 +224,7 @@ dissect_read_response(tvbuff_t *tvb, proto_tree *hdfsdata_tree, int offset)
   chunksize = tvb_get_ntohl(tvb, CHUNKSIZE_START);
   if (chunksize == 0)   /* let's not divide by zero */
     return;
-  if (tvb_get_guint8(tvb, 2) == CRC) {
+  if (tvb_get_uint8(tvb, 2) == CRC) {
     len = (int)(CRC_SIZE * tvb_get_ntohl(tvb, offset - 4) *
       tvb_get_ntohl(tvb, offset - 8) / chunksize);
   }
@@ -298,7 +298,7 @@ dissect_write_request_end(tvbuff_t *tvb, proto_tree *hdfsdata_tree, int *offset)
   proto_tree_add_item(hdfsdata_tree, hf_hdfsdata_currentpipeline, tvb, *offset, 4, ENC_BIG_ENDIAN);
   *offset += 4;
 
-  /* varible length sequence of node objects */
+  /* variable length sequence of node objects */
   for (i = 0; i < len; i++) {
     proto_tree_add_item(hdfsdata_tree, hf_hdfsdata_node, tvb, *offset, 4, ENC_BIG_ENDIAN);
     *offset += 4;
@@ -316,7 +316,7 @@ dissect_header(tvbuff_t *tvb, proto_tree *hdfsdata_tree, int* offset){
   *offset += 2;
 
   /* 1 byte = command */
-  command = tvb_get_guint8(tvb, *offset);
+  command = tvb_get_uint8(tvb, *offset);
   proto_tree_add_item(hdfsdata_tree, hf_hdfsdata_cmd, tvb, *offset, 1, ENC_BIG_ENDIAN);
   *offset += 1;
 
@@ -365,7 +365,7 @@ dissect_write_response(tvbuff_t *tvb, proto_tree *hdfsdata_tree, int offset)
 }
 
 /* determine PDU length of protocol  */
-static guint
+static unsigned
 get_hdfsdata_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
   /* get data packet len, add FIRST_READ_FRAGMENT_LEN for first fragment (before len),
@@ -373,8 +373,8 @@ get_hdfsdata_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void
 
   if (tvb_reported_length(tvb) <= 4 || tvb_reported_length(tvb) == END_PACKET_LEN
     || tvb_get_ntohl(tvb, 0) == tvb_reported_length(tvb) - WRITE_RESP_HEAD_LEN
-    || (tvb_reported_length(tvb) >= MIN_READ_REQ && tvb_get_guint8(tvb, 2) == READ_OP)
-    || (tvb_reported_length(tvb) >= MIN_WRITE_REQ && tvb_get_guint8(tvb, 2) == WRITE_OP)) {
+    || (tvb_reported_length(tvb) >= MIN_READ_REQ && tvb_get_uint8(tvb, 2) == READ_OP)
+    || (tvb_reported_length(tvb) >= MIN_WRITE_REQ && tvb_get_uint8(tvb, 2) == WRITE_OP)) {
 
     return tvb_reported_length(tvb);
   }
@@ -432,7 +432,7 @@ dissect_hdfsdata_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 
     } else {
 
-      guint8 op = tvb_get_guint8(tvb, 2);
+      uint8_t op = tvb_get_uint8(tvb, 2);
 
       /* READ  request */
       if ((tvb_reported_length(tvb)) >= MIN_READ_REQ && op == READ_OP) {
@@ -479,19 +479,19 @@ dissect_hdfsdata(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
 {
   int frame_header_len = 0;
 
-  gboolean need_reassemble = FALSE;
-  guint8 op = 0;
-  gboolean only_packet = tvb_reported_length(tvb) == 1 || (tvb_reported_length(tvb) == 2 &&
+  bool need_reassemble = false;
+  uint8_t op = 0;
+  bool only_packet = tvb_reported_length(tvb) == 1 || (tvb_reported_length(tvb) == 2 &&
     tvb_get_ntohs(tvb, 0) == STATUS_SUCCESS);
 
   if (tvb_reported_length(tvb) >= 3)
-    op = tvb_get_guint8(tvb, 2);
+    op = tvb_get_uint8(tvb, 2);
 
   if (!only_packet && tvb_reported_length(tvb) != 4 && !(tvb_reported_length(tvb) >= MIN_READ_REQ && op == READ_OP) &&
     !(tvb_reported_length(tvb) >= MIN_WRITE_REQ && op == WRITE_OP) && !(tvb_reported_length(tvb) == END_PACKET_LEN &&
     !tvb_get_ntohl(tvb, 0) && !tvb_get_ntohl(tvb, 4))) {
 
-    need_reassemble = TRUE;
+    need_reassemble = true;
   }
 
   /* setting the header size for the different types of packets */
@@ -511,7 +511,7 @@ dissect_hdfsdata(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
   return tvb_captured_length(tvb);
 }
 
-/* registers the protcol with the given names */
+/* registers the protocol with the given names */
 void
 proto_register_hdfsdata(void)
 {
@@ -583,7 +583,7 @@ proto_register_hdfsdata(void)
       NULL, HFILL }
   },
   { &hf_hdfsdata_currentpipeline,
-    { "HDFSDATA current number of nodes in the pipeline", "hdfsdata.currentpipline",
+    { "HDFSDATA current number of nodes in the pipeline", "hdfsdata.currentpipeline",
       FT_UINT32, BASE_DEC,
       NULL, 0x0,
       NULL, HFILL }
@@ -753,7 +753,7 @@ proto_register_hdfsdata(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_hdfsdata
     };
 

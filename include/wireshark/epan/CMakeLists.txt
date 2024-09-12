@@ -39,7 +39,6 @@ add_custom_command(
 )
 
 set(LIBWIRESHARK_PUBLIC_HEADERS
-	addr_and_mask.h
 	addr_resolv.h
 	address.h
 	address_types.h
@@ -100,15 +99,15 @@ set(LIBWIRESHARK_PUBLIC_HEADERS
 	iax2_codec_type.h
 	in_cksum.h
 	introspection.h
+	iana-ip.h
 	ip_opts.h
 	ipproto.h
-	ipv4.h
-	ipv6.h
 	lapd_sapi.h
 	llcsaps.h
 	maxmind_db.h
 	media_params.h
 	next_tvb.h
+	nghttp2_hd_huffman.h
 	nlpid.h
 	oids.h
 	osi-utils.h
@@ -171,7 +170,6 @@ set(LIBWIRESHARK_HEADER_FILES
 )
 
 set(LIBWIRESHARK_NONGENERATED_FILES
-	addr_and_mask.c
 	addr_resolv.c
 	address_types.c
 	afn.c
@@ -211,6 +209,7 @@ set(LIBWIRESHARK_NONGENERATED_FILES
 	golay.c
 	guid-utils.c
 	iana_charsets.c
+	iana-ip.c
 	in_cksum.c
 	introspection.c
 	ipproto.c
@@ -218,6 +217,7 @@ set(LIBWIRESHARK_NONGENERATED_FILES
 	maxmind_db.c
 	media_params.c
 	next_tvb.c
+	nghttp2_hd_huffman_data.c
 	oids.c
 	osi-utils.c
 	packet.c
@@ -254,7 +254,9 @@ set(LIBWIRESHARK_NONGENERATED_FILES
 	tvbuff.c
 	tvbuff_base64.c
 	tvbuff_brotli.c
+	tvbuff_snappy.c
 	tvbuff_composite.c
+	tvbuff_hpackhuff.c
 	tvbuff_real.c
 	tvbuff_subset.c
 	tvbuff_zlib.c
@@ -314,7 +316,7 @@ add_library(epan
 set_target_properties(epan PROPERTIES
 	COMPILE_DEFINITIONS "WS_BUILD_DLL"
 	LINK_FLAGS "${WS_LINK_FLAGS}"
-	VERSION "17.0.6" SOVERSION 17
+	VERSION "18.0.0" SOVERSION 18
 	INSTALL_RPATH "${LIBRARY_INSTALL_RPATH}"
 	# By default the name for a library with target name epan will be libepan,
 	# but Ethereal is now named Wireshark
@@ -349,6 +351,7 @@ target_link_libraries(epan
 		${WIN_PSAPI_LIBRARY}
 		${WIN_WS2_32_LIBRARY}
 		${ZLIB_LIBRARIES}
+		${ZLIBNG_LIBRARIES}
 		${ZSTD_LIBRARIES}
 		$<$<BOOL:${LUA_FOUND}>:lrexlib>
 )
@@ -377,7 +380,9 @@ target_include_directories(epan
 		${NGHTTP2_INCLUDE_DIRS}
 		${NGHTTP3_INCLUDE_DIRS}
 		${SMI_INCLUDE_DIRS}
+		${SNAPPY_INCLUDE_DIRS}
 		${ZLIB_INCLUDE_DIRS}
+		${ZLIBNG_INCLUDE_DIRS}
 		${ZSTD_INCLUDE_DIRS}
 	PRIVATE
 		${CMAKE_CURRENT_BINARY_DIR}

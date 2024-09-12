@@ -16,6 +16,9 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/crc6-tvb.h>
+#include <epan/unit_strings.h>
+
+#include <wsutil/array.h>
 
 #define TYPE_0_LEN 17
 #define TYPE_1_LEN 11
@@ -26,23 +29,23 @@ void proto_register_sync(void);
 void proto_reg_handoff_sync(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_sync = -1;
-static int hf_sync_type = -1;
-static int hf_sync_spare4 = -1;
-static int hf_sync_timestamp = -1;
-static int hf_sync_packet_nr = -1;
-static int hf_sync_elapsed_octet_ctr = -1;
-static int hf_sync_total_nr_of_packet = -1;
-static int hf_sync_total_nr_of_octet = -1;
-static int hf_sync_header_crc = -1;
-static int hf_sync_payload_crc = -1;
-static int hf_sync_length_of_packet = -1;
+static int proto_sync;
+static int hf_sync_type;
+static int hf_sync_spare4;
+static int hf_sync_timestamp;
+static int hf_sync_packet_nr;
+static int hf_sync_elapsed_octet_ctr;
+static int hf_sync_total_nr_of_packet;
+static int hf_sync_total_nr_of_octet;
+static int hf_sync_header_crc;
+static int hf_sync_payload_crc;
+static int hf_sync_length_of_packet;
 
 /* Initialize the subtree pointers */
-static gint ett_sync = -1;
+static int ett_sync;
 
-static expert_field ei_sync_pdu_type2 = EI_INIT;
-static expert_field ei_sync_type = EI_INIT;
+static expert_field ei_sync_pdu_type2;
+static expert_field ei_sync_type;
 
 static dissector_handle_t sync_handle;
 static dissector_handle_t ip_handle;
@@ -61,14 +64,14 @@ dissect_sync(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 {
     proto_item *ti, *item, *type_item;
     proto_tree *sync_tree;
-    guint8      type, spare;
-    guint16     packet_nr, packet_len1, packet_len2;
-    guint32     timestamp, total_nr_of_packet;
+    uint8_t     type, spare;
+    uint16_t    packet_nr, packet_len1, packet_len2;
+    uint32_t    timestamp, total_nr_of_packet;
     int         offset = 0;
     tvbuff_t   *next_tvb;
 
-    type  = tvb_get_guint8(tvb, offset) >> 4;
-    spare = tvb_get_guint8(tvb, offset) & 0x0F;
+    type  = tvb_get_uint8(tvb, offset) >> 4;
+    spare = tvb_get_uint8(tvb, offset) & 0x0F;
 
     /* Heuristics to check if packet is really MBMS sync */
 #if 0
@@ -106,7 +109,7 @@ dissect_sync(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
                 break;
             case 3:
                 ti = proto_tree_add_item(tree, proto_sync, tvb, 0,
-                                         TYPE_3_LEN + (gint16)(packet_nr % 2 == 0 ?
+                                         TYPE_3_LEN + (int16_t)(packet_nr % 2 == 0 ?
                                                                1.5*packet_nr : 1.5*(packet_nr-1)+2),
                                          ENC_NA);
                 break;
@@ -174,7 +177,7 @@ dissect_sync(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
                 proto_tree_add_item(sync_tree, hf_sync_payload_crc, tvb, offset, 2, ENC_BIG_ENDIAN);
                 offset += 2;
 
-                if (offset < (gint)tvb_reported_length(tvb)) {
+                if (offset < (int)tvb_reported_length(tvb)) {
                     int i;
 
                     if (total_nr_of_packet != 0 && packet_nr % 2 == 0) {
@@ -226,7 +229,7 @@ proto_register_sync(void)
         },
         { &hf_sync_timestamp,
             { "Timestamp", "sync.timestamp",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_milliseconds, 0x0,
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
             "Relative time value for the starting time of a synchronisation sequence within the synchronisation period.", HFILL }
         },
         { &hf_sync_packet_nr,
@@ -266,7 +269,7 @@ proto_register_sync(void)
         },
     };
 
-    static gint *ett_sync_array[] = {
+    static int *ett_sync_array[] = {
         &ett_sync
     };
 

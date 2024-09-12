@@ -45,15 +45,15 @@ void proto_reg_handoff_gdb(void);
 
 static dissector_handle_t gdb_handle;
 
-static int proto_gdb = -1;
+static int proto_gdb;
 
-static gint ett_gdb = -1;
+static int ett_gdb;
 
-static int hf_gdb_ack = -1;
-static int hf_gdb_start = -1;
-static int hf_gdb_payload = -1;
-static int hf_gdb_end = -1;
-static int hf_gdb_chksum = -1;
+static int hf_gdb_ack;
+static int hf_gdb_start;
+static int hf_gdb_payload;
+static int hf_gdb_end;
+static int hf_gdb_chksum;
 
 static tvbparse_wanted_t *want;
 
@@ -61,7 +61,7 @@ static void
 dissect_gdb_token(void *tvbparse_data, const void *wanted_data, tvbparse_elem_t *tok)
 {
     proto_tree *tree;
-    guint       token;
+    unsigned    token;
 
     if (!tok)   /* XXX - is this check necessary? */
         return;
@@ -146,15 +146,15 @@ dissect_gdb_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 static int
 dissect_gdb_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    gint      offset=0, offset_start;
-    gint      pos;
-    guint     packet_len;
+    int       offset=0, offset_start;
+    int       pos;
+    unsigned  packet_len;
     tvbuff_t *packet_tvb;
 
     while (tvb_captured_length_remaining(tvb, offset) > 0) {
         packet_tvb = NULL;
         offset_start = offset;
-        pos = tvb_find_guint8(tvb, offset, -1, '#');
+        pos = tvb_find_uint8(tvb, offset, -1, '#');
         if (pos != -1) {
             offset += pos;
             offset++; /* skip the hash sign */
@@ -201,7 +201,7 @@ proto_register_gdb(void)
               NULL, 0, NULL, HFILL } }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_gdb
     };
 

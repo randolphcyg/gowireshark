@@ -26,336 +26,384 @@ void proto_register_usb_audio(void);
 void proto_reg_handoff_usb_audio(void);
 
 /* protocols and header fields */
-static int proto_usb_audio = -1;
-static int hf_midi_cable_number = -1;
-static int hf_midi_code_index = -1;
-static int hf_midi_event = -1;
-static int hf_midi_padding = -1;
-static int hf_ac_if_desc_subtype = -1;
-static int hf_ac_if_hdr_ver = -1;
-static int hf_ac_if_hdr_total_len = -1;
-static int hf_ac_if_hdr_bInCollection = -1;
-static int hf_ac_if_hdr_if_num = -1;
-static int hf_ac_if_hdr_category = -1;
-static int hf_ac_if_hdr_controls = -1;
-static int hf_ac_if_hdr_controls_latency = -1;
-static int hf_ac_if_hdr_controls_rsv = -1;
-static int hf_ac_if_input_terminalid = -1;
-static int hf_ac_if_input_terminaltype = -1;
-static int hf_ac_if_input_assocterminal = -1;
-static int hf_ac_if_input_csourceid = -1;
-static int hf_ac_if_input_nrchannels = -1;
-static int hf_ac_if_input_wchannelconfig = -1;
-static int hf_ac_if_input_wchannelconfig_d0 = -1;
-static int hf_ac_if_input_wchannelconfig_d1 = -1;
-static int hf_ac_if_input_wchannelconfig_d2 = -1;
-static int hf_ac_if_input_wchannelconfig_d3 = -1;
-static int hf_ac_if_input_wchannelconfig_d4 = -1;
-static int hf_ac_if_input_wchannelconfig_d5 = -1;
-static int hf_ac_if_input_wchannelconfig_d6 = -1;
-static int hf_ac_if_input_wchannelconfig_d7 = -1;
-static int hf_ac_if_input_wchannelconfig_d8 = -1;
-static int hf_ac_if_input_wchannelconfig_d9 = -1;
-static int hf_ac_if_input_wchannelconfig_d10 = -1;
-static int hf_ac_if_input_wchannelconfig_d11 = -1;
-static int hf_ac_if_input_wchannelconfig_rsv = -1;
-static int hf_ac_if_input_bmchannelconfig = -1;
-static int hf_ac_if_input_bmchannelconfig_d0 = -1;
-static int hf_ac_if_input_bmchannelconfig_d1 = -1;
-static int hf_ac_if_input_bmchannelconfig_d2 = -1;
-static int hf_ac_if_input_bmchannelconfig_d3 = -1;
-static int hf_ac_if_input_bmchannelconfig_d4 = -1;
-static int hf_ac_if_input_bmchannelconfig_d5 = -1;
-static int hf_ac_if_input_bmchannelconfig_d6 = -1;
-static int hf_ac_if_input_bmchannelconfig_d7 = -1;
-static int hf_ac_if_input_bmchannelconfig_d8 = -1;
-static int hf_ac_if_input_bmchannelconfig_d9 = -1;
-static int hf_ac_if_input_bmchannelconfig_d10 = -1;
-static int hf_ac_if_input_bmchannelconfig_d11 = -1;
-static int hf_ac_if_input_bmchannelconfig_d12 = -1;
-static int hf_ac_if_input_bmchannelconfig_d13 = -1;
-static int hf_ac_if_input_bmchannelconfig_d14 = -1;
-static int hf_ac_if_input_bmchannelconfig_d15 = -1;
-static int hf_ac_if_input_bmchannelconfig_d16 = -1;
-static int hf_ac_if_input_bmchannelconfig_d17 = -1;
-static int hf_ac_if_input_bmchannelconfig_d18 = -1;
-static int hf_ac_if_input_bmchannelconfig_d19 = -1;
-static int hf_ac_if_input_bmchannelconfig_d20 = -1;
-static int hf_ac_if_input_bmchannelconfig_d21 = -1;
-static int hf_ac_if_input_bmchannelconfig_d22 = -1;
-static int hf_ac_if_input_bmchannelconfig_d23 = -1;
-static int hf_ac_if_input_bmchannelconfig_d24 = -1;
-static int hf_ac_if_input_bmchannelconfig_d25 = -1;
-static int hf_ac_if_input_bmchannelconfig_d26 = -1;
-static int hf_ac_if_input_bmchannelconfig_rsv = -1;
-static int hf_ac_if_input_bmchannelconfig_d31 = -1;
-static int hf_ac_if_input_channelnames = -1;
-static int hf_ac_if_input_controls = -1;
-static int hf_ac_if_input_controls_copy = -1;
-static int hf_ac_if_input_controls_connector = -1;
-static int hf_ac_if_input_controls_overload = -1;
-static int hf_ac_if_input_controls_cluster = -1;
-static int hf_ac_if_input_controls_underflow = -1;
-static int hf_ac_if_input_controls_overflow = -1;
-static int hf_ac_if_input_controls_rsv = -1;
-static int hf_ac_if_input_terminal = -1;
-static int hf_ac_if_output_terminalid = -1;
-static int hf_ac_if_output_terminaltype = -1;
-static int hf_ac_if_output_assocterminal = -1;
-static int hf_ac_if_output_sourceid = -1;
-static int hf_ac_if_output_clk_sourceid = -1;
-static int hf_ac_if_output_controls = -1;
-static int hf_ac_if_output_controls_copy = -1;
-static int hf_ac_if_output_controls_connector = -1;
-static int hf_ac_if_output_controls_overload = -1;
-static int hf_ac_if_output_controls_underflow = -1;
-static int hf_ac_if_output_controls_overflow = -1;
-static int hf_ac_if_output_controls_rsv = -1;
-static int hf_ac_if_output_terminal = -1;
-static int hf_ac_if_fu_unitid = -1;
-static int hf_ac_if_fu_sourceid = -1;
-static int hf_ac_if_fu_controlsize = -1;
-static int hf_ac_if_fu_controls = -1;
-static int hf_ac_if_fu_control = -1;
-static int hf_ac_if_fu_controls_d0 = -1;
-static int hf_ac_if_fu_controls_d1 = -1;
-static int hf_ac_if_fu_controls_d2 = -1;
-static int hf_ac_if_fu_controls_d3 = -1;
-static int hf_ac_if_fu_controls_d4 = -1;
-static int hf_ac_if_fu_controls_d5 = -1;
-static int hf_ac_if_fu_controls_d6 = -1;
-static int hf_ac_if_fu_controls_d7 = -1;
-static int hf_ac_if_fu_controls_d8 = -1;
-static int hf_ac_if_fu_controls_d9 = -1;
-static int hf_ac_if_fu_controls_rsv = -1;
-static int hf_ac_if_fu_controls_v2 = -1;
-static int hf_ac_if_fu_control_v2 = -1;
-static int hf_ac_if_fu_controls_v2_d0 = -1;
-static int hf_ac_if_fu_controls_v2_d1 = -1;
-static int hf_ac_if_fu_controls_v2_d2 = -1;
-static int hf_ac_if_fu_controls_v2_d3 = -1;
-static int hf_ac_if_fu_controls_v2_d4 = -1;
-static int hf_ac_if_fu_controls_v2_d5 = -1;
-static int hf_ac_if_fu_controls_v2_d6 = -1;
-static int hf_ac_if_fu_controls_v2_d7 = -1;
-static int hf_ac_if_fu_controls_v2_d8 = -1;
-static int hf_ac_if_fu_controls_v2_d9 = -1;
-static int hf_ac_if_fu_controls_v2_d10 = -1;
-static int hf_ac_if_fu_controls_v2_d11 = -1;
-static int hf_ac_if_fu_controls_v2_d12 = -1;
-static int hf_ac_if_fu_controls_v2_d13 = -1;
-static int hf_ac_if_fu_controls_v2_d14 = -1;
-static int hf_ac_if_fu_controls_v2_rsv = -1;
-static int hf_ac_if_fu_ifeature = -1;
-static int hf_ac_if_su_unitid = -1;
-static int hf_ac_if_su_nrinpins = -1;
-static int hf_ac_if_su_sourceids = -1;
-static int hf_ac_if_su_sourceid = -1;
-static int hf_ac_if_su_controls = -1;
-static int hf_ac_if_su_controls_d0 = -1;
-static int hf_ac_if_su_controls_rsv = -1;
-static int hf_ac_if_su_iselector = -1;
-static int hf_ac_if_mu_unitid = -1;
-static int hf_ac_if_mu_nrinpins = -1;
-static int hf_ac_if_mu_sourceid = -1;
-static int hf_ac_if_mu_nrchannels = -1;
-static int hf_ac_if_mu_channelconfig = -1;
-static int hf_ac_if_mu_channelconfig_d0 = -1;
-static int hf_ac_if_mu_channelconfig_d1 = -1;
-static int hf_ac_if_mu_channelconfig_d2 = -1;
-static int hf_ac_if_mu_channelconfig_d3 = -1;
-static int hf_ac_if_mu_channelconfig_d4 = -1;
-static int hf_ac_if_mu_channelconfig_d5 = -1;
-static int hf_ac_if_mu_channelconfig_d6 = -1;
-static int hf_ac_if_mu_channelconfig_d7 = -1;
-static int hf_ac_if_mu_channelconfig_d8 = -1;
-static int hf_ac_if_mu_channelconfig_d9 = -1;
-static int hf_ac_if_mu_channelconfig_d10 = -1;
-static int hf_ac_if_mu_channelconfig_d11 = -1;
-static int hf_ac_if_mu_channelconfig_rsv = -1;
-static int hf_ac_if_mu_channelnames = -1;
-static int hf_ac_if_mu_controls = -1;
-static int hf_ac_if_mu_imixer = -1;
-static int hf_ac_if_clksrc_id = -1;
-static int hf_ac_if_clksrc_attr = -1;
-static int hf_ac_if_clksrc_attr_type = -1;
-static int hf_ac_if_clksrc_attr_d2 = -1;
-static int hf_ac_if_clksrc_attr_rsv = -1;
-static int hf_ac_if_clksrc_controls = -1;
-static int hf_ac_if_clksrc_controls_freq = -1;
-static int hf_ac_if_clksrc_controls_validity = -1;
-static int hf_ac_if_clksrc_controls_rsv = -1;
-static int hf_ac_if_clksrc_assocterminal = -1;
-static int hf_ac_if_clksrc_clocksource = -1;
-static int hf_ac_if_clksel_id = -1;
-static int hf_ac_if_clksel_nrpins = -1;
-static int hf_ac_if_clksel_sourceid = -1;
-static int hf_ac_if_clksel_controls = -1;
-static int hf_ac_if_clksel_controls_clksel = -1;
-static int hf_ac_if_clksel_controls_rsv = -1;
-static int hf_ac_if_clksel_clockselector = -1;
-static int hf_as_if_desc_subtype = -1;
-static int hf_as_if_gen_term_link = -1;
-static int hf_as_if_gen_delay = -1;
-static int hf_as_if_gen_wformattag = -1;
-static int hf_as_if_gen_controls = -1;
-static int hf_as_if_gen_controls_active = -1;
-static int hf_as_if_gen_controls_valid = -1;
-static int hf_as_if_gen_controls_rsv = -1;
-static int hf_as_if_gen_formattype = -1;
-static int hf_as_if_gen_formats = -1;
-static int hf_as_if_gen_formats_i_d0 = -1;
-static int hf_as_if_gen_formats_i_d1 = -1;
-static int hf_as_if_gen_formats_i_d2 = -1;
-static int hf_as_if_gen_formats_i_d3 = -1;
-static int hf_as_if_gen_formats_i_d4 = -1;
-static int hf_as_if_gen_formats_i_rsv = -1;
-static int hf_as_if_gen_formats_i_d31 = -1;
-static int hf_as_if_gen_formats_ii_d0 = -1;
-static int hf_as_if_gen_formats_ii_d1 = -1;
-static int hf_as_if_gen_formats_ii_d2 = -1;
-static int hf_as_if_gen_formats_ii_d3 = -1;
-static int hf_as_if_gen_formats_ii_rsv = -1;
-static int hf_as_if_gen_formats_ii_d31 = -1;
-static int hf_as_if_gen_formats_iii_d0 = -1;
-static int hf_as_if_gen_formats_iii_d1 = -1;
-static int hf_as_if_gen_formats_iii_d2 = -1;
-static int hf_as_if_gen_formats_iii_d3 = -1;
-static int hf_as_if_gen_formats_iii_d4 = -1;
-static int hf_as_if_gen_formats_iii_d5 = -1;
-static int hf_as_if_gen_formats_iii_d6 = -1;
-static int hf_as_if_gen_formats_iii_d7 = -1;
-static int hf_as_if_gen_formats_iii_d8 = -1;
-static int hf_as_if_gen_formats_iii_d9 = -1;
-static int hf_as_if_gen_formats_iii_d10 = -1;
-static int hf_as_if_gen_formats_iii_d11 = -1;
-static int hf_as_if_gen_formats_iii_d12 = -1;
-static int hf_as_if_gen_formats_iii_rsv = -1;
-static int hf_as_if_gen_formats_iv_d0 = -1;
-static int hf_as_if_gen_formats_iv_d1 = -1;
-static int hf_as_if_gen_formats_iv_d2 = -1;
-static int hf_as_if_gen_formats_iv_d3 = -1;
-static int hf_as_if_gen_formats_iv_d4 = -1;
-static int hf_as_if_gen_formats_iv_d5 = -1;
-static int hf_as_if_gen_formats_iv_d6 = -1;
-static int hf_as_if_gen_formats_iv_d7 = -1;
-static int hf_as_if_gen_formats_iv_d8 = -1;
-static int hf_as_if_gen_formats_iv_d9 = -1;
-static int hf_as_if_gen_formats_iv_d10 = -1;
-static int hf_as_if_gen_formats_iv_d11 = -1;
-static int hf_as_if_gen_formats_iv_d12 = -1;
-static int hf_as_if_gen_formats_iv_d13 = -1;
-static int hf_as_if_gen_formats_iv_d14 = -1;
-static int hf_as_if_gen_formats_iv_d15 = -1;
-static int hf_as_if_gen_formats_iv_d16 = -1;
-static int hf_as_if_gen_formats_iv_d17 = -1;
-static int hf_as_if_gen_formats_iv_d18 = -1;
-static int hf_as_if_gen_formats_iv_d19 = -1;
-static int hf_as_if_gen_formats_iv_d20 = -1;
-static int hf_as_if_gen_formats_iv_d21 = -1;
-static int hf_as_if_gen_formats_iv_rsv = -1;
-static int hf_as_if_gen_nrchannels = -1;
-static int hf_as_if_gen_bmchannelconfig = -1;
-static int hf_as_if_gen_bmchannelconfig_d0 = -1;
-static int hf_as_if_gen_bmchannelconfig_d1 = -1;
-static int hf_as_if_gen_bmchannelconfig_d2 = -1;
-static int hf_as_if_gen_bmchannelconfig_d3 = -1;
-static int hf_as_if_gen_bmchannelconfig_d4 = -1;
-static int hf_as_if_gen_bmchannelconfig_d5 = -1;
-static int hf_as_if_gen_bmchannelconfig_d6 = -1;
-static int hf_as_if_gen_bmchannelconfig_d7 = -1;
-static int hf_as_if_gen_bmchannelconfig_d8 = -1;
-static int hf_as_if_gen_bmchannelconfig_d9 = -1;
-static int hf_as_if_gen_bmchannelconfig_d10 = -1;
-static int hf_as_if_gen_bmchannelconfig_d11 = -1;
-static int hf_as_if_gen_bmchannelconfig_d12 = -1;
-static int hf_as_if_gen_bmchannelconfig_d13 = -1;
-static int hf_as_if_gen_bmchannelconfig_d14 = -1;
-static int hf_as_if_gen_bmchannelconfig_d15 = -1;
-static int hf_as_if_gen_bmchannelconfig_d16 = -1;
-static int hf_as_if_gen_bmchannelconfig_d17 = -1;
-static int hf_as_if_gen_bmchannelconfig_d18 = -1;
-static int hf_as_if_gen_bmchannelconfig_d19 = -1;
-static int hf_as_if_gen_bmchannelconfig_d20 = -1;
-static int hf_as_if_gen_bmchannelconfig_d21 = -1;
-static int hf_as_if_gen_bmchannelconfig_d22 = -1;
-static int hf_as_if_gen_bmchannelconfig_d23 = -1;
-static int hf_as_if_gen_bmchannelconfig_d24 = -1;
-static int hf_as_if_gen_bmchannelconfig_d25 = -1;
-static int hf_as_if_gen_bmchannelconfig_d26 = -1;
-static int hf_as_if_gen_bmchannelconfig_rsv = -1;
-static int hf_as_if_gen_bmchannelconfig_d31 = -1;
-static int hf_as_if_gen_channelnames = -1;
-static int hf_as_if_ft_formattype = -1;
-static int hf_as_if_ft_maxbitrate = -1;
-static int hf_as_if_ft_nrchannels = -1;
-static int hf_as_if_ft_subframesize = -1;
-static int hf_as_if_ft_subslotsize = -1;
-static int hf_as_if_ft_bitresolution = -1;
-static int hf_as_if_ft_samplesperframe = -1;
-static int hf_as_if_ft_samfreqtype = -1;
-static int hf_as_if_ft_lowersamfreq = -1;
-static int hf_as_if_ft_uppersamfreq = -1;
-static int hf_as_if_ft_samfreq = -1;
-static int hf_as_ep_desc_subtype = -1;
-static int hf_as_ep_gen_bmattributes = -1;
-static int hf_as_ep_gen_bmattributes_d0 = -1;
-static int hf_as_ep_gen_bmattributes_d1 = -1;
-static int hf_as_ep_gen_bmattributes_rsv = -1;
-static int hf_as_ep_gen_bmattributes_d7 = -1;
-static int hf_as_ep_gen_controls = -1;
-static int hf_as_ep_gen_controls_pitch = -1;
-static int hf_as_ep_gen_controls_data_overrun = -1;
-static int hf_as_ep_gen_controls_data_underrun = -1;
-static int hf_as_ep_gen_controls_rsv = -1;
-static int hf_as_ep_gen_lockdelayunits = -1;
-static int hf_as_ep_gen_lockdelay = -1;
-static int hf_ms_if_desc_subtype = -1;
-static int hf_ms_if_hdr_ver = -1;
-static int hf_ms_if_hdr_total_len = -1;
-static int hf_ms_if_midi_in_bjacktype = -1;
-static int hf_ms_if_midi_in_bjackid = -1;
-static int hf_ms_if_midi_in_ijack = -1;
-static int hf_ms_if_midi_out_bjacktype = -1;
-static int hf_ms_if_midi_out_bjackid = -1;
-static int hf_ms_if_midi_out_bnrinputpins = -1;
-static int hf_ms_if_midi_out_basourceid = -1;
-static int hf_ms_if_midi_out_basourcepin = -1;
-static int hf_ms_if_midi_out_ijack = -1;
-static int hf_ms_ep_gen_numjacks = -1;
-static int hf_ms_ep_gen_baassocjackid = -1;
-static int hf_ms_ep_desc_subtype = -1;
+static int proto_usb_audio;
+static int hf_midi_cable_number;
+static int hf_midi_code_index;
+static int hf_midi_event;
+static int hf_midi_padding;
+static int hf_ac_if_desc_subtype;
+static int hf_ac_if_hdr_ver;
+static int hf_ac_if_hdr_total_len;
+static int hf_ac_if_hdr_bInCollection;
+static int hf_ac_if_hdr_if_num;
+static int hf_ac_if_hdr_category;
+static int hf_ac_if_hdr_controls;
+static int hf_ac_if_hdr_controls_latency;
+static int hf_ac_if_hdr_controls_rsv;
+static int hf_ac_if_input_terminalid;
+static int hf_ac_if_input_terminaltype;
+static int hf_ac_if_input_assocterminal;
+static int hf_ac_if_input_csourceid;
+static int hf_ac_if_input_nrchannels;
+static int hf_ac_if_input_wchannelconfig;
+static int hf_ac_if_input_wchannelconfig_d0;
+static int hf_ac_if_input_wchannelconfig_d1;
+static int hf_ac_if_input_wchannelconfig_d2;
+static int hf_ac_if_input_wchannelconfig_d3;
+static int hf_ac_if_input_wchannelconfig_d4;
+static int hf_ac_if_input_wchannelconfig_d5;
+static int hf_ac_if_input_wchannelconfig_d6;
+static int hf_ac_if_input_wchannelconfig_d7;
+static int hf_ac_if_input_wchannelconfig_d8;
+static int hf_ac_if_input_wchannelconfig_d9;
+static int hf_ac_if_input_wchannelconfig_d10;
+static int hf_ac_if_input_wchannelconfig_d11;
+static int hf_ac_if_input_wchannelconfig_rsv;
+static int hf_ac_if_input_bmchannelconfig;
+static int hf_ac_if_input_bmchannelconfig_d0;
+static int hf_ac_if_input_bmchannelconfig_d1;
+static int hf_ac_if_input_bmchannelconfig_d2;
+static int hf_ac_if_input_bmchannelconfig_d3;
+static int hf_ac_if_input_bmchannelconfig_d4;
+static int hf_ac_if_input_bmchannelconfig_d5;
+static int hf_ac_if_input_bmchannelconfig_d6;
+static int hf_ac_if_input_bmchannelconfig_d7;
+static int hf_ac_if_input_bmchannelconfig_d8;
+static int hf_ac_if_input_bmchannelconfig_d9;
+static int hf_ac_if_input_bmchannelconfig_d10;
+static int hf_ac_if_input_bmchannelconfig_d11;
+static int hf_ac_if_input_bmchannelconfig_d12;
+static int hf_ac_if_input_bmchannelconfig_d13;
+static int hf_ac_if_input_bmchannelconfig_d14;
+static int hf_ac_if_input_bmchannelconfig_d15;
+static int hf_ac_if_input_bmchannelconfig_d16;
+static int hf_ac_if_input_bmchannelconfig_d17;
+static int hf_ac_if_input_bmchannelconfig_d18;
+static int hf_ac_if_input_bmchannelconfig_d19;
+static int hf_ac_if_input_bmchannelconfig_d20;
+static int hf_ac_if_input_bmchannelconfig_d21;
+static int hf_ac_if_input_bmchannelconfig_d22;
+static int hf_ac_if_input_bmchannelconfig_d23;
+static int hf_ac_if_input_bmchannelconfig_d24;
+static int hf_ac_if_input_bmchannelconfig_d25;
+static int hf_ac_if_input_bmchannelconfig_d26;
+static int hf_ac_if_input_bmchannelconfig_rsv;
+static int hf_ac_if_input_bmchannelconfig_d31;
+static int hf_ac_if_input_channelnames;
+static int hf_ac_if_input_controls;
+static int hf_ac_if_input_controls_copy;
+static int hf_ac_if_input_controls_connector;
+static int hf_ac_if_input_controls_overload;
+static int hf_ac_if_input_controls_cluster;
+static int hf_ac_if_input_controls_underflow;
+static int hf_ac_if_input_controls_overflow;
+static int hf_ac_if_input_controls_rsv;
+static int hf_ac_if_input_terminal;
+static int hf_ac_if_output_terminalid;
+static int hf_ac_if_output_terminaltype;
+static int hf_ac_if_output_assocterminal;
+static int hf_ac_if_output_sourceid;
+static int hf_ac_if_output_clk_sourceid;
+static int hf_ac_if_output_controls;
+static int hf_ac_if_output_controls_copy;
+static int hf_ac_if_output_controls_connector;
+static int hf_ac_if_output_controls_overload;
+static int hf_ac_if_output_controls_underflow;
+static int hf_ac_if_output_controls_overflow;
+static int hf_ac_if_output_controls_rsv;
+static int hf_ac_if_output_terminal;
+static int hf_ac_if_fu_unitid;
+static int hf_ac_if_fu_sourceid;
+static int hf_ac_if_fu_controlsize;
+static int hf_ac_if_fu_controls;
+static int hf_ac_if_fu_control;
+static int hf_ac_if_fu_controls_d0;
+static int hf_ac_if_fu_controls_d1;
+static int hf_ac_if_fu_controls_d2;
+static int hf_ac_if_fu_controls_d3;
+static int hf_ac_if_fu_controls_d4;
+static int hf_ac_if_fu_controls_d5;
+static int hf_ac_if_fu_controls_d6;
+static int hf_ac_if_fu_controls_d7;
+static int hf_ac_if_fu_controls_d8;
+static int hf_ac_if_fu_controls_d9;
+static int hf_ac_if_fu_controls_rsv;
+static int hf_ac_if_fu_controls_v2;
+static int hf_ac_if_fu_control_v2;
+static int hf_ac_if_fu_controls_v2_d0;
+static int hf_ac_if_fu_controls_v2_d1;
+static int hf_ac_if_fu_controls_v2_d2;
+static int hf_ac_if_fu_controls_v2_d3;
+static int hf_ac_if_fu_controls_v2_d4;
+static int hf_ac_if_fu_controls_v2_d5;
+static int hf_ac_if_fu_controls_v2_d6;
+static int hf_ac_if_fu_controls_v2_d7;
+static int hf_ac_if_fu_controls_v2_d8;
+static int hf_ac_if_fu_controls_v2_d9;
+static int hf_ac_if_fu_controls_v2_d10;
+static int hf_ac_if_fu_controls_v2_d11;
+static int hf_ac_if_fu_controls_v2_d12;
+static int hf_ac_if_fu_controls_v2_d13;
+static int hf_ac_if_fu_controls_v2_d14;
+static int hf_ac_if_fu_controls_v2_rsv;
+static int hf_ac_if_fu_ifeature;
+static int hf_ac_if_su_unitid;
+static int hf_ac_if_su_nrinpins;
+static int hf_ac_if_su_sourceids;
+static int hf_ac_if_su_sourceid;
+static int hf_ac_if_su_controls;
+static int hf_ac_if_su_controls_d0;
+static int hf_ac_if_su_controls_rsv;
+static int hf_ac_if_su_iselector;
+static int hf_ac_if_mu_unitid;
+static int hf_ac_if_mu_nrinpins;
+static int hf_ac_if_mu_sourceid;
+static int hf_ac_if_mu_nrchannels;
+static int hf_ac_if_mu_channelconfig;
+static int hf_ac_if_mu_channelconfig_d0;
+static int hf_ac_if_mu_channelconfig_d1;
+static int hf_ac_if_mu_channelconfig_d2;
+static int hf_ac_if_mu_channelconfig_d3;
+static int hf_ac_if_mu_channelconfig_d4;
+static int hf_ac_if_mu_channelconfig_d5;
+static int hf_ac_if_mu_channelconfig_d6;
+static int hf_ac_if_mu_channelconfig_d7;
+static int hf_ac_if_mu_channelconfig_d8;
+static int hf_ac_if_mu_channelconfig_d9;
+static int hf_ac_if_mu_channelconfig_d10;
+static int hf_ac_if_mu_channelconfig_d11;
+static int hf_ac_if_mu_channelconfig_rsv;
+static int hf_ac_if_mu_channelnames;
+static int hf_ac_if_mu_controls;
+static int hf_ac_if_mu_imixer;
+static int hf_ac_if_clksrc_id;
+static int hf_ac_if_clksrc_attr;
+static int hf_ac_if_clksrc_attr_type;
+static int hf_ac_if_clksrc_attr_d2;
+static int hf_ac_if_clksrc_attr_rsv;
+static int hf_ac_if_clksrc_controls;
+static int hf_ac_if_clksrc_controls_freq;
+static int hf_ac_if_clksrc_controls_validity;
+static int hf_ac_if_clksrc_controls_rsv;
+static int hf_ac_if_clksrc_assocterminal;
+static int hf_ac_if_clksrc_clocksource;
+static int hf_ac_if_clksel_id;
+static int hf_ac_if_clksel_nrpins;
+static int hf_ac_if_clksel_sourceid;
+static int hf_ac_if_clksel_controls;
+static int hf_ac_if_clksel_controls_clksel;
+static int hf_ac_if_clksel_controls_rsv;
+static int hf_ac_if_clksel_clockselector;
+static int hf_as_if_desc_subtype;
+static int hf_ac_if_extunit_id;
+static int hf_ac_if_extunit_code;
+static int hf_ac_if_extunit_nrpins;
+static int hf_ac_if_extunit_sourceid;
+static int hf_ac_if_extunit_nrchannels;
+static int hf_ac_if_extunit_bmchannelconfig;
+static int hf_ac_if_extunit_channelnames;
+static int hf_ac_if_extunit_bmcontrols;
+static int hf_ac_if_extunit_bmcontrols_enable_ctrl;
+static int hf_ac_if_extunit_bmcontrols_cluster_ctrl;
+static int hf_ac_if_extunit_bmcontrols_underflow_ctrl;
+static int hf_ac_if_extunit_bmcontrols_overflowflow_ctrl;
+static int hf_ac_if_extunit_iext;
+static int hf_as_if_gen_term_link;
+static int hf_as_if_gen_delay;
+static int hf_as_if_gen_wformattag;
+static int hf_as_if_gen_controls;
+static int hf_as_if_gen_controls_active;
+static int hf_as_if_gen_controls_valid;
+static int hf_as_if_gen_controls_rsv;
+static int hf_as_if_gen_formattype;
+static int hf_as_if_gen_formats;
+static int hf_as_if_gen_formats_i_d0;
+static int hf_as_if_gen_formats_i_d1;
+static int hf_as_if_gen_formats_i_d2;
+static int hf_as_if_gen_formats_i_d3;
+static int hf_as_if_gen_formats_i_d4;
+static int hf_as_if_gen_formats_i_rsv;
+static int hf_as_if_gen_formats_i_d31;
+static int hf_as_if_gen_formats_ii_d0;
+static int hf_as_if_gen_formats_ii_d1;
+static int hf_as_if_gen_formats_ii_d2;
+static int hf_as_if_gen_formats_ii_d3;
+static int hf_as_if_gen_formats_ii_rsv;
+static int hf_as_if_gen_formats_ii_d31;
+static int hf_as_if_gen_formats_iii_d0;
+static int hf_as_if_gen_formats_iii_d1;
+static int hf_as_if_gen_formats_iii_d2;
+static int hf_as_if_gen_formats_iii_d3;
+static int hf_as_if_gen_formats_iii_d4;
+static int hf_as_if_gen_formats_iii_d5;
+static int hf_as_if_gen_formats_iii_d6;
+static int hf_as_if_gen_formats_iii_d7;
+static int hf_as_if_gen_formats_iii_d8;
+static int hf_as_if_gen_formats_iii_d9;
+static int hf_as_if_gen_formats_iii_d10;
+static int hf_as_if_gen_formats_iii_d11;
+static int hf_as_if_gen_formats_iii_d12;
+static int hf_as_if_gen_formats_iii_rsv;
+static int hf_as_if_gen_formats_iv_d0;
+static int hf_as_if_gen_formats_iv_d1;
+static int hf_as_if_gen_formats_iv_d2;
+static int hf_as_if_gen_formats_iv_d3;
+static int hf_as_if_gen_formats_iv_d4;
+static int hf_as_if_gen_formats_iv_d5;
+static int hf_as_if_gen_formats_iv_d6;
+static int hf_as_if_gen_formats_iv_d7;
+static int hf_as_if_gen_formats_iv_d8;
+static int hf_as_if_gen_formats_iv_d9;
+static int hf_as_if_gen_formats_iv_d10;
+static int hf_as_if_gen_formats_iv_d11;
+static int hf_as_if_gen_formats_iv_d12;
+static int hf_as_if_gen_formats_iv_d13;
+static int hf_as_if_gen_formats_iv_d14;
+static int hf_as_if_gen_formats_iv_d15;
+static int hf_as_if_gen_formats_iv_d16;
+static int hf_as_if_gen_formats_iv_d17;
+static int hf_as_if_gen_formats_iv_d18;
+static int hf_as_if_gen_formats_iv_d19;
+static int hf_as_if_gen_formats_iv_d20;
+static int hf_as_if_gen_formats_iv_d21;
+static int hf_as_if_gen_formats_iv_rsv;
+static int hf_as_if_gen_nrchannels;
+static int hf_as_if_gen_bmchannelconfig;
+static int hf_as_if_gen_bmchannelconfig_d0;
+static int hf_as_if_gen_bmchannelconfig_d1;
+static int hf_as_if_gen_bmchannelconfig_d2;
+static int hf_as_if_gen_bmchannelconfig_d3;
+static int hf_as_if_gen_bmchannelconfig_d4;
+static int hf_as_if_gen_bmchannelconfig_d5;
+static int hf_as_if_gen_bmchannelconfig_d6;
+static int hf_as_if_gen_bmchannelconfig_d7;
+static int hf_as_if_gen_bmchannelconfig_d8;
+static int hf_as_if_gen_bmchannelconfig_d9;
+static int hf_as_if_gen_bmchannelconfig_d10;
+static int hf_as_if_gen_bmchannelconfig_d11;
+static int hf_as_if_gen_bmchannelconfig_d12;
+static int hf_as_if_gen_bmchannelconfig_d13;
+static int hf_as_if_gen_bmchannelconfig_d14;
+static int hf_as_if_gen_bmchannelconfig_d15;
+static int hf_as_if_gen_bmchannelconfig_d16;
+static int hf_as_if_gen_bmchannelconfig_d17;
+static int hf_as_if_gen_bmchannelconfig_d18;
+static int hf_as_if_gen_bmchannelconfig_d19;
+static int hf_as_if_gen_bmchannelconfig_d20;
+static int hf_as_if_gen_bmchannelconfig_d21;
+static int hf_as_if_gen_bmchannelconfig_d22;
+static int hf_as_if_gen_bmchannelconfig_d23;
+static int hf_as_if_gen_bmchannelconfig_d24;
+static int hf_as_if_gen_bmchannelconfig_d25;
+static int hf_as_if_gen_bmchannelconfig_d26;
+static int hf_as_if_gen_bmchannelconfig_rsv;
+static int hf_as_if_gen_bmchannelconfig_d31;
+static int hf_as_if_gen_channelnames;
+static int hf_as_if_ft_formattype;
+static int hf_as_if_ft_maxbitrate;
+static int hf_as_if_ft_nrchannels;
+static int hf_as_if_ft_subframesize;
+static int hf_as_if_ft_subslotsize;
+static int hf_as_if_ft_bitresolution;
+static int hf_as_if_ft_samplesperframe;
+static int hf_as_if_ft_samfreqtype;
+static int hf_as_if_ft_lowersamfreq;
+static int hf_as_if_ft_uppersamfreq;
+static int hf_as_if_ft_samfreq;
+static int hf_as_ep_desc_subtype;
+static int hf_as_ep_gen_bmattributes;
+static int hf_as_ep_gen_bmattributes_d0;
+static int hf_as_ep_gen_bmattributes_d1;
+static int hf_as_ep_gen_bmattributes_rsv;
+static int hf_as_ep_gen_bmattributes_d7;
+static int hf_as_ep_gen_controls;
+static int hf_as_ep_gen_controls_pitch;
+static int hf_as_ep_gen_controls_data_overrun;
+static int hf_as_ep_gen_controls_data_underrun;
+static int hf_as_ep_gen_controls_rsv;
+static int hf_as_ep_gen_lockdelayunits;
+static int hf_as_ep_gen_lockdelay;
+static int hf_ms_if_desc_subtype;
+static int hf_ms_if_hdr_ver;
+static int hf_ms_if_hdr_total_len;
+static int hf_ms_if_midi_in_bjacktype;
+static int hf_ms_if_midi_in_bjackid;
+static int hf_ms_if_midi_in_ijack;
+static int hf_ms_if_midi_out_bjacktype;
+static int hf_ms_if_midi_out_bjackid;
+static int hf_ms_if_midi_out_bnrinputpins;
+static int hf_ms_if_midi_out_basourceid;
+static int hf_ms_if_midi_out_basourcepin;
+static int hf_ms_if_midi_out_ijack;
+static int hf_ms_ep_gen_numjacks;
+static int hf_ms_ep_gen_baassocjackid;
+static int hf_ms_ep_desc_subtype;
+
+static int hf_brequest_v1;
+static int hf_brequest_v2;
+static int hf_wvalue;
+static int hf_wvalue_channel_number;
+static int hf_wvalue_fu_cs_v1;
+static int hf_wvalue_clksrc_cs;
+static int hf_wvalue_clksel_cs;
+static int hf_windex;
+static int hf_windex_interface;
+static int hf_windex_entity_id;
+static int hf_windex_endpoint;
+static int hf_wlength;
+static int hf_parameter_bselector;
+static int hf_parameter_bmute;
+static int hf_parameter_wvolume;
+static int hf_parameter_wnumsubranges;
+static int hf_parameter_bcur;
+static int hf_parameter_bmin;
+static int hf_parameter_bmax;
+static int hf_parameter_bres;
+static int hf_parameter_wcur;
+static int hf_parameter_wmin;
+static int hf_parameter_wmax;
+static int hf_parameter_wres;
+static int hf_parameter_dcur;
+static int hf_parameter_dmin;
+static int hf_parameter_dmax;
+static int hf_parameter_dres;
 
 static reassembly_table midi_data_reassembly_table;
 
-static gint ett_usb_audio      = -1;
-static gint ett_usb_audio_desc = -1;
+static int ett_usb_audio;
+static int ett_usb_audio_desc;
 
-static gint ett_ac_if_hdr_controls = -1;
-static gint ett_ac_if_fu_controls = -1;
-static gint ett_ac_if_fu_controls0 = -1;
-static gint ett_ac_if_fu_controls1 = -1;
-static gint ett_ac_if_fu_controls_v2 = -1;
-static gint ett_ac_if_fu_control_v2 = -1;
-static gint ett_ac_if_su_sourceids = -1;
-static gint ett_ac_if_su_controls = -1;
-static gint ett_ac_if_input_wchannelconfig = -1;
-static gint ett_ac_if_input_bmchannelconfig = -1;
-static gint ett_ac_if_input_controls = -1;
-static gint ett_ac_if_output_controls = -1;
-static gint ett_ac_if_mu_channelconfig = -1;
-static gint ett_ac_if_clksrc_attr = -1;
-static gint ett_ac_if_clksrc_controls = -1;
-static gint ett_ac_if_clksel_controls = -1;
-static gint ett_as_if_gen_controls = -1;
-static gint ett_as_if_gen_formats = -1;
-static gint ett_as_if_gen_bmchannelconfig = -1;
-static gint ett_as_ep_gen_attributes = -1;
-static gint ett_as_ep_gen_controls = -1;
+static int ett_ac_if_hdr_controls;
+static int ett_ac_if_fu_controls;
+static int ett_ac_if_fu_controls0;
+static int ett_ac_if_fu_controls1;
+static int ett_ac_if_fu_controls_v2;
+static int ett_ac_if_fu_control_v2;
+static int ett_ac_if_su_sourceids;
+static int ett_ac_if_su_controls;
+static int ett_ac_if_input_wchannelconfig;
+static int ett_ac_if_input_bmchannelconfig;
+static int ett_ac_if_input_controls;
+static int ett_ac_if_output_controls;
+static int ett_ac_if_mu_channelconfig;
+static int ett_ac_if_clksrc_attr;
+static int ett_ac_if_clksrc_controls;
+static int ett_ac_if_clksel_controls;
+static int ett_ac_if_extunit_bmchannelconfig;
+static int ett_ac_if_extunit_bmcontrols;
+static int ett_as_if_gen_controls;
+static int ett_as_if_gen_formats;
+static int ett_as_if_gen_bmchannelconfig;
+static int ett_as_ep_gen_attributes;
+static int ett_as_ep_gen_controls;
+static int ett_wvalue;
+static int ett_windex;
+static int ett_parameter_block;
 
 static dissector_handle_t sysex_handle;
 static dissector_handle_t usb_audio_bulk_handle;
 static dissector_handle_t usb_audio_descr_handle;
+static dissector_handle_t usb_audio_control_handle;
 
 
 #define AUDIO_IF_SUBCLASS_UNDEFINED        0x00
@@ -372,6 +420,105 @@ static const value_string usb_audio_subclass_vals[] = {
 };
 value_string_ext ext_usb_audio_subclass_vals =
     VALUE_STRING_EXT_INIT(usb_audio_subclass_vals);
+
+#define AUDIO_PROTOCOL_V1                  0x00
+#define AUDIO_PROTOCOL_V2                  0x20
+
+#define V1_REQUEST_CODE_UNDEFINED          0x00
+#define V1_REQUEST_SET_CUR                 0x01
+#define V1_REQUEST_SET_MIN                 0x02
+#define V1_REQUEST_SET_MAX                 0x03
+#define V1_REQUEST_SET_RES                 0x04
+#define V1_REQUEST_SET_MEM                 0x05
+#define V1_REQUEST_GET_CUR                 0x81
+#define V1_REQUEST_GET_MIN                 0x82
+#define V1_REQUEST_GET_MAX                 0x83
+#define V1_REQUEST_GET_RES                 0x84
+#define V1_REQUEST_GET_MEM                 0x85
+#define V1_REQUEST_GET_STAT                0xFF
+
+static const value_string v1_brequest_vals[] = {
+    {V1_REQUEST_CODE_UNDEFINED, "REQUEST_CODE_UNDEFINED"},
+    {V1_REQUEST_SET_CUR,        "SET_CUR"},
+    {V1_REQUEST_SET_MIN,        "SET_MIN"},
+    {V1_REQUEST_SET_MAX,        "SET_MAX"},
+    {V1_REQUEST_SET_RES,        "SET_RES"},
+    {V1_REQUEST_SET_MEM,        "SET_MEM"},
+    {V1_REQUEST_GET_CUR,        "GET_CUR"},
+    {V1_REQUEST_GET_MIN,        "GET_MIN"},
+    {V1_REQUEST_GET_MAX,        "GET_MAX"},
+    {V1_REQUEST_GET_RES,        "GET_RES"},
+    {V1_REQUEST_GET_MEM,        "GET_MEM"},
+    {V1_REQUEST_GET_STAT,       "GET_STAT"},
+    {0,NULL}
+};
+static value_string_ext v1_brequest_vals_ext =
+    VALUE_STRING_EXT_INIT(v1_brequest_vals);
+
+/* A.17.7 Feature Unit Control Selectors */
+#define FU_CONTROL_UNDEFINED                0x00
+#define MUTE_CONTROL                        0x01
+#define VOLUME_CONTROL                      0x02
+#define BASS_CONTROL                        0x03
+#define MID_CONTROL                         0x04
+#define TREBLE_CONTROL                      0x05
+#define GRAPHIC_EQUALIZER_CONTROL           0x06
+#define AUTOMATIC_GAIN_CONTROL              0x07
+#define DELAY_CONTROL                       0x08
+#define BASS_BOOST_CONTROL                  0x09
+#define LOUDNESS_CONTROL                    0x0A
+
+static const value_string v1_fu_cs_vals[] = {
+    {FU_CONTROL_UNDEFINED,      "FU_CONTROL_UNDEFINED"},
+    {MUTE_CONTROL,              "MUTE_CONTROL"},
+    {VOLUME_CONTROL,            "VOLUME_CONTROL"},
+    {BASS_CONTROL,              "BASS_CONTROL"},
+    {MID_CONTROL,               "MID_CONTROL"},
+    {TREBLE_CONTROL,            "TREBLE_CONTROL"},
+    {GRAPHIC_EQUALIZER_CONTROL, "GRAPHIC_EQUALIZER_CONTROL"},
+    {AUTOMATIC_GAIN_CONTROL,    "AUTOMATIC_GAIN_CONTROL"},
+    {DELAY_CONTROL,             "DELAY_CONTROL"},
+    {BASS_BOOST_CONTROL,        "BASS_BOOST_CONTROL"},
+    {LOUDNESS_CONTROL,          "LOUDNESS_CONTROL"},
+    {0,NULL}
+};
+static value_string_ext v1_fu_cs_vals_ext =
+    VALUE_STRING_EXT_INIT(v1_fu_cs_vals);
+
+#define V2_REQUEST_CODE_UNDEFINED          0x00
+#define V2_REQUEST_CUR                     0x01
+#define V2_REQUEST_RANGE                   0x02
+#define V2_REQUEST_MEM                     0x03
+
+static const value_string v2_brequest_vals[] = {
+    {V2_REQUEST_CODE_UNDEFINED, "REQUEST_CODE_UNDEFINED"},
+    {V2_REQUEST_CUR,            "CUR"},
+    {V2_REQUEST_RANGE,          "RANGE"},
+    {V2_REQUEST_MEM,            "MEM"},
+    {0,NULL}
+};
+static value_string_ext v2_brequest_vals_ext =
+    VALUE_STRING_EXT_INIT(v2_brequest_vals);
+
+/* A.17.1 Clock Source Control Selectors */
+#define V2_CS_CONTROL_UNDEFINED            0x00
+#define V2_CS_SAM_FREQ_CONTROL             0x01
+#define V2_CS_CLOCK_VALID_CONTROL          0x02
+static const value_string v2_clksrc_cs_vals[] = {
+    {V2_CS_CONTROL_UNDEFINED,   "CS_CONTROL_UNDEFINED"},
+    {V2_CS_SAM_FREQ_CONTROL,    "CS_SAM_FREQ_CONTROL"},
+    {V2_CS_CLOCK_VALID_CONTROL, "CS_CLOCK_VALID_CONTROL"},
+    {0,NULL}
+};
+
+/* A.17.2 Clock Selector Control Selectors */
+#define V2_CX_CONTROL_UNDEFINED          0x00
+#define V2_CX_CLOCK_SELECTOR_CONTROL     0x01
+static const value_string v2_clksel_cs_vals[] = {
+    {V2_CX_CONTROL_UNDEFINED,      "CX_CONTROL_UNDEFINED"},
+    {V2_CX_CLOCK_SELECTOR_CONTROL, "CX_CLOCK_SELECTOR_CONTROL"},
+    {0,NULL}
+};
 
 static const value_string code_index_vals[] = {
     { 0x0, "Miscellaneous (Reserved)" },
@@ -556,7 +703,7 @@ static const value_string terminal_types_vals[] = {
     {0x0100, "USB Undefined"},
     {0x0101, "USB Streaming"},
     {0x01FF, "USB vendor specific"},
-    /* Input Terminal Tyoes */
+    /* Input Terminal Types */
     {0x0200, "Input Undefined"},
     {0x0201, "Microphone"},
     {0x0202, "Desktop Microphone"},
@@ -645,35 +792,65 @@ static const value_string audio_data_format_tag_vals[] = {
 static value_string_ext audio_data_format_tag_vals_ext =
     VALUE_STRING_EXT_INIT(audio_data_format_tag_vals);
 
+/* Enumerator with arbitrarily chosen values to map IDs to entity types */
+typedef enum {
+    USB_AUDIO_ENTITY_UNKNOWN,
+    USB_AUDIO_ENTITY_INTERFACE,
+    USB_AUDIO_ENTITY_CLOCK_SOURCE,
+    USB_AUDIO_ENTITY_CLOCK_SELECTOR,
+    USB_AUDIO_ENTITY_CLOCK_MULTIPLIER,
+    USB_AUDIO_ENTITY_TERMINAL,
+    USB_AUDIO_ENTITY_MIXER,
+    USB_AUDIO_ENTITY_SELECTOR,
+    USB_AUDIO_ENTITY_FEATURE_UNIT,
+    USB_AUDIO_ENTITY_PARAMETRIC_EQUALIZER,
+    USB_AUDIO_ENTITY_REVERBERATION,
+    USB_AUDIO_ENTITY_MODULATION_DELAY,
+    USB_AUDIO_ENTITY_DYNAMIC_RANGE_COMPRESSOR,
+    USB_AUDIO_ENTITY_UP_DOWN_MIX,
+    USB_AUDIO_ENTITY_DOLBY_PROLOGIC,
+    USB_AUDIO_ENTITY_STEREO_EXTENDER,
+    USB_AUDIO_ENTITY_EXTENSION_UNIT,
+    USB_AUDIO_ENTITY_AUDIOSTREAMING_INTERFACE,
+    USB_AUDIO_ENTITY_ENCODER,
+    USB_AUDIO_ENTITY_MPEG_DECODER,
+    USB_AUDIO_ENTITY_AC3_DECODER,
+    USB_AUDIO_ENTITY_WMA_DECODER,
+    USB_AUDIO_ENTITY_DTS_DECODER,
+} usb_audio_entity_t;
+
+typedef enum {
+    PARAMETER_LAYOUT_UNKNOWN,
+    PARAMETER_LAYOUT_1,
+    PARAMETER_LAYOUT_2,
+    PARAMETER_LAYOUT_3,
+} parameter_layout_t;
+
 typedef struct _audio_conv_info_t {
-    /* the major version of the USB audio class specification,
-       taken from the AC header descriptor */
-    guint8 audio_ver_major;
-    /* the major version of the USB Device Class Definition for
-       MIDI Devices, taken from the MS header descriptor */
-    guint8 midi_ver_major;
+    /* Mapping from entity ID to its type. */
+    usb_audio_entity_t entity_type[256];
 } audio_conv_info_t;
 
-static int hf_sysex_msg_fragments = -1;
-static int hf_sysex_msg_fragment = -1;
-static int hf_sysex_msg_fragment_overlap = -1;
-static int hf_sysex_msg_fragment_overlap_conflicts = -1;
-static int hf_sysex_msg_fragment_multiple_tails = -1;
-static int hf_sysex_msg_fragment_too_long_fragment = -1;
-static int hf_sysex_msg_fragment_error = -1;
-static int hf_sysex_msg_fragment_count = -1;
-static int hf_sysex_msg_reassembled_in = -1;
-static int hf_sysex_msg_reassembled_length = -1;
-static int hf_sysex_msg_reassembled_data = -1;
+static int hf_sysex_msg_fragments;
+static int hf_sysex_msg_fragment;
+static int hf_sysex_msg_fragment_overlap;
+static int hf_sysex_msg_fragment_overlap_conflicts;
+static int hf_sysex_msg_fragment_multiple_tails;
+static int hf_sysex_msg_fragment_too_long_fragment;
+static int hf_sysex_msg_fragment_error;
+static int hf_sysex_msg_fragment_count;
+static int hf_sysex_msg_reassembled_in;
+static int hf_sysex_msg_reassembled_length;
+static int hf_sysex_msg_reassembled_data;
 
-static gint ett_sysex_msg_fragment = -1;
-static gint ett_sysex_msg_fragments = -1;
+static int ett_sysex_msg_fragment;
+static int ett_sysex_msg_fragments;
 
-static expert_field ei_usb_audio_undecoded = EI_INIT;
-static expert_field ei_usb_audio_invalid_feature_unit_length = EI_INIT;
-static expert_field ei_usb_audio_invalid_type_3_ft_nrchannels = EI_INIT;
-static expert_field ei_usb_audio_invalid_type_3_ft_subframesize = EI_INIT;
-static expert_field ei_usb_audio_invalid_type_3_ft_bitresolution = EI_INIT;
+static expert_field ei_usb_audio_undecoded;
+static expert_field ei_usb_audio_invalid_feature_unit_length;
+static expert_field ei_usb_audio_invalid_type_3_ft_nrchannels;
+static expert_field ei_usb_audio_invalid_type_3_ft_subframesize;
+static expert_field ei_usb_audio_invalid_type_3_ft_bitresolution;
 
 static const fragment_items sysex_msg_frag_items = {
     /* Fragment subtrees */
@@ -697,8 +874,8 @@ static const fragment_items sysex_msg_frag_items = {
     "Message fragments"
 };
 
-static gint
-get_midi_event_size(guint8 code)
+static int
+get_midi_event_size(uint8_t code)
 {
     switch (code)
     {
@@ -729,27 +906,27 @@ get_midi_event_size(guint8 code)
     }
 }
 
-static inline gboolean
-is_sysex_code(guint8 code)
+static inline bool
+is_sysex_code(uint8_t code)
 {
     return (code == 0x04 || code == 0x05 || code == 0x06 || code == 0x07);
 }
 
-static gboolean
-is_last_sysex_packet_in_tvb(tvbuff_t *tvb, gint offset)
+static bool
+is_last_sysex_packet_in_tvb(tvbuff_t *tvb, int offset)
 {
-    gboolean last   = TRUE;
-    gint     length = tvb_reported_length(tvb);
+    bool last   = true;
+    int      length = tvb_reported_length(tvb);
 
     offset += 4;
     while (offset < length)
     {
-        guint8 code = tvb_get_guint8(tvb, offset);
+        uint8_t code = tvb_get_uint8(tvb, offset);
         code &= 0x0F;
 
         if (is_sysex_code(code))
         {
-            last = FALSE;
+            last = false;
             break;
         }
 
@@ -762,21 +939,21 @@ is_last_sysex_packet_in_tvb(tvbuff_t *tvb, gint offset)
 static void
 dissect_usb_midi_event(tvbuff_t *tvb, packet_info *pinfo,
                        proto_tree *parent_tree,
-                       gint offset)
+                       int offset)
 {
-    guint8      code;
-    guint8      cable;
-    gboolean    save_fragmented;
+    uint8_t     code;
+    uint8_t     cable;
+    bool        save_fragmented;
     proto_tree *tree = NULL;
 
-    code = tvb_get_guint8(tvb, offset);
+    code = tvb_get_uint8(tvb, offset);
     cable = (code & 0xF0) >> 4;
     code &= 0x0F;
 
     if (parent_tree)
     {
         proto_item *ti;
-        gint event_size, padding_size;
+        int event_size, padding_size;
 
         ti = proto_tree_add_protocol_format(parent_tree, proto_usb_audio, tvb, offset, 4, "USB Midi Event Packet: %s",
                  try_val_to_str(code, code_index_vals));
@@ -789,12 +966,12 @@ dissect_usb_midi_event(tvbuff_t *tvb, packet_info *pinfo,
         if (event_size > 0)
         {
             /* TODO: Create MIDI dissector and pass the event data to it */
-            const guint8 *event_data = tvb_get_ptr(tvb, offset+1, event_size);
+            const uint8_t *event_data = tvb_get_ptr(tvb, offset+1, event_size);
             proto_tree_add_bytes(tree, hf_midi_event, tvb, offset+1, event_size, event_data);
         }
         if (padding_size > 0)
         {
-            const guint8 *padding = tvb_get_ptr(tvb, offset+1+event_size, padding_size);
+            const uint8_t *padding = tvb_get_ptr(tvb, offset+1+event_size, padding_size);
             proto_tree_add_bytes(tree, hf_midi_padding, tvb, offset+1+event_size, padding_size, padding);
         }
     }
@@ -807,7 +984,7 @@ dissect_usb_midi_event(tvbuff_t *tvb, packet_info *pinfo,
         tvbuff_t* new_tvb = NULL;
         fragment_head *frag_sysex_msg = NULL;
 
-        pinfo->fragmented = TRUE;
+        pinfo->fragmented = true;
 
         if (code == 0x04)
         {
@@ -817,7 +994,7 @@ dissect_usb_midi_event(tvbuff_t *tvb, packet_info *pinfo,
                 cable, /* ID for fragments belonging together */
                 NULL,
                 3,
-                TRUE);
+                true);
         }
         else
         {
@@ -826,8 +1003,8 @@ dissect_usb_midi_event(tvbuff_t *tvb, packet_info *pinfo,
                 pinfo,
                 cable, /* ID for fragments belonging together */
                 NULL,
-                (gint)(code - 4),
-                FALSE);
+                (int)(code - 4),
+                false);
         }
 
         if (is_last_sysex_packet_in_tvb(tvb, offset))
@@ -858,24 +1035,65 @@ static audio_conv_info_t*
 allocate_audio_conv_info(void)
 {
     audio_conv_info_t *info = wmem_new(wmem_file_scope(), audio_conv_info_t);
-    info->audio_ver_major = 0;
-    info->midi_ver_major = 0;
+    info->entity_type[0] = USB_AUDIO_ENTITY_INTERFACE;
+    for (int i = 1; i < 256; i++) {
+        info->entity_type[i] = USB_AUDIO_ENTITY_UNKNOWN;
+    }
     return info;
+}
+
+static void
+set_entity_type(urb_info_t *urb, uint8_t id, usb_audio_entity_t type)
+{
+    audio_conv_info_t *audio_conv_info = (audio_conv_info_t *)urb->conv->class_data;
+    if (!audio_conv_info) {
+        audio_conv_info = allocate_audio_conv_info();
+        urb->conv->class_data = audio_conv_info;
+        urb->conv->class_data_type = USB_CONV_AUDIO;
+    } else if (urb->conv->class_data_type != USB_CONV_AUDIO) {
+        /* XXX: Should this check be changed to assert? */
+        return;
+    }
+
+    /* Only set entity type for valid entity IDs */
+    if (id != 0) {
+        audio_conv_info->entity_type[id] = type;
+    }
+}
+
+static usb_audio_entity_t
+get_entity_type(urb_info_t *urb, uint8_t id)
+{
+    audio_conv_info_t *audio_conv_info = (audio_conv_info_t *)urb->conv->class_data;
+    if (!audio_conv_info || (urb->conv->class_data_type != USB_CONV_AUDIO)) {
+        return USB_AUDIO_ENTITY_UNKNOWN;
+    }
+    return audio_conv_info->entity_type[id];
+}
+
+static void
+base_volume(char *buf, uint32_t value)
+{
+    if (value == 0x8000) {
+        snprintf(buf, ITEM_LABEL_LENGTH, "-infinity dB (silence)");
+    } else {
+        double dB = ((double)((int16_t)value)) / 256;
+        snprintf(buf, ITEM_LABEL_LENGTH, "%.4f dB", dB);
+    }
 }
 
 /* dissect the body of an AC interface header descriptor
    return the number of bytes dissected (which may be smaller than the
    body's length) */
-static gint
-dissect_ac_if_hdr_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info)
+static int
+dissect_ac_if_hdr_body(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb)
 {
-    gint     offset_start;
-    guint16  bcdADC;
-    guint8   ver_major;
+    int      offset_start;
+    uint16_t bcdADC;
+    uint8_t  ver_major;
     double   ver;
-    guint8   if_in_collection, i;
-    audio_conv_info_t *audio_conv_info;
+    uint8_t  if_in_collection, i;
 
     static int * const bm_controls[] = {
         &hf_ac_if_hdr_controls_latency,
@@ -891,27 +1109,15 @@ dissect_ac_if_hdr_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
 
     proto_tree_add_double_format_value(tree, hf_ac_if_hdr_ver,
             tvb, offset, 2, ver, "%2.2f", ver);
-    audio_conv_info = (audio_conv_info_t *)usb_conv_info->class_data;
-    if(!audio_conv_info) {
-        audio_conv_info = allocate_audio_conv_info();
-        usb_conv_info->class_data = audio_conv_info;
-        usb_conv_info->class_data_type = USB_CONV_AUDIO;
-        /* XXX - set reasonable default values for all components
-           that are not filled in by this function */
-    } else if (usb_conv_info->class_data_type != USB_CONV_AUDIO) {
-        /* Don't dissect if another USB type is in the conversation */
-        return 0;
-    }
-    audio_conv_info->audio_ver_major = ver_major;
     offset += 2;
 
     /* version 1 refers to the Basic Audio Device specification,
        version 2 is the Audio Device class specification, see above */
-    if (ver_major==1) {
+    if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V1) {
         proto_tree_add_item(tree, hf_ac_if_hdr_total_len,
                 tvb, offset, 2, ENC_LITTLE_ENDIAN);
         offset += 2;
-        if_in_collection = tvb_get_guint8(tvb, offset);
+        if_in_collection = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(tree, hf_ac_if_hdr_bInCollection,
                 tvb, offset, 1, ENC_LITTLE_ENDIAN);
         offset++;
@@ -922,7 +1128,7 @@ dissect_ac_if_hdr_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
             offset++;
         }
     }
-    else if (ver_major==2) {
+    else if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2) {
         proto_tree_add_item(tree, hf_ac_if_hdr_category,
                 tvb, offset, 1, ENC_LITTLE_ENDIAN);
         offset++;
@@ -937,12 +1143,11 @@ dissect_ac_if_hdr_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint
-dissect_ac_if_input_terminal(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info)
+static int
+dissect_ac_if_input_terminal(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb)
 {
-    audio_conv_info_t *audio_conv_info;
-    gint               offset_start;
+    int                offset_start;
 
     static int * const input_wchannelconfig[] = {
         &hf_ac_if_input_wchannelconfig_d0,
@@ -1005,13 +1210,9 @@ dissect_ac_if_input_terminal(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
         NULL
     };
 
-    /* the caller has already checked that usb_conv_info!=NULL */
-    audio_conv_info = (audio_conv_info_t *)usb_conv_info->class_data;
-    if (!audio_conv_info)
-        return 0;
-
     /* do not try to dissect unknown versions */
-    if (!((audio_conv_info->audio_ver_major==1) || (audio_conv_info->audio_ver_major==2)))
+    if (!((urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V1) ||
+          (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2)))
         return 0;
 
     offset_start = offset;
@@ -1025,7 +1226,7 @@ dissect_ac_if_input_terminal(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     proto_tree_add_item(tree, hf_ac_if_input_assocterminal, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
 
-    if (audio_conv_info->audio_ver_major == 2) {
+    if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2) {
         proto_tree_add_item(tree, hf_ac_if_input_csourceid, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         offset += 1;
     }
@@ -1033,10 +1234,10 @@ dissect_ac_if_input_terminal(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     proto_tree_add_item(tree, hf_ac_if_input_nrchannels, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
 
-    if (audio_conv_info->audio_ver_major==1) {
+    if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V1) {
         proto_tree_add_bitmask(tree, tvb, offset, hf_ac_if_input_wchannelconfig, ett_ac_if_input_wchannelconfig, input_wchannelconfig, ENC_LITTLE_ENDIAN);
         offset += 2;
-    } else if (audio_conv_info->audio_ver_major==2) {
+    } else if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2) {
         proto_tree_add_bitmask(tree, tvb, offset, hf_ac_if_input_bmchannelconfig, ett_ac_if_input_bmchannelconfig, input_bmchannelconfig, ENC_LITTLE_ENDIAN);
         offset += 4;
     }
@@ -1044,7 +1245,7 @@ dissect_ac_if_input_terminal(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     proto_tree_add_item(tree, hf_ac_if_input_channelnames, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
 
-    if (audio_conv_info->audio_ver_major==2) {
+    if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2) {
         proto_tree_add_bitmask(tree, tvb, offset, hf_ac_if_input_controls, ett_ac_if_input_controls, controls, ENC_LITTLE_ENDIAN);
         offset += 2;
     }
@@ -1055,12 +1256,11 @@ dissect_ac_if_input_terminal(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint
-dissect_ac_if_output_terminal(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info)
+static int
+dissect_ac_if_output_terminal(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb)
 {
-    audio_conv_info_t *audio_conv_info;
-    gint               offset_start;
+    int                offset_start;
 
     static int * const controls[] = {
         &hf_ac_if_output_controls_copy,
@@ -1072,13 +1272,9 @@ dissect_ac_if_output_terminal(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_
         NULL
     };
 
-    /* the caller has already checked that usb_conv_info!=NULL */
-    audio_conv_info = (audio_conv_info_t *)usb_conv_info->class_data;
-    if (!audio_conv_info)
-        return 0;
-
     /* do not try to dissect unknown versions */
-    if (!((audio_conv_info->audio_ver_major==1) || (audio_conv_info->audio_ver_major==2)))
+    if (!((urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V1) ||
+          (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2)))
         return 0;
 
     offset_start = offset;
@@ -1095,7 +1291,7 @@ dissect_ac_if_output_terminal(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_
     proto_tree_add_item(tree, hf_ac_if_output_sourceid, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
 
-    if (audio_conv_info->audio_ver_major==2) {
+    if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2) {
         proto_tree_add_item(tree, hf_ac_if_output_clk_sourceid, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         offset += 1;
 
@@ -1109,15 +1305,14 @@ dissect_ac_if_output_terminal(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_
     return offset-offset_start;
 }
 
-static gint
-dissect_ac_if_feature_unit(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info _U_, guint8 desc_len)
+static int
+dissect_ac_if_feature_unit(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb, uint8_t desc_len)
 {
-    audio_conv_info_t *audio_conv_info;
-    gint offset_start;
-    gint i;
-    gint ch;
-    guint8 controlsize;
+    int offset_start;
+    int i;
+    int ch;
+    uint8_t controlsize;
     proto_tree *bitmap_tree;
     proto_item *ti;
 
@@ -1157,26 +1352,25 @@ dissect_ac_if_feature_unit(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
         &hf_ac_if_fu_controls_v2_rsv,
         NULL };
 
-    /* the caller has already checked that usb_conv_info!=NULL */
-    audio_conv_info = (audio_conv_info_t *)usb_conv_info->class_data;
-    if (!audio_conv_info)
-        return 0;
-
     /* do not try to dissect unknown versions */
-    if (!((audio_conv_info->audio_ver_major==1) || (audio_conv_info->audio_ver_major==2)))
+    if (!((urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V1) ||
+          (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2)))
         return 0;
 
     offset_start = offset;
 
+    if (!PINFO_FD_VISITED(pinfo)) {
+        set_entity_type(urb, tvb_get_uint8(tvb, offset), USB_AUDIO_ENTITY_FEATURE_UNIT);
+    }
     proto_tree_add_item(tree, hf_ac_if_fu_unitid, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
 
     proto_tree_add_item(tree, hf_ac_if_fu_sourceid, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
 
-    if (audio_conv_info->audio_ver_major==1) {
+    if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V1) {
         proto_tree_add_item(tree, hf_ac_if_fu_controlsize, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-        controlsize = tvb_get_guint8(tvb, offset);
+        controlsize = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         /* Descriptor size is 7+(ch+1)*n where n is controlsize, calculate and validate ch */
@@ -1202,7 +1396,7 @@ dissect_ac_if_feature_unit(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
             offset += controlsize;
         }
 
-    } else if (audio_conv_info->audio_ver_major==2) {
+    } else if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2) {
         /* Descriptor size is 6+(ch+1)*4, calculate and validate ch */
         ch = (desc_len - 6) / 4 - 1;
         if (((6 + (ch + 1) * 4) != desc_len) || (ch < 0)) {
@@ -1229,12 +1423,11 @@ dissect_ac_if_feature_unit(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint dissect_ac_if_selector_unit(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_, proto_tree *tree, usb_conv_info_t *usb_conv_info _U_)
+static int dissect_ac_if_selector_unit(tvbuff_t *tvb, int offset, packet_info *pinfo _U_, proto_tree *tree, urb_info_t *urb)
 {
-    audio_conv_info_t *audio_conv_info;
-    gint offset_start;
-    guint32 nrinpins,i;
-    guint32 source_id;
+    int offset_start;
+    uint32_t nrinpins,i;
+    uint32_t source_id;
     proto_item *ti;
     proto_tree *subtree;
 
@@ -1244,17 +1437,16 @@ static gint dissect_ac_if_selector_unit(tvbuff_t *tvb, gint offset, packet_info 
         NULL
     };
 
-    /* the caller has already checked that usb_conv_info!=NULL */
-    audio_conv_info = (audio_conv_info_t *)usb_conv_info->class_data;
-    if (!audio_conv_info)
-        return 0;
-
     /* do not try to dissect unknown versions */
-    if (!((audio_conv_info->audio_ver_major==1) || (audio_conv_info->audio_ver_major==2)))
+    if (!((urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V1) ||
+          (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2)))
         return 0;
 
     offset_start = offset;
 
+    if (!PINFO_FD_VISITED(pinfo)) {
+        set_entity_type(urb, tvb_get_uint8(tvb, offset), USB_AUDIO_ENTITY_SELECTOR);
+    }
     proto_tree_add_item(tree, hf_ac_if_su_unitid, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
 
@@ -1270,7 +1462,7 @@ static gint dissect_ac_if_selector_unit(tvbuff_t *tvb, gint offset, packet_info 
         proto_item_append_text(ti, "%s%d", (i > 0) ? ", " : "", source_id);
     }
 
-    if (audio_conv_info->audio_ver_major==2) {
+    if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2) {
         proto_tree_add_bitmask(tree, tvb, offset, hf_ac_if_su_controls, ett_ac_if_su_controls, controls, ENC_LITTLE_ENDIAN);
         offset += 1;
     }
@@ -1281,12 +1473,12 @@ static gint dissect_ac_if_selector_unit(tvbuff_t *tvb, gint offset, packet_info 
     return offset - offset_start;
 }
 
-static gint
-dissect_ac_if_mixed_unit(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info _U_)
+static int
+dissect_ac_if_mixed_unit(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb _U_)
 {
-    gint     offset_start;
-    guint8 nrinpins;
+    int      offset_start;
+    uint8_t nrinpins;
 
     static int * const mu_channelconfig[] = {
         &hf_ac_if_mu_channelconfig_d0,
@@ -1311,7 +1503,7 @@ dissect_ac_if_mixed_unit(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     offset += 1;
 
     proto_tree_add_item(tree, hf_ac_if_mu_nrinpins, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    nrinpins = tvb_get_guint8(tvb, offset);
+    nrinpins = tvb_get_uint8(tvb, offset);
     offset += 1;
 
     while(nrinpins){
@@ -1338,11 +1530,11 @@ dissect_ac_if_mixed_unit(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint
-dissect_ac_if_clock_source(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info _U_)
+static int
+dissect_ac_if_clock_source(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb)
 {
-    gint offset_start;
+    int offset_start;
     static int * const cs_attributes[] = {
         &hf_ac_if_clksrc_attr_type,
         &hf_ac_if_clksrc_attr_d2,
@@ -1357,6 +1549,9 @@ dissect_ac_if_clock_source(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     };
     offset_start = offset;
 
+    if (!PINFO_FD_VISITED(pinfo)) {
+        set_entity_type(urb, tvb_get_uint8(tvb, offset), USB_AUDIO_ENTITY_CLOCK_SOURCE);
+    }
     proto_tree_add_item(tree, hf_ac_if_clksrc_id, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
 
@@ -1375,12 +1570,12 @@ dissect_ac_if_clock_source(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint
-dissect_ac_if_clock_selector(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info _U_)
+static int
+dissect_ac_if_clock_selector(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb)
 {
-    gint   offset_start;
-    guint8 nrinpins;
+    int    offset_start;
+    uint8_t nrinpins;
     static int * const cs_controls[] = {
         &hf_ac_if_clksel_controls_clksel,
         &hf_ac_if_clksel_controls_rsv,
@@ -1388,11 +1583,14 @@ dissect_ac_if_clock_selector(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     };
     offset_start = offset;
 
+    if (!PINFO_FD_VISITED(pinfo)) {
+        set_entity_type(urb, tvb_get_uint8(tvb, offset), USB_AUDIO_ENTITY_CLOCK_SELECTOR);
+    }
     proto_tree_add_item(tree, hf_ac_if_clksel_id, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
 
     proto_tree_add_item(tree, hf_ac_if_clksel_nrpins, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    nrinpins = tvb_get_guint8(tvb, offset);
+    nrinpins = tvb_get_uint8(tvb, offset);
     offset += 1;
 
     while (nrinpins) {
@@ -1410,12 +1608,98 @@ dissect_ac_if_clock_selector(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint
-dissect_as_if_general_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info)
+static int
+dissect_ac_if_extension_unit(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+                             proto_tree *tree, urb_info_t *urb)
 {
-    audio_conv_info_t *audio_conv_info;
-    gint               offset_start;
+    int offset_start;
+    uint8_t nrinpins;
+    offset_start = offset;
+
+    static int * const v2_channels[] = {
+        &hf_as_if_gen_bmchannelconfig_d0,
+        &hf_as_if_gen_bmchannelconfig_d1,
+        &hf_as_if_gen_bmchannelconfig_d2,
+        &hf_as_if_gen_bmchannelconfig_d3,
+        &hf_as_if_gen_bmchannelconfig_d4,
+        &hf_as_if_gen_bmchannelconfig_d5,
+        &hf_as_if_gen_bmchannelconfig_d6,
+        &hf_as_if_gen_bmchannelconfig_d7,
+        &hf_as_if_gen_bmchannelconfig_d8,
+        &hf_as_if_gen_bmchannelconfig_d9,
+        &hf_as_if_gen_bmchannelconfig_d10,
+        &hf_as_if_gen_bmchannelconfig_d11,
+        &hf_as_if_gen_bmchannelconfig_d12,
+        &hf_as_if_gen_bmchannelconfig_d13,
+        &hf_as_if_gen_bmchannelconfig_d14,
+        &hf_as_if_gen_bmchannelconfig_d15,
+        &hf_as_if_gen_bmchannelconfig_d16,
+        &hf_as_if_gen_bmchannelconfig_d17,
+        &hf_as_if_gen_bmchannelconfig_d18,
+        &hf_as_if_gen_bmchannelconfig_d19,
+        &hf_as_if_gen_bmchannelconfig_d20,
+        &hf_as_if_gen_bmchannelconfig_d21,
+        &hf_as_if_gen_bmchannelconfig_d22,
+        &hf_as_if_gen_bmchannelconfig_d23,
+        &hf_as_if_gen_bmchannelconfig_d24,
+        &hf_as_if_gen_bmchannelconfig_d25,
+        &hf_as_if_gen_bmchannelconfig_d26,
+        &hf_as_if_gen_bmchannelconfig_rsv,
+        &hf_as_if_gen_bmchannelconfig_d31,
+        NULL
+    };
+    static int *const eu_bmcontrols[] = {
+        &hf_ac_if_extunit_bmcontrols_enable_ctrl,
+        &hf_ac_if_extunit_bmcontrols_cluster_ctrl,
+        &hf_ac_if_extunit_bmcontrols_underflow_ctrl,
+        &hf_ac_if_extunit_bmcontrols_overflowflow_ctrl,
+        NULL
+    };
+
+    if (!PINFO_FD_VISITED(pinfo)) {
+        set_entity_type(urb, tvb_get_uint8(tvb, offset), USB_AUDIO_ENTITY_EXTENSION_UNIT);
+    }
+    proto_tree_add_item(tree, hf_ac_if_extunit_id, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+    offset += 1;
+    proto_tree_add_item(tree, hf_ac_if_extunit_code, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    offset += 2;
+
+    proto_tree_add_item(tree, hf_ac_if_extunit_nrpins, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+    nrinpins = tvb_get_uint8(tvb, offset);
+    offset += 1;
+
+    while (nrinpins) {
+        proto_tree_add_item(tree, hf_ac_if_extunit_sourceid, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+        nrinpins--;
+        offset += 1;
+    }
+
+    proto_tree_add_item(tree, hf_ac_if_extunit_nrchannels, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+    offset += 1;
+
+    // TODO:
+    // desc_tree = proto_tree_add_subtree(tree, tvb, offset, ???)
+    // offset += dissect_as_if_general_body(tvb, offset, pinfo, desc_tree, urb);
+    proto_tree_add_bitmask(tree, tvb, offset, hf_ac_if_extunit_bmchannelconfig, ett_ac_if_extunit_bmchannelconfig, v2_channels, ENC_LITTLE_ENDIAN);
+    offset += 4;
+
+    proto_tree_add_item(tree, hf_ac_if_extunit_channelnames, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+    offset += 1;
+
+    proto_tree_add_bitmask(tree, tvb, offset, hf_ac_if_extunit_bmcontrols, ett_ac_if_extunit_bmcontrols, eu_bmcontrols, ENC_LITTLE_ENDIAN);
+    offset += 1;
+
+    proto_tree_add_item(tree, hf_ac_if_extunit_iext, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+    offset += 1;
+
+    return offset - offset_start;
+}
+
+static int
+dissect_as_if_general_body(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb)
+{
+    int                offset_start;
 
     static int * const v2_controls[] = {
         &hf_as_if_gen_controls_active,
@@ -1523,22 +1807,17 @@ dissect_as_if_general_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
         NULL
     };
 
-    /* the caller has already checked that usb_conv_info!=NULL */
-    audio_conv_info = (audio_conv_info_t *)usb_conv_info->class_data;
-    if (!audio_conv_info)
-        return 0;
-
     offset_start = offset;
 
-    if (audio_conv_info->audio_ver_major==1) {
+    if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V1) {
         proto_tree_add_item(tree, hf_as_if_gen_term_link, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         offset++;
         proto_tree_add_item(tree, hf_as_if_gen_delay, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         offset++;
         proto_tree_add_item(tree, hf_as_if_gen_wformattag, tvb, offset, 2, ENC_LITTLE_ENDIAN);
         offset += 2;
-    } else if (audio_conv_info->audio_ver_major==2) {
-        guint8 format_type;
+    } else if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2) {
+        uint8_t format_type;
         int * const *formats_bitmask;
 
         proto_tree_add_item(tree, hf_as_if_gen_term_link, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -1546,7 +1825,7 @@ dissect_as_if_general_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
         proto_tree_add_bitmask(tree, tvb, offset, hf_as_if_gen_controls, ett_as_if_gen_controls, v2_controls, ENC_LITTLE_ENDIAN);
         offset++;
         proto_tree_add_item(tree, hf_as_if_gen_formattype, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-        format_type = tvb_get_guint8(tvb, offset);
+        format_type = tvb_get_uint8(tvb, offset);
         offset++;
         switch(format_type)
         {
@@ -1583,22 +1862,22 @@ dissect_as_if_general_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint
-dissect_as_if_format_type_ver1_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, audio_conv_info_t *audio_conv_info _U_)
+static int
+dissect_as_if_format_type_ver1_body(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb _U_)
 {
-    gint   offset_start;
-    guint8 SamFreqType;
-    guint8 format_type;
-    guint32 nrchannels;
-    guint32 subframesize;
-    guint32 bitresolution;
+    int    offset_start;
+    uint8_t SamFreqType;
+    uint8_t format_type;
+    uint32_t nrchannels;
+    uint32_t subframesize;
+    uint32_t bitresolution;
     proto_item *desc_tree_item;
 
     offset_start = offset;
 
     proto_tree_add_item(tree, hf_as_if_ft_formattype, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    format_type = tvb_get_guint8(tvb, offset);
+    format_type = tvb_get_uint8(tvb, offset);
     offset++;
 
 
@@ -1614,7 +1893,7 @@ dissect_as_if_format_type_ver1_body(tvbuff_t *tvb, gint offset, packet_info *pin
             offset += 1;
 
             proto_tree_add_item(tree, hf_as_if_ft_samfreqtype, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-            SamFreqType = tvb_get_guint8(tvb, offset);
+            SamFreqType = tvb_get_uint8(tvb, offset);
             offset++;
 
             if(SamFreqType == 0){
@@ -1638,7 +1917,7 @@ dissect_as_if_format_type_ver1_body(tvbuff_t *tvb, gint offset, packet_info *pin
             offset += 2;
 
             proto_tree_add_item(tree, hf_as_if_ft_samfreqtype, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-            SamFreqType = tvb_get_guint8(tvb, offset);
+            SamFreqType = tvb_get_uint8(tvb, offset);
             offset++;
 
             if(SamFreqType == 0){
@@ -1677,7 +1956,7 @@ dissect_as_if_format_type_ver1_body(tvbuff_t *tvb, gint offset, packet_info *pin
             }
 
             proto_tree_add_item(tree, hf_as_if_ft_samfreqtype, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-            SamFreqType = tvb_get_guint8(tvb, offset);
+            SamFreqType = tvb_get_uint8(tvb, offset);
             offset++;
 
             if(SamFreqType == 0){
@@ -1700,17 +1979,17 @@ dissect_as_if_format_type_ver1_body(tvbuff_t *tvb, gint offset, packet_info *pin
     return offset-offset_start;
 }
 
-static gint
-dissect_as_if_format_type_ver2_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, audio_conv_info_t *audio_conv_info _U_)
+static int
+dissect_as_if_format_type_ver2_body(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb _U_)
 {
-    gint   offset_start;
-    guint8 format_type;
+    int    offset_start;
+    uint8_t format_type;
 
     offset_start = offset;
 
     proto_tree_add_item(tree, hf_as_if_ft_formattype, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    format_type = tvb_get_guint8(tvb, offset);
+    format_type = tvb_get_uint8(tvb, offset);
     offset++;
 
     if (format_type==1) {
@@ -1724,32 +2003,24 @@ dissect_as_if_format_type_ver2_body(tvbuff_t *tvb, gint offset, packet_info *pin
     return offset-offset_start;
 }
 
-static gint
-dissect_as_if_format_type_body(tvbuff_t *tvb, gint offset, packet_info *pinfo,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info)
+static int
+dissect_as_if_format_type_body(tvbuff_t *tvb, int offset, packet_info *pinfo,
+        proto_tree *tree, urb_info_t *urb)
 {
-    audio_conv_info_t *audio_conv_info;
-
-    /* the caller has already checked that usb_conv_info!=NULL */
-    audio_conv_info = (audio_conv_info_t *)usb_conv_info->class_data;
-    if (!audio_conv_info)
-        return 0;
-
-    if (audio_conv_info->audio_ver_major==1) {
-        return dissect_as_if_format_type_ver1_body(tvb, offset, pinfo, tree, audio_conv_info);
-    } else if (audio_conv_info->audio_ver_major==2) {
-        return dissect_as_if_format_type_ver2_body(tvb, offset, pinfo, tree, audio_conv_info);
+    if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V1) {
+        return dissect_as_if_format_type_ver1_body(tvb, offset, pinfo, tree, urb);
+    } else if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2) {
+        return dissect_as_if_format_type_ver2_body(tvb, offset, pinfo, tree, urb);
     }
 
     return 0;
 }
 
-static gint
-dissect_as_ep_general_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info)
+static int
+dissect_as_ep_general_body(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb)
 {
-    audio_conv_info_t *audio_conv_info;
-    gint               offset_start = offset;
+    int                offset_start = offset;
 
     static int * const v1_attributes[] = {
         &hf_as_ep_gen_bmattributes_d0,
@@ -1770,19 +2041,15 @@ dissect_as_ep_general_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
         NULL
     };
 
-    /* the caller has already checked that usb_conv_info!=NULL */
-    audio_conv_info = (audio_conv_info_t *)usb_conv_info->class_data;
-    if (!audio_conv_info)
-        return 0;
-
     /* do not try to dissect unknown versions */
-    if (!((audio_conv_info->audio_ver_major==1) || (audio_conv_info->audio_ver_major==2)))
+    if (!((urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V1) ||
+          (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2)))
         return 0;
 
-    if (audio_conv_info->audio_ver_major==1) {
+    if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V1) {
         proto_tree_add_bitmask(tree, tvb, offset, hf_as_ep_gen_bmattributes, ett_as_ep_gen_attributes, v1_attributes, ENC_LITTLE_ENDIAN);
         offset++;
-    } else if (audio_conv_info->audio_ver_major==2) {
+    } else if (urb->conv->interfaceProtocol == AUDIO_PROTOCOL_V2) {
         proto_tree_add_bitmask(tree, tvb, offset, hf_as_ep_gen_bmattributes, ett_as_ep_gen_attributes, v2_attributes, ENC_LITTLE_ENDIAN);
         offset++;
         proto_tree_add_bitmask(tree, tvb, offset, hf_as_ep_gen_controls, ett_as_ep_gen_controls, controls, ENC_LITTLE_ENDIAN);
@@ -1797,15 +2064,14 @@ dissect_as_ep_general_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint
-dissect_ms_if_hdr_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info)
+static int
+dissect_ms_if_hdr_body(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb _U_)
 {
-    gint     offset_start;
-    guint16  bcdADC;
-    guint8   ver_major;
+    int      offset_start;
+    uint16_t bcdADC;
+    uint8_t  ver_major;
     double   ver;
-    audio_conv_info_t *audio_conv_info;
 
     offset_start = offset;
 
@@ -1815,16 +2081,6 @@ dissect_ms_if_hdr_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
 
     proto_tree_add_double_format_value(tree, hf_ms_if_hdr_ver,
             tvb, offset, 2, ver, "%2.2f", ver);
-    audio_conv_info = (audio_conv_info_t *)usb_conv_info->class_data;
-    if(!audio_conv_info) {
-        audio_conv_info = allocate_audio_conv_info();
-        usb_conv_info->class_data = audio_conv_info;
-        usb_conv_info->class_data_type = USB_CONV_AUDIO;
-    } else if (usb_conv_info->class_data_type != USB_CONV_AUDIO) {
-        /* Don't dissect if another USB type is in the conversation */
-        return 0;
-    }
-    audio_conv_info->midi_ver_major = ver_major;
     offset += 2;
 
     proto_tree_add_item(tree, hf_ms_if_hdr_total_len,
@@ -1834,11 +2090,11 @@ dissect_ms_if_hdr_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint
-dissect_ms_if_midi_in_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info _U_)
+static int
+dissect_ms_if_midi_in_body(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb _U_)
 {
-    gint     offset_start = offset;
+    int      offset_start = offset;
 
     proto_tree_add_item(tree, hf_ms_if_midi_in_bjacktype, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
@@ -1850,12 +2106,12 @@ dissect_ms_if_midi_in_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint
-dissect_ms_if_midi_out_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info _U_)
+static int
+dissect_ms_if_midi_out_body(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb _U_)
 {
-    gint     offset_start = offset;
-    guint8   nrinputpins;
+    int      offset_start = offset;
+    uint8_t  nrinputpins;
 
     proto_tree_add_item(tree, hf_ms_if_midi_out_bjacktype, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
@@ -1863,7 +2119,7 @@ dissect_ms_if_midi_out_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     offset += 1;
 
     proto_tree_add_item(tree, hf_ms_if_midi_out_bnrinputpins, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    nrinputpins = tvb_get_guint8(tvb, offset);
+    nrinputpins = tvb_get_uint8(tvb, offset);
     offset += 1;
     while (nrinputpins)
     {
@@ -1880,15 +2136,15 @@ dissect_ms_if_midi_out_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint
-dissect_ms_ep_general_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
-        proto_tree *tree, usb_conv_info_t *usb_conv_info _U_)
+static int
+dissect_ms_ep_general_body(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+        proto_tree *tree, urb_info_t *urb _U_)
 {
-    gint     offset_start = offset;
-    guint8   numjacks;
+    int      offset_start = offset;
+    uint8_t  numjacks;
 
     proto_tree_add_item(tree, hf_ms_ep_gen_numjacks, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    numjacks = tvb_get_guint8(tvb, offset);
+    numjacks = tvb_get_uint8(tvb, offset);
     offset += 1;
     while (numjacks)
     {
@@ -1900,29 +2156,36 @@ dissect_ms_ep_general_body(tvbuff_t *tvb, gint offset, packet_info *pinfo _U_,
     return offset-offset_start;
 }
 
-static gint
+static int
 dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
         proto_tree *tree, void *data)
 {
-    gint             offset = 0;
-    gint             bytes_dissected = 0;
-    usb_conv_info_t *usb_conv_info;
+    int              offset = 0;
+    int              bytes_dissected = 0;
+    urb_info_t      *urb;
     proto_tree       *desc_tree = NULL;
     proto_item       *desc_tree_item;
-    guint8           desc_len;
-    guint8           desc_type;
-    guint8           desc_subtype;
-    const gchar     *subtype_str;
+    uint8_t          desc_len;
+    uint8_t          desc_type;
+    uint8_t          desc_subtype;
+    const char      *subtype_str;
 
-    usb_conv_info = (usb_conv_info_t *)data;
-    if (!usb_conv_info || usb_conv_info->interfaceClass!=IF_CLASS_AUDIO)
+    urb = (urb_info_t *)data;
+    if (!urb || !urb->conv || urb->conv->interfaceClass!=IF_CLASS_AUDIO)
         return 0;
 
-    desc_len  = tvb_get_guint8(tvb, offset);
-    desc_type = tvb_get_guint8(tvb, offset+1);
+    desc_len  = tvb_get_uint8(tvb, offset);
+    desc_type = tvb_get_uint8(tvb, offset+1);
+
+    if (desc_type == CS_INTERFACE) {
+        /* Switch to interface specific usb_conv_info */
+        urb = wmem_new(pinfo->pool, urb_info_t);
+        memcpy(urb, data, sizeof(urb_info_t));
+        urb->conv = get_usb_iface_conv_info(pinfo, urb->conv->interfaceNum);
+    }
 
     if (desc_type==CS_INTERFACE &&
-            usb_conv_info->interfaceSubclass==AUDIO_IF_SUBCLASS_AUDIOCONTROL) {
+            urb->conv->interfaceSubclass==AUDIO_IF_SUBCLASS_AUDIOCONTROL) {
 
         desc_tree = proto_tree_add_subtree(tree, tvb, offset, desc_len,
                 ett_usb_audio_desc, &desc_tree_item,
@@ -1932,7 +2195,7 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
             &aud_descriptor_type_vals_ext);
         offset += 2;
 
-        desc_subtype = tvb_get_guint8(tvb, offset);
+        desc_subtype = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(desc_tree, hf_ac_if_desc_subtype,
                 tvb, offset, 1, ENC_LITTLE_ENDIAN);
         subtype_str = try_val_to_str_ext(desc_subtype, &ac_subtype_vals_ext);
@@ -1947,35 +2210,38 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
                    this is not necessarily the length of the body
                    as some components are not yet dissected
                    we rely on the descriptor's length byte instead */
-                bytes_dissected += dissect_ac_if_hdr_body(tvb, offset, pinfo, desc_tree, usb_conv_info);
+                bytes_dissected += dissect_ac_if_hdr_body(tvb, offset, pinfo, desc_tree, urb);
                 break;
             case AC_SUBTYPE_INPUT_TERMINAL:
-                bytes_dissected += dissect_ac_if_input_terminal(tvb, offset, pinfo, desc_tree, usb_conv_info);
+                bytes_dissected += dissect_ac_if_input_terminal(tvb, offset, pinfo, desc_tree, urb);
                 break;
             case AC_SUBTYPE_OUTPUT_TERMINAL:
-                bytes_dissected += dissect_ac_if_output_terminal(tvb, offset, pinfo, desc_tree, usb_conv_info);
+                bytes_dissected += dissect_ac_if_output_terminal(tvb, offset, pinfo, desc_tree, urb);
                 break;
             case AC_SUBTYPE_MIXER_UNIT:
-                bytes_dissected += dissect_ac_if_mixed_unit(tvb, offset, pinfo, desc_tree, usb_conv_info);
+                bytes_dissected += dissect_ac_if_mixed_unit(tvb, offset, pinfo, desc_tree, urb);
                 break;
             case AC_SUBTYPE_SELECTOR_UNIT:
-                bytes_dissected += dissect_ac_if_selector_unit(tvb, offset, pinfo, desc_tree, usb_conv_info);
+                bytes_dissected += dissect_ac_if_selector_unit(tvb, offset, pinfo, desc_tree, urb);
                 break;
             case AC_SUBTYPE_FEATURE_UNIT:
-                bytes_dissected += dissect_ac_if_feature_unit(tvb, offset, pinfo, desc_tree, usb_conv_info, desc_len);
+                bytes_dissected += dissect_ac_if_feature_unit(tvb, offset, pinfo, desc_tree, urb, desc_len);
                 break;
             case AC_SUBTYPE_CLOCK_SOURCE:
-                bytes_dissected += dissect_ac_if_clock_source(tvb, offset, pinfo, desc_tree, usb_conv_info);
+                bytes_dissected += dissect_ac_if_clock_source(tvb, offset, pinfo, desc_tree, urb);
                 break;
             case AC_SUBTYPE_CLOCK_SELECTOR:
-                bytes_dissected += dissect_ac_if_clock_selector(tvb, offset, pinfo, desc_tree, usb_conv_info);
+                bytes_dissected += dissect_ac_if_clock_selector(tvb, offset, pinfo, desc_tree, urb);
+                break;
+            case AC_SUBTYPE_EXTENSION_UNIT:
+                bytes_dissected += dissect_ac_if_extension_unit(tvb, offset, pinfo, desc_tree, urb);
                 break;
             default:
                 break;
         }
     }
     else if (desc_type==CS_INTERFACE &&
-            usb_conv_info->interfaceSubclass==AUDIO_IF_SUBCLASS_AUDIOSTREAMING) {
+            urb->conv->interfaceSubclass==AUDIO_IF_SUBCLASS_AUDIOSTREAMING) {
 
         desc_tree = proto_tree_add_subtree(tree, tvb, offset, desc_len,
                 ett_usb_audio_desc, &desc_tree_item,
@@ -1985,7 +2251,7 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
             &aud_descriptor_type_vals_ext);
         offset += 2;
 
-        desc_subtype = tvb_get_guint8(tvb, offset);
+        desc_subtype = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(desc_tree, hf_as_if_desc_subtype,
                 tvb, offset, 1, ENC_LITTLE_ENDIAN);
         subtype_str = try_val_to_str_ext(desc_subtype, &as_subtype_vals_ext);
@@ -1997,11 +2263,11 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
         switch(desc_subtype) {
             case AS_SUBTYPE_GENERAL:
                 bytes_dissected += dissect_as_if_general_body(tvb, offset, pinfo,
-                        desc_tree, usb_conv_info);
+                        desc_tree, urb);
                 break;
             case AS_SUBTYPE_FORMAT_TYPE:
                 bytes_dissected += dissect_as_if_format_type_body(tvb, offset, pinfo,
-                        desc_tree, usb_conv_info);
+                        desc_tree, urb);
                 break;
             default:
                 break;
@@ -2009,7 +2275,7 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
     }
     /* there are no class-specific endpoint descriptors for audio control */
     else if (desc_type == CS_ENDPOINT &&
-            usb_conv_info->interfaceSubclass==AUDIO_IF_SUBCLASS_AUDIOSTREAMING) {
+            urb->conv->interfaceSubclass==AUDIO_IF_SUBCLASS_AUDIOSTREAMING) {
 
         desc_tree = proto_tree_add_subtree(tree, tvb, offset, desc_len,
                 ett_usb_audio_desc, &desc_tree_item,
@@ -2019,7 +2285,7 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
             &aud_descriptor_type_vals_ext);
         offset += 2;
 
-        desc_subtype = tvb_get_guint8(tvb, offset);
+        desc_subtype = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(desc_tree, hf_as_ep_desc_subtype,
                 tvb, offset, 1, ENC_LITTLE_ENDIAN);
         offset++;
@@ -2028,14 +2294,14 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
         switch(desc_subtype) {
             case AS_EP_SUBTYPE_GENERAL:
                 bytes_dissected += dissect_as_ep_general_body(tvb, offset, pinfo,
-                        desc_tree, usb_conv_info);
+                        desc_tree, urb);
                 break;
             default:
                 break;
         }
     }
     else if (desc_type==CS_INTERFACE &&
-            usb_conv_info->interfaceSubclass==AUDIO_IF_SUBCLASS_MIDISTREAMING) {
+            urb->conv->interfaceSubclass==AUDIO_IF_SUBCLASS_MIDISTREAMING) {
         desc_tree = proto_tree_add_subtree(tree, tvb, offset, desc_len,
                 ett_usb_audio_desc, &desc_tree_item,
                 "Class-specific MIDI Streaming Interface Descriptor");
@@ -2044,7 +2310,7 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
             &aud_descriptor_type_vals_ext);
         offset += 2;
 
-        desc_subtype = tvb_get_guint8(tvb, offset);
+        desc_subtype = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(desc_tree, hf_ms_if_desc_subtype,
                 tvb, offset, 1, ENC_LITTLE_ENDIAN);
         subtype_str = try_val_to_str_ext(desc_subtype, &ms_if_subtype_vals_ext);
@@ -2056,22 +2322,22 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
         switch(desc_subtype) {
             case MS_IF_SUBTYPE_HEADER:
                 bytes_dissected += dissect_ms_if_hdr_body(tvb, offset, pinfo,
-                        desc_tree, usb_conv_info);
+                        desc_tree, urb);
                 break;
             case MS_IF_SUBTYPE_MIDI_IN_JACK:
                 bytes_dissected += dissect_ms_if_midi_in_body(tvb, offset, pinfo,
-                        desc_tree, usb_conv_info);
+                        desc_tree, urb);
                 break;
             case MS_IF_SUBTYPE_MIDI_OUT_JACK:
                 bytes_dissected += dissect_ms_if_midi_out_body(tvb, offset, pinfo,
-                        desc_tree, usb_conv_info);
+                        desc_tree, urb);
                 break;
             default:
                 break;
         }
     }
     else if (desc_type==CS_ENDPOINT &&
-            usb_conv_info->interfaceSubclass==AUDIO_IF_SUBCLASS_MIDISTREAMING) {
+            urb->conv->interfaceSubclass==AUDIO_IF_SUBCLASS_MIDISTREAMING) {
         desc_tree = proto_tree_add_subtree(tree, tvb, offset, desc_len,
                 ett_usb_audio_desc, &desc_tree_item,
                 "Class-specific MIDI Streaming Endpoint Descriptor");
@@ -2080,7 +2346,7 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
             &aud_descriptor_type_vals_ext);
         offset += 2;
 
-        desc_subtype = tvb_get_guint8(tvb, offset);
+        desc_subtype = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(desc_tree, hf_ms_ep_desc_subtype,
                 tvb, offset, 1, ENC_LITTLE_ENDIAN);
         offset++;
@@ -2089,7 +2355,7 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
         switch(desc_subtype) {
             case MS_EP_SUBTYPE_GENERAL:
                 bytes_dissected += dissect_ms_ep_general_body(tvb, offset, pinfo,
-                        desc_tree, usb_conv_info);
+                        desc_tree, urb);
                 break;
             default:
                 break;
@@ -2104,26 +2370,393 @@ dissect_usb_audio_descriptor(tvbuff_t *tvb, packet_info *pinfo,
     return desc_len;
 }
 
+static usb_audio_entity_t
+get_addressed_entity_type(urb_info_t *urb)
+{
+    usb_audio_entity_t  entity = USB_AUDIO_ENTITY_UNKNOWN;
+
+    if (USB_RECIPIENT(urb->usb_trans_info->setup.requesttype) == RQT_SETUP_RECIPIENT_INTERFACE) {
+        int8_t id = (urb->usb_trans_info->setup.wIndex & 0xFF00) >> 8;
+        entity = get_entity_type(urb, id);
+    }
+
+    return entity;
+}
+
+static bool
+has_data_stage(urb_info_t *urb)
+{
+    /* If the two conditions are fulfilled, then URB we got should contain data stage */
+    return (urb->usb_trans_info->setup.wLength > 0) &&
+        (urb->usb_trans_info->setup.requesttype & USB_DIR_IN) == (urb->is_request ? USB_DIR_OUT : USB_DIR_IN);
+}
+
+static int
+dissect_windex_and_wlength(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+                           proto_tree *tree, urb_info_t *urb)
+{
+    int                 offset_start = offset;
+    static int * const  windex_interface[] = {
+        &hf_windex_interface,
+        &hf_windex_entity_id,
+        NULL
+    };
+    static int * const  windex_endpoint[] = {
+        &hf_windex_endpoint,
+        NULL
+    };
+
+    if (USB_RECIPIENT(urb->usb_trans_info->setup.requesttype) == RQT_SETUP_RECIPIENT_INTERFACE) {
+        proto_tree_add_bitmask(tree, tvb, offset, hf_windex, ett_windex, windex_interface, ENC_LITTLE_ENDIAN);
+    } else if (USB_RECIPIENT(urb->usb_trans_info->setup.requesttype) == RQT_SETUP_RECIPIENT_ENDPOINT) {
+        proto_tree_add_bitmask(tree, tvb, offset, hf_windex, ett_windex, windex_endpoint, ENC_LITTLE_ENDIAN);
+    }
+    offset += 2;
+
+    proto_tree_add_item(tree, hf_wlength, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    offset += 2;
+
+    return offset - offset_start;
+}
+
+static int
+dissect_v1_control(tvbuff_t *tvb, int offset, packet_info *pinfo,
+                   proto_tree *tree, urb_info_t *urb)
+{
+    int                 offset_start = offset;
+    proto_item         *ti;
+    const char         *request_str;
+    uint8_t             bRequest;
+    usb_audio_entity_t  entity = get_addressed_entity_type(urb);
+    const value_string *control_selector_vals = NULL;
+    uint8_t             control_selector;
+    const char         *str;
+    const char         *title = "Unknown Parameter Block";
+    int                *parameter_hf = NULL;
+    int                 attribute_size;
+    int                *wvalue_fields[] = {
+        NULL, /* Channel number or zero */
+        NULL, /* Control selector if known */
+        NULL
+    };
+
+    bRequest = urb->usb_trans_info->setup.request;
+    request_str = try_val_to_str_ext(bRequest, &v1_brequest_vals_ext);
+    if (request_str)
+        col_set_str(pinfo->cinfo, COL_INFO, request_str);
+
+    control_selector = (urb->usb_trans_info->setup.wValue & 0xFF00) >> 8;
+
+    switch (entity) {
+        case USB_AUDIO_ENTITY_SELECTOR:
+            col_append_str(pinfo->cinfo, COL_INFO, " SELECTOR");
+            parameter_hf = &hf_parameter_bselector;
+            attribute_size = 1;
+            title = "Selector Control Parameter Block";
+            break;
+        case USB_AUDIO_ENTITY_FEATURE_UNIT:
+            wvalue_fields[0] = &hf_wvalue_channel_number;
+            wvalue_fields[1] = &hf_wvalue_fu_cs_v1;
+            control_selector_vals = v1_fu_cs_vals;
+            if (control_selector == MUTE_CONTROL) {
+                parameter_hf = &hf_parameter_bmute;
+                attribute_size = 1;
+                title = "Mute Control Parameter Block";
+            } else if (control_selector == VOLUME_CONTROL) {
+                parameter_hf = &hf_parameter_wvolume;
+                attribute_size = 2;
+                title = "Volume Control Parameter Block";
+            }
+            break;
+        default:
+            break;
+    }
+
+    str = control_selector_vals ? try_val_to_str(control_selector, control_selector_vals) : NULL;
+    if (str) {
+        col_append_fstr(pinfo->cinfo, COL_INFO, " %s", str);
+    }
+
+    if (urb->is_request) {
+        proto_tree_add_item(tree, hf_brequest_v1, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+        offset++;
+
+        if (wvalue_fields[0]) {
+            proto_tree_add_bitmask(tree, tvb, offset, hf_wvalue, ett_wvalue, wvalue_fields, ENC_LITTLE_ENDIAN);
+        } else {
+            ti = proto_tree_add_item(tree, hf_wvalue, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+            /* Selector doesn't use wValue (must be zero), all others do use it */
+            if (entity != USB_AUDIO_ENTITY_SELECTOR) {
+                expert_add_info(pinfo, ti, &ei_usb_audio_undecoded);
+            }
+        }
+        offset += 2;
+
+        offset += dissect_windex_and_wlength(tvb, offset, pinfo, tree, urb);
+
+    }
+
+    if (has_data_stage(urb)) {
+        proto_tree  *subtree;
+        proto_item  *subtree_item;
+
+        subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_parameter_block, &subtree_item, title);
+
+        if (parameter_hf) {
+            proto_tree_add_item(subtree, *parameter_hf, tvb, offset, attribute_size, ENC_LITTLE_ENDIAN);
+            offset += attribute_size;
+        }
+
+        if (tvb_captured_length_remaining(tvb, offset)) {
+            expert_add_info(pinfo, subtree_item, &ei_usb_audio_undecoded);
+            offset += tvb_captured_length_remaining(tvb, offset);
+        }
+    }
+
+    return offset - offset_start;
+}
+
+static int
+dissect_v2_control_cur_range(tvbuff_t *tvb, int offset, packet_info *pinfo,
+                             proto_tree *tree, urb_info_t *urb)
+{
+    int                 offset_start = offset;
+    proto_item         *ti;
+    usb_audio_entity_t  entity = get_addressed_entity_type(urb);
+    const value_string *control_selector_vals = NULL;
+    uint8_t             control_selector, channel_number;
+    parameter_layout_t  layout = PARAMETER_LAYOUT_UNKNOWN;
+    const char         *parameter_str = NULL;
+    const char         *str;
+    int                *wvalue_fields[] = {
+        &hf_wvalue_channel_number,
+        NULL, /* Control selector if known */
+        NULL
+    };
+
+    control_selector = (urb->usb_trans_info->setup.wValue & 0xFF00) >> 8;
+    channel_number = urb->usb_trans_info->setup.wValue & 0x00FF;
+
+    switch (entity) {
+        case USB_AUDIO_ENTITY_CLOCK_SOURCE:
+            wvalue_fields[1] = &hf_wvalue_clksrc_cs;
+            control_selector_vals = v2_clksrc_cs_vals;
+            if ((control_selector == V2_CS_SAM_FREQ_CONTROL) && (channel_number == 0)) {
+                layout = PARAMETER_LAYOUT_3;
+                parameter_str = "Frequency [Hz]";
+            } else if (control_selector == V2_CS_CLOCK_VALID_CONTROL) {
+                layout = PARAMETER_LAYOUT_1;
+                parameter_str = "Clock Validity";
+            }
+            break;
+        case USB_AUDIO_ENTITY_CLOCK_SELECTOR:
+            wvalue_fields[1] = &hf_wvalue_clksel_cs;
+            control_selector_vals = v2_clksel_cs_vals;
+            if ((control_selector == V2_CX_CLOCK_SELECTOR_CONTROL) && (channel_number == 0)) {
+                layout = PARAMETER_LAYOUT_1;
+                parameter_str = "Clock Input Pin";
+            }
+            break;
+        default:
+            break;
+    }
+
+    str = control_selector_vals ? try_val_to_str(control_selector, control_selector_vals) : NULL;
+    if (str) {
+        col_append_fstr(pinfo->cinfo, COL_INFO, " %s", str);
+    }
+
+    if (urb->is_request) {
+        ti = proto_tree_add_bitmask(tree, tvb, offset, hf_wvalue, ett_wvalue, wvalue_fields, ENC_LITTLE_ENDIAN);
+        if (wvalue_fields[1] == NULL) {
+            /* Control selector not handled, mark as undecoded */
+            expert_add_info(pinfo, ti, &ei_usb_audio_undecoded);
+        }
+        offset += 2;
+
+        offset += dissect_windex_and_wlength(tvb, offset, pinfo, tree, urb);
+    }
+
+    if (has_data_stage(urb)) {
+        proto_tree  *subtree;
+        proto_item  *subtree_item;
+        const char *title;
+        uint32_t     n;
+        int          attribute_size;
+        int          cur_hf, min_hf, max_hf, res_hf;
+
+        switch (layout) {
+            case PARAMETER_LAYOUT_1:
+                title = "Layout 1 Parameter Block";
+                attribute_size = 1;
+                cur_hf = hf_parameter_bcur;
+                min_hf = hf_parameter_bmin;
+                max_hf = hf_parameter_bmax;
+                res_hf = hf_parameter_bres;
+                break;
+            case PARAMETER_LAYOUT_2:
+                title = "Layout 2 Parameter Block";
+                attribute_size = 2;
+                cur_hf = hf_parameter_wcur;
+                min_hf = hf_parameter_wmin;
+                max_hf = hf_parameter_wmax;
+                res_hf = hf_parameter_wres;
+                break;
+            case PARAMETER_LAYOUT_3:
+                title = "Layout 3 Parameter Block";
+                attribute_size = 4;
+                cur_hf = hf_parameter_dcur;
+                min_hf = hf_parameter_dmin;
+                max_hf = hf_parameter_dmax;
+                res_hf = hf_parameter_dres;
+                break;
+            default:
+                title = "Unknown Layout Parameter Block";
+                attribute_size = 0;
+                cur_hf = min_hf = max_hf = res_hf = 0;
+                break;
+        }
+
+        subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_parameter_block, &subtree_item, title);
+        if (parameter_str) {
+            proto_item_append_text(subtree_item, ": %s", parameter_str);
+        }
+
+        if (urb->usb_trans_info->setup.request == V2_REQUEST_RANGE) {
+            uint32_t  max_n;
+
+            proto_tree_add_item_ret_uint(subtree, hf_parameter_wnumsubranges, tvb, offset, 2, ENC_LITTLE_ENDIAN, &n);
+            offset += 2;
+
+            if (attribute_size == 0) {
+                max_n = 0;
+            } else if (urb->usb_trans_info->setup.wLength >= 2 + n * attribute_size) {
+                /* Host requested enough bytes to contain all data */
+                max_n = n;
+            } else if (urb->usb_trans_info->setup.wLength > 2) {
+                /* Host requested less, this is not Malformed in any way */
+                max_n = (urb->usb_trans_info->setup.wLength - 2) / (3 * attribute_size);
+            } else {
+                max_n = 0;
+            }
+
+            for (uint32_t i = 0; i < max_n; i++) {
+                proto_tree_add_item(subtree, min_hf, tvb, offset, attribute_size, ENC_LITTLE_ENDIAN);
+                offset += attribute_size;
+                proto_tree_add_item(subtree, max_hf, tvb, offset, attribute_size, ENC_LITTLE_ENDIAN);
+                offset += attribute_size;
+                proto_tree_add_item(subtree, res_hf, tvb, offset, attribute_size, ENC_LITTLE_ENDIAN);
+                offset += attribute_size;
+            }
+        } else if (attribute_size) {
+            proto_tree_add_item(subtree, cur_hf, tvb, offset, attribute_size, ENC_LITTLE_ENDIAN);
+            offset += attribute_size;
+        } else {
+            expert_add_info(pinfo, subtree_item, &ei_usb_audio_undecoded);
+            offset += tvb_captured_length_remaining(tvb, offset);
+        }
+    }
+
+    return offset - offset_start;
+}
+
+static int
+dissect_v2_control(tvbuff_t *tvb, int offset, packet_info *pinfo,
+                   proto_tree *tree, urb_info_t *urb)
+{
+    int          offset_start = offset;
+    const char *request_str;
+    uint8_t      bRequest;
+
+    bRequest = urb->usb_trans_info->setup.request;
+    request_str = try_val_to_str_ext(bRequest, &v2_brequest_vals_ext);
+    if (request_str)
+        col_append_fstr(pinfo->cinfo, COL_INFO, " %s", request_str);
+
+    if (urb->is_request) {
+        proto_tree_add_item(tree, hf_brequest_v2, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+        offset++;
+    }
+
+    if ((bRequest == V2_REQUEST_CUR) || (bRequest == V2_REQUEST_RANGE)) {
+        offset += dissect_v2_control_cur_range(tvb, offset, pinfo, tree, urb);
+    }
+
+    return offset - offset_start;
+}
+
+static int
+dissect_usb_audio_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *data)
+{
+    urb_info_t      *urb = (urb_info_t *)data;
+    int              offset, length;
+
+    /* Reject the packet if data is NULL */
+    if ((urb == NULL) || (urb->conv == NULL))
+        return 0;
+
+    /* Dissect only Class requests directed to interface or endpoint */
+    if ((urb->usb_trans_info == NULL) ||
+        (USB_TYPE(urb->usb_trans_info->setup.requesttype) != RQT_SETUP_TYPE_CLASS) ||
+        !(USB_RECIPIENT(urb->usb_trans_info->setup.requesttype) == RQT_SETUP_RECIPIENT_INTERFACE ||
+          USB_RECIPIENT(urb->usb_trans_info->setup.requesttype) == RQT_SETUP_RECIPIENT_ENDPOINT)) {
+        return 0;
+    }
+
+    col_set_str(pinfo->cinfo, COL_PROTOCOL, "USBAUDIO");
+    col_set_str(pinfo->cinfo, COL_INFO, urb->usb_trans_info->setup.requesttype & USB_DIR_IN ? "GET" : "SET");
+
+    length = tvb_reported_length(tvb);
+    offset = 0;
+
+    if ((urb->conv->interfaceClass == IF_CLASS_AUDIO) &&
+        (urb->conv->interfaceSubclass == AUDIO_IF_SUBCLASS_AUDIOCONTROL)) {
+        switch (urb->conv->interfaceProtocol) {
+            case AUDIO_PROTOCOL_V1:
+                offset += dissect_v1_control(tvb, offset, pinfo, parent_tree, urb);
+                break;
+            case AUDIO_PROTOCOL_V2:
+                offset += dissect_v2_control(tvb, offset, pinfo, parent_tree, urb);
+                break;
+            default:
+                break;
+        }
+    }
+
+    if (!urb->is_request &&
+        (((urb->usb_trans_info->setup.requesttype & USB_DIR_IN) == USB_DIR_OUT) ||
+          (urb->usb_trans_info->setup.wLength == 0))) {
+        /* We are dissecting URB status information, it is not really a "response" */
+        col_append_str(pinfo->cinfo, COL_INFO, " status");
+    } else {
+        col_append_str(pinfo->cinfo, COL_INFO, urb->is_request ? " request" : " response");
+    }
+
+    if (offset < length) {
+        proto_tree_add_expert(parent_tree, pinfo, &ei_usb_audio_undecoded, tvb, offset, length - offset);
+    }
+
+    return length;
+}
 
 /* dissector for usb midi bulk data */
 static int
 dissect_usb_audio_bulk(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *data)
 {
-    usb_conv_info_t *usb_conv_info;
-    gint             offset, length;
-    gint             i;
+    urb_info_t      *urb = (urb_info_t *)data;
+    int              offset, length;
+    int              i;
 
     /* Reject the packet if data is NULL */
-    if (data == NULL)
+    if ((urb == NULL) || (urb->conv == NULL))
         return 0;
-    usb_conv_info = (usb_conv_info_t *)data;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "USBAUDIO");
 
     length = tvb_reported_length(tvb);
     offset = 0;
 
-    switch (usb_conv_info->interfaceSubclass)
+    switch (urb->conv->interfaceSubclass)
     {
         case AUDIO_IF_SUBCLASS_MIDISTREAMING:
             col_set_str(pinfo->cinfo, COL_INFO, "USB-MIDI Event Packets");
@@ -2647,6 +3280,48 @@ proto_register_usb_audio(void)
         { &hf_ac_if_clksel_clockselector,
             { "String descriptor index", "usbaudio.ac_if_clksel.iClockSelector",
               FT_UINT8, BASE_DEC, NULL, 0x0, "iClockSelector", HFILL }},
+
+        { &hf_ac_if_extunit_id,
+            { "Extension Unit", "usbaudio.ac_if_extunit.bUnitID",
+              FT_UINT8, BASE_DEC, NULL, 0x0, "bUnitID", HFILL }},
+        { &hf_ac_if_extunit_code,
+            { "Extension Code", "usbaudio.ac_if_extunit.wExtensionCode", FT_UINT16,
+             BASE_HEX, NULL, 0x00, "wExtensionCode", HFILL }},
+        { &hf_ac_if_extunit_nrpins,
+            {"Number of Input Pins", "usbaudio.ac_if_extunit.bNrInPins",
+             FT_UINT8, BASE_DEC, NULL, 0x0, "bNrInPins", HFILL }},
+        { &hf_ac_if_extunit_sourceid,
+            {"Unit or Terminal Entity", "usbaudio.ac_if_extunit.baSourceID",
+             FT_UINT8, BASE_DEC, NULL, 0x0, "baSourceID", HFILL }},
+        { &hf_ac_if_extunit_nrchannels,
+            {"Number Channels", "usbaudio.ac_if_extunit.bNrChannels",
+             FT_UINT8, BASE_DEC, NULL, 0x0, "bNrChannels", HFILL }},
+        { &hf_ac_if_extunit_bmchannelconfig,
+            {"Channel Config", "usbaudio.ac_if_extunit.bmChannelConfig",
+             FT_UINT32, BASE_HEX, NULL, 0x0, "bmChannelConfig", HFILL }},
+        // TODO: add channel config vars
+        { &hf_ac_if_extunit_channelnames,
+            {"Channel Names", "usbaudio.ac_if_extunit.iChannelNames",
+             FT_UINT8, BASE_DEC, NULL, 0x0, "iChannelNames", HFILL }},
+        { &hf_ac_if_extunit_bmcontrols,
+            {"Controls", "usbaudio.ac_if_extunit.bmControls",
+             FT_UINT8, BASE_HEX, NULL, 0x0, "bmControls", HFILL }},
+        { &hf_ac_if_extunit_bmcontrols_enable_ctrl,
+            {"Enable Control", "usbaudio.ac_if_extunit.bmControls.enableCtrl",
+             FT_UINT8, BASE_HEX, NULL, 0x03, NULL, HFILL }},
+        { &hf_ac_if_extunit_bmcontrols_cluster_ctrl,
+            {"Cluster Control", "usbaudio.ac_if_extunit.bmControls.clusterCtrl",
+             FT_UINT8, BASE_HEX, NULL, 0x0C, NULL, HFILL }},
+        { &hf_ac_if_extunit_bmcontrols_underflow_ctrl,
+            {"Underflow Control", "usbaudio.ac_if_extunit.bmControls.underflowCtrl",
+             FT_UINT8, BASE_HEX, NULL, 0x30, NULL, HFILL }},
+        { &hf_ac_if_extunit_bmcontrols_overflowflow_ctrl,
+            {"Overflow Control", "usbaudio.ac_if_extunit.bmControls.overflowCtrl",
+             FT_UINT8, BASE_HEX, NULL, 0xC0, NULL, HFILL }},
+        { &hf_ac_if_extunit_iext,
+            {"Extension", "usbaudio.ac_if_extunit.iExtension",
+             FT_UINT8, BASE_DEC, NULL, 0x0, "iExtension", HFILL }},
+
         { &hf_as_if_desc_subtype,
             { "Subtype", "usbaudio.as_if_subtype", FT_UINT8, BASE_HEX|BASE_EXT_STRING,
                 &as_subtype_vals_ext, 0x0, "bDescriptorSubtype", HFILL }},
@@ -3049,6 +3724,91 @@ proto_register_usb_audio(void)
             { "Associated Embedded Jack ID", "usbaudio.ms_ep_gen.baAssocJackID", FT_UINT8,
               BASE_DEC, NULL, 0x00, "baAssocJackID", HFILL }},
 
+        { &hf_brequest_v1,
+            { "bRequest", "usbaudio.bRequest",
+              FT_UINT8, BASE_HEX|BASE_EXT_STRING, &v1_brequest_vals_ext, 0x0, NULL, HFILL }},
+        { &hf_brequest_v2,
+            { "bRequest", "usbaudio.bRequest",
+              FT_UINT8, BASE_HEX|BASE_EXT_STRING, &v2_brequest_vals_ext, 0x0, NULL, HFILL }},
+        { &hf_wvalue,
+            { "wValue", "usbaudio.wValue", FT_UINT16, BASE_HEX,
+              NULL, 0x0, NULL, HFILL }},
+        { &hf_wvalue_channel_number,
+            { "Channel Number", "usbaudio.wValue.channel_number",
+              FT_UINT16, BASE_HEX, NULL, 0x00FF, NULL, HFILL }},
+        { &hf_wvalue_fu_cs_v1,
+            { "Feature Unit Control Selector", "usbaudio.wValue.fu_cs",
+              FT_UINT16, BASE_HEX|BASE_EXT_STRING, &v1_fu_cs_vals_ext, 0xFF00, NULL, HFILL }},
+        { &hf_wvalue_clksrc_cs,
+            { "Clock Source Control Selector", "usbaudio.wValue.clksrc_cs",
+              FT_UINT16, BASE_HEX, VALS(v2_clksrc_cs_vals), 0xFF00, NULL, HFILL }},
+        { &hf_wvalue_clksel_cs,
+            { "Clock Selector Control Selector", "usbaudio.wValue.clksel_cs",
+              FT_UINT16, BASE_HEX, VALS(v2_clksel_cs_vals), 0xFF00, NULL, HFILL }},
+        { &hf_windex,
+            { "wIndex", "usbaudio.wIndex",
+              FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+        { &hf_windex_interface,
+            { "Interface Number", "usbaudio.wIndex.interface",
+              FT_UINT16, BASE_DEC, NULL, 0x00FF, NULL, HFILL }},
+        { &hf_windex_entity_id,
+            { "Entity ID", "usbaudio.wIndex.entity_id",
+              FT_UINT16, BASE_DEC, NULL, 0xFF00, NULL, HFILL }},
+        { &hf_windex_endpoint,
+            { "Endpoint Number", "usbaudio.wIndex.endpoint",
+              FT_UINT16, BASE_HEX, NULL, 0x008F, NULL, HFILL }},
+        { &hf_wlength,
+            { "wLength", "usbaudio.wLength",
+              FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_bselector,
+            { "bSelector", "usbaudio.bSelector",
+              FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_bmute,
+            { "bMute", "usbaudio.bMute",
+              FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_wvolume,
+            { "wVolume", "usbaudio.wVolume",
+              FT_UINT16, BASE_CUSTOM, CF_FUNC(base_volume), 0x0, NULL, HFILL }},
+        { &hf_parameter_wnumsubranges,
+            { "wNumSubRanges", "usbaudio.wNumSubRanges",
+              FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_bcur,
+            { "bCUR", "usbaudio.bCUR",
+              FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_bmin,
+            { "bMIN", "usbaudio.bMIN",
+              FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_bmax,
+            { "bMAX", "usbaudio.bMAX",
+              FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_bres,
+            { "bRES", "usbaudio.bRES",
+              FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_wcur,
+            { "wCUR", "usbaudio.wCUR",
+              FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_wmin,
+            { "wMIN", "usbaudio.wMIN",
+              FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_wmax,
+            { "wMAX", "usbaudio.wMAX",
+              FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_wres,
+            { "wRES", "usbaudio.wRES",
+              FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_dcur,
+            { "dCUR", "usbaudio.bCUR",
+              FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_dmin,
+            { "dMIN", "usbaudio.dMIN",
+              FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_dmax,
+            { "dMAX", "usbaudio.dMAX",
+              FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_parameter_dres,
+            { "dRES", "usbaudio.dRES",
+              FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+
         { &hf_sysex_msg_fragments,
             { "Message fragments", "usbaudio.sysex.fragments",
               FT_NONE, BASE_NONE, NULL, 0x00, NULL, HFILL }},
@@ -3057,18 +3817,18 @@ proto_register_usb_audio(void)
               FT_FRAMENUM, BASE_NONE, NULL, 0x00, NULL, HFILL }},
         { &hf_sysex_msg_fragment_overlap,
             { "Message fragment overlap", "usbaudio.sysex.fragment.overlap",
-              FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }},
+              FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }},
         { &hf_sysex_msg_fragment_overlap_conflicts,
             { "Message fragment overlapping with conflicting data",
               "usbaudio.sysex.fragment.overlap.conflicts",
-              FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }},
+              FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }},
         { &hf_sysex_msg_fragment_multiple_tails,
             { "Message has multiple tail fragments",
               "usbaudio.sysex.fragment.multiple_tails",
-              FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }},
+              FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }},
         { &hf_sysex_msg_fragment_too_long_fragment,
             { "Message fragment too long", "usbaudio.sysex.fragment.too_long_fragment",
-              FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }},
+              FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }},
         { &hf_sysex_msg_fragment_error,
             { "Message defragmentation error", "usbaudio.sysex.fragment.error",
               FT_FRAMENUM, BASE_NONE, NULL, 0x00, NULL, HFILL }},
@@ -3086,7 +3846,7 @@ proto_register_usb_audio(void)
               FT_BYTES, BASE_NONE, NULL, 0x00, NULL, HFILL }}
     };
 
-    static gint *usb_audio_subtrees[] = {
+    static int *usb_audio_subtrees[] = {
         &ett_usb_audio,
         &ett_usb_audio_desc,
         &ett_sysex_msg_fragment,
@@ -3111,7 +3871,10 @@ proto_register_usb_audio(void)
         &ett_as_if_gen_formats,
         &ett_as_if_gen_bmchannelconfig,
         &ett_as_ep_gen_attributes,
-        &ett_as_ep_gen_controls
+        &ett_as_ep_gen_controls,
+        &ett_wvalue,
+        &ett_windex,
+        &ett_parameter_block,
     };
 
     static ei_register_info ei[] = {
@@ -3134,14 +3897,15 @@ proto_register_usb_audio(void)
 
     usb_audio_bulk_handle = register_dissector("usbaudio", dissect_usb_audio_bulk, proto_usb_audio);
     usb_audio_descr_handle = register_dissector("usbaudio.bulk",  dissect_usb_audio_descriptor, proto_usb_audio);
+    usb_audio_control_handle = register_dissector("usbaudio.control", dissect_usb_audio_control, proto_usb_audio);
 }
 
 void
 proto_reg_handoff_usb_audio(void)
 {
     dissector_add_uint("usb.descriptor", IF_CLASS_AUDIO, usb_audio_descr_handle);
-
     dissector_add_uint("usb.bulk", IF_CLASS_AUDIO, usb_audio_bulk_handle);
+    dissector_add_uint("usb.control", IF_CLASS_AUDIO, usb_audio_control_handle);
 
     sysex_handle = find_dissector_add_dependency("sysex", proto_usb_audio);
 }

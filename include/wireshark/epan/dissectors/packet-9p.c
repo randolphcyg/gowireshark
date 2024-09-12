@@ -16,6 +16,7 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 
 #include "packet-tcp.h"
 
@@ -309,9 +310,9 @@ enum _9p_qid_t {
 };
 
 /* 9P Magic Numbers */
-#define _9P_NOTAG	(guint16)(~0)
-#define _9P_NOFID	(guint32)(~0)
-#define _9P_NONUNAME	(guint32)(~0)
+#define _9P_NOTAG	(uint16_t)(~0)
+#define _9P_NOFID	(uint32_t)(~0)
+#define _9P_NONUNAME	(uint32_t)(~0)
 #define _9P_MAXWELEM	16
 
 
@@ -324,7 +325,7 @@ enum _9p_qid_t {
  */
 
 struct _9p_str {
-	guint16  len; /* Length of the string */
+	uint16_t len; /* Length of the string */
 	char *str; /* The string */
 };
 
@@ -346,9 +347,9 @@ struct _9p_str {
  */
 
 struct _9p_qid {
-	guint8 type;     /* Type */
-	guint32 version; /* Monotonically incrementing version number */
-	guint64 path;    /* Per-server-unique ID for a file system element */
+	uint8_t type;     /* Type */
+	uint32_t version; /* Monotonically incrementing version number */
+	uint64_t path;    /* Per-server-unique ID for a file system element */
 };
 
 
@@ -522,6 +523,7 @@ static const value_string linux_errno[] =
 	{38, "Function not implemented"},		/* ENOSYS */
 	{39, "Directory not empty"},			/* ENOTEMPTY */
 	{40, "Too many symbolic links encountered"},	/* ELOOP */
+	{41, "Operation would block"},			/* EWOULDBLOCK */
 	{42, "No message of desired type"},		/* ENOMSG */
 	{43, "Identifier removed"},			/* EIDRM */
 	{44, "Channel number out of range"},		/* ECHRNG */
@@ -623,64 +625,64 @@ static const char *const afid_str = "<afid>";
 
 /* Structures for Protocol Operations */
 struct _9p_rlerror {
-	guint32 ecode;
+	uint32_t ecode;
 };
 struct _9p_tstatfs {
-	guint32 fid;
+	uint32_t fid;
 };
 struct _9p_rstatfs {
-	guint32 type;
-	guint32 bsize;
-	guint64 blocks;
-	guint64 bfree;
-	guint64 bavail;
-	guint64 files;
-	guint64 ffree;
-	guint64 fsid;
-	guint32 namelen;
+	uint32_t type;
+	uint32_t bsize;
+	uint64_t blocks;
+	uint64_t bfree;
+	uint64_t bavail;
+	uint64_t files;
+	uint64_t ffree;
+	uint64_t fsid;
+	uint32_t namelen;
 };
 struct _9p_tlopen {
-	guint32 fid;
-	guint32 flags;
+	uint32_t fid;
+	uint32_t flags;
 };
 struct _9p_rlopen {
 	struct _9p_qid qid;
-	guint32 iounit;
+	uint32_t iounit;
 };
 struct _9p_tlcreate {
-	guint32 fid;
+	uint32_t fid;
 	struct _9p_str name;
-	guint32 flags;
-	guint32 mode;
-	guint32 gid;
+	uint32_t flags;
+	uint32_t mode;
+	uint32_t gid;
 };
 struct _9p_rlcreate {
 	struct _9p_qid qid;
-	guint32 iounit;
+	uint32_t iounit;
 };
 struct _9p_tsymlink {
-	guint32 fid;
+	uint32_t fid;
 	struct _9p_str name;
 	struct _9p_str symtgt;
-	guint32 gid;
+	uint32_t gid;
 };
 struct _9p_rsymlink {
 	struct _9p_qid qid;
 };
 struct _9p_tmknod {
-	guint32 fid;
+	uint32_t fid;
 	struct _9p_str name;
-	guint32 mode;
-	guint32 major;
-	guint32 minor;
-	guint32 gid;
+	uint32_t mode;
+	uint32_t major;
+	uint32_t minor;
+	uint32_t gid;
 };
 struct _9p_rmknod {
 	struct _9p_qid qid;
 };
 struct _9p_trename {
-	guint32 fid;
-	guint32 dfid;
+	uint32_t fid;
+	uint32_t dfid;
 	struct _9p_str name;
 };
 #if 0
@@ -688,117 +690,117 @@ struct _9p_rrename {
 };
 #endif
 struct _9p_treadlink {
-	guint32 fid;
+	uint32_t fid;
 };
 struct _9p_rreadlink {
 	struct _9p_str target;
 };
 struct _9p_tgetattr {
-	guint32 fid;
-	guint64 request_mask;
+	uint32_t fid;
+	uint64_t request_mask;
 };
 struct _9p_rgetattr {
-	guint64 valid;
+	uint64_t valid;
 	struct _9p_qid qid;
-	guint32 mode;
-	guint32 uid;
-	guint32 gid;
-	guint64 nlink;
-	guint64 rdev;
-	guint64 size;
-	guint64 blksize;
-	guint64 blocks;
-	guint64 atime_sec;
-	guint64 atime_nsec;
-	guint64 mtime_sec;
-	guint64 mtime_nsec;
-	guint64 ctime_sec;
-	guint64 ctime_nsec;
-	guint64 btime_sec;
-	guint64 btime_nsec;
-	guint64 gen;
-	guint64 data_version;
+	uint32_t mode;
+	uint32_t uid;
+	uint32_t gid;
+	uint64_t nlink;
+	uint64_t rdev;
+	uint64_t size;
+	uint64_t blksize;
+	uint64_t blocks;
+	uint64_t atime_sec;
+	uint64_t atime_nsec;
+	uint64_t mtime_sec;
+	uint64_t mtime_nsec;
+	uint64_t ctime_sec;
+	uint64_t ctime_nsec;
+	uint64_t btime_sec;
+	uint64_t btime_nsec;
+	uint64_t gen;
+	uint64_t data_version;
 };
 struct _9p_tsetattr {
-	guint32 fid;
-	guint32 valid;
-	guint32 mode;
-	guint32 uid;
-	guint32 gid;
-	guint64 size;
-	guint64 atime_sec;
-	guint64 atime_nsec;
-	guint64 mtime_sec;
-	guint64 mtime_nsec;
+	uint32_t fid;
+	uint32_t valid;
+	uint32_t mode;
+	uint32_t uid;
+	uint32_t gid;
+	uint64_t size;
+	uint64_t atime_sec;
+	uint64_t atime_nsec;
+	uint64_t mtime_sec;
+	uint64_t mtime_nsec;
 };
 #if 0
 struct _9p_rsetattr {
 };
 #endif
 struct _9p_txattrwalk {
-	guint32 fid;
-	guint32 attrfid;
+	uint32_t fid;
+	uint32_t attrfid;
 	struct _9p_str name;
 };
 struct _9p_rxattrwalk {
-	guint64 size;
+	uint64_t size;
 };
 struct _9p_txattrcreate {
-	guint32 fid;
+	uint32_t fid;
 	struct _9p_str name;
-	guint64 size;
-	guint32 flag;
+	uint64_t size;
+	uint32_t flag;
 };
 #if 0
 struct _9p_rxattrcreate {
 };
 #endif
 struct _9p_treaddir {
-	guint32 fid;
-	guint64 offset;
-	guint32 count;
+	uint32_t fid;
+	uint64_t offset;
+	uint32_t count;
 };
 struct _9p_rreaddir {
-	guint32 count;
-	guint8 *data;
+	uint32_t count;
+	uint8_t *data;
 };
 struct _9p_tfsync {
-	guint32 fid;
+	uint32_t fid;
 };
 #if 0
 struct _9p_rfsync {
 };
 #endif
 struct _9p_tlock {
-	guint32 fid;
-	guint8 type;
-	guint32 flags;
-	guint64 start;
-	guint64 length;
-	guint32 proc_id;
+	uint32_t fid;
+	uint8_t type;
+	uint32_t flags;
+	uint64_t start;
+	uint64_t length;
+	uint32_t proc_id;
 	struct _9p_str client_id;
 };
 struct _9p_rlock {
-	guint8 status;
+	uint8_t status;
 };
 struct _9p_tgetlock {
-	guint32 fid;
-	guint8 type;
-	guint64 start;
-	guint64 length;
-	guint32 proc_id;
+	uint32_t fid;
+	uint8_t type;
+	uint64_t start;
+	uint64_t length;
+	uint32_t proc_id;
 	struct _9p_str client_id;
 };
 struct _9p_rgetlock {
-	guint8 type;
-	guint64 start;
-	guint64 length;
-	guint32 proc_id;
+	uint8_t type;
+	uint64_t start;
+	uint64_t length;
+	uint32_t proc_id;
 	struct _9p_str client_id;
 };
 struct _9p_tlink {
-	guint32 dfid;
-	guint32 fid;
+	uint32_t dfid;
+	uint32_t fid;
 	struct _9p_str name;
 };
 #if 0
@@ -806,18 +808,18 @@ struct _9p_rlink {
 };
 #endif
 struct _9p_tmkdir {
-	guint32 fid;
+	uint32_t fid;
 	struct _9p_str name;
-	guint32 mode;
-	guint32 gid;
+	uint32_t mode;
+	uint32_t gid;
 };
 struct _9p_rmkdir {
 	struct _9p_qid qid;
 };
 struct _9p_trenameat {
-	guint32 olddirfid;
+	uint32_t olddirfid;
 	struct _9p_str oldname;
-	guint32 newdirfid;
+	uint32_t newdirfid;
 	struct _9p_str newname;
 };
 #if 0
@@ -825,120 +827,120 @@ struct _9p_rrenameat {
 };
 #endif
 struct _9p_tunlinkat {
-	guint32 dirfid;
+	uint32_t dirfid;
 	struct _9p_str name;
-	guint32 flags;
+	uint32_t flags;
 };
 #if 0
 struct _9p_runlinkat {
 };
 #endif
 struct _9p_tawrite {
-	guint32 fid;
-	guint8 datacheck;
-	guint64 offset;
-	guint32 count;
-	guint32 rsize;
-	guint8 *data;
-	guint32 check;
+	uint32_t fid;
+	uint8_t datacheck;
+	uint64_t offset;
+	uint32_t count;
+	uint32_t rsize;
+	uint8_t *data;
+	uint32_t check;
 };
 struct _9p_rawrite {
-	guint32 count;
+	uint32_t count;
 };
 struct _9p_tversion {
-	guint32  msize              ;
+	uint32_t msize              ;
 	struct _9p_str version ;
 };
 struct _9p_rversion {
-	guint32 msize;
+	uint32_t msize;
 	struct _9p_str version;
 };
 struct _9p_tauth {
-	guint32 afid;
+	uint32_t afid;
 	struct _9p_str uname;
 	struct _9p_str aname;
-	guint32 n_uname;		/* 9P2000.u extensions */
+	uint32_t n_uname;		/* 9P2000.u extensions */
 };
 struct _9p_rauth {
 	struct _9p_qid qid;
 };
 struct _9p_rerror {
 	struct _9p_str error;
-	guint32 errnum;		/* 9p2000.u extension */
+	uint32_t errnum;		/* 9p2000.u extension */
 };
 struct _9p_tflush {
-	guint16 oldtag;
+	uint16_t oldtag;
 };
 #if 0
 struct _9p_rflush {
 };
 #endif
 struct _9p_tattach {
-	guint32 fid;
-	guint32 afid;
+	uint32_t fid;
+	uint32_t afid;
 	struct _9p_str uname;
 	struct _9p_str aname;
-	guint32 n_uname;		/* 9P2000.u extensions */
+	uint32_t n_uname;		/* 9P2000.u extensions */
 };
 struct _9p_rattach {
 	struct _9p_qid qid;
 };
 struct _9p_twalk {
-	guint32 fid;
-	guint32 newfid;
-	guint16 nwname;
+	uint32_t fid;
+	uint32_t newfid;
+	uint16_t nwname;
 	struct _9p_str wnames[_9P_MAXWELEM];
 };
 struct _9p_rwalk {
-	guint16 nwqid;
+	uint16_t nwqid;
 	struct _9p_qid wqids[_9P_MAXWELEM];
 };
 struct _9p_topen {
-	guint32 fid;
-	guint8 mode;
+	uint32_t fid;
+	uint8_t mode;
 };
 struct _9p_ropen {
 	struct _9p_qid qid;
-	guint32 iounit;
+	uint32_t iounit;
 };
 struct _9p_tcreate {
-	guint32 fid;
+	uint32_t fid;
 	struct _9p_str name;
-	guint32 perm;
-	guint8 mode;
+	uint32_t perm;
+	uint8_t mode;
 	struct _9p_str extension;
 };
 struct _9p_rcreate {
 	struct _9p_qid qid;
-	guint32 iounit;
+	uint32_t iounit;
 };
 struct _9p_tread {
-	guint32 fid;
-	guint64 offset;
-	guint32 count;
+	uint32_t fid;
+	uint64_t offset;
+	uint32_t count;
 };
 struct _9p_rread {
-	guint32 count;
-	guint8 *data;
+	uint32_t count;
+	uint8_t *data;
 };
 struct _9p_twrite {
-	guint32 fid;
-	guint64 offset;
-	guint32 count;
-	guint8 *data;
+	uint32_t fid;
+	uint64_t offset;
+	uint32_t count;
+	uint8_t *data;
 };
 struct _9p_rwrite {
-	guint32 count;
+	uint32_t count;
 };
 struct _9p_tclunk {
-	guint32 fid;
+	uint32_t fid;
 };
 #if 0
 struct _9p_rclunk {
 };
 #endif
 struct _9p_tremove {
-	guint32 fid;
+	uint32_t fid;
 };
 #if 0
 struct _9p_rremove {
@@ -954,167 +956,167 @@ void proto_register_9P(void);
 void proto_reg_handoff_9P(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_9P = -1;
-static int hf_9P_msgsz = -1;
-static int hf_9P_msgtype = -1;
-static int hf_9P_tag = -1;
-static int hf_9P_oldtag = -1;
-static int hf_9P_parmsz = -1;
-static int hf_9P_maxsize = -1;
-static int hf_9P_fid = -1;
-static int hf_9P_nqid = -1;
-static int hf_9P_mode = -1;
-static int hf_9P_mode_rwx = -1;
-static int hf_9P_mode_t = -1;
-static int hf_9P_mode_c = -1;
-static int hf_9P_extension = -1;
-static int hf_9P_iounit = -1;
-static int hf_9P_count = -1;
-static int hf_9P_offset = -1;
-static int hf_9P_perm = -1;
-static int hf_9P_qidtype = -1;
-static int hf_9P_qidtype_dir = -1;
-static int hf_9P_qidtype_append = -1;
-static int hf_9P_qidtype_exclusive = -1;
-static int hf_9P_qidtype_mount = -1;
-static int hf_9P_qidtype_auth_file = -1;
-static int hf_9P_qidtype_temp_file = -1;
-static int hf_9P_qidvers = -1;
-static int hf_9P_qidpath = -1;
-static int hf_9P_dm_dir = -1;
-static int hf_9P_dm_append = -1;
-static int hf_9P_dm_exclusive = -1;
-static int hf_9P_dm_mount = -1;
-static int hf_9P_dm_auth_file = -1;
-static int hf_9P_dm_temp_file = -1;
-static int hf_9P_dm_read_owner = -1;
-static int hf_9P_dm_write_owner = -1;
-static int hf_9P_dm_exec_owner = -1;
-static int hf_9P_dm_read_group = -1;
-static int hf_9P_dm_write_group = -1;
-static int hf_9P_dm_exec_group = -1;
-static int hf_9P_dm_read_others = -1;
-static int hf_9P_dm_write_others = -1;
-static int hf_9P_dm_exec_others = -1;
-static int hf_9P_stattype = -1;
-static int hf_9P_statmode = -1;
-static int hf_9P_atime = -1;
-static int hf_9P_mtime = -1;
-static int hf_9P_ctime = -1;
-static int hf_9P_btime = -1;
-static int hf_9P_length = -1;
-static int hf_9P_dev = -1;
-static int hf_9P_wname = -1;
-static int hf_9P_version = -1;
-static int hf_9P_afid = -1;
-static int hf_9P_uname = -1;
-static int hf_9P_aname = -1;
-static int hf_9P_ename = -1;
-static int hf_9P_enum = -1;
-/* static int hf_9P_name = -1; */
-static int hf_9P_filename = -1;
-static int hf_9P_sdlen = -1;
-static int hf_9P_user = -1;
-static int hf_9P_group = -1;
-static int hf_9P_uid = -1;
-static int hf_9P_gid = -1;
-static int hf_9P_muid = -1;
-static int hf_9P_nwalk = -1;
-static int hf_9P_newfid = -1;
-static int hf_9P_dfid = -1;
-static int hf_9P_getattr_flags = -1;
-static int hf_9P_getattr_mode = -1;
-static int hf_9P_getattr_nlink = -1;
-static int hf_9P_getattr_uid = -1;
-static int hf_9P_getattr_gid = -1;
-static int hf_9P_getattr_rdev = -1;
-static int hf_9P_getattr_atime = -1;
-static int hf_9P_getattr_mtime = -1;
-static int hf_9P_getattr_ctime = -1;
-static int hf_9P_getattr_ino = -1;
-static int hf_9P_getattr_size = -1;
-static int hf_9P_getattr_blocks = -1;
-static int hf_9P_getattr_btime = -1;
-static int hf_9P_getattr_gen = -1;
-static int hf_9P_getattr_dataversion = -1;
-static int hf_9P_setattr_flags = -1;
-static int hf_9P_setattr_mode = -1;
-static int hf_9P_setattr_uid = -1;
-static int hf_9P_setattr_gid = -1;
-static int hf_9P_setattr_size = -1;
-static int hf_9P_setattr_atime = -1;
-static int hf_9P_setattr_mtime = -1;
-static int hf_9P_setattr_ctime = -1;
-static int hf_9P_setattr_atime_set = -1;
-static int hf_9P_setattr_mtime_set = -1;
-static int hf_9P_unlinkat_flags = -1;
-static int hf_9P_nlink = -1;
-static int hf_9P_rdev = -1;
-static int hf_9P_size = -1;
-static int hf_9P_blksize = -1;
-static int hf_9P_blocks = -1;
-static int hf_9P_gen = -1;
-static int hf_9P_dataversion = -1;
-static int hf_9P_fstype = -1;
-static int hf_9P_bfree = -1;
-static int hf_9P_bavail = -1;
-static int hf_9P_files = -1;
-static int hf_9P_ffree = -1;
-static int hf_9P_fsid = -1;
-static int hf_9P_namelen = -1;
-static int hf_9P_mknod_major = -1;
-static int hf_9P_mknod_minor = -1;
-static int hf_9P_lflags = -1;
-static int hf_9P_lflags_rdonly = -1;
-static int hf_9P_lflags_wronly = -1;
-static int hf_9P_lflags_rdwr = -1;
-static int hf_9P_lflags_create = -1;
-static int hf_9P_lflags_excl = -1;
-static int hf_9P_lflags_noctty = -1;
-static int hf_9P_lflags_trunc = -1;
-static int hf_9P_lflags_append = -1;
-static int hf_9P_lflags_nonblock = -1;
-static int hf_9P_lflags_dsync = -1;
-static int hf_9P_lflags_fasync = -1;
-static int hf_9P_lflags_direct = -1;
-static int hf_9P_lflags_largefile = -1;
-static int hf_9P_lflags_directory = -1;
-static int hf_9P_lflags_nofollow = -1;
-static int hf_9P_lflags_noatime = -1;
-static int hf_9P_lflags_cloexec = -1;
-static int hf_9P_lflags_sync = -1;
-static int hf_9P_xattr_flag = -1;
-static int hf_9P_lock_type = -1;
-static int hf_9P_lock_flag = -1;
-static int hf_9P_lock_start = -1;
-static int hf_9P_lock_length = -1;
-static int hf_9P_lock_procid = -1;
-static int hf_9P_lock_status = -1;
-static int hf_9P_unknown_message = -1;
+static int proto_9P;
+static int hf_9P_msgsz;
+static int hf_9P_msgtype;
+static int hf_9P_tag;
+static int hf_9P_oldtag;
+static int hf_9P_parmsz;
+static int hf_9P_maxsize;
+static int hf_9P_fid;
+static int hf_9P_nqid;
+static int hf_9P_mode;
+static int hf_9P_mode_rwx;
+static int hf_9P_mode_t;
+static int hf_9P_mode_c;
+static int hf_9P_extension;
+static int hf_9P_iounit;
+static int hf_9P_count;
+static int hf_9P_offset;
+static int hf_9P_perm;
+static int hf_9P_qidtype;
+static int hf_9P_qidtype_dir;
+static int hf_9P_qidtype_append;
+static int hf_9P_qidtype_exclusive;
+static int hf_9P_qidtype_mount;
+static int hf_9P_qidtype_auth_file;
+static int hf_9P_qidtype_temp_file;
+static int hf_9P_qidvers;
+static int hf_9P_qidpath;
+static int hf_9P_dm_dir;
+static int hf_9P_dm_append;
+static int hf_9P_dm_exclusive;
+static int hf_9P_dm_mount;
+static int hf_9P_dm_auth_file;
+static int hf_9P_dm_temp_file;
+static int hf_9P_dm_read_owner;
+static int hf_9P_dm_write_owner;
+static int hf_9P_dm_exec_owner;
+static int hf_9P_dm_read_group;
+static int hf_9P_dm_write_group;
+static int hf_9P_dm_exec_group;
+static int hf_9P_dm_read_others;
+static int hf_9P_dm_write_others;
+static int hf_9P_dm_exec_others;
+static int hf_9P_stattype;
+static int hf_9P_statmode;
+static int hf_9P_atime;
+static int hf_9P_mtime;
+static int hf_9P_ctime;
+static int hf_9P_btime;
+static int hf_9P_length;
+static int hf_9P_dev;
+static int hf_9P_wname;
+static int hf_9P_version;
+static int hf_9P_afid;
+static int hf_9P_uname;
+static int hf_9P_aname;
+static int hf_9P_ename;
+static int hf_9P_enum;
+/* static int hf_9P_name; */
+static int hf_9P_filename;
+static int hf_9P_sdlen;
+static int hf_9P_user;
+static int hf_9P_group;
+static int hf_9P_uid;
+static int hf_9P_gid;
+static int hf_9P_muid;
+static int hf_9P_nwalk;
+static int hf_9P_newfid;
+static int hf_9P_dfid;
+static int hf_9P_getattr_flags;
+static int hf_9P_getattr_mode;
+static int hf_9P_getattr_nlink;
+static int hf_9P_getattr_uid;
+static int hf_9P_getattr_gid;
+static int hf_9P_getattr_rdev;
+static int hf_9P_getattr_atime;
+static int hf_9P_getattr_mtime;
+static int hf_9P_getattr_ctime;
+static int hf_9P_getattr_ino;
+static int hf_9P_getattr_size;
+static int hf_9P_getattr_blocks;
+static int hf_9P_getattr_btime;
+static int hf_9P_getattr_gen;
+static int hf_9P_getattr_dataversion;
+static int hf_9P_setattr_flags;
+static int hf_9P_setattr_mode;
+static int hf_9P_setattr_uid;
+static int hf_9P_setattr_gid;
+static int hf_9P_setattr_size;
+static int hf_9P_setattr_atime;
+static int hf_9P_setattr_mtime;
+static int hf_9P_setattr_ctime;
+static int hf_9P_setattr_atime_set;
+static int hf_9P_setattr_mtime_set;
+static int hf_9P_unlinkat_flags;
+static int hf_9P_nlink;
+static int hf_9P_rdev;
+static int hf_9P_size;
+static int hf_9P_blksize;
+static int hf_9P_blocks;
+static int hf_9P_gen;
+static int hf_9P_dataversion;
+static int hf_9P_fstype;
+static int hf_9P_bfree;
+static int hf_9P_bavail;
+static int hf_9P_files;
+static int hf_9P_ffree;
+static int hf_9P_fsid;
+static int hf_9P_namelen;
+static int hf_9P_mknod_major;
+static int hf_9P_mknod_minor;
+static int hf_9P_lflags;
+static int hf_9P_lflags_rdonly;
+static int hf_9P_lflags_wronly;
+static int hf_9P_lflags_rdwr;
+static int hf_9P_lflags_create;
+static int hf_9P_lflags_excl;
+static int hf_9P_lflags_noctty;
+static int hf_9P_lflags_trunc;
+static int hf_9P_lflags_append;
+static int hf_9P_lflags_nonblock;
+static int hf_9P_lflags_dsync;
+static int hf_9P_lflags_fasync;
+static int hf_9P_lflags_direct;
+static int hf_9P_lflags_largefile;
+static int hf_9P_lflags_directory;
+static int hf_9P_lflags_nofollow;
+static int hf_9P_lflags_noatime;
+static int hf_9P_lflags_cloexec;
+static int hf_9P_lflags_sync;
+static int hf_9P_xattr_flag;
+static int hf_9P_lock_type;
+static int hf_9P_lock_flag;
+static int hf_9P_lock_start;
+static int hf_9P_lock_length;
+static int hf_9P_lock_procid;
+static int hf_9P_lock_status;
+static int hf_9P_unknown_message;
 
 /* subtree pointers */
-static gint ett_9P = -1;
-static gint ett_9P_omode = -1;
-static gint ett_9P_dm = -1;
-static gint ett_9P_wname = -1;
-static gint ett_9P_aname = -1;
-static gint ett_9P_ename = -1;
-static gint ett_9P_uname = -1;
-static gint ett_9P_user = -1;
-static gint ett_9P_group = -1;
-static gint ett_9P_muid = -1;
-static gint ett_9P_filename = -1;
-static gint ett_9P_version = -1;
-static gint ett_9P_qid = -1;
-static gint ett_9P_qidtype = -1;
-static gint ett_9P_getattr_flags = -1;
-static gint ett_9P_setattr_flags = -1;
-static gint ett_9P_lflags = -1;
+static int ett_9P;
+static int ett_9P_omode;
+static int ett_9P_dm;
+static int ett_9P_wname;
+static int ett_9P_aname;
+static int ett_9P_ename;
+static int ett_9P_uname;
+static int ett_9P_user;
+static int ett_9P_group;
+static int ett_9P_muid;
+static int ett_9P_filename;
+static int ett_9P_version;
+static int ett_9P_qid;
+static int ett_9P_qidtype;
+static int ett_9P_getattr_flags;
+static int ett_9P_setattr_flags;
+static int ett_9P_lflags;
 
-static expert_field ei_9P_first_250 = EI_INIT;
-static expert_field ei_9P_msgtype = EI_INIT;
+static expert_field ei_9P_first_250;
+static expert_field ei_9P_msgtype;
 
-static wmem_map_t *_9p_hashtable = NULL;
+static wmem_map_t *_9p_hashtable;
 
 static void dissect_9P_dm(tvbuff_t *tvb,  proto_item *tree, int offset, int iscreate);
 static void dissect_9P_qid(tvbuff_t *tvb,  proto_tree *tree, int offset);
@@ -1130,37 +1132,37 @@ static int * const _9P_modes[] = {
 };
 
 struct _9p_hashkey {
-	guint32 conv_index;
-	guint16 tag;
-	guint32 fid;
+	uint32_t conv_index;
+	uint16_t tag;
+	uint32_t fid;
 };
 
 struct _9p_hashval {
-	gsize len;
+	size_t len;
 	void *data;
 };
 
 struct _9p_taginfo {
 	enum _9p_msg_t msgtype;
-	guint32 fid;
+	uint32_t fid;
 	/* fid path used for create and lcreate */
 	char *fid_path;
 };
 
-static gint _9p_hash_equal(gconstpointer k1, gconstpointer k2) {
+static int _9p_hash_equal(const void *k1, const void *k2) {
 	const struct _9p_hashkey *key1 = (const struct _9p_hashkey *)k1, *key2 = (const struct _9p_hashkey *)k2;
 
 	return ((key1->conv_index == key2->conv_index) && (key1->tag == key2->tag) && (key1->fid == key2->fid));
 }
 
-static guint _9p_hash_hash(gconstpointer k)
+static unsigned _9p_hash_hash(const void *k)
 {
 	const struct _9p_hashkey *key = (const struct _9p_hashkey *)k;
 
 	return (key->conv_index ^ key->tag ^ key->fid);
 }
 
-static struct _9p_hashval *_9p_hash_new_val(gsize len)
+static struct _9p_hashval *_9p_hash_new_val(size_t len)
 {
 	struct _9p_hashval *val;
 	val = wmem_new(wmem_file_scope(), struct _9p_hashval);
@@ -1171,7 +1173,7 @@ static struct _9p_hashval *_9p_hash_new_val(gsize len)
 	return val;
 }
 
-static void _9p_hash_set(packet_info *pinfo, guint16 tag, guint32 fid, struct _9p_hashval *val)
+static void _9p_hash_set(packet_info *pinfo, uint16_t tag, uint32_t fid, struct _9p_hashval *val)
 {
 	struct _9p_hashkey *key;
 	struct _9p_hashval *oldval;
@@ -1193,7 +1195,7 @@ static void _9p_hash_set(packet_info *pinfo, guint16 tag, guint32 fid, struct _9
 	wmem_map_insert(_9p_hashtable, key, val);
 }
 
-static struct _9p_hashval *_9p_hash_get(packet_info *pinfo, guint16 tag, guint32 fid)
+static struct _9p_hashval *_9p_hash_get(packet_info *pinfo, uint16_t tag, uint32_t fid)
 {
 	struct _9p_hashkey key;
 	conversation_t *conv;
@@ -1207,7 +1209,7 @@ static struct _9p_hashval *_9p_hash_get(packet_info *pinfo, guint16 tag, guint32
 	return (struct _9p_hashval *)wmem_map_lookup(_9p_hashtable, &key);
 }
 
-static void _9p_hash_free(packet_info *pinfo, guint16 tag, guint32 fid)
+static void _9p_hash_free(packet_info *pinfo, uint16_t tag, uint32_t fid)
 {
 	struct _9p_hashkey key;
 	conversation_t *conv;
@@ -1242,7 +1244,7 @@ static enum _9p_version conv_get_version(packet_info *pinfo)
 	return val ? *(enum _9p_version*)val->data : _9P;
 }
 
-static void conv_set_fid_nocopy(packet_info *pinfo, guint32 fid, const char *path)
+static void conv_set_fid_nocopy(packet_info *pinfo, uint32_t fid, const char *path)
 {
 	struct _9p_hashval *val;
 
@@ -1262,7 +1264,7 @@ static void conv_set_fid_nocopy(packet_info *pinfo, guint32 fid, const char *pat
 	wmem_tree_insert32((wmem_tree_t *)val->data, pinfo->num, (void *)path);
 }
 
-static void conv_set_fid(packet_info *pinfo, guint32 fid, const gchar *path, gsize len)
+static void conv_set_fid(packet_info *pinfo, uint32_t fid, const char *path, size_t len)
 {
 	char *str;
 
@@ -1274,7 +1276,7 @@ static void conv_set_fid(packet_info *pinfo, guint32 fid, const gchar *path, gsi
 	conv_set_fid_nocopy(pinfo, fid, str);
 }
 
-static const char *conv_get_fid(packet_info *pinfo, guint32 fid)
+static const char *conv_get_fid(packet_info *pinfo, uint32_t fid)
 {
 	struct _9p_hashval *val;
 
@@ -1290,12 +1292,12 @@ static const char *conv_get_fid(packet_info *pinfo, guint32 fid)
 	return (char*)wmem_tree_lookup32_le((wmem_tree_t*)val->data, pinfo->num-1);
 }
 
-static inline void conv_free_fid(packet_info *pinfo, guint32 fid)
+static inline void conv_free_fid(packet_info *pinfo, uint32_t fid)
 {
 	conv_set_fid_nocopy(pinfo, fid, invalid_fid_str);
 }
 
-static void conv_set_tag(packet_info *pinfo, guint16 tag, enum _9p_msg_t msgtype, guint32 fid, wmem_strbuf_t *fid_path)
+static void conv_set_tag(packet_info *pinfo, uint16_t tag, enum _9p_msg_t msgtype, uint32_t fid, wmem_strbuf_t *fid_path)
 {
 	struct _9p_hashval *val;
 	struct _9p_taginfo *taginfo;
@@ -1318,7 +1320,7 @@ static void conv_set_tag(packet_info *pinfo, guint16 tag, enum _9p_msg_t msgtype
 	_9p_hash_set(pinfo, tag, _9P_NOFID, val);
 }
 
-static inline struct _9p_taginfo *conv_get_tag(packet_info *pinfo, guint16 tag)
+static inline struct _9p_taginfo *conv_get_tag(packet_info *pinfo, uint16_t tag)
 {
 	struct _9p_hashval *val;
 
@@ -1332,7 +1334,7 @@ static inline struct _9p_taginfo *conv_get_tag(packet_info *pinfo, guint16 tag)
 	return val ? (struct _9p_taginfo*)val->data : NULL;
 }
 
-static inline void conv_free_tag(packet_info *pinfo, guint16 tag)
+static inline void conv_free_tag(packet_info *pinfo, uint16_t tag)
 {
 	if (pinfo->fd->visited || tag == _9P_NOTAG)
 		return;
@@ -1341,10 +1343,10 @@ static inline void conv_free_tag(packet_info *pinfo, guint16 tag)
 }
 
 /* dissects a string[s] (2 bytes followed by UTF-8 string) */
-static guint _9p_dissect_string(tvbuff_t *tvb, proto_tree *ninep_tree,
-	guint offset, int hf_string, gint ett_string)
+static unsigned _9p_dissect_string(tvbuff_t *tvb, proto_tree *ninep_tree,
+	unsigned offset, int hf_string, int ett_string)
 {
-	guint16              _9p_len;
+	uint16_t             _9p_len;
 	proto_item          *ti;
 	proto_tree          *sub_tree;
 
@@ -1360,14 +1362,14 @@ static guint _9p_dissect_string(tvbuff_t *tvb, proto_tree *ninep_tree,
 /* Dissect 9P messages*/
 static int dissect_9P_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	guint32             u32, i, fid, dfid, newfid;
-	guint16             u16, tag, _9p_len;
+	uint32_t            u32, i, fid, dfid, newfid;
+	uint16_t            u16, tag, _9p_len;
 	enum _9p_msg_t      ninemsg;
-	guint               offset    = 0;
+	unsigned            offset    = 0;
 	const char         *mname, *fid_path;
 	char               *tvb_s;
 	wmem_strbuf_t      *tmppath   = NULL;
-	gint                len, reportedlen;
+	int                 len, reportedlen;
 	tvbuff_t           *next_tvb;
 	proto_item         *ti, *msg_item;
 	proto_tree         *ninep_tree;
@@ -1380,17 +1382,17 @@ static int dissect_9P_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 	col_clear(pinfo->cinfo, COL_INFO);
 
 	/*ninesz = tvb_get_letohl(tvb, offset);*/
-	ninemsg = (enum _9p_msg_t)tvb_get_guint8(tvb, offset + 4);
+	ninemsg = (enum _9p_msg_t)tvb_get_uint8(tvb, offset + 4);
 
 	mname = val_to_str_ext_const(ninemsg, &ninep_msg_type_ext, "Unknown");
 
 	if(strcmp(mname, "Unknown") == 0) {
-		col_add_fstr(pinfo->cinfo, COL_INFO, "9P Data (Message type %u)", (guint)ninemsg);
+		col_add_fstr(pinfo->cinfo, COL_INFO, "9P Data (Message type %u)", (unsigned)ninemsg);
 		return 0;
 	}
 
 	tag = tvb_get_letohs(tvb, offset+5);
-	col_append_fstr(pinfo->cinfo, COL_INFO, "%s Tag=%u", mname, (guint)tag);
+	col_append_fstr(pinfo->cinfo, COL_INFO, "%s Tag=%u", mname, (unsigned)tag);
 
 	ti = proto_tree_add_item(tree, proto_9P, tvb, 0, -1, ENC_NA);
 	ninep_tree = proto_item_add_subtree(ti, ett_9P);
@@ -1670,7 +1672,7 @@ static int dissect_9P_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 		offset += 4;
 
 		len = tvb_reported_length_remaining(tvb, offset);
-		reportedlen = ((gint)u32&0xffff) > len ? len : (gint)u32&0xffff;
+		reportedlen = ((int)u32&0xffff) > len ? len : (int)u32&0xffff;
 		next_tvb = tvb_new_subset_length_caplen(tvb, offset, len, reportedlen);
 		call_data_dissector(next_tvb, pinfo, tree);
 		offset += len;
@@ -1691,7 +1693,7 @@ static int dissect_9P_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 		proto_tree_add_item(ninep_tree, hf_9P_count, tvb, offset, 4, ENC_LITTLE_ENDIAN);
 		offset += 4;
 		len = tvb_reported_length_remaining(tvb, offset);
-		reportedlen = ((gint)u32&0xffff) > len ? len : (gint)u32&0xffff;
+		reportedlen = ((int)u32&0xffff) > len ? len : (int)u32&0xffff;
 		next_tvb = tvb_new_subset_length_caplen(tvb, offset, len, reportedlen);
 		call_data_dissector(next_tvb, pinfo, tree);
 		offset += len;
@@ -2247,15 +2249,15 @@ static int dissect_9P_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 	return tvb_captured_length(tvb);
 }
 
-static guint get_9P_message_len(packet_info *pinfo _U_, tvbuff_t *tvb,
+static unsigned get_9P_message_len(packet_info *pinfo _U_, tvbuff_t *tvb,
                                 int offset, void *data _U_)
 {
-	return (guint) tvb_get_letohl(tvb, offset);
+	return (unsigned) tvb_get_letohl(tvb, offset);
 }
 
 static int dissect_9P(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-	tcp_dissect_pdus(tvb, pinfo, tree, TRUE, 4,
+	tcp_dissect_pdus(tvb, pinfo, tree, true, 4,
 			get_9P_message_len, dissect_9P_message, data);
 	return tvb_captured_length(tvb);
 }
@@ -2265,14 +2267,14 @@ static void dissect_9P_qid(tvbuff_t *tvb,  proto_tree *tree, int offset)
 {
 	proto_item *qidtype_item;
 	proto_tree *qid_tree,*qidtype_tree;
-	guint64 path;
-	guint32 vers;
-	guint8 type;
+	uint64_t path;
+	uint32_t vers;
+	uint8_t type;
 
 	if(!tree)
 		return;
 
-	type = tvb_get_guint8(tvb, offset);
+	type = tvb_get_uint8(tvb, offset);
 	vers = tvb_get_letohs(tvb, offset+1);
 	path = tvb_get_letoh64(tvb, offset+1+4);
 
@@ -2476,22 +2478,22 @@ void proto_register_9P(void)
 		 {"Temporary file (not backed up)", "9p.dm.temp_file", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x04000000,
 		  NULL, HFILL}},
 		{&hf_9P_dm_read_owner,
-		 {"Read permission for owner", "9p.dm.read_owner", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000400,
+		 {"Read permission for owner", "9p.dm.read_owner", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000100,
 		  NULL, HFILL}},
 		{&hf_9P_dm_write_owner,
-		 {"Write permission for owner", "9p.dm.write_owner", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000200,
+		 {"Write permission for owner", "9p.dm.write_owner", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000080,
 		  NULL, HFILL}},
 		{&hf_9P_dm_exec_owner,
-		 {"Execute permission for owner", "9p.dm.exec_owner", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000100,
+		 {"Execute permission for owner", "9p.dm.exec_owner", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000040,
 		  NULL, HFILL}},
 		{&hf_9P_dm_read_group,
-		 {"Read permission for group", "9p.dm.read_group", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000040,
+		 {"Read permission for group", "9p.dm.read_group", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000020,
 		  NULL, HFILL}},
 		{&hf_9P_dm_write_group,
-		 {"Write permission for group", "9p.dm.write_group", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000020,
+		 {"Write permission for group", "9p.dm.write_group", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000010,
 		  NULL, HFILL}},
 		{&hf_9P_dm_exec_group,
-		 {"Execute permission for group", "9p.dm.exec_group", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000010,
+		 {"Execute permission for group", "9p.dm.exec_group", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000008,
 		  NULL, HFILL}},
 		{&hf_9P_dm_read_others,
 		 {"Read permission for others", "9p.dm.read_others", FT_BOOLEAN, 32, TFS(&tfs_yes_no), 0x00000004,
@@ -2816,7 +2818,7 @@ void proto_register_9P(void)
 		  NULL, HFILL}}
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_9P,
 		&ett_9P_omode,
 		&ett_9P_dm,

@@ -16,6 +16,7 @@
 #include <epan/packet.h>
 
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-tcp.h"
 #include "packet-per.h"
@@ -35,31 +36,31 @@ void proto_register_sabp(void);
 void proto_reg_handoff_sabp(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_sabp = -1;
+static int proto_sabp;
 
-static int hf_sabp_no_of_pages = -1;
-static int hf_sabp_cb_inf_len = -1;
-static int hf_sabp_cb_msg_inf_page = -1;
-static int hf_sabp_cbs_page_content = -1;
+static int hf_sabp_no_of_pages;
+static int hf_sabp_cb_inf_len;
+static int hf_sabp_cb_msg_inf_page;
+static int hf_sabp_cbs_page_content;
 #include "packet-sabp-hf.c"
 
 /* Initialize the subtree pointers */
-static int ett_sabp = -1;
-static int ett_sabp_e212 = -1;
-static int ett_sabp_cbs_data_coding = -1;
-static int ett_sabp_bcast_msg = -1;
-static int ett_sabp_cbs_serial_number = -1;
-static int ett_sabp_cbs_new_serial_number = -1;
-static int ett_sabp_cbs_page = -1;
-static int ett_sabp_cbs_page_content = -1;
+static int ett_sabp;
+static int ett_sabp_e212;
+static int ett_sabp_cbs_data_coding;
+static int ett_sabp_bcast_msg;
+static int ett_sabp_cbs_serial_number;
+static int ett_sabp_cbs_new_serial_number;
+static int ett_sabp_cbs_page;
+static int ett_sabp_cbs_page_content;
 
 #include "packet-sabp-ett.c"
 
 /* Global variables */
-static guint32 ProcedureCode;
-static guint32 ProtocolIE_ID;
-static guint32 ProtocolExtensionID;
-static guint8 sms_encoding;
+static uint32_t ProcedureCode;
+static uint32_t ProtocolIE_ID;
+static uint32_t ProtocolExtensionID;
+static uint8_t sms_encoding;
 
 #define SABP_PORT 3452
 
@@ -119,11 +120,11 @@ dissect_sabp_cb_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
   tvbuff_t *page_tvb, *unpacked_tvb;
   int offset = 0;
   int n;
-  guint8 nr_pages, len, cb_inf_msg_len;
+  uint8_t nr_pages, len, cb_inf_msg_len;
 
 
   /* Octet 1 Number-of-Pages */
-  nr_pages = tvb_get_guint8(tvb, offset);
+  nr_pages = tvb_get_uint8(tvb, offset);
   proto_tree_add_item(tree, hf_sabp_no_of_pages, tvb, offset, 1, ENC_BIG_ENDIAN);
   offset++;
   /*
@@ -138,7 +139,7 @@ dissect_sabp_cb_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
                 "CB page %u data",  n+1);
     /* octet 2 - 83 CBS-Message-Information-Page 1  */
     cbs_page_item = proto_tree_add_item(subtree, hf_sabp_cb_msg_inf_page, tvb, offset, 82, ENC_NA);
-    cb_inf_msg_len = tvb_get_guint8(tvb,offset+82);
+    cb_inf_msg_len = tvb_get_uint8(tvb,offset+82);
     page_tvb = tvb_new_subset_length(tvb, offset, cb_inf_msg_len);
     unpacked_tvb = dissect_cbs_data(sms_encoding, page_tvb, subtree, pinfo, 0);
     len = tvb_captured_length(unpacked_tvb);
@@ -176,12 +177,12 @@ dissect_sabp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 static int
 dissect_sabp_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
-  guint32 type_length, msg_len;
-  guint tvb_length;
+  uint32_t type_length, msg_len;
+  unsigned tvb_length;
   int bit_offset;
-  gboolean is_fragmented;
+  bool is_fragmented;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, true, pinfo);
 
   tvb_length = tvb_reported_length(tvb);
 
@@ -239,7 +240,7 @@ void proto_register_sabp(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_sabp,
     &ett_sabp_e212,
     &ett_sabp_cbs_data_coding,

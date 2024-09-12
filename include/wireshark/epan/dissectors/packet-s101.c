@@ -46,29 +46,29 @@
 #define S101_VALID_CRC 0xF0B8
 #define APP_BYTES_LEN 2
 
-static int hf_S101_frame_format = -1;
-static int hf_S101_length_size = -1;
-static int hf_S101_message_length = -1;
-static int hf_S101_slot = -1;
-static int hf_S101_message_type = -1;
-static int hf_S101_cmd_type = -1;
-static int hf_S101_version = -1;
-static int hf_S101_flags = -1;
-static int hf_S101_dtd_type = -1;
-static int hf_S101_app_bytes_len = -1;
-static int hf_S101_dtd_minor_ver = -1;
-static int hf_S101_dtd_major_ver = -1;
-static int hf_S101_crc = -1;
-static int hf_S101_crc_status = -1;
-static int hf_S101_eof = -1;
-static int hf_S101_error = -1;
+static int hf_S101_frame_format;
+static int hf_S101_length_size;
+static int hf_S101_message_length;
+static int hf_S101_slot;
+static int hf_S101_message_type;
+static int hf_S101_cmd_type;
+static int hf_S101_version;
+static int hf_S101_flags;
+static int hf_S101_dtd_type;
+static int hf_S101_app_bytes_len;
+static int hf_S101_dtd_minor_ver;
+static int hf_S101_dtd_major_ver;
+static int hf_S101_crc;
+static int hf_S101_crc_status;
+static int hf_S101_eof;
+static int hf_S101_error;
 
 static dissector_handle_t S101_handle;
-static dissector_handle_t glow_handle = NULL;
+static dissector_handle_t glow_handle;
 static reassembly_table s101_data_reassembly_table;
 
 typedef struct _s101_fragment_t {
-    guint32 id;
+    uint32_t id;
     int offset;
 } s101_fragment_t;
 
@@ -76,41 +76,41 @@ typedef struct _s101_fragment_t {
 /* (Required to prevent [-Wmissing-prototypes] warnings */
 void proto_reg_handoff_S101(void);
 void proto_register_S101(void);
-static tvbuff_t *decode_s101_escaped_buffer(tvbuff_t *tvb, packet_info *pinfo, int *offset, guint16 *crc);
-static guint32 get_fragment_pdu_id(packet_info *pinfo);
+static tvbuff_t *decode_s101_escaped_buffer(tvbuff_t *tvb, packet_info *pinfo, int *offset, uint16_t *crc);
+static uint32_t get_fragment_pdu_id(packet_info *pinfo);
 static s101_fragment_t* new_fragment_info(packet_info *pinfo);
 static void display_expert_info(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int offset, int len);
 
 /* Initialize the protocol and registered fields */
-static int proto_S101 = -1;
+static int proto_S101;
 
 /* Real port preferences should generally default to 0 unless there is an
  * IANA-registered (or equivalent) port for your protocol. */
 #define S101_TCP_PORT 9000 /* Not IANA-registered */
 
 /* Initialize the subtree pointers */
-static gint ett_S101 = -1;
-static gint ett_decoding_error = -1;
+static int ett_S101;
+static int ett_decoding_error;
 
 #define S101_MIN_LENGTH 5
 
-static int hf_msg_fragments = -1;
-static int hf_msg_fragment = -1;
-static int hf_msg_fragment_overlap = -1;
-static int hf_msg_fragment_overlap_conflicts = -1;
-static int hf_msg_fragment_multiple_tails = -1;
-static int hf_msg_fragment_too_long_fragment = -1;
-static int hf_msg_fragment_error = -1;
-static int hf_msg_fragment_count = -1;
-static int hf_msg_reassembled_in = -1;
-static int hf_msg_reassembled_length = -1;
-static int hf_msg_reassembled_data = -1;
+static int hf_msg_fragments;
+static int hf_msg_fragment;
+static int hf_msg_fragment_overlap;
+static int hf_msg_fragment_overlap_conflicts;
+static int hf_msg_fragment_multiple_tails;
+static int hf_msg_fragment_too_long_fragment;
+static int hf_msg_fragment_error;
+static int hf_msg_fragment_count;
+static int hf_msg_reassembled_in;
+static int hf_msg_reassembled_length;
+static int hf_msg_reassembled_data;
 
 
-static expert_field ei_s101_failed_reassembly = EI_INIT;
+static expert_field ei_s101_failed_reassembly;
 
-static gint ett_msg_fragment = -1;
-static gint ett_msg_fragments = -1;
+static int ett_msg_fragment;
+static int ett_msg_fragments;
 
 static const fragment_items msg_frag_items = {
     /* Fragment subtrees */
@@ -140,16 +140,16 @@ static const fragment_items msg_frag_items = {
  | SRCPORT (16) | SRC_ADDRESS (16) |
  SRC_ADDRESS is last 2 bytes of the src address.
  */
-static guint32 get_fragment_pdu_id(packet_info *pinfo) {
-    guint32 id = pinfo->srcport << 16;
-    const guint8 *data = (const guint8*)pinfo->src.data;
+static uint32_t get_fragment_pdu_id(packet_info *pinfo) {
+    uint32_t id = pinfo->srcport << 16;
+    const uint8_t *data = (const uint8_t*)pinfo->src.data;
     if (pinfo->src.len >= 2) {
-        id =  id + (((guint32)data[pinfo->src.len - 2]) << 8) + (guint32)data[pinfo->src.len - 1];
+        id =  id + (((uint32_t)data[pinfo->src.len - 2]) << 8) + (uint32_t)data[pinfo->src.len - 1];
     }
     return id;
 }
 
-static wmem_map_t* s101_fragment_info_hash = NULL;
+static wmem_map_t* s101_fragment_info_hash;
 
 static s101_fragment_t* new_fragment_info(packet_info *pinfo) {
     s101_fragment_t* fi = wmem_new(wmem_file_scope(), s101_fragment_t);
@@ -162,12 +162,12 @@ static s101_fragment_t* new_fragment_info(packet_info *pinfo) {
 /* Get 1 byte
  If byte escaped, get the unescaped value
  */
-static guint8 get_byte(tvbuff_t *tvb, int *offset, guint16 *crc) {
-    guint8 b = tvb_get_guint8(tvb, *offset);
+static uint8_t get_byte(tvbuff_t *tvb, int *offset, uint16_t *crc) {
+    uint8_t b = tvb_get_uint8(tvb, *offset);
     *crc = crc16_ccitt_seed(&b, 1, *crc) ^ 0xFFFF;
     *offset = *offset + 1;
     if (b == S101_CE) {
-        b = tvb_get_guint8(tvb, *offset);
+        b = tvb_get_uint8(tvb, *offset);
         *crc = crc16_ccitt_seed(&b, 1, *crc) ^ 0xFFFF;
         *offset = *offset + 1;
         return (b ^ S101_XOR);
@@ -234,27 +234,27 @@ display_expert_info(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int off
  If variant2, the msgLength contains the msgLength in bytes 0-6 and byte 7 is the number of bytes.
  */
 static int
-find_s101_packet_header(tvbuff_t *tvb, int* offset, guint8 *start, guint8 *slot, guint8 *message, guint8 *version, guint8 *dtd, guint8 *command,
-                           guint8 *flags, guint8* app_bytes, guint64 *msgLength, guint16 *crc)
+find_s101_packet_header(tvbuff_t *tvb, int* offset, uint8_t *start, uint8_t *slot, uint8_t *message, uint8_t *version, uint8_t *dtd, uint8_t *command,
+                           uint8_t *flags, uint8_t* app_bytes, uint64_t *msgLength, uint16_t *crc)
 {
-    guint8 app_bytes_len = 0;
+    uint8_t app_bytes_len = 0;
     int i;
 
-    *start = tvb_get_guint8(tvb, *offset); // no CRC and no escaping on first bytes.
+    *start = tvb_get_uint8(tvb, *offset); // no CRC and no escaping on first bytes.
     *offset = *offset + 1;
     if (*start == S101_INV) { // Variant 2 of header - unescaped data
         //Read the frame length
-        app_bytes_len = tvb_get_guint8(tvb, *offset) & 0x7;
+        app_bytes_len = tvb_get_uint8(tvb, *offset) & 0x7;
         *offset = *offset + 1;
 
         if (app_bytes_len > 1) {
             *msgLength = tvb_get_bits64 (tvb, *offset, app_bytes_len * 8, ENC_BIG_ENDIAN);
-            *msgLength = *msgLength + (((guint64)app_bytes_len) << 56);
+            *msgLength = *msgLength + (((uint64_t)app_bytes_len) << 56);
             *offset = app_bytes_len;
         }
     }
     else if (*start != S101_BOF) {
-        // IF NOT Begining of Frame - variant 1 - escaped data
+        // IF NOT Beginning of Frame - variant 1 - escaped data
         return 0;
     }
     else {
@@ -287,28 +287,28 @@ find_s101_packet_header(tvbuff_t *tvb, int* offset, guint8 *start, guint8 *slot,
 }
 
 static tvbuff_t *
-decode_s101_escaped_buffer(tvbuff_t *tvb, packet_info *pinfo, int *offset, guint16 *crc) {
+decode_s101_escaped_buffer(tvbuff_t *tvb, packet_info *pinfo, int *offset, uint16_t *crc) {
     tvbuff_t *next_tvb;
     int len;
     int i;
-    guchar *decoded_buffer;
-    guint8 b;
+    unsigned char *decoded_buffer;
+    uint8_t b;
 
     len = tvb_captured_length(tvb);
     if (len <= 0) {
         return tvb;
     }
-    decoded_buffer = (guchar*)wmem_alloc(pinfo->pool, len);
+    decoded_buffer = (unsigned char*)wmem_alloc(pinfo->pool, len);
     if (decoded_buffer == NULL) {
         return tvb;
     }
 
     for(i = 0; *offset < len; ) {
-        b = tvb_get_guint8(tvb, *offset);
+        b = tvb_get_uint8(tvb, *offset);
         *offset = *offset + 1;
         if (b == S101_CE) {
             // Escaped Byte
-            b = tvb_get_guint8(tvb, *offset);
+            b = tvb_get_uint8(tvb, *offset);
             *offset = *offset + 1;
             b = (b ^ S101_XOR);
             decoded_buffer[i++] = b;
@@ -349,10 +349,10 @@ dissect_S101(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     int         len    = 0;
     int         current_offset;
     int         datalen = 0;
-    guint16 crc_data;
-    guint64 msgLength = 0;
-    guint16 crc;
-    guint8 start, slot, message, version, dtd, command, flags = 0xFF, app_bytes[APP_BYTES_LEN];
+    uint16_t crc_data;
+    uint64_t msgLength = 0;
+    uint16_t crc;
+    uint8_t start, slot, message, version, dtd, command, flags = 0xFF, app_bytes[APP_BYTES_LEN];
 
     /* Check that the packet is long enough for it to belong to us. */
     len = tvb_reported_length(tvb);
@@ -418,9 +418,9 @@ dissect_S101(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         if (command == S101_CMD_EMBER) {
             if (flags != FLAG_SINGLE_PACKET) {
                 fragment_head *frag_msg = NULL;
-                guint32 id = get_fragment_pdu_id(pinfo);
+                uint32_t id = get_fragment_pdu_id(pinfo);
                 s101_fragment_t* fi = (s101_fragment_t*)wmem_map_lookup(s101_fragment_info_hash, &id);
-                pinfo->fragmented = TRUE;
+                pinfo->fragmented = true;
 
                 if (flags == FLAG_FIRST_MULTI_PACKET) {
                     if (NULL == fi) {
@@ -433,7 +433,7 @@ dissect_S101(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                     fragment_add(&s101_data_reassembly_table, tvb_payload, 0,
                              pinfo, fi->id, NULL,
                              0, datalen,
-                             TRUE);
+                             true);
                     fi->offset = datalen;
                 }
                 else if (flags == FLAG_LAST_MULTI_PACKET) {
@@ -442,7 +442,7 @@ dissect_S101(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                         frag_msg = fragment_add(&s101_data_reassembly_table, tvb_payload, 0,
                                             pinfo, fi->id, NULL,
                                             fi->offset, datalen,
-                                            FALSE);
+                                            false);
                         tvb_payload = process_reassembled_data(tvb, offset, pinfo,
                                                            "Reassembled Message", frag_msg, &msg_frag_items,
                                                            NULL, S101_tree);
@@ -462,9 +462,9 @@ dissect_S101(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                     fragment_add(&s101_data_reassembly_table, tvb_payload, 0,
                              pinfo, fi->id, NULL,
                              fi->offset, datalen,
-                             TRUE);
+                             true);
                     fi->offset += datalen;
-                    col_append_fstr(pinfo->cinfo, COL_INFO,
+                    col_append_str(pinfo->cinfo, COL_INFO,
                                 " (Message fragment)");
                 }
             }
@@ -558,7 +558,7 @@ proto_register_S101(void)
                 NULL, HFILL }},
 
         { &hf_S101_eof,
-            { "End of Frane", "s101.eof",
+            { "End of Frame", "s101.eof",
               FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }},
 
         { &hf_S101_error, {
@@ -576,19 +576,19 @@ proto_register_S101(void)
 
         {&hf_msg_fragment_overlap,
             { "Message fragment overlap", "s101.msg.fragment.overlap",
-              FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }},
+              FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }},
 
         {&hf_msg_fragment_overlap_conflicts,
             { "Message fragment overlapping with conflicting data", "s101.msg.fragment.overlap.conflicts",
-              FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }},
+              FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }},
 
         {&hf_msg_fragment_multiple_tails,
             { "Message has multiple tail fragments", "s101.msg.fragment.multiple_tails",
-              FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }},
+              FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }},
 
         {&hf_msg_fragment_too_long_fragment,
             { "Message fragment too long", "s101.msg.fragment.too_long_fragment",
-              FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }},
+              FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }},
 
         {&hf_msg_fragment_error,
             { "Message defragmentation error", "s101.msg.fragment.error",
@@ -612,7 +612,7 @@ proto_register_S101(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_S101,
         &ett_msg_fragment,
         &ett_msg_fragments,

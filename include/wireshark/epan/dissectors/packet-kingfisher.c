@@ -32,38 +32,38 @@ static dissector_handle_t kingfisher_handle;
 #define UDP_PORT_KINGFISHER_RANGE   "4058"
 #endif
 
-static int proto_kingfisher = -1;
-static int hf_kingfisher_version = -1;
-static int hf_kingfisher_system = -1;
-static int hf_kingfisher_length = -1;
-static int hf_kingfisher_from = -1;
-static int hf_kingfisher_target = -1;
-static int hf_kingfisher_via = -1;
-static int hf_kingfisher_message = -1;
-static int hf_kingfisher_function = -1;
-static int hf_kingfisher_checksum = -1;
-static int hf_kingfisher_checksum_status = -1;
-static int hf_kingfisher_message_data = -1;
+static int proto_kingfisher;
+static int hf_kingfisher_version;
+static int hf_kingfisher_system;
+static int hf_kingfisher_length;
+static int hf_kingfisher_from;
+static int hf_kingfisher_target;
+static int hf_kingfisher_via;
+static int hf_kingfisher_message;
+static int hf_kingfisher_function;
+static int hf_kingfisher_checksum;
+static int hf_kingfisher_checksum_status;
+static int hf_kingfisher_message_data;
 
-static expert_field ei_kingfisher_checksum = EI_INIT;
+static expert_field ei_kingfisher_checksum;
 
 static dissector_handle_t kingfisher_conv_handle;
 
 
 typedef struct _kingfisher_packet_t
 {
-    guint8      version;
-    guint8      system_id;
-    guint16     from;
-    guint16     target;
-    guint16     via;
-    guint8      length;
-    guint8      message;
-    guint8      function;
-    guint16     checksum;
+    uint8_t     version;
+    uint8_t     system_id;
+    uint16_t    from;
+    uint16_t    target;
+    uint16_t    via;
+    uint8_t     length;
+    uint8_t     message;
+    uint8_t     function;
+    uint16_t    checksum;
 } kingfisher_packet_t;
 
-static gint ett_kingfisher = -1;
+static int ett_kingfisher;
 
 static const value_string function_code_vals[] =
 {
@@ -154,14 +154,14 @@ static const value_string function_code_vals[] =
 static unsigned short
 kingfisher_checksum(tvbuff_t *tvb, int offset)
 {
-    gint c, i, j, len;
+    int c, i, j, len;
     unsigned short crc;
 
     crc = 0;
     len = tvb_reported_length_remaining(tvb, offset) - 2;
     for( i = 1; i < len; i++ )
     {
-        c = ( ( unsigned char ) tvb_get_guint8( tvb, i ) ) & 0xff;
+        c = ( ( unsigned char ) tvb_get_uint8( tvb, i ) ) & 0xff;
         for( j = 0; j < 8; ++j )
         {
             if( crc & 0x8000 )
@@ -203,13 +203,13 @@ dissect_kingfisher(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean
           with regard to source or destination RTU address which can be used in the
           population of dissector fields.
          */
-        switch(tvb_get_guint8(tvb, 0)){
+        switch(tvb_get_uint8(tvb, 0)){
         case 0x00:
         case 0x01:
         case 0x80:
         case 0x81:
             col_set_str(pinfo->cinfo, COL_PROTOCOL, "Kingfisher");
-            func_string = val_to_str_const(tvb_get_guint8(tvb, 0), function_code_vals, "Unknown function");
+            func_string = val_to_str_const(tvb_get_uint8(tvb, 0), function_code_vals, "Unknown function");
             col_add_fstr(pinfo->cinfo, COL_INFO, "(%s)", func_string);
             proto_tree_add_protocol_format(tree, proto_kingfisher, tvb, 0, -1, "Kingfisher Protocol, %s", func_string);
             return TRUE;
@@ -226,15 +226,15 @@ dissect_kingfisher(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean
     }
 
     /* the function code must be known */
-    kfp.function = tvb_get_guint8( tvb, 6 );
+    kfp.function = tvb_get_uint8( tvb, 6 );
     if (try_val_to_str(kfp.function, function_code_vals) == NULL) {
         /* This appears not to be a kingfisher packet */
         return FALSE;
     }
 
     /* verify the length */
-    kfp.length = tvb_get_guint8(tvb, 2);
-    if((kfp.length+1) != (guint8)tvb_captured_length(tvb)){
+    kfp.length = tvb_get_uint8(tvb, 2);
+    if((kfp.length+1) != (uint8_t)tvb_captured_length(tvb)){
         return FALSE;
     }
 
@@ -247,18 +247,18 @@ dissect_kingfisher(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean
 
 
     kfp.version = (kfp.function & 0x80)?3:2;
-    kfp.system_id = tvb_get_guint8( tvb, 0 );
-    kfp.message = tvb_get_guint8( tvb, 5 );
+    kfp.system_id = tvb_get_uint8( tvb, 0 );
+    kfp.message = tvb_get_uint8( tvb, 5 );
 
-    kfp.target = tvb_get_guint8( tvb, 1 );
-    kfp.from = tvb_get_guint8( tvb, 3 );
-    kfp.via = tvb_get_guint8( tvb, 4 );
+    kfp.target = tvb_get_uint8( tvb, 1 );
+    kfp.from = tvb_get_uint8( tvb, 3 );
+    kfp.via = tvb_get_uint8( tvb, 4 );
 
     if( kfp.version == 3 )
     {
-        kfp.target |= ( tvb_get_guint8( tvb, 7 ) << 8 );
-        kfp.from   |= ( tvb_get_guint8( tvb, 8 ) << 8 );
-        kfp.via    |= ( tvb_get_guint8( tvb, 9 ) << 8 );
+        kfp.target |= ( tvb_get_uint8( tvb, 7 ) << 8 );
+        kfp.from   |= ( tvb_get_uint8( tvb, 8 ) << 8 );
+        kfp.via    |= ( tvb_get_uint8( tvb, 9 ) << 8 );
     }
 
 
@@ -358,7 +358,7 @@ proto_register_kingfisher( void )
             { &hf_kingfisher_message_data,  { "Message Data", "kingfisher.message_data", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL } },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_kingfisher
     };
 

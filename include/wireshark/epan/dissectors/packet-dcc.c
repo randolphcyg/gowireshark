@@ -23,56 +23,56 @@
 void proto_register_dcc(void);
 void proto_reg_handoff_dcc(void);
 
-static int proto_dcc = -1;
-static int hf_dcc_len = -1;
-static int hf_dcc_pkt_vers = -1;
-static int hf_dcc_op = -1;
-static int hf_dcc_clientid = -1;
-static int hf_dcc_opnums_host = -1;
-static int hf_dcc_opnums_pid = -1;
-static int hf_dcc_opnums_report = -1;
-static int hf_dcc_opnums_retrans = -1;
+static int proto_dcc;
+static int hf_dcc_len;
+static int hf_dcc_pkt_vers;
+static int hf_dcc_op;
+static int hf_dcc_clientid;
+static int hf_dcc_opnums_host;
+static int hf_dcc_opnums_pid;
+static int hf_dcc_opnums_report;
+static int hf_dcc_opnums_retrans;
 
-static int hf_dcc_signature = -1;
-static int hf_dcc_max_pkt_vers = -1;
-static int hf_dcc_qdelay_ms = -1;
-static int hf_dcc_brand = -1;
+static int hf_dcc_signature;
+static int hf_dcc_max_pkt_vers;
+static int hf_dcc_qdelay_ms;
+static int hf_dcc_brand;
 
-static int hf_dcc_ck_type = -1;
-static int hf_dcc_ck_len = -1;
-static int hf_dcc_ck_sum = -1;
+static int hf_dcc_ck_type;
+static int hf_dcc_ck_len;
+static int hf_dcc_ck_sum;
 
-static int hf_dcc_date = -1;
+static int hf_dcc_date;
 
-static int hf_dcc_target = -1;
-static int hf_dcc_response_text = -1;
+static int hf_dcc_target;
+static int hf_dcc_response_text;
 
-static int hf_dcc_adminop = -1;
-static int hf_dcc_adminval = -1;
-static int hf_dcc_floodop = -1;
-static int hf_dcc_trace = -1;
-static int hf_dcc_trace_admin = -1;
-static int hf_dcc_trace_anon = -1;
-static int hf_dcc_trace_client = -1;
-static int hf_dcc_trace_rlim = -1;
-static int hf_dcc_trace_query = -1;
-static int hf_dcc_trace_ridc = -1;
-static int hf_dcc_trace_flood = -1;
+static int hf_dcc_adminop;
+static int hf_dcc_adminval;
+static int hf_dcc_floodop;
+static int hf_dcc_trace;
+static int hf_dcc_trace_admin;
+static int hf_dcc_trace_anon;
+static int hf_dcc_trace_client;
+static int hf_dcc_trace_rlim;
+static int hf_dcc_trace_query;
+static int hf_dcc_trace_ridc;
+static int hf_dcc_trace_flood;
 
-static int hf_dcc_addr = -1;
-static int hf_dcc_id = -1;
-static int hf_dcc_last_used = -1;
-static int hf_dcc_requests = -1;
-static int hf_dcc_pad = -1;
-static int hf_dcc_unused = -1;
+static int hf_dcc_addr;
+static int hf_dcc_id;
+static int hf_dcc_last_used;
+static int hf_dcc_requests;
+static int hf_dcc_pad;
+static int hf_dcc_unused;
 
-static gint ett_dcc = -1;
-static gint ett_dcc_opnums = -1;
-static gint ett_dcc_op = -1;
-static gint ett_dcc_ck = -1;
-static gint ett_dcc_trace = -1;
+static int ett_dcc;
+static int ett_dcc_opnums;
+static int ett_dcc_op;
+static int ett_dcc_ck;
+static int ett_dcc_trace;
 
-static expert_field ei_dcc_len = EI_INIT;
+static expert_field ei_dcc_len;
 
 /* Utility macros */
 #define D_SIGNATURE() \
@@ -89,7 +89,7 @@ static expert_field ei_dcc_len = EI_INIT;
 	while (tvb_offset_exists(tvb, offset+endpad)) { \
 		left = tvb_reported_length_remaining(tvb,offset) - endpad; \
 		tvb_find_line_end(tvb, offset, left, &next_offset, \
-		    FALSE); \
+		    false); \
 		proto_tree_add_item(dcc_optree, hf_label, tvb, offset, \
 			next_offset - offset, ENC_ASCII|ENC_NA); \
 		offset = next_offset; \
@@ -111,7 +111,7 @@ static expert_field ei_dcc_len = EI_INIT;
 #define D_CHECKSUM() { \
 	proto_tree *cktree; \
 	cktree = proto_tree_add_subtree_format(dcc_optree, tvb, offset, (int)sizeof(DCC_CK), \
-		ett_dcc_ck, NULL, "Checksum - %s", val_to_str(tvb_get_guint8(tvb,offset), \
+		ett_dcc_ck, NULL, "Checksum - %s", val_to_str(tvb_get_uint8(tvb,offset), \
 		dcc_cktype_vals, \
 		"Unknown Type: %u")); \
 	proto_tree_add_item(cktree, hf_dcc_ck_type, tvb, offset, 1, ENC_BIG_ENDIAN); \
@@ -192,7 +192,7 @@ static const value_string dcc_floodop_vals[] = {
 	{0,NULL},
 };
 
-static gboolean
+static bool
 dissect_dcc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
 	proto_tree *dcc_tree, *dcc_optree, *dcc_opnumtree, *ti;
@@ -205,13 +205,13 @@ dissect_dcc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
 	if (pinfo->srcport != DCC_PORT && pinfo->destport != DCC_PORT) {
 		/* Not the right port - not a DCC packet. */
-		return FALSE;
+		return false;
 	}
 
 	/* get at least a full packet structure */
 	if ( tvb_reported_length(tvb) < sizeof(DCC_HDR) ) {
 		/* Doesn't have enough bytes to contain packet header. */
-		return FALSE;
+		return false;
 	}
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "DCC");
@@ -222,7 +222,7 @@ dissect_dcc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 	col_add_fstr(pinfo->cinfo, COL_INFO,
 		"%s: %s",
 		is_response ? "Response" : "Request",
-		val_to_str(tvb_get_guint8(tvb, offset+3),
+		val_to_str(tvb_get_uint8(tvb, offset+3),
 			 dcc_op_vals, "Unknown Op: %u"));
 
 	ti = proto_tree_add_item(tree, proto_dcc, tvb, offset, -1,
@@ -243,7 +243,7 @@ dissect_dcc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 			offset, 1, ENC_BIG_ENDIAN);
 		offset += 1;
 
-		op = tvb_get_guint8(tvb, offset);
+		op = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(dcc_tree, hf_dcc_op, tvb,
 			offset, 1, ENC_BIG_ENDIAN);
 		offset += 1;
@@ -261,9 +261,9 @@ dissect_dcc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 		/* Very hokey check - if all three of pid/report/retrans look like little-endian
 			numbers, host is probably little endian. Probably innacurate on super-heavily-used
 			DCC clients though. This should be good enough for now. */
-		client_is_le = ( (tvb_get_guint8(tvb, offset+4) | tvb_get_guint8(tvb, offset+5)) &&
-						 (tvb_get_guint8(tvb, offset+8) | tvb_get_guint8(tvb, offset+9)) &&
-						 (tvb_get_guint8(tvb, offset+12) | tvb_get_guint8(tvb, offset+13)) );
+		client_is_le = ( (tvb_get_uint8(tvb, offset+4) | tvb_get_uint8(tvb, offset+5)) &&
+						 (tvb_get_uint8(tvb, offset+8) | tvb_get_uint8(tvb, offset+9)) &&
+						 (tvb_get_uint8(tvb, offset+12) | tvb_get_uint8(tvb, offset+13)) );
 
 		proto_tree_add_item(dcc_opnumtree, hf_dcc_opnums_host, tvb,
 			offset, 4, client_is_le);
@@ -332,11 +332,11 @@ dissect_dcc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
 					D_DATE();
 
-					aop = tvb_get_guint8(tvb, offset+4);
+					aop = tvb_get_uint8(tvb, offset+4);
 					proto_tree_add_item(dcc_optree, hf_dcc_adminop, tvb, offset+4,
 						1, ENC_BIG_ENDIAN);
 					col_append_fstr(pinfo->cinfo, COL_INFO, ", %s",
-						val_to_str(tvb_get_guint8(tvb,offset+4),
+						val_to_str(tvb_get_uint8(tvb,offset+4),
 						dcc_adminop_vals, "Unknown (%u)"));
 
 					if (aop == DCC_AOP_TRACE_ON || aop == DCC_AOP_TRACE_OFF )
@@ -397,7 +397,7 @@ dissect_dcc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
 void
@@ -545,7 +545,7 @@ proto_register_dcc(void)
 				NULL, 0, NULL, HFILL }},
 		};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_dcc,
 		&ett_dcc_op,
 		&ett_dcc_ck,

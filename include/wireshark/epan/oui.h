@@ -79,6 +79,7 @@
 #define OUI_EXTREME         0x00E02B    /* Extreme EDP/ESRP */
 #define OUI_CABLE_BPDU      0x00E02F    /* DOCSIS spanning tree BPDU */
 #define OUI_FOUNDRY         0x00E052    /* Foundry */
+#define OUI_PROFINET_MULTICAST 0x010ECF   /* PROFIBUS Nutzerorganisation e.V. */
 #define OUI_SIEMENS         0x080006    /* Siemens AG */
 #define OUI_APPLE_ATALK     0x080007    /* Appletalk */
 #define OUI_HP              0x080009    /* Hewlett-Packard */
@@ -96,6 +97,7 @@
 #define OUI_3GPP2           0xCF0002    /* 3GPP2 */
 #define OUI_AVAYA_EXTREME2  0xD88466    /* Avaya Extreme Fabric */
 #define OUI_ALCATEL_LUCENT  0xDC0856    /* Alcatel-Lucent */
+#define OUI_THREAD          0xEAB89B    /* Thread */
 
 #endif
 

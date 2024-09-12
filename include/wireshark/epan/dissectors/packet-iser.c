@@ -53,27 +53,27 @@ void proto_register_iser(void);
 
 static dissector_handle_t iser_handle;
 
-static int proto_iser = -1;
+static int proto_iser;
 static dissector_handle_t iscsi_handler;
 
-static int proto_ib = -1;
+static int proto_ib;
 
 /* iSER Header */
-static int hf_iser_flags = -1;
-static int hf_iser_opcode_f = -1;
-static int hf_iser_RSV_f = -1;
-static int hf_iser_WSV_f = -1;
-static int hf_iser_REJ_f = -1;
-static int hf_iser_write_stag = -1;
-static int hf_iser_write_va = -1;
-static int hf_iser_read_stag = -1;
-static int hf_iser_read_va = -1;
-static int hf_iser_ird = -1;
-static int hf_iser_ord = -1;
+static int hf_iser_flags;
+static int hf_iser_opcode_f;
+static int hf_iser_RSV_f;
+static int hf_iser_WSV_f;
+static int hf_iser_REJ_f;
+static int hf_iser_write_stag;
+static int hf_iser_write_va;
+static int hf_iser_read_stag;
+static int hf_iser_read_va;
+static int hf_iser_ird;
+static int hf_iser_ord;
 
 /* Initialize the subtree pointers */
-static gint ett_iser = -1;
-static gint ett_iser_flags = -1;
+static int ett_iser;
+static int ett_iser_flags;
 
 /* global preferences */
 static range_t *gPORT_RANGE;
@@ -107,13 +107,13 @@ static int dissect_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     /* Set up structures needed to add the protocol subtree and manage it */
     proto_item *ti;
     proto_tree *iser_tree;
-    guint offset = 0;
-    guint8 flags, vers, opcode;
+    unsigned offset = 0;
+    uint8_t flags, vers, opcode;
 
     if (tvb_reported_length(tvb) < ISER_ISCSI_HDR_SZ)
         return 0;
 
-    flags = tvb_get_guint8(tvb, 0);
+    flags = tvb_get_uint8(tvb, 0);
     opcode = flags & ISER_OPCODE_MASK;
 
     /* Check if the opcode is valid */
@@ -133,7 +133,7 @@ static int dissect_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
 
     case ISER_HELLO:
     case ISER_HELLORPLY:
-        vers = tvb_get_guint8(tvb, 1);
+        vers = tvb_get_uint8(tvb, 1);
         if ((vers & 0xf) != 10)
             return 0;
         if (((vers >> 4) & 0x0f) != 10)
@@ -209,7 +209,7 @@ static int dissect_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     return ISER_HDR_SZ;
 }
 
-static int
+static bool
 dissect_iser(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         void *data _U_)
 {
@@ -217,7 +217,7 @@ dissect_iser(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     conversation_infiniband_data *convo_data = NULL;
 
     if (tvb_reported_length(tvb) < ISER_ISCSI_HDR_SZ)
-        return FALSE;
+        return false;
 
     /* first try to find a conversation between the two current hosts. in most cases this
        will not work since we do not have the source QP. this WILL succeed when we're still
@@ -233,22 +233,22 @@ dissect_iser(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                                  CONVERSATION_IBQP, pinfo->destport, pinfo->destport, NO_ADDR_B|NO_PORT_B);
 
         if (!conv)
-            return FALSE;   /* nothing to do with no conversation context */
+            return false;   /* nothing to do with no conversation context */
     }
 
     convo_data = (conversation_infiniband_data *)conversation_get_proto_data(conv, proto_ib);
 
     if (!convo_data)
-        return FALSE;
+        return false;
 
     if ((convo_data->service_id & SID_MASK) != SID_ULP_TCP)
-        return FALSE;   /* the service id doesn't match that of TCP ULP - nothing for us to do here */
+        return false;   /* the service id doesn't match that of TCP ULP - nothing for us to do here */
 
-    if (!(value_is_in_range(gPORT_RANGE, (guint32)(convo_data->service_id & SID_PORT_MASK))))
-        return FALSE;   /* the port doesn't match that of iSER - nothing for us to do here */
+    if (!(value_is_in_range(gPORT_RANGE, (uint32_t)(convo_data->service_id & SID_PORT_MASK))))
+        return false;   /* the port doesn't match that of iSER - nothing for us to do here */
 
     dissect_packet(tvb, pinfo, tree, data);
-    return TRUE;
+    return true;
 }
 
 void
@@ -303,7 +303,7 @@ proto_register_iser(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_iser,
         &ett_iser_flags
     };

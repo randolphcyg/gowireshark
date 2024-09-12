@@ -63,27 +63,27 @@ void proto_reg_handoff_gsm_ipa(void);
 
 static dissector_handle_t ipa_tcp_handle;
 static dissector_handle_t ipa_udp_handle;
-static gboolean global_ipa_in_root = FALSE;
-static gboolean global_ipa_in_info = FALSE;
+static bool global_ipa_in_root;
+static bool global_ipa_in_info;
 
 /* Initialize the protocol and registered fields */
-static int proto_ipa = -1;
-static int proto_ipaccess = -1;
+static int proto_ipa;
+static int proto_ipaccess;
 
-static int hf_ipa_data_len = -1;
-static int hf_ipa_protocol = -1;
-static int hf_ipa_hsl_debug = -1;
-static int hf_ipa_osmo_proto = -1;
-static int hf_ipa_osmo_ctrl_data = -1;
+static int hf_ipa_data_len;
+static int hf_ipa_protocol;
+static int hf_ipa_hsl_debug;
+static int hf_ipa_osmo_proto;
+static int hf_ipa_osmo_ctrl_data;
 
-static int hf_ipaccess_msgtype = -1;
-static int hf_ipaccess_attr_tag = -1;
-static int hf_ipaccess_attr_string = -1;
-static int hf_ipaccess_attribute_unk = -1;
+static int hf_ipaccess_msgtype;
+static int hf_ipaccess_attr_tag;
+static int hf_ipaccess_attr_string;
+static int hf_ipaccess_attribute_unk;
 
 /* Initialize the subtree pointers */
-static gint ett_ipa = -1;
-static gint ett_ipaccess = -1;
+static int ett_ipa;
+static int ett_ipaccess;
 
 enum {
 	SUB_OML,
@@ -169,19 +169,19 @@ static const value_string ipa_osmo_proto_vals[] = {
 };
 
 
-static gint
+static int
 dissect_ipa_attr(tvbuff_t *tvb, int base_offs, proto_tree *tree)
 {
-	guint8 len, attr_type;
+	uint8_t len, attr_type;
 
 	int offset = base_offs;
 
 	while (tvb_reported_length_remaining(tvb, offset) > 0) {
-		attr_type = tvb_get_guint8(tvb, offset);
+		attr_type = tvb_get_uint8(tvb, offset);
 
 		switch (attr_type) {
 		case 0x00:	/* a string prefixed by its length */
-			len = tvb_get_guint8(tvb, offset+1);
+			len = tvb_get_uint8(tvb, offset+1);
 			proto_tree_add_item(tree, hf_ipaccess_attr_tag,
 					    tvb, offset+2, 1, ENC_BIG_ENDIAN);
 			proto_tree_add_item(tree, hf_ipaccess_attr_string,
@@ -204,14 +204,14 @@ dissect_ipa_attr(tvbuff_t *tvb, int base_offs, proto_tree *tree)
 }
 
 /* Dissect an ip.access specific message */
-static gint
+static int
 dissect_ipaccess(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
 	proto_item *ti;
 	proto_tree *ipaccess_tree;
-	guint8 msg_type;
+	uint8_t msg_type;
 
-	msg_type = tvb_get_guint8(tvb, 0);
+	msg_type = tvb_get_uint8(tvb, 0);
 
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
 	                val_to_str(msg_type, ipaccess_msgtype_vals,
@@ -231,14 +231,14 @@ dissect_ipaccess(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 }
 
 /* Dissect the osmocom extension header */
-static gint
+static int
 dissect_osmo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ipatree, proto_tree *tree, proto_item *ipa_ti)
 {
 	tvbuff_t *next_tvb;
-	guint8 osmo_proto;
-	const gchar *name;
+	uint8_t osmo_proto;
+	const char *name;
 
-	osmo_proto = tvb_get_guint8(tvb, 0);
+	osmo_proto = tvb_get_uint8(tvb, 0);
 	name = val_to_str(osmo_proto, ipa_osmo_proto_vals, "unknown 0x%02x");
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ", name);
 	if (ipatree) {
@@ -271,22 +271,22 @@ dissect_osmo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ipatree, proto_tree 
 
 
 /* Code to actually dissect the packets */
-static gboolean
-dissect_ipa(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean is_udp)
+static bool
+dissect_ipa(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, bool is_udp)
 {
-	gint remaining;
-	gint header_length = 3;
+	int remaining;
+	int header_length = 3;
 	int offset = 0;
-	guint16 len, msg_type;
+	uint16_t len, msg_type;
 
 	if (tvb_reported_length(tvb) < 4)
-		return FALSE;
+		return false;
 
 	//sanity check the message type
-	msg_type = tvb_get_guint8(tvb, 2);
+	msg_type = tvb_get_uint8(tvb, 2);
 	if ((try_val_to_str(msg_type, ipa_protocol_vals) == NULL) &&
 		(msg_type >= ABISIP_RSL_MAX))
-		return FALSE;
+		return false;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "IPA");
 	col_clear(pinfo->cinfo, COL_INFO);
@@ -297,7 +297,7 @@ dissect_ipa(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean is_udp
 		tvbuff_t *next_tvb;
 
 		len = tvb_get_ntohs(tvb, offset);
-		msg_type = tvb_get_guint8(tvb, offset+2);
+		msg_type = tvb_get_uint8(tvb, offset+2);
 
 		col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
 		                val_to_str(msg_type, ipa_protocol_vals,
@@ -350,10 +350,10 @@ dissect_ipa(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean is_udp
 		case HSL_DEBUG:
 			proto_tree_add_item(ipa_tree, hf_ipa_hsl_debug,
 					next_tvb, 0, len, ENC_ASCII);
-			if (global_ipa_in_root == TRUE)
+			if (global_ipa_in_root == true)
 				proto_tree_add_item(tree, hf_ipa_hsl_debug,
 						next_tvb, 0, len, ENC_ASCII);
-			if (global_ipa_in_info == TRUE)
+			if (global_ipa_in_info == true)
 				col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
 						tvb_get_stringz_enc(pinfo->pool, next_tvb, 0, NULL, ENC_ASCII));
 			break;
@@ -367,13 +367,13 @@ dissect_ipa(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean is_udp
 		offset += len + header_length;
 	}
 
-	return TRUE;
+	return true;
 }
 
 static int
 dissect_ipa_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	if (!dissect_ipa(tvb, pinfo, tree, FALSE))
+	if (!dissect_ipa(tvb, pinfo, tree, false))
 		return 0;
 	return tvb_captured_length(tvb);
 }
@@ -381,7 +381,7 @@ dissect_ipa_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 static int
 dissect_ipa_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	if (!dissect_ipa(tvb, pinfo, tree, TRUE))
+	if (!dissect_ipa(tvb, pinfo, tree, true))
 		return 0;
 
 	return tvb_captured_length(tvb);
@@ -443,7 +443,7 @@ void proto_register_ipa(void)
 		 },
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_ipa,
 		&ett_ipaccess,
 	};

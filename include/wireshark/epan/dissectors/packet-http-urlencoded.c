@@ -21,13 +21,13 @@ void proto_reg_handoff_http_urlencoded(void);
 
 static dissector_handle_t form_urlencoded_handle;
 
-static int proto_urlencoded = -1;
+static int proto_urlencoded;
 
-static int hf_form_key = -1;
-static int hf_form_value = -1;
+static int hf_form_key;
+static int hf_form_value;
 
-static gint ett_form_urlencoded = -1;
-static gint ett_form_keyvalue = -1;
+static int ett_form_urlencoded;
+static int ett_form_keyvalue;
 
 static ws_mempbrk_pattern pbrk_key;
 static ws_mempbrk_pattern pbrk_value;
@@ -37,13 +37,13 @@ get_form_key_value(wmem_allocator_t *pool, tvbuff_t *tvb, char **ptr, int offset
 {
 	const int orig_offset = offset;
 	int found_offset;
-	guint8 ch;
+	uint8_t ch;
 	char *tmp;
 	int len;
 
 	len = 0;
 	while (tvb_reported_length_remaining(tvb, offset) > 0) {
-		found_offset = tvb_ws_mempbrk_pattern_guint8(tvb, offset, -1, pbrk, &ch);
+		found_offset = tvb_ws_mempbrk_pattern_uint8(tvb, offset, -1, pbrk, &ch);
 		if (found_offset == -1) {
 			len += tvb_reported_length_remaining(tvb, offset);
 			break;
@@ -55,12 +55,12 @@ get_form_key_value(wmem_allocator_t *pool, tvbuff_t *tvb, char **ptr, int offset
 				return -1;
 			}
 			offset++;
-			ch = tvb_get_guint8(tvb, offset);
+			ch = tvb_get_uint8(tvb, offset);
 			if (ws_xton(ch) == -1)
 				return -1;
 
 			offset++;
-			ch = tvb_get_guint8(tvb, offset);
+			ch = tvb_get_uint8(tvb, offset);
 			if (ws_xton(ch) == -1)
 				return -1;
 		} else if (ch != '+') {
@@ -78,7 +78,7 @@ get_form_key_value(wmem_allocator_t *pool, tvbuff_t *tvb, char **ptr, int offset
 	len = 0;
 	offset = orig_offset;
 	while (tvb_reported_length_remaining(tvb, offset)) {
-		found_offset = tvb_ws_mempbrk_pattern_guint8(tvb, offset, -1, pbrk, &ch);
+		found_offset = tvb_ws_mempbrk_pattern_uint8(tvb, offset, -1, pbrk, &ch);
 		if (found_offset == -1) {
 			tvb_memcpy(tvb, &tmp[len], offset, tvb_reported_length_remaining(tvb, offset));
 			offset = tvb_reported_length(tvb);
@@ -88,13 +88,13 @@ get_form_key_value(wmem_allocator_t *pool, tvbuff_t *tvb, char **ptr, int offset
 		len += (found_offset - offset);
 		offset = found_offset;
 		if (ch == '%') {
-			guint8 ch1, ch2;
+			uint8_t ch1, ch2;
 
 			offset++;
-			ch1 = tvb_get_guint8(tvb, offset);
+			ch1 = tvb_get_uint8(tvb, offset);
 
 			offset++;
-			ch2 = tvb_get_guint8(tvb, offset);
+			ch2 = tvb_get_uint8(tvb, offset);
 
 			tmp[len] = ws_xton(ch1) << 4 | ws_xton(ch2);
 
@@ -119,7 +119,7 @@ dissect_form_urlencoded(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	proto_tree	*url_tree;
 	proto_tree	*sub;
 	proto_item	*ti;
-	gint		offset = 0, next_offset, end_offset;
+	int		offset = 0, next_offset, end_offset;
 	const char	*data_name;
 	media_content_info_t *content_info;
 	tvbuff_t	*sequence_tvb;
@@ -158,7 +158,7 @@ dissect_form_urlencoded(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 		char *key, *value;
 		char *key_decoded, *value_decoded;
 
-		end_offset = tvb_find_guint8(tvb, offset, -1, '&');
+		end_offset = tvb_find_uint8(tvb, offset, -1, '&');
 		if (end_offset == -1) {
 			end_offset = (int)tvb_reported_length(tvb);
 		}
@@ -210,7 +210,7 @@ proto_register_http_urlencoded(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_form_urlencoded,
 		&ett_form_keyvalue
 	};

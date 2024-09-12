@@ -23,18 +23,18 @@ static dissector_handle_t symantec_handle;
 static dissector_table_t ethertype_dissector_table;
 
 /* protocols and header fields */
-static int proto_symantec = -1;
-static int hf_symantec_if = -1;
-static int hf_symantec_etype = -1;
+static int proto_symantec;
+static int hf_symantec_if;
+static int hf_symantec_etype;
 
-static gint ett_symantec = -1;
+static int ett_symantec;
 
 static int
 dissect_symantec(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
    proto_item *ti;
    proto_tree *symantec_tree;
-   guint16 etypev2, etypev3;
+   uint16_t etypev2, etypev3;
    tvbuff_t *next_tvb;
 
    /*
@@ -117,7 +117,7 @@ proto_register_symantec(void)
          { "Type",    "symantec.type", FT_UINT16, BASE_HEX, VALS(etype_vals), 0x0,
             NULL, HFILL }},
    };
-   static gint *ett[] = {
+   static int *ett[] = {
       &ett_symantec,
    };
 

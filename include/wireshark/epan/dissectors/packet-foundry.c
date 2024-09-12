@@ -24,46 +24,46 @@ void proto_reg_handoff_fdp(void);
 
 static dissector_handle_t fdp_handle;
 
-static int hf_llc_foundry_pid = -1;
+static int hf_llc_foundry_pid;
 
-static int proto_fdp = -1;
+static int proto_fdp;
 /* FDP header */
-static int hf_fdp_version = -1;
-static int hf_fdp_holdtime = -1;
-static int hf_fdp_checksum = -1;
+static int hf_fdp_version;
+static int hf_fdp_holdtime;
+static int hf_fdp_checksum;
 /* TLV header */
-static int hf_fdp_tlv_type = -1;
-static int hf_fdp_tlv_length = -1;
+static int hf_fdp_tlv_type;
+static int hf_fdp_tlv_length;
 /* Unknown element */
-static int hf_fdp_unknown = -1;
-static int hf_fdp_unknown_data = -1;
+static int hf_fdp_unknown;
+static int hf_fdp_unknown_data;
 /* Port Tag element */
-static int hf_fdp_tag = -1;
-static int hf_fdp_tag_native = -1;
-static int hf_fdp_tag_type = -1;
-static int hf_fdp_tag_unknown = -1;
+static int hf_fdp_tag;
+static int hf_fdp_tag_native;
+static int hf_fdp_tag_type;
+static int hf_fdp_tag_unknown;
 /* VLAN Bitmap */
-static int hf_fdp_vlanmap = -1;
-static int hf_fdp_vlanmap_vlan = -1;
+static int hf_fdp_vlanmap;
+static int hf_fdp_vlanmap_vlan;
 /* String element */
-static int hf_fdp_string = -1;
-static int hf_fdp_string_data = -1;
-static int hf_fdp_string_text = -1;
+static int hf_fdp_string;
+static int hf_fdp_string_data;
+static int hf_fdp_string_text;
 /* Net? element */
-static int hf_fdp_net = -1;
-static int hf_fdp_net_unknown = -1;
-static int hf_fdp_net_ip = -1;
-static int hf_fdp_net_iplength = -1;
+static int hf_fdp_net;
+static int hf_fdp_net_unknown;
+static int hf_fdp_net_ip;
+static int hf_fdp_net_iplength;
 
-static gint ett_fdp = -1;
-static gint ett_fdp_tlv_header = -1;
-static gint ett_fdp_unknown = -1;
-static gint ett_fdp_string = -1;
-static gint ett_fdp_net = -1;
-static gint ett_fdp_tag = -1;
-static gint ett_fdp_vlanmap = -1;
+static int ett_fdp;
+static int ett_fdp_tlv_header;
+static int ett_fdp_unknown;
+static int ett_fdp_string;
+static int ett_fdp_net;
+static int ett_fdp_tag;
+static int ett_fdp_vlanmap;
 
-static expert_field ei_fdp_tlv_length = EI_INIT;
+static expert_field ei_fdp_tlv_length;
 
 #define PROTO_SHORT_NAME "FDP"
 #define PROTO_LONG_NAME "Foundry Discovery Protocol"
@@ -102,8 +102,8 @@ static int
 dissect_tlv_header(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, int length _U_, proto_tree *tree)
 {
 	proto_tree	*tlv_tree;
-	guint16		tlv_type;
-	guint16		tlv_length;
+	uint16_t		tlv_type;
+	uint16_t		tlv_length;
 
 	tlv_type = tvb_get_ntohs(tvb, offset);
 	tlv_length = tvb_get_ntohs(tvb, offset + 2);
@@ -127,7 +127,7 @@ dissect_string_tlv(tvbuff_t *tvb, packet_info *pinfo, int offset, int length, pr
 {
 	proto_item	*string_item;
 	proto_tree	*string_tree;
-	const guint8	*string_value;
+	const uint8_t	*string_value;
 
 	string_item = proto_tree_add_protocol_format(tree, hf_fdp_string,
 		tvb, offset, length, "%s", type_string);
@@ -182,8 +182,8 @@ dissect_vlanmap_tlv(tvbuff_t *tvb, packet_info *pinfo, int offset, int length, p
 {
 	proto_item	*vlanmap_item;
 	proto_tree	*vlanmap_tree;
-	guint		vlan, voffset;
-	guint		bitoffset, byteoffset;
+	unsigned		vlan, voffset;
+	unsigned		bitoffset, byteoffset;
 
 	vlanmap_item = proto_tree_add_protocol_format(tree, hf_fdp_vlanmap,
 		tvb, offset, length, "VLAN-Map");
@@ -195,10 +195,10 @@ dissect_vlanmap_tlv(tvbuff_t *tvb, packet_info *pinfo, int offset, int length, p
 	length -= 4;
 
 	voffset = 1;
-	for (vlan = 1; vlan <= (guint)length*8; vlan++) {
+	for (vlan = 1; vlan <= (unsigned)length*8; vlan++) {
 		byteoffset = (vlan - voffset) / 8;
 		bitoffset = (vlan - voffset) % 8;
-		if (tvb_get_guint8(tvb, offset + byteoffset) & (1 << bitoffset)) {
+		if (tvb_get_uint8(tvb, offset + byteoffset) & (1 << bitoffset)) {
 
 			proto_tree_add_uint(vlanmap_tree, hf_fdp_vlanmap_vlan, tvb,
 				offset + byteoffset, 1, vlan);
@@ -234,7 +234,7 @@ dissect_unknown_tlv(tvbuff_t *tvb, packet_info *pinfo, int offset, int length, p
 {
 	proto_item	*unknown_item;
 	proto_tree	*unknown_tree;
-	guint16		tlv_type;
+	uint16_t		tlv_type;
 
 	tlv_type = tvb_get_ntohs(tvb, offset);
 
@@ -255,10 +255,10 @@ dissect_fdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	proto_item *ti;
 	proto_tree *fdp_tree = NULL;
-	gint offset = 0;
-	guint16 tlv_type;
-	guint16 tlv_length;
-	gint data_length;
+	int offset = 0;
+	uint16_t tlv_type;
+	uint16_t tlv_length;
+	int data_length;
 	const char *type_string;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTO_SHORT_NAME);
@@ -424,7 +424,7 @@ proto_register_fdp(void)
 	  }
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_fdp,
 		&ett_fdp_tlv_header,
 		&ett_fdp_unknown,

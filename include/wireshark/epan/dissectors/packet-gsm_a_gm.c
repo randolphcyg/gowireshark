@@ -83,6 +83,12 @@
  *   Stage 3
  *   (3GPP TS 24.008 version 17.8.0 Release 17)
  *
+ *   Reference [18]
+ *   Mobile radio interface Layer 3 specification;
+ *   Core network protocols;
+ *   Stage 3
+ *   (3GPP TS 24.008 version 18.6.0 Release 18)
+ *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
  * Copyright 1998 Gerald Combs
@@ -97,6 +103,9 @@
 #include <epan/expert.h>
 #include <epan/ipproto.h>
 #include <epan/etypes.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
+#include <wsutil/array.h>
 #include "packet-ber.h"
 #include "packet-gsm_a_common.h"
 #include "packet-e212.h"
@@ -260,396 +269,398 @@ value_string_ext gsm_gm_elem_strings_ext = VALUE_STRING_EXT_INIT(gsm_gm_elem_str
 #define	DTAP_SM_IEI_MASK	0xff
 
 /* Initialize the protocol and registered fields */
-static int proto_a_gm = -1;
+static int proto_a_gm;
 
-static int hf_gsm_a_dtap_msg_gmm_type = -1;
-static int hf_gsm_a_dtap_msg_sm_type = -1;
-int hf_gsm_a_gm_elem_id = -1;
-static int hf_gsm_a_sm_qos_delay_cls	= -1;
-static int hf_gsm_a_sm_qos_reliability_cls = -1;
-static int hf_gsm_a_sm_qos_traffic_cls = -1;
-static int hf_gsm_a_sm_qos_del_order = -1;
-static int hf_gsm_a_sm_qos_del_of_err_sdu = -1;
-static int hf_gsm_a_sm_qos_ber = -1;
-static int hf_gsm_a_sm_qos_sdu_err_rat = -1;
-static int hf_gsm_a_sm_qos_traff_hdl_pri = -1;
+static int hf_gsm_a_dtap_msg_gmm_type;
+static int hf_gsm_a_dtap_msg_sm_type;
+int hf_gsm_a_gm_elem_id;
+static int hf_gsm_a_sm_qos_delay_cls;
+static int hf_gsm_a_sm_qos_reliability_cls;
+static int hf_gsm_a_sm_qos_traffic_cls;
+static int hf_gsm_a_sm_qos_del_order;
+static int hf_gsm_a_sm_qos_del_of_err_sdu;
+static int hf_gsm_a_sm_qos_ber;
+static int hf_gsm_a_sm_qos_sdu_err_rat;
+static int hf_gsm_a_sm_qos_traff_hdl_pri;
 
-static int hf_gsm_a_gmm_split_pg_cycle_code = -1;
-static int hf_gsm_a_gmm_split_on_ccch = -1;
-static int hf_gsm_a_gmm_non_drx_timer = -1;
-static int hf_gsm_a_gmm_cn_spec_drx_cycle_len_coef = -1;
+static int hf_gsm_a_gmm_split_pg_cycle_code;
+static int hf_gsm_a_gmm_split_on_ccch;
+static int hf_gsm_a_gmm_non_drx_timer;
+static int hf_gsm_a_gmm_cn_spec_drx_cycle_len_coef;
 
-static int hf_gsm_a_gmm_ptmsi_sig =-1;
-static int hf_gsm_a_gmm_ptmsi_sig2 =-1;
+static int hf_gsm_a_gmm_ptmsi_sig;
+static int hf_gsm_a_gmm_ptmsi_sig2;
 
-static int hf_gsm_a_sm_tft_op_code = -1;
-static int hf_gsm_a_sm_tft_e_bit = -1;
-static int hf_gsm_a_sm_tft_pkt_flt = -1;
-static int hf_gsm_a_sm_tft_pkt_flt_id = -1;
-static int hf_gsm_a_sm_tft_pkt_flt_dir = -1;
-static int hf_gsm_a_sm_ip4_address = -1;
-static int hf_gsm_a_sm_ip4_mask = -1;
-static int hf_gsm_a_sm_ip6_address = -1;
-static int hf_gsm_a_sm_ip6_mask = -1;
-static int hf_gsm_a_sm_ip6_prefix_length = -1;
-static int hf_gsm_a_sm_tft_protocol_header = -1;
-static int hf_gsm_a_sm_tft_port = -1;
-static int hf_gsm_a_sm_tft_port_low = -1;
-static int hf_gsm_a_sm_tft_port_high = -1;
-static int hf_gsm_a_sm_tft_security = -1;
-static int hf_gsm_a_sm_tft_traffic_class = -1;
-static int hf_gsm_a_sm_tft_traffic_mask = -1;
-static int hf_gsm_a_sm_tft_flow_label_type = -1;
-static int hf_gsm_a_sm_tft_param_id = -1;
-static int hf_gsm_a_sm_tft_packet_filter = -1;
-static int hf_gsm_a_sm_tft_packet_evaluation_precedence = -1;
-static int hf_gsm_a_sm_tft_packet_filter_length = -1;
-static int hf_gsm_a_sm_tft_authorization_token_value = -1;
-static int hf_gsm_a_sm_tft_media_component_number_value = -1;
-static int hf_gsm_a_sm_tft_ip_flow_number = -1;
-static int hf_gsm_a_sm_tft_packet_filter_identifier = -1;
-static int hf_gsm_a_sm_tft_parameter_content = -1;
-static int hf_gsm_a_sm_tft_packet_filter_component_type_id = -1;
-static int hf_gsm_a_sm_tft_mac_addr = -1;
-static int hf_gsm_a_sm_tft_vlan_tag_vid = -1;
-static int hf_gsm_a_sm_tft_vlan_tag_pcp = -1;
-static int hf_gsm_a_sm_tft_vlan_tag_dei = -1;
-static int hf_gsm_a_sm_tft_ethertype = -1;
-static int hf_gsm_a_gm_acc_tech_type = -1;
-static int hf_gsm_a_gm_acc_cap_struct_len = -1;
-static int hf_gsm_a_gm_sms_value = -1;
-static int hf_gsm_a_gm_sm_value = -1;
-static int hf_gsm_a_gm_link_dir = -1;
-static int hf_gsm_a_gm_cause = -1;
+static int hf_gsm_a_sm_tft_op_code;
+static int hf_gsm_a_sm_tft_e_bit;
+static int hf_gsm_a_sm_tft_pkt_flt;
+static int hf_gsm_a_sm_tft_pkt_flt_id;
+static int hf_gsm_a_sm_tft_pkt_flt_dir;
+static int hf_gsm_a_sm_ip4_address;
+static int hf_gsm_a_sm_ip4_mask;
+static int hf_gsm_a_sm_ip6_address;
+static int hf_gsm_a_sm_ip6_mask;
+static int hf_gsm_a_sm_ip6_prefix_length;
+static int hf_gsm_a_sm_tft_protocol_header;
+static int hf_gsm_a_sm_tft_port;
+static int hf_gsm_a_sm_tft_port_low;
+static int hf_gsm_a_sm_tft_port_high;
+static int hf_gsm_a_sm_tft_security;
+static int hf_gsm_a_sm_tft_traffic_class;
+static int hf_gsm_a_sm_tft_traffic_mask;
+static int hf_gsm_a_sm_tft_flow_label_type;
+static int hf_gsm_a_sm_tft_param_id;
+static int hf_gsm_a_sm_tft_packet_filter;
+static int hf_gsm_a_sm_tft_packet_evaluation_precedence;
+static int hf_gsm_a_sm_tft_packet_filter_length;
+static int hf_gsm_a_sm_tft_authorization_token_value;
+static int hf_gsm_a_sm_tft_media_component_number_value;
+static int hf_gsm_a_sm_tft_ip_flow_number;
+static int hf_gsm_a_sm_tft_packet_filter_identifier;
+static int hf_gsm_a_sm_tft_parameter_content;
+static int hf_gsm_a_sm_tft_packet_filter_component_type_id;
+static int hf_gsm_a_sm_tft_mac_addr;
+static int hf_gsm_a_sm_tft_vlan_tag_vid;
+static int hf_gsm_a_sm_tft_vlan_tag_pcp;
+static int hf_gsm_a_sm_tft_vlan_tag_dei;
+static int hf_gsm_a_sm_tft_ethertype;
+static int hf_gsm_a_gm_acc_tech_type;
+static int hf_gsm_a_gm_acc_cap_struct_len;
+static int hf_gsm_a_gm_sms_value;
+static int hf_gsm_a_gm_sm_value;
+static int hf_gsm_a_gm_link_dir;
+static int hf_gsm_a_gm_cause;
 
-static int hf_gsm_a_gm_add_upd_type = -1;
-static int hf_gsm_a_gm_fop = -1;
-static int hf_gsm_a_gm_res_of_attach = -1;
-static int hf_gsm_a_gm_type_of_ciph_alg = -1;
-static int hf_gsm_a_gm_type_of_integ_alg = -1;
-static int hf_gsm_a_gm_imeisv_req = -1;
-static int hf_gsm_a_gm_nsapi = -1;
-static int hf_gsm_a_gm_ac_ref_nr = -1;
-static int hf_gsm_a_gm_force_to_standby = -1;
-static int hf_gsm_a_gm_serv_type = -1;
-static int hf_gsm_a_gm_for = -1;
-static int hf_gsm_a_gm_type_of_attach = -1;
-static int hf_gsm_a_gm_tmsi_flag = -1;
-static int hf_gsm_a_gm_power_off = -1;
-static int hf_gsm_a_gm_type_of_detach_mo = -1;
-static int hf_gsm_a_gm_type_of_detach_mt = -1;
-static int hf_gsm_a_gm_update_type = -1;
-static int hf_gsm_a_gm_gprs_timer = -1;
-static int hf_gsm_a_gm_gprs_timer_unit = -1;
-static int hf_gsm_a_gm_gprs_timer_value = -1;
-static int hf_gsm_a_gm_gprs_timer2 = -1;
-static int hf_gsm_a_gm_gprs_timer2_unit = -1;
-static int hf_gsm_a_gm_gprs_timer2_value = -1;
-static int hf_gsm_a_gm_gprs_timer3 = -1;
-static int hf_gsm_a_gm_gprs_timer3_unit = -1;
-static int hf_gsm_a_gm_gprs_timer3_value = -1;
-static int hf_gsm_a_gm_nsapi_5_ul_stat = -1;
-static int hf_gsm_a_gm_nsapi_6_ul_stat = -1;
-static int hf_gsm_a_gm_nsapi_7_ul_stat = -1;
-static int hf_gsm_a_gm_nsapi_8_ul_stat = -1;
-static int hf_gsm_a_gm_nsapi_9_ul_stat = -1;
-static int hf_gsm_a_gm_nsapi_10_ul_stat = -1;
-static int hf_gsm_a_gm_nsapi_11_ul_stat = -1;
-static int hf_gsm_a_gm_nsapi_12_ul_stat = -1;
-static int hf_gsm_a_gm_nsapi_13_ul_stat = -1;
-static int hf_gsm_a_gm_nsapi_14_ul_stat = -1;
-static int hf_gsm_a_gm_nsapi_15_ul_stat = -1;
-static int hf_gsm_a_gm_device_prop_low_prio = -1;
-static int hf_gsm_a_gm_apn = -1;
-static int hf_gsm_a_gm_pco_pid = -1;
-static int hf_gsm_a_gm_pco_app_spec_info = -1;
-static int hf_gsm_a_gm_type_of_identity = -1;
-int hf_gsm_a_gm_rac = -1;
-static int hf_gsm_a_gm_mta_e = -1;
-static int hf_gsm_a_gm_mta_r = -1;
-static int hf_gsm_a_gm_apc = -1;
-static int hf_gsm_a_gm_otd_a = -1;
-static int hf_gsm_a_gm_otd_b = -1;
-static int hf_gsm_a_gm_gps_a = -1;
-static int hf_gsm_a_gm_gps_b = -1;
-static int hf_gsm_a_gm_gps_c = -1;
-static int hf_gsm_a_gm_motd = -1;
-static int hf_gsm_a_gm_mta_a = -1;
-static int hf_gsm_a_gm_lcs_molr = -1;
-static int hf_gsm_a_gm_mbms = -1;
-static int hf_gsm_a_gm_ims_vops = -1;
-static int hf_gsm_a_gm_emc_bs = -1;
-static int hf_gsm_a_gm_epco = -1;
-static int hf_gsm_a_gm_restrict_ec = -1;
-static int hf_gsm_a_gm_gprs_sms = -1;
-static int hf_gsm_a_gm_req_ms_info_irat = -1;
-static int hf_gsm_a_gm_req_ms_info_irat2 = -1;
-static int hf_gsm_a_gm_ue_usage_setting = -1;
-static int hf_gsm_a_gm_voice_domain_pref_for_eutran = -1;
-static int hf_gsm_a_gm_ptmsi_type = -1;
-static int hf_gsm_a_gm_nri_cont = -1;
-static int hf_gsm_a_gm_paging_time_window = -1;
-static int hf_gsm_a_gm_edrx_value = -1;
-static int hf_gsm_a_gm_ext_paging_time_window = -1;
-static int hf_gsm_a_gm_mac = -1;
-static int hf_gsm_a_gm_up_integ_ind = -1;
-static int hf_gsm_a_gm_dcn_id = -1;
-static int hf_gsm_a_gm_n3en_ind = -1;
-static int hf_gsm_a_sm_pdp_type_org = -1;
-static int hf_gsm_a_sm_qos_mean_thr = -1;
-static int hf_gsm_a_sm_qos_peak_thr = -1;
-static int hf_gsm_a_sm_qos_prec_class = -1;
-static int hf_gsm_a_sm_qos_trans_delay = -1;
-static int hf_gsm_a_sm_qos_signalling_ind = -1;
-static int hf_gsm_a_sm_qos_source_stat_desc = -1;
-static int hf_gsm_a_sm_qos_max_bitrate_upl = -1;
-static int hf_gsm_a_sm_qos_max_bitrate_downl = -1;
-static int hf_gsm_a_sm_qos_guar_bitrate_upl = -1;
-static int hf_gsm_a_sm_qos_guar_bitrate_downl = -1;
-static int hf_gsm_a_sm_qos_max_bitrate_upl_ext = -1;
-static int hf_gsm_a_sm_qos_max_bitrate_downl_ext = -1;
-static int hf_gsm_a_sm_qos_guar_bitrate_upl_ext = -1;
-static int hf_gsm_a_sm_qos_guar_bitrate_downl_ext = -1;
-static int hf_gsm_a_sm_qos_max_bitrate_upl_ext2 = -1;
-static int hf_gsm_a_sm_qos_max_bitrate_downl_ext2 = -1;
-static int hf_gsm_a_sm_qos_guar_bitrate_upl_ext2 = -1;
-static int hf_gsm_a_sm_qos_guar_bitrate_downl_ext2 = -1;
-static int hf_gsm_a_sm_qos_maximum_sdu_size = -1;
-static int hf_gsm_a_sm_eplmnc = -1;
-static int hf_gsm_a_sm_ratc = -1;
-static int hf_gsm_a_sm_cause = -1;
-static int hf_gsm_a_sm_cause_2 = -1;
-static int hf_gsm_a_sm_llc_sapi = -1;
-static int hf_gsm_a_sm_tdi = -1;
-static int hf_gsm_a_sm_packet_flow_id = -1;
-static int hf_gsm_a_sm_tmgi = -1;
-static int hf_gsm_a_sm_enh_nsapi = -1;
-static int hf_gsm_a_sm_req_type = -1;
-static int hf_gsm_a_sm_notif_ind = -1;
-static int hf_gsm_a_sm_connectivity_type = -1;
-static int hf_gsm_a_sm_wlan_utran_offload_accept = -1;
-static int hf_gsm_a_sm_wlan_eutran_offload_accept = -1;
-static int hf_gsm_a_sm_nbifom_cont = -1;
-static int hf_gsm_a_gm_rac_ctrled_early_cm_sending = -1;
-static int hf_gsm_a_gm_rac_pseudo_sync = -1;
-static int hf_gsm_a_gm_rac_vgcs = -1;
-static int hf_gsm_a_gm_rac_vbs = -1;
-static int hf_gsm_a_gm_rac_multislot_capability = -1;
-static int hf_gsm_a_gm_rac_hscsd_multi_slot_class = -1;
-static int hf_gsm_a_gm_rac_gprs_multi_slot_class = -1;
-static int hf_gsm_a_gm_rac_gprs_ext_dyn_alloc_cap = -1;
-static int hf_gsm_a_gm_rac_ecsd_multi_slot_class = -1;
-static int hf_gsm_a_gm_rac_egprs_multi_slot_class = -1;
-static int hf_gsm_a_gm_rac_egprs_ext_dyn_alloc_cap = -1;
-static int hf_gsm_a_gm_rac_dtm_gprs_multi_slot_class = -1;
-static int hf_gsm_a_gm_rac_single_slt_dtm = -1;
-static int hf_gsm_a_gm_rac_dtm_egprs_multi_slot_cls_pres = -1;
-static int hf_gsm_a_gm_rac_dtm_egprs_multi_slot_class = -1;
-static int hf_gsm_a_gm_rac_8psk_pow_cap_pres = -1;
-static int hf_gsm_a_gm_rac_comp_int_meas_cap = -1;
-static int hf_gsm_a_gm_rel_lev_ind = -1;
-static int hf_gsm_a_gm_rac_geran_feat_pkg = -1;
-static int hf_gsm_a_gm_rac_umts_fdd_cap = -1;
-static int hf_gsm_a_gm_rac_umts_384_tdd_ra_cap = -1;
-static int hf_gsm_a_gm_rac_cdma2000_cap = -1;
-static int hf_gsm_a_gm_rac_umts_128_tdd_ra_cap = -1;
-static int hf_gsm_a_gm_rac_mod_based_multi_slot_class_support = -1;
-static int hf_gsm_a_gm_rac_geran_iu_mode_cap = -1;
-static int hf_gsm_a_gm_rac_flo_iu_cap = -1;
-static int hf_gsm_a_gm_rac_mult_tbf_cap = -1;
-static int hf_gsm_a_gm_rac_down_adv_rec_perf = -1;
-static int hf_gsm_a_gm_rac_ext_rlc_mac_ctrl_msg_seg_cap = -1;
-static int hf_gsm_a_gm_rac_dtm_enh_cap = -1;
-static int hf_gsm_a_gm_rac_dtm_gprs_high_multi_slot_class = -1;
-static int hf_gsm_a_gm_rac_dtm_egprs_high_multi_slot_class = -1;
-static int hf_gsm_a_gm_rac_ps_ho_cap = -1;
-static int hf_gsm_a_gm_rac_dtm_ho_cap = -1;
-static int hf_gsm_a_gm_rac_multi_slot_cap_red_down_dual_carrier = -1;
-static int hf_gsm_a_gm_rac_down_dual_carrier_dtm_cap = -1;
-static int hf_gsm_a_gm_rac_flex_ts_assign = -1;
-static int hf_gsm_a_gm_rac_gan_ps_ho_cap = -1;
-static int hf_gsm_a_gm_rac_rlc_non_pers_mode = -1;
-static int hf_gsm_a_gm_rac_reduced_lat_cap = -1;
-static int hf_gsm_a_gm_rac_ul_egprs2 = -1;
-static int hf_gsm_a_gm_rac_dl_egprs2 = -1;
-static int hf_gsm_a_gm_rac_eutra_fdd_support = -1;
-static int hf_gsm_a_gm_rac_eutra_tdd_support = -1;
-static int hf_gsm_a_gm_rac_geran_to_eutra_support_in_geran_ptm = -1;
-static int hf_gsm_a_gm_rac_prio_based_resel_support = -1;
-static int hf_gsm_a_gm_rac_alt_efta_multi_slot_class = -1;
-static int hf_gsm_a_gm_rac_efta_multi_slot_cap_red_down_dual_carrier = -1;
-static int hf_gsm_a_gm_rac_ind_up_layer_pdu_start_cap_for_rlc_um = -1;
-static int hf_gsm_a_gm_rac_emst_cap = -1;
-static int hf_gsm_a_gm_rac_mtti_cap = -1;
-static int hf_gsm_a_gm_rac_utra_csg_cell_report = -1;
-static int hf_gsm_a_gm_rac_eutra_csg_cell_report = -1;
-static int hf_gsm_a_gm_rac_dtr_cap = -1;
-static int hf_gsm_a_gm_rac_emsr_cap = -1;
-static int hf_gsm_a_gm_rac_fast_down_freq_switch_cap = -1;
-static int hf_gsm_a_gm_rac_tighter_cap = -1;
-static int hf_gsm_a_gm_rac_fanr_cap = -1;
-static int hf_gsm_a_gm_rac_ipa_cap = -1;
-static int hf_gsm_a_gm_rac_geran_nw_sharing_support = -1;
-static int hf_gsm_a_gm_rac_eutra_wb_rsrq_support = -1;
-static int hf_gsm_a_gm_rac_utra_mfbi_support = -1;
-static int hf_gsm_a_gm_rac_eutra_mfbi_support = -1;
-static int hf_gsm_a_gm_rac_dlmc_non_contig_intra_band_recep = -1;
-static int hf_gsm_a_gm_rac_dlmc_inter_band_recep = -1;
-static int hf_gsm_a_gm_rac_dlmc_max_bandwidth = -1;
-static int hf_gsm_a_gm_rac_dlmc_max_nb_dl_ts = -1;
-static int hf_gsm_a_gm_rac_dlmc_max_nb_dl_carriers = -1;
-static int hf_gsm_a_gm_rac_ext_tsc_set_cap_support = -1;
-static int hf_gsm_a_gm_rac_ext_earfcn_value_range = -1;
-static int hf_gsm_a_gm_rac_ec_pch_mon_support = -1;
-static int hf_gsm_a_gm_rac_ms_sync_accuracy = -1;
-static int hf_gsm_a_gm_rac_ec_ul_cov_enh_support = -1;
-static int hf_gsm_a_gm_rac_mta_access_sec_support = -1;
-static int hf_gsm_a_gm_rac_ec_paging_ind_chan_mon_support = -1;
-static int hf_gsm_a_sm_ti_flag = -1;
-static int hf_gsm_a_sm_ext = -1;
+static int hf_gsm_a_gm_add_upd_type;
+static int hf_gsm_a_gm_fop;
+static int hf_gsm_a_gm_res_of_attach;
+static int hf_gsm_a_gm_type_of_ciph_alg;
+static int hf_gsm_a_gm_type_of_integ_alg;
+static int hf_gsm_a_gm_imeisv_req;
+static int hf_gsm_a_gm_nsapi;
+static int hf_gsm_a_gm_ac_ref_nr;
+static int hf_gsm_a_gm_force_to_standby;
+static int hf_gsm_a_gm_serv_type;
+static int hf_gsm_a_gm_for;
+static int hf_gsm_a_gm_type_of_attach;
+static int hf_gsm_a_gm_tmsi_flag;
+static int hf_gsm_a_gm_power_off;
+static int hf_gsm_a_gm_type_of_detach_mo;
+static int hf_gsm_a_gm_type_of_detach_mt;
+static int hf_gsm_a_gm_update_type;
+static int hf_gsm_a_gm_gprs_timer;
+static int hf_gsm_a_gm_gprs_timer_unit;
+static int hf_gsm_a_gm_gprs_timer_value;
+static int hf_gsm_a_gm_gprs_timer2;
+static int hf_gsm_a_gm_gprs_timer2_unit;
+static int hf_gsm_a_gm_gprs_timer2_value;
+static int hf_gsm_a_gm_gprs_timer3;
+static int hf_gsm_a_gm_gprs_timer3_unit;
+static int hf_gsm_a_gm_gprs_timer3_value;
+static int hf_gsm_a_gm_nsapi_5_ul_stat;
+static int hf_gsm_a_gm_nsapi_6_ul_stat;
+static int hf_gsm_a_gm_nsapi_7_ul_stat;
+static int hf_gsm_a_gm_nsapi_8_ul_stat;
+static int hf_gsm_a_gm_nsapi_9_ul_stat;
+static int hf_gsm_a_gm_nsapi_10_ul_stat;
+static int hf_gsm_a_gm_nsapi_11_ul_stat;
+static int hf_gsm_a_gm_nsapi_12_ul_stat;
+static int hf_gsm_a_gm_nsapi_13_ul_stat;
+static int hf_gsm_a_gm_nsapi_14_ul_stat;
+static int hf_gsm_a_gm_nsapi_15_ul_stat;
+static int hf_gsm_a_gm_device_prop_low_prio;
+static int hf_gsm_a_gm_apn;
+static int hf_gsm_a_gm_pco_pid;
+static int hf_gsm_a_gm_pco_app_spec_info;
+static int hf_gsm_a_gm_type_of_identity;
+int hf_gsm_a_gm_rac;
+static int hf_gsm_a_gm_mta_e;
+static int hf_gsm_a_gm_mta_r;
+static int hf_gsm_a_gm_apc;
+static int hf_gsm_a_gm_otd_a;
+static int hf_gsm_a_gm_otd_b;
+static int hf_gsm_a_gm_gps_a;
+static int hf_gsm_a_gm_gps_b;
+static int hf_gsm_a_gm_gps_c;
+static int hf_gsm_a_gm_motd;
+static int hf_gsm_a_gm_mta_a;
+static int hf_gsm_a_gm_lcs_molr;
+static int hf_gsm_a_gm_mbms;
+static int hf_gsm_a_gm_ims_vops;
+static int hf_gsm_a_gm_emc_bs;
+static int hf_gsm_a_gm_epco;
+static int hf_gsm_a_gm_restrict_ec;
+static int hf_gsm_a_gm_gprs_sms;
+static int hf_gsm_a_gm_req_ms_info_irat;
+static int hf_gsm_a_gm_req_ms_info_irat2;
+static int hf_gsm_a_gm_ue_usage_setting;
+static int hf_gsm_a_gm_voice_domain_pref_for_eutran;
+static int hf_gsm_a_gm_ptmsi_type;
+static int hf_gsm_a_gm_nri_cont;
+static int hf_gsm_a_gm_paging_time_window;
+static int hf_gsm_a_gm_edrx_value;
+static int hf_gsm_a_gm_ext_paging_time_window;
+static int hf_gsm_a_gm_mac;
+static int hf_gsm_a_gm_up_integ_ind;
+static int hf_gsm_a_gm_dcn_id;
+static int hf_gsm_a_gm_n3en_ind;
+static int hf_gsm_a_sm_pdp_type_org;
+static int hf_gsm_a_sm_qos_mean_thr;
+static int hf_gsm_a_sm_qos_peak_thr;
+static int hf_gsm_a_sm_qos_prec_class;
+static int hf_gsm_a_sm_qos_trans_delay;
+static int hf_gsm_a_sm_qos_signalling_ind;
+static int hf_gsm_a_sm_qos_source_stat_desc;
+static int hf_gsm_a_sm_qos_max_bitrate_upl;
+static int hf_gsm_a_sm_qos_max_bitrate_downl;
+static int hf_gsm_a_sm_qos_guar_bitrate_upl;
+static int hf_gsm_a_sm_qos_guar_bitrate_downl;
+static int hf_gsm_a_sm_qos_max_bitrate_upl_ext;
+static int hf_gsm_a_sm_qos_max_bitrate_downl_ext;
+static int hf_gsm_a_sm_qos_guar_bitrate_upl_ext;
+static int hf_gsm_a_sm_qos_guar_bitrate_downl_ext;
+static int hf_gsm_a_sm_qos_max_bitrate_upl_ext2;
+static int hf_gsm_a_sm_qos_max_bitrate_downl_ext2;
+static int hf_gsm_a_sm_qos_guar_bitrate_upl_ext2;
+static int hf_gsm_a_sm_qos_guar_bitrate_downl_ext2;
+static int hf_gsm_a_sm_qos_maximum_sdu_size;
+static int hf_gsm_a_sm_eplmnc;
+static int hf_gsm_a_sm_ratc;
+static int hf_gsm_a_sm_cause;
+static int hf_gsm_a_sm_cause_2;
+static int hf_gsm_a_sm_llc_sapi;
+static int hf_gsm_a_sm_tdi;
+static int hf_gsm_a_sm_packet_flow_id;
+static int hf_gsm_a_sm_tmgi;
+static int hf_gsm_a_sm_enh_nsapi;
+static int hf_gsm_a_sm_req_type;
+static int hf_gsm_a_sm_notif_ind;
+static int hf_gsm_a_sm_connectivity_type;
+static int hf_gsm_a_sm_wlan_utran_offload_accept;
+static int hf_gsm_a_sm_wlan_eutran_offload_accept;
+static int hf_gsm_a_sm_nbifom_cont;
+static int hf_gsm_a_gm_rac_ctrled_early_cm_sending;
+static int hf_gsm_a_gm_rac_pseudo_sync;
+static int hf_gsm_a_gm_rac_vgcs;
+static int hf_gsm_a_gm_rac_vbs;
+static int hf_gsm_a_gm_rac_multislot_capability;
+static int hf_gsm_a_gm_rac_hscsd_multi_slot_class;
+static int hf_gsm_a_gm_rac_gprs_multi_slot_class;
+static int hf_gsm_a_gm_rac_gprs_ext_dyn_alloc_cap;
+static int hf_gsm_a_gm_rac_ecsd_multi_slot_class;
+static int hf_gsm_a_gm_rac_egprs_multi_slot_class;
+static int hf_gsm_a_gm_rac_egprs_ext_dyn_alloc_cap;
+static int hf_gsm_a_gm_rac_dtm_gprs_multi_slot_class;
+static int hf_gsm_a_gm_rac_single_slt_dtm;
+static int hf_gsm_a_gm_rac_dtm_egprs_multi_slot_cls_pres;
+static int hf_gsm_a_gm_rac_dtm_egprs_multi_slot_class;
+static int hf_gsm_a_gm_rac_8psk_pow_cap_pres;
+static int hf_gsm_a_gm_rac_comp_int_meas_cap;
+static int hf_gsm_a_gm_rel_lev_ind;
+static int hf_gsm_a_gm_rac_geran_feat_pkg;
+static int hf_gsm_a_gm_rac_umts_fdd_cap;
+static int hf_gsm_a_gm_rac_umts_384_tdd_ra_cap;
+static int hf_gsm_a_gm_rac_cdma2000_cap;
+static int hf_gsm_a_gm_rac_umts_128_tdd_ra_cap;
+static int hf_gsm_a_gm_rac_mod_based_multi_slot_class_support;
+static int hf_gsm_a_gm_rac_geran_iu_mode_cap;
+static int hf_gsm_a_gm_rac_flo_iu_cap;
+static int hf_gsm_a_gm_rac_mult_tbf_cap;
+static int hf_gsm_a_gm_rac_down_adv_rec_perf;
+static int hf_gsm_a_gm_rac_ext_rlc_mac_ctrl_msg_seg_cap;
+static int hf_gsm_a_gm_rac_dtm_enh_cap;
+static int hf_gsm_a_gm_rac_dtm_gprs_high_multi_slot_class;
+static int hf_gsm_a_gm_rac_dtm_egprs_high_multi_slot_class;
+static int hf_gsm_a_gm_rac_ps_ho_cap;
+static int hf_gsm_a_gm_rac_dtm_ho_cap;
+static int hf_gsm_a_gm_rac_multi_slot_cap_red_down_dual_carrier;
+static int hf_gsm_a_gm_rac_down_dual_carrier_dtm_cap;
+static int hf_gsm_a_gm_rac_flex_ts_assign;
+static int hf_gsm_a_gm_rac_gan_ps_ho_cap;
+static int hf_gsm_a_gm_rac_rlc_non_pers_mode;
+static int hf_gsm_a_gm_rac_reduced_lat_cap;
+static int hf_gsm_a_gm_rac_ul_egprs2;
+static int hf_gsm_a_gm_rac_dl_egprs2;
+static int hf_gsm_a_gm_rac_eutra_fdd_support;
+static int hf_gsm_a_gm_rac_eutra_tdd_support;
+static int hf_gsm_a_gm_rac_geran_to_eutra_support_in_geran_ptm;
+static int hf_gsm_a_gm_rac_prio_based_resel_support;
+static int hf_gsm_a_gm_rac_alt_efta_multi_slot_class;
+static int hf_gsm_a_gm_rac_efta_multi_slot_cap_red_down_dual_carrier;
+static int hf_gsm_a_gm_rac_ind_up_layer_pdu_start_cap_for_rlc_um;
+static int hf_gsm_a_gm_rac_emst_cap;
+static int hf_gsm_a_gm_rac_mtti_cap;
+static int hf_gsm_a_gm_rac_utra_csg_cell_report;
+static int hf_gsm_a_gm_rac_eutra_csg_cell_report;
+static int hf_gsm_a_gm_rac_dtr_cap;
+static int hf_gsm_a_gm_rac_emsr_cap;
+static int hf_gsm_a_gm_rac_fast_down_freq_switch_cap;
+static int hf_gsm_a_gm_rac_tighter_cap;
+static int hf_gsm_a_gm_rac_fanr_cap;
+static int hf_gsm_a_gm_rac_ipa_cap;
+static int hf_gsm_a_gm_rac_geran_nw_sharing_support;
+static int hf_gsm_a_gm_rac_eutra_wb_rsrq_support;
+static int hf_gsm_a_gm_rac_utra_mfbi_support;
+static int hf_gsm_a_gm_rac_eutra_mfbi_support;
+static int hf_gsm_a_gm_rac_dlmc_non_contig_intra_band_recep;
+static int hf_gsm_a_gm_rac_dlmc_inter_band_recep;
+static int hf_gsm_a_gm_rac_dlmc_max_bandwidth;
+static int hf_gsm_a_gm_rac_dlmc_max_nb_dl_ts;
+static int hf_gsm_a_gm_rac_dlmc_max_nb_dl_carriers;
+static int hf_gsm_a_gm_rac_ext_tsc_set_cap_support;
+static int hf_gsm_a_gm_rac_ext_earfcn_value_range;
+static int hf_gsm_a_gm_rac_ec_pch_mon_support;
+static int hf_gsm_a_gm_rac_ms_sync_accuracy;
+static int hf_gsm_a_gm_rac_ec_ul_cov_enh_support;
+static int hf_gsm_a_gm_rac_mta_access_sec_support;
+static int hf_gsm_a_gm_rac_ec_paging_ind_chan_mon_support;
+static int hf_gsm_a_sm_ti_flag;
+static int hf_gsm_a_sm_ext;
 
-static int hf_gsm_a_gmm_net_cap_gea1 = -1;
-static int hf_gsm_a_gmm_net_cap_smdch = -1;
-static int hf_gsm_a_gmm_net_cap_smgprs = -1;
-static int hf_gsm_a_gmm_net_cap_ucs2 = -1;
-static int hf_gsm_a_gmm_net_cap_ss_scr_ind = -1;
-static int hf_gsm_a_gmm_net_cap_solsa = -1;
-static int hf_gsm_a_gmm_net_cap_rev = -1;
-static int hf_gsm_a_gmm_net_cap_pfc = -1;
-static int hf_gsm_a_gmm_net_cap_ext_gea_bits = -1;
-static int hf_gsm_a_gmm_net_cap_gea2 = -1;
-static int hf_gsm_a_gmm_net_cap_gea3 = -1;
-static int hf_gsm_a_gmm_net_cap_gea4 = -1;
-static int hf_gsm_a_gmm_net_cap_gea5 = -1;
-static int hf_gsm_a_gmm_net_cap_gea6 = -1;
-static int hf_gsm_a_gmm_net_cap_gea7 = -1;
-static int hf_gsm_a_gmm_net_cap_lcs = -1;
-static int hf_gsm_a_gmm_net_cap_ps_irat_iu = -1;
-static int hf_gsm_a_gmm_net_cap_ps_irat_s1 = -1;
-static int hf_gsm_a_gmm_net_cap_comb_proc = -1;
-static int hf_gsm_a_gmm_net_cap_isr = -1;
-static int hf_gsm_a_gmm_net_cap_srvcc_to_geran = -1;
-static int hf_gsm_a_gmm_net_cap_epc = -1;
-static int hf_gsm_a_gmm_net_cap_nf = -1;
-static int hf_gsm_a_gmm_net_geran_net_sharing = -1;
-static int hf_gsm_a_gmm_net_cap_up_int_prot = -1;
-static int hf_gsm_a_gmm_net_cap_up_gia4 = -1;
-static int hf_gsm_a_gmm_net_cap_up_gia5 = -1;
-static int hf_gsm_a_gmm_net_cap_up_gia6 = -1;
-static int hf_gsm_a_gmm_net_cap_up_gia7 = -1;
-static int hf_gsm_a_gmm_net_cap_epco_ie_ind = -1;
-static int hf_gsm_a_gmm_net_cap_restrict_use_enh_cov = -1;
-static int hf_gsm_a_gmm_net_cap_dc_eutra_nr_cap = -1;
+static int hf_gsm_a_gmm_net_cap_gea1;
+static int hf_gsm_a_gmm_net_cap_smdch;
+static int hf_gsm_a_gmm_net_cap_smgprs;
+static int hf_gsm_a_gmm_net_cap_ucs2;
+static int hf_gsm_a_gmm_net_cap_ss_scr_ind;
+static int hf_gsm_a_gmm_net_cap_solsa;
+static int hf_gsm_a_gmm_net_cap_rev;
+static int hf_gsm_a_gmm_net_cap_pfc;
+static int hf_gsm_a_gmm_net_cap_ext_gea_bits;
+static int hf_gsm_a_gmm_net_cap_gea2;
+static int hf_gsm_a_gmm_net_cap_gea3;
+static int hf_gsm_a_gmm_net_cap_gea4;
+static int hf_gsm_a_gmm_net_cap_gea5;
+static int hf_gsm_a_gmm_net_cap_gea6;
+static int hf_gsm_a_gmm_net_cap_gea7;
+static int hf_gsm_a_gmm_net_cap_lcs;
+static int hf_gsm_a_gmm_net_cap_ps_irat_iu;
+static int hf_gsm_a_gmm_net_cap_ps_irat_s1;
+static int hf_gsm_a_gmm_net_cap_comb_proc;
+static int hf_gsm_a_gmm_net_cap_isr;
+static int hf_gsm_a_gmm_net_cap_srvcc_to_geran;
+static int hf_gsm_a_gmm_net_cap_epc;
+static int hf_gsm_a_gmm_net_cap_nf;
+static int hf_gsm_a_gmm_net_geran_net_sharing;
+static int hf_gsm_a_gmm_net_cap_up_int_prot;
+static int hf_gsm_a_gmm_net_cap_up_gia4;
+static int hf_gsm_a_gmm_net_cap_up_gia5;
+static int hf_gsm_a_gmm_net_cap_up_gia6;
+static int hf_gsm_a_gmm_net_cap_up_gia7;
+static int hf_gsm_a_gmm_net_cap_epco_ie_ind;
+static int hf_gsm_a_gmm_net_cap_restrict_use_enh_cov;
+static int hf_gsm_a_gmm_net_cap_dc_eutra_nr_cap;
 
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_gsm_a_gm_presence = -1;
-static int hf_gsm_a_gm_8psk_power_class = -1;
-static int hf_gsm_a_gm_rf_power_capability = -1;
-static int hf_gsm_a_gm_a5_bits = -1;
-static int hf_gsm_a_gm_8psk_power_capability = -1;
-static int hf_gsm_a_gm_extended_dtm_gprs_multi_slot_class = -1;
-static int hf_gsm_a_gm_extended_dtm_egprs_multi_slot_class = -1;
-static int hf_gsm_a_gm_high_multislot_capability = -1;
-static int hf_gsm_a_gm_gmsk_multislot_power_profile = -1;
-static int hf_gsm_a_gm_8psk_multislot_power_profile = -1;
-static int hf_gsm_a_gm_update_result = -1;
-static int hf_gsm_a_gm_radio_priority_pdp = -1;
-static int hf_gsm_a_gm_radio_priority_tom8 = -1;
-static int hf_gsm_a_gm_configuration_protocol = -1;
-static int hf_gsm_a_gm_sm_pco_length = -1;
-static int hf_gsm_a_gm_sm_pco_length2 = -1;
-static int hf_gsm_a_gm_sm_pco_pcscf_ipv6 = -1;
-static int hf_gsm_a_gm_sm_pco_dns_ipv6 = -1;
-static int hf_gsm_a_gm_sm_pco_dsmipv6_home_agent_ipv6 = -1;
-static int hf_gsm_a_gm_sm_pco_dsmipv6_home_network_ipv6 = -1;
-static int hf_gsm_a_gm_sm_pco_reject_code = -1;
-static int hf_gsm_a_gm_sm_pco_dsmipv6_home_network_prefix_length = -1;
-static int hf_gsm_a_gm_sm_pco_dsmipv6_home_agent_ipv4 = -1;
-static int hf_gsm_a_gm_sm_pco_pcscf_ipv4 = -1;
-static int hf_gsm_a_gm_sm_pco_dns_ipv4 = -1;
-static int hf_gsm_a_gm_sm_pco_ipv4_link_mtu_size = -1;
-static int hf_gsm_a_gm_sm_pco_nbifom_mode = -1;
-static int hf_gsm_a_gm_sm_pco_non_ip_link_mtu_size = -1;
-static int hf_gsm_a_gm_sm_pco_apn_rate_ctrl_params_aer = -1;
-static int hf_gsm_a_gm_sm_pco_apn_rate_ctrl_params_ul_time_unit = -1;
-static int hf_gsm_a_gm_sm_pco_apn_rate_ctrl_params_max_ul_rate = -1;
-static int hf_gsm_a_gm_sm_pco_3gpp_data_off_ue_status = -1;
-static int hf_gsm_a_gm_sm_pco_sel_bearer_ctrl_mode = -1;
-static int hf_gsm_a_gm_sm_pco_add_apn_rate_ctrl_params_ul_time_unit = -1;
-static int hf_gsm_a_gm_sm_pco_add_apn_rate_ctrl_params_max_ul_rate = -1;
-static int hf_gsm_a_gm_sm_pco_pdu_session_id = -1;
-static int hf_gsm_a_gm_sm_pco_pdu_session_address_lifetime = -1;
-static int hf_gsm_a_gm_sm_pco_eth_frame_payload_mtu = -1;
-static int hf_gsm_a_gm_sm_pco_unstruct_link_mtu = -1;
-static int hf_gsm_a_gm_sm_pco_5gsm_cause = -1;
-static int hf_gsm_a_gm_sm_pco_acs_info = -1;
-static int hf_gsm_a_gm_sm_pco_init_small_data_rate_ctrl_params_max_ul_rate_allowed = -1;
-static int hf_gsm_a_gm_sm_pco_init_small_data_rate_ctrl_params_termination_timestamp = -1;
-static int hf_gsm_a_gm_sm_pco_atsss_response = -1;
-static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_type = -1;
-static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_sec_proto_type = -1;
-static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_port_number = -1;
-static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_auth_domain_name = -1;
-static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_spki_pin_set = -1;
-static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_root_certificate = -1;
-static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_raw_public_key = -1;
-static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_value_part = -1;
-static int hf_gsm_a_gm_sm_pco_ecs_addr_type = -1;
-static int hf_gsm_a_gm_sm_pco_ecs_addr_spatial_valid_cond_type = -1;
-static int hf_gsm_a_gm_sm_pco_ecs_addr_ipv4 = -1;
-static int hf_gsm_a_gm_sm_pco_ecs_addr_ipv6 = -1;
-static int hf_gsm_a_gm_sm_pco_ecs_addr_fqdn_len = -1;
-static int hf_gsm_a_gm_sm_pco_ecs_addr_fqdn = -1;
-static int hf_gsm_a_gm_sm_pco_ecs_addr_spatial_valid_cond_cont = -1;
-static int hf_gsm_a_gm_sm_pco_ecsp_id = -1;
-static int hf_gsm_a_gm_sm_pco_pvs_ipv4 = -1;
-static int hf_gsm_a_gm_sm_pco_pvs_ipv6 = -1;
-static int hf_gsm_a_gm_sm_pco_pvs_name_len = -1;
-static int hf_gsm_a_gm_sm_pco_pvs_name = -1;
-static int hf_gsm_a_gm_sm_pco_pvs_s_nssai_ind = -1;
-static int hf_gsm_a_gm_sm_pco_pvs_dnn_ind = -1;
-static int hf_gsm_a_gm_sm_pco_pvs_dnn_len = -1;
-static int hf_gsm_a_gm_sm_pco_pvs_s_nssai_len = -1;
-static int hf_gsm_a_gm_sm_pco_dns_serv_sec_prot_support = -1;
-static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_fqdn = -1;
-static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_ipv6 = -1;
-static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_ipv4 = -1;
-static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_ipv4_range_low = -1;
-static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_ipv4_range_high = -1;
-static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_ipv6_range_low = -1;
-static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_ipv6_range_high = -1;
-static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_fqdn = -1;
-static int hf_gsm_a_sm_pdp_type_number = -1;
-static int hf_gsm_a_sm_pdp_address = -1;
-static int hf_gsm_a_gm_ti_value = -1;
+static int hf_gsm_a_gm_presence;
+static int hf_gsm_a_gm_8psk_power_class;
+static int hf_gsm_a_gm_rf_power_capability;
+static int hf_gsm_a_gm_a5_bits;
+static int hf_gsm_a_gm_8psk_power_capability;
+static int hf_gsm_a_gm_extended_dtm_gprs_multi_slot_class;
+static int hf_gsm_a_gm_extended_dtm_egprs_multi_slot_class;
+static int hf_gsm_a_gm_high_multislot_capability;
+static int hf_gsm_a_gm_gmsk_multislot_power_profile;
+static int hf_gsm_a_gm_8psk_multislot_power_profile;
+static int hf_gsm_a_gm_update_result;
+static int hf_gsm_a_gm_radio_priority_pdp;
+static int hf_gsm_a_gm_radio_priority_tom8;
+static int hf_gsm_a_gm_configuration_protocol;
+static int hf_gsm_a_gm_sm_pco_length;
+static int hf_gsm_a_gm_sm_pco_length2;
+static int hf_gsm_a_gm_sm_pco_pcscf_ipv6;
+static int hf_gsm_a_gm_sm_pco_dns_ipv6;
+static int hf_gsm_a_gm_sm_pco_dsmipv6_home_agent_ipv6;
+static int hf_gsm_a_gm_sm_pco_dsmipv6_home_network_ipv6;
+static int hf_gsm_a_gm_sm_pco_reject_code;
+static int hf_gsm_a_gm_sm_pco_dsmipv6_home_network_prefix_length;
+static int hf_gsm_a_gm_sm_pco_dsmipv6_home_agent_ipv4;
+static int hf_gsm_a_gm_sm_pco_pcscf_ipv4;
+static int hf_gsm_a_gm_sm_pco_dns_ipv4;
+static int hf_gsm_a_gm_sm_pco_ipv4_link_mtu_size;
+static int hf_gsm_a_gm_sm_pco_nbifom_mode;
+static int hf_gsm_a_gm_sm_pco_non_ip_link_mtu_size;
+static int hf_gsm_a_gm_sm_pco_apn_rate_ctrl_params_aer;
+static int hf_gsm_a_gm_sm_pco_apn_rate_ctrl_params_ul_time_unit;
+static int hf_gsm_a_gm_sm_pco_apn_rate_ctrl_params_max_ul_rate;
+static int hf_gsm_a_gm_sm_pco_3gpp_data_off_ue_status;
+static int hf_gsm_a_gm_sm_pco_sel_bearer_ctrl_mode;
+static int hf_gsm_a_gm_sm_pco_add_apn_rate_ctrl_params_ul_time_unit;
+static int hf_gsm_a_gm_sm_pco_add_apn_rate_ctrl_params_max_ul_rate;
+static int hf_gsm_a_gm_sm_pco_pdu_session_id;
+static int hf_gsm_a_gm_sm_pco_pdu_session_address_lifetime;
+static int hf_gsm_a_gm_sm_pco_eth_frame_payload_mtu;
+static int hf_gsm_a_gm_sm_pco_unstruct_link_mtu;
+static int hf_gsm_a_gm_sm_pco_5gsm_cause;
+static int hf_gsm_a_gm_sm_pco_acs_info;
+static int hf_gsm_a_gm_sm_pco_init_small_data_rate_ctrl_params_max_ul_rate_allowed;
+static int hf_gsm_a_gm_sm_pco_init_small_data_rate_ctrl_params_termination_timestamp;
+static int hf_gsm_a_gm_sm_pco_atsss_response;
+static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_type;
+static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_sec_proto_type;
+static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_port_number;
+static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_auth_domain_name;
+static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_spki_pin_set;
+static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_root_certificate;
+static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_raw_public_key;
+static int hf_gsm_a_gm_sm_pco_dns_serv_sec_info_value_part;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_type;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_spatial_valid_cond_type;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_ipv4;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_ipv6;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_fqdn_len;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_fqdn;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_spatial_valid_cond_cont;
+static int hf_gsm_a_gm_sm_pco_ecsp_id;
+static int hf_gsm_a_gm_sm_pco_pvs_ipv4;
+static int hf_gsm_a_gm_sm_pco_pvs_ipv6;
+static int hf_gsm_a_gm_sm_pco_pvs_name_len;
+static int hf_gsm_a_gm_sm_pco_pvs_name;
+static int hf_gsm_a_gm_sm_pco_pvs_s_nssai_ind;
+static int hf_gsm_a_gm_sm_pco_pvs_dnn_ind;
+static int hf_gsm_a_gm_sm_pco_pvs_dnn_len;
+static int hf_gsm_a_gm_sm_pco_pvs_s_nssai_len;
+static int hf_gsm_a_gm_sm_pco_dns_serv_sec_prot_support;
+static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_fqdn;
+static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_ipv6;
+static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_ipv4;
+static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_ipv4_range_low;
+static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_ipv4_range_high;
+static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_ipv6_range_low;
+static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_ipv6_range_high;
+static int hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_fqdn;
+static int hf_gsm_a_gm_sm_pco_sdnaepc_dn_specific_id;
+static int hf_gsm_a_sm_pdp_type_number;
+static int hf_gsm_a_sm_pdp_address;
+static int hf_gsm_a_gm_ti_value;
 
 /* Initialize the subtree pointers */
-static gint ett_gmm_radio_cap = -1;
-static gint ett_gmm_network_cap = -1;
-static gint ett_gsm_a_gm_msrac_multislot_capability = -1;
-static gint ett_gmm_rai = -1;
-static gint ett_gmm_gprs_timer = -1;
+static int ett_gmm_radio_cap;
+static int ett_gmm_network_cap;
+static int ett_gsm_a_gm_msrac_multislot_capability;
+static int ett_gmm_rai;
+static int ett_gmm_gprs_timer;
 
-static gint ett_sm_tft = -1;
-static gint ett_sm_pco = -1;
+static int ett_sm_tft;
+static int ett_sm_pco;
 
-static expert_field ei_gsm_a_gm_extraneous_data = EI_INIT;
-static expert_field ei_gsm_a_gm_not_enough_data = EI_INIT;
-static expert_field ei_gsm_a_gm_undecoded = EI_INIT;
-static expert_field ei_gsm_a_gm_missing_mandatory_element = EI_INIT;
+static expert_field ei_gsm_a_gm_extraneous_data;
+static expert_field ei_gsm_a_gm_not_enough_data;
+static expert_field ei_gsm_a_gm_undecoded;
+static expert_field ei_gsm_a_gm_missing_mandatory_element;
 
 static dissector_handle_t rrc_irat_ho_info_handle;
 static dissector_handle_t lte_rrc_ue_eutra_cap_handle;
 static dissector_handle_t nbifom_handle;
+static dissector_handle_t eap_handle;
 
 static dissector_table_t gprs_sm_pco_subdissector_table; /* GPRS SM PCO PPP Protocols */
 
 static const unit_name_string units_message_messages = { " message", " messages" };
 
-#define	NUM_GSM_GM_ELEM (sizeof(gsm_gm_elem_strings)/sizeof(value_string))
-gint ett_gsm_gm_elem[NUM_GSM_GM_ELEM];
+#define	NUM_GSM_GM_ELEM array_length(gsm_gm_elem_strings)
+int ett_gsm_gm_elem[NUM_GSM_GM_ELEM];
 
-static const gchar *pdp_str[2]={ "PDP-INACTIVE", "PDP-ACTIVE" };
+static const char *pdp_str[2]={ "PDP-INACTIVE", "PDP-ACTIVE" };
 
 /*
  * [9] 10.5.5.0 Additional Update Type
@@ -658,10 +669,10 @@ static const true_false_string gsm_a_gm_add_upd_type_value = {
 	"SMS only",
 	"No additional information (shall be interpreted as request for combined attach or combined tracking area updating)"
 };
-static guint16
-de_gmm_add_upd_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_add_upd_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32 curr_offset, bit_offset;
+	uint32_t curr_offset, bit_offset;
 
 	curr_offset = offset;
 	bit_offset  = (curr_offset<<3)+4;
@@ -683,14 +694,14 @@ static const value_string gsm_a_gm_res_of_attach_vals[] = {
 	{ 0, NULL }
 };
 
-static guint16
-de_gmm_attach_res(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_attach_res(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_item(tree, hf_gsm_a_gm_fop, tvb, offset, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_gm_res_of_attach, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -703,14 +714,14 @@ static const value_string gsm_a_gm_type_of_attach_vals[] = {
 	{ 0, NULL }
 };
 
-static guint16
-de_gmm_attach_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_attach_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_item(tree, hf_gsm_a_gm_for, tvb, offset, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_gm_type_of_attach, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -728,14 +739,14 @@ const value_string gsm_a_gm_type_of_ciph_alg_vals[] = {
 	{ 0, NULL }
 };
 
-static guint16
-de_gmm_ciph_alg(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_ciph_alg(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (offset << 3) + 4, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_gm_type_of_ciph_alg, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -749,14 +760,14 @@ static const value_string gsm_a_gm_type_of_integ_alg_vals[] = {
 	{ 0, NULL }
 };
 
-static guint16
-de_gmm_integ_alg(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_integ_alg(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (offset << 3) + 4, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_gm_type_of_integ_alg, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -767,14 +778,14 @@ static const true_false_string gsm_a_gm_tmsi_flag_value = {
 	"no valid TMSI available"
 };
 
-static guint16
-de_gmm_tmsi_stat(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_tmsi_stat(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (offset << 3) + 4, 3, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_gm_tmsi_flag, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -799,10 +810,10 @@ static const value_string gsm_a_gm_type_of_detach_mt_vals[] = {
 	{ 0, NULL }
 };
 
-static guint16
-de_gmm_detach_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_detach_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32 curr_offset;
+	uint32_t curr_offset;
 
 	curr_offset = offset;
 
@@ -980,10 +991,10 @@ static const range_string gsm_a_gmm_cn_spec_drx_cycle_len_coef_strings[] = {
 	{ 0x0a, 0x0f, "CN Specific DRX cycle length coefficient / value not specified by the MS" },
 	{ 0, 0, NULL },
 };
-guint16
-de_gmm_drx_param(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_gmm_drx_param(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32 curr_offset;
+	uint32_t curr_offset;
 
 	curr_offset = offset;
 
@@ -1010,10 +1021,10 @@ static const range_string gsm_a_gm_force_to_standby_vals[] = {
 	{ 0, 0, NULL }
 };
 
-static guint16
-de_gmm_ftostby(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_ftostby(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32	bit_offset;
+	uint32_t	bit_offset;
 
 	/* IMPORTANT - IT'S ASSUMED THAT THE INFORMATION IS IN THE LOWER NIBBLE */
 	bit_offset = (offset << 3) + 4;
@@ -1021,16 +1032,16 @@ de_gmm_ftostby(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 
 	proto_tree_add_bits_item(tree, hf_gsm_a_gm_force_to_standby, tvb, bit_offset + 1, 3, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
  * [9] 10.5.5.7 Force to standby (higher nibble)
  */
-static guint16
-de_gmm_ftostby_h(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_ftostby_h(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32	bit_offset;
+	uint32_t	bit_offset;
 
 	/* IMPORTANT - IT'S ASSUMED THAT THE INFORMATION IS IN THE HIGHER NIBBLE */
 	bit_offset = offset << 3;
@@ -1038,16 +1049,16 @@ de_gmm_ftostby_h(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint3
 	proto_tree_add_bits_item(tree, hf_gsm_a_gm_force_to_standby, tvb, bit_offset + 1, 3, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
  * [7] 10.5.5.8
  */
-static guint16
-de_gmm_ptmsi_sig(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_ptmsi_sig(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32     curr_offset;
+	uint32_t    curr_offset;
 	proto_item *curr_item;
 
 	curr_offset = offset;
@@ -1065,10 +1076,10 @@ de_gmm_ptmsi_sig(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint3
 /*
  * [7] 10.5.5.8a
  */
-static guint16
-de_gmm_ptmsi_sig2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string, int string_len _U_)
+static uint16_t
+de_gmm_ptmsi_sig2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len _U_)
 {
-	guint32     curr_offset;
+	uint32_t    curr_offset;
 	proto_item *curr_item;
 
 	curr_offset = offset;
@@ -1093,14 +1104,14 @@ static const value_string gsm_a_gm_type_of_identity_vals[] = {
 	{ 0, NULL }
 };
 
-static guint16
-de_gmm_ident_type2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_ident_type2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (offset << 3) + 4, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_gm_type_of_identity, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -1113,10 +1124,10 @@ static const range_string gsm_a_gm_imeisv_req_vals[] = {
 	{ 0, 0, NULL }
 };
 
-static guint16
-de_gmm_imeisv_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_imeisv_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32	bit_offset;
+	uint32_t	bit_offset;
 
 	/* IMPORTANT - IT'S ASSUMED THAT THE INFORMATION IS IN THE HIGHER NIBBLE */
 	bit_offset = offset << 3;
@@ -1124,17 +1135,17 @@ de_gmm_imeisv_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint
 	proto_tree_add_bits_item(tree, hf_gsm_a_gm_imeisv_req, tvb, bit_offset + 1, 3, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
  * [7] 10.5.5.11
  */
-static guint16
-de_gmm_rec_npdu_lst(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_rec_npdu_lst(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	unsigned	curr_len;
 
 	curr_len    = len;
 	curr_offset = offset;
@@ -1143,10 +1154,10 @@ de_gmm_rec_npdu_lst(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
 
 	do
 	{
-		guint32	oct;
-		oct = tvb_get_guint8(tvb, curr_offset);
+		uint32_t	oct;
+		oct = tvb_get_uint8(tvb, curr_offset);
 		oct <<= 8;
-		oct |= tvb_get_guint8(tvb, curr_offset+1);
+		oct |= tvb_get_uint8(tvb, curr_offset+1);
 		curr_len -= 2;
 		oct <<= 8;
 
@@ -1155,7 +1166,7 @@ de_gmm_rec_npdu_lst(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
 
 		if (curr_len > 2)
 		{
-			oct |= tvb_get_guint8(tvb, curr_offset+2);
+			oct |= tvb_get_uint8(tvb, curr_offset+2);
 			curr_len--;
 			oct <<= 12;
 
@@ -1281,10 +1292,10 @@ static const true_false_string gsm_a_gmm_net_cap_dc_eutra_nr_cap_vals = {
 	"Mobile station does not support dual connectivity of E-UTRA with NR"
 };
 
-guint16
-de_gmm_ms_net_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_gmm_ms_net_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32     curr_offset;
+	uint32_t    curr_offset;
 	proto_tree *subtree;
 	proto_item *item;
 
@@ -1399,12 +1410,12 @@ de_gmm_ms_net_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 o
 	/* check if oct has enough bits */ \
 	if (bits_in_oct < bits_needed) \
 	{ \
-		guint32 tmp_oct; \
+		uint32_t tmp_oct; \
 		if (curr_len == 0) \
 		{ \
 			proto_tree_add_expert(tf_tree, pinfo, &ei_gsm_a_gm_not_enough_data, tvb, curr_offset, 1); \
 		} \
-		tmp_oct = tvb_get_guint8(tvb, curr_offset); \
+		tmp_oct = tvb_get_uint8(tvb, curr_offset); \
 		oct |= tmp_oct<<(32-8-bits_in_oct); \
 		curr_len--; \
 		curr_offset++; \
@@ -1613,7 +1624,7 @@ static const value_string gsm_a_gm_dlmc_max_bandwidth_vals[] = {
 };
 
 static void
-gsm_a_gm_dlmc_max_nb_dl_ts_fmt(gchar *s, guint32 v)
+gsm_a_gm_dlmc_max_nb_dl_ts_fmt(char *s, uint32_t v)
 {
 	if (v < 0x3E)
 		snprintf(s, ITEM_LABEL_LENGTH, "%u TS supported (%u)",
@@ -1695,28 +1706,28 @@ static const value_string gsm_a_gm_ec_pch_mon_support_vals[] = {
 	{0, NULL}
 };
 
-guint16
-de_gmm_ms_radio_acc_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_gmm_ms_radio_acc_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32      curr_offset;
-	guint        curr_len;
+	uint32_t     curr_offset;
+	unsigned     curr_len;
 	int          bit_offset;
 	proto_item  *tf = NULL, *mc_item = NULL, *ti;
 	proto_tree  *tf_tree = NULL, *mc_tree = NULL;
-	guint32      oct;
-	guchar       bits_in_oct;
-	guchar       bits_needed;
-	guint        bits_length;
-	guint        add_octets;	/* octets which are covered by one element -1 */
-	guint        curr_bits_length;
-	guchar       acc_type;
-	guint        value;
-	const gchar *str;
-	guint indx = 0;
+	uint32_t     oct;
+	unsigned char       bits_in_oct;
+	unsigned char       bits_needed;
+	unsigned     bits_length;
+	unsigned     add_octets;	/* octets which are covered by one element -1 */
+	unsigned     curr_bits_length;
+	unsigned char       acc_type;
+	unsigned     value;
+	const char *str;
+	unsigned indx = 0;
 
-	guchar   dtm_gprs_mslot  = 0;
-	guchar   dtm_egprs_mslot = 4;
-	gboolean finished = TRUE;
+	unsigned char   dtm_gprs_mslot  = 0;
+	unsigned char   dtm_egprs_mslot = 4;
+	bool finished = true;
 
 	curr_len    = len;
 	curr_offset = offset;
@@ -1800,7 +1811,7 @@ de_gmm_ms_radio_acc_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
 				/*
 				 * Additional access technologies:
 				 */
-				finished = TRUE; /* Break out of the loop unless proven unfinished */
+				finished = true; /* Break out of the loop unless proven unfinished */
 
 				/*
 				 * Presence bit
@@ -1811,8 +1822,8 @@ de_gmm_ms_radio_acc_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
 				/* analyse bits */
 				switch (oct>>(32-bits_needed))
 				{
-					case 0x00: str = "Not Present"; finished = TRUE; break;
-					case 0x01: str = "Present"; finished = FALSE;    break;
+					case 0x00: str = "Not Present"; finished = true; break;
+					case 0x01: str = "Present"; finished = false;    break;
 					default:   str = "This should not happen";
 				}
 
@@ -1910,7 +1921,7 @@ de_gmm_ms_radio_acc_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
 				else
 					str = "Not specified??";
 
-				/* decode_bits_in_field(gint bit_offset, gint no_of_bits, guint64 value)*/
+				/* decode_bits_in_field(int bit_offset, int no_of_bits, uint64_t value)*/
 				proto_tree_add_uint_format(tf_tree, hf_gsm_a_gm_rf_power_capability, tvb, curr_offset-1-add_octets, 1+add_octets, value,
 												"%s RF Power Capability, GMSK Power Class: %s (%u)", decode_bits_in_field(pinfo->pool, bit_offset, 3, value, ENC_BIG_ENDIAN), str, value);
 				bit_offset	  += 3;
@@ -3483,10 +3494,10 @@ static const range_string gmm_cause_vals[] = {
 
 /* NOTE: The listed reject cause values are defined in annex G. */
 
-static guint16
-de_gmm_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32 curr_offset;
+	uint32_t curr_offset;
 
 	curr_offset = offset;
 
@@ -3502,36 +3513,36 @@ de_gmm_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 of
 /*
  * [7] 10.5.5.15 Routing area identification
  */
-guint16
-de_gmm_rai(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_gmm_rai(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree *subtree;
-	guint32	    mcc;
-	guint32	    mnc;
-	guint32	    lac;
-	guint32	    rac;
-	guint32	    curr_offset;
+	uint32_t	    mcc;
+	uint32_t	    mnc;
+	uint32_t	    lac;
+	uint32_t	    rac;
+	uint32_t	    curr_offset;
 
 	curr_offset = offset;
 
-	mcc = (tvb_get_guint8(tvb, curr_offset) & 0x0f) <<8;
-	mcc |= (tvb_get_guint8(tvb, curr_offset) & 0xf0);
-	mcc |= (tvb_get_guint8(tvb, curr_offset+1) & 0x0f);
-	mnc = (tvb_get_guint8(tvb, curr_offset+2) & 0x0f) <<8;
-	mnc |= (tvb_get_guint8(tvb, curr_offset+2) & 0xf0);
-	mnc |= (tvb_get_guint8(tvb, curr_offset+1) & 0xf0) >>4;
+	mcc = (tvb_get_uint8(tvb, curr_offset) & 0x0f) <<8;
+	mcc |= (tvb_get_uint8(tvb, curr_offset) & 0xf0);
+	mcc |= (tvb_get_uint8(tvb, curr_offset+1) & 0x0f);
+	mnc = (tvb_get_uint8(tvb, curr_offset+2) & 0x0f) <<8;
+	mnc |= (tvb_get_uint8(tvb, curr_offset+2) & 0xf0);
+	mnc |= (tvb_get_uint8(tvb, curr_offset+1) & 0xf0) >>4;
 	if ((mnc&0x000f) == 0x000f)
 		 mnc = mnc>>4;
 
 	lac = tvb_get_ntohs(tvb, curr_offset+3);
-	rac = tvb_get_guint8(tvb, curr_offset+5);
+	rac = tvb_get_uint8(tvb, curr_offset+5);
 
 	subtree = proto_tree_add_subtree_format(tree,
 		tvb, curr_offset, 6, ett_gmm_rai, NULL,
 		"Routing area identification: %x-%x-%u-%u",
 		mcc, mnc, lac, rac);
 
-	dissect_e212_mcc_mnc(tvb, pinfo, subtree, offset, E212_RAI, TRUE);
+	dissect_e212_mcc_mnc(tvb, pinfo, subtree, offset, E212_RAI, true);
 
 	proto_tree_add_item(subtree, hf_gsm_a_lac, tvb, curr_offset+3, 2, ENC_BIG_ENDIAN);
 	proto_tree_add_item(subtree, hf_gsm_a_gm_rac, tvb, curr_offset+5, 1, ENC_BIG_ENDIAN);
@@ -3554,8 +3565,8 @@ de_gmm_rai(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, 
 /*
  * [7] 10.5.5.15a Routing area identification 2
  */
-static guint16
-de_gmm_rai2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_rai2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	/* The routing area identification 2 value is coded as octet 2 to 7 of the Routing area identification information element. */
 	return de_gmm_rai(tvb, tree, pinfo, offset, len, add_string, string_len);
@@ -3577,10 +3588,10 @@ static const value_string gsm_a_gm_update_res_vals[] = {
 };
 
 
-static guint16
-de_gmm_update_res(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_update_res(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32      curr_offset = offset;
+	uint32_t     curr_offset = offset;
 
 	/* IMPORTANT - IT'S ASSUMED THAT THE INFORMATION IS IN THE HIGHER NIBBLE */
 	proto_tree_add_item(tree, hf_gsm_a_gm_update_result, tvb, curr_offset, 1, ENC_NA);
@@ -3603,40 +3614,40 @@ static const value_string gsm_a_gm_update_type_vals[] = {
 	{ 0, NULL }
 };
 
-static guint16
-de_gmm_update_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_update_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_item(tree, hf_gsm_a_gm_for, tvb, offset, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_gm_update_type, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
  * [9] 10.5.5.19 A&C reference number (lower nibble)
  */
-static guint16
-de_gmm_ac_ref_nr(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_ac_ref_nr(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	/* IMPORTANT - IT'S ASSUMED THAT THE INFORMATION IS IN THE LOWER NIBBLE */
 	proto_tree_add_bits_item(tree, hf_gsm_a_gm_ac_ref_nr, tvb, (offset << 3) + 4, 4, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
  * [9] 10.5.5.19 A&C reference number (higher nibble)
  */
-static guint16
-de_gmm_ac_ref_nr_h(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_ac_ref_nr_h(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	/* IMPORTANT - IT'S ASSUMED THAT THE INFORMATION IS IN THE HIGHER NIBBLE */
 	proto_tree_add_bits_item(tree, hf_gsm_a_gm_ac_ref_nr, tvb, offset << 3, 4, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -3651,10 +3662,10 @@ static const value_string gsm_a_gm_serv_type_vals[] = {
 	{ 0, NULL }
 };
 
-static guint16
-de_gmm_service_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_service_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32	bit_offset;
+	uint32_t	bit_offset;
 
 	bit_offset = offset << 3;
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, bit_offset, 1, ENC_BIG_ENDIAN);
@@ -3663,7 +3674,7 @@ de_gmm_service_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, gui
 	/*bit_offset  +=  3;*/
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -3724,10 +3735,10 @@ static const true_false_string gsm_a_gm_mta_a_vals = {
 	"Multilateration Timing Advance using Access Burst method not supported"
 };
 
-static guint16
-de_gmm_ps_lcs_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_ps_lcs_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
+	uint32_t	curr_offset;
 
 	curr_offset = offset;
 	proto_tree_add_item(tree, hf_gsm_a_gm_mta_e, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
@@ -3767,10 +3778,10 @@ static const true_false_string gsm_a_gm_emc_bs_value = {
 	"Emergency bearer services supported in Iu mode, but not supported in A/Gb mode",
 	"Emergency bearer services in Iu mode and A/Gb mode not supported"
 };
-static guint16
-de_gmm_net_feat_supp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_net_feat_supp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32 curr_offset;
+	uint32_t curr_offset;
 
 	curr_offset = offset;
 
@@ -3798,10 +3809,10 @@ static const true_false_string gsm_a_gm_gprs_sms_value = {
 	"SMS via GPRS not supported",
 	"SMS via GPRS supported"
 };
-static guint16
-de_gmm_add_net_feat_supp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_add_net_feat_supp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32 curr_offset;
+	uint32_t curr_offset;
 
 	curr_offset = offset;
 
@@ -3815,10 +3826,10 @@ de_gmm_add_net_feat_supp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_
 }
 
 /* [7] 10.5.5.24 Inter RAT information container */
-static guint16
-de_gmm_rat_info_container(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_rat_info_container(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32   curr_offset;
+	uint32_t  curr_offset;
 	tvbuff_t *rrc_irat_ho_info_tvb;
 
 	curr_offset = offset;
@@ -3845,11 +3856,11 @@ static const true_false_string gsm_a_gm_req_ms_info_irat2_vals = {
 	"E-UTRAN inter RAT information container IE not requested"
 };
 
-static guint16
-de_gmm_req_ms_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_req_ms_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
-	guint32 bit_offset;
+	uint32_t	curr_offset;
+	uint32_t bit_offset;
 
 	curr_offset = offset;
 	bit_offset  = (curr_offset<<3)+4;
@@ -3870,10 +3881,10 @@ de_gmm_req_ms_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guin
  */
 
 /* [7] 10.5.5.27 E-UTRAN inter RAT information container */
-static guint16
-de_gmm_eutran_irat_info_container(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_eutran_irat_info_container(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32   curr_offset;
+	uint32_t  curr_offset;
 	tvbuff_t *lte_rrc_ue_eutra_cap_tvb;
 
 	curr_offset = offset;
@@ -3902,11 +3913,11 @@ static const value_string gsm_a_gm_voice_domain_pref_for_eutran_vals[] = {
 	{  0,	NULL }
 };
 
-guint16
-de_gmm_voice_domain_pref(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_gmm_voice_domain_pref(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
-	guint32 bit_offset;
+	uint32_t	curr_offset;
+	uint32_t bit_offset;
 
 	curr_offset = offset;
 	bit_offset  = curr_offset<<3;
@@ -3928,10 +3939,10 @@ static const true_false_string gsm_a_gm_ptmsi_type_value = {
 	"Native P-TMSI"
 };
 
-static guint16
-de_gmm_ptmsi_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_ptmsi_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32 curr_offset, bit_offset;
+	uint32_t curr_offset, bit_offset;
 
 	curr_offset = offset;
 	bit_offset  = (curr_offset<<3)+4;
@@ -3945,8 +3956,8 @@ de_gmm_ptmsi_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint
 }
 
 /* [10] 10.5.5.30 Location Area Identification 2 */
-static guint16
-de_gmm_lai_2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string, int string_len)
+static uint16_t
+de_gmm_lai_2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len)
 {
 	/* The Location Area Identification 2 value is coded as octet 2 to 6 of the */
 	/* Location Area Identification information element */
@@ -3954,11 +3965,11 @@ de_gmm_lai_2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset
 }
 
 /* [11] 10.5.5.31 Network resource identifier container */
-static guint16
-de_gmm_net_res_id_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_net_res_id_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
-	guint32 bit_offset;
+	uint32_t	curr_offset;
+	uint32_t bit_offset;
 
 	curr_offset = offset;
 	bit_offset  = curr_offset<<3;
@@ -4047,10 +4058,10 @@ static const value_string gsm_a_gm_paging_time_window_nr_5gcn_vals[] = {
 	{  0,	NULL }
 };
 
-static guint16
-de_gmm_ext_drx_params(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_ext_drx_params(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
+	uint32_t	curr_offset;
 
 	curr_offset = offset;
 
@@ -4067,8 +4078,8 @@ de_gmm_ext_drx_params(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, g
 }
 
 /* [13] 10.5.5.33 Message authentication code */
-static guint16
-de_gmm_mac(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_mac(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_item(tree, hf_gsm_a_gm_mac, tvb, offset, 4, ENC_BIG_ENDIAN);
 
@@ -4081,19 +4092,19 @@ static const true_false_string gsm_a_gm_up_integ_ind_value = {
 	"MS shall disable integrity protection of user plane data in LLC layer"
 };
 
-static guint16
-de_gmm_up_integ_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_up_integ_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (offset << 3) + 4, 3, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_gm_up_integ_ind, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /* [14] 10.5.5.35 DCN-ID */
-static guint16
-de_gmm_dcn_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_dcn_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_item(tree, hf_gsm_a_gm_dcn_id, tvb, offset, 2, ENC_BIG_ENDIAN);
 
@@ -4101,10 +4112,10 @@ de_gmm_dcn_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 o
 }
 
 /* [14] 10.5.5.36 PLMN identity of the CN operator */
-static guint16
-de_gmm_plmn_id_cn_operator(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_plmn_id_cn_operator(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	dissect_e212_mcc_mnc(tvb, pinfo, tree, offset, E212_NONE, TRUE);
+	dissect_e212_mcc_mnc(tvb, pinfo, tree, offset, E212_NONE, true);
 
 	return 3;
 }
@@ -4115,36 +4126,36 @@ static const true_false_string gsm_a_gm_n3en_ind_value = {
 	"Use of non-3GPP emergency numbers not permitted"
 };
 
-static guint16
-de_gmm_non_3gpp_nw_prov_pol(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gmm_non_3gpp_nw_prov_pol(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (offset << 3) + 4, 3, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_gm_n3en_ind, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
  * [7] 10.5.7.1
  */
-static guint16
-de_gc_context_stat(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gc_context_stat(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint8      oct;
-	guint16     pdp_nr;
-	guint32     curr_offset;
+	uint8_t     oct;
+	uint16_t    pdp_nr;
+	uint32_t    curr_offset;
 
 	curr_offset = offset;
 
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	for (pdp_nr=0; pdp_nr<16; pdp_nr++)
 	{
 		if (pdp_nr == 8)
 		{
 			curr_offset++;
-			oct = tvb_get_guint8(tvb, curr_offset);
+			oct = tvb_get_uint8(tvb, curr_offset);
 		}
 		proto_tree_add_uint_format(tree, hf_gsm_a_gm_nsapi, tvb, curr_offset, 1, oct&1, "NSAPI %d: %s (%u)", pdp_nr, pdp_str[oct&1], oct&1);
 		oct>>=1;
@@ -4172,10 +4183,10 @@ static const value_string gsm_a_gm_radio_prio_vals[] = {
 	{0, NULL}
 };
 
-static guint16
-de_gc_radio_prio(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gc_radio_prio(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32      curr_offset = offset;
+	uint32_t     curr_offset = offset;
 
 	proto_tree_add_item(tree, hf_gsm_a_gm_radio_priority_pdp, tvb, curr_offset, 1, ENC_NA);
 
@@ -4195,16 +4206,16 @@ static const value_string gsm_a_gm_gprs_timer_unit_vals[] = {
 	{ 0, NULL }
 };
 
-guint16
-de_gc_timer(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_gc_timer(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint8       oct;
-	guint16      val;
-	const gchar *str;
+	uint8_t      oct;
+	uint16_t     val;
+	const char *str;
 	proto_item  *item = NULL;
 	proto_tree  *subtree;
 
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 	val = oct&0x1f;
 
 	switch (oct>>5)
@@ -4234,25 +4245,25 @@ de_gc_timer(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 off
 	proto_tree_add_item(subtree, hf_gsm_a_gm_gprs_timer_value, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
  * [7] 10.5.7.4
  */
-static guint16
-de_gc_timer2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string, int string_len _U_)
+static uint16_t
+de_gc_timer2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string, int string_len _U_)
 {
-	guint8       oct;
-	guint16      val;
-	guint32      curr_offset;
-	const gchar *str = NULL;
+	uint8_t      oct;
+	uint16_t     val;
+	uint32_t     curr_offset;
+	const char *str = NULL;
 	proto_tree  *subtree;
 	proto_item  *item = NULL;
 
 	curr_offset = offset;
 
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	val = oct&0x1f;
 
@@ -4300,19 +4311,19 @@ static const value_string gsm_a_gm_gprs_timer3_unit_vals[] = {
 	{ 0, NULL }
 };
 
-guint16
-de_gc_timer3(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_gc_timer3(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint8       oct;
-	guint16      val;
-	guint32      curr_offset;
-	const gchar *str = NULL;
+	uint8_t      oct;
+	uint16_t     val;
+	uint32_t     curr_offset;
+	const char *str = NULL;
 	proto_tree  *subtree;
 	proto_item  *item = NULL;
 
 	curr_offset = offset;
 
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	val = oct&0x1f;
 
@@ -4345,10 +4356,10 @@ de_gc_timer3(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 of
 /*
  * [7] 10.5.7.5
  */
-static guint16
-de_gc_radio_prio2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gc_radio_prio2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32      curr_offset = offset;
+	uint32_t     curr_offset = offset;
 
 	/* IMPORTANT - IT'S ASSUMED THAT THE INFORMATION IS IN THE HIGHER NIBBLE */
 	proto_tree_add_item(tree, hf_gsm_a_gm_radio_priority_tom8, tvb, curr_offset, 1, ENC_NA);
@@ -4361,18 +4372,18 @@ de_gc_radio_prio2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint
 /*
  * [8] 10.5.7.6 MBMS context status
  */
-static guint16
-de_gc_mbms_context_stat(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gc_mbms_context_stat(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32     curr_offset;
-	guint       i;
-	guint8      oct, j;
+	uint32_t    curr_offset;
+	unsigned    i;
+	uint8_t     oct, j;
 
 	curr_offset = offset;
 
 	for (i=0; i<len; i++)
 	{
-		oct = tvb_get_guint8(tvb, curr_offset);
+		oct = tvb_get_uint8(tvb, curr_offset);
 
 		for (j=0; j<8; j++)
 		{
@@ -4393,11 +4404,11 @@ static const true_false_string gsm_a_gm_nsapi_ul_stat_vals = {
 	"no uplink data are pending for the preserved PDP context or the PDP context is PDP-INACTIVE or is PDP-ACTIVE with a RAB already established"
 };
 
-static guint16
-de_gc_uplink_data_stat(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gc_uplink_data_stat(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
-	guint32 bit_offset;
+	uint32_t	curr_offset;
+	uint32_t bit_offset;
 
 	curr_offset = offset;
 	bit_offset  = curr_offset<<3;
@@ -4441,11 +4452,11 @@ static const true_false_string gsm_a_gm_device_prop_low_prio_value = {
 	"MS is not configured for NAS signalling low priority"
 };
 
-static guint16
-de_gc_device_properties(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_gc_device_properties(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
-	guint32 bit_offset;
+	uint32_t	curr_offset;
+	uint32_t bit_offset;
 
 	curr_offset = offset;
 	bit_offset  = (curr_offset<<3)+4;
@@ -4461,10 +4472,10 @@ de_gc_device_properties(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_,
 /*
  * [7] 10.5.6.1
  */
-guint16
-de_sm_apn(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_sm_apn(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32     curr_offset;
+	uint32_t    curr_offset;
 
 	curr_offset = offset;
 
@@ -4479,15 +4490,15 @@ de_sm_apn(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 /*
  * [7] 10.5.6.2
  */
-static guint16
-de_sm_nsapi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string, int string_len _U_)
+static uint16_t
+de_sm_nsapi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string, int string_len _U_)
 {
-	guint8	oct;
-	guint32	curr_offset;
+	uint8_t	oct;
+	uint32_t	curr_offset;
 
 	curr_offset = offset;
 
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	proto_tree_add_uint_format_value(tree, hf_gsm_a_gm_nsapi, tvb, curr_offset, 1, oct&0x0f, "0x%02x (%u) %s", oct&0x0f, oct&0x0f, add_string ? add_string : "");
 
@@ -4542,6 +4553,10 @@ static const range_string gsm_a_sm_pco_ms2net_prot_vals[] = {
 	{ 0x0041, 0x0041, "Service-level-AA container with the length of two octets" },
 	{ 0x0047, 0x0047, "EDC support indicator" },
 	{ 0x004a, 0x004a, "MS support of MAC address range in 5GS indicator" },
+	{ 0x0050, 0x0050, "SDNAEPC support indicator" },
+	{ 0x0051, 0x0051, "SDNAEPC EAP message with the length of two octets" },
+	{ 0x0052, 0x0052, "SDNAEPC DN-specific identity" },
+	{ 0x0056, 0x0056, "UE policy container with the length of two octets" },
 	{ 0xff00, 0xffff, "Operator Specific Use" },
 	{ 0, 0, NULL }
 };
@@ -4607,6 +4622,8 @@ static const range_string gsm_a_sm_pco_net2ms_prot_vals[] = {
 	{ 0x0048, 0x0048, "EDC usage allowed indicator" },
 	{ 0x0049, 0x0049, "EDC usage required indicator" },
 	{ 0x004a, 0x004a, "Network support of MAC address range in 5GS indicator" },
+	{ 0x0051, 0x0051, "SDNAEPC EAP message with the length of two octets" },
+	{ 0x0056, 0x0056, "UE policy container with the length of two octets" },
 	{ 0xff00, 0xffff, "Operator Specific Use" },
 	{ 0, 0, NULL }
 };
@@ -4687,21 +4704,21 @@ static const value_string gsm_a_gm_sm_pco_dns_serv_sec_prot_support_vals[] = {
 	{ 0, NULL}
 };
 
-guint16
-de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
 	proto_item        *generated_item;
-	guint32            curr_offset;
-	gint               curr_len;
-	guchar             oct;
+	uint32_t           curr_offset;
+	int                curr_len;
+	unsigned char      oct;
 	int                link_dir;
 	proto_item        *pco_item;
 	proto_tree        *pco_tree;
 
-	curr_len    = (gint)len; /* length field is only 1 or 2 bytes long */
+	curr_len    = (int)len; /* length field is only 1 or 2 bytes long */
 	curr_offset = offset;
 
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	link_dir = pinfo->link_dir;
 	generated_item = proto_tree_add_int(tree, hf_gsm_a_gm_link_dir, tvb, curr_offset, 0, link_dir);
@@ -4724,8 +4741,8 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 
 	while (curr_len >= 3) /* 2 bytes protocol/container ID + 1 byte length */
 	{
-		guint32 e_len;
-		guint16 prot;
+		uint32_t e_len;
+		uint16_t prot;
 		tvbuff_t *l3_tvb;
 
 		/* Protocol ID 1                    octet 4
@@ -4735,18 +4752,19 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 		 */
 
 		prot = tvb_get_ntohs(tvb, curr_offset);
-		pco_item = proto_tree_add_uint_format_value(tree, hf_gsm_a_gm_pco_pid, tvb, curr_offset, 2, (guint32)prot,
+		pco_item = proto_tree_add_uint_format_value(tree, hf_gsm_a_gm_pco_pid, tvb, curr_offset, 2, (uint32_t)prot,
 				"%s (0x%04x)",
 				link_dir ?
-					rval_to_str_const((guint32)prot, gsm_a_sm_pco_net2ms_prot_vals, val_to_str_ext_const(prot, &ppp_vals_ext, "Unknown")) :
-					rval_to_str_const((guint32)prot, gsm_a_sm_pco_ms2net_prot_vals, val_to_str_ext_const(prot, &ppp_vals_ext, "Unknown")),
-				(guint32)prot);
+					rval_to_str_const((uint32_t)prot, gsm_a_sm_pco_net2ms_prot_vals, val_to_str_ext_const(prot, &ppp_vals_ext, "Unknown")) :
+					rval_to_str_const((uint32_t)prot, gsm_a_sm_pco_ms2net_prot_vals, val_to_str_ext_const(prot, &ppp_vals_ext, "Unknown")),
+				(uint32_t)prot);
 		pco_tree = proto_item_add_subtree(pco_item, ett_sm_pco);
 
 		curr_len    -= 2;
 		curr_offset += 2;
-		if ((link_dir == P2P_DIR_DL && (prot == 0x0023 || prot == 0x0024 || prot == 0x0030 || prot == 0x0031 || prot == 0x0032 || prot == 0x0041)) ||
-		    (link_dir == P2P_DIR_UL && prot == 0x0041)) {
+		if ((link_dir == P2P_DIR_DL && (prot == 0x0023 || prot == 0x0024 || prot == 0x0030 || prot == 0x0031 ||
+		                                prot == 0x0032 || prot == 0x0041 || prot == 0x0051 || prot == 0x0056)) ||
+		    (link_dir == P2P_DIR_UL && (prot == 0x0041 || prot == 0x0051 || prot == 0x0056))) {
 			proto_tree_add_item_ret_uint(pco_tree, hf_gsm_a_gm_sm_pco_length2, tvb, curr_offset, 2, ENC_BIG_ENDIAN, &e_len);
 			curr_len    -= 2;
 			curr_offset += 2;
@@ -4789,6 +4807,7 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 			case 0x0048:
 			case 0x0049:
 			case 0x004a:
+			case 0x0050:
 				break;
 			case 0x0004:
 				if ((link_dir == P2P_DIR_DL) && (e_len == 1)) {
@@ -4875,7 +4894,7 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 			case 0x001b:
 				if (link_dir == P2P_DIR_DL && e_len >= 4) {
 					de_nas_5gs_cmn_s_nssai(tvb, pco_tree, pinfo, curr_offset, e_len - 3, NULL, 0);
-					dissect_e212_mcc_mnc(tvb, pinfo, pco_tree, curr_offset + e_len - 3, E212_NONE, TRUE);
+					dissect_e212_mcc_mnc(tvb, pinfo, pco_tree, curr_offset + e_len - 3, E212_NONE, true);
 				}
 				break;
 			case 0x001c:
@@ -4944,7 +4963,7 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 				break;
 			case 0x0031:
 				if (link_dir == P2P_DIR_DL && e_len > 1) {
-					guint32 type;
+					uint32_t type;
 
 					proto_tree_add_item_ret_uint(pco_tree, hf_gsm_a_gm_sm_pco_dns_serv_sec_info_type, tvb, curr_offset, 1, ENC_BIG_ENDIAN, &type);
 					switch (type) {
@@ -4974,7 +4993,7 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 				break;
 			case 0x0032:
 				if (link_dir == P2P_DIR_DL && e_len > 1) {
-					guint32 ecs_addr_type, ie_offset, fqdn_len;
+					uint32_t ecs_addr_type, ie_offset, fqdn_len;
 
 					ie_offset = curr_offset;
 					proto_tree_add_item_ret_uint(pco_tree, hf_gsm_a_gm_sm_pco_ecs_addr_type, tvb, ie_offset, 1, ENC_BIG_ENDIAN, &ecs_addr_type);
@@ -5012,8 +5031,8 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 			case 0x0037:
 			case 0x0038:
 				if (link_dir == P2P_DIR_DL) {
-					guint64 flags;
-					guint32 field_len, ie_offset = curr_offset;
+					uint64_t flags;
+					uint32_t field_len, ie_offset = curr_offset;
 					static int* const ind[] = {
 						&hf_gsm_a_gm_sm_pco_pvs_s_nssai_ind,
 						&hf_gsm_a_gm_sm_pco_pvs_dnn_ind,
@@ -5082,11 +5101,32 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 			 case 0x0041:
 				de_nas_5gs_cmn_service_level_aa_cont(tvb, pco_tree, pinfo, curr_offset, e_len, NULL, 0);
 				break;
+			case 0x0051:
+				if (eap_handle) {
+					col_append_str(pinfo->cinfo, COL_PROTOCOL, "/");
+					col_set_fence(pinfo->cinfo, COL_PROTOCOL);
+					col_append_str(pinfo->cinfo, COL_INFO, ", ");
+					col_set_fence(pinfo->cinfo, COL_INFO);
+					call_dissector(eap_handle, tvb_new_subset_length(tvb, curr_offset, e_len), pinfo, pco_tree);
+				} else {
+					call_data_dissector(tvb_new_subset_length(tvb, curr_offset, e_len), pinfo, pco_tree);
+				}
+				break;
+			case 0x0052:
+				if (link_dir == P2P_DIR_UL && e_len > 0) {
+					proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_sdnaepc_dn_specific_id, tvb, curr_offset, e_len, ENC_NA|ENC_UTF_8);
+				}
+				break;
+			case 0x0056:
+				if (e_len > 0) {
+					dissect_nas_5gs_updp(tvb_new_subset_length(tvb, curr_offset, e_len), pinfo, pco_tree);
+				}
+				break;
 			default:
 			{
 				if (e_len > 0) {
 					if (prot >= 0xff00) {
-						dissect_e212_mcc_mnc(tvb, pinfo, pco_tree, curr_offset, E212_NONE, TRUE);
+						dissect_e212_mcc_mnc(tvb, pinfo, pco_tree, curr_offset, E212_NONE, true);
 						if ((e_len - 3) > 0) {
 							proto_tree_add_item(pco_tree, hf_gsm_a_gm_pco_app_spec_info, tvb, curr_offset+3, e_len-3, ENC_NA);
 						}
@@ -5100,9 +5140,9 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 							 * dissect the embedded message
 							*/
 							/* In this case we do not want the columns updated */
-							col_set_writable(pinfo->cinfo, -1, FALSE);
+							col_set_writable(pinfo->cinfo, -1, false);
 							call_dissector(handle, l3_tvb, pinfo, pco_tree);
-							col_set_writable(pinfo->cinfo, -1, TRUE);
+							col_set_writable(pinfo->cinfo, -1, true);
 						}
 						else
 						{
@@ -5138,21 +5178,21 @@ static const value_string gsm_a_sm_pdp_type_org_vals[] = {
 	{ 0, NULL }
 };
 
-guint16
-de_sm_pdp_addr(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_sm_pdp_addr(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32      curr_offset;
-	const gchar *str;
-	guchar       pdp_type_org, pdp_type_num;
+	uint32_t     curr_offset;
+	const char *str;
+	unsigned char       pdp_type_org, pdp_type_num;
 
 	curr_offset = offset;
 
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (curr_offset << 3), 4, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_sm_pdp_type_org, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
 
-	pdp_type_org = tvb_get_guint8(tvb, curr_offset) & 0x0f;
+	pdp_type_org = tvb_get_uint8(tvb, curr_offset) & 0x0f;
 	curr_offset += 1;
-	pdp_type_num = tvb_get_guint8(tvb, curr_offset);
+	pdp_type_num = tvb_get_uint8(tvb, curr_offset);
 
 	if (pdp_type_org == 0)
 	{
@@ -5371,8 +5411,8 @@ static const true_false_string gsm_a_sm_qos_signalling_ind_value = {
 };
 
 /* Helper function returning the main bitrates in kbps */
-static guint32
-qos_calc_bitrate(guint8 oct)
+static uint32_t
+qos_calc_bitrate(uint8_t oct)
 {
 	if (oct <= 0x3f)
 		return oct;
@@ -5383,8 +5423,8 @@ qos_calc_bitrate(guint8 oct)
 }
 
 /* Helper function returning the extended bitrates in kbps */
-static guint32
-qos_calc_ext_bitrate(guint8 oct)
+static uint32_t
+qos_calc_ext_bitrate(uint8_t oct)
 {
 	if (oct <= 0x4a)
 		return 8600 + oct * 100;
@@ -5394,8 +5434,8 @@ qos_calc_ext_bitrate(guint8 oct)
 	return 128000 + (oct - 0xba) * 2000;
 }
 
-static guint32
-qos_calc_ext2_bitrate(guint8 oct)
+static uint32_t
+qos_calc_ext2_bitrate(uint8_t oct)
 {
 	if (oct <= 0x3d)
 		return (256 + oct * 4);
@@ -5410,13 +5450,13 @@ qos_calc_ext2_bitrate(guint8 oct)
 /*
  * 10.5.6.5 Quality of service
  */
-guint16
-de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32      curr_offset;
-	guchar       oct, tmp_oct;
-	const gchar *str;
-	guint32      temp32;
+	uint32_t     curr_offset;
+	unsigned char       oct, tmp_oct;
+	const char *str;
+	uint32_t     temp32;
 
 	curr_offset = offset;
 
@@ -5448,7 +5488,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Octet 7 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	switch (oct)
 	{
@@ -5470,7 +5510,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Octet 8 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	switch (oct)
 	{
@@ -5486,7 +5526,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Octet 9 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	switch (oct)
 	{
@@ -5509,7 +5549,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Octet 11 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	tmp_oct = oct>>2;
 	switch (tmp_oct)
@@ -5535,7 +5575,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Octet 12 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	switch (oct)
 	{
@@ -5551,7 +5591,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Octet 13 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	switch (oct)
 	{
@@ -5567,7 +5607,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Ocet 14 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (curr_offset << 3), 3, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_sm_qos_signalling_ind, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
 
@@ -5584,7 +5624,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Octet 15 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	if (oct == 0x00)
 		str = "Use the value indicated by the Maximum bit rate for downlink";
@@ -5603,7 +5643,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Octet 16 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	if (oct == 0x00)
 		str = "Use the value indicated by the Guaranteed bit rate for downlink";
@@ -5622,7 +5662,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Maximum bit rate for uplink (extended) Octet 17 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	if (oct == 0x00)
 		str = "Use the value indicated by the Maximum bit rate for uplink";
@@ -5641,7 +5681,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Guaranteed bit rate for uplink (extended) Octet 18 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	if (oct == 0x00)
 		str = "Use the value indicated by the Guaranteed bit rate for uplink";
@@ -5660,7 +5700,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Maximum bit rate for downlink (extended-2) Octet 19 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	if (oct == 0x00)
 		str = "Use the value indicated by the Maximum bit rate for downlink";
@@ -5676,7 +5716,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Guaranteed bit rate for downlink (extended-2) Octet 20 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	if (oct == 0x00)
 		str = "Use the value indicated by the Guaranteed bit rate for downlink";
@@ -5692,7 +5732,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Maximum bit rate for uplink (extended-2) Octet 21 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	if (oct == 0x00)
 		str = "Use the value indicated by the Maximum bit rate for uplink";
@@ -5708,7 +5748,7 @@ de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, g
 	NO_MORE_DATA_CHECK(len);
 
 	/* Guaranteed bit rate for uplink (extended-2) Octet 22 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	if (oct == 0x00)
 		str = "Use the value indicated by the Guaranteed bit rate for uplink";
@@ -5740,10 +5780,10 @@ static const true_false_string gsm_a_gm_ratc_value = {
 	"MS is allowed to re-attempt the procedure in S1 mode"
 };
 
-static guint16
-de_sm_re_attempt_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_re_attempt_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32 curr_offset;
+	uint32_t curr_offset;
 
 	curr_offset = offset;
 
@@ -5760,10 +5800,10 @@ de_sm_re_attempt_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
 /*
  * [15] 10.5.6.5b Extended quality of service
  */
-static guint16
-de_sm_ext_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_ext_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32 curr_offset;
+	uint32_t curr_offset;
 
 	curr_offset = offset;
 
@@ -5826,13 +5866,13 @@ static const value_string gsm_a_sm_cause_vals[] = {
 };
 static value_string_ext gsm_a_sm_cause_vals_ext = VALUE_STRING_EXT_INIT(gsm_a_sm_cause_vals);
 
-guint16
-de_sm_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_sm_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint8       oct;
-	const gchar *str;
+	uint8_t      oct;
+	const char *str;
 
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 
 	/* SM Cause can be sent in both directions */
 	str = val_to_str_ext_const(oct, &gsm_a_sm_cause_vals_ext,
@@ -5842,19 +5882,19 @@ de_sm_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 off
 				offset, 1, oct, "%s (%u)", str, oct);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
  * [9] 10.5.6.6a SM cause 2
  */
-static guint16
-de_sm_cause_2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_cause_2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint8       oct;
-	const gchar *str;
+	uint8_t      oct;
+	const char *str;
 
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 
 	/* SM Cause 2 is sent only in the Network-to-MS direction */
 	str = val_to_str_ext_const(oct, &gsm_a_sm_cause_vals_ext,
@@ -5864,7 +5904,7 @@ de_sm_cause_2(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 o
 				offset, 1, oct, "%s (%u)", str, oct);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 /*
  * [7] 10.5.6.7
@@ -5875,17 +5915,17 @@ static const true_false_string gsm_a_sm_ti_flag_vals = {
 	"The message is sent from the side that originates the TI"
 };
 
-static guint16
-de_sm_linked_ti(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_linked_ti(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
-	guint	curr_len;
-	gchar	oct;
+	uint32_t	curr_offset;
+	unsigned	curr_len;
+	char	oct;
 
 	curr_len    = len;
 	curr_offset = offset;
 
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	proto_tree_add_item(tree, hf_gsm_a_sm_ti_flag, tvb, offset, 1, ENC_BIG_ENDIAN);
 
@@ -5898,7 +5938,7 @@ de_sm_linked_ti(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 off
 	if (curr_len > 1)
 	{
 		curr_offset++;
-		oct = tvb_get_guint8(tvb, curr_offset);
+		oct = tvb_get_uint8(tvb, curr_offset);
 
 		proto_tree_add_uint(tree, hf_gsm_a_gm_ti_value, tvb, curr_offset, 1, oct&0x7f);
 
@@ -5930,14 +5970,14 @@ static const value_string gsm_a_sm_llc_sapi_vals[] = {
 	{ 0, NULL }
 };
 
-static guint16
-de_sm_sapi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_sapi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, offset << 3, 4, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_sm_llc_sapi, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -5948,14 +5988,14 @@ static const true_false_string gsm_a_sm_tdi_value = {
 	"Tear down not requested"
 };
 
-static guint16
-de_sm_tear_down(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_tear_down(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (offset << 3) + 4, 3, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_sm_tdi, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -5971,14 +6011,14 @@ static const range_string gsm_a_sm_packet_flow_id_vals[] = {
 	{ 0x00, 0x00, NULL }
 };
 
-guint16
-de_sm_pflow_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_sm_pflow_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
-	guint   value;
+	uint32_t	curr_offset;
+	unsigned   value;
 
 	curr_offset = offset;
-	value = tvb_get_guint8(tvb, curr_offset);
+	value = tvb_get_uint8(tvb, curr_offset);
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, curr_offset << 3, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_sm_packet_flow_id, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
 	curr_offset++;
@@ -6051,20 +6091,20 @@ static const value_string packet_filter_component_type_vals[] = {
 	{0, NULL}
 };
 
-guint16
-de_sm_tflow_temp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_sm_tflow_temp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	      curr_offset, prev_offset;
-	guint	      curr_len;
-	guint8        op_code;
-	guint8        pkt_fil_count;
-	guint8        e_bit;
-	guint8        count;
-	guint8        oct;
-	gint          pf_length;
-	gint          i;
-	gint          pack_component_type;
-	gint          param;
+	uint32_t	      curr_offset, prev_offset;
+	unsigned	      curr_len;
+	uint8_t       op_code;
+	uint8_t       pkt_fil_count;
+	uint8_t       e_bit;
+	uint8_t       count;
+	uint8_t       oct;
+	int           pf_length;
+	int           i;
+	int           pack_component_type;
+	int           param;
 
 	curr_len    = len;
 	curr_offset = offset;
@@ -6072,7 +6112,7 @@ de_sm_tflow_temp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
 	/*
 	 * parse first octet. It contain TFT operation code, E bit and Number of packet filters
 	 */
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	op_code = oct>>5;
 	pkt_fil_count = oct&0x0f;
@@ -6107,7 +6147,7 @@ de_sm_tflow_temp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
 		if (op_code == 5)  /* Delete packet filters from existing TFT - just a list of identifiers */
 		{
 			proto_tree_add_bits_item(tf_tree, hf_gsm_a_spare_bits, tvb, (curr_offset<<3), 4, ENC_BIG_ENDIAN);
-			oct = tvb_get_guint8(tvb, curr_offset) & 0x0f;
+			oct = tvb_get_uint8(tvb, curr_offset) & 0x0f;
 			proto_tree_add_uint_format_value(tf_tree, hf_gsm_a_sm_tft_pkt_flt_id, tvb, curr_offset, 1, oct, "%d (%d)", oct+1, oct);
 			curr_offset++;
 			curr_len--;
@@ -6117,7 +6157,7 @@ de_sm_tflow_temp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
 		{
 			proto_tree_add_bits_item(tf_tree, hf_gsm_a_spare_bits, tvb, (curr_offset<<3), 2, ENC_BIG_ENDIAN);
 			proto_tree_add_item(tf_tree, hf_gsm_a_sm_tft_pkt_flt_dir, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
-			oct = tvb_get_guint8(tvb, curr_offset) & 0x0f;
+			oct = tvb_get_uint8(tvb, curr_offset) & 0x0f;
 			proto_tree_add_uint_format_value(tf_tree, hf_gsm_a_sm_tft_pkt_flt_id, tvb, curr_offset, 1, oct, "%d (%d)", oct+1, oct);
 			curr_offset++;
 			curr_len--;
@@ -6134,7 +6174,7 @@ de_sm_tflow_temp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
 				proto_tree_add_expert(tf_tree, pinfo, &ei_gsm_a_gm_not_enough_data, tvb, curr_offset, 1);
 				return (len);
 			}
-			pf_length = tvb_get_guint8(tvb, curr_offset);
+			pf_length = tvb_get_uint8(tvb, curr_offset);
 			proto_tree_add_item(tf_tree, hf_gsm_a_sm_tft_packet_filter_length, tvb, curr_offset, 1, ENC_NA);
 			curr_offset++;
 			curr_len--;
@@ -6152,7 +6192,7 @@ de_sm_tflow_temp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
 					proto_tree_add_expert(tf_tree, pinfo, &ei_gsm_a_gm_not_enough_data, tvb, curr_offset, 1);
 					return (len);
 				}
-				pack_component_type = tvb_get_guint8(tvb, curr_offset);
+				pack_component_type = tvb_get_uint8(tvb, curr_offset);
 				tf = proto_tree_add_item(tf_tree, hf_gsm_a_sm_tft_packet_filter_component_type_id, tvb, curr_offset, 1, ENC_NA);
 				comp_tree = proto_item_add_subtree(tf, ett_sm_tft);
 
@@ -6327,9 +6367,9 @@ de_sm_tflow_temp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
 		count = 0;
 		while (curr_len) {
 			proto_tree *tf_tree;
-			pf_length = tvb_get_guint8(tvb, curr_offset+1);
+			pf_length = tvb_get_uint8(tvb, curr_offset+1);
 			tf_tree   = proto_tree_add_subtree_format(tree, tvb, curr_offset, pf_length+2, ett_sm_tft, NULL, "Parameter %d", count);
-			param     = tvb_get_guint8(tvb, curr_offset);
+			param     = tvb_get_uint8(tvb, curr_offset);
 			proto_tree_add_item(tf_tree, hf_gsm_a_sm_tft_param_id, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
 			curr_offset += 2;
 			curr_len    -= 2;
@@ -6345,7 +6385,7 @@ de_sm_tflow_temp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
 
 			case 0x03:
 				for (i=0; i<pf_length; i++) {
-					oct = tvb_get_guint8(tvb, curr_offset+i) & 0x0f;
+					oct = tvb_get_uint8(tvb, curr_offset+i) & 0x0f;
 					proto_tree_add_uint_format(tf_tree, hf_gsm_a_sm_tft_packet_filter_identifier, tvb, curr_offset+i, 1, oct+1, "Packet filter identifier %d: %d (%d)", i, oct+1, oct);
 				}
 				break;
@@ -6368,10 +6408,10 @@ de_sm_tflow_temp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
 /*
  * [9] 10.5.6.13 Temporary Mobile Group Identity (TMGI)
  */
-guint16
-de_sm_tmgi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_sm_tmgi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
+	uint32_t	curr_offset;
 
 	curr_offset = offset;
 
@@ -6379,7 +6419,7 @@ de_sm_tmgi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, 
 	curr_offset += 3;
 
 	NO_MORE_DATA_CHECK(len);
-	curr_offset = dissect_e212_mcc_mnc(tvb, pinfo, tree, curr_offset, E212_NONE, TRUE);
+	curr_offset = dissect_e212_mcc_mnc(tvb, pinfo, tree, curr_offset, E212_NONE, true);
 
 	EXTRANEOUS_DATA_CHECK(len, curr_offset - offset, pinfo, &ei_gsm_a_gm_extraneous_data);
 
@@ -6389,16 +6429,16 @@ de_sm_tmgi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, 
 /*
  * [9] 10.5.6.14 MBMS bearer capabilities
  */
-static guint16
-de_sm_mbms_bearer_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_mbms_bearer_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32      curr_offset, temp32;
-	guint8       oct;
-	const gchar *str;
+	uint32_t     curr_offset, temp32;
+	uint8_t      oct;
+	const char *str;
 
 	curr_offset = offset;
 
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	switch (oct)
 	{
@@ -6413,7 +6453,7 @@ de_sm_mbms_bearer_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint
 
 	NO_MORE_DATA_CHECK(len);
 
-	oct = tvb_get_guint8(tvb, curr_offset);
+	oct = tvb_get_uint8(tvb, curr_offset);
 
 	if (oct == 0x00)
 		str = "Use the value indicated by the Maximum bit rate for downlink";
@@ -6438,10 +6478,10 @@ de_sm_mbms_bearer_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint
 /*
  * [9] 10.5.6.15 MBMS protocol configuration options
  */
-guint16
-de_sm_mbms_prot_conf_opt(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_sm_mbms_prot_conf_opt(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
+	uint32_t	curr_offset;
 
 	curr_offset = offset;
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (curr_offset<<3), 8, ENC_BIG_ENDIAN);
@@ -6455,13 +6495,13 @@ de_sm_mbms_prot_conf_opt(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gu
 /*
  * [9] 10.5.6.16 Enhanced network service access point identifier
  */
-static guint16
-de_sm_enh_nsapi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_enh_nsapi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-	guint8       oct;
-	const gchar *str;
+	uint8_t      oct;
+	const char *str;
 
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 
 	if(oct < 0x80)
 		str = "Reserved";
@@ -6475,7 +6515,7 @@ de_sm_enh_nsapi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32
 		offset, 1, oct, "%s (%u)", str, oct);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -6490,14 +6530,14 @@ static const value_string gsm_a_sm_req_type_vals[] = {
 	{ 0, NULL }
 };
 
-static guint16
-de_sm_req_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_req_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (offset<<3) + 4, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_gsm_a_sm_req_type, tvb, offset, 1, ENC_BIG_ENDIAN);
 
 	/* no length check possible */
-	return (1);
+	return 1;
 }
 
 /*
@@ -6509,10 +6549,10 @@ static const value_string gsm_a_sm_notif_ind_vals[] = {
 	{ 0, NULL }
 };
 
-static guint16
-de_sm_notif_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_notif_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-	guint32	curr_offset;
+	uint32_t	curr_offset;
 
 	curr_offset = offset;
 
@@ -6531,8 +6571,8 @@ static const range_string gsm_a_sm_connectivity_type_vals[] = {
 	{ 0, 0, NULL }
 };
 
-static guint16
-de_sm_connectivity_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_connectivity_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_item(tree, hf_gsm_a_sm_connectivity_type, tvb, offset, 1, ENC_BIG_ENDIAN);
 
@@ -6552,8 +6592,8 @@ static const true_false_string gsm_a_sm_wlan_eutran_offload_accept_value = {
 	"Offloading the traffic of the PDN connection via a WLAN when in S1 mode is not acceptable"
 };
 
-static guint16
-de_sm_wlan_offload_accept(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_wlan_offload_accept(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
 	proto_tree_add_bits_item(tree, hf_gsm_a_spare_bits, tvb, (offset<<3)+4, 2, ENC_BIG_ENDIAN);
 	proto_tree_add_bits_item(tree, hf_gsm_a_sm_wlan_utran_offload_accept, tvb, (offset<<3)+6, 1, ENC_BIG_ENDIAN);
@@ -6565,8 +6605,8 @@ de_sm_wlan_offload_accept(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U
 /*
  * [13] 10.5.6.21 NBIFOM container
  */
-static guint16
-de_sm_nbifom_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_sm_nbifom_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
 	if (nbifom_handle) {
 		tvbuff_t *nbifom_tvb = tvb_new_subset_length(tvb, offset, len);
@@ -6579,7 +6619,7 @@ de_sm_nbifom_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint
 	return len;
 }
 
-guint16 (*gm_elem_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string, int string_len) = {
+uint16_t (*gm_elem_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string, int string_len) = {
 	/* GPRS Mobility Management Information Elements 10.5.5 */
 	de_gmm_add_upd_type,               /* Additional Update Type */
 	de_gmm_attach_res,                 /* Attach Result */
@@ -6668,11 +6708,11 @@ guint16 (*gm_elem_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_
  * [7] 9.4.1
  */
 static void
-dtap_gmm_attach_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_attach_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -6738,11 +6778,11 @@ dtap_gmm_attach_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * [7] 9.4.2
  */
 static void
-dtap_gmm_attach_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_attach_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -6814,12 +6854,12 @@ dtap_gmm_attach_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * [7] 9.4.3
  */
 static void
-dtap_gmm_attach_com(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_attach_com(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
 
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -6837,11 +6877,11 @@ dtap_gmm_attach_com(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * [7] 9.4.4
  */
 static void
-dtap_gmm_attach_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_attach_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -6861,11 +6901,11 @@ dtap_gmm_attach_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * [7] 9.4.5
  */
 static void
-dtap_gmm_detach_req_MT(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_detach_req_MT(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -6880,11 +6920,11 @@ dtap_gmm_detach_req_MT(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
 }
 
 static void
-dtap_gmm_detach_req_MO(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_detach_req_MO(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -6901,7 +6941,7 @@ dtap_gmm_detach_req_MO(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
 }
 
 static void
-dtap_gmm_detach_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_detach_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
 	if (pinfo->link_dir == P2P_DIR_UL) {
 		dtap_gmm_detach_req_MO(tvb, tree, pinfo, offset, len);
@@ -6923,10 +6963,10 @@ dtap_gmm_detach_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * [7] 9.4.6
  */
 static void
-dtap_gmm_detach_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_detach_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -6946,11 +6986,11 @@ dtap_gmm_detach_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * [7] 9.4.7
  */
 static void
-dtap_gmm_ptmsi_realloc_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_ptmsi_realloc_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -6974,11 +7014,11 @@ dtap_gmm_ptmsi_realloc_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, 
  * [7] 9.4.8
  */
 static void
-dtap_gmm_ptmsi_realloc_com(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_ptmsi_realloc_com(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-/*    guint32	consumed; */
-	guint	curr_len;
+	uint32_t	curr_offset;
+/*    uint32_t	consumed; */
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -6992,11 +7032,11 @@ dtap_gmm_ptmsi_realloc_com(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, 
  * [7] 9.4.9
  */
 static void
-dtap_gmm_auth_ciph_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_auth_ciph_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint   curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned   curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7028,11 +7068,11 @@ dtap_gmm_auth_ciph_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
  * [7] 9.4.10
  */
 static void
-dtap_gmm_auth_ciph_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_auth_ciph_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7056,10 +7096,10 @@ dtap_gmm_auth_ciph_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
  * [7] 9.4.11
  */
 static void
-dtap_gmm_auth_ciph_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_auth_ciph_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7073,11 +7113,11 @@ dtap_gmm_auth_ciph_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
  * [7] 9.4.10a
  */
 static void
-dtap_gmm_auth_ciph_fail(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_auth_ciph_fail(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7095,10 +7135,10 @@ dtap_gmm_auth_ciph_fail(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
  * [7] 9.4.12
  */
 static void
-dtap_gmm_ident_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_ident_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7114,11 +7154,11 @@ dtap_gmm_ident_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 
  * [7] 9.4.13
  */
 static void
-dtap_gmm_ident_res(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_ident_res(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7134,11 +7174,11 @@ dtap_gmm_ident_res(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 
  * [7] 9.4.14
  */
 static void
-dtap_gmm_rau_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_rau_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7208,11 +7248,11 @@ dtap_gmm_rau_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
  * [7] 9.4.15
  */
 static void
-dtap_gmm_rau_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_rau_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7284,11 +7324,11 @@ dtap_gmm_rau_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
  * [7] 9.4.16
  */
 static void
-dtap_gmm_rau_com(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_rau_com(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7308,11 +7348,11 @@ dtap_gmm_rau_com(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
  * [7] 9.4.17
  */
 static void
-dtap_gmm_rau_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_rau_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7334,11 +7374,11 @@ dtap_gmm_rau_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
  * [7] 9.4.18
  */
 static void
-dtap_gmm_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7354,11 +7394,11 @@ dtap_gmm_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 off
  * [8] 9.4.19 GMM Information
  */
 static void
-dtap_gmm_information(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_information(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7384,11 +7424,11 @@ dtap_gmm_information(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * [7] 9.4.20
  */
 static void
-dtap_gmm_service_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_service_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7416,11 +7456,11 @@ dtap_gmm_service_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * [7] 9.4.21
  */
 static void
-dtap_gmm_service_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_service_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7439,11 +7479,11 @@ dtap_gmm_service_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * [7] 9.4.22
  */
 static void
-dtap_gmm_service_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_gmm_service_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7462,11 +7502,11 @@ dtap_gmm_service_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * Direction:			MS to network
  */
 static void
-dtap_sm_act_pdp_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_act_pdp_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7505,11 +7545,11 @@ dtap_sm_act_pdp_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * Direction:			network to MS
  */
 static void
-dtap_sm_act_pdp_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_act_pdp_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7557,11 +7597,11 @@ dtap_sm_act_pdp_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * Direction:			network to MS
  */
 static void
-dtap_sm_act_pdp_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_act_pdp_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7590,11 +7630,11 @@ dtap_sm_act_pdp_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * Direction:			MS to network
  */
 static void
-dtap_sm_act_sec_pdp_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_act_sec_pdp_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7632,11 +7672,11 @@ dtap_sm_act_sec_pdp_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
  * Direction:			network to MS
  */
 static void
-dtap_sm_act_sec_pdp_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_act_sec_pdp_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7678,11 +7718,11 @@ dtap_sm_act_sec_pdp_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
  * Direction:			network to MS
  */
 static void
-dtap_sm_act_sec_pdp_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_act_sec_pdp_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7711,11 +7751,11 @@ dtap_sm_act_sec_pdp_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
  * Direction:			network to MS
  */
 static void
-dtap_sm_req_pdp_act(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_req_pdp_act(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7742,11 +7782,11 @@ dtap_sm_req_pdp_act(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * Direction:			MS to network
  */
 static void
-dtap_sm_req_pdp_act_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_req_pdp_act_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7771,11 +7811,11 @@ dtap_sm_req_pdp_act_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
  * Direction:			network to MS
  */
 static void
-dtap_sm_mod_pdp_req_net(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_mod_pdp_req_net(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7820,11 +7860,11 @@ dtap_sm_mod_pdp_req_net(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
  * Direction:			MS to network
  */
 static void
-dtap_sm_mod_pdp_req_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_mod_pdp_req_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7857,11 +7897,11 @@ dtap_sm_mod_pdp_req_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
  * Direction:			MS to network
  */
 static void
-dtap_sm_mod_pdp_acc_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_mod_pdp_acc_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7884,11 +7924,11 @@ dtap_sm_mod_pdp_acc_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
  * Direction:			Network to MS
  */
 static void
-dtap_sm_mod_pdp_acc_net(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_mod_pdp_acc_net(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7923,11 +7963,11 @@ dtap_sm_mod_pdp_acc_net(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
  * Direction:			both
  */
 static void
-dtap_sm_mod_pdp_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_mod_pdp_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7957,11 +7997,11 @@ dtap_sm_mod_pdp_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * Direction:			both
  */
 static void
-dtap_sm_deact_pdp_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_deact_pdp_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -7991,11 +8031,11 @@ dtap_sm_deact_pdp_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint
  * Direction:			both
  */
 static void
-dtap_sm_deact_pdp_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_deact_pdp_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -8017,11 +8057,11 @@ dtap_sm_deact_pdp_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint
  * Direction:			network to MS
  */
 static void
-dtap_sm_req_sec_pdp_act(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_req_sec_pdp_act(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -8058,11 +8098,11 @@ dtap_sm_req_sec_pdp_act(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
  * Direction:			MS to network
  */
 static void
-dtap_sm_req_sec_pdp_act_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_req_sec_pdp_act_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -8088,11 +8128,11 @@ dtap_sm_req_sec_pdp_act_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo,
  * Direction:			network to MS
  */
 static void
-dtap_sm_notif(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_notif(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -8110,11 +8150,11 @@ dtap_sm_notif(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offse
  * Direction:			both
  */
 static void
-dtap_sm_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -8132,11 +8172,11 @@ dtap_sm_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offs
  * Direction:			MS to network
  */
 static void
-dtap_sm_act_mbms_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_act_mbms_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -8171,11 +8211,11 @@ dtap_sm_act_mbms_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * Direction:			network to MS
  */
 static void
-dtap_sm_act_mbms_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_act_mbms_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -8196,11 +8236,11 @@ dtap_sm_act_mbms_acc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * Direction:			network to MS
  */
 static void
-dtap_sm_act_mbms_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_act_mbms_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -8223,11 +8263,11 @@ dtap_sm_act_mbms_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * Direction:			network to MS
  */
 static void
-dtap_sm_req_mbms_act(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_req_mbms_act(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -8250,11 +8290,11 @@ dtap_sm_req_mbms_act(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * Direction:			MS to network
  */
 static void
-dtap_sm_req_mbms_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+dtap_sm_req_mbms_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-	guint32	curr_offset;
-	guint32	consumed;
-	guint	curr_len;
+	uint32_t	curr_offset;
+	uint32_t	consumed;
+	unsigned	curr_len;
 
 	curr_offset = offset;
 	curr_len    = len;
@@ -8268,9 +8308,9 @@ dtap_sm_req_mbms_rej(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
 	EXTRANEOUS_DATA_CHECK(curr_len, 0, pinfo, &ei_gsm_a_gm_extraneous_data);
 }
 
-#define	NUM_GSM_DTAP_MSG_GMM (sizeof(gsm_a_dtap_msg_gmm_strings)/sizeof(value_string))
-static gint ett_gsm_dtap_msg_gmm[NUM_GSM_DTAP_MSG_GMM];
-static void (*dtap_msg_gmm_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len) = {
+#define	NUM_GSM_DTAP_MSG_GMM array_length(gsm_a_dtap_msg_gmm_strings)
+static int ett_gsm_dtap_msg_gmm[NUM_GSM_DTAP_MSG_GMM];
+static void (*dtap_msg_gmm_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len) = {
 	dtap_gmm_attach_req,		/* Attach Request */
 	dtap_gmm_attach_acc,		/* Attach Accept */
 	dtap_gmm_attach_com,		/* Attach Complete */
@@ -8297,9 +8337,9 @@ static void (*dtap_msg_gmm_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *
 	NULL,	/* NONE */
 };
 
-#define	NUM_GSM_DTAP_MSG_SM (sizeof(gsm_a_dtap_msg_sm_strings)/sizeof(value_string))
-static gint ett_gsm_dtap_msg_sm[NUM_GSM_DTAP_MSG_SM];
-static void (*dtap_msg_sm_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len) = {
+#define	NUM_GSM_DTAP_MSG_SM array_length(gsm_a_dtap_msg_sm_strings)
+static int ett_gsm_dtap_msg_sm[NUM_GSM_DTAP_MSG_SM];
+static void (*dtap_msg_sm_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len) = {
 	dtap_sm_act_pdp_req,		/* Activate PDP Context Request */
 	dtap_sm_act_pdp_acc,		/* Activate PDP Context Accept */
 	dtap_sm_act_pdp_rej,		/* Activate PDP Context Reject */
@@ -8333,11 +8373,11 @@ static void (*dtap_msg_sm_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *p
 };
 
 void
-get_gmm_msg_params(guint8 oct, const gchar **msg_str, int *ett_tree, int *hf_idx, msg_fcn *dtap_msg_fcn)
+get_gmm_msg_params(uint8_t oct, const char **msg_str, int *ett_tree, int *hf_idx, msg_fcn *dtap_msg_fcn)
 {
-	gint idx;
+	int idx;
 
-	*msg_str      = try_val_to_str_idx_ext((guint32) (oct & DTAP_GMM_IEI_MASK), &gsm_a_dtap_msg_gmm_strings_ext, &idx);
+	*msg_str      = try_val_to_str_idx_ext((uint32_t) (oct & DTAP_GMM_IEI_MASK), &gsm_a_dtap_msg_gmm_strings_ext, &idx);
 	*hf_idx	      = hf_gsm_a_dtap_msg_gmm_type;
 	if (*msg_str != NULL) {
 		*ett_tree     = ett_gsm_dtap_msg_gmm[idx];
@@ -8348,11 +8388,11 @@ get_gmm_msg_params(guint8 oct, const gchar **msg_str, int *ett_tree, int *hf_idx
 }
 
 void
-get_sm_msg_params(guint8 oct, const gchar **msg_str, int *ett_tree, int *hf_idx, msg_fcn *dtap_msg_fcn)
+get_sm_msg_params(uint8_t oct, const char **msg_str, int *ett_tree, int *hf_idx, msg_fcn *dtap_msg_fcn)
 {
-	gint idx;
+	int idx;
 
-	*msg_str      = try_val_to_str_idx_ext((guint32) (oct & DTAP_SM_IEI_MASK), &gsm_a_dtap_msg_sm_strings_ext, &idx);
+	*msg_str      = try_val_to_str_idx_ext((uint32_t) (oct & DTAP_SM_IEI_MASK), &gsm_a_dtap_msg_sm_strings_ext, &idx);
 	*hf_idx	      = hf_gsm_a_dtap_msg_sm_type;
 	if (*msg_str != NULL) {
 		*ett_tree     = ett_gsm_dtap_msg_sm[idx];
@@ -8366,8 +8406,8 @@ get_sm_msg_params(guint8 oct, const gchar **msg_str, int *ett_tree, int *hf_idx,
 void
 proto_register_gsm_a_gm(void)
 {
-	guint i;
-	guint last_offset;
+	unsigned i;
+	unsigned last_offset;
 
 	/* Setup list of header fields */
 
@@ -9700,7 +9740,7 @@ proto_register_gsm_a_gm(void)
 		},
 		{ &hf_gsm_a_gm_sm_pco_apn_rate_ctrl_params_max_ul_rate,
 		  { "Maximum uplink rate", "gsm_a.gm.sm.pco.apn_rate_ctrl_params.max_ul_rate",
-		    FT_UINT24, BASE_DEC|BASE_UNIT_STRING, &units_message_messages, 0x0,
+		    FT_UINT24, BASE_DEC|BASE_UNIT_STRING, UNS(&units_message_messages), 0x0,
 		    NULL, HFILL }
 		},
 		{ &hf_gsm_a_gm_sm_pco_3gpp_data_off_ue_status,
@@ -9715,7 +9755,7 @@ proto_register_gsm_a_gm(void)
 		},
 		{ &hf_gsm_a_gm_sm_pco_add_apn_rate_ctrl_params_max_ul_rate,
 		  { "Additional uplink rate for exception data", "gsm_a.gm.sm.pco.add_apn_rate_ctrl_params.max_ul_rate",
-		    FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_message_messages, 0x0,
+		    FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_message_messages), 0x0,
 		    NULL, HFILL }
 		},
 		{ &hf_gsm_a_gm_sm_pco_pdu_session_id,
@@ -9725,17 +9765,17 @@ proto_register_gsm_a_gm(void)
 		},
 		{ &hf_gsm_a_gm_sm_pco_pdu_session_address_lifetime,
 		  { "PDU session address lifetime", "gsm_a.gm.sm.pco.pdu_session_address_lifetime",
-		    FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_second_seconds, 0x0,
+		    FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_second_seconds), 0x0,
 		    NULL, HFILL }
 		},
 		{ &hf_gsm_a_gm_sm_pco_eth_frame_payload_mtu,
 		  { "Ethernet Frame Payload MTU", "gsm_a.gm.sm.pco.eth_frame_payload_mtu",
-		    FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_octet_octets, 0x0,
+		    FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_octet_octets), 0x0,
 		    NULL, HFILL }
 		},
 		{ &hf_gsm_a_gm_sm_pco_unstruct_link_mtu,
 		  { "Unstructured Link MTU", "gsm_a.gm.sm.pco.unstruct_link_mtu",
-		    FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_octet_octets, 0x0,
+		    FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_octet_octets), 0x0,
 		    NULL, HFILL }
 		},
 		{ &hf_gsm_a_gm_sm_pco_5gsm_cause,
@@ -9928,6 +9968,11 @@ proto_register_gsm_a_gm(void)
 		    FT_STRING, BASE_NONE, NULL, 0x0,
 		    NULL, HFILL }
 		},
+		{ &hf_gsm_a_gm_sm_pco_sdnaepc_dn_specific_id,
+		  { "SDNAEPC DN-specific identity", "gsm_a.gm.sm.pco.sdnaepc_dn_specific_id",
+		    FT_STRING, BASE_NONE, NULL, 0x0,
+		    NULL, HFILL }
+		},
 		/* Generated from convert_proto_tree_add_text.pl */
 		{ &hf_gsm_a_gm_presence, { "Presence", "gsm_a.gm.gmm.presence", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
 		{ &hf_gsm_a_gm_8psk_power_class, { "8PSK Power Class", "gsm_a.gm.8psk_power_class", FT_UINT8, BASE_DEC, VALS(gsm_a_gm_8psk_power_class_vals), 0x0, NULL, HFILL }},
@@ -9954,9 +9999,9 @@ proto_register_gsm_a_gm(void)
 		{ &hf_gsm_a_gm_sm_pco_dsmipv6_home_agent_ipv4, { "IPv4", "gsm_a.gm.sm.pco.dsmipv6_home_agent.ipv4", FT_IPv4, BASE_NONE, NULL, 0x0, NULL, HFILL }},
 		{ &hf_gsm_a_gm_sm_pco_pcscf_ipv4, { "IPv4", "gsm_a.gm.sm.pco.pcscf.ipv4", FT_IPv4, BASE_NONE, NULL, 0x0, NULL, HFILL }},
 		{ &hf_gsm_a_gm_sm_pco_dns_ipv4, { "IPv4", "gsm_a.gm.sm.pco.dns.ipv4", FT_IPv4, BASE_NONE, NULL, 0x0, NULL, HFILL }},
-		{ &hf_gsm_a_gm_sm_pco_ipv4_link_mtu_size, { "IPv4 link MTU size", "gsm_a.gm.sm.pco.ipv4_link_mtu_size", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_octet_octets, 0x0, NULL, HFILL }},
+		{ &hf_gsm_a_gm_sm_pco_ipv4_link_mtu_size, { "IPv4 link MTU size", "gsm_a.gm.sm.pco.ipv4_link_mtu_size", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_octet_octets), 0x0, NULL, HFILL }},
 		{ &hf_gsm_a_gm_sm_pco_nbifom_mode, { "NBIFOM mode", "gsm_a.gm.sm.pco.nbifom_mode", FT_UINT8, BASE_HEX, VALS(gsm_a_gm_nbifom_mode_vals), 0x0, NULL, HFILL }},
-		{ &hf_gsm_a_gm_sm_pco_non_ip_link_mtu_size, { "Non-IP link MTU size", "gsm_a.gm.sm.pco.non_ip_link_mtu_size", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_octet_octets, 0x0, NULL, HFILL }},
+		{ &hf_gsm_a_gm_sm_pco_non_ip_link_mtu_size, { "Non-IP link MTU size", "gsm_a.gm.sm.pco.non_ip_link_mtu_size", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_octet_octets), 0x0, NULL, HFILL }},
 		{ &hf_gsm_a_gm_sm_pco_sel_bearer_ctrl_mode, { "Selected Bearer Control Mode", "gsm_a.gm.sm.pco.sel_bearer_ctrl_mode", FT_UINT8, BASE_DEC, VALS(gsm_a_gm_sel_bearer_ctrl_mode_vals), 0x0, NULL, HFILL }},
 		{ &hf_gsm_a_sm_pdp_type_number, { "PDP type number", "gsm_a.gm.sm.pdp_type_number", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
 		{ &hf_gsm_a_sm_pdp_address, { "PDP address", "gsm_a.gm.sm.pdp_address", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
@@ -9984,7 +10029,7 @@ proto_register_gsm_a_gm(void)
 
 	/* Setup protocol subtree array */
 #define	NUM_INDIVIDUAL_ELEMS	7
-	gint *ett[NUM_INDIVIDUAL_ELEMS +
+	int *ett[NUM_INDIVIDUAL_ELEMS +
 		  NUM_GSM_DTAP_MSG_GMM + NUM_GSM_DTAP_MSG_SM +
 		  NUM_GSM_GM_ELEM];
 
@@ -10000,19 +10045,16 @@ proto_register_gsm_a_gm(void)
 
 	for (i=0; i<NUM_GSM_DTAP_MSG_GMM; i++, last_offset++)
 	{
-		ett_gsm_dtap_msg_gmm[i] = -1;
 		ett[last_offset] = &ett_gsm_dtap_msg_gmm[i];
 	}
 
 	for (i=0; i<NUM_GSM_DTAP_MSG_SM; i++, last_offset++)
 	{
-		ett_gsm_dtap_msg_sm[i] = -1;
 		ett[last_offset] = &ett_gsm_dtap_msg_sm[i];
 	}
 
 	for (i=0; i<NUM_GSM_GM_ELEM; i++, last_offset++)
 	{
-		ett_gsm_gm_elem[i] = -1;
 		ett[last_offset] = &ett_gsm_gm_elem[i];
 	}
 
@@ -10036,6 +10078,7 @@ proto_reg_handoff_gsm_a_gm(void)
 	rrc_irat_ho_info_handle = find_dissector_add_dependency("rrc.irat.irat_ho_info", proto_a_gm);
 	lte_rrc_ue_eutra_cap_handle = find_dissector_add_dependency("lte-rrc.ue_eutra_cap", proto_a_gm);
 	nbifom_handle = find_dissector_add_dependency("nbifom", proto_a_gm);
+	eap_handle = find_dissector_add_dependency("eap", proto_a_gm);
 }
 
 /*

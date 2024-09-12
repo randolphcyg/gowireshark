@@ -23,7 +23,6 @@
 #include "wsutil/pint.h"
 #include "addr_resolv.h"
 #include "address_types.h"
-#include "ipv6.h"
 #include "osi-utils.h"
 #include "value_string.h"
 #include "column-info.h"
@@ -34,6 +33,7 @@
 #include <epan/epan.h>
 #include <epan/dfilter/dfilter.h>
 
+#include <wsutil/inet_cidr.h>
 #include <wsutil/utf8_entities.h>
 #include <wsutil/ws_assert.h>
 #include <wsutil/unicode-utils.h>
@@ -50,15 +50,15 @@
 static char *col_decimal_point;
 
 /* Used to indicate updated column information, e.g. a new request/response. */
-static gboolean col_data_changed_;
+static bool col_data_changed_;
 
-static int proto_cols = -1;
-static gint ett_cols = -1;
+static int proto_cols;
+static int ett_cols;
 
 /* Allocate all the data structures for constructing column data, given
    the number of columns. */
 void
-col_setup(column_info *cinfo, const gint num_cols)
+col_setup(column_info *cinfo, const int num_cols)
 {
   int i;
 
@@ -70,23 +70,32 @@ col_setup(column_info *cinfo, const gint num_cols)
   for (i = 0; i < num_cols; i++) {
     cinfo->columns[i].col_custom_fields_ids = NULL;
   }
-  cinfo->col_expr.col_expr     = g_new(const gchar*, num_cols + 1);
-  cinfo->col_expr.col_expr_val = g_new(gchar*, num_cols + 1);
+  cinfo->col_expr.col_expr     = g_new(const char*, num_cols + 1);
+  cinfo->col_expr.col_expr_val = g_new(char*, num_cols + 1);
 
   for (i = 0; i < NUM_COL_FMTS; i++) {
     cinfo->col_first[i] = -1;
     cinfo->col_last[i] = -1;
   }
   cinfo->prime_regex = g_regex_new(COL_CUSTOM_PRIME_REGEX,
-    (GRegexCompileFlags) (G_REGEX_ANCHORED | G_REGEX_RAW),
-    G_REGEX_MATCH_ANCHORED, NULL);
+    (GRegexCompileFlags) (G_REGEX_RAW),
+    0, NULL);
+}
+
+static void
+col_custom_free_cb(void *data)
+{
+  col_custom_t *col_custom = (col_custom_t*)data;
+  dfilter_free(col_custom->dfilter);
+  g_free(col_custom->dftext);
+  g_free(col_custom);
 }
 
 static void
 col_custom_fields_ids_free(GSList** custom_fields_id)
 {
   if (*custom_fields_id != NULL) {
-    g_slist_free_full(*custom_fields_id, g_free);
+    g_slist_free_full(*custom_fields_id, col_custom_free_cb);
   }
   *custom_fields_id = NULL;
 }
@@ -124,7 +133,7 @@ col_cleanup(column_info *cinfo)
    * pointer to const XXX", i.e. that it's a pointer to a pointer to
    * something that's "const"ant.  Cast its bogus complaints away.
    */
-  g_free((gchar **)cinfo->col_expr.col_expr);
+  g_free((char **)cinfo->col_expr.col_expr);
   g_free(cinfo->col_expr.col_expr_val);
   if (cinfo->prime_regex)
     g_regex_unref(cinfo->prime_regex);
@@ -145,26 +154,26 @@ col_init(column_info *cinfo, const struct epan_session *epan)
     col_item->col_buf[0] = '\0';
     col_item->col_data = col_item->col_buf;
     col_item->col_fence = 0;
-    col_item->writable = TRUE;
+    col_item->writable = true;
     cinfo->col_expr.col_expr[i] = "";
     cinfo->col_expr.col_expr_val[i][0] = '\0';
   }
-  cinfo->writable = TRUE;
+  cinfo->writable = true;
   cinfo->epan = epan;
 }
 
-gboolean
-col_get_writable(column_info *cinfo, const gint col)
+bool
+col_get_writable(column_info *cinfo, const int col)
 {
   int i;
   col_item_t* col_item;
 
   if (cinfo == NULL)
-    return FALSE;
+    return false;
 
   /* "global" (not) writeability will always override
      an individual column */
-  if ((col == -1) || (cinfo->writable == FALSE))
+  if ((col == -1) || (cinfo->writable == false))
     return cinfo->writable;
 
   if (cinfo->col_first[col] >= 0) {
@@ -175,11 +184,11 @@ col_get_writable(column_info *cinfo, const gint col)
       }
     }
   }
-  return FALSE;
+  return false;
 }
 
 void
-col_set_writable(column_info *cinfo, const gint col, const gboolean writable)
+col_set_writable(column_info *cinfo, const int col, const bool writable)
 {
   int i;
   col_item_t* col_item;
@@ -207,7 +216,7 @@ col_set_writable(column_info *cinfo, const gint col, const gboolean writable)
 
 /* Sets the fence for a column to be at the end of the column. */
 void
-col_set_fence(column_info *cinfo, const gint el)
+col_set_fence(column_info *cinfo, const int el)
 {
   int i;
   col_item_t* col_item;
@@ -225,7 +234,7 @@ col_set_fence(column_info *cinfo, const gint el)
 
 /* Clear the fence for a column. */
 void
-col_clear_fence(column_info *cinfo, const gint el)
+col_clear_fence(column_info *cinfo, const int el)
 {
   int i;
   col_item_t* col_item;
@@ -242,11 +251,11 @@ col_clear_fence(column_info *cinfo, const gint el)
 }
 
 /* Gets the text of a column */
-const gchar *
-col_get_text(column_info *cinfo, const gint el)
+const char *
+col_get_text(column_info *cinfo, const int el)
 {
   int i;
-  const gchar* text = NULL;
+  const char* text = NULL;
   col_item_t* col_item;
 
   if (!(cinfo && (cinfo)->col_first[el] >= 0)) {
@@ -270,7 +279,7 @@ col_get_text(column_info *cinfo, const gint el)
    later append to it, as the later append will cause a string
    copy to be done. */
 void
-col_clear(column_info *cinfo, const gint el)
+col_clear(column_info *cinfo, const int el)
 {
   int    i;
   col_item_t* col_item;
@@ -328,19 +337,19 @@ col_clear(column_info *cinfo, const gint el)
 /* The same as CHECK_COL(), but without the check to see if the column is writable. */
 #define HAVE_CUSTOM_COLS(cinfo) ((cinfo) && (cinfo)->col_first[COL_CUSTOM] >= 0)
 
-gboolean
+bool
 have_custom_cols(column_info *cinfo)
 {
   return HAVE_CUSTOM_COLS(cinfo);
 }
 
-gboolean
+bool
 have_field_extractors(void)
 {
 #ifdef HAVE_LUA
     return wslua_has_field_extractors();
 #else
-    return FALSE;
+    return false;
 #endif
 }
 
@@ -418,7 +427,7 @@ col_custom_prime_edt(epan_dissect_t *edt, column_info *cinfo)
 }
 
 char*
-col_custom_get_filter(epan_dissect_t *edt, column_info *cinfo, const gint col)
+col_custom_get_filter(epan_dissect_t *edt, column_info *cinfo, const int col)
 {
   col_item_t* col_item;
 
@@ -437,12 +446,12 @@ col_custom_get_filter(epan_dissect_t *edt, column_info *cinfo, const gint col)
 }
 
 void
-col_append_lstr(column_info *cinfo, const gint el, const gchar *str1, ...)
+col_append_lstr(column_info *cinfo, const int el, const char *str1, ...)
 {
   va_list ap;
   size_t pos, max_len;
   int    i;
-  const gchar *str;
+  const char *str;
   col_item_t* col_item;
 
   if (!CHECK_COL(cinfo, el))
@@ -481,16 +490,19 @@ col_append_lstr(column_info *cinfo, const gint el, const gchar *str1, ...)
 }
 
 void
-col_append_str_uint(column_info *cinfo, const gint col, const gchar *abbrev, guint32 val, const gchar *sep)
+col_append_str_uint(column_info *cinfo, const int col, const char *abbrev, uint32_t val, const char *sep)
 {
   char buf[16];
 
-  guint32_to_str_buf(val, buf, sizeof(buf));
+  if (!CHECK_COL(cinfo, col))
+    return;
+
+  uint32_to_str_buf(val, buf, sizeof(buf));
   col_append_lstr(cinfo, col, sep ? sep : "", abbrev, "=", buf, COL_ADD_LSTR_TERMINATOR);
 }
 
 static inline void
-col_snprint_port(gchar *buf, size_t buf_siz, port_type typ, guint16 val)
+col_snprint_port(char *buf, size_t buf_siz, port_type typ, uint16_t val)
 {
   const char *str;
 
@@ -503,9 +515,12 @@ col_snprint_port(gchar *buf, size_t buf_siz, port_type typ, guint16 val)
 }
 
 void
-col_append_ports(column_info *cinfo, const gint col, port_type typ, guint16 src, guint16 dst)
+col_append_ports(column_info *cinfo, const int col, port_type typ, uint16_t src, uint16_t dst)
 {
   char buf_src[32], buf_dst[32];
+
+  if (!CHECK_COL(cinfo, col))
+    return;
 
   col_snprint_port(buf_src, 32, typ, src);
   col_snprint_port(buf_dst, 32, typ, dst);
@@ -513,11 +528,11 @@ col_append_ports(column_info *cinfo, const gint col, port_type typ, guint16 src,
 }
 
 void
-col_append_frame_number(packet_info *pinfo, const gint col, const gchar *fmt_str, guint frame_num)
+col_append_frame_number(packet_info *pinfo, const int col, const char *fmt_str, unsigned frame_num)
 {
   col_append_fstr(pinfo->cinfo, col, fmt_str, frame_num);
   if (!pinfo->fd->visited) {
-    col_data_changed_ = TRUE;
+    col_data_changed_ = true;
   }
 }
 
@@ -572,7 +587,7 @@ col_do_append_fstr(column_info *cinfo, const int el, const char *separator, cons
 
 /*  Appends a vararg list to a packet info string. */
 void
-col_append_fstr(column_info *cinfo, const gint el, const gchar *format, ...)
+col_append_fstr(column_info *cinfo, const int el, const char *format, ...)
 {
   va_list ap;
 
@@ -588,8 +603,8 @@ col_append_fstr(column_info *cinfo, const gint el, const gchar *format, ...)
  *  Prefixes it with the given separator if the column is not empty.
  */
 void
-col_append_sep_fstr(column_info *cinfo, const gint el, const gchar *separator,
-                    const gchar *format, ...)
+col_append_sep_fstr(column_info *cinfo, const int el, const char *separator,
+                    const char *format, ...)
 {
   va_list ap;
 
@@ -606,7 +621,7 @@ col_append_sep_fstr(column_info *cinfo, const gint el, const gchar *separator,
 
 /* Prepends a vararg list to a packet info string. */
 void
-col_prepend_fstr(column_info *cinfo, const gint el, const gchar *format, ...)
+col_prepend_fstr(column_info *cinfo, const int el, const char *format, ...)
 {
   va_list     ap;
   int         i;
@@ -658,7 +673,7 @@ col_prepend_fstr(column_info *cinfo, const gint el, const gchar *format, ...)
   }
 }
 void
-col_prepend_fence_fstr(column_info *cinfo, const gint el, const gchar *format, ...)
+col_prepend_fence_fstr(column_info *cinfo, const int el, const char *format, ...)
 {
   va_list     ap;
   int         i;
@@ -716,7 +731,7 @@ col_prepend_fence_fstr(column_info *cinfo, const gint el, const gchar *format, .
 /* Use this if "str" points to something that won't stay around (and
    must thus be copied). */
 void
-col_add_str(column_info *cinfo, const gint el, const gchar* str)
+col_add_str(column_info *cinfo, const int el, const char* str)
 {
   int    i;
   size_t max_len;
@@ -754,7 +769,7 @@ col_add_str(column_info *cinfo, const gint el, const gchar* str)
 /* Use this if "str" points to something that will stay around (and thus
    needn't be copied). */
 void
-col_set_str(column_info *cinfo, const gint el, const gchar* str)
+col_set_str(column_info *cinfo, const int el, const char* str)
 {
   int i;
   size_t max_len;
@@ -793,13 +808,13 @@ col_set_str(column_info *cinfo, const gint el, const gchar* str)
 }
 
 void
-col_add_lstr(column_info *cinfo, const gint el, const gchar *str1, ...)
+col_add_lstr(column_info *cinfo, const int el, const char *str1, ...)
 {
   va_list ap;
   int     i;
-  gsize   pos;
-  gsize   max_len;
-  const gchar *str;
+  size_t  pos;
+  size_t  max_len;
+  const char *str;
   col_item_t* col_item;
 
   if (!CHECK_COL(cinfo, el))
@@ -844,7 +859,7 @@ col_add_lstr(column_info *cinfo, const gint el, const gchar *str1, ...)
 
 /* Adds a vararg list to a packet info string. */
 void
-col_add_fstr(column_info *cinfo, const gint el, const gchar *format, ...)
+col_add_fstr(column_info *cinfo, const int el, const char *format, ...)
 {
   va_list ap;
   int     i, pos;
@@ -888,8 +903,8 @@ col_add_fstr(column_info *cinfo, const gint el, const gchar *format, ...)
 }
 
 static void
-col_do_append_str(column_info *cinfo, const gint el, const gchar* separator,
-    const gchar* str)
+col_do_append_str(column_info *cinfo, const int el, const char* separator,
+    const char* str)
 {
   int    i;
   size_t len, max_len;
@@ -925,7 +940,7 @@ col_do_append_str(column_info *cinfo, const gint el, const gchar* separator,
 }
 
 void
-col_append_str(column_info *cinfo, const gint el, const gchar* str)
+col_append_str(column_info *cinfo, const int el, const char* str)
 {
   if (!CHECK_COL(cinfo, el))
     return;
@@ -934,8 +949,8 @@ col_append_str(column_info *cinfo, const gint el, const gchar* str)
 }
 
 void
-col_append_sep_str(column_info *cinfo, const gint el, const gchar* separator,
-    const gchar* str)
+col_append_sep_str(column_info *cinfo, const int el, const char* separator,
+    const char* str)
 {
   if (!CHECK_COL(cinfo, el))
     return;
@@ -947,8 +962,8 @@ col_append_sep_str(column_info *cinfo, const gint el, const gchar* separator,
 }
 
 /* --------------------------------- */
-gboolean
-col_has_time_fmt(column_info *cinfo, const gint col)
+bool
+col_has_time_fmt(column_info *cinfo, const int col)
 {
   col_item_t* col_item = &cinfo->columns[col];
   return ((col_item->fmt_matx[COL_CLS_TIME]) ||
@@ -1008,7 +1023,7 @@ get_default_timestamp_precision(void)
 }
 
 static void
-set_abs_ymd_time(const frame_data *fd, gchar *buf, char *decimal_point, gboolean local)
+set_abs_ymd_time(const frame_data *fd, char *buf, char *decimal_point, bool local)
 {
   if (!fd->has_ts) {
     buf[0] = '\0';
@@ -1020,7 +1035,7 @@ set_abs_ymd_time(const frame_data *fd, gchar *buf, char *decimal_point, gboolean
 static void
 col_set_abs_ymd_time(const frame_data *fd, column_info *cinfo, const int col)
 {
-  set_abs_ymd_time(fd, cinfo->columns[col].col_buf, col_decimal_point, TRUE);
+  set_abs_ymd_time(fd, cinfo->columns[col].col_buf, col_decimal_point, true);
   cinfo->col_expr.col_expr[col] = "frame.time";
   (void) g_strlcpy(cinfo->col_expr.col_expr_val[col],cinfo->columns[col].col_buf,COL_MAX_LEN);
 
@@ -1030,7 +1045,7 @@ col_set_abs_ymd_time(const frame_data *fd, column_info *cinfo, const int col)
 static void
 col_set_utc_ymd_time(const frame_data *fd, column_info *cinfo, const int col)
 {
-  set_abs_ymd_time(fd, cinfo->columns[col].col_buf, col_decimal_point, FALSE);
+  set_abs_ymd_time(fd, cinfo->columns[col].col_buf, col_decimal_point, false);
   cinfo->col_expr.col_expr[col] = "frame.time";
   (void) g_strlcpy(cinfo->col_expr.col_expr_val[col],cinfo->columns[col].col_buf,COL_MAX_LEN);
 
@@ -1038,7 +1053,7 @@ col_set_utc_ymd_time(const frame_data *fd, column_info *cinfo, const int col)
 }
 
 static void
-set_abs_ydoy_time(const frame_data *fd, gchar *buf, char *decimal_point, gboolean local)
+set_abs_ydoy_time(const frame_data *fd, char *buf, char *decimal_point, bool local)
 {
   struct tm tm, *tmp;
   char *ptr;
@@ -1092,14 +1107,14 @@ set_abs_ydoy_time(const frame_data *fd, gchar *buf, char *decimal_point, gboolea
      * Get the nsecs as a 32-bit unsigned value, as it should never
      * be negative, so we treat it as unsigned.
      */
-    format_fractional_part_nsecs(ptr, remaining, (guint32)fd->abs_ts.nsecs, decimal_point, tsprecision);
+    format_fractional_part_nsecs(ptr, remaining, (uint32_t)fd->abs_ts.nsecs, decimal_point, tsprecision);
   }
 }
 
 static void
 col_set_abs_ydoy_time(const frame_data *fd, column_info *cinfo, const int col)
 {
-  set_abs_ydoy_time(fd, cinfo->columns[col].col_buf, col_decimal_point, TRUE);
+  set_abs_ydoy_time(fd, cinfo->columns[col].col_buf, col_decimal_point, true);
   cinfo->col_expr.col_expr[col] = "frame.time";
   (void) g_strlcpy(cinfo->col_expr.col_expr_val[col],cinfo->columns[col].col_buf,COL_MAX_LEN);
 
@@ -1109,7 +1124,7 @@ col_set_abs_ydoy_time(const frame_data *fd, column_info *cinfo, const int col)
 static void
 col_set_utc_ydoy_time(const frame_data *fd, column_info *cinfo, const int col)
 {
-  set_abs_ydoy_time(fd, cinfo->columns[col].col_buf, col_decimal_point, FALSE);
+  set_abs_ydoy_time(fd, cinfo->columns[col].col_buf, col_decimal_point, false);
   cinfo->col_expr.col_expr[col] = "frame.time";
   (void) g_strlcpy(cinfo->col_expr.col_expr_val[col],cinfo->columns[col].col_buf,COL_MAX_LEN);
 
@@ -1117,7 +1132,7 @@ col_set_utc_ydoy_time(const frame_data *fd, column_info *cinfo, const int col)
 }
 
 static void
-set_time_seconds(const frame_data *fd, const nstime_t *ts, gchar *buf)
+set_time_seconds(const frame_data *fd, const nstime_t *ts, char *buf)
 {
   ws_assert(fd->has_ts);
 
@@ -1125,11 +1140,11 @@ set_time_seconds(const frame_data *fd, const nstime_t *ts, gchar *buf)
 }
 
 static void
-set_time_hour_min_sec(const frame_data *fd, const nstime_t *ts, gchar *buf, char *decimal_point)
+set_time_hour_min_sec(const frame_data *fd, const nstime_t *ts, char *buf, char *decimal_point)
 {
   time_t secs = ts->secs;
-  guint32 nsecs;
-  gboolean negative = FALSE;
+  uint32_t nsecs;
+  bool negative = false;
   char *ptr;
   size_t remaining;
   int num_bytes;
@@ -1139,7 +1154,7 @@ set_time_hour_min_sec(const frame_data *fd, const nstime_t *ts, gchar *buf, char
 
   if (secs < 0) {
     secs = -secs;
-    negative = TRUE;
+    negative = true;
   }
   if (ts->nsecs >= 0) {
     nsecs = ts->nsecs;
@@ -1150,7 +1165,7 @@ set_time_hour_min_sec(const frame_data *fd, const nstime_t *ts, gchar *buf, char
      * 32-bit unsigned int variable.
      */
     nsecs = -ts->nsecs;
-    negative = TRUE;
+    negative = true;
   } else {
     /*
      * -2147483648 is the smallest number that fits in a signed
@@ -1165,26 +1180,26 @@ set_time_hour_min_sec(const frame_data *fd, const nstime_t *ts, gchar *buf, char
      * 32-bit *and* 64-bit Windows, making the variable in
      * question a long will not avoid undefined behavior.
      */
-    nsecs = (guint32)ts->nsecs;
-    negative = TRUE;
+    nsecs = (uint32_t)ts->nsecs;
+    negative = true;
   }
   ptr = buf;
   remaining = COL_MAX_LEN;
   if (secs >= (60*60)) {
     num_bytes = snprintf(ptr, remaining, "%s%dh %2dm %2d",
                negative ? "- " : "",
-               (gint32) secs / (60 * 60),
-               (gint32) (secs / 60) % 60,
-               (gint32) secs % 60);
+               (int32_t) secs / (60 * 60),
+               (int32_t) (secs / 60) % 60,
+               (int32_t) secs % 60);
   } else if (secs >= 60) {
     num_bytes = snprintf(ptr, remaining, "%s%dm %2d",
                negative ? "- " : "",
-               (gint32) secs / 60,
-               (gint32) secs % 60);
+               (int32_t) secs / 60,
+               (int32_t) secs % 60);
   } else {
     num_bytes = snprintf(ptr, remaining, "%s%d",
                negative ? "- " : "",
-               (gint32) secs);
+               (int32_t) secs);
   }
   if (num_bytes < 0) {
     /*
@@ -1318,10 +1333,10 @@ col_set_delta_time_dis(const frame_data *fd, column_info *cinfo, const int col)
  * Time, without date.
  */
 static void
-set_abs_time(const frame_data *fd, gchar *buf, char *decimal_point, gboolean local)
+set_abs_time(const frame_data *fd, char *buf, char *decimal_point, bool local)
 {
   struct tm tm, *tmp;
-  gchar *ptr;
+  char *ptr;
   size_t remaining;
   int num_bytes;
   int tsprecision;
@@ -1373,14 +1388,14 @@ set_abs_time(const frame_data *fd, gchar *buf, char *decimal_point, gboolean loc
      * Get the nsecs as a 32-bit unsigned value, as it should never
      * be negative, so we treat it as unsigned.
      */
-    format_fractional_part_nsecs(ptr, remaining, (guint32)fd->abs_ts.nsecs, decimal_point, tsprecision);
+    format_fractional_part_nsecs(ptr, remaining, (uint32_t)fd->abs_ts.nsecs, decimal_point, tsprecision);
   }
 }
 
 static void
 col_set_abs_time(const frame_data *fd, column_info *cinfo, const int col)
 {
-  set_abs_time(fd, cinfo->columns[col].col_buf, col_decimal_point, TRUE);
+  set_abs_time(fd, cinfo->columns[col].col_buf, col_decimal_point, true);
   cinfo->col_expr.col_expr[col] = "frame.time";
   (void) g_strlcpy(cinfo->col_expr.col_expr_val[col],cinfo->columns[col].col_buf,COL_MAX_LEN);
 
@@ -1390,22 +1405,22 @@ col_set_abs_time(const frame_data *fd, column_info *cinfo, const int col)
 static void
 col_set_utc_time(const frame_data *fd, column_info *cinfo, const int col)
 {
-  set_abs_time(fd, cinfo->columns[col].col_buf, col_decimal_point, FALSE);
+  set_abs_time(fd, cinfo->columns[col].col_buf, col_decimal_point, false);
   cinfo->col_expr.col_expr[col] = "frame.time";
   (void) g_strlcpy(cinfo->col_expr.col_expr_val[col],cinfo->columns[col].col_buf,COL_MAX_LEN);
 
   cinfo->columns[col].col_data = cinfo->columns[col].col_buf;
 }
 
-static gboolean
-set_epoch_time(const frame_data *fd, gchar *buf)
+static bool
+set_epoch_time(const frame_data *fd, char *buf)
 {
   if (!fd->has_ts) {
     buf[0] = '\0';
-    return FALSE;
+    return false;
   }
   display_epoch_time(buf, COL_MAX_LEN, &fd->abs_ts, get_frame_timestamp_precision(fd));
-  return TRUE;
+  return true;
 }
 
 static void
@@ -1419,20 +1434,20 @@ col_set_epoch_time(const frame_data *fd, column_info *cinfo, const int col)
 }
 
 void
-set_fd_time(const epan_t *epan, frame_data *fd, gchar *buf)
+set_fd_time(const epan_t *epan, frame_data *fd, char *buf)
 {
 
   switch (timestamp_get_type()) {
   case TS_ABSOLUTE:
-    set_abs_time(fd, buf, col_decimal_point, TRUE);
+    set_abs_time(fd, buf, col_decimal_point, true);
     break;
 
   case TS_ABSOLUTE_WITH_YMD:
-    set_abs_ymd_time(fd, buf, col_decimal_point, TRUE);
+    set_abs_ymd_time(fd, buf, col_decimal_point, true);
     break;
 
   case TS_ABSOLUTE_WITH_YDOY:
-    set_abs_ydoy_time(fd, buf, col_decimal_point, TRUE);
+    set_abs_ydoy_time(fd, buf, col_decimal_point, true);
     break;
 
   case TS_RELATIVE:
@@ -1503,15 +1518,15 @@ set_fd_time(const epan_t *epan, frame_data *fd, gchar *buf)
     break;
 
   case TS_UTC:
-    set_abs_time(fd, buf, col_decimal_point, FALSE);
+    set_abs_time(fd, buf, col_decimal_point, false);
     break;
 
   case TS_UTC_WITH_YMD:
-    set_abs_ymd_time(fd, buf, col_decimal_point, FALSE);
+    set_abs_ymd_time(fd, buf, col_decimal_point, false);
     break;
 
   case TS_UTC_WITH_YDOY:
-    set_abs_ydoy_time(fd, buf, col_decimal_point, FALSE);
+    set_abs_ydoy_time(fd, buf, col_decimal_point, false);
     break;
 
   case TS_NOT_SET:
@@ -1522,7 +1537,7 @@ set_fd_time(const epan_t *epan, frame_data *fd, gchar *buf)
 }
 
 static void
-col_set_cls_time(const frame_data *fd, column_info *cinfo, const gint col)
+col_set_cls_time(const frame_data *fd, column_info *cinfo, const int col)
 {
   switch (timestamp_get_type()) {
   case TS_ABSOLUTE:
@@ -1574,7 +1589,7 @@ col_set_cls_time(const frame_data *fd, column_info *cinfo, const gint col)
 
 /* Set the format of the variable time format. */
 static void
-col_set_fmt_time(const frame_data *fd, column_info *cinfo, const gint fmt, const gint col)
+col_set_fmt_time(const frame_data *fd, column_info *cinfo, const int fmt, const int col)
 {
   COL_CHECK_REF_TIME(fd, cinfo->columns[col].col_buf);
 
@@ -1637,7 +1652,7 @@ col_set_fmt_time(const frame_data *fd, column_info *cinfo, const gint fmt, const
  *                        applying/preparing/copying as filter)
  */
 void
-col_set_time(column_info *cinfo, const gint el, const nstime_t *ts, const char *fieldname)
+col_set_time(column_info *cinfo, const int el, const nstime_t *ts, const char *fieldname)
 {
   int col;
   col_item_t* col_item;
@@ -1661,8 +1676,8 @@ col_set_time(column_info *cinfo, const gint el, const nstime_t *ts, const char *
 }
 
 static void
-col_set_addr(packet_info *pinfo, const int col, const address *addr, const gboolean is_src,
-             const gboolean fill_col_exprs, const gboolean res)
+col_set_addr(packet_info *pinfo, const int col, const address *addr, const bool is_src,
+             const bool fill_col_exprs, const bool res)
 {
   const char *name;
   col_item_t* col_item = &pinfo->cinfo->columns[col];
@@ -1684,15 +1699,20 @@ col_set_addr(packet_info *pinfo, const int col, const address *addr, const gbool
 
   pinfo->cinfo->col_expr.col_expr[col] = address_type_column_filter_string(addr, is_src);
   /* For address types that have a filter, create a string */
-  if (strlen(pinfo->cinfo->col_expr.col_expr[col]) > 0)
+  if (strlen(pinfo->cinfo->col_expr.col_expr[col]) > 0) {
     address_to_str_buf(addr, pinfo->cinfo->col_expr.col_expr_val[col], COL_MAX_LEN);
+  } else {
+    /* For address types that don't, use the internal column FT_STRING hfi */
+    pinfo->cinfo->col_expr.col_expr[col] = proto_registrar_get_nth(col_item->hf_id)->abbrev;
+    (void) g_strlcpy(pinfo->cinfo->col_expr.col_expr_val[col], pinfo->cinfo->columns[col].col_data, COL_MAX_LEN);
+  }
 }
 
 /* ------------------------ */
 static void
-col_set_port(packet_info *pinfo, const int col, const gboolean is_res, const gboolean is_src, const gboolean fill_col_exprs _U_)
+col_set_port(packet_info *pinfo, const int col, const bool is_res, const bool is_src, const bool fill_col_exprs _U_)
 {
-  guint32 port;
+  uint32_t port;
   col_item_t* col_item = &pinfo->cinfo->columns[col];
 
   if (is_src)
@@ -1707,11 +1727,11 @@ col_set_port(packet_info *pinfo, const int col, const gboolean is_res, const gbo
     if (is_res)
       (void) g_strlcpy(col_item->col_buf, sctp_port_to_display(pinfo->pool, port), COL_MAX_LEN);
     else
-      guint32_to_str_buf(port, col_item->col_buf, COL_MAX_LEN);
+      uint32_to_str_buf(port, col_item->col_buf, COL_MAX_LEN);
     break;
 
   case PT_TCP:
-    guint32_to_str_buf(port, pinfo->cinfo->col_expr.col_expr_val[col], COL_MAX_LEN);
+    uint32_to_str_buf(port, pinfo->cinfo->col_expr.col_expr_val[col], COL_MAX_LEN);
     if (is_res)
       (void) g_strlcpy(col_item->col_buf, tcp_port_to_display(pinfo->pool, port), COL_MAX_LEN);
     else
@@ -1723,7 +1743,7 @@ col_set_port(packet_info *pinfo, const int col, const gboolean is_res, const gbo
     break;
 
   case PT_UDP:
-    guint32_to_str_buf(port, pinfo->cinfo->col_expr.col_expr_val[col], COL_MAX_LEN);
+    uint32_to_str_buf(port, pinfo->cinfo->col_expr.col_expr_val[col], COL_MAX_LEN);
     if (is_res)
       (void) g_strlcpy(col_item->col_buf, udp_port_to_display(pinfo->pool, port), COL_MAX_LEN);
     else
@@ -1739,7 +1759,7 @@ col_set_port(packet_info *pinfo, const int col, const gboolean is_res, const gbo
       pinfo->cinfo->col_expr.col_expr[col] = "ddp.src_socket";
     else
       pinfo->cinfo->col_expr.col_expr[col] = "ddp.dst_socket";
-    guint32_to_str_buf(port, pinfo->cinfo->col_expr.col_expr_val[col], COL_MAX_LEN);
+    uint32_to_str_buf(port, pinfo->cinfo->col_expr.col_expr_val[col], COL_MAX_LEN);
     (void) g_strlcpy(col_item->col_buf, pinfo->cinfo->col_expr.col_expr_val[col], COL_MAX_LEN);
     break;
 
@@ -1779,8 +1799,8 @@ col_set_port(packet_info *pinfo, const int col, const gboolean is_res, const gbo
   col_item->col_data = col_item->col_buf;
 }
 
-gboolean
-col_based_on_frame_data(column_info *cinfo, const gint col)
+bool
+col_based_on_frame_data(column_info *cinfo, const int col)
 {
   ws_assert(cinfo);
   ws_assert(col < cinfo->num_cols);
@@ -1799,21 +1819,21 @@ col_based_on_frame_data(column_info *cinfo, const gint col)
   case COL_DELTA_TIME_DIS:
   case COL_PACKET_LENGTH:
   case COL_CUMULATIVE_BYTES:
-    return TRUE;
+    return true;
 
   default:
-    return FALSE;
+    return false;
   }
 }
 
 void
-col_fill_in_frame_data(const frame_data *fd, column_info *cinfo, const gint col, const gboolean fill_col_exprs)
+col_fill_in_frame_data(const frame_data *fd, column_info *cinfo, const int col, const bool fill_col_exprs)
 {
   col_item_t* col_item = &cinfo->columns[col];
 
   switch (col_item->col_fmt) {
   case COL_NUMBER:
-    guint32_to_str_buf(fd->num, col_item->col_buf, COL_MAX_LEN);
+    uint32_to_str_buf(fd->num, col_item->col_buf, COL_MAX_LEN);
     col_item->col_data = col_item->col_buf;
     break;
 
@@ -1832,12 +1852,12 @@ col_fill_in_frame_data(const frame_data *fd, column_info *cinfo, const gint col,
     break;
 
   case COL_PACKET_LENGTH:
-    guint32_to_str_buf(fd->pkt_len, col_item->col_buf, COL_MAX_LEN);
+    uint32_to_str_buf(fd->pkt_len, col_item->col_buf, COL_MAX_LEN);
     col_item->col_data = col_item->col_buf;
     break;
 
   case COL_CUMULATIVE_BYTES:
-    guint32_to_str_buf(fd->cum_bytes, col_item->col_buf, COL_MAX_LEN);
+    uint32_to_str_buf(fd->cum_bytes, col_item->col_buf, COL_MAX_LEN);
     col_item->col_data = col_item->col_buf;
     break;
 
@@ -1881,7 +1901,7 @@ col_fill_in_frame_data(const frame_data *fd, column_info *cinfo, const gint col,
 }
 
 void
-col_fill_in(packet_info *pinfo, const gboolean fill_col_exprs, const gboolean fill_fd_colums)
+col_fill_in(packet_info *pinfo, const bool fill_col_exprs, const bool fill_fd_colums)
 {
   int i;
   col_item_t* col_item;
@@ -1898,74 +1918,74 @@ col_fill_in(packet_info *pinfo, const gboolean fill_col_exprs, const gboolean fi
       switch (col_item->col_fmt) {
       case COL_DEF_SRC:
       case COL_RES_SRC:   /* COL_DEF_SRC is currently just like COL_RES_SRC */
-        col_set_addr(pinfo, i, &pinfo->src, TRUE, fill_col_exprs, TRUE);
+        col_set_addr(pinfo, i, &pinfo->src, true, fill_col_exprs, true);
         break;
 
       case COL_UNRES_SRC:
-        col_set_addr(pinfo, i, &pinfo->src, TRUE, fill_col_exprs, FALSE);
+        col_set_addr(pinfo, i, &pinfo->src, true, fill_col_exprs, false);
         break;
 
       case COL_DEF_DL_SRC:
       case COL_RES_DL_SRC:
-        col_set_addr(pinfo, i, &pinfo->dl_src, TRUE, fill_col_exprs, TRUE);
+        col_set_addr(pinfo, i, &pinfo->dl_src, true, fill_col_exprs, true);
         break;
 
       case COL_UNRES_DL_SRC:
-        col_set_addr(pinfo, i, &pinfo->dl_src, TRUE, fill_col_exprs, FALSE);
+        col_set_addr(pinfo, i, &pinfo->dl_src, true, fill_col_exprs, false);
         break;
 
       case COL_DEF_NET_SRC:
       case COL_RES_NET_SRC:
-        col_set_addr(pinfo, i, &pinfo->net_src, TRUE, fill_col_exprs, TRUE);
+        col_set_addr(pinfo, i, &pinfo->net_src, true, fill_col_exprs, true);
         break;
 
       case COL_UNRES_NET_SRC:
-        col_set_addr(pinfo, i, &pinfo->net_src, TRUE, fill_col_exprs, FALSE);
+        col_set_addr(pinfo, i, &pinfo->net_src, true, fill_col_exprs, false);
         break;
 
       case COL_DEF_DST:
       case COL_RES_DST:   /* COL_DEF_DST is currently just like COL_RES_DST */
-        col_set_addr(pinfo, i, &pinfo->dst, FALSE, fill_col_exprs, TRUE);
+        col_set_addr(pinfo, i, &pinfo->dst, false, fill_col_exprs, true);
         break;
 
       case COL_UNRES_DST:
-        col_set_addr(pinfo, i, &pinfo->dst, FALSE, fill_col_exprs, FALSE);
+        col_set_addr(pinfo, i, &pinfo->dst, false, fill_col_exprs, false);
         break;
 
       case COL_DEF_DL_DST:
       case COL_RES_DL_DST:
-        col_set_addr(pinfo, i, &pinfo->dl_dst, FALSE, fill_col_exprs, TRUE);
+        col_set_addr(pinfo, i, &pinfo->dl_dst, false, fill_col_exprs, true);
         break;
 
       case COL_UNRES_DL_DST:
-        col_set_addr(pinfo, i, &pinfo->dl_dst, FALSE, fill_col_exprs, FALSE);
+        col_set_addr(pinfo, i, &pinfo->dl_dst, false, fill_col_exprs, false);
         break;
 
       case COL_DEF_NET_DST:
       case COL_RES_NET_DST:
-        col_set_addr(pinfo, i, &pinfo->net_dst, FALSE, fill_col_exprs, TRUE);
+        col_set_addr(pinfo, i, &pinfo->net_dst, false, fill_col_exprs, true);
         break;
 
       case COL_UNRES_NET_DST:
-        col_set_addr(pinfo, i, &pinfo->net_dst, FALSE, fill_col_exprs, FALSE);
+        col_set_addr(pinfo, i, &pinfo->net_dst, false, fill_col_exprs, false);
         break;
 
       case COL_DEF_SRC_PORT:
       case COL_RES_SRC_PORT:  /* COL_DEF_SRC_PORT is currently just like COL_RES_SRC_PORT */
-        col_set_port(pinfo, i, TRUE, TRUE, fill_col_exprs);
+        col_set_port(pinfo, i, true, true, fill_col_exprs);
         break;
 
       case COL_UNRES_SRC_PORT:
-        col_set_port(pinfo, i, FALSE, TRUE, fill_col_exprs);
+        col_set_port(pinfo, i, false, true, fill_col_exprs);
         break;
 
       case COL_DEF_DST_PORT:
       case COL_RES_DST_PORT:  /* COL_DEF_DST_PORT is currently just like COL_RES_DST_PORT */
-        col_set_port(pinfo, i, TRUE, FALSE, fill_col_exprs);
+        col_set_port(pinfo, i, true, false, fill_col_exprs);
         break;
 
       case COL_UNRES_DST_PORT:
-        col_set_port(pinfo, i, FALSE, FALSE, fill_col_exprs);
+        col_set_port(pinfo, i, false, false, fill_col_exprs);
         break;
 
       case COL_CUSTOM:
@@ -1999,7 +2019,7 @@ col_fill_in(packet_info *pinfo, const gboolean fill_col_exprs, const gboolean fi
  * from the file, and set the Info column to an error message.
  */
 void
-col_fill_in_error(column_info *cinfo, frame_data *fdata, const gboolean fill_col_exprs, const gboolean fill_fd_colums)
+col_fill_in_error(column_info *cinfo, frame_data *fdata, const bool fill_col_exprs, const bool fill_fd_colums)
 {
   int i;
   col_item_t* col_item;
@@ -2029,9 +2049,9 @@ col_fill_in_error(column_info *cinfo, frame_data *fdata, const gboolean fill_col
   }
 }
 
-gboolean col_data_changed(void) {
-  gboolean cur_cdc = col_data_changed_;
-  col_data_changed_ = FALSE;
+bool col_data_changed(void) {
+  bool cur_cdc = col_data_changed_;
+  col_data_changed_ = false;
   return cur_cdc;
 }
 
@@ -2041,13 +2061,13 @@ col_register_protocol(void)
   /* This gets called by proto_init() before column_register_fields()
    * gets called by the preference modules actually getting registered.
    */
-  if (proto_cols == -1) {
+  if (proto_cols <= 0) {
     proto_cols = proto_get_id_by_filter_name("_ws.col");
   }
-  if (proto_cols == -1) {
+  if (proto_cols <= 0) {
     proto_cols = proto_register_protocol("Wireshark Columns", "Columns", "_ws.col");
   }
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_cols
   };
   proto_register_subtree_array(ett, G_N_ELEMENTS(ett));
@@ -2068,7 +2088,7 @@ col_dissect(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
   if (proto_field_is_referenced(tree, proto_cols)) {
     // XXX: Needed if we also create _ws.col.custom
     //col_custom_set(tree, cinfo);
-    col_fill_in(pinfo, FALSE, TRUE);
+    col_fill_in(pinfo, false, true);
     ti = proto_tree_add_item(tree, proto_cols, tvb, 0, 0, ENC_NA);
     proto_item_set_hidden(ti);
     col_tree = proto_item_add_subtree(ti, ett_cols);

@@ -26,17 +26,17 @@
 void proto_register_discard(void);
 void proto_reg_handoff_discard(void);
 
-static int proto_discard = -1;
+static int proto_discard;
 
-static int hf_discard_data = -1;
-static int hf_discard_text = -1;
-static int hf_discard_md5_hash = -1;
-static int hf_discard_len = -1;
+static int hf_discard_data;
+static int hf_discard_text;
+static int hf_discard_md5_hash;
+static int hf_discard_len;
 
-static gboolean show_as_text = FALSE;
-static gboolean generate_md5_hash = FALSE;
+static bool show_as_text;
+static bool generate_md5_hash;
 
-static gint ett_discard = -1;
+static int ett_discard;
 
 /* dissect_discard - dissects discard packet data
  * tvb - tvbuff for packet data (IN)
@@ -48,8 +48,8 @@ dissect_discard(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* disse
 {
 	proto_tree* discard_tree;
 	proto_item* ti;
-	guint32 len;
-	guint32 cap_len;
+	uint32_t len;
+	uint32_t cap_len;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "DISCARD");
 
@@ -75,9 +75,9 @@ dissect_discard(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* disse
 	}
 
 	if (generate_md5_hash) {
-		const guint8 *cp;
-		guint8        digest[HASH_MD5_LENGTH];
-		const gchar  *digest_string;
+		const uint8_t *cp;
+		uint8_t       digest[HASH_MD5_LENGTH];
+		const char   *digest_string;
 
 		cp = tvb_get_ptr(tvb, 0, cap_len);
 
@@ -127,7 +127,7 @@ proto_register_discard(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_discard,
 	};
 

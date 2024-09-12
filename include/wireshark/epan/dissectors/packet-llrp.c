@@ -27,276 +27,276 @@ static dissector_handle_t llrp_handle;
 #define LLRP_PORT 5084
 
 /* Initialize the protocol and registered fields */
-static int proto_llrp                             = -1;
-static int hf_llrp_version                        = -1;
-static int hf_llrp_type                           = -1;
-static int hf_llrp_length                         = -1;
-static int hf_llrp_id                             = -1;
-static int hf_llrp_cur_ver                        = -1;
-static int hf_llrp_sup_ver                        = -1;
-static int hf_llrp_req_cap                        = -1;
-static int hf_llrp_req_conf                       = -1;
-static int hf_llrp_rospec                         = -1;
-static int hf_llrp_antenna_id                     = -1;
-static int hf_llrp_gpi_port                       = -1;
-static int hf_llrp_gpo_port                       = -1;
-static int hf_llrp_rest_fact                      = -1;
-static int hf_llrp_accessspec                     = -1;
-static int hf_llrp_vendor                         = -1;
-static int hf_llrp_impinj_msg_type                = -1;
-static int hf_llrp_tlv_type                       = -1;
-static int hf_llrp_tv_type                        = -1;
-static int hf_llrp_tlv_len                        = -1;
-static int hf_llrp_param                          = -1;
-static int hf_llrp_num_gpi                        = -1;
-static int hf_llrp_num_gpo                        = -1;
-static int hf_llrp_microseconds                   = -1;
-static int hf_llrp_max_supported_antenna          = -1;
-static int hf_llrp_can_set_antenna_prop           = -1;
-static int hf_llrp_has_utc_clock                  = -1;
-static int hf_llrp_device_manufacturer            = -1;
-static int hf_llrp_model                          = -1;
-static int hf_llrp_firmware_version               = -1;
-static int hf_llrp_max_receive_sense              = -1;
-static int hf_llrp_index                          = -1;
-static int hf_llrp_receive_sense                  = -1;
-static int hf_llrp_receive_sense_index_min        = -1;
-static int hf_llrp_receive_sense_index_max        = -1;
-static int hf_llrp_num_protocols                  = -1;
-static int hf_llrp_protocol_id                    = -1;
-static int hf_llrp_can_do_survey                  = -1;
-static int hf_llrp_can_report_buffer_warning      = -1;
-static int hf_llrp_support_client_opspec          = -1;
-static int hf_llrp_can_stateaware                 = -1;
-static int hf_llrp_support_holding                = -1;
-static int hf_llrp_max_priority_supported         = -1;
-static int hf_llrp_client_opspec_timeout          = -1;
-static int hf_llrp_max_num_rospec                 = -1;
-static int hf_llrp_max_num_spec_per_rospec        = -1;
-static int hf_llrp_max_num_inventory_per_aispec   = -1;
-static int hf_llrp_max_num_accessspec             = -1;
-static int hf_llrp_max_num_opspec_per_accressspec = -1;
-static int hf_llrp_country_code                   = -1;
-static int hf_llrp_comm_standard                  = -1;
-static int hf_llrp_transmit_power                 = -1;
-static int hf_llrp_hopping                        = -1;
-static int hf_llrp_hop_table_id                   = -1;
-static int hf_llrp_rfu                            = -1;
-static int hf_llrp_num_hops                       = -1;
-static int hf_llrp_frequency                      = -1;
-static int hf_llrp_num_freqs                      = -1;
-static int hf_llrp_min_freq                       = -1;
-static int hf_llrp_max_freq                       = -1;
-static int hf_llrp_rospec_id                      = -1;
-static int hf_llrp_priority                       = -1;
-static int hf_llrp_cur_state                      = -1;
-static int hf_llrp_rospec_start_trig_type         = -1;
-static int hf_llrp_offset                         = -1;
-static int hf_llrp_period                         = -1;
-static int hf_llrp_gpi_event                      = -1;
-static int hf_llrp_timeout                        = -1;
-static int hf_llrp_rospec_stop_trig_type          = -1;
-static int hf_llrp_duration_trig                  = -1;
-static int hf_llrp_antenna_count                  = -1;
-static int hf_llrp_antenna                        = -1;
-static int hf_llrp_aispec_stop_trig_type          = -1;
-static int hf_llrp_trig_type                      = -1;
-static int hf_llrp_number_of_tags                 = -1;
-static int hf_llrp_number_of_attempts             = -1;
-static int hf_llrp_t                              = -1;
-static int hf_llrp_inventory_spec_id              = -1;
-static int hf_llrp_start_freq                     = -1;
-static int hf_llrp_stop_freq                      = -1;
-static int hf_llrp_stop_trig_type                 = -1;
-static int hf_llrp_n_4                            = -1;
-static int hf_llrp_duration                       = -1;
-static int hf_llrp_accessspec_id                  = -1;
-static int hf_llrp_access_cur_state               = -1;
-static int hf_llrp_access_stop_trig_type          = -1;
-static int hf_llrp_operation_count                = -1;
-static int hf_llrp_opspec_id                      = -1;
-static int hf_llrp_conf_value                     = -1;
-static int hf_llrp_id_type                        = -1;
-static int hf_llrp_reader_id                      = -1;
-static int hf_llrp_gpo_data                       = -1;
-static int hf_llrp_keepalive_trig_type            = -1;
-static int hf_llrp_time_iterval                   = -1;
-static int hf_llrp_antenna_connected              = -1;
-static int hf_llrp_antenna_gain                   = -1;
-static int hf_llrp_receiver_sense                 = -1;
-static int hf_llrp_channel_idx                    = -1;
-static int hf_llrp_gpi_config                     = -1;
-static int hf_llrp_gpi_state                      = -1;
-static int hf_llrp_hold_events_and_reports        = -1;
-static int hf_llrp_ro_report_trig                 = -1;
-static int hf_llrp_n_2                            = -1;
-static int hf_llrp_enable_rospec_id               = -1;
-static int hf_llrp_enable_spec_idx                = -1;
-static int hf_llrp_enable_inv_spec_id             = -1;
-static int hf_llrp_enable_antenna_id              = -1;
-static int hf_llrp_enable_channel_idx             = -1;
-static int hf_llrp_enable_peak_rssi               = -1;
-static int hf_llrp_enable_first_seen              = -1;
-static int hf_llrp_enable_last_seen               = -1;
-static int hf_llrp_enable_seen_count              = -1;
-static int hf_llrp_enable_accessspec_id           = -1;
-static int hf_llrp_access_report_trig             = -1;
-static int hf_llrp_length_bits                    = -1;
-static int hf_llrp_epc                            = -1;
-static int hf_llrp_spec_idx                       = -1;
-static int hf_llrp_peak_rssi                      = -1;
-static int hf_llrp_tag_count                      = -1;
-static int hf_llrp_bandwidth                      = -1;
-static int hf_llrp_average_rssi                   = -1;
-static int hf_llrp_notif_state                    = -1;
-static int hf_llrp_event_type                     = -1;
-static int hf_llrp_next_chan_idx                  = -1;
-static int hf_llrp_roevent_type                   = -1;
-static int hf_llrp_prem_rospec_id                 = -1;
-static int hf_llrp_buffer_full_percentage         = -1;
-static int hf_llrp_message                        = -1;
-static int hf_llrp_rfevent_type                   = -1;
-static int hf_llrp_aievent_type                   = -1;
-static int hf_llrp_antenna_event_type             = -1;
-static int hf_llrp_conn_status                    = -1;
-static int hf_llrp_loop_count                     = -1;
-static int hf_llrp_status_code                    = -1;
-static int hf_llrp_error_desc                     = -1;
-static int hf_llrp_field_num                      = -1;
-static int hf_llrp_error_code                     = -1;
-static int hf_llrp_parameter_type                 = -1;
-static int hf_llrp_can_support_block_erase        = -1;
-static int hf_llrp_can_support_block_write        = -1;
-static int hf_llrp_can_support_block_permalock    = -1;
-static int hf_llrp_can_support_tag_recomm         = -1;
-static int hf_llrp_can_support_UMI_method2        = -1;
-static int hf_llrp_can_support_XPC                = -1;
-static int hf_llrp_max_num_filter_per_query       = -1;
-static int hf_llrp_mode_ident                     = -1;
-static int hf_llrp_DR                             = -1;
-static int hf_llrp_hag_conformance                = -1;
-static int hf_llrp_mod                            = -1;
-static int hf_llrp_flm                            = -1;
-static int hf_llrp_m                              = -1;
-static int hf_llrp_bdr                            = -1;
-static int hf_llrp_pie                            = -1;
-static int hf_llrp_min_tari                       = -1;
-static int hf_llrp_max_tari                       = -1;
-static int hf_llrp_step_tari                      = -1;
-static int hf_llrp_inventory_state_aware          = -1;
-static int hf_llrp_trunc                          = -1;
-static int hf_llrp_mb                             = -1;
-static int hf_llrp_pointer                        = -1;
-static int hf_llrp_tag_mask                       = -1;
-static int hf_llrp_aware_filter_target            = -1;
-static int hf_llrp_aware_filter_action            = -1;
-static int hf_llrp_unaware_filter_action          = -1;
-static int hf_llrp_mode_idx                       = -1;
-static int hf_llrp_tari                           = -1;
-static int hf_llrp_session                        = -1;
-static int hf_llrp_tag_population                 = -1;
-static int hf_llrp_tag_transit_time               = -1;
-static int hf_llrp_sing_i                         = -1;
-static int hf_llrp_sing_s                         = -1;
-static int hf_llrp_sing_a                         = -1;
-static int hf_llrp_match                          = -1;
-static int hf_llrp_tag_data                       = -1;
-static int hf_llrp_access_pass                    = -1;
-static int hf_llrp_word_pointer                   = -1;
-static int hf_llrp_word_count                     = -1;
-static int hf_llrp_write_data                     = -1;
-static int hf_llrp_kill_pass                      = -1;
-static int hf_llrp_kill_3                         = -1;
-static int hf_llrp_kill_2                         = -1;
-static int hf_llrp_kill_l                         = -1;
-static int hf_llrp_privilege                      = -1;
-static int hf_llrp_data_field                     = -1;
-static int hf_llrp_block_pointer                  = -1;
-static int hf_llrp_block_mask                     = -1;
-static int hf_llrp_length_words                   = -1;
-static int hf_llrp_block_range                    = -1;
-static int hf_llrp_enable_crc                     = -1;
-static int hf_llrp_enable_pc                      = -1;
-static int hf_llrp_enable_xpc                     = -1;
-static int hf_llrp_pc_bits                        = -1;
-static int hf_llrp_xpc_w1                         = -1;
-static int hf_llrp_xpc_w2                         = -1;
-static int hf_llrp_crc                            = -1;
-static int hf_llrp_num_coll                       = -1;
-static int hf_llrp_num_empty                      = -1;
-static int hf_llrp_access_result                  = -1;
-static int hf_llrp_read_data                      = -1;
-static int hf_llrp_num_words_written              = -1;
-static int hf_llrp_permlock_status                = -1;
-static int hf_llrp_vendor_id                      = -1;
-static int hf_llrp_vendor_unknown                 = -1;
-static int hf_llrp_impinj_param_type              = -1;
-static int hf_llrp_save_config                    = -1;
-static int hf_llrp_impinj_req_data                = -1;
-static int hf_llrp_impinj_reg_region              = -1;
-static int hf_llrp_impinj_search_mode             = -1;
-static int hf_llrp_impinj_en_tag_dir              = -1;
-static int hf_llrp_impinj_antenna_conf            = -1;
-static int hf_llrp_decision_time                  = -1;
-static int hf_llrp_impinj_tag_dir                 = -1;
-static int hf_llrp_confidence                     = -1;
-static int hf_llrp_impinj_fix_freq_mode           = -1;
-static int hf_llrp_num_channels                   = -1;
-static int hf_llrp_channel                        = -1;
-static int hf_llrp_impinj_reduce_power_mode       = -1;
-static int hf_llrp_impinj_low_duty_mode           = -1;
-static int hf_llrp_empty_field_timeout            = -1;
-static int hf_llrp_field_ping_interval            = -1;
-static int hf_llrp_model_name                     = -1;
-static int hf_llrp_serial_number                  = -1;
-static int hf_llrp_soft_ver                       = -1;
-static int hf_llrp_firm_ver                       = -1;
-static int hf_llrp_fpga_ver                       = -1;
-static int hf_llrp_pcba_ver                       = -1;
-static int hf_llrp_height_thresh                  = -1;
-static int hf_llrp_zero_motion_thresh             = -1;
-static int hf_llrp_board_manufacturer             = -1;
-static int hf_llrp_fw_ver_hex                     = -1;
-static int hf_llrp_hw_ver_hex                     = -1;
-static int hf_llrp_gpi_debounce                   = -1;
-static int hf_llrp_temperature                    = -1;
-static int hf_llrp_impinj_link_monitor_mode       = -1;
-static int hf_llrp_link_down_thresh               = -1;
-static int hf_llrp_impinj_report_buff_mode        = -1;
-static int hf_llrp_permalock_result               = -1;
-static int hf_llrp_block_permalock_result         = -1;
-static int hf_llrp_impinj_data_profile            = -1;
-static int hf_llrp_impinj_access_range            = -1;
-static int hf_llrp_impinj_persistence             = -1;
-static int hf_llrp_set_qt_config_result           = -1;
-static int hf_llrp_get_qt_config_result           = -1;
-static int hf_llrp_impinj_serialized_tid_mode     = -1;
-static int hf_llrp_impinj_rf_phase_mode           = -1;
-static int hf_llrp_impinj_peak_rssi_mode          = -1;
-static int hf_llrp_impinj_gps_coordinates_mode    = -1;
-static int hf_llrp_impinj_tid                     = -1;
-static int hf_llrp_phase_angle                    = -1;
-static int hf_llrp_rssi                           = -1;
-static int hf_llrp_latitude                       = -1;
-static int hf_llrp_longitude                      = -1;
-static int hf_llrp_gga_sentence                   = -1;
-static int hf_llrp_rmc_sentence                   = -1;
-static int hf_llrp_impinj_optim_read_mode         = -1;
-static int hf_llrp_impinj_rf_doppler_mode         = -1;
-static int hf_llrp_retry_count                    = -1;
-static int hf_llrp_impinj_access_spec_ordering    = -1;
-static int hf_llrp_impinj_gpo_mode                = -1;
-static int hf_llrp_gpo_pulse_dur                  = -1;
-static int hf_llrp_impinj_hub_id                  = -1;
-static int hf_llrp_impinj_hub_fault_type          = -1;
-static int hf_llrp_impinj_hub_connected_type      = -1;
+static int proto_llrp;
+static int hf_llrp_version;
+static int hf_llrp_type;
+static int hf_llrp_length;
+static int hf_llrp_id;
+static int hf_llrp_cur_ver;
+static int hf_llrp_sup_ver;
+static int hf_llrp_req_cap;
+static int hf_llrp_req_conf;
+static int hf_llrp_rospec;
+static int hf_llrp_antenna_id;
+static int hf_llrp_gpi_port;
+static int hf_llrp_gpo_port;
+static int hf_llrp_rest_fact;
+static int hf_llrp_accessspec;
+static int hf_llrp_vendor;
+static int hf_llrp_impinj_msg_type;
+static int hf_llrp_tlv_type;
+static int hf_llrp_tv_type;
+static int hf_llrp_tlv_len;
+static int hf_llrp_param;
+static int hf_llrp_num_gpi;
+static int hf_llrp_num_gpo;
+static int hf_llrp_microseconds;
+static int hf_llrp_max_supported_antenna;
+static int hf_llrp_can_set_antenna_prop;
+static int hf_llrp_has_utc_clock;
+static int hf_llrp_device_manufacturer;
+static int hf_llrp_model;
+static int hf_llrp_firmware_version;
+static int hf_llrp_max_receive_sense;
+static int hf_llrp_index;
+static int hf_llrp_receive_sense;
+static int hf_llrp_receive_sense_index_min;
+static int hf_llrp_receive_sense_index_max;
+static int hf_llrp_num_protocols;
+static int hf_llrp_protocol_id;
+static int hf_llrp_can_do_survey;
+static int hf_llrp_can_report_buffer_warning;
+static int hf_llrp_support_client_opspec;
+static int hf_llrp_can_stateaware;
+static int hf_llrp_support_holding;
+static int hf_llrp_max_priority_supported;
+static int hf_llrp_client_opspec_timeout;
+static int hf_llrp_max_num_rospec;
+static int hf_llrp_max_num_spec_per_rospec;
+static int hf_llrp_max_num_inventory_per_aispec;
+static int hf_llrp_max_num_accessspec;
+static int hf_llrp_max_num_opspec_per_accressspec;
+static int hf_llrp_country_code;
+static int hf_llrp_comm_standard;
+static int hf_llrp_transmit_power;
+static int hf_llrp_hopping;
+static int hf_llrp_hop_table_id;
+static int hf_llrp_rfu;
+static int hf_llrp_num_hops;
+static int hf_llrp_frequency;
+static int hf_llrp_num_freqs;
+static int hf_llrp_min_freq;
+static int hf_llrp_max_freq;
+static int hf_llrp_rospec_id;
+static int hf_llrp_priority;
+static int hf_llrp_cur_state;
+static int hf_llrp_rospec_start_trig_type;
+static int hf_llrp_offset;
+static int hf_llrp_period;
+static int hf_llrp_gpi_event;
+static int hf_llrp_timeout;
+static int hf_llrp_rospec_stop_trig_type;
+static int hf_llrp_duration_trig;
+static int hf_llrp_antenna_count;
+static int hf_llrp_antenna;
+static int hf_llrp_aispec_stop_trig_type;
+static int hf_llrp_trig_type;
+static int hf_llrp_number_of_tags;
+static int hf_llrp_number_of_attempts;
+static int hf_llrp_t;
+static int hf_llrp_inventory_spec_id;
+static int hf_llrp_start_freq;
+static int hf_llrp_stop_freq;
+static int hf_llrp_stop_trig_type;
+static int hf_llrp_n_4;
+static int hf_llrp_duration;
+static int hf_llrp_accessspec_id;
+static int hf_llrp_access_cur_state;
+static int hf_llrp_access_stop_trig_type;
+static int hf_llrp_operation_count;
+static int hf_llrp_opspec_id;
+static int hf_llrp_conf_value;
+static int hf_llrp_id_type;
+static int hf_llrp_reader_id;
+static int hf_llrp_gpo_data;
+static int hf_llrp_keepalive_trig_type;
+static int hf_llrp_time_iterval;
+static int hf_llrp_antenna_connected;
+static int hf_llrp_antenna_gain;
+static int hf_llrp_receiver_sense;
+static int hf_llrp_channel_idx;
+static int hf_llrp_gpi_config;
+static int hf_llrp_gpi_state;
+static int hf_llrp_hold_events_and_reports;
+static int hf_llrp_ro_report_trig;
+static int hf_llrp_n_2;
+static int hf_llrp_enable_rospec_id;
+static int hf_llrp_enable_spec_idx;
+static int hf_llrp_enable_inv_spec_id;
+static int hf_llrp_enable_antenna_id;
+static int hf_llrp_enable_channel_idx;
+static int hf_llrp_enable_peak_rssi;
+static int hf_llrp_enable_first_seen;
+static int hf_llrp_enable_last_seen;
+static int hf_llrp_enable_seen_count;
+static int hf_llrp_enable_accessspec_id;
+static int hf_llrp_access_report_trig;
+static int hf_llrp_length_bits;
+static int hf_llrp_epc;
+static int hf_llrp_spec_idx;
+static int hf_llrp_peak_rssi;
+static int hf_llrp_tag_count;
+static int hf_llrp_bandwidth;
+static int hf_llrp_average_rssi;
+static int hf_llrp_notif_state;
+static int hf_llrp_event_type;
+static int hf_llrp_next_chan_idx;
+static int hf_llrp_roevent_type;
+static int hf_llrp_prem_rospec_id;
+static int hf_llrp_buffer_full_percentage;
+static int hf_llrp_message;
+static int hf_llrp_rfevent_type;
+static int hf_llrp_aievent_type;
+static int hf_llrp_antenna_event_type;
+static int hf_llrp_conn_status;
+static int hf_llrp_loop_count;
+static int hf_llrp_status_code;
+static int hf_llrp_error_desc;
+static int hf_llrp_field_num;
+static int hf_llrp_error_code;
+static int hf_llrp_parameter_type;
+static int hf_llrp_can_support_block_erase;
+static int hf_llrp_can_support_block_write;
+static int hf_llrp_can_support_block_permalock;
+static int hf_llrp_can_support_tag_recomm;
+static int hf_llrp_can_support_UMI_method2;
+static int hf_llrp_can_support_XPC;
+static int hf_llrp_max_num_filter_per_query;
+static int hf_llrp_mode_ident;
+static int hf_llrp_DR;
+static int hf_llrp_hag_conformance;
+static int hf_llrp_mod;
+static int hf_llrp_flm;
+static int hf_llrp_m;
+static int hf_llrp_bdr;
+static int hf_llrp_pie;
+static int hf_llrp_min_tari;
+static int hf_llrp_max_tari;
+static int hf_llrp_step_tari;
+static int hf_llrp_inventory_state_aware;
+static int hf_llrp_trunc;
+static int hf_llrp_mb;
+static int hf_llrp_pointer;
+static int hf_llrp_tag_mask;
+static int hf_llrp_aware_filter_target;
+static int hf_llrp_aware_filter_action;
+static int hf_llrp_unaware_filter_action;
+static int hf_llrp_mode_idx;
+static int hf_llrp_tari;
+static int hf_llrp_session;
+static int hf_llrp_tag_population;
+static int hf_llrp_tag_transit_time;
+static int hf_llrp_sing_i;
+static int hf_llrp_sing_s;
+static int hf_llrp_sing_a;
+static int hf_llrp_match;
+static int hf_llrp_tag_data;
+static int hf_llrp_access_pass;
+static int hf_llrp_word_pointer;
+static int hf_llrp_word_count;
+static int hf_llrp_write_data;
+static int hf_llrp_kill_pass;
+static int hf_llrp_kill_3;
+static int hf_llrp_kill_2;
+static int hf_llrp_kill_l;
+static int hf_llrp_privilege;
+static int hf_llrp_data_field;
+static int hf_llrp_block_pointer;
+static int hf_llrp_block_mask;
+static int hf_llrp_length_words;
+static int hf_llrp_block_range;
+static int hf_llrp_enable_crc;
+static int hf_llrp_enable_pc;
+static int hf_llrp_enable_xpc;
+static int hf_llrp_pc_bits;
+static int hf_llrp_xpc_w1;
+static int hf_llrp_xpc_w2;
+static int hf_llrp_crc;
+static int hf_llrp_num_coll;
+static int hf_llrp_num_empty;
+static int hf_llrp_access_result;
+static int hf_llrp_read_data;
+static int hf_llrp_num_words_written;
+static int hf_llrp_permlock_status;
+static int hf_llrp_vendor_id;
+static int hf_llrp_vendor_unknown;
+static int hf_llrp_impinj_param_type;
+static int hf_llrp_save_config;
+static int hf_llrp_impinj_req_data;
+static int hf_llrp_impinj_reg_region;
+static int hf_llrp_impinj_search_mode;
+static int hf_llrp_impinj_en_tag_dir;
+static int hf_llrp_impinj_antenna_conf;
+static int hf_llrp_decision_time;
+static int hf_llrp_impinj_tag_dir;
+static int hf_llrp_confidence;
+static int hf_llrp_impinj_fix_freq_mode;
+static int hf_llrp_num_channels;
+static int hf_llrp_channel;
+static int hf_llrp_impinj_reduce_power_mode;
+static int hf_llrp_impinj_low_duty_mode;
+static int hf_llrp_empty_field_timeout;
+static int hf_llrp_field_ping_interval;
+static int hf_llrp_model_name;
+static int hf_llrp_serial_number;
+static int hf_llrp_soft_ver;
+static int hf_llrp_firm_ver;
+static int hf_llrp_fpga_ver;
+static int hf_llrp_pcba_ver;
+static int hf_llrp_height_thresh;
+static int hf_llrp_zero_motion_thresh;
+static int hf_llrp_board_manufacturer;
+static int hf_llrp_fw_ver_hex;
+static int hf_llrp_hw_ver_hex;
+static int hf_llrp_gpi_debounce;
+static int hf_llrp_temperature;
+static int hf_llrp_impinj_link_monitor_mode;
+static int hf_llrp_link_down_thresh;
+static int hf_llrp_impinj_report_buff_mode;
+static int hf_llrp_permalock_result;
+static int hf_llrp_block_permalock_result;
+static int hf_llrp_impinj_data_profile;
+static int hf_llrp_impinj_access_range;
+static int hf_llrp_impinj_persistence;
+static int hf_llrp_set_qt_config_result;
+static int hf_llrp_get_qt_config_result;
+static int hf_llrp_impinj_serialized_tid_mode;
+static int hf_llrp_impinj_rf_phase_mode;
+static int hf_llrp_impinj_peak_rssi_mode;
+static int hf_llrp_impinj_gps_coordinates_mode;
+static int hf_llrp_impinj_tid;
+static int hf_llrp_phase_angle;
+static int hf_llrp_rssi;
+static int hf_llrp_latitude;
+static int hf_llrp_longitude;
+static int hf_llrp_gga_sentence;
+static int hf_llrp_rmc_sentence;
+static int hf_llrp_impinj_optim_read_mode;
+static int hf_llrp_impinj_rf_doppler_mode;
+static int hf_llrp_retry_count;
+static int hf_llrp_impinj_access_spec_ordering;
+static int hf_llrp_impinj_gpo_mode;
+static int hf_llrp_gpo_pulse_dur;
+static int hf_llrp_impinj_hub_id;
+static int hf_llrp_impinj_hub_fault_type;
+static int hf_llrp_impinj_hub_connected_type;
 
 /* Initialize the subtree pointers */
-static gint ett_llrp = -1;
-static gint ett_llrp_param = -1;
+static int ett_llrp;
+static int ett_llrp_param;
 
-static expert_field ei_llrp_req_conf = EI_INIT;
-static expert_field ei_llrp_invalid_length = EI_INIT;
+static expert_field ei_llrp_req_conf;
+static expert_field ei_llrp_invalid_length;
 
 /* Message Types */
 #define LLRP_TYPE_GET_READER_CAPABILITIES           1
@@ -1445,14 +1445,14 @@ static const value_string unique_all_gpo_ports[] = {
 };
 
 
-static guint
+static unsigned
 dissect_llrp_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-        guint offset, const guint end, const guint depth);
+        unsigned offset, const unsigned end, const unsigned depth);
 
-static guint dissect_llrp_utf8_parameter(tvbuff_t * const tvb, packet_info *pinfo,
-        proto_tree * const tree, const guint hfindex, const guint offset)
+static unsigned dissect_llrp_utf8_parameter(tvbuff_t * const tvb, packet_info *pinfo,
+        proto_tree * const tree, const unsigned hfindex, const unsigned offset)
 {
-    gint len;
+    int len;
 
     len = tvb_get_ntohs(tvb, offset);
     if(tvb_reported_length_remaining(tvb, offset) < len) {
@@ -1467,10 +1467,10 @@ static guint dissect_llrp_utf8_parameter(tvbuff_t * const tvb, packet_info *pinf
     return offset + len + 2;
 }
 
-static guint dissect_llrp_bit_field(tvbuff_t * const tvb,
-        proto_tree * const tree, const guint hfindex, const guint offset)
+static unsigned dissect_llrp_bit_field(tvbuff_t * const tvb,
+        proto_tree * const tree, const unsigned hfindex, const unsigned offset)
 {
-    guint len;
+    unsigned len;
 
     len = tvb_get_ntohs(tvb, offset);
     len = (len + 7) / 8;
@@ -1481,10 +1481,10 @@ static guint dissect_llrp_bit_field(tvbuff_t * const tvb,
     return offset + len + 2;
 }
 
-static guint dissect_llrp_word_array(tvbuff_t * const tvb,
-        proto_tree * const tree, const guint hfindex, const guint offset)
+static unsigned dissect_llrp_word_array(tvbuff_t * const tvb,
+        proto_tree * const tree, const unsigned hfindex, const unsigned offset)
 {
-    guint len;
+    unsigned len;
 
     len = tvb_get_ntohs(tvb, offset);
     len *= 2;
@@ -1495,17 +1495,17 @@ static guint dissect_llrp_word_array(tvbuff_t * const tvb,
     return offset + len + 2;
 }
 
-static guint dissect_llrp_item_array(tvbuff_t * const tvb, packet_info *pinfo,
-        proto_tree * const tree, const guint hfindex_number,
-        const guint hfindex_item, const guint item_size, guint offset)
+static unsigned dissect_llrp_item_array(tvbuff_t * const tvb, packet_info *pinfo,
+        proto_tree * const tree, const unsigned hfindex_number,
+        const unsigned hfindex_item, const unsigned item_size, unsigned offset)
 {
-    guint num;
+    unsigned num;
 
     num = tvb_get_ntohs(tvb, offset);
     proto_tree_add_item(tree, hfindex_number, tvb,
             offset, 2, ENC_BIG_ENDIAN);
     offset += 2;
-    if(tvb_reported_length_remaining(tvb, offset) < ((gint)(num*item_size))) {
+    if(tvb_reported_length_remaining(tvb, offset) < ((int)(num*item_size))) {
         expert_add_info_format(pinfo, tree, &ei_llrp_invalid_length,
                 "Array longer than message");
         return offset + tvb_reported_length_remaining(tvb, offset);
@@ -1518,12 +1518,12 @@ static guint dissect_llrp_item_array(tvbuff_t * const tvb, packet_info *pinfo,
     return offset;
 }
 
-static guint
+static unsigned
 // NOLINTNEXTLINE(misc-no-recursion)
 dissect_llrp_impinj_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *param_tree,
-        guint suboffset, const guint param_end)
+        unsigned suboffset, const unsigned param_end)
 {
-    guint32 subtype;
+    uint32_t subtype;
 
     subtype = tvb_get_ntohl(tvb, suboffset);
     proto_item_append_text(param_tree, " (Impinj - %s)",
@@ -1800,28 +1800,27 @@ dissect_llrp_impinj_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *par
         break;
     default:
         return suboffset;
-        break;
     }
     /* Each custom parameters ends with optional custom parameter, disscect it */
     return dissect_llrp_parameters(tvb, pinfo, param_tree, suboffset, param_end, 0);
 }
 
-static guint
+static unsigned
 // NOLINTNEXTLINE(misc-no-recursion)
 dissect_llrp_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-        guint offset, const guint end, const guint depth)
+        unsigned offset, const unsigned end, const unsigned depth)
 {
-    guint8      has_length;
-    guint16     len, type;
-    guint       real_len, param_end;
-    guint       suboffset;
-    guint       num;
+    uint8_t     has_length;
+    uint16_t    len, type;
+    unsigned    real_len, param_end;
+    unsigned    suboffset;
+    unsigned    num;
     proto_item *ti;
     proto_tree *param_tree;
 
-    while (((gint)(end - offset)) > 0)
+    while (((int)(end - offset)) > 0)
     {
-        has_length = !(tvb_get_guint8(tvb, offset) & 0x80);
+        has_length = !(tvb_get_uint8(tvb, offset) & 0x80);
 
         if (has_length)
         {
@@ -2520,7 +2519,7 @@ dissect_llrp_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         }
         else
         {
-            type = tvb_get_guint8(tvb, offset) & 0x7F;
+            type = tvb_get_uint8(tvb, offset) & 0x7F;
 
             switch (type)
             {
@@ -2648,12 +2647,12 @@ dissect_llrp_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     return offset;
 }
 
-static guint
-dissect_llrp_impinj_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint offset)
+static unsigned
+dissect_llrp_impinj_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
 {
-    guint8 subtype;
+    uint8_t subtype;
 
-    subtype = tvb_get_guint8(tvb, offset);
+    subtype = tvb_get_uint8(tvb, offset);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " (Impinj - %s)",
             val_to_str_ext(subtype, &impinj_msg_subtype_ext, "Unknown Type: %d"));
@@ -2682,16 +2681,16 @@ dissect_llrp_impinj_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 static void
 dissect_llrp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-        guint16 type, guint offset)
+        uint16_t type, unsigned offset)
 {
-    gboolean    ends_with_parameters;
-    guint8      requested_data;
-    guint32     vendor;
+    bool        ends_with_parameters;
+    uint8_t     requested_data;
+    uint32_t    vendor;
     proto_item *request_item, *antenna_item, *gpi_item, *gpo_item;
-    guint (*dissect_custom_message)(tvbuff_t *tvb,
-            packet_info *pinfo, proto_tree *tree, guint offset) = NULL;
+    unsigned (*dissect_custom_message)(tvbuff_t *tvb,
+            packet_info *pinfo, proto_tree *tree, unsigned offset) = NULL;
 
-    ends_with_parameters = FALSE;
+    ends_with_parameters = false;
     switch (type)
     {
         /* Simple cases just have normal TLV or TV parameters */
@@ -2722,7 +2721,7 @@ dissect_llrp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         case LLRP_TYPE_GET_ACCESSSPECS_RESPONSE:
         case LLRP_TYPE_GET_REPORT:
         case LLRP_TYPE_ENABLE_EVENTS_AND_REPORTS:
-            ends_with_parameters = TRUE;
+            ends_with_parameters = true;
             break;
         /* Some just have an ROSpec ID */
         case LLRP_TYPE_START_ROSPEC:
@@ -2743,14 +2742,14 @@ dissect_llrp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         case LLRP_TYPE_GET_READER_CAPABILITIES:
             proto_tree_add_item(tree, hf_llrp_req_cap, tvb, offset, 1, ENC_BIG_ENDIAN);
             offset++;
-            ends_with_parameters = TRUE;
+            ends_with_parameters = true;
             break;
         /* GET_READER_CONFIG is more complicated */
         case LLRP_TYPE_GET_READER_CONFIG:
             antenna_item = proto_tree_add_item(tree, hf_llrp_antenna_id, tvb, offset, 2, ENC_BIG_ENDIAN);
             offset += 2;
 
-            requested_data = tvb_get_guint8(tvb, offset);
+            requested_data = tvb_get_uint8(tvb, offset);
             request_item = proto_tree_add_item(tree, hf_llrp_req_conf, tvb,
                     offset, 1, ENC_BIG_ENDIAN);
             offset++;
@@ -2808,14 +2807,14 @@ dissect_llrp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                     proto_item_append_text(gpo_item, " (Ignored)");
                     break;
             };
-            ends_with_parameters = TRUE;
+            ends_with_parameters = true;
             break;
         /* END GET_READER_CONFIG */
         /* Misc */
         case LLRP_TYPE_SET_READER_CONFIG:
             proto_tree_add_item(tree, hf_llrp_rest_fact, tvb, offset, 1, ENC_NA);
             offset++;
-            ends_with_parameters = TRUE;
+            ends_with_parameters = true;
             break;
         case LLRP_TYPE_SET_PROTOCOL_VERSION:
             proto_tree_add_item(tree, hf_llrp_version, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -2825,7 +2824,7 @@ dissect_llrp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             offset++;
             proto_tree_add_item(tree, hf_llrp_sup_ver, tvb, offset, 1, ENC_BIG_ENDIAN);
             offset++;
-            ends_with_parameters = TRUE;
+            ends_with_parameters = true;
             break;
         case LLRP_TYPE_CUSTOM_MESSAGE:
             vendor = tvb_get_ntohl(tvb, offset);
@@ -2835,7 +2834,7 @@ dissect_llrp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             switch(vendor) {
             case LLRP_VENDOR_IMPINJ:
                 dissect_custom_message = dissect_llrp_impinj_message;
-                ends_with_parameters = TRUE;
+                ends_with_parameters = true;
                 break;
             }
             if (dissect_custom_message)
@@ -2869,9 +2868,9 @@ dissect_llrp_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
 {
     proto_item *ti;
     proto_tree *llrp_tree;
-    guint16     type;
-    guint32     len;
-    guint       offset = 0;
+    uint16_t    type;
+    uint32_t    len;
+    unsigned    offset = 0;
 
     /* Check that there's enough data */
     if (tvb_reported_length(tvb) < LLRP_HEADER_LENGTH) {
@@ -2915,18 +2914,18 @@ dissect_llrp_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
 }
 
 /* Determine length of LLRP message */
-static guint
+static unsigned
 get_llrp_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
     /* Peek into the header to determine the total message length */
-    return (guint)tvb_get_ntohl(tvb, offset+2);
+    return (unsigned)tvb_get_ntohl(tvb, offset+2);
 }
 
 /* The main dissecting routine */
 static int
 dissect_llrp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, LLRP_HEADER_LENGTH,
+    tcp_dissect_pdus(tvb, pinfo, tree, true, LLRP_HEADER_LENGTH,
         get_llrp_message_len, dissect_llrp_packet, data);
     return tvb_captured_length(tvb);
 }
@@ -3987,7 +3986,7 @@ proto_register_llrp(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_llrp,
         &ett_llrp_param
     };

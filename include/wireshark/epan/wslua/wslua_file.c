@@ -13,6 +13,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 #include "config.h"
+#define WS_LOG_DOMAIN LOG_DOMAIN_WSLUA
 
 #include "wslua_file_common.h"
 
@@ -25,8 +26,6 @@
 
    The classes/functions defined in this section allow you to create your own
    custom Lua-based "capture" file reader, or writer, or both.
-
-   @since 1.11.3
  */
 
 
@@ -77,8 +76,6 @@ WSLUA_CLASS_DEFINE(File,FAIL_ON_NULL_OR_EXPIRED("File"));
         return false
     end
     ----
-
-   @since 1.11.3
  */
 
 
@@ -91,7 +88,7 @@ File* push_File(lua_State* L, FILE_T ft) {
     File f = (File) g_malloc(sizeof(struct _wslua_file));
     f->file = ft;
     f->wdh = NULL;
-    f->expired = FALSE;
+    f->expired = false;
     return pushFile(L,f);
 }
 
@@ -99,11 +96,11 @@ File* push_Wdh(lua_State* L, wtap_dumper *wdh) {
     File f = (File) g_malloc(sizeof(struct _wslua_file));
     f->file = (FILE_T)wdh->fh;
     f->wdh = wdh;
-    f->expired = FALSE;
+    f->expired = false;
     return pushFile(L,f);
 }
 
-static gboolean file_is_reader(File f) {
+static bool file_is_reader(File f) {
     return (f->wdh == NULL);
 }
 
@@ -116,15 +113,15 @@ static gboolean file_is_reader(File f) {
 #define WSLUA_MAXNUMBER2STR  32 /* 16 digits, sign, point, and \0 */
 static int File_read_number (lua_State *L, FILE_T ft) {
     lua_Number d;
-    gchar buff[WSLUA_MAXNUMBER2STR];
+    char buff[WSLUA_MAXNUMBER2STR];
     int buff_end = 0;
     int c = -1;
     int num_digits = 0;
-    gboolean has_decimal = FALSE;
+    bool has_decimal = false;
 
     c = file_peekc(ft);
     if (c == '+' || c == '-') {
-        buff[buff_end++] = (gchar)c;
+        buff[buff_end++] = (char)c;
         /* make sure next char is a digit */
         c = file_peekc(ft);
         if (c < '0' || c > '9') {
@@ -137,13 +134,13 @@ static int File_read_number (lua_State *L, FILE_T ft) {
 
     while((c = file_peekc(ft)) > 0 && buff_end < (WSLUA_MAXNUMBER2STR-1)) {
         if (c >= '0' && c <= '9') {
-            buff[buff_end++] = (gchar)c;
+            buff[buff_end++] = (char)c;
             num_digits++;
             file_getc(ft);
         }
         else if (!has_decimal && c == '.') {
-            has_decimal = TRUE;
-            buff[buff_end++] = (gchar)c;
+            has_decimal = true;
+            buff[buff_end++] = (char)c;
             file_getc(ft);
         }
         else break;
@@ -166,9 +163,9 @@ static int File_read_number (lua_State *L, FILE_T ft) {
  * the stack (or nil on EOF).
  */
 static int File_read_line(lua_State *L, FILE_T ft) {
-    static gchar linebuff[MAX_LINE_LENGTH];
-    gint64 pos_before = file_tell(ft);
-    gint length = 0;
+    static char linebuff[MAX_LINE_LENGTH];
+    int64_t pos_before = file_tell(ft);
+    int length = 0;
 
     if (file_gets(linebuff, MAX_LINE_LENGTH, ft) == NULL) {
         /* No characters found, or error */
@@ -179,7 +176,7 @@ static int File_read_line(lua_State *L, FILE_T ft) {
     }
 
     /* Set length (avoiding strlen()) */
-    length = (gint)(file_tell(ft) - pos_before);
+    length = (int)(file_tell(ft) - pos_before);
 
     /* ...but don't want to include newline in line length */
     if (length > 0 && linebuff[length-1] == '\n') {
@@ -203,11 +200,6 @@ static int File_read_line(lua_State *L, FILE_T ft) {
  */
 #define WSLUA_BUFFERSIZE 1024
 
-/* Lua 5.1 used lua_objlen() instead of lua_rawlen() */
-#if LUA_VERSION_NUM == 501
-#define lua_rawlen lua_objlen
-#endif
-
 /**
  * Reads some data and returns the number of bytes read.
  * The actual data (possibly an empty string) is pushed on the Lua stack.
@@ -216,7 +208,7 @@ static int File_read_chars(lua_State *L, FILE_T ft, size_t n) {
     size_t rlen;  /* how much to read */
     size_t nr;  /* number of chars actually read */
     int    nri; /* temp number of chars read, as an int to handle -1 errors */
-    gchar buff[WSLUA_BUFFERSIZE];  /* for file_read to write to, and we push into Lua */
+    char buff[WSLUA_BUFFERSIZE];  /* for file_read to write to, and we push into Lua */
     luaL_Buffer b;
 
     rlen = WSLUA_BUFFERSIZE;  /* try to read that much each time */
@@ -339,9 +331,9 @@ WSLUA_METHOD File_seek(lua_State* L) {
     File f = checkFile(L,1);
     int op = luaL_checkoption(L, 2, "cur", modenames);
 #if LUA_VERSION_NUM >= 503
-    gint64 offset = (gint64)luaL_optinteger(L, 3, 0);
+    int64_t offset = (int64_t)luaL_optinteger(L, 3, 0);
 #else
-    gint64 offset = (gint64) luaL_optlong(L, 3, 0);
+    int64_t offset = (int64_t) luaL_optlong(L, 3, 0);
 #endif
     int err;
 
@@ -355,7 +347,7 @@ WSLUA_METHOD File_seek(lua_State* L) {
             return 2;
         }
 
-        lua_pushnumber(L, (lua_Number)(file_tell(f->file)));
+        lua_pushinteger(L, (lua_Integer)(file_tell(f->file)));
     }
     else {
         offset = wtap_dump_file_seek(f->wdh, offset, mode[op], &err);
@@ -374,7 +366,7 @@ WSLUA_METHOD File_seek(lua_State* L) {
             return 2;
         }
 
-        lua_pushnumber(L, (lua_Number)(offset));
+        lua_pushinteger(L, (lua_Integer)(offset));
     }
 
     WSLUA_RETURN(1); /* The current file cursor position as a number. */
@@ -422,7 +414,7 @@ WSLUA_METHOD File_write(lua_State* L) {
     File f = checkFile(L,1);
     int arg = 2;                   /* beginning index for arguments */
     int nargs = lua_gettop(L) - 1;
-    int status = TRUE;
+    int status = true;
     int err = 0;
 
     if (!f->wdh) {

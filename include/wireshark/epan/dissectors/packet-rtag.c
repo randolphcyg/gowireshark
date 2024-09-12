@@ -1,5 +1,5 @@
 /* packet-rtag.c
- * Dissector for IEEE 802.1cb R-TAG tags
+ * Dissector for IEEE 802.1CB R-TAG tags
  * By Stephen Williams <steve.williams@getcruise.com>
  * Copyright 2020-present, Cruise LLC
  *
@@ -14,7 +14,7 @@
 # include  <epan/packet.h>
 # include  <epan/etypes.h>
 
-static int proto_rtag = -1;
+static int proto_rtag;
 
 static dissector_handle_t ethertype_handle;
 static dissector_handle_t rtag_handle;
@@ -22,9 +22,10 @@ static dissector_handle_t rtag_handle;
 /*
  * These values and tables are a breakdown of the R-TAG parts.
  */
-static int hf_rtag_reserved = -1;
-static int hf_rtag_sequence = -1;
-static int hf_rtag_protocol = -1;
+static int hf_rtag_reserved;
+static int hf_rtag_sequence;
+static int hf_rtag_protocol;
+static int hf_rtag_trailer;
 static hf_register_info rtag_breakdown[] = {
       { &hf_rtag_reserved,
 	{ "<reserved>", "rtag.reserved",
@@ -43,13 +44,18 @@ static hf_register_info rtag_breakdown[] = {
 	  FT_UINT16, BASE_HEX,
 	  VALS(etype_vals), 0x0,
 	  "Ethertype", HFILL }
-      }
+      },
+      { &hf_rtag_trailer,
+        { "Trailer", "rtag.trailer",
+          FT_BYTES, BASE_NONE, NULL, 0x0,
+          "R-TAG Trailer", HFILL }
+      },
 };
 
 /*
  */
-static gint ett_rtag = -1;
-static gint *ett[] = { &ett_rtag };
+static int ett_rtag;
+static int *ett[] = { &ett_rtag };
 
 /*
  * Dissect the R-TAG portion of a given packet. This is called with
@@ -69,8 +75,8 @@ static int dissect_rtag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	 */
       ti = proto_tree_add_item(tree, proto_rtag, tvb, 0, 6, ENC_NA);
 
-      guint16 seqno = tvb_get_ntohs(tvb, 2);
-      guint16 rtag_protocol = tvb_get_ntohs(tvb, 4);
+      uint16_t seqno = tvb_get_ntohs(tvb, 2);
+      uint16_t rtag_protocol = tvb_get_ntohs(tvb, 4);
 
       proto_tree *rtag_subtree = proto_item_add_subtree(ti, ett_rtag);
       proto_tree_add_item(rtag_subtree, hf_rtag_reserved, tvb, 0, 2, ENC_BIG_ENDIAN);
@@ -86,11 +92,11 @@ static int dissect_rtag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	 * as part of the R-TAG protocol
 	 */
       ethertype_data_t ethertype_data;
-      ethertype_data.etype = rtag_protocol;;
+      ethertype_data.etype = rtag_protocol;
       ethertype_data.payload_offset = 6;
       ethertype_data.fh_tree = tree;
-      ethertype_data.trailer_id = -1;
-      ethertype_data.fcs_len = -1;
+      ethertype_data.trailer_id = hf_rtag_trailer;
+      ethertype_data.fcs_len = 0;
       call_dissector_with_data(ethertype_handle, tvb, pinfo, tree, &ethertype_data);
 
       return tvb_captured_length(tvb);

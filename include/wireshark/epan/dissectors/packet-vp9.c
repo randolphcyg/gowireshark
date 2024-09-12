@@ -41,37 +41,38 @@
 #define VP9_16_BITS_MASK 0xFFFF
 #define VP9_EXTENDED_PID 0x7FFF
 
-static int proto_vp9 = -1;
+static int proto_vp9;
 
-static int hf_vp9_pld_i_bit = -1;
-static int hf_vp9_pld_p_bit = -1;
-static int hf_vp9_pld_l_bit = -1;
-static int hf_vp9_pld_f_bit = -1;
-static int hf_vp9_pld_b_bit = -1;
-static int hf_vp9_pld_e_bit = -1;
-static int hf_vp9_pld_v_bit = -1;
-static int hf_vp9_pld_z_bit = -1;
-static int hf_vp9_pld_u_bit = -1;
-static int hf_vp9_pld_m_bit = -1;
-static int hf_vp9_pld_d_bit = -1;
-static int hf_vp9_pld_n_bit = -1;
-static int hf_vp9_pld_y_bit = -1;
-static int hf_vp9_pld_g_bit = -1;
-static int hf_vp9_pld_pg_bits = -1;
-static int hf_vp9_pld_n_s_bits = -1;
-static int hf_vp9_pld_n_g_bits = -1;
-static int hf_vp9_pld_sid_bits = -1;
-static int hf_vp9_pld_pid_bits = -1;
-static int hf_vp9_pld_tid_bits = -1;
-static int hf_vp9_pld_width_bits = -1;
-static int hf_vp9_pld_height_bits = -1;
-static int hf_vp9_pld_p_diff_bits = -1;
-static int hf_vp9_pld_tl0picidx_bits = -1;
-static int hf_vp9_pld_pg_extended_bits = -1;
-static int hf_vp9_pld_pid_extended_bits = -1;
+static int hf_vp9_pld_i_bit;
+static int hf_vp9_pld_p_bit;
+static int hf_vp9_pld_l_bit;
+static int hf_vp9_pld_f_bit;
+static int hf_vp9_pld_b_bit;
+static int hf_vp9_pld_e_bit;
+static int hf_vp9_pld_v_bit;
+static int hf_vp9_pld_z_bit;
+static int hf_vp9_pld_u_bit;
+static int hf_vp9_pld_m_bit;
+static int hf_vp9_pld_d_bit;
+static int hf_vp9_pld_n_bit;
+static int hf_vp9_pld_y_bit;
+static int hf_vp9_pld_g_bit;
+static int hf_vp9_pld_pg_bits;
+static int hf_vp9_pld_n_s_bits;
+static int hf_vp9_pld_n_g_bits;
+static int hf_vp9_pld_sid_bits;
+static int hf_vp9_pld_pid_bits;
+static int hf_vp9_pld_tid_bits;
+static int hf_vp9_pld_width_bits;
+static int hf_vp9_pld_height_bits;
+static int hf_vp9_pld_n_s_numbers;
+static int hf_vp9_pld_p_diff_bits;
+static int hf_vp9_pld_tl0picidx_bits;
+static int hf_vp9_pld_pg_extended_bits;
+static int hf_vp9_pld_pid_extended_bits;
 
-static int ett_vp9 = -1;
-static int ett_vp9_descriptor = -1;
+static int ett_vp9;
+static int ett_vp9_descriptor;
 
 static int *ett[] = {
     &ett_vp9,
@@ -97,11 +98,11 @@ dissect_vp9(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *data 
          |I|P|L|F|B|E|V|Z| (REQUIRED)
          +-+-+-+-+-+-+-+-+
     */
-    guint8 i = tvb_get_guint8(tvb, offset) & VP9_1_BIT_MASK;
-    guint8 p = tvb_get_guint8(tvb, offset) & VP9_2_BIT_MASK;
-    guint8 l = tvb_get_guint8(tvb, offset) & VP9_3_BIT_MASK;
-    guint8 f = tvb_get_guint8(tvb, offset) & VP9_4_BIT_MASK;
-    guint8 v = tvb_get_guint8(tvb, offset) & VP9_7_BIT_MASK;
+    uint8_t i = tvb_get_uint8(tvb, offset) & VP9_1_BIT_MASK;
+    uint8_t p = tvb_get_uint8(tvb, offset) & VP9_2_BIT_MASK;
+    uint8_t l = tvb_get_uint8(tvb, offset) & VP9_3_BIT_MASK;
+    uint8_t f = tvb_get_uint8(tvb, offset) & VP9_4_BIT_MASK;
+    uint8_t v = tvb_get_uint8(tvb, offset) & VP9_7_BIT_MASK;
     proto_tree_add_item(vp9_descriptor_tree, hf_vp9_pld_i_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(vp9_descriptor_tree, hf_vp9_pld_p_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(vp9_descriptor_tree, hf_vp9_pld_l_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -120,7 +121,7 @@ dissect_vp9(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *data 
     M:   | EXTENDED PID  | (RECOMMENDED)
          +-+-+-+-+-+-+-+-+
     */
-    guint8 m = tvb_get_guint8(tvb, offset) & VP9_1_BIT_MASK;
+    uint8_t m = tvb_get_uint8(tvb, offset) & VP9_1_BIT_MASK;
     proto_tree_add_item(vp9_descriptor_tree, hf_vp9_pld_m_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
     if (f)
     {
@@ -142,7 +143,7 @@ dissect_vp9(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *data 
         }
         else
         {
-            //  Malformated packet
+            //  Malformed packet
         }
     }
     else
@@ -165,7 +166,7 @@ dissect_vp9(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *data 
         }
         else
         {
-            //  Malformated packet
+            //  Malformed packet
         }
     }
 
@@ -204,7 +205,7 @@ dissect_vp9(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *data 
     */
     if (p && f)
     {
-        guint8 n = tvb_get_guint8(tvb, offset) & (VP9_1_BIT_MASK >> 7);
+        uint8_t n = tvb_get_uint8(tvb, offset) & (VP9_1_BIT_MASK >> 7);
         int idx = 0;
         int max_p_diff = 3;
         while (n && idx < max_p_diff)
@@ -213,11 +214,11 @@ dissect_vp9(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *data 
             proto_tree_add_item(vp9_descriptor_tree, hf_vp9_pld_n_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
             proto_item_set_len(vp9_descriptor_item, 6);
             offset++;
-            n = tvb_get_guint8(tvb, offset) & (VP9_1_BIT_MASK >> 7);
+            n = tvb_get_uint8(tvb, offset) & (VP9_1_BIT_MASK >> 7);
             idx++;
             if (n && idx == max_p_diff)
             {
-                //  Malformated packet
+                //  Malformed packet
             }
         }
     }
@@ -235,12 +236,18 @@ dissect_vp9(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *data 
         V:   | N_S |Y|G|-|-|-|
              +-+-+-+-+-+-+-+-+
         */
-        guint8 n_s = (tvb_get_guint8(tvb, offset) & (VP9_3_BITS_MASK)) >> 5;
-        guint8 y = tvb_get_guint8(tvb, offset) & (VP9_1_BIT_MASK >> 3);
-        guint8 g = tvb_get_guint8(tvb, offset) & (VP9_1_BIT_MASK >> 4);
+        proto_item* n_s_numbers_field;
+        uint8_t n_s = (tvb_get_uint8(tvb, offset) & (VP9_3_BITS_MASK)) >> 5;
+        uint8_t y = tvb_get_uint8(tvb, offset) & (VP9_1_BIT_MASK >> 3);
+        uint8_t g = tvb_get_uint8(tvb, offset) & (VP9_1_BIT_MASK >> 4);
+        uint8_t number_of_spatial_layers = n_s + 1;
+
         proto_tree_add_item(vp9_descriptor_tree, hf_vp9_pld_n_s_bits, tvb, offset, 1, ENC_BIG_ENDIAN);
+        n_s_numbers_field = proto_tree_add_uint(vp9_descriptor_tree, hf_vp9_pld_n_s_numbers, tvb, offset, 1, number_of_spatial_layers);
         proto_tree_add_item(vp9_descriptor_tree, hf_vp9_pld_y_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(vp9_descriptor_tree, hf_vp9_pld_g_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
+        proto_item_set_generated(n_s_numbers_field);
+
         offset++;
 
         /*
@@ -254,8 +261,8 @@ dissect_vp9(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *data 
              |               | (OPTIONAL)    .
              +-+-+-+-+-+-+-+-+              -/
         */
-        guint8 spatial_layer = 0;
-        while (spatial_layer < (n_s + 1))
+        uint8_t spatial_layer = 0;
+        while (spatial_layer < number_of_spatial_layers)
         {
             if (y)
             {
@@ -295,47 +302,47 @@ void proto_register_vp9(void)
 {
     static hf_register_info hf[] = {
         {&hf_vp9_pld_i_bit,
-         {"Picture ID present", "vp9.pld.i",
+         {"Picture ID present (I)", "vp9.pld.i",
           FT_BOOLEAN, 8,
           NULL, VP9_1_BIT_MASK,
           NULL, HFILL}},
         {&hf_vp9_pld_p_bit,
-         {"Inter-picture predicted frame", "vp9.pld.p",
+         {"Inter-picture predicted frame (P)", "vp9.pld.p",
           FT_BOOLEAN, 8,
           NULL, VP9_2_BIT_MASK,
           NULL, HFILL}},
         {&hf_vp9_pld_l_bit,
-         {"Layer indices present", "vp9.pld.l",
+         {"Layer indices present (L)", "vp9.pld.l",
           FT_BOOLEAN, 8,
           NULL, VP9_3_BIT_MASK,
           NULL, HFILL}},
         {&hf_vp9_pld_f_bit,
-         {"Flexible mode", "vp9.pld.f",
+         {"Flexible mode (F)", "vp9.pld.f",
           FT_BOOLEAN, 8,
           NULL, VP9_4_BIT_MASK,
           NULL, HFILL}},
         {&hf_vp9_pld_b_bit,
-         {"Start of a frame", "vp9.pld.b",
+         {"Start of a frame (B)", "vp9.pld.b",
           FT_BOOLEAN, 8,
           NULL, VP9_5_BIT_MASK,
           NULL, HFILL}},
         {&hf_vp9_pld_e_bit,
-         {"End of a frame", "vp9.pld.e",
+         {"End of a frame (E)", "vp9.pld.e",
           FT_BOOLEAN, 8,
           NULL, VP9_6_BIT_MASK,
           NULL, HFILL}},
         {&hf_vp9_pld_v_bit,
-         {"Scalability structure (SS) data present", "vp9.pld.v",
+         {"Scalability structure (SS) data present (V)", "vp9.pld.v",
           FT_BOOLEAN, 8,
           NULL, VP9_7_BIT_MASK,
           NULL, HFILL}},
         {&hf_vp9_pld_z_bit,
-         {"Not a reference frame for upper spatial layers", "vp9.pld.z",
+         {"Not a reference frame for upper spatial layers (Z)", "vp9.pld.z",
           FT_BOOLEAN, 8,
           NULL, VP9_8_BIT_MASK,
           NULL, HFILL}},
         {&hf_vp9_pld_m_bit,
-         {"Extension flag", "vp9.pld.m",
+         {"Extension flag (M)", "vp9.pld.m",
           FT_BOOLEAN, 8,
           NULL, VP9_1_BIT_MASK,
           NULL, HFILL}},
@@ -365,7 +372,7 @@ void proto_register_vp9(void)
           NULL, VP9_3_BITS_MASK,
           NULL, HFILL}},
         {&hf_vp9_pld_u_bit,
-         {"Switching up point", "vp9.pld.u",
+         {"Switching up point (U)", "vp9.pld.u",
           FT_BOOLEAN, 8,
           NULL, VP9_1_BIT_MASK >> 3,
           NULL, HFILL}},
@@ -375,7 +382,7 @@ void proto_register_vp9(void)
           NULL, VP9_3_BITS_MASK >> 4,
           NULL, HFILL}},
         {&hf_vp9_pld_d_bit,
-         {"Inter-layer dependency used", "vp9.pld.d",
+         {"Inter-layer dependency used (D)", "vp9.pld.d",
           FT_BOOLEAN, 8,
           NULL, VP9_1_BIT_MASK >> 7,
           NULL, HFILL}},
@@ -385,27 +392,32 @@ void proto_register_vp9(void)
           NULL, 0,
           NULL, HFILL}},
         {&hf_vp9_pld_p_diff_bits,
-         {"Reference index", "vp9.pld.p_diff",
+         {"Reference index (P_DIFF)", "vp9.pld.p_diff",
           FT_UINT8, BASE_DEC,
           NULL, VP9_7_BITS_MASK,
           NULL, HFILL}},
         {&hf_vp9_pld_n_bit,
-         {"Additional reference index", "vp9.pld.n",
+         {"Additional reference index (N)", "vp9.pld.n",
           FT_BOOLEAN, 8,
           NULL, VP9_1_BIT_MASK >> 7,
           NULL, HFILL}},
         {&hf_vp9_pld_n_s_bits,
-         {"Number of spatial layers", "vp9.pld.n_s",
+         {"Spatial layers minus 1 (N_S)", "vp9.pld.n_s",
           FT_UINT8, BASE_DEC,
           NULL, VP9_3_BITS_MASK,
           NULL, HFILL}},
+        {&hf_vp9_pld_n_s_numbers,
+         {"Number of spatial layers", "vp9.pld.spatial_layers_number",
+          FT_UINT8, BASE_DEC,
+          NULL, 0,
+          NULL, HFILL}},
         {&hf_vp9_pld_y_bit,
-         {"Spatial layer's frame resolution present", "vp9.pld.y",
+         {"Spatial layer's frame resolution present (Y)", "vp9.pld.y",
           FT_BOOLEAN, 8,
           NULL, VP9_1_BIT_MASK >> 3,
           NULL, HFILL}},
         {&hf_vp9_pld_g_bit,
-         {"PG description flag", "vp9.pld.g",
+         {"PG description flag (G)", "vp9.pld.g",
           FT_BOOLEAN, 8,
           NULL, VP9_1_BIT_MASK >> 4,
           NULL, HFILL}},
@@ -420,7 +432,7 @@ void proto_register_vp9(void)
           NULL, 0,
           NULL, HFILL}},
         {&hf_vp9_pld_n_g_bits,
-         {"Number of pictures", "vp9.pld.n_g",
+         {"Number of pictures (N_G)", "vp9.pld.n_g",
           FT_UINT8, BASE_DEC,
           NULL, 0,
           NULL, HFILL}}};

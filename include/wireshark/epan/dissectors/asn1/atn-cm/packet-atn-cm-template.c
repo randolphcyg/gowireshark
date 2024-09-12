@@ -5,19 +5,16 @@
  * Routines for ATN context management protocol packet disassembly.
  * ATN context management allows an aircraft
  * to log on to a ground facility.
-
+ *
  * details see:
- * http://en.wikipedia.org/wiki/CPDLC
- * http://members.optusnet.com.au/~cjr/introduction.htm
-
+ * https://en.wikipedia.org/wiki/CPDLC
+ * https://members.optusnet.com.au/~cjr/introduction.htm
+ *
  * standards:
- * http://legacy.icao.int/anb/panels/acp/repository.cfm
-
- * note:
- * We are dealing with ATN/CPDLC aka ICAO Doc 9705 Ed2 here
+ * We are dealing with ATN/CPDLC aka ICAO Doc 9705 Second Edition here
  * (CPDLC may also be transmitted via ACARS/AOA aka "FANS-1/A ").
-
-
+ * https://www.icao.int/safety/acp/repository/_%20Doc9705_ed2_1999.pdf
+ *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
  * Copyright 1998 Gerald Combs
@@ -30,6 +27,7 @@
 #include <epan/packet.h>
 #include <epan/exceptions.h>
 #include <epan/conversation.h>
+#include <wsutil/array.h>
 #include "packet-ber.h"
 #include "packet-per.h"
 #include "packet-atn-ulcs.h"
@@ -42,10 +40,10 @@ void proto_reg_handoff_atn_cm(void);
 #include "packet-atn-cm-hf.c"
 
 #include "packet-atn-cm-ett.c"
-static gint ett_atn_cm = -1;
+static int ett_atn_cm;
 
 #include "packet-atn-cm-fn.c"
-static int proto_atn_cm = -1;
+static int proto_atn_cm;
 
 static int
 dissect_atn_cm(
@@ -85,7 +83,7 @@ dissect_atn_cm(
     return tvb_reported_length_remaining(tvb, 0);
 }
 
-static gboolean
+static bool
 dissect_atn_cm_heur(
     tvbuff_t *tvb,
     packet_info *pinfo,
@@ -93,7 +91,7 @@ dissect_atn_cm_heur(
     void *data _U_)
 {
     atn_conversation_t *volatile atn_cv = NULL;
-    volatile gboolean is_atn_cm = FALSE;
+    volatile bool is_atn_cm = false;
     int type;
 
     /* determine whether it is uplink or downlink */
@@ -108,9 +106,9 @@ dissect_atn_cm_heur(
                   pinfo,
                   NULL, NULL);
                 /* no exception thrown: looks like it is a CM PDU */
-                is_atn_cm = TRUE; }
+                is_atn_cm = true; }
             CATCH_ALL {
-                is_atn_cm = FALSE; }
+                is_atn_cm = false; }
             ENDTRY;
             break;
         case dm:
@@ -120,16 +118,16 @@ dissect_atn_cm_heur(
                     pinfo,
                     NULL, NULL);
                 /* no exception thrown: looks like it is a CM PDU */
-                is_atn_cm = TRUE;}
+                is_atn_cm = true;}
             CATCH_ALL {
-                is_atn_cm = FALSE; }
+                is_atn_cm = false; }
             ENDTRY;
             break;
         default:
             break;
     }
 
-    if (is_atn_cm  == TRUE) {
+    if (is_atn_cm  == true) {
         /* note: */
         /* all subsequent PDU's belonging to this conversation are considered CM */
         /* if the first CM PDU has been decoded successfully */
@@ -181,7 +179,7 @@ void proto_register_atn_cm (void)
     static hf_register_info hf_atn_cm[] = {
           #include "packet-atn-cm-hfarr.c"
     };
-    static gint *ett[] = {
+    static int *ett[] = {
       #include "packet-atn-cm-ettarr.c"
       &ett_atn_cm
     };

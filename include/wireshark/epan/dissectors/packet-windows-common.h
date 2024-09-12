@@ -2658,10 +2658,6 @@
     XXX( WERR_AMBIGUOUS_SYSTEM_DEVICE                      , 15250     ) /* 0x00003b92 */ \
     XXX( WERR_SYSTEM_DEVICE_NOT_FOUND                      , 15299     ) /* 0x00003bc3 */
 
-#if 0  /* WERR_... symbols not referenced within Wireshark */
-VALUE_STRING_ENUM2(WERR_errors);
-#endif
-VALUE_STRING_ARRAY2_GLOBAL_DCL(WERR_errors);  /* XXX: Remove once all PIDL generated dissectors ref WERR_errors_ext */
 extern value_string_ext WERR_errors_ext;
 
 /* Win32 errors.
@@ -5599,10 +5595,6 @@ extern value_string_ext WERR_errors_ext;
    XXX( HRES_ERROR_GRAPHICS_MCA_UNSUPPORTED_COLOR_TEMPERATURE, 3223725535U) /* 0xc02625df */ \
    XXX( HRES_ERROR_GRAPHICS_ONLY_CONSOLE_SESSION_SUPPORTED, 3223725536U) /* 0xc02625e0 */ \
 
-#if 0  /* HRES_... symbols not referenced within Wireshark */
-VALUE_STRING_ENUM2(HRES_errors);
-#endif
-VALUE_STRING_ARRAY2_GLOBAL_DCL(HRES_errors);  /* XXX: Remove once all PIDL generated dissectors ref HRES_errors_ext */
 extern value_string_ext HRES_errors_ext;
 
 
@@ -5700,17 +5692,16 @@ extern value_string_ext DOS_errors_ext;
 /*
  * NT error codes used by other dissectors.
  */
-extern const value_string NT_errors[]; /* XXX: Remove once all PIDL generated dissectors ref NT_errors_ext */
 extern value_string_ext NT_errors_ext;
 
 extern value_string_ext ms_country_codes_ext;
 
 WS_DLL_PUBLIC
-int dissect_nt_64bit_time(tvbuff_t *tvb, proto_tree *tree, int offset, int hf_date);
+proto_item *dissect_nttime(tvbuff_t *tvb, proto_tree *tree, int offset, int hf_date, const unsigned encoding);
 WS_DLL_PUBLIC
-int dissect_nt_64bit_time_opt(tvbuff_t *tvb, proto_tree *tree, int offset, int hf_date, gboolean onesec_resolution);
+proto_item *dissect_nttime_hyper(tvbuff_t *tvb, proto_tree *tree, int offset, int hf_date, const unsigned encoding);
 WS_DLL_PUBLIC
-int dissect_nt_64bit_time_ex(tvbuff_t *tvb, proto_tree *tree, int offset, int hf_date, proto_item **createdItem, gboolean onesec_resolution);
+proto_item *dissect_nttime_hyper_1sec(tvbuff_t *tvb, proto_tree *tree, int offset, int hf_date, const unsigned encoding);
 
 /*
  *  SIDs and RIDs
@@ -5775,25 +5766,25 @@ int dissect_nt_sid_ret_item(tvbuff_t *tvb, int offset, proto_tree *parent_tree,
 
 #define SPECIFIC_RIGHTS_MASK 0x0000FFFF /* Specific rights defined per-object */
 
-typedef void (nt_access_mask_fn_t)(tvbuff_t *tvb, gint offset,
-				   proto_tree *tree, guint32 access);
+typedef void (nt_access_mask_fn_t)(tvbuff_t *tvb, int offset,
+				   proto_tree *tree, uint32_t access);
 
 /* Map generic access permissions to specific permissions */
 
 struct generic_mapping {
-	guint32 generic_read;
-	guint32 generic_write;
-	guint32 generic_execute;
-	guint32 generic_all;
+	uint32_t generic_read;
+	uint32_t generic_write;
+	uint32_t generic_execute;
+	uint32_t generic_all;
 };
 
 /* Map standard access permissions to specific permissions */
 
 struct standard_mapping {
-	guint32 std_read;
-	guint32 std_write;
-	guint32 std_execute;
-	guint32 std_all;
+	uint32_t std_read;
+	uint32_t std_write;
+	uint32_t std_execute;
+	uint32_t std_all;
 };
 
 struct access_mask_info {
@@ -5804,15 +5795,15 @@ struct access_mask_info {
 };
 
 int
-dissect_nt_access_mask(tvbuff_t *tvb, gint offset, packet_info *pinfo,
-		       proto_tree *tree, dcerpc_info *di, guint8 *drep, int hfindex,
+dissect_nt_access_mask(tvbuff_t *tvb, int offset, packet_info *pinfo,
+		       proto_tree *tree, dcerpc_info *di, uint8_t *drep, int hfindex,
 		       struct access_mask_info *ami,
-		       guint32 *perms);
+		       uint32_t *perms);
 
 int
 dissect_nt_sec_desc(tvbuff_t *tvb, int offset, packet_info *pinfo,
-		    proto_tree *parent_tree, guint8 *drep,
-		    gboolean len_supplied, int len,
+		    proto_tree *parent_tree, uint8_t *drep,
+		    bool len_supplied, int len,
 		    struct access_mask_info *ami);
 
 void

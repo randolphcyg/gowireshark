@@ -61,87 +61,87 @@ static dissector_handle_t pcp_handle;
 #define OPT_PREFIX64            129
 #define OPT_PORT_SET            130
 
-static int proto_nat_pmp = -1;
-static int proto_pcp = -1;
+static int proto_nat_pmp;
+static int proto_pcp;
 
-static int hf_version = -1;
-static int hf_opcode = -1;
-static int hf_result_code = -1;
-static int hf_sssoe = -1;
-static int hf_external_ip = -1;
-static int hf_reserved = -1;
-static int hf_internal_port = -1;
-static int hf_external_port_requested = -1;
-static int hf_external_port_mapped = -1;
-static int hf_rpmlis = -1;
-static int hf_pmlis = -1;
+static int hf_version;
+static int hf_opcode;
+static int hf_result_code;
+static int hf_sssoe;
+static int hf_external_ip;
+static int hf_reserved;
+static int hf_internal_port;
+static int hf_external_port_requested;
+static int hf_external_port_mapped;
+static int hf_rpmlis;
+static int hf_pmlis;
 
-static gint ett_nat_pmp = -1;
+static int ett_nat_pmp;
 
 /* Port Control Protocol */
-static int hf_pcp_version = -1;
-static int hf_request = -1;
-static int hf_response = -1;
-static int hf_pcp_r = -1;
-static int hf_pcp_opcode = -1;
-static int hf_pcp_result_code = -1;
-static int hf_reserved1 = -1;
-static int hf_reserved2 = -1;
-static int hf_reserved12 = -1;
-static int hf_req_lifetime = -1;
-static int hf_rsp_lifetime = -1;
-static int hf_client_ip = -1;
-static int hf_epoch_time = -1;
-static int hf_map_nonce = -1;
-static int hf_map_protocol = -1;
-static int hf_map_reserved1 = -1;
-static int hf_map_internal_port = -1;
-static int hf_map_req_sug_external_port = -1;
-static int hf_map_req_sug_ext_ip = -1;
-static int hf_map_rsp_assigned_external_port = -1;
-static int hf_map_rsp_assigned_ext_ip = -1;
-static int hf_peer_nonce = -1;
-static int hf_peer_protocol = -1;
-static int hf_peer_reserved = -1;
-static int hf_peer_internal_port = -1;
-static int hf_peer_req_sug_external_port = -1;
-static int hf_peer_req_sug_ext_ip = -1;
-static int hf_peer_remote_peer_port = -1;
-static int hf_peer_remote_peer_ip = -1;
-static int hf_peer_rsp_assigned_external_port = -1;
-static int hf_peer_rsp_assigned_ext_ip = -1;
-static int hf_options = -1;
-static int hf_option = -1;
-static int hf_option_code = -1;
-static int hf_option_reserved = -1;
-static int hf_option_length = -1;
-static int hf_option_third_party_internal_ip = -1;
-static int hf_option_filter_reserved = -1;
-static int hf_option_filter_prefix_length = -1;
-static int hf_option_filter_remote_peer_port = -1;
-static int hf_option_filter_remote_peer_ip = -1;
-static int hf_option_description = -1;
-static int hf_option_p64_length = -1;
-static int hf_option_p64_prefix64 = -1;
-static int hf_option_p64_suffix = -1;
-static int hf_option_p64_ipv4_prefix_count = -1;
-static int hf_option_p64_ipv4_prefix_length = -1;
-static int hf_option_p64_ipv4_address = -1;
-static int hf_option_portset_size = -1;
-static int hf_option_portset_first_suggested_port = -1;
-static int hf_option_portset_first_assigned_port = -1;
-static int hf_option_portset_reserved = -1;
-static int hf_option_portset_parity = -1;
-static int hf_option_padding = -1;
+static int hf_pcp_version;
+static int hf_request;
+static int hf_response;
+static int hf_pcp_r;
+static int hf_pcp_opcode;
+static int hf_pcp_result_code;
+static int hf_reserved1;
+static int hf_reserved2;
+static int hf_reserved12;
+static int hf_req_lifetime;
+static int hf_rsp_lifetime;
+static int hf_client_ip;
+static int hf_epoch_time;
+static int hf_map_nonce;
+static int hf_map_protocol;
+static int hf_map_reserved1;
+static int hf_map_internal_port;
+static int hf_map_req_sug_external_port;
+static int hf_map_req_sug_ext_ip;
+static int hf_map_rsp_assigned_external_port;
+static int hf_map_rsp_assigned_ext_ip;
+static int hf_peer_nonce;
+static int hf_peer_protocol;
+static int hf_peer_reserved;
+static int hf_peer_internal_port;
+static int hf_peer_req_sug_external_port;
+static int hf_peer_req_sug_ext_ip;
+static int hf_peer_remote_peer_port;
+static int hf_peer_remote_peer_ip;
+static int hf_peer_rsp_assigned_external_port;
+static int hf_peer_rsp_assigned_ext_ip;
+static int hf_options;
+static int hf_option;
+static int hf_option_code;
+static int hf_option_reserved;
+static int hf_option_length;
+static int hf_option_third_party_internal_ip;
+static int hf_option_filter_reserved;
+static int hf_option_filter_prefix_length;
+static int hf_option_filter_remote_peer_port;
+static int hf_option_filter_remote_peer_ip;
+static int hf_option_description;
+static int hf_option_p64_length;
+static int hf_option_p64_prefix64;
+static int hf_option_p64_suffix;
+static int hf_option_p64_ipv4_prefix_count;
+static int hf_option_p64_ipv4_prefix_length;
+static int hf_option_p64_ipv4_address;
+static int hf_option_portset_size;
+static int hf_option_portset_first_suggested_port;
+static int hf_option_portset_first_assigned_port;
+static int hf_option_portset_reserved;
+static int hf_option_portset_parity;
+static int hf_option_padding;
 
-static gint ett_pcp = -1;
-static gint ett_opcode = -1;
-static gint ett_option = -1;
-static gint ett_suboption = -1;
+static int ett_pcp;
+static int ett_opcode;
+static int ett_option;
+static int ett_suboption;
 
-static expert_field ei_natpmp_opcode_unknown = EI_INIT;
-static expert_field ei_pcp_opcode_unknown = EI_INIT;
-static expert_field ei_pcp_option_unknown = EI_INIT;
+static expert_field ei_natpmp_opcode_unknown;
+static expert_field ei_pcp_opcode_unknown;
+static expert_field ei_pcp_option_unknown;
 
 static const value_string opcode_vals[] = {
   { EXTERNAL_ADDRESS_REQUEST,  "External Address Request"   },
@@ -221,8 +221,8 @@ dissect_nat_pmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
 {
   proto_tree *nat_pmp_tree;
   proto_item *ti, *op_ti;
-  gint start_offset, offset = 0;
-  guint8 opcode;
+  int start_offset, offset = 0;
+  uint8_t opcode;
 
   col_set_str (pinfo->cinfo, COL_PROTOCOL, "NAT-PMP");
   col_clear (pinfo->cinfo, COL_INFO);
@@ -234,7 +234,7 @@ dissect_nat_pmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
   proto_tree_add_item(nat_pmp_tree, hf_version, tvb, offset, 1, ENC_BIG_ENDIAN);
   offset++;
 
-  opcode = tvb_get_guint8 (tvb, offset);
+  opcode = tvb_get_uint8 (tvb, offset);
   proto_item_append_text (ti, ", %s", val_to_str(opcode, opcode_vals, "Unknown opcode: %d"));
   op_ti = proto_tree_add_item(nat_pmp_tree, hf_opcode, tvb, offset, 1, ENC_BIG_ENDIAN);
   offset++;
@@ -301,17 +301,17 @@ dissect_nat_pmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
 }
 
 static int
-dissect_portcontrol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint8 version)
+dissect_portcontrol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint8_t version)
 {
   proto_tree *pcp_tree, *opcode_tree = NULL, *option_tree, *option_sub_tree;
   proto_item *ti, *opcode_ti, *option_ti, *suboption_ti;
-  gint offset = 0, start_offset, start_opcode_offset, start_option_offset;
-  guint8 ropcode, option;
-  guint16 option_length;
-  gint mod_option_length = 0;
-  gint option_padding_length = 0;
-  gboolean is_response;
-  const gchar* op_str;
+  int offset = 0, start_offset, start_opcode_offset, start_option_offset;
+  uint8_t ropcode, option;
+  uint16_t option_length;
+  int mod_option_length = 0;
+  int option_padding_length = 0;
+  bool is_response;
+  const char* op_str;
 
   if(version == 1)
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "PCP v1");
@@ -326,7 +326,7 @@ dissect_portcontrol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
   proto_tree_add_item(pcp_tree, hf_pcp_version, tvb, offset, 1, ENC_BIG_ENDIAN);
   offset++;
 
-  ropcode = tvb_get_guint8(tvb, offset);
+  ropcode = tvb_get_uint8(tvb, offset);
   is_response = ropcode & 0x80;
   op_str = val_to_str(ropcode, pcp_ropcode_vals, "Unknown opcode: %d");
   proto_item_append_text(ti, ", %s", op_str);
@@ -337,7 +337,7 @@ dissect_portcontrol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
 
   if(!is_response)
   {
-    ti = proto_tree_add_boolean(pcp_tree, hf_request, tvb, offset-1, 1, is_response == FALSE);
+    ti = proto_tree_add_boolean(pcp_tree, hf_request, tvb, offset-1, 1, is_response == false);
     proto_item_set_hidden(ti);
 
     proto_tree_add_item(pcp_tree, hf_reserved2, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -351,7 +351,7 @@ dissect_portcontrol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
   }
   else
   {
-    ti = proto_tree_add_boolean(pcp_tree, hf_response, tvb, offset-1, 1, is_response == TRUE);
+    ti = proto_tree_add_boolean(pcp_tree, hf_response, tvb, offset-1, 1, is_response == true);
     proto_item_set_hidden(ti);
 
     proto_tree_add_item(pcp_tree, hf_reserved1, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -376,10 +376,10 @@ dissect_portcontrol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
     opcode_tree = proto_tree_add_subtree(pcp_tree, tvb, offset, 0, ett_opcode, &opcode_ti, op_str);
   }
 
-  guint32 protocol = 0;
-  guint32 internal_port = 0;
-  guint32 external_port = 0;
-  guint32 port_set_size = 0;
+  uint32_t protocol = 0;
+  uint32_t internal_port = 0;
+  uint32_t external_port = 0;
+  uint32_t port_set_size = 0;
 
   switch(ropcode) {
 
@@ -472,7 +472,7 @@ dissect_portcontrol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
       option_sub_tree = proto_item_add_subtree(suboption_ti, ett_suboption);
 
       proto_tree_add_item(option_sub_tree, hf_option_code, tvb, offset, 1, ENC_BIG_ENDIAN);
-      option = tvb_get_guint8(tvb, offset);
+      option = tvb_get_uint8(tvb, offset);
       proto_item_append_text(suboption_ti, ": %s", val_to_str(option, pcp_option_vals, "Unknown option: %d"));
       offset++;
 
@@ -516,7 +516,7 @@ dissect_portcontrol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
 
         case OPT_PREFIX64:
           {
-            guint32 p64_length;
+            uint32_t p64_length;
             int optoffset = 0;
 
             if(option_length-optoffset < 2)
@@ -546,7 +546,7 @@ dissect_portcontrol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
 
             if(option_length-optoffset > 0)
             {
-              guint32 ipv4_prefix_count;
+              uint32_t ipv4_prefix_count;
 
               if(option_length-optoffset < 2)
               {
@@ -610,7 +610,7 @@ dissect_portcontrol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
 
   proto_item_set_len(opcode_ti, offset-start_opcode_offset);
 
-  gboolean is_map_opcode = (ropcode == MAP_REQUEST || ropcode == MAP_RESPONSE);
+  bool is_map_opcode = (ropcode == MAP_REQUEST || ropcode == MAP_RESPONSE);
   if (is_map_opcode && port_set_size != 0) {
     col_add_fstr(
       pinfo->cinfo,
@@ -641,7 +641,7 @@ dissect_portcontrol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
 static int
 dissect_portcontrol(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    guint8 version = tvb_get_guint8(tvb, 0);
+    uint8_t version = tvb_get_uint8(tvb, 0);
 
     switch(version)
     {
@@ -859,14 +859,14 @@ void proto_register_nat_pmp(void)
         NULL, 0x0, NULL, HFILL } },
     };
 
-  static gint *pcp_ett[] = {
+  static int *pcp_ett[] = {
         &ett_pcp,
         &ett_opcode,
         &ett_option,
         &ett_suboption
     };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_nat_pmp,
   };
 

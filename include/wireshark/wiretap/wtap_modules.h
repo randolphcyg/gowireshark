@@ -26,9 +26,9 @@ typedef struct _wtap_module_reg {
     void (*cb_func)(void);
 } wtap_module_reg_t;
 
-extern wtap_module_reg_t wtap_module_reg[];
+extern wtap_module_reg_t const wtap_module_reg[];
 
-extern const guint wtap_module_count;
+extern const unsigned wtap_module_count;
 
 #ifdef __cplusplus
 }

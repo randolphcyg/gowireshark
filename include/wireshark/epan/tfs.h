@@ -12,7 +12,7 @@
 #ifndef __TFS_H__
 #define __TFS_H__
 
-#include <glib.h>
+#include <stdbool.h>
 #include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
@@ -36,7 +36,7 @@ typedef struct true_false_string {
  * @param[in] tfs   The true_false_string containing the relevant strings
  * @return          Pointer to the appropriate string
  */
-WS_DLL_PUBLIC const char *tfs_get_string(gboolean value, const true_false_string *tfs);
+WS_DLL_PUBLIC const char *tfs_get_string(bool value, const true_false_string *tfs);
 
 #define tfs_get_true_false(value)   tfs_get_string(value, NULL)
 
@@ -54,10 +54,10 @@ WS_DLL_PUBLIC const true_false_string tfs_error_ok;
 WS_DLL_PUBLIC const true_false_string tfs_success_fail;
 WS_DLL_PUBLIC const true_false_string tfs_fail_success;
 WS_DLL_PUBLIC const true_false_string tfs_on_off;
+WS_DLL_PUBLIC const true_false_string tfs_off_on;
 WS_DLL_PUBLIC const true_false_string tfs_ack_nack;
 WS_DLL_PUBLIC const true_false_string tfs_odd_even;
 WS_DLL_PUBLIC const true_false_string tfs_allow_block;
-WS_DLL_PUBLIC const true_false_string tfs_restricted_allowed;
 WS_DLL_PUBLIC const true_false_string tfs_restricted_not_restricted;
 WS_DLL_PUBLIC const true_false_string tfs_not_restricted_restricted;
 WS_DLL_PUBLIC const true_false_string tfs_accept_reject;
@@ -116,10 +116,8 @@ WS_DLL_PUBLIC const true_false_string tfs_preferred_no_preference;
 WS_DLL_PUBLIC const true_false_string tfs_encrypt_do_not_encrypt;
 WS_DLL_PUBLIC const true_false_string tfs_down_up;
 WS_DLL_PUBLIC const true_false_string tfs_up_down;
-WS_DLL_PUBLIC const true_false_string tfs_downlink_uplink;
 WS_DLL_PUBLIC const true_false_string tfs_uplink_downlink;
 WS_DLL_PUBLIC const true_false_string tfs_s2c_c2s;
-WS_DLL_PUBLIC const true_false_string tfs_c2s_s2c;
 WS_DLL_PUBLIC const true_false_string tfs_open_closed;
 WS_DLL_PUBLIC const true_false_string tfs_external_internal;
 WS_DLL_PUBLIC const true_false_string tfs_changed_not_changed;
@@ -130,6 +128,9 @@ WS_DLL_PUBLIC const true_false_string tfs_no_extension_extension;
 WS_DLL_PUBLIC const true_false_string tfs_user_provider;
 WS_DLL_PUBLIC const true_false_string tfs_applicable_not_applicable;
 WS_DLL_PUBLIC const true_false_string tfs_current_not_yet;
+WS_DLL_PUBLIC const true_false_string tfs_should_be_traced_should_not_be_traced;
+WS_DLL_PUBLIC const true_false_string tfs_activate_do_not_activate;
+WS_DLL_PUBLIC const true_false_string tfs_data_pdu_control_pdu;
 
 #ifdef __cplusplus
 }

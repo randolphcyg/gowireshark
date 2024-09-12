@@ -5,6 +5,9 @@
  * - 3GPP TS 24.301
  * - 3GPP TS 24.501
  * - 3GPP TS 29.274
+ * - 3GPP TS 29.502
+ * - 3GPP TS 29.507
+ *   3GPP TS 29.525
  * - 3GPP TS 29.571
  *
  * Wireshark - Network traffic analyzer
@@ -36,157 +39,187 @@
 void proto_register_json_3gpp(void);
 void proto_reg_handoff_json_3gpp(void);
 
-static int proto_json_3gpp = -1;
-static int proto_http = -1;
+static int proto_json_3gpp;
+static int proto_http;
 
-static gint ett_json_base64decoded_eps_ie = -1;
-static gint ett_json_base64decoded_nas5g_ie = -1;
-static gint ett_json_3gpp_data = -1;
+static int ett_json_base64decoded_eps_ie;
+static int ett_json_base64decoded_nas5g_ie;
+static int ett_json_3gpp_data;
 
-static expert_field ei_json_3gpp_data_not_decoded = EI_INIT;
-static expert_field ei_json_3gpp_encoding_error = EI_INIT;
+static expert_field ei_json_3gpp_data_not_decoded;
+static expert_field ei_json_3gpp_encoding_error;
 
-static int hf_json_3gpp_binary_data = -1;
+static int hf_json_3gpp_binary_data;
 
-static int hf_json_3gpp_ueepspdnconnection = -1;
-static int hf_json_3gpp_bearerlevelqos = -1;
-static int hf_json_3gpp_epsbearersetup = -1;
-static int hf_json_3gpp_forwardingbearercontexts = -1;
-static int hf_json_3gpp_forwardingfteid = -1;
-static int hf_json_3gpp_pgwnodename = -1;
-static int hf_json_3gpp_pgws8cfteid = -1;
-static int hf_json_3gpp_pgws8ufteid = -1;
-static int hf_json_3gpp_qosrules = -1;
-static int hf_json_3gpp_qosflowdescription = -1;
-static int hf_json_3gpp_suppFeat = -1;
+static int hf_json_3gpp_ueepspdnconnection;
+static int hf_json_3gpp_bearerlevelqos;
+static int hf_json_3gpp_epsbearersetup;
+static int hf_json_3gpp_forwardingbearercontexts;
+static int hf_json_3gpp_forwardingfteid;
+static int hf_json_3gpp_pgwnodename;
+static int hf_json_3gpp_pgws8cfteid;
+static int hf_json_3gpp_pgws8ufteid;
+static int hf_json_3gpp_qosrules;
+static int hf_json_3gpp_qosflowdescription;
+static int hf_json_3gpp_suppFeat;
+static int hf_json_3gpp_supportedFeatures;
 
 
-static int hf_json_3gpp_suppfeat = -1;
+static int hf_json_3gpp_suppfeat;
 
-static int hf_json_3gpp_suppfeat_npcf_am_1_slicesupport = -1;
-static int hf_json_3gpp_suppfeat_npcf_am_2_pendingtransaction = -1;
-static int hf_json_3gpp_suppfeat_npcf_am_3_ueambrauthorization = -1;
-static int hf_json_3gpp_suppfeat_npcf_am_4_dnnreplacementcontrol = -1;
+static int hf_json_3gpp_suppfeat_npcf_am_1_slicesupport;
+static int hf_json_3gpp_suppfeat_npcf_am_2_pendingtransaction;
+static int hf_json_3gpp_suppfeat_npcf_am_3_ueambrauthorization;
+static int hf_json_3gpp_suppfeat_npcf_am_4_dnnreplacementcontrol;
 
-static int hf_json_3gpp_suppfeat_npcf_am_5_multipleaccesstypes = -1;
-static int hf_json_3gpp_suppfeat_npcf_am_6_wirelinewirelessconvergence = -1;
-static int hf_json_3gpp_suppfeat_npcf_am_7_immediatereport = -1;
-static int hf_json_3gpp_suppfeat_npcf_am_8_es3xx = -1;
+static int hf_json_3gpp_suppfeat_npcf_am_5_multipleaccesstypes;
+static int hf_json_3gpp_suppfeat_npcf_am_6_wirelinewirelessconvergence;
+static int hf_json_3gpp_suppfeat_npcf_am_7_immediatereport;
+static int hf_json_3gpp_suppfeat_npcf_am_8_es3xx;
 
-static int hf_json_3gpp_suppfeat_npcf_am_9_ueslicembrauthorization = -1;
-static int hf_json_3gpp_suppfeat_npcf_am_10_aminfluence = -1;
-static int hf_json_3gpp_suppfeat_npcf_am_11_enena = -1;
-static int hf_json_3gpp_suppfeat_npcf_am_12_targetnssai = -1;
+static int hf_json_3gpp_suppfeat_npcf_am_9_ueslicembrauthorization;
+static int hf_json_3gpp_suppfeat_npcf_am_10_aminfluence;
+static int hf_json_3gpp_suppfeat_npcf_am_11_enena;
+static int hf_json_3gpp_suppfeat_npcf_am_12_targetnssai;
 
-static int hf_json_3gpp_suppfeat_npcf_am_13_5gaccessstratumtime = -1;
+static int hf_json_3gpp_suppfeat_npcf_am_13_5gaccessstratumtime;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_1_tsc = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_2_resshare = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_3_3gpppsdataoff = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_4_adc = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_1_tsc;
+static int hf_json_3gpp_suppfeat_npcf_sm_2_resshare;
+static int hf_json_3gpp_suppfeat_npcf_sm_3_3gpppsdataoff;
+static int hf_json_3gpp_suppfeat_npcf_sm_4_adc;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_5_umc = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_6_netloc = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_7_rannascause = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_8_provafsignalflow = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_5_umc;
+static int hf_json_3gpp_suppfeat_npcf_sm_6_netloc;
+static int hf_json_3gpp_suppfeat_npcf_sm_7_rannascause;
+static int hf_json_3gpp_suppfeat_npcf_sm_8_provafsignalflow;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_9_pcscfrestorationenhancement = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_10_pra = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_11_ruleversioning = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_12_sponsoredconnectivity = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_9_pcscfrestorationenhancement;
+static int hf_json_3gpp_suppfeat_npcf_sm_10_pra;
+static int hf_json_3gpp_suppfeat_npcf_sm_11_ruleversioning;
+static int hf_json_3gpp_suppfeat_npcf_sm_12_sponsoredconnectivity;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_13_ransupportinfo = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_14_policyupdatewhenuesuspends = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_15_accesstypecondition = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_16_multiipv6addrprefix = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_13_ransupportinfo;
+static int hf_json_3gpp_suppfeat_npcf_sm_14_policyupdatewhenuesuspends;
+static int hf_json_3gpp_suppfeat_npcf_sm_15_accesstypecondition;
+static int hf_json_3gpp_suppfeat_npcf_sm_16_multiipv6addrprefix;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_17_sessionruleerrorhandling = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_18_af_charging_identifier = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_19_atsss = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_20_pendingtransaction = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_17_sessionruleerrorhandling;
+static int hf_json_3gpp_suppfeat_npcf_sm_18_af_charging_identifier;
+static int hf_json_3gpp_suppfeat_npcf_sm_19_atsss;
+static int hf_json_3gpp_suppfeat_npcf_sm_20_pendingtransaction;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_21_urllc = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_22_macaddressrange = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_23_wwc = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_24_qosmonitoring = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_21_urllc;
+static int hf_json_3gpp_suppfeat_npcf_sm_22_macaddressrange;
+static int hf_json_3gpp_suppfeat_npcf_sm_23_wwc;
+static int hf_json_3gpp_suppfeat_npcf_sm_24_qosmonitoring;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_25_authorizationwithrequiredqos = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_26_enhancedbackgrounddatatransfer = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_27_dn_authorization = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_28_pdusessionrelcause = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_25_authorizationwithrequiredqos;
+static int hf_json_3gpp_suppfeat_npcf_sm_26_enhancedbackgrounddatatransfer;
+static int hf_json_3gpp_suppfeat_npcf_sm_27_dn_authorization;
+static int hf_json_3gpp_suppfeat_npcf_sm_28_pdusessionrelcause;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_29_samepcf = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_30_adcmultiredirection = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_31_respbasedsessionrel = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_32_timesensitivenetworking = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_29_samepcf;
+static int hf_json_3gpp_suppfeat_npcf_sm_30_adcmultiredirection;
+static int hf_json_3gpp_suppfeat_npcf_sm_31_respbasedsessionrel;
+static int hf_json_3gpp_suppfeat_npcf_sm_32_timesensitivenetworking;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_33_emdbv = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_34_dnnselectionmode = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_35_epsfallbackreport = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_36_policydecisionerrorhandling = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_33_emdbv;
+static int hf_json_3gpp_suppfeat_npcf_sm_34_dnnselectionmode;
+static int hf_json_3gpp_suppfeat_npcf_sm_35_epsfallbackreport;
+static int hf_json_3gpp_suppfeat_npcf_sm_36_policydecisionerrorhandling;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_37_ddneventpolicycontrol = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_38_reallocationofcredit = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_39_bdtpolicyrenegotiation = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_40_extpolicydecisionerrorhandling = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_37_ddneventpolicycontrol;
+static int hf_json_3gpp_suppfeat_npcf_sm_38_reallocationofcredit;
+static int hf_json_3gpp_suppfeat_npcf_sm_39_bdtpolicyrenegotiation;
+static int hf_json_3gpp_suppfeat_npcf_sm_40_extpolicydecisionerrorhandling;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_41_immediatetermination = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_42_aggregateduelocchanges = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_43_es3xx = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_44_groupidlistchange = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_41_immediatetermination;
+static int hf_json_3gpp_suppfeat_npcf_sm_42_aggregateduelocchanges;
+static int hf_json_3gpp_suppfeat_npcf_sm_43_es3xx;
+static int hf_json_3gpp_suppfeat_npcf_sm_44_groupidlistchange;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_45_disableuenotification = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_46_offlinechonly = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_47_dual_connectivity_redundant_up_paths = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_48_ddneventpolicycontrol2 = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_45_disableuenotification;
+static int hf_json_3gpp_suppfeat_npcf_sm_46_offlinechonly;
+static int hf_json_3gpp_suppfeat_npcf_sm_47_dual_connectivity_redundant_up_paths;
+static int hf_json_3gpp_suppfeat_npcf_sm_48_ddneventpolicycontrol2;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_49_vplmn_qos_control = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_50_2g3giwk = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_51_timesensitivecommunication = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_52_enedge = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_49_vplmn_qos_control;
+static int hf_json_3gpp_suppfeat_npcf_sm_50_2g3giwk;
+static int hf_json_3gpp_suppfeat_npcf_sm_51_timesensitivecommunication;
+static int hf_json_3gpp_suppfeat_npcf_sm_52_enedge;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_53_satbackhaulcategorychg = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_54_chfsetsupport = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_55_enatsss = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_56_mpsfordts = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_53_satbackhaulcategorychg;
+static int hf_json_3gpp_suppfeat_npcf_sm_54_chfsetsupport;
+static int hf_json_3gpp_suppfeat_npcf_sm_55_enatsss;
+static int hf_json_3gpp_suppfeat_npcf_sm_56_mpsfordts;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_57_routinginforemoval = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_58_epra = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_59_aminfluence = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_60_pvssupport = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_57_routinginforemoval;
+static int hf_json_3gpp_suppfeat_npcf_sm_58_epra;
+static int hf_json_3gpp_suppfeat_npcf_sm_59_aminfluence;
+static int hf_json_3gpp_suppfeat_npcf_sm_60_pvssupport;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_61_enena = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_62_biumr = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_63_easipreplacement = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_64_exposuretoeas = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_61_enena;
+static int hf_json_3gpp_suppfeat_npcf_sm_62_biumr;
+static int hf_json_3gpp_suppfeat_npcf_sm_63_easipreplacement;
+static int hf_json_3gpp_suppfeat_npcf_sm_64_exposuretoeas;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_65_simultconnectivity = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_66_sgwrest = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_67_releasetoreactivate = -1;
-static int hf_json_3gpp_suppfeat_npcf_sm_68_easdiscovery = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_65_simultconnectivity;
+static int hf_json_3gpp_suppfeat_npcf_sm_66_sgwrest;
+static int hf_json_3gpp_suppfeat_npcf_sm_67_releasetoreactivate;
+static int hf_json_3gpp_suppfeat_npcf_sm_68_easdiscovery;
 
-static int hf_json_3gpp_suppfeat_npcf_sm_69_accnetchargid_string = -1;
+static int hf_json_3gpp_suppfeat_npcf_sm_69_accnetchargid_string;
 
-static int hf_json_3gpp_suppfeat_npcf_ue_1_pendingtransaction = -1;
-static int hf_json_3gpp_suppfeat_npcf_ue_2_plmnchange = -1;
-static int hf_json_3gpp_suppfeat_npcf_ue_3_connectivitystatechange = -1;
-static int hf_json_3gpp_suppfeat_npcf_ue_4_v2x = -1;
+static int hf_json_3gpp_suppfeat_npcf_ue_1_pendingtransaction;
+static int hf_json_3gpp_suppfeat_npcf_ue_2_plmnchange;
+static int hf_json_3gpp_suppfeat_npcf_ue_3_connectivitystatechange;
+static int hf_json_3gpp_suppfeat_npcf_ue_4_v2x;
 
-static int hf_json_3gpp_suppfeat_npcf_ue_5_groupidlistchange = -1;
-static int hf_json_3gpp_suppfeat_npcf_ue_6_immediatereport = -1;
-static int hf_json_3gpp_suppfeat_npcf_ue_7_errorresponse = -1;
-static int hf_json_3gpp_suppfeat_npcf_ue_8_es3xx = -1;
+static int hf_json_3gpp_suppfeat_npcf_ue_5_groupidlistchange;
+static int hf_json_3gpp_suppfeat_npcf_ue_6_immediatereport;
+static int hf_json_3gpp_suppfeat_npcf_ue_7_errorresponse;
+static int hf_json_3gpp_suppfeat_npcf_ue_8_es3xx;
 
-static int hf_json_3gpp_suppfeat_npcf_ue_9_prose = -1;
+static int hf_json_3gpp_suppfeat_npcf_ue_9_prose;
+
+
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_1_ciot;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_2_mapdu;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_3_dtssa;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_4_carpt;
+
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_5_ctxtr;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_6_vqos;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_7_hofail;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_8_es3xx;
+
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_9_dce2er;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_10_aasn;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_11_enedge;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_12_scpbu;
+
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_13_enpn;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_14_spae;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_15_5gsat;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_16_upipe;
+
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_17_biumr;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_18_acscr;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_19_psetr;
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_20_dlset;
+
+static int hf_json_3gpp_suppfeat_nsmf_pdusession_21_n9fsc;
 
 #define NPCF_AM_POLICY_CONTROL "/npcf-am-policy-control/v1/policies"
 #define NPCF_SM_POLICY_CONTROL "/npcf-smpolicycontrol/v1/sm-policies" /* inconsistency naming from 3gpp */
 #define NPCF_UE_POLICY_CONTROL "/npcf-ue-policy-control/v1/policies"
+#define NSMF_PDU_SESSION "/nsmf-pdusession/v1/"
 
 
 /* Functions to sub dissect json content */
 static void
-dissect_base64decoded_eps_ie(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo, int offset, int len, const char* key_str _U_, gboolean use_compact _U_)
+dissect_base64decoded_eps_ie(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo, int offset, int len, const char* key_str _U_, bool use_compact _U_)
 {
 	/* base64-encoded characters, encoding the
 	 * EPS IE specified in 3GPP TS 29.274.
@@ -199,13 +232,13 @@ dissect_base64decoded_eps_ie(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo
 	add_new_data_source(pinfo, bin_tvb, "Base64 decoded");
 	ti = proto_tree_add_item(tree, hf_json_3gpp_binary_data, bin_tvb, 0, bin_tvb_length, ENC_NA);
 	sub_tree = proto_item_add_subtree(ti, ett_json_base64decoded_eps_ie);
-	dissect_gtpv2_ie_common(bin_tvb, pinfo, sub_tree, 0, 0/* Message type 0, Reserved */, NULL);
+	dissect_gtpv2_ie_common(bin_tvb, pinfo, sub_tree, 0, 0/* Message type 0, Reserved */, NULL, 0);
 
 	return;
 }
 
 static void
-dissect_base64decoded_nas5g_ie(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo, int offset, int len, const char* key_str, gboolean use_compact _U_)
+dissect_base64decoded_nas5g_ie(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo, int offset, int len, const char* key_str, bool use_compact _U_)
 {
 	/* base64-encoded characters, encoding the
 	 * NAS-5G IE specified in 3GPP TS 24.501.
@@ -231,14 +264,14 @@ dissect_base64decoded_nas5g_ie(tvbuff_t* tvb, proto_tree* tree, packet_info* pin
 		 * It shall be encoded as the Qos flow descriptions IE specified in clause 9.11.4.12 of 3GPP TS 24.501 (starting from octet 1),
 		 * encoding one single Qos flow description for the QoS flow to be set up.
 		 */
-		elem_telv(bin_tvb, sub_tree, pinfo, (guint8) 0x79, 18 /* NAS_5GS_PDU_TYPE_SM */, 11 /* DE_NAS_5GS_SM_QOS_FLOW_DES */, 0, bin_tvb_length, NULL);
+		elem_telv(bin_tvb, sub_tree, pinfo, (uint8_t) 0x79, 18 /* NAS_5GS_PDU_TYPE_SM */, 11 /* DE_NAS_5GS_SM_QOS_FLOW_DES */, 0, bin_tvb_length, NULL);
 	}
 
 	return;
 }
 
 static void
-dissect_3gpp_supportfeatures(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo, int offset, int len, const char* key_str _U_, gboolean use_compact)
+dissect_3gpp_supportfeatures(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo, int offset, int len, const char* key_str _U_, bool use_compact)
 {
 	const char *path = NULL;
 
@@ -254,18 +287,18 @@ dissect_3gpp_supportfeatures(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo
 	 * all features that would be represented by characters that are not present in the string are not supported.
 	 */
 
-	/* Exptect to have :path from HTTP2 here, if not return */
+	/* Expect to have :path from HTTP2 here, if not return */
 	if (proto_is_frame_protocol(pinfo->layers, "http2")) {
-		path = http2_get_header_value(pinfo, HTTP2_HEADER_PATH, FALSE);
+		path = http2_get_header_value(pinfo, HTTP2_HEADER_PATH, false);
 		if (!path) {
-			path = http2_get_header_value(pinfo, HTTP2_HEADER_PATH, TRUE);
+			path = http2_get_header_value(pinfo, HTTP2_HEADER_PATH, true);
 		}
 	} else if (proto_is_frame_protocol(pinfo->layers, "http")) {
 		/* 3GPP TS 29.500 says the service based interfaces use HTTP/2,
 		 * but that doesn't stop implementations like OAI from using
 		 * HTTP/1.1 with a 2.0 version string.
 		 */
-		http_req_res_t* curr_req_res = (http_req_res_t*)p_get_proto_data(wmem_file_scope(), pinfo, proto_http, 0);
+		http_req_res_t* curr_req_res = (http_req_res_t*)p_get_proto_data(wmem_file_scope(), pinfo, proto_http, HTTP_PROTO_DATA_REQRES);
 		if (curr_req_res) {
 			path = curr_req_res->request_uri;
 		}
@@ -294,7 +327,7 @@ dissect_3gpp_supportfeatures(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo
 	int offset_reverse = len - 1;
 
 	/* Read in the HEX in ASCII form and validate it's 0-9,A-F */
-	guint8 *hex_ascii = tvb_memdup(pinfo->pool, tvb, offset, len);
+	uint8_t *hex_ascii = tvb_memdup(pinfo->pool, tvb, offset, len);
 	for (int i = 0; i < len; i++) {
 		char c = hex_ascii[i];
 		if (!g_ascii_isxdigit(c)) {
@@ -666,6 +699,94 @@ dissect_3gpp_supportfeatures(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo
 			proto_tree_add_format_text(sub_tree, suppfeat_tvb, 0, (offset_reverse - len));
 		}
 
+	} else if (strncmp(path, NSMF_PDU_SESSION, 20) == 0) {
+		/* TS 29.502 ch6.1.8 Feature negotiation */
+
+		static int * const json_3gpp_suppfeat_nsmf_pdusession_list_1[] = {
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_1_ciot,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_2_mapdu,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_3_dtssa,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_4_carpt,
+			NULL
+		};
+		proto_tree_add_bitmask_list_value(sub_tree, suppfeat_tvb, offset_reverse, 1, json_3gpp_suppfeat_nsmf_pdusession_list_1, g_ascii_xdigit_value(hex_ascii[offset_reverse]));
+		offset_reverse--;
+
+		if (offset_reverse == -1) {
+			return;
+		}
+
+		static int * const json_3gpp_suppfeat_nsmf_pdusession_list_2[] = {
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_5_ctxtr,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_6_vqos,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_7_hofail,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_8_es3xx,
+			NULL
+		};
+		proto_tree_add_bitmask_list_value(sub_tree, suppfeat_tvb, offset_reverse, 1, json_3gpp_suppfeat_nsmf_pdusession_list_2, g_ascii_xdigit_value(hex_ascii[offset_reverse]));
+		offset_reverse--;
+
+		if (offset_reverse == -1) {
+			return;
+		}
+
+		static int * const json_3gpp_suppfeat_nsmf_pdusession_list_3[] = {
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_9_dce2er,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_10_aasn,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_11_enedge,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_12_scpbu,
+			NULL
+		};
+		proto_tree_add_bitmask_list_value(sub_tree, suppfeat_tvb, offset_reverse, 1, json_3gpp_suppfeat_nsmf_pdusession_list_3, g_ascii_xdigit_value(hex_ascii[offset_reverse]));
+		offset_reverse--;
+
+		if (offset_reverse == -1) {
+			return;
+		}
+
+		static int * const json_3gpp_suppfeat_nsmf_pdusession_list_4[] = {
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_13_enpn,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_14_spae,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_15_5gsat,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_16_upipe,
+			NULL
+		};
+		proto_tree_add_bitmask_list_value(sub_tree, suppfeat_tvb, offset_reverse, 1, json_3gpp_suppfeat_nsmf_pdusession_list_4, g_ascii_xdigit_value(hex_ascii[offset_reverse]));
+		offset_reverse--;
+
+		if (offset_reverse == -1) {
+			return;
+		}
+
+		static int * const json_3gpp_suppfeat_nsmf_pdusession_list_5[] = {
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_17_biumr,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_18_acscr,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_19_psetr,
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_20_dlset,
+			NULL
+		};
+		proto_tree_add_bitmask_list_value(sub_tree, suppfeat_tvb, offset_reverse, 1, json_3gpp_suppfeat_nsmf_pdusession_list_5, g_ascii_xdigit_value(hex_ascii[offset_reverse]));
+		offset_reverse--;
+
+		if (offset_reverse == -1) {
+			return;
+		}
+
+		static int * const json_3gpp_suppfeat_nsmf_pdusession_list_6[] = {
+			&hf_json_3gpp_suppfeat_nsmf_pdusession_21_n9fsc,
+			NULL
+		};
+		proto_tree_add_bitmask_list_value(sub_tree, suppfeat_tvb, offset_reverse, 1, json_3gpp_suppfeat_nsmf_pdusession_list_6, g_ascii_xdigit_value(hex_ascii[offset_reverse]));
+		offset_reverse--;
+
+		if (offset_reverse == -1) {
+			return;
+		}
+
+		if (offset_reverse > -1) {
+			proto_tree_add_format_text(sub_tree, suppfeat_tvb, 0, (offset_reverse - len));
+		}
+
 	} else {
 		proto_tree_add_expert(tree, pinfo, &ei_json_3gpp_data_not_decoded, tvb, offset, -1);
 	}
@@ -676,7 +797,7 @@ dissect_3gpp_supportfeatures(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo
 static void
 register_static_headers(void) {
 
-	gchar* header_name;
+	char* header_name;
 
 	/* Here hf[x].hfinfo.name is a header method which is used as key
 	 * for matching ids while processing HTTP2 packets */
@@ -746,11 +867,17 @@ register_static_headers(void) {
 			{"suppFeat", "json.3gpp.suppFeat",
 				FT_STRING, BASE_NONE, NULL, 0x0,
 				NULL, HFILL}
+		},
+		{
+			&hf_json_3gpp_supportedFeatures,
+			{"supportedFeatures", "json.3gpp.supportedFeatures",
+				FT_STRING, BASE_NONE, NULL, 0x0,
+				NULL, HFILL}
 		}
 	};
 
 	/* List of decoding functions the index matches the HF */
-	static void(*json_decode_fn[])(tvbuff_t * tvb, proto_tree * tree, packet_info * pinfo, int offset, int len, const char* key_str, gboolean use_compact) = {
+	static void(*json_decode_fn[])(tvbuff_t * tvb, proto_tree * tree, packet_info * pinfo, int offset, int len, const char* key_str, bool use_compact) = {
 		dissect_base64decoded_eps_ie,   /* ueEpsPdnConnection */
 		dissect_base64decoded_eps_ie,   /* bearerLevelQoS */
 		dissect_base64decoded_eps_ie,   /* epsBearerSetup */
@@ -763,13 +890,14 @@ register_static_headers(void) {
 		dissect_base64decoded_nas5g_ie, /* qosRules */
 		dissect_base64decoded_nas5g_ie, /* qosFlowDescription */
 
-		dissect_3gpp_supportfeatures,
+		dissect_3gpp_supportfeatures,   /* suppFeat */
+		dissect_3gpp_supportfeatures,   /* supportedFeatures */
 
 		NULL,   /* NONE */
 	};
 
 	/* Hfs with functions */
-	for (guint i = 0; i < G_N_ELEMENTS(hf); ++i) {
+	for (unsigned i = 0; i < G_N_ELEMENTS(hf); ++i) {
 		header_name = g_strdup(hf[i].hfinfo.name);
 		json_data_decoder_t* json_data_decoder_rec = g_new(json_data_decoder_t, 1);
 		json_data_decoder_rec->hf_id = &hf[i].hfinfo.id;
@@ -1040,7 +1168,7 @@ proto_register_json_3gpp(void)
 			NULL, HFILL }
 		},
 		{ &hf_json_3gpp_suppfeat_npcf_sm_34_dnnselectionmode,
-			{ "DNNSelectionMode", "json.3gpp.suppfeat.adcmultirednnselectionmodedirection",
+			{ "DNNSelectionMode", "json.3gpp.suppfeat.dnnselectionmodedirection",
 			FT_BOOLEAN, 4, NULL, 0x2,
 			NULL, HFILL }
 		},
@@ -1217,7 +1345,7 @@ proto_register_json_3gpp(void)
 			NULL, HFILL }
 		},
 		{ &hf_json_3gpp_suppfeat_npcf_sm_68_easdiscovery,
-			{ "EASDiscovery", "json.3gpp.suppfeat.enena",
+			{ "EASDiscovery", "json.3gpp.suppfeat.easdiscovery",
 			FT_BOOLEAN, 4, NULL, 0x8,
 			NULL, HFILL }
 		},
@@ -1275,9 +1403,120 @@ proto_register_json_3gpp(void)
 			NULL, HFILL }
 		},
 
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_1_ciot,
+			{ "CIOT", "json.3gpp.suppfeat.ciot",
+			FT_BOOLEAN, 4, NULL, 0x1,
+			"Celluar IoT", HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_2_mapdu,
+			{ "MAPDU", "json.3gpp.suppfeat.mapdu",
+			FT_BOOLEAN, 4, NULL, 0x2,
+			"Multi-Access PDU Session", HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_3_dtssa,
+			{ "DTSSA", "json.3gpp.suppfeat.dtssa",
+			FT_BOOLEAN, 4, NULL, 0x4,
+			"Deployments Topologies with specific SMF Service Areas", HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_4_carpt,
+			{ "CARPT", "json.3gpp.suppfeat.carpt",
+			FT_BOOLEAN, 4, NULL, 0x8,
+			"SMF derived CN Assisted RAN parameters Tuning", HFILL }
+		},
+
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_5_ctxtr,
+			{ "CTXTR", "json.3gpp.suppfeat.ctxtr",
+			FT_BOOLEAN, 4, NULL, 0x1,
+			NULL, HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_6_vqos,
+			{ "VQOS", "json.3gpp.suppfeat.vqos",
+			FT_BOOLEAN, 4, NULL, 0x2,
+			"VPLMN QoS", HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_7_hofail,
+			{ "HOFAIL", "json.3gpp.suppfeat.hofail",
+			FT_BOOLEAN, 4, NULL, 0x4,
+			NULL, HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_8_es3xx,
+			{ "ES3XX", "json.3gpp.suppfeat.es3xx",
+			FT_BOOLEAN, 4, NULL, 0x8,
+			NULL, HFILL }
+		},
+
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_9_dce2er,
+			{ "DCE2ER", "json.3gpp.suppfeat.dce2er",
+			FT_BOOLEAN, 4, NULL, 0x1,
+			NULL, HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_10_aasn,
+			{ "AASN", "json.3gpp.suppfeat.aasn",
+			FT_BOOLEAN, 4, NULL, 0x2,
+			NULL, HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_11_enedge,
+			{ "ENEDGE", "json.3gpp.suppfeat.enedge",
+			FT_BOOLEAN, 4, NULL, 0x4,
+			NULL, HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_12_scpbu,
+			{ "SCPBU", "json.3gpp.suppfeat.scpbu",
+			FT_BOOLEAN, 4, NULL, 0x8,
+			NULL, HFILL }
+		},
+
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_13_enpn,
+			{ "ENPN", "json.3gpp.suppfeat.enpn",
+			FT_BOOLEAN, 4, NULL, 0x1,
+			NULL, HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_14_spae,
+			{ "SPAE", "json.3gpp.suppfeat.spae",
+			FT_BOOLEAN, 4, NULL, 0x2,
+			NULL, HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_15_5gsat,
+			{ "5GSAT", "json.3gpp.suppfeat.5gsat",
+			FT_BOOLEAN, 4, NULL, 0x4,
+			NULL, HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_16_upipe,
+			{ "UPIPE", "json.3gpp.suppfeat.upipe",
+			FT_BOOLEAN, 4, NULL, 0x8,
+			"User Plane Integrity Protection with EPS", HFILL }
+		},
+
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_17_biumr,
+			{ "BIUMR", "json.3gpp.suppfeat.biumr",
+			FT_BOOLEAN, 4, NULL, 0x1,
+			NULL, HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_18_acscr,
+			{ "ACSCR", "json.3gpp.suppfeat.acscr",
+			FT_BOOLEAN, 4, NULL, 0x2,
+			NULL, HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_19_psetr,
+			{ "PSETR", "json.3gpp.suppfeat.psetr",
+			FT_BOOLEAN, 4, NULL, 0x4,
+			NULL, HFILL }
+		},
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_20_dlset,
+			{ "DLSET", "json.3gpp.suppfeat.dlset",
+			FT_BOOLEAN, 4, NULL, 0x8,
+			NULL, HFILL }
+		},
+
+		{ &hf_json_3gpp_suppfeat_nsmf_pdusession_21_n9fsc,
+			{ "N9FSC", "json.3gpp.suppfeat.n9fsc",
+			FT_BOOLEAN, 4, NULL, 0x1,
+			NULL, HFILL }
+		},
+
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_json_base64decoded_eps_ie,
 		&ett_json_base64decoded_nas5g_ie,
 		&ett_json_3gpp_data,

@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-dap.c                                                               */
-/* asn2wrs.py -b -L -p dap -c ./dap.cnf -s ./packet-dap-template -D . -O ../.. dap.asn DirectoryAccessProtocol.asn */
+/* asn2wrs.py -b -q -L -p dap -c ./dap.cnf -s ./packet-dap-template -D . -O ../.. dap.asn DirectoryAccessProtocol.asn */
 
 /* packet-dap.c
  * Routines for X.511 (X.500 Directory Asbtract Service) and X.519 DAP  packet dissection
@@ -22,6 +22,7 @@
 #include <epan/oids.h>
 #include <epan/asn1.h>
 #include <epan/proto_data.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-acse.h"
@@ -48,589 +49,589 @@ void proto_register_dap(void);
 void proto_reg_handoff_dap(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_dap = -1;
+static int proto_dap;
 
 
-static int hf_dap_DirectoryBindArgument_PDU = -1;  /* DirectoryBindArgument */
-static int hf_dap_DirectoryBindResult_PDU = -1;   /* DirectoryBindResult */
-static int hf_dap_DirectoryBindError_PDU = -1;    /* DirectoryBindError */
-static int hf_dap_ReadArgument_PDU = -1;          /* ReadArgument */
-static int hf_dap_ReadResult_PDU = -1;            /* ReadResult */
-static int hf_dap_CompareArgument_PDU = -1;       /* CompareArgument */
-static int hf_dap_CompareResult_PDU = -1;         /* CompareResult */
-static int hf_dap_AbandonArgument_PDU = -1;       /* AbandonArgument */
-static int hf_dap_AbandonResult_PDU = -1;         /* AbandonResult */
-static int hf_dap_ListArgument_PDU = -1;          /* ListArgument */
-static int hf_dap_ListResult_PDU = -1;            /* ListResult */
-static int hf_dap_SearchArgument_PDU = -1;        /* SearchArgument */
-static int hf_dap_SearchResult_PDU = -1;          /* SearchResult */
-static int hf_dap_AddEntryArgument_PDU = -1;      /* AddEntryArgument */
-static int hf_dap_AddEntryResult_PDU = -1;        /* AddEntryResult */
-static int hf_dap_RemoveEntryArgument_PDU = -1;   /* RemoveEntryArgument */
-static int hf_dap_RemoveEntryResult_PDU = -1;     /* RemoveEntryResult */
-static int hf_dap_ModifyEntryArgument_PDU = -1;   /* ModifyEntryArgument */
-static int hf_dap_ModifyEntryResult_PDU = -1;     /* ModifyEntryResult */
-static int hf_dap_ModifyDNArgument_PDU = -1;      /* ModifyDNArgument */
-static int hf_dap_ModifyDNResult_PDU = -1;        /* ModifyDNResult */
-static int hf_dap_Abandoned_PDU = -1;             /* Abandoned */
-static int hf_dap_AbandonFailedError_PDU = -1;    /* AbandonFailedError */
-static int hf_dap_AttributeError_PDU = -1;        /* AttributeError */
-static int hf_dap_NameError_PDU = -1;             /* NameError */
-static int hf_dap_Referral_PDU = -1;              /* Referral */
-static int hf_dap_SecurityError_PDU = -1;         /* SecurityError */
-static int hf_dap_ServiceError_PDU = -1;          /* ServiceError */
-static int hf_dap_UpdateError_PDU = -1;           /* UpdateError */
-static int hf_dap_options = -1;                   /* ServiceControlOptions */
-static int hf_dap_priority = -1;                  /* T_priority */
-static int hf_dap_timeLimit = -1;                 /* INTEGER */
-static int hf_dap_sizeLimit = -1;                 /* INTEGER */
-static int hf_dap_scopeOfReferral = -1;           /* T_scopeOfReferral */
-static int hf_dap_attributeSizeLimit = -1;        /* INTEGER */
-static int hf_dap_manageDSAITPlaneRef = -1;       /* T_manageDSAITPlaneRef */
-static int hf_dap_dsaName = -1;                   /* Name */
-static int hf_dap_agreementID = -1;               /* AgreementID */
-static int hf_dap_serviceType = -1;               /* OBJECT_IDENTIFIER */
-static int hf_dap_userClass = -1;                 /* INTEGER */
-static int hf_dap_attributes = -1;                /* T_attributes */
-static int hf_dap_allUserAttributes = -1;         /* NULL */
-static int hf_dap_select = -1;                    /* SET_OF_AttributeType */
-static int hf_dap_select_item = -1;               /* AttributeType */
-static int hf_dap_infoTypes = -1;                 /* T_infoTypes */
-static int hf_dap_extraAttributes = -1;           /* T_extraAttributes */
-static int hf_dap_allOperationalAttributes = -1;  /* NULL */
-static int hf_dap_extraSelect = -1;               /* SET_SIZE_1_MAX_OF_AttributeType */
-static int hf_dap_extraSelect_item = -1;          /* AttributeType */
-static int hf_dap_contextSelection = -1;          /* ContextSelection */
-static int hf_dap_returnContexts = -1;            /* BOOLEAN */
-static int hf_dap_familyReturn = -1;              /* FamilyReturn */
-static int hf_dap_allContexts = -1;               /* NULL */
-static int hf_dap_selectedContexts = -1;          /* SET_SIZE_1_MAX_OF_TypeAndContextAssertion */
-static int hf_dap_selectedContexts_item = -1;     /* TypeAndContextAssertion */
-static int hf_dap_type = -1;                      /* AttributeType */
-static int hf_dap_contextAssertions = -1;         /* T_contextAssertions */
-static int hf_dap_preference = -1;                /* SEQUENCE_OF_ContextAssertion */
-static int hf_dap_preference_item = -1;           /* ContextAssertion */
-static int hf_dap_all = -1;                       /* SET_OF_ContextAssertion */
-static int hf_dap_all_item = -1;                  /* ContextAssertion */
-static int hf_dap_memberSelect = -1;              /* T_memberSelect */
-static int hf_dap_familySelect = -1;              /* T_familySelect */
-static int hf_dap_familySelect_item = -1;         /* OBJECT_IDENTIFIER */
-static int hf_dap_name = -1;                      /* Name */
-static int hf_dap_fromEntry = -1;                 /* BOOLEAN */
-static int hf_dap_entry_information = -1;         /* T_entry_information */
-static int hf_dap_entry_information_item = -1;    /* EntryInformationItem */
-static int hf_dap_attributeType = -1;             /* AttributeType */
-static int hf_dap_attribute = -1;                 /* Attribute */
-static int hf_dap_incompleteEntry = -1;           /* BOOLEAN */
-static int hf_dap_partialName = -1;               /* BOOLEAN */
-static int hf_dap_derivedEntry = -1;              /* BOOLEAN */
-static int hf_dap_family_class = -1;              /* OBJECT_IDENTIFIER */
-static int hf_dap_familyEntries = -1;             /* SEQUENCE_OF_FamilyEntry */
-static int hf_dap_familyEntries_item = -1;        /* FamilyEntry */
-static int hf_dap_rdn = -1;                       /* RelativeDistinguishedName */
-static int hf_dap_family_information = -1;        /* FamilyInformation */
-static int hf_dap_family_information_item = -1;   /* T_family_information_item */
-static int hf_dap_family_info = -1;               /* SEQUENCE_SIZE_1_MAX_OF_FamilyEntries */
-static int hf_dap_family_info_item = -1;          /* FamilyEntries */
-static int hf_dap_filter_item = -1;               /* FilterItem */
-static int hf_dap_and = -1;                       /* SetOfFilter */
-static int hf_dap_or = -1;                        /* SetOfFilter */
-static int hf_dap_not = -1;                       /* Filter */
-static int hf_dap_SetOfFilter_item = -1;          /* Filter */
-static int hf_dap_equality = -1;                  /* AttributeValueAssertion */
-static int hf_dap_substrings = -1;                /* T_substrings */
-static int hf_dap_sunstringType = -1;             /* OBJECT_IDENTIFIER */
-static int hf_dap_strings = -1;                   /* T_strings */
-static int hf_dap_strings_item = -1;              /* T_strings_item */
-static int hf_dap_initial = -1;                   /* T_initial */
-static int hf_dap_any = -1;                       /* T_any */
-static int hf_dap_final = -1;                     /* T_final */
-static int hf_dap_control = -1;                   /* Attribute */
-static int hf_dap_greaterOrEqual = -1;            /* AttributeValueAssertion */
-static int hf_dap_lessOrEqual = -1;               /* AttributeValueAssertion */
-static int hf_dap_present = -1;                   /* AttributeType */
-static int hf_dap_approximateMatch = -1;          /* AttributeValueAssertion */
-static int hf_dap_extensibleMatch = -1;           /* MatchingRuleAssertion */
-static int hf_dap_contextPresent = -1;            /* AttributeTypeAssertion */
-static int hf_dap_matchingRule = -1;              /* T_matchingRule */
-static int hf_dap_matchingRule_item = -1;         /* OBJECT_IDENTIFIER */
-static int hf_dap_matchValue = -1;                /* T_matchValue */
-static int hf_dap_dnAttributes = -1;              /* BOOLEAN */
-static int hf_dap_newRequest = -1;                /* T_newRequest */
-static int hf_dap_pageSize = -1;                  /* INTEGER */
-static int hf_dap_sortKeys = -1;                  /* SEQUENCE_SIZE_1_MAX_OF_SortKey */
-static int hf_dap_sortKeys_item = -1;             /* SortKey */
-static int hf_dap_reverse = -1;                   /* BOOLEAN */
-static int hf_dap_unmerged = -1;                  /* BOOLEAN */
-static int hf_dap_pagedResultsQueryReference = -1;  /* T_pagedResultsQueryReference */
-static int hf_dap_orderingRule = -1;              /* OBJECT_IDENTIFIER */
-static int hf_dap_certification_path = -1;        /* CertificationPath */
-static int hf_dap_distinguished_name = -1;        /* DistinguishedName */
-static int hf_dap_time = -1;                      /* Time */
-static int hf_dap_random = -1;                    /* BIT_STRING */
-static int hf_dap_target = -1;                    /* ProtectionRequest */
-static int hf_dap_response = -1;                  /* BIT_STRING */
-static int hf_dap_operationCode = -1;             /* Code */
-static int hf_dap_attributeCertificationPath = -1;  /* AttributeCertificationPath */
-static int hf_dap_errorProtection = -1;           /* ErrorProtectionRequest */
-static int hf_dap_errorCode = -1;                 /* Code */
-static int hf_dap_utcTime = -1;                   /* UTCTime */
-static int hf_dap_generalizedTime = -1;           /* GeneralizedTime */
-static int hf_dap_credentials = -1;               /* Credentials */
-static int hf_dap_versions = -1;                  /* Versions */
-static int hf_dap_simple = -1;                    /* SimpleCredentials */
-static int hf_dap_strong = -1;                    /* StrongCredentials */
-static int hf_dap_externalProcedure = -1;         /* EXTERNAL */
-static int hf_dap_spkm = -1;                      /* SpkmCredentials */
-static int hf_dap_sasl = -1;                      /* SaslCredentials */
-static int hf_dap_validity = -1;                  /* T_validity */
-static int hf_dap_time1 = -1;                     /* T_time1 */
-static int hf_dap_utc = -1;                       /* UTCTime */
-static int hf_dap_gt = -1;                        /* GeneralizedTime */
-static int hf_dap_time2 = -1;                     /* T_time2 */
-static int hf_dap_random1 = -1;                   /* BIT_STRING */
-static int hf_dap_random2 = -1;                   /* BIT_STRING */
-static int hf_dap_password = -1;                  /* T_password */
-static int hf_dap_unprotected = -1;               /* OCTET_STRING */
-static int hf_dap_protected = -1;                 /* T_protected */
-static int hf_dap_protectedPassword = -1;         /* OCTET_STRING */
-static int hf_dap_algorithmIdentifier = -1;       /* AlgorithmIdentifier */
-static int hf_dap_encrypted = -1;                 /* BIT_STRING */
-static int hf_dap_bind_token = -1;                /* Token */
-static int hf_dap_req = -1;                       /* T_req */
-static int hf_dap_rep = -1;                       /* T_rep */
-static int hf_dap_mechanism = -1;                 /* DirectoryString */
-static int hf_dap_saslCredentials = -1;           /* OCTET_STRING */
-static int hf_dap_saslAbort = -1;                 /* BOOLEAN */
-static int hf_dap_algorithm = -1;                 /* AlgorithmIdentifier */
-static int hf_dap_utctime = -1;                   /* UTCTime */
-static int hf_dap_bindIntAlgorithm = -1;          /* SEQUENCE_SIZE_1_MAX_OF_AlgorithmIdentifier */
-static int hf_dap_bindIntAlgorithm_item = -1;     /* AlgorithmIdentifier */
-static int hf_dap_bindIntKeyInfo = -1;            /* BindKeyInfo */
-static int hf_dap_bindConfAlgorithm = -1;         /* SEQUENCE_SIZE_1_MAX_OF_AlgorithmIdentifier */
-static int hf_dap_bindConfAlgorithm_item = -1;    /* AlgorithmIdentifier */
-static int hf_dap_bindConfKeyInfo = -1;           /* BindKeyInfo */
-static int hf_dap_token_data = -1;                /* TokenData */
-static int hf_dap_algorithm_identifier = -1;      /* AlgorithmIdentifier */
-static int hf_dap_unsignedDirectoryBindError = -1;  /* DirectoryBindErrorData */
-static int hf_dap_signedDirectoryBindError = -1;  /* T_signedDirectoryBindError */
-static int hf_dap_directoryBindError = -1;        /* DirectoryBindErrorData */
-static int hf_dap_error = -1;                     /* T_error */
-static int hf_dap_serviceProblem = -1;            /* ServiceProblem */
-static int hf_dap_securityProblem = -1;           /* SecurityProblem */
-static int hf_dap_securityParameters = -1;        /* SecurityParameters */
-static int hf_dap_object = -1;                    /* Name */
-static int hf_dap_selection = -1;                 /* EntryInformationSelection */
-static int hf_dap_modifyRightsRequest = -1;       /* BOOLEAN */
-static int hf_dap_serviceControls = -1;           /* ServiceControls */
-static int hf_dap_requestor = -1;                 /* DistinguishedName */
-static int hf_dap_operationProgress = -1;         /* OperationProgress */
-static int hf_dap_aliasedRDNs = -1;               /* INTEGER */
-static int hf_dap_criticalExtensions = -1;        /* BIT_STRING */
-static int hf_dap_referenceType = -1;             /* ReferenceType */
-static int hf_dap_entryOnly = -1;                 /* BOOLEAN */
-static int hf_dap_exclusions = -1;                /* Exclusions */
-static int hf_dap_nameResolveOnMaster = -1;       /* BOOLEAN */
-static int hf_dap_operationContexts = -1;         /* ContextSelection */
-static int hf_dap_familyGrouping = -1;            /* FamilyGrouping */
-static int hf_dap_rdnSequence = -1;               /* RDNSequence */
-static int hf_dap_unsignedReadArgument = -1;      /* ReadArgumentData */
-static int hf_dap_signedReadArgument = -1;        /* T_signedReadArgument */
-static int hf_dap_readArgument = -1;              /* ReadArgumentData */
-static int hf_dap_entry = -1;                     /* EntryInformation */
-static int hf_dap_modifyRights = -1;              /* ModifyRights */
-static int hf_dap_performer = -1;                 /* DistinguishedName */
-static int hf_dap_aliasDereferenced = -1;         /* BOOLEAN */
-static int hf_dap_notification = -1;              /* SEQUENCE_SIZE_1_MAX_OF_Attribute */
-static int hf_dap_notification_item = -1;         /* Attribute */
-static int hf_dap_unsignedReadResult = -1;        /* ReadResultData */
-static int hf_dap_signedReadResult = -1;          /* T_signedReadResult */
-static int hf_dap_readResult = -1;                /* ReadResultData */
-static int hf_dap_ModifyRights_item = -1;         /* ModifyRights_item */
-static int hf_dap_item = -1;                      /* T_item */
-static int hf_dap_item_entry = -1;                /* NULL */
-static int hf_dap_attribute_type = -1;            /* AttributeType */
-static int hf_dap_value_assertion = -1;           /* AttributeValueAssertion */
-static int hf_dap_permission = -1;                /* T_permission */
-static int hf_dap_purported = -1;                 /* AttributeValueAssertion */
-static int hf_dap_unsignedCompareArgument = -1;   /* CompareArgumentData */
-static int hf_dap_signedCompareArgument = -1;     /* T_signedCompareArgument */
-static int hf_dap_compareArgument = -1;           /* CompareArgumentData */
-static int hf_dap_matched = -1;                   /* BOOLEAN */
-static int hf_dap_matchedSubtype = -1;            /* AttributeType */
-static int hf_dap_unsignedCompareResult = -1;     /* CompareResultData */
-static int hf_dap_signedCompareResult = -1;       /* T_signedCompareResult */
-static int hf_dap_compareResult = -1;             /* CompareResultData */
-static int hf_dap_invokeID = -1;                  /* InvokeId */
-static int hf_dap_unsignedAbandonArgument = -1;   /* AbandonArgumentData */
-static int hf_dap_signedAbandonArgument = -1;     /* T_signedAbandonArgument */
-static int hf_dap_abandonArgument = -1;           /* AbandonArgumentData */
-static int hf_dap_null = -1;                      /* NULL */
-static int hf_dap_abandon_information = -1;       /* AbandonInformation */
-static int hf_dap_unsignedAbandonResult = -1;     /* AbandonResultData */
-static int hf_dap_signedAbandonResult = -1;       /* T_signedAbandonResult */
-static int hf_dap_abandonResult = -1;             /* AbandonResultData */
-static int hf_dap_pagedResults = -1;              /* PagedResultsRequest */
-static int hf_dap_listFamily = -1;                /* BOOLEAN */
-static int hf_dap_unsignedListArgument = -1;      /* ListArgumentData */
-static int hf_dap_signedListArgument = -1;        /* T_signedListArgument */
-static int hf_dap_listArgument = -1;              /* ListArgumentData */
-static int hf_dap_listInfo = -1;                  /* T_listInfo */
-static int hf_dap_subordinates = -1;              /* T_subordinates */
-static int hf_dap_subordinates_item = -1;         /* T_subordinates_item */
-static int hf_dap_aliasEntry = -1;                /* BOOLEAN */
-static int hf_dap_partialOutcomeQualifier = -1;   /* PartialOutcomeQualifier */
-static int hf_dap_uncorrelatedListInfo = -1;      /* SET_OF_ListResult */
-static int hf_dap_uncorrelatedListInfo_item = -1;  /* ListResult */
-static int hf_dap_unsignedListResult = -1;        /* ListResultData */
-static int hf_dap_signedListResult = -1;          /* T_signedListResult */
-static int hf_dap_listResult = -1;                /* ListResultData */
-static int hf_dap_limitProblem = -1;              /* LimitProblem */
-static int hf_dap_unexplored = -1;                /* SET_SIZE_1_MAX_OF_ContinuationReference */
-static int hf_dap_unexplored_item = -1;           /* ContinuationReference */
-static int hf_dap_unavailableCriticalExtensions = -1;  /* BOOLEAN */
-static int hf_dap_unknownErrors = -1;             /* T_unknownErrors */
-static int hf_dap_unknownErrors_item = -1;        /* OBJECT_IDENTIFIER */
-static int hf_dap_queryReference = -1;            /* OCTET_STRING */
-static int hf_dap_overspecFilter = -1;            /* Filter */
-static int hf_dap_entryCount = -1;                /* T_entryCount */
-static int hf_dap_bestEstimate = -1;              /* INTEGER */
-static int hf_dap_lowEstimate = -1;               /* INTEGER */
-static int hf_dap_exact = -1;                     /* INTEGER */
-static int hf_dap_streamedResult = -1;            /* BOOLEAN */
-static int hf_dap_baseObject = -1;                /* Name */
-static int hf_dap_subset = -1;                    /* T_subset */
-static int hf_dap_filter = -1;                    /* Filter */
-static int hf_dap_searchAliases = -1;             /* BOOLEAN */
-static int hf_dap_matchedValuesOnly = -1;         /* BOOLEAN */
-static int hf_dap_extendedFilter = -1;            /* Filter */
-static int hf_dap_checkOverspecified = -1;        /* BOOLEAN */
-static int hf_dap_relaxation = -1;                /* RelaxationPolicy */
-static int hf_dap_extendedArea = -1;              /* INTEGER */
-static int hf_dap_hierarchySelections = -1;       /* HierarchySelections */
-static int hf_dap_searchControlOptions = -1;      /* SearchControlOptions */
-static int hf_dap_joinArguments = -1;             /* SEQUENCE_SIZE_1_MAX_OF_JoinArgument */
-static int hf_dap_joinArguments_item = -1;        /* JoinArgument */
-static int hf_dap_joinType = -1;                  /* T_joinType */
-static int hf_dap_unsignedSearchArgument = -1;    /* SearchArgumentData */
-static int hf_dap_signedSearchArgument = -1;      /* T_signedSearchArgument */
-static int hf_dap_searchArgument = -1;            /* SearchArgumentData */
-static int hf_dap_joinBaseObject = -1;            /* Name */
-static int hf_dap_domainLocalID = -1;             /* DomainLocalID */
-static int hf_dap_joinSubset = -1;                /* T_joinSubset */
-static int hf_dap_joinFilter = -1;                /* Filter */
-static int hf_dap_joinAttributes = -1;            /* SEQUENCE_SIZE_1_MAX_OF_JoinAttPair */
-static int hf_dap_joinAttributes_item = -1;       /* JoinAttPair */
-static int hf_dap_joinSelection = -1;             /* EntryInformationSelection */
-static int hf_dap_baseAtt = -1;                   /* AttributeType */
-static int hf_dap_joinAtt = -1;                   /* AttributeType */
-static int hf_dap_joinContext = -1;               /* SEQUENCE_SIZE_1_MAX_OF_JoinContextType */
-static int hf_dap_joinContext_item = -1;          /* JoinContextType */
-static int hf_dap_searchInfo = -1;                /* T_searchInfo */
-static int hf_dap_entries = -1;                   /* SET_OF_EntryInformation */
-static int hf_dap_entries_item = -1;              /* EntryInformation */
-static int hf_dap_altMatching = -1;               /* BOOLEAN */
-static int hf_dap_uncorrelatedSearchInfo = -1;    /* SET_OF_SearchResult */
-static int hf_dap_uncorrelatedSearchInfo_item = -1;  /* SearchResult */
-static int hf_dap_unsignedSearchResult = -1;      /* SearchResultData */
-static int hf_dap_signedSearchResult = -1;        /* T_signedSearchResult */
-static int hf_dap_searchResult = -1;              /* SearchResultData */
-static int hf_dap_add_entry = -1;                 /* SET_OF_Attribute */
-static int hf_dap_add_entry_item = -1;            /* Attribute */
-static int hf_dap_targetSystem = -1;              /* AccessPoint */
-static int hf_dap_unsignedAddEntryArgument = -1;  /* AddEntryArgumentData */
-static int hf_dap_signedAddEntryArgument = -1;    /* T_signedAddEntryArgument */
-static int hf_dap_addEntryArgument = -1;          /* AddEntryArgumentData */
-static int hf_dap_add_entry_information = -1;     /* AddEntryInformation */
-static int hf_dap_unsignedAddEntryResult = -1;    /* AddEntryResultData */
-static int hf_dap_signedAddEntryResult = -1;      /* T_signedAddEntryResult */
-static int hf_dap_addEntryResult = -1;            /* AddEntryResultData */
-static int hf_dap_unsignedRemoveEntryArgument = -1;  /* RemoveEntryArgumentData */
-static int hf_dap_signedRemoveEntryArgument = -1;  /* T_signedRemoveEntryArgument */
-static int hf_dap_removeEntryArgument = -1;       /* RemoveEntryArgumentData */
-static int hf_dap_remove_entry_information = -1;  /* RemoveEntryInformation */
-static int hf_dap_unsignedRemoveEntryResult = -1;  /* RemoveEntryResultData */
-static int hf_dap_signedRemoveEntryResult = -1;   /* T_signedRemoveEntryResult */
-static int hf_dap_removeEntryResult = -1;         /* RemoveEntryResultData */
-static int hf_dap_changes = -1;                   /* SEQUENCE_OF_EntryModification */
-static int hf_dap_changes_item = -1;              /* EntryModification */
-static int hf_dap_unsignedModifyEntryArgument = -1;  /* ModifyEntryArgumentData */
-static int hf_dap_signedModifyEntryArgument = -1;  /* T_signedModifyEntryArgument */
-static int hf_dap_modifyEntryArgument = -1;       /* ModifyEntryArgumentData */
-static int hf_dap_modify_entry_information = -1;  /* ModifyEntryInformation */
-static int hf_dap_unsignedModifyEntryResult = -1;  /* ModifyEntryResultData */
-static int hf_dap_signedModifyEntryResult = -1;   /* T_signedModifyEntryResult */
-static int hf_dap_modifyEntryResult = -1;         /* ModifyEntryResultData */
-static int hf_dap_addAttribute = -1;              /* Attribute */
-static int hf_dap_removeAttribute = -1;           /* AttributeType */
-static int hf_dap_addValues = -1;                 /* Attribute */
-static int hf_dap_removeValues = -1;              /* Attribute */
-static int hf_dap_alterValues = -1;               /* AttributeTypeAndValue */
-static int hf_dap_resetValue = -1;                /* AttributeType */
-static int hf_dap_newRDN = -1;                    /* RelativeDistinguishedName */
-static int hf_dap_deleteOldRDN = -1;              /* BOOLEAN */
-static int hf_dap_newSuperior = -1;               /* DistinguishedName */
-static int hf_dap_modify_dn_information = -1;     /* ModifyDNInformation */
-static int hf_dap_unsignedModifyDNResult = -1;    /* ModifyDNResultData */
-static int hf_dap_signedModifyDNResult = -1;      /* T_signedModifyDNResult */
-static int hf_dap_modifyDNResult = -1;            /* ModifyDNResultData */
-static int hf_dap_unsignedAbandoned = -1;         /* AbandonedData */
-static int hf_dap_signedAbandoned = -1;           /* T_signedAbandoned */
-static int hf_dap_abandoned = -1;                 /* AbandonedData */
-static int hf_dap_abandon_failed_problem = -1;    /* AbandonProblem */
-static int hf_dap_operation = -1;                 /* InvokeId */
-static int hf_dap_unsignedAbandonFailedError = -1;  /* AbandonFailedErrorData */
-static int hf_dap_signedAbandonFailedError = -1;  /* T_signedAbandonFailedError */
-static int hf_dap_abandonFailedError = -1;        /* AbandonFailedErrorData */
-static int hf_dap_problems = -1;                  /* T_problems */
-static int hf_dap_problems_item = -1;             /* T_problems_item */
-static int hf_dap_attribute_error_problem = -1;   /* AttributeProblem */
-static int hf_dap_value = -1;                     /* AttributeValue */
-static int hf_dap_unsignedAttributeError = -1;    /* AttributeErrorData */
-static int hf_dap_signedAttributeError = -1;      /* T_signedAttributeError */
-static int hf_dap_attributeError = -1;            /* AttributeErrorData */
-static int hf_dap_name_error_problem = -1;        /* NameProblem */
-static int hf_dap_matched_name = -1;              /* Name */
-static int hf_dap_unsignedNameError = -1;         /* NameErrorData */
-static int hf_dap_signedNameError = -1;           /* T_signedNameError */
-static int hf_dap_nameError = -1;                 /* NameErrorData */
-static int hf_dap_candidate = -1;                 /* ContinuationReference */
-static int hf_dap_unsignedReferral = -1;          /* ReferralData */
-static int hf_dap_signedReferral = -1;            /* T_signedReferral */
-static int hf_dap_referral = -1;                  /* ReferralData */
-static int hf_dap_security_error_problem = -1;    /* SecurityProblem */
-static int hf_dap_spkmInfo = -1;                  /* T_spkmInfo */
-static int hf_dap_unsignedSecurityError = -1;     /* SecurityErrorData */
-static int hf_dap_signedSecurityError = -1;       /* T_signedSecurityError */
-static int hf_dap_securityErrorData = -1;         /* SecurityErrorData */
-static int hf_dap_service_error_problem = -1;     /* ServiceProblem */
-static int hf_dap_unsignedServiceError = -1;      /* ServiceErrorData */
-static int hf_dap_signedServiceError = -1;        /* T_signedServiceError */
-static int hf_dap_serviceError = -1;              /* ServiceErrorData */
-static int hf_dap_update_error_problem = -1;      /* UpdateProblem */
-static int hf_dap_attributeInfo = -1;             /* T_attributeInfo */
-static int hf_dap_attributeInfo_item = -1;        /* T_attributeInfo_item */
-static int hf_dap_unsignedUpdateError = -1;       /* UpdateErrorData */
-static int hf_dap_signedUpdateError = -1;         /* T_signedUpdateError */
-static int hf_dap_updateError = -1;               /* UpdateErrorData */
+static int hf_dap_DirectoryBindArgument_PDU;      /* DirectoryBindArgument */
+static int hf_dap_DirectoryBindResult_PDU;        /* DirectoryBindResult */
+static int hf_dap_DirectoryBindError_PDU;         /* DirectoryBindError */
+static int hf_dap_ReadArgument_PDU;               /* ReadArgument */
+static int hf_dap_ReadResult_PDU;                 /* ReadResult */
+static int hf_dap_CompareArgument_PDU;            /* CompareArgument */
+static int hf_dap_CompareResult_PDU;              /* CompareResult */
+static int hf_dap_AbandonArgument_PDU;            /* AbandonArgument */
+static int hf_dap_AbandonResult_PDU;              /* AbandonResult */
+static int hf_dap_ListArgument_PDU;               /* ListArgument */
+static int hf_dap_ListResult_PDU;                 /* ListResult */
+static int hf_dap_SearchArgument_PDU;             /* SearchArgument */
+static int hf_dap_SearchResult_PDU;               /* SearchResult */
+static int hf_dap_AddEntryArgument_PDU;           /* AddEntryArgument */
+static int hf_dap_AddEntryResult_PDU;             /* AddEntryResult */
+static int hf_dap_RemoveEntryArgument_PDU;        /* RemoveEntryArgument */
+static int hf_dap_RemoveEntryResult_PDU;          /* RemoveEntryResult */
+static int hf_dap_ModifyEntryArgument_PDU;        /* ModifyEntryArgument */
+static int hf_dap_ModifyEntryResult_PDU;          /* ModifyEntryResult */
+static int hf_dap_ModifyDNArgument_PDU;           /* ModifyDNArgument */
+static int hf_dap_ModifyDNResult_PDU;             /* ModifyDNResult */
+static int hf_dap_Abandoned_PDU;                  /* Abandoned */
+static int hf_dap_AbandonFailedError_PDU;         /* AbandonFailedError */
+static int hf_dap_AttributeError_PDU;             /* AttributeError */
+static int hf_dap_NameError_PDU;                  /* NameError */
+static int hf_dap_Referral_PDU;                   /* Referral */
+static int hf_dap_SecurityError_PDU;              /* SecurityError */
+static int hf_dap_ServiceError_PDU;               /* ServiceError */
+static int hf_dap_UpdateError_PDU;                /* UpdateError */
+static int hf_dap_options;                        /* ServiceControlOptions */
+static int hf_dap_priority;                       /* T_priority */
+static int hf_dap_timeLimit;                      /* INTEGER */
+static int hf_dap_sizeLimit;                      /* INTEGER */
+static int hf_dap_scopeOfReferral;                /* T_scopeOfReferral */
+static int hf_dap_attributeSizeLimit;             /* INTEGER */
+static int hf_dap_manageDSAITPlaneRef;            /* T_manageDSAITPlaneRef */
+static int hf_dap_dsaName;                        /* Name */
+static int hf_dap_agreementID;                    /* AgreementID */
+static int hf_dap_serviceType;                    /* OBJECT_IDENTIFIER */
+static int hf_dap_userClass;                      /* INTEGER */
+static int hf_dap_attributes;                     /* T_attributes */
+static int hf_dap_allUserAttributes;              /* NULL */
+static int hf_dap_select;                         /* SET_OF_AttributeType */
+static int hf_dap_select_item;                    /* AttributeType */
+static int hf_dap_infoTypes;                      /* T_infoTypes */
+static int hf_dap_extraAttributes;                /* T_extraAttributes */
+static int hf_dap_allOperationalAttributes;       /* NULL */
+static int hf_dap_extraSelect;                    /* SET_SIZE_1_MAX_OF_AttributeType */
+static int hf_dap_extraSelect_item;               /* AttributeType */
+static int hf_dap_contextSelection;               /* ContextSelection */
+static int hf_dap_returnContexts;                 /* BOOLEAN */
+static int hf_dap_familyReturn;                   /* FamilyReturn */
+static int hf_dap_allContexts;                    /* NULL */
+static int hf_dap_selectedContexts;               /* SET_SIZE_1_MAX_OF_TypeAndContextAssertion */
+static int hf_dap_selectedContexts_item;          /* TypeAndContextAssertion */
+static int hf_dap_type;                           /* AttributeType */
+static int hf_dap_contextAssertions;              /* T_contextAssertions */
+static int hf_dap_preference;                     /* SEQUENCE_OF_ContextAssertion */
+static int hf_dap_preference_item;                /* ContextAssertion */
+static int hf_dap_all;                            /* SET_OF_ContextAssertion */
+static int hf_dap_all_item;                       /* ContextAssertion */
+static int hf_dap_memberSelect;                   /* T_memberSelect */
+static int hf_dap_familySelect;                   /* T_familySelect */
+static int hf_dap_familySelect_item;              /* OBJECT_IDENTIFIER */
+static int hf_dap_name;                           /* Name */
+static int hf_dap_fromEntry;                      /* BOOLEAN */
+static int hf_dap_entry_information;              /* T_entry_information */
+static int hf_dap_entry_information_item;         /* EntryInformationItem */
+static int hf_dap_attributeType;                  /* AttributeType */
+static int hf_dap_attribute;                      /* Attribute */
+static int hf_dap_incompleteEntry;                /* BOOLEAN */
+static int hf_dap_partialName;                    /* BOOLEAN */
+static int hf_dap_derivedEntry;                   /* BOOLEAN */
+static int hf_dap_family_class;                   /* OBJECT_IDENTIFIER */
+static int hf_dap_familyEntries;                  /* SEQUENCE_OF_FamilyEntry */
+static int hf_dap_familyEntries_item;             /* FamilyEntry */
+static int hf_dap_rdn;                            /* RelativeDistinguishedName */
+static int hf_dap_family_information;             /* FamilyInformation */
+static int hf_dap_family_information_item;        /* T_family_information_item */
+static int hf_dap_family_info;                    /* SEQUENCE_SIZE_1_MAX_OF_FamilyEntries */
+static int hf_dap_family_info_item;               /* FamilyEntries */
+static int hf_dap_filter_item;                    /* FilterItem */
+static int hf_dap_and;                            /* SetOfFilter */
+static int hf_dap_or;                             /* SetOfFilter */
+static int hf_dap_not;                            /* Filter */
+static int hf_dap_SetOfFilter_item;               /* Filter */
+static int hf_dap_equality;                       /* AttributeValueAssertion */
+static int hf_dap_substrings;                     /* T_substrings */
+static int hf_dap_sunstringType;                  /* OBJECT_IDENTIFIER */
+static int hf_dap_strings;                        /* T_strings */
+static int hf_dap_strings_item;                   /* T_strings_item */
+static int hf_dap_initial;                        /* T_initial */
+static int hf_dap_any;                            /* T_any */
+static int hf_dap_final;                          /* T_final */
+static int hf_dap_control;                        /* Attribute */
+static int hf_dap_greaterOrEqual;                 /* AttributeValueAssertion */
+static int hf_dap_lessOrEqual;                    /* AttributeValueAssertion */
+static int hf_dap_present;                        /* AttributeType */
+static int hf_dap_approximateMatch;               /* AttributeValueAssertion */
+static int hf_dap_extensibleMatch;                /* MatchingRuleAssertion */
+static int hf_dap_contextPresent;                 /* AttributeTypeAssertion */
+static int hf_dap_matchingRule;                   /* T_matchingRule */
+static int hf_dap_matchingRule_item;              /* OBJECT_IDENTIFIER */
+static int hf_dap_matchValue;                     /* T_matchValue */
+static int hf_dap_dnAttributes;                   /* BOOLEAN */
+static int hf_dap_newRequest;                     /* T_newRequest */
+static int hf_dap_pageSize;                       /* INTEGER */
+static int hf_dap_sortKeys;                       /* SEQUENCE_SIZE_1_MAX_OF_SortKey */
+static int hf_dap_sortKeys_item;                  /* SortKey */
+static int hf_dap_reverse;                        /* BOOLEAN */
+static int hf_dap_unmerged;                       /* BOOLEAN */
+static int hf_dap_pagedResultsQueryReference;     /* T_pagedResultsQueryReference */
+static int hf_dap_orderingRule;                   /* OBJECT_IDENTIFIER */
+static int hf_dap_certification_path;             /* CertificationPath */
+static int hf_dap_distinguished_name;             /* DistinguishedName */
+static int hf_dap_time;                           /* Time */
+static int hf_dap_random;                         /* BIT_STRING */
+static int hf_dap_target;                         /* ProtectionRequest */
+static int hf_dap_response;                       /* BIT_STRING */
+static int hf_dap_operationCode;                  /* Code */
+static int hf_dap_attributeCertificationPath;     /* AttributeCertificationPath */
+static int hf_dap_errorProtection;                /* ErrorProtectionRequest */
+static int hf_dap_errorCode;                      /* Code */
+static int hf_dap_utcTime;                        /* UTCTime */
+static int hf_dap_generalizedTime;                /* GeneralizedTime */
+static int hf_dap_credentials;                    /* Credentials */
+static int hf_dap_versions;                       /* Versions */
+static int hf_dap_simple;                         /* SimpleCredentials */
+static int hf_dap_strong;                         /* StrongCredentials */
+static int hf_dap_externalProcedure;              /* EXTERNAL */
+static int hf_dap_spkm;                           /* SpkmCredentials */
+static int hf_dap_sasl;                           /* SaslCredentials */
+static int hf_dap_validity;                       /* T_validity */
+static int hf_dap_time1;                          /* T_time1 */
+static int hf_dap_utc;                            /* UTCTime */
+static int hf_dap_gt;                             /* GeneralizedTime */
+static int hf_dap_time2;                          /* T_time2 */
+static int hf_dap_random1;                        /* BIT_STRING */
+static int hf_dap_random2;                        /* BIT_STRING */
+static int hf_dap_password;                       /* T_password */
+static int hf_dap_unprotected;                    /* OCTET_STRING */
+static int hf_dap_protected;                      /* T_protected */
+static int hf_dap_protectedPassword;              /* OCTET_STRING */
+static int hf_dap_algorithmIdentifier;            /* AlgorithmIdentifier */
+static int hf_dap_encrypted;                      /* BIT_STRING */
+static int hf_dap_bind_token;                     /* Token */
+static int hf_dap_req;                            /* T_req */
+static int hf_dap_rep;                            /* T_rep */
+static int hf_dap_mechanism;                      /* DirectoryString */
+static int hf_dap_saslCredentials;                /* OCTET_STRING */
+static int hf_dap_saslAbort;                      /* BOOLEAN */
+static int hf_dap_algorithm;                      /* AlgorithmIdentifier */
+static int hf_dap_utctime;                        /* UTCTime */
+static int hf_dap_bindIntAlgorithm;               /* SEQUENCE_SIZE_1_MAX_OF_AlgorithmIdentifier */
+static int hf_dap_bindIntAlgorithm_item;          /* AlgorithmIdentifier */
+static int hf_dap_bindIntKeyInfo;                 /* BindKeyInfo */
+static int hf_dap_bindConfAlgorithm;              /* SEQUENCE_SIZE_1_MAX_OF_AlgorithmIdentifier */
+static int hf_dap_bindConfAlgorithm_item;         /* AlgorithmIdentifier */
+static int hf_dap_bindConfKeyInfo;                /* BindKeyInfo */
+static int hf_dap_token_data;                     /* TokenData */
+static int hf_dap_algorithm_identifier;           /* AlgorithmIdentifier */
+static int hf_dap_unsignedDirectoryBindError;     /* DirectoryBindErrorData */
+static int hf_dap_signedDirectoryBindError;       /* T_signedDirectoryBindError */
+static int hf_dap_directoryBindError;             /* DirectoryBindErrorData */
+static int hf_dap_error;                          /* T_error */
+static int hf_dap_serviceProblem;                 /* ServiceProblem */
+static int hf_dap_securityProblem;                /* SecurityProblem */
+static int hf_dap_securityParameters;             /* SecurityParameters */
+static int hf_dap_object;                         /* Name */
+static int hf_dap_selection;                      /* EntryInformationSelection */
+static int hf_dap_modifyRightsRequest;            /* BOOLEAN */
+static int hf_dap_serviceControls;                /* ServiceControls */
+static int hf_dap_requestor;                      /* DistinguishedName */
+static int hf_dap_operationProgress;              /* OperationProgress */
+static int hf_dap_aliasedRDNs;                    /* INTEGER */
+static int hf_dap_criticalExtensions;             /* BIT_STRING */
+static int hf_dap_referenceType;                  /* ReferenceType */
+static int hf_dap_entryOnly;                      /* BOOLEAN */
+static int hf_dap_exclusions;                     /* Exclusions */
+static int hf_dap_nameResolveOnMaster;            /* BOOLEAN */
+static int hf_dap_operationContexts;              /* ContextSelection */
+static int hf_dap_familyGrouping;                 /* FamilyGrouping */
+static int hf_dap_rdnSequence;                    /* RDNSequence */
+static int hf_dap_unsignedReadArgument;           /* ReadArgumentData */
+static int hf_dap_signedReadArgument;             /* T_signedReadArgument */
+static int hf_dap_readArgument;                   /* ReadArgumentData */
+static int hf_dap_entry;                          /* EntryInformation */
+static int hf_dap_modifyRights;                   /* ModifyRights */
+static int hf_dap_performer;                      /* DistinguishedName */
+static int hf_dap_aliasDereferenced;              /* BOOLEAN */
+static int hf_dap_notification;                   /* SEQUENCE_SIZE_1_MAX_OF_Attribute */
+static int hf_dap_notification_item;              /* Attribute */
+static int hf_dap_unsignedReadResult;             /* ReadResultData */
+static int hf_dap_signedReadResult;               /* T_signedReadResult */
+static int hf_dap_readResult;                     /* ReadResultData */
+static int hf_dap_ModifyRights_item;              /* ModifyRights_item */
+static int hf_dap_item;                           /* T_item */
+static int hf_dap_item_entry;                     /* NULL */
+static int hf_dap_attribute_type;                 /* AttributeType */
+static int hf_dap_value_assertion;                /* AttributeValueAssertion */
+static int hf_dap_permission;                     /* T_permission */
+static int hf_dap_purported;                      /* AttributeValueAssertion */
+static int hf_dap_unsignedCompareArgument;        /* CompareArgumentData */
+static int hf_dap_signedCompareArgument;          /* T_signedCompareArgument */
+static int hf_dap_compareArgument;                /* CompareArgumentData */
+static int hf_dap_matched;                        /* BOOLEAN */
+static int hf_dap_matchedSubtype;                 /* AttributeType */
+static int hf_dap_unsignedCompareResult;          /* CompareResultData */
+static int hf_dap_signedCompareResult;            /* T_signedCompareResult */
+static int hf_dap_compareResult;                  /* CompareResultData */
+static int hf_dap_invokeID;                       /* InvokeId */
+static int hf_dap_unsignedAbandonArgument;        /* AbandonArgumentData */
+static int hf_dap_signedAbandonArgument;          /* T_signedAbandonArgument */
+static int hf_dap_abandonArgument;                /* AbandonArgumentData */
+static int hf_dap_null;                           /* NULL */
+static int hf_dap_abandon_information;            /* AbandonInformation */
+static int hf_dap_unsignedAbandonResult;          /* AbandonResultData */
+static int hf_dap_signedAbandonResult;            /* T_signedAbandonResult */
+static int hf_dap_abandonResult;                  /* AbandonResultData */
+static int hf_dap_pagedResults;                   /* PagedResultsRequest */
+static int hf_dap_listFamily;                     /* BOOLEAN */
+static int hf_dap_unsignedListArgument;           /* ListArgumentData */
+static int hf_dap_signedListArgument;             /* T_signedListArgument */
+static int hf_dap_listArgument;                   /* ListArgumentData */
+static int hf_dap_listInfo;                       /* T_listInfo */
+static int hf_dap_subordinates;                   /* T_subordinates */
+static int hf_dap_subordinates_item;              /* T_subordinates_item */
+static int hf_dap_aliasEntry;                     /* BOOLEAN */
+static int hf_dap_partialOutcomeQualifier;        /* PartialOutcomeQualifier */
+static int hf_dap_uncorrelatedListInfo;           /* SET_OF_ListResult */
+static int hf_dap_uncorrelatedListInfo_item;      /* ListResult */
+static int hf_dap_unsignedListResult;             /* ListResultData */
+static int hf_dap_signedListResult;               /* T_signedListResult */
+static int hf_dap_listResult;                     /* ListResultData */
+static int hf_dap_limitProblem;                   /* LimitProblem */
+static int hf_dap_unexplored;                     /* SET_SIZE_1_MAX_OF_ContinuationReference */
+static int hf_dap_unexplored_item;                /* ContinuationReference */
+static int hf_dap_unavailableCriticalExtensions;  /* BOOLEAN */
+static int hf_dap_unknownErrors;                  /* T_unknownErrors */
+static int hf_dap_unknownErrors_item;             /* OBJECT_IDENTIFIER */
+static int hf_dap_queryReference;                 /* OCTET_STRING */
+static int hf_dap_overspecFilter;                 /* Filter */
+static int hf_dap_entryCount;                     /* T_entryCount */
+static int hf_dap_bestEstimate;                   /* INTEGER */
+static int hf_dap_lowEstimate;                    /* INTEGER */
+static int hf_dap_exact;                          /* INTEGER */
+static int hf_dap_streamedResult;                 /* BOOLEAN */
+static int hf_dap_baseObject;                     /* Name */
+static int hf_dap_subset;                         /* T_subset */
+static int hf_dap_filter;                         /* Filter */
+static int hf_dap_searchAliases;                  /* BOOLEAN */
+static int hf_dap_matchedValuesOnly;              /* BOOLEAN */
+static int hf_dap_extendedFilter;                 /* Filter */
+static int hf_dap_checkOverspecified;             /* BOOLEAN */
+static int hf_dap_relaxation;                     /* RelaxationPolicy */
+static int hf_dap_extendedArea;                   /* INTEGER */
+static int hf_dap_hierarchySelections;            /* HierarchySelections */
+static int hf_dap_searchControlOptions;           /* SearchControlOptions */
+static int hf_dap_joinArguments;                  /* SEQUENCE_SIZE_1_MAX_OF_JoinArgument */
+static int hf_dap_joinArguments_item;             /* JoinArgument */
+static int hf_dap_joinType;                       /* T_joinType */
+static int hf_dap_unsignedSearchArgument;         /* SearchArgumentData */
+static int hf_dap_signedSearchArgument;           /* T_signedSearchArgument */
+static int hf_dap_searchArgument;                 /* SearchArgumentData */
+static int hf_dap_joinBaseObject;                 /* Name */
+static int hf_dap_domainLocalID;                  /* DomainLocalID */
+static int hf_dap_joinSubset;                     /* T_joinSubset */
+static int hf_dap_joinFilter;                     /* Filter */
+static int hf_dap_joinAttributes;                 /* SEQUENCE_SIZE_1_MAX_OF_JoinAttPair */
+static int hf_dap_joinAttributes_item;            /* JoinAttPair */
+static int hf_dap_joinSelection;                  /* EntryInformationSelection */
+static int hf_dap_baseAtt;                        /* AttributeType */
+static int hf_dap_joinAtt;                        /* AttributeType */
+static int hf_dap_joinContext;                    /* SEQUENCE_SIZE_1_MAX_OF_JoinContextType */
+static int hf_dap_joinContext_item;               /* JoinContextType */
+static int hf_dap_searchInfo;                     /* T_searchInfo */
+static int hf_dap_entries;                        /* SET_OF_EntryInformation */
+static int hf_dap_entries_item;                   /* EntryInformation */
+static int hf_dap_altMatching;                    /* BOOLEAN */
+static int hf_dap_uncorrelatedSearchInfo;         /* SET_OF_SearchResult */
+static int hf_dap_uncorrelatedSearchInfo_item;    /* SearchResult */
+static int hf_dap_unsignedSearchResult;           /* SearchResultData */
+static int hf_dap_signedSearchResult;             /* T_signedSearchResult */
+static int hf_dap_searchResult;                   /* SearchResultData */
+static int hf_dap_add_entry;                      /* SET_OF_Attribute */
+static int hf_dap_add_entry_item;                 /* Attribute */
+static int hf_dap_targetSystem;                   /* AccessPoint */
+static int hf_dap_unsignedAddEntryArgument;       /* AddEntryArgumentData */
+static int hf_dap_signedAddEntryArgument;         /* T_signedAddEntryArgument */
+static int hf_dap_addEntryArgument;               /* AddEntryArgumentData */
+static int hf_dap_add_entry_information;          /* AddEntryInformation */
+static int hf_dap_unsignedAddEntryResult;         /* AddEntryResultData */
+static int hf_dap_signedAddEntryResult;           /* T_signedAddEntryResult */
+static int hf_dap_addEntryResult;                 /* AddEntryResultData */
+static int hf_dap_unsignedRemoveEntryArgument;    /* RemoveEntryArgumentData */
+static int hf_dap_signedRemoveEntryArgument;      /* T_signedRemoveEntryArgument */
+static int hf_dap_removeEntryArgument;            /* RemoveEntryArgumentData */
+static int hf_dap_remove_entry_information;       /* RemoveEntryInformation */
+static int hf_dap_unsignedRemoveEntryResult;      /* RemoveEntryResultData */
+static int hf_dap_signedRemoveEntryResult;        /* T_signedRemoveEntryResult */
+static int hf_dap_removeEntryResult;              /* RemoveEntryResultData */
+static int hf_dap_changes;                        /* SEQUENCE_OF_EntryModification */
+static int hf_dap_changes_item;                   /* EntryModification */
+static int hf_dap_unsignedModifyEntryArgument;    /* ModifyEntryArgumentData */
+static int hf_dap_signedModifyEntryArgument;      /* T_signedModifyEntryArgument */
+static int hf_dap_modifyEntryArgument;            /* ModifyEntryArgumentData */
+static int hf_dap_modify_entry_information;       /* ModifyEntryInformation */
+static int hf_dap_unsignedModifyEntryResult;      /* ModifyEntryResultData */
+static int hf_dap_signedModifyEntryResult;        /* T_signedModifyEntryResult */
+static int hf_dap_modifyEntryResult;              /* ModifyEntryResultData */
+static int hf_dap_addAttribute;                   /* Attribute */
+static int hf_dap_removeAttribute;                /* AttributeType */
+static int hf_dap_addValues;                      /* Attribute */
+static int hf_dap_removeValues;                   /* Attribute */
+static int hf_dap_alterValues;                    /* AttributeTypeAndValue */
+static int hf_dap_resetValue;                     /* AttributeType */
+static int hf_dap_newRDN;                         /* RelativeDistinguishedName */
+static int hf_dap_deleteOldRDN;                   /* BOOLEAN */
+static int hf_dap_newSuperior;                    /* DistinguishedName */
+static int hf_dap_modify_dn_information;          /* ModifyDNInformation */
+static int hf_dap_unsignedModifyDNResult;         /* ModifyDNResultData */
+static int hf_dap_signedModifyDNResult;           /* T_signedModifyDNResult */
+static int hf_dap_modifyDNResult;                 /* ModifyDNResultData */
+static int hf_dap_unsignedAbandoned;              /* AbandonedData */
+static int hf_dap_signedAbandoned;                /* T_signedAbandoned */
+static int hf_dap_abandoned;                      /* AbandonedData */
+static int hf_dap_abandon_failed_problem;         /* AbandonProblem */
+static int hf_dap_operation;                      /* InvokeId */
+static int hf_dap_unsignedAbandonFailedError;     /* AbandonFailedErrorData */
+static int hf_dap_signedAbandonFailedError;       /* T_signedAbandonFailedError */
+static int hf_dap_abandonFailedError;             /* AbandonFailedErrorData */
+static int hf_dap_problems;                       /* T_problems */
+static int hf_dap_problems_item;                  /* T_problems_item */
+static int hf_dap_attribute_error_problem;        /* AttributeProblem */
+static int hf_dap_value;                          /* AttributeValue */
+static int hf_dap_unsignedAttributeError;         /* AttributeErrorData */
+static int hf_dap_signedAttributeError;           /* T_signedAttributeError */
+static int hf_dap_attributeError;                 /* AttributeErrorData */
+static int hf_dap_name_error_problem;             /* NameProblem */
+static int hf_dap_matched_name;                   /* Name */
+static int hf_dap_unsignedNameError;              /* NameErrorData */
+static int hf_dap_signedNameError;                /* T_signedNameError */
+static int hf_dap_nameError;                      /* NameErrorData */
+static int hf_dap_candidate;                      /* ContinuationReference */
+static int hf_dap_unsignedReferral;               /* ReferralData */
+static int hf_dap_signedReferral;                 /* T_signedReferral */
+static int hf_dap_referral;                       /* ReferralData */
+static int hf_dap_security_error_problem;         /* SecurityProblem */
+static int hf_dap_spkmInfo;                       /* T_spkmInfo */
+static int hf_dap_unsignedSecurityError;          /* SecurityErrorData */
+static int hf_dap_signedSecurityError;            /* T_signedSecurityError */
+static int hf_dap_securityErrorData;              /* SecurityErrorData */
+static int hf_dap_service_error_problem;          /* ServiceProblem */
+static int hf_dap_unsignedServiceError;           /* ServiceErrorData */
+static int hf_dap_signedServiceError;             /* T_signedServiceError */
+static int hf_dap_serviceError;                   /* ServiceErrorData */
+static int hf_dap_update_error_problem;           /* UpdateProblem */
+static int hf_dap_attributeInfo;                  /* T_attributeInfo */
+static int hf_dap_attributeInfo_item;             /* T_attributeInfo_item */
+static int hf_dap_unsignedUpdateError;            /* UpdateErrorData */
+static int hf_dap_signedUpdateError;              /* T_signedUpdateError */
+static int hf_dap_updateError;                    /* UpdateErrorData */
 /* named bits */
-static int hf_dap_ServiceControlOptions_preferChaining = -1;
-static int hf_dap_ServiceControlOptions_chainingProhibited = -1;
-static int hf_dap_ServiceControlOptions_localScope = -1;
-static int hf_dap_ServiceControlOptions_dontUseCopy = -1;
-static int hf_dap_ServiceControlOptions_dontDereferenceAliases = -1;
-static int hf_dap_ServiceControlOptions_subentries = -1;
-static int hf_dap_ServiceControlOptions_copyShallDo = -1;
-static int hf_dap_ServiceControlOptions_partialNameResolution = -1;
-static int hf_dap_ServiceControlOptions_manageDSAIT = -1;
-static int hf_dap_ServiceControlOptions_noSubtypeMatch = -1;
-static int hf_dap_ServiceControlOptions_noSubtypeSelection = -1;
-static int hf_dap_ServiceControlOptions_countFamily = -1;
-static int hf_dap_ServiceControlOptions_dontSelectFriends = -1;
-static int hf_dap_ServiceControlOptions_dontMatchFriends = -1;
-static int hf_dap_Versions_v1 = -1;
-static int hf_dap_Versions_v2 = -1;
-static int hf_dap_T_permission_add = -1;
-static int hf_dap_T_permission_remove = -1;
-static int hf_dap_T_permission_rename = -1;
-static int hf_dap_T_permission_move = -1;
-static int hf_dap_HierarchySelections_self = -1;
-static int hf_dap_HierarchySelections_children = -1;
-static int hf_dap_HierarchySelections_parent = -1;
-static int hf_dap_HierarchySelections_hierarchy = -1;
-static int hf_dap_HierarchySelections_top = -1;
-static int hf_dap_HierarchySelections_subtree = -1;
-static int hf_dap_HierarchySelections_siblings = -1;
-static int hf_dap_HierarchySelections_siblingChildren = -1;
-static int hf_dap_HierarchySelections_siblingSubtree = -1;
-static int hf_dap_HierarchySelections_all = -1;
-static int hf_dap_SearchControlOptions_searchAliases = -1;
-static int hf_dap_SearchControlOptions_matchedValuesOnly = -1;
-static int hf_dap_SearchControlOptions_checkOverspecified = -1;
-static int hf_dap_SearchControlOptions_performExactly = -1;
-static int hf_dap_SearchControlOptions_includeAllAreas = -1;
-static int hf_dap_SearchControlOptions_noSystemRelaxation = -1;
-static int hf_dap_SearchControlOptions_dnAttribute = -1;
-static int hf_dap_SearchControlOptions_matchOnResidualName = -1;
-static int hf_dap_SearchControlOptions_entryCount = -1;
-static int hf_dap_SearchControlOptions_useSubset = -1;
-static int hf_dap_SearchControlOptions_separateFamilyMembers = -1;
-static int hf_dap_SearchControlOptions_searchFamily = -1;
+static int hf_dap_ServiceControlOptions_preferChaining;
+static int hf_dap_ServiceControlOptions_chainingProhibited;
+static int hf_dap_ServiceControlOptions_localScope;
+static int hf_dap_ServiceControlOptions_dontUseCopy;
+static int hf_dap_ServiceControlOptions_dontDereferenceAliases;
+static int hf_dap_ServiceControlOptions_subentries;
+static int hf_dap_ServiceControlOptions_copyShallDo;
+static int hf_dap_ServiceControlOptions_partialNameResolution;
+static int hf_dap_ServiceControlOptions_manageDSAIT;
+static int hf_dap_ServiceControlOptions_noSubtypeMatch;
+static int hf_dap_ServiceControlOptions_noSubtypeSelection;
+static int hf_dap_ServiceControlOptions_countFamily;
+static int hf_dap_ServiceControlOptions_dontSelectFriends;
+static int hf_dap_ServiceControlOptions_dontMatchFriends;
+static int hf_dap_Versions_v1;
+static int hf_dap_Versions_v2;
+static int hf_dap_T_permission_add;
+static int hf_dap_T_permission_remove;
+static int hf_dap_T_permission_rename;
+static int hf_dap_T_permission_move;
+static int hf_dap_HierarchySelections_self;
+static int hf_dap_HierarchySelections_children;
+static int hf_dap_HierarchySelections_parent;
+static int hf_dap_HierarchySelections_hierarchy;
+static int hf_dap_HierarchySelections_top;
+static int hf_dap_HierarchySelections_subtree;
+static int hf_dap_HierarchySelections_siblings;
+static int hf_dap_HierarchySelections_siblingChildren;
+static int hf_dap_HierarchySelections_siblingSubtree;
+static int hf_dap_HierarchySelections_all;
+static int hf_dap_SearchControlOptions_searchAliases;
+static int hf_dap_SearchControlOptions_matchedValuesOnly;
+static int hf_dap_SearchControlOptions_checkOverspecified;
+static int hf_dap_SearchControlOptions_performExactly;
+static int hf_dap_SearchControlOptions_includeAllAreas;
+static int hf_dap_SearchControlOptions_noSystemRelaxation;
+static int hf_dap_SearchControlOptions_dnAttribute;
+static int hf_dap_SearchControlOptions_matchOnResidualName;
+static int hf_dap_SearchControlOptions_entryCount;
+static int hf_dap_SearchControlOptions_useSubset;
+static int hf_dap_SearchControlOptions_separateFamilyMembers;
+static int hf_dap_SearchControlOptions_searchFamily;
 
 /* Initialize the subtree pointers */
-static gint ett_dap = -1;
-static gint ett_dap_ServiceControls = -1;
-static gint ett_dap_T_manageDSAITPlaneRef = -1;
-static gint ett_dap_ServiceControlOptions = -1;
-static gint ett_dap_EntryInformationSelection = -1;
-static gint ett_dap_T_attributes = -1;
-static gint ett_dap_SET_OF_AttributeType = -1;
-static gint ett_dap_T_extraAttributes = -1;
-static gint ett_dap_SET_SIZE_1_MAX_OF_AttributeType = -1;
-static gint ett_dap_ContextSelection = -1;
-static gint ett_dap_SET_SIZE_1_MAX_OF_TypeAndContextAssertion = -1;
-static gint ett_dap_TypeAndContextAssertion = -1;
-static gint ett_dap_T_contextAssertions = -1;
-static gint ett_dap_SEQUENCE_OF_ContextAssertion = -1;
-static gint ett_dap_SET_OF_ContextAssertion = -1;
-static gint ett_dap_FamilyReturn = -1;
-static gint ett_dap_T_familySelect = -1;
-static gint ett_dap_EntryInformation = -1;
-static gint ett_dap_T_entry_information = -1;
-static gint ett_dap_EntryInformationItem = -1;
-static gint ett_dap_FamilyEntries = -1;
-static gint ett_dap_SEQUENCE_OF_FamilyEntry = -1;
-static gint ett_dap_FamilyEntry = -1;
-static gint ett_dap_FamilyInformation = -1;
-static gint ett_dap_T_family_information_item = -1;
-static gint ett_dap_SEQUENCE_SIZE_1_MAX_OF_FamilyEntries = -1;
-static gint ett_dap_Filter = -1;
-static gint ett_dap_SetOfFilter = -1;
-static gint ett_dap_FilterItem = -1;
-static gint ett_dap_T_substrings = -1;
-static gint ett_dap_T_strings = -1;
-static gint ett_dap_T_strings_item = -1;
-static gint ett_dap_MatchingRuleAssertion = -1;
-static gint ett_dap_T_matchingRule = -1;
-static gint ett_dap_PagedResultsRequest = -1;
-static gint ett_dap_T_newRequest = -1;
-static gint ett_dap_SEQUENCE_SIZE_1_MAX_OF_SortKey = -1;
-static gint ett_dap_SortKey = -1;
-static gint ett_dap_SecurityParameters = -1;
-static gint ett_dap_Time = -1;
-static gint ett_dap_DirectoryBindArgument = -1;
-static gint ett_dap_Credentials = -1;
-static gint ett_dap_SimpleCredentials = -1;
-static gint ett_dap_T_validity = -1;
-static gint ett_dap_T_time1 = -1;
-static gint ett_dap_T_time2 = -1;
-static gint ett_dap_T_password = -1;
-static gint ett_dap_T_protected = -1;
-static gint ett_dap_StrongCredentials = -1;
-static gint ett_dap_SpkmCredentials = -1;
-static gint ett_dap_SaslCredentials = -1;
-static gint ett_dap_TokenData = -1;
-static gint ett_dap_SEQUENCE_SIZE_1_MAX_OF_AlgorithmIdentifier = -1;
-static gint ett_dap_Token = -1;
-static gint ett_dap_Versions = -1;
-static gint ett_dap_DirectoryBindError = -1;
-static gint ett_dap_T_signedDirectoryBindError = -1;
-static gint ett_dap_DirectoryBindErrorData = -1;
-static gint ett_dap_T_error = -1;
-static gint ett_dap_ReadArgumentData = -1;
-static gint ett_dap_Name = -1;
-static gint ett_dap_ReadArgument = -1;
-static gint ett_dap_T_signedReadArgument = -1;
-static gint ett_dap_ReadResultData = -1;
-static gint ett_dap_SEQUENCE_SIZE_1_MAX_OF_Attribute = -1;
-static gint ett_dap_ReadResult = -1;
-static gint ett_dap_T_signedReadResult = -1;
-static gint ett_dap_ModifyRights = -1;
-static gint ett_dap_ModifyRights_item = -1;
-static gint ett_dap_T_item = -1;
-static gint ett_dap_T_permission = -1;
-static gint ett_dap_CompareArgumentData = -1;
-static gint ett_dap_CompareArgument = -1;
-static gint ett_dap_T_signedCompareArgument = -1;
-static gint ett_dap_CompareResultData = -1;
-static gint ett_dap_CompareResult = -1;
-static gint ett_dap_T_signedCompareResult = -1;
-static gint ett_dap_AbandonArgumentData = -1;
-static gint ett_dap_AbandonArgument = -1;
-static gint ett_dap_T_signedAbandonArgument = -1;
-static gint ett_dap_AbandonResultData = -1;
-static gint ett_dap_AbandonResult = -1;
-static gint ett_dap_AbandonInformation = -1;
-static gint ett_dap_T_signedAbandonResult = -1;
-static gint ett_dap_ListArgumentData = -1;
-static gint ett_dap_ListArgument = -1;
-static gint ett_dap_T_signedListArgument = -1;
-static gint ett_dap_ListResultData = -1;
-static gint ett_dap_T_listInfo = -1;
-static gint ett_dap_T_subordinates = -1;
-static gint ett_dap_T_subordinates_item = -1;
-static gint ett_dap_SET_OF_ListResult = -1;
-static gint ett_dap_ListResult = -1;
-static gint ett_dap_T_signedListResult = -1;
-static gint ett_dap_PartialOutcomeQualifier = -1;
-static gint ett_dap_SET_SIZE_1_MAX_OF_ContinuationReference = -1;
-static gint ett_dap_T_unknownErrors = -1;
-static gint ett_dap_T_entryCount = -1;
-static gint ett_dap_SearchArgumentData = -1;
-static gint ett_dap_SEQUENCE_SIZE_1_MAX_OF_JoinArgument = -1;
-static gint ett_dap_SearchArgument = -1;
-static gint ett_dap_T_signedSearchArgument = -1;
-static gint ett_dap_HierarchySelections = -1;
-static gint ett_dap_SearchControlOptions = -1;
-static gint ett_dap_JoinArgument = -1;
-static gint ett_dap_SEQUENCE_SIZE_1_MAX_OF_JoinAttPair = -1;
-static gint ett_dap_JoinAttPair = -1;
-static gint ett_dap_SEQUENCE_SIZE_1_MAX_OF_JoinContextType = -1;
-static gint ett_dap_SearchResultData = -1;
-static gint ett_dap_T_searchInfo = -1;
-static gint ett_dap_SET_OF_EntryInformation = -1;
-static gint ett_dap_SET_OF_SearchResult = -1;
-static gint ett_dap_SearchResult = -1;
-static gint ett_dap_T_signedSearchResult = -1;
-static gint ett_dap_AddEntryArgumentData = -1;
-static gint ett_dap_SET_OF_Attribute = -1;
-static gint ett_dap_AddEntryArgument = -1;
-static gint ett_dap_T_signedAddEntryArgument = -1;
-static gint ett_dap_AddEntryResultData = -1;
-static gint ett_dap_AddEntryResult = -1;
-static gint ett_dap_AddEntryInformation = -1;
-static gint ett_dap_T_signedAddEntryResult = -1;
-static gint ett_dap_RemoveEntryArgumentData = -1;
-static gint ett_dap_RemoveEntryArgument = -1;
-static gint ett_dap_T_signedRemoveEntryArgument = -1;
-static gint ett_dap_RemoveEntryResultData = -1;
-static gint ett_dap_RemoveEntryResult = -1;
-static gint ett_dap_RemoveEntryInformation = -1;
-static gint ett_dap_T_signedRemoveEntryResult = -1;
-static gint ett_dap_ModifyEntryArgumentData = -1;
-static gint ett_dap_SEQUENCE_OF_EntryModification = -1;
-static gint ett_dap_ModifyEntryArgument = -1;
-static gint ett_dap_T_signedModifyEntryArgument = -1;
-static gint ett_dap_ModifyEntryResultData = -1;
-static gint ett_dap_ModifyEntryResult = -1;
-static gint ett_dap_ModifyEntryInformation = -1;
-static gint ett_dap_T_signedModifyEntryResult = -1;
-static gint ett_dap_EntryModification = -1;
-static gint ett_dap_ModifyDNArgument = -1;
-static gint ett_dap_ModifyDNResultData = -1;
-static gint ett_dap_ModifyDNResult = -1;
-static gint ett_dap_ModifyDNInformation = -1;
-static gint ett_dap_T_signedModifyDNResult = -1;
-static gint ett_dap_AbandonedData = -1;
-static gint ett_dap_Abandoned = -1;
-static gint ett_dap_T_signedAbandoned = -1;
-static gint ett_dap_AbandonFailedErrorData = -1;
-static gint ett_dap_AbandonFailedError = -1;
-static gint ett_dap_T_signedAbandonFailedError = -1;
-static gint ett_dap_AttributeErrorData = -1;
-static gint ett_dap_T_problems = -1;
-static gint ett_dap_T_problems_item = -1;
-static gint ett_dap_AttributeError = -1;
-static gint ett_dap_T_signedAttributeError = -1;
-static gint ett_dap_NameErrorData = -1;
-static gint ett_dap_NameError = -1;
-static gint ett_dap_T_signedNameError = -1;
-static gint ett_dap_ReferralData = -1;
-static gint ett_dap_Referral = -1;
-static gint ett_dap_T_signedReferral = -1;
-static gint ett_dap_SecurityErrorData = -1;
-static gint ett_dap_SecurityError = -1;
-static gint ett_dap_T_signedSecurityError = -1;
-static gint ett_dap_ServiceErrorData = -1;
-static gint ett_dap_ServiceError = -1;
-static gint ett_dap_T_signedServiceError = -1;
-static gint ett_dap_UpdateErrorData = -1;
-static gint ett_dap_T_attributeInfo = -1;
-static gint ett_dap_T_attributeInfo_item = -1;
-static gint ett_dap_UpdateError = -1;
-static gint ett_dap_T_signedUpdateError = -1;
+static int ett_dap;
+static int ett_dap_ServiceControls;
+static int ett_dap_T_manageDSAITPlaneRef;
+static int ett_dap_ServiceControlOptions;
+static int ett_dap_EntryInformationSelection;
+static int ett_dap_T_attributes;
+static int ett_dap_SET_OF_AttributeType;
+static int ett_dap_T_extraAttributes;
+static int ett_dap_SET_SIZE_1_MAX_OF_AttributeType;
+static int ett_dap_ContextSelection;
+static int ett_dap_SET_SIZE_1_MAX_OF_TypeAndContextAssertion;
+static int ett_dap_TypeAndContextAssertion;
+static int ett_dap_T_contextAssertions;
+static int ett_dap_SEQUENCE_OF_ContextAssertion;
+static int ett_dap_SET_OF_ContextAssertion;
+static int ett_dap_FamilyReturn;
+static int ett_dap_T_familySelect;
+static int ett_dap_EntryInformation;
+static int ett_dap_T_entry_information;
+static int ett_dap_EntryInformationItem;
+static int ett_dap_FamilyEntries;
+static int ett_dap_SEQUENCE_OF_FamilyEntry;
+static int ett_dap_FamilyEntry;
+static int ett_dap_FamilyInformation;
+static int ett_dap_T_family_information_item;
+static int ett_dap_SEQUENCE_SIZE_1_MAX_OF_FamilyEntries;
+static int ett_dap_Filter;
+static int ett_dap_SetOfFilter;
+static int ett_dap_FilterItem;
+static int ett_dap_T_substrings;
+static int ett_dap_T_strings;
+static int ett_dap_T_strings_item;
+static int ett_dap_MatchingRuleAssertion;
+static int ett_dap_T_matchingRule;
+static int ett_dap_PagedResultsRequest;
+static int ett_dap_T_newRequest;
+static int ett_dap_SEQUENCE_SIZE_1_MAX_OF_SortKey;
+static int ett_dap_SortKey;
+static int ett_dap_SecurityParameters;
+static int ett_dap_Time;
+static int ett_dap_DirectoryBindArgument;
+static int ett_dap_Credentials;
+static int ett_dap_SimpleCredentials;
+static int ett_dap_T_validity;
+static int ett_dap_T_time1;
+static int ett_dap_T_time2;
+static int ett_dap_T_password;
+static int ett_dap_T_protected;
+static int ett_dap_StrongCredentials;
+static int ett_dap_SpkmCredentials;
+static int ett_dap_SaslCredentials;
+static int ett_dap_TokenData;
+static int ett_dap_SEQUENCE_SIZE_1_MAX_OF_AlgorithmIdentifier;
+static int ett_dap_Token;
+static int ett_dap_Versions;
+static int ett_dap_DirectoryBindError;
+static int ett_dap_T_signedDirectoryBindError;
+static int ett_dap_DirectoryBindErrorData;
+static int ett_dap_T_error;
+static int ett_dap_ReadArgumentData;
+static int ett_dap_Name;
+static int ett_dap_ReadArgument;
+static int ett_dap_T_signedReadArgument;
+static int ett_dap_ReadResultData;
+static int ett_dap_SEQUENCE_SIZE_1_MAX_OF_Attribute;
+static int ett_dap_ReadResult;
+static int ett_dap_T_signedReadResult;
+static int ett_dap_ModifyRights;
+static int ett_dap_ModifyRights_item;
+static int ett_dap_T_item;
+static int ett_dap_T_permission;
+static int ett_dap_CompareArgumentData;
+static int ett_dap_CompareArgument;
+static int ett_dap_T_signedCompareArgument;
+static int ett_dap_CompareResultData;
+static int ett_dap_CompareResult;
+static int ett_dap_T_signedCompareResult;
+static int ett_dap_AbandonArgumentData;
+static int ett_dap_AbandonArgument;
+static int ett_dap_T_signedAbandonArgument;
+static int ett_dap_AbandonResultData;
+static int ett_dap_AbandonResult;
+static int ett_dap_AbandonInformation;
+static int ett_dap_T_signedAbandonResult;
+static int ett_dap_ListArgumentData;
+static int ett_dap_ListArgument;
+static int ett_dap_T_signedListArgument;
+static int ett_dap_ListResultData;
+static int ett_dap_T_listInfo;
+static int ett_dap_T_subordinates;
+static int ett_dap_T_subordinates_item;
+static int ett_dap_SET_OF_ListResult;
+static int ett_dap_ListResult;
+static int ett_dap_T_signedListResult;
+static int ett_dap_PartialOutcomeQualifier;
+static int ett_dap_SET_SIZE_1_MAX_OF_ContinuationReference;
+static int ett_dap_T_unknownErrors;
+static int ett_dap_T_entryCount;
+static int ett_dap_SearchArgumentData;
+static int ett_dap_SEQUENCE_SIZE_1_MAX_OF_JoinArgument;
+static int ett_dap_SearchArgument;
+static int ett_dap_T_signedSearchArgument;
+static int ett_dap_HierarchySelections;
+static int ett_dap_SearchControlOptions;
+static int ett_dap_JoinArgument;
+static int ett_dap_SEQUENCE_SIZE_1_MAX_OF_JoinAttPair;
+static int ett_dap_JoinAttPair;
+static int ett_dap_SEQUENCE_SIZE_1_MAX_OF_JoinContextType;
+static int ett_dap_SearchResultData;
+static int ett_dap_T_searchInfo;
+static int ett_dap_SET_OF_EntryInformation;
+static int ett_dap_SET_OF_SearchResult;
+static int ett_dap_SearchResult;
+static int ett_dap_T_signedSearchResult;
+static int ett_dap_AddEntryArgumentData;
+static int ett_dap_SET_OF_Attribute;
+static int ett_dap_AddEntryArgument;
+static int ett_dap_T_signedAddEntryArgument;
+static int ett_dap_AddEntryResultData;
+static int ett_dap_AddEntryResult;
+static int ett_dap_AddEntryInformation;
+static int ett_dap_T_signedAddEntryResult;
+static int ett_dap_RemoveEntryArgumentData;
+static int ett_dap_RemoveEntryArgument;
+static int ett_dap_T_signedRemoveEntryArgument;
+static int ett_dap_RemoveEntryResultData;
+static int ett_dap_RemoveEntryResult;
+static int ett_dap_RemoveEntryInformation;
+static int ett_dap_T_signedRemoveEntryResult;
+static int ett_dap_ModifyEntryArgumentData;
+static int ett_dap_SEQUENCE_OF_EntryModification;
+static int ett_dap_ModifyEntryArgument;
+static int ett_dap_T_signedModifyEntryArgument;
+static int ett_dap_ModifyEntryResultData;
+static int ett_dap_ModifyEntryResult;
+static int ett_dap_ModifyEntryInformation;
+static int ett_dap_T_signedModifyEntryResult;
+static int ett_dap_EntryModification;
+static int ett_dap_ModifyDNArgument;
+static int ett_dap_ModifyDNResultData;
+static int ett_dap_ModifyDNResult;
+static int ett_dap_ModifyDNInformation;
+static int ett_dap_T_signedModifyDNResult;
+static int ett_dap_AbandonedData;
+static int ett_dap_Abandoned;
+static int ett_dap_T_signedAbandoned;
+static int ett_dap_AbandonFailedErrorData;
+static int ett_dap_AbandonFailedError;
+static int ett_dap_T_signedAbandonFailedError;
+static int ett_dap_AttributeErrorData;
+static int ett_dap_T_problems;
+static int ett_dap_T_problems_item;
+static int ett_dap_AttributeError;
+static int ett_dap_T_signedAttributeError;
+static int ett_dap_NameErrorData;
+static int ett_dap_NameError;
+static int ett_dap_T_signedNameError;
+static int ett_dap_ReferralData;
+static int ett_dap_Referral;
+static int ett_dap_T_signedReferral;
+static int ett_dap_SecurityErrorData;
+static int ett_dap_SecurityError;
+static int ett_dap_T_signedSecurityError;
+static int ett_dap_ServiceErrorData;
+static int ett_dap_ServiceError;
+static int ett_dap_T_signedServiceError;
+static int ett_dap_UpdateErrorData;
+static int ett_dap_T_attributeInfo;
+static int ett_dap_T_attributeInfo_item;
+static int ett_dap_UpdateError;
+static int ett_dap_T_signedUpdateError;
 
-static expert_field ei_dap_anonymous = EI_INIT;
+static expert_field ei_dap_anonymous;
 
 #define id_opcode_read                 1
 #define id_opcode_compare              2
@@ -653,7 +654,7 @@ static expert_field ei_dap_anonymous = EI_INIT;
 
 
 /* DAP OPERATIONS */
-const value_string dap_opr_code_string_vals[] = {
+static const value_string dap_opr_code_string_vals[] = {
 	{ op_ros_bind, "directoryBind" },
 	{ id_opcode_read, "read" },
 	{ id_opcode_compare, "compare" },
@@ -1265,7 +1266,7 @@ static const ber_sequence_t FamilyEntries_sequence[] = {
 
 static int
 dissect_dap_FamilyEntries(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  // FamilyEntries → FamilyEntries/familyEntries → FamilyEntry → FamilyEntry/family-info → FamilyEntries
+  // FamilyEntries -> FamilyEntries/familyEntries -> FamilyEntry -> FamilyEntry/family-info -> FamilyEntries
   actx->pinfo->dissection_depth += 4;
   increment_dissection_depth(actx->pinfo);
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
@@ -1468,7 +1469,7 @@ static const ber_choice_t Filter_choice[] = {
 
 int
 dissect_dap_Filter(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  // Filter → SetOfFilter → Filter
+  // Filter -> SetOfFilter -> Filter
   actx->pinfo->dissection_depth += 2;
   increment_dissection_depth(actx->pinfo);
   offset = dissect_ber_choice(actx, tree, tvb, offset,
@@ -1545,7 +1546,7 @@ dissect_dap_T_pagedResultsQueryReference(bool implicit_tag _U_, tvbuff_t *tvb _U
 
 				proto_item_append_text(actx->created_item," (");
 				for(i=0; i<len; i++)
-					proto_item_append_text(actx->created_item,"%c",tvb_get_guint8(out_tvb,i));
+					proto_item_append_text(actx->created_item,"%c",tvb_get_uint8(out_tvb,i));
 				proto_item_append_text(actx->created_item,")");
 			}
 		}
@@ -2020,7 +2021,7 @@ static const ber_sequence_t DirectoryBindArgument_set[] = {
 int
 dissect_dap_DirectoryBindArgument(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
 
-	guint32 len;
+	uint32_t len;
 
 	/* check and see if this is an empty set */
 	dissect_ber_length(actx->pinfo, tree, tvb, offset+1, &len, NULL);
@@ -2076,7 +2077,7 @@ static const value_string dap_ServiceProblem_vals[] = {
 
 static int
 dissect_dap_ServiceProblem(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  guint32 problem;
+  uint32_t problem;
 
     offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 &problem);
@@ -2105,7 +2106,7 @@ const value_string dap_SecurityProblem_vals[] = {
 
 int
 dissect_dap_SecurityProblem(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  guint32 problem;
+  uint32_t problem;
 
     offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 &problem);
@@ -2759,7 +2760,7 @@ static const value_string dap_LimitProblem_vals[] = {
 
 static int
 dissect_dap_LimitProblem(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  guint32 problem;
+  uint32_t problem;
 
     offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 &problem);
@@ -2929,7 +2930,7 @@ static const ber_choice_t ListResultData_choice[] = {
 
 static int
 dissect_dap_ListResultData(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  // ListResultData → ListResultData/uncorrelatedListInfo → ListResult → ListResultData
+  // ListResultData -> ListResultData/uncorrelatedListInfo -> ListResult -> ListResultData
   actx->pinfo->dissection_depth += 3;
   increment_dissection_depth(actx->pinfo);
   offset = dissect_ber_choice(actx, tree, tvb, offset,
@@ -2952,7 +2953,7 @@ static const value_string dap_T_subset_vals[] = {
 
 static int
 dissect_dap_T_subset(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  guint32 subset;
+  uint32_t subset;
 
     offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 &subset);
@@ -3319,7 +3320,7 @@ static const ber_choice_t SearchResultData_choice[] = {
 
 static int
 dissect_dap_SearchResultData(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  // SearchResultData → SearchResultData/uncorrelatedSearchInfo → SearchResult → SearchResultData
+  // SearchResultData -> SearchResultData/uncorrelatedSearchInfo -> SearchResult -> SearchResultData
   actx->pinfo->dissection_depth += 3;
   increment_dissection_depth(actx->pinfo);
   offset = dissect_ber_choice(actx, tree, tvb, offset,
@@ -4433,7 +4434,7 @@ static const value_string dap_UpdateProblem_vals[] = {
 
 static int
 dissect_dap_UpdateProblem(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  guint32 problem;
+  uint32_t problem;
 
     offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 &problem);
@@ -4542,204 +4543,204 @@ dissect_dap_UpdateError(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_
 static int dissect_DirectoryBindArgument_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_DirectoryBindArgument(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_DirectoryBindArgument_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_DirectoryBindArgument(false, tvb, offset, &asn1_ctx, tree, hf_dap_DirectoryBindArgument_PDU);
   return offset;
 }
 static int dissect_DirectoryBindResult_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_DirectoryBindResult(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_DirectoryBindResult_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_DirectoryBindResult(false, tvb, offset, &asn1_ctx, tree, hf_dap_DirectoryBindResult_PDU);
   return offset;
 }
 static int dissect_DirectoryBindError_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_DirectoryBindError(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_DirectoryBindError_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_DirectoryBindError(false, tvb, offset, &asn1_ctx, tree, hf_dap_DirectoryBindError_PDU);
   return offset;
 }
 static int dissect_ReadArgument_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_ReadArgument(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_ReadArgument_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_ReadArgument(false, tvb, offset, &asn1_ctx, tree, hf_dap_ReadArgument_PDU);
   return offset;
 }
 static int dissect_ReadResult_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_ReadResult(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_ReadResult_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_ReadResult(false, tvb, offset, &asn1_ctx, tree, hf_dap_ReadResult_PDU);
   return offset;
 }
 static int dissect_CompareArgument_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_CompareArgument(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_CompareArgument_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_CompareArgument(false, tvb, offset, &asn1_ctx, tree, hf_dap_CompareArgument_PDU);
   return offset;
 }
 static int dissect_CompareResult_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_CompareResult(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_CompareResult_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_CompareResult(false, tvb, offset, &asn1_ctx, tree, hf_dap_CompareResult_PDU);
   return offset;
 }
 static int dissect_AbandonArgument_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_AbandonArgument(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_AbandonArgument_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_AbandonArgument(false, tvb, offset, &asn1_ctx, tree, hf_dap_AbandonArgument_PDU);
   return offset;
 }
 static int dissect_AbandonResult_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_AbandonResult(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_AbandonResult_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_AbandonResult(false, tvb, offset, &asn1_ctx, tree, hf_dap_AbandonResult_PDU);
   return offset;
 }
 static int dissect_ListArgument_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_ListArgument(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_ListArgument_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_ListArgument(false, tvb, offset, &asn1_ctx, tree, hf_dap_ListArgument_PDU);
   return offset;
 }
 static int dissect_ListResult_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_ListResult(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_ListResult_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_ListResult(false, tvb, offset, &asn1_ctx, tree, hf_dap_ListResult_PDU);
   return offset;
 }
 static int dissect_SearchArgument_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_SearchArgument(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_SearchArgument_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_SearchArgument(false, tvb, offset, &asn1_ctx, tree, hf_dap_SearchArgument_PDU);
   return offset;
 }
 static int dissect_SearchResult_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_SearchResult(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_SearchResult_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_SearchResult(false, tvb, offset, &asn1_ctx, tree, hf_dap_SearchResult_PDU);
   return offset;
 }
 static int dissect_AddEntryArgument_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_AddEntryArgument(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_AddEntryArgument_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_AddEntryArgument(false, tvb, offset, &asn1_ctx, tree, hf_dap_AddEntryArgument_PDU);
   return offset;
 }
 static int dissect_AddEntryResult_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_AddEntryResult(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_AddEntryResult_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_AddEntryResult(false, tvb, offset, &asn1_ctx, tree, hf_dap_AddEntryResult_PDU);
   return offset;
 }
 static int dissect_RemoveEntryArgument_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_RemoveEntryArgument(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_RemoveEntryArgument_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_RemoveEntryArgument(false, tvb, offset, &asn1_ctx, tree, hf_dap_RemoveEntryArgument_PDU);
   return offset;
 }
 static int dissect_RemoveEntryResult_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_RemoveEntryResult(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_RemoveEntryResult_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_RemoveEntryResult(false, tvb, offset, &asn1_ctx, tree, hf_dap_RemoveEntryResult_PDU);
   return offset;
 }
 static int dissect_ModifyEntryArgument_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_ModifyEntryArgument(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_ModifyEntryArgument_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_ModifyEntryArgument(false, tvb, offset, &asn1_ctx, tree, hf_dap_ModifyEntryArgument_PDU);
   return offset;
 }
 static int dissect_ModifyEntryResult_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_ModifyEntryResult(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_ModifyEntryResult_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_ModifyEntryResult(false, tvb, offset, &asn1_ctx, tree, hf_dap_ModifyEntryResult_PDU);
   return offset;
 }
 static int dissect_ModifyDNArgument_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_ModifyDNArgument(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_ModifyDNArgument_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_ModifyDNArgument(false, tvb, offset, &asn1_ctx, tree, hf_dap_ModifyDNArgument_PDU);
   return offset;
 }
 static int dissect_ModifyDNResult_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_ModifyDNResult(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_ModifyDNResult_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_ModifyDNResult(false, tvb, offset, &asn1_ctx, tree, hf_dap_ModifyDNResult_PDU);
   return offset;
 }
 static int dissect_Abandoned_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_Abandoned(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_Abandoned_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_Abandoned(false, tvb, offset, &asn1_ctx, tree, hf_dap_Abandoned_PDU);
   return offset;
 }
 static int dissect_AbandonFailedError_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_AbandonFailedError(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_AbandonFailedError_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_AbandonFailedError(false, tvb, offset, &asn1_ctx, tree, hf_dap_AbandonFailedError_PDU);
   return offset;
 }
 static int dissect_AttributeError_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_AttributeError(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_AttributeError_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_AttributeError(false, tvb, offset, &asn1_ctx, tree, hf_dap_AttributeError_PDU);
   return offset;
 }
 static int dissect_NameError_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_NameError(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_NameError_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_NameError(false, tvb, offset, &asn1_ctx, tree, hf_dap_NameError_PDU);
   return offset;
 }
 static int dissect_Referral_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_Referral(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_Referral_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_Referral(false, tvb, offset, &asn1_ctx, tree, hf_dap_Referral_PDU);
   return offset;
 }
 static int dissect_SecurityError_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_SecurityError(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_SecurityError_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_SecurityError(false, tvb, offset, &asn1_ctx, tree, hf_dap_SecurityError_PDU);
   return offset;
 }
 static int dissect_ServiceError_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_ServiceError(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_ServiceError_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_ServiceError(false, tvb, offset, &asn1_ctx, tree, hf_dap_ServiceError_PDU);
   return offset;
 }
 static int dissect_UpdateError_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_dap_UpdateError(FALSE, tvb, offset, &asn1_ctx, tree, hf_dap_UpdateError_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_dap_UpdateError(false, tvb, offset, &asn1_ctx, tree, hf_dap_UpdateError_PDU);
   return offset;
 }
 
@@ -6429,7 +6430,7 @@ void proto_register_dap(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_dap,
     &ett_dap_ServiceControls,
     &ett_dap_T_manageDSAITPlaneRef,
@@ -6643,7 +6644,7 @@ void proto_reg_handoff_dap(void) {
   /* ABSTRACT SYNTAXES */
 
   /* Register DAP with ROS (with no use of RTSE) */
-  register_ros_protocol_info("2.5.9.1", &dap_ros_info, 0, "id-as-directory-access", FALSE);
+  register_ros_protocol_info("2.5.9.1", &dap_ros_info, 0, "id-as-directory-access", false);
 
   register_idmp_protocol_info("2.5.33.0", &dap_ros_info, 0, "dap-ip");
 

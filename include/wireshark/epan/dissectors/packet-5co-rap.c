@@ -28,8 +28,9 @@
 
 #include <epan/packet.h>
 #include <epan/to_str.h>
+#include <epan/unit_strings.h>
 #include <wsutil/utf8_entities.h>
-#include <string.h>
+#include <wsutil/array.h>
 #include "packet-tcp.h"
 
 /* Prototypes */
@@ -71,74 +72,74 @@ enum fiveco_functions
 };
 
 /* Forward references to functions */
-static guint8
-checksum_fiveco(tvbuff_t * byte_tab, guint16 start_offset, guint16 size);
-static gint fiveco_hash_equal(gconstpointer v, gconstpointer w);
+static uint8_t
+checksum_fiveco(tvbuff_t * byte_tab, uint16_t start_offset, uint16_t size);
+static int fiveco_hash_equal(const void *v, const void *w);
 
 /* Register decoding functions prototypes */
-static void disp_type( gchar *result, guint32 type);
-static void disp_version( gchar *result, guint32 type);
-static void disp_voltage( gchar *result, guint32 type);
-static void disp_mac( gchar *result, guint64 type);
-static void disp_ip( gchar *result, guint32 type);
-static void disp_mask( gchar *result, guint32 type);
-static void disp_timeout( gchar *result, guint32 type);
+static void disp_type( char *result, uint32_t type);
+static void disp_version( char *result, uint32_t type);
+static void disp_voltage( char *result, uint32_t type);
+static void disp_mac( char *result, uint64_t type);
+static void disp_ip( char *result, uint32_t type);
+static void disp_mask( char *result, uint32_t type);
+static void disp_timeout( char *result, uint32_t type);
 
 /* Initialize the protocol and registered fields */
-static int proto_FiveCoRAP = -1; /* Wireshark ID of the FiveCo protocol */
+static int proto_FiveCoRAP; /* Wireshark ID of the FiveCo protocol */
 
  /* The following hf_* variables are used to hold the Wireshark IDs of */
  /* our header fields; they are filled out when we call */
  /* proto_register_field_array() in proto_register_fiveco() */
-static gint hf_fiveco_source_addr = -1;
-static gint hf_fiveco_dest_addr = -1;
-static gint hf_fiveco_data = -1;
-static gint hf_fiveco_regread = -1;
-static gint hf_fiveco_regread_answer = -1;
-static gint hf_fiveco_regwrite = -1;
-static gint hf_fiveco_regcall = -1;
-static gint hf_fiveco_routing = -1;
-static gint hf_fiveco_routing_answer = -1;
-static gint hf_fiveco_routing_interface = -1;
-static gint hf_fiveco_routing_timeout = -1;
-static gint hf_fiveco_routing_size = -1;
-static gint hf_fiveco_ext_regerror = -1;
-static gint hf_fiveco_ext_frameid = -1;
-static gint hf_fiveco_ext_eof = -1;
-static gint hf_fiveco_ext_frameerror = -1;
-static gint hf_fiveco_ext_easyip = -1;
-static gint hf_fiveco_ext_easyip_version = -1;
-static gint hf_fiveco_ext_easyip_interface = -1;
-static gint hf_fiveco_ext_easyip_mac = -1;
-static gint hf_fiveco_ext_easyip_ip = -1;
-static gint hf_fiveco_ext_easyip_mask = -1;
-static gint hf_fiveco_ext_unsupported = -1;
-static gint hf_fiveco_cks = -1;
+static int hf_fiveco_source_addr;
+static int hf_fiveco_dest_addr;
+static int hf_fiveco_data;
+static int hf_fiveco_regread;
+static int hf_fiveco_regread_answer;
+static int hf_fiveco_regwrite;
+static int hf_fiveco_regcall;
+static int hf_fiveco_routing;
+static int hf_fiveco_routing_answer;
+static int hf_fiveco_routing_interface;
+static int hf_fiveco_routing_timeout;
+static int hf_fiveco_routing_size;
+static int hf_fiveco_ext_regerror;
+static int hf_fiveco_ext_frameid;
+static int hf_fiveco_ext_eof;
+static int hf_fiveco_ext_frameerror;
+static int hf_fiveco_ext_easyip;
+static int hf_fiveco_ext_easyip_version;
+static int hf_fiveco_ext_easyip_interface;
+static int hf_fiveco_ext_easyip_mac;
+static int hf_fiveco_ext_easyip_ip;
+static int hf_fiveco_ext_easyip_mask;
+static int hf_fiveco_ext_unsupported;
+static int hf_fiveco_cks;
 
 /* These are the ids of the subtrees that we may be creating */
 /* for the header fields. */
-static gint ett_fiveco[MAX_SUB_DEVICES];
-static gint ett_fiveco_data[MAX_SUB_DEVICES];
-static gint ett_fiveco_easyip[MAX_SUB_DEVICES];
-static gint ett_fiveco_sub[MAX_SUB_DEVICES];
-static gint ett_fiveco_sub_details[MAX_SUB_DEVICES];
+static int ett_fiveco[MAX_SUB_DEVICES];
+static int ett_fiveco_data[MAX_SUB_DEVICES];
+static int ett_fiveco_easyip[MAX_SUB_DEVICES];
+static int ett_fiveco_sub[MAX_SUB_DEVICES];
+static int ett_fiveco_sub_details[MAX_SUB_DEVICES];
 
 /* Conversation request key structure */
 typedef struct
 {
-    guint32 conversation;
+    uint32_t conversation;
 } FCOSConvKey;
 
 /* Conversation device type structure */
 typedef struct
 {
-    guint32 device_type[MAX_SUB_DEVICES];
-    guint32 device_version[MAX_SUB_DEVICES];
+    uint32_t device_type[MAX_SUB_DEVICES];
+    uint32_t device_version[MAX_SUB_DEVICES];
 } FCOSConvDevices;
 
 /* Conversation hash table (conversation-id -> FCOSConvDevices*) */
 /* TODO: could just have FCOSConvDevices* as conversation data type? */
-static GHashTable *fiveco_types_models_hash = NULL;
+static GHashTable *fiveco_types_models_hash;
 
 enum FCOERegistersType {
     REGISTER,
@@ -148,15 +149,15 @@ enum FCOERegistersType {
 /* Register definition structure (used to detect known registers when it is possible) */
 typedef struct
 {
-    const guint32 reg_size;                                 // Register size (in bytes)
-    const guint32 reg_type;                                 // Register type (register, function)
+    const uint32_t reg_size;                                 // Register size (in bytes)
+    const uint32_t reg_type;                                 // Register type (register, function)
     const char *name;                                       // Register name
-    const char *abbrev;                                     // Abreviation base for header fill
+    const char *abbrev;                                     // Abbreviation base for header fill
     const enum ftenum ft;                                   // Field type
-    const gint32 base;                                      // Base display type
-    const guint encoding;                                   // Filed encoding
-    gint hf_id_w;                                           // Wireshark ID for header fill in write mode
-    gint hf_id_r_a;                                         // Wireshark ID for header fill in read answer mode
+    const int32_t base;                                      // Base display type
+    const unsigned encoding;                                   // Field encoding
+    int hf_id_w;                                           // Wireshark ID for header fill in write mode
+    int hf_id_r_a;                                         // Wireshark ID for header fill in read answer mode
     const void *cf_func;                                    // Conversion function
 } FCOSRegisterDef;
 
@@ -230,15 +231,15 @@ static hf_register_info hf_base[] = {
 /* so on until a byte with higher bit is not set.                            */
 /*****************************************************************************/
 static int
-get_data_size(tvbuff_t *tvb, guint32 first_index, guint32 *p_header_len) {
+get_data_size(tvbuff_t *tvb, uint32_t first_index, uint32_t *p_header_len) {
 
-    guint8 size8;
-    guint32 data_size = 0;
-    guint32 max_len = MAX_LENGTH_BYTES + *p_header_len;
-    guint32 size_len = 0; // Length of size area minus 1
+    uint8_t size8;
+    uint32_t data_size = 0;
+    uint32_t max_len = MAX_LENGTH_BYTES + *p_header_len;
+    uint32_t size_len = 0; // Length of size area minus 1
 
     for (; *p_header_len < max_len; (*p_header_len)++) {
-        size8 = tvb_get_guint8(tvb, first_index + *p_header_len);
+        size8 = tvb_get_uint8(tvb, first_index + *p_header_len);
         if (size8 & 0x80) {
             data_size |= (size8 & 0x7F) << (7 * size_len);
             size_len++;
@@ -256,15 +257,16 @@ get_data_size(tvbuff_t *tvb, guint32 first_index, guint32 *p_header_len) {
 /* Recursive function !!                                                     */
 /*****************************************************************************/
 static int
+// NOLINTNEXTLINE(misc-no-recursion)
 dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, FCOSConvDevices *types_models_p,
-                guint32 frame_index, guint32 frame_size, guint32 *sub_index_p)
+                uint32_t frame_index, uint32_t frame_size, uint32_t *sub_index_p)
 {
-    guint8 checksum_cal, checksum_rx;
-    guint32 i, j;
-    guint8 dest_addr;
-    guint8 source_addr;
-    guint32 data_size;
-    guint32 header_len;
+    uint8_t checksum_cal, checksum_rx;
+    uint32_t i, j;
+    uint8_t dest_addr;
+    uint8_t source_addr;
+    uint32_t data_size;
+    uint32_t header_len;
     proto_item *fiveco_item = NULL;
     proto_item *fiveco_header_item = NULL;
     proto_item* fiveco_data_item = NULL;
@@ -274,20 +276,20 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
     proto_tree* fiveco_easyip_tree = NULL;
     proto_tree* fiveco_routing_details_tree = NULL;
     proto_tree* fiveco_routing_tree = NULL;
-    guint8 data_type;
-    guint8 reg_size;
-    guint8 reg_addr;
-    gchar* sz_mac;
-    gchar* sz_new_ip;
-    guint8 routing_interface;
-    guint8 routing_timeout;
-    guint32 routing_size;
-    guint32 routing_size_pos;
-    guint32 routing_header_len;
+    uint8_t data_type;
+    uint8_t reg_size;
+    uint8_t reg_addr;
+    char* sz_mac;
+    char* sz_new_ip;
+    uint8_t routing_interface;
+    uint8_t routing_timeout;
+    uint32_t routing_size;
+    uint32_t routing_size_pos;
+    uint32_t routing_header_len;
 
     /* Retrieve header info */
-    dest_addr = tvb_get_guint8(tvb, frame_index + 0);
-    source_addr = tvb_get_guint8(tvb, frame_index + 1);
+    dest_addr = tvb_get_uint8(tvb, frame_index + 0);
+    source_addr = tvb_get_uint8(tvb, frame_index + 1);
     header_len = 2;
     data_size = get_data_size(tvb, frame_index, &header_len);
         /* If data size is null or greater than captured data, abort */
@@ -299,7 +301,7 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
 
     /* Compute checksum of the packet and read one received */
     checksum_cal = checksum_fiveco(tvb, frame_index, header_len + data_size - 1);
-    checksum_rx = tvb_get_guint8(tvb, frame_index + header_len + data_size - 1);
+    checksum_rx = tvb_get_uint8(tvb, frame_index + header_len + data_size - 1);
 
     /* Add text to info column */
     /* If the offset != 0 (not first fiveco frame in tcp packet) add a comma in info column */
@@ -367,7 +369,7 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
     for (i = frame_index; i < frame_index + data_size;)
     {
         /* Get type of next data */
-        data_type = tvb_get_guint8(tvb, i);
+        data_type = tvb_get_uint8(tvb, i);
 
         /* Handle data type (mask since only 3 high bits are relevant) */
         switch (data_type & 0xE0)
@@ -377,7 +379,7 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
                 /* 5 lower bits give the register length between 0 and 31 */
                 reg_size = data_type & 0x1F;
                 /* Next byte give the register address */
-                reg_addr = tvb_get_guint8(tvb, i + 1);
+                reg_addr = tvb_get_uint8(tvb, i + 1);
                 /* Add read register entry in the tree including its name (if known) and size */
                 fiveco_data_item = proto_tree_add_item(fiveco_data_tree, hf_fiveco_regread, tvb,
                                         i, 2, ENC_NA);
@@ -399,16 +401,16 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
                 /* 5 lower bits give the register length between 0 and 31 */
                 reg_size = data_type & 0x1F;
                 /* Next byte give the register address */
-                reg_addr = tvb_get_guint8(tvb, i + 1);
+                reg_addr = tvb_get_uint8(tvb, i + 1);
 
                 /*  If type register is found, remember it into types_models_p list */
                 if (reg_addr == 0x00)
                 {
-                    types_models_p->device_type[*sub_index_p] = tvb_get_guint32(tvb, i + 2, ENC_LITTLE_ENDIAN);
+                    types_models_p->device_type[*sub_index_p] = tvb_get_uint32(tvb, i + 2, ENC_LITTLE_ENDIAN);
                 }
                 else if (reg_addr == 0x01)
                 {
-                    types_models_p->device_version[*sub_index_p] = tvb_get_guint32(tvb, i + 2, ENC_LITTLE_ENDIAN);
+                    types_models_p->device_version[*sub_index_p] = tvb_get_uint32(tvb, i + 2, ENC_LITTLE_ENDIAN);
                 }
 
                 /* If register is in the registers_def array */
@@ -424,7 +426,7 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
                         for (j = 0; j < reg_size; j++)
                         {
                             proto_item_append_text(fiveco_data_item, "%.2X ",
-                                                tvb_get_guint8(tvb, i + 2 + j));
+                                                tvb_get_uint8(tvb, i + 2 + j));
                         }
                     }
                     /* else display based on predefined type */
@@ -443,7 +445,7 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
                     for (j = 0; j < reg_size; j++)
                     {
                         proto_item_append_text(fiveco_data_item, "%.2X ",
-                                            tvb_get_guint8(tvb, i + 2 + j));
+                                            tvb_get_uint8(tvb, i + 2 + j));
                     }
                 }
                 i += (2 + reg_size);
@@ -453,7 +455,7 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
                 /* 5 lower bits give the register length between 0 and 31 */
                 reg_size = data_type & 0x1F;
                 /* Next byte give the register address */
-                reg_addr = tvb_get_guint8(tvb, i + 1);
+                reg_addr = tvb_get_uint8(tvb, i + 1);
 
                 /* If register is in the registers_def array */
                 if ((reg_addr < array_length(registers_def)) && (registers_def[reg_addr].reg_size == reg_size))
@@ -470,7 +472,7 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
                             for (j = 0; j < reg_size; j++)
                             {
                                 proto_item_append_text(fiveco_data_item, "0x%.2X ",
-                                                    tvb_get_guint8(tvb, i + 2 + j));
+                                                    tvb_get_uint8(tvb, i + 2 + j));
                             }
                         }
                     }
@@ -492,7 +494,7 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
                         for (j = 0; j < reg_size; j++)
                         {
                             proto_item_append_text(fiveco_data_item, "%.2X ",
-                                                tvb_get_guint8(tvb, i + 2 + j));
+                                                tvb_get_uint8(tvb, i + 2 + j));
                         }
                     }
                     /* else it is a function call */
@@ -511,7 +513,7 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
                 switch (data_type)
                 {
                     case EXT_REGISTER_ACCESS_ERR:
-                        reg_addr = tvb_get_guint8(tvb, i + 1);
+                        reg_addr = tvb_get_uint8(tvb, i + 1);
                         fiveco_data_item = proto_tree_add_item(fiveco_data_tree, hf_fiveco_ext_regerror, tvb,
                                                 i, 2, ENC_NA);
                         proto_item_append_text(fiveco_data_item, ": Index 0x%.2X", reg_addr);
@@ -523,7 +525,7 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
                         fiveco_data_item = proto_tree_add_item(fiveco_data_tree, hf_fiveco_ext_frameid, tvb,
                                             i, 2, ENC_NA);
                         proto_item_append_text(fiveco_data_item, ": %d",
-                                                    tvb_get_guint8(tvb, i + 1));
+                                                    tvb_get_uint8(tvb, i + 1));
                         i += 2;
                         break;
 
@@ -550,8 +552,8 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
                         fiveco_data_item = proto_tree_add_item(fiveco_data_tree, hf_fiveco_ext_easyip, tvb,
                                                 i, 17, ENC_NA);
 
-                        sz_mac = tvb_ether_to_str(wmem_packet_scope(), tvb, i+3);
-                        sz_new_ip = tvb_ip_to_str(wmem_packet_scope(), tvb, i+9);
+                        sz_mac = tvb_ether_to_str(pinfo->pool, tvb, i+3);
+                        sz_new_ip = tvb_ip_to_str(pinfo->pool, tvb, i+9);
                         proto_item_append_text(fiveco_data_item, ": New IP: %s for %s", sz_new_ip, sz_mac);
                         fiveco_easyip_tree = proto_item_add_subtree(fiveco_data_item, ett_fiveco_easyip[*sub_index_p]);
                         proto_tree_add_item(fiveco_easyip_tree, hf_fiveco_ext_easyip_version, tvb,
@@ -587,7 +589,7 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
                             routing_size_pos = 2;
                             routing_header_len = 2;
                             routing_size = get_data_size(tvb, i, &routing_header_len);
-                            routing_timeout = tvb_get_guint8(tvb, i + 1);
+                            routing_timeout = tvb_get_uint8(tvb, i + 1);
                             fiveco_routing_item = proto_tree_add_item(fiveco_data_tree, hf_fiveco_routing, tvb,
                                                     i, routing_header_len + routing_size, ENC_NA);
                             proto_item_append_text(fiveco_routing_item, " (Interface: %d, Timeout: %d, Frame size: %d)",
@@ -644,15 +646,15 @@ dissect_frame(tvbuff_t *tvb, packet_info* pinfo, proto_tree* fiveco_frame_tree, 
 static int
 dissect_FiveCoRAP(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    guint32 i;
-    guint32 tcp_data_offset = 0;
-    guint32 tcp_data_length = 0;
-    guint32 sub_devices_count = 0;
+    uint32_t i;
+    uint32_t tcp_data_offset = 0;
+    uint32_t tcp_data_length = 0;
+    uint32_t sub_devices_count = 0;
     conversation_t *conversation;
     FCOSConvKey conversation_key, *new_conversation_key_p;
     FCOSConvDevices *types_models_p;
 #ifdef DEBUG_5CORAP
-    guint32 types_models_count = 0;
+    uint32_t types_models_count = 0;
 #endif
 
     /* Load protocol payload length (including checksum) */
@@ -721,23 +723,23 @@ dissect_FiveCoRAP(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
 /*****************************************************************************/
 /* This function returns the calculated checksum (IP based)                  */
 /*****************************************************************************/
-static guint8 checksum_fiveco(tvbuff_t *byte_tab, guint16 start_offset, guint16 size)
+static uint8_t checksum_fiveco(tvbuff_t *byte_tab, uint16_t start_offset, uint16_t size)
 {
-	guint32 sum			= 0;
-    guint32 i;
+	uint32_t sum			= 0;
+    uint32_t i;
 
 	for (i = 0; i < size; i++)
     {
-        sum += tvb_get_guint8(byte_tab, start_offset + i);
+        sum += tvb_get_uint8(byte_tab, start_offset + i);
     }
 
-    return (guint8)(sum & 0xFF);
+    return (uint8_t)(sum & 0xFF);
 }
 
 /*****************************************************************************/
 /* Compute an unique hash value                                              */
 /*****************************************************************************/
-static guint fiveco_hash(gconstpointer v)
+static unsigned fiveco_hash(const void *v)
 {
     const FCOSConvKey *key = (const FCOSConvKey *)v;
     return key->conversation;
@@ -746,7 +748,7 @@ static guint fiveco_hash(gconstpointer v)
 /*****************************************************************************/
 /* Check hash equal                                                          */
 /*****************************************************************************/
-static gint fiveco_hash_equal(gconstpointer v, gconstpointer w)
+static int fiveco_hash_equal(const void *v, const void *w)
 {
     const FCOSConvKey *v1 = (const FCOSConvKey *)v;
     const FCOSConvKey *v2 = (const FCOSConvKey *)w;
@@ -773,7 +775,7 @@ static void fiveco_protocol_init(void)
 /*****************************************************************************/
 void proto_register_FiveCoRAP(void)
 {
-    guint32 i;
+    uint32_t i;
 
     /* Following variables are used to allocate string buffer to store
        name and abbreviations strings for the hf table  */
@@ -783,7 +785,7 @@ void proto_register_FiveCoRAP(void)
     wmem_strbuf_t* hf_abbrev_write_buf = NULL;
 
     /* Setup list of header fields (based on static table and specific table) */
-    static hf_register_info hf[array_length(hf_base) + 2*array_length(registers_def)];
+    static hf_register_info hf[(array_length(hf_base)) + (2*array_length(registers_def))];
     for (i = 0; i < array_length(hf_base); i++) {
         hf[i] = hf_base[i];
     }
@@ -825,18 +827,13 @@ void proto_register_FiveCoRAP(void)
     }
 
     /* Setup protocol subtree array for each possible nested devices */
-    static gint *ett[5 * MAX_SUB_DEVICES];
+    static int *ett[5 * MAX_SUB_DEVICES];
     for (i = 0; i < MAX_SUB_DEVICES; i++)
     {
-        ett_fiveco[i] = -1;
         ett[5*i + 0] = &ett_fiveco[i];
-        ett_fiveco_data[i] = -1;
         ett[5*i + 1] = &ett_fiveco_data[i];
-        ett_fiveco_easyip[i] = -1;
         ett[5*i + 2] = &ett_fiveco_easyip[i];
-        ett_fiveco_sub[i] = -1;
         ett[5*i + 3] = &ett_fiveco_sub[i];
-        ett_fiveco_sub_details[i] = -1;
         ett[5*i + 4] = &ett_fiveco_sub_details[i];
     }
 
@@ -866,7 +863,7 @@ void proto_register_FiveCoRAP(void)
  * no prefs-dependent registration function calls. */
 void proto_reg_handoff_FiveCoRAP(void)
 {
-    static gboolean initialized = FALSE;
+    static bool initialized = false;
     static dissector_handle_t FiveCoRAP_handle;
 
     if (!initialized)
@@ -879,7 +876,7 @@ void proto_reg_handoff_FiveCoRAP(void)
                                                    proto_FiveCoRAP);
         dissector_add_uint("tcp.port", FIVECO_TCP_PORT1, FiveCoRAP_handle);
         dissector_add_uint("udp.port", FIVECO_UDP_PORT1, FiveCoRAP_handle);
-        initialized = TRUE;
+        initialized = true;
     }
 }
 
@@ -887,62 +884,62 @@ void proto_reg_handoff_FiveCoRAP(void)
 /* Registers decoding function                                               */
 /*****************************************************************************/
 static void
-disp_type( gchar *result, guint32 type)
+disp_type( char *result, uint32_t type)
 {
-    guint nValueH = (type>>16) & 0xFFFF;
-    guint nValueL = (type & 0xFFFF);
+    unsigned nValueH = (type>>16) & 0xFFFF;
+    unsigned nValueL = (type & 0xFFFF);
     snprintf( result, ITEM_LABEL_LENGTH, "%u.%u (%.4X.%.4X)", nValueH, nValueL, nValueH, nValueL);
 }
 
 static void
-disp_version( gchar *result, guint32 version)
+disp_version( char *result, uint32_t version)
 {
     if ((version & 0xFF000000) == 0)
     {
-        guint nValueH = (version>>16) & 0xFFFF;
-        guint nValueL = (version & 0xFFFF);
+        unsigned nValueH = (version>>16) & 0xFFFF;
+        unsigned nValueL = (version & 0xFFFF);
         snprintf( result, ITEM_LABEL_LENGTH, "FW: %u.%u", nValueH, nValueL);
     }
     else
     {
-        guint nHWHigh = (version>>24) & 0xFF;
-        guint nHWLow = (version>>16) & 0xFF;
-        guint nFWHigh = (version>>8) & 0xFF;
-        guint nFWLow = version & 0xFF;
+        unsigned nHWHigh = (version>>24) & 0xFF;
+        unsigned nHWLow = (version>>16) & 0xFF;
+        unsigned nFWHigh = (version>>8) & 0xFF;
+        unsigned nFWLow = version & 0xFF;
         snprintf( result, ITEM_LABEL_LENGTH, "HW: %u.%u / FW: %u.%u", nHWHigh, nHWLow, nFWHigh, nFWLow);
     }
 }
 
-static void disp_voltage(gchar *result, guint32 voltage)
+static void disp_voltage(char *result, uint32_t voltage)
 {
-    guint nValueH = (voltage>>16) & 0xFFFF;
-    guint nValueL = (voltage & 0xFFFF);
+    unsigned nValueH = (voltage>>16) & 0xFFFF;
+    unsigned nValueL = (voltage & 0xFFFF);
     snprintf( result, ITEM_LABEL_LENGTH, "%u.%u V", nValueH, nValueL);
 }
 
-static void disp_mac( gchar *result, guint64 mac)
+static void disp_mac( char *result, uint64_t mac)
 {
-    guint8 *pData = (guint8*)(&mac);
+    uint8_t *pData = (uint8_t*)(&mac);
 
     snprintf( result, ITEM_LABEL_LENGTH, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", pData[5], pData[4], pData[3], pData[2],
                            pData[1], pData[0]);
 }
 
-static void disp_ip( gchar *result, guint32 ip)
+static void disp_ip( char *result, uint32_t ip)
 {
-    guint8 *pData = (guint8*)(&ip);
+    uint8_t *pData = (uint8_t*)(&ip);
 
     snprintf( result, ITEM_LABEL_LENGTH, "%u.%u.%u.%u", pData[3], pData[2], pData[1], pData[0]);
 }
 
-static void disp_mask( gchar *result, guint32 mask)
+static void disp_mask( char *result, uint32_t mask)
 {
-    guint8 *pData = (guint8*)(&mask);
+    uint8_t *pData = (uint8_t*)(&mask);
 
     snprintf( result, ITEM_LABEL_LENGTH, "%u.%u.%u.%u", pData[3], pData[2], pData[1], pData[0]);
 }
 
-static void disp_timeout( gchar *result, guint32 timeout)
+static void disp_timeout( char *result, uint32_t timeout)
 {
     if (timeout != 0)
         snprintf( result, ITEM_LABEL_LENGTH, "%u%s",

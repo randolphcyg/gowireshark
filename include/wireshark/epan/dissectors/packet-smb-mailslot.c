@@ -21,14 +21,14 @@
 void proto_register_smb_mailslot(void);
 void proto_reg_handoff_smb_mailslot(void);
 
-static int proto_smb_msp = -1;
-static int hf_opcode = -1;
-static int hf_priority = -1;
-static int hf_class = -1;
-static int hf_size = -1;
-static int hf_name = -1;
+static int proto_smb_msp;
+static int hf_opcode;
+static int hf_priority;
+static int hf_class;
+static int hf_size;
+static int hf_name;
 
-static int ett_smb_msp = -1;
+static int ett_smb_msp;
 
 static dissector_handle_t mailslot_browse_handle;
 static dissector_handle_t mailslot_lanman_handle;
@@ -61,7 +61,7 @@ static const value_string class_vals[] = {
      si->trans_subcmd gives us which mailslot this response refers to.
 */
 
-gboolean
+bool
 dissect_mailslot_smb(tvbuff_t *mshdr_tvb, tvbuff_t *setup_tvb,
 		     tvbuff_t *tvb, const char *mailslot, packet_info *pinfo,
 		     proto_tree *parent_tree, smb_info_t* smb_info)
@@ -70,12 +70,12 @@ dissect_mailslot_smb(tvbuff_t *mshdr_tvb, tvbuff_t *setup_tvb,
 	int             trans_subcmd;
 	proto_tree      *tree = NULL;
 	proto_item      *item = NULL;
-	guint16         opcode;
+	uint16_t        opcode;
 	int             offset = 0;
 	int             len;
 
 	if (!proto_is_protocol_enabled(find_protocol_by_id(proto_smb_msp))) {
-		return FALSE;
+		return false;
 	}
 	pinfo->current_proto = "SMB Mailslot";
 
@@ -84,7 +84,7 @@ dissect_mailslot_smb(tvbuff_t *mshdr_tvb, tvbuff_t *setup_tvb,
 	if ((tvb==NULL) || (tvb_reported_length(tvb)==0)) {
 		/* Interim reply */
 		col_set_str(pinfo->cinfo, COL_INFO, "Interim reply");
-		return TRUE;
+		return true;
 	}
 
 	col_clear(pinfo->cinfo, COL_INFO);
@@ -114,7 +114,7 @@ dissect_mailslot_smb(tvbuff_t *mshdr_tvb, tvbuff_t *setup_tvb,
 		}
 	} else {
 		if(!tri){
-			return FALSE;
+			return false;
 		} else {
 			trans_subcmd = tri->trans_subcmd;
 		}
@@ -196,7 +196,7 @@ dissect_mailslot_smb(tvbuff_t *mshdr_tvb, tvbuff_t *setup_tvb,
 		call_data_dissector(tvb, pinfo, parent_tree);
 		break;
 	}
-	return TRUE;
+	return true;
 }
 
 void
@@ -225,7 +225,7 @@ proto_register_smb_mailslot(void)
 
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_smb_msp
 	};
 

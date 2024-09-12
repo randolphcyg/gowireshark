@@ -18,6 +18,7 @@
 #include <wiretap/wtap.h>
 #include <epan/expert.h>
 #include <epan/ptvcursor.h>
+#include <epan/tfs.h>
 #include <wsutil/ws_roundup.h>
 #include <epan/conversation.h>
 #include "packet-tcp.h"
@@ -51,9 +52,9 @@
 void proto_register_dbus(void);
 void proto_reg_handoff_dbus(void);
 
-static int proto_dbus = -1;
-static gboolean dbus_desegment = TRUE;
-static gboolean dbus_resolve_names = TRUE;
+static int proto_dbus;
+static bool dbus_desegment = true;
+static bool dbus_resolve_names = true;
 
 static dissector_handle_t dbus_handle;
 static dissector_handle_t dbus_handle_tcp;
@@ -112,134 +113,134 @@ static const true_false_string allow_vals = { "Allow", "Don't allow" };
 static const true_false_string no_start_vals = { "Don't start", "Start" };
 static const true_false_string not_expected_vals = { "Not expected", "Expected" };
 
-static int hf_dbus_endianness = -1;
-static int hf_dbus_message_type = -1;
-static int hf_dbus_flags = -1;
-static int hf_dbus_flags_no_reply_expected = -1;
-static int hf_dbus_flags_no_auto_start = -1;
-static int hf_dbus_flags_allow_interactive_authorization = -1;
-static int hf_dbus_version = -1;
-static int hf_dbus_body_length = -1;
-static int hf_dbus_serial = -1;
-static int hf_dbus_field_code = -1;
-static int hf_dbus_padding = -1;
-static int hf_dbus_path = -1;
-static int hf_dbus_interface = -1;
-static int hf_dbus_member = -1;
-static int hf_dbus_error_name = -1;
-static int hf_dbus_reply_serial = -1;
-static int hf_dbus_destination = -1;
-static int hf_dbus_sender = -1;
-static int hf_dbus_signature = -1;
-static int hf_dbus_unix_fds = -1;
-static int hf_dbus_body = -1;
-static int hf_dbus_type_byte = -1;
-static int hf_dbus_type_boolean = -1;
-static int hf_dbus_type_int16 = -1;
-static int hf_dbus_type_uint16 = -1;
-static int hf_dbus_type_int32 = -1;
-static int hf_dbus_type_uint32 = -1;
-static int hf_dbus_type_int64 = -1;
-static int hf_dbus_type_uint64 = -1;
-static int hf_dbus_type_double = -1;
-static int hf_dbus_type_string = -1;
-static int hf_dbus_type_object_path = -1;
-static int hf_dbus_type_signature = -1;
-static int hf_dbus_type_array = -1;
-static int hf_dbus_type_array_length = -1;
-static int hf_dbus_type_struct = -1;
-static int hf_dbus_type_variant = -1;
-static int hf_dbus_type_variant_signature = -1;
-static int hf_dbus_type_dict_entry = -1;
-static int hf_dbus_type_dict_entry_key = -1;
-static int hf_dbus_type_unix_fd = -1;
-static int hf_dbus_response_in = -1;
-static int hf_dbus_response_to = -1;
-static int hf_dbus_response_time = -1;
+static int hf_dbus_endianness;
+static int hf_dbus_message_type;
+static int hf_dbus_flags;
+static int hf_dbus_flags_no_reply_expected;
+static int hf_dbus_flags_no_auto_start;
+static int hf_dbus_flags_allow_interactive_authorization;
+static int hf_dbus_version;
+static int hf_dbus_body_length;
+static int hf_dbus_serial;
+static int hf_dbus_field_code;
+static int hf_dbus_padding;
+static int hf_dbus_path;
+static int hf_dbus_interface;
+static int hf_dbus_member;
+static int hf_dbus_error_name;
+static int hf_dbus_reply_serial;
+static int hf_dbus_destination;
+static int hf_dbus_sender;
+static int hf_dbus_signature;
+static int hf_dbus_unix_fds;
+static int hf_dbus_body;
+static int hf_dbus_type_byte;
+static int hf_dbus_type_boolean;
+static int hf_dbus_type_int16;
+static int hf_dbus_type_uint16;
+static int hf_dbus_type_int32;
+static int hf_dbus_type_uint32;
+static int hf_dbus_type_int64;
+static int hf_dbus_type_uint64;
+static int hf_dbus_type_double;
+static int hf_dbus_type_string;
+static int hf_dbus_type_object_path;
+static int hf_dbus_type_signature;
+static int hf_dbus_type_array;
+static int hf_dbus_type_array_length;
+static int hf_dbus_type_struct;
+static int hf_dbus_type_variant;
+static int hf_dbus_type_variant_signature;
+static int hf_dbus_type_dict_entry;
+static int hf_dbus_type_dict_entry_key;
+static int hf_dbus_type_unix_fd;
+static int hf_dbus_response_in;
+static int hf_dbus_response_to;
+static int hf_dbus_response_time;
 
-static int ett_dbus = -1;
-static int ett_dbus_flags = -1;
-static int ett_dbus_header_field_array = -1;
-static int ett_dbus_header_field = -1;
-static int ett_dbus_body = -1;
-static int ett_dbus_type_array = -1;
-static int ett_dbus_type_struct = -1;
-static int ett_dbus_type_variant = -1;
-static int ett_dbus_type_dict_entry = -1;
+static int ett_dbus;
+static int ett_dbus_flags;
+static int ett_dbus_header_field_array;
+static int ett_dbus_header_field;
+static int ett_dbus_body;
+static int ett_dbus_type_array;
+static int ett_dbus_type_struct;
+static int ett_dbus_type_variant;
+static int ett_dbus_type_dict_entry;
 
-static expert_field ei_dbus_endianness_invalid = EI_INIT;
-static expert_field ei_dbus_message_type_invalid = EI_INIT;
-static expert_field ei_dbus_message_type_unknown = EI_INIT;
-static expert_field ei_dbus_version_invalid = EI_INIT;
-static expert_field ei_dbus_serial_invalid = EI_INIT;
-static expert_field ei_dbus_field_code_invalid = EI_INIT;
-static expert_field ei_dbus_required_header_field_missing = EI_INIT;
-static expert_field ei_dbus_padding_invalid = EI_INIT;
-static expert_field ei_dbus_field_signature_wrong = EI_INIT;
-static expert_field ei_dbus_interface_invalid = EI_INIT;
-static expert_field ei_dbus_member_invalid = EI_INIT;
-static expert_field ei_dbus_error_name_invalid = EI_INIT;
-static expert_field ei_dbus_bus_name_invalid = EI_INIT;
-static expert_field ei_dbus_type_boolean_invalid = EI_INIT;
-static expert_field ei_dbus_string_invalid = EI_INIT;
-static expert_field ei_dbus_type_signature_invalid = EI_INIT;
-static expert_field ei_dbus_type_array_too_long = EI_INIT;
-static expert_field ei_dbus_type_array_content_out_of_bounds = EI_INIT;
-static expert_field ei_dbus_type_object_path_invalid = EI_INIT;
-static expert_field ei_dbus_type_variant_signature_invalid = EI_INIT;
-static expert_field ei_dbus_nested_too_deeply = EI_INIT;
+static expert_field ei_dbus_endianness_invalid;
+static expert_field ei_dbus_message_type_invalid;
+static expert_field ei_dbus_message_type_unknown;
+static expert_field ei_dbus_version_invalid;
+static expert_field ei_dbus_serial_invalid;
+static expert_field ei_dbus_field_code_invalid;
+static expert_field ei_dbus_required_header_field_missing;
+static expert_field ei_dbus_padding_invalid;
+static expert_field ei_dbus_field_signature_wrong;
+static expert_field ei_dbus_interface_invalid;
+static expert_field ei_dbus_member_invalid;
+static expert_field ei_dbus_error_name_invalid;
+static expert_field ei_dbus_bus_name_invalid;
+static expert_field ei_dbus_type_boolean_invalid;
+static expert_field ei_dbus_string_invalid;
+static expert_field ei_dbus_type_signature_invalid;
+static expert_field ei_dbus_type_array_too_long;
+static expert_field ei_dbus_type_array_content_out_of_bounds;
+static expert_field ei_dbus_type_object_path_invalid;
+static expert_field ei_dbus_type_variant_signature_invalid;
+static expert_field ei_dbus_nested_too_deeply;
 
 typedef struct {
 	ptvcursor_t *cursor;
 	packet_info *pinfo;
-	guint enc;
-	guint32 message_type;
-	guint8 flags;
-	guint32 body_len;
-	guint32 serial;
+	unsigned enc;
+	uint32_t message_type;
+	uint8_t flags;
+	uint32_t body_len;
+	uint32_t serial;
 
 	proto_item *current_pi;
 	const char *path;
 	const char *interface;
 	const char *member;
 	const char *error_name;
-	guint32 reply_serial;
+	uint32_t reply_serial;
 	const char *destination;
 	const char *sender;
 	const char *signature;
-	guint32 unix_fds;
+	uint32_t unix_fds;
 } dbus_packet_t;
 
 typedef struct _dbus_type_reader_t {
 	dbus_packet_t *packet;
 	const char *signature;
-	guint32 level;
-	guint32 array_level;
-	guint32 struct_level;
-	guint32 dict_entry_level;
+	uint32_t level;
+	uint32_t array_level;
+	uint32_t struct_level;
+	uint32_t dict_entry_level;
 	const char *array_type_start;
 	int array_end_offset;
-	gboolean is_in_variant;
-	gboolean is_basic_variant;
-	gboolean is_in_dict_entry;
-	gboolean is_basic_dict_entry;
+	bool is_in_variant;
+	bool is_basic_variant;
+	bool is_in_dict_entry;
+	bool is_basic_dict_entry;
 	proto_item *container;
 	struct _dbus_type_reader_t *parent;
 } dbus_type_reader_t;
 
 typedef union {
-	gboolean bool_;
-	guint32 uint;
-	gint32 int_;
-	guint64 uint64;
-	gint64 int64;
+	bool bool_;
+	uint32_t uint;
+	int32_t int_;
+	uint64_t uint64;
+	int64_t int64;
 	double double_;
 	const char *string;
 } dbus_val_t;
 
 typedef struct {
-	guint32 req_frame;
-	guint32 rep_frame;
+	uint32_t req_frame;
+	uint32_t rep_frame;
 	nstime_t req_time;
 	const char *path;
 	const char *interface;
@@ -253,17 +254,17 @@ typedef struct {
 static wmem_map_t *request_info_map;
 static wmem_map_t *unique_name_map;
 
-static gboolean
+static bool
 is_ascii_digit(char c) {
-	return (guint)c - '0' < 10;
+	return (unsigned)c - '0' < 10;
 }
 
-static gboolean
+static bool
 is_ascii_alpha(char c) {
-	return ((guint)c | 0x20) - 'a' <= 'z' - 'a';
+	return ((unsigned)c | 0x20) - 'a' <= 'z' - 'a';
 }
 
-static gboolean
+static bool
 is_dbus_object_path_valid(const char *path) {
 	// - The path may be of any length.
 	// - The path must begin with an ASCII '/' (integer 47) character, and must consist of elements separated by
@@ -273,14 +274,14 @@ is_dbus_object_path_valid(const char *path) {
 	// - Multiple '/' characters cannot occur in sequence.
 	// - A trailing '/' character is not allowed unless the path is the root path (a single '/' character).
 	if (*path == '/' && *(path + 1) == '\0') {
-		return TRUE;
+		return true;
 	}
 
 	while (*path == '/') {
 		path++;
 
 		if (*path == '/') {
-			return FALSE;
+			return false;
 		}
 
 		while (is_ascii_alpha(*path) || is_ascii_digit(*path) || *path == '_') {
@@ -292,20 +293,20 @@ is_dbus_object_path_valid(const char *path) {
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
-static gboolean
+static bool
 is_dbus_interface_valid(const char *interface) {
 	// - Interface names are composed of 2 or more elements separated by a period ('.') character. All elements
 	//   must contain at least one character.
 	// - Each element must only contain the ASCII characters "[A-Z][a-z][0-9]_" and must not begin with a digit.
 	// - Interface names must not exceed the maximum name length.
-	gint elements = 0;
+	int elements = 0;
 	const char *p = interface;
 	do {
 		if (!(is_ascii_alpha(*p) || *p == '_')) {
-			return FALSE;
+			return false;
 		}
 		p++;
 		elements++;
@@ -320,10 +321,10 @@ is_dbus_interface_valid(const char *interface) {
 		}
 	} while (*p++ == '.');
 
-	return FALSE;
+	return false;
 }
 
-static gboolean
+static bool
 is_dbus_member_name_valid(const char *member_name) {
 	// - Must only contain the ASCII characters "[A-Z][a-z][0-9]_" and may not begin with a digit.
 	// - Must not contain the '.' (period) character.
@@ -332,7 +333,7 @@ is_dbus_member_name_valid(const char *member_name) {
 	const char *p = member_name;
 
 	if (!(is_ascii_alpha(*p) || *p == '_')) {
-		return FALSE;
+		return false;
 	}
 
 	do {
@@ -344,10 +345,10 @@ is_dbus_member_name_valid(const char *member_name) {
 		return length <= DBUS_MAX_NAME_LENGTH;
 	}
 
-	return FALSE;
+	return false;
 }
 
-static gboolean
+static bool
 is_dbus_bus_name_valid(const char *bus_name) {
 	// - Bus names that start with a colon (':') character are unique connection names. Other bus names are called
 	//   well-known bus names.
@@ -359,18 +360,18 @@ is_dbus_bus_name_valid(const char *bus_name) {
 	// - Bus names must contain at least one '.' (period) character (and thus at least two elements).
 	// - Bus names must not begin with a '.' (period) character.
 	// - Bus names must not exceed the maximum name length.
-	gint elements = 0;
+	int elements = 0;
 	const char *p = bus_name;
-	gboolean is_unique_name = FALSE;
+	bool is_unique_name = false;
 
 	if (*p == ':') {
-		is_unique_name = TRUE;
+		is_unique_name = true;
 		p++;
 	}
 
 	do {
 		if (!(is_ascii_alpha(*p) || *p == '_' || *p == '-' || (is_unique_name && is_ascii_digit(*p)))) {
-			return FALSE;
+			return false;
 		}
 		p++;
 		elements++;
@@ -385,10 +386,10 @@ is_dbus_bus_name_valid(const char *bus_name) {
 		}
 	} while (*p++ == '.');
 
-	return FALSE;
+	return false;
 }
 
-static gboolean
+static bool
 is_basic_type(char sig_code) {
 	switch (sig_code) {
 	case SIG_CODE_BYTE:
@@ -404,9 +405,9 @@ is_basic_type(char sig_code) {
 	case SIG_CODE_OBJECT_PATH:
 	case SIG_CODE_SIGNATURE:
 	case SIG_CODE_UNIX_FD:
-		return TRUE;
+		return true;
 	default:
-		return FALSE;
+		return false;
 	}
 }
 
@@ -459,16 +460,16 @@ skip_single_complete_type(const char *signature) {
 	}
 }
 
-static gboolean
-is_dbus_signature_valid(const char *signature) {
+static bool
+is_dbus_signature_valid(const char *signature, dbus_packet_t *packet) {
 	char sig_code;
 	size_t length = 0;
 	char prev_sig_code = '\0';
-	wmem_stack_t *expected_chars = wmem_stack_new(wmem_packet_scope());
+	wmem_stack_t *expected_chars = wmem_stack_new(packet->pinfo->pool);
 
 	while ((sig_code = *signature++) != '\0') {
 		if (++length >= DBUS_MAX_SIGNATURE_LENGTH) {
-			return FALSE;
+			return false;
 		}
 
 		switch (sig_code) {
@@ -493,14 +494,14 @@ is_dbus_signature_valid(const char *signature) {
 			case SIG_CODE_STRUCT_CLOSE:
 			case SIG_CODE_DICT_ENTRY_CLOSE:
 				// arrays must be followed by a single complete type
-				return FALSE;
+				return false;
 			}
 			// invalid signature codes are detected in the next iteration
 			break;
 		case SIG_CODE_STRUCT_OPEN:
 			if (*signature == SIG_CODE_STRUCT_CLOSE) {
 				// empty structures are not allowed
-				return FALSE;
+				return false;
 			}
 			wmem_stack_push(expected_chars, (void *)SIG_CODE_STRUCT_CLOSE);
 			break;
@@ -508,14 +509,14 @@ is_dbus_signature_valid(const char *signature) {
 			// dict entries must be an array element type
 			// the first single complete type (the "key") must be a basic type
 			if (prev_sig_code != SIG_CODE_ARRAY || !is_basic_type(*signature)) {
-				return FALSE;
+				return false;
 			}
 
 			// dict entries must contain exactly two single complete types
 			// + 1 can be used here, since the key is a basic type
 			const char *sig_code_close = skip_single_complete_type(signature + 1);
 			if (!sig_code_close || *sig_code_close != SIG_CODE_DICT_ENTRY_CLOSE) {
-				return FALSE;
+				return false;
 			}
 			wmem_stack_push(expected_chars, (void *)SIG_CODE_DICT_ENTRY_CLOSE);
 			break;
@@ -523,12 +524,12 @@ is_dbus_signature_valid(const char *signature) {
 		case SIG_CODE_STRUCT_CLOSE:
 		case SIG_CODE_DICT_ENTRY_CLOSE:
 			if (wmem_stack_count(expected_chars) == 0 ||
-				(char)(guintptr)wmem_stack_pop(expected_chars) != sig_code) {
-				return FALSE;
+				(char)(uintptr_t)wmem_stack_pop(expected_chars) != sig_code) {
+				return false;
 			}
 			break;
 		default:
-			return FALSE;
+			return false;
 		}
 
 		prev_sig_code = sig_code;
@@ -541,11 +542,11 @@ add_expert(dbus_packet_t *packet, expert_field *ei) {
 	expert_add_info(packet->pinfo, packet->current_pi, ei);
 }
 
-static guint32
-add_uint(dbus_packet_t *packet, gint hf) {
+static uint32_t
+add_uint(dbus_packet_t *packet, int hf) {
 	header_field_info *info = proto_registrar_get_nth(hf);
-	gint length;
-	guint32 value;
+	int length;
+	uint32_t value;
 	switch (info->type) {
 	case FT_UINT8:
 		length = 1;
@@ -560,14 +561,14 @@ add_uint(dbus_packet_t *packet, gint hf) {
 	return value;
 }
 
-static const guint8 *
-add_dbus_string(dbus_packet_t *packet, int hf, gint uint_length) {
-	const guint8 *string;
-	gint start_offset = ptvcursor_current_offset(packet->cursor);
+static const uint8_t *
+add_dbus_string(dbus_packet_t *packet, int hf, int uint_length) {
+	const uint8_t *string;
+	int start_offset = ptvcursor_current_offset(packet->cursor);
 	proto_item *pi = ptvcursor_add_ret_string(packet->cursor, hf, uint_length,
-			packet->enc | ENC_UTF_8, wmem_packet_scope(), &string);
-	gint item_length = ptvcursor_current_offset(packet->cursor) - start_offset;
-	guint8 term_byte = tvb_get_guint8(ptvcursor_tvbuff(packet->cursor), ptvcursor_current_offset(packet->cursor));
+			packet->enc | ENC_UTF_8, packet->pinfo->pool, &string);
+	int item_length = ptvcursor_current_offset(packet->cursor) - start_offset;
+	uint8_t term_byte = tvb_get_uint8(ptvcursor_tvbuff(packet->cursor), ptvcursor_current_offset(packet->cursor));
 	proto_item_set_len(pi, item_length + 1);
 	ptvcursor_advance(packet->cursor, 1);
 	packet->current_pi = pi;
@@ -579,7 +580,7 @@ add_dbus_string(dbus_packet_t *packet, int hf, gint uint_length) {
 }
 
 static int
-calculate_padding_len(gint offset, char sig) {
+calculate_padding_len(int offset, char sig) {
 	int alignment;
 	switch (sig) {
 	case SIG_CODE_BYTE:
@@ -614,15 +615,15 @@ calculate_padding_len(gint offset, char sig) {
 
 static int
 add_padding(dbus_packet_t *packet, char sig) {
-	guint8 value;
+	uint8_t value;
 	tvbuff_t *tvb = ptvcursor_tvbuff(packet->cursor);
-	gint offset = ptvcursor_current_offset(packet->cursor);
-	gint padding_len = calculate_padding_len(offset, sig);
+	int offset = ptvcursor_current_offset(packet->cursor);
+	int padding_len = calculate_padding_len(offset, sig);
 
 	if (padding_len != 0) {
 		packet->current_pi = ptvcursor_add(packet->cursor, hf_dbus_padding, padding_len, packet->enc);
-		for (gint i = offset; i < (offset + padding_len); i++) {
-			value = tvb_get_guint8(tvb, i);
+		for (int i = offset; i < (offset + padding_len); i++) {
+			value = tvb_get_uint8(tvb, i);
 			if (value != 0) {
 				add_expert(packet, &ei_dbus_padding_invalid);
 				return 1;
@@ -645,7 +646,7 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 	int err = 0;
 	char sig_code = *reader->signature++;
 	dbus_packet_t *packet = reader->packet;
-	gboolean is_single_complete_type = TRUE;
+	bool is_single_complete_type = true;
 	add_padding(packet, sig_code);
 
 	switch (sig_code) {
@@ -654,9 +655,9 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 				hf != -1 ? hf : hf_dbus_type_byte, 1, packet->enc, &value->uint);
 		break;
 	case SIG_CODE_BOOLEAN: {
-		gint offset = ptvcursor_current_offset(packet->cursor);
+		int offset = ptvcursor_current_offset(packet->cursor);
 		tvbuff_t *tvb = ptvcursor_tvbuff(packet->cursor);
-		guint8 val = tvb_get_guint8(tvb, offset);
+		uint8_t val = tvb_get_uint8(tvb, offset);
 		packet->current_pi = ptvcursor_add_ret_boolean(packet->cursor,
 				hf != -1 ? hf : hf_dbus_type_boolean, 4, packet->enc, &value->bool_);
 		if (val >= 2) {
@@ -682,23 +683,23 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 				hf != -1 ? hf : hf_dbus_type_uint32, 4, packet->enc, &value->uint);
 		break;
 	case SIG_CODE_INT64: {
-		gint offset = ptvcursor_current_offset(packet->cursor);
+		int offset = ptvcursor_current_offset(packet->cursor);
 		tvbuff_t *tvb = ptvcursor_tvbuff(packet->cursor);
-		value->int64 = tvb_get_gint64(tvb, offset, packet->enc);
+		value->int64 = tvb_get_int64(tvb, offset, packet->enc);
 		packet->current_pi = ptvcursor_add(packet->cursor,
 				hf != -1 ? hf : hf_dbus_type_int64, 8, packet->enc);
 		break;
 	}
 	case SIG_CODE_UINT64: {
-		gint offset = ptvcursor_current_offset(packet->cursor);
+		int offset = ptvcursor_current_offset(packet->cursor);
 		tvbuff_t *tvb = ptvcursor_tvbuff(packet->cursor);
-		value->uint64 = tvb_get_guint64(tvb, offset, packet->enc);
+		value->uint64 = tvb_get_uint64(tvb, offset, packet->enc);
 		packet->current_pi = ptvcursor_add(packet->cursor,
 				hf != -1 ? hf : hf_dbus_type_uint64, 8, packet->enc);
 		break;
 	}
 	case SIG_CODE_DOUBLE: {
-		gint offset = ptvcursor_current_offset(packet->cursor);
+		int offset = ptvcursor_current_offset(packet->cursor);
 		tvbuff_t *tvb = ptvcursor_tvbuff(packet->cursor);
 		value->double_ = tvb_get_ieee_double(tvb, offset, packet->enc);
 		packet->current_pi = ptvcursor_add(packet->cursor,
@@ -726,7 +727,7 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 	}
 	case SIG_CODE_SIGNATURE: {
 		const char *val = add_dbus_string(packet, hf != -1 ? hf : hf_dbus_type_signature, 1);
-		if (!val || !is_dbus_signature_valid(val)) {
+		if (!val || !is_dbus_signature_valid(val, packet)) {
 			add_expert(packet, &ei_dbus_type_signature_invalid);
 			err = 1;
 		}
@@ -734,13 +735,13 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 		break;
 	}
 	case SIG_CODE_ARRAY: {
-		is_single_complete_type = FALSE;
+		is_single_complete_type = false;
 		proto_item *array = ptvcursor_add_with_subtree(packet->cursor, hf != -1 ? hf : hf_dbus_type_array,
 				SUBTREE_UNDEFINED_LENGTH, ENC_NA, ett != -1 ? ett : ett_dbus_type_array);
 		if (*reader->signature == SIG_CODE_DICT_ENTRY_OPEN) {
 			proto_item_append_text(array, " (Dict)");
 		}
-		guint32 array_len = add_uint(packet, hf_dbus_type_array_length);
+		uint32_t array_len = add_uint(packet, hf_dbus_type_array_length);
 		value->uint = array_len;
 		add_padding(packet, *reader->signature);
 		if (array_len == 0) {
@@ -748,10 +749,10 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 			// all signatures are validated
 			DISSECTOR_ASSERT(reader->signature);
 			ptvcursor_pop_subtree(packet->cursor);
-			is_single_complete_type = TRUE;
+			is_single_complete_type = true;
 		} else if (array_len <= DBUS_MAX_ARRAY_LEN) {
 			int end_offset = ptvcursor_current_offset(packet->cursor) + array_len;
-			dbus_type_reader_t *child = wmem_new(wmem_packet_scope(), dbus_type_reader_t);
+			dbus_type_reader_t *child = wmem_new(packet->pinfo->pool, dbus_type_reader_t);
 			*child = (dbus_type_reader_t){
 				.packet = reader->packet,
 				.signature = reader->signature,
@@ -771,10 +772,10 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 		break;
 	}
 	case SIG_CODE_STRUCT_OPEN: {
-		is_single_complete_type = FALSE;
+		is_single_complete_type = false;
 		ptvcursor_add_with_subtree(packet->cursor, hf != -1 ? hf : hf_dbus_type_struct,
 				SUBTREE_UNDEFINED_LENGTH, ENC_NA, ett != -1 ? ett : ett_dbus_type_struct);
-		dbus_type_reader_t *child = wmem_new(wmem_packet_scope(), dbus_type_reader_t);
+		dbus_type_reader_t *child = wmem_new(packet->pinfo->pool, dbus_type_reader_t);
 		*child = (dbus_type_reader_t){
 			.packet = reader->packet,
 			.signature = reader->signature,
@@ -786,27 +787,27 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 		break;
 	}
 	case SIG_CODE_VARIANT: {
-		is_single_complete_type = FALSE;
+		is_single_complete_type = false;
 		proto_item *variant = ptvcursor_add_with_subtree(packet->cursor,
 				hf != -1 ? hf : hf_dbus_type_variant,
 				SUBTREE_UNDEFINED_LENGTH, ENC_NA, ett != -1 ? ett : ett_dbus_type_variant);
 		const char *variant_signature = add_dbus_string(packet, hf_dbus_type_variant_signature, 1);
 		value->string = variant_signature;
-		if (variant_signature && is_dbus_signature_valid(variant_signature)) {
+		if (variant_signature && is_dbus_signature_valid(variant_signature, packet)) {
 			if (variant_signature[0] != '\0') {
-				dbus_type_reader_t *child = wmem_new(wmem_packet_scope(), dbus_type_reader_t);
+				dbus_type_reader_t *child = wmem_new(packet->pinfo->pool, dbus_type_reader_t);
 				*child = (dbus_type_reader_t){
 					.packet = reader->packet,
 					.signature = variant_signature,
 					.level = reader->level + 1,
-					.is_in_variant = TRUE,
+					.is_in_variant = true,
 					.is_basic_variant = is_basic_type(*variant_signature)
 						&& *(variant_signature + 1) == '\0',
 					.container = variant,
 					.parent = reader,
 				};
 				if (reader->is_in_dict_entry && child->is_basic_variant) {
-					reader->is_basic_dict_entry = TRUE;
+					reader->is_basic_dict_entry = true;
 				}
 				reader = child;
 			} else {
@@ -820,17 +821,17 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 		break;
 	}
 	case SIG_CODE_DICT_ENTRY_OPEN: {
-		is_single_complete_type = FALSE;
+		is_single_complete_type = false;
 		proto_item *dict_entry = ptvcursor_add_with_subtree(packet->cursor,
 				hf != -1 ? hf : hf_dbus_type_dict_entry,
 				SUBTREE_UNDEFINED_LENGTH, ENC_NA, ett != -1 ? ett : ett_dbus_type_dict_entry);
-		dbus_type_reader_t *child = wmem_new(wmem_packet_scope(), dbus_type_reader_t);
+		dbus_type_reader_t *child = wmem_new(packet->pinfo->pool, dbus_type_reader_t);
 		*child = (dbus_type_reader_t){
 			.packet = reader->packet,
 			.signature = reader->signature,
 			.level = reader->level + 1,
 			.dict_entry_level = reader->dict_entry_level + 1,
-			.is_in_dict_entry = TRUE,
+			.is_in_dict_entry = true,
 			.is_basic_dict_entry = is_basic_type(*(reader->signature + 1)),
 			.container = dict_entry,
 			.parent = reader,
@@ -864,7 +865,7 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 		// Close them here recursively, e.g. "aav"
 		while (1) {
 			if (reader->array_type_start) { // inside array
-				gint offset = ptvcursor_current_offset(packet->cursor);
+				int offset = ptvcursor_current_offset(packet->cursor);
 
 				if (offset < reader->array_end_offset) {
 					// parse next array element -> reset signature
@@ -885,7 +886,7 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 			} else if (reader->is_in_variant) {
 				if (reader->is_basic_variant) {
 					proto_item_append_text(reader->container, ": %s",
-							proto_item_get_display_repr(wmem_packet_scope(), packet->current_pi));
+							proto_item_get_display_repr(packet->pinfo->pool, packet->current_pi));
 				}
 				ptvcursor_pop_subtree(packet->cursor);
 				reader = reader->parent;
@@ -898,10 +899,10 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 			if (*(reader->signature - 2) == SIG_CODE_DICT_ENTRY_OPEN) { // == key
 				// key is always a basic type
 				proto_item_append_text(reader->container, ", %s",
-						proto_item_get_display_repr(wmem_packet_scope(), packet->current_pi));
+						proto_item_get_display_repr(packet->pinfo->pool, packet->current_pi));
 			} else if (reader->is_basic_dict_entry) { // == value
 				proto_item_append_text(reader->container, ": %s",
-						proto_item_get_display_repr(wmem_packet_scope(), packet->current_pi));
+						proto_item_get_display_repr(packet->pinfo->pool, packet->current_pi));
 			}
 		}
 	}
@@ -913,7 +914,7 @@ reader_next(dbus_type_reader_t *reader, int hf, int ett, dbus_val_t *value) {
 	return reader;
 }
 
-static gboolean
+static bool
 reader_is_finished(dbus_type_reader_t *reader) {
 	return *reader->signature == '\0' && reader->parent == NULL;
 }
@@ -948,9 +949,9 @@ dissect_dbus_body(dbus_packet_t *packet) {
 }
 
 static void
-update_unique_name_map(const gchar *name1, const gchar *name2) {
-	const gchar *unique_name;
-	const gchar *well_known_name;
+update_unique_name_map(const char *name1, const char *name2) {
+	const char *unique_name;
+	const char *well_known_name;
 
 	if (!dbus_resolve_names) {
 		return;
@@ -975,9 +976,9 @@ update_unique_name_map(const gchar *name1, const gchar *name2) {
 
 static void
 add_conversation(dbus_packet_t *packet, proto_tree *header_field_tree) {
-	gboolean is_request;
-	gchar *request_dest;
-	gchar *key;
+	bool is_request;
+	char *request_dest;
+	char *key;
 
 	if (!packet->sender || !packet->destination) {
 		// in a peer-to-peer setup, sender and destination can be unset, in which case conversation tracking
@@ -991,7 +992,7 @@ add_conversation(dbus_packet_t *packet, proto_tree *header_field_tree) {
 			// there won't be a response, no need to track
 			return;
 		}
-		is_request = TRUE;
+		is_request = true;
 
 		// There are cases where the destination address of the request doesn't match the sender address of the
 		// response, for example:
@@ -1010,10 +1011,10 @@ add_conversation(dbus_packet_t *packet, proto_tree *header_field_tree) {
 		break;
 	case DBUS_MESSAGE_TYPE_METHOD_RETURN:
 	case DBUS_MESSAGE_TYPE_ERROR:
-		is_request = FALSE;
+		is_request = false;
 
-		key = wmem_strdup_printf(wmem_packet_scope(), "%s %u", packet->destination, packet->reply_serial);
-		request_dest = (gchar *)wmem_map_lookup(request_info_map, key);
+		key = wmem_strdup_printf(packet->pinfo->pool, "%s %u", packet->destination, packet->reply_serial);
+		request_dest = (char *)wmem_map_lookup(request_info_map, key);
 		if (request_dest && !g_str_equal(request_dest, packet->sender)) {
 			// Replace the sender address of the response with the destination address of the request, so
 			// the conversation can be found.
@@ -1062,7 +1063,7 @@ add_conversation(dbus_packet_t *packet, proto_tree *header_field_tree) {
 			}
 		}
 	} else {
-		guint32 request_serial = is_request ? packet->serial : packet->reply_serial;
+		uint32_t request_serial = is_request ? packet->serial : packet->reply_serial;
 		trans = (dbus_transaction_t *)wmem_map_lookup(conv_info->packets, GUINT_TO_POINTER(request_serial));
 	}
 
@@ -1105,7 +1106,7 @@ resolve_unique_name(dbus_packet_t *packet, proto_tree *header_field_tree) {
 	tvbuff_t *tvb = ptvcursor_tvbuff(packet->cursor);
 
 	if (packet->sender) {
-		const gchar *sender_well_known = (const gchar *)wmem_map_lookup(unique_name_map, packet->sender);
+		const char *sender_well_known = (const char *)wmem_map_lookup(unique_name_map, packet->sender);
 		if (sender_well_known) {
 			set_address(&packet->pinfo->src, AT_STRINGZ, (int)strlen(sender_well_known)+1, sender_well_known);
 			it = proto_tree_add_string(header_field_tree, hf_dbus_sender, tvb, 0, 0, sender_well_known);
@@ -1114,7 +1115,7 @@ resolve_unique_name(dbus_packet_t *packet, proto_tree *header_field_tree) {
 	}
 
 	if (packet->destination) {
-		const gchar *destination_well_known = (const gchar *)wmem_map_lookup(unique_name_map, packet->destination);
+		const char *destination_well_known = (const char *)wmem_map_lookup(unique_name_map, packet->destination);
 		if (destination_well_known) {
 			set_address(&packet->pinfo->dst, AT_STRINGZ, (int)strlen(destination_well_known)+1, destination_well_known);
 			it = proto_tree_add_string(header_field_tree, hf_dbus_destination, tvb, 0, 0, destination_well_known);
@@ -1142,8 +1143,8 @@ dissect_dbus_header_fields(dbus_packet_t *packet) {
 		NEXT_OR_RETURN(-1, ett_dbus_header_field);
 		// Field Code
 		NEXT_OR_RETURN(hf_dbus_field_code, -1);
-		guint32 field_code = value.uint;
-		const gchar *field_code_str = val_to_str_const(field_code, field_code_vals, "Unknown field code");
+		uint32_t field_code = value.uint;
+		const char *field_code_str = val_to_str_const(field_code, field_code_vals, "Unknown field code");
 		proto_item_append_text(reader->container, ", %s", field_code_str);
 		if (field_code == DBUS_HEADER_FIELD_INVALID) {
 			add_expert(packet, &ei_dbus_field_code_invalid);
@@ -1269,7 +1270,7 @@ dissect_dbus_header_fields(dbus_packet_t *packet) {
 		NEXT_OR_RETURN(-1, -1);
 	}
 
-	gboolean is_field_missing = FALSE;
+	bool is_field_missing = false;
 	switch (packet->message_type) {
 	case DBUS_MESSAGE_TYPE_METHOD_CALL:
 		is_field_missing = !packet->path || !packet->member;
@@ -1334,7 +1335,7 @@ dissect_dbus_header_fields(dbus_packet_t *packet) {
 
 static int
 dissect_dbus_header(dbus_packet_t *packet) {
-	guint32 val;
+	uint32_t val;
 
 	// Endianness
 	packet->current_pi = ptvcursor_add_ret_uint(packet->cursor, hf_dbus_endianness, 1, ENC_NA, &val);
@@ -1352,7 +1353,7 @@ dissect_dbus_header(dbus_packet_t *packet) {
 
 	// Message Type
 	packet->message_type = add_uint(packet, hf_dbus_message_type);
-	const gchar *info = try_val_to_str(packet->message_type, message_type_vals);
+	const char *info = try_val_to_str(packet->message_type, message_type_vals);
 	if (packet->message_type == DBUS_MESSAGE_TYPE_INVALID) {
 		col_set_str(packet->pinfo->cinfo, COL_INFO, info);
 		add_expert(packet, &ei_dbus_message_type_invalid);
@@ -1369,7 +1370,7 @@ dissect_dbus_header(dbus_packet_t *packet) {
 	ptvcursor_add_no_advance(packet->cursor, hf_dbus_flags_no_reply_expected, 1, packet->enc);
 	ptvcursor_add_no_advance(packet->cursor, hf_dbus_flags_no_auto_start, 1, packet->enc);
 	ptvcursor_add_no_advance(packet->cursor, hf_dbus_flags_allow_interactive_authorization, 1, packet->enc);
-	packet->flags = tvb_get_guint8(ptvcursor_tvbuff(packet->cursor), ptvcursor_current_offset(packet->cursor));
+	packet->flags = tvb_get_uint8(ptvcursor_tvbuff(packet->cursor), ptvcursor_current_offset(packet->cursor));
 	ptvcursor_advance(packet->cursor, 1);
 	ptvcursor_pop_subtree(packet->cursor);
 
@@ -1402,7 +1403,7 @@ dissect_dbus(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 	proto_item *pi = proto_tree_add_protocol_format(tree, proto_dbus, tvb, 0, -1, "D-Bus");
 	proto_tree *dbus_tree = proto_item_add_subtree(pi, ett_dbus);
 
-	gint offset = 0;
+	int offset = 0;
 	packet.cursor = ptvcursor_new(pinfo->pool, dbus_tree, tvb, offset);
 
 	(void)(dissect_dbus_header(&packet) ||
@@ -1417,26 +1418,26 @@ dissect_dbus(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 
 #define DBUS_HEADER_LEN 16
 
-static guint
+static unsigned
 get_dbus_message_len(packet_info *pinfo _U_, tvbuff_t *tvb,
                      int offset, void *data _U_) {
-	guint32 (*get_guint32)(tvbuff_t *, const gint);
+	uint32_t (*get_uint32)(tvbuff_t *, const int);
 
-	guint32 len_body, len_hdr;
+	uint32_t len_body, len_hdr;
 
-	switch (tvb_get_guint8(tvb, offset)) {
+	switch (tvb_get_uint8(tvb, offset)) {
 		case 'l':
-			get_guint32 = tvb_get_letohl;
+			get_uint32 = tvb_get_letohl;
 			break;
 		case 'B':
 		default:
-			get_guint32 = tvb_get_ntohl;
+			get_uint32 = tvb_get_ntohl;
 			break;
 	}
 
-	len_hdr = DBUS_HEADER_LEN + get_guint32(tvb, offset + 12);
+	len_hdr = DBUS_HEADER_LEN + get_uint32(tvb, offset + 12);
 	len_hdr = WS_ROUNDUP_8(len_hdr);
-	len_body = get_guint32(tvb, offset + 4);
+	len_body = get_uint32(tvb, offset + 4);
 
 	return len_hdr + len_body;
 }
@@ -1552,7 +1553,7 @@ proto_register_dbus(void) {
 			"The time between the Call and the Reply", HFILL }},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_dbus,
 		&ett_dbus_flags,
 		&ett_dbus_header_field_array,

@@ -22,28 +22,28 @@ void proto_register_tsdns(void);
 void proto_reg_handoff_tsdns(void);
 static dissector_handle_t tsdns_handle;
 
-static int proto_tsdns = -1;
+static int proto_tsdns;
 
-static int hf_tsdns_data = -1;
-static int hf_tsdns_request = -1;
-static int hf_tsdns_request_domain = -1;
-static int hf_tsdns_response = -1;
-static int hf_tsdns_response_ip = -1;
-static int hf_tsdns_response_address = -1;
-static int hf_tsdns_response_port = -1;
+static int hf_tsdns_data;
+static int hf_tsdns_request;
+static int hf_tsdns_request_domain;
+static int hf_tsdns_response;
+static int hf_tsdns_response_ip;
+static int hf_tsdns_response_address;
+static int hf_tsdns_response_port;
 
-static expert_field ei_response_port_malformed = EI_INIT;
+static expert_field ei_response_port_malformed;
 
-static gint ett_tsdns = -1;
+static int ett_tsdns;
 
 static int dissect_tsdns(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 
   int         offset    = 0;
-  gboolean    request   = FALSE;
+  bool        request   = false;
 
   if (pinfo->destport == pinfo->match_uint) {
-    request = TRUE;
+    request = true;
   }
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "TSDNS");
@@ -73,13 +73,13 @@ static int dissect_tsdns(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
   } else { // response is IP:PORT
     hidden_item = proto_tree_add_boolean(tsdns_tree, hf_tsdns_response, tvb, 0, 0, 1);
     address_item = proto_tree_add_item(tsdns_tree, hf_tsdns_response_address, tvb, offset, pLen, ENC_ASCII);
-    gchar** splitAddress;
+    char** splitAddress;
     splitAddress = wmem_strsplit(pinfo->pool, tvb_format_text(pinfo->pool, tvb, 0, pLen), ":", 1); // unsure if TSDNS also does IPv6...
     if (splitAddress == NULL || splitAddress[0] == NULL || splitAddress[1] == NULL) {
       expert_add_info(pinfo, address_item, &ei_response_port_malformed);
     } else {
       proto_tree_add_string(tsdns_tree, hf_tsdns_response_ip, tvb, 0, pLen, splitAddress[0]);
-      guint32 port;
+      uint32_t port;
       if (ws_strtou32(splitAddress[1], NULL, &port))
         proto_tree_add_uint(tsdns_tree, hf_tsdns_response_port, tvb, 0, pLen, port);
     }
@@ -101,7 +101,7 @@ void proto_register_tsdns(void)
     { &hf_tsdns_request,
       { "Request", "tsdns.request",
         FT_BOOLEAN,     BASE_NONE,      NULL,   0x0,
-        "TRUE if TSDNS Request", HFILL }},
+        "true if TSDNS Request", HFILL }},
     { &hf_tsdns_request_domain,
       { "Requested Domain", "tsdns.request.domain",
         FT_STRING,     BASE_NONE,      NULL,   0x0,
@@ -109,7 +109,7 @@ void proto_register_tsdns(void)
     { &hf_tsdns_response,
       { "Response","tsdns.response",
         FT_BOOLEAN,     BASE_NONE,      NULL,   0x0,
-        "TRUE if TSDNS Response", HFILL }},
+        "true if TSDNS Response", HFILL }},
     { &hf_tsdns_response_address,
        { "Response Address","tsdns.response.address",
          FT_STRING,     BASE_NONE,      NULL,   0x0,
@@ -129,7 +129,7 @@ void proto_register_tsdns(void)
   };
   expert_module_t* expert_tsdns;
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_tsdns
   };
 

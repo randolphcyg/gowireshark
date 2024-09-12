@@ -13,6 +13,7 @@
 #include <epan/packet.h>
 
 #define portal_index_VALUE_STRING_LIST(XXX) \
+    XXX(LNET_RESERVED_PORTAL, 0) \
     XXX(CONNMGR_REQUEST_PORTAL, 1) \
     XXX(CONNMGR_REPLY_PORTAL, 2) \
     XXX(OSC_REQUEST_PORTAL, 3) \
@@ -50,7 +51,7 @@ VALUE_STRING_ENUM2(portal_index);
 //VALUE_STRING_ARRAY2(portal_index);
 
 struct lnet_trans_info {
-    guint64 match_bits;
+    uint64_t match_bits;
 };
 
 int lnet_dissect_struct_nid(tvbuff_t *tvb, proto_tree *parent_tree, int offset, int hf_index);

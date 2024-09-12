@@ -31,130 +31,131 @@
 
 void proto_register_scsi_sbc(void);
 
-static int proto_scsi_sbc = -1;
+static int proto_scsi_sbc;
 
-int hf_scsi_sbc_opcode= -1;
-static int hf_scsi_sbc_service_action= -1;
-static int hf_scsi_sbc_formatunit_flags= -1;
-static int hf_scsi_sbc_defect_list_format= -1;
-static int hf_scsi_sbc_formatunit_vendor= -1;
-static int hf_scsi_sbc_formatunit_interleave= -1;
-static int hf_scsi_sbc_rdwr6_lba= -1;
-static int hf_scsi_sbc_rdwr6_xferlen= -1;
-static int hf_scsi_sbc_rdwr10_lba= -1;
-static int hf_scsi_sbc_rdwr10_xferlen= -1;
-static int hf_scsi_sbc_rdwr12_xferlen= -1;
-static int hf_scsi_sbc_rdwr16_lba= -1;
-static int hf_scsi_sbc_ssu_immed_flags= -1;
-static int hf_scsi_sbc_ssu_immed= -1;
-static int hf_scsi_sbc_ssu_pwr_flags= -1;
-static int hf_scsi_sbc_ssu_pwr_cond= -1;
-static int hf_scsi_sbc_ssu_loej= -1;
-static int hf_scsi_sbc_ssu_start= -1;
-static int hf_scsi_sbc_bytchk= -1;
-/* static int hf_scsi_sbc_verify_reladdr= -1; */
-static int hf_scsi_sbc_verify_lba= -1;
-static int hf_scsi_sbc_verify_lba64= -1;
-static int hf_scsi_sbc_verify_vlen= -1;
-static int hf_scsi_sbc_verify_vlen32= -1;
-static int hf_scsi_sbc_wrverify_lba= -1;
-static int hf_scsi_sbc_wrverify_xferlen= -1;
-static int hf_scsi_sbc_wrverify_lba64= -1;
-static int hf_scsi_sbc_wrverify_xferlen32= -1;
-/* static int hf_scsi_sbc_readcapacity_flags= -1; */
-static int hf_scsi_sbc_readdefdata_flags= -1;
-static int hf_scsi_sbc_reassignblks_flags= -1;
-static int hf_scsi_sbc_read_flags= -1;
-static int hf_scsi_sbc_alloclen32= -1;
-static int hf_scsi_sbc_alloclen16= -1;
-static int hf_scsi_sbc_lba64_address= -1;
-static int hf_scsi_sbc_fuflags_fmtpinfo= -1;
-static int hf_scsi_sbc_fuflags_rto_req= -1;
-static int hf_scsi_sbc_fuflags_longlist= -1;
-static int hf_scsi_sbc_fuflags_fmtdata= -1;
-static int hf_scsi_sbc_fuflags_cmplist= -1;
-static int hf_scsi_sbc_prefetch_flags= -1;
-static int hf_scsi_sbc_prefetch_immed= -1;
-static int hf_scsi_sbc_group= -1;
-static int hf_scsi_sbc_rdprotect= -1;
-static int hf_scsi_sbc_dpo= -1;
-static int hf_scsi_sbc_fua= -1;
-static int hf_scsi_sbc_fua_nv= -1;
-static int hf_scsi_sbc_blocksize= -1;
-static int hf_scsi_sbc_returned_lba= -1;
-static int hf_scsi_sbc_req_plist= -1;
-static int hf_scsi_sbc_req_glist= -1;
-static int hf_scsi_sbc_corrct_flags= -1;
-static int hf_scsi_sbc_corrct= -1;
-static int hf_scsi_sbc_reassignblocks_longlba= -1;
-static int hf_scsi_sbc_reassignblocks_longlist= -1;
-static int hf_scsi_sbc_synccache_flags= -1;
-static int hf_scsi_sbc_synccache_immed= -1;
-static int hf_scsi_sbc_synccache_sync_nv= -1;
-static int hf_scsi_sbc_vrprotect= -1;
-static int hf_scsi_sbc_verify_flags= -1;
-static int hf_scsi_sbc_wrprotect= -1;
-static int hf_scsi_sbc_wrverify_flags= -1;
-static int hf_scsi_sbc_writesame_flags= -1;
-static int hf_scsi_sbc_anchor= -1;
-static int hf_scsi_sbc_unmap= -1;
-static int hf_scsi_sbc_pbdata= -1;
-static int hf_scsi_sbc_lbdata= -1;
-static int hf_scsi_sbc_xdread_flags= -1;
-static int hf_scsi_sbc_xorpinfo= -1;
-static int hf_scsi_sbc_disable_write= -1;
-static int hf_scsi_sbc_xdwrite_flags= -1;
-static int hf_scsi_sbc_xdwriteread_flags= -1;
-static int hf_scsi_sbc_xpwrite_flags= -1;
-static int hf_scsi_sbc_unmap_flags= -1;
-static int hf_scsi_sbc_unmap_anchor= -1;
-static int hf_scsi_sbc_unmap_data_length= -1;
-static int hf_scsi_sbc_unmap_block_descriptor_data_length= -1;
-static int hf_scsi_sbc_unmap_lba= -1;
-static int hf_scsi_sbc_unmap_num_blocks= -1;
-static int hf_scsi_sbc_ptype= -1;
-static int hf_scsi_sbc_prot_en= -1;
-static int hf_scsi_sbc_p_i_exponent= -1;
-static int hf_scsi_sbc_lbppbe= -1;
-static int hf_scsi_sbc_lbpme= -1;
-static int hf_scsi_sbc_lbprz= -1;
-static int hf_scsi_sbc_lalba= -1;
-static int hf_scsi_sbc_get_lba_status_lba= -1;
-static int hf_scsi_sbc_get_lba_status_data_length= -1;
-static int hf_scsi_sbc_get_lba_status_num_blocks= -1;
-static int hf_scsi_sbc_get_lba_status_provisioning_status= -1;
-static int hf_scsi_sbc_sanitize_flags= -1;
-static int hf_scsi_sbc_sanitize_immed= -1;
-static int hf_scsi_sbc_sanitize_ause= -1;
-static int hf_scsi_sbc_sanitize_sa= -1;
-static int hf_scsi_sbc_sanitize_overwrite_flags= -1;
-static int hf_scsi_sbc_sanitize_invert= -1;
-static int hf_scsi_sbc_sanitize_test= -1;
-static int hf_scsi_sbc_sanitize_owcount= -1;
-static int hf_scsi_sbc_sanitize_pattern_length= -1;
-static int hf_scsi_sbc_sanitize_pattern= -1;
+int hf_scsi_sbc_opcode;
+static int hf_scsi_sbc_service_action;
+static int hf_scsi_sbc_formatunit_flags;
+static int hf_scsi_sbc_defect_list_format;
+static int hf_scsi_sbc_formatunit_vendor;
+static int hf_scsi_sbc_formatunit_interleave;
+static int hf_scsi_sbc_rdwr6_lba;
+static int hf_scsi_sbc_rdwr6_xferlen;
+static int hf_scsi_sbc_rdwr10_lba;
+static int hf_scsi_sbc_rdwr10_xferlen;
+static int hf_scsi_sbc_rdwr12_xferlen;
+static int hf_scsi_sbc_rdwr16_lba;
+static int hf_scsi_sbc_read_capacity;
+static int hf_scsi_sbc_ssu_immed_flags;
+static int hf_scsi_sbc_ssu_immed;
+static int hf_scsi_sbc_ssu_pwr_flags;
+static int hf_scsi_sbc_ssu_pwr_cond;
+static int hf_scsi_sbc_ssu_loej;
+static int hf_scsi_sbc_ssu_start;
+static int hf_scsi_sbc_bytchk;
+/* static int hf_scsi_sbc_verify_reladdr; */
+static int hf_scsi_sbc_verify_lba;
+static int hf_scsi_sbc_verify_lba64;
+static int hf_scsi_sbc_verify_vlen;
+static int hf_scsi_sbc_verify_vlen32;
+static int hf_scsi_sbc_wrverify_lba;
+static int hf_scsi_sbc_wrverify_xferlen;
+static int hf_scsi_sbc_wrverify_lba64;
+static int hf_scsi_sbc_wrverify_xferlen32;
+/* static int hf_scsi_sbc_readcapacity_flags; */
+static int hf_scsi_sbc_readdefdata_flags;
+static int hf_scsi_sbc_reassignblks_flags;
+static int hf_scsi_sbc_read_flags;
+static int hf_scsi_sbc_alloclen32;
+static int hf_scsi_sbc_alloclen16;
+static int hf_scsi_sbc_lba64_address;
+static int hf_scsi_sbc_fuflags_fmtpinfo;
+static int hf_scsi_sbc_fuflags_rto_req;
+static int hf_scsi_sbc_fuflags_longlist;
+static int hf_scsi_sbc_fuflags_fmtdata;
+static int hf_scsi_sbc_fuflags_cmplist;
+static int hf_scsi_sbc_prefetch_flags;
+static int hf_scsi_sbc_prefetch_immed;
+static int hf_scsi_sbc_group;
+static int hf_scsi_sbc_rdprotect;
+static int hf_scsi_sbc_dpo;
+static int hf_scsi_sbc_fua;
+static int hf_scsi_sbc_fua_nv;
+static int hf_scsi_sbc_blocksize;
+static int hf_scsi_sbc_returned_lba;
+static int hf_scsi_sbc_req_plist;
+static int hf_scsi_sbc_req_glist;
+static int hf_scsi_sbc_corrct_flags;
+static int hf_scsi_sbc_corrct;
+static int hf_scsi_sbc_reassignblocks_longlba;
+static int hf_scsi_sbc_reassignblocks_longlist;
+static int hf_scsi_sbc_synccache_flags;
+static int hf_scsi_sbc_synccache_immed;
+static int hf_scsi_sbc_synccache_sync_nv;
+static int hf_scsi_sbc_vrprotect;
+static int hf_scsi_sbc_verify_flags;
+static int hf_scsi_sbc_wrprotect;
+static int hf_scsi_sbc_wrverify_flags;
+static int hf_scsi_sbc_writesame_flags;
+static int hf_scsi_sbc_anchor;
+static int hf_scsi_sbc_unmap;
+static int hf_scsi_sbc_pbdata;
+static int hf_scsi_sbc_lbdata;
+static int hf_scsi_sbc_xdread_flags;
+static int hf_scsi_sbc_xorpinfo;
+static int hf_scsi_sbc_disable_write;
+static int hf_scsi_sbc_xdwrite_flags;
+static int hf_scsi_sbc_xdwriteread_flags;
+static int hf_scsi_sbc_xpwrite_flags;
+static int hf_scsi_sbc_unmap_flags;
+static int hf_scsi_sbc_unmap_anchor;
+static int hf_scsi_sbc_unmap_data_length;
+static int hf_scsi_sbc_unmap_block_descriptor_data_length;
+static int hf_scsi_sbc_unmap_lba;
+static int hf_scsi_sbc_unmap_num_blocks;
+static int hf_scsi_sbc_ptype;
+static int hf_scsi_sbc_prot_en;
+static int hf_scsi_sbc_p_i_exponent;
+static int hf_scsi_sbc_lbppbe;
+static int hf_scsi_sbc_lbpme;
+static int hf_scsi_sbc_lbprz;
+static int hf_scsi_sbc_lalba;
+static int hf_scsi_sbc_get_lba_status_lba;
+static int hf_scsi_sbc_get_lba_status_data_length;
+static int hf_scsi_sbc_get_lba_status_num_blocks;
+static int hf_scsi_sbc_get_lba_status_provisioning_status;
+static int hf_scsi_sbc_sanitize_flags;
+static int hf_scsi_sbc_sanitize_immed;
+static int hf_scsi_sbc_sanitize_ause;
+static int hf_scsi_sbc_sanitize_sa;
+static int hf_scsi_sbc_sanitize_overwrite_flags;
+static int hf_scsi_sbc_sanitize_invert;
+static int hf_scsi_sbc_sanitize_test;
+static int hf_scsi_sbc_sanitize_owcount;
+static int hf_scsi_sbc_sanitize_pattern_length;
+static int hf_scsi_sbc_sanitize_pattern;
 
-static gint ett_scsi_format_unit= -1;
-static gint ett_scsi_prefetch= -1;
-static gint ett_scsi_rdwr= -1;
-static gint ett_scsi_xdread= -1;
-static gint ett_scsi_xdwrite= -1;
-static gint ett_scsi_xdwriteread= -1;
-static gint ett_scsi_xpwrite= -1;
-static gint ett_scsi_defectdata= -1;
-static gint ett_scsi_corrct= -1;
-static gint ett_scsi_reassign_blocks= -1;
-static gint ett_scsi_ssu_immed= -1;
-static gint ett_scsi_ssu_pwr= -1;
-static gint ett_scsi_synccache= -1;
-static gint ett_scsi_verify= -1;
-static gint ett_scsi_wrverify= -1;
-static gint ett_scsi_writesame= -1;
-static gint ett_scsi_unmap= -1;
-static gint ett_scsi_unmap_block_descriptor= -1;
-static gint ett_scsi_lba_status_descriptor= -1;
-static gint ett_scsi_sanitize= -1;
-static gint ett_scsi_sanitize_overwrite= -1;
+static int ett_scsi_format_unit;
+static int ett_scsi_prefetch;
+static int ett_scsi_rdwr;
+static int ett_scsi_xdread;
+static int ett_scsi_xdwrite;
+static int ett_scsi_xdwriteread;
+static int ett_scsi_xpwrite;
+static int ett_scsi_defectdata;
+static int ett_scsi_corrct;
+static int ett_scsi_reassign_blocks;
+static int ett_scsi_ssu_immed;
+static int ett_scsi_ssu_pwr;
+static int ett_scsi_synccache;
+static int ett_scsi_verify;
+static int ett_scsi_wrverify;
+static int ett_scsi_writesame;
+static int ett_scsi_unmap;
+static int ett_scsi_unmap_block_descriptor;
+static int ett_scsi_lba_status_descriptor;
+static int ett_scsi_sanitize;
+static int ett_scsi_sanitize_overwrite;
 
 static const true_false_string dpo_tfs = {
     "Disable Page Out (don't cache this data)",
@@ -177,8 +178,8 @@ static const true_false_string pmi_tfs = {
 
 static void
 dissect_sbc_formatunit (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                         guint offset, gboolean isreq, gboolean iscdb,
-                         guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                         unsigned offset, bool isreq, bool iscdb,
+                         unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const fuflags_fields[] = {
         &hf_scsi_sbc_fuflags_fmtpinfo,
@@ -206,13 +207,14 @@ dissect_sbc_formatunit (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_read6 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%06x, Len: %u)",
-                    tvb_get_ntoh24 (tvb, offset),
-                    tvb_get_guint8 (tvb, offset+3));
+        col_append_fstr (pinfo->cinfo, COL_INFO, "%u bytes (%u blocks) at LBA: 0x%06x ",
+            cdata->itlq->data_length,
+            tvb_get_uint8(tvb, offset+3),
+            tvb_get_ntoh24(tvb, offset));
     }
 
     if (tree && isreq && iscdb) {
@@ -225,13 +227,14 @@ dissect_sbc_read6 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_write6 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%06x, Len: %u)",
-                tvb_get_ntoh24 (tvb, offset),
-                tvb_get_guint8 (tvb, offset+3));
+        col_append_fstr (pinfo->cinfo, COL_INFO, "%u bytes (%u blocks) at LBA: 0x%06x ",
+            cdata->itlq->data_length,
+            tvb_get_uint8(tvb, offset+3),
+            tvb_get_ntoh24(tvb, offset));
     }
 
     if (tree && isreq && iscdb) {
@@ -244,8 +247,8 @@ dissect_sbc_write6 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_prefetch10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     static int * const prefetch_fields[] = {
@@ -272,8 +275,8 @@ dissect_sbc_prefetch10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_synchronizecache10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     static int * const sync_fields[] = {
@@ -301,8 +304,8 @@ dissect_sbc_synchronizecache10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 
 static void
 dissect_sbc_synchronizecache16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     static int * const sync_fields[] = {
@@ -330,8 +333,8 @@ dissect_sbc_synchronizecache16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 
 static void
 dissect_sbc_prefetch16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     static int * const prefetch_fields[] = {
@@ -358,9 +361,8 @@ dissect_sbc_prefetch16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 void
 dissect_sbc_read10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
-
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const rdwr10_fields[] = {
         &hf_scsi_sbc_rdprotect,
@@ -371,9 +373,10 @@ dissect_sbc_read10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     };
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u)",
-                tvb_get_ntohl (tvb, offset+1),
-                tvb_get_ntohs (tvb, offset+6));
+        col_append_fstr (pinfo->cinfo, COL_INFO, "%u bytes (%u blocks) at LBA: 0x%08x ",
+            cdata->itlq->data_length,
+            tvb_get_ntohs(tvb, offset+6),
+            tvb_get_ntohl(tvb, offset+1));
     }
 
     if (tree && isreq && iscdb) {
@@ -389,8 +392,8 @@ dissect_sbc_read10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_xdread10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     static int * const xdread10_fields[] = {
@@ -417,8 +420,8 @@ dissect_sbc_xdread10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_xdwrite10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     static int * const xdwrite10_fields[] = {
@@ -449,8 +452,8 @@ dissect_sbc_xdwrite10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_xdwriteread10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     static int * const xdwriteread10_fields[] = {
@@ -482,8 +485,8 @@ dissect_sbc_xdwriteread10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 
 static void
 dissect_sbc_xpwrite10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     static int * const xpwrite10_fields[] = {
@@ -513,9 +516,8 @@ dissect_sbc_xpwrite10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 void
 dissect_sbc_write10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
-
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const rdwr10_fields[] = {
         &hf_scsi_sbc_wrprotect,
@@ -526,9 +528,10 @@ dissect_sbc_write10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     };
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u)",
-                tvb_get_ntohl (tvb, offset+1),
-                tvb_get_ntohs (tvb, offset+6));
+        col_append_fstr (pinfo->cinfo, COL_INFO, "%u bytes (%u blocks) at LBA: 0x%08x ",
+            cdata->itlq->data_length,
+            tvb_get_ntohs(tvb, offset+6),
+            tvb_get_ntohl(tvb, offset+1));
     }
 
     if (tree && isreq && iscdb) {
@@ -544,8 +547,8 @@ dissect_sbc_write10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 void
 dissect_sbc_read12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const rdwr12_fields[] = {
         &hf_scsi_sbc_rdprotect,
@@ -556,9 +559,10 @@ dissect_sbc_read12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     };
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u)",
-                tvb_get_ntohl (tvb, offset+1),
-                tvb_get_ntohl (tvb, offset+5));
+        col_append_fstr(pinfo->cinfo, COL_INFO, "%u bytes (%u blocks) at LBA: 0x%08x ",
+            cdata->itlq->data_length,
+            tvb_get_ntohl(tvb, offset+5),
+            tvb_get_ntohl(tvb, offset+1));
     }
 
     if (tree && isreq && iscdb) {
@@ -574,8 +578,8 @@ dissect_sbc_read12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 void
 dissect_sbc_write12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        guint offset, gboolean isreq, gboolean iscdb,
-        guint payload_len _U_, scsi_task_data_t *cdata _U_)
+        unsigned offset, bool isreq, bool iscdb,
+        unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const rdwr12_fields[] = {
         &hf_scsi_sbc_wrprotect,
@@ -586,9 +590,10 @@ dissect_sbc_write12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     };
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u)",
-                tvb_get_ntohl (tvb, offset+1),
-                tvb_get_ntohl (tvb, offset+5));
+        col_append_fstr(pinfo->cinfo, COL_INFO, "%u bytes (%u blocks) at LBA: 0x%08x ",
+            cdata->itlq->data_length,
+            tvb_get_ntohl(tvb, offset+5),
+            tvb_get_ntohl(tvb, offset+1));
     }
 
     if (tree && isreq && iscdb) {
@@ -604,21 +609,23 @@ dissect_sbc_write12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_read16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const rdwr16_fields[] = {
-        &hf_scsi_sbc_rdprotect,
-        &hf_scsi_sbc_dpo,
-        &hf_scsi_sbc_fua,
-        &hf_scsi_sbc_fua_nv,
-        NULL
-    };
+    &hf_scsi_sbc_rdprotect,
+    &hf_scsi_sbc_dpo,
+    &hf_scsi_sbc_fua,
+    &hf_scsi_sbc_fua_nv,
+    NULL
+};
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: %" PRIu64 ", Len: %u)",
-                tvb_get_ntoh64 (tvb, offset+1),
-                tvb_get_ntohl (tvb, offset+9));
+        col_append_fstr(pinfo->cinfo, COL_INFO, "%u bytes (%u blocks) at LBA: %" PRIu64,
+            cdata->itlq->data_length,
+            tvb_get_ntohl(tvb, offset+9),
+            tvb_get_ntoh64(tvb, offset+1)
+        );
     }
 
     if (tree && isreq && iscdb) {
@@ -633,8 +640,8 @@ dissect_sbc_read16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 }
 static void
 dissect_sbc_write16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const rdwr16_fields[] = {
         &hf_scsi_sbc_wrprotect,
@@ -645,9 +652,11 @@ dissect_sbc_write16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     };
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: %" PRIu64 ", Len: %u)",
-                tvb_get_ntoh64 (tvb, offset+1),
-                tvb_get_ntohl (tvb, offset+9));
+        col_append_fstr (pinfo->cinfo, COL_INFO, "%u bytes (%u blocks) at LBA: %" PRIu64,
+            cdata->itlq->data_length,
+            tvb_get_ntohl(tvb, offset+9),
+            tvb_get_ntoh64 (tvb, offset+1)
+        );
     }
 
     if (tree && isreq && iscdb) {
@@ -663,8 +672,8 @@ dissect_sbc_write16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_writeatomic16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                           guint offset, gboolean isreq, gboolean iscdb,
-                           guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                           unsigned offset, bool isreq, bool iscdb,
+                           unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const rdwr16_fields[] = {
         &hf_scsi_sbc_wrprotect,
@@ -692,8 +701,8 @@ dissect_sbc_writeatomic16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 
 static void
 dissect_sbc_orwrite (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const rdwr16_fields[] = {
         &hf_scsi_sbc_wrprotect,
@@ -722,8 +731,8 @@ dissect_sbc_orwrite (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_comparenwrite (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const rdwr16_fields[] = {
         &hf_scsi_sbc_wrprotect,
@@ -782,8 +791,8 @@ static const value_string scsi_provisioning_type_val[] = {
 
 void
 dissect_sbc_startstopunit (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                            guint offset, gboolean isreq _U_, gboolean iscdb,
-                            guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                            unsigned offset, bool isreq _U_, bool iscdb,
+                            unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const ssu_fields[] = {
         &hf_scsi_sbc_ssu_immed,
@@ -811,8 +820,8 @@ dissect_sbc_startstopunit (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 
 static void
 dissect_sbc_verify10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                       guint offset, gboolean isreq, gboolean iscdb,
-                       guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                       unsigned offset, bool isreq, bool iscdb,
+                       unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     static int * const verify10_fields[] = {
@@ -823,7 +832,7 @@ dissect_sbc_verify10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     };
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u)",
+        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u) ",
                 tvb_get_ntohl (tvb, offset+1),
                 tvb_get_ntohs (tvb, offset+6));
     }
@@ -841,8 +850,8 @@ dissect_sbc_verify10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_verify12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                       guint offset, gboolean isreq, gboolean iscdb,
-                       guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                       unsigned offset, bool isreq, bool iscdb,
+                       unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     static int * const verify12_fields[] = {
@@ -853,7 +862,7 @@ dissect_sbc_verify12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     };
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u)",
+        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u) ",
                 tvb_get_ntohl (tvb, offset+1),
                 tvb_get_ntohl (tvb, offset+5));
     }
@@ -871,8 +880,8 @@ dissect_sbc_verify12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_verify16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                       guint offset, gboolean isreq, gboolean iscdb,
-                       guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                       unsigned offset, bool isreq, bool iscdb,
+                       unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     static int * const verify16_fields[] = {
@@ -883,7 +892,7 @@ dissect_sbc_verify16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     };
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: %" PRIu64 ", Len: %u)",
+        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: %" PRIu64 ", Len: %u) ",
                 tvb_get_ntoh64 (tvb, offset+1),
                 tvb_get_ntohl (tvb, offset+9));
     }
@@ -902,8 +911,8 @@ dissect_sbc_verify16 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_sbc_wrverify10 (tvbuff_t *tvb, packet_info *pinfo _U_,
-                         proto_tree *tree, guint offset, gboolean isreq,
-                         gboolean iscdb, guint payload_len _U_,
+                         proto_tree *tree, unsigned offset, bool isreq,
+                         bool iscdb, unsigned payload_len _U_,
                          scsi_task_data_t *cdata _U_)
 
 {
@@ -915,7 +924,7 @@ dissect_sbc_wrverify10 (tvbuff_t *tvb, packet_info *pinfo _U_,
     };
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u)",
+        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u) ",
                 tvb_get_ntohl (tvb, offset+1),
                 tvb_get_ntohs (tvb, offset+6));
     }
@@ -933,8 +942,8 @@ dissect_sbc_wrverify10 (tvbuff_t *tvb, packet_info *pinfo _U_,
 
 static void
 dissect_sbc_wrverify12 (tvbuff_t *tvb, packet_info *pinfo _U_,
-                         proto_tree *tree, guint offset, gboolean isreq,
-                         gboolean iscdb, guint payload_len _U_,
+                         proto_tree *tree, unsigned offset, bool isreq,
+                         bool iscdb, unsigned payload_len _U_,
                          scsi_task_data_t *cdata _U_)
 {
     static int * const wrverify12_fields[] = {
@@ -945,7 +954,7 @@ dissect_sbc_wrverify12 (tvbuff_t *tvb, packet_info *pinfo _U_,
     };
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u)",
+        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: 0x%08x, Len: %u) ",
                 tvb_get_ntohl (tvb, offset+1),
                 tvb_get_ntohl (tvb, offset+5));
     }
@@ -963,8 +972,8 @@ dissect_sbc_wrverify12 (tvbuff_t *tvb, packet_info *pinfo _U_,
 
 static void
 dissect_sbc_wrverify16 (tvbuff_t *tvb, packet_info *pinfo _U_,
-                         proto_tree *tree, guint offset, gboolean isreq,
-                         gboolean iscdb, guint payload_len _U_,
+                         proto_tree *tree, unsigned offset, bool isreq,
+                         bool iscdb, unsigned payload_len _U_,
                          scsi_task_data_t *cdata _U_)
 {
     static int * const wrverify16_fields[] = {
@@ -975,7 +984,7 @@ dissect_sbc_wrverify16 (tvbuff_t *tvb, packet_info *pinfo _U_,
     };
 
     if (isreq && iscdb) {
-        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: %" PRIu64 ", Len: %u)",
+        col_append_fstr (pinfo->cinfo, COL_INFO, "(LBA: %" PRIu64 ", Len: %u) ",
                 tvb_get_ntoh64 (tvb, offset+1),
                 tvb_get_ntohl (tvb, offset+9));
     }
@@ -993,11 +1002,14 @@ dissect_sbc_wrverify16 (tvbuff_t *tvb, packet_info *pinfo _U_,
 
 void
 dissect_sbc_readcapacity10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                           guint offset, gboolean isreq, gboolean iscdb,
-                           guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                           unsigned offset, bool isreq, bool iscdb,
+                           unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
-    guint32     len, block_len, tot_len;
-    const char *un;
+    uint32_t    lba, block_len;
+    uint64_t    totalSizeBytes64;
+    double      totalSizeBytes, totalSizeAbbrev;
+    static const char* binaryPrefixes[] = { "B", "KiB", "MiB", "GiB", "TiB", "PiB" };
+    int         idx = 0;
 
     if (!tree)
         return;
@@ -1007,24 +1019,33 @@ dissect_sbc_readcapacity10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
                 ett_scsi_control, cdb_control_fields, ENC_BIG_ENDIAN);
     }
     else if (!iscdb) {
-        len = tvb_get_ntohl (tvb, offset);
-        block_len = tvb_get_ntohl (tvb, offset+4);
-        tot_len=((len/1024)*block_len)/1024; /*MB*/
-        un="MB";
-        if(tot_len>20000){
-            tot_len/=1024;
-            un="GB";
+        lba       = tvb_get_ntohl(tvb, offset) + 1;   /* LBAs are zero-based so we add 1 */
+        proto_tree_add_uint_format(tree, hf_scsi_sbc_returned_lba, tvb, offset, 4, lba, "LBA: %u ", lba);
+        proto_tree_add_item(tree, hf_scsi_sbc_blocksize, tvb, offset+4, 4, ENC_BIG_ENDIAN);
+
+        block_len = tvb_get_ntohl(tvb, offset+4);
+        totalSizeBytes64 = (uint64_t)lba * (uint64_t)block_len;  /* prevent overflow */
+        totalSizeBytes = (double)totalSizeBytes64;
+        totalSizeAbbrev = totalSizeBytes;
+
+        while (totalSizeAbbrev >= 1024 && idx < 5) {
+            totalSizeAbbrev /= 1024.0;
+            idx++;
         }
-        proto_tree_add_uint_format (tree, hf_scsi_sbc_returned_lba, tvb, offset, 4, len, "LBA: %u (%u %s)", len, tot_len, un);
-        proto_tree_add_item (tree, hf_scsi_sbc_blocksize, tvb, offset+4, 4, ENC_BIG_ENDIAN);
+        proto_tree_add_double_format(tree, hf_scsi_sbc_read_capacity, tvb, 0, 0,
+            totalSizeBytes, "Read capacity: %.0f bytes (%.2f %s)",
+            totalSizeBytes, totalSizeAbbrev, binaryPrefixes[idx]);
+
+        col_prepend_fstr(pinfo->cinfo, COL_INFO, "%.2f %s ",
+            totalSizeAbbrev, binaryPrefixes[idx]);
     }
 }
 
 static void
 dissect_sbc_readdefectdata10 (tvbuff_t *tvb, packet_info *pinfo _U_,
-                            proto_tree *tree, guint offset, gboolean isreq,
-                            gboolean iscdb,
-                            guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                            proto_tree *tree, unsigned offset, bool isreq,
+                            bool iscdb,
+                            unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const defect_fields[] = {
         &hf_scsi_sbc_defect_list_format,
@@ -1049,9 +1070,9 @@ dissect_sbc_readdefectdata10 (tvbuff_t *tvb, packet_info *pinfo _U_,
 
 static void
 dissect_sbc_readlong10 (tvbuff_t *tvb, packet_info *pinfo _U_,
-                            proto_tree *tree, guint offset, gboolean isreq,
-                            gboolean iscdb,
-                            guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                            proto_tree *tree, unsigned offset, bool isreq,
+                            bool iscdb,
+                            unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const corrct_fields[] = {
         &hf_scsi_sbc_corrct,
@@ -1073,9 +1094,9 @@ dissect_sbc_readlong10 (tvbuff_t *tvb, packet_info *pinfo _U_,
 
 static void
 dissect_sbc_writelong10 (tvbuff_t *tvb, packet_info *pinfo _U_,
-                            proto_tree *tree, guint offset, gboolean isreq,
-                            gboolean iscdb,
-                            guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                            proto_tree *tree, unsigned offset, bool isreq,
+                            bool iscdb,
+                            unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     if (!tree)
         return;
@@ -1090,9 +1111,9 @@ dissect_sbc_writelong10 (tvbuff_t *tvb, packet_info *pinfo _U_,
 
 static void
 dissect_sbc_writesame10 (tvbuff_t *tvb, packet_info *pinfo _U_,
-                            proto_tree *tree, guint offset, gboolean isreq,
-                            gboolean iscdb,
-                            guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                            proto_tree *tree, unsigned offset, bool isreq,
+                            bool iscdb,
+                            unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const writesame10_fields[] = {
         &hf_scsi_sbc_wrprotect,
@@ -1119,9 +1140,9 @@ dissect_sbc_writesame10 (tvbuff_t *tvb, packet_info *pinfo _U_,
 
 static void
 dissect_sbc_writesame16 (tvbuff_t *tvb, packet_info *pinfo _U_,
-                            proto_tree *tree, guint offset, gboolean isreq,
-                            gboolean iscdb,
-                            guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                            proto_tree *tree, unsigned offset, bool isreq,
+                            bool iscdb,
+                            unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const writesame16_fields[] = {
         &hf_scsi_sbc_wrprotect,
@@ -1148,9 +1169,9 @@ dissect_sbc_writesame16 (tvbuff_t *tvb, packet_info *pinfo _U_,
 
 static void
 dissect_sbc_unmap (tvbuff_t *tvb, packet_info *pinfo _U_,
-                            proto_tree *tree, guint offset, gboolean isreq,
-                            gboolean iscdb,
-                            guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                            proto_tree *tree, unsigned offset, bool isreq,
+                            bool iscdb,
+                            unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const unmap_fields[] = {
         &hf_scsi_sbc_unmap_anchor,
@@ -1176,8 +1197,8 @@ dissect_sbc_unmap (tvbuff_t *tvb, packet_info *pinfo _U_,
         while (tvb_reported_length_remaining(tvb, offset) >=16) {
             proto_tree *tr;
             proto_item *it;
-            gint64 lba;
-            gint32 num_blocks;
+            int64_t lba;
+            int32_t num_blocks;
 
             tr = proto_tree_add_subtree(tree, tvb, offset, 16, ett_scsi_unmap_block_descriptor, &it, "UNMAP Block Descriptor: LBA ");
 
@@ -1208,9 +1229,9 @@ static const value_string sanitize_val[] = {
 
 static void
 dissect_sbc_sanitize (tvbuff_t *tvb, packet_info *pinfo _U_,
-                      proto_tree *tree, guint offset, gboolean isreq,
-                      gboolean iscdb,
-                      guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                      proto_tree *tree, unsigned offset, bool isreq,
+                      bool iscdb,
+                      unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const sanitize_fields[] = {
         &hf_scsi_sbc_sanitize_immed,
@@ -1229,11 +1250,11 @@ dissect_sbc_sanitize (tvbuff_t *tvb, packet_info *pinfo _U_,
         return;
 
     if (isreq && iscdb) {
-        guint8 service_action;
+        uint8_t service_action;
 
-        service_action = tvb_get_guint8 (tvb, offset) & 0x1F;
+        service_action = tvb_get_uint8 (tvb, offset) & 0x1F;
         col_append_str(pinfo->cinfo, COL_INFO,
-                       val_to_str(service_action, sanitize_val, "Unknown (0x%02x)"));
+                       val_to_str(service_action, sanitize_val, "Unknown (0x%02x) "));
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_scsi_sbc_sanitize_flags,
                 ett_scsi_sanitize, sanitize_fields, ENC_BIG_ENDIAN);
@@ -1262,9 +1283,9 @@ dissect_sbc_sanitize (tvbuff_t *tvb, packet_info *pinfo _U_,
 
 static void
 dissect_sbc_readdefectdata12 (tvbuff_t *tvb, packet_info *pinfo _U_,
-                            proto_tree *tree, guint offset, gboolean isreq,
-                            gboolean iscdb,
-                            guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                            proto_tree *tree, unsigned offset, bool isreq,
+                            bool iscdb,
+                            unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const defect_fields[] = {
         &hf_scsi_sbc_defect_list_format,
@@ -1289,9 +1310,9 @@ dissect_sbc_readdefectdata12 (tvbuff_t *tvb, packet_info *pinfo _U_,
 
 static void
 dissect_sbc_reassignblocks (tvbuff_t *tvb, packet_info *pinfo _U_,
-                           proto_tree *tree, guint offset, gboolean isreq,
-                           gboolean iscdb,
-                           guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                           proto_tree *tree, unsigned offset, bool isreq,
+                           bool iscdb,
+                           unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     static int * const reassign_fields[] = {
         &hf_scsi_sbc_reassignblocks_longlba,
@@ -1328,20 +1349,20 @@ const value_string service_action_vals[] = {
    action is set to.
 */
 static void
-dissect_sbc_serviceactionin16 (tvbuff_t *tvb, packet_info *pinfo _U_,
-                           proto_tree *tree, guint offset, gboolean isreq,
-                           gboolean iscdb,
-                           guint payload_len _U_, scsi_task_data_t *cdata _U_)
+dissect_sbc_serviceactionin16 (tvbuff_t *tvb_a, packet_info *pinfo _U_,
+                           proto_tree *tree, unsigned offset_a, bool isreq,
+                           bool iscdb,
+                           unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
-    guint8      service_action;
-    guint32     block_len;
-    guint64     len, tot_len;
+    uint8_t     service_action;
+    uint32_t    block_len, alloc_len;
+    uint64_t    len, tot_len;
     const char *un;
 
     proto_item      *it = NULL;
 
     if (isreq && iscdb) {
-        service_action = tvb_get_guint8 (tvb, offset) & 0x1F;
+        service_action = tvb_get_uint8(tvb_a, offset_a) & 0x1F;
         if(cdata && cdata->itlq){
             cdata->itlq->flags=service_action;
         }
@@ -1350,117 +1371,115 @@ dissect_sbc_serviceactionin16 (tvbuff_t *tvb, packet_info *pinfo _U_,
             case SERVICE_READ_CAPACITY16:
                 col_append_str(pinfo->cinfo, COL_INFO, " READCAPACITY16");
 
-                if (!tree)
-                        return;
+                proto_tree_add_item(tree, hf_scsi_sbc_service_action, tvb_a, offset_a, 1, ENC_BIG_ENDIAN);
 
-                proto_tree_add_item (tree, hf_scsi_sbc_service_action, tvb, offset, 1, ENC_BIG_ENDIAN);
+                offset_a += 9;
 
-                offset += 9;
+                proto_tree_add_item_ret_uint(tree, hf_scsi_sbc_alloclen32, tvb_a, offset_a, 4, ENC_BIG_ENDIAN, &alloc_len);
+                if (cdata && cdata->itlq) {
+                    cdata->itlq->alloc_len = alloc_len;
+                }
+                offset_a += 5;
 
-                proto_tree_add_item (tree, hf_scsi_sbc_alloclen32, tvb, offset, 4, ENC_BIG_ENDIAN);
-                offset += 5;
-
-                proto_tree_add_bitmask(tree, tvb, offset, hf_scsi_control,
+                proto_tree_add_bitmask(tree, tvb_a, offset_a, hf_scsi_control,
                         ett_scsi_control, cdb_control_fields, ENC_BIG_ENDIAN);
-                offset++;
+                offset_a++;
 
                 break;
             case SERVICE_READ_LONG16:
                 col_append_str(pinfo->cinfo, COL_INFO, " READ_LONG16");
 
-                if (!tree)
-                        return;
+                proto_tree_add_item(tree, hf_scsi_sbc_service_action, tvb_a, offset_a, 1, ENC_BIG_ENDIAN);
 
-                proto_tree_add_item (tree, hf_scsi_sbc_service_action, tvb, offset, 1, ENC_BIG_ENDIAN);
+                offset_a++;
 
-                offset++;
+                proto_tree_add_item(tree, hf_scsi_sbc_lba64_address, tvb_a, offset_a, 8, ENC_BIG_ENDIAN);
 
-                proto_tree_add_item (tree, hf_scsi_sbc_lba64_address, tvb, offset, 8, ENC_BIG_ENDIAN);
-
-                offset+=8;
+                offset_a+=8;
 
                 /* two reserved bytes */
-                offset+=2;
+                offset_a+=2;
 
-                proto_tree_add_item (tree, hf_scsi_sbc_alloclen16, tvb, offset, 2, ENC_BIG_ENDIAN);
-                offset+=2;
+                proto_tree_add_item_ret_uint(tree, hf_scsi_sbc_alloclen16, tvb_a, offset_a, 2, ENC_BIG_ENDIAN, &alloc_len);
+                if (cdata && cdata->itlq) {
+                    cdata->itlq->alloc_len = alloc_len;
+                }
+                offset_a+=2;
 
                 /* CORRCT bit */
-                offset++;
+                offset_a++;
 
-                proto_tree_add_bitmask(tree, tvb, offset, hf_scsi_control,
+                proto_tree_add_bitmask(tree, tvb_a, offset_a, hf_scsi_control,
                         ett_scsi_control, cdb_control_fields, ENC_BIG_ENDIAN);
-                offset++;
+                offset_a++;
 
                 break;
             case SERVICE_GET_LBA_STATUS:
                 col_append_str(pinfo->cinfo, COL_INFO, " GET_LBA_STATUS");
 
-                if (!tree)
-                        return;
+                proto_tree_add_item(tree, hf_scsi_sbc_service_action, tvb_a, offset_a, 1, ENC_BIG_ENDIAN);
 
-                proto_tree_add_item (tree, hf_scsi_sbc_service_action, tvb, offset, 1, ENC_BIG_ENDIAN);
+                offset_a++;
 
-                offset++;
+                proto_tree_add_item(tree, hf_scsi_sbc_get_lba_status_lba, tvb_a, offset_a, 8, ENC_BIG_ENDIAN);
+                offset_a += 8;
 
-                proto_tree_add_item (tree, hf_scsi_sbc_get_lba_status_lba, tvb, offset, 8, ENC_BIG_ENDIAN);
-                offset += 8;
-
-                proto_tree_add_item (tree, hf_scsi_sbc_alloclen32, tvb, offset, 4, ENC_BIG_ENDIAN);
-                offset += 4;
+                proto_tree_add_item_ret_uint(tree, hf_scsi_sbc_alloclen32, tvb_a, offset_a, 4, ENC_BIG_ENDIAN, &alloc_len);
+                if (cdata && cdata->itlq) {
+                    cdata->itlq->alloc_len = alloc_len;
+                }
+                offset_a += 4;
 
                 /* reserved */
-                offset++;
+                offset_a++;
 
-                proto_tree_add_bitmask(tree, tvb, offset, hf_scsi_control,
+                proto_tree_add_bitmask(tree, tvb_a, offset_a, hf_scsi_control,
                         ett_scsi_control, cdb_control_fields, ENC_BIG_ENDIAN);
-                offset++;
+                offset_a++;
 
                 break;
             case SERVICE_REPORT_REFERRALS:
                 col_append_str(pinfo->cinfo, COL_INFO, " REPORT_REFERRALS");
 
-                if (!tree)
-                        return;
+                proto_tree_add_item(tree, hf_scsi_sbc_service_action, tvb_a, offset_a, 1, ENC_BIG_ENDIAN);
 
-                proto_tree_add_item (tree, hf_scsi_sbc_service_action, tvb, offset, 1, ENC_BIG_ENDIAN);
+                offset_a++;
 
-                offset++;
+                proto_tree_add_item(tree, hf_scsi_sbc_lba64_address, tvb_a, offset_a, 8, ENC_BIG_ENDIAN);
 
-                proto_tree_add_item (tree, hf_scsi_sbc_lba64_address, tvb, offset, 8, ENC_BIG_ENDIAN);
+                offset_a += 8;
 
-                offset += 8;
+                proto_tree_add_item_ret_uint(tree, hf_scsi_sbc_alloclen32, tvb_a, offset_a, 4, ENC_BIG_ENDIAN, &alloc_len);
+                if (cdata && cdata->itlq) {
+                    cdata->itlq->alloc_len = alloc_len;
+                }
 
-                proto_tree_add_item (tree, hf_scsi_sbc_alloclen32, tvb, offset, 4, ENC_BIG_ENDIAN);
-
-                offset +=4;
+                offset_a +=4;
 
                 /* reserved */
-                offset++;
+                offset_a++;
 
-                proto_tree_add_bitmask(tree, tvb, offset, hf_scsi_control,
+                proto_tree_add_bitmask(tree, tvb_a, offset_a, hf_scsi_control,
                         ett_scsi_control, cdb_control_fields, ENC_BIG_ENDIAN);
-                offset++;
+                offset_a++;
 
                 break;
             default:
                 col_append_str(pinfo->cinfo, COL_INFO, " RESERVED");
 
-                if (!tree)
-                        return;
-
-                proto_tree_add_uint_format_value(tree, hf_scsi_sbc_service_action, tvb, offset, 1, service_action, "Reserved (0x%x)", service_action);
+                proto_tree_add_uint_format_value(tree, hf_scsi_sbc_service_action, tvb_a, offset_a, 1, service_action, "Reserved (0x%x)", service_action);
                 break;
         };
     } else if (!iscdb) {
-        if (!tree)
-                return;
 
         if(cdata && cdata->itlq){
+            TRY_SCSI_CDB_ALLOC_LEN(cdata->itlq->alloc_len);
+
             switch(cdata->itlq->flags){
                 case SERVICE_READ_CAPACITY16:
-                    len = tvb_get_ntoh64 (tvb, offset);
-                    block_len = tvb_get_ntohl (tvb, offset+8);
+
+                    len = tvb_get_ntoh64 (try_tvb, try_offset);
+                    block_len = tvb_get_ntohl (try_tvb, try_offset+8);
                     tot_len=((len/1024)*block_len)/1024; /*MB*/
                     un="MB";
                     if(tot_len>20000){
@@ -1468,78 +1487,82 @@ dissect_sbc_serviceactionin16 (tvbuff_t *tvb, packet_info *pinfo _U_,
                         un="GB";
                     }
 
-                    it = proto_tree_add_item (tree, hf_scsi_sbc_lba64_address, tvb, offset, 8, ENC_BIG_ENDIAN);
+                    it = proto_tree_add_item (tree, hf_scsi_sbc_lba64_address, try_tvb, try_offset, 8, ENC_BIG_ENDIAN);
                     proto_item_append_text (it, " (%" PRIu64 " %s)", tot_len, un);
+                    try_offset += 8;
 
-                    proto_tree_add_item (tree, hf_scsi_sbc_blocksize, tvb, offset+8, 4, ENC_BIG_ENDIAN);
+                    proto_tree_add_item (tree, hf_scsi_sbc_blocksize, try_tvb, try_offset, 4, ENC_BIG_ENDIAN);
+                    try_offset += 4;
 
-
-                    proto_tree_add_item (tree, hf_scsi_sbc_prot_en, tvb, offset+12, 1, ENC_BIG_ENDIAN);
-                    if (tvb_get_guint8(tvb, offset+12) & 0x01) {
+                    proto_tree_add_item (tree, hf_scsi_sbc_prot_en, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
+                    if (tvb_get_uint8(try_tvb, try_offset) & 0x01) {
                         /* only decode the protection type if protection is enabled */
-                        proto_tree_add_item (tree, hf_scsi_sbc_ptype, tvb, offset+12, 1, ENC_BIG_ENDIAN);
+                        proto_tree_add_item (tree, hf_scsi_sbc_ptype, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
                     }
+                    try_offset += 1;
 
-                    proto_tree_add_item (tree, hf_scsi_sbc_p_i_exponent, tvb, offset+13, 1, ENC_BIG_ENDIAN);
-                    proto_tree_add_item (tree, hf_scsi_sbc_lbppbe, tvb, offset+13, 1, ENC_BIG_ENDIAN);
+                    proto_tree_add_item (tree, hf_scsi_sbc_p_i_exponent, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
+                    proto_tree_add_item (tree, hf_scsi_sbc_lbppbe, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
+                    try_offset += 1;
 
-                    proto_tree_add_item (tree, hf_scsi_sbc_lbpme, tvb, offset+14, 1, ENC_BIG_ENDIAN);
-                    proto_tree_add_item (tree, hf_scsi_sbc_lbprz, tvb, offset+14, 1, ENC_BIG_ENDIAN);
-                    proto_tree_add_item (tree, hf_scsi_sbc_lalba, tvb, offset+14, 2, ENC_BIG_ENDIAN);
+                    proto_tree_add_item (tree, hf_scsi_sbc_lbpme, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
+                    proto_tree_add_item (tree, hf_scsi_sbc_lbprz, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
+                    proto_tree_add_item (tree, hf_scsi_sbc_lalba, try_tvb, try_offset, 2, ENC_BIG_ENDIAN);
 
                     break;
                 case SERVICE_GET_LBA_STATUS:
-                    proto_tree_add_item (tree, hf_scsi_sbc_get_lba_status_data_length, tvb, offset, 4, ENC_BIG_ENDIAN);
-                    offset += 4;
+                    proto_tree_add_item (tree, hf_scsi_sbc_get_lba_status_data_length, try_tvb, try_offset, 4, ENC_BIG_ENDIAN);
+                    try_offset += 4;
 
                     /* reserved */
-                    offset += 4;
+                    try_offset += 4;
 
-                    while (tvb_captured_length_remaining(tvb, offset) >= 16) {
+                    while (tvb_captured_length_remaining(try_tvb, try_offset) >= 16) {
                         proto_tree *tr;
-                        guint64 lba;
-                        guint32 num_blocks;
-                        guint8  type;
+                        uint64_t lba;
+                        uint32_t num_blocks;
+                        uint8_t type;
 
-                        tr = proto_tree_add_subtree(tree, tvb, offset, 16, ett_scsi_lba_status_descriptor, &it, "LBA Status Descriptor:  ");
+                        tr = proto_tree_add_subtree(tree, try_tvb, try_offset, 16, ett_scsi_lba_status_descriptor, &it, "LBA Status Descriptor:  ");
 
-                        proto_tree_add_item (tr, hf_scsi_sbc_get_lba_status_lba, tvb, offset, 8, ENC_BIG_ENDIAN);
-                        lba = tvb_get_ntoh64(tvb, offset);
-                        offset += 8;
+                        proto_tree_add_item (tr, hf_scsi_sbc_get_lba_status_lba, try_tvb, try_offset, 8, ENC_BIG_ENDIAN);
+                        lba = tvb_get_ntoh64(try_tvb, try_offset);
+                        try_offset += 8;
 
-                        proto_tree_add_item (tr, hf_scsi_sbc_get_lba_status_num_blocks, tvb, offset, 4, ENC_BIG_ENDIAN);
-                        num_blocks = tvb_get_ntohl(tvb, offset);
-                        offset += 4;
+                        proto_tree_add_item (tr, hf_scsi_sbc_get_lba_status_num_blocks, try_tvb, try_offset, 4, ENC_BIG_ENDIAN);
+                        num_blocks = tvb_get_ntohl(try_tvb, try_offset);
+                        try_offset += 4;
 
-                        proto_tree_add_item (tr, hf_scsi_sbc_get_lba_status_provisioning_status, tvb, offset, 1, ENC_BIG_ENDIAN);
-                        type = tvb_get_guint8(tvb, offset) & 0x07;
-                        offset++;
+                        proto_tree_add_item (tr, hf_scsi_sbc_get_lba_status_provisioning_status, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
+                        type = tvb_get_uint8(try_tvb, try_offset) & 0x07;
+                        try_offset++;
 
                         /* reserved */
-                        offset += 3;
+                        try_offset += 3;
 
                         proto_item_append_text (it, "%" PRIu64 "-%" PRIu64 "  %s",
                                 lba,
                                 lba + num_blocks - 1,
-                                val_to_str(type, scsi_provisioning_type_val, "Unknown (0x%02x)")
+                                val_to_str(type, scsi_provisioning_type_val, "Unknown (0x%02x) ")
                                 );
                     }
                     break;
             }
+            END_TRY_SCSI_CDB_ALLOC_LEN;
         }
     }
 }
 
 static void
 dissect_sbc_serviceactionout16(tvbuff_t *tvb, packet_info *pinfo _U_,
-                           proto_tree *tree, guint offset, gboolean isreq,
-                           gboolean iscdb,
-                           guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                           proto_tree *tree, unsigned offset, bool isreq,
+                           bool iscdb,
+                           unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
-    guint8 service_action;
+    uint8_t service_action;
 
     if (isreq && iscdb) {
-        service_action = tvb_get_guint8 (tvb, offset) & 0x1F;
+        service_action = tvb_get_uint8 (tvb, offset) & 0x1F;
         if(cdata && cdata->itlq){
             cdata->itlq->flags=service_action;
         }
@@ -1581,7 +1604,7 @@ dissect_sbc_serviceactionout16(tvbuff_t *tvb, packet_info *pinfo _U_,
                 if (!tree)
                         return;
 
-                proto_tree_add_uint_format_value(tree, hf_scsi_sbc_service_action, tvb, offset, 1, service_action, "Reserved (0x%x)", service_action);
+                proto_tree_add_uint_format_value(tree, hf_scsi_sbc_service_action, tvb, offset, 1, service_action, "Reserved (0x%x) ", service_action);
                 break;
         };
     }
@@ -1671,7 +1694,7 @@ static const value_string scsi_sbc_vals[] = {
 };
 value_string_ext scsi_sbc_vals_ext = VALUE_STRING_EXT_INIT(scsi_sbc_vals);
 
-scsi_cdb_table_t scsi_sbc_table[256] = {
+const scsi_cdb_table_t scsi_sbc_table[256] = {
 /*SPC 0x00*/{dissect_spc_testunitready},
 /*SBC 0x01*/{NULL},
 /*SBC 0x02*/{NULL},
@@ -1955,13 +1978,13 @@ proto_register_scsi_sbc(void)
           {"Interleave", "scsi_sbc.formatunit.interleave", FT_UINT16, BASE_HEX,
            NULL, 0x0, NULL, HFILL}},
         { &hf_scsi_sbc_rdwr6_lba,
-          {"Logical Block Address (LBA)", "scsi_sbc.rdwr6.lba", FT_UINT24, BASE_DEC,
+          {"Logical Block Address (LBA)", "scsi_sbc.rdwr6.lba", FT_UINT24, BASE_HEX_DEC,
            NULL, 0x0FFFFF, NULL, HFILL}},
         { &hf_scsi_sbc_rdwr6_xferlen,
           {"Transfer Length", "scsi_sbc.rdwr6.xferlen", FT_UINT24, BASE_DEC, NULL, 0x0,
            NULL, HFILL}},
         { &hf_scsi_sbc_rdwr10_lba,
-          {"Logical Block Address (LBA)", "scsi_sbc.rdwr10.lba", FT_UINT32, BASE_DEC,
+          {"Logical Block Address (LBA)", "scsi_sbc.rdwr10.lba", FT_UINT32, BASE_HEX_DEC,
            NULL, 0x0, NULL, HFILL}},
         { &hf_scsi_sbc_rdwr10_xferlen,
           {"Transfer Length", "scsi_sbc.rdwr10.xferlen", FT_UINT16, BASE_DEC, NULL,
@@ -2037,7 +2060,7 @@ proto_register_scsi_sbc(void)
           {"Allocation Length", "scsi_sbc.alloclen16", FT_UINT16, BASE_DEC,
            NULL, 0x0, NULL, HFILL}},
         { &hf_scsi_sbc_lba64_address,
-          {"Logical Block Address", "scsi_sbc.lba64_add", FT_UINT64, BASE_DEC,
+          {"Logical Block Address", "scsi_sbc.lba64_add", FT_UINT64, BASE_HEX_DEC,
            NULL, 0x0, NULL, HFILL}},
         { &hf_scsi_sbc_fuflags_fmtpinfo,
           {"FMTPINFO", "scsi_sbc.format_unit.fmtpinfo", FT_BOOLEAN, 8,
@@ -2077,10 +2100,13 @@ proto_register_scsi_sbc(void)
            TFS(&fua_nv_tfs), 0x02, "ForceUnitAccess_NonVolatile: Whether to allow reading from non-volatile cache or not", HFILL}},
         { &hf_scsi_sbc_blocksize,
           {"Block size in bytes", "scsi_sbc.blocksize", FT_UINT32, BASE_DEC,
-           NULL, 0, NULL, HFILL}},
+          NULL, 0, NULL, HFILL}},
         { &hf_scsi_sbc_returned_lba,
           {"Returned LBA", "scsi_sbc.returned_lba", FT_UINT32, BASE_DEC,
            NULL, 0, NULL, HFILL}},
+        { &hf_scsi_sbc_read_capacity,
+          {"Read capacity", "scsi_sbc.read_capacity", FT_DOUBLE, BASE_DEC,
+          NULL,0,NULL, HFILL}},
         { &hf_scsi_sbc_req_plist,
           {"REQ_PLIST", "scsi_sbc.req_plist", FT_BOOLEAN, 8,
            NULL, 0x10, NULL, HFILL}},
@@ -2244,7 +2270,7 @@ proto_register_scsi_sbc(void)
 
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_scsi_format_unit,
         &ett_scsi_prefetch,
         &ett_scsi_rdwr,

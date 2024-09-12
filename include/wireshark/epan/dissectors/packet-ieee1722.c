@@ -42,6 +42,8 @@
 #include <epan/etypes.h>
 #include <epan/decode_as.h>
 #include <epan/proto_data.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
 #include "packet-socketcan.h"
 
 #include "packet-mp2t.h"
@@ -89,7 +91,7 @@ enum IEEE_1722_TRANSPORT {
 };
 
 typedef struct _ieee1722_seq_data_t {
-    guint32     seqnum_exp;
+    uint32_t    seqnum_exp;
 } ieee1722_seq_data_t;
 
 /**************************************************************************************************/
@@ -344,17 +346,17 @@ static const range_string subtype_range_rvals[] = {
 };
 
 /* Initialize the protocol and registered fields          */
-static int proto_1722 = -1;
-static int hf_1722_encap_seqnum = -1;
-static int hf_1722_subtype = -1;
-static int hf_1722_svfield = -1;
-static int hf_1722_verfield = -1;
+static int proto_1722;
+static int hf_1722_encap_seqnum;
+static int hf_1722_subtype;
+static int hf_1722_svfield;
+static int hf_1722_verfield;
 
 /* Initialize the subtree pointers */
-static int ett_1722 = -1;
+static int ett_1722;
 
-static expert_field ei_1722_encap_seqnum_dup = EI_INIT;
-static expert_field ei_1722_encap_seqnum_ooo = EI_INIT;
+static expert_field ei_1722_encap_seqnum_dup;
+static expert_field ei_1722_encap_seqnum_ooo;
 
 static dissector_table_t avb_dissector_table;
 
@@ -445,60 +447,60 @@ static const range_string syt_rvals [] = {
 };
 
 /* Initialize the protocol and registered fields          */
-static int proto_1722_61883 = -1;
-static int hf_1722_61883_mrfield = -1;
-static int hf_1722_61883_gvfield = -1;
-static int hf_1722_61883_tvfield = -1;
-static int hf_1722_61883_seqnum = -1;
-static int hf_1722_61883_tufield = -1;
-static int hf_1722_61883_stream_id = -1;
-static int hf_1722_61883_avtp_timestamp = -1;
-static int hf_1722_61883_gateway_info = -1;
-static int hf_1722_61883_stream_data_length = -1;
-static int hf_1722_61883_tag = -1;
-static int hf_1722_61883_channel = -1;
-static int hf_1722_61883_tcode = -1;
-static int hf_1722_61883_sy = -1;
-static int hf_1722_61883_cip_qi1 = -1;
-static int hf_1722_61883_cip_sid = -1;
-static int hf_1722_61883_cip_dbs = -1;
-static int hf_1722_61883_cip_fn = -1;
-static int hf_1722_61883_cip_qpc = -1;
-static int hf_1722_61883_cip_sph = -1;
-static int hf_1722_61883_cip_dbc = -1;
-static int hf_1722_61883_cip_qi2 = -1;
-static int hf_1722_61883_cip_fmt = -1;
-static int hf_1722_61883_cip_fdf_no_syt = -1;
-static int hf_1722_61883_cip_fdf_tsf = -1;
-static int hf_1722_61883_cip_fdf = -1;
-static int hf_1722_61883_cip_syt = -1;
-static int hf_1722_61883_audio_data = -1;
-static int hf_1722_61883_label = -1;
-static int hf_1722_61883_sample = -1;
-static int hf_1722_61883_video_data = -1;
-static int hf_1722_61883_source_packet_header_timestamp = -1;
+static int proto_1722_61883;
+static int hf_1722_61883_mrfield;
+static int hf_1722_61883_gvfield;
+static int hf_1722_61883_tvfield;
+static int hf_1722_61883_seqnum;
+static int hf_1722_61883_tufield;
+static int hf_1722_61883_stream_id;
+static int hf_1722_61883_avtp_timestamp;
+static int hf_1722_61883_gateway_info;
+static int hf_1722_61883_stream_data_length;
+static int hf_1722_61883_tag;
+static int hf_1722_61883_channel;
+static int hf_1722_61883_tcode;
+static int hf_1722_61883_sy;
+static int hf_1722_61883_cip_qi1;
+static int hf_1722_61883_cip_sid;
+static int hf_1722_61883_cip_dbs;
+static int hf_1722_61883_cip_fn;
+static int hf_1722_61883_cip_qpc;
+static int hf_1722_61883_cip_sph;
+static int hf_1722_61883_cip_dbc;
+static int hf_1722_61883_cip_qi2;
+static int hf_1722_61883_cip_fmt;
+static int hf_1722_61883_cip_fdf_no_syt;
+static int hf_1722_61883_cip_fdf_tsf;
+static int hf_1722_61883_cip_fdf;
+static int hf_1722_61883_cip_syt;
+static int hf_1722_61883_audio_data;
+static int hf_1722_61883_label;
+static int hf_1722_61883_sample;
+static int hf_1722_61883_video_data;
+static int hf_1722_61883_source_packet_header_timestamp;
 
 /* Initialize the subtree pointers */
-static int ett_1722_61883 = -1;
-static int ett_1722_61883_audio = -1;
-static int ett_1722_61883_sample = -1;
-static int ett_1722_61883_video = -1;
+static int ett_1722_61883;
+static int ett_1722_61883_audio;
+static int ett_1722_61883_sample;
+static int ett_1722_61883_video;
 
 /* Initialize expert fields */
-static expert_field ei_1722_61883_incorrect_tag = EI_INIT;
-static expert_field ei_1722_61883_incorrect_tcode = EI_INIT;
-static expert_field ei_1722_61883_incorrect_qi1 = EI_INIT;
-static expert_field ei_1722_61883_incorrect_qpc = EI_INIT;
-static expert_field ei_1722_61883_incorrect_qi2 = EI_INIT;
-static expert_field ei_1722_61883_unknown_format = EI_INIT;
-static expert_field ei_1722_61883_incorrect_channel_sid = EI_INIT;
-static expert_field ei_1722_61883_incorrect_datalen = EI_INIT;
-static expert_field ei_1722_61883_4_incorrect_cip_fn = EI_INIT;
-static expert_field ei_1722_61883_4_incorrect_cip_dbs = EI_INIT;
-static expert_field ei_1722_61883_4_incorrect_cip_sph = EI_INIT;
-static expert_field ei_1722_61883_6_incorrect_cip_fn = EI_INIT;
-static expert_field ei_1722_61883_6_incorrect_cip_sph = EI_INIT;
-static expert_field ei_1722_61883_incorrect_cip_fdf = EI_INIT;
+static expert_field ei_1722_61883_incorrect_tag;
+static expert_field ei_1722_61883_incorrect_tcode;
+static expert_field ei_1722_61883_incorrect_qi1;
+static expert_field ei_1722_61883_incorrect_qpc;
+static expert_field ei_1722_61883_incorrect_qi2;
+static expert_field ei_1722_61883_unknown_format;
+static expert_field ei_1722_61883_incorrect_channel_sid;
+static expert_field ei_1722_61883_incorrect_datalen;
+static expert_field ei_1722_61883_4_incorrect_cip_fn;
+static expert_field ei_1722_61883_4_incorrect_cip_dbs;
+static expert_field ei_1722_61883_4_incorrect_cip_sph;
+static expert_field ei_1722_61883_6_incorrect_cip_fn;
+static expert_field ei_1722_61883_6_incorrect_cip_sph;
+static expert_field ei_1722_61883_incorrect_cip_fdf;
 
 /**************************************************************************************************/
 /* subtype AAF                                                                                    */
@@ -538,35 +540,35 @@ static const value_string aaf_sparse_timestamp_vals [] = {
 };
 
 /* Initialize the protocol and registered fields          */
-static int proto_1722_aaf = -1;
-static int hf_1722_aaf_mrfield = -1;
-static int hf_1722_aaf_tvfield = -1;
-static int hf_1722_aaf_seqnum = -1;
-static int hf_1722_aaf_tufield = -1;
-static int hf_1722_aaf_stream_id = -1;
-static int hf_1722_aaf_avtp_timestamp = -1;
-static int hf_1722_aaf_format = -1;
-static int hf_1722_aaf_nominal_sample_rate = -1;
-static int hf_1722_aaf_bit_depth = -1;
-static int hf_1722_aaf_stream_data_length = -1;
-static int hf_1722_aaf_sparse_timestamp = -1;
-static int hf_1722_aaf_evtfield = -1;
-static int hf_1722_aaf_reserved = -1;
-static int hf_1722_aaf_channels_per_frame = -1;
-static int hf_1722_aaf_data = -1;
-static int hf_1722_aaf_sample = -1;
+static int proto_1722_aaf;
+static int hf_1722_aaf_mrfield;
+static int hf_1722_aaf_tvfield;
+static int hf_1722_aaf_seqnum;
+static int hf_1722_aaf_tufield;
+static int hf_1722_aaf_stream_id;
+static int hf_1722_aaf_avtp_timestamp;
+static int hf_1722_aaf_format;
+static int hf_1722_aaf_nominal_sample_rate;
+static int hf_1722_aaf_bit_depth;
+static int hf_1722_aaf_stream_data_length;
+static int hf_1722_aaf_sparse_timestamp;
+static int hf_1722_aaf_evtfield;
+static int hf_1722_aaf_reserved;
+static int hf_1722_aaf_channels_per_frame;
+static int hf_1722_aaf_data;
+static int hf_1722_aaf_sample;
 
 /* Initialize the subtree pointers */
-static int ett_1722_aaf = -1;
-static int ett_1722_aaf_audio = -1;
-static int ett_1722_aaf_sample = -1;
+static int ett_1722_aaf;
+static int ett_1722_aaf_audio;
+static int ett_1722_aaf_sample;
 
 /* Initialize expert fields */
-static expert_field ei_aaf_sample_width = EI_INIT;
-static expert_field ei_aaf_reserved_format = EI_INIT;
-static expert_field ei_aaf_aes3_format = EI_INIT;
-static expert_field ei_aaf_channels_per_frame = EI_INIT;
-static expert_field ei_aaf_incorrect_bit_depth = EI_INIT;
+static expert_field ei_aaf_sample_width;
+static expert_field ei_aaf_reserved_format;
+static expert_field ei_aaf_aes3_format;
+static expert_field ei_aaf_channels_per_frame;
+static expert_field ei_aaf_incorrect_bit_depth;
 
 /**************************************************************************************************/
 /* subtype CRF                                                                                    */
@@ -594,26 +596,26 @@ static const range_string crf_type_range_rvals [] = {
 };
 
 /* Initialize the protocol and registered fields          */
-static int proto_1722_crf = -1;
-static int hf_1722_crf_mrfield = -1;
-static int hf_1722_crf_fsfield = -1;
-static int hf_1722_crf_tufield = -1;
-static int hf_1722_crf_seqnum = -1;
-static int hf_1722_crf_type = -1;
-static int hf_1722_crf_stream_id = -1;
-static int hf_1722_crf_pull = -1;
-static int hf_1722_crf_base_frequency = -1;
-static int hf_1722_crf_data_length = -1;
-static int hf_1722_crf_timestamp_interval = -1;
-static int hf_1722_crf_timestamp_data = -1;
-static int hf_1722_crf_timestamp = -1;
+static int proto_1722_crf;
+static int hf_1722_crf_mrfield;
+static int hf_1722_crf_fsfield;
+static int hf_1722_crf_tufield;
+static int hf_1722_crf_seqnum;
+static int hf_1722_crf_type;
+static int hf_1722_crf_stream_id;
+static int hf_1722_crf_pull;
+static int hf_1722_crf_base_frequency;
+static int hf_1722_crf_data_length;
+static int hf_1722_crf_timestamp_interval;
+static int hf_1722_crf_timestamp_data;
+static int hf_1722_crf_timestamp;
 
 /* Initialize the subtree pointers */
-static int ett_1722_crf = -1;
-static int ett_1722_crf_timestamp = -1;
+static int ett_1722_crf;
+static int ett_1722_crf_timestamp;
 
 /* Initialize expert fields */
-static expert_field ei_crf_datalen = EI_INIT;
+static expert_field ei_crf_datalen;
 
 /**************************************************************************************************/
 /* subtype CVF                                                                                    */
@@ -636,28 +638,28 @@ static const range_string cvf_format_subtype_range_rvals [] = {
 
 /* Initialize the protocol and registered fields          */
 
-static int proto_1722_cvf = -1;
-static int hf_1722_cvf_mrfield = -1;
-static int hf_1722_cvf_tvfield = -1;
-static int hf_1722_cvf_seqnum = -1;
-static int hf_1722_cvf_tufield = -1;
-static int hf_1722_cvf_stream_id = -1;
-static int hf_1722_cvf_avtp_timestamp = -1;
-static int hf_1722_cvf_format = -1;
-static int hf_1722_cvf_format_subtype = -1;
-static int hf_1722_cvf_stream_data_length = -1;
-static int hf_1722_cvf_evtfield = -1;
-static int hf_1722_cvf_marker_bit = -1;
-static int hf_1722_cvf_h264_ptvfield = -1;
-static int hf_1722_cvf_h264_timestamp = -1;
+static int proto_1722_cvf;
+static int hf_1722_cvf_mrfield;
+static int hf_1722_cvf_tvfield;
+static int hf_1722_cvf_seqnum;
+static int hf_1722_cvf_tufield;
+static int hf_1722_cvf_stream_id;
+static int hf_1722_cvf_avtp_timestamp;
+static int hf_1722_cvf_format;
+static int hf_1722_cvf_format_subtype;
+static int hf_1722_cvf_stream_data_length;
+static int hf_1722_cvf_evtfield;
+static int hf_1722_cvf_marker_bit;
+static int hf_1722_cvf_h264_ptvfield;
+static int hf_1722_cvf_h264_timestamp;
 
 /* Initialize the subtree pointers */
-static int ett_1722_cvf = -1;
+static int ett_1722_cvf;
 
 /* Initialize expert fields */
-static expert_field ei_cvf_jpeg2000_format = EI_INIT;
-static expert_field ei_cvf_reserved_format = EI_INIT;
-static expert_field ei_cvf_invalid_data_length = EI_INIT;
+static expert_field ei_cvf_jpeg2000_format;
+static expert_field ei_cvf_reserved_format;
+static expert_field ei_cvf_invalid_data_length;
 
 /**************************************************************************************************/
 /* subtype NTSCF                                                                                  */
@@ -665,18 +667,18 @@ static expert_field ei_cvf_invalid_data_length = EI_INIT;
 /**************************************************************************************************/
 
 /* Initialize the protocol and registered fields          */
-static int proto_1722_ntscf = -1;
-static int hf_1722_ntscf_rfield = -1;
-static int hf_1722_ntscf_data_length = -1;
-static int hf_1722_ntscf_seqnum = -1;
-static int hf_1722_ntscf_stream_id = -1;
+static int proto_1722_ntscf;
+static int hf_1722_ntscf_rfield;
+static int hf_1722_ntscf_data_length;
+static int hf_1722_ntscf_seqnum;
+static int hf_1722_ntscf_stream_id;
 
 /* Initialize the subtree pointers */
-static int ett_1722_ntscf = -1;
+static int ett_1722_ntscf;
 
 /* Initialize expert fields */
-static expert_field ei_1722_ntscf_no_space_for_header = EI_INIT;
-static expert_field ei_1722_ntscf_invalid_data_length = EI_INIT;
+static expert_field ei_1722_ntscf_no_space_for_header;
+static expert_field ei_1722_ntscf_invalid_data_length;
 
 /**************************************************************************************************/
 /* subtype TSCF                                                                                   */
@@ -684,27 +686,27 @@ static expert_field ei_1722_ntscf_invalid_data_length = EI_INIT;
 /**************************************************************************************************/
 
 /* Initialize the protocol and registered fields          */
-static int proto_1722_tscf = -1;
-static int hf_1722_tscf_mr = -1;
-static int hf_1722_tscf_rsv1 = -1;
-static int hf_1722_tscf_tv = -1;
-static int hf_1722_tscf_seqnum = -1;
-static int hf_1722_tscf_rsv2 = -1;
-static int hf_1722_tscf_tu = -1;
-static int hf_1722_tscf_stream_id = -1;
-static int hf_1722_tscf_avtp_timestamp = -1;
-static int hf_1722_tscf_rsv3 = -1;
-static int hf_1722_tscf_data_length = -1;
-static int hf_1722_tscf_rsv4 = -1;
+static int proto_1722_tscf;
+static int hf_1722_tscf_mr;
+static int hf_1722_tscf_rsv1;
+static int hf_1722_tscf_tv;
+static int hf_1722_tscf_seqnum;
+static int hf_1722_tscf_rsv2;
+static int hf_1722_tscf_tu;
+static int hf_1722_tscf_stream_id;
+static int hf_1722_tscf_avtp_timestamp;
+static int hf_1722_tscf_rsv3;
+static int hf_1722_tscf_data_length;
+static int hf_1722_tscf_rsv4;
 
 /* Initialize the subtree pointers */
-static int ett_1722_tscf = -1;
-static int ett_1722_tscf_flags = -1;
-static int ett_1722_tscf_tu = -1;
+static int ett_1722_tscf;
+static int ett_1722_tscf_flags;
+static int ett_1722_tscf_tu;
 
 /* Initialize expert fields */
-static expert_field ei_1722_tscf_no_space_for_header = EI_INIT;
-static expert_field ei_1722_tscf_invalid_data_length = EI_INIT;
+static expert_field ei_1722_tscf_no_space_for_header;
+static expert_field ei_1722_tscf_invalid_data_length;
 
 
 /**************************************************************************************************/
@@ -731,17 +733,17 @@ static const range_string acf_msg_type_range_rvals [] = {
 };
 
 /* Initialize the protocol and registered fields          */
-static int proto_1722_acf = -1;
-static int hf_1722_acf_msg_type = -1;
-static int hf_1722_acf_msg_length = -1;
+static int proto_1722_acf;
+static int hf_1722_acf_msg_type;
+static int hf_1722_acf_msg_length;
 
 /* Initialize the subtree pointers */
-static int ett_1722_acf = -1;
-static int ett_1722_acf_header = -1;
+static int ett_1722_acf;
+static int ett_1722_acf_header;
 
 /* Initialize expert fields */
-static expert_field ei_1722_acf_invalid_msg_length = EI_INIT;
-static expert_field ei_1722_acf_message_is_cropped = EI_INIT;
+static expert_field ei_1722_acf_invalid_msg_length;
+static expert_field ei_1722_acf_message_is_cropped;
 
 /* Dissector handles */
 static dissector_handle_t  avb1722_acf_handle;
@@ -753,54 +755,54 @@ static dissector_table_t   avb1722_acf_dissector_table;
 /**************************************************************************************************/
 
 typedef struct {
-    guint32     id;
-    guint32     bus_id;
-    guint       datalen;
-    gboolean    is_fd;
-    gboolean    is_xtd;
-    gboolean    is_rtr;
-    gboolean    is_brs;
-    gboolean    is_esi;
+    uint32_t    id;
+    uint32_t    bus_id;
+    unsigned    datalen;
+    bool        is_fd;
+    bool        is_xtd;
+    bool        is_rtr;
+    bool        is_brs;
+    bool        is_esi;
 } acf_can_t;
 
 /* Initialize the protocol and registered fields          */
-static int proto_1722_acf_can = -1;
-static int hf_1722_can_flags = -1;
-static int hf_1722_can_pad = -1;
-static int hf_1722_can_len = -1;
-static int hf_1722_can_mtvfield = -1;
-static int hf_1722_can_rtrfield = -1;
-static int hf_1722_can_efffield = -1;
-static int hf_1722_can_brsfield = -1;
-static int hf_1722_can_fdffield = -1;
-static int hf_1722_can_esifield = -1;
-static int hf_1722_can_rsv1 = -1;
-static int hf_1722_can_bus_id = -1;
-static int hf_1722_can_message_timestamp = -1;
-static int hf_1722_can_rsv2 = -1;
-static int hf_1722_can_identifier = -1;
-static int hf_1722_can_padding = -1;
+static int proto_1722_acf_can;
+static int hf_1722_can_flags;
+static int hf_1722_can_pad;
+static int hf_1722_can_len;
+static int hf_1722_can_mtvfield;
+static int hf_1722_can_rtrfield;
+static int hf_1722_can_efffield;
+static int hf_1722_can_brsfield;
+static int hf_1722_can_fdffield;
+static int hf_1722_can_esifield;
+static int hf_1722_can_rsv1;
+static int hf_1722_can_bus_id;
+static int hf_1722_can_message_timestamp;
+static int hf_1722_can_rsv2;
+static int hf_1722_can_identifier;
+static int hf_1722_can_padding;
 
 /* Initialize the subtree pointers */
-static int ett_can = -1;
-static int ett_1722_can = -1;
-static int ett_1722_can_flags = -1;
-static int ett_1722_can_bus_id = -1;
-static int ett_1722_can_msg_id = -1;
+static int ett_can;
+static int ett_1722_can;
+static int ett_1722_can_flags;
+static int ett_1722_can_bus_id;
+static int ett_1722_can_msg_id;
 
 /* Initialize expert fields */
-static expert_field ei_1722_can_header_cropped = EI_INIT;
-static expert_field ei_1722_can_invalid_message_id = EI_INIT;
-static expert_field ei_1722_can_invalid_payload_length = EI_INIT;
-static expert_field ei_1722_canfd_invalid_payload_length = EI_INIT;
+static expert_field ei_1722_can_header_cropped;
+static expert_field ei_1722_can_invalid_message_id;
+static expert_field ei_1722_can_invalid_payload_length;
+static expert_field ei_1722_canfd_invalid_payload_length;
 
 /* Dissector handles */
 static dissector_handle_t avb1722_can_brief_handle;
 static dissector_handle_t avb1722_can_handle;
 
-static int                      proto_can = -1;
-static int                      proto_canfd = -1;
-static gboolean                 can_heuristic_first = FALSE;
+static int                      proto_can;
+static int                      proto_canfd;
+static bool                 can_heuristic_first;
 
 /**************************************************************************************************/
 /* ACF LIN Message                                                                                */
@@ -808,21 +810,21 @@ static gboolean                 can_heuristic_first = FALSE;
 /**************************************************************************************************/
 
 /* Initialize the protocol and registered fields          */
-static int proto_1722_acf_lin = -1;
-static int hf_1722_lin_pad = -1;
-static int hf_1722_lin_mtv = -1;
-static int hf_1722_lin_bus_id = -1;
-static int hf_1722_lin_identifier = -1;
-static int hf_1722_lin_message_timestamp = -1;
-static int hf_1722_lin_padding = -1;
+static int proto_1722_acf_lin;
+static int hf_1722_lin_pad;
+static int hf_1722_lin_mtv;
+static int hf_1722_lin_bus_id;
+static int hf_1722_lin_identifier;
+static int hf_1722_lin_message_timestamp;
+static int hf_1722_lin_padding;
 
 /* Initialize the subtree pointers */
-static int ett_1722_lin = -1;
-static int ett_1722_lin_flags = -1;
+static int ett_1722_lin;
+static int ett_1722_lin_flags;
 
 /* Initialize expert fields */
-static expert_field ei_1722_lin_header_cropped = EI_INIT;
-static expert_field ei_1722_lin_invalid_payload_length = EI_INIT;
+static expert_field ei_1722_lin_header_cropped;
+static expert_field ei_1722_lin_invalid_payload_length;
 
 static dissector_table_t avb1722_acf_lin_dissector_table;
 
@@ -831,8 +833,8 @@ static dissector_table_t avb1722_acf_lin_dissector_table;
 /*                                                                                                */
 /**************************************************************************************************/
 
-static guint32
-get_seqnum_exp_1722_udp(packet_info *pinfo, const guint32 seqnum)
+static uint32_t
+get_seqnum_exp_1722_udp(packet_info *pinfo, const uint32_t seqnum)
 {
     conversation_t *conv;
     ieee1722_seq_data_t *conv_seq_data, *p_seq_data;
@@ -864,11 +866,11 @@ static int dissect_1722_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
     tvbuff_t   *next_tvb;
     proto_item *ti;
     proto_tree *ieee1722_tree;
-    guint32     encap_seqnum, encap_seqnum_exp;
-    guint       subtype = 0;
-    gint        offset = 0;
+    uint32_t    encap_seqnum, encap_seqnum_exp;
+    unsigned    subtype = 0;
+    int         offset = 0;
     int         dissected_size;
-    int * const fields[] = {
+    static int * const fields[] = {
         &hf_1722_svfield,
         &hf_1722_verfield,
         NULL
@@ -949,7 +951,7 @@ void proto_register_1722(void)
         { &ei_1722_encap_seqnum_ooo,          { "ieee1722.encapsulation_sequence_num.ooo", PI_SEQUENCE, PI_WARN, "Unexpected encapsulation_sequence_num (lost or out-of-order?)", EXPFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_1722
     };
 
@@ -997,24 +999,24 @@ static int dissect_1722_61883(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     proto_tree *ti_audio_tree;
     proto_tree *ti_sample_tree;
     proto_tree *ti_video_tree;
-    gint        offset = 1;
-    guint8      cip_dbs = 0;
-    guint8      tag = 0;
-    guint8      channel = 0;
-    guint8      tcode = 0;
-    guint8      cip_qi1 = 0;
-    guint8      cip_sid = 0;
-    guint8      cip_qpc = 0;
-    guint8      cip_qi2 = 0;
-    guint8      cip_fmt = 0;
-    guint8      cip_sph = 0;
-    guint8      cip_fn = 0;
-    guint       datalen = 0;
-    guint       db_size = 0;
-    guint       numSourcePackets = 0;
-    guint       i = 0;
-    guint       j = 0;
-    int * const fields[] = {
+    int         offset = 1;
+    uint8_t     cip_dbs = 0;
+    uint8_t     tag = 0;
+    uint8_t     channel = 0;
+    uint8_t     tcode = 0;
+    uint8_t     cip_qi1 = 0;
+    uint8_t     cip_sid = 0;
+    uint8_t     cip_qpc = 0;
+    uint8_t     cip_qi2 = 0;
+    uint8_t     cip_fmt = 0;
+    uint8_t     cip_sph = 0;
+    uint8_t     cip_fn = 0;
+    unsigned    datalen = 0;
+    unsigned    db_size = 0;
+    unsigned    numSourcePackets = 0;
+    unsigned    i = 0;
+    unsigned    j = 0;
+    static int * const fields[] = {
         &hf_1722_61883_mrfield,
         &hf_1722_61883_gvfield,
         &hf_1722_61883_tvfield,
@@ -1044,14 +1046,14 @@ static int dissect_1722_61883(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     /* tag field defines if CIP header is included or not */
     ti = proto_tree_add_item(ti_61883_tree, hf_1722_61883_tag, tvb, offset, 1, ENC_BIG_ENDIAN);
 
-    tag = tvb_get_guint8(tvb, offset) & IEEE_1722_TAG_MASK;
+    tag = tvb_get_uint8(tvb, offset) & IEEE_1722_TAG_MASK;
     if (tag > 0x40)
     {
         expert_add_info(pinfo, ti, &ei_1722_61883_incorrect_tag);
     }
 
     ti_channel = proto_tree_add_item(ti_61883_tree, hf_1722_61883_channel, tvb, offset, 1, ENC_BIG_ENDIAN);
-    channel = tvb_get_guint8(tvb, offset) & IEEE_1722_CHANNEL_MASK;
+    channel = tvb_get_uint8(tvb, offset) & IEEE_1722_CHANNEL_MASK;
     if (channel != IEEE_1722_61883_CHANNEL_AVTP)
     {
         proto_item_append_text(ti_channel, ": Originating Source ID from an IEEE 1394 serial bus");
@@ -1063,7 +1065,7 @@ static int dissect_1722_61883(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     offset += 1;
 
     ti = proto_tree_add_item(ti_61883_tree, hf_1722_61883_tcode, tvb, offset, 1, ENC_BIG_ENDIAN);
-    tcode = tvb_get_guint8(tvb, offset) & IEEE_1722_TCODE_MASK;
+    tcode = tvb_get_uint8(tvb, offset) & IEEE_1722_TCODE_MASK;
     if (tcode != 0xa0)
     {
        expert_add_info(pinfo, ti, &ei_1722_61883_incorrect_tcode);
@@ -1078,14 +1080,14 @@ static int dissect_1722_61883(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         break;
     case IEEE_1722_61883_TAG_CIP:
         ti = proto_tree_add_item(ti_61883_tree, hf_1722_61883_cip_qi1, tvb, offset, 1, ENC_BIG_ENDIAN);
-        cip_qi1 = tvb_get_guint8(tvb, offset) & IEEE_1722_QI1_MASK;
+        cip_qi1 = tvb_get_uint8(tvb, offset) & IEEE_1722_QI1_MASK;
         if (cip_qi1 != 0)
         {
             expert_add_info(pinfo, ti, &ei_1722_61883_incorrect_qi1);
         }
 
         ti = proto_tree_add_item(ti_61883_tree, hf_1722_61883_cip_sid, tvb, offset, 1, ENC_BIG_ENDIAN);
-        cip_sid = tvb_get_guint8(tvb, offset) & IEEE_1722_SID_MASK;
+        cip_sid = tvb_get_uint8(tvb, offset) & IEEE_1722_SID_MASK;
         if (cip_sid != IEEE_1722_61883_SID_AVTP)
         {
             proto_item_append_text(ti, ": Originating Source ID from an IEEE 1394 serial bus");
@@ -1108,11 +1110,11 @@ static int dissect_1722_61883(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         offset += 1;
 
         ti_cip_dbs = proto_tree_add_item(ti_61883_tree, hf_1722_61883_cip_dbs, tvb, offset, 1, ENC_BIG_ENDIAN);
-        cip_dbs = tvb_get_guint8(tvb, offset);
+        cip_dbs = tvb_get_uint8(tvb, offset);
         offset += 1;
         ti_cip_fn = proto_tree_add_item(ti_61883_tree, hf_1722_61883_cip_fn, tvb, offset, 1, ENC_BIG_ENDIAN);
 
-        switch (tvb_get_guint8(tvb, offset) & IEEE_1722_FN_MASK) {
+        switch (tvb_get_uint8(tvb, offset) & IEEE_1722_FN_MASK) {
         case 0:
             cip_fn = 0;
             break;
@@ -1130,20 +1132,20 @@ static int dissect_1722_61883(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         }
 
         ti = proto_tree_add_item(ti_61883_tree, hf_1722_61883_cip_qpc, tvb, offset, 1, ENC_BIG_ENDIAN);
-        cip_qpc = tvb_get_guint8(tvb, offset) & IEEE_1722_QPC_MASK;
+        cip_qpc = tvb_get_uint8(tvb, offset) & IEEE_1722_QPC_MASK;
         if (cip_qpc != 0)
         {
             expert_add_info(pinfo, ti, &ei_1722_61883_incorrect_qpc);
         }
 
         ti_cip_sph = proto_tree_add_item(ti_61883_tree, hf_1722_61883_cip_sph, tvb, offset, 1, ENC_BIG_ENDIAN);
-        cip_sph = tvb_get_guint8(tvb, offset) & IEEE_1722_SPH_MASK;
+        cip_sph = tvb_get_uint8(tvb, offset) & IEEE_1722_SPH_MASK;
         offset += 1;
         proto_tree_add_item(ti_61883_tree, hf_1722_61883_cip_dbc, tvb, offset, 1, ENC_BIG_ENDIAN);
         offset += 1;
 
         ti = proto_tree_add_item(ti_61883_tree, hf_1722_61883_cip_qi2, tvb, offset, 1, ENC_BIG_ENDIAN);
-        cip_qi2 = tvb_get_guint8(tvb, offset) & IEEE_1722_QI2_MASK;
+        cip_qi2 = tvb_get_uint8(tvb, offset) & IEEE_1722_QI2_MASK;
         if (cip_qi2 != 0x80)
         {
             expert_add_info(pinfo, ti, &ei_1722_61883_incorrect_qi2);
@@ -1151,7 +1153,7 @@ static int dissect_1722_61883(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
         /* Check format field for 61883-4 MPEG-TS video or 61883-6 for audio */
         ti_cip_fmt = proto_tree_add_item(ti_61883_tree, hf_1722_61883_cip_fmt, tvb, offset, 1, ENC_BIG_ENDIAN);
-        cip_fmt = tvb_get_guint8(tvb, offset) & IEEE_1722_FMT_MASK;
+        cip_fmt = tvb_get_uint8(tvb, offset) & IEEE_1722_FMT_MASK;
         offset += 1;
 
         if ((cip_fmt & 0x20) == 0)
@@ -1298,7 +1300,7 @@ void proto_register_1722_61883(void)
         },
         { &hf_1722_61883_stream_data_length,
             { "1394 Stream Data Length", "iec61883.stream_data_len",
-              FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0, NULL, HFILL }
+              FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0, NULL, HFILL }
         },
         { &hf_1722_61883_tag,
             { "1394 Packet Format Tag", "iec61883.tag",
@@ -1390,7 +1392,7 @@ void proto_register_1722_61883(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_1722_61883,
         &ett_1722_61883_audio,
         &ett_1722_61883_sample,
@@ -1461,20 +1463,20 @@ static int dissect_1722_aaf (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     proto_tree *ti_format;
     proto_tree *ti_audio_tree;
     proto_tree *ti_sample_tree;
-    gint        offset = 1;
-    guint       datalen = 0;
-    guint       channels_per_frame = 0;
-    guint       bit_depth = 0;
-    guint       sample_width = 0;
-    guint       format = 0;
-    guint       i = 0;
-    guint       j = 0;
-    int * const fields[] = {
+    int         offset = 1;
+    unsigned    datalen = 0;
+    unsigned    channels_per_frame = 0;
+    unsigned    bit_depth = 0;
+    unsigned    sample_width = 0;
+    unsigned    format = 0;
+    unsigned    i = 0;
+    unsigned    j = 0;
+    static int * const fields[] = {
         &hf_1722_aaf_mrfield,
         &hf_1722_aaf_tvfield,
         NULL
     };
-    int * const fields_pcm[] = {
+    static int * const fields_pcm[] = {
         &hf_1722_aaf_sparse_timestamp,
         &hf_1722_aaf_evtfield,
         NULL
@@ -1628,7 +1630,7 @@ void proto_register_1722_aaf (void)
         },
         { &hf_1722_aaf_stream_data_length,
             { "Stream Data Length", "aaf.stream_data_len",
-              FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, IEEE_1722_STREAM_DATA_LENGTH_MASK, NULL, HFILL }
+              FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), IEEE_1722_STREAM_DATA_LENGTH_MASK, NULL, HFILL }
         },
         { &hf_1722_aaf_sparse_timestamp,
             { "Sparse Timestamp Mode", "aaf.sparse_timestamp",
@@ -1660,7 +1662,7 @@ void proto_register_1722_aaf (void)
         { &ei_aaf_incorrect_bit_depth,   { "aaf.expert.incorrect_bit_depth", PI_PROTOCOL, PI_WARN, "Incorrect bit_depth value", EXPFILL }}
     };
 
-    static gint *ett[] =
+    static int *ett[] =
     {
         &ett_1722_aaf,
         &ett_1722_aaf_audio,
@@ -1696,18 +1698,18 @@ static int dissect_1722_cvf (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     proto_item *ti;
     proto_tree *ti_cvf_tree;
     tvbuff_t   *next_tvb;
-    gint        offset = 1;
-    guint       reported_len;
-    guint32     datalen, format, format_subtype = 0;
+    int         offset = 1;
+    unsigned    reported_len;
+    uint32_t    datalen, format, format_subtype = 0;
     proto_tree *ti_format, *ti_datalen;
 
-    int * const fields[] = {
+    static int * const fields[] = {
         &hf_1722_cvf_mrfield,
         &hf_1722_cvf_tvfield,
         NULL
     };
 
-    int * const fields_cvf[] = {
+    static int * const fields_cvf[] = {
         &hf_1722_cvf_marker_bit,
         &hf_1722_cvf_evtfield,
         NULL
@@ -1716,7 +1718,7 @@ static int dissect_1722_cvf (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     /* The PTV field is only defined for the H264 subtype,
      * reserved for others.
      */
-    int * const fields_h264[] = {
+    static int * const fields_h264[] = {
         &hf_1722_cvf_h264_ptvfield,
         &hf_1722_cvf_marker_bit,
         &hf_1722_cvf_evtfield,
@@ -1828,7 +1830,7 @@ void proto_register_1722_cvf (void)
         },
         { &hf_1722_cvf_stream_data_length,
             { "Stream Data Length", "cvf.stream_data_len",
-              FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_byte_bytes, IEEE_1722_STREAM_DATA_LENGTH_MASK, NULL, HFILL }
+              FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_byte_bytes), IEEE_1722_STREAM_DATA_LENGTH_MASK, NULL, HFILL }
         },
         { &hf_1722_cvf_h264_ptvfield,
             { "H264 Payload Timestamp Valid", "cvf.h264_ptvfield",
@@ -1855,7 +1857,7 @@ void proto_register_1722_cvf (void)
         { &ei_cvf_invalid_data_length,      { "cvf.expert.data_len", PI_PROTOCOL, PI_WARN, "data_length is too large or frame is incomplete", EXPFILL }}
     };
 
-    static gint *ett[] =
+    static int *ett[] =
     {
         &ett_1722_cvf,
     };
@@ -1892,16 +1894,16 @@ static int dissect_1722_crf (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     proto_item *ti;
     proto_tree *ti_crf_tree;
     proto_tree *timestamp_tree;
-    gint        offset = 1;
-    guint       datalen = 0;
-    guint       j = 0;
-    int * const fields[] = {
+    int         offset = 1;
+    unsigned    datalen = 0;
+    unsigned    j = 0;
+    static int * const fields[] = {
         &hf_1722_crf_mrfield,
         &hf_1722_crf_fsfield,
         &hf_1722_crf_tufield,
         NULL
     };
-    int * const pull_frequency[] = {
+    static int * const pull_frequency[] = {
         &hf_1722_crf_pull,
         &hf_1722_crf_base_frequency,
         NULL
@@ -1985,7 +1987,7 @@ void proto_register_1722_crf(void)
         },
         { &hf_1722_crf_data_length,
             { "Data Length", "crf.data_len",
-              FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0, NULL, HFILL }
+              FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0, NULL, HFILL }
         },
         { &hf_1722_crf_timestamp_interval,
             { "Timestamp Interval", "crf.timestamp_interval",
@@ -2005,7 +2007,7 @@ void proto_register_1722_crf(void)
         { &ei_crf_datalen,              { "crf.expert.crf_datalen", PI_PROTOCOL, PI_WARN, "The CRF data length must be multiple of 8", EXPFILL }}
     };
 
-    static gint *ett[] =
+    static int *ett[] =
     {
         &ett_1722_crf,
         &ett_1722_crf_timestamp
@@ -2039,12 +2041,12 @@ static int dissect_1722_ntscf (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
     proto_item *ti_ntscf;
     proto_item *ti_data_length;
     proto_tree *tree_ntscf;
-    gint        offset = 1;
-    guint32     datalen = 0;
-    guint       captured_length = tvb_captured_length(tvb);
-    gint        captured_payload_length;
+    int         offset = 1;
+    uint32_t    datalen = 0;
+    unsigned    captured_length = tvb_captured_length(tvb);
+    int         captured_payload_length;
 
-    int * const fields[] = {
+    static int * const fields[] = {
         &hf_1722_ntscf_rfield,
         NULL,
     };
@@ -2069,18 +2071,18 @@ static int dissect_1722_ntscf (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
     offset += 8;
 
     captured_payload_length = tvb_captured_length_remaining(tvb, offset);
-    if (captured_payload_length < 0 || (gint)datalen > captured_payload_length) {
+    if (captured_payload_length < 0 || (int)datalen > captured_payload_length) {
         expert_add_info(pinfo, ti_data_length, &ei_1722_ntscf_invalid_data_length);
     }
 
-    if ((gint)datalen > captured_payload_length) {
+    if ((int)datalen > captured_payload_length) {
         datalen = captured_payload_length > 0
                 ? captured_payload_length
                 : 0;
     }
 
     while(datalen > 0) {
-        guint       processed_bytes;
+        unsigned    processed_bytes;
         tvbuff_t*   next_tvb;
 
         next_tvb = tvb_new_subset_length(tvb, offset, datalen);
@@ -2126,7 +2128,7 @@ void proto_register_1722_ntscf(void)
         }
     };
 
-    static gint *ett[] =
+    static int *ett[] =
     {
         &ett_1722_ntscf
     };
@@ -2168,13 +2170,13 @@ static int dissect_1722_tscf (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     proto_tree *tree_tscf;
     proto_tree *tree_flags;
     proto_tree *tree_tu;
-    gint        offset = 1;
-    guint32     mr;
-    guint32     tv;
-    guint32     tu;
-    guint32     datalen = 0;
-    guint       captured_length = tvb_captured_length(tvb);
-    gint        captured_payload_length;
+    int         offset = 1;
+    uint32_t    mr;
+    uint32_t    tv;
+    uint32_t    tu;
+    uint32_t    datalen = 0;
+    unsigned    captured_length = tvb_captured_length(tvb);
+    int         captured_payload_length;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "TSCF");
     col_set_str(pinfo->cinfo, COL_INFO, "AVTP Time-Synchronous Control Format");
@@ -2214,7 +2216,7 @@ static int dissect_1722_tscf (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
     ti = proto_tree_add_item_ret_uint(tree_tscf, hf_1722_tscf_data_length, tvb, offset, 2, ENC_BIG_ENDIAN, &datalen);
     captured_payload_length = tvb_captured_length_remaining(tvb, offset);
-    if (captured_payload_length < 0 || (gint)datalen > captured_payload_length) {
+    if (captured_payload_length < 0 || (int)datalen > captured_payload_length) {
         expert_add_info(pinfo, ti, &ei_1722_tscf_invalid_data_length);
     }
     offset += 2;
@@ -2222,14 +2224,14 @@ static int dissect_1722_tscf (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     proto_tree_add_item(tree_tscf, hf_1722_tscf_rsv4, tvb, offset, 2, ENC_BIG_ENDIAN);
     offset += 2;
 
-    if ((gint)datalen > captured_payload_length) {
+    if ((int)datalen > captured_payload_length) {
         datalen = captured_payload_length > 0
                 ? captured_payload_length
                 : 0;
     }
 
     while(datalen > 0) {
-        guint       processed_bytes;
+        unsigned    processed_bytes;
         tvbuff_t*   next_tvb = tvb_new_subset_length(tvb, offset, datalen);
         if (call_dissector(avb1722_acf_handle, next_tvb, pinfo, tree) <= 0) {
             break;
@@ -2310,7 +2312,7 @@ void proto_register_1722_tscf(void)
         },
     };
 
-    static gint *ett[] =
+    static int *ett[] =
     {
         &ett_1722_tscf,
         &ett_1722_tscf_flags,
@@ -2353,11 +2355,11 @@ static int dissect_1722_acf (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     proto_item     *ti_header;
     proto_tree     *tree_acf;
     proto_tree     *tree_header;
-    guint32         msg_type;
-    guint32         msg_length;
-    guint32         payload_length;
-    guint           captured_length = tvb_captured_length(tvb);
-    const gchar    *msg_type_str;
+    uint32_t        msg_type;
+    uint32_t        msg_length;
+    uint32_t        payload_length;
+    unsigned        captured_length = tvb_captured_length(tvb);
+    const char     *msg_type_str;
     tvbuff_t       *next_tvb;
 
     if (captured_length < IEEE_1722_ACF_HEADER_SIZE) {
@@ -2415,7 +2417,7 @@ void proto_register_1722_acf(void)
         },
     };
 
-    static gint *ett[] =
+    static int *ett[] =
     {
         &ett_1722_acf,
         &ett_1722_acf_header,
@@ -2456,7 +2458,7 @@ void proto_reg_handoff_1722_acf(void)
 /* ACF CAN Message dissector implementation                                                       */
 /*                                                                                                */
 /**************************************************************************************************/
-static void describe_can_message(proto_item* dst, guint bus_id, guint32 can_id, guint8 flags)
+static void describe_can_message(proto_item* dst, unsigned bus_id, uint32_t can_id, uint8_t flags)
 {
     /* Add text describing the CAN message to the parent item.
      * Example: ": bus_id=2, id=0x100, rtr=1, brs=1, esi=1" */
@@ -2467,7 +2469,7 @@ static void describe_can_message(proto_item* dst, guint bus_id, guint32 can_id, 
     proto_item_append_text (dst, format_str, bus_id, can_id);
 }
 
-static void describe_can_flags(proto_item* dst, guint8 pad, guint8 flags)
+static void describe_can_flags(proto_item* dst, uint8_t pad, uint8_t flags)
 {
     proto_item_append_text(dst, ": pad=%u, mtv=%d, rtr=%d, eff=%d, brs=%d, fdf=%d, esi=%d",
                            pad,
@@ -2497,12 +2499,12 @@ static int is_valid_canfd_payload_length(int len)
            len == 64;
 }
 
-static int dissect_1722_acf_can_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_, const gboolean is_brief)
+static int dissect_1722_acf_can_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_, const bool is_brief)
 {
     acf_can_t           parsed;
-    guint32             pad_length;
-    gint                payload_length;
-    guint8              flags;
+    uint32_t            pad_length;
+    int                 payload_length;
+    uint8_t             flags;
     proto_item         *ti;
 
     proto_item         *ti_acf_can;
@@ -2513,31 +2515,31 @@ static int dissect_1722_acf_can_common(tvbuff_t *tvb, packet_info *pinfo, proto_
     proto_item         *ti_can;
     proto_tree         *tree_can;
     proto_tree         *tree_can_id;
-    gint                can_protocol;
+    int                 can_protocol;
     int                * const *can_flags;
     struct can_info     can_info;
 
     tvbuff_t*           next_tvb;
-    gint                offset = 0;
-    guint               captured_length = tvb_captured_length(tvb);
-    guint               header_size = is_brief
+    int                 offset = 0;
+    unsigned            captured_length = tvb_captured_length(tvb);
+    unsigned            header_size = is_brief
                                     ? IEEE_1722_ACF_CAN_BRIEF_HEADER_SIZE
                                     : IEEE_1722_ACF_CAN_HEADER_SIZE;
 
 
-    int * const fields[] = {
+    static int * const fields[] = {
         &hf_1722_can_mtvfield,
         &hf_1722_can_fdffield,
         NULL,
     };
 
-    int * const can_std_flags[] = {
+    static int * const can_std_flags[] = {
         &hf_1722_can_rtrfield,
         &hf_1722_can_efffield,
         NULL
     };
 
-    int * const can_fd_flags[] = {
+    static int * const can_fd_flags[] = {
         &hf_1722_can_efffield,
         &hf_1722_can_brsfield,
         &hf_1722_can_esifield,
@@ -2554,7 +2556,7 @@ static int dissect_1722_acf_can_common(tvbuff_t *tvb, packet_info *pinfo, proto_
     }
 
     /* parse flags */
-    flags = tvb_get_guint8(tvb, offset);
+    flags = tvb_get_uint8(tvb, offset);
     parsed.is_fd   = (flags & IEEE_1722_ACF_CAN_FDF_MASK) != 0;
     parsed.is_xtd  = (flags & IEEE_1722_ACF_CAN_EFF_MASK) != 0;
     parsed.is_rtr  = (flags & IEEE_1722_ACF_CAN_RTR_MASK) != 0;
@@ -2619,7 +2621,7 @@ static int dissect_1722_acf_can_common(tvbuff_t *tvb, packet_info *pinfo, proto_
     if (payload_length < 0) {
         payload_length = 0;
     }
-    parsed.datalen = (guint)payload_length;
+    parsed.datalen = (unsigned)payload_length;
     proto_tree_add_uint(tree_acf_can, hf_1722_can_len, tvb, offset, 1, parsed.datalen);
 
     if (payload_length > 0)
@@ -2651,11 +2653,11 @@ static int dissect_1722_acf_can_common(tvbuff_t *tvb, packet_info *pinfo, proto_
         can_info.id |= CAN_RTR_FLAG;
     }
 
-    can_info.len = (guint32)parsed.datalen;
+    can_info.len = (uint32_t)parsed.datalen;
     can_info.fd = parsed.is_fd ? CAN_TYPE_CAN_FD : CAN_TYPE_CAN_CLASSIC;
 
     /* for practical reasons a remapping might be needed in the future */
-    can_info.bus_id = (guint16)parsed.bus_id;
+    can_info.bus_id = (uint16_t)parsed.bus_id;
 
     next_tvb = tvb_new_subset_length(tvb, offset, parsed.datalen);
 
@@ -2664,7 +2666,7 @@ static int dissect_1722_acf_can_common(tvbuff_t *tvb, packet_info *pinfo, proto_
     }
 
     /* Add padding bytes to ACF-CAN tree if any */
-    if (pad_length > 0 && tvb_reported_length_remaining(tvb, offset) >= (gint)pad_length)
+    if (pad_length > 0 && tvb_reported_length_remaining(tvb, offset) >= (int)pad_length)
     {
         proto_tree_add_item(tree_acf_can, hf_1722_can_padding, tvb, offset, pad_length, ENC_NA);
     }
@@ -2674,12 +2676,12 @@ static int dissect_1722_acf_can_common(tvbuff_t *tvb, packet_info *pinfo, proto_
 
 static int dissect_1722_acf_can(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    return dissect_1722_acf_can_common(tvb, pinfo, tree, data, FALSE);
+    return dissect_1722_acf_can_common(tvb, pinfo, tree, data, false);
 }
 
 static int dissect_1722_acf_can_brief(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    return dissect_1722_acf_can_common(tvb, pinfo, tree, data, TRUE);
+    return dissect_1722_acf_can_common(tvb, pinfo, tree, data, true);
 }
 
 void proto_register_1722_acf_can(void)
@@ -2748,7 +2750,7 @@ void proto_register_1722_acf_can(void)
         },
     };
 
-    static gint *ett[] =
+    static int *ett[] =
     {
         &ett_1722_can,
         &ett_1722_can_flags,
@@ -2813,7 +2815,7 @@ void proto_reg_handoff_1722_acf_can(void)
 /* ACF LIN Message dissector implementation                                                       */
 /*                                                                                                */
 /**************************************************************************************************/
-static void describe_lin_message(proto_item *dst, guint32 bus_id, guint32 lin_id)
+static void describe_lin_message(proto_item *dst, uint32_t bus_id, uint32_t lin_id)
 {
     proto_item_append_text(dst, ": bus_id=%u, id=0x%02X", bus_id, lin_id);
 }
@@ -2824,13 +2826,13 @@ static int dissect_1722_acf_lin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
     proto_item *ti_lin;
     proto_tree *tree_lin;
     proto_tree *tree_flags;
-    guint       offset = 0;
-    guint       captured_length = tvb_captured_length(tvb);
-    guint32     pad_length;
-    gboolean    mtv;
-    guint32     bus_id;
-    guint32     lin_id;
-    gint        payload_length;
+    unsigned    offset = 0;
+    unsigned    captured_length = tvb_captured_length(tvb);
+    uint32_t    pad_length;
+    bool        mtv;
+    uint32_t    bus_id;
+    uint32_t    lin_id;
+    int         payload_length;
 
     ti_lin = proto_tree_add_item(tree, proto_1722_acf_lin, tvb, offset, -1, ENC_NA);
     tree_lin = proto_item_add_subtree(ti_lin, ett_1722_lin);
@@ -2872,7 +2874,7 @@ static int dissect_1722_acf_lin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
         col_append_str(pinfo->cinfo, COL_INFO, tvb_bytes_to_str_punct(pinfo->pool, tvb, offset, payload_length, ' '));
 
         /* at the moment, there's no global LIN sub-protocols support. Use our own. */
-        if (dissector_try_payload_new(avb1722_acf_lin_dissector_table, next_tvb, pinfo, tree, TRUE, &lin_id) <= 0)
+        if (dissector_try_payload_new(avb1722_acf_lin_dissector_table, next_tvb, pinfo, tree, true, &lin_id) <= 0)
         {
             call_data_dissector(next_tvb, pinfo, tree);
         }
@@ -2880,7 +2882,7 @@ static int dissect_1722_acf_lin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
         offset += payload_length;
     }
 
-    if (pad_length > 0 && tvb_reported_length_remaining(tvb, offset) >= (gint)pad_length)
+    if (pad_length > 0 && tvb_reported_length_remaining(tvb, offset) >= (int)pad_length)
     {
         proto_tree_add_item(tree_lin, hf_1722_lin_padding, tvb, offset, pad_length, ENC_NA);
     }
@@ -2917,7 +2919,7 @@ void proto_register_1722_acf_lin(void)
         },
     };
 
-    static gint *ett[] =
+    static int *ett[] =
     {
         &ett_1722_lin,
         &ett_1722_lin_flags,

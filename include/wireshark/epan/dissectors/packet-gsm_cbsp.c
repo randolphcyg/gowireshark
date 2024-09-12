@@ -28,8 +28,8 @@
 
 /*! Entry in a TLV parser array */
 struct tlv_p_entry {
-	guint16 len;		/*!< length */
-	const guint8 *val;	/*!< pointer to value */
+	uint16_t len;		/*!< length */
+	const uint8_t *val;	/*!< pointer to value */
 };
 
 /*! TLV type */
@@ -44,7 +44,7 @@ enum tlv_type {
 /*! Definition of a single IE (Information Element) */
 struct tlv_def {
 	enum tlv_type type;	/*!< TLV type */
-	guint8 fixed_len;	/*!< length in case of TLV_TYPE_FIXED */
+	uint8_t fixed_len;	/*!< length in case of TLV_TYPE_FIXED */
 };
 
 /*! Definition of All 256 IE / TLV */
@@ -121,7 +121,7 @@ enum cbsp_category {
 	CBSP_CATEG_NORMAL		= 0x02,
 };
 
-/* 8.2.9 Number of Brodacast Info */
+/* 8.2.9 Number of Broadcast Info */
 enum cbsp_num_bcast_info {
 	CBSP_NUM_BCAST_INFO_VALID	= 0x0,
 	CBSP_NUM_BCAST_INFO_OVERFLOW	= 0x1,
@@ -201,7 +201,7 @@ static const value_string cbsp_bcast_msg_type_vals[] = {
 };
 
 /* conversion function from 8.2.25 warning period to seconds */
-static int cbsp_warn_period_to_secs(guint8 warn_per)
+static int cbsp_warn_period_to_secs(uint8_t warn_per)
 {
 	if (warn_per <= 0x0a)
 		return warn_per;
@@ -348,59 +348,59 @@ void proto_reg_handoff_cbsp(void);
 
 static dissector_handle_t cbsp_handle;
 
-static int proto_cbsp = -1;
+static int proto_cbsp;
 
-static int hf_cbsp_msg_type = -1;
-static int hf_cbsp_msg_len = -1;
-static int hf_cbsp_iei = -1;
-static int hf_cbsp_ie_len = -1;
-static int hf_cbsp_ie_payload = -1;
+static int hf_cbsp_msg_type;
+static int hf_cbsp_msg_len;
+static int hf_cbsp_iei;
+static int hf_cbsp_ie_len;
+static int hf_cbsp_ie_payload;
 
-static int hf_cbsp_old_serial_nr = -1;
-static int hf_cbsp_new_serial_nr = -1;
-static int hf_cbsp_category = -1;
-static int hf_cbsp_rep_period = -1;
-static int hf_cbsp_num_bcast_req = -1;
-static int hf_cbsp_cause = -1;
-static int hf_cbsp_dcs = -1;
-static int hf_cbsp_recovery_ind = -1;
-static int hf_cbsp_msg_id = -1;
-static int hf_cbsp_emerg_ind = -1;
-static int hf_cbsp_warn_type = -1;
-static int hf_cbsp_channel_ind = -1;
-static int hf_cbsp_num_of_pages = -1;
-static int hf_cbsp_cb_msg_page = -1;
-static int hf_cbsp_cbs_page_content = -1;
-static int hf_cbsp_sched_period = -1;
-static int hf_cbsp_num_of_res_slots = -1;
-static int hf_cbsp_bcast_msg_type = -1;
-static int hf_cbsp_warning_period = -1;
-static int hf_cbsp_keepalive_period = -1;
-static int hf_cbsp_user_info_length = -1;
-static int hf_cbsp_cell_id_disc = -1;
-static int hf_cbsp_cell_load1 = -1;
-static int hf_cbsp_cell_load2 = -1;
-static int hf_cbsp_num_bcast_compl = -1;
-static int hf_cbsp_num_bcast_info = -1;
-static int hf_cbsp_lac = -1;
-static int hf_cbsp_ci = -1;
+static int hf_cbsp_old_serial_nr;
+static int hf_cbsp_new_serial_nr;
+static int hf_cbsp_category;
+static int hf_cbsp_rep_period;
+static int hf_cbsp_num_bcast_req;
+static int hf_cbsp_cause;
+static int hf_cbsp_dcs;
+static int hf_cbsp_recovery_ind;
+static int hf_cbsp_msg_id;
+static int hf_cbsp_emerg_ind;
+static int hf_cbsp_warn_type;
+static int hf_cbsp_channel_ind;
+static int hf_cbsp_num_of_pages;
+static int hf_cbsp_cb_msg_page;
+static int hf_cbsp_cbs_page_content;
+static int hf_cbsp_sched_period;
+static int hf_cbsp_num_of_res_slots;
+static int hf_cbsp_bcast_msg_type;
+static int hf_cbsp_warning_period;
+static int hf_cbsp_keepalive_period;
+static int hf_cbsp_user_info_length;
+static int hf_cbsp_cell_id_disc;
+static int hf_cbsp_cell_load1;
+static int hf_cbsp_cell_load2;
+static int hf_cbsp_num_bcast_compl;
+static int hf_cbsp_num_bcast_info;
+static int hf_cbsp_lac;
+static int hf_cbsp_ci;
 
-static gint ett_cbsp = -1;
-static gint ett_cbsp_ie = -1;
-static gint ett_cbsp_cbs_data_coding = -1;
-static gint ett_cbsp_cbs_page_content = -1;
-static gint ett_cbsp_cell_list = -1;
-static gint ett_cbsp_fail_list = -1;
-static gint ett_cbsp_load_list = -1;
-static gint ett_cbsp_num_bcast_compl_list = -1;
+static int ett_cbsp;
+static int ett_cbsp_ie;
+static int ett_cbsp_cbs_data_coding;
+static int ett_cbsp_cbs_page_content;
+static int ett_cbsp_cell_list;
+static int ett_cbsp_fail_list;
+static int ett_cbsp_load_list;
+static int ett_cbsp_num_bcast_compl_list;
 
 static void
-dissect_cbsp_content_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, gint len, proto_tree *tree,
-			guint8 sms_encoding, proto_item *ti)
+dissect_cbsp_content_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, int len, proto_tree *tree,
+			uint8_t sms_encoding, proto_item *ti)
 {
 	proto_item *cbs_page_item;
 	tvbuff_t *next_tvb, *unpacked_tvb;
-	const guint8 *pstr;
+	const uint8_t *pstr;
 
 	proto_tree_add_item(tree, hf_cbsp_user_info_length, tvb, offset, 1, ENC_NA);
 	cbs_page_item = proto_tree_add_item(tree, hf_cbsp_cb_msg_page, tvb, offset+1, len-1, ENC_NA);
@@ -408,7 +408,7 @@ dissect_cbsp_content_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, gint le
 
 	unpacked_tvb = dissect_cbs_data(sms_encoding, next_tvb, tree, pinfo, 0);
 	if (tree) {
-		guint captured_len = tvb_captured_length(unpacked_tvb);
+		unsigned captured_len = tvb_captured_length(unpacked_tvb);
 		proto_tree *cbs_page_subtree = proto_item_add_subtree(cbs_page_item, ett_cbsp_cbs_page_content);
 		proto_tree_add_item_ret_string(cbs_page_subtree, hf_cbsp_cbs_page_content, unpacked_tvb,
 						0, captured_len, ENC_UTF_8|ENC_NA, pinfo->pool,
@@ -418,17 +418,17 @@ dissect_cbsp_content_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, gint le
 }
 
 /* Section 8.2.6 Cell List */
-static gint
-dissect_cell_id_elem(guint8 discr, tvbuff_t *tvb, packet_info *pinfo, guint offset, gint len _U_,
+static int
+dissect_cell_id_elem(uint8_t discr, tvbuff_t *tvb, packet_info *pinfo, unsigned offset, int len _U_,
 		     proto_tree *tree, proto_item *ti)
 {
-	guint base_offs = offset;
-	gchar *mcc_mnc;
-	guint32 lac, ci;
+	unsigned base_offs = offset;
+	char *mcc_mnc;
+	uint32_t lac, ci;
 
 	switch (discr) {
 	case CBSP_CIDD_WHOLE_CGI:
-		mcc_mnc = dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, tree, offset, E212_NONE, TRUE);
+		mcc_mnc = dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, tree, offset, E212_NONE, true);
 		offset += 3;
 		proto_tree_add_item_ret_uint(tree, hf_cbsp_lac, tvb, offset, 2, ENC_NA, &lac);
 		offset += 2;
@@ -449,7 +449,7 @@ dissect_cell_id_elem(guint8 discr, tvbuff_t *tvb, packet_info *pinfo, guint offs
 		proto_item_append_text(ti, ": CI 0x%04x", ci);
 		break;
 	case CBSP_CIDD_LAI:
-		mcc_mnc = dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, tree, offset, E212_NONE, TRUE);
+		mcc_mnc = dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, tree, offset, E212_NONE, true);
 		offset += 3;
 		proto_tree_add_item_ret_uint(tree, hf_cbsp_lac, tvb, offset, 2, ENC_NA, &lac);
 		offset += 2;
@@ -470,7 +470,7 @@ dissect_cell_id_elem(guint8 discr, tvbuff_t *tvb, packet_info *pinfo, guint offs
 }
 
 /* return the length of a single list element of the given discriminator/type */
-static gint cell_id_len(guint8 discr)
+static int cell_id_len(uint8_t discr)
 {
 	switch (discr) {
 	case CBSP_CIDD_WHOLE_CGI:
@@ -491,12 +491,12 @@ static gint cell_id_len(guint8 discr)
 }
 
 static void
-dissect_cell_id_list_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint len, proto_tree *tree,
+dissect_cell_id_list_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, unsigned len, proto_tree *tree,
 			proto_item *parent_ti)
 {
-	guint base_offs = offset;
-	guint32 discr;
-	guint count = 0;
+	unsigned base_offs = offset;
+	uint32_t discr;
+	unsigned count = 0;
 
 	/* list-global discriminator */
 	proto_tree_add_item_ret_uint(tree, hf_cbsp_cell_id_disc, tvb, offset, 1, ENC_NA, &discr);
@@ -509,7 +509,7 @@ dissect_cell_id_list_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint l
 		proto_item *ti;
 		int rc;
 
-		guint remain_len = len - (offset - base_offs);
+		unsigned remain_len = len - (offset - base_offs);
 		elem_tree = proto_tree_add_subtree(tree, tvb, offset, cell_id_len(discr),
 						   ett_cbsp_cell_list, &ti,
 						   "Cell List Item");
@@ -524,12 +524,12 @@ dissect_cell_id_list_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint l
 }
 
 static void
-dissect_rr_load_list_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint len, proto_tree *tree,
+dissect_rr_load_list_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, unsigned len, proto_tree *tree,
 			proto_item *parent_ti)
 {
-	guint base_offs = offset;
-	guint32 discr;
-	guint count = 0;
+	unsigned base_offs = offset;
+	uint32_t discr;
+	unsigned count = 0;
 
 	/* list-global discriminator */
 	proto_tree_add_item_ret_uint(tree, hf_cbsp_cell_id_disc, tvb, offset, 1, ENC_NA, &discr);
@@ -539,11 +539,11 @@ dissect_rr_load_list_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint l
 	/* iterate over list items */
 	while (offset - base_offs < len) {
 		proto_tree *elem_tree;
-		guint32 load1, load2;
+		uint32_t load1, load2;
 		proto_item *ti;
 		int rc;
 
-		guint remain_len = len - (offset - base_offs);
+		unsigned remain_len = len - (offset - base_offs);
 		elem_tree = proto_tree_add_subtree(tree, tvb, offset, cell_id_len(discr)+2,
 						   ett_cbsp_load_list, &ti,
 						   "RR Load List Item");
@@ -564,20 +564,20 @@ dissect_rr_load_list_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint l
 }
 
 static void
-dissect_failure_list_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint len, proto_tree *tree,
+dissect_failure_list_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, unsigned len, proto_tree *tree,
 			proto_item *parent_ti)
 {
-	guint base_offs = offset;
-	guint count = 0;
+	unsigned base_offs = offset;
+	unsigned count = 0;
 
 	/* iterate over list items, each with its own discriminator */
 	while (offset - base_offs < len) {
 		proto_tree *elem_tree;
 		proto_item *ti;
-		guint remain_len, cause;
+		unsigned remain_len, cause;
 		int rc;
 
-		guint8 discr = tvb_get_guint8(tvb, offset) & 0x0f;
+		uint8_t discr = tvb_get_uint8(tvb, offset) & 0x0f;
 		elem_tree = proto_tree_add_subtree(tree, tvb, offset, cell_id_len(discr)+2,
 						   ett_cbsp_fail_list, &ti,
 						   "Failure List Item");
@@ -598,12 +598,12 @@ dissect_failure_list_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint l
 }
 
 static void
-dissect_bc_compl_list_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint len, proto_tree *tree,
+dissect_bc_compl_list_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, unsigned len, proto_tree *tree,
 			 proto_item *parent_ti)
 {
-	guint base_offs = offset;
-	guint32 discr;
-	guint count = 0;
+	unsigned base_offs = offset;
+	uint32_t discr;
+	unsigned count = 0;
 
 	/* list-global discriminator */
 	proto_tree_add_item_ret_uint(tree, hf_cbsp_cell_id_disc, tvb, offset, 1, ENC_NA, &discr);
@@ -614,10 +614,10 @@ dissect_bc_compl_list_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint 
 	while (offset - base_offs < len) {
 		proto_tree *elem_tree;
 		proto_item *ti;
-		guint32 num_bc, num_bi;
+		uint32_t num_bc, num_bi;
 		int rc;
 
-		guint remain_len = len - (offset - base_offs);
+		unsigned remain_len = len - (offset - base_offs);
 		elem_tree = proto_tree_add_subtree(tree, tvb, offset, cell_id_len(discr)+3,
 						   ett_cbsp_num_bcast_compl_list, &ti,
 						   "Number of Broadcasts completed");
@@ -639,22 +639,22 @@ dissect_bc_compl_list_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint 
 				val_to_str_const(discr, cbsp_cell_id_disc_vals, ""), count);
 }
 
-static gint
+static int
 dissect_cbsp_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, proto_tree *tree)
 {
-	guint8 sms_encoding = SMS_ENCODING_7BIT;
+	uint8_t sms_encoding = SMS_ENCODING_7BIT;
 	int offset = base_offs;
 
 	while (offset - base_offs < length) {
-		guint8 tag;		 /* Information Element Identifier */
+		uint8_t tag;		 /* Information Element Identifier */
 		unsigned int len;	 /* Length of payload */
 		unsigned int len_len = 0;/* Length of "length" field (may be 0) */
 		proto_item *ti;
 		proto_tree *att_tree, *subtree;
-		guint32 tmp_u;
+		uint32_t tmp_u;
 		int secs;
 
-		tag = tvb_get_guint8(tvb, offset);
+		tag = tvb_get_uint8(tvb, offset);
 		offset++;
 
 		switch (cbsp_att_tlvdef.def[tag].type) {
@@ -667,10 +667,10 @@ dissect_cbsp_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 			len_len = 0;
 			break;
 		case TLV_TYPE_TLV:
-			len = tvb_get_guint8(tvb, offset);
+			len = tvb_get_uint8(tvb, offset);
 			break;
 		case TLV_TYPE_TL16V:
-			len = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+			len = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 			len_len = 2;
 			break;
 		default:
@@ -704,7 +704,7 @@ dissect_cbsp_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 			break;
 		case CBSP_IEI_REP_PERIOD:
 			{
-				guint64 tmp_u64;
+				uint64_t tmp_u64;
 				crumb_spec_t cbsp_rep_period_crumbs[] = {
 					{  0, 8 },
 					{ 12, 4 },
@@ -712,7 +712,7 @@ dissect_cbsp_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 				};
 
 				proto_tree_add_split_bits_item_ret_val(att_tree, hf_cbsp_rep_period, tvb, offset<<3, cbsp_rep_period_crumbs, &tmp_u64);
-				proto_item_append_text(ti, ": %u", (guint16)tmp_u64);
+				proto_item_append_text(ti, ": %u", (uint16_t)tmp_u64);
 			}
 			break;
 		case CBSP_IEI_NUM_BCAST_REQ:
@@ -762,12 +762,12 @@ dissect_cbsp_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 			proto_item_append_text(ti, ": %s", val_to_str_const(tmp_u, cbsp_bcast_msg_type_vals, ""));
 			break;
 		case CBSP_IEI_WARNING_PERIOD:
-			secs = cbsp_warn_period_to_secs(tvb_get_guint8(tvb, offset));
+			secs = cbsp_warn_period_to_secs(tvb_get_uint8(tvb, offset));
 			proto_tree_add_uint(att_tree, hf_cbsp_warning_period, tvb, offset, len, secs);
 			proto_item_append_text(ti, ": %u (s)", secs);
 			break;
 		case CBSP_IEI_KEEP_ALIVE_REP_PERIOD:
-			secs = cbsp_warn_period_to_secs(tvb_get_guint8(tvb, offset));
+			secs = cbsp_warn_period_to_secs(tvb_get_uint8(tvb, offset));
 			proto_tree_add_uint(att_tree, hf_cbsp_keepalive_period, tvb, offset, len, secs);
 			proto_item_append_text(ti, ": %u (s)", secs);
 			break;
@@ -803,13 +803,13 @@ dissect_cbsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	int len_ind, offset = 0;
 	proto_item *ti;
 	proto_tree *cbsp_tree = NULL;
-	guint8 msg_type;
+	uint8_t msg_type;
 	const char *str;
 
 
 	//len = tvb_reported_length(tvb);
-	msg_type = tvb_get_guint8(tvb, offset + 0);
-	len_ind = tvb_get_guint24(tvb, offset + 1, ENC_BIG_ENDIAN);
+	msg_type = tvb_get_uint8(tvb, offset + 0);
+	len_ind = tvb_get_uint24(tvb, offset + 1, ENC_BIG_ENDIAN);
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "CBSP");
 
@@ -908,7 +908,7 @@ proto_register_cbsp(void)
 		{ &hf_cbsp_ci, { "Cell Identifier (CI)", "cbsp.ci",
 		  FT_UINT16, BASE_HEX, NULL, 0, NULL, HFILL } },
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_cbsp,
 		&ett_cbsp_ie,
 		&ett_cbsp_cbs_data_coding,

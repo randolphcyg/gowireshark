@@ -20,6 +20,7 @@
 #include <epan/packet.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 
@@ -31,9 +32,9 @@ void proto_register_cbrs_oids(void);
 void proto_reg_handoff_cbrs_oids(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_cbrs_oids = -1;
+static int proto_cbrs_oids;
 #include "packet-cbrs-oids-hf.c"
-static int hf_cbrs_oids_UTF8String_PDU = -1;
+static int hf_cbrs_oids_UTF8String_PDU;
 
 /* Initialize the subtree pointers */
 #include "packet-cbrs-oids-fn.c"

@@ -40,81 +40,81 @@ void proto_reg_handoff_mp4(void);
 
 static dissector_handle_t mp4_handle;
 
-static gint dissect_mp4_box(guint32 parent_box_type _U_, guint depth,
-        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree);
+static int dissect_mp4_box(uint32_t parent_box_type _U_, unsigned depth,
+        tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree);
 
-static int proto_mp4 = -1;
+static int proto_mp4;
 
-static gint ett_mp4 = -1;
-static gint ett_mp4_box = -1;
-static gint ett_mp4_full_box_flags = -1;
-static gint ett_mp4_entry = -1;
+static int ett_mp4;
+static int ett_mp4_box;
+static int ett_mp4_full_box_flags;
+static int ett_mp4_entry;
 
-static int hf_mp4_box_size = -1;
-static int hf_mp4_box_type_str = -1;
-static int hf_mp4_box_largesize = -1;
-static int hf_mp4_full_box_ver = -1;
-static int hf_mp4_full_box_flags = -1;
-static int hf_mp4_ftyp_brand = -1;
-static int hf_mp4_ftyp_ver = -1;
-static int hf_mp4_ftyp_add_brand = -1;
-static int hf_mp4_stsz_sample_size = -1;
-static int hf_mp4_stsz_sample_count = -1;
-static int hf_mp4_stsz_entry_size = -1;
-static int hf_mp4_stsc_entry_count = -1;
-static int hf_mp4_stsc_first_chunk = -1;
-static int hf_mp4_stsc_samples_per_chunk = -1;
-static int hf_mp4_stsc_sample_description_index = -1;
-static int hf_mp4_stco_entry_cnt = -1;
-static int hf_mp4_stco_chunk_offset = -1;
-static int hf_mp4_mvhd_creat_time = -1;
-static int hf_mp4_mvhd_mod_time = -1;
-static int hf_mp4_mvhd_timescale = -1;
-static int hf_mp4_mvhd_duration = -1;
-static int hf_mp4_mvhd_rate = -1;
-static int hf_mp4_mvhd_vol = -1;
-static int hf_mp4_mvhd_next_tid = -1;
-static int hf_mp4_mfhd_seq_num = -1;
-static int hf_mp4_tkhd_flags_enabled = -1;
-static int hf_mp4_tkhd_flags_in_movie = -1;
-static int hf_mp4_tkhd_flags_in_preview = -1;
-static int hf_mp4_tkhd_flags_size_is_aspect_ratio = -1;
-static int hf_mp4_tkhd_creat_time = -1;
-static int hf_mp4_tkhd_mod_time = -1;
-static int hf_mp4_tkhd_track_id = -1;
-static int hf_mp4_tkhd_duration = -1;
-static int hf_mp4_tkhd_width = -1;
-static int hf_mp4_tkhd_height = -1;
-static int hf_mp4_hdlr_type = -1;
-static int hf_mp4_hdlr_name = -1;
-static int hf_mp4_dref_entry_cnt = -1;
-static int hf_mp4_stsd_entry_cnt = -1;
-static int hf_mp4_url_flags_media_data_location = -1;
-static int hf_mp4_stts_entry_cnt = -1;
-static int hf_mp4_stts_sample_count = -1;
-static int hf_mp4_stts_sample_delta = -1;
-static int hf_mp4_ctts_sample_count = -1;
-static int hf_mp4_ctts_sample_offset_signed = -1;
-static int hf_mp4_ctts_sample_offset_unsigned = -1;
-static int hf_mp4_elst_entry_cnt = -1;
-static int hf_mp4_elst_segment_duration = -1;
-static int hf_mp4_elst_media_time = -1;
-static int hf_mp4_elst_media_rate_integer = -1;
-static int hf_mp4_elst_media_rate_fraction = -1;
-static int hf_mp4_sidx_reference_id = -1;
-static int hf_mp4_sidx_timescale = -1;
-static int hf_mp4_sidx_earliest_presentation_time_v0 = -1;
-static int hf_mp4_sidx_first_offset_v0 = -1;
-static int hf_mp4_sidx_earliest_presentation_time = -1;
-static int hf_mp4_sidx_first_offset = -1;
-static int hf_mp4_sidx_reserved = -1;
-static int hf_mp4_sidx_entry_cnt = -1;
-static int hf_mp4_sidx_reference_type = -1;
-static int hf_mp4_sidx_reference_size = -1;
-static int hf_mp4_sidx_subsegment_duration = -1;
-static int hf_mp4_sidx_starts_with_sap = -1;
-static int hf_mp4_sidx_sap_type = -1;
-static int hf_mp4_sidx_sap_delta_time = -1;
+static int hf_mp4_box_size;
+static int hf_mp4_box_type_str;
+static int hf_mp4_box_largesize;
+static int hf_mp4_full_box_ver;
+static int hf_mp4_full_box_flags;
+static int hf_mp4_ftyp_brand;
+static int hf_mp4_ftyp_ver;
+static int hf_mp4_ftyp_add_brand;
+static int hf_mp4_stsz_sample_size;
+static int hf_mp4_stsz_sample_count;
+static int hf_mp4_stsz_entry_size;
+static int hf_mp4_stsc_entry_count;
+static int hf_mp4_stsc_first_chunk;
+static int hf_mp4_stsc_samples_per_chunk;
+static int hf_mp4_stsc_sample_description_index;
+static int hf_mp4_stco_entry_cnt;
+static int hf_mp4_stco_chunk_offset;
+static int hf_mp4_mvhd_creat_time;
+static int hf_mp4_mvhd_mod_time;
+static int hf_mp4_mvhd_timescale;
+static int hf_mp4_mvhd_duration;
+static int hf_mp4_mvhd_rate;
+static int hf_mp4_mvhd_vol;
+static int hf_mp4_mvhd_next_tid;
+static int hf_mp4_mfhd_seq_num;
+static int hf_mp4_tkhd_flags_enabled;
+static int hf_mp4_tkhd_flags_in_movie;
+static int hf_mp4_tkhd_flags_in_preview;
+static int hf_mp4_tkhd_flags_size_is_aspect_ratio;
+static int hf_mp4_tkhd_creat_time;
+static int hf_mp4_tkhd_mod_time;
+static int hf_mp4_tkhd_track_id;
+static int hf_mp4_tkhd_duration;
+static int hf_mp4_tkhd_width;
+static int hf_mp4_tkhd_height;
+static int hf_mp4_hdlr_type;
+static int hf_mp4_hdlr_name;
+static int hf_mp4_dref_entry_cnt;
+static int hf_mp4_stsd_entry_cnt;
+static int hf_mp4_url_flags_media_data_location;
+static int hf_mp4_stts_entry_cnt;
+static int hf_mp4_stts_sample_count;
+static int hf_mp4_stts_sample_delta;
+static int hf_mp4_ctts_sample_count;
+static int hf_mp4_ctts_sample_offset_signed;
+static int hf_mp4_ctts_sample_offset_unsigned;
+static int hf_mp4_elst_entry_cnt;
+static int hf_mp4_elst_segment_duration;
+static int hf_mp4_elst_media_time;
+static int hf_mp4_elst_media_rate_integer;
+static int hf_mp4_elst_media_rate_fraction;
+static int hf_mp4_sidx_reference_id;
+static int hf_mp4_sidx_timescale;
+static int hf_mp4_sidx_earliest_presentation_time_v0;
+static int hf_mp4_sidx_first_offset_v0;
+static int hf_mp4_sidx_earliest_presentation_time;
+static int hf_mp4_sidx_first_offset;
+static int hf_mp4_sidx_reserved;
+static int hf_mp4_sidx_entry_cnt;
+static int hf_mp4_sidx_reference_type;
+static int hf_mp4_sidx_reference_size;
+static int hf_mp4_sidx_subsegment_duration;
+static int hf_mp4_sidx_starts_with_sap;
+static int hf_mp4_sidx_sap_type;
+static int hf_mp4_sidx_sap_delta_time;
 
 static const value_string mp4_sidx_reference_type_vals[] = {
     { 0,  "Movie" },
@@ -123,11 +123,11 @@ static const value_string mp4_sidx_reference_type_vals[] = {
     { 0,  NULL }
 };
 
-static expert_field ei_mp4_box_too_large = EI_INIT;
-static expert_field ei_mp4_too_many_rec_lvls = EI_INIT;
-static expert_field ei_mp4_mvhd_next_tid_unknown = EI_INIT;
+static expert_field ei_mp4_box_too_large;
+static expert_field ei_mp4_too_many_rec_lvls;
+static expert_field ei_mp4_mvhd_next_tid_unknown;
 
-static guint32 mvhd_timescale = 0;
+static uint32_t mvhd_timescale;
 
 /* a box must at least have a 32bit len field and a 32bit type */
 #define MIN_BOX_SIZE 8
@@ -229,7 +229,7 @@ static const value_string box_types[] = {
 
 /* convert a decimal number x into a double 0.x (e.g. 123 becomes 0.123) */
 static inline double
-make_fract(guint x)
+make_fract(unsigned x)
 {
     if (x==0)
         return 0.0;
@@ -237,8 +237,8 @@ make_fract(guint x)
     return (double)(x / exp(log(10.0)*(1+floor(log((double)x)/log(10.0)))));
 }
 
-static inline gchar *
-timescaled_val_to_str(wmem_allocator_t *pool, guint64 val)
+static inline char *
+timescaled_val_to_str(wmem_allocator_t *pool, uint64_t val)
 {
     nstime_t nstime;
 
@@ -251,12 +251,12 @@ timescaled_val_to_str(wmem_allocator_t *pool, guint64 val)
     return rel_time_to_str(pool, &nstime);
 }
 
-static gint
-dissect_mp4_full_box(tvbuff_t *tvb, gint offset, proto_tree *tree,
-        int * const *flags_fields, guint8 *version, guint32 *flags)
+static int
+dissect_mp4_full_box(tvbuff_t *tvb, int offset, proto_tree *tree,
+        int * const *flags_fields, uint8_t *version, uint32_t *flags)
 {
     if (version) {
-        *version = tvb_get_guint8(tvb, offset);
+        *version = tvb_get_uint8(tvb, offset);
     }
     proto_tree_add_item(tree, hf_mp4_full_box_ver,
             tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -276,17 +276,17 @@ dissect_mp4_full_box(tvbuff_t *tvb, gint offset, proto_tree *tree,
     return 1 + 3;
 }
 
-static gint
-dissect_mp4_mvhd_body(tvbuff_t *tvb, gint offset, gint len _U_,
-        packet_info *pinfo, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_mvhd_body(tvbuff_t *tvb, int offset, int len _U_,
+        packet_info *pinfo, unsigned depth _U_, proto_tree *tree)
 {
-    gint        offset_start;
-    guint8      version;
-    guint8      time_len;
-    guint64     duration;
+    int         offset_start;
+    uint8_t     version;
+    uint8_t     time_len;
+    uint64_t    duration;
     double      rate, vol;
-    guint16     fract_dec;
-    guint32     next_tid;
+    uint16_t    fract_dec;
+    uint32_t    next_tid;
     proto_item *next_tid_it;
 
     offset_start = offset;
@@ -299,10 +299,10 @@ dissect_mp4_mvhd_body(tvbuff_t *tvb, gint offset, gint len _U_,
      */
     time_len = (version==0) ? 4 : 8;
     proto_tree_add_item(tree, hf_mp4_mvhd_creat_time,
-            tvb, offset, time_len, ENC_TIME_CLASSIC_MAC_OS_SECS|ENC_BIG_ENDIAN);
+            tvb, offset, time_len, ENC_TIME_MP4_FILE_SECS|ENC_BIG_ENDIAN);
     offset += time_len;
     proto_tree_add_item(tree, hf_mp4_mvhd_mod_time,
-            tvb, offset, time_len, ENC_TIME_CLASSIC_MAC_OS_SECS|ENC_BIG_ENDIAN);
+            tvb, offset, time_len, ENC_TIME_MP4_FILE_SECS|ENC_BIG_ENDIAN);
     offset += time_len;
 
     mvhd_timescale = tvb_get_ntohl (tvb, offset);
@@ -335,8 +335,8 @@ dissect_mp4_mvhd_body(tvbuff_t *tvb, gint offset, gint len _U_,
     proto_tree_add_double(tree, hf_mp4_mvhd_rate, tvb, offset, 4, rate);
     offset += 4;
 
-    vol = tvb_get_guint8(tvb, offset);
-    fract_dec = tvb_get_guint8(tvb, offset+1);
+    vol = tvb_get_uint8(tvb, offset);
+    fract_dec = tvb_get_uint8(tvb, offset+1);
     vol += make_fract(fract_dec);
     proto_tree_add_double(tree, hf_mp4_mvhd_vol, tvb, offset, 4, vol);
     offset += 2;
@@ -350,18 +350,18 @@ dissect_mp4_mvhd_body(tvbuff_t *tvb, gint offset, gint len _U_,
     next_tid = tvb_get_ntohl(tvb, offset);
     next_tid_it = proto_tree_add_item(tree, hf_mp4_mvhd_next_tid,
             tvb, offset, 4, ENC_BIG_ENDIAN);
-    if (next_tid == G_MAXUINT32)
+    if (next_tid == UINT32_MAX)
         expert_add_info(pinfo, next_tid_it, &ei_mp4_mvhd_next_tid_unknown);
     offset += 4;
 
     return offset-offset_start;
 }
 
-static gint
-dissect_mp4_mfhd_body(tvbuff_t *tvb, gint offset, gint len _U_,
-        packet_info *pinfo _U_, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_mfhd_body(tvbuff_t *tvb, int offset, int len _U_,
+        packet_info *pinfo _U_, unsigned depth _U_, proto_tree *tree)
 {
-    gint offset_start;
+    int offset_start;
 
     offset_start = offset;
 
@@ -375,15 +375,15 @@ dissect_mp4_mfhd_body(tvbuff_t *tvb, gint offset, gint len _U_,
 }
 
 
-static gint
-dissect_mp4_tkhd_body(tvbuff_t *tvb, gint offset, gint len _U_,
-        packet_info *pinfo _U_, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_tkhd_body(tvbuff_t *tvb, int offset, int len _U_,
+        packet_info *pinfo _U_, unsigned depth _U_, proto_tree *tree)
 {
-    gint     offset_start;
-    guint8   version;
-    guint8   time_len;
+    int      offset_start;
+    uint8_t  version;
+    uint8_t  time_len;
     double   width, height;
-    guint16  fract_dec;
+    uint16_t fract_dec;
     static int * const flags[] = {
         &hf_mp4_tkhd_flags_enabled,
         &hf_mp4_tkhd_flags_in_movie,
@@ -398,10 +398,10 @@ dissect_mp4_tkhd_body(tvbuff_t *tvb, gint offset, gint len _U_,
 
     time_len = (version==0) ? 4 : 8;
     proto_tree_add_item(tree, hf_mp4_tkhd_creat_time,
-            tvb, offset, time_len, ENC_TIME_CLASSIC_MAC_OS_SECS|ENC_BIG_ENDIAN);
+            tvb, offset, time_len, ENC_TIME_MP4_FILE_SECS|ENC_BIG_ENDIAN);
     offset += time_len;
     proto_tree_add_item(tree, hf_mp4_tkhd_mod_time,
-            tvb, offset, time_len, ENC_TIME_CLASSIC_MAC_OS_SECS|ENC_BIG_ENDIAN);
+            tvb, offset, time_len, ENC_TIME_MP4_FILE_SECS|ENC_BIG_ENDIAN);
     offset += time_len;
 
     proto_tree_add_item(tree, hf_mp4_tkhd_track_id,
@@ -437,11 +437,11 @@ dissect_mp4_tkhd_body(tvbuff_t *tvb, gint offset, gint len _U_,
 }
 
 
-static gint
-dissect_mp4_ftyp_body(tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo _U_, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_ftyp_body(tvbuff_t *tvb, int offset, int len,
+        packet_info *pinfo _U_, unsigned depth _U_, proto_tree *tree)
 {
-    gint offset_start;
+    int offset_start;
 
     offset_start = offset;
     proto_tree_add_item(tree, hf_mp4_ftyp_brand,
@@ -461,12 +461,12 @@ dissect_mp4_ftyp_body(tvbuff_t *tvb, gint offset, gint len,
 }
 
 
-static gint
-dissect_mp4_stsz_body(tvbuff_t *tvb, gint offset, gint len _U_,
-        packet_info *pinfo _U_, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_stsz_body(tvbuff_t *tvb, int offset, int len _U_,
+        packet_info *pinfo _U_, unsigned depth _U_, proto_tree *tree)
 {
-    gint offset_start;
-    guint32  sample_size, sample_count, i;
+    int offset_start;
+    uint32_t sample_size, sample_count, i;
 
     offset_start = offset;
 
@@ -489,7 +489,7 @@ dissect_mp4_stsz_body(tvbuff_t *tvb, gint offset, gint len _U_,
         return offset - offset_start;
 
     for (i=1; i<=sample_count; i++) {
-        guint32 entry_size;
+        uint32_t entry_size;
 
         entry_size = tvb_get_ntohl(tvb, offset);
         proto_tree_add_uint_format(tree, hf_mp4_stsz_entry_size,
@@ -502,12 +502,12 @@ dissect_mp4_stsz_body(tvbuff_t *tvb, gint offset, gint len _U_,
 }
 
 
-static gint
-dissect_mp4_stsc_body(tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo _U_, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_stsc_body(tvbuff_t *tvb, int offset, int len,
+        packet_info *pinfo _U_, unsigned depth _U_, proto_tree *tree)
 {
-    guint32  entry_count;
-    guint32 i;
+    uint32_t entry_count;
+    uint32_t i;
 
     offset += dissect_mp4_full_box (tvb, offset, tree, NULL, NULL, NULL);
 
@@ -518,9 +518,9 @@ dissect_mp4_stsc_body(tvbuff_t *tvb, gint offset, gint len,
    for (i=1; i<=entry_count; i++) {
        proto_tree *subtree;
        proto_item *subtree_item;
-       guint32 first_chunk;
-       guint32 samples_per_chunk;
-       guint32 sample_description_index;
+       uint32_t first_chunk;
+       uint32_t samples_per_chunk;
+       uint32_t sample_description_index;
 
        subtree = proto_tree_add_subtree_format (tree, tvb, offset, 3 * 4,
                ett_mp4_entry, &subtree_item, "Entry %u:", i);
@@ -546,12 +546,12 @@ dissect_mp4_stsc_body(tvbuff_t *tvb, gint offset, gint len,
 }
 
 
-static gint
-dissect_mp4_hdlr_body(tvbuff_t *tvb, gint offset, gint len _U_,
-        packet_info *pinfo _U_, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_hdlr_body(tvbuff_t *tvb, int offset, int len _U_,
+        packet_info *pinfo _U_, unsigned depth _U_, proto_tree *tree)
 {
-    gint   offset_start;
-    guint  hdlr_name_len;
+    int    offset_start;
+    unsigned  hdlr_name_len;
 
     offset_start = offset;
 
@@ -576,13 +576,14 @@ dissect_mp4_hdlr_body(tvbuff_t *tvb, gint offset, gint len _U_,
 }
 
 
-static gint
-dissect_mp4_dref_body(tvbuff_t *tvb, gint offset, gint len _U_,
-        packet_info *pinfo, guint depth, proto_tree *tree)
+static int
+// NOLINTNEXTLINE(misc-no-recursion)
+dissect_mp4_dref_body(tvbuff_t *tvb, int offset, int len _U_,
+        packet_info *pinfo, unsigned depth, proto_tree *tree)
 {
-    gint     offset_start;
-    guint32  entry_cnt, i;
-    gint     ret;
+    int      offset_start;
+    uint32_t entry_cnt, i;
+    int      ret;
 
     offset_start = offset;
 
@@ -606,11 +607,11 @@ dissect_mp4_dref_body(tvbuff_t *tvb, gint offset, gint len _U_,
 }
 
 
-static gint
-dissect_mp4_url_body(tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo _U_, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_url_body(tvbuff_t *tvb, int offset, int len,
+        packet_info *pinfo _U_, unsigned depth _U_, proto_tree *tree)
 {
-    guint32  flags;
+    uint32_t flags;
     static int * const flags_fields[] = {
         &hf_mp4_url_flags_media_data_location,
         NULL
@@ -632,12 +633,13 @@ dissect_mp4_url_body(tvbuff_t *tvb, gint offset, gint len,
 }
 
 
-static gint
-dissect_mp4_stsd_body(tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo, guint depth, proto_tree *tree)
+static int
+// NOLINTNEXTLINE(misc-no-recursion)
+dissect_mp4_stsd_body(tvbuff_t *tvb, int offset, int len,
+        packet_info *pinfo, unsigned depth, proto_tree *tree)
 {
-    guint32  entry_cnt, i;
-    gint     ret;
+    uint32_t entry_cnt, i;
+    int      ret;
 
     offset += dissect_mp4_full_box (tvb, offset, tree, NULL, NULL, NULL);
     /* XXX - put up an expert info if version!=0 */
@@ -667,12 +669,12 @@ dissect_mp4_stsd_body(tvbuff_t *tvb, gint offset, gint len,
     return len;
 }
 
-static gint
-dissect_mp4_stts_body(tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo _U_, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_stts_body(tvbuff_t *tvb, int offset, int len,
+        packet_info *pinfo _U_, unsigned depth _U_, proto_tree *tree)
 {
-    guint32 entry_cnt;
-    guint i;
+    uint32_t entry_cnt;
+    unsigned i;
 
     offset += dissect_mp4_full_box (tvb, offset, tree, NULL, NULL, NULL);
 
@@ -683,8 +685,8 @@ dissect_mp4_stts_body(tvbuff_t *tvb, gint offset, gint len,
     for(i=0; i<entry_cnt; i++) {
         proto_tree *subtree;
         proto_item *subtree_item;
-        guint32 sample_count;
-        guint32 sample_delta;
+        uint32_t sample_count;
+        uint32_t sample_delta;
 
         subtree = proto_tree_add_subtree_format (tree, tvb, offset, 2 * 4,
                 ett_mp4_entry, &subtree_item, "Entry %u:", i + 1);
@@ -706,12 +708,12 @@ dissect_mp4_stts_body(tvbuff_t *tvb, gint offset, gint len,
 }
 
 
-static gint
-dissect_mp4_stco_body(tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo _U_, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_stco_body(tvbuff_t *tvb, int offset, int len,
+        packet_info *pinfo _U_, unsigned depth _U_, proto_tree *tree)
 {
-    guint32 entry_cnt;
-    guint32 i;
+    uint32_t entry_cnt;
+    uint32_t i;
 
     offset += dissect_mp4_full_box (tvb, offset, tree, NULL, NULL, NULL);
 
@@ -720,7 +722,7 @@ dissect_mp4_stco_body(tvbuff_t *tvb, gint offset, gint len,
     offset += 4;
 
     for(i=1; i<=entry_cnt; i++) {
-        guint32 chunk_offset;
+        uint32_t chunk_offset;
 
         chunk_offset = tvb_get_ntohl(tvb, offset);
         proto_tree_add_uint_format(tree, hf_mp4_stco_chunk_offset,
@@ -733,14 +735,14 @@ dissect_mp4_stco_body(tvbuff_t *tvb, gint offset, gint len,
 }
 
 
-static gint
-dissect_mp4_ctts_body(tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo _U_, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_ctts_body(tvbuff_t *tvb, int offset, int len,
+        packet_info *pinfo _U_, unsigned depth _U_, proto_tree *tree)
 {
-    guint8 version;
-    guint32 entry_cnt;
+    uint8_t version;
+    uint32_t entry_cnt;
     int sample_offset_hf;
-    guint i;
+    unsigned i;
 
     offset += dissect_mp4_full_box (tvb, offset, tree, NULL, &version, NULL);
 
@@ -754,8 +756,8 @@ dissect_mp4_ctts_body(tvbuff_t *tvb, gint offset, gint len,
     for (i=0; i<entry_cnt; i++) {
         proto_tree *subtree;
         proto_item *subtree_item;
-        guint32 sample_count;
-        guint32 sample_delta;
+        uint32_t sample_count;
+        uint32_t sample_delta;
 
         subtree = proto_tree_add_subtree_format(tree, tvb, offset, 2 * 4,
                 ett_mp4_entry, &subtree_item, "Entry %u:", i + 1);
@@ -776,13 +778,13 @@ dissect_mp4_ctts_body(tvbuff_t *tvb, gint offset, gint len,
     return len;
 }
 
-static gint
-dissect_mp4_elst_body(tvbuff_t *tvb, gint offset, gint len,
-        packet_info *pinfo, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_elst_body(tvbuff_t *tvb, int offset, int len,
+        packet_info *pinfo, unsigned depth _U_, proto_tree *tree)
 {
-    guint8 version;
-    guint32 entry_cnt;
-    guint i;
+    uint8_t version;
+    uint32_t entry_cnt;
+    unsigned i;
 
     offset += dissect_mp4_full_box (tvb, offset, tree, NULL, &version, NULL);
 
@@ -793,13 +795,13 @@ dissect_mp4_elst_body(tvbuff_t *tvb, gint offset, gint len,
     for(i=0; i<entry_cnt; i++) {
         proto_tree *subtree;
         proto_item *subtree_item;
-        gint field_length;
-        guint64 segment_duration;
-        gchar *segment_duration_str;
-        gint64 media_time;
-        gchar *media_time_str;
-        gint32 rate_int;
-        gint32 rate_fraction;
+        int field_length;
+        uint64_t segment_duration;
+        char *segment_duration_str;
+        int64_t media_time;
+        char *media_time_str;
+        int32_t rate_int;
+        int32_t rate_fraction;
 
         subtree = proto_tree_add_subtree_format (tree, tvb, offset, 2 * 4,
                 ett_mp4_entry, &subtree_item, "Entry %u:", i + 1);
@@ -847,13 +849,13 @@ dissect_mp4_elst_body(tvbuff_t *tvb, gint offset, gint len,
 }
 
 /* 3GPP TS 26.244 version 16.1.0 Release 16: 13.4 Segment Index Box */
-static gint
-dissect_mp4_sidx_body(tvbuff_t *tvb, gint offset, gint len _U_,
-        packet_info *pinfo _U_, guint depth _U_, proto_tree *tree)
+static int
+dissect_mp4_sidx_body(tvbuff_t *tvb, int offset, int len _U_,
+        packet_info *pinfo _U_, unsigned depth _U_, proto_tree *tree)
 {
-    guint8   version;
-    gint     offset_start;
-    guint16  entry_cnt, i;
+    uint8_t  version;
+    int      offset_start;
+    uint16_t entry_cnt, i;
 
     offset_start = offset;
 
@@ -889,7 +891,7 @@ dissect_mp4_sidx_body(tvbuff_t *tvb, gint offset, gint len _U_,
             tvb, offset, 2, ENC_BIG_ENDIAN);
     offset += 2;
 
-    entry_cnt = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+    entry_cnt = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_mp4_sidx_entry_cnt,
             tvb, offset, 2, ENC_BIG_ENDIAN);
     offset += 2;
@@ -925,18 +927,19 @@ dissect_mp4_sidx_body(tvbuff_t *tvb, gint offset, gint len _U_,
 
 /* dissect a box, return its (standard or extended) length or 0 for error
    depth is the recursion level of the parent box */
-static gint
-dissect_mp4_box(guint32 parent_box_type _U_, guint depth,
-        tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree)
+static int
+// NOLINTNEXTLINE(misc-no-recursion)
+dissect_mp4_box(uint32_t parent_box_type _U_, unsigned depth,
+        tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree)
 {
-    gint        offset_start;
-    guint64     box_size;
-    guint32     box_type;
-    guint8     *box_type_str;
+    int         offset_start;
+    uint64_t    box_size;
+    uint32_t    box_type;
+    uint8_t    *box_type_str;
     proto_item *type_pi, *size_pi, *ext_size_pi = NULL;
     proto_tree *box_tree;
-    gint        ret;
-    gint        body_size;
+    int         ret;
+    int         body_size;
 
 
     offset_start = offset;
@@ -945,7 +948,7 @@ dissect_mp4_box(guint32 parent_box_type _U_, guint depth,
        - size==0, indicating that the box extends to the end of the file
        - extended box types */
 
-    box_size = (guint64)tvb_get_ntohl(tvb, offset);
+    box_size = (uint64_t)tvb_get_ntohl(tvb, offset);
     if ((box_size != BOX_SIZE_EXTENDED) && (box_size < MIN_BOX_SIZE))
         return -1;
 
@@ -973,18 +976,18 @@ dissect_mp4_box(guint32 parent_box_type _U_, guint depth,
         offset += 8;
     }
 
-    if (box_size > G_MAXINT) {
+    if (box_size > INT_MAX) {
         /* this should be ok for ext_size_pi==NULL */
         expert_add_info(pinfo, ext_size_pi, &ei_mp4_box_too_large);
         return -1;
     }
-    proto_item_set_len(type_pi, (gint)box_size);
-    body_size = (gint)box_size - (offset-offset_start);
+    proto_item_set_len(type_pi, (int)box_size);
+    body_size = (int)box_size - (offset-offset_start);
 
     depth++;
     if (depth > MP4_BOX_MAX_REC_LVL) {
         proto_tree_add_expert(tree, pinfo, &ei_mp4_too_many_rec_lvls,
-                tvb, offset_start, (gint)box_size);
+                tvb, offset_start, (int)box_size);
         return -1;
     }
 
@@ -1052,7 +1055,7 @@ dissect_mp4_box(guint32 parent_box_type _U_, guint depth,
         case BOX_TYPE_DINF:
         case BOX_TYPE_UDTA:
         case BOX_TYPE_EDTS:
-            while (offset-offset_start < (gint)box_size) {
+            while (offset-offset_start < (int)box_size) {
                 ret = dissect_mp4_box(box_type, depth,
                         tvb, offset, pinfo, box_tree);
                 if (ret <= 0)
@@ -1064,18 +1067,18 @@ dissect_mp4_box(guint32 parent_box_type _U_, guint depth,
             break;
     }
 
-    return (gint)box_size;
+    return (int)box_size;
 }
 
 
 static int
 dissect_mp4(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    gint        offset = 0;
-    guint32     box_type;
+    int         offset = 0;
+    uint32_t    box_type;
     proto_item *pi;
     proto_tree *mp4_tree;
-    gint        ret;
+    int         ret;
 
     /* to make sure that we have an mp4 file, we check that it starts with
         a box of a known type
@@ -1093,7 +1096,7 @@ dissect_mp4(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
     col_clear(pinfo->cinfo, COL_INFO);
 
     pi = proto_tree_add_protocol_format(tree, proto_mp4,
-            tvb, 0, (gint)tvb_reported_length(tvb), "MP4");
+            tvb, 0, (int)tvb_reported_length(tvb), "MP4");
     mp4_tree = proto_item_add_subtree(pi, ett_mp4);
 
     while (tvb_reported_length_remaining(tvb, offset) > 0) {
@@ -1307,7 +1310,7 @@ proto_register_mp4(void)
                 BASE_DEC, NULL, 0x0FFFFFFF, NULL, HFILL } },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_mp4,
         &ett_mp4_box,
         &ett_mp4_full_box_flags,

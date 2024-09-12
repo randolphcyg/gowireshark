@@ -21,74 +21,74 @@
 void proto_register_sametime(void);
 void proto_reg_handoff_sametime(void);
 
-static int proto_sametime = -1;
+static int proto_sametime;
 static dissector_handle_t sametime_handle;
 
 /*preferences*/
-static gboolean global_sametime_show_length = FALSE;
-static gboolean global_sametime_reassemble_packets = TRUE;
+static bool global_sametime_show_length;
+static bool global_sametime_reassemble_packets = true;
 
 /*heart beat*/
-static int hf_sametime_heartbeat = -1;
+static int hf_sametime_heartbeat;
 
 /*sametime message header*/
-static int hf_sametime_message_length = -1;
-static int hf_sametime_message_type = -1;
-static int hf_sametime_message_options = -1;
-static int hf_sametime_message_options_attribute = -1;
-static int hf_sametime_message_options_encrypted = -1;
-static int hf_sametime_message_channel = -1;
+static int hf_sametime_message_length;
+static int hf_sametime_message_type;
+static int hf_sametime_message_options;
+static int hf_sametime_message_options_attribute;
+static int hf_sametime_message_options_encrypted;
+static int hf_sametime_message_channel;
 
 /*common types*/
-static int hf_sametime_field_length = -1;
-static int hf_sametime_field_text = -1;
-static int hf_sametime_code = -1;
-static int hf_sametime_login_type = -1;
-static int hf_sametime_time = -1;
+static int hf_sametime_field_length;
+static int hf_sametime_field_text;
+static int hf_sametime_code;
+static int hf_sametime_login_type;
+static int hf_sametime_time;
 
 /*handshake*/
-static int hf_sametime_handshake_major = -1;
-static int hf_sametime_handshake_minor = -1;
-static int hf_sametime_handshake_srvrcalc_addr = -1;
-static int hf_sametime_handshake_loclcalc_addr = -1;
+static int hf_sametime_handshake_major;
+static int hf_sametime_handshake_minor;
+static int hf_sametime_handshake_srvrcalc_addr;
+static int hf_sametime_handshake_loclcalc_addr;
 
 /*channel*/
-static int hf_sametime_channel_service = -1;
-static int hf_sametime_channel_id = -1;
-static int hf_sametime_channel_send_type = -1;
-static int hf_sametime_channel_awareness = -1;
+static int hf_sametime_channel_service;
+static int hf_sametime_channel_id;
+static int hf_sametime_channel_send_type;
+static int hf_sametime_channel_awareness;
 
 /*user status*/
-static int hf_sametime_user_status = -1;
+static int hf_sametime_user_status;
 
 /*location*/
-static int hf_sametime_location_country = -1;
-static int hf_sametime_location_postalcode = -1;
-static int hf_sametime_location_province = -1;
-static int hf_sametime_location_city = -1;
-static int hf_sametime_location_phone = -1;
-static int hf_sametime_location_name = -1;
-static int hf_sametime_location_timezone = -1;
+static int hf_sametime_location_country;
+static int hf_sametime_location_postalcode;
+static int hf_sametime_location_province;
+static int hf_sametime_location_city;
+static int hf_sametime_location_phone;
+static int hf_sametime_location_name;
+static int hf_sametime_location_timezone;
 
 /*packet detail tree*/
-static gint ett_sametime = -1;
-static gint ett_sametime_options = -1;
+static int ett_sametime;
+static int ett_sametime_options;
 
 /*statistics*/
-static int sametime_tap = -1;
-static const guint8* st_str_packet = "Sametime Message Count";
-static const guint8* st_str_message_type = "Message Type";
-static const guint8* st_str_send_type = "Send Type";
-static const guint8* st_str_user_status = "User Status";
+static int sametime_tap;
+static const uint8_t* st_str_packet = "Sametime Message Count";
+static const uint8_t* st_str_message_type = "Message Type";
+static const uint8_t* st_str_send_type = "Send Type";
+static const uint8_t* st_str_user_status = "User Status";
 static int st_node_packet = -1;
 static int st_node_message_type = -1;
 static int st_node_send_type = -1;
 static int st_node_user_status = -1;
 
 typedef struct SametimeTap {
-   gint message_type;
-   gint send_type;
-   gint user_status;
+   int message_type;
+   int send_type;
+   int user_status;
 } SametimeTap;
 
 #define SAMETIME_MESSAGETYPE_HEARTBEAT        0x80
@@ -204,10 +204,10 @@ static const value_string codenames[] = {
 static int
 add_text_item(tvbuff_t *tvb, proto_tree *tree, int offset, int hf)
 {
-   guint16 length;
+   uint16_t length;
 
    /* heuristic rule, string should start w/ valid character(s) */
-   if (! tvb_get_guint8(tvb, offset + 2))
+   if (! tvb_get_uint8(tvb, offset + 2))
       return 0;
 
    length = tvb_get_ntohs(tvb, offset);
@@ -228,10 +228,10 @@ add_text_item(tvbuff_t *tvb, proto_tree *tree, int offset, int hf)
 }
 
 
-static guint16
+static uint16_t
 dissect_set_user_status(tvbuff_t *tvb, proto_tree *tree, int offset)
 {
-   guint16 user_status;
+   uint16_t user_status;
 
    user_status = tvb_get_ntohs(tvb, offset);
    proto_item_append_text(tree, ", %s", val_to_str(user_status, userstatusnames, "0x%04x"));
@@ -332,11 +332,11 @@ dissect_channel_create(tvbuff_t *tvb, proto_tree *tree, int offset)
 }
 
 
-static guint16
+static uint16_t
 dissect_channel_send(tvbuff_t *tvb, proto_tree *tree, int offset)
 {
-   guint16 send_type, awareness;
-   guint na;
+   uint16_t send_type, awareness;
+   unsigned na;
 
    send_type = tvb_get_ntohs(tvb, offset);
    proto_item_append_text(tree, ", %s", val_to_str(send_type, sendtypenames, "0x%04x"));
@@ -405,7 +405,7 @@ dissect_channel_send(tvbuff_t *tvb, proto_tree *tree, int offset)
          offset += 2;
          offset += add_text_item(tvb, tree, offset, hf_sametime_field_text);
          offset += 4;
-         if (tvb_get_guint8(tvb, offset))        {
+         if (tvb_get_uint8(tvb, offset))        {
             offset += 1;
             offset += add_text_item(tvb, tree, offset, hf_sametime_field_text);
             dissect_set_user_status(tvb, tree, offset);
@@ -467,7 +467,7 @@ dissect_channel_accept(tvbuff_t *tvb, proto_tree *tree, int offset)
    offset += 34;
    if (tvb_reported_length_remaining(tvb, offset + 2))        {
       offset += add_text_item(tvb, tree, offset, hf_sametime_field_text);
-      if (tvb_get_guint8(tvb, offset))        {
+      if (tvb_get_uint8(tvb, offset))        {
          offset += 1;
          offset += add_text_item(tvb, tree, offset, hf_sametime_field_text);
          dissect_set_user_status(tvb, tree, offset);
@@ -479,7 +479,7 @@ dissect_channel_accept(tvbuff_t *tvb, proto_tree *tree, int offset)
 static void
 dissect_sense_service(tvbuff_t *tvb, proto_tree *tree, int offset)
 {
-   guint32 code;
+   uint32_t code;
 
    code = tvb_get_ntohl(tvb, offset);
    proto_item_append_text(tree, ", %s", val_to_str(code, codenames, "0x%04x"));
@@ -496,13 +496,13 @@ dissect_sametime_content(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
    proto_tree *sametime_tree;
    proto_item *ti;
    static SametimeTap *sinfo;
-   gint message_type;
+   int message_type;
    int packet_length, offset = 0;
 
    /* we expect either 1 heartbeat byte (0x80) or a sametime message */
    packet_length = tvb_reported_length_remaining(tvb, offset);
    if (packet_length == 1)        {
-      message_type = tvb_get_guint8(tvb, 0);
+      message_type = tvb_get_uint8(tvb, 0);
 
    } else if (packet_length < 12)        {
       message_type = -1;
@@ -620,7 +620,7 @@ sametime_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_, epan_dissect_
 {
    const struct SametimeTap *pi = (const struct SametimeTap *)p;
 
-   tick_stat_node(st, st_str_packet, 0, FALSE);
+   tick_stat_node(st, st_str_packet, 0, false);
    if (pi->message_type != -1)
       stats_tree_tick_pivot(st, st_node_message_type, val_to_str(pi->message_type, messagetypenames, "Unknown (0x%04x)"));
 
@@ -640,7 +640,7 @@ sametime_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_, epan_dissect_
 static void
 sametime_stats_tree_init(stats_tree* st)
 {
-   st_node_packet = stats_tree_create_node(st, st_str_packet, 0, STAT_DT_INT, TRUE);
+   st_node_packet = stats_tree_create_node(st, st_str_packet, 0, STAT_DT_INT, true);
    st_node_message_type = stats_tree_create_pivot(st, st_str_message_type, st_node_packet);
    st_node_send_type = stats_tree_create_pivot(st, st_str_send_type, st_node_packet);
    st_node_user_status = stats_tree_create_pivot(st, st_str_user_status, st_node_packet);
@@ -650,7 +650,7 @@ sametime_stats_tree_init(stats_tree* st)
 /*
         length of the sametime message
 */
-static guint
+static unsigned
 get_sametime_message_len(packet_info *pinfo _U_, tvbuff_t *tvb,
                          int offset, void *data _U_)
 {
@@ -658,7 +658,7 @@ get_sametime_message_len(packet_info *pinfo _U_, tvbuff_t *tvb,
    /*      because tcp_dissect_pdus was called with 4 as a required "fixed length".  */
    /*        But newer variants of this protocol with a full encrypted network stream  */
    /*        may require a more sophisticated dissection logic here                    */
-   guint32 N = tvb_captured_length_remaining(tvb, offset);
+   uint32_t N = tvb_captured_length_remaining(tvb, offset);
 
    return (N < 4) ? N : tvb_get_ntohl(tvb, offset) + 4;
 }
@@ -866,7 +866,7 @@ proto_register_sametime(void)
       },
    };
 
-   static gint *ett[] = {
+   static int *ett[] = {
       &ett_sametime,
       &ett_sametime_options
    };
@@ -901,7 +901,7 @@ proto_reg_handoff_sametime(void)
 {
    dissector_add_uint_with_preference("tcp.port", DEFAULT_SAMETIME_PORT, sametime_handle);
 
-   stats_tree_register("sametime", "sametime", "Sametime/Messages", 0,
+   stats_tree_register("sametime", "sametime", "Sametime" STATS_TREE_MENU_SEPARATOR "Messages", 0,
         sametime_stats_tree_packet,
         sametime_stats_tree_init, NULL );
 

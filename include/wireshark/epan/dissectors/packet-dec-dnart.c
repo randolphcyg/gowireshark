@@ -39,6 +39,7 @@
 #include <epan/etypes.h>
 #include <epan/expert.h>
 #include <epan/ppptypes.h>
+#include <epan/tfs.h>
 
 typedef enum {
     RT_CTL_INITIALIZATION,
@@ -83,89 +84,89 @@ void proto_reg_handoff_dec_rt(void);
 
 static dissector_handle_t dec_rt_handle;
 
-static int proto_dec_rt = -1;
+static int proto_dec_rt;
 
-static int hf_dec_routing_flags = -1;
-static int hf_dec_rt_ctrl_msg = -1;
-static int hf_dec_rt_long_msg = -1;
-static int hf_dec_rt_short_msg = -1;
-static int hf_dec_rt_rqr = -1;
-static int hf_dec_rt_rts = -1;
-static int hf_dec_rt_inter_eth = -1;
-static int hf_dec_rt_discard = -1;
-static int hf_dec_rt_dst_addr = -1;
-static int hf_dec_rt_src_addr = -1;
-static int hf_dec_rt_nl2 = -1;
-static int hf_dec_rt_service_class = -1;
-static int hf_dec_rt_protocol_type = -1;
-static int hf_dec_rt_visit_count = -1;
-static int hf_dec_rt_dst_node = -1;
-static int hf_dec_rt_src_node = -1;
+static int hf_dec_routing_flags;
+static int hf_dec_rt_ctrl_msg;
+static int hf_dec_rt_long_msg;
+static int hf_dec_rt_short_msg;
+static int hf_dec_rt_rqr;
+static int hf_dec_rt_rts;
+static int hf_dec_rt_inter_eth;
+static int hf_dec_rt_discard;
+static int hf_dec_rt_dst_addr;
+static int hf_dec_rt_src_addr;
+static int hf_dec_rt_nl2;
+static int hf_dec_rt_service_class;
+static int hf_dec_rt_protocol_type;
+static int hf_dec_rt_visit_count;
+static int hf_dec_rt_dst_node;
+static int hf_dec_rt_src_node;
 /* Routing control messages */
-static int hf_dec_rt_visited_nodes = -1;
-static int hf_dec_ctl_msgs = -1;
-static int hf_dec_ctl_msg_hdr = -1;
-static int hf_dec_nsp_msgs = -1;
-static int hf_dec_rt_tiinfo = -1;
-static int hf_dec_rt_blk_size = -1;
-static int hf_dec_rt_version = -1;
-static int hf_dec_rt_timer = -1;
-static int hf_dec_rt_reserved = -1;
-static int hf_dec_rt_fcnval = -1;
-static int hf_dec_rt_test_data = -1;
-static int hf_dec_rt_segment = -1;
-static int hf_dec_rt_checksum = -1;
-static int hf_dec_rt_checksum_status = -1;
-static int hf_dec_rt_id = -1;
-static int hf_dec_rt_iinfo = -1;
-static int hf_dec_rt_iinfo_node_type = -1;
-static int hf_dec_rt_iinfo_vrf = -1;
-static int hf_dec_rt_iinfo_rej = -1;
-static int hf_dec_rt_iinfo_verf = -1;
-static int hf_dec_rt_iinfo_mta = -1;
-static int hf_dec_rt_iinfo_blkreq = -1;
-static int hf_dec_rt_iprio = -1;
-static int hf_dec_rt_neighbor = -1;
-static int hf_dec_rt_seed = -1;
-static int hf_dec_rt_elist = -1;
-static int hf_dec_rt_ename = -1;
-static int hf_dec_rt_router_id = -1;
-static int hf_dec_rt_router_state = -1;
-static int hf_dec_rt_router_prio = -1;
-static int hf_dec_rt_seg_size = -1;
-static int hf_dec_rt_acknum = -1;
-static int hf_dec_rt_segnum = -1;
-static int hf_dec_rt_delay = -1;
-static int hf_dec_flow_control = -1;
-static int hf_dec_rt_fc_val = -1;
-static int hf_dec_rt_services = -1;
-static int hf_dec_rt_info = -1;
-static int hf_dec_disc_reason = -1;
-static int hf_dec_conn_contents = -1;
-static int hf_dec_sess_obj_type = -1;
-static int hf_dec_sess_grp_code = -1;
-static int hf_dec_sess_usr_code = -1;
-static int hf_dec_sess_dst_name = -1;
-static int hf_dec_sess_src_name = -1;
-static int hf_dec_sess_menu_ver = -1;
-static int hf_dec_sess_rqstr_id = -1;
+static int hf_dec_rt_visited_nodes;
+static int hf_dec_ctl_msgs;
+static int hf_dec_ctl_msg_hdr;
+static int hf_dec_nsp_msgs;
+static int hf_dec_rt_tiinfo;
+static int hf_dec_rt_blk_size;
+static int hf_dec_rt_version;
+static int hf_dec_rt_timer;
+static int hf_dec_rt_reserved;
+static int hf_dec_rt_fcnval;
+static int hf_dec_rt_test_data;
+static int hf_dec_rt_segment;
+static int hf_dec_rt_checksum;
+static int hf_dec_rt_checksum_status;
+static int hf_dec_rt_id;
+static int hf_dec_rt_iinfo;
+static int hf_dec_rt_iinfo_node_type;
+static int hf_dec_rt_iinfo_vrf;
+static int hf_dec_rt_iinfo_rej;
+static int hf_dec_rt_iinfo_verf;
+static int hf_dec_rt_iinfo_mta;
+static int hf_dec_rt_iinfo_blkreq;
+static int hf_dec_rt_iprio;
+static int hf_dec_rt_neighbor;
+static int hf_dec_rt_seed;
+static int hf_dec_rt_elist;
+static int hf_dec_rt_ename;
+static int hf_dec_rt_router_id;
+static int hf_dec_rt_router_state;
+static int hf_dec_rt_router_prio;
+static int hf_dec_rt_seg_size;
+static int hf_dec_rt_acknum;
+static int hf_dec_rt_segnum;
+static int hf_dec_rt_delay;
+static int hf_dec_flow_control;
+static int hf_dec_rt_fc_val;
+static int hf_dec_rt_services;
+static int hf_dec_rt_info;
+static int hf_dec_disc_reason;
+static int hf_dec_conn_contents;
+static int hf_dec_sess_obj_type;
+static int hf_dec_sess_grp_code;
+static int hf_dec_sess_usr_code;
+static int hf_dec_sess_dst_name;
+static int hf_dec_sess_src_name;
+static int hf_dec_sess_menu_ver;
+static int hf_dec_sess_rqstr_id;
 
-static gint ett_dec_rt = -1;
-static gint ett_dec_routing_flags = -1;
-static gint ett_dec_msg_flags = -1;
-static gint ett_dec_rt_ctl_msg = -1;
-static gint ett_dec_rt_nsp_msg = -1;
-static gint ett_dec_rt_info_flags = -1;
-static gint ett_dec_rt_list = -1;
-static gint ett_dec_rt_rlist = -1;
-static gint ett_dec_rt_state = -1;
-static gint ett_dec_flow_control = -1;
-static gint ett_dec_sess_contents = -1;
+static int ett_dec_rt;
+static int ett_dec_routing_flags;
+static int ett_dec_msg_flags;
+static int ett_dec_rt_ctl_msg;
+static int ett_dec_rt_nsp_msg;
+static int ett_dec_rt_info_flags;
+static int ett_dec_rt_list;
+static int ett_dec_rt_rlist;
+static int ett_dec_rt_state;
+static int ett_dec_flow_control;
+static int ett_dec_sess_contents;
 
-static expert_field ei_dec_rt_checksum = EI_INIT;
+static expert_field ei_dec_rt_checksum;
 
-static gint dec_dna_total_bytes_this_segment = 0;
-static gint dec_dna_previous_total = 0;
+static int dec_dna_total_bytes_this_segment;
+static int dec_dna_previous_total;
 
 static const value_string rt_msg_type_vals[] = {
     { 0x0   , "Initialization message" },
@@ -223,9 +224,9 @@ static const value_string rt_flow_control_vals[] = {
 
 static const value_string rt_services_vals[] = {
     {0x00,  "none"},
-    {0x04,  "segment request count"},
-    {0x08,  "Session control message request count"},
-    {0x0c,  "reserved"},
+    {0x01,  "segment request count"},
+    {0x02,  "Session control message request count"},
+    {0x03,  "reserved"},
     {0x0,   NULL}
 };
 
@@ -270,8 +271,8 @@ handle_nsp_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *tree,
-    guint offset,
-    guint8 nsp_msg_type);
+    unsigned offset,
+    uint8_t nsp_msg_type);
 
 
 static int
@@ -279,53 +280,53 @@ do_initialization_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *ctl_msg_tree,
-    guint offset);
+    unsigned offset);
 
 static int
 do_verification_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *ctl_msg_tree,
-    guint offset);
+    unsigned offset);
 
 static int
 do_hello_test_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *ctl_msg_tree,
-    guint offset);
+    unsigned offset);
 
 static int
 do_routing_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *ctl_msg_tree,
-    guint offset,
-    guint msg);
+    unsigned offset,
+    unsigned msg);
 
 static int
 do_hello_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *ctl_msg_tree,
-    guint offset,
-    guint msg);
+    unsigned offset,
+    unsigned msg);
 
 static int
 handle_connect_contents(
     tvbuff_t *tvb,
     proto_tree *tree,
-    guint offset);
+    unsigned offset);
 
 static int
 handle_disc_init_contents(
-    guint offset);
+    unsigned offset);
 
 static char *
-dnet_ntoa(wmem_allocator_t *pool, const guint8 *data)
+dnet_ntoa(wmem_allocator_t *pool, const uint8_t *data)
 {
     if (data[0] == 0xAA && data[1] == 0x00 && data[2] == 0x04 && data[3] == 0x00) {
-        guint16 dnet_addr = data[4] | (data[5] << 8);
+        uint16_t dnet_addr = data[4] | (data[5] << 8);
         return wmem_strdup_printf(pool, "%d.%d", dnet_addr >> 10, dnet_addr & 0x03FF);
     }
     return NULL;
@@ -335,7 +336,7 @@ static void
 set_dnet_address(packet_info *pinfo, address *paddr_src, address *paddr_tgt)
 {
     if (paddr_tgt->type != AT_STRINGZ && paddr_src->type == AT_ETHER) {
-        char *addr = dnet_ntoa(pinfo->pool, (const guint8 *)paddr_src->data);
+        char *addr = dnet_ntoa(pinfo->pool, (const uint8_t *)paddr_src->data);
         if (addr != NULL)
             set_address(paddr_tgt, AT_STRINGZ, 1,
                     wmem_strdup(pinfo->pool, addr));
@@ -345,11 +346,11 @@ set_dnet_address(packet_info *pinfo, address *paddr_src, address *paddr_tgt)
 static int
 dissect_dec_rt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint8  padding_length;
-    guint8  forward;
-    guint8  msg_flags;
-    guint   rt_visit_count, rt_zero = 0;
-    gint    offset;
+    uint8_t padding_length;
+    uint8_t forward;
+    uint8_t msg_flags;
+    unsigned   rt_visit_count, rt_zero = 0;
+    int     offset;
     proto_tree *rt_tree;
     proto_tree *flags_tree;
     proto_item *ti;
@@ -365,7 +366,7 @@ dissect_dec_rt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
     set_dnet_address(pinfo, &pinfo->dl_dst, &pinfo->dst);
 
     offset += 2;
-    msg_flags = tvb_get_guint8(tvb, offset);
+    msg_flags = tvb_get_uint8(tvb, offset);
     ti = proto_tree_add_item(tree, proto_dec_rt, tvb, 0, -1, ENC_NA);
     rt_tree = proto_item_add_subtree(ti, ett_dec_rt);
     /* When padding, the first byte after the padding has
@@ -377,13 +378,13 @@ dissect_dec_rt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
     }
 
     /* The real routing flag */
-    msg_flags = tvb_get_guint8(tvb, offset);
+    msg_flags = tvb_get_uint8(tvb, offset);
     ti = proto_tree_add_uint(rt_tree, hf_dec_routing_flags, tvb,
                     offset, 1, msg_flags);
     flags_tree = proto_item_add_subtree(ti, ett_dec_routing_flags);
 
     if (msg_flags & RT_FLAGS_CTRL_MSG) {
-        guint8  ctl_msg_type;
+        uint8_t ctl_msg_type;
         proto_tree *ctl_msg_tree;
 
         ctl_msg_type = (msg_flags >> 1) & 0x7;
@@ -443,7 +444,7 @@ dissect_dec_rt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
         offset += 3;
         ti = proto_tree_add_item(rt_tree, hf_dec_rt_dst_addr, tvb,
                 offset, 6, ENC_NA);
-        addr = dnet_ntoa(pinfo->pool, (const guint8 *)tvb_memdup(pinfo->pool, tvb, offset, 6));
+        addr = dnet_ntoa(pinfo->pool, (const uint8_t *)tvb_memdup(pinfo->pool, tvb, offset, 6));
         if (addr != NULL) {
             proto_item_append_text(ti, " (%s)", addr);
         }
@@ -454,7 +455,7 @@ dissect_dec_rt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
         offset += 8;
         ti = proto_tree_add_item(rt_tree, hf_dec_rt_src_addr, tvb,
             offset, 6, ENC_NA);
-        addr = dnet_ntoa(pinfo->pool, (const guint8 *)tvb_memdup(pinfo->pool, tvb, offset, 6));
+        addr = dnet_ntoa(pinfo->pool, (const uint8_t *)tvb_memdup(pinfo->pool, tvb, offset, 6));
         if (addr != NULL) {
             proto_item_append_text(ti, " (%s)", addr);
         }
@@ -464,7 +465,7 @@ dissect_dec_rt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
         proto_tree_add_uint(rt_tree, hf_dec_rt_nl2, tvb,
             offset, 1, rt_zero);
         offset++;
-        rt_visit_count = tvb_get_guint8(tvb, offset);
+        rt_visit_count = tvb_get_uint8(tvb, offset);
         proto_tree_add_uint(rt_tree, hf_dec_rt_visit_count, tvb,
             offset, 1, rt_visit_count);
         offset++;
@@ -489,7 +490,7 @@ dissect_dec_rt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
         offset += 2;
         proto_tree_add_item(rt_tree, hf_dec_rt_src_node, tvb, offset, 2, ENC_LITTLE_ENDIAN);
         offset += 2;
-        forward = tvb_get_guint8(tvb, offset);
+        forward = tvb_get_uint8(tvb, offset);
         proto_tree_add_uint(rt_tree, hf_dec_rt_visited_nodes, tvb,
             offset, 1, forward);
         offset++;
@@ -499,9 +500,9 @@ dissect_dec_rt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
         /* It is not a routing control message */
         proto_tree *nsp_msg_tree;
         proto_item *ti_local;
-        guint8     nsp_msg_type;
+        uint8_t    nsp_msg_type;
 
-        nsp_msg_type = tvb_get_guint8(tvb, offset);
+        nsp_msg_type = tvb_get_uint8(tvb, offset);
            ti_local = proto_tree_add_uint(
             tree, hf_dec_nsp_msgs, tvb, offset, 1, nsp_msg_type);
         if (nsp_msg_type == NOP_MSG) {
@@ -536,11 +537,11 @@ do_initialization_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *tree,
-    guint offset)
+    unsigned offset)
 {
-    guint   my_offset = offset;
-    guint8  version, eco_nr, user_eco;
-    guint8  remainder_count;
+    unsigned   my_offset = offset;
+    uint8_t version, eco_nr, user_eco;
+    uint8_t remainder_count;
 
     col_set_str(pinfo->cinfo, COL_INFO, "Routing control, initialization message");
     proto_tree_add_item(tree, hf_dec_rt_src_node, tvb,
@@ -552,9 +553,9 @@ do_initialization_msg(
     proto_tree_add_item(tree, hf_dec_rt_blk_size, tvb,
         my_offset, 2, ENC_LITTLE_ENDIAN);
     my_offset += 2;
-    version = tvb_get_guint8(tvb, my_offset);
-    eco_nr = tvb_get_guint8(tvb, my_offset + 1);
-    user_eco = tvb_get_guint8(tvb, my_offset + 2);
+    version = tvb_get_uint8(tvb, my_offset);
+    eco_nr = tvb_get_uint8(tvb, my_offset + 1);
+    user_eco = tvb_get_uint8(tvb, my_offset + 2);
     proto_tree_add_none_format(tree, hf_dec_rt_version, tvb,
         my_offset, 3, "Routing Layer version: %d.%d.%d.",
             version, eco_nr, user_eco);
@@ -562,7 +563,7 @@ do_initialization_msg(
     proto_tree_add_item(tree, hf_dec_rt_timer, tvb,
         my_offset, 2, ENC_LITTLE_ENDIAN);
     my_offset += 2;
-    remainder_count = tvb_get_guint8(tvb, my_offset);
+    remainder_count = tvb_get_uint8(tvb, my_offset);
     if (remainder_count != 0) {
         proto_tree_add_item(tree, hf_dec_rt_reserved, tvb,
             my_offset, remainder_count, ENC_NA);
@@ -576,16 +577,16 @@ do_verification_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *tree,
-    guint offset)
+    unsigned offset)
 {
-    guint   my_offset = offset;
-    guint8  remainder_count;
+    unsigned   my_offset = offset;
+    uint8_t remainder_count;
 
     col_set_str(pinfo->cinfo, COL_INFO, "Routing control, verification message");
     proto_tree_add_item(tree, hf_dec_rt_src_node, tvb,
         my_offset, 2, ENC_LITTLE_ENDIAN);
     my_offset += 2;
-    remainder_count = tvb_get_guint8(tvb, my_offset);
+    remainder_count = tvb_get_uint8(tvb, my_offset);
     if (remainder_count != 0) {
         proto_tree_add_item(tree, hf_dec_rt_fcnval, tvb,
             my_offset, remainder_count, ENC_NA);
@@ -599,10 +600,10 @@ do_hello_test_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *tree,
-    guint offset)
+    unsigned offset)
 {
-    guint   my_offset = offset;
-    guint   remainder_count;
+    unsigned   my_offset = offset;
+    unsigned   remainder_count;
 
     col_set_str(pinfo->cinfo, COL_INFO, "Routing control, hello/test message");
     proto_tree_add_item(tree, hf_dec_rt_src_node, tvb,
@@ -622,13 +623,13 @@ do_routing_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *tree,
-    guint offset,
-    guint msg)
+    unsigned offset,
+    unsigned msg)
 {
-    guint   my_offset = offset;
-    guint32 my_checksum = 1;
-    guint16 count, startid, rtginfo;
-    guint   remainder_count;
+    unsigned   my_offset = offset;
+    uint32_t my_checksum = 1;
+    uint16_t count, startid, rtginfo;
+    unsigned   remainder_count;
 
     proto_tree_add_item(tree, hf_dec_rt_src_node, tvb,
         my_offset, 2, ENC_LITTLE_ENDIAN);
@@ -672,12 +673,12 @@ do_hello_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *tree,
-    guint offset,
-    guint msg)
+    unsigned offset,
+    unsigned msg)
 {
-    guint   my_offset = offset;
-    guint8  priority;
-    guint16 version, eco_nr, user_eco;
+    unsigned   my_offset = offset;
+    uint8_t priority;
+    uint16_t version, eco_nr, user_eco;
     proto_item *ti;
     char *addr;
     static int * const info_flags[] = {
@@ -690,16 +691,16 @@ do_hello_msg(
         NULL
     };
 
-    version = tvb_get_guint8(tvb, my_offset);
-    eco_nr = tvb_get_guint8(tvb, my_offset + 1);
-    user_eco = tvb_get_guint8(tvb, my_offset + 2);
+    version = tvb_get_uint8(tvb, my_offset);
+    eco_nr = tvb_get_uint8(tvb, my_offset + 1);
+    user_eco = tvb_get_uint8(tvb, my_offset + 2);
     proto_tree_add_none_format(tree, hf_dec_rt_version, tvb,
         my_offset, 3, "Routing Layer Version: %d.%d.%d",
         version, eco_nr, user_eco);
     my_offset +=3;
     ti = proto_tree_add_item(tree, hf_dec_rt_id, tvb,
         my_offset, 6, ENC_NA);
-    addr = dnet_ntoa(pinfo->pool, (const guint8 *)tvb_memdup(pinfo->pool, tvb, my_offset, 6));
+    addr = dnet_ntoa(pinfo->pool, (const uint8_t *)tvb_memdup(pinfo->pool, tvb, my_offset, 6));
     if (addr != NULL) {
         proto_item_append_text(ti, " (%s)", addr);
     }
@@ -714,7 +715,7 @@ do_hello_msg(
         /* Ethernet router hello message
            Has a 'priority' field in this position */
         col_set_str(pinfo->cinfo, COL_INFO, "Routing control, Ethernet Router Hello  message");
-        priority = tvb_get_guint8(tvb, my_offset);
+        priority = tvb_get_uint8(tvb, my_offset);
         proto_tree_add_uint(
             tree, hf_dec_rt_iprio, tvb, my_offset, 1, priority);
         my_offset++;
@@ -729,7 +730,7 @@ do_hello_msg(
         my_offset += 8;
         ti = proto_tree_add_item(tree, hf_dec_rt_neighbor, tvb,
                 my_offset, 6, ENC_NA);
-        addr = dnet_ntoa(pinfo->pool, (const guint8 *)tvb_memdup(pinfo->pool, tvb, my_offset, 6));
+        addr = dnet_ntoa(pinfo->pool, (const uint8_t *)tvb_memdup(pinfo->pool, tvb, my_offset, 6));
         if (addr != NULL) {
             proto_item_append_text(ti, " (%s)", addr);
         }
@@ -748,11 +749,11 @@ do_hello_msg(
          */
         proto_item  *ti_locala, *ti_ether;
         proto_tree *list_tree, *list_ether;
-        guint8 image_len;
-        guint8 item_len;
+        uint8_t image_len;
+        uint8_t item_len;
 
         /* image field is preceded by count of remainder of field */
-        image_len = tvb_get_guint8(tvb, my_offset);
+        image_len = tvb_get_uint8(tvb, my_offset);
         my_offset++;
 
         ti_locala = proto_tree_add_item(tree, hf_dec_rt_elist, tvb,
@@ -767,24 +768,24 @@ do_hello_msg(
             image_len -= 7;
 
             /* image field is preceded by count of remainder of field */
-            item_len = tvb_get_guint8(tvb, my_offset);
+            item_len = tvb_get_uint8(tvb, my_offset);
             my_offset++;
             image_len -= 1;
             while (item_len > 0)
             {
-                guint8  pristate;
+                uint8_t pristate;
                 proto_item  *ti_localb;
                 proto_tree *pstate_tree;
 
                 ti_localb = proto_tree_add_item(list_ether, hf_dec_rt_router_id,
                     tvb, my_offset, 6, ENC_NA);
-                addr = dnet_ntoa(pinfo->pool, (const guint8 *)tvb_memdup(pinfo->pool, tvb, my_offset, 6));
+                addr = dnet_ntoa(pinfo->pool, (const uint8_t *)tvb_memdup(pinfo->pool, tvb, my_offset, 6));
                 if (addr != NULL) {
                     proto_item_append_text(ti_localb, " (%s)", addr);
                 }
                 my_offset += 6;
                 pstate_tree = proto_item_add_subtree(ti_localb, ett_dec_rt_state);
-                pristate = tvb_get_guint8(tvb, my_offset);
+                pristate = tvb_get_uint8(tvb, my_offset);
                 proto_tree_add_string(pstate_tree, hf_dec_rt_router_state,
                     tvb, my_offset, 1,
                     ((pristate & 0x80) ? "known 2-way": "unknown"));
@@ -804,14 +805,14 @@ handle_nsp_msg(
     tvbuff_t *tvb,
     packet_info *pinfo,
     proto_tree *tree,
-    guint offset,
-    guint8 nsp_msg_type)
+    unsigned offset,
+    uint8_t nsp_msg_type)
 {
     /* Offset in tvb now points at the first byte still to be handled */
-    guint      my_offset = offset;
-    gint       data_length;
-    guint16    ack_num, ack_dat, ack_oth, seg_num;
-    guint8     ls_flags, fc_val, services;
+    unsigned   my_offset = offset;
+    int        data_length;
+    uint16_t   ack_num, ack_dat, ack_oth, seg_num;
+    uint8_t    ls_flags, fc_val, services;
     proto_item  *ti;
     proto_tree *flow_control_tree;
 
@@ -957,7 +958,7 @@ handle_nsp_msg(
                 tvb, my_offset, 2, ENC_LITTLE_ENDIAN);
             my_offset += 2;
             /* Now follows the ls_flags field */
-            ls_flags = tvb_get_guint8(tvb, my_offset);
+            ls_flags = tvb_get_uint8(tvb, my_offset);
             switch(ls_flags) {
                 case 0: /* no change */
                     col_append_str(pinfo->cinfo, COL_INFO,
@@ -974,7 +975,7 @@ handle_nsp_msg(
                 default:
                 break;
             }
-            fc_val = tvb_get_guint8(tvb, my_offset + 1);
+            fc_val = tvb_get_uint8(tvb, my_offset + 1);
             ti = proto_tree_add_uint(tree, hf_dec_flow_control, tvb,
                          my_offset, 1, ls_flags);
             flow_control_tree =
@@ -1040,7 +1041,7 @@ handle_nsp_msg(
         case CONN_CONFIRM_MSG:     /* "Connect confirm" */
         case CONN_INITIATE_MSG:    /* "Connect initiate" */
             col_set_str(pinfo->cinfo, COL_INFO, "NSP connect confirm/initiate message");
-            services = tvb_get_guint8(tvb, my_offset);
+            services = tvb_get_uint8(tvb, my_offset);
             proto_tree_add_uint(tree, hf_dec_rt_services, tvb,
                          my_offset, 1, services);
             my_offset++;
@@ -1070,20 +1071,20 @@ static int
 handle_connect_contents(
     tvbuff_t *tvb,
     proto_tree *tree,
-    guint offset)
+    unsigned offset)
 {
-    guint my_offset = offset;
+    unsigned my_offset = offset;
     proto_item   *ti;
     proto_tree   *contents_tree;
-    guint8       dst_format, src_format, obj_type, image_len, menu_ver;
+    uint8_t      dst_format, src_format, obj_type, image_len, menu_ver;
 
     ti = proto_tree_add_item(tree, hf_dec_conn_contents,
         tvb, my_offset, -1, ENC_NA);
     contents_tree = proto_item_add_subtree(ti, ett_dec_sess_contents);
     /* The destination end user */
-    dst_format = tvb_get_guint8(tvb, my_offset);
+    dst_format = tvb_get_uint8(tvb, my_offset);
     my_offset++;
-    obj_type = tvb_get_guint8(tvb, my_offset);
+    obj_type = tvb_get_uint8(tvb, my_offset);
     proto_tree_add_uint(contents_tree, hf_dec_sess_obj_type, tvb, my_offset, 1, obj_type);
     my_offset++;
     if (dst_format == 2) {
@@ -1094,15 +1095,15 @@ handle_connect_contents(
     }
     if (dst_format != 0) {
         /* The name field for formats 1 and 2 */
-        image_len = tvb_get_guint8(tvb, my_offset);
+        image_len = tvb_get_uint8(tvb, my_offset);
         my_offset++;
         proto_tree_add_item(contents_tree, hf_dec_sess_dst_name, tvb, my_offset, image_len, ENC_ASCII);
         my_offset += image_len;
     }
     /* The source end user */
-    src_format = tvb_get_guint8(tvb, my_offset);
+    src_format = tvb_get_uint8(tvb, my_offset);
     my_offset++;
-    obj_type = tvb_get_guint8(tvb, my_offset);
+    obj_type = tvb_get_uint8(tvb, my_offset);
     proto_tree_add_uint(contents_tree, hf_dec_sess_obj_type,
         tvb, my_offset, 1, obj_type);
     my_offset++;
@@ -1114,14 +1115,14 @@ handle_connect_contents(
     }
     if (dst_format != 0) {
         /* The name field for formats 1 and 2 */
-        image_len = tvb_get_guint8(tvb, my_offset);
+        image_len = tvb_get_uint8(tvb, my_offset);
         my_offset++;
         proto_tree_add_item(contents_tree, hf_dec_sess_src_name,
             tvb, my_offset, image_len, ENC_ASCII);
         my_offset += image_len;
     }
     /* Now the MENUVER field */
-    menu_ver = tvb_get_guint8(tvb, my_offset);
+    menu_ver = tvb_get_uint8(tvb, my_offset);
     switch (menu_ver) {
         case 1:
         case 3:
@@ -1129,17 +1130,17 @@ handle_connect_contents(
                 tvb, my_offset, 1,
                 "Version 1.0: RQSTRID, PASSWRD and ACCOUNT fields included");
             my_offset++;
-            image_len = tvb_get_guint8(tvb, my_offset);
+            image_len = tvb_get_uint8(tvb, my_offset);
             my_offset++;
             proto_tree_add_item(contents_tree, hf_dec_sess_rqstr_id,
                 tvb, my_offset, image_len, ENC_ASCII);
             my_offset += image_len;
-            image_len = tvb_get_guint8(tvb, my_offset);
+            image_len = tvb_get_uint8(tvb, my_offset);
             my_offset++;
             proto_tree_add_item(contents_tree, hf_dec_sess_rqstr_id,
                 tvb, my_offset, image_len, ENC_ASCII);
             my_offset += image_len;
-            image_len = tvb_get_guint8(tvb, my_offset);
+            image_len = tvb_get_uint8(tvb, my_offset);
             my_offset++;
             proto_tree_add_item(contents_tree, hf_dec_sess_rqstr_id,
                 tvb, my_offset, image_len, ENC_ASCII);
@@ -1164,9 +1165,9 @@ handle_connect_contents(
 
 static int
 handle_disc_init_contents(
-    guint offset)
+    unsigned offset)
 {
-    guint my_offset = offset;
+    unsigned my_offset = offset;
 
     return (my_offset);
 }
@@ -1197,7 +1198,7 @@ proto_register_dec_rt(void)
         { &hf_dec_rt_rqr,
           { "Return to Sender Request",    "dec_dna.flags.RQR",
             FT_BOOLEAN,    8,        TFS(&tfs_yes_no),    RT_FLAGS_RQR,
-            "Return to Sender", HFILL }},
+            NULL, HFILL }},
         { &hf_dec_rt_rts,
           { "Packet on return trip",    "dec_dna.flags.RTS",
             FT_BOOLEAN,    8,        TFS(&tfs_yes_no),    RT_FLAGS_RTS,
@@ -1241,7 +1242,7 @@ proto_register_dec_rt(void)
         { &hf_dec_rt_services,
           { "Requested services",   "dec_dna.nsp.services",
             FT_UINT8,    BASE_HEX,    VALS(rt_services_vals),   0x0c,
-            "Services requested", HFILL }},
+            NULL, HFILL }},
         { &hf_dec_rt_info,
           { "Version info",            "dec_dna.nsp.info",
             FT_UINT8,    BASE_HEX,    VALS(rt_info_version_vals),   0x03,
@@ -1269,20 +1270,20 @@ proto_register_dec_rt(void)
         { &hf_dec_rt_visited_nodes,
           { "Nodes visited by this package", "dec_dna.vst_node",
             FT_UINT8,    BASE_DEC,    NULL,   0x0,
-            "Nodes visited", HFILL }},
+            NULL, HFILL }},
         /* Control message items */
         { &hf_dec_ctl_msgs,
           { "Routing control message",        "dec_dna.rt.msg_type",
             FT_UINT8,    BASE_HEX,    VALS(rt_msg_type_vals),    0xe,
-            "Routing control", HFILL }},
+            NULL, HFILL }},
         { &hf_dec_ctl_msg_hdr,
           { "Routing control message",    "dec_dna.rt.msg_type",
             FT_UINT8,    BASE_HEX,    VALS(rt_msg_type_vals),    0xe,
-            "Routing control", HFILL }},
+            NULL, HFILL }},
         { &hf_dec_nsp_msgs,
           { "DNA NSP message",        "dec_dna.nsp.msg_type",
             FT_UINT8,    BASE_HEX,    VALS(nsp_msg_type_vals),    0x0,
-            "NSP message", HFILL }},
+            NULL, HFILL }},
         { &hf_dec_rt_acknum,
           { "Ack/Nak",                "dec_dna.ctl.acknum",
             FT_NONE,    BASE_NONE,    NULL,    0x0,
@@ -1300,9 +1301,9 @@ proto_register_dec_rt(void)
             FT_UINT16,    BASE_DEC,    NULL,    0x0,
             NULL, HFILL }},
         { &hf_dec_disc_reason,
-          { "Reason for disconnect","dec_dna.nsp.disc_reason",
+          { "Reason for disconnect", "dec_dna.nsp.disc_reason",
             FT_UINT16,    BASE_HEX,    VALS(rt_disc_reason_vals),    0x0,
-            "Disconnect reason", HFILL }},
+            NULL, HFILL }},
         { &hf_dec_rt_version,
           { "Version",                "dec_dna.ctl.version",
             FT_NONE,    BASE_NONE,    NULL,    0x0,
@@ -1382,7 +1383,7 @@ proto_register_dec_rt(void)
         { &hf_dec_rt_elist,
           { "List of router states",    "dec_dna.ctl.elist",
             FT_NONE,    BASE_NONE,    NULL, 0x0,
-            "Router states", HFILL }},
+            NULL, HFILL }},
         { &hf_dec_rt_ename,
           { "Ethernet name",      "dec_dna.ctl.ename",
             FT_BYTES,    BASE_NONE,    NULL,    0x0,
@@ -1434,7 +1435,7 @@ proto_register_dec_rt(void)
 
 
     };
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_dec_rt,
         &ett_dec_routing_flags,
         &ett_dec_msg_flags,

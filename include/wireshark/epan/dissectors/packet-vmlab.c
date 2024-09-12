@@ -39,20 +39,20 @@ void proto_reg_handoff_vmlab(void);
 static dissector_handle_t vmlab_handle;
 static dissector_handle_t ethertype_handle;
 
-static int proto_vmlab = -1;
+static int proto_vmlab;
 
-static int hf_vmlab_flags_part1 = -1;           /* Unknown so far */
-static int hf_vmlab_flags_fragment = -1;
-static int hf_vmlab_flags_part2 = -1;           /* Unknown so far */
+static int hf_vmlab_flags_part1;           /* Unknown so far */
+static int hf_vmlab_flags_fragment;
+static int hf_vmlab_flags_part2;           /* Unknown so far */
 
-static int hf_vmlab_portgroup = -1;
-static int hf_vmlab_eth_src = -1;
-static int hf_vmlab_eth_dst = -1;
-static int hf_vmlab_eth_addr = -1;
-static int hf_vmlab_etype = -1;
-static int hf_vmlab_trailer = -1;
+static int hf_vmlab_portgroup;
+static int hf_vmlab_eth_src;
+static int hf_vmlab_eth_dst;
+static int hf_vmlab_eth_addr;
+static int hf_vmlab_etype;
+static int hf_vmlab_trailer;
 
-static gint ett_vmlab = -1;
+static int ett_vmlab;
 
 static int
 dissect_vmlab(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
@@ -60,13 +60,13 @@ dissect_vmlab(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     proto_tree*     vmlab_tree;
     proto_item*     ti;
 
-    guint32         offset=0;
+    uint32_t        offset=0;
 
-    guint8          attributes;
-    guint8          portgroup;
+    uint8_t         attributes;
+    uint8_t         portgroup;
     ethertype_data_t ethertype_data;
 
-    guint16         encap_proto;
+    uint16_t        encap_proto;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "VMLAB");
     col_clear(pinfo->cinfo, COL_INFO);
@@ -75,7 +75,7 @@ dissect_vmlab(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     vmlab_tree = proto_item_add_subtree(ti, ett_vmlab);
 
     /* Flags*/
-    attributes = tvb_get_guint8(tvb, offset);
+    attributes = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(vmlab_tree, hf_vmlab_flags_part1,    tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(vmlab_tree, hf_vmlab_flags_fragment, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(vmlab_tree, hf_vmlab_flags_part2,    tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -85,7 +85,7 @@ dissect_vmlab(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     offset += 1;
 
     /* Portgroup*/
-    portgroup = tvb_get_guint8(tvb, offset);
+    portgroup = tvb_get_uint8(tvb, offset);
     proto_tree_add_uint(vmlab_tree, hf_vmlab_portgroup, tvb, offset, 1, portgroup);
     proto_item_append_text(ti, ", Portgroup: %d", portgroup);
     offset += 1;
@@ -150,7 +150,7 @@ proto_register_vmlab(void)
         { &hf_vmlab_trailer,        { "Trailer", "vmlab.trailer",
             FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }}
     };
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_vmlab
     };
 

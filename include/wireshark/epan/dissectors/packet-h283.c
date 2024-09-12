@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-h283.c                                                              */
-/* asn2wrs.py -L -p h283 -c ./h283.cnf -s ./packet-h283-template -D . -O ../.. LCT-PROTOCOL.asn */
+/* asn2wrs.py -q -L -p h283 -c ./h283.cnf -s ./packet-h283-template -D . -O ../.. LCT-PROTOCOL.asn */
 
 /* packet-h283.c
  * Routines for H.283 packet dissection
@@ -19,6 +19,7 @@
 #include <epan/packet.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-per.h"
 
@@ -30,56 +31,56 @@ void proto_register_h283(void);
 void proto_reg_handoff_h283(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_h283 = -1;
-static int hf_h283_LCTPDU_PDU = -1;               /* LCTPDU */
-static int hf_h283_t35CountryCode = -1;           /* INTEGER_0_255 */
-static int hf_h283_t35Extension = -1;             /* INTEGER_0_255 */
-static int hf_h283_manufacturerCode = -1;         /* INTEGER_0_65535 */
-static int hf_h283_object = -1;                   /* OBJECT_IDENTIFIER */
-static int hf_h283_h221NonStandard = -1;          /* H221NonStandard */
-static int hf_h283_nonStandardIdentifier = -1;    /* NonStandardIdentifier */
-static int hf_h283_data = -1;                     /* OCTET_STRING */
-static int hf_h283_srcAddr = -1;                  /* MTAddress */
-static int hf_h283_dstAddr = -1;                  /* MTAddress */
-static int hf_h283_timestamp = -1;                /* INTEGER_0_4294967295 */
-static int hf_h283_seqNumber = -1;                /* INTEGER_0_65535 */
-static int hf_h283_pduType = -1;                  /* T_pduType */
-static int hf_h283_ack = -1;                      /* NULL */
-static int hf_h283_rdcData = -1;                  /* RDCData */
-static int hf_h283_nonStandardParameters = -1;    /* SEQUENCE_OF_NonStandardParameter */
-static int hf_h283_nonStandardParameters_item = -1;  /* NonStandardParameter */
-static int hf_h283_mAddress = -1;                 /* INTEGER_0_65535 */
-static int hf_h283_tAddress = -1;                 /* INTEGER_0_65535 */
-static int hf_h283_reliable = -1;                 /* BOOLEAN */
-static int hf_h283_dataType = -1;                 /* T_dataType */
-static int hf_h283_lctMessage = -1;               /* LCTMessage */
-static int hf_h283_rdcPDU = -1;                   /* T_rdcPDU */
-static int hf_h283_lctRequest = -1;               /* LCTRequest */
-static int hf_h283_lctResponse = -1;              /* LCTResponse */
-static int hf_h283_lctIndication = -1;            /* LCTIndication */
-static int hf_h283_nonStandardMessage = -1;       /* NonStandardMessage */
-static int hf_h283_announceReq = -1;              /* NULL */
-static int hf_h283_deviceListReq = -1;            /* NULL */
-static int hf_h283_announceResp = -1;             /* NULL */
-static int hf_h283_deviceListResp = -1;           /* T_deviceListResp */
-static int hf_h283_deviceChange = -1;             /* NULL */
+static int proto_h283;
+static int hf_h283_LCTPDU_PDU;                    /* LCTPDU */
+static int hf_h283_t35CountryCode;                /* INTEGER_0_255 */
+static int hf_h283_t35Extension;                  /* INTEGER_0_255 */
+static int hf_h283_manufacturerCode;              /* INTEGER_0_65535 */
+static int hf_h283_object;                        /* OBJECT_IDENTIFIER */
+static int hf_h283_h221NonStandard;               /* H221NonStandard */
+static int hf_h283_nonStandardIdentifier;         /* NonStandardIdentifier */
+static int hf_h283_data;                          /* OCTET_STRING */
+static int hf_h283_srcAddr;                       /* MTAddress */
+static int hf_h283_dstAddr;                       /* MTAddress */
+static int hf_h283_timestamp;                     /* INTEGER_0_4294967295 */
+static int hf_h283_seqNumber;                     /* INTEGER_0_65535 */
+static int hf_h283_pduType;                       /* T_pduType */
+static int hf_h283_ack;                           /* NULL */
+static int hf_h283_rdcData;                       /* RDCData */
+static int hf_h283_nonStandardParameters;         /* SEQUENCE_OF_NonStandardParameter */
+static int hf_h283_nonStandardParameters_item;    /* NonStandardParameter */
+static int hf_h283_mAddress;                      /* INTEGER_0_65535 */
+static int hf_h283_tAddress;                      /* INTEGER_0_65535 */
+static int hf_h283_reliable;                      /* BOOLEAN */
+static int hf_h283_dataType;                      /* T_dataType */
+static int hf_h283_lctMessage;                    /* LCTMessage */
+static int hf_h283_rdcPDU;                        /* T_rdcPDU */
+static int hf_h283_lctRequest;                    /* LCTRequest */
+static int hf_h283_lctResponse;                   /* LCTResponse */
+static int hf_h283_lctIndication;                 /* LCTIndication */
+static int hf_h283_nonStandardMessage;            /* NonStandardMessage */
+static int hf_h283_announceReq;                   /* NULL */
+static int hf_h283_deviceListReq;                 /* NULL */
+static int hf_h283_announceResp;                  /* NULL */
+static int hf_h283_deviceListResp;                /* T_deviceListResp */
+static int hf_h283_deviceChange;                  /* NULL */
 
 /* Initialize the subtree pointers */
-static int ett_h283 = -1;
-static gint ett_h283_H221NonStandard = -1;
-static gint ett_h283_NonStandardIdentifier = -1;
-static gint ett_h283_NonStandardParameter = -1;
-static gint ett_h283_LCTPDU = -1;
-static gint ett_h283_T_pduType = -1;
-static gint ett_h283_SEQUENCE_OF_NonStandardParameter = -1;
-static gint ett_h283_MTAddress = -1;
-static gint ett_h283_RDCData = -1;
-static gint ett_h283_T_dataType = -1;
-static gint ett_h283_LCTMessage = -1;
-static gint ett_h283_LCTRequest = -1;
-static gint ett_h283_LCTResponse = -1;
-static gint ett_h283_LCTIndication = -1;
-static gint ett_h283_NonStandardMessage = -1;
+static int ett_h283;
+static int ett_h283_H221NonStandard;
+static int ett_h283_NonStandardIdentifier;
+static int ett_h283_NonStandardParameter;
+static int ett_h283_LCTPDU;
+static int ett_h283_T_pduType;
+static int ett_h283_SEQUENCE_OF_NonStandardParameter;
+static int ett_h283_MTAddress;
+static int ett_h283_RDCData;
+static int ett_h283_T_dataType;
+static int ett_h283_LCTMessage;
+static int ett_h283_LCTRequest;
+static int ett_h283_LCTResponse;
+static int ett_h283_LCTIndication;
+static int ett_h283_NonStandardMessage;
 
 /* Subdissectors */
 static dissector_handle_t rdc_pdu_handle;
@@ -88,14 +89,14 @@ static dissector_handle_t data_handle;
 static dissector_handle_t h283_udp_handle;
 
 
-static gboolean info_is_set;
+static bool info_is_set;
 
 
 
 static int
 dissect_h283_INTEGER_0_255(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -105,7 +106,7 @@ dissect_h283_INTEGER_0_255(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_h283_INTEGER_0_65535(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -162,7 +163,7 @@ dissect_h283_NonStandardIdentifier(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_h283_OCTET_STRING(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       NO_BOUND, NO_BOUND, FALSE, NULL);
+                                       NO_BOUND, NO_BOUND, false, NULL);
 
   return offset;
 }
@@ -202,7 +203,7 @@ dissect_h283_MTAddress(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_h283_INTEGER_0_4294967295(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 4294967295U, NULL, FALSE);
+                                                            0U, 4294967295U, NULL, false);
 
   return offset;
 }
@@ -240,8 +241,8 @@ static const per_choice_t LCTRequest_choice[] = {
 
 static int
 dissect_h283_LCTRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  gint32 msg_type = -1;
-  const gchar *p = NULL;
+  int32_t msg_type = -1;
+  const char *p = NULL;
   offset = dissect_per_choice(tvb, offset, actx, tree, hf_index,
                                  ett_h283_LCTRequest, LCTRequest_choice,
                                  &msg_type);
@@ -249,7 +250,7 @@ dissect_h283_LCTRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
   p = try_val_to_str(msg_type, VALS(h283_LCTRequest_vals));
   if (!info_is_set && p ) {
     col_add_fstr(actx->pinfo->cinfo, COL_INFO, "LCTRequest/%s", p);
-    info_is_set = TRUE;
+    info_is_set = true;
   }
   return offset;
 }
@@ -261,7 +262,7 @@ dissect_h283_T_deviceListResp(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
   tvbuff_t *next_tvb = NULL;
 
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       NO_BOUND, NO_BOUND, FALSE, &next_tvb);
+                                       NO_BOUND, NO_BOUND, false, &next_tvb);
 
   if (next_tvb && tvb_reported_length(next_tvb)) {
     call_dissector((rdc_device_list_handle)?rdc_device_list_handle:data_handle, next_tvb, actx->pinfo, tree);
@@ -285,8 +286,8 @@ static const per_choice_t LCTResponse_choice[] = {
 
 static int
 dissect_h283_LCTResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  gint32 msg_type = -1;
-  const gchar *p = NULL;
+  int32_t msg_type = -1;
+  const char *p = NULL;
   offset = dissect_per_choice(tvb, offset, actx, tree, hf_index,
                                  ett_h283_LCTResponse, LCTResponse_choice,
                                  &msg_type);
@@ -294,7 +295,7 @@ dissect_h283_LCTResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
   p = try_val_to_str(msg_type, VALS(h283_LCTResponse_vals));
   if (!info_is_set && p ) {
     col_add_fstr(actx->pinfo->cinfo, COL_INFO, "LCTResponse/%s", p);
-    info_is_set = TRUE;
+    info_is_set = true;
   }
   return offset;
 }
@@ -312,8 +313,8 @@ static const per_choice_t LCTIndication_choice[] = {
 
 static int
 dissect_h283_LCTIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  gint32 msg_type = -1;
-  const gchar *p = NULL;
+  int32_t msg_type = -1;
+  const char *p = NULL;
   offset = dissect_per_choice(tvb, offset, actx, tree, hf_index,
                                  ett_h283_LCTIndication, LCTIndication_choice,
                                  &msg_type);
@@ -321,7 +322,7 @@ dissect_h283_LCTIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
   p = try_val_to_str(msg_type, VALS(h283_LCTIndication_vals));
   if (!info_is_set && p ) {
     col_add_fstr(actx->pinfo->cinfo, COL_INFO, "LCTIndication/%s", p);
-    info_is_set = TRUE;
+    info_is_set = true;
   }
   return offset;
 }
@@ -372,8 +373,8 @@ static const per_choice_t LCTMessage_choice[] = {
 
 static int
 dissect_h283_LCTMessage(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  gint32 msg_type = -1;
-  const gchar *p = NULL;
+  int32_t msg_type = -1;
+  const char *p = NULL;
   offset = dissect_per_choice(tvb, offset, actx, tree, hf_index,
                                  ett_h283_LCTMessage, LCTMessage_choice,
                                  &msg_type);
@@ -381,7 +382,7 @@ dissect_h283_LCTMessage(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
   p = try_val_to_str(msg_type, VALS(h283_LCTMessage_vals));
   if (!info_is_set && p ) {
     col_add_fstr(actx->pinfo->cinfo, COL_INFO, "LCTMessage/%s", p);
-    info_is_set = TRUE;
+    info_is_set = true;
   }
   return offset;
 }
@@ -393,12 +394,12 @@ dissect_h283_T_rdcPDU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
   tvbuff_t *next_tvb = NULL;
 
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       NO_BOUND, NO_BOUND, FALSE, &next_tvb);
+                                       NO_BOUND, NO_BOUND, false, &next_tvb);
 
   if (next_tvb && tvb_reported_length(next_tvb)) {
     call_dissector((rdc_pdu_handle)?rdc_pdu_handle:data_handle, next_tvb, actx->pinfo, proto_tree_get_root(tree));
   }
-  info_is_set = TRUE;
+  info_is_set = true;
 
   return offset;
 }
@@ -418,8 +419,8 @@ static const per_choice_t T_dataType_choice[] = {
 
 static int
 dissect_h283_T_dataType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  gint32 data_type = -1;
-  const gchar *p = NULL;
+  int32_t data_type = -1;
+  const char *p = NULL;
   offset = dissect_per_choice(tvb, offset, actx, tree, hf_index,
                                  ett_h283_T_dataType, T_dataType_choice,
                                  &data_type);
@@ -427,7 +428,7 @@ dissect_h283_T_dataType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
   p = try_val_to_str(data_type, VALS(h283_T_dataType_vals));
   if (!info_is_set && p ) {
     col_add_fstr(actx->pinfo->cinfo, COL_INFO, "RDCData/%s", p);
-    info_is_set = TRUE;
+    info_is_set = true;
   }
   return offset;
 }
@@ -462,8 +463,8 @@ static const per_choice_t T_pduType_choice[] = {
 
 static int
 dissect_h283_T_pduType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  gint32 pdu_type = -1;
-  const gchar *p = NULL;
+  int32_t pdu_type = -1;
+  const char *p = NULL;
   offset = dissect_per_choice(tvb, offset, actx, tree, hf_index,
                                  ett_h283_T_pduType, T_pduType_choice,
                                  &pdu_type);
@@ -471,7 +472,7 @@ dissect_h283_T_pduType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
   p = try_val_to_str(pdu_type, VALS(h283_T_pduType_vals));
   if (!info_is_set && p ) {
     col_set_str(actx->pinfo->cinfo, COL_INFO, p);
-    info_is_set = TRUE;
+    info_is_set = true;
   }
   return offset;
 }
@@ -500,7 +501,7 @@ dissect_h283_LCTPDU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 static int dissect_LCTPDU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, true, pinfo);
   offset = dissect_h283_LCTPDU(tvb, offset, &asn1_ctx, tree, hf_h283_LCTPDU_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -515,7 +516,7 @@ dissect_h283_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, PSNAME);
 
-  info_is_set = FALSE;
+  info_is_set = false;
 
   ti = proto_tree_add_item(tree, proto_h283, tvb, 0, -1, ENC_NA);
   h283_tree = proto_item_add_subtree(ti, ett_h283);
@@ -659,7 +660,7 @@ void proto_register_h283(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_h283,
     &ett_h283_H221NonStandard,
     &ett_h283_NonStandardIdentifier,

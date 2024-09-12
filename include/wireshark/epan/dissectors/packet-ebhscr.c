@@ -22,149 +22,149 @@
 void proto_reg_handoff_ebhscr(void);
 void proto_register_ebhscr(void);
 
-static int proto_ebhscr = -1;
+static int proto_ebhscr;
 
-static int hf_ebhscr_packet_header = -1;
-static int hf_ebhscr_major_number = -1;
-static int hf_ebhscr_slot = -1;
-static int hf_ebhscr_channel = -1;
-static int hf_ebhscr_status = -1;
-static int hf_ebhscr_status_unused = -1;
+static int hf_ebhscr_packet_header;
+static int hf_ebhscr_major_number;
+static int hf_ebhscr_slot;
+static int hf_ebhscr_channel;
+static int hf_ebhscr_status;
+static int hf_ebhscr_status_unused;
 
-static int hf_can_proto_type = -1;
-static int hf_can_status_available = -1;
-static int hf_can_LEC = -1;
-static int hf_can_ERRP = -1;
-static int hf_can_ERRW = -1;
-static int hf_can_BOFF = -1;
-static int hf_can_DLEC = -1;
-static int hf_can_TEC = -1;
-static int hf_can_REC = -1;
-static int hf_can_CEL = -1;
-static int hf_can_reserved_bytes = -1;
+static int hf_can_proto_type;
+static int hf_can_status_available;
+static int hf_can_LEC;
+static int hf_can_ERRP;
+static int hf_can_ERRW;
+static int hf_can_BOFF;
+static int hf_can_DLEC;
+static int hf_can_TEC;
+static int hf_can_REC;
+static int hf_can_CEL;
+static int hf_can_reserved_bytes;
 
-static int hf_eth_reserved_bytes = -1;
-static int hf_eth_tx_trunc = -1;
-static int hf_eth_trans_undrun = -1;
-static int hf_eth_retrans_limit = -1;
-static int hf_eth_late_collision = -1;
-static int hf_eth_link_up_down = -1;
-static int hf_eth_master_slave = -1;
-static int hf_eth_fcs_unavailable = -1;
-static int hf_eth_rsvd_bit = -1;
-static int hf_eth_speed = -1;
+static int hf_eth_reserved_bytes;
+static int hf_eth_tx_trunc;
+static int hf_eth_trans_undrun;
+static int hf_eth_retrans_limit;
+static int hf_eth_late_collision;
+static int hf_eth_link_up_down;
+static int hf_eth_master_slave;
+static int hf_eth_fcs_unavailable;
+static int hf_eth_rsvd_bit;
+static int hf_eth_speed;
 
-static int hf_eth_crc_error = -1;
-static int hf_eth_mii_foe = -1;
-static int hf_eth_payload_foe = -1;
-static int hf_eth_hdr_foe = -1;
-static int hf_eth_rcv_dec_err = -1;
-static int hf_eth_sym_error = -1;
-static int hf_eth_jabber_event = -1;
-static int hf_eth_pol_ch_event = -1;
-static int hf_eth_fls_carrier_event = -1;
-static int hf_eth_rx_trunc = -1;
-static int hf_eth_transmission_disc_err = -1;
-static int hf_eth_wait_frame_sep_bit = -1;
+static int hf_eth_crc_error;
+static int hf_eth_mii_foe;
+static int hf_eth_payload_foe;
+static int hf_eth_hdr_foe;
+static int hf_eth_rcv_dec_err;
+static int hf_eth_sym_error;
+static int hf_eth_jabber_event;
+static int hf_eth_pol_ch_event;
+static int hf_eth_fls_carrier_event;
+static int hf_eth_rx_trunc;
+static int hf_eth_transmission_disc_err;
+static int hf_eth_wait_frame_sep_bit;
 
-static int hf_ts_time_offset_valid = -1;
-static int hf_ts_last_offset_change_valid = -1;
-static int hf_ts_nano_seconds_last_jump_valid = -1;
-static int hf_ts_UTC_leap_seconds_valid = -1;
-static int hf_ts_sync_state_valid = -1;
-static int hf_ts_time_source = -1;
+static int hf_ts_time_offset_valid;
+static int hf_ts_last_offset_change_valid;
+static int hf_ts_nano_seconds_last_jump_valid;
+static int hf_ts_UTC_leap_seconds_valid;
+static int hf_ts_sync_state_valid;
+static int hf_ts_time_source;
 
-static int hf_ts_time_offset_ns = -1;
-static int hf_ts_last_offset_ns = -1;
-static int hf_ts_last_jump_ns = -1;
-static int hf_ts_utc_leap_sec = -1;
-static int hf_ts_sync_state = -1;
+static int hf_ts_time_offset_ns;
+static int hf_ts_last_offset_ns;
+static int hf_ts_last_jump_ns;
+static int hf_ts_utc_leap_sec;
+static int hf_ts_sync_state;
 
-static int hf_lin_1_3_classic_chksum = -1;
-static int hf_lin_1_2_enhanced_chksum = -1;
-static int hf_lin_wakeup = -1;
-static int hf_lin_time_jump = -1;
+static int hf_lin_1_3_classic_chksum;
+static int hf_lin_1_2_enhanced_chksum;
+static int hf_lin_wakeup;
+static int hf_lin_time_jump;
 
-static int hf_lin_reserved_bytes = -1;
-static int hf_lin_wakeup_length = -1;
-static int hf_lin_sts_reserved = -1;
-static int hf_lin_sts_syn = -1;
-static int hf_lin_sts_par = -1;
-static int hf_lin_sts_res = -1;
-static int hf_lin_sts_dat = -1;
-static int hf_lin_sts_chk = -1;
-static int hf_lin_sts_sta = -1;
-static int hf_lin_sts_sto = -1;
-static int hf_lin_sts_emp = -1;
-static int hf_lin_payload = -1;
-static int hf_lin_payload_pid = -1;
-static int hf_lin_payload_id_parity_0 = -1;
-static int hf_lin_payload_id_parity_1 = -1;
-static int hf_lin_payload_id = -1;
-static int hf_lin_payload_data = -1;
-static int hf_lin_payload_checksum = -1;
+static int hf_lin_reserved_bytes;
+static int hf_lin_wakeup_length;
+static int hf_lin_sts_reserved;
+static int hf_lin_sts_syn;
+static int hf_lin_sts_par;
+static int hf_lin_sts_res;
+static int hf_lin_sts_dat;
+static int hf_lin_sts_chk;
+static int hf_lin_sts_sta;
+static int hf_lin_sts_sto;
+static int hf_lin_sts_emp;
+static int hf_lin_payload;
+static int hf_lin_payload_pid;
+static int hf_lin_payload_id_parity_0;
+static int hf_lin_payload_id_parity_1;
+static int hf_lin_payload_id;
+static int hf_lin_payload_data;
+static int hf_lin_payload_checksum;
 
-static int hf_dio_overflow_mon_unit = -1;
-static int hf_dio_jump_occurred = -1;
-static int hf_dio_value_type = -1;
-static int hf_dio_reserved_bytes = -1;
+static int hf_dio_overflow_mon_unit;
+static int hf_dio_jump_occurred;
+static int hf_dio_value_type;
+static int hf_dio_reserved_bytes;
 
-static int hf_flexray_ch_a = -1;
-static int hf_flexray_ch_b = -1;
-static int hf_flexray_ctrl_id = -1;
-static int hf_flexray_monitoring_bit = -1;
-static int hf_flexray_sync_bit = -1;
-static int hf_flexray_packet_type = -1;
-static int hf_flexray_CODERR = -1;
-static int hf_flexray_TSSVIOL = -1;
-static int hf_flexray_HCRCERR = -1;
-static int hf_flexray_FCRCERR = -1;
-static int hf_flexray_FESERR = -1;
-static int hf_flexray_FSSERR = -1;
-static int hf_flexray_BSSERR = -1;
-static int hf_flexray_jump_occurred = -1;
-static int hf_flexray_slot_information = -1;
-static int hf_flexray_SBV = -1;
-static int hf_flexray_ACI = -1;
-static int hf_flexray_CED = -1;
-static int hf_flexray_SED = -1;
-static int hf_flexray_VFR = -1;
-static int hf_flexray_SID = -1;
-static int hf_flexray_frame_status = -1;
-static int hf_flexray_SPLERR = -1;
-static int hf_flexray_CCERR = -1;
-static int hf_flexray_FIDERR = -1;
-static int hf_flexray_SSERR = -1;
-static int hf_flexray_NERR = -1;
-static int hf_flexray_SOVERR = -1;
-static int hf_flexray_SWVIOL = -1;
-static int hf_flexray_NITVIOL = -1;
-static int hf_flexray_BVIOL = -1;
-static int hf_flexray_PCD = -1;
-static int hf_flexray_SYNCERR = -1;
-static int hf_flexray_CP = -1;
-static int hf_flexray_BRC = -1;
-static int hf_flexray_symbol_length_and_status = -1;
-static int hf_flexray_SYERR = -1;
-static int hf_flexray_SL = -1;
-static int hf_flexray_POC_state = -1;
-static int hf_flexray_following_cycle_counter = -1;
-static int hf_flexray_supercycle_counter = -1;
+static int hf_flexray_ch_a;
+static int hf_flexray_ch_b;
+static int hf_flexray_ctrl_id;
+static int hf_flexray_monitoring_bit;
+static int hf_flexray_sync_bit;
+static int hf_flexray_packet_type;
+static int hf_flexray_CODERR;
+static int hf_flexray_TSSVIOL;
+static int hf_flexray_HCRCERR;
+static int hf_flexray_FCRCERR;
+static int hf_flexray_FESERR;
+static int hf_flexray_FSSERR;
+static int hf_flexray_BSSERR;
+static int hf_flexray_jump_occurred;
+static int hf_flexray_slot_information;
+static int hf_flexray_SBV;
+static int hf_flexray_ACI;
+static int hf_flexray_CED;
+static int hf_flexray_SED;
+static int hf_flexray_VFR;
+static int hf_flexray_SID;
+static int hf_flexray_frame_status;
+static int hf_flexray_SPLERR;
+static int hf_flexray_CCERR;
+static int hf_flexray_FIDERR;
+static int hf_flexray_SSERR;
+static int hf_flexray_NERR;
+static int hf_flexray_SOVERR;
+static int hf_flexray_SWVIOL;
+static int hf_flexray_NITVIOL;
+static int hf_flexray_BVIOL;
+static int hf_flexray_PCD;
+static int hf_flexray_SYNCERR;
+static int hf_flexray_CP;
+static int hf_flexray_BRC;
+static int hf_flexray_symbol_length_and_status;
+static int hf_flexray_SYERR;
+static int hf_flexray_SL;
+static int hf_flexray_POC_state;
+static int hf_flexray_following_cycle_counter;
+static int hf_flexray_supercycle_counter;
 
-static int hf_ebhscr_version = -1;
-static int hf_ebhscr_length = -1;
-static int hf_ebhscr_start_timestamp = -1;
-static int hf_ebhscr_stop_timestamp = -1;
-static int hf_ebhscr_mjr_hdr = -1;
-static int hf_ebhscr_mjr_hdr_unused = -1;
+static int hf_ebhscr_version;
+static int hf_ebhscr_length;
+static int hf_ebhscr_start_timestamp;
+static int hf_ebhscr_stop_timestamp;
+static int hf_ebhscr_mjr_hdr;
+static int hf_ebhscr_mjr_hdr_unused;
 
-static gint ett_ebhscr = -1;
-static gint ett_ebhscr_channel = -1;
-static gint ett_ebhscr_packet_header = -1;
-static gint ett_ebhscr_status = -1;
-static gint ett_ebhscr_mjr_hdr = -1;
+static int ett_ebhscr;
+static int ett_ebhscr_channel;
+static int ett_ebhscr_packet_header;
+static int ett_ebhscr_status;
+static int ett_ebhscr_mjr_hdr;
 
-static gint ett_lin_payload = -1;
+static int ett_lin_payload;
 
 static int * const can_status_bits[] = {
 	&hf_can_proto_type,
@@ -496,9 +496,9 @@ static const value_string flexray_POC_state_strings[] = {
 };
 
 
-static expert_field ei_ebhscr_frame_header = EI_INIT;
-static expert_field ei_ebhscr_err_status_flag = EI_INIT;
-static expert_field ei_ebhscr_info_status_flag = EI_INIT;
+static expert_field ei_ebhscr_frame_header;
+static expert_field ei_ebhscr_err_status_flag;
+static expert_field ei_ebhscr_info_status_flag;
 
 static dissector_handle_t ebhscr_handle;
 
@@ -524,11 +524,11 @@ static dissector_table_t subdissector_table;
 #define EBHSCR_HEADER_LENGTH 32
 
 static int dissect_ebhscr_can(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-								proto_tree *ebhscr_packet_header_tree, guint16 ebhscr_status,
-								guint32 ebhscr_frame_length)
+								proto_tree *ebhscr_packet_header_tree, uint16_t ebhscr_status,
+								uint32_t ebhscr_frame_length)
 {
-	guint16 can_proto_status, can_type;
-	guint32 ebhscr_current_payload_length;
+	uint16_t can_proto_status, can_type;
+	uint32_t ebhscr_current_payload_length;
 	tvbuff_t* next_tvb;
 	proto_item *ti;
 
@@ -565,14 +565,14 @@ static int dissect_ebhscr_can(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 }
 
 static int dissect_ebhscr_eth(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-								proto_tree *ebhscr_packet_header_tree, guint16 ebhscr_status,
-								guint32 ebhscr_frame_length)
+								proto_tree *ebhscr_packet_header_tree, uint16_t ebhscr_status,
+								uint32_t ebhscr_frame_length)
 {
 	tvbuff_t* next_tvb;
 	proto_item *ti;
-	guint8 channel;
-	guint32 ebhscr_current_payload_length;
-	guint64 major_hrd, fsc_not_present, link_up, link_speed;
+	uint8_t channel;
+	uint32_t ebhscr_current_payload_length;
+	uint64_t major_hrd, fsc_not_present, link_up, link_speed;
 	ebhscr_current_payload_length = ebhscr_frame_length - EBHSCR_HEADER_LENGTH;
 
 	ti = proto_tree_add_bitmask(ebhscr_packet_header_tree, tvb, 2, hf_ebhscr_status,
@@ -582,8 +582,8 @@ static int dissect_ebhscr_eth(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 		expert_add_info(pinfo, ti, &ei_ebhscr_err_status_flag);
 	}
 
-	channel = (tvb_get_guint8(tvb, 1) & 0x1C) >> 2;
-	major_hrd = tvb_get_guint64(tvb, 24, ENC_BIG_ENDIAN);
+	channel = (tvb_get_uint8(tvb, 1) & 0x1C) >> 2;
+	major_hrd = tvb_get_uint64(tvb, 24, ENC_BIG_ENDIAN);
 
 	proto_tree_add_bitmask(ebhscr_packet_header_tree, tvb, 24, hf_ebhscr_mjr_hdr, ett_ebhscr_mjr_hdr,
 							eth_mjr_hdr_bits, ENC_BIG_ENDIAN);
@@ -612,12 +612,12 @@ static int dissect_ebhscr_eth(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 }
 
 static int dissect_ebhscr_nmea(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-								proto_tree *ebhscr_packet_header_tree, guint32 ebhscr_frame_length,
-								guint32 ebhscr_length)
+								proto_tree *ebhscr_packet_header_tree, uint32_t ebhscr_frame_length,
+								uint32_t ebhscr_length)
 {
 	tvbuff_t* next_tvb;
-	guint8 *nmea_str;
-	guint32 ebhscr_current_payload_length;
+	uint8_t *nmea_str;
+	uint32_t ebhscr_current_payload_length;
 
 	if (ebhscr_frame_length == EBHSCR_HEADER_LENGTH) {
 		return tvb_captured_length(tvb);
@@ -636,12 +636,12 @@ static int dissect_ebhscr_nmea(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
 }
 
 static int dissect_ebhscr_ts(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-								proto_tree *ebhscr_packet_header_tree, guint16 ebhscr_status,
-								guint32 ebhscr_frame_length)
+								proto_tree *ebhscr_packet_header_tree, uint16_t ebhscr_status,
+								uint32_t ebhscr_frame_length)
 {
 	tvbuff_t* next_tvb;
-	guint32 ebhscr_current_payload_length;
-	guint64 time_source = 0;
+	uint32_t ebhscr_current_payload_length;
+	uint64_t time_source = 0;
 	proto_item *ti;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "TimeState ");
@@ -688,11 +688,11 @@ static int dissect_ebhscr_ts(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 }
 
 static int dissect_ebhscr_lin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ebhscr_tree,
-					proto_tree *ebhscr_packet_header_tree, guint16 ebhscr_status, guint32 ebhscr_frame_length)
+					proto_tree *ebhscr_packet_header_tree, uint16_t ebhscr_status, uint32_t ebhscr_frame_length)
 {
 	proto_item* ti;
 	proto_tree *lin_payload_tree, *lin_pid_tree;
-	guint32 ebhscr_current_payload_length;
+	uint32_t ebhscr_current_payload_length;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "LIN (EBHSCR)");
 	ebhscr_current_payload_length = ebhscr_frame_length - EBHSCR_HEADER_LENGTH;
@@ -734,11 +734,11 @@ static int dissect_ebhscr_lin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ebh
 
 static int
 dissect_ebhscr_dio(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-					proto_tree *ebhscr_packet_header_tree, guint16 ebhscr_status, guint32 ebhscr_frame_length)
+					proto_tree *ebhscr_packet_header_tree, uint16_t ebhscr_status, uint32_t ebhscr_frame_length)
 {
 	tvbuff_t* next_tvb;
 	proto_item *ti;
-	guint32 ebhscr_current_payload_length;
+	uint32_t ebhscr_current_payload_length;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "DIO");
 	ebhscr_current_payload_length = ebhscr_frame_length - EBHSCR_HEADER_LENGTH;
@@ -763,14 +763,14 @@ dissect_ebhscr_dio(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 }
 
 static int dissect_ebhscr_flexray_frame_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-												proto_tree *ebhscr_packet_header_tree, guint16 ebhscr_status,
-												guint32 ebhscr_current_payload_length)
+												proto_tree *ebhscr_packet_header_tree, uint16_t ebhscr_status,
+												uint32_t ebhscr_current_payload_length)
 {
 	proto_item *ti;
 	proto_tree *flexray_mhdr_tree, *flexray_mhdr_sub_tree, *flexray_status_tree;
 	tvbuff_t *fr_tvb, *hdr_tvb;
-	guint8 channel;
-	guint8 header_data[2U];
+	uint8_t channel;
+	uint8_t header_data[2U];
 
 	ti = proto_tree_add_item(ebhscr_packet_header_tree, hf_ebhscr_status, tvb, 2, 2, ENC_BIG_ENDIAN);
 	flexray_status_tree = proto_item_add_subtree(ti, ett_ebhscr_status);
@@ -792,7 +792,7 @@ static int dissect_ebhscr_flexray_frame_packet(tvbuff_t *tvb, packet_info *pinfo
 	fr_tvb = tvb_new_composite();
 
 	header_data[0] = 0x01;
-	channel = tvb_get_guint8(tvb, 1);
+	channel = tvb_get_uint8(tvb, 1);
 
 	if ((channel & FLEXRAY_CHANNEL_B_MASK) != 0) {
 		header_data[0] |= 0x80;
@@ -833,8 +833,8 @@ static int dissect_ebhscr_flexray_symbol_packet(tvbuff_t *tvb, packet_info *pinf
 	tvbuff_t* symbol_tvb;
 	proto_item *ti;
 	proto_tree *flexray_mhdr_tree, *flexray_mhdr_sub_tree, *flexray_status_tree;
-	guint8 symbol_length, channel;
-	guint8 flexray_symbol_packet[2U];
+	uint8_t symbol_length, channel;
+	uint8_t flexray_symbol_packet[2U];
 
 	ti = proto_tree_add_item(ebhscr_packet_header_tree, hf_ebhscr_status, tvb, 2, 2, ENC_BIG_ENDIAN);
 	flexray_status_tree = proto_item_add_subtree(ti, ett_ebhscr_status);
@@ -855,11 +855,11 @@ static int dissect_ebhscr_flexray_symbol_packet(tvbuff_t *tvb, packet_info *pinf
 	flexray_mhdr_sub_tree = proto_item_add_subtree(ti, ett_ebhscr_mjr_hdr);
 	proto_tree_add_bitmask_list(flexray_mhdr_sub_tree, tvb, 28, 1, flexray_mhdr_symbol_length_and_status_bits, ENC_BIG_ENDIAN);
 
-	symbol_length = tvb_get_guint8(tvb, 28) & 0x7F;
+	symbol_length = tvb_get_uint8(tvb, 28) & 0x7F;
 
 	flexray_symbol_packet[0] = 0x02;
 
-	channel = tvb_get_guint8(tvb, 1);
+	channel = tvb_get_uint8(tvb, 1);
 
 	if ((channel & FLEXRAY_CHANNEL_B_MASK) != 0) {
 		flexray_symbol_packet[0] |= 0x80;
@@ -875,11 +875,11 @@ static int dissect_ebhscr_flexray_symbol_packet(tvbuff_t *tvb, packet_info *pinf
 
 static int dissect_ebhscr_flexray_slot_status_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ebhscr_packet_header_tree)
 {
-	guint32 supercycle_counter;
+	uint32_t supercycle_counter;
 	proto_item *ti;
 	proto_tree *flexray_mhdr_tree, *flexray_mhdr_sub_tree, *flexray_status_tree;
 
-	supercycle_counter = tvb_get_guint32(tvb, 28, ENC_BIG_ENDIAN);
+	supercycle_counter = tvb_get_uint32(tvb, 28, ENC_BIG_ENDIAN);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "SLSTS: SCC %d", supercycle_counter);
 
 	ti = proto_tree_add_item(ebhscr_packet_header_tree, hf_ebhscr_status, tvb, 2, 2, ENC_BIG_ENDIAN);
@@ -904,13 +904,13 @@ static int dissect_ebhscr_flexray_slot_status_packet(tvbuff_t *tvb, packet_info 
 
 static int dissect_ebhscr_flexray_start_of_cycle_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ebhscr_packet_header_tree)
 {
-	guint8 cycle_counter;
-	guint32 supercycle_counter;
+	uint8_t cycle_counter;
+	uint32_t supercycle_counter;
 	proto_item *ti;
 	proto_tree *flexray_mhdr_tree, *flexray_status_tree;
 
-	cycle_counter = tvb_get_guint8(tvb, 25);
-	supercycle_counter = tvb_get_guint32(tvb, 28, ENC_BIG_ENDIAN);
+	cycle_counter = tvb_get_uint8(tvb, 25);
+	supercycle_counter = tvb_get_uint32(tvb, 28, ENC_BIG_ENDIAN);
 
 	col_append_fstr(pinfo->cinfo, COL_INFO, "SOC: CC %2d SCC %d", cycle_counter, supercycle_counter);
 
@@ -932,11 +932,11 @@ static int dissect_ebhscr_flexray_start_of_cycle_packet(tvbuff_t *tvb, packet_in
 
 static int dissect_ebhscr_flexray(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 									proto_tree *ebhscr_packet_header_tree, proto_item *ebhscr_channel,
-									guint16 ebhscr_status, guint32 ebhscr_frame_length)
+									uint16_t ebhscr_status, uint32_t ebhscr_frame_length)
 {
 	proto_tree *flexray_channel_tree;
-	guint32 flexray_packet_type;
-	guint32 ebhscr_current_payload_length;
+	uint32_t flexray_packet_type;
+	uint32_t ebhscr_current_payload_length;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "FLEXRAY (EBHSCR)");
 	ebhscr_current_payload_length = ebhscr_frame_length - EBHSCR_HEADER_LENGTH;
@@ -970,10 +970,10 @@ dissect_ebhscr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 	proto_tree *ebhscr_tree;
 	proto_tree *proto_ebhscr_channel;
 	tvbuff_t* next_tvb;
-	guint32 ebhscr_frame_length, ebhscr_length;
-	gint ebhscr_current_payload_length;
-	guint8 ebhscr_major_num;
-	guint16 ebhscr_status = 0;
+	uint32_t ebhscr_frame_length, ebhscr_length;
+	int ebhscr_current_payload_length;
+	uint8_t ebhscr_major_num;
+	uint16_t ebhscr_status = 0;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "EBHSCR");
 	col_clear(pinfo->cinfo, COL_INFO);
@@ -988,8 +988,8 @@ dissect_ebhscr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 		return tvb_captured_length(tvb);
 	}
 
-	ebhscr_major_num = tvb_get_guint8(tvb, 0);
-	ebhscr_status = tvb_get_guint16(tvb, 2, ENC_BIG_ENDIAN) & 0x0FFF;
+	ebhscr_major_num = tvb_get_uint8(tvb, 0);
+	ebhscr_status = tvb_get_uint16(tvb, 2, ENC_BIG_ENDIAN) & 0x0FFF;
 
 	ti = proto_tree_add_item(ebhscr_tree, hf_ebhscr_packet_header, tvb, 0, 4, ENC_BIG_ENDIAN);
 	ebhscr_packet_header_tree = proto_item_add_subtree(ti, ett_ebhscr_packet_header);
@@ -1798,7 +1798,7 @@ proto_register_ebhscr(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_ebhscr,
 		&ett_ebhscr_channel,
 		&ett_ebhscr_packet_header,

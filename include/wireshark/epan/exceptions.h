@@ -207,29 +207,29 @@
  * This is really something like:
  *
  * {
- * 	caught = FALSE:
+ * 	caught = false:
  * 	x = setjmp();
  * 	if (x == 0) {
  * 		<TRY code>
  * 	}
  * 	if (!caught && x == 1) {
- * 		caught = TRUE;
+ * 		caught = true;
  * 		<CATCH(1) code>
  * 	}
  * 	if (!caught && x == 2) {
- * 		caught = TRUE;
+ * 		caught = true;
  * 		<CATCH(2) code>
  * 	}
  * 	if (!caught && (x == 3 || x == 4)) {
- * 		caught = TRUE;
+ * 		caught = true;
  * 		<CATCH2(3,4) code>
  * 	}
  * 	if (!caught && (x == 5 || x == 6 || x == 7)) {
- * 		caught = TRUE;
+ * 		caught = true;
  * 		<CATCH3(5,6,7) code>
  * 	}
  * 	if (!caught && x != 0) {
- *		caught = TRUE;
+ *		caught = true;
  * 		<CATCH_ALL code>
  * 	}
  * 	<FINALLY code>
@@ -407,7 +407,7 @@
 	ws_assert(except_state == EXCEPT_CAUGHT);    \
 	/* we can't use except_rethrow here, as that pops a catch block \
 	 * off the stack, and we don't want to do that, because we want to \
-	 * excecute the FINALLY {} block first.     \
+	 * execute the FINALLY {} block first.     \
 	 * except_throw doesn't provide an interface to rethrow an existing \
 	 * exception; however, longjmping back to except_try_push() has the \
 	 * desired effect.			    \

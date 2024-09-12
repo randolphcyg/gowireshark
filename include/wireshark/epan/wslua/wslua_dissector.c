@@ -17,11 +17,16 @@
 
 #include "config.h"
 
+#include <stdint.h>
+#include "epan/guid-utils.h"
+#include "epan/proto.h"
 #include "wslua.h"
 
 #include <epan/decode_as.h>
 #include <epan/exceptions.h>
 #include <epan/show_exception.h>
+#include <epan/dissectors/packet-dcerpc.h>
+#include <string.h>
 
 
 /* WSLUA_CONTINUE_MODULE Proto */
@@ -35,7 +40,7 @@ WSLUA_CLASS_DEFINE(Dissector,NOP);
 WSLUA_CONSTRUCTOR Dissector_get (lua_State *L) {
     /* Obtains a dissector reference by name. */
 #define WSLUA_ARG_Dissector_get_NAME 1 /* The name of the dissector. */
-    const gchar* name = luaL_checkstring(L,WSLUA_ARG_Dissector_get_NAME);
+    const char* name = luaL_checkstring(L,WSLUA_ARG_Dissector_get_NAME);
     Dissector d;
 
     if ((d = find_dissector(name))) {
@@ -48,8 +53,8 @@ WSLUA_CONSTRUCTOR Dissector_get (lua_State *L) {
 }
 
 /* Allow dissector key names to be sorted alphabetically. */
-static gint
-compare_dissector_key_name(gconstpointer dissector_a, gconstpointer dissector_b)
+static int
+compare_dissector_key_name(const void *dissector_a, const void *dissector_b)
 {
   return strcmp((const char*)dissector_a, (const char*)dissector_b);
 }
@@ -58,8 +63,6 @@ WSLUA_CONSTRUCTOR Dissector_list (lua_State *L) {
     /* Gets a Lua array table of all registered Dissector names.
 
        Note: This is an expensive operation, and should only be used for troubleshooting.
-
-       @since 1.11.3
      */
     GList* list = get_dissector_names();
     GList* elist = NULL;
@@ -107,7 +110,7 @@ WSLUA_METHOD Dissector_call(lua_State* L) {
        are normal conditions and possibly don't need the Lua traceback. */
     if (error) { WSLUA_ERROR(Dissector_call,error); }
 
-    lua_pushnumber(L,(lua_Number)len);
+    lua_pushinteger(L,(lua_Integer)len);
     WSLUA_RETURN(1); /* Number of bytes dissected.  Note that some dissectors always return number of bytes in incoming buffer, so be aware. */
 }
 
@@ -166,15 +169,16 @@ WSLUA_CONSTRUCTOR DissectorTable_new (lua_State *L) {
 #define WSLUA_OPTARG_DissectorTable_new_UINAME 2 /* The name of the table in the user interface.
                                                     Defaults to the name given in `tablename`, but can be any string. */
 #define WSLUA_OPTARG_DissectorTable_new_TYPE 3 /* One of `ftypes.UINT8`, `ftypes.UINT16`,
-                                                  `ftypes.UINT24`, `ftypes.UINT32`, or
-                                                  `ftypes.STRING`.
+                                                  `ftypes.UINT24`, `ftypes.UINT32`,
+                                                  `ftypes.STRING`, `ftypes.NONE`,
+                                                  or `ftypes.GUID`.
                                                   Defaults to `ftypes.UINT32`. */
 #define WSLUA_OPTARG_DissectorTable_new_BASE 4 /* One of `base.NONE`, `base.DEC`, `base.HEX`,
                                                   `base.OCT`, `base.DEC_HEX` or `base.HEX_DEC`.
                                                   Defaults to `base.DEC`. */
 #define WSLUA_OPTARG_DissectorTable_new_PROTO 5 /* The <<lua_class_Proto,`Proto`>> object that uses this dissector table. */
-    const gchar* name = (const gchar*)luaL_checkstring(L,WSLUA_ARG_DissectorTable_new_TABLENAME);
-    const gchar* ui_name = (const gchar*)luaL_optstring(L,WSLUA_OPTARG_DissectorTable_new_UINAME,name);
+    const char* name = (const char*)luaL_checkstring(L,WSLUA_ARG_DissectorTable_new_TABLENAME);
+    const char* ui_name = (const char*)luaL_optstring(L,WSLUA_OPTARG_DissectorTable_new_UINAME,name);
     enum ftenum type = (enum ftenum)luaL_optinteger(L,WSLUA_OPTARG_DissectorTable_new_TYPE,FT_UINT32);
     unsigned base = (unsigned)luaL_optinteger(L,WSLUA_OPTARG_DissectorTable_new_BASE,BASE_DEC);
     DissectorTable dt;
@@ -194,12 +198,16 @@ WSLUA_CONSTRUCTOR DissectorTable_new (lua_State *L) {
         case FT_UINT32:
             break;
 
+        case FT_GUID:
+            base = BASE_HEX;
+            break;
+
         default:
             /* Calling WSLUA_OPTARG_ERROR raises a Lua error and
                returns from this function. */
             WSLUA_OPTARG_ERROR(
                     DissectorTable_new, TYPE,
-                    "must be ftypes.UINT{8,16,24,32}, ftypes.STRING or ftypes.NONE");
+                    "must be ftypes.UINT{8,16,24,32}, ftypes.STRING, ftypes.GUID or ftypes.NONE");
             break;
     }
 
@@ -216,8 +224,8 @@ WSLUA_CONSTRUCTOR DissectorTable_new (lua_State *L) {
     dt->heur_list = NULL;
     dt->name = g_strdup(name);
     dt->ui_name = g_strdup(ui_name);
-    dt->created = TRUE;
-    dt->expired = FALSE;
+    dt->created = true;
+    dt->expired = false;
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, dissectortable_table_ref);
     lua_pushstring(L, name);
@@ -235,11 +243,23 @@ WSLUA_CONSTRUCTOR DissectorTable_heuristic_new(lua_State *L) {
        @since 4.2.0
      */
 #define WSLUA_ARG_DissectorTable_heuristic_new_TABLENAME 1 /* The short name of the table. Use lower-case alphanumeric, dot, and/or underscores. */
-#define WSLUA_ARG_DissectorTable_heuristic_new_PROTO 2 /* The <<lua_class_Proto,`Proto`>> object that uses this dissector table. */
-    const gchar* name = (const gchar*)luaL_checkstring(L,WSLUA_ARG_DissectorTable_heuristic_new_TABLENAME);
-    Proto proto = checkProto(L, WSLUA_ARG_DissectorTable_heuristic_new_PROTO);
+#define WSLUA_OPTARG_DissectorTable_heuristic_new_UINAME 2 /* The name of the table in the user interface.
+                                                    Defaults to the name given in `tablename`, but can be any string. */
+#define WSLUA_ARG_DissectorTable_heuristic_new_PROTO 3 /* The <<lua_class_Proto,`Proto`>> object that uses this dissector table. */
+    const char* name = (const char*)luaL_checkstring(L,WSLUA_ARG_DissectorTable_heuristic_new_TABLENAME);
+    const char* ui_name = NULL;
+    Proto proto = NULL;
+    int proto_id = -1;
     heur_dissector_list_t list;
-    int proto_id = proto_get_id_by_short_name(proto->name);
+    int idx = WSLUA_OPTARG_DissectorTable_heuristic_new_UINAME;
+
+    if (lua_isstring(L, idx)) {
+        ui_name = luaL_checkstring(L, idx);
+        idx++;
+    }
+
+    proto = checkProto(L, idx);
+    proto_id = proto_get_id_by_short_name(proto->name);
 
     list = find_heur_dissector_list(name);
     if (list) {
@@ -247,14 +267,15 @@ WSLUA_CONSTRUCTOR DissectorTable_heuristic_new(lua_State *L) {
         return 0;
     }
 
+
     DissectorTable dt;
     dt = (DissectorTable)g_malloc(sizeof(struct _wslua_distbl_t));
     dt->table = NULL;
-    dt->heur_list = register_heur_dissector_list(name, proto_id);
+    dt->heur_list = register_heur_dissector_list_with_description(name, ui_name, proto_id);
     dt->name = g_strdup(name);
-    dt->ui_name = g_strdup(name);
-    dt->created = TRUE;
-    dt->expired = FALSE;
+    dt->ui_name = g_strdup(ui_name);
+    dt->created = true;
+    dt->expired = false;
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, dissectortable_table_ref);
     lua_pushstring(L, name);
@@ -282,7 +303,7 @@ typedef struct dissector_tables_foreach_table_info {
 /* this is the DATFunc_table function used for dissector_all_tables_foreach_table()
    so we can get all dissector_table names. This pushes the name into a table at stack index 1 */
 static void
-dissector_tables_list_func(const gchar *table_name, const gchar *ui_name _U_, gpointer user_data) {
+dissector_tables_list_func(const char *table_name, const char *ui_name _U_, void *user_data) {
     dissector_tables_foreach_table_info_t *data = (dissector_tables_foreach_table_info_t*) user_data;
     lua_pushstring(data->L, table_name);
     lua_rawseti(data->L, 1, data->num);
@@ -294,14 +315,12 @@ WSLUA_CONSTRUCTOR DissectorTable_list (lua_State *L) {
        use for the first argument to DissectorTable.get().
 
        Note: This is an expensive operation, and should only be used for troubleshooting.
-
-       @since 1.11.3
      */
     dissector_tables_foreach_table_info_t data = { 1, L };
 
     lua_newtable(L);
 
-    dissector_all_tables_foreach_table(dissector_tables_list_func, (gpointer)&data,
+    dissector_all_tables_foreach_table(dissector_tables_list_func, (void *)&data,
                                        (GCompareFunc)compare_dissector_key_name);
 
     WSLUA_RETURN(1); /* The array table of registered DissectorTable names. */
@@ -310,7 +329,7 @@ WSLUA_CONSTRUCTOR DissectorTable_list (lua_State *L) {
 /* this is the DATFunc_heur_table function used for dissector_all_heur_tables_foreach_table()
    so we can get all heuristic dissector list names. This pushes the name into a table at stack index 1 */
 static void
-heur_dissector_tables_list_func(const gchar *table_name, struct heur_dissector_list *table _U_, gpointer user_data) {
+heur_dissector_tables_list_func(const char *table_name, struct heur_dissector_list *table _U_, void *user_data) {
     dissector_tables_foreach_table_info_t *data = (dissector_tables_foreach_table_info_t*) user_data;
     lua_pushstring(data->L, table_name);
     lua_rawseti(data->L, 1, data->num);
@@ -322,14 +341,12 @@ WSLUA_CONSTRUCTOR DissectorTable_heuristic_list (lua_State *L) {
        use for the first argument in Proto:register_heuristic().
 
        Note: This is an expensive operation, and should only be used for troubleshooting.
-
-       @since 1.11.3
      */
     dissector_tables_foreach_table_info_t data = { 1, L };
 
     lua_newtable(L);
 
-    dissector_all_heur_tables_foreach_table(heur_dissector_tables_list_func, (gpointer)&data, NULL);
+    dissector_all_heur_tables_foreach_table(heur_dissector_tables_list_func, (void *)&data, NULL);
 
     WSLUA_RETURN(1); /* The array table of registered heuristic list names */
 }
@@ -343,7 +360,7 @@ WSLUA_CONSTRUCTOR DissectorTable_try_heuristics (lua_State *L) {
 #define WSLUA_ARG_DissectorTable_try_heuristics_PINFO 3 /* The packet info. */
 #define WSLUA_ARG_DissectorTable_try_heuristics_TREE 4 /* The tree on which to add the protocol items. */
 
-    const gchar* name = luaL_checkstring(L,WSLUA_ARG_DissectorTable_try_heuristics_LISTNAME);
+    const char* name = luaL_checkstring(L,WSLUA_ARG_DissectorTable_try_heuristics_LISTNAME);
     Tvb tvb = checkTvb(L,WSLUA_ARG_DissectorTable_try_heuristics_TVB);
     Pinfo pinfo = checkPinfo(L,WSLUA_ARG_DissectorTable_try_heuristics_PINFO);
     TreeItem tree = checkTreeItem(L,WSLUA_ARG_DissectorTable_try_heuristics_TREE);
@@ -368,7 +385,7 @@ WSLUA_CONSTRUCTOR DissectorTable_get (lua_State *L) {
      Obtain a reference to an existing dissector table.
      */
 #define WSLUA_ARG_DissectorTable_get_TABLENAME 1 /* The short name of the table. */
-    const gchar* name = luaL_checkstring(L,WSLUA_ARG_DissectorTable_get_TABLENAME);
+    const char* name = luaL_checkstring(L,WSLUA_ARG_DissectorTable_get_TABLENAME);
     dissector_table_t table = find_dissector_table(name);
 
     if (table) {
@@ -377,8 +394,8 @@ WSLUA_CONSTRUCTOR DissectorTable_get (lua_State *L) {
         dt->heur_list = NULL;
         dt->name = g_strdup(name);
         dt->ui_name = NULL;
-        dt->created = FALSE;
-        dt->expired = FALSE;
+        dt->created = false;
+        dt->expired = false;
 
         pushDissectorTable(L, dt);
     } else {
@@ -422,18 +439,33 @@ WSLUA_METHOD DissectorTable_add (lua_State *L) {
     type = get_dissector_table_selector_type(dt->name);
 
     if (type == FT_STRING) {
-        gchar* pattern = g_strdup(luaL_checkstring(L,WSLUA_ARG_DissectorTable_add_PATTERN));
+        char* pattern = g_strdup(luaL_checkstring(L,WSLUA_ARG_DissectorTable_add_PATTERN));
         dissector_add_string(dt->name, pattern,handle);
         g_free (pattern);
+    } else if (type == FT_GUID) {
+        /* Handle GUID type (assuming it is represented as a string in Lua) */
+        const char* guid_str = luaL_checkstring(L,WSLUA_ARG_DissectorTable_add_PATTERN);
+        fvalue_t* fval = fvalue_from_literal(type, guid_str, 0, NULL);
+        const e_guid_t* guid = fvalue_get_guid(fval);
+        guid_key gk = {*guid, 0};
+        /* The dcerpc.uuid table requires its own initializer */
+        if(strcmp(DCERPC_TABLE_NAME, dt->name) == 0) {
+            e_guid_t uuid;
+            memcpy(&uuid, guid, sizeof(e_guid_t));
+            dcerpc_init_from_handle(dissector_handle_get_protocol_index(handle), &uuid, 0, handle);
+        } else {
+            dissector_add_guid(dt->name, &gk, handle);
+            guids_add_uuid(guid, dissector_handle_get_protocol_short_name(handle));
+        }
     } else if ( type == FT_UINT32 || type == FT_UINT16 || type ==  FT_UINT8 || type ==  FT_UINT24 ) {
         if (lua_isnumber(L, WSLUA_ARG_DissectorTable_add_PATTERN)) {
-            guint32 port = wslua_checkguint32(L, WSLUA_ARG_DissectorTable_add_PATTERN);
+            uint32_t port = wslua_checkuint32(L, WSLUA_ARG_DissectorTable_add_PATTERN);
             dissector_add_uint(dt->name, port, handle);
         } else {
             /* Not a number, try as range */
-            const gchar* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_add_PATTERN);
+            const char* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_add_PATTERN);
             range_t *range = NULL;
-            if (range_convert_str(NULL, &range, pattern, G_MAXUINT32) == CVT_NO_ERROR) {
+            if (range_convert_str(NULL, &range, pattern, UINT32_MAX) == CVT_NO_ERROR) {
                 dissector_add_uint_range(dt->name, range, handle);
             } else {
                 wmem_free (NULL, range);
@@ -450,11 +482,7 @@ WSLUA_METHOD DissectorTable_add (lua_State *L) {
 }
 
 WSLUA_METHOD DissectorTable_set (lua_State *L) {
-    /*
-     Clear all existing dissectors from a table and add a new dissector or a range of new dissectors.
-
-     @since 1.11.3
-     */
+    /* Clear all existing dissectors from a table and add a new dissector or a range of new dissectors. */
 #define WSLUA_ARG_DissectorTable_set_PATTERN 2 /* The pattern to match (either an integer, a integer range or a string depending on the table's type). */
 #define WSLUA_ARG_DissectorTable_set_DISSECTOR 3 /* The dissector to add (either a <<lua_class_Proto,`Proto`>> or a <<lua_class_Dissector,`Dissector`>>). */
 
@@ -484,19 +512,34 @@ WSLUA_METHOD DissectorTable_set (lua_State *L) {
     type = get_dissector_table_selector_type(dt->name);
 
     if (type == FT_STRING) {
-        const gchar* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_set_PATTERN);
+        const char* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_set_PATTERN);
         dissector_delete_all(dt->name, handle);
         dissector_add_string(dt->name, pattern,handle);
+    } else if (type == FT_GUID) {
+        /* Handle GUID type (assuming it is represented as a string in Lua) */
+        const char* guid_str = luaL_checkstring(L,WSLUA_ARG_DissectorTable_set_PATTERN);
+        fvalue_t* fval = fvalue_from_literal(type, guid_str, 0, NULL);
+        const e_guid_t* guid = fvalue_get_guid(fval);
+        guid_key gk = {*guid, 0};
+        /* The dcerpc.uuid table requires its own initializer */
+        if(strcmp(DCERPC_TABLE_NAME, dt->name) == 0) {
+            e_guid_t uuid;
+            memcpy(&uuid, guid, sizeof(e_guid_t));
+            dcerpc_init_from_handle(dissector_handle_get_protocol_index(handle), &uuid, 0, handle);
+        } else {
+            dissector_add_guid(dt->name, &gk, handle);
+            guids_add_uuid(guid, dissector_handle_get_protocol_short_name(handle));
+        }
     } else if ( type == FT_UINT32 || type == FT_UINT16 || type ==  FT_UINT8 || type ==  FT_UINT24 ) {
         if (lua_isnumber(L, WSLUA_ARG_DissectorTable_set_PATTERN)) {
-            guint32 port = wslua_checkguint32(L, WSLUA_ARG_DissectorTable_set_PATTERN);
+            uint32_t port = wslua_checkuint32(L, WSLUA_ARG_DissectorTable_set_PATTERN);
             dissector_delete_all(dt->name, handle);
             dissector_add_uint(dt->name, port, handle);
         } else {
             /* Not a number, try as range */
-            const gchar* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_set_PATTERN);
+            const char* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_set_PATTERN);
             range_t *range = NULL;
-            if (range_convert_str(NULL, &range, pattern, G_MAXUINT32) == CVT_NO_ERROR) {
+            if (range_convert_str(NULL, &range, pattern, UINT32_MAX) == CVT_NO_ERROR) {
                 dissector_delete_all(dt->name, handle);
                 dissector_add_uint_range(dt->name, range, handle);
             } else {
@@ -540,18 +583,26 @@ WSLUA_METHOD DissectorTable_remove (lua_State *L) {
     type = get_dissector_table_selector_type(dt->name);
 
     if (type == FT_STRING) {
-        gchar* pattern = g_strdup(luaL_checkstring(L,WSLUA_ARG_DissectorTable_remove_PATTERN));
+        char* pattern = g_strdup(luaL_checkstring(L,WSLUA_ARG_DissectorTable_remove_PATTERN));
         dissector_delete_string(dt->name, pattern,handle);
         g_free (pattern);
+    } else if (type == FT_GUID) {
+        // Handle GUID type (assuming it is represented as a string in Lua)
+        const char* guid_str = luaL_checkstring(L,WSLUA_ARG_DissectorTable_remove_PATTERN);
+        fvalue_t* fval = fvalue_from_literal(type, guid_str, 0, NULL);
+        const e_guid_t* guid = fvalue_get_guid(fval);
+        guid_key gk = {*guid, 0};
+        guids_delete_guid(guid);
+        dissector_delete_guid(dt->name, &gk, handle);
     } else if ( type == FT_UINT32 || type == FT_UINT16 || type ==  FT_UINT8 || type ==  FT_UINT24 ) {
         if (lua_isnumber(L, WSLUA_ARG_DissectorTable_remove_PATTERN)) {
-          guint32 port = wslua_checkguint32(L, WSLUA_ARG_DissectorTable_remove_PATTERN);
+          uint32_t port = wslua_checkuint32(L, WSLUA_ARG_DissectorTable_remove_PATTERN);
           dissector_delete_uint(dt->name, port, handle);
         } else {
             /* Not a number, try as range */
-            const gchar* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_remove_PATTERN);
+            const char* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_remove_PATTERN);
             range_t *range = NULL;
-            if (range_convert_str(NULL, &range, pattern, G_MAXUINT32) == CVT_NO_ERROR)
+            if (range_convert_str(NULL, &range, pattern, UINT32_MAX) == CVT_NO_ERROR)
                 dissector_delete_uint_range(dt->name, range, handle);
             else {
                 wmem_free (NULL, range);
@@ -566,11 +617,7 @@ WSLUA_METHOD DissectorTable_remove (lua_State *L) {
 }
 
 WSLUA_METHOD DissectorTable_remove_all (lua_State *L) {
-    /*
-     Remove all dissectors from a table.
-
-     @since 1.11.3
-     */
+    /* Remove all dissectors from a table. */
 #define WSLUA_ARG_DissectorTable_remove_all_DISSECTOR 2 /* The dissector to remove (either a <<lua_class_Proto,`Proto`>> or a <<lua_class_Dissector,`Dissector`>>). */
     DissectorTable dt = checkDissectorTable(L,1);
     Dissector handle;
@@ -607,8 +654,8 @@ WSLUA_METHOD DissectorTable_try (lua_State *L) {
     Pinfo pinfo = checkPinfo(L,WSLUA_ARG_DissectorTable_try_PINFO);
     TreeItem ti = checkTreeItem(L,WSLUA_ARG_DissectorTable_try_TREE);
     ftenum_t type;
-    gboolean handled = FALSE;
-    const gchar *volatile error = NULL;
+    bool handled = false;
+    const char *volatile error = NULL;
     int len = 0;
 
     if (! (dt && tvb && tvb->ws_tvb && pinfo && ti) ) return 0;
@@ -618,18 +665,33 @@ WSLUA_METHOD DissectorTable_try (lua_State *L) {
     TRY {
 
         if (type == FT_STRING) {
-            const gchar* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_try_PATTERN);
+            const char* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_try_PATTERN);
 
             len = dissector_try_string(dt->table,pattern,tvb->ws_tvb,pinfo->ws_pinfo,ti->tree, NULL);
             if (len > 0) {
-                handled = TRUE;
+                handled = true;
+            }
+        } else if ( type == FT_GUID ) {
+            const char* guid_str = luaL_checkstring(L,WSLUA_ARG_DissectorTable_try_PATTERN);
+            fvalue_t* fval = fvalue_from_literal(type, guid_str, 0, NULL);
+            const e_guid_t* guid = fvalue_get_guid(fval);
+            guid_key gk = {*guid, 0};
+
+            len = dissector_try_guid(dt->table, &gk,tvb->ws_tvb,pinfo->ws_pinfo,ti->tree);
+            if (len > 0) {
+                handled = true;
             }
         } else if ( type == FT_UINT32 || type == FT_UINT16 || type ==  FT_UINT8 || type ==  FT_UINT24 ) {
-            guint32 port = wslua_checkguint32(L, WSLUA_ARG_DissectorTable_try_PATTERN);
+            uint32_t port = wslua_checkuint32(L, WSLUA_ARG_DissectorTable_try_PATTERN);
 
             len = dissector_try_uint(dt->table,port,tvb->ws_tvb,pinfo->ws_pinfo,ti->tree);
             if (len > 0) {
-                handled = TRUE;
+                handled = true;
+            }
+	} else if ( type == FT_NONE ) {
+	    len = dissector_try_payload(dt->table,tvb->ws_tvb,pinfo->ws_pinfo,ti->tree);
+	    if (len > 0) {
+	        handled = true;
             }
         } else {
             error = "No such type of dissector table";
@@ -646,7 +708,7 @@ WSLUA_METHOD DissectorTable_try (lua_State *L) {
 
     if (error) { WSLUA_ERROR(DissectorTable_try,error); }
 
-    lua_pushnumber(L,(lua_Number)len);
+    lua_pushinteger(L,(lua_Integer)len);
     WSLUA_RETURN(1); /* Number of bytes dissected.  Note that some dissectors always return number of bytes in incoming buffer, so be aware. */
 }
 
@@ -665,10 +727,16 @@ WSLUA_METHOD DissectorTable_get_dissector (lua_State *L) {
     type = get_dissector_table_selector_type(dt->name);
 
     if (type == FT_STRING) {
-        const gchar* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_get_dissector_PATTERN);
+        const char* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_get_dissector_PATTERN);
         handle = dissector_get_string_handle(dt->table,pattern);
+    } else if ( type == FT_GUID ) {
+        const char* guid_str = luaL_checkstring(L,WSLUA_ARG_DissectorTable_get_dissector_PATTERN);
+        fvalue_t* fval = fvalue_from_literal(type, guid_str, 0, NULL);
+        const e_guid_t* guid = fvalue_get_guid(fval);
+        guid_key gk = {*guid, 0};
+        handle = dissector_get_guid_handle(dt->table,&gk);
     } else if ( type == FT_UINT32 || type == FT_UINT16 || type ==  FT_UINT8 || type ==  FT_UINT24 ) {
-        guint32 port = wslua_checkguint32(L, WSLUA_ARG_DissectorTable_get_dissector_PATTERN);
+        uint32_t port = wslua_checkuint32(L, WSLUA_ARG_DissectorTable_get_dissector_PATTERN);
         handle = dissector_get_uint_handle(dt->table,port);
     }
 
@@ -685,8 +753,6 @@ WSLUA_METHOD DissectorTable_add_for_decode_as (lua_State *L) {
     /*
      Add the given <<lua_class_Proto,`Proto`>> to the “Decode as...” list for this DissectorTable.
      The passed-in <<lua_class_Proto,`Proto`>> object's `dissector()` function is used for dissecting.
-
-     @since 1.99.1
      */
 #define WSLUA_ARG_DissectorTable_add_for_decode_as_PROTO 2 /* The <<lua_class_Proto,`Proto`>> to add. */
     DissectorTable dt = checkDissectorTable(L,1);
@@ -731,6 +797,11 @@ WSLUA_METAMETHOD DissectorTable__tostring(lua_State* L) {
             g_string_append_printf(s,"%s Integer(%i):\n",dt->name,base);
             break;
         }
+        case FT_GUID:
+        {
+            g_string_append_printf(s,"%s GUID:\n",dt->name);
+            break;
+        }
         case FT_NONE:
         {
             g_string_append_printf(s,"%s only for Decode As:\n",dt->name);
@@ -751,7 +822,7 @@ static int DissectorTable__gc(lua_State* L) {
 
     if (dt->created && !dt->expired) {
         /* Created DissectorTable will pass GC two times */
-        dt->expired = TRUE;
+        dt->expired = true;
     } else {
         g_free((char *)dt->name);
         g_free((char *)dt->ui_name);
@@ -811,6 +882,7 @@ int wslua_deregister_dissector_tables(lua_State* L) {
 
     return 0;
 }
+
 
 /*
  * Editor modelines  -  https://www.wireshark.org/tools/modelines.html

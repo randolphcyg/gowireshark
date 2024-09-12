@@ -72,7 +72,7 @@
  * Struct to store info about a specific decryption key.
  */
 typedef struct {
-    GString    *key;
+    GByteArray *key;
     GByteArray *ssid;
     unsigned    bits;
     unsigned    type;
@@ -157,10 +157,17 @@ typedef struct _DOT11DECRYPT_KEY_ITEM {
 
         struct DOT11DECRYPT_KEY_ITEMDATA_PWD {
                 /**
-                 * The string (null-terminated) value of
-                 * the passphrase.
+                 * The octet string value of the passphrase.
+                 * (The passphrase is technically an opaque octet string, even
+                 * if recommended to be ASCII printable. It could (unlikely)
+                 * even include internal NULs, which a Wireshark user could
+                 * enter into the UAT percent-encoded.)
                  */
-                char Passphrase[DOT11DECRYPT_WPA_PASSPHRASE_MAX_LEN+1];
+                char Passphrase[DOT11DECRYPT_WPA_PASSPHRASE_MAX_LEN];
+                /**
+                 *The length of the passphrase
+                 */
+                size_t PassphraseLen;
                 /**
                  * The value of the SSID (up to
                  * DOT11DECRYPT_WPA_SSID_MAX_LEN octets).
@@ -210,13 +217,15 @@ typedef struct _DOT11DECRYPT_KEYS_COLLECTION {
  * - DOT11DECRYPT_KEY_TYPE_WPA_PWD (WPA + plaintext password + "wildcard" SSID or
  * WPA + plaintext password + specific SSID)
  * - DOT11DECRYPT_KEY_TYPE_WPA_PSK (WPA + 256-bit raw key)
+ * @param error [OUT] If not NULL, on failure will be set to point to an
+ *   error message explaining why parsing failed. Must be freed.
  * @return A pointer to a freshly-g_malloc()ed decryption_key_t struct on
  *   success, or NULL on failure.
  * @see free_key_string()
  */
 WS_DLL_PUBLIC
 decryption_key_t*
-parse_key_string(char* key_string, uint8_t key_type);
+parse_key_string(char* key_string, uint8_t key_type, char **error);
 
 /**
  * Releases memory associated with a given decryption_key_t struct.

@@ -9,9 +9,9 @@
  */
 
 #include "config.h"
-#include "filesystem.h"
-
 #define WS_LOG_DOMAIN LOG_DOMAIN_WSUTIL
+
+#include "filesystem.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,18 +73,19 @@ enum configuration_namespace_e configuration_namespace = CONFIGURATION_NAMESPACE
 #define CONFIGURATION_NAMESPACE_LOWER (configuration_namespace == CONFIGURATION_NAMESPACE_WIRESHARK ? "wireshark" : "logray")
 #define CONFIGURATION_ENVIRONMENT_VARIABLE(suffix) (configuration_namespace == CONFIGURATION_NAMESPACE_WIRESHARK ? "WIRESHARK_" suffix : "LOGRAY_" suffix)
 
-char *persconffile_dir = NULL;
-char *datafile_dir = NULL;
-char *persdatafile_dir = NULL;
-char *persconfprofile = NULL;
-char *doc_dir = NULL;
+char *persconffile_dir;
+char *datafile_dir;
+char *persdatafile_dir;
+char *persconfprofile;
+char *doc_dir;
+char *current_working_dir;
 
 /* Directory from which the executable came. */
-static char *progfile_dir = NULL;
-static char *install_prefix = NULL;
+static char *progfile_dir;
+static char *install_prefix;
 
-static bool do_store_persconffiles = false;
-static GHashTable *profile_files = NULL;
+static bool do_store_persconffiles;
+static GHashTable *profile_files;
 
 /*
  * Given a pathname, return a pointer to the last pathname separator
@@ -219,6 +220,21 @@ test_for_fifo(const char *path)
         return 0;
 }
 
+bool
+test_for_regular_file(const char *path)
+{
+    ws_statb64 statb;
+
+    if (!path) {
+        return false;
+    }
+
+    if (ws_stat64(path, &statb) != 0)
+        return false;
+
+    return S_ISREG(statb.st_mode);
+}
+
 #ifdef ENABLE_APPLICATION_BUNDLE
 /*
  * Directory of the application bundle in which we're contained,
@@ -278,7 +294,7 @@ static char *appbundle_dir;
  * true if we're running from the build directory and we aren't running
  * with special privileges.
  */
-static bool running_in_build_directory_flag = false;
+static bool running_in_build_directory_flag;
 
 /*
  * Set our configuration namespace. This will be used for top-level
@@ -524,6 +540,13 @@ get_current_executable_path(void)
 
 static void trim_progfile_dir(void)
 {
+#ifdef _WIN32
+    char *namespace_last_dir = find_last_pathname_separator(progfile_dir);
+    if (namespace_last_dir && strncmp(namespace_last_dir + 1, CONFIGURATION_NAMESPACE_LOWER, sizeof(CONFIGURATION_NAMESPACE_LOWER)) == 0) {
+        *namespace_last_dir = '\0';
+    }
+#endif
+
     char *progfile_last_dir = find_last_pathname_separator(progfile_dir);
 
     if (! (progfile_last_dir && strncmp(progfile_last_dir + 1, "extcap", sizeof("extcap")) == 0)) {
@@ -581,7 +604,7 @@ get_executable_path(const char *program_name)
  * g_mallocated string containing an error on failure.
  */
 #ifdef _WIN32
-char *
+static char *
 configuration_init_w32(const char* arg0 _U_)
 {
     TCHAR prog_pathname_w[_MAX_PATH+2];
@@ -666,7 +689,7 @@ configuration_init_w32(const char* arg0 _U_)
 
 #else /* !_WIN32 */
 
-char *
+static char *
 configuration_init_posix(const char* arg0)
 {
     const char *execname;
@@ -943,6 +966,33 @@ get_progfile_dir(void)
     return progfile_dir;
 }
 
+extern const char *
+get_current_working_dir(void)
+{
+    if (current_working_dir != NULL) {
+        return current_working_dir;
+    }
+
+    /*
+     * It's good to cache this because on Windows Microsoft cautions
+     * against using GetCurrentDirectory except early on, e.g. when
+     * parsing command line options.
+     */
+    current_working_dir = g_get_current_dir();
+    /*
+     * The above always returns something, with a fallback, e.g., on macOS
+     * if the program is run from Finder, of G_DIR_SEPARATOR_S.
+     * On Windows when run from a shortcut / taskbar it returns whatever
+     * the "run in" directory is on the shortcut, which is usually the
+     * directory where the program resides, which isn't that useful.
+     * Should we set it to the home directory on macOS or the
+     * "My Documents" folder on Windows in those cases,
+     * as we do in get_persdatafile_dir()? This isn't the default preference
+     * setting so perhaps caveat emptor is ok.
+     */
+    return current_working_dir;
+}
+
 /*
  * Get the directory in which the global configuration and data files are
  * stored.
@@ -1000,7 +1050,7 @@ get_datafile_dir(void)
     if (running_in_build_directory_flag) {
         datafile_dir = g_strdup(install_prefix);
     } else {
-        datafile_dir = g_build_filename(install_prefix, DATA_DIR, (char *)NULL);
+        datafile_dir = g_build_filename(install_prefix, DATA_DIR, CONFIGURATION_NAMESPACE_LOWER, (char *)NULL);
     }
 #elif defined(_WIN32)
     /*
@@ -1057,7 +1107,7 @@ get_datafile_dir(void)
          */
         datafile_dir = g_strdup(progfile_dir);
     } else {
-        datafile_dir = g_build_filename(install_prefix, DATA_DIR, (char *)NULL);
+        datafile_dir = g_build_filename(install_prefix, DATA_DIR, CONFIGURATION_NAMESPACE_LOWER, (char *)NULL);
     }
 #endif
     return datafile_dir;
@@ -1099,8 +1149,7 @@ get_doc_dir(void)
      * it; we don't need to call started_with_special_privs().)
      */
     else if (appbundle_dir != NULL) {
-        doc_dir = ws_strdup_printf("%s/Contents/Resources/%s",
-                                        appbundle_dir, DOC_DIR);
+        doc_dir = g_strdup(get_datafile_dir());
     }
 #endif
     else if (running_in_build_directory_flag && progfile_dir != NULL) {
@@ -1138,11 +1187,11 @@ get_doc_dir(void)
  *    otherwise, we use the PLUGIN_DIR value supplied by the
  *    configure script.
  */
-static char *plugin_dir = NULL;
-static char *plugin_dir_with_version = NULL;
-static char *plugin_pers_dir = NULL;
-static char *plugin_pers_dir_with_version = NULL;
-static char *extcap_pers_dir = NULL;
+static char *plugin_dir;
+static char *plugin_dir_with_version;
+static char *plugin_pers_dir;
+static char *plugin_pers_dir_with_version;
+static char *extcap_pers_dir;
 
 static void
 init_plugin_dir(void)
@@ -1155,47 +1204,22 @@ init_plugin_dir(void)
          * Let {WIRESHARK,LOGRAY}_PLUGIN_DIR take precedence.
          */
         plugin_dir = g_strdup(g_getenv(plugin_dir_envar));
-        return;
     }
 
 #if defined(HAVE_PLUGINS) || defined(HAVE_LUA)
 #if defined(HAVE_MSYSTEM)
-    if (running_in_build_directory_flag) {
+    else if (running_in_build_directory_flag) {
         plugin_dir = g_build_filename(install_prefix, "plugins", (char *)NULL);
     } else {
         plugin_dir = g_build_filename(install_prefix, PLUGIN_DIR, (char *)NULL);
     }
 #elif defined(_WIN32)
-    /*
-     * On Windows, the data file directory is the installation
-     * directory; the plugins are stored under it.
-     *
-     * Assume we're running the installed version of Wireshark;
-     * on Windows, the data file directory is the directory
-     * in which the Wireshark binary resides.
-     */
-    plugin_dir = g_build_filename(get_datafile_dir(), "plugins", (char *)NULL);
-
-    /*
-     * Make sure that pathname refers to a directory.
-     */
-    if (test_for_directory(plugin_dir) != EISDIR) {
+    else {
         /*
-         * Either it doesn't refer to a directory or it
-         * refers to something that doesn't exist.
-         *
-         * Assume that means we're running a version of
-         * Wireshark we've built in a build directory,
-         * in which case {datafile dir}\plugins is the
-         * top-level plugins source directory, and use
-         * that directory and set the "we're running in
-         * a build directory" flag, so the plugin
-         * scanner will check all subdirectories of that
-         * directory for plugins.
+         * On Windows, plugins are stored under the program file directory
+         * in both the build and the installation directories.
          */
-        g_free(plugin_dir);
-        plugin_dir = g_build_filename(get_datafile_dir(), "plugins", (char *)NULL);
-        running_in_build_directory_flag = true;
+        plugin_dir = g_build_filename(get_progfile_dir(), "plugins", (char *)NULL);
     }
 #else
 #ifdef ENABLE_APPLICATION_BUNDLE
@@ -1212,7 +1236,7 @@ init_plugin_dir(void)
         plugin_dir = g_build_filename(appbundle_dir, "Contents/PlugIns",
                                         CONFIGURATION_NAMESPACE_LOWER, (char *)NULL);
     }
-#endif
+#endif // ENABLE_APPLICATION_BUNDLE
     else if (running_in_build_directory_flag) {
         /*
          * We're (probably) being run from the build directory and
@@ -1224,7 +1248,7 @@ init_plugin_dir(void)
     } else {
         plugin_dir = g_build_filename(install_prefix, PLUGIN_DIR, (char *)NULL);
     }
-#endif
+#endif // HAVE_MSYSTEM / _WIN32
 #endif /* defined(HAVE_PLUGINS) || defined(HAVE_LUA) */
 }
 
@@ -1287,7 +1311,7 @@ get_plugins_pers_dir_with_version(void)
  * If the WIRESHARK_EXTCAP_DIR environment variable is set and we are not
  * running with special privileges, use that. Otherwise:
  *
- * On Windows, we use the "extcap" subdirectory of the datafile directory.
+ * On Windows, we use the "extcap" subdirectory of the program directory.
  *
  * On UN*X:
  *
@@ -1299,7 +1323,7 @@ get_plugins_pers_dir_with_version(void)
  *
  *    otherwise, we use the EXTCAP_DIR value supplied by CMake.
  */
-static char *extcap_dir = NULL;
+static char *extcap_dir;
 
 static void
 init_extcap_dir(void)
@@ -1322,25 +1346,14 @@ init_extcap_dir(void)
 #elif defined(_WIN32)
     else {
         /*
-         * On Windows, the data file directory is the installation
-         * directory; the extcap hooks are stored under it.
-         *
-         * Assume we're running the installed version of Wireshark;
-         * on Windows, the data file directory is the directory
-         * in which the Wireshark binary resides.
+         * On Windows, extcap utilities are stored in "extcap/<program name>"
+         * in the program file directory in both the build and installation
+         * directories.
          */
-        extcap_dir = g_build_filename(get_datafile_dir(), "extcap", (char *)NULL);
+        extcap_dir = g_build_filename(get_progfile_dir(), EXTCAP_DIR_NAME,
+            CONFIGURATION_NAMESPACE_LOWER, (char *)NULL);
     }
 #else
-    else if (running_in_build_directory_flag) {
-        /*
-         * We're (probably) being run from the build directory and
-         * weren't started with special privileges, so we'll use
-         * the "extcap hooks" subdirectory of the directory where the program
-         * we're running is (that's the build directory).
-         */
-        extcap_dir = g_build_filename(get_progfile_dir(), "extcap", (char *)NULL);
-    }
 #ifdef ENABLE_APPLICATION_BUNDLE
     else if (appbundle_dir != NULL) {
         /*
@@ -1354,11 +1367,22 @@ init_extcap_dir(void)
          */
         extcap_dir = g_build_filename(appbundle_dir, "Contents/MacOS/extcap", (char *)NULL);
     }
-#endif
-    else {
-        extcap_dir = g_build_filename(install_prefix, EXTCAP_DIR, (char *)NULL);
+#endif // ENABLE_APPLICATION_BUNDLE
+    else if (running_in_build_directory_flag) {
+        /*
+         * We're (probably) being run from the build directory and
+         * weren't started with special privileges, so we'll use
+         * the "extcap hooks" subdirectory of the directory where the program
+         * we're running is (that's the build directory).
+         */
+        extcap_dir = g_build_filename(get_progfile_dir(), EXTCAP_DIR_NAME,
+            CONFIGURATION_NAMESPACE_LOWER, (char *)NULL);
     }
-#endif
+    else {
+        extcap_dir = g_build_filename(install_prefix,
+            is_packet_configuration_namespace() ? EXTCAP_DIR : LOG_EXTCAP_DIR, (char *)NULL);
+    }
+#endif // HAVE_MSYSTEM / _WIN32
 }
 
 static void
@@ -2040,7 +2064,7 @@ copy_persconffile_profile(const char *toname, const char *fromname, bool from_gl
             from_file = ws_strdup_printf ("%s%s%s", from_dir, G_DIR_SEPARATOR_S, filename);
             to_file = ws_strdup_printf ("%s%s%s", to_dir, G_DIR_SEPARATOR_S, filename);
 
-            if (file_exists(from_file) && !copy_file_binary_mode(from_file, to_file)) {
+            if (test_for_regular_file(from_file) && !copy_file_binary_mode(from_file, to_file)) {
                 *pf_filename_return = g_strdup(filename);
                 g_free (from_file);
                 g_free (to_file);
@@ -2393,37 +2417,48 @@ bool config_file_exists_with_entries(const char *fname, char comment_char)
 bool
 files_identical(const char *fname1, const char *fname2)
 {
-    /* Two different implementations, because:
-     *
-     * - _fullpath is not available on UN*X, so we can't get full
-     *   paths and compare them (which wouldn't work with hard links
-     *   in any case);
-     *
-     * - st_ino isn't filled in with a meaningful value on Windows.
+    /* Two different implementations, because st_ino isn't filled in with
+     * a meaningful value on Windows. Use the Windows API and FILE_ID_INFO
+     * instead.
      */
 #ifdef _WIN32
-    char full1[MAX_PATH], full2[MAX_PATH];
+
+    FILE_ID_INFO filestat1, filestat2;
 
     /*
-     * Get the absolute full paths of the file and compare them.
-     * That won't work if you have hard links, but those aren't
-     * much used on Windows, even though NTFS supports them.
-     *
-     * XXX - will _fullpath work with UNC?
+     * Compare VolumeSerialNumber and FileId.
      */
-    if( _fullpath( full1, fname1, MAX_PATH ) == NULL ) {
+
+    HANDLE h1 = CreateFile(utf_8to16(fname1), 0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL, OPEN_EXISTING, 0, NULL);
+
+    if (h1 == INVALID_HANDLE_VALUE) {
         return false;
     }
 
-    if( _fullpath( full2, fname2, MAX_PATH ) == NULL ) {
+    if (!GetFileInformationByHandleEx(h1, FileIdInfo, &filestat1, sizeof(FILE_ID_INFO))) {
+        CloseHandle(h1);
+        return false;
+    }
+    CloseHandle(h1);
+
+    HANDLE h2 = CreateFile(utf_8to16(fname2), 0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL, OPEN_EXISTING, 0, NULL);
+
+    if (h2 == INVALID_HANDLE_VALUE) {
         return false;
     }
 
-    if(strcmp(full1, full2) == 0) {
-        return true;
-    } else {
+    if (!GetFileInformationByHandleEx(h2, FileIdInfo, &filestat2, sizeof(FILE_ID_INFO))) {
+        CloseHandle(h2);
         return false;
     }
+    CloseHandle(h2);
+
+    return ((memcmp(&filestat1.FileId, &filestat2.FileId, sizeof(FILE_ID_128)) == 0) &&
+        filestat1.VolumeSerialNumber == filestat2.VolumeSerialNumber);
 #else
     ws_statb64 filestat1, filestat2;
 
@@ -2692,6 +2727,8 @@ free_progdirs(void)
     doc_dir = NULL;
     g_free(install_prefix);
     install_prefix = NULL;
+    g_free(current_working_dir);
+    current_working_dir = NULL;
 #if defined(HAVE_PLUGINS) || defined(HAVE_LUA)
     g_free(plugin_dir);
     plugin_dir = NULL;

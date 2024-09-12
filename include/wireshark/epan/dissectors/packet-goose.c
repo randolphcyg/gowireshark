@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-goose.c                                                             */
-/* asn2wrs.py -b -L -p goose -c ./goose.cnf -s ./packet-goose-template -D . -O ../.. goose.asn */
+/* asn2wrs.py -b -q -L -p goose -c ./goose.cnf -s ./packet-goose-template -D . -O ../.. goose.asn */
 
 /* packet-goose.c
  * Routines for IEC 61850 GOOSE packet dissection
@@ -24,6 +24,7 @@
 #include <epan/proto_data.h>
 #include <epan/etypes.h>
 #include <epan/expert.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-acse.h"
@@ -40,40 +41,40 @@ void proto_register_goose(void);
 void proto_reg_handoff_goose(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_goose = -1;
-static int proto_r_goose = -1;
+static int proto_goose;
+static int proto_r_goose;
 
-static int hf_goose_session_header = -1;
-static int hf_goose_spdu_id = -1;
-static int hf_goose_session_hdr_length = -1;
-static int hf_goose_hdr_length = -1;
-static int hf_goose_content_id = -1;
-static int hf_goose_spdu_lenth = -1;
-static int hf_goose_spdu_num = -1;
-static int hf_goose_version = -1;
-static int hf_goose_security_info = -1;
-static int hf_goose_current_key_t = -1;
-static int hf_goose_next_key_t = -1;
-static int hf_goose_key_id = -1;
-static int hf_goose_init_vec_length = -1;
-static int hf_goose_init_vec = -1;
-static int hf_goose_session_user_info = -1;
-static int hf_goose_payload = -1;
-static int hf_goose_payload_length = -1;
-static int hf_goose_apdu_tag = -1;
-static int hf_goose_apdu_simulation = -1;
-static int hf_goose_apdu_appid = -1;
-static int hf_goose_apdu_length = -1;
-static int hf_goose_padding_tag = -1;
-static int hf_goose_padding_length = -1;
-static int hf_goose_padding = -1;
-static int hf_goose_hmac = -1;
-static int hf_goose_appid = -1;
-static int hf_goose_length = -1;
-static int hf_goose_reserve1 = -1;
-static int hf_goose_reserve1_s_bit = -1;
-static int hf_goose_reserve2 = -1;
-static int hf_goose_float_value = -1;
+static int hf_goose_session_header;
+static int hf_goose_spdu_id;
+static int hf_goose_session_hdr_length;
+static int hf_goose_hdr_length;
+static int hf_goose_content_id;
+static int hf_goose_spdu_lenth;
+static int hf_goose_spdu_num;
+static int hf_goose_version;
+static int hf_goose_security_info;
+static int hf_goose_current_key_t;
+static int hf_goose_next_key_t;
+static int hf_goose_key_id;
+static int hf_goose_init_vec_length;
+static int hf_goose_init_vec;
+static int hf_goose_session_user_info;
+static int hf_goose_payload;
+static int hf_goose_payload_length;
+static int hf_goose_apdu_tag;
+static int hf_goose_apdu_simulation;
+static int hf_goose_apdu_appid;
+static int hf_goose_apdu_length;
+static int hf_goose_padding_tag;
+static int hf_goose_padding_length;
+static int hf_goose_padding;
+static int hf_goose_hmac;
+static int hf_goose_appid;
+static int hf_goose_length;
+static int hf_goose_reserve1;
+static int hf_goose_reserve1_s_bit;
+static int hf_goose_reserve2;
+static int hf_goose_float_value;
 
 
 /* Bit fields in the Reserved fields */
@@ -81,105 +82,105 @@ static int hf_goose_float_value = -1;
 
 /* GOOSE stored data for expert info verifications */
 typedef struct _goose_chk_data{
-	gboolean s_bit;
+	bool s_bit;
 }goose_chk_data_t;
 #define GOOSE_CHK_DATA_LEN	(sizeof(goose_chk_data_t))
 
-static expert_field ei_goose_mal_utctime = EI_INIT;
-static expert_field ei_goose_zero_pdu = EI_INIT;
-static expert_field ei_goose_invalid_sim = EI_INIT;
+static expert_field ei_goose_mal_utctime;
+static expert_field ei_goose_zero_pdu;
+static expert_field ei_goose_invalid_sim;
 
 #define SINGLE_FLOAT_EXP_BITS	8
 #define FLOAT_ENC_LENGTH		5
 
-static int hf_goose_gseMngtPdu = -1;              /* GSEMngtPdu */
-static int hf_goose_goosePdu = -1;                /* IECGoosePdu */
-static int hf_goose_stateID = -1;                 /* INTEGER */
-static int hf_goose_requestResp = -1;             /* RequestResponse */
-static int hf_goose_requests = -1;                /* GSEMngtRequests */
-static int hf_goose_responses = -1;               /* GSEMngtResponses */
-static int hf_goose_getGoReference = -1;          /* GetReferenceRequestPdu */
-static int hf_goose_getGOOSEElementNumber = -1;   /* GetElementRequestPdu */
-static int hf_goose_getGsReference = -1;          /* GetReferenceRequestPdu */
-static int hf_goose_getGSSEDataOffset = -1;       /* GetElementRequestPdu */
-static int hf_goose_gseMngtNotSupported = -1;     /* NULL */
-static int hf_goose_gseMngtResponses_GetGOReference = -1;  /* GSEMngtResponsePdu */
-static int hf_goose_gseMngtResponses_GetGOOSEElementNumber = -1;  /* GSEMngtResponsePdu */
-static int hf_goose_gseMngtResponses_GetGSReference = -1;  /* GSEMngtResponsePdu */
-static int hf_goose_gseMngtResponses_GetGSSEDataOffset = -1;  /* GSEMngtResponsePdu */
-static int hf_goose_ident = -1;                   /* VisibleString */
-static int hf_goose_getReferenceRequest_offset = -1;  /* T_getReferenceRequest_offset */
-static int hf_goose_getReferenceRequest_offset_item = -1;  /* INTEGER */
-static int hf_goose_references = -1;              /* T_references */
-static int hf_goose_references_item = -1;         /* VisibleString */
-static int hf_goose_confRev = -1;                 /* INTEGER */
-static int hf_goose_posNeg = -1;                  /* PositiveNegative */
-static int hf_goose_responsePositive = -1;        /* T_responsePositive */
-static int hf_goose_datSet = -1;                  /* VisibleString */
-static int hf_goose_result = -1;                  /* SEQUENCE_OF_RequestResults */
-static int hf_goose_result_item = -1;             /* RequestResults */
-static int hf_goose_responseNegative = -1;        /* GlbErrors */
-static int hf_goose_offset = -1;                  /* INTEGER */
-static int hf_goose_reference = -1;               /* IA5String */
-static int hf_goose_error = -1;                   /* ErrorReason */
-static int hf_goose_gocbRef = -1;                 /* VisibleString */
-static int hf_goose_timeAllowedtoLive = -1;       /* INTEGER */
-static int hf_goose_goID = -1;                    /* VisibleString */
-static int hf_goose_t = -1;                       /* UtcTime */
-static int hf_goose_stNum = -1;                   /* INTEGER */
-static int hf_goose_sqNum = -1;                   /* INTEGER */
-static int hf_goose_simulation = -1;              /* T_simulation */
-static int hf_goose_ndsCom = -1;                  /* BOOLEAN */
-static int hf_goose_numDatSetEntries = -1;        /* INTEGER */
-static int hf_goose_allData = -1;                 /* SEQUENCE_OF_Data */
-static int hf_goose_allData_item = -1;            /* Data */
-static int hf_goose_array = -1;                   /* SEQUENCE_OF_Data */
-static int hf_goose_array_item = -1;              /* Data */
-static int hf_goose_structure = -1;               /* SEQUENCE_OF_Data */
-static int hf_goose_structure_item = -1;          /* Data */
-static int hf_goose_boolean = -1;                 /* BOOLEAN */
-static int hf_goose_bit_string = -1;              /* BIT_STRING */
-static int hf_goose_integer = -1;                 /* INTEGER */
-static int hf_goose_unsigned = -1;                /* INTEGER */
-static int hf_goose_floating_point = -1;          /* FloatingPoint */
-static int hf_goose_real = -1;                    /* REAL */
-static int hf_goose_octet_string = -1;            /* OCTET_STRING */
-static int hf_goose_visible_string = -1;          /* VisibleString */
-static int hf_goose_binary_time = -1;             /* TimeOfDay */
-static int hf_goose_bcd = -1;                     /* INTEGER */
-static int hf_goose_booleanArray = -1;            /* BIT_STRING */
-static int hf_goose_objId = -1;                   /* OBJECT_IDENTIFIER */
-static int hf_goose_mMSString = -1;               /* MMSString */
-static int hf_goose_utc_time = -1;                /* UtcTime */
+static int hf_goose_gseMngtPdu;                   /* GSEMngtPdu */
+static int hf_goose_goosePdu;                     /* IECGoosePdu */
+static int hf_goose_stateID;                      /* INTEGER */
+static int hf_goose_requestResp;                  /* RequestResponse */
+static int hf_goose_requests;                     /* GSEMngtRequests */
+static int hf_goose_responses;                    /* GSEMngtResponses */
+static int hf_goose_getGoReference;               /* GetReferenceRequestPdu */
+static int hf_goose_getGOOSEElementNumber;        /* GetElementRequestPdu */
+static int hf_goose_getGsReference;               /* GetReferenceRequestPdu */
+static int hf_goose_getGSSEDataOffset;            /* GetElementRequestPdu */
+static int hf_goose_gseMngtNotSupported;          /* NULL */
+static int hf_goose_gseMngtResponses_GetGOReference;  /* GSEMngtResponsePdu */
+static int hf_goose_gseMngtResponses_GetGOOSEElementNumber;  /* GSEMngtResponsePdu */
+static int hf_goose_gseMngtResponses_GetGSReference;  /* GSEMngtResponsePdu */
+static int hf_goose_gseMngtResponses_GetGSSEDataOffset;  /* GSEMngtResponsePdu */
+static int hf_goose_ident;                        /* VisibleString */
+static int hf_goose_getReferenceRequest_offset;   /* T_getReferenceRequest_offset */
+static int hf_goose_getReferenceRequest_offset_item;  /* INTEGER */
+static int hf_goose_references;                   /* T_references */
+static int hf_goose_references_item;              /* VisibleString */
+static int hf_goose_confRev;                      /* INTEGER */
+static int hf_goose_posNeg;                       /* PositiveNegative */
+static int hf_goose_responsePositive;             /* T_responsePositive */
+static int hf_goose_datSet;                       /* VisibleString */
+static int hf_goose_result;                       /* SEQUENCE_OF_RequestResults */
+static int hf_goose_result_item;                  /* RequestResults */
+static int hf_goose_responseNegative;             /* GlbErrors */
+static int hf_goose_offset;                       /* INTEGER */
+static int hf_goose_reference;                    /* IA5String */
+static int hf_goose_error;                        /* ErrorReason */
+static int hf_goose_gocbRef;                      /* VisibleString */
+static int hf_goose_timeAllowedtoLive;            /* INTEGER */
+static int hf_goose_goID;                         /* VisibleString */
+static int hf_goose_t;                            /* UtcTime */
+static int hf_goose_stNum;                        /* INTEGER */
+static int hf_goose_sqNum;                        /* INTEGER */
+static int hf_goose_simulation;                   /* T_simulation */
+static int hf_goose_ndsCom;                       /* BOOLEAN */
+static int hf_goose_numDatSetEntries;             /* INTEGER */
+static int hf_goose_allData;                      /* SEQUENCE_OF_Data */
+static int hf_goose_allData_item;                 /* Data */
+static int hf_goose_array;                        /* SEQUENCE_OF_Data */
+static int hf_goose_array_item;                   /* Data */
+static int hf_goose_structure;                    /* SEQUENCE_OF_Data */
+static int hf_goose_structure_item;               /* Data */
+static int hf_goose_boolean;                      /* BOOLEAN */
+static int hf_goose_bit_string;                   /* BIT_STRING */
+static int hf_goose_integer;                      /* INTEGER */
+static int hf_goose_unsigned;                     /* INTEGER */
+static int hf_goose_floating_point;               /* FloatingPoint */
+static int hf_goose_real;                         /* REAL */
+static int hf_goose_octet_string;                 /* OCTET_STRING */
+static int hf_goose_visible_string;               /* VisibleString */
+static int hf_goose_binary_time;                  /* TimeOfDay */
+static int hf_goose_bcd;                          /* INTEGER */
+static int hf_goose_booleanArray;                 /* BIT_STRING */
+static int hf_goose_objId;                        /* OBJECT_IDENTIFIER */
+static int hf_goose_mMSString;                    /* MMSString */
+static int hf_goose_utc_time;                     /* UtcTime */
 
 /* Initialize the subtree pointers */
-static int ett_r_goose = -1;
-static int ett_session_header = -1;
-static int ett_security_info = -1;
-static int ett_session_user_info = -1;
-static int ett_payload = -1;
-static int ett_padding = -1;
-static int ett_goose = -1;
-static int ett_reserve1 = -1;
-static int ett_expert_inf_sim = -1;
+static int ett_r_goose;
+static int ett_session_header;
+static int ett_security_info;
+static int ett_session_user_info;
+static int ett_payload;
+static int ett_padding;
+static int ett_goose;
+static int ett_reserve1;
+static int ett_expert_inf_sim;
 
-static gint ett_goose_GOOSEpdu = -1;
-static gint ett_goose_GSEMngtPdu = -1;
-static gint ett_goose_RequestResponse = -1;
-static gint ett_goose_GSEMngtRequests = -1;
-static gint ett_goose_GSEMngtResponses = -1;
-static gint ett_goose_GetReferenceRequestPdu = -1;
-static gint ett_goose_T_getReferenceRequest_offset = -1;
-static gint ett_goose_GetElementRequestPdu = -1;
-static gint ett_goose_T_references = -1;
-static gint ett_goose_GSEMngtResponsePdu = -1;
-static gint ett_goose_PositiveNegative = -1;
-static gint ett_goose_T_responsePositive = -1;
-static gint ett_goose_SEQUENCE_OF_RequestResults = -1;
-static gint ett_goose_RequestResults = -1;
-static gint ett_goose_IECGoosePdu = -1;
-static gint ett_goose_SEQUENCE_OF_Data = -1;
-static gint ett_goose_Data = -1;
+static int ett_goose_GOOSEpdu;
+static int ett_goose_GSEMngtPdu;
+static int ett_goose_RequestResponse;
+static int ett_goose_GSEMngtRequests;
+static int ett_goose_GSEMngtResponses;
+static int ett_goose_GetReferenceRequestPdu;
+static int ett_goose_T_getReferenceRequest_offset;
+static int ett_goose_GetElementRequestPdu;
+static int ett_goose_T_references;
+static int ett_goose_GSEMngtResponsePdu;
+static int ett_goose_PositiveNegative;
+static int ett_goose_T_responsePositive;
+static int ett_goose_SEQUENCE_OF_RequestResults;
+static int ett_goose_RequestResults;
+static int ett_goose_IECGoosePdu;
+static int ett_goose_SEQUENCE_OF_Data;
+static int ett_goose_Data;
 
 /*--- Cyclic dependencies ---*/
 
@@ -504,19 +505,19 @@ dissect_goose_GSEMngtPdu(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U
 static int
 dissect_goose_UtcTime(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
 
-	guint32 len;
-	guint32 seconds;
-	guint32	fraction;
-	guint32 nanoseconds;
+	uint32_t len;
+	uint32_t seconds;
+	uint32_t	fraction;
+	uint32_t nanoseconds;
 	nstime_t ts;
-	gchar *	ptime;
+	char *	ptime;
 
 	len = tvb_reported_length_remaining(tvb, offset);
 
 	if(len != 8)
 	{
 		proto_tree_add_expert(tree, actx->pinfo, &ei_goose_mal_utctime, tvb, offset, len);
-		if(hf_index >= 0)
+		if(hf_index > 0)
 		{
 			proto_tree_add_string(tree, hf_index, tvb, offset, len, "????");
 		}
@@ -525,14 +526,14 @@ dissect_goose_UtcTime(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, 
 
 	seconds = tvb_get_ntohl(tvb, offset);
 	fraction = tvb_get_ntoh24(tvb, offset+4) * 0x100; /* Only 3 bytes are recommended */
-	nanoseconds = (guint32)( ((guint64)fraction * G_GUINT64_CONSTANT(1000000000)) / G_GUINT64_CONSTANT(0x100000000) ) ;
+	nanoseconds = (uint32_t)( ((uint64_t)fraction * UINT64_C(1000000000)) / UINT64_C(0x100000000) ) ;
 
 	ts.secs = seconds;
 	ts.nsecs = nanoseconds;
 
-	ptime = abs_time_to_str(actx->pinfo->pool, &ts, ABSOLUTE_TIME_UTC, TRUE);
+	ptime = abs_time_to_str(actx->pinfo->pool, &ts, ABSOLUTE_TIME_UTC, true);
 
-	if(hf_index >= 0)
+	if(hf_index > 0)
 	{
 		proto_tree_add_string(tree, hf_index, tvb, offset, len, ptime);
 	}
@@ -546,7 +547,7 @@ dissect_goose_UtcTime(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, 
 static int
 dissect_goose_T_simulation(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
 	bool value;
-	guint32 len = tvb_reported_length_remaining(tvb, offset);
+	uint32_t len = tvb_reported_length_remaining(tvb, offset);
 	int origin_offset = offset;
   offset = dissect_ber_boolean(implicit_tag, actx, tree, tvb, offset, hf_index, &value);
 
@@ -554,7 +555,7 @@ dissect_goose_T_simulation(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset 
 		goose_chk_data_t *data_chk = (goose_chk_data_t *)actx->private_data;
 		proto_tree *expert_inf_tree = NULL;
 		/* S bit set and Simulation attribute clear: reject as invalid GOOSE */
-		if((data_chk->s_bit == TRUE) && (value == FALSE)){
+		if((data_chk->s_bit == true) && (value == false)){
 			/* It really looks better showed as a new subtree */
 			expert_inf_tree = proto_item_add_subtree(actx->created_item, ett_expert_inf_sim);
 			proto_tree_add_expert(expert_inf_tree, actx->pinfo, &ei_goose_invalid_sim, tvb, origin_offset, len);
@@ -607,7 +608,7 @@ dissect_goose_FloatingPoint(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset
 	  offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        NULL);
 
-	if ((len == FLOAT_ENC_LENGTH) && (tvb_get_guint8(tvb,0) == SINGLE_FLOAT_EXP_BITS) ){
+	if ((len == FLOAT_ENC_LENGTH) && (tvb_get_uint8(tvb,0) == SINGLE_FLOAT_EXP_BITS) ){
 		/* IEEE 754 single precision floating point */
 		proto_item_set_hidden(actx->created_item);
 		proto_tree_add_item(tree, hf_goose_float_value, tvb, 1, (FLOAT_ENC_LENGTH-1), ENC_BIG_ENDIAN);
@@ -710,7 +711,7 @@ static const ber_choice_t Data_choice[] = {
 
 static int
 dissect_goose_Data(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  // Data → Data/array → Data
+  // Data -> Data/array -> Data
   actx->pinfo->dissection_depth += 2;
   increment_dissection_depth(actx->pinfo);
   offset = dissect_ber_choice(actx, tree, tvb, offset,
@@ -764,8 +765,7 @@ dissect_goose_GOOSEpdu(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_,
 }
 
 
-static dissector_handle_t goose_handle = NULL;
-static dissector_handle_t ositp_handle = NULL;
+static dissector_handle_t goose_handle;
 
 
 #define OSI_SPDU_TUNNELED 0xA0 /* Tunneled */
@@ -803,15 +803,15 @@ static int
 dissect_goose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 			  void* data _U_)
 {
-	guint32 offset = 0;
-	guint32 old_offset;
-	guint32 length;
-	guint32 reserve1_val;
+	uint32_t offset = 0;
+	uint32_t old_offset;
+	uint32_t length;
+	uint32_t reserve1_val;
 	proto_item *item = NULL;
 	proto_tree *tree = NULL;
 	goose_chk_data_t *data_chk = NULL;
 	asn1_ctx_t asn1_ctx;
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
 	static int * const reserve1_flags[] = {
 		&hf_goose_reserve1_s_bit,
@@ -837,16 +837,16 @@ dissect_goose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 						ENC_BIG_ENDIAN, &length);
 
 	/* Reserved 1 */
-	reserve1_val = tvb_get_guint16(tvb, offset + 4, ENC_BIG_ENDIAN);
+	reserve1_val = tvb_get_uint16(tvb, offset + 4, ENC_BIG_ENDIAN);
 	proto_tree_add_bitmask_value(tree, tvb, offset + 4, hf_goose_reserve1, ett_reserve1,
 						reserve1_flags, reserve1_val);
 
 	/* Store the header sim value for later expert info checks */
 	if(data_chk){
 		if(reserve1_val & F_RESERVE1_S_BIT){
-			data_chk->s_bit = TRUE;
+			data_chk->s_bit = true;
 		}else{
-			data_chk->s_bit = FALSE;
+			data_chk->s_bit = false;
 		}
 	}
 
@@ -858,7 +858,7 @@ dissect_goose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 	offset = 8;
 	while (offset < length){
 		old_offset = offset;
-		offset = dissect_goose_GOOSEpdu(FALSE, tvb, offset, &asn1_ctx , tree, -1);
+		offset = dissect_goose_GOOSEpdu(false, tvb, offset, &asn1_ctx , tree, -1);
 		if (offset == old_offset) {
 			proto_tree_add_expert(tree, pinfo, &ei_goose_zero_pdu, tvb, offset, -1);
 			break;
@@ -876,14 +876,14 @@ static int
 dissect_rgoose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 			   void* data _U_)
 {
-	guint offset = 0, old_offset = 0;
-	guint32 init_v_length, payload_tag, padding_length, length;
-	guint32 payload_length, apdu_offset = 0, apdu_length, apdu_simulation;
+	unsigned offset = 0, old_offset = 0;
+	uint32_t init_v_length, payload_tag, padding_length, length;
+	uint32_t payload_length, apdu_offset = 0, apdu_length, apdu_simulation;
 	proto_item *item = NULL;
 	proto_tree *tree = NULL, *r_goose_tree = NULL, *sess_user_info_tree = NULL;
 	goose_chk_data_t *data_chk = NULL;
 	asn1_ctx_t asn1_ctx;
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
 	asn1_ctx.private_data = wmem_alloc(pinfo->pool, GOOSE_CHK_DATA_LEN);
 	data_chk = (goose_chk_data_t *)asn1_ctx.private_data;
@@ -985,9 +985,9 @@ dissect_rgoose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 		/* Store the header sim value for later expert info checks */
 		if(data_chk){
 			if(apdu_simulation){
-				data_chk->s_bit = TRUE;
+				data_chk->s_bit = true;
 			}else{
-				data_chk->s_bit = FALSE;
+				data_chk->s_bit = false;
 			}
 		}
 
@@ -999,7 +999,7 @@ dissect_rgoose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 		offset += 2;
 
 		old_offset = offset;
-		offset = dissect_goose_GOOSEpdu(FALSE, tvb, offset, &asn1_ctx , tree, -1);
+		offset = dissect_goose_GOOSEpdu(false, tvb, offset, &asn1_ctx , tree, -1);
 		if (offset == old_offset) {
 			proto_tree_add_expert(tree, pinfo, &ei_goose_zero_pdu, tvb, offset, -1);
 			break;
@@ -1008,7 +1008,7 @@ dissect_rgoose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 
 	/* Check do we have padding bytes */
 	if ((tvb_captured_length(tvb) > offset) &&
-		(tvb_get_guint8(tvb, offset) == 0xAF)) {
+		(tvb_get_uint8(tvb, offset) == 0xAF)) {
 		/* Padding subtree */
 		item = proto_tree_add_item(sess_user_info_tree, hf_goose_padding, tvb,
 								   offset, -1, ENC_NA);
@@ -1038,61 +1038,26 @@ dissect_rgoose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 	return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_rgoose_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 					void *data)
 {
-	guint8 spdu;
+	uint8_t spdu;
 
 	/* Check do we have at least min size of Session header bytes */
 	if (tvb_captured_length(tvb) < 27) {
-		return FALSE;
+		return false;
 	}
 
 	/* Is it R-GOOSE? */
-	spdu = tvb_get_guint8(tvb, 0);
+	spdu = tvb_get_uint8(tvb, 0);
 	if (spdu != OSI_SPDU_GOOSE) {
-		return FALSE;
+		return false;
 	}
 
 	dissect_rgoose(tvb, pinfo, parent_tree, data);
-	return TRUE;
+	return true;
 }
-
-static gboolean
-dissect_cltp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
-				  void *data _U_)
-{
-	guint8 li, tpdu, spdu;
-
-	/* First, check do we have at least 2 bytes (length + tpdu) */
-	if (tvb_captured_length(tvb) < 2) {
-		return FALSE;
-	}
-
-	li = tvb_get_guint8(tvb, 0);
-
-	/* Is it OSI on top of the UDP? */
-	tpdu = (tvb_get_guint8(tvb, 1) & 0xF0) >> 4;
-	if (tpdu != 0x4) {
-		return FALSE;
-	}
-
-	/* Check do we have SPDU ID byte, too */
-	if (tvb_captured_length(tvb) < (guint) (li + 2)) {
-		return FALSE;
-	}
-
-	/* And let's see if it is GOOSE SPDU */
-	spdu = tvb_get_guint8(tvb, li + 1);
-	if (spdu != OSI_SPDU_GOOSE) {
-		return FALSE;
-	}
-
-	call_dissector(ositp_handle, tvb, pinfo, parent_tree);
-	return TRUE;
-}
-
 
 /*--- proto_register_goose -------------------------------------------*/
 void proto_register_goose(void) {
@@ -1463,7 +1428,7 @@ void proto_register_goose(void) {
 	};
 
 	/* List of subtrees */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_r_goose,
 		&ett_session_header,
 		&ett_security_info,
@@ -1525,10 +1490,6 @@ void proto_reg_handoff_goose(void) {
 
 	dissector_add_uint("ethertype", ETHERTYPE_IEC61850_GOOSE, goose_handle);
 
-	ositp_handle = find_dissector_add_dependency("ositp", proto_goose);
-
-	heur_dissector_add("udp", dissect_cltp_heur,
-		"CLTP over UDP", "cltp_udp", proto_goose, HEURISTIC_ENABLE);
 	heur_dissector_add("cltp", dissect_rgoose_heur,
 		"R-GOOSE (GOOSE over CLTP)", "rgoose_cltp", proto_goose, HEURISTIC_ENABLE);
 }

@@ -210,7 +210,9 @@ static const struct {
 	const char *id;
 	const char *data;
 } primary_sources[] = {
-	/* IANA / RFC 5905 */
+	/* Reference Identifier Codes
+	 *  https://www.iana.org/assignments/ntp-parameters/ntp-parameters.xhtml#ntp-parameters-1
+	 */
 	{ "GOES",	"Geostationary Orbit Environment Satellite" },
 	{ "GPS\0",	"Global Position System" },
 	{ "GAL\0",	"Galileo Positioning System" },
@@ -230,8 +232,10 @@ static const struct {
 	{ "ACTS",	"NIST telephone modem" },
 	{ "USNO",	"USNO telephone modem" },
 	{ "PTB\0",	"European telephone modem" },
+	{ "DFM\0",	"UTC(DFM)"},
 
 	/* Unofficial codes */
+	{ "LCL\0",	"uncalibrated local clock" },
 	{ "LOCL",	"uncalibrated local clock" },
 	{ "CESM",	"calibrated Cesium clock" },
 	{ "RBDM",	"calibrated Rubidium clock" },
@@ -241,6 +245,19 @@ static const struct {
 	{ "DTS\0",	"Digital Time Service" },
 	{ "ATOM",	"Atomic clock (calibrated)" },
 	{ "VLF\0",	"VLF radio (OMEGA,, etc.)" },
+	{ "DCFa",	"DCF77 with amplitude modulation" },
+	{ "DCFp",	"DCF77 with phase modulation/pseudo random phase modulation" },
+	{ "PZF\0",	"DCF77 correlation receiver for middle Europe" },
+	{ "PZFs",	"DCF77 correlation receiver (with shared memory access)" },
+	{ "PZFi",	"DCF77 correlation receiver (with interrupt based access)" },
+	{ "GPSD",	"GPSD client driver" },
+	{ "GPSs",	"GPS (with shared memory access)" },
+	{ "GPSi",	"GPS (with interrupt based access)" },
+	{ "GLNs",	"GPS/GLONASS (with shared memory access)" },
+	{ "GLNi",	"GPS/GLONASS (with interrupt based access)" },
+	{ "GNSS",	"Global Navigation Satellite System" },
+	{ "MRS\0",	"Multi Reference System" },
+	{ "Nut1",	"UT1(NIST)" },
 	{ "1PPS",	"External 1 PPS input" },
 	{ "FREE",	"(Internal clock)" },
 	// { "INIT",	"(Initialization)" },
@@ -257,7 +274,7 @@ static const struct {
 #define NTPCTRL_MORE_MASK 0x20
 #define NTPCTRL_OP_MASK 0x1f
 
-#define NTPCTRL_OP_UNSPEC 0		/* unspeciffied */
+#define NTPCTRL_OP_UNSPEC 0		/* unspecified */
 #define NTPCTRL_OP_READSTAT 1		/* read status */
 #define NTPCTRL_OP_READVAR 2		/* read variables */
 #define NTPCTRL_OP_WRITEVAR 3		/* write variables */
@@ -519,6 +536,7 @@ static const value_string priv_rc_types[] = {
 	{ PRIV_RC_SET_CLKFUDGE,		"SET_CLKFUDGE" },
 	{ PRIV_RC_GET_KERNEL,		"GET_KERNEL" },
 	{ PRIV_RC_GET_CLKBUGINFO,	"GET_CLKBUGINFO" },
+	{ 40,				"UNASSIGNED" },     /* included to allow direct lookup */
 	{ 41,				"SET_PRECISION" },
 	{ PRIV_RC_MON_GETLIST_1,	"MON_GETLIST_1" },
 	{ 43,				"HOSTNAME_ASSOCID" },
@@ -621,15 +639,17 @@ static const value_string ntp_ext_field_types[] = {
 	{ 0xC702, "IFF Identity Message Error Response" },
 	{ 0xC802, "GQ Identity Message Error Response" },
 	{ 0xC902, "MV Identity Message Error Response" },
+	{ 0xF323, "Monotonic Timestamp & Root Delay/Dispersion (exp)" },
+	{ 0xF324, "Network PTP Time correction (exp)" },
 	{ 0, NULL }
 };
 
 
 typedef struct {
-	guint32 req_frame;
-	guint32 resp_frame;
+	uint32_t req_frame;
+	uint32_t resp_frame;
 	nstime_t req_time;
-	guint32 seq;
+	uint32_t seq;
 } ntp_trans_info_t;
 
 typedef struct {
@@ -637,322 +657,322 @@ typedef struct {
 } ntp_conv_info_t;
 
 
-static int proto_ntp = -1;
+static int proto_ntp;
 
-static int hf_ntp_flags = -1;
-static int hf_ntp_flags_li = -1;
-static int hf_ntp_flags_vn = -1;
-static int hf_ntp_flags_mode = -1;
-static int hf_ntp_stratum = -1;
-static int hf_ntp_ppoll = -1;
-static int hf_ntp_precision = -1;
-static int hf_ntp_rootdelay = -1;
-static int hf_ntp_rootdispersion = -1;
-static int hf_ntp_refid = -1;
-static int hf_ntp_reftime = -1;
-static int hf_ntp_org = -1;
-static int hf_ntp_rec = -1;
-static int hf_ntp_xmt = -1;
-static int hf_ntp_keyid = -1;
-static int hf_ntp_mac = -1;
-static int hf_ntp_padding = -1;
-static int hf_ntp_key_type = -1;
-static int hf_ntp_key_index = -1;
-static int hf_ntp_key_signature = -1;
-static int hf_ntp_response_in = -1;
-static int hf_ntp_request_in = -1;
-static int hf_ntp_delta_time = -1;
+static int hf_ntp_flags;
+static int hf_ntp_flags_li;
+static int hf_ntp_flags_vn;
+static int hf_ntp_flags_mode;
+static int hf_ntp_stratum;
+static int hf_ntp_ppoll;
+static int hf_ntp_precision;
+static int hf_ntp_rootdelay;
+static int hf_ntp_rootdispersion;
+static int hf_ntp_refid;
+static int hf_ntp_reftime;
+static int hf_ntp_org;
+static int hf_ntp_rec;
+static int hf_ntp_xmt;
+static int hf_ntp_keyid;
+static int hf_ntp_mac;
+static int hf_ntp_padding;
+static int hf_ntp_key_type;
+static int hf_ntp_key_index;
+static int hf_ntp_key_signature;
+static int hf_ntp_response_in;
+static int hf_ntp_request_in;
+static int hf_ntp_delta_time;
 
-static int hf_ntp_ext = -1;
-static int hf_ntp_ext_type = -1;
-static int hf_ntp_ext_length = -1;
-static int hf_ntp_ext_value = -1;
+static int hf_ntp_ext;
+static int hf_ntp_ext_type;
+static int hf_ntp_ext_length;
+static int hf_ntp_ext_value;
 
-static int hf_ntpctrl_flags2 = -1;
-static int hf_ntpctrl_flags2_r = -1;
-static int hf_ntpctrl_flags2_error = -1;
-static int hf_ntpctrl_flags2_more = -1;
-static int hf_ntpctrl_flags2_opcode = -1;
-static int hf_ntpctrl_sequence = -1;
-static int hf_ntpctrl_status = -1;
-static int hf_ntpctrl_error_status_word = -1;
-static int hf_ntpctrl_sys_status_li = -1;
-static int hf_ntpctrl_sys_status_clksrc = -1;
-static int hf_ntpctrl_sys_status_count = -1;
-static int hf_ntpctrl_sys_status_code = -1;
-static int hf_ntpctrl_peer_status_b0 = -1;
-static int hf_ntpctrl_peer_status_b1 = -1;
-static int hf_ntpctrl_peer_status_b2 = -1;
-static int hf_ntpctrl_peer_status_b3 = -1;
-static int hf_ntpctrl_peer_status_b4 = -1;
-static int hf_ntpctrl_peer_status_selection = -1;
-static int hf_ntpctrl_peer_status_count = -1;
-static int hf_ntpctrl_peer_status_code = -1;
-static int hf_ntpctrl_clk_status = -1;
-static int hf_ntpctrl_clk_status_code = -1;
-static int hf_ntpctrl_associd = -1;
-static int hf_ntpctrl_offset = -1;
-static int hf_ntpctrl_count = -1;
-static int hf_ntpctrl_data = -1;
-static int hf_ntpctrl_item = -1;
-static int hf_ntpctrl_trapmsg = -1;
-static int hf_ntpctrl_ordlist = -1;
-static int hf_ntpctrl_configuration = -1;
-static int hf_ntpctrl_mru = -1;
-static int hf_ntpctrl_nonce = -1;
+static int hf_ntpctrl_flags2;
+static int hf_ntpctrl_flags2_r;
+static int hf_ntpctrl_flags2_error;
+static int hf_ntpctrl_flags2_more;
+static int hf_ntpctrl_flags2_opcode;
+static int hf_ntpctrl_sequence;
+static int hf_ntpctrl_status;
+static int hf_ntpctrl_error_status_word;
+static int hf_ntpctrl_sys_status_li;
+static int hf_ntpctrl_sys_status_clksrc;
+static int hf_ntpctrl_sys_status_count;
+static int hf_ntpctrl_sys_status_code;
+static int hf_ntpctrl_peer_status_b0;
+static int hf_ntpctrl_peer_status_b1;
+static int hf_ntpctrl_peer_status_b2;
+static int hf_ntpctrl_peer_status_b3;
+static int hf_ntpctrl_peer_status_b4;
+static int hf_ntpctrl_peer_status_selection;
+static int hf_ntpctrl_peer_status_count;
+static int hf_ntpctrl_peer_status_code;
+static int hf_ntpctrl_clk_status;
+static int hf_ntpctrl_clk_status_code;
+static int hf_ntpctrl_associd;
+static int hf_ntpctrl_offset;
+static int hf_ntpctrl_count;
+static int hf_ntpctrl_data;
+static int hf_ntpctrl_item;
+static int hf_ntpctrl_trapmsg;
+static int hf_ntpctrl_ordlist;
+static int hf_ntpctrl_configuration;
+static int hf_ntpctrl_mru;
+static int hf_ntpctrl_nonce;
 
-static int hf_ntppriv_flags_r = -1;
-static int hf_ntppriv_flags_more = -1;
-static int hf_ntppriv_auth_seq = -1;
-static int hf_ntppriv_auth = -1;
-static int hf_ntppriv_seq = -1;
-static int hf_ntppriv_impl = -1;
-static int hf_ntppriv_reqcode = -1;
-static int hf_ntppriv_errcode = -1;
-static int hf_ntppriv_numitems = -1;
-static int hf_ntppriv_mbz = -1;
-static int hf_ntppriv_mode7_item = -1;
-static int hf_ntppriv_itemsize = -1;
-static int hf_ntppriv_avgint = -1;
-static int hf_ntppriv_lsint = -1;
-static int hf_ntppriv_count = -1;
-static int hf_ntppriv_restr = -1;
-static int hf_ntppriv_addr = -1;
-static int hf_ntppriv_daddr = -1;
-static int hf_ntppriv_flags = -1;
-static int hf_ntppriv_port = -1;
-static int hf_ntppriv_mode = -1;
-static int hf_ntppriv_version = -1;
-static int hf_ntppriv_v6_flag = -1;
-static int hf_ntppriv_unused = -1;
-static int hf_ntppriv_addr6 = -1;
-static int hf_ntppriv_daddr6 = -1;
-static int hf_ntppriv_tstamp = -1;
-static int hf_ntppriv_mode7_addr = -1;
-static int hf_ntppriv_mode7_mask = -1;
-static int hf_ntppriv_mode7_bcast = -1;
-static int hf_ntppriv_mode7_port = -1;
-static int hf_ntppriv_mode7_hmode = -1;
-static int hf_ntppriv_mode7_peer_flags = -1;
-static int hf_ntppriv_mode7_v6_flag = -1;
-static int hf_ntppriv_mode7_unused = -1;
-static int hf_ntppriv_mode7_addr6 = -1;
-static int hf_ntppriv_mode7_mask6 = -1;
-static int hf_ntppriv_mode7_bcast6 = -1;
-static int hf_ntppriv_mode7_peer_flags_config = -1;
-static int hf_ntppriv_mode7_peer_flags_syspeer = -1;
-static int hf_ntppriv_mode7_peer_flags_burst = -1;
-static int hf_ntppriv_mode7_peer_flags_refclock = -1;
-static int hf_ntppriv_mode7_peer_flags_prefer = -1;
-static int hf_ntppriv_mode7_peer_flags_authenable = -1;
-static int hf_ntppriv_mode7_peer_flags_sel_candidate = -1;
-static int hf_ntppriv_mode7_peer_flags_shortlist = -1;
-static int hf_ntppriv_mode7_dstaddr = -1;
-static int hf_ntppriv_mode7_srcaddr = -1;
-static int hf_ntppriv_mode7_srcport = -1;
-static int hf_ntppriv_mode7_count = -1;
-static int hf_ntppriv_mode7_hpoll = -1;
-static int hf_ntppriv_mode7_reach = -1;
-static int hf_ntppriv_mode7_delay = -1;
-static int hf_ntppriv_mode7_offset = -1;
-static int hf_ntppriv_mode7_dispersion = -1;
-static int hf_ntppriv_mode7_dstaddr6 = -1;
-static int hf_ntppriv_mode7_srcaddr6 = -1;
-static int hf_ntppriv_mode7_leap = -1;
-static int hf_ntppriv_mode7_pmode = -1;
-static int hf_ntppriv_mode7_version = -1;
-static int hf_ntppriv_mode7_unreach = -1;
-static int hf_ntppriv_mode7_flash = -1;
-static int hf_ntppriv_mode7_ttl = -1;
-static int hf_ntppriv_mode7_flash2 = -1;
-static int hf_ntppriv_mode7_associd = -1;
-static int hf_ntppriv_mode7_pkeyid = -1;
-static int hf_ntppriv_mode7_timer = -1;
-static int hf_ntppriv_mode7_filtdelay = -1;
-static int hf_ntppriv_mode7_filtoffset = -1;
-static int hf_ntppriv_mode7_order = -1;
-static int hf_ntppriv_mode7_selectdis = -1;
-static int hf_ntppriv_mode7_estbdelay = -1;
-static int hf_ntppriv_mode7_bdelay = -1;
-static int hf_ntppriv_mode7_authdelay = -1;
-static int hf_ntppriv_mode7_stability = -1;
-static int hf_ntppriv_mode7_timeup = -1;
-static int hf_ntppriv_mode7_timereset = -1;
-static int hf_ntppriv_mode7_timereceived = -1;
-static int hf_ntppriv_mode7_timetosend = -1;
-static int hf_ntppriv_mode7_timereachable = -1;
-static int hf_ntppriv_mode7_sent = -1;
-static int hf_ntppriv_mode7_processed = -1;
-static int hf_ntppriv_mode7_badauth = -1;
-static int hf_ntppriv_mode7_bogusorg = -1;
-static int hf_ntppriv_mode7_oldpkt = -1;
-static int hf_ntppriv_mode7_seldisp = -1;
-static int hf_ntppriv_mode7_selbroken = -1;
-static int hf_ntppriv_mode7_candidate = -1;
-static int hf_ntppriv_mode7_minpoll = -1;
-static int hf_ntppriv_mode7_maxpoll = -1;
-static int hf_ntppriv_mode7_config_flags = -1;
-static int hf_ntppriv_mode7_config_flags_auth = -1;
-static int hf_ntppriv_mode7_config_flags_prefer = -1;
-static int hf_ntppriv_mode7_config_flags_burst = -1;
-static int hf_ntppriv_mode7_config_flags_iburst = -1;
-static int hf_ntppriv_mode7_config_flags_noselect = -1;
-static int hf_ntppriv_mode7_config_flags_skey = -1;
-static int hf_ntppriv_mode7_key_file = -1;
-static int hf_ntppriv_mode7_sys_flags = -1;
-static int hf_ntppriv_mode7_sys_flags8 = -1;
-static int hf_ntppriv_mode7_sys_flags_bclient = -1;
-static int hf_ntppriv_mode7_sys_flags_pps = -1;
-static int hf_ntppriv_mode7_sys_flags_ntp = -1;
-static int hf_ntppriv_mode7_sys_flags_kernel = -1;
-static int hf_ntppriv_mode7_sys_flags_monitor = -1;
-static int hf_ntppriv_mode7_sys_flags_filegen = -1;
-static int hf_ntppriv_mode7_sys_flags_auth = -1;
-static int hf_ntppriv_mode7_sys_flags_cal = -1;
-static int hf_ntppriv_mode7_reset_stats_flags = -1;
-static int hf_ntppriv_mode7_reset_stats_flags_allpeers = -1;
-static int hf_ntppriv_mode7_reset_stats_flags_io = -1;
-static int hf_ntppriv_mode7_reset_stats_flags_sys = -1;
-static int hf_ntppriv_mode7_reset_stats_flags_mem = -1;
-static int hf_ntppriv_mode7_reset_stats_flags_timer = -1;
-static int hf_ntppriv_mode7_reset_stats_flags_auth = -1;
-static int hf_ntppriv_mode7_reset_stats_flags_ctl = -1;
-static int hf_ntppriv_mode7_req = -1;
-static int hf_ntppriv_mode7_badpkts = -1;
-static int hf_ntppriv_mode7_responses = -1;
-static int hf_ntppriv_mode7_frags = -1;
-static int hf_ntppriv_mode7_errors = -1;
-static int hf_ntppriv_mode7_tooshort = -1;
-static int hf_ntppriv_mode7_inputresp = -1;
-static int hf_ntppriv_mode7_inputfrag = -1;
-static int hf_ntppriv_mode7_inputerr = -1;
-static int hf_ntppriv_mode7_badoffset = -1;
-static int hf_ntppriv_mode7_badversion = -1;
-static int hf_ntppriv_mode7_datatooshort = -1;
-static int hf_ntppriv_mode7_badop = -1;
-static int hf_ntppriv_mode7_asyncmsgs = -1;
-static int hf_ntppriv_mode7_type = -1;
-static int hf_ntppriv_mode7_clock_flags = -1;
-static int hf_ntppriv_mode7_lastevent = -1;
-static int hf_ntppriv_mode7_currentstatus = -1;
-static int hf_ntppriv_mode7_polls = -1;
-static int hf_ntppriv_mode7_noresponse = -1;
-static int hf_ntppriv_mode7_badformat = -1;
-static int hf_ntppriv_mode7_baddata = -1;
-static int hf_ntppriv_mode7_timestarted = -1;
-static int hf_ntppriv_mode7_fudgetime1 = -1;
-static int hf_ntppriv_mode7_fudgetime2 = -1;
-static int hf_ntppriv_mode7_fudgeval1 = -1;
-static int hf_ntppriv_mode7_fudgeval2 = -1;
-static int hf_ntppriv_mode7_kernel_offset = -1;
-static int hf_ntppriv_mode7_freq = -1;
-static int hf_ntppriv_mode7_maxerror = -1;
-static int hf_ntppriv_mode7_esterror = -1;
-static int hf_ntppriv_mode7_status = -1;
-static int hf_ntppriv_mode7_shift = -1;
-static int hf_ntppriv_mode7_constant = -1;
-static int hf_ntppriv_mode7_precision = -1;
-static int hf_ntppriv_mode7_tolerance = -1;
-static int hf_ntppriv_mode7_ppsfreq = -1;
-static int hf_ntppriv_mode7_jitter = -1;
-static int hf_ntppriv_mode7_stabil = -1;
-static int hf_ntppriv_mode7_jitcnt = -1;
-static int hf_ntppriv_mode7_calcnt = -1;
-static int hf_ntppriv_mode7_errcnt = -1;
-static int hf_ntppriv_mode7_stbcnt = -1;
-static int hf_ntppriv_mode7_key = -1;
-static int hf_ntppriv_mode7_numkeys = -1;
-static int hf_ntppriv_mode7_numfreekeys = -1;
-static int hf_ntppriv_mode7_keylookups = -1;
-static int hf_ntppriv_mode7_keynotfound = -1;
-static int hf_ntppriv_mode7_encryptions = -1;
-static int hf_ntppriv_mode7_decryptions = -1;
-static int hf_ntppriv_mode7_expired = -1;
-static int hf_ntppriv_mode7_keyuncached = -1;
-static int hf_ntppriv_mode7_local_addr = -1;
-static int hf_ntppriv_mode7_trap_addr = -1;
-static int hf_ntppriv_mode7_trap_port = -1;
-static int hf_ntppriv_mode7_sequence = -1;
-static int hf_ntppriv_mode7_settime = -1;
-static int hf_ntppriv_mode7_origtime = -1;
-static int hf_ntppriv_mode7_resets = -1;
-static int hf_ntppriv_traps_flags = -1;
-static int hf_ntppriv_mode7_local_addr6 = -1;
-static int hf_ntppriv_mode7_trap_addr6 = -1;
-static int hf_ntppriv_mode7_last_offset = -1;
-static int hf_ntppriv_mode7_drift_comp = -1;
-static int hf_ntppriv_mode7_compliance = -1;
-static int hf_ntppriv_mode7_watchdog_timer = -1;
-static int hf_ntppriv_mode7_poll32 = -1;
-static int hf_ntppriv_mode7_denied = -1;
-static int hf_ntppriv_mode7_oldversion = -1;
-static int hf_ntppriv_mode7_newversion = -1;
-static int hf_ntppriv_mode7_badlength = -1;
-static int hf_ntppriv_mode7_limitrejected = -1;
-static int hf_ntppriv_mode7_lamport = -1;
-static int hf_ntppriv_mode7_tsrounding = -1;
-static int hf_ntppriv_mode7_totalmem = -1;
-static int hf_ntppriv_mode7_freemem = -1;
-static int hf_ntppriv_mode7_findpeer_calls = -1;
-static int hf_ntppriv_mode7_allocations = -1;
-static int hf_ntppriv_mode7_demobilizations = -1;
-static int hf_ntppriv_mode7_hashcount = -1;
-static int hf_ntppriv_mode7_totalrecvbufs = -1;
-static int hf_ntppriv_mode7_freerecvbufs = -1;
-static int hf_ntppriv_mode7_fullrecvbufs = -1;
-static int hf_ntppriv_mode7_lowwater = -1;
-static int hf_ntppriv_mode7_dropped = -1;
-static int hf_ntppriv_mode7_ignored = -1;
-static int hf_ntppriv_mode7_received = -1;
-static int hf_ntppriv_mode7_notsent = -1;
-static int hf_ntppriv_mode7_interrupts = -1;
-static int hf_ntppriv_mode7_int_received = -1;
-static int hf_ntppriv_mode7_alarms = -1;
-static int hf_ntppriv_mode7_overflows = -1;
-static int hf_ntppriv_mode7_xmtcalls = -1;
-static int hf_ntppriv_mode7_rflags = -1;
-static int hf_ntppriv_mode7_mflags = -1;
-static int hf_ntppriv_mode7_int_name = -1;
-static int hf_ntppriv_mode7_int_flags = -1;
-static int hf_ntppriv_mode7_last_ttl = -1;
-static int hf_ntppriv_mode7_num_mcast = -1;
-static int hf_ntppriv_mode7_uptime = -1;
-static int hf_ntppriv_mode7_scopeid = -1;
-static int hf_ntppriv_mode7_ifindex = -1;
-static int hf_ntppriv_mode7_ifnum = -1;
-static int hf_ntppriv_mode7_peercnt = -1;
-static int hf_ntppriv_mode7_family = -1;
-static int hf_ntppriv_mode7_ignore_pkt = -1;
-static int hf_ntppriv_mode7_action = -1;
-static int hf_ntppriv_mode7_nvalues = -1;
-static int hf_ntppriv_mode7_ntimes = -1;
-static int hf_ntppriv_mode7_svalues = -1;
-static int hf_ntppriv_mode7_stimes = -1;
-static int hf_ntppriv_mode7_values = -1;
-static int hf_ntppriv_mode7_times = -1;
-static int hf_ntppriv_mode7_which = -1;
-static int hf_ntppriv_mode7_fudgetime = -1;
-static int hf_ntppriv_mode7_fudgeval_flags = -1;
-static int hf_ntppriv_mode7_ippeerlimit = -1;
-static int hf_ntppriv_mode7_restrict_flags = -1;
+static int hf_ntppriv_flags_r;
+static int hf_ntppriv_flags_more;
+static int hf_ntppriv_auth_seq;
+static int hf_ntppriv_auth;
+static int hf_ntppriv_seq;
+static int hf_ntppriv_impl;
+static int hf_ntppriv_reqcode;
+static int hf_ntppriv_errcode;
+static int hf_ntppriv_numitems;
+static int hf_ntppriv_mbz;
+static int hf_ntppriv_mode7_item;
+static int hf_ntppriv_itemsize;
+static int hf_ntppriv_avgint;
+static int hf_ntppriv_lsint;
+static int hf_ntppriv_count;
+static int hf_ntppriv_restr;
+static int hf_ntppriv_addr;
+static int hf_ntppriv_daddr;
+static int hf_ntppriv_flags;
+static int hf_ntppriv_port;
+static int hf_ntppriv_mode;
+static int hf_ntppriv_version;
+static int hf_ntppriv_v6_flag;
+static int hf_ntppriv_unused;
+static int hf_ntppriv_addr6;
+static int hf_ntppriv_daddr6;
+static int hf_ntppriv_tstamp;
+static int hf_ntppriv_mode7_addr;
+static int hf_ntppriv_mode7_mask;
+static int hf_ntppriv_mode7_bcast;
+static int hf_ntppriv_mode7_port;
+static int hf_ntppriv_mode7_hmode;
+static int hf_ntppriv_mode7_peer_flags;
+static int hf_ntppriv_mode7_v6_flag;
+static int hf_ntppriv_mode7_unused;
+static int hf_ntppriv_mode7_addr6;
+static int hf_ntppriv_mode7_mask6;
+static int hf_ntppriv_mode7_bcast6;
+static int hf_ntppriv_mode7_peer_flags_config;
+static int hf_ntppriv_mode7_peer_flags_syspeer;
+static int hf_ntppriv_mode7_peer_flags_burst;
+static int hf_ntppriv_mode7_peer_flags_refclock;
+static int hf_ntppriv_mode7_peer_flags_prefer;
+static int hf_ntppriv_mode7_peer_flags_authenable;
+static int hf_ntppriv_mode7_peer_flags_sel_candidate;
+static int hf_ntppriv_mode7_peer_flags_shortlist;
+static int hf_ntppriv_mode7_dstaddr;
+static int hf_ntppriv_mode7_srcaddr;
+static int hf_ntppriv_mode7_srcport;
+static int hf_ntppriv_mode7_count;
+static int hf_ntppriv_mode7_hpoll;
+static int hf_ntppriv_mode7_reach;
+static int hf_ntppriv_mode7_delay;
+static int hf_ntppriv_mode7_offset;
+static int hf_ntppriv_mode7_dispersion;
+static int hf_ntppriv_mode7_dstaddr6;
+static int hf_ntppriv_mode7_srcaddr6;
+static int hf_ntppriv_mode7_leap;
+static int hf_ntppriv_mode7_pmode;
+static int hf_ntppriv_mode7_version;
+static int hf_ntppriv_mode7_unreach;
+static int hf_ntppriv_mode7_flash;
+static int hf_ntppriv_mode7_ttl;
+static int hf_ntppriv_mode7_flash2;
+static int hf_ntppriv_mode7_associd;
+static int hf_ntppriv_mode7_pkeyid;
+static int hf_ntppriv_mode7_timer;
+static int hf_ntppriv_mode7_filtdelay;
+static int hf_ntppriv_mode7_filtoffset;
+static int hf_ntppriv_mode7_order;
+static int hf_ntppriv_mode7_selectdis;
+static int hf_ntppriv_mode7_estbdelay;
+static int hf_ntppriv_mode7_bdelay;
+static int hf_ntppriv_mode7_authdelay;
+static int hf_ntppriv_mode7_stability;
+static int hf_ntppriv_mode7_timeup;
+static int hf_ntppriv_mode7_timereset;
+static int hf_ntppriv_mode7_timereceived;
+static int hf_ntppriv_mode7_timetosend;
+static int hf_ntppriv_mode7_timereachable;
+static int hf_ntppriv_mode7_sent;
+static int hf_ntppriv_mode7_processed;
+static int hf_ntppriv_mode7_badauth;
+static int hf_ntppriv_mode7_bogusorg;
+static int hf_ntppriv_mode7_oldpkt;
+static int hf_ntppriv_mode7_seldisp;
+static int hf_ntppriv_mode7_selbroken;
+static int hf_ntppriv_mode7_candidate;
+static int hf_ntppriv_mode7_minpoll;
+static int hf_ntppriv_mode7_maxpoll;
+static int hf_ntppriv_mode7_config_flags;
+static int hf_ntppriv_mode7_config_flags_auth;
+static int hf_ntppriv_mode7_config_flags_prefer;
+static int hf_ntppriv_mode7_config_flags_burst;
+static int hf_ntppriv_mode7_config_flags_iburst;
+static int hf_ntppriv_mode7_config_flags_noselect;
+static int hf_ntppriv_mode7_config_flags_skey;
+static int hf_ntppriv_mode7_key_file;
+static int hf_ntppriv_mode7_sys_flags;
+static int hf_ntppriv_mode7_sys_flags8;
+static int hf_ntppriv_mode7_sys_flags_bclient;
+static int hf_ntppriv_mode7_sys_flags_pps;
+static int hf_ntppriv_mode7_sys_flags_ntp;
+static int hf_ntppriv_mode7_sys_flags_kernel;
+static int hf_ntppriv_mode7_sys_flags_monitor;
+static int hf_ntppriv_mode7_sys_flags_filegen;
+static int hf_ntppriv_mode7_sys_flags_auth;
+static int hf_ntppriv_mode7_sys_flags_cal;
+static int hf_ntppriv_mode7_reset_stats_flags;
+static int hf_ntppriv_mode7_reset_stats_flags_allpeers;
+static int hf_ntppriv_mode7_reset_stats_flags_io;
+static int hf_ntppriv_mode7_reset_stats_flags_sys;
+static int hf_ntppriv_mode7_reset_stats_flags_mem;
+static int hf_ntppriv_mode7_reset_stats_flags_timer;
+static int hf_ntppriv_mode7_reset_stats_flags_auth;
+static int hf_ntppriv_mode7_reset_stats_flags_ctl;
+static int hf_ntppriv_mode7_req;
+static int hf_ntppriv_mode7_badpkts;
+static int hf_ntppriv_mode7_responses;
+static int hf_ntppriv_mode7_frags;
+static int hf_ntppriv_mode7_errors;
+static int hf_ntppriv_mode7_tooshort;
+static int hf_ntppriv_mode7_inputresp;
+static int hf_ntppriv_mode7_inputfrag;
+static int hf_ntppriv_mode7_inputerr;
+static int hf_ntppriv_mode7_badoffset;
+static int hf_ntppriv_mode7_badversion;
+static int hf_ntppriv_mode7_datatooshort;
+static int hf_ntppriv_mode7_badop;
+static int hf_ntppriv_mode7_asyncmsgs;
+static int hf_ntppriv_mode7_type;
+static int hf_ntppriv_mode7_clock_flags;
+static int hf_ntppriv_mode7_lastevent;
+static int hf_ntppriv_mode7_currentstatus;
+static int hf_ntppriv_mode7_polls;
+static int hf_ntppriv_mode7_noresponse;
+static int hf_ntppriv_mode7_badformat;
+static int hf_ntppriv_mode7_baddata;
+static int hf_ntppriv_mode7_timestarted;
+static int hf_ntppriv_mode7_fudgetime1;
+static int hf_ntppriv_mode7_fudgetime2;
+static int hf_ntppriv_mode7_fudgeval1;
+static int hf_ntppriv_mode7_fudgeval2;
+static int hf_ntppriv_mode7_kernel_offset;
+static int hf_ntppriv_mode7_freq;
+static int hf_ntppriv_mode7_maxerror;
+static int hf_ntppriv_mode7_esterror;
+static int hf_ntppriv_mode7_status;
+static int hf_ntppriv_mode7_shift;
+static int hf_ntppriv_mode7_constant;
+static int hf_ntppriv_mode7_precision;
+static int hf_ntppriv_mode7_tolerance;
+static int hf_ntppriv_mode7_ppsfreq;
+static int hf_ntppriv_mode7_jitter;
+static int hf_ntppriv_mode7_stabil;
+static int hf_ntppriv_mode7_jitcnt;
+static int hf_ntppriv_mode7_calcnt;
+static int hf_ntppriv_mode7_errcnt;
+static int hf_ntppriv_mode7_stbcnt;
+static int hf_ntppriv_mode7_key;
+static int hf_ntppriv_mode7_numkeys;
+static int hf_ntppriv_mode7_numfreekeys;
+static int hf_ntppriv_mode7_keylookups;
+static int hf_ntppriv_mode7_keynotfound;
+static int hf_ntppriv_mode7_encryptions;
+static int hf_ntppriv_mode7_decryptions;
+static int hf_ntppriv_mode7_expired;
+static int hf_ntppriv_mode7_keyuncached;
+static int hf_ntppriv_mode7_local_addr;
+static int hf_ntppriv_mode7_trap_addr;
+static int hf_ntppriv_mode7_trap_port;
+static int hf_ntppriv_mode7_sequence;
+static int hf_ntppriv_mode7_settime;
+static int hf_ntppriv_mode7_origtime;
+static int hf_ntppriv_mode7_resets;
+static int hf_ntppriv_traps_flags;
+static int hf_ntppriv_mode7_local_addr6;
+static int hf_ntppriv_mode7_trap_addr6;
+static int hf_ntppriv_mode7_last_offset;
+static int hf_ntppriv_mode7_drift_comp;
+static int hf_ntppriv_mode7_compliance;
+static int hf_ntppriv_mode7_watchdog_timer;
+static int hf_ntppriv_mode7_poll32;
+static int hf_ntppriv_mode7_denied;
+static int hf_ntppriv_mode7_oldversion;
+static int hf_ntppriv_mode7_newversion;
+static int hf_ntppriv_mode7_badlength;
+static int hf_ntppriv_mode7_limitrejected;
+static int hf_ntppriv_mode7_lamport;
+static int hf_ntppriv_mode7_tsrounding;
+static int hf_ntppriv_mode7_totalmem;
+static int hf_ntppriv_mode7_freemem;
+static int hf_ntppriv_mode7_findpeer_calls;
+static int hf_ntppriv_mode7_allocations;
+static int hf_ntppriv_mode7_demobilizations;
+static int hf_ntppriv_mode7_hashcount;
+static int hf_ntppriv_mode7_totalrecvbufs;
+static int hf_ntppriv_mode7_freerecvbufs;
+static int hf_ntppriv_mode7_fullrecvbufs;
+static int hf_ntppriv_mode7_lowwater;
+static int hf_ntppriv_mode7_dropped;
+static int hf_ntppriv_mode7_ignored;
+static int hf_ntppriv_mode7_received;
+static int hf_ntppriv_mode7_notsent;
+static int hf_ntppriv_mode7_interrupts;
+static int hf_ntppriv_mode7_int_received;
+static int hf_ntppriv_mode7_alarms;
+static int hf_ntppriv_mode7_overflows;
+static int hf_ntppriv_mode7_xmtcalls;
+static int hf_ntppriv_mode7_rflags;
+static int hf_ntppriv_mode7_mflags;
+static int hf_ntppriv_mode7_int_name;
+static int hf_ntppriv_mode7_int_flags;
+static int hf_ntppriv_mode7_last_ttl;
+static int hf_ntppriv_mode7_num_mcast;
+static int hf_ntppriv_mode7_uptime;
+static int hf_ntppriv_mode7_scopeid;
+static int hf_ntppriv_mode7_ifindex;
+static int hf_ntppriv_mode7_ifnum;
+static int hf_ntppriv_mode7_peercnt;
+static int hf_ntppriv_mode7_family;
+static int hf_ntppriv_mode7_ignore_pkt;
+static int hf_ntppriv_mode7_action;
+static int hf_ntppriv_mode7_nvalues;
+static int hf_ntppriv_mode7_ntimes;
+static int hf_ntppriv_mode7_svalues;
+static int hf_ntppriv_mode7_stimes;
+static int hf_ntppriv_mode7_values;
+static int hf_ntppriv_mode7_times;
+static int hf_ntppriv_mode7_which;
+static int hf_ntppriv_mode7_fudgetime;
+static int hf_ntppriv_mode7_fudgeval_flags;
+static int hf_ntppriv_mode7_ippeerlimit;
+static int hf_ntppriv_mode7_restrict_flags;
 
-static gint ett_ntp = -1;
-static gint ett_ntp_flags = -1;
-static gint ett_ntp_ext = -1;
-static gint ett_ntp_ext_flags = -1;
-static gint ett_ntpctrl_flags2 = -1;
-static gint ett_ntpctrl_status = -1;
-static gint ett_ntpctrl_data = -1;
-static gint ett_ntpctrl_item = -1;
-static gint ett_ntppriv_auth_seq = -1;
-static gint ett_mode7_item = -1;
-static gint ett_ntp_authenticator = -1;
-static gint ett_ntppriv_peer_list_flags = -1;
-static gint ett_ntppriv_config_flags = -1;
-static gint ett_ntppriv_sys_flag_flags = -1;
-static gint ett_ntppriv_reset_stats_flags = -1;
+static int ett_ntp;
+static int ett_ntp_flags;
+static int ett_ntp_ext;
+static int ett_ntp_ext_flags;
+static int ett_ntpctrl_flags2;
+static int ett_ntpctrl_status;
+static int ett_ntpctrl_data;
+static int ett_ntpctrl_item;
+static int ett_ntppriv_auth_seq;
+static int ett_mode7_item;
+static int ett_ntp_authenticator;
+static int ett_ntppriv_peer_list_flags;
+static int ett_ntppriv_config_flags;
+static int ett_ntppriv_sys_flag_flags;
+static int ett_ntppriv_reset_stats_flags;
 
-static expert_field ei_ntp_ext = EI_INIT;
+static expert_field ei_ntp_ext;
 
 static const char *mon_names[12] = {
 	"Jan",
@@ -1059,9 +1079,9 @@ static tvbparse_wanted_t *want_ignore;
 * dissection of the next packet occurs.
 */
 const char *
-tvb_ntp_fmt_ts_sec(tvbuff_t *tvb, gint offset)
+tvb_ntp_fmt_ts_sec(tvbuff_t *tvb, int offset)
 {
-	guint32 tempstmp;
+	uint32_t tempstmp;
 	time_t temptime;
 	struct tm *bd;
 	char *buff;
@@ -1094,9 +1114,9 @@ tvb_ntp_fmt_ts_sec(tvbuff_t *tvb, gint offset)
 }
 
 void
-ntp_to_nstime(tvbuff_t *tvb, gint offset, nstime_t *nstime)
+ntp_to_nstime(tvbuff_t *tvb, int offset, nstime_t *nstime)
 {
-	guint32 tempstmp;
+	uint32_t tempstmp;
 
 	/* We need a temporary variable here so the unsigned math
 	 * works correctly (for years > 2036 according to RFC 2030
@@ -1117,7 +1137,7 @@ dissect_ntp_ext(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ntp_tree, int off
 {
 	proto_tree *ext_tree;
 	proto_item *tf;
-	guint16 extlen;
+	uint16_t extlen;
 	int value_length;
 
 	extlen = tvb_get_ntohs(tvb, offset+2);
@@ -1158,24 +1178,24 @@ dissect_ntp_ext(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ntp_tree, int off
 static void
 dissect_ntp_std(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ntp_tree, ntp_conv_info_t *ntp_conv)
 {
-	guint8 stratum;
-	gint8 ppoll;
-	gint8 precision;
-	guint32 rootdelay;
+	uint8_t stratum;
+	int8_t ppoll;
+	int8_t precision;
+	uint32_t rootdelay;
 	double rootdelay_double;
-	guint32 rootdispersion;
+	uint32_t rootdispersion;
 	double rootdispersion_double;
-	guint32 refid_addr;
-	gchar *buff;
+	uint32_t refid_addr;
+	char *buff;
 	int i;
 	int efs_end;
-	guint16 last_extlen = 0;
+	uint16_t last_extlen = 0;
 	int macofs;
-	guint maclen;
+	unsigned maclen;
 	ntp_trans_info_t *ntp_trans;
 	wmem_tree_key_t key[3];
-	guint64 flags;
-	guint32 seq;
+	uint64_t flags;
+	uint32_t seq;
 
 	proto_tree_add_bitmask_ret_uint64(ntp_tree, tvb, 0, hf_ntp_flags, ett_ntp_flags,
 	                                  ntp_header_fields, ENC_NA, &flags);
@@ -1227,13 +1247,13 @@ dissect_ntp_std(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ntp_tree, ntp_con
 	/* Stratum, 1byte field represents distance from primary source
 	 */
 	proto_tree_add_item(ntp_tree, hf_ntp_stratum, tvb, 1, 1, ENC_NA);
-	stratum = tvb_get_guint8(tvb, 1);
+	stratum = tvb_get_uint8(tvb, 1);
 
 	/* Poll interval, 1byte field indicating the maximum interval
 	 * between successive messages, in seconds to the nearest
 	 * power of two.
 	 */
-	ppoll = tvb_get_gint8(tvb, 2);
+	ppoll = tvb_get_int8(tvb, 2);
 	proto_tree_add_int_format_value(ntp_tree, hf_ntp_ppoll, tvb, 2, 1,
 		ppoll, ppoll >= 0 ? "%d (%.0f seconds)" : "%d (%5.3f seconds)",
 		ppoll, pow(2, ppoll));
@@ -1241,7 +1261,7 @@ dissect_ntp_std(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ntp_tree, ntp_con
 	/* Precision, 1 byte field indicating the precision of the
 	 * local clock, in seconds to the nearest power of two.
 	 */
-	precision = tvb_get_gint8(tvb, 3);
+	precision = tvb_get_int8(tvb, 3);
 	proto_tree_add_int_format_value(ntp_tree, hf_ntp_precision, tvb, 3, 1,
 		precision, "%d (%11.9f seconds)", precision, pow(2, precision));
 
@@ -1270,10 +1290,10 @@ dissect_ntp_std(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ntp_tree, ntp_con
 	 * But, all V3 and V4 servers set this to IP address of their
 	 * higher level server. My decision was to resolve this address.
 	 */
-	buff = (gchar *)wmem_alloc(wmem_packet_scope(), NTP_TS_SIZE);
+	buff = (char *)wmem_alloc(pinfo->pool, NTP_TS_SIZE);
 	if (stratum == 0) {
 		snprintf (buff, NTP_TS_SIZE, "Unidentified Kiss-o\'-Death message '%s'",
-			tvb_get_string_enc(wmem_packet_scope(), tvb, 12, 4, ENC_ASCII));
+			tvb_get_string_enc(pinfo->pool, tvb, 12, 4, ENC_ASCII));
 		for (i = 0; kod_messages[i].id; i++) {
 			if (tvb_memeql(tvb, 12, kod_messages[i].id, 4) == 0) {
 				snprintf(buff, NTP_TS_SIZE, "%s",
@@ -1283,9 +1303,9 @@ dissect_ntp_std(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ntp_tree, ntp_con
 		}
 	} else if (stratum == 1) {
 		snprintf (buff, NTP_TS_SIZE, "Unidentified reference source '%s'",
-			tvb_get_string_enc(wmem_packet_scope(), tvb, 12, 4, ENC_ASCII));
+			tvb_get_string_enc(pinfo->pool, tvb, 12, 4, ENC_ASCII));
 		for (i = 0; primary_sources[i].id; i++) {
-			if (tvb_memeql(tvb, 12, (const guint8*)primary_sources[i].id, 4) == 0) {
+			if (tvb_memeql(tvb, 12, (const uint8_t*)primary_sources[i].id, 4) == 0) {
 				snprintf(buff, NTP_TS_SIZE, "%s",
 					primary_sources[i].data);
 				break;
@@ -1348,7 +1368,7 @@ dissect_ntp_std(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ntp_tree, ntp_con
 	 */
 	efs_end = 48;
 	while (tvb_reported_length_remaining(tvb, efs_end) >= 16) {
-		guint16 extlen = tvb_get_ntohs(tvb, efs_end + 2);
+		uint16_t extlen = tvb_get_ntohs(tvb, efs_end + 2);
 		if (extlen < 16) {
 			break;
 		}
@@ -1390,16 +1410,16 @@ dissect_ntp_std(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ntp_tree, ntp_con
 static void
 dissect_ntp_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *ntp_tree, ntp_conv_info_t *ntp_conv)
 {
-	guint8 flags2;
+	uint8_t flags2;
 	proto_tree *data_tree, *item_tree, *auth_tree;
 	proto_item *td, *ti;
-	guint16 associd;
-	guint16 datalen;
-	guint16 data_offset;
-	gint length_remaining;
-	gboolean auth_diss = FALSE;
+	uint16_t associd;
+	uint16_t datalen;
+	uint16_t data_offset;
+	int length_remaining;
+	bool auth_diss = false;
 	ntp_trans_info_t *ntp_trans;
-	guint32 seq;
+	uint32_t seq;
 	wmem_tree_key_t key[3];
 
 	tvbparse_t *tt;
@@ -1414,7 +1434,7 @@ dissect_ntp_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *ntp_tree, nt
 	};
 	proto_tree_add_bitmask(ntp_tree, tvb, 0, hf_ntp_flags, ett_ntp_flags, ntp_header_fields, ENC_NA);
 	proto_tree_add_bitmask(ntp_tree, tvb, 1, hf_ntpctrl_flags2, ett_ntpctrl_flags2, ntpctrl_flags, ENC_NA);
-	flags2 = tvb_get_guint8(tvb, 1);
+	flags2 = tvb_get_uint8(tvb, 1);
 
 	proto_tree_add_item_ret_uint(ntp_tree, hf_ntpctrl_sequence, tvb, 2, 2, ENC_BIG_ENDIAN, &seq);
 	key[0].length = 1;
@@ -1590,19 +1610,19 @@ dissect_ntp_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *ntp_tree, nt
 		case NTPCTRL_OP_CONFIGURE:
 		case NTPCTRL_OP_SAVECONFIG:
 			proto_tree_add_item(data_tree, hf_ntpctrl_configuration, tvb, data_offset, datalen, ENC_ASCII);
-			auth_diss = TRUE;
+			auth_diss = true;
 			break;
 		case NTPCTRL_OP_READ_MRU:
 			proto_tree_add_item(data_tree, hf_ntpctrl_mru, tvb, data_offset, datalen, ENC_ASCII);
-			auth_diss = TRUE;
+			auth_diss = true;
 			break;
 		case NTPCTRL_OP_READ_ORDLIST_A:
 			proto_tree_add_item(data_tree, hf_ntpctrl_ordlist, tvb, data_offset, datalen, ENC_ASCII);
-			auth_diss = TRUE;
+			auth_diss = true;
 			break;
 		case NTPCTRL_OP_REQ_NONCE:
 			proto_tree_add_item(data_tree, hf_ntpctrl_nonce, tvb, data_offset, datalen, ENC_ASCII);
-			auth_diss = TRUE;
+			auth_diss = true;
 			break;
 		/* these opcodes doesn't carry any data: NTPCTRL_OP_SETTRAP, NTPCTRL_OP_UNSETTRAP, NTPCTRL_OP_UNSPEC */
 		}
@@ -1611,9 +1631,9 @@ dissect_ntp_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *ntp_tree, nt
 	data_offset = 12+datalen;
 
 	/* Check if there is authentication */
-	if (((flags2 & NTPCTRL_R_MASK) == 0) || auth_diss == TRUE)
+	if (((flags2 & NTPCTRL_R_MASK) == 0) || auth_diss == true)
 	{
-		gint padding_length;
+		int padding_length;
 
 		length_remaining = tvb_reported_length_remaining(tvb, data_offset);
 		/* Check padding presence */
@@ -1695,11 +1715,11 @@ init_parser(void)
 static void
 dissect_ntp_priv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *ntp_tree, ntp_conv_info_t *ntp_conv)
 {
-	guint32 impl, reqcode;
-	guint64 flags, auth_seq;
+	uint32_t impl, reqcode;
+	uint64_t flags, auth_seq;
 	ntp_trans_info_t *ntp_trans;
 	wmem_tree_key_t key[3];
-	guint32 seq;
+	uint32_t seq;
 
 	static int * const priv_flags[] = {
 		&hf_ntppriv_flags_r,
@@ -1774,12 +1794,12 @@ dissect_ntp_priv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *ntp_tree, nt
 
 	if (impl == XNTPD) {
 
-		guint64 numitems;
-		guint64 itemsize;
-		guint16 offset;
-		guint i;
+		uint64_t numitems;
+		uint64_t itemsize;
+		uint16_t offset;
+		unsigned i;
 
-		guint32 v6_flag = 0;
+		uint32_t v6_flag = 0;
 
 		proto_item *mode7_item;
 		proto_tree *mode7_item_tree = NULL;
@@ -1789,12 +1809,12 @@ dissect_ntp_priv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *ntp_tree, nt
 		proto_tree_add_bits_item(ntp_tree, hf_ntppriv_mbz, tvb, 48, 4, ENC_BIG_ENDIAN);
 		proto_tree_add_bits_ret_val(ntp_tree, hf_ntppriv_itemsize, tvb, 52, 12, &itemsize, ENC_BIG_ENDIAN);
 
-		for (i = 0; i < (guint16)numitems; i++) {
+		for (i = 0; i < (uint16_t)numitems; i++) {
 
-			offset = 8 + (guint16)itemsize * i;
+			offset = 8 + (uint16_t)itemsize * i;
 
 			if ((reqcode != PRIV_RC_MON_GETLIST) && (reqcode != PRIV_RC_MON_GETLIST_1)) {
-				mode7_item = proto_tree_add_string_format(ntp_tree, hf_ntppriv_mode7_item, tvb, offset,(gint)itemsize,
+				mode7_item = proto_tree_add_string_format(ntp_tree, hf_ntppriv_mode7_item, tvb, offset,(int)itemsize,
 					"", "%s Item", val_to_str_ext_const(reqcode, &priv_rc_types_ext, "Unknown") );
 				mode7_item_tree = proto_item_add_subtree(mode7_item, ett_mode7_item);
 			}
@@ -1804,7 +1824,7 @@ dissect_ntp_priv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *ntp_tree, nt
 			case PRIV_RC_MON_GETLIST_1:
 
 				mode7_item = proto_tree_add_string_format(ntp_tree, hf_ntppriv_mode7_item, tvb, offset,
-					(gint)itemsize, "Monlist Item", "Monlist item: address: %s:%u",
+					(int)itemsize, "Monlist Item", "Monlist item: address: %s:%u",
 					tvb_ip_to_str(pinfo->pool, tvb, offset + 16), tvb_get_ntohs(tvb, offset + ((reqcode == PRIV_RC_MON_GETLIST_1) ? 28 : 20)));
 				mode7_item_tree = proto_item_add_subtree(mode7_item, ett_mode7_item);
 
@@ -2195,7 +2215,7 @@ dissect_ntp_priv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *ntp_tree, nt
 				offset += 4;
 				proto_tree_add_item(mode7_item_tree, hf_ntppriv_mode7_demobilizations, tvb, offset, 4, ENC_BIG_ENDIAN);
 				offset += 4;
-				proto_tree_add_item(mode7_item_tree, hf_ntppriv_mode7_hashcount, tvb, offset, (gint)itemsize - 20, ENC_NA);
+				proto_tree_add_item(mode7_item_tree, hf_ntppriv_mode7_hashcount, tvb, offset, (int)itemsize - 20, ENC_NA);
 				break;
 
 			case PRIV_RC_LOOP_INFO:
@@ -2587,7 +2607,7 @@ dissect_ntp_priv(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *ntp_tree, nt
 	}
 	if ((flags & NTPPRIV_R_MASK) == 0 && (auth_seq & NTPPRIV_AUTH_MASK)) {
 		/* request message with authentication bit */
-		gint len;
+		int len;
 		proto_tree_add_item(ntp_tree, hf_ntppriv_tstamp, tvb, 184, 8, ENC_TIME_NTP|ENC_BIG_ENDIAN);
 		proto_tree_add_item(ntp_tree, hf_ntp_keyid, tvb, 192, 4, ENC_NA);
 		len = tvb_reported_length_remaining(tvb, 196);
@@ -2606,7 +2626,7 @@ dissect_ntp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	proto_tree *ntp_tree;
 	proto_item *ti = NULL;
-	guint8 flags;
+	uint8_t flags;
 	conversation_t *conversation;
 	ntp_conv_info_t *ntp_conv;
 	void (*dissector)(tvbuff_t *, packet_info *, proto_tree *, ntp_conv_info_t *);
@@ -2615,7 +2635,7 @@ dissect_ntp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 
 	col_clear(pinfo->cinfo, COL_INFO);
 
-	flags = tvb_get_guint8(tvb, 0);
+	flags = tvb_get_uint8(tvb, 0);
 	switch (flags & NTP_MODE_MASK) {
 	default:
 		dissector = dissect_ntp_std;
@@ -3543,7 +3563,7 @@ proto_register_ntp(void)
 		/* Todo */
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_ntp,
 		&ett_ntp_flags,
 		&ett_ntp_ext,

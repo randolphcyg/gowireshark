@@ -16,12 +16,12 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/exceptions.h>
+#include <epan/tfs.h>
 #include <epan/expert.h>
 #include <epan/reassemble.h>
-#include <epan/wmem_scopes.h>
-
+#include <unit_strings.h>
 #include <ptvcursor.h>
+#include <wsutil/array.h>
 
 void proto_register_nfapi(void);
 void proto_reg_handoff_nfapi(void);
@@ -777,639 +777,639 @@ static const value_string arfcn_direction_vals[] = {
 	{ 0, NULL }
 };
 
-static int proto_nfapi = -1;
+static int proto_nfapi;
 
 /* These are for the subtrees */
-static gint ett_nfapi = -1;
-static gint ett_nfapi_p4_p5_message_header = -1;
-static gint ett_nfapi_p7_message_header = -1;
-static gint ett_nfapi_tlv_tree = -1;
-static gint ett_nfapi_tl = -1;
-static gint ett_nfapi_pnf_phy = -1;
-static gint ett_nfapi_pnf_phy_rel10 = -1;
-static gint ett_nfapi_pnf_phy_rel11 = -1;
-static gint ett_nfapi_pnf_phy_rel12 = -1;
-static gint ett_nfapi_pnf_phy_rel13 = -1;
-static gint ett_nfapi_pnf_phy_rf_config = -1;
-static gint ett_nfapi_rf_bands = -1;
-static gint ett_nfapi_tx_antenna_ports = -1;
-static gint ett_nfapi_harq_ack_nack_data = -1;
-static gint ett_nfapi_harq_data = -1;
-static gint ett_nfapi_cc = -1;
-static gint ett_nfapi_rbs = -1;
-static gint ett_nfapi_antennas = -1;
-static gint ett_nfapi_dl_config_request_pdu_list = -1;
-static gint ett_nfapi_ul_config_request_pdu_list = -1;
-static gint ett_nfapi_hi_dci0_request_pdu_list = -1;
-static gint ett_nfapi_tx_request_pdu_list = -1;
-static gint ett_nfapi_rx_indication_pdu_list = -1;
-static gint ett_nfapi_harq_indication_pdu_list = -1;
-static gint ett_nfapi_crc_indication_pdu_list = -1;
-static gint ett_nfapi_sr_indication_pdu_list = -1;
-static gint ett_nfapi_cqi_indication_pdu_list = -1;
-static gint ett_nfapi_preamble_indication_pdu_list = -1;
-static gint ett_nfapi_srs_indication_pdu_list = -1;
-static gint ett_nfapi_lbt_dl_config_pdu_list = -1;
-static gint ett_nfapi_lbt_dl_indication_pdu_list = -1;
-static gint ett_nfapi_subbands = -1;
-static gint ett_nfapi_bf_vector_antennas = -1;
-static gint ett_nfapi_bf_vectors = -1;
-static gint ett_nfapi_csi_rs_resource_configs = -1;
-static gint ett_nfapi_csi_rs_bf_vector = -1;
-static gint ett_nfapi_epdcch_prbs = -1;
-static gint ett_nfapi_precoding = -1;
-static gint ett_nfapi_earfcn_list = -1;
-static gint ett_nfapi_uarfcn_list = -1;
-static gint ett_nfapi_arfcn_list = -1;
-static gint ett_nfapi_rssi_list = -1;
-static gint ett_nfapi_pci_list = -1;
-static gint ett_nfapi_psc_list = -1;
-static gint ett_nfapi_lte_cells_found_list = -1;
-static gint ett_nfapi_utran_cells_found_list = -1;
-static gint ett_nfapi_geran_cells_found_list = -1;
-static gint ett_nfapi_si_periodicity_list = -1;
-static gint ett_nfapi_downlink_bandwidth_support = -1;
-static gint ett_nfapi_uplink_bandwidth_support = -1;
-static gint ett_nfapi_downlink_modulation_support = -1;
-static gint ett_nfapi_uplink_modulation_support = -1;
-static gint ett_nfapi_received_interference_power_mesurement_results = -1;
-static gint ett_nfapi_release_support = -1;
-static expert_field ei_invalid_range = EI_INIT;
-static expert_field ei_invalid_tlv_length = EI_INIT;
+static int ett_nfapi;
+static int ett_nfapi_p4_p5_message_header;
+static int ett_nfapi_p7_message_header;
+static int ett_nfapi_tlv_tree;
+static int ett_nfapi_tl;
+static int ett_nfapi_pnf_phy;
+static int ett_nfapi_pnf_phy_rel10;
+static int ett_nfapi_pnf_phy_rel11;
+static int ett_nfapi_pnf_phy_rel12;
+static int ett_nfapi_pnf_phy_rel13;
+static int ett_nfapi_pnf_phy_rf_config;
+static int ett_nfapi_rf_bands;
+static int ett_nfapi_tx_antenna_ports;
+static int ett_nfapi_harq_ack_nack_data;
+static int ett_nfapi_harq_data;
+static int ett_nfapi_cc;
+static int ett_nfapi_rbs;
+static int ett_nfapi_antennas;
+static int ett_nfapi_dl_config_request_pdu_list;
+static int ett_nfapi_ul_config_request_pdu_list;
+static int ett_nfapi_hi_dci0_request_pdu_list;
+static int ett_nfapi_tx_request_pdu_list;
+static int ett_nfapi_rx_indication_pdu_list;
+static int ett_nfapi_harq_indication_pdu_list;
+static int ett_nfapi_crc_indication_pdu_list;
+static int ett_nfapi_sr_indication_pdu_list;
+static int ett_nfapi_cqi_indication_pdu_list;
+static int ett_nfapi_preamble_indication_pdu_list;
+static int ett_nfapi_srs_indication_pdu_list;
+static int ett_nfapi_lbt_dl_config_pdu_list;
+static int ett_nfapi_lbt_dl_indication_pdu_list;
+static int ett_nfapi_subbands;
+static int ett_nfapi_bf_vector_antennas;
+static int ett_nfapi_bf_vectors;
+static int ett_nfapi_csi_rs_resource_configs;
+static int ett_nfapi_csi_rs_bf_vector;
+static int ett_nfapi_epdcch_prbs;
+static int ett_nfapi_precoding;
+static int ett_nfapi_earfcn_list;
+static int ett_nfapi_uarfcn_list;
+static int ett_nfapi_arfcn_list;
+static int ett_nfapi_rssi_list;
+static int ett_nfapi_pci_list;
+static int ett_nfapi_psc_list;
+static int ett_nfapi_lte_cells_found_list;
+static int ett_nfapi_utran_cells_found_list;
+static int ett_nfapi_geran_cells_found_list;
+static int ett_nfapi_si_periodicity_list;
+static int ett_nfapi_downlink_bandwidth_support;
+static int ett_nfapi_uplink_bandwidth_support;
+static int ett_nfapi_downlink_modulation_support;
+static int ett_nfapi_uplink_modulation_support;
+static int ett_nfapi_received_interference_power_mesurement_results;
+static int ett_nfapi_release_support;
+static expert_field ei_invalid_range;
+static expert_field ei_invalid_tlv_length;
 
-static int hf_nfapi_p4_p5_message_header_phy_id = -1;
-static int hf_nfapi_p4_p5_message_header_message_id = -1;
-static int hf_nfapi_p4_p5_message_header_message_length = -1;
-static int hf_nfapi_p4_p5_message_header_spare = -1;
-static int hf_nfapi_p7_message_header_phy_id = -1;
-static int hf_nfapi_p7_message_header_message_id = -1;
-static int hf_nfapi_p7_message_header_message_length = -1;
-static int hf_nfapi_p7_message_header_m = -1;
-static int hf_nfapi_p7_message_header_segment = -1;
-static int hf_nfapi_p7_message_header_sequence_number = -1;
-static int hf_nfapi_p7_message_header_checksum = -1;
-static int hf_nfapi_p7_message_header_transmit_timestamp = -1;
-static int hf_nfapi_tl_tag = -1;
-static int hf_nfapi_tl_length = -1;
-static int hf_nfapi_sync_mode = -1;
-static int hf_nfapi_location_mode = -1;
-static int hf_nfapi_location_coordinates = -1;
-static int hf_nfapi_dl_config_timing = -1;
-static int hf_nfapi_tx_timing = -1;
-static int hf_nfapi_ul_config_timing = -1;
-static int hf_nfapi_hi_dci0_timing = -1;
-static int hf_nfapi_maximum_number_phys = -1;
-static int hf_nfapi_maximum_total_bandwidth = -1;
-static int hf_nfapi_maximum_total_number_dl_layers = -1;
-static int hf_nfapi_maximum_total_number_ul_layers = -1;
-static int hf_nfapi_shared_bands = -1;
-static int hf_nfapi_shared_pa = -1;
-static int hf_nfapi_maximum_total_power = -1;
-static int hf_nfapi_oui = -1;
-static int hf_nfapi_pdu = -1;
-static int hf_nfapi_pnf_phy_number_phy = -1;
-static int hf_nfapi_pnf_phy_config_index = -1;
-static int hf_nfapi_number_of_rf_exclusions = -1;
-static int hf_nfapi_dl_bandwidth_support = -1;
-static int hf_nfapi_dl_bandwidth_support_6 = -1;
-static int hf_nfapi_dl_bandwidth_support_15 = -1;
-static int hf_nfapi_dl_bandwidth_support_25 = -1;
-static int hf_nfapi_dl_bandwidth_support_50 = -1;
-static int hf_nfapi_dl_bandwidth_support_75 = -1;
-static int hf_nfapi_dl_bandwidth_support_100 = -1;
-static int hf_nfapi_ul_bandwidth_support = -1;
-static int hf_nfapi_ul_bandwidth_support_6 = -1;
-static int hf_nfapi_ul_bandwidth_support_15= -1;
-static int hf_nfapi_ul_bandwidth_support_25 = -1;
-static int hf_nfapi_ul_bandwidth_support_50 = -1;
-static int hf_nfapi_ul_bandwidth_support_75 = -1;
-static int hf_nfapi_ul_bandwidth_support_100 = -1;
-static int hf_nfapi_downlink_channel_bandwidth_supported = -1;
-static int hf_nfapi_uplink_channel_bandwidth_supported = -1;
-static int hf_nfapi_number_of_dl_layers_supported = -1;
-static int hf_nfapi_number_of_ul_layers_supported = -1;
-static int hf_nfapi_maximum_3gpp_release_supported = -1;
-static int hf_nfapi_maximum_3gpp_release_supported_rel8 = -1;
-static int hf_nfapi_maximum_3gpp_release_supported_rel9 = -1;
-static int hf_nfapi_maximum_3gpp_release_supported_rel10 = -1;
-static int hf_nfapi_maximum_3gpp_release_supported_rel11 = -1;
-static int hf_nfapi_maximum_3gpp_release_supported_rel12 = -1;
-static int hf_nfapi_maximum_3gpp_release_supported_rel13 = -1;
-static int hf_nfapi_nmm_modes_supported = -1;
-static int hf_nfapi_number_of_rfs = -1;
-static int hf_nfapi_rf_config_index = -1;
-static int hf_nfapi_band = -1;
-static int hf_nfapi_maximum_transmit_power = -1;
-static int hf_nfapi_maximum_transmit_power_2 = -1;
-static int hf_nfapi_earfcn = -1;
-static int hf_nfapi_minimum_transmit_power = -1;
-static int hf_nfapi_number_of_antennas_supported = -1;
-static int hf_nfapi_minimum_downlink_frequency = -1;
-static int hf_nfapi_maximum_downlink_frequency = -1;
-static int hf_nfapi_minimum_uplink_frequency = -1;
-static int hf_nfapi_maximum_uplink_frequency = -1;
-static int hf_nfapi_number_of_rf_bands = -1;
-static int hf_nfapi_nmm_uplink_rssi_supported = -1;
-static int hf_nfapi_phy_rf_config_info_phy_id = -1;
-static int hf_nfapi_transmission_mode7_supported = -1;
-static int hi_nfapi_transmission_mode8_supported = -1;
-static int hi_nfapi_two_antennas_ports_for_pucch = -1;
-static int hi_nfapi_transmission_mode_9_supported = -1;
-static int hi_nfapi_simultaneous_pucch_pusch = -1;
-static int hi_nfapi_four_layer_tx_with_tm3_and_tm4 = -1;
-static int hf_nfapi_epdcch_supported = -1;
-static int hi_nfapi_multi_ack_csi_reporting = -1;
-static int hi_nfapi_pucch_tx_diversity_with_channel_selection = -1;
-static int hi_nfapi_ul_comp_supported = -1;
-static int hi_nfapi_transmission_mode_5_supported = -1;
-static int hf_nfapi_csi_subframe_set = -1;
-static int hi_nfapi_enhanced_4tx_codebook = -1;
-static int hi_nfapi_drs_supported = -1;
-static int hi_nfapi_ul_64qam_supported = -1;
-static int hi_nfapi_transmission_mode_10_supported = -1;
-static int hi_nfapi_alternative_tbs_indices = -1;
-static int hf_nfapi_pucch_format_4_supported = -1;
-static int hf_nfapi_pucch_format_5_supported = -1;
-static int hf_nfapi_more_than_5_ca_supported = -1;
-static int hf_nfapi_laa_supported = -1;
-static int hf_nfapi_laa_ending_in_dwpts_supported = -1;
-static int hf_nfapi_laa_starting_in_second_slot_supported = -1;
-static int hf_nfapi_beamforming_supported = -1;
-static int hf_nfapi_csi_rs_enhancements_supported = -1;
-static int hf_nfapi_drms_enhancements_supported = -1;
-static int hf_nfapi_srs_enhancements_supported = -1;
-static int hf_nfapi_dl_rs_tx_power = -1;
-static int hf_nfapi_received_interference_power = -1;
-static int hf_nfapi_thermal_noise_power = -1;
-static int hf_nfapi_dl_rs_tx_power_measurement = -1;
-static int hf_nfapi_received_interference_power_measurement = -1;
-static int hf_nfapi_thermal_noise_power_measurement = -1;
+static int hf_nfapi_p4_p5_message_header_phy_id;
+static int hf_nfapi_p4_p5_message_header_message_id;
+static int hf_nfapi_p4_p5_message_header_message_length;
+static int hf_nfapi_p4_p5_message_header_spare;
+static int hf_nfapi_p7_message_header_phy_id;
+static int hf_nfapi_p7_message_header_message_id;
+static int hf_nfapi_p7_message_header_message_length;
+static int hf_nfapi_p7_message_header_m;
+static int hf_nfapi_p7_message_header_segment;
+static int hf_nfapi_p7_message_header_sequence_number;
+static int hf_nfapi_p7_message_header_checksum;
+static int hf_nfapi_p7_message_header_transmit_timestamp;
+static int hf_nfapi_tl_tag;
+static int hf_nfapi_tl_length;
+static int hf_nfapi_sync_mode;
+static int hf_nfapi_location_mode;
+static int hf_nfapi_location_coordinates;
+static int hf_nfapi_dl_config_timing;
+static int hf_nfapi_tx_timing;
+static int hf_nfapi_ul_config_timing;
+static int hf_nfapi_hi_dci0_timing;
+static int hf_nfapi_maximum_number_phys;
+static int hf_nfapi_maximum_total_bandwidth;
+static int hf_nfapi_maximum_total_number_dl_layers;
+static int hf_nfapi_maximum_total_number_ul_layers;
+static int hf_nfapi_shared_bands;
+static int hf_nfapi_shared_pa;
+static int hf_nfapi_maximum_total_power;
+static int hf_nfapi_oui;
+static int hf_nfapi_pdu;
+static int hf_nfapi_pnf_phy_number_phy;
+static int hf_nfapi_pnf_phy_config_index;
+static int hf_nfapi_number_of_rf_exclusions;
+static int hf_nfapi_dl_bandwidth_support;
+static int hf_nfapi_dl_bandwidth_support_6;
+static int hf_nfapi_dl_bandwidth_support_15;
+static int hf_nfapi_dl_bandwidth_support_25;
+static int hf_nfapi_dl_bandwidth_support_50;
+static int hf_nfapi_dl_bandwidth_support_75;
+static int hf_nfapi_dl_bandwidth_support_100;
+static int hf_nfapi_ul_bandwidth_support;
+static int hf_nfapi_ul_bandwidth_support_6;
+static int hf_nfapi_ul_bandwidth_support_15;
+static int hf_nfapi_ul_bandwidth_support_25;
+static int hf_nfapi_ul_bandwidth_support_50;
+static int hf_nfapi_ul_bandwidth_support_75;
+static int hf_nfapi_ul_bandwidth_support_100;
+static int hf_nfapi_downlink_channel_bandwidth_supported;
+static int hf_nfapi_uplink_channel_bandwidth_supported;
+static int hf_nfapi_number_of_dl_layers_supported;
+static int hf_nfapi_number_of_ul_layers_supported;
+static int hf_nfapi_maximum_3gpp_release_supported;
+static int hf_nfapi_maximum_3gpp_release_supported_rel8;
+static int hf_nfapi_maximum_3gpp_release_supported_rel9;
+static int hf_nfapi_maximum_3gpp_release_supported_rel10;
+static int hf_nfapi_maximum_3gpp_release_supported_rel11;
+static int hf_nfapi_maximum_3gpp_release_supported_rel12;
+static int hf_nfapi_maximum_3gpp_release_supported_rel13;
+static int hf_nfapi_nmm_modes_supported;
+static int hf_nfapi_number_of_rfs;
+static int hf_nfapi_rf_config_index;
+static int hf_nfapi_band;
+static int hf_nfapi_maximum_transmit_power;
+static int hf_nfapi_maximum_transmit_power_2;
+static int hf_nfapi_earfcn;
+static int hf_nfapi_minimum_transmit_power;
+static int hf_nfapi_number_of_antennas_supported;
+static int hf_nfapi_minimum_downlink_frequency;
+static int hf_nfapi_maximum_downlink_frequency;
+static int hf_nfapi_minimum_uplink_frequency;
+static int hf_nfapi_maximum_uplink_frequency;
+static int hf_nfapi_number_of_rf_bands;
+static int hf_nfapi_nmm_uplink_rssi_supported;
+static int hf_nfapi_phy_rf_config_info_phy_id;
+static int hf_nfapi_transmission_mode7_supported;
+static int hf_nfapi_transmission_mode8_supported;
+static int hf_nfapi_two_antennas_ports_for_pucch;
+static int hf_nfapi_transmission_mode_9_supported;
+static int hf_nfapi_simultaneous_pucch_pusch;
+static int hf_nfapi_four_layer_tx_with_tm3_and_tm4;
+static int hf_nfapi_epdcch_supported;
+static int hf_nfapi_multi_ack_csi_reporting;
+static int hf_nfapi_pucch_tx_diversity_with_channel_selection;
+static int hf_nfapi_ul_comp_supported;
+static int hf_nfapi_transmission_mode_5_supported;
+static int hf_nfapi_csi_subframe_set;
+static int hf_nfapi_enhanced_4tx_codebook;
+static int hf_nfapi_drs_supported;
+static int hf_nfapi_ul_64qam_supported;
+static int hf_nfapi_transmission_mode_10_supported;
+static int hf_nfapi_alternative_tbs_indices;
+static int hf_nfapi_pucch_format_4_supported;
+static int hf_nfapi_pucch_format_5_supported;
+static int hf_nfapi_more_than_5_ca_supported;
+static int hf_nfapi_laa_supported;
+static int hf_nfapi_laa_ending_in_dwpts_supported;
+static int hf_nfapi_laa_starting_in_second_slot_supported;
+static int hf_nfapi_beamforming_supported;
+static int hf_nfapi_csi_rs_enhancements_supported;
+static int hf_nfapi_drms_enhancements_supported;
+static int hf_nfapi_srs_enhancements_supported;
+static int hf_nfapi_dl_rs_tx_power;
+static int hf_nfapi_received_interference_power;
+static int hf_nfapi_thermal_noise_power;
+static int hf_nfapi_dl_rs_tx_power_measurement;
+static int hf_nfapi_received_interference_power_measurement;
+static int hf_nfapi_thermal_noise_power_measurement;
 
 // P5 Message Structures
-static int hf_nfapi_error_code = -1;
-static int hf_nfapi_p4_error_code = -1;
-static int hf_nfapi_rat_type = -1;
-static int hf_nfapi_num_tlv = -1;
-static int hf_nfapi_phy_state = -1;
-static int hf_nfapi_phy_antenna_capability = -1;
-static int hf_nfapi_release_capability = -1;
-static int hf_nfapi_mbsfn_capability = -1;
-static int hf_nfapi_laa_capability = -1;
-static int hf_nfapi_pd_sensing_lbt_support = -1;
-static int hf_nfapi_multi_carrier_lbt_support = -1;
-static int hf_nfapi_partial_sf_support = -1;
+static int hf_nfapi_error_code;
+static int hf_nfapi_p4_error_code;
+static int hf_nfapi_rat_type;
+static int hf_nfapi_num_tlv;
+static int hf_nfapi_phy_state;
+static int hf_nfapi_phy_antenna_capability;
+static int hf_nfapi_release_capability;
+static int hf_nfapi_mbsfn_capability;
+static int hf_nfapi_laa_capability;
+static int hf_nfapi_pd_sensing_lbt_support;
+static int hf_nfapi_multi_carrier_lbt_support;
+static int hf_nfapi_partial_sf_support;
 
-static int hf_nfapi_pnf_address_ipv4 = -1;
-static int hf_nfapi_pnf_address_ipv6 = -1;
-static int hf_nfapi_vnf_address_ipv4 = -1;
-static int hf_nfapi_vnf_address_ipv6 = -1;
-static int hf_nfapi_pnf_port = -1;
-static int hf_nfapi_vnf_port = -1;
-static int hf_nfapi_dl_ue_per_sf = -1;
-static int hf_nfapi_ul_ue_per_sf = -1;
-static int hf_nfapi_timing_window = -1;
-static int hf_nfapi_timing_info_mode = -1;
-static int hf_nfapi_timing_info_period = -1;
-static int hf_nfapi_duplex_mode = -1;
-static int hf_nfapi_pcfich_power_offset = -1;
-static int hf_nfapi_pb = -1;
-static int hf_nfapi_dl_cyclic_prefix_type = -1;
-static int hf_nfapi_ul_cyclic_prefix_type = -1;
-static int hf_nfapi_tx_antenna_ports = -1;
-static int hf_nfapi_rx_antenna_ports = -1;
-static int hf_nfapi_downlink_channel_bandwidth = -1;
-static int hf_nfapi_uplink_channel_bandwidth = -1;
-static int hf_nfapi_reference_signal_power = -1;
-static int hf_nfapi_phich_resource = -1;
-static int hf_nfapi_phich_duration = -1;
-static int hf_nfapi_phich_power_offset = -1;
-static int hf_nfapi_primary_synchronization_signal_epre_eprers = -1;
-static int hf_nfapi_secondary_synchronization_signal_epre_eprers = -1;
-static int hf_nfapi_physical_cell_id = -1;
-static int hf_nfapi_configuration_index = -1;
-static int hf_nfapi_root_sequence_index = -1;
-static int hf_nfapi_zero_correlation_zone_configuration = -1;
-static int hf_nfapi_high_speed_flag = -1;
-static int hf_nfapi_frequency_offset = -1;
-static int hf_nfapi_hopping_mode = -1;
-static int hf_nfapi_hopping_offset = -1;
-static int hf_nfapi_delta_pucch_shift = -1;
-static int hf_nfapi_n_cqi_rb = -1;
-static int hf_nfapi_n_an_cs = -1;
-static int hf_nfapi_n1_pucch_an = -1;
-static int hf_nfapi_bandwidth_configuration = -1;
-static int hf_nfapi_max_up_pts = -1;
-static int hf_nfapi_srs_subframe_configuration = -1;
-static int hf_nfapi_srs_acknack_srs_simultaneous_transmission = -1;
-static int hf_nfapi_uplink_rs_hopping = -1;
-static int hf_nfapi_group_assignment = -1;
-static int hf_nfapi_cyclic_shift_1_for_drms = -1;
-static int hf_nfapi_subframe_assignment = -1;
-static int hf_nfapi_special_subframe_patterns = -1;
-static int hf_nfapi_ed_threshold_for_lbt_for_pdsch = -1;
-static int hf_nfapi_ed_threshold_for_lbt_for_drs = -1;
-static int hf_nfapi_pd_threshold = -1;
-static int hf_nfapi_multi_carrier_type = -1;
-static int hf_nfapi_multi_carrier_tx = -1;
-static int hf_nfapi_multi_carrier_freeze = -1;
-static int hf_nfapi_tx_antenna_ports_for_drs = -1;
-static int hf_nfapi_transmission_power_for_drs = -1;
-static int hf_nfapi_pbch_repetitions_enabled_r13 = -1;
-static int hf_nfapi_prach_cat_m_root_sequence_index = -1;
-static int hf_nfapi_prach_cat_m_zero_correlation_zone_configuration = -1;
-static int hf_nfapi_prach_cat_m_high_speed_flag = -1;
-static int hf_nfapi_prach_ce_level_0_enable = -1;
-static int hf_nfapi_prach_ce_level_0_configuration_index = -1;
-static int hf_nfapi_prach_ce_level_0_frequency_offset = -1;
-static int hf_nfapi_prach_ce_level_0_number_of_repetitions_per_attempt = -1;
-static int hf_nfapi_prach_ce_level_0_starting_subframe_periodicity = -1;
-static int hf_nfapi_prach_ce_level_0_hopping_enabled = -1;
-static int hf_nfapi_prach_ce_level_0_hopping_offset = -1;
-static int hf_nfapi_prach_ce_level_1_enable = -1;
-static int hf_nfapi_prach_ce_level_1_configuration_index = -1;
-static int hf_nfapi_prach_ce_level_1_frequency_offset = -1;
-static int hf_nfapi_prach_ce_level_1_number_of_repetitions_per_attempt = -1;
-static int hf_nfapi_prach_ce_level_1_starting_subframe_periodicity = -1;
-static int hf_nfapi_prach_ce_level_1_hopping_enabled = -1;
-static int hf_nfapi_prach_ce_level_1_hopping_offset = -1;
-static int hf_nfapi_prach_ce_level_2_enable = -1;
-static int hf_nfapi_prach_ce_level_2_configuration_index = -1;
-static int hf_nfapi_prach_ce_level_2_frequency_offset = -1;
-static int hf_nfapi_prach_ce_level_2_number_of_repetitions_per_attempt = -1;
-static int hf_nfapi_prach_ce_level_2_starting_subframe_periodicity = -1;
-static int hf_nfapi_prach_ce_level_2_hopping_enabled = -1;
-static int hf_nfapi_prach_ce_level_2_hopping_offset = -1;
-static int hf_nfapi_prach_ce_level_3_enable = -1;
-static int hf_nfapi_prach_ce_level_3_configuration_index = -1;
-static int hf_nfapi_prach_ce_level_3_frequency_offset = -1;
-static int hf_nfapi_prach_ce_level_3_number_of_repetitions_per_attempt = -1;
-static int hf_nfapi_prach_ce_level_3_starting_subframe_periodicity = -1;
-static int hf_nfapi_prach_ce_level_3_hopping_enabled = -1;
-static int hf_nfapi_prach_ce_level_3_hopping_offset = -1;
-static int hf_nfapi_pucch_internal_ul_hopping_config_common_mode_b = -1;
-static int hf_nfapi_pucch_internal_ul_hopping_config_common_mode_a = -1;
-static int hf_nfapi_dl_modulation_support = -1;
-static int hf_nfapi_dl_modulation_support_qpsk = -1;
-static int hf_nfapi_dl_modulation_support_16qam = -1;
-static int hf_nfapi_dl_modulation_support_64qam = -1;
-static int hf_nfapi_dl_modulation_support_256qam = -1;
-static int hf_nfapi_ul_modulation_support = -1;
-static int hf_nfapi_ul_modulation_support_qpsk = -1;
-static int hf_nfapi_ul_modulation_support_16qam = -1;
-static int hf_nfapi_ul_modulation_support_64qam = -1;
-static int hf_nfapi_data_report_mode = -1;
-static int hf_nfapi_sfnsf = -1;
+static int hf_nfapi_pnf_address_ipv4;
+static int hf_nfapi_pnf_address_ipv6;
+static int hf_nfapi_vnf_address_ipv4;
+static int hf_nfapi_vnf_address_ipv6;
+static int hf_nfapi_pnf_port;
+static int hf_nfapi_vnf_port;
+static int hf_nfapi_dl_ue_per_sf;
+static int hf_nfapi_ul_ue_per_sf;
+static int hf_nfapi_timing_window;
+static int hf_nfapi_timing_info_mode;
+static int hf_nfapi_timing_info_period;
+static int hf_nfapi_duplex_mode;
+static int hf_nfapi_pcfich_power_offset;
+static int hf_nfapi_pb;
+static int hf_nfapi_dl_cyclic_prefix_type;
+static int hf_nfapi_ul_cyclic_prefix_type;
+static int hf_nfapi_tx_antenna_ports;
+static int hf_nfapi_rx_antenna_ports;
+static int hf_nfapi_downlink_channel_bandwidth;
+static int hf_nfapi_uplink_channel_bandwidth;
+static int hf_nfapi_reference_signal_power;
+static int hf_nfapi_phich_resource;
+static int hf_nfapi_phich_duration;
+static int hf_nfapi_phich_power_offset;
+static int hf_nfapi_primary_synchronization_signal_epre_eprers;
+static int hf_nfapi_secondary_synchronization_signal_epre_eprers;
+static int hf_nfapi_physical_cell_id;
+static int hf_nfapi_configuration_index;
+static int hf_nfapi_root_sequence_index;
+static int hf_nfapi_zero_correlation_zone_configuration;
+static int hf_nfapi_high_speed_flag;
+static int hf_nfapi_frequency_offset;
+static int hf_nfapi_hopping_mode;
+static int hf_nfapi_hopping_offset;
+static int hf_nfapi_delta_pucch_shift;
+static int hf_nfapi_n_cqi_rb;
+static int hf_nfapi_n_an_cs;
+static int hf_nfapi_n1_pucch_an;
+static int hf_nfapi_bandwidth_configuration;
+static int hf_nfapi_max_up_pts;
+static int hf_nfapi_srs_subframe_configuration;
+static int hf_nfapi_srs_acknack_srs_simultaneous_transmission;
+static int hf_nfapi_uplink_rs_hopping;
+static int hf_nfapi_group_assignment;
+static int hf_nfapi_cyclic_shift_1_for_drms;
+static int hf_nfapi_subframe_assignment;
+static int hf_nfapi_special_subframe_patterns;
+static int hf_nfapi_ed_threshold_for_lbt_for_pdsch;
+static int hf_nfapi_ed_threshold_for_lbt_for_drs;
+static int hf_nfapi_pd_threshold;
+static int hf_nfapi_multi_carrier_type;
+static int hf_nfapi_multi_carrier_tx;
+static int hf_nfapi_multi_carrier_freeze;
+static int hf_nfapi_tx_antenna_ports_for_drs;
+static int hf_nfapi_transmission_power_for_drs;
+static int hf_nfapi_pbch_repetitions_enabled_r13;
+static int hf_nfapi_prach_cat_m_root_sequence_index;
+static int hf_nfapi_prach_cat_m_zero_correlation_zone_configuration;
+static int hf_nfapi_prach_cat_m_high_speed_flag;
+static int hf_nfapi_prach_ce_level_0_enable;
+static int hf_nfapi_prach_ce_level_0_configuration_index;
+static int hf_nfapi_prach_ce_level_0_frequency_offset;
+static int hf_nfapi_prach_ce_level_0_number_of_repetitions_per_attempt;
+static int hf_nfapi_prach_ce_level_0_starting_subframe_periodicity;
+static int hf_nfapi_prach_ce_level_0_hopping_enabled;
+static int hf_nfapi_prach_ce_level_0_hopping_offset;
+static int hf_nfapi_prach_ce_level_1_enable;
+static int hf_nfapi_prach_ce_level_1_configuration_index;
+static int hf_nfapi_prach_ce_level_1_frequency_offset;
+static int hf_nfapi_prach_ce_level_1_number_of_repetitions_per_attempt;
+static int hf_nfapi_prach_ce_level_1_starting_subframe_periodicity;
+static int hf_nfapi_prach_ce_level_1_hopping_enabled;
+static int hf_nfapi_prach_ce_level_1_hopping_offset;
+static int hf_nfapi_prach_ce_level_2_enable;
+static int hf_nfapi_prach_ce_level_2_configuration_index;
+static int hf_nfapi_prach_ce_level_2_frequency_offset;
+static int hf_nfapi_prach_ce_level_2_number_of_repetitions_per_attempt;
+static int hf_nfapi_prach_ce_level_2_starting_subframe_periodicity;
+static int hf_nfapi_prach_ce_level_2_hopping_enabled;
+static int hf_nfapi_prach_ce_level_2_hopping_offset;
+static int hf_nfapi_prach_ce_level_3_enable;
+static int hf_nfapi_prach_ce_level_3_configuration_index;
+static int hf_nfapi_prach_ce_level_3_frequency_offset;
+static int hf_nfapi_prach_ce_level_3_number_of_repetitions_per_attempt;
+static int hf_nfapi_prach_ce_level_3_starting_subframe_periodicity;
+static int hf_nfapi_prach_ce_level_3_hopping_enabled;
+static int hf_nfapi_prach_ce_level_3_hopping_offset;
+static int hf_nfapi_pucch_internal_ul_hopping_config_common_mode_b;
+static int hf_nfapi_pucch_internal_ul_hopping_config_common_mode_a;
+static int hf_nfapi_dl_modulation_support;
+static int hf_nfapi_dl_modulation_support_qpsk;
+static int hf_nfapi_dl_modulation_support_16qam;
+static int hf_nfapi_dl_modulation_support_64qam;
+static int hf_nfapi_dl_modulation_support_256qam;
+static int hf_nfapi_ul_modulation_support;
+static int hf_nfapi_ul_modulation_support_qpsk;
+static int hf_nfapi_ul_modulation_support_16qam;
+static int hf_nfapi_ul_modulation_support_64qam;
+static int hf_nfapi_data_report_mode;
+static int hf_nfapi_sfnsf;
 
 // P7 Sub Structures
-static int hf_nfapi_dl_dci_format = -1;
-static int hf_nfapi_ul_dci_format = -1;
-static int hf_nfapi_mpdcch_ul_dci_format = -1;
-static int hf_nfapi_cce_idx = -1;
-static int hf_nfapi_aggregation_level = -1;
-static int hf_nfapi_mcs_1 = -1;
-static int hf_nfapi_redundancy_version_1 = -1;
-static int hf_nfapi_new_data_indicator_1 = -1;
-static int hf_nfapi_mcs_2 = -1;
-static int hf_nfapi_redundancy_version_2 = -1;
-static int hf_nfapi_new_data_indicator_2 = -1;
-static int hf_nfapi_harq_process = -1;
-static int hf_nfapi_tpmi = -1;
-static int hf_nfapi_pmi = -1;
-static int hf_nfapi_precoding_information = -1;
-static int hf_nfapi_tpc = -1;
-static int hf_nfapi_downlink_assignment_index = -1;
-static int hf_nfapi_transport_block_size_index = -1;
-static int hf_nfapi_downlink_power_offset = -1;
-static int hf_nfapi_allocate_prach_flag = -1;
-static int hf_nfapi_preamble_index = -1;
-static int hf_nfapi_prach_mask_index = -1;
-static int hf_nfapi_rnti_type = -1;
-static int hf_nfapi_mpdcch_rnti_type = -1;
-static int hf_nfapi_mcch_flag = -1;
-static int hf_nfapi_mcch_change_notification = -1;
-static int hf_nfapi_scrambling_identity = -1;
-static int hf_nfapi_cross_carrier_scheduling_flag = -1;
-static int hf_nfapi_carrier_indicator = -1;
-static int hf_nfapi_srs_flag = -1;
-static int hf_nfapi_srs_request = -1;
-static int hf_nfapi_antenna_ports_scrambling_and_layers = -1;
-static int hf_nfapi_total_dci_length_including_padding = -1;
-static int hf_nfapi_harq_ack_resource_offset = -1;
-static int hf_nfapi_pdsch_re_mapping_and_quasi_co_location_indicator = -1;
-static int hf_nfapi_primary_cell_type = -1;
-static int hf_nfapi_ul_dl_configuration_flag = -1;
-static int hf_nfapi_number_of_ul_dl_configurations = -1;
-static int hf_nfapi_ul_dl_configuration_index = -1;
-static int hf_nfapi_laa_end_partial_sf_flag = -1;
-static int hf_nfapi_laa_end_partial_sf_configuration = -1;
-static int hf_nfapi_initial_lbt_sf = -1;
-static int hf_nfapi_codebooksize_determination_r13 = -1;
-static int hf_nfapi_rel13_drms_table_flag = -1;
-static int hf_nfapi_csi_rs_resource_config = -1;
-static int hf_nfapi_csi_rs_number_of_nzp_configurations = -1;
-static int hf_nfapi_pdsch_start = -1;
-static int hf_nfapi_drms_config_flag = -1;
-static int hf_nfapi_drms_scrambling = -1;
-static int hf_nfapi_csi_config_flag = -1;
-static int hf_nfapi_csi_scrambling = -1;
-static int hf_nfapi_pdsch_re_mapping_flag = -1;
-static int hf_nfapi_pdsch_re_mapping_antenna_ports = -1;
-static int hf_nfapi_pdsch_re_mapping_freq_shift = -1;
-static int hf_nfapi_alt_cqi_table_r12 = -1;
-static int hf_nfapi_max_layers = -1;
-static int hf_nfapi_n_dl_harq = -1;
-static int hf_nfapi_dwpts_symbols = -1;
-static int hf_nfapi_ue_type = -1;
-static int hf_nfapi_pdsch_payload_type = -1;
-static int hf_nfapi_initial_transmission_sf = -1;
-static int hf_nfapi_req13_drms_table_flag = -1;
-static int hf_nfapi_prnti = -1;
-static int hf_nfapi_mcs = -1;
-static int hf_nfapi_number_of_transport_blocks = -1;
-static int hf_nfapi_ue_mode = -1;
-static int hf_prs_bandwidth = -1;
-static int hf_prs_cyclic_prefix_type = -1;
-static int hf_prs_muting = -1;
-static int hf_nfapi_csi_rs_resource_index = -1;
-static int hf_nfapi_csi_rs_class = -1;
-static int hf_nfapi_cdm_type = -1;
-static int hf_nfapi_epdcch_prb_index = -1;
-static int hf_nfapi_epdcch_resource_assignment_flag = -1;
-static int hf_nfapi_epdcch_id = -1;
-static int hf_nfapi_epdcch_start_symbol = -1;
-static int hf_nfapi_epdcch_num_prb = -1;
-static int hf_nfapi_precoding_value = -1;
-static int hf_nfapi_mpdcch_narrowband = -1;
-static int hf_nfapi_number_of_prb_pairs = -1;
-static int hf_nfapi_resource_block_assignment = -1;
-static int hf_nfapi_start_symbol = -1;
-static int hf_nfapi_ecce_index = -1;
-static int hf_nfapi_ce_mode = -1;
-static int hf_nfapi_drms_scrabmling_init = -1;
-static int hf_nfapi_pdsch_reception_levels = -1;
-static int hf_nfapi_new_data_indicator = -1;
-static int hf_nfapi_tpmi_length = -1;
-static int hf_nfapi_pmi_flag = -1;
-static int hf_nfapi_harq_resource_offset = -1;
-static int hf_nfapi_dci_subframe_repetition_number = -1;
-static int hf_nfapi_downlink_assignment_index_length = -1;
-static int hf_nfapi_starting_ce_level = -1;
-static int hf_nfapi_antenna_ports_and_scrambling_identity_flag = -1;
-static int hf_nfapi_antenna_ports_and_scrambling_identity = -1;
-static int hf_nfapi_paging_direct_indication_differentiation_flag = -1;
-static int hf_nfapi_direct_indication = -1;
-static int hf_nfapi_number_of_tx_antenna_ports = -1;
+static int hf_nfapi_dl_dci_format;
+static int hf_nfapi_ul_dci_format;
+static int hf_nfapi_mpdcch_ul_dci_format;
+static int hf_nfapi_cce_idx;
+static int hf_nfapi_aggregation_level;
+static int hf_nfapi_mcs_1;
+static int hf_nfapi_redundancy_version_1;
+static int hf_nfapi_new_data_indicator_1;
+static int hf_nfapi_mcs_2;
+static int hf_nfapi_redundancy_version_2;
+static int hf_nfapi_new_data_indicator_2;
+static int hf_nfapi_harq_process;
+static int hf_nfapi_tpmi;
+static int hf_nfapi_pmi;
+static int hf_nfapi_precoding_information;
+static int hf_nfapi_tpc;
+static int hf_nfapi_downlink_assignment_index;
+static int hf_nfapi_transport_block_size_index;
+static int hf_nfapi_downlink_power_offset;
+static int hf_nfapi_allocate_prach_flag;
+static int hf_nfapi_preamble_index;
+static int hf_nfapi_prach_mask_index;
+static int hf_nfapi_rnti_type;
+static int hf_nfapi_mpdcch_rnti_type;
+static int hf_nfapi_mcch_flag;
+static int hf_nfapi_mcch_change_notification;
+static int hf_nfapi_scrambling_identity;
+static int hf_nfapi_cross_carrier_scheduling_flag;
+static int hf_nfapi_carrier_indicator;
+static int hf_nfapi_srs_flag;
+static int hf_nfapi_srs_request;
+static int hf_nfapi_antenna_ports_scrambling_and_layers;
+static int hf_nfapi_total_dci_length_including_padding;
+static int hf_nfapi_harq_ack_resource_offset;
+static int hf_nfapi_pdsch_re_mapping_and_quasi_co_location_indicator;
+static int hf_nfapi_primary_cell_type;
+static int hf_nfapi_ul_dl_configuration_flag;
+static int hf_nfapi_number_of_ul_dl_configurations;
+static int hf_nfapi_ul_dl_configuration_index;
+static int hf_nfapi_laa_end_partial_sf_flag;
+static int hf_nfapi_laa_end_partial_sf_configuration;
+static int hf_nfapi_initial_lbt_sf;
+static int hf_nfapi_codebooksize_determination_r13;
+static int hf_nfapi_rel13_drms_table_flag;
+static int hf_nfapi_csi_rs_resource_config;
+static int hf_nfapi_csi_rs_number_of_nzp_configurations;
+static int hf_nfapi_pdsch_start;
+static int hf_nfapi_drms_config_flag;
+static int hf_nfapi_drms_scrambling;
+static int hf_nfapi_csi_config_flag;
+static int hf_nfapi_csi_scrambling;
+static int hf_nfapi_pdsch_re_mapping_flag;
+static int hf_nfapi_pdsch_re_mapping_antenna_ports;
+static int hf_nfapi_pdsch_re_mapping_freq_shift;
+static int hf_nfapi_alt_cqi_table_r12;
+static int hf_nfapi_max_layers;
+static int hf_nfapi_n_dl_harq;
+static int hf_nfapi_dwpts_symbols;
+static int hf_nfapi_ue_type;
+static int hf_nfapi_pdsch_payload_type;
+static int hf_nfapi_initial_transmission_sf;
+static int hf_nfapi_req13_drms_table_flag;
+static int hf_nfapi_prnti;
+static int hf_nfapi_mcs;
+static int hf_nfapi_number_of_transport_blocks;
+static int hf_nfapi_ue_mode;
+static int hf_prs_bandwidth;
+static int hf_prs_cyclic_prefix_type;
+static int hf_prs_muting;
+static int hf_nfapi_csi_rs_resource_index;
+static int hf_nfapi_csi_rs_class;
+static int hf_nfapi_cdm_type;
+static int hf_nfapi_epdcch_prb_index;
+static int hf_nfapi_epdcch_resource_assignment_flag;
+static int hf_nfapi_epdcch_id;
+static int hf_nfapi_epdcch_start_symbol;
+static int hf_nfapi_epdcch_num_prb;
+static int hf_nfapi_precoding_value;
+static int hf_nfapi_mpdcch_narrowband;
+static int hf_nfapi_number_of_prb_pairs;
+static int hf_nfapi_resource_block_assignment;
+static int hf_nfapi_start_symbol;
+static int hf_nfapi_ecce_index;
+static int hf_nfapi_ce_mode;
+static int hf_nfapi_drms_scrabmling_init;
+static int hf_nfapi_pdsch_reception_levels;
+static int hf_nfapi_new_data_indicator;
+static int hf_nfapi_tpmi_length;
+static int hf_nfapi_pmi_flag;
+static int hf_nfapi_harq_resource_offset;
+static int hf_nfapi_dci_subframe_repetition_number;
+static int hf_nfapi_downlink_assignment_index_length;
+static int hf_nfapi_starting_ce_level;
+static int hf_nfapi_antenna_ports_and_scrambling_identity_flag;
+static int hf_nfapi_antenna_ports_and_scrambling_identity;
+static int hf_nfapi_paging_direct_indication_differentiation_flag;
+static int hf_nfapi_direct_indication;
+static int hf_nfapi_number_of_tx_antenna_ports;
 
 // P7 Message Structures
-static int hf_nfapi_dl_node_sync_t1 = -1;
-static int hf_nfapi_dl_node_sync_delta_sfn_sf = -1;
-static int hf_nfapi_ul_node_sync_t1 = -1;
-static int hf_nfapi_ul_node_sync_t2 = -1;
-static int hf_nfapi_ul_node_sync_t3 = -1;
-static int hf_nfapi_timing_info_last_sfn_sf = -1;
-static int hf_nfapi_timing_info_time_since_last_timing_info = -1;
-static int hf_nfapi_timing_info_dl_config_jitter = -1;
-static int hf_nfapi_timing_info_tx_request_jitter = -1;
-static int hf_nfapi_timing_info_ul_config_jitter = -1;
-static int hf_nfapi_timing_info_hi_dci0_jitter = -1;
-static int hf_nfapi_timing_info_dl_config_latest_delay = -1;
-static int hf_nfapi_timing_info_tx_request_latest_delay = -1;
-static int hf_nfapi_timing_info_ul_config_latest_delay = -1;
-static int hf_nfapi_timing_info_hi_dci0_latest_delay = -1;
-static int hf_nfapi_timing_info_dl_config_earliest_arrival = -1;
-static int hf_nfapi_timing_info_tx_request_earliest_arrival = -1;
-static int hf_nfapi_timing_info_ul_config_earliest_arrival = -1;
-static int hf_nfapi_timing_info_hi_dci0_earliest_arrival = -1;
-static int hf_nfapi_sfn_sf = -1;
-static int hf_nfapi_number_pdcch_ofdm_symbols = -1;
-static int hf_nfapi_number_dci = -1;
-static int hf_nfapi_number_pdus = -1;
-static int hf_nfapi_number_pdsch_rnti = -1;
-static int hf_nfapi_transmission_power_pcfich = -1;
-static int hf_nfapi_number_of_harqs = -1;
-static int hf_nfapi_number_of_crcs = -1;
-static int hf_nfapi_number_of_srs = -1;
-static int hf_nfapi_number_of_cqi = -1;
-static int hf_nfapi_number_of_preambles = -1;
-static int hf_nfapi_number_of_srss = -1;
-static int hf_nfapi_lbt_dl_req_pdu_type = -1;
-static int hf_nfapi_lbt_dl_ind_pdu_type = -1;
-static int hf_nfapi_dl_config_pdu_type = -1;
-static int hf_nfapi_pdu_size = -1;
-static int hf_nfapi_instance_length = -1;
+static int hf_nfapi_dl_node_sync_t1;
+static int hf_nfapi_dl_node_sync_delta_sfn_sf;
+static int hf_nfapi_ul_node_sync_t1;
+static int hf_nfapi_ul_node_sync_t2;
+static int hf_nfapi_ul_node_sync_t3;
+static int hf_nfapi_timing_info_last_sfn_sf;
+static int hf_nfapi_timing_info_time_since_last_timing_info;
+static int hf_nfapi_timing_info_dl_config_jitter;
+static int hf_nfapi_timing_info_tx_request_jitter;
+static int hf_nfapi_timing_info_ul_config_jitter;
+static int hf_nfapi_timing_info_hi_dci0_jitter;
+static int hf_nfapi_timing_info_dl_config_latest_delay;
+static int hf_nfapi_timing_info_tx_request_latest_delay;
+static int hf_nfapi_timing_info_ul_config_latest_delay;
+static int hf_nfapi_timing_info_hi_dci0_latest_delay;
+static int hf_nfapi_timing_info_dl_config_earliest_arrival;
+static int hf_nfapi_timing_info_tx_request_earliest_arrival;
+static int hf_nfapi_timing_info_ul_config_earliest_arrival;
+static int hf_nfapi_timing_info_hi_dci0_earliest_arrival;
+static int hf_nfapi_sfn_sf;
+static int hf_nfapi_number_pdcch_ofdm_symbols;
+static int hf_nfapi_number_dci;
+static int hf_nfapi_number_pdus;
+static int hf_nfapi_number_pdsch_rnti;
+static int hf_nfapi_transmission_power_pcfich;
+static int hf_nfapi_number_of_harqs;
+static int hf_nfapi_number_of_crcs;
+static int hf_nfapi_number_of_srs;
+static int hf_nfapi_number_of_cqi;
+static int hf_nfapi_number_of_preambles;
+static int hf_nfapi_number_of_srss;
+static int hf_nfapi_lbt_dl_req_pdu_type;
+static int hf_nfapi_lbt_dl_ind_pdu_type;
+static int hf_nfapi_dl_config_pdu_type;
+static int hf_nfapi_pdu_size;
+static int hf_nfapi_instance_length;
 static int hf_nfapi_length;
-static int hf_nfapi_pdu_index = -1;
-static int hf_nfapi_rnti = -1;
-static int hf_nfapi_resource_allocation_type = -1;
-static int hf_nfapi_virtual_resource_block_assignment_flag = -1;
-static int hf_nfapi_resource_block_coding = -1;
-static int hf_nfapi_modulation = -1;
-static int hf_nfapi_redundancy_version = -1;
-static int hf_nfapi_transport_blocks = -1;
-static int hf_nfapi_transport_block_to_codeword_swap_flag = -1;
-static int hf_nfapi_transmission_scheme = -1;
-static int hf_nfapi_ul_transmission_scheme = -1;
-static int hf_nfapi_number_of_layers = -1;
-static int hf_nfapi_number_of_subbands = -1;
-static int hf_nfapi_codebook_index = -1;
-static int hf_nfapi_ue_category_capacity = -1;
-static int hf_nfapi_pa = -1;
-static int hf_nfapi_delta_power_offset_index = -1;
-static int hf_nfapi_ngap = -1;
-static int hf_nfapi_nprb = -1;
-static int hf_nfapi_transmission_mode = -1;
-static int hf_nfapi_num_bf_prb_per_subband = -1;
-static int hf_nfapi_num_bf_vector = -1;
-static int hf_nfapi_bf_vector_subband_index = -1;
-static int hf_nfapi_bf_vector_num_antennas = -1;
-static int hf_nfapi_bf_vector_bf_value = -1;
-static int hf_nfapi_nscid = -1;
-static int hf_nfapi_csi_rs_flag = -1;
-static int hf_nfapi_csi_rs_resource_config_r10 = -1;
-static int hf_nfapi_csi_rs_zero_tx_power_resource_config_bitmap_r10 = -1;
-static int hf_nfapi_transmission_power = -1;
-static int hf_nfapi_mbsfn_area_id = -1;
-static int hf_nfapi_csi_rs_antenna_port_count_r10 = -1;
-static int hf_nfapi_ul_config_pdu_type = -1;
-static int hf_nfapi_rach_prach_frequency_resources = -1;
-static int hf_nfapi_srs_present = -1;
-static int hf_nfapi_handle = -1;
-static int hf_nfapi_pucch_index = -1;
-static int hf_nfapi_size = -1;
-static int hf_nfapi_resource_block_start = -1;
-static int hf_nfapi_number_of_resource_blocks = -1;
-static int hf_nfapi_cyclic_shift_2_for_drms = -1;
-static int hf_nfapi_frequency_hopping_enabled_flag = -1;
-static int hf_nfapi_frequency_hopping_bits = -1;
-static int hf_nfapi_new_data_indication = -1;
-static int hf_nfapi_harq_process_number = -1;
-static int hf_nfapi_ul_tx_mode = -1;
-static int hf_nfapi_current_tx_nb = -1;
-static int hf_nfapi_n_srs = -1;
-static int hf_nfapi_disable_sequence_hopping_flag = -1;
-static int hf_nfapi_dl_cqi_pmi_size_rank_1 = -1;
-static int hf_nfapi_dl_cqi_pmi_size_rank_greater_1 = -1;
-static int hf_nfapi_ri_size = -1;
-static int hf_nfapi_delta_offset_cqi = -1;
-static int hf_nfapi_delta_offset_ri = -1;
-static int hf_nfapi_harq_size = -1;
-static int hf_nfapi_delta_offset_harq = -1;
-static int hf_nfapi_tdd_ack_nack_mode = -1;
-static int hf_nfapi_fdd_ack_nack_mode = -1;
-static int hf_nfapi_n_srs_initial = -1;
-static int hf_nfapi_initial_number_of_resource_blocks = -1;
-static int hf_nfapi_dl_cqi_pmi_size = -1;
-static int hf_nfapi_report_type = -1;
-static int hf_nfapi_dl_cqi_ri_pmi_size = -1;
-static int hf_nfapi_control_type = -1;
-static int hf_nfapi_number_of_cc = -1;
-static int hf_nfapi_virtual_cell_id_enabled_flag = -1;
-static int hf_nfapi_npusch_identity = -1;
-static int hf_nfapi_ndrms_csh_identity = -1;
-static int hf_nfapi_total_number_of_repetitions = -1;
-static int hf_nfapi_repetition_number = -1;
-static int hf_nfapi_initial_sf_io = -1;
-static int hf_nfapi_empty_symbols_due_to_retunning = -1;
-static int hf_nfapi_dl_cqi_ri_pmi_size_2 = -1;
-static int hf_nfapi_npucch_identity = -1;
-static int hf_nfapi_harq_size_2 = -1;
-static int hf_nfapi_delta_offset_harq_2 = -1;
-static int hf_nfapi_empty_symbols = -1;
-static int hf_nfapi_csi_mode = -1;
-static int hf_nfapi_dl_cqi_pmi_size_2 = -1;
-static int hf_nfapi_statring_prb = -1;
-static int hf_nfapi_cdm_index = -1;
-static int hf_nfapi_nsrs = -1;
-static int hf_nfapi_num_ant_ports = -1;
-static int hf_nfapi_n_pucch_2_0 = -1;
-static int hf_nfapi_n_pucch_2_1 = -1;
-static int hf_nfapi_n_pucch_2_2 = -1;
-static int hf_nfapi_n_pucch_2_3 = -1;
-static int hf_nfapi_starting_prb = -1;
-static int hf_nfapi_antenna_port = -1;
-static int hf_nfapi_number_of_combs = -1;
-static int hf_nfapi_number_of_pucch_resource = -1;
-static int hf_nfapi_pucch_index_p1 = -1;
-static int hf_nfapi_n_pucch_1_0 = -1;
-static int hf_nfapi_n_pucch_1_1 = -1;
-static int hf_nfapi_n_pucch_1_2 = -1;
-static int hf_nfapi_n_pucch_1_3 = -1;
-static int hf_nfapi_srs_bandwidth = -1;
-static int hf_nfapi_frequency_domain_position = -1;
-static int hf_nfapi_srs_hopping_bandwidth = -1;
-static int hf_nfapi_transmission_comb = -1;
-static int hf_nfapi_i_srs = -1;
-static int hf_nfapi_sounding_reference_cyclic_shift = -1;
-static int hf_nfapi_pdu_length = -1;
-static int hf_nfapi_crc_flag = -1;
-static int hf_nfapi_number_of_hi_pdus = -1;
-static int hf_nfapi_number_of_dci_pdus = -1;
-static int hf_nfapi_hi_dci0_pdu_type = -1;
-static int hf_nfapi_hi_value = -1;
-static int hf_nfapi_i_phich = -1;
-static int hf_nfapi_flag_tb2 = -1;
-static int hf_nfapi_hi_value_2 = -1;
-static int hf_nfapi_ue_tx_antenna_selection = -1;
-static int hf_nfapi_cqi_csi_request = -1;
-static int hf_nfapi_ul_index = -1;
-static int hf_nfapi_dl_assignment_index = -1;
-static int hf_nfapi_tpc_bitmap = -1;
-static int hf_nfapi_new_data_indication_two = -1;
-static int hf_nfapi_size_of_cqi_csi_field = -1;
-static int hf_nfapi_resource_allocation_flag = -1;
-static int hf_nfapi_number_of_antenna_ports = -1;
-static int hf_nfapi_n_ul_rb = -1;
-static int hf_nfapi_pscch_resource = -1;
-static int hf_nfapi_time_resource_pattern = -1;
-static int hf_nfapi_mpdcch_transmission_type = -1;
-static int hf_nfapi_drms_scrambling_init = -1;
-static int hf_nfapi_pusch_repetition_levels = -1;
-static int hf_nfapi_frequency_hopping_flag = -1;
-static int hf_nfapi_csi_request = -1;
-static int hf_nfapi_dai_presence_flag = -1;
-static int hf_nfapi_total_dci_length_include_padding = -1;
-static int hf_nfapi_data_offset = -1;
-static int hf_nfapi_ul_cqi = -1;
-static int hf_nfapi_timing_advance_r9 = -1;
-static int hf_nfapi_timing_advance = -1;
-static int hf_nfapi_harq_data_value_0 = -1;
-static int hf_nfapi_harq_data_value_0_special = -1;
-static int hf_nfapi_harq_data_value_1 = -1;
-static int hf_nfapi_harq_data_value_2 = -1;
-static int hf_nfapi_harq_data_value_3 = -1;
-static int hf_nfapi_tdd_harq_mode = -1;
-static int hf_nfapi_fdd_harq_mode = -1;
-static int hf_nfapi_number_of_ack_nack = -1;
-static int hf_nfapi_harq_tb_1 = -1;
-static int hf_nfapi_harq_tb_2 = -1;
-static int hf_nfapi_harq_tb_n = -1;
-static int hf_nfapi_channel = -1;
-static int hf_nfapi_ri = -1;
-static int hf_nfapi_number_of_cc_reported = -1;
-static int hf_nfapi_preamble = -1;
-static int hf_nfapi_rach_resource_type = -1;
-static int hf_nfapi_snr = -1;
-static int hf_nfapi_doppler_estimation = -1;
-static int hf_nfapi_rb_start = -1;
-static int hf_nfapi_up_pts_symbol = -1;
-static int hf_nfapi_number_prb_per_subband = -1;
-static int hf_nfapi_number_antennas = -1;
-static int hf_nfapi_subband_index = -1;
-static int hf_nfapi_channel_coefficient = -1;
-static int hf_nfapi_ul_rtoa = -1;
-static int hf_nfapi_mp_cca = -1;
-static int hf_nfapi_n_cca = -1;
-static int hf_nfapi_offset = -1;
-static int hf_nfapi_lte_txop_sf = -1;
-static int hf_nfapi_txop_sfn_sf_end = -1;
-static int hf_nfapi_lbt_mode = -1;
-static int hf_nfapi_sfn_sf_end = -1;
-static int hf_nfapi_result = -1;
-static int hf_nfapi_txop_symbols = -1;
-static int hf_nfapi_initial_partial_sf = -1;
-static int hf_nfapi_frequency_band_indicator = -1;
-static int hf_nfapi_measurement_period = -1;
-static int hf_nfapi_bandwidth = -1;
-static int hf_nfapi_timeout = -1;
-static int hf_nfapi_number_of_earfcns = -1;
-static int hf_nfapi_uarfcn = -1;
-static int hf_nfapi_number_of_uarfcns = -1;
-static int hf_nfapi_arfcn = -1;
-static int hf_nfapi_arfcn_direction = -1;
-static int hf_nfapi_number_of_arfcns = -1;
-static int hf_nfapi_rssi = -1;
-static int hf_nfapi_number_of_rssi = -1;
-static int hf_nfapi_pci = -1;
-static int hf_nfapi_measurement_bandwidth = -1;
-static int hf_nfapi_exhaustive_search = -1;
-static int hf_nfapi_number_of_pci = -1;
-static int hf_nfapi_psc = -1;
-static int hf_nfapi_number_of_psc = -1;
-static int hf_nfapi_rsrp = -1;
-static int hf_nfapi_rsrq = -1;
-static int hf_nfapi_number_of_lte_cells_found = -1;
-static int hf_nfapi_rscp = -1;
-static int hf_nfapi_enco = -1;
-static int hf_nfapi_number_of_utran_cells_found = -1;
-static int hf_nfapi_bsic = -1;
-static int hf_nfapi_rxlev = -1;
-static int hf_nfapi_rxqual = -1;
-static int hf_nfapi_sfn_offset = -1;
-static int hf_nfapi_number_of_geran_cells_found = -1;
-static int hf_nfapi_number_of_tx_antenna = -1;
-static int hf_nfapi_mib = -1;
-static int hf_nfapi_phich_configuration = -1;
-static int hf_nfapi_retry_count = -1;
-static int hf_nfapi_sib1 = -1;
-static int hf_nfapi_si_periodicity = -1;
-static int hf_nfapi_si_index = -1;
-static int hf_nfapi_number_of_si_periodicity = -1;
-static int hf_nfapi_si_window_length = -1;
-static int hf_nfapi_sib_type = -1;
-static int hf_nfapi_sib = -1;
-static int hf_nfapi_si = -1;
-static int hf_nfapi_pnf_search_state = -1;
-static int hf_nfapi_pnf_broadcast_state = -1;
+static int hf_nfapi_pdu_index;
+static int hf_nfapi_rnti;
+static int hf_nfapi_resource_allocation_type;
+static int hf_nfapi_virtual_resource_block_assignment_flag;
+static int hf_nfapi_resource_block_coding;
+static int hf_nfapi_modulation;
+static int hf_nfapi_redundancy_version;
+static int hf_nfapi_transport_blocks;
+static int hf_nfapi_transport_block_to_codeword_swap_flag;
+static int hf_nfapi_transmission_scheme;
+static int hf_nfapi_ul_transmission_scheme;
+static int hf_nfapi_number_of_layers;
+static int hf_nfapi_number_of_subbands;
+static int hf_nfapi_codebook_index;
+static int hf_nfapi_ue_category_capacity;
+static int hf_nfapi_pa;
+static int hf_nfapi_delta_power_offset_index;
+static int hf_nfapi_ngap;
+static int hf_nfapi_nprb;
+static int hf_nfapi_transmission_mode;
+static int hf_nfapi_num_bf_prb_per_subband;
+static int hf_nfapi_num_bf_vector;
+static int hf_nfapi_bf_vector_subband_index;
+static int hf_nfapi_bf_vector_num_antennas;
+static int hf_nfapi_bf_vector_bf_value;
+static int hf_nfapi_nscid;
+static int hf_nfapi_csi_rs_flag;
+static int hf_nfapi_csi_rs_resource_config_r10;
+static int hf_nfapi_csi_rs_zero_tx_power_resource_config_bitmap_r10;
+static int hf_nfapi_transmission_power;
+static int hf_nfapi_mbsfn_area_id;
+static int hf_nfapi_csi_rs_antenna_port_count_r10;
+static int hf_nfapi_ul_config_pdu_type;
+static int hf_nfapi_rach_prach_frequency_resources;
+static int hf_nfapi_srs_present;
+static int hf_nfapi_handle;
+static int hf_nfapi_pucch_index;
+static int hf_nfapi_size;
+static int hf_nfapi_resource_block_start;
+static int hf_nfapi_number_of_resource_blocks;
+static int hf_nfapi_cyclic_shift_2_for_drms;
+static int hf_nfapi_frequency_hopping_enabled_flag;
+static int hf_nfapi_frequency_hopping_bits;
+static int hf_nfapi_new_data_indication;
+static int hf_nfapi_harq_process_number;
+static int hf_nfapi_ul_tx_mode;
+static int hf_nfapi_current_tx_nb;
+static int hf_nfapi_n_srs;
+static int hf_nfapi_disable_sequence_hopping_flag;
+static int hf_nfapi_dl_cqi_pmi_size_rank_1;
+static int hf_nfapi_dl_cqi_pmi_size_rank_greater_1;
+static int hf_nfapi_ri_size;
+static int hf_nfapi_delta_offset_cqi;
+static int hf_nfapi_delta_offset_ri;
+static int hf_nfapi_harq_size;
+static int hf_nfapi_delta_offset_harq;
+static int hf_nfapi_tdd_ack_nack_mode;
+static int hf_nfapi_fdd_ack_nack_mode;
+static int hf_nfapi_n_srs_initial;
+static int hf_nfapi_initial_number_of_resource_blocks;
+static int hf_nfapi_dl_cqi_pmi_size;
+static int hf_nfapi_report_type;
+static int hf_nfapi_dl_cqi_ri_pmi_size;
+static int hf_nfapi_control_type;
+static int hf_nfapi_number_of_cc;
+static int hf_nfapi_virtual_cell_id_enabled_flag;
+static int hf_nfapi_npusch_identity;
+static int hf_nfapi_ndrms_csh_identity;
+static int hf_nfapi_total_number_of_repetitions;
+static int hf_nfapi_repetition_number;
+static int hf_nfapi_initial_sf_io;
+static int hf_nfapi_empty_symbols_due_to_retunning;
+static int hf_nfapi_dl_cqi_ri_pmi_size_2;
+static int hf_nfapi_npucch_identity;
+static int hf_nfapi_harq_size_2;
+static int hf_nfapi_delta_offset_harq_2;
+static int hf_nfapi_empty_symbols;
+static int hf_nfapi_csi_mode;
+static int hf_nfapi_dl_cqi_pmi_size_2;
+static int hf_nfapi_statring_prb;
+static int hf_nfapi_cdm_index;
+static int hf_nfapi_nsrs;
+static int hf_nfapi_num_ant_ports;
+static int hf_nfapi_n_pucch_2_0;
+static int hf_nfapi_n_pucch_2_1;
+static int hf_nfapi_n_pucch_2_2;
+static int hf_nfapi_n_pucch_2_3;
+static int hf_nfapi_starting_prb;
+static int hf_nfapi_antenna_port;
+static int hf_nfapi_number_of_combs;
+static int hf_nfapi_number_of_pucch_resource;
+static int hf_nfapi_pucch_index_p1;
+static int hf_nfapi_n_pucch_1_0;
+static int hf_nfapi_n_pucch_1_1;
+static int hf_nfapi_n_pucch_1_2;
+static int hf_nfapi_n_pucch_1_3;
+static int hf_nfapi_srs_bandwidth;
+static int hf_nfapi_frequency_domain_position;
+static int hf_nfapi_srs_hopping_bandwidth;
+static int hf_nfapi_transmission_comb;
+static int hf_nfapi_i_srs;
+static int hf_nfapi_sounding_reference_cyclic_shift;
+static int hf_nfapi_pdu_length;
+static int hf_nfapi_crc_flag;
+static int hf_nfapi_number_of_hi_pdus;
+static int hf_nfapi_number_of_dci_pdus;
+static int hf_nfapi_hi_dci0_pdu_type;
+static int hf_nfapi_hi_value;
+static int hf_nfapi_i_phich;
+static int hf_nfapi_flag_tb2;
+static int hf_nfapi_hi_value_2;
+static int hf_nfapi_ue_tx_antenna_selection;
+static int hf_nfapi_cqi_csi_request;
+static int hf_nfapi_ul_index;
+static int hf_nfapi_dl_assignment_index;
+static int hf_nfapi_tpc_bitmap;
+static int hf_nfapi_new_data_indication_two;
+static int hf_nfapi_size_of_cqi_csi_field;
+static int hf_nfapi_resource_allocation_flag;
+static int hf_nfapi_number_of_antenna_ports;
+static int hf_nfapi_n_ul_rb;
+static int hf_nfapi_pscch_resource;
+static int hf_nfapi_time_resource_pattern;
+static int hf_nfapi_mpdcch_transmission_type;
+static int hf_nfapi_drms_scrambling_init;
+static int hf_nfapi_pusch_repetition_levels;
+static int hf_nfapi_frequency_hopping_flag;
+static int hf_nfapi_csi_request;
+static int hf_nfapi_dai_presence_flag;
+static int hf_nfapi_total_dci_length_include_padding;
+static int hf_nfapi_data_offset;
+static int hf_nfapi_ul_cqi;
+static int hf_nfapi_timing_advance_r9;
+static int hf_nfapi_timing_advance;
+static int hf_nfapi_harq_data_value_0;
+static int hf_nfapi_harq_data_value_0_special;
+static int hf_nfapi_harq_data_value_1;
+static int hf_nfapi_harq_data_value_2;
+static int hf_nfapi_harq_data_value_3;
+static int hf_nfapi_tdd_harq_mode;
+static int hf_nfapi_fdd_harq_mode;
+static int hf_nfapi_number_of_ack_nack;
+static int hf_nfapi_harq_tb_1;
+static int hf_nfapi_harq_tb_2;
+static int hf_nfapi_harq_tb_n;
+static int hf_nfapi_channel;
+static int hf_nfapi_ri;
+static int hf_nfapi_number_of_cc_reported;
+static int hf_nfapi_preamble;
+static int hf_nfapi_rach_resource_type;
+static int hf_nfapi_snr;
+static int hf_nfapi_doppler_estimation;
+static int hf_nfapi_rb_start;
+static int hf_nfapi_up_pts_symbol;
+static int hf_nfapi_number_prb_per_subband;
+static int hf_nfapi_number_antennas;
+static int hf_nfapi_subband_index;
+static int hf_nfapi_channel_coefficient;
+static int hf_nfapi_ul_rtoa;
+static int hf_nfapi_mp_cca;
+static int hf_nfapi_n_cca;
+static int hf_nfapi_offset;
+static int hf_nfapi_lte_txop_sf;
+static int hf_nfapi_txop_sfn_sf_end;
+static int hf_nfapi_lbt_mode;
+static int hf_nfapi_sfn_sf_end;
+static int hf_nfapi_result;
+static int hf_nfapi_txop_symbols;
+static int hf_nfapi_initial_partial_sf;
+static int hf_nfapi_frequency_band_indicator;
+static int hf_nfapi_measurement_period;
+static int hf_nfapi_bandwidth;
+static int hf_nfapi_timeout;
+static int hf_nfapi_number_of_earfcns;
+static int hf_nfapi_uarfcn;
+static int hf_nfapi_number_of_uarfcns;
+static int hf_nfapi_arfcn;
+static int hf_nfapi_arfcn_direction;
+static int hf_nfapi_number_of_arfcns;
+static int hf_nfapi_rssi;
+static int hf_nfapi_number_of_rssi;
+static int hf_nfapi_pci;
+static int hf_nfapi_measurement_bandwidth;
+static int hf_nfapi_exhaustive_search;
+static int hf_nfapi_number_of_pci;
+static int hf_nfapi_psc;
+static int hf_nfapi_number_of_psc;
+static int hf_nfapi_rsrp;
+static int hf_nfapi_rsrq;
+static int hf_nfapi_number_of_lte_cells_found;
+static int hf_nfapi_rscp;
+static int hf_nfapi_enco;
+static int hf_nfapi_number_of_utran_cells_found;
+static int hf_nfapi_bsic;
+static int hf_nfapi_rxlev;
+static int hf_nfapi_rxqual;
+static int hf_nfapi_sfn_offset;
+static int hf_nfapi_number_of_geran_cells_found;
+static int hf_nfapi_number_of_tx_antenna;
+static int hf_nfapi_mib;
+static int hf_nfapi_phich_configuration;
+static int hf_nfapi_retry_count;
+static int hf_nfapi_sib1;
+static int hf_nfapi_si_periodicity;
+static int hf_nfapi_si_index;
+static int hf_nfapi_number_of_si_periodicity;
+static int hf_nfapi_si_window_length;
+static int hf_nfapi_sib_type;
+static int hf_nfapi_sib;
+static int hf_nfapi_si;
+static int hf_nfapi_pnf_search_state;
+static int hf_nfapi_pnf_broadcast_state;
 
 static const value_string message_id_vals[] =
 {
@@ -1510,16 +1510,16 @@ typedef void(*tlv_decode)(ptvcursor_t * ptvc, packet_info* pinfo);
 
 typedef struct
 {
-	guint16 tag_id;
+	uint16_t tag_id;
 	char* name;
 	tlv_decode decode;
 } tlv_t;
 
-static void dissect_tlv_list(ptvcursor_t * ptvc, packet_info* pinfo, gint len);
+static void dissect_tlv_list(ptvcursor_t * ptvc, packet_info* pinfo, int len);
 
-static void dissect_array_value(ptvcursor_t * ptvc, packet_info* pinfo, const char* name, guint32 ett_idx, guint32 count, tlv_decode decode)
+static void dissect_array_value(ptvcursor_t * ptvc, packet_info* pinfo, const char* name, uint32_t ett_idx, uint32_t count, tlv_decode decode)
 {
-	guint16 i;
+	uint16_t i;
 
 	if (count > 0)
 	{
@@ -1539,7 +1539,7 @@ static void dissect_array_value(ptvcursor_t * ptvc, packet_info* pinfo, const ch
 static void dissect_pnf_param_general_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	gint32 test_value;
+	uint32_t test_value;
 
 	// nFAPI Sync Mode
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_sync_mode, 1, ENC_BIG_ENDIAN, &test_value);
@@ -1566,18 +1566,10 @@ static void dissect_pnf_param_general_value(ptvcursor_t * ptvc, packet_info* pin
 	ptvcursor_add(ptvc, hf_nfapi_maximum_total_number_ul_layers, 1, ENC_BIG_ENDIAN);
 
 	// Shared Bands
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_shared_bands, 1, ENC_BIG_ENDIAN, &test_value);
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid shared bands value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_shared_bands, 1, ENC_BIG_ENDIAN);
 
 	// Shared PA
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_shared_pa, 1, ENC_BIG_ENDIAN, &test_value);
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid shared pa value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_shared_pa, 1, ENC_BIG_ENDIAN);
 
 	ptvcursor_add(ptvc, hf_nfapi_maximum_total_power, 2, ENC_BIG_ENDIAN);
 	ptvcursor_add(ptvc, hf_nfapi_oui, 3, ENC_HOST_ENDIAN);
@@ -1590,8 +1582,8 @@ static void dissect_pnf_rf_config_instance_value(ptvcursor_t * ptvc, packet_info
 static void dissect_pnf_phy_instance_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 array_size, test_value;
-	guint64 test_value64;
+	uint32_t array_size, test_value;
+	uint64_t test_value64;
 
 	ptvcursor_add(ptvc, hf_nfapi_pnf_phy_config_index, 2, ENC_BIG_ENDIAN);
 
@@ -1666,7 +1658,7 @@ static void dissect_pnf_phy_instance_value(ptvcursor_t * ptvc, packet_info* pinf
 
 static void dissect_pnf_phy_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_phy;
+	uint32_t num_phy;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pnf_phy_number_phy, 2, ENC_BIG_ENDIAN, &num_phy);
 	dissect_array_value(ptvc, pinfo, "PHY List", ett_nfapi_pnf_phy, num_phy, dissect_pnf_phy_instance_value);
 }
@@ -1674,7 +1666,7 @@ static void dissect_pnf_phy_value(ptvcursor_t * ptvc, packet_info* pinfo)
 static void dissect_pnf_rf_config_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	ptvcursor_add(ptvc, hf_nfapi_rf_config_index, 2, ENC_BIG_ENDIAN);
 	ptvcursor_add(ptvc, hf_nfapi_band, 2, ENC_BIG_ENDIAN);
@@ -1703,7 +1695,7 @@ static void dissect_pnf_rf_config_value(ptvcursor_t * ptvc, packet_info* pinfo)
 
 static void dissect_pnf_rf_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_rf;
+	uint32_t num_rf;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_rfs, 2, ENC_BIG_ENDIAN, &num_rf);
 	dissect_array_value(ptvc, pinfo, "RF List", ett_nfapi_pnf_phy_rf_config, num_rf, dissect_pnf_rf_config_value);
 }
@@ -1711,7 +1703,7 @@ static void dissect_pnf_rf_value(ptvcursor_t * ptvc, packet_info* pinfo)
 static void dissect_pnf_phy_rel10_instance_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// PHY Config Index
 	ptvcursor_add(ptvc, hf_nfapi_pnf_phy_config_index, 2, ENC_BIG_ENDIAN);
@@ -1724,35 +1716,35 @@ static void dissect_pnf_phy_rel10_instance_value(ptvcursor_t * ptvc, packet_info
 	}
 
 	// Two antennas ports for PUCCH
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_transmission_mode8_supported, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_transmission_mode8_supported, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid transmission mode 8 supported value [0..1]");
 	}
 
 	// Transmission mode 8 supported
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_two_antennas_ports_for_pucch, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_two_antennas_ports_for_pucch, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid two antennas ports for pucch value [0..1]");
 	}
 
 	// Transmission mode 9 supported
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_transmission_mode_9_supported, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_transmission_mode_9_supported, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid transmission mode 9 supported value [0..1]");
 	}
 
 	// Simultaneous PUCCH PUSCH
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_simultaneous_pucch_pusch, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_simultaneous_pucch_pusch, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid simultaneous pucch pusch supported value [0..1]");
 	}
 
 	// Four layer Tx with TM3 and TM4
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_four_layer_tx_with_tm3_and_tm4, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_four_layer_tx_with_tm3_and_tm4, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid four layer tx with tm3 and tm4 value [0..1]");
@@ -1761,7 +1753,7 @@ static void dissect_pnf_phy_rel10_instance_value(ptvcursor_t * ptvc, packet_info
 
 static void dissect_pnf_phy_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_phy;
+	uint32_t num_phy;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pnf_phy_number_phy, 2, ENC_BIG_ENDIAN, &num_phy);
 	dissect_array_value(ptvc, pinfo, "PHY Rel 10 List", ett_nfapi_pnf_phy_rel10, num_phy, dissect_pnf_phy_rel10_instance_value);
 }
@@ -1769,7 +1761,7 @@ static void dissect_pnf_phy_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
 static void dissect_pnf_phy_rel11_instance_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// PHY Config Index
 	ptvcursor_add(ptvc, hf_nfapi_pnf_phy_config_index, 2, ENC_BIG_ENDIAN);
@@ -1782,28 +1774,28 @@ static void dissect_pnf_phy_rel11_instance_value(ptvcursor_t * ptvc, packet_info
 	}
 
 	// Multi ACK CSI reporting
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_multi_ack_csi_reporting, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_multi_ack_csi_reporting, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid multi ack csi reporting value [0..1]");
 	}
 
 	// PUCCH Tx diversity with channel selection
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_pucch_tx_diversity_with_channel_selection, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_pucch_tx_diversity_with_channel_selection, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid pucch tx diversity with channel selection value [0..1]");
 	}
 
 	// UL CoMP supported
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_ul_comp_supported, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ul_comp_supported, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid ul comp supported value [0..1]");
 	}
 
 	// Transmission mode 5 supported
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_transmission_mode_5_supported, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_transmission_mode_5_supported, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid transmission mode 5 supported value [0..1]");
@@ -1812,7 +1804,7 @@ static void dissect_pnf_phy_rel11_instance_value(ptvcursor_t * ptvc, packet_info
 
 static void dissect_pnf_phy_rel11_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_phy;
+	uint32_t num_phy;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pnf_phy_number_phy, 2, ENC_BIG_ENDIAN, &num_phy);
 	dissect_array_value(ptvc, pinfo, "PHY Rel 11 List", ett_nfapi_pnf_phy_rel11, num_phy, dissect_pnf_phy_rel11_instance_value);
 }
@@ -1820,7 +1812,7 @@ static void dissect_pnf_phy_rel11_value(ptvcursor_t * ptvc, packet_info* pinfo)
 static void dissect_pnf_phy_rel12_instance_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// PHY Config Index
 	ptvcursor_add(ptvc, hf_nfapi_pnf_phy_config_index, 2, ENC_BIG_ENDIAN);
@@ -1833,35 +1825,35 @@ static void dissect_pnf_phy_rel12_instance_value(ptvcursor_t * ptvc, packet_info
 	}
 
 	// Enhanced 4TX codebook
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_enhanced_4tx_codebook, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_enhanced_4tx_codebook, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid enhanced 4TX codebook value [0..1]");
 	}
 
 	// DRS supported
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_drs_supported, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_drs_supported, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid drs supported value [0..1]");
 	}
 
 	// UL 64QAM supported
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_ul_64qam_supported, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ul_64qam_supported, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid ul 64 QAM supported value [0..1]");
 	}
 
 	// Transmission mode 10 supported
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_transmission_mode_10_supported, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_transmission_mode_10_supported, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid transmission mode 10 supported value [0..1]");
 	}
 
 	// Alternative TBS indices
-	item = ptvcursor_add_ret_uint(ptvc, hi_nfapi_alternative_tbs_indices, 2, ENC_BIG_ENDIAN, &test_value);
+	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_alternative_tbs_indices, 2, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid alternative tbs indices supported value [0..1]");
@@ -1870,7 +1862,7 @@ static void dissect_pnf_phy_rel12_instance_value(ptvcursor_t * ptvc, packet_info
 
 static void dissect_pnf_phy_rel12_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_phy;
+	uint32_t num_phy;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pnf_phy_number_phy, 2, ENC_BIG_ENDIAN, &num_phy);
 	dissect_array_value(ptvc, pinfo, "PHY Rel 12 List", ett_nfapi_pnf_phy_rel12, num_phy, dissect_pnf_phy_rel12_instance_value);
 }
@@ -1878,7 +1870,7 @@ static void dissect_pnf_phy_rel12_value(ptvcursor_t * ptvc, packet_info* pinfo)
 static void dissect_pnf_phy_rel13_instance_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// PHY Config Index
 	ptvcursor_add(ptvc, hf_nfapi_pnf_phy_config_index, 2, ENC_BIG_ENDIAN);
@@ -1957,7 +1949,7 @@ static void dissect_pnf_phy_rel13_instance_value(ptvcursor_t * ptvc, packet_info
 
 static void dissect_pnf_phy_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_phy;
+	uint32_t num_phy;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pnf_phy_number_phy, 2, ENC_BIG_ENDIAN, &num_phy);
 	dissect_array_value(ptvc, pinfo, "PHY Rel 13 List", ett_nfapi_pnf_phy_rel13, num_phy, dissect_pnf_phy_rel13_instance_value);
 }
@@ -1970,14 +1962,14 @@ static void dissect_pnf_phy_rf_config_instance_value(ptvcursor_t * ptvc, packet_
 }
 static void dissect_pnf_phy_rf_config_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_configs;
+	uint32_t num_configs;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pnf_phy_number_phy, 2, ENC_BIG_ENDIAN, &num_configs);
 	dissect_array_value(ptvc, pinfo, "PHY RF Config List", ett_nfapi_pnf_phy_rf_config, num_configs, dissect_pnf_phy_rf_config_instance_value);
 }
 
 static void dissect_dl_rs_tx_power_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_dl_rs_tx_power, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value >= 1 && test_value <= 255))
@@ -1987,7 +1979,7 @@ static void dissect_dl_rs_tx_power_value(ptvcursor_t * ptvc, packet_info* pinfo)
 }
 static void dissect_received_interference_power_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_received_interference_power, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value >= 1 && test_value <= 255))
@@ -2010,7 +2002,7 @@ static void dissect_received_interference_power_result_value(ptvcursor_t * ptvc,
 }
 static void dissect_received_interference_power_measurement_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_resource_block;
+	uint32_t num_resource_block;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_resource_blocks, 2, ENC_BIG_ENDIAN, &num_resource_block);
 	dissect_array_value(ptvc, pinfo, "Results", ett_nfapi_received_interference_power_mesurement_results, num_resource_block, dissect_received_interference_power_result_value);
 }
@@ -2020,7 +2012,7 @@ static void dissect_thermal_noise_power_measurement_value(ptvcursor_t * ptvc, pa
 }
 static void dissect_duplex_mode_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_duplex_mode, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 2)
@@ -2030,7 +2022,7 @@ static void dissect_duplex_mode_value(ptvcursor_t * ptvc, packet_info* pinfo)
 }
 static void dissect_pcfich_power_offset_value(ptvcursor_t* ptvc, packet_info *pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_pcfich_power_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 10000)
@@ -2040,7 +2032,7 @@ static void dissect_pcfich_power_offset_value(ptvcursor_t* ptvc, packet_info *pi
 }
 static void dissect_pb_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_pb, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 3)
@@ -2049,29 +2041,18 @@ static void dissect_pb_value(ptvcursor_t * ptvc, packet_info* pinfo)
 	}
 }
 
-static void dissect_dl_cyclic_prefix_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_dl_cyclic_prefix_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_dl_cyclic_prefix_type, 2, ENC_BIG_ENDIAN, &test_value);
+	ptvcursor_add(ptvc, hf_nfapi_dl_cyclic_prefix_type, 2, ENC_BIG_ENDIAN);
 
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid dl cyclic prefix type [0..1]");
-	}
 }
-static void dissect_ul_cyclic_prefix_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_ul_cyclic_prefix_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_ul_cyclic_prefix_type, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid ul cyclic prefix type [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_ul_cyclic_prefix_type, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_dl_channel_bandwidth_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_downlink_channel_bandwidth, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 6 || test_value == 15 || test_value == 25 || test_value == 50 || test_value == 75 || test_value == 100))
@@ -2081,7 +2062,7 @@ static void dissect_dl_channel_bandwidth_value(ptvcursor_t * ptvc, packet_info* 
 }
 static void dissect_ul_channel_bandwidth_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_uplink_channel_bandwidth, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 6 || test_value == 15 || test_value == 25 || test_value == 50 || test_value == 75 || test_value == 100))
@@ -2091,7 +2072,7 @@ static void dissect_ul_channel_bandwidth_value(ptvcursor_t * ptvc, packet_info* 
 }
 static void dissect_reference_signal_power_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_reference_signal_power, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 255)
@@ -2102,7 +2083,7 @@ static void dissect_reference_signal_power_value(ptvcursor_t * ptvc, packet_info
 }
 static void dissect_tx_antenna_ports_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_tx_antenna_ports, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 1 || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16))
@@ -2112,7 +2093,7 @@ static void dissect_tx_antenna_ports_value(ptvcursor_t * ptvc, packet_info* pinf
 }
 static void dissect_rx_antenna_ports_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_rx_antenna_ports, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 1 || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16))
@@ -2122,7 +2103,7 @@ static void dissect_rx_antenna_ports_value(ptvcursor_t * ptvc, packet_info* pinf
 }
 static void dissect_phich_resource_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_phich_resource, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 3)
@@ -2130,19 +2111,13 @@ static void dissect_phich_resource_value(ptvcursor_t * ptvc, packet_info* pinfo)
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid phich resource value [0..3]");
 	}
 }
-static void dissect_phich_duration_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_phich_duration_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_phich_duration, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid phich duration value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_phich_duration, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_phich_power_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_phich_power_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 10000)
@@ -2152,7 +2127,7 @@ static void dissect_phich_power_offset_value(ptvcursor_t * ptvc, packet_info* pi
 }
 static void dissect_psch_synch_signal_epre_eprers_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_primary_synchronization_signal_epre_eprers, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 10000)
@@ -2162,7 +2137,7 @@ static void dissect_psch_synch_signal_epre_eprers_value(ptvcursor_t * ptvc, pack
 }
 static void dissect_physical_cell_id_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_physical_cell_id, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 503)
@@ -2172,7 +2147,7 @@ static void dissect_physical_cell_id_value(ptvcursor_t * ptvc, packet_info* pinf
 }
 static void dissect_ssch_synch_signal_epre_eprers_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_secondary_synchronization_signal_epre_eprers, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 10000)
@@ -2182,7 +2157,7 @@ static void dissect_ssch_synch_signal_epre_eprers_value(ptvcursor_t * ptvc, pack
 }
 static void dissect_prach_configuration_index_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_configuration_index, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 63)
@@ -2192,7 +2167,7 @@ static void dissect_prach_configuration_index_value(ptvcursor_t * ptvc, packet_i
 }
 static void dissect_prach_root_sequence_index_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_root_sequence_index, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 837)
@@ -2202,7 +2177,7 @@ static void dissect_prach_root_sequence_index_value(ptvcursor_t * ptvc, packet_i
 }
 static void dissect_prach_zero_correlation_zone_configuration_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_zero_correlation_zone_configuration, 2, ENC_BIG_ENDIAN, &test_value);
 
 	// How do differentiate between fdd 0..6 and tdd 0..15 ranges?
@@ -2211,19 +2186,13 @@ static void dissect_prach_zero_correlation_zone_configuration_value(ptvcursor_t 
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid zero correlation zone configuration [0..15]");
 	}
 }
-static void dissect_prach_high_speed_flag_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_prach_high_speed_flag_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_high_speed_flag, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid high speed flag value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_high_speed_flag, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_prach_frequency_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_frequency_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	// How to determine the ul channel bandwidth?
@@ -2232,19 +2201,13 @@ static void dissect_prach_frequency_offset_value(ptvcursor_t * ptvc, packet_info
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach frequency offset value [0..94]");
 	}
 }
-static void dissect_pusch_hopping_mode_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_pusch_hopping_mode_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_hopping_mode, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid pusch hopping mode value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_hopping_mode, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_pusch_hopping_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_hopping_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 98)
@@ -2254,7 +2217,7 @@ static void dissect_pusch_hopping_offset_value(ptvcursor_t * ptvc, packet_info* 
 }
 static void dissect_pusch_number_of_subbands_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_subbands, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value >= 1 && test_value <= 4))
@@ -2264,7 +2227,7 @@ static void dissect_pusch_number_of_subbands_value(ptvcursor_t * ptvc, packet_in
 }
 static void dissect_pucch_delta_pucch_shift_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_delta_pucch_shift, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value >= 1 && test_value <= 3))
@@ -2274,7 +2237,7 @@ static void dissect_pucch_delta_pucch_shift_value(ptvcursor_t * ptvc, packet_inf
 }
 static void dissect_pucch_n_cqi_rb_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_n_cqi_rb, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 98)
@@ -2284,7 +2247,7 @@ static void dissect_pucch_n_cqi_rb_value(ptvcursor_t * ptvc, packet_info* pinfo)
 }
 static void dissect_pucch_n_an_cs_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_n_an_cs, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 7)
@@ -2294,7 +2257,7 @@ static void dissect_pucch_n_an_cs_value(ptvcursor_t * ptvc, packet_info* pinfo)
 }
 static void dissect_pucch_n1_pucch_an_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_n1_pucch_an, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 2047)
@@ -2304,7 +2267,7 @@ static void dissect_pucch_n1_pucch_an_value(ptvcursor_t * ptvc, packet_info* pin
 }
 static void dissect_srs_bandwidth_configuration_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_bandwidth_configuration, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 7)
@@ -2312,19 +2275,13 @@ static void dissect_srs_bandwidth_configuration_value(ptvcursor_t * ptvc, packet
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid srs bandwidth configuration value [0..7]");
 	}
 }
-static void dissect_srs_max_uppts_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_srs_max_uppts_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_max_up_pts, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid max up pts value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_max_up_pts, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_srs_subframe_configuration_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_srs_subframe_configuration, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 15)
@@ -2332,19 +2289,13 @@ static void dissect_srs_subframe_configuration_value(ptvcursor_t * ptvc, packet_
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid srs subframe configuration value [0..15]");
 	}
 }
-static void dissect_srs_acknack_srs_sim_tx_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_srs_acknack_srs_sim_tx_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_srs_acknack_srs_simultaneous_transmission, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid srs ack nack srs simultaneous transmission value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_srs_acknack_srs_simultaneous_transmission, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_uplink_rs_hopping_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_uplink_rs_hopping, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 2)
@@ -2354,7 +2305,7 @@ static void dissect_uplink_rs_hopping_value(ptvcursor_t * ptvc, packet_info* pin
 }
 static void dissect_group_assignment_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_group_assignment, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 29)
@@ -2364,7 +2315,7 @@ static void dissect_group_assignment_value(ptvcursor_t * ptvc, packet_info* pinf
 }
 static void dissect_cyclic_shift_1_for_drms_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_cyclic_shift_1_for_drms, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 7)
@@ -2374,7 +2325,7 @@ static void dissect_cyclic_shift_1_for_drms_value(ptvcursor_t * ptvc, packet_inf
 }
 static void dissect_tdd_subframe_assignment_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_subframe_assignment, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 6)
@@ -2384,7 +2335,7 @@ static void dissect_tdd_subframe_assignment_value(ptvcursor_t * ptvc, packet_inf
 }
 static void dissect_tdd_subframe_patterns_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_special_subframe_patterns, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 9)
@@ -2394,7 +2345,7 @@ static void dissect_tdd_subframe_patterns_value(ptvcursor_t * ptvc, packet_info*
 }
 static void dissect_laa_ed_threashold_for_lbt_for_pdsch_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ed_threshold_for_lbt_for_pdsch, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 70)
@@ -2404,7 +2355,7 @@ static void dissect_laa_ed_threashold_for_lbt_for_pdsch_value(ptvcursor_t * ptvc
 }
 static void dissect_laa_ed_threashold_for_lbt_for_drs_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ed_threshold_for_lbt_for_drs, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 70)
@@ -2414,7 +2365,7 @@ static void dissect_laa_ed_threashold_for_lbt_for_drs_value(ptvcursor_t * ptvc, 
 }
 static void dissect_laa_pd_threshold_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_pd_threshold, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 70 && test_value != 65535)
@@ -2424,7 +2375,7 @@ static void dissect_laa_pd_threshold_value(ptvcursor_t * ptvc, packet_info* pinf
 }
 static void dissect_laa_multi_carrier_type_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_multi_carrier_type, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 4)
@@ -2432,29 +2383,17 @@ static void dissect_laa_multi_carrier_type_value(ptvcursor_t * ptvc, packet_info
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid multi carrier type [0..4]");
 	}
 }
-static void dissect_laa_multi_carrier_tx_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_laa_multi_carrier_tx_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_multi_carrier_tx, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid multi carrier tx value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_multi_carrier_tx, 2, ENC_BIG_ENDIAN);
 }
-static void dissect_laa_multi_carrier_freeze_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_laa_multi_carrier_freeze_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_multi_carrier_freeze, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid multi carrier freeze value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_multi_carrier_freeze, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_laa_tx_antenna_port_for_drs_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_tx_antenna_ports_for_drs, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 1 || test_value == 2 || test_value == 4))
@@ -2464,7 +2403,7 @@ static void dissect_laa_tx_antenna_port_for_drs_value(ptvcursor_t * ptvc, packet
 }
 static void dissect_laa_transmission_power_for_drs_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_transmission_power_for_drs, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 10000)
@@ -2472,19 +2411,13 @@ static void dissect_laa_transmission_power_for_drs_value(ptvcursor_t * ptvc, pac
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid transmission power for drs [0..10000]");
 	}
 }
-static void dissect_emtc_pbch_repeitions_enabled_r13_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_emtc_pbch_repeitions_enabled_r13_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_pbch_repetitions_enabled_r13, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid pbch repetitions enabled r13 value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_pbch_repetitions_enabled_r13, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_emtc_prach_cat_m_root_sequence_index_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_cat_m_root_sequence_index, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 837)
@@ -2494,7 +2427,7 @@ static void dissect_emtc_prach_cat_m_root_sequence_index_value(ptvcursor_t * ptv
 }
 static void dissect_emtc_prach_cat_m_zero_correlation_zone_configuration_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_cat_m_zero_correlation_zone_configuration, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 15)
@@ -2502,29 +2435,17 @@ static void dissect_emtc_prach_cat_m_zero_correlation_zone_configuration_value(p
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach cat-m zero correlation zone configuration value [0..15]");
 	}
 }
-static void dissect_emtc_prach_cat_m_high_speed_flag_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_emtc_prach_cat_m_high_speed_flag_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_prach_cat_m_high_speed_flag, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach cat-m high speed flag value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_prach_cat_m_high_speed_flag, 2, ENC_BIG_ENDIAN);
 }
-static void dissect_emtc_prach_ce_level_0_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_emtc_prach_ce_level_0_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_prach_ce_level_0_enable, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #0 enable value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_prach_ce_level_0_enable, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_emtc_prach_ce_level_0_configuration_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_0_configuration_index, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 63)
@@ -2534,7 +2455,7 @@ static void dissect_emtc_prach_ce_level_0_configuration_offset_value(ptvcursor_t
 }
 static void dissect_emtc_prach_ce_level_0_frequency_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_0_frequency_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > (100 - 6))
@@ -2544,7 +2465,7 @@ static void dissect_emtc_prach_ce_level_0_frequency_offset_value(ptvcursor_t * p
 }
 static void dissect_emtc_preach_ce_level_0_num_of_repeitions_per_attempt_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_0_number_of_repetitions_per_attempt, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!( test_value == 1 || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16 || test_value == 32 ||
@@ -2555,7 +2476,7 @@ static void dissect_emtc_preach_ce_level_0_num_of_repeitions_per_attempt_value(p
 }
 static void dissect_emtc_ce_level_0_starting_subframe_periodicity_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_0_starting_subframe_periodicity, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 0xFFF || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16 || test_value == 32 ||
@@ -2564,19 +2485,13 @@ static void dissect_emtc_ce_level_0_starting_subframe_periodicity_value(ptvcurso
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #0 starting subframe periodicity value [2, 4, 8, 16, 32, 64, 128, 256, 0xFFFF]");
 	}
 }
-static void dissect_emtc_preach_ce_level_0_hopping_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_emtc_preach_ce_level_0_hopping_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_prach_ce_level_0_hopping_enabled, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #0 hopping enabled value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_prach_ce_level_0_hopping_enabled, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_emtc_preach_ce_level_0_hopping_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_0_hopping_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 94)
@@ -2584,19 +2499,13 @@ static void dissect_emtc_preach_ce_level_0_hopping_offset_value(ptvcursor_t * pt
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #0 hopping offset value [0..94]");
 	}
 }
-static void dissect_emtc_prach_ce_level_1_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_emtc_prach_ce_level_1_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_prach_ce_level_1_enable, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #1 enable value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_prach_ce_level_1_enable, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_emtc_prach_ce_level_1_configuration_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_1_configuration_index, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 63)
@@ -2606,7 +2515,7 @@ static void dissect_emtc_prach_ce_level_1_configuration_offset_value(ptvcursor_t
 }
 static void dissect_emtc_prach_ce_level_1_frequency_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_1_frequency_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > (100 - 6))
@@ -2616,7 +2525,7 @@ static void dissect_emtc_prach_ce_level_1_frequency_offset_value(ptvcursor_t * p
 }
 static void dissect_emtc_preach_ce_level_1_num_of_repeitions_per_attempt_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_1_number_of_repetitions_per_attempt, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 1 || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16 || test_value == 32 ||
@@ -2627,7 +2536,7 @@ static void dissect_emtc_preach_ce_level_1_num_of_repeitions_per_attempt_value(p
 }
 static void dissect_emtc_ce_level_1_starting_subframe_periodicity_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_1_starting_subframe_periodicity, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 0xFFF || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16 || test_value == 32 ||
@@ -2636,19 +2545,13 @@ static void dissect_emtc_ce_level_1_starting_subframe_periodicity_value(ptvcurso
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #1 starting subframe periodicity value [2, 4, 8, 16, 32, 64, 128, 256, 0xFFFF]");
 	}
 }
-static void dissect_emtc_preach_ce_level_1_hopping_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_emtc_preach_ce_level_1_hopping_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_prach_ce_level_1_hopping_enabled, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #1 hopping enabled value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_prach_ce_level_1_hopping_enabled, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_emtc_preach_ce_level_1_hopping_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_1_hopping_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 94)
@@ -2656,19 +2559,13 @@ static void dissect_emtc_preach_ce_level_1_hopping_offset_value(ptvcursor_t * pt
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #1 hopping offset value [0..94]");
 	}
 }
-static void dissect_emtc_prach_ce_level_2_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_emtc_prach_ce_level_2_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_prach_ce_level_2_enable, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #2 enable value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_prach_ce_level_2_enable, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_emtc_prach_ce_level_2_configuration_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_2_configuration_index, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 63)
@@ -2678,7 +2575,7 @@ static void dissect_emtc_prach_ce_level_2_configuration_offset_value(ptvcursor_t
 }
 static void dissect_emtc_prach_ce_level_2_frequency_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_2_frequency_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > (100 - 6))
@@ -2688,7 +2585,7 @@ static void dissect_emtc_prach_ce_level_2_frequency_offset_value(ptvcursor_t * p
 }
 static void dissect_emtc_preach_ce_level_2_num_of_repeitions_per_attempt_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_2_number_of_repetitions_per_attempt, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 1 || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16 || test_value == 32 ||
@@ -2699,7 +2596,7 @@ static void dissect_emtc_preach_ce_level_2_num_of_repeitions_per_attempt_value(p
 }
 static void dissect_emtc_ce_level_2_starting_subframe_periodicity_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_2_starting_subframe_periodicity, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 0xFFF || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16 || test_value == 32 ||
@@ -2708,19 +2605,13 @@ static void dissect_emtc_ce_level_2_starting_subframe_periodicity_value(ptvcurso
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #2 starting subframe periodicity value [2, 4, 8, 16, 32, 64, 128, 256, 0xFFFF]");
 	}
 }
-static void dissect_emtc_preach_ce_level_2_hopping_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_emtc_preach_ce_level_2_hopping_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_prach_ce_level_2_hopping_enabled, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #2 hopping enabled value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_prach_ce_level_2_hopping_enabled, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_emtc_preach_ce_level_2_hopping_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_2_hopping_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 94)
@@ -2728,19 +2619,13 @@ static void dissect_emtc_preach_ce_level_2_hopping_offset_value(ptvcursor_t * pt
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #2 hopping offset value [0..94]");
 	}
 }
-static void dissect_emtc_prach_ce_level_3_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_emtc_prach_ce_level_3_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_prach_ce_level_3_enable, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #3 enable value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_prach_ce_level_3_enable, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_emtc_prach_ce_level_3_configuration_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_3_configuration_index, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 63)
@@ -2750,7 +2635,7 @@ static void dissect_emtc_prach_ce_level_3_configuration_offset_value(ptvcursor_t
 }
 static void dissect_emtc_prach_ce_level_3_frequency_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_3_frequency_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > (100 - 6))
@@ -2760,7 +2645,7 @@ static void dissect_emtc_prach_ce_level_3_frequency_offset_value(ptvcursor_t * p
 }
 static void dissect_emtc_preach_ce_level_3_num_of_repeitions_per_attempt_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_3_number_of_repetitions_per_attempt, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 1 || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16 || test_value == 32 ||
@@ -2771,7 +2656,7 @@ static void dissect_emtc_preach_ce_level_3_num_of_repeitions_per_attempt_value(p
 }
 static void dissect_emtc_ce_level_3_starting_subframe_periodicity_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_3_starting_subframe_periodicity, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 0xFFF || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16 || test_value == 32 ||
@@ -2780,19 +2665,13 @@ static void dissect_emtc_ce_level_3_starting_subframe_periodicity_value(ptvcurso
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #3 starting subframe periodicity value [2, 4, 8, 16, 32, 64, 128, 256, 0xFFFF]");
 	}
 }
-static void dissect_emtc_preach_ce_level_3_hopping_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_emtc_preach_ce_level_3_hopping_enabled_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_prach_ce_level_3_hopping_enabled, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prach ce level #3 hopping enabled value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_prach_ce_level_3_hopping_enabled, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_emtc_preach_ce_level_3_hopping_offset_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_prach_ce_level_3_hopping_offset, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 94)
@@ -2802,7 +2681,7 @@ static void dissect_emtc_preach_ce_level_3_hopping_offset_value(ptvcursor_t * pt
 }
 static void dissect_emtc_pucch_interval_ul_hopping_config_common_mode_a_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_pucch_internal_ul_hopping_config_common_mode_a, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 1 || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 5 || test_value == 10 || test_value == 20))
@@ -2812,7 +2691,7 @@ static void dissect_emtc_pucch_interval_ul_hopping_config_common_mode_a_value(pt
 }
 static void dissect_emtc_pucch_interval_ul_hopping_config_common_mode_b_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_pucch_internal_ul_hopping_config_common_mode_b, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16 || test_value == 5 || test_value == 10 || test_value == 20 || test_value == 40))
@@ -2822,7 +2701,7 @@ static void dissect_emtc_pucch_interval_ul_hopping_config_common_mode_b_value(pt
 }
 static void dissect_dl_bandwidth_support_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint64 test_value64;
+	uint64_t test_value64;
 	proto_item* item = proto_tree_add_bitmask_ret_uint64(ptvcursor_tree(ptvc), ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc),
 					hf_nfapi_dl_bandwidth_support, ett_nfapi_downlink_bandwidth_support, dl_bandwidth_support_fields, ENC_BIG_ENDIAN, &test_value64);
 	if (test_value64 > 0x3F)
@@ -2834,7 +2713,7 @@ static void dissect_dl_bandwidth_support_value(ptvcursor_t * ptvc, packet_info* 
 }
 static void dissect_ul_bandwidth_support_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint64 test_value64;
+	uint64_t test_value64;
 	proto_item* item = proto_tree_add_bitmask_ret_uint64(ptvcursor_tree(ptvc), ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc),
 					hf_nfapi_ul_bandwidth_support, ett_nfapi_uplink_bandwidth_support, ul_bandwidth_support_fields, ENC_BIG_ENDIAN, &test_value64);
 	if (test_value64 > 0x3F)
@@ -2855,7 +2734,7 @@ static void dissect_dl_modulation_value(ptvcursor_t * ptvc, packet_info* pinfo)
 		NULL
 	};
 
-	guint64 test_value64;
+	uint64_t test_value64;
 	proto_item* item = proto_tree_add_bitmask_ret_uint64(ptvcursor_tree(ptvc), ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc),
 					hf_nfapi_dl_modulation_support, ett_nfapi_downlink_modulation_support, dl_modulation_support_fields, ENC_BIG_ENDIAN, &test_value64);
 
@@ -2875,7 +2754,7 @@ static void dissect_ul_modulation_value(ptvcursor_t * ptvc, packet_info* pinfo)
 		NULL
 	};
 
-	guint64 test_value64;
+	uint64_t test_value64;
 	proto_item* item = proto_tree_add_bitmask_ret_uint64(ptvcursor_tree(ptvc), ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc),
 					hf_nfapi_ul_modulation_support, ett_nfapi_uplink_modulation_support, ul_modulation_support_fields, ENC_BIG_ENDIAN, &test_value64);
 
@@ -2888,7 +2767,7 @@ static void dissect_ul_modulation_value(ptvcursor_t * ptvc, packet_info* pinfo)
 }
 static void dissect_phy_antenna_capability_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_phy_antenna_capability, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value == 1 || test_value == 2 || test_value == 4 || test_value == 8 || test_value == 16))
@@ -2898,7 +2777,7 @@ static void dissect_phy_antenna_capability_value(ptvcursor_t * ptvc, packet_info
 }
 static void dissect_release_capability_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint64 test_value64;
+	uint64_t test_value64;
 	proto_item* item = proto_tree_add_bitmask_ret_uint64(ptvcursor_tree(ptvc), ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc),
 											hf_nfapi_release_capability, ett_nfapi_release_support, maximum_3gpp_release_supported_fields, ENC_BIG_ENDIAN, &test_value64);
 	if (test_value64 > 0x3F)
@@ -2908,39 +2787,22 @@ static void dissect_release_capability_value(ptvcursor_t * ptvc, packet_info* pi
 
 	ptvcursor_advance(ptvc, 2);
 }
-static void dissect_mbsfn_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_mbsfn_value(ptvcursor_t * ptvc, packet_info *pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_mbsfn_capability, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid mbsfn capability bit [0..0x1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_mbsfn_capability, 2, ENC_BIG_ENDIAN);
 }
-static void dissect_laa_support_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_laa_support_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_laa_capability, 2, ENC_BIG_ENDIAN, &test_value);
+	ptvcursor_add(ptvc, hf_nfapi_laa_capability, 2, ENC_BIG_ENDIAN);
 
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid laa support bit [0..0x1]");
-	}
 }
-static void dissect_laa_pd_sensing_lbt_support_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_laa_pd_sensing_lbt_support_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_pd_sensing_lbt_support, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid pd sensing lbt support bit [0..0x1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_pd_sensing_lbt_support, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_laa_multi_carrier_lbt_support_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_multi_carrier_lbt_support, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 0xF)
@@ -2948,33 +2810,21 @@ static void dissect_laa_multi_carrier_lbt_support_value(ptvcursor_t * ptvc, pack
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid multi carrier LBT support bit [0..0xF]");
 	}
 }
-static void dissect_laa_partial_sf_support_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_laa_partial_sf_support_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gint32 test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_partial_sf_support, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 0x1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid partial SF support bit [0..0x1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_partial_sf_support, 2, ENC_BIG_ENDIAN);
 }
-static void dissect_data_report_mode_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_data_report_mode_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gboolean test_value;
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_data_report_mode, 2, ENC_BIG_ENDIAN, &test_value);
-
-	if (test_value > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid data report mode value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_data_report_mode, 2, ENC_BIG_ENDIAN);
 }
 static void dissect_sfn_sf_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_sfnsf, 2, ENC_BIG_ENDIAN, &test_value);
 
-	guint32 sfn = test_value >> 0x4;
-	guint32 sf = test_value & 0x000F;
+	uint32_t sfn = test_value >> 0x4;
+	uint32_t sf = test_value & 0x000F;
 	if (sfn > 1023 || sf > 9)
 	{
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid sfn/sf value sfn:%u [0..1023] sf:%u [0..9]", sfn, sf);
@@ -2982,7 +2832,7 @@ static void dissect_sfn_sf_value(ptvcursor_t * ptvc, packet_info* pinfo)
 }
 static void dissect_phy_state_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_phy_state, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 2)
@@ -3028,13 +2878,13 @@ static void dissect_rf_band_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 }
 static void dissect_rf_bands_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 count;
+	uint32_t count;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_rf_bands, 2, ENC_BIG_ENDIAN, &count);
 	dissect_array_value(ptvc, pinfo, "RF Band List", ett_nfapi_rf_bands, count, dissect_rf_band_value);
 }
 static void dissect_timing_window_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_timing_window, 1, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 30)
@@ -3044,7 +2894,7 @@ static void dissect_timing_window_value(ptvcursor_t * ptvc, packet_info* pinfo)
 }
 static void dissect_timing_info_mode_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_timing_info_mode, 1, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 0x3)
@@ -3054,7 +2904,7 @@ static void dissect_timing_info_mode_value(ptvcursor_t * ptvc, packet_info* pinf
 }
 static void dissect_timing_info_period_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_timing_info_period, 1, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value >= 1 && test_value <= 255))
@@ -3064,7 +2914,7 @@ static void dissect_timing_info_period_value(ptvcursor_t * ptvc, packet_info* pi
 }
 static void dissect_maximum_transmit_power_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_maximum_transmit_power_2, 2, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 700)
@@ -3078,25 +2928,25 @@ static void dissect_earfcn_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 }
 static void dissect_nmm_gsm_frequency_bands_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 count;
+	uint32_t count;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_rf_bands, 2, ENC_BIG_ENDIAN, &count);
 	dissect_array_value(ptvc, pinfo, "RF Band List", ett_nfapi_rf_bands, count, dissect_rf_band_value);
 }
 static void dissect_nmm_umts_frequency_bands_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 count;
+	uint32_t count;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_rf_bands, 2, ENC_BIG_ENDIAN, &count);
 	dissect_array_value(ptvc, pinfo, "RF Band List", ett_nfapi_rf_bands, count, dissect_rf_band_value);
 }
 static void dissect_nmm_lte_frequency_bands_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 count;
+	uint32_t count;
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_rf_bands, 2, ENC_BIG_ENDIAN, &count);
 	dissect_array_value(ptvc, pinfo, "RF Band List", ett_nfapi_rf_bands, count, dissect_rf_band_value);
 }
 static void dissect_nmm_uplink_rssi_supported_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_nmm_uplink_rssi_supported, 1, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 1)
@@ -3106,17 +2956,17 @@ static void dissect_nmm_uplink_rssi_supported_value(ptvcursor_t * ptvc, packet_i
 }
 static void dissect_dl_config_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 size;
+	uint32_t size;
 	ptvcursor_add(ptvc, hf_nfapi_dl_config_pdu_type, 1, ENC_BIG_ENDIAN);
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pdu_size, 1, ENC_BIG_ENDIAN, &size);
 
-	guint pdu_end = (ptvcursor_current_offset(ptvc) + size - 2);
+	unsigned pdu_end = (ptvcursor_current_offset(ptvc) + size - 2);
 	dissect_tlv_list(ptvc, pinfo, pdu_end);
 }
 static void dissect_dl_config_request_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, number_of_dcis_value, number_of_pdus_value;
+	uint32_t test_value, number_of_dcis_value, number_of_pdus_value;
 
 	// Number of PDCCH OFDM symbols
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_pdcch_ofdm_symbols, 1, ENC_BIG_ENDIAN, &test_value);
@@ -3150,7 +3000,7 @@ static void dissect_dl_config_request_body_value(ptvcursor_t * ptvc, packet_info
 static void dissect_dl_config_request_bch_pdu_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Length
 	ptvcursor_add(ptvc, hf_nfapi_length, 2, ENC_BIG_ENDIAN);
@@ -3169,7 +3019,7 @@ static void dissect_dl_config_request_bch_pdu_rel8_value(ptvcursor_t * ptvc, pac
 static void dissect_dl_config_request_dl_dci_pdu_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// DCI format
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_dl_dci_format, 1, ENC_BIG_ENDIAN, &test_value);
@@ -3368,15 +3218,10 @@ static void dissect_dl_config_request_dl_dci_pdu_rel8_value(ptvcursor_t * ptvc, 
 static void dissect_dl_config_request_dl_dci_pdu_rel9_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
-	gboolean test_boolean;
+	uint32_t test_value;
 
 	// MCCH flag
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_mcch_flag, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid mcch flag value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_mcch_flag, 1, ENC_BIG_ENDIAN);
 
 	// MCCH change notification
 	ptvcursor_add(ptvc, hf_nfapi_mcch_change_notification, 1, ENC_BIG_ENDIAN);
@@ -3392,15 +3237,10 @@ static void dissect_dl_config_request_dl_dci_pdu_rel9_value(ptvcursor_t * ptvc, 
 static void dissect_dl_config_request_dl_dci_pdu_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
-	gboolean test_boolean;
+	uint32_t test_value;
 
 	// Cross carrier scheduling flag
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_cross_carrier_scheduling_flag, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid cross carrier scheduling flag value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_cross_carrier_scheduling_flag, 1, ENC_BIG_ENDIAN);
 
 	// Carrier indicator
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_carrier_indicator, 1, ENC_BIG_ENDIAN, &test_value);
@@ -3410,18 +3250,10 @@ static void dissect_dl_config_request_dl_dci_pdu_rel10_value(ptvcursor_t * ptvc,
 	}
 
 	// SRS flag
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_srs_flag, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid srs flag value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_srs_flag, 1, ENC_BIG_ENDIAN);
 
 	// SRS request
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_srs_request, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid srs request value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_srs_request, 1, ENC_BIG_ENDIAN);
 
 	// Antenna ports, scrambling and layers
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_antenna_ports_scrambling_and_layers, 1, ENC_BIG_ENDIAN, &test_value);
@@ -3440,7 +3272,7 @@ static void dissect_dl_config_request_dl_dci_pdu_rel10_value(ptvcursor_t * ptvc,
 static void dissect_dl_config_request_dl_dci_pdu_rel11_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// HARQ-ACK resource offset
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_ack_resource_offset, 1, ENC_BIG_ENDIAN, &test_value);
@@ -3459,7 +3291,7 @@ static void dissect_dl_config_request_dl_dci_pdu_rel11_value(ptvcursor_t * ptvc,
 }
 static void dissect_ul_dl_configuration_index_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// UL/DL configuration indication
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ul_dl_configuration_index, 1, ENC_BIG_ENDIAN, &test_value);
@@ -3471,8 +3303,7 @@ static void dissect_ul_dl_configuration_index_value(ptvcursor_t * ptvc, packet_i
 static void dissect_dl_config_request_dl_dci_pdu_rel12_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, count;
-	gboolean test_boolean;
+	uint32_t test_value, count;
 
 	// Primary cell type
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_primary_cell_type, 1, ENC_BIG_ENDIAN, &test_value);
@@ -3482,11 +3313,7 @@ static void dissect_dl_config_request_dl_dci_pdu_rel12_value(ptvcursor_t * ptvc,
 	}
 
 	// UL/DL configuration flag
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_ul_dl_configuration_flag, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid ul/dl configuration flag value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_ul_dl_configuration_flag, 1, ENC_BIG_ENDIAN);
 
 	// Number of UL / DL configurations
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_ul_dl_configurations, 1, ENC_BIG_ENDIAN, &count);
@@ -3514,7 +3341,7 @@ static void dissect_dl_config_request_mch_pdu_rel8_value(ptvcursor_t * ptvc, pac
 }
 static void dissect_codebook_index_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_codebook_index, 1, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 15)
@@ -3528,7 +3355,7 @@ static void dissect_bf_vector_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 }
 static void dissect_bf_vector_type_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 count;
+	uint32_t count;
 
 	ptvcursor_add(ptvc, hf_nfapi_bf_vector_subband_index, 1, ENC_BIG_ENDIAN);
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_bf_vector_num_antennas, 1, ENC_BIG_ENDIAN, &count);
@@ -3537,7 +3364,7 @@ static void dissect_bf_vector_type_value(ptvcursor_t * ptvc, packet_info* pinfo)
 static void dissect_dl_config_request_dlsch_pdu_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, num_subbands, num_vectors;
+	uint32_t test_value, num_subbands, num_vectors;
 
 	// Length
 	ptvcursor_add(ptvc, hf_nfapi_length, 2, ENC_BIG_ENDIAN);
@@ -3672,7 +3499,7 @@ static void dissect_dl_config_request_dlsch_pdu_rel8_value(ptvcursor_t * ptvc, p
 }
 static void dissect_csi_rs_resource_config_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_csi_rs_resource_config, 1, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 31)
@@ -3682,7 +3509,7 @@ static void dissect_csi_rs_resource_config_value(ptvcursor_t * ptvc, packet_info
 }
 static void dissect_dl_config_request_dlsch_pdu_rel9_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_nscid, 1, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
@@ -3693,15 +3520,10 @@ static void dissect_dl_config_request_dlsch_pdu_rel9_value(ptvcursor_t * ptvc, p
 static void dissect_dl_config_request_dlsch_pdu_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, count;
-	gboolean test_boolean;
+	uint32_t test_value, count;
 
 	// CSI-RS flag
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_csi_rs_flag, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid csi-rs flag value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_csi_rs_flag, 1, ENC_BIG_ENDIAN);
 
 	// CSI-RS resource config R10
 	ptvcursor_add(ptvc, hf_nfapi_csi_rs_resource_config_r10, 1, ENC_BIG_ENDIAN);
@@ -3730,7 +3552,7 @@ static void dissect_dl_config_request_dlsch_pdu_rel10_value(ptvcursor_t * ptvc, 
 static void dissect_dl_config_request_dlsch_pdu_rel11_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// DMRS Config flag
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_drms_config_flag, 1, ENC_BIG_ENDIAN, &test_value);
@@ -3784,7 +3606,7 @@ static void dissect_dl_config_request_dlsch_pdu_rel11_value(ptvcursor_t * ptvc, 
 static void dissect_dl_config_request_dlsch_pdu_rel12_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// altCQI-Table-r12
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_alt_cqi_table_r12, 1, ENC_BIG_ENDIAN, &test_value);
@@ -3805,7 +3627,7 @@ static void dissect_dl_config_request_dlsch_pdu_rel12_value(ptvcursor_t * ptvc, 
 static void dissect_dl_config_request_dlsch_pdu_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// DwPTS Symbols
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_dwpts_symbols, 1, ENC_BIG_ENDIAN, &test_value);
@@ -3854,7 +3676,7 @@ static void dissect_dl_config_request_dlsch_pdu_rel13_value(ptvcursor_t * ptvc, 
 static void dissect_dl_config_request_pch_pdu_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Length
 	ptvcursor_add(ptvc, hf_nfapi_length, 2, ENC_BIG_ENDIAN);
@@ -3966,7 +3788,7 @@ static void dissect_dl_config_request_pch_pdu_rel8_value(ptvcursor_t * ptvc, pac
 static void dissect_dl_config_request_pch_pdu_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// UE mode
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ue_mode, 1, ENC_BIG_ENDIAN, &test_value);
@@ -3985,8 +3807,7 @@ static void dissect_dl_config_request_pch_pdu_rel13_value(ptvcursor_t * ptvc, pa
 static void dissect_dl_config_request_prs_pdu_rel9_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
-	gboolean test_boolean;
+	uint32_t test_value;
 
 	// Transmission power
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_transmission_power, 2, ENC_BIG_ENDIAN, &test_value);
@@ -4004,23 +3825,15 @@ static void dissect_dl_config_request_prs_pdu_rel9_value(ptvcursor_t * ptvc, pac
 	}
 
 	// PRS cyclic prefix type
-	item = ptvcursor_add_ret_boolean(ptvc, hf_prs_cyclic_prefix_type, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prs cyclic prefix value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_prs_cyclic_prefix_type, 1, ENC_BIG_ENDIAN);
 
 	// PRS muting
-	item = ptvcursor_add_ret_boolean(ptvc, hf_prs_muting, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid prs muting value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_prs_muting, 1, ENC_BIG_ENDIAN);
 }
 static void dissect_dl_config_request_csi_rs_pdu_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, count;
+	uint32_t test_value, count;
 
 	// CSI-RS antenna port count R10
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_csi_rs_antenna_port_count_r10, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4056,7 +3869,7 @@ static void dissect_dl_config_request_csi_rs_pdu_rel10_value(ptvcursor_t * ptvc,
 }
 static void dissect_csi_rs_bf_vector_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 count;
+	uint32_t count;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_csi_rs_resource_index, 1, ENC_BIG_ENDIAN, &count);
 	if (count > 7)
 	{
@@ -4068,7 +3881,7 @@ static void dissect_csi_rs_bf_vector_value(ptvcursor_t * ptvc, packet_info* pinf
 static void dissect_dl_config_request_csi_rs_pdu_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, class_value, count;
+	uint32_t test_value, class_value, count;
 
 	// Class
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_csi_rs_class, 1, ENC_BIG_ENDIAN, &class_value);
@@ -4095,7 +3908,7 @@ static void dissect_dl_config_request_csi_rs_pdu_rel13_value(ptvcursor_t * ptvc,
 }
 static void dissect_epdcch_prb_index_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// EPDCCH PRB index
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_epdcch_prb_index, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4107,7 +3920,7 @@ static void dissect_epdcch_prb_index_value(ptvcursor_t * ptvc, packet_info* pinf
 static void dissect_dl_config_request_depdcch_params_rel11_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, count;
+	uint32_t test_value, count;
 
 	// EPDCCH Resource assignment flag
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_epdcch_resource_assignment_flag, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4144,7 +3957,7 @@ static void dissect_dl_config_request_depdcch_params_rel11_value(ptvcursor_t * p
 static void dissect_dl_config_request_depdcch_params_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// DwPTS Symbols
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_initial_lbt_sf, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4170,8 +3983,7 @@ static void dissect_precoding_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 static void dissect_dl_config_request_mpdpcch_pdu_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, count;
-	gboolean test_boolean;
+	uint32_t test_value, count;
 
 	// MPDCCH Narrowband
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_mpdcch_narrowband, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4325,11 +4137,7 @@ static void dissect_dl_config_request_mpdpcch_pdu_rel13_value(ptvcursor_t * ptvc
 	}
 
 	// PMI flag
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_pmi_flag, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid pmi flag value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_pmi_flag, 1, ENC_BIG_ENDIAN);
 
 	// PMI
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_pmi, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4402,18 +4210,10 @@ static void dissect_dl_config_request_mpdpcch_pdu_rel13_value(ptvcursor_t * ptvc
 	}
 
 	// SRS request
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_srs_request, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid srs request value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_srs_request, 1, ENC_BIG_ENDIAN);
 
 	// Antenna ports and scrambling identity flag
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_antenna_ports_and_scrambling_identity_flag, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid antenna ports and scrambling identity flag value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_antenna_ports_and_scrambling_identity_flag, 1, ENC_BIG_ENDIAN);
 
 	// Antenna ports and scrambling identity
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_antenna_ports_and_scrambling_identity, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4450,7 +4250,7 @@ static void dissect_dl_config_request_mpdpcch_pdu_rel13_value(ptvcursor_t * ptvc
 static void dissect_ul_config_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, size;
+	uint32_t test_value, size;
 
 	// PDU Type
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ul_config_pdu_type, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4461,14 +4261,13 @@ static void dissect_ul_config_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pdu_size, 1, ENC_BIG_ENDIAN, &size);
 
-	guint pdu_end = (ptvcursor_current_offset(ptvc) + size - 2);
+	unsigned pdu_end = (ptvcursor_current_offset(ptvc) + size - 2);
 	dissect_tlv_list(ptvc, pinfo, pdu_end);
 }
 static void dissect_ul_config_request_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, num_pdu;
-	gboolean test_boolean;
+	uint32_t test_value, num_pdu;
 
 	// Number of PDUs
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_pdus, 1, ENC_BIG_ENDIAN, &num_pdu);
@@ -4481,18 +4280,14 @@ static void dissect_ul_config_request_body_value(ptvcursor_t * ptvc, packet_info
 	}
 
 	// SRS present
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_srs_present, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid srs present value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_srs_present, 1, ENC_BIG_ENDIAN);
 
 	dissect_array_value(ptvc, pinfo, "UL Config PDU List", ett_nfapi_ul_config_request_pdu_list, num_pdu, dissect_ul_config_pdu);
 }
 static void dissect_ul_config_ulsch_pdu_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Handle
 	ptvcursor_add(ptvc, hf_nfapi_handle, 4, ENC_BIG_ENDIAN);
@@ -4590,7 +4385,7 @@ static void dissect_ul_config_ulsch_pdu_rel8_value(ptvcursor_t * ptvc, packet_in
 static void dissect_ul_config_ulsch_pdu_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Resource allocation type
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_resource_allocation_type, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4640,7 +4435,7 @@ static void dissect_ul_config_ulsch_pdu_rel10_value(ptvcursor_t * ptvc, packet_i
 static void dissect_ul_config_ulsch_pdu_rel11_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Virtual cell ID enabled flag
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_virtual_cell_id_enabled_flag, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4674,7 +4469,7 @@ static void dissect_ul_config_ulsch_pdu_rel11_value(ptvcursor_t * ptvc, packet_i
 static void dissect_ul_config_ulsch_pdu_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// UE Type
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ue_type, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4711,7 +4506,7 @@ static void dissect_ul_config_ulsch_pdu_rel13_value(ptvcursor_t * ptvc, packet_i
 static void dissect_ul_config_init_tx_params_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// N srs initial
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_n_srs_initial, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4731,7 +4526,7 @@ static void dissect_ul_config_init_tx_params_rel8_value(ptvcursor_t * ptvc, pack
 static void dissect_ul_config_cqi_ri_info_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// DL CQI/PMI Size Rank = 1
 	ptvcursor_add(ptvc, hf_nfapi_dl_cqi_pmi_size_rank_1, 1, ENC_BIG_ENDIAN);
@@ -4764,15 +4559,11 @@ static void dissect_ul_config_cqi_ri_info_rel8_value(ptvcursor_t * ptvc, packet_
 static void dissect_ul_config_cqi_ri_info_rel9_later_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
-	gboolean type, test_boolean;
+	uint32_t test_value;
+	bool type;
 
 	// Report type
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_report_type, 1, ENC_BIG_ENDIAN, &type);
-	if (type > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid report type value [0..1]");
-	}
+	ptvcursor_add_ret_boolean(ptvc, hf_nfapi_report_type, 1, ENC_BIG_ENDIAN, &type);
 
 	// Delta offset CQI
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_delta_offset_cqi, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4788,65 +4579,53 @@ static void dissect_ul_config_cqi_ri_info_rel9_later_value(ptvcursor_t * ptvc, p
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid delta offset ri value [0..15]");
 	}
 
-	switch (type)
+	if (type)
 	{
-		case 0:
-		{
-			// DL CQI/PMI/RI size
-			ptvcursor_add(ptvc, hf_nfapi_dl_cqi_ri_pmi_size, 1, ENC_BIG_ENDIAN);
+		// todo : encoder not right for this case.
+		ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_cc, 1, ENC_BIG_ENDIAN, &test_value);
 
-			// Control Type
-			ptvcursor_add_ret_boolean(ptvc, hf_nfapi_control_type, 1, ENC_BIG_ENDIAN, &test_boolean);
-			if (test_boolean > 1)
-			{
-				expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid control type value [0..1]");
-			}
-			break;
+		if (!(test_value >= 1 && test_value <= 32))
+		{
+			expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid number of cc value [1..32]");
 		}
-		case 1:
+
+		/*
+		ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_nfapi_tlv_tree, "CCs");
+
+		for (int i = 0; i < num_cc; ++i)
 		{
-			// todo : encoder not right for this case.
-			ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_cc, 1, ENC_BIG_ENDIAN, &test_value);
+			ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_nfapi_tlv_tree, "[%d]", i);
 
-			if (!(test_value >= 1 && test_value <= 32))
+			uint8_t ri_size = tvb_get_uint8(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
+			ptvcursor_add(ptvc, hf_nfapi_ri_size, 1, ENC_BIG_ENDIAN);
+
+			ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_nfapi_tlv_tree, "Rank");
+
+			for (int j = 0; j < ri_size; ++j)
 			{
-				expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid number of cc value [1..32]");
-			}
-
-			/*
-			ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_nfapi_tlv_tree, "CCs");
-
-			for (int i = 0; i < num_cc; ++i)
-			{
-				ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_nfapi_tlv_tree, "[%d]", i);
-
-				guint8 ri_size = tvb_get_guint8(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
-				ptvcursor_add(ptvc, hf_nfapi_ri_size, 1, ENC_BIG_ENDIAN);
-
-				ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_nfapi_tlv_tree, "Rank");
-
-				for (int j = 0; j < ri_size; ++j)
-				{
-					ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_nfapi_tlv_tree, "[%d]", j);
-					ptvcursor_add(ptvc, hf_nfapi_dl_cqi_pmi_size, 1, ENC_BIG_ENDIAN);
-					ptvcursor_pop_subtree(ptvc);
-				}
-
-				ptvcursor_pop_subtree(ptvc);
-
+				ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_nfapi_tlv_tree, "[%d]", j);
+				ptvcursor_add(ptvc, hf_nfapi_dl_cqi_pmi_size, 1, ENC_BIG_ENDIAN);
 				ptvcursor_pop_subtree(ptvc);
 			}
 
 			ptvcursor_pop_subtree(ptvc);
-			*/
 
-			break;
+			ptvcursor_pop_subtree(ptvc);
 		}
+
+		ptvcursor_pop_subtree(ptvc);
+		*/
+	} else {
+		// DL CQI/PMI/RI size
+		ptvcursor_add(ptvc, hf_nfapi_dl_cqi_ri_pmi_size, 1, ENC_BIG_ENDIAN);
+
+		// Control Type
+		ptvcursor_add(ptvc, hf_nfapi_control_type, 1, ENC_BIG_ENDIAN);
 	}
 }
 static void dissect_ul_config_cqi_ri_info_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// DL CQI/PMI/RI size 2
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_dl_cqi_ri_pmi_size_2, 2, ENC_BIG_ENDIAN, &test_value);
@@ -4858,7 +4637,7 @@ static void dissect_ul_config_cqi_ri_info_rel13_value(ptvcursor_t * ptvc, packet
 static void dissect_ul_config_harq_info_ulsch_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// HARQ Size
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_size, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4884,7 +4663,7 @@ static void dissect_ul_config_harq_info_ulsch_rel10_value(ptvcursor_t * ptvc, pa
 static void dissect_ul_config_harq_info_ulsch_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// HARQ Size 2
 	ptvcursor_add(ptvc, hf_nfapi_harq_size_2, 2, ENC_BIG_ENDIAN);
@@ -4899,7 +4678,7 @@ static void dissect_ul_config_harq_info_ulsch_rel13_value(ptvcursor_t * ptvc, pa
 static void dissect_ul_config_ue_info_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Handle
 	ptvcursor_add(ptvc, hf_nfapi_handle, 4, ENC_BIG_ENDIAN);
@@ -4914,7 +4693,7 @@ static void dissect_ul_config_ue_info_rel8_value(ptvcursor_t * ptvc, packet_info
 static void dissect_ul_config_ue_info_rel11_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Virtual cell ID enabled flag
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_virtual_cell_id_enabled_flag, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4934,7 +4713,7 @@ static void dissect_ul_config_ue_info_rel11_value(ptvcursor_t * ptvc, packet_inf
 static void dissect_ul_config_ue_info_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// UE Type
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ue_type, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4965,7 +4744,7 @@ static void dissect_ul_config_ue_info_rel13_value(ptvcursor_t * ptvc, packet_inf
 static void dissect_ul_config_cqi_info_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// PUCCH index
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_pucch_index, 2, ENC_BIG_ENDIAN, &test_value);
@@ -4980,7 +4759,7 @@ static void dissect_ul_config_cqi_info_rel8_value(ptvcursor_t * ptvc, packet_inf
 static void dissect_ul_config_cqi_info_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Number of PUCCH Resources
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_pucch_resource, 1, ENC_BIG_ENDIAN, &test_value);
@@ -4999,7 +4778,7 @@ static void dissect_ul_config_cqi_info_rel10_value(ptvcursor_t * ptvc, packet_in
 static void dissect_ul_config_cqi_info_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// CSI_mode
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_csi_mode, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5042,7 +4821,7 @@ static void dissect_ul_config_cqi_info_rel13_value(ptvcursor_t * ptvc, packet_in
 }
 static void dissect_ul_config_sr_info_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_pucch_index, 1, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 2047)
 	{
@@ -5052,7 +4831,7 @@ static void dissect_ul_config_sr_info_rel8_value(ptvcursor_t * ptvc, packet_info
 static void dissect_ul_config_sr_info_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Number of PUCCH Resources
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_pucch_resource, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5071,7 +4850,7 @@ static void dissect_ul_config_sr_info_rel10_value(ptvcursor_t * ptvc, packet_inf
 static void dissect_ul_config_harq_info_uci_rel10_tdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, ack_nack_mode_value;
+	uint32_t test_value, ack_nack_mode_value;
 
 	// HARQ size
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_size, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5144,7 +4923,7 @@ static void dissect_ul_config_harq_info_uci_rel10_tdd_value(ptvcursor_t * ptvc, 
 static void dissect_ul_config_harq_info_uci_rel8_fdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// n_PUCCH_1_0
 	// todo : how to work out the ack_nack mode?
@@ -5164,7 +4943,7 @@ static void dissect_ul_config_harq_info_uci_rel8_fdd_value(ptvcursor_t * ptvc, p
 static void dissect_ul_config_harq_info_uci_rel9_later_fdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item *item, *harq_size_item;
-	guint32 test_value, harq_size_value, ack_nack_mode_value;
+	uint32_t test_value, harq_size_value, ack_nack_mode_value;
 
 	// HARQ Size
 	harq_size_item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_size, 1, ENC_BIG_ENDIAN, &harq_size_value);
@@ -5258,7 +5037,7 @@ static void dissect_ul_config_harq_info_uci_rel9_later_fdd_value(ptvcursor_t * p
 static void dissect_ul_config_harq_info_uci_rel11_fdd_tdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Num_ant_ports
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_num_ant_ports, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5300,7 +5079,7 @@ static void dissect_ul_config_harq_info_uci_rel11_fdd_tdd_value(ptvcursor_t * pt
 static void dissect_ul_config_harq_info_uci_rel13_fdd_tdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// HARQ Size 2
 	ptvcursor_add(ptvc, hf_nfapi_harq_size_2, 2, ENC_BIG_ENDIAN);
@@ -5336,7 +5115,7 @@ static void dissect_ul_config_harq_info_uci_rel13_fdd_tdd_value(ptvcursor_t * pt
 static void dissect_ul_config_srs_info_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Handle
 	ptvcursor_add(ptvc, hf_nfapi_handle, 4, ENC_BIG_ENDIAN);
@@ -5395,7 +5174,7 @@ static void dissect_ul_config_srs_info_rel8_value(ptvcursor_t * ptvc, packet_inf
 }
 static void dissect_ul_config_srs_info_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_antenna_port, 1, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 2)
@@ -5405,7 +5184,7 @@ static void dissect_ul_config_srs_info_rel10_value(ptvcursor_t * ptvc, packet_in
 }
 static void dissect_ul_config_srs_info_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_combs, 1, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 1)
@@ -5415,7 +5194,7 @@ static void dissect_ul_config_srs_info_rel13_value(ptvcursor_t * ptvc, packet_in
 }
 static void dissect_hi_dci0_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value, size;
+	uint32_t test_value, size;
 
 	// PDU Type
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_hi_dci0_pdu_type, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5427,12 +5206,12 @@ static void dissect_hi_dci0_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 	// PDU Size
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pdu_size, 1, ENC_BIG_ENDIAN, &size);
 
-	guint pdu_end = (ptvcursor_current_offset(ptvc) + size - 2);
+	unsigned pdu_end = (ptvcursor_current_offset(ptvc) + size - 2);
 	dissect_tlv_list(ptvc, pinfo, pdu_end);
 }
 static void dissect_hi_dci0_request_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value, num_pdu;
+	uint32_t test_value, num_pdu;
 
 	// SFN/SF
 	ptvcursor_add(ptvc, hf_nfapi_sfn_sf, 2, ENC_BIG_ENDIAN);
@@ -5449,8 +5228,7 @@ static void dissect_hi_dci0_request_body_value(ptvcursor_t * ptvc, packet_info* 
 static void dissect_hi_dci0_hi_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
-	gboolean test_boolean;
+	uint32_t test_value;
 
 	// Resource block start
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_resource_block_start, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5467,11 +5245,7 @@ static void dissect_hi_dci0_hi_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo
 	}
 
 	// HI value
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_hi_value, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid hi value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_hi_value, 1, ENC_BIG_ENDIAN);
 
 	// I_PHICH
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_i_phich, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5488,30 +5262,18 @@ static void dissect_hi_dci0_hi_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo
 	}
 
 }
-static void dissect_hi_dci0_hi_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_hi_dci0_hi_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	proto_item* item;
-	gboolean test_boolean;
-
 	// Flag TB2
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_flag_tb2, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid flag tb2 value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_flag_tb2, 1, ENC_BIG_ENDIAN);
 
 	// HI Value 2
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_hi_value_2, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid hi2 value [0..1]");
-	}
-
+	ptvcursor_add(ptvc, hf_nfapi_hi_value_2, 1, ENC_BIG_ENDIAN);
 }
 static void dissect_hi_dci0_dci_ul_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// DCI format
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ul_dci_format, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5640,15 +5402,10 @@ static void dissect_hi_dci0_dci_ul_rel8_value(ptvcursor_t * ptvc, packet_info* p
 static void dissect_hi_dci0_dci_ul_rel10_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, number_of_antenna_ports_value;
-	gboolean test_boolean;
+	uint32_t test_value, number_of_antenna_ports_value;
 
 	// Cross carrier scheduling flag
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_cross_carrier_scheduling_flag, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid cross carrier scheduling flag value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_cross_carrier_scheduling_flag, 1, ENC_BIG_ENDIAN);
 
 	// Carrier indicator
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_carrier_indicator, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5665,11 +5422,7 @@ static void dissect_hi_dci0_dci_ul_rel10_value(ptvcursor_t * ptvc, packet_info* 
 	}
 
 	// SRS flag
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_srs_flag, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid srs field value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_srs_flag, 1, ENC_BIG_ENDIAN);
 
 	// SRS request
 	ptvcursor_add(ptvc, hf_nfapi_srs_request, 1, ENC_BIG_ENDIAN);
@@ -5743,7 +5496,7 @@ static void dissect_hi_dci0_dci_ul_rel10_value(ptvcursor_t * ptvc, packet_info* 
 static void dissect_hi_dci0_dci_ul_rel12_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// PSCCH Resource
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_pscch_resource, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5763,8 +5516,7 @@ static void dissect_hi_dci0_dci_ul_rel12_value(ptvcursor_t * ptvc, packet_info* 
 static void dissect_hi_dci0_mdpcch_dci_ul_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, dci_format_value, count;
-	gboolean test_boolean;
+	uint32_t test_value, dci_format_value, count;
 
 	// MPDCCH Narrowband
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_mpdcch_narrowband, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5953,11 +5705,7 @@ static void dissect_hi_dci0_mdpcch_dci_ul_rel13_value(ptvcursor_t * ptvc, packet
 	}
 
 	// DAI presence flag
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_dai_presence_flag, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid dai presence value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_dai_presence_flag, 1, ENC_BIG_ENDIAN);
 
 	// DL assignment index
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_dl_assignment_index, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5967,11 +5715,7 @@ static void dissect_hi_dci0_mdpcch_dci_ul_rel13_value(ptvcursor_t * ptvc, packet
 	}
 
 	// SRS request
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_srs_request, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid srs request value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_srs_request, 1, ENC_BIG_ENDIAN);
 
 	// DCI subframe repetition number
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_dci_subframe_repetition_number, 1, ENC_BIG_ENDIAN, &test_value);
@@ -5993,7 +5737,7 @@ static void dissect_hi_dci0_mdpcch_dci_ul_rel13_value(ptvcursor_t * ptvc, packet
 }
 static void dissect_rx_ue_info_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Handle
 	ptvcursor_add(ptvc, hf_nfapi_handle, 4, ENC_BIG_ENDIAN);
@@ -6008,7 +5752,7 @@ static void dissect_rx_ue_info_value(ptvcursor_t * ptvc, packet_info* pinfo)
 static void dissect_rx_indication_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Length
 	ptvcursor_add(ptvc, hf_nfapi_length, 2, ENC_BIG_ENDIAN);
@@ -6028,7 +5772,7 @@ static void dissect_rx_indication_rel8_value(ptvcursor_t * ptvc, packet_info* pi
 }
 static void dissect_rx_indication_rel9_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Timing advance R9
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_timing_advance_r9, 2, ENC_BIG_ENDIAN, &test_value);
@@ -6041,7 +5785,7 @@ static void dissect_rx_indication_rel9_value(ptvcursor_t * ptvc, packet_info* pi
 static void dissect_harq_indication_data_bundling_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_data_value_0, 1, ENC_BIG_ENDIAN, &test_value);
 	if (!(test_value >= 1 && test_value <= 7))
@@ -6057,7 +5801,7 @@ static void dissect_harq_indication_data_bundling_value(ptvcursor_t * ptvc, pack
 }
 static void dissect_harq_indication_data_format_1a_1b_bundling_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_data_value_0, 1, ENC_BIG_ENDIAN, &test_value);
 	if (!(test_value >= 1 && test_value <= 7))
@@ -6068,7 +5812,7 @@ static void dissect_harq_indication_data_format_1a_1b_bundling_value(ptvcursor_t
 static void dissect_harq_indication_data_multplexing_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_data_value_0, 1, ENC_BIG_ENDIAN, &test_value);
 	if (!(test_value >= 1 && test_value <= 7))
@@ -6097,7 +5841,7 @@ static void dissect_harq_indication_data_multplexing_value(ptvcursor_t * ptvc, p
 }
 static void dissect_harq_indication_data_format_1a_1b_multplexing_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_data_value_0, 1, ENC_BIG_ENDIAN, &test_value);
 	if (!(test_value >= 1 && test_value <= 7))
 	{
@@ -6106,7 +5850,7 @@ static void dissect_harq_indication_data_format_1a_1b_multplexing_value(ptvcurso
 }
 static void dissect_harq_indication_data_special_bundling_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_data_value_0_special, 1, ENC_BIG_ENDIAN, &test_value);
 
 	if (test_value > 4)
@@ -6116,7 +5860,7 @@ static void dissect_harq_indication_data_special_bundling_value(ptvcursor_t * pt
 }
 static void dissect_harq_indication_data_format_1a_1b_special_bundling_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_data_value_0_special, 1, ENC_BIG_ENDIAN, &test_value);
 	if (test_value > 4)
 	{
@@ -6125,7 +5869,7 @@ static void dissect_harq_indication_data_format_1a_1b_special_bundling_value(ptv
 }
 static void dissect_harq_indication_data_channel_selection_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_data_value_0, 1, ENC_BIG_ENDIAN, &test_value);
 	if (!(test_value >= 1 && test_value <= 7))
 	{
@@ -6134,7 +5878,7 @@ static void dissect_harq_indication_data_channel_selection_value(ptvcursor_t * p
 }
 static void dissect_harq_indication_data_format_3_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_data_value_0, 1, ENC_BIG_ENDIAN, &test_value);
 	if (!(test_value >= 1 && test_value <= 7))
 	{
@@ -6143,7 +5887,7 @@ static void dissect_harq_indication_data_format_3_value(ptvcursor_t * ptvc, pack
 }
 static void dissect_harq_indication_data_format_4_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_data_value_0, 1, ENC_BIG_ENDIAN, &test_value);
 	if (!(test_value >= 1 && test_value <= 7))
 	{
@@ -6152,7 +5896,7 @@ static void dissect_harq_indication_data_format_4_value(ptvcursor_t * ptvc, pack
 }
 static void dissect_harq_indication_data_format_5_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_data_value_0, 1, ENC_BIG_ENDIAN, &test_value);
 	if (!(test_value >= 1 && test_value <= 7))
 	{
@@ -6162,7 +5906,7 @@ static void dissect_harq_indication_data_format_5_value(ptvcursor_t * ptvc, pack
 static void dissect_harq_indication_rel8_tdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, mode;
+	uint32_t test_value, mode;
 
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_tdd_harq_mode, 1, ENC_BIG_ENDIAN, &mode);
 	if (mode > 4)
@@ -6198,7 +5942,7 @@ static void dissect_harq_indication_rel8_tdd_value(ptvcursor_t * ptvc, packet_in
 static void dissect_harq_indication_rel9_later_tdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 mode, i, count;
+	uint32_t mode, i, count;
 
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_tdd_harq_mode, 1, ENC_BIG_ENDIAN, &mode);
 	if (mode > 4)
@@ -6273,7 +6017,7 @@ static void dissect_harq_indication_rel9_later_tdd_value(ptvcursor_t * ptvc, pac
 static void dissect_harq_indication_rel13_later_tdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 mode, i, count;
+	uint32_t mode, i, count;
 
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_tdd_harq_mode, 1, ENC_BIG_ENDIAN, &mode);
 	if (mode > 6)
@@ -6365,7 +6109,7 @@ static void dissect_harq_indication_rel13_later_tdd_value(ptvcursor_t * ptvc, pa
 static void dissect_harq_indication_rel8_fdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_tb_1, 1, ENC_BIG_ENDIAN, &test_value);
 	if (!(test_value >= 1 && test_value <= 7))
@@ -6382,7 +6126,7 @@ static void dissect_harq_indication_rel8_fdd_value(ptvcursor_t * ptvc, packet_in
 }
 static void dissect_harq_tb_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_harq_tb_n, 1, ENC_BIG_ENDIAN, &test_value);
 
 	if (!(test_value >= 1 && test_value <= 7))
@@ -6392,7 +6136,7 @@ static void dissect_harq_tb_value(ptvcursor_t * ptvc, packet_info* pinfo)
 }
 static void dissect_harq_indication_rel9_later_fdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 harq_mode_value, count;
+	uint32_t harq_mode_value, count;
 
 	// Mode
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_fdd_harq_mode, 1, ENC_BIG_ENDIAN, &harq_mode_value);
@@ -6432,7 +6176,7 @@ static void dissect_harq_indication_rel9_later_fdd_value(ptvcursor_t * ptvc, pac
 }
 static void dissect_harq_indication_rel13_later_fdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 harq_mode_value, count;
+	uint32_t harq_mode_value, count;
 
 	// Mode
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_fdd_harq_mode, 1, ENC_BIG_ENDIAN, &harq_mode_value);
@@ -6479,7 +6223,7 @@ static void dissect_harq_indication_rel13_later_fdd_value(ptvcursor_t * ptvc, pa
 static void dissect_ul_cqi_information_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// UL_CQI
 	ptvcursor_add(ptvc, hf_nfapi_ul_cqi, 1, ENC_BIG_ENDIAN);
@@ -6491,21 +6235,14 @@ static void dissect_ul_cqi_information_value(ptvcursor_t * ptvc, packet_info* pi
 		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid channel value [0..1]");
 	}
 }
-static void dissect_crc_indication_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_crc_indication_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	gboolean test_boolean;
-
-	// CRC Flag
-	proto_item* item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_crc_flag, 1, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid crc flag value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_crc_flag, 1, ENC_BIG_ENDIAN);
 }
 static void dissect_rx_cqi_indication_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	//Length
 	ptvcursor_add(ptvc, hf_nfapi_length, 2, ENC_BIG_ENDIAN);
@@ -6532,7 +6269,7 @@ static void dissect_rx_cqi_indication_rel8_value(ptvcursor_t * ptvc, packet_info
 }
 static void dissect_ri_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// RI
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ri, 1, ENC_BIG_ENDIAN, &test_value);
@@ -6544,7 +6281,7 @@ static void dissect_ri_value(ptvcursor_t * ptvc, packet_info* pinfo)
 static void dissect_rx_cqi_indication_rel9_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, count;
+	uint32_t test_value, count;
 
 	// Length
 	ptvcursor_add(ptvc, hf_nfapi_length, 2, ENC_BIG_ENDIAN);
@@ -6581,7 +6318,7 @@ static void dissect_rx_cqi_indication_rel9_value(ptvcursor_t * ptvc, packet_info
 static void dissect_rach_indication_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// RNTI
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_rnti, 2, ENC_BIG_ENDIAN, &test_value);
@@ -6607,7 +6344,7 @@ static void dissect_rach_indication_rel8_value(ptvcursor_t * ptvc, packet_info* 
 }
 static void dissect_rach_indication_rel9_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Timing Advance R9
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_timing_advance_r9, 2, ENC_BIG_ENDIAN, &test_value);
@@ -6618,7 +6355,7 @@ static void dissect_rach_indication_rel9_value(ptvcursor_t * ptvc, packet_info* 
 }
 static void dissect_rach_indication_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// RACH resource type
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_rach_resource_type, 1, ENC_BIG_ENDIAN, &test_value);
@@ -6635,7 +6372,7 @@ static void dissect_snr_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 static void dissect_srs_indication_rel8_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, count;
+	uint32_t test_value, count;
 
 	// Doppler estimation
 	ptvcursor_add(ptvc, hf_nfapi_doppler_estimation, 2, ENC_BIG_ENDIAN);
@@ -6658,7 +6395,7 @@ static void dissect_srs_indication_rel8_value(ptvcursor_t * ptvc, packet_info* p
 }
 static void dissect_srs_indication_rel9_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Timing Advance R9
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_timing_advance_r9, 2, ENC_BIG_ENDIAN, &test_value);
@@ -6669,7 +6406,7 @@ static void dissect_srs_indication_rel9_value(ptvcursor_t * ptvc, packet_info* p
 }
 static void dissect_srs_indication_rel10_tdd_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// UpPTS Symbol
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_up_pts_symbol, 1, ENC_BIG_ENDIAN, &test_value);
@@ -6681,7 +6418,7 @@ static void dissect_srs_indication_rel10_tdd_value(ptvcursor_t * ptvc, packet_in
 }
 static void dissect_tdd_channel_measurement_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	guint32 i, j, num_subbands, num_phy_ant;
+	uint32_t i, j, num_subbands, num_phy_ant;
 
 	// numPRBperSubband
 	ptvcursor_add(ptvc, hf_nfapi_number_prb_per_subband, 1, ENC_BIG_ENDIAN);
@@ -6722,7 +6459,7 @@ static void dissect_tdd_channel_measurement_value(ptvcursor_t * ptvc, packet_inf
 }
 static void dissect_srs_indication_rel11_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	//UL_RTOA
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_ul_rtoa, 2, ENC_BIG_ENDIAN, &test_value);
@@ -6734,8 +6471,7 @@ static void dissect_srs_indication_rel11_value(ptvcursor_t * ptvc, packet_info* 
 static void dissect_lbt_dl_config_request_pdsch_req_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
-	gint32 test_boolean;
+	uint32_t test_value;
 
 	// Handle
 	ptvcursor_add(ptvc, hf_nfapi_handle, 4, ENC_BIG_ENDIAN);
@@ -6760,17 +6496,12 @@ static void dissect_lbt_dl_config_request_pdsch_req_rel13_value(ptvcursor_t * pt
 	ptvcursor_add(ptvc, hf_nfapi_txop_sfn_sf_end, 2, ENC_BIG_ENDIAN);
 
 	// LBT mode
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_lbt_mode, 4, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid offset value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_lbt_mode, 4, ENC_BIG_ENDIAN);
 }
 static void dissect_lbt_dl_config_request_drs_req_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
-	gint32 test_boolean;
+	uint32_t test_value;
 
 	// Handle
 	ptvcursor_add(ptvc, hf_nfapi_handle, 4, ENC_BIG_ENDIAN);
@@ -6786,55 +6517,33 @@ static void dissect_lbt_dl_config_request_drs_req_rel13_value(ptvcursor_t * ptvc
 	ptvcursor_add(ptvc, hf_nfapi_sfn_sf_end, 2, ENC_BIG_ENDIAN);
 
 	// LBT mode
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_lbt_mode, 4, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid offset value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_lbt_mode, 4, ENC_BIG_ENDIAN);
 }
-static void dissect_lbt_dl_config_request_pdsch_resp_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_lbt_dl_config_request_pdsch_resp_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	proto_item* item;
-	gint32 test_boolean;
-
 	// Handle
 	ptvcursor_add(ptvc, hf_nfapi_handle, 4, ENC_BIG_ENDIAN);
 
 	// result
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_result, 4, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid result value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_result, 4, ENC_BIG_ENDIAN);
 
 	// LTE TXOP symbols
 	ptvcursor_add(ptvc, hf_nfapi_txop_symbols, 4, ENC_BIG_ENDIAN);
 
 	// Initial Partial SF
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_initial_partial_sf, 4, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid initial partial sf value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_initial_partial_sf, 4, ENC_BIG_ENDIAN);
 }
-static void dissect_lbt_dl_config_request_drs_resp_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo)
+static void dissect_lbt_dl_config_request_drs_resp_rel13_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	proto_item* item;
-	gint32 test_boolean;
-
 	// Handle
 	ptvcursor_add(ptvc, hf_nfapi_handle, 4, ENC_BIG_ENDIAN);
 
 	// result
-	item = ptvcursor_add_ret_boolean(ptvc, hf_nfapi_result, 4, ENC_BIG_ENDIAN, &test_boolean);
-	if (test_boolean > 1)
-	{
-		expert_add_info_format(pinfo, item, &ei_invalid_range, "Invalid result value [0..1]");
-	}
+	ptvcursor_add(ptvc, hf_nfapi_result, 4, ENC_BIG_ENDIAN);
 }
 static void dissect_tx_pdu(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	guint32 len;
+	uint32_t len;
 
 	// PDU length
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pdu_length, 2, ENC_BIG_ENDIAN, &len);
@@ -6847,7 +6556,7 @@ static void dissect_tx_pdu(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 }
 static void dissect_tx_request_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_pdu;
+	uint32_t num_pdu;
 
 	// Number of PDUs
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_pdus, 2, ENC_BIG_ENDIAN, &num_pdu);
@@ -6856,17 +6565,17 @@ static void dissect_tx_request_body_value(ptvcursor_t * ptvc, packet_info* pinfo
 }
 static void dissect_harq_indication_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 instance_len;
+	uint32_t instance_len;
 
 	// Instance Length
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_instance_length, 2, ENC_BIG_ENDIAN, &instance_len);
 
-	guint32 instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
+	uint32_t instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
 	dissect_tlv_list(ptvc, pinfo, instance_end);
 }
 static void dissect_harq_indication_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_pdu;
+	uint32_t num_pdu;
 
 	// Number of HARQs
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_harqs, 2, ENC_BIG_ENDIAN, &num_pdu);
@@ -6875,17 +6584,17 @@ static void dissect_harq_indication_body_value(ptvcursor_t * ptvc, packet_info* 
 }
 static void dissect_crc_indication_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 instance_len;
+	uint32_t instance_len;
 
 	// Instance Length
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_instance_length, 2, ENC_BIG_ENDIAN, &instance_len);
 
-	guint32 instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
+	uint32_t instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
 	dissect_tlv_list(ptvc, pinfo, instance_end);
 }
 static void dissect_crc_indication_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_pdu;
+	uint32_t num_pdu;
 
 	// Number of CRCs
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_crcs, 2, ENC_BIG_ENDIAN, &num_pdu);
@@ -6893,17 +6602,17 @@ static void dissect_crc_indication_body_value(ptvcursor_t * ptvc, packet_info* p
 }
 static void dissect_sr_indication_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 instance_len;
+	uint32_t instance_len;
 
 	// Instance Length
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_instance_length, 2, ENC_BIG_ENDIAN, &instance_len);
 
-	guint32 instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
+	uint32_t instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
 	dissect_tlv_list(ptvc, pinfo, instance_end);
 }
 static void dissect_rx_sr_indication_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_pdu;
+	uint32_t num_pdu;
 
 	// Number of SRs
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_srs, 2, ENC_BIG_ENDIAN, &num_pdu);
@@ -6912,42 +6621,42 @@ static void dissect_rx_sr_indication_body_value(ptvcursor_t * ptvc, packet_info*
 }
 static void dissect_cqi_indication_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 instance_len;
+	uint32_t instance_len;
 
 	// Instance Length
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_instance_length, 2, ENC_BIG_ENDIAN, &instance_len);
 
-	guint32 instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
+	uint32_t instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
 	dissect_tlv_list(ptvc, pinfo, instance_end);
 }
 static void dissect_rx_cqi_indication_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 i, num_pdu;
-	guint16* lengths = NULL;
+	uint32_t i, num_pdu;
+	uint16_t* lengths = NULL;
 
 	// Number of PDUs
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_cqi, 2, ENC_BIG_ENDIAN, &num_pdu);
 
 
 	tvbuff_t* tvb = ptvcursor_tvbuff(ptvc);
-	guint32 tmp_offset = ptvcursor_current_offset(ptvc);
+	uint32_t tmp_offset = ptvcursor_current_offset(ptvc);
 
 	if (num_pdu > 0)
 	{
-		lengths = (guint16*)wmem_alloc0(pinfo->pool, num_pdu * 2);
+		lengths = (uint16_t*)wmem_alloc0(pinfo->pool, num_pdu * 2);
 	}
 
 	for (i = 0; i < num_pdu; ++i)
 	{
-		guint32 instance_len = tvb_get_ntohs(tvb, tmp_offset);
+		uint32_t instance_len = tvb_get_ntohs(tvb, tmp_offset);
 		tmp_offset += 2;
-		guint32 pdu_end = tmp_offset + instance_len;
+		uint32_t pdu_end = tmp_offset + instance_len;
 
 		while (tmp_offset < pdu_end)
 		{
-			guint16 tlv_id = tvb_get_ntohs(tvb, tmp_offset);
+			uint16_t tlv_id = tvb_get_ntohs(tvb, tmp_offset);
 			tmp_offset += 2;
-			guint16 tlv_len = tvb_get_ntohs(tvb, tmp_offset);
+			uint16_t tlv_len = tvb_get_ntohs(tvb, tmp_offset);
 			tmp_offset += 2;
 
 			if (tlv_id == 0x202F)
@@ -6972,17 +6681,17 @@ static void dissect_rx_cqi_indication_body_value(ptvcursor_t * ptvc, packet_info
 }
 static void dissect_preamble_indication_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 instance_len;
+	uint32_t instance_len;
 
 	// Instance Length
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_instance_length, 2, ENC_BIG_ENDIAN, &instance_len);
 
-	guint32 instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
+	uint32_t instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
 	dissect_tlv_list(ptvc, pinfo, instance_end);
 }
 static void dissect_rach_indication_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_pdu;
+	uint32_t num_pdu;
 
 	// Number of Preambles
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_preambles, 2, ENC_BIG_ENDIAN, &num_pdu);
@@ -6990,16 +6699,16 @@ static void dissect_rach_indication_body_value(ptvcursor_t * ptvc, packet_info* 
 }
 static void dissect_srs_indication_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 instance_len;
+	uint32_t instance_len;
 
 	// Instance Length
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_instance_length, 2, ENC_BIG_ENDIAN, &instance_len);
-	guint32 instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
+	uint32_t instance_end = (ptvcursor_current_offset(ptvc) + instance_len - 2);
 	dissect_tlv_list(ptvc, pinfo, instance_end);
 }
 static void dissect_srs_indication_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_pdu;
+	uint32_t num_pdu;
 
 	// Number of UEs
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_srss, 1, ENC_BIG_ENDIAN, &num_pdu);
@@ -7007,7 +6716,7 @@ static void dissect_srs_indication_body_value(ptvcursor_t * ptvc, packet_info* p
 }
 static void dissect_lbt_dl_config_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value, size;
+	uint32_t test_value, size;
 
 	// PDU Type
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_lbt_dl_req_pdu_type, 1, ENC_BIG_ENDIAN, &test_value);
@@ -7017,13 +6726,13 @@ static void dissect_lbt_dl_config_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 	}
 
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pdu_size, 1, ENC_BIG_ENDIAN, &size);
-	guint pdu_end = (ptvcursor_current_offset(ptvc) + size - 2);
+	unsigned pdu_end = (ptvcursor_current_offset(ptvc) + size - 2);
 
 	dissect_tlv_list(ptvc, pinfo, pdu_end);
 }
 static void dissect_lbt_dl_config_request_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_pdu;
+	uint32_t num_pdu;
 
 	// Number of PDUs
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_pdus, 2, ENC_BIG_ENDIAN, &num_pdu);
@@ -7036,7 +6745,7 @@ static void dissect_lbt_dl_config_request_body_value(ptvcursor_t * ptvc, packet_
 }
 static void dissect_lbt_dl_indication_pdu(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value, size;
+	uint32_t test_value, size;
 
 	// PDU Type
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_lbt_dl_ind_pdu_type, 1, ENC_BIG_ENDIAN, &test_value);
@@ -7047,12 +6756,12 @@ static void dissect_lbt_dl_indication_pdu(ptvcursor_t * ptvc, packet_info* pinfo
 
 	// PDU Size
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_pdu_size, 1, ENC_BIG_ENDIAN, &size);
-	guint32 pdu_end = (ptvcursor_current_offset(ptvc) + size - 2);
+	uint32_t pdu_end = (ptvcursor_current_offset(ptvc) + size - 2);
 	dissect_tlv_list(ptvc, pinfo, pdu_end);
 }
 static void dissect_lbt_indication_message_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_pdu;
+	uint32_t num_pdu;
 
 	// Number of PDUs
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_pdus, 2, ENC_BIG_ENDIAN, &num_pdu);
@@ -7065,7 +6774,7 @@ static void dissect_lbt_indication_message_body_value(ptvcursor_t * ptvc, packet
 }
 static void dissect_lte_rssi_request_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value, num_earfcns;
+	uint32_t test_value, num_earfcns;
 
 	// Frequency Band Indicator
 	ptvcursor_add(ptvc, hf_nfapi_frequency_band_indicator, 1, ENC_BIG_ENDIAN);
@@ -7096,7 +6805,7 @@ static void dissect_uarfcn_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 }
 static void dissect_utran_rssi_request_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_uarfcns;
+	uint32_t num_uarfcns;
 
 	// Frequency Band Indicator
 	ptvcursor_add(ptvc, hf_nfapi_frequency_band_indicator, 1, ENC_BIG_ENDIAN);
@@ -7114,7 +6823,7 @@ static void dissect_utran_rssi_request_value(ptvcursor_t * ptvc, packet_info* pi
 }
 static void dissect_arfcn_dir_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// ARFCN
 	ptvcursor_add(ptvc, hf_nfapi_arfcn, 2, ENC_BIG_ENDIAN);
@@ -7129,7 +6838,7 @@ static void dissect_arfcn_dir_value(ptvcursor_t * ptvc, packet_info* pinfo)
 }
 static void dissect_geran_rssi_request_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_arfcns;
+	uint32_t num_arfcns;
 
 	// Frequency Band Indicator
 	ptvcursor_add(ptvc, hf_nfapi_frequency_band_indicator, 1, ENC_BIG_ENDIAN);
@@ -7152,7 +6861,7 @@ static void dissect_rssi_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 }
 static void dissect_rssi_indication_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_rssi;
+	uint32_t num_rssi;
 
 	// Number of RSSI
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_rssi, 2, ENC_BIG_ENDIAN, &num_rssi);
@@ -7166,7 +6875,7 @@ static void dissect_pci_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 }
 static void dissect_lte_cell_search_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_pci;
+	uint32_t num_pci;
 
 	// EARFCN
 	ptvcursor_add(ptvc, hf_nfapi_earfcn, 2, ENC_BIG_ENDIAN);
@@ -7192,7 +6901,7 @@ static void dissect_psc_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 }
 static void dissect_utran_cell_search_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_psc;
+	uint32_t num_psc;
 
 	// UARFCN
 	ptvcursor_add(ptvc, hf_nfapi_uarfcn, 2, ENC_BIG_ENDIAN);
@@ -7215,7 +6924,7 @@ static void dissect_arfcn_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 }
 static void dissect_geran_cell_search_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_arfcn;
+	uint32_t num_arfcn;
 
 	// Timeout
 	ptvcursor_add(ptvc, hf_nfapi_timeout, 4, ENC_BIG_ENDIAN);
@@ -7242,7 +6951,7 @@ static void dissect_lte_cell_found_value(ptvcursor_t * ptvc, packet_info* pinfo 
 }
 static void dissect_lte_cell_search_indication_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_lte_cells;
+	uint32_t num_lte_cells;
 
 	// Number of LTE Cells Found
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_lte_cells_found, 2, ENC_BIG_ENDIAN, &num_lte_cells);
@@ -7264,7 +6973,7 @@ static void dissect_utran_cell_found_value(ptvcursor_t * ptvc, packet_info* pinf
 }
 static void dissect_utran_cell_search_indication_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_utran_cells;
+	uint32_t num_utran_cells;
 
 	// Number of UTRAN Cells Found
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_utran_cells_found, 2, ENC_BIG_ENDIAN, &num_utran_cells);
@@ -7292,7 +7001,7 @@ static void dissect_geran_cell_found_value(ptvcursor_t * ptvc, packet_info* pinf
 }
 static void dissect_geran_cell_search_indication_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 num_geran_cells;
+	uint32_t num_geran_cells;
 
 	// Number of GSM Cells Found
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_geran_cells_found, 2, ENC_BIG_ENDIAN, &num_geran_cells);
@@ -7300,12 +7009,12 @@ static void dissect_geran_cell_search_indication_value(ptvcursor_t * ptvc, packe
 }
 static void dissect_pnf_cell_search_state_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	guint len = tvb_reported_length_remaining(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
+	unsigned len = tvb_reported_length_remaining(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
 	ptvcursor_add(ptvc, hf_nfapi_pnf_search_state, len, ENC_NA);
 }
 static void dissect_pnf_cell_broadcast_state_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
-	guint len = tvb_reported_length_remaining(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
+	unsigned len = tvb_reported_length_remaining(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
 	ptvcursor_add(ptvc, hf_nfapi_pnf_broadcast_state, len, ENC_NA);
 }
 static void dissect_lte_broadcast_detect_request_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
@@ -7332,7 +7041,7 @@ static void dissect_utran_broadcast_detect_request_value(ptvcursor_t * ptvc, pac
 }
 static void dissect_lte_broadcast_detect_indication_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 test_value;
+	uint32_t test_value;
 
 	// Number of Tx Antenna
 	proto_item* item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_of_tx_antenna, 1, ENC_BIG_ENDIAN, &test_value);
@@ -7358,7 +7067,7 @@ static void dissect_utran_broadcast_detect_indication_value(ptvcursor_t * ptvc, 
 static void dissect_lte_system_information_schedule_request_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// EARFCN
 	ptvcursor_add(ptvc, hf_nfapi_earfcn, 2, ENC_BIG_ENDIAN);
@@ -7394,13 +7103,13 @@ static void dissect_lte_system_information_schedule_request_value(ptvcursor_t * 
 static void dissect_lte_system_information_schedule_indication_value(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 {
 	// this needs to be SIB 1
-	guint len = tvb_reported_length_remaining(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
+	unsigned len = tvb_reported_length_remaining(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
 	ptvcursor_add(ptvc, hf_nfapi_sib1, len, ENC_NA);
 }
 static void dissect_si_periodicity_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value;
+	uint32_t test_value;
 
 	// SI Periodicity
 	item = ptvcursor_add_ret_uint(ptvc, hf_nfapi_si_periodicity, 1, ENC_BIG_ENDIAN, &test_value);
@@ -7420,7 +7129,7 @@ static void dissect_si_periodicity_value(ptvcursor_t * ptvc, packet_info* pinfo)
 static void dissect_lte_system_information_request_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
 	proto_item* item;
-	guint32 test_value, si_priodicity;
+	uint32_t test_value, si_priodicity;
 
 	// EARFCN
 	ptvcursor_add(ptvc, hf_nfapi_earfcn, 2, ENC_BIG_ENDIAN);
@@ -7968,10 +7677,10 @@ static const tlv_t* look_up_tlv(int tag_id)
 {
 	const tlv_t* tlv = NULL;
 
-	static const gint num_configuration_tags = sizeof(configuration_tags) / sizeof(tlv_t);
-	static const gint num_nfapi_tags = sizeof(nfapi_tags) / sizeof(tlv_t);
-	static const gint num_p7_tags = sizeof(p7_tags) / sizeof(tlv_t);
-	static const gint num_p4_tags = sizeof(p4_tags) / sizeof(tlv_t);
+	static const int num_configuration_tags = array_length(configuration_tags);
+	static const int num_nfapi_tags = array_length(nfapi_tags);
+	static const int num_p7_tags = array_length(p7_tags);
+	static const int num_p4_tags = array_length(p4_tags);
 
 	if (tag_id >= 0x0000 && tag_id <= (0x0000 + num_configuration_tags - 1)) // 0x0133)
 	{
@@ -8003,12 +7712,12 @@ static proto_item* dissect_tl_header(ptvcursor_t * ptvc, packet_info* pinfo _U_)
 	return item;
 }
 
-static void dissect_tlv_list(ptvcursor_t* ptvc, packet_info* pinfo, gint len)
+static void dissect_tlv_list(ptvcursor_t* ptvc, packet_info* pinfo, int len)
 {
 	while (ptvcursor_current_offset(ptvc) < len)
 	{
-		guint16 tlv_id = tvb_get_ntohs(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
-		guint16 tlv_len = tvb_get_ntohs(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc) + 2);
+		uint16_t tlv_id = tvb_get_ntohs(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
+		uint16_t tlv_len = tvb_get_ntohs(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc) + 2);
 
 		const tlv_t* tlv = look_up_tlv(tlv_id);
 
@@ -8064,22 +7773,22 @@ static void dissect_tlv_list(ptvcursor_t* ptvc, packet_info* pinfo, gint len)
 
 static void dissect_rx_indication_body_value(ptvcursor_t * ptvc, packet_info* pinfo)
 {
-	guint32 i = 0, count;
-	guint number_of_pdu_addr = ptvcursor_current_offset(ptvc); // *offset;
-	wmem_array_t *lengths = wmem_array_new(pinfo->pool, sizeof(guint16));
+	uint32_t i = 0, count;
+	unsigned number_of_pdu_addr = ptvcursor_current_offset(ptvc); // *offset;
+	wmem_array_t *lengths = wmem_array_new(pinfo->pool, sizeof(uint16_t));
 
 	ptvcursor_add_ret_uint(ptvc, hf_nfapi_number_pdus, 2, ENC_BIG_ENDIAN, &count);
 
 	if (count > 0)
 	{
 		ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_nfapi_rx_indication_pdu_list, "RX PDU List");
-		gint pdu_end = tvb_reported_length_remaining(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc)) + ptvcursor_current_offset(ptvc);
+		int pdu_end = tvb_reported_length_remaining(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc)) + ptvcursor_current_offset(ptvc);
 
 		while (tvb_reported_length_remaining(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc)) > 0 &&
 			   ptvcursor_current_offset(ptvc) < pdu_end )
 		{
-			guint16 tlv_id = tvb_get_ntohs(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
-			//guint16 tlv_len = tvb_get_ntohs(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc) + 2);
+			uint16_t tlv_id = tvb_get_ntohs(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
+			//uint16_t tlv_len = tvb_get_ntohs(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc) + 2);
 
 			if (tlv_id == 0x2038)
 			{
@@ -8110,7 +7819,7 @@ static void dissect_rx_indication_body_value(ptvcursor_t * ptvc, packet_info* pi
 			}
 			else if ((tlv_id == 0x2024) && (i > 0))
 			{
-				guint16 val = tvb_get_ntohs(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
+				uint16_t val = tvb_get_ntohs(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
 				wmem_array_append_one(lengths, val);
 				ptvcursor_add(ptvc, hf_nfapi_length, 2, ENC_BIG_ENDIAN);
 				int data_offset = tvb_get_ntohs(ptvcursor_tvbuff(ptvc), ptvcursor_current_offset(ptvc));
@@ -8141,7 +7850,7 @@ static void dissect_rx_indication_body_value(ptvcursor_t * ptvc, packet_info* pi
 
 	for (i = 0; i < wmem_array_get_count(lengths); ++i)
 	{
-		ptvcursor_add(ptvc, hf_nfapi_pdu, *((guint16 *)wmem_array_index(lengths, i)), ENC_NA);
+		ptvcursor_add(ptvc, hf_nfapi_pdu, *((uint16_t *)wmem_array_index(lengths, i)), ENC_NA);
 	}
 }
 
@@ -8267,11 +7976,11 @@ static int dissect_p45_config_request_msg_id(tvbuff_t *tvb, packet_info *pinfo, 
 	return tvb_captured_length(tvb);
 }
 
-static int dissect_p7_header(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint8* m, guint8* seg, guint8* seq)
+static int dissect_p7_header(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, uint8_t* m, uint8_t* seg, uint8_t* seq)
 {
 	proto_tree *header_tree;
 	int offset = 0;
-	guint8 m_seg;
+	uint8_t m_seg;
 	static int * const fields[] = {
 		&hf_nfapi_p7_message_header_m,
 		&hf_nfapi_p7_message_header_segment,
@@ -8288,7 +7997,7 @@ static int dissect_p7_header(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *
 
 	if ((m != NULL) && (seg != NULL))
 	{
-		m_seg = tvb_get_guint8(tvb, offset);
+		m_seg = tvb_get_uint8(tvb, offset);
 		*m = (m_seg & 0x80) >> 7;
 		*seg = m_seg & 0x7F;
 	}
@@ -8297,7 +8006,7 @@ static int dissect_p7_header(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *
 
 	if (seq != NULL)
 	{
-		*seq = tvb_get_guint8(tvb, offset);
+		*seq = tvb_get_uint8(tvb, offset);
 	}
 	proto_tree_add_item(header_tree, hf_nfapi_p7_message_header_sequence_number, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset += 1;
@@ -8373,18 +8082,18 @@ static int dissect_p7_timing_info_msg_id(tvbuff_t *tvb, packet_info *pinfo, prot
 static reassembly_table ul_p7_reassemble_table;
 static reassembly_table dl_p7_reassemble_table;
 
-static int hf_msg_fragments = -1;
-static int hf_msg_fragment = -1;
-static int hf_msg_fragment_overlap = -1;
-static int hf_msg_fragment_overlap_conflicts = -1;
-static int hf_msg_fragment_multiple_tails = -1;
-static int hf_msg_fragment_too_long_fragment = -1;
-static int hf_msg_fragment_error = -1;
-static int hf_msg_fragment_count = -1;
-static int hf_msg_reassembled_in = -1;
-static int hf_msg_reassembled_length = -1;
-static gint ett_msg_fragment = -1;
-static gint ett_msg_fragments = -1;
+static int hf_msg_fragments;
+static int hf_msg_fragment;
+static int hf_msg_fragment_overlap;
+static int hf_msg_fragment_overlap_conflicts;
+static int hf_msg_fragment_multiple_tails;
+static int hf_msg_fragment_too_long_fragment;
+static int hf_msg_fragment_error;
+static int hf_msg_fragment_count;
+static int hf_msg_reassembled_in;
+static int hf_msg_reassembled_length;
+static int ett_msg_fragment;
+static int ett_msg_fragments;
 
 static const fragment_items msg_frag_items = {
 	/* Fragment subtrees */
@@ -8410,13 +8119,13 @@ static const fragment_items msg_frag_items = {
 
 static int dissect_nfapi_ul_p7(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	guint8 m, seg, seq;
+	uint8_t m, seg, seq;
 	int offset;
 
-	guint8 save_fragmented;
+	uint8_t save_fragmented;
 
-	guint16 msg_id = tvb_get_ntohs(tvb, 2);
-	guint16 msg_len = tvb_get_ntohs(tvb, 4);
+	uint16_t msg_id = tvb_get_ntohs(tvb, 2);
+	uint16_t msg_len = tvb_get_ntohs(tvb, 4);
 
 	offset = dissect_p7_header(tvb, pinfo, tree, &m, &seg, &seq);
 	save_fragmented = pinfo->fragmented;
@@ -8430,7 +8139,7 @@ static int dissect_nfapi_ul_p7(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
 			return tvb_captured_length(tvb);
 		}
 
-		pinfo->fragmented = TRUE;
+		pinfo->fragmented = true;
 
 		fd_head = fragment_add_seq_check(&ul_p7_reassemble_table, tvb, offset, pinfo, seq, NULL, seg, msg_len - offset, (m == 1));
 
@@ -8479,13 +8188,13 @@ static int dissect_nfapi_ul_p7(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
 
 static int dissect_nfapi_dl_p7(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	guint8 m, seg, seq;
+	uint8_t m, seg, seq;
 	int offset;
 
-	guint8 save_fragmented;
+	uint8_t save_fragmented;
 
-	guint16 msg_id = tvb_get_ntohs(tvb, 2);
-	guint16 msg_len = tvb_get_ntohs(tvb, 4);
+	uint16_t msg_id = tvb_get_ntohs(tvb, 2);
+	uint16_t msg_len = tvb_get_ntohs(tvb, 4);
 
 	offset = dissect_p7_header(tvb, pinfo, tree, &m, &seg, &seq);
 	save_fragmented = pinfo->fragmented;
@@ -8499,7 +8208,7 @@ static int dissect_nfapi_dl_p7(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
 			return tvb_captured_length(tvb);
 		}
 
-		pinfo->fragmented = TRUE;
+		pinfo->fragmented = true;
 
 		fd_head = fragment_add_seq_check(&dl_p7_reassemble_table, tvb, offset, pinfo, seq, NULL, seg, msg_len - offset, (m == 1));
 
@@ -8548,8 +8257,8 @@ static int dissect_nfapi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 {
 	proto_tree* nfapi_tree;
 	proto_item* nfapi_item;
-	guint16 msg_id;
-	const gchar* message_str;
+	uint16_t msg_id;
+	const char* message_str;
 
 	if (tvb_reported_length(tvb) < 4)
 		return 0;
@@ -8563,10 +8272,10 @@ static int dissect_nfapi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 	msg_id = tvb_get_ntohs(tvb, 2);
 	message_str = val_to_str_const(msg_id, message_id_vals, "Unknown");
 
-	// Flag if this is a vendor extention message, could do it for P4, 5, 7
+	// Flag if this is a vendor extension message, could do it for P4, 5, 7
 	if (msg_id >= 0x0300 && msg_id <= 0x03FF)
 	{
-		col_append_fstr(pinfo->cinfo, COL_INFO, "Vendor Extension");
+		col_append_str(pinfo->cinfo, COL_INFO, "Vendor Extension");
 		proto_item_append_text(nfapi_item, ", Vendor Extension");
 	}
 	else
@@ -8575,7 +8284,7 @@ static int dissect_nfapi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 		col_append_fstr(pinfo->cinfo, COL_INFO, " %s ", message_str);
 	}
 
-	if (!dissector_try_uint_new(message_table, msg_id, tvb, pinfo, nfapi_tree, FALSE, NULL))
+	if (!dissector_try_uint_new(message_table, msg_id, tvb, pinfo, nfapi_tree, false, NULL))
 	{
 		call_data_dissector(tvb, pinfo, nfapi_tree);
 	}
@@ -8583,7 +8292,7 @@ static int dissect_nfapi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 	return tvb_captured_length(tvb);
 }
 
-static void nfapi_tag_vals_fn(gchar* s, guint32 v)
+static void nfapi_tag_vals_fn(char* s, uint32_t v)
 {
 	const tlv_t* tlv = look_up_tlv(v);
 	if (tlv != 0)
@@ -8595,44 +8304,44 @@ static void nfapi_tag_vals_fn(gchar* s, guint32 v)
 		snprintf(s, ITEM_LABEL_LENGTH, "%s (0x%x)", "Unknown", v);
 	}
 }
-static void neg_pow_conversion_fn(gchar* s, guint8 v)
+static void neg_pow_conversion_fn(char* s, uint8_t v)
 {
-	snprintf(s, ITEM_LABEL_LENGTH, "%d dB (%d)", ((gint16)v * (-1)), v);
+	snprintf(s, ITEM_LABEL_LENGTH, "%d dB (%d)", ((int16_t)v * (-1)), v);
 }
-static void power_offset_conversion_fn(gchar* s, guint16 v)
+static void power_offset_conversion_fn(char* s, uint16_t v)
 {
 	snprintf(s, ITEM_LABEL_LENGTH, "%.2f dB (%d)", (((float)v * 0.001) - 6.0), v);
 }
-static void reference_signal_power_conversion_fn(gchar* s, guint16 v)
+static void reference_signal_power_conversion_fn(char* s, uint16_t v)
 {
 	snprintf(s, ITEM_LABEL_LENGTH, "%.2f dB (%d)", (((float)v * 0.25) - 63.75), v);
 }
-static void laa_threshold_conversion_fn(gchar* s, guint16 v)
+static void laa_threshold_conversion_fn(char* s, uint16_t v)
 {
 	snprintf(s, ITEM_LABEL_LENGTH, "%.2f dB (%d)", (float)(v * -100.00), v);
 }
-static void max_transmit_power_2_conversion_fn(gchar* s, guint16 v)
+static void max_transmit_power_2_conversion_fn(char* s, uint16_t v)
 {
 	snprintf(s, ITEM_LABEL_LENGTH, "%.2f dB (%d)", ((float)v * 0.1) - 10.0, v);
 }
-static void max_transmit_power_conversion_fn(gchar* s, guint16 v)
+static void max_transmit_power_conversion_fn(char* s, uint16_t v)
 {
 	snprintf(s, ITEM_LABEL_LENGTH, "%.2f dB (%d)", ((float)v * 0.1), v);
 }
-static void sfn_sf_conversion_fn(gchar* s, guint16 v)
+static void sfn_sf_conversion_fn(char* s, uint16_t v)
 {
 	snprintf(s, ITEM_LABEL_LENGTH, "%d/%d (%d)", v >> 0x4, v & 0x000F, v);
 }
-static void rssi_conversion_fn(gchar* s, guint16 v)
+static void rssi_conversion_fn(char* s, uint16_t v)
 {
 	snprintf(s, ITEM_LABEL_LENGTH, "%.2f dB (%d)", ((float)v * 0.1), v);
 }
-static void dl_rs_tx_pow_measment_conversion_fn(gchar* s, guint16 v)
+static void dl_rs_tx_pow_measment_conversion_fn(char* s, uint16_t v)
 {
 	snprintf(s, ITEM_LABEL_LENGTH, "%.2f dB (%d)", ((float)v * 0.1), v);
 }
 
-static void ul_cqi_conversion_fn(gchar* s, guint16 v)
+static void ul_cqi_conversion_fn(char* s, uint16_t v)
 {
 	snprintf(s, ITEM_LABEL_LENGTH, "%.2f dB (%d)", (((float)v / 2 ) - 64.0), v);
 }
@@ -8655,22 +8364,22 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_msg_fragment_overlap,
 			{ "Message fragment overlap", "nfapi.fragment.overlap",
-			FT_BOOLEAN, 0, NULL, 0x00,
+			FT_BOOLEAN, BASE_NONE, NULL, 0x00,
 			NULL, HFILL }
 		},
 		{ &hf_msg_fragment_overlap_conflicts,
 			{ "Message fragment overlapping with conflicting data", "nfapi.fragment.overlap.conflicts",
-			FT_BOOLEAN, 0, NULL, 0x00,
+			FT_BOOLEAN, BASE_NONE, NULL, 0x00,
 			NULL, HFILL }
 		},
 		{ &hf_msg_fragment_multiple_tails,
 			{ "Message has multiple tail fragments", "nfapi.fragment.multiple_tails",
-			FT_BOOLEAN, 0, NULL, 0x00,
+			FT_BOOLEAN, BASE_NONE, NULL, 0x00,
 			NULL, HFILL }
 		},
 		{ &hf_msg_fragment_too_long_fragment,
 			{ "Message fragment too long", "nfapi.fragment.too_long_fragment",
-			FT_BOOLEAN, 0, NULL, 0x00,
+			FT_BOOLEAN, BASE_NONE, NULL, 0x00,
 			NULL, HFILL }
 		},
 		{ &hf_msg_fragment_error,
@@ -8725,7 +8434,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_p7_message_header_message_length,
 			{ "Message Length", "nfapi.p7_message_header.message_length",
-			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_byte_bytes, 0x0,
+			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0,
 			"The length in bytes of the message segment including the header", HFILL }
 		},
 		{ &hf_nfapi_p7_message_header_m,
@@ -8752,7 +8461,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_p7_message_header_transmit_timestamp,
 			{ "Transmit Timestamp", "nfapi.p7_message_header.timestamp",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"The offset from VNF SFN/SF 0/0 time reference of the message transmission at the transport layer, in microseconds, with a range of 0 to 10239999", HFILL }
 		},
 		{ &hf_nfapi_tl_tag,
@@ -8762,7 +8471,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_tl_length,
 			{ "TLV Length", "nfapi.tlv_length",
-			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_byte_bytes, 0x0,
+			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0,
 			NULL, HFILL }
 		},
 		{ &hf_nfapi_error_code,
@@ -8936,17 +8645,17 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_mbsfn_capability,
 			{ "MBSFN capability", "nfapi.mbsfn.capability",
-			FT_BOOLEAN, 16, TFS(&support_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&support_strname), 0x0,
 			"Indicates support for MBSFN features", HFILL }
 		},
 		{ &hf_nfapi_laa_capability,
 			{ "LAA Support", "nfapi.laa.support",
-			FT_BOOLEAN, 16, TFS(&support_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&support_strname), 0x0,
 			"Indicates support for LAA features", HFILL }
 		},
 		{ &hf_nfapi_pd_sensing_lbt_support,
 			{ "PD sensing LBT support", "nfapi.pd.sensing.lbt.support",
-			FT_BOOLEAN, 16, TFS(&support_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&support_strname), 0x0,
 			"Indicates support for PD sensing in L1", HFILL }
 		},
 		{ &hf_nfapi_multi_carrier_lbt_support,
@@ -8956,7 +8665,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_partial_sf_support,
 			{ "Partial SF support", "nfapi.partial.sf.support",
-			FT_BOOLEAN, 8, TFS(&partial_sf_support_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&partial_sf_support_strname), 0x0,
 			"Indicates support for Partial SF in L1", HFILL }
 		},
 		{ &hf_nfapi_reference_signal_power,
@@ -8986,7 +8695,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_phich_duration,
 			{ "PHICH Duration", "nfapi.phich.duration",
-			FT_BOOLEAN, 8, TFS(&phich_duration_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&phich_duration_strname), 0x0,
 			"The PHICH duration for MBSFN and non-MBSFN sub-frames", HFILL }
 		},
 		{ &hf_nfapi_phich_power_offset,
@@ -9011,7 +8720,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_high_speed_flag,
 			{ "High Speed Flag", "nfapi.high.speed.flag",
-			FT_BOOLEAN, 8, TFS(&high_speed_flag_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&high_speed_flag_strname), 0x0,
 			"Indicates if unrestricted, or restricted, set of preambles is used", HFILL }
 		},
 		{ &hf_nfapi_frequency_offset,
@@ -9021,7 +8730,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_hopping_mode,
 			{ "Hopping Mode", "nfapi.hopping.mode",
-			FT_BOOLEAN, 8, TFS(&hopping_mode_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&hopping_mode_strname), 0x0,
 			"If hopping is enabled indicates the type of hopping used", HFILL }
 		},
 		{ &hf_nfapi_hopping_offset,
@@ -9047,7 +8756,7 @@ void proto_register_nfapi(void)
 		{ &hf_nfapi_n1_pucch_an,
 			{ "N1 PUCCH AN", "nfapi.n1.pucch.an",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
-			"N1 PUCCH", HFILL }
+			NULL, HFILL }
 		},
 		{ &hf_nfapi_bandwidth_configuration,
 			{ "Bandwidth configuration", "nfapi.bw.configuration",
@@ -9106,12 +8815,12 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_multi_carrier_tx,
 			{ "Multi carrier TX", "nfapi.multi.carrier.tx",
-			FT_BOOLEAN, 8, TFS(&nfapi_multi_carrier_tx_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&nfapi_multi_carrier_tx_strname), 0x0,
 			"Indicates multi carrier transmission configuration of L1 (according to type if supporting multi carrier)", HFILL }
 		},
 		{ &hf_nfapi_multi_carrier_freeze,
 			{ "Multi carrier freeze", "nfapi.multi.carrier.freeze",
-			FT_BOOLEAN, 8, TFS(&nfapi_multi_carrier_freeze_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&nfapi_multi_carrier_freeze_strname), 0x0,
 			"Indicates multi carrier freeze, configuration of L1 (applicable only to type A type if supporting multi carrier)", HFILL }
 		},
 		{ &hf_nfapi_tx_antenna_ports_for_drs,
@@ -9126,13 +8835,13 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_pbch_repetitions_enabled_r13,
 			{ "PBCH Repetitions enable R13", "nfapi.pbch.repetitions.enabled_r13",
-			FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_enabled_disabled), 0x0,
 			"Enable / Disable PBCH repetitions", HFILL }
 		},
 		{ &hf_nfapi_prach_cat_m_root_sequence_index,
 			{ "PRACH CAT-M Root sequence Index", "nfapi.prach.cat_m.root.sequence.index",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
-			"PRACH Root sequence Index", HFILL }
+			NULL, HFILL }
 		},
 		{ &hf_nfapi_prach_cat_m_zero_correlation_zone_configuration,
 			{ "PRACH CAT-M Zero correlation zone configuration", "nfapi.prach.cat_m.zero.correlation.zone.configuration",
@@ -9141,12 +8850,12 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_prach_cat_m_high_speed_flag,
 			{ "PRACH CAT-M High speed flag", "nfapi.prach.cat_m.high.speed.flag",
-			FT_BOOLEAN, 8, TFS(&high_speed_flag_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&high_speed_flag_strname), 0x0,
 			"Indicates if unrestricted, or restricted, set of preambles is used", HFILL }
 		},
 		{ &hf_nfapi_prach_ce_level_0_enable,
 			{ "PRACH CE level #0 Enable", "nfapi.prach.ce.level.0.enable",
-			FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_enabled_disabled), 0x0,
 			"Enable \\ Disable CE level #0.", HFILL }
 		},
 		{ &hf_nfapi_prach_ce_level_0_configuration_index,
@@ -9171,7 +8880,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_prach_ce_level_0_hopping_enabled,
 			{ "PRACH CE level #0 Hopping Enable", "nfapi.prach.ce.level.0.hopping_enable",
-			FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_enabled_disabled), 0x0,
 			"Enable \\ Disable PRACH frequency hopping for each CE level", HFILL }
 		},
 		{ &hf_nfapi_prach_ce_level_0_hopping_offset,
@@ -9181,7 +8890,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_prach_ce_level_1_enable,
 			{ "PRACH CE level #1 Enable", "nfapi.prach.ce.level.0.enable",
-			FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_enabled_disabled), 0x0,
 			"Enable \\ Disable CE level #1", HFILL }
 		},
 		{ &hf_nfapi_prach_ce_level_1_configuration_index,
@@ -9206,7 +8915,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_prach_ce_level_1_hopping_enabled,
 			{ "PRACH CE level #1 Hopping Enable", "nfapi.prach.ce.level.1.hopping_enable",
-			FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_enabled_disabled), 0x0,
 			"Enable \\ Disable PRACH frequency hopping for each CE level.", HFILL }
 		},
 		{ &hf_nfapi_prach_ce_level_1_hopping_offset,
@@ -9216,7 +8925,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_prach_ce_level_2_enable,
 			{ "PRACH CE level #2 Enable", "nfapi.prach.ce.level.2.enable",
-			FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_enabled_disabled), 0x0,
 			"Enable \\ Disable CE level #2", HFILL }
 		},
 		{ &hf_nfapi_prach_ce_level_2_configuration_index,
@@ -9241,7 +8950,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_prach_ce_level_2_hopping_enabled,
 			{ "PRACH CE level #2 Hopping Enable", "nfapi.prach.ce.level.2.hopping_enable",
-			FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_enabled_disabled), 0x0,
 			"Enable \\ Disable PRACH frequency hopping for each CE level", HFILL }
 		},
 		{ &hf_nfapi_prach_ce_level_2_hopping_offset,
@@ -9251,7 +8960,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_prach_ce_level_3_enable,
 			{ "PRACH CE level #3 Enable", "nfapi.prach.ce.level.3.enable",
-			FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_enabled_disabled), 0x0,
 			"Enable \\ Disable CE level #3.", HFILL }
 		},
 		{ &hf_nfapi_prach_ce_level_3_configuration_index,
@@ -9276,7 +8985,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_prach_ce_level_3_hopping_enabled,
 			{ "PRACH CE level #3 Hopping Enable", "nfapi.prach.ce.level.3.hopping_enable",
-			FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_enabled_disabled), 0x0,
 			"Enable \\ Disable PRACH frequency hopping for each CE level.", HFILL }
 		},
 		{ &hf_nfapi_prach_ce_level_3_hopping_offset,
@@ -9296,7 +9005,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_data_report_mode,
 			{ "Data Report Mode", "nfapi.data.report.mode",
-			FT_BOOLEAN, 8, TFS(&data_report_mode_vals), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&data_report_mode_vals), 0x0,
 			"The data report mode for the uplink data", HFILL }
 		},
 		{ &hf_nfapi_sfnsf,
@@ -9306,12 +9015,12 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_max_up_pts,
 			{ "Max UpPTS frames", "nfapi.max.uppts.frame",
-			FT_BOOLEAN, 8, TFS(&tfs_enabled_disabled), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_enabled_disabled), 0x0,
 			"Used for TDD only and indicates how SRS operates in UpPTS subframes", HFILL }
 		},
 		{ &hf_nfapi_srs_acknack_srs_simultaneous_transmission,
 			{ "SRS AckNack Simultaneous transmission", "nfapi.srs.acknack.simult.tx",
-			FT_BOOLEAN, 8, TFS(&srs_simult_tx_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&srs_simult_tx_strname), 0x0,
 			"Indicates if SRS and ACK/NACK can be received in the same subframe. Needed if semi-static configuration is held in PHY.", HFILL }
 		},
 		{ &hf_nfapi_pnf_address_ipv4,
@@ -9367,22 +9076,22 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_dl_config_timing,
 			{ "DL config Timing", "nfapi.dl.config.timing",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"The timing offset before the air interface subframe start that the DL_Config.request must be received at the PNF.", HFILL }
 		},
 		{ &hf_nfapi_tx_timing,
 			{ "Tx Timing", "nfapi.general.tx.timing",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"The timing offset before the air interface subframe start that the TX.request must be received at the PNF.", HFILL }
 		},
 		{ &hf_nfapi_ul_config_timing,
 			{ "UL Config Timing", "nfapi.ul.config.timing",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"The timing offset before the air interface subframe start that the UL_CONFIG.request must be received at the PNF.", HFILL }
 		},
 		{ &hf_nfapi_hi_dci0_timing,
 			{ "HI DCi0 Timing", "nfapi.hi.dci0.timing",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"The timing offset before the air interface subframe start that the HI_DCI0.request must be received at the PNF.", HFILL }
 		},
 		{ &hf_nfapi_maximum_number_phys,
@@ -9392,7 +9101,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_maximum_total_bandwidth,
 			{ "Maximum Total Bandwidth", "nfapi.maximum.total.bandwidth",
-			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &khz_100_units_db, 0x0,
+			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&khz_100_units_db), 0x0,
 			"The total maximum bandwidth (in units of 100kHz) supported by the PNF device.", HFILL }
 		},
 		{ &hf_nfapi_maximum_total_number_dl_layers,
@@ -9407,12 +9116,12 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_shared_bands,
 			{ "Shared bands", "nfapi.shared.bands",
-			FT_BOOLEAN, 8, NULL, 0x0,
+			FT_BOOLEAN, BASE_NONE, NULL, 0x0,
 			"Indication that the PNF device shares the list of RF band options available across all available PHYs, so each may only be used with a single PHY.", HFILL }
 		},
 		{ &hf_nfapi_shared_pa,
 			{ "Shared pa", "nfapi.shared.pa",
-			FT_BOOLEAN, 8, NULL, 0x0,
+			FT_BOOLEAN, BASE_NONE, NULL, 0x0,
 			"Indication that the PNF device shares a single RF PA across all available PHYs, so that the maximum Total Power is shared across all available PHYs.", HFILL }
 		},
 		{ &hf_nfapi_maximum_total_power,
@@ -9558,22 +9267,22 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_minimum_downlink_frequency,
 			{ "Minimum downlink frequency", "nfapi.minimum_downlink_frequency",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &khz_100_units_db, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&khz_100_units_db), 0x0,
 			"The minimum supported downlink frequency in 100kHz units", HFILL }
 		},
 		{ &hf_nfapi_maximum_downlink_frequency,
 			{ "Maximum downlink frequency", "nfapi.maximum_downlink_frequency",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &khz_100_units_db, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&khz_100_units_db), 0x0,
 			"The maximum supported downlink frequency in 100kHz units", HFILL }
 		},
 		{ &hf_nfapi_minimum_uplink_frequency,
 			{ "Minimum uplink frequency", "nfapi.minimum_uplink_frequency",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &khz_100_units_db, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&khz_100_units_db), 0x0,
 			"The minimum supported uplink frequency in 100kHz units", HFILL }
 		},
 		{ &hf_nfapi_maximum_uplink_frequency,
 			{ "Maximum uplink frequency", "nfapi.maximum_uplink_frequency",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &khz_100_units_db, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&khz_100_units_db), 0x0,
 			"The maximum supported uplink frequency in 100kHz units", HFILL }
 		},
 		{ &hf_nfapi_transmission_mode7_supported,
@@ -9581,27 +9290,27 @@ void proto_register_nfapi(void)
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports TM7 for PDSCH", HFILL }
 		},
-		{ &hi_nfapi_transmission_mode8_supported,
+		{ &hf_nfapi_transmission_mode8_supported,
 			{ "Transmission Mode 8 Supported", "nfapi.pnf.phy_rel10.tx_mode8_supported",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports TM8 for PDSCH", HFILL }
 		},
-		{ &hi_nfapi_two_antennas_ports_for_pucch,
+		{ &hf_nfapi_two_antennas_ports_for_pucch,
 			{ "Two antennas ports for PUCCH", "nfapi.pnf.phy_rel10.two_antennas_ports_for_pucch",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports PUCCH transmit diversity introduced in Release 10. Equivalent to two-AntennaPortsForPUCCH-r10 in TS36.306", HFILL }
 		},
-		{ &hi_nfapi_transmission_mode_9_supported,
+		{ &hf_nfapi_transmission_mode_9_supported,
 			{ "Transmission Mode 9 Supported", "nfapi.pnf.phy_rel10.tx_mode9_supported",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports TM9 for PDSCH with 8 antennas and 8 CSI. Equivalent to tm9-With-8Tx-FDD-r10 in TS36.306", HFILL }
 		},
-		{ &hi_nfapi_simultaneous_pucch_pusch,
+		{ &hf_nfapi_simultaneous_pucch_pusch,
 			{ "Simultaneous PUCCH PUSCH", "nfapi.pnf.simultaneous_pucch_pusch",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports UE sending simultaneous PUCCH and PUSCH introduced in Release 10. Equivalent to simultaneousPUCCH-PUSCH-r10 in TS36.306", HFILL }
 		},
-		{ &hi_nfapi_four_layer_tx_with_tm3_and_tm4,
+		{ &hf_nfapi_four_layer_tx_with_tm3_and_tm4,
 			{ "Four layer Tx with TM3 and TM4", "nfapi.pnf.phy_rel10.layer_tx_with_tm3_and_tm4",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports four layer transmission for TM3 and TM4. Equivalent to fourLayerTM3-TM4-r10 in TS36.306", HFILL }
@@ -9611,22 +9320,22 @@ void proto_register_nfapi(void)
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports Enhanced PDCCH", HFILL }
 		},
-		{ &hi_nfapi_multi_ack_csi_reporting,
+		{ &hf_nfapi_multi_ack_csi_reporting,
 			{ "Multi ACK CSI reporting", "nfapi.pnf.phy_rel11.multi_ack_csi_reporting",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports the multi ACK and CSI reporting required with CA and mixed FDD/TDD carriers. Equivalent to multiACK-CSI-Reporting-r11 in TS36.306", HFILL }
 		},
-		{ &hi_nfapi_pucch_tx_diversity_with_channel_selection,
+		{ &hf_nfapi_pucch_tx_diversity_with_channel_selection,
 			{ "PUCCH Tx diversity with channel selection", "nfapi.pnf.phy_rel11.tx_div_with_channel_selection",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports transmit diversity for PUCCH format 1b with channel selection. Equivalent to txDiv-PUCCH1b-ChSelect in TS36.306", HFILL }
 		},
-		{ &hi_nfapi_ul_comp_supported,
+		{ &hf_nfapi_ul_comp_supported,
 			{ "UL CoMP supported", "nfapi.pnf.phy_rel11.ul_comp_supported",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports UL CoMP", HFILL }
 		},
-		{ &hi_nfapi_transmission_mode_5_supported,
+		{ &hf_nfapi_transmission_mode_5_supported,
 			{ "Transmission mode 5 supported", "nfapi.pnf.phy_rel11.tx_mode5_supported",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports TM5 for PDSCH", HFILL }
@@ -9636,27 +9345,27 @@ void proto_register_nfapi(void)
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Equivalent to csi-SubframeSet-r12 in TS36.306", HFILL }
 		},
-		{ &hi_nfapi_enhanced_4tx_codebook,
+		{ &hf_nfapi_enhanced_4tx_codebook,
 			{ "Enhanced 4TX codebook", "nfapi.pnf.phy_rel12.enhanced_t4x_codebook",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports the enhanced 4TX codebook. Equivalent to enhanced-4TxCodebook-r12 in TS36.306", HFILL }
 		},
-		{ &hi_nfapi_drs_supported,
+		{ &hf_nfapi_drs_supported,
 			{ "DRS supported", "nfapi.pnf.phy_rel12.drs_supported",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports the Discovery Reference Signal", HFILL }
 		},
-		{ &hi_nfapi_ul_64qam_supported,
+		{ &hf_nfapi_ul_64qam_supported,
 			{ "UL 64QAM supported", "nfapi.pnf.phy_rel12.ul_64qam_supported",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY support 64 QAM in the uplink", HFILL }
 		},
-		{ &hi_nfapi_transmission_mode_10_supported,
+		{ &hf_nfapi_transmission_mode_10_supported,
 			{ "Transmission mode 10 supported", "nfapi.pnf.phy_rel12.tx_mode10_supported",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports TM10 for PDSCH (DL CoMP)", HFILL }
 		},
-		{ &hi_nfapi_alternative_tbs_indices,
+		{ &hf_nfapi_alternative_tbs_indices,
 			{ "Alternative TBS indices", "nfapi.pnf.phy_rel12.alternative_tbs_indices",
 			FT_UINT16, BASE_DEC, NULL, 0x0,
 			"Indicates if PHY supports the alternate TBS indices (256 QAM).  Equivalent to alternativeTBS-Indices-r12 in TS36.306", HFILL }
@@ -9924,12 +9633,12 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_prs_cyclic_prefix_type,
 			{ "PRS cyclic prefix type", "nfapi.prs.cyclic.prefix.type",
-			FT_BOOLEAN, 8, TFS(&prs_cyclic_prefix_type_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&prs_cyclic_prefix_type_strname), 0x0,
 			"The cyclic prefix used for PRS transmission", HFILL }
 		},
 		{ &hf_prs_muting,
 			{ "PRS muting", "nfapi.prs.muting",
-			FT_BOOLEAN, 8, TFS(&prs_muting_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&prs_muting_strname), 0x0,
 			"PRS muting dictates if PRS REs are vacant (prsMutingInfo-r9 indicates the SF occasions)", HFILL }
 		},
 		{ &hf_nfapi_num_bf_prb_per_subband,
@@ -9969,7 +9678,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_csi_rs_flag,
 			{ "CSI RS Flag", "nfapi.csi.rs.flag",
-			FT_BOOLEAN, 8, TFS(&tfs_valid_not_valid), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_valid_not_valid), 0x0,
 			"Indicates if parameters related to CSI-RS are valid or not.", HFILL }
 		},
 		{ &hf_nfapi_csi_rs_resource_config_r10,
@@ -10091,7 +9800,7 @@ void proto_register_nfapi(void)
 		{ &hf_nfapi_epdcch_prb_index,
 			{ "EPDCCH PRB Index", "nfapi.epdcch.prb.index",
 			FT_UINT8, BASE_DEC, NULL, 0x0,
-			"PRB Index", HFILL }
+			NULL, HFILL }
 		},
 		{ &hf_nfapi_epdcch_resource_assignment_flag,
 			{ "EPDCCH Resource assignment flag", "nfapi.epdcch.resource.assignment.flag",
@@ -10170,7 +9879,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_pmi_flag,
 			{ "PMI flag", "nfapi.pmi.flag",
-			FT_BOOLEAN, 8, TFS(&tfs_present_not_present), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_present_not_present), 0x0,
 			"Indicates if 'PMI' field is present", HFILL }
 		},
 		{ &hf_nfapi_harq_resource_offset,
@@ -10195,7 +9904,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_antenna_ports_and_scrambling_identity_flag,
 			{ "Antenna ports and scrambling identity flag", "nfapi.antenna.ports.and.scrambling.identity.flag",
-			FT_BOOLEAN, 8, TFS(&tfs_present_not_present), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_present_not_present), 0x0,
 			"Indicates if 'Antenna ports and scrambling identity' field is present.", HFILL }
 		},
 		{ &hf_nfapi_antenna_ports_and_scrambling_identity,
@@ -10374,7 +10083,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_cross_carrier_scheduling_flag,
 			{ "Cross Carrier scheduling flag", "nfapi.cross.carrier.scheduling.flag",
-			FT_BOOLEAN, 8, TFS(&cross_carrier_scheduling_flag_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&cross_carrier_scheduling_flag_strname), 0x0,
 			"Indicates if cross carrier scheduling has been enabled for the UE receiving this DCI", HFILL }
 		},
 		{ &hf_nfapi_carrier_indicator,
@@ -10384,12 +10093,12 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_srs_flag,
 			{ "SRS flag", "nfapi.srs.flag",
-			FT_BOOLEAN, 8, TFS(&srs_flag_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&srs_flag_strname), 0x0,
 			"Indicates if the SRS request parameter is valid", HFILL }
 		},
 		{ &hf_nfapi_srs_request,
 			{ "SRS request", "nfapi.srs.request",
-			FT_BOOLEAN, 8, TFS(&srs_request_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&srs_request_strname), 0x0,
 			"SRS request flag", HFILL }
 		},
 		{ &hf_nfapi_antenna_ports_scrambling_and_layers,
@@ -10428,7 +10137,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_ul_dl_configuration_flag,
 			{ "UL/DL configuration flag", "nfapi.ul.dl.configuration.flag",
-			FT_BOOLEAN, 8, TFS(&ul_dl_configuration_flag_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&ul_dl_configuration_flag_strname), 0x0,
 			"Indicates if format 1C is being used to signal UL/DL configuration", HFILL }
 		},
 		{ &hf_nfapi_number_of_ul_dl_configurations,
@@ -10500,7 +10209,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_dai_presence_flag,
 			{ "DAI presence flag", "nfapi.dia.presence.flag",
-			FT_BOOLEAN, 8, TFS(&tfs_present_not_present), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_present_not_present), 0x0,
 			"Indicates if DL assignment Index field is present in the DCI", HFILL }
 		},
 		{ &hf_nfapi_total_dci_length_include_padding,
@@ -10785,7 +10494,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_report_type,
 			{ "Report type", "nfapi.report.type",
-			FT_BOOLEAN, 8, TFS(&nfapi_csi_report_type_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&nfapi_csi_report_type_strname), 0x0,
 			"Type of CSI report", HFILL }
 		},
 		{ &hf_nfapi_dl_cqi_ri_pmi_size,
@@ -10795,7 +10504,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_control_type,
 			{ "Control type", "nfapi.control.type",
-			FT_BOOLEAN, 8, TFS(&nfapi_control_type_string_name), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&nfapi_control_type_string_name), 0x0,
 			NULL, HFILL }
 		},
 		{ &hf_nfapi_number_of_cc,
@@ -10870,7 +10579,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_crc_flag,
 			{ "CRC flag", "nfapi.crc.flag",
-			FT_BOOLEAN, 8, TFS(&crc_flag_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&crc_flag_strname), 0x0,
 			"A flag indicating if a CRC error was detected", HFILL }
 		},
 		{ &hf_nfapi_number_of_hi_pdus,
@@ -10890,7 +10599,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_hi_value,
 			{ "HI Value", "nfapi.hi_value",
-			FT_BOOLEAN, 8, TFS(&hi_value_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&hi_value_strname), 0x0,
 			"The PHICH value which is sent on the resource", HFILL }
 		},
 		{ &hf_nfapi_i_phich,
@@ -10955,7 +10664,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_dl_node_sync_t1,
 			{ "DL Node Sync t1", "nfapi.dl.node.sync.t1",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"Offset from VNF SFN/SF 0/0 time reference of the DL Node Sync message transmission at the transport layer, in microseconds.", HFILL }
 		},
 		{ &hf_nfapi_dl_node_sync_delta_sfn_sf,
@@ -10965,12 +10674,12 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_dl_cyclic_prefix_type,
 			{ "DL Cyclic Prefix type", "nfapi.dl.cyclic.prefix.type",
-			FT_BOOLEAN, 8, TFS(&cyclic_prefix_type_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&cyclic_prefix_type_strname), 0x0,
 			"Cyclic prefix type, used for DL", HFILL }
 		},
 		{ &hf_nfapi_ul_cyclic_prefix_type,
 			{ "UL Cyclic Prefix type", "nfapi.ul.cyclic.prefix.type",
-			FT_BOOLEAN, 8, TFS(&cyclic_prefix_type_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&cyclic_prefix_type_strname), 0x0,
 			"Cyclic prefix type, used for UL", HFILL }
 		},
 		{ &hf_nfapi_downlink_channel_bandwidth,
@@ -10995,17 +10704,17 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_ul_node_sync_t1,
 			{ "UL Node Sync t1", "nfapi.ul.node.sync.t1",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"The supplied t1 field in the DL Node Sync", HFILL }
 		},
 		{ &hf_nfapi_ul_node_sync_t2,
 			{ "UL Node Sync t2", "nfapi.ul.node.sync.t2",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"Offset from PNF SFN/SF 0/0 time reference of the DL Node Sync message reception at the transport layer, in microseconds.", HFILL }
 		},
 		{ &hf_nfapi_ul_node_sync_t3,
 			{ "UL Node Sync t3", "nfapi.ul.node.sync.t3",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"Offset from PNF SFN/SF 0/0 time reference of the UL Node Sync message transmission at the transport layer, in microseconds.", HFILL }
 		},
 		{ &hf_nfapi_pb,
@@ -11255,7 +10964,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_measurement_period,
 			{ "Measurement Period", "nfapi.measurement.period",
-			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"The length of time to measure RSSI over, in units of 1ms.", HFILL }
 		},
 		{ &hf_nfapi_bandwidth,
@@ -11265,7 +10974,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_timeout,
 			{ "Timeout", "nfapi.timeout",
-			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"The timeout value after which the PNF should abort the procedure in units of 1ms. The value of 0 indicates that the PNF should attempt to complete the procedure without any VNF-imposed timeout.", HFILL }
 		},
 		{ &hf_nfapi_number_of_earfcns,
@@ -11470,12 +11179,12 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_received_interference_power,
 			{ "Received interference power", "nfapi.received.interference.power",
-			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"The Received interference power measurement", HFILL }
 		},
 		{ &hf_nfapi_thermal_noise_power,
 			{ "Thermal noise power", "nfapi.thermal.noise.power",
-			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			"The Thermal noise power measurement", HFILL }
 		},
 		{ &hf_nfapi_dl_rs_tx_power_measurement,
@@ -11495,12 +11204,12 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_initial_partial_sf,
 			{ "Initial Partial SF", "nfapi.initial.partial.sf",
-			FT_BOOLEAN, 32, TFS(&initial_partial_sf_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&initial_partial_sf_strname), 0x0,
 			"Indicates whether the initial SF in the LBT process is full or partial", HFILL }
 		},
 		{ &hf_nfapi_lbt_mode,
 			{ "LBT Mode", "nfapi.lbt.mode",
-			FT_BOOLEAN, 32, TFS(&lbt_mode_strname), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&lbt_mode_strname), 0x0,
 			"Part of multi-carrier support. Indicates whether full LBT process is carried or partial LBT process is carried (multi carrier mode B according to [9] section 15.1.5.2)", HFILL }
 		},
 		{ &hf_nfapi_lte_txop_sf,
@@ -11525,7 +11234,7 @@ void proto_register_nfapi(void)
 		},
 		{ &hf_nfapi_result,
 			{ "result", "nfapi.result",
-			FT_BOOLEAN, 32, TFS(&tfs_fail_success), 0x0,
+			FT_BOOLEAN, BASE_NONE, TFS(&tfs_fail_success), 0x0,
 			"Indicates the LBT procedure result of SFN/SF:", HFILL }
 		},
 		{ &hf_nfapi_sfn_sf_end,
@@ -11546,7 +11255,7 @@ void proto_register_nfapi(void)
 	};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] =
+	static int *ett[] =
 	{
 		&ett_nfapi,
 		&ett_nfapi_p4_p5_message_header,

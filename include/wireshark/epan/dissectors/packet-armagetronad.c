@@ -16,19 +16,19 @@ void proto_register_armagetronad(void);
 void proto_reg_handoff_armagetronad(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_armagetronad = -1;
-static int hf_armagetronad_descriptor_id = -1;
-static int hf_armagetronad_message_id = -1;
-static int hf_armagetronad_data_len = -1;
-static int hf_armagetronad_data = -1;
-static int hf_armagetronad_sender_id = -1;
-static int hf_armagetronad_msg_subtree = -1;
+static int proto_armagetronad;
+static int hf_armagetronad_descriptor_id;
+static int hf_armagetronad_message_id;
+static int hf_armagetronad_data_len;
+static int hf_armagetronad_data;
+static int hf_armagetronad_sender_id;
+static int hf_armagetronad_msg_subtree;
 
 /* Initialize the subtree pointers */
-static gint ett_armagetronad = -1;
-static gint ett_message = -1;
+static int ett_armagetronad;
+static int ett_message;
 
-static dissector_handle_t armagetronad_handle = NULL;
+static dissector_handle_t armagetronad_handle;
 
 #define ARMAGETRONAD_UDP_PORT_RANGE "4533-4534" /* 4533 is not IANA registered, 4534 is */
 
@@ -94,14 +94,14 @@ static const value_string descriptors[] = {
 	{0, NULL}
 };
 
-static gboolean
+static bool
 is_armagetronad_packet(tvbuff_t * tvb)
 {
-	gint offset = 0;
+	int offset = 0;
 
 	/* For each message in the frame */
 	while (tvb_captured_length_remaining(tvb, offset) > 2) {
-		gint data_len = tvb_get_ntohs(tvb, offset + 4) * 2;
+		int data_len = tvb_get_ntohs(tvb, offset + 4) * 2;
 
 #if 0
 		/*
@@ -112,12 +112,12 @@ is_armagetronad_packet(tvbuff_t * tvb)
 		 */
 		if (!try_val_to_str(tvb_get_ntohs(tvb, offset), descriptors))
 			/* DescriptorID not found in the table */
-			return FALSE;
+			return false;
 #endif
 
 		if (!tvb_bytes_exist(tvb, offset + 6, data_len))
 			/* Advertised length too long */
-			return FALSE;
+			return false;
 
 		offset += 6 + data_len;
 	}
@@ -127,7 +127,7 @@ is_armagetronad_packet(tvbuff_t * tvb)
 }
 
 static void
-add_message_data(tvbuff_t * tvb, gint offset, gint data_len, proto_tree * tree)
+add_message_data(tvbuff_t * tvb, int offset, int data_len, proto_tree * tree)
 {
 	if (!tree)
 		return;
@@ -154,14 +154,14 @@ add_message_data(tvbuff_t * tvb, gint offset, gint data_len, proto_tree * tree)
 			      data_len, ENC_NA);
 }
 
-static gint
-add_message(tvbuff_t * tvb, gint offset, proto_tree * tree, wmem_strbuf_t * info)
+static int
+add_message(tvbuff_t * tvb, int offset, proto_tree * tree, wmem_strbuf_t * info)
 {
-	guint16      descriptor_id, message_id;
-	gint         data_len;
+	uint16_t     descriptor_id, message_id;
+	int          data_len;
 	proto_item  *msg;
 	proto_tree  *msg_tree;
-	const gchar *descriptor;
+	const char *descriptor;
 
 	descriptor_id = tvb_get_ntohs(tvb, offset);
 	message_id = tvb_get_ntohs(tvb, offset + 2);
@@ -205,15 +205,15 @@ add_message(tvbuff_t * tvb, gint offset, proto_tree * tree, wmem_strbuf_t * info
 }
 
 /* Code to actually dissect the packets */
-static gint
+static int
 dissect_armagetronad(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void * data _U_)
 {
 	proto_item    *ti;
 	proto_tree    *armagetronad_tree;
-	guint16        sender;
-	gint           offset = 0;
+	uint16_t       sender;
+	int            offset = 0;
 	wmem_strbuf_t *info;
-	gsize          new_len;
+	size_t         new_len;
 
 	if (!is_armagetronad_packet(tvb))
 		return 0;
@@ -283,7 +283,7 @@ void proto_register_armagetronad(void)
 		 }
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_armagetronad,
 		&ett_message
 	};

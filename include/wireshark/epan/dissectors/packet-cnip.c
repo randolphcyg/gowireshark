@@ -43,32 +43,32 @@ void proto_reg_handoff_cnip(void);
 
 static dissector_handle_t cnip_handle;
 
-static gint hf_cnip_len      = -1;
-static gint hf_cnip_ver      = -1;
-static gint hf_cnip_type     = -1;
-static gint hf_cnip_exth     = -1;
-static gint hf_cnip_pf       = -1;
-static gint hf_cnip_pf_sec   = -1;
-static gint hf_cnip_pf_pcode = -1;
-static gint hf_cnip_vcode    = -1;
-static gint hf_cnip_sessid   = -1;
-static gint hf_cnip_seqno    = -1;
-static gint hf_cnip_tstamp   = -1;
+static int hf_cnip_len;
+static int hf_cnip_ver;
+static int hf_cnip_type;
+static int hf_cnip_exth;
+static int hf_cnip_pf;
+static int hf_cnip_pf_sec;
+static int hf_cnip_pf_pcode;
+static int hf_cnip_vcode;
+static int hf_cnip_sessid;
+static int hf_cnip_seqno;
+static int hf_cnip_tstamp;
 
-static gint proto_cnip       = -1;
+static int proto_cnip;
 
-static gint ett_cnip         = -1;
-static gint ett_pf           = -1;
+static int ett_cnip;
+static int ett_pf;
 
-static expert_field ei_cnip_type_unknown = EI_INIT;
+static expert_field ei_cnip_type_unknown;
 
 static dissector_table_t cnip_dissector_table;
 
 static int dissect_cnip (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
    tvbuff_t *next_tvb;
-   gint offset;
-   gint type, exth_len, pf_pcode;
+   int offset;
+   int type, exth_len, pf_pcode;
 
    proto_tree *ti;
    proto_tree *cnip_tree;
@@ -82,13 +82,13 @@ static int dissect_cnip (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
    col_set_str(pinfo->cinfo, COL_PROTOCOL, "CN/IP");
    col_clear(pinfo->cinfo, COL_INFO);
 
-   type = tvb_get_guint8(tvb, 3);
+   type = tvb_get_uint8(tvb, 3);
    col_add_fstr(pinfo->cinfo, COL_INFO,"Priority: %s Type: %s",
          (pinfo->destport == 1629 )? "urgent":"normal",
          val_to_str_const(type, type_tuple, "Unknown"));
 
-   exth_len = tvb_get_guint8(tvb, 4);
-   pf_pcode = tvb_get_guint8(tvb, 5) & 0x1F;
+   exth_len = tvb_get_uint8(tvb, 4);
+   pf_pcode = tvb_get_uint8(tvb, 5) & 0x1F;
 
    offset = 0;
 
@@ -204,7 +204,7 @@ void proto_register_cnip(void)
       }
    };
 
-   static gint *ett[] =
+   static int *ett[] =
    {
       &ett_cnip,
       &ett_pf

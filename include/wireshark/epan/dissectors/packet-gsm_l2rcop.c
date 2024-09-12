@@ -12,23 +12,20 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/prefs.h>
-#include <epan/xdlc.h>
-#include <epan/reassemble.h>
-#include <epan/conversation.h>
+#include <epan/tfs.h>
 
 void proto_register_gsm_l2rcop(void);
 
-static int proto_l2rcop = -1;
+static int proto_l2rcop;
 
-static int hf_l2rcop_sa = -1;
-static int hf_l2rcop_sb = -1;
-static int hf_l2rcop_x = -1;
-static int hf_l2rcop_addr = -1;
-static int hf_l2rcop_break = -1;
-static int hf_l2rcop_break_ack = -1;
+static int hf_l2rcop_sa;
+static int hf_l2rcop_sb;
+static int hf_l2rcop_x;
+static int hf_l2rcop_addr;
+static int hf_l2rcop_break;
+static int hf_l2rcop_break_ack;
 
-static int ett_l2rcop = -1;
+static int ett_l2rcop;
 
 static const value_string addr_vals[] = {
 	{ 31, "last status change, remainder empty" },
@@ -40,7 +37,7 @@ static const value_string addr_vals[] = {
 };
 
 static void
-add_characters(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, guint offset, guint len)
+add_characters(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, unsigned offset, unsigned len)
 {
 	tvbuff_t *next_tvb = tvb_new_subset_length(tvb, offset, len);
 	call_data_dissector(next_tvb, pinfo, tree);
@@ -51,16 +48,16 @@ static int
 dissect_l2rcop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	int reported_len = tvb_reported_length(tvb);
-	guint cur;
+	unsigned cur;
 
 	/* we currently support RLP v0 + v1 (first octet is always status octet) */
 
-	for (cur = 0; cur < (guint)reported_len; ) {
-		guint8 oct = tvb_get_guint8(tvb, cur);
-		guint8 addr = oct & 0x1f;
+	for (cur = 0; cur < (unsigned)reported_len; ) {
+		uint8_t oct = tvb_get_uint8(tvb, cur);
+		uint8_t addr = oct & 0x1f;
 		proto_tree *l2rcop_tree;
 		proto_item *ti;
-		const gchar *addr_str = val_to_str(addr, addr_vals, "%u characters");
+		const char *addr_str = val_to_str(addr, addr_vals, "%u characters");
 
 		ti = proto_tree_add_protocol_format(tree, proto_l2rcop, tvb, 0, reported_len,
 						    "GSM L2RCOP Chunk Status=0x%02x (Addr: %s)", oct, addr_str);
@@ -85,7 +82,7 @@ dissect_l2rcop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 			return reported_len;
 		case 27: /* extended address in ext octet */
 			cur++;
-			addr = tvb_get_guint8(tvb, cur) & 0x3f;
+			addr = tvb_get_uint8(tvb, cur) & 0x3f;
 			/* This "cannot happen"; let's abort processing right now. */
 			if (addr == 0)
 				return reported_len;
@@ -113,20 +110,16 @@ static const true_false_string x_vals = {
 	"flow control ACTIVE", "flow control inactive"
 };
 
-static const true_false_string sab_vals = {
-	"OFF", "ON"
-};
-
 
 void
 proto_register_gsm_l2rcop(void)
 {
 	static hf_register_info hf[] = {
 		{ &hf_l2rcop_sa,
-		  { "SA", "gsm_l2rcop.sa", FT_BOOLEAN, 8, TFS(&sab_vals), 0x80,
+		  { "SA", "gsm_l2rcop.sa", FT_BOOLEAN, 8, TFS(&tfs_off_on), 0x80,
 		    NULL, HFILL }},
 		{ &hf_l2rcop_sb,
-		  { "SB", "gsm_l2rcop.sb", FT_BOOLEAN, 8, TFS(&sab_vals), 0x40,
+		  { "SB", "gsm_l2rcop.sb", FT_BOOLEAN, 8, TFS(&tfs_off_on), 0x40,
 		    NULL, HFILL }},
 		{ &hf_l2rcop_x,
 		  { "X", "gsm_l2rcop.x", FT_BOOLEAN, 8, TFS(&x_vals), 0x20,
@@ -141,7 +134,7 @@ proto_register_gsm_l2rcop(void)
 		  { "Break Ack", "gsm_l2rcop.break_ack", FT_UINT8, BASE_DEC, NULL, 0x00,
 		    NULL, HFILL }},
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_l2rcop,
 	};
 

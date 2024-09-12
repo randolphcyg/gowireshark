@@ -51,54 +51,54 @@ void proto_reg_handoff_mint(void);
 
 static dissector_handle_t eth_handle;
 
-static int proto_mint = -1;
+static int proto_mint;
 
-static int hf_mint_control = -1;
-static int hf_mint_control_32zerobytes = -1;
-static int hf_mint_control_unknown1 = -1;
-static int hf_mint_data = -1;
-static int hf_mint_data_seqno = -1;
-static int hf_mint_data_unknown1 = -1;
-static int hf_mint_data_vlan = -1;
-static int hf_mint_ethshim = -1;
-static int hf_mint_ethshim_length = -1;
-static int hf_mint_ethshim_unknown = -1;
-static int hf_mint_header = -1;
-static int hf_mint_header_dstdataport = -1;
-static int hf_mint_header_dstid = -1;
-static int hf_mint_header_srcdataport = -1;
-static int hf_mint_header_srcid = -1;
-static int hf_mint_header_ttl = -1;
-static int hf_mint_header_unknown1 = -1;
-static int hf_mint_header_unknown2 = -1;
-static int hf_mint_mlcp_length = -1;
-static int hf_mint_mlcp_message = -1;
-static int hf_mint_mlcp_type = -1;
-static int hf_mint_mlcp_value = -1;
-static int hf_mint_neighbor_unknown = -1;
-static int hf_mint_router_array = -1;
-static int hf_mint_router_element = -1;
-static int hf_mint_router_header_length = -1;
-static int hf_mint_router_header_sender = -1;
-static int hf_mint_router_header_unknown = -1;
-static int hf_mint_router_length = -1;
-static int hf_mint_router_message_type = -1;
-static int hf_mint_router_type_csnp = -1;
-static int hf_mint_router_type_helo = -1;
-static int hf_mint_router_type_lsp = -1;
-static int hf_mint_router_type_psnp = -1;
-static int hf_mint_router_type_unknown = -1;
-static int hf_mint_router_unknown1 = -1;
-static int hf_mint_router_unknown2 = -1;
-static int hf_mint_router_unknown3 = -1;
-static int hf_mint_router_value = -1;
+static int hf_mint_control;
+static int hf_mint_control_32zerobytes;
+static int hf_mint_control_unknown1;
+static int hf_mint_data;
+static int hf_mint_data_seqno;
+static int hf_mint_data_unknown1;
+static int hf_mint_data_vlan;
+static int hf_mint_ethshim;
+static int hf_mint_ethshim_length;
+static int hf_mint_ethshim_unknown;
+static int hf_mint_header;
+static int hf_mint_header_dstdataport;
+static int hf_mint_header_dstid;
+static int hf_mint_header_srcdataport;
+static int hf_mint_header_srcid;
+static int hf_mint_header_ttl;
+static int hf_mint_header_unknown1;
+static int hf_mint_header_unknown2;
+static int hf_mint_mlcp_length;
+static int hf_mint_mlcp_message;
+static int hf_mint_mlcp_type;
+static int hf_mint_mlcp_value;
+static int hf_mint_neighbor_unknown;
+static int hf_mint_router_array;
+static int hf_mint_router_element;
+static int hf_mint_router_header_length;
+static int hf_mint_router_header_sender;
+static int hf_mint_router_header_unknown;
+static int hf_mint_router_length;
+static int hf_mint_router_message_type;
+static int hf_mint_router_type_csnp;
+static int hf_mint_router_type_helo;
+static int hf_mint_router_type_lsp;
+static int hf_mint_router_type_psnp;
+static int hf_mint_router_type_unknown;
+static int hf_mint_router_unknown1;
+static int hf_mint_router_unknown2;
+static int hf_mint_router_unknown3;
+static int hf_mint_router_value;
 
 /* ett handles */
-static int ett_mint_ethshim = -1;
-static int ett_mint = -1;
-static int ett_mint_header = -1;
-static int ett_mint_ctrl = -1;
-static int ett_mint_data = -1;
+static int ett_mint_ethshim;
+static int ett_mint;
+static int ett_mint_header;
+static int ett_mint_ctrl;
+static int ett_mint_data;
 
 static dissector_handle_t mint_control_handle;
 static dissector_handle_t mint_data_handle;
@@ -286,12 +286,12 @@ static const value_string mint_0x22_tlv_vals[] = {
 
 static int
 dissect_eth_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *mint_tree,
-	volatile guint32 offset, guint32 length)
+	volatile uint32_t offset, uint32_t length)
 {
 	tvbuff_t *eth_tvb;
 
 #ifdef MINT_DEVELOPMENT
-	col_set_writable(pinfo->cinfo, -1, FALSE);
+	col_set_writable(pinfo->cinfo, -1, false);
 #endif
 
 	eth_tvb = tvb_new_subset_length(tvb, offset, length);
@@ -304,25 +304,25 @@ dissect_eth_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *mint_tree,
 	offset += length;
 
 #ifdef MINT_DEVELOPMENT
-	col_set_writable(pinfo->cinfo, -1, TRUE);
+	col_set_writable(pinfo->cinfo, -1, true);
 #endif
 	return offset;
 }
 
 static int
 dissect_mint_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-	guint32 offset, guint32 packet_length, guint received_via)
+	uint32_t offset, uint32_t packet_length, unsigned received_via)
 {
 	proto_item *ti;
 	proto_tree *mint_tree = NULL;
 	proto_tree *mint_header_tree = NULL;
 	proto_tree *mint_data_tree = NULL;
 	proto_tree *mint_ctrl_tree = NULL;
-	guint16 bytes_remaining;
-	guint16 mint_port;
-	guint8 type, length, header_length;
-	guint32 message_type;
-	guint8 element_length;
+	uint16_t bytes_remaining;
+	uint16_t mint_port;
+	uint8_t type, length, header_length;
+	uint32_t message_type;
+	uint8_t element_length;
 	int hf_tlv_vals;
 
 	mint_port = tvb_get_ntohs(tvb, offset + 12);
@@ -414,7 +414,7 @@ dissect_mint_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 		proto_tree_add_item(mint_ctrl_tree, hf_mint_router_unknown3, tvb,
 			offset, 1, ENC_NA);
 		offset += 1;
-		header_length = tvb_get_guint8(tvb, offset);
+		header_length = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(mint_ctrl_tree, hf_mint_router_header_length, tvb,
 			offset, 1, ENC_NA);
 		offset += 1;
@@ -453,17 +453,17 @@ dissect_mint_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 			offset += header_length - 12;
 		}
 		while (offset < packet_length - 2) {
-			type = tvb_get_guint8(tvb, offset);
+			type = tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(mint_ctrl_tree, hf_tlv_vals, tvb,
 				offset, 1, ENC_NA);
 			offset += 1;
-			length = tvb_get_guint8(tvb, offset);
+			length = tvb_get_uint8(tvb, offset);
 			/* FIXME: This is a hack - reliable array detection missing */
 			if (type == 1 && length == 128) {
 				proto_tree_add_item(mint_ctrl_tree, hf_mint_router_array, tvb,
 					offset, 1, ENC_NA);
 				offset += 1;
-				length = tvb_get_guint8(tvb, offset);
+				length = tvb_get_uint8(tvb, offset);
 			}
 			proto_tree_add_item(mint_ctrl_tree, hf_mint_router_length, tvb,
 				offset, 1, ENC_NA);
@@ -473,7 +473,7 @@ dissect_mint_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 				break;
 			}
 			if (type == 1 && element_length) {
-				guint32 end_offset = offset + length;
+				uint32_t end_offset = offset + length;
 				for (; offset < end_offset; offset += element_length) {
 					proto_tree_add_item(mint_ctrl_tree, hf_mint_router_element, tvb,
 						offset, element_length, ENC_NA);
@@ -511,7 +511,7 @@ dissect_mint_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 			proto_tree_add_item(mint_ctrl_tree, hf_mint_mlcp_type, tvb,
 				offset, 1, ENC_NA);
 			offset += 1;
-			length = tvb_get_guint8(tvb, offset);
+			length = tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(mint_ctrl_tree, hf_mint_mlcp_length, tvb,
 				offset, 1, ENC_NA);
 			offset += 1;
@@ -543,11 +543,11 @@ dissect_mint_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 		break;
 	}
 #if defined MINT_DEVELOPMENT
-	tree_expanded_set(ett_mint, TRUE);
-	tree_expanded_set(ett_mint_ethshim, TRUE);
-	tree_expanded_set(ett_mint_header, TRUE);
-	tree_expanded_set(ett_mint_ctrl, TRUE);
-	tree_expanded_set(ett_mint_data, TRUE);
+	tree_expanded_set(ett_mint, true);
+	tree_expanded_set(ett_mint_ethshim, true);
+	tree_expanded_set(ett_mint_header, true);
+	tree_expanded_set(ett_mint_ctrl, true);
+	tree_expanded_set(ett_mint_data, true);
 #endif
 	return offset;
 }
@@ -555,7 +555,7 @@ dissect_mint_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 static int
 dissect_mint_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 packet_length = tvb_captured_length(tvb);
+	uint32_t packet_length = tvb_captured_length(tvb);
 
 	return dissect_mint_common(tvb, pinfo, tree, 0, packet_length,
 		PORT_MINT_CONTROL_TUNNEL);
@@ -564,7 +564,7 @@ dissect_mint_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 static int
 dissect_mint_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 packet_length = tvb_captured_length(tvb);
+	uint32_t packet_length = tvb_captured_length(tvb);
 
 	return dissect_mint_common(tvb, pinfo, tree, 0, packet_length,
 		PORT_MINT_DATA_TUNNEL);
@@ -575,8 +575,8 @@ dissect_mint_ethshim(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
 	proto_item *ti;
 	proto_tree *mint_ethshim_tree = NULL;
-	guint32 offset = 0;
-	guint32 packet_length;
+	uint32_t offset = 0;
+	uint32_t packet_length;
 
 	ti = proto_tree_add_item(tree, hf_mint_ethshim, tvb,
 		offset, 4, ENC_NA);
@@ -595,52 +595,52 @@ dissect_mint_ethshim(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 	return offset;
 }
 
-static gboolean
+static bool
 test_mint_control(tvbuff_t *tvb _U_)
 {
 #if 0
 	/* Minimum of 8 bytes, first byte (version) has value of 3 */
 	if ( tvb_length(tvb) < 8
-		    || tvb_get_guint8(tvb, 0) != 3
-		    /* || tvb_get_guint8(tvb, 2) != 0
+		    || tvb_get_uint8(tvb, 0) != 3
+		    /* || tvb_get_uint8(tvb, 2) != 0
 		    || tvb_get_ntohs(tvb, 6) > tvb_reported_length(tvb) */
 	) {
-		return FALSE;
+		return false;
 	}
 #endif
-	return TRUE;
+	return true;
 }
 
-static gboolean
+static bool
 test_mint_data(tvbuff_t *tvb _U_)
 {
 #if 0
 	/* Minimum of 8 bytes, first byte (version) has value of 3 */
 	if ( tvb_length(tvb) < 8
-		    || tvb_get_guint8(tvb, 0) != 3
-		    /* || tvb_get_guint8(tvb, 2) != 0
+		    || tvb_get_uint8(tvb, 0) != 3
+		    /* || tvb_get_uint8(tvb, 2) != 0
 		    || tvb_get_ntohs(tvb, 6) > tvb_reported_length(tvb) */
 	) {
-		return FALSE;
+		return false;
 	}
 #endif
-	return TRUE;
+	return true;
 }
 
-static gboolean
+static bool
 test_mint_eth(tvbuff_t *tvb _U_)
 {
 #if 0
 	/* Minimum of 8 bytes, first byte (version) has value of 3 */
 	if ( tvb_length(tvb) < 8
-		    || tvb_get_guint8(tvb, 0) != 3
-		    /* || tvb_get_guint8(tvb, 2) != 0
+		    || tvb_get_uint8(tvb, 0) != 3
+		    /* || tvb_get_uint8(tvb, 2) != 0
 		    || tvb_get_ntohs(tvb, 6) > tvb_reported_length(tvb) */
 	) {
-		return FALSE;
+		return false;
 	}
 #endif
-	return TRUE;
+	return true;
 }
 
 static int
@@ -871,7 +871,7 @@ proto_register_mint(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_mint_ethshim,
 		&ett_mint,
 		&ett_mint_header,

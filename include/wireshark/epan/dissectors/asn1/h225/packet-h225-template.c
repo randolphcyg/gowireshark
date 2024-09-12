@@ -32,6 +32,9 @@
 #include <epan/tap.h>
 #include <epan/stat_tap_ui.h>
 #include <epan/rtd_table.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
+
 #include "packet-frame.h"
 #include "packet-tpkt.h"
 #include "packet-per.h"
@@ -56,25 +59,25 @@ static void ras_call_matching(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
 /* Item of ras request list*/
 typedef struct _h225ras_call_t {
-  guint32 requestSeqNum;
+  uint32_t requestSeqNum;
   e_guid_t guid;
-  guint32 req_num;  /* frame number request seen */
-  guint32 rsp_num;  /* frame number response seen */
+  uint32_t req_num;  /* frame number request seen */
+  uint32_t rsp_num;  /* frame number response seen */
   nstime_t req_time;  /* arrival time of request */
-  gboolean responded; /* true, if request has been responded */
+  bool responded; /* true, if request has been responded */
   struct _h225ras_call_t *next_call; /* pointer to next ras request with same SequenceNumber and conversation handle */
 } h225ras_call_t;
 
 
 /* Item of ras-request key list*/
 typedef struct _h225ras_call_info_key {
-  guint reqSeqNum;
+  unsigned reqSeqNum;
   conversation_t *conversation;
 } h225ras_call_info_key;
 
 /* Global Memory Chunks for lists and Global hash tables*/
 
-static wmem_map_t *ras_calls[7] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+static wmem_map_t *ras_calls[7];
 
 /* functions, needed using ras-request and halfcall matching*/
 static h225ras_call_t * find_h225ras_call(h225ras_call_info_key *h225ras_call_key ,int category);
@@ -92,9 +95,9 @@ static dissector_table_t gef_name_dissector_table;
 static dissector_table_t gef_content_dissector_table;
 
 
-static dissector_handle_t h245_handle=NULL;
-static dissector_handle_t h245dg_handle=NULL;
-static dissector_handle_t h4501_handle=NULL;
+static dissector_handle_t h245_handle;
+static dissector_handle_t h245dg_handle;
+static dissector_handle_t h4501_handle;
 
 static dissector_handle_t nsp_handle;
 static dissector_handle_t tp_handle;
@@ -103,42 +106,42 @@ static next_tvb_list_t *h245_list;
 static next_tvb_list_t *tp_list;
 
 /* Initialize the protocol and registered fields */
-static int h225_tap = -1;
-static int proto_h225 = -1;
+static int h225_tap;
+static int proto_h225;
 
-static int hf_h221Manufacturer = -1;
-static int hf_h225_ras_req_frame = -1;
-static int hf_h225_ras_rsp_frame = -1;
-static int hf_h225_ras_dup = -1;
-static int hf_h225_ras_deltatime = -1;
-static int hf_h225_debug_dissector_try_string = -1;
+static int hf_h221Manufacturer;
+static int hf_h225_ras_req_frame;
+static int hf_h225_ras_rsp_frame;
+static int hf_h225_ras_dup;
+static int hf_h225_ras_deltatime;
+static int hf_h225_debug_dissector_try_string;
 
 #include "packet-h225-hf.c"
 
 /* Initialize the subtree pointers */
-static gint ett_h225 = -1;
+static int ett_h225;
 #include "packet-h225-ett.c"
 
 /* Preferences */
-static guint h225_tls_port = TLS_PORT_CS;
-static gboolean h225_reassembly = TRUE;
-static gboolean h225_h245_in_tree = TRUE;
-static gboolean h225_tp_in_tree = TRUE;
+static unsigned h225_tls_port = TLS_PORT_CS;
+static bool h225_reassembly = true;
+static bool h225_h245_in_tree = true;
+static bool h225_tp_in_tree = true;
 
 /* Global variables */
-static guint32 ipv4_address;
+static uint32_t ipv4_address;
 static ws_in6_addr ipv6_address;
 static ws_in6_addr ipv6_address_zeros = {{0}};
-static guint32 ip_port;
-static gboolean contains_faststart = FALSE;
+static uint32_t ip_port;
+static bool contains_faststart;
 static e_guid_t *call_id_guid;
 
 /* NonStandardParameter */
 static const char *nsiOID;
-static guint32 h221NonStandard;
-static guint32 t35CountryCode;
-static guint32 t35Extension;
-static guint32 manufacturerCode;
+static uint32_t h221NonStandard;
+static uint32_t t35CountryCode;
+static uint32_t t35Extension;
+static uint32_t manufacturerCode;
 
 /* TunnelledProtocol */
 static const char *tpOID;
@@ -243,7 +246,7 @@ void proto_reg_handoff_h225(void);
  */
 
 /* compare 2 keys */
-static gint h225ras_call_equal(gconstpointer k1, gconstpointer k2)
+static int h225ras_call_equal(const void *k1, const void *k2)
 {
   const h225ras_call_info_key* key1 = (const h225ras_call_info_key*) k1;
   const h225ras_call_info_key* key2 = (const h225ras_call_info_key*) k2;
@@ -253,7 +256,7 @@ static gint h225ras_call_equal(gconstpointer k1, gconstpointer k2)
 }
 
 /* calculate a hash key */
-static guint h225ras_call_hash(gconstpointer k)
+static unsigned h225ras_call_hash(const void *k)
 {
   const h225ras_call_info_key* key = (const h225ras_call_info_key*) k;
 
@@ -286,7 +289,7 @@ h225ras_call_t * new_h225ras_call(h225ras_call_info_key *h225ras_call_key, packe
   h225ras_call->req_num = pinfo->num;
   h225ras_call->rsp_num = 0;
   h225ras_call->requestSeqNum = h225ras_call_key->reqSeqNum;
-  h225ras_call->responded = FALSE;
+  h225ras_call->responded = false;
   h225ras_call->next_call = NULL;
   h225ras_call->req_time=pinfo->abs_ts;
   h225ras_call->guid=*guid;
@@ -309,7 +312,7 @@ h225ras_call_t * append_h225ras_call(h225ras_call_t *prev_call, packet_info *pin
   h225ras_call->req_num = pinfo->num;
   h225ras_call->rsp_num = 0;
   h225ras_call->requestSeqNum = prev_call->requestSeqNum;
-  h225ras_call->responded = FALSE;
+  h225ras_call->responded = false;
   h225ras_call->next_call = NULL;
   h225ras_call->req_time=pinfo->abs_ts;
   h225ras_call->guid=*guid;
@@ -367,7 +370,7 @@ static int
 dissect_h225_h225_RasMessage(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_){
   proto_item *it;
   proto_tree *tr;
-  guint32 offset=0;
+  uint32_t offset=0;
   h225_packet_info* h225_pi;
 
   /* Init struct for collecting h225_packet_info */
@@ -399,21 +402,21 @@ dissect_h225_h225_RasMessage(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 
 /* The following values represent the size of their valuestring arrays */
 
-#define RAS_MSG_TYPES (sizeof(h225_RasMessage_vals) / sizeof(value_string))
-#define CS_MSG_TYPES (sizeof(T_h323_message_body_vals) / sizeof(value_string))
+#define RAS_MSG_TYPES array_length(h225_RasMessage_vals)
+#define CS_MSG_TYPES array_length(T_h323_message_body_vals)
 
-#define GRJ_REASONS (sizeof(GatekeeperRejectReason_vals) / sizeof(value_string))
-#define RRJ_REASONS (sizeof(RegistrationRejectReason_vals) / sizeof(value_string))
-#define URQ_REASONS (sizeof(UnregRequestReason_vals) / sizeof(value_string))
-#define URJ_REASONS (sizeof(UnregRejectReason_vals) / sizeof(value_string))
-#define ARJ_REASONS (sizeof(AdmissionRejectReason_vals) / sizeof(value_string))
-#define BRJ_REASONS (sizeof(BandRejectReason_vals) / sizeof(value_string))
-#define DRQ_REASONS (sizeof(DisengageReason_vals) / sizeof(value_string))
-#define DRJ_REASONS (sizeof(DisengageRejectReason_vals) / sizeof(value_string))
-#define LRJ_REASONS (sizeof(LocationRejectReason_vals) / sizeof(value_string))
-#define IRQNAK_REASONS (sizeof(InfoRequestNakReason_vals) / sizeof(value_string))
-#define REL_CMP_REASONS (sizeof(h225_ReleaseCompleteReason_vals) / sizeof(value_string))
-#define FACILITY_REASONS (sizeof(FacilityReason_vals) / sizeof(value_string))
+#define GRJ_REASONS array_length(GatekeeperRejectReason_vals)
+#define RRJ_REASONS array_length(RegistrationRejectReason_vals)
+#define URQ_REASONS array_length(UnregRequestReason_vals)
+#define URJ_REASONS array_length(UnregRejectReason_vals)
+#define ARJ_REASONS array_length(AdmissionRejectReason_vals)
+#define BRJ_REASONS array_length(BandRejectReason_vals)
+#define DRQ_REASONS array_length(DisengageReason_vals)
+#define DRJ_REASONS array_length(DisengageRejectReason_vals)
+#define LRJ_REASONS array_length(LocationRejectReason_vals)
+#define IRQNAK_REASONS array_length(InfoRequestNakReason_vals)
+#define REL_CMP_REASONS array_length(h225_ReleaseCompleteReason_vals)
+#define FACILITY_REASONS array_length(FacilityReason_vals)
 
 /* TAP STAT INFO */
 typedef enum
@@ -423,37 +426,37 @@ typedef enum
 } h225_stat_columns;
 
 typedef struct _h225_table_item {
-  guint count;     /* Message count */
-  guint table_idx; /* stat_table index */
+  unsigned count;     /* Message count */
+  unsigned table_idx; /* stat_table index */
 } h225_table_item_t;
 
 static stat_tap_table_item h225_stat_fields[] = {{TABLE_ITEM_STRING, TAP_ALIGN_LEFT, "Message Type or Reason", "%-25s"}, {TABLE_ITEM_UINT, TAP_ALIGN_RIGHT, "Count", "%d"}};
 
-static guint ras_msg_idx[RAS_MSG_TYPES];
-static guint cs_msg_idx[CS_MSG_TYPES];
+static unsigned ras_msg_idx[RAS_MSG_TYPES];
+static unsigned cs_msg_idx[CS_MSG_TYPES];
 
-static guint grj_reason_idx[GRJ_REASONS];
-static guint rrj_reason_idx[RRJ_REASONS];
-static guint urq_reason_idx[URQ_REASONS];
-static guint urj_reason_idx[URJ_REASONS];
-static guint arj_reason_idx[ARJ_REASONS];
-static guint brj_reason_idx[BRJ_REASONS];
-static guint drq_reason_idx[DRQ_REASONS];
-static guint drj_reason_idx[DRJ_REASONS];
-static guint lrj_reason_idx[LRJ_REASONS];
-static guint irqnak_reason_idx[IRQNAK_REASONS];
-static guint rel_cmp_reason_idx[REL_CMP_REASONS];
-static guint facility_reason_idx[FACILITY_REASONS];
+static unsigned grj_reason_idx[GRJ_REASONS];
+static unsigned rrj_reason_idx[RRJ_REASONS];
+static unsigned urq_reason_idx[URQ_REASONS];
+static unsigned urj_reason_idx[URJ_REASONS];
+static unsigned arj_reason_idx[ARJ_REASONS];
+static unsigned brj_reason_idx[BRJ_REASONS];
+static unsigned drq_reason_idx[DRQ_REASONS];
+static unsigned drj_reason_idx[DRJ_REASONS];
+static unsigned lrj_reason_idx[LRJ_REASONS];
+static unsigned irqnak_reason_idx[IRQNAK_REASONS];
+static unsigned rel_cmp_reason_idx[REL_CMP_REASONS];
+static unsigned facility_reason_idx[FACILITY_REASONS];
 
-static guint other_idx;
+static unsigned other_idx;
 
 static void h225_stat_init(stat_tap_table_ui* new_stat)
 {
   const char *table_name = "H.225 Messages and Message Reasons";
-  int num_fields = sizeof(h225_stat_fields)/sizeof(stat_tap_table_item);
+  int num_fields = array_length(h225_stat_fields);
   stat_tap_table *table;
   int row_idx = 0, msg_idx;
-  stat_tap_table_item_type items[sizeof(h225_stat_fields)/sizeof(stat_tap_table_item)];
+  stat_tap_table_item_type items[array_length(h225_stat_fields)];
 
   table = stat_tap_find_table(new_stat, table_name);
   if (table) {
@@ -766,12 +769,12 @@ h225_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_,
 
   if (tag_idx >= 0) {
     stat_tap_table*table = g_array_index(stat_data->stat_tap_data->tables, stat_tap_table*, 0);
-    stat_tap_table_item_type* msg_data = stat_tap_get_field_data(table, tag_idx, COUNT_COLUMN);;
+    stat_tap_table_item_type* msg_data = stat_tap_get_field_data(table, tag_idx, COUNT_COLUMN);
     msg_data->value.uint_value++;
     stat_tap_set_field_data(table, tag_idx, COUNT_COLUMN, msg_data);
 
     if (reason_idx >= 0) {
-      msg_data = stat_tap_get_field_data(table, reason_idx, COUNT_COLUMN);;
+      msg_data = stat_tap_get_field_data(table, reason_idx, COUNT_COLUMN);
       msg_data->value.uint_value++;
       stat_tap_set_field_data(table, reason_idx, COUNT_COLUMN, msg_data);
     }
@@ -784,7 +787,7 @@ h225_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_,
 static void
 h225_stat_reset(stat_tap_table* table)
 {
-  guint element;
+  unsigned element;
   stat_tap_table_item_type* item_data;
 
   for (element = 0; element < table->num_elements; element++)
@@ -828,17 +831,17 @@ void proto_register_h225(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_h225,
 #include "packet-h225-ettarr.c"
   };
 
   static tap_param h225_stat_params[] = {
-    { PARAM_FILTER, "filter", "Filter", NULL, TRUE }
+    { PARAM_FILTER, "filter", "Filter", NULL, true }
   };
 
   static stat_tap_table_ui h225_stat_table = {
-    REGISTER_STAT_GROUP_TELEPHONY,
+    REGISTER_TELEPHONY_GROUP_UNSORTED,
     "H.225",
     PFNAME,
     "h225,counter",
@@ -847,8 +850,8 @@ void proto_register_h225(void) {
     h225_stat_reset,
     NULL,
     NULL,
-    sizeof(h225_stat_fields)/sizeof(stat_tap_table_item), h225_stat_fields,
-    sizeof(h225_stat_params)/sizeof(tap_param), h225_stat_params,
+    array_length(h225_stat_fields), h225_stat_fields,
+    array_length(h225_stat_params), h225_stat_params,
     NULL,
     0
   };
@@ -918,9 +921,9 @@ void proto_register_h225(void) {
 void
 proto_reg_handoff_h225(void)
 {
-  static gboolean h225_prefs_initialized = FALSE;
+  static bool h225_prefs_initialized = false;
   static dissector_handle_t q931_tpkt_handle;
-  static guint saved_h225_tls_port;
+  static unsigned saved_h225_tls_port;
 
   if (!h225_prefs_initialized) {
     dissector_add_uint_range_with_preference("udp.port", UDP_PORT_RAS_RANGE, h225ras_handle);
@@ -929,7 +932,7 @@ proto_reg_handoff_h225(void)
     h245dg_handle = find_dissector("h245dg");
     h4501_handle = find_dissector_add_dependency("h4501", proto_h225);
     data_handle = find_dissector("data");
-    h225_prefs_initialized = TRUE;
+    h225_prefs_initialized = true;
     q931_tpkt_handle = find_dissector("q931.tpkt");
   } else {
     ssl_dissector_delete(saved_h225_tls_port, q931_tpkt_handle);
@@ -986,7 +989,7 @@ static void ras_call_matching(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
   h225ras_call_info_key h225ras_call_key;
   h225ras_call_t *h225ras_call = NULL;
   nstime_t delta;
-  guint msg_category;
+  unsigned msg_category;
 
   if(pi->msg_type == H225_RAS && pi->msg_tag < 21) {
     /* make RAS request/response matching only for tags from 0 to 20 for now */
@@ -1032,7 +1035,7 @@ static void ras_call_matching(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             } else {
               /* No, so it's a duplicate request.
                  Mark it as such. */
-              pi->is_duplicate = TRUE;
+              pi->is_duplicate = true;
               hidden_item = proto_tree_add_uint(tree, hf_h225_ras_dup, tvb, 0,0, pi->requestSeqNum);
               proto_item_set_hidden(hidden_item);
             }
@@ -1102,7 +1105,7 @@ static void ras_call_matching(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             if (h225ras_call->rsp_num != pinfo->num) {
               /* No, so it's a duplicate response.
                  Mark it as such. */
-              pi->is_duplicate = TRUE;
+              pi->is_duplicate = true;
               hidden_item = proto_tree_add_uint(tree, hf_h225_ras_dup, tvb, 0,0, pi->requestSeqNum);
               proto_item_set_hidden(hidden_item);
             }
@@ -1110,8 +1113,8 @@ static void ras_call_matching(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
           if(h225ras_call->req_num != 0){
             proto_item *ti;
-            h225ras_call->responded = TRUE;
-            pi->request_available = TRUE;
+            h225ras_call->responded = true;
+            pi->request_available = true;
 
             /* Indicate the frame to which this is a reply. */
             ti = proto_tree_add_uint_format(tree, hf_h225_ras_req_frame, tvb, 0, 0, h225ras_call->req_num,

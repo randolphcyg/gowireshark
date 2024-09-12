@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-sv.c                                                                */
-/* asn2wrs.py -b -L -p sv -c ./sv.cnf -s ./packet-sv-template -D . -O ../.. sv.asn */
+/* asn2wrs.py -b -q -L -p sv -c ./sv.cnf -s ./packet-sv-template -D . -O ../.. sv.asn */
 
 /* packet-sv.c
  * Routines for IEC 61850 Sampled Values packet dissection
@@ -22,6 +22,7 @@
 #include <epan/expert.h>
 #include <epan/prefs.h>
 #include <epan/addr_resolv.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-acse.h"
@@ -68,67 +69,67 @@ void proto_register_sv(void);
 void proto_reg_handoff_sv(void);
 
 /* Data for SV tap */
-static int sv_tap = -1;
+static int sv_tap;
 static sv_frame_data sv_data;
 
 /* Initialize the protocol and registered fields */
-static int proto_sv = -1;
-static int hf_sv_appid = -1;
-static int hf_sv_length = -1;
-static int hf_sv_reserve1 = -1;
-static int hf_sv_reserve1_s_bit = -1;
-static int hf_sv_reserve2 = -1;
-static int hf_sv_phmeas_instmag_i = -1;
-static int hf_sv_phsmeas_q = -1;
-static int hf_sv_phsmeas_q_validity = -1;
-static int hf_sv_phsmeas_q_overflow = -1;
-static int hf_sv_phsmeas_q_outofrange = -1;
-static int hf_sv_phsmeas_q_badreference = -1;
-static int hf_sv_phsmeas_q_oscillatory = -1;
-static int hf_sv_phsmeas_q_failure = -1;
-static int hf_sv_phsmeas_q_olddata = -1;
-static int hf_sv_phsmeas_q_inconsistent = -1;
-static int hf_sv_phsmeas_q_inaccurate = -1;
-static int hf_sv_phsmeas_q_source = -1;
-static int hf_sv_phsmeas_q_test = -1;
-static int hf_sv_phsmeas_q_operatorblocked = -1;
-static int hf_sv_phsmeas_q_derived = -1;
-static int hf_sv_gmidentity = -1;
-static int hf_sv_gmidentity_manuf = -1;
+static int proto_sv;
+static int hf_sv_appid;
+static int hf_sv_length;
+static int hf_sv_reserve1;
+static int hf_sv_reserve1_s_bit;
+static int hf_sv_reserve2;
+static int hf_sv_phmeas_instmag_i;
+static int hf_sv_phsmeas_q;
+static int hf_sv_phsmeas_q_validity;
+static int hf_sv_phsmeas_q_overflow;
+static int hf_sv_phsmeas_q_outofrange;
+static int hf_sv_phsmeas_q_badreference;
+static int hf_sv_phsmeas_q_oscillatory;
+static int hf_sv_phsmeas_q_failure;
+static int hf_sv_phsmeas_q_olddata;
+static int hf_sv_phsmeas_q_inconsistent;
+static int hf_sv_phsmeas_q_inaccurate;
+static int hf_sv_phsmeas_q_source;
+static int hf_sv_phsmeas_q_test;
+static int hf_sv_phsmeas_q_operatorblocked;
+static int hf_sv_phsmeas_q_derived;
+static int hf_sv_gmidentity;
+static int hf_sv_gmidentity_manuf;
 
-static int hf_sv_savPdu = -1;                     /* SavPdu */
-static int hf_sv_noASDU = -1;                     /* INTEGER_0_65535 */
-static int hf_sv_seqASDU = -1;                    /* SEQUENCE_OF_ASDU */
-static int hf_sv_seqASDU_item = -1;               /* ASDU */
-static int hf_sv_svID = -1;                       /* VisibleString */
-static int hf_sv_datSet = -1;                     /* VisibleString */
-static int hf_sv_smpCnt = -1;                     /* T_smpCnt */
-static int hf_sv_confRev = -1;                    /* INTEGER_0_4294967295 */
-static int hf_sv_refrTm = -1;                     /* UtcTime */
-static int hf_sv_smpSynch = -1;                   /* T_smpSynch */
-static int hf_sv_smpRate = -1;                    /* INTEGER_0_65535 */
-static int hf_sv_seqData = -1;                    /* Data */
-static int hf_sv_smpMod = -1;                     /* T_smpMod */
-static int hf_sv_gmidData = -1;                   /* GmidData */
+static int hf_sv_savPdu;                          /* SavPdu */
+static int hf_sv_noASDU;                          /* INTEGER_0_65535 */
+static int hf_sv_seqASDU;                         /* SEQUENCE_OF_ASDU */
+static int hf_sv_seqASDU_item;                    /* ASDU */
+static int hf_sv_svID;                            /* VisibleString */
+static int hf_sv_datSet;                          /* VisibleString */
+static int hf_sv_smpCnt;                          /* T_smpCnt */
+static int hf_sv_confRev;                         /* INTEGER_0_4294967295 */
+static int hf_sv_refrTm;                          /* UtcTime */
+static int hf_sv_smpSynch;                        /* T_smpSynch */
+static int hf_sv_smpRate;                         /* INTEGER_0_65535 */
+static int hf_sv_seqData;                         /* Data */
+static int hf_sv_smpMod;                          /* T_smpMod */
+static int hf_sv_gmidData;                        /* GmidData */
 
 /* Initialize the subtree pointers */
-static int ett_sv = -1;
-static int ett_phsmeas = -1;
-static int ett_phsmeas_q = -1;
-static int ett_gmidentity = -1;
-static int ett_reserve1 = -1;
+static int ett_sv;
+static int ett_phsmeas;
+static int ett_phsmeas_q;
+static int ett_gmidentity;
+static int ett_reserve1;
 
 
-static gint ett_sv_SampledValues = -1;
-static gint ett_sv_SavPdu = -1;
-static gint ett_sv_SEQUENCE_OF_ASDU = -1;
-static gint ett_sv_ASDU = -1;
+static int ett_sv_SampledValues;
+static int ett_sv_SavPdu;
+static int ett_sv_SEQUENCE_OF_ASDU;
+static int ett_sv_ASDU;
 
-static expert_field ei_sv_mal_utctime = EI_INIT;
-static expert_field ei_sv_zero_pdu = EI_INIT;
-static expert_field ei_sv_mal_gmidentity = EI_INIT;
+static expert_field ei_sv_mal_utctime;
+static expert_field ei_sv_zero_pdu;
+static expert_field ei_sv_mal_gmidentity;
 
-static gboolean sv_decode_data_as_phsmeas = FALSE;
+static bool sv_decode_data_as_phsmeas;
 
 static dissector_handle_t sv_handle;
 
@@ -159,14 +160,14 @@ static const value_string sv_q_source_vals[] = {
 static int
 dissect_PhsMeas1(bool implicit_tag, packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int offset, int hf_id _U_)
 {
-	gint8 ber_class;
+	int8_t ber_class;
 	bool pc;
-	gint32 tag;
-	guint32 len;
+	int32_t tag;
+	uint32_t len;
 	proto_tree *subtree;
-	gint32 value;
-	guint32 qual;
-	guint32 i;
+	int32_t value;
+	uint32_t qual;
+	uint32_t i;
 
 	static int * const q_flags[] = {
 		&hf_sv_phsmeas_q_validity,
@@ -241,7 +242,7 @@ dissect_sv_VisibleString(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U
 
 static int
 dissect_sv_T_smpCnt(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-	guint32 value;
+	uint32_t value;
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 &value);
 
@@ -264,12 +265,12 @@ dissect_sv_INTEGER_0_4294967295(bool implicit_tag _U_, tvbuff_t *tvb _U_, int of
 
 static int
 dissect_sv_UtcTime(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-	guint32 len;
-	guint32 seconds;
-	guint32	fraction;
-	guint32 nanoseconds;
+	uint32_t len;
+	uint32_t seconds;
+	uint32_t	fraction;
+	uint32_t nanoseconds;
 	nstime_t ts;
-	gchar *	ptime;
+	char *	ptime;
 
 	len = tvb_reported_length_remaining(tvb, offset);
 
@@ -277,7 +278,7 @@ dissect_sv_UtcTime(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn
 	{
 		proto_tree_add_expert_format(tree, actx->pinfo, &ei_sv_mal_utctime, tvb, offset, len,
 				"BER Error: malformed UTCTime encoding, length must be 8 bytes");
-		if(hf_index >= 0)
+		if(hf_index > 0)
 		{
 			proto_tree_add_string(tree, hf_index, tvb, offset, len, "????");
 		}
@@ -286,14 +287,14 @@ dissect_sv_UtcTime(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn
 
 	seconds = tvb_get_ntohl(tvb, offset);
 	fraction = tvb_get_ntoh24(tvb, offset+4) * 0x100; /* Only 3 bytes are recommended */
-	nanoseconds = (guint32)( ((guint64)fraction * G_GUINT64_CONSTANT(1000000000)) / G_GUINT64_CONSTANT(0x100000000) ) ;
+	nanoseconds = (uint32_t)( ((uint64_t)fraction * UINT64_C(1000000000)) / UINT64_C(0x100000000) ) ;
 
 	ts.secs = seconds;
 	ts.nsecs = nanoseconds;
 
-	ptime = abs_time_to_str(actx->pinfo->pool, &ts, ABSOLUTE_TIME_UTC, TRUE);
+	ptime = abs_time_to_str(actx->pinfo->pool, &ts, ABSOLUTE_TIME_UTC, true);
 
-	if(hf_index >= 0)
+	if(hf_index > 0)
 	{
 		proto_tree_add_string(tree, hf_index, tvb, offset, len, ptime);
 	}
@@ -313,7 +314,7 @@ static const value_string sv_T_smpSynch_vals[] = {
 
 static int
 dissect_sv_T_smpSynch(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-	guint32 value;
+	uint32_t value;
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 &value);
 
@@ -346,7 +347,7 @@ static const value_string sv_T_smpMod_vals[] = {
 
 static int
 dissect_sv_T_smpMod(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-	guint32 value;
+	uint32_t value;
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 &value);
 
@@ -359,10 +360,10 @@ dissect_sv_T_smpMod(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, as
 
 static int
 dissect_sv_GmidData(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-	guint32 len;
+	uint32_t len;
 	proto_item  *gmidentity_ti;
 	proto_tree  *gmidentity_tree;
-	const gchar *manuf_name;
+	const char *manuf_name;
 
 	len = tvb_reported_length_remaining(tvb, offset);
 
@@ -370,7 +371,7 @@ dissect_sv_GmidData(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, as
 	{
 		proto_tree_add_expert_format(tree, actx->pinfo, &ei_sv_mal_gmidentity, tvb, offset, len,
 				"BER Error: malformed gmIdentity encoding, length must be 8 bytes");
-		if(hf_index >= 0)
+		if(hf_index > 0)
 		{
 			proto_tree_add_string(tree, hf_index, tvb, offset, len, "????");
 		}
@@ -467,7 +468,7 @@ dissect_sv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* dat
 {
 	int offset = 0;
 	int old_offset;
-	guint sv_length = 0;
+	unsigned sv_length = 0;
 	proto_item *item;
 	proto_tree *tree;
 
@@ -478,7 +479,7 @@ dissect_sv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* dat
 
 	asn1_ctx_t asn1_ctx;
 
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
 	item = proto_tree_add_item(parent_tree, proto_sv, tvb, 0, -1, ENC_NA);
 	tree = proto_item_add_subtree(item, ett_sv);
@@ -504,7 +505,7 @@ dissect_sv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* dat
 	set_actual_length(tvb, sv_length);
 	while (tvb_reported_length_remaining(tvb, offset) > 0) {
 		old_offset = offset;
-		offset = dissect_sv_SampledValues(FALSE, tvb, offset, &asn1_ctx , tree, -1);
+		offset = dissect_sv_SampledValues(false, tvb, offset, &asn1_ctx , tree, -1);
 		if (offset == old_offset) {
 			proto_tree_add_expert(tree, pinfo, &ei_sv_zero_pdu, tvb, offset, -1);
 			break;
@@ -648,7 +649,7 @@ void proto_register_sv(void) {
 	};
 
 	/* List of subtrees */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_sv,
 		&ett_phsmeas,
 		&ett_phsmeas_q,

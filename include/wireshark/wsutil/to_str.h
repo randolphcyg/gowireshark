@@ -15,7 +15,7 @@
 #include <include/wireshark.h>
 
 #include <wsutil/wmem/wmem.h>
-#include <wsutil/inet_ipv6.h>
+#include <wsutil/inet_addr.h>
 #include <wsutil/nstime.h>
 
 #ifdef __cplusplus
@@ -23,7 +23,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 /**
- * guint8_to_hex()
+ * uint8_to_hex()
  *
  * Output uint8_t hex representation to 'out', and return pointer after last character (out + 2).
  * It will always output full representation (padded with 0).
@@ -31,7 +31,10 @@ extern "C" {
  * String is not NUL terminated by this routine.
  * There needs to be at least 2 bytes in the buffer.
  */
-WS_DLL_PUBLIC char *guint8_to_hex(char *out, uint8_t val);
+WS_DLL_PUBLIC char *uint8_to_hex(char *out, uint8_t val);
+
+WS_DEPRECATED_X("Use uint8_to_hex instead")
+static inline char *guint8_to_hex(char *out, uint8_t val) { return uint8_to_hex(out, val); }
 
 /**
  * word_to_hex()
@@ -282,15 +285,32 @@ WS_DLL_PUBLIC char *int_to_str_back(char *ptr, int32_t value);
  */
 WS_DLL_PUBLIC char *int64_to_str_back(char *ptr, int64_t value);
 
-WS_DLL_PUBLIC void guint32_to_str_buf(uint32_t u, char *buf, size_t buf_len);
+WS_DLL_PUBLIC void uint32_to_str_buf(uint32_t u, char *buf, size_t buf_len);
 
-WS_DLL_PUBLIC void guint64_to_str_buf(uint64_t u, char *buf, size_t buf_len);
+WS_DEPRECATED_X("Use uint32_to_str_buf instead")
+static inline void guint32_to_str_buf(uint32_t u, char *buf, size_t buf_len) { uint32_to_str_buf(u, buf, buf_len); }
 
+WS_DLL_PUBLIC void uint64_to_str_buf(uint64_t u, char *buf, size_t buf_len);
+
+WS_DEPRECATED_X("Use uint64_to_str_buf instead")
+static inline void guint64_to_str_buf(uint64_t u, char *buf, size_t buf_len) { uint64_to_str_buf(u, buf, buf_len); }
+
+WS_DEPRECATED_X("Use ip_num_to_str_buf() or ip_addr_to_str() instead")
 WS_DLL_PUBLIC void ip_to_str_buf(const uint8_t *ad, char *buf, const int buf_len);
 
+WS_DEPRECATED_X("Use ip_num_to_str() or ip_addr_to_str() instead")
 WS_DLL_PUBLIC char *ip_to_str(wmem_allocator_t *scope, const uint8_t *ad);
 
-/* Returns length of the result. */
+/* Host byte order */
+WS_DLL_PUBLIC void ip_num_to_str_buf(uint32_t ad, char *buf, const int buf_len);
+
+/* Host byte order */
+WS_DLL_PUBLIC char *ip_num_to_str(wmem_allocator_t *scope, uint32_t ad);
+
+WS_DLL_PUBLIC void ip_addr_to_str_buf(const ws_in4_addr *ad, char *buf, const int buf_len);
+
+WS_DLL_PUBLIC char *ip_addr_to_str(wmem_allocator_t *scope, const ws_in4_addr *ad);
+
 WS_DLL_PUBLIC void ip6_to_str_buf(const ws_in6_addr *ad, char *buf, size_t buf_size);
 
 WS_DLL_PUBLIC char *ip6_to_str(wmem_allocator_t *scope, const ws_in6_addr *ad);

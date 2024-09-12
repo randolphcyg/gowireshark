@@ -26,34 +26,34 @@ void proto_reg_handoff_rlogin(void);
 
 static dissector_handle_t rlogin_handle;
 
-static int proto_rlogin = -1;
+static int proto_rlogin;
 
-static int ett_rlogin = -1;
-static int ett_rlogin_window = -1;
-static int ett_rlogin_user_info = -1;
-static int ett_rlogin_window_rows = -1;
-static int ett_rlogin_window_cols = -1;
-static int ett_rlogin_window_x_pixels = -1;
-static int ett_rlogin_window_y_pixels = -1;
+static int ett_rlogin;
+static int ett_rlogin_window;
+static int ett_rlogin_user_info;
+static int ett_rlogin_window_rows;
+static int ett_rlogin_window_cols;
+static int ett_rlogin_window_x_pixels;
+static int ett_rlogin_window_y_pixels;
 
-static int hf_user_info = -1;
-static int hf_client_startup_flag = -1;
-static int hf_startup_info_received_flag = -1;
-static int hf_user_info_client_user_name = -1;
-static int hf_user_info_server_user_name = -1;
-static int hf_user_info_terminal_type = -1;
-static int hf_user_info_terminal_speed = -1;
-static int hf_control_message = -1;
-static int hf_magic_cookie = -1;
-static int hf_window_info = -1;
-static int hf_window_info_ss = -1;
-static int hf_window_info_rows = -1;
-static int hf_window_info_cols = -1;
-static int hf_window_info_x_pixels = -1;
-static int hf_window_info_y_pixels = -1;
-static int hf_data = -1;
+static int hf_user_info;
+static int hf_client_startup_flag;
+static int hf_startup_info_received_flag;
+static int hf_user_info_client_user_name;
+static int hf_user_info_server_user_name;
+static int hf_user_info_terminal_type;
+static int hf_user_info_terminal_speed;
+static int hf_control_message;
+static int hf_magic_cookie;
+static int hf_window_info;
+static int hf_window_info_ss;
+static int hf_window_info_rows;
+static int hf_window_info_cols;
+static int hf_window_info_x_pixels;
+static int hf_window_info_y_pixels;
+static int hf_data;
 
-static expert_field ei_rlogin_termlen_invalid = EI_INIT;
+static expert_field ei_rlogin_termlen_invalid;
 
 static const value_string control_message_vals[] =
 {
@@ -74,7 +74,7 @@ typedef enum  {
 #define NAME_LEN 32
 typedef struct {
 	session_state_t  state;
-	guint32          info_framenum;
+	uint32_t         info_framenum;
 	char             user_name[NAME_LEN];
 } rlogin_hash_entry_t;
 
@@ -86,8 +86,8 @@ typedef struct {
 static void
 rlogin_state_machine(rlogin_hash_entry_t *hash_info, tvbuff_t *tvb, packet_info *pinfo)
 {
-	guint length;
-	gint stringlen;
+	unsigned length;
+	int stringlen;
 
 	/* Won't change state if already seen this packet */
 	if (pinfo->fd->visited)
@@ -120,7 +120,7 @@ rlogin_state_machine(rlogin_hash_entry_t *hash_info, tvbuff_t *tvb, packet_info 
 	if (hash_info->state == NONE)
 	{
 		/* new connection*/
-		if (tvb_get_guint8(tvb, 0) != '\0')
+		if (tvb_get_uint8(tvb, 0) != '\0')
 		{
 			/* We expected a null, but didn't get one; quit. */
 			hash_info->state = DONE;
@@ -158,7 +158,7 @@ rlogin_state_machine(rlogin_hash_entry_t *hash_info, tvbuff_t *tvb, packet_info 
 			stringlen = NAME_LEN - 1;   /* name too long */
 
 		/* Copy and terminate string into hash name */
-		tvb_memcpy(tvb, (guint8 *)hash_info->user_name, 0, stringlen);
+		tvb_memcpy(tvb, (uint8_t *)hash_info->user_name, 0, stringlen);
 		hash_info->user_name[stringlen] = '\0';
 
 		col_append_str(pinfo->cinfo, COL_INFO, ", (User information)");
@@ -176,9 +176,9 @@ static void rlogin_display(rlogin_hash_entry_t *hash_info,
 	int             offset = 0;
 	proto_tree      *rlogin_tree, *user_info_tree, *window_tree;
 	proto_item      *ti;
-	guint           length;
+	unsigned        length;
 	int             str_len;
-	gint            ti_offset;
+	int             ti_offset;
 	proto_item      *user_info_item, *window_info_item;
 
 	/* Create rlogin subtree */
@@ -203,7 +203,7 @@ static void rlogin_display(rlogin_hash_entry_t *hash_info,
 	{
 		/* Get urgent byte into Temp */
 		int urgent_offset = tcpinfo->urgent_pointer - 1;
-		guint8 control_byte;
+		uint8_t control_byte;
 
 		/* Check for text data in front */
 		if (urgent_offset > offset)
@@ -214,14 +214,14 @@ static void rlogin_display(rlogin_hash_entry_t *hash_info,
 		/* Show control byte */
 		proto_tree_add_item(rlogin_tree, hf_control_message, tvb,
 		                    urgent_offset, 1, ENC_BIG_ENDIAN);
-		control_byte = tvb_get_guint8(tvb, urgent_offset);
+		control_byte = tvb_get_uint8(tvb, urgent_offset);
 		col_append_fstr(pinfo->cinfo, COL_INFO,
 			               " (%s)", val_to_str_const(control_byte, control_message_vals, "Unknown"));
 
 		offset = urgent_offset + 1; /* adjust offset */
 	}
 	else
-	if (tvb_get_guint8(tvb, offset) == '\0')
+	if (tvb_get_uint8(tvb, offset) == '\0')
 	{
 		/* Startup */
 		if (pinfo->srcport == RLOGIN_PORT)   /* from server */
@@ -245,8 +245,8 @@ static void rlogin_display(rlogin_hash_entry_t *hash_info,
 
 	if (hash_info->info_framenum == pinfo->num)
 	{
-		gint info_len;
-		gint slash_offset;
+		int info_len;
+		int slash_offset;
 
 		/* First frame of conversation, assume user info... */
 
@@ -256,7 +256,7 @@ static void rlogin_display(rlogin_hash_entry_t *hash_info,
 
 		/* User info tree */
 		user_info_item = proto_tree_add_string_format(rlogin_tree, hf_user_info, tvb,
-		                                              offset, info_len, FALSE,
+		                                              offset, info_len, false,
 		                                              "User info (%s)",
 		                                              tvb_format_text(pinfo->pool, tvb, offset, info_len));
 		user_info_tree = proto_item_add_subtree(user_info_item,
@@ -275,12 +275,12 @@ static void rlogin_display(rlogin_hash_entry_t *hash_info,
 		offset += str_len;
 
 		/* Terminal type/speed. */
-		slash_offset = tvb_find_guint8(tvb, offset, -1, '/');
+		slash_offset = tvb_find_uint8(tvb, offset, -1, '/');
 		if (slash_offset != -1)
 		{
-			guint8* str = NULL;
-			guint32 term_len = 0;
-			gboolean term_len_valid;
+			uint8_t* str = NULL;
+			uint32_t term_len = 0;
+			bool term_len_valid;
 			proto_item* pi = NULL;
 
 			/* Terminal type */
@@ -311,14 +311,14 @@ static void rlogin_display(rlogin_hash_entry_t *hash_info,
 
 	/* Test for terminal information, the data will have 2 0xff bytes */
 	/* look for first 0xff byte */
-	ti_offset = tvb_find_guint8(tvb, offset, -1, 0xff);
+	ti_offset = tvb_find_uint8(tvb, offset, -1, 0xff);
 
 	/* Next byte must also be 0xff */
 	if (ti_offset != -1 &&
 	    tvb_bytes_exist(tvb, ti_offset + 1, 1) &&
-	    tvb_get_guint8(tvb, ti_offset + 1) == 0xff)
+	    tvb_get_uint8(tvb, ti_offset + 1) == 0xff)
 	{
-		guint16 rows, columns;
+		uint16_t rows, columns;
 
 		/* Have found terminal info. */
 		if (ti_offset > offset)
@@ -385,8 +385,8 @@ dissect_rlogin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 	struct tcpinfo *tcpinfo = (struct tcpinfo *)data;
 	conversation_t *conversation;
 	rlogin_hash_entry_t *hash_info;
-	guint length;
-	gint ti_offset;
+	unsigned length;
+	int ti_offset;
 
 	/* Get or create conversation */
 	conversation = find_or_create_conversation(pinfo);
@@ -425,7 +425,7 @@ dissect_rlogin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 	if (length != 0)
 	{
 		/* Initial NULL byte represents part of connection handshake */
-		if (tvb_get_guint8(tvb, 0) == '\0')
+		if (tvb_get_uint8(tvb, 0) == '\0')
 		{
 			col_append_str(pinfo->cinfo, COL_INFO,
 				               (pinfo->destport == RLOGIN_PORT) ?
@@ -442,10 +442,10 @@ dissect_rlogin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 		{
 			/* Search for 2 consecutive ff bytes
 			  (signifies window change control message) */
-			ti_offset = tvb_find_guint8(tvb, 0, -1, 0xff);
+			ti_offset = tvb_find_uint8(tvb, 0, -1, 0xff);
 			if (ti_offset != -1 &&
 			    tvb_bytes_exist(tvb, ti_offset + 1, 1) &&
-			    tvb_get_guint8(tvb, ti_offset + 1) == 0xff)
+			    tvb_get_uint8(tvb, ti_offset + 1) == 0xff)
 			{
 				col_append_str(pinfo->cinfo, COL_INFO, "Terminal Info");
 			}
@@ -481,7 +481,7 @@ void proto_register_rlogin(void)
 {
 	expert_module_t* expert_rlogin;
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_rlogin,
 		&ett_rlogin_window,
 		&ett_rlogin_window_rows,

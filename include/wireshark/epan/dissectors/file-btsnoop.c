@@ -22,38 +22,38 @@ static dissector_handle_t hci_h1_handle;
 static dissector_handle_t hci_h4_handle;
 static dissector_handle_t hci_mon_handle;
 
-static int proto_btsnoop = -1;
+static int proto_btsnoop;
 
-static int hf_btsnoop_header = -1;
-static int hf_btsnoop_magic_bytes = -1;
-static int hf_btsnoop_version = -1;
-static int hf_btsnoop_datalink = -1;
-static int hf_btsnoop_frame = -1;
-static int hf_btsnoop_origin_length = -1;
-static int hf_btsnoop_included_length = -1;
-static int hf_btsnoop_flags = -1;
-static int hf_btsnoop_cumulative_dropped_packets = -1;
-static int hf_btsnoop_timestamp_microseconds = -1;
-static int hf_btsnoop_payload = -1;
-static int hf_btsnoop_flags_h1_reserved = -1;
-static int hf_btsnoop_flags_h1_channel_type = -1;
-static int hf_btsnoop_flags_h1_direction = -1;
-static int hf_btsnoop_flags_h4_reserved = -1;
-static int hf_btsnoop_flags_h4_direction = -1;
-static int hf_btsnoop_flags_linux_monitor_opcode = -1;
-static int hf_btsnoop_flags_linux_monitor_adapter_id = -1;
+static int hf_btsnoop_header;
+static int hf_btsnoop_magic_bytes;
+static int hf_btsnoop_version;
+static int hf_btsnoop_datalink;
+static int hf_btsnoop_frame;
+static int hf_btsnoop_origin_length;
+static int hf_btsnoop_included_length;
+static int hf_btsnoop_flags;
+static int hf_btsnoop_cumulative_dropped_packets;
+static int hf_btsnoop_timestamp_microseconds;
+static int hf_btsnoop_payload;
+static int hf_btsnoop_flags_h1_reserved;
+static int hf_btsnoop_flags_h1_channel_type;
+static int hf_btsnoop_flags_h1_direction;
+static int hf_btsnoop_flags_h4_reserved;
+static int hf_btsnoop_flags_h4_direction;
+static int hf_btsnoop_flags_linux_monitor_opcode;
+static int hf_btsnoop_flags_linux_monitor_adapter_id;
 
-static expert_field ei_malformed_frame = EI_INIT;
-static expert_field ei_not_implemented_yet = EI_INIT;
-static expert_field ei_unknown_data = EI_INIT;
+static expert_field ei_malformed_frame;
+static expert_field ei_not_implemented_yet;
+static expert_field ei_unknown_data;
 
-static gint ett_btsnoop = -1;
-static gint ett_btsnoop_header = -1;
-static gint ett_btsnoop_frame = -1;
-static gint ett_btsnoop_payload = -1;
-static gint ett_btsnoop_flags = -1;
+static int ett_btsnoop;
+static int ett_btsnoop_header;
+static int ett_btsnoop_frame;
+static int ett_btsnoop_payload;
+static int ett_btsnoop_flags;
 
-static gboolean pref_dissect_next_layer = FALSE;
+static bool pref_dissect_next_layer;
 
 extern value_string_ext hci_mon_opcode_vals_ext;
 
@@ -85,11 +85,11 @@ void proto_reg_handoff_btsnoop(void);
 static int
 dissect_btsnoop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    static const guint8 magic[] = { 'b', 't', 's', 'n', 'o', 'o', 'p', 0};
-    gint             offset = 0;
-    guint32          datalink;
-    guint32          flags;
-    guint32          length;
+    static const uint8_t magic[] = { 'b', 't', 's', 'n', 'o', 'o', 'p', 0};
+    int              offset = 0;
+    uint32_t         datalink;
+    uint32_t         flags;
+    uint32_t         length;
     proto_tree      *main_tree;
     proto_item      *main_item;
     proto_tree      *header_tree;
@@ -100,10 +100,10 @@ dissect_btsnoop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
     proto_item      *flags_item;
     proto_tree      *payload_tree;
     proto_item      *payload_item;
-    static guint32   frame_number = 1;
+    static uint32_t  frame_number = 1;
     tvbuff_t        *next_tvb;
     nstime_t         timestamp;
-    guint64          ts;
+    uint64_t         ts;
 
     if (tvb_memeql(tvb, 0, magic, sizeof(magic)) != 0)
         return 0;
@@ -117,7 +117,7 @@ dissect_btsnoop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
     header_tree = proto_item_add_subtree(header_item, ett_btsnoop_header);
 
     proto_tree_add_item(header_tree, hf_btsnoop_magic_bytes, tvb, offset, sizeof(magic), ENC_ASCII | ENC_NA);
-    offset += (gint)sizeof(magic);
+    offset += (int)sizeof(magic);
 
     proto_tree_add_item(header_tree, hf_btsnoop_version, tvb, offset, 4, ENC_BIG_ENDIAN);
     offset += 4;
@@ -166,9 +166,9 @@ dissect_btsnoop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
         proto_tree_add_item(frame_tree, hf_btsnoop_cumulative_dropped_packets, tvb, offset, 4, ENC_BIG_ENDIAN);
         offset += 4;
 
-        ts =  tvb_get_ntoh64(tvb, offset) - G_GINT64_CONSTANT(0x00dcddb30f2f8000);
-        timestamp.secs = (guint)(ts / 1000000);
-        timestamp.nsecs =(guint)((ts % 1000000) * 1000);
+        ts =  tvb_get_ntoh64(tvb, offset) - INT64_C(0x00dcddb30f2f8000);
+        timestamp.secs = (unsigned)(ts / 1000000);
+        timestamp.nsecs =(unsigned)((ts % 1000000) * 1000);
 
         proto_tree_add_time(frame_tree, hf_btsnoop_timestamp_microseconds, tvb, offset, 8, &timestamp);
         offset += 8;
@@ -181,7 +181,7 @@ dissect_btsnoop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 pinfo->num = frame_number;
                 pinfo->abs_ts = timestamp;
 
-                pinfo->pseudo_header->bthci.sent = (flags & 0x01) ? FALSE : TRUE;
+                pinfo->pseudo_header->bthci.sent = (flags & 0x01) ? false : true;
                 if (flags & 0x02) {
                     if(pinfo->pseudo_header->bthci.sent)
                         pinfo->pseudo_header->bthci.channel = BTHCI_CHANNEL_COMMAND;
@@ -232,10 +232,10 @@ dissect_btsnoop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
     return offset;
 }
 
-static gboolean
-dissect_btsnoop_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
+static bool
+dissect_btsnoop_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    return dissect_btsnoop(tvb, pinfo, tree, NULL) > 0;
+    return dissect_btsnoop(tvb, pinfo, tree, data) > 0;
 }
 
 void
@@ -343,7 +343,7 @@ proto_register_btsnoop(void)
         { &ei_unknown_data,          { "btsnoop.unknown_data", PI_PROTOCOL, PI_WARN, "Unknown data", EXPFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btsnoop,
         &ett_btsnoop_header,
         &ett_btsnoop_frame,

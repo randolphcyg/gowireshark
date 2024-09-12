@@ -15,8 +15,8 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/charsets.h>
 #include <epan/conversation.h>
+#include <epan/tfs.h>
 
 #include "packet-e212.h"
 #include "packet-gsm_a_common.h"
@@ -27,115 +27,115 @@
 void proto_register_card_app_toolkit(void);
 void proto_reg_handoff_card_app_toolkit(void);
 
-static int proto_cat = -1;
+static int proto_cat;
 
 static dissector_handle_t gsm_sms_handle;	/* SMS TPDU */
 
-static int hf_cat_tlv = -1;
+static int hf_cat_tlv;
 
-static int hf_ctlv_devid_src = -1;
-static int hf_ctlv_devid_dst = -1;
-static int hf_ctlv_cmd_nr = -1;
-static int hf_ctlv_cmd_type = -1;
-static int hf_ctlv_cmd_qual_refresh = -1;
-static int hf_ctlv_cmd_qual_send_short_msg = -1;
-static int hf_ctlv_cmd_qual_loci = -1;
-static int hf_ctlv_cmd_qual_timer_mgmt = -1;
-static int hf_ctlv_cmd_qual_send_data = -1;
-static int hf_ctlv_cmd_qual = -1;
-static int hf_ctlv_dur_time_unit = -1;
-static int hf_ctlv_dur_time_intv = -1;
-static int hf_ctlv_alpha_id_string = -1;
-static int hf_ctlv_address_ton = -1;
-static int hf_ctlv_address_npi = -1;
-static int hf_ctlv_address_string = -1;
-static int hf_ctlv_subaddress_string = -1;
-static int hf_ctlv_result_gen = -1;
-static int hf_ctlv_result_term = -1;
-static int hf_ctlv_result_launch_browser = -1;
-static int hf_ctlv_result_multiplecard = -1;
-static int hf_ctlv_result_cc_ctrl_mo_sm_ctrl = -1;
-static int hf_ctlv_result_bip = -1;
-static int hf_ctlv_result_frames_cmd = -1;
-static int hf_ctlv_text_string_enc = -1;
-static int hf_ctlv_text_string = -1;
-static int hf_ctlv_event = -1;
-static int hf_ctlv_tone = -1;
-static int hf_ctlv_item_id = -1;
-static int hf_ctlv_item_string = -1;
-static int hf_ctlv_loc_status = -1;
-static int hf_ctlv_timer_val_hr = -1;
-static int hf_ctlv_timer_val_min = -1;
-static int hf_ctlv_timer_val_sec = -1;
-static int hf_ctlv_date_time_yr = -1;
-static int hf_ctlv_date_time_mo = -1;
-static int hf_ctlv_date_time_day = -1;
-static int hf_ctlv_date_time_hr = -1;
-static int hf_ctlv_date_time_min = -1;
-static int hf_ctlv_date_time_sec = -1;
-static int hf_ctlv_date_time_tz = -1;
-static int hf_ctlv_at_cmd = -1;
-static int hf_ctlv_at_rsp = -1;
-static int hf_ctlv_dtmf_string = -1;
-static int hf_ctlv_language = -1;
-static int hf_ctlv_me_status = -1;
-static int hf_ctlv_timing_adv = -1;
-static int hf_ctlv_aid_rid = -1;
-static int hf_ctlv_aid_pix_app_code_etsi = -1;
-static int hf_ctlv_aid_pix_app_code_3gpp = -1;
-static int hf_ctlv_aid_pix_app_code_3gpp2 = -1;
-static int hf_ctlv_aid_pix_app_code = -1;
-static int hf_ctlv_aid_pix_country_code = -1;
-static int hf_ctlv_aid_pix_app_prov_code = -1;
-static int hf_ctlv_aid_pix_app_prov_field = -1;
-static int hf_ctlv_bearer = -1;
-static int hf_ctlv_bearer_descr = -1;
-static int hf_ctlv_bearer_csd_data_rate = -1;
-static int hf_ctlv_bearer_csd_bearer_serv = -1;
-static int hf_ctlv_bearer_csd_conn_elem = -1;
-static int hf_ctlv_bearer_gprs_precedence = -1;
-static int hf_ctlv_bearer_gprs_delay = -1;
-static int hf_ctlv_bearer_gprs_reliability = -1;
-static int hf_ctlv_bearer_gprs_peak = -1;
-static int hf_ctlv_bearer_gprs_mean = -1;
-static int hf_ctlv_bearer_gprs_prot_type = -1;
-static int hf_ctlv_bearer_utran_traffic_class = -1;
-static int hf_ctlv_bearer_utran_max_bitrate_ul = -1;
-static int hf_ctlv_bearer_utran_max_bitrate_dl = -1;
-static int hf_ctlv_bearer_utran_guaranteed_bitrate_ul = -1;
-static int hf_ctlv_bearer_utran_guaranteed_bitrate_dl = -1;
-static int hf_ctlv_bearer_utran_delivery_order = -1;
-static int hf_ctlv_bearer_utran_max_sdu_size = -1;
-static int hf_ctlv_bearer_utran_sdu_error_ratio = -1;
-static int hf_ctlv_bearer_utran_residual_bit_error_ratio = -1;
-static int hf_ctlv_bearer_utran_delivery_erroneous_sdus = -1;
-static int hf_ctlv_bearer_utran_transfer_delay = -1;
-static int hf_ctlv_bearer_utran_traffic_handling_prio = -1;
-static int hf_ctlv_bearer_utran_pdp_type = -1;
-static int hf_ctlv_bearer_params = -1;
-static int hf_ctlv_buffers_size = -1;
-static int hf_ctlv_transport_ptype = -1;
-static int hf_ctlv_transport_port = -1;
-static int hf_ctlv_other_address_coding = -1;
-static int hf_ctlv_other_address_ipv4 = -1;
-static int hf_ctlv_other_address_ipv6 = -1;
-static int hf_ctlv_access_tech = -1;
-static int hf_ctlv_dns_server_address_coding = -1;
-static int hf_ctlv_dns_server_address_ipv4 = -1;
-static int hf_ctlv_dns_server_address_ipv6 = -1;
-static int hf_ctlv_utran_eutran_meas_qual = -1;
-static int hf_ctlv_upd_attach_type = -1;
-static int hf_ctlv_loci_lac = -1;
-static int hf_ctlv_loci_cell_id = -1;
-static int hf_ctlv_loci_ext_cell_id = -1;
-static int hf_ctlv_iari = -1;
-static int hf_ctlv_impu = -1;
-static int hf_ctlv_ims_status_code = -1;
-static int hf_ctlv_broadcast_nw_tech = -1;
-static int hf_ctlv_broadcast_nw_loc_info = -1;
+static int hf_ctlv_devid_src;
+static int hf_ctlv_devid_dst;
+static int hf_ctlv_cmd_nr;
+static int hf_ctlv_cmd_type;
+static int hf_ctlv_cmd_qual_refresh;
+static int hf_ctlv_cmd_qual_send_short_msg;
+static int hf_ctlv_cmd_qual_loci;
+static int hf_ctlv_cmd_qual_timer_mgmt;
+static int hf_ctlv_cmd_qual_send_data;
+static int hf_ctlv_cmd_qual;
+static int hf_ctlv_dur_time_unit;
+static int hf_ctlv_dur_time_intv;
+static int hf_ctlv_alpha_id_string;
+static int hf_ctlv_address_ton;
+static int hf_ctlv_address_npi;
+static int hf_ctlv_address_string;
+static int hf_ctlv_subaddress_string;
+static int hf_ctlv_result_gen;
+static int hf_ctlv_result_term;
+static int hf_ctlv_result_launch_browser;
+static int hf_ctlv_result_multiplecard;
+static int hf_ctlv_result_cc_ctrl_mo_sm_ctrl;
+static int hf_ctlv_result_bip;
+static int hf_ctlv_result_frames_cmd;
+static int hf_ctlv_text_string_enc;
+static int hf_ctlv_text_string;
+static int hf_ctlv_event;
+static int hf_ctlv_tone;
+static int hf_ctlv_item_id;
+static int hf_ctlv_item_string;
+static int hf_ctlv_loc_status;
+static int hf_ctlv_timer_val_hr;
+static int hf_ctlv_timer_val_min;
+static int hf_ctlv_timer_val_sec;
+static int hf_ctlv_date_time_yr;
+static int hf_ctlv_date_time_mo;
+static int hf_ctlv_date_time_day;
+static int hf_ctlv_date_time_hr;
+static int hf_ctlv_date_time_min;
+static int hf_ctlv_date_time_sec;
+static int hf_ctlv_date_time_tz;
+static int hf_ctlv_at_cmd;
+static int hf_ctlv_at_rsp;
+static int hf_ctlv_dtmf_string;
+static int hf_ctlv_language;
+static int hf_ctlv_me_status;
+static int hf_ctlv_timing_adv;
+static int hf_ctlv_aid_rid;
+static int hf_ctlv_aid_pix_app_code_etsi;
+static int hf_ctlv_aid_pix_app_code_3gpp;
+static int hf_ctlv_aid_pix_app_code_3gpp2;
+static int hf_ctlv_aid_pix_app_code;
+static int hf_ctlv_aid_pix_country_code;
+static int hf_ctlv_aid_pix_app_prov_code;
+static int hf_ctlv_aid_pix_app_prov_field;
+static int hf_ctlv_bearer;
+static int hf_ctlv_bearer_descr;
+static int hf_ctlv_bearer_csd_data_rate;
+static int hf_ctlv_bearer_csd_bearer_serv;
+static int hf_ctlv_bearer_csd_conn_elem;
+static int hf_ctlv_bearer_gprs_precedence;
+static int hf_ctlv_bearer_gprs_delay;
+static int hf_ctlv_bearer_gprs_reliability;
+static int hf_ctlv_bearer_gprs_peak;
+static int hf_ctlv_bearer_gprs_mean;
+static int hf_ctlv_bearer_gprs_prot_type;
+static int hf_ctlv_bearer_utran_traffic_class;
+static int hf_ctlv_bearer_utran_max_bitrate_ul;
+static int hf_ctlv_bearer_utran_max_bitrate_dl;
+static int hf_ctlv_bearer_utran_guaranteed_bitrate_ul;
+static int hf_ctlv_bearer_utran_guaranteed_bitrate_dl;
+static int hf_ctlv_bearer_utran_delivery_order;
+static int hf_ctlv_bearer_utran_max_sdu_size;
+static int hf_ctlv_bearer_utran_sdu_error_ratio;
+static int hf_ctlv_bearer_utran_residual_bit_error_ratio;
+static int hf_ctlv_bearer_utran_delivery_erroneous_sdus;
+static int hf_ctlv_bearer_utran_transfer_delay;
+static int hf_ctlv_bearer_utran_traffic_handling_prio;
+static int hf_ctlv_bearer_utran_pdp_type;
+static int hf_ctlv_bearer_params;
+static int hf_ctlv_buffers_size;
+static int hf_ctlv_transport_ptype;
+static int hf_ctlv_transport_port;
+static int hf_ctlv_other_address_coding;
+static int hf_ctlv_other_address_ipv4;
+static int hf_ctlv_other_address_ipv6;
+static int hf_ctlv_access_tech;
+static int hf_ctlv_dns_server_address_coding;
+static int hf_ctlv_dns_server_address_ipv4;
+static int hf_ctlv_dns_server_address_ipv6;
+static int hf_ctlv_utran_eutran_meas_qual;
+static int hf_ctlv_upd_attach_type;
+static int hf_ctlv_loci_lac;
+static int hf_ctlv_loci_cell_id;
+static int hf_ctlv_loci_ext_cell_id;
+static int hf_ctlv_iari;
+static int hf_ctlv_impu;
+static int hf_ctlv_ims_status_code;
+static int hf_ctlv_broadcast_nw_tech;
+static int hf_ctlv_broadcast_nw_loc_info;
 
-static int ett_cat = -1;
-static int ett_elem = -1;
+static int ett_cat;
+static int ett_elem;
 
 
 /* According to Section 7.2 of ETSI TS 101 220 / Chapter 7.2 */
@@ -933,14 +933,14 @@ static const string_string ims_status_code[] = {
 	{ "603", "Decline" },
 	{ "604", "Does Not Exist Anywhere" },
 	{ "606", "Not Acceptable" },
-	{ 0, NULL }
+	{ NULL, NULL }
 };
 
-#define AID_RID_ETSI   G_GINT64_CONSTANT(0xA000000009)
-#define AID_RID_3GPP   G_GINT64_CONSTANT(0xA000000087)
-#define AID_RID_3GPP2  G_GINT64_CONSTANT(0xA000000343)
-#define AID_RID_OMA    G_GINT64_CONSTANT(0xA000000412)
-#define AID_RID_WIMAX  G_GINT64_CONSTANT(0xA000000424)
+#define AID_RID_ETSI   INT64_C(0xA000000009)
+#define AID_RID_3GPP   INT64_C(0xA000000087)
+#define AID_RID_3GPP2  INT64_C(0xA000000343)
+#define AID_RID_OMA    INT64_C(0xA000000412)
+#define AID_RID_WIMAX  INT64_C(0xA000000424)
 
 static const val64_string aid_rid_vals[] = {
 	{ AID_RID_ETSI, "ETSI"},
@@ -992,8 +992,8 @@ typedef enum {
 } cat_nmr_type;
 
 typedef struct {
-	guint32 req_frame;
-	guint32 id;
+	uint32_t req_frame;
+	uint32_t id;
 	cat_nmr_type nmr_type;
 } cat_transaction_t;
 
@@ -1001,10 +1001,10 @@ typedef struct {
  * ETSI TS 102 221 Annex A.
  */
 static void
-dissect_cat_efadn_coding(tvbuff_t *tvb, proto_tree *tree, guint32 pos, guint32 len, int hf_entry)
+dissect_cat_efadn_coding(tvbuff_t *tvb, proto_tree *tree, uint32_t pos, uint32_t len, int hf_entry)
 {
 	if (len) {
-		guint8 first_byte = tvb_get_guint8(tvb, pos);
+		uint8_t first_byte = tvb_get_uint8(tvb, pos);
 
 		if ((first_byte & 0x80) == 0) {
 			/*
@@ -1027,8 +1027,8 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 	proto_tree *cat_tree, *elem_tree;
 	unsigned int pos = 0;
 	tvbuff_t *new_tvb;
-	gboolean ims_event = FALSE, dns_server = FALSE;
-	guint length = tvb_reported_length(tvb);
+	bool ims_event = false, dns_server = false;
+	unsigned length = tvb_reported_length(tvb);
 	gsm_sms_data_t sms_data = {0};
 	conversation_t *conversation;
 	cat_conv_info_t *cat_info;
@@ -1048,21 +1048,21 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 	cat_tree = proto_item_add_subtree(cat_ti, ett_cat);
 	while (pos < length) {
 		proto_item *ti;
-		guint32 g8, cmd_nr, cmd_qual;
-		gboolean cmd_qual_flag;
-		guint16 tag;
-		guint32 len, i;
-		guint8 *ptr = NULL;
+		uint32_t g8, cmd_nr, cmd_qual;
+		bool cmd_qual_flag;
+		uint16_t tag;
+		uint32_t len, i;
+		uint8_t *ptr = NULL;
 
-		tag = tvb_get_guint8(tvb, pos++) & 0x7f;
+		tag = tvb_get_uint8(tvb, pos++) & 0x7f;
 		if (tag == 0x7f) {
 			tag = tvb_get_ntohs(tvb, pos) & 0x7fff;
 			pos += 2;
 		}
-		len = tvb_get_guint8(tvb, pos++);
+		len = tvb_get_uint8(tvb, pos++);
 		switch (len) {
 		case 0x81:
-			len = tvb_get_guint8(tvb, pos++);
+			len = tvb_get_uint8(tvb, pos++);
 			break;
 		case 0x82:
 			len = tvb_get_ntohs(tvb, pos);
@@ -1094,8 +1094,8 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 				break;
 			proto_tree_add_item_ret_uint(elem_tree, hf_ctlv_cmd_nr, tvb, pos, 1, ENC_BIG_ENDIAN, &cmd_nr);
 			if (cmd_nr == 0x40) {
-				ims_event = TRUE;
-				dns_server = TRUE;
+				ims_event = true;
+				dns_server = true;
 			}
 			proto_tree_add_item_ret_uint(elem_tree, hf_ctlv_cmd_type, tvb, pos+1, 1, ENC_BIG_ENDIAN, &g8);
 			/* append command type to INFO column */
@@ -1108,7 +1108,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			case 0x13:
 				proto_tree_add_item_ret_boolean(elem_tree, hf_ctlv_cmd_qual_send_short_msg, tvb, pos+2, 1, ENC_BIG_ENDIAN, &cmd_qual_flag);
 				sms_data.stk_packing_required = cmd_qual_flag;
-				cmd_qual = cmd_qual_flag ? 1 : 0;
+				cmd_qual = cmd_qual_flag;
 				break;
 			case 0x26:
 				proto_tree_add_item_ret_uint(elem_tree, hf_ctlv_cmd_qual_loci, tvb, pos+2, 1, ENC_BIG_ENDIAN, &cmd_qual);
@@ -1118,14 +1118,14 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 				break;
 			case 0x43:
 				proto_tree_add_item_ret_boolean(elem_tree, hf_ctlv_cmd_qual_send_data, tvb, pos+2, 1, ENC_BIG_ENDIAN, &cmd_qual_flag);
-				cmd_qual = cmd_qual_flag ? 1 : 0;
+				cmd_qual = cmd_qual_flag;
 				break;
 			default:
 				proto_tree_add_item_ret_uint(elem_tree, hf_ctlv_cmd_qual, tvb, pos+2, 1, ENC_BIG_ENDIAN, &cmd_qual);
 				break;
 			}
 			if (data) {
-				guint32 id = (cmd_nr << 16) | (g8 << 8) | cmd_qual;
+				uint32_t id = (cmd_nr << 16) | (g8 << 8) | cmd_qual;
 				key[0].length = 1;
 				key[0].key = &id;
 				key[1].length = 1;
@@ -1257,7 +1257,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			if (len == 0)
 				break;
 			/* MCC/MNC / LAC / CellID */
-			dissect_e212_mcc_mnc(tvb, pinfo, elem_tree, pos, E212_NONE, TRUE);
+			dissect_e212_mcc_mnc(tvb, pinfo, elem_tree, pos, E212_NONE, true);
 			proto_tree_add_item(elem_tree, hf_ctlv_loci_lac, tvb, pos+3, 2, ENC_BIG_ENDIAN);
 			if (len == 5)
 				break;
@@ -1291,9 +1291,9 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			break;
 		case 0x19:	/* event list */
 			for (i = 0; i < len; i++) {
-				guint8 event = tvb_get_guint8(tvb, pos+i);
+				uint8_t event = tvb_get_uint8(tvb, pos+i);
 				if ((event == 0x17) || (event == 0x18)) {
-					ims_event = TRUE;
+					ims_event = true;
 				}
 				proto_tree_add_uint(elem_tree, hf_ctlv_event, tvb, pos+i, 1, event);
 				col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
@@ -1306,31 +1306,31 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			break;
 		case 0x25:	/* timer value */
 			{
-				guint8 oct;
-				oct = tvb_get_guint8(tvb, pos);
+				uint8_t oct;
+				oct = tvb_get_uint8(tvb, pos);
 				proto_tree_add_uint_format_value(elem_tree, hf_ctlv_timer_val_hr, tvb, pos, 1, oct, "%u (0x%02x)", 10*(oct&0x0f)+(oct>>4), oct);
-				oct = tvb_get_guint8(tvb, pos+1);
+				oct = tvb_get_uint8(tvb, pos+1);
 				proto_tree_add_uint_format_value(elem_tree, hf_ctlv_timer_val_min, tvb, pos+1, 1, oct, "%u (0x%02x)", 10*(oct&0x0f)+(oct>>4), oct);
-				oct = tvb_get_guint8(tvb, pos+2);
+				oct = tvb_get_uint8(tvb, pos+2);
 				proto_tree_add_uint_format_value(elem_tree, hf_ctlv_timer_val_sec, tvb, pos+2, 1, oct, "%u (0x%02x)", 10*(oct&0x0f)+(oct>>4), oct);
 			}
 			break;
 		case 0x26:	/* date-time and time zone */
 			{
-				guint8 oct, tz;
-				oct = tvb_get_guint8(tvb, pos);
+				uint8_t oct, tz;
+				oct = tvb_get_uint8(tvb, pos);
 				proto_tree_add_uint_format_value(elem_tree, hf_ctlv_date_time_yr, tvb, pos, 1, oct, "%u (0x%02x)", 10*(oct&0x0f)+(oct>>4), oct);
-				oct = tvb_get_guint8(tvb, pos+1);
+				oct = tvb_get_uint8(tvb, pos+1);
 				proto_tree_add_uint_format_value(elem_tree, hf_ctlv_date_time_mo, tvb, pos+1, 1, oct, "%u (0x%02x)", 10*(oct&0x0f)+(oct>>4), oct);
-				oct = tvb_get_guint8(tvb, pos+2);
+				oct = tvb_get_uint8(tvb, pos+2);
 				proto_tree_add_uint_format_value(elem_tree, hf_ctlv_date_time_day, tvb, pos+2, 1, oct, "%u (0x%02x)", 10*(oct&0x0f)+(oct>>4), oct);
-				oct = tvb_get_guint8(tvb, pos+3);
+				oct = tvb_get_uint8(tvb, pos+3);
 				proto_tree_add_uint_format_value(elem_tree, hf_ctlv_date_time_hr, tvb, pos+3, 1, oct, "%u (0x%02x)", 10*(oct&0x0f)+(oct>>4), oct);
-				oct = tvb_get_guint8(tvb, pos+4);
+				oct = tvb_get_uint8(tvb, pos+4);
 				proto_tree_add_uint_format_value(elem_tree, hf_ctlv_date_time_min, tvb, pos+4, 1, oct, "%u (0x%02x)", 10*(oct&0x0f)+(oct>>4), oct);
-				oct = tvb_get_guint8(tvb, pos+5);
+				oct = tvb_get_uint8(tvb, pos+5);
 				proto_tree_add_uint_format_value(elem_tree, hf_ctlv_date_time_sec, tvb, pos+5, 1, oct, "%u (0x%02x)", 10*(oct&0x0f)+(oct>>4), oct);
-				oct = tvb_get_guint8(tvb, pos+6);
+				oct = tvb_get_uint8(tvb, pos+6);
 				if (oct == 0xff) {
 					proto_tree_add_uint_format_value(elem_tree, hf_ctlv_date_time_tz, tvb, pos+6, 1, oct, "Unknown (0x%02x)", oct);
 				} else {
@@ -1358,7 +1358,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			break;
 		case 0x2f:	/* AID */
 			{
-				guint64 rid = tvb_get_ntoh40(tvb, pos);
+				uint64_t rid = tvb_get_ntoh40(tvb, pos);
 
 				proto_tree_add_uint64(elem_tree, hf_ctlv_aid_rid, tvb, pos, 5, rid);
 				if (rid == AID_RID_ETSI) {
@@ -1495,8 +1495,8 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			if (ims_event) {
 				i = 0;
 				while (i < len) {
-					if (tvb_get_guint8(tvb, pos+i) == 0x80) {
-						g8 = tvb_get_guint8(tvb, pos+i+1);
+					if (tvb_get_uint8(tvb, pos+i) == 0x80) {
+						g8 = tvb_get_uint8(tvb, pos+i+1);
 						proto_tree_add_item(elem_tree, hf_ctlv_impu, tvb, pos+i+2, g8, ENC_UTF_8 | ENC_NA);
 						i += 2+g8;
 					} else {
@@ -1507,14 +1507,14 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			break;
 		case 0x78:	/* NMEA sentence / IMS Status-Code */
 			if (ims_event) {
-				guint8 *status_code = tvb_get_string_enc(pinfo->pool, tvb, pos, len, ENC_ASCII);
+				uint8_t *status_code = tvb_get_string_enc(pinfo->pool, tvb, pos, len, ENC_ASCII);
 				proto_tree_add_string_format_value(elem_tree, hf_ctlv_ims_status_code, tvb, pos, len,
 					status_code, "%s (%s)", status_code, str_to_str(status_code, ims_status_code, "Unknown"));
 			}
 			break;
 		case 0x79:	/* PLMN list */
 			for (i = 0; i < len; i+=3) {
-				dissect_e212_mcc_mnc(tvb, pinfo, elem_tree, pos+3*i, E212_NONE, TRUE);
+				dissect_e212_mcc_mnc(tvb, pinfo, elem_tree, pos+3*i, E212_NONE, true);
 			}
 			break;
 		case 0x7a:/* Broadcast Network Information */
@@ -2045,7 +2045,7 @@ proto_register_card_app_toolkit(void)
 			  NULL, HFILL },
 		}
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_cat,
 		&ett_elem,
 	};

@@ -20,43 +20,43 @@ void proto_reg_handoff_shicp(void);
 void proto_register_shicp(void);
 
 /* Protocols and header fields */
-static int proto_shicp = -1;
-static int hf_shicp_header = -1;
-static int hf_shicp_protocol_version = -1;
-static int hf_shicp_dst = -1;
-static int hf_shicp_src = -1;
-static int hf_shicp_flags = -1;
-static int hf_shicp_msgclass_flag = -1;
-static int hf_shicp_error_flag = -1;
-static int hf_shicp_reserved_flag = -1;
-static int hf_shicp_msgtype = -1;
-static int hf_shicp_error = -1;
-static int hf_shicp_error_string = -1;
-static int hf_shicp_auth_req = -1;
-static int hf_shicp_module_version = -1;
-static int hf_shicp_module_desc = -1;
-static int hf_shicp_supported_msg = -1;
-static int hf_shicp_ip = -1;
-static int hf_shicp_sn = -1;
-static int hf_shicp_gw = -1;
-static int hf_shicp_dns1 = -1;
-static int hf_shicp_dns2 = -1;
-static int hf_shicp_dhcp = -1;
-static int hf_shicp_hn = -1;
-static int hf_shicp_hn_max_len = -1;
-static int hf_shicp_pswd_max_len = -1;
-static int hf_shicp_challenge = -1;
-static int hf_shicp_validity_period = -1;
-static int hf_shicp_token = -1;
-static int hf_shicp_pswd = -1;
-static int hf_shicp_wink_type = -1;
-static int hf_shicp_restart_mode = -1;
+static int proto_shicp;
+static int hf_shicp_header;
+static int hf_shicp_protocol_version;
+static int hf_shicp_dst;
+static int hf_shicp_src;
+static int hf_shicp_flags;
+static int hf_shicp_msgclass_flag;
+static int hf_shicp_error_flag;
+static int hf_shicp_reserved_flag;
+static int hf_shicp_msgtype;
+static int hf_shicp_error;
+static int hf_shicp_error_string;
+static int hf_shicp_auth_req;
+static int hf_shicp_module_version;
+static int hf_shicp_module_desc;
+static int hf_shicp_supported_msg;
+static int hf_shicp_ip;
+static int hf_shicp_sn;
+static int hf_shicp_gw;
+static int hf_shicp_dns1;
+static int hf_shicp_dns2;
+static int hf_shicp_dhcp;
+static int hf_shicp_hn;
+static int hf_shicp_hn_max_len;
+static int hf_shicp_pswd_max_len;
+static int hf_shicp_challenge;
+static int hf_shicp_validity_period;
+static int hf_shicp_token;
+static int hf_shicp_pswd;
+static int hf_shicp_wink_type;
+static int hf_shicp_restart_mode;
 
-static gint ett_shicp = -1;
-static gint ett_shicp_flags = -1;
+static int ett_shicp;
+static int ett_shicp_flags;
 
-static expert_field ei_shicp_error = EI_INIT;
-static expert_field ei_shicp_malformed = EI_INIT;
+static expert_field ei_shicp_error;
+static expert_field ei_shicp_malformed;
 
 #define SHICP_UDP_PORT 3250
 
@@ -138,25 +138,25 @@ static const value_string restart_mode_types[] = {
     {0, NULL}
 };
 
-static gboolean
+static bool
 test_shicp(packet_info* pinfo, tvbuff_t* tvb, int offset, void* data _U_)
 {
     /* Check that the port matches the port used by SHICP. */
     if (pinfo->destport != SHICP_UDP_PORT) {
-        return FALSE;
+        return false;
     }
 
     /* Check that the length of the message is within allowed boundaries. */
     if (tvb_reported_length(tvb) < SHICP_MIN_LENGTH || tvb_reported_length(tvb) > SHICP_MAX_LENGTH) {
-        return FALSE;
+        return false;
     }
 
     /* Check that the header tag starts with 0xABC0. */
-    if ((tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN) & 0xFFF8) != 0xABC0) {
-        return FALSE;
+    if ((tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN) & 0xFFF8) != 0xABC0) {
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static int
@@ -167,18 +167,18 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     proto_item* flags_pi;
     proto_item* error_pi;
     proto_tree* shicp_tree;
-    guint offset = 0;
-    guint payload_end;
-    guint keyvalue_key = 0;
-    guint keyvalue_length = 0;
-    guint keyvalue_offset = 0;
-    guint keyvalue_end = 0;
-    guint8 supported_message_value = 0;
-    guint16 payload_length = 0;
-    guint32 version = 0;
-    guint32 msgtype_value = 0;
-    guint32 error_value = 0;
-    guint64 flags_value = 0;
+    unsigned offset = 0;
+    unsigned payload_end;
+    unsigned keyvalue_key = 0;
+    unsigned keyvalue_length = 0;
+    unsigned keyvalue_offset = 0;
+    unsigned keyvalue_end = 0;
+    uint8_t supported_message_value = 0;
+    uint16_t payload_length = 0;
+    uint32_t version = 0;
+    uint32_t msgtype_value = 0;
+    uint32_t error_value = 0;
+    uint64_t flags_value = 0;
 
     wmem_strbuf_t* supported_messages = wmem_strbuf_new(pinfo->pool, "");
     wmem_strbuf_t* module_addr_strbuf = wmem_strbuf_new(pinfo->pool, "");
@@ -204,21 +204,21 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     proto_tree_add_uint(shicp_tree, hf_shicp_protocol_version, tvb, offset, SHICP_HEADER_SIZE, version & 0x07);
     offset += SHICP_HEADER_SIZE;
     proto_tree_add_item(shicp_tree, hf_shicp_dst, tvb, offset, SHICP_ADDRESS_SIZE, ENC_NA);
-    gchar* dst = tvb_address_to_str(pinfo->pool, tvb, AT_ETHER, offset);
+    char* dst = tvb_address_to_str(pinfo->pool, tvb, AT_ETHER, offset);
     offset += SHICP_ADDRESS_SIZE;
     proto_tree_add_item(shicp_tree, hf_shicp_src, tvb, offset, SHICP_ADDRESS_SIZE, ENC_NA);
-    gchar* src = tvb_address_to_str(pinfo->pool, tvb, AT_ETHER, offset);
+    char* src = tvb_address_to_str(pinfo->pool, tvb, AT_ETHER, offset);
     offset += SHICP_ADDRESS_SIZE;
     flags_pi = proto_tree_add_bitmask_ret_uint64(shicp_tree, tvb, offset, hf_shicp_flags, ett_shicp_flags, flags, ENC_LITTLE_ENDIAN, &flags_value);
     offset += SHICP_FLAGS_SIZE;
     proto_tree_add_item_ret_uint(shicp_tree, hf_shicp_msgtype, tvb, offset, SHICP_MSG_TYPE_SIZE, ENC_LITTLE_ENDIAN, &msgtype_value);
     offset += SHICP_MSG_TYPE_SIZE;
-    payload_length = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+    payload_length = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
     offset += 1;
     if (flags_value & SHICP_ERROR_FLAG) {
         proto_item_set_text(flags_pi,
             "Message flags: 0x%02x (%s, %s)",
-            (guint)flags_value,
+            (unsigned)flags_value,
             tfs_get_string(flags_value & SHICP_MSG_CLASS_FLAG, &tfs_response_request), "Error");
         if (payload_length != 1) {
             error_pi = proto_tree_add_string(shicp_tree, hf_shicp_error_string, tvb, offset, 0, "Malformed message");
@@ -234,7 +234,7 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     else {
         proto_item_set_text(flags_pi,
             "Message flags: 0x%02x (%s)",
-            (guint)flags_value,
+            (unsigned)flags_value,
             tfs_get_string(flags_value & SHICP_MSG_CLASS_FLAG, &tfs_response_request));
         col_append_fstr(pinfo->cinfo,
             COL_INFO,
@@ -246,9 +246,9 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         {
         case SHICP_DISCOVER_MSG_TYPE:
             while (offset < payload_end) {
-                keyvalue_key = tvb_get_guint8(tvb, offset);
+                keyvalue_key = tvb_get_uint8(tvb, offset);
                 offset += 1;
-                keyvalue_length = tvb_get_guint8(tvb, offset);
+                keyvalue_length = tvb_get_uint8(tvb, offset);
                 offset += 1;
                 switch (keyvalue_key)
                 {
@@ -264,11 +264,11 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                 case SHICP_DISCOVER_SUPPORTED_MSG_KEY:
                     keyvalue_end = offset + keyvalue_length;
                     keyvalue_offset = offset;
-                    supported_message_value = tvb_get_guint8(tvb, keyvalue_offset);
+                    supported_message_value = tvb_get_uint8(tvb, keyvalue_offset);
                     wmem_strbuf_append(supported_messages, val_to_str(supported_message_value, message_types, "%d"));
                     keyvalue_offset += 1;
                     while (keyvalue_offset < keyvalue_end) {
-                        supported_message_value = tvb_get_guint8(tvb, keyvalue_offset);
+                        supported_message_value = tvb_get_uint8(tvb, keyvalue_offset);
                         wmem_strbuf_append_printf(supported_messages, ", %s", val_to_str(supported_message_value, message_types, "%d"));
                         keyvalue_offset += 1;
                     }
@@ -324,9 +324,9 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                 break;
             }
             while (offset < payload_end) {
-                keyvalue_key = tvb_get_guint8(tvb, offset);
+                keyvalue_key = tvb_get_uint8(tvb, offset);
                 offset += 1;
-                keyvalue_length = tvb_get_guint8(tvb, offset);
+                keyvalue_length = tvb_get_uint8(tvb, offset);
                 offset += 1;
                 switch (keyvalue_key)
                 {
@@ -387,13 +387,13 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     return tvb_captured_length(tvb);
 }
 
-static guint
+static unsigned
 get_shicp_len(packet_info* pinfo _U_, tvbuff_t* tvb, int offset _U_, void* data _U_)
 {
-    return (guint)tvb_reported_length(tvb);
+    return (unsigned)tvb_reported_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_shicp_heur_udp(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data)
 {
         return (udp_dissect_pdus(tvb, pinfo, tree, SHICP_FIXED_LEN, test_shicp,
@@ -474,7 +474,7 @@ proto_register_shicp(void)
         },
         { &hf_shicp_auth_req,
           { "Authentication required", "shicp.authreq",
-            FT_BOOLEAN, 8,
+            FT_BOOLEAN, BASE_NONE,
             NULL, 0x0,
             NULL, HFILL }
         },
@@ -528,7 +528,7 @@ proto_register_shicp(void)
         },
         { &hf_shicp_dhcp,
           { "DHCP", "shicp.dhcp",
-            FT_BOOLEAN, 8,
+            FT_BOOLEAN, BASE_NONE,
             TFS(&tfs_enabled_disabled), 0x0,
             NULL, HFILL }
         },
@@ -588,7 +588,7 @@ proto_register_shicp(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_shicp,
         &ett_shicp_flags
     };

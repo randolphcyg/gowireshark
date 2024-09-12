@@ -23,6 +23,7 @@ QUIC source code in Chromium : https://code.google.com/p/chromium/codesearch#chr
 #include <epan/prefs.h>
 #include <epan/expert.h>
 #include <epan/conversation.h>
+#include <epan/tfs.h>
 #include "packet-http2.h"
 #include "packet-quic.h"
 #include <wsutil/strtoi.h>
@@ -34,177 +35,177 @@ static dissector_handle_t gquic_handle;
 static dissector_handle_t tls13_handshake_handle;
 static dissector_handle_t quic_handle;
 
-static int proto_gquic = -1;
-static int hf_gquic_header_form = -1;
-static int hf_gquic_fixed_bit = -1;
-static int hf_gquic_long_packet_type = -1;
-static int hf_gquic_long_reserved = -1;
-static int hf_gquic_packet_number_length = -1;
-static int hf_gquic_dcil = -1;
-static int hf_gquic_scil = -1;
-static int hf_gquic_puflags = -1;
-static int hf_gquic_puflags_vrsn = -1;
-static int hf_gquic_puflags_rst = -1;
-static int hf_gquic_puflags_dnonce = -1;
-static int hf_gquic_puflags_cid = -1;
-static int hf_gquic_puflags_cid_old = -1;
-static int hf_gquic_puflags_pkn = -1;
-static int hf_gquic_puflags_mpth = -1;
-static int hf_gquic_puflags_rsv = -1;
-static int hf_gquic_cid = -1;
-static int hf_gquic_version = -1;
-static int hf_gquic_diversification_nonce = -1;
-static int hf_gquic_packet_number = -1;
-static int hf_gquic_prflags = -1;
-static int hf_gquic_prflags_entropy = -1;
-static int hf_gquic_prflags_fecg = -1;
-static int hf_gquic_prflags_fec = -1;
-static int hf_gquic_prflags_rsv = -1;
-static int hf_gquic_message_authentication_hash = -1;
-static int hf_gquic_frame = -1;
-static int hf_gquic_frame_type = -1;
-static int hf_gquic_frame_type_padding_length = -1;
-static int hf_gquic_frame_type_padding = -1;
-static int hf_gquic_frame_type_rsts_stream_id = -1;
-static int hf_gquic_frame_type_rsts_byte_offset = -1;
-static int hf_gquic_frame_type_rsts_error_code = -1;
-static int hf_gquic_frame_type_cc_error_code = -1;
-static int hf_gquic_frame_type_cc_reason_phrase_length = -1;
-static int hf_gquic_frame_type_cc_reason_phrase = -1;
-static int hf_gquic_frame_type_goaway_error_code = -1;
-static int hf_gquic_frame_type_goaway_last_good_stream_id = -1;
-static int hf_gquic_frame_type_goaway_reason_phrase_length = -1;
-static int hf_gquic_frame_type_goaway_reason_phrase = -1;
-static int hf_gquic_frame_type_wu_stream_id = -1;
-static int hf_gquic_frame_type_wu_byte_offset = -1;
-static int hf_gquic_frame_type_blocked_stream_id = -1;
-static int hf_gquic_frame_type_sw_send_entropy = -1;
-static int hf_gquic_frame_type_sw_least_unacked_delta = -1;
-static int hf_gquic_crypto_offset = -1;
-static int hf_gquic_crypto_length = -1;
-static int hf_gquic_crypto_crypto_data = -1;
-static int hf_gquic_frame_type_stream = -1;
-static int hf_gquic_frame_type_stream_f = -1;
-static int hf_gquic_frame_type_stream_d = -1;
-static int hf_gquic_frame_type_stream_ooo = -1;
-static int hf_gquic_frame_type_stream_ss = -1;
+static int proto_gquic;
+static int hf_gquic_header_form;
+static int hf_gquic_fixed_bit;
+static int hf_gquic_long_packet_type;
+static int hf_gquic_long_reserved;
+static int hf_gquic_packet_number_length;
+static int hf_gquic_dcil;
+static int hf_gquic_scil;
+static int hf_gquic_puflags;
+static int hf_gquic_puflags_vrsn;
+static int hf_gquic_puflags_rst;
+static int hf_gquic_puflags_dnonce;
+static int hf_gquic_puflags_cid;
+static int hf_gquic_puflags_cid_old;
+static int hf_gquic_puflags_pkn;
+static int hf_gquic_puflags_mpth;
+static int hf_gquic_puflags_rsv;
+static int hf_gquic_cid;
+static int hf_gquic_version;
+static int hf_gquic_diversification_nonce;
+static int hf_gquic_packet_number;
+static int hf_gquic_prflags;
+static int hf_gquic_prflags_entropy;
+static int hf_gquic_prflags_fecg;
+static int hf_gquic_prflags_fec;
+static int hf_gquic_prflags_rsv;
+static int hf_gquic_message_authentication_hash;
+static int hf_gquic_frame;
+static int hf_gquic_frame_type;
+static int hf_gquic_frame_type_padding_length;
+static int hf_gquic_frame_type_padding;
+static int hf_gquic_frame_type_rsts_stream_id;
+static int hf_gquic_frame_type_rsts_byte_offset;
+static int hf_gquic_frame_type_rsts_error_code;
+static int hf_gquic_frame_type_cc_error_code;
+static int hf_gquic_frame_type_cc_reason_phrase_length;
+static int hf_gquic_frame_type_cc_reason_phrase;
+static int hf_gquic_frame_type_goaway_error_code;
+static int hf_gquic_frame_type_goaway_last_good_stream_id;
+static int hf_gquic_frame_type_goaway_reason_phrase_length;
+static int hf_gquic_frame_type_goaway_reason_phrase;
+static int hf_gquic_frame_type_wu_stream_id;
+static int hf_gquic_frame_type_wu_byte_offset;
+static int hf_gquic_frame_type_blocked_stream_id;
+static int hf_gquic_frame_type_sw_send_entropy;
+static int hf_gquic_frame_type_sw_least_unacked_delta;
+static int hf_gquic_crypto_offset;
+static int hf_gquic_crypto_length;
+static int hf_gquic_crypto_crypto_data;
+static int hf_gquic_frame_type_stream;
+static int hf_gquic_frame_type_stream_f;
+static int hf_gquic_frame_type_stream_d;
+static int hf_gquic_frame_type_stream_ooo;
+static int hf_gquic_frame_type_stream_ss;
 /* ACK */
-static int hf_gquic_frame_type_ack = -1;
-static int hf_gquic_frame_type_ack_n = -1;
-static int hf_gquic_frame_type_ack_u = -1;
-static int hf_gquic_frame_type_ack_t = -1;
-static int hf_gquic_frame_type_ack_ll = -1;
-static int hf_gquic_frame_type_ack_mm = -1;
+static int hf_gquic_frame_type_ack;
+static int hf_gquic_frame_type_ack_n;
+static int hf_gquic_frame_type_ack_u;
+static int hf_gquic_frame_type_ack_t;
+static int hf_gquic_frame_type_ack_ll;
+static int hf_gquic_frame_type_ack_mm;
 /* ACK Before Q034 */
-static int hf_gquic_frame_type_ack_received_entropy = -1;
-static int hf_gquic_frame_type_ack_largest_observed = -1;
-static int hf_gquic_frame_type_ack_ack_delay_time = -1;
-static int hf_gquic_frame_type_ack_num_timestamp = -1;
-static int hf_gquic_frame_type_ack_delta_largest_observed = -1;
-static int hf_gquic_frame_type_ack_first_timestamp = -1;
-static int hf_gquic_frame_type_ack_time_since_previous_timestamp = -1;
-static int hf_gquic_frame_type_ack_num_ranges = -1;
-static int hf_gquic_frame_type_ack_missing_packet = -1;
-static int hf_gquic_frame_type_ack_range_length = -1;
-static int hf_gquic_frame_type_ack_num_revived = -1;
-static int hf_gquic_frame_type_ack_revived_packet = -1;
+static int hf_gquic_frame_type_ack_received_entropy;
+static int hf_gquic_frame_type_ack_largest_observed;
+static int hf_gquic_frame_type_ack_ack_delay_time;
+static int hf_gquic_frame_type_ack_num_timestamp;
+static int hf_gquic_frame_type_ack_delta_largest_observed;
+static int hf_gquic_frame_type_ack_first_timestamp;
+static int hf_gquic_frame_type_ack_time_since_previous_timestamp;
+static int hf_gquic_frame_type_ack_num_ranges;
+static int hf_gquic_frame_type_ack_missing_packet;
+static int hf_gquic_frame_type_ack_range_length;
+static int hf_gquic_frame_type_ack_num_revived;
+static int hf_gquic_frame_type_ack_revived_packet;
 /* ACK After Q034 */
-static int hf_gquic_frame_type_ack_largest_acked = -1;
-static int hf_gquic_frame_type_ack_largest_acked_delta_time = -1;
-static int hf_gquic_frame_type_ack_num_blocks = -1;
-static int hf_gquic_frame_type_ack_first_ack_block_length = -1;
-static int hf_gquic_frame_type_ack_gap_to_next_block = -1;
-static int hf_gquic_frame_type_ack_ack_block_length = -1;
-static int hf_gquic_frame_type_ack_delta_largest_acked = -1;
-static int hf_gquic_frame_type_ack_time_since_largest_acked = -1;
-static int hf_gquic_stream_id = -1;
-static int hf_gquic_offset = -1;
-static int hf_gquic_data_len = -1;
-static int hf_gquic_tag = -1;
-static int hf_gquic_tags = -1;
-static int hf_gquic_tag_number = -1;
-static int hf_gquic_tag_value = -1;
-static int hf_gquic_tag_type = -1;
-static int hf_gquic_tag_offset_end = -1;
-static int hf_gquic_tag_length = -1;
-static int hf_gquic_tag_sni = -1;
-static int hf_gquic_tag_pad = -1;
-static int hf_gquic_tag_ver = -1;
-static int hf_gquic_tag_ccs = -1;
-static int hf_gquic_tag_pdmd = -1;
-static int hf_gquic_tag_uaid = -1;
-static int hf_gquic_tag_stk = -1;
-static int hf_gquic_tag_sno = -1;
-static int hf_gquic_tag_prof = -1;
-static int hf_gquic_tag_scfg = -1;
-static int hf_gquic_tag_scfg_number = -1;
-static int hf_gquic_tag_rrej = -1;
-static int hf_gquic_tag_crt = -1;
-static int hf_gquic_tag_aead = -1;
-static int hf_gquic_tag_scid = -1;
-static int hf_gquic_tag_pubs = -1;
-static int hf_gquic_tag_kexs = -1;
-static int hf_gquic_tag_obit = -1;
-static int hf_gquic_tag_expy = -1;
-static int hf_gquic_tag_nonc = -1;
-static int hf_gquic_tag_mspc = -1;
-static int hf_gquic_tag_tcid = -1;
-static int hf_gquic_tag_srbf = -1;
-static int hf_gquic_tag_icsl = -1;
-static int hf_gquic_tag_scls = -1;
-static int hf_gquic_tag_copt = -1;
-static int hf_gquic_tag_ccrt = -1;
-static int hf_gquic_tag_irtt = -1;
-static int hf_gquic_tag_cfcw = -1;
-static int hf_gquic_tag_sfcw = -1;
-static int hf_gquic_tag_cetv = -1;
-static int hf_gquic_tag_xlct = -1;
-static int hf_gquic_tag_nonp = -1;
-static int hf_gquic_tag_csct = -1;
-static int hf_gquic_tag_ctim = -1;
-static int hf_gquic_tag_mids = -1;
-static int hf_gquic_tag_fhol = -1;
-static int hf_gquic_tag_sttl = -1;
-static int hf_gquic_tag_smhl = -1;
-static int hf_gquic_tag_tbkp = -1;
-static int hf_gquic_tag_mad0 = -1;
-static int hf_gquic_tag_qlve = -1;
-static int hf_gquic_tag_cgst = -1;
-static int hf_gquic_tag_epid = -1;
-static int hf_gquic_tag_srst = -1;
+static int hf_gquic_frame_type_ack_largest_acked;
+static int hf_gquic_frame_type_ack_largest_acked_delta_time;
+static int hf_gquic_frame_type_ack_num_blocks;
+static int hf_gquic_frame_type_ack_first_ack_block_length;
+static int hf_gquic_frame_type_ack_gap_to_next_block;
+static int hf_gquic_frame_type_ack_ack_block_length;
+static int hf_gquic_frame_type_ack_delta_largest_acked;
+static int hf_gquic_frame_type_ack_time_since_largest_acked;
+static int hf_gquic_stream_id;
+static int hf_gquic_offset;
+static int hf_gquic_data_len;
+static int hf_gquic_tag;
+static int hf_gquic_tags;
+static int hf_gquic_tag_number;
+static int hf_gquic_tag_value;
+static int hf_gquic_tag_type;
+static int hf_gquic_tag_offset_end;
+static int hf_gquic_tag_length;
+static int hf_gquic_tag_sni;
+static int hf_gquic_tag_pad;
+static int hf_gquic_tag_ver;
+static int hf_gquic_tag_ccs;
+static int hf_gquic_tag_pdmd;
+static int hf_gquic_tag_uaid;
+static int hf_gquic_tag_stk;
+static int hf_gquic_tag_sno;
+static int hf_gquic_tag_prof;
+static int hf_gquic_tag_scfg;
+static int hf_gquic_tag_scfg_number;
+static int hf_gquic_tag_rrej;
+static int hf_gquic_tag_crt;
+static int hf_gquic_tag_aead;
+static int hf_gquic_tag_scid;
+static int hf_gquic_tag_pubs;
+static int hf_gquic_tag_kexs;
+static int hf_gquic_tag_obit;
+static int hf_gquic_tag_expy;
+static int hf_gquic_tag_nonc;
+static int hf_gquic_tag_mspc;
+static int hf_gquic_tag_tcid;
+static int hf_gquic_tag_srbf;
+static int hf_gquic_tag_icsl;
+static int hf_gquic_tag_scls;
+static int hf_gquic_tag_copt;
+static int hf_gquic_tag_ccrt;
+static int hf_gquic_tag_irtt;
+static int hf_gquic_tag_cfcw;
+static int hf_gquic_tag_sfcw;
+static int hf_gquic_tag_cetv;
+static int hf_gquic_tag_xlct;
+static int hf_gquic_tag_nonp;
+static int hf_gquic_tag_csct;
+static int hf_gquic_tag_ctim;
+static int hf_gquic_tag_mids;
+static int hf_gquic_tag_fhol;
+static int hf_gquic_tag_sttl;
+static int hf_gquic_tag_smhl;
+static int hf_gquic_tag_tbkp;
+static int hf_gquic_tag_mad0;
+static int hf_gquic_tag_qlve;
+static int hf_gquic_tag_cgst;
+static int hf_gquic_tag_epid;
+static int hf_gquic_tag_srst;
 
 /* Public Reset Tags */
-static int hf_gquic_tag_rnon = -1;
-static int hf_gquic_tag_rseq = -1;
-static int hf_gquic_tag_cadr_addr_type = -1;
-static int hf_gquic_tag_cadr_addr_ipv4 = -1;
-static int hf_gquic_tag_cadr_addr_ipv6 = -1;
-static int hf_gquic_tag_cadr_addr = -1;
-static int hf_gquic_tag_cadr_port = -1;
+static int hf_gquic_tag_rnon;
+static int hf_gquic_tag_rseq;
+static int hf_gquic_tag_cadr_addr_type;
+static int hf_gquic_tag_cadr_addr_ipv4;
+static int hf_gquic_tag_cadr_addr_ipv6;
+static int hf_gquic_tag_cadr_addr;
+static int hf_gquic_tag_cadr_port;
 
-static int hf_gquic_tag_unknown = -1;
+static int hf_gquic_tag_unknown;
 
-static int hf_gquic_padding = -1;
-static int hf_gquic_stream_data = -1;
-static int hf_gquic_payload = -1;
+static int hf_gquic_padding;
+static int hf_gquic_stream_data;
+static int hf_gquic_payload;
 
 #define QUIC_PORT_RANGE "80,443"
-static gboolean g_gquic_debug = FALSE;
+static bool g_gquic_debug;
 
-static gint ett_gquic = -1;
-static gint ett_gquic_puflags = -1;
-static gint ett_gquic_prflags = -1;
-static gint ett_gquic_ft = -1;
-static gint ett_gquic_ftflags = -1;
-static gint ett_gquic_tag_value = -1;
+static int ett_gquic;
+static int ett_gquic_puflags;
+static int ett_gquic_prflags;
+static int ett_gquic_ft;
+static int ett_gquic_ftflags;
+static int ett_gquic_tag_value;
 
-static expert_field ei_gquic_tag_undecoded = EI_INIT;
-static expert_field ei_gquic_tag_length = EI_INIT;
-static expert_field ei_gquic_tag_unknown = EI_INIT;
-static expert_field ei_gquic_version_invalid = EI_INIT;
-static expert_field ei_gquic_invalid_parameter = EI_INIT;
-static expert_field ei_gquic_length_invalid = EI_INIT;
-static expert_field ei_gquic_data_invalid = EI_INIT;
+static expert_field ei_gquic_tag_undecoded;
+static expert_field ei_gquic_tag_length;
+static expert_field ei_gquic_tag_unknown;
+static expert_field ei_gquic_version_invalid;
+static expert_field ei_gquic_invalid_parameter;
+static expert_field ei_gquic_length_invalid;
+static expert_field ei_gquic_data_invalid;
 
 static const value_string gquic_short_long_header_vals[] = {
     { 0, "Short Header" },
@@ -507,7 +508,7 @@ static const value_string tag_vals[] = {
 static const value_string tag_aead_vals[] = {
     { AEAD_AESG, "AES-GCM with a 12-byte tag and IV" },
     { AEAD_S20P, "Salsa20 with Poly1305" },
-    { AEAD_CC12, "Salsa20 with Poly1305" },
+    { AEAD_CC12, "ChaCha12 with Poly1305" },
     { 0, NULL }
 };
 
@@ -1035,7 +1036,7 @@ static const value_string handshake_failure_reason_vals[] = {
 static value_string_ext handshake_failure_reason_vals_ext = VALUE_STRING_EXT_INIT(handshake_failure_reason_vals);
 
 
-static guint32 get_len_offset(guint8 frame_type){
+static uint32_t get_len_offset(uint8_t frame_type){
 
     switch((frame_type & FTFLAGS_STREAM_OOO) >> 2){
         case 0:
@@ -1067,7 +1068,7 @@ static guint32 get_len_offset(guint8 frame_type){
     }
     return 0;
 }
-static guint32 get_len_stream(guint8 frame_type){
+static uint32_t get_len_stream(uint8_t frame_type){
 
     switch(frame_type & FTFLAGS_STREAM_SS){
         case 0:
@@ -1088,7 +1089,7 @@ static guint32 get_len_stream(guint8 frame_type){
     return 1;
 }
 
-static guint32 get_len_largest_observed(guint8 frame_type){
+static uint32_t get_len_largest_observed(uint8_t frame_type){
 
     switch((frame_type & FTFLAGS_ACK_LL) >> 2){
         case 0:
@@ -1108,7 +1109,7 @@ static guint32 get_len_largest_observed(guint8 frame_type){
     }
     return 1;
 }
-static guint32 get_len_missing_packet(guint8 frame_type){
+static uint32_t get_len_missing_packet(uint8_t frame_type){
 
     switch(frame_type & FTFLAGS_ACK_MM){
         case 0:
@@ -1129,7 +1130,7 @@ static guint32 get_len_missing_packet(guint8 frame_type){
     return 1;
 }
 
-static guint32 get_len_packet_number(guint8 puflags){
+static uint32_t get_len_packet_number(uint8_t puflags){
 
     switch((puflags & PUFLAGS_PKN) >> 4){
         case 0:
@@ -1151,15 +1152,15 @@ static guint32 get_len_packet_number(guint8 puflags){
 }
 
 static
-gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint16 len_pkn, gquic_info_data_t *gquic_info){
-    guint8 frame_type;
-    guint8 num_ranges, num_revived, num_blocks = 0, num_timestamp;
-    guint32 len_stream = 0, len_offset = 0, len_data = 0, len_largest_observed = 1, len_missing_packet = 1;
-    guint32 message_tag;
+bool is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, uint16_t len_pkn, gquic_info_data_t *gquic_info){
+    uint8_t frame_type;
+    uint8_t num_ranges, num_revived, num_blocks = 0, num_timestamp;
+    uint32_t len_stream = 0, len_offset = 0, len_data = 0, len_largest_observed = 1, len_missing_packet = 1;
+    uint32_t message_tag;
 
 
     if(tvb_captured_length_remaining(tvb, offset) <= 13){
-        return FALSE;
+        return false;
     }
     /* Message Authentication Hash */
     offset += 12;
@@ -1172,15 +1173,15 @@ gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, gui
     while(tvb_reported_length_remaining(tvb, offset) > 0){
 
         if (tvb_captured_length_remaining(tvb, offset) <= 1){
-            return FALSE;
+            return false;
         }
         /* Frame type */
-        frame_type = tvb_get_guint8(tvb, offset);
+        frame_type = tvb_get_uint8(tvb, offset);
         if((frame_type & FTFLAGS_SPECIAL) == 0){
             offset += 1;
             switch(frame_type){
                 case FT_PADDING:
-                    return FALSE; /* Pad on rest of packet.. */
+                    return false; /* Pad on rest of packet.. */
                 break;
                 case FT_RST_STREAM:
                     /* Stream ID */
@@ -1191,25 +1192,25 @@ gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, gui
                     offset += 4;
                 break;
                 case FT_CONNECTION_CLOSE:{
-                    guint16 len_reason;
+                    uint16_t len_reason;
 
                     /* Error Code */
                     offset += 4;
                     /* Reason Phrase Length */
                     if (tvb_captured_length_remaining(tvb, offset) <= 2){
-                        return FALSE;
+                        return false;
                     }
-                    len_reason = tvb_get_guint16(tvb, offset, gquic_info->encoding);
+                    len_reason = tvb_get_uint16(tvb, offset, gquic_info->encoding);
                     offset += 2;
                     /* Reason Phrase */
                     /* If length remaining == len_reason, it is Connection Close */
                     if (tvb_captured_length_remaining(tvb, offset) == len_reason){
-                        return TRUE;
+                        return true;
                     }
                     }
                 break;
                 case FT_GOAWAY:{
-                    guint16 len_reason;
+                    uint16_t len_reason;
 
                     /* Error Code */
                     offset += 4;
@@ -1217,9 +1218,9 @@ gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, gui
                     offset += 4;
                     /* Reason Phrase Length */
                     if (tvb_captured_length_remaining(tvb, offset) <= 2){
-                        return FALSE;
+                        return false;
                     }
-                    len_reason = tvb_get_guint16(tvb, offset, gquic_info->encoding);
+                    len_reason = tvb_get_uint16(tvb, offset, gquic_info->encoding);
                     offset += 2;
                     /* Reason Phrase */
                     offset += len_reason;
@@ -1270,7 +1271,7 @@ gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, gui
                 offset += len_data;
 
                 if (tvb_captured_length_remaining(tvb, offset) <= 4){
-                    return FALSE;
+                    return false;
                 }
 
                 /* Check if the Message Tag is CHLO (Client Hello) or SHLO (Server Hello) or REJ (Rejection) */
@@ -1279,7 +1280,7 @@ gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, gui
                     if(message_tag == MTAG_CHLO && pinfo->srcport != 443) { /* Found */
                         gquic_info->server_port = pinfo->destport;
                     }
-                    return TRUE;
+                    return true;
                 }
 
 
@@ -1304,9 +1305,9 @@ gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, gui
 
                     /* Num Timestamp */
                     if (tvb_captured_length_remaining(tvb, offset) <= 1){
-                        return FALSE;
+                        return false;
                     }
-                    num_timestamp = tvb_get_guint8(tvb, offset);
+                    num_timestamp = tvb_get_uint8(tvb, offset);
                     offset += 1;
 
                     if(num_timestamp > 0){
@@ -1323,9 +1324,9 @@ gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, gui
                     if(frame_type & FTFLAGS_ACK_N){
                         /* Num Ranges */
                         if (tvb_captured_length_remaining(tvb, offset) <= 1){
-                            return FALSE;
+                            return false;
                         }
-                        num_ranges = tvb_get_guint8(tvb, offset);
+                        num_ranges = tvb_get_uint8(tvb, offset);
                         offset += 1;
 
                         /* Num Range x (Missing Packet + Range Length) */
@@ -1333,9 +1334,9 @@ gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, gui
 
                         /* Num Revived */
                         if (tvb_captured_length_remaining(tvb, offset) <= 1){
-                            return FALSE;
+                            return false;
                         }
-                        num_revived = tvb_get_guint8(tvb, offset);
+                        num_revived = tvb_get_uint8(tvb, offset);
                         offset += 1;
 
                         /* Num Revived x Length Largest Observed */
@@ -1353,9 +1354,9 @@ gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, gui
                     /* Ack Block */
                     if(frame_type & FTFLAGS_ACK_N){
                         if (tvb_captured_length_remaining(tvb, offset) <= 1){
-                            return FALSE;
+                            return false;
                         }
-                        num_blocks = tvb_get_guint8(tvb, offset);
+                        num_blocks = tvb_get_uint8(tvb, offset);
                         offset += 1;
                     }
 
@@ -1367,9 +1368,9 @@ gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, gui
 
                     /* Timestamp */
                     if (tvb_captured_length_remaining(tvb, offset) <= 1){
-                        return FALSE;
+                        return false;
                     }
-                    num_timestamp = tvb_get_guint8(tvb, offset);
+                    num_timestamp = tvb_get_uint8(tvb, offset);
                     offset += 1;
 
                     if(num_timestamp > 0){
@@ -1391,21 +1392,21 @@ gboolean is_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, guint offset, gui
         }
     }
 
-    return FALSE;
+    return false;
 
 }
 
-static guint32
+static uint32_t
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, guint offset, guint32 tag_number){
-    guint32 tag_offset_start = offset + tag_number*4*2;
-    guint32 tag_offset = 0, total_tag_len = 0;
-    gint32 tag_len;
+dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, unsigned offset, uint32_t tag_number){
+    uint32_t tag_offset_start = offset + tag_number*4*2;
+    uint32_t tag_offset = 0, total_tag_len = 0;
+    int32_t tag_len;
 
     while(tag_number){
         proto_tree *tag_tree, *ti_len, *ti_tag, *ti_type;
-        guint32 offset_end, tag, num_iter;
-        const guint8* tag_str;
+        uint32_t offset_end, tag, num_iter;
+        const uint8_t* tag_str;
 
         ti_tag = proto_tree_add_item(gquic_tree, hf_gquic_tags, tvb, offset, 8, ENC_NA);
         tag_tree = proto_item_add_subtree(ti_tag, ett_gquic_tag_value);
@@ -1416,7 +1417,7 @@ dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, gui
         offset += 4;
 
         proto_tree_add_item(tag_tree, hf_gquic_tag_offset_end, tvb, offset, 4, ENC_LITTLE_ENDIAN);
-        offset_end = tvb_get_guint32(tvb, offset, ENC_LITTLE_ENDIAN);
+        offset_end = tvb_get_uint32(tvb, offset, ENC_LITTLE_ENDIAN);
 
         tag_len = offset_end - tag_offset;
         ti_len = proto_tree_add_uint(tag_tree, hf_gquic_tag_length, tvb, offset, 4, tag_len);
@@ -1484,12 +1485,12 @@ dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, gui
                 tag_offset += tag_len;
             break;
             case TAG_SCFG:{
-                guint32 scfg_tag_number;
+                uint32_t scfg_tag_number;
 
                 proto_tree_add_item(tag_tree, hf_gquic_tag_scfg, tvb, tag_offset_start + tag_offset, 4, ENC_ASCII);
                 tag_offset += 4;
                 proto_tree_add_item(tag_tree, hf_gquic_tag_scfg_number, tvb, tag_offset_start + tag_offset, 4, ENC_LITTLE_ENDIAN);
-                scfg_tag_number = tvb_get_guint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN);
+                scfg_tag_number = tvb_get_uint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN);
                 tag_offset += 4;
 
                 dissect_gquic_tag(tvb, pinfo, tag_tree, tag_offset_start + tag_offset, scfg_tag_number);
@@ -1499,7 +1500,7 @@ dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, gui
             case TAG_RREJ:
                 while(offset_end - tag_offset >= 4){
                     proto_tree_add_item(tag_tree, hf_gquic_tag_rrej, tvb, tag_offset_start + tag_offset, 4,  ENC_LITTLE_ENDIAN);
-                    proto_item_append_text(ti_tag, ", Code %s", val_to_str_ext_const(tvb_get_guint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN),
+                    proto_item_append_text(ti_tag, ", Code %s", val_to_str_ext_const(tvb_get_uint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN),
                                                                                      &handshake_failure_reason_vals_ext,
                                                                                      "Unknown"));
                     tag_offset += 4;
@@ -1555,7 +1556,7 @@ dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, gui
             break;
             case TAG_MSPC:
                 proto_tree_add_item(tag_tree, hf_gquic_tag_mspc, tvb, tag_offset_start + tag_offset, 4, ENC_LITTLE_ENDIAN);
-                proto_item_append_text(ti_tag, ": %u", tvb_get_guint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
+                proto_item_append_text(ti_tag, ": %u", tvb_get_uint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
                 tag_offset += 4;
             break;
             case TAG_TCID:
@@ -1586,17 +1587,17 @@ dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, gui
             break;
             case TAG_IRTT:
                 proto_tree_add_item(tag_tree, hf_gquic_tag_irtt, tvb, tag_offset_start + tag_offset, 4, ENC_LITTLE_ENDIAN);
-                proto_item_append_text(ti_tag, ": %u", tvb_get_guint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
+                proto_item_append_text(ti_tag, ": %u", tvb_get_uint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
                 tag_offset += 4;
             break;
             case TAG_CFCW:
                 proto_tree_add_item(tag_tree, hf_gquic_tag_cfcw, tvb, tag_offset_start + tag_offset, 4, ENC_LITTLE_ENDIAN);
-                proto_item_append_text(ti_tag, ": %u", tvb_get_guint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
+                proto_item_append_text(ti_tag, ": %u", tvb_get_uint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
                 tag_offset += 4;
             break;
             case TAG_SFCW:
                 proto_tree_add_item(tag_tree, hf_gquic_tag_sfcw, tvb, tag_offset_start + tag_offset, 4, ENC_LITTLE_ENDIAN);
-                proto_item_append_text(ti_tag, ": %u", tvb_get_guint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
+                proto_item_append_text(ti_tag, ": %u", tvb_get_uint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
                 tag_offset += 4;
             break;
             case TAG_CETV:
@@ -1628,7 +1629,7 @@ dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, gui
                 tag_offset += 8;
             break;
             case TAG_CADR: /* Public Reset Tag */{
-                guint32 addr_type;
+                uint32_t addr_type;
                 proto_tree_add_item_ret_uint(tag_tree, hf_gquic_tag_cadr_addr_type, tvb, tag_offset_start + tag_offset, 2, ENC_LITTLE_ENDIAN, &addr_type);
                 tag_offset += 2;
                 switch(addr_type){
@@ -1651,12 +1652,12 @@ dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, gui
             break;
             case TAG_MIDS:
                 proto_tree_add_item(tag_tree, hf_gquic_tag_mids, tvb, tag_offset_start + tag_offset, 4, ENC_LITTLE_ENDIAN);
-                proto_item_append_text(ti_tag, ": %u", tvb_get_guint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
+                proto_item_append_text(ti_tag, ": %u", tvb_get_uint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
                 tag_offset += 4;
             break;
             case TAG_FHOL:
                 proto_tree_add_item(tag_tree, hf_gquic_tag_fhol, tvb, tag_offset_start + tag_offset, 4, ENC_LITTLE_ENDIAN);
-                proto_item_append_text(ti_tag, ": %u", tvb_get_guint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
+                proto_item_append_text(ti_tag, ": %u", tvb_get_uint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
                 tag_offset += 4;
             break;
             case TAG_STTL:
@@ -1665,7 +1666,7 @@ dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, gui
             break;
             case TAG_SMHL:
                 proto_tree_add_item(tag_tree, hf_gquic_tag_smhl, tvb, tag_offset_start + tag_offset, 4, ENC_LITTLE_ENDIAN);
-                proto_item_append_text(ti_tag, ": %u", tvb_get_guint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
+                proto_item_append_text(ti_tag, ": %u", tvb_get_uint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
                 tag_offset += 4;
             break;
             case TAG_TBKP:
@@ -1675,7 +1676,7 @@ dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, gui
             break;
             case TAG_MAD0:
                 proto_tree_add_item(tag_tree, hf_gquic_tag_mad0, tvb, tag_offset_start + tag_offset, 4, ENC_LITTLE_ENDIAN);
-                proto_item_append_text(ti_tag, ": %u", tvb_get_guint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
+                proto_item_append_text(ti_tag, ": %u", tvb_get_uint32(tvb, tag_offset_start + tag_offset, ENC_LITTLE_ENDIAN));
                 tag_offset += 4;
             break;
             case TAG_QLVE:
@@ -1734,12 +1735,12 @@ dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, gui
 
 }
 
-guint32
-dissect_gquic_tags(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ft_tree, guint offset){
-    guint32 tag_number;
+uint32_t
+dissect_gquic_tags(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ft_tree, unsigned offset){
+    uint32_t tag_number;
 
     proto_tree_add_item(ft_tree, hf_gquic_tag_number, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-    tag_number = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+    tag_number = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
     offset += 2;
 
     proto_tree_add_item(ft_tree, hf_gquic_padding, tvb, offset, 2, ENC_NA);
@@ -1751,7 +1752,7 @@ dissect_gquic_tags(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ft_tree, guint
 }
 
 int
-dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, guint offset, guint8 len_pkn, gquic_info_data_t *gquic_info){
+dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, unsigned offset, uint8_t len_pkn, gquic_info_data_t *gquic_info){
     if (!gquic_info) {
         expert_add_info(pinfo, gquic_tree, &ei_gquic_data_invalid);
         return offset + tvb_reported_length_remaining(tvb, offset);
@@ -1759,16 +1760,16 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
 
     proto_item *ti, *ti_ft, *ti_ftflags /*, *expert_ti*/;
     proto_tree *ft_tree, *ftflags_tree;
-    guint8 frame_type;
-    guint8 num_ranges, num_revived, num_blocks = 0, num_timestamp;
-    guint32 len_stream = 0, len_offset = 0, len_data = 0, len_largest_observed = 1, len_missing_packet = 1;
+    uint8_t frame_type;
+    uint8_t num_ranges, num_revived, num_blocks = 0, num_timestamp;
+    uint32_t len_stream = 0, len_offset = 0, len_data = 0, len_largest_observed = 1, len_missing_packet = 1;
 
     ti_ft = proto_tree_add_item(gquic_tree, hf_gquic_frame, tvb, offset, 1, ENC_NA);
     ft_tree = proto_item_add_subtree(ti_ft, ett_gquic_ft);
 
     /* Frame type */
     ti_ftflags = proto_tree_add_item(ft_tree, hf_gquic_frame_type, tvb, offset, 1, ENC_NA);
-    frame_type = tvb_get_guint8(tvb, offset);
+    frame_type = tvb_get_uint8(tvb, offset);
     proto_item_set_text(ti_ft, "%s", rval_to_str_const(frame_type, frame_type_vals, "Unknown"));
 
     if((frame_type & FTFLAGS_SPECIAL) == 0 && frame_type != FT_CRYPTO){ /* Regular Stream Flags */
@@ -1776,7 +1777,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
         switch(frame_type){
             case FT_PADDING:{
                 proto_item *ti_pad_len;
-                guint32 pad_len = tvb_reported_length_remaining(tvb, offset);
+                uint32_t pad_len = tvb_reported_length_remaining(tvb, offset);
 
                 ti_pad_len = proto_tree_add_uint(ft_tree, hf_gquic_frame_type_padding_length, tvb, offset, 0, pad_len);
                 proto_item_set_generated(ti_pad_len);
@@ -1787,7 +1788,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 }
             break;
             case FT_RST_STREAM:{
-                guint32 stream_id, error_code;
+                uint32_t stream_id, error_code;
                 proto_tree_add_item_ret_uint(ft_tree, hf_gquic_frame_type_rsts_stream_id, tvb, offset, 4, gquic_info->encoding, &stream_id);
                 offset += 4;
                 proto_tree_add_item(ft_tree, hf_gquic_frame_type_rsts_byte_offset, tvb, offset, 8, gquic_info->encoding);
@@ -1799,13 +1800,13 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 }
             break;
             case FT_CONNECTION_CLOSE:{
-                guint16 len_reason;
-                guint32 error_code;
+                uint16_t len_reason;
+                uint32_t error_code;
 
                 proto_tree_add_item_ret_uint(ft_tree, hf_gquic_frame_type_cc_error_code, tvb, offset, 4, gquic_info->encoding, &error_code);
                 offset += 4;
                 proto_tree_add_item(ft_tree, hf_gquic_frame_type_cc_reason_phrase_length, tvb, offset, 2, gquic_info->encoding);
-                len_reason = tvb_get_guint16(tvb, offset, gquic_info->encoding);
+                len_reason = tvb_get_uint16(tvb, offset, gquic_info->encoding);
                 offset += 2;
                 proto_tree_add_item(ft_tree, hf_gquic_frame_type_cc_reason_phrase, tvb, offset, len_reason, ENC_ASCII);
                 offset += len_reason;
@@ -1814,15 +1815,15 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 }
             break;
             case FT_GOAWAY:{
-                guint16 len_reason;
-                guint32 error_code, last_good_stream_id;
+                uint16_t len_reason;
+                uint32_t error_code, last_good_stream_id;
 
                 proto_tree_add_item_ret_uint(ft_tree, hf_gquic_frame_type_goaway_error_code, tvb, offset, 4, gquic_info->encoding, &error_code);
                 offset += 4;
                 proto_tree_add_item_ret_uint(ft_tree, hf_gquic_frame_type_goaway_last_good_stream_id, tvb, offset, 4, gquic_info->encoding, &last_good_stream_id);
                 offset += 4;
                 proto_tree_add_item(ft_tree, hf_gquic_frame_type_goaway_reason_phrase_length, tvb, offset, 2, gquic_info->encoding);
-                len_reason = tvb_get_guint16(tvb, offset, gquic_info->encoding);
+                len_reason = tvb_get_uint16(tvb, offset, gquic_info->encoding);
                 offset += 2;
                 proto_tree_add_item(ft_tree, hf_gquic_frame_type_goaway_reason_phrase, tvb, offset, len_reason, ENC_ASCII);
                 offset += len_reason;
@@ -1831,7 +1832,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 }
             break;
             case FT_WINDOW_UPDATE:{
-                guint32 stream_id;
+                uint32_t stream_id;
 
                 proto_tree_add_item_ret_uint(ft_tree, hf_gquic_frame_type_wu_stream_id, tvb, offset, 4, gquic_info->encoding, &stream_id);
                 offset += 4;
@@ -1841,7 +1842,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 }
             break;
             case FT_BLOCKED:{
-                guint32 stream_id;
+                uint32_t stream_id;
 
                 proto_tree_add_item_ret_uint(ft_tree, hf_gquic_frame_type_blocked_stream_id, tvb, offset, 4, gquic_info->encoding, &stream_id);
                 offset += 4;
@@ -1849,10 +1850,10 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 }
             break;
             case FT_STOP_WAITING:{
-                guint8 send_entropy;
+                uint8_t send_entropy;
                 if(gquic_info->version_valid && gquic_info->version < 34){ /* No longer Entropy after Q034 */
                     proto_tree_add_item(ft_tree, hf_gquic_frame_type_sw_send_entropy, tvb, offset, 1, ENC_NA);
-                    send_entropy = tvb_get_guint8(tvb, offset);
+                    send_entropy = tvb_get_uint8(tvb, offset);
                     proto_item_append_text(ti_ft, " Send Entropy: %u", send_entropy);
                     offset += 1;
                 }
@@ -1867,41 +1868,41 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
         }
     }
     else { /* Special Frame Types */
-        guint32 stream_id, message_tag;
-        const guint8* message_tag_str;
+        uint32_t stream_id, message_tag;
+        const uint8_t* message_tag_str;
         proto_item *ti_stream;
 
         ftflags_tree = proto_item_add_subtree(ti_ftflags, ett_gquic_ftflags);
         proto_tree_add_item(ftflags_tree, hf_gquic_frame_type_stream , tvb, offset, 1, ENC_NA);
 
         if(frame_type == FT_CRYPTO) {
-            guint64 crypto_offset, crypto_length;
-            gint32 lenvar;
+            uint64_t crypto_offset, crypto_length;
+            int32_t lenvar;
 
             DISSECTOR_ASSERT(gquic_info->version_valid && gquic_info->version >= 50);
 
-            col_append_fstr(pinfo->cinfo, COL_INFO, ", CRYPTO");
+            col_append_str(pinfo->cinfo, COL_INFO, ", CRYPTO");
             offset += 1;
             proto_tree_add_item_ret_varint(ft_tree, hf_gquic_crypto_offset, tvb, offset, -1, ENC_VARINT_QUIC, &crypto_offset, &lenvar);
             offset += lenvar;
             proto_tree_add_item_ret_varint(ft_tree, hf_gquic_crypto_length, tvb, offset, -1, ENC_VARINT_QUIC, &crypto_length, &lenvar);
             offset += lenvar;
-            proto_tree_add_item(ft_tree, hf_gquic_crypto_crypto_data, tvb, offset, (guint32)crypto_length, ENC_NA);
+            proto_tree_add_item(ft_tree, hf_gquic_crypto_crypto_data, tvb, offset, (uint32_t)crypto_length, ENC_NA);
 
             if (gquic_info->version == 50) {
-	        message_tag = tvb_get_ntohl(tvb, offset);
+                message_tag = tvb_get_ntohl(tvb, offset);
                 ti = proto_tree_add_item_ret_string(ft_tree, hf_gquic_tag, tvb, offset, 4, ENC_ASCII|ENC_NA, pinfo->pool, &message_tag_str);
                 proto_item_append_text(ti, " (%s)", val_to_str_const(message_tag, message_tag_vals, "Unknown Tag"));
-                col_add_str(pinfo->cinfo, COL_INFO, val_to_str_const(message_tag, message_tag_vals, "Unknown"));
+                col_set_str(pinfo->cinfo, COL_INFO, val_to_str_const(message_tag, message_tag_vals, "Unknown"));
                 offset += 4;
 
                 offset = dissect_gquic_tags(tvb, pinfo, ft_tree, offset);
 	    } else { /* T050 and T051 */
                 tvbuff_t *next_tvb = tvb_new_subset_length(tvb, offset, (int)crypto_length);
-                col_set_writable(pinfo->cinfo, -1, FALSE);
+                col_set_writable(pinfo->cinfo, -1, false);
                 call_dissector_with_data(tls13_handshake_handle, next_tvb, pinfo, ft_tree, GUINT_TO_POINTER(crypto_offset));
-                col_set_writable(pinfo->cinfo, -1, TRUE);
-                offset += (guint32)crypto_length;
+                col_set_writable(pinfo->cinfo, -1, true);
+                offset += (uint32_t)crypto_length;
 	    }
 
 	} else if(frame_type & FTFLAGS_STREAM){ /* Stream Flags */
@@ -1943,7 +1944,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                     proto_item_append_text(ti_stream, " (Reserved for (G)QUIC handshake, crypto, config updates...)");
                     proto_item_append_text(ti, " (%s)", val_to_str_const(message_tag, message_tag_vals, "Unknown Tag"));
                     proto_item_append_text(ti_ft, ", Type: %s (%s)", message_tag_str, val_to_str_const(message_tag, message_tag_vals, "Unknown Tag"));
-                    col_add_str(pinfo->cinfo, COL_INFO, val_to_str_const(message_tag, message_tag_vals, "Unknown"));
+                    col_set_str(pinfo->cinfo, COL_INFO, val_to_str_const(message_tag, message_tag_vals, "Unknown"));
                     offset += 4;
 
                     offset = dissect_gquic_tags(tvb, pinfo, ft_tree, offset);
@@ -1954,7 +1955,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
 
                     proto_item_append_text(ti_stream, " (Reserved for H2 HEADERS)");
 
-                    col_add_str(pinfo->cinfo, COL_INFO, "H2");
+                    col_set_str(pinfo->cinfo, COL_INFO, "H2");
 
                     tvb_h2 = tvb_new_subset_remaining(tvb, offset);
 
@@ -1964,7 +1965,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 default: { /* Data... */
                     int data_len = tvb_reported_length_remaining(tvb, offset);
 
-                    col_add_str(pinfo->cinfo, COL_INFO, "DATA");
+                    col_set_str(pinfo->cinfo, COL_INFO, "DATA");
 
                     proto_tree_add_item(ft_tree, hf_gquic_stream_data, tvb, offset, data_len, ENC_NA);
                     offset += data_len;
@@ -2001,7 +2002,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 offset += 2;
 
                 proto_tree_add_item(ft_tree, hf_gquic_frame_type_ack_num_timestamp, tvb, offset, 1, ENC_NA);
-                num_timestamp = tvb_get_guint8(tvb, offset);
+                num_timestamp = tvb_get_uint8(tvb, offset);
                 offset += 1;
 
                 if(num_timestamp){
@@ -2029,7 +2030,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
 
                 if(frame_type & FTFLAGS_ACK_N){
                     proto_tree_add_item(ft_tree, hf_gquic_frame_type_ack_num_ranges, tvb, offset, 1, ENC_NA);
-                    num_ranges = tvb_get_guint8(tvb, offset);
+                    num_ranges = tvb_get_uint8(tvb, offset);
                     offset += 1;
                     while(num_ranges){
 
@@ -2042,7 +2043,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                     }
 
                     proto_tree_add_item(ft_tree, hf_gquic_frame_type_ack_num_revived, tvb, offset, 1, ENC_NA);
-                    num_revived = tvb_get_guint8(tvb, offset);
+                    num_revived = tvb_get_uint8(tvb, offset);
                     offset += 1;
                     while(num_revived){
 
@@ -2067,7 +2068,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 /* Ack Block */
                 if(frame_type & FTFLAGS_ACK_N){
                     proto_tree_add_item(ft_tree, hf_gquic_frame_type_ack_num_blocks, tvb, offset, 1, ENC_NA);
-                    num_blocks = tvb_get_guint8(tvb, offset);
+                    num_blocks = tvb_get_uint8(tvb, offset);
                     offset += 1;
                 }
 
@@ -2089,7 +2090,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
 
                 /* Timestamp */
                 proto_tree_add_item(ft_tree, hf_gquic_frame_type_ack_num_timestamp, tvb, offset, 1, ENC_NA);
-                num_timestamp = tvb_get_guint8(tvb, offset);
+                num_timestamp = tvb_get_uint8(tvb, offset);
                 offset += 1;
 
                 if(num_timestamp){
@@ -2126,7 +2127,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
 }
 
 static int
-dissect_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, guint offset, guint8 len_pkn, gquic_info_data_t *gquic_info){
+dissect_gquic_unencrypt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, unsigned offset, uint8_t len_pkn, gquic_info_data_t *gquic_info){
     proto_item *ti_prflags;
     proto_tree *prflags_tree;
 
@@ -2159,9 +2160,9 @@ dissect_gquic_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
     proto_item *ti, *ti_puflags; /*, *expert_ti*/
     proto_tree *gquic_tree, *puflags_tree;
-    guint offset = 0;
-    guint8 puflags, len_cid = 0, len_pkn;
-    guint64 cid = 0, pkn;
+    unsigned offset = 0;
+    uint8_t puflags, len_cid = 0, len_pkn;
+    uint64_t cid = 0, pkn;
     conversation_t  *conv;
     gquic_info_data_t  *gquic_info;
 
@@ -2179,7 +2180,7 @@ dissect_gquic_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         gquic_info = wmem_new(wmem_file_scope(), gquic_info_data_t);
         gquic_info->version = 0;
         gquic_info->encoding = ENC_LITTLE_ENDIAN;
-        gquic_info->version_valid = TRUE;
+        gquic_info->version_valid = true;
         gquic_info->server_port = 443;
         conversation_add_proto_data(conv, proto_gquic, gquic_info);
     }
@@ -2190,7 +2191,7 @@ dissect_gquic_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     gquic_tree = proto_item_add_subtree(ti, ett_gquic);
 
     /* Public Flags */
-    puflags = tvb_get_guint8(tvb, offset);
+    puflags = tvb_get_uint8(tvb, offset);
 
     /* Get len of CID */
     if(puflags & PUFLAGS_CID){
@@ -2226,7 +2227,7 @@ dissect_gquic_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     /* CID */
     if (len_cid) {
-        cid = tvb_get_guint64(tvb, offset, gquic_info->encoding);
+        cid = tvb_get_uint64(tvb, offset, gquic_info->encoding);
         proto_tree_add_item(gquic_tree, hf_gquic_cid, tvb, offset, len_cid, gquic_info->encoding);
         offset += len_cid;
     }
@@ -2249,7 +2250,7 @@ dissect_gquic_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     /* Public Reset Packet */
     if(puflags & PUFLAGS_RST){
-        guint32 tag_number, message_tag;
+        uint32_t tag_number, message_tag;
 
         ti = proto_tree_add_item(gquic_tree, hf_gquic_tag, tvb, offset, 4, ENC_ASCII);
         message_tag = tvb_get_ntohl(tvb, offset);
@@ -2257,7 +2258,7 @@ dissect_gquic_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         offset += 4;
 
         proto_tree_add_item(gquic_tree, hf_gquic_tag_number, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-        tag_number = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+        tag_number = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
         offset += 2;
 
         proto_tree_add_item(gquic_tree, hf_gquic_padding, tvb, offset, 2, ENC_NA);
@@ -2289,7 +2290,7 @@ dissect_gquic_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     if (is_gquic_unencrypt(tvb, pinfo, offset, len_pkn, gquic_info) || g_gquic_debug){
         offset = dissect_gquic_unencrypt(tvb, pinfo, gquic_tree, offset, len_pkn, gquic_info);
     }else {     /* Payload... (encrypted... TODO FIX !) */
-        col_add_str(pinfo->cinfo, COL_INFO, "Payload (Encrypted)");
+        col_set_str(pinfo->cinfo, COL_INFO, "Payload (Encrypted)");
         proto_tree_add_item(gquic_tree, hf_gquic_payload, tvb, offset, -1, ENC_NA);
 
     }
@@ -2310,9 +2311,9 @@ dissect_gquic_q046(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
     proto_item *ti, *ti_firstbyte; /*, *expert_ti*/
     proto_tree *gquic_tree, *firstbyte_tree;
-    guint offset = 0;
-    guint8 first_byte, len_cid, cil, len_pkn;
-    guint64 cid = 0, pkn = 0;
+    unsigned offset = 0;
+    uint8_t first_byte, len_cid, cil, len_pkn;
+    uint64_t cid = 0, pkn = 0;
     conversation_t  *conv;
     gquic_info_data_t  *gquic_info;
 
@@ -2326,7 +2327,7 @@ dissect_gquic_q046(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         gquic_info = wmem_new(wmem_file_scope(), gquic_info_data_t);
         gquic_info->version = 0;
         gquic_info->encoding = ENC_BIG_ENDIAN;
-        gquic_info->version_valid = TRUE;
+        gquic_info->version_valid = true;
         gquic_info->server_port = 443;
         conversation_add_proto_data(conv, proto_gquic, gquic_info);
     }
@@ -2337,7 +2338,7 @@ dissect_gquic_q046(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     gquic_tree = proto_item_add_subtree(ti, ett_gquic);
 
     /* First byte */
-    first_byte = tvb_get_guint8(tvb, offset);
+    first_byte = tvb_get_uint8(tvb, offset);
     len_pkn = (first_byte & 0x03) + 1;
 
     ti_firstbyte = proto_tree_add_item(gquic_tree, hf_gquic_puflags, tvb, offset, 1, ENC_NA);
@@ -2354,7 +2355,7 @@ dissect_gquic_q046(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             expert_add_info(pinfo, gquic_tree, &ei_gquic_version_invalid);
         }
 
-	cil = tvb_get_guint8(tvb, offset + 5);
+	cil = tvb_get_uint8(tvb, offset + 5);
 	if(pinfo->srcport == gquic_info->server_port) { /* Server to client */
 	    len_cid = (cil & 0x0F) + 3;
 	} else {
@@ -2378,7 +2379,7 @@ dissect_gquic_q046(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
         /* CID */
         if (len_cid > 0) {
-            cid = tvb_get_guint64(tvb, offset, gquic_info->encoding);
+            cid = tvb_get_uint64(tvb, offset, gquic_info->encoding);
             proto_tree_add_item(gquic_tree, hf_gquic_cid, tvb, offset, len_cid, gquic_info->encoding);
         }
         offset += len_cid;
@@ -2394,7 +2395,7 @@ dissect_gquic_q046(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             len_cid = 0;
         } else {
             len_cid = 8;
-            cid = tvb_get_guint64(tvb, offset, gquic_info->encoding);
+            cid = tvb_get_uint64(tvb, offset, gquic_info->encoding);
             proto_tree_add_item(gquic_tree, hf_gquic_cid, tvb, offset, len_cid, gquic_info->encoding);
         }
         offset += len_cid;
@@ -2408,7 +2409,7 @@ dissect_gquic_q046(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     if (is_gquic_unencrypt(tvb, pinfo, offset, len_pkn, gquic_info) || g_gquic_debug){
         offset = dissect_gquic_unencrypt(tvb, pinfo, gquic_tree, offset, len_pkn, gquic_info);
     }else {     /* Payload... (encrypted... TODO FIX !) */
-        col_add_str(pinfo->cinfo, COL_INFO, "Payload (Encrypted)");
+        col_set_str(pinfo->cinfo, COL_INFO, "Payload (Encrypted)");
         proto_tree_add_item(gquic_tree, hf_gquic_payload, tvb, offset, -1, ENC_NA);
 
     }
@@ -2426,26 +2427,26 @@ static int
 dissect_gquic(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
               void *data _U_)
 {
-    guint8 flags;
+    uint8_t flags;
 
-    flags = tvb_get_guint8(tvb, 0);
+    flags = tvb_get_uint8(tvb, 0);
     if((flags & PUFLAGS_RSV) == 0 && (flags & PUFLAGS_MPTH) == 0)
         return dissect_gquic_common(tvb, pinfo, tree, NULL);
     return dissect_gquic_q046(tvb, pinfo, tree, NULL);
 }
 
-static gboolean dissect_gquic_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+static bool dissect_gquic_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
 
     conversation_t *conversation = NULL;
     int offset = 0;
-    guint8 flags;
-    guint32 version;
+    uint8_t flags;
+    uint32_t version;
 
     if (tvb_captured_length(tvb) < 1) {
-        return FALSE;
+        return false;
     }
-    flags = tvb_get_guint8(tvb, offset);
+    flags = tvb_get_uint8(tvb, offset);
     offset += 1;
 
     if((flags & PUFLAGS_RSV) == 0 && (flags & PUFLAGS_MPTH) == 0) {
@@ -2453,17 +2454,17 @@ static gboolean dissect_gquic_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree
 
         /* Verify packet size  (Flag (1 byte) + Connection ID (8 bytes) + Version (4 bytes)) */
         if (tvb_captured_length(tvb) < 13) {
-            return FALSE;
+            return false;
         }
 
         /* Check if flags version is set */
         if((flags & PUFLAGS_VRSN) == 0) {
-            return FALSE;
+            return false;
         }
 
         /* Connection ID is always set to "long" (8bytes) too */
         if((flags & PUFLAGS_CID) == 0){
-            return FALSE;
+            return false;
         }
         offset += 8;
 
@@ -2473,28 +2474,28 @@ static gboolean dissect_gquic_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree
             conversation = find_or_create_conversation(pinfo);
             conversation_set_dissector(conversation, gquic_handle);
             dissect_gquic(tvb, pinfo, tree, data);
-            return TRUE;
+            return true;
         }
     } else if((flags & PUFLAGS_MPTH) && (flags & PUFLAGS_RSV)) {
         /* It may be > Q043, Long Header. We handle only Q046 */
 
         /* Verify packet size  (Flag (1 byte) + Version (4) + DCIL/SCIL (1) + Dest Connection ID (8 bytes)) */
         if (tvb_captured_length(tvb) < 14) {
-            return FALSE;
+            return false;
         }
 
         version = tvb_get_ntohl(tvb, offset);
         if (version != GQUIC_VERSION_Q046) {
-            return FALSE;
+            return false;
         }
 
         conversation = find_or_create_conversation(pinfo);
         conversation_set_dissector(conversation, gquic_handle);
         dissect_gquic(tvb, pinfo, tree, data);
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 void
@@ -3243,7 +3244,7 @@ proto_register_gquic(void)
     };
 
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_gquic,
         &ett_gquic_puflags,
         &ett_gquic_prflags,

@@ -28,74 +28,77 @@
 void proto_register_socketcan(void);
 void proto_reg_handoff_socketcan(void);
 
-static int hf_can_len = -1;
-static int hf_can_infoent_ext = -1;
-static int hf_can_infoent_std = -1;
-static int hf_can_extflag = -1;
-static int hf_can_rtrflag = -1;
-static int hf_can_errflag = -1;
-static int hf_can_reserved = -1;
-static int hf_can_padding = -1;
+static int hf_can_len;
+static int hf_can_infoent_ext;
+static int hf_can_infoent_std;
+static int hf_can_extflag;
+static int hf_can_rtrflag;
+static int hf_can_errflag;
+static int hf_can_reserved;
+static int hf_can_len8dlc;
+static int hf_can_padding;
 
-static int hf_can_err_tx_timeout = -1;
-static int hf_can_err_lostarb = -1;
-static int hf_can_err_ctrl = -1;
-static int hf_can_err_prot = -1;
-static int hf_can_err_trx = -1;
-static int hf_can_err_ack = -1;
-static int hf_can_err_busoff = -1;
-static int hf_can_err_buserror = -1;
-static int hf_can_err_restarted = -1;
-static int hf_can_err_reserved = -1;
+static int hf_can_err_tx_timeout;
+static int hf_can_err_lostarb;
+static int hf_can_err_ctrl;
+static int hf_can_err_prot;
+static int hf_can_err_trx;
+static int hf_can_err_ack;
+static int hf_can_err_busoff;
+static int hf_can_err_buserror;
+static int hf_can_err_restarted;
+static int hf_can_err_reserved;
 
-static int hf_can_err_lostarb_bit_number = -1;
+static int hf_can_err_lostarb_bit_number;
 
-static int hf_can_err_ctrl_rx_overflow = -1;
-static int hf_can_err_ctrl_tx_overflow = -1;
-static int hf_can_err_ctrl_rx_warning = -1;
-static int hf_can_err_ctrl_tx_warning = -1;
-static int hf_can_err_ctrl_rx_passive = -1;
-static int hf_can_err_ctrl_tx_passive = -1;
-static int hf_can_err_ctrl_active = -1;
+static int hf_can_err_ctrl_rx_overflow;
+static int hf_can_err_ctrl_tx_overflow;
+static int hf_can_err_ctrl_rx_warning;
+static int hf_can_err_ctrl_tx_warning;
+static int hf_can_err_ctrl_rx_passive;
+static int hf_can_err_ctrl_tx_passive;
+static int hf_can_err_ctrl_active;
 
-static int hf_can_err_prot_error_type_bit = -1;
-static int hf_can_err_prot_error_type_form = -1;
-static int hf_can_err_prot_error_type_stuff = -1;
-static int hf_can_err_prot_error_type_bit0 = -1;
-static int hf_can_err_prot_error_type_bit1 = -1;
-static int hf_can_err_prot_error_type_overload = -1;
-static int hf_can_err_prot_error_type_active = -1;
-static int hf_can_err_prot_error_type_tx = -1;
+static int hf_can_err_prot_error_type_bit;
+static int hf_can_err_prot_error_type_form;
+static int hf_can_err_prot_error_type_stuff;
+static int hf_can_err_prot_error_type_bit0;
+static int hf_can_err_prot_error_type_bit1;
+static int hf_can_err_prot_error_type_overload;
+static int hf_can_err_prot_error_type_active;
+static int hf_can_err_prot_error_type_tx;
 
-static int hf_can_err_prot_error_location = -1;
+static int hf_can_err_prot_error_location;
 
-static int hf_can_err_trx_canh = -1;
-static int hf_can_err_trx_canl = -1;
+static int hf_can_err_trx_canh;
+static int hf_can_err_trx_canl;
 
-static int hf_can_err_ctrl_specific = -1;
+static int hf_can_err_ctrl_specific;
 
-static int hf_canxl_priority = -1;
-static int hf_canxl_vcid = -1;
-static int hf_canxl_secflag = -1;
-static int hf_canxl_sdu_type = -1;
-static int hf_canxl_len = -1;
-static int hf_canxl_acceptance_field = -1;
+static int hf_canxl_priority;
+static int hf_canxl_vcid;
+static int hf_canxl_secflag;
+static int hf_canxl_xlflag;
+static int hf_canxl_sdu_type;
+static int hf_canxl_len;
+static int hf_canxl_acceptance_field;
 
-static expert_field ei_can_err_dlc_mismatch = EI_INIT;
+static expert_field ei_can_err_dlc_mismatch;
 
-static int hf_canfd_brsflag = -1;
-static int hf_canfd_esiflag = -1;
+static int hf_canfd_brsflag;
+static int hf_canfd_esiflag;
+static int hf_canfd_fdflag;
 
-static gint ett_can = -1;
-static gint ett_can_fd = -1;
-static gint ett_can_xl = -1;
+static int ett_can;
+static int ett_can_fd;
+static int ett_can_xl;
 
-static int proto_can = -1;
-static int proto_canfd = -1;
-static int proto_canxl = -1;
+static int proto_can;
+static int proto_canfd;
+static int proto_canxl;
 
-static gboolean byte_swap = FALSE;
-static gboolean heuristic_first = FALSE;
+static bool byte_swap;
+static bool heuristic_first;
 
 static heur_dissector_list_t heur_subdissector_list;
 static heur_dtbl_entry_t *heur_dtbl_entry;
@@ -109,16 +112,14 @@ static heur_dtbl_entry_t *heur_dtbl_entry;
 
 #define CANFD_FLAG_OFFSET  5
 
-#define CANFD_BRS 0x01 /* bit rate switch (second bitrate for payload data) */
-#define CANFD_ESI 0x02 /* error state indicator of the transmitting node */
-
+#define CANXL_FLAGS_OFFSET CAN_LEN_OFFSET
 #define CANXL_LEN_OFFSET   6
 #define CANXL_DATA_OFFSET  12
 
-static dissector_table_t can_id_dissector_table = NULL;
-static dissector_table_t can_extended_id_dissector_table = NULL;
-static dissector_table_t subdissector_table = NULL;
-static dissector_table_t canxl_sdu_type_dissector_table = NULL;
+static dissector_table_t can_id_dissector_table;
+static dissector_table_t can_extended_id_dissector_table;
+static dissector_table_t subdissector_table;
+static dissector_table_t canxl_sdu_type_dissector_table;
 static dissector_handle_t socketcan_classic_handle;
 static dissector_handle_t socketcan_fd_handle;
 static dissector_handle_t socketcan_xl_handle;
@@ -172,11 +173,14 @@ static const value_string canxl_sdu_type_vals[] = {
     { 0x00, "Reserved" },
     { CANXL_SDU_TYPE_CONTENT_BASED_ADDRESSING, "Content-based Addressing" },
     { 0x02, "Reserved for future use" },
-    { CANXL_SDU_TYPE_CLASSICAL_CAN_AND_CAN_FD_MAPPED_TUNNELING, "Classical CAN/CAN FD mapped tunneling" },
-    { CANXL_SDU_TYPE_IEEE_802_3_MAC_FRAME_TUNNELLING, "IEEE 802.3 (MAC frame) tunneling" },
-    { CANXL_SDU_TYPE_IEEE_802_3_MAC_FRAME_MAPPED_TUNNELING, "IEEE 802.3 (MAC frame) mapped tunneling" },
-    { CANXL_SDU_TYPE_CLASSICAL_CAN_MAPPED_TUNNELING, "Classical CAN mapped tunneling" },
-    { CANXL_SDU_TYPE_CAN_FD_MAPPED_TUNNELING, "CAN FD mapped tunneling" },
+    { CANXL_SDU_TYPE_CAN_CC_CAN_FD, "CAN CC/CAN FD" },
+    { CANXL_SDU_TYPE_IEEE_802_3, "IEEE 802.3 (MAC frame)" },
+    { CANXL_SDU_TYPE_IEEE_802_3_EXTENDED, "IEEE 802.3 (MAC frame) extended" },
+    { CANXL_SDU_TYPE_CAN_CC, "CAN CC" },
+    { CANXL_SDU_TYPE_CAN_FD, "CAN FD" },
+    { CANXL_SDU_TYPE_CIA_611_2, "CiA 611-2 (Multi-PDU)" },
+    { CANXL_SDU_TYPE_AUTOSAR_MPDU, "AUTOSAR Multi-PDU" },
+    { CANXL_SDU_TYPE_CIA_613_2, "CiA 613-2 (CANsec key agreement protocol" },
     { 0xFF, "Reserved" },
     { 0, NULL }
 };
@@ -185,17 +189,17 @@ static const value_string canxl_sdu_type_vals[] = {
 
 /* Interface Config UAT */
 typedef struct _interface_config {
-    guint   interface_id;
-    gchar  *interface_name;
-    guint   bus_id;
+    unsigned   interface_id;
+    char   *interface_name;
+    unsigned   bus_id;
 } interface_config_t;
 
 #define DATAFILE_CAN_INTERFACE_MAPPING "CAN_interface_mapping"
 
-static GHashTable *data_can_interfaces_by_id = NULL;
-static GHashTable *data_can_interfaces_by_name = NULL;
-static interface_config_t *interface_configs = NULL;
-static guint interface_config_num = 0;
+static GHashTable *data_can_interfaces_by_id;
+static GHashTable *data_can_interfaces_by_name;
+static interface_config_t *interface_configs;
+static unsigned interface_config_num;
 
 UAT_HEX_CB_DEF(interface_configs, interface_id, interface_config_t)
 UAT_CSTRING_CB_DEF(interface_configs, interface_name, interface_config_t)
@@ -219,16 +223,16 @@ update_interface_config(void *r, char **err) {
     if (rec->interface_id > 0xffffffff) {
         *err = ws_strdup_printf("We currently only support 32 bit identifiers (ID: %i  Name: %s)",
                                 rec->interface_id, rec->interface_name);
-        return FALSE;
+        return false;
     }
 
     if (rec->bus_id > 0xffff) {
         *err = ws_strdup_printf("We currently only support 16 bit bus identifiers (ID: %i  Name: %s  Bus-ID: %i)",
                                 rec->interface_id, rec->interface_name, rec->bus_id);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
@@ -258,9 +262,9 @@ ht_lookup_interface_config_by_id(unsigned int identifier) {
 }
 
 static interface_config_t *
-ht_lookup_interface_config_by_name(const gchar *name) {
+ht_lookup_interface_config_by_name(const char *name) {
     interface_config_t *tmp = NULL;
-    gchar              *key = NULL;
+    char               *key = NULL;
 
     if (interface_configs == NULL) {
         return NULL;
@@ -274,15 +278,15 @@ ht_lookup_interface_config_by_name(const gchar *name) {
 }
 
 static void
-can_free_key(gpointer key) {
+can_free_key(void *key) {
     wmem_free(wmem_epan_scope(), key);
 }
 
 static void
 post_update_can_interfaces_cb(void) {
-    guint  i;
+    unsigned  i;
     int   *key_id = NULL;
-    gchar *key_name = NULL;
+    char *key_name = NULL;
 
     /* destroy old hash tables, if they exist */
     if (data_can_interfaces_by_id) {
@@ -321,15 +325,16 @@ post_update_can_interfaces_cb(void) {
  * - interface_name matches and interface_id = 0xffffffff
  * - interface_name = ""    and interface_id matches
  */
-static guint
+static unsigned
 get_bus_id(packet_info *pinfo) {
-    guint32             interface_id = pinfo->rec->rec_header.packet_header.interface_id;
-    const char         *interface_name = epan_get_interface_name(pinfo->epan, interface_id);
-    interface_config_t *tmp = NULL;
-
     if (!(pinfo->rec->presence_flags & WTAP_HAS_INTERFACE_ID)) {
         return 0;
     }
+
+    uint32_t            interface_id = pinfo->rec->rec_header.packet_header.interface_id;
+    unsigned            section_number = pinfo->rec->presence_flags & WTAP_HAS_SECTION_NUMBER ? pinfo->rec->section_number : 0;
+    const char         *interface_name = epan_get_interface_name(pinfo->epan, interface_id, section_number);
+    interface_config_t *tmp = NULL;
 
     if (interface_name != NULL && interface_name[0] != 0) {
         tmp = ht_lookup_interface_config_by_name(interface_name);
@@ -353,17 +358,17 @@ get_bus_id(packet_info *pinfo) {
 
 /* Senders and Receivers UAT */
 typedef struct _sender_receiver_config {
-    guint   bus_id;
-    guint   can_id;
-    gchar  *sender_name;
-    gchar  *receiver_name;
+    unsigned   bus_id;
+    unsigned   can_id;
+    char   *sender_name;
+    char   *receiver_name;
 } sender_receiver_config_t;
 
 #define DATAFILE_CAN_SENDER_RECEIVER "CAN_senders_receivers"
 
-static GHashTable *data_sender_receiver = NULL;
-static sender_receiver_config_t *sender_receiver_configs = NULL;
-static guint sender_receiver_config_num = 0;
+static GHashTable *data_sender_receiver;
+static sender_receiver_config_t *sender_receiver_configs;
+static unsigned sender_receiver_config_num;
 
 UAT_HEX_CB_DEF(sender_receiver_configs, bus_id, sender_receiver_config_t)
 UAT_HEX_CB_DEF(sender_receiver_configs, can_id, sender_receiver_config_t)
@@ -388,10 +393,10 @@ update_sender_receiver_config(void *r, char **err) {
 
     if (rec->bus_id > 0xffff) {
         *err = ws_strdup_printf("We currently only support 16 bit bus identifiers (Bus ID: %i  CAN ID: %i)", rec->bus_id, rec->can_id);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
@@ -405,15 +410,15 @@ free_sender_receiver_config_cb(void *r) {
     rec->receiver_name = NULL;
 }
 
-static guint64
-sender_receiver_key(guint16 bus_id, guint32 can_id) {
-    return ((guint64)bus_id << 32) | can_id;
+static uint64_t
+sender_receiver_key(uint16_t bus_id, uint32_t can_id) {
+    return ((uint64_t)bus_id << 32) | can_id;
 }
 
 static sender_receiver_config_t *
-ht_lookup_sender_receiver_config(guint16 bus_id, guint32 can_id) {
+ht_lookup_sender_receiver_config(uint16_t bus_id, uint32_t can_id) {
     sender_receiver_config_t *tmp = NULL;
-    guint64                   key = 0;
+    uint64_t                  key = 0;
 
     if (sender_receiver_configs == NULL) {
         return NULL;
@@ -431,14 +436,14 @@ ht_lookup_sender_receiver_config(guint16 bus_id, guint32 can_id) {
 }
 
 static void
-sender_receiver_free_key(gpointer key) {
+sender_receiver_free_key(void *key) {
     wmem_free(wmem_epan_scope(), key);
 }
 
 static void
 post_update_sender_receiver_cb(void) {
-    guint    i;
-    guint64 *key_id = NULL;
+    unsigned i;
+    uint64_t *key_id = NULL;
 
     /* destroy old hash table, if it exist */
     if (data_sender_receiver) {
@@ -454,13 +459,13 @@ post_update_sender_receiver_cb(void) {
     }
 
     for (i = 0; i < sender_receiver_config_num; i++) {
-        key_id = wmem_new(wmem_epan_scope(), guint64);
+        key_id = wmem_new(wmem_epan_scope(), uint64_t);
         *key_id = sender_receiver_key(sender_receiver_configs[i].bus_id, sender_receiver_configs[i].can_id);
         g_hash_table_insert(data_sender_receiver, key_id, &sender_receiver_configs[i]);
     }
 }
 
-gboolean
+bool
 socketcan_set_source_and_destination_columns(packet_info *pinfo, can_info_t *caninfo) {
     sender_receiver_config_t *tmp = ht_lookup_sender_receiver_config(caninfo->bus_id, caninfo->id);
 
@@ -473,35 +478,35 @@ socketcan_set_source_and_destination_columns(packet_info *pinfo, can_info_t *can
         clear_address(&pinfo->dl_dst);
         clear_address(&pinfo->dst);
 
-        col_add_fstr(pinfo->cinfo, COL_DEF_SRC, "%s", tmp->sender_name);
-        col_add_fstr(pinfo->cinfo, COL_DEF_DST, "%s", tmp->receiver_name);
+        col_add_str(pinfo->cinfo, COL_DEF_SRC, tmp->sender_name);
+        col_add_str(pinfo->cinfo, COL_DEF_DST, tmp->receiver_name);
         return true;
     }
     return false;
 }
 
-gboolean
-socketcan_call_subdissectors(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, struct can_info *can_info, const gboolean use_heuristics_first) {
+bool
+socketcan_call_subdissectors(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, struct can_info *can_info, const bool use_heuristics_first) {
     dissector_table_t effective_can_id_dissector_table = (can_info->id & CAN_EFF_FLAG) ? can_extended_id_dissector_table : can_id_dissector_table;
-    guint32 effective_can_id = (can_info->id & CAN_EFF_FLAG) ? can_info->id & CAN_EFF_MASK : can_info->id & CAN_SFF_MASK;
+    uint32_t effective_can_id = (can_info->id & CAN_EFF_FLAG) ? can_info->id & CAN_EFF_MASK : can_info->id & CAN_SFF_MASK;
 
-    if (!dissector_try_uint_new(effective_can_id_dissector_table, effective_can_id, tvb, pinfo, tree, TRUE, can_info)) {
+    if (!dissector_try_uint_new(effective_can_id_dissector_table, effective_can_id, tvb, pinfo, tree, true, can_info)) {
         if (!use_heuristics_first) {
-            if (!dissector_try_payload_new(subdissector_table, tvb, pinfo, tree, TRUE, can_info)) {
+            if (!dissector_try_payload_new(subdissector_table, tvb, pinfo, tree, true, can_info)) {
                 if (!dissector_try_heuristic(heur_subdissector_list, tvb, pinfo, tree, &heur_dtbl_entry, can_info)) {
-                    return FALSE;
+                    return false;
                 }
             }
         } else {
             if (!dissector_try_heuristic(heur_subdissector_list, tvb, pinfo, tree, &heur_dtbl_entry, can_info)) {
-                if (!dissector_try_payload_new(subdissector_table, tvb, pinfo, tree, FALSE, can_info)) {
-                    return FALSE;
+                if (!dissector_try_payload_new(subdissector_table, tvb, pinfo, tree, false, can_info)) {
+                    return false;
                 }
             }
         }
     }
 
-    return TRUE;
+    return true;
 }
 
 /*
@@ -530,10 +535,10 @@ typedef enum {
 } can_packet_type_t;
 
 static int
-dissect_socketcan_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint encoding, guint xl_encoding, can_packet_type_t can_packet_type) {
+dissect_socketcan_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned encoding, unsigned xl_encoding, can_packet_type_t can_packet_type) {
     proto_tree     *can_tree;
     proto_item     *ti;
-    guint8          frame_type;
+    uint8_t         frame_type;
     can_info_t      can_info;
     int * const    *can_flags_id;
 
@@ -564,6 +569,7 @@ dissect_socketcan_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
     static int * const canfd_flag_fields[] = {
         &hf_canfd_brsflag,
         &hf_canfd_esiflag,
+        &hf_canfd_fdflag,
         NULL,
     };
     static int * const can_err_flags[] = {
@@ -587,32 +593,14 @@ dissect_socketcan_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
     };
     static int * const canxl_flag_fields[] = {
         &hf_canxl_secflag,
+        &hf_canxl_xlflag,
         NULL,
     };
 
-    /*
-     * If we weren't told the type of this frame, check
-     * whether the CANFD_FDF flag is set in the FD flags
-     * field of the header; if so, it's a CAN FD frame.
-     * otherwise, it's a CAN frame.
-     *
-     * However, trust the CANFD_FDF flag only if the only
-     * bits set in the FD flags field are the known bits,
-     * and the two bytes following that field are both
-     * zero.  This is because some older LINKTYPE_CAN_SOCKETCAN
-     * frames had uninitialized junk in the FD flags field,
-     * so we treat a frame with what appears to be uninitialized
-     * junk as being CAN rather than CAN FD, under the assumption
-     * that the CANFD_FDF bit is set because the field is
-     * uninitialized, not because it was explicitly set because
-     * it's a CAN FD frame.  At least some newer code that sets
-     * that flag also makes sure that the fields in question are
-     * initialized, so we assume that if they're not initialized
-     * the code is older code that didn't support CAN FD.
-     */
+    /* determine CAN packet type */
     if (can_packet_type == PACKET_TYPE_UNKNOWN) {
-        guint8 frame_length;
-        guint8 fd_flags;
+        uint8_t canfd_flags;
+        uint8_t canxl_flags;
 
         /*
          * Check whether the frame has the CANXL_XLF flag set in what
@@ -620,35 +608,21 @@ dissect_socketcan_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
          * or CAN FD frame; if so, then it's a CAN XL frame (and that
          * field is the flags field of that frame).
          */
-        frame_length = tvb_get_guint8(tvb, CAN_LEN_OFFSET);
-        if (frame_length & CANXL_XLF) {
-            can_packet_type = PACKET_TYPE_CAN_XL;
-        } else {
-            /*
-             * This is a CAN classic or CAN FD frame.
-             * Check whether the flags field has the CANFD_FDF
-             * flag set, has no unknown flag bits set, and has
-             * no bits set in the two reserved fields.  If so,
-             * it's a CAN FD frame; otherwise, it's either a
-             * CAN classic frame, or a frame where the CANFD_FDF
-             * flag is set but where that might just be because
-             * that field contains uninitialized junk rather
-             * than because it's a CAN FD frame, so we treat it
-             * as a CAN classic frame.
-             */
-            fd_flags = tvb_get_guint8(tvb, CANFD_FLAG_OFFSET);
+        canfd_flags = tvb_get_uint8(tvb, CANFD_FLAG_OFFSET);
+        canxl_flags = tvb_get_uint8(tvb, CANXL_FLAGS_OFFSET);
 
-            if ((fd_flags & CANFD_FDF) &&
-                    ((fd_flags & ~(CANFD_BRS | CANFD_ESI | CANFD_FDF)) == 0) &&
-                    tvb_get_guint8(tvb, CANFD_FLAG_OFFSET + 1) == 0 &&
-                    tvb_get_guint8(tvb, CANFD_FLAG_OFFSET + 2) == 0) {
-                can_packet_type = PACKET_TYPE_CAN_FD;
-            } else {
-                if (tvb_reported_length(tvb) == 72)
+        if (canxl_flags & CANXL_XLF) {
+            /* CAN XL: check for min/max data length */
+            if ((tvb_reported_length(tvb) >= 13) && (tvb_reported_length(tvb) <= 2060))
+                can_packet_type = PACKET_TYPE_CAN_XL;
+        } else {
+            /* CAN CC/FD */
+            if ((tvb_reported_length(tvb) == 72) || (canfd_flags & CANFD_FDF)) {
+                /* CAN FD: check for min/max data length */
+                if ((tvb_reported_length(tvb) >= 8) && (tvb_reported_length(tvb) <= 72))
                     can_packet_type = PACKET_TYPE_CAN_FD;
-                else
-                    can_packet_type = PACKET_TYPE_CAN;
-            }
+            } else if ((tvb_reported_length(tvb) >= 8) && (tvb_reported_length(tvb) <= 16))
+                can_packet_type = PACKET_TYPE_CAN;
         }
     }
 
@@ -666,7 +640,7 @@ dissect_socketcan_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
         ti = proto_tree_add_item(tree, proto_canxl, tvb, 0, -1, ENC_NA);
         can_tree = proto_item_add_subtree(ti, ett_can_xl);
 
-        guint32 proto_vcid;
+        uint32_t proto_vcid;
 
 	/*
 	 * The priority/VCID field is big-endian in LINKTYPE_CAN_SOCKETCAN
@@ -674,14 +648,14 @@ dissect_socketcan_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
 	 * Linux cooked captures.  This means we use the non-XL encoding.
 	 */
         proto_tree_add_bitmask_list(can_tree, tvb, 0, 4, canxl_prio_vcid_fields, encoding);
-        proto_vcid = tvb_get_guint32(tvb, 0, encoding);
+        proto_vcid = tvb_get_uint32(tvb, 0, encoding);
         col_add_fstr(pinfo->cinfo, COL_INFO, "Priority: %u (0x%03x), VCID: %u (0x%02X)", proto_vcid & 0x7FF, proto_vcid & 0x7FF, (proto_vcid >> 16) & 0xFF, (proto_vcid >> 16) & 0xFF);
         proto_item_append_text(can_tree, ", Priority: %u (0x%03x), VCID: %u (0x%02X)", proto_vcid & 0x7FF, proto_vcid & 0x7FF, (proto_vcid >> 16) & 0xFF, (proto_vcid >> 16) & 0xFF);
         proto_tree_add_bitmask_list(can_tree, tvb, 4, 1, canxl_flag_fields, xl_encoding);
 
         socketcan_set_source_and_destination_columns(pinfo, &can_info);
 
-        guint32 sdu_type;
+        uint32_t sdu_type;
 
 	/*
 	 * These fields are, if multi-byte, little-endian in
@@ -697,7 +671,7 @@ dissect_socketcan_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
 
         next_tvb = tvb_new_subset_length(tvb, CANXL_DATA_OFFSET, can_info.len);
 
-        if (!dissector_try_uint_new(canxl_sdu_type_dissector_table, sdu_type, next_tvb, pinfo, tree, TRUE, &can_info)) {
+        if (!dissector_try_uint_new(canxl_sdu_type_dissector_table, sdu_type, next_tvb, pinfo, tree, true, &can_info)) {
             call_data_dissector(next_tvb, pinfo, tree);
         }
 
@@ -722,7 +696,7 @@ dissect_socketcan_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
         can_tree = proto_item_add_subtree(ti, (can_packet_type == PACKET_TYPE_CAN_FD) ? ett_can_fd : ett_can);
 
         /* Get the ID and flags field */
-        can_info.id = tvb_get_guint32(tvb, 0, encoding);
+        can_info.id = tvb_get_uint32(tvb, 0, encoding);
 
         /* Error Message Frames are only encapsulated in Classic CAN frames */
         if (can_packet_type == PACKET_TYPE_CAN && (can_info.id & CAN_ERR_FLAG)) {
@@ -760,7 +734,8 @@ dissect_socketcan_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
             proto_tree_add_bitmask_list(can_tree, tvb, CANFD_FLAG_OFFSET, 1, canfd_flag_fields, ENC_NA);
             proto_tree_add_item(can_tree, hf_can_reserved, tvb, CANFD_FLAG_OFFSET+1, 2, ENC_NA);
         } else {
-            proto_tree_add_item(can_tree, hf_can_reserved, tvb, CANFD_FLAG_OFFSET, 3, ENC_NA);
+            proto_tree_add_item(can_tree, hf_can_reserved, tvb, CANFD_FLAG_OFFSET, 2, ENC_NA);
+            proto_tree_add_item(can_tree, hf_can_len8dlc, tvb, CANFD_FLAG_OFFSET+2, 1, ENC_NA);
         }
 
         if (frame_type == LINUX_CAN_ERR) {
@@ -893,6 +868,8 @@ proto_register_socketcan(void) {
             "Error Message Flag", "can.flags.err", FT_BOOLEAN, 32, NULL, CAN_ERR_FLAG, NULL, HFILL } },
         { &hf_can_len, {
             "Frame-Length", "can.len", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+        { &hf_can_len8dlc, {
+            "Len 8 DLC", "can.len8dlc", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_can_reserved, {
             "Reserved", "can.reserved", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         { &hf_can_padding, {
@@ -901,6 +878,8 @@ proto_register_socketcan(void) {
             "Bit Rate Setting", "canfd.flags.brs", FT_BOOLEAN, 8, NULL, CANFD_BRS, NULL, HFILL } },
         { &hf_canfd_esiflag, {
             "Error State Indicator", "canfd.flags.esi", FT_BOOLEAN, 8, NULL, CANFD_ESI, NULL, HFILL } },
+        { &hf_canfd_fdflag, {
+            "FD Frame", "canfd.flags.fdf", FT_BOOLEAN, 8, NULL, CANFD_FDF, NULL, HFILL } },
         { &hf_can_err_tx_timeout, {
             "Transmit timeout", "can.err.tx_timeout", FT_BOOLEAN, 32, NULL, CAN_ERR_TX_TIMEOUT, NULL, HFILL } },
         { &hf_can_err_lostarb, {
@@ -967,6 +946,8 @@ proto_register_socketcan(void) {
             "VCID", "canxl.vcid", FT_UINT32, BASE_DEC, NULL, 0x00FF0000, NULL, HFILL } },
         { &hf_canxl_secflag, {
             "Simple Extended Context", "canxl.flags.sec", FT_BOOLEAN, 8, NULL, CANXL_SEC, NULL, HFILL } },
+        { &hf_canxl_xlflag, {
+            "XL Frame", "canxl.flags.xl", FT_BOOLEAN, 8, NULL, CANXL_XLF, NULL, HFILL } },
         { &hf_canxl_sdu_type, {
             "SDU type", "canxl.sdu_type", FT_UINT8, BASE_HEX, VALS(canxl_sdu_type_vals), 0, NULL, HFILL } },
         { &hf_canxl_len, {
@@ -979,7 +960,7 @@ proto_register_socketcan(void) {
     uat_t *sender_receiver_uat = NULL;
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_can,
         &ett_can_fd,
         &ett_can_xl
@@ -1041,7 +1022,7 @@ proto_register_socketcan(void) {
 
     canxl_sdu_type_dissector_table = register_dissector_table("canxl.sdu_type", "CAN XL SDU type",  proto_canxl, FT_UINT8, BASE_HEX);
 
-    heur_subdissector_list = register_heur_dissector_list("can", proto_can);
+    heur_subdissector_list = register_heur_dissector_list_with_description("can", "CAN heuristic", proto_can);
 
     static uat_field_t can_interface_mapping_uat_fields[] = {
         UAT_FLD_HEX(interface_configs,      interface_id,   "Interface ID",   "ID of the Interface with 0xffffffff = any (hex uint32 without leading 0x)"),
@@ -1053,7 +1034,7 @@ proto_register_socketcan(void) {
     can_interface_uat = uat_new("CAN Interface Mapping",
         sizeof(interface_config_t),         /* record size           */
         DATAFILE_CAN_INTERFACE_MAPPING,     /* filename              */
-        TRUE,                               /* from profile          */
+        true,                               /* from profile          */
         (void**)&interface_configs,         /* data_ptr              */
         &interface_config_num,              /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,             /* but not fields        */
@@ -1080,7 +1061,7 @@ proto_register_socketcan(void) {
     sender_receiver_uat = uat_new("Sender Receiver Config",
         sizeof(sender_receiver_config_t),   /* record size           */
         DATAFILE_CAN_SENDER_RECEIVER,       /* filename              */
-        TRUE,                               /* from profile          */
+        true,                               /* from profile          */
         (void**)&sender_receiver_configs,   /* data_ptr              */
         &sender_receiver_config_num,        /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,             /* but not fields        */

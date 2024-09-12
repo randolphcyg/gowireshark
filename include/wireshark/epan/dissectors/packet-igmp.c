@@ -110,57 +110,57 @@ void proto_reg_handoff_igmp(void);
 
 static dissector_handle_t igmp_handle, igmpv0_handle, igmpv1_handle, igmpv2_handle;
 
-static int proto_igmp = -1;
-static int hf_type = -1;
-static int hf_reserved = -1;
-static int hf_version = -1;
-static int hf_group_type = -1;
-static int hf_reply_code = -1;
-static int hf_reply_pending = -1;
-static int hf_checksum = -1;
-static int hf_checksum_status = -1;
-static int hf_identifier = -1;
-static int hf_access_key = -1;
-static int hf_max_resp = -1;
-static int hf_max_resp_exp = -1;
-static int hf_max_resp_mant = -1;
-static int hf_suppress = -1;
-static int hf_qrv = -1;
-static int hf_qqic = -1;
-static int hf_num_src = -1;
-static int hf_saddr = -1;
-static int hf_num_grp_recs = -1;
-static int hf_record_type = -1;
-static int hf_aux_data_len = -1;
-static int hf_maddr = -1;
-static int hf_aux_data = -1;
-static int hf_data = -1;
-static int hf_mtrace_max_hops = -1;
-static int hf_mtrace_saddr = -1;
-static int hf_mtrace_raddr = -1;
-static int hf_mtrace_rspaddr = -1;
-static int hf_mtrace_resp_ttl = -1;
-static int hf_mtrace_q_id = -1;
-static int hf_mtrace_q_arrival = -1;
-static int hf_mtrace_q_inaddr = -1;
-static int hf_mtrace_q_outaddr = -1;
-static int hf_mtrace_q_prevrtr = -1;
-static int hf_mtrace_q_inpkt = -1;
-static int hf_mtrace_q_outpkt = -1;
-static int hf_mtrace_q_total = -1;
-static int hf_mtrace_q_rtg_proto = -1;
-static int hf_mtrace_q_fwd_ttl = -1;
-static int hf_mtrace_q_mbz = -1;
-static int hf_mtrace_q_s = -1;
-static int hf_mtrace_q_src_mask = -1;
-static int hf_mtrace_q_fwd_code = -1;
+static int proto_igmp;
+static int hf_type;
+static int hf_reserved;
+static int hf_version;
+static int hf_group_type;
+static int hf_reply_code;
+static int hf_reply_pending;
+static int hf_checksum;
+static int hf_checksum_status;
+static int hf_identifier;
+static int hf_access_key;
+static int hf_max_resp;
+static int hf_max_resp_exp;
+static int hf_max_resp_mant;
+static int hf_suppress;
+static int hf_qrv;
+static int hf_qqic;
+static int hf_num_src;
+static int hf_saddr;
+static int hf_num_grp_recs;
+static int hf_record_type;
+static int hf_aux_data_len;
+static int hf_maddr;
+static int hf_aux_data;
+static int hf_data;
+static int hf_mtrace_max_hops;
+static int hf_mtrace_saddr;
+static int hf_mtrace_raddr;
+static int hf_mtrace_rspaddr;
+static int hf_mtrace_resp_ttl;
+static int hf_mtrace_q_id;
+static int hf_mtrace_q_arrival;
+static int hf_mtrace_q_inaddr;
+static int hf_mtrace_q_outaddr;
+static int hf_mtrace_q_prevrtr;
+static int hf_mtrace_q_inpkt;
+static int hf_mtrace_q_outpkt;
+static int hf_mtrace_q_total;
+static int hf_mtrace_q_rtg_proto;
+static int hf_mtrace_q_fwd_ttl;
+static int hf_mtrace_q_mbz;
+static int hf_mtrace_q_s;
+static int hf_mtrace_q_src_mask;
+static int hf_mtrace_q_fwd_code;
 
-static int ett_igmp = -1;
-static int ett_group_record = -1;
-static int ett_max_resp = -1;
-static int ett_mtrace_block = -1;
+static int ett_igmp;
+static int ett_group_record;
+static int ett_max_resp;
+static int ett_mtrace_block;
 
-static expert_field ei_checksum = EI_INIT;
+static expert_field ei_checksum;
 
 static dissector_table_t   subdissector_table;
 
@@ -275,7 +275,7 @@ static const value_string mtrace_fwd_code_vals[] = {
 };
 
 void igmp_checksum(proto_tree *tree, tvbuff_t *tvb, int hf_index,
-	int hf_index_status, expert_field* ei_index, packet_info *pinfo, guint len)
+	int hf_index_status, expert_field* ei_index, packet_info *pinfo, unsigned len)
 {
 	vec_t cksum_vec[1];
 
@@ -312,7 +312,7 @@ dissect_igmp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int* of
 	ti = proto_tree_add_item(tree, proto_igmp, tvb, 0, -1, ENC_NA);
 	igmp_tree = proto_item_add_subtree(ti, ett_igmp);
 
-	*type = tvb_get_guint8(tvb, 0);
+	*type = tvb_get_uint8(tvb, 0);
 	col_add_str(pinfo->cinfo, COL_INFO, val_to_str(*type, commands, "Unknown Type:0x%02x"));
 
 	/* version of IGMP protocol */
@@ -343,7 +343,7 @@ dissect_igmp_unknown(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree)
 	ti = proto_tree_add_item(parent_tree, proto_igmp, tvb, offset, -1, ENC_NA);
 	tree = proto_item_add_subtree(ti, ett_igmp);
 
-	type = tvb_get_guint8(tvb, offset);
+	type = tvb_get_uint8(tvb, offset);
 	col_add_str(pinfo->cinfo, COL_INFO,
 		val_to_str(type, commands, "Unknown Type:0x%02x"));
 
@@ -369,10 +369,10 @@ dissect_v3_max_resp(tvbuff_t *tvb, proto_tree *parent_tree, int offset)
 {
 	proto_tree *tree;
 	proto_item *item;
-	guint8 bits;
-	guint32 tsecs;
+	uint8_t bits;
+	uint32_t tsecs;
 
-	bits = tvb_get_guint8(tvb, offset);
+	bits = tvb_get_uint8(tvb, offset);
 	if (bits&0x80) {
 		tsecs = ((bits&IGMP_MAX_RESP_MANT)|0x10);
 		tsecs = tsecs << ( ((bits&IGMP_MAX_RESP_EXP)>>4) + 3);
@@ -418,24 +418,24 @@ dissect_v3_group_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tr
 	proto_tree *tree;
 	proto_item *item;
 	int old_offset = offset;
-	guint8	adl;
-	guint16 num;
-	const gchar *maddr_str;
-	guint8 record_type;
+	uint8_t	adl;
+	uint16_t num;
+	const char *maddr_str;
+	uint8_t record_type;
 
 	tree = proto_tree_add_subtree_format(parent_tree, tvb, offset, -1,
 			ett_group_record, &item, "Group Record : %s  %s",
 			tvb_ip_to_str(pinfo->pool, tvb, offset+4),
-			val_to_str_const(tvb_get_guint8(tvb, offset), vs_record_type,"")
+			val_to_str_const(tvb_get_uint8(tvb, offset), vs_record_type,"")
 		);
 
 	/* record type */
-	record_type = tvb_get_guint8(tvb, offset);
+	record_type = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(tree, hf_record_type, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset += 1;
 
 	/* aux data len */
-	adl = tvb_get_guint8(tvb, offset);
+	adl = tvb_get_uint8(tvb, offset);
 	proto_tree_add_uint(tree, hf_aux_data_len, tvb, offset, 1, adl);
 	offset += 1;
 
@@ -531,7 +531,7 @@ static int
 dissect_igmp_v3_report(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* data _U_)
 {
 	proto_tree* tree;
-	guint16 num;
+	uint16_t num;
 	int offset;
 	unsigned char type;
 
@@ -565,7 +565,7 @@ static int
 dissect_igmp_v3_query(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* data _U_)
 {
 	proto_tree* tree;
-	guint16 num;
+	uint16_t num;
 	int offset;
 	unsigned char type;
 
@@ -618,14 +618,14 @@ static int
 dissect_igmp_v2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* data _U_)
 {
 	proto_tree* tree;
-	guint8 tsecs;
+	uint8_t tsecs;
 	int offset;
 	unsigned char type;
 
 	tree = dissect_igmp_common(tvb, pinfo, parent_tree, &offset, &type, 2);
 
 	/* max resp time */
-	tsecs = tvb_get_guint8(tvb, offset);
+	tsecs = tvb_get_uint8(tvb, offset);
 	proto_tree_add_uint_format_value(tree, hf_max_resp, tvb,
 		offset, 1, tsecs, "%.1f sec (0x%02x)", tsecs*0.1,tsecs);
 	offset += 1;
@@ -695,7 +695,7 @@ dissect_igmp_v0(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void
 	tree = dissect_igmp_common(tvb, pinfo, parent_tree, &offset, &type, 0);
 
 	/* Code */
-	code = tvb_get_guint8(tvb, offset);
+	code = tvb_get_uint8(tvb, offset);
 	if (type==IGMP_V0_CREATE_GROUP_REQUEST) {
 		proto_tree_add_uint(tree, hf_group_type, tvb, offset, 1, code);
 	} else if (!(type&0x01)) {
@@ -735,7 +735,7 @@ dissect_igmp_mquery(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, 
 	}
 
 	/* v1 and v2 differs in second byte of header */
-	if (tvb_get_guint8(tvb, 1)) {
+	if (tvb_get_uint8(tvb, 1)) {
 		return dissect_igmp_v2(tvb, pinfo, parent_tree, data);
 	}
 
@@ -767,7 +767,7 @@ dissect_igmp_mtrace(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, 
 	 * IGMP packet length. Queries are only
 	 * IGMP_TRACEROUTE_HDR_LEN bytes long.
 	 */
-	type = tvb_get_guint8(tvb, offset);
+	type = tvb_get_uint8(tvb, offset);
 	if (type == IGMP_TRACEROUTE_RESPONSE) {
 		int i = (tvb_reported_length_remaining(tvb, offset) - IGMP_TRACEROUTE_HDR_LEN) / IGMP_TRACEROUTE_RSP_LEN;
 		snprintf(buf, sizeof buf, ", %d block%s", i, plurality(i, "", "s"));
@@ -830,8 +830,8 @@ dissect_igmp_mtrace(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, 
 			ett_mtrace_block, NULL, "Response data block: %s -> %s,  Proto: %s,  Forwarding Code: %s",
 			tvb_ip_to_str(pinfo->pool, tvb, offset + 4),
 			tvb_ip_to_str(pinfo->pool, tvb, offset + 8),
-			val_to_str_const(tvb_get_guint8(tvb, offset + 28), mtrace_rtg_vals, "Unknown"),
-			val_to_str_const(tvb_get_guint8(tvb, offset + 31), mtrace_fwd_code_vals, "Unknown"));
+			val_to_str_const(tvb_get_uint8(tvb, offset + 28), mtrace_rtg_vals, "Unknown"),
+			val_to_str_const(tvb_get_uint8(tvb, offset + 31), mtrace_fwd_code_vals, "Unknown"));
 
 		/* Query Arrival Time */
 		proto_tree_add_item(block_tree, hf_mtrace_q_arrival, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -889,7 +889,7 @@ dissect_igmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* d
 	int offset = 0;
 	unsigned char type;
 
-	type = tvb_get_guint8(tvb, offset);
+	type = tvb_get_uint8(tvb, offset);
 
 	if (!dissector_try_uint(subdissector_table, type, tvb, pinfo, parent_tree))
 	{
@@ -1075,7 +1075,7 @@ proto_register_igmp(void)
 			VALS(mtrace_fwd_code_vals), 0, "Forwarding information/error code", HFILL }},
 
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_igmp,
 		&ett_group_record,
 		&ett_max_resp,

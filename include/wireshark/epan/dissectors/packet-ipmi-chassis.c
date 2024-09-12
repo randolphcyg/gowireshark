@@ -19,141 +19,141 @@ void proto_register_ipmi_chassis(void);
 
 /* Local variables.
  */
-static gint ett_ipmi_chs_bo00_byte1 = -1;
-static gint ett_ipmi_chs_bo02_byte1 = -1;
-static gint ett_ipmi_chs_bo03_byte1 = -1;
-static gint ett_ipmi_chs_bo04_byte2 = -1;
-static gint ett_ipmi_chs_bo05_byte1 = -1;
-static gint ett_ipmi_chs_bo05_byte2 = -1;
-static gint ett_ipmi_chs_bo05_byte3 = -1;
-static gint ett_ipmi_chs_bo05_byte4 = -1;
-static gint ett_ipmi_chs_bo06_byte1 = -1;
+static int ett_ipmi_chs_bo00_byte1;
+static int ett_ipmi_chs_bo02_byte1;
+static int ett_ipmi_chs_bo03_byte1;
+static int ett_ipmi_chs_bo04_byte2;
+static int ett_ipmi_chs_bo05_byte1;
+static int ett_ipmi_chs_bo05_byte2;
+static int ett_ipmi_chs_bo05_byte3;
+static int ett_ipmi_chs_bo05_byte4;
+static int ett_ipmi_chs_bo06_byte1;
 
-static gint ett_ipmi_chs_00_capflags = -1;
-static gint ett_ipmi_chs_01_pwr_state = -1;
-static gint ett_ipmi_chs_01_last_event = -1;
-static gint ett_ipmi_chs_01_misc = -1;
-static gint ett_ipmi_chs_01_fpb = -1;
-static gint ett_ipmi_chs_02_byte1 = -1;
-static gint ett_ipmi_chs_04_byte2 = -1;
-static gint ett_ipmi_chs_05_flags = -1;
-static gint ett_ipmi_chs_06_byte1 = -1;
-static gint ett_ipmi_chs_06_policy_support = -1;
-static gint ett_ipmi_chs_07_byte1 = -1;
-static gint ett_ipmi_chs_08_byte1 = -1;
-static gint ett_ipmi_chs_09_rq_byte1 = -1;
-static gint ett_ipmi_chs_09_rs_byte1 = -1;
-static gint ett_ipmi_chs_09_rs_byte2 = -1;
+static int ett_ipmi_chs_00_capflags;
+static int ett_ipmi_chs_01_pwr_state;
+static int ett_ipmi_chs_01_last_event;
+static int ett_ipmi_chs_01_misc;
+static int ett_ipmi_chs_01_fpb;
+static int ett_ipmi_chs_02_byte1;
+static int ett_ipmi_chs_04_byte2;
+static int ett_ipmi_chs_05_flags;
+static int ett_ipmi_chs_06_byte1;
+static int ett_ipmi_chs_06_policy_support;
+static int ett_ipmi_chs_07_byte1;
+static int ett_ipmi_chs_08_byte1;
+static int ett_ipmi_chs_09_rq_byte1;
+static int ett_ipmi_chs_09_rs_byte1;
+static int ett_ipmi_chs_09_rs_byte2;
 
-static gint hf_ipmi_chs_bo00_sip = -1;
-static gint hf_ipmi_chs_bo01_spsel = -1;
-static gint hf_ipmi_chs_bo02_request = -1;
-static gint hf_ipmi_chs_bo02_discovered = -1;
-static gint hf_ipmi_chs_bo03_pef = -1;
-static gint hf_ipmi_chs_bo03_cctrl_timeout = -1;
-static gint hf_ipmi_chs_bo03_wd_timeout = -1;
-static gint hf_ipmi_chs_bo03_softreset = -1;
-static gint hf_ipmi_chs_bo03_powerup = -1;
-static gint hf_ipmi_chs_bo04_write_mask = -1;
-static gint hf_ipmi_chs_bo04_bootinit_ack_oem = -1;
-static gint hf_ipmi_chs_bo04_bootinit_ack_sms = -1;
-static gint hf_ipmi_chs_bo04_bootinit_ack_os = -1;
-static gint hf_ipmi_chs_bo04_bootinit_ack_osloader = -1;
-static gint hf_ipmi_chs_bo04_bootinit_ack_bios = -1;
-static gint hf_ipmi_chs_bo05_bootflags_valid = -1;
-static gint hf_ipmi_chs_bo05_permanent = -1;
-static gint hf_ipmi_chs_bo05_boottype = -1;
-static gint hf_ipmi_chs_bo05_cmos_clear = -1;
-static gint hf_ipmi_chs_bo05_lock_kbd = -1;
-static gint hf_ipmi_chs_bo05_bootdev = -1;
-static gint hf_ipmi_chs_bo05_screen_blank = -1;
-static gint hf_ipmi_chs_bo05_lockout_reset = -1;
-static gint hf_ipmi_chs_bo05_lockout_poweroff = -1;
-static gint hf_ipmi_chs_bo05_bios_verbosity = -1;
-static gint hf_ipmi_chs_bo05_progress_traps = -1;
-static gint hf_ipmi_chs_bo05_pwd_bypass = -1;
-static gint hf_ipmi_chs_bo05_lock_sleep = -1;
-static gint hf_ipmi_chs_bo05_console_redirection = -1;
-static gint hf_ipmi_chs_bo05_bios_shared_override = -1;
-static gint hf_ipmi_chs_bo05_bios_muxctl_override = -1;
-static gint hf_ipmi_chs_bo05_byte5 = -1;
-static gint hf_ipmi_chs_bo06_chan_num = -1;
-static gint hf_ipmi_chs_bo06_session_id = -1;
-static gint hf_ipmi_chs_bo06_bootinfo_timestamp = -1;
-static gint hf_ipmi_chs_bo07_block_selector = -1;
-static gint hf_ipmi_chs_bo07_block_data = -1;
+static int hf_ipmi_chs_bo00_sip;
+static int hf_ipmi_chs_bo01_spsel;
+static int hf_ipmi_chs_bo02_request;
+static int hf_ipmi_chs_bo02_discovered;
+static int hf_ipmi_chs_bo03_pef;
+static int hf_ipmi_chs_bo03_cctrl_timeout;
+static int hf_ipmi_chs_bo03_wd_timeout;
+static int hf_ipmi_chs_bo03_softreset;
+static int hf_ipmi_chs_bo03_powerup;
+static int hf_ipmi_chs_bo04_write_mask;
+static int hf_ipmi_chs_bo04_bootinit_ack_oem;
+static int hf_ipmi_chs_bo04_bootinit_ack_sms;
+static int hf_ipmi_chs_bo04_bootinit_ack_os;
+static int hf_ipmi_chs_bo04_bootinit_ack_osloader;
+static int hf_ipmi_chs_bo04_bootinit_ack_bios;
+static int hf_ipmi_chs_bo05_bootflags_valid;
+static int hf_ipmi_chs_bo05_permanent;
+static int hf_ipmi_chs_bo05_boottype;
+static int hf_ipmi_chs_bo05_cmos_clear;
+static int hf_ipmi_chs_bo05_lock_kbd;
+static int hf_ipmi_chs_bo05_bootdev;
+static int hf_ipmi_chs_bo05_screen_blank;
+static int hf_ipmi_chs_bo05_lockout_reset;
+static int hf_ipmi_chs_bo05_lockout_poweroff;
+static int hf_ipmi_chs_bo05_bios_verbosity;
+static int hf_ipmi_chs_bo05_progress_traps;
+static int hf_ipmi_chs_bo05_pwd_bypass;
+static int hf_ipmi_chs_bo05_lock_sleep;
+static int hf_ipmi_chs_bo05_console_redirection;
+static int hf_ipmi_chs_bo05_bios_shared_override;
+static int hf_ipmi_chs_bo05_bios_muxctl_override;
+static int hf_ipmi_chs_bo05_byte5;
+static int hf_ipmi_chs_bo06_chan_num;
+static int hf_ipmi_chs_bo06_session_id;
+static int hf_ipmi_chs_bo06_bootinfo_timestamp;
+static int hf_ipmi_chs_bo07_block_selector;
+static int hf_ipmi_chs_bo07_block_data;
 
-static gint hf_ipmi_chs_00_capflags_ppi = -1;
-static gint hf_ipmi_chs_00_capflags_di = -1;
-static gint hf_ipmi_chs_00_capflags_fpl = -1;
-static gint hf_ipmi_chs_00_capflags_is = -1;
-static gint hf_ipmi_chs_00_fru_dev_addr = -1;
-static gint hf_ipmi_chs_00_sdr_dev_addr = -1;
-static gint hf_ipmi_chs_00_sel_dev_addr = -1;
-static gint hf_ipmi_chs_00_sm_dev_addr = -1;
-static gint hf_ipmi_chs_00_bridge_dev_addr = -1;
+static int hf_ipmi_chs_00_capflags_ppi;
+static int hf_ipmi_chs_00_capflags_di;
+static int hf_ipmi_chs_00_capflags_fpl;
+static int hf_ipmi_chs_00_capflags_is;
+static int hf_ipmi_chs_00_fru_dev_addr;
+static int hf_ipmi_chs_00_sdr_dev_addr;
+static int hf_ipmi_chs_00_sel_dev_addr;
+static int hf_ipmi_chs_00_sm_dev_addr;
+static int hf_ipmi_chs_00_bridge_dev_addr;
 
-static gint hf_ipmi_chs_01_pwr_state_policy = -1;
-static gint hf_ipmi_chs_01_pwr_state_ctl_fault = -1;
-static gint hf_ipmi_chs_01_pwr_state_fault = -1;
-static gint hf_ipmi_chs_01_pwr_state_ilock = -1;
-static gint hf_ipmi_chs_01_pwr_state_overload = -1;
-static gint hf_ipmi_chs_01_pwr_state_powered = -1;
-static gint hf_ipmi_chs_01_last_event_via_ipmi = -1;
-static gint hf_ipmi_chs_01_last_event_down_by_fault = -1;
-static gint hf_ipmi_chs_01_last_event_interlock = -1;
-static gint hf_ipmi_chs_01_last_event_overload = -1;
-static gint hf_ipmi_chs_01_last_event_ac_failed = -1;
-static gint hf_ipmi_chs_01_misc_identsupp = -1;
-static gint hf_ipmi_chs_01_misc_identstate = -1;
-static gint hf_ipmi_chs_01_misc_fan = -1;
-static gint hf_ipmi_chs_01_misc_drive = -1;
-static gint hf_ipmi_chs_01_misc_fpl_active = -1;
-static gint hf_ipmi_chs_01_misc_intrusion = -1;
-static gint hf_ipmi_chs_01_fpb_standby_allowed = -1;
-static gint hf_ipmi_chs_01_fpb_diagintr_allowed = -1;
-static gint hf_ipmi_chs_01_fpb_reset_allowed = -1;
-static gint hf_ipmi_chs_01_fpb_poweroff_allowed = -1;
-static gint hf_ipmi_chs_01_fpb_standby_disabled = -1;
-static gint hf_ipmi_chs_01_fpb_diagintr_disabled = -1;
-static gint hf_ipmi_chs_01_fpb_reset_disabled = -1;
-static gint hf_ipmi_chs_01_fpb_poweroff_disabled = -1;
+static int hf_ipmi_chs_01_pwr_state_policy;
+static int hf_ipmi_chs_01_pwr_state_ctl_fault;
+static int hf_ipmi_chs_01_pwr_state_fault;
+static int hf_ipmi_chs_01_pwr_state_ilock;
+static int hf_ipmi_chs_01_pwr_state_overload;
+static int hf_ipmi_chs_01_pwr_state_powered;
+static int hf_ipmi_chs_01_last_event_via_ipmi;
+static int hf_ipmi_chs_01_last_event_down_by_fault;
+static int hf_ipmi_chs_01_last_event_interlock;
+static int hf_ipmi_chs_01_last_event_overload;
+static int hf_ipmi_chs_01_last_event_ac_failed;
+static int hf_ipmi_chs_01_misc_identsupp;
+static int hf_ipmi_chs_01_misc_identstate;
+static int hf_ipmi_chs_01_misc_fan;
+static int hf_ipmi_chs_01_misc_drive;
+static int hf_ipmi_chs_01_misc_fpl_active;
+static int hf_ipmi_chs_01_misc_intrusion;
+static int hf_ipmi_chs_01_fpb_standby_allowed;
+static int hf_ipmi_chs_01_fpb_diagintr_allowed;
+static int hf_ipmi_chs_01_fpb_reset_allowed;
+static int hf_ipmi_chs_01_fpb_poweroff_allowed;
+static int hf_ipmi_chs_01_fpb_standby_disabled;
+static int hf_ipmi_chs_01_fpb_diagintr_disabled;
+static int hf_ipmi_chs_01_fpb_reset_disabled;
+static int hf_ipmi_chs_01_fpb_poweroff_disabled;
 
-static gint hf_ipmi_chs_02_cctrl = -1;
+static int hf_ipmi_chs_02_cctrl;
 
-static gint hf_ipmi_chs_04_ival = -1;
-static gint hf_ipmi_chs_04_perm_on = -1;
+static int hf_ipmi_chs_04_ival;
+static int hf_ipmi_chs_04_perm_on;
 
-static gint hf_ipmi_chs_05_flags_fpl = -1;
-static gint hf_ipmi_chs_05_flags_intrusion = -1;
-static gint hf_ipmi_chs_05_fru_dev_addr = -1;
-static gint hf_ipmi_chs_05_sdr_dev_addr = -1;
-static gint hf_ipmi_chs_05_sel_dev_addr = -1;
-static gint hf_ipmi_chs_05_sm_dev_addr = -1;
-static gint hf_ipmi_chs_05_bridge_dev_addr = -1;
+static int hf_ipmi_chs_05_flags_fpl;
+static int hf_ipmi_chs_05_flags_intrusion;
+static int hf_ipmi_chs_05_fru_dev_addr;
+static int hf_ipmi_chs_05_sdr_dev_addr;
+static int hf_ipmi_chs_05_sel_dev_addr;
+static int hf_ipmi_chs_05_sm_dev_addr;
+static int hf_ipmi_chs_05_bridge_dev_addr;
 
-static gint hf_ipmi_chs_06_rq_policy = -1;
-static gint hf_ipmi_chs_06_rs_policy_support_powerup = -1;
-static gint hf_ipmi_chs_06_rs_policy_support_restore = -1;
-static gint hf_ipmi_chs_06_rs_policy_support_poweroff = -1;
+static int hf_ipmi_chs_06_rq_policy;
+static int hf_ipmi_chs_06_rs_policy_support_powerup;
+static int hf_ipmi_chs_06_rs_policy_support_restore;
+static int hf_ipmi_chs_06_rs_policy_support_poweroff;
 
-static gint hf_ipmi_chs_07_cause = -1;
-static gint hf_ipmi_chs_07_chan = -1;
+static int hf_ipmi_chs_07_cause;
+static int hf_ipmi_chs_07_chan;
 
-static gint hf_ipmi_chs_08_valid = -1;
-static gint hf_ipmi_chs_08_selector = -1;
-static gint hf_ipmi_chs_08_data = -1;
+static int hf_ipmi_chs_08_valid;
+static int hf_ipmi_chs_08_selector;
+static int hf_ipmi_chs_08_data;
 
-static gint hf_ipmi_chs_09_rq_param_select = -1;
-static gint hf_ipmi_chs_09_rq_set_select = -1;
-static gint hf_ipmi_chs_09_rq_block_select = -1;
-static gint hf_ipmi_chs_09_rs_param_version = -1;
-static gint hf_ipmi_chs_09_rs_valid = -1;
-static gint hf_ipmi_chs_09_rs_param_select = -1;
-static gint hf_ipmi_chs_09_rs_param_data = -1;
+static int hf_ipmi_chs_09_rq_param_select;
+static int hf_ipmi_chs_09_rq_set_select;
+static int hf_ipmi_chs_09_rq_block_select;
+static int hf_ipmi_chs_09_rs_param_version;
+static int hf_ipmi_chs_09_rs_valid;
+static int hf_ipmi_chs_09_rs_param_select;
+static int hf_ipmi_chs_09_rs_param_data;
 
-static gint hf_ipmi_chs_0f_minpercnt = -1;
-static gint hf_ipmi_chs_0f_counter = -1;
+static int hf_ipmi_chs_0f_minpercnt;
+static int hf_ipmi_chs_0f_counter;
 
 static const struct true_false_string tfs_00_provided = { "Provided", "Not Provided" };
 
@@ -555,10 +555,10 @@ rq08(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
 	proto_tree *s_tree;
 	tvbuff_t *sub;
-	guint8 pno;
+	uint8_t pno;
 	const char *desc;
 
-	pno = tvb_get_guint8(tvb, 0) & 0x7f;
+	pno = tvb_get_uint8(tvb, 0) & 0x7f;
 	if (pno < array_length(boot_options)) {
 		desc = boot_options[pno].name;
 	} else if (pno >= 96 && pno <= 127) {
@@ -600,10 +600,10 @@ static void
 rq09(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
 {
 	proto_tree *s_tree;
-	guint8 pno;
+	uint8_t pno;
 	const char *desc;
 
-	pno = tvb_get_guint8(tvb, 0) & 0x7f;
+	pno = tvb_get_uint8(tvb, 0) & 0x7f;
 	if (pno < array_length(boot_options)) {
 		desc = boot_options[pno].name;
 	} else if (pno >= 96 && pno <= 127) {
@@ -630,10 +630,10 @@ rs09(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 	static int * const byte1[] = { &hf_ipmi_chs_09_rs_param_version, NULL };
 	proto_tree *s_tree;
 	tvbuff_t *sub;
-	guint8 pno;
+	uint8_t pno;
 	const char *desc;
 
-	pno = tvb_get_guint8(tvb, 1) & 0x7f;
+	pno = tvb_get_uint8(tvb, 1) & 0x7f;
 	if (pno < array_length(boot_options)) {
 		desc = boot_options[pno].name;
 	} else if (pno >= 96 && pno <= 127) {
@@ -675,7 +675,7 @@ rs0f(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
 	proto_tree_add_item(tree, hf_ipmi_chs_0f_counter, tvb, 1, 4, ENC_LITTLE_ENDIAN);
 }
 
-static ipmi_cmd_t cmd_chassis[] = {
+static const ipmi_cmd_t cmd_chassis[] = {
 	/* Chassis commands */
 	{ 0x00, NULL, rs00, NULL, NULL, "Get Chassis Capabilities", 0 },
 	{ 0x01, NULL, rs01, NULL, NULL, "Get Chassis Status", 0 },
@@ -1005,7 +1005,7 @@ proto_register_ipmi_chassis(void)
 				"ipmi.ch0f.counter", FT_UINT32, BASE_DEC, NULL, 0, NULL, HFILL }},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_ipmi_chs_bo00_byte1,
 		&ett_ipmi_chs_bo02_byte1,
 		&ett_ipmi_chs_bo03_byte1,

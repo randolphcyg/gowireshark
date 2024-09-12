@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-q932.c                                                              */
-/* asn2wrs.py -b -L -p q932 -c ./q932.cnf -s ./packet-q932-template -D . -O ../.. Addressing-Data-Elements.asn Network-Facility-Extension.asn Network-Protocol-Profile-component.asn Interpretation-component.asn */
+/* asn2wrs.py -b -q -L -p q932 -c ./q932.cnf -s ./packet-q932-template -D . -O ../.. Addressing-Data-Elements.asn Network-Facility-Extension.asn Network-Protocol-Profile-component.asn Interpretation-component.asn */
 
 /* packet-q932.c
  * Routines for Q.932 packet dissection
@@ -21,6 +21,7 @@
 #include <epan/strutil.h>
 #include <epan/asn1.h>
 #include <epan/prefs.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-q932.h"
@@ -32,71 +33,71 @@
 void proto_register_q932(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_q932 = -1;
-static int hf_q932_ie_type = -1;
-static int hf_q932_ie_len = -1;
-static int hf_q932_ie_data = -1;
-static int hf_q932_pp = -1;
-static int hf_q932_nd = -1;
-static int hf_q932_NetworkFacilityExtension_PDU = -1;  /* NetworkFacilityExtension */
-static int hf_q932_NetworkProtocolProfile_PDU = -1;  /* NetworkProtocolProfile */
-static int hf_q932_InterpretationComponent_PDU = -1;  /* InterpretationComponent */
-static int hf_q932_presentationAlIowedAddress = -1;  /* AddressScreened */
-static int hf_q932_presentationRestricted = -1;   /* NULL */
-static int hf_q932_numberNotAvailableDueTolnterworking = -1;  /* NULL */
-static int hf_q932_presentationRestrictedAddressScreened = -1;  /* AddressScreened */
-static int hf_q932_presentationAllowedAddress = -1;  /* Address */
-static int hf_q932_presentationRestrictedAddress = -1;  /* Address */
-static int hf_q932_presentationAllowedNumberScreened = -1;  /* NumberScreened */
-static int hf_q932_numberNotAvailableDueToInterworking = -1;  /* NULL */
-static int hf_q932_presentationRestrictedNumberScreened = -1;  /* NumberScreened */
-static int hf_q932_presentationAllowedNumber = -1;  /* PartyNumber */
-static int hf_q932_presentationRestrictedNumber = -1;  /* PartyNumber */
-static int hf_q932_partyNumber = -1;              /* PartyNumber */
-static int hf_q932_screeninglndicator = -1;       /* ScreeningIndicator */
-static int hf_q932_partySubaddress = -1;          /* PartySubaddress */
-static int hf_q932_screeningIndicator = -1;       /* ScreeningIndicator */
-static int hf_q932_unknownPartyNumber = -1;       /* NumberDigits */
-static int hf_q932_publicPartyNumber = -1;        /* PublicPartyNumber */
-static int hf_q932_nsapEncodedNumber = -1;        /* NsapEncodedNumber */
-static int hf_q932_dataPartyNumber = -1;          /* NumberDigits */
-static int hf_q932_telexPartyNumber = -1;         /* NumberDigits */
-static int hf_q932_privatePartyNumber = -1;       /* PrivatePartyNumber */
-static int hf_q932_nationalStandardPartyNumber = -1;  /* NumberDigits */
-static int hf_q932_publicTypeOfNumber = -1;       /* PublicTypeOfNumber */
-static int hf_q932_publicNumberDigits = -1;       /* NumberDigits */
-static int hf_q932_privateTypeOfNumber = -1;      /* PrivateTypeOfNumber */
-static int hf_q932_privateNumberDigits = -1;      /* NumberDigits */
-static int hf_q932_userSpecifiedSubaddress = -1;  /* UserSpecifiedSubaddress */
-static int hf_q932_nSAPSubaddress = -1;           /* NSAPSubaddress */
-static int hf_q932_subaddressInformation = -1;    /* SubaddressInformation */
-static int hf_q932_oddCountIndicator = -1;        /* BOOLEAN */
-static int hf_q932_sourceEntity = -1;             /* EntityType */
-static int hf_q932_sourceEntityAddress = -1;      /* AddressInformation */
-static int hf_q932_destinationEntity = -1;        /* EntityType */
-static int hf_q932_destinationEntityAddress = -1;  /* AddressInformation */
+static int proto_q932;
+static int hf_q932_ie_type;
+static int hf_q932_ie_len;
+static int hf_q932_ie_data;
+static int hf_q932_pp;
+static int hf_q932_nd;
+static int hf_q932_NetworkFacilityExtension_PDU;  /* NetworkFacilityExtension */
+static int hf_q932_NetworkProtocolProfile_PDU;    /* NetworkProtocolProfile */
+static int hf_q932_InterpretationComponent_PDU;   /* InterpretationComponent */
+static int hf_q932_presentationAlIowedAddress;    /* AddressScreened */
+static int hf_q932_presentationRestricted;        /* NULL */
+static int hf_q932_numberNotAvailableDueTolnterworking;  /* NULL */
+static int hf_q932_presentationRestrictedAddressScreened;  /* AddressScreened */
+static int hf_q932_presentationAllowedAddress;    /* Address */
+static int hf_q932_presentationRestrictedAddress;  /* Address */
+static int hf_q932_presentationAllowedNumberScreened;  /* NumberScreened */
+static int hf_q932_numberNotAvailableDueToInterworking;  /* NULL */
+static int hf_q932_presentationRestrictedNumberScreened;  /* NumberScreened */
+static int hf_q932_presentationAllowedNumber;     /* PartyNumber */
+static int hf_q932_presentationRestrictedNumber;  /* PartyNumber */
+static int hf_q932_partyNumber;                   /* PartyNumber */
+static int hf_q932_screeninglndicator;            /* ScreeningIndicator */
+static int hf_q932_partySubaddress;               /* PartySubaddress */
+static int hf_q932_screeningIndicator;            /* ScreeningIndicator */
+static int hf_q932_unknownPartyNumber;            /* NumberDigits */
+static int hf_q932_publicPartyNumber;             /* PublicPartyNumber */
+static int hf_q932_nsapEncodedNumber;             /* NsapEncodedNumber */
+static int hf_q932_dataPartyNumber;               /* NumberDigits */
+static int hf_q932_telexPartyNumber;              /* NumberDigits */
+static int hf_q932_privatePartyNumber;            /* PrivatePartyNumber */
+static int hf_q932_nationalStandardPartyNumber;   /* NumberDigits */
+static int hf_q932_publicTypeOfNumber;            /* PublicTypeOfNumber */
+static int hf_q932_publicNumberDigits;            /* NumberDigits */
+static int hf_q932_privateTypeOfNumber;           /* PrivateTypeOfNumber */
+static int hf_q932_privateNumberDigits;           /* NumberDigits */
+static int hf_q932_userSpecifiedSubaddress;       /* UserSpecifiedSubaddress */
+static int hf_q932_nSAPSubaddress;                /* NSAPSubaddress */
+static int hf_q932_subaddressInformation;         /* SubaddressInformation */
+static int hf_q932_oddCountIndicator;             /* BOOLEAN */
+static int hf_q932_sourceEntity;                  /* EntityType */
+static int hf_q932_sourceEntityAddress;           /* AddressInformation */
+static int hf_q932_destinationEntity;             /* EntityType */
+static int hf_q932_destinationEntityAddress;      /* AddressInformation */
 
 /* Initialize the subtree pointers */
-static gint ett_q932 = -1;
-static gint ett_q932_ie = -1;
-static gint ett_q932_PresentedAddressScreened = -1;
-static gint ett_q932_PresentedAddressUnscreened = -1;
-static gint ett_q932_PresentedNumberScreened = -1;
-static gint ett_q932_PresentedNumberUnscreened = -1;
-static gint ett_q932_AddressScreened = -1;
-static gint ett_q932_NumberScreened = -1;
-static gint ett_q932_Address = -1;
-static gint ett_q932_PartyNumber = -1;
-static gint ett_q932_PublicPartyNumber = -1;
-static gint ett_q932_PrivatePartyNumber = -1;
-static gint ett_q932_PartySubaddress = -1;
-static gint ett_q932_UserSpecifiedSubaddress = -1;
-static gint ett_q932_NetworkFacilityExtension_U = -1;
+static int ett_q932;
+static int ett_q932_ie;
+static int ett_q932_PresentedAddressScreened;
+static int ett_q932_PresentedAddressUnscreened;
+static int ett_q932_PresentedNumberScreened;
+static int ett_q932_PresentedNumberUnscreened;
+static int ett_q932_AddressScreened;
+static int ett_q932_NumberScreened;
+static int ett_q932_Address;
+static int ett_q932_PartyNumber;
+static int ett_q932_PublicPartyNumber;
+static int ett_q932_PrivatePartyNumber;
+static int ett_q932_PartySubaddress;
+static int ett_q932_UserSpecifiedSubaddress;
+static int ett_q932_NetworkFacilityExtension_U;
 
-static expert_field ei_q932_dse_not_supported = EI_INIT;
-static expert_field ei_q932_acse_not_supported = EI_INIT;
-static expert_field ei_q932_unknown_component = EI_INIT;
-static expert_field ei_q932_asn1_encoded = EI_INIT;
+static expert_field ei_q932_dse_not_supported;
+static expert_field ei_q932_acse_not_supported;
+static expert_field ei_q932_unknown_component;
+static expert_field ei_q932_asn1_encoded;
 
 
 /* Preferences */
@@ -114,7 +115,7 @@ dissector_table_t etsi_err_local_dissector_table;
 
 #define FACILITY_QSIG	0
 #define FACILITY_ETSI	1
-static gint g_facility_encoding = FACILITY_QSIG;
+static int g_facility_encoding = FACILITY_QSIG;
 
 void proto_reg_handoff_q932(void);
 
@@ -605,7 +606,7 @@ dissect_q932_NetworkFacilityExtension_U(bool implicit_tag _U_, tvbuff_t *tvb _U_
 static int
 dissect_q932_NetworkFacilityExtension(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
-                                      hf_index, BER_CLASS_CON, 10, TRUE, dissect_q932_NetworkFacilityExtension_U);
+                                      hf_index, BER_CLASS_CON, 10, true, dissect_q932_NetworkFacilityExtension_U);
 
   return offset;
 }
@@ -631,7 +632,7 @@ dissect_q932_NetworkProtocolProfile_U(bool implicit_tag _U_, tvbuff_t *tvb _U_, 
 static int
 dissect_q932_NetworkProtocolProfile(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
-                                      hf_index, BER_CLASS_CON, 18, TRUE, dissect_q932_NetworkProtocolProfile_U);
+                                      hf_index, BER_CLASS_CON, 18, true, dissect_q932_NetworkProtocolProfile_U);
 
   return offset;
 }
@@ -658,7 +659,7 @@ dissect_q932_InterpretationComponent_U(bool implicit_tag _U_, tvbuff_t *tvb _U_,
 static int
 dissect_q932_InterpretationComponent(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
-                                      hf_index, BER_CLASS_CON, 11, TRUE, dissect_q932_InterpretationComponent_U);
+                                      hf_index, BER_CLASS_CON, 11, true, dissect_q932_InterpretationComponent_U);
 
   return offset;
 }
@@ -668,22 +669,22 @@ dissect_q932_InterpretationComponent(bool implicit_tag _U_, tvbuff_t *tvb _U_, i
 static int dissect_NetworkFacilityExtension_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_q932_NetworkFacilityExtension(FALSE, tvb, offset, &asn1_ctx, tree, hf_q932_NetworkFacilityExtension_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_q932_NetworkFacilityExtension(false, tvb, offset, &asn1_ctx, tree, hf_q932_NetworkFacilityExtension_PDU);
   return offset;
 }
 static int dissect_NetworkProtocolProfile_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_q932_NetworkProtocolProfile(FALSE, tvb, offset, &asn1_ctx, tree, hf_q932_NetworkProtocolProfile_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_q932_NetworkProtocolProfile(false, tvb, offset, &asn1_ctx, tree, hf_q932_NetworkProtocolProfile_PDU);
   return offset;
 }
 static int dissect_InterpretationComponent_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_q932_InterpretationComponent(FALSE, tvb, offset, &asn1_ctx, tree, hf_q932_InterpretationComponent_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_q932_InterpretationComponent(false, tvb, offset, &asn1_ctx, tree, hf_q932_InterpretationComponent_PDU);
   return offset;
 }
 
@@ -691,10 +692,10 @@ static int dissect_InterpretationComponent_PDU(tvbuff_t *tvb _U_, packet_info *p
 /*--- dissect_q932_facility_ie -------------------------------------------------------*/
 static void
 dissect_q932_facility_ie(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, int length) {
-  gint8 appclass;
+  int8_t appclass;
   bool pc;
-  gint32 tag;
-  guint32 len;
+  int32_t tag;
+  uint32_t len;
   int hoffset, eoffset;
   int ie_end;
   tvbuff_t *next_tvb;
@@ -774,12 +775,12 @@ dissect_q932_facility_ie(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tr
 static void
 dissect_q932_ni_ie(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, int length) {
   int remain = length;
-  guint8 octet = 0;
-  guint32 value = 0;
+  uint8_t octet = 0;
+  uint32_t value = 0;
   proto_item* ti;
 
   while ((remain > 0) && !(octet & 0x80)) {
-    octet = tvb_get_guint8(tvb, offset++);
+    octet = tvb_get_uint8(tvb, offset++);
     remain--;
     value <<= 7;
     value |= octet & 0x7F;
@@ -794,18 +795,18 @@ dissect_q932_ni_ie(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tr
 /*--- dissect_q932_ie -------------------------------------------------------*/
 static int
 dissect_q932_ie(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
-  gint offset;
+  int offset;
   proto_item *ti;
   proto_tree *ie_tree;
-  guint8 ie_type, ie_len;
+  uint8_t ie_type, ie_len;
 
   offset = 0;
 
   ti = proto_tree_add_item(tree, proto_q932, tvb, offset, -1, ENC_NA);
   proto_item_set_hidden(ti);
 
-  ie_type = tvb_get_guint8(tvb, offset);
-  ie_len = tvb_get_guint8(tvb, offset + 1);
+  ie_type = tvb_get_uint8(tvb, offset);
+  ie_len = tvb_get_uint8(tvb, offset + 1);
 
   ie_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_q932_ie, NULL,
             val_to_str(ie_type, VALS(q932_str_ie_type), "unknown (0x%02X)"));
@@ -1007,7 +1008,7 @@ void proto_register_q932(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_q932,
     &ett_q932_ie,
     &ett_q932_PresentedAddressScreened,
@@ -1072,12 +1073,12 @@ void proto_register_q932(void) {
   prefs_register_enum_preference(q932_module, "facility_encoding",
                        "Type of Facility encoding",
                        "Type of Facility encoding",
-                       &g_facility_encoding, facility_encoding, FALSE);
+                       &g_facility_encoding, facility_encoding, false);
 }
 
 /*--- proto_reg_handoff_q932 ------------------------------------------------*/
 void proto_reg_handoff_q932(void) {
-  static gboolean q931_prefs_initialized = FALSE;
+  static bool q931_prefs_initialized = false;
 
   if (!q931_prefs_initialized) {
     /* Facility */
@@ -1086,7 +1087,7 @@ void proto_reg_handoff_q932(void) {
     dissector_add_uint("q931.ie", (0x00 << 8) | Q932_IE_NOTIFICATION_INDICATOR, q932_ie_handle);
     q932_ros_handle = find_dissector_add_dependency("q932.ros", proto_q932);
 
-    q931_prefs_initialized = TRUE;
+    q931_prefs_initialized = true;
   }
 
   if(g_facility_encoding == FACILITY_QSIG){

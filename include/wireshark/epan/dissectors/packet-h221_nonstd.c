@@ -18,16 +18,16 @@ void proto_reg_handoff_nonstd(void);
 static dissector_handle_t ms_nonstd_handle;
 
 /* Define the nonstd proto */
-static int proto_nonstd = -1;
+static int proto_nonstd;
 
-static int hf_h221_nonstd_netmeeting_codec = -1;
-static int hf_h221_nonstd_netmeeting_non_standard = -1;
+static int hf_h221_nonstd_netmeeting_codec;
+static int hf_h221_nonstd_netmeeting_non_standard;
 
 /*
  * Define the trees for nonstd
  * We need one for nonstd itself and one for the nonstd paramters
  */
-static int ett_nonstd = -1;
+static int ett_nonstd;
 
 static const value_string ms_codec_vals[] = {
     {  0x0111, "L&H CELP 4.8k" },
@@ -46,9 +46,9 @@ dissect_ms_nonstd(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void*
 {
     proto_item *it;
     proto_tree *tr;
-    guint32 offset=0;
-    gint tvb_len;
-    guint16 codec_extra;
+    uint32_t offset=0;
+    int tvb_len;
+    uint16_t codec_extra;
 
     it=proto_tree_add_protocol_format(tree, proto_nonstd, tvb, 0, tvb_reported_length(tvb), "Microsoft NonStd");
     tr=proto_item_add_subtree(it, ett_nonstd);
@@ -105,7 +105,7 @@ proto_register_nonstd(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_nonstd,
     };
 

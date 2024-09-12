@@ -15,7 +15,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
-
+#include <epan/tfs.h>
 #include <epan/llcsaps.h>
 #include "packet-bacnet.h"
 
@@ -196,114 +196,114 @@ static const true_false_string tfs_clear_do_not_clear = {
 	"Do Not Clear"
 };
 
-static int proto_bacnet = -1;
-static int hf_bacnet_version = -1;
-static int hf_bacnet_control = -1;
-static int hf_bacnet_control_net = -1;
-static int hf_bacnet_control_res1 = -1;
-static int hf_bacnet_control_dest = -1;
-static int hf_bacnet_control_res2 = -1;
-static int hf_bacnet_control_src = -1;
-static int hf_bacnet_control_expect = -1;
-static int hf_bacnet_control_prio_high = -1;
-static int hf_bacnet_control_prio_low = -1;
-static int hf_bacnet_dnet = -1;
-static int hf_bacnet_dlen = -1;
-static int hf_bacnet_dadr_eth = -1;
-static int hf_bacnet_dadr_mstp = -1;
-static int hf_bacnet_dadr_tmp = -1;
-static int hf_bacnet_snet = -1;
-static int hf_bacnet_slen = -1;
-static int hf_bacnet_sadr_eth = -1;
-static int hf_bacnet_sadr_mstp = -1;
-static int hf_bacnet_sadr_tmp = -1;
-static int hf_bacnet_hopc = -1;
-static int hf_bacnet_mesgtyp = -1;
-static int hf_bacnet_vendor = -1;
-static int hf_bacnet_perf = -1;
-static int hf_bacnet_rejectreason = -1;
-static int hf_bacnet_rportnum = -1;
-static int hf_bacnet_portid = -1;
-static int hf_bacnet_pinfo = -1;
-static int hf_bacnet_pinfolen = -1;
-static int hf_bacnet_term_time_value = -1;
-static int hf_bacnet_netno_status = -1;
+static int proto_bacnet;
+static int hf_bacnet_version;
+static int hf_bacnet_control;
+static int hf_bacnet_control_net;
+static int hf_bacnet_control_res1;
+static int hf_bacnet_control_dest;
+static int hf_bacnet_control_res2;
+static int hf_bacnet_control_src;
+static int hf_bacnet_control_expect;
+static int hf_bacnet_control_prio_high;
+static int hf_bacnet_control_prio_low;
+static int hf_bacnet_dnet;
+static int hf_bacnet_dlen;
+static int hf_bacnet_dadr_eth;
+static int hf_bacnet_dadr_mstp;
+static int hf_bacnet_dadr_tmp;
+static int hf_bacnet_snet;
+static int hf_bacnet_slen;
+static int hf_bacnet_sadr_eth;
+static int hf_bacnet_sadr_mstp;
+static int hf_bacnet_sadr_tmp;
+static int hf_bacnet_hopc;
+static int hf_bacnet_mesgtyp;
+static int hf_bacnet_vendor;
+static int hf_bacnet_perf;
+static int hf_bacnet_rejectreason;
+static int hf_bacnet_rportnum;
+static int hf_bacnet_portid;
+static int hf_bacnet_pinfo;
+static int hf_bacnet_pinfolen;
+static int hf_bacnet_term_time_value;
+static int hf_bacnet_netno_status;
 
-static int hf_bacnet_wrapper_control = -1;
-static int hf_bacnet_wrapper_control_secured_by_router = -1;
-static int hf_bacnet_wrapper_control_non_trusted_source = -1;
-static int hf_bacnet_wrapper_control_do_not_decrypt = -1;
-static int hf_bacnet_wrapper_control_do_not_unwrap = -1;
-static int hf_bacnet_wrapper_control_auth_data_present = -1;
-static int hf_bacnet_wrapper_control_reserved = -1;
-static int hf_bacnet_wrapper_control_msg_is_encrypted = -1;
-static int hf_bacnet_wrapper_control_msg_is_networklayer = -1;
-static int hf_bacnet_wrapper_key_revision = -1;
-static int hf_bacnet_wrapper_key_identifier = -1;
-static int hf_bacnet_wrapper_src_dev_instance = -1;
-static int hf_bacnet_wrapper_message_id = -1;
-static int hf_bacnet_wrapper_time_stamp = -1;
-static int hf_bacnet_wrapper_dst_dev_instance = -1;
-static int hf_bacnet_wrapper_dnet = -1;
-static int hf_bacnet_wrapper_dlen = -1;
-static int hf_bacnet_wrapper_dadr = -1;
-static int hf_bacnet_wrapper_snet = -1;
-static int hf_bacnet_wrapper_slen = -1;
-static int hf_bacnet_wrapper_sadr = -1;
-static int hf_bacnet_wrapper_auth_mech = -1;
-static int hf_bacnet_wrapper_auth_usr_id = -1;
-static int hf_bacnet_wrapper_auth_usr_role = -1;
-static int hf_bacnet_wrapper_auth_len = -1;
-static int hf_bacnet_wrapper_auth_data = -1;
-static int hf_bacnet_wrapper_signature = -1;
-static int hf_bacnet_wrapper_encrypted_data = -1;
-static int hf_bacnet_msg_is_challenged = -1;
-static int hf_bacnet_security_original_message_id = -1;
-static int hf_bacnet_security_original_time_stamp = -1;
-static int hf_bacnet_security_msg_len = -1;
-static int hf_bacnet_security_response_code = -1;
-static int hf_bacnet_security_response_expected_time_stamp = -1;
-static int hf_bacnet_security_response_key_algo = -1;
-static int hf_bacnet_security_response_key_id = -1;
-static int hf_bacnet_security_response_original_authentication_mech = -1;
-static int hf_bacnet_security_response_vendor_id = -1;
-static int hf_bacnet_security_response_key_revision = -1;
-static int hf_bacnet_security_response_number_keys = -1;
-static int hf_bacnet_security_set1_key_reveision = -1;
-static int hf_bacnet_security_set1_activation_time_stamp = -1;
-static int hf_bacnet_security_set1_expiration_time_stamp = -1;
-static int hf_bacnet_security_set1_key_algo = -1;
-static int hf_bacnet_security_set1_key_id = -1;
-static int hf_bacnet_security_set1_key_data = -1;
-static int hf_bacnet_security_set2_key_reveision = -1;
-static int hf_bacnet_security_set2_activation_time_stamp = -1;
-static int hf_bacnet_security_set2_expiration_time_stamp = -1;
-static int hf_bacnet_security_set2_key_algo = -1;
-static int hf_bacnet_security_set2_key_id = -1;
-static int hf_bacnet_security_set2_key_data = -1;
-static int hf_bacnet_security_dist_key_revision = -1;
-static int hf_bacnet_security_dist_key_algo = -1;
-static int hf_bacnet_security_dist_key_id = -1;
-static int hf_bacnet_security_dist_key_data = -1;
-static int hf_bacnet_security_master_key_algo = -1;
-static int hf_bacnet_security_master_key_id = -1;
-static int hf_bacnet_security_master_key_data = -1;
-static int hf_bacnet_update_control = -1;
-static int hf_bacnet_update_control_remove = -1;
-static int hf_bacnet_update_control_more_follows = -1;
-static int hf_bacnet_update_control_clear_set2 = -1;
-static int hf_bacnet_update_control_set2_params_present = -1;
-static int hf_bacnet_update_control_set2_times_present = -1;
-static int hf_bacnet_update_control_clear_set1 = -1;
-static int hf_bacnet_update_control_set1_params_present = -1;
-static int hf_bacnet_update_control_set1_times_present = -1;
+static int hf_bacnet_wrapper_control;
+static int hf_bacnet_wrapper_control_secured_by_router;
+static int hf_bacnet_wrapper_control_non_trusted_source;
+static int hf_bacnet_wrapper_control_do_not_decrypt;
+static int hf_bacnet_wrapper_control_do_not_unwrap;
+static int hf_bacnet_wrapper_control_auth_data_present;
+static int hf_bacnet_wrapper_control_reserved;
+static int hf_bacnet_wrapper_control_msg_is_encrypted;
+static int hf_bacnet_wrapper_control_msg_is_networklayer;
+static int hf_bacnet_wrapper_key_revision;
+static int hf_bacnet_wrapper_key_identifier;
+static int hf_bacnet_wrapper_src_dev_instance;
+static int hf_bacnet_wrapper_message_id;
+static int hf_bacnet_wrapper_time_stamp;
+static int hf_bacnet_wrapper_dst_dev_instance;
+static int hf_bacnet_wrapper_dnet;
+static int hf_bacnet_wrapper_dlen;
+static int hf_bacnet_wrapper_dadr;
+static int hf_bacnet_wrapper_snet;
+static int hf_bacnet_wrapper_slen;
+static int hf_bacnet_wrapper_sadr;
+static int hf_bacnet_wrapper_auth_mech;
+static int hf_bacnet_wrapper_auth_usr_id;
+static int hf_bacnet_wrapper_auth_usr_role;
+static int hf_bacnet_wrapper_auth_len;
+static int hf_bacnet_wrapper_auth_data;
+static int hf_bacnet_wrapper_signature;
+static int hf_bacnet_wrapper_encrypted_data;
+static int hf_bacnet_msg_is_challenged;
+static int hf_bacnet_security_original_message_id;
+static int hf_bacnet_security_original_time_stamp;
+static int hf_bacnet_security_msg_len;
+static int hf_bacnet_security_response_code;
+static int hf_bacnet_security_response_expected_time_stamp;
+static int hf_bacnet_security_response_key_algo;
+static int hf_bacnet_security_response_key_id;
+static int hf_bacnet_security_response_original_authentication_mech;
+static int hf_bacnet_security_response_vendor_id;
+static int hf_bacnet_security_response_key_revision;
+static int hf_bacnet_security_response_number_keys;
+static int hf_bacnet_security_set1_key_reveision;
+static int hf_bacnet_security_set1_activation_time_stamp;
+static int hf_bacnet_security_set1_expiration_time_stamp;
+static int hf_bacnet_security_set1_key_algo;
+static int hf_bacnet_security_set1_key_id;
+static int hf_bacnet_security_set1_key_data;
+static int hf_bacnet_security_set2_key_reveision;
+static int hf_bacnet_security_set2_activation_time_stamp;
+static int hf_bacnet_security_set2_expiration_time_stamp;
+static int hf_bacnet_security_set2_key_algo;
+static int hf_bacnet_security_set2_key_id;
+static int hf_bacnet_security_set2_key_data;
+static int hf_bacnet_security_dist_key_revision;
+static int hf_bacnet_security_dist_key_algo;
+static int hf_bacnet_security_dist_key_id;
+static int hf_bacnet_security_dist_key_data;
+static int hf_bacnet_security_master_key_algo;
+static int hf_bacnet_security_master_key_id;
+static int hf_bacnet_security_master_key_data;
+static int hf_bacnet_update_control;
+static int hf_bacnet_update_control_remove;
+static int hf_bacnet_update_control_more_follows;
+static int hf_bacnet_update_control_clear_set2;
+static int hf_bacnet_update_control_set2_params_present;
+static int hf_bacnet_update_control_set2_times_present;
+static int hf_bacnet_update_control_clear_set1;
+static int hf_bacnet_update_control_set1_params_present;
+static int hf_bacnet_update_control_set1_times_present;
 
-static gint ett_bacnet = -1;
-static gint ett_bacnet_control = -1;
-static gint ett_bacnet_wrapper_control = -1;
-static gint ett_bacnet_update_control = -1;
+static int ett_bacnet;
+static int ett_bacnet_control;
+static int ett_bacnet_wrapper_control;
+static int ett_bacnet_update_control;
 
-static dissector_handle_t bacnet_handle = NULL;
+static dissector_handle_t bacnet_handle;
 
 static int * const control_flags[] = {
 	&hf_bacnet_control_net,
@@ -344,15 +344,15 @@ static int * const wrapper_control_flags[] = {
 
 int
 bacnet_dissect_sec_wrapper(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-					gint offset, gboolean *pis_net_msg_flg)
+					int offset, bool *pis_net_msg_flg)
 {
-	guint8 bacnet_dlen;
-	guint8 bacnet_wrapper_control;
-	guint16 bacnet_len;
-	gint len;
+	uint8_t bacnet_dlen;
+	uint8_t bacnet_wrapper_control;
+	uint16_t bacnet_len;
+	int len;
 
 	/* get control octet from wrapper */
-	bacnet_wrapper_control = tvb_get_guint8(tvb, offset);
+	bacnet_wrapper_control = tvb_get_uint8(tvb, offset);
 	if (pis_net_msg_flg)
 		*pis_net_msg_flg = (bacnet_wrapper_control & BAC_WRAPPER_CONTROL_NET) != 0;
 
@@ -390,7 +390,7 @@ bacnet_dissect_sec_wrapper(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 			tvb, offset, 2, ENC_BIG_ENDIAN);
 		offset += 2;
 
-		bacnet_dlen = tvb_get_guint8(tvb, offset);
+		bacnet_dlen = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(tree, hf_bacnet_wrapper_dlen,
 			tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset++;
@@ -404,7 +404,7 @@ bacnet_dissect_sec_wrapper(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 			tvb, offset, 2, ENC_BIG_ENDIAN);
 		offset += 2;
 
-		bacnet_dlen = tvb_get_guint8(tvb, offset);
+		bacnet_dlen = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(tree, hf_bacnet_wrapper_slen,
 			tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset++;
@@ -416,7 +416,7 @@ bacnet_dissect_sec_wrapper(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 
 		/* additional authentication data is optional */
 		if ((bacnet_wrapper_control & BAC_WRAPPER_AUTHD_PRESENT) != 0) {
-			bacnet_dlen = tvb_get_guint8(tvb, offset);
+			bacnet_dlen = tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(tree, hf_bacnet_wrapper_auth_mech,
 				tvb, offset, 1, ENC_BIG_ENDIAN);
 			offset++;
@@ -431,7 +431,7 @@ bacnet_dissect_sec_wrapper(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 
 			/* extra authentication data present if authentication mechanism != 0 */
 			if (bacnet_dlen != 0) {
-				bacnet_len = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+				bacnet_len = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 				proto_tree_add_item(tree, hf_bacnet_wrapper_auth_len,
 					tvb, offset, 2, ENC_BIG_ENDIAN);
 				offset += 2;
@@ -478,28 +478,28 @@ bacnet_dissect_sec_wrapper(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 
 static int
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
+dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
 	proto_item *ti;
 	proto_tree *bacnet_tree;
 
-	guint8 bacnet_version;
-	guint8 bacnet_control;
-	guint8 bacnet_update_control;
-	guint8 bacnet_dlen;
-	guint8 bacnet_slen;
-	guint8 bacnet_mesgtyp;
-	guint8 bacnet_rportnum;
-	guint8 bacnet_pinfolen;
-	guint8 i;
+	uint8_t bacnet_version;
+	uint8_t bacnet_control;
+	uint8_t bacnet_update_control;
+	uint8_t bacnet_dlen;
+	uint8_t bacnet_slen;
+	uint8_t bacnet_mesgtyp;
+	uint8_t bacnet_rportnum;
+	uint8_t bacnet_pinfolen;
+	uint8_t i;
 	tvbuff_t *next_tvb;
-	guint32 vendor_id;
+	uint32_t vendor_id;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "BACnet-NPDU");
 	col_set_str(pinfo->cinfo, COL_INFO, "Building Automation and Control Network NPDU");
 
-	bacnet_version = tvb_get_guint8(tvb, offset);
-	bacnet_control = tvb_get_guint8(tvb, offset+1);
+	bacnet_version = tvb_get_uint8(tvb, offset);
+	bacnet_control = tvb_get_uint8(tvb, offset+1);
 
 	/* I don't know the length of the NPDU yet; Setting the length after dissection */
 	ti = proto_tree_add_item(tree, proto_bacnet, tvb, 0, -1, ENC_NA);
@@ -518,7 +518,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 		proto_tree_add_item(bacnet_tree, hf_bacnet_dnet,
 			tvb, offset, 2, ENC_BIG_ENDIAN);
 		offset += 2;
-		bacnet_dlen = tvb_get_guint8(tvb, offset);
+		bacnet_dlen = tvb_get_uint8(tvb, offset);
 		/* DLEN = 0 is broadcast on dest.network */
 		if( bacnet_dlen == 0) {
 			/* append to hf_bacnet_dlen: broadcast */
@@ -567,7 +567,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 		proto_tree_add_item(bacnet_tree, hf_bacnet_snet,
 			tvb, offset, 2, ENC_BIG_ENDIAN);
 		offset += 2;
-		bacnet_slen = tvb_get_guint8(tvb, offset);
+		bacnet_slen = tvb_get_uint8(tvb, offset);
 		if( bacnet_slen == 0) { /* SLEN = 0 invalid */
 			proto_tree_add_uint_format_value(bacnet_tree,
 			    hf_bacnet_slen, tvb, offset, 1, bacnet_slen,
@@ -619,7 +619,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 	}
 	/* Network Layer Message Type */
 	if (bacnet_control & BAC_CONTROL_NET) {
-		bacnet_mesgtyp =  tvb_get_guint8(tvb, offset);
+		bacnet_mesgtyp =  tvb_get_uint8(tvb, offset);
 		proto_tree_add_uint(bacnet_tree, hf_bacnet_mesgtyp, tvb, offset, 1, bacnet_mesgtyp);
 		/* Put the NPDU Type in the info column */
 		col_add_str(pinfo->cinfo, COL_INFO, rval_to_str_const(bacnet_mesgtyp, bacnet_msgtype_rvals, "Unknown"));
@@ -658,7 +658,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 		/* Initialize-Routing-Table */
 		case BAC_NET_INIT_RTAB:
 		case BAC_NET_INIT_RTAB_ACK:
-			bacnet_rportnum = tvb_get_guint8(tvb, offset);
+			bacnet_rportnum = tvb_get_uint8(tvb, offset);
 			/* number of ports */
 			proto_tree_add_item(bacnet_tree, hf_bacnet_rportnum,
 				tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -673,7 +673,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 					tvb, offset, 1, ENC_BIG_ENDIAN);
 					offset ++;
 					/* Port Info Length */
-					bacnet_pinfolen = tvb_get_guint8(tvb, offset);
+					bacnet_pinfolen = tvb_get_uint8(tvb, offset);
 					proto_tree_add_item(bacnet_tree, hf_bacnet_pinfolen,
 					tvb, offset, 1, ENC_BIG_ENDIAN);
 					offset ++;
@@ -732,8 +732,8 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 		/* Security-Payload */
 		case BAC_NET_SECUR_PAY:
 		{
-			gboolean is_net_msg_flg;
-			guint16 bacnet_len;
+			bool is_net_msg_flg;
+			uint16_t bacnet_len;
 
 			offset = bacnet_dissect_sec_wrapper(tvb, pinfo, tree, offset, &is_net_msg_flg);
 			if (offset < 0) {
@@ -741,7 +741,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 				return tvb_captured_length(tvb);
 			}
 			/* get payload length */
-			bacnet_len = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+			bacnet_len = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(tree, hf_bacnet_security_msg_len,
 				tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset += 2;
@@ -762,7 +762,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 		/* Security-Response */
 		case BAC_NET_SECUR_RESP:
 		{
-			guint8 bacnet_responsecode;
+			uint8_t bacnet_responsecode;
 
 			offset = bacnet_dissect_sec_wrapper(tvb, pinfo, tree, offset, NULL);
 			if (offset < 0) {
@@ -770,7 +770,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 				return tvb_captured_length(tvb);
 			}
 
-			bacnet_responsecode = tvb_get_guint8(tvb, offset);
+			bacnet_responsecode = tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(tree, hf_bacnet_security_response_code,
 				tvb, offset, 1, ENC_BIG_ENDIAN);
 			offset++;
@@ -822,7 +822,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 				offset++;
 				break;
 			case 0x0E: /* incorrectKey */
-				bacnet_responsecode = tvb_get_guint8(tvb, offset);
+				bacnet_responsecode = tvb_get_uint8(tvb, offset);
 				offset++;
 				while (tvb_reported_length_remaining(tvb, offset) > 1 && bacnet_responsecode > 0) {
 					proto_tree_add_item(tree, hf_bacnet_security_response_key_algo,
@@ -895,7 +895,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 				return tvb_captured_length(tvb);
 			}
 
-			bacnet_update_control = tvb_get_guint8(tvb, offset);
+			bacnet_update_control = tvb_get_uint8(tvb, offset);
 			proto_tree_add_bitmask(tree, tvb, offset, hf_bacnet_update_control,
 				ett_bacnet_update_control, update_control_flags, ENC_NA);
 			offset++;
@@ -913,9 +913,9 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 			}
 
 			if (bacnet_update_control & BAC_UPDATE_CONTROL_SET1_PARAMS_PRESENT) {
-				guint8 keycount;
+				uint8_t keycount;
 
-				keycount = tvb_get_guint8(tvb, offset);
+				keycount = tvb_get_uint8(tvb, offset);
 				offset++;
 
 				for (i = 0; tvb_reported_length_remaining(tvb, offset) > 1 && i < keycount; i++)	{
@@ -926,7 +926,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 						tvb, offset, 1, ENC_BIG_ENDIAN);
 					offset++;
 
-					bacnet_dlen = tvb_get_guint8(tvb, offset);
+					bacnet_dlen = tvb_get_uint8(tvb, offset);
 					offset++;
 
 					proto_tree_add_item(tree,
@@ -949,9 +949,9 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 			}
 
 			if (bacnet_update_control & BAC_UPDATE_CONTROL_SET2_PARAMS_PRESENT) {
-				guint8 keycount;
+				uint8_t keycount;
 
-				keycount = tvb_get_guint8(tvb, offset);
+				keycount = tvb_get_uint8(tvb, offset);
 				offset++;
 
 				for (i = 0; tvb_reported_length_remaining(tvb, offset) > 1 && i < keycount; i++)	{
@@ -962,7 +962,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 						tvb, offset, 1, ENC_BIG_ENDIAN);
 					offset++;
 
-					bacnet_dlen = tvb_get_guint8(tvb, offset);
+					bacnet_dlen = tvb_get_uint8(tvb, offset);
 					offset++;
 
 					proto_tree_add_item(tree,
@@ -990,7 +990,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 				tvb, offset, 1, ENC_BIG_ENDIAN);
 			offset++;
 
-			bacnet_dlen = tvb_get_guint8(tvb, offset);
+			bacnet_dlen = tvb_get_uint8(tvb, offset);
 			offset++;
 
 			proto_tree_add_item(tree,
@@ -1001,7 +1001,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 		/* Request-Masterkey */
 		case BAC_NET_REQ_MKEY:
 		{
-			guint8 keycount;
+			uint8_t keycount;
 
 			offset = bacnet_dissect_sec_wrapper(tvb, pinfo, tree, offset, NULL);
 			if (offset < 0) {
@@ -1009,7 +1009,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 				return tvb_captured_length(tvb);
 			}
 
-			keycount = tvb_get_guint8(tvb, offset);
+			keycount = tvb_get_uint8(tvb, offset);
 			offset++;
 			while (tvb_reported_length_remaining(tvb, offset) > 1 && keycount > 0) {
 				proto_tree_add_item(tree, hf_bacnet_security_master_key_algo,
@@ -1034,7 +1034,7 @@ dissect_bacnet_npdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 				tvb, offset, 1, ENC_BIG_ENDIAN);
 			offset++;
 
-			bacnet_dlen = tvb_get_guint8(tvb, offset);
+			bacnet_dlen = tvb_get_uint8(tvb, offset);
 			offset++;
 
 			proto_tree_add_item(tree,
@@ -1272,13 +1272,13 @@ proto_register_bacnet(void)
 			{ "Termination Time Value (seconds)",
 			"bacnet.term_time_value",
 			FT_UINT8, BASE_DEC, NULL, 0,
-			"Termination Time Value", HFILL }
+			NULL, HFILL }
 		},
 		{ &hf_bacnet_netno_status,
 			{ "Network number status (enumerated)",
 			"bacnet.netno_status",
 			FT_UINT8, BASE_DEC, NULL, 0,
-			"Network number status", HFILL }
+			NULL, HFILL }
 		},
 		{ &hf_bacnet_wrapper_control,
 			{ "Wrapper control",
@@ -1690,7 +1690,7 @@ proto_register_bacnet(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_bacnet,
 		&ett_bacnet_control,
 		&ett_bacnet_wrapper_control,

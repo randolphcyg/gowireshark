@@ -21,34 +21,34 @@ static dissector_handle_t nge_handle;
 
 #define NETGEAR_ENSEMBLE_PORT 4554
 
-static int proto_nge = -1;
+static int proto_nge;
 
-static int hf_nge_version = -1;
-static int hf_nge_unknown = -1;
-static int hf_nge_unknown_int32 = -1;
-static int hf_nge_sequence = -1;
-static int hf_nge_tlv_length = -1;
-static int hf_nge_ensemble_name = -1;
-static int hf_nge_firmware_name = -1;
-static int hf_nge_region_name = -1;
-static int hf_nge_firmware_version = -1;
-static int hf_nge_ap_name = -1;
-static int hf_nge_uptime = -1;
-static int hf_nge_mac = -1;
-static int hf_nge_ip = -1;
-static int hf_nge_uuid = -1;
+static int hf_nge_version;
+static int hf_nge_unknown;
+static int hf_nge_unknown_int32;
+static int hf_nge_sequence;
+static int hf_nge_tlv_length;
+static int hf_nge_ensemble_name;
+static int hf_nge_firmware_name;
+static int hf_nge_region_name;
+static int hf_nge_firmware_version;
+static int hf_nge_ap_name;
+static int hf_nge_uptime;
+static int hf_nge_mac;
+static int hf_nge_ip;
+static int hf_nge_uuid;
 
-static gint ett_nge = -1;
-static gint ett_nge_lv = -1;
-static gint ett_nge_ensemble = -1;
+static int ett_nge;
+static int ett_nge_lv;
+static int ett_nge_ensemble;
 
 
 static void
 dissect_nge_esemble(tvbuff_t *tvb,proto_tree *tree, int offset)
 {
-    guint strLen=0;
+    unsigned strLen=0;
 
-    guint32 length = tvb_get_guint32(tvb, offset,ENC_BIG_ENDIAN);
+    uint32_t length = tvb_get_uint32(tvb, offset,ENC_BIG_ENDIAN);
     proto_tree *ensemble_tree = proto_tree_add_subtree(tree, tvb, offset, length+4, ett_nge_ensemble, NULL,"Ensemble");
 
     proto_tree_add_uint(ensemble_tree, hf_nge_tlv_length, tvb, offset, 4, length);
@@ -185,7 +185,7 @@ proto_register_nge(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_nge,
         &ett_nge_lv,
         &ett_nge_ensemble

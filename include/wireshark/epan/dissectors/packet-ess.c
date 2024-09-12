@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-ess.c                                                               */
-/* asn2wrs.py -b -k -C -L -p ess -c ./ess.cnf -s ./packet-ess-template -D . -O ../.. ExtendedSecurityServices.asn */
+/* asn2wrs.py -b -k -C -q -L -p ess -c ./ess.cnf -s ./packet-ess-template -D . -O ../.. ExtendedSecurityServices.asn */
 
 /* packet-ess.c
  * Routines for RFC 2634 and RFC 5035 Extended Security Services packet
@@ -22,6 +22,7 @@
 #include <epan/asn1.h>
 #include <epan/prefs.h>
 #include <epan/uat.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-ess.h"
@@ -38,90 +39,90 @@ void proto_reg_handoff_ess(void);
 
 typedef struct _ess_category_attributes_t {
    char *oid;
-   guint lacv;
+   unsigned lacv;
    char *name;
 } ess_category_attributes_t;
 
 static ess_category_attributes_t *ess_category_attributes;
-static guint num_ess_category_attributes;
+static unsigned num_ess_category_attributes;
 
 /* Initialize the protocol and registered fields */
-static int proto_ess = -1;
-static int hf_ess_SecurityCategory_type_OID = -1;
-static int hf_ess_Category_attribute = -1;
+static int proto_ess;
+static int hf_ess_SecurityCategory_type_OID;
+static int hf_ess_Category_attribute;
 
-static gint ett_Category_attributes = -1;
+static int ett_Category_attributes;
 
-static int hf_ess_ReceiptRequest_PDU = -1;        /* ReceiptRequest */
-static int hf_ess_ContentIdentifier_PDU = -1;     /* ContentIdentifier */
-static int hf_ess_Receipt_PDU = -1;               /* Receipt */
-static int hf_ess_ContentHints_PDU = -1;          /* ContentHints */
-static int hf_ess_MsgSigDigest_PDU = -1;          /* MsgSigDigest */
-static int hf_ess_ContentReference_PDU = -1;      /* ContentReference */
-static int hf_ess_ess_ESSSecurityLabel_PDU = -1;  /* ESSSecurityLabel */
-static int hf_ess_RestrictiveTag_PDU = -1;        /* RestrictiveTag */
-static int hf_ess_EnumeratedTag_PDU = -1;         /* EnumeratedTag */
-static int hf_ess_PermissiveTag_PDU = -1;         /* PermissiveTag */
-static int hf_ess_InformativeTag_PDU = -1;        /* InformativeTag */
-static int hf_ess_EquivalentLabels_PDU = -1;      /* EquivalentLabels */
-static int hf_ess_MLExpansionHistory_PDU = -1;    /* MLExpansionHistory */
-static int hf_ess_SigningCertificate_PDU = -1;    /* SigningCertificate */
-static int hf_ess_SigningCertificateV2_PDU = -1;  /* SigningCertificateV2 */
-static int hf_ess_signedContentIdentifier = -1;   /* ContentIdentifier */
-static int hf_ess_receiptsFrom = -1;              /* ReceiptsFrom */
-static int hf_ess_receiptsTo = -1;                /* SEQUENCE_SIZE_1_ub_receiptsTo_OF_GeneralNames */
-static int hf_ess_receiptsTo_item = -1;           /* GeneralNames */
-static int hf_ess_allOrFirstTier = -1;            /* AllOrFirstTier */
-static int hf_ess_receiptList = -1;               /* SEQUENCE_OF_GeneralNames */
-static int hf_ess_receiptList_item = -1;          /* GeneralNames */
-static int hf_ess_version = -1;                   /* ESSVersion */
-static int hf_ess_contentType = -1;               /* ContentType */
-static int hf_ess_originatorSignatureValue = -1;  /* OCTET_STRING */
-static int hf_ess_contentDescription = -1;        /* UTF8String_SIZE_1_MAX */
-static int hf_ess_security_policy_identifier = -1;  /* SecurityPolicyIdentifier */
-static int hf_ess_security_classification = -1;   /* SecurityClassification */
-static int hf_ess_privacy_mark = -1;              /* ESSPrivacyMark */
-static int hf_ess_security_categories = -1;       /* SecurityCategories */
-static int hf_ess_pString = -1;                   /* PrintableString_SIZE_1_ub_privacy_mark_length */
-static int hf_ess_utf8String = -1;                /* UTF8String_SIZE_1_MAX */
-static int hf_ess_SecurityCategories_item = -1;   /* SecurityCategory */
-static int hf_ess_type = -1;                      /* T_type */
-static int hf_ess_value = -1;                     /* T_value */
-static int hf_ess_restrictiveTagName = -1;        /* T_restrictiveTagName */
-static int hf_ess_restrictiveAttributeFlags = -1;  /* T_restrictiveAttributeFlags */
-static int hf_ess_tagName = -1;                   /* T_tagName */
-static int hf_ess_attributeList = -1;             /* SET_OF_SecurityAttribute */
-static int hf_ess_attributeList_item = -1;        /* SecurityAttribute */
-static int hf_ess_permissiveTagName = -1;         /* T_permissiveTagName */
-static int hf_ess_permissiveAttributeFlags = -1;  /* T_permissiveAttributeFlags */
-static int hf_ess_informativeTagName = -1;        /* T_informativeTagName */
-static int hf_ess_attributes = -1;                /* FreeFormField */
-static int hf_ess_informativeAttributeFlags = -1;  /* T_informativeAttributeFlags */
-static int hf_ess_securityAttributes = -1;        /* SET_OF_SecurityAttribute */
-static int hf_ess_securityAttributes_item = -1;   /* SecurityAttribute */
-static int hf_ess_EquivalentLabels_item = -1;     /* ESSSecurityLabel */
-static int hf_ess_MLExpansionHistory_item = -1;   /* MLData */
-static int hf_ess_mailListIdentifier = -1;        /* EntityIdentifier */
-static int hf_ess_expansionTime = -1;             /* GeneralizedTime */
-static int hf_ess_mlReceiptPolicy = -1;           /* MLReceiptPolicy */
-static int hf_ess_issuerAndSerialNumber = -1;     /* IssuerAndSerialNumber */
-static int hf_ess_subjectKeyIdentifier = -1;      /* SubjectKeyIdentifier */
-static int hf_ess_none = -1;                      /* NULL */
-static int hf_ess_insteadOf = -1;                 /* SEQUENCE_SIZE_1_MAX_OF_GeneralNames */
-static int hf_ess_insteadOf_item = -1;            /* GeneralNames */
-static int hf_ess_inAdditionTo = -1;              /* SEQUENCE_SIZE_1_MAX_OF_GeneralNames */
-static int hf_ess_inAdditionTo_item = -1;         /* GeneralNames */
-static int hf_ess_certs = -1;                     /* SEQUENCE_OF_ESSCertID */
-static int hf_ess_certs_item = -1;                /* ESSCertID */
-static int hf_ess_policies = -1;                  /* SEQUENCE_OF_PolicyInformation */
-static int hf_ess_policies_item = -1;             /* PolicyInformation */
-static int hf_ess_certsV2 = -1;                   /* SEQUENCE_OF_ESSCertIDv2 */
-static int hf_ess_certsV2_item = -1;              /* ESSCertIDv2 */
-static int hf_ess_hashAlgorithm = -1;             /* AlgorithmIdentifier */
-static int hf_ess_certHash = -1;                  /* Hash */
-static int hf_ess_issuerSerial = -1;              /* IssuerSerial */
-static int hf_ess_issuer = -1;                    /* GeneralNames */
-static int hf_ess_serialNumber = -1;              /* CertificateSerialNumber */
+static int hf_ess_ReceiptRequest_PDU;             /* ReceiptRequest */
+static int hf_ess_ContentIdentifier_PDU;          /* ContentIdentifier */
+static int hf_ess_Receipt_PDU;                    /* Receipt */
+static int hf_ess_ContentHints_PDU;               /* ContentHints */
+static int hf_ess_MsgSigDigest_PDU;               /* MsgSigDigest */
+static int hf_ess_ContentReference_PDU;           /* ContentReference */
+static int hf_ess_ess_ESSSecurityLabel_PDU;       /* ESSSecurityLabel */
+static int hf_ess_RestrictiveTag_PDU;             /* RestrictiveTag */
+static int hf_ess_EnumeratedTag_PDU;              /* EnumeratedTag */
+static int hf_ess_PermissiveTag_PDU;              /* PermissiveTag */
+static int hf_ess_InformativeTag_PDU;             /* InformativeTag */
+static int hf_ess_EquivalentLabels_PDU;           /* EquivalentLabels */
+static int hf_ess_MLExpansionHistory_PDU;         /* MLExpansionHistory */
+static int hf_ess_SigningCertificate_PDU;         /* SigningCertificate */
+static int hf_ess_SigningCertificateV2_PDU;       /* SigningCertificateV2 */
+static int hf_ess_signedContentIdentifier;        /* ContentIdentifier */
+static int hf_ess_receiptsFrom;                   /* ReceiptsFrom */
+static int hf_ess_receiptsTo;                     /* SEQUENCE_SIZE_1_ub_receiptsTo_OF_GeneralNames */
+static int hf_ess_receiptsTo_item;                /* GeneralNames */
+static int hf_ess_allOrFirstTier;                 /* AllOrFirstTier */
+static int hf_ess_receiptList;                    /* SEQUENCE_OF_GeneralNames */
+static int hf_ess_receiptList_item;               /* GeneralNames */
+static int hf_ess_version;                        /* ESSVersion */
+static int hf_ess_contentType;                    /* ContentType */
+static int hf_ess_originatorSignatureValue;       /* OCTET_STRING */
+static int hf_ess_contentDescription;             /* UTF8String_SIZE_1_MAX */
+static int hf_ess_security_policy_identifier;     /* SecurityPolicyIdentifier */
+static int hf_ess_security_classification;        /* SecurityClassification */
+static int hf_ess_privacy_mark;                   /* ESSPrivacyMark */
+static int hf_ess_security_categories;            /* SecurityCategories */
+static int hf_ess_pString;                        /* PrintableString_SIZE_1_ub_privacy_mark_length */
+static int hf_ess_utf8String;                     /* UTF8String_SIZE_1_MAX */
+static int hf_ess_SecurityCategories_item;        /* SecurityCategory */
+static int hf_ess_type;                           /* T_type */
+static int hf_ess_value;                          /* T_value */
+static int hf_ess_restrictiveTagName;             /* T_restrictiveTagName */
+static int hf_ess_restrictiveAttributeFlags;      /* T_restrictiveAttributeFlags */
+static int hf_ess_tagName;                        /* T_tagName */
+static int hf_ess_attributeList;                  /* SET_OF_SecurityAttribute */
+static int hf_ess_attributeList_item;             /* SecurityAttribute */
+static int hf_ess_permissiveTagName;              /* T_permissiveTagName */
+static int hf_ess_permissiveAttributeFlags;       /* T_permissiveAttributeFlags */
+static int hf_ess_informativeTagName;             /* T_informativeTagName */
+static int hf_ess_attributes;                     /* FreeFormField */
+static int hf_ess_informativeAttributeFlags;      /* T_informativeAttributeFlags */
+static int hf_ess_securityAttributes;             /* SET_OF_SecurityAttribute */
+static int hf_ess_securityAttributes_item;        /* SecurityAttribute */
+static int hf_ess_EquivalentLabels_item;          /* ESSSecurityLabel */
+static int hf_ess_MLExpansionHistory_item;        /* MLData */
+static int hf_ess_mailListIdentifier;             /* EntityIdentifier */
+static int hf_ess_expansionTime;                  /* GeneralizedTime */
+static int hf_ess_mlReceiptPolicy;                /* MLReceiptPolicy */
+static int hf_ess_issuerAndSerialNumber;          /* IssuerAndSerialNumber */
+static int hf_ess_subjectKeyIdentifier;           /* SubjectKeyIdentifier */
+static int hf_ess_none;                           /* NULL */
+static int hf_ess_insteadOf;                      /* SEQUENCE_SIZE_1_MAX_OF_GeneralNames */
+static int hf_ess_insteadOf_item;                 /* GeneralNames */
+static int hf_ess_inAdditionTo;                   /* SEQUENCE_SIZE_1_MAX_OF_GeneralNames */
+static int hf_ess_inAdditionTo_item;              /* GeneralNames */
+static int hf_ess_certs;                          /* SEQUENCE_OF_ESSCertID */
+static int hf_ess_certs_item;                     /* ESSCertID */
+static int hf_ess_policies;                       /* SEQUENCE_OF_PolicyInformation */
+static int hf_ess_policies_item;                  /* PolicyInformation */
+static int hf_ess_certsV2;                        /* SEQUENCE_OF_ESSCertIDv2 */
+static int hf_ess_certsV2_item;                   /* ESSCertIDv2 */
+static int hf_ess_hashAlgorithm;                  /* AlgorithmIdentifier */
+static int hf_ess_certHash;                       /* Hash */
+static int hf_ess_issuerSerial;                   /* IssuerSerial */
+static int hf_ess_issuer;                         /* GeneralNames */
+static int hf_ess_serialNumber;                   /* CertificateSerialNumber */
 
 #define ub_receiptsTo                  16
 #define id_aa_receiptRequest           "1.2.840.113549.1.9.16.2.1"
@@ -142,37 +143,37 @@ static int hf_ess_serialNumber = -1;              /* CertificateSerialNumber */
 #define id_sha256                      "2.16.840.1.101.3.4.2.1"
 
 /* Initialize the subtree pointers */
-static gint ett_ess_ReceiptRequest = -1;
-static gint ett_ess_SEQUENCE_SIZE_1_ub_receiptsTo_OF_GeneralNames = -1;
-static gint ett_ess_ReceiptsFrom = -1;
-static gint ett_ess_SEQUENCE_OF_GeneralNames = -1;
-static gint ett_ess_Receipt = -1;
-static gint ett_ess_ContentHints = -1;
-static gint ett_ess_ContentReference = -1;
-static gint ett_ess_ESSSecurityLabel = -1;
-static gint ett_ess_ESSPrivacyMark = -1;
-static gint ett_ess_SecurityCategories = -1;
-static gint ett_ess_SecurityCategory = -1;
-static gint ett_ess_RestrictiveTag = -1;
-static gint ett_ess_EnumeratedTag = -1;
-static gint ett_ess_SET_OF_SecurityAttribute = -1;
-static gint ett_ess_PermissiveTag = -1;
-static gint ett_ess_InformativeTag = -1;
-static gint ett_ess_FreeFormField = -1;
-static gint ett_ess_EquivalentLabels = -1;
-static gint ett_ess_MLExpansionHistory = -1;
-static gint ett_ess_MLData = -1;
-static gint ett_ess_EntityIdentifier = -1;
-static gint ett_ess_MLReceiptPolicy = -1;
-static gint ett_ess_SEQUENCE_SIZE_1_MAX_OF_GeneralNames = -1;
-static gint ett_ess_SigningCertificate = -1;
-static gint ett_ess_SEQUENCE_OF_ESSCertID = -1;
-static gint ett_ess_SEQUENCE_OF_PolicyInformation = -1;
-static gint ett_ess_SigningCertificateV2 = -1;
-static gint ett_ess_SEQUENCE_OF_ESSCertIDv2 = -1;
-static gint ett_ess_ESSCertIDv2 = -1;
-static gint ett_ess_ESSCertID = -1;
-static gint ett_ess_IssuerSerial = -1;
+static int ett_ess_ReceiptRequest;
+static int ett_ess_SEQUENCE_SIZE_1_ub_receiptsTo_OF_GeneralNames;
+static int ett_ess_ReceiptsFrom;
+static int ett_ess_SEQUENCE_OF_GeneralNames;
+static int ett_ess_Receipt;
+static int ett_ess_ContentHints;
+static int ett_ess_ContentReference;
+static int ett_ess_ESSSecurityLabel;
+static int ett_ess_ESSPrivacyMark;
+static int ett_ess_SecurityCategories;
+static int ett_ess_SecurityCategory;
+static int ett_ess_RestrictiveTag;
+static int ett_ess_EnumeratedTag;
+static int ett_ess_SET_OF_SecurityAttribute;
+static int ett_ess_PermissiveTag;
+static int ett_ess_InformativeTag;
+static int ett_ess_FreeFormField;
+static int ett_ess_EquivalentLabels;
+static int ett_ess_MLExpansionHistory;
+static int ett_ess_MLData;
+static int ett_ess_EntityIdentifier;
+static int ett_ess_MLReceiptPolicy;
+static int ett_ess_SEQUENCE_SIZE_1_MAX_OF_GeneralNames;
+static int ett_ess_SigningCertificate;
+static int ett_ess_SEQUENCE_OF_ESSCertID;
+static int ett_ess_SEQUENCE_OF_PolicyInformation;
+static int ett_ess_SigningCertificateV2;
+static int ett_ess_SEQUENCE_OF_ESSCertIDv2;
+static int ett_ess_ESSCertIDv2;
+static int ett_ess_ESSCertID;
+static int ett_ess_IssuerSerial;
 
 static const char *object_identifier_id;
 
@@ -203,9 +204,9 @@ ess_free_cb(void *r)
 }
 
 static void
-ess_dissect_attribute (guint32 value, asn1_ctx_t *actx)
+ess_dissect_attribute (uint32_t value, asn1_ctx_t *actx)
 {
-  guint i;
+  unsigned i;
 
   for (i = 0; i < num_ess_category_attributes; i++) {
     ess_category_attributes_t *u = &(ess_category_attributes[i]);
@@ -223,11 +224,11 @@ static void
 ess_dissect_attribute_flags (tvbuff_t *tvb, asn1_ctx_t *actx)
 {
   proto_tree *tree;
-  guint8 *value;
-  guint i;
+  uint8_t *value;
+  unsigned i;
 
   tree = proto_item_add_subtree (actx->created_item, ett_Category_attributes);
-  value = (guint8 *)tvb_memdup (actx->pinfo->pool, tvb, 0, tvb_captured_length (tvb));
+  value = (uint8_t *)tvb_memdup (actx->pinfo->pool, tvb, 0, tvb_captured_length (tvb));
 
   for (i = 0; i < num_ess_category_attributes; i++) {
     ess_category_attributes_t *u = &(ess_category_attributes[i]);
@@ -610,7 +611,7 @@ dissect_ess_T_tagName(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, 
 
 static int
 dissect_ess_SecurityAttribute(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  guint32 attribute;
+  uint32_t attribute;
 
     offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 &attribute);
@@ -1000,106 +1001,106 @@ dissect_ess_SigningCertificateV2(bool implicit_tag _U_, tvbuff_t *tvb _U_, int o
 static int dissect_ReceiptRequest_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_ReceiptRequest(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_ReceiptRequest_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_ReceiptRequest(false, tvb, offset, &asn1_ctx, tree, hf_ess_ReceiptRequest_PDU);
   return offset;
 }
 static int dissect_ContentIdentifier_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_ContentIdentifier(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_ContentIdentifier_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_ContentIdentifier(false, tvb, offset, &asn1_ctx, tree, hf_ess_ContentIdentifier_PDU);
   return offset;
 }
 static int dissect_Receipt_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_Receipt(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_Receipt_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_Receipt(false, tvb, offset, &asn1_ctx, tree, hf_ess_Receipt_PDU);
   return offset;
 }
 static int dissect_ContentHints_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_ContentHints(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_ContentHints_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_ContentHints(false, tvb, offset, &asn1_ctx, tree, hf_ess_ContentHints_PDU);
   return offset;
 }
 static int dissect_MsgSigDigest_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_MsgSigDigest(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_MsgSigDigest_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_MsgSigDigest(false, tvb, offset, &asn1_ctx, tree, hf_ess_MsgSigDigest_PDU);
   return offset;
 }
 static int dissect_ContentReference_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_ContentReference(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_ContentReference_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_ContentReference(false, tvb, offset, &asn1_ctx, tree, hf_ess_ContentReference_PDU);
   return offset;
 }
 int dissect_ess_ESSSecurityLabel_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_ESSSecurityLabel(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_ess_ESSSecurityLabel_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_ESSSecurityLabel(false, tvb, offset, &asn1_ctx, tree, hf_ess_ess_ESSSecurityLabel_PDU);
   return offset;
 }
 static int dissect_RestrictiveTag_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_RestrictiveTag(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_RestrictiveTag_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_RestrictiveTag(false, tvb, offset, &asn1_ctx, tree, hf_ess_RestrictiveTag_PDU);
   return offset;
 }
 static int dissect_EnumeratedTag_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_EnumeratedTag(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_EnumeratedTag_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_EnumeratedTag(false, tvb, offset, &asn1_ctx, tree, hf_ess_EnumeratedTag_PDU);
   return offset;
 }
 static int dissect_PermissiveTag_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_PermissiveTag(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_PermissiveTag_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_PermissiveTag(false, tvb, offset, &asn1_ctx, tree, hf_ess_PermissiveTag_PDU);
   return offset;
 }
 static int dissect_InformativeTag_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_InformativeTag(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_InformativeTag_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_InformativeTag(false, tvb, offset, &asn1_ctx, tree, hf_ess_InformativeTag_PDU);
   return offset;
 }
 static int dissect_EquivalentLabels_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_EquivalentLabels(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_EquivalentLabels_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_EquivalentLabels(false, tvb, offset, &asn1_ctx, tree, hf_ess_EquivalentLabels_PDU);
   return offset;
 }
 static int dissect_MLExpansionHistory_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_MLExpansionHistory(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_MLExpansionHistory_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_MLExpansionHistory(false, tvb, offset, &asn1_ctx, tree, hf_ess_MLExpansionHistory_PDU);
   return offset;
 }
 static int dissect_SigningCertificate_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_SigningCertificate(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_SigningCertificate_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_SigningCertificate(false, tvb, offset, &asn1_ctx, tree, hf_ess_SigningCertificate_PDU);
   return offset;
 }
 static int dissect_SigningCertificateV2_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ess_SigningCertificateV2(FALSE, tvb, offset, &asn1_ctx, tree, hf_ess_SigningCertificateV2_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ess_SigningCertificateV2(false, tvb, offset, &asn1_ctx, tree, hf_ess_SigningCertificateV2_PDU);
   return offset;
 }
 
@@ -1398,7 +1399,7 @@ void proto_register_ess(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
      &ett_Category_attributes,
     &ett_ess_ReceiptRequest,
     &ett_ess_SEQUENCE_SIZE_1_ub_receiptsTo_OF_GeneralNames,
@@ -1443,7 +1444,7 @@ void proto_register_ess(void) {
   uat_t *attributes_uat = uat_new("ESS Category Attributes",
                                   sizeof(ess_category_attributes_t),
                                   "ess_category_attributes",
-                                  TRUE,
+                                  true,
                                   &ess_category_attributes,
                                   &num_ess_category_attributes,
                                   UAT_AFFECTS_DISSECTION, /* affects dissection of packets, but not set of named fields */

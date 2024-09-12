@@ -13,6 +13,7 @@
 
 #include <epan/packet.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-smrse.h"
@@ -29,15 +30,15 @@ void proto_reg_handoff_smrse(void);
 static dissector_handle_t smrse_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_smrse = -1;
-static int hf_smrse_reserved = -1;
-static int hf_smrse_tag = -1;
-static int hf_smrse_length = -1;
-static int hf_smrse_Octet_Format = -1;
+static int proto_smrse;
+static int hf_smrse_reserved;
+static int hf_smrse_tag;
+static int hf_smrse_length;
+static int hf_smrse_Octet_Format;
 #include "packet-smrse-hf.c"
 
 /* Initialize the subtree pointers */
-static gint ett_smrse = -1;
+static int ett_smrse;
 #include "packet-smrse-ett.c"
 
 
@@ -63,13 +64,13 @@ dissect_smrse(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *
 {
 	proto_item *item = NULL;
 	proto_tree *tree = NULL;
-	guint8 reserved, tag;
+	uint8_t reserved, tag;
 	int offset=0;
 	asn1_ctx_t asn1_ctx;
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
-	reserved=tvb_get_guint8(tvb, 0);
-	tag=tvb_get_guint8(tvb, 3);
+	reserved=tvb_get_uint8(tvb, 0);
+	tag=tvb_get_uint8(tvb, 3);
 
 	if( reserved!= 126 )
 		return 0;
@@ -94,31 +95,31 @@ dissect_smrse(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *
 		offset=4;
 		break;
 	case 3:
-		offset=dissect_smrse_SMR_Bind(FALSE, tvb, 4, &asn1_ctx, tree, -1);
+		offset=dissect_smrse_SMR_Bind(false, tvb, 4, &asn1_ctx, tree, -1);
 		break;
 	case 4:
-		offset=dissect_smrse_SMR_Bind_Confirm(FALSE, tvb, 4, &asn1_ctx, tree, -1);
+		offset=dissect_smrse_SMR_Bind_Confirm(false, tvb, 4, &asn1_ctx, tree, -1);
 		break;
 	case 5:
-		offset=dissect_smrse_SMR_Bind_Failure(FALSE, tvb, 4, &asn1_ctx, tree, -1);
+		offset=dissect_smrse_SMR_Bind_Failure(false, tvb, 4, &asn1_ctx, tree, -1);
 		break;
 	case 6:
-		offset=dissect_smrse_SMR_Unbind(FALSE, tvb, 4, &asn1_ctx, tree, -1);
+		offset=dissect_smrse_SMR_Unbind(false, tvb, 4, &asn1_ctx, tree, -1);
 		break;
 	case 7:
-		offset=dissect_smrse_RPDataMT(FALSE, tvb, 4, &asn1_ctx, tree, -1);
+		offset=dissect_smrse_RPDataMT(false, tvb, 4, &asn1_ctx, tree, -1);
 		break;
 	case 8:
-		offset=dissect_smrse_RPDataMO(FALSE, tvb, 4, &asn1_ctx, tree, -1);
+		offset=dissect_smrse_RPDataMO(false, tvb, 4, &asn1_ctx, tree, -1);
 		break;
 	case 9:
-		offset=dissect_smrse_RPAck(FALSE, tvb, 4, &asn1_ctx, tree, -1);
+		offset=dissect_smrse_RPAck(false, tvb, 4, &asn1_ctx, tree, -1);
 		break;
 	case 10:
-		offset=dissect_smrse_RPError(FALSE, tvb, 4, &asn1_ctx, tree, -1);
+		offset=dissect_smrse_RPError(false, tvb, 4, &asn1_ctx, tree, -1);
 		break;
 	case 11:
-		offset=dissect_smrse_RPAlertSC(FALSE, tvb, 4, &asn1_ctx, tree, -1);
+		offset=dissect_smrse_RPAlertSC(false, tvb, 4, &asn1_ctx, tree, -1);
 		break;
 	}
 
@@ -148,7 +149,7 @@ void proto_register_smrse(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_smrse,
 #include "packet-smrse-ettarr.c"
   };

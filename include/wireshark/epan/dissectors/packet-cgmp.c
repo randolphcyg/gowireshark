@@ -25,15 +25,15 @@ void proto_reg_handoff_cgmp(void);
 
 static dissector_handle_t cgmp_handle;
 
-static int proto_cgmp = -1;
-static int hf_cgmp_version = -1;
-static int hf_cgmp_type = -1;
-static int hf_cgmp_reserved = -1;
-static int hf_cgmp_count = -1;
-static int hf_cgmp_gda = -1;
-static int hf_cgmp_usa = -1;
+static int proto_cgmp;
+static int hf_cgmp_version;
+static int hf_cgmp_type;
+static int hf_cgmp_reserved;
+static int hf_cgmp_count;
+static int hf_cgmp_gda;
+static int hf_cgmp_usa;
 
-static gint ett_cgmp = -1;
+static int ett_cgmp;
 
 static const value_string type_vals[] = {
 	{ 0, "Join" },
@@ -47,7 +47,7 @@ dissect_cgmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	proto_item *ti;
 	proto_tree *cgmp_tree = NULL;
 	int offset = 0;
-	guint8 count;
+	uint8_t count;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "CGMP");
 	col_set_str(pinfo->cinfo, COL_INFO, "Cisco Group Management Protocol");
@@ -67,7 +67,7 @@ dissect_cgmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 		    ENC_BIG_ENDIAN);
 		offset += 2;
 
-		count = tvb_get_guint8(tvb, offset);
+		count = tvb_get_uint8(tvb, offset);
 		proto_tree_add_uint(cgmp_tree, hf_cgmp_count, tvb, offset, 1,
 		    count);
 		offset += 1;
@@ -115,7 +115,7 @@ proto_register_cgmp(void)
 		{ "Unicast Source Address",	"cgmp.usa", FT_ETHER, BASE_NONE, NULL, 0x0,
 			NULL, HFILL }},
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_cgmp,
 	};
 

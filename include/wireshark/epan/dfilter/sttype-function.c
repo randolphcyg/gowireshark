@@ -35,7 +35,7 @@ function_new(void *funcdef)
 }
 
 static void *
-function_dup(gconstpointer data)
+function_dup(const void *data)
 {
 	const function_t *org = data;
 	function_t		 *stfuncrec;
@@ -76,7 +76,7 @@ function_tostr(const void *data, bool pretty)
 		g_string_printf(repr, "%s#%u", def->name, g_slist_length(params));
 	}
 
-	return g_string_free(repr, false);
+	return g_string_free(repr, FALSE);
 }
 
 static void
@@ -152,7 +152,6 @@ sttype_register_function(void)
 {
 	static sttype_t function_type = {
 		STTYPE_FUNCTION,
-		"FUNCTION",
 		function_new,
 		function_free,
 		function_dup,

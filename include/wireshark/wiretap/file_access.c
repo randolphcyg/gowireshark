@@ -8,6 +8,7 @@
 
 #include "config.h"
 #define WS_LOG_DOMAIN LOG_DOMAIN_WIRETAP
+#include "wtap-int.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -20,9 +21,7 @@
 #include <wsutil/plugins.h>
 #endif
 #include <wsutil/ws_assert.h>
-#include <wsutil/wslog.h>
 
-#include "wtap-int.h"
 #include "wtap_modules.h"
 #include "file_wrappers.h"
 #include "required_file_handlers.h"
@@ -89,18 +88,19 @@
 #include "log3gpp.h"
 #include "candump.h"
 #include "busmaster.h"
+#include "cllog.h"
 #include "blf.h"
 #include "eri_enb_log.h"
 #include "autosar_dlt.h"
 #include "rtpdump.h"
-
+#include "ems.h"
 
 /*
  * Add an extension, and all compressed versions thereof if requested,
  * to a GSList of extensions.
  */
 static GSList *
-add_extensions(GSList *extensions, const gchar *extension,
+add_extensions(GSList *extensions, const char *extension,
     GSList *compression_type_extensions)
 {
 	/*
@@ -139,49 +139,50 @@ add_extensions(GSList *extensions, const gchar *extension,
  * must also be added open_info_base[] below.
  */
 static const struct file_extension_info file_type_extensions_base[] = {
-	{ "Wireshark/tcpdump/... - pcap", TRUE, "pcap;cap;dmp" },
-	{ "Wireshark/... - pcapng", TRUE, "pcapng;ntar;scap" },
-	{ "Network Monitor, Surveyor, NetScaler", TRUE, "cap" },
-	{ "Sun snoop", TRUE, "snoop" },
-	{ "InfoVista 5View capture", TRUE, "5vw" },
-	{ "Sniffer (DOS)", TRUE, "cap;enc;trc;fdc;syc" },
-	{ "Cinco NetXRay, Sniffer (Windows)", TRUE, "cap;caz" },
-	{ "Endace ERF capture", TRUE, "erf" },
-	{ "EyeSDN USB S0/E1 ISDN trace format", TRUE, "trc" },
-	{ "HP-UX nettl trace", TRUE, "trc0;trc1" },
-	{ "Viavi Observer", TRUE, "bfr" },
-	{ "Colasoft Capsa", TRUE, "cscpkt" },
-	{ "Novell LANalyzer", TRUE, "tr1" },
-	{ "Tektronix K12xx 32-bit .rf5 format", TRUE, "rf5" },
-	{ "Savvius *Peek", TRUE, "pkt;tpc;apc;wpz" },
-	{ "Catapult DCT2000 trace (.out format)", TRUE, "out" },
-	{ "Micropross mplog", TRUE, "mplog" },
-	{ "TamoSoft CommView NCF", TRUE, "ncf" },
-	{ "TamoSoft CommView NCFX", TRUE, "ncfx" },
-	{ "Symbian OS btsnoop", TRUE, "log" },
-	{ "XML files (including Gammu DCT3 traces)", TRUE, "xml" },
-	{ "macOS PacketLogger", TRUE, "pklg" },
-	{ "Daintree SNA", TRUE, "dcf" },
-	{ "IPFIX File Format", TRUE, "pfx;ipfix" },
-	{ "Aethra .aps file", TRUE, "aps" },
-	{ "MPEG2 transport stream", TRUE, "mp2t;ts;mpg" },
-	{ "Ixia IxVeriWave .vwr Raw 802.11 Capture", TRUE, "vwr" },
-	{ "CAM Inspector file", TRUE, "camins" },
-	{ "BLF file", TRUE, "blf" },
-	{ "AUTOSAR DLT file", TRUE, "dlt" },
-	{ "MPEG files", FALSE, "mpeg;mpg;mp3" },
-	{ "Transport-Neutral Encapsulation Format", FALSE, "tnef" },
-	{ "JPEG/JFIF files", FALSE, "jpg;jpeg;jfif" },
-	{ "JavaScript Object Notation file", FALSE, "json" },
-	{ "MP4 file", FALSE, "mp4" },
-	{ "RTPDump file", FALSE, "rtp;rtpdump" },
+	{ "Wireshark/tcpdump/... - pcap", true, "pcap;cap;dmp" },
+	{ "Wireshark/... - pcapng", true, "pcapng;scap;ntar" },
+	{ "Network Monitor, Surveyor, NetScaler", true, "cap" },
+	{ "Sun snoop", true, "snoop" },
+	{ "InfoVista 5View capture", true, "5vw" },
+	{ "Sniffer (DOS)", true, "cap;enc;trc;fdc;syc" },
+	{ "Cinco NetXRay, Sniffer (Windows)", true, "cap;caz" },
+	{ "Endace ERF capture", true, "erf" },
+	{ "EyeSDN USB S0/E1 ISDN trace format", true, "trc" },
+	{ "HP-UX nettl trace", true, "trc0;trc1" },
+	{ "Viavi Observer", true, "bfr" },
+	{ "Colasoft Capsa", true, "cscpkt" },
+	{ "Novell LANalyzer", true, "tr1" },
+	{ "Tektronix K12xx 32-bit .rf5 format", true, "rf5" },
+	{ "Savvius *Peek", true, "pkt;tpc;apc;wpz" },
+	{ "Catapult DCT2000 trace (.out format)", true, "out" },
+	{ "Micropross mplog", true, "mplog" },
+	{ "TamoSoft CommView NCF", true, "ncf" },
+	{ "TamoSoft CommView NCFX", true, "ncfx" },
+	{ "Symbian OS btsnoop", true, "log" },
+	{ "XML files (including Gammu DCT3 traces)", true, "xml" },
+	{ "macOS PacketLogger", true, "pklg" },
+	{ "Daintree SNA", true, "dcf" },
+	{ "IPFIX File Format", true, "pfx;ipfix" },
+	{ "Aethra .aps file", true, "aps" },
+	{ "MPEG2 transport stream", true, "mp2t;ts;m2ts;mpg" },
+	{ "Ixia IxVeriWave .vwr Raw 802.11 Capture", true, "vwr" },
+	{ "CAM Inspector file", true, "camins" },
+	{ "BLF file", true, "blf" },
+	{ "AUTOSAR DLT file", true, "dlt" },
+	{ "MPEG files", false, "mpeg;mpg;mp3" },
+	{ "Transport-Neutral Encapsulation Format", false, "tnef" },
+	{ "JPEG/JFIF files", false, "jpg;jpeg;jfif" },
+	{ "JavaScript Object Notation file", false, "json" },
+	{ "MP4 file", false, "mp4" },
+	{ "RTPDump file", false, "rtp;rtpdump" },
+	{ "EMS file", false, "ems" },
 };
 
-#define	N_FILE_TYPE_EXTENSIONS	(sizeof file_type_extensions_base / sizeof file_type_extensions_base[0])
+#define	N_FILE_TYPE_EXTENSIONS	array_length(file_type_extensions_base)
 
-static const struct file_extension_info* file_type_extensions = NULL;
+static const struct file_extension_info* file_type_extensions;
 
-static GArray* file_type_extensions_arr = NULL;
+static GArray* file_type_extensions_arr;
 
 /* initialize the extensions array if it has not been initialized yet */
 static void
@@ -190,7 +191,7 @@ init_file_type_extensions(void)
 
 	if (file_type_extensions_arr) return;
 
-	file_type_extensions_arr = g_array_new(FALSE,TRUE,sizeof(struct file_extension_info));
+	file_type_extensions_arr = g_array_new(false,true,sizeof(struct file_extension_info));
 
 	g_array_append_vals(file_type_extensions_arr,file_type_extensions_base,N_FILE_TYPE_EXTENSIONS);
 
@@ -223,7 +224,7 @@ static GSList *
 add_extensions_for_file_extensions_type(int extension_type, GSList *extensions,
     GSList *compression_type_extensions)
 {
-	gchar **extensions_set, **extensionp, *extension;
+	char **extensions_set, **extensionp, *extension;
 
 	/*
 	 * Split the extension-list string into a set of extensions.
@@ -256,7 +257,7 @@ add_extensions_for_file_extensions_type(int extension_type, GSList *extensions,
  * with g_free().
  */
 GSList *
-wtap_get_file_extension_type_extensions(guint extension_type)
+wtap_get_file_extension_type_extensions(unsigned extension_type)
 {
 	GSList *extensions, *compression_type_extensions;
 
@@ -406,12 +407,16 @@ static const struct open_info open_info_base[] = {
 	{ "Android Logcat Text formats",            OPEN_INFO_HEURISTIC, logcat_text_open,         "txt",      NULL, NULL },
 	{ "Candump log",                            OPEN_INFO_HEURISTIC, candump_open,             NULL,       NULL, NULL },
 	{ "Busmaster log",                          OPEN_INFO_HEURISTIC, busmaster_open,           NULL,       NULL, NULL },
+	{ "CSS Electronics CLX000 CAN log",         OPEN_INFO_MAGIC,     cllog_open,               "txt",      NULL, NULL },
 	{ "Ericsson eNode-B raw log",               OPEN_INFO_MAGIC,     eri_enb_log_open,         NULL,       NULL, NULL },
 	{ "Systemd Journal",                        OPEN_INFO_HEURISTIC, systemd_journal_open,     "log;jnl;journal",      NULL, NULL },
 
 	/* ASCII trace files from Telnet sessions. */
 	{ "Lucent/Ascend access server trace",      OPEN_INFO_HEURISTIC, ascend_open,              "txt",      NULL, NULL },
 	{ "Toshiba Compact ISDN Router snoop",      OPEN_INFO_HEURISTIC, toshiba_open,             "txt",      NULL, NULL },
+
+	{ "EGNOS Message Server (EMS) file",        OPEN_INFO_HEURISTIC, ems_open,                 "ems",      NULL, NULL },
+
 	/* Extremely weak heuristics - put them at the end. */
 	{ "Ixia IxVeriWave .vwr Raw Capture",       OPEN_INFO_HEURISTIC, vwr_open,                 "vwr",      NULL, NULL },
 	{ "CAM Inspector file",                     OPEN_INFO_HEURISTIC, camins_open,              "camins",   NULL, NULL },
@@ -426,20 +431,20 @@ static const struct open_info open_info_base[] = {
  * for anything else, because the size of the actual array will change if
  * Lua scripts register a new file reader.
  */
-#define N_OPEN_INFO_ROUTINES  ((sizeof open_info_base / sizeof open_info_base[0]))
+#define N_OPEN_INFO_ROUTINES  array_length(open_info_base)
 
-static GArray *open_info_arr = NULL;
+static GArray *open_info_arr;
 
 /* this always points to the top of the created array */
-struct open_info *open_routines = NULL;
+struct open_info *open_routines;
 
 /* this points to the first OPEN_INFO_HEURISTIC type in the array */
-static guint heuristic_open_routine_idx = 0;
+static unsigned heuristic_open_routine_idx;
 
 static void
 set_heuristic_routine(void)
 {
-	guint i;
+	unsigned i;
 	ws_assert(open_info_arr != NULL);
 
 	for (i = 0; i < open_info_arr->len; i++) {
@@ -463,7 +468,7 @@ init_open_routines(void)
 	if (open_info_arr)
 		return;
 
-	open_info_arr = g_array_new(TRUE,TRUE,sizeof(struct open_info));
+	open_info_arr = g_array_new(true,true,sizeof(struct open_info));
 
 	g_array_append_vals(open_info_arr, open_info_base, N_OPEN_INFO_ROUTINES);
 
@@ -500,7 +505,7 @@ init_open_routines(void)
  * wtap_has_open_info() first.
  */
 void
-wtap_register_open_info(struct open_info *oi, const gboolean first_routine)
+wtap_register_open_info(struct open_info *oi, const bool first_routine)
 {
 	if (!oi || !oi->name) {
 		ws_error("No open_info name given to register");
@@ -536,9 +541,9 @@ wtap_register_open_info(struct open_info *oi, const gboolean first_routine)
  * that condition more gracefully, call wtap_has_open_info() first.
  */
 void
-wtap_deregister_open_info(const gchar *name)
+wtap_deregister_open_info(const char *name)
 {
-	guint i;
+	unsigned i;
 
 	if (!name) {
 		ws_error("Missing open_info name to de-register");
@@ -559,27 +564,27 @@ wtap_deregister_open_info(const gchar *name)
 
 /* Determines if a open routine short name already exists
  */
-gboolean
-wtap_has_open_info(const gchar *name)
+bool
+wtap_has_open_info(const char *name)
 {
-	guint i;
+	unsigned i;
 
 	if (!name) {
 		ws_error("No name given to wtap_has_open_info!");
-		return FALSE;
+		return false;
 	}
 
 
 	for (i = 0; i < open_info_arr->len; i++) {
 		if (open_routines[i].name && strcmp(open_routines[i].name, name) == 0) {
-			return TRUE;
+			return true;
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
-gboolean
+bool
 wtap_uses_lua_filehandler(const wtap* wth)
 {
 	if (wth && wth->wslua_data != NULL) {
@@ -587,10 +592,10 @@ wtap_uses_lua_filehandler(const wtap* wth)
 		 * Currently, wslua_data is set if and only if using a Lua
 		 * file handler.
 		 */
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 /*
@@ -637,10 +642,10 @@ open_info_name_to_type(const char *name)
 static char *
 get_file_extension(const char *pathname)
 {
-	gchar *filename;
-	gchar **components;
+	char *filename;
+	char **components;
 	size_t ncomponents;
-	gchar *extensionp;
+	char *extensionp;
 
 	/*
 	 * Is the pathname empty?
@@ -736,16 +741,16 @@ get_file_extension(const char *pathname)
 /*
  * Check if file extension is used in this heuristic
  */
-static gboolean
+static bool
 heuristic_uses_extension(unsigned int i, const char *extension)
 {
-	gchar **extensionp;
+	char **extensionp;
 
 	/*
 	 * Does this file type *have* any extensions?
 	 */
 	if (open_routines[i].extensions == NULL)
-		return FALSE;	/* no */
+		return false;	/* no */
 
 	/*
 	 * Check each of them against the specified extension.
@@ -753,15 +758,130 @@ heuristic_uses_extension(unsigned int i, const char *extension)
 	for (extensionp = open_routines[i].extensions_set; *extensionp != NULL;
 	    extensionp++) {
 		if (strcmp(extension, *extensionp) == 0) {
-			return TRUE;	/* it's one of them */
+			return true;	/* it's one of them */
 		}
 	}
 
-	return FALSE;	/* it's not one of them */
+	return false;	/* it's not one of them */
+}
+
+/*
+ * Attempt to open the file corresponding to "wth" using the file format
+ * handler in "candidate".
+ *
+ * Returns WTAP_OPEN_MINE upon success, WTAP_OPEN_NOT_MINE if the file is not
+ * in a suitable format for "candidate", or WTAP_OPEN_ERROR if a failure
+ * occurred while reading the input.
+ */
+static int
+try_one_open(wtap *wth, const struct open_info *candidate, int *err, char **err_info)
+{
+	/* Seek back to the beginning of the file; the open routine for the
+	 * previous file type may have left the file position somewhere other
+	 * than the beginning, and the open routine for this file type will
+	 * probably want to start reading at the beginning.
+	 *
+	 * Initialize the data offset while we're at it.
+	 */
+	if (file_seek(wth->fh, 0, SEEK_SET, err) == -1) {
+		/* Error - give up */
+		return WTAP_OPEN_ERROR;
+	}
+
+	/* Set wth with wslua data if any - this is how we pass the data to the
+	 * file reader, kinda like the priv member but not free'd later.
+	 * It's ok for this to copy a NULL.
+	 */
+	wth->wslua_data = candidate->wslua_data;
+
+	return candidate->open_routine(wth, err, err_info);
+}
+
+/*
+ * Attempt to open the file corresponding to "wth".  If "type" is supplied
+ * (i.e. other than WTAP_TYPE_AUTO), that will be the only type attempted.
+ * Otherwise, heuristic detection of the file format will be performed,
+ * possibly guided by the extension part of "filename".
+ *
+ * Returns WTAP_OPEN_MINE upon success, WTAP_OPEN_NOT_MINE if it was not
+ * possible to determine a suitable format for the file, or WTAP_OPEN_ERROR if
+ * a failure occurred while reading the input.
+ */
+static int
+try_open(wtap *wth, unsigned int type, int *err, char **err_info)
+{
+	int result = WTAP_OPEN_NOT_MINE;
+	unsigned i;
+	char *extension;
+
+	/* 'type' is 1-based. */
+	if (type != WTAP_TYPE_AUTO && type <= open_info_arr->len) {
+		/* Try only the specified type. */
+		return try_one_open(wth, &open_routines[type - 1], err, err_info);
+	}
+
+	/* First, all file types that support magic numbers. */
+	for (i = 0; i < heuristic_open_routine_idx && result == WTAP_OPEN_NOT_MINE; i++) {
+		result = try_one_open(wth, &open_routines[i], err, err_info);
+	}
+
+	if (result != WTAP_OPEN_NOT_MINE) {
+		return result;
+	}
+
+	/* Does this file's name have an extension? */
+	extension = get_file_extension(wth->pathname);
+	if (extension != NULL) {
+		unsigned pass;
+
+		/*
+		 * Yes, the filename has an extension.
+		 *
+		 * The heuristic types fall into one of three categories, which
+		 * we attempt in order by scanning for each category in turn.
+		 *
+		 * First pass selects the heuristic types that list this file's
+		 * extension, as these are most likely to be the correct choice
+		 * for this file.
+		 *
+		 * Second pass selects heuristic types which have no
+		 * extensions.  We try those before the ones that have
+		 * extensions that *don't* match this file's extension, on the
+		 * theory that files of those types generally have one of the
+		 * type's extensions, and, as this file *doesn't* have one of
+		 * those extensions, it's probably *not* one of those files.
+		 *
+		 * Third pass selects heuristic types which support extensions
+		 * but where none of them matches this file's extension.
+		 *
+		 * We need only continue searching until we find a match or an
+		 * error occurs.
+		 */
+
+		for (pass = 0; pass < 3 && result == WTAP_OPEN_NOT_MINE; pass++) {
+			for (i = heuristic_open_routine_idx; i < open_info_arr->len && result == WTAP_OPEN_NOT_MINE; i++) {
+				if (   (pass == 0 && heuristic_uses_extension(i, extension))
+				    || (pass == 1 && open_routines[i].extensions == NULL)
+				    || (pass == 2 && open_routines[i].extensions != NULL
+				                  && !heuristic_uses_extension(i, extension))) {
+					result = try_one_open(wth, &open_routines[i], err, err_info);
+				}
+			}
+		}
+
+		g_free(extension);
+	} else {
+		/* No extension.  Try all the heuristic types in order. */
+		for (i = heuristic_open_routine_idx; i < open_info_arr->len && result == WTAP_OPEN_NOT_MINE; i++) {
+			result = try_one_open(wth, &open_routines[i], err, err_info);
+		}
+	}
+
+	return result;
 }
 
 /* Opens a file and prepares a wtap struct.
- * If "do_random" is TRUE, it opens the file twice; the second open
+ * If "do_random" is true, it opens the file twice; the second open
  * allows the application to do random-access I/O without moving
  * the seek offset for sequential I/O, which is used by Wireshark
  * so that it can do sequential I/O to a capture file that's being
@@ -770,15 +890,13 @@ heuristic_uses_extension(unsigned int i, const char *extension)
  */
 wtap *
 wtap_open_offline(const char *filename, unsigned int type, int *err, char **err_info,
-		  gboolean do_random)
+		  bool do_random)
 {
 	int	fd;
 	ws_statb64 statb;
-	gboolean ispipe = FALSE;
+	bool ispipe = false;
 	wtap	*wth;
-	unsigned int	i;
-	gboolean use_stdin = FALSE;
-	gchar *extension;
+	bool use_stdin = false;
 	wtap_block_t shb;
 
 	*err = 0;
@@ -786,7 +904,7 @@ wtap_open_offline(const char *filename, unsigned int type, int *err, char **err_
 
 	/* open standard input if filename is '-' */
 	if (strcmp(filename, "-") == 0)
-		use_stdin = TRUE;
+		use_stdin = true;
 
 	/* First, make sure the file is valid */
 	if (use_stdin) {
@@ -816,7 +934,7 @@ wtap_open_offline(const char *filename, unsigned int type, int *err, char **err_
 			*err = WTAP_ERR_RANDOM_OPEN_PIPE;
 			return NULL;
 		}
-		ispipe = TRUE;
+		ispipe = true;
 	} else if (S_ISDIR(statb.st_mode)) {
 		/*
 		 * Return different errors for "this is a directory"
@@ -900,7 +1018,7 @@ wtap_open_offline(const char *filename, unsigned int type, int *err, char **err_
 	wth->pathname = g_strdup(filename);
 	wth->priv = NULL;
 	wth->wslua_data = NULL;
-	wth->shb_hdrs = g_array_new(FALSE, FALSE, sizeof(wtap_block_t));
+	wth->shb_hdrs = g_array_new(false, false, sizeof(wtap_block_t));
 	shb = wtap_block_create(WTAP_BLOCK_SECTION);
 	if (shb)
 		g_array_append_val(wth->shb_hdrs, shb);
@@ -908,274 +1026,42 @@ wtap_open_offline(const char *filename, unsigned int type, int *err, char **err_
 	/* Initialize the array containing a list of interfaces. pcapng_open and
 	 * erf_open needs this (and libpcap_open for ERF encapsulation types).
 	 * Always initing it here saves checking for a NULL ptr later. */
-	wth->interface_data = g_array_new(FALSE, FALSE, sizeof(wtap_block_t));
+	wth->interface_data = g_array_new(false, false, sizeof(wtap_block_t));
 	/*
 	 * Next interface data that wtap_get_next_interface_description()
 	 * will return.
 	 */
 	wth->next_interface_data = 0;
 
+	wth->shb_iface_to_global = g_array_new(false, false, sizeof(unsigned));
+	g_array_append_val(wth->shb_iface_to_global, wth->interface_data->len);
+
 	if (wth->random_fh) {
 		wth->fast_seek = g_ptr_array_new();
 
-		file_set_random_access(wth->fh, FALSE, wth->fast_seek);
-		file_set_random_access(wth->random_fh, TRUE, wth->fast_seek);
+		file_set_random_access(wth->fh, false, wth->fast_seek);
+		file_set_random_access(wth->random_fh, true, wth->fast_seek);
 	}
 
-	/* 'type' is 1 greater than the array index */
-	if (type != WTAP_TYPE_AUTO && type <= open_info_arr->len) {
-		int result;
+	/* Find a file format handler which can read the file. */
+	switch (try_open(wth, type, err, err_info)) {
+	case WTAP_OPEN_NOT_MINE:
+		/* Well, it's not one of the types of file we know about. */
+		*err = WTAP_ERR_FILE_UNKNOWN_FORMAT;
+		/* FALLTHROUGH */
 
-		if (file_seek(wth->fh, 0, SEEK_SET, err) == -1) {
-			/* I/O error - give up */
-			wtap_close(wth);
-			return NULL;
-		}
-
-		/* Set wth with wslua data if any - this is how we pass the data
-		 * to the file reader, kinda like the priv member but not free'd later.
-		 * It's ok for this to copy a NULL.
-		 */
-		wth->wslua_data = open_routines[type - 1].wslua_data;
-
-		result = (*open_routines[type - 1].open_routine)(wth, err, err_info);
-
-		switch (result) {
-			case WTAP_OPEN_ERROR:
-				/* Error - give up */
-				wtap_close(wth);
-				return NULL;
-
-			case WTAP_OPEN_NOT_MINE:
-				/* No error, but not that type of file */
-				goto fail;
-
-			case WTAP_OPEN_MINE:
-				/* We found the file type */
-				goto success;
-		}
+	case WTAP_OPEN_ERROR:
+		wtap_close(wth);
+		wth = NULL;
 	}
 
-	/* Try all file types that support magic numbers */
-	for (i = 0; i < heuristic_open_routine_idx; i++) {
-		/* Seek back to the beginning of the file; the open routine
-		 * for the previous file type may have left the file
-		 * position somewhere other than the beginning, and the
-		 * open routine for this file type will probably want
-		 * to start reading at the beginning.
-		 *
-		 * Initialize the data offset while we're at it.
-		 */
-		if (file_seek(wth->fh, 0, SEEK_SET, err) == -1) {
-			/* Error - give up */
-			wtap_close(wth);
-			return NULL;
-		}
-
-		/* Set wth with wslua data if any - this is how we pass the data
-		 * to the file reader, kinda like the priv member but not free'd later.
-		 * It's ok for this to copy a NULL.
-		 */
-		wth->wslua_data = open_routines[i].wslua_data;
-
-		switch ((*open_routines[i].open_routine)(wth, err, err_info)) {
-
-		case WTAP_OPEN_ERROR:
-			/* Error - give up */
-			wtap_close(wth);
-			return NULL;
-
-		case WTAP_OPEN_NOT_MINE:
-			/* No error, but not that type of file */
-			break;
-
-		case WTAP_OPEN_MINE:
-			/* We found the file type */
-			goto success;
-		}
-	}
-
-
-	/* Does this file's name have an extension? */
-	extension = get_file_extension(filename);
-	if (extension != NULL) {
-		/* Yes - try the heuristic types that use that extension first. */
-		for (i = heuristic_open_routine_idx; i < open_info_arr->len; i++) {
-			/* Does this type use that extension? */
-			if (heuristic_uses_extension(i, extension)) {
-				/* Yes. */
-				if (file_seek(wth->fh, 0, SEEK_SET, err) == -1) {
-					/* Error - give up */
-					g_free(extension);
-					wtap_close(wth);
-					return NULL;
-				}
-
-				/* Set wth with wslua data if any - this is how we pass the data
-				 * to the file reader, kind of like priv but not free'd later.
-				 */
-				wth->wslua_data = open_routines[i].wslua_data;
-
-				switch ((*open_routines[i].open_routine)(wth,
-				    err, err_info)) {
-
-				case WTAP_OPEN_ERROR:
-					/* Error - give up */
-					g_free(extension);
-					wtap_close(wth);
-					return NULL;
-
-				case WTAP_OPEN_NOT_MINE:
-					/* No error, but not that type of file */
-					break;
-
-				case WTAP_OPEN_MINE:
-					/* We found the file type */
-					g_free(extension);
-					goto success;
-				}
-			}
-		}
-
-		/*
-		 * Now try the heuristic types that have no extensions
-		 * to check; we try those before the ones that have
-		 * extensions that *don't* match this file's extension,
-		 * on the theory that files of those types generally
-		 * have one of the type's extensions, and, as this file
-		 * *doesn't* have one of those extensions, it's probably
-		 * *not* one of those files.
-		 */
-		for (i = heuristic_open_routine_idx; i < open_info_arr->len; i++) {
-			/* Does this type have any extensions? */
-			if (open_routines[i].extensions == NULL) {
-				/* No. */
-				if (file_seek(wth->fh, 0, SEEK_SET, err) == -1) {
-					/* Error - give up */
-					g_free(extension);
-					wtap_close(wth);
-					return NULL;
-				}
-
-				/* Set wth with wslua data if any - this is how we pass the data
-				 * to the file reader, kind of like priv but not free'd later.
-				 */
-				wth->wslua_data = open_routines[i].wslua_data;
-
-				switch ((*open_routines[i].open_routine)(wth,
-				    err, err_info)) {
-
-				case WTAP_OPEN_ERROR:
-					/* Error - give up */
-					g_free(extension);
-					wtap_close(wth);
-					return NULL;
-
-				case WTAP_OPEN_NOT_MINE:
-					/* No error, but not that type of file */
-					break;
-
-				case WTAP_OPEN_MINE:
-					/* We found the file type */
-					g_free(extension);
-					goto success;
-				}
-			}
-		}
-
-		/*
-		 * Now try the ones that have extensions where none of
-		 * them matches this file's extensions.
-		 */
-		for (i = heuristic_open_routine_idx; i < open_info_arr->len; i++) {
-			/*
-			 * Does this type have extensions and is this file's
-			 * extension one of them?
-			 */
-			if (open_routines[i].extensions != NULL &&
-			    !heuristic_uses_extension(i, extension)) {
-				/* Yes and no. */
-				if (file_seek(wth->fh, 0, SEEK_SET, err) == -1) {
-					/* Error - give up */
-					g_free(extension);
-					wtap_close(wth);
-					return NULL;
-				}
-
-				/* Set wth with wslua data if any - this is how we pass the data
-				 * to the file reader, kind of like priv but not free'd later.
-				 */
-				wth->wslua_data = open_routines[i].wslua_data;
-
-				switch ((*open_routines[i].open_routine)(wth,
-				    err, err_info)) {
-
-				case WTAP_OPEN_ERROR:
-					/* Error - give up */
-					g_free(extension);
-					wtap_close(wth);
-					return NULL;
-
-				case WTAP_OPEN_NOT_MINE:
-					/* No error, but not that type of file */
-					break;
-
-				case WTAP_OPEN_MINE:
-					/* We found the file type */
-					g_free(extension);
-					goto success;
-				}
-			}
-		}
-		g_free(extension);
-	} else {
-		/* No - try all the heuristics types in order. */
-		for (i = heuristic_open_routine_idx; i < open_info_arr->len; i++) {
-
-			if (file_seek(wth->fh, 0, SEEK_SET, err) == -1) {
-				/* Error - give up */
-				wtap_close(wth);
-				return NULL;
-			}
-
-			/* Set wth with wslua data if any - this is how we pass the data
-			 * to the file reader, kind of like priv but not free'd later.
-			 */
-			wth->wslua_data = open_routines[i].wslua_data;
-
-			switch ((*open_routines[i].open_routine)(wth, err, err_info)) {
-
-			case WTAP_OPEN_ERROR:
-				/* Error - give up */
-				wtap_close(wth);
-				return NULL;
-
-			case WTAP_OPEN_NOT_MINE:
-				/* No error, but not that type of file */
-				break;
-
-			case WTAP_OPEN_MINE:
-				/* We found the file type */
-				goto success;
-			}
-		}
-	}
-
-fail:
-
-	/* Well, it's not one of the types of file we know about. */
-	wtap_close(wth);
-	*err = WTAP_ERR_FILE_UNKNOWN_FORMAT;
-	return NULL;
-
-success:
 	return wth;
 }
 
 /*
  * Given the pathname of the file we just closed with wtap_fdclose(), attempt
  * to reopen that file and assign the new file descriptor(s) to the sequential
- * stream and, if do_random is TRUE, to the random stream.  Used on Windows
+ * stream and, if do_random is true, to the random stream.  Used on Windows
  * after the rename of a file we had open was done or if the rename of a
  * file on top of a file we had open failed.
  *
@@ -1184,7 +1070,7 @@ success:
  * random stream is open, so this refuses to open pipes, and only
  * reopens the random stream.
  */
-gboolean
+bool
 wtap_fdreopen(wtap *wth, const char *filename, int *err)
 {
 	ws_statb64 statb;
@@ -1198,20 +1084,20 @@ wtap_fdreopen(wtap *wth, const char *filename, int *err)
 	 */
 	if (strcmp(filename, "-") == 0) {
 		*err = WTAP_ERR_RANDOM_OPEN_STDIN;
-		return FALSE;
+		return false;
 	}
 
 	/* First, make sure the file is valid */
 	if (ws_stat64(filename, &statb) < 0) {
 		*err = errno;
-		return FALSE;
+		return false;
 	}
 	if (S_ISFIFO(statb.st_mode)) {
 		/*
 		 * Opens of FIFOs are not allowed; see above.
 		 */
 		*err = WTAP_ERR_RANDOM_OPEN_PIPE;
-		return FALSE;
+		return false;
 	} else if (S_ISDIR(statb.st_mode)) {
 		/*
 		 * Return different errors for "this is a directory"
@@ -1219,23 +1105,23 @@ wtap_fdreopen(wtap *wth, const char *filename, int *err)
 		 * the user can get a potentially more helpful error.
 		 */
 		*err = EISDIR;
-		return FALSE;
+		return false;
 	} else if (! S_ISREG(statb.st_mode)) {
 		*err = WTAP_ERR_NOT_REGULAR_FILE;
-		return FALSE;
+		return false;
 	}
 
 	/* Open the file */
 	errno = WTAP_ERR_CANT_OPEN;
 	if (!file_fdreopen(wth->random_fh, filename)) {
 		*err = errno;
-		return FALSE;
+		return false;
 	}
 	if (strcmp(filename, wth->pathname) != 0) {
 		g_free(wth->pathname);
 		wth->pathname = g_strdup(filename);
 	}
-	return TRUE;
+	return true;
 }
 
 /* Table of the file types and subtypes for which we have support. */
@@ -1253,7 +1139,7 @@ static const struct file_type_subtype_info* file_type_subtype_table;
 /*
  * Number of elements in the table for builtin file types/subtypes.
  */
-static guint wtap_num_builtin_file_types_subtypes;
+static unsigned wtap_num_builtin_file_types_subtypes;
 
 /*
  * Required builtin types.
@@ -1288,7 +1174,7 @@ wtap_init_file_type_subtypes(void)
 	 * Add on 7 more for pcapng, pcap, nanosecond pcap, and the
 	 * extra modified flavors of pcap.
 	 */
-	file_type_subtype_table_arr = g_array_sized_new(FALSE, TRUE,
+	file_type_subtype_table_arr = g_array_sized_new(false, true,
 	    sizeof(struct file_type_subtype_info), wtap_module_count*2 + 7);
 	file_type_subtype_table = (const struct file_type_subtype_info*)(void *)file_type_subtype_table_arr->data;
 
@@ -1314,7 +1200,7 @@ wtap_init_file_type_subtypes(void)
 	register_pcap();
 
 	/* Now register the ones found by the build process */
-	for (guint i = 0; i < wtap_module_count; i++)
+	for (unsigned i = 0; i < wtap_module_count; i++)
 		wtap_module_reg[i].cb_func();
 
 	/* Update the number of builtin entries. */
@@ -1329,7 +1215,7 @@ int
 wtap_register_file_type_subtype(const struct file_type_subtype_info* fi)
 {
 	struct file_type_subtype_info* finfo;
-	guint file_type_subtype;
+	unsigned file_type_subtype;
 
 	/*
 	 * Check for required fields (description and name).
@@ -1382,7 +1268,7 @@ wtap_register_file_type_subtype(const struct file_type_subtype_info* fi)
 			 */
 			*finfo = *fi;
 
-			return (gint)file_type_subtype;
+			return (int)file_type_subtype;
 		}
 	}
 
@@ -1411,7 +1297,7 @@ wtap_deregister_file_type_subtype(const int subtype)
 		ws_error("invalid file type to de-register");
 		return;
 	}
-	if ((guint)subtype < wtap_num_builtin_file_types_subtypes) {
+	if ((unsigned)subtype < wtap_num_builtin_file_types_subtypes) {
 		ws_error("built-in file types cannot be de-registered");
 		return;
 	}
@@ -1428,7 +1314,7 @@ wtap_deregister_file_type_subtype(const int subtype)
 	finfo->name = NULL;
 	finfo->default_file_extension = NULL;
 	finfo->additional_file_extensions = NULL;
-	finfo->writing_must_seek = FALSE;
+	finfo->writing_must_seek = false;
 	finfo->num_supported_blocks = 0;
 	finfo->supported_blocks = NULL;
 	finfo->can_write_encap = NULL;
@@ -1450,12 +1336,12 @@ wtap_dump_required_file_encap_type(const GArray *file_encaps)
 	encap = WTAP_ENCAP_PER_PACKET;
 	if (file_encaps->len == 1) {
 		/* OK, use the one-and-only encapsulation type. */
-		encap = g_array_index(file_encaps, gint, 0);
+		encap = g_array_index(file_encaps, int, 0);
 	}
 	return encap;
 }
 
-gboolean
+bool
 wtap_dump_can_write_encap(int file_type_subtype, int encap)
 {
 	int result = 0;
@@ -1463,7 +1349,7 @@ wtap_dump_can_write_encap(int file_type_subtype, int encap)
 	if (file_type_subtype < 0 ||
 	    file_type_subtype >= (int)file_type_subtype_table_arr->len ||
 	    file_type_subtype_table[file_type_subtype].can_write_encap == NULL)
-		return FALSE;
+		return false;
 
 	result = (*file_type_subtype_table[file_type_subtype].can_write_encap)(encap);
 
@@ -1478,29 +1364,29 @@ wtap_dump_can_write_encap(int file_type_subtype, int encap)
 		}
 
 		if (result != 0)
-			return FALSE;
+			return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 /*
- * Return TRUE if a capture with a given GArray of encapsulation types
+ * Return true if a capture with a given GArray of encapsulation types
  * and a given bitset of comment types can be written in a specified
- * format, and FALSE if it can't.
+ * format, and false if it can't.
  */
-static gboolean
+static bool
 wtap_dump_can_write_format(int ft, const GArray *file_encaps,
-    guint32 required_comment_types)
+    uint32_t required_comment_types)
 {
-	guint i;
+	unsigned i;
 
 	/*
 	 * Can we write in this format?
 	 */
 	if (!wtap_dump_can_open(ft)) {
 		/* No. */
-		return FALSE;
+		return false;
 	}
 
 	/*
@@ -1511,21 +1397,21 @@ wtap_dump_can_write_format(int ft, const GArray *file_encaps,
 		if (wtap_file_type_subtype_supports_option(ft,
 		    WTAP_BLOCK_SECTION, OPT_COMMENT) == OPTION_NOT_SUPPORTED) {
 			/* Not section comments. */
-			return FALSE;
+			return false;
 		}
 	}
 	if (required_comment_types & WTAP_COMMENT_PER_INTERFACE) {
 		if (wtap_file_type_subtype_supports_option(ft,
 		    WTAP_BLOCK_IF_ID_AND_INFO, OPT_COMMENT) == OPTION_NOT_SUPPORTED) {
 			/* Not interface comments. */
-			return FALSE;
+			return false;
 		}
 	}
 	if (required_comment_types & WTAP_COMMENT_PER_PACKET) {
 		if (wtap_file_type_subtype_supports_option(ft,
 		    WTAP_BLOCK_PACKET, OPT_COMMENT) == OPTION_NOT_SUPPORTED) {
 			/* Not packet comments. */
-			return FALSE;
+			return false;
 		}
 	}
 
@@ -1535,7 +1421,7 @@ wtap_dump_can_write_format(int ft, const GArray *file_encaps,
 	 */
 	if (!wtap_dump_can_write_encap(ft, wtap_dump_required_file_encap_type(file_encaps))) {
 		/* No. */
-		return FALSE;
+		return false;
 	}
 
 	/*
@@ -1545,20 +1431,20 @@ wtap_dump_can_write_format(int ft, const GArray *file_encaps,
 		if (!wtap_dump_can_write_encap(ft,
 		    g_array_index(file_encaps, int, i))) {
 			/* No - one of them isn't. */
-			return FALSE;
+			return false;
 		}
 	}
 
 	/* Yes - we're OK. */
-	return TRUE;
+	return true;
 }
 
 /*
- * Return TRUE if we can write a file with the given GArray of
+ * Return true if we can write a file with the given GArray of
  * encapsulation types and the given bitmask of comment types.
  */
-gboolean
-wtap_dump_can_write(const GArray *file_encaps, guint32 required_comment_types)
+bool
+wtap_dump_can_write(const GArray *file_encaps, uint32_t required_comment_types)
 {
 	int ft;
 
@@ -1569,19 +1455,19 @@ wtap_dump_can_write(const GArray *file_encaps, guint32 required_comment_types)
 		 */
 		if (wtap_dump_can_write_format(ft, file_encaps, required_comment_types)) {
 			/* OK, we can write it out in this type. */
-			return TRUE;
+			return true;
 		}
 	}
 
 	/* No, we couldn't save it in any format. */
-	return FALSE;
+	return false;
 }
 
 /*
  * Sort by file type/subtype name.
  */
 static int
-compare_file_type_subtypes_by_name(gconstpointer a, gconstpointer b)
+compare_file_type_subtypes_by_name(const void *a, const void *b)
 {
 	int file_type_subtype_a = *(const int *)a;
 	int file_type_subtype_b = *(const int *)b;
@@ -1594,7 +1480,7 @@ compare_file_type_subtypes_by_name(gconstpointer a, gconstpointer b)
  * Sort by file type/subtype description.
  */
 static int
-compare_file_type_subtypes_by_description(gconstpointer a, gconstpointer b)
+compare_file_type_subtypes_by_description(const void *a, const void *b)
 {
 	int file_type_subtype_a = *(const int *)a;
 	int file_type_subtype_b = *(const int *)b;
@@ -1610,7 +1496,7 @@ compare_file_type_subtypes_by_description(gconstpointer a, gconstpointer b)
  */
 GArray *
 wtap_get_savable_file_types_subtypes_for_file(int file_type_subtype,
-    const GArray *file_encaps, guint32 required_comment_types,
+    const GArray *file_encaps, uint32_t required_comment_types,
     ft_sort_order sort_order)
 {
 	GArray *savable_file_types_subtypes;
@@ -1676,7 +1562,7 @@ wtap_get_savable_file_types_subtypes_for_file(int file_type_subtype,
 	}
 
 	/* Allocate the array. */
-	savable_file_types_subtypes = g_array_new(FALSE, FALSE,
+	savable_file_types_subtypes = g_array_new(false, false,
 	    sizeof (int));
 
 	/*
@@ -1732,7 +1618,7 @@ wtap_get_writable_file_types_subtypes(ft_sort_order sort_order)
 	 * XXX - that's overkill; just scan the table to find all the
 	 * writable types and count them.
 	 */
-	writable_file_types_subtypes = g_array_sized_new(FALSE, FALSE,
+	writable_file_types_subtypes = g_array_sized_new(false, false,
 	    sizeof (int), file_type_subtype_table_arr->len);
 
 	/*
@@ -1831,7 +1717,7 @@ wtap_name_to_file_type_subtype(const char *name)
 	 * Is this name a backwards-compatibility name?
 	 */
 	new_name = (char *)g_hash_table_lookup(type_subtype_name_map,
-	    (gpointer)name);
+	    (void *)name);
 	if (new_name != NULL) {
 		/*
 		 * Yes, and new_name is the name to which it should
@@ -1932,7 +1818,7 @@ wtap_file_type_subtype_supports_block(int file_type_subtype,
  */
 option_support_t
 wtap_file_type_subtype_supports_option(int file_type_subtype,
-    wtap_block_type_t type, guint option)
+    wtap_block_type_t type, unsigned option)
 {
 	size_t num_supported_blocks;
 	const struct supported_block_type *supported_blocks;
@@ -1996,8 +1882,8 @@ static GSList *
 add_extensions_for_file_type_subtype(int file_type_subtype, GSList *extensions,
     GSList *compression_type_extensions)
 {
-	gchar **extensions_set, **extensionp;
-	gchar *extension;
+	char **extensions_set, **extensionp;
+	char *extension;
 
 	if (file_type_subtype < 0 ||
 	    file_type_subtype >= (int)file_type_subtype_table_arr->len) {
@@ -2052,7 +1938,7 @@ add_extensions_for_file_type_subtype(int file_type_subtype, GSList *extensions,
 /* Return a list of file extensions that are used by the specified file
  * type/subtype.
  *
- * If include_compressed is TRUE, the list will include compressed
+ * If include_compressed is true, the list will include compressed
  * extensions, e.g. not just "pcap" but also "pcap.gz" if we can read
  * gzipped files.
  *
@@ -2060,7 +1946,7 @@ add_extensions_for_file_type_subtype(int file_type_subtype, GSList *extensions,
  * with g_free().
  */
 GSList *
-wtap_get_file_extensions_list(int file_type_subtype, gboolean include_compressed)
+wtap_get_file_extensions_list(int file_type_subtype, bool include_compressed)
 {
 	GSList *extensions, *compression_type_extensions;
 
@@ -2223,47 +2109,47 @@ wtap_default_file_extension(int file_type_subtype)
 /*
  * Return whether we know how to write the specified file type.
  */
-gboolean
+bool
 wtap_dump_can_open(int file_type_subtype)
 {
 	if (file_type_subtype < 0 ||
 	    file_type_subtype >= (int)file_type_subtype_table_arr->len ||
 	    file_type_subtype_table[file_type_subtype].dump_open == NULL)
-		return FALSE;
+		return false;
 
-	return TRUE;
+	return true;
 }
 
 /*
  * Return whether we know how to write a compressed file of the specified
  * file type.
  */
-#ifdef HAVE_ZLIB
-gboolean
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG) || defined (HAVE_LZ4FRAME_H)
+bool
 wtap_dump_can_compress(int file_type_subtype)
 {
 	/*
 	 * If this is an unknown file type, or if we have to
 	 * seek when writing out a file with this file type,
-	 * return FALSE.
+	 * return false.
 	 */
 	if (file_type_subtype < 0 ||
 	    file_type_subtype >= (int)file_type_subtype_table_arr->len ||
 	    file_type_subtype_table[file_type_subtype].writing_must_seek)
-		return FALSE;
+		return false;
 
-	return TRUE;
+	return true;
 }
 #else
-gboolean
+bool
 wtap_dump_can_compress(int file_type_subtype _U_)
 {
-	return FALSE;
+	return false;
 }
 #endif
 
-static gboolean wtap_dump_open_finish(wtap_dumper *wdh, int *err,
-				      gchar **err_info);
+static bool wtap_dump_open_finish(wtap_dumper *wdh, int *err,
+				      char **err_info);
 
 static WFILE_T wtap_dump_file_open(wtap_dumper *wdh, const char *filename);
 static WFILE_T wtap_dump_file_fdopen(wtap_dumper *wdh, int fd);
@@ -2288,7 +2174,7 @@ wtap_dump_init_dumper(int file_type_subtype, wtap_compression_type compression_t
 	if (!wtap_dump_can_open(file_type_subtype)) {
 		/* Invalid type, or type we don't know how to write. */
 		*err = WTAP_ERR_UNWRITABLE_FILE_TYPE;
-		return FALSE;
+		return false;
 	}
 
 	/* OK, we know how to write that file type/subtype; can we write
@@ -2338,7 +2224,8 @@ wtap_dump_init_dumper(int file_type_subtype, wtap_compression_type compression_t
 	wdh->file_encap = params->encap;
 	wdh->compression_type = compression_type;
 	wdh->wslua_data = NULL;
-	wdh->interface_data = g_array_new(FALSE, FALSE, sizeof(wtap_block_t));
+	wdh->shb_iface_to_global = params->shb_iface_to_global;
+	wdh->interface_data = g_array_new(false, false, sizeof(wtap_block_t));
 
 	/* Set Section Header Block data */
 	wdh->shb_hdrs = params->shb_hdrs;
@@ -2347,7 +2234,7 @@ wtap_dump_init_dumper(int file_type_subtype, wtap_compression_type compression_t
 	/* Set Interface Description Block data */
 	if (interfaces && interfaces->len) {
 		if (!params->dont_copy_idbs) {	/* XXX */
-			guint itf_count;
+			unsigned itf_count;
 
 			/* Note: this memory is owned by wtap_dumper and will become
 			 * invalid after wtap_dump_close. */
@@ -2383,14 +2270,14 @@ wtap_dump_init_dumper(int file_type_subtype, wtap_compression_type compression_t
 	wdh->dsbs_initial = params->dsbs_initial;
 	wdh->dsbs_growing = params->dsbs_growing;
 	/* Set Sysdig meta events */
-	wdh->sysdig_mev_growing = params->sysdig_mev_growing;
+	wdh->mevs_growing = params->mevs_growing;
 	return wdh;
 }
 
 wtap_dumper *
 wtap_dump_open(const char *filename, int file_type_subtype,
     wtap_compression_type compression_type, const wtap_dump_params *params,
-    int *err, gchar **err_info)
+    int *err, char **err_info)
 {
 	wtap_dumper *wdh;
 	WFILE_T fh;
@@ -2429,7 +2316,7 @@ wtap_dump_open(const char *filename, int file_type_subtype,
 wtap_dumper *
 wtap_dump_open_tempfile(const char *tmpdir, char **filenamep, const char *pfx,
     int file_type_subtype, wtap_compression_type compression_type,
-    const wtap_dump_params *params, int *err, gchar **err_info)
+    const wtap_dump_params *params, int *err, char **err_info)
 {
 	int fd;
 	const char *ext;
@@ -2490,7 +2377,7 @@ wtap_dump_open_tempfile(const char *tmpdir, char **filenamep, const char *pfx,
 
 wtap_dumper *
 wtap_dump_fdopen(int fd, int file_type_subtype, wtap_compression_type compression_type,
-    const wtap_dump_params *params, int *err, gchar **err_info)
+    const wtap_dump_params *params, int *err, char **err_info)
 {
 	wtap_dumper *wdh;
 	WFILE_T fh;
@@ -2525,7 +2412,7 @@ wtap_dump_fdopen(int fd, int file_type_subtype, wtap_compression_type compressio
 
 wtap_dumper *
 wtap_dump_open_stdout(int file_type_subtype, wtap_compression_type compression_type,
-    const wtap_dump_params *params, int *err, gchar **err_info)
+    const wtap_dump_params *params, int *err, char **err_info)
 {
 	int new_fd;
 	wtap_dumper *wdh;
@@ -2566,31 +2453,31 @@ wtap_dump_open_stdout(int file_type_subtype, wtap_compression_type compression_t
 	return wdh;
 }
 
-static gboolean
-wtap_dump_open_finish(wtap_dumper *wdh, int *err, gchar **err_info)
+static bool
+wtap_dump_open_finish(wtap_dumper *wdh, int *err, char **err_info)
 {
 	int fd;
-	gboolean cant_seek;
+	bool cant_seek;
 
 	/* Can we do a seek on the file descriptor?
 	   If not, note that fact. */
 	if (wdh->compression_type != WTAP_UNCOMPRESSED) {
-		cant_seek = TRUE;
+		cant_seek = true;
 	} else {
 		fd = ws_fileno((FILE *)wdh->fh);
 		if (ws_lseek64(fd, 1, SEEK_CUR) == (off_t) -1)
-			cant_seek = TRUE;
+			cant_seek = true;
 		else {
 			/* Undo the seek. */
 			ws_lseek64(fd, 0, SEEK_SET);
-			cant_seek = FALSE;
+			cant_seek = false;
 		}
 	}
 
 	/* If this file type requires seeking, and we can't seek, fail. */
 	if (file_type_subtype_table[wdh->file_type_subtype].writing_must_seek && cant_seek) {
 		*err = WTAP_ERR_CANT_WRITE_TO_PIPE;
-		return FALSE;
+		return false;
 	}
 
 	/* Set wdh with wslua data if any - this is how we pass the data
@@ -2602,68 +2489,77 @@ wtap_dump_open_finish(wtap_dumper *wdh, int *err, gchar **err_info)
 	/* Now try to open the file for writing. */
 	if (!(*file_type_subtype_table[wdh->file_type_subtype].dump_open)(wdh, err,
 	    err_info)) {
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;	/* success! */
+	return true;	/* success! */
 }
 
-gboolean
+bool
 wtap_dump_add_idb(wtap_dumper *wdh, wtap_block_t idb, int *err,
-                  gchar **err_info)
+                  char **err_info)
 {
 	if (wdh->subtype_add_idb == NULL) {
 		/* Not supported. */
 		*err = WTAP_ERR_UNWRITABLE_REC_TYPE;
 		*err_info = g_strdup("Adding IDBs isn't supported by this file type");
-		return FALSE;
+		return false;
 	}
 	*err = 0;
 	*err_info = NULL;
 	return (wdh->subtype_add_idb)(wdh, idb, err, err_info);
 }
 
-gboolean
+bool
 wtap_dump(wtap_dumper *wdh, const wtap_rec *rec,
-	  const guint8 *pd, int *err, gchar **err_info)
+	  const uint8_t *pd, int *err, char **err_info)
 {
 	*err = 0;
 	*err_info = NULL;
 	return (wdh->subtype_write)(wdh, rec, pd, err, err_info);
 }
 
-gboolean
+bool
 wtap_dump_flush(wtap_dumper *wdh, int *err)
 {
-#ifdef HAVE_ZLIB
-	if (wdh->compression_type == WTAP_GZIP_COMPRESSED) {
+	switch (wdh->compression_type) {
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+	case WTAP_GZIP_COMPRESSED:
 		if (gzwfile_flush((GZWFILE_T)wdh->fh) == -1) {
 			*err = gzwfile_geterr((GZWFILE_T)wdh->fh);
-			return FALSE;
+			return false;
 		}
-	} else
+		break;
 #endif
-	{
+#ifdef HAVE_LZ4FRAME_H
+	case WTAP_LZ4_COMPRESSED:
+		if (lz4wfile_flush((LZ4WFILE_T)wdh->fh) == -1) {
+			*err = lz4wfile_geterr((LZ4WFILE_T)wdh->fh);
+			return false;
+		}
+		break;
+#endif /* HAVE_LZ4FRAME_H */
+	default:
 		if (fflush((FILE *)wdh->fh) == EOF) {
 			*err = errno;
-			return FALSE;
+			return false;
 		}
 	}
-	return TRUE;
+	return true;
 }
 
-gboolean
-wtap_dump_close(wtap_dumper *wdh, gboolean *needs_reload,
-    int *err, gchar **err_info)
+bool
+wtap_dump_close(wtap_dumper *wdh, bool *needs_reload,
+    int *err, char **err_info)
 {
-	gboolean ret = TRUE;
+	bool ret = true;
 
 	*err = 0;
 	*err_info = NULL;
 	if (wdh->subtype_finish != NULL) {
 		/* There's a finish routine for this dump stream. */
 		if (!(wdh->subtype_finish)(wdh, err, err_info))
-			ret = FALSE;
+			ret = false;
 	}
 	errno = WTAP_ERR_CANT_CLOSE;
 	if (wtap_dump_file_close(wdh) == EOF) {
@@ -2674,7 +2570,7 @@ wtap_dump_close(wtap_dumper *wdh, gboolean *needs_reload,
 			if (err != NULL)
 				*err = errno;
 		}
-		ret = FALSE;
+		ret = false;
 	}
 	if (needs_reload != NULL)
 		*needs_reload = wdh->needs_reload;
@@ -2691,19 +2587,19 @@ wtap_dump_file_type_subtype(wtap_dumper *wdh)
 	return wdh->file_type_subtype;
 }
 
-gint64
+int64_t
 wtap_get_bytes_dumped(wtap_dumper *wdh)
 {
 	return wdh->bytes_dumped;
 }
 
 void
-wtap_set_bytes_dumped(wtap_dumper *wdh, gint64 bytes_dumped)
+wtap_set_bytes_dumped(wtap_dumper *wdh, int64_t bytes_dumped)
 {
 	wdh->bytes_dumped = bytes_dumped;
 }
 
-gboolean
+bool
 wtap_addrinfo_list_empty(addrinfo_lists_t *addrinfo_lists)
 {
 	return (addrinfo_lists == NULL) ||
@@ -2711,15 +2607,15 @@ wtap_addrinfo_list_empty(addrinfo_lists_t *addrinfo_lists)
 	     (addrinfo_lists->ipv6_addr_list == NULL));
 }
 
-gboolean
+bool
 wtap_dump_set_addrinfo_list(wtap_dumper *wdh, addrinfo_lists_t *addrinfo_lists)
 {
 	if (!wdh || wdh->file_type_subtype < 0 ||
 	    wdh->file_type_subtype >= (int)file_type_subtype_table_arr->len ||
 	    wtap_file_type_subtype_supports_block(wdh->file_type_subtype, WTAP_BLOCK_NAME_RESOLUTION) == BLOCK_NOT_SUPPORTED)
-		return FALSE;
+		return false;
 	wdh->addrinfo_lists = addrinfo_lists;
-	return TRUE;
+	return true;
 }
 
 void
@@ -2760,71 +2656,82 @@ void
 wtap_dump_discard_sysdig_meta_events(wtap_dumper *wdh)
 {
 	/* As above for DSBs. */
-	if (wdh->sysdig_mev_growing) {
+	if (wdh->mevs_growing) {
 		/*
 		 * Pretend we've written all of them.
 		 */
-		wdh->sysdig_mev_growing_written = wdh->sysdig_mev_growing->len;
+		wdh->mevs_growing_written = wdh->mevs_growing->len;
 	}
 }
 
 /* internally open a file for writing (compressed or not) */
-#ifdef HAVE_ZLIB
 static WFILE_T
 wtap_dump_file_open(wtap_dumper *wdh, const char *filename)
 {
-	if (wdh->compression_type == WTAP_GZIP_COMPRESSED) {
+	switch (wdh->compression_type) {
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+	case WTAP_GZIP_COMPRESSED:
 		return gzwfile_open(filename);
-	} else {
+#endif /* defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG) */
+#ifdef HAVE_LZ4FRAME_H
+	case WTAP_LZ4_COMPRESSED:
+		return lz4wfile_open(filename);
+#endif /* HAVE_LZ4FRAME_H */
+	default:
 		return ws_fopen(filename, "wb");
 	}
 }
-#else
-static WFILE_T
-wtap_dump_file_open(wtap_dumper *wdh _U_, const char *filename)
-{
-	return ws_fopen(filename, "wb");
-}
-#endif
 
 /* internally open a file for writing (compressed or not) */
-#ifdef HAVE_ZLIB
 static WFILE_T
 wtap_dump_file_fdopen(wtap_dumper *wdh, int fd)
 {
-	if (wdh->compression_type == WTAP_GZIP_COMPRESSED) {
+	switch (wdh->compression_type) {
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+	case WTAP_GZIP_COMPRESSED:
 		return gzwfile_fdopen(fd);
-	} else {
+#endif /* defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG) */
+#ifdef HAVE_LZ4FRAME_H
+	case WTAP_LZ4_COMPRESSED:
+		return lz4wfile_fdopen(fd);
+#endif /* HAVE_LZ4FRAME_H */
+	default:
 		return ws_fdopen(fd, "wb");
 	}
 }
-#else
-static WFILE_T
-wtap_dump_file_fdopen(wtap_dumper *wdh _U_, int fd)
-{
-	return ws_fdopen(fd, "wb");
-}
-#endif
 
 /* internally writing raw bytes (compressed or not). Updates wdh->bytes_dumped on success */
-gboolean
+bool
 wtap_dump_file_write(wtap_dumper *wdh, const void *buf, size_t bufsize, int *err)
 {
 	size_t nwritten;
 
-#ifdef HAVE_ZLIB
-	if (wdh->compression_type == WTAP_GZIP_COMPRESSED) {
+	switch (wdh->compression_type) {
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+	case WTAP_GZIP_COMPRESSED:
 		nwritten = gzwfile_write((GZWFILE_T)wdh->fh, buf, (unsigned int) bufsize);
 		/*
 		 * gzwfile_write() returns 0 on error.
 		 */
 		if (nwritten == 0) {
 			*err = gzwfile_geterr((GZWFILE_T)wdh->fh);
-			return FALSE;
+			return false;
 		}
-	} else
+		break;
 #endif
-	{
+#ifdef HAVE_LZ4FRAME_H
+	case WTAP_LZ4_COMPRESSED:
+		nwritten = lz4wfile_write((LZ4WFILE_T)wdh->fh, buf, bufsize);
+		/*
+		 * lz4wfile_write() returns 0 on error.
+		 */
+		if (nwritten == 0) {
+			*err = lz4wfile_geterr((LZ4WFILE_T)wdh->fh);
+			return false;
+		}
+		break;
+#endif /* HAVE_LZ4FRAME_H */
+	default:
 		errno = WTAP_ERR_CANT_WRITE;
 		nwritten = fwrite(buf, 1, bufsize, (FILE *)wdh->fh);
 		/*
@@ -2836,29 +2743,35 @@ wtap_dump_file_write(wtap_dumper *wdh, const void *buf, size_t bufsize, int *err
 				*err = errno;
 			else
 				*err = WTAP_ERR_SHORT_WRITE;
-			return FALSE;
+			return false;
 		}
 	}
 	wdh->bytes_dumped += bufsize;
-	return TRUE;
+	return true;
 }
 
 /* internally close a file for writing (compressed or not) */
 static int
 wtap_dump_file_close(wtap_dumper *wdh)
 {
-#ifdef HAVE_ZLIB
-	if (wdh->compression_type == WTAP_GZIP_COMPRESSED)
+	switch (wdh->compression_type) {
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+	case WTAP_GZIP_COMPRESSED:
 		return gzwfile_close((GZWFILE_T)wdh->fh);
-	else
 #endif
+#ifdef HAVE_LZ4FRAME_H
+	case WTAP_LZ4_COMPRESSED:
+		return lz4wfile_close((LZ4WFILE_T)wdh->fh);
+#endif /* HAVE_LZ4FRAME_H */
+	default:
 		return fclose((FILE *)wdh->fh);
+	}
 }
 
-gint64
-wtap_dump_file_seek(wtap_dumper *wdh, gint64 offset, int whence, int *err)
+int64_t
+wtap_dump_file_seek(wtap_dumper *wdh, int64_t offset, int whence, int *err)
 {
-#ifdef HAVE_ZLIB
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG) || defined (HAVE_LZ4FRAME_H)
 	if (wdh->compression_type != WTAP_UNCOMPRESSED) {
 		*err = WTAP_ERR_CANT_SEEK_COMPRESSED;
 		return -1;
@@ -2875,11 +2788,11 @@ wtap_dump_file_seek(wtap_dumper *wdh, gint64 offset, int whence, int *err)
 	}
 }
 
-gint64
+int64_t
 wtap_dump_file_tell(wtap_dumper *wdh, int *err)
 {
-	gint64 rval;
-#ifdef HAVE_ZLIB
+	int64_t rval;
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG) || defined (HAVE_LZ4FRAME_H)
 	if (wdh->compression_type != WTAP_UNCOMPRESSED) {
 		*err = WTAP_ERR_CANT_SEEK_COMPRESSED;
 		return -1;
@@ -2899,7 +2812,7 @@ wtap_dump_file_tell(wtap_dumper *wdh, int *err)
 void
 cleanup_open_routines(void)
 {
-	guint i;
+	unsigned i;
 	struct open_info *i_open;
 
 	if (open_routines != NULL && open_info_arr) {
@@ -2908,7 +2821,7 @@ cleanup_open_routines(void)
 				g_strfreev(i_open->extensions_set);
 		}
 
-		g_array_free(open_info_arr, TRUE);
+		g_array_free(open_info_arr, true);
 		open_info_arr = NULL;
 	}
 }
@@ -2929,6 +2842,7 @@ cleanup_open_routines(void)
 static GArray *backwards_compatibility_lua_names;
 
 void
+// NOLINTNEXTLINE(misc-no-recursion)
 wtap_register_backwards_compatibility_lua_name(const char *name, int ft)
 {
 	struct backwards_compatibiliity_lua_name entry;
@@ -2938,8 +2852,8 @@ wtap_register_backwards_compatibility_lua_name(const char *name, int ft)
 	 * Use the same size as we do for the file type/subtype table.
 	 */
 	if (backwards_compatibility_lua_names == NULL) {
-		backwards_compatibility_lua_names = g_array_sized_new(FALSE,
-		    TRUE, sizeof(struct backwards_compatibiliity_lua_name),
+		backwards_compatibility_lua_names = g_array_sized_new(false,
+		    true, sizeof(struct backwards_compatibiliity_lua_name),
 		    wtap_module_count*2);
 
 		/*

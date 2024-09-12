@@ -17,36 +17,37 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 
-static int proto_hcrt = -1;
+static int proto_hcrt;
 
 #define HCRT_UDP_PORTS_DEFAULT "47000"
 
-static guint ethertype_pref = 0xf052;
+static unsigned ethertype_pref = 0xf052;
 
-static int hf_hcrt_header = -1;
-static int hf_hcrt_message_tag = -1;
-static int hf_hcrt_message_type = -1;
-static int hf_hcrt_am = -1;
-static int hf_hcrt_do = -1;
-static int hf_hcrt_1st_dword_enable = -1;
-static int hf_hcrt_last_dword_enable = -1;
-static int hf_hcrt_resp_code = -1;
-static int hf_hcrt_adl = -1;
-static int hf_hcrt_last = -1;
-static int hf_hcrt_body = -1;
-static int hf_hcrt_addr_32 = -1;
-static int hf_hcrt_addr_64 = -1;
-static int hf_hcrt_data_32 = -1;
-static int hf_hcrt_data_64 = -1;
-static int hf_hcrt_command_nop = -1;
+static int hf_hcrt_header;
+static int hf_hcrt_message_tag;
+static int hf_hcrt_message_type;
+static int hf_hcrt_am;
+static int hf_hcrt_do;
+static int hf_hcrt_1st_dword_enable;
+static int hf_hcrt_last_dword_enable;
+static int hf_hcrt_resp_code;
+static int hf_hcrt_adl;
+static int hf_hcrt_last;
+static int hf_hcrt_body;
+static int hf_hcrt_addr_32;
+static int hf_hcrt_addr_64;
+static int hf_hcrt_data_32;
+static int hf_hcrt_data_64;
+static int hf_hcrt_command_nop;
 
-static gint ett_hcrt = -1;
-static gint ett_hcrt_msg = -1;
-static gint ett_hcrt_hdr = -1;
-static gint ett_hcrt_body = -1;
+static int ett_hcrt;
+static int ett_hcrt_msg;
+static int ett_hcrt_hdr;
+static int ett_hcrt_body;
 
-static expert_field ei_hcrt_error = EI_INIT;
+static expert_field ei_hcrt_error;
 
 void proto_reg_handoff_hcrt(void);
 void proto_register_hcrt(void);
@@ -117,12 +118,12 @@ static const value_string response_codes[] = {
 };
 
 
-static void dissect_hcrt_body(tvbuff_t* tvb, proto_tree* tree , guint* offset,
+static void dissect_hcrt_body(tvbuff_t* tvb, proto_tree* tree , unsigned* offset,
     int type, int addr_mode, int adl, int body_len)
 {
     proto_item* ti_body;
     proto_tree* hcrt_body_tree;
-    gint i;
+    int i;
 
     ti_body = proto_tree_add_item(tree, hf_hcrt_body, tvb, *offset, body_len, ENC_NA);
     hcrt_body_tree = proto_item_add_subtree(ti_body, ett_hcrt_body);
@@ -180,13 +181,13 @@ static void dissect_hcrt_body(tvbuff_t* tvb, proto_tree* tree , guint* offset,
 }
 
 /* Returns true if this is the last message */
-static gboolean dissect_hcrt_header(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree,
-    guint* offset, guint8 b0_first, guint8 b0_current)
+static bool dissect_hcrt_header(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree,
+    unsigned* offset, uint8_t b0_first, uint8_t b0_current)
 {
     proto_item* ti_hdr;
     proto_tree* hcrt_hdr_tree;
-    gboolean last;
-    guint8 type;
+    bool last;
+    uint8_t type;
 
     ti_hdr = proto_tree_add_item(tree, hf_hcrt_header, tvb, *offset, 4, ENC_NA);
     hcrt_hdr_tree = proto_item_add_subtree(ti_hdr, ett_hcrt_hdr);
@@ -245,19 +246,19 @@ static gboolean dissect_hcrt_header(tvbuff_t* tvb, packet_info* pinfo, proto_tre
 }
 
 /* Return true if this is the last message */
-static gboolean dissect_hcrt_message(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree,
-    guint* offset, guint8 b0_first, int i)
+static bool dissect_hcrt_message(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree,
+    unsigned* offset, uint8_t b0_first, int i)
 {
-    gboolean last;
-    guint adl;
-    guint addr_mode;
-    guint body_len;
+    bool last;
+    unsigned adl;
+    unsigned addr_mode;
+    unsigned body_len;
     proto_tree* hcrt_msg_tree;
-    guint8 b0_current;
+    uint8_t b0_current;
     int type;
 
     /* Save byte 0 of current packet */
-    b0_current = tvb_get_guint8(tvb, *offset);
+    b0_current = tvb_get_uint8(tvb, *offset);
 
     /* Get details from header */
     adl = tvb_get_letohs(tvb, *offset + 2) & 0x0FFF;
@@ -293,20 +294,20 @@ static gboolean dissect_hcrt_message(tvbuff_t* tvb, packet_info* pinfo, proto_tr
 
 static int dissect_hcrt(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
 {
-    guint8 type;
+    uint8_t type;
     proto_item* ti;
     proto_tree* hcrt_tree;
-    guint offset;
+    unsigned offset;
     int i = 1;
-    guint8 b0_first;
-    guint8 tag;
-    guint adl;
+    uint8_t b0_first;
+    uint8_t tag;
+    unsigned adl;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "HCrt");
     col_clear(pinfo->cinfo, COL_INFO);
 
     /* Save byte 0 of first message. Will be checked against byte 0 of other messages */
-    b0_first = tvb_get_guint8(tvb, 0);
+    b0_first = tvb_get_uint8(tvb, 0);
 
     tag  = b0_first & 0x0F;
     type = (b0_first & 0x30) >> 4;
@@ -443,7 +444,7 @@ void proto_register_hcrt(void)
     };
 
     /* Setup protocol subtree array */
-    static gint* ett[] = {
+    static int* ett[] = {
         &ett_hcrt,
         &ett_hcrt_msg,
         &ett_hcrt_hdr,
@@ -469,15 +470,15 @@ void proto_register_hcrt(void)
 
 void proto_reg_handoff_hcrt(void)
 {
-    static gboolean hcrt_prefs_initialized = FALSE;
-    static gint hcrt_ethertype;
+    static bool hcrt_prefs_initialized = false;
+    static int hcrt_ethertype;
 
     if (!hcrt_prefs_initialized) {
         /* Also register as a dissector that can be selected by a TCP port number via
         "decode as" */
         dissector_add_for_decode_as_with_preference("tcp.port", hcrt_handle);
         dissector_add_uint_range_with_preference("udp.port", HCRT_UDP_PORTS_DEFAULT, hcrt_handle);
-        hcrt_prefs_initialized = TRUE;
+        hcrt_prefs_initialized = true;
     } else {
         dissector_delete_uint("ethertype", hcrt_ethertype, hcrt_handle);
     }

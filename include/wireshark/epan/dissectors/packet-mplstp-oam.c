@@ -28,26 +28,26 @@ static dissector_handle_t mplstp_lock_handle;
 static dissector_handle_t mplstp_fm_handle;
 
 /* MPLS-TP FM protocol specific variables */
-static gint proto_mplstp_fm     = -1;
-static gint ett_mplstp_fm       = -1;
-static gint ett_mplstp_fm_flags = -1;
-static gint ett_mplstp_fm_tlv_tree     = -1;
+static int proto_mplstp_fm;
+static int ett_mplstp_fm;
+static int ett_mplstp_fm_flags;
+static int ett_mplstp_fm_tlv_tree;
 
-static int hf_mplstp_fm_version         = -1;
+static int hf_mplstp_fm_version;
 
-static int hf_mplstp_fm_reserved        = -1;
-static int hf_mplstp_fm_msg_type        = -1;
-static int hf_mplstp_fm_flags           = -1;
-static int hf_mplstp_fm_flags_l         = -1;
-static int hf_mplstp_fm_flags_r         = -1;
-static int hf_mplstp_fm_refresh_timer   = -1;
-static int hf_mplstp_fm_total_tlv_len   = -1;
-static int hf_mplstp_fm_if_tlv_type     = -1;
-static int hf_mplstp_fm_global_tlv_type = -1;
-static int hf_mplstp_fm_tlv_len         = -1;
-static int hf_mplstp_fm_node_id         = -1;
-static int hf_mplstp_fm_if_num          = -1;
-static int hf_mplstp_fm_global_id       = -1;
+static int hf_mplstp_fm_reserved;
+static int hf_mplstp_fm_msg_type;
+static int hf_mplstp_fm_flags;
+static int hf_mplstp_fm_flags_l;
+static int hf_mplstp_fm_flags_r;
+static int hf_mplstp_fm_refresh_timer;
+static int hf_mplstp_fm_total_tlv_len;
+static int hf_mplstp_fm_if_tlv_type;
+static int hf_mplstp_fm_global_tlv_type;
+static int hf_mplstp_fm_tlv_len;
+static int hf_mplstp_fm_node_id;
+static int hf_mplstp_fm_if_num;
+static int hf_mplstp_fm_global_id;
 
 static const value_string fm_msg_type[] = {
   {0, "No Return Code"},
@@ -57,12 +57,12 @@ static const value_string fm_msg_type[] = {
 };
 
 /* MPLS-TP Lock protocol specific variables */
-static gint proto_mplstp_lock = -1;
-static gint ett_mplstp_lock   = -1;
+static int proto_mplstp_lock;
+static int ett_mplstp_lock;
 
-static int hf_mplstp_lock_version       = -1;
-static int hf_mplstp_lock_reserved      = -1;
-static int hf_mplstp_lock_refresh_timer = -1;
+static int hf_mplstp_lock_version;
+static int hf_mplstp_lock_reserved;
+static int hf_mplstp_lock_refresh_timer;
 
 static void
 dissect_mplstp_fm_tlv (tvbuff_t *tvb, proto_tree *tree)
@@ -70,7 +70,7 @@ dissect_mplstp_fm_tlv (tvbuff_t *tvb, proto_tree *tree)
   proto_item *ti;
   proto_tree *fm_tlv_tree;
 
-  guint offset = 0;
+  unsigned offset = 0;
 
   if (!tree)
     return;
@@ -113,7 +113,7 @@ dissect_mplstp_lock(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
   proto_tree *lock_tree;
   tvbuff_t   *next_tvb;
 
-  guint8      offset = 0;
+  uint8_t     offset = 0;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "MPLS-TP LI");
   col_clear(pinfo->cinfo, COL_INFO);
@@ -154,13 +154,13 @@ dissect_mplstp_fm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
    proto_item *ti, *ti_flags;
    proto_tree *fm_tree, *fm_flags;
 
-   guint8 offset = 0;
-   guint8 tlv_len;
+   int    offset = 0;
+   uint8_t tlv_len;
 
    col_set_str(pinfo->cinfo, COL_PROTOCOL, "MPLS-TP FM");
    col_clear(pinfo->cinfo, COL_INFO);
 
-   tlv_len = tvb_get_guint8 (tvb, (offset + 4));
+   tlv_len = tvb_get_uint8 (tvb, (offset + 4));
 
    if (!tree)
      return tvb_captured_length(tvb);
@@ -173,12 +173,12 @@ dissect_mplstp_fm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
                         1, ENC_BIG_ENDIAN);
    proto_tree_add_item (fm_tree, hf_mplstp_fm_reserved, tvb, offset,
                         1, ENC_BIG_ENDIAN);
-   offset = offset + 1;
+   offset++;
 
    /* FM-Message type field */
    proto_tree_add_item (fm_tree, hf_mplstp_fm_msg_type, tvb, offset,
                         1,ENC_BIG_ENDIAN);
-   offset = offset + 1;
+   offset++;
 
    /* Flags field */
    ti_flags = proto_tree_add_item (fm_tree, hf_mplstp_fm_flags, tvb,
@@ -187,26 +187,25 @@ dissect_mplstp_fm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 
    proto_tree_add_item (fm_flags, hf_mplstp_fm_flags_l, tvb, offset, 1, ENC_BIG_ENDIAN);
    proto_tree_add_item (fm_flags, hf_mplstp_fm_flags_r, tvb, offset, 1, ENC_BIG_ENDIAN);
-   offset = offset + 1;
+   offset++;
 
    /* Refresh-Timer field */
    proto_tree_add_item (fm_tree, hf_mplstp_fm_refresh_timer, tvb, offset,
                         1, ENC_BIG_ENDIAN);
-   offset = offset + 1;
+   offset++;
 
    /* FM-TLV Length field*/
    proto_tree_add_item (fm_tree, hf_mplstp_fm_total_tlv_len, tvb, offset,
                         1, ENC_BIG_ENDIAN);
    offset = offset + 1;
 
-   if (tlv_len != 0)
-     {
-       tvbuff_t *next_tvb;
+   if (tlv_len != 0) {
+      tvbuff_t *next_tvb;
 
-       /* FM TLVs*/
-       next_tvb = tvb_new_subset_remaining (tvb, offset);
-       dissect_mplstp_fm_tlv (next_tvb, tree);
-     }
+      /* FM TLVs*/
+      next_tvb = tvb_new_subset_remaining (tvb, offset);
+      dissect_mplstp_fm_tlv (next_tvb, tree);
+   }
    return tvb_captured_length(tvb);
 }
 
@@ -228,7 +227,7 @@ proto_register_mplstp_lock(void)
       BASE_DEC, NULL, 0x0, NULL, HFILL }},
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_mplstp_lock,
   };
 
@@ -314,7 +313,7 @@ proto_register_mplstp_fm(void)
     },
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_mplstp_fm,
     &ett_mplstp_fm_tlv_tree,
     &ett_mplstp_fm_flags,

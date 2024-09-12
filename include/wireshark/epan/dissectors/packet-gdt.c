@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-gdt.c                                                               */
-/* asn2wrs.py -b -L -p gdt -c ./gdt.cnf -s ./packet-gdt-template -D . -O ../.. gdt.asn */
+/* asn2wrs.py -b -q -L -p gdt -c ./gdt.cnf -s ./packet-gdt-template -D . -O ../.. gdt.asn */
 
 /* packet-gdt-template.c
  *
@@ -17,13 +17,9 @@
 
 # include "config.h"
 
-#include <glib.h>
 #include <epan/packet.h>
-#include <epan/conversation.h>
 #include <epan/sctpppids.h>
-
-#include <stdio.h>
-#include <string.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-gdt.h"
@@ -33,83 +29,83 @@
 #define PFNAME "gdt"
 
 /* Initialize the protocol and registered fields */
-static int proto_gdt = -1;
-static dissector_handle_t gdt_handle = NULL;
+static int proto_gdt;
+static dissector_handle_t gdt_handle;
 
-static int hf_gdt_GDTMessage_PDU = -1;            /* GDTMessage */
-static int hf_gdt_version = -1;                   /* INTEGER */
-static int hf_gdt_source = -1;                    /* EndPointDescriptor */
-static int hf_gdt_destination = -1;               /* EndPointDescriptor */
-static int hf_gdt_uuid = -1;                      /* OCTET_STRING */
-static int hf_gdt_sequence_num = -1;              /* INTEGER */
-static int hf_gdt_sequence_flag = -1;             /* SequenceFlag */
-static int hf_gdt_enc_info = -1;                  /* EncryptionInfo */
-static int hf_gdt_hop_info = -1;                  /* HopInfo */
-static int hf_gdt_status = -1;                    /* ErrorCode */
-static int hf_gdt_type = -1;                      /* IA5String */
-static int hf_gdt_end_point_id = -1;              /* IA5String */
-static int hf_gdt_encrypted_data = -1;            /* OCTET_STRING */
-static int hf_gdt_packet_fwd = -1;                /* PacketFwdMessage */
-static int hf_gdt_filter = -1;                    /* FilterMessage */
-static int hf_gdt_data_retention = -1;            /* DataRetentionMessage */
-static int hf_gdt_conf = -1;                      /* ConfigMessage */
-static int hf_gdt_stats = -1;                     /* StatsMessage */
-static int hf_gdt_auth = -1;                      /* AuthMessage */
-static int hf_gdt_reg = -1;                       /* RegistrationMessage */
-static int hf_gdt_ntfy = -1;                      /* NotifyMessage */
-static int hf_gdt_data = -1;                      /* DataMessage */
-static int hf_gdt_routing = -1;                   /* RoutingMessage */
-static int hf_gdt_service_msg = -1;               /* ServiceMessage */
-static int hf_gdt_state_msg = -1;                 /* StateMessage */
-static int hf_gdt_stmch_id = -1;                  /* OCTET_STRING */
-static int hf_gdt_state_action = -1;              /* StateAction */
-static int hf_gdt_params = -1;                    /* Parameters */
-static int hf_gdt_service_id = -1;                /* ServiceId */
-static int hf_gdt_service_action = -1;            /* ServiceAction */
-static int hf_gdt_routing_action = -1;            /* RoutingAction */
-static int hf_gdt_reg_action = -1;                /* RegistrationAction */
-static int hf_gdt_stats_action = -1;              /* StatsAction */
-static int hf_gdt_auth_action = -1;               /* AuthAction */
-static int hf_gdt_payload_type = -1;              /* PayloadType */
-static int hf_gdt_payload = -1;                   /* OCTET_STRING */
-static int hf_gdt_dr_action = -1;                 /* DataRetentionAction */
-static int hf_gdt_filter_action = -1;             /* FilterAction */
-static int hf_gdt_message_type = -1;              /* NotifyMessageType */
-static int hf_gdt_message = -1;                   /* OCTET_STRING */
-static int hf_gdt_action = -1;                    /* ConfigAction */
-static int hf_gdt_parameter_type_id = -1;         /* ParameterType */
-static int hf_gdt_value = -1;                     /* T_value */
-static int hf_gdt_value_item = -1;                /* OCTET_STRING */
-static int hf_gdt_Parameters_item = -1;           /* Parameter */
-static int hf_gdt_current_hop = -1;               /* INTEGER */
-static int hf_gdt_max_hops = -1;                  /* INTEGER */
-static int hf_gdt_header = -1;                    /* Header */
-static int hf_gdt_body = -1;                      /* Body */
-static int hf_gdt_enc_type = -1;                  /* OCTET_STRING */
+static int hf_gdt_GDTMessage_PDU;                 /* GDTMessage */
+static int hf_gdt_version;                        /* INTEGER */
+static int hf_gdt_source;                         /* EndPointDescriptor */
+static int hf_gdt_destination;                    /* EndPointDescriptor */
+static int hf_gdt_uuid;                           /* OCTET_STRING */
+static int hf_gdt_sequence_num;                   /* INTEGER */
+static int hf_gdt_sequence_flag;                  /* SequenceFlag */
+static int hf_gdt_enc_info;                       /* EncryptionInfo */
+static int hf_gdt_hop_info;                       /* HopInfo */
+static int hf_gdt_status;                         /* ErrorCode */
+static int hf_gdt_type;                           /* IA5String */
+static int hf_gdt_end_point_id;                   /* IA5String */
+static int hf_gdt_encrypted_data;                 /* OCTET_STRING */
+static int hf_gdt_packet_fwd;                     /* PacketFwdMessage */
+static int hf_gdt_filter;                         /* FilterMessage */
+static int hf_gdt_data_retention;                 /* DataRetentionMessage */
+static int hf_gdt_conf;                           /* ConfigMessage */
+static int hf_gdt_stats;                          /* StatsMessage */
+static int hf_gdt_auth;                           /* AuthMessage */
+static int hf_gdt_reg;                            /* RegistrationMessage */
+static int hf_gdt_ntfy;                           /* NotifyMessage */
+static int hf_gdt_data;                           /* DataMessage */
+static int hf_gdt_routing;                        /* RoutingMessage */
+static int hf_gdt_service_msg;                    /* ServiceMessage */
+static int hf_gdt_state_msg;                      /* StateMessage */
+static int hf_gdt_stmch_id;                       /* OCTET_STRING */
+static int hf_gdt_state_action;                   /* StateAction */
+static int hf_gdt_params;                         /* Parameters */
+static int hf_gdt_service_id;                     /* ServiceId */
+static int hf_gdt_service_action;                 /* ServiceAction */
+static int hf_gdt_routing_action;                 /* RoutingAction */
+static int hf_gdt_reg_action;                     /* RegistrationAction */
+static int hf_gdt_stats_action;                   /* StatsAction */
+static int hf_gdt_auth_action;                    /* AuthAction */
+static int hf_gdt_payload_type;                   /* PayloadType */
+static int hf_gdt_payload;                        /* OCTET_STRING */
+static int hf_gdt_dr_action;                      /* DataRetentionAction */
+static int hf_gdt_filter_action;                  /* FilterAction */
+static int hf_gdt_message_type;                   /* NotifyMessageType */
+static int hf_gdt_message;                        /* OCTET_STRING */
+static int hf_gdt_action;                         /* ConfigAction */
+static int hf_gdt_parameter_type_id;              /* ParameterType */
+static int hf_gdt_value;                          /* T_value */
+static int hf_gdt_value_item;                     /* OCTET_STRING */
+static int hf_gdt_Parameters_item;                /* Parameter */
+static int hf_gdt_current_hop;                    /* INTEGER */
+static int hf_gdt_max_hops;                       /* INTEGER */
+static int hf_gdt_header;                         /* Header */
+static int hf_gdt_body;                           /* Body */
+static int hf_gdt_enc_type;                       /* OCTET_STRING */
 
 /* Initialize the subtree pointers */
-static int ett_gdt = -1;
-static gint ett_gdt_Header = -1;
-static gint ett_gdt_EndPointDescriptor = -1;
-static gint ett_gdt_Body = -1;
-static gint ett_gdt_StateMessage = -1;
-static gint ett_gdt_ServiceMessage = -1;
-static gint ett_gdt_RoutingMessage = -1;
-static gint ett_gdt_RegistrationMessage = -1;
-static gint ett_gdt_StatsMessage = -1;
-static gint ett_gdt_AuthMessage = -1;
-static gint ett_gdt_DataRetentionMessage = -1;
-static gint ett_gdt_FilterMessage = -1;
-static gint ett_gdt_PacketFwdMessage = -1;
-static gint ett_gdt_NotifyMessage = -1;
-static gint ett_gdt_DataMessage = -1;
-static gint ett_gdt_ConfigMessage = -1;
-static gint ett_gdt_Parameter = -1;
-static gint ett_gdt_T_value = -1;
-static gint ett_gdt_Parameters = -1;
-static gint ett_gdt_HopInfo = -1;
-static gint ett_gdt_GDTMessage = -1;
-static gint ett_gdt_EncryptionInfo = -1;
+static int ett_gdt;
+static int ett_gdt_Header;
+static int ett_gdt_EndPointDescriptor;
+static int ett_gdt_Body;
+static int ett_gdt_StateMessage;
+static int ett_gdt_ServiceMessage;
+static int ett_gdt_RoutingMessage;
+static int ett_gdt_RegistrationMessage;
+static int ett_gdt_StatsMessage;
+static int ett_gdt_AuthMessage;
+static int ett_gdt_DataRetentionMessage;
+static int ett_gdt_FilterMessage;
+static int ett_gdt_PacketFwdMessage;
+static int ett_gdt_NotifyMessage;
+static int ett_gdt_DataMessage;
+static int ett_gdt_ConfigMessage;
+static int ett_gdt_Parameter;
+static int ett_gdt_T_value;
+static int ett_gdt_Parameters;
+static int ett_gdt_HopInfo;
+static int ett_gdt_GDTMessage;
+static int ett_gdt_EncryptionInfo;
 
 
 
@@ -1005,8 +1001,8 @@ dissect_gdt_GDTMessage(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_,
 static int dissect_GDTMessage_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_gdt_GDTMessage(FALSE, tvb, offset, &asn1_ctx, tree, hf_gdt_GDTMessage_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_gdt_GDTMessage(false, tvb, offset, &asn1_ctx, tree, hf_gdt_GDTMessage_PDU);
   return offset;
 }
 
@@ -1237,7 +1233,7 @@ void proto_register_gdt(void) {
     };
 
     /* List of subtrees */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_gdt,
     &ett_gdt_Header,
     &ett_gdt_EndPointDescriptor,
@@ -1275,11 +1271,11 @@ void proto_register_gdt(void) {
 
 /*--- proto_reg_handoff_gdt -------------------------------------------*/
 void proto_reg_handoff_gdt(void) {
-    static gboolean initialized = FALSE;
+    static bool initialized = false;
 
     if (!initialized) {
         dissector_add_for_decode_as("sctp.ppi", gdt_handle);
         dissector_add_uint("sctp.ppi", GDT_PROTOCOL_ID, gdt_handle);
-        initialized = TRUE;
+        initialized = true;
     }
 }

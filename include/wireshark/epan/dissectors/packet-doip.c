@@ -24,6 +24,7 @@
 #include <epan/packet.h>
 #include <epan/uat.h>
 #include <epan/expert.h>
+#include <epan/proto_data.h>
 
 #include "packet-tcp.h"
 #include "packet-tls.h"
@@ -83,7 +84,7 @@ void proto_reg_handoff_doip(void);
 #define DOIP_COMMON_EID_LEN                        6
 
 
-/*  Vehicle identifcation request */
+/* Vehicle identification request */
 #define DOIP_VEHICLE_IDENTIFICATION_EID_OFFSET     DOIP_HEADER_LEN
 #define DOIP_VEHICLE_IDENTIFICATION_VIN_OFFSET     DOIP_HEADER_LEN
 
@@ -195,18 +196,18 @@ static const value_string doip_payloads[] = {
     { DOIP_VEHICLE_IDENTIFICATION_REQ,      "Vehicle identification request" },
     { DOIP_VEHICLE_IDENTIFICATION_REQ_EID,  "Vehicle identification request with EID" },
     { DOIP_VEHICLE_IDENTIFICATION_REQ_VIN,  "Vehicle identification request with VIN" },
-    { DOIP_VEHICLE_ANNOUNCEMENT_MESSAGE,     "Vehicle announcement message/vehicle identification response message" },
-    { DOIP_ROUTING_ACTIVATION_REQUEST, "Routing activation request" },
-    { DOIP_ROUTING_ACTIVATION_RESPONSE, "Routing activation response" },
-    { DOIP_ALIVE_CHECK_REQUEST, "Alive check request" },
-    { DOIP_ALIVE_CHECK_RESPONSE, "Alive check response" },
-    { DOIP_ENTITY_STATUS_REQUEST, "DoIP entity status request" },
-    { DOIP_ENTITY_STATUS_RESPONSE, "DoIP entity status response" },
-    { DOIP_POWER_INFORMATION_REQUEST, "Diagnostic power mode information request" },
-    { DOIP_POWER_INFORMATION_RESPONSE, "Diagnostic power mode information response" },
-    { DOIP_DIAGNOSTIC_MESSAGE, "Diagnostic message" },
-    { DOIP_DIAGNOSTIC_MESSAGE_ACK, "Diagnostic message ACK" },
-    { DOIP_DIAGNOSTIC_MESSAGE_NACK, "Diagnostic message NACK" },
+    { DOIP_VEHICLE_ANNOUNCEMENT_MESSAGE,    "Vehicle announcement message/vehicle identification response message" },
+    { DOIP_ROUTING_ACTIVATION_REQUEST,      "Routing activation request" },
+    { DOIP_ROUTING_ACTIVATION_RESPONSE,     "Routing activation response" },
+    { DOIP_ALIVE_CHECK_REQUEST,             "Alive check request" },
+    { DOIP_ALIVE_CHECK_RESPONSE,            "Alive check response" },
+    { DOIP_ENTITY_STATUS_REQUEST,           "DoIP entity status request" },
+    { DOIP_ENTITY_STATUS_RESPONSE,          "DoIP entity status response" },
+    { DOIP_POWER_INFORMATION_REQUEST,       "Diagnostic power mode information request" },
+    { DOIP_POWER_INFORMATION_RESPONSE,      "Diagnostic power mode information response" },
+    { DOIP_DIAGNOSTIC_MESSAGE,              "Diagnostic message" },
+    { DOIP_DIAGNOSTIC_MESSAGE_ACK,          "Diagnostic message ACK" },
+    { DOIP_DIAGNOSTIC_MESSAGE_NACK,         "Diagnostic message NACK" },
     { 0, NULL }
 };
 
@@ -346,97 +347,97 @@ static const value_string diag_nack_codes[] = {
  * Config
  */
 
-static gboolean doip_hide_address_names = TRUE;
+static bool doip_hide_address_names = true;
 
  /*
  * Fields
  */
 
 /* DoIP header */
-static int hf_doip_version = -1;
-static int hf_doip_inv_version = -1;
-static int hf_doip_type = -1;
-static int hf_doip_length = -1;
+static int hf_doip_version;
+static int hf_doip_inv_version;
+static int hf_doip_type;
+static int hf_doip_length;
 
 
 /* Generic NACK */
-static int hf_generic_nack_code = -1;
+static int hf_generic_nack_code;
 
 
 /* Common */
-static int hf_reserved_iso = -1;
-static int hf_reserved_oem = -1;
+static int hf_reserved_iso;
+static int hf_reserved_oem;
 
 
 /* Routing activation request */
-static int hf_activation_type_v1 = -1;
-static int hf_activation_type_v2 = -1;
+static int hf_activation_type_v1;
+static int hf_activation_type_v2;
 
 
 /* Routing activation response */
-static int hf_tester_logical_address = -1;
-static int hf_tester_logical_address_name = -1;
-static int hf_response_code = -1;
+static int hf_tester_logical_address;
+static int hf_tester_logical_address_name;
+static int hf_response_code;
 
 
 /* Vehicle announcement message */
-static int hf_logical_address = -1;
-static int hf_logical_address_name = -1;
-static int hf_gid = -1;
-static int hf_futher_action = -1;
-static int hf_sync_status = -1;
+static int hf_logical_address;
+static int hf_logical_address_name;
+static int hf_gid;
+static int hf_further_action;
+static int hf_sync_status;
 
 
 /* Diagnostic power mode information response */
-static int hf_power_mode = -1;
+static int hf_power_mode;
 
 
 /* Entity status response */
-static int hf_node_type = -1;
-static int hf_max_sockets = -1;
-static int hf_current_sockets = -1;
-static int hf_max_data_size = -1;
+static int hf_node_type;
+static int hf_max_sockets;
+static int hf_current_sockets;
+static int hf_max_data_size;
 
 
 /* Common */
-static int hf_vin = -1;
-static int hf_eid = -1;
-static int hf_source_address = -1;
-static int hf_source_address_name = -1;
-static int hf_target_address = -1;
-static int hf_target_address_name = -1;
-static int hf_previous = -1;
+static int hf_vin;
+static int hf_eid;
+static int hf_source_address;
+static int hf_source_address_name;
+static int hf_target_address;
+static int hf_target_address_name;
+static int hf_previous;
 
 
 /* Diagnostic message */
-static int hf_data = -1;
+static int hf_data;
 
 
 /* Diagnostic message ACK */
-static int hf_ack_code = -1;
+static int hf_ack_code;
 
 
 /* Diagnostic message NACK */
-static int hf_nack_code = -1;
+static int hf_nack_code;
 
 
 
 /*
  * Trees
  */
-static gint ett_doip = -1;
-static gint ett_header = -1;
-static gint ett_address = -1;
+static int ett_doip;
+static int ett_header;
+static int ett_address;
 
 
 /* Misc */
 static dissector_handle_t doip_handle;
 static dissector_handle_t uds_handle;
-static gint proto_doip    = -1;
+static int proto_doip;
 
 
 /* expert info items */
-static expert_field ef_doip_illegal_length_field = EI_INIT;
+static expert_field ei_doip_illegal_length_field;
 
 
 /*
@@ -444,17 +445,17 @@ static expert_field ef_doip_illegal_length_field = EI_INIT;
  */
 
 typedef struct _generic_one_id_string {
-    guint   id;
-    gchar  *name;
+    unsigned   id;
+    char   *name;
 } generic_one_id_string_t;
 
 static void
-doip_uat_free_key(gpointer key) {
+doip_uat_free_key(void *key) {
     wmem_free(wmem_epan_scope(), key);
 }
 
 static void
-simple_free(gpointer data) {
+simple_free(void *data) {
     /* we need to free because of the g_strdup in post_update*/
     g_free(data);
 }
@@ -476,15 +477,15 @@ update_generic_one_identifier_16bit(void *r, char **err) {
 
     if (rec->id > 0xffff) {
         *err = ws_strdup_printf("We currently only support 16 bit identifiers (ID: %i  Name: %s)", rec->id, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = g_strdup("Name cannot be empty");
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
@@ -496,8 +497,8 @@ free_generic_one_id_string_cb(void*r) {
 }
 
 static void
-post_update_one_id_string_template_cb(generic_one_id_string_t *data, guint data_num, GHashTable *ht) {
-    guint   i;
+post_update_one_id_string_template_cb(generic_one_id_string_t *data, unsigned data_num, GHashTable *ht) {
+    unsigned   i;
     int    *key = NULL;
 
     for (i = 0; i < data_num; i++) {
@@ -530,9 +531,9 @@ ht_lookup_name(GHashTable* ht, unsigned int identifier) {
  */
 #define DATAFILE_DOIP_DIAG_ADDRESSES "DoIP_diagnostic_addresses"
 
-static GHashTable *data_doip_diag_addresses = NULL;
-static generic_one_id_string_t* doip_diag_addresses = NULL;
-static guint doip_diag_address_count = 0;
+static GHashTable *data_doip_diag_addresses;
+static generic_one_id_string_t* doip_diag_addresses;
+static unsigned doip_diag_address_count;
 
 UAT_HEX_CB_DEF(doip_diag_addresses, id, generic_one_id_string_t)
 UAT_CSTRING_CB_DEF(doip_diag_addresses, name, generic_one_id_string_t)
@@ -551,13 +552,13 @@ post_update_doip_diag_addresses(void) {
 }
 
 static proto_item *
-doip_prototree_add_with_resolv(proto_tree* doip_tree, int hfindex, int hfindex_name, tvbuff_t* tvb, const gint start, gint length, const guint encoding, guint *diag_addr) {
-    guint diag_addr_tmp;
+doip_prototree_add_with_resolv(proto_tree* doip_tree, int hfindex, int hfindex_name, tvbuff_t* tvb, const int start, int length, const unsigned encoding, unsigned *diag_addr) {
+    unsigned diag_addr_tmp;
     proto_item *ti;
     proto_tree *tree;
 
     ti = proto_tree_add_item_ret_uint(doip_tree, hfindex, tvb, start, length, encoding, &diag_addr_tmp);
-    const gchar *name = ht_lookup_name(data_doip_diag_addresses, diag_addr_tmp);
+    const char *name = ht_lookup_name(data_doip_diag_addresses, diag_addr_tmp);
     if (name != NULL) {
         proto_item_append_text(ti, " (%s)", name);
         tree = proto_item_add_subtree(ti, ett_address);
@@ -580,9 +581,9 @@ doip_prototree_add_with_resolv(proto_tree* doip_tree, int hfindex, int hfindex_n
  */
 #define DATAFILE_DOIP_PAYLOAD_TYPES "DoIP_payload_types"
 
-static GHashTable *data_doip_payload_types = NULL;
-static generic_one_id_string_t* doip_payload_types = NULL;
-static guint doip_payload_type_count = 0;
+static GHashTable *data_doip_payload_types;
+static generic_one_id_string_t* doip_payload_types;
+static unsigned doip_payload_type_count;
 
 UAT_HEX_CB_DEF(doip_payload_types, id, generic_one_id_string_t)
 UAT_CSTRING_CB_DEF(doip_payload_types, name, generic_one_id_string_t)
@@ -600,10 +601,10 @@ post_update_doip_payload_types(void) {
     post_update_one_id_string_template_cb(doip_payload_types, doip_payload_type_count, data_doip_payload_types);
 }
 
-static const gchar*
-resolve_doip_payload_type(guint16 payload_type, gboolean is_col)
+static const char*
+resolve_doip_payload_type(wmem_allocator_t *scope, uint16_t payload_type, bool is_col)
 {
-    const gchar *tmp = ht_lookup_name(data_doip_payload_types, payload_type);
+    const char *tmp = ht_lookup_name(data_doip_payload_types, payload_type);
 
     /* lets look at the static values, if nothing is configured */
     if (tmp == NULL) {
@@ -615,33 +616,33 @@ resolve_doip_payload_type(guint16 payload_type, gboolean is_col)
         if (is_col) {
             return tmp;
         } else {
-            return wmem_strdup_printf(wmem_packet_scope(), "%s (0x%04x)", tmp, payload_type);
+            return wmem_strdup_printf(scope, "%s (0x%04x)", tmp, payload_type);
         }
     }
 
     /* just give back unknown */
     if (is_col) {
-        return wmem_strdup_printf(wmem_packet_scope(), "0x%04x Unknown Payload", payload_type);
+        return wmem_strdup_printf(scope, "0x%04x Unknown Payload", payload_type);
     } else {
-        return wmem_strdup_printf(wmem_packet_scope(), "Unknown (0x%04x)", payload_type);
+        return wmem_strdup_printf(scope, "Unknown (0x%04x)", payload_type);
     }
 }
 
 static void
 add_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *doip_tree)
 {
-    guint32 len;
-    guint32 payload_type;
+    uint32_t len;
+    uint32_t payload_type;
 
     proto_tree *subtree = proto_tree_add_subtree(doip_tree, tvb, DOIP_VERSION_OFFSET, DOIP_HEADER_LEN, ett_header, NULL, "Header");
     proto_tree_add_item(subtree, hf_doip_version, tvb, DOIP_VERSION_OFFSET, DOIP_VERSION_LEN, ENC_BIG_ENDIAN);
     proto_tree_add_item(subtree, hf_doip_inv_version, tvb, DOIP_INV_VERSION_OFFSET, DOIP_INV_VERSION_LEN, ENC_BIG_ENDIAN);
-    payload_type = tvb_get_guint16(tvb, DOIP_TYPE_OFFSET, ENC_BIG_ENDIAN);
-    proto_tree_add_uint_format(subtree, hf_doip_type, tvb, DOIP_TYPE_OFFSET, DOIP_TYPE_LEN, payload_type, "Type: %s", resolve_doip_payload_type(payload_type, false));
+    payload_type = tvb_get_uint16(tvb, DOIP_TYPE_OFFSET, ENC_BIG_ENDIAN);
+    proto_tree_add_uint_format(subtree, hf_doip_type, tvb, DOIP_TYPE_OFFSET, DOIP_TYPE_LEN, payload_type, "Type: %s", resolve_doip_payload_type(pinfo->pool, payload_type, false));
     proto_tree_add_item_ret_uint(subtree, hf_doip_length, tvb, DOIP_LENGTH_OFFSET, DOIP_LENGTH_LEN, ENC_BIG_ENDIAN, &len);
 
     if (tvb_captured_length(tvb) < len) {
-        proto_tree_add_expert(doip_tree, pinfo, &ef_doip_illegal_length_field, tvb, DOIP_LENGTH_OFFSET, DOIP_LENGTH_LEN);
+        proto_tree_add_expert(doip_tree, pinfo, &ei_doip_illegal_length_field, tvb, DOIP_LENGTH_OFFSET, DOIP_LENGTH_LEN);
         col_append_str(pinfo->cinfo, COL_INFO, " [DoIP Length Field: Illegal Value]");
     }
 }
@@ -669,7 +670,7 @@ add_vehicle_identification_vin_fields(proto_tree *doip_tree, tvbuff_t *tvb)
 
 
 static void
-add_routing_activation_request_fields(proto_tree *doip_tree, tvbuff_t *tvb, guint8 version)
+add_routing_activation_request_fields(proto_tree *doip_tree, tvbuff_t *tvb, uint8_t version)
 {
     doip_prototree_add_with_resolv(doip_tree, hf_source_address, hf_source_address_name, tvb, DOIP_ROUTING_ACTIVATION_REQ_SRC_OFFSET, DOIP_ROUTING_ACTIVATION_REQ_SRC_LEN, ENC_BIG_ENDIAN, NULL);
 
@@ -712,7 +713,7 @@ add_vehicle_announcement_message_fields(proto_tree *doip_tree, tvbuff_t *tvb)
     doip_prototree_add_with_resolv(doip_tree, hf_logical_address, hf_logical_address_name, tvb, DOIP_VEHICLE_ANNOUNCEMENT_ADDRESS_OFFSET, DOIP_VEHICLE_ANNOUNCEMENT_ADDRESS_LEN, ENC_BIG_ENDIAN, NULL);
     proto_tree_add_item(doip_tree, hf_eid, tvb, DOIP_VEHICLE_ANNOUNCEMENT_EID_OFFSET, DOIP_COMMON_EID_LEN, ENC_NA);
     proto_tree_add_item(doip_tree, hf_gid, tvb, DOIP_VEHICLE_ANNOUNCEMENT_GID_OFFSET, DOIP_VEHICLE_ANNOUNCEMENT_GID_LEN, ENC_NA);
-    proto_tree_add_item(doip_tree, hf_futher_action, tvb, DOIP_VEHICLE_ANNOUNCEMENT_ACTION_OFFSET, DOIP_VEHICLE_ANNOUNCEMENT_ACTION_LEN, ENC_BIG_ENDIAN);
+    proto_tree_add_item(doip_tree, hf_further_action, tvb, DOIP_VEHICLE_ANNOUNCEMENT_ACTION_OFFSET, DOIP_VEHICLE_ANNOUNCEMENT_ACTION_LEN, ENC_BIG_ENDIAN);
 
     if ( tvb_bytes_exist(tvb, DOIP_VEHICLE_ANNOUNCEMENT_SYNC_OFFSET, DOIP_VEHICLE_ANNOUNCEMENT_SYNC_LEN) ) {
         /* Not part of version 1 and optional in version 2. */
@@ -751,7 +752,7 @@ static void
 add_diagnostic_message_fields(proto_tree *doip_tree, tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree)
 {
     doip_info_t doip_info;
-    guint32 tmp;
+    uint32_t tmp;
 
     doip_prototree_add_with_resolv(doip_tree, hf_source_address, hf_source_address_name, tvb, DOIP_DIAG_COMMON_SOURCE_OFFSET, DOIP_DIAG_COMMON_SOURCE_LEN, ENC_BIG_ENDIAN, &tmp);
     doip_info.source_address = tmp;
@@ -796,12 +797,26 @@ add_diagnostic_message_nack_fields(proto_tree *doip_tree, tvbuff_t *tvb)
 static void
 dissect_doip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-    guint8 version = tvb_get_guint8(tvb, DOIP_VERSION_OFFSET);
-    guint16 payload_type = tvb_get_ntohs(tvb, DOIP_TYPE_OFFSET);
+    uint8_t version = tvb_get_uint8(tvb, DOIP_VERSION_OFFSET);
+    uint16_t payload_type = tvb_get_ntohs(tvb, DOIP_TYPE_OFFSET);
+
+    int raw_offset_tvb = tvb_raw_offset(tvb);
+    int *first_offset  = (int *)p_get_proto_data(wmem_file_scope(), pinfo, proto_doip, 0);
+
+    if (!first_offset) {
+        first_offset = wmem_new0(wmem_file_scope(), int);
+        *first_offset = raw_offset_tvb;
+        p_add_proto_data(wmem_file_scope(), pinfo, proto_doip, 0, first_offset);
+    }
 
     /* Set protocol and clear information columns */
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "DoIP");
-    col_clear(pinfo->cinfo, COL_INFO);
+
+    if (*first_offset == raw_offset_tvb) {
+        col_clear(pinfo->cinfo, COL_INFO);
+    } else {
+        col_append_str(pinfo->cinfo, COL_INFO, " / ");
+    }
 
     if (
         version == ISO13400_2010 ||
@@ -810,9 +825,9 @@ dissect_doip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
         version == ISO13400_2019_AMD1 ||
         (version == DEFAULT_VALUE && (payload_type >= DOIP_VEHICLE_IDENTIFICATION_REQ && payload_type <= DOIP_VEHICLE_IDENTIFICATION_REQ_VIN))
         ) {
-        col_add_fstr(pinfo->cinfo, COL_INFO, "%s", resolve_doip_payload_type(payload_type, true));
+        col_append_str(pinfo->cinfo, COL_INFO, resolve_doip_payload_type(pinfo->pool, payload_type, true));
     } else {
-        col_set_str(pinfo->cinfo, COL_INFO, "Invalid/unsupported DoIP version");
+        col_append_str(pinfo->cinfo, COL_INFO, "Invalid/unsupported DoIP version");
     }
 
 
@@ -890,8 +905,8 @@ dissect_doip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
         /* Show UDS details in info column */
         if (uds_handle != 0) {
             doip_info_t doip_info;
-            doip_info.source_address = tvb_get_guint16(tvb, DOIP_DIAG_COMMON_SOURCE_OFFSET, ENC_BIG_ENDIAN);
-            doip_info.target_address = tvb_get_guint16(tvb, DOIP_DIAG_COMMON_TARGET_OFFSET, ENC_BIG_ENDIAN);
+            doip_info.source_address = tvb_get_uint16(tvb, DOIP_DIAG_COMMON_SOURCE_OFFSET, ENC_BIG_ENDIAN);
+            doip_info.target_address = tvb_get_uint16(tvb, DOIP_DIAG_COMMON_TARGET_OFFSET, ENC_BIG_ENDIAN);
             call_dissector_with_data(uds_handle, tvb_new_subset_length(tvb, DOIP_DIAG_MESSAGE_DATA_OFFSET, -1), pinfo, NULL, &doip_info);
         }
     }
@@ -899,11 +914,11 @@ dissect_doip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 
 
 /* determine PDU length of protocol DoIP */
-static guint
+static unsigned
 get_doip_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *p _U_)
 {
-    guint8 ver1 = tvb_get_guint8(tvb, DOIP_VERSION_OFFSET);
-    guint8 ver2 = tvb_get_guint8(tvb, DOIP_INV_VERSION_OFFSET);
+    uint8_t ver1 = tvb_get_uint8(tvb, DOIP_VERSION_OFFSET);
+    uint8_t ver2 = tvb_get_uint8(tvb, DOIP_INV_VERSION_OFFSET);
 
     if (ver1 != ((~ver2) & 0xff)) {
         /* if ver2 is not the inverse of ver1, we are not at the start of a DoIP message! */
@@ -912,7 +927,7 @@ get_doip_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *p 
     }
 
     /* PDU Length = length field value + header length */
-    guint32 ret = tvb_get_ntohl(tvb, offset + DOIP_LENGTH_OFFSET) + DOIP_HEADER_LEN;
+    uint32_t ret = tvb_get_ntohl(tvb, offset + DOIP_LENGTH_OFFSET) + DOIP_HEADER_LEN;
 
     if (ret < DOIP_HEADER_LEN || ret > 0x7fffffff) {
         /* catch illegal length fields (overflow or too big) */
@@ -924,7 +939,7 @@ get_doip_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *p 
 
 
 static int
-dissect_doip_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+dissect_doip_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     dissect_doip_message(tvb, pinfo, tree);
     return tvb_captured_length(tvb);
@@ -932,9 +947,9 @@ dissect_doip_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
 
 
 static int
-dissect_doip(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_, void* data)
+dissect_doip(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_, void *data)
 {
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, DOIP_HEADER_LEN, get_doip_message_len, dissect_doip_pdu, data);
+    tcp_dissect_pdus(tvb, pinfo, tree, true, DOIP_HEADER_LEN, get_doip_message_len, dissect_doip_pdu, data);
     return tvb_captured_length(tvb);
 }
 
@@ -1031,9 +1046,9 @@ proto_register_doip(void)
             }
         },
         {
-            &hf_futher_action,
+            &hf_further_action,
             {
-                "Further action required", "doip.futher_action",
+                "Further action required", "doip.further_action",
                 FT_UINT8, BASE_HEX,
                 VALS(action_codes), 0x00,
                 NULL, HFILL
@@ -1241,7 +1256,7 @@ proto_register_doip(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_doip,
         &ett_header,
         &ett_address
@@ -1276,7 +1291,7 @@ proto_register_doip(void)
     doip_diag_addr_uat = uat_new("Diagnostic Addresses",
         sizeof(generic_one_id_string_t),        /* record size           */
         DATAFILE_DOIP_DIAG_ADDRESSES,           /* filename              */
-        TRUE,                                   /* from profile          */
+        true,                                   /* from profile          */
         (void**)&doip_diag_addresses,           /* data_ptr              */
         &doip_diag_address_count,               /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                 /* but not fields        */
@@ -1295,7 +1310,7 @@ proto_register_doip(void)
     doip_payload_type_uat = uat_new("Payload Types",
         sizeof(generic_one_id_string_t),        /* record size           */
         DATAFILE_DOIP_PAYLOAD_TYPES,            /* filename              */
-        TRUE,                                   /* from profile          */
+        true,                                   /* from profile          */
         (void**)&doip_payload_types,            /* data_ptr              */
         &doip_payload_type_count,               /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                 /* but not fields        */
@@ -1317,7 +1332,7 @@ proto_register_doip(void)
         &doip_hide_address_names);
 
     static ei_register_info ei[] = {
-     { &ef_doip_illegal_length_field, { "doip.illegal_length_field",
+     { &ei_doip_illegal_length_field, { "doip.illegal_length_field",
        PI_MALFORMED, PI_ERROR, "DoIP illegal length field", EXPFILL } },
     };
 
@@ -1331,7 +1346,7 @@ proto_reg_handoff_doip(void)
     dissector_add_uint("udp.port", DOIP_PORT, doip_handle);
     dissector_add_uint("tcp.port", DOIP_PORT, doip_handle);
 
-    ssl_dissector_add( DOIP_TLS_PORT, doip_handle);
+    ssl_dissector_add(DOIP_TLS_PORT, doip_handle);
 
     uds_handle = find_dissector("uds_over_doip");
 }

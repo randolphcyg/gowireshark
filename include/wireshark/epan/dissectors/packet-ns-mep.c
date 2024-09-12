@@ -13,6 +13,9 @@
 
 #include <epan/packet.h>
 #include <epan/to_str.h>
+#include <epan/unit_strings.h>
+
+#include <wsutil/array.h>
 #include "packet-tcp.h"
 
 void proto_register_ns_mep(void);
@@ -20,70 +23,70 @@ void proto_reg_handoff_ns_mep(void);
 
 static dissector_handle_t nsmep_handle;
 
-static int proto_ns_mep = -1;
+static int proto_ns_mep;
 
-static gint ett_nsmep = -1;
-static gint ett_nsmep_mfu = -1;
-static gint ett_nsmep_nwu = -1;
+static int ett_nsmep;
+static int ett_nsmep_mfu;
+static int ett_nsmep_nwu;
 
-static int hf_nsmep_majver = -1;
-static int hf_nsmep_minver = -1;
-static int hf_nsmep_msgtype = -1;
-static int hf_nsmep_msglen = -1;
-static int hf_nsmep_errcode = -1;
-static int hf_nsmep_mfu_state = -1;
-
-
-static int hf_ns_metricUpdate = -1;
-static int hf_ns_forceUpdateRequest = -1;
-static int hf_ns_forceUpdateResp = -1;
-static int hf_ns_currentOpenConn = -1;
-static int hf_ns_currentSurgeCount = -1;
-static int hf_ns_currentIOHCount = -1;
-static int hf_ns_currentReusePool  = -1;
-static int hf_ns_currentServerConn = -1;
-static int hf_ns_currentClientConn  = -1;
-static int hf_ns_TotalReq = -1;
-static int hf_ns_TotalReqBytes = -1;
-static int hf_ns_TotalResp = -1;
-static int hf_ns_TotalRespBytes = -1;
-static int hf_ns_networkMetrics = -1;
-static int hf_ns_roundTripTime = -1;
-static int hf_ns_hops = -1;
-static int hf_ns_persistenceInfo = -1;
-static int hf_ns_persistenceGslbServIp = -1;
-static int hf_ns_persistenceGslbServPort = -1;
-static int hf_ns_persistenceId = -1;
-static int hf_ns_sitePersistenceDom  = -1;
-static int hf_ns_gslbDomNamelen  = -1;
-static int hf_ns_gslbServPreflen  = -1;
-static int hf_ns_gslbCookieDomNamelen  = -1;
-static int hf_ns_gslbCookieTimeout = -1;
-static int hf_ns_gslbVidlen = -1;
-static int hf_ns_gslbFlags = -1;
-static int hf_ns_gslbCookieDomName = -1;
-static int hf_ns_gslbVs = -1;
-static int hf_ns_gslbPrefix = -1;
-static int hf_ns_sitePersistenceFlushDom = -1;
-static int hf_ns_gslbDomName = -1;
-static int hf_ns_sitePersistenceFlushServ = -1;
-static int hf_ns_sitePersisGetServReq = -1;
-static int hf_ns_siteDomTTL = -1;
-static int hf_ns_sitePersistenceGetServResp = -1;
+static int hf_nsmep_majver;
+static int hf_nsmep_minver;
+static int hf_nsmep_msgtype;
+static int hf_nsmep_msglen;
+static int hf_nsmep_errcode;
+static int hf_nsmep_mfu_state;
 
 
+static int hf_ns_metricUpdate;
+static int hf_ns_forceUpdateRequest;
+static int hf_ns_forceUpdateResp;
+static int hf_ns_currentOpenConn;
+static int hf_ns_currentSurgeCount;
+static int hf_ns_currentIOHCount;
+static int hf_ns_currentReusePool;
+static int hf_ns_currentServerConn;
+static int hf_ns_currentClientConn;
+static int hf_ns_TotalReq;
+static int hf_ns_TotalReqBytes;
+static int hf_ns_TotalResp;
+static int hf_ns_TotalRespBytes;
+static int hf_ns_networkMetrics;
+static int hf_ns_roundTripTime;
+static int hf_ns_hops;
+static int hf_ns_persistenceInfo;
+static int hf_ns_persistenceGslbServIp;
+static int hf_ns_persistenceGslbServPort;
+static int hf_ns_persistenceId;
+static int hf_ns_sitePersistenceDom;
+static int hf_ns_gslbDomNamelen;
+static int hf_ns_gslbServPreflen;
+static int hf_ns_gslbCookieDomNamelen;
+static int hf_ns_gslbCookieTimeout;
+static int hf_ns_gslbVidlen;
+static int hf_ns_gslbFlags;
+static int hf_ns_gslbCookieDomName;
+static int hf_ns_gslbVs;
+static int hf_ns_gslbPrefix;
+static int hf_ns_sitePersistenceFlushDom;
+static int hf_ns_gslbDomName;
+static int hf_ns_sitePersistenceFlushServ;
+static int hf_ns_sitePersisGetServReq;
+static int hf_ns_siteDomTTL;
+static int hf_ns_sitePersistenceGetServResp;
 
-static int hf_nsmep_mfu_ip = -1;
-static int hf_nsmep_mfu_port = -1;
-static int hf_nsmep_mfu_svctype = -1;
-static int hf_nsmep_mfu_eff_state = -1;
-static int hf_nsmep_mfu_mepflag = -1;
-static int hf_nsmep_mfu_reqflag = -1;
 
-static int hf_nsmep_adv_ip = -1;
 
-static int hf_nsmep_ldns_ip = -1;
-static int hf_nsmep_site_persistence = -1;
+static int hf_nsmep_mfu_ip;
+static int hf_nsmep_mfu_port;
+static int hf_nsmep_mfu_svctype;
+static int hf_nsmep_mfu_eff_state;
+static int hf_nsmep_mfu_mepflag;
+static int hf_nsmep_mfu_reqflag;
+
+static int hf_nsmep_adv_ip;
+
+static int hf_nsmep_ldns_ip;
+static int hf_nsmep_site_persistence;
 dissector_handle_t nsrpc_handle;
 
 /*GSLB MEP message types */
@@ -209,17 +212,17 @@ static const value_string value_site_persistence[] = {
 
 /* XXX - for informational purposes only */
 typedef struct nsgslb_dom_info {
-	guint32 public_ip;
-	guint16	public_port;
-	guint16 protocol;
-	guint8	domainlen;
-	guint8	prefixlen;
-	guint8	cookiedomlen;
-	guint8	site_persistence;
-	guint8	cookietimeout;
-	guint8	vidlen;
-	guint8 flags;
-	guint16 reserved;
+	uint32_t public_ip;
+	uint16_t	public_port;
+	uint16_t protocol;
+	uint8_t	domainlen;
+	uint8_t	prefixlen;
+	uint8_t	cookiedomlen;
+	uint8_t	site_persistence;
+	uint8_t	cookietimeout;
+	uint8_t	vidlen;
+	uint8_t flags;
+	uint16_t reserved;
 }nsgslb_dom_info_t;
 
 /*gslb domain info flag values */
@@ -230,12 +233,12 @@ typedef struct nsgslb_dom_info {
 static void
 dissect_ns_mep_v02xx(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 maj_ver, min_ver, mesgtype, mesglen, errcode;
-	guint32 public_port, svctype, domainlen;
+	uint32_t maj_ver, min_ver, mesgtype, mesglen, errcode;
+	uint32_t public_port, svctype, domainlen;
 	proto_item *ti;
 	proto_tree *ns_mep_tree;
 	int offset = 0, start_offset;
-	gchar* version_str;
+	char* version_str;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "NS-MEP");
 	col_clear(pinfo->cinfo, COL_INFO);
@@ -454,7 +457,7 @@ dissect_ns_mep_v02xx(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 	{
 		proto_item *tf;
 		proto_tree *ns_mep_di_tree;
-		guint32 prefixlen, cookiedomlen, flags, vidlen;
+		uint32_t prefixlen, cookiedomlen, flags, vidlen;
 
 		while (tvb_reported_length_remaining(tvb, offset) >= NS_GSLB_DOM_INFO_MIN_SIZE)
 		{
@@ -627,12 +630,12 @@ dissect_ns_mep_v02xx(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 static int
 dissect_ns_mep_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	guint16 ver;
-	guint8 maj_ver, min_ver;
+	uint16_t ver;
+	uint8_t maj_ver, min_ver;
 
 	ver = tvb_get_letohs(tvb, 0);
-	maj_ver = tvb_get_guint8(tvb, 0);
-	min_ver = tvb_get_guint8(tvb, 1);
+	maj_ver = tvb_get_uint8(tvb, 0);
+	min_ver = tvb_get_uint8(tvb, 1);
 	switch(ver)
 	{
 	case 0x0001:
@@ -656,7 +659,7 @@ dissect_ns_mep_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 	return tvb_captured_length(tvb);
 }
 
-static guint
+static unsigned
 get_ns_mep_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
 	/* Get the length of the data from the header. */
@@ -666,7 +669,7 @@ get_ns_mep_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data
 static int
 dissect_ns_mep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	guint16 ns_rpc_sig;
+	uint16_t ns_rpc_sig;
 
 	if (tvb_reported_length(tvb) >= 6)
 	{
@@ -681,7 +684,7 @@ dissect_ns_mep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 		}
 	}
 
-	tcp_dissect_pdus(tvb, pinfo, tree, TRUE, 6, get_ns_mep_pdu_len, dissect_ns_mep_pdu, data);
+	tcp_dissect_pdus(tvb, pinfo, tree, true, 6, get_ns_mep_pdu_len, dissect_ns_mep_pdu, data);
 	return tvb_captured_length(tvb);
 }
 
@@ -753,7 +756,7 @@ proto_register_ns_mep(void)
 			{ "Network Metrics", "nstrace.mep.mfu.networkMetrics", FT_NONE, BASE_NONE, NULL, 0x0,
 			NULL, HFILL } },
 		{ &hf_ns_roundTripTime,
-			{ "Round Trip Time", "nstrace.mep.mfu.roundTripTime", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_milliseconds, 0x0,
+			{ "Round Trip Time", "nstrace.mep.mfu.roundTripTime", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			NULL, HFILL } },
 		{ &hf_ns_hops,
 			{ "Hops", "nstrace.mep.mfu.hops", FT_UINT8, BASE_DEC, NULL, 0x0,
@@ -860,7 +863,7 @@ proto_register_ns_mep(void)
 			NULL, HFILL }},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_nsmep,
 		&ett_nsmep_mfu,
 		&ett_nsmep_nwu,

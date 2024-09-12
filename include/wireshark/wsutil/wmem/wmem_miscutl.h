@@ -38,17 +38,17 @@ extern "C" {
 WS_DLL_PUBLIC
 void *
 wmem_memdup(wmem_allocator_t *allocator, const void *source, const size_t size)
-G_GNUC_MALLOC;
+G_GNUC_ALLOC_SIZE(3);
 
 /** Generic GCompareFunc implementations to compare signed/unsigned integer
  */
 WS_DLL_PUBLIC
 int
-wmem_compare_int(gconstpointer a, gconstpointer b);
+wmem_compare_int(const void *a, const void *b);
 
 WS_DLL_PUBLIC
 int
-wmem_compare_uint(gconstpointer a, gconstpointer b);
+wmem_compare_uint(const void *a, const void *b);
 
 /**   @}
  *  @} */

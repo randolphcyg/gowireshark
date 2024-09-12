@@ -19,6 +19,8 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/asn1.h>
+#include <wsutil/str_util.h>
+#include <wsutil/utf8_entities.h>
 #include "packet-kerberos.h"
 #include "packet-tls-utils.h"
 #include "packet-tn3270.h"
@@ -28,125 +30,126 @@
 void proto_reg_handoff_telnet(void);
 void proto_register_telnet(void);
 
-static int proto_telnet = -1;
-static int hf_telnet_cmd = -1;
-static int hf_telnet_subcmd = -1;
-static int hf_telnet_auth_cmd = -1;
-static int hf_telnet_auth_name = -1;
-static int hf_telnet_auth_type = -1;
-static int hf_telnet_auth_mod_who = -1;
-static int hf_telnet_auth_mod_how = -1;
-static int hf_telnet_auth_mod_cred_fwd = -1;
-static int hf_telnet_auth_mod_enc = -1;
-static int hf_telnet_auth_krb5_type = -1;
-static int hf_telnet_auth_ssl_status = -1;
-static int hf_telnet_auth_data = -1;
+static int proto_telnet;
+static int hf_telnet_cmd;
+static int hf_telnet_subcmd;
+static int hf_telnet_auth_cmd;
+static int hf_telnet_auth_name;
+static int hf_telnet_auth_type;
+static int hf_telnet_auth_mod_who;
+static int hf_telnet_auth_mod_how;
+static int hf_telnet_auth_mod_cred_fwd;
+static int hf_telnet_auth_mod_enc;
+static int hf_telnet_auth_krb5_type;
+static int hf_telnet_auth_ssl_status;
+static int hf_telnet_auth_data;
 
-static int hf_telnet_string_subopt_value = -1;
-static int hf_telnet_naws_subopt_width = -1;
-static int hf_telnet_naws_subopt_height = -1;
-static int hf_telnet_outmark_subopt_cmd = -1;
-static int hf_telnet_outmark_subopt_banner = -1;
-static int hf_telnet_comport_subopt_signature = -1;
-static int hf_telnet_comport_subopt_baud_rate = -1;
-static int hf_telnet_comport_subopt_data_size = -1;
-static int hf_telnet_comport_subopt_parity = -1;
-static int hf_telnet_comport_subopt_stop = -1;
-static int hf_telnet_comport_subopt_control = -1;
-static int hf_telnet_comport_linestate = -1;
-static int hf_telnet_comport_set_linestate_mask = -1;
-static int hf_telnet_comport_modemstate = -1;
-static int hf_telnet_comport_set_modemstate_mask = -1;
-static int hf_telnet_comport_subopt_flow_control_suspend = -1;
-static int hf_telnet_comport_subopt_flow_control_resume = -1;
-static int hf_telnet_comport_subopt_purge = -1;
-static int hf_telnet_rfc_subopt_cmd = -1;
-static int hf_telnet_tabstop = -1;
+static int hf_telnet_string_subopt_value;
+static int hf_telnet_naws_subopt_width;
+static int hf_telnet_naws_subopt_height;
+static int hf_telnet_outmark_subopt_cmd;
+static int hf_telnet_outmark_subopt_banner;
+static int hf_telnet_comport_subopt_signature;
+static int hf_telnet_comport_subopt_baud_rate;
+static int hf_telnet_comport_subopt_data_size;
+static int hf_telnet_comport_subopt_parity;
+static int hf_telnet_comport_subopt_stop;
+static int hf_telnet_comport_subopt_control;
+static int hf_telnet_comport_linestate;
+static int hf_telnet_comport_set_linestate_mask;
+static int hf_telnet_comport_modemstate;
+static int hf_telnet_comport_set_modemstate_mask;
+static int hf_telnet_comport_subopt_flow_control_suspend;
+static int hf_telnet_comport_subopt_flow_control_resume;
+static int hf_telnet_comport_subopt_purge;
+static int hf_telnet_rfc_subopt_cmd;
+static int hf_telnet_tabstop;
 
-static int hf_telnet_enc_cmd = -1;
-static int hf_telnet_enc_type = -1;
-static int hf_telnet_enc_type_data = -1;
-static int hf_telnet_enc_key_id = -1;
+static int hf_telnet_enc_cmd;
+static int hf_telnet_enc_type;
+static int hf_telnet_enc_type_data;
+static int hf_telnet_enc_key_id;
 
-static int hf_telnet_data = -1;
-static int hf_telnet_option_data = -1;
-static int hf_telnet_subcommand_data = -1;
+static int hf_telnet_data;
+static int hf_telnet_option_data;
+static int hf_telnet_subcommand_data;
 
-static int hf_tn3270_subopt = -1;
-static int hf_tn3270_connect = -1;
-static int hf_tn3270_is = -1;
-static int hf_tn3270_request_string = -1;
-static int hf_tn3270_reason = -1;
-static int hf_tn3270_request = -1;
-static int hf_tn3270_regime_subopt_value = -1;
-static int hf_tn3270_regime_cmd = -1;
+static int hf_tn3270_subopt;
+static int hf_tn3270_connect;
+static int hf_tn3270_is;
+static int hf_tn3270_request_string;
+static int hf_tn3270_reason;
+static int hf_tn3270_request;
+static int hf_tn3270_regime_subopt_value;
+static int hf_tn3270_regime_cmd;
 
-static int hf_telnet_starttls = -1;
+static int hf_telnet_starttls;
 
-static int hf_telnet_vmware_cmd = -1;
-static int hf_telnet_vmware_known_suboption_code = -1;
-static int hf_telnet_vmware_unknown_subopt_code = -1;
-static int hf_telnet_vmware_vmotion_sequence = -1;
-static int hf_telnet_vmware_proxy_direction = -1;
-static int hf_telnet_vmware_proxy_serviceUri = -1;
-static int hf_telnet_vmware_vm_vc_uuid = -1;
-static int hf_telnet_vmware_vm_bios_uuid = -1;
-static int hf_telnet_vmware_vm_location_uuid = -1;
-static int hf_telnet_vmware_vm_name = -1;
+static int hf_telnet_vmware_cmd;
+static int hf_telnet_vmware_known_suboption_code;
+static int hf_telnet_vmware_unknown_subopt_code;
+static int hf_telnet_vmware_vmotion_sequence;
+static int hf_telnet_vmware_vmotion_secret;
+static int hf_telnet_vmware_proxy_direction;
+static int hf_telnet_vmware_proxy_serviceUri;
+static int hf_telnet_vmware_vm_vc_uuid;
+static int hf_telnet_vmware_vm_bios_uuid;
+static int hf_telnet_vmware_vm_location_uuid;
+static int hf_telnet_vmware_vm_name;
 
-static gint ett_telnet = -1;
-static gint ett_telnet_cmd = -1;
-static gint ett_telnet_subopt = -1;
-static gint ett_status_subopt = -1;
-static gint ett_rcte_subopt = -1;
-static gint ett_olw_subopt = -1;
-static gint ett_ops_subopt = -1;
-static gint ett_crdisp_subopt = -1;
-static gint ett_htstops_subopt = -1;
-static gint ett_htdisp_subopt = -1;
-static gint ett_ffdisp_subopt = -1;
-static gint ett_vtstops_subopt = -1;
-static gint ett_vtdisp_subopt = -1;
-static gint ett_lfdisp_subopt = -1;
-static gint ett_extasc_subopt = -1;
-static gint ett_bytemacro_subopt = -1;
-static gint ett_det_subopt = -1;
-static gint ett_supdupout_subopt = -1;
-static gint ett_sendloc_subopt = -1;
-static gint ett_termtype_subopt = -1;
-static gint ett_tacacsui_subopt = -1;
-static gint ett_outmark_subopt = -1;
-static gint ett_tlocnum_subopt = -1;
-static gint ett_tn3270reg_subopt = -1;
-static gint ett_x3pad_subopt = -1;
-static gint ett_naws_subopt = -1;
-static gint ett_tspeed_subopt = -1;
-static gint ett_rfc_subopt = -1;
-static gint ett_linemode_subopt = -1;
-static gint ett_xdpyloc_subopt = -1;
-static gint ett_env_subopt = -1;
-static gint ett_auth_subopt = -1;
-static gint ett_enc_subopt = -1;
-static gint ett_newenv_subopt = -1;
-static gint ett_tn3270e_subopt = -1;
-static gint ett_xauth_subopt = -1;
-static gint ett_charset_subopt = -1;
-static gint ett_rsp_subopt = -1;
-static gint ett_comport_subopt = -1;
-static gint ett_starttls_subopt = -1;
+static int ett_telnet;
+static int ett_telnet_cmd;
+static int ett_telnet_subopt;
+static int ett_status_subopt;
+static int ett_rcte_subopt;
+static int ett_olw_subopt;
+static int ett_ops_subopt;
+static int ett_crdisp_subopt;
+static int ett_htstops_subopt;
+static int ett_htdisp_subopt;
+static int ett_ffdisp_subopt;
+static int ett_vtstops_subopt;
+static int ett_vtdisp_subopt;
+static int ett_lfdisp_subopt;
+static int ett_extasc_subopt;
+static int ett_bytemacro_subopt;
+static int ett_det_subopt;
+static int ett_supdupout_subopt;
+static int ett_sendloc_subopt;
+static int ett_termtype_subopt;
+static int ett_tacacsui_subopt;
+static int ett_outmark_subopt;
+static int ett_tlocnum_subopt;
+static int ett_tn3270reg_subopt;
+static int ett_x3pad_subopt;
+static int ett_naws_subopt;
+static int ett_tspeed_subopt;
+static int ett_rfc_subopt;
+static int ett_linemode_subopt;
+static int ett_xdpyloc_subopt;
+static int ett_env_subopt;
+static int ett_auth_subopt;
+static int ett_enc_subopt;
+static int ett_newenv_subopt;
+static int ett_tn3270e_subopt;
+static int ett_xauth_subopt;
+static int ett_charset_subopt;
+static int ett_rsp_subopt;
+static int ett_comport_subopt;
+static int ett_starttls_subopt;
 
-static expert_field ei_telnet_suboption_length = EI_INIT;
-static expert_field ei_telnet_invalid_subcommand = EI_INIT;
-static expert_field ei_telnet_invalid_linestate = EI_INIT;
-static expert_field ei_telnet_invalid_stop = EI_INIT;
-static expert_field ei_telnet_enc_cmd_unknown = EI_INIT;
-static expert_field ei_telnet_invalid_data_size = EI_INIT;
-static expert_field ei_telnet_invalid_modemstate = EI_INIT;
-static expert_field ei_telnet_invalid_parity = EI_INIT;
-static expert_field ei_telnet_invalid_purge = EI_INIT;
-static expert_field ei_telnet_invalid_baud_rate = EI_INIT;
-static expert_field ei_telnet_invalid_control = EI_INIT;
-static expert_field ei_telnet_vmware_unexp_data = EI_INIT;
+static expert_field ei_telnet_suboption_length;
+static expert_field ei_telnet_invalid_subcommand;
+static expert_field ei_telnet_invalid_linestate;
+static expert_field ei_telnet_invalid_stop;
+static expert_field ei_telnet_enc_cmd_unknown;
+static expert_field ei_telnet_invalid_data_size;
+static expert_field ei_telnet_invalid_modemstate;
+static expert_field ei_telnet_invalid_parity;
+static expert_field ei_telnet_invalid_purge;
+static expert_field ei_telnet_invalid_baud_rate;
+static expert_field ei_telnet_invalid_control;
+static expert_field ei_telnet_vmware_unexp_data;
 
 static dissector_handle_t telnet_handle;
 
@@ -212,7 +215,7 @@ typedef enum {
 /* Member of table of IP or TCP options. */
 typedef struct tn_opt {
   const char      *name;          /* name of option */
-  gint            *subtree_index; /* pointer to subtree index for option */
+  int             *subtree_index; /* pointer to subtree index for option */
   tn_opt_len_type  len_type;      /* type of option length field */
   int              optlen;        /* value length should be (minimum if VARIABLE) */
   void  (*dissect)(packet_info *pinfo, const char *, tvbuff_t *, int, int, proto_tree *, proto_item*);
@@ -220,8 +223,9 @@ typedef struct tn_opt {
 } tn_opt;
 
 typedef struct _telnet_conv_info {
-  guint32   starttls_requested_in;  /* Frame of first sender of START_TLS FOLLOWS */
-  guint32   starttls_port;          /* Source port for first sender */
+  uint32_t  starttls_requested_in;  /* Frame of first sender of START_TLS FOLLOWS */
+  uint32_t  starttls_port;          /* Source port for first sender */
+  ssize_t   vmotion_sequence_len;   /* Length of "sequence" field for VMware vSPC vMotion. */
 } telnet_conv_info_t;
 
 static void
@@ -270,18 +274,47 @@ telnet_get_session(packet_info *pinfo)
   telnet_info = (telnet_conv_info_t*)conversation_get_proto_data(conversation, proto_telnet);
   if (!telnet_info) {
     telnet_info = wmem_new0(wmem_file_scope(), telnet_conv_info_t);
+    telnet_info->vmotion_sequence_len = -1;
     conversation_add_proto_data(conversation, proto_telnet, telnet_info);
   }
   return telnet_info;
+}
+
+/* Record some data/negotiation/subnegotiation in the "Info" column. */
+static void
+add_telnet_info_str(packet_info *pinfo, unsigned *num_items, const char *str)
+{
+  const unsigned max_info_items = 5; /* Arbitrary limit so the column doesn't end up too wide. */
+
+  if (*num_items == 0) {
+    /* Replace the default info text. */
+    col_add_str(pinfo->cinfo, COL_INFO, str);
+  } else if (*num_items < max_info_items) {
+    col_append_sep_str(pinfo->cinfo, COL_INFO, NULL, str);
+  } else if (*num_items == max_info_items) {
+    /* Too many to display.  Finish with an ellipsis. */
+    col_append_sep_str(pinfo->cinfo, COL_INFO, NULL, UTF8_HORIZONTAL_ELLIPSIS);
+  }
+  (*num_items)++;
+}
+
+/* Record in the "Info" column that a number of Telnet data bytes arrived. */
+static void
+add_telnet_data_bytes_str(packet_info *pinfo, unsigned *num_items, unsigned len)
+{
+  char str[30];
+
+  snprintf(str, sizeof str, "%u byte%s data", len, plurality(len, "", "s"));
+  add_telnet_info_str(pinfo, num_items, str);
 }
 
 static void
 dissect_string_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, int offset, int len,
                       proto_tree *tree, proto_item *item)
 {
-  guint8 cmd;
+  uint8_t cmd;
 
-  cmd = tvb_get_guint8(tvb, offset);
+  cmd = tvb_get_uint8(tvb, offset);
   switch (cmd) {
 
   case 0:       /* IS */
@@ -320,10 +353,10 @@ dissect_tn3270_regime_subopt(packet_info *pinfo, const char *optname _U_, tvbuff
 #define TN3270_REGIME_ARE          0x01
 #define TN3270_REGIME_IS           0x00
 
-  guint8 cmd;
+  uint8_t cmd;
 
   while (len > 0) {
-    cmd = tvb_get_guint8(tvb, offset);
+    cmd = tvb_get_uint8(tvb, offset);
     switch (cmd) {
     case TN3270_REGIME_ARE:
     case TN3270_REGIME_IS:
@@ -409,14 +442,14 @@ dissect_tn3270e_subopt(packet_info *pinfo _U_, const char *optname _U_, tvbuff_t
                        int len, proto_tree *tree, proto_item *item _U_)
 {
 
-  guint8 cmd;
+  uint8_t cmd;
   int    datalen;
   int    connect_offset = 0;
   int    device_type    = 0;
   int    rsn            = 0;
 
   while (len > 0) {
-    cmd = tvb_get_guint8(tvb, offset);
+    cmd = tvb_get_uint8(tvb, offset);
     proto_tree_add_item( tree, hf_tn3270_subopt, tvb, offset, 1, ENC_BIG_ENDIAN );
     switch (cmd) {
       case TN3270_CONNECT:
@@ -425,10 +458,10 @@ dissect_tn3270e_subopt(packet_info *pinfo _U_, const char *optname _U_, tvbuff_t
             len -= (len - 1);
             break;
       case TN3270_IS:
-            device_type = tvb_get_guint8(tvb, offset-1);
+            device_type = tvb_get_uint8(tvb, offset-1);
             if (device_type == TN3270_DEVICE_TYPE) {
                 /* If there is a terminal type to display, then it will be followed by CONNECT */
-                connect_offset = tvb_find_guint8(tvb, offset + 1, len, TN3270_CONNECT);
+                connect_offset = tvb_find_uint8(tvb, offset + 1, len, TN3270_CONNECT);
                 if (connect_offset != -1) {
                   datalen = connect_offset - (offset + 1);
                   if (datalen > 0) {
@@ -447,14 +480,14 @@ dissect_tn3270e_subopt(packet_info *pinfo _U_, const char *optname _U_, tvbuff_t
             break;
       case TN3270_REQUEST:
             add_tn3270_conversation(pinfo, 1, 0);
-            device_type = tvb_get_guint8(tvb, offset-1);
+            device_type = tvb_get_uint8(tvb, offset-1);
             if (device_type == TN3270_DEVICE_TYPE) {
               proto_tree_add_item( tree, hf_tn3270_request_string, tvb, offset + 1, len-1, ENC_NA|ENC_ASCII );
               offset += (len - 1);
               len -= (len - 1);
             }else if (device_type == TN3270_FUNCTIONS) {
               while (len > 0) {
-                rsn = tvb_get_guint8(tvb, offset);
+                rsn = tvb_get_uint8(tvb, offset);
                 proto_tree_add_item( tree, hf_tn3270_request, tvb, offset, 1, ENC_BIG_ENDIAN );
                 if (try_val_to_str(rsn, tn3270_request_vals) == NULL)
                     break;
@@ -514,7 +547,7 @@ dissect_outmark_subopt(packet_info *pinfo _U_, const char *optname _U_, tvbuff_t
     len--;
 
     /* Look for a GS */
-    gs_offset = tvb_find_guint8(tvb, offset, len, 29);
+    gs_offset = tvb_find_uint8(tvb, offset, len, 29);
     if (gs_offset == -1) {
       /* None found - run to the end of the packet. */
       gs_offset = offset + len;
@@ -532,10 +565,10 @@ static void
 dissect_htstops_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, int offset, int len,
                        proto_tree *tree, proto_item *item)
 {
-  guint8 cmd;
-  guint8 tabval;
+  uint8_t cmd;
+  uint8_t tabval;
 
-  cmd = tvb_get_guint8(tvb, offset);
+  cmd = tvb_get_uint8(tvb, offset);
   switch (cmd) {
 
   case 0:       /* IS */
@@ -560,7 +593,7 @@ dissect_htstops_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, i
   }
 
   while (len > 0) {
-    tabval = tvb_get_guint8(tvb, offset);
+    tabval = tvb_get_uint8(tvb, offset);
     switch (tabval) {
 
     case 0:
@@ -697,11 +730,11 @@ dissect_comport_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, i
     "Purge RX/TX"
   };
 
-  guint8 cmd;
-  guint8 isservercmd;
+  uint8_t cmd;
+  uint8_t isservercmd;
   const char *source;
 
-  cmd = tvb_get_guint8(tvb, offset);
+  cmd = tvb_get_uint8(tvb, offset);
   isservercmd = cmd > 99;
   cmd = (isservercmd) ? (cmd - 100) : cmd;
   source = (isservercmd) ? "Server" : "Client";
@@ -711,7 +744,7 @@ dissect_comport_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, i
     if (len == 0) {
       proto_tree_add_string_format(tree, hf_telnet_comport_subopt_signature, tvb, offset, 1, "", "%s Requests Signature", source);
     } else {
-      guint8 *sig = tvb_get_string_enc(pinfo->pool, tvb, offset + 1, len, ENC_ASCII);
+      uint8_t *sig = tvb_get_string_enc(pinfo->pool, tvb, offset + 1, len, ENC_ASCII);
       proto_tree_add_string_format(tree, hf_telnet_comport_subopt_signature, tvb, offset, 1 + len, sig,
                                          "%s Signature: %s",source, sig);
     }
@@ -720,7 +753,7 @@ dissect_comport_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, i
   case TNCOMPORT_SETBAUDRATE:
     len--;
     if (len >= 4) {
-      guint32 baud = tvb_get_ntohl(tvb, offset+1);
+      uint32_t baud = tvb_get_ntohl(tvb, offset+1);
       if (baud == 0) {
         proto_tree_add_uint_format_value(tree, hf_telnet_comport_subopt_baud_rate, tvb, offset, 5, 0, "%s Requests Baud Rate",source);
       } else {
@@ -734,7 +767,7 @@ dissect_comport_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, i
   case TNCOMPORT_SETDATASIZE:
     len--;
     if (len >= 1) {
-      guint8 datasize = tvb_get_guint8(tvb, offset+1);
+      uint8_t datasize = tvb_get_uint8(tvb, offset+1);
       const char *ds = (datasize > 8) ? "<invalid>" : datasizes[datasize];
       proto_tree_add_uint_format_value(tree, hf_telnet_comport_subopt_data_size, tvb, offset, 2, datasize,
                                        "%s Data Size: %s",source,ds);
@@ -746,7 +779,7 @@ dissect_comport_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, i
   case TNCOMPORT_SETPARITY:
     len--;
     if (len >= 1) {
-      guint8 parity = tvb_get_guint8(tvb, offset+1);
+      uint8_t parity = tvb_get_uint8(tvb, offset+1);
       const char *pr = (parity > 5) ? "<invalid>" : parities[parity];
       proto_tree_add_uint_format_value(tree, hf_telnet_comport_subopt_parity, tvb, offset, 2, parity,
                                        "%s Parity: %s",source,pr);
@@ -757,7 +790,7 @@ dissect_comport_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, i
   case TNCOMPORT_SETSTOPSIZE:
     len--;
     if (len >= 1) {
-      guint8 stop = tvb_get_guint8(tvb, offset+1);
+      uint8_t stop = tvb_get_uint8(tvb, offset+1);
       const char *st = (stop > 3) ? "<invalid>" : stops[stop];
       proto_tree_add_uint_format_value(tree, hf_telnet_comport_subopt_stop, tvb, offset, 2, stop,
                                        "%s Stop: %s",source,st);
@@ -769,7 +802,7 @@ dissect_comport_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, i
   case TNCOMPORT_SETCONTROL:
     len--;
     if (len >= 1) {
-      guint8 crt = tvb_get_guint8(tvb, offset+1);
+      uint8_t crt = tvb_get_uint8(tvb, offset+1);
       const char *c = (crt > 19) ? "Control: <invalid>" : control[crt];
       proto_tree_add_uint_format_value(tree, hf_telnet_comport_subopt_control, tvb, offset, 2, crt,
                                        "%s Stop: %s",source,c);
@@ -787,7 +820,7 @@ dissect_comport_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, i
       int hf_line = (cmd == TNCOMPORT_SETLINESTATEMASK) ?
         hf_telnet_comport_set_linestate_mask : hf_telnet_comport_linestate;
       char ls_buffer[512];
-      guint8 ls = tvb_get_guint8(tvb, offset+1);
+      uint8_t ls = tvb_get_uint8(tvb, offset+1);
       int print_count = 0;
       int idx;
       ls_buffer[0] = '\0';
@@ -819,7 +852,7 @@ dissect_comport_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, i
       int hf_modem = (cmd == TNCOMPORT_SETMODEMSTATEMASK) ?
         hf_telnet_comport_set_modemstate_mask : hf_telnet_comport_modemstate;
       char ms_buffer[256];
-      guint8 ms = tvb_get_guint8(tvb, offset+1);
+      uint8_t ms = tvb_get_uint8(tvb, offset+1);
       int print_count = 0;
       int idx;
       ms_buffer[0] = '\0';
@@ -855,7 +888,7 @@ dissect_comport_subopt(packet_info *pinfo, const char *optname, tvbuff_t *tvb, i
   case TNCOMPORT_PURGEDATA:
     len--;
     if (len >= 1) {
-      guint8 purge = tvb_get_guint8(tvb, offset+1);
+      uint8_t purge = tvb_get_uint8(tvb, offset+1);
       const char *p = (purge > 3) ? "<Purge invalid>" : purges[purge];
       proto_tree_add_uint_format_value(tree, hf_telnet_comport_subopt_purge, tvb, offset, 2, purge,
                                        "%s %s",source,p);
@@ -1036,17 +1069,17 @@ static tvbuff_t *
 unescape_and_tvbuffify_telnet_option(packet_info *pinfo, tvbuff_t *tvb, int offset, int len)
 {
   tvbuff_t     *option_subneg_tvb;
-  guint8       *buf;
-  const guint8 *spos;
-  guint8       *dpos;
+  uint8_t      *buf;
+  const uint8_t *spos;
+  uint8_t      *dpos;
   int           skip, l;
 
   if(len >= MAX_TELNET_OPTION_SUBNEG_LEN)
     return NULL;
 
   spos = tvb_get_ptr(tvb, offset, len);
-  const guint8 *last_src_pos = spos + len - 1;
-  buf = (guint8 *)wmem_alloc(pinfo->pool, len);
+  const uint8_t *last_src_pos = spos + len - 1;
+  buf = (uint8_t *)wmem_alloc(pinfo->pool, len);
   dpos = buf;
   skip = 0;
   l = len;
@@ -1071,12 +1104,12 @@ unescape_and_tvbuffify_telnet_option(packet_info *pinfo, tvbuff_t *tvb, int offs
 
 /* as per RFC2942 */
 static void
-dissect_krb5_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, int len, proto_tree *tree, guint8 acmd)
+dissect_krb5_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, int len, proto_tree *tree, uint8_t acmd)
 {
   tvbuff_t *krb5_tvb;
-  guint8    krb5_cmd;
+  uint8_t   krb5_cmd;
 
-  krb5_cmd=tvb_get_guint8(tvb, offset);
+  krb5_cmd=tvb_get_uint8(tvb, offset);
   proto_tree_add_uint(tree, hf_telnet_auth_krb5_type, tvb, offset, 1, krb5_cmd);
   offset++;
   len--;
@@ -1086,7 +1119,7 @@ dissect_krb5_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, 
   if((acmd==TN_AC_IS)&&(krb5_cmd==TN_KRB5_TYPE_AUTH)){
     if(len){
       krb5_tvb=tvb_new_subset_length(tvb, offset, len);
-      dissect_kerberos_main(krb5_tvb, pinfo, tree, FALSE, NULL);
+      dissect_kerberos_main(krb5_tvb, pinfo, tree, false, NULL);
     }
   }
 
@@ -1105,7 +1138,7 @@ dissect_krb5_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, 
   if((acmd==TN_AC_REPLY)&&(krb5_cmd==TN_KRB5_TYPE_RESPONSE)){
     if(len){
       krb5_tvb=tvb_new_subset_length(tvb, offset, len);
-      dissect_kerberos_main(krb5_tvb, pinfo, tree, FALSE, NULL);
+      dissect_kerberos_main(krb5_tvb, pinfo, tree, false, NULL);
     }
   }
 
@@ -1136,9 +1169,9 @@ static const value_string ssl_auth_status[] = {
 };
 
 static void
-dissect_ssl_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, proto_tree *tree, guint8 acmd)
+dissect_ssl_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, proto_tree *tree, uint8_t acmd)
 {
-  guint ssl_status;
+  unsigned ssl_status;
 
   proto_tree_add_item_ret_uint(tree, hf_telnet_auth_ssl_status, tvb, offset, 1, ENC_NA, &ssl_status);
 
@@ -1149,12 +1182,12 @@ dissect_ssl_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, p
 
 /* as per RFC2941 */
 static void
-dissect_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, int len, proto_tree *tree, guint8 acmd)
+dissect_authentication_data(packet_info *pinfo, tvbuff_t *tvb, int offset, int len, proto_tree *tree, uint8_t acmd)
 {
-  guint8 auth_type;
+  uint8_t auth_type;
 
   dissect_authentication_type_pair(pinfo, tvb, offset, tree);
-  auth_type = tvb_get_guint8(tvb, offset);
+  auth_type = tvb_get_uint8(tvb, offset);
   offset += 2;
   len -= 2;
 
@@ -1181,9 +1214,9 @@ static void
 dissect_authentication_subopt(packet_info *pinfo, const char *optname _U_, tvbuff_t *tvb, int offset, int len,
                               proto_tree *tree, proto_item *item _U_)
 {
-  guint8  acmd;
+  uint8_t acmd;
 
-  acmd=tvb_get_guint8(tvb, offset);
+  acmd=tvb_get_uint8(tvb, offset);
   proto_tree_add_uint(tree, hf_telnet_auth_cmd, tvb, offset, 1, acmd);
   offset++;
   len--;
@@ -1210,8 +1243,8 @@ dissect_authentication_subopt(packet_info *pinfo, const char *optname _U_, tvbuf
 
 /* This function only uses the octet in the buffer at 'offset' */
 static void dissect_encryption_type(tvbuff_t *tvb, int offset, proto_tree *tree) {
-  guint8 etype;
-  etype = tvb_get_guint8(tvb, offset);
+  uint8_t etype;
+  etype = tvb_get_uint8(tvb, offset);
   proto_tree_add_uint(tree, hf_telnet_enc_type, tvb, offset, 1, etype);
 }
 
@@ -1219,9 +1252,9 @@ static void
 dissect_encryption_subopt(packet_info *pinfo, const char *optname _U_, tvbuff_t *tvb, int offset, int len,
                           proto_tree *tree, proto_item *item)
 {
-  guint8 ecmd, key_first_octet;
+  uint8_t ecmd, key_first_octet;
 
-  ecmd = tvb_get_guint8(tvb, offset);
+  ecmd = tvb_get_uint8(tvb, offset);
   proto_tree_add_uint(tree, hf_telnet_enc_cmd, tvb, offset, 1, ecmd);
 
   offset++;
@@ -1251,7 +1284,7 @@ dissect_encryption_subopt(packet_info *pinfo, const char *optname _U_, tvbuff_t 
   case TN_ENC_START:
     /* keyid ... */
     if (len > 0) {
-      key_first_octet = tvb_get_guint8(tvb, offset);
+      key_first_octet = tvb_get_uint8(tvb, offset);
       proto_tree_add_bytes_format(tree, hf_telnet_enc_key_id, tvb, offset, len, NULL, (key_first_octet == 0) ? "Default key" : "Key ID");
     }
     break;
@@ -1362,9 +1395,9 @@ dissect_vmware_subopt(packet_info *pinfo _U_, const char *optname _U_, tvbuff_t 
    * the command-line.
    */
 
-  guint8 vmwcmd;
+  uint8_t vmwcmd;
 
-  vmwcmd = tvb_get_guint8(tvb, offset);
+  vmwcmd = tvb_get_uint8(tvb, offset);
   proto_tree_add_uint(tree, hf_telnet_vmware_cmd, tvb, offset, 1, vmwcmd);
   offset++;
   len--;
@@ -1398,24 +1431,97 @@ dissect_vmware_subopt(packet_info *pinfo _U_, const char *optname _U_, tvbuff_t 
   case VMWARE_VMOTION_BEGIN:
   case VMWARE_VMOTION_NOTNOW:
   case VMWARE_VMOTION_PEER_OK:
-  case VMWARE_VMOTION_COMPLETE:
+  case VMWARE_VMOTION_COMPLETE: {
     /* Data: sequence */
+    telnet_conv_info_t *session = telnet_get_session(pinfo);
+    if (session->vmotion_sequence_len < 0) {
+      /*
+       * There is nothing which _requires_ that the sequence length be constant
+       * throughout a Telnet conversation, but all implementations currently
+       * behave that way and here we assume it will be so.  If that changes,
+       * subsequent VMOTION-GOAHEAD/VMOTION-PEER messages might be incorrectly
+       * dissected, with bytes incorrectly assigned to the sequence or secret
+       * fields.  This should not be a big deal.
+       */
+      session->vmotion_sequence_len = len;
+    }
     proto_tree_add_item(tree, hf_telnet_vmware_vmotion_sequence, tvb, offset, len, ENC_NA);
     offset += len;
     len = 0;
+  }
     break;
 
   case VMWARE_VMOTION_GOAHEAD:
-  case VMWARE_VMOTION_PEER:
+  case VMWARE_VMOTION_PEER: {
     /* Data: sequence secret */
+    telnet_conv_info_t *session = telnet_get_session(pinfo);
+
     /*
-     * TODO: With no delimiter between "sequence" and "secret", nor any other
-     *       way of determining the lengths of those fields, dissecting them
-     *       will require tracking the vMotion conversation.  For now, ignore
-     *       all data.
+     * The lack of delimiter between "sequence" and "secret" makes dissection
+     * challenging.  We need to track the "vMotion conversation", which spans
+     * two Telnet conversations with different endpoints.  The vMotion
+     * conversation is identified by a blob containing the concatenation of the
+     * sequence and secret.
      */
-    offset += len;
-    len = 0;
+    if ((vmwcmd == VMWARE_VMOTION_GOAHEAD && session->vmotion_sequence_len >= 0) ||
+        (vmwcmd == VMWARE_VMOTION_PEER && session->vmotion_sequence_len < 0)) {
+      conversation_element_t conv_key[2] = {
+        {
+          .type = CE_BLOB,
+          .blob = {
+             .val = tvb_memdup(pinfo->pool, tvb, offset, len),
+             .len = len,
+          },
+        },
+        {
+          .type = CE_CONVERSATION_TYPE,
+          .conversation_type_val = CONVERSATION_VSPC_VMOTION,
+        }
+      };
+      conversation_t *vmotion_conv = find_conversation_full(pinfo->num, conv_key);
+
+      if (vmwcmd == VMWARE_VMOTION_GOAHEAD && vmotion_conv == NULL) {
+        /*
+         * We have the full sequence and secret and we know the length of the
+         * "sequence" field.  Stash it (or, really, its session) where we can
+         * find it later.
+         */
+        vmotion_conv = conversation_new_full(pinfo->num, conv_key);
+        conversation_add_proto_data(vmotion_conv, proto_telnet, session);
+      } else if (vmwcmd == VMWARE_VMOTION_PEER && vmotion_conv != NULL) {
+        /*
+         * Try to find the length of the "sequence" field from the conversation
+         * containing the VMOTION-GOAHEAD message.
+         */
+        telnet_conv_info_t const *source_session =
+          (telnet_conv_info_t const *)conversation_get_proto_data(vmotion_conv, proto_telnet);
+
+        if (source_session != NULL) {
+          session->vmotion_sequence_len = source_session->vmotion_sequence_len;
+        }
+        /* The secret is only used once, so the vMotion conversation ends here. */
+        vmotion_conv->last_frame = pinfo->num;
+      }
+      wmem_free(pinfo->pool, (void *)conv_key[0].blob.val);
+    }
+    if (session->vmotion_sequence_len >= 0 && session->vmotion_sequence_len <= len) {
+      proto_tree_add_item(tree, hf_telnet_vmware_vmotion_sequence, tvb, offset, (int)session->vmotion_sequence_len, ENC_NA);
+      offset += session->vmotion_sequence_len;
+      len -= session->vmotion_sequence_len;
+
+      proto_tree_add_item(tree, hf_telnet_vmware_vmotion_secret, tvb, offset, len, ENC_NA);
+      offset += len;
+      len = 0;
+    } else {
+      /*
+       * With no delimiter between "sequence" and "secret", nor any other way
+       * of determining the lengths of those fields, we lack the information to
+       * be able to dissect this.  Skip it.
+       */
+      offset += len;
+      len = 0;
+    }
+  }
     break;
 
   case VMWARE_VMOTION_ABORT:
@@ -1859,7 +1965,7 @@ static const tn_opt telnet_opt_unknown = {
 };
 
 static const tn_opt *
-telnet_find_option(guint8 opt_byte)
+telnet_find_option(uint8_t opt_byte)
 {
   if (opt_byte < array_length(options))
     return &options[opt_byte];
@@ -1874,14 +1980,14 @@ static int
 telnet_sub_option(packet_info *pinfo, proto_tree *option_tree, proto_item *option_item, tvbuff_t *tvb, int start_offset)
 {
   int           offset = start_offset;
-  guint8        opt_byte;
+  uint8_t       opt_byte;
   const tn_opt *opt;
   int           subneg_len;
   int           iac_offset;
-  guint         len;
+  unsigned      len;
   tvbuff_t     *unescaped_tvb;
-  gint          cur_offset;
-  gboolean      iac_found;
+  int           cur_offset;
+  bool          iac_found;
 
   /*
    * As data with value iac (0xff) is possible, this value must be escaped
@@ -1892,7 +1998,7 @@ telnet_sub_option(packet_info *pinfo, proto_tree *option_tree, proto_item *optio
   offset += 2;  /* skip IAC and SB */
 
   /* Get the option code */
-  opt_byte = tvb_get_guint8(tvb, offset);
+  opt_byte = tvb_get_uint8(tvb, offset);
   opt = telnet_find_option(opt_byte);
   offset++;
 
@@ -1900,14 +2006,14 @@ telnet_sub_option(packet_info *pinfo, proto_tree *option_tree, proto_item *optio
   cur_offset = offset;
   len = tvb_reported_length_remaining(tvb, offset);
   do {
-    iac_offset = tvb_find_guint8(tvb, cur_offset, len, TN_IAC);
-    iac_found = TRUE;
+    iac_offset = tvb_find_uint8(tvb, cur_offset, len, TN_IAC);
+    iac_found = true;
     if (iac_offset == -1) {
       /* None found - run to the end of the packet. */
       offset += len;
     } else {
       if (!tvb_offset_exists(tvb, iac_offset + 1) ||
-          (tvb_get_guint8(tvb, iac_offset + 1) != TN_IAC)) {
+          (tvb_get_uint8(tvb, iac_offset + 1) != TN_IAC)) {
         /* We really found a single IAC, so we're done */
         offset = iac_offset;
       } else {
@@ -1915,7 +2021,7 @@ telnet_sub_option(packet_info *pinfo, proto_tree *option_tree, proto_item *optio
          * We saw an escaped IAC, so we have to move ahead to the
          * next section
          */
-        iac_found = FALSE;
+        iac_found = false;
         cur_offset = iac_offset + 2;
         iac_data += 1;
       }
@@ -1980,14 +2086,14 @@ telnet_sub_option(packet_info *pinfo, proto_tree *option_tree, proto_item *optio
 }
 
 static void
-telnet_suboption_name(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int* offset, const gchar** optname,
+telnet_suboption_name(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int* offset, const char** optname,
                       proto_tree **opt_tree, proto_item **opt_item, const char *type)
 {
-  guint8        opt_byte;
+  uint8_t       opt_byte;
   const tn_opt *opt;
-  gint          ett = ett_telnet_subopt;
+  int           ett = ett_telnet_subopt;
 
-  opt_byte = tvb_get_guint8(tvb, *offset);
+  opt_byte = tvb_get_uint8(tvb, *offset);
   opt = telnet_find_option(opt_byte);
   if (opt->subtree_index != NULL)
     ett = *(opt->subtree_index);
@@ -1999,16 +2105,16 @@ telnet_suboption_name(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int* 
 }
 
 static int
-telnet_command(packet_info *pinfo, proto_tree *telnet_tree, tvbuff_t *tvb, int start_offset)
+telnet_command(packet_info *pinfo, proto_tree *telnet_tree, tvbuff_t *tvb, int start_offset, unsigned *num_info_items)
 {
   int    offset = start_offset;
-  guchar optcode;
-  const gchar* optname;
+  unsigned char optcode;
+  const char* optname;
   proto_item *cmd_item, *subopt_item = NULL;
   proto_tree *cmd_tree, *subopt_tree = NULL;
 
   offset += 1;  /* skip IAC */
-  optcode = tvb_get_guint8(tvb, offset);
+  optcode = tvb_get_uint8(tvb, offset);
 
   cmd_tree = proto_tree_add_subtree(telnet_tree, tvb, start_offset, 2, ett_telnet_cmd, &cmd_item, "Command header");
   proto_tree_add_item(cmd_tree, hf_telnet_cmd, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -2041,6 +2147,9 @@ telnet_command(packet_info *pinfo, proto_tree *telnet_tree, tvbuff_t *tvb, int s
   }
 
   proto_item_set_text(cmd_item, "%s", optname);
+  if (optcode != TN_SE) {
+    add_telnet_info_str(pinfo, num_info_items, optname);
+  }
 
   if (optcode == TN_SB) {
     offset = telnet_sub_option(pinfo, subopt_tree, subopt_item, tvb, start_offset);
@@ -2054,16 +2163,16 @@ telnet_command(packet_info *pinfo, proto_tree *telnet_tree, tvbuff_t *tvb, int s
 static void
 telnet_add_text(proto_tree *tree, tvbuff_t *tvb, int offset, int len)
 {
-  gint     next_offset;
+  int      next_offset;
   int      linelen;
-  guint8   c;
-  gboolean last_char_was_cr;
+  uint8_t  c;
+  bool last_char_was_cr;
 
   while (len != 0 && tvb_offset_exists(tvb, offset)) {
     /*
      * Find the end of the line.
      */
-    linelen = tvb_find_line_end(tvb, offset, len, &next_offset, FALSE);
+    linelen = tvb_find_line_end(tvb, offset, len, &next_offset, false);
     len -= next_offset - offset;        /* subtract out the line's characters */
 
     /*
@@ -2081,10 +2190,10 @@ telnet_add_text(proto_tree *tree, tvbuff_t *tvb, int offset, int len)
        * least one capture appeared to have multiple CRs at the end of
        * a line.
        */
-      if (tvb_get_guint8(tvb, offset + linelen) == '\r') {
-        last_char_was_cr = TRUE;
+      if (tvb_get_uint8(tvb, offset + linelen) == '\r') {
+        last_char_was_cr = true;
         while (len != 0 && tvb_offset_exists(tvb, next_offset)) {
-          c = tvb_get_guint8(tvb, next_offset);
+          c = tvb_get_uint8(tvb, next_offset);
           next_offset++;        /* skip over that character */
           len--;
           if (c == '\n' || (c == '\0' && last_char_was_cr)) {
@@ -2116,8 +2225,8 @@ static int find_unescaped_iac(tvbuff_t *tvb, int offset, int len)
 
   /* If we find an IAC (0XFF), make sure it is not followed by another 0XFF.
      Such cases indicate that it is not an IAC at all */
-  while ((iac_offset = tvb_find_guint8(tvb, iac_offset, len, TN_IAC)) != -1 &&
-         (tvb_get_guint8(tvb, iac_offset + 1) == TN_IAC))
+  while ((iac_offset = tvb_find_uint8(tvb, iac_offset, len, TN_IAC)) != -1 &&
+         (tvb_get_uint8(tvb, iac_offset + 1) == TN_IAC))
   {
     iac_offset+=2;
     len = tvb_reported_length_remaining(tvb, iac_offset);
@@ -2130,15 +2239,16 @@ dissect_telnet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 {
   proto_tree *telnet_tree, *ti;
   tvbuff_t   *next_tvb;
-  gint        offset    = 0;
-  guint       len       = 0;
-  guint       is_tn3270 = 0;
-  guint       is_tn5250 = 0;
+  int         offset    = 0;
+  unsigned    len       = 0;
+  unsigned    is_tn3270 = 0;
+  unsigned    is_tn5250 = 0;
   int         data_len;
-  gint        iac_offset;
+  int         iac_offset;
+  unsigned    num_info_items = 0;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "TELNET");
-  col_set_str(pinfo->cinfo, COL_INFO, "Telnet Data ...");
+  col_set_str(pinfo->cinfo, COL_INFO, "Telnet Data" UTF8_HORIZONTAL_ELLIPSIS);
 
   is_tn3270 = find_tn3270_conversation(pinfo);
   is_tn5250 = find_tn5250_conversation(pinfo);
@@ -2159,6 +2269,7 @@ dissect_telnet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
        */
       data_len = iac_offset - offset;
       if (data_len > 0) {
+        add_telnet_data_bytes_str(pinfo, &num_info_items, data_len);
         if (is_tn3270) {
           next_tvb = tvb_new_subset_length(tvb, offset, data_len);
           call_dissector(tn3270_handle, next_tvb, pinfo, telnet_tree);
@@ -2171,7 +2282,7 @@ dissect_telnet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
       /*
        * Now interpret the command.
        */
-      offset = telnet_command(pinfo, telnet_tree, tvb, iac_offset);
+      offset = telnet_command(pinfo, telnet_tree, tvb, iac_offset, &num_info_items);
     } else {
       /* get more data if tn3270 */
       if (is_tn3270 || is_tn5250) {
@@ -2184,7 +2295,10 @@ dissect_telnet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
        * is the last of the data in the packet.
        * Add it to the tree, a line at a time, and then quit.
        */
-      telnet_add_text(telnet_tree, tvb, offset, len);
+      if (len > 0) {
+        add_telnet_data_bytes_str(pinfo, &num_info_items, len);
+        telnet_add_text(telnet_tree, tvb, offset, len);
+      }
       break;
     }
   }
@@ -2403,6 +2517,10 @@ proto_register_telnet(void)
       { "vMotion sequence", "telnet.vmware.vmotion.sequence", FT_BYTES, BASE_NONE,
         NULL, 0, NULL, HFILL }
     },
+    { &hf_telnet_vmware_vmotion_secret,
+      { "vMotion secret", "telnet.vmware.vmotion.secret", FT_BYTES, BASE_NONE,
+        NULL, 0, NULL, HFILL }
+    },
     { &hf_telnet_vmware_proxy_direction,
       { "Proxy Direction", "telnet.vmware.proxy.direction", FT_CHAR, BASE_HEX,
         VALS(vmware_proxy_direction_vals), 0, NULL, HFILL }
@@ -2428,7 +2546,7 @@ proto_register_telnet(void)
         NULL, 0, NULL, HFILL }
     },
   };
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_telnet,
     &ett_telnet_cmd,
     &ett_telnet_subopt,

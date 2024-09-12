@@ -13,109 +13,115 @@
 
 #include "config.h"
 
+#include <wiretap/wtap.h>
 #include <epan/packet.h>
+#include <epan/tfs.h>
 #include "packet-bblog.h"
+
+#define PEN_NFLX 10949
 
 void proto_register_bblog(void);
 void proto_reg_handoff_bblog(void);
 
-static int proto_bblog                      = -1;
+static dissector_handle_t bblog_handle;
 
-static int hf_ticks                         = -1;
-static int hf_serial_nr                     = -1;
-static int hf_stack_id                      = -1;
-static int hf_event_id                      = -1;
-static int hf_event_flags                   = -1;
-static int hf_event_flags_rxbuf             = -1;
-static int hf_event_flags_txbuf             = -1;
-static int hf_event_flags_hdr               = -1;
-static int hf_event_flags_verbose           = -1;
-static int hf_event_flags_stack             = -1;
-static int hf_errno                         = -1;
-static int hf_rxb_acc                       = -1;
-static int hf_rxb_ccc                       = -1;
-static int hf_rxb_spare                     = -1;
-static int hf_txb_acc                       = -1;
-static int hf_txb_ccc                       = -1;
-static int hf_txb_spare                     = -1;
-static int hf_state                         = -1;
-static int hf_starttime                     = -1;
-static int hf_iss                           = -1;
-static int hf_t_flags                       = -1;
-static int hf_t_flags_ack_now               = -1;
-static int hf_t_flags_delayed_ack           = -1;
-static int hf_t_flags_no_delay              = -1;
-static int hf_t_flags_no_opt                = -1;
-static int hf_t_flags_sent_fin              = -1;
-static int hf_t_flags_request_window_scale  = -1;
-static int hf_t_flags_received_window_scale = -1;
-static int hf_t_flags_request_timestamp     = -1;
-static int hf_t_flags_received_timestamp    = -1;
-static int hf_t_flags_sack_permitted        = -1;
-static int hf_t_flags_need_syn              = -1;
-static int hf_t_flags_need_fin              = -1;
-static int hf_t_flags_no_push               = -1;
-static int hf_t_flags_prev_valid            = -1;
-static int hf_t_flags_wake_socket_receive   = -1;
-static int hf_t_flags_goodput_in_progress   = -1;
-static int hf_t_flags_more_to_come          = -1;
-static int hf_t_flags_listen_queue_overflow = -1;
-static int hf_t_flags_last_idle             = -1;
-static int hf_t_flags_zero_recv_window_sent = -1;
-static int hf_t_flags_be_in_fast_recovery   = -1;
-static int hf_t_flags_was_in_fast_recovery  = -1;
-static int hf_t_flags_signature             = -1;
-static int hf_t_flags_force_data            = -1;
-static int hf_t_flags_tso                   = -1;
-static int hf_t_flags_toe                   = -1;
-static int hf_t_flags_unused_1              = -1;
-static int hf_t_flags_unused_2              = -1;
-static int hf_t_flags_lost_rtx_detection    = -1;
-static int hf_t_flags_be_in_cong_recovery   = -1;
-static int hf_t_flags_was_in_cong_recovery  = -1;
-static int hf_t_flags_fast_open             = -1;
-static int hf_snd_una                       = -1;
-static int hf_snd_max                       = -1;
-static int hf_snd_cwnd                      = -1;
-static int hf_snd_nxt                       = -1;
-static int hf_snd_recover                   = -1;
-static int hf_snd_wnd                       = -1;
-static int hf_snd_ssthresh                  = -1;
-static int hf_srtt                          = -1;
-static int hf_rttvar                        = -1;
-static int hf_rcv_up                        = -1;
-static int hf_rcv_adv                       = -1;
-static int hf_t_flags2                      = -1;
-static int hf_t_flags2_plpmtu_blackhole     = -1;
-static int hf_t_flags2_plpmtu_pmtud         = -1;
-static int hf_t_flags2_plpmtu_maxsegsnt     = -1;
-static int hf_t_flags2_log_auto             = -1;
-static int hf_t_flags2_drop_after_data      = -1;
-static int hf_t_flags2_ecn_permit           = -1;
-static int hf_t_flags2_ecn_snd_cwr          = -1;
-static int hf_t_flags2_ecn_snd_ece          = -1;
-static int hf_t_flags2_ace_permit           = -1;
-static int hf_t_flags2_first_bytes_complete = -1;
-static int hf_rcv_nxt                       = -1;
-static int hf_rcv_wnd                       = -1;
-static int hf_dupacks                       = -1;
-static int hf_seg_qlen                      = -1;
-static int hf_snd_num_holes                 = -1;
-static int hf_flex_1                        = -1;
-static int hf_flex_2                        = -1;
-static int hf_first_byte_in                 = -1;
-static int hf_first_byte_out                = -1;
-static int hf_snd_scale                     = -1;
-static int hf_rcv_scale                     = -1;
-static int hf_pad_1                         = -1;
-static int hf_pad_2                         = -1;
-static int hf_pad_3                         = -1;
-static int hf_payload_len                   = -1;
+static int proto_bblog;
 
-static gint ett_bblog                       = -1;
-static gint ett_bblog_flags                 = -1;
-static gint ett_bblog_t_flags               = -1;
-static gint ett_bblog_t_flags2              = -1;
+static int hf_ticks;
+static int hf_serial_nr;
+static int hf_stack_id;
+static int hf_event_id;
+static int hf_event_flags;
+static int hf_event_flags_rxbuf;
+static int hf_event_flags_txbuf;
+static int hf_event_flags_hdr;
+static int hf_event_flags_verbose;
+static int hf_event_flags_stack;
+static int hf_errno;
+static int hf_rxb_acc;
+static int hf_rxb_ccc;
+static int hf_rxb_spare;
+static int hf_txb_acc;
+static int hf_txb_ccc;
+static int hf_txb_spare;
+static int hf_state;
+static int hf_starttime;
+static int hf_iss;
+static int hf_t_flags;
+static int hf_t_flags_ack_now;
+static int hf_t_flags_delayed_ack;
+static int hf_t_flags_no_delay;
+static int hf_t_flags_no_opt;
+static int hf_t_flags_sent_fin;
+static int hf_t_flags_request_window_scale;
+static int hf_t_flags_received_window_scale;
+static int hf_t_flags_request_timestamp;
+static int hf_t_flags_received_timestamp;
+static int hf_t_flags_sack_permitted;
+static int hf_t_flags_need_syn;
+static int hf_t_flags_need_fin;
+static int hf_t_flags_no_push;
+static int hf_t_flags_prev_valid;
+static int hf_t_flags_wake_socket_receive;
+static int hf_t_flags_goodput_in_progress;
+static int hf_t_flags_more_to_come;
+static int hf_t_flags_listen_queue_overflow;
+static int hf_t_flags_last_idle;
+static int hf_t_flags_zero_recv_window_sent;
+static int hf_t_flags_be_in_fast_recovery;
+static int hf_t_flags_was_in_fast_recovery;
+static int hf_t_flags_signature;
+static int hf_t_flags_force_data;
+static int hf_t_flags_tso;
+static int hf_t_flags_toe;
+static int hf_t_flags_unused_1;
+static int hf_t_flags_unused_2;
+static int hf_t_flags_lost_rtx_detection;
+static int hf_t_flags_be_in_cong_recovery;
+static int hf_t_flags_was_in_cong_recovery;
+static int hf_t_flags_fast_open;
+static int hf_snd_una;
+static int hf_snd_max;
+static int hf_snd_cwnd;
+static int hf_snd_nxt;
+static int hf_snd_recover;
+static int hf_snd_wnd;
+static int hf_snd_ssthresh;
+static int hf_srtt;
+static int hf_rttvar;
+static int hf_rcv_up;
+static int hf_rcv_adv;
+static int hf_t_flags2;
+static int hf_t_flags2_plpmtu_blackhole;
+static int hf_t_flags2_plpmtu_pmtud;
+static int hf_t_flags2_plpmtu_maxsegsnt;
+static int hf_t_flags2_log_auto;
+static int hf_t_flags2_drop_after_data;
+static int hf_t_flags2_ecn_permit;
+static int hf_t_flags2_ecn_snd_cwr;
+static int hf_t_flags2_ecn_snd_ece;
+static int hf_t_flags2_ace_permit;
+static int hf_t_flags2_first_bytes_complete;
+static int hf_rcv_nxt;
+static int hf_rcv_wnd;
+static int hf_dupacks;
+static int hf_seg_qlen;
+static int hf_snd_num_holes;
+static int hf_flex_1;
+static int hf_flex_2;
+static int hf_first_byte_in;
+static int hf_first_byte_out;
+static int hf_snd_scale;
+static int hf_rcv_scale;
+static int hf_pad_1;
+static int hf_pad_2;
+static int hf_pad_3;
+static int hf_payload_len;
+
+static int ett_bblog;
+static int ett_bblog_flags;
+static int ett_bblog_t_flags;
+static int ett_bblog_t_flags2;
 
 static int * const bblog_event_flags[] = {
   &hf_event_flags_rxbuf,
@@ -277,19 +283,18 @@ static const value_string tcp_timer_event_values[] = {
  */
 
 static int
-dissect_bblog(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
+dissect_bblog_event(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     proto_item *bblog_item;
     proto_tree *bblog_tree;
-    const gchar *event_name;
-    guint32 flex1, flex2;
-    guint16 event_flags;
-    guint8 event_identifier;
-    guint8 pru;
-    guint8 timer_type, timer_event;
+    const char *event_name;
+    uint32_t flex1, flex2;
+    uint16_t event_flags;
+    uint8_t event_identifier;
+    uint8_t pru;
+    uint8_t timer_type, timer_event;
 
-    col_set_str(pinfo->cinfo, COL_PROTOCOL, "BBLog");
-    event_identifier = tvb_get_guint8(tvb, 25);
+    event_identifier = tvb_get_uint8(tvb, 25);
     flex1 = tvb_get_letohl(tvb, 140);
     flex2 = tvb_get_letohl(tvb, 144);
     switch (event_identifier) {
@@ -311,7 +316,7 @@ dissect_bblog(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
     default:
         event_name = try_val_to_str(event_identifier, event_identifier_values);
         if (event_name != NULL) {
-            col_append_fstr(pinfo->cinfo, COL_INFO, "%s", event_name);
+            col_append_str(pinfo->cinfo, COL_INFO, event_name);
         } else {
             col_append_fstr(pinfo->cinfo, COL_INFO, "Unknown (flex1 0x%08x, flex2 0x%08x0)", flex1, flex2);
         }
@@ -373,6 +378,26 @@ dissect_bblog(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
         /* stack specific data */
     }
     proto_tree_add_item(bblog_tree, hf_payload_len,    tvb, 264, 4, ENC_LITTLE_ENDIAN);
+    return tvb_captured_length(tvb);
+}
+
+static int
+dissect_bblog(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
+{
+    col_set_str(pinfo->cinfo, COL_PROTOCOL, "BBLog");
+    switch (pinfo->rec->rec_header.custom_block_header.custom_data_header.nflx_custom_data_header.type) {
+    case BBLOG_TYPE_SKIPPED_BLOCK:
+        col_add_fstr(pinfo->cinfo, COL_INFO, "Number of skipped events: %u",
+                     pinfo->rec->rec_header.custom_block_header.custom_data_header.nflx_custom_data_header.skipped);
+        break;
+    case BBLOG_TYPE_EVENT_BLOCK:
+        dissect_bblog_event(tvb, pinfo, tree, data);
+        break;
+    default:
+        col_add_fstr(pinfo->cinfo, COL_INFO, "Unknown type: %u",
+                     pinfo->rec->rec_header.custom_block_header.custom_data_header.nflx_custom_data_header.type);
+        break;
+    }
     return tvb_captured_length(tvb);
 }
 
@@ -473,7 +498,7 @@ proto_register_bblog(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_bblog,
         &ett_bblog_flags,
         &ett_bblog_t_flags,
@@ -487,12 +512,13 @@ proto_register_bblog(void)
     proto_register_field_array(proto_bblog, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
 
-    register_dissector("bblog", dissect_bblog, proto_bblog);
+    bblog_handle = register_dissector("bblog", dissect_bblog, proto_bblog);
 }
 
 void
 proto_reg_handoff_bblog(void)
 {
+    dissector_add_uint("pcapng_custom_block", PEN_NFLX, bblog_handle);
 }
 
 /*

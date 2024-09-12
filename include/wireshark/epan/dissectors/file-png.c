@@ -16,7 +16,7 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
-
+#include <epan/tfs.h>
 
 #define MAKE_TYPE_VAL(a, b, c, d)   ((a)<<24 | (b)<<16 | (c)<<8 | (d))
 
@@ -113,54 +113,54 @@ static const value_string phys_unit_vals[] = {
     { 0, NULL }
 };
 
-static int proto_png = -1;
+static int proto_png;
 
-static int hf_png_bkgd_blue = -1;
-static int hf_png_bkgd_green = -1;
-static int hf_png_bkgd_greyscale = -1;
-static int hf_png_bkgd_palette_index = -1;
-static int hf_png_bkgd_red = -1;
-static int hf_png_chrm_blue_x = -1;
-static int hf_png_chrm_blue_y = -1;
-static int hf_png_chrm_green_x = -1;
-static int hf_png_chrm_green_y = -1;
-static int hf_png_chrm_red_x = -1;
-static int hf_png_chrm_red_y = -1;
-static int hf_png_chrm_white_x = -1;
-static int hf_png_chrm_white_y = -1;
-static int hf_png_chunk_crc = -1;
-static int hf_png_chunk_data = -1;
-static int hf_png_chunk_flag_anc = -1;
-static int hf_png_chunk_flag_priv = -1;
-static int hf_png_chunk_flag_stc = -1;
-static int hf_png_chunk_len = -1;
-static int hf_png_chunk_type_str = -1;
-static int hf_png_gama_gamma = -1;
-static int hf_png_ihdr_bitdepth = -1;
-static int hf_png_ihdr_colour_type = -1;
-static int hf_png_ihdr_compression_method = -1;
-static int hf_png_ihdr_filter_method = -1;
-static int hf_png_ihdr_height = -1;
-static int hf_png_ihdr_interlace_method = -1;
-static int hf_png_ihdr_width = -1;
-static int hf_png_phys_horiz = -1;
-static int hf_png_phys_unit = -1;
-static int hf_png_phys_vert = -1;
-static int hf_png_signature = -1;
-static int hf_png_srgb_intent = -1;
-static int hf_png_text_keyword = -1;
-static int hf_png_text_string = -1;
-static int hf_png_time_day = -1;
-static int hf_png_time_hour = -1;
-static int hf_png_time_minute = -1;
-static int hf_png_time_month = -1;
-static int hf_png_time_second = -1;
-static int hf_png_time_year = -1;
+static int hf_png_bkgd_blue;
+static int hf_png_bkgd_green;
+static int hf_png_bkgd_greyscale;
+static int hf_png_bkgd_palette_index;
+static int hf_png_bkgd_red;
+static int hf_png_chrm_blue_x;
+static int hf_png_chrm_blue_y;
+static int hf_png_chrm_green_x;
+static int hf_png_chrm_green_y;
+static int hf_png_chrm_red_x;
+static int hf_png_chrm_red_y;
+static int hf_png_chrm_white_x;
+static int hf_png_chrm_white_y;
+static int hf_png_chunk_crc;
+static int hf_png_chunk_data;
+static int hf_png_chunk_flag_anc;
+static int hf_png_chunk_flag_priv;
+static int hf_png_chunk_flag_stc;
+static int hf_png_chunk_len;
+static int hf_png_chunk_type_str;
+static int hf_png_gama_gamma;
+static int hf_png_ihdr_bitdepth;
+static int hf_png_ihdr_colour_type;
+static int hf_png_ihdr_compression_method;
+static int hf_png_ihdr_filter_method;
+static int hf_png_ihdr_height;
+static int hf_png_ihdr_interlace_method;
+static int hf_png_ihdr_width;
+static int hf_png_phys_horiz;
+static int hf_png_phys_unit;
+static int hf_png_phys_vert;
+static int hf_png_signature;
+static int hf_png_srgb_intent;
+static int hf_png_text_keyword;
+static int hf_png_text_string;
+static int hf_png_time_day;
+static int hf_png_time_hour;
+static int hf_png_time_minute;
+static int hf_png_time_month;
+static int hf_png_time_second;
+static int hf_png_time_year;
 
-static gint ett_png = -1;
-static gint ett_png_chunk = -1;
+static int ett_png;
+static int ett_png_chunk;
 
-static expert_field ei_png_chunk_too_large = EI_INIT;
+static expert_field ei_png_chunk_too_large;
 
 static dissector_handle_t png_handle;
 
@@ -187,9 +187,9 @@ dissect_png_srgb(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
 static void
 dissect_png_text(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
 {
-    gint offset=0, nul_offset;
+    int offset=0, nul_offset;
 
-    nul_offset = tvb_find_guint8(tvb, offset, tvb_captured_length_remaining(tvb, offset), 0);
+    nul_offset = tvb_find_uint8(tvb, offset, tvb_captured_length_remaining(tvb, offset), 0);
     /* nul_offset == 0 means empty keyword, this is not allowed by the png standard */
     if (nul_offset<=0) {
         /* XXX exception */
@@ -244,7 +244,7 @@ static void
 dissect_png_chrm(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
 {
     float  wx, wy, rx, ry, gx, gy, bx, by;
-    gint   offset = 0;
+    int    offset = 0;
 
     wx = tvb_get_ntohl(tvb, offset) / 100000.0f;
     proto_tree_add_float(tree, hf_png_chrm_white_x,
@@ -296,14 +296,14 @@ dissect_png_gama(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
             tvb, 0, 4, gamma);
 }
 
-static gint
+static int
 dissect_png(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *data _U_)
 {
     proto_tree *tree;
     proto_item *ti;
-    gint        offset=0;
+    int         offset=0;
     /* http://libpng.org/pub/png/spec/1.2/PNG-Structure.html#PNG-file-signature */
-    static const guint8 magic[8] = { 137, 80, 78, 71, 13, 10, 26, 10 };
+    static const uint8_t magic[8] = { 137, 80, 78, 71, 13, 10, 26, 10 };
 
     if (tvb_captured_length(tvb) < 20)
         return 0;
@@ -319,11 +319,11 @@ dissect_png(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *da
     offset+=8;
 
     while(tvb_reported_length_remaining(tvb, offset) > 0){
-        guint32     len_field;
+        uint32_t    len_field;
         proto_item *len_it;
         proto_tree *chunk_tree;
-        guint32     type;
-        guint8     *type_str;
+        uint32_t    type;
+        uint8_t    *type_str;
         tvbuff_t   *chunk_tvb;
 
         len_field = tvb_get_ntohl(tvb, offset);
@@ -339,7 +339,7 @@ dissect_png(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *da
         len_it = proto_tree_add_item(chunk_tree, hf_png_chunk_len,
                 tvb, offset, 4, ENC_BIG_ENDIAN);
         offset+=4;
-        if (len_field > G_MAXINT) {
+        if (len_field > INT_MAX) {
             expert_add_info(pinfo, len_it, &ei_png_chunk_too_large);
             return offset;
         }
@@ -408,7 +408,7 @@ proto_register_png(void)
               NULL, HFILL }
         },
         { &hf_png_chunk_type_str,
-            { "Chunk", "png.chunk.type",
+            { "Type", "png.chunk.type",
               FT_STRING, BASE_NONE, NULL, 0,
               NULL, HFILL }
         },
@@ -604,7 +604,7 @@ proto_register_png(void)
         },
     };
 
-    static gint *ett[] =
+    static int *ett[] =
     {
         &ett_png,
         &ett_png_chunk,
@@ -627,9 +627,9 @@ proto_register_png(void)
     png_handle = register_dissector("png", dissect_png, proto_png);
 }
 
-static gboolean dissect_png_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
+static bool dissect_png_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    return dissect_png(tvb, pinfo, tree, NULL) > 0;
+    return dissect_png(tvb, pinfo, tree, data) > 0;
 }
 
 void

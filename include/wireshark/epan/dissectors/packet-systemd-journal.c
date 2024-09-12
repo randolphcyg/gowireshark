@@ -31,6 +31,7 @@
 #include <epan/expert.h>
 #include <wiretap/wtap.h>
 #include <wsutil/strtoi.h>
+#include <wsutil/array.h>
 
 #include "packet-syslog.h"
 
@@ -42,133 +43,133 @@ void proto_reg_handoff_systemd_journal(void);
 void proto_register_systemd_journal(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_systemd_journal = -1;
+static int proto_systemd_journal;
 
 // Official entries, listed in
 // https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html
 // as of 2018-08.
-static int hf_sj_message = -1;
-static int hf_sj_message_id = -1;
-static int hf_sj_priority = -1;
-static int hf_sj_code_file = -1;
-static int hf_sj_code_line = -1;
-static int hf_sj_code_func = -1;
-static int hf_sj_errno = -1;
-static int hf_sj_syslog_facility = -1;
-static int hf_sj_syslog_identifier = -1;
-static int hf_sj_syslog_pid = -1;
+static int hf_sj_message;
+static int hf_sj_message_id;
+static int hf_sj_priority;
+static int hf_sj_code_file;
+static int hf_sj_code_line;
+static int hf_sj_code_func;
+static int hf_sj_errno;
+static int hf_sj_syslog_facility;
+static int hf_sj_syslog_identifier;
+static int hf_sj_syslog_pid;
 
-static int hf_sj_pid = -1;
-static int hf_sj_uid = -1;
-static int hf_sj_gid = -1;
-static int hf_sj_comm = -1;
-static int hf_sj_exe = -1;
-static int hf_sj_cmdline = -1;
-static int hf_sj_cap_effective = -1;
-static int hf_sj_audit_session = -1;
-static int hf_sj_audit_loginuid = -1;
-static int hf_sj_systemd_cgroup = -1;
-static int hf_sj_systemd_slice = -1;
-static int hf_sj_systemd_unit = -1;
-static int hf_sj_systemd_user_unit = -1;
-static int hf_sj_systemd_session = -1;
-static int hf_sj_systemd_owner_uid = -1;
+static int hf_sj_pid;
+static int hf_sj_uid;
+static int hf_sj_gid;
+static int hf_sj_comm;
+static int hf_sj_exe;
+static int hf_sj_cmdline;
+static int hf_sj_cap_effective;
+static int hf_sj_audit_session;
+static int hf_sj_audit_loginuid;
+static int hf_sj_systemd_cgroup;
+static int hf_sj_systemd_slice;
+static int hf_sj_systemd_unit;
+static int hf_sj_systemd_user_unit;
+static int hf_sj_systemd_session;
+static int hf_sj_systemd_owner_uid;
 
-static int hf_sj_selinux_context = -1;
-static int hf_sj_source_realtime_timestamp = -1;
-static int hf_sj_boot_id = -1;
-static int hf_sj_machine_id = -1;
-static int hf_sj_systemd_invocation_id = -1;
-static int hf_sj_hostname = -1;
-static int hf_sj_transport = -1;
-static int hf_sj_stream_id = -1;
-static int hf_sj_line_break = -1;
+static int hf_sj_selinux_context;
+static int hf_sj_source_realtime_timestamp;
+static int hf_sj_boot_id;
+static int hf_sj_machine_id;
+static int hf_sj_systemd_invocation_id;
+static int hf_sj_hostname;
+static int hf_sj_transport;
+static int hf_sj_stream_id;
+static int hf_sj_line_break;
 
-static int hf_sj_kernel_device = -1;
-static int hf_sj_kernel_subsystem = -1;
-static int hf_sj_udev_sysname = -1;
-static int hf_sj_udev_devnode = -1;
-static int hf_sj_udev_devlink = -1;
+static int hf_sj_kernel_device;
+static int hf_sj_kernel_subsystem;
+static int hf_sj_udev_sysname;
+static int hf_sj_udev_devnode;
+static int hf_sj_udev_devlink;
 
-static int hf_sj_coredump_unit = -1;
-static int hf_sj_coredump_user_unit = -1;
-static int hf_sj_object_pid = -1;
-static int hf_sj_object_uid = -1;
-static int hf_sj_object_gid = -1;
-static int hf_sj_object_comm = -1;
-static int hf_sj_object_exe = -1;
-static int hf_sj_object_cmdline = -1;
-static int hf_sj_object_audit_session = -1;
-static int hf_sj_object_audit_loginuid = -1;
-static int hf_sj_object_cap_effective = -1;
-static int hf_sj_object_selinux_context = -1;
-static int hf_sj_object_systemd_cgroup = -1;
-static int hf_sj_object_systemd_session = -1;
-static int hf_sj_object_systemd_owner_uid = -1;
-static int hf_sj_object_systemd_unit = -1;
-static int hf_sj_object_systemd_user_unit = -1;
-static int hf_sj_object_systemd_slice = -1;
-static int hf_sj_object_systemd_user_slice = -1;
-static int hf_sj_object_systemd_invocation_id = -1;
+static int hf_sj_coredump_unit;
+static int hf_sj_coredump_user_unit;
+static int hf_sj_object_pid;
+static int hf_sj_object_uid;
+static int hf_sj_object_gid;
+static int hf_sj_object_comm;
+static int hf_sj_object_exe;
+static int hf_sj_object_cmdline;
+static int hf_sj_object_audit_session;
+static int hf_sj_object_audit_loginuid;
+static int hf_sj_object_cap_effective;
+static int hf_sj_object_selinux_context;
+static int hf_sj_object_systemd_cgroup;
+static int hf_sj_object_systemd_session;
+static int hf_sj_object_systemd_owner_uid;
+static int hf_sj_object_systemd_unit;
+static int hf_sj_object_systemd_user_unit;
+static int hf_sj_object_systemd_slice;
+static int hf_sj_object_systemd_user_slice;
+static int hf_sj_object_systemd_invocation_id;
 
-static int hf_sj_cursor = -1;
-static int hf_sj_realtime_timestamp = -1;
-static int hf_sj_monotonic_timestamp = -1;
+static int hf_sj_cursor;
+static int hf_sj_realtime_timestamp;
+static int hf_sj_monotonic_timestamp;
 
 // Unofficial(?) fields. Not listed in the documentation but present in logs.
-static int hf_sj_result = -1;
-static int hf_sj_source_monotonic_timestamp = -1;
-static int hf_sj_journal_name = -1;
-static int hf_sj_journal_path = -1;
-static int hf_sj_current_use = -1;
-static int hf_sj_current_use_pretty = -1;
-static int hf_sj_max_use = -1;
-static int hf_sj_max_use_pretty = -1;
-static int hf_sj_disk_keep_free = -1;
-static int hf_sj_disk_keep_free_pretty = -1;
-static int hf_sj_disk_available = -1;
-static int hf_sj_disk_available_pretty = -1;
-static int hf_sj_limit = -1;
-static int hf_sj_limit_pretty = -1;
-static int hf_sj_available = -1;
-static int hf_sj_available_pretty = -1;
-static int hf_sj_audit_type = -1;
-static int hf_sj_audit_id = -1;
-static int hf_sj_audit_field_apparmor = -1;
-static int hf_sj_audit_field_operation = -1;
-static int hf_sj_audit_field_profile = -1;
-static int hf_sj_audit_field_name = -1;
-static int hf_sj_seat_id = -1;
-static int hf_sj_kernel_usec = -1;
-static int hf_sj_userspace_usec = -1;
-static int hf_sj_session_id = -1;
-static int hf_sj_user_id = -1;
-static int hf_sj_leader = -1;
-static int hf_sj_job_type = -1;
-static int hf_sj_job_result = -1;
-static int hf_sj_user_invocation_id = -1;
-static int hf_sj_systemd_user_slice = -1;
+static int hf_sj_result;
+static int hf_sj_source_monotonic_timestamp;
+static int hf_sj_journal_name;
+static int hf_sj_journal_path;
+static int hf_sj_current_use;
+static int hf_sj_current_use_pretty;
+static int hf_sj_max_use;
+static int hf_sj_max_use_pretty;
+static int hf_sj_disk_keep_free;
+static int hf_sj_disk_keep_free_pretty;
+static int hf_sj_disk_available;
+static int hf_sj_disk_available_pretty;
+static int hf_sj_limit;
+static int hf_sj_limit_pretty;
+static int hf_sj_available;
+static int hf_sj_available_pretty;
+static int hf_sj_audit_type;
+static int hf_sj_audit_id;
+static int hf_sj_audit_field_apparmor;
+static int hf_sj_audit_field_operation;
+static int hf_sj_audit_field_profile;
+static int hf_sj_audit_field_name;
+static int hf_sj_seat_id;
+static int hf_sj_kernel_usec;
+static int hf_sj_userspace_usec;
+static int hf_sj_session_id;
+static int hf_sj_user_id;
+static int hf_sj_leader;
+static int hf_sj_job_type;
+static int hf_sj_job_result;
+static int hf_sj_user_invocation_id;
+static int hf_sj_systemd_user_slice;
 
 // Metadata.
-static int hf_sj_binary_data_len = -1;
-static int hf_sj_unknown_field = -1;
-static int hf_sj_unknown_field_name = -1;
-static int hf_sj_unknown_field_value = -1;
-static int hf_sj_unknown_field_data = -1;
-static int hf_sj_unhandled_field_type = -1;
+static int hf_sj_binary_data_len;
+static int hf_sj_unknown_field;
+static int hf_sj_unknown_field_name;
+static int hf_sj_unknown_field_value;
+static int hf_sj_unknown_field_data;
+static int hf_sj_unhandled_field_type;
 
-static expert_field ei_unhandled_field_type = EI_INIT;
-static expert_field ei_nonbinary_field = EI_INIT;
-static expert_field ei_undecoded_field = EI_INIT;
+static expert_field ei_unhandled_field_type;
+static expert_field ei_nonbinary_field;
+static expert_field ei_undecoded_field;
 
-static dissector_handle_t sje_handle = NULL;
+static dissector_handle_t sje_handle;
 
 #define MAX_DATA_SIZE 262144 // WTAP_MAX_PACKET_SIZE_STANDARD. Increase if needed.
 
 /* Initialize the subtree pointers */
-static gint ett_systemd_journal_entry = -1;
-static gint ett_systemd_binary_data = -1;
-static gint ett_systemd_unknown_field = -1;
+static int ett_systemd_journal_entry;
+static int ett_systemd_binary_data;
+static int ett_systemd_unknown_field;
 
 // XXX Use a value_string instead?
 typedef struct _journal_field_hf_map {
@@ -292,9 +293,9 @@ static void init_jf_to_hf_map(void) {
 
 static void
 dissect_sjle_time_usecs(proto_tree *tree, int hf_idx, tvbuff_t *tvb, int offset, int len) {
-    guint64 rt_ts = 0;
+    uint64_t rt_ts = 0;
     char *time_str = tvb_format_text(wmem_packet_scope(), tvb, offset, len);
-    gboolean ok = ws_strtou64(time_str, NULL, &rt_ts);
+    bool ok = ws_strtou64(time_str, NULL, &rt_ts);
     if (ok) {
         nstime_t ts;
         ts.secs = (time_t) (rt_ts / 1000000);
@@ -307,13 +308,13 @@ dissect_sjle_time_usecs(proto_tree *tree, int hf_idx, tvbuff_t *tvb, int offset,
 
 static void
 dissect_sjle_uint(proto_tree *tree, int hf_idx, tvbuff_t *tvb, int offset, int len) {
-    guint32 uint_val = (guint32) strtoul(tvb_format_text(wmem_packet_scope(), tvb, offset, len), NULL, 10);
+    uint32_t uint_val = (uint32_t) strtoul(tvb_format_text(wmem_packet_scope(), tvb, offset, len), NULL, 10);
     proto_tree_add_uint(tree, hf_idx, tvb, offset, len, uint_val);
 }
 
 static void
 dissect_sjle_int(proto_tree *tree, int hf_idx, tvbuff_t *tvb, int offset, int len) {
-    gint32 int_val = (gint32) strtol(tvb_format_text(wmem_packet_scope(), tvb, offset, len), NULL, 10);
+    int32_t int_val = (int32_t) strtol(tvb_format_text(wmem_packet_scope(), tvb, offset, len), NULL, 10);
     proto_tree_add_int(tree, hf_idx, tvb, offset, len, int_val);
 }
 
@@ -334,19 +335,19 @@ dissect_systemd_journal_line_entry(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
     sje_tree = proto_item_add_subtree(ti, ett_systemd_journal_entry);
 
     while (tvb_offset_exists(tvb, offset)) {
-        int line_len = tvb_find_line_end(tvb, offset, -1, &next_offset, FALSE);
+        int line_len = tvb_find_line_end(tvb, offset, -1, &next_offset, false);
         if (line_len < 3) {
             // Invalid or zero length.
             // XXX Add an expert item for non-empty lines.
             offset = next_offset;
             continue;
         }
-        gboolean found = FALSE;
-        int eq_off = tvb_find_guint8(tvb, offset, line_len, '=') + 1;
+        bool found = false;
+        int eq_off = tvb_find_uint8(tvb, offset, line_len, '=') + 1;
         int val_len = offset + line_len - eq_off;
 
         for (int i = 0; jf_to_hf[i].name; i++) {
-            if (tvb_memeql(tvb, offset, (const guint8*) jf_to_hf[i].name, strlen(jf_to_hf[i].name)) == 0) {
+            if (tvb_memeql(tvb, offset, (const uint8_t*) jf_to_hf[i].name, strlen(jf_to_hf[i].name)) == 0) {
                 int hf_idx = jf_to_hf[i].hfid;
                 switch (proto_registrar_get_ftype(hf_idx)) {
                 case FT_ABSOLUTE_TIME:
@@ -378,7 +379,7 @@ dissect_systemd_journal_line_entry(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
                     col_clear(pinfo->cinfo, COL_INFO);
                     col_add_str(pinfo->cinfo, COL_INFO, (char *) tvb_get_string_enc(pinfo->pool, tvb, eq_off, val_len, ENC_UTF_8));
                 }
-                found = TRUE;
+                found = true;
             }
         }
 
@@ -396,9 +397,9 @@ dissect_systemd_journal_line_entry(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
         if (!found) {
             for (int i = 0; jf_to_hf[i].name; i++) {
                 int noeql_len = (int) strlen(jf_to_hf[i].name) - 1;
-                if (tvb_memeql(tvb, offset, (const guint8 *) jf_to_hf[i].name, (size_t) noeql_len) == 0 && tvb_memeql(tvb, offset+noeql_len, (const guint8 *) "\n", 1) == 0) {
+                if (tvb_memeql(tvb, offset, (const uint8_t *) jf_to_hf[i].name, (size_t) noeql_len) == 0 && tvb_memeql(tvb, offset+noeql_len, (const uint8_t *) "\n", 1) == 0) {
                     int hf_idx = jf_to_hf[i].hfid;
-                    guint64 data_len = tvb_get_letoh64(tvb, offset + noeql_len + 1);
+                    uint64_t data_len = tvb_get_letoh64(tvb, offset + noeql_len + 1);
                     int data_off = offset + noeql_len + 1 + 8; // \n + data len
                     next_offset = data_off + (int) data_len + 1;
                     if (proto_registrar_get_ftype(hf_idx) == FT_STRING) {
@@ -846,7 +847,7 @@ proto_register_systemd_journal(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_systemd_journal_entry,
         &ett_systemd_binary_data,
         &ett_systemd_unknown_field

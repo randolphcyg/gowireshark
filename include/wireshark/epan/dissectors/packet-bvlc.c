@@ -14,6 +14,8 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/tfs.h>
+
 #include "packet-bacnet.h"
 
 void proto_register_bvlc(void);
@@ -31,67 +33,67 @@ void proto_reg_handoff_bvlc(void);
 #define BAC_WRAPPER_NO_TRUST_SRC	0x02
 #define BAC_WRAPPER_SECURE_BY_RTR	0x01
 
-static int proto_bvlc = -1;
-static int proto_bscvlc = -1;
-static int hf_bvlc_type = -1;
-static int hf_bvlc_function = -1;
-static int hf_bvlc_ipv6_function = -1;
-static int hf_bvlc_length = -1;
-static int hf_bvlc_result_ip4 = -1;
-static int hf_bvlc_result_ip6 = -1;
-static int hf_bvlc_bdt_ip = -1;
-static int hf_bvlc_bdt_mask = -1;
-static int hf_bvlc_bdt_port = -1;
-static int hf_bvlc_reg_ttl = -1;
-static int hf_bvlc_fdt_ip = -1;
-static int hf_bvlc_fdt_ipv6 = -1;
-static int hf_bvlc_fdt_port = -1;
-static int hf_bvlc_fdt_ttl = -1;
-static int hf_bvlc_fdt_timeout = -1;
-static int hf_bvlc_fwd_ip = -1;
-static int hf_bvlc_fwd_port = -1;
-static int hf_bvlc_virt_source = -1;
-static int hf_bvlc_virt_dest = -1;
-static int hf_bvlc_orig_source_addr = -1;
-static int hf_bvlc_orig_source_port = -1;
-static int hf_bscvlc_control = -1;
-static int hf_bscvlc_control_data_option = -1;
-static int hf_bscvlc_control_destination_option = -1;
-static int hf_bscvlc_control_destination_address = -1;
-static int hf_bscvlc_control_origin_address = -1;
-static int hf_bscvlc_control_reserved = -1;
-static int hf_bscvlc_header = -1;
-static int hf_bscvlc_header_marker = -1;
-static int hf_bscvlc_header_length = -1;
-static int hf_bscvlc_header_data = -1;
-static int hf_bscvlc_header_opt_type = -1;
-static int hf_bscvlc_header_opt_data = -1;
-static int hf_bscvlc_header_opt_must_understand = -1;
-static int hf_bscvlc_header_opt_more = -1;
-static int hf_bscvlc_vendor_id = -1;
-static int hf_bscvlc_proprietary_opt_type = -1;
-static int hf_bscvlc_proprietary_data = -1;
-static int hf_bscvlc_hub_conn_state = -1;
-static int hf_bscvlc_accept_conns = -1;
-static int hf_bscvlc_max_bvlc_length = -1;
-static int hf_bscvlc_max_npdu_length = -1;
-static int hf_bscvlc_function = -1;
-static int hf_bscvlc_result = -1;
-static int hf_bscvlc_error_class = -1;
-static int hf_bscvlc_error_code = -1;
-static int hf_bscvlc_result_data = -1;
-static int hf_bscvlc_uris = -1;
-static int hf_bscvlc_msg_id = -1;
-static int hf_bscvlc_orig_vmac = -1;
-static int hf_bscvlc_dest_vmac = -1;
-static int hf_bscvlc_connect_vmac = -1;
-static int hf_bscvlc_connect_uuid = -1;
+static int proto_bvlc;
+static int proto_bscvlc;
+static int hf_bvlc_type;
+static int hf_bvlc_function;
+static int hf_bvlc_ipv6_function;
+static int hf_bvlc_length;
+static int hf_bvlc_result_ip4;
+static int hf_bvlc_result_ip6;
+static int hf_bvlc_bdt_ip;
+static int hf_bvlc_bdt_mask;
+static int hf_bvlc_bdt_port;
+static int hf_bvlc_reg_ttl;
+static int hf_bvlc_fdt_ip;
+static int hf_bvlc_fdt_ipv6;
+static int hf_bvlc_fdt_port;
+static int hf_bvlc_fdt_ttl;
+static int hf_bvlc_fdt_timeout;
+static int hf_bvlc_fwd_ip;
+static int hf_bvlc_fwd_port;
+static int hf_bvlc_virt_source;
+static int hf_bvlc_virt_dest;
+static int hf_bvlc_orig_source_addr;
+static int hf_bvlc_orig_source_port;
+static int hf_bscvlc_control;
+static int hf_bscvlc_control_data_option;
+static int hf_bscvlc_control_destination_option;
+static int hf_bscvlc_control_destination_address;
+static int hf_bscvlc_control_origin_address;
+static int hf_bscvlc_control_reserved;
+static int hf_bscvlc_header;
+static int hf_bscvlc_header_marker;
+static int hf_bscvlc_header_length;
+static int hf_bscvlc_header_data;
+static int hf_bscvlc_header_opt_type;
+static int hf_bscvlc_header_opt_data;
+static int hf_bscvlc_header_opt_must_understand;
+static int hf_bscvlc_header_opt_more;
+static int hf_bscvlc_vendor_id;
+static int hf_bscvlc_proprietary_opt_type;
+static int hf_bscvlc_proprietary_data;
+static int hf_bscvlc_hub_conn_state;
+static int hf_bscvlc_accept_conns;
+static int hf_bscvlc_max_bvlc_length;
+static int hf_bscvlc_max_npdu_length;
+static int hf_bscvlc_function;
+static int hf_bscvlc_result;
+static int hf_bscvlc_error_class;
+static int hf_bscvlc_error_code;
+static int hf_bscvlc_result_data;
+static int hf_bscvlc_uris;
+static int hf_bscvlc_msg_id;
+static int hf_bscvlc_orig_vmac;
+static int hf_bscvlc_dest_vmac;
+static int hf_bscvlc_connect_vmac;
+static int hf_bscvlc_connect_uuid;
 
 static dissector_table_t bvlc_dissector_table;
 static dissector_table_t bscvlc_dissector_table;
 static dissector_table_t bvlc_ipv6_dissector_table;
-static dissector_handle_t bvlc_handle = NULL;
-static dissector_handle_t bscvlc_handle = NULL;
+static dissector_handle_t bvlc_handle;
+static dissector_handle_t bscvlc_handle;
 
 static const value_string bvlc_function_names[] = {
 	{ 0x00, "BVLC-Result" },
@@ -190,12 +192,12 @@ static const value_string bscvlc_hub_accept_conns_names[] = {
 	{ 0,    NULL }
 };
 
-static gint ett_bvlc = -1;
-static gint ett_bscvlc = -1;
-static gint ett_bscvlc_ctrl = -1;
-static gint ett_bscvlc_hdr = -1;
-static gint ett_bdt = -1;
-static gint ett_fdt = -1;
+static int ett_bvlc;
+static int ett_bscvlc;
+static int ett_bscvlc_ctrl;
+static int ett_bscvlc_hdr;
+static int ett_bdt;
+static int ett_fdt;
 
 #define BACNET_IP_ANNEX_J		0x81
 #define BACNET_IPV6_ANNEX_U		0x82
@@ -514,19 +516,19 @@ dissect_ipv4_bvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
 	proto_tree *bdt_tree; /* Broadcast Distribution Table */
 	proto_tree *fdt_tree; /* Foreign Device Table */
 
-	gint offset;
-	guint8 bvlc_type;
-	guint8 bvlc_function;
-	guint16 bvlc_length;
-	guint16 packet_length;
-	guint npdu_length;
-	guint length_remaining;
+	int offset;
+	uint8_t bvlc_type;
+	uint8_t bvlc_function;
+	uint16_t bvlc_length;
+	uint16_t packet_length;
+	unsigned npdu_length;
+	unsigned length_remaining;
 	tvbuff_t *next_tvb;
 
 	offset = 0;
 
-	bvlc_type = tvb_get_guint8(tvb, offset);
-	bvlc_function = tvb_get_guint8(tvb, offset + 1);
+	bvlc_type = tvb_get_uint8(tvb, offset);
+	bvlc_function = tvb_get_uint8(tvb, offset + 1);
 	packet_length = tvb_get_ntohs(tvb, offset + 2);
 	length_remaining = tvb_reported_length_remaining(tvb, offset);
 
@@ -700,7 +702,7 @@ dissect_ipv4_bvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
 	/* Code from Guy Harris */
 	if (!dissector_try_uint(bvlc_dissector_table,
 		bvlc_function, next_tvb, pinfo, tree)) {
-		/* Unknown function - dissect the paylod as data */
+		/* Unknown function - dissect the payload as data */
 		call_data_dissector(next_tvb, pinfo, tree);
 	}
 	return tvb_reported_length(tvb);
@@ -713,19 +715,19 @@ dissect_ipv6_bvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
 	proto_item *ti;
 	proto_tree *bvlc_tree;
 
-	gint offset;
-	guint8 bvlc_type;
-	guint8 bvlc_function;
-	guint16 bvlc_length = 0;
-	guint16 packet_length;
-	guint npdu_length;
-	guint length_remaining;
+	int offset;
+	uint8_t bvlc_type;
+	uint8_t bvlc_function;
+	uint16_t bvlc_length = 0;
+	uint16_t packet_length;
+	unsigned npdu_length;
+	unsigned length_remaining;
 	tvbuff_t *next_tvb;
 
 	offset = 0;
 
-	bvlc_type = tvb_get_guint8(tvb, offset);
-	bvlc_function = tvb_get_guint8(tvb, offset + 1);
+	bvlc_type = tvb_get_uint8(tvb, offset);
+	bvlc_function = tvb_get_uint8(tvb, offset + 1);
 	packet_length = tvb_get_ntohs(tvb, offset + 2);
 	length_remaining = tvb_reported_length_remaining(tvb, offset);
 
@@ -767,7 +769,7 @@ dissect_ipv6_bvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
 
 	/* Put the BVLC Type in the info column */
 	col_append_fstr(pinfo->cinfo, COL_INFO, " BVLC Function %s ",
-                  val_to_str_const(bvlc_function, bvlc_function_names, "unknown"));
+                  val_to_str_const(bvlc_function, bvlc_ipv6_function_names, "unknown"));
 
 	ti = proto_tree_add_item(tree, proto_bvlc, tvb, 0,
 		bvlc_length, ENC_NA);
@@ -876,7 +878,7 @@ dissect_ipv6_bvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
 	/* Code from Guy Harris */
 	if ( ! dissector_try_uint(bvlc_ipv6_dissector_table,
 		bvlc_function, next_tvb, pinfo, tree)) {
-		/* Unknown function - dissect the paylod as data */
+		/* Unknown function - dissect the payload as data */
 		call_data_dissector(next_tvb, pinfo, tree);
 	}
 
@@ -886,10 +888,10 @@ dissect_ipv6_bvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
 static int
 dissect_bvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	guint8 bvlc_type;
-	guint ret = 0;
+	uint8_t bvlc_type;
+	unsigned ret = 0;
 
-	bvlc_type = tvb_get_guint8(tvb, 0);
+	bvlc_type = tvb_get_uint8(tvb, 0);
 
 	/*
 	 * Simple sanity check - make sure the type is one we know about.
@@ -919,20 +921,20 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 	proto_item *ti;
 	proto_tree *bvlc_tree;
 	tvbuff_t *next_tvb;
-	gint offset;
-	gint start;
-	gint bvlc_length;
-	gint packet_length;
-	gint npdu_length;
-	guint8 bvlc_function;
-	guint8 bvlc_control;
-	guint8 bvlc_result;
-	guint8 hdr_byte;
-	gint8 mac_buffer[16];
-	guint bvlc_message_id;
-	guint idx;
-	gboolean bMoreFlag;
-	gboolean bDataFlag;
+	int offset;
+	int start;
+	int bvlc_length;
+	int packet_length;
+	int npdu_length;
+	uint8_t bvlc_function;
+	uint8_t bvlc_control;
+	uint8_t bvlc_result;
+	uint8_t hdr_byte;
+	int8_t mac_buffer[16];
+	unsigned bvlc_message_id;
+	unsigned idx;
+	bool bMoreFlag;
+	bool bDataFlag;
 	proto_tree *subtree;
 
 	/* Calculate length of BSCVLC block to get remaining payload length */
@@ -943,9 +945,9 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 		return 0; /* reject */
 
 	/* Fix part of the header first */
-	bvlc_function = tvb_get_guint8(tvb, offset++);
-	bvlc_control = tvb_get_guint8(tvb, offset++);
-	bvlc_message_id = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+	bvlc_function = tvb_get_uint8(tvb, offset++);
+	bvlc_control = tvb_get_uint8(tvb, offset++);
+	bvlc_message_id = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 	offset += 2;
 
 	/* Variable part of the header next */
@@ -959,10 +961,10 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
 	if ((bvlc_control & BSCVLC_CONTROL_DEST_OPTION) != 0)
 	{
-		bMoreFlag = TRUE;
+		bMoreFlag = true;
 
 		while(tvb_reported_length_remaining(tvb, bvlc_length) > 0 &&
-		      (hdr_byte = tvb_get_guint8(tvb, bvlc_length)) != 0 && bMoreFlag)
+		      (hdr_byte = tvb_get_uint8(tvb, bvlc_length)) != 0 && bMoreFlag)
 		{
 			/* get flags and type... */
 			bMoreFlag= (hdr_byte & BSCVLC_HEADER_OPTION_MORE_OPTIONS);
@@ -971,8 +973,8 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
 			if(bDataFlag)
 			{
-				npdu_length = (gint)(tvb_get_guint8(tvb, bvlc_length++) << 8);
-				npdu_length += (gint)tvb_get_guint8(tvb, bvlc_length++);
+				npdu_length = (int)(tvb_get_uint8(tvb, bvlc_length++) << 8);
+				npdu_length += (int)tvb_get_uint8(tvb, bvlc_length++);
 				bvlc_length += npdu_length;
 			}
 		}
@@ -980,10 +982,10 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
 	if ((bvlc_control & BSCVLC_CONTROL_DATA_OPTION) != 0)
 	{
-		bMoreFlag = TRUE;
+		bMoreFlag = true;
 
 		while(tvb_reported_length_remaining(tvb, bvlc_length) > 0 &&
-		      (hdr_byte = tvb_get_guint8(tvb, bvlc_length)) != 0 && bMoreFlag)
+		      (hdr_byte = tvb_get_uint8(tvb, bvlc_length)) != 0 && bMoreFlag)
 		{
 			/* get flags and type... */
 			bMoreFlag= (hdr_byte & BSCVLC_HEADER_OPTION_MORE_OPTIONS);
@@ -992,8 +994,8 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
 			if(bDataFlag)
 			{
-				npdu_length = (gint)(tvb_get_guint8(tvb, bvlc_length++) << 8);
-				npdu_length += (gint)tvb_get_guint8(tvb, bvlc_length++);
+				npdu_length = (int)(tvb_get_uint8(tvb, bvlc_length++) << 8);
+				npdu_length += (int)tvb_get_uint8(tvb, bvlc_length++);
 				bvlc_length += npdu_length;
 			}
 		}
@@ -1055,7 +1057,7 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 	if ((bvlc_control & BSCVLC_CONTROL_ORIG_ADDRESS) != 0)
 	{
 		for(idx = 0; idx < 6; idx++)
-			snprintf(&mac_buffer[idx * 2], sizeof(mac_buffer) - (idx * 2), "%02X", tvb_get_guint8(tvb, offset + idx));
+			snprintf(&mac_buffer[idx * 2], sizeof(mac_buffer) - (idx * 2), "%02X", tvb_get_uint8(tvb, offset + idx));
 		col_append_fstr(pinfo->cinfo, COL_INFO, " SMAC %s", mac_buffer);
 
 		proto_tree_add_item(bvlc_tree, hf_bscvlc_orig_vmac, tvb, offset, 6, ENC_NA);
@@ -1065,7 +1067,7 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 	if ((bvlc_control & BSCVLC_CONTROL_DEST_ADDRESS) != 0)
 	{
 		for(idx = 0; idx < 6; idx++)
-			snprintf(&mac_buffer[idx * 2],  sizeof(mac_buffer) - (idx * 2), "%02X", tvb_get_guint8(tvb, offset + idx));
+			snprintf(&mac_buffer[idx * 2],  sizeof(mac_buffer) - (idx * 2), "%02X", tvb_get_uint8(tvb, offset + idx));
 		col_append_fstr(pinfo->cinfo, COL_INFO, " DMAC %s", mac_buffer);
 
 		proto_tree_add_item(bvlc_tree, hf_bscvlc_dest_vmac, tvb, offset, 6, ENC_NA);
@@ -1074,10 +1076,10 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
 	if ((bvlc_control & BSCVLC_CONTROL_DEST_OPTION) != 0)
 	{
-		bMoreFlag = TRUE;
+		bMoreFlag = true;
 
 		while(tvb_reported_length_remaining(tvb, offset) > 0 &&
-		      (hdr_byte = tvb_get_guint8(tvb, offset)) != 0 && bMoreFlag)
+		      (hdr_byte = tvb_get_uint8(tvb, offset)) != 0 && bMoreFlag)
 		{
 			/* get flags and type... */
 			bMoreFlag= (hdr_byte & BSCVLC_HEADER_OPTION_MORE_OPTIONS);
@@ -1088,8 +1090,8 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
 			if(bDataFlag)
 			{
-				npdu_length = (gint)(tvb_get_guint8(tvb, offset++) << 8);
-				npdu_length += (gint)tvb_get_guint8(tvb, offset++);
+				npdu_length = (int)(tvb_get_uint8(tvb, offset++) << 8);
+				npdu_length += (int)tvb_get_uint8(tvb, offset++);
 				offset += npdu_length;
 			}
 
@@ -1108,10 +1110,10 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
 	if ((bvlc_control & BSCVLC_CONTROL_DATA_OPTION) != 0)
 	{
-		bMoreFlag = TRUE;
+		bMoreFlag = true;
 
 		while(tvb_reported_length_remaining(tvb, offset) > 0 &&
-		      (hdr_byte = tvb_get_guint8(tvb, offset)) != 0 && bMoreFlag)
+		      (hdr_byte = tvb_get_uint8(tvb, offset)) != 0 && bMoreFlag)
 		{
 			/* get flags and type... */
 			bMoreFlag= (hdr_byte & BSCVLC_HEADER_OPTION_MORE_OPTIONS);
@@ -1122,8 +1124,8 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
 			if(bDataFlag)
 			{
-				npdu_length = (gint)(tvb_get_guint8(tvb, offset++) << 8);
-				npdu_length += (gint)tvb_get_guint8(tvb, offset++);
+				npdu_length = (int)(tvb_get_uint8(tvb, offset++) << 8);
+				npdu_length += (int)tvb_get_uint8(tvb, offset++);
 				offset += npdu_length;
 			}
 
@@ -1157,7 +1159,7 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 		offset++;
 		proto_tree_add_item(subtree, hf_bscvlc_result, tvb,
 				offset, 1, ENC_NA);
-		bvlc_result = tvb_get_guint8(tvb, offset);
+		bvlc_result = tvb_get_uint8(tvb, offset);
 		offset++;
 
 		col_append_fstr(pinfo->cinfo, COL_INFO, " %s",
@@ -1262,7 +1264,7 @@ dissect_bscvlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 	/* Code from Guy Harris */
 	if (!dissector_try_uint(bscvlc_dissector_table,
 		bvlc_function, next_tvb, pinfo, tree)) {
-		/* Unknown function - dissect the paylod as data */
+		/* Unknown function - dissect the payload as data */
 		call_data_dissector(next_tvb, pinfo, tree);
 	}
 
@@ -1380,7 +1382,7 @@ proto_register_bvlc(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_bvlc,
 		&ett_bdt,
 		&ett_fdt,
@@ -1547,7 +1549,7 @@ proto_register_bvlc(void)
 		},
 	};
 
-	static gint *bsc_ett[] = {
+	static int *bsc_ett[] = {
 		&ett_bscvlc,
 		&ett_bscvlc_ctrl,
 		&ett_bscvlc_hdr

@@ -24,56 +24,56 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/prefs.h>
+#include <epan/tfs.h>
 #include <epan/expert.h>
 #include <epan/conversation.h>
 
 void proto_register_fb_zero(void);
 void proto_reg_handoff_fb_zero(void);
 
-static int proto_fb_zero = -1;
+static int proto_fb_zero;
 
 static dissector_handle_t fb_zero_handle;
 
-static int hf_fb_zero_puflags = -1;
-static int hf_fb_zero_puflags_vrsn = -1;
-static int hf_fb_zero_puflags_unknown = -1;
-static int hf_fb_zero_version = -1;
-static int hf_fb_zero_length = -1;
-static int hf_fb_zero_tag = -1;
-static int hf_fb_zero_tags = -1;
-static int hf_fb_zero_tag_number = -1;
-static int hf_fb_zero_tag_value = -1;
-static int hf_fb_zero_tag_type = -1;
-static int hf_fb_zero_tag_offset_end = -1;
-static int hf_fb_zero_tag_length = -1;
-static int hf_fb_zero_tag_sni = -1;
-static int hf_fb_zero_tag_vers = -1;
-static int hf_fb_zero_tag_sno = -1;
-static int hf_fb_zero_tag_aead = -1;
-static int hf_fb_zero_tag_scid = -1;
-static int hf_fb_zero_tag_time = -1;
-static int hf_fb_zero_tag_alpn = -1;
-static int hf_fb_zero_tag_pubs = -1;
-static int hf_fb_zero_tag_kexs = -1;
-static int hf_fb_zero_tag_nonc = -1;
+static int hf_fb_zero_puflags;
+static int hf_fb_zero_puflags_vrsn;
+static int hf_fb_zero_puflags_unknown;
+static int hf_fb_zero_version;
+static int hf_fb_zero_length;
+static int hf_fb_zero_tag;
+static int hf_fb_zero_tags;
+static int hf_fb_zero_tag_number;
+static int hf_fb_zero_tag_value;
+static int hf_fb_zero_tag_type;
+static int hf_fb_zero_tag_offset_end;
+static int hf_fb_zero_tag_length;
+static int hf_fb_zero_tag_sni;
+static int hf_fb_zero_tag_vers;
+static int hf_fb_zero_tag_sno;
+static int hf_fb_zero_tag_aead;
+static int hf_fb_zero_tag_scid;
+static int hf_fb_zero_tag_time;
+static int hf_fb_zero_tag_alpn;
+static int hf_fb_zero_tag_pubs;
+static int hf_fb_zero_tag_kexs;
+static int hf_fb_zero_tag_nonc;
 
-static int hf_fb_zero_tag_unknown = -1;
+static int hf_fb_zero_tag_unknown;
 
-static int hf_fb_zero_padding = -1;
-static int hf_fb_zero_payload = -1;
-static int hf_fb_zero_unknown = -1;
+static int hf_fb_zero_padding;
+static int hf_fb_zero_payload;
+static int hf_fb_zero_unknown;
 
-static gint ett_fb_zero = -1;
-static gint ett_fb_zero_puflags = -1;
-static gint ett_fb_zero_prflags = -1;
-static gint ett_fb_zero_ft = -1;
-static gint ett_fb_zero_ftflags = -1;
-static gint ett_fb_zero_tag_value = -1;
+static int ett_fb_zero;
+static int ett_fb_zero_puflags;
+static int ett_fb_zero_prflags;
+static int ett_fb_zero_ft;
+static int ett_fb_zero_ftflags;
+static int ett_fb_zero_tag_value;
 
-static expert_field ei_fb_zero_tag_undecoded = EI_INIT;
-static expert_field ei_fb_zero_tag_offset_end_invalid = EI_INIT;
-static expert_field ei_fb_zero_length_invalid = EI_INIT;
+static expert_field ei_fb_zero_tag_undecoded;
+static expert_field ei_fb_zero_tag_offset_end_invalid;
+static expert_field ei_fb_zero_length_invalid;
 
 #define FBZERO_MIN_LENGTH 3
 
@@ -145,7 +145,7 @@ static const value_string tag_vals[] = {
 static const value_string tag_aead_vals[] = {
     { AEAD_AESG, "AES-GCM with a 12-byte tag and IV" },
     { AEAD_S20P, "Salsa20 with Poly1305" },
-    { AEAD_CC12, "Salsa20 with Poly1305" },
+    { AEAD_CC12, "ChaCha12 with Poly1305" },
     { 0, NULL }
 };
 
@@ -163,18 +163,18 @@ static const value_string tag_kexs_vals[] = {
 };
 
 
-static guint32
-dissect_fb_zero_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *fb_zero_tree, guint offset, guint32 tag_number){
-    guint32 tag_offset_start = offset + tag_number*4*2;
-    guint32 tag_offset = 0, total_tag_len = 0;
-    gint32 tag_len = 0;
-    gboolean tag_offset_valid = TRUE;
+static uint32_t
+dissect_fb_zero_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *fb_zero_tree, unsigned offset, uint32_t tag_number){
+    uint32_t tag_offset_start = offset + tag_number*4*2;
+    uint32_t tag_offset = 0, total_tag_len = 0;
+    int32_t tag_len = 0;
+    bool tag_offset_valid = true;
 
     while(tag_number){
         proto_tree *tag_tree;
         proto_item *ti_tag, *ti_type, *ti_offset_len, *ti_len;
-        guint32 offset_end, tag;
-        const guint8* tag_str;
+        uint32_t offset_end, tag;
+        const uint8_t* tag_str;
 
         /*
          * This item covers the tag type and end offset; the tag values
@@ -199,7 +199,7 @@ dissect_fb_zero_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *fb_zero_tree,
              * but we can no longer show the values, or subsequent length
              * values, as the end offset in the tag value region is bogus.
              */
-            tag_offset_valid = FALSE;
+            tag_offset_valid = false;
         } else {
             tag_len = offset_end - tag_offset;
             if(!tvb_bytes_exist(tvb, tag_offset_start + tag_offset, tag_len)){
@@ -214,7 +214,7 @@ dissect_fb_zero_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *fb_zero_tree,
                  * We don't just throw an exception here, because we
                  * want to show all the tag type and end offset values.
                  */
-                tag_offset_valid = FALSE;
+                tag_offset_valid = false;
             }
             total_tag_len += tag_len;
             ti_len = proto_tree_add_uint(tag_tree, hf_fb_zero_tag_length, tvb, offset, 4, tag_len);
@@ -381,12 +381,12 @@ dissect_fb_zero_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *fb_zero_tree,
 
 
 static int
-dissect_fb_zero_unencrypt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *fb_zero_tree, guint offset, guint8 len_pkn _U_){
+dissect_fb_zero_unencrypt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *fb_zero_tree, unsigned offset, uint8_t len_pkn _U_){
 
     while(tvb_reported_length_remaining(tvb, offset) > 0){
         proto_item *ti;
-        guint32 message_tag, tag_number, length;
-        const guint8* message_tag_str;
+        uint32_t message_tag, tag_number, length;
+        const uint8_t* message_tag_str;
         proto_tree_add_item(fb_zero_tree, hf_fb_zero_unknown, tvb, offset, 1, ENC_NA);
         offset += 1;
 
@@ -406,7 +406,7 @@ dissect_fb_zero_unencrypt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *fb_zero
 
             proto_item_append_text(ti, ", Type: %s (%s)", message_tag_str,
                                    val_to_str_const(message_tag, message_tag_vals, "Unknown Tag"));
-            col_add_str(pinfo->cinfo, COL_INFO, val_to_str_const(message_tag, message_tag_vals, "Unknown"));
+            col_set_str(pinfo->cinfo, COL_INFO, val_to_str_const(message_tag, message_tag_vals, "Unknown"));
             offset += 4;
 
             proto_tree_add_item(fb_zero_tree, hf_fb_zero_tag_number, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -433,9 +433,9 @@ dissect_fb_zero_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
     proto_item *ti, *ti_puflags;
     proto_tree *fb_zero_tree, *puflags_tree;
-    guint offset = 0;
-    guint8 puflags;
-    guint32 message_tag, version;
+    unsigned offset = 0;
+    uint8_t puflags;
+    uint32_t message_tag, version;
 
     if (tvb_captured_length(tvb) < FBZERO_MIN_LENGTH)
         return 0;
@@ -451,7 +451,7 @@ dissect_fb_zero_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     puflags_tree = proto_item_add_subtree(ti_puflags, ett_fb_zero_puflags);
     proto_tree_add_item(puflags_tree, hf_fb_zero_puflags_vrsn, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(puflags_tree, hf_fb_zero_puflags_unknown, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    puflags = tvb_get_guint8(tvb, offset);
+    puflags = tvb_get_uint8(tvb, offset);
     offset += 1;
 
     if(puflags & PUFLAGS_VRSN){
@@ -468,7 +468,7 @@ dissect_fb_zero_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         offset = dissect_fb_zero_unencrypt(tvb, pinfo, fb_zero_tree, offset, 1);
 
     }else {     /* Payload... (encrypted... TODO FIX !) */
-        col_add_str(pinfo->cinfo, COL_INFO, "Payload (Encrypted)");
+        col_set_str(pinfo->cinfo, COL_INFO, "Payload (Encrypted)");
         proto_tree_add_item(fb_zero_tree, hf_fb_zero_payload, tvb, offset, -1, ENC_NA);
     }
     return offset;
@@ -482,15 +482,15 @@ dissect_fb_zero(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     return dissect_fb_zero_common(tvb, pinfo, tree, NULL);
 }
 
-static gboolean dissect_fb_zero_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+static bool dissect_fb_zero_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     conversation_t *conversation = NULL;
     int offset = 0;
-    guint32 version, length, message_tag;
+    uint32_t version, length, message_tag;
     /* Verify packet size (Flag (1 byte) + Version (3bytes) + Flag (1 byte) + length (4 bytes) + Tag (4 bytes)) */
     if (tvb_captured_length(tvb) < 13)
     {
-        return FALSE;
+        return false;
     }
 
     /* Flag */
@@ -514,10 +514,10 @@ static gboolean dissect_fb_zero_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tr
         conversation = find_or_create_conversation(pinfo);
         conversation_set_dissector(conversation, fb_zero_handle);
         dissect_fb_zero(tvb, pinfo, tree, data);
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 void
@@ -658,7 +658,7 @@ proto_register_fb_zero(void)
     };
 
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_fb_zero,
         &ett_fb_zero_puflags,
         &ett_fb_zero_prflags,

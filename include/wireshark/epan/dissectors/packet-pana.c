@@ -72,37 +72,37 @@ static dissector_handle_t pana_handle;
 static dissector_handle_t eap_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_pana = -1;
-static int hf_pana_reserved_type = -1;
-static int hf_pana_length_type = -1;
-static int hf_pana_msg_type = -1;
-static int hf_pana_session_id = -1;
-static int hf_pana_seqnumber = -1;
-static int hf_pana_response_in = -1;
-static int hf_pana_response_to = -1;
-static int hf_pana_response_time = -1;
+static int proto_pana;
+static int hf_pana_reserved_type;
+static int hf_pana_length_type;
+static int hf_pana_msg_type;
+static int hf_pana_session_id;
+static int hf_pana_seqnumber;
+static int hf_pana_response_in;
+static int hf_pana_response_to;
+static int hf_pana_response_time;
 
-static int hf_pana_flags = -1;
-static int hf_pana_flag_r = -1;
-static int hf_pana_flag_s = -1;
-static int hf_pana_flag_c = -1;
-static int hf_pana_flag_a = -1;
-static int hf_pana_flag_p = -1;
-static int hf_pana_flag_i = -1;
-static int hf_pana_avp_code = -1;
-static int hf_pana_avp_data_length = -1;
-static int hf_pana_avp_flags = -1;
-static int hf_pana_avp_flag_v = -1;
-static int hf_pana_avp_reserved = -1;
-static int hf_pana_avp_vendorid = -1;
+static int hf_pana_flags;
+static int hf_pana_flag_r;
+static int hf_pana_flag_s;
+static int hf_pana_flag_c;
+static int hf_pana_flag_a;
+static int hf_pana_flag_p;
+static int hf_pana_flag_i;
+static int hf_pana_avp_code;
+static int hf_pana_avp_data_length;
+static int hf_pana_avp_flags;
+static int hf_pana_avp_flag_v;
+static int hf_pana_avp_reserved;
+static int hf_pana_avp_vendorid;
 
-static int hf_pana_avp_data_uint64 = -1;
-static int hf_pana_avp_data_int64 = -1;
-static int hf_pana_avp_data_uint32 = -1;
-static int hf_pana_avp_data_int32 = -1;
-static int hf_pana_avp_data_bytes = -1;
-static int hf_pana_avp_data_string = -1;
-static int hf_pana_avp_data_enumerated = -1;
+static int hf_pana_avp_data_uint64;
+static int hf_pana_avp_data_int64;
+static int hf_pana_avp_data_uint32;
+static int hf_pana_avp_data_int32;
+static int hf_pana_avp_data_bytes;
+static int hf_pana_avp_data_string;
+static int hf_pana_avp_data_enumerated;
 
 #define MSG_TYPE_MAX 5
 static const value_string msg_type_names[] = {
@@ -184,16 +184,16 @@ static const value_string avp_type_names[]={
 
 
 /* Initialize the subtree pointers */
-static gint ett_pana = -1;
-static gint ett_pana_flags = -1;
-static gint ett_pana_avp = -1;
-static gint ett_pana_avp_info = -1;
-static gint ett_pana_avp_flags = -1;
+static int ett_pana;
+static int ett_pana_flags;
+static int ett_pana_avp;
+static int ett_pana_avp_info;
+static int ett_pana_avp_flags;
 
 
 typedef struct _pana_transaction_t {
-        guint32  req_frame;
-        guint32  rep_frame;
+        uint32_t req_frame;
+        uint32_t rep_frame;
         nstime_t req_time;
 } pana_transaction_t;
 
@@ -208,7 +208,7 @@ dissect_pana_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree);
  * Function for the PANA flags dissector.
  */
 static void
-dissect_pana_flags(proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint16 flags)
+dissect_pana_flags(proto_tree *parent_tree, tvbuff_t *tvb, int offset, uint16_t flags)
 {
         static int * const flag_fields[] = {
             &hf_pana_flag_r,
@@ -229,7 +229,7 @@ dissect_pana_flags(proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint16 f
  * Function for AVP flags dissector.
  */
 static void
-dissect_pana_avp_flags(proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint16 flags)
+dissect_pana_avp_flags(proto_tree *parent_tree, tvbuff_t *tvb, int offset, uint16_t flags)
 {
         static int * const flag_fields[] = {
             &hf_pana_avp_flag_v,
@@ -245,7 +245,7 @@ dissect_pana_avp_flags(proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint
  * Map AVP code to AVP type
  */
 static pana_avp_types
-pana_avp_get_type(guint16 avp_code, guint32 vendor_id)
+pana_avp_get_type(uint16_t avp_code, uint32_t vendor_id)
 {
 
         if(vendor_id == 0) {
@@ -280,17 +280,17 @@ static void
 dissect_avps(tvbuff_t *tvb, packet_info *pinfo, proto_tree *avp_tree)
 {
 
-        gint    offset;
-        guint16 avp_code;
-        guint16 avp_flags;
-        guint32 avp_length;
-        guint16 avp_type;
-        guint32 vendor_id;
-        guint32 avp_hdr_length;
-        guint32 avp_data_length, result_code;
-        guint32 padding;
+        int     offset;
+        uint16_t avp_code;
+        uint16_t avp_flags;
+        uint32_t avp_length;
+        uint16_t avp_type;
+        uint32_t vendor_id;
+        uint32_t avp_hdr_length;
+        uint32_t avp_data_length, result_code;
+        uint32_t padding;
 
-        gint32  buffer_length;
+        int32_t buffer_length;
 
         tvbuff_t   *group_tvb;
         tvbuff_t   *eap_tvb;
@@ -453,11 +453,11 @@ dissect_pana_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
 
         proto_tree        *pana_tree = NULL;
-        guint16            flags;
-        guint16            msg_type;
-        guint32            msg_length;
-        guint32            avp_length;
-        guint32            seq_num;
+        uint16_t           flags;
+        uint16_t           msg_type;
+        uint32_t           msg_length;
+        uint32_t           avp_length;
+        uint32_t           seq_num;
         conversation_t     *conversation;
         pana_conv_info_t   *pana_info;
         pana_transaction_t *pana_trans;
@@ -604,12 +604,12 @@ static int
 dissect_pana(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
 
-        guint16 pana_res;
-        guint32 msg_length;
-        guint16 flags;
-        guint32 buffer_length;
-        guint16 msg_type;
-        guint32 avp_length;
+        uint16_t pana_res;
+        uint32_t msg_length;
+        uint16_t flags;
+        uint32_t buffer_length;
+        uint16_t msg_type;
+        uint32_t avp_length;
 
         /* Get actual buffer length */
         buffer_length = tvb_captured_length(tvb);
@@ -653,10 +653,10 @@ dissect_pana(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
         /* For bug 1908: check the length of the first AVP, too */
 
         if (avp_length != 0) {
-                guint32 avp_offset;
-                guint16 avp_code;
-                guint32 first_avp_length;
-                guint16 avp_flags;
+                uint32_t avp_offset;
+                uint16_t avp_code;
+                uint32_t first_avp_length;
+                uint16_t avp_flags;
 
                 if (avp_length < MIN_AVP_SIZE) {
                         return 0;
@@ -694,6 +694,11 @@ dissect_pana(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 
 }
 
+static bool
+dissect_pana_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+{
+    return dissect_pana(tvb, pinfo, tree, data) != 0;
+}
 
 /*
  * Register the protocol with Wireshark
@@ -854,7 +859,7 @@ proto_register_pana(void)
         };
 
         /* Setup protocol subtree array */
-        static gint *ett[] = {
+        static int *ett[] = {
                 &ett_pana,
                 &ett_pana_flags,
                 &ett_pana_avp,
@@ -877,7 +882,7 @@ proto_register_pana(void)
 void
 proto_reg_handoff_pana(void)
 {
-        heur_dissector_add("udp", dissect_pana, "PANA over UDP", "pana_udp", proto_pana, HEURISTIC_ENABLE);
+        heur_dissector_add("udp", dissect_pana_heur, "PANA over UDP", "pana_udp", proto_pana, HEURISTIC_ENABLE);
 
         dissector_add_for_decode_as_with_preference("udp.port", pana_handle);
 

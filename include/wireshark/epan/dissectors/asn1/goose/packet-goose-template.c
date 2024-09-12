@@ -19,6 +19,7 @@
 #include <epan/proto_data.h>
 #include <epan/etypes.h>
 #include <epan/expert.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-acse.h"
@@ -35,40 +36,40 @@ void proto_register_goose(void);
 void proto_reg_handoff_goose(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_goose = -1;
-static int proto_r_goose = -1;
+static int proto_goose;
+static int proto_r_goose;
 
-static int hf_goose_session_header = -1;
-static int hf_goose_spdu_id = -1;
-static int hf_goose_session_hdr_length = -1;
-static int hf_goose_hdr_length = -1;
-static int hf_goose_content_id = -1;
-static int hf_goose_spdu_lenth = -1;
-static int hf_goose_spdu_num = -1;
-static int hf_goose_version = -1;
-static int hf_goose_security_info = -1;
-static int hf_goose_current_key_t = -1;
-static int hf_goose_next_key_t = -1;
-static int hf_goose_key_id = -1;
-static int hf_goose_init_vec_length = -1;
-static int hf_goose_init_vec = -1;
-static int hf_goose_session_user_info = -1;
-static int hf_goose_payload = -1;
-static int hf_goose_payload_length = -1;
-static int hf_goose_apdu_tag = -1;
-static int hf_goose_apdu_simulation = -1;
-static int hf_goose_apdu_appid = -1;
-static int hf_goose_apdu_length = -1;
-static int hf_goose_padding_tag = -1;
-static int hf_goose_padding_length = -1;
-static int hf_goose_padding = -1;
-static int hf_goose_hmac = -1;
-static int hf_goose_appid = -1;
-static int hf_goose_length = -1;
-static int hf_goose_reserve1 = -1;
-static int hf_goose_reserve1_s_bit = -1;
-static int hf_goose_reserve2 = -1;
-static int hf_goose_float_value = -1;
+static int hf_goose_session_header;
+static int hf_goose_spdu_id;
+static int hf_goose_session_hdr_length;
+static int hf_goose_hdr_length;
+static int hf_goose_content_id;
+static int hf_goose_spdu_lenth;
+static int hf_goose_spdu_num;
+static int hf_goose_version;
+static int hf_goose_security_info;
+static int hf_goose_current_key_t;
+static int hf_goose_next_key_t;
+static int hf_goose_key_id;
+static int hf_goose_init_vec_length;
+static int hf_goose_init_vec;
+static int hf_goose_session_user_info;
+static int hf_goose_payload;
+static int hf_goose_payload_length;
+static int hf_goose_apdu_tag;
+static int hf_goose_apdu_simulation;
+static int hf_goose_apdu_appid;
+static int hf_goose_apdu_length;
+static int hf_goose_padding_tag;
+static int hf_goose_padding_length;
+static int hf_goose_padding;
+static int hf_goose_hmac;
+static int hf_goose_appid;
+static int hf_goose_length;
+static int hf_goose_reserve1;
+static int hf_goose_reserve1_s_bit;
+static int hf_goose_reserve2;
+static int hf_goose_float_value;
 
 
 /* Bit fields in the Reserved fields */
@@ -76,13 +77,13 @@ static int hf_goose_float_value = -1;
 
 /* GOOSE stored data for expert info verifications */
 typedef struct _goose_chk_data{
-	gboolean s_bit;
+	bool s_bit;
 }goose_chk_data_t;
 #define GOOSE_CHK_DATA_LEN	(sizeof(goose_chk_data_t))
 
-static expert_field ei_goose_mal_utctime = EI_INIT;
-static expert_field ei_goose_zero_pdu = EI_INIT;
-static expert_field ei_goose_invalid_sim = EI_INIT;
+static expert_field ei_goose_mal_utctime;
+static expert_field ei_goose_zero_pdu;
+static expert_field ei_goose_invalid_sim;
 
 #define SINGLE_FLOAT_EXP_BITS	8
 #define FLOAT_ENC_LENGTH		5
@@ -90,22 +91,21 @@ static expert_field ei_goose_invalid_sim = EI_INIT;
 #include "packet-goose-hf.c"
 
 /* Initialize the subtree pointers */
-static int ett_r_goose = -1;
-static int ett_session_header = -1;
-static int ett_security_info = -1;
-static int ett_session_user_info = -1;
-static int ett_payload = -1;
-static int ett_padding = -1;
-static int ett_goose = -1;
-static int ett_reserve1 = -1;
-static int ett_expert_inf_sim = -1;
+static int ett_r_goose;
+static int ett_session_header;
+static int ett_security_info;
+static int ett_session_user_info;
+static int ett_payload;
+static int ett_padding;
+static int ett_goose;
+static int ett_reserve1;
+static int ett_expert_inf_sim;
 
 #include "packet-goose-ett.c"
 
 #include "packet-goose-fn.c"
 
-static dissector_handle_t goose_handle = NULL;
-static dissector_handle_t ositp_handle = NULL;
+static dissector_handle_t goose_handle;
 
 
 #define OSI_SPDU_TUNNELED 0xA0 /* Tunneled */
@@ -143,15 +143,15 @@ static int
 dissect_goose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 			  void* data _U_)
 {
-	guint32 offset = 0;
-	guint32 old_offset;
-	guint32 length;
-	guint32 reserve1_val;
+	uint32_t offset = 0;
+	uint32_t old_offset;
+	uint32_t length;
+	uint32_t reserve1_val;
 	proto_item *item = NULL;
 	proto_tree *tree = NULL;
 	goose_chk_data_t *data_chk = NULL;
 	asn1_ctx_t asn1_ctx;
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
 	static int * const reserve1_flags[] = {
 		&hf_goose_reserve1_s_bit,
@@ -177,16 +177,16 @@ dissect_goose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 						ENC_BIG_ENDIAN, &length);
 
 	/* Reserved 1 */
-	reserve1_val = tvb_get_guint16(tvb, offset + 4, ENC_BIG_ENDIAN);
+	reserve1_val = tvb_get_uint16(tvb, offset + 4, ENC_BIG_ENDIAN);
 	proto_tree_add_bitmask_value(tree, tvb, offset + 4, hf_goose_reserve1, ett_reserve1,
 						reserve1_flags, reserve1_val);
 
 	/* Store the header sim value for later expert info checks */
 	if(data_chk){
 		if(reserve1_val & F_RESERVE1_S_BIT){
-			data_chk->s_bit = TRUE;
+			data_chk->s_bit = true;
 		}else{
-			data_chk->s_bit = FALSE;
+			data_chk->s_bit = false;
 		}
 	}
 
@@ -198,7 +198,7 @@ dissect_goose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 	offset = 8;
 	while (offset < length){
 		old_offset = offset;
-		offset = dissect_goose_GOOSEpdu(FALSE, tvb, offset, &asn1_ctx , tree, -1);
+		offset = dissect_goose_GOOSEpdu(false, tvb, offset, &asn1_ctx , tree, -1);
 		if (offset == old_offset) {
 			proto_tree_add_expert(tree, pinfo, &ei_goose_zero_pdu, tvb, offset, -1);
 			break;
@@ -216,14 +216,14 @@ static int
 dissect_rgoose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 			   void* data _U_)
 {
-	guint offset = 0, old_offset = 0;
-	guint32 init_v_length, payload_tag, padding_length, length;
-	guint32 payload_length, apdu_offset = 0, apdu_length, apdu_simulation;
+	unsigned offset = 0, old_offset = 0;
+	uint32_t init_v_length, payload_tag, padding_length, length;
+	uint32_t payload_length, apdu_offset = 0, apdu_length, apdu_simulation;
 	proto_item *item = NULL;
 	proto_tree *tree = NULL, *r_goose_tree = NULL, *sess_user_info_tree = NULL;
 	goose_chk_data_t *data_chk = NULL;
 	asn1_ctx_t asn1_ctx;
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
 	asn1_ctx.private_data = wmem_alloc(pinfo->pool, GOOSE_CHK_DATA_LEN);
 	data_chk = (goose_chk_data_t *)asn1_ctx.private_data;
@@ -325,9 +325,9 @@ dissect_rgoose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 		/* Store the header sim value for later expert info checks */
 		if(data_chk){
 			if(apdu_simulation){
-				data_chk->s_bit = TRUE;
+				data_chk->s_bit = true;
 			}else{
-				data_chk->s_bit = FALSE;
+				data_chk->s_bit = false;
 			}
 		}
 
@@ -339,7 +339,7 @@ dissect_rgoose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 		offset += 2;
 
 		old_offset = offset;
-		offset = dissect_goose_GOOSEpdu(FALSE, tvb, offset, &asn1_ctx , tree, -1);
+		offset = dissect_goose_GOOSEpdu(false, tvb, offset, &asn1_ctx , tree, -1);
 		if (offset == old_offset) {
 			proto_tree_add_expert(tree, pinfo, &ei_goose_zero_pdu, tvb, offset, -1);
 			break;
@@ -348,7 +348,7 @@ dissect_rgoose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 
 	/* Check do we have padding bytes */
 	if ((tvb_captured_length(tvb) > offset) &&
-		(tvb_get_guint8(tvb, offset) == 0xAF)) {
+		(tvb_get_uint8(tvb, offset) == 0xAF)) {
 		/* Padding subtree */
 		item = proto_tree_add_item(sess_user_info_tree, hf_goose_padding, tvb,
 								   offset, -1, ENC_NA);
@@ -378,61 +378,26 @@ dissect_rgoose(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 	return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_rgoose_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 					void *data)
 {
-	guint8 spdu;
+	uint8_t spdu;
 
 	/* Check do we have at least min size of Session header bytes */
 	if (tvb_captured_length(tvb) < 27) {
-		return FALSE;
+		return false;
 	}
 
 	/* Is it R-GOOSE? */
-	spdu = tvb_get_guint8(tvb, 0);
+	spdu = tvb_get_uint8(tvb, 0);
 	if (spdu != OSI_SPDU_GOOSE) {
-		return FALSE;
+		return false;
 	}
 
 	dissect_rgoose(tvb, pinfo, parent_tree, data);
-	return TRUE;
+	return true;
 }
-
-static gboolean
-dissect_cltp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
-				  void *data _U_)
-{
-	guint8 li, tpdu, spdu;
-
-	/* First, check do we have at least 2 bytes (length + tpdu) */
-	if (tvb_captured_length(tvb) < 2) {
-		return FALSE;
-	}
-
-	li = tvb_get_guint8(tvb, 0);
-
-	/* Is it OSI on top of the UDP? */
-	tpdu = (tvb_get_guint8(tvb, 1) & 0xF0) >> 4;
-	if (tpdu != 0x4) {
-		return FALSE;
-	}
-
-	/* Check do we have SPDU ID byte, too */
-	if (tvb_captured_length(tvb) < (guint) (li + 2)) {
-		return FALSE;
-	}
-
-	/* And let's see if it is GOOSE SPDU */
-	spdu = tvb_get_guint8(tvb, li + 1);
-	if (spdu != OSI_SPDU_GOOSE) {
-		return FALSE;
-	}
-
-	call_dissector(ositp_handle, tvb, pinfo, parent_tree);
-	return TRUE;
-}
-
 
 /*--- proto_register_goose -------------------------------------------*/
 void proto_register_goose(void) {
@@ -568,7 +533,7 @@ void proto_register_goose(void) {
 	};
 
 	/* List of subtrees */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_r_goose,
 		&ett_session_header,
 		&ett_security_info,
@@ -614,10 +579,6 @@ void proto_reg_handoff_goose(void) {
 
 	dissector_add_uint("ethertype", ETHERTYPE_IEC61850_GOOSE, goose_handle);
 
-	ositp_handle = find_dissector_add_dependency("ositp", proto_goose);
-
-	heur_dissector_add("udp", dissect_cltp_heur,
-		"CLTP over UDP", "cltp_udp", proto_goose, HEURISTIC_ENABLE);
 	heur_dissector_add("cltp", dissect_rgoose_heur,
 		"R-GOOSE (GOOSE over CLTP)", "rgoose_cltp", proto_goose, HEURISTIC_ENABLE);
 }

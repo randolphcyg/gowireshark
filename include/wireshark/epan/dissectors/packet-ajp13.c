@@ -156,74 +156,74 @@ static const value_string http_method_codes[] = {
 
 
 
-static int proto_ajp13     = -1;
-static int hf_ajp13_magic  = -1;
-static int hf_ajp13_len    = -1;
-static int hf_ajp13_code   = -1;
-static int hf_ajp13_method = -1;
-static int hf_ajp13_ver    = -1;
-static int hf_ajp13_uri    = -1;
-static int hf_ajp13_raddr  = -1;
-static int hf_ajp13_rhost  = -1;
-static int hf_ajp13_srv    = -1;
-static int hf_ajp13_port   = -1;
-static int hf_ajp13_sslp   = -1;
-static int hf_ajp13_nhdr   = -1;
+static int proto_ajp13;
+static int hf_ajp13_magic;
+static int hf_ajp13_len;
+static int hf_ajp13_code;
+static int hf_ajp13_method;
+static int hf_ajp13_ver;
+static int hf_ajp13_uri;
+static int hf_ajp13_raddr;
+static int hf_ajp13_rhost;
+static int hf_ajp13_srv;
+static int hf_ajp13_port;
+static int hf_ajp13_sslp;
+static int hf_ajp13_nhdr;
 
 /* response headers */
-static int hf_ajp13_unknown_header    = -1;
-static int hf_ajp13_content_type      = -1;
-static int hf_ajp13_content_language  = -1;
-static int hf_ajp13_content_length    = -1;
-static int hf_ajp13_date              = -1;
-static int hf_ajp13_last_modified     = -1;
-static int hf_ajp13_location          = -1;
-static int hf_ajp13_set_cookie        = -1;
-static int hf_ajp13_set_cookie2       = -1;
-static int hf_ajp13_servlet_engine    = -1;
-static int hf_ajp13_status            = -1;
-static int hf_ajp13_www_authenticate  = -1;
+static int hf_ajp13_unknown_header;
+static int hf_ajp13_content_type;
+static int hf_ajp13_content_language;
+static int hf_ajp13_content_length;
+static int hf_ajp13_date;
+static int hf_ajp13_last_modified;
+static int hf_ajp13_location;
+static int hf_ajp13_set_cookie;
+static int hf_ajp13_set_cookie2;
+static int hf_ajp13_servlet_engine;
+static int hf_ajp13_status;
+static int hf_ajp13_www_authenticate;
 
 /* request headers */
-static int hf_ajp13_accept            = -1;
-static int hf_ajp13_accept_charset    = -1;
-static int hf_ajp13_accept_encoding   = -1;
-static int hf_ajp13_accept_language   = -1;
-static int hf_ajp13_authorization     = -1;
-static int hf_ajp13_connection        = -1;
+static int hf_ajp13_accept;
+static int hf_ajp13_accept_charset;
+static int hf_ajp13_accept_encoding;
+static int hf_ajp13_accept_language;
+static int hf_ajp13_authorization;
+static int hf_ajp13_connection;
                  /* content_type   */
                  /* content_length */
-static int hf_ajp13_cookie            = -1;
-static int hf_ajp13_cookie2           = -1;
-static int hf_ajp13_host              = -1;
-static int hf_ajp13_pragma            = -1;
-static int hf_ajp13_referer           = -1;
-static int hf_ajp13_user_agent        = -1;
+static int hf_ajp13_cookie;
+static int hf_ajp13_cookie2;
+static int hf_ajp13_host;
+static int hf_ajp13_pragma;
+static int hf_ajp13_referer;
+static int hf_ajp13_user_agent;
 
 /* request attributes */
-static int hf_ajp13_unknown_attribute     = -1;
-static int hf_ajp13_req_attribute         = -1;
-static int hf_ajp13_context               = -1;
-static int hf_ajp13_servlet_path          = -1;
-static int hf_ajp13_remote_user           = -1;
-static int hf_ajp13_auth_type             = -1;
-static int hf_ajp13_query_string          = -1;
-static int hf_ajp13_route                 = -1;
-static int hf_ajp13_ssl_cert              = -1;
-static int hf_ajp13_ssl_cipher            = -1;
-static int hf_ajp13_ssl_session           = -1;
-static int hf_ajp13_ssl_key_size          = -1;
-static int hf_ajp13_secret                = -1;
-static int hf_ajp13_stored_method         = -1;
+static int hf_ajp13_unknown_attribute;
+static int hf_ajp13_req_attribute;
+static int hf_ajp13_context;
+static int hf_ajp13_servlet_path;
+static int hf_ajp13_remote_user;
+static int hf_ajp13_auth_type;
+static int hf_ajp13_query_string;
+static int hf_ajp13_route;
+static int hf_ajp13_ssl_cert;
+static int hf_ajp13_ssl_cipher;
+static int hf_ajp13_ssl_session;
+static int hf_ajp13_ssl_key_size;
+static int hf_ajp13_secret;
+static int hf_ajp13_stored_method;
 
-static int hf_ajp13_rlen   = -1;
-static int hf_ajp13_reusep = -1;
-static int hf_ajp13_rstatus= -1;
-static int hf_ajp13_rsmsg  = -1;
-static int hf_ajp13_data   = -1;
-static gint ett_ajp13 = -1;
+static int hf_ajp13_rlen;
+static int hf_ajp13_reusep;
+static int hf_ajp13_rstatus;
+static int hf_ajp13_rsmsg;
+static int hf_ajp13_data;
+static int ett_ajp13;
 
-static expert_field ei_ajp13_content_length_invalid = EI_INIT;
+static expert_field ei_ajp13_content_length_invalid;
 
 /*
  * Request/response header codes. Common headers are stored as ints in
@@ -282,11 +282,11 @@ static int * const req_attributes[] = {
 
 typedef struct ajp13_conv_data {
   int content_length;
-  gboolean was_get_body_chunk;  /* XXX - not used */
+  bool was_get_body_chunk;  /* XXX - not used */
 } ajp13_conv_data;
 
 typedef struct ajp13_frame_data {
-  gboolean is_request_body;
+  bool is_request_body;
 } ajp13_frame_data;
 
 /* ajp13, in sort of a belt-and-suspenders move, encodes strings with
@@ -296,10 +296,10 @@ typedef struct ajp13_frame_data {
  *
  * XXX - is there a tvbuff routine to handle this?
  */
-static const gchar *
-ajp13_get_nstring(tvbuff_t *tvb, gint offset, guint16* ret_len)
+static const char *
+ajp13_get_nstring(wmem_allocator_t *scope, tvbuff_t *tvb, int offset, uint16_t* ret_len)
 {
-  guint16 len;
+  uint16_t len;
 
   len = tvb_get_ntohs(tvb, offset);
 
@@ -310,7 +310,7 @@ ajp13_get_nstring(tvbuff_t *tvb, gint offset, guint16* ret_len)
   if (len == 0xFFFF)
     len = 0;
 
-  return tvb_format_text(wmem_packet_scope(), tvb, offset+2, len);
+  return tvb_format_text(scope, tvb, offset+2, len);
 }
 
 
@@ -321,7 +321,7 @@ static void
 display_rsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ajp13_tree, ajp13_conv_data* cd)
 {
   int pos = 0;
-  guint8 mcode = 0;
+  uint8_t mcode = 0;
   int i;
 
   /* MAGIC
@@ -338,7 +338,7 @@ display_rsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ajp13_tree, ajp13_con
 
   /* MESSAGE TYPE CODE
    */
-  mcode = tvb_get_guint8(tvb, pos);
+  mcode = tvb_get_uint8(tvb, pos);
   col_append_str(pinfo->cinfo, COL_INFO, val_to_str(mcode, mtype_codes, "Unknown message code %u"));
   if (ajp13_tree)
     proto_tree_add_item(ajp13_tree, hf_ajp13_code, tvb, pos, 1, ENC_BIG_ENDIAN);
@@ -354,10 +354,10 @@ display_rsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ajp13_tree, ajp13_con
 
   case MTYPE_SEND_HEADERS:
   {
-    const gchar *rsmsg;
-    guint16 rsmsg_len;
-    guint16 nhdr;
-    guint16 rcode_num;
+    const char *rsmsg;
+    uint16_t rsmsg_len;
+    uint16_t nhdr;
+    uint16_t rcode_num;
 
     /* HTTP RESPONSE STATUS CODE
      */
@@ -369,7 +369,7 @@ display_rsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ajp13_tree, ajp13_con
 
     /* HTTP RESPONSE STATUS MESSAGE
      */
-    rsmsg = ajp13_get_nstring(tvb, pos, &rsmsg_len);
+    rsmsg = ajp13_get_nstring(pinfo->pool, tvb, pos, &rsmsg_len);
     col_append_fstr(pinfo->cinfo, COL_INFO, " %s", rsmsg);
     if (ajp13_tree)
       proto_tree_add_string(ajp13_tree, hf_ajp13_rsmsg, tvb, pos, rsmsg_len+2, rsmsg);
@@ -386,27 +386,27 @@ display_rsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ajp13_tree, ajp13_con
      */
     for(i=0; i<nhdr; i++) {
 
-      guint8 hcd;
-      guint8 hid;
-      const gchar *hval;
-      guint16 hval_len, hname_len;
-      const gchar* hname = NULL;
+      uint8_t hcd;
+      uint8_t hid;
+      const char *hval;
+      uint16_t hval_len, hname_len;
+      const char* hname = NULL;
       int hpos = pos;
       /* int cl = 0; TODO: Content-Length header (encoded by 0x08) is special */
 
       /* HEADER CODE/NAME
        */
-      hcd = tvb_get_guint8(tvb, pos);
+      hcd = tvb_get_uint8(tvb, pos);
 
       if (hcd == 0xA0) {
         pos+=1;
-        hid = tvb_get_guint8(tvb, pos);
+        hid = tvb_get_uint8(tvb, pos);
         pos+=1;
 
         if (hid >= array_length(rsp_headers))
           hid = 0;
 
-        hval = ajp13_get_nstring(tvb, pos, &hval_len);
+        hval = ajp13_get_nstring(pinfo->pool, tvb, pos, &hval_len);
 
         proto_tree_add_string_format_value(ajp13_tree, *rsp_headers[hid],
                                        tvb, hpos, 2+hval_len+2, hval,
@@ -418,10 +418,10 @@ display_rsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ajp13_tree, ajp13_con
           cl = 1;
 #endif
       } else {
-        hname = ajp13_get_nstring(tvb, pos, &hname_len);
+        hname = ajp13_get_nstring(pinfo->pool, tvb, pos, &hname_len);
         pos+=hname_len+2;
 
-        hval = ajp13_get_nstring(tvb, pos, &hval_len);
+        hval = ajp13_get_nstring(pinfo->pool, tvb, pos, &hval_len);
 
         if (hcd >= array_length(rsp_headers)) {
           hcd = 0;
@@ -439,7 +439,7 @@ display_rsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ajp13_tree, ajp13_con
 
   case MTYPE_GET_BODY_CHUNK:
   {
-    guint16 rlen;
+    uint16_t rlen;
     rlen = tvb_get_ntohs(tvb, pos);
     cd->content_length = rlen;
     if (ajp13_tree)
@@ -474,8 +474,8 @@ display_req_body(tvbuff_t *tvb, proto_tree *ajp13_tree, ajp13_conv_data* cd)
   /*
    * In a resued connection this is never reset.
    */
-  guint16 content_length;
-  guint16 packet_length;
+  uint16_t content_length;
+  uint16_t packet_length;
 
   int pos = 0;
 
@@ -529,20 +529,20 @@ display_req_forward(tvbuff_t *tvb, packet_info *pinfo,
                     ajp13_conv_data* cd)
 {
   int pos = 0;
-  guint8 meth;
-  guint8 cod;
-  const gchar *ver;
-  guint16 ver_len;
-  const gchar *uri;
-  guint16 uri_len;
-  const gchar *raddr;
-  guint16 raddr_len;
-  const gchar *rhost;
-  guint16 rhost_len;
-  const gchar *srv;
-  guint16 srv_len;
-  guint nhdr;
-  guint i;
+  uint8_t meth;
+  uint8_t cod;
+  const char *ver;
+  uint16_t ver_len;
+  const char *uri;
+  uint16_t uri_len;
+  const char *raddr;
+  uint16_t raddr_len;
+  const char *rhost;
+  uint16_t rhost_len;
+  const char *srv;
+  uint16_t srv_len;
+  unsigned nhdr;
+  unsigned i;
 
   if (ajp13_tree)
     proto_tree_add_item(ajp13_tree, hf_ajp13_magic, tvb, pos, 2, ENC_NA);
@@ -554,7 +554,7 @@ display_req_forward(tvbuff_t *tvb, packet_info *pinfo,
 
   /* PACKET CODE
    */
-  cod = tvb_get_guint8(tvb, 4);
+  cod = tvb_get_uint8(tvb, 4);
   if (ajp13_tree)
     proto_tree_add_item(ajp13_tree, hf_ajp13_code, tvb, pos, 1, ENC_BIG_ENDIAN);
   pos+=1;
@@ -565,7 +565,7 @@ display_req_forward(tvbuff_t *tvb, packet_info *pinfo,
 
   /* HTTP METHOD (ENCODED AS INTEGER)
    */
-  meth = tvb_get_guint8(tvb, pos);
+  meth = tvb_get_uint8(tvb, pos);
   col_append_str(pinfo->cinfo, COL_INFO, val_to_str(meth, http_method_codes, "Unknown method %u"));
   if (ajp13_tree)
     proto_tree_add_item(ajp13_tree, hf_ajp13_method, tvb, pos, 1, ENC_BIG_ENDIAN);
@@ -573,14 +573,14 @@ display_req_forward(tvbuff_t *tvb, packet_info *pinfo,
 
   /* HTTP VERSION STRING
    */
-  ver = ajp13_get_nstring(tvb, pos, &ver_len);
+  ver = ajp13_get_nstring(pinfo->pool, tvb, pos, &ver_len);
   if (ajp13_tree)
     proto_tree_add_string(ajp13_tree, hf_ajp13_ver, tvb, pos, ver_len+2, ver);
   pos=pos+ver_len+2;  /* skip over size + chars + trailing null */
 
   /* URI
    */
-  uri = ajp13_get_nstring(tvb, pos, &uri_len);
+  uri = ajp13_get_nstring(pinfo->pool, tvb, pos, &uri_len);
   if (ajp13_tree)
     proto_tree_add_string(ajp13_tree, hf_ajp13_uri, tvb, pos, uri_len+2, uri);
   pos=pos+uri_len+2;  /* skip over size + chars + trailing null */
@@ -591,21 +591,21 @@ display_req_forward(tvbuff_t *tvb, packet_info *pinfo,
 
   /* REMOTE ADDRESS
    */
-  raddr = ajp13_get_nstring(tvb, pos, &raddr_len);
+  raddr = ajp13_get_nstring(pinfo->pool, tvb, pos, &raddr_len);
   if (ajp13_tree)
     proto_tree_add_string(ajp13_tree, hf_ajp13_raddr, tvb, pos, raddr_len+2, raddr);
   pos=pos+raddr_len+2;  /* skip over size + chars + trailing null */
 
   /* REMOTE HOST
    */
-  rhost = ajp13_get_nstring(tvb, pos, &rhost_len);
+  rhost = ajp13_get_nstring(pinfo->pool, tvb, pos, &rhost_len);
   if (ajp13_tree)
     proto_tree_add_string(ajp13_tree, hf_ajp13_rhost, tvb, pos, rhost_len+2, rhost);
   pos=pos+rhost_len+2;  /* skip over size + chars + trailing null */
 
   /* SERVER NAME
    */
-  srv = ajp13_get_nstring(tvb, pos, &srv_len);
+  srv = ajp13_get_nstring(pinfo->pool, tvb, pos, &srv_len);
   if (ajp13_tree)
     proto_tree_add_string(ajp13_tree, hf_ajp13_srv, tvb, pos, srv_len+2, srv);
   pos=pos+srv_len+2;  /* skip over size + chars + trailing null */
@@ -635,28 +635,28 @@ display_req_forward(tvbuff_t *tvb, packet_info *pinfo,
    */
   for(i=0; i<nhdr; i++) {
 
-    guint8 hcd;
-    guint8 hid = 0;
-    const gchar* hname = NULL;
+    uint8_t hcd;
+    uint8_t hid = 0;
+    const char* hname = NULL;
     int hpos = pos;
-    const gchar *hval;
-    guint16 hval_len, hname_len;
+    const char *hval;
+    uint16_t hval_len, hname_len;
 
     /* HEADER CODE/NAME
      */
-    hcd = tvb_get_guint8(tvb, pos);
+    hcd = tvb_get_uint8(tvb, pos);
 
     if (hcd == 0xA0) {
       proto_item* pi;
 
       pos+=1;
-      hid = tvb_get_guint8(tvb, pos);
+      hid = tvb_get_uint8(tvb, pos);
       pos+=1;
 
       if (hid >= array_length(req_headers))
         hid = 0;
 
-      hval = ajp13_get_nstring(tvb, pos, &hval_len);
+      hval = ajp13_get_nstring(pinfo->pool, tvb, pos, &hval_len);
 
 
       pi = proto_tree_add_string_format_value(ajp13_tree, *req_headers[hid],
@@ -669,14 +669,14 @@ display_req_forward(tvbuff_t *tvb, packet_info *pinfo,
 
       pos+=hval_len+2;
     } else {
-      hname = ajp13_get_nstring(tvb, pos, &hname_len);
+      hname = ajp13_get_nstring(pinfo->pool, tvb, pos, &hname_len);
       pos+=hname_len+2;
 
       if (hcd >= array_length(req_headers)) {
         hcd = 0;
       }
 
-      hval = ajp13_get_nstring(tvb, pos, &hval_len);
+      hval = ajp13_get_nstring(pinfo->pool, tvb, pos, &hval_len);
 
       proto_tree_add_string_format(ajp13_tree, *req_headers[hcd],
                                      tvb, hpos, hname_len+2+hval_len+2,
@@ -689,16 +689,16 @@ display_req_forward(tvbuff_t *tvb, packet_info *pinfo,
   /* ATTRIBUTES
    */
   while(tvb_reported_length_remaining(tvb, pos) > 0) {
-    guint8 aid;
-    const gchar* aname = NULL;
-    const gchar* aval;
-    guint16 aval_len, aname_len, key_len;
+    uint8_t aid;
+    const char* aname = NULL;
+    const char* aval;
+    uint16_t aval_len, aname_len, key_len;
 
     int apos = pos;
 
     /* ATTRIBUTE CODE/NAME
      */
-    aid = tvb_get_guint8(tvb, pos);
+    aid = tvb_get_uint8(tvb, pos);
     pos+=1;
 
     if (aid == 0xFF) {
@@ -708,10 +708,10 @@ display_req_forward(tvbuff_t *tvb, packet_info *pinfo,
     if (aid == 0x0A) {
       /* req_attribute - name and value follow */
 
-      aname = ajp13_get_nstring(tvb, pos, &aname_len);
+      aname = ajp13_get_nstring(pinfo->pool, tvb, pos, &aname_len);
       pos+=aname_len+2;
 
-      aval = ajp13_get_nstring(tvb, pos, &aval_len);
+      aval = ajp13_get_nstring(pinfo->pool, tvb, pos, &aval_len);
       pos+=aval_len+2;
 
       proto_tree_add_string_format(ajp13_tree, hf_ajp13_req_attribute,
@@ -729,7 +729,7 @@ display_req_forward(tvbuff_t *tvb, packet_info *pinfo,
       if (aid >= array_length(req_attributes))
         aid = 0;
 
-      aval = ajp13_get_nstring(tvb, pos, &aval_len);
+      aval = ajp13_get_nstring(pinfo->pool, tvb, pos, &aval_len);
       pos+=aval_len+2;
 
       proto_tree_add_string_format_value(ajp13_tree, *req_attributes[aid],
@@ -747,8 +747,8 @@ display_req_forward(tvbuff_t *tvb, packet_info *pinfo,
 static int
 dissect_ajp13_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-  guint16 mag;
-  /* guint16 len; */
+  uint16_t mag;
+  /* uint16_t len; */
   conversation_t *conv = NULL;
   ajp13_conv_data *cd = NULL;
   proto_tree *ajp13_tree = NULL;
@@ -763,7 +763,7 @@ dissect_ajp13_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void*
   if (!cd) {
     cd = wmem_new(wmem_file_scope(), ajp13_conv_data);
     cd->content_length = 0;
-    cd->was_get_body_chunk = FALSE;
+    cd->was_get_body_chunk = false;
     conversation_add_proto_data(conv, proto_ajp13, cd);
   }
 
@@ -780,14 +780,14 @@ dissect_ajp13_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void*
      */
     fd = wmem_new(wmem_file_scope(), ajp13_frame_data);
     p_add_proto_data(wmem_file_scope(), pinfo, proto_ajp13, 0, fd);
-    fd->is_request_body = FALSE;
+    fd->is_request_body = false;
     if (cd->content_length) {
       /* this is screwy, see AJPv13.html. the idea is that if the
        * request has a body (as determined by the content-length
        * header), then there's always an immediate follow-up PDU with
        * no GET_BODY_CHUNK from the container.
        */
-      fd->is_request_body = TRUE;
+      fd->is_request_body = true;
     }
   }
 
@@ -834,11 +834,11 @@ dissect_ajp13_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void*
 /* given the first chunk of the AJP13 pdu, extract out and return the
  * packet length. see comments in packet-tcp.c:tcp_dissect_pdus().
  */
-static guint
+static unsigned
 get_ajp13_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-  /*guint16 magic;*/
-  guint16 plen;
+  /*uint16_t magic;*/
+  uint16_t plen;
   /*magic = tvb_get_ntohs(tvb, offset); */
   plen = tvb_get_ntohs(tvb, offset+2);
   plen += 4;
@@ -855,7 +855,7 @@ dissect_ajp13(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
   /* Set up structures needed to add the protocol subtree and manage it
    */
   tcp_dissect_pdus(tvb, pinfo, tree,
-                   TRUE,                   /* desegment or not   */
+                   true,                   /* desegment or not   */
                    4,                      /* magic + length */
                    get_ajp13_pdu_len,      /* use first 4, calc data len */
                    dissect_ajp13_tcp_pdu, data); /* the naive dissector */
@@ -1102,7 +1102,7 @@ proto_register_ajp13(void)
       "Content-Length must be a string containing an integer", EXPFILL }}
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_ajp13,
   };
 

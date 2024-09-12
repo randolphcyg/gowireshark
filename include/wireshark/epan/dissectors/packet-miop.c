@@ -48,36 +48,36 @@ void proto_reg_handoff_miop(void);
  */
 
 
-static int proto_miop = -1;
+static int proto_miop;
 
 /*
  * (sub)Tree declares
  */
 
 
-static gint hf_miop_magic = -1;
-static gint hf_miop_hdr_version = -1;
-static gint hf_miop_flags = -1;
-static gint hf_miop_packet_length = -1;
-static gint hf_miop_packet_number = -1;
-static gint hf_miop_number_of_packets = -1;
-static gint hf_miop_unique_id_len = -1;
-static gint hf_miop_unique_id = -1;
+static int hf_miop_magic;
+static int hf_miop_hdr_version;
+static int hf_miop_flags;
+static int hf_miop_packet_length;
+static int hf_miop_packet_number;
+static int hf_miop_number_of_packets;
+static int hf_miop_unique_id_len;
+static int hf_miop_unique_id;
 
-static gint ett_miop = -1;
+static int ett_miop;
 
-static expert_field ei_miop_version_not_supported = EI_INIT;
-static expert_field ei_miop_unique_id_len_exceed_max_value = EI_INIT;
+static expert_field ei_miop_version_not_supported;
+static expert_field ei_miop_unique_id_len_exceed_max_value;
 
 static dissector_handle_t miop_handle;
 
 #define MIOP_MAGIC   0x4d494f50 /* "MIOP" */
 
-static gboolean
+static bool
 dissect_miop_heur_check (tvbuff_t * tvb, packet_info * pinfo _U_, proto_tree * tree _U_, void * data _U_) {
 
-  guint tot_len;
-  guint32 magic;
+  unsigned tot_len;
+  uint32_t magic;
 
   /* check magic number and version */
 
@@ -88,37 +88,37 @@ dissect_miop_heur_check (tvbuff_t * tvb, packet_info * pinfo _U_, proto_tree * t
     {
       /* Not enough data captured to hold the GIOP header; don't try
          to interpret it as GIOP. */
-      return FALSE;
+      return false;
     }
 
     magic = tvb_get_ntohl(tvb,0);
     if(magic != MIOP_MAGIC){
         /* Not a MIOP packet. */
-        return FALSE;
+        return false;
     }
 
-  return TRUE;
+  return true;
 }
 
 /* Main entry point */
 static int dissect_miop (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data _U_) {
-  guint offset = 0;
+  unsigned offset = 0;
 
   proto_tree *miop_tree = NULL;
   proto_item *ti;
 
-  guint8 hdr_version;
-  guint version_major;
-  guint version_minor;
+  uint8_t hdr_version;
+  unsigned version_major;
+  unsigned version_minor;
 
-  guint8 flags;
+  uint8_t flags;
 
-  guint16 packet_length;
-  guint packet_number;
-  guint number_of_packets;
-  guint byte_order;
+  uint16_t packet_length;
+  unsigned packet_number;
+  unsigned number_of_packets;
+  unsigned byte_order;
 
-  guint32 unique_id_len;
+  uint32_t unique_id_len;
 
   wmem_strbuf_t *flags_strbuf = wmem_strbuf_create(pinfo->pool);
   wmem_strbuf_append(flags_strbuf, "none");
@@ -131,7 +131,7 @@ static int dissect_miop (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
   col_clear(pinfo->cinfo, COL_INFO);
 
   /* Extract major and minor version numbers */
-  hdr_version = tvb_get_guint8(tvb, 4);
+  hdr_version = tvb_get_uint8(tvb, 4);
   version_major = ((hdr_version & 0xf0) >> 4);
   version_minor =  (hdr_version & 0x0f);
 
@@ -149,7 +149,7 @@ static int dissect_miop (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
       return 5;
   }
 
-  flags = tvb_get_guint8(tvb, 5);
+  flags = tvb_get_uint8(tvb, 5);
   byte_order = (flags & 0x01) ? ENC_LITTLE_ENDIAN : ENC_BIG_ENDIAN;
 
   if (byte_order == ENC_BIG_ENDIAN) {
@@ -229,16 +229,16 @@ static int dissect_miop (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
    return tvb_captured_length(tvb);
 }
 
-static gboolean
-dissect_miop_heur (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void * data _U_) {
+static bool
+dissect_miop_heur (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void * data) {
 
   if (!dissect_miop_heur_check(tvb, pinfo, tree, data))
-      return FALSE;
+      return false;
 
   dissect_miop (tvb, pinfo, tree, data);
 
-  /* TODO: make reasembly */
-  return TRUE;
+  /* TODO: make reassembly */
+  return true;
 
 }
 
@@ -279,7 +279,7 @@ void proto_register_miop (void) {
   };
 
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_miop
   };
 

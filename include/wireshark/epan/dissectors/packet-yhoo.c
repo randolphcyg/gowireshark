@@ -18,19 +18,19 @@
 void proto_register_yhoo(void);
 void proto_reg_handoff_yhoo(void);
 
-static int proto_yhoo = -1;
-static int hf_yhoo_version = -1;
-static int hf_yhoo_len = -1;
-static int hf_yhoo_service = -1;
-static int hf_yhoo_connection_id = -1;
-static int hf_yhoo_magic_id = -1;
-static int hf_yhoo_unknown1 = -1;
-static int hf_yhoo_msgtype = -1;
-static int hf_yhoo_nick1 = -1;
-static int hf_yhoo_nick2 = -1;
-static int hf_yhoo_content = -1;
+static int proto_yhoo;
+static int hf_yhoo_version;
+static int hf_yhoo_len;
+static int hf_yhoo_service;
+static int hf_yhoo_connection_id;
+static int hf_yhoo_magic_id;
+static int hf_yhoo_unknown1;
+static int hf_yhoo_msgtype;
+static int hf_yhoo_nick1;
+static int hf_yhoo_nick2;
+static int hf_yhoo_content;
 
-static gint ett_yhoo = -1;
+static int ett_yhoo;
 
 #define TCP_PORT_YHOO	5050
 
@@ -160,7 +160,7 @@ static const value_string yhoo_msgtype_vals[] = {
 	{0, NULL}
 };
 
-static gboolean
+static bool
 dissect_yhoo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
 	proto_tree      *yhoo_tree, *ti;
@@ -168,7 +168,7 @@ dissect_yhoo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 
 	if (pinfo->srcport != TCP_PORT_YHOO && pinfo->destport != TCP_PORT_YHOO) {
 		/* Not the Yahoo port - not a Yahoo Messenger packet. */
-		return FALSE;
+		return false;
 	}
 
 	/* get at least a full packet structure */
@@ -176,19 +176,19 @@ dissect_yhoo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 		/* Not enough data captured; maybe it is a Yahoo
 		   Messenger packet, but it contains too little data to
 		   tell. */
-		return FALSE;
+		return false;
 	}
 
-	if (tvb_memeql(tvb, offset, (const guint8*)"YPNS", 4) != 0 &&
-	    tvb_memeql(tvb, offset, (const guint8*)"YHOO", 4) != 0) {
+	if (tvb_memeql(tvb, offset, (const uint8_t*)"YPNS", 4) != 0 &&
+	    tvb_memeql(tvb, offset, (const uint8_t*)"YHOO", 4) != 0) {
 		/* Not a Yahoo Messenger packet. */
-		return FALSE;
+		return false;
 	}
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "YHOO");
 
 	col_add_fstr(pinfo->cinfo, COL_INFO, "%s: %s",
-			     ( tvb_memeql(tvb, offset + 0, (const guint8*)"YPNS", 4) == 0 ) ? "Request" : "Response",
+			     ( tvb_memeql(tvb, offset + 0, (const uint8_t*)"YPNS", 4) == 0 ) ? "Request" : "Response",
 			     val_to_str(tvb_get_letohl(tvb, offset + 12),
 					yhoo_service_vals, "Unknown Service: %u"));
 
@@ -237,7 +237,7 @@ dissect_yhoo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 			offset, ENC_ASCII);
 	}
 
-	return TRUE;
+	return true;
 }
 
 void
@@ -275,7 +275,7 @@ proto_register_yhoo(void)
 				"Version", "yhoo.version", FT_STRING, BASE_NONE,
 				NULL, 0, "Packet version identifier", HFILL }},
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_yhoo,
 	};
 

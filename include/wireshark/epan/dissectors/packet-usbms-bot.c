@@ -19,24 +19,24 @@ void proto_reg_handoff_usbms_bot(void);
 #define IF_PROTOCOL_BULK_ONLY 0x50
 
 /* protocols and header fields */
-static int proto_usbms_bot = -1;
-static int hf_usbms_bot_dCBWSignature = -1;
-static int hf_usbms_bot_dCBWTag = -1;
-static int hf_usbms_bot_dCBWDataTransferLength = -1;
-static int hf_usbms_bot_dCBWFlags = -1;
-static int hf_usbms_bot_dCBWTarget = -1;
-static int hf_usbms_bot_dCBWLUN = -1;
-static int hf_usbms_bot_dCBWCBLength = -1;
-static int hf_usbms_bot_dCSWSignature = -1;
-static int hf_usbms_bot_dCSWDataResidue = -1;
-static int hf_usbms_bot_dCSWStatus = -1;
-static int hf_usbms_bot_request = -1;
-static int hf_usbms_bot_value = -1;
-static int hf_usbms_bot_index = -1;
-static int hf_usbms_bot_length = -1;
-static int hf_usbms_bot_maxlun = -1;
+static int proto_usbms_bot;
+static int hf_usbms_bot_dCBWSignature;
+static int hf_usbms_bot_dCBWTag;
+static int hf_usbms_bot_dCBWDataTransferLength;
+static int hf_usbms_bot_dCBWFlags;
+static int hf_usbms_bot_dCBWTarget;
+static int hf_usbms_bot_dCBWLUN;
+static int hf_usbms_bot_dCBWCBLength;
+static int hf_usbms_bot_dCSWSignature;
+static int hf_usbms_bot_dCSWDataResidue;
+static int hf_usbms_bot_dCSWStatus;
+static int hf_usbms_bot_request;
+static int hf_usbms_bot_value;
+static int hf_usbms_bot_index;
+static int hf_usbms_bot_length;
+static int hf_usbms_bot_maxlun;
 
-static gint ett_usbms_bot = -1;
+static int ett_usbms_bot;
 
 static dissector_handle_t usbms_bot_bulk_handle;
 static dissector_handle_t usbms_bot_control_handle;
@@ -56,7 +56,7 @@ static const value_string status_vals[] = {
 };
 
 static void
-dissect_usbms_bot_reset(packet_info *pinfo _U_, proto_tree *tree, tvbuff_t *tvb, int offset, gboolean is_request, usb_trans_info_t *usb_trans_info _U_, usb_conv_info_t *usb_conv_info _U_)
+dissect_usbms_bot_reset(packet_info *pinfo _U_, proto_tree *tree, tvbuff_t *tvb, int offset, bool is_request, usb_trans_info_t *usb_trans_info _U_, urb_info_t *urb _U_)
 {
     if(is_request){
         proto_tree_add_item(tree, hf_usbms_bot_value, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -73,7 +73,7 @@ dissect_usbms_bot_reset(packet_info *pinfo _U_, proto_tree *tree, tvbuff_t *tvb,
 }
 
 static void
-dissect_usbms_bot_get_max_lun(packet_info *pinfo _U_, proto_tree *tree, tvbuff_t *tvb, int offset, gboolean is_request, usb_trans_info_t *usb_trans_info _U_, usb_conv_info_t *usb_conv_info _U_)
+dissect_usbms_bot_get_max_lun(packet_info *pinfo _U_, proto_tree *tree, tvbuff_t *tvb, int offset, bool is_request, usb_trans_info_t *usb_trans_info _U_, urb_info_t *urb _U_)
 {
     if(is_request){
         proto_tree_add_item(tree, hf_usbms_bot_value, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -91,10 +91,10 @@ dissect_usbms_bot_get_max_lun(packet_info *pinfo _U_, proto_tree *tree, tvbuff_t
 }
 
 
-typedef void (*usb_setup_dissector)(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int offset, gboolean is_request, usb_trans_info_t *usb_trans_info, usb_conv_info_t *usb_conv_info);
+typedef void (*usb_setup_dissector)(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int offset, bool is_request, usb_trans_info_t *usb_trans_info, urb_info_t *urb);
 
 typedef struct _usb_setup_dissector_table_t {
-    guint8 request;
+    uint8_t request;
     usb_setup_dissector dissector;
 } usb_setup_dissector_table_t;
 #define USB_SETUP_RESET               0xff
@@ -114,11 +114,11 @@ static const value_string setup_request_names_vals[] = {
  * Returns tvb_captured_length(tvb) if a class specific dissector was found
  * and 0 othervise.
  */
-static gint
+static int
 dissect_usbms_bot_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *data)
 {
-    gboolean is_request;
-    usb_conv_info_t *usb_conv_info;
+    bool is_request;
+    urb_info_t *urb;
     usb_trans_info_t *usb_trans_info;
     int offset=0;
     usb_setup_dissector dissector = NULL;
@@ -127,10 +127,10 @@ dissect_usbms_bot_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_
     proto_item *ti;
 
     /* Reject the packet if data or usb_trans_info are NULL */
-    if (data == NULL || ((usb_conv_info_t *)data)->usb_trans_info == NULL)
+    if (data == NULL || ((urb_info_t *)data)->usb_trans_info == NULL)
         return 0;
-    usb_conv_info = (usb_conv_info_t *)data;
-    usb_trans_info = usb_conv_info->usb_trans_info;
+    urb = (urb_info_t *)data;
+    usb_trans_info = urb->usb_trans_info;
 
     is_request=(pinfo->srcport==NO_ENDPOINT);
 
@@ -161,7 +161,7 @@ dissect_usbms_bot_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_
         offset += 1;
     }
 
-    dissector(pinfo, tree, tvb, offset, is_request, usb_trans_info, usb_conv_info);
+    dissector(pinfo, tree, tvb, offset, is_request, usb_trans_info, urb);
     return tvb_captured_length(tvb);
 }
 
@@ -184,8 +184,8 @@ dissect_usbms_bot_cbw(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree
     tvbuff_t *cdb_tvb;
     int offset=0;
     int cdbrlen, cdblen;
-    guint8 lun, flags;
-    guint32 datalen;
+    uint8_t lun, flags;
+    uint32_t datalen;
     itl_nexus_t *itl;
     itlq_nexus_t *itlq;
 
@@ -204,13 +204,13 @@ dissect_usbms_bot_cbw(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree
 
     /* dCBWFlags */
     proto_tree_add_item(tree, hf_usbms_bot_dCBWFlags, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    flags=tvb_get_guint8(tvb, offset);
+    flags=tvb_get_uint8(tvb, offset);
     offset+=1;
 
     /* dCBWLUN */
     proto_tree_add_item(tree, hf_usbms_bot_dCBWTarget, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     proto_tree_add_item(tree, hf_usbms_bot_dCBWLUN, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    lun=tvb_get_guint8(tvb, offset)&0x0f;
+    lun=tvb_get_uint8(tvb, offset)&0x0f;
     offset+=1;
 
     /* make sure we have a ITL structure for this LUN */
@@ -249,7 +249,7 @@ dissect_usbms_bot_cbw(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree
 
     /* dCBWCBLength */
     proto_tree_add_item(tree, hf_usbms_bot_dCBWCBLength, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    cdbrlen=tvb_get_guint8(tvb, offset)&0x1f;
+    cdbrlen=tvb_get_uint8(tvb, offset)&0x1f;
     offset+=1;
 
     cdblen=cdbrlen;
@@ -268,7 +268,7 @@ dissect_usbms_bot_csw(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree
 {
     proto_tree *tree = create_usbms_bot_protocol_tree(tvb, parent_tree);
     int offset=0;
-    guint8 status;
+    uint8_t status;
     itl_nexus_t *itl;
     itlq_nexus_t *itlq;
 
@@ -286,7 +286,7 @@ dissect_usbms_bot_csw(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree
 
     /* dCSWStatus */
     proto_tree_add_item(tree, hf_usbms_bot_dCSWStatus, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    status=tvb_get_guint8(tvb, offset);
+    status=tvb_get_uint8(tvb, offset);
     /*offset+=1;*/
 
     itlq=(itlq_nexus_t *)wmem_tree_lookup32_le(usbms_bot_conv_info->itlq, pinfo->num);
@@ -309,17 +309,17 @@ dissect_usbms_bot_csw(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree
     return tvb_captured_length(tvb);
 }
 
-static gboolean
-usbms_bot_bulk_is_cbw(tvbuff_t *tvb, int offset, gboolean is_request)
+static bool
+usbms_bot_bulk_is_cbw(tvbuff_t *tvb, int offset, bool is_request)
 {
-    return is_request && (tvb_reported_length(tvb)==(guint)offset+31) &&
+    return is_request && (tvb_reported_length(tvb)==(unsigned)offset+31) &&
            tvb_get_letohl(tvb, offset) == 0x43425355;
 }
 
-static gboolean
-usbms_bot_bulk_is_csw(tvbuff_t *tvb, int offset, gboolean is_request)
+static bool
+usbms_bot_bulk_is_csw(tvbuff_t *tvb, int offset, bool is_request)
 {
-    return !is_request && (tvb_reported_length(tvb)==(guint)offset+13) &&
+    return !is_request && (tvb_reported_length(tvb)==(unsigned)offset+13) &&
            tvb_get_letohl(tvb, offset) == 0x53425355;
 }
 
@@ -327,10 +327,10 @@ usbms_bot_bulk_is_csw(tvbuff_t *tvb, int offset, gboolean is_request)
 static int
 dissect_usbms_bot_bulk(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* data)
 {
-    usb_conv_info_t *usb_conv_info;
+    urb_info_t *urb;
     usbms_bot_conv_info_t *usbms_bot_conv_info;
     int offset=0;
-    gboolean is_request;
+    bool is_request;
     itl_nexus_t *itl;
     itlq_nexus_t *itlq;
     tvbuff_t *payload_tvb;
@@ -338,17 +338,19 @@ dissect_usbms_bot_bulk(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tre
     /* Reject the packet if data is NULL */
     if (data == NULL)
         return 0;
-    usb_conv_info = (usb_conv_info_t *)data;
+    urb = (urb_info_t *)data;
+    if (urb->conv == NULL)
+        return 0;
 
     /* verify that we do have a usbms_bot_conv_info */
-    usbms_bot_conv_info=(usbms_bot_conv_info_t *)usb_conv_info->class_data;
+    usbms_bot_conv_info=(usbms_bot_conv_info_t *)urb->conv->class_data;
     if(!usbms_bot_conv_info){
         usbms_bot_conv_info=wmem_new(wmem_file_scope(), usbms_bot_conv_info_t);
         usbms_bot_conv_info->itl=wmem_tree_new(wmem_file_scope());
         usbms_bot_conv_info->itlq=wmem_tree_new(wmem_file_scope());
-        usb_conv_info->class_data=usbms_bot_conv_info;
-        usb_conv_info->class_data_type = USB_CONV_MASS_STORAGE_BOT;
-    } else if (usb_conv_info->class_data_type != USB_CONV_MASS_STORAGE_BOT) {
+        urb->conv->class_data=usbms_bot_conv_info;
+        urb->conv->class_data_type = USB_CONV_MASS_STORAGE_BOT;
+    } else if (urb->conv->class_data_type != USB_CONV_MASS_STORAGE_BOT) {
         /* Don't dissect if another USB type is in the conversation */
         return 0;
     }
@@ -418,21 +420,21 @@ dissect_usbms_bot_bulk(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tre
     return tvb_captured_length(payload_tvb);
 }
 
-static gboolean
+static bool
 dissect_usbms_bot_bulk_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
-    const guchar usbc[] = {0x55, 0x53, 0x42, 0x43};
-    const guchar usbs[] = {0x55, 0x53, 0x42, 0x53};
+    static const unsigned char usbc[] = {0x55, 0x53, 0x42, 0x43};
+    static const unsigned char usbs[] = {0x55, 0x53, 0x42, 0x53};
     if (tvb_reported_length(tvb) < 4)
-        return FALSE;
+        return false;
 
     if (tvb_memeql(tvb, 0, usbc, sizeof(usbc)) == 0 ||
         tvb_memeql(tvb, 0, usbs, sizeof(usbs)) == 0) {
         dissect_usbms_bot_bulk(tvb, pinfo, tree, data);
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 void
@@ -501,7 +503,7 @@ proto_register_usbms_bot(void)
 
     };
 
-    static gint *usbms_bot_subtrees[] = {
+    static int *usbms_bot_subtrees[] = {
             &ett_usbms_bot,
     };
 

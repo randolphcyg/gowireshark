@@ -38,7 +38,7 @@
  * instead.
  */
 
-static GPtrArray* all_uats = NULL;
+static GPtrArray* all_uats;
 
 uat_t* uat_new(const char* name,
                size_t size,
@@ -86,12 +86,11 @@ uat_t* uat_new(const char* name,
     uat->reset_cb = reset_cb;
     uat->fields = flds_array;
     uat->default_values = NULL;
-    uat->user_data = g_array_new(false,FALSE,(unsigned)uat->record_size);
-    uat->raw_data = g_array_new(false,FALSE,(unsigned)uat->record_size);
-    uat->valid_data = g_array_new(false,FALSE,sizeof(bool));
+    uat->user_data = g_array_new(false,false,(unsigned)uat->record_size);
+    uat->raw_data = g_array_new(false,false,(unsigned)uat->record_size);
+    uat->valid_data = g_array_new(false,false,sizeof(bool));
     uat->changed = false;
     uat->loaded = false;
-    uat->from_global = false;
     uat->rep = NULL;
     uat->free_rep = NULL;
     uat->help = g_strdup(help);
@@ -215,6 +214,24 @@ void uat_remove_record_idx(uat_t* uat, unsigned idx) {
     g_array_remove_index(uat->valid_data, idx);
 }
 
+void uat_remove_record_range(uat_t* uat, unsigned idx, unsigned count) {
+
+    ws_assert( idx + count <= uat->raw_data->len );
+
+    if (count == 0) {
+        return;
+    }
+
+    if (uat->free_cb) {
+        for (unsigned i = 0; i < count; i++) {
+            uat->free_cb(UAT_INDEX_PTR(uat, idx + i));
+        }
+    }
+
+    g_array_remove_range(uat->raw_data, idx, count);
+    g_array_remove_range(uat->valid_data, idx, count);
+}
+
 void uat_move_index(uat_t * uat, unsigned old_idx, unsigned new_idx)
 {
     unsigned dir = 1;
@@ -233,10 +250,7 @@ void uat_move_index(uat_t * uat, unsigned old_idx, unsigned new_idx)
 char* uat_get_actual_filename(uat_t* uat, bool for_writing) {
     char *pers_fname = NULL;
 
-    if (! uat->from_global) {
-        pers_fname =  get_persconffile_path(uat->filename, uat->from_profile);
-    }
-
+    pers_fname =  get_persconffile_path(uat->filename, uat->from_profile);
     if ((! for_writing ) && (! file_exists(pers_fname) )) {
         char* data_fname = get_datafile_path(uat->filename);
 
@@ -280,14 +294,15 @@ char *uat_fld_tostr(void *rec, uat_field_t *f) {
 
     switch(f->mode) {
         case PT_TXTMOD_NONE:
-        case PT_TXTMOD_STRING:
         case PT_TXTMOD_ENUM:
         case PT_TXTMOD_BOOL:
         case PT_TXTMOD_FILENAME:
         case PT_TXTMOD_DIRECTORYNAME:
         case PT_TXTMOD_DISPLAY_FILTER:
-        case PT_TXTMOD_COLOR:
         case PT_TXTMOD_PROTO_FIELD:
+        case PT_TXTMOD_COLOR:
+        case PT_TXTMOD_STRING:
+        case PT_TXTMOD_DISSECTOR:
             out = g_strndup(ptr, len);
             break;
         case PT_TXTMOD_HEXBYTES: {
@@ -296,9 +311,7 @@ char *uat_fld_tostr(void *rec, uat_field_t *f) {
 
             for (i=0; i<len;i++) g_string_append_printf(s, "%.2X", ((const uint8_t*)ptr)[i]);
 
-            out = g_strdup(s->str);
-
-            g_string_free(s, true);
+            out = g_string_free(s, FALSE);
             break;
         }
         default:
@@ -499,26 +512,38 @@ void uat_unload_all(void) {
     }
 }
 
+static void free_uat(uat_t *uat)
+{
+    unsigned j;
+
+    uat_clear(uat);
+    g_free(uat->help);
+    g_free(uat->name);
+    g_free(uat->filename);
+    g_array_free(uat->user_data, true);
+    g_array_free(uat->raw_data, true);
+    g_array_free(uat->valid_data, true);
+    for (j = 0; uat->fields[j].title; j++)
+        g_free(uat->fields[j].priv);
+    g_free(uat);
+}
+
 void uat_cleanup(void) {
     unsigned i;
-    unsigned j;
     uat_t* uat;
 
     for (i = 0; i < all_uats->len; i++) {
         uat = (uat_t *)g_ptr_array_index(all_uats, i);
-        uat_clear(uat);
-        g_free(uat->help);
-        g_free(uat->name);
-        g_free(uat->filename);
-        g_array_free(uat->user_data, true);
-        g_array_free(uat->raw_data, true);
-        g_array_free(uat->valid_data, true);
-        for (j = 0; uat->fields[j].title; j++)
-            g_free(uat->fields[j].priv);
-        g_free(uat);
+        free_uat(uat);
     }
 
     g_ptr_array_free(all_uats,true);
+}
+
+void uat_destroy(uat_t *uat)
+{
+    g_ptr_array_remove(all_uats, uat);
+    free_uat(uat);
 }
 
 void uat_foreach_table(uat_cb_t cb,void* user_data) {

@@ -63,198 +63,198 @@
 void proto_register_l2tp(void);
 void proto_reg_handoff_l2tp(void);
 
-static int proto_l2tp = -1;
-static int hf_l2tp_flags = -1;
-static int hf_l2tp_type = -1;
-static int hf_l2tp_length_bit = -1;
-static int hf_l2tp_seq_bit = -1;
-static int hf_l2tp_offset_bit = -1;
-static int hf_l2tp_priority = -1;
-static int hf_l2tp_version = -1;
-static int hf_l2tp_length = -1;
-static int hf_l2tp_tunnel = -1;
-static int hf_l2tp_session = -1;
-static int hf_l2tp_Ns = -1;
-static int hf_l2tp_Nr = -1;
-static int hf_l2tp_offset = -1;
-static int hf_l2tp_avp_mandatory = -1;
-static int hf_l2tp_avp_hidden = -1;
-static int hf_l2tp_avp_length = -1;
-static int hf_l2tp_avp_vendor_id = -1;
-static int hf_l2tp_avp_type = -1;
-static int hf_l2tp_tie_breaker = -1;
-static int hf_l2tp_sid = -1;
-static int hf_l2tp_res = -1;
-static int hf_l2tp_ccid = -1;
-static int hf_l2tp_cookie = -1;
-static int hf_l2tp_l2_spec_def = -1;
-static int hf_l2tp_l2_spec_atm = -1;
-static int hf_l2tp_l2_spec_docsis_dmpt = -1;
-static int hf_l2tp_l2_spec_v = -1;
-static int hf_l2tp_l2_spec_s = -1;
-static int hf_l2tp_l2_spec_h = -1;
-static int hf_l2tp_l2_spec_flow_id = -1;
-static int hf_l2tp_l2_spec_sequence = -1;
-static int hf_l2tp_l2_spec_t = -1;
-static int hf_l2tp_l2_spec_g = -1;
-static int hf_l2tp_l2_spec_c = -1;
-static int hf_l2tp_l2_spec_u = -1;
-static int hf_l2tp_cisco_avp_type = -1;
-static int hf_l2tp_ericsson_avp_type = -1;
-static int hf_l2tp_broadband_avp_type = -1;
-static int hf_l2tp_cablelabs_avp_type = -1;
-static int hf_l2tp_avp_message_type = -1;
-static int hf_l2tp_avp_assigned_tunnel_id = -1;
-static int hf_l2tp_avp_assigned_control_conn_id = -1;
-static int hf_l2tp_avp_assigned_session_id = -1;
-static int hf_l2tp_avp_remote_session_id = -1;
-static int hf_l2tp_avp_local_session_id = -1;
-static int hf_l2tp_avp_called_number = -1;
-static int hf_l2tp_avp_calling_number = -1;
-static int hf_l2tp_cisco_tie_breaker = -1;
-static int hf_l2tp_cablel_avp_l_bit = -1;
-static int hf_l2tp_cablel_avp_tsid_group_id = -1;
-static int hf_l2tp_cablel_avp_frequency = -1;
-static int hf_l2tp_cablel_avp_modulation = -1;
-static int hf_l2tp_cablel_avp_m = -1;
-static int hf_l2tp_cablel_avp_n = -1;
-static int hf_l2tp_broadband_agent_circuit_id = -1;
-static int hf_l2tp_broadband_agent_remote_id = -1;
-static int hf_l2tp_broadband_actual_dr_up = -1;
-static int hf_l2tp_broadband_actual_dr_down = -1;
-static int hf_l2tp_broadband_minimum_dr_up = -1;
-static int hf_l2tp_broadband_minimum_dr_down = -1;
-static int hf_l2tp_broadband_attainable_dr_up = -1;
-static int hf_l2tp_broadband_attainable_dr_down = -1;
-static int hf_l2tp_broadband_maximum_dr_up = -1;
-static int hf_l2tp_broadband_maximum_dr_down = -1;
-static int hf_l2tp_broadband_minimum_dr_up_low_power = -1;
-static int hf_l2tp_broadband_minimum_dr_down_low_power = -1;
-static int hf_l2tp_broadband_maximum_interleaving_delay_up = -1;
-static int hf_l2tp_broadband_actual_interleaving_delay_up = -1;
-static int hf_l2tp_broadband_maximum_interleaving_delay_down = -1;
-static int hf_l2tp_broadband_actual_interleaving_delay_down = -1;
-static int hf_l2tp_broadband_access_loop_encapsulation = -1;
-static int hf_l2tp_broadband_access_loop_encapsulation_data_link = -1;
-static int hf_l2tp_broadband_access_loop_encapsulation_enc1 = -1;
-static int hf_l2tp_broadband_access_loop_encapsulation_enc2 = -1;
-static int hf_l2tp_broadband_ancp_access_line_type = -1;
-static int hf_l2tp_broadband_iwf_session = -1;
-static int hf_l2tp_avp_csu = -1;
-static int hf_l2tp_avp_csu_res = -1;
-static int hf_l2tp_avp_csu_remote_session_id_v2 = -1;
-static int hf_l2tp_avp_csu_current_tx_speed_v2 = -1;
-static int hf_l2tp_avp_csu_current_rx_speed_v2 = -1;
-static int hf_l2tp_avp_csu_remote_session_id_v3 = -1;
-static int hf_l2tp_avp_csu_current_tx_speed_v3 = -1;
-static int hf_l2tp_avp_csu_current_rx_speed_v3 = -1;
+static int proto_l2tp;
+static int hf_l2tp_flags;
+static int hf_l2tp_type;
+static int hf_l2tp_length_bit;
+static int hf_l2tp_seq_bit;
+static int hf_l2tp_offset_bit;
+static int hf_l2tp_priority;
+static int hf_l2tp_version;
+static int hf_l2tp_length;
+static int hf_l2tp_tunnel;
+static int hf_l2tp_session;
+static int hf_l2tp_Ns;
+static int hf_l2tp_Nr;
+static int hf_l2tp_offset;
+static int hf_l2tp_avp_mandatory;
+static int hf_l2tp_avp_hidden;
+static int hf_l2tp_avp_length;
+static int hf_l2tp_avp_vendor_id;
+static int hf_l2tp_avp_type;
+static int hf_l2tp_tie_breaker;
+static int hf_l2tp_sid;
+static int hf_l2tp_res;
+static int hf_l2tp_ccid;
+static int hf_l2tp_cookie;
+static int hf_l2tp_l2_spec_def;
+static int hf_l2tp_l2_spec_atm;
+static int hf_l2tp_l2_spec_docsis_dmpt;
+static int hf_l2tp_l2_spec_v;
+static int hf_l2tp_l2_spec_s;
+static int hf_l2tp_l2_spec_h;
+static int hf_l2tp_l2_spec_flow_id;
+static int hf_l2tp_l2_spec_sequence;
+static int hf_l2tp_l2_spec_t;
+static int hf_l2tp_l2_spec_g;
+static int hf_l2tp_l2_spec_c;
+static int hf_l2tp_l2_spec_u;
+static int hf_l2tp_cisco_avp_type;
+static int hf_l2tp_ericsson_avp_type;
+static int hf_l2tp_broadband_avp_type;
+static int hf_l2tp_cablelabs_avp_type;
+static int hf_l2tp_avp_message_type;
+static int hf_l2tp_avp_assigned_tunnel_id;
+static int hf_l2tp_avp_assigned_control_conn_id;
+static int hf_l2tp_avp_assigned_session_id;
+static int hf_l2tp_avp_remote_session_id;
+static int hf_l2tp_avp_local_session_id;
+static int hf_l2tp_avp_called_number;
+static int hf_l2tp_avp_calling_number;
+static int hf_l2tp_cisco_tie_breaker;
+static int hf_l2tp_cablel_avp_l_bit;
+static int hf_l2tp_cablel_avp_tsid_group_id;
+static int hf_l2tp_cablel_avp_frequency;
+static int hf_l2tp_cablel_avp_modulation;
+static int hf_l2tp_cablel_avp_m;
+static int hf_l2tp_cablel_avp_n;
+static int hf_l2tp_broadband_agent_circuit_id;
+static int hf_l2tp_broadband_agent_remote_id;
+static int hf_l2tp_broadband_actual_dr_up;
+static int hf_l2tp_broadband_actual_dr_down;
+static int hf_l2tp_broadband_minimum_dr_up;
+static int hf_l2tp_broadband_minimum_dr_down;
+static int hf_l2tp_broadband_attainable_dr_up;
+static int hf_l2tp_broadband_attainable_dr_down;
+static int hf_l2tp_broadband_maximum_dr_up;
+static int hf_l2tp_broadband_maximum_dr_down;
+static int hf_l2tp_broadband_minimum_dr_up_low_power;
+static int hf_l2tp_broadband_minimum_dr_down_low_power;
+static int hf_l2tp_broadband_maximum_interleaving_delay_up;
+static int hf_l2tp_broadband_actual_interleaving_delay_up;
+static int hf_l2tp_broadband_maximum_interleaving_delay_down;
+static int hf_l2tp_broadband_actual_interleaving_delay_down;
+static int hf_l2tp_broadband_access_loop_encapsulation;
+static int hf_l2tp_broadband_access_loop_encapsulation_data_link;
+static int hf_l2tp_broadband_access_loop_encapsulation_enc1;
+static int hf_l2tp_broadband_access_loop_encapsulation_enc2;
+static int hf_l2tp_broadband_ancp_access_line_type;
+static int hf_l2tp_broadband_iwf_session;
+static int hf_l2tp_avp_csu;
+static int hf_l2tp_avp_csu_res;
+static int hf_l2tp_avp_csu_remote_session_id_v2;
+static int hf_l2tp_avp_csu_current_tx_speed_v2;
+static int hf_l2tp_avp_csu_current_rx_speed_v2;
+static int hf_l2tp_avp_csu_remote_session_id_v3;
+static int hf_l2tp_avp_csu_current_tx_speed_v3;
+static int hf_l2tp_avp_csu_current_rx_speed_v3;
 
-static int hf_l2tp_ericsson_msg_type = -1;
-static int hf_l2tp_ericsson_conn_type = -1;
-static int hf_l2tp_ericsson_stn_name = -1;
-static int hf_l2tp_ericsson_crc32_enable = -1;
-static int hf_l2tp_ericsson_abis_lower_mode = -1;
-static int hf_l2tp_ericsson_tc_overl_thresh = -1;
-static int hf_l2tp_ericsson_tc_num_groups = -1;
-static int hf_l2tp_ericsson_tcg_group_id = -1;
-static int hf_l2tp_ericsson_tcg_num_sapis = -1;
-static int hf_l2tp_ericsson_tcg_sapi = -1;
-static int hf_l2tp_ericsson_tcg_ip = -1;
-static int hf_l2tp_ericsson_tcg_dscp = -1;
-static int hf_l2tp_ericsson_tcg_crc32_enable = -1;
-static int hf_l2tp_ericsson_tcg_bundling_tout = -1;
-static int hf_l2tp_ericsson_tcg_bundling_max_pkt = -1;
-static int hf_l2tp_ericsson_tc_num_maps = -1;
-static int hf_l2tp_ericsson_map_tei_low = -1;
-static int hf_l2tp_ericsson_map_tei_high = -1;
-static int hf_l2tp_ericsson_map_sc = -1;
-static int hf_l2tp_ericsson_ver_pref = -1;
-static int hf_l2tp_ericsson_ver_2 = -1;
-static int hf_l2tp_ericsson_ver_3 = -1;
+static int hf_l2tp_ericsson_msg_type;
+static int hf_l2tp_ericsson_conn_type;
+static int hf_l2tp_ericsson_stn_name;
+static int hf_l2tp_ericsson_crc32_enable;
+static int hf_l2tp_ericsson_abis_lower_mode;
+static int hf_l2tp_ericsson_tc_overl_thresh;
+static int hf_l2tp_ericsson_tc_num_groups;
+static int hf_l2tp_ericsson_tcg_group_id;
+static int hf_l2tp_ericsson_tcg_num_sapis;
+static int hf_l2tp_ericsson_tcg_sapi;
+static int hf_l2tp_ericsson_tcg_ip;
+static int hf_l2tp_ericsson_tcg_dscp;
+static int hf_l2tp_ericsson_tcg_crc32_enable;
+static int hf_l2tp_ericsson_tcg_bundling_tout;
+static int hf_l2tp_ericsson_tcg_bundling_max_pkt;
+static int hf_l2tp_ericsson_tc_num_maps;
+static int hf_l2tp_ericsson_map_tei_low;
+static int hf_l2tp_ericsson_map_tei_high;
+static int hf_l2tp_ericsson_map_sc;
+static int hf_l2tp_ericsson_ver_pref;
+static int hf_l2tp_ericsson_ver_2;
+static int hf_l2tp_ericsson_ver_3;
 
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_l2tp_cisco_pw_type = -1;
-static int hf_l2tp_avp_error_code = -1;
-static int hf_l2tp_avp_cause_msg = -1;
-static int hf_l2tp_avp_host_name = -1;
-static int hf_l2tp_avp_maximum_bps = -1;
-static int hf_l2tp_avp_pseudowire_type = -1;
-static int hf_l2tp_avp_minimum_bps = -1;
-static int hf_l2tp_avp_nonce = -1;
-static int hf_l2tp_avp_circuit_status = -1;
-static int hf_l2tp_avp_receive_window_size = -1;
-static int hf_l2tp_avp_vendor_name = -1;
-static int hf_l2tp_avp_layer2_specific_sublayer = -1;
-static int hf_l2tp_avp_disconnect_code = -1;
-static int hf_l2tp_cisco_circuit_status = -1;
-static int hf_l2tp_cisco_remote_session_id = -1;
-static int hf_l2tp_avp_router_id = -1;
-static int hf_l2tp_avp_send_accm = -1;
-static int hf_l2tp_avp_last_sent_lcp_confreq = -1;
-static int hf_l2tp_avp_sync_framing_supported = -1;
-static int hf_l2tp_cisco_assigned_control_connection_id = -1;
-static int hf_l2tp_avp_sync_framing_type = -1;
-static int hf_l2tp_avp_assigned_cookie = -1;
-static int hf_l2tp_avp_time_out_errors = -1;
-static int hf_l2tp_avp_sub_address = -1;
-static int hf_l2tp_avp_connect_speed = -1;
-static int hf_l2tp_avp_analog_access_supported = -1;
-static int hf_l2tp_avp_private_group_id = -1;
-static int hf_l2tp_avp_proxy_authen_response = -1;
-static int hf_l2tp_avp_chap_challenge = -1;
-static int hf_l2tp_avp_call_serial_number = -1;
-static int hf_l2tp_avp_digital_access_supported = -1;
-static int hf_l2tp_avp_physical_channel = -1;
-static int hf_l2tp_avp_advisory_msg = -1;
-static int hf_l2tp_avp_data_sequencing = -1;
-static int hf_l2tp_avp_control_protocol_number = -1;
-static int hf_l2tp_avp_error_message = -1;
-static int hf_l2tp_avp_initial_received_lcp_confreq = -1;
-static int hf_l2tp_avp_async_framing_supported = -1;
-static int hf_l2tp_cisco_message_digest = -1;
-static int hf_l2tp_avp_circuit_type = -1;
-static int hf_l2tp_cisco_circuit_type = -1;
-static int hf_l2tp_avp_proxy_authen_challenge = -1;
-static int hf_l2tp_cisco_assigned_cookie = -1;
-static int hf_l2tp_avp_receive_accm = -1;
-static int hf_l2tp_stop_ccn_result_code = -1;
-static int hf_l2tp_avp_proxy_authen_id = -1;
-static int hf_l2tp_avp_digital_bearer_type = -1;
-static int hf_l2tp_avp_rx_connect_speed = -1;
-static int hf_l2tp_cisco_nonce = -1;
-static int hf_l2tp_avp_chap_challenge_response = -1;
-static int hf_l2tp_avp_cause_code = -1;
-static int hf_l2tp_avp_protocol_revision = -1;
-static int hf_l2tp_avp_alignment_errors = -1;
-static int hf_l2tp_avp_last_received_lcp_confreq = -1;
-static int hf_l2tp_avp_crc_errors = -1;
-static int hf_l2tp_avp_random_vector = -1;
-static int hf_l2tp_avp_preferred_language = -1;
-static int hf_l2tp_cisco_interface_mtu = -1;
-static int hf_l2tp_avp_async_framing_type = -1;
-static int hf_l2tp_avp_pw_type = -1;
-static int hf_l2tp_cisco_local_session_id = -1;
-static int hf_l2tp_avp_hardware_overruns = -1;
-static int hf_l2tp_avp_proxy_authen_type = -1;
-static int hf_l2tp_cisco_draft_avp_version = -1;
-static int hf_l2tp_avp_protocol_version = -1;
-static int hf_l2tp_result_code = -1;
-static int hf_l2tp_avp_buffer_overruns = -1;
-static int hf_l2tp_avp_remote_end_id = -1;
-static int hf_l2tp_cisco_pseudowire_type = -1;
-static int hf_l2tp_avp_message_digest = -1;
-static int hf_l2tp_avp_proxy_authen_name = -1;
-static int hf_l2tp_avp_analog_bearer_type = -1;
-static int hf_l2tp_avp_cause_code_direction = -1;
-static int hf_l2tp_avp_firmware_revision = -1;
-static int hf_l2tp_avp_cause_code_message = -1;
-static int hf_l2tp_avp_framing_errors = -1;
-static int hf_l2tp_cisco_remote_end_id = -1;
-static int hf_l2tp_avp_tx_connect_speed_v3 = -1;
-static int hf_l2tp_avp_rx_connect_speed_v3 = -1;
-static int hf_l2tp_lapd_info = -1;
-static int hf_l2tp_zero_length_body_message = -1;
-static int hf_l2tp_offset_padding = -1;
+static int hf_l2tp_cisco_pw_type;
+static int hf_l2tp_avp_error_code;
+static int hf_l2tp_avp_cause_msg;
+static int hf_l2tp_avp_host_name;
+static int hf_l2tp_avp_maximum_bps;
+static int hf_l2tp_avp_pseudowire_type;
+static int hf_l2tp_avp_minimum_bps;
+static int hf_l2tp_avp_nonce;
+static int hf_l2tp_avp_circuit_status;
+static int hf_l2tp_avp_receive_window_size;
+static int hf_l2tp_avp_vendor_name;
+static int hf_l2tp_avp_layer2_specific_sublayer;
+static int hf_l2tp_avp_disconnect_code;
+static int hf_l2tp_cisco_circuit_status;
+static int hf_l2tp_cisco_remote_session_id;
+static int hf_l2tp_avp_router_id;
+static int hf_l2tp_avp_send_accm;
+static int hf_l2tp_avp_last_sent_lcp_confreq;
+static int hf_l2tp_avp_sync_framing_supported;
+static int hf_l2tp_cisco_assigned_control_connection_id;
+static int hf_l2tp_avp_sync_framing_type;
+static int hf_l2tp_avp_assigned_cookie;
+static int hf_l2tp_avp_time_out_errors;
+static int hf_l2tp_avp_sub_address;
+static int hf_l2tp_avp_connect_speed;
+static int hf_l2tp_avp_analog_access_supported;
+static int hf_l2tp_avp_private_group_id;
+static int hf_l2tp_avp_proxy_authen_response;
+static int hf_l2tp_avp_chap_challenge;
+static int hf_l2tp_avp_call_serial_number;
+static int hf_l2tp_avp_digital_access_supported;
+static int hf_l2tp_avp_physical_channel;
+static int hf_l2tp_avp_advisory_msg;
+static int hf_l2tp_avp_data_sequencing;
+static int hf_l2tp_avp_control_protocol_number;
+static int hf_l2tp_avp_error_message;
+static int hf_l2tp_avp_initial_received_lcp_confreq;
+static int hf_l2tp_avp_async_framing_supported;
+static int hf_l2tp_cisco_message_digest;
+static int hf_l2tp_avp_circuit_type;
+static int hf_l2tp_cisco_circuit_type;
+static int hf_l2tp_avp_proxy_authen_challenge;
+static int hf_l2tp_cisco_assigned_cookie;
+static int hf_l2tp_avp_receive_accm;
+static int hf_l2tp_stop_ccn_result_code;
+static int hf_l2tp_avp_proxy_authen_id;
+static int hf_l2tp_avp_digital_bearer_type;
+static int hf_l2tp_avp_rx_connect_speed;
+static int hf_l2tp_cisco_nonce;
+static int hf_l2tp_avp_chap_challenge_response;
+static int hf_l2tp_avp_cause_code;
+static int hf_l2tp_avp_protocol_revision;
+static int hf_l2tp_avp_alignment_errors;
+static int hf_l2tp_avp_last_received_lcp_confreq;
+static int hf_l2tp_avp_crc_errors;
+static int hf_l2tp_avp_random_vector;
+static int hf_l2tp_avp_preferred_language;
+static int hf_l2tp_cisco_interface_mtu;
+static int hf_l2tp_avp_async_framing_type;
+static int hf_l2tp_avp_pw_type;
+static int hf_l2tp_cisco_local_session_id;
+static int hf_l2tp_avp_hardware_overruns;
+static int hf_l2tp_avp_proxy_authen_type;
+static int hf_l2tp_cisco_draft_avp_version;
+static int hf_l2tp_avp_protocol_version;
+static int hf_l2tp_result_code;
+static int hf_l2tp_avp_buffer_overruns;
+static int hf_l2tp_avp_remote_end_id;
+static int hf_l2tp_cisco_pseudowire_type;
+static int hf_l2tp_avp_message_digest;
+static int hf_l2tp_avp_proxy_authen_name;
+static int hf_l2tp_avp_analog_bearer_type;
+static int hf_l2tp_avp_cause_code_direction;
+static int hf_l2tp_avp_firmware_revision;
+static int hf_l2tp_avp_cause_code_message;
+static int hf_l2tp_avp_framing_errors;
+static int hf_l2tp_cisco_remote_end_id;
+static int hf_l2tp_avp_tx_connect_speed_v3;
+static int hf_l2tp_avp_rx_connect_speed_v3;
+static int hf_l2tp_lapd_info;
+static int hf_l2tp_zero_length_body_message;
+static int hf_l2tp_offset_padding;
 
 static dissector_table_t l2tp_vendor_avp_dissector_table;
 static dissector_table_t pw_type_table;
@@ -281,21 +281,21 @@ static dissector_table_t pw_type_table;
 /* DOCSIS DMPT Sub-Layer Header definitions */
 #define FLOW_ID_MASK  0x0E
 
-static gint ett_l2tp = -1;
-static gint ett_l2tp_flags = -1;
-static gint ett_l2tp_avp = -1;
-static gint ett_l2tp_avp_sub = -1;
-static gint ett_l2tp_ale_sub = -1;
-static gint ett_l2tp_lcp = -1;
-static gint ett_l2tp_l2_spec = -1;
-static gint ett_l2tp_csu = -1;
-static gint ett_l2tp_ericsson_tcg = -1;
-static gint ett_l2tp_ericsson_map = -1;
+static int ett_l2tp;
+static int ett_l2tp_flags;
+static int ett_l2tp_avp;
+static int ett_l2tp_avp_sub;
+static int ett_l2tp_ale_sub;
+static int ett_l2tp_lcp;
+static int ett_l2tp_l2_spec;
+static int ett_l2tp_csu;
+static int ett_l2tp_ericsson_tcg;
+static int ett_l2tp_ericsson_map;
 
-static expert_field ei_l2tp_incorrect_digest = EI_INIT;
+static expert_field ei_l2tp_incorrect_digest;
 /* Generated from convert_proto_tree_add_text.pl */
-static expert_field ei_l2tp_vendor_specific_avp_data = EI_INIT;
-static expert_field ei_l2tp_avp_length = EI_INIT;
+static expert_field ei_l2tp_vendor_specific_avp_data;
+static expert_field ei_l2tp_avp_length;
 
 static const enum_val_t l2tpv3_cookies[] = {
     {"detect",  "Detect",              -1},
@@ -324,8 +324,8 @@ static const enum_val_t l2tpv3_l2_specifics[] = {
     {NULL, NULL, 0}
 };
 
-static gint l2tpv3_cookie = -1;
-static gint l2tpv3_l2_specific = -1;
+static int l2tpv3_cookie = -1;
+static int l2tpv3_l2_specific = -1;
 
 #define MESSAGE_TYPE_SCCRQ         1
 #define MESSAGE_TYPE_SCCRP         2
@@ -969,9 +969,9 @@ static dissector_handle_t atm_oam_llc_handle;
 
 typedef struct l2tpv3_conversation {
     address               lcce1;
-    guint16               lcce1_port;
+    uint16_t              lcce1_port;
     address               lcce2;
-    guint16               lcce2_port;
+    uint16_t              lcce2_port;
     port_type             pt;
     struct l2tpv3_tunnel *tunnel;
 } l2tpv3_conversation_t;
@@ -980,41 +980,41 @@ typedef struct l2tpv3_tunnel {
     l2tpv3_conversation_t *conv;
 
     address  lcce1;
-    guint32  lcce1_id;
-    guint8  *lcce1_nonce;
-    gint     lcce1_nonce_len;
+    uint32_t lcce1_id;
+    uint8_t *lcce1_nonce;
+    int      lcce1_nonce_len;
 
     address  lcce2;
-    guint32  lcce2_id;
-    guint8  *lcce2_nonce;
-    gint     lcce2_nonce_len;
+    uint32_t lcce2_id;
+    uint8_t *lcce2_nonce;
+    int      lcce2_nonce_len;
 
-    gchar   *shared_key_secret;
-    guint8   shared_key[HASH_MD5_LENGTH];
+    char    *shared_key_secret;
+    uint8_t  shared_key[HASH_MD5_LENGTH];
 
     GSList  *sessions;
 } l2tpv3_tunnel_t;
 
 typedef struct lcce_settings {
-    guint32 id;
-    gint    cookie_len;
-    gint    l2_specific;
+    uint32_t id;
+    int     cookie_len;
+    int     l2_specific;
 } lcce_settings_t;
 
 typedef struct l2tpv3_session {
     lcce_settings_t lcce1;
     lcce_settings_t lcce2;
 
-    guint    pw_type;
+    unsigned pw_type;
 } l2tpv3_session_t;
 
-static const gchar* shared_secret = "";
+static const char* shared_secret = "";
 
-static GSList *list_heads = NULL;
+static GSList *list_heads;
 
 static void update_shared_key(l2tpv3_tunnel_t *tunnel)
 {
-    const gchar *secret = "";
+    const char *secret = "";
 
     /* There is at least one nonce in the packet, so we can do authentication,
        otherwise it's just a plain digest without nonces. */
@@ -1025,7 +1025,7 @@ static void update_shared_key(l2tpv3_tunnel_t *tunnel)
     /* If there's no shared key in the conversation context, or the secret has been changed */
     if (tunnel->shared_key_secret == NULL || strcmp(secret, tunnel->shared_key_secret) != 0) {
         /* For secret specification, see RFC 3931 pg 37 */
-        guint8 data = 2;
+        uint8_t data = 2;
         if (ws_hmac_buffer(GCRY_MD_MD5, tunnel->shared_key, &data, 1, secret, strlen(secret))) {
             return;
         }
@@ -1040,9 +1040,9 @@ static void md5_hmac_digest(l2tpv3_tunnel_t *tunnel,
                             int avp_len,
                             int msg_type,
                             packet_info *pinfo,
-                            guint8 digest[20])
+                            uint8_t digest[20])
 {
-    guint8 zero[HASH_MD5_LENGTH] = { 0 };
+    uint8_t zero[HASH_MD5_LENGTH] = { 0 };
     gcry_md_hd_t hmac_handle;
     int remainder;
     int offset = 0;
@@ -1086,9 +1086,9 @@ static void sha1_hmac_digest(l2tpv3_tunnel_t *tunnel,
                              int avp_len,
                              int msg_type,
                              packet_info *pinfo,
-                             guint8 digest[20])
+                             uint8_t digest[20])
 {
-    guint8 zero[HASH_SHA1_LENGTH] = { 0 };
+    uint8_t zero[HASH_SHA1_LENGTH] = { 0 };
     gcry_md_hd_t hmac_handle;
     int remainder;
     int offset = 0;
@@ -1133,14 +1133,14 @@ static int check_control_digest(l2tpv3_tunnel_t *tunnel,
                                 int msg_type,
                                 packet_info *pinfo)
 {
-    guint8 digest[HASH_SHA1_LENGTH];
+    uint8_t digest[HASH_SHA1_LENGTH];
 
     if (!tunnel)
         return 1;
 
     update_shared_key(tunnel);
 
-    switch (tvb_get_guint8(tvb, idx)) {
+    switch (tvb_get_uint8(tvb, idx)) {
         case L2TP_HMAC_MD5:
             if ((avp_len - 1) != HASH_MD5_LENGTH)
                 return -1;
@@ -1153,7 +1153,6 @@ static int check_control_digest(l2tpv3_tunnel_t *tunnel,
             break;
         default:
             return 1;
-            break;
     }
 
     return tvb_memeql(tvb, idx + 1, digest, avp_len - 1);
@@ -1165,7 +1164,7 @@ static void store_cma_nonce(l2tpv3_tunnel_t *tunnel,
                             int length,
                             int msg_type)
 {
-    guint8 *nonce = NULL;
+    uint8_t *nonce = NULL;
 
     if (!tunnel)
         return;
@@ -1173,14 +1172,14 @@ static void store_cma_nonce(l2tpv3_tunnel_t *tunnel,
     switch (msg_type) {
         case MESSAGE_TYPE_SCCRQ:
             if (!tunnel->lcce1_nonce) {
-                tunnel->lcce1_nonce = (guint8 *)wmem_alloc(wmem_file_scope(), length);
+                tunnel->lcce1_nonce = (uint8_t *)wmem_alloc(wmem_file_scope(), length);
                 tunnel->lcce1_nonce_len = length;
                 nonce = tunnel->lcce1_nonce;
             }
             break;
         case MESSAGE_TYPE_SCCRP:
             if (!tunnel->lcce2_nonce) {
-                tunnel->lcce2_nonce = (guint8 *)wmem_alloc(wmem_file_scope(), length);
+                tunnel->lcce2_nonce = (uint8_t *)wmem_alloc(wmem_file_scope(), length);
                 tunnel->lcce2_nonce_len = length;
                 nonce = tunnel->lcce2_nonce;
             }
@@ -1218,8 +1217,8 @@ static void store_ccid(l2tpv3_tunnel_t *tunnel,
 }
 
 static l2tpv3_session_t *find_session(l2tpv3_tunnel_t *tunnel,
-                                      guint32 lcce1_id,
-                                      guint32 lcce2_id)
+                                      uint32_t lcce1_id,
+                                      uint32_t lcce2_id)
 {
     l2tpv3_session_t *session = NULL;
     GSList *iterator;
@@ -1373,8 +1372,8 @@ static l2tpv3_session_t *store_l2_sublayer(l2tpv3_session_t *_session,
                                            int msg_type)
 {
     l2tpv3_session_t *session = _session;
-    gint result = l2tpv3_l2_specific;
-    guint16 l2_sublayer;
+    int result = l2tpv3_l2_specific;
+    uint16_t l2_sublayer;
 
     switch (msg_type) {
         case MESSAGE_TYPE_ICRQ:
@@ -1466,13 +1465,13 @@ static void update_session(l2tpv3_tunnel_t *tunnel, l2tpv3_session_t *session)
     }
 }
 
-static void l2tp_prompt(packet_info *pinfo _U_, gchar* result)
+static void l2tp_prompt(packet_info *pinfo _U_, char* result)
 {
     snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Decode L2TPv3 pseudowire type 0x%04x as",
         GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_l2tp, 0)));
 }
 
-static gpointer l2tp_value(packet_info *pinfo _U_)
+static void *l2tp_value(packet_info *pinfo _U_)
 {
     return p_get_proto_data(pinfo->pool, pinfo, proto_l2tp, 0);
 }
@@ -1484,9 +1483,9 @@ static int dissect_l2tp_cisco_avps(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
 
     int offset = 0;
     int         avp_type;
-    guint32     avp_vendor_id;
-    guint16     avp_len;
-    guint16     ver_len_hidden;
+    uint32_t    avp_vendor_id;
+    uint16_t    avp_len;
+    uint16_t    ver_len_hidden;
     proto_tree *l2tp_avp_tree, *l2tp_avp_tree_sub;
 
     ver_len_hidden  = tvb_get_ntohs(tvb, offset);
@@ -1595,9 +1594,9 @@ static int dissect_l2tp_broadband_avps(tvbuff_t *tvb, packet_info *pinfo _U_, pr
 
     int offset = 0;
     int         avp_type;
-    guint32     avp_vendor_id;
-    guint16     avp_len;
-    guint16     ver_len_hidden;
+    uint32_t    avp_vendor_id;
+    uint16_t    avp_len;
+    uint16_t    ver_len_hidden;
     proto_tree *l2tp_avp_tree, *l2tp_avp_ale_tree;
     proto_item *ta;
 
@@ -1732,7 +1731,7 @@ static int dissect_l2tp_broadband_avps(tvbuff_t *tvb, packet_info *pinfo _U_, pr
 static int dissect_l2tp_ericsson_transp_cfg(tvbuff_t *tvb, proto_tree *parent_tree)
 {
     int offset = 0;
-    guint32 i, num_sapis;
+    uint32_t i, num_sapis;
     proto_tree *tree;
 
     while (tvb_reported_length_remaining(tvb, offset) >= 8) {
@@ -1772,14 +1771,14 @@ static int dissect_l2tp_ericsson_tei_sc_map(tvbuff_t *tvb, proto_tree *parent_tr
     return offset;
 }
 
-static int dissect_l2tp_ericsson_avps(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint32 ccid _U_)
+static int dissect_l2tp_ericsson_avps(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, uint32_t ccid _U_)
 {
     int offset = 0;
     int         avp_type;
-    guint32     avp_vendor_id;
-    guint16     avp_len;
-    guint16     ver_len_hidden;
-    guint32     msg_type;
+    uint32_t    avp_vendor_id;
+    uint16_t    avp_len;
+    uint16_t    ver_len_hidden;
+    uint32_t    msg_type;
     proto_tree *l2tp_avp_tree;
     tvbuff_t   *tcg_tvb;
 
@@ -1865,9 +1864,9 @@ dissect_l2tp_vnd_cablelabs_avps(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 {
     int offset = 0;
     int         avp_type;
-    guint32     avp_vendor_id;
-    guint32     avp_len;
-    guint16     ver_len_hidden;
+    uint32_t    avp_vendor_id;
+    uint32_t    avp_len;
+    uint16_t    ver_len_hidden;
     proto_tree *l2tp_avp_tree;
 
     ver_len_hidden  = tvb_get_ntohs(tvb, offset);
@@ -1949,23 +1948,23 @@ static void process_control_avps(tvbuff_t *tvb,
                                  proto_tree *l2tp_tree,
                                  int idx,
                                  int length,
-                                 guint32 ccid,
+                                 uint32_t ccid,
                                  l2tpv3_tunnel_t *tunnel)
 {
     proto_tree *l2tp_lcp_avp_tree, *l2tp_avp_tree = NULL, *l2tp_avp_tree_sub, *l2tp_avp_csu_tree;
     proto_item *te, *tc;
 
     int                msg_type  = 0;
-    gboolean           isStopCcn = FALSE;
+    bool               isStopCcn = false;
     int                avp_type;
-    guint32            avp_vendor_id;
-    guint16            avp_len;
-    guint16            ver_len_hidden;
+    uint32_t           avp_vendor_id;
+    uint16_t           avp_len;
+    uint16_t           ver_len_hidden;
     tvbuff_t          *next_tvb, *avp_tvb;
     int                digest_idx = 0;
-    guint16            digest_avp_len = 0;
+    uint16_t           digest_avp_len = 0;
     proto_item        *digest_item = NULL;
-    l2tp_cntrl_data_t *l2tp_cntrl_data = wmem_new0(wmem_packet_scope(), l2tp_cntrl_data_t);
+    l2tp_cntrl_data_t *l2tp_cntrl_data = wmem_new0(pinfo->pool, l2tp_cntrl_data_t);
 
     l2tpv3_session_t *session = NULL;
 
@@ -2006,7 +2005,7 @@ static void process_control_avps(tvbuff_t *tvb,
 
             } else {
                 /* Vendor-Specific AVP */
-                if (!dissector_try_uint_new(l2tp_vendor_avp_dissector_table, avp_vendor_id, avp_tvb, pinfo, l2tp_tree, FALSE, l2tp_cntrl_data)){
+                if (!dissector_try_uint_new(l2tp_vendor_avp_dissector_table, avp_vendor_id, avp_tvb, pinfo, l2tp_tree, false, l2tp_cntrl_data)){
                     l2tp_avp_tree =  proto_tree_add_subtree_format(l2tp_tree, tvb, idx,
                                           avp_len, ett_l2tp_avp, NULL, "Vendor %s (%u) AVP Type %u",
                                           enterprises_lookup(avp_vendor_id, "Unknown"), avp_vendor_id,
@@ -2082,7 +2081,7 @@ static void process_control_avps(tvbuff_t *tvb,
                                 tvb, idx, 2, ENC_BIG_ENDIAN);
 
             if (msg_type == MESSAGE_TYPE_StopCCN) {
-                isStopCcn = TRUE;
+                isStopCcn = true;
             }
             break;
 
@@ -2510,13 +2509,13 @@ process_l2tpv3_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
     int         idx         = *pIdx;
     int         sid;
-    guint32     oam_cell    = 0;
+    uint32_t    oam_cell    = 0;
     proto_tree *l2_specific = NULL;
     proto_item *ti          = NULL;
     tvbuff_t   *next_tvb;
-    gint        cookie_len  = l2tpv3_cookie;
-    gint        l2_spec     = l2tpv3_l2_specific;
-    guint       pw_type     = L2TPv3_PW_DEFAULT;
+    int         cookie_len  = l2tpv3_cookie;
+    int         l2_spec     = l2tpv3_l2_specific;
+    unsigned    pw_type     = L2TPv3_PW_DEFAULT;
 
     lcce_settings_t  *lcce      = NULL;
     l2tpv3_session_t *session   = NULL;
@@ -2618,7 +2617,7 @@ process_l2tpv3_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
              * As per RFC 4454, the T bit specifies whether
              * we're transporting an OAM cell or an AAL5 frame.
              */
-            oam_cell = tvb_get_guint8(tvb, idx) & 0x08;
+            oam_cell = tvb_get_uint8(tvb, idx) & 0x08;
             proto_tree_add_item(l2_specific, hf_l2tp_l2_spec_g, tvb, idx,
                                 1, ENC_BIG_ENDIAN);
             proto_tree_add_item(l2_specific, hf_l2tp_l2_spec_c, tvb, idx,
@@ -2644,7 +2643,7 @@ process_l2tpv3_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     proto_item_set_len(l2tp_item, idx);
     p_add_proto_data(pinfo->pool, pinfo, proto_l2tp, 0, GUINT_TO_POINTER(pw_type));
 
-    if (!dissector_try_uint_new(pw_type_table, pw_type, next_tvb, pinfo, tree, FALSE, GUINT_TO_POINTER(oam_cell)))
+    if (!dissector_try_uint_new(pw_type_table, pw_type, next_tvb, pinfo, tree, false, GUINT_TO_POINTER(oam_cell)))
     {
         call_data_dissector(next_tvb, pinfo, tree);
     }
@@ -2720,12 +2719,12 @@ process_l2tpv3_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int 
 
     int     idx     = baseIdx;
     int     tmp_idx;
-    guint16 length  = 0;        /* Length field */
-    guint32 ccid    = 0;        /* Control Connection ID */
-    guint16 vendor_id = 0;
-    guint16 avp_type;
-    guint16 msg_type;
-    guint16 control = 0;
+    uint16_t length  = 0;        /* Length field */
+    uint32_t ccid    = 0;        /* Control Connection ID */
+    uint16_t vendor_id = 0;
+    uint16_t avp_type;
+    uint16_t msg_type;
+    uint16_t control = 0;
 
     l2tpv3_tunnel_t *tunnel = NULL;
     l2tpv3_tunnel_t tmp_tunnel;
@@ -2869,13 +2868,13 @@ dissect_l2tp_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
     proto_item *l2tp_item;
     int         idx       = 0;
     int         tmp_idx;
-    guint16     length    = 0;  /* Length field */
-    guint16     tid;            /* Tunnel ID */
-    guint16     cid;            /* Call ID */
-    guint16     offset_size;    /* Offset size */
-    guint16     avp_type;
-    guint16     msg_type;
-    guint16     control;
+    uint16_t    length    = 0;  /* Length field */
+    uint16_t    tid;            /* Tunnel ID */
+    uint16_t    cid;            /* Call ID */
+    uint16_t    offset_size;    /* Offset size */
+    uint16_t    avp_type;
+    uint16_t    msg_type;
+    uint16_t    control;
     tvbuff_t   *next_tvb;
     conversation_t *conv = NULL;
     l2tpv3_conversation_t *l2tp_conv = NULL;
@@ -3106,7 +3105,7 @@ static int
 dissect_l2tp_ip(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
     int     idx = 0;
-    guint32 sid;                /* Session ID */
+    uint32_t sid;                /* Session ID */
 
     conversation_t *conv = NULL;
     l2tpv3_conversation_t *l2tp_conv = NULL;
@@ -3141,7 +3140,7 @@ dissect_l2tp_ip(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 
 static int dissect_atm_oam_llc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
-    guint32      oam_cell   = GPOINTER_TO_UINT(data);
+    uint32_t     oam_cell   = GPOINTER_TO_UINT(data);
 
     if (oam_cell) {
         call_dissector(atm_oam_handle, tvb, pinfo, tree);
@@ -3497,7 +3496,7 @@ proto_register_l2tp(void)
             "Current RX Connect Speed in bps", HFILL }},
 
         { &hf_l2tp_avp_csu_remote_session_id_v3,
-          { "Remote Session ID", "l2tp.avp.csu.res", FT_UINT32, BASE_DEC_HEX, NULL, 0x0,
+          { "Remote Session ID", "l2tp.avp.csu.remote_session_id", FT_UINT32, BASE_DEC_HEX, NULL, 0x0,
             NULL, HFILL }},
 
         { &hf_l2tp_avp_csu_current_tx_speed_v3,
@@ -3681,7 +3680,7 @@ proto_register_l2tp(void)
       { &hf_l2tp_offset_padding, { "Offset Padding", "l2tp.offset_padding", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_l2tp,
         &ett_l2tp_flags,
         &ett_l2tp_avp,
@@ -3730,7 +3729,7 @@ proto_register_l2tp(void)
                                    "L2TPv3 Cookie Size",
                                    &l2tpv3_cookie,
                                    l2tpv3_cookies,
-                                   FALSE);
+                                   false);
 
     prefs_register_enum_preference(l2tp_module,
                                    "l2_specific",
@@ -3738,7 +3737,7 @@ proto_register_l2tp(void)
                                    "L2TPv3 L2-Specific Sublayer",
                                    &l2tpv3_l2_specific,
                                    l2tpv3_l2_specifics,
-                                   FALSE);
+                                   false);
 
     prefs_register_static_text_preference(l2tp_module, "protocol",
         "Dissection of pseudowire types is configured through \"Decode As\". "

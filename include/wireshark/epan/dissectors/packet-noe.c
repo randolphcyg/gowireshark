@@ -560,7 +560,7 @@ static value_string_ext val_str_event_ext = VALUE_STRING_EXT_INIT(val_str_event)
 #define C_INVALID       255
 #define E_INVALID       255
 
-static guint utf8_properties[] = {
+static unsigned utf8_properties[] = {
     ((OPCODE_C_security          << 8) | OPCODE_P_B_login        ),
     ((OPCODE_C_security          << 8) | OPCODE_P_A_pem_data     ),
     ((OPCODE_C_security          << 8) | OPCODE_P_A_serial_number),
@@ -609,10 +609,10 @@ static guint utf8_properties[] = {
     ((OPCODE_C_ime_context       << 8) | OPCODE_P_A_name         )
 };
 
-#define N_UTF8_PROPERTIES (sizeof utf8_properties / sizeof utf8_properties[0])
+#define N_UTF8_PROPERTIES array_length(utf8_properties)
 #define UTF8_PROPERTY_SIZE (sizeof utf8_properties[0])
 
-static guint bool_properties[] = {
+static unsigned bool_properties[] = {
     ((OPCODE_C_terminal          << 8) | OPCODE_P_B_negative_ack     ),
     ((OPCODE_C_terminal          << 8) | OPCODE_P_B_CS_idle_state    ),
     ((OPCODE_C_terminal          << 8) | OPCODE_P_B_PS_idle_state    ),
@@ -676,49 +676,49 @@ static guint bool_properties[] = {
     ((OPCODE_C_ime_context       << 8) | OPCODE_P_A_enable           )
 };
 
-#define N_BOOL_PROPERTIES (sizeof bool_properties / sizeof bool_properties[0])
+#define N_BOOL_PROPERTIES array_length(bool_properties)
 #define BOOL_PROPERTY_SIZE (sizeof bool_properties[0])
 
 /*-----------------------------------------------------------------------------
   globals
   ---------------------------------------------------------------------------*/
-static int  proto_noe           = -1;
-static gint ett_noe             = -1;
-static gint ett_body            = -1;
-static gint ett_property        = -1;
-static gint ett_value           = -1;
+static int  proto_noe;
+static int ett_noe;
+static int ett_body;
+static int ett_property;
+static int ett_value;
 
-static int  hf_noe_length               = -1;
-static int  hf_noe_server               = -1;
-static int  hf_noe_method_ack           = -1;
-static int  hf_noe_method               = -1;
-static int  hf_noe_class                = -1;
-static int  hf_noe_event                = -1;
-static int  hf_noe_objectid             = -1;
-static int  hf_noe_method_index         = -1;
-static int  hf_noe_pcode                = -1;
-static int  hf_noe_psize                = -1;
-static int  hf_noe_aindx                = -1;
-static int  hf_noe_errcode              = -1;
-static int  hf_noe_value                = -1;
-static int  hf_noe_message              = -1;
-static int  hf_noe_key_name             = -1;
-static int  hf_noe_bonded               = -1;
-static int  hf_noe_property_item_bool   = -1;
-static int  hf_noe_property_item_u8     = -1;
-static int  hf_noe_property_item_u16    = -1;
-static int  hf_noe_property_item_u24    = -1;
-static int  hf_noe_property_item_u32    = -1;
-static int  hf_noe_property_item_bytes  = -1;
-static int  hf_noe_property_item_utf8   = -1;
-static int  hf_event_bt_key             = -1;
-static int  hf_event_context_switch     = -1;
-static int  hf_evt_locappl_enable       = -1;
-static int  hf_evt_locappl_interruptible= -1;
-static int  hf_evt_locappl_identifier   = -1;
-static int  hf_evt_dev_presence_value   = -1;
-static int  hf_evt_dev_presence_state   = -1;
-static int  hf_event_widget_gc          = -1;
+static int  hf_noe_length;
+static int  hf_noe_server;
+static int  hf_noe_method_ack;
+static int  hf_noe_method;
+static int  hf_noe_class;
+static int  hf_noe_event;
+static int  hf_noe_objectid;
+static int  hf_noe_method_index;
+static int  hf_noe_pcode;
+static int  hf_noe_psize;
+static int  hf_noe_aindx;
+static int  hf_noe_errcode;
+static int  hf_noe_value;
+static int  hf_noe_message;
+static int  hf_noe_key_name;
+static int  hf_noe_bonded;
+static int  hf_noe_property_item_bool;
+static int  hf_noe_property_item_u8;
+static int  hf_noe_property_item_u16;
+static int  hf_noe_property_item_u24;
+static int  hf_noe_property_item_u32;
+static int  hf_noe_property_item_bytes;
+static int  hf_noe_property_item_utf8;
+static int  hf_event_bt_key;
+static int  hf_event_context_switch;
+static int  hf_evt_locappl_enable;
+static int  hf_evt_locappl_interruptible;
+static int  hf_evt_locappl_identifier;
+static int  hf_evt_dev_presence_value;
+static int  hf_evt_dev_presence_state;
+static int  hf_event_widget_gc;
 
 static const value_string servers_vals[] = {
     {0x15,  "Call Server"},
@@ -919,58 +919,58 @@ static const value_string noe_evt_locappl_identifier_str_vals[] = {
     This function translates an UTF8 vale to an UNICODE one.
     Need to have at least 48 bits value.
     ---------------------------------------------------------------------------*/
-static guint64 decode_utf8(guint64 utf8)
+static uint64_t decode_utf8(uint64_t utf8)
 {
-    static guint64 unicode;
+    static uint64_t unicode;
 
-    if (utf8 <= G_GUINT64_CONSTANT(0xFF))
+    if (utf8 <= UINT64_C(0xFF))
     {
         unicode =
-            utf8 & G_GUINT64_CONSTANT(0x7F);
+            utf8 & UINT64_C(0x7F);
     }
-    else if (utf8 <= G_GUINT64_CONSTANT(0xFFFF))
+    else if (utf8 <= UINT64_C(0xFFFF))
     {
         unicode =
-            ((utf8 & G_GUINT64_CONSTANT(0x1F00) >> 2) +
-             (utf8 & G_GUINT64_CONSTANT(0x3F)));
+            ((utf8 & UINT64_C(0x1F00) >> 2) +
+             (utf8 & UINT64_C(0x3F)));
     }
-    else if (utf8 <= G_GUINT64_CONSTANT(0xFFFFFF))
+    else if (utf8 <= UINT64_C(0xFFFFFF))
     {
         unicode =
-            ((utf8 & G_GUINT64_CONSTANT(0x0F0000)) >> 4) +
-            ((utf8 & G_GUINT64_CONSTANT(0x3F00)) >> 2) +
-            (utf8 & G_GUINT64_CONSTANT(0x3F));
+            ((utf8 & UINT64_C(0x0F0000)) >> 4) +
+            ((utf8 & UINT64_C(0x3F00)) >> 2) +
+            (utf8 & UINT64_C(0x3F));
     }
-    else if (utf8 <= G_GUINT64_CONSTANT(0xFFFFFFFF))
+    else if (utf8 <= UINT64_C(0xFFFFFFFF))
     {
         unicode =
-            ((utf8 & G_GUINT64_CONSTANT(0x07000000)) >> 6) +
-            ((utf8 & G_GUINT64_CONSTANT(0x3F0000)) >> 4) +
-            ((utf8 & G_GUINT64_CONSTANT(0x3F00)) >> 2) +
-            (utf8 & G_GUINT64_CONSTANT(0x3F));
+            ((utf8 & UINT64_C(0x07000000)) >> 6) +
+            ((utf8 & UINT64_C(0x3F0000)) >> 4) +
+            ((utf8 & UINT64_C(0x3F00)) >> 2) +
+            (utf8 & UINT64_C(0x3F));
     }
-    else if (utf8 <= G_GUINT64_CONSTANT(0xFFFFFFFFFF))
+    else if (utf8 <= UINT64_C(0xFFFFFFFFFF))
     {
         unicode =
-            ((utf8 & G_GUINT64_CONSTANT(0x0300000000)) >> 8) +
-            ((utf8 & G_GUINT64_CONSTANT(0x3F000000)) >> 6) +
-            ((utf8 & G_GUINT64_CONSTANT(0x3F0000)) >> 4) +
-            ((utf8 & G_GUINT64_CONSTANT(0x3F00)) >> 2) +
-            (utf8 & G_GUINT64_CONSTANT(0x3F));
+            ((utf8 & UINT64_C(0x0300000000)) >> 8) +
+            ((utf8 & UINT64_C(0x3F000000)) >> 6) +
+            ((utf8 & UINT64_C(0x3F0000)) >> 4) +
+            ((utf8 & UINT64_C(0x3F00)) >> 2) +
+            (utf8 & UINT64_C(0x3F));
     }
-    else if (utf8 <= G_GUINT64_CONSTANT(0xFFFFFFFFFFFF))
+    else if (utf8 <= UINT64_C(0xFFFFFFFFFFFF))
     {
         unicode =
-            ((utf8 & G_GUINT64_CONSTANT(0x010000000000)) >> 10) +
-            ((utf8 & G_GUINT64_CONSTANT(0x3F00000000)) >> 8) +
-            ((utf8 & G_GUINT64_CONSTANT(0x3F000000)) >> 6) +
-            ((utf8 & G_GUINT64_CONSTANT(0x3F0000)) >> 4) +
-            ((utf8 & G_GUINT64_CONSTANT(0x3F00)) >> 2) +
-            (utf8 & G_GUINT64_CONSTANT(0x3F));
+            ((utf8 & UINT64_C(0x010000000000)) >> 10) +
+            ((utf8 & UINT64_C(0x3F00000000)) >> 8) +
+            ((utf8 & UINT64_C(0x3F000000)) >> 6) +
+            ((utf8 & UINT64_C(0x3F0000)) >> 4) +
+            ((utf8 & UINT64_C(0x3F00)) >> 2) +
+            (utf8 & UINT64_C(0x3F));
     }
     else
     {
-        unicode = G_GUINT64_CONSTANT(0);
+        unicode = UINT64_C(0);
     }
     return unicode;
 }
@@ -981,7 +981,7 @@ static guint64 decode_utf8(guint64 utf8)
     This function translates an UNICODE to the name associated.
     Need to have at least 48 bits value.
     ---------------------------------------------------------------------------*/
-static const char *decode_key_name(int unicode)
+static const char *decode_key_name(wmem_allocator_t *scope, int unicode)
 {
     const char *key_name;
 
@@ -997,7 +997,7 @@ static const char *decode_key_name(int unicode)
     }
     else if (unicode <= 0xFF)
     {
-        key_name = format_char(wmem_packet_scope(), unicode);
+        key_name = format_char(scope, unicode);
     }
     else
     {
@@ -1013,8 +1013,8 @@ static const char *decode_key_name(int unicode)
     ---------------------------------------------------------------------------*/
 static void decode_evt_error(proto_tree *tree,
                              tvbuff_t   *tvb,
-                             guint       offset,
-                             guint       length)
+                             unsigned    offset,
+                             unsigned    length)
 {
     if (!tree)
         return;
@@ -1056,21 +1056,21 @@ static void decode_evt_error(proto_tree *tree,
 
 static int compcp(const void *pcp1, const void *pcp2)
 {
-    guint cp1 = *((guint *)pcp1);
-    guint cp2 = *((guint *)pcp2);
+    unsigned cp1 = *((unsigned *)pcp1);
+    unsigned cp2 = *((unsigned *)pcp2);
 
     return (cp1 - cp2);
 }
 
-static gboolean property_is_bool(guint8 noe_class, guint8 property_code)
+static bool property_is_bool(uint8_t noe_class, uint8_t property_code)
 {
-    guint key = ((noe_class << 8) | property_code);
+    unsigned key = ((noe_class << 8) | property_code);
     return (bsearch(&key, bool_properties, N_BOOL_PROPERTIES, BOOL_PROPERTY_SIZE, compcp) != NULL);
 }
 
-static gboolean property_is_utf8(guint8 noe_class, guint8 property_code)
+static bool property_is_utf8(uint8_t noe_class, uint8_t property_code)
 {
-    guint key = ((noe_class << 8) | property_code);
+    unsigned key = ((noe_class << 8) | property_code);
     return (bsearch(&key, utf8_properties, N_UTF8_PROPERTIES, UTF8_PROPERTY_SIZE, compcp) != NULL);
 }
 
@@ -1080,14 +1080,14 @@ static gboolean property_is_utf8(guint8 noe_class, guint8 property_code)
     ---------------------------------------------------------------------------*/
 static void decode_tlv(proto_tree *tree,
                        tvbuff_t   *tvb,
-                       guint8      noe_class,
-                       guint       offset,
-                       guint       length)
+                       uint8_t     noe_class,
+                       unsigned    offset,
+                       unsigned    length)
 {
     proto_tree *property_tree;
-    guint8      property_code;
-    guint16     property_length;
-/*  guint64     property_index;*/
+    uint8_t     property_code;
+    uint16_t    property_length;
+/*  uint64_t    property_index;*/
 
     /* add text to the frame tree */
     property_tree = proto_tree_add_subtree(tree,
@@ -1098,7 +1098,7 @@ static void decode_tlv(proto_tree *tree,
 
     while(length > 0)
     {
-        property_code = tvb_get_guint8(tvb, offset);
+        property_code = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(property_tree, hf_noe_pcode, tvb, offset, 1, ENC_BIG_ENDIAN);
         offset += 1;
         length -= 1;
@@ -1110,7 +1110,7 @@ static void decode_tlv(proto_tree *tree,
             length -= 1;
         }
 
-        property_length = tvb_get_guint8(tvb, offset);
+        property_length = tvb_get_uint8(tvb, offset);
         if (property_length & 0x80)
         {
             property_length = tvb_get_ntohs(tvb, offset);
@@ -1169,11 +1169,11 @@ static void decode_tlv(proto_tree *tree,
     ---------------------------------------------------------------------------*/
 static void decode_getproperty_tlv(proto_tree *tree,
                                    tvbuff_t   *tvb,
-                                   guint       offset,
-                                   guint       length)
+                                   unsigned    offset,
+                                   unsigned    length)
 {
     proto_tree *body_tree;
-    guint8      body_type;
+    uint8_t     body_type;
 
     /* add text to the frame tree */
     body_tree = proto_tree_add_subtree(tree,
@@ -1184,7 +1184,7 @@ static void decode_getproperty_tlv(proto_tree *tree,
 
     while(length > 0)
     {
-        body_type = tvb_get_guint8(tvb, offset);
+        body_type = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(body_tree, hf_noe_pcode, tvb, offset, 1, ENC_BIG_ENDIAN);
 
         offset += 1;
@@ -1208,10 +1208,10 @@ static void decode_getproperty_tlv(proto_tree *tree,
 static void decode_evt(proto_tree  *tree,
                        tvbuff_t    *tvb,
                        packet_info *pinfo,
-                       guint        offset,
-                       guint        length)
+                       unsigned     offset,
+                       unsigned     length)
 {
-    guint8 event = tvb_get_guint8(tvb, offset);
+    uint8_t event = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_noe_event, tvb, offset, 1, ENC_BIG_ENDIAN);
 
@@ -1239,20 +1239,20 @@ static void decode_evt(proto_tree  *tree,
     case OPCODE_EVT_HELP:
         {
             /* utf8_value is the utf8 value to translate into Unicode with the decode_uft8 function */
-            guint64  utf8_value = 0;
-            guint64  unicode_value;
+            uint64_t utf8_value = 0;
+            uint64_t unicode_value;
             const char *key_name;
             int      pt_length  = length;
             int      pt_offset  = offset;
 
             while(pt_length > 0)
             {
-                utf8_value = (utf8_value << 8) + tvb_get_guint8(tvb, pt_offset);
+                utf8_value = (utf8_value << 8) + tvb_get_uint8(tvb, pt_offset);
                 pt_offset  += 1;
                 pt_length  -= 1;
             }
             unicode_value = decode_utf8(utf8_value);
-            key_name  = decode_key_name((int)unicode_value);
+            key_name  = decode_key_name(pinfo->pool, (int)unicode_value);
 
             /* add text to the frame "INFO" column */
             col_append_fstr(pinfo->cinfo, COL_INFO, ": \"%s\"", key_name);
@@ -1265,7 +1265,7 @@ static void decode_evt(proto_tree  *tree,
                 length, key_name,
                 "%s (UTF-8 Value: \"%s\", Unicode Value: 0x%" PRIx64 ")",
                 key_name,
-                tvb_bytes_to_str(wmem_packet_scope(), tvb, offset, length),
+                tvb_bytes_to_str(pinfo->pool, tvb, offset, length),
                 unicode_value);
             break;
         }
@@ -1351,11 +1351,11 @@ static void decode_evt(proto_tree  *tree,
 static void decode_mtd(proto_tree  *tree,
                        tvbuff_t    *tvb,
                        packet_info *pinfo,
-                       guint8       method,
-                       guint        offset,
-                       guint        length)
+                       uint8_t      method,
+                       unsigned     offset,
+                       unsigned     length)
 {
-    guint8 noe_class = tvb_get_guint8(tvb, offset);
+    uint8_t noe_class = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_noe_class, tvb, offset, 1, ENC_BIG_ENDIAN);
 
@@ -1416,11 +1416,11 @@ static int dissect_noe(tvbuff_t    *tvb,
 {
     proto_item *noe_item;
     proto_tree *noe_tree;
-    gint        length;
-    guint8      server;
-    guint8      method;
-    gboolean    methodack;
-    gint        offset    = 0;
+    int         length;
+    uint8_t     server;
+    uint8_t     method;
+    bool        methodack;
+    int         offset    = 0;
 
     noe_item = proto_tree_add_item(tree, proto_noe, tvb, 0, -1, ENC_NA);
     noe_tree = proto_item_add_subtree(noe_item, ett_noe);
@@ -1435,7 +1435,7 @@ static int dissect_noe(tvbuff_t    *tvb,
         length);
     offset += 2;
 
-    server = tvb_get_guint8(tvb, offset);
+    server = tvb_get_uint8(tvb, offset);
 
     /* add text to the frame "INFO" column */
     col_append_fstr(pinfo->cinfo, COL_INFO, " - NOE Protocol (%s)",
@@ -1454,7 +1454,7 @@ static int dissect_noe(tvbuff_t    *tvb,
     proto_item_append_text(noe_item, ", %s",
         val_to_str_const(server, servers_short_vals, "Unknown"));
 
-    method    = tvb_get_guint8(tvb, offset);
+    method    = tvb_get_uint8(tvb, offset);
     methodack = (method & 0x80) != 0;
     method    = (method & 0x7f);
 
@@ -1884,7 +1884,7 @@ void proto_register_noe(void)
             },
         };
 
-    static gint *ett[] =
+    static int *ett[] =
         {
             &ett_noe,
             &ett_body,

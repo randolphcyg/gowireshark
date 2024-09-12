@@ -14,6 +14,7 @@
 #include <ftypes-int.h>
 #include <epan/guid-utils.h>
 #include <epan/to_str.h>
+#include <wsutil/array.h>
 
 static void
 guid_fvalue_set_guid(fvalue_t *fv, const e_guid_t *value)
@@ -104,10 +105,8 @@ void
 ftype_register_guid(void)
 {
 
-    static ftype_t guid_type = {
+    static const ftype_t guid_type = {
         FT_GUID,              /* ftype */
-        "FT_GUID",           /* name */
-        "Globally Unique Identifier",            /* pretty_name */
         GUID_LEN,            /* wire_size */
         NULL,                /* new_value */
         NULL,                /* copy_value */
@@ -115,10 +114,14 @@ ftype_register_guid(void)
         guid_from_literal,   /* val_from_literal */
         NULL,                /* val_from_string */
         NULL,                /* val_from_charconst */
+        NULL,                /* val_from_uinteger64 */
+        NULL,                /* val_from_sinteger64 */
+        NULL,                /* val_from_double */
         guid_to_repr,        /* val_to_string_repr */
 
         NULL,                /* val_to_uinteger64 */
         NULL,                /* val_to_sinteger64 */
+        NULL,                /* val_to_double */
 
         { .set_value_guid = guid_fvalue_set_guid }, /* union set_value */
         { .get_value_guid = value_get },             /* union get_value */

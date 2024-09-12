@@ -26,31 +26,31 @@ Protocol information comes from the book
 void proto_register_pcnfsd(void);
 void proto_reg_handoff_pcnfsd(void);
 
-static int proto_pcnfsd = -1;
-static int hf_pcnfsd_procedure_v1 = -1;
-static int hf_pcnfsd_procedure_v2 = -1;
-static int hf_pcnfsd_auth_client = -1;
-static int hf_pcnfsd_auth_ident_obscure = -1;
-static int hf_pcnfsd_auth_ident_clear = -1;
-static int hf_pcnfsd_auth_password = -1;
-static int hf_pcnfsd_auth_password_obscure = -1;
-static int hf_pcnfsd_auth_password_clear = -1;
-static int hf_pcnfsd_comment = -1;
-static int hf_pcnfsd_status = -1;
-static int hf_pcnfsd_uid = -1;
-static int hf_pcnfsd_gid = -1;
-static int hf_pcnfsd_gids_count = -1;
-static int hf_pcnfsd_homedir = -1;
-static int hf_pcnfsd_def_umask = -1;
-static int hf_pcnfsd_mapreq = -1;
-static int hf_pcnfsd_mapreq_status = -1;
-static int hf_pcnfsd_username = -1;
+static int proto_pcnfsd;
+static int hf_pcnfsd_procedure_v1;
+static int hf_pcnfsd_procedure_v2;
+static int hf_pcnfsd_auth_client;
+static int hf_pcnfsd_auth_ident_obscure;
+static int hf_pcnfsd_auth_ident_clear;
+static int hf_pcnfsd_auth_password;
+static int hf_pcnfsd_auth_password_obscure;
+static int hf_pcnfsd_auth_password_clear;
+static int hf_pcnfsd_comment;
+static int hf_pcnfsd_status;
+static int hf_pcnfsd_uid;
+static int hf_pcnfsd_gid;
+static int hf_pcnfsd_gids_count;
+static int hf_pcnfsd_homedir;
+static int hf_pcnfsd_def_umask;
+static int hf_pcnfsd_mapreq;
+static int hf_pcnfsd_mapreq_status;
+static int hf_pcnfsd_username;
 
 
-static gint ett_pcnfsd = -1;
-static gint ett_pcnfsd_auth_ident = -1;
-static gint ett_pcnfsd_auth_password = -1;
-static gint ett_pcnfsd_gids = -1;
+static int ett_pcnfsd;
+static int ett_pcnfsd_auth_ident;
+static int ett_pcnfsd_auth_password;
+static int ett_pcnfsd_gids;
 
 static int
 dissect_pcnfsd_username(tvbuff_t *tvb, int offset, proto_tree *tree)
@@ -192,7 +192,7 @@ dissect_pcnfsd2_auth_call(tvbuff_t *tvb, packet_info *pinfo,
         if (ident_tree)
             proto_tree_add_string(ident_tree,
                 hf_pcnfsd_auth_ident_clear,
-                tvb, offset+4, (gint)strlen(ident_decoded), ident_decoded);
+                tvb, offset+4, (int)strlen(ident_decoded), ident_decoded);
     }
     if (ident_item) {
         proto_item_set_text(ident_item, "Authentication Ident: %s",
@@ -219,7 +219,7 @@ dissect_pcnfsd2_auth_call(tvbuff_t *tvb, packet_info *pinfo,
         if (password_tree)
             proto_tree_add_string(password_tree,
                 hf_pcnfsd_auth_password_clear,
-                tvb, offset+4, (gint)strlen(password), password);
+                tvb, offset+4, (int)strlen(password), password);
     }
     if (password_item) {
         proto_item_set_text(password_item, "Authentication Password: %s",
@@ -369,7 +369,7 @@ proto_register_pcnfsd(void)
                 NULL, 0, NULL, HFILL }},
         { &hf_pcnfsd_status, {
                 "Reply Status", "pcnfsd.status", FT_UINT32, BASE_DEC,
-                NULL, 0, "Status", HFILL }},
+                NULL, 0, NULL, HFILL }},
         { &hf_pcnfsd_uid, {
                 "User ID", "pcnfsd.uid", FT_UINT32, BASE_DEC,
                 NULL, 0, NULL, HFILL }},
@@ -396,7 +396,7 @@ proto_register_pcnfsd(void)
                 NULL, 0, "pcnfsd.username", HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_pcnfsd,
         &ett_pcnfsd_auth_ident,
         &ett_pcnfsd_auth_password,

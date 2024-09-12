@@ -18,6 +18,10 @@
 #include <epan/show_exception.h>
 #include <epan/to_str.h>
 #include <epan/charsets.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
+
+#include <wsutil/array.h>
 #include <wsutil/str_util.h>
 
 #include "packet-dns.h"
@@ -29,108 +33,108 @@ void proto_reg_handoff_nbt(void);
 
 static dissector_handle_t nbns_handle, nbdgm_handle, nbss_handle;
 
-static int proto_nbns = -1;
-static int hf_nbns_flags = -1;
-static int hf_nbns_flags_response = -1;
-static int hf_nbns_flags_opcode = -1;
-static int hf_nbns_flags_authoritative = -1;
-static int hf_nbns_flags_truncated = -1;
-static int hf_nbns_flags_recdesired = -1;
-static int hf_nbns_flags_recavail = -1;
-static int hf_nbns_flags_broadcast = -1;
-static int hf_nbns_flags_rcode = -1;
-static int hf_nbns_transaction_id = -1;
-static int hf_nbns_count_questions = -1;
-static int hf_nbns_count_answers = -1;
-static int hf_nbns_count_auth_rr = -1;
-static int hf_nbns_count_add_rr = -1;
-static int hf_nbns_name_flags = -1;
-static int hf_nbns_name_flags_group = -1;
-static int hf_nbns_name_flags_ont = -1;
-static int hf_nbns_name_flags_drg = -1;
-static int hf_nbns_name_flags_cnf = -1;
-static int hf_nbns_name_flags_act = -1;
-static int hf_nbns_name_flags_prm = -1;
-static int hf_nbns_nb_flags = -1;
-static int hf_nbns_nb_flags_group = -1;
-static int hf_nbns_nb_flags_ont = -1;
-static int hf_nbns_name = -1;
-static int hf_nbns_type = -1;
-static int hf_nbns_class = -1;
+static int proto_nbns;
+static int hf_nbns_flags;
+static int hf_nbns_flags_response;
+static int hf_nbns_flags_opcode;
+static int hf_nbns_flags_authoritative;
+static int hf_nbns_flags_truncated;
+static int hf_nbns_flags_recdesired;
+static int hf_nbns_flags_recavail;
+static int hf_nbns_flags_broadcast;
+static int hf_nbns_flags_rcode;
+static int hf_nbns_transaction_id;
+static int hf_nbns_count_questions;
+static int hf_nbns_count_answers;
+static int hf_nbns_count_auth_rr;
+static int hf_nbns_count_add_rr;
+static int hf_nbns_name_flags;
+static int hf_nbns_name_flags_group;
+static int hf_nbns_name_flags_ont;
+static int hf_nbns_name_flags_drg;
+static int hf_nbns_name_flags_cnf;
+static int hf_nbns_name_flags_act;
+static int hf_nbns_name_flags_prm;
+static int hf_nbns_nb_flags;
+static int hf_nbns_nb_flags_group;
+static int hf_nbns_nb_flags_ont;
+static int hf_nbns_name;
+static int hf_nbns_type;
+static int hf_nbns_class;
 
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_nbns_num_alignment_errors = -1;
-static int hf_nbns_data = -1;
-static int hf_nbns_unit_id = -1;
-static int hf_nbns_num_command_blocks = -1;
-static int hf_nbns_num_retransmits = -1;
-static int hf_nbns_period_of_statistics = -1;
-static int hf_nbns_addr = -1;
-static int hf_nbns_test_result = -1;
-static int hf_nbns_num_pending_sessions = -1;
-static int hf_nbns_num_no_resource_conditions = -1;
-static int hf_nbns_session_data_packet_size = -1;
-static int hf_nbns_version_number = -1;
-static int hf_nbns_max_num_pending_sessions = -1;
-static int hf_nbns_num_collisions = -1;
-static int hf_nbns_num_good_sends = -1;
-static int hf_nbns_num_send_aborts = -1;
-static int hf_nbns_number_of_names = -1;
-static int hf_nbns_num_crcs = -1;
-static int hf_nbns_num_good_receives = -1;
-static int hf_nbns_max_total_sessions_possible = -1;
-static int hf_nbns_jumpers = -1;
-static int hf_nbns_netbios_name = -1;
-static int hf_nbns_ttl = -1;
-static int hf_nbns_data_length = -1;
+static int hf_nbns_num_alignment_errors;
+static int hf_nbns_data;
+static int hf_nbns_unit_id;
+static int hf_nbns_num_command_blocks;
+static int hf_nbns_num_retransmits;
+static int hf_nbns_period_of_statistics;
+static int hf_nbns_addr;
+static int hf_nbns_test_result;
+static int hf_nbns_num_pending_sessions;
+static int hf_nbns_num_no_resource_conditions;
+static int hf_nbns_session_data_packet_size;
+static int hf_nbns_version_number;
+static int hf_nbns_max_num_pending_sessions;
+static int hf_nbns_num_collisions;
+static int hf_nbns_num_good_sends;
+static int hf_nbns_num_send_aborts;
+static int hf_nbns_number_of_names;
+static int hf_nbns_num_crcs;
+static int hf_nbns_num_good_receives;
+static int hf_nbns_max_total_sessions_possible;
+static int hf_nbns_jumpers;
+static int hf_nbns_netbios_name;
+static int hf_nbns_ttl;
+static int hf_nbns_data_length;
 
-static gint ett_nbns = -1;
-static gint ett_nbns_qd = -1;
-static gint ett_nbns_flags = -1;
-static gint ett_nbns_nb_flags = -1;
-static gint ett_nbns_name_flags = -1;
-static gint ett_nbns_rr = -1;
-static gint ett_nbns_qry = -1;
-static gint ett_nbns_ans = -1;
+static int ett_nbns;
+static int ett_nbns_qd;
+static int ett_nbns_flags;
+static int ett_nbns_nb_flags;
+static int ett_nbns_name_flags;
+static int ett_nbns_rr;
+static int ett_nbns_qry;
+static int ett_nbns_ans;
 
-static expert_field ei_nbns_incomplete_entry = EI_INIT;
+static expert_field ei_nbns_incomplete_entry;
 
-static int proto_nbdgm = -1;
-static int hf_nbdgm_type = -1;
-static int hf_nbdgm_flags = -1;
-static int hf_nbdgm_fragment = -1;
-static int hf_nbdgm_first = -1;
-static int hf_nbdgm_node_type = -1;
-static int hf_nbdgm_datagram_id = -1;
-static int hf_nbdgm_src_ip = -1;
-static int hf_nbdgm_src_port = -1;
-static int hf_nbdgm_datagram_length = -1;
-static int hf_nbdgm_packet_offset = -1;
-static int hf_nbdgm_error_code = -1;
-static int hf_nbdgm_source_name = -1;
-static int hf_nbdgm_destination_name = -1;
+static int proto_nbdgm;
+static int hf_nbdgm_type;
+static int hf_nbdgm_flags;
+static int hf_nbdgm_fragment;
+static int hf_nbdgm_first;
+static int hf_nbdgm_node_type;
+static int hf_nbdgm_datagram_id;
+static int hf_nbdgm_src_ip;
+static int hf_nbdgm_src_port;
+static int hf_nbdgm_datagram_length;
+static int hf_nbdgm_packet_offset;
+static int hf_nbdgm_error_code;
+static int hf_nbdgm_source_name;
+static int hf_nbdgm_destination_name;
 
-static gint ett_nbdgm = -1;
-static gint ett_nbdgm_flags = -1;
+static int ett_nbdgm;
+static int ett_nbdgm_flags;
 
-static int proto_nbss = -1;
-static int hf_nbss_type = -1;
-static int hf_nbss_flags = -1;
-static int hf_nbss_flags_e = -1;
-static int hf_nbss_length = -1;
-static int hf_nbss_cifs_length = -1;
-static int hf_nbss_error_code = -1;
-static int hf_nbss_retarget_ip_address = -1;
-static int hf_nbss_retarget_port = -1;
-static int hf_nbss_continuation_data = -1;
-static int hf_nbss_called_name = -1;
-static int hf_nbss_calling_name = -1;
+static int proto_nbss;
+static int hf_nbss_type;
+static int hf_nbss_flags;
+static int hf_nbss_flags_e;
+static int hf_nbss_length;
+static int hf_nbss_cifs_length;
+static int hf_nbss_error_code;
+static int hf_nbss_retarget_ip_address;
+static int hf_nbss_retarget_port;
+static int hf_nbss_continuation_data;
+static int hf_nbss_called_name;
+static int hf_nbss_calling_name;
 
-static gint ett_nbss = -1;
-static gint ett_nbss_flags = -1;
+static int ett_nbss;
+static int ett_nbss_flags;
 
 /* desegmentation of NBSS over TCP */
-static gboolean nbss_desegment = TRUE;
+static bool nbss_desegment = true;
 
 /* See RFC 1001 and 1002 for information on the first three, and see
 
@@ -309,10 +313,10 @@ static const value_string nb_type_name_vals[] = {
 #define NBNAME_BUF_LEN 128
 
 static void
-add_rr_to_tree(proto_tree *rr_tree, tvbuff_t *tvb, int offset,
+add_rr_to_tree(proto_tree *rr_tree, packet_info *pinfo, tvbuff_t *tvb, int offset,
                const char *name, int namelen,
                int type, int class_val,
-               guint ttl, gushort data_len)
+               unsigned ttl, uint16_t data_len)
 {
     proto_tree_add_string(rr_tree, hf_nbns_name, tvb, offset+1, namelen-1, name);
     offset += namelen;
@@ -321,7 +325,7 @@ add_rr_to_tree(proto_tree *rr_tree, tvbuff_t *tvb, int offset,
     proto_tree_add_uint(rr_tree, hf_nbns_class, tvb, offset, 2, class_val);
     offset += 2;
     proto_tree_add_uint_format_value(rr_tree, hf_nbns_ttl, tvb, offset, 4, ttl, "%s",
-                        signed_time_secs_to_str(wmem_packet_scope(), ttl));
+                        signed_time_secs_to_str(pinfo->pool, ttl));
     offset += 4;
     proto_tree_add_uint(rr_tree, hf_nbns_data_length, tvb, offset, 2, data_len);
 }
@@ -331,15 +335,15 @@ get_nbns_name(tvbuff_t *tvb, int offset, int nbns_data_offset,
               char *name_ret, int name_ret_len, int *name_type_ret)
 {
     int           name_len;
-    const gchar  *name;
-    const gchar  *nbname;
+    const char   *name;
+    const char   *nbname;
     char         *nbname_buf;
-    const gchar  *pname;
+    const char   *pname;
     char          cname, cnbname;
     int           name_type;
     char         *pname_ret;
     size_t        idx = 0;
-    guint         used_bytes;
+    unsigned      used_bytes;
 
     nbname_buf = (char *)wmem_alloc(wmem_packet_scope(), NBNAME_BUF_LEN);
     nbname = nbname_buf;
@@ -518,7 +522,7 @@ dissect_nbns_query(tvbuff_t *tvb, int offset, int nbns_data_offset,
 static void
 nbns_add_nbns_flags(column_info *cinfo, proto_tree *nbns_tree, tvbuff_t *tvb, int offset, int is_wack)
 {
-    guint16     flag;
+    uint16_t    flag;
     static int * const req_flags[] = {
         &hf_nbns_flags_response,
         &hf_nbns_flags_opcode,
@@ -579,7 +583,7 @@ static void
 nbns_add_nb_flags(proto_tree *rr_tree, tvbuff_t *tvb, int offset)
 {
     proto_item *tf;
-    gushort flag;
+    uint16_t flag;
     static int * const flags[] = {
         &hf_nbns_nb_flags_group,
         &hf_nbns_nb_flags_ont,
@@ -623,18 +627,18 @@ dissect_nbns_answer(tvbuff_t *tvb, packet_info *pinfo, int offset, int nbns_data
     const char *class_name;
     const char *type_name;
     int         cur_offset;
-    guint       ttl;
-    gushort     data_len;
+    unsigned    ttl;
+    uint16_t    data_len;
     proto_tree *rr_tree = NULL;
     char       *name_str;
-    guint       num_names;
+    unsigned    num_names;
     char       *nbname;
 
     cur_offset = offset;
 
-    name     = (char *)wmem_alloc(wmem_packet_scope(), MAX_NAME_LEN);
-    name_str = (char *)wmem_alloc(wmem_packet_scope(), MAX_NAME_LEN);
-    nbname   = (char *)wmem_alloc(wmem_packet_scope(), 16+4+1); /* 4 for [<last char>] */
+    name     = (char *)wmem_alloc(pinfo->pool, MAX_NAME_LEN);
+    name_str = (char *)wmem_alloc(pinfo->pool, MAX_NAME_LEN);
+    nbname   = (char *)wmem_alloc(pinfo->pool, 16+4+1); /* 4 for [<last char>] */
 
     name_len = MAX_NAME_LEN;
     len      = get_nbns_name_type_class(tvb, offset, nbns_data_offset, name,
@@ -669,7 +673,7 @@ dissect_nbns_answer(tvbuff_t *tvb, packet_info *pinfo, int offset, int nbns_data
             (void) g_strlcat(name, " (", MAX_NAME_LEN);
             (void) g_strlcat(name, netbios_name_type_descr(name_type), MAX_NAME_LEN);
             (void) g_strlcat(name, ")", MAX_NAME_LEN);
-            add_rr_to_tree(rr_tree, tvb, offset, name,
+            add_rr_to_tree(rr_tree, pinfo, tvb, offset, name,
                                  name_len, type, dns_class, ttl, data_len);
         }
         while (data_len > 0) {
@@ -713,7 +717,7 @@ dissect_nbns_answer(tvbuff_t *tvb, packet_info *pinfo, int offset, int nbns_data
                                       (cur_offset - offset) + data_len,
                                       ett_nbns_rr, NULL, "%s: type %s, class %s",
                                       name, type_name, class_name);
-            add_rr_to_tree(rr_tree, tvb, offset, name,
+            add_rr_to_tree(rr_tree, pinfo, tvb, offset, name,
                                      name_len, type, dns_class, ttl, data_len);
         }
 
@@ -722,7 +726,7 @@ dissect_nbns_answer(tvbuff_t *tvb, packet_info *pinfo, int offset, int nbns_data
             break;
         }
 
-        num_names = tvb_get_guint8(tvb, cur_offset);
+        num_names = tvb_get_uint8(tvb, cur_offset);
         proto_tree_add_item(rr_tree, hf_nbns_number_of_names, tvb, cur_offset, 1, ENC_BIG_ENDIAN);
         cur_offset += 1;
 
@@ -732,7 +736,7 @@ dissect_nbns_answer(tvbuff_t *tvb, packet_info *pinfo, int offset, int nbns_data
                 goto out;
             }
             if (rr_tree) {
-                tvb_memcpy(tvb, (guint8 *)nbname, cur_offset,
+                tvb_memcpy(tvb, (uint8_t *)nbname, cur_offset,
                            NETBIOS_NAME_LEN);
                 name_type = process_netbios_name(nbname,
                                                  name_str, name_len);
@@ -930,7 +934,7 @@ dissect_nbns_answer(tvbuff_t *tvb, packet_info *pinfo, int offset, int nbns_data
                                       (cur_offset - offset) + data_len,
                                       ett_nbns_rr, NULL, "%s: type %s, class %s",
                                       name, type_name, class_name);
-            add_rr_to_tree(rr_tree, tvb, offset, name,
+            add_rr_to_tree(rr_tree, pinfo, tvb, offset, name,
                                      name_len, type, dns_class, ttl, data_len);
             proto_tree_add_item(rr_tree, hf_nbns_data, tvb, cur_offset, data_len, ENC_NA);
         }
@@ -992,7 +996,7 @@ dissect_nbns(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     int          nbns_data_offset;
     proto_tree  *nbns_tree = NULL;
     proto_item  *ti;
-    guint32      id, flags, opcode, quest, ans, auth, add;
+    uint32_t     id, flags, opcode, quest, ans, auth, add;
     int          cur_off;
 
     nbns_data_offset = offset;
@@ -1003,7 +1007,7 @@ dissect_nbns(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     /* To do: check for runts, errs, etc. */
     id     = tvb_get_ntohs(tvb, offset + NBNS_ID);
     flags  = tvb_get_ntohs(tvb, offset + NBNS_FLAGS);
-    opcode = (guint16) ((flags & F_OPCODE) >> OPCODE_SHIFT);
+    opcode = (uint16_t) ((flags & F_OPCODE) >> OPCODE_SHIFT);
 
     col_add_fstr(pinfo->cinfo, COL_INFO, "%s%s",
                     val_to_str(opcode, opcode_vals, "Unknown operation (%u)"),
@@ -1124,7 +1128,7 @@ dissect_nbdgm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     proto_tree          *nbdgm_tree;
     proto_item          *ti;
     tvbuff_t            *next_tvb;
-    guint32              msg_type;
+    uint32_t             msg_type;
 
     char *name;
     int name_type;
@@ -1173,7 +1177,7 @@ dissect_nbdgm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
                                             tvb, offset, 2, ENC_BIG_ENDIAN);
         offset += 2;
 
-        name = (char *)wmem_alloc(wmem_packet_scope(), MAX_NAME_LEN);
+        name = (char *)wmem_alloc(pinfo->pool, MAX_NAME_LEN);
 
         /* Source name */
         len = get_nbns_name(tvb, offset, offset, name, MAX_NAME_LEN, &name_type);
@@ -1210,7 +1214,7 @@ dissect_nbdgm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     case NBDS_QUERY_REQUEST:
     case NBDS_POS_QUERY_RESPONSE:
     case NBDS_NEG_QUERY_RESPONSE:
-        name = (char *)wmem_alloc(wmem_packet_scope(), MAX_NAME_LEN);
+        name = (char *)wmem_alloc(pinfo->pool, MAX_NAME_LEN);
 
         /* Destination name */
         len = get_nbns_name(tvb, offset, offset, name, MAX_NAME_LEN, &name_type);
@@ -1279,13 +1283,13 @@ dissect_nbss_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     int          offset = 0;
     proto_tree   *nbss_tree = NULL;
     proto_item   *ti        = NULL;
-    guint8        msg_type;
-    guint8        flags;
-    guint32       length;
+    uint8_t       msg_type;
+    uint8_t       flags;
+    uint32_t      length;
     int           len;
     char         *name;
     int           name_type;
-    guint8        error_code;
+    uint8_t       error_code;
     tvbuff_t     *next_tvb;
     const char   *saved_proto;
     static int * const nbss_flags[] = {
@@ -1293,9 +1297,9 @@ dissect_nbss_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         NULL
     };
 
-    name = (char *)wmem_alloc(wmem_packet_scope(), MAX_NAME_LEN);
+    name = (char *)wmem_alloc(pinfo->pool, MAX_NAME_LEN);
 
-    msg_type = tvb_get_guint8(tvb, offset);
+    msg_type = tvb_get_uint8(tvb, offset);
 
     ti = proto_tree_add_item(tree, proto_nbss, tvb, offset, -1, ENC_NA);
     nbss_tree = proto_item_add_subtree(ti, ett_nbss);
@@ -1308,7 +1312,7 @@ dissect_nbss_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         proto_tree_add_item(nbss_tree, hf_nbss_cifs_length, tvb, offset, 3, ENC_BIG_ENDIAN);
         offset += 3;
     } else {
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         proto_tree_add_bitmask(nbss_tree, tvb, offset, hf_nbss_flags, ett_nbss_flags, nbss_flags, ENC_BIG_ENDIAN);
 
         length = tvb_get_ntohs(tvb, offset + 1);
@@ -1341,7 +1345,7 @@ dissect_nbss_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         break;
 
     case NEGATIVE_SESSION_RESPONSE:
-        error_code = tvb_get_guint8(tvb, offset);
+        error_code = tvb_get_uint8(tvb, offset);
         proto_tree_add_uint(nbss_tree, hf_nbss_error_code, tvb, offset, 1,
                                 error_code);
 
@@ -1420,13 +1424,13 @@ dissect_nbss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
     struct tcpinfo *tcpinfo;
     int             offset  = 0;
-    guint           length_remaining;
-    guint           plen;
+    unsigned        length_remaining;
+    unsigned        plen;
     int             max_data;
-    guint8          msg_type;
-    guint8          flags;
-    guint32         length;
-    gboolean        is_cifs;
+    uint8_t         msg_type;
+    uint8_t         flags;
+    uint32_t        length;
+    bool            is_cifs;
     tvbuff_t       *next_tvb;
 
     /* Reject the packet if data is NULL */
@@ -1439,7 +1443,7 @@ dissect_nbss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 
     max_data = tvb_captured_length(tvb);
 
-    msg_type = tvb_get_guint8(tvb, offset);
+    msg_type = tvb_get_uint8(tvb, offset);
 
     if (pinfo->match_uint == TCP_PORT_CIFS) {
         /*
@@ -1450,9 +1454,9 @@ dissect_nbss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
          * of 17. The only message types used are
          * SESSION_MESSAGE and SESSION_KEEP_ALIVE.
          */
-        is_cifs = TRUE;
+        is_cifs = true;
     } else {
-        is_cifs = FALSE;
+        is_cifs = false;
     }
 
     /*
@@ -1517,13 +1521,13 @@ dissect_nbss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
          * mark it as is_cifs.
          */
         if (tvb_captured_length_remaining(tvb, offset) >= 8
-            && tvb_get_guint8(tvb,offset+0) == SESSION_MESSAGE
-            && tvb_get_guint8(tvb,offset+5) == 'S'
-            && tvb_get_guint8(tvb,offset+6) == 'M'
-            && tvb_get_guint8(tvb,offset+7) == 'B') {
-            is_cifs = TRUE;
+            && tvb_get_uint8(tvb,offset+0) == SESSION_MESSAGE
+            && tvb_get_uint8(tvb,offset+5) == 'S'
+            && tvb_get_uint8(tvb,offset+6) == 'M'
+            && tvb_get_uint8(tvb,offset+7) == 'B') {
+            is_cifs = true;
         } else {
-            is_cifs = FALSE;
+            is_cifs = false;
         }
 
         /*
@@ -1535,7 +1539,7 @@ dissect_nbss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
             flags = 0;
             length = tvb_get_ntoh24(tvb, offset + 1);
         } else {
-            flags  = tvb_get_guint8(tvb, offset + 1);
+            flags  = tvb_get_uint8(tvb, offset + 1);
             length = tvb_get_ntohs(tvb, offset + 2);
             if (flags & NBSS_FLAGS_E)
                 length += 0x10000;
@@ -1656,7 +1660,7 @@ dissect_nbss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
         if (is_cifs) {
             length = tvb_get_ntoh24(tvb, offset + 1);
         } else {
-            flags  = tvb_get_guint8(tvb, offset + 1);
+            flags  = tvb_get_uint8(tvb, offset + 1);
             length = tvb_get_ntohs(tvb, offset + 2);
             if (flags & NBSS_FLAGS_E)
                 length += 65536;
@@ -1673,9 +1677,9 @@ dissect_nbss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
              */
             if( ((int)plen>tvb_reported_length_remaining(tvb, offset))
                 &&(tvb_captured_length_remaining(tvb, offset) >= 8)
-                &&(tvb_get_guint8(tvb,offset+5) == 'S')
-                &&(tvb_get_guint8(tvb,offset+6) == 'M')
-                &&(tvb_get_guint8(tvb,offset+7) == 'B') ){
+                &&(tvb_get_uint8(tvb,offset+5) == 'S')
+                &&(tvb_get_uint8(tvb,offset+6) == 'M')
+                &&(tvb_get_uint8(tvb,offset+7) == 'B') ){
                 pinfo->want_pdu_tracking = 2;
                 pinfo->bytes_until_next_pdu = (length+4)-tvb_reported_length_remaining(tvb, offset);
             }
@@ -1867,11 +1871,11 @@ proto_register_nbt(void)
         { &hf_nbdgm_fragment,
           { "More fragments follow",    "nbdgm.next",
             FT_BOOLEAN, 8, TFS(&tfs_yes_no), 0x01,
-            "TRUE if more fragments follow", HFILL }},
+            "true if more fragments follow", HFILL }},
         { &hf_nbdgm_first,
           { "This is first fragment",   "nbdgm.first",
             FT_BOOLEAN, 8, TFS(&tfs_yes_no), 0x02,
-            "TRUE if first fragment", HFILL }},
+            "true if first fragment", HFILL }},
         { &hf_nbdgm_node_type,
           { "Node Type",                "nbdgm.node_type",
             FT_UINT8, BASE_DEC, VALS(node_type_vals), 0x0C,
@@ -1890,11 +1894,11 @@ proto_register_nbt(void)
             NULL, HFILL }},
         { &hf_nbdgm_datagram_length,
           { "Datagram length",          "nbdgm.dgram_len",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0,
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0,
             NULL, HFILL }},
         { &hf_nbdgm_packet_offset,
           { "Packet offset",            "nbdgm.pkt_offset",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0,
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0,
             NULL, HFILL }},
         { &hf_nbdgm_error_code,
           { "Error code",               "nbdgm.error_code",
@@ -1956,7 +1960,7 @@ proto_register_nbt(void)
              FT_STRING, BASE_NONE, NULL, 0x0,
              NULL, HFILL }},
     };
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_nbns,
         &ett_nbns_qd,
         &ett_nbns_flags,

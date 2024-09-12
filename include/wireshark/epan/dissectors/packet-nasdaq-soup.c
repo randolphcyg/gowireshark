@@ -42,33 +42,33 @@ static const value_string reject_code_val[] = {
 };
 
 /* Initialize the protocol and registered fields */
-static int proto_nasdaq_soup = -1;
+static int proto_nasdaq_soup;
 static dissector_handle_t nasdaq_soup_handle;
 static dissector_handle_t nasdaq_itch_handle;
 
 /* desegmentation of Nasdaq Soup */
-static gboolean nasdaq_soup_desegment = TRUE;
+static bool nasdaq_soup_desegment = true;
 
 /* Initialize the subtree pointers */
-static gint ett_nasdaq_soup = -1;
+static int ett_nasdaq_soup;
 
-static int hf_nasdaq_soup_packet_type = -1;
-static int hf_nasdaq_soup_message = -1;
-static int hf_nasdaq_soup_text = -1;
-static int hf_nasdaq_soup_packet_eol = -1;
-static int hf_nasdaq_soup_username = -1;
-static int hf_nasdaq_soup_password = -1;
-static int hf_nasdaq_soup_session = -1;
-static int hf_nasdaq_soup_seq_number = -1;
-static int hf_nasdaq_soup_reject_code = -1;
+static int hf_nasdaq_soup_packet_type;
+static int hf_nasdaq_soup_message;
+static int hf_nasdaq_soup_text;
+static int hf_nasdaq_soup_packet_eol;
+static int hf_nasdaq_soup_username;
+static int hf_nasdaq_soup_password;
+static int hf_nasdaq_soup_session;
+static int hf_nasdaq_soup_seq_number;
+static int hf_nasdaq_soup_reject_code;
 
 static void
 dissect_nasdaq_soup_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, proto_tree *tree, int offset, int linelen)
 {
-    guint8   nasdaq_soup_type;
+    uint8_t  nasdaq_soup_type;
     tvbuff_t *new_tvb = NULL;
 
-    nasdaq_soup_type = tvb_get_guint8(tvb, offset);
+    nasdaq_soup_type = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(tree, hf_nasdaq_soup_packet_type, tvb, offset, 1, ENC_ASCII|ENC_NA);
     offset++;
 
@@ -138,11 +138,11 @@ dissect_nasdaq_soup(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
 {
     proto_item *ti;
     proto_tree *nasdaq_soup_tree = NULL;
-    guint8 nasdaq_soup_type;
+    uint8_t nasdaq_soup_type;
     int  linelen;
-    gint next_offset;
+    int next_offset;
     int  offset = 0;
-    gint counter = 0;
+    int counter = 0;
 
     while (tvb_offset_exists(tvb, offset)) {
       /* there's only a \n no \r */
@@ -160,7 +160,7 @@ dissect_nasdaq_soup(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
         return tvb_captured_length(tvb);
       }
 
-      nasdaq_soup_type = tvb_get_guint8(tvb, offset);
+      nasdaq_soup_type = tvb_get_uint8(tvb, offset);
       if (counter == 0) {
         col_set_str(pinfo->cinfo, COL_PROTOCOL, "Nasdaq-SOUP");
         col_clear(pinfo->cinfo, COL_INFO);
@@ -235,7 +235,7 @@ proto_register_nasdaq_soup(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_nasdaq_soup
     };
 

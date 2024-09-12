@@ -28,262 +28,262 @@
 void proto_register_dect_nwk(void);
 void proto_reg_handoff_dect_nwk(void);
 
-static int proto_dect_nwk = -1;
+static int proto_dect_nwk;
 
-static int hf_nwk_ti = -1;
-static int hf_nwk_pdisc = -1;
-static int hf_nwk_msg_type_lce = -1;
-static int hf_nwk_msg_type_cc = -1;
-static int hf_dect_nwk_message_type_ciss = -1;
-static int hf_dect_nwk_message_type_crss = -1;
-static int hf_dect_nwk_message_type_clms = -1;
-static int hf_dect_nwk_message_type_coms = -1;
-static int hf_nwk_msg_type_mm = -1;
+static int hf_nwk_ti;
+static int hf_nwk_pdisc;
+static int hf_nwk_msg_type_lce;
+static int hf_nwk_msg_type_cc;
+static int hf_dect_nwk_message_type_ciss;
+static int hf_dect_nwk_message_type_crss;
+static int hf_dect_nwk_message_type_clms;
+static int hf_dect_nwk_message_type_coms;
+static int hf_nwk_msg_type_mm;
 
-static int ett_dect_nwk_s_ie_element = -1;
+static int ett_dect_nwk_s_ie_element;
 
-static int hf_dect_nwk_s_ie_fl = -1;
+static int hf_dect_nwk_s_ie_fl;
 
-static int hf_dect_nwk_s_ie_fl_type = -1;
-static int hf_dect_nwk_s_ie_fl_double_octet_type = -1;
+static int hf_dect_nwk_s_ie_fl_type;
+static int hf_dect_nwk_s_ie_fl_double_octet_type;
 
-static int hf_dect_nwk_s_ie_fl_control_type = -1;
+static int hf_dect_nwk_s_ie_fl_control_type;
 
-static int hf_dect_nwk_s_ie_fl_repeat_indicator_type = -1;
+static int hf_dect_nwk_s_ie_fl_repeat_indicator_type;
 
-static int hf_dect_nwk_s_ie_fl_shift_locking = -1;
-static int hf_dect_nwk_s_ie_fl_shift_new_codeset = -1;
+static int hf_dect_nwk_s_ie_fl_shift_locking;
+static int hf_dect_nwk_s_ie_fl_shift_new_codeset;
 
-static int hf_dect_nwk_s_ie_fl_basic_service_call_class = -1;
-static int hf_dect_nwk_s_ie_fl_basic_service_type = -1;
+static int hf_dect_nwk_s_ie_fl_basic_service_call_class;
+static int hf_dect_nwk_s_ie_fl_basic_service_type;
 
-static int hf_dect_nwk_s_ie_fl_single_display_display_info = -1;
+static int hf_dect_nwk_s_ie_fl_single_display_display_info;
 
-static int hf_dect_nwk_s_ie_fl_single_keypad_keypad_info = -1;
+static int hf_dect_nwk_s_ie_fl_single_keypad_keypad_info;
 
-static int hf_dect_nwk_s_ie_fl_release_reason_code = -1;
+static int hf_dect_nwk_s_ie_fl_release_reason_code;
 
-static int hf_dect_nwk_s_ie_fl_signal_value = -1;
+static int hf_dect_nwk_s_ie_fl_signal_value;
 
-static int hf_dect_nwk_s_ie_fl_timer_restart_value = -1;
+static int hf_dect_nwk_s_ie_fl_timer_restart_value;
 
-static int hf_dect_nwk_s_ie_fl_test_hook_control_hook_value = -1;
+static int hf_dect_nwk_s_ie_fl_test_hook_control_hook_value;
 
-static int hf_dect_nwk_s_ie_type = -1;
-static int hf_dect_nwk_s_ie_length = -1;
+static int hf_dect_nwk_s_ie_type;
+static int hf_dect_nwk_s_ie_length;
 
-static int hf_dect_nwk_s_ie_octet_group_extension = -1;
+static int hf_dect_nwk_s_ie_octet_group_extension;
 
-static int hf_dect_nwk_s_ie_auth_type_authentication_algorithm = -1;
-static int hf_dect_nwk_s_ie_auth_type_proprietary_algorithm = -1;
-static int hf_dect_nwk_s_ie_auth_type_ak_type = -1;
-static int hf_dect_nwk_s_ie_auth_type_ak_number = -1;
-static int hf_dect_nwk_s_ie_auth_type_inc = -1;
-static int hf_dect_nwk_s_ie_auth_type_def = -1;
-static int hf_dect_nwk_s_ie_auth_type_txc = -1;
-static int hf_dect_nwk_s_ie_auth_type_upc = -1;
-static int hf_dect_nwk_s_ie_auth_type_cipher_key_number = -1;
-static int hf_dect_nwk_s_ie_auth_type_cipher_key_number_related = -1;
-static int hf_dect_nwk_s_ie_auth_type_default_cipher_key_index = -1;
-static int hf_dect_nwk_s_ie_auth_type_default_cipher_key_algorithm = -1;
+static int hf_dect_nwk_s_ie_auth_type_authentication_algorithm;
+static int hf_dect_nwk_s_ie_auth_type_proprietary_algorithm;
+static int hf_dect_nwk_s_ie_auth_type_ak_type;
+static int hf_dect_nwk_s_ie_auth_type_ak_number;
+static int hf_dect_nwk_s_ie_auth_type_inc;
+static int hf_dect_nwk_s_ie_auth_type_def;
+static int hf_dect_nwk_s_ie_auth_type_txc;
+static int hf_dect_nwk_s_ie_auth_type_upc;
+static int hf_dect_nwk_s_ie_auth_type_cipher_key_number;
+static int hf_dect_nwk_s_ie_auth_type_cipher_key_number_related;
+static int hf_dect_nwk_s_ie_auth_type_default_cipher_key_index;
+static int hf_dect_nwk_s_ie_auth_type_default_cipher_key_algorithm;
 
-static int hf_dect_nwk_s_ie_calling_party_number_type = -1;
-static int hf_dect_nwk_s_ie_calling_party_number_numbering_plan = -1;
-static int hf_dect_nwk_s_ie_calling_party_number_presentation = -1;
-static int hf_dect_nwk_s_ie_calling_party_number_screening = -1;
-static int hf_dect_nwk_s_ie_calling_party_number_address = -1;
+static int hf_dect_nwk_s_ie_calling_party_number_type;
+static int hf_dect_nwk_s_ie_calling_party_number_numbering_plan;
+static int hf_dect_nwk_s_ie_calling_party_number_presentation;
+static int hf_dect_nwk_s_ie_calling_party_number_screening;
+static int hf_dect_nwk_s_ie_calling_party_number_address;
 
-static int hf_dect_nwk_s_ie_cipher_info_yn = -1;
-static int hf_dect_nwk_s_ie_cipher_info_algorithm = -1;
-static int hf_dect_nwk_s_ie_cipher_info_proprietary_algorithm = -1;
-static int hf_dect_nwk_s_ie_cipher_info_key_type = -1;
-static int hf_dect_nwk_s_ie_cipher_info_key_number = -1;
+static int hf_dect_nwk_s_ie_cipher_info_yn;
+static int hf_dect_nwk_s_ie_cipher_info_algorithm;
+static int hf_dect_nwk_s_ie_cipher_info_proprietary_algorithm;
+static int hf_dect_nwk_s_ie_cipher_info_key_type;
+static int hf_dect_nwk_s_ie_cipher_info_key_number;
 
-static int hf_dect_nwk_s_ie_duration_lock_limits = -1;
-static int hf_dect_nwk_s_ie_duration_time_limits = -1;
-static int hf_dect_nwk_s_ie_duration_time_duration = -1;
+static int hf_dect_nwk_s_ie_duration_lock_limits;
+static int hf_dect_nwk_s_ie_duration_time_limits;
+static int hf_dect_nwk_s_ie_duration_time_duration;
 
-static int hf_dect_nwk_s_ie_fixed_identity_type = -1;
-static int hf_dect_nwk_s_ie_fixed_identity_value_length = -1;
-static int hf_dect_nwk_s_ie_fixed_identity_arc = -1;
-static int hf_dect_nwk_s_ie_fixed_identity_ard = -1;
-static int hf_dect_nwk_s_ie_fixed_identity_padding = -1;
+static int hf_dect_nwk_s_ie_fixed_identity_type;
+static int hf_dect_nwk_s_ie_fixed_identity_value_length;
+static int hf_dect_nwk_s_ie_fixed_identity_arc;
+static int hf_dect_nwk_s_ie_fixed_identity_ard;
+static int hf_dect_nwk_s_ie_fixed_identity_padding;
 
-static int hf_dect_nwk_s_ie_iwu_to_iwu_sr = -1;
-static int hf_dect_nwk_s_ie_iwu_to_iwu_protocol_discriminator = -1;
-static int hf_dect_nwk_s_ie_iwu_to_iwu_information = -1;
-static int hf_dect_nwk_s_ie_iwu_to_iwu_discriminator_type = -1;
-static int hf_dect_nwk_s_ie_iwu_to_iwu_user_specific_contents = -1;
-static int hf_dect_nwk_s_ie_iwu_to_iwu_emc_discriminator = -1;
-static int hf_dect_nwk_s_ie_iwu_to_iwu_proprietary_contents = -1;
+static int hf_dect_nwk_s_ie_iwu_to_iwu_sr;
+static int hf_dect_nwk_s_ie_iwu_to_iwu_protocol_discriminator;
+static int hf_dect_nwk_s_ie_iwu_to_iwu_information;
+static int hf_dect_nwk_s_ie_iwu_to_iwu_discriminator_type;
+static int hf_dect_nwk_s_ie_iwu_to_iwu_user_specific_contents;
+static int hf_dect_nwk_s_ie_iwu_to_iwu_emc_discriminator;
+static int hf_dect_nwk_s_ie_iwu_to_iwu_proprietary_contents;
 
-static int ett_dect_nwk_s_ie_location_area_li_type = -1;
-static int hf_dect_nwk_s_ie_location_area_li_type = -1;
-static int hf_dect_nwk_s_ie_location_area_la_level_included = -1;
-static int hf_dect_nwk_s_ie_location_area_li_extended_included = -1;
-static int hf_dect_nwk_s_ie_location_area_la_level = -1;
-static int hf_dect_nwk_s_ie_location_area_eli_type = -1;
-static int hf_dect_nwk_s_ie_location_area_lac = -1;
-static int hf_dect_nwk_s_ie_location_area_ci = -1;
+static int ett_dect_nwk_s_ie_location_area_li_type;
+static int hf_dect_nwk_s_ie_location_area_li_type;
+static int hf_dect_nwk_s_ie_location_area_la_level_included;
+static int hf_dect_nwk_s_ie_location_area_li_extended_included;
+static int hf_dect_nwk_s_ie_location_area_la_level;
+static int hf_dect_nwk_s_ie_location_area_eli_type;
+static int hf_dect_nwk_s_ie_location_area_lac;
+static int hf_dect_nwk_s_ie_location_area_ci;
 
-static int hf_dect_nwk_s_ie_multi_display_information = -1;
+static int hf_dect_nwk_s_ie_multi_display_information;
 
-static int hf_dect_nwk_s_ie_multi_keypad_information = -1;
+static int hf_dect_nwk_s_ie_multi_keypad_information;
 
-static int hf_dect_nwk_s_ie_nwk_assigned_identity_type = -1;
-static int hf_dect_nwk_s_ie_nwk_assigned_identity_value_length = -1;
-static int hf_dect_nwk_s_ie_nwk_assigned_identity_value = -1;
-static int hf_dect_nwk_s_ie_nwk_assigned_identity_padding = -1;
+static int hf_dect_nwk_s_ie_nwk_assigned_identity_type;
+static int hf_dect_nwk_s_ie_nwk_assigned_identity_value_length;
+static int hf_dect_nwk_s_ie_nwk_assigned_identity_value;
+static int hf_dect_nwk_s_ie_nwk_assigned_identity_padding;
 
-static int hf_dect_nwk_s_ie_portable_identity_type = -1;
-static int hf_dect_nwk_s_ie_portable_identity_value_length = -1;
-static int hf_dect_nwk_s_ie_portable_identity_put = -1;
-static int hf_dect_nwk_s_ie_portable_identity_padding = -1;
-static int hf_dect_nwk_s_ie_portable_identity_ipei = -1;
-static int hf_dect_nwk_s_ie_portable_identity_tpui_assignment_type = -1;
-static int hf_dect_nwk_s_ie_portable_identity_tpui_value = -1;
-static int hf_dect_nwk_s_ie_portable_identity_ipui_o_number = -1;
-static int hf_dect_nwk_s_ie_portable_identity_ipui_p_poc = -1;
-static int hf_dect_nwk_s_ie_portable_identity_ipui_p_acc = -1;
-static int hf_dect_nwk_s_ie_portable_identity_ipui_q_bacn = -1;
-static int hf_dect_nwk_s_ie_portable_identity_ipui_r_imsi = -1;
-static int hf_dect_nwk_s_ie_portable_identity_ipui_s_number = -1;
-static int hf_dect_nwk_s_ie_portable_identity_ipui_t_eic = -1;
-static int hf_dect_nwk_s_ie_portable_identity_ipui_t_number = -1;
-static int hf_dect_nwk_s_ie_portable_identity_ipui_u_cacn = -1;
+static int hf_dect_nwk_s_ie_portable_identity_type;
+static int hf_dect_nwk_s_ie_portable_identity_value_length;
+static int hf_dect_nwk_s_ie_portable_identity_put;
+static int hf_dect_nwk_s_ie_portable_identity_padding;
+static int hf_dect_nwk_s_ie_portable_identity_ipei;
+static int hf_dect_nwk_s_ie_portable_identity_tpui_assignment_type;
+static int hf_dect_nwk_s_ie_portable_identity_tpui_value;
+static int hf_dect_nwk_s_ie_portable_identity_ipui_o_number;
+static int hf_dect_nwk_s_ie_portable_identity_ipui_p_poc;
+static int hf_dect_nwk_s_ie_portable_identity_ipui_p_acc;
+static int hf_dect_nwk_s_ie_portable_identity_ipui_q_bacn;
+static int hf_dect_nwk_s_ie_portable_identity_ipui_r_imsi;
+static int hf_dect_nwk_s_ie_portable_identity_ipui_s_number;
+static int hf_dect_nwk_s_ie_portable_identity_ipui_t_eic;
+static int hf_dect_nwk_s_ie_portable_identity_ipui_t_number;
+static int hf_dect_nwk_s_ie_portable_identity_ipui_u_cacn;
 
-static int hf_dect_nwk_s_ie_rand_rand_field = -1;
+static int hf_dect_nwk_s_ie_rand_rand_field;
 
-static int hf_dect_nwk_s_ie_res_res_field = -1;
+static int hf_dect_nwk_s_ie_res_res_field;
 
-static int hf_dect_nwk_s_ie_rs_rs_field = -1;
+static int hf_dect_nwk_s_ie_rs_rs_field;
 
-static int hf_dect_nwk_s_ie_terminal_capability_tone_capabilities = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_display_capabilities = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_echo_parameter = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_n_rej = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_a_vol = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_slot_type_capability = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_slot_type_half_80 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_slot_type_long_640 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_slot_type_long_672 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_slot_type_full = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_slot_type_double = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_stored_display_characters = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_lines_in_display = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_chars_per_line = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_scrolling_behaviour = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_cap = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_gap = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_dect_gsm = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_isdn = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_lrms = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_dprs_stream = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_dprs_asymmetric = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_dprs_class_2 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_data_services = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_isdn = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_dect_umts_bearer = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_dect_umts_sms = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_dect_umts_facsimile = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_rap = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_dect_gsm = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_wrs = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_sms = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_dmap = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_cta = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_ethernet = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_token_ring = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_ip = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_ppp = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_v24 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_cf = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_ipq = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_rap_2 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_dprs = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_2bz = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_4bz = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_8bz = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_16bz = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_2a = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_4a = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_8a = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_dect_umts = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_dect_umts_gprs = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_odap = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_f_mms = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_gf = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_fast_hopping = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_no_emission = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_mod64 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_ng_dect_1 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_ng_dect_3 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_headset_management = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_re_keying = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_associated_melody = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_ng_dect_5 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_8 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_8_mux_e_u = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_8_channel_ipf = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_8_channel_sipf = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_8_packet_data_category = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_9 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_9_dprs_3 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_9_dprs_4 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_9_dect_ule = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_9_light_data = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10_date_time_recovery = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10_extended_list_change = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10_screening = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10_wrs_2 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10_wrs_ule = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_dsaa2 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_dsc2 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_control_codes = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_escape_to_char_sets_1 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_escape_to_char_sets_1_latin_no1 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_escape_to_char_sets_1_latin_no9 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_escape_to_char_sets_1_latin_no5 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_escape_to_char_sets_1_greek = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_blind_slot_6 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_blind_slot_indication = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp0 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp1 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp2 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp3 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp4 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_blind_slot_6a = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp5 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp6 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp7 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp8 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp9 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp10 = -1;
-static int hf_dect_nwk_s_ie_terminal_capability_sp11 = -1;
+static int hf_dect_nwk_s_ie_terminal_capability_tone_capabilities;
+static int hf_dect_nwk_s_ie_terminal_capability_display_capabilities;
+static int hf_dect_nwk_s_ie_terminal_capability_echo_parameter;
+static int hf_dect_nwk_s_ie_terminal_capability_n_rej;
+static int hf_dect_nwk_s_ie_terminal_capability_a_vol;
+static int hf_dect_nwk_s_ie_terminal_capability_slot_type_capability;
+static int hf_dect_nwk_s_ie_terminal_capability_slot_type_half_80;
+static int hf_dect_nwk_s_ie_terminal_capability_slot_type_long_640;
+static int hf_dect_nwk_s_ie_terminal_capability_slot_type_long_672;
+static int hf_dect_nwk_s_ie_terminal_capability_slot_type_full;
+static int hf_dect_nwk_s_ie_terminal_capability_slot_type_double;
+static int hf_dect_nwk_s_ie_terminal_capability_stored_display_characters;
+static int hf_dect_nwk_s_ie_terminal_capability_lines_in_display;
+static int hf_dect_nwk_s_ie_terminal_capability_chars_per_line;
+static int hf_dect_nwk_s_ie_terminal_capability_scrolling_behaviour;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_cap;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_gap;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_dect_gsm;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_isdn;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_lrms;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_dprs_stream;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_1_dprs_asymmetric;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_dprs_class_2;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_data_services;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_isdn;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_dect_umts_bearer;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_dect_umts_sms;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_dect_umts_facsimile;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_2_rap;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_dect_gsm;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_wrs;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_sms;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_dmap;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_cta;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_ethernet;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_3_token_ring;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_ip;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_ppp;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_v24;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_cf;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_ipq;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_rap_2;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_4_dprs;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_2bz;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_4bz;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_8bz;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_16bz;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_2a;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_4a;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_5_mod_8a;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_dect_umts;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_dect_umts_gprs;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_odap;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_f_mms;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_gf;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_fast_hopping;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_6_no_emission;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_mod64;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_ng_dect_1;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_ng_dect_3;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_headset_management;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_re_keying;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_associated_melody;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_7_ng_dect_5;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_8;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_8_mux_e_u;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_8_channel_ipf;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_8_channel_sipf;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_8_packet_data_category;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_9;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_9_dprs_3;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_9_dprs_4;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_9_dect_ule;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_9_light_data;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10_date_time_recovery;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10_extended_list_change;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10_screening;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10_wrs_2;
+static int hf_dect_nwk_s_ie_terminal_capability_profile_indicator_10_wrs_ule;
+static int hf_dect_nwk_s_ie_terminal_capability_dsaa2;
+static int hf_dect_nwk_s_ie_terminal_capability_dsc2;
+static int hf_dect_nwk_s_ie_terminal_capability_control_codes;
+static int hf_dect_nwk_s_ie_terminal_capability_escape_to_char_sets_1;
+static int hf_dect_nwk_s_ie_terminal_capability_escape_to_char_sets_1_latin_no1;
+static int hf_dect_nwk_s_ie_terminal_capability_escape_to_char_sets_1_latin_no9;
+static int hf_dect_nwk_s_ie_terminal_capability_escape_to_char_sets_1_latin_no5;
+static int hf_dect_nwk_s_ie_terminal_capability_escape_to_char_sets_1_greek;
+static int hf_dect_nwk_s_ie_terminal_capability_blind_slot_6;
+static int hf_dect_nwk_s_ie_terminal_capability_blind_slot_indication;
+static int hf_dect_nwk_s_ie_terminal_capability_sp0;
+static int hf_dect_nwk_s_ie_terminal_capability_sp1;
+static int hf_dect_nwk_s_ie_terminal_capability_sp2;
+static int hf_dect_nwk_s_ie_terminal_capability_sp3;
+static int hf_dect_nwk_s_ie_terminal_capability_sp4;
+static int hf_dect_nwk_s_ie_terminal_capability_blind_slot_6a;
+static int hf_dect_nwk_s_ie_terminal_capability_sp5;
+static int hf_dect_nwk_s_ie_terminal_capability_sp6;
+static int hf_dect_nwk_s_ie_terminal_capability_sp7;
+static int hf_dect_nwk_s_ie_terminal_capability_sp8;
+static int hf_dect_nwk_s_ie_terminal_capability_sp9;
+static int hf_dect_nwk_s_ie_terminal_capability_sp10;
+static int hf_dect_nwk_s_ie_terminal_capability_sp11;
 
-static int hf_dect_nwk_s_ie_escape_to_proprietary_discriminator_type = -1;
-static int hf_dect_nwk_s_ie_escape_to_proprietary_discriminator = -1;
+static int hf_dect_nwk_s_ie_escape_to_proprietary_discriminator_type;
+static int hf_dect_nwk_s_ie_escape_to_proprietary_discriminator;
 
-static int hf_dect_nwk_s_ie_model_identifier_manic = -1;
-static int hf_dect_nwk_s_ie_model_identifier_modic = -1;
-static int hf_dect_nwk_s_ie_model_identifier_imeisv = -1;
+static int hf_dect_nwk_s_ie_model_identifier_manic;
+static int hf_dect_nwk_s_ie_model_identifier_modic;
+static int hf_dect_nwk_s_ie_model_identifier_imeisv;
 
-static int hf_dect_nwk_s_ie_codec_list_negotiation_indicator = -1;
-static int hf_dect_nwk_s_ie_codec_list_codec_identifier = -1;
-static int hf_dect_nwk_s_ie_codec_list_mac_and_dlc_service = -1;
-static int hf_dect_nwk_s_ie_codec_list_last_codec = -1;
-static int hf_dect_nwk_s_ie_codec_list_c_plane_routing = -1;
-static int hf_dect_nwk_s_ie_codec_list_slot_size = -1;
+static int hf_dect_nwk_s_ie_codec_list_negotiation_indicator;
+static int hf_dect_nwk_s_ie_codec_list_codec_identifier;
+static int hf_dect_nwk_s_ie_codec_list_mac_and_dlc_service;
+static int hf_dect_nwk_s_ie_codec_list_last_codec;
+static int hf_dect_nwk_s_ie_codec_list_c_plane_routing;
+static int hf_dect_nwk_s_ie_codec_list_slot_size;
 
-static gint ett_dect_nwk = -1;
+static int ett_dect_nwk;
 
 static dissector_handle_t dect_nwk_handle;
 
@@ -1786,15 +1786,6 @@ static const value_string dect_charset_control_codes_val[] = {
 
 /* TOOD: value_string for other protocols */
 
-/* Encoding table for BCD string. */
-/* TODO: Remove this when tvb_bcd_dig_to_str_be allows removing of last half byte */
-static const dgt_set_t Dgt0_9_bcd = {
-	{
-		/*  0   1   2   3   4   5   6   7   8   9   a   b   c   d   e  f */
-		   '0','1','2','3','4','5','6','7','8','9','?','?','?','?','?','?'
-	}
-};
-
 #define DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK 0x80
 #define DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT 7
 
@@ -1833,10 +1824,10 @@ static const dgt_set_t Dgt0_9_bcd = {
  * DECT dissector code
  *********************************************************************************/
 
-static proto_item* add_dect_nwk_dect_charset_tree_item(proto_tree *tree, packet_info *pinfo, int hfindex, tvbuff_t *tvb, gint start, gint length)
+static proto_item* add_dect_nwk_dect_charset_tree_item(proto_tree *tree, packet_info *pinfo, int hfindex, tvbuff_t *tvb, int start, int length)
 {
-	const gchar *keypad_string, *current_char_ptr;
-	guint8 current_char_position;
+	const char *keypad_string, *current_char_ptr;
+	uint8_t current_char_position;
 	gunichar current_char;
 	wmem_strbuf_t *keypad_information;
 
@@ -1857,13 +1848,13 @@ static proto_item* add_dect_nwk_dect_charset_tree_item(proto_tree *tree, packet_
 	return proto_tree_add_string_format_value(tree, hfindex, tvb, start, length, keypad_string ,"%s", wmem_strbuf_get_str(keypad_information));
 }
 
-static int dissect_dect_nwk_s_ie_auth_type(tvbuff_t *tvb, guint offset, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie_auth_type(tvbuff_t *tvb, unsigned offset, proto_tree *tree, void _U_ *data)
 {
-	guint8 authentication_algorithm;
-	gboolean def;
+	uint8_t authentication_algorithm;
+	bool def;
 
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_auth_type_authentication_algorithm, tvb, offset, 1, ENC_NA);
-	authentication_algorithm = tvb_get_guint8(tvb, offset);
+	authentication_algorithm = tvb_get_uint8(tvb, offset);
 	offset++;
 	if ( authentication_algorithm == DECT_NWK_S_IE_AUTH_TYPE_AUTHENTICATION_ALGORITHM_PROPRIETARY ) {
 		proto_tree_add_item(tree, hf_dect_nwk_s_ie_auth_type_proprietary_algorithm, tvb, offset, 1, ENC_NA);
@@ -1878,7 +1869,7 @@ static int dissect_dect_nwk_s_ie_auth_type(tvbuff_t *tvb, guint offset, proto_tr
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_auth_type_upc, tvb, offset, 1, ENC_NA);
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_auth_type_cipher_key_number, tvb, offset, 1, ENC_NA);
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_auth_type_cipher_key_number_related, tvb, offset, 1, ENC_NA);
-	def = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_AUTH_TYPE_DEF_MASK ) >> DECT_NWK_S_IE_AUTH_TYPE_DEF_SHIFT;
+	def = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_AUTH_TYPE_DEF_MASK ) >> DECT_NWK_S_IE_AUTH_TYPE_DEF_SHIFT;
 	offset++;
 	if( def ) {
 		proto_tree_add_item(tree, hf_dect_nwk_s_ie_auth_type_default_cipher_key_index, tvb, offset, 2, ENC_NA);
@@ -1889,14 +1880,14 @@ static int dissect_dect_nwk_s_ie_auth_type(tvbuff_t *tvb, guint offset, proto_tr
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_calling_party_number(tvbuff_t *tvb, guint offset, guint8 ie_length, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie_calling_party_number(tvbuff_t *tvb, unsigned offset, uint8_t ie_length, proto_tree *tree, void _U_ *data)
 {
-	gboolean octet_group_extension;
-	guint8 address_length;
+	bool octet_group_extension;
+	uint8_t address_length;
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_octet_group_extension, tvb, offset, 1, ENC_NA);
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_calling_party_number_type, tvb, offset, 1, ENC_NA);
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_calling_party_number_numbering_plan, tvb, offset, 1, ENC_NA);
-	octet_group_extension = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
+	octet_group_extension = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
 	offset++;
 	if ( !octet_group_extension ) {
 		proto_tree_add_item(tree, hf_dect_nwk_s_ie_octet_group_extension, tvb, offset, 1, ENC_NA);
@@ -1911,12 +1902,12 @@ static int dissect_dect_nwk_s_ie_calling_party_number(tvbuff_t *tvb, guint offse
 	return offset + address_length;
 }
 
-static int dissect_dect_nwk_s_ie_cipher_info(tvbuff_t *tvb, guint offset, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie_cipher_info(tvbuff_t *tvb, unsigned offset, proto_tree *tree, void _U_ *data)
 {
-	guint8 algorithm;
+	uint8_t algorithm;
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_cipher_info_yn, tvb, offset, 1, ENC_NA);
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_cipher_info_algorithm, tvb, offset, 1, ENC_NA);
-	algorithm = tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_CIPHER_INFO_ALGORITHM_MASK;
+	algorithm = tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_CIPHER_INFO_ALGORITHM_MASK;
 	offset++;
 	if (algorithm == DECT_NWK_S_IE_CIPHER_INFO_ALGORITHM_PROPRIETARY) {
 		proto_tree_add_item(tree, hf_dect_nwk_s_ie_cipher_info_proprietary_algorithm, tvb, offset, 1, ENC_NA);
@@ -1928,13 +1919,13 @@ static int dissect_dect_nwk_s_ie_cipher_info(tvbuff_t *tvb, guint offset, proto_
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_duration(tvbuff_t *tvb, guint offset, guint8 _U_ ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data) {
-	gboolean octet_group_extension;
+static int dissect_dect_nwk_s_ie_duration(tvbuff_t *tvb, unsigned offset, uint8_t _U_ ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data) {
+	bool octet_group_extension;
 
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_octet_group_extension, tvb, offset, 1, ENC_NA);
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_duration_lock_limits, tvb, offset, 1, ENC_NA);
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_duration_time_limits, tvb, offset, 1, ENC_NA);
-	octet_group_extension = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
+	octet_group_extension = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
 	offset++;
 
 	if ( !octet_group_extension ) {
@@ -1946,14 +1937,14 @@ static int dissect_dect_nwk_s_ie_duration(tvbuff_t *tvb, guint offset, guint8 _U
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_fixed_identity(tvbuff_t *tvb, guint offset, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie_fixed_identity(tvbuff_t *tvb, unsigned offset, proto_tree *tree, void _U_ *data)
 {
-	guint8 value_length;
-	guint bit_offset, no_of_bits;
+	uint8_t value_length;
+	unsigned bit_offset, no_of_bits;
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_fixed_identity_type, tvb, offset, 1, ENC_NA);
 	offset++;
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_fixed_identity_value_length, tvb, offset, 1, ENC_NA);
-	value_length = tvb_get_guint8(tvb, offset) & 0x7F;
+	value_length = tvb_get_uint8(tvb, offset) & 0x7F;
 	offset++;
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_fixed_identity_arc, tvb, offset, 1, ENC_NA);
 	bit_offset = ( offset * 8 ) + 4;
@@ -1969,19 +1960,19 @@ static int dissect_dect_nwk_s_ie_fixed_identity(tvbuff_t *tvb, guint offset, pro
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_iwu_to_iwu(tvbuff_t *tvb, guint offset, guint8 ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data) {
-	guint8 protocol_discriminator, discriminator_type, remaining_length;
+static int dissect_dect_nwk_s_ie_iwu_to_iwu(tvbuff_t *tvb, unsigned offset, uint8_t ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data) {
+	uint8_t protocol_discriminator, discriminator_type, remaining_length;
 
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_iwu_to_iwu_sr, tvb, offset, 1, ENC_NA);
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_iwu_to_iwu_protocol_discriminator, tvb, offset, 1, ENC_NA);
-	protocol_discriminator = tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_IWU_TO_IWU_PROTOCOL_DISCRIMINATOR_MASK;
+	protocol_discriminator = tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_IWU_TO_IWU_PROTOCOL_DISCRIMINATOR_MASK;
 	offset++;
 	remaining_length = ie_length -1;
 
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_iwu_to_iwu_information, tvb, offset, remaining_length, ENC_NA);
 	if ( protocol_discriminator == DECT_NWK_S_IE_IWU_TO_IWU_PROTOCOL_DISCRIMINATOR_USER_SPECIFIC ) {
 		proto_tree_add_item(tree, hf_dect_nwk_s_ie_iwu_to_iwu_discriminator_type, tvb, offset, 1, ENC_NA);
-		discriminator_type = tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_IWU_TO_IWU_DISCRIMINATOR_TYPE_MASK;
+		discriminator_type = tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_IWU_TO_IWU_DISCRIMINATOR_TYPE_MASK;
 		offset++;
 		remaining_length--;
 
@@ -1997,10 +1988,10 @@ static int dissect_dect_nwk_s_ie_iwu_to_iwu(tvbuff_t *tvb, guint offset, guint8 
 	return offset + remaining_length;
 }
 
-static int dissect_dect_nwk_s_ie_location_area(tvbuff_t *tvb, guint offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie_location_area(tvbuff_t *tvb, unsigned offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
 {
-	guint8 eli_type;
-	gboolean li_extended_included;
+	uint8_t eli_type;
+	bool li_extended_included;
 	proto_tree *li_type_tree;
 	proto_item *li_type_item;
 
@@ -2009,15 +2000,15 @@ static int dissect_dect_nwk_s_ie_location_area(tvbuff_t *tvb, guint offset, pack
 	proto_tree_add_item(li_type_tree, hf_dect_nwk_s_ie_location_area_li_extended_included, tvb, offset, 1, ENC_NA);
 	proto_tree_add_item(li_type_tree, hf_dect_nwk_s_ie_location_area_la_level_included, tvb, offset, 1, ENC_NA);
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_location_area_la_level, tvb, offset, 1, ENC_NA);
-	li_extended_included = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_LOCATION_AREA_LI_EXTENDED_INCLUDED_MASK ) >> DECT_NWK_S_IE_LOCATION_AREA_LI_EXTENDED_INCLUDED_SHIFT;
+	li_extended_included = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_LOCATION_AREA_LI_EXTENDED_INCLUDED_MASK ) >> DECT_NWK_S_IE_LOCATION_AREA_LI_EXTENDED_INCLUDED_SHIFT;
 	offset++;
 
 	if ( li_extended_included ) {
 		proto_tree_add_item(tree, hf_dect_nwk_s_ie_location_area_eli_type, tvb, offset, 1, ENC_NA);
-		eli_type = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_LOCATION_AREA_ELI_TYPE_MASK ) >> DECT_NWK_S_IE_LOCATION_AREA_ELI_TYPE_SHIFT;
+		eli_type = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_LOCATION_AREA_ELI_TYPE_MASK ) >> DECT_NWK_S_IE_LOCATION_AREA_ELI_TYPE_SHIFT;
 		offset++;
 		if ( eli_type == DECT_NWK_S_IE_LOCATION_AREA_ELI_TYPE_LI ) {
-			offset = dissect_e212_mcc_mnc(tvb, pinfo, tree, offset, E212_NONE, FALSE);
+			offset = dissect_e212_mcc_mnc(tvb, pinfo, tree, offset, E212_NONE, false);
 			proto_tree_add_item(tree, hf_dect_nwk_s_ie_location_area_lac, tvb, offset, 2, ENC_NA);
 			offset += 2;
 			proto_tree_add_item(tree, hf_dect_nwk_s_ie_location_area_ci, tvb, offset, 2, ENC_NA);
@@ -2027,14 +2018,14 @@ static int dissect_dect_nwk_s_ie_location_area(tvbuff_t *tvb, guint offset, pack
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_nwk_assigned_identity(tvbuff_t *tvb, guint offset, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie_nwk_assigned_identity(tvbuff_t *tvb, unsigned offset, proto_tree *tree, void _U_ *data)
 {
-	guint8 value_length;
-	guint bit_offset, no_of_bits;
+	uint8_t value_length;
+	unsigned bit_offset, no_of_bits;
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_nwk_assigned_identity_type, tvb, offset, 1, ENC_NA);
 	offset++;
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_nwk_assigned_identity_value_length, tvb, offset, 1, ENC_NA);
-	value_length = tvb_get_guint8(tvb, offset) & 0x7F;
+	value_length = tvb_get_uint8(tvb, offset) & 0x7F;
 	offset++;
 	bit_offset = offset * 8;
 	proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_nwk_assigned_identity_value, tvb, bit_offset, value_length, ENC_NA);
@@ -2048,7 +2039,7 @@ static int dissect_dect_nwk_s_ie_nwk_assigned_identity(tvbuff_t *tvb, guint offs
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_multi_display(tvbuff_t *tvb, guint offset, guint8 ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie_multi_display(tvbuff_t *tvb, unsigned offset, uint8_t ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data)
 {
 	add_dect_nwk_dect_charset_tree_item(tree, pinfo, hf_dect_nwk_s_ie_multi_display_information, tvb, offset, ie_length);
 	offset += ie_length;
@@ -2056,7 +2047,7 @@ static int dissect_dect_nwk_s_ie_multi_display(tvbuff_t *tvb, guint offset, guin
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_multi_keypad(tvbuff_t *tvb, guint offset, guint8 ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie_multi_keypad(tvbuff_t *tvb, unsigned offset, uint8_t ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data)
 {
 	add_dect_nwk_dect_charset_tree_item(tree, pinfo, hf_dect_nwk_s_ie_multi_keypad_information, tvb, offset, ie_length);
 	offset += ie_length;
@@ -2064,17 +2055,16 @@ static int dissect_dect_nwk_s_ie_multi_keypad(tvbuff_t *tvb, guint offset, guint
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_portable_identity(tvbuff_t *tvb, guint offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie_portable_identity(tvbuff_t *tvb, unsigned offset, proto_tree *tree, void _U_ *data)
 {
-	guint8 value_length, identity_type, ipui_type;
-	guint bit_offset, no_of_bits, overflow_bits_in_last_byte, no_of_bytes;
-	gboolean bcd_last_byte_odd;
-	char* bcd_string;
-	identity_type = tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_PORTABLE_IDENTITY_TYPE_MASK;
+	uint8_t value_length, identity_type, ipui_type;
+	unsigned bit_offset, no_of_bits, overflow_bits_in_last_byte, no_of_bytes;
+	bool bcd_last_byte_odd;
+	identity_type = tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_PORTABLE_IDENTITY_TYPE_MASK;
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_portable_identity_type, tvb, offset, 1, ENC_NA);
 	offset++;
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_portable_identity_value_length, tvb, offset, 1, ENC_NA);
-	value_length = tvb_get_guint8(tvb, offset) & 0x7F;
+	value_length = tvb_get_uint8(tvb, offset) & 0x7F;
 	overflow_bits_in_last_byte = value_length % 8;
 	if (overflow_bits_in_last_byte) {
 		no_of_bytes = value_length / 8 + 1;
@@ -2087,7 +2077,7 @@ static int dissect_dect_nwk_s_ie_portable_identity(tvbuff_t *tvb, guint offset, 
 	bit_offset = ( offset * 8 ) + 4;
 	switch(identity_type) {
 		case DECT_NWK_S_IE_PORTABLE_IDENTITY_IPUI:
-			ipui_type = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_PORTABLE_IDENTITY_IPUI_TYPE_MASK ) >> DECT_NWK_S_IE_PORTABLE_IDENTITY_IPUI_TYPE_SHIFT;
+			ipui_type = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_PORTABLE_IDENTITY_IPUI_TYPE_MASK ) >> DECT_NWK_S_IE_PORTABLE_IDENTITY_IPUI_TYPE_SHIFT;
 			proto_tree_add_item(tree, hf_dect_nwk_s_ie_portable_identity_put, tvb, offset, 1, ENC_NA);
 			no_of_bits = value_length - 4;
 			switch(ipui_type) {
@@ -2102,25 +2092,25 @@ static int dissect_dect_nwk_s_ie_portable_identity(tvbuff_t *tvb, guint offset, 
 					proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_portable_identity_ipui_p_acc, tvb, bit_offset + 16, no_of_bits - 16, ENC_BIG_ENDIAN);
 					break;
 				case DECT_NWK_IPUI_TYPE_Q:
-					bcd_string = tvb_get_bcd_string(pinfo->pool, tvb, offset, no_of_bytes, &Dgt0_9_bcd, true, bcd_last_byte_odd, true);
-					proto_tree_add_string(tree, hf_dect_nwk_s_ie_portable_identity_ipui_q_bacn, tvb, offset, no_of_bytes, bcd_string);
+					proto_tree_add_item(tree, hf_dect_nwk_s_ie_portable_identity_ipui_q_bacn, tvb, offset, no_of_bytes,
+						ENC_BCD_DIGITS_0_9 | ENC_BIG_ENDIAN | ENC_BCD_SKIP_FIRST | (bcd_last_byte_odd ? ENC_BCD_ODD_NUM_DIG : 0));
 					break;
 				case DECT_NWK_IPUI_TYPE_R:
-					bcd_string = tvb_get_bcd_string(pinfo->pool, tvb, offset, no_of_bytes, &Dgt0_9_bcd, true, bcd_last_byte_odd, true);
-					proto_tree_add_string(tree, hf_dect_nwk_s_ie_portable_identity_ipui_r_imsi, tvb, offset, no_of_bytes, bcd_string);
+					proto_tree_add_item(tree, hf_dect_nwk_s_ie_portable_identity_ipui_r_imsi, tvb, offset, no_of_bytes,
+						ENC_BCD_DIGITS_0_9 | ENC_BIG_ENDIAN | ENC_BCD_SKIP_FIRST | (bcd_last_byte_odd ? ENC_BCD_ODD_NUM_DIG : 0));
 					break;
 				case DECT_NWK_IPUI_TYPE_S:
-					bcd_string = tvb_get_bcd_string(pinfo->pool, tvb, offset, no_of_bytes, &Dgt0_9_bcd, true, bcd_last_byte_odd, true);
-					proto_tree_add_string(tree, hf_dect_nwk_s_ie_portable_identity_ipui_s_number, tvb, offset, no_of_bytes, bcd_string);
+					proto_tree_add_item(tree, hf_dect_nwk_s_ie_portable_identity_ipui_s_number, tvb, offset, no_of_bytes,
+						ENC_BCD_DIGITS_0_9 | ENC_BIG_ENDIAN | ENC_BCD_SKIP_FIRST | (bcd_last_byte_odd ? ENC_BCD_ODD_NUM_DIG : 0));
 					break;
 				case DECT_NWK_IPUI_TYPE_T:
 					proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_portable_identity_ipui_t_eic, tvb, bit_offset, 16, ENC_BIG_ENDIAN);
-					bcd_string = tvb_get_bcd_string(pinfo->pool, tvb, offset + 2, no_of_bytes - 2, &Dgt0_9_bcd, true, bcd_last_byte_odd, true);
-					proto_tree_add_string(tree, hf_dect_nwk_s_ie_portable_identity_ipui_t_number, tvb, offset + 2, no_of_bytes - 2, bcd_string);
+					proto_tree_add_item(tree, hf_dect_nwk_s_ie_portable_identity_ipui_t_number, tvb, offset + 2, no_of_bytes - 2,
+						ENC_BCD_DIGITS_0_9 | ENC_BIG_ENDIAN | ENC_BCD_SKIP_FIRST | (bcd_last_byte_odd ? ENC_BCD_ODD_NUM_DIG : 0));
 					break;
 				case DECT_NWK_IPUI_TYPE_U:
-					bcd_string = tvb_get_bcd_string(pinfo->pool, tvb, offset, no_of_bytes, &Dgt0_9_bcd, true, bcd_last_byte_odd, true);
-					proto_tree_add_string(tree, hf_dect_nwk_s_ie_portable_identity_ipui_u_cacn, tvb, offset, no_of_bytes, bcd_string);
+					proto_tree_add_item(tree, hf_dect_nwk_s_ie_portable_identity_ipui_u_cacn, tvb, offset, no_of_bytes,
+						ENC_BCD_DIGITS_0_9 | ENC_BIG_ENDIAN | ENC_BCD_SKIP_FIRST | (bcd_last_byte_odd ? ENC_BCD_ODD_NUM_DIG : 0));
 					break;
 			}
 
@@ -2147,11 +2137,11 @@ static int dissect_dect_nwk_s_ie_portable_identity(tvbuff_t *tvb, guint offset, 
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_terminal_capability(tvbuff_t *tvb, guint offset, guint8 ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie_terminal_capability(tvbuff_t *tvb, unsigned offset, uint8_t ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data)
 {
-	gboolean octet_group_extension;
-	guint octet_identifier, next_element_offset;
-	guint16 stored_display_characters = 0;
+	bool octet_group_extension;
+	unsigned octet_identifier, next_element_offset;
+	uint16_t stored_display_characters = 0;
 
 	static int* const slot_type_flags[] = {
 		&hf_dect_nwk_s_ie_terminal_capability_slot_type_double,
@@ -2314,10 +2304,10 @@ static int dissect_dect_nwk_s_ie_terminal_capability(tvbuff_t *tvb, guint offset
 				proto_tree_add_bitmask(tree, tvb, offset, hf_dect_nwk_s_ie_terminal_capability_slot_type_capability, ett_dect_nwk_s_ie_element, slot_type_flags, ENC_NA);
 				break;
 			case DECT_NWK_S_IE_OCTET_D:
-				stored_display_characters = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_TERMINAL_CAPABILITY_STORED_DISPLAY_CHARACTERS_MASK ) << 7;
+				stored_display_characters = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_TERMINAL_CAPABILITY_STORED_DISPLAY_CHARACTERS_MASK ) << 7;
 				break;
 			case DECT_NWK_S_IE_OCTET_E:
-				stored_display_characters = stored_display_characters |	( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_TERMINAL_CAPABILITY_STORED_DISPLAY_CHARACTERS_MASK );
+				stored_display_characters = stored_display_characters |	( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_TERMINAL_CAPABILITY_STORED_DISPLAY_CHARACTERS_MASK );
 				proto_tree_add_uint(tree, hf_dect_nwk_s_ie_terminal_capability_stored_display_characters, tvb, offset-1, 2, stored_display_characters);
 				break;
 			case DECT_NWK_S_IE_OCTET_F:
@@ -2330,7 +2320,7 @@ static int dissect_dect_nwk_s_ie_terminal_capability(tvbuff_t *tvb, guint offset
 				proto_tree_add_item(tree, hf_dect_nwk_s_ie_terminal_capability_scrolling_behaviour, tvb, offset, 1, ENC_NA);
 				break;
 		}
-		octet_group_extension = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
+		octet_group_extension = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
 		octet_identifier++;
 		offset++;
 	} while ( !octet_group_extension );
@@ -2380,7 +2370,7 @@ static int dissect_dect_nwk_s_ie_terminal_capability(tvbuff_t *tvb, guint offset
 					profile_indicator_10_flags, ENC_NA);
 				break;
 		}
-		octet_group_extension = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
+		octet_group_extension = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
 		octet_identifier++;
 		offset++;
 	} while ( !octet_group_extension );
@@ -2399,7 +2389,7 @@ static int dissect_dect_nwk_s_ie_terminal_capability(tvbuff_t *tvb, guint offset
 					escape_to_char_sets_1_flags, ENC_NA);
 				break;
 		}
-		octet_group_extension = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
+		octet_group_extension = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
 		octet_identifier++;
 		offset++;
 	} while ( !octet_group_extension );
@@ -2419,7 +2409,7 @@ static int dissect_dect_nwk_s_ie_terminal_capability(tvbuff_t *tvb, guint offset
 						blind_slot_6a_flags, ENC_NA);
 					break;
 			}
-			octet_group_extension = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
+			octet_group_extension = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_MASK ) >> DECT_NWK_S_IE_OCTET_GROUP_EXTENSION_SHIFT;
 			octet_identifier++;
 			offset++;
 		} while ( !octet_group_extension );
@@ -2427,11 +2417,11 @@ static int dissect_dect_nwk_s_ie_terminal_capability(tvbuff_t *tvb, guint offset
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_escape_to_proprietary(tvbuff_t *tvb, guint offset, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie_escape_to_proprietary(tvbuff_t *tvb, unsigned offset, proto_tree *tree, void _U_ *data)
 {
-	guint8 discriminator_type;
+	uint8_t discriminator_type;
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_escape_to_proprietary_discriminator_type, tvb, offset, 1, ENC_NA);
-	discriminator_type = tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_ESCAPE_TO_PROPRIETARY_DISCRIMINATOR_TYPE_MASK;
+	discriminator_type = tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_ESCAPE_TO_PROPRIETARY_DISCRIMINATOR_TYPE_MASK;
 	offset++;
 	if (discriminator_type == DECT_NWK_S_IE_ESCAPE_TO_PROPRIETARY_DISCRIMINATOR_TYPE_EMC) {
 		proto_tree_add_item(tree, hf_dect_nwk_s_ie_escape_to_proprietary_discriminator, tvb, offset, 2, ENC_NA);
@@ -2441,7 +2431,7 @@ static int dissect_dect_nwk_s_ie_escape_to_proprietary(tvbuff_t *tvb, guint offs
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_model_identifier(tvbuff_t *tvb, guint offset, guint8 ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data) {
+static int dissect_dect_nwk_s_ie_model_identifier(tvbuff_t *tvb, unsigned offset, uint8_t ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data) {
 	if ( ie_length == 3) {
 		proto_tree_add_item(tree, hf_dect_nwk_s_ie_model_identifier_manic, tvb, offset, 2, ENC_NA);
 		offset += 2;
@@ -2455,9 +2445,9 @@ static int dissect_dect_nwk_s_ie_model_identifier(tvbuff_t *tvb, guint offset, g
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie_codec_list(tvbuff_t *tvb, guint offset, guint8 _U_ ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data) {
-	gboolean last_codec;
-	guint octet_identifier;
+static int dissect_dect_nwk_s_ie_codec_list(tvbuff_t *tvb, unsigned offset, uint8_t _U_ ie_length, packet_info _U_ *pinfo, proto_tree *tree, void _U_ *data) {
+	bool last_codec;
+	unsigned octet_identifier;
 
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_codec_list_negotiation_indicator, tvb, offset, 1, ENC_NA);
 	offset++;
@@ -2476,7 +2466,7 @@ static int dissect_dect_nwk_s_ie_codec_list(tvbuff_t *tvb, guint offset, guint8 
 				proto_tree_add_item(tree, hf_dect_nwk_s_ie_codec_list_last_codec, tvb, offset, 1, ENC_NA);
 				proto_tree_add_item(tree, hf_dect_nwk_s_ie_codec_list_c_plane_routing, tvb, offset, 1, ENC_NA);
 				proto_tree_add_item(tree, hf_dect_nwk_s_ie_codec_list_slot_size, tvb, offset, 1, ENC_NA);
-				last_codec = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_CODEC_LIST_LAST_CODEC_MASK ) >> DECT_NWK_S_IE_CODEC_LIST_LAST_CODEC_SHIFT;
+				last_codec = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_CODEC_LIST_LAST_CODEC_MASK ) >> DECT_NWK_S_IE_CODEC_LIST_LAST_CODEC_SHIFT;
 				break;
 		}
 		octet_identifier = (octet_identifier + 1) % 3;
@@ -2486,17 +2476,17 @@ static int dissect_dect_nwk_s_ie_codec_list(tvbuff_t *tvb, guint offset, guint8 
 	return offset;
 }
 
-static int dissect_dect_nwk_s_ie(tvbuff_t *tvb, guint offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_s_ie(tvbuff_t *tvb, unsigned offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
 {
-	gboolean fixed_length;
-	guint8 element_type, element_length, fl_ie_type, fl_ie_double_octet_type;
+	bool fixed_length;
+	uint8_t element_type, element_length, fl_ie_type, fl_ie_double_octet_type;
 	proto_tree *field_tree;
 	proto_tree *field_tree_item;
 
-	fixed_length = (tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_FIXED_LENGTH_MASK) >> DECT_NWK_S_IE_FIXED_LENGTH_SHIFT;
+	fixed_length = (tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_FIXED_LENGTH_MASK) >> DECT_NWK_S_IE_FIXED_LENGTH_SHIFT;
 	if(fixed_length) {
-		fl_ie_type = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_FL_TYPE_MASK ) >> DECT_NWK_S_IE_FL_TYPE_SHIFT;
-		fl_ie_double_octet_type = ( tvb_get_guint8(tvb, offset) & DECT_NWK_S_IE_FL_DOUBLE_OCTET_TYPE_MASK );
+		fl_ie_type = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_FL_TYPE_MASK ) >> DECT_NWK_S_IE_FL_TYPE_SHIFT;
+		fl_ie_double_octet_type = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_FL_DOUBLE_OCTET_TYPE_MASK );
 		if ( fl_ie_type == DECT_NWK_S_IE_FL_DOUBLE_OCTET_ELEMENT ) {
 			element_length = 2;
 			field_tree = proto_tree_add_subtree(tree, tvb, offset, element_length, ett_dect_nwk_s_ie_element, &field_tree_item, "Fixed length Element: ");
@@ -2552,8 +2542,8 @@ static int dissect_dect_nwk_s_ie(tvbuff_t *tvb, guint offset, packet_info *pinfo
 		}
 		offset ++;
 	} else {
-		element_type = ( tvb_get_guint8(tvb, offset) & 0x7F);
-		element_length = tvb_get_guint8(tvb, offset + 1);
+		element_type = ( tvb_get_uint8(tvb, offset) & 0x7F);
+		element_length = tvb_get_uint8(tvb, offset + 1);
 		field_tree = proto_tree_add_subtree(tree, tvb, offset, element_length + 2, ett_dect_nwk_s_ie_element, &field_tree_item, "Element: ");
 		proto_item_append_text(field_tree_item, "%s", val_to_str(element_type, dect_nwk_s_ie_type_val, "Unknown: 0x%0x"));
 		proto_tree_add_item(field_tree, hf_dect_nwk_s_ie_fl, tvb, offset, 1, ENC_NA);
@@ -2593,7 +2583,7 @@ static int dissect_dect_nwk_s_ie(tvbuff_t *tvb, guint offset, packet_info *pinfo
 				offset = dissect_dect_nwk_s_ie_nwk_assigned_identity(tvb, offset, field_tree, data);
 				break;
 			case DECT_NWK_S_IE_PORTABLE_IDENTITY:
-				offset = dissect_dect_nwk_s_ie_portable_identity(tvb, offset, pinfo, field_tree, data);
+				offset = dissect_dect_nwk_s_ie_portable_identity(tvb, offset, field_tree, data);
 				break;
 			case DECT_NWK_S_IE_RAND:
 				proto_tree_add_item(field_tree,hf_dect_nwk_s_ie_rand_rand_field, tvb, offset, element_length, ENC_NA);
@@ -2628,7 +2618,7 @@ static int dissect_dect_nwk_s_ie(tvbuff_t *tvb, guint offset, packet_info *pinfo
 	return offset;
 }
 
-static int dissect_dect_nwk_lce(tvbuff_t *tvb, guint8 msg_type, guint offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_lce(tvbuff_t *tvb, uint8_t msg_type, unsigned offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
 {
 
 
@@ -2646,7 +2636,7 @@ static int dissect_dect_nwk_lce(tvbuff_t *tvb, guint8 msg_type, guint offset, pa
 	return offset;
 }
 
-static int dissect_dect_nwk_cc(tvbuff_t *tvb, guint8 msg_type, guint offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_cc(tvbuff_t *tvb, uint8_t msg_type, unsigned offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
 {
 	/* According to Section 7.2 CC also contains CRSS messages */
 	if ( msg_type == DECT_NWK_SS_CRSS_HOLD ||
@@ -2673,7 +2663,7 @@ static int dissect_dect_nwk_cc(tvbuff_t *tvb, guint8 msg_type, guint offset, pac
 	return offset;
 }
 
-static int dissect_dect_nwk_ciss(tvbuff_t *tvb, guint8 msg_type, guint offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_ciss(tvbuff_t *tvb, uint8_t msg_type, unsigned offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
 {
 	proto_tree_add_item(tree, hf_dect_nwk_message_type_ciss, tvb, offset, 1, ENC_NA);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
@@ -2687,7 +2677,7 @@ static int dissect_dect_nwk_ciss(tvbuff_t *tvb, guint8 msg_type, guint offset, p
 	return offset;
 }
 
-static int dissect_dect_nwk_coms(tvbuff_t *tvb, guint8 msg_type, guint offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_coms(tvbuff_t *tvb, uint8_t msg_type, unsigned offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
 {
 	proto_tree_add_item(tree, hf_dect_nwk_message_type_coms, tvb, offset, 1, ENC_NA);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
@@ -2702,7 +2692,7 @@ static int dissect_dect_nwk_coms(tvbuff_t *tvb, guint8 msg_type, guint offset, p
 }
 
 
-static int dissect_dect_nwk_clms(tvbuff_t *tvb, guint8 msg_type, guint offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_clms(tvbuff_t *tvb, uint8_t msg_type, unsigned offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
 {
 	proto_tree_add_item(tree, hf_dect_nwk_message_type_clms, tvb, offset, 1, ENC_NA);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
@@ -2716,7 +2706,7 @@ static int dissect_dect_nwk_clms(tvbuff_t *tvb, guint8 msg_type, guint offset, p
 	return offset;
 }
 
-static int dissect_dect_nwk_mm(tvbuff_t *tvb, guint8 msg_type, guint offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
+static int dissect_dect_nwk_mm(tvbuff_t *tvb, uint8_t msg_type, unsigned offset, packet_info *pinfo, proto_tree *tree, void _U_ *data)
 {
 	proto_tree_add_item(tree, hf_nwk_msg_type_mm, tvb, offset, 1, ENC_NA);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
@@ -2736,9 +2726,9 @@ static int dissect_dect_nwk(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
 	proto_tree *nwk_tree;
 	proto_item *nwk_ti;
-	guint8 pdisc, msg_type;
-	guint len;
-	guint offset = 0;
+	uint8_t pdisc, msg_type;
+	unsigned len;
+	unsigned offset = 0;
 
 	len = tvb_reported_length(tvb);
 
@@ -2749,8 +2739,8 @@ static int dissect_dect_nwk(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 	proto_tree_add_item(nwk_tree, hf_nwk_ti, tvb, 0, 1, ENC_NA);
 	proto_tree_add_item(nwk_tree, hf_nwk_pdisc, tvb, 0, 1, ENC_NA);
-	pdisc = tvb_get_guint8(tvb, 0) & 0x0F;
-	msg_type = tvb_get_guint8(tvb, 1);
+	pdisc = tvb_get_uint8(tvb, 0) & 0x0F;
+	msg_type = tvb_get_uint8(tvb, 1);
 
 	switch (pdisc) {
 	case DECT_NWK_PDISC_LCE:
@@ -2793,19 +2783,19 @@ where:
   (starting with 1 on the leftmost one), and taking the sum of those multiply results
   modulo 11. If the result is 10 a '*' is displayed instead.
 */
-static void fmt_dect_nwk_ipei(gchar *ipei_string, guint64 ipei) {
-	guint16 emc, check_digit;
-	guint32 psn;
-	guint64 digit_divisor, ipei_digits;
+static void fmt_dect_nwk_ipei(char *ipei_string, uint64_t ipei) {
+	uint16_t emc, check_digit;
+	uint32_t psn;
+	uint64_t digit_divisor, ipei_digits;
 
 	emc = ( ( ipei & 0xFFFF00000 ) >> 20 ) & 0xFFFF;
 	psn = ipei & 0xFFFFF;
 
 	digit_divisor = 100000000000;
-	ipei_digits = emc * (guint64)10000000 + psn;
+	ipei_digits = emc * (uint64_t)10000000 + psn;
 	check_digit = 0;
-	for(guint8 i = 1; i <= 12; i++) {
-		check_digit += (guint16)( ( ipei_digits / digit_divisor ) * i );
+	for(uint8_t i = 1; i <= 12; i++) {
+		check_digit += (uint16_t)( ( ipei_digits / digit_divisor ) * i );
 		ipei_digits = ipei_digits % digit_divisor;
 		digit_divisor /= 10;
 	}
@@ -3138,7 +3128,7 @@ void proto_register_dect_nwk(void)
 			}
 		},
 		{ &hf_dect_nwk_s_ie_iwu_to_iwu_discriminator_type,
-			{ "Discriminator Type", "dect_nwk.s.ie.iwu_to_iwu.protocol_discriminator", FT_UINT8, BASE_HEX,
+			{ "Discriminator Type", "dect_nwk.s.ie.iwu_to_iwu.discriminator_type", FT_UINT8, BASE_HEX,
 				VALS(dect_nwk_s_ie_iwu_to_iwu_discriminator_type_val), 0x7F, NULL, HFILL
 			}
 		},
@@ -3910,7 +3900,7 @@ void proto_register_dect_nwk(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_dect_nwk,
 		&ett_dect_nwk_s_ie_element,
 		&ett_dect_nwk_s_ie_location_area_li_type

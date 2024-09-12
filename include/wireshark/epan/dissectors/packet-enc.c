@@ -22,9 +22,9 @@ static capture_dissector_handle_t enc_cap_handle;
 /* The header in OpenBSD Encapsulating Interface files. */
 
 struct enchdr {
-  guint32 af;
-  guint32 spi;
-  guint32 flags;
+  uint32_t af;
+  uint32_t spi;
+  uint32_t flags;
 };
 #define BSD_ENC_HDRLEN    12
 
@@ -38,26 +38,26 @@ struct enchdr {
 static dissector_table_t enc_dissector_table;
 
 /* header fields */
-static int proto_enc = -1;
-static int hf_enc_af = -1;
-static int hf_enc_spi = -1;
-static int hf_enc_flags = -1;
-static int hf_enc_flags_payload_enc = -1;
-static int hf_enc_flags_payload_auth = -1;
-static int hf_enc_flags_payload_compress = -1;
-static int hf_enc_flags_header_auth = -1;
-static int hf_enc_flags_reserved = -1;
+static int proto_enc;
+static int hf_enc_af;
+static int hf_enc_spi;
+static int hf_enc_flags;
+static int hf_enc_flags_payload_enc;
+static int hf_enc_flags_payload_auth;
+static int hf_enc_flags_payload_compress;
+static int hf_enc_flags_header_auth;
+static int hf_enc_flags_reserved;
 
-static gint ett_enc = -1;
-static gint ett_enc_flag = -1;
+static int ett_enc;
+static int ett_enc_flag;
 
-static gboolean
-capture_enc(const guchar *pd, int offset _U_, int len, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header)
+static bool
+capture_enc(const unsigned char *pd, int offset _U_, int len, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header)
 {
-  guint32 af;
+  uint32_t af;
 
   if (!BYTES_ARE_IN_FRAME(0, len, BSD_ENC_HDRLEN))
-    return FALSE;
+    return false;
 
   memcpy((char *)&af, (const char *)&pd[0], sizeof(af));
   if ((af & 0xFFFF0000) != 0) {
@@ -84,7 +84,7 @@ static int
 dissect_enc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
   struct enchdr  ench;
-  guint          writer_encoding;
+  unsigned       writer_encoding;
   tvbuff_t      *next_tvb;
   proto_tree    *enc_tree;
   proto_item    *ti;
@@ -104,7 +104,7 @@ dissect_enc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
    * Initially assume the file was written by a host with our byte order.
    */
   writer_encoding = ENC_HOST_ENDIAN;
-  ench.af = tvb_get_h_guint32(tvb, 0);
+  ench.af = tvb_get_h_uint32(tvb, 0);
   if ((ench.af & 0xFFFF0000) != 0) {
     /*
      * BSD AF_ types will always have the upper 16 bits as 0, so if any
@@ -173,7 +173,7 @@ proto_register_enc(void)
       { "Reserved", "enc.flags.reserved", FT_UINT32, BASE_HEX, NULL, BSD_ENC_M_RESERVED,
         NULL, HFILL }},
   };
-  static gint *ett[] =
+  static int *ett[] =
   {
       &ett_enc,
       &ett_enc_flag

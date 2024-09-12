@@ -20,11 +20,11 @@
 void proto_register_dcerpc_trksvr(void);
 void proto_reg_handoff_dcerpc_trksvr(void);
 
-static int proto_dcerpc_trksvr = -1;
-static int hf_trksvr_opnum = -1;
-/* static int hf_trksvr_rc = -1; */
+static int proto_dcerpc_trksvr;
+static int hf_trksvr_opnum;
+/* static int hf_trksvr_rc; */
 
-static gint ett_dcerpc_trksvr = -1;
+static int ett_dcerpc_trksvr;
 
 /*
   IDL [ uuid(4da1-943d-11d1-acae-00c0afc2aa3f),
@@ -38,9 +38,9 @@ static e_guid_t uuid_dcerpc_trksvr = {
 	{ 0xac, 0xae, 0x00, 0xc0, 0x4f, 0xc2, 0xaa, 0x3f }
 };
 
-static guint16 ver_dcerpc_trksvr = 1;
+static uint16_t ver_dcerpc_trksvr = 1;
 
-static dcerpc_sub_dissector dcerpc_trksvr_dissectors[] = {
+static const dcerpc_sub_dissector dcerpc_trksvr_dissectors[] = {
 	{ 0, "LnkSvrMessage",
 		NULL,
 		NULL },
@@ -61,7 +61,7 @@ static hf_register_info hf[] = {
 #endif
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_dcerpc_trksvr
 	};
 

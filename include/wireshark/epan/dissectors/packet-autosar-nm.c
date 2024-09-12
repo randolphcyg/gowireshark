@@ -22,6 +22,7 @@
 
 #include <epan/packet.h>
 #include <epan/prefs.h>
+#include <epan/tfs.h>
 #include <epan/uat.h>
 #include "packet-socketcan.h"
 
@@ -31,42 +32,42 @@ void proto_register_autosar_nm(void);
 #define AUTOSAR_NM_NAME "AUTOSAR NM"
 
 typedef struct _user_data_field_t {
-  gchar*  udf_name;
-  gchar*  udf_desc;
-  guint32 udf_offset;
-  guint32 udf_length;
-  guint64 udf_mask;
-  gchar*  udf_value_desc;
+  char*  udf_name;
+  char*  udf_desc;
+  uint32_t udf_offset;
+  uint32_t udf_length;
+  uint64_t udf_mask;
+  char*  udf_value_desc;
 } user_data_field_t;
 
-static int proto_autosar_nm = -1;
+static int proto_autosar_nm;
 
 static dissector_handle_t nm_handle;
 static dissector_handle_t nm_handle_can;
 
 /*** header fields ***/
-static int hf_autosar_nm_source_node_identifier = -1;
-static int hf_autosar_nm_control_bit_vector = -1;
-static int hf_autosar_nm_control_bit_vector_repeat_msg_req = -1;
-static int hf_autosar_nm_control_bit_vector_reserved1 = -1;
-static int hf_autosar_nm_control_bit_vector_pn_shutdown_request = -1;
-static int hf_autosar_nm_control_bit_vector_reserved2 = -1;
-static int hf_autosar_nm_control_bit_vector_nm_coord_id = -1;
-static int hf_autosar_nm_control_bit_vector_reserved3 = -1;
-static int hf_autosar_nm_control_bit_vector_nm_coord_sleep = -1;
-static int hf_autosar_nm_control_bit_vector_reserved4 = -1;
-static int hf_autosar_nm_control_bit_vector_active_wakeup = -1;
-static int hf_autosar_nm_control_bit_vector_reserved5 = -1;
-static int hf_autosar_nm_control_bit_vector_pn_learning = -1;
-static int hf_autosar_nm_control_bit_vector_pni = -1;
-static int hf_autosar_nm_control_bit_vector_reserved6 = -1;
-static int hf_autosar_nm_control_bit_vector_reserved7 = -1;
-static int hf_autosar_nm_user_data = -1;
+static int hf_autosar_nm_source_node_identifier;
+static int hf_autosar_nm_control_bit_vector;
+static int hf_autosar_nm_control_bit_vector_repeat_msg_req;
+static int hf_autosar_nm_control_bit_vector_reserved1;
+static int hf_autosar_nm_control_bit_vector_pn_shutdown_request;
+static int hf_autosar_nm_control_bit_vector_reserved2;
+static int hf_autosar_nm_control_bit_vector_nm_coord_id;
+static int hf_autosar_nm_control_bit_vector_reserved3;
+static int hf_autosar_nm_control_bit_vector_nm_coord_sleep;
+static int hf_autosar_nm_control_bit_vector_reserved4;
+static int hf_autosar_nm_control_bit_vector_active_wakeup;
+static int hf_autosar_nm_control_bit_vector_reserved5;
+static int hf_autosar_nm_control_bit_vector_pn_learning;
+static int hf_autosar_nm_control_bit_vector_pni;
+static int hf_autosar_nm_control_bit_vector_reserved6;
+static int hf_autosar_nm_control_bit_vector_reserved7;
+static int hf_autosar_nm_user_data;
 
 /*** protocol tree items ***/
-static gint ett_autosar_nm = -1;
-static gint ett_autosar_nm_cbv = -1;
-static gint ett_autosar_nm_user_data = -1;
+static int ett_autosar_nm;
+static int ett_autosar_nm_cbv;
+static int ett_autosar_nm_user_data;
 
 /*** Bit meanings ***/
 static const true_false_string tfs_autosar_nm_control_rep_msg_req = {
@@ -103,8 +104,8 @@ static const enum_val_t byte_position_vals[] = {
 };
 
 /* Set positions of the first two fields (Source Node Identifier and Control Bit Vector */
-static gint g_autosar_nm_pos_cbv = (gint)byte_pos_0;
-static gint g_autosar_nm_pos_sni = (gint)byte_pos_1;
+static int g_autosar_nm_pos_cbv = (int)byte_pos_0;
+static int g_autosar_nm_pos_sni = (int)byte_pos_1;
 
 enum parameter_cbv_version_value {
     autosar_3_0_or_newer = 0,
@@ -123,15 +124,15 @@ static const enum_val_t cbv_version_vals[] = {
     {NULL, NULL, -1}
 };
 
-static gint g_autosar_nm_cbv_version = (gint)autosar_4_1_or_newer;
+static int g_autosar_nm_cbv_version = (int)autosar_4_1_or_newer;
 
 /* Id and mask of CAN frames to be dissected */
-static guint32 g_autosar_nm_can_id = 0;
-static guint32 g_autosar_nm_can_id_mask = 0xffffffff;
+static uint32_t g_autosar_nm_can_id;
+static uint32_t g_autosar_nm_can_id_mask = 0xffffffff;
 
 /* Relevant PDUs */
-static range_t *g_autosar_nm_pdus = NULL;
-static range_t *g_autosar_nm_ipdum_pdus = NULL;
+static range_t *g_autosar_nm_pdus;
+static range_t *g_autosar_nm_ipdum_pdus;
 
 
 /*******************************
@@ -139,10 +140,10 @@ static range_t *g_autosar_nm_ipdum_pdus = NULL;
  *******************************/
 
 static user_data_field_t* user_data_fields;
-static guint num_user_data_fields;
+static unsigned num_user_data_fields;
 static GHashTable* user_data_fields_hash_hf;
 static hf_register_info* dynamic_hf;
-static guint dynamic_hf_size;
+static unsigned dynamic_hf_size;
 static wmem_map_t* user_data_fields_hash_ett;
 
 static bool
@@ -162,7 +163,7 @@ user_data_fields_update_cb(void *r, char **err)
     return (*err == NULL);
   }
 
-  if (rec->udf_mask >= G_MAXUINT64) {
+  if (rec->udf_mask >= UINT64_MAX) {
     *err = ws_strdup_printf("mask can only be up to 64bits (name: %s)", rec->udf_name);
     return (*err == NULL);
   }
@@ -221,10 +222,10 @@ UAT_DEC_CB_DEF(user_data_fields, udf_length, user_data_field_t)
 UAT_HEX64_CB_DEF(user_data_fields, udf_mask, user_data_field_t)
 UAT_CSTRING_CB_DEF(user_data_fields, udf_value_desc, user_data_field_t)
 
-static guint64
-calc_ett_key(guint32 offset, guint32 length)
+static uint64_t
+calc_ett_key(uint32_t offset, uint32_t length)
 {
-  guint64 ret = (guint64)offset;
+  uint64_t ret = (uint64_t)offset;
   return (ret << 32) ^ length;
 }
 
@@ -232,10 +233,10 @@ calc_ett_key(guint32 offset, guint32 length)
  * This creates a string for you that can be used as key for the hash table.
  * YOU must g_free that string!
  */
-static gchar*
+static char*
 calc_hf_key(user_data_field_t udf)
 {
-  gchar* ret = NULL;
+  char* ret = NULL;
   ret = ws_strdup_printf("%i-%i-%" PRIu64 "-%s", udf.udf_offset, udf.udf_length, udf.udf_mask, udf.udf_name);
   return ret;
 }
@@ -243,13 +244,13 @@ calc_hf_key(user_data_field_t udf)
 /*
  * Lookup the hf for the user data based on the key
  */
-static gint*
-get_hf_for_user_data(gchar* key)
+static int*
+get_hf_for_user_data(char* key)
 {
-  gint* hf_id = NULL;
+  int* hf_id = NULL;
 
   if (user_data_fields_hash_hf) {
-    hf_id = (gint*)g_hash_table_lookup(user_data_fields_hash_hf, key);
+    hf_id = (int*)g_hash_table_lookup(user_data_fields_hash_hf, key);
   }
   else {
     hf_id = NULL;
@@ -261,15 +262,15 @@ get_hf_for_user_data(gchar* key)
 /*
  * Lookup the ett for the user data based on the key
  */
-static gint*
-get_ett_for_user_data(guint32 offset, guint32 length)
+static int*
+get_ett_for_user_data(uint32_t offset, uint32_t length)
 {
-  gint* ett_id = NULL;
+  int* ett_id = NULL;
 
-  guint64 key = calc_ett_key(offset, length);
+  uint64_t key = calc_ett_key(offset, length);
 
   if (user_data_fields_hash_ett) {
-    ett_id = (gint*)wmem_map_lookup(user_data_fields_hash_ett, &key);
+    ett_id = (int*)wmem_map_lookup(user_data_fields_hash_ett, &key);
   }
   else {
     ett_id = NULL;
@@ -286,7 +287,7 @@ deregister_user_data(void)
 {
   if (dynamic_hf) {
     /* Unregister all fields */
-    for (guint i = 0; i < dynamic_hf_size; i++) {
+    for (unsigned i = 0; i < dynamic_hf_size; i++) {
       proto_deregister_field(proto_autosar_nm, *(dynamic_hf[i].p_id));
       g_free(dynamic_hf[i].p_id);
     }
@@ -305,13 +306,13 @@ deregister_user_data(void)
 static void
 user_data_post_update_cb(void)
 {
-  gint* hf_id;
-  gint *ett_id;
-  gchar* tmp = NULL;
-  guint64* key = NULL;
+  int* hf_id;
+  int *ett_id;
+  char* tmp = NULL;
+  uint64_t* key = NULL;
 
-  static gint ett_dummy = -1;
-  static gint *ett[] = {
+  static int ett_dummy = -1;
+  static int *ett[] = {
     &ett_dummy,
   };
 
@@ -327,8 +328,8 @@ user_data_post_update_cb(void)
       user_data_fields_hash_ett = wmem_map_new(wmem_epan_scope(), g_int64_hash, g_int64_equal);
     }
 
-    for (guint i = 0; i < dynamic_hf_size; i++) {
-      hf_id = g_new(gint, 1);
+    for (unsigned i = 0; i < dynamic_hf_size; i++) {
+      hf_id = g_new(int, 1);
       *hf_id = -1;
 
       dynamic_hf[i].p_id = hf_id;
@@ -361,10 +362,10 @@ user_data_post_update_cb(void)
         ett_dummy = -1;
         proto_register_subtree_array(ett, array_length(ett));
 
-        ett_id = wmem_new(wmem_epan_scope(), gint);
+        ett_id = wmem_new(wmem_epan_scope(), int);
         *ett_id = ett_dummy;
 
-        key = wmem_new(wmem_epan_scope(), guint64);
+        key = wmem_new(wmem_epan_scope(), uint64_t);
         *key = calc_ett_key(user_data_fields[i].udf_offset, user_data_fields[i].udf_length);
 
         wmem_map_insert(user_data_fields_hash_ett, key, ett_id);
@@ -386,7 +387,7 @@ user_data_reset_cb(void)
  ****** The dissector itself ******
  **********************************/
 
-static gboolean
+static bool
 is_relevant_can_message(void *data)
 {
     const struct can_info *can_info = (struct can_info *)data;
@@ -394,15 +395,15 @@ is_relevant_can_message(void *data)
 
     if (can_info->id & (CAN_ERR_FLAG | CAN_RTR_FLAG)) {
         /* Error and RTR frames are not for us. */
-        return FALSE;
+        return false;
     }
 
     if ((can_info->id & CAN_EFF_MASK & g_autosar_nm_can_id_mask) != (g_autosar_nm_can_id & CAN_EFF_MASK & g_autosar_nm_can_id_mask)) {
         /* Id doesn't match. The frame is not for us. */
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static int
@@ -411,13 +412,13 @@ dissect_autosar_nm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
   proto_item *ti;
   proto_tree *autosar_nm_tree;
   proto_tree *autosar_nm_subtree = NULL;
-  gchar *tmp = NULL;
-  guint32 offset = 0;
-  guint32 length = 0;
-  guint32 msg_length = 0;
-  guint32 ctrl_bit_vector = 0;
-  guint32 src_node_id = 0;
-  guint i = 0;
+  char *tmp = NULL;
+  uint32_t offset = 0;
+  uint32_t length = 0;
+  uint32_t msg_length = 0;
+  uint32_t ctrl_bit_vector = 0;
+  uint32_t src_node_id = 0;
+  unsigned i = 0;
   int *hf_id;
   int *ett_id;
 
@@ -512,7 +513,7 @@ dissect_autosar_nm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
       break;
       }
 
-      ctrl_bit_vector = tvb_get_guint8(tvb, g_autosar_nm_pos_cbv);
+      ctrl_bit_vector = tvb_get_uint8(tvb, g_autosar_nm_pos_cbv);
   }
 
   if (g_autosar_nm_pos_sni != byte_pos_off && g_autosar_nm_pos_sni >= g_autosar_nm_pos_cbv) {
@@ -526,7 +527,7 @@ dissect_autosar_nm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
       offset = g_autosar_nm_pos_sni + 1;
   }
 
-  col_add_fstr(pinfo->cinfo, COL_INFO, "NM (");
+  col_set_str(pinfo->cinfo, COL_INFO, "NM (");
   if (g_autosar_nm_pos_cbv != byte_pos_off) {
       col_append_fstr(pinfo->cinfo, COL_INFO, "CBV: 0x%02x", ctrl_bit_vector);
       proto_item_append_text(ti, ", Control Bit Vector: 0x%02x", ctrl_bit_vector);
@@ -540,7 +541,7 @@ dissect_autosar_nm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
           proto_item_append_text(ti, ", Source Node: %i", src_node_id);
       }
   }
-  col_append_fstr(pinfo->cinfo, COL_INFO, ")");
+  col_append_str(pinfo->cinfo, COL_INFO, ")");
 
   /* now we need to process the user defined fields ... */
   ti = proto_tree_add_item(autosar_nm_tree, hf_autosar_nm_user_data, tvb, offset, msg_length - offset, ENC_NA);
@@ -588,14 +589,14 @@ dissect_autosar_nm_can(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
     return dissect_autosar_nm(tvb, pinfo, tree, data);
 }
 
-static gboolean
+static bool
 dissect_autosar_nm_can_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     if (!is_relevant_can_message(data)) {
-        return FALSE;
+        return false;
     }
     dissect_autosar_nm(tvb, pinfo, tree, data);
-    return TRUE;
+    return true;
 }
 
 void proto_register_autosar_nm(void)
@@ -642,7 +643,7 @@ void proto_register_autosar_nm(void)
     { "User Data", "autosar-nm.user_data", FT_BYTES, BASE_NONE, NULL, 0x0, "The User Data", HFILL } },
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_autosar_nm,
     &ett_autosar_nm_cbv,
     &ett_autosar_nm_user_data,
@@ -671,23 +672,23 @@ void proto_register_autosar_nm(void)
   prefs_register_enum_preference(autosar_nm_module, "cbv_version",
       "Control Bit Vector version",
       "Define the standard version that applies to the CBV field",
-      &g_autosar_nm_cbv_version, cbv_version_vals, FALSE);
+      &g_autosar_nm_cbv_version, cbv_version_vals, false);
 
   prefs_register_enum_preference(autosar_nm_module, "cbv_position",
     "Control Bit Vector position",
     "Make the NM dissector interpret this byte as Control Bit Vector (CBV)",
-    &g_autosar_nm_pos_cbv, byte_position_vals, FALSE);
+    &g_autosar_nm_pos_cbv, byte_position_vals, false);
 
   prefs_register_enum_preference(autosar_nm_module, "sni_position",
     "Source Node Identifier position",
     "Make the NM dissector interpret this byte as Source Node Identifier (SNI)",
-    &g_autosar_nm_pos_sni, byte_position_vals, FALSE);
+    &g_autosar_nm_pos_sni, byte_position_vals, false);
 
   /* UAT */
   user_data_fields_uat = uat_new("NM User Data Fields Table",
     sizeof(user_data_field_t),        /* record size           */
     "NM_user_data_fields",            /* filename              */
-    TRUE,                             /* from_profile          */
+    true,                             /* from_profile          */
     &user_data_fields,                /* data_ptr              */
     &num_user_data_fields,            /* numitems_ptr          */
     UAT_AFFECTS_DISSECTION | UAT_AFFECTS_FIELDS,  /* specifies named fields, so affects dissection and the set of named fields */
@@ -734,7 +735,7 @@ void proto_register_autosar_nm(void)
 
 void proto_reg_handoff_autosar_nm(void)
 {
-  static gboolean initialized = FALSE;
+  static bool initialized = false;
 
   if (!initialized) {
       dissector_add_for_decode_as_with_preference("udp.port", nm_handle);
@@ -744,7 +745,7 @@ void proto_reg_handoff_autosar_nm(void)
       /* heuristics default on since they do nothing without IDs being configured */
       heur_dissector_add("can", dissect_autosar_nm_can_heur, "AUTOSAR NM over CAN", "autosar_nm_can_heur", proto_autosar_nm, HEURISTIC_ENABLE);
 
-      initialized = TRUE;
+      initialized = true;
   } else {
       dissector_delete_all("pdu_transport.id", nm_handle);
       dissector_delete_all("ipdum.pdu.id", nm_handle);

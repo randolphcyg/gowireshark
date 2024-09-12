@@ -19,24 +19,24 @@ void proto_reg_handoff_mpls_mac(void);
 
 static dissector_handle_t mpls_mac_handle;
 
-static gint proto_mpls_mac = -1;
+static int proto_mpls_mac;
 
-static gint ett_mpls_mac = -1;
-static gint ett_mpls_mac_flags = -1;
-static gint ett_mpls_mac_tlv = -1;
+static int ett_mpls_mac;
+static int ett_mpls_mac_flags;
+static int ett_mpls_mac_tlv;
 
-static int hf_mpls_mac_reserved = -1;
-static int hf_mpls_mac_tlv_length_total = -1;
-static int hf_mpls_mac_flags = -1;
-static int hf_mpls_mac_flags_a = -1;
-static int hf_mpls_mac_flags_r = -1;
-static int hf_mpls_mac_flags_reserved = -1;
-static int hf_mpls_mac_tlv = -1;
-static int hf_mpls_mac_tlv_res = -1;
-static int hf_mpls_mac_tlv_type = -1;
-static int hf_mpls_mac_tlv_length = -1;
-static int hf_mpls_mac_tlv_value = -1;
-static int hf_mpls_mac_tlv_sequence_number = -1;
+static int hf_mpls_mac_reserved;
+static int hf_mpls_mac_tlv_length_total;
+static int hf_mpls_mac_flags;
+static int hf_mpls_mac_flags_a;
+static int hf_mpls_mac_flags_r;
+static int hf_mpls_mac_flags_reserved;
+static int hf_mpls_mac_tlv;
+static int hf_mpls_mac_tlv_res;
+static int hf_mpls_mac_tlv_type;
+static int hf_mpls_mac_tlv_length;
+static int hf_mpls_mac_tlv_value;
+static int hf_mpls_mac_tlv_sequence_number;
 
 
 static int * const mpls_mac_flags[] = {
@@ -51,7 +51,7 @@ dissect_mpls_mac(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
 {
     proto_item *ti;
     proto_tree *mac_tree;
-    guint32     offset = 0, tlv_length, offset_end;
+    uint32_t    offset = 0, tlv_length, offset_end;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "MPLS-MAC");
     col_clear(pinfo->cinfo, COL_INFO);
@@ -73,7 +73,7 @@ dissect_mpls_mac(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
     offset_end = offset + tlv_length;
 
     while(offset < offset_end){
-        guint32 type, length;
+        uint32_t type, length;
         proto_tree *tlv_tree;
 
         ti = proto_tree_add_item(mac_tree, hf_mpls_mac_tlv, tvb, offset, 4, ENC_NA);
@@ -211,7 +211,7 @@ proto_register_mpls_mac(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_mpls_mac,
         &ett_mpls_mac_flags,
         &ett_mpls_mac_tlv,

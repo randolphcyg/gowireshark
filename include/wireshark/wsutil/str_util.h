@@ -182,6 +182,17 @@ bool isdigit_string(const unsigned char *str);
 WS_DLL_PUBLIC
 const char *ws_ascii_strcasestr(const char *haystack, const char *needle);
 
+/** Like the memchr() function, except it scans backwards from the end.
+ *
+ * @param haystack Pointer to the bytes of memory to search
+ * @param ch The character to search
+ * @param n The length of bytes to search from the end
+ * @return A pointer to the last occurrence of "ch" in "haystack".
+ * If "ch" isn't found or "n" is 0, returns NULL.
+ */
+WS_DLL_PUBLIC
+const uint8_t *ws_memrchr(const void *haystack, int ch, size_t n);
+
 WS_DLL_PUBLIC
 char *ws_escape_string(wmem_allocator_t *alloc, const char *string, bool add_quotes);
 
@@ -192,21 +203,74 @@ char *ws_escape_string_len(wmem_allocator_t *alloc, const char *string, ssize_t 
 WS_DLL_PUBLIC
 char *ws_escape_null(wmem_allocator_t *alloc, const char *string, size_t len, bool add_quotes);
 
+/* Escape as in a number of CSV dialects.
+ *
+ * @param allocator  The wmem scope to use to allocate the returned string
+ * @param string  The input string to escape
+ * @param add_quotes  Whether to surround the string with quote_char
+ * @param quote_char  The quote character, always escaped in some way.
+ * @param double_quote  Whether to escape the quote character by doubling it
+ * @param escape_whitespace  Whether to escape whitespace with a backslash
+ * @return  The escaped string
+ *
+ * @note If double_quote is false, then quote_or_delim is escaped with a
+ * backslash ('\'). The quote character can be '\0', in which case it is
+ * ignored. If any character is being escaped with a backslash (i.e.,
+ * quote_char is not '\0' and double_quote is false, or escape_whitespace
+ * is true), then backslash is also escaped.  If add_quotes is false, then
+ * quote_char can either be a quote character (if the string will be quoted
+ * later after further manipulation) or the delimiter (to escape it, since
+ * the string is not being quoted.).
+ */
+WS_DLL_PUBLIC
+char *ws_escape_csv(wmem_allocator_t *alloc, const char *string, bool add_quotes, char quote_char, bool double_quote, bool escape_whitespace);
+
 WS_DLL_PUBLIC
 int ws_xton(char ch);
 
 typedef enum {
     FORMAT_SIZE_UNIT_NONE,          /**< No unit will be appended. You must supply your own. */
+    /* XXX - This does not append a trailing space if there is no prefix.
+     * That's good if you intend to list the unit somewhere else, e.g. in a
+     * legend, header, or other column, but doesn't work well if intending
+     * to append your own unit. You can test whether there's a prefix or
+     * not with g_ascii_isdigit() (plus special handling for inf and NaN).
+     */
     FORMAT_SIZE_UNIT_BYTES,         /**< "bytes" for un-prefixed sizes, "B" otherwise. */
     FORMAT_SIZE_UNIT_BITS,          /**< "bits" for un-prefixed sizes, "b" otherwise. */
     FORMAT_SIZE_UNIT_BITS_S,        /**< "bits/s" for un-prefixed sizes, "bps" otherwise. */
     FORMAT_SIZE_UNIT_BYTES_S,       /**< "bytes/s" for un-prefixed sizes, "Bps" otherwise. */
     FORMAT_SIZE_UNIT_PACKETS,       /**< "packets" */
     FORMAT_SIZE_UNIT_PACKETS_S,     /**< "packets/s" */
+    FORMAT_SIZE_UNIT_EVENTS,        /**< "events" */
+    FORMAT_SIZE_UNIT_EVENTS_S,      /**< "events/s" */
+    FORMAT_SIZE_UNIT_FIELDS,        /**< "fields" */
+    /* These next two aren't really for format_size (which takes an int) */
+    FORMAT_SIZE_UNIT_SECONDS,       /**< "seconds" for un-prefixed sizes, "s" otherwise. */
+    FORMAT_SIZE_UNIT_ERLANGS,       /**< "erlangs" for un-prefixed sizes, "E" otherwise. */
 } format_size_units_e;
 
 #define FORMAT_SIZE_PREFIX_SI   (1 << 0)    /**< SI (power of 1000) prefixes will be used. */
 #define FORMAT_SIZE_PREFIX_IEC  (1 << 1)    /**< IEC (power of 1024) prefixes will be used. */
+
+/** Given a floating point value, return it in a human-readable format
+ *
+ * Prefixes up to "E/Ei" (exa, exbi) and down to "a" (atto; negative
+ * prefixes are SI-only) are currently supported. Values outside that
+ * range will use scientific notation.
+ *
+ * @param size The size value
+ * @param flags Flags to control the output (unit of measurement,
+ * SI vs IEC, etc). Unit and prefix flags may be ORed together.
+ * @param precision Maximum number of digits to appear after the
+ * decimal point. Trailing zeros are removed, as is the decimal
+ * point if not digits follow it.
+ * @return A newly-allocated string representing the value.
+ */
+WS_DLL_PUBLIC
+char *format_units(wmem_allocator_t *allocator, double size,
+                   format_size_units_e unit, uint16_t flags,
+                   int precision);
 
 /** Given a size, return its value in a human-readable format
  *

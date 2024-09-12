@@ -47,134 +47,134 @@
 void proto_register_isis_hello(void);
 void proto_reg_handoff_isis_hello(void);
 
-static int proto_isis_hello = -1;
+static int proto_isis_hello;
 
 /* hello packets */
-static int hf_isis_hello_circuit = -1;
-static int hf_isis_hello_circuit_reserved = -1;
-static int hf_isis_hello_source_id = -1;
-static int hf_isis_hello_holding_timer = -1;
-static int hf_isis_hello_pdu_length = -1;
-static int hf_isis_hello_priority = -1;
-static int hf_isis_hello_priority_reserved = -1;
-static int hf_isis_hello_lan_id = -1;
-static int hf_isis_hello_clv_type = -1;
-static int hf_isis_hello_clv_length = -1;
-static int hf_isis_hello_local_circuit_id = -1;
-static int hf_isis_hello_clv_ipv4_int_addr = -1;
-static int hf_isis_hello_clv_ipv6_int_addr = -1;
-/* static int hf_isis_hello_clv_ptp_adj = -1; */
-static int hf_isis_hello_clv_mt = -1;
-static int hf_isis_hello_clv_restart_flags = -1;
-static int hf_isis_hello_clv_restart_flags_rr = -1;
-static int hf_isis_hello_clv_restart_flags_ra = -1;
-static int hf_isis_hello_clv_restart_flags_sa = -1;
-static int hf_isis_hello_clv_restart_remain_time = -1;
-static int hf_isis_hello_clv_restart_neighbor = -1;
+static int hf_isis_hello_circuit;
+static int hf_isis_hello_circuit_reserved;
+static int hf_isis_hello_source_id;
+static int hf_isis_hello_holding_timer;
+static int hf_isis_hello_pdu_length;
+static int hf_isis_hello_priority;
+static int hf_isis_hello_priority_reserved;
+static int hf_isis_hello_lan_id;
+static int hf_isis_hello_clv_type;
+static int hf_isis_hello_clv_length;
+static int hf_isis_hello_local_circuit_id;
+static int hf_isis_hello_clv_ipv4_int_addr;
+static int hf_isis_hello_clv_ipv6_int_addr;
+/* static int hf_isis_hello_clv_ptp_adj; */
+static int hf_isis_hello_clv_mt;
+static int hf_isis_hello_clv_restart_flags;
+static int hf_isis_hello_clv_restart_flags_rr;
+static int hf_isis_hello_clv_restart_flags_ra;
+static int hf_isis_hello_clv_restart_flags_sa;
+static int hf_isis_hello_clv_restart_remain_time;
+static int hf_isis_hello_clv_restart_neighbor;
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_isis_hello_extended_local_circuit_id = -1;
-static int hf_isis_hello_adjacency_state = -1;
-static int hf_isis_hello_neighbor_systemid = -1;
-static int hf_isis_hello_digest = -1;
-static int hf_isis_hello_digest_v = -1;
-static int hf_isis_hello_digest_a = -1;
-static int hf_isis_hello_digest_d = -1;
-static int hf_isis_hello_ect = -1;
-static int hf_isis_hello_bvid = -1;
-static int hf_isis_hello_bvid_u = -1;
-static int hf_isis_hello_bvid_m = -1;
-static int hf_isis_hello_area_address = -1;
-static int hf_isis_hello_instance_identifier = -1;
-static int hf_isis_hello_supported_itid = -1;
-static int hf_isis_hello_clv_nlpid_nlpid = -1;
-static int hf_isis_hello_clv_ip_authentication = -1;
-static int hf_isis_hello_authentication = -1;
+static int hf_isis_hello_extended_local_circuit_id;
+static int hf_isis_hello_adjacency_state;
+static int hf_isis_hello_neighbor_systemid;
+static int hf_isis_hello_digest;
+static int hf_isis_hello_digest_v;
+static int hf_isis_hello_digest_a;
+static int hf_isis_hello_digest_d;
+static int hf_isis_hello_ect;
+static int hf_isis_hello_bvid;
+static int hf_isis_hello_bvid_u;
+static int hf_isis_hello_bvid_m;
+static int hf_isis_hello_area_address;
+static int hf_isis_hello_instance_identifier;
+static int hf_isis_hello_supported_itid;
+static int hf_isis_hello_clv_nlpid_nlpid;
+static int hf_isis_hello_clv_ip_authentication;
+static int hf_isis_hello_authentication;
 
-static int hf_isis_hello_aux_mcid = -1;
-static int hf_isis_hello_mcid = -1;
-static int hf_isis_hello_is_neighbor = -1;
-static int hf_isis_hello_mtid = -1;
-static int hf_isis_hello_checksum = -1;
-static int hf_isis_hello_checksum_status = -1;
-static int hf_isis_hello_trill_neighbor_sf = -1;
-static int hf_isis_hello_trill_neighbor_lf = -1;
-static int hf_isis_hello_trill_neighbor_ff = -1;
-static int hf_isis_hello_trill_neighbor_of = -1;
-static int hf_isis_hello_trill_neighbor_size = -1;
-static int hf_isis_hello_trill_neighbor_reserved = -1;
-static int hf_isis_hello_trill_neighbor_mtu = -1;
-static int hf_isis_hello_trill_neighbor_snpa = -1;
-static int hf_isis_hello_reverse_metric_flags = -1;
-static int hf_isis_hello_reverse_metric_flag_reserved = -1;
-static int hf_isis_hello_reverse_metric_flag_u = -1;
-static int hf_isis_hello_reverse_metric_flag_w = -1;
-static int hf_isis_hello_reverse_metric_metric = -1;
-static int hf_isis_hello_reverse_metric_sub_length = -1;
-static int hf_isis_hello_reverse_metric_sub_data = -1;
-static int hf_isis_hello_bfd_enabled_nlpid = -1;
-static int hf_isis_hello_neighbor_extended_local_circuit_id = -1;
-static int hf_isis_hello_vlan_flags_port_id = -1;
-static int hf_isis_hello_vlan_flags_nickname = -1;
-static int hf_isis_hello_vlan_flags_af = -1;
-static int hf_isis_hello_vlan_flags_ac = -1;
-static int hf_isis_hello_vlan_flags_vm = -1;
-static int hf_isis_hello_vlan_flags_by = -1;
-static int hf_isis_hello_vlan_flags_outer_vlan = -1;
-static int hf_isis_hello_vlan_flags_tr = -1;
-static int hf_isis_hello_vlan_flags_reserved = -1;
-static int hf_isis_hello_vlan_flags_designated_vlan = -1;
-static int hf_isis_hello_enabled_vlans = -1;
-static int hf_isis_hello_appointed_vlans = -1;
-static int hf_isis_hello_af_nickname = -1;
-static int hf_isis_hello_af_start_vlan = -1;
-static int hf_isis_hello_af_end_vlan = -1;
-static int hf_isis_hello_trill_version = -1;
-static int hf_isis_hello_trill_hello_reduction = -1;
-static int hf_isis_hello_trill_unassigned_1 = -1;
-static int hf_isis_hello_trill_hop_by_hop_flags = -1;
-static int hf_isis_hello_trill_unassigned_2 = -1;
-static int hf_isis_hello_clv_ipv6_glb_int_addr = -1;
+static int hf_isis_hello_aux_mcid;
+static int hf_isis_hello_mcid;
+static int hf_isis_hello_is_neighbor;
+static int hf_isis_hello_mtid;
+static int hf_isis_hello_checksum;
+static int hf_isis_hello_checksum_status;
+static int hf_isis_hello_trill_neighbor_sf;
+static int hf_isis_hello_trill_neighbor_lf;
+static int hf_isis_hello_trill_neighbor_ff;
+static int hf_isis_hello_trill_neighbor_of;
+static int hf_isis_hello_trill_neighbor_size;
+static int hf_isis_hello_trill_neighbor_reserved;
+static int hf_isis_hello_trill_neighbor_mtu;
+static int hf_isis_hello_trill_neighbor_snpa;
+static int hf_isis_hello_reverse_metric_flags;
+static int hf_isis_hello_reverse_metric_flag_reserved;
+static int hf_isis_hello_reverse_metric_flag_u;
+static int hf_isis_hello_reverse_metric_flag_w;
+static int hf_isis_hello_reverse_metric_metric;
+static int hf_isis_hello_reverse_metric_sub_length;
+static int hf_isis_hello_reverse_metric_sub_data;
+static int hf_isis_hello_bfd_enabled_nlpid;
+static int hf_isis_hello_neighbor_extended_local_circuit_id;
+static int hf_isis_hello_vlan_flags_port_id;
+static int hf_isis_hello_vlan_flags_nickname;
+static int hf_isis_hello_vlan_flags_af;
+static int hf_isis_hello_vlan_flags_ac;
+static int hf_isis_hello_vlan_flags_vm;
+static int hf_isis_hello_vlan_flags_by;
+static int hf_isis_hello_vlan_flags_outer_vlan;
+static int hf_isis_hello_vlan_flags_tr;
+static int hf_isis_hello_vlan_flags_reserved;
+static int hf_isis_hello_vlan_flags_designated_vlan;
+static int hf_isis_hello_enabled_vlans;
+static int hf_isis_hello_appointed_vlans;
+static int hf_isis_hello_af_nickname;
+static int hf_isis_hello_af_start_vlan;
+static int hf_isis_hello_af_end_vlan;
+static int hf_isis_hello_trill_version;
+static int hf_isis_hello_trill_hello_reduction;
+static int hf_isis_hello_trill_unassigned_1;
+static int hf_isis_hello_trill_hop_by_hop_flags;
+static int hf_isis_hello_trill_unassigned_2;
+static int hf_isis_hello_clv_ipv6_glb_int_addr;
 
-static gint ett_isis_hello = -1;
-static gint ett_isis_hello_clv_area_addr = -1;
-static gint ett_isis_hello_clv_instance_identifier = -1;
-static gint ett_isis_hello_clv_is_neighbors = -1;
-static gint ett_isis_hello_clv_padding = -1;
-static gint ett_isis_hello_clv_unknown = -1;
-static gint ett_isis_hello_clv_nlpid = -1;
-static gint ett_isis_hello_clv_nlpid_nlpid = -1;
-static gint ett_isis_hello_clv_authentication = -1;
-static gint ett_isis_hello_clv_ip_authentication = -1;
-static gint ett_isis_hello_clv_ipv4_int_addr = -1;
-static gint ett_isis_hello_clv_ipv6_int_addr = -1;
-static gint ett_isis_hello_clv_ptp_adj = -1;
-static gint ett_isis_hello_clv_mt = -1;
-static gint ett_isis_hello_clv_restart = -1;
-static gint ett_isis_hello_clv_restart_flags = -1;
-static gint ett_isis_hello_clv_mt_port_cap = -1;
-static gint ett_isis_hello_clv_mt_port_cap_spb_mcid = -1;
-static gint ett_isis_hello_clv_mt_port_cap_spb_digest = -1;
-static gint ett_isis_hello_clv_mt_port_cap_spb_bvid_tuples = -1;
-static gint ett_isis_hello_clv_mt_port_cap_vlan_flags = -1;
-static gint ett_isis_hello_clv_mt_port_cap_enabled_vlans = -1;
-static gint ett_isis_hello_clv_mt_port_cap_appointedfwrdrs = -1;
-static gint ett_isis_hello_clv_mt_port_cap_port_trill_ver = -1;
-static gint ett_isis_hello_clv_mt_port_cap_vlans_appointed = -1;
-static gint ett_isis_hello_clv_trill_neighbor = -1;
-static gint ett_isis_hello_clv_checksum = -1;
-static gint ett_isis_hello_clv_reverse_metric = -1;
-static gint ett_isis_hello_clv_bfd_enabled = -1;
-static gint ett_isis_hello_clv_ipv6_glb_int_addr = -1;
-static gint ett_isis_hello_reverse_metric_flags = -1;
+static int ett_isis_hello;
+static int ett_isis_hello_clv_area_addr;
+static int ett_isis_hello_clv_instance_identifier;
+static int ett_isis_hello_clv_is_neighbors;
+static int ett_isis_hello_clv_padding;
+static int ett_isis_hello_clv_unknown;
+static int ett_isis_hello_clv_nlpid;
+static int ett_isis_hello_clv_nlpid_nlpid;
+static int ett_isis_hello_clv_authentication;
+static int ett_isis_hello_clv_ip_authentication;
+static int ett_isis_hello_clv_ipv4_int_addr;
+static int ett_isis_hello_clv_ipv6_int_addr;
+static int ett_isis_hello_clv_ptp_adj;
+static int ett_isis_hello_clv_mt;
+static int ett_isis_hello_clv_restart;
+static int ett_isis_hello_clv_restart_flags;
+static int ett_isis_hello_clv_mt_port_cap;
+static int ett_isis_hello_clv_mt_port_cap_spb_mcid;
+static int ett_isis_hello_clv_mt_port_cap_spb_digest;
+static int ett_isis_hello_clv_mt_port_cap_spb_bvid_tuples;
+static int ett_isis_hello_clv_mt_port_cap_vlan_flags;
+static int ett_isis_hello_clv_mt_port_cap_enabled_vlans;
+static int ett_isis_hello_clv_mt_port_cap_appointedfwrdrs;
+static int ett_isis_hello_clv_mt_port_cap_port_trill_ver;
+static int ett_isis_hello_clv_mt_port_cap_vlans_appointed;
+static int ett_isis_hello_clv_trill_neighbor;
+static int ett_isis_hello_clv_checksum;
+static int ett_isis_hello_clv_reverse_metric;
+static int ett_isis_hello_clv_bfd_enabled;
+static int ett_isis_hello_clv_ipv6_glb_int_addr;
+static int ett_isis_hello_reverse_metric_flags;
 
-static expert_field ei_isis_hello_short_pdu = EI_INIT;
-static expert_field ei_isis_hello_long_pdu = EI_INIT;
-static expert_field ei_isis_hello_bad_checksum = EI_INIT;
-static expert_field ei_isis_hello_authentication = EI_INIT;
-static expert_field ei_isis_hello_subtlv = EI_INIT;
-static expert_field ei_isis_hello_short_clv = EI_INIT;
-static expert_field ei_isis_hello_clv_mt = EI_INIT;
-static expert_field ei_isis_hello_clv_unknown = EI_INIT;
+static expert_field ei_isis_hello_short_pdu;
+static expert_field ei_isis_hello_long_pdu;
+static expert_field ei_isis_hello_bad_checksum;
+static expert_field ei_isis_hello_authentication;
+static expert_field ei_isis_hello_subtlv;
+static expert_field ei_isis_hello_short_clv;
+static expert_field ei_isis_hello_clv_mt;
+static expert_field ei_isis_hello_clv_unknown;
 
 static const value_string isis_hello_circuit_type_vals[] = {
     { ISIS_HELLO_TYPE_RESERVED,    "Reserved 0 (discard PDU)"},
@@ -296,14 +296,14 @@ dissect_hello_mt_port_cap_vlan_flags_clv(tvbuff_t *tvb, packet_info* pinfo _U_,
 }
 
 static void
-parse_vlan_bitmap(proto_item *item, tvbuff_t *tvb, guint vlan, int offset, int sublen)
+parse_vlan_bitmap(proto_item *item, tvbuff_t *tvb, unsigned vlan, int offset, int sublen)
 {
-    gint range=0, next=0;
-    guint8 mask, bitmap, i;
+    int range=0, next=0;
+    uint8_t mask, bitmap, i;
 
     while (sublen>0) {
 
-        bitmap = tvb_get_guint8(tvb, offset);
+        bitmap = tvb_get_uint8(tvb, offset);
         mask = 0x80;
 
         for (i=0; i<8; i++) {
@@ -342,7 +342,7 @@ dissect_hello_mt_port_cap_enabled_vlans_clv(tvbuff_t *tvb, packet_info* pinfo _U
 {
     proto_tree *subtree;
     proto_item *item;
-    guint vlan;
+    unsigned vlan;
 
     subtree = proto_tree_add_subtree_format( tree, tvb, offset-2, sublen+2, ett_isis_hello_clv_mt_port_cap_enabled_vlans, NULL,
                                 "Enabled-VLANs (t=%u, l=%u)", subtype, sublen);
@@ -400,7 +400,7 @@ dissect_hello_mt_port_cap_vlans_appointed_clv(tvbuff_t *tvb, packet_info* pinfo 
 {
     proto_tree *subtree;
     proto_item *item;
-    guint vlan;
+    unsigned vlan;
 
     subtree = proto_tree_add_subtree_format( tree, tvb, offset-2, sublen+2, ett_isis_hello_clv_mt_port_cap_vlans_appointed, NULL,
                                 "Appointed VLANs (t=%u, l=%u)", subtype, sublen);
@@ -424,8 +424,8 @@ dissect_hello_mt_port_cap_clv(tvbuff_t *tvb, packet_info* pinfo,
         length -= 2;
         offset += 2;
         while (length >= 2) {
-            guint8 subtype   = tvb_get_guint8(tvb, offset);
-            guint8 subtlvlen = tvb_get_guint8(tvb, offset+1);
+            uint8_t subtype   = tvb_get_uint8(tvb, offset);
+            uint8_t subtlvlen = tvb_get_uint8(tvb, offset+1);
             length -= 2;
             offset += 2;
             if (subtlvlen > length) {
@@ -525,7 +525,7 @@ dissect_hello_restart_clv(tvbuff_t *tvb, packet_info* pinfo _U_,
             NULL
         };
 
-        restart_options = tvb_get_guint8(tvb, offset);
+        restart_options = tvb_get_uint8(tvb, offset);
         proto_tree_add_bitmask_with_flags(tree, tvb, offset, hf_isis_hello_clv_restart_flags, ett_isis_hello_clv_restart_flags, flags, ENC_NA, BMT_NO_FALSE|BMT_NO_TFS);
     }
 
@@ -703,7 +703,7 @@ static void
 dissect_hello_trill_neighbor_clv(tvbuff_t *tvb, packet_info* pinfo _U_,
         proto_tree *tree, int offset, isis_data_t *isis _U_, int length) {
 
-    guint8 size = (tvb_get_guint8(tvb, offset)) & 0x1f;
+    uint8_t size = (tvb_get_uint8(tvb, offset)) & 0x1f;
 
     if(size==0)
         size=6;
@@ -742,7 +742,7 @@ static void
 dissect_hello_reverse_metric_clv(tvbuff_t *tvb, packet_info* pinfo _U_,
         proto_tree *tree, int offset, isis_data_t *isis _U_, int length _U_) {
 
-    guint32 sub_length;
+    uint32_t sub_length;
 
     static int * const flags[] = {
         &hf_isis_hello_reverse_metric_flag_reserved,
@@ -814,7 +814,7 @@ static void
 dissect_hello_checksum_clv(tvbuff_t *tvb, packet_info* pinfo,
         proto_tree *tree, int offset, isis_data_t *isis, int length) {
 
-    guint16 checksum, cacl_checksum=0;
+    uint16_t checksum, cacl_checksum=0;
 
     if ( length != 2 ) {
         proto_tree_add_expert_format(tree, pinfo, &ei_isis_hello_short_clv, tvb, offset, length,
@@ -1327,8 +1327,8 @@ dissect_isis_hello(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offs
 {
     proto_item    *ti;
     proto_tree    *hello_tree;
-    guint16        pdu_length;
-    gboolean       pdu_length_too_short = FALSE;
+    uint16_t       pdu_length;
+    bool           pdu_length_too_short = false;
 
     /*
      * We are passed a tvbuff for the entire ISIS PDU, because some ISIS
@@ -1384,7 +1384,7 @@ dissect_isis_hello(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offs
                              offset, 2, pdu_length);
     if (pdu_length < isis->header_length) {
         expert_add_info(pinfo, ti, &ei_isis_hello_short_pdu);
-        pdu_length_too_short = TRUE;
+        pdu_length_too_short = true;
     } else if (pdu_length > tvb_reported_length(tvb) + isis->header_length) {
         expert_add_info(pinfo, ti, &ei_isis_hello_long_pdu);
     }
@@ -1635,7 +1635,7 @@ proto_register_isis_hello(void)
             FT_IPv6, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_isis_hello,
         &ett_isis_hello_clv_area_addr,
         &ett_isis_hello_clv_instance_identifier,

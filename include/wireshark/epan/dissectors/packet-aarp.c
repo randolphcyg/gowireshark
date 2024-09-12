@@ -21,24 +21,24 @@
 void proto_register_aarp(void);
 void proto_reg_handoff_aarp(void);
 
-static int proto_aarp = -1;
-static int hf_aarp_hard_type = -1;
-static int hf_aarp_proto_type = -1;
-static int hf_aarp_hard_size = -1;
-static int hf_aarp_proto_size = -1;
-static int hf_aarp_opcode = -1;
-static int hf_aarp_src_hw = -1;
-static int hf_aarp_src_hw_mac = -1;
-static int hf_aarp_src_proto = -1;
-static int hf_aarp_src_proto_id = -1;
-static int hf_aarp_dst_hw = -1;
-static int hf_aarp_dst_hw_mac = -1;
-static int hf_aarp_dst_proto = -1;
-static int hf_aarp_dst_proto_id = -1;
+static int proto_aarp;
+static int hf_aarp_hard_type;
+static int hf_aarp_proto_type;
+static int hf_aarp_hard_size;
+static int hf_aarp_proto_size;
+static int hf_aarp_opcode;
+static int hf_aarp_src_hw;
+static int hf_aarp_src_hw_mac;
+static int hf_aarp_src_proto;
+static int hf_aarp_src_proto_id;
+static int hf_aarp_dst_hw;
+static int hf_aarp_dst_hw_mac;
+static int hf_aarp_dst_proto;
+static int hf_aarp_dst_proto_id;
 
-static gint ett_aarp = -1;
+static int ett_aarp;
 
-static expert_field ei_aarp_length_invalid = EI_INIT;
+static expert_field ei_aarp_length_invalid;
 
 #ifndef AARP_REQUEST
 #define AARP_REQUEST    0x0001
@@ -91,37 +91,37 @@ static const value_string hrd_vals[] = {
 #define AARP_PRO_IS_ATALK(ar_pro, ar_pln) \
         ((ar_pro) == ETHERTYPE_ATALK && (ar_pln) == 4)
 
-static gchar *
-tvb_atalkid_to_str(tvbuff_t *tvb, gint offset)
+static char *
+tvb_atalkid_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, int offset)
 {
-  gint node;
-  gchar *cur;
+  int node;
+  char *cur;
 
-  cur=(gchar *)wmem_alloc(wmem_packet_scope(), 16);
-  node=tvb_get_guint8(tvb, offset+1)<<8|tvb_get_guint8(tvb, offset+2);
-  snprintf(cur, 16, "%d.%d",node,tvb_get_guint8(tvb, offset+3));
+  cur=(char *)wmem_alloc(scope, 16);
+  node=tvb_get_uint8(tvb, offset+1)<<8|tvb_get_uint8(tvb, offset+2);
+  snprintf(cur, 16, "%d.%d",node,tvb_get_uint8(tvb, offset+3));
   return cur;
 }
 
-static const gchar *
-tvb_aarphrdaddr_to_str(tvbuff_t *tvb, gint offset, int ad_len, guint16 type)
+static const char *
+tvb_aarphrdaddr_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, int offset, int ad_len, uint16_t type)
 {
   if (AARP_HW_IS_ETHER(type, ad_len)) {
     /* Ethernet address (or Token Ring address, which is the same type
        of address). */
-    return tvb_ether_to_str(wmem_packet_scope(), tvb, offset);
+    return tvb_ether_to_str(scope, tvb, offset);
   }
-  return tvb_bytes_to_str(wmem_packet_scope(), tvb, offset, ad_len);
+  return tvb_bytes_to_str(scope, tvb, offset, ad_len);
 }
 
-static gchar *
-tvb_aarpproaddr_to_str(tvbuff_t *tvb, gint offset, int ad_len, guint16 type)
+static char *
+tvb_aarpproaddr_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, int offset, int ad_len, uint16_t type)
 {
   if (AARP_PRO_IS_ATALK(type, ad_len)) {
     /* Appletalk address.  */
-    return tvb_atalkid_to_str(tvb, offset);
+    return tvb_atalkid_to_str(scope, tvb, offset);
   }
-  return tvb_bytes_to_str(wmem_packet_scope(), tvb, offset, ad_len);
+  return tvb_bytes_to_str(scope, tvb, offset, ad_len);
 }
 
 /* Offsets of fields within an AARP packet. */
@@ -134,24 +134,24 @@ tvb_aarpproaddr_to_str(tvbuff_t *tvb, gint offset, int ad_len, guint16 type)
 
 static int
 dissect_aarp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
-  guint16     ar_hrd;
-  guint16     ar_pro;
-  guint8      ar_hln;
-  guint8      ar_pln;
-  guint16     ar_op;
+  uint16_t    ar_hrd;
+  uint16_t    ar_pro;
+  uint8_t     ar_hln;
+  uint8_t     ar_pln;
+  uint16_t    ar_op;
   proto_tree  *aarp_tree;
   proto_item  *ti;
-  const gchar *op_str;
+  const char *op_str;
   int         sha_offset, spa_offset, tha_offset, tpa_offset;
-  const gchar *sha_str, *spa_str, /* *tha_str, */ *tpa_str;
+  const char *sha_str, *spa_str, /* *tha_str, */ *tpa_str;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "AARP");
   col_clear(pinfo->cinfo, COL_INFO);
 
   ar_hrd = tvb_get_ntohs(tvb, AR_HRD);
   ar_pro = tvb_get_ntohs(tvb, AR_PRO);
-  ar_hln = tvb_get_guint8(tvb, AR_HLN);
-  ar_pln = tvb_get_guint8(tvb, AR_PLN);
+  ar_hln = tvb_get_uint8(tvb, AR_HLN);
+  ar_pln = tvb_get_uint8(tvb, AR_PLN);
   ar_op  = tvb_get_ntohs(tvb, AR_OP);
 
   /* Get the offsets of the addresses. */
@@ -170,10 +170,10 @@ dissect_aarp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     tha_str = "Unknown";
 #endif
   } else {
-    sha_str = tvb_aarphrdaddr_to_str(tvb, sha_offset, ar_hln, ar_hrd);
+    sha_str = tvb_aarphrdaddr_to_str(pinfo->pool, tvb, sha_offset, ar_hln, ar_hrd);
 #if 0
     /* TODO: tha_str is currently not shown nor parsed */
-    tha_str = tvb_aarphrdaddr_to_str(tvb, tha_offset, ar_hln, ar_hrd);
+    tha_str = tvb_aarphrdaddr_to_str(pinfo->pool, tvb, tha_offset, ar_hln, ar_hrd);
 #endif
   }
 
@@ -183,8 +183,8 @@ dissect_aarp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     spa_str = "Unknown";
     tpa_str = "Unknown";
   } else {
-    spa_str = tvb_aarpproaddr_to_str(tvb, spa_offset, ar_pln, ar_pro);
-    tpa_str = tvb_aarpproaddr_to_str(tvb, tpa_offset, ar_pln, ar_pro);
+    spa_str = tvb_aarpproaddr_to_str(pinfo->pool, tvb, spa_offset, ar_pln, ar_pro);
+    tpa_str = tvb_aarpproaddr_to_str(pinfo->pool, tvb, tpa_offset, ar_pln, ar_pro);
   }
 
   switch (ar_op) {
@@ -334,7 +334,7 @@ proto_register_aarp(void)
         FT_BYTES,       BASE_NONE,      NULL,   0x0,
         NULL, HFILL }},
   };
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_aarp,
   };
 

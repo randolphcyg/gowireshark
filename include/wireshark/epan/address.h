@@ -17,6 +17,7 @@
 #include "tvbuff.h"
 #include <epan/wmem_scopes.h>
 #include <wsutil/ws_assert.h>
+#include <wsutil/inet_cidr.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,8 +30,8 @@ extern "C" {
  * For dissector address types, just use the address_type_dissector_register function
  * from address_types.h
  *
- * AT_NUMERIC - a numeric address type can consist of a guint8, guint16, guint32 or guint64
- * value. If no correct length is provided, to avoid data bleed, a guint8 is
+ * AT_NUMERIC - a numeric address type can consist of a uint8_t, uint16_t, uint32_t or uint64_t
+ * value. If no correct length is provided, to avoid data bleed, a uint8_t is
  * assumed. Only representation (aka conversion of value to string) is implemented for this type.
  */
 typedef enum {
@@ -96,6 +97,20 @@ set_address(address *addr, int addr_type, int addr_len, const void *addr_data) {
     addr->len  = addr_len;
     addr->data = addr_data;
     addr->priv = NULL;
+}
+
+static inline void
+set_address_ipv4(address *addr, const ipv4_addr_and_mask *ipv4) {
+    addr->type = AT_IPv4;
+    addr->len  = 4;
+    uint32_t val = g_htonl(ipv4->addr);
+    addr->priv = g_memdup2(&val, sizeof(val));
+    addr->data = addr->priv;
+}
+
+static inline void
+set_address_ipv6(address *addr, const ipv6_addr_and_prefix *ipv6) {
+    set_address(addr, AT_IPv6, sizeof(ws_in6_addr), &ipv6->addr);
 }
 
 /** Initialize an address from TVB data.
@@ -211,9 +226,9 @@ cmp_address(const address *addr1, const address *addr2) {
  *
  * @param addr1 [in] The first address to compare.
  * @param addr2 [in] The second address to compare.
- * @return TRUE if the addresses are equal, FALSE otherwise.
+ * @return true if the addresses are equal, false otherwise.
  */
-static inline gboolean
+static inline bool
 addresses_equal(const address *addr1, const address *addr2) {
     /*
      * memcmp(NULL, NULL, 0) is *not* guaranteed to work, so
@@ -224,8 +239,8 @@ addresses_equal(const address *addr1, const address *addr2) {
         addr1->len == addr2->len &&
         (addr1->len == 0 ||
          memcmp(addr1->data, addr2->data, addr1->len) == 0))
-        return TRUE;
-    return FALSE;
+        return true;
+    return false;
 }
 
 /** Check the data of two addresses for equality.
@@ -237,14 +252,14 @@ addresses_equal(const address *addr1, const address *addr2) {
  *
  * @param addr1 [in] The first address to compare.
  * @param addr2 [in] The second address to compare.
- * @return TRUE if the addresses are equal, FALSE otherwise.
+ * @return true if the addresses are equal, false otherwise.
  */
-static inline gboolean
+static inline bool
 addresses_data_equal(const address *addr1, const address *addr2) {
     if ( addr1->len == addr2->len
             && memcmp(addr1->data, addr2->data, addr1->len) == 0
-            ) return TRUE;
-    return FALSE;
+            ) return true;
+    return false;
 }
 
 /** Perform a shallow copy of the address (both addresses point to the same
@@ -315,9 +330,9 @@ free_address(address *addr) {
  * @param addr The address to add.
  * @return The new hash value.
  */
-static inline guint
-add_address_to_hash(guint hash_val, const address *addr) {
-    const guint8 *hash_data = (const guint8 *)(addr)->data;
+static inline unsigned
+add_address_to_hash(unsigned hash_val, const address *addr) {
+    const uint8_t *hash_data = (const uint8_t *)(addr)->data;
     int idx;
 
     for (idx = 0; idx < (addr)->len; idx++) {
@@ -335,9 +350,9 @@ add_address_to_hash(guint hash_val, const address *addr) {
  * @param addr The address to add.
  * @return The new hash value.
  */
-static inline guint64
-add_address_to_hash64(guint64 hash_val, const address *addr) {
-    const guint8 *hash_data = (const guint8 *)(addr)->data;
+static inline uint64_t
+add_address_to_hash64(uint64_t hash_val, const address *addr) {
+    const uint8_t *hash_data = (const uint8_t *)(addr)->data;
     int idx;
 
     for (idx = 0; idx < (addr)->len; idx++) {
@@ -348,7 +363,7 @@ add_address_to_hash64(guint64 hash_val, const address *addr) {
     return hash_val;
 }
 
-WS_DLL_PUBLIC guint address_to_bytes(const address *addr, guint8 *buf, guint buf_len);
+WS_DLL_PUBLIC unsigned address_to_bytes(const address *addr, uint8_t *buf, unsigned buf_len);
 
 /* Types of port numbers Wireshark knows about. */
 typedef enum {

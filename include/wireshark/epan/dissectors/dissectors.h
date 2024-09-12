@@ -11,22 +11,23 @@
 #ifndef __DISSECTOR_REGISTER_H__
 #define __DISSECTOR_REGISTER_H__
 
-#include <glib.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
+#ifndef NULL
+#define NULL ((void*)0)
+#endif
 typedef struct _dissector_reg {
     const char *cb_name;
     void (*cb_func)(void);
 } dissector_reg_t;
 
-extern dissector_reg_t dissector_reg_proto[];
-extern dissector_reg_t dissector_reg_handoff[];
+extern dissector_reg_t const dissector_reg_proto[];
+extern dissector_reg_t const dissector_reg_handoff[];
 
-extern const gulong dissector_reg_proto_count;
-extern const gulong dissector_reg_handoff_count;
+extern const unsigned long dissector_reg_proto_count;
+extern const unsigned long dissector_reg_handoff_count;
 
 #ifdef __cplusplus
 }

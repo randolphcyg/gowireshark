@@ -28,25 +28,25 @@ void proto_reg_handoff_tte(void);
 static dissector_handle_t ethertype_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_tte = -1;
+static int proto_tte;
 
-static int hf_eth_dst       = -1;
-static int hf_tte_dst_cf    = -1;
-static int hf_tte_ctid      = -1;
-static int hf_eth_src       = -1;
-static int hf_eth_type      = -1;
+static int hf_eth_dst;
+static int hf_tte_dst_cf;
+static int hf_tte_ctid;
+static int hf_eth_src;
+static int hf_eth_type;
 
 /* preference value pointers */
-static guint32    tte_pref_ct_marker    = 0xFFFFFFFF;
-static guint32    tte_pref_ct_mask      = 0x0;
+static uint32_t   tte_pref_ct_marker    = 0xFFFFFFFF;
+static uint32_t   tte_pref_ct_mask      = 0x0;
 
 /* Initialize the subtree pointers */
-static gint ett_tte = -1;
-static gint ett_tte_macdest = -1;
+static int ett_tte;
+static int ett_tte_macdest;
 
 
 /* Code to actually dissect the packets */
-static int
+static bool
 dissect_tte(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     int is_frame_pcf;
@@ -58,7 +58,7 @@ dissect_tte(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
     /* Check that there's enough data */
     if (tvb_reported_length(tvb) < TTE_HEADER_LENGTH)
-        return 0;
+        return false;
 
     /* check if data of pcf frame */
     is_frame_pcf =
@@ -68,7 +68,7 @@ dissect_tte(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
     if (!is_frame_pcf)
     {
         if ( (tvb_get_ntohl(tvb, 0) & tte_pref_ct_mask) != tte_pref_ct_marker)
-            return 0;
+            return false;
     }
 
     /* Make entries in Protocol column and Info column on summary display */
@@ -123,7 +123,7 @@ dissect_tte(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
     ethertype_data.fcs_len = 0;
 
     call_dissector_with_data(ethertype_handle, tvb, pinfo, tree, &ethertype_data);
-    return tvb_reported_length(tvb);
+    return true;
 }
 
 
@@ -146,7 +146,7 @@ proto_register_tte(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_tte,
         &ett_tte_macdest
     };

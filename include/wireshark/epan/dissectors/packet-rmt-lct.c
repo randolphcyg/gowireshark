@@ -50,57 +50,57 @@
 
 void proto_register_rmt_lct(void);
 
-static int proto_rmt_lct = -1;
+static int proto_rmt_lct;
 
-static int hf_version = -1;
-static int hf_psi = -1;
-static int hf_spi = -1;
-static int hf_fsize_header = -1;
-static int hf_fsize_cci = -1;
-static int hf_fsize_tsi = -1;
-static int hf_fsize_toi = -1;
-static int hf_flags_header = -1;
-static int hf_flags_sct_present = -1;
-static int hf_flags_ert_present = -1;
-static int hf_flags_close_session = -1;
-static int hf_flags_close_object = -1;
-static int hf_hlen = -1;
-static int hf_codepoint = -1;
-static int hf_codepoint_atsc3 = -1;
-static int hf_cci = -1;
-static int hf_tsi16 = -1;
-static int hf_tsi32 = -1;
-static int hf_tsi48 = -1;
-static int hf_toi16 = -1;
-static int hf_toi32 = -1;
-static int hf_toi48 = -1;
-static int hf_toi64 = -1;
-static int hf_toi_extended = -1;
-static int hf_sct = -1;
-static int hf_ert = -1;
-static int hf_ext = -1;
-static int hf_hec_type = -1;
-static int hf_hec_len = -1;
-static int hf_hec_data = -1;
-static int hf_send_rate = -1;
-static int hf_cenc = -1;
-static int hf_flute_version = -1;
-static int hf_fdt_instance_id = -1;
-static int hf_ext_tol_48_transfer_len = -1;
-static int hf_ext_tol_24_transfer_len = -1;
+static int hf_version;
+static int hf_psi;
+static int hf_spi;
+static int hf_fsize_header;
+static int hf_fsize_cci;
+static int hf_fsize_tsi;
+static int hf_fsize_toi;
+static int hf_flags_header;
+static int hf_flags_sct_present;
+static int hf_flags_ert_present;
+static int hf_flags_close_session;
+static int hf_flags_close_object;
+static int hf_hlen;
+static int hf_codepoint;
+static int hf_codepoint_atsc3;
+static int hf_cci;
+static int hf_tsi16;
+static int hf_tsi32;
+static int hf_tsi48;
+static int hf_toi16;
+static int hf_toi32;
+static int hf_toi48;
+static int hf_toi64;
+static int hf_toi_extended;
+static int hf_sct;
+static int hf_ert;
+static int hf_ext;
+static int hf_hec_type;
+static int hf_hec_len;
+static int hf_hec_data;
+static int hf_send_rate;
+static int hf_cenc;
+static int hf_flute_version;
+static int hf_fdt_instance_id;
+static int hf_ext_tol_48_transfer_len;
+static int hf_ext_tol_24_transfer_len;
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_cc_rate = -1;
-static int hf_cc_rtt = -1;
-static int hf_cc_flags = -1;
-static int hf_cc_loss = -1;
-static int hf_cc_sequence = -1;
+static int hf_cc_rate;
+static int hf_cc_rtt;
+static int hf_cc_flags;
+static int hf_cc_loss;
+static int hf_cc_sequence;
 
-static int ett_main = -1;
-static int ett_fsize = -1;
-static int ett_flags = -1;
-static int ett_ext = -1;
-static int ett_ext_ext = -1;
-static int ett_psi = -1;
+static int ett_main;
+static int ett_fsize;
+static int ett_flags;
+static int ett_ext;
+static int ett_ext_ext;
+static int ett_psi;
 
 /* Enumerated data types for LCT preferences */
 const enum_val_t enum_lct_ext_192[] =
@@ -158,13 +158,13 @@ static const value_string cp_type_vals[] = {
 /* LCT helper functions */
 /* ==================== */
 
-static void lct_timestamp_parse(guint32 t, nstime_t* s)
+static void lct_timestamp_parse(uint32_t t, nstime_t* s)
 {
     s->secs  = t / 1000;
     s->nsecs = (t % 1000) * 1000000;
 }
 
-double rmt_decode_send_rate(guint16 send_rate )
+double rmt_decode_send_rate(uint16_t send_rate )
 {
     double value;
 
@@ -173,25 +173,25 @@ double rmt_decode_send_rate(guint16 send_rate )
 }
 
 
-int lct_ext_decode(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint offset, guint offset_max, lct_data_exchange_t *data_exchange,
+int lct_ext_decode(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, unsigned offset, unsigned offset_max, lct_data_exchange_t *data_exchange,
                    int hfext, int ettext)
 {
-    guint8      het;
-    guint       i, count = 0;
-    guint       length,
+    uint8_t     het;
+    unsigned    i, count = 0;
+    unsigned    length,
                 tmp_offset   = offset,
                 start_offset = offset;
     proto_item *ti;
     proto_tree *hec_tree, *ext_tree;
     double      cc_loss;
 
-    /* Figure out the extention count */
+    /* Figure out the extension count */
     while (tmp_offset < offset_max)
     {
-        het = tvb_get_guint8(tvb, tmp_offset);
+        het = tvb_get_uint8(tvb, tmp_offset);
         if (het <= 127)
         {
-            length = tvb_get_guint8(tvb, tmp_offset+1)*4;
+            length = tvb_get_uint8(tvb, tmp_offset+1)*4;
         }
         else
         {
@@ -214,10 +214,10 @@ int lct_ext_decode(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint of
 
     for (i = 0; i < count; i++)
     {
-        het = tvb_get_guint8(tvb, offset);
+        het = tvb_get_uint8(tvb, offset);
         if (het <= 127)
         {
-            length = tvb_get_guint8(tvb, offset+1)*4;
+            length = tvb_get_uint8(tvb, offset+1)*4;
         }
         else
         {
@@ -270,7 +270,7 @@ int lct_ext_decode(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint of
                 {
                     proto_tree_add_item(ext_tree, hf_flute_version, tvb, offset, 4, ENC_BIG_ENDIAN);
                     proto_tree_add_item(ext_tree, hf_fdt_instance_id, tvb, offset, 4, ENC_BIG_ENDIAN);
-                    data_exchange->is_flute = TRUE;
+                    data_exchange->is_flute = true;
                 }
                 break;
 
@@ -337,14 +337,14 @@ static int
 dissect_lct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     int      offset = 0;
-    guint16  buffer16;
+    uint16_t buffer16;
 
-    guint8   cci_size;
-    guint8   tsi_size;
-    guint8   toi_size;
-    guint64  tsi;
-    guint64  toi    = 0;
-    guint16  hlen;
+    uint8_t  cci_size;
+    uint8_t  tsi_size;
+    uint8_t  toi_size;
+    uint64_t tsi;
+    uint64_t toi    = 0;
+    uint16_t hlen;
     nstime_t tmp_time;
 
     /* Set up structures needed to add the protocol subtree and manage it */
@@ -361,12 +361,12 @@ dissect_lct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     tsi_size = ((buffer16 & 0x0080) >> 7) * 4 + ((buffer16 & 0x0010) >> 4) * 2;
     toi_size = ((buffer16 & 0x0060) >> 5) * 4 + ((buffer16 & 0x0010) >> 4) * 2;
 
-    hlen = tvb_get_guint8(tvb, offset+2) * 4;
+    hlen = tvb_get_uint8(tvb, offset+2) * 4;
 
     if (data_exchange != NULL)
     {
-        data_exchange->codepoint = tvb_get_guint8(tvb, offset+3);
-        data_exchange->is_flute = FALSE;
+        data_exchange->codepoint = tvb_get_uint8(tvb, offset+3);
+        data_exchange->is_flute = false;
     }
 
     if (tree)
@@ -382,7 +382,7 @@ dissect_lct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         ti = proto_tree_add_item(lct_tree, hf_psi, tvb, offset, 2, ENC_BIG_ENDIAN);
 
         if ((data_exchange != NULL) && data_exchange->is_atsc3) {
-            guint16 psi_msb = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN) & LCT_PSI_MSB;
+            uint16_t psi_msb = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN) & LCT_PSI_MSB;
             data_exchange->is_sp = !!psi_msb;
             proto_tree *lct_psi_tree = proto_item_add_subtree(ti, ett_psi);
             proto_tree_add_item(lct_psi_tree, hf_spi, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -726,12 +726,12 @@ proto_register_rmt_lct(void)
             NULL, HFILL }
         },
         { &hf_ext_tol_48_transfer_len,
-          { "EXT_TOL_48 Tranfer Length", "rmt-lct.ext_tol_tranfer_len",
+          { "EXT_TOL_48 Transfer Length", "rmt-lct.ext_tol_transfer_len",
             FT_UINT48, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
         { &hf_ext_tol_24_transfer_len,
-          { "EXT_TOL_24 Tranfer Length", "rmt-lct.ext_tol_tranfer_len",
+          { "EXT_TOL_24 Transfer Length", "rmt-lct.ext_tol_transfer_len",
             FT_UINT24, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
@@ -763,7 +763,7 @@ proto_register_rmt_lct(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_main,
         &ett_fsize,
         &ett_flags,

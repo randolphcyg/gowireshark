@@ -11,7 +11,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <wiretap/wtap.h>
+#include <epan/tfs.h>
 #include <epan/conversation.h>
 #include <epan/expert.h>
 #include <epan/proto_data.h>
@@ -27,7 +27,7 @@ extern int proto_umts_rlc;
 void proto_register_fp_mux(void);
 void proto_reg_handoff_fp_mux(void);
 
-static int proto_fp_mux = -1;
+static int proto_fp_mux;
 static dissector_handle_t fp_mux_handle;
 static heur_dissector_list_t heur_subdissector_list;
 
@@ -35,23 +35,23 @@ static heur_dissector_list_t heur_subdissector_list;
 #define MAX_PAYLOADS 64
 
 /* Trees */
-static int ett_fpmux = -1;
+static int ett_fpmux;
 
 /* Fields */
-static int hf_fpmux_uid = -1;
-static int hf_fpmux_extension_flag = -1;
-static int hf_fpmux_length = -1;
+static int hf_fpmux_uid;
+static int hf_fpmux_extension_flag;
+static int hf_fpmux_length;
 
 /* Expert Fields */
-static expert_field ei_fpm_length_needlessly_extended = EI_INIT;
-static expert_field ei_fpm_too_many_payloads = EI_INIT;
-static expert_field ei_fpm_bad_length = EI_INIT;
+static expert_field ei_fpm_length_needlessly_extended;
+static expert_field ei_fpm_too_many_payloads;
+static expert_field ei_fpm_bad_length;
 
 /* Preferences */
 /* Place UID in proto tree */
-static gboolean fp_mux_uid_in_tree = TRUE;
+static bool fp_mux_uid_in_tree = true;
 /* Call heuristic FP dissectors on payload */
-static gboolean call_fp_heur = TRUE;
+static bool call_fp_heur = true;
 
 /* Enum Values */
 static const true_false_string fpmux_extension_flag_vals = {
@@ -61,19 +61,19 @@ static const true_false_string fpmux_extension_flag_vals = {
 
 /* Per-packet info */
 typedef struct fp_mux_info_t {
-    guint32        srcport;
-    guint32        destport;
+    uint32_t       srcport;
+    uint32_t       destport;
     fp_info*       fpinfos[MAX_PAYLOADS];
     umts_mac_info* macinfos[MAX_PAYLOADS];
     rlc_info*      rlcinfos[MAX_PAYLOADS];
 } fp_mux_info_t;
 
-static void dissect_payload(tvbuff_t *next_tvb, packet_info *pinfo, proto_tree *tree, struct fp_mux_info_t* fp_mux_info, guint16 payload_index, guint16 uid)
+static void dissect_payload(tvbuff_t *next_tvb, packet_info *pinfo, proto_tree *tree, struct fp_mux_info_t* fp_mux_info, uint16_t payload_index, uint16_t uid)
 {
     heur_dtbl_entry_t *hdtbl_entry;
-    gboolean conv_dissected; /* If the TVB was dissected using the conversation dissector*/
-    gboolean heur_dissected; /* If the TVB was dissected using a heuristic dissector*/
-    guint32 current_destport,current_srcport;
+    bool conv_dissected; /* If the TVB was dissected using the conversation dissector*/
+    bool heur_dissected; /* If the TVB was dissected using a heuristic dissector*/
+    uint32_t current_destport,current_srcport;
 
     /* Saving old ports */
     current_destport = pinfo->destport;
@@ -119,7 +119,7 @@ static void dissect_payload(tvbuff_t *next_tvb, packet_info *pinfo, proto_tree *
     p_remove_proto_data(wmem_file_scope(), pinfo, proto_umts_rlc, 0);
 
     /* Setting a fence in the info column to aggregate all payloads' descriptions */
-    const gchar* info = col_get_text(pinfo->cinfo, COL_INFO);
+    const char* info = col_get_text(pinfo->cinfo, COL_INFO);
     if (info != NULL && *info != '\0') {
         /* Only creating fence if the column's current text isn't NULL or an empty string */
         col_append_str(pinfo->cinfo, COL_INFO, " ");
@@ -133,15 +133,15 @@ static void dissect_payload(tvbuff_t *next_tvb, packet_info *pinfo, proto_tree *
 
 static int dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint16 uid;
-    gboolean ext_flag;
-    guint8 length_field_size;
-    guint16 length;
-    guint32 header_length;
-    guint32 total_length;
-    guint32 offset = 0;
-    guint32 out_value = 0;
-    guint32 payload_index = 0;
+    uint16_t uid;
+    bool ext_flag;
+    uint8_t length_field_size;
+    uint16_t length;
+    uint32_t header_length;
+    uint32_t total_length;
+    uint32_t offset = 0;
+    uint32_t out_value = 0;
+    uint32_t payload_index = 0;
     tvbuff_t *next_tvb;
     proto_item *ti;
     proto_tree *fpmux_tree = NULL;
@@ -173,7 +173,7 @@ static int dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
 
         /* Adding User Identifier field */
         proto_tree_add_item_ret_uint(fpmux_tree, hf_fpmux_uid, tvb, offset, 2, ENC_BIG_ENDIAN, &out_value);
-        uid = (guint16)out_value;
+        uid = (uint16_t)out_value;
         offset += 2;
         /* Appending User Identifier to FP Mux tree label */
         if (fp_mux_uid_in_tree) {
@@ -192,7 +192,7 @@ static int dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
         }
         else {
             /* Not extended - Length is 7 bits */
-            length = tvb_get_guint8(tvb, offset) & 0x7F;
+            length = tvb_get_uint8(tvb, offset) & 0x7F;
             length_field_size = 1;
         }
         proto_tree_add_uint(fpmux_tree, hf_fpmux_length, tvb, offset, length_field_size, length);
@@ -232,21 +232,21 @@ static int dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
 }
 
 
-static int heur_dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
+static bool heur_dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
-    gboolean ext_flag;
-    guint8 length_field_size;
-    guint16 length;
-    guint32 header_length;
-    guint32 total_length;
-    guint32 offset = 0;
-    guint32 chunks = 0;
+    bool ext_flag;
+    uint8_t length_field_size;
+    uint16_t length;
+    uint32_t header_length;
+    uint32_t total_length;
+    uint32_t offset = 0;
+    uint32_t chunks = 0;
     conversation_t *conversation;
     struct fp_mux_info_t* fp_mux_info;
 
     total_length = tvb_captured_length(tvb);
     if (total_length == 0) {
-        return FALSE;
+        return false;
     }
 
     fp_mux_info = (fp_mux_info_t* )p_get_proto_data(wmem_file_scope(), pinfo, proto_fp_mux, 0);
@@ -255,23 +255,23 @@ static int heur_dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
             fp_mux_info->destport == pinfo->destport) {
             /* Already framed as FP Mux*/
             dissect_fp_mux(tvb, pinfo, tree, data);
-            return TRUE;
+            return true;
         }
         else {
-            return FALSE;
+            return false;
         }
     }
 
     while(offset < total_length)
     {
         if(total_length < offset + 2) {
-            return FALSE;
+            return false;
         }
-        ext_flag = ((tvb_get_guint8(tvb, offset + 2)&0x80)==0x80);
+        ext_flag = ((tvb_get_uint8(tvb, offset + 2)&0x80)==0x80);
         header_length = ext_flag ? 4 : 3;
 
         if(total_length < offset + header_length) {
-            return FALSE;
+            return false;
         }
 
         offset = offset + 2; /* Skipping UID */
@@ -282,12 +282,12 @@ static int heur_dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
         }
         else {
             /* Not extended - Length is 7 bits */
-            length = tvb_get_guint8(tvb, offset) & 0x7F;
+            length = tvb_get_uint8(tvb, offset) & 0x7F;
             length_field_size = 1;
         }
 
         if(length < 3) { /* Minimal FP frame length is 3 bytes*/
-            return FALSE;
+            return false;
         }
 
         offset += length_field_size;
@@ -297,12 +297,12 @@ static int heur_dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
     }
 
     if(offset > total_length) {
-        return FALSE;
+        return false;
     }
 
     if(chunks == 1) {
         /* Might be coincidental, let's hope other packets with more payloads arrive */
-        return FALSE;
+        return false;
     }
 
     /* This is FP Mux! */
@@ -311,7 +311,7 @@ static int heur_dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
     conversation_set_dissector(conversation, fp_mux_handle);
     dissect_fp_mux(tvb, pinfo, tree, data);
 
-    return TRUE;
+    return true;
 }
 
 
@@ -327,7 +327,7 @@ proto_register_fp_mux(void)
         { &hf_fpmux_length, { "Length", "fp_mux.length", FT_UINT16, BASE_DEC, NULL, 0, NULL, HFILL } },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_fpmux
     };
 
@@ -347,7 +347,7 @@ proto_register_fp_mux(void)
     expert_register_field_array(expert_fp_mux, ei, array_length(ei));
 
     /* Register heuristic table */
-    heur_subdissector_list = register_heur_dissector_list("fp_mux", proto_fp_mux);
+    heur_subdissector_list = register_heur_dissector_list_with_description("fp_mux", "Huawei FP Mux payload", proto_fp_mux);
 
     /* Register configuration preferences */
     fp_mux_module = prefs_register_protocol(proto_fp_mux, NULL);

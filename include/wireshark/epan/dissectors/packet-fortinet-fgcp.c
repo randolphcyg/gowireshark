@@ -24,39 +24,48 @@
 void proto_reg_handoff_fortinet_fgcp(void);
 void proto_register_fortinet_fgcp(void);
 
-static int proto_fortinet_fgcp_hb = -1;
-static int hf_fortinet_fgcp_hb_magic = -1;
-static int hf_fortinet_fgcp_hb_flag = -1;
-static int hf_fortinet_fgcp_hb_flag_b74 = -1;
-static int hf_fortinet_fgcp_hb_flag_b3 = -1;
-static int hf_fortinet_fgcp_hb_flag_b2 = -1;
-static int hf_fortinet_fgcp_hb_flag_authentication = -1;
-static int hf_fortinet_fgcp_hb_flag_encryption = -1;
-static int hf_fortinet_fgcp_hb_mode = -1;
-static int hf_fortinet_fgcp_hb_gn = -1;
-static int hf_fortinet_fgcp_hb_group_id = -1;
-static int hf_fortinet_fgcp_hb_port = -1;
-static int hf_fortinet_fgcp_hb_revision = -1;
-static int hf_fortinet_fgcp_hb_sn = -1;
-static int hf_fortinet_fgcp_hb_payload_encrypted = -1;
-static int hf_fortinet_fgcp_hb_authentication = -1;
+static int proto_fortinet_fgcp_hb;
+static int hf_fortinet_fgcp_hb_magic;
+static int hf_fortinet_fgcp_hb_flag;
+static int hf_fortinet_fgcp_hb_flag_b74;
+static int hf_fortinet_fgcp_hb_flag_b3;
+static int hf_fortinet_fgcp_hb_flag_b2;
+static int hf_fortinet_fgcp_hb_flag_authentication;
+static int hf_fortinet_fgcp_hb_flag_encryption;
+static int hf_fortinet_fgcp_hb_mode;
+static int hf_fortinet_fgcp_hb_gn;
+static int hf_fortinet_fgcp_hb_group_id;
+static int hf_fortinet_fgcp_hb_port;
+static int hf_fortinet_fgcp_hb_revision;
+static int hf_fortinet_fgcp_hb_sn;
+static int hf_fortinet_fgcp_hb_payload_encrypted;
+static int hf_fortinet_fgcp_hb_authentication;
 
-static int hf_fortinet_fgcp_hb_tlv = -1;
-static int hf_fortinet_fgcp_hb_tlv_type = -1;
-static int hf_fortinet_fgcp_hb_tlv_length = -1;
-static int hf_fortinet_fgcp_hb_tlv_value = -1;
-static int hf_fortinet_fgcp_hb_tlv_vcluster_id = -1;
-static int hf_fortinet_fgcp_hb_tlv_priority = -1;
-static int hf_fortinet_fgcp_hb_tlv_override = -1;
+static int hf_fortinet_fgcp_hb_tlv;
+static int hf_fortinet_fgcp_hb_tlv_type;
+static int hf_fortinet_fgcp_hb_tlv_length;
+static int hf_fortinet_fgcp_hb_tlv_value;
+static int hf_fortinet_fgcp_hb_tlv_vcluster_id;
+static int hf_fortinet_fgcp_hb_tlv_priority;
+static int hf_fortinet_fgcp_hb_tlv_override;
 
-//static int hf_fortinet_fgcp_hb_unknown = -1;
-static int hf_fortinet_fgcp_hb_unknown_uint16 = -1;
+//static int hf_fortinet_fgcp_hb_unknown;
+static int hf_fortinet_fgcp_hb_unknown_uint16;
 
 static dissector_handle_t fortinet_fgcp_hb_handle;
 
-static gint ett_fortinet_fgcp_hb = -1;
-static gint ett_fortinet_fgcp_hb_flag = -1;
-static gint ett_fortinet_fgcp_hb_tlv = -1;
+static int ett_fortinet_fgcp_hb;
+static int ett_fortinet_fgcp_hb_flag;
+static int ett_fortinet_fgcp_hb_tlv;
+
+static int proto_fortinet_fgcp_session;
+static int hf_fortinet_fgcp_session_magic;
+static int hf_fortinet_fgcp_session_type;
+
+static dissector_handle_t fortinet_fgcp_session_handle;
+static dissector_handle_t ip_handle;
+
+static int ett_fortinet_fgcp_session;
 
 static const value_string fortinet_fgcp_hb_mode_vals[] = {
     { 0x1,            "A/A (Active/Active)"},
@@ -83,14 +92,14 @@ dissect_fortinet_fgcp_hb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
     proto_item *ti;
     proto_tree *fortinet_hb_tree;
-    guint       offset = 0, length, auth_len=0;
-    guint8      flags;
+    unsigned    offset = 0, length, auth_len=0;
+    uint8_t     flags;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "FGCP-HB");
 
     col_add_fstr(pinfo->cinfo, COL_INFO, "Cluster: %s(%u) - monitor: %s - SN: %s",
                 tvb_get_string_enc(pinfo->pool, tvb, offset+4, 32, ENC_ASCII), /* Group Name*/
-                tvb_get_guint16(tvb, (offset+4+32+2), ENC_LITTLE_ENDIAN),  /* Group ID*/
+                tvb_get_uint16(tvb, (offset+4+32+2), ENC_LITTLE_ENDIAN),  /* Group ID*/
                 tvb_get_string_enc(pinfo->pool, tvb, offset+4+32+2+14, 16, ENC_ASCII), /* Port */
                 tvb_get_string_enc(pinfo->pool, tvb, offset+4+32+2+14+16+2+2, 16, ENC_ASCII) /* Serial Number */);
 
@@ -115,7 +124,7 @@ dissect_fortinet_fgcp_hb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     proto_tree_add_bitmask(fortinet_hb_tree, tvb, offset, hf_fortinet_fgcp_hb_flag, ett_fortinet_fgcp_hb_flag,
                            fortinet_fgcp_hb_flag, ENC_NA);
-    flags =  tvb_get_guint8(tvb, offset);
+    flags =  tvb_get_uint8(tvb, offset);
     offset += 1;
 
     /* Group Name */
@@ -173,13 +182,13 @@ dissect_fortinet_fgcp_hb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         proto_tree_add_item(fortinet_hb_tree, hf_fortinet_fgcp_hb_payload_encrypted, tvb, offset, length, ENC_NA);
         offset += length;
     } else {
-        guint next_offset;
+        unsigned next_offset;
 
         length = tvb_reported_length_remaining(tvb, offset) - auth_len;
         next_offset = offset + length;
 
         while (offset < next_offset) {
-                guint32 type, len;
+                uint32_t type, len;
                 proto_item *ti_tlv;
                 proto_tree *tlv_tree;
 
@@ -196,21 +205,21 @@ dissect_fortinet_fgcp_hb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                 proto_tree_add_item(tlv_tree, hf_fortinet_fgcp_hb_tlv_value, tvb, offset, len, ENC_NA);
                 switch (type) {
                 case HB_TLV_VCLUSTER_ID:{
-                    guint32 vcluster_id;
+                    uint32_t vcluster_id;
                     proto_tree_add_item_ret_uint(tlv_tree, hf_fortinet_fgcp_hb_tlv_vcluster_id, tvb, offset, 1, ENC_NA, &vcluster_id);
                     proto_item_append_text(ti_tlv, ": %u", vcluster_id);
                     offset += 1;
                     }
                 break;
                 case HB_TLV_PRIORITY:{
-                    guint32 priority;
+                    uint32_t priority;
                     proto_tree_add_item_ret_uint(tlv_tree, hf_fortinet_fgcp_hb_tlv_priority, tvb, offset, 1, ENC_NA, &priority);
                     proto_item_append_text(ti_tlv, ": %u", priority);
                     offset += 1;
                     }
                 break;
                 case HB_TLV_OVERRIDE:{
-                    guint32 override;
+                    uint32_t override;
                     proto_tree_add_item_ret_uint(tlv_tree, hf_fortinet_fgcp_hb_tlv_override, tvb, offset, 1, ENC_NA, &override);
                     if (override){
                         proto_item_append_text(ti_tlv, ": True");
@@ -231,6 +240,33 @@ dissect_fortinet_fgcp_hb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         proto_tree_add_item(fortinet_hb_tree, hf_fortinet_fgcp_hb_authentication, tvb, offset, 32, ENC_NA);
         offset += 32;
     }
+
+    return offset;
+}
+
+static int
+dissect_fortinet_fgcp_session(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
+        void *data _U_)
+{
+    proto_item *ti;
+    proto_tree *fortinet_hb_tree;
+    unsigned    offset = 0;
+    tvbuff_t    *data_tvb;
+
+    col_set_str(pinfo->cinfo, COL_PROTOCOL, "FGCP-SESSION");
+
+    ti = proto_tree_add_item(tree, proto_fortinet_fgcp_session, tvb, 0, -1, ENC_NA);
+
+    fortinet_hb_tree = proto_item_add_subtree(ti, ett_fortinet_fgcp_session);
+
+    proto_tree_add_item(fortinet_hb_tree, hf_fortinet_fgcp_session_magic, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    offset += 2;
+
+    proto_tree_add_item(fortinet_hb_tree, hf_fortinet_fgcp_session_type, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    offset += 2;
+
+    data_tvb = tvb_new_subset_remaining(tvb, offset);
+    call_dissector(ip_handle, data_tvb, pinfo, tree);
 
     return offset;
 }
@@ -365,18 +401,34 @@ proto_register_fortinet_fgcp(void)
             FT_UINT16, BASE_DEC_HEX, NULL, 0x0,
             NULL, HFILL }
         },
+
+        /* Session */
+        { &hf_fortinet_fgcp_session_magic,
+            { "Magic Number", "fortinet_fgcp.session.magic",
+            FT_UINT16, BASE_HEX_DEC, NULL, 0x0,
+            "Magic Number ?", HFILL }
+        },
+        { &hf_fortinet_fgcp_session_type,
+            { "Type", "fortinet_fgcp.session.type",
+            FT_UINT16, BASE_HEX, NULL, 0x0,
+            NULL, HFILL }
+        },
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_fortinet_fgcp_hb,
         &ett_fortinet_fgcp_hb_flag,
-        &ett_fortinet_fgcp_hb_tlv
+        &ett_fortinet_fgcp_hb_tlv,
+        &ett_fortinet_fgcp_session,
     };
 
     /* Register the protocol name and description */
     proto_fortinet_fgcp_hb = proto_register_protocol("FortiGate Cluster Protocol - HeartBeat",
             "fortinet_fgcp_hb", "fortinet_fgcp_hb");
+
+    proto_fortinet_fgcp_session = proto_register_protocol("FortiGate Cluster Protocol - Session",
+            "fortinet_fgcp_session", "fortinet_fgcp_session");
 
     /* Required function calls to register the header fields and subtrees */
     proto_register_field_array(proto_fortinet_fgcp_hb, hf, array_length(hf));
@@ -385,6 +437,9 @@ proto_register_fortinet_fgcp(void)
     fortinet_fgcp_hb_handle = register_dissector("fortinet_fgcp_hb", dissect_fortinet_fgcp_hb,
             proto_fortinet_fgcp_hb);
 
+    fortinet_fgcp_session_handle = register_dissector("fortinet_fgcp_session", dissect_fortinet_fgcp_session,
+            proto_fortinet_fgcp_session);
+
 }
 
 
@@ -392,6 +447,9 @@ void
 proto_reg_handoff_fortinet_fgcp(void)
 {
       dissector_add_uint("ethertype", ETHERTYPE_FORTINET_FGCP_HB, fortinet_fgcp_hb_handle);
+      dissector_add_uint("ethertype", ETHERTYPE_FORTINET_FGCP_SESSION, fortinet_fgcp_session_handle);
+
+      ip_handle  = find_dissector_add_dependency("ip", proto_fortinet_fgcp_session);
 }
 
 /*

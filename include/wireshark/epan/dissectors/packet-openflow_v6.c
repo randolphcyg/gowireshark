@@ -27,886 +27,886 @@ static int dissect_openflow_message_v6(tvbuff_t *, packet_info *, proto_tree *, 
 
 static dissector_handle_t eth_withoutfcs_handle;
 
-static int proto_openflow_v6 = -1;
-static int hf_openflow_v6_version = -1;
-static int hf_openflow_v6_type = -1;
-static int hf_openflow_v6_length = -1;
-static int hf_openflow_v6_xid = -1;
-static int hf_openflow_v6_oxm_class = -1;
-static int hf_openflow_v6_oxm_field = -1;
-static int hf_openflow_v6_oxm_field_basic = -1;
-static int hf_openflow_v6_oxm_hm = -1;
-static int hf_openflow_v6_oxm_length = -1;
-static int hf_openflow_v6_oxm_experimenter_experimenter = -1;
-static int hf_openflow_v6_oxm_value = -1;
-static int hf_openflow_v6_oxm_value_etheraddr = -1;
-static int hf_openflow_v6_oxm_value_vlan_present = -1;
-static int hf_openflow_v6_oxm_value_vlan_vid = -1;
-static int hf_openflow_v6_oxm_value_ethertype = -1;
-static int hf_openflow_v6_oxm_value_ipv4addr = -1;
-static int hf_openflow_v6_oxm_value_ipv6addr = -1;
-static int hf_openflow_v6_oxm_value_ipproto = -1;
-static int hf_openflow_v6_oxm_value_uint16 = -1;
-static int hf_openflow_v6_oxm_value_uint24 = -1;
-static int hf_openflow_v6_oxm_value_uint32 = -1;
-static int hf_openflow_v6_oxm_mask = -1;
-static int hf_openflow_v6_oxm_mask_etheraddr = -1;
-static int hf_openflow_v6_oxm_mask_ipv4addr = -1;
-static int hf_openflow_v6_oxm_mask_ipv6addr = -1;
-static int hf_openflow_v6_oxm_mask_vlan = -1;
-static int hf_openflow_v6_match_type = -1;
-static int hf_openflow_v6_match_length = -1;
-static int hf_openflow_v6_match_pad = -1;
-static int hf_openflow_v6_action_type = -1;
-static int hf_openflow_v6_action_length = -1;
-static int hf_openflow_v6_action_experimenter_experimenter = -1;
-static int hf_openflow_v6_oxm_experimenter_value = -1;
-static int hf_openflow_v6_oxm_register = -1;
-static int hf_openflow_v6_action_output_port = -1;
-static int hf_openflow_v6_action_output_max_len = -1;
-static int hf_openflow_v6_action_output_pad = -1;
-static int hf_openflow_v6_action_copy_ttl_out_pad = -1;
-static int hf_openflow_v6_action_copy_ttl_in_pad = -1;
-static int hf_openflow_v6_action_set_mpls_ttl_ttl = -1;
-static int hf_openflow_v6_action_set_mpls_ttl_pad = -1;
-static int hf_openflow_v6_action_dec_mpls_ttl_pad = -1;
-static int hf_openflow_v6_action_push_vlan_ethertype = -1;
-static int hf_openflow_v6_action_push_vlan_pad = -1;
-static int hf_openflow_v6_action_pop_vlan_pad = -1;
-static int hf_openflow_v6_action_push_mpls_ethertype = -1;
-static int hf_openflow_v6_action_push_mpls_pad = -1;
-static int hf_openflow_v6_action_pop_mpls_ethertype = -1;
-static int hf_openflow_v6_action_pop_mpls_pad = -1;
-static int hf_openflow_v6_action_set_queue_queue_id = -1;
-static int hf_openflow_v6_action_group_group_id = -1;
-static int hf_openflow_v6_action_set_nw_ttl_ttl = -1;
-static int hf_openflow_v6_action_set_nw_ttl_pad = -1;
-static int hf_openflow_v6_action_dec_nw_ttl_pad = -1;
-static int hf_openflow_v6_action_set_field_pad = -1;
-static int hf_openflow_v6_action_push_pbb_ethertype = -1;
-static int hf_openflow_v6_action_push_pbb_pad = -1;
-static int hf_openflow_v6_action_pop_pbb_pad = -1;
-static int hf_openflow_v6_action_copy_field_n_bits = -1;
-static int hf_openflow_v6_action_copy_field_src_offset = -1;
-static int hf_openflow_v6_action_copy_field_dst_offset = -1;
-static int hf_openflow_v6_action_copy_field_pad = -1;
-static int hf_openflow_v6_action_meter_id = -1;
-static int hf_openflow_v6_instruction_type = -1;
-static int hf_openflow_v6_instruction_length = -1;
-static int hf_openflow_v6_instruction_experimenter_experimenter = -1;
-static int hf_openflow_v6_instruction_goto_table_table_id = -1;
-static int hf_openflow_v6_instruction_goto_table_pad = -1;
-static int hf_openflow_v6_instruction_write_metadata_pad = -1;
-static int hf_openflow_v6_instruction_write_metadata_value = -1;
-static int hf_openflow_v6_instruction_write_metadata_mask = -1;
-static int hf_openflow_v6_instruction_actions_pad = -1;
-static int hf_openflow_v6_port_desc_prop_type = -1;
-static int hf_openflow_v6_port_desc_prop_length = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_pad = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_10mb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_10mb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_100mb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_100mb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_1gb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_1gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_10gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_40gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_100gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_1tb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_other = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_copper = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_fiber = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_autoneg = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_pause = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_pause_asym = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_current_reserved = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_10mb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_10mb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_100mb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_100mb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_1gb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_1gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_10gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_40gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_100gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_1tb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_other = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_copper = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_fiber = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_autoneg = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_pause = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_pause_asym = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_advertised_reserved = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_10mb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_10mb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_100mb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_100mb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_1gb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_1gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_10gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_40gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_100gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_1tb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_other = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_copper = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_fiber = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_autoneg = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_pause = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_pause_asym = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_supported_reserved = -1;
-static int hf_openflow_v6_port_desc_prop_optical_pad = -1;
-static int hf_openflow_v6_port_desc_prop_optical_supported = -1;
-static int hf_openflow_v6_port_desc_prop_optical_supported_rx_tune = -1;
-static int hf_openflow_v6_port_desc_prop_optical_supported_tx_tune = -1;
-static int hf_openflow_v6_port_desc_prop_optical_supported_tx_pwr = -1;
-static int hf_openflow_v6_port_desc_prop_optical_supported_use_freq = -1;
-static int hf_openflow_v6_port_desc_prop_optical_tx_min_freq_lmda = -1;
-static int hf_openflow_v6_port_desc_prop_optical_tx_max_freq_lmda = -1;
-static int hf_openflow_v6_port_desc_prop_optical_tx_grid_freq_lmda = -1;
-static int hf_openflow_v6_port_desc_prop_optical_rx_min_freq_lmda = -1;
-static int hf_openflow_v6_port_desc_prop_optical_rx_max_freq_lmda = -1;
-static int hf_openflow_v6_port_desc_prop_optical_rx_grid_freq_lmda = -1;
-static int hf_openflow_v6_port_desc_prop_optical_tx_pwr_min = -1;
-static int hf_openflow_v6_port_desc_prop_optical_tx_pwr_max = -1;
-static int hf_openflow_v6_port_desc_prop_experimenter_experimenter = -1;
-static int hf_openflow_v6_port_desc_prop_experimenter_exp_type = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_10mb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_10mb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_100mb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_100mb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_1gb_hd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_1gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_10gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_40gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_100gb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_1tb_fd = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_other = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_copper = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_fiber = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_autoneg = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_pause = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_pause_asym = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_peer_reserved = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_curr_speed = -1;
-static int hf_openflow_v6_port_desc_prop_ethernet_max_speed = -1;
-static int hf_openflow_v6_port_stats_prop_type = -1;
-static int hf_openflow_v6_port_stats_prop_length = -1;
-static int hf_openflow_v6_port_stats_prop_ethernet_pad = -1;
-static int hf_openflow_v6_port_stats_prop_ethernet_rx_frame_err = -1;
-static int hf_openflow_v6_port_stats_prop_ethernet_rx_over_err = -1;
-static int hf_openflow_v6_port_stats_prop_ethernet_rx_crc_err = -1;
-static int hf_openflow_v6_port_stats_prop_ethernet_collisions = -1;
-static int hf_openflow_v6_port_stats_prop_optical_pad = -1;
-static int hf_openflow_v6_port_stats_prop_optical_flags = -1;
-static int hf_openflow_v6_port_stats_prop_optical_flags_rx_tune = -1;
-static int hf_openflow_v6_port_stats_prop_optical_flags_tx_tune = -1;
-static int hf_openflow_v6_port_stats_prop_optical_flags_tx_pwr = -1;
-static int hf_openflow_v6_port_stats_prop_optical_flags_rx_pwr = -1;
-static int hf_openflow_v6_port_stats_prop_optical_flags_tx_bias = -1;
-static int hf_openflow_v6_port_stats_prop_optical_flags_tx_temp = -1;
-static int hf_openflow_v6_port_stats_prop_optical_tx_freq_lmda = -1;
-static int hf_openflow_v6_port_stats_prop_optical_tx_offset = -1;
-static int hf_openflow_v6_port_stats_prop_optical_tx_grid_span = -1;
-static int hf_openflow_v6_port_stats_prop_optical_rx_freq_lmda = -1;
-static int hf_openflow_v6_port_stats_prop_optical_rx_offset = -1;
-static int hf_openflow_v6_port_stats_prop_optical_rx_grid_span = -1;
-static int hf_openflow_v6_port_stats_prop_optical_tx_pwr = -1;
-static int hf_openflow_v6_port_stats_prop_optical_rx_pwr = -1;
-static int hf_openflow_v6_port_stats_prop_optical_bias_current = -1;
-static int hf_openflow_v6_port_stats_prop_optical_temperature = -1;
-static int hf_openflow_v6_port_stats_prop_experimenter_experimenter = -1;
-static int hf_openflow_v6_port_stats_prop_experimenter_exp_type = -1;
-static int hf_openflow_v6_port_port_no = -1;
-static int hf_openflow_v6_port_length = -1;
-static int hf_openflow_v6_port_pad = -1;
-static int hf_openflow_v6_port_hw_addr = -1;
-static int hf_openflow_v6_port_pad2 = -1;
-static int hf_openflow_v6_port_name = -1;
-static int hf_openflow_v6_port_config = -1;
-static int hf_openflow_v6_port_config_port_down = -1;
-static int hf_openflow_v6_port_config_no_recv = -1;
-static int hf_openflow_v6_port_config_no_fwd = -1;
-static int hf_openflow_v6_port_config_no_packet_in = -1;
-static int hf_openflow_v6_port_state = -1;
-static int hf_openflow_v6_port_state_link_down = -1;
-static int hf_openflow_v6_port_state_blocked = -1;
-static int hf_openflow_v6_port_state_live = -1;
-static int hf_openflow_v6_meter_band_type = -1;
-static int hf_openflow_v6_meter_band_len = -1;
-static int hf_openflow_v6_meter_band_rate = -1;
-static int hf_openflow_v6_meter_band_burst_size = -1;
-static int hf_openflow_v6_meter_band_drop_pad = -1;
-static int hf_openflow_v6_meter_band_dscp_remark_prec_level = -1;
-static int hf_openflow_v6_meter_band_dscp_remark_pad= -1;
-static int hf_openflow_v6_meter_band_experimenter_experimenter = -1;
-static int hf_openflow_v6_hello_element_type = -1;
-static int hf_openflow_v6_hello_element_length = -1;
-static int hf_openflow_v6_hello_element_version_bitmap = -1;
-static int hf_openflow_v6_hello_element_pad = -1;
-static int hf_openflow_v6_error_type = -1;
-static int hf_openflow_v6_error_hello_failed_code = -1;
-static int hf_openflow_v6_error_bad_request_code = -1;
-static int hf_openflow_v6_error_bad_action_code = -1;
-static int hf_openflow_v6_error_bad_instruction_code = -1;
-static int hf_openflow_v6_error_bad_match_code = -1;
-static int hf_openflow_v6_error_flow_mod_failed_code = -1;
-static int hf_openflow_v6_error_group_mod_failed_code = -1;
-static int hf_openflow_v6_error_port_mod_failed_code = -1;
-static int hf_openflow_v6_error_table_mod_failed_code = -1;
-static int hf_openflow_v6_error_queue_op_failed_code = -1;
-static int hf_openflow_v6_error_switch_config_failed_code = -1;
-static int hf_openflow_v6_error_role_request_failed_code = -1;
-static int hf_openflow_v6_error_meter_mod_failed_code = -1;
-static int hf_openflow_v6_error_table_features_failed_code = -1;
-static int hf_openflow_v6_error_bad_property_code = -1;
-static int hf_openflow_v6_error_async_config_failed_code = -1;
-static int hf_openflow_v6_error_flow_monitor_failed_code = -1;
-static int hf_openflow_v6_error_bundle_failed_code = -1;
-static int hf_openflow_v6_error_code = -1;
-static int hf_openflow_v6_error_data_text = -1;
-static int hf_openflow_v6_error_data_body = -1;
-static int hf_openflow_v6_error_experimenter = -1;
-static int hf_openflow_v6_echo_data = -1;
-static int hf_openflow_v6_experimenter_experimenter = -1;
-static int hf_openflow_v6_experimenter_exp_type = -1;
-static int hf_openflow_v6_switch_features_datapath_id = -1;
-static int hf_openflow_v6_switch_features_n_buffers = -1;
-static int hf_openflow_v6_switch_features_n_tables = -1;
-static int hf_openflow_v6_switch_features_auxiliary_id = -1;
-static int hf_openflow_v6_switch_features_pad = -1;
-static int hf_openflow_v6_switch_features_capabilities = -1;
-static int hf_openflow_v6_switch_features_capabilities_flow_stats = -1;
-static int hf_openflow_v6_switch_features_capabilities_table_stats = -1;
-static int hf_openflow_v6_switch_features_capabilities_port_stats = -1;
-static int hf_openflow_v6_switch_features_capabilities_group_stats = -1;
-static int hf_openflow_v6_switch_features_capabilities_ip_reasm = -1;
-static int hf_openflow_v6_switch_features_capabilities_queue_stats = -1;
-static int hf_openflow_v6_switch_features_capabilities_port_blocked = -1;
-static int hf_openflow_v6_switch_features_capabilities_bundles = -1;
-static int hf_openflow_v6_switch_features_capabilities_flow_monitoring = -1;
-static int hf_openflow_v6_switch_features_reserved = -1;
-static int hf_openflow_v6_switch_config_flags = -1;
-static int hf_openflow_v6_switch_config_flags_fragments = -1;
-static int hf_openflow_v6_switch_config_miss_send_len = -1;
-static int hf_openflow_v6_packet_in_buffer_id = -1;
-static int hf_openflow_v6_packet_in_total_len = -1;
-static int hf_openflow_v6_packet_in_reason = -1;
-static int hf_openflow_v6_packet_in_table_id = -1;
-static int hf_openflow_v6_packet_in_cookie = -1;
-static int hf_openflow_v6_packet_in_pad = -1;
-static int hf_openflow_v6_flow_removed_cookie = -1;
-static int hf_openflow_v6_flow_removed_priority = -1;
-static int hf_openflow_v6_flow_removed_reason = -1;
-static int hf_openflow_v6_flow_removed_table_id = -1;
-static int hf_openflow_v6_flow_removed_idle_timeout = -1;
-static int hf_openflow_v6_flow_removed_hard_timeout = -1;
-static int hf_openflow_v6_port_status_reason = -1;
-static int hf_openflow_v6_port_status_pad = -1;
-static int hf_openflow_v6_packet_out_buffer_id = -1;
-static int hf_openflow_v6_packet_out_acts_len = -1;
-static int hf_openflow_v6_packet_out_pad = -1;
-static int hf_openflow_v6_flowmod_cookie = -1;
-static int hf_openflow_v6_flowmod_cookie_mask = -1;
-static int hf_openflow_v6_flowmod_table_id = -1;
-static int hf_openflow_v6_flowmod_command = -1;
-static int hf_openflow_v6_flowmod_idle_timeout = -1;
-static int hf_openflow_v6_flowmod_hard_timeout = -1;
-static int hf_openflow_v6_flowmod_priority = -1;
-static int hf_openflow_v6_flowmod_buffer_id = -1;
-static int hf_openflow_v6_flowmod_out_port = -1;
-static int hf_openflow_v6_flowmod_out_group = -1;
-static int hf_openflow_v6_flowmod_flags = -1;
-static int hf_openflow_v6_flowmod_flags_send_flow_rem = -1;
-static int hf_openflow_v6_flowmod_flags_check_overlap = -1;
-static int hf_openflow_v6_flowmod_flags_reset_counts = -1;
-static int hf_openflow_v6_flowmod_flags_no_packet_counts = -1;
-static int hf_openflow_v6_flowmod_flags_no_byte_counts = -1;
-static int hf_openflow_v6_flowmod_importance = -1;
-static int hf_openflow_v6_bucket_length = -1;
-static int hf_openflow_v6_bucket_weight = -1;
-static int hf_openflow_v6_bucket_watch_port = -1;
-static int hf_openflow_v6_bucket_watch_group = -1;
-static int hf_openflow_v6_bucket_pad = -1;
-static int hf_openflow_v6_groupmod_command = -1;
-static int hf_openflow_v6_groupmod_type = -1;
-static int hf_openflow_v6_groupmod_pad = -1;
-static int hf_openflow_v6_groupmod_group_id = -1;
-static int hf_openflow_v6_groupmod_bucket_array_len = -1;
-static int hf_openflow_v6_groupmod_command_bucket_id = -1;
-static int hf_openflow_v6_portmod_prop_type = -1;
-static int hf_openflow_v6_portmod_prop_length = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_10mb_hd = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_10mb_fd = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_100mb_hd = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_100mb_fd = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_1gb_hd = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_1gb_fd = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_10gb_fd = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_40gb_fd = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_100gb_fd = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_1tb_fd = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_other = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_copper = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_fiber = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_autoneg = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_pause = -1;
-static int hf_openflow_v6_portmod_prop_ethernet_advertise_pause_asym = -1;
-static int hf_openflow_v6_portmod_prop_optical_configure = -1;
-static int hf_openflow_v6_portmod_prop_optical_configure_rx_tune = -1;
-static int hf_openflow_v6_portmod_prop_optical_configure_tx_tune = -1;
-static int hf_openflow_v6_portmod_prop_optical_configure_tx_pwr = -1;
-static int hf_openflow_v6_portmod_prop_optical_configure_use_freq = -1;
-static int hf_openflow_v6_portmod_prop_optical_freq_lmda = -1;
-static int hf_openflow_v6_portmod_prop_optical_fl_offset = -1;
-static int hf_openflow_v6_portmod_prop_optical_grid_span = -1;
-static int hf_openflow_v6_portmod_prop_optical_tx_pwr = -1;
-static int hf_openflow_v6_portmod_prop_experimenter_experimenter = -1;
-static int hf_openflow_v6_portmod_prop_experimenter_exp_type = -1;
-static int hf_openflow_v6_portmod_port_no = -1;
-static int hf_openflow_v6_portmod_pad = -1;
-static int hf_openflow_v6_portmod_hw_addr = -1;
-static int hf_openflow_v6_portmod_pad2 = -1;
-static int hf_openflow_v6_portmod_config = -1;
-static int hf_openflow_v6_portmod_config_port_down = -1;
-static int hf_openflow_v6_portmod_config_no_recv = -1;
-static int hf_openflow_v6_portmod_config_no_fwd = -1;
-static int hf_openflow_v6_portmod_config_no_packet_in = -1;
-static int hf_openflow_v6_portmod_mask = -1;
-static int hf_openflow_v6_portmod_mask_port_down = -1;
-static int hf_openflow_v6_portmod_mask_no_recv = -1;
-static int hf_openflow_v6_portmod_mask_no_fwd = -1;
-static int hf_openflow_v6_portmod_mask_no_packet_in = -1;
-static int hf_openflow_v6_tablemod_table_id = -1;
-static int hf_openflow_v6_tablemod_pad = -1;
-static int hf_openflow_v6_tablemod_config = -1;
-static int hf_openflow_v6_tablemod_config_eviction = -1;
-static int hf_openflow_v6_tablemod_config_vacancy_events = -1;
-static int hf_openflow_v6_tablemod_prop_type = -1;
-static int hf_openflow_v6_tablemod_prop_length = -1;
-static int hf_openflow_v6_tablemod_prop_eviction_flags = -1;
-static int hf_openflow_v6_tablemod_prop_eviction_flags_other = -1;
-static int hf_openflow_v6_tablemod_prop_eviction_flags_importance = -1;
-static int hf_openflow_v6_tablemod_prop_eviction_flags_lifetime = -1;
-static int hf_openflow_v6_tablemod_prop_vacancy_vacancy_down = -1;
-static int hf_openflow_v6_tablemod_prop_vacancy_vacancy_up = -1;
-static int hf_openflow_v6_tablemod_prop_vacancy_vacancy = -1;
-static int hf_openflow_v6_tablemod_prop_vacancy_pad = -1;
-static int hf_openflow_v6_tablemod_prop_experimenter_experimenter = -1;
-static int hf_openflow_v6_tablemod_prop_experimenter_exp_type = -1;
-static int hf_openflow_v6_flow_stats_request_table_id = -1;
-static int hf_openflow_v6_flow_stats_request_pad = -1;
-static int hf_openflow_v6_flow_stats_request_out_port = -1;
-static int hf_openflow_v6_flow_stats_request_out_group = -1;
-static int hf_openflow_v6_flow_stats_request_pad2 = -1;
-static int hf_openflow_v6_flow_stats_request_cookie = -1;
-static int hf_openflow_v6_flow_stats_request_cookie_mask = -1;
-static int hf_openflow_v6_aggregate_stats_request_table_id = -1;
-static int hf_openflow_v6_aggregate_stats_request_pad = -1;
-static int hf_openflow_v6_aggregate_stats_request_out_port = -1;
-static int hf_openflow_v6_aggregate_stats_request_out_group = -1;
-static int hf_openflow_v6_aggregate_stats_request_pad2 = -1;
-static int hf_openflow_v6_aggregate_stats_request_cookie = -1;
-static int hf_openflow_v6_aggregate_stats_request_cookie_mask = -1;
-static int hf_openflow_v6_table_feature_prop_type = -1;
-static int hf_openflow_v6_table_feature_prop_length = -1;
-static int hf_openflow_v6_table_feature_prop_next_tables_next_table_id = -1;
-static int hf_openflow_v6_table_feature_prop_table_sync_from_table_id = -1;
-static int hf_openflow_v6_table_feature_prop_experimenter_experimenter = -1;
-static int hf_openflow_v6_table_feature_prop_experimenter_exp_type = -1;
-static int hf_openflow_v6_table_feature_prop_pad = -1;
-static int hf_openflow_v6_table_features_length = -1;
-static int hf_openflow_v6_table_features_table_id = -1;
-static int hf_openflow_v6_table_features_pad = -1;
-static int hf_openflow_v6_table_features_name = -1;
-static int hf_openflow_v6_table_features_metadata_match = -1;
-static int hf_openflow_v6_table_features_metadata_write = -1;
-static int hf_openflow_v6_table_features_capabilities = -1;
-static int hf_openflow_v6_table_features_capabilities_eviction = -1;
-static int hf_openflow_v6_table_features_capabilities_vacancy_events = -1;
-static int hf_openflow_v6_table_features_max_entries = -1;
-static int hf_openflow_v6_port_stats_request_port_no = -1;
-static int hf_openflow_v6_port_stats_request_pad = -1;
-static int hf_openflow_v6_queue_stats_request_port_no = -1;
-static int hf_openflow_v6_queue_stats_request_queue_id = -1;
-static int hf_openflow_v6_group_stats_request_group_id = -1;
-static int hf_openflow_v6_group_stats_request_pad = -1;
-static int hf_openflow_v6_meter_stats_request_meter_id = -1;
-static int hf_openflow_v6_meter_stats_request_pad = -1;
-static int hf_openflow_v6_meter_desc_request_meter_id = -1;
-static int hf_openflow_v6_meter_desc_request_pad = -1;
-static int hf_openflow_v6_queue_desc_request_port_no = -1;
-static int hf_openflow_v6_queue_desc_request_queue_id = -1;
-static int hf_openflow_v6_flow_monitor_request_monitor_id = -1;
-static int hf_openflow_v6_flow_monitor_request_out_port = -1;
-static int hf_openflow_v6_flow_monitor_request_out_group = -1;
-static int hf_openflow_v6_flow_monitor_request_flags = -1;
-static int hf_openflow_v6_flow_monitor_request_flags_initial = -1;
-static int hf_openflow_v6_flow_monitor_request_flags_add = -1;
-static int hf_openflow_v6_flow_monitor_request_flags_removed = -1;
-static int hf_openflow_v6_flow_monitor_request_flags_modify = -1;
-static int hf_openflow_v6_flow_monitor_request_flags_instructions = -1;
-static int hf_openflow_v6_flow_monitor_request_flags_no_abbrev = -1;
-static int hf_openflow_v6_flow_monitor_request_flags_only_own = -1;
-static int hf_openflow_v6_flow_monitor_request_table_id = -1;
-static int hf_openflow_v6_flow_monitor_request_command = -1;
-static int hf_openflow_v6_multipart_request_type = -1;
-static int hf_openflow_v6_multipart_request_flags = -1;
-static int hf_openflow_v6_multipart_request_flags_more = -1;
-static int hf_openflow_v6_multipart_request_pad = -1;
-static int hf_openflow_v6_multipart_request_experimenter_experimenter = -1;
-static int hf_openflow_v6_multipart_request_experimenter_exp_type = -1;
-static int hf_openflow_v6_switch_description_mfr_desc = -1;
-static int hf_openflow_v6_switch_description_hw_desc = -1;
-static int hf_openflow_v6_switch_description_sw_desc = -1;
-static int hf_openflow_v6_switch_description_serial_num = -1;
-static int hf_openflow_v6_switch_description_dp_desc = -1;
-static int hf_openflow_v6_flow_stats_length = -1;
-static int hf_openflow_v6_flow_stats_table_id = -1;
-static int hf_openflow_v6_flow_stats_duration_sec = -1;
-static int hf_openflow_v6_flow_stats_duration_nsec = -1;
-static int hf_openflow_v6_flow_stats_priority = -1;
-static int hf_openflow_v6_flow_stats_pad2 = -1;
-static int hf_openflow_v6_table_stats_table_id = -1;
-static int hf_openflow_v6_table_stats_pad = -1;
-static int hf_openflow_v6_table_stats_active_count = -1;
-static int hf_openflow_v6_table_stats_lookup_count = -1;
-static int hf_openflow_v6_table_stats_match_count = -1;
-static int hf_openflow_v6_port_stats_length = -1;
-static int hf_openflow_v6_port_stats_pad = -1;
-static int hf_openflow_v6_port_stats_port_no = -1;
-static int hf_openflow_v6_port_stats_duration_sec = -1;
-static int hf_openflow_v6_port_stats_duration_nsec = -1;
-static int hf_openflow_v6_port_stats_rx_packets = -1;
-static int hf_openflow_v6_port_stats_tx_packets = -1;
-static int hf_openflow_v6_port_stats_rx_bytes = -1;
-static int hf_openflow_v6_port_stats_tx_bytes = -1;
-static int hf_openflow_v6_port_stats_rx_dropped = -1;
-static int hf_openflow_v6_port_stats_tx_dropped = -1;
-static int hf_openflow_v6_port_stats_rx_errors = -1;
-static int hf_openflow_v6_port_stats_tx_errors = -1;
-static int hf_openflow_v6_queue_stats_length = -1;
-static int hf_openflow_v6_queue_stats_pad = -1;
-static int hf_openflow_v6_queue_stats_port_no = -1;
-static int hf_openflow_v6_queue_stats_queue_id = -1;
-static int hf_openflow_v6_queue_stats_tx_bytes = -1;
-static int hf_openflow_v6_queue_stats_tx_packets = -1;
-static int hf_openflow_v6_queue_stats_tx_errors = -1;
-static int hf_openflow_v6_queue_stats_duration_sec = -1;
-static int hf_openflow_v6_queue_stats_duration_nsec = -1;
-static int hf_openflow_v6_queue_stats_prop_type = -1;
-static int hf_openflow_v6_queue_stats_prop_length = -1;
-static int hf_openflow_v6_queue_stats_prop_experimenter_experimenter = -1;
-static int hf_openflow_v6_queue_stats_prop_experimenter_exp_type = -1;
-static int hf_openflow_v6_bucket_counter_packet_count = -1;
-static int hf_openflow_v6_bucket_counter_byte_count = -1;
-static int hf_openflow_v6_group_stats_length = -1;
-static int hf_openflow_v6_group_stats_pad = -1;
-static int hf_openflow_v6_group_stats_group_id = -1;
-static int hf_openflow_v6_group_stats_ref_count = -1;
-static int hf_openflow_v6_group_stats_pad2 = -1;
-static int hf_openflow_v6_group_stats_packet_count = -1;
-static int hf_openflow_v6_group_stats_byte_count = -1;
-static int hf_openflow_v6_group_desc_length = -1;
-static int hf_openflow_v6_group_desc_type = -1;
-static int hf_openflow_v6_group_desc_pad = -1;
-static int hf_openflow_v6_group_desc_group_id = -1;
-static int hf_openflow_v6_group_features_types = -1;
-static int hf_openflow_v6_group_features_types_all = -1;
-static int hf_openflow_v6_group_features_types_select = -1;
-static int hf_openflow_v6_group_features_types_indirect = -1;
-static int hf_openflow_v6_group_features_types_ff = -1;
-static int hf_openflow_v6_group_features_capabilities = -1;
-static int hf_openflow_v6_group_features_capabilities_select_weight = -1;
-static int hf_openflow_v6_group_features_capabilities_select_liveness = -1;
-static int hf_openflow_v6_group_features_capabilities_chaining = -1;
-static int hf_openflow_v6_group_features_capabilities_chaining_checks = -1;
-static int hf_openflow_v6_group_features_max_groups_all = -1;
-static int hf_openflow_v6_group_features_max_groups_select = -1;
-static int hf_openflow_v6_group_features_max_groups_indirect = -1;
-static int hf_openflow_v6_group_features_max_groups_ff = -1;
-static int hf_openflow_v6_group_features_actions_all = -1;
-static int hf_openflow_v6_group_features_actions_all_output = -1;
-static int hf_openflow_v6_group_features_actions_all_copy_ttl_out = -1;
-static int hf_openflow_v6_group_features_actions_all_copy_ttl_in = -1;
-static int hf_openflow_v6_group_features_actions_all_set_mpls_ttl = -1;
-static int hf_openflow_v6_group_features_actions_all_dec_mpls_ttl = -1;
-static int hf_openflow_v6_group_features_actions_all_push_vlan = -1;
-static int hf_openflow_v6_group_features_actions_all_pop_vlan = -1;
-static int hf_openflow_v6_group_features_actions_all_push_mpls = -1;
-static int hf_openflow_v6_group_features_actions_all_pop_mpls = -1;
-static int hf_openflow_v6_group_features_actions_all_set_queue = -1;
-static int hf_openflow_v6_group_features_actions_all_group = -1;
-static int hf_openflow_v6_group_features_actions_all_set_nw_ttl = -1;
-static int hf_openflow_v6_group_features_actions_all_dec_nw_ttl = -1;
-static int hf_openflow_v6_group_features_actions_all_set_field = -1;
-static int hf_openflow_v6_group_features_actions_all_push_pbb = -1;
-static int hf_openflow_v6_group_features_actions_all_pop_pbb = -1;
-static int hf_openflow_v6_group_features_actions_all_copy_field = -1;
-static int hf_openflow_v6_group_features_actions_all_meter = -1;
-static int hf_openflow_v6_group_features_actions_select = -1;
-static int hf_openflow_v6_group_features_actions_select_output = -1;
-static int hf_openflow_v6_group_features_actions_select_copy_ttl_out = -1;
-static int hf_openflow_v6_group_features_actions_select_copy_ttl_in = -1;
-static int hf_openflow_v6_group_features_actions_select_set_mpls_ttl = -1;
-static int hf_openflow_v6_group_features_actions_select_dec_mpls_ttl = -1;
-static int hf_openflow_v6_group_features_actions_select_push_vlan = -1;
-static int hf_openflow_v6_group_features_actions_select_pop_vlan = -1;
-static int hf_openflow_v6_group_features_actions_select_push_mpls = -1;
-static int hf_openflow_v6_group_features_actions_select_pop_mpls = -1;
-static int hf_openflow_v6_group_features_actions_select_set_queue = -1;
-static int hf_openflow_v6_group_features_actions_select_group = -1;
-static int hf_openflow_v6_group_features_actions_select_set_nw_ttl = -1;
-static int hf_openflow_v6_group_features_actions_select_dec_nw_ttl = -1;
-static int hf_openflow_v6_group_features_actions_select_set_field = -1;
-static int hf_openflow_v6_group_features_actions_select_push_pbb = -1;
-static int hf_openflow_v6_group_features_actions_select_pop_pbb = -1;
-static int hf_openflow_v6_group_features_actions_select_copy_field = -1;
-static int hf_openflow_v6_group_features_actions_select_meter = -1;
-static int hf_openflow_v6_group_features_actions_indirect = -1;
-static int hf_openflow_v6_group_features_actions_indirect_output = -1;
-static int hf_openflow_v6_group_features_actions_indirect_copy_ttl_out = -1;
-static int hf_openflow_v6_group_features_actions_indirect_copy_ttl_in = -1;
-static int hf_openflow_v6_group_features_actions_indirect_set_mpls_ttl = -1;
-static int hf_openflow_v6_group_features_actions_indirect_dec_mpls_ttl = -1;
-static int hf_openflow_v6_group_features_actions_indirect_push_vlan = -1;
-static int hf_openflow_v6_group_features_actions_indirect_pop_vlan = -1;
-static int hf_openflow_v6_group_features_actions_indirect_push_mpls = -1;
-static int hf_openflow_v6_group_features_actions_indirect_pop_mpls = -1;
-static int hf_openflow_v6_group_features_actions_indirect_set_queue = -1;
-static int hf_openflow_v6_group_features_actions_indirect_group = -1;
-static int hf_openflow_v6_group_features_actions_indirect_set_nw_ttl = -1;
-static int hf_openflow_v6_group_features_actions_indirect_dec_nw_ttl = -1;
-static int hf_openflow_v6_group_features_actions_indirect_set_field = -1;
-static int hf_openflow_v6_group_features_actions_indirect_push_pbb = -1;
-static int hf_openflow_v6_group_features_actions_indirect_pop_pbb = -1;
-static int hf_openflow_v6_group_features_actions_indirect_copy_field = -1;
-static int hf_openflow_v6_group_features_actions_indirect_meter = -1;
-static int hf_openflow_v6_group_features_actions_ff = -1;
-static int hf_openflow_v6_group_features_actions_ff_output = -1;
-static int hf_openflow_v6_group_features_actions_ff_copy_ttl_out = -1;
-static int hf_openflow_v6_group_features_actions_ff_copy_ttl_in = -1;
-static int hf_openflow_v6_group_features_actions_ff_set_mpls_ttl = -1;
-static int hf_openflow_v6_group_features_actions_ff_dec_mpls_ttl = -1;
-static int hf_openflow_v6_group_features_actions_ff_push_vlan = -1;
-static int hf_openflow_v6_group_features_actions_ff_pop_vlan = -1;
-static int hf_openflow_v6_group_features_actions_ff_push_mpls = -1;
-static int hf_openflow_v6_group_features_actions_ff_pop_mpls = -1;
-static int hf_openflow_v6_group_features_actions_ff_set_queue = -1;
-static int hf_openflow_v6_group_features_actions_ff_group = -1;
-static int hf_openflow_v6_group_features_actions_ff_set_nw_ttl = -1;
-static int hf_openflow_v6_group_features_actions_ff_dec_nw_ttl = -1;
-static int hf_openflow_v6_group_features_actions_ff_set_field = -1;
-static int hf_openflow_v6_group_features_actions_ff_push_pbb = -1;
-static int hf_openflow_v6_group_features_actions_ff_pop_pbb = -1;
-static int hf_openflow_v6_group_features_actions_ff_copy_field = -1;
-static int hf_openflow_v6_group_features_actions_ff_meter = -1;
-static int hf_openflow_v6_meter_band_stats_packet_band_count = -1;
-static int hf_openflow_v6_meter_band_stats_byte_band_count = -1;
-static int hf_openflow_v6_meter_stats_meter_id = -1;
-static int hf_openflow_v6_meter_stats_len = -1;
-static int hf_openflow_v6_meter_stats_pad = -1;
-static int hf_openflow_v6_meter_stats_flow_count = -1;
-static int hf_openflow_v6_meter_stats_packet_in_count = -1;
-static int hf_openflow_v6_meter_stats_byte_in_count = -1;
-static int hf_openflow_v6_meter_stats_duration_sec = -1;
-static int hf_openflow_v6_meter_stats_duration_nsec = -1;
-static int hf_openflow_v6_meter_desc_len = -1;
-static int hf_openflow_v6_meter_desc_flags = -1;
-static int hf_openflow_v6_meter_desc_flags_kbps = -1;
-static int hf_openflow_v6_meter_desc_flags_pktps = -1;
-static int hf_openflow_v6_meter_desc_flags_burst = -1;
-static int hf_openflow_v6_meter_desc_flags_stats = -1;
-static int hf_openflow_v6_meter_desc_meter_id = -1;
-static int hf_openflow_v6_meter_features_max_meter = -1;
-static int hf_openflow_v6_meter_features_band_types = -1;
-static int hf_openflow_v6_meter_features_band_types_drop = -1;
-static int hf_openflow_v6_meter_features_band_types_dscp_remark = -1;
-static int hf_openflow_v6_meter_features_capabilities = -1;
-static int hf_openflow_v6_meter_features_capabilities_kbps = -1;
-static int hf_openflow_v6_meter_features_capabilities_pktps = -1;
-static int hf_openflow_v6_meter_features_capabilities_burst = -1;
-static int hf_openflow_v6_meter_features_capabilities_stats = -1;
-static int hf_openflow_v6_meter_features_max_bands = -1;
-static int hf_openflow_v6_meter_features_max_color = -1;
-static int hf_openflow_v6_meter_features_pad = -1;
-static int hf_openflow_v6_flow_update_length = -1;
-static int hf_openflow_v6_flow_update_event = -1;
-static int hf_openflow_v6_flow_update_full_table_id = -1;
-static int hf_openflow_v6_flow_update_full_reason = -1;
-static int hf_openflow_v6_flow_update_full_zero = -1;
-static int hf_openflow_v6_flow_update_full_idle_timeout = -1;
-static int hf_openflow_v6_flow_update_full_hard_timeout = -1;
-static int hf_openflow_v6_flow_update_full_priority = -1;
-static int hf_openflow_v6_flow_update_full_zeros = -1;
-static int hf_openflow_v6_flow_update_full_cookie = -1;
-static int hf_openflow_v6_flow_update_abbrev_xid = -1;
-static int hf_openflow_v6_flow_update_paused_zeros = -1;
-static int hf_openflow_v6_multipart_reply_type = -1;
-static int hf_openflow_v6_multipart_reply_flags = -1;
-static int hf_openflow_v6_multipart_reply_flags_more = -1;
-static int hf_openflow_v6_multipart_reply_pad = -1;
-static int hf_openflow_v6_multipart_reply_experimenter_experimenter = -1;
-static int hf_openflow_v6_multipart_reply_experimenter_exp_type = -1;
-static int hf_openflow_v6_table_desc_length = -1;
-static int hf_openflow_v6_table_desc_table_id = -1;
-static int hf_openflow_v6_table_desc_pad = -1;
-static int hf_openflow_v6_table_desc_config = -1;
-static int hf_openflow_v6_table_desc_config_eviction = -1;
-static int hf_openflow_v6_table_desc_config_vacancy_events = -1;
-static int hf_openflow_v6_queue_desc_port_no = -1;
-static int hf_openflow_v6_queue_desc_queue_id = -1;
-static int hf_openflow_v6_queue_desc_len = -1;
-static int hf_openflow_v6_queue_desc_pad = -1;
-static int hf_openflow_v6_queue_desc_prop_property = -1;
-static int hf_openflow_v6_queue_desc_prop_len = -1;
-static int hf_openflow_v6_queue_desc_prop_pad = -1;
-static int hf_openflow_v6_queue_desc_prop_min_rate_rate = -1;
-static int hf_openflow_v6_queue_desc_prop_min_rate_pad = -1;
-static int hf_openflow_v6_queue_desc_prop_max_rate_rate = -1;
-static int hf_openflow_v6_queue_desc_prop_max_rate_pad = -1;
-static int hf_openflow_v6_queue_desc_prop_experimenter_experimenter = -1;
-static int hf_openflow_v6_queue_desc_prop_experimenter_exp_type = -1;
-static int hf_openflow_v6_role_request_role = -1;
-static int hf_openflow_v6_role_request_pad = -1;
-static int hf_openflow_v6_role_request_generation_id = -1;
-static int hf_openflow_v6_role_reply_role = -1;
-static int hf_openflow_v6_role_reply_pad = -1;
-static int hf_openflow_v6_role_reply_generation_id = -1;
-static int hf_openflow_v6_async_config_prop_type = -1;
-static int hf_openflow_v6_async_config_prop_length = -1;
-static int hf_openflow_v6_async_config_prop_reason_packet_in_mask = -1;
-static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_table_miss = -1;
-static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_apply_action = -1;
-static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_invalid_ttl = -1;
-static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_action_set = -1;
-static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_group = -1;
-static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_packet_out = -1;
-static int hf_openflow_v6_async_config_prop_reason_port_status_mask = -1;
-static int hf_openflow_v6_async_config_prop_reason_port_status_mask_add = -1;
-static int hf_openflow_v6_async_config_prop_reason_port_status_mask_delete = -1;
-static int hf_openflow_v6_async_config_prop_reason_port_status_mask_modify = -1;
-static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask = -1;
-static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_idle_timeout = -1;
-static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_hard_timeout = -1;
-static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_delete = -1;
-static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_group_delete = -1;
-static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_meter_delete = -1;
-static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_eviction = -1;
-static int hf_openflow_v6_async_config_prop_reason_role_status_mask = -1;
-static int hf_openflow_v6_async_config_prop_reason_role_status_mask_master_request = -1;
-static int hf_openflow_v6_async_config_prop_reason_role_status_mask_config = -1;
-static int hf_openflow_v6_async_config_prop_reason_role_status_mask_experimenter = -1;
-static int hf_openflow_v6_async_config_prop_reason_table_status_mask = -1;
-static int hf_openflow_v6_async_config_prop_reason_table_status_mask_vacancy_down = -1;
-static int hf_openflow_v6_async_config_prop_reason_table_status_mask_vacancy_up = -1;
-static int hf_openflow_v6_async_config_prop_reason_requestforward_mask = -1;
-static int hf_openflow_v6_async_config_prop_reason_requestforward_mask_group_mod = -1;
-static int hf_openflow_v6_async_config_prop_reason_requestforward_mask_meter_mod = -1;
-static int hf_openflow_v6_async_config_prop_experimenter_experimenter = -1;
-static int hf_openflow_v6_async_config_prop_experimenter_exp_type = -1;
-static int hf_openflow_v6_metermod_command = -1;
-static int hf_openflow_v6_metermod_flags = -1;
-static int hf_openflow_v6_metermod_flags_kbps = -1;
-static int hf_openflow_v6_metermod_flags_pktps = -1;
-static int hf_openflow_v6_metermod_flags_burst = -1;
-static int hf_openflow_v6_metermod_flags_stats = -1;
-static int hf_openflow_v6_metermod_meter_id = -1;
-static int hf_openflow_v6_role_status_role = -1;
-static int hf_openflow_v6_role_status_reason = -1;
-static int hf_openflow_v6_role_status_pad = -1;
-static int hf_openflow_v6_role_status_generation_id = -1;
-static int hf_openflow_v6_table_status_reason = -1;
-static int hf_openflow_v6_table_status_pad = -1;
-static int hf_openflow_v6_bundle_control_bundle_id = -1;
-static int hf_openflow_v6_bundle_control_type = -1;
-static int hf_openflow_v6_bundle_control_flags = -1;
-static int hf_openflow_v6_bundle_control_flags_atomic = -1;
-static int hf_openflow_v6_bundle_control_flags_ordered = -1;
-static int hf_openflow_v6_bundle_prop_type = -1;
-static int hf_openflow_v6_bundle_prop_length = -1;
-static int hf_openflow_v6_bundle_prop_experimenter_experimenter = -1;
-static int hf_openflow_v6_bundle_prop_experimenter_exp_type = -1;
-static int hf_openflow_v6_bundle_add_bundle_id = -1;
-static int hf_openflow_v6_bundle_add_pad = -1;
-static int hf_openflow_v6_bundle_add_flags = -1;
-static int hf_openflow_v6_bundle_add_flags_atomic = -1;
-static int hf_openflow_v6_bundle_add_flags_ordered = -1;
-static int hf_openflow_v6_oxs_class = -1;
-static int hf_openflow_v6_oxs_field = -1;
-static int hf_openflow_v6_oxs_reserved = -1;
-static int hf_openflow_v6_oxs_length = -1;
-static int hf_openflow_v6_oxs_basic_duration_sec = -1;
-static int hf_openflow_v6_oxs_basic_duration_nsec = -1;
-static int hf_openflow_v6_oxs_basic_idle_sec = -1;
-static int hf_openflow_v6_oxs_basic_idle_nsec = -1;
-static int hf_openflow_v6_oxs_basic_flow_count = -1;
-static int hf_openflow_v6_oxs_basic_packet_count = -1;
-static int hf_openflow_v6_oxs_basic_byte_count = -1;
-static int hf_openflow_v6_oxs_experimenter_experimenter = -1;
-static int hf_openflow_v6_oxs_experimenter_value = -1;
-static int hf_openflow_v6_instruction_stat_trigger_flags = -1;
-static int hf_openflow_v6_instruction_stat_triffer_flags_periodic = -1;
-static int hf_openflow_v6_instruction_stat_triffer_flags_only_first = -1;
-static int hf_openflow_v6_instruction_stat_triffer_flags_reserved = -1;
-static int hf_openflow_v6_port_desc_prop_recirculate_port_no = -1;
-static int hf_openflow_v6_bundle_features_request_flags = -1;
-static int hf_openflow_v6_bundle_features_request_pad = -1;
-static int hf_openflow_v6_stats_reserved = -1;
-static int hf_openflow_v6_stats_length = -1;
-static int hf_openflow_v6_stats_pad = -1;
-static int hf_openflow_v6_flow_desc_length = -1;
-static int hf_openflow_v6_flow_desc_pad2 = -1;
-static int hf_openflow_v6_flow_desc_table_id = -1;
-static int hf_openflow_v6_flow_desc_pad = -1;
-static int hf_openflow_v6_flow_desc_priority = -1;
-static int hf_openflow_v6_flow_desc_idle_timeout = -1;
-static int hf_openflow_v6_flow_desc_hard_timeout = -1;
-static int hf_openflow_v6_flow_desc_flags = -1;
-static int hf_openflow_v6_flow_desc_flags_send_flow_rem = -1;
-static int hf_openflow_v6_flow_desc_flags_check_overlap = -1;
-static int hf_openflow_v6_flow_desc_flags_reset_counts = -1;
-static int hf_openflow_v6_flow_desc_flags_no_packet_counts = -1;
-static int hf_openflow_v6_flow_desc_flags_no_byte_counts = -1;
-static int hf_openflow_v6_flow_desc_importance = -1;
-static int hf_openflow_v6_flow_desc_cookie = -1;
-static int hf_openflow_v6_controller_status_length = -1;
-static int hf_openflow_v6_controller_status_short_id = -1;
-static int hf_openflow_v6_controller_status_role = -1;
-static int hf_openflow_v6_controller_status_reason = -1;
-static int hf_openflow_v6_controller_status_channel_status = -1;
-static int hf_openflow_v6_controller_status_pad = -1;
-static int hf_openflow_v6_time_seconds = -1;
-static int hf_openflow_v6_time_nanoseconds = -1;
-static int hf_openflow_v6_time_pad = -1;
-static int hf_openflow_v6_bundle_feature_prop_type = -1;
-static int hf_openflow_v6_bundle_feature_prop_length = -1;
-static int hf_openflow_v6_bundle_feature_prop_time_pad = -1;
-static int hf_openflow_v6_bundle_feature_prop_experimenter_experimenter = -1;
-static int hf_openflow_v6_bundle_feature_prop_experimenter_exp_type = -1;
-static int hf_openflow_v6_bundle_feature_prop_pad = -1;
-static int hf_openflow_v6_controller_status_prop_type = -1;
-static int hf_openflow_v6_controller_status_prop_length = -1;
-static int hf_openflow_v6_controller_status_prop_experimenter_experimenter = -1;
-static int hf_openflow_v6_controller_status_prop_experimenter_exp_type = -1;
-static int hf_openflow_v6_controller_status_prop_pad = -1;
-static int hf_openflow_v6_flow_stats_reason = -1;
-static int hf_openflow_v6_controller_status_prop_uri = -1;
+static int proto_openflow_v6;
+static int hf_openflow_v6_version;
+static int hf_openflow_v6_type;
+static int hf_openflow_v6_length;
+static int hf_openflow_v6_xid;
+static int hf_openflow_v6_oxm_class;
+static int hf_openflow_v6_oxm_field;
+static int hf_openflow_v6_oxm_field_basic;
+static int hf_openflow_v6_oxm_hm;
+static int hf_openflow_v6_oxm_length;
+static int hf_openflow_v6_oxm_experimenter_experimenter;
+static int hf_openflow_v6_oxm_value;
+static int hf_openflow_v6_oxm_value_etheraddr;
+static int hf_openflow_v6_oxm_value_vlan_present;
+static int hf_openflow_v6_oxm_value_vlan_vid;
+static int hf_openflow_v6_oxm_value_ethertype;
+static int hf_openflow_v6_oxm_value_ipv4addr;
+static int hf_openflow_v6_oxm_value_ipv6addr;
+static int hf_openflow_v6_oxm_value_ipproto;
+static int hf_openflow_v6_oxm_value_uint16;
+static int hf_openflow_v6_oxm_value_uint24;
+static int hf_openflow_v6_oxm_value_uint32;
+static int hf_openflow_v6_oxm_mask;
+static int hf_openflow_v6_oxm_mask_etheraddr;
+static int hf_openflow_v6_oxm_mask_ipv4addr;
+static int hf_openflow_v6_oxm_mask_ipv6addr;
+static int hf_openflow_v6_oxm_mask_vlan;
+static int hf_openflow_v6_match_type;
+static int hf_openflow_v6_match_length;
+static int hf_openflow_v6_match_pad;
+static int hf_openflow_v6_action_type;
+static int hf_openflow_v6_action_length;
+static int hf_openflow_v6_action_experimenter_experimenter;
+static int hf_openflow_v6_oxm_experimenter_value;
+static int hf_openflow_v6_oxm_register;
+static int hf_openflow_v6_action_output_port;
+static int hf_openflow_v6_action_output_max_len;
+static int hf_openflow_v6_action_output_pad;
+static int hf_openflow_v6_action_copy_ttl_out_pad;
+static int hf_openflow_v6_action_copy_ttl_in_pad;
+static int hf_openflow_v6_action_set_mpls_ttl_ttl;
+static int hf_openflow_v6_action_set_mpls_ttl_pad;
+static int hf_openflow_v6_action_dec_mpls_ttl_pad;
+static int hf_openflow_v6_action_push_vlan_ethertype;
+static int hf_openflow_v6_action_push_vlan_pad;
+static int hf_openflow_v6_action_pop_vlan_pad;
+static int hf_openflow_v6_action_push_mpls_ethertype;
+static int hf_openflow_v6_action_push_mpls_pad;
+static int hf_openflow_v6_action_pop_mpls_ethertype;
+static int hf_openflow_v6_action_pop_mpls_pad;
+static int hf_openflow_v6_action_set_queue_queue_id;
+static int hf_openflow_v6_action_group_group_id;
+static int hf_openflow_v6_action_set_nw_ttl_ttl;
+static int hf_openflow_v6_action_set_nw_ttl_pad;
+static int hf_openflow_v6_action_dec_nw_ttl_pad;
+static int hf_openflow_v6_action_set_field_pad;
+static int hf_openflow_v6_action_push_pbb_ethertype;
+static int hf_openflow_v6_action_push_pbb_pad;
+static int hf_openflow_v6_action_pop_pbb_pad;
+static int hf_openflow_v6_action_copy_field_n_bits;
+static int hf_openflow_v6_action_copy_field_src_offset;
+static int hf_openflow_v6_action_copy_field_dst_offset;
+static int hf_openflow_v6_action_copy_field_pad;
+static int hf_openflow_v6_action_meter_id;
+static int hf_openflow_v6_instruction_type;
+static int hf_openflow_v6_instruction_length;
+static int hf_openflow_v6_instruction_experimenter_experimenter;
+static int hf_openflow_v6_instruction_goto_table_table_id;
+static int hf_openflow_v6_instruction_goto_table_pad;
+static int hf_openflow_v6_instruction_write_metadata_pad;
+static int hf_openflow_v6_instruction_write_metadata_value;
+static int hf_openflow_v6_instruction_write_metadata_mask;
+static int hf_openflow_v6_instruction_actions_pad;
+static int hf_openflow_v6_port_desc_prop_type;
+static int hf_openflow_v6_port_desc_prop_length;
+static int hf_openflow_v6_port_desc_prop_ethernet_pad;
+static int hf_openflow_v6_port_desc_prop_ethernet_current;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_10mb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_10mb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_100mb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_100mb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_1gb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_1gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_10gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_40gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_100gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_1tb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_other;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_copper;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_fiber;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_autoneg;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_pause;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_pause_asym;
+static int hf_openflow_v6_port_desc_prop_ethernet_current_reserved;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_10mb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_10mb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_100mb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_100mb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_1gb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_1gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_10gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_40gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_100gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_1tb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_other;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_copper;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_fiber;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_autoneg;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_pause;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_pause_asym;
+static int hf_openflow_v6_port_desc_prop_ethernet_advertised_reserved;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_10mb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_10mb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_100mb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_100mb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_1gb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_1gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_10gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_40gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_100gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_1tb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_other;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_copper;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_fiber;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_autoneg;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_pause;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_pause_asym;
+static int hf_openflow_v6_port_desc_prop_ethernet_supported_reserved;
+static int hf_openflow_v6_port_desc_prop_optical_pad;
+static int hf_openflow_v6_port_desc_prop_optical_supported;
+static int hf_openflow_v6_port_desc_prop_optical_supported_rx_tune;
+static int hf_openflow_v6_port_desc_prop_optical_supported_tx_tune;
+static int hf_openflow_v6_port_desc_prop_optical_supported_tx_pwr;
+static int hf_openflow_v6_port_desc_prop_optical_supported_use_freq;
+static int hf_openflow_v6_port_desc_prop_optical_tx_min_freq_lmda;
+static int hf_openflow_v6_port_desc_prop_optical_tx_max_freq_lmda;
+static int hf_openflow_v6_port_desc_prop_optical_tx_grid_freq_lmda;
+static int hf_openflow_v6_port_desc_prop_optical_rx_min_freq_lmda;
+static int hf_openflow_v6_port_desc_prop_optical_rx_max_freq_lmda;
+static int hf_openflow_v6_port_desc_prop_optical_rx_grid_freq_lmda;
+static int hf_openflow_v6_port_desc_prop_optical_tx_pwr_min;
+static int hf_openflow_v6_port_desc_prop_optical_tx_pwr_max;
+static int hf_openflow_v6_port_desc_prop_experimenter_experimenter;
+static int hf_openflow_v6_port_desc_prop_experimenter_exp_type;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_10mb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_10mb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_100mb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_100mb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_1gb_hd;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_1gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_10gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_40gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_100gb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_1tb_fd;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_other;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_copper;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_fiber;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_autoneg;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_pause;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_pause_asym;
+static int hf_openflow_v6_port_desc_prop_ethernet_peer_reserved;
+static int hf_openflow_v6_port_desc_prop_ethernet_curr_speed;
+static int hf_openflow_v6_port_desc_prop_ethernet_max_speed;
+static int hf_openflow_v6_port_stats_prop_type;
+static int hf_openflow_v6_port_stats_prop_length;
+static int hf_openflow_v6_port_stats_prop_ethernet_pad;
+static int hf_openflow_v6_port_stats_prop_ethernet_rx_frame_err;
+static int hf_openflow_v6_port_stats_prop_ethernet_rx_over_err;
+static int hf_openflow_v6_port_stats_prop_ethernet_rx_crc_err;
+static int hf_openflow_v6_port_stats_prop_ethernet_collisions;
+static int hf_openflow_v6_port_stats_prop_optical_pad;
+static int hf_openflow_v6_port_stats_prop_optical_flags;
+static int hf_openflow_v6_port_stats_prop_optical_flags_rx_tune;
+static int hf_openflow_v6_port_stats_prop_optical_flags_tx_tune;
+static int hf_openflow_v6_port_stats_prop_optical_flags_tx_pwr;
+static int hf_openflow_v6_port_stats_prop_optical_flags_rx_pwr;
+static int hf_openflow_v6_port_stats_prop_optical_flags_tx_bias;
+static int hf_openflow_v6_port_stats_prop_optical_flags_tx_temp;
+static int hf_openflow_v6_port_stats_prop_optical_tx_freq_lmda;
+static int hf_openflow_v6_port_stats_prop_optical_tx_offset;
+static int hf_openflow_v6_port_stats_prop_optical_tx_grid_span;
+static int hf_openflow_v6_port_stats_prop_optical_rx_freq_lmda;
+static int hf_openflow_v6_port_stats_prop_optical_rx_offset;
+static int hf_openflow_v6_port_stats_prop_optical_rx_grid_span;
+static int hf_openflow_v6_port_stats_prop_optical_tx_pwr;
+static int hf_openflow_v6_port_stats_prop_optical_rx_pwr;
+static int hf_openflow_v6_port_stats_prop_optical_bias_current;
+static int hf_openflow_v6_port_stats_prop_optical_temperature;
+static int hf_openflow_v6_port_stats_prop_experimenter_experimenter;
+static int hf_openflow_v6_port_stats_prop_experimenter_exp_type;
+static int hf_openflow_v6_port_port_no;
+static int hf_openflow_v6_port_length;
+static int hf_openflow_v6_port_pad;
+static int hf_openflow_v6_port_hw_addr;
+static int hf_openflow_v6_port_pad2;
+static int hf_openflow_v6_port_name;
+static int hf_openflow_v6_port_config;
+static int hf_openflow_v6_port_config_port_down;
+static int hf_openflow_v6_port_config_no_recv;
+static int hf_openflow_v6_port_config_no_fwd;
+static int hf_openflow_v6_port_config_no_packet_in;
+static int hf_openflow_v6_port_state;
+static int hf_openflow_v6_port_state_link_down;
+static int hf_openflow_v6_port_state_blocked;
+static int hf_openflow_v6_port_state_live;
+static int hf_openflow_v6_meter_band_type;
+static int hf_openflow_v6_meter_band_len;
+static int hf_openflow_v6_meter_band_rate;
+static int hf_openflow_v6_meter_band_burst_size;
+static int hf_openflow_v6_meter_band_drop_pad;
+static int hf_openflow_v6_meter_band_dscp_remark_prec_level;
+static int hf_openflow_v6_meter_band_dscp_remark_pad;
+static int hf_openflow_v6_meter_band_experimenter_experimenter;
+static int hf_openflow_v6_hello_element_type;
+static int hf_openflow_v6_hello_element_length;
+static int hf_openflow_v6_hello_element_version_bitmap;
+static int hf_openflow_v6_hello_element_pad;
+static int hf_openflow_v6_error_type;
+static int hf_openflow_v6_error_hello_failed_code;
+static int hf_openflow_v6_error_bad_request_code;
+static int hf_openflow_v6_error_bad_action_code;
+static int hf_openflow_v6_error_bad_instruction_code;
+static int hf_openflow_v6_error_bad_match_code;
+static int hf_openflow_v6_error_flow_mod_failed_code;
+static int hf_openflow_v6_error_group_mod_failed_code;
+static int hf_openflow_v6_error_port_mod_failed_code;
+static int hf_openflow_v6_error_table_mod_failed_code;
+static int hf_openflow_v6_error_queue_op_failed_code;
+static int hf_openflow_v6_error_switch_config_failed_code;
+static int hf_openflow_v6_error_role_request_failed_code;
+static int hf_openflow_v6_error_meter_mod_failed_code;
+static int hf_openflow_v6_error_table_features_failed_code;
+static int hf_openflow_v6_error_bad_property_code;
+static int hf_openflow_v6_error_async_config_failed_code;
+static int hf_openflow_v6_error_flow_monitor_failed_code;
+static int hf_openflow_v6_error_bundle_failed_code;
+static int hf_openflow_v6_error_code;
+static int hf_openflow_v6_error_data_text;
+static int hf_openflow_v6_error_data_body;
+static int hf_openflow_v6_error_experimenter;
+static int hf_openflow_v6_echo_data;
+static int hf_openflow_v6_experimenter_experimenter;
+static int hf_openflow_v6_experimenter_exp_type;
+static int hf_openflow_v6_switch_features_datapath_id;
+static int hf_openflow_v6_switch_features_n_buffers;
+static int hf_openflow_v6_switch_features_n_tables;
+static int hf_openflow_v6_switch_features_auxiliary_id;
+static int hf_openflow_v6_switch_features_pad;
+static int hf_openflow_v6_switch_features_capabilities;
+static int hf_openflow_v6_switch_features_capabilities_flow_stats;
+static int hf_openflow_v6_switch_features_capabilities_table_stats;
+static int hf_openflow_v6_switch_features_capabilities_port_stats;
+static int hf_openflow_v6_switch_features_capabilities_group_stats;
+static int hf_openflow_v6_switch_features_capabilities_ip_reasm;
+static int hf_openflow_v6_switch_features_capabilities_queue_stats;
+static int hf_openflow_v6_switch_features_capabilities_port_blocked;
+static int hf_openflow_v6_switch_features_capabilities_bundles;
+static int hf_openflow_v6_switch_features_capabilities_flow_monitoring;
+static int hf_openflow_v6_switch_features_reserved;
+static int hf_openflow_v6_switch_config_flags;
+static int hf_openflow_v6_switch_config_flags_fragments;
+static int hf_openflow_v6_switch_config_miss_send_len;
+static int hf_openflow_v6_packet_in_buffer_id;
+static int hf_openflow_v6_packet_in_total_len;
+static int hf_openflow_v6_packet_in_reason;
+static int hf_openflow_v6_packet_in_table_id;
+static int hf_openflow_v6_packet_in_cookie;
+static int hf_openflow_v6_packet_in_pad;
+static int hf_openflow_v6_flow_removed_cookie;
+static int hf_openflow_v6_flow_removed_priority;
+static int hf_openflow_v6_flow_removed_reason;
+static int hf_openflow_v6_flow_removed_table_id;
+static int hf_openflow_v6_flow_removed_idle_timeout;
+static int hf_openflow_v6_flow_removed_hard_timeout;
+static int hf_openflow_v6_port_status_reason;
+static int hf_openflow_v6_port_status_pad;
+static int hf_openflow_v6_packet_out_buffer_id;
+static int hf_openflow_v6_packet_out_acts_len;
+static int hf_openflow_v6_packet_out_pad;
+static int hf_openflow_v6_flowmod_cookie;
+static int hf_openflow_v6_flowmod_cookie_mask;
+static int hf_openflow_v6_flowmod_table_id;
+static int hf_openflow_v6_flowmod_command;
+static int hf_openflow_v6_flowmod_idle_timeout;
+static int hf_openflow_v6_flowmod_hard_timeout;
+static int hf_openflow_v6_flowmod_priority;
+static int hf_openflow_v6_flowmod_buffer_id;
+static int hf_openflow_v6_flowmod_out_port;
+static int hf_openflow_v6_flowmod_out_group;
+static int hf_openflow_v6_flowmod_flags;
+static int hf_openflow_v6_flowmod_flags_send_flow_rem;
+static int hf_openflow_v6_flowmod_flags_check_overlap;
+static int hf_openflow_v6_flowmod_flags_reset_counts;
+static int hf_openflow_v6_flowmod_flags_no_packet_counts;
+static int hf_openflow_v6_flowmod_flags_no_byte_counts;
+static int hf_openflow_v6_flowmod_importance;
+static int hf_openflow_v6_bucket_length;
+static int hf_openflow_v6_bucket_weight;
+static int hf_openflow_v6_bucket_watch_port;
+static int hf_openflow_v6_bucket_watch_group;
+static int hf_openflow_v6_bucket_pad;
+static int hf_openflow_v6_groupmod_command;
+static int hf_openflow_v6_groupmod_type;
+static int hf_openflow_v6_groupmod_pad;
+static int hf_openflow_v6_groupmod_group_id;
+static int hf_openflow_v6_groupmod_bucket_array_len;
+static int hf_openflow_v6_groupmod_command_bucket_id;
+static int hf_openflow_v6_portmod_prop_type;
+static int hf_openflow_v6_portmod_prop_length;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_10mb_hd;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_10mb_fd;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_100mb_hd;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_100mb_fd;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_1gb_hd;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_1gb_fd;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_10gb_fd;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_40gb_fd;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_100gb_fd;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_1tb_fd;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_other;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_copper;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_fiber;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_autoneg;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_pause;
+static int hf_openflow_v6_portmod_prop_ethernet_advertise_pause_asym;
+static int hf_openflow_v6_portmod_prop_optical_configure;
+static int hf_openflow_v6_portmod_prop_optical_configure_rx_tune;
+static int hf_openflow_v6_portmod_prop_optical_configure_tx_tune;
+static int hf_openflow_v6_portmod_prop_optical_configure_tx_pwr;
+static int hf_openflow_v6_portmod_prop_optical_configure_use_freq;
+static int hf_openflow_v6_portmod_prop_optical_freq_lmda;
+static int hf_openflow_v6_portmod_prop_optical_fl_offset;
+static int hf_openflow_v6_portmod_prop_optical_grid_span;
+static int hf_openflow_v6_portmod_prop_optical_tx_pwr;
+static int hf_openflow_v6_portmod_prop_experimenter_experimenter;
+static int hf_openflow_v6_portmod_prop_experimenter_exp_type;
+static int hf_openflow_v6_portmod_port_no;
+static int hf_openflow_v6_portmod_pad;
+static int hf_openflow_v6_portmod_hw_addr;
+static int hf_openflow_v6_portmod_pad2;
+static int hf_openflow_v6_portmod_config;
+static int hf_openflow_v6_portmod_config_port_down;
+static int hf_openflow_v6_portmod_config_no_recv;
+static int hf_openflow_v6_portmod_config_no_fwd;
+static int hf_openflow_v6_portmod_config_no_packet_in;
+static int hf_openflow_v6_portmod_mask;
+static int hf_openflow_v6_portmod_mask_port_down;
+static int hf_openflow_v6_portmod_mask_no_recv;
+static int hf_openflow_v6_portmod_mask_no_fwd;
+static int hf_openflow_v6_portmod_mask_no_packet_in;
+static int hf_openflow_v6_tablemod_table_id;
+static int hf_openflow_v6_tablemod_pad;
+static int hf_openflow_v6_tablemod_config;
+static int hf_openflow_v6_tablemod_config_eviction;
+static int hf_openflow_v6_tablemod_config_vacancy_events;
+static int hf_openflow_v6_tablemod_prop_type;
+static int hf_openflow_v6_tablemod_prop_length;
+static int hf_openflow_v6_tablemod_prop_eviction_flags;
+static int hf_openflow_v6_tablemod_prop_eviction_flags_other;
+static int hf_openflow_v6_tablemod_prop_eviction_flags_importance;
+static int hf_openflow_v6_tablemod_prop_eviction_flags_lifetime;
+static int hf_openflow_v6_tablemod_prop_vacancy_vacancy_down;
+static int hf_openflow_v6_tablemod_prop_vacancy_vacancy_up;
+static int hf_openflow_v6_tablemod_prop_vacancy_vacancy;
+static int hf_openflow_v6_tablemod_prop_vacancy_pad;
+static int hf_openflow_v6_tablemod_prop_experimenter_experimenter;
+static int hf_openflow_v6_tablemod_prop_experimenter_exp_type;
+static int hf_openflow_v6_flow_stats_request_table_id;
+static int hf_openflow_v6_flow_stats_request_pad;
+static int hf_openflow_v6_flow_stats_request_out_port;
+static int hf_openflow_v6_flow_stats_request_out_group;
+static int hf_openflow_v6_flow_stats_request_pad2;
+static int hf_openflow_v6_flow_stats_request_cookie;
+static int hf_openflow_v6_flow_stats_request_cookie_mask;
+static int hf_openflow_v6_aggregate_stats_request_table_id;
+static int hf_openflow_v6_aggregate_stats_request_pad;
+static int hf_openflow_v6_aggregate_stats_request_out_port;
+static int hf_openflow_v6_aggregate_stats_request_out_group;
+static int hf_openflow_v6_aggregate_stats_request_pad2;
+static int hf_openflow_v6_aggregate_stats_request_cookie;
+static int hf_openflow_v6_aggregate_stats_request_cookie_mask;
+static int hf_openflow_v6_table_feature_prop_type;
+static int hf_openflow_v6_table_feature_prop_length;
+static int hf_openflow_v6_table_feature_prop_next_tables_next_table_id;
+static int hf_openflow_v6_table_feature_prop_table_sync_from_table_id;
+static int hf_openflow_v6_table_feature_prop_experimenter_experimenter;
+static int hf_openflow_v6_table_feature_prop_experimenter_exp_type;
+static int hf_openflow_v6_table_feature_prop_pad;
+static int hf_openflow_v6_table_features_length;
+static int hf_openflow_v6_table_features_table_id;
+static int hf_openflow_v6_table_features_pad;
+static int hf_openflow_v6_table_features_name;
+static int hf_openflow_v6_table_features_metadata_match;
+static int hf_openflow_v6_table_features_metadata_write;
+static int hf_openflow_v6_table_features_capabilities;
+static int hf_openflow_v6_table_features_capabilities_eviction;
+static int hf_openflow_v6_table_features_capabilities_vacancy_events;
+static int hf_openflow_v6_table_features_max_entries;
+static int hf_openflow_v6_port_stats_request_port_no;
+static int hf_openflow_v6_port_stats_request_pad;
+static int hf_openflow_v6_queue_stats_request_port_no;
+static int hf_openflow_v6_queue_stats_request_queue_id;
+static int hf_openflow_v6_group_stats_request_group_id;
+static int hf_openflow_v6_group_stats_request_pad;
+static int hf_openflow_v6_meter_stats_request_meter_id;
+static int hf_openflow_v6_meter_stats_request_pad;
+static int hf_openflow_v6_meter_desc_request_meter_id;
+static int hf_openflow_v6_meter_desc_request_pad;
+static int hf_openflow_v6_queue_desc_request_port_no;
+static int hf_openflow_v6_queue_desc_request_queue_id;
+static int hf_openflow_v6_flow_monitor_request_monitor_id;
+static int hf_openflow_v6_flow_monitor_request_out_port;
+static int hf_openflow_v6_flow_monitor_request_out_group;
+static int hf_openflow_v6_flow_monitor_request_flags;
+static int hf_openflow_v6_flow_monitor_request_flags_initial;
+static int hf_openflow_v6_flow_monitor_request_flags_add;
+static int hf_openflow_v6_flow_monitor_request_flags_removed;
+static int hf_openflow_v6_flow_monitor_request_flags_modify;
+static int hf_openflow_v6_flow_monitor_request_flags_instructions;
+static int hf_openflow_v6_flow_monitor_request_flags_no_abbrev;
+static int hf_openflow_v6_flow_monitor_request_flags_only_own;
+static int hf_openflow_v6_flow_monitor_request_table_id;
+static int hf_openflow_v6_flow_monitor_request_command;
+static int hf_openflow_v6_multipart_request_type;
+static int hf_openflow_v6_multipart_request_flags;
+static int hf_openflow_v6_multipart_request_flags_more;
+static int hf_openflow_v6_multipart_request_pad;
+static int hf_openflow_v6_multipart_request_experimenter_experimenter;
+static int hf_openflow_v6_multipart_request_experimenter_exp_type;
+static int hf_openflow_v6_switch_description_mfr_desc;
+static int hf_openflow_v6_switch_description_hw_desc;
+static int hf_openflow_v6_switch_description_sw_desc;
+static int hf_openflow_v6_switch_description_serial_num;
+static int hf_openflow_v6_switch_description_dp_desc;
+static int hf_openflow_v6_flow_stats_length;
+static int hf_openflow_v6_flow_stats_table_id;
+static int hf_openflow_v6_flow_stats_duration_sec;
+static int hf_openflow_v6_flow_stats_duration_nsec;
+static int hf_openflow_v6_flow_stats_priority;
+static int hf_openflow_v6_flow_stats_pad2;
+static int hf_openflow_v6_table_stats_table_id;
+static int hf_openflow_v6_table_stats_pad;
+static int hf_openflow_v6_table_stats_active_count;
+static int hf_openflow_v6_table_stats_lookup_count;
+static int hf_openflow_v6_table_stats_match_count;
+static int hf_openflow_v6_port_stats_length;
+static int hf_openflow_v6_port_stats_pad;
+static int hf_openflow_v6_port_stats_port_no;
+static int hf_openflow_v6_port_stats_duration_sec;
+static int hf_openflow_v6_port_stats_duration_nsec;
+static int hf_openflow_v6_port_stats_rx_packets;
+static int hf_openflow_v6_port_stats_tx_packets;
+static int hf_openflow_v6_port_stats_rx_bytes;
+static int hf_openflow_v6_port_stats_tx_bytes;
+static int hf_openflow_v6_port_stats_rx_dropped;
+static int hf_openflow_v6_port_stats_tx_dropped;
+static int hf_openflow_v6_port_stats_rx_errors;
+static int hf_openflow_v6_port_stats_tx_errors;
+static int hf_openflow_v6_queue_stats_length;
+static int hf_openflow_v6_queue_stats_pad;
+static int hf_openflow_v6_queue_stats_port_no;
+static int hf_openflow_v6_queue_stats_queue_id;
+static int hf_openflow_v6_queue_stats_tx_bytes;
+static int hf_openflow_v6_queue_stats_tx_packets;
+static int hf_openflow_v6_queue_stats_tx_errors;
+static int hf_openflow_v6_queue_stats_duration_sec;
+static int hf_openflow_v6_queue_stats_duration_nsec;
+static int hf_openflow_v6_queue_stats_prop_type;
+static int hf_openflow_v6_queue_stats_prop_length;
+static int hf_openflow_v6_queue_stats_prop_experimenter_experimenter;
+static int hf_openflow_v6_queue_stats_prop_experimenter_exp_type;
+static int hf_openflow_v6_bucket_counter_packet_count;
+static int hf_openflow_v6_bucket_counter_byte_count;
+static int hf_openflow_v6_group_stats_length;
+static int hf_openflow_v6_group_stats_pad;
+static int hf_openflow_v6_group_stats_group_id;
+static int hf_openflow_v6_group_stats_ref_count;
+static int hf_openflow_v6_group_stats_pad2;
+static int hf_openflow_v6_group_stats_packet_count;
+static int hf_openflow_v6_group_stats_byte_count;
+static int hf_openflow_v6_group_desc_length;
+static int hf_openflow_v6_group_desc_type;
+static int hf_openflow_v6_group_desc_pad;
+static int hf_openflow_v6_group_desc_group_id;
+static int hf_openflow_v6_group_features_types;
+static int hf_openflow_v6_group_features_types_all;
+static int hf_openflow_v6_group_features_types_select;
+static int hf_openflow_v6_group_features_types_indirect;
+static int hf_openflow_v6_group_features_types_ff;
+static int hf_openflow_v6_group_features_capabilities;
+static int hf_openflow_v6_group_features_capabilities_select_weight;
+static int hf_openflow_v6_group_features_capabilities_select_liveness;
+static int hf_openflow_v6_group_features_capabilities_chaining;
+static int hf_openflow_v6_group_features_capabilities_chaining_checks;
+static int hf_openflow_v6_group_features_max_groups_all;
+static int hf_openflow_v6_group_features_max_groups_select;
+static int hf_openflow_v6_group_features_max_groups_indirect;
+static int hf_openflow_v6_group_features_max_groups_ff;
+static int hf_openflow_v6_group_features_actions_all;
+static int hf_openflow_v6_group_features_actions_all_output;
+static int hf_openflow_v6_group_features_actions_all_copy_ttl_out;
+static int hf_openflow_v6_group_features_actions_all_copy_ttl_in;
+static int hf_openflow_v6_group_features_actions_all_set_mpls_ttl;
+static int hf_openflow_v6_group_features_actions_all_dec_mpls_ttl;
+static int hf_openflow_v6_group_features_actions_all_push_vlan;
+static int hf_openflow_v6_group_features_actions_all_pop_vlan;
+static int hf_openflow_v6_group_features_actions_all_push_mpls;
+static int hf_openflow_v6_group_features_actions_all_pop_mpls;
+static int hf_openflow_v6_group_features_actions_all_set_queue;
+static int hf_openflow_v6_group_features_actions_all_group;
+static int hf_openflow_v6_group_features_actions_all_set_nw_ttl;
+static int hf_openflow_v6_group_features_actions_all_dec_nw_ttl;
+static int hf_openflow_v6_group_features_actions_all_set_field;
+static int hf_openflow_v6_group_features_actions_all_push_pbb;
+static int hf_openflow_v6_group_features_actions_all_pop_pbb;
+static int hf_openflow_v6_group_features_actions_all_copy_field;
+static int hf_openflow_v6_group_features_actions_all_meter;
+static int hf_openflow_v6_group_features_actions_select;
+static int hf_openflow_v6_group_features_actions_select_output;
+static int hf_openflow_v6_group_features_actions_select_copy_ttl_out;
+static int hf_openflow_v6_group_features_actions_select_copy_ttl_in;
+static int hf_openflow_v6_group_features_actions_select_set_mpls_ttl;
+static int hf_openflow_v6_group_features_actions_select_dec_mpls_ttl;
+static int hf_openflow_v6_group_features_actions_select_push_vlan;
+static int hf_openflow_v6_group_features_actions_select_pop_vlan;
+static int hf_openflow_v6_group_features_actions_select_push_mpls;
+static int hf_openflow_v6_group_features_actions_select_pop_mpls;
+static int hf_openflow_v6_group_features_actions_select_set_queue;
+static int hf_openflow_v6_group_features_actions_select_group;
+static int hf_openflow_v6_group_features_actions_select_set_nw_ttl;
+static int hf_openflow_v6_group_features_actions_select_dec_nw_ttl;
+static int hf_openflow_v6_group_features_actions_select_set_field;
+static int hf_openflow_v6_group_features_actions_select_push_pbb;
+static int hf_openflow_v6_group_features_actions_select_pop_pbb;
+static int hf_openflow_v6_group_features_actions_select_copy_field;
+static int hf_openflow_v6_group_features_actions_select_meter;
+static int hf_openflow_v6_group_features_actions_indirect;
+static int hf_openflow_v6_group_features_actions_indirect_output;
+static int hf_openflow_v6_group_features_actions_indirect_copy_ttl_out;
+static int hf_openflow_v6_group_features_actions_indirect_copy_ttl_in;
+static int hf_openflow_v6_group_features_actions_indirect_set_mpls_ttl;
+static int hf_openflow_v6_group_features_actions_indirect_dec_mpls_ttl;
+static int hf_openflow_v6_group_features_actions_indirect_push_vlan;
+static int hf_openflow_v6_group_features_actions_indirect_pop_vlan;
+static int hf_openflow_v6_group_features_actions_indirect_push_mpls;
+static int hf_openflow_v6_group_features_actions_indirect_pop_mpls;
+static int hf_openflow_v6_group_features_actions_indirect_set_queue;
+static int hf_openflow_v6_group_features_actions_indirect_group;
+static int hf_openflow_v6_group_features_actions_indirect_set_nw_ttl;
+static int hf_openflow_v6_group_features_actions_indirect_dec_nw_ttl;
+static int hf_openflow_v6_group_features_actions_indirect_set_field;
+static int hf_openflow_v6_group_features_actions_indirect_push_pbb;
+static int hf_openflow_v6_group_features_actions_indirect_pop_pbb;
+static int hf_openflow_v6_group_features_actions_indirect_copy_field;
+static int hf_openflow_v6_group_features_actions_indirect_meter;
+static int hf_openflow_v6_group_features_actions_ff;
+static int hf_openflow_v6_group_features_actions_ff_output;
+static int hf_openflow_v6_group_features_actions_ff_copy_ttl_out;
+static int hf_openflow_v6_group_features_actions_ff_copy_ttl_in;
+static int hf_openflow_v6_group_features_actions_ff_set_mpls_ttl;
+static int hf_openflow_v6_group_features_actions_ff_dec_mpls_ttl;
+static int hf_openflow_v6_group_features_actions_ff_push_vlan;
+static int hf_openflow_v6_group_features_actions_ff_pop_vlan;
+static int hf_openflow_v6_group_features_actions_ff_push_mpls;
+static int hf_openflow_v6_group_features_actions_ff_pop_mpls;
+static int hf_openflow_v6_group_features_actions_ff_set_queue;
+static int hf_openflow_v6_group_features_actions_ff_group;
+static int hf_openflow_v6_group_features_actions_ff_set_nw_ttl;
+static int hf_openflow_v6_group_features_actions_ff_dec_nw_ttl;
+static int hf_openflow_v6_group_features_actions_ff_set_field;
+static int hf_openflow_v6_group_features_actions_ff_push_pbb;
+static int hf_openflow_v6_group_features_actions_ff_pop_pbb;
+static int hf_openflow_v6_group_features_actions_ff_copy_field;
+static int hf_openflow_v6_group_features_actions_ff_meter;
+static int hf_openflow_v6_meter_band_stats_packet_band_count;
+static int hf_openflow_v6_meter_band_stats_byte_band_count;
+static int hf_openflow_v6_meter_stats_meter_id;
+static int hf_openflow_v6_meter_stats_len;
+static int hf_openflow_v6_meter_stats_pad;
+static int hf_openflow_v6_meter_stats_flow_count;
+static int hf_openflow_v6_meter_stats_packet_in_count;
+static int hf_openflow_v6_meter_stats_byte_in_count;
+static int hf_openflow_v6_meter_stats_duration_sec;
+static int hf_openflow_v6_meter_stats_duration_nsec;
+static int hf_openflow_v6_meter_desc_len;
+static int hf_openflow_v6_meter_desc_flags;
+static int hf_openflow_v6_meter_desc_flags_kbps;
+static int hf_openflow_v6_meter_desc_flags_pktps;
+static int hf_openflow_v6_meter_desc_flags_burst;
+static int hf_openflow_v6_meter_desc_flags_stats;
+static int hf_openflow_v6_meter_desc_meter_id;
+static int hf_openflow_v6_meter_features_max_meter;
+static int hf_openflow_v6_meter_features_band_types;
+static int hf_openflow_v6_meter_features_band_types_drop;
+static int hf_openflow_v6_meter_features_band_types_dscp_remark;
+static int hf_openflow_v6_meter_features_capabilities;
+static int hf_openflow_v6_meter_features_capabilities_kbps;
+static int hf_openflow_v6_meter_features_capabilities_pktps;
+static int hf_openflow_v6_meter_features_capabilities_burst;
+static int hf_openflow_v6_meter_features_capabilities_stats;
+static int hf_openflow_v6_meter_features_max_bands;
+static int hf_openflow_v6_meter_features_max_color;
+static int hf_openflow_v6_meter_features_pad;
+static int hf_openflow_v6_flow_update_length;
+static int hf_openflow_v6_flow_update_event;
+static int hf_openflow_v6_flow_update_full_table_id;
+static int hf_openflow_v6_flow_update_full_reason;
+static int hf_openflow_v6_flow_update_full_zero;
+static int hf_openflow_v6_flow_update_full_idle_timeout;
+static int hf_openflow_v6_flow_update_full_hard_timeout;
+static int hf_openflow_v6_flow_update_full_priority;
+static int hf_openflow_v6_flow_update_full_zeros;
+static int hf_openflow_v6_flow_update_full_cookie;
+static int hf_openflow_v6_flow_update_abbrev_xid;
+static int hf_openflow_v6_flow_update_paused_zeros;
+static int hf_openflow_v6_multipart_reply_type;
+static int hf_openflow_v6_multipart_reply_flags;
+static int hf_openflow_v6_multipart_reply_flags_more;
+static int hf_openflow_v6_multipart_reply_pad;
+static int hf_openflow_v6_multipart_reply_experimenter_experimenter;
+static int hf_openflow_v6_multipart_reply_experimenter_exp_type;
+static int hf_openflow_v6_table_desc_length;
+static int hf_openflow_v6_table_desc_table_id;
+static int hf_openflow_v6_table_desc_pad;
+static int hf_openflow_v6_table_desc_config;
+static int hf_openflow_v6_table_desc_config_eviction;
+static int hf_openflow_v6_table_desc_config_vacancy_events;
+static int hf_openflow_v6_queue_desc_port_no;
+static int hf_openflow_v6_queue_desc_queue_id;
+static int hf_openflow_v6_queue_desc_len;
+static int hf_openflow_v6_queue_desc_pad;
+static int hf_openflow_v6_queue_desc_prop_property;
+static int hf_openflow_v6_queue_desc_prop_len;
+static int hf_openflow_v6_queue_desc_prop_pad;
+static int hf_openflow_v6_queue_desc_prop_min_rate_rate;
+static int hf_openflow_v6_queue_desc_prop_min_rate_pad;
+static int hf_openflow_v6_queue_desc_prop_max_rate_rate;
+static int hf_openflow_v6_queue_desc_prop_max_rate_pad;
+static int hf_openflow_v6_queue_desc_prop_experimenter_experimenter;
+static int hf_openflow_v6_queue_desc_prop_experimenter_exp_type;
+static int hf_openflow_v6_role_request_role;
+static int hf_openflow_v6_role_request_pad;
+static int hf_openflow_v6_role_request_generation_id;
+static int hf_openflow_v6_role_reply_role;
+static int hf_openflow_v6_role_reply_pad;
+static int hf_openflow_v6_role_reply_generation_id;
+static int hf_openflow_v6_async_config_prop_type;
+static int hf_openflow_v6_async_config_prop_length;
+static int hf_openflow_v6_async_config_prop_reason_packet_in_mask;
+static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_table_miss;
+static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_apply_action;
+static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_invalid_ttl;
+static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_action_set;
+static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_group;
+static int hf_openflow_v6_async_config_prop_reason_packet_in_mask_packet_out;
+static int hf_openflow_v6_async_config_prop_reason_port_status_mask;
+static int hf_openflow_v6_async_config_prop_reason_port_status_mask_add;
+static int hf_openflow_v6_async_config_prop_reason_port_status_mask_delete;
+static int hf_openflow_v6_async_config_prop_reason_port_status_mask_modify;
+static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask;
+static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_idle_timeout;
+static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_hard_timeout;
+static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_delete;
+static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_group_delete;
+static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_meter_delete;
+static int hf_openflow_v6_async_config_prop_reason_flow_removed_mask_eviction;
+static int hf_openflow_v6_async_config_prop_reason_role_status_mask;
+static int hf_openflow_v6_async_config_prop_reason_role_status_mask_master_request;
+static int hf_openflow_v6_async_config_prop_reason_role_status_mask_config;
+static int hf_openflow_v6_async_config_prop_reason_role_status_mask_experimenter;
+static int hf_openflow_v6_async_config_prop_reason_table_status_mask;
+static int hf_openflow_v6_async_config_prop_reason_table_status_mask_vacancy_down;
+static int hf_openflow_v6_async_config_prop_reason_table_status_mask_vacancy_up;
+static int hf_openflow_v6_async_config_prop_reason_requestforward_mask;
+static int hf_openflow_v6_async_config_prop_reason_requestforward_mask_group_mod;
+static int hf_openflow_v6_async_config_prop_reason_requestforward_mask_meter_mod;
+static int hf_openflow_v6_async_config_prop_experimenter_experimenter;
+static int hf_openflow_v6_async_config_prop_experimenter_exp_type;
+static int hf_openflow_v6_metermod_command;
+static int hf_openflow_v6_metermod_flags;
+static int hf_openflow_v6_metermod_flags_kbps;
+static int hf_openflow_v6_metermod_flags_pktps;
+static int hf_openflow_v6_metermod_flags_burst;
+static int hf_openflow_v6_metermod_flags_stats;
+static int hf_openflow_v6_metermod_meter_id;
+static int hf_openflow_v6_role_status_role;
+static int hf_openflow_v6_role_status_reason;
+static int hf_openflow_v6_role_status_pad;
+static int hf_openflow_v6_role_status_generation_id;
+static int hf_openflow_v6_table_status_reason;
+static int hf_openflow_v6_table_status_pad;
+static int hf_openflow_v6_bundle_control_bundle_id;
+static int hf_openflow_v6_bundle_control_type;
+static int hf_openflow_v6_bundle_control_flags;
+static int hf_openflow_v6_bundle_control_flags_atomic;
+static int hf_openflow_v6_bundle_control_flags_ordered;
+static int hf_openflow_v6_bundle_prop_type;
+static int hf_openflow_v6_bundle_prop_length;
+static int hf_openflow_v6_bundle_prop_experimenter_experimenter;
+static int hf_openflow_v6_bundle_prop_experimenter_exp_type;
+static int hf_openflow_v6_bundle_add_bundle_id;
+static int hf_openflow_v6_bundle_add_pad;
+static int hf_openflow_v6_bundle_add_flags;
+static int hf_openflow_v6_bundle_add_flags_atomic;
+static int hf_openflow_v6_bundle_add_flags_ordered;
+static int hf_openflow_v6_oxs_class;
+static int hf_openflow_v6_oxs_field;
+static int hf_openflow_v6_oxs_reserved;
+static int hf_openflow_v6_oxs_length;
+static int hf_openflow_v6_oxs_basic_duration_sec;
+static int hf_openflow_v6_oxs_basic_duration_nsec;
+static int hf_openflow_v6_oxs_basic_idle_sec;
+static int hf_openflow_v6_oxs_basic_idle_nsec;
+static int hf_openflow_v6_oxs_basic_flow_count;
+static int hf_openflow_v6_oxs_basic_packet_count;
+static int hf_openflow_v6_oxs_basic_byte_count;
+static int hf_openflow_v6_oxs_experimenter_experimenter;
+static int hf_openflow_v6_oxs_experimenter_value;
+static int hf_openflow_v6_instruction_stat_trigger_flags;
+static int hf_openflow_v6_instruction_stat_triffer_flags_periodic;
+static int hf_openflow_v6_instruction_stat_triffer_flags_only_first;
+static int hf_openflow_v6_instruction_stat_triffer_flags_reserved;
+static int hf_openflow_v6_port_desc_prop_recirculate_port_no;
+static int hf_openflow_v6_bundle_features_request_flags;
+static int hf_openflow_v6_bundle_features_request_pad;
+static int hf_openflow_v6_stats_reserved;
+static int hf_openflow_v6_stats_length;
+static int hf_openflow_v6_stats_pad;
+static int hf_openflow_v6_flow_desc_length;
+static int hf_openflow_v6_flow_desc_pad2;
+static int hf_openflow_v6_flow_desc_table_id;
+static int hf_openflow_v6_flow_desc_pad;
+static int hf_openflow_v6_flow_desc_priority;
+static int hf_openflow_v6_flow_desc_idle_timeout;
+static int hf_openflow_v6_flow_desc_hard_timeout;
+static int hf_openflow_v6_flow_desc_flags;
+static int hf_openflow_v6_flow_desc_flags_send_flow_rem;
+static int hf_openflow_v6_flow_desc_flags_check_overlap;
+static int hf_openflow_v6_flow_desc_flags_reset_counts;
+static int hf_openflow_v6_flow_desc_flags_no_packet_counts;
+static int hf_openflow_v6_flow_desc_flags_no_byte_counts;
+static int hf_openflow_v6_flow_desc_importance;
+static int hf_openflow_v6_flow_desc_cookie;
+static int hf_openflow_v6_controller_status_length;
+static int hf_openflow_v6_controller_status_short_id;
+static int hf_openflow_v6_controller_status_role;
+static int hf_openflow_v6_controller_status_reason;
+static int hf_openflow_v6_controller_status_channel_status;
+static int hf_openflow_v6_controller_status_pad;
+static int hf_openflow_v6_time_seconds;
+static int hf_openflow_v6_time_nanoseconds;
+static int hf_openflow_v6_time_pad;
+static int hf_openflow_v6_bundle_feature_prop_type;
+static int hf_openflow_v6_bundle_feature_prop_length;
+static int hf_openflow_v6_bundle_feature_prop_time_pad;
+static int hf_openflow_v6_bundle_feature_prop_experimenter_experimenter;
+static int hf_openflow_v6_bundle_feature_prop_experimenter_exp_type;
+static int hf_openflow_v6_bundle_feature_prop_pad;
+static int hf_openflow_v6_controller_status_prop_type;
+static int hf_openflow_v6_controller_status_prop_length;
+static int hf_openflow_v6_controller_status_prop_experimenter_experimenter;
+static int hf_openflow_v6_controller_status_prop_experimenter_exp_type;
+static int hf_openflow_v6_controller_status_prop_pad;
+static int hf_openflow_v6_flow_stats_reason;
+static int hf_openflow_v6_controller_status_prop_uri;
 
-static gint ett_openflow_v6 = -1;
-static gint ett_openflow_v6_flowmod_flags = -1;
-static gint ett_openflow_v6_bucket = -1;
-static gint ett_openflow_v6_oxm = -1;
-static gint ett_openflow_v6_match = -1;
-static gint ett_openflow_v6_action = -1;
-static gint ett_openflow_v6_instruction = -1;
-static gint ett_openflow_v6_port_desc_prop = -1;
-static gint ett_openflow_v6_port_desc_prop_ethernet_current = -1;
-static gint ett_openflow_v6_port_desc_prop_ethernet_advertised = -1;
-static gint ett_openflow_v6_port_desc_prop_ethernet_supported = -1;
-static gint ett_openflow_v6_port_desc_prop_ethernet_peer = -1;
-static gint ett_openflow_v6_port_desc_prop_optical_supported = -1;
-static gint ett_openflow_v6_port_stats_prop = -1;
-static gint ett_openflow_v6_port_stats_prop_optical_flags = -1;
-static gint ett_openflow_v6_port = -1;
-static gint ett_openflow_v6_port_config = -1;
-static gint ett_openflow_v6_port_state = -1;
-static gint ett_openflow_v6_meter_band  = -1;
-static gint ett_openflow_v6_hello_element = -1;
-static gint ett_openflow_v6_error_data = -1;
-static gint ett_openflow_v6_switch_features_capabilities = -1;
-static gint ett_openflow_v6_switch_config_flags = -1;
-static gint ett_openflow_v6_packet_in_data = -1;
-static gint ett_openflow_v6_packet_out_data = -1;
-static gint ett_openflow_v6_portmod_prop = -1;
-static gint ett_openflow_v6_portmod_prop_ethernet_advertise = -1;
-static gint ett_openflow_v6_portmod_prop_optical_configure = -1;
-static gint ett_openflow_v6_portmod_config = -1;
-static gint ett_openflow_v6_portmod_mask = -1;
-static gint ett_openflow_v6_tablemod_config = -1;
-static gint ett_openflow_v6_tablemod_prop = -1;
-static gint ett_openflow_v6_tablemod_prop_eviction_flags = -1;
-static gint ett_openflow_v6_table_features = -1;
-static gint ett_openflow_v6_table_features_capabilities = -1;
-static gint ett_openflow_v6_table_feature_prop = -1;
-static gint ett_openflow_v6_table_feature_prop_instruction_id = -1;
-static gint ett_openflow_v6_table_feature_prop_action_id = -1;
-static gint ett_openflow_v6_table_feature_prop_oxm_id = -1;
-static gint ett_openflow_v6_flow_monitor_request_flags = -1;
-static gint ett_openflow_v6_multipart_request_flags = -1;
-static gint ett_openflow_v6_flow_stats = -1;
-static gint ett_openflow_v6_table_stats = -1;
-static gint ett_openflow_v6_port_stats = -1;
-static gint ett_openflow_v6_queue_stats = -1;
-static gint ett_openflow_v6_queue_stats_prop = -1;
-static gint ett_openflow_v6_bucket_counter = -1;
-static gint ett_openflow_v6_group_stats = -1;
-static gint ett_openflow_v6_group_desc = -1;
-static gint ett_openflow_v6_group_features_types = -1;
-static gint ett_openflow_v6_group_features_capabilities = -1;
-static gint ett_openflow_v6_group_features_actions_all = -1;
-static gint ett_openflow_v6_group_features_actions_select = -1;
-static gint ett_openflow_v6_group_features_actions_indirect = -1;
-static gint ett_openflow_v6_group_features_actions_ff = -1;
-static gint ett_openflow_v6_meter_band_stats = -1;
-static gint ett_openflow_v6_meter_stats = -1;
-static gint ett_openflow_v6_meter_desc = -1;
-static gint ett_openflow_v6_meter_desc_flags = -1;
-static gint ett_openflow_v6_meter_features_band_types = -1;
-static gint ett_openflow_v6_meter_features_capabilities = -1;
-static gint ett_openflow_v6_flow_update = -1;
-static gint ett_openflow_v6_multipart_reply_flags = -1;
-static gint ett_openflow_v6_table_desc = -1;
-static gint ett_openflow_v6_table_desc_config = -1;
-static gint ett_openflow_v6_queue_desc = -1;
-static gint ett_openflow_v6_queue_desc_prop = -1;
-static gint ett_openflow_v6_async_config_prop = -1;
-static gint ett_openflow_v6_async_config_prop_reason_packet_in_mask = -1;
-static gint ett_openflow_v6_async_config_prop_reason_port_status_mask = -1;
-static gint ett_openflow_v6_async_config_prop_reason_flow_removed_mask = -1;
-static gint ett_openflow_v6_async_config_prop_reason_role_status_mask = -1;
-static gint ett_openflow_v6_async_config_prop_reason_table_status_mask = -1;
-static gint ett_openflow_v6_async_config_prop_reason_requestforward_mask = -1;
-static gint ett_openflow_v6_metermod_flags = -1;
-static gint ett_openflow_v6_requestforward_request = -1;
-static gint ett_openflow_v6_bundle_control_flags = -1;
-static gint ett_openflow_v6_bundle_prop = -1;
-static gint ett_openflow_v6_bundle_add_flags = -1;
-static gint ett_openflow_v6_bundle_add_message = -1;
-static gint ett_openflow_v6_instruction_stat_trigger_flags = -1;
-static gint ett_openflow_v6_flow_desc = -1;
-static gint ett_openflow_v6_flow_desc_flags = -1;
-static gint ett_openflow_v6_bundle_feature_prop = -1;
-static gint ett_openflow_v6_controller_status_prop = -1;
+static int ett_openflow_v6;
+static int ett_openflow_v6_flowmod_flags;
+static int ett_openflow_v6_bucket;
+static int ett_openflow_v6_oxm;
+static int ett_openflow_v6_match;
+static int ett_openflow_v6_action;
+static int ett_openflow_v6_instruction;
+static int ett_openflow_v6_port_desc_prop;
+static int ett_openflow_v6_port_desc_prop_ethernet_current;
+static int ett_openflow_v6_port_desc_prop_ethernet_advertised;
+static int ett_openflow_v6_port_desc_prop_ethernet_supported;
+static int ett_openflow_v6_port_desc_prop_ethernet_peer;
+static int ett_openflow_v6_port_desc_prop_optical_supported;
+static int ett_openflow_v6_port_stats_prop;
+static int ett_openflow_v6_port_stats_prop_optical_flags;
+static int ett_openflow_v6_port;
+static int ett_openflow_v6_port_config;
+static int ett_openflow_v6_port_state;
+static int ett_openflow_v6_meter_band;
+static int ett_openflow_v6_hello_element;
+static int ett_openflow_v6_error_data;
+static int ett_openflow_v6_switch_features_capabilities;
+static int ett_openflow_v6_switch_config_flags;
+static int ett_openflow_v6_packet_in_data;
+static int ett_openflow_v6_packet_out_data;
+static int ett_openflow_v6_portmod_prop;
+static int ett_openflow_v6_portmod_prop_ethernet_advertise;
+static int ett_openflow_v6_portmod_prop_optical_configure;
+static int ett_openflow_v6_portmod_config;
+static int ett_openflow_v6_portmod_mask;
+static int ett_openflow_v6_tablemod_config;
+static int ett_openflow_v6_tablemod_prop;
+static int ett_openflow_v6_tablemod_prop_eviction_flags;
+static int ett_openflow_v6_table_features;
+static int ett_openflow_v6_table_features_capabilities;
+static int ett_openflow_v6_table_feature_prop;
+static int ett_openflow_v6_table_feature_prop_instruction_id;
+static int ett_openflow_v6_table_feature_prop_action_id;
+static int ett_openflow_v6_table_feature_prop_oxm_id;
+static int ett_openflow_v6_flow_monitor_request_flags;
+static int ett_openflow_v6_multipart_request_flags;
+static int ett_openflow_v6_flow_stats;
+static int ett_openflow_v6_table_stats;
+static int ett_openflow_v6_port_stats;
+static int ett_openflow_v6_queue_stats;
+static int ett_openflow_v6_queue_stats_prop;
+static int ett_openflow_v6_bucket_counter;
+static int ett_openflow_v6_group_stats;
+static int ett_openflow_v6_group_desc;
+static int ett_openflow_v6_group_features_types;
+static int ett_openflow_v6_group_features_capabilities;
+static int ett_openflow_v6_group_features_actions_all;
+static int ett_openflow_v6_group_features_actions_select;
+static int ett_openflow_v6_group_features_actions_indirect;
+static int ett_openflow_v6_group_features_actions_ff;
+static int ett_openflow_v6_meter_band_stats;
+static int ett_openflow_v6_meter_stats;
+static int ett_openflow_v6_meter_desc;
+static int ett_openflow_v6_meter_desc_flags;
+static int ett_openflow_v6_meter_features_band_types;
+static int ett_openflow_v6_meter_features_capabilities;
+static int ett_openflow_v6_flow_update;
+static int ett_openflow_v6_multipart_reply_flags;
+static int ett_openflow_v6_table_desc;
+static int ett_openflow_v6_table_desc_config;
+static int ett_openflow_v6_queue_desc;
+static int ett_openflow_v6_queue_desc_prop;
+static int ett_openflow_v6_async_config_prop;
+static int ett_openflow_v6_async_config_prop_reason_packet_in_mask;
+static int ett_openflow_v6_async_config_prop_reason_port_status_mask;
+static int ett_openflow_v6_async_config_prop_reason_flow_removed_mask;
+static int ett_openflow_v6_async_config_prop_reason_role_status_mask;
+static int ett_openflow_v6_async_config_prop_reason_table_status_mask;
+static int ett_openflow_v6_async_config_prop_reason_requestforward_mask;
+static int ett_openflow_v6_metermod_flags;
+static int ett_openflow_v6_requestforward_request;
+static int ett_openflow_v6_bundle_control_flags;
+static int ett_openflow_v6_bundle_prop;
+static int ett_openflow_v6_bundle_add_flags;
+static int ett_openflow_v6_bundle_add_message;
+static int ett_openflow_v6_instruction_stat_trigger_flags;
+static int ett_openflow_v6_flow_desc;
+static int ett_openflow_v6_flow_desc_flags;
+static int ett_openflow_v6_bundle_feature_prop;
+static int ett_openflow_v6_controller_status_prop;
 
-static expert_field ei_openflow_v6_match_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_oxm_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_action_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_instruction_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_port_desc_prop_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_port_stats_prop_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_meter_band_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_hello_element_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_error_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_experimenter_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_portmod_prop_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_tablemod_prop_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_table_feature_prop_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_multipart_request_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_queue_stats_prop_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_flow_update_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_multipart_reply_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_queue_desc_prop_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_async_config_prop_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_bundle_prop_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_message_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_length_too_short = EI_INIT;
-static expert_field ei_openflow_v6_bundle_feature_prop_undecoded = EI_INIT;
-static expert_field ei_openflow_v6_controller_status_prop_undecoded = EI_INIT;
+static expert_field ei_openflow_v6_match_undecoded;
+static expert_field ei_openflow_v6_oxm_undecoded;
+static expert_field ei_openflow_v6_action_undecoded;
+static expert_field ei_openflow_v6_instruction_undecoded;
+static expert_field ei_openflow_v6_port_desc_prop_undecoded;
+static expert_field ei_openflow_v6_port_stats_prop_undecoded;
+static expert_field ei_openflow_v6_meter_band_undecoded;
+static expert_field ei_openflow_v6_hello_element_undecoded;
+static expert_field ei_openflow_v6_error_undecoded;
+static expert_field ei_openflow_v6_experimenter_undecoded;
+static expert_field ei_openflow_v6_portmod_prop_undecoded;
+static expert_field ei_openflow_v6_tablemod_prop_undecoded;
+static expert_field ei_openflow_v6_table_feature_prop_undecoded;
+static expert_field ei_openflow_v6_multipart_request_undecoded;
+static expert_field ei_openflow_v6_queue_stats_prop_undecoded;
+static expert_field ei_openflow_v6_flow_update_undecoded;
+static expert_field ei_openflow_v6_multipart_reply_undecoded;
+static expert_field ei_openflow_v6_queue_desc_prop_undecoded;
+static expert_field ei_openflow_v6_async_config_prop_undecoded;
+static expert_field ei_openflow_v6_bundle_prop_undecoded;
+static expert_field ei_openflow_v6_message_undecoded;
+static expert_field ei_openflow_v6_length_too_short;
+static expert_field ei_openflow_v6_bundle_feature_prop_undecoded;
+static expert_field ei_openflow_v6_controller_status_prop_undecoded;
 
 static const value_string openflow_v6_version_values[] = {
     { 0x06, "1.5" },
@@ -987,7 +987,7 @@ static const value_string openflow_v6_type_values[] = {
 static value_string_ext openflow_v6_type_values_ext = VALUE_STRING_EXT_INIT(openflow_v6_type_values);
 
 static int
-dissect_openflow_header_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_header_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint8_t version; */
     proto_tree_add_item(tree, hf_openflow_v6_version, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -1070,11 +1070,11 @@ static const value_string openflow_v6_oxs_basic_field_values[] = {
 #define OXS_RESERVED_MASK  0x01
 
 static int
-dissect_openflow_v6_oxs(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_v6_oxs(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
-    guint32 oxs_class;
-    guint32 oxs_field;
-    guint32 oxs_payload_length;
+    uint32_t oxs_class;
+    uint32_t oxs_field;
+    uint32_t oxs_payload_length;
 
     proto_tree_add_item_ret_uint(tree, hf_openflow_v6_oxs_class, tvb, offset, 2, ENC_BIG_ENDIAN, &oxs_class);
     offset+=2;
@@ -1117,12 +1117,12 @@ dissect_openflow_v6_oxs(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 }
 
 static int
-dissect_openflow_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
-    guint32 stats_length;
+    uint32_t stats_length;
     int oxs_end;
-    guint32 padding;
+    uint32_t padding;
 
     proto_tree_add_item(tree, hf_openflow_v6_stats_reserved, tvb, offset, 2, ENC_NA);
 
@@ -1256,6 +1256,7 @@ static const value_string openflow_v6_oxm_basic_field_values[] = {
     { 37, "OFPXMT_OFB_PBB_ISID" },
     { 38, "OFPXMT_OFB_TUNNEL_ID" },
     { 39, "OFPXMT_OFB_IPV6_EXTHDR" },
+    { 40, "UNASSIGNED" },              /* include to allow direct lookup */
     { 41, "OFPXMT_OFB_PBB_UCA" },
     { 42, "OFPXMT_OFB_TCP_FLAGS" },
     { 43, "OFPXMT_OFB_ACTSET_OUTPUT" },
@@ -1282,18 +1283,18 @@ static const value_string openflow_v6_header_type_namespace_values[] = {
 #define OXM_HM_MASK      0x01
 
 typedef struct oxm_header {
-    guint32 oxm_class;
-    gboolean oxm_hm;
-    guint32 oxm_field;
-    guint32 oxm_length;
+    uint32_t oxm_class;
+    bool oxm_hm;
+    uint32_t oxm_field;
+    uint32_t oxm_length;
 } oxm_header;
 static int
-dissect_openflow_oxm_header_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_, oxm_header *retval)
+dissect_openflow_oxm_header_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_, oxm_header *retval)
 {
-    guint32 oxm_class;
-    gboolean oxm_hm;
-    guint32 oxm_field;
-    guint32 oxm_length;
+    uint32_t oxm_class;
+    bool oxm_hm;
+    uint32_t oxm_field;
+    uint32_t oxm_length;
 
     /* oxm_class */
     proto_tree_add_item_ret_uint(tree, hf_openflow_v6_oxm_class, tvb, offset, 2, ENC_BIG_ENDIAN, &oxm_class);
@@ -1333,16 +1334,16 @@ dissect_openflow_oxm_header_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
 
 #define OFPVID_PRESENT  0x1000
 static int
-dissect_openflow_oxm_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_oxm_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *oxm_tree;
-    guint16 oxm_end;
+    uint16_t oxm_end;
     oxm_header header;
-    guint8  field_length;
-    guint32 packet_type_namespace;
+    uint8_t field_length;
+    uint32_t packet_type_namespace;
     proto_item *ti;
 
-    header.oxm_length = tvb_get_guint8(tvb, offset + 3);
+    header.oxm_length = tvb_get_uint8(tvb, offset + 3);
 
     oxm_tree = proto_tree_add_subtree(tree, tvb, offset, header.oxm_length + 4, ett_openflow_v6_oxm, NULL, "OXM field");
 
@@ -1498,14 +1499,14 @@ static const value_string openflow_v6_match_type_values[] = {
 };
 
 static int
-dissect_openflow_match_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_match_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *match_tree;
-    guint32 match_type;
-    guint16 match_length;
-    gint32 fields_end;
-    guint16 pad_length;
+    uint32_t match_type;
+    uint16_t match_length;
+    int32_t fields_end;
+    uint16_t pad_length;
 
     match_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_match, &ti, "Match");
 
@@ -1580,12 +1581,12 @@ static const value_string openflow_v6_meter_band_type_values[] = {
 #define OFPMF_STATS  1 << 3
 
 static int
-dissect_openflow_meter_band_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_meter_band_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *band_tree;
-    guint32 band_type;
-    guint16 band_len;
+    uint32_t band_type;
+    uint16_t band_len;
 
     band_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_meter_band, &ti, "Meter band");
 
@@ -1658,12 +1659,12 @@ static const value_string openflow_v6_hello_element_type_values[] = {
 };
 
 static int
-dissect_openflow_hello_element_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_hello_element_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     proto_tree *elem_tree;
-    guint32 elem_type;
-    guint16 elem_length;
-    guint16 pad_length;
+    uint32_t elem_type;
+    uint16_t elem_length;
+    uint16_t pad_length;
 
     elem_tree = proto_tree_add_subtree(tree, tvb, offset, length - offset, ett_openflow_v6_hello_element, NULL, "Element");
 
@@ -1705,7 +1706,7 @@ dissect_openflow_hello_element_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
 }
 
 static void
-dissect_openflow_hello_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_hello_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
 
     while (offset < length) {
@@ -1981,11 +1982,11 @@ static const value_string openflow_v6_error_bundle_failed_code_values[] = {
 
 static void
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_openflow_error_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_error_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     proto_tree *data_tree;
     proto_item *data_ti;
-    guint32 error_type;
+    uint32_t error_type;
 
     /* uint16_t type; */
     proto_tree_add_item_ret_uint(tree, hf_openflow_v6_error_type, tvb, offset, 2, ENC_BIG_ENDIAN, &error_type);
@@ -2075,17 +2076,17 @@ dissect_openflow_error_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
     case OFPET_METER_MOD_FAILED:
     case OFPET_TABLE_FEATURES_FAILED: {
         /* uint8_t data[0]; contains at least the first 64 bytes of the failed request. */
-        gboolean save_in_error_pkt;
+        bool save_in_error_pkt;
 
         data_ti = proto_tree_add_item(tree, hf_openflow_v6_error_data_body, tvb, offset, length - 20, ENC_NA);
         data_tree = proto_item_add_subtree(data_ti, ett_openflow_v6_error_data);
 
         /* Save error pkt */
         save_in_error_pkt = pinfo->flags.in_error_pkt;
-        pinfo->flags.in_error_pkt = TRUE;
+        pinfo->flags.in_error_pkt = true;
 
         /* Disable update/change of column info */
-        col_set_writable(pinfo->cinfo, -1, FALSE);
+        col_set_writable(pinfo->cinfo, -1, false);
 
         dissect_openflow_message_v6(tvb, pinfo, data_tree, offset);
 
@@ -2093,7 +2094,7 @@ dissect_openflow_error_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
         pinfo->flags.in_error_pkt = save_in_error_pkt;
 
         /* Restore the capability of update/change column info */
-        col_set_writable(pinfo->cinfo, -1, TRUE);
+        col_set_writable(pinfo->cinfo, -1, true);
 
         /*offset += length - 12;*/
         }
@@ -2120,7 +2121,7 @@ dissect_openflow_error_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
 
 
 static void
-dissect_openflow_echo_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_echo_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     /* data */
     if (offset < length) {
@@ -2130,7 +2131,7 @@ dissect_openflow_echo_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 
 
 static void
-dissect_openflow_experimenter_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_experimenter_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     /* uint32_t experimenter; */
     proto_tree_add_item(tree, hf_openflow_v6_experimenter_experimenter, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -2158,7 +2159,7 @@ dissect_openflow_experimenter_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 #define OFPC_FLOW_MONITORING  1<<10  /* Switch supports flow monitoring. */
 
 static void
-dissect_openflow_switch_features_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_switch_features_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *cap_tree;
@@ -2217,7 +2218,7 @@ static const value_string openflow_v6_controller_max_len_reserved_values[] = {
 };
 
 static void
-dissect_openflow_switch_config_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_switch_config_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *flags_tree;
@@ -2252,12 +2253,12 @@ static const value_string openflow_v6_packet_in_reason_values[] = {
 };
 
 static void
-dissect_openflow_packet_in_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_packet_in_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *data_tree;
     tvbuff_t *next_tvb;
-    gboolean save_writable;
-    gboolean save_in_error_pkt;
+    bool     save_writable;
+    bool save_in_error_pkt;
     address save_dl_src, save_dl_dst, save_net_src, save_net_dst, save_src, save_dst;
 
     /* uint32_t buffer_id; */
@@ -2302,7 +2303,7 @@ dissect_openflow_packet_in_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree 
         copy_address_shallow(&save_dst, &pinfo->dst);
 
         /* dissect data */
-        col_set_writable(pinfo->cinfo, -1, FALSE);
+        col_set_writable(pinfo->cinfo, -1, false);
         next_tvb = tvb_new_subset_length(tvb, offset, length - offset);
         call_dissector(eth_withoutfcs_handle, next_tvb, pinfo, data_tree);
 
@@ -2336,7 +2337,7 @@ static const value_string openflow_v6_flow_removed_reason_values[] = {
 };
 
 static void
-dissect_openflow_flow_removed_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_flow_removed_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint8_t table_id; */
     proto_tree_add_item(tree, hf_openflow_v6_flow_removed_table_id, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -2415,9 +2416,9 @@ static const value_string openflow_v6_action_type_values[] = {
 
 
 static int
-dissect_openflow_action_header_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_action_header_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
-    guint32 act_type;
+    uint32_t act_type;
 
     /* uint16_t type; */
     proto_tree_add_item_ret_uint(tree, hf_openflow_v6_action_type, tvb, offset, 2, ENC_BIG_ENDIAN, &act_type);
@@ -2438,12 +2439,12 @@ dissect_openflow_action_header_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
 
 
 static int
-dissect_openflow_action_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_action_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *act_tree;
-    guint16 act_type;
-    guint16 act_length;
-    gint32 act_end;
+    uint16_t act_type;
+    uint16_t act_length;
+    int32_t act_end;
 
     act_type = tvb_get_ntohs(tvb, offset);
     act_length = tvb_get_ntohs(tvb, offset + 2);
@@ -2646,7 +2647,7 @@ dissect_openflow_action_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 #define OFPPF_RESERVED    0xFFFF0000
 
 static int
-dissect_openflow_port_desc_prop_ethernet_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_port_desc_prop_ethernet_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *curr_tree, *adv_tree, *supp_tree, *peer_tree;
@@ -2765,7 +2766,7 @@ dissect_openflow_port_desc_prop_ethernet_v6(tvbuff_t *tvb, packet_info *pinfo _U
 #define OFPOPF_TX_PWR    1<<2
 #define OFPOPF_USE_FREQ  1<<3
 static int
-dissect_openflow_port_desc_prop_optical_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_port_desc_prop_optical_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *supp_tree;
@@ -2838,12 +2839,12 @@ static const value_string openflow_v6_port_desc_prop_type_values[] = {
 };
 
 static int
-dissect_openflow_port_desc_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_port_desc_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *prop_tree;
     proto_item *prop_item;
-    guint32 prop_type;
-    guint32 prop_length;
+    uint32_t prop_type;
+    uint32_t prop_length;
     int fields_end;
 
     prop_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_port_desc_prop, NULL, "Port desc. property");
@@ -2931,12 +2932,12 @@ dissect_openflow_port_desc_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
 #define OFP_ETH_ALEN            6
 #define OFP_MAX_PORT_NAME_LEN  16
 static int
-dissect_openflow_port_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_port_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *port_tree, *conf_tree, *state_tree;
-    guint32 port_length;
-    guint16 port_end;
+    uint32_t port_length;
+    uint16_t port_end;
 
     port_tree = proto_tree_add_subtree(tree, tvb, offset, 64, ett_openflow_v6_port, NULL, "Port");
 
@@ -3008,7 +3009,7 @@ static const value_string openflow_v6_port_status_reason_values[] = {
 };
 
 static void
-dissect_openflow_port_status_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_port_status_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint8_t reason; */
     proto_tree_add_item(tree, hf_openflow_v6_port_status_reason, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -3024,14 +3025,14 @@ dissect_openflow_port_status_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 
 
 static void
-dissect_openflow_packet_out_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_packet_out_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *data_tree;
-    guint32 acts_len;
-    gint32 acts_end;
+    uint32_t acts_len;
+    int32_t acts_end;
     tvbuff_t *next_tvb;
-    gboolean save_writable;
-    gboolean save_in_error_pkt;
+    bool save_writable;
+    bool save_in_error_pkt;
     address save_dl_src, save_dl_dst, save_net_src, save_net_dst, save_src, save_dst;
 
     /* uint32_t buffer_id; */
@@ -3071,7 +3072,7 @@ dissect_openflow_packet_out_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
         copy_address_shallow(&save_dst, &pinfo->dst);
 
         /* dissect data */
-        col_set_writable(pinfo->cinfo, -1, FALSE);
+        col_set_writable(pinfo->cinfo, -1, false);
         next_tvb = tvb_new_subset_length(tvb, offset, length - offset);
         call_dissector(eth_withoutfcs_handle, next_tvb, pinfo, data_tree);
 
@@ -3110,14 +3111,14 @@ static const value_string openflow_v6_instruction_type_values[] = {
 
 
 typedef struct inst_header {
-    guint32 type;
-    guint32 length;
+    uint32_t type;
+    uint32_t length;
 } inst_header;
 static int
-dissect_openflow_instruction_header_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_, inst_header *retval)
+dissect_openflow_instruction_header_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_, inst_header *retval)
 {
-    guint32 inst_type;
-    guint32 inst_length;
+    uint32_t inst_type;
+    uint32_t inst_length;
 
     /* uint16_t type; */
     proto_tree_add_item_ret_uint(tree, hf_openflow_v6_instruction_type, tvb, offset, 2, ENC_BIG_ENDIAN, &inst_type);
@@ -3144,12 +3145,12 @@ dissect_openflow_instruction_header_v6(tvbuff_t *tvb, packet_info *pinfo _U_, pr
 #define OFPSTF_PERIODIC    1 << 0
 #define OFPSTF_ONLY_FIRST  1 << 1
 static int
-dissect_openflow_instruction_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_instruction_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *inst_tree, *flags_tree;
     inst_header header;
-    gint32 inst_end;
+    int32_t inst_end;
 
     inst_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_instruction, &ti, "Instruction");
 
@@ -3245,7 +3246,7 @@ static const value_string openflow_v6_flowmod_command_values[] = {
 #define OFPFF_NO_BYT_COUNTS  1 << 4  /* Don't keep track of byte count. */
 
 static void
-dissect_openflow_flowmod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_flowmod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     proto_item *ti;
     proto_tree *flags_tree;
@@ -3315,12 +3316,12 @@ dissect_openflow_flowmod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
 }
 
 static int
-dissect_openflow_bucket_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_bucket_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     proto_item *ti;
     proto_tree *bucket_tree;
-    guint16 bucket_length;
-    gint32 acts_end;
+    uint16_t bucket_length;
+    int32_t acts_end;
 
     bucket_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_bucket, &ti, "Bucket");
 
@@ -3382,7 +3383,7 @@ static const value_string openflow_v6_group_type_values[] = {
 };
 
 static void
-dissect_openflow_groupmod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_groupmod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     /* uint16_t command; */
     proto_tree_add_item(tree, hf_openflow_v6_groupmod_command, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -3421,7 +3422,7 @@ dissect_openflow_groupmod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *
 
 
 static int
-dissect_openflow_portmod_prop_ethernet_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_portmod_prop_ethernet_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *adv_tree;
@@ -3452,7 +3453,7 @@ dissect_openflow_portmod_prop_ethernet_v6(tvbuff_t *tvb, packet_info *pinfo _U_,
 }
 
 static int
-dissect_openflow_portmod_prop_optical_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_portmod_prop_optical_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *conf_tree;
@@ -3499,12 +3500,12 @@ static const value_string openflow_v6_portmod_prop_type_values[] = {
 };
 
 static int
-dissect_openflow_portmod_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_portmod_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *prop_tree;
     proto_item *prop_item, *ti;
-    guint32 prop_type;
-    guint32 prop_length;
+    uint32_t prop_type;
+    uint32_t prop_length;
 
     prop_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_portmod_prop, &ti, "Portmod property");
 
@@ -3563,7 +3564,7 @@ dissect_openflow_portmod_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 
 
 static void
-dissect_openflow_portmod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_portmod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *conf_tree, *mask_tree;
@@ -3625,13 +3626,13 @@ static const value_string openflow_v6_tablemod_prop_type_values[] = {
 #define OFPTMPEF_IMPORTANCE  1<<1
 #define OFPTMPEF_LIFETIME    1<<2
 static int
-dissect_openflow_tablemod_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_tablemod_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti, *prop_item;
     proto_tree *prop_tree, *flags_tree;
 
-    guint32 prop_type;
-    guint32 prop_length;
+    uint32_t prop_type;
+    uint32_t prop_length;
 
     prop_length = tvb_get_ntohs(tvb, offset + 2);
 
@@ -3714,7 +3715,7 @@ dissect_openflow_tablemod_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
 #define OFPTC_EVICTION        1<<2
 #define OFPTC_VACANCY_EVENTS  1<<3
 static void
-dissect_openflow_tablemod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_tablemod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *conf_tree;
@@ -3749,7 +3750,7 @@ dissect_openflow_tablemod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *
 
 
 static void
-dissect_openflow_flow_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_flow_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     /* uint8_t table_id; */
     proto_tree_add_item(tree, hf_openflow_v6_flow_stats_request_table_id, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -3784,7 +3785,7 @@ dissect_openflow_flow_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, pr
 }
 
 static void
-dissect_openflow_aggregate_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_aggregate_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     /* uint8_t table_id; */
     proto_tree_add_item(tree, hf_openflow_v6_aggregate_stats_request_table_id, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -3864,22 +3865,20 @@ static const value_string openflow_v6_table_feature_prop_type_values[] = {
     { OFPTFPT_APPLY_COPYFIELD,     "OFPTFPT_APPLY_COPYFIELD" },
     { OFPTFPT_APPLY_COPYFIELD_MISS,"OFPTFPT_APPLY_COPYFIELD_MISS" },
     { OFPTFPT_PACKET_TYPES,        "OFPTFPT_PACKET_TYPES" },
-    { OFPTFPT_EXPERIMENTER,        "OFPTFPT_EXPERIMENTER" },
-    { OFPTFPT_EXPERIMENTER_MISS,   "OFPTFPT_EXPERIMENTER_MISS" },
     { 0,                            NULL }
 };
 
 
 static int
-dissect_openflow_table_feature_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_table_feature_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     proto_item *ti;
     proto_tree *prop_tree, *elem_tree;
-    guint32 prop_type;
-    guint32 prop_length;
-    guint16 elem_begin;
-    gint32 body_end;
-    guint16 pad_length;
+    uint32_t prop_type;
+    uint32_t prop_length;
+    uint16_t elem_begin;
+    int32_t body_end;
+    uint16_t pad_length;
 
     prop_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_table_feature_prop, &ti, "Table feature property");
 
@@ -4003,12 +4002,12 @@ dissect_openflow_table_feature_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, pr
 
 #define OFP_MAX_TABLE_NAME_LEN  32
 static int
-dissect_openflow_table_features_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_table_features_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     proto_item *ti;
     proto_tree *feat_tree, *caps_tree;
-    guint32 feat_length;
-    gint32 feat_end;
+    uint32_t feat_length;
+    int32_t feat_end;
 
     feat_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_table_features, &ti, "Table features");
 
@@ -4060,7 +4059,7 @@ dissect_openflow_table_features_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
 
 
 static void
-dissect_openflow_port_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_port_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint32_t port_no; */
     proto_tree_add_item(tree, hf_openflow_v6_port_stats_request_port_no, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -4078,7 +4077,7 @@ static const value_string openflow_v6_queue_reserved_values[] = {
 };
 
 static void
-dissect_openflow_queue_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_queue_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint32_t port_no; */
     proto_tree_add_item(tree, hf_openflow_v6_queue_stats_request_port_no, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -4091,7 +4090,7 @@ dissect_openflow_queue_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, p
 
 
 static void
-dissect_openflow_group_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_group_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint32_t group_id; */
     proto_tree_add_item(tree, hf_openflow_v6_group_stats_request_group_id, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -4104,7 +4103,7 @@ dissect_openflow_group_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, p
 
 
 static void
-dissect_openflow_meter_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_meter_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint32_t meter_id; */
     proto_tree_add_item(tree, hf_openflow_v6_meter_stats_request_meter_id, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -4117,7 +4116,7 @@ dissect_openflow_meter_stats_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, p
 
 
 static void
-dissect_openflow_meter_desc_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_meter_desc_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint32_t meter_id; */
     proto_tree_add_item(tree, hf_openflow_v6_meter_desc_request_meter_id, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -4131,7 +4130,7 @@ dissect_openflow_meter_desc_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, pr
 
 
 static void
-dissect_openflow_queue_desc_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_queue_desc_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint32_t port_no; */
     proto_tree_add_item(tree, hf_openflow_v6_queue_desc_request_port_no, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -4162,7 +4161,7 @@ static const value_string openflow_v6_flow_monitor_request_command_values[] = {
 };
 
 static void
-dissect_openflow_flow_monitor_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_flow_monitor_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *flags_tree;
@@ -4206,7 +4205,7 @@ dissect_openflow_flow_monitor_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, 
 }
 
 static int
-dissect_openflow_time_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_time_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint64_t seconds; */
     proto_tree_add_item(tree, hf_openflow_v6_time_seconds, tvb, offset, 8, ENC_BIG_ENDIAN);
@@ -4233,14 +4232,14 @@ static const value_string openflow_v6_bundle_feature_prop_type_values[] = {
 
 
 static int
-dissect_openflow_bundle_feature_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_bundle_feature_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     proto_item *ti;
     proto_tree *prop_tree;
-    guint32 prop_type;
-    guint32 prop_length;
-    gint32 body_end;
-    guint16 pad_length;
+    uint32_t prop_type;
+    uint32_t prop_length;
+    int32_t body_end;
+    uint16_t pad_length;
 
     prop_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_bundle_feature_prop, &ti, "Bundle feature property");
 
@@ -4310,7 +4309,7 @@ dissect_openflow_bundle_feature_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, p
 }
 
 static void
-dissect_openflow_bundle_features_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_bundle_features_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint32_t feature_request_flags; */
     proto_tree_add_item(tree, hf_openflow_v6_bundle_features_request_flags, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -4374,11 +4373,11 @@ static const value_string openflow_v6_multipart_type_values[] = {
 
 #define OFPMPF_REQ_MORE  1 << 0
 static void
-dissect_openflow_multipart_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_multipart_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     proto_item *ti;
     proto_tree *flags_tree;
-    guint32 type;
+    uint32_t type;
 
     /* uint16_t type; */
     proto_tree_add_item_ret_uint(tree, hf_openflow_v6_multipart_request_type , tvb, offset, 2, ENC_BIG_ENDIAN, &type);
@@ -4485,7 +4484,7 @@ dissect_openflow_multipart_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, pro
 #define DESC_STR_LEN    256
 #define SERIAL_NUM_LEN  32
 static void
-dissect_openflow_switch_description_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_switch_description_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* char mfr_desc[DESC_STR_LEN]; */
     proto_tree_add_item(tree, hf_openflow_v6_switch_description_mfr_desc, tvb, offset, DESC_STR_LEN, ENC_ASCII);
@@ -4511,12 +4510,12 @@ dissect_openflow_switch_description_v6(tvbuff_t *tvb, packet_info *pinfo _U_, pr
 
 static int
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_openflow_flow_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_flow_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *desc_tree, *flags_tree;
-    guint32 desc_len;
-    gint32 desc_end;
+    uint32_t desc_len;
+    int32_t desc_end;
 
     desc_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_flow_desc, &ti, "Flow desc");
 
@@ -4594,11 +4593,11 @@ static const value_string openflow_v6_flow_stats_reason_values[] = {
 };
 
 static int
-dissect_openflow_flow_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_flow_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *stats_tree;
-    guint32 stats_len;
+    uint32_t stats_len;
 
     stats_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_flow_stats, &ti, "Flow stats");
 
@@ -4634,14 +4633,14 @@ dissect_openflow_flow_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
 
 
 static void
-dissect_openflow_aggregate_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_aggregate_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     dissect_openflow_stats_v6(tvb, pinfo, tree, offset, length);
 }
 
 
 static int
-dissect_openflow_table_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_table_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *stats_tree;
 
@@ -4672,7 +4671,7 @@ dissect_openflow_table_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 
 
 static int
-dissect_openflow_port_stats_prop_ethernet_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_port_stats_prop_ethernet_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint8_t pad[4]; */
     proto_tree_add_item(tree, hf_openflow_v6_port_stats_prop_ethernet_pad, tvb, offset, 4, ENC_NA);
@@ -4705,7 +4704,7 @@ dissect_openflow_port_stats_prop_ethernet_v6(tvbuff_t *tvb, packet_info *pinfo _
 #define OFPOSF_TX_BIAS   1<<5
 #define OFPOSF_TX_TEMP   1<<6
 static int
-dissect_openflow_port_stats_prop_optical_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_port_stats_prop_optical_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *flags_tree;
@@ -4782,12 +4781,12 @@ static const value_string openflow_v6_port_stats_prop_type_values[] = {
 };
 
 static int
-dissect_openflow_port_stats_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_port_stats_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *prop_tree;
     proto_item *ti, *prop_item;
-    guint32 prop_type;
-    guint32 prop_length;
+    uint32_t prop_type;
+    uint32_t prop_length;
 
     prop_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_port_stats_prop, &ti, "Port stats. property");
 
@@ -4845,11 +4844,11 @@ dissect_openflow_port_stats_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto
 
 
 static int
-dissect_openflow_port_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_port_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *stats_tree;
-    guint32 stats_length;
-    guint16 stats_end;
+    uint32_t stats_length;
+    uint16_t stats_end;
 
     stats_tree = proto_tree_add_subtree(tree, tvb, offset, 112, ett_openflow_v6_port_stats, NULL, "Port stats");
 
@@ -4917,12 +4916,12 @@ dissect_openflow_port_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
 
 
 static int
-dissect_openflow_table_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_table_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *desc_tree, *conf_tree;
-    guint32 desc_length;
-    gint32 desc_end;
+    uint32_t desc_length;
+    int32_t desc_end;
 
     desc_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_table_desc, &ti, "Table desc");
 
@@ -4965,12 +4964,12 @@ static const value_string openflow_v6_queue_stats_prop_type_values[] = {
 };
 
 static int
-dissect_openflow_queue_stats_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_queue_stats_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *prop_tree;
     proto_item *prop_item;
-    guint32 prop_type;
-    guint16 prop_length;
+    uint32_t prop_type;
+    uint16_t prop_length;
 
     prop_length = tvb_get_ntohs(tvb, offset + 2);
 
@@ -5023,11 +5022,11 @@ dissect_openflow_queue_stats_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, prot
 
 
 static int
-dissect_openflow_queue_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_queue_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *stats_tree;
-    guint16 stats_len;
-    gint32 stats_end;
+    uint16_t stats_len;
+    int32_t stats_end;
 
     stats_len = tvb_get_ntohs(tvb, offset);
     stats_end = offset + stats_len;
@@ -5081,7 +5080,7 @@ dissect_openflow_queue_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 
 
 static int
-dissect_openflow_bucket_counter_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_bucket_counter_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *counter_tree;
 
@@ -5100,12 +5099,12 @@ dissect_openflow_bucket_counter_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
 
 
 static int
-dissect_openflow_group_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_group_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *stats_tree;
-    guint16 stats_len;
-    gint32 stats_end;
+    uint16_t stats_len;
+    int32_t stats_end;
 
     stats_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_group_stats, &ti, "Group stats");
 
@@ -5157,13 +5156,13 @@ dissect_openflow_group_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 }
 
 static int
-dissect_openflow_group_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_group_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     proto_item *ti;
     proto_tree *desc_tree;
 
-    guint16 desc_len;
-    gint32 desc_end;
+    uint16_t desc_len;
+    int32_t desc_end;
 
     desc_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_group_desc, &ti, "Group description");
 
@@ -5200,7 +5199,7 @@ dissect_openflow_group_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
 #define OFPGFC_CHAINING         1 << 2
 #define OFPGFC_CHAINING_CHECKS  1 << 3
 static void
-dissect_openflow_group_features_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_group_features_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *types_tree, *caps_tree, *acts_tree;
@@ -5331,7 +5330,7 @@ dissect_openflow_group_features_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
 
 
 static int
-dissect_openflow_meter_band_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_meter_band_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *stats_tree;
 
@@ -5350,12 +5349,12 @@ dissect_openflow_meter_band_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, prot
 
 
 static int
-dissect_openflow_meter_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_meter_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *stats_tree;
-    guint16 stats_len;
-    guint16 stats_end;
+    uint16_t stats_len;
+    uint16_t stats_end;
 
     stats_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_meter_stats, &ti, "Meter stats");
 
@@ -5404,12 +5403,12 @@ dissect_openflow_meter_stats_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 
 
 static int
-dissect_openflow_meter_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_meter_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *conf_tree, *flags_tree;
-    guint16 config_len;
-    gint32 config_end;
+    uint16_t config_len;
+    int32_t config_end;
 
     conf_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_meter_desc, &ti, "Meter desc");
 
@@ -5448,7 +5447,7 @@ dissect_openflow_meter_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
 #define OFPMF_BURST  1 << 2
 #define OFPMF_STATS  1 << 3
 static void
-dissect_openflow_meter_features_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_meter_features_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *bands_tree, *caps_tree;
@@ -5513,12 +5512,12 @@ static const value_string openflow_v6_queue_desc_prop_property_values[] = {
 };
 
 static int
-dissect_openflow_queue_desc_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_queue_desc_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *prop_tree;
-    guint32 prop_type;
-    guint16 prop_len;
+    uint32_t prop_type;
+    uint16_t prop_len;
 
     prop_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_queue_desc_prop, &ti, "Queue property");
 
@@ -5608,11 +5607,11 @@ static const value_string openflow_v6_queue_id_reserved_values[] = {
 #endif
 
 static int
-dissect_openflow_queue_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_queue_desc_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *desc_tree;
-    guint16 desc_len;
-    gint32 desc_end;
+    uint16_t desc_len;
+    int32_t desc_end;
 
     desc_len = tvb_get_ntohs(tvb, offset + 8);
     desc_end = offset + desc_len;
@@ -5653,14 +5652,14 @@ static const value_string openflow_v6_controller_status_prop_type_values[] = {
 
 
 static int
-dissect_openflow_controller_status_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_controller_status_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *prop_tree;
-    guint32 prop_type;
-    guint32 prop_length;
-    gint32 body_end;
-    guint16 pad_length;
+    uint32_t prop_type;
+    uint32_t prop_length;
+    int32_t body_end;
+    uint16_t pad_length;
 
     prop_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_controller_status_prop, &ti, "Controller status property");
 
@@ -5744,7 +5743,7 @@ static const value_string openflow_v6_controller_status_channel_status_values[] 
 };
 
 static int
-dissect_openflow_controller_status_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_controller_status_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint16_t length; */
     proto_tree_add_item(tree, hf_openflow_v6_controller_status_length, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -5796,12 +5795,12 @@ static const value_string openflow_v6_flow_monitor_events[] = {
 };
 
 static int
-dissect_openflow_flow_update_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_flow_update_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_tree *update_tree;
-    guint32 update_len;
-    guint32 update_event;
-    gint32 update_end;
+    uint32_t update_len;
+    uint32_t update_event;
+    int32_t update_end;
     proto_item *ti;
 
     update_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_flow_update, &ti, "Flow update");
@@ -5895,11 +5894,11 @@ dissect_openflow_flow_update_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 
 #define OFPMPF_REPLY_MORE  1 << 0
 static void
-dissect_openflow_multipart_reply_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_multipart_reply_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length)
 {
     proto_item *ti;
     proto_tree *flags_tree;
-    guint32 type;
+    uint32_t type;
 
     /* uint16_t type; */
     proto_tree_add_item_ret_uint(tree, hf_openflow_v6_multipart_reply_type, tvb, offset, 2, ENC_BIG_ENDIAN, &type);
@@ -6025,7 +6024,7 @@ dissect_openflow_multipart_reply_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto
 
 #if 0
 static void
-dissect_openflow_queue_get_config_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_queue_get_config_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint32_t port; */
     proto_tree_add_item(tree, hf_openflow_v6_queue_get_config_request_port, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -6048,7 +6047,7 @@ static const value_string openflow_v6_controller_role_values[] = {
 };
 
 static void
-dissect_openflow_role_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_role_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint32_t role; */
     proto_tree_add_item(tree, hf_openflow_v6_role_request_role, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -6065,7 +6064,7 @@ dissect_openflow_role_request_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 
 
 static void
-dissect_openflow_role_reply_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_role_reply_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint32_t role; */
     proto_tree_add_item(tree, hf_openflow_v6_role_reply_role, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -6117,12 +6116,12 @@ static const value_string openflow_v6_async_config_prop_type_values[] = {
 #define OFPRFR_GROUP_MOD  0
 #define OFPRFR_METER_MOD  1
 static int
-dissect_openflow_async_config_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_async_config_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti, *prop_item;
     proto_tree *prop_tree, *pi_tree, *ps_tree, *fr_tree, *rs_tree, *ts_tree, *rf_tree;
-    guint32 prop_type;
-    guint32 prop_len;
+    uint32_t prop_type;
+    uint32_t prop_len;
 
     prop_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_async_config_prop, &ti, "Async config prop");
 
@@ -6250,7 +6249,7 @@ dissect_openflow_async_config_prop_v6(tvbuff_t *tvb, packet_info *pinfo _U_, pro
 
 
 static void
-dissect_openflow_async_config_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_async_config_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* struct ofp_async_config_prop_header properties[0]; */
     while (offset < length) {
@@ -6268,7 +6267,7 @@ static const value_string openflow_v6_metermod_command_values[] = {
 };
 
 static void
-dissect_openflow_metermod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_metermod_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *flags_tree;
@@ -6308,7 +6307,7 @@ static const value_string openflow_v6_role_status_reason_values[] = {
 };
 
 static void
-dissect_openflow_role_status_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_role_status_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint32_t role; */
     proto_tree_add_item(tree, hf_openflow_v6_role_status_role, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -6338,7 +6337,7 @@ static const value_string openflow_v6_table_status_reason_values[] = {
 };
 
 static void
-dissect_openflow_table_status_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_table_status_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     /* uint8_t reason; */
     proto_tree_add_item(tree, hf_openflow_v6_table_status_reason, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -6354,11 +6353,11 @@ dissect_openflow_table_status_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 
 static void
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_openflow_requestforward_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_requestforward_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *req_tree;
-    guint16 req_begin;
+    uint16_t req_begin;
 
     /* struct ofp_header request; */
     req_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_requestforward_request, &ti, "Request");
@@ -6379,12 +6378,12 @@ static const value_string openflow_v6_bundle_prop_type_values[] = {
 };
 
 static int
-dissect_openflow_bundle_prop_v6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, guint16 length)
+dissect_openflow_bundle_prop_v6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, uint16_t length)
 {
     proto_tree *prop_tree;
     proto_item *prop_item, *ti;
-    guint32 prop_type;
-    guint32 prop_len;
+    uint32_t prop_type;
+    uint32_t prop_len;
 
     prop_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_openflow_v6_bundle_prop, &ti, "Bundle prop");
 
@@ -6463,7 +6462,7 @@ static const value_string openflow_v6_bundle_control_flags[] = {
 #endif
 
 static void
-dissect_openflow_bundle_control_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_bundle_control_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *flags_tree;
@@ -6494,11 +6493,11 @@ dissect_openflow_bundle_control_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
 
 static void
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_openflow_bundle_add_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, guint16 length _U_)
+dissect_openflow_bundle_add_v6(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint16_t length _U_)
 {
     proto_item *ti;
     proto_tree *flags_tree, *msg_tree;
-    guint16 msg_begin;
+    uint16_t msg_begin;
 
     /* uint32_t bundle_id; */
     proto_tree_add_item(tree, hf_openflow_v6_bundle_add_bundle_id, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -6535,11 +6534,11 @@ static int
 // NOLINTNEXTLINE(misc-no-recursion)
 dissect_openflow_message_v6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
-    guint8 type;
-    guint16 length;
-    gint32 msg_end;
+    uint8_t type;
+    uint16_t length;
+    int32_t msg_end;
 
-    type = tvb_get_guint8(tvb, offset + 1);
+    type = tvb_get_uint8(tvb, offset + 1);
     length = tvb_get_ntohs(tvb, offset + 2);
     msg_end = offset + length;
 
@@ -6659,9 +6658,9 @@ dissect_openflow_v6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
 {
     proto_item *ti;
     proto_tree *openflow_tree;
-    guint8 type;
+    uint8_t type;
 
-    type = tvb_get_guint8(tvb, 1);
+    type = tvb_get_uint8(tvb, 1);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, "Type: %s",
                   val_to_str_ext_const(type, &openflow_v6_type_values_ext, "Unknown message type"));
@@ -10526,7 +10525,7 @@ proto_register_openflow_v6(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_openflow_v6,
         &ett_openflow_v6_flowmod_flags,
         &ett_openflow_v6_bucket,

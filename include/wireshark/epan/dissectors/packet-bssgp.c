@@ -18,6 +18,8 @@
 #include <epan/expert.h>
 #include <epan/prefs.h>
 #include <epan/asn1.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 #include "packet-bssgp.h"
 #include "packet-e212.h"
@@ -51,7 +53,7 @@
  *
  * However, for some not-entirely-obvious reason, BSSGP_LITTLE_ENDIAN, which
  * was passed to proto_tree_add_item() as the byte-order argument, was
- * defined as FALSE - which meant big-endian.
+ * defined as false - which meant big-endian.
  *
  * For now, we'll use ENC_BIG_ENDIAN, now that we have ENC_BIG_ENDIAN and
  * REP_LITTLE_ENDIAN definitions.
@@ -62,8 +64,8 @@
 void proto_register_bssgp(void);
 void proto_reg_handoff_bssgp(void);
 
-static guint8 g_pdu_type, g_rim_application_identity;
-static guint32 g_bssgp_ran_inf_pdu_t_ext_c;
+static uint8_t g_pdu_type, g_rim_application_identity;
+static uint32_t g_bssgp_ran_inf_pdu_t_ext_c;
 static proto_tree *gparent_tree;
 static dissector_handle_t llc_handle;
 static dissector_handle_t rrlp_handle;
@@ -73,160 +75,160 @@ static module_t *bssgp_module;
 static dissector_table_t diameter_3gpp_avp_dissector_table;
 
 /* Initialize the protocol and registered fields */
-static int proto_bssgp = -1;
-static int hf_bssgp_msg_type = -1;
-int hf_bssgp_elem_id = -1;
-static int hf_bssgp_ci = -1;
-static int hf_bssgp_flush_action = -1;
-static int hf_bssgp_llc_frames_disc = -1;
-static int hf_bssgp_ra_discriminator = -1;
-static int hf_bssgp_rim_app_id = -1;
-static int hf_bssgp_rim_seq_no = -1;
-static int hf_bssgp_rat_discriminator = -1;
-static int hf_bssgp_nacc_cause = -1;
-static int hf_bssgp_si3_cause = -1;
-static int hf_bssgp_mbms_data_ch_cause = -1;
-static int hf_bssgp_utra_si_cause = -1;
-static int hf_bssgp_num_si_psi = -1;
-static int hf_bssgp_si_psi_type = -1;
-static int hf_bssgp_ran_inf_req_pdu_t_ext_c = -1;
-static int hf_bssgp_ran_inf_pdu_t_ext_c = -1;
-static int hf_bssgp_rim_pdu_ind_ack = -1;
-static int hf_bssgp_rim_proto_ver_no = -1;
-static int hf_bssgp_bss_area_ind = -1;
-static int hf_bssgp_bvci = -1;
-static int hf_bssgp_bmax = -1;
-static int hf_bssgp_r = -1;
-static int hf_bssgp_r_pfc = -1;
-static int hf_bssgp_bucket_size = -1;
-static int hf_bssgp_bmax_pfc = -1;
-static int hf_bssgp_omc_id = -1;
-static int hf_bssgp_nsei = -1;
-static int hf_bssgp_rrlp_flag1 = -1;
+static int proto_bssgp;
+static int hf_bssgp_msg_type;
+int hf_bssgp_elem_id;
+static int hf_bssgp_ci;
+static int hf_bssgp_flush_action;
+static int hf_bssgp_llc_frames_disc;
+static int hf_bssgp_ra_discriminator;
+static int hf_bssgp_rim_app_id;
+static int hf_bssgp_rim_seq_no;
+static int hf_bssgp_rat_discriminator;
+static int hf_bssgp_nacc_cause;
+static int hf_bssgp_si3_cause;
+static int hf_bssgp_mbms_data_ch_cause;
+static int hf_bssgp_utra_si_cause;
+static int hf_bssgp_num_si_psi;
+static int hf_bssgp_si_psi_type;
+static int hf_bssgp_ran_inf_req_pdu_t_ext_c;
+static int hf_bssgp_ran_inf_pdu_t_ext_c;
+static int hf_bssgp_rim_pdu_ind_ack;
+static int hf_bssgp_rim_proto_ver_no;
+static int hf_bssgp_bss_area_ind;
+static int hf_bssgp_bvci;
+static int hf_bssgp_bmax;
+static int hf_bssgp_r;
+static int hf_bssgp_r_pfc;
+static int hf_bssgp_bucket_size;
+static int hf_bssgp_bmax_pfc;
+static int hf_bssgp_omc_id;
+static int hf_bssgp_nsei;
+static int hf_bssgp_rrlp_flag1;
 
-static int hf_bssgp_delay_val = -1;
-static int hf_bssgp_cause = -1;
-static int hf_bssgp_peak_rate_gran = -1;
-static int hf_bssgp_cr_bit = -1;
-static int hf_bssgp_t_bit = -1;
-static int hf_bssgp_a_bit = -1;
-static int hf_bssgp_ra_cause = -1;
-static int hf_bssgp_ra_cap_upd_cause = -1;
-static int hf_bssgp_r_default_ms = -1;
-static int hf_bssgp_suspend_ref_no = -1;
-static int hf_bssgp_tag = -1;
-static int hf_bssgp_trace_ref = -1;
-static int hf_bssgp_trigger_id = -1;
-static int hf_bssgp_transaction_id = -1;
-static int hf_bssgp_no_of_oct = -1;
-static int hf_bssgp_unit_val = -1;
-static int hf_bssgp_gprs_timer = -1;
-static int hf_bssgp_mbms = -1;
-static int hf_bssgp_EnhancedRadioStatus = -1;
-static int hf_bssgp_pfcfc = -1;
-static int hf_bssgp_rim = -1;
-static int hf_bssgp_lcs = -1;
-static int hf_bssgp_inr = -1;
-static int hf_bssgp_cbl = -1;
-static int hf_bssgp_pfc = -1;
-static int hf_bssgp_bucket_full_ratio = -1;
-static int hf_bssgp_b_pfc = -1;
+static int hf_bssgp_delay_val;
+static int hf_bssgp_cause;
+static int hf_bssgp_peak_rate_gran;
+static int hf_bssgp_cr_bit;
+static int hf_bssgp_t_bit;
+static int hf_bssgp_a_bit;
+static int hf_bssgp_ra_cause;
+static int hf_bssgp_ra_cap_upd_cause;
+static int hf_bssgp_r_default_ms;
+static int hf_bssgp_suspend_ref_no;
+static int hf_bssgp_tag;
+static int hf_bssgp_trace_ref;
+static int hf_bssgp_trigger_id;
+static int hf_bssgp_transaction_id;
+static int hf_bssgp_no_of_oct;
+static int hf_bssgp_unit_val;
+static int hf_bssgp_gprs_timer;
+static int hf_bssgp_mbms;
+static int hf_bssgp_EnhancedRadioStatus;
+static int hf_bssgp_pfcfc;
+static int hf_bssgp_rim;
+static int hf_bssgp_lcs;
+static int hf_bssgp_inr;
+static int hf_bssgp_cbl;
+static int hf_bssgp_pfc;
+static int hf_bssgp_bucket_full_ratio;
+static int hf_bssgp_b_pfc;
 
-static int hf_bssgp_precedence = -1;
-static int hf_bssgp_serv_utran_cco = -1;
-static int hf_bssgp_mbms_session_id = -1;
-static int hf_bssgp_mbms_cause = -1;
-static int hf_bssgp_mbms_stop_cause = -1;
-static int hf_bssgp_mbms_num_ra_ids = -1;
-static int hf_bssgp_session_inf = -1;
-static int hf_bssgp_ec_gsm_iot = -1;
-static int hf_bssgp_mocn = -1;
-static int hf_bssgp_csps_coord = -1;
-static int hf_bssgp_eDRX = -1;
-static int hf_bssgp_dcn = -1;
-static int hf_bssgp_gb_if = -1;
-static int hf_bssgp_ps_ho = -1;
-static int hf_bssgp_src_to_trg_transp_cont = -1;
-static int hf_bssgp_trg_to_src_transp_cont = -1;
-static int hf_bssgp_rnc_id = -1;
-static int hf_bssgp_page_mode = -1;
-static int hf_bssgp_container_id = -1;
-static int hf_bssgp_global_tfi = -1;
-static int hf_bssgp_ul_tfi = -1;
-static int hf_bssgp_dl_tfi = -1;
-static int hf_bssgp_time_to_MBMS_data_tran = -1;
-static int hf_bssgp_mbms_session_rep_no = -1;
-static int hf_bssgp_ps_ho_cmd = -1;
-static int hf_bssgp_sipsi = -1;
-static int hf_bssgp_type = -1;
-static int hf_bssgp_cs_indication = -1;
-static int hf_bssgp_flow_control_gran = -1;
-static int hf_bssgp_serv_eutran_cco = -1;
-static int hf_bssgp_sub_prof_id_f_rat_freq_prio = -1;
-static int hf_bssgp_eutran_irat_ho_inf_req = -1;
-static int hf_bssgp_irat_ho_inf_req = -1;
+static int hf_bssgp_precedence;
+static int hf_bssgp_serv_utran_cco;
+static int hf_bssgp_mbms_session_id;
+static int hf_bssgp_mbms_cause;
+static int hf_bssgp_mbms_stop_cause;
+static int hf_bssgp_mbms_num_ra_ids;
+static int hf_bssgp_session_inf;
+static int hf_bssgp_ec_gsm_iot;
+static int hf_bssgp_mocn;
+static int hf_bssgp_csps_coord;
+static int hf_bssgp_eDRX;
+static int hf_bssgp_dcn;
+static int hf_bssgp_gb_if;
+static int hf_bssgp_ps_ho;
+static int hf_bssgp_src_to_trg_transp_cont;
+static int hf_bssgp_trg_to_src_transp_cont;
+static int hf_bssgp_rnc_id;
+static int hf_bssgp_page_mode;
+static int hf_bssgp_container_id;
+static int hf_bssgp_global_tfi;
+static int hf_bssgp_ul_tfi;
+static int hf_bssgp_dl_tfi;
+static int hf_bssgp_time_to_MBMS_data_tran;
+static int hf_bssgp_mbms_session_rep_no;
+static int hf_bssgp_ps_ho_cmd;
+static int hf_bssgp_sipsi;
+static int hf_bssgp_type;
+static int hf_bssgp_cs_indication;
+static int hf_bssgp_flow_control_gran;
+static int hf_bssgp_serv_eutran_cco;
+static int hf_bssgp_sub_prof_id_f_rat_freq_prio;
+static int hf_bssgp_eutran_irat_ho_inf_req;
+static int hf_bssgp_irat_ho_inf_req;
 
-static int hf_bssgp_rel_int_rat_ho_inf_ind = -1;
-static int hf_bssgp_csg_id = -1;
-static int hf_bssgp_cell_acc_mode = -1;
-static int hf_bssgp_redir_complete_outcome = -1;
-static int hf_bssgp_redir_indication_reroute_reject_cause = -1;
-static int hf_bssgp_unconfirm_send_state_var = -1;
-static int hf_bssgp_Global_ENB_ID_PDU = -1;
-static int hf_bssgp_SONtransferRequestContainer_PDU = -1;
-static int hf_bssgp_plmn_id = -1;
-static int hf_bssgp_num_pfc = -1;
-static int hf_bssgp_llc_data = -1;
-static int hf_bssgp_pdu_data = -1;
-static int hf_bssgp_rrlp_apdu = -1;
-static int hf_bssgp_dtm_handover_command_data = -1;
-static int hf_bssgp_message_elements = -1;
-static int hf_bssgp_spare = -1;
-static int hf_bssgp_si = -1;
-static int hf_bssgp_psi = -1;
-static int hf_bssgp_peak_bit_rate = -1;
-static int hf_bssgp_sys_info_type3_msg = -1;
-static int hf_bssgp_trace_type_data = -1;
-static int hf_bssgp_si_item = -1;
-static int hf_bssgp_sci = -1;
-static int hf_bssgp_ggsn_pgw_location = -1;
-static int hf_bssgp_edrx_cycle_value = -1;
-static int hf_bssgp_tunpo_minutes = -1;
-static int hf_bssgp_tunpo_seconds = -1;
-static int hf_bssgp_ec_dl_coverage_class = -1;
-static int hf_bssgp_ec_ul_coverage_class = -1;
-static int hf_bssgp_pei = -1;
-static int hf_bssgp_paging_attempt_count = -1;
-static int hf_bssgp_intended_num_of_pag_attempts = -1;
-static int hf_bssgp_extended_feature_bitmap = -1;
-static int hf_bssgp_prio_class_ind = -1;
-static int hf_bssgp_prio_class_flag_b0 = -1;
+static int hf_bssgp_rel_int_rat_ho_inf_ind;
+static int hf_bssgp_csg_id;
+static int hf_bssgp_cell_acc_mode;
+static int hf_bssgp_redir_complete_outcome;
+static int hf_bssgp_redir_indication_reroute_reject_cause;
+static int hf_bssgp_unconfirm_send_state_var;
+static int hf_bssgp_Global_ENB_ID_PDU;
+static int hf_bssgp_SONtransferRequestContainer_PDU;
+static int hf_bssgp_plmn_id;
+static int hf_bssgp_num_pfc;
+static int hf_bssgp_llc_data;
+static int hf_bssgp_pdu_data;
+static int hf_bssgp_rrlp_apdu;
+static int hf_bssgp_dtm_handover_command_data;
+static int hf_bssgp_message_elements;
+static int hf_bssgp_spare;
+static int hf_bssgp_si;
+static int hf_bssgp_psi;
+static int hf_bssgp_peak_bit_rate;
+static int hf_bssgp_sys_info_type3_msg;
+static int hf_bssgp_trace_type_data;
+static int hf_bssgp_si_item;
+static int hf_bssgp_sci;
+static int hf_bssgp_ggsn_pgw_location;
+static int hf_bssgp_edrx_cycle_value;
+static int hf_bssgp_tunpo_minutes;
+static int hf_bssgp_tunpo_seconds;
+static int hf_bssgp_ec_dl_coverage_class;
+static int hf_bssgp_ec_ul_coverage_class;
+static int hf_bssgp_pei;
+static int hf_bssgp_paging_attempt_count;
+static int hf_bssgp_intended_num_of_pag_attempts;
+static int hf_bssgp_extended_feature_bitmap;
+static int hf_bssgp_prio_class_ind;
+static int hf_bssgp_prio_class_flag_b0;
 
 /* Initialize the subtree pointers */
-static gint ett_bssgp = -1;
-static gint ett_bssgp_new = -1;
-static gint ett_bssgp_pfcs_to_be_set_up_list = -1;
-static gint ett_bssgp_pfcs_to_be_set_up_list_pft = -1;
-static gint ett_bssgp_pfcs_to_be_set_up_list_abqp = -1;
-static gint ett_bssgp_pfcs_to_be_set_up_list_arp = -1;
-static gint ett_bssgp_pfcs_to_be_set_up_list_t10 = -1;
-static gint ett_bssgp_list_of_setup_pfcs = -1;
-static gint ett_bssgp_pfc_flow_control_parameters_pfc = -1;
-static gint ett_bssgp_ra_id = -1;
-static gint ett_bssgp_extended_feature_bitmap = -1;
-static gint ett_bssgp_prio_class_ind = -1;
+static int ett_bssgp;
+static int ett_bssgp_new;
+static int ett_bssgp_pfcs_to_be_set_up_list;
+static int ett_bssgp_pfcs_to_be_set_up_list_pft;
+static int ett_bssgp_pfcs_to_be_set_up_list_abqp;
+static int ett_bssgp_pfcs_to_be_set_up_list_arp;
+static int ett_bssgp_pfcs_to_be_set_up_list_t10;
+static int ett_bssgp_list_of_setup_pfcs;
+static int ett_bssgp_pfc_flow_control_parameters_pfc;
+static int ett_bssgp_ra_id;
+static int ett_bssgp_extended_feature_bitmap;
+static int ett_bssgp_prio_class_ind;
 
-static expert_field ei_bssgp_extraneous_data = EI_INIT;
-static expert_field ei_bssgp_missing_mandatory_element = EI_INIT;
-static expert_field ei_bssgp_not_dissected_yet = EI_INIT;
-static expert_field ei_bssgp_erroneous_app_container = EI_INIT;
-static expert_field ei_bssgp_si_item = EI_INIT;
-static expert_field ei_bssgp_unknown_rim_app_id_data = EI_INIT;
-static expert_field ei_bssgp_unknown_app_container = EI_INIT;
-static expert_field ei_bssgp_ra_discriminator = EI_INIT;
-static expert_field ei_bssgp_unknown_rim_app_id = EI_INIT;
-static expert_field ei_bssgp_msg_type = EI_INIT;
-static expert_field ei_bssgp_ran_inf_app_cont_utra_si = EI_INIT;
+static expert_field ei_bssgp_extraneous_data;
+static expert_field ei_bssgp_missing_mandatory_element;
+static expert_field ei_bssgp_not_dissected_yet;
+static expert_field ei_bssgp_erroneous_app_container;
+static expert_field ei_bssgp_si_item;
+static expert_field ei_bssgp_unknown_rim_app_id_data;
+static expert_field ei_bssgp_unknown_app_container;
+static expert_field ei_bssgp_ra_discriminator;
+static expert_field ei_bssgp_unknown_rim_app_id;
+static expert_field ei_bssgp_msg_type;
+static expert_field ei_bssgp_ran_inf_app_cont_utra_si;
 
 /* PDU type coding, v6.5.0, table 11.3.26, p 80 */
 #define BSSGP_PDU_DL_UNITDATA                  0x00
@@ -555,7 +557,7 @@ xa6     Timing Advance Request
 /* Defined locally here without the check of curr_len wrapping, that will be taken care of when this IEI dissection finishes */
 #define ELEM_IN_ELEM_MAND_TELV(EMT_iei, EMT_pdu_type, EMT_elem_idx, EMT_elem_name_addition) \
 {\
-    if ((consumed = elem_telv(tvb, tree, pinfo, (guint8) EMT_iei, EMT_pdu_type, EMT_elem_idx, curr_offset, curr_len, EMT_elem_name_addition)) > 0) \
+    if ((consumed = elem_telv(tvb, tree, pinfo, (uint8_t) EMT_iei, EMT_pdu_type, EMT_elem_idx, curr_offset, curr_len, EMT_elem_name_addition)) > 0) \
     { \
         curr_offset += consumed; \
         curr_len -= consumed; \
@@ -575,7 +577,7 @@ xa6     Timing Advance Request
 #define ELEM_IN_ELEM_OPT_TELV(EOT_iei, EOT_pdu_type, EOT_elem_idx, EOT_elem_name_addition) \
 {\
     if (curr_len != 0){\
-        if ((consumed = elem_telv(tvb, tree, pinfo, (guint8) EOT_iei, EOT_pdu_type, EOT_elem_idx, curr_offset, curr_len, EOT_elem_name_addition)) > 0) \
+        if ((consumed = elem_telv(tvb, tree, pinfo, (uint8_t) EOT_iei, EOT_pdu_type, EOT_elem_idx, curr_offset, curr_len, EOT_elem_name_addition)) > 0) \
         { \
             curr_offset += consumed; \
             curr_len -= consumed; \
@@ -584,11 +586,11 @@ xa6     Timing Advance Request
 }
 
 /* Forward declarations */
-static guint16 de_bssgp_ran_inf_request_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_);
-static guint16 de_bssgp_ran_inf_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_);
-static guint16 de_bssgp_ran_inf_ack_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_);
-static guint16 de_bssgp_ran_inf_error_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_);
-static guint16 de_bssgp_ran_inf_app_error_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_);
+static uint16_t de_bssgp_ran_inf_request_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_);
+static uint16_t de_bssgp_ran_inf_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_);
+static uint16_t de_bssgp_ran_inf_ack_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_);
+static uint16_t de_bssgp_ran_inf_error_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_);
+static uint16_t de_bssgp_ran_inf_app_error_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_);
 
 
 #if 0
@@ -612,86 +614,86 @@ static const value_string tab_nacc_cause[]={
 /*
  * 11.3.1   Alignment octets
  */
-static guint16
-de_bssgp_aligment_octets(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_aligment_octets(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_spare, tvb, curr_offset, len, ENC_NA);
 
-    return(len);
+    return len;
 }
 
 /*
  * 11.3.2   Bmax default MS
  */
-static guint16
-de_bssgp_bmax_default_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_bmax_default_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_bmax, tvb, curr_offset, 2, ENC_BIG_ENDIAN);
     curr_offset+=2;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.3   BSS Area Indication
  */
-static guint16
-de_bssgp_bss_area_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_bss_area_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_bss_area_ind, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.4   Bucket Leak Rate (R)
  */
-static guint16
-de_bssgp_bucket_leak_rate(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_bucket_leak_rate(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_r, tvb, curr_offset, 2, ENC_BIG_ENDIAN);
     curr_offset+=2;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.5   BVC Bucket Size
  */
-static guint16
-de_bssgp_bvc_bucket_size(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_bvc_bucket_size(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_bucket_size, tvb, curr_offset, 2, ENC_BIG_ENDIAN);
     curr_offset+=2;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.6   BVCI (BSSGP Virtual Connection Identifier)
  */
-static guint16
-de_bssgp_bvci(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string, int string_len)
+static uint16_t
+de_bssgp_bvci(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string, int string_len)
 {
-    guint32 curr_offset;
-    guint16 bvci;
+    uint32_t curr_offset;
+    uint16_t bvci;
 
     curr_offset = offset;
 
@@ -704,15 +706,15 @@ de_bssgp_bvci(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 o
         snprintf(add_string, string_len, " - 0x%x", bvci);
 
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.7   BVC Measurement
  */
-static guint16
-de_bssgp_bvc_meas(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_bvc_meas(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -723,7 +725,7 @@ de_bssgp_bvc_meas(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint
     proto_tree_add_item(tree, hf_bssgp_delay_val, tvb, curr_offset, 2, ENC_BIG_ENDIAN);
     curr_offset+=2;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.8   Cause
@@ -812,10 +814,10 @@ static const value_string bssgp_cause_vals[] = {
 
 value_string_ext bssgp_cause_vals_ext = VALUE_STRING_EXT_INIT(bssgp_cause_vals);
 
-static guint16
-de_bssgp_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -826,7 +828,7 @@ de_bssgp_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 
     proto_tree_add_item(tree, hf_bssgp_cause, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset+=1;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.9   Cell Identifier
@@ -840,11 +842,11 @@ de_bssgp_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 
  * 3GPP TS 24.008 IEI (10.5.1.1)
  */
 
-guint16
-de_bssgp_cell_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string, int string_len)
+uint16_t
+de_bssgp_cell_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string, int string_len)
 {
-    guint32 curr_offset;
-    guint16 ci;
+    uint32_t curr_offset;
+    uint16_t ci;
 
     curr_offset = offset;
 
@@ -861,7 +863,7 @@ de_bssgp_cell_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
         g_free(str);
     }
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.10  Channel needed
@@ -873,16 +875,16 @@ de_bssgp_cell_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
  * The rest of the information element is coded as the IEI part and the
  * value part of the Channel Needed IE defined in 3GPP TS 44.018.
  */
-static guint16
-de_bssgp_chnl_needed(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_chnl_needed(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     curr_offset = de_rr_chnl_needed(tvb, tree, pinfo, curr_offset, len , NULL, 0);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -911,23 +913,23 @@ static const value_string bssgp_flush_action_vals[] = {
     /* Otherwise "Reserved" */
 };
 
-static guint16
-de_bssgp_flush_action(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string, int string_len)
+static uint16_t
+de_bssgp_flush_action(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string, int string_len)
 {
-    guint32 curr_offset;
-    guint8  oct;
+    uint32_t curr_offset;
+    uint8_t oct;
 
     curr_offset = offset;
 
     /* Action value */
-    oct = tvb_get_guint8(tvb,curr_offset);
+    oct = tvb_get_uint8(tvb,curr_offset);
     proto_tree_add_item(tree, hf_bssgp_flush_action, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset+=1;
     if (add_string)
         snprintf(add_string, string_len, " - %s", val_to_str_const(oct, bssgp_flush_action_vals, "Reserved"));
 
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.14  IMSI
@@ -942,11 +944,11 @@ de_bssgp_flush_action(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, g
  * 11.3.15  LLC-PDU
  */
 
-static guint16
-de_bssgp_llc_pdu(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_llc_pdu(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
     tvbuff_t *next_tvb=NULL;
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -963,28 +965,28 @@ de_bssgp_llc_pdu(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
         }
     }
 
-    return(len);
+    return len;
 }
 /*
  * 11.3.16  LLC Frames Discarded
  */
-static guint16
-de_bssgp_llc_frames_disc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string, int string_len)
+static uint16_t
+de_bssgp_llc_frames_disc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string, int string_len)
 {
-    guint32 curr_offset;
-    guint8 oct;
+    uint32_t curr_offset;
+    uint8_t oct;
 
     curr_offset = offset;
 
     /* Action value */
-    oct = tvb_get_guint8(tvb,curr_offset);
+    oct = tvb_get_uint8(tvb,curr_offset);
     proto_tree_add_item(tree, hf_bssgp_llc_frames_disc, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset+=1;
 
     if (add_string)
         snprintf(add_string, string_len, " - %u Frames", oct);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.17  Location Area
@@ -1018,10 +1020,10 @@ de_bssgp_llc_frames_disc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_
  * 11.3.21  MS Bucket Size
  */
 
-static guint16
-de_bssgp_ms_bucket_size(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ms_bucket_size(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -1029,7 +1031,7 @@ de_bssgp_ms_bucket_size(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_,
     proto_tree_add_item(tree, hf_bssgp_bucket_size, tvb, curr_offset, 2, ENC_BIG_ENDIAN);
     curr_offset+=2;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.22  MS Radio Access Capability
@@ -1041,10 +1043,10 @@ de_bssgp_ms_bucket_size(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_,
 /*
  * 11.3.23  OMC Id
  */
-static guint16
-de_bssgp_omc_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_omc_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -1056,10 +1058,10 @@ de_bssgp_omc_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32
 /*
  * 11.3.24  PDU In Error
  */
-static guint16
-de_bssgp_pdu_in_error(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_pdu_in_error(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -1074,17 +1076,17 @@ de_bssgp_pdu_in_error(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, g
 /*
  * 11.3.25 PDU Lifetime
  */
-static guint16
-de_bssgp_pdu_lifetime(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_pdu_lifetime(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_delay_val, tvb, curr_offset, 2, ENC_BIG_ENDIAN);
     curr_offset+=2;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -1146,13 +1148,13 @@ static const value_string bssgp_precedence_dl[] = {
     { 0,   NULL },
 };
 
-static guint16
-de_bssgp_qos_profile(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_qos_profile(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
     proto_item *pre_item;
-    guint32 curr_offset;
-    guint16 peak_bit_rate;
-    guint8  rate_gran, precedence;
+    uint32_t curr_offset;
+    uint16_t peak_bit_rate;
+    uint8_t rate_gran, precedence;
     int     link_dir;
 
     curr_offset = offset;
@@ -1166,7 +1168,7 @@ de_bssgp_qos_profile(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
     if (peak_bit_rate == 0) {
         proto_tree_add_uint_format_value(tree, hf_bssgp_peak_bit_rate, tvb, curr_offset, 2, peak_bit_rate, "Best effort");
     }else{
-        rate_gran = tvb_get_guint8(tvb, curr_offset+2)&0xc0;
+        rate_gran = tvb_get_uint8(tvb, curr_offset+2)&0xc0;
         switch(rate_gran){
             case 0:
                 /* 100 bits/s increments */
@@ -1207,17 +1209,17 @@ de_bssgp_qos_profile(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
     proto_tree_add_item(tree, hf_bssgp_cr_bit, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_bssgp_t_bit, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_bssgp_a_bit, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
-    precedence = tvb_get_guint8(tvb, curr_offset) & 0x7;
+    precedence = tvb_get_uint8(tvb, curr_offset) & 0x7;
     pre_item = proto_tree_add_item(tree, hf_bssgp_precedence, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     if(link_dir == P2P_DIR_DL){
-        proto_item_append_text(pre_item, " %s", val_to_str_const((guint32)precedence, bssgp_precedence_dl, "Radio Priority Unknown(Radio priority 3)"));
+        proto_item_append_text(pre_item, " %s", val_to_str_const((uint32_t)precedence, bssgp_precedence_dl, "Radio Priority Unknown(Radio priority 3)"));
     }else{
-        proto_item_append_text(pre_item, " %s", val_to_str_const((guint32)precedence, bssgp_precedence_ul, "Priority Unknown(Low priority)"));
+        proto_item_append_text(pre_item, " %s", val_to_str_const((uint32_t)precedence, bssgp_precedence_ul, "Priority Unknown(Low priority)"));
     }
 
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.29  Radio Cause
@@ -1232,17 +1234,17 @@ static const value_string bssgp_radio_cause_vals[] = {
     /* Otherwise "Reserved (Radio contact lost with the MS)" */
 };
 
-static guint16
-de_bssgp_ra_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ra_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_ra_cause, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -1256,17 +1258,17 @@ static const value_string bssgp_ra_cap_upd_cause_vals[] = {
     /* Otherwise "Reserved (TLLI unknown in SGSN)" */
 };
 
-static guint16
-de_bssgp_ra_cap_upd_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ra_cap_upd_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_ra_cap_upd_cause, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -1279,26 +1281,26 @@ de_bssgp_ra_cap_upd_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U
 /*
  * 11.3.32  R_default_MS
  */
-static guint16
-de_bssgp_r_default_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_r_default_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_r_default_ms, tvb, curr_offset, 2, ENC_BIG_ENDIAN);
     curr_offset+=2;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
  * 11.3.33  Suspend Reference Number
  */
-static guint16
-de_bssgp_suspend_ref_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_suspend_ref_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -1307,16 +1309,16 @@ de_bssgp_suspend_ref_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_,
 
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.34  Tag
  */
 
-static guint16
-de_bssgp_tag(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_tag(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -1325,7 +1327,7 @@ de_bssgp_tag(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 of
 
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -1343,10 +1345,10 @@ de_bssgp_tag(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 of
 /*
  * 11.3.37  Trace Reference
  */
-static guint16
-de_bssgp_trace_ref(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_trace_ref(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -1355,7 +1357,7 @@ de_bssgp_trace_ref(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guin
 
     curr_offset+=2;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -1365,51 +1367,51 @@ de_bssgp_trace_ref(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guin
  * 3GPP TS 32.008
  * XXX: Coding unknown (Specification withdrawn) 3GPP TS 32.008
  */
-static guint16
-de_bssgp_trace_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_trace_type(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset = offset;
+    uint32_t curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_trace_type_data, tvb, curr_offset, len, ENC_NA);
 
-    return(len);
+    return len;
 }
 /*
  * 11.3.39  Transaction Id
  */
-static guint16
-de_bssgp_transaction_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_transaction_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_transaction_id, tvb, curr_offset, 2, ENC_BIG_ENDIAN);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.40  Trigger Id
  */
-static guint16
-de_bssgp_trigger_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_trigger_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_trigger_id, tvb, curr_offset, len, ENC_NA);
 
-    return(len);
+    return len;
 }
 /*
  * 11.3.41  Number of octets affected
  */
-static guint16
-de_bssgp_no_of_oct_affected(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string, int string_len)
+static uint16_t
+de_bssgp_no_of_oct_affected(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string, int string_len)
 {
-    guint32 curr_offset;
-    guint32 no_of_oct;
+    uint32_t curr_offset;
+    uint32_t no_of_oct;
 
     curr_offset = offset;
 
@@ -1422,7 +1424,7 @@ de_bssgp_no_of_oct_affected(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo 
     if (add_string)
         snprintf(add_string, string_len, " - %u", no_of_oct);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.42  Packet Flow Identifier (PFI)
@@ -1459,10 +1461,10 @@ static const value_string bssgp_unit_vals[] = {
     /* Otherwise "incremented in multiples of 1 minute" */
 };
 
-static guint16
-de_bssgp_gprs_timer(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_gprs_timer(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -1472,15 +1474,15 @@ de_bssgp_gprs_timer(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, gui
 
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.45  Feature Bitmap
  */
-static guint16
-de_bssgp_feature_bitmap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_feature_bitmap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
     /* MBMS */
@@ -1502,15 +1504,15 @@ de_bssgp_feature_bitmap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_,
 
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.46  Bucket Full Ratio
  */
-static guint16
-de_bssgp_bucket_full_ratio(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_bucket_full_ratio(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -1519,7 +1521,7 @@ de_bssgp_bucket_full_ratio(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _
 
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.47  Service UTRAN CCO
@@ -1542,10 +1544,10 @@ static const value_string bssgp_service_eutran_cco_vals[] = {
     /* Otherwise "No information available" */
 };
 
-static guint16
-de_bssgp_serv_utran_cco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_serv_utran_cco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -1555,17 +1557,17 @@ de_bssgp_serv_utran_cco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_,
     proto_tree_add_item(tree, hf_bssgp_serv_utran_cco, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
  * 11.3.48  NSEI (Network Service Entity Identifier)
  */
-static guint16
-de_bssgp_nsei(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_nsei(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint16 nsei;
+    uint32_t curr_offset;
+    uint16_t nsei;
 
     curr_offset = offset;
 
@@ -1576,16 +1578,16 @@ de_bssgp_nsei(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offse
     col_append_sep_fstr(pinfo->cinfo, COL_INFO, BSSGP_SEP, "NSEI %u", nsei);
 
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.49  RRLP APDU
  */
-static guint16
-de_bssgp_rrlp_apdu(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_rrlp_apdu(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
     tvbuff_t *next_tvb=NULL;
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -1607,7 +1609,7 @@ de_bssgp_rrlp_apdu(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 
             call_data_dissector(next_tvb, pinfo, gparent_tree);
         }
     }
-    return(len);
+    return len;
 }
 
 /*
@@ -1689,17 +1691,17 @@ static const true_false_string  bssgp_rrlp_flg1_vals = {
     "Position Command (BSS to SGSN) or final response (SGSN to BSS)"
 };
 
-static guint16
-de_bssgp_rrlp_flags(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_rrlp_flags(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     /* Flag 1 (Octet 3, bit 1): */
     proto_tree_add_item(tree, hf_bssgp_rrlp_flag1, tvb, curr_offset, 2, ENC_BIG_ENDIAN);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -1716,28 +1718,28 @@ static const value_string bssgp_rim_appid_vals[] = {
     { 0,    NULL },
 };
 
-static guint16
-de_bssgp_rim_app_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_rim_app_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     /* RIM Application Identity */
-    g_rim_application_identity = tvb_get_guint8(tvb, curr_offset);
+    g_rim_application_identity = tvb_get_uint8(tvb, curr_offset);
     proto_tree_add_item(tree, hf_bssgp_rim_app_id, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
  * 11.3.62  RIM Sequence Number
  */
-static guint16
-de_bssgp_rim_seq_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_rim_seq_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -1745,7 +1747,7 @@ de_bssgp_rim_seq_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, gui
     proto_tree_add_item(tree, hf_bssgp_rim_seq_no, tvb, curr_offset, 4, ENC_BIG_ENDIAN);
     curr_offset+=4;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.62a RIM Container
@@ -1767,8 +1769,8 @@ de_bssgp_rim_seq_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, gui
 
 
 
-static guint16
-de_bssgp_ran_information_request_app_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string, int string_len)
+static uint16_t
+de_bssgp_ran_information_request_app_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len)
 {
     tvbuff_t *new_tvb = NULL;
     int curr_offset, bit_offset;
@@ -1795,7 +1797,7 @@ de_bssgp_ran_information_request_app_cont(tvbuff_t *tvb, proto_tree *tree, packe
             {
             asn1_ctx_t asn1_ctx;
 
-            asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+            asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, true, pinfo);
             /* 11.3.63.1.4  RAN-INFORMATION-REQUEST Application Container for the SON Transfer Application */
             /* Reporting Cell Identifier */
             /* convert to bit offset */
@@ -1821,7 +1823,7 @@ de_bssgp_ran_information_request_app_cont(tvbuff_t *tvb, proto_tree *tree, packe
     }
 
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -1839,12 +1841,12 @@ static const value_string bssgp_rat_discriminator_vals[] = {
     { 2, "The reporting RAT is E-UTRAN" },
     { 0,    NULL },
 };
-static guint16
-de_bssgp_ran_information_app_cont_unit(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string, int string_len)
+static uint16_t
+de_bssgp_ran_information_app_cont_unit(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len)
 {
     tvbuff_t *new_tvb = NULL;
-    guint32 curr_offset;
-    guint8 type, num_items, rat_type, oct;
+    uint32_t curr_offset;
+    uint8_t type, num_items, rat_type, oct;
     int i;
 
     curr_offset = offset;
@@ -1855,10 +1857,10 @@ de_bssgp_ran_information_app_cont_unit(tvbuff_t *tvb, proto_tree *tree, packet_i
             /* Reporting Cell Identifier */
             curr_offset = curr_offset + de_bssgp_cell_id(tvb, tree, pinfo, curr_offset, len, add_string, string_len);
             /* Number of SI/PSI */
-            num_items = tvb_get_guint8(tvb,curr_offset)>>1;
+            num_items = tvb_get_uint8(tvb,curr_offset)>>1;
             proto_tree_add_item(tree, hf_bssgp_num_si_psi, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
             /* Type */
-            type = tvb_get_guint8(tvb,curr_offset)&0x01;
+            type = tvb_get_uint8(tvb,curr_offset)&0x01;
             proto_tree_add_item(tree, hf_bssgp_si_psi_type, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
             curr_offset++;
             /* Octet 12-n SI/PSI */
@@ -1878,15 +1880,15 @@ de_bssgp_ran_information_app_cont_unit(tvbuff_t *tvb, proto_tree *tree, packet_i
                  * System Information message contains the Message type octet followed by all the IEs composing the message
                  * payload. Each message is 21 octets long.
                  */
-                void            (*msg_fcn_p)(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len) = NULL;
-                gint            ett_tree = -1;
+                void            (*msg_fcn_p)(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len) = NULL;
+                int             ett_tree = -1;
                 int             hf_idx;
-                const gchar     *msg_str;
+                const char      *msg_str;
                 proto_item      *si_item, *si_item2;
                 proto_tree      *si_tree;
 
                 for (i=0; i < num_items; i++){
-                    oct = tvb_get_guint8(tvb,curr_offset);
+                    oct = tvb_get_uint8(tvb,curr_offset);
                     get_rr_msg_params(oct, &msg_str, &ett_tree, &hf_idx, &msg_fcn_p);
                     si_item2 = proto_tree_add_bytes_format(tree, hf_bssgp_si_item, tvb, curr_offset, 21, NULL, "SI item %u ",i+1);
                     si_item = proto_tree_add_item(tree, hf_idx, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
@@ -1926,7 +1928,7 @@ de_bssgp_ran_information_app_cont_unit(tvbuff_t *tvb, proto_tree *tree, packet_i
         case 4:
             /* 11.3.63.2.4 RAN-INFORMATION Application Container for the SON Transfer Application */
             /* Octet 3 Spare RAT discriminator */
-            rat_type = tvb_get_guint8(tvb,curr_offset) & 0x0f;
+            rat_type = tvb_get_uint8(tvb,curr_offset) & 0x0f;
             proto_tree_add_item(tree, hf_bssgp_rat_discriminator, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
             curr_offset++;
             /* Octet 4-m Reporting Cell Identifier */
@@ -1977,13 +1979,12 @@ de_bssgp_ran_information_app_cont_unit(tvbuff_t *tvb, proto_tree *tree, packet_i
                     /*Falltrough */
                 case 4:
                     /* RAN-INFORMATION/End PDU*/
-                    return(curr_offset - offset);
-                    break;
+                    return curr_offset-offset;
                 default:
                     break;
                 }
                 proto_tree_add_expert_format(tree, pinfo, &ei_bssgp_ran_inf_app_cont_utra_si, tvb, curr_offset-1, 1, "UTRA SI Container - not present");
-                return(curr_offset - offset);
+                return curr_offset-offset;
             }
             new_tvb = tvb_new_subset_length(tvb, curr_offset, (len - (curr_offset - offset)));
             call_dissector_only(rrc_sys_info_cont_handle, new_tvb, pinfo, tree, NULL);
@@ -1997,7 +1998,7 @@ de_bssgp_ran_information_app_cont_unit(tvbuff_t *tvb, proto_tree *tree, packet_i
     }
 
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.64  Application Error Container
@@ -2037,11 +2038,11 @@ static const value_string bssgp_utra_si_cause_vals[] = {
     { 0,    NULL },
 };
 
-static guint16
-de_bssgp_ran_app_error_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ran_app_error_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
     tvbuff_t *new_tvb = NULL;
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2097,7 +2098,7 @@ de_bssgp_ran_app_error_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo,
             proto_tree_add_expert(tree, pinfo, &ei_bssgp_unknown_app_container, tvb, curr_offset, len);
             break;
     }
-    return(len);
+    return len;
 }
 
 /*
@@ -2132,10 +2133,10 @@ static const true_false_string  bssgp_rim_pdu_ind_ack_vals = {
     "No ACK requested"
 };
 
-static guint16
-de_bssgp_rim_pdu_indications(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_rim_pdu_indications(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2164,7 +2165,7 @@ de_bssgp_rim_pdu_indications(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo
             break;
     }
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -2183,10 +2184,10 @@ static const value_string bssgp_rim_proto_ver_no_vals[] = {
     { 0,    NULL },
 };
 
-static guint16
-de_bssgp_rim_proto_ver_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_rim_proto_ver_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2194,25 +2195,25 @@ de_bssgp_rim_proto_ver_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U
     proto_tree_add_item(tree, hf_bssgp_rim_proto_ver_no, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
  * 11.3.68  PFC Flow Control parameters
  */
 
-static guint16
-de_bssgp_pfc_flow_ctrl(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_pfc_flow_ctrl(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
     proto_tree *pfc_tree;
 
-    guint32 curr_offset;
-    guint8 num_pfc, i, pfc_len;
-    gboolean b_pfc_included;
+    uint32_t curr_offset;
+    uint8_t num_pfc, i, pfc_len;
+    bool b_pfc_included;
 
     curr_offset = offset;
 
-    num_pfc = tvb_get_guint8(tvb, curr_offset);
+    num_pfc = tvb_get_uint8(tvb, curr_offset);
     if (num_pfc < 12) {
         proto_tree_add_uint(tree, hf_bssgp_num_pfc, tvb, curr_offset, 1, num_pfc);
     }else {
@@ -2254,7 +2255,7 @@ de_bssgp_pfc_flow_ctrl(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
             curr_offset++;
         }
     }
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.69  Global CN-Id
@@ -2272,13 +2273,13 @@ static const value_string bssgp_ra_discriminator_vals[] = {
     { 0, NULL },
 };
 
-static guint16
-de_bssgp_rim_routing_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string, int string_len)
+static uint16_t
+de_bssgp_rim_routing_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len)
 {
-    guint8 oct;
-    guint16 rnc_id;
+    uint8_t oct;
+    uint16_t rnc_id;
     tvbuff_t *new_tvb = NULL;
-    guint32 curr_offset;
+    uint32_t curr_offset;
     proto_item* ti;
 
     curr_offset = offset;
@@ -2288,7 +2289,7 @@ de_bssgp_rim_routing_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gu
      */
 
     /* RIM Routing Address discriminator */
-    oct  = tvb_get_guint8(tvb,curr_offset);
+    oct  = tvb_get_uint8(tvb,curr_offset);
     ti = proto_tree_add_item(tree, hf_bssgp_ra_discriminator, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
     switch(oct){
@@ -2349,10 +2350,10 @@ de_bssgp_rim_routing_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gu
  * subsequent retransmissions of the MBMS session will use the same values of these parameters. This AVP is optional
  * within the Gmb interface.
  */
-static guint16
-de_bssgp_mbms_session_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_mbms_session_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2360,16 +2361,16 @@ de_bssgp_mbms_session_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_
     proto_tree_add_item(tree, hf_bssgp_mbms_session_id, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.72  MBMS Session Duration
  */
-static guint16
-de_bssgp_mbms_session_dur(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_mbms_session_dur(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
     tvbuff_t *new_tvb;
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2377,7 +2378,7 @@ de_bssgp_mbms_session_dur(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, g
     new_tvb =tvb_new_subset_length(tvb, offset, len);
     dissector_try_uint(diameter_3gpp_avp_dissector_table, 904, new_tvb, pinfo, tree);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.73  MBMS Service Area Identity List
@@ -2386,11 +2387,11 @@ de_bssgp_mbms_session_dur(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, g
  * excluding AVP Header fields (as defined in IETF RFC 3588 [33]).
  *
  */
-static guint16
-de_bssgp_mbms_sai_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_mbms_sai_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
     tvbuff_t *new_tvb;
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2398,7 +2399,7 @@ de_bssgp_mbms_sai_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
     new_tvb =tvb_new_subset_length(tvb, offset, len);
     dissector_try_uint(diameter_3gpp_avp_dissector_table, 903, new_tvb, pinfo, tree);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.74  MBMS Response
@@ -2426,10 +2427,10 @@ static const value_string bssgp_mbms_cause_vals[] = {
 };
 static value_string_ext bssgp_mbms_cause_vals_ext = VALUE_STRING_EXT_INIT(bssgp_mbms_cause_vals);
 
-static guint16
-de_bssgp_mbms_response(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_mbms_response(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2437,7 +2438,7 @@ de_bssgp_mbms_response(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, 
     proto_tree_add_item(tree, hf_bssgp_mbms_cause, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.75  MBMS Routing Area List
@@ -2464,18 +2465,18 @@ static const value_string bssgp_mbms_num_ra_ids_vals[] = {
 };
 static value_string_ext bssgp_mbms_num_ra_ids_vals_ext = VALUE_STRING_EXT_INIT(bssgp_mbms_num_ra_ids_vals);
 
-static guint16
-de_bssgp_mbms_ra_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_mbms_ra_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
     proto_tree *rai_tree;
-    guint32 curr_offset;
-    guint8 num_ra_ids;
+    uint32_t curr_offset;
+    uint8_t num_ra_ids;
     int i;
 
     curr_offset = offset;
 
     /* octet 3 Number of Routing Area Identifications Spare Spare Spare Spare */
-    num_ra_ids = tvb_get_guint8(tvb,curr_offset) >> 4;
+    num_ra_ids = tvb_get_uint8(tvb,curr_offset) >> 4;
     proto_tree_add_item(tree, hf_bssgp_mbms_num_ra_ids, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
 
     /* octet 4 - 11 Routing Area Identification 1 (etc)*/
@@ -2491,7 +2492,7 @@ de_bssgp_mbms_ra_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint
         curr_offset+=8;
     }
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -2502,10 +2503,10 @@ static const true_false_string  tfs_bssgp_bc_mc = {
     "Multicast Session",
     "Broadcast Session"
 };
-static guint16
-de_bssgp_mbms_session_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_mbms_session_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2513,7 +2514,7 @@ de_bssgp_mbms_session_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U
     proto_tree_add_item(tree, hf_bssgp_session_inf, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.77  TMGI (Temporary Mobile Group Identity)
@@ -2546,10 +2547,10 @@ static const value_string bssgp_mbms_stop_cause_vals[] = {
 };
 static value_string_ext bssgp_mbms_stop_cause_vals_ext = VALUE_STRING_EXT_INIT(bssgp_mbms_stop_cause_vals);
 
-static guint16
-de_bssgp_mbms_stop_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_mbms_stop_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2557,7 +2558,7 @@ de_bssgp_mbms_stop_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_
     proto_tree_add_item(tree, hf_bssgp_mbms_stop_cause, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.79  Source BSS to Target BSS Transparent Container
@@ -2573,17 +2574,17 @@ de_bssgp_mbms_stop_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_
 /*
  * 11.3.82  PFCs to be set-up list
  */
-static guint16
-de_bssgp_pfcs_to_be_set_up_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_pfcs_to_be_set_up_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
     proto_tree *pfc_tree, *pft_tree, *abqp_tree, *arp_tree, *t10_tree;
 
-    guint32 curr_offset;
-    guint8 num_pfc, i, pfc_len;
+    uint32_t curr_offset;
+    uint8_t num_pfc, i, pfc_len;
 
     curr_offset = offset;
 
-    num_pfc = tvb_get_guint8(tvb, curr_offset);
+    num_pfc = tvb_get_uint8(tvb, curr_offset);
     if (num_pfc < 12) {
         proto_tree_add_uint(tree, hf_bssgp_num_pfc, tvb, curr_offset, 1, num_pfc);
     }else {
@@ -2642,22 +2643,22 @@ de_bssgp_pfcs_to_be_set_up_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pi
             curr_offset += 3;
         }
     }
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.83  List of set-up PFCs
  */
-guint16
-de_bssgp_list_of_setup_pfcs(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_bssgp_list_of_setup_pfcs(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
     proto_tree *pfc_tree;
 
-    guint32 curr_offset;
-    guint8 num_pfc, i;
+    uint32_t curr_offset;
+    uint8_t num_pfc, i;
 
     curr_offset = offset;
 
-    num_pfc = tvb_get_guint8(tvb, curr_offset);
+    num_pfc = tvb_get_uint8(tvb, curr_offset);
     if (num_pfc < 12) {
         proto_tree_add_uint(tree, hf_bssgp_num_pfc, tvb, curr_offset, 1, num_pfc);
     }else {
@@ -2677,7 +2678,7 @@ de_bssgp_list_of_setup_pfcs(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo,
 
     }
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.84  Extended Feature Bitmap
@@ -2692,10 +2693,10 @@ static int * const bssgp_ext_feature_bitmap_fields[] = {
     &hf_bssgp_ps_ho,
     NULL
 };
-static guint16
-de_bssgp_ext_feature_bitmap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ext_feature_bitmap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2704,15 +2705,15 @@ de_bssgp_ext_feature_bitmap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo 
         ett_bssgp_extended_feature_bitmap, bssgp_ext_feature_bitmap_fields, ENC_BIG_ENDIAN, BMT_NO_APPEND);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.85  Source to Target Transparent Container
  */
-static guint16
-de_bssgp_src_to_trg_transp_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_src_to_trg_transp_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2723,16 +2724,16 @@ de_bssgp_src_to_trg_transp_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pi
      */
     proto_tree_add_item(tree, hf_bssgp_src_to_trg_transp_cont, tvb, curr_offset, len, ENC_NA);
 
-    return(len);
+    return len;
 }
 
 /*
  * 11.3.86  Target to Source Transparent Container
  */
-static guint16
-de_bssgp_trg_to_src_transp_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_trg_to_src_transp_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2746,17 +2747,17 @@ de_bssgp_trg_to_src_transp_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pi
      */
     proto_tree_add_item(tree, hf_bssgp_trg_to_src_transp_cont, tvb, curr_offset, len, ENC_NA);
 
-    return(len);
+    return len;
 }
 
 /*
  * 11.3.87  RNC Identifier
  */
-static guint16
-de_bssgp_rnc_identifier(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string, int string_len)
+uint16_t
+de_bssgp_rnc_identifier(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string, int string_len)
 {
-    guint32 curr_offset;
-    guint16 rnc_id;
+    uint32_t curr_offset;
+    uint16_t rnc_id;
 
     curr_offset = offset;
     /* Octets 3-8 Octets 3 to 8 contain the value part (starting with octet 2) of the
@@ -2774,7 +2775,7 @@ de_bssgp_rnc_identifier(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
         g_free(str);
     }
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 
 }
 /*
@@ -2789,32 +2790,32 @@ static const value_string bssgp_page_mode_vals[] = {
     { 3, "Same as before" },
     { 0,    NULL },
 };
-static guint16
-de_bssgp_page_mode(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_page_mode(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_page_mode, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.89  Container ID
  */
-static guint16
-de_bssgp_container_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_container_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_container_id, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -2826,12 +2827,12 @@ static const value_string bssgp_global_tfi_vals[] = {
     { 0,    NULL },
 };
 
-static guint16
-de_bssgp_global_tfi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_global_tfi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint32 bit_offset;
-    guint8  gtfi;
+    uint32_t curr_offset;
+    uint32_t bit_offset;
+    uint8_t gtfi;
 
     curr_offset = offset;
 
@@ -2861,7 +2862,7 @@ de_bssgp_global_tfi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, gui
     }
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.91  IMEI
@@ -2873,43 +2874,43 @@ de_bssgp_global_tfi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, gui
 /*
  * 11.3.92  Time to MBMS Data Transfer
  */
-static guint16
-de_bssgp_time_to_MBMS_data_tran(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_time_to_MBMS_data_tran(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint8 value;
+    uint32_t curr_offset;
+    uint8_t value;
 
     curr_offset = offset;
 
     /* 0 = 1s etc */
-    value = tvb_get_guint8(tvb,curr_offset) + 1;
+    value = tvb_get_uint8(tvb,curr_offset) + 1;
     proto_tree_add_uint(tree, hf_bssgp_time_to_MBMS_data_tran, tvb, curr_offset, 1, value);
 
-    return(len);
+    return len;
 }
 /*
  * 11.3.93  MBMS Session Repetition Number
  */
-static guint16
-de_bssgp_mbms_session_rep_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_mbms_session_rep_no(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_mbms_session_rep_no, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(len);
+    return len;
 }
 /*
  * 11.3.94  Inter RAT Handover Info
  */
-static guint16
-de_bssgp_inter_rat_ho_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_inter_rat_ho_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
     tvbuff_t    *new_tvb;
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2920,15 +2921,15 @@ de_bssgp_inter_rat_ho_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, 
      */
     dissect_rrc_InterRATHandoverInfo_PDU(new_tvb, pinfo, tree, NULL);
 
-    return(len);
+    return len;
 }
 /*
  * 11.3.95  PS Handover Command
  */
-static guint16
-de_bssgp_ps_ho_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ps_ho_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2939,16 +2940,16 @@ de_bssgp_ps_ho_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guin
     proto_tree_add_item(tree, hf_bssgp_ps_ho_cmd, tvb, curr_offset, len, ENC_NA);
 
 
-    return(len);
+    return len;
 }
 
 /*
  * 11.3.95a PS Handover Indications
  */
-static guint16
-de_bssgp_ps_ho_indications(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ps_ho_indications(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -2956,7 +2957,7 @@ de_bssgp_ps_ho_indications(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _
     proto_tree_add_item(tree, hf_bssgp_sipsi, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -2968,15 +2969,15 @@ static const value_string type_vals[] = {
     { 1, "PSI messages as specified for PBCCH (3GPP TS 44.060) follow" },
     { 0,    NULL },
 };
-static guint16
-de_bssgp_sipsi_container(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_sipsi_container(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint8 oct,num, type, i;
+    uint32_t curr_offset;
+    uint8_t oct,num, type, i;
 
     curr_offset = offset;
 
-    oct = tvb_get_guint8(tvb, curr_offset);
+    oct = tvb_get_uint8(tvb, curr_offset);
     num = oct >>1;
     type = oct & 1;
     proto_tree_add_item(tree, hf_bssgp_num_si_psi, tvb, curr_offset, 1, ENC_NA);
@@ -2998,22 +2999,22 @@ de_bssgp_sipsi_container(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_
         }
     }
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.95c Active PFCs List
  */
-static guint16
-de_bssgp_active_pfcs_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_active_pfcs_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
     proto_tree *pfc_tree;
 
-    guint32 curr_offset;
-    guint8 num_pfc, i;
+    uint32_t curr_offset;
+    uint8_t num_pfc, i;
 
     curr_offset = offset;
 
-    num_pfc = tvb_get_guint8(tvb, curr_offset);
+    num_pfc = tvb_get_uint8(tvb, curr_offset);
     if (num_pfc < 12) {
         proto_tree_add_uint(tree, hf_bssgp_num_pfc, tvb, curr_offset, 1, num_pfc);
     }else {
@@ -3033,15 +3034,15 @@ de_bssgp_active_pfcs_list(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, g
 
     }
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.96  Velocity Data
  */
-static guint16
-de_bssgp_velocity_data(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string, int string_len)
+static uint16_t
+de_bssgp_velocity_data(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -3051,15 +3052,15 @@ de_bssgp_velocity_data(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
      */
     curr_offset = dissect_description_of_velocity(tvb, tree, pinfo, curr_offset, len, add_string, string_len);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.97  DTM Handover Command
  */
-static guint16
-de_bssgp_dtm_ho_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_dtm_ho_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -3069,15 +3070,15 @@ de_bssgp_dtm_ho_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, gui
      */
     proto_tree_add_item(tree, hf_bssgp_dtm_handover_command_data, tvb, curr_offset, len, ENC_NA);
 
-    return(len);
+    return len;
 }
 /*
  * 11.3.98  CS Indication
  */
-static guint16
-de_bssgp_cs_indication(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_cs_indication(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -3090,7 +3091,7 @@ de_bssgp_cs_indication(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, 
     proto_tree_add_item(tree, hf_bssgp_cs_indication, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.99  Requested GANSS Assistance Data
@@ -3125,10 +3126,10 @@ static const value_string bssgp_flow_control_gran_vals[] = {
 };
 
 
-static guint16
-de_bssgp_flow_control_gran(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_flow_control_gran(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -3136,16 +3137,16 @@ de_bssgp_flow_control_gran(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _
     proto_tree_add_item(tree, hf_bssgp_flow_control_gran, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.103     eNB Identifier
  */
-static guint16
-de_bssgp_enb_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string, int string_len)
+uint16_t
+de_bssgp_enb_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len)
 {
     tvbuff_t    *new_tvb;
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -3159,16 +3160,16 @@ de_bssgp_enb_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 off
     new_tvb = tvb_new_subset_remaining(tvb, curr_offset);
     dissect_s1ap_Global_ENB_ID_PDU(new_tvb, pinfo, tree, NULL);
 
-    return(len);
+    return len;
 }
 /*
  * 11.3.104     E-UTRAN Inter RAT Handover Info
  */
-static guint16
-de_bssgp_e_utran_inter_rat_ho_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_e_utran_inter_rat_ho_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
     tvbuff_t    *new_tvb;
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -3181,17 +3182,17 @@ de_bssgp_e_utran_inter_rat_ho_info(tvbuff_t *tvb, proto_tree *tree, packet_info 
      */
     dissect_lte_rrc_UE_EUTRA_Capability_PDU(new_tvb, pinfo, tree, NULL);
 
-    return(len);
+    return len;
 }
 /*
  * 11.3.105     Subscriber Profile ID for RAT/Frequency priority
  */
 
-static guint16
-de_bssgp_sub_prof_id_f_rat_freq_prio(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_sub_prof_id_f_rat_freq_prio(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint8 value;
+    uint32_t curr_offset;
+    uint8_t value;
 
     curr_offset = offset;
 
@@ -3199,19 +3200,19 @@ de_bssgp_sub_prof_id_f_rat_freq_prio(tvbuff_t *tvb, proto_tree *tree, packet_inf
      * The Subscriber Profile ID for RAT/Frequency priority is given by
      * the indicated value +1.
      */
-    value = tvb_get_guint8(tvb,curr_offset) + 1;
+    value = tvb_get_uint8(tvb,curr_offset) + 1;
     proto_tree_add_uint(tree, hf_bssgp_sub_prof_id_f_rat_freq_prio, tvb, curr_offset, 1, value);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.106     Request for Inter-RAT Handover Info
  */
-static guint16
-de_bssgp_req_for_inter_rat_ho_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_req_for_inter_rat_ho_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -3220,15 +3221,15 @@ de_bssgp_req_for_inter_rat_ho_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *
     proto_tree_add_item(tree, hf_bssgp_irat_ho_inf_req, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.107     Reliable Inter-RAT Handover Info
  */
-static guint16
-de_bssgp_reliable_inter_rat_ho_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_reliable_inter_rat_ho_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -3236,13 +3237,13 @@ de_bssgp_reliable_inter_rat_ho_inf(tvbuff_t *tvb, proto_tree *tree, packet_info 
     proto_tree_add_item(tree, hf_bssgp_rel_int_rat_ho_inf_ind, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.108     SON Transfer Application Identity
  */
-static guint16
-de_bssgp_son_transfer_app_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_son_transfer_app_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
     tvbuff_t *next_tvb;
 
@@ -3254,7 +3255,7 @@ de_bssgp_son_transfer_app_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo
         dissect_s1ap_SONtransferApplicationIdentity_PDU(next_tvb, pinfo, tree, NULL);
     }
 
-    return(len);
+    return len;
 }
 /*
  * 11.3.109     CSG Identifier
@@ -3267,10 +3268,10 @@ static const value_string bssgp_cell_access_mode_vals[] = {
     { 0,    NULL },
 };
 
-static guint16
-de_bssgp_csg_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_csg_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -3284,7 +3285,7 @@ de_bssgp_csg_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32
     proto_tree_add_item(tree, hf_bssgp_cell_acc_mode, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.110     Tracking Area Code
@@ -3297,17 +3298,17 @@ de_bssgp_csg_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32
 /*
  * 11.3.111     Redirect Attempt Flag
  */
- static guint16
-de_bssgp_redir_attempt_flg(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+ static uint16_t
+de_bssgp_redir_attempt_flg(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_spare, tvb, curr_offset, 1, ENC_NA);
     curr_offset += 1;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -3337,17 +3338,17 @@ static const value_string bssgp_redir_indication_reroute_reject_cause_vals[] = {
     { 0,    NULL },
 };
 
-static guint16
-de_bssgp_redir_indication(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_redir_indication(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_redir_indication_reroute_reject_cause, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset += 1;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -3362,24 +3363,24 @@ static const value_string bssgp_redir_complete_outcome_vals[] = {
     { 0,    NULL },
 };
 
-static guint16
-de_bssgp_redir_complete(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_redir_complete(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_redir_complete_outcome, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset += 1;
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
  * 11.3.114     Unconfirmed send state variable
  */
-static guint16
-de_bssgp_unconfirm_send_state_var(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_unconfirm_send_state_var(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
     proto_tree_add_item(tree, hf_bssgp_unconfirm_send_state_var, tvb, offset, 2, ENC_BIG_ENDIAN);
     return 2;
@@ -3391,17 +3392,17 @@ de_bssgp_unconfirm_send_state_var(tvbuff_t *tvb, proto_tree *tree, packet_info *
 /*
  * 11.3.116 SCI
  */
-static guint16
-de_bssgp_sci(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_sci(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_sci, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset - offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -3419,17 +3420,17 @@ de_bssgp_sci(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 of
     { 0, NULL }
 };
 
-static guint16
-de_bssgp_ggsn_pgw_location(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ggsn_pgw_location(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_ggsn_pgw_location, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset - offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -3440,10 +3441,10 @@ de_bssgp_ggsn_pgw_location(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _
 /*
  * 11.3.119 Priority Class Indicator
  */
-static guint16
-de_bssgp_pri_class_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_pri_class_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
     static int* const bssgp_prio_class_flags[] = {
         &hf_bssgp_prio_class_flag_b0,
         NULL
@@ -3453,7 +3454,7 @@ de_bssgp_pri_class_ind(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, 
     proto_tree_add_bitmask(tree, tvb, curr_offset, hf_bssgp_prio_class_ind, ett_bssgp_prio_class_ind, bssgp_prio_class_flags, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset - offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.122 Extended DRX parameters
@@ -3474,26 +3475,26 @@ static const value_string bssgp_edrx_cycle_vals[] = {
     { 0, NULL }
 };
 
-static guint16
-de_bssgp_edrx_params(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_edrx_params(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
     proto_tree_add_item(tree, hf_bssgp_edrx_cycle_value, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset - offset);
+    return curr_offset-offset;
 }
 
 /*
  * 11.3.123 Time Until Next Paging Occasion
  */
-static guint16
-de_bssgp_tunpo(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_tunpo(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -3502,7 +3503,7 @@ de_bssgp_tunpo(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 
     proto_tree_add_item(tree, hf_bssgp_tunpo_seconds, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset - offset);
+    return curr_offset-offset;
 }
 
 /*
@@ -3526,10 +3527,10 @@ static const value_string bssgp_ec_ul_coverage_class_vals[] = {
     { 0, NULL }
 };
 
-static guint16
-de_bssgp_coverage_class(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_coverage_class(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32	curr_offset;
+    uint32_t	curr_offset;
 
     curr_offset = offset;
 
@@ -3537,7 +3538,7 @@ de_bssgp_coverage_class(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_,
     proto_tree_add_item(tree, hf_bssgp_ec_ul_coverage_class, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-   return(curr_offset - offset);
+   return curr_offset-offset;
 
 }
 
@@ -3577,10 +3578,10 @@ static const value_string bssgp_intended_num_of_pag_attempts_vals[] = {
 };
 
 
-static guint16
-de_bssgp_pag_attempt_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_pag_attempt_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
+    uint32_t curr_offset;
 
     curr_offset = offset;
 
@@ -3589,16 +3590,16 @@ de_bssgp_pag_attempt_info(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U
     proto_tree_add_item(tree, hf_bssgp_paging_attempt_count, tvb, curr_offset, 1, ENC_BIG_ENDIAN);
     curr_offset++;
 
-    return(curr_offset - offset);
+    return curr_offset-offset;
 }
 
 /*
  * 11.3.129 PLMN ID
  */
-static guint16
-de_bssgp_plmn_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len _U_, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_plmn_id(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len _U_, char *add_string _U_, int string_len _U_)
 {
-    proto_tree_add_string(tree, hf_bssgp_plmn_id, tvb, offset, 3, dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, tree, offset, E212_NONE, TRUE));
+    proto_tree_add_string(tree, hf_bssgp_plmn_id, tvb, offset, 3, dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, tree, offset, E212_NONE, true));
     return 3;
 }
 
@@ -3896,11 +3897,11 @@ static const value_string bssgp_elem_strings[] = {
 };
 value_string_ext bssgp_elem_strings_ext = VALUE_STRING_EXT_INIT(bssgp_elem_strings);
 
-#define NUM_BSSGP_ELEM (sizeof(bssgp_elem_strings)/sizeof(value_string))
-gint ett_bssgp_elem[NUM_BSSGP_ELEM];
+#define NUM_BSSGP_ELEM array_length(bssgp_elem_strings)
+int ett_bssgp_elem[NUM_BSSGP_ELEM];
 
 
-guint16 (*bssgp_elem_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string, int string_len) = {
+uint16_t (*bssgp_elem_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len) = {
     de_bssgp_aligment_octets,                                   /* 11.3.1   0x00 Alignment octets */
     de_bssgp_bmax_default_ms,                                   /* 11.3.2   0x01 Bmax default MS  */
     de_bssgp_bss_area_ind,                                      /* 11.3.3   0x02 BSS Area Indication */
@@ -4026,12 +4027,12 @@ guint16 (*bssgp_elem_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo,
  * 11.3.62a.0   General
  * 11.3.62a.1   RAN-INFORMATION-REQUEST RIM Container
  */
-static guint16
-de_bssgp_ran_inf_request_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ran_inf_request_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4052,17 +4053,17 @@ de_bssgp_ran_inf_request_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *
     /* SON Transfer Application Identity (note 2) SON Transfer Application Identity/11.3.108 C TLV 3-m */
     ELEM_IN_ELEM_OPT_TELV(0x84, BSSGP_PDU_TYPE, DE_BSSGP_SON_TRANSFER_APP_ID, NULL);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.62a.2   RAN-INFORMATION RIM Container
  */
-static guint16
-de_bssgp_ran_inf_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ran_inf_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4085,18 +4086,18 @@ de_bssgp_ran_inf_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, g
     /* SON Transfer Application Identity (note 2) SON Transfer Application Identity/11.3.108 C TLV 3-m */
     ELEM_IN_ELEM_OPT_TELV(0x84, BSSGP_PDU_TYPE, DE_BSSGP_SON_TRANSFER_APP_ID, NULL);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
  * 11.3.62a.3   RAN-INFORMATION-ACK RIM Container
  */
-static guint16
-de_bssgp_ran_inf_ack_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ran_inf_ack_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4113,17 +4114,17 @@ de_bssgp_ran_inf_ack_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinf
     /* SON Transfer Application Identity (note 1) SON Transfer Application Identity/11.3.108 C TLV 3-m */
     ELEM_IN_ELEM_OPT_TELV(0x84, BSSGP_PDU_TYPE, DE_BSSGP_SON_TRANSFER_APP_ID, NULL);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.62a.4   RAN-INFORMATION-ERROR RIM Container
  */
-static guint16
-de_bssgp_ran_inf_error_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ran_inf_error_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4142,17 +4143,17 @@ de_bssgp_ran_inf_error_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pi
     /* SON Transfer Application Identity (note 1) SON Transfer Application Identity/11.3.108 C TLV 3-m */
     ELEM_IN_ELEM_OPT_TELV(0x84, BSSGP_PDU_TYPE, DE_BSSGP_SON_TRANSFER_APP_ID, NULL);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 /*
  * 11.3.62a.5   RAN-INFORMATION-APPLICATION-ERROR RIM Container
  */
-static guint16
-de_bssgp_ran_inf_app_error_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+static uint16_t
+de_bssgp_ran_inf_app_error_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4173,18 +4174,18 @@ de_bssgp_ran_inf_app_error_rim_cont(tvbuff_t *tvb, proto_tree *tree, packet_info
     /* SON Transfer Application Identity (note 1) SON Transfer Application Identity/11.3.108 C TLV 3-m */
     ELEM_IN_ELEM_OPT_TELV(0x84, BSSGP_PDU_TYPE, DE_BSSGP_SON_TRANSFER_APP_ID, NULL);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
  * 11.3.79  Source BSS to Target BSS Transparent Container
  */
-guint16
-de_bssgp_source_BSS_to_target_BSS_transp_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_bssgp_source_BSS_to_target_BSS_transp_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4210,18 +4211,18 @@ de_bssgp_source_BSS_to_target_BSS_transp_cont(tvbuff_t *tvb, proto_tree *tree, p
     /* E-UTRAN Inter RAT Handover Info E-UTRAN Inter RAT HandoverInfo/11.3.104 O (note 1) TLV 3-? */
     ELEM_IN_ELEM_OPT_TELV(0x80, BSSGP_PDU_TYPE, DE_BSSGP_E_UTRAN_INTER_RAT_HO_INFO, NULL);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /*
  * 11.3.80 Target BSS to Source BSS Transparent Container
  */
-guint16
-de_bssgp_target_BSS_to_source_BSS_transp_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len, gchar *add_string _U_, int string_len _U_)
+uint16_t
+de_bssgp_target_BSS_to_source_BSS_transp_cont(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4238,7 +4239,7 @@ de_bssgp_target_BSS_to_source_BSS_transp_cont(tvbuff_t *tvb, proto_tree *tree, p
     /* DTM Handover Command DTM Handover Command/11.3.97 O (Note 2) TLV 22-? */
     ELEM_IN_ELEM_OPT_TELV(0x79, BSSGP_PDU_TYPE, DE_BSSGP_DTM_HO_CMD, NULL);
 
-    return(curr_offset-offset);
+    return curr_offset-offset;
 }
 
 /* MESSAGE FUNCTIONS */
@@ -4248,11 +4249,11 @@ de_bssgp_target_BSS_to_source_BSS_transp_cont(tvbuff_t *tvb, proto_tree *tree, p
  * 10.2.1 DL-UNITDATA
  */
 static void
-bssgp_dl_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_dl_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4305,7 +4306,7 @@ bssgp_dl_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 o
     /* Old Routing Area Identification (note 12) Old Routing Area Identification/11.3.127 O TLV 8 */
     ELEM_OPT_TELV(BSSGP_IEI_OLD_RA_IDENTIFICATION, GSM_A_PDU_TYPE_GM, DE_RAI, " - Old routing area identification");
     /* Attach Indicator(note 13) Attach Indicator / 11.3.128 O TLV 3 */
-    ELEM_OPT_TELV(BSSGP_IEI_ATTACH_INDIC, GSM_A_PDU_TYPE_GM, DE_BSSGP_ATTACH_INDIC, NULL);
+    ELEM_OPT_TELV(BSSGP_IEI_ATTACH_INDIC, BSSGP_PDU_TYPE, DE_BSSGP_ATTACH_INDIC, NULL);
 
     /* SGSN Group Identity (note 15)	SGSN Group Identity/11.3.131    C   TLV 5 */
     /* Additional P-TMSI (note 15)	Additional P-TMSI/11.3.132	C   TLV 6 */
@@ -4325,11 +4326,11 @@ bssgp_dl_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 o
  * Updated to 3GPP TS 48.018 version 11.3.0 Release 11
  */
 static void
-bssgp_ul_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ul_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4381,11 +4382,11 @@ bssgp_ul_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 o
  * 10.2.3   RA-CAPABILITY
  */
 static void
-bssgp_ra_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ra_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4408,11 +4409,11 @@ bssgp_ra_cap(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset
  * 10.2.5   DL-MBMS-UNITDATA
  */
 static void
-bssgp_dl_mbms_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_dl_mbms_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4441,11 +4442,11 @@ bssgp_dl_mbms_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
  * 10.2.6   UL-MBMS-UNITDATA
  */
 static void
-bssgp_ul_mbms_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ul_mbms_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4472,11 +4473,11 @@ bssgp_ul_mbms_unitdata(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
  */
 
 static void
-bssgp_paging_ps(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_paging_ps(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4522,11 +4523,11 @@ bssgp_paging_ps(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 off
  * 10.3.2   PAGING CS
  */
 static void
-bssgp_paging_cs(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_paging_cs(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4564,11 +4565,11 @@ bssgp_paging_cs(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 off
  * 10.3.3   RA-CAPABILITY-UPDATE
  */
 static void
-bssgp_ra_cap_upd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ra_cap_upd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4589,11 +4590,11 @@ bssgp_ra_cap_upd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
  */
 
 static void
-bssgp_ra_cap_upd_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ra_cap_upd_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4619,11 +4620,11 @@ bssgp_ra_cap_upd_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * 10.3.5   RADIO-STATUS
  */
 static void
-bssgp_ra_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ra_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4647,11 +4648,11 @@ bssgp_ra_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 off
  * 10.3.6   SUSPEND
  */
 static void
-bssgp_suspend(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_suspend(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4671,11 +4672,11 @@ bssgp_suspend(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offse
  * 10.3.7   SUSPEND-ACK
  */
 void
-bssgp_suspend_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_suspend_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4698,11 +4699,11 @@ bssgp_suspend_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 o
  * 10.3.8   SUSPEND-NACK
  */
 static void
-bssgp_suspend_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_suspend_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4725,11 +4726,11 @@ bssgp_suspend_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 
  * 10.3.9   RESUME
  */
 static void
-bssgp_resume(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_resume(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4752,11 +4753,11 @@ bssgp_resume(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset
  */
 
 static void
-bssgp_resume_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_resume_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4777,11 +4778,11 @@ bssgp_resume_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 of
  */
 
 static void
-bssgp_resume_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_resume_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4806,11 +4807,11 @@ bssgp_resume_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 o
  */
 
 static void
-bssgp_dummy_paging_ps(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_dummy_paging_ps(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4834,11 +4835,11 @@ bssgp_dummy_paging_ps(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint
  */
 
 static void
-bssgp_dummy_paging_ps_response(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_dummy_paging_ps_response(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4860,11 +4861,11 @@ bssgp_dummy_paging_ps_response(tvbuff_t *tvb, proto_tree *tree, packet_info *pin
 */
 
 static void
-bssgp_paging_ps_reject(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_paging_ps_reject(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4902,11 +4903,11 @@ bssgp_paging_ps_reject(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
  * 10.4.1   FLUSH-LL
  */
 static void
-bssgp_flush_ll(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_flush_ll(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4930,11 +4931,11 @@ bssgp_flush_ll(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offs
  * 10.4.2   FLUSH-LL-ACK
  */
 static void
-bssgp_flush_ll_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_flush_ll_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4962,11 +4963,11 @@ bssgp_flush_ll_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 
  * 10.4.3   LLC-DISCARDED
  */
 static void
-bssgp_llc_discarded(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_llc_discarded(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -4992,11 +4993,11 @@ bssgp_llc_discarded(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * 10.4.4   FLOW-CONTROL-BVC
  */
 static void
-bssgp_flow_control_bvc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_flow_control_bvc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5031,11 +5032,11 @@ bssgp_flow_control_bvc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
  * 10.4.5   FLOW-CONTROL-BVC-ACK
  */
 static void
-bssgp_flow_control_bvc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_flow_control_bvc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5057,11 +5058,11 @@ bssgp_flow_control_bvc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, 
  * 10.4.6   FLOW-CONTROL-MS
  */
 static void
-bssgp_flow_control_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_flow_control_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5092,11 +5093,11 @@ bssgp_flow_control_ms(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint
  * 10.4.7   FLOW-CONTROL-MS-ACK
  */
 static void
-bssgp_flow_control_ms_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_flow_control_ms_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5118,11 +5119,11 @@ bssgp_flow_control_ms_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, g
  */
 
 static void
-bssgp_bvc_block(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_bvc_block(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5143,11 +5144,11 @@ bssgp_bvc_block(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 off
  * 10.4.9   BVC-BLOCK-ACK
  */
 static void
-bssgp_bvc_block_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_bvc_block_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5166,11 +5167,11 @@ bssgp_bvc_block_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * 10.4.10  BVC-UNBLOCK
  */
 static void
-bssgp_bvc_un_block(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_bvc_un_block(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5189,11 +5190,11 @@ bssgp_bvc_un_block(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 
  */
 
 static void
-bssgp_bvc_un_block_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_bvc_un_block_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5213,11 +5214,11 @@ bssgp_bvc_un_block_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
  */
 
 static void
-bssgp_bvc_reset(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_bvc_reset(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5244,11 +5245,11 @@ bssgp_bvc_reset(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 off
  */
 
 static void
-bssgp_bvc_reset_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_bvc_reset_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5272,11 +5273,11 @@ bssgp_bvc_reset_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * 10.4.14  STATUS
  */
 static void
-bssgp_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5284,7 +5285,7 @@ bssgp_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset
     /* This PDU indicates that an exception condition occurred. */
     /* Direction: SGSN to BSS, BSS to SGSN */
 
-    pinfo->flags.in_error_pkt = TRUE;
+    pinfo->flags.in_error_pkt = true;
 
     /* Cause Cause/11.3.8 M TLV 3 */
     ELEM_MAND_TELV(BSSGP_IEI_CAUSE,BSSGP_PDU_TYPE, DE_BSSGP_CAUSE, NULL, ei_bssgp_missing_mandatory_element);
@@ -5299,11 +5300,11 @@ bssgp_status(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset
  * 10.4.15  SGSN-INVOKE-TRACE
  */
 static void
-bssgp_sgsn_invoke_trace(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_sgsn_invoke_trace(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5333,11 +5334,11 @@ bssgp_sgsn_invoke_trace(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
  * 10.4.16  DOWNLOAD-BSS-PFC
  */
 static void
-bssgp_download_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_download_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5358,11 +5359,11 @@ bssgp_download_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guin
  * 10.4.17  CREATE-BSS-PFC
  */
 static void
-bssgp_create_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_create_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5405,11 +5406,11 @@ bssgp_create_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * 10.4.18  CREATE-BSS-PFC-ACK
  */
 static void
-bssgp_create_bss_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_create_bss_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5435,11 +5436,11 @@ bssgp_create_bss_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gu
  * 10.4.19  CREATE-BSS-PFC-NACK
  */
 static void
-bssgp_create_bss_pfc_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_create_bss_pfc_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5463,11 +5464,11 @@ bssgp_create_bss_pfc_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, g
  * 10.4.20  MODIFY-BSS-PFC
  */
 static void
-bssgp_modify_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_modify_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5490,11 +5491,11 @@ bssgp_modify_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * 10.4.21  MODIFY-BSS-PFC-ACK
  */
 static void
-bssgp_modify_bss_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_modify_bss_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5519,11 +5520,11 @@ bssgp_modify_bss_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gu
  * 10.4.22  DELETE-BSS-PFC
  */
 static void
-bssgp_delete_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_delete_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5543,11 +5544,11 @@ bssgp_delete_bss_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * 10.4.23  DELETE-BSS-PFC-ACK
  */
 static void
-bssgp_delete_bss_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_delete_bss_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5567,11 +5568,11 @@ bssgp_delete_bss_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gu
  * 10.4.24  FLOW-CONTROL-PFC
  */
 static void
-bssgp_flow_cntrl_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_flow_cntrl_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5601,11 +5602,11 @@ bssgp_flow_cntrl_pfc(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * 10.4.25  FLOW-CONTROL-PFC-ACK
  */
 static void
-bssgp_flow_cntrl_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_flow_cntrl_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5627,11 +5628,11 @@ bssgp_flow_cntrl_pfc_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gu
  * 10.4.26  DELETE-BSS-PFC-REQ
  */
 static void
-bssgp_delete_bss_pfc_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_delete_bss_pfc_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5653,11 +5654,11 @@ bssgp_delete_bss_pfc_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gu
  * 10.4.27  PS-HANDOVER-REQUIRED
  */
 static void
-bssgp_ps_ho_required(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ps_ho_required(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5703,11 +5704,11 @@ bssgp_ps_ho_required(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * 10.4.28  PS-HANDOVER-REQUIRED-ACK
  */
 static void
-bssgp_ps_ho_required_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ps_ho_required_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5738,11 +5739,11 @@ bssgp_ps_ho_required_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gu
  * 10.4.29  PS-HANDOVER-REQUIRED-NACK
  */
 static void
-bssgp_ps_ho_required_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ps_ho_required_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5762,11 +5763,11 @@ bssgp_ps_ho_required_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, g
  * 10.4.30  PS-HANDOVER-REQUEST
  */
 static void
-bssgp_ps_ho_request(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ps_ho_request(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5807,11 +5808,11 @@ bssgp_ps_ho_request(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32
  * 10.4.31  PS-HANDOVER-REQUEST-ACK
  */
 static void
-bssgp_ps_ho_request_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ps_ho_request_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5833,11 +5834,11 @@ bssgp_ps_ho_request_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gui
  * 10.4.32  PS-HANDOVER-REQUEST-NACK
  */
 static void
-bssgp_ps_ho_request_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ps_ho_request_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5858,11 +5859,11 @@ bssgp_ps_ho_request_nack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gu
  * 10.4.33  PS-HANDOVER-COMPLETE
  */
 static void
-bssgp_ps_ho_complete(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ps_ho_complete(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5886,11 +5887,11 @@ bssgp_ps_ho_complete(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
  * 10.4.34  PS-HANDOVER-CANCEL
  */
 static void
-bssgp_ps_ho_cancel(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ps_ho_cancel(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5919,11 +5920,11 @@ bssgp_ps_ho_cancel(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 
  * 10.4.35  PS-HANDOVER-COMPLETE-ACK
  */
 static void
-bssgp_ps_ho_complete_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ps_ho_complete_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5951,11 +5952,11 @@ bssgp_ps_ho_complete_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, gu
  * 10.4.36  OVERLOAD
  */
 static void
-bssgp_overload(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_overload(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -5970,11 +5971,11 @@ bssgp_overload(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offs
  * 10.5.1   PERFORM-LOCATION-REQUEST
  */
 static void
-bssgp_perform_loc_request(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_perform_loc_request(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6030,11 +6031,11 @@ bssgp_perform_loc_request(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, g
  * 10.5.2   PERFORM-LOCATION-RESPONSE
  */
 static void
-bssgp_perform_loc_response(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_perform_loc_response(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6067,11 +6068,11 @@ bssgp_perform_loc_response(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, 
  * 10.5.3   PERFORM-LOCATION-ABORT
  */
 static void
-bssgp_perform_loc_response_abort(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_perform_loc_response_abort(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6094,11 +6095,11 @@ bssgp_perform_loc_response_abort(tvbuff_t *tvb, proto_tree *tree, packet_info *p
  * 10.5.4   POSITION-COMMAND
  */
 static void
-bssgp_pos_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_pos_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6125,11 +6126,11 @@ bssgp_pos_cmd(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offse
  * 10.5.5   POSITION-RESPONSE
  */
 static void
-bssgp_pos_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_pos_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6157,11 +6158,11 @@ bssgp_pos_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offs
  * 10.6.1   RAN-INFORMATION-REQUEST
  */
 static void
-bssgp_ran_inf_request(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ran_inf_request(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6183,11 +6184,11 @@ bssgp_ran_inf_request(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint
  * 10.6.2   RAN-INFORMATION
  */
 static void
-bssgp_ran_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ran_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6210,11 +6211,11 @@ bssgp_ran_inf(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offse
  * 10.6.3   RAN-INFORMATION-ACK
  */
 static void
-bssgp_ran_inf_request_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ran_inf_request_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6240,11 +6241,11 @@ bssgp_ran_inf_request_ack(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, g
  */
 
 static void
-bssgp_ran_inf_err(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ran_inf_err(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6254,7 +6255,7 @@ bssgp_ran_inf_err(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 o
      */
     /* Direction: BSS to SGSN SGSN to BSS */
 
-    pinfo->flags.in_error_pkt = TRUE;
+    pinfo->flags.in_error_pkt = true;
 
     /* Destination Cell Identifier RIM Routing Information/11.3.70 M TLV 3-? */
     ELEM_MAND_TELV(BSSGP_IEI_RIM_ROUTING_INFORMATION, BSSGP_PDU_TYPE, DE_BSSGP_RIM_ROUTING_INF, " - Destination Cell Identifier", ei_bssgp_missing_mandatory_element);
@@ -6269,11 +6270,11 @@ bssgp_ran_inf_err(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 o
  * 10.6.5   RAN-INFORMATION-APPLICATION-ERROR
  */
 static void
-bssgp_ran_inf_app_err(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_ran_inf_app_err(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6284,7 +6285,7 @@ bssgp_ran_inf_app_err(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint
 
     /* Direction: BSS to SGSN SGSN to BSS */
 
-    pinfo->flags.in_error_pkt = TRUE;
+    pinfo->flags.in_error_pkt = true;
 
     /* Destination Cell Identifier RIM Routing Information/11.3.70 M TLV 3-? */
     ELEM_MAND_TELV(BSSGP_IEI_RIM_ROUTING_INFORMATION, BSSGP_PDU_TYPE, DE_BSSGP_RIM_ROUTING_INF, " - Destination Cell Identifier", ei_bssgp_missing_mandatory_element);
@@ -6301,11 +6302,11 @@ bssgp_ran_inf_app_err(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint
  * 10.7.1   MBMS-SESSION-START-REQUEST
  */
 static void
-bssgp_mbms_session_start_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_mbms_session_start_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6343,11 +6344,11 @@ bssgp_mbms_session_start_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo
  * 10.7.2   MBMS-SESSION-START-RESPONSE
  */
 static void
-bssgp_mbms_session_start_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_mbms_session_start_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6373,11 +6374,11 @@ bssgp_mbms_session_start_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinf
  * 10.7.3   MBMS-SESSION-STOP-REQUEST
  */
 static void
-bssgp_mbms_session_stop_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_mbms_session_stop_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6400,11 +6401,11 @@ bssgp_mbms_session_stop_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo,
  * 10.7.4   MBMS-SESSION-STOP-RESPONSE
  */
 static void
-bssgp_mbms_session_stop_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_mbms_session_stop_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6427,11 +6428,11 @@ bssgp_mbms_session_stop_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo
  * 10.7.5   MBMS-SESSION-UPDATE-REQUEST
  */
 static void
-bssgp_mbms_session_update_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_mbms_session_update_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6470,11 +6471,11 @@ bssgp_mbms_session_update_req(tvbuff_t *tvb, proto_tree *tree, packet_info *pinf
  * 10.7.6   MBMS-SESSION-UPDATE-RESPONSE
  */
 static void
-bssgp_mbms_session_uptate_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len)
+bssgp_mbms_session_uptate_resp(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len)
 {
-    guint32 curr_offset;
-    guint32 consumed;
-    guint   curr_len;
+    uint32_t curr_offset;
+    uint32_t consumed;
+    unsigned   curr_len;
 
     curr_offset = offset;
     curr_len = len;
@@ -6663,9 +6664,9 @@ static const value_string bssgp_msg_strings[] = {
 };
 static value_string_ext bssgp_msg_strings_ext = VALUE_STRING_EXT_INIT(bssgp_msg_strings);
 
-#define NUM_BSSGP_MSG (sizeof(bssgp_msg_strings)/sizeof(value_string))
-static gint ett_bssgp_msg[NUM_BSSGP_MSG];
-static void (*bssgp_msg_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len) = {
+#define NUM_BSSGP_MSG array_length(bssgp_msg_strings)
+static int ett_bssgp_msg[NUM_BSSGP_MSG];
+static void (*bssgp_msg_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len) = {
 /* 0x00 to 0x10 */
     bssgp_dl_unitdata,                  /* 10.2.1 DL-UNITDATA */
     bssgp_ul_unitdata,                  /* 10.2.2 UL-UNITDATA */
@@ -6836,11 +6837,11 @@ static void (*bssgp_msg_fcn[])(tvbuff_t *tvb, proto_tree *tree, packet_info *pin
     NULL,    /* NONE */
 };
 
-static void get_bssgp_msg_params(guint8 oct, const gchar **msg_str, int *ett_tree, int *hf_idx, msg_fcn *msg_fcn_p)
+static void get_bssgp_msg_params(uint8_t oct, const char **msg_str, int *ett_tree, int *hf_idx, msg_fcn *msg_fcn_p)
 {
-    gint            idx;
+    int             idx;
 
-    *msg_str = try_val_to_str_idx_ext((guint32) (oct & 0xff), &bssgp_msg_strings_ext, &idx);
+    *msg_str = try_val_to_str_idx_ext((uint32_t) (oct & 0xff), &bssgp_msg_strings_ext, &idx);
     *hf_idx = hf_bssgp_msg_type;
     if (*msg_str != NULL) {
         *ett_tree = ett_bssgp_msg[idx];
@@ -6857,11 +6858,11 @@ dissect_bssgp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     proto_item  *ti;
     proto_tree  *bssgp_tree = NULL;
     int          offset     = 0;
-    guint32      len;
-    const gchar *msg_str    = NULL;
-    gint         ett_tree;
+    uint32_t     len;
+    const char *msg_str    = NULL;
+    int          ett_tree;
     int          hf_idx;
-    void        (*msg_fcn_p)(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 offset, guint len);
+    void        (*msg_fcn_p)(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len);
 
     /* Save pinfo */
     g_rim_application_identity = 0;
@@ -6874,7 +6875,7 @@ dissect_bssgp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     col_clear(pinfo->cinfo, COL_INFO);
 
 
-    g_pdu_type = tvb_get_guint8(tvb,offset);
+    g_pdu_type = tvb_get_uint8(tvb,offset);
     ti = proto_tree_add_item(tree, proto_bssgp, tvb, 0, -1, ENC_NA);
     bssgp_tree = proto_item_add_subtree(ti, ett_bssgp);
 
@@ -6887,7 +6888,7 @@ dissect_bssgp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     get_bssgp_msg_params(g_pdu_type, &msg_str, &ett_tree, &hf_idx, &msg_fcn_p);
 
     if(msg_str){
-        col_add_fstr(pinfo->cinfo, COL_INFO, "%s", msg_str);
+        col_add_str(pinfo->cinfo, COL_INFO, msg_str);
     }else{
         expert_add_info_format(pinfo, ti, &ei_bssgp_msg_type, "Unknown message 0x%x", g_pdu_type);
         return 1;
@@ -6917,8 +6918,8 @@ dissect_bssgp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 void
 proto_register_bssgp(void)
 {
-    guint       i;
-    guint       last_offset;
+    unsigned    i;
+    unsigned    last_offset;
 
     static hf_register_info hf[] = {
         { &hf_bssgp_msg_type,
@@ -7551,7 +7552,7 @@ proto_register_bssgp(void)
 
     /* Setup protocol subtree array */
 #define NUM_INDIVIDUAL_ELEMS    12
-    gint *ett[NUM_INDIVIDUAL_ELEMS +
+    int *ett[NUM_INDIVIDUAL_ELEMS +
               NUM_BSSGP_ELEM +
               NUM_BSSGP_MSG];
 
@@ -7588,13 +7589,11 @@ proto_register_bssgp(void)
 
     for (i=0; i < NUM_BSSGP_ELEM; i++, last_offset++)
     {
-        ett_bssgp_elem[i] = -1;
         ett[last_offset] = &ett_bssgp_elem[i];
     }
 
     for (i=0; i < NUM_BSSGP_MSG; i++, last_offset++)
     {
-        ett_bssgp_msg[i] = -1;
         ett[last_offset] = &ett_bssgp_msg[i];
     }
 

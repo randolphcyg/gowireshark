@@ -20,96 +20,96 @@ void proto_reg_handoff_synergy(void);
 
 #define SYNERGY_PORT        24800 /* Not IANA registered */
 
-static int proto_synergy = -1;
+static int proto_synergy;
 
-static int hf_synergy_packet_len = -1;
-static int hf_synergy_packet_type = -1;
+static int hf_synergy_packet_len;
+static int hf_synergy_packet_type;
 
-static int hf_synergy_unknown = -1;
-static int hf_synergy_handshake = -1;
-static int hf_synergy_handshake_majorversion = -1;
-static int hf_synergy_handshake_minorversion = -1;
-static int hf_synergy_handshake_clientname = -1;
+static int hf_synergy_unknown;
+static int hf_synergy_handshake;
+static int hf_synergy_handshake_majorversion;
+static int hf_synergy_handshake_minorversion;
+static int hf_synergy_handshake_clientname;
 
-static int hf_synergy_cbye = -1;
+static int hf_synergy_cbye;
 
-static int hf_synergy_cinn = -1;
-static int hf_synergy_cinn_x = -1;
-static int hf_synergy_cinn_y = -1;
-static int hf_synergy_cinn_sequence = -1;
-static int hf_synergy_cinn_modifiermask = -1;
+static int hf_synergy_cinn;
+static int hf_synergy_cinn_x;
+static int hf_synergy_cinn_y;
+static int hf_synergy_cinn_sequence;
+static int hf_synergy_cinn_modifiermask;
 
-static int hf_synergy_cout = -1;
+static int hf_synergy_cout;
 
-static int hf_synergy_cclp = -1;
-static int hf_synergy_cclp_clipboardidentifier = -1;
-static int hf_synergy_cclp_sequencenumber = -1;
+static int hf_synergy_cclp;
+static int hf_synergy_cclp_clipboardidentifier;
+static int hf_synergy_cclp_sequencenumber;
 
-static int hf_synergy_csec = -1;
+static int hf_synergy_csec;
 
-static int hf_synergy_crop = -1;
+static int hf_synergy_crop;
 
-static int hf_synergy_ciak = -1;
+static int hf_synergy_ciak;
 
-static int hf_synergy_dkdn = -1;
-static int hf_synergy_dkdn_keyid = -1;
-static int hf_synergy_dkdn_keymodifiermask = -1;
-static int hf_synergy_dkdn_keybutton = -1;
+static int hf_synergy_dkdn;
+static int hf_synergy_dkdn_keyid;
+static int hf_synergy_dkdn_keymodifiermask;
+static int hf_synergy_dkdn_keybutton;
 
-static int hf_synergy_dkrp = -1;
-static int hf_synergy_dkrp_keyid = -1;
-static int hf_synergy_dkrp_keymodifiermask = -1;
-static int hf_synergy_dkrp_numberofrepeats = -1;
-static int hf_synergy_dkrp_keybutton = -1;
+static int hf_synergy_dkrp;
+static int hf_synergy_dkrp_keyid;
+static int hf_synergy_dkrp_keymodifiermask;
+static int hf_synergy_dkrp_numberofrepeats;
+static int hf_synergy_dkrp_keybutton;
 
-static int hf_synergy_dkup = -1;
-static int hf_synergy_dkup_keyid = -1;
-static int hf_synergy_dkup_keymodifiermask = -1;
-static int hf_synergy_dkup_keybutton = -1;
+static int hf_synergy_dkup;
+static int hf_synergy_dkup_keyid;
+static int hf_synergy_dkup_keymodifiermask;
+static int hf_synergy_dkup_keybutton;
 
-static int hf_synergy_dmdn = -1;
-static int hf_synergy_dmup = -1;
+static int hf_synergy_dmdn;
+static int hf_synergy_dmup;
 
-static int hf_synergy_dmmv = -1;
-static int hf_synergy_dmmv_x = -1;
-static int hf_synergy_dmmv_y = -1;
+static int hf_synergy_dmmv;
+static int hf_synergy_dmmv_x;
+static int hf_synergy_dmmv_y;
 
-static int hf_synergy_dmrm = -1;
-static int hf_synergy_dmrm_x = -1;
-static int hf_synergy_dmrm_y = -1;
+static int hf_synergy_dmrm;
+static int hf_synergy_dmrm_x;
+static int hf_synergy_dmrm_y;
 
-static int hf_synergy_dmwm = -1;
+static int hf_synergy_dmwm;
 
-static int hf_synergy_dclp = -1;
-static int hf_synergy_dclp_clipboardidentifier = -1;
-static int hf_synergy_dclp_sequencenumber = -1;
-static int hf_synergy_dclp_clipboarddata = -1;
+static int hf_synergy_dclp;
+static int hf_synergy_dclp_clipboardidentifier;
+static int hf_synergy_dclp_sequencenumber;
+static int hf_synergy_dclp_clipboarddata;
 
-static int hf_synergy_dinf = -1;
-static int hf_synergy_dinf_clp = -1;
-static int hf_synergy_dinf_ctp= -1;
-static int hf_synergy_dinf_wsp = -1;
-static int hf_synergy_dinf_hsp = -1;
-static int hf_synergy_dinf_swz = -1;
-static int hf_synergy_dinf_x = -1;
-static int hf_synergy_dinf_y = -1;
+static int hf_synergy_dinf;
+static int hf_synergy_dinf_clp;
+static int hf_synergy_dinf_ctp;
+static int hf_synergy_dinf_wsp;
+static int hf_synergy_dinf_hsp;
+static int hf_synergy_dinf_swz;
+static int hf_synergy_dinf_x;
+static int hf_synergy_dinf_y;
 
-static int hf_synergy_dsop = -1;
+static int hf_synergy_dsop;
 
-static int hf_synergy_qinf = -1;
+static int hf_synergy_qinf;
 
-static int hf_synergy_eicv = -1;
-static int hf_synergy_eicv_majorversion = -1;
-static int hf_synergy_eicv_minorversion = -1;
+static int hf_synergy_eicv;
+static int hf_synergy_eicv_majorversion;
+static int hf_synergy_eicv_minorversion;
 
-static int hf_synergy_ebsy = -1;
+static int hf_synergy_ebsy;
 
-static int hf_synergy_eunk = -1;
+static int hf_synergy_eunk;
 
-static int hf_synergy_ebad = -1;
+static int hf_synergy_ebad;
 
 /* Initialize the subtree pointers */
-static gint ett_synergy = -1;
+static int ett_synergy;
 
 static dissector_handle_t synergy_handle;
 
@@ -143,17 +143,17 @@ static const string_string packet_type_vals[] = {
     { NULL  , NULL }
 };
 
-static void dissect_synergy_handshake(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,gint offset);
-static void dissect_synergy_cinn(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,gint offset);
-static void dissect_synergy_cclp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,gint offset);
-static void dissect_synergy_dkdn(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,gint offset);
-static void dissect_synergy_dkrp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,gint offset);
-static void dissect_synergy_dkup(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,gint offset);
-static void dissect_synergy_dmmv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,gint offset);
-static void dissect_synergy_dmrm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,gint offset);
-static void dissect_synergy_dclp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,gint offset);
-static void dissect_synergy_dinf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,gint offset);
-static void dissect_synergy_eicv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,gint offset);
+static void dissect_synergy_handshake(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,int offset);
+static void dissect_synergy_cinn(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,int offset);
+static void dissect_synergy_cclp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,int offset);
+static void dissect_synergy_dkdn(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,int offset);
+static void dissect_synergy_dkrp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,int offset);
+static void dissect_synergy_dkup(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,int offset);
+static void dissect_synergy_dmmv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,int offset);
+static void dissect_synergy_dmrm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,int offset);
+static void dissect_synergy_dclp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,int offset);
+static void dissect_synergy_dinf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,int offset);
+static void dissect_synergy_eicv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,int offset);
 
 
 /* Code to dissect a single Synergy packet */
@@ -165,8 +165,8 @@ dissect_synergy_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
     col_clear(pinfo->cinfo, COL_INFO);
 
     if (tree) {
-        gint offset=0;
-        const guint8* packet_type;
+        int offset=0;
+        const uint8_t* packet_type;
         proto_item *ti = NULL;
         proto_tree *synergy_tree = NULL;
         ti = proto_tree_add_protocol_format(tree, proto_synergy, tvb, 0, -1,"Synergy Protocol");
@@ -244,7 +244,7 @@ dissect_synergy_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
     return tvb_captured_length(tvb);
 }
 
-static void dissect_synergy_handshake( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset )
+static void dissect_synergy_handshake( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset )
 {
     proto_item *ti = NULL;
     proto_tree *sub_tree = NULL;
@@ -261,7 +261,7 @@ static void dissect_synergy_handshake( tvbuff_t *tvb, packet_info *pinfo _U_, pr
     }
 }
 
-static void dissect_synergy_cinn( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset )
+static void dissect_synergy_cinn( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset )
 {
     proto_item *ti = NULL;
     proto_tree *sub_tree = NULL;
@@ -274,7 +274,7 @@ static void dissect_synergy_cinn( tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
     proto_tree_add_item(sub_tree, hf_synergy_cinn_modifiermask, tvb, offset + 8, 2, ENC_BIG_ENDIAN);
 }
 
-static void dissect_synergy_cclp( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset )
+static void dissect_synergy_cclp( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset )
 {
     proto_item *ti = NULL;
     proto_tree *sub_tree = NULL;
@@ -285,7 +285,7 @@ static void dissect_synergy_cclp( tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
     proto_tree_add_item(sub_tree, hf_synergy_cclp_sequencenumber, tvb, offset + 1, 4, ENC_BIG_ENDIAN);
 }
 
-static void dissect_synergy_dkdn( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset )
+static void dissect_synergy_dkdn( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset )
 {
     proto_item *ti = NULL;
     proto_tree *sub_tree = NULL;
@@ -299,7 +299,7 @@ static void dissect_synergy_dkdn( tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
         proto_tree_add_item(sub_tree, hf_synergy_dkdn_keybutton, tvb, offset + 4, 2, ENC_BIG_ENDIAN);
 }
 
-static void dissect_synergy_dkrp( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset )
+static void dissect_synergy_dkrp( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset )
 {
     proto_item *ti = NULL;
     proto_tree *sub_tree = NULL;
@@ -314,7 +314,7 @@ static void dissect_synergy_dkrp( tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
         proto_tree_add_item(sub_tree, hf_synergy_dkrp_keybutton, tvb, offset + 6, 2, ENC_BIG_ENDIAN);
 }
 
-static void dissect_synergy_dkup( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset )
+static void dissect_synergy_dkup( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset )
 {
     proto_item *ti = NULL;
     proto_tree *sub_tree = NULL;
@@ -328,7 +328,7 @@ static void dissect_synergy_dkup( tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
         proto_tree_add_item(sub_tree, hf_synergy_dkup_keybutton, tvb, offset + 4, 2, ENC_BIG_ENDIAN);
 }
 
-static void dissect_synergy_dmmv( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset )
+static void dissect_synergy_dmmv( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset )
 {
     proto_item *ti = NULL;
     proto_tree *sub_tree = NULL;
@@ -339,7 +339,7 @@ static void dissect_synergy_dmmv( tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
     proto_tree_add_item(sub_tree, hf_synergy_dmmv_y, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
 }
 
-static void dissect_synergy_dmrm( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset )
+static void dissect_synergy_dmrm( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset )
 {
     proto_item *ti = NULL;
     proto_tree *sub_tree = NULL;
@@ -350,7 +350,7 @@ static void dissect_synergy_dmrm( tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
     proto_tree_add_item(sub_tree, hf_synergy_dmrm_y, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
 }
 
-static void dissect_synergy_dclp( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset )
+static void dissect_synergy_dclp( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset )
 {
     proto_item *ti = NULL;
     proto_tree *sub_tree = NULL;
@@ -362,7 +362,7 @@ static void dissect_synergy_dclp( tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
     proto_tree_add_item(sub_tree, hf_synergy_dclp_clipboarddata, tvb, offset + 5, -1, ENC_ASCII);
 }
 
-static void dissect_synergy_dinf( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset )
+static void dissect_synergy_dinf( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset )
 {
     proto_item *ti = NULL;
     proto_tree *sub_tree = NULL;
@@ -378,7 +378,7 @@ static void dissect_synergy_dinf( tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
     proto_tree_add_item(sub_tree, hf_synergy_dinf_y, tvb, offset + 12, 2, ENC_BIG_ENDIAN);
 }
 
-static void dissect_synergy_eicv( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset )
+static void dissect_synergy_eicv( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset )
 {
     proto_item *ti = NULL;
     proto_tree *sub_tree = NULL;
@@ -389,7 +389,7 @@ static void dissect_synergy_eicv( tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
     proto_tree_add_item(sub_tree, hf_synergy_eicv_minorversion, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
 }
 
-static guint
+static unsigned
 synergy_get_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
 	return tvb_get_ntohl(tvb, offset) + 4;
@@ -398,7 +398,7 @@ synergy_get_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *dat
 static int
 dissect_synergy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, 4, synergy_get_pdu_len,
+    tcp_dissect_pdus(tvb, pinfo, tree, true, 4, synergy_get_pdu_len,
                      dissect_synergy_pdu, NULL);
     return tvb_captured_length(tvb);
 }
@@ -598,7 +598,7 @@ proto_register_synergy(void)
 
 
 /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_synergy,
     };
 

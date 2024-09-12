@@ -29,26 +29,26 @@
 void proto_register_fddi(void);
 void proto_reg_handoff_fddi(void);
 
-static int proto_fddi = -1;
-static int hf_fddi_fc = -1;
-static int hf_fddi_fc_clf = -1;
-static int hf_fddi_fc_prio = -1;
-static int hf_fddi_fc_smt_subtype = -1;
-static int hf_fddi_fc_mac_subtype = -1;
-static int hf_fddi_dst = -1;
-static int hf_fddi_src = -1;
-static int hf_fddi_addr = -1;
+static int proto_fddi;
+static int hf_fddi_fc;
+static int hf_fddi_fc_clf;
+static int hf_fddi_fc_prio;
+static int hf_fddi_fc_smt_subtype;
+static int hf_fddi_fc_mac_subtype;
+static int hf_fddi_dst;
+static int hf_fddi_src;
+static int hf_fddi_addr;
 
-static gint ett_fddi = -1;
-static gint ett_fddi_fc = -1;
+static int ett_fddi;
+static int ett_fddi_fc;
 
-static int fddi_tap = -1;
+static int fddi_tap;
 
 static dissector_handle_t fddi_handle, fddi_bitswapped_handle;
 
 static capture_dissector_handle_t llc_cap_handle;
 
-static gboolean fddi_padding = FALSE;
+static bool fddi_padding;
 
 #define FDDI_PADDING            ((fddi_padding) ? 3 : 0)
 
@@ -116,7 +116,7 @@ static const value_string mac_subtype_vals[] = {
 };
 
 typedef struct _fddi_hdr {
-  guint8  fc;
+  uint8_t fc;
   address dst;
   address src;
 } fddi_hdr;
@@ -132,7 +132,7 @@ typedef struct _fddi_hdr {
 static dissector_handle_t llc_handle;
 
 static void
-swap_mac_addr(guint8 *swapped_addr, tvbuff_t *tvb, gint offset)
+swap_mac_addr(uint8_t *swapped_addr, tvbuff_t *tvb, int offset)
 {
   tvb_memcpy(tvb, swapped_addr, offset, 6);
   bitswap_buf_inplace(swapped_addr, 6);
@@ -186,19 +186,19 @@ fddi_endpoint_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, con
   /* Take two "add" passes per packet, adding for each direction, ensures that all
   packets are counted properly (even if address is sending to itself)
   XXX - this could probably be done more efficiently inside endpoint_table */
-  add_endpoint_table_data(hash, &ehdr->src, 0, TRUE, 1, pinfo->fd->pkt_len, &fddi_endpoint_dissector_info, ENDPOINT_NONE);
-  add_endpoint_table_data(hash, &ehdr->dst, 0, FALSE, 1, pinfo->fd->pkt_len, &fddi_endpoint_dissector_info, ENDPOINT_NONE);
+  add_endpoint_table_data(hash, &ehdr->src, 0, true, 1, pinfo->fd->pkt_len, &fddi_endpoint_dissector_info, ENDPOINT_NONE);
+  add_endpoint_table_data(hash, &ehdr->dst, 0, false, 1, pinfo->fd->pkt_len, &fddi_endpoint_dissector_info, ENDPOINT_NONE);
 
   return TAP_PACKET_REDRAW;
 }
 
-static gboolean
-capture_fddi(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header)
+static bool
+capture_fddi(const unsigned char *pd, int offset, int len, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header)
 {
   int fc;
 
   if (!BYTES_ARE_IN_FRAME(0, len, FDDI_HEADER_SIZE + FDDI_PADDING))
-    return FALSE;
+    return false;
 
   offset = FDDI_PADDING + FDDI_HEADER_SIZE;
 
@@ -227,13 +227,13 @@ capture_fddi(const guchar *pd, int offset, int len, capture_packet_info_t *cpinf
       return call_capture_dissector(llc_cap_handle, pd, offset, len, cpinfo, pseudo_header);
   } /* fc */
 
-  return FALSE;
+  return false;
 } /* capture_fddi */
 
-static const gchar *
+static const char *
 fddifc_to_str(int fc)
 {
-  static gchar strbuf[128+1];
+  static char strbuf[128+1];
 
   switch (fc) {
 
@@ -303,14 +303,14 @@ fddifc_to_str(int fc)
 
 static void
 dissect_fddi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-             gboolean bitswapped)
+             bool bitswapped)
 {
   proto_tree      *fh_tree     = NULL;
   proto_item      *ti, *hidden_item;
-  const gchar     *fc_str;
+  const char      *fc_str;
   proto_tree      *fc_tree;
-  guchar          *src = (guchar*)wmem_alloc(pinfo->pool, 6), *dst = (guchar*)wmem_alloc(pinfo->pool, 6);
-  guchar           src_swapped[6], dst_swapped[6];
+  unsigned char   *src = (unsigned char*)wmem_alloc(pinfo->pool, 6), *dst = (unsigned char*)wmem_alloc(pinfo->pool, 6);
+  unsigned char    src_swapped[6], dst_swapped[6];
   tvbuff_t        *next_tvb;
   static fddi_hdr  fddihdrs[4];
   static int       fddihdr_num = 0;
@@ -324,7 +324,7 @@ dissect_fddi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "FDDI");
 
-  fddihdr->fc = tvb_get_guint8(tvb, FDDI_P_FC + FDDI_PADDING);
+  fddihdr->fc = tvb_get_uint8(tvb, FDDI_P_FC + FDDI_PADDING);
   fc_str = fddifc_to_str(fddihdr->fc);
 
   col_add_str(pinfo->cinfo, COL_INFO, fc_str);
@@ -440,14 +440,14 @@ dissect_fddi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 static int
 dissect_fddi_bitswapped(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-  dissect_fddi(tvb, pinfo, tree, TRUE);
+  dissect_fddi(tvb, pinfo, tree, true);
   return tvb_captured_length(tvb);
 }
 
 static int
 dissect_fddi_not_bitswapped(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-  dissect_fddi(tvb, pinfo, tree, FALSE);
+  dissect_fddi(tvb, pinfo, tree, false);
   return tvb_captured_length(tvb);
 }
 
@@ -489,7 +489,7 @@ proto_register_fddi(void)
         "Source or Destination Hardware Address", HFILL }},
 
   };
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_fddi,
     &ett_fddi_fc,
   };
@@ -520,7 +520,7 @@ proto_register_fddi(void)
                                  &fddi_padding);
 
   fddi_tap = register_tap("fddi");
-  register_conversation_table(proto_fddi, TRUE, fddi_conversation_packet, fddi_endpoint_packet);
+  register_conversation_table(proto_fddi, true, fddi_conversation_packet, fddi_endpoint_packet);
 }
 
 void

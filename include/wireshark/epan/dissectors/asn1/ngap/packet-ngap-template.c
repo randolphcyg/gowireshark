@@ -1,7 +1,7 @@
 /* packet-ngap.c
  * Routines for NG-RAN NG Application Protocol (NGAP) packet dissection
  * Copyright 2018, Anders Broman <anders.broman@ericsson.com>
- * Copyright 2018-2023, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2018-2024, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * References: 3GPP TS 38.413 v17.5.0 (2023-06)
+ * References: 3GPP TS 38.413 v18.2.0 (2024-06)
  */
 
 #include "config.h"
@@ -27,7 +27,10 @@
 #include <epan/show_exception.h>
 #include <epan/tap.h>
 #include <epan/stats_tree.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
 #include <wsutil/wsjson.h>
+#include <wsutil/array.h>
 
 #include "packet-ngap.h"
 #include "packet-per.h"
@@ -64,127 +67,132 @@ static dissector_handle_t lte_rrc_ue_radio_paging_info_nb_handle;
 static dissector_handle_t lte_rrc_ue_radio_access_cap_info_nb_handle;
 static dissector_handle_t nrppa_handle;
 
-static int proto_json = -1;
+static int proto_json;
 
 #include "packet-ngap-val.h"
 
 /* Initialize the protocol and registered fields */
-static int proto_ngap = -1;
-static int hf_ngap_transportLayerAddressIPv4 = -1;
-static int hf_ngap_transportLayerAddressIPv6 = -1;
-static int hf_ngap_SerialNumber_gs = -1;
-static int hf_ngap_SerialNumber_msg_code = -1;
-static int hf_ngap_SerialNumber_upd_nb = -1;
-static int hf_ngap_WarningType_value = -1;
-static int hf_ngap_WarningType_emergency_user_alert = -1;
-static int hf_ngap_WarningType_popup = -1;
-static int hf_ngap_WarningMessageContents_nb_pages = -1;
-static int hf_ngap_WarningMessageContents_decoded_page = -1;
-static int hf_ngap_NGRANTraceID_TraceID = -1;
-static int hf_ngap_NGRANTraceID_TraceRecordingSessionReference = -1;
-static int hf_ngap_InterfacesToTrace_NG_C = -1;
-static int hf_ngap_InterfacesToTrace_Xn_C = -1;
-static int hf_ngap_InterfacesToTrace_Uu = -1;
-static int hf_ngap_InterfacesToTrace_F1_C = -1;
-static int hf_ngap_InterfacesToTrace_E1 = -1;
-static int hf_ngap_InterfacesToTrace_reserved = -1;
-static int hf_ngap_RATRestrictionInformation_e_UTRA = -1;
-static int hf_ngap_RATRestrictionInformation_nR = -1;
-static int hf_ngap_RATRestrictionInformation_nR_unlicensed = -1;
-static int hf_ngap_RATRestrictionInformation_reserved = -1;
-static int hf_ngap_primaryRATRestriction_e_UTRA = -1;
-static int hf_ngap_primaryRATRestriction_nR = -1;
-static int hf_ngap_primaryRATRestriction_nR_unlicensed = -1;
-static int hf_ngap_primaryRATRestriction_nR_LEO = -1;
-static int hf_ngap_primaryRATRestriction_nR_MEO = -1;
-static int hf_ngap_primaryRATRestriction_nR_GEO = -1;
-static int hf_ngap_primaryRATRestriction_nR_OTHERSAT = -1;
-static int hf_ngap_primaryRATRestriction_reserved = -1;
-static int hf_ngap_secondaryRATRestriction_e_UTRA = -1;
-static int hf_ngap_secondaryRATRestriction_nR = -1;
-static int hf_ngap_secondaryRATRestriction_e_UTRA_unlicensed = -1;
-static int hf_ngap_secondaryRATRestriction_nR_unlicensed = -1;
-static int hf_ngap_secondaryRATRestriction_reserved = -1;
-static int hf_ngap_NrencryptionAlgorithms_nea1 = -1;
-static int hf_ngap_NrencryptionAlgorithms_nea2 = -1;
-static int hf_ngap_NrencryptionAlgorithms_nea3 = -1;
-static int hf_ngap_NrencryptionAlgorithms_reserved = -1;
-static int hf_ngap_NrintegrityProtectionAlgorithms_nia1 = -1;
-static int hf_ngap_NrintegrityProtectionAlgorithms_nia2 = -1;
-static int hf_ngap_NrintegrityProtectionAlgorithms_nia3 = -1;
-static int hf_ngap_NrintegrityProtectionAlgorithms_reserved = -1;
-static int hf_ngap_EUTRAencryptionAlgorithms_eea1 = -1;
-static int hf_ngap_EUTRAencryptionAlgorithms_eea2 = -1;
-static int hf_ngap_EUTRAencryptionAlgorithms_eea3 = -1;
-static int hf_ngap_EUTRAencryptionAlgorithms_reserved = -1;
-static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia1 = -1;
-static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia2 = -1;
-static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia3 = -1;
-static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia7 = -1;
-static int hf_ngap_EUTRAintegrityProtectionAlgorithms_reserved = -1;
-static int hf_ngap_MeasurementsToActivate_M1 = -1;
-static int hf_ngap_MeasurementsToActivate_M2 = -1;
-static int hf_ngap_MeasurementsToActivate_M4 = -1;
-static int hf_ngap_MeasurementsToActivate_M5 = -1;
-static int hf_ngap_MeasurementsToActivate_M6 = -1;
-static int hf_ngap_MeasurementsToActivate_M7 = -1;
-static int hf_ngap_MeasurementsToActivate_M1_from_event = -1;
-static int hf_ngap_MeasurementsToActivate_reserved = -1;
-static int hf_ngap_MDT_Location_Information_GNSS = -1;
-static int hf_ngap_MDT_Location_Information_reserved = -1;
-static int hf_ngap_GlobalCable_ID_str = -1;
-static int hf_ngap_UpdateFeedback_CN_PDB_DL = -1;
-static int hf_ngap_UpdateFeedback_CN_PDB_UL = -1;
-static int hf_ngap_UpdateFeedback_reserved = -1;
+static int proto_ngap;
+static int hf_ngap_transportLayerAddressIPv4;
+static int hf_ngap_transportLayerAddressIPv6;
+static int hf_ngap_SerialNumber_gs;
+static int hf_ngap_SerialNumber_msg_code;
+static int hf_ngap_SerialNumber_upd_nb;
+static int hf_ngap_WarningType_value;
+static int hf_ngap_WarningType_emergency_user_alert;
+static int hf_ngap_WarningType_popup;
+static int hf_ngap_WarningMessageContents_nb_pages;
+static int hf_ngap_WarningMessageContents_decoded_page;
+static int hf_ngap_NGRANTraceID_TraceID;
+static int hf_ngap_NGRANTraceID_TraceRecordingSessionReference;
+static int hf_ngap_InterfacesToTrace_NG_C;
+static int hf_ngap_InterfacesToTrace_Xn_C;
+static int hf_ngap_InterfacesToTrace_Uu;
+static int hf_ngap_InterfacesToTrace_F1_C;
+static int hf_ngap_InterfacesToTrace_E1;
+static int hf_ngap_InterfacesToTrace_reserved;
+static int hf_ngap_RATRestrictionInformation_e_UTRA;
+static int hf_ngap_RATRestrictionInformation_nR;
+static int hf_ngap_RATRestrictionInformation_nR_unlicensed;
+static int hf_ngap_RATRestrictionInformation_reserved;
+static int hf_ngap_primaryRATRestriction_e_UTRA;
+static int hf_ngap_primaryRATRestriction_nR;
+static int hf_ngap_primaryRATRestriction_nR_unlicensed;
+static int hf_ngap_primaryRATRestriction_nR_LEO;
+static int hf_ngap_primaryRATRestriction_nR_MEO;
+static int hf_ngap_primaryRATRestriction_nR_GEO;
+static int hf_ngap_primaryRATRestriction_nR_OTHERSAT;
+static int hf_ngap_primaryRATRestriction_e_UTRA_LEO;
+static int hf_ngap_primaryRATRestriction_e_UTRA_MEO;
+static int hf_ngap_primaryRATRestriction_e_UTRA_GEO;
+static int hf_ngap_primaryRATRestriction_e_UTRA_OTHERSAT;
+static int hf_ngap_primaryRATRestriction_reserved;
+static int hf_ngap_secondaryRATRestriction_e_UTRA;
+static int hf_ngap_secondaryRATRestriction_nR;
+static int hf_ngap_secondaryRATRestriction_e_UTRA_unlicensed;
+static int hf_ngap_secondaryRATRestriction_nR_unlicensed;
+static int hf_ngap_secondaryRATRestriction_reserved;
+static int hf_ngap_NrencryptionAlgorithms_nea1;
+static int hf_ngap_NrencryptionAlgorithms_nea2;
+static int hf_ngap_NrencryptionAlgorithms_nea3;
+static int hf_ngap_NrencryptionAlgorithms_reserved;
+static int hf_ngap_NrintegrityProtectionAlgorithms_nia1;
+static int hf_ngap_NrintegrityProtectionAlgorithms_nia2;
+static int hf_ngap_NrintegrityProtectionAlgorithms_nia3;
+static int hf_ngap_NrintegrityProtectionAlgorithms_reserved;
+static int hf_ngap_EUTRAencryptionAlgorithms_eea1;
+static int hf_ngap_EUTRAencryptionAlgorithms_eea2;
+static int hf_ngap_EUTRAencryptionAlgorithms_eea3;
+static int hf_ngap_EUTRAencryptionAlgorithms_reserved;
+static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia1;
+static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia2;
+static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia3;
+static int hf_ngap_EUTRAintegrityProtectionAlgorithms_eia7;
+static int hf_ngap_EUTRAintegrityProtectionAlgorithms_reserved;
+static int hf_ngap_MeasurementsToActivate_M1;
+static int hf_ngap_MeasurementsToActivate_M2;
+static int hf_ngap_MeasurementsToActivate_M4;
+static int hf_ngap_MeasurementsToActivate_M5;
+static int hf_ngap_MeasurementsToActivate_M6;
+static int hf_ngap_MeasurementsToActivate_M7;
+static int hf_ngap_MeasurementsToActivate_M1_from_event;
+static int hf_ngap_MeasurementsToActivate_reserved;
+static int hf_ngap_MDT_Location_Information_GNSS;
+static int hf_ngap_MDT_Location_Information_reserved;
+static int hf_ngap_GlobalCable_ID_str;
+static int hf_ngap_UpdateFeedback_CN_PDB_DL;
+static int hf_ngap_UpdateFeedback_CN_PDB_UL;
+static int hf_ngap_UpdateFeedback_reserved;
 #include "packet-ngap-hf.c"
 
 /* Initialize the subtree pointers */
-static gint ett_ngap = -1;
-static gint ett_ngap_TransportLayerAddress = -1;
-static gint ett_ngap_DataCodingScheme = -1;
-static gint ett_ngap_SerialNumber = -1;
-static gint ett_ngap_WarningType = -1;
-static gint ett_ngap_WarningMessageContents = -1;
-static gint ett_ngap_PLMNIdentity = -1;
-static gint ett_ngap_NGAP_Message = -1;
-static gint ett_ngap_NGRANTraceID = -1;
-static gint ett_ngap_InterfacesToTrace = -1;
-static gint ett_ngap_SourceToTarget_TransparentContainer = -1;
-static gint ett_ngap_TargetToSource_TransparentContainer = -1;
-static gint ett_ngap_RRCContainer = -1;
-static gint ett_ngap_RATRestrictionInformation = -1;
-static gint ett_ngap_primaryRATRestriction = -1;
-static gint ett_ngap_secondaryRATRestriction = -1;
-static gint ett_ngap_NrencryptionAlgorithms = -1;
-static gint ett_ngap_NrintegrityProtectionAlgorithms = -1;
-static gint ett_ngap_EUTRAencryptionAlgorithms = -1;
-static gint ett_ngap_EUTRAintegrityProtectionAlgorithms = -1;
-static gint ett_ngap_UERadioCapabilityForPagingOfNR = -1;
-static gint ett_ngap_UERadioCapabilityForPagingOfEUTRA = -1;
-static gint ett_ngap_UERadioCapability = -1;
-static gint ett_ngap_LastVisitedEUTRANCellInformation = -1;
-static gint ett_ngap_LastVisitedUTRANCellInformation = -1;
-static gint ett_ngap_LastVisitedGERANCellInformation = -1;
-static gint ett_ngap_NASSecurityParametersFromNGRAN = -1;
-static gint ett_ngap_NASC = -1;
-static gint ett_ngap_NAS_PDU = -1;
-static gint ett_ngap_EN_DCSONConfigurationTransfer = -1;
-static gint ett_ngap_BurstArrivalTime = -1;
-static gint ett_ngap_CoverageEnhancementLevel = -1;
-static gint ett_ngap_MDTModeEutra = -1;
-static gint ett_ngap_MeasurementsToActivate = -1;
-static gint ett_ngap_MDT_Location_Information = -1;
-static gint ett_ngap_NRMobilityHistoryReport = -1;
-static gint ett_ngap_LTEUERLFReportContainer = -1;
-static gint ett_ngap_NRUERLFReportContainer = -1;
-static gint ett_ngap_TargettoSource_Failure_TransparentContainer = -1;
-static gint ett_ngap_UERadioCapabilityForPagingOfNB_IoT = -1;
-static gint ett_ngap_GlobalCable_ID = -1;
-static gint ett_ngap_UpdateFeedback = -1;
-static gint ett_ngap_successfulHOReportContainer = -1;
+static int ett_ngap;
+static int ett_ngap_TransportLayerAddress;
+static int ett_ngap_DataCodingScheme;
+static int ett_ngap_SerialNumber;
+static int ett_ngap_WarningType;
+static int ett_ngap_WarningMessageContents;
+static int ett_ngap_PLMNIdentity;
+static int ett_ngap_NGAP_Message;
+static int ett_ngap_NGRANTraceID;
+static int ett_ngap_InterfacesToTrace;
+static int ett_ngap_SourceToTarget_TransparentContainer;
+static int ett_ngap_TargetToSource_TransparentContainer;
+static int ett_ngap_RRCContainer;
+static int ett_ngap_RATRestrictionInformation;
+static int ett_ngap_primaryRATRestriction;
+static int ett_ngap_secondaryRATRestriction;
+static int ett_ngap_NrencryptionAlgorithms;
+static int ett_ngap_NrintegrityProtectionAlgorithms;
+static int ett_ngap_EUTRAencryptionAlgorithms;
+static int ett_ngap_EUTRAintegrityProtectionAlgorithms;
+static int ett_ngap_UERadioCapabilityForPagingOfNR;
+static int ett_ngap_UERadioCapabilityForPagingOfEUTRA;
+static int ett_ngap_UERadioCapability;
+static int ett_ngap_LastVisitedEUTRANCellInformation;
+static int ett_ngap_LastVisitedUTRANCellInformation;
+static int ett_ngap_LastVisitedGERANCellInformation;
+static int ett_ngap_NASSecurityParametersFromNGRAN;
+static int ett_ngap_NASC;
+static int ett_ngap_NAS_PDU;
+static int ett_ngap_EN_DCSONConfigurationTransfer;
+static int ett_ngap_BurstArrivalTime;
+static int ett_ngap_CoverageEnhancementLevel;
+static int ett_ngap_MDTModeEutra;
+static int ett_ngap_MeasurementsToActivate;
+static int ett_ngap_MDT_Location_Information;
+static int ett_ngap_NRMobilityHistoryReport;
+static int ett_ngap_LTEUERLFReportContainer;
+static int ett_ngap_NRUERLFReportContainer;
+static int ett_ngap_TargettoSource_Failure_TransparentContainer;
+static int ett_ngap_UERadioCapabilityForPagingOfNB_IoT;
+static int ett_ngap_GlobalCable_ID;
+static int ett_ngap_UpdateFeedback;
+static int ett_ngap_successfulHOReportContainer;
+static int ett_ngap_successfulPSCellChangeReportContainer;
 #include "packet-ngap-ett.c"
 
-static expert_field ei_ngap_number_pages_le15 = EI_INIT;
+static expert_field ei_ngap_number_pages_le15;
 
 enum{
   INITIATING_MESSAGE,
@@ -196,15 +204,15 @@ enum{
 
 static void set_stats_message_type(packet_info *pinfo, int type);
 
-static const guint8 *st_str_packets        = "Total Packets";
-static const guint8 *st_str_packet_types   = "NGAP Packet Types";
+static const uint8_t *st_str_packets        = "Total Packets";
+static const uint8_t *st_str_packet_types   = "NGAP Packet Types";
 
 static int st_node_packets = -1;
 static int st_node_packet_types = -1;
-static int ngap_tap = -1;
+static int ngap_tap;
 
 struct ngap_tap_t {
-    gint ngap_mtype;
+    int ngap_mtype;
 };
 
 #define MTYPE_AMF_CONFIGURATION_UPDATE                    1
@@ -221,112 +229,123 @@ struct ngap_tap_t {
 #define MTYPE_BROADCAST_SESSION_SETUP_REQUEST             12
 #define MTYPE_BROADCAST_SESSION_SETUP_RESPONSE            13
 #define MTYPE_BROADCAST_SESSION_SETUP_FAILURE             14
-#define MTYPE_CELL_TRAFFIC_TRACE                          15
-#define MTYPE_CONNECTION_ESTAB_IND                        16
-#define MTYPE_DEACTIVATE_TRACE                            17
-#define MTYPE_DISTRIBUTION_SETUP_REQUEST                  18
-#define MTYPE_DISTRIBUTION_SETUP_RESPONSE                 19
-#define MTYPE_DISTRIBUTION_SETUP_FAILURE                  20
-#define MTYPE_DISTRIBUTION_RELEASE_REQUEST                21
-#define MTYPE_DISTRIBUTION_RELEASE_RESPONSE               22
-#define MTYPE_DOWNLINK_NAS_TRANSPORT                      23
-#define MTYPE_DOWNLINK_NON_UE_ASSOCIATED_NR_PPA_TRANSPORT 24
-#define MTYPE_DOWNLINK_RAN_CONFIGURATION_TRANSFER         25
-#define MTYPE_DOWNLINK_RAN_EARLY_STATUS_TRANSFER          26
-#define MTYPE_DOWNLINK_RAN_STATUS_TRANSFER                27
-#define MTYPE_DOWNLINK_UE_ASSOCIATED_NR_PPA_TRANSPORT     28
-#define MTYPE_ERROR_INDICATION                            29
-#define MTYPE_HANDOVER_CANCEL                             30
-#define MTYPE_HANDOVER_CANCEL_ACK                         31
-#define MTYPE_HANDOVER_NOTIFY                             32
-#define MTYPE_HANDOVER_REQUIRED                           33
-#define MTYPE_HANDOVER_COMMAND                            34
-#define MTYPE_HANDOVER_PREPARATION_FAILURE                35
-#define MTYPE_HANDOVER_REQUEST                            36
-#define MTYPE_HANDOVER_REQUEST_ACK                        37
-#define MTYPE_HANDOVER_FAILURE                            38
-#define MTYPE_HANDOVER_SUCCESS                            39
-#define MTYPE_INITIAL_CONTEXT_SETUP_REQUEST               40
-#define MTYPE_INITIAL_CONTEXT_SETUP_RESPONSE              41
-#define MTYPE_INITIAL_CONTEXT_SETUP_FAILURE               42
-#define MTYPE_INITIAL_UE_MESSAGE                          43
-#define MTYPE_LOCATION_REPORT                             44
-#define MTYPE_LOCATION_REPORTING_CONTROL                  45
-#define MTYPE_LOCATION_REPORTING_FAILURE_IND              46
-#define MTYPE_MULTICAST_SESSION_ACTIVATION_REQUEST        47
-#define MTYPE_MULTICAST_SESSION_ACTIVATION_RESPONSE       48
-#define MTYPE_MULTICAST_SESSION_ACTIVATION_FAILURE        49
-#define MTYPE_MULTICAST_SESSION_DEACTIVATION_REQUEST      50
-#define MTYPE_MULTICAST_SESSION_DEACTIVATION_RESPONSE     51
-#define MTYPE_MULTICAST_SESSION_UPDATE_REQUEST            52
-#define MTYPE_MULTICAST_SESSION_UPDATE_RESPONSE           53
-#define MTYPE_MULTICAST_SESSION_UPDATE_FAILURE            54
-#define MTYPE_MULTICAST_GROUP_PAGING                      55
-#define MTYPE_NAS_NON_DELIVERY_IND                        56
-#define MTYPE_NG_RESET                                    57
-#define MTYPE_NG_RESET_ACK                                58
-#define MTYPE_NG_SETUP_REQUEST                            59
-#define MTYPE_NG_SETUP_RESPONSE                           60
-#define MTYPE_NG_SETUP_FAILURE                            61
-#define MTYPE_OVERLOAD_START                              62
-#define MTYPE_OVERLOAD_STOP                               63
-#define MTYPE_PAGING                                      64
-#define MTYPE_PATH_SWITCH_REQUEST                         65
-#define MTYPE_PATH_SWITCH_REQUEST_ACK                     66
-#define MTYPE_PATH_SWITCH_REQUEST_FAILURE                 67
-#define MTYPE_PDU_SESSION_RESOURCE_MODIFY_REQUEST         68
-#define MTYPE_PDU_SESSION_RESOURCE_MODIFY_RESPONSE        69
-#define MTYPE_PDU_SESSION_RESOURCE_MODIFY_IND             70
-#define MTYPE_PDU_SESSION_RESOURCE_MODIFY_CONFIRM         71
-#define MTYPE_PDU_SESSION_RESOURCE_NOTIFY                 72
-#define MTYPE_PDU_SESSION_RESOURCE_RELEASE_COMMAND        73
-#define MTYPE_PDU_SESSION_RESOURCE_RELEASE_RESPONSE       74
-#define MTYPE_PDU_SESSION_RESOURCE_SETUP_REQUEST          75
-#define MTYPE_PDU_SESSION_RESOURCE_SETUP_RESPONSE         76
-#define MTYPE_PRIVATE_MESSAGE                             77
-#define MTYPE_PWS_CANCEL_REQUEST                          78
-#define MTYPE_PWS_CANCEL_RESPONSE                         79
-#define MTYPE_PWS_FAILURE_INDICATION                      80
-#define MTYPE_PWS_RESTART_INDICATION                      81
-#define MTYPE_RAN_CONFIGURATION_UPDATE                    82
-#define MTYPE_RAN_CONFIGURATION_UPDATE_ACK                83
-#define MTYPE_RAN_CONFIGURATION_UPDATE_FAILURE            84
-#define MTYPE_RAN_CP_RELOCATION_IND                       85
-#define MTYPE_REROUTE_NAS_REQUEST                         86
-#define MTYPE_RETRIEVE_UE_INFORMATION                     87
-#define MTYPE_RRC_INACTIVE_TRANSITION_REPORT              88
-#define MTYPE_SECONDARY_RAT_DATA_USAGE_REPORT             89
-#define MTYPE_TRACE_FAILURE_IND                           90
-#define MTYPE_TRACE_START                                 91
-#define MTYPE_UE_CONTEXT_MODIFICATION_REQUEST             92
-#define MTYPE_UE_CONTEXT_MODIFICATION_RESPONSE            93
-#define MTYPE_UE_CONTEXT_MODIFICATION_FAILURE             94
-#define MTYPE_UE_CONTEXT_RELEASE_COMMAND                  95
-#define MTYPE_UE_CONTEXT_RELEASE_COMPLETE                 96
-#define MTYPE_UE_CONTEXT_RELEASE_REQUEST                  97
-#define MTYPE_UE_CONTEXT_RESUME_REQUEST                   98
-#define MTYPE_UE_CONTEXT_RESUME_RESPONSE                  99
-#define MTYPE_UE_CONTEXT_RESUME_FAILURE                   100
-#define MTYPE_UE_CONTEXT_SUSPEND_REQUEST                  101
-#define MTYPE_UE_CONTEXT_SUSPEND_RESPONSE                 102
-#define MTYPE_UE_CONTEXT_SUSPEND_FAILURE                  103
-#define MTYPE_UE_INFORMATION_TRANSFER                     104
-#define MTYPE_UE_RADIO_CAPABILITY_CHECK_REQUEST           105
-#define MTYPE_UE_RADIO_CAPABILITY_CHECK_RESPONSE          106
-#define MTYPE_UE_RADIO_CAPABILITY_ID_MAPPING_REQUEST      107
-#define MTYPE_UE_RADIO_CAPABILITY_ID_MAPPING_RESPONSE     108
-#define MTYPE_UE_RADIO_CAPABILITY_INFO_IND                109
-#define MTYPE_UE_TN_LAB_BINDING_RELEASE_REQUEST           110
-#define MTYPE_UPLINK_NAS_TRANSPORT                        111
-#define MTYPE_UPLINK_NON_UE_ASSOCIATED_NR_PPA_TRANSPORT   112
-#define MTYPE_UPLINK_RAN_CONFIGURATION_TRANSFER           113
-#define MTYPE_UPLINK_RAN_EARLY_STATUS_TRANSFER            114
-#define MTYPE_UPLINK_RAN_STATUS_TRANSFER                  115
-#define MTYPE_UPLINK_UE_ASSOCIATED_NR_PPA_TRANSPORT       116
-#define MTYPE_WRITE_REPLACE_WARNING_REQUEST               117
-#define MTYPE_WRITE_REPLACE_WARNING_RESPONSE              118
-#define MTYPE_UPLINK_RIM_INFORMATION_TRANSFER             119
-#define MTYPE_DOWNLINK_RIM_INFORMATION_TRANSFER           120
+#define MTYPE_BROADCAST_SESSION_TRANSPORT_REQUEST         15
+#define MTYPE_BROADCAST_SESSION_TRANSPORT_RESPONSE        16
+#define MTYPE_BROADCAST_SESSION_TRANSPORT_FAILURE         17
+#define MTYPE_CELL_TRAFFIC_TRACE                          18
+#define MTYPE_CONNECTION_ESTAB_IND                        19
+#define MTYPE_DEACTIVATE_TRACE                            20
+#define MTYPE_DISTRIBUTION_SETUP_REQUEST                  21
+#define MTYPE_DISTRIBUTION_SETUP_RESPONSE                 22
+#define MTYPE_DISTRIBUTION_SETUP_FAILURE                  23
+#define MTYPE_DISTRIBUTION_RELEASE_REQUEST                24
+#define MTYPE_DISTRIBUTION_RELEASE_RESPONSE               25
+#define MTYPE_DOWNLINK_NAS_TRANSPORT                      26
+#define MTYPE_DOWNLINK_NON_UE_ASSOCIATED_NR_PPA_TRANSPORT 27
+#define MTYPE_DOWNLINK_RAN_CONFIGURATION_TRANSFER         28
+#define MTYPE_DOWNLINK_RAN_EARLY_STATUS_TRANSFER          29
+#define MTYPE_DOWNLINK_RAN_STATUS_TRANSFER                30
+#define MTYPE_DOWNLINK_UE_ASSOCIATED_NR_PPA_TRANSPORT     31
+#define MTYPE_ERROR_INDICATION                            32
+#define MTYPE_HANDOVER_CANCEL                             33
+#define MTYPE_HANDOVER_CANCEL_ACK                         34
+#define MTYPE_HANDOVER_NOTIFY                             35
+#define MTYPE_HANDOVER_REQUIRED                           36
+#define MTYPE_HANDOVER_COMMAND                            37
+#define MTYPE_HANDOVER_PREPARATION_FAILURE                38
+#define MTYPE_HANDOVER_REQUEST                            39
+#define MTYPE_HANDOVER_REQUEST_ACK                        40
+#define MTYPE_HANDOVER_FAILURE                            41
+#define MTYPE_HANDOVER_SUCCESS                            42
+#define MTYPE_INITIAL_CONTEXT_SETUP_REQUEST               43
+#define MTYPE_INITIAL_CONTEXT_SETUP_RESPONSE              44
+#define MTYPE_INITIAL_CONTEXT_SETUP_FAILURE               45
+#define MTYPE_INITIAL_UE_MESSAGE                          46
+#define MTYPE_LOCATION_REPORT                             47
+#define MTYPE_LOCATION_REPORTING_CONTROL                  48
+#define MTYPE_LOCATION_REPORTING_FAILURE_IND              49
+#define MTYPE_MT_COMMUNICATION_HANDLING_REQUEST           50
+#define MTYPE_MT_COMMUNICATION_HANDLING_RESPONSE          51
+#define MTYPE_MT_COMMUNICATION_HANDLING_FAILURE           52
+#define MTYPE_MULTICAST_SESSION_ACTIVATION_REQUEST        53
+#define MTYPE_MULTICAST_SESSION_ACTIVATION_RESPONSE       54
+#define MTYPE_MULTICAST_SESSION_ACTIVATION_FAILURE        55
+#define MTYPE_MULTICAST_SESSION_DEACTIVATION_REQUEST      56
+#define MTYPE_MULTICAST_SESSION_DEACTIVATION_RESPONSE     57
+#define MTYPE_MULTICAST_SESSION_UPDATE_REQUEST            58
+#define MTYPE_MULTICAST_SESSION_UPDATE_RESPONSE           59
+#define MTYPE_MULTICAST_SESSION_UPDATE_FAILURE            60
+#define MTYPE_MULTICAST_GROUP_PAGING                      61
+#define MTYPE_NAS_NON_DELIVERY_IND                        62
+#define MTYPE_NG_RESET                                    63
+#define MTYPE_NG_RESET_ACK                                64
+#define MTYPE_NG_SETUP_REQUEST                            65
+#define MTYPE_NG_SETUP_RESPONSE                           66
+#define MTYPE_NG_SETUP_FAILURE                            67
+#define MTYPE_OVERLOAD_START                              68
+#define MTYPE_OVERLOAD_STOP                               69
+#define MTYPE_PAGING                                      70
+#define MTYPE_PATH_SWITCH_REQUEST                         71
+#define MTYPE_PATH_SWITCH_REQUEST_ACK                     72
+#define MTYPE_PATH_SWITCH_REQUEST_FAILURE                 73
+#define MTYPE_PDU_SESSION_RESOURCE_MODIFY_REQUEST         74
+#define MTYPE_PDU_SESSION_RESOURCE_MODIFY_RESPONSE        75
+#define MTYPE_PDU_SESSION_RESOURCE_MODIFY_IND             76
+#define MTYPE_PDU_SESSION_RESOURCE_MODIFY_CONFIRM         77
+#define MTYPE_PDU_SESSION_RESOURCE_NOTIFY                 78
+#define MTYPE_PDU_SESSION_RESOURCE_RELEASE_COMMAND        79
+#define MTYPE_PDU_SESSION_RESOURCE_RELEASE_RESPONSE       80
+#define MTYPE_PDU_SESSION_RESOURCE_SETUP_REQUEST          81
+#define MTYPE_PDU_SESSION_RESOURCE_SETUP_RESPONSE         82
+#define MTYPE_PRIVATE_MESSAGE                             83
+#define MTYPE_PWS_CANCEL_REQUEST                          84
+#define MTYPE_PWS_CANCEL_RESPONSE                         85
+#define MTYPE_PWS_FAILURE_INDICATION                      86
+#define MTYPE_PWS_RESTART_INDICATION                      87
+#define MTYPE_RAN_CONFIGURATION_UPDATE                    88
+#define MTYPE_RAN_CONFIGURATION_UPDATE_ACK                89
+#define MTYPE_RAN_CONFIGURATION_UPDATE_FAILURE            90
+#define MTYPE_RAN_CP_RELOCATION_IND                       91
+#define MTYPE_RAN_PAGING_REQUEST                          92
+#define MTYPE_REROUTE_NAS_REQUEST                         93
+#define MTYPE_RETRIEVE_UE_INFORMATION                     94
+#define MTYPE_RRC_INACTIVE_TRANSITION_REPORT              95
+#define MTYPE_SECONDARY_RAT_DATA_USAGE_REPORT             96
+#define MTYPE_TIMING_SYNCHRONISATION_STATUS_REQUEST       97
+#define MTYPE_TIMING_SYNCHRONISATION_STATUS_RESPONSE      98
+#define MTYPE_TIMING_SYNCHRONISATION_STATUS_FAILURE       99
+#define MTYPE_TIMING_SYNCHRONISATION_STATUS_REPORT        100
+#define MTYPE_TRACE_FAILURE_IND                           101
+#define MTYPE_TRACE_START                                 102
+#define MTYPE_UE_CONTEXT_MODIFICATION_REQUEST             103
+#define MTYPE_UE_CONTEXT_MODIFICATION_RESPONSE            104
+#define MTYPE_UE_CONTEXT_MODIFICATION_FAILURE             105
+#define MTYPE_UE_CONTEXT_RELEASE_COMMAND                  106
+#define MTYPE_UE_CONTEXT_RELEASE_COMPLETE                 107
+#define MTYPE_UE_CONTEXT_RELEASE_REQUEST                  108
+#define MTYPE_UE_CONTEXT_RESUME_REQUEST                   109
+#define MTYPE_UE_CONTEXT_RESUME_RESPONSE                  110
+#define MTYPE_UE_CONTEXT_RESUME_FAILURE                   111
+#define MTYPE_UE_CONTEXT_SUSPEND_REQUEST                  112
+#define MTYPE_UE_CONTEXT_SUSPEND_RESPONSE                 113
+#define MTYPE_UE_CONTEXT_SUSPEND_FAILURE                  114
+#define MTYPE_UE_INFORMATION_TRANSFER                     115
+#define MTYPE_UE_RADIO_CAPABILITY_CHECK_REQUEST           116
+#define MTYPE_UE_RADIO_CAPABILITY_CHECK_RESPONSE          117
+#define MTYPE_UE_RADIO_CAPABILITY_ID_MAPPING_REQUEST      118
+#define MTYPE_UE_RADIO_CAPABILITY_ID_MAPPING_RESPONSE     119
+#define MTYPE_UE_RADIO_CAPABILITY_INFO_IND                120
+#define MTYPE_UE_TN_LAB_BINDING_RELEASE_REQUEST           121
+#define MTYPE_UPLINK_NAS_TRANSPORT                        122
+#define MTYPE_UPLINK_NON_UE_ASSOCIATED_NR_PPA_TRANSPORT   123
+#define MTYPE_UPLINK_RAN_CONFIGURATION_TRANSFER           124
+#define MTYPE_UPLINK_RAN_EARLY_STATUS_TRANSFER            125
+#define MTYPE_UPLINK_RAN_STATUS_TRANSFER                  126
+#define MTYPE_UPLINK_UE_ASSOCIATED_NR_PPA_TRANSPORT       127
+#define MTYPE_WRITE_REPLACE_WARNING_REQUEST               128
+#define MTYPE_WRITE_REPLACE_WARNING_RESPONSE              129
+#define MTYPE_UPLINK_RIM_INFORMATION_TRANSFER             130
+#define MTYPE_DOWNLINK_RIM_INFORMATION_TRANSFER           131
 
 
 /* Value Strings. TODO: ext? */
@@ -345,6 +364,9 @@ static const value_string mtype_names[] = {
     { MTYPE_BROADCAST_SESSION_SETUP_REQUEST,             "BroadcastSessionSetupRequest" },
     { MTYPE_BROADCAST_SESSION_SETUP_RESPONSE,            "BroadcastSessionSetupResponse" },
     { MTYPE_BROADCAST_SESSION_SETUP_FAILURE,             "BroadcastSessionSetupFailure" },
+    { MTYPE_BROADCAST_SESSION_TRANSPORT_REQUEST,         "BroadcastSessionTransportRequest" },
+    { MTYPE_BROADCAST_SESSION_TRANSPORT_RESPONSE,        "BroadcastSessionTransportResponse" },
+    { MTYPE_BROADCAST_SESSION_TRANSPORT_FAILURE,         "BroadcastSessionTransportFailure" },
     { MTYPE_CELL_TRAFFIC_TRACE,                          "CellTrafficTrace" },
     { MTYPE_CONNECTION_ESTAB_IND,                        "ConnectionEstablishmentIndication" },
     { MTYPE_DEACTIVATE_TRACE,                            "DeactivateTrace" },
@@ -377,6 +399,9 @@ static const value_string mtype_names[] = {
     { MTYPE_LOCATION_REPORT,                             "LocationReport" },
     { MTYPE_LOCATION_REPORTING_CONTROL,                  "LocationReportingControl" },
     { MTYPE_LOCATION_REPORTING_FAILURE_IND,              "LocationReportingFailureIndication" },
+    { MTYPE_MT_COMMUNICATION_HANDLING_REQUEST,           "MTCommunicationHandlingRequest" },
+    { MTYPE_MT_COMMUNICATION_HANDLING_RESPONSE,          "MTCommunicationHandlingResponse" },
+    { MTYPE_MT_COMMUNICATION_HANDLING_FAILURE,           "MTCommunicationHandlingFailure" },
     { MTYPE_MULTICAST_SESSION_ACTIVATION_REQUEST,        "MulticastSessionActivationRequest" },
     { MTYPE_MULTICAST_SESSION_ACTIVATION_RESPONSE,       "MulticastSessionActivationResponse" },
     { MTYPE_MULTICAST_SESSION_ACTIVATION_FAILURE,        "MulticastSessionActivationFailure" },
@@ -416,10 +441,15 @@ static const value_string mtype_names[] = {
     { MTYPE_RAN_CONFIGURATION_UPDATE_ACK,                "RANConfigurationUpdateAcknowledge" },
     { MTYPE_RAN_CONFIGURATION_UPDATE_FAILURE,            "RANConfigurationUpdateFailure" },
     { MTYPE_RAN_CP_RELOCATION_IND,                       "RANCPRelocationIndication" },
+    { MTYPE_RAN_PAGING_REQUEST,                          "RANPagingRequest" },
     { MTYPE_REROUTE_NAS_REQUEST,                         "RerouteNASRequest" },
     { MTYPE_RETRIEVE_UE_INFORMATION,                     "RetrieveUEInformation" },
     { MTYPE_RRC_INACTIVE_TRANSITION_REPORT,              "RRCInactiveTransitionReport" },
     { MTYPE_SECONDARY_RAT_DATA_USAGE_REPORT,             "SecondaryRATDataUsageReport" },
+    { MTYPE_TIMING_SYNCHRONISATION_STATUS_REQUEST,       "TimingSynchronisationStatusRequest" },
+    { MTYPE_TIMING_SYNCHRONISATION_STATUS_RESPONSE,      "TimingSynchronisationStatusResponse" },
+    { MTYPE_TIMING_SYNCHRONISATION_STATUS_FAILURE,       "TimingSynchronisationStatusFailure" },
+    { MTYPE_TIMING_SYNCHRONISATION_STATUS_REPORT,        "TimingSynchronisationStatusReport" },
     { MTYPE_TRACE_FAILURE_IND,                           "TraceFailureIndication" },
     { MTYPE_TRACE_START,                                 "TraceStart" },
     { MTYPE_UE_CONTEXT_MODIFICATION_REQUEST,             "UEContextModificationRequest" },
@@ -456,18 +486,18 @@ static const value_string mtype_names[] = {
 
 
 typedef struct _ngap_ctx_t {
-    guint32 message_type;
-    guint32 ProcedureCode;
-    guint32 ProtocolIE_ID;
-    guint32 ProtocolExtensionID;
+    uint32_t message_type;
+    uint32_t ProcedureCode;
+    uint32_t ProtocolIE_ID;
+    uint32_t ProtocolExtensionID;
 } ngap_ctx_t;
 
 struct ngap_conv_info {
   address addr_a;
-  guint32 port_a;
+  uint32_t port_a;
   GlobalRANNodeID_enum ranmode_id_a;
   address addr_b;
-  guint32 port_b;
+  uint32_t port_b;
   GlobalRANNodeID_enum ranmode_id_b;
   wmem_map_t *nbiot_ta;
   wmem_tree_t *nbiot_ran_ue_ngap_id;
@@ -479,29 +509,30 @@ enum {
 };
 
 struct ngap_supported_ta {
-  guint32 tac;
+  uint32_t tac;
   wmem_array_t *plmn;
 };
 
 struct ngap_tai {
-  guint32 plmn;
-  guint32 tac;
+  uint32_t plmn;
+  uint32_t tac;
 };
 
 struct ngap_private_data {
   struct ngap_conv_info *ngap_conv;
-  guint32 procedure_code;
-  guint32 protocol_ie_id;
-  guint32 protocol_extension_id;
-  guint32 message_type;
-  guint32 handover_type_value;
-  guint8 data_coding_scheme;
-  guint8 transparent_container_type;
-  gboolean is_qos_flow_notify;
+  uint32_t procedure_code;
+  uint32_t protocol_ie_id;
+  uint32_t protocol_extension_id;
+  uint32_t message_type;
+  uint32_t handover_type_value;
+  uint8_t data_coding_scheme;
+  uint8_t transparent_container_type;
+  bool is_qos_flow_notify;
   struct ngap_supported_ta *supported_ta;
   struct ngap_tai *tai;
-  guint32 ran_ue_ngap_id;
+  uint32_t ran_ue_ngap_id;
   e212_number_type_t number_type;
+  int8_t qos_flow_add_info_rel_type;
   struct ngap_tap_t *stats_tap;
 };
 
@@ -532,10 +563,10 @@ static const enum_val_t ngap_lte_container_vals[] = {
 };
 
 /* Global variables */
-static range_t *gbl_ngapSctpRange = NULL;
-static gboolean ngap_dissect_container = TRUE;
-static gint ngap_dissect_target_ng_ran_container_as = NGAP_NG_RAN_CONTAINER_AUTOMATIC;
-static gint ngap_dissect_lte_container_as = NGAP_LTE_CONTAINER_AUTOMATIC;
+static range_t *gbl_ngapSctpRange;
+static bool ngap_dissect_container = true;
+static int ngap_dissect_target_ng_ran_container_as = NGAP_NG_RAN_CONTAINER_AUTOMATIC;
+static int ngap_dissect_lte_container_as = NGAP_LTE_CONTAINER_AUTOMATIC;
 
 /* Dissector tables */
 static dissector_table_t ngap_ies_dissector_table;
@@ -547,7 +578,7 @@ static dissector_table_t ngap_proc_sout_dissector_table;
 static dissector_table_t ngap_proc_uout_dissector_table;
 static dissector_table_t ngap_n2_ie_type_dissector_table;
 
-static proto_tree *top_tree = NULL;
+static proto_tree *top_tree;
 
 static void set_message_label(asn1_ctx_t *actx, int type)
 {
@@ -594,8 +625,15 @@ static int dissect_TargetNGRANNode_ToSourceNGRANNode_FailureTransparentContainer
 static int dissect_SecondaryRATDataUsageReportTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
 static int dissect_PDUSessionResourceModifyIndicationUnsuccessfulTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
 static int dissect_ngap_AlternativeQoSParaSetNotifyIndex(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
+static int dissect_UEContextResumeRequestTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_UEContextResumeResponseTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_UEContextSuspendRequestTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_MBSSessionSetupOrModRequestTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_MBSSessionSetupOrModResponseTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_MBSSessionSetupOrModFailureTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_MBSSessionReleaseResponseTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
 
-const value_string ngap_serialNumber_gs_vals[] = {
+static const value_string ngap_serialNumber_gs_vals[] = {
   { 0, "Display mode immediate, cell wide"},
   { 1, "Display mode normal, PLMN wide"},
   { 2, "Display mode normal, tracking area wide"},
@@ -603,7 +641,7 @@ const value_string ngap_serialNumber_gs_vals[] = {
   { 0, NULL},
 };
 
-const value_string ngap_warningType_vals[] = {
+static const value_string ngap_warningType_vals[] = {
   { 0, "Earthquake"},
   { 1, "Tsunami"},
   { 2, "Earthquake and Tsunami"},
@@ -613,15 +651,15 @@ const value_string ngap_warningType_vals[] = {
 };
 
 static void
-dissect_ngap_warningMessageContents(tvbuff_t *warning_msg_tvb, proto_tree *tree, packet_info *pinfo, guint8 dcs, int hf_nb_pages, int hf_decoded_page)
+dissect_ngap_warningMessageContents(tvbuff_t *warning_msg_tvb, proto_tree *tree, packet_info *pinfo, uint8_t dcs, int hf_nb_pages, int hf_decoded_page)
 {
-  guint32 offset;
-  guint8 nb_of_pages, length, *str;
+  uint32_t offset;
+  uint8_t nb_of_pages, length, *str;
   proto_item *ti;
   tvbuff_t *cb_data_page_tvb, *cb_data_tvb;
   int i;
 
-  nb_of_pages = tvb_get_guint8(warning_msg_tvb, 0);
+  nb_of_pages = tvb_get_uint8(warning_msg_tvb, 0);
   ti = proto_tree_add_uint(tree, hf_nb_pages, warning_msg_tvb, 0, 1, nb_of_pages);
   if (nb_of_pages > 15) {
     expert_add_info_format(pinfo, ti, &ei_ngap_number_pages_le15,
@@ -629,7 +667,7 @@ dissect_ngap_warningMessageContents(tvbuff_t *warning_msg_tvb, proto_tree *tree,
     nb_of_pages = 15;
   }
   for (i = 0, offset = 1; i < nb_of_pages; i++) {
-    length = tvb_get_guint8(warning_msg_tvb, offset+82);
+    length = tvb_get_uint8(warning_msg_tvb, offset+82);
     cb_data_page_tvb = tvb_new_subset_length(warning_msg_tvb, offset, length);
     cb_data_tvb = dissect_cbs_data(dcs, cb_data_page_tvb, tree, pinfo, 0);
     if (cb_data_tvb) {
@@ -642,27 +680,27 @@ dissect_ngap_warningMessageContents(tvbuff_t *warning_msg_tvb, proto_tree *tree,
 }
 
 static void
-ngap_PacketLossRate_fmt(gchar *s, guint32 v)
+ngap_PacketLossRate_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1f%% (%u)", (float)v/10, v);
 }
 
 static void
-ngap_PacketDelayBudget_fmt(gchar *s, guint32 v)
+ngap_PacketDelayBudget_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fms (%u)", (float)v/2, v);
 }
 
 static void
-ngap_TimeUEStayedInCellEnhancedGranularity_fmt(gchar *s, guint32 v)
+ngap_TimeUEStayedInCellEnhancedGranularity_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fs", ((float)v)/10);
 }
 
 static void
-ngap_PeriodicRegistrationUpdateTimer_fmt(gchar *s, guint32 v)
+ngap_PeriodicRegistrationUpdateTimer_fmt(char *s, uint32_t v)
 {
-  guint32 val = v & 0x1f;
+  uint32_t val = v & 0x1f;
 
   switch (v>>5) {
     case 0:
@@ -691,27 +729,33 @@ ngap_PeriodicRegistrationUpdateTimer_fmt(gchar *s, guint32 v)
 }
 
 static void
-ngap_ExtendedPacketDelayBudget_fmt(gchar *s, guint32 v)
+ngap_ExtendedPacketDelayBudget_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.2fms (%u)", (float)v/100, v);
 }
 
 static void
-ngap_Threshold_RSRP_fmt(gchar *s, guint32 v)
+ngap_Threshold_RSRP_fmt(char *s, uint32_t v)
 {
-  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-156, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (int32_t)v-156, v);
 }
 
 static void
-ngap_Threshold_RSRQ_fmt(gchar *s, guint32 v)
+ngap_Threshold_RSRQ_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-43, v);
 }
 
 static void
-ngap_Threshold_SINR_fmt(gchar *s, guint32 v)
+ngap_Threshold_SINR_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-23, v);
+}
+
+static void
+ngap_N6Jitter_fmt(char *s, uint32_t v)
+{
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fms (%d)", (float)v/2, (int32_t)v);
 }
 
 static struct ngap_private_data*
@@ -721,13 +765,14 @@ ngap_get_private_data(packet_info *pinfo)
   if (!ngap_data) {
     ngap_data = wmem_new0(pinfo->pool, struct ngap_private_data);
     ngap_data->handover_type_value = -1;
+    ngap_data->qos_flow_add_info_rel_type = -1;
     p_add_proto_data(pinfo->pool, pinfo, proto_ngap, 0, ngap_data);
   }
   return ngap_data;
 }
 
 static GlobalRANNodeID_enum
-ngap_get_ranmode_id(address *addr, guint32 port, packet_info *pinfo)
+ngap_get_ranmode_id(address *addr, uint32_t port, packet_info *pinfo)
 {
   struct ngap_private_data *ngap_data = ngap_get_private_data(pinfo);
   GlobalRANNodeID_enum ranmode_id = (GlobalRANNodeID_enum)-1;
@@ -742,14 +787,14 @@ ngap_get_ranmode_id(address *addr, guint32 port, packet_info *pinfo)
   return ranmode_id;
 }
 
-static gboolean
+static bool
 ngap_is_nbiot_ue(packet_info *pinfo)
 {
   struct ngap_private_data *ngap_data = ngap_get_private_data(pinfo);
 
   if (ngap_data->ngap_conv) {
     wmem_tree_key_t tree_key[3];
-    guint32 *id;
+    uint32_t *id;
 
     tree_key[0].length = 1;
     tree_key[0].key = &ngap_data->ran_ue_ngap_id;
@@ -757,15 +802,15 @@ ngap_is_nbiot_ue(packet_info *pinfo)
     tree_key[1].key = &pinfo->num;
     tree_key[2].length = 0;
     tree_key[2].key = NULL;
-    id = (guint32*)wmem_tree_lookup32_array_le(ngap_data->ngap_conv->nbiot_ran_ue_ngap_id, tree_key);
+    id = (uint32_t*)wmem_tree_lookup32_array_le(ngap_data->ngap_conv->nbiot_ran_ue_ngap_id, tree_key);
     if (id && (*id == ngap_data->ran_ue_ngap_id)) {
-      return TRUE;
+      return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
-const true_false_string ngap_not_updated_updated = {
+static const true_false_string ngap_not_updated_updated = {
     "Not updated",
     "Updated"
 };
@@ -782,7 +827,7 @@ static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto
   ngap_ctx.ProtocolIE_ID       = ngap_data->protocol_ie_id;
   ngap_ctx.ProtocolExtensionID = ngap_data->protocol_extension_id;
 
-  return (dissector_try_uint_new(ngap_ies_dissector_table, ngap_data->protocol_ie_id, tvb, pinfo, tree, FALSE, &ngap_ctx)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(ngap_ies_dissector_table, ngap_data->protocol_ie_id, tvb, pinfo, tree, false, &ngap_ctx)) ? tvb_captured_length(tvb) : 0;
 }
 /* Currently not used
 static int dissect_ProtocolIEFieldPairFirstValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
@@ -810,35 +855,42 @@ static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_in
   ngap_ctx.ProtocolIE_ID       = ngap_data->protocol_ie_id;
   ngap_ctx.ProtocolExtensionID = ngap_data->protocol_extension_id;
 
-  return (dissector_try_uint_new(ngap_extension_dissector_table, ngap_data->protocol_extension_id, tvb, pinfo, tree, TRUE, &ngap_ctx)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(ngap_extension_dissector_table, ngap_data->protocol_extension_id, tvb, pinfo, tree, true, &ngap_ctx)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   struct ngap_private_data *ngap_data = ngap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(ngap_proc_imsg_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, TRUE, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(ngap_proc_imsg_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   struct ngap_private_data *ngap_data = ngap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(ngap_proc_sout_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, TRUE, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(ngap_proc_sout_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   struct ngap_private_data *ngap_data = ngap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(ngap_proc_uout_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, TRUE, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(ngap_proc_uout_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
 }
 
+static int dissect_QosFlowAdditionalInfoListRel_PDU(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+{
+  if (ngap_get_private_data(pinfo)->qos_flow_add_info_rel_type == 0)
+    return dissect_QosFlowAdditionalInfoListRelCom_PDU(tvb, pinfo, tree, data);
+  else
+    return dissect_QosFlowAdditionalInfoListRelRes_PDU(tvb, pinfo, tree, data);
+}
 
 static void
 ngap_stats_tree_init(stats_tree *st)
 {
-    st_node_packets = stats_tree_create_node(st, st_str_packets, 0, STAT_DT_INT, TRUE);
+    st_node_packets = stats_tree_create_node(st, st_str_packets, 0, STAT_DT_INT, true);
     st_node_packet_types = stats_tree_create_pivot(st, st_str_packet_types, st_node_packets);
 }
 
@@ -848,7 +900,7 @@ ngap_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_,
 {
     const struct ngap_tap_t *pi = (const struct ngap_tap_t *) p;
 
-    tick_stat_node(st, st_str_packets, 0, FALSE);
+    tick_stat_node(st, st_str_packets, 0, false);
     stats_tree_tick_pivot(st, st_node_packet_types,
                           val_to_str(pi->ngap_mtype, mtype_names,
                                      "Unknown packet type (%d)"));
@@ -911,23 +963,23 @@ dissect_ngap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
   return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 find_n2_info_content(char *json_data, jsmntok_t *token, const char *n2_info_content,
                      const char *content_id, dissector_handle_t *subdissector)
 {
   jsmntok_t *n2_info_content_token, *ngap_data_token;
   char *str;
-  gdouble ngap_msg_type;
+  double ngap_msg_type;
 
   n2_info_content_token = json_get_object(json_data, token, n2_info_content);
   if (!n2_info_content_token)
-    return FALSE;
+    return false;
   ngap_data_token = json_get_object(json_data, n2_info_content_token, "ngapData");
   if (!ngap_data_token)
-    return FALSE;
+    return false;
   str = json_get_string(json_data, ngap_data_token, "contentId");
   if (!str || strcmp(str, content_id))
-    return FALSE;
+    return false;
   str = json_get_string(json_data, n2_info_content_token, "ngapIeType");
   if (str)
     *subdissector = dissector_get_string_handle(ngap_n2_ie_type_dissector_table, str);
@@ -935,7 +987,7 @@ find_n2_info_content(char *json_data, jsmntok_t *token, const char *n2_info_cont
     *subdissector = ngap_handle;
   else
     *subdissector = NULL;
-  return TRUE;
+  return true;
 }
 
 /* 3GPP TS 29.502 chapter 6.1.6.4.3 and 29.518 chapter 6.1.6.4.3 */
@@ -1008,6 +1060,9 @@ dissect_ngap_media_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
       goto found;
     }
   }
+  if (find_n2_info_content(json_data, tokens, "n2MbsSmInfo",
+                           content_info->content_id, &subdissector))
+    goto found;
   cur_tok = json_get_array(json_data, tokens, "pduSessionList");
   if (cur_tok) {
     int i, count;
@@ -1036,7 +1091,7 @@ found:
   if (subdissector) {
     proto_item *ngap_item;
     proto_tree *ngap_tree;
-    gboolean save_writable;
+    bool save_writable;
 
     col_append_sep_str(pinfo->cinfo, COL_PROTOCOL, "/", "NGAP");
     if (subdissector != ngap_handle) {
@@ -1046,7 +1101,7 @@ found:
         ngap_tree = tree;
     }
     save_writable = col_get_writable(pinfo->cinfo, COL_PROTOCOL);
-    col_set_writable(pinfo->cinfo, COL_PROTOCOL, FALSE);
+    col_set_writable(pinfo->cinfo, COL_PROTOCOL, false);
     call_dissector_with_data(subdissector, tvb, pinfo, ngap_tree, NULL);
     col_set_writable(pinfo->cinfo, COL_PROTOCOL, save_writable);
     return tvb_captured_length(tvb);
@@ -1055,7 +1110,7 @@ found:
   }
 }
 
-void
+static void
 apply_ngap_prefs(void)
 {
   gbl_ngapSctpRange = prefs_get_range_value("ngap", "sctp.port");
@@ -1072,7 +1127,8 @@ proto_reg_handoff_ngap(void)
   lte_rrc_ue_radio_access_cap_info_handle = find_dissector_add_dependency("lte-rrc.ue_radio_access_cap_info", proto_ngap);
   lte_rrc_ue_radio_paging_info_nb_handle = find_dissector_add_dependency("lte-rrc.ue_radio_paging_info.nb", proto_ngap);
   lte_rrc_ue_radio_access_cap_info_nb_handle = find_dissector_add_dependency("lte-rrc.ue_radio_access_cap_info.nb", proto_ngap);
-  dissector_add_uint("sctp.ppi", NGAP_PROTOCOL_ID,   ngap_handle);
+  dissector_add_uint("sctp.ppi", NGAP_PROTOCOL_ID, ngap_handle);
+  dissector_add_uint("ngap.extension", id_QosFlowAdditionalInfoList, create_dissector_handle(dissect_QosFlowAdditionalInfoListRel_PDU, proto_ngap));
 #include "packet-ngap-dis-tab.c"
 
   dissector_add_string("media_type", "application/vnd.3gpp.ngap", ngap_media_type_handle);
@@ -1209,9 +1265,25 @@ void proto_register_ngap(void) {
       { "nR-OTHERSAT", "ngap.primaryRATRestriction.nR_OTHERSAT",
         FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x02,
         NULL, HFILL }},
+    { &hf_ngap_primaryRATRestriction_e_UTRA_LEO,
+      { "e-UTRA-LEO", "ngap.primaryRATRestriction.e_UTRA_LEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x01,
+        NULL, HFILL }},
+    { &hf_ngap_primaryRATRestriction_e_UTRA_MEO,
+      { "e-UTRA-MEO", "ngap.primaryRATRestriction.e_UTRA_MEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x80,
+        NULL, HFILL }},
+    { &hf_ngap_primaryRATRestriction_e_UTRA_GEO,
+      { "e-UTRA-GEO", "ngap.primaryRATRestriction.e_UTRA_GEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x40,
+        NULL, HFILL }},
+    { &hf_ngap_primaryRATRestriction_e_UTRA_OTHERSAT,
+      { "e-UTRA-OTHERSAT", "ngap.primaryRATRestriction.e_UTRA_LEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x20,
+        NULL, HFILL }},
     { &hf_ngap_primaryRATRestriction_reserved,
       { "reserved", "ngap.primaryRATRestriction.reserved",
-        FT_UINT8, BASE_HEX, NULL, 0x01,
+        FT_UINT8, BASE_HEX, NULL, 0x1f,
         NULL, HFILL }},
     { &hf_ngap_secondaryRATRestriction_e_UTRA,
       { "e-UTRA", "ngap.secondaryRATRestriction.e_UTRA",
@@ -1361,7 +1433,7 @@ void proto_register_ngap(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_ngap,
     &ett_ngap_TransportLayerAddress,
     &ett_ngap_DataCodingScheme,
@@ -1405,6 +1477,7 @@ void proto_register_ngap(void) {
     &ett_ngap_GlobalCable_ID,
     &ett_ngap_UpdateFeedback,
     &ett_ngap_successfulHOReportContainer,
+    &ett_ngap_successfulPSCellChangeReportContainer,
 #include "packet-ngap-ettarr.c"
   };
 
@@ -1448,10 +1521,10 @@ void proto_register_ngap(void) {
                                  "Dissect target NG-RAN container as",
                                  "Select whether target NG-RAN container should be decoded automatically"
                                  " (based on NG Setup procedure) or manually",
-                                 &ngap_dissect_target_ng_ran_container_as, ngap_target_ng_ran_container_vals, FALSE);
+                                 &ngap_dissect_target_ng_ran_container_as, ngap_target_ng_ran_container_vals, false);
   prefs_register_enum_preference(ngap_module, "dissect_lte_container_as", "Dissect LTE container as",
                                  "Select whether LTE container should be dissected as NB-IOT or legacy LTE",
-                                 &ngap_dissect_lte_container_as, ngap_lte_container_vals, FALSE);
+                                 &ngap_dissect_lte_container_as, ngap_lte_container_vals, false);
 
   ngap_tap = register_tap("ngap");
 }

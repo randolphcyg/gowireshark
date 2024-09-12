@@ -16,11 +16,12 @@
 #ifndef _PACKET_JSON_H
 #define _PACKET_JSON_H
 
+/* XXX - This should probably be a string or custom dissector table */
 extern GHashTable *json_header_fields_hash;
 
 /* json data decoding function
  */
-typedef void(*json_data_decoder_func)(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo, int offset, int len, const char* key_str, gboolean use_compact);
+typedef void(*json_data_decoder_func)(tvbuff_t* tvb, proto_tree* tree, packet_info* pinfo, int offset, int len, const char* key_str, bool use_compact);
 
 /* Array of functions to dissect IEs
 */
@@ -42,7 +43,7 @@ typedef struct _json_key {
     int offset;
     int len;
     char* key_str;
-    gboolean use_compact;
+    bool use_compact;
 } json_key_t;
 
 #endif /* _PACKET_JSON_H */

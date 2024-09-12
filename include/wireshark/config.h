@@ -11,15 +11,15 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.2.6"
+#define VERSION "4.4.0"
 #define VERSION_MAJOR 4
-#define VERSION_MINOR 2
-#define VERSION_MICRO 6
+#define VERSION_MINOR 4
+#define VERSION_MICRO 0
 
 /* Version number of Logray and associated utilities */
-#define LOG_VERSION "0.8.3"
+#define LOG_VERSION "0.9.0"
 
-#define PLUGIN_PATH_ID "4-2"
+#define PLUGIN_PATH_ID "4-4"
 #define VERSION_FLAVOR ""
 
 /* Build wsutil with SIMD optimization */
@@ -103,6 +103,9 @@
 /* Define to 1 if you have the `inflatePrime' function. */
 #define HAVE_INFLATEPRIME 1
 
+/* Define to 1 if you have the `zng_gzopen' function. */
+/* #undef WITH_GZFILEOP */
+
 /* Define to 1 if you have the `issetugid' function. */
 #define HAVE_ISSETUGID 1
 
@@ -148,8 +151,17 @@
 /* Define to use zlib library */
 #define HAVE_ZLIB 1
 
+/* Define to use zlib-ng library */
+/* #undef HAVE_ZLIBNG */
+#define ZLIBNG_VERSION_STRING ""
+
 /* Define to use the minizip library */
 /* #undef HAVE_MINIZIP */
+#define MINIZIP_VERSION ""
+
+/* Define to use the minizip-ng library */
+/* #undef HAVE_MINIZIPNG */
+#define MINIZIPNG_VERSION ""
 
 /* Define if `dos_date' (with underscore) field exists in `zip_fileinfo'  */
 /* #undef HAVE_MZCOMPAT_DOS_DATE */
@@ -180,6 +192,9 @@
 
 /* Define to 1 if we have Lua with Unicode for Windows patches. */
 /* #undef HAVE_LUA_UNICODE */
+
+/* The size of the lua_Integer type, if we have Lua. */
+/* #undef LUA_INTEGER_SIZE */
 
 /* Define to use MIT kerberos */
 #define HAVE_MIT_KERBEROS 1
@@ -280,6 +295,9 @@
 /* Define if you have the 'memmem' function. */
 #define HAVE_MEMMEM 1
 
+/* Define if you have the 'memrchr' function. */
+/* #undef HAVE_MEMRCHR */
+
 /* Define if you have the 'strerrorname_np' function. */
 /* #undef HAVE_STRERRORNAME_NP */
 
@@ -322,6 +340,9 @@
 /* Define if we have QtMultimedia */
 /* #undef QT_MULTIMEDIA_LIB */
 
+/* Define if we have QtDBus */
+/* #undef QT_DBUS_LIB */
+
 /* Build androiddump with libpcap instead of wireshark stuff */
 /* #undef ANDROIDDUMP_USE_LIBPCAP */
 
@@ -361,12 +382,10 @@
  * - The VersionNT parts of packaging\wix\Prerequisites.wxi
  */
 #  ifndef NTDDI_VERSION
-// #  define NTDDI_VERSION   NTDDI_WIN7
 #  define NTDDI_VERSION   NTDDI_WIN10
 #  endif
 
 #  ifndef _WIN32_WINNT
-// #  define _WIN32_WINNT    _WIN32_WINNT_WIN7
 #  define _WIN32_WINNT    _WIN32_WINNT_WIN10
 #  endif
 #endif

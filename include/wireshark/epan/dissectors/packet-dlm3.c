@@ -88,9 +88,9 @@
 #define DLM3_LKF_FORCEUNLOCK    0x00020000
 #define DLM3_LKF_TIMEOUT        0x00040000
 
-#define DLM3_SBF_DEMOTED        0x01
-#define DLM3_SBF_VALNOTVALID    0x02
-#define DLM3_SBF_ALTMODE        0x04
+#define DLM3_SBF_DEMOTED        0x00000001
+#define DLM3_SBF_VALNOTVALID    0x00000002
+#define DLM3_SBF_ALTMODE        0x00000004
 
 #define DLM3_IFL_USER           0x00000001
 #define DLM3_IFL_ORPHAN         0x00000002
@@ -175,199 +175,199 @@ static dissector_handle_t dlm3_sctp_handle;
 
 
 /* Initialize the protocol and registered fields */
-static int proto_dlm3 = -1;
+static int proto_dlm3;
 
 /* fields for struct dlm_header(h) */
-static int hf_dlm3_h_version   = -1;
-static int hf_dlm3_h_major_version = -1;
-static int hf_dlm3_h_minor_version = -1;
-static int hf_dlm3_h_lockspace = -1;
-static int hf_dlm3_h_seq       = -1;
-static int hf_dlm3_h_nodeid    = -1;
-static int hf_dlm3_h_length    = -1;
-static int hf_dlm3_h_cmd       = -1;
-static int hf_dlm3_h_pad       = -1;
+static int hf_dlm3_h_version;
+static int hf_dlm3_h_major_version;
+static int hf_dlm3_h_minor_version;
+static int hf_dlm3_h_lockspace;
+static int hf_dlm3_h_seq;
+static int hf_dlm3_h_nodeid;
+static int hf_dlm3_h_length;
+static int hf_dlm3_h_cmd;
+static int hf_dlm3_h_pad;
 
 /* fields for struct dlm_opts(o) */
-static int hf_dlm3_o_nextcmd = -1;
-static int hf_dlm3_o_pad     = -1;
-static int hf_dlm3_o_optlen  = -1;
-static int hf_dlm3_o_pad2    = -1;
-static int hf_dlm3_o_opts    = -1;
+static int hf_dlm3_o_nextcmd;
+static int hf_dlm3_o_pad;
+static int hf_dlm3_o_optlen;
+static int hf_dlm3_o_pad2;
+static int hf_dlm3_o_opts;
 
 /* fields for struct dlm_opt_header(t) */
-static int hf_dlm3_t_type   = -1;
-static int hf_dlm3_t_length = -1;
-static int hf_dlm3_t_pad    = -1;
-static int hf_dlm3_t_value  = -1;
+static int hf_dlm3_t_type;
+static int hf_dlm3_t_length;
+static int hf_dlm3_t_pad;
+static int hf_dlm3_t_value;
 
 /* fields for struct dlm_message(m) */
-static int hf_dlm3_m_type         = -1;
-static int hf_dlm3_m_nodeid       = -1;
-static int hf_dlm3_m_pid          = -1;
-static int hf_dlm3_m_lkid         = -1;
-static int hf_dlm3_m_remid        = -1;
-static int hf_dlm3_m_parent_lkid  = -1;
-static int hf_dlm3_m_parent_remid = -1;
+static int hf_dlm3_m_type;
+static int hf_dlm3_m_nodeid;
+static int hf_dlm3_m_pid;
+static int hf_dlm3_m_lkid;
+static int hf_dlm3_m_remid;
+static int hf_dlm3_m_parent_lkid;
+static int hf_dlm3_m_parent_remid;
 
 /* bit fields for dlm_message::exflags */
 
-static int hf_dlm3_m_exflags             = -1;
-static int hf_dlm3_m_exflags_noqueue     = -1;
-static int hf_dlm3_m_exflags_cancel      = -1;
-static int hf_dlm3_m_exflags_convert     = -1;
-static int hf_dlm3_m_exflags_valblk      = -1;
-static int hf_dlm3_m_exflags_quecvt      = -1;
-static int hf_dlm3_m_exflags_ivvalblk    = -1;
-static int hf_dlm3_m_exflags_convdeadlk  = -1;
-static int hf_dlm3_m_exflags_persistent  = -1;
-static int hf_dlm3_m_exflags_nodlckwt    = -1;
-static int hf_dlm3_m_exflags_nodlckblk   = -1;
-static int hf_dlm3_m_exflags_expedite    = -1;
-static int hf_dlm3_m_exflags_noqueuebast = -1;
-static int hf_dlm3_m_exflags_headque     = -1;
-static int hf_dlm3_m_exflags_noorder     = -1;
-static int hf_dlm3_m_exflags_orphan      = -1;
-static int hf_dlm3_m_exflags_altpr       = -1;
-static int hf_dlm3_m_exflags_altcw       = -1;
-static int hf_dlm3_m_exflags_forceunlock = -1;
-static int hf_dlm3_m_exflags_timeout     = -1;
+static int hf_dlm3_m_exflags;
+static int hf_dlm3_m_exflags_noqueue;
+static int hf_dlm3_m_exflags_cancel;
+static int hf_dlm3_m_exflags_convert;
+static int hf_dlm3_m_exflags_valblk;
+static int hf_dlm3_m_exflags_quecvt;
+static int hf_dlm3_m_exflags_ivvalblk;
+static int hf_dlm3_m_exflags_convdeadlk;
+static int hf_dlm3_m_exflags_persistent;
+static int hf_dlm3_m_exflags_nodlckwt;
+static int hf_dlm3_m_exflags_nodlckblk;
+static int hf_dlm3_m_exflags_expedite;
+static int hf_dlm3_m_exflags_noqueuebast;
+static int hf_dlm3_m_exflags_headque;
+static int hf_dlm3_m_exflags_noorder;
+static int hf_dlm3_m_exflags_orphan;
+static int hf_dlm3_m_exflags_altpr;
+static int hf_dlm3_m_exflags_altcw;
+static int hf_dlm3_m_exflags_forceunlock;
+static int hf_dlm3_m_exflags_timeout;
 
 /* bit fields for dlm_message::sbflags */
-static int hf_dlm3_m_sbflags             = -1;
-static int hf_dlm3_m_sbflags_demoted     = -1;
-static int hf_dlm3_m_sbflags_valnotvalid = -1;
-static int hf_dlm3_m_sbflags_altmode     = -1;
+static int hf_dlm3_m_sbflags;
+static int hf_dlm3_m_sbflags_demoted;
+static int hf_dlm3_m_sbflags_valnotvalid;
+static int hf_dlm3_m_sbflags_altmode;
 
 /* bit fields for dlm_message::flags */
 
-static int hf_dlm3_m_flags          = -1;
-static int hf_dlm3_m_flags_user     = -1;
-static int hf_dlm3_m_flags_orphan   = -1;
+static int hf_dlm3_m_flags;
+static int hf_dlm3_m_flags_user;
+static int hf_dlm3_m_flags_orphan;
 
-static int hf_dlm3_m_lvbseq       = -1;
-static int hf_dlm3_m_hash         = -1;
-static int hf_dlm3_m_status       = -1;
-static int hf_dlm3_m_grmode       = -1;
-static int hf_dlm3_m_rqmode       = -1;
-static int hf_dlm3_m_bastmode     = -1;
+static int hf_dlm3_m_lvbseq;
+static int hf_dlm3_m_hash;
+static int hf_dlm3_m_status;
+static int hf_dlm3_m_grmode;
+static int hf_dlm3_m_rqmode;
+static int hf_dlm3_m_bastmode;
 
 /* bit fields for dlm_message::asts */
-static int hf_dlm3_m_asts         = -1;
-static int hf_dlm3_m_asts_comp    = -1;
-static int hf_dlm3_m_asts_bast    = -1;
+static int hf_dlm3_m_asts;
+static int hf_dlm3_m_asts_comp;
+static int hf_dlm3_m_asts_bast;
 
-static int hf_dlm3_m_result       = -1;
-static int hf_dlm3_m_extra        = -1;
+static int hf_dlm3_m_result;
+static int hf_dlm3_m_extra;
 
 /* fields for struct dlm_rcom(rc) */
-static int hf_dlm3_rc_type      = -1;
-static int hf_dlm3_rc_result    = -1;
-static int hf_dlm3_rc_id        = -1;
-static int hf_dlm3_rc_seq       = -1;
-static int hf_dlm3_rc_seq_reply = -1;
-static int hf_dlm3_rc_buf       = -1;
+static int hf_dlm3_rc_type;
+static int hf_dlm3_rc_result;
+static int hf_dlm3_rc_id;
+static int hf_dlm3_rc_seq;
+static int hf_dlm3_rc_seq_reply;
+static int hf_dlm3_rc_buf;
 
 /* fields for struct rcom_config(rf) */
-static int hf_dlm3_rf_lvblen              = -1;
-static int hf_dlm3_rf_lsflags             = -1;
-static int hf_dlm3_rf_lsflags_noqueue     = -1;
-static int hf_dlm3_rf_lsflags_cancel      = -1;
-static int hf_dlm3_rf_lsflags_convert     = -1;
-static int hf_dlm3_rf_lsflags_valblk      = -1;
-static int hf_dlm3_rf_lsflags_quecvt      = -1;
-static int hf_dlm3_rf_lsflags_ivvalblk    = -1;
-static int hf_dlm3_rf_lsflags_convdeadlk  = -1;
-static int hf_dlm3_rf_lsflags_persistent  = -1;
-static int hf_dlm3_rf_lsflags_nodlckwt    = -1;
-static int hf_dlm3_rf_lsflags_nodlckblk   = -1;
-static int hf_dlm3_rf_lsflags_expedite    = -1;
-static int hf_dlm3_rf_lsflags_noqueuebast = -1;
-static int hf_dlm3_rf_lsflags_headque     = -1;
-static int hf_dlm3_rf_lsflags_noorder     = -1;
-static int hf_dlm3_rf_lsflags_orphan      = -1;
-static int hf_dlm3_rf_lsflags_altpr       = -1;
-static int hf_dlm3_rf_lsflags_altcw       = -1;
-static int hf_dlm3_rf_lsflags_forceunlock = -1;
-static int hf_dlm3_rf_lsflags_timeout     = -1;
-static int hf_dlm3_rf_unused              = -1;
+static int hf_dlm3_rf_lvblen;
+static int hf_dlm3_rf_lsflags;
+static int hf_dlm3_rf_lsflags_noqueue;
+static int hf_dlm3_rf_lsflags_cancel;
+static int hf_dlm3_rf_lsflags_convert;
+static int hf_dlm3_rf_lsflags_valblk;
+static int hf_dlm3_rf_lsflags_quecvt;
+static int hf_dlm3_rf_lsflags_ivvalblk;
+static int hf_dlm3_rf_lsflags_convdeadlk;
+static int hf_dlm3_rf_lsflags_persistent;
+static int hf_dlm3_rf_lsflags_nodlckwt;
+static int hf_dlm3_rf_lsflags_nodlckblk;
+static int hf_dlm3_rf_lsflags_expedite;
+static int hf_dlm3_rf_lsflags_noqueuebast;
+static int hf_dlm3_rf_lsflags_headque;
+static int hf_dlm3_rf_lsflags_noorder;
+static int hf_dlm3_rf_lsflags_orphan;
+static int hf_dlm3_rf_lsflags_altpr;
+static int hf_dlm3_rf_lsflags_altcw;
+static int hf_dlm3_rf_lsflags_forceunlock;
+static int hf_dlm3_rf_lsflags_timeout;
+static int hf_dlm3_rf_unused;
 
 /* fields for struct rcom_status(rs) */
-static int hf_dlm3_rs_flags      = -1;
-static int hf_dlm3_rs_flags_need_slots  = -1;
-static int hf_dlm3_rs_unused1    = -1;
-static int hf_dlm3_rs_unused2    = -1;
+static int hf_dlm3_rs_flags;
+static int hf_dlm3_rs_flags_need_slots;
+static int hf_dlm3_rs_unused1;
+static int hf_dlm3_rs_unused2;
 
 /* fields for struct rcom_lock(rl) */
-static int hf_dlm3_rl_ownpid              = -1;
-static int hf_dlm3_rl_lkid                = -1;
-static int hf_dlm3_rl_remid               = -1;
-static int hf_dlm3_rl_parent_lkid         = -1;
-static int hf_dlm3_rl_parent_remid        = -1;
-static int hf_dlm3_rl_exflags             = -1;
-static int hf_dlm3_rl_exflags_noqueue     = -1;
-static int hf_dlm3_rl_exflags_cancel      = -1;
-static int hf_dlm3_rl_exflags_convert     = -1;
-static int hf_dlm3_rl_exflags_valblk      = -1;
-static int hf_dlm3_rl_exflags_quecvt      = -1;
-static int hf_dlm3_rl_exflags_ivvalblk    = -1;
-static int hf_dlm3_rl_exflags_convdeadlk  = -1;
-static int hf_dlm3_rl_exflags_persistent  = -1;
-static int hf_dlm3_rl_exflags_nodlckwt    = -1;
-static int hf_dlm3_rl_exflags_nodlckblk   = -1;
-static int hf_dlm3_rl_exflags_expedite    = -1;
-static int hf_dlm3_rl_exflags_noqueuebast = -1;
-static int hf_dlm3_rl_exflags_headque     = -1;
-static int hf_dlm3_rl_exflags_noorder     = -1;
-static int hf_dlm3_rl_exflags_orphan      = -1;
-static int hf_dlm3_rl_exflags_altpr       = -1;
-static int hf_dlm3_rl_exflags_altcw       = -1;
-static int hf_dlm3_rl_exflags_forceunlock = -1;
-static int hf_dlm3_rl_exflags_timeout     = -1;
-static int hf_dlm3_rl_flags               = -1;
-static int hf_dlm3_rl_flags_user          = -1;
-static int hf_dlm3_rl_flags_orphan        = -1;
-static int hf_dlm3_rl_lvbseq              = -1;
-static int hf_dlm3_rl_result              = -1;
-static int hf_dlm3_rl_rqmode              = -1;
-static int hf_dlm3_rl_grmode              = -1;
-static int hf_dlm3_rl_status              = -1;
-static int hf_dlm3_rl_asts                = -1;
-static int hf_dlm3_rl_asts_comp           = -1;
-static int hf_dlm3_rl_asts_bast           = -1;
-static int hf_dlm3_rl_wait_type           = -1;
-static int hf_dlm3_rl_namelen             = -1;
-static int hf_dlm3_rl_name                = -1;
-static int hf_dlm3_rl_name_contents       = -1;
-static int hf_dlm3_rl_name_padding        = -1;
-static int hf_dlm3_rl_lvb                 = -1;
+static int hf_dlm3_rl_ownpid;
+static int hf_dlm3_rl_lkid;
+static int hf_dlm3_rl_remid;
+static int hf_dlm3_rl_parent_lkid;
+static int hf_dlm3_rl_parent_remid;
+static int hf_dlm3_rl_exflags;
+static int hf_dlm3_rl_exflags_noqueue;
+static int hf_dlm3_rl_exflags_cancel;
+static int hf_dlm3_rl_exflags_convert;
+static int hf_dlm3_rl_exflags_valblk;
+static int hf_dlm3_rl_exflags_quecvt;
+static int hf_dlm3_rl_exflags_ivvalblk;
+static int hf_dlm3_rl_exflags_convdeadlk;
+static int hf_dlm3_rl_exflags_persistent;
+static int hf_dlm3_rl_exflags_nodlckwt;
+static int hf_dlm3_rl_exflags_nodlckblk;
+static int hf_dlm3_rl_exflags_expedite;
+static int hf_dlm3_rl_exflags_noqueuebast;
+static int hf_dlm3_rl_exflags_headque;
+static int hf_dlm3_rl_exflags_noorder;
+static int hf_dlm3_rl_exflags_orphan;
+static int hf_dlm3_rl_exflags_altpr;
+static int hf_dlm3_rl_exflags_altcw;
+static int hf_dlm3_rl_exflags_forceunlock;
+static int hf_dlm3_rl_exflags_timeout;
+static int hf_dlm3_rl_flags;
+static int hf_dlm3_rl_flags_user;
+static int hf_dlm3_rl_flags_orphan;
+static int hf_dlm3_rl_lvbseq;
+static int hf_dlm3_rl_result;
+static int hf_dlm3_rl_rqmode;
+static int hf_dlm3_rl_grmode;
+static int hf_dlm3_rl_status;
+static int hf_dlm3_rl_asts;
+static int hf_dlm3_rl_asts_comp;
+static int hf_dlm3_rl_asts_bast;
+static int hf_dlm3_rl_wait_type;
+static int hf_dlm3_rl_namelen;
+static int hf_dlm3_rl_name;
+static int hf_dlm3_rl_name_contents;
+static int hf_dlm3_rl_name_padding;
+static int hf_dlm3_rl_lvb;
 
 /* Initialize the subtree pointers */
-static gint ett_dlm3         = -1;
-static gint ett_dlm3_version = -1;
+static int ett_dlm3;
+static int ett_dlm3_version;
 
-static gint ett_dlm3_opts  = -1;
-static gint ett_dlm3_options  = -1;
-static gint ett_dlm3_next_cmd = -1;
+static int ett_dlm3_opts;
+static int ett_dlm3_options;
+static int ett_dlm3_next_cmd;
 
-static gint ett_dlm3_msg       = -1;
-static gint ett_dlm3_m_exflags = -1;
-static gint ett_dlm3_sbflags   = -1;
-static gint ett_dlm3_m_flags   = -1;
-static gint ett_dlm3_m_asts    = -1;
+static int ett_dlm3_msg;
+static int ett_dlm3_m_exflags;
+static int ett_dlm3_sbflags;
+static int ett_dlm3_m_flags;
+static int ett_dlm3_m_asts;
 
-static gint ett_dlm3_rcom        = -1;
-static gint ett_dlm3_rcom_status = -1;
-static gint ett_dlm3_rcom_lock   = -1;
-static gint ett_dlm3_rcom_config = -1;
+static int ett_dlm3_rcom;
+static int ett_dlm3_rcom_status;
+static int ett_dlm3_rcom_lock;
+static int ett_dlm3_rcom_config;
 
-static gint ett_dlm3_rs_flags  = -1;
+static int ett_dlm3_rs_flags;
 
-static gint ett_dlm3_rf_lsflags  = -1;
-static gint ett_dlm3_rl_exflags  = -1;
-static gint ett_dlm3_rl_flags    = -1;
-static gint ett_dlm3_rl_asts     = -1;
-static gint ett_dlm3_rl_name     = -1;
+static int ett_dlm3_rf_lsflags;
+static int ett_dlm3_rl_exflags;
+static int ett_dlm3_rl_flags;
+static int ett_dlm3_rl_asts;
+static int ett_dlm3_rl_name;
 
 
 /*
@@ -571,9 +571,9 @@ static int * const rl_asts_fields[] = {
 /* Code to actually dissect the packets */
 static void
 dissect_dlm3_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                 guint length, int offset)
+                 unsigned length, int offset)
 {
-  guint32     m_type;
+  uint32_t    m_type;
 
   m_type   = tvb_get_letohl(tvb, offset);
   proto_tree_add_uint(tree,
@@ -672,7 +672,7 @@ dissect_dlm3_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 static void
 dissect_dlm3_rcom_status(tvbuff_t *tvb, proto_tree *tree,
-                         guint length, int offset)
+                         unsigned length, int offset)
 {
   if ((length - offset) < ( 4 * 2 + 8 ))
     return;
@@ -694,13 +694,13 @@ dissect_dlm3_rcom_status(tvbuff_t *tvb, proto_tree *tree,
 
 static void
 dissect_dlm3_rcom_lock(tvbuff_t *tvb, proto_tree *tree,
-                       guint length, int offset)
+                       unsigned length, int offset)
 {
   proto_item *sub_item;
   proto_tree *sub_tree;
   int         sub_offset;
-  guint16     namelen;
-  guint32     exflags;
+  uint16_t    namelen;
+  uint32_t    exflags;
 
 
   if ((length - offset) < ( 4 * 8 + 4 + 1 * 4 + 2 * 2
@@ -806,7 +806,7 @@ dissect_dlm3_rcom_lock(tvbuff_t *tvb, proto_tree *tree,
 
 static void
 dissect_dlm3_rcom_config(tvbuff_t *tvb, proto_tree *tree,
-                         guint length, int offset)
+                         unsigned length, int offset)
 {
   if ((length - offset) < ( 4 + 4 + 8 ))
     return;
@@ -830,9 +830,9 @@ dissect_dlm3_rcom_config(tvbuff_t *tvb, proto_tree *tree,
 
 static void
 dissect_dlm3_rcom(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                  guint length, int offset, guint32 h_version)
+                  unsigned length, int offset, uint32_t h_version)
 {
-  guint32     rc_type;
+  uint32_t    rc_type;
 
   proto_item *sub_item;
   proto_tree *sub_tree;
@@ -896,7 +896,7 @@ dissect_dlm3_rcom(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 static int
 dissect_dlm3_1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_,
-               guint8 h_cmd, guint32 h_version, guint length, int offset)
+               uint8_t h_cmd, uint32_t h_version, unsigned length, int offset)
 {
   proto_item *sub_item;
   proto_tree *sub_tree;
@@ -965,13 +965,13 @@ dissect_dlm3_1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
 static int
 dissect_dlm3_2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_,
-               guint8 h_cmd, guint32 h_version, guint length)
+               uint8_t h_cmd, uint32_t h_version, unsigned length)
 {
   proto_item *sub_item, *opts_item;
   proto_tree *sub_tree, *opts_tree;
   int        offset, tlv_offset;
-  guint o_nextcmd;
-  guint16 o_optlen, tmp, t_len;
+  unsigned o_nextcmd;
+  uint16_t o_optlen, tmp, t_len;
 
   switch (h_cmd) {
   case DLM3_MSG:
@@ -1024,7 +1024,7 @@ dissect_dlm3_2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
       return 0;
 
     sub_tree = proto_item_add_subtree(sub_item, ett_dlm3_opts);
-    o_nextcmd = tvb_get_guint8(tvb, offset);
+    o_nextcmd = tvb_get_uint8(tvb, offset);
     col_append_fstr(pinfo->cinfo, COL_INFO,
                     ": %s", val_to_str_const(o_nextcmd,
                                              dlm3_cmd,
@@ -1117,9 +1117,9 @@ dissect_dlm3(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *d
 {
   proto_item *item;
   proto_tree *tree;
-  guint      length;
-  guint32    h_version;
-  guint8     h_cmd;
+  unsigned   length;
+  uint32_t   h_version;
+  uint8_t    h_cmd;
   int        ret = 0;
 
 
@@ -1139,7 +1139,7 @@ dissect_dlm3(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *d
 
   col_set_str(pinfo->cinfo, COL_INFO, "DLM3");
 
-  h_cmd = tvb_get_guint8(tvb, DLM_HEADER_LEN - 1 - 1);
+  h_cmd = tvb_get_uint8(tvb, DLM_HEADER_LEN - 1 - 1);
   col_set_str(pinfo->cinfo, COL_INFO,
                 val_to_str_const(h_cmd,
                            dlm3_cmd,
@@ -1172,7 +1172,7 @@ dissect_dlm3_message(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_
 }
 
 /* determine PDU length of protocol foo */
-static guint
+static unsigned
 get_dlm3_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
   return tvb_get_letohs(tvb, offset + DLM_HEADER_LEN - 2 - 1 - 1);
@@ -1181,7 +1181,7 @@ get_dlm3_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *da
 static int
 dissect_tcp_dlm3(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-  tcp_dissect_pdus(tvb, pinfo, tree, TRUE, DLM_HEADER_LEN - 1 - 1,
+  tcp_dissect_pdus(tvb, pinfo, tree, true, DLM_HEADER_LEN - 1 - 1,
                    get_dlm3_message_len, dissect_dlm3_message, data);
   return tvb_captured_length(tvb);
 }
@@ -1776,7 +1776,7 @@ proto_register_dlm3(void)
         NULL, HFILL }}
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_dlm3,
     &ett_dlm3_version,
 

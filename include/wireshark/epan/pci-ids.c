@@ -30,6 +30,9 @@
 #include <config.h>
 
 #include <stddef.h>
+#include <stdlib.h>
+
+#include "wsutil/array.h"
 
 #include "pci-ids.h"
 
@@ -47147,38 +47150,10 @@ static pci_vid_index_t const pci_vid_index[] = {
 {0xFFFF, 1, pci_vid_FFFF },
 }; /* We have 2388 VIDs */
 
-static pci_vid_index_t const *get_vid_index(uint16_t vid)
+static int vid_search(const void *key, const void *tbl_entry)
 {
-    uint32_t start_index = 0;
-    uint32_t end_index = 0;
-    uint32_t idx = 0;
-
-    end_index = sizeof(pci_vid_index)/sizeof(pci_vid_index[0]);
-
-    while(start_index != end_index)
-    {
-        if(end_index - start_index == 1)
-        {
-            if(pci_vid_index[start_index].vid == vid)
-                return &pci_vid_index[start_index];
-
-            break;
-        }
-
-        idx = (start_index + end_index)/2;
-
-        if(pci_vid_index[idx].vid < vid)
-            start_index = idx;
-        else
-        if(pci_vid_index[idx].vid > vid)
-            end_index = idx;
-        else
-            return &pci_vid_index[idx];
-
-    }
-
-    return NULL;
-
+    return (int)*(const uint16_t *)key -
+           (int)((const pci_vid_index_t *)tbl_entry)->vid;
 }
 
 const char *pci_id_str(uint16_t vid, uint16_t did, uint16_t svid, uint16_t ssid)
@@ -47188,7 +47163,7 @@ const char *pci_id_str(uint16_t vid, uint16_t did, uint16_t svid, uint16_t ssid)
     pci_vid_index_t const *index_ptr;
     pci_id_t const *ids_ptr;
 
-    index_ptr = get_vid_index(vid);
+    index_ptr = bsearch(&vid, pci_vid_index, array_length(pci_vid_index), sizeof pci_vid_index[0], vid_search);
 
     if(index_ptr == NULL)
         return not_found;

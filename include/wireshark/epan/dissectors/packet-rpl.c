@@ -19,45 +19,45 @@
 void proto_register_rpl(void);
 void proto_reg_handoff_rpl(void);
 
-static int proto_rpl          = -1;
+static int proto_rpl;
 
-static int hf_rpl_type        = -1;
-static int hf_rpl_len         = -1;
-static int hf_rpl_corrval     = -1;
-static int hf_rpl_respval     = -1;
-static int hf_rpl_maxframe    = -1;
-static int hf_rpl_connclass   = -1;
-static int hf_rpl_lmac        = -1;
-static int hf_rpl_smac        = -1;
-static int hf_rpl_sap         = -1;
-static int hf_rpl_equipment   = -1;
-static int hf_rpl_memsize     = -1;
-static int hf_rpl_bsmversion  = -1;
-static int hf_rpl_adapterid   = -1;
-static int hf_rpl_shortname   = -1;
-static int hf_rpl_laddress    = -1;
-static int hf_rpl_xaddress    = -1;
-static int hf_rpl_sequence    = -1;
-static int hf_rpl_config      = -1;
-static int hf_rpl_flags       = -1;
-static int hf_rpl_data        = -1;
-static int hf_rpl_ec          = -1;
+static int hf_rpl_type;
+static int hf_rpl_len;
+static int hf_rpl_corrval;
+static int hf_rpl_respval;
+static int hf_rpl_maxframe;
+static int hf_rpl_connclass;
+static int hf_rpl_lmac;
+static int hf_rpl_smac;
+static int hf_rpl_sap;
+static int hf_rpl_equipment;
+static int hf_rpl_memsize;
+static int hf_rpl_bsmversion;
+static int hf_rpl_adapterid;
+static int hf_rpl_shortname;
+static int hf_rpl_laddress;
+static int hf_rpl_xaddress;
+static int hf_rpl_sequence;
+static int hf_rpl_config;
+static int hf_rpl_flags;
+static int hf_rpl_data;
+static int hf_rpl_ec;
 
-static gint ett_rpl           = -1;
-static gint ett_rpl_0004      = -1;
-static gint ett_rpl_0008      = -1;
-static gint ett_rpl_4003      = -1;
-static gint ett_rpl_4006      = -1;
-static gint ett_rpl_4007      = -1;
-static gint ett_rpl_4009      = -1;
-static gint ett_rpl_400a      = -1;
-static gint ett_rpl_400b      = -1;
-static gint ett_rpl_400c      = -1;
-static gint ett_rpl_4011      = -1;
-static gint ett_rpl_4018      = -1;
-static gint ett_rpl_c005      = -1;
-static gint ett_rpl_c014      = -1;
-static gint ett_rpl_unkn      = -1;
+static int ett_rpl;
+static int ett_rpl_0004;
+static int ett_rpl_0008;
+static int ett_rpl_4003;
+static int ett_rpl_4006;
+static int ett_rpl_4007;
+static int ett_rpl_4009;
+static int ett_rpl_400a;
+static int ett_rpl_400b;
+static int ett_rpl_400c;
+static int ett_rpl_4011;
+static int ett_rpl_4018;
+static int ett_rpl_c005;
+static int ett_rpl_c014;
+static int ett_rpl_unkn;
 
 static dissector_handle_t rpl_handle;
 
@@ -86,11 +86,11 @@ static void
 // NOLINTNEXTLINE(misc-no-recursion)
 dissect_rpl_container(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint16 len, type, sublen, subtyp;
+	uint16_t len, type, sublen, subtyp;
 	proto_tree *rpl_container_tree;
-	guint16 offset;
-	gint ett_type;
-	gint length, reported_length;
+	uint16_t offset;
+	int ett_type;
+	int length, reported_length;
 
 	len = tvb_get_ntohs(tvb, 0);
 	proto_tree_add_item(tree, hf_rpl_len, tvb, 0, 2, ENC_BIG_ENDIAN);
@@ -249,7 +249,7 @@ dissect_rpl_container(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 static int
 dissect_rpl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	guint16 rpl_len, rpl_type;
+	uint16_t rpl_len, rpl_type;
 	proto_item *ti;
 	proto_tree *rpl_tree;
 	tvbuff_t *next_tvb;
@@ -366,7 +366,7 @@ proto_register_rpl(void)
 				"RPL EC", HFILL }},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_rpl,
 		&ett_rpl_0004,
 		&ett_rpl_0008,

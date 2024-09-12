@@ -17,27 +17,27 @@
 void proto_register_e100(void);
 void proto_reg_handoff_e100(void);
 
-static int proto_e100 = -1;
+static int proto_e100;
 
 static dissector_handle_t eth_handle;
 
 /* Dissector tree globals */
-static int hf_e100_header = -1;
-static int hf_e100_port = -1;
-static int hf_e100_seq = -1;
-static int hf_e100_ip = -1;
-static int hf_e100_mon_pkt_id = -1;
-static int hf_e100_pkt_ts = -1;
-static int hf_e100_bytes_cap = -1;
-static int hf_e100_bytes_orig = -1;
+static int hf_e100_header;
+static int hf_e100_port;
+static int hf_e100_seq;
+static int hf_e100_ip;
+static int hf_e100_mon_pkt_id;
+static int hf_e100_pkt_ts;
+static int hf_e100_bytes_cap;
+static int hf_e100_bytes_orig;
 
-static gint ett_e100 = -1;
+static int ett_e100;
 
 /* E100 encapsulated packet offsets */
 typedef struct _e100_encap
 {
-    guint offset;
-    guint len;
+    unsigned offset;
+    unsigned len;
 } e100_encap;
 
 static e100_encap e100_header_ver = {0, 1};
@@ -48,15 +48,15 @@ static e100_encap e100_mon_pkt_id = {8, 4};
 static e100_encap e100_ts         = {12, 8};
 static e100_encap e100_bytes_cap  = {20, 4};
 static e100_encap e100_bytes_orig = {24, 4};
-static guint e100_encap_len = 28;
+static unsigned e100_encap_len = 28;
 
 
 static int
 dissect_e100(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     tvbuff_t *next_tvb;
-    guint32 bytes_captured;
-    guint32 bytes_original;
+    uint32_t bytes_captured;
+    uint32_t bytes_original;
     proto_item *ti;
     proto_tree *e100_tree;
 
@@ -66,7 +66,7 @@ dissect_e100(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
      * (3) e100 capture size matches tvb packet size
      */
     if (tvb_captured_length(tvb) < e100_encap_len ||
-        tvb_get_guint8(tvb, e100_header_ver.offset) != 1 ||
+        tvb_get_uint8(tvb, e100_header_ver.offset) != 1 ||
         tvb_get_ntohl(tvb, e100_bytes_cap.offset) != tvb_reported_length(tvb)-e100_encap_len)
     {
         /* Not one of our packets. */
@@ -103,6 +103,12 @@ dissect_e100(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
     call_dissector(eth_handle, next_tvb, pinfo, tree);
 
     return tvb_captured_length(tvb);
+}
+
+static bool
+dissect_e100_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+{
+    return dissect_e100(tvb, pinfo, tree, data) > 0;
 }
 
 void
@@ -177,7 +183,7 @@ proto_register_e100(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] =
+    static int *ett[] =
     {
         &ett_e100
     };
@@ -191,7 +197,7 @@ void
 proto_reg_handoff_e100(void)
 {
     /* Check all UDP traffic, as the specific UDP port is configurable */
-    heur_dissector_add("udp", dissect_e100, "E100 over UDP", "e100_udp", proto_e100, HEURISTIC_ENABLE);
+    heur_dissector_add("udp", dissect_e100_heur, "E100 over UDP", "e100_udp", proto_e100, HEURISTIC_ENABLE);
     /* e100 traffic encapsulates traffic from the ethernet frame on */
     eth_handle = find_dissector_add_dependency("eth_withoutfcs", proto_e100);
 }

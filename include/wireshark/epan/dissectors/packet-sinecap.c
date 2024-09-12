@@ -20,28 +20,28 @@
 #define TXP_MIN_TELEGRAM_LENGTH 22
 
 /* Wireshark ID of the AP1 protocol */
-static gint proto_ap = -1;
+static int proto_ap;
 
-static gint hf_ap_protoid = -1;
-static gint hf_ap_mpxadr = -1;
-static gint hf_ap_comcls = -1;
-static gint hf_ap_comcod = -1;
-static gint hf_ap_modfr1 = -1;
-static gint hf_ap_modfr2 = -1;
-static gint hf_ap_errcls = -1;
-static gint hf_ap_errcod = -1;
-static gint hf_ap_rosctr = -1;
-static gint hf_ap_sgsqnr = -1;
-static gint hf_ap_tactid = -1;
-static gint hf_ap_tasqnr = -1;
-static gint hf_ap_spare = -1;
-static gint hf_ap_pduref = -1;
-static gint hf_ap_pduid = -1;
-static gint hf_ap_pdulg = -1;
-static gint hf_ap_parlg = -1;
-static gint hf_ap_datlg = -1;
+static int hf_ap_protoid;
+static int hf_ap_mpxadr;
+static int hf_ap_comcls;
+static int hf_ap_comcod;
+static int hf_ap_modfr1;
+static int hf_ap_modfr2;
+static int hf_ap_errcls;
+static int hf_ap_errcod;
+static int hf_ap_rosctr;
+static int hf_ap_sgsqnr;
+static int hf_ap_tactid;
+static int hf_ap_tasqnr;
+static int hf_ap_spare;
+static int hf_ap_pduref;
+static int hf_ap_pduid;
+static int hf_ap_pdulg;
+static int hf_ap_parlg;
+static int hf_ap_datlg;
 
-static gint ett_ap = -1;
+static int ett_ap;
 
 static heur_dissector_list_t ap_heur_subdissector_list;
 
@@ -56,52 +56,52 @@ static const value_string vs_protid[] = {
         {0, NULL}
 };
 
-static gboolean
+static bool
 dissect_ap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *data _U_)
 {
     /*----------------- Heuristic Checks - Begin */
     /* 1) check for minimum length */
     if (tvb_captured_length(tvb) < TXP_MIN_TELEGRAM_LENGTH)
-        return FALSE;
+        return false;
 
     /* 2) protocol id == 0 */
-    if (tvb_get_guint8(tvb, 0) != 0)
-        return FALSE;
+    if (tvb_get_uint8(tvb, 0) != 0)
+        return false;
     /*----------------- Heuristic Checks - End */
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTO_TAG_AP);
     col_clear(pinfo->cinfo, COL_INFO);
 
-    guint8 comcls = tvb_get_guint8(tvb, 2);
+    uint8_t comcls = tvb_get_uint8(tvb, 2);
 
-    gint offset = 16;
-    guint16 pdulg = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+    int offset = 16;
+    uint16_t pdulg = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
     offset += 4;
 
-    guint16 datlg = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+    uint16_t datlg = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
     offset += 2;
 
     ws_assert(offset == 22);
 
     /* check pdu and data length */
     if (pdulg != tvb_captured_length(tvb))
-        return FALSE;
+        return false;
     if (datlg != tvb_captured_length(tvb) - 22)
-        return FALSE;
+        return false;
 
     switch (comcls) {
         case 0x0: {
             // ack without data
-            col_append_fstr(pinfo->cinfo, COL_INFO, "%s", "ACK without data");
+            col_append_str(pinfo->cinfo, COL_INFO, "ACK without data");
             break;
         }
         case 0x4: {
             // serial transfer
-            col_append_fstr(pinfo->cinfo, COL_INFO, "%s", "Serial transfer");
+            col_append_str(pinfo->cinfo, COL_INFO, "Serial transfer");
             break;
         }
         default:
-            col_append_fstr(pinfo->cinfo, COL_INFO, "%s", "UNKNOWN command class");
+            col_append_str(pinfo->cinfo, COL_INFO, "UNKNOWN command class");
     }
 
     proto_item *ap_item = proto_tree_add_item(tree, proto_ap, tvb, 0, -1, ENC_NA);
@@ -158,7 +158,7 @@ dissect_ap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *data _
         }
     }
 
-    return TRUE;
+    return true;
 }
 
 void
@@ -191,13 +191,13 @@ proto_register_ap(void)
             "sinecap"               /* filter_name */
     );
 
-    static gint *ett[] = {
+    static int *ett[] = {
             &ett_ap,
     };
 
     proto_register_field_array(proto_ap, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length (ett));
-    ap_heur_subdissector_list = register_heur_dissector_list("sinecap", proto_ap);
+    ap_heur_subdissector_list = register_heur_dissector_list_with_description("sinecap", "SINEC AP data", proto_ap);
 }
 
 void

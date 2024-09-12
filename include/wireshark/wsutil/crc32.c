@@ -17,6 +17,15 @@
 
 #include <wsutil/crc32.h>
 
+#ifdef HAVE_ZLIBNG
+#include <zlib-ng.h>
+#else
+#ifdef HAVE_ZLIB
+#define ZLIB_CONST
+#include <zlib.h>
+#endif /* HAVE_ZLIB */
+#endif
+
 #define CRC32_ACCUMULATE(c,d,table) (c=(c>>8)^(table)[(c^(d))&0xFF])
 
 /*****************************************************************/
@@ -395,6 +404,13 @@ crc32_ccitt(const uint8_t *buf, unsigned len)
 uint32_t
 crc32_ccitt_seed(const uint8_t *buf, unsigned len, uint32_t seed)
 {
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+#ifdef HAVE_ZLIBNG
+	return (unsigned)zng_crc32(~seed, buf, len);
+#else
+	return (unsigned)crc32(~seed, buf, len);
+#endif
+#else
 	unsigned i;
 	uint32_t crc32 = seed;
 
@@ -402,6 +418,7 @@ crc32_ccitt_seed(const uint8_t *buf, unsigned len, uint32_t seed)
 		CRC32_ACCUMULATE(crc32, buf[i], crc32_ccitt_table);
 
 	return ( ~crc32 );
+#endif
 }
 
 uint32_t

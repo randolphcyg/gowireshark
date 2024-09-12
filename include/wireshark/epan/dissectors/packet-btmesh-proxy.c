@@ -44,49 +44,49 @@
 void proto_register_btmesh_proxy(void);
 void proto_reg_handoff_btmesh_proxy(void);
 
-static int proto_btmesh_proxy = -1;
+static int proto_btmesh_proxy;
 
-static int hf_btmesh_proxy_type = -1;
-static int hf_btmesh_proxy_sar = -1;
-static int hf_btmesh_proxy_data = -1;
-static int hf_btmesh_proxy_data_fragment = -1;
-static int hf_btmesh_proxy_fragments = -1;
-static int hf_btmesh_proxy_fragment = -1;
-static int hf_btmesh_proxy_fragment_overlap = -1;
-static int hf_btmesh_proxy_fragment_overlap_conflict = -1;
-static int hf_btmesh_proxy_fragment_multiple_tails = -1;
-static int hf_btmesh_proxy_fragment_too_long_fragment = -1;
-static int hf_btmesh_proxy_fragment_error = -1;
-static int hf_btmesh_proxy_fragment_count = -1;
-static int hf_btmesh_proxy_reassembled_length = -1;
-static int hf_btmesh_proxy_ivi = -1;
-static int hf_btmesh_proxy_nid = -1;
-static int hf_btmesh_proxy_ctl = -1;
-static int hf_btmesh_proxy_ttl = -1;
-static int hf_btmesh_proxy_seq = -1;
-static int hf_btmesh_proxy_src = -1;
-static int hf_btmesh_proxy_dst = -1;
-static int hf_btmesh_proxy_transport_pdu = -1;
-static int hf_btmesh_proxy_netmic = -1;
-static int hf_btmesh_proxy_control_opcode = -1;
-static int hf_btmesh_proxy_control_parameters = -1;
-static int hf_btmesh_proxy_control_filter_type = -1;
-static int hf_btmesh_proxy_control_list_size = -1;
-static int hf_btmesh_proxy_control_list_item = -1;
+static int hf_btmesh_proxy_type;
+static int hf_btmesh_proxy_sar;
+static int hf_btmesh_proxy_data;
+static int hf_btmesh_proxy_data_fragment;
+static int hf_btmesh_proxy_fragments;
+static int hf_btmesh_proxy_fragment;
+static int hf_btmesh_proxy_fragment_overlap;
+static int hf_btmesh_proxy_fragment_overlap_conflict;
+static int hf_btmesh_proxy_fragment_multiple_tails;
+static int hf_btmesh_proxy_fragment_too_long_fragment;
+static int hf_btmesh_proxy_fragment_error;
+static int hf_btmesh_proxy_fragment_count;
+static int hf_btmesh_proxy_reassembled_length;
+static int hf_btmesh_proxy_ivi;
+static int hf_btmesh_proxy_nid;
+static int hf_btmesh_proxy_ctl;
+static int hf_btmesh_proxy_ttl;
+static int hf_btmesh_proxy_seq;
+static int hf_btmesh_proxy_src;
+static int hf_btmesh_proxy_dst;
+static int hf_btmesh_proxy_transport_pdu;
+static int hf_btmesh_proxy_netmic;
+static int hf_btmesh_proxy_control_opcode;
+static int hf_btmesh_proxy_control_parameters;
+static int hf_btmesh_proxy_control_filter_type;
+static int hf_btmesh_proxy_control_list_size;
+static int hf_btmesh_proxy_control_list_item;
 
-static int ett_btmesh_proxy = -1;
-static int ett_btmesh_proxy_network_pdu = -1;
-static int ett_btmesh_proxy_transport_pdu = -1;
-static int ett_btmesh_proxy_fragments = -1;
-static int ett_btmesh_proxy_fragment = -1;
+static int ett_btmesh_proxy;
+static int ett_btmesh_proxy_network_pdu;
+static int ett_btmesh_proxy_transport_pdu;
+static int ett_btmesh_proxy_fragments;
+static int ett_btmesh_proxy_fragment;
 
-static expert_field ei_btmesh_proxy_unknown_opcode = EI_INIT;
-static expert_field ei_btmesh_proxy_unknown_payload = EI_INIT;
-static expert_field ei_btmesh_proxy_wrong_ctl = EI_INIT;
-static expert_field ei_btmesh_proxy_wrong_ttl = EI_INIT;
-static expert_field ei_btmesh_proxy_wrong_dst = EI_INIT;
-static expert_field ei_btmesh_proxy_unknown_filter_type = EI_INIT;
-static expert_field ei_btmesh_proxy_wrong_address_type = EI_INIT;
+static expert_field ei_btmesh_proxy_unknown_opcode;
+static expert_field ei_btmesh_proxy_unknown_payload;
+static expert_field ei_btmesh_proxy_wrong_ctl;
+static expert_field ei_btmesh_proxy_wrong_ttl;
+static expert_field ei_btmesh_proxy_wrong_dst;
+static expert_field ei_btmesh_proxy_unknown_filter_type;
+static expert_field ei_btmesh_proxy_wrong_address_type;
 
 static dissector_handle_t btmesh_handle;
 static dissector_handle_t btmesh_provisioning_handle;
@@ -151,22 +151,22 @@ static const fragment_items btmesh_proxy_frag_items = {
 };
 
 static reassembly_table proxy_reassembly_table;
-static guint32 sequence_counter[E_BTMESH_PROXY_SIDE_LAST];
-static guint32 fragment_counter[E_BTMESH_PROXY_SIDE_LAST];
-static gboolean first_pass;
+static uint32_t sequence_counter[E_BTMESH_PROXY_SIDE_LAST];
+static uint32_t fragment_counter[E_BTMESH_PROXY_SIDE_LAST];
+static bool first_pass;
 
-static gint
+static int
 dissect_btmesh_proxy_configuration_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    gint32 enc_data_len = 0;
-    guint8 *decrypted_data = NULL;
+    int32_t enc_data_len = 0;
+    uint8_t *decrypted_data = NULL;
     tvbuff_t *de_obf_tvb;
     tvbuff_t *de_cry_tvb;
     proto_tree *sub_tree, *cntrl_sub_tree;
-    guint32 net_mic_size, seq, src, dst, opcode, ttl, bd_address;
-    guint32 filter_type, list_size;
-    guint32 offset = 0;
-    guint32 decry_off = 0;
+    uint32_t net_mic_size, seq, src, dst, opcode, ttl, bd_address;
+    uint32_t filter_type, list_size;
+    uint32_t offset = 0;
+    uint32_t decry_off = 0;
     network_decryption_ctx_t *dec_ctx;
 
     proto_tree_add_item(tree, hf_btmesh_proxy_data, tvb, 0, tvb_reported_length(tvb), ENC_NA);
@@ -237,7 +237,7 @@ dissect_btmesh_proxy_configuration_msg(tvbuff_t *tvb, packet_info *pinfo, proto_
 
           break;
           case PROXY_ADD_ADDRESSES_TO_FILTER:
-              while (decry_off <= (guint32)enc_data_len - 1) {
+              while (decry_off <= (uint32_t)enc_data_len - 1) {
                 proto_tree_add_item_ret_uint(cntrl_sub_tree, hf_btmesh_proxy_control_list_item, de_cry_tvb, decry_off, 2, ENC_BIG_ENDIAN, &bd_address);
                   if (bd_address == 0 ) {
                       proto_tree_add_expert(cntrl_sub_tree, pinfo, &ei_btmesh_proxy_wrong_address_type, de_cry_tvb, decry_off, 2);
@@ -247,7 +247,7 @@ dissect_btmesh_proxy_configuration_msg(tvbuff_t *tvb, packet_info *pinfo, proto_
 
           break;
           case PROXY_REMOVE_ADDRESSES_FROM_FILTER:
-              while (decry_off <= (guint32)enc_data_len - 1) {
+              while (decry_off <= (uint32_t)enc_data_len - 1) {
                 proto_tree_add_item_ret_uint(cntrl_sub_tree, hf_btmesh_proxy_control_list_item, de_cry_tvb, decry_off, 2, ENC_BIG_ENDIAN, &bd_address);
                 if (bd_address == 0 ) {
                       proto_tree_add_expert(cntrl_sub_tree, pinfo, &ei_btmesh_proxy_wrong_address_type, de_cry_tvb, decry_off, 2);
@@ -279,17 +279,17 @@ dissect_btmesh_proxy_configuration_msg(tvbuff_t *tvb, packet_info *pinfo, proto_
     return offset;
 }
 
-static gint
+static int
 dissect_btmesh_proxy_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *proxy_data)
 {
     proto_item *item;
     proto_tree *sub_tree;
     tvbuff_t *next_tvb = NULL;
     fragment_head *fd_head = NULL;
-    guint32 *sequence_counter_ptr;
+    uint32_t *sequence_counter_ptr;
     void *storage;
     btle_mesh_transport_ctx_t tr_ctx;
-    guint offset = 0;
+    unsigned offset = 0;
     btle_mesh_proxy_ctx_t *proxy_ctx = NULL;
 
     DISSECTOR_ASSERT(proxy_data);
@@ -297,7 +297,7 @@ dissect_btmesh_proxy_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     DISSECTOR_ASSERT(proxy_ctx->proxy_side < E_BTMESH_PROXY_SIDE_LAST);
 
     if (pinfo->fd->visited && first_pass) {
-        first_pass=FALSE;
+        first_pass=false;
         for (int i=0; i< E_BTMESH_PROXY_SIDE_LAST; i++ ){
             sequence_counter[i] = 0;
             fragment_counter[i] = 0;
@@ -312,19 +312,19 @@ dissect_btmesh_proxy_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     proto_tree_add_item(sub_tree, hf_btmesh_proxy_sar, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(sub_tree, hf_btmesh_proxy_type, tvb, offset, 1, ENC_NA);
 
-    guint8 proxy_sar = (tvb_get_guint8(tvb, offset) & 0xC0 ) >> 6;
-    guint8 proxy_type = tvb_get_guint8(tvb, offset) & 0x3F;
+    uint8_t proxy_sar = (tvb_get_uint8(tvb, offset) & 0xC0 ) >> 6;
+    uint8_t proxy_type = tvb_get_uint8(tvb, offset) & 0x3F;
     offset += 1;
-    guint32 length = tvb_reported_length(tvb) - offset;
+    uint32_t length = tvb_reported_length(tvb) - offset;
 
-    gboolean packet_reassembled = FALSE;
-    gboolean packet_completed = FALSE;
+    bool packet_reassembled = false;
+    bool packet_completed = false;
 
     col_set_str(pinfo->cinfo, COL_INFO, val_to_str_const(proxy_type, btmesh_proxy_type, "Unknown Proxy PDU"));
 
     switch (proxy_sar){
         case PROXY_COMPLETE_MESSAGE:
-            packet_completed = TRUE;
+            packet_completed = true;
             next_tvb = tvb_new_subset_length_caplen(tvb, offset, -1, tvb_captured_length(tvb) - offset);
             col_append_str(pinfo->cinfo, COL_INFO," (Complete)");
 
@@ -340,7 +340,7 @@ dissect_btmesh_proxy_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
                     sequence_counter[proxy_ctx->proxy_side], NULL,
                     fragment_counter[proxy_ctx->proxy_side],
                     tvb_captured_length_remaining(tvb, offset),
-                    TRUE, 0);
+                    true, 0);
 
                 fragment_counter[proxy_ctx->proxy_side]++;
             }
@@ -355,7 +355,7 @@ dissect_btmesh_proxy_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
                     sequence_counter[proxy_ctx->proxy_side], NULL,
                     fragment_counter[proxy_ctx->proxy_side],
                     tvb_captured_length_remaining(tvb, offset),
-                    TRUE, 0);
+                    true, 0);
                 fragment_counter[proxy_ctx->proxy_side]++;
             }
             col_append_str(pinfo->cinfo, COL_INFO," (Continuation Segment)");
@@ -370,15 +370,15 @@ dissect_btmesh_proxy_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
                     sequence_counter[proxy_ctx->proxy_side], NULL,
                     fragment_counter[proxy_ctx->proxy_side],
                     tvb_captured_length_remaining(tvb, offset),
-                    FALSE, 0);
+                    false, 0);
                 fragment_counter[proxy_ctx->proxy_side]++;
 
                 //add mapping "pinfo->num" -> "sequence_counter"
                 storage = wmem_alloc0(pool, sizeof(sequence_counter[proxy_ctx->proxy_side]));
-                *((guint32 *)storage) = sequence_counter[proxy_ctx->proxy_side];
+                *((uint32_t *)storage) = sequence_counter[proxy_ctx->proxy_side];
                 wmem_tree_insert32(connection_info_tree, pinfo->num, storage);
            }
-           packet_reassembled = TRUE;
+           packet_reassembled = true;
            col_append_str(pinfo->cinfo, COL_INFO," (Last Segment)");
 
         break;
@@ -387,7 +387,7 @@ dissect_btmesh_proxy_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 
     if (packet_reassembled || packet_completed) {
         if (next_tvb == NULL) {
-            sequence_counter_ptr = (guint32 *)wmem_tree_lookup32(connection_info_tree, pinfo->num);
+            sequence_counter_ptr = (uint32_t *)wmem_tree_lookup32(connection_info_tree, pinfo->num);
 
             if (sequence_counter_ptr != NULL) {
                 fd_head = fragment_get(&proxy_reassembly_table, pinfo, *sequence_counter_ptr, NULL);
@@ -405,9 +405,9 @@ dissect_btmesh_proxy_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
             offset = 0;
             tr_ctx.transport = E_BTMESH_TR_PROXY;
             if (packet_completed) {
-                tr_ctx.fragmented = FALSE;
+                tr_ctx.fragmented = false;
             } else {
-                tr_ctx.fragmented = TRUE;
+                tr_ctx.fragmented = true;
             }
             tr_ctx.segment_index = 0;
 
@@ -453,12 +453,11 @@ dissect_btmesh_proxy_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 static void
 proxy_init_routine(void)
 {
-    reassembly_table_register(&proxy_reassembly_table, &addresses_reassembly_table_functions);
     for (int i=0; i< E_BTMESH_PROXY_SIDE_LAST; i++ ){
         sequence_counter[i] = 0;
         fragment_counter[i] = 0;
     }
-    first_pass = TRUE;
+    first_pass = true;
     pool = wmem_allocator_new(WMEM_ALLOCATOR_SIMPLE);
 }
 
@@ -497,7 +496,7 @@ proto_register_btmesh_proxy(void)
         { &hf_btmesh_proxy_fragments,
             { "Reassembled Proxy Payload Fragments", "btmproxy.fragments",
                 FT_NONE, BASE_NONE, NULL, 0x0,
-                "Proxy Payload Fragments", HFILL }
+                NULL, HFILL }
         },
         { &hf_btmesh_proxy_fragment,
             { "Proxy Payload Fragment", "btmproxy.fragment",
@@ -611,7 +610,7 @@ proto_register_btmesh_proxy(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btmesh_proxy,
         &ett_btmesh_proxy_network_pdu,
         &ett_btmesh_proxy_transport_pdu,
@@ -646,6 +645,7 @@ proto_register_btmesh_proxy(void)
 
     register_init_routine(proxy_init_routine);
     register_cleanup_routine(proxy_cleanup_dissector);
+    reassembly_table_register(&proxy_reassembly_table, &addresses_reassembly_table_functions);
 }
 
 void

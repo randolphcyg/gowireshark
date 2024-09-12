@@ -66,7 +66,7 @@
 #define XTP_CMD_OPTIONS_END		0x000200
 #define XTP_CMD_OPTIONS_BTAG		0x000100
 
-#define XTP_KEY_RTN			((guint64)1<<63)
+#define XTP_KEY_RTN			((uint64_t)1<<63)
 
 void proto_register_xtp(void);
 void proto_reg_handoff_xtp(void);
@@ -75,82 +75,82 @@ static dissector_handle_t xtp_handle;
 
 /** packet structures definition **/
 struct xtp_cntl {
-	guint64		rseq;
-	guint64		alloc;
-	guint32		echo;
+	uint64_t		rseq;
+	uint64_t		alloc;
+	uint32_t		echo;
 };
 #define XTP_CNTL_PKT_LEN	20
 
 struct xtp_ecntl {
-	guint64		rseq;
-	guint64		alloc;
-	guint32		echo;
-	guint32		nspan;
+	uint64_t		rseq;
+	uint64_t		alloc;
+	uint32_t		echo;
+	uint32_t		nspan;
 };
 #define MIN_XTP_ECNTL_PKT_LEN	24
 
 struct xtp_traffic_cntl {
-	guint64		rseq;
-	guint64		alloc;
-	guint32		echo;
-	guint32		rsvd;
-	guint64		xkey;
+	uint64_t		rseq;
+	uint64_t		alloc;
+	uint32_t		echo;
+	uint32_t		rsvd;
+	uint64_t		xkey;
 };
 #define XTP_TRAFFIC_CNTL_LEN	32
 
 /* tformat = 0x00 */
 struct xtp_traffic_spec0 {
-	guint16		tlen;
-	guint8		service;
-	guint8		tformat;
-	guint32		none;
+	uint16_t		tlen;
+	uint8_t		service;
+	uint8_t		tformat;
+	uint32_t		none;
 };
 #define XTP_TRAFFIC_SPEC0_LEN	8
 
 /* tformat = 0x01 */
 struct xtp_traffic_spec1 {
-	guint16		tlen;
-	guint8		service;
-	guint8		tformat;
-	guint32		maxdata;
-	guint32		inrate;
-	guint32		inburst;
-	guint32		outrate;
-	guint32		outburst;
+	uint16_t		tlen;
+	uint8_t		service;
+	uint8_t		tformat;
+	uint32_t		maxdata;
+	uint32_t		inrate;
+	uint32_t		inburst;
+	uint32_t		outrate;
+	uint32_t		outburst;
 };
 #define XTP_TRAFFIC_SPEC1_LEN	24
 
 struct xtp_ip_addr_seg {
-	guint16		alen;
-	guint8		adomain;
-	guint8		aformat;
-	guint32		dsthost;
-	guint32		srchost;
-	guint16		dstport;
-	guint16		srcport;
+	uint16_t		alen;
+	uint8_t		adomain;
+	uint8_t		aformat;
+	uint32_t		dsthost;
+	uint32_t		srchost;
+	uint16_t		dstport;
+	uint16_t		srcport;
 };
 #define XTP_IP_ADDR_SEG_LEN	16
 #define XTP_NULL_ADDR_SEG_LEN	8
 
 struct xtp_diag {
-	guint32		code;
-	guint32		val;
-	gchar		*msg;
+	uint32_t		code;
+	uint32_t		val;
+	char		*msg;
 };
 #define XTP_DIAG_PKT_HEADER_LEN	8
 
 struct xtphdr {
-	guint64		key;
-	guint32		cmd;
-	guint32		cmd_options;		/* 24 bits */
-	guint8		cmd_ptype;
-	guint8		cmd_ptype_ver;		/* 3 bits */
-	guint8		cmd_ptype_pformat;	/* 5 bits */
-	guint32		dlen;
-	guint16		check;
-	guint16		sort;
-	guint32		sync;
-	guint64		seq;
+	uint64_t		key;
+	uint32_t		cmd;
+	uint32_t		cmd_options;		/* 24 bits */
+	uint8_t		cmd_ptype;
+	uint8_t		cmd_ptype_ver;		/* 3 bits */
+	uint8_t		cmd_ptype_pformat;	/* 5 bits */
+	uint32_t		dlen;
+	uint16_t		check;
+	uint16_t		sort;
+	uint32_t		sync;
+	uint64_t		seq;
 };
 #define XTP_HEADER_LEN		32
 
@@ -224,99 +224,99 @@ static const value_string diag_val_vals[] = {
 };
 
 /* Initialize the protocol and registered fields */
-static int proto_xtp = -1;
+static int proto_xtp;
 /* common header */
-static int hf_xtp_key = -1;
-static int hf_xtp_cmd = -1;
-static int hf_xtp_cmd_options = -1;
-static int hf_xtp_cmd_options_nocheck = -1;
-static int hf_xtp_cmd_options_edge = -1;
-static int hf_xtp_cmd_options_noerr = -1;
-static int hf_xtp_cmd_options_multi = -1;
-static int hf_xtp_cmd_options_res = -1;
-static int hf_xtp_cmd_options_sort = -1;
-static int hf_xtp_cmd_options_noflow = -1;
-static int hf_xtp_cmd_options_fastnak = -1;
-static int hf_xtp_cmd_options_sreq = -1;
-static int hf_xtp_cmd_options_dreq = -1;
-static int hf_xtp_cmd_options_rclose = -1;
-static int hf_xtp_cmd_options_wclose = -1;
-static int hf_xtp_cmd_options_eom = -1;
-static int hf_xtp_cmd_options_end = -1;
-static int hf_xtp_cmd_options_btag = -1;
-static int hf_xtp_cmd_ptype = -1;
-static int hf_xtp_cmd_ptype_ver = -1;
-static int hf_xtp_cmd_ptype_pformat = -1;
-static int hf_xtp_dlen = -1;
-static int hf_xtp_sort = -1;
-static int hf_xtp_sync = -1;
-static int hf_xtp_seq = -1;
+static int hf_xtp_key;
+static int hf_xtp_cmd;
+static int hf_xtp_cmd_options;
+static int hf_xtp_cmd_options_nocheck;
+static int hf_xtp_cmd_options_edge;
+static int hf_xtp_cmd_options_noerr;
+static int hf_xtp_cmd_options_multi;
+static int hf_xtp_cmd_options_res;
+static int hf_xtp_cmd_options_sort;
+static int hf_xtp_cmd_options_noflow;
+static int hf_xtp_cmd_options_fastnak;
+static int hf_xtp_cmd_options_sreq;
+static int hf_xtp_cmd_options_dreq;
+static int hf_xtp_cmd_options_rclose;
+static int hf_xtp_cmd_options_wclose;
+static int hf_xtp_cmd_options_eom;
+static int hf_xtp_cmd_options_end;
+static int hf_xtp_cmd_options_btag;
+static int hf_xtp_cmd_ptype;
+static int hf_xtp_cmd_ptype_ver;
+static int hf_xtp_cmd_ptype_pformat;
+static int hf_xtp_dlen;
+static int hf_xtp_sort;
+static int hf_xtp_sync;
+static int hf_xtp_seq;
 /* control segment */
-static int hf_xtp_cntl_rseq = -1;
-static int hf_xtp_cntl_alloc = -1;
-static int hf_xtp_cntl_echo = -1;
-static int hf_xtp_ecntl_rseq = -1;
-static int hf_xtp_ecntl_alloc = -1;
-static int hf_xtp_ecntl_echo = -1;
-static int hf_xtp_ecntl_nspan = -1;
-static int hf_xtp_ecntl_span_left = -1;
-static int hf_xtp_ecntl_span_right = -1;
-static int hf_xtp_tcntl_rseq = -1;
-static int hf_xtp_tcntl_alloc = -1;
-static int hf_xtp_tcntl_echo = -1;
-static int hf_xtp_tcntl_rsvd = -1;
-static int hf_xtp_tcntl_xkey = -1;
+static int hf_xtp_cntl_rseq;
+static int hf_xtp_cntl_alloc;
+static int hf_xtp_cntl_echo;
+static int hf_xtp_ecntl_rseq;
+static int hf_xtp_ecntl_alloc;
+static int hf_xtp_ecntl_echo;
+static int hf_xtp_ecntl_nspan;
+static int hf_xtp_ecntl_span_left;
+static int hf_xtp_ecntl_span_right;
+static int hf_xtp_tcntl_rseq;
+static int hf_xtp_tcntl_alloc;
+static int hf_xtp_tcntl_echo;
+static int hf_xtp_tcntl_rsvd;
+static int hf_xtp_tcntl_xkey;
 /* traffic specifier */
-static int hf_xtp_tspec_tlen = -1;
-static int hf_xtp_tspec_service = -1;
-static int hf_xtp_tspec_tformat = -1;
-static int hf_xtp_tspec_traffic = -1;
-static int hf_xtp_tspec_maxdata = -1;
-static int hf_xtp_tspec_inrate = -1;
-static int hf_xtp_tspec_outrate = -1;
-static int hf_xtp_tspec_inburst = -1;
-static int hf_xtp_tspec_outburst = -1;
+static int hf_xtp_tspec_tlen;
+static int hf_xtp_tspec_service;
+static int hf_xtp_tspec_tformat;
+static int hf_xtp_tspec_traffic;
+static int hf_xtp_tspec_maxdata;
+static int hf_xtp_tspec_inrate;
+static int hf_xtp_tspec_outrate;
+static int hf_xtp_tspec_inburst;
+static int hf_xtp_tspec_outburst;
 /* address segment */
-static int hf_xtp_aseg_alen = -1;
-static int hf_xtp_aseg_adomain = -1;
-static int hf_xtp_aseg_aformat = -1;
-static int hf_xtp_aseg_address = -1;
-static int hf_xtp_aseg_dsthost = -1;
-static int hf_xtp_aseg_srchost = -1;
-static int hf_xtp_aseg_dstport = -1;
-static int hf_xtp_aseg_srcport = -1;
+static int hf_xtp_aseg_alen;
+static int hf_xtp_aseg_adomain;
+static int hf_xtp_aseg_aformat;
+static int hf_xtp_aseg_address;
+static int hf_xtp_aseg_dsthost;
+static int hf_xtp_aseg_srchost;
+static int hf_xtp_aseg_dstport;
+static int hf_xtp_aseg_srcport;
 /* others */
-static int hf_xtp_btag = -1;
-static int hf_xtp_diag_code = -1;
-static int hf_xtp_diag_val = -1;
-static int hf_xtp_diag_msg = -1;
-static int hf_xtp_checksum = -1;
-static int hf_xtp_checksum_status = -1;
-static int hf_xtp_data = -1;
+static int hf_xtp_btag;
+static int hf_xtp_diag_code;
+static int hf_xtp_diag_val;
+static int hf_xtp_diag_msg;
+static int hf_xtp_checksum;
+static int hf_xtp_checksum_status;
+static int hf_xtp_data;
 
 /* Initialize the subtree pointers */
-static gint ett_xtp = -1;
-static gint ett_xtp_cmd = -1;
-static gint ett_xtp_cmd_options = -1;
-static gint ett_xtp_cmd_ptype = -1;
-static gint ett_xtp_cntl = -1;
-static gint ett_xtp_ecntl = -1;
-static gint ett_xtp_tcntl = -1;
-static gint ett_xtp_tspec = -1;
-static gint ett_xtp_jcntl = -1;
-static gint ett_xtp_first = -1;
-static gint ett_xtp_aseg = -1;
-static gint ett_xtp_data = -1;
-static gint ett_xtp_diag = -1;
+static int ett_xtp;
+static int ett_xtp_cmd;
+static int ett_xtp_cmd_options;
+static int ett_xtp_cmd_ptype;
+static int ett_xtp_cntl;
+static int ett_xtp_ecntl;
+static int ett_xtp_tcntl;
+static int ett_xtp_tspec;
+static int ett_xtp_jcntl;
+static int ett_xtp_first;
+static int ett_xtp_aseg;
+static int ett_xtp_data;
+static int ett_xtp_diag;
 
-static expert_field ei_xtp_spans_bad = EI_INIT;
-static expert_field ei_xtp_checksum = EI_INIT;
+static expert_field ei_xtp_spans_bad;
+static expert_field ei_xtp_checksum;
 
 /* dissector of each payload */
 static int
-dissect_xtp_aseg(tvbuff_t *tvb, proto_tree *tree, guint32 offset) {
-	guint32                 len   = tvb_reported_length_remaining(tvb, offset);
-	guint32                 start = offset;
+dissect_xtp_aseg(tvbuff_t *tvb, proto_tree *tree, uint32_t offset) {
+	uint32_t                len   = tvb_reported_length_remaining(tvb, offset);
+	uint32_t                start = offset;
 	proto_item             *ti, *ti2, *top_ti;
 	proto_tree             *xtp_subtree;
 	struct xtp_ip_addr_seg  aseg[1];
@@ -335,10 +335,10 @@ dissect_xtp_aseg(tvbuff_t *tvb, proto_tree *tree, guint32 offset) {
 	aseg->alen = tvb_get_ntohs(tvb, offset);
 	offset += 2;
 	/* adomain(1) */
-	aseg->adomain = tvb_get_guint8(tvb, offset);
+	aseg->adomain = tvb_get_uint8(tvb, offset);
 	offset++;
 	/* aformat(1) */
-	aseg->aformat = tvb_get_guint8(tvb, offset);
+	aseg->aformat = tvb_get_uint8(tvb, offset);
 
 	/** display common fields **/
 	offset = start;
@@ -430,9 +430,9 @@ dissect_xtp_aseg(tvbuff_t *tvb, proto_tree *tree, guint32 offset) {
 
 static int
 dissect_xtp_traffic_cntl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-		guint32 offset) {
-	guint32                  len   = tvb_reported_length_remaining(tvb, offset);
-	guint32                  start = offset;
+		uint32_t offset) {
+	uint32_t                 len   = tvb_reported_length_remaining(tvb, offset);
+	uint32_t                 start = offset;
 	proto_item              *top_ti;
 	proto_tree              *xtp_subtree;
 	struct xtp_traffic_cntl  tcntl[1];
@@ -505,9 +505,9 @@ dissect_xtp_traffic_cntl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 }
 
 static int
-dissect_xtp_tspec(tvbuff_t *tvb, proto_tree *tree, guint32 offset) {
-	guint32                   len   = tvb_reported_length_remaining(tvb, offset);
-	guint32                   start = offset;
+dissect_xtp_tspec(tvbuff_t *tvb, proto_tree *tree, uint32_t offset) {
+	uint32_t                  len   = tvb_reported_length_remaining(tvb, offset);
+	uint32_t                  start = offset;
 	proto_item               *ti, *ti2;
 	proto_tree               *xtp_subtree;
 	struct xtp_traffic_spec1  tspec[1];
@@ -527,10 +527,10 @@ dissect_xtp_tspec(tvbuff_t *tvb, proto_tree *tree, guint32 offset) {
 	tspec->tlen = tvb_get_ntohs(tvb, offset);
 	offset += 2;
 	/* service(1) */
-	tspec->service = tvb_get_guint8(tvb, offset);
+	tspec->service = tvb_get_uint8(tvb, offset);
 	offset++;
 	/* tformat(1) */
-	tspec->tformat = tvb_get_guint8(tvb, offset);
+	tspec->tformat = tvb_get_uint8(tvb, offset);
 
 	/** display common fields */
 	offset = start;
@@ -620,10 +620,10 @@ dissect_xtp_tspec(tvbuff_t *tvb, proto_tree *tree, guint32 offset) {
 }
 
 static void
-dissect_xtp_data(tvbuff_t *tvb, proto_tree *tree, guint32 offset, gboolean have_btag) {
-	guint32     len = tvb_reported_length_remaining(tvb, offset);
+dissect_xtp_data(tvbuff_t *tvb, proto_tree *tree, uint32_t offset, bool have_btag) {
+	uint32_t    len = tvb_reported_length_remaining(tvb, offset);
 	proto_tree *xtp_subtree;
-	guint64     btag;
+	uint64_t    btag;
 
 	xtp_subtree = proto_tree_add_subtree(tree, tvb, offset, len, ett_xtp_data, NULL, "Data Segment");
 
@@ -643,9 +643,9 @@ dissect_xtp_data(tvbuff_t *tvb, proto_tree *tree, guint32 offset, gboolean have_
 
 static void
 dissect_xtp_cntl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-		guint32 offset) {
-	guint32          len   = tvb_reported_length_remaining(tvb, offset);
-	guint32          start = offset;
+		uint32_t offset) {
+	uint32_t         len   = tvb_reported_length_remaining(tvb, offset);
+	uint32_t         start = offset;
 	proto_item      *top_ti;
 	proto_tree      *xtp_subtree;
 	struct xtp_cntl  cntl[1];
@@ -700,7 +700,7 @@ dissect_xtp_cntl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 }
 
 static void
-dissect_xtp_first(tvbuff_t *tvb, proto_tree *tree, guint32 offset) {
+dissect_xtp_first(tvbuff_t *tvb, proto_tree *tree, uint32_t offset) {
 
 	if (!dissect_xtp_aseg(tvb, tree, offset))
 		return;
@@ -714,14 +714,14 @@ dissect_xtp_first(tvbuff_t *tvb, proto_tree *tree, guint32 offset) {
 #define XTP_MAX_NSPANS 10000 /* Arbitrary. (Documentation link is dead.) */
 static void
 dissect_xtp_ecntl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-		guint32 offset) {
-	guint32           len   = tvb_reported_length_remaining(tvb, offset);
-	guint32           start = offset;
+		uint32_t offset) {
+	uint32_t          len   = tvb_reported_length_remaining(tvb, offset);
+	uint32_t          start = offset;
 	proto_item       *top_ti;
 	proto_tree       *xtp_subtree;
 	struct xtp_ecntl  ecntl[1];
-	guint             spans_len;
-	guint             i;
+	unsigned          spans_len;
+	unsigned          i;
 
 	xtp_subtree = proto_tree_add_subtree(tree, tvb, offset, len,
 				ett_xtp_ecntl, &top_ti, "Error Control Segment");
@@ -805,7 +805,7 @@ dissect_xtp_ecntl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 static void
 dissect_xtp_tcntl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-		guint32 offset) {
+		uint32_t offset) {
 
 	if (!dissect_xtp_traffic_cntl(tvb, pinfo, tree, offset))
 		return;
@@ -818,7 +818,7 @@ dissect_xtp_tcntl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 static void
 dissect_xtp_jcntl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-		guint32 offset) {
+		uint32_t offset) {
 
 	if (!dissect_xtp_traffic_cntl(tvb, pinfo, tree, offset))
 		return;
@@ -834,8 +834,8 @@ dissect_xtp_jcntl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 }
 
 static void
-dissect_xtp_diag(tvbuff_t *tvb, proto_tree *tree, guint32 offset) {
-	guint32          len   = tvb_reported_length_remaining(tvb, offset);
+dissect_xtp_diag(tvbuff_t *tvb, proto_tree *tree, uint32_t offset) {
+	uint32_t         len   = tvb_reported_length_remaining(tvb, offset);
 	proto_item      *ti;
 	proto_tree      *xtp_subtree;
 
@@ -866,20 +866,20 @@ dissect_xtp_diag(tvbuff_t *tvb, proto_tree *tree, guint32 offset) {
 /* main dissector */
 static int
 dissect_xtp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_) {
-	guint32        offset, len;
+	uint32_t       offset, len;
 	proto_item    *ti;
 	proto_tree    *xtp_tree, *xtp_cmd_tree, *xtp_subtree;
 	struct xtphdr  xtph[1];
 	int            error      = 0;
-	gchar         *options;
+	char          *options;
 	static const char *fstr[] = { "<None>", "NOCHECK", "EDGE", "NOERR", "MULTI", "RES",
 				      "SORT", "NOFLOW", "FASTNAK", "SREQ", "DREQ",
 				      "RCLOSE", "WCLOSE", "EOM", "END", "BTAG" };
-	gint           fpos       = 0, returned_length;
-	guint          i, bpos;
-	guint          cmd_options;
+	int            fpos       = 0, returned_length;
+	unsigned       i, bpos;
+	unsigned       cmd_options;
 	vec_t          cksum_vec[1];
-	gboolean       have_btag;
+	bool           have_btag;
 	static int * const cmd_options_flags[] = {
 		&hf_xtp_cmd_options_nocheck,
 		&hf_xtp_cmd_options_edge,
@@ -937,7 +937,7 @@ dissect_xtp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 	xtph->seq += tvb_get_ntohl(tvb, offset+4);
 
 #define MAX_OPTIONS_LEN	128
-	options=(gchar *)wmem_alloc(pinfo->pool, MAX_OPTIONS_LEN);
+	options=(char *)wmem_alloc(pinfo->pool, MAX_OPTIONS_LEN);
 	options[0]=0;
 	cmd_options = xtph->cmd_options >> 8;
 	for (i = 0; i < 16; i++) {
@@ -1005,7 +1005,7 @@ dissect_xtp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 		offset += 4;
 		/* check(2) */
 		if (!pinfo->fragmented) {
-			guint32 check_len = XTP_HEADER_LEN;
+			uint32_t check_len = XTP_HEADER_LEN;
 			if (!(xtph->cmd_options & XTP_CMD_OPTIONS_NOCHECK))
 				check_len += xtph->dlen;
 			SET_CKSUM_VEC_TVB(cksum_vec[0], tvb, 0, check_len);
@@ -1343,7 +1343,7 @@ proto_register_xtp(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_xtp,
 		&ett_xtp_cmd,
 		&ett_xtp_cmd_options,

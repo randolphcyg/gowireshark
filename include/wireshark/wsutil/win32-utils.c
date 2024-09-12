@@ -9,6 +9,7 @@
  */
 
 #include <config.h>
+#include <wsutil/array.h>
 
 #include "win32-utils.h"
 
@@ -43,7 +44,7 @@ protect_arg (const char *argv)
         else if (*p == '\\') {
             const char *pp = p;
 
-            while (*pp && *pp == '\\')
+            while (*pp == '\\')
                 pp++;
             if (*pp == '"')
                 len++;
@@ -52,7 +53,7 @@ protect_arg (const char *argv)
         p++;
     }
 
-    q = new_arg = g_malloc (len + need_dblquotes*2 + 1);
+    q = new_arg = g_malloc (len + (need_dblquotes ? 2 : 0) + 1);
     p = argv;
 
     if (need_dblquotes)
@@ -64,7 +65,7 @@ protect_arg (const char *argv)
         else if (*p == '\\') {
             const char *pp = p;
 
-            while (*pp && *pp == '\\')
+            while (*pp == '\\')
                 pp++;
             if (*pp == '"')
                 *q++ = '\\';
@@ -78,6 +79,28 @@ protect_arg (const char *argv)
     *q++ = '\0';
 
     return new_arg;
+}
+
+#define PIPE_STR "\\pipe\\"
+
+bool
+win32_is_pipe_name(const char *pipe_name)
+{
+    char *pncopy, *pos;
+    /* Under Windows, named pipes _must_ have the form
+     * "\\<server>\pipe\<pipename>".  <server> may be "." for localhost.
+     * https://learn.microsoft.com/en-us/windows/win32/ipc/pipe-names
+     */
+    pncopy = g_strdup(pipe_name);
+    if ((pos = strstr(pncopy, "\\\\")) == pncopy) {
+        pos = strchr(pncopy + 3, '\\');
+        if (pos && g_ascii_strncasecmp(pos, PIPE_STR, strlen(PIPE_STR)) != 0)
+            pos = NULL;
+    }
+
+    g_free(pncopy);
+
+    return (pos != NULL);
 }
 
 /*
@@ -176,7 +199,7 @@ win32strexception(DWORD exception)
         { EXCEPTION_STACK_OVERFLOW, "Stack overflow" },
         { 0, NULL }
     };
-#define N_EXCEPTIONS    (sizeof exceptions / sizeof exceptions[0])
+#define N_EXCEPTIONS    array_length(exceptions)
 
     for (size_t i = 0; i < N_EXCEPTIONS; i++) {
         if (exceptions[i].code == exception)

@@ -127,245 +127,245 @@ void proto_reg_handoff_uftp(void);
 
 static dissector_handle_t uftp_handle;
 
-static int proto_uftp = -1;
+static int proto_uftp;
 #define UFTP_PORT   1044 /* Not IANA registered */
 
 /* main header and common fields */
-static int hf_uftp_version = -1;
-static int hf_uftp_func = -1;
-static int hf_uftp_blsize = -1;
-static int hf_uftp_group_id = -1;
-static int hf_uftp_srcaddr = -1;
-static int hf_uftp_destaddr = -1;
+static int hf_uftp_version;
+static int hf_uftp_func;
+static int hf_uftp_blsize;
+static int hf_uftp_group_id;
+static int hf_uftp_srcaddr;
+static int hf_uftp_destaddr;
 
-static int hf_uftp_destlist = -1;
-static int hf_uftp_dest = -1;
+static int hf_uftp_destlist;
+static int hf_uftp_dest;
 
 /* ANNOUNCE fields */
-static int hf_uftp_announce = -1;
-static int hf_uftp_announce_func = -1;
-static int hf_uftp_announce_flags = -1;
-static int hf_uftp_announce_flags_restart = -1;
-static int hf_uftp_announce_flags_sync = -1;
-static int hf_uftp_announce_flags_syncpreview = -1;
-static int hf_uftp_announce_flags_reserved = -1;
-static int hf_uftp_announce_destcount = -1;
-static int hf_uftp_announce_announce_int = -1;
-static int hf_uftp_announce_status_int = -1;
-static int hf_uftp_announce_register_int = -1;
-static int hf_uftp_announce_done_int = -1;
-static int hf_uftp_announce_announce_time = -1;
-static int hf_uftp_announce_status_time = -1;
-static int hf_uftp_announce_mtu = -1;
-static int hf_uftp_announce_privatemcast = -1;
-static int hf_uftp_announce_client_auth = -1;
-static int hf_uftp_announce_sigtype = -1;
-static int hf_uftp_announce_hashtype = -1;
-static int hf_uftp_announce_keytype = -1;
-static int hf_uftp_announce_keylen = -1;
-static int hf_uftp_announce_reserved = -1;
-static int hf_uftp_announce_keyexp = -1;
-static int hf_uftp_announce_rand1 = -1;
-static int hf_uftp_announce_keymod = -1;
+static int hf_uftp_announce;
+static int hf_uftp_announce_func;
+static int hf_uftp_announce_flags;
+static int hf_uftp_announce_flags_restart;
+static int hf_uftp_announce_flags_sync;
+static int hf_uftp_announce_flags_syncpreview;
+static int hf_uftp_announce_flags_reserved;
+static int hf_uftp_announce_destcount;
+static int hf_uftp_announce_announce_int;
+static int hf_uftp_announce_status_int;
+static int hf_uftp_announce_register_int;
+static int hf_uftp_announce_done_int;
+static int hf_uftp_announce_announce_time;
+static int hf_uftp_announce_status_time;
+static int hf_uftp_announce_mtu;
+static int hf_uftp_announce_privatemcast;
+static int hf_uftp_announce_client_auth;
+static int hf_uftp_announce_sigtype;
+static int hf_uftp_announce_hashtype;
+static int hf_uftp_announce_keytype;
+static int hf_uftp_announce_keylen;
+static int hf_uftp_announce_reserved;
+static int hf_uftp_announce_keyexp;
+static int hf_uftp_announce_rand1;
+static int hf_uftp_announce_keymod;
 
 /* REGISTER fields */
-static int hf_uftp_register = -1;
-static int hf_uftp_register_func = -1;
-static int hf_uftp_register_reserved = -1;
-static int hf_uftp_register_destcount = -1;
-static int hf_uftp_register_premaster_len = -1;
-static int hf_uftp_register_rand2 = -1;
-static int hf_uftp_register_premaster = -1;
+static int hf_uftp_register;
+static int hf_uftp_register_func;
+static int hf_uftp_register_reserved;
+static int hf_uftp_register_destcount;
+static int hf_uftp_register_premaster_len;
+static int hf_uftp_register_rand2;
+static int hf_uftp_register_premaster;
 
 /* CLIENT_KEY fields */
-static int hf_uftp_clientkey = -1;
-static int hf_uftp_clientkey_func = -1;
-static int hf_uftp_clientkey_reserved = -1;
-static int hf_uftp_clientkey_keylen = -1;
-static int hf_uftp_clientkey_verifylen = -1;
-static int hf_uftp_clientkey_keyexp = -1;
-static int hf_uftp_clientkey_keymod = -1;
-static int hf_uftp_clientkey_verify = -1;
+static int hf_uftp_clientkey;
+static int hf_uftp_clientkey_func;
+static int hf_uftp_clientkey_reserved;
+static int hf_uftp_clientkey_keylen;
+static int hf_uftp_clientkey_verifylen;
+static int hf_uftp_clientkey_keyexp;
+static int hf_uftp_clientkey_keymod;
+static int hf_uftp_clientkey_verify;
 
 /* REG_CONF fields */
-static int hf_uftp_regconf = -1;
-static int hf_uftp_regconf_func = -1;
-static int hf_uftp_regconf_reserved = -1;
-static int hf_uftp_regconf_destcount = -1;
+static int hf_uftp_regconf;
+static int hf_uftp_regconf_func;
+static int hf_uftp_regconf_reserved;
+static int hf_uftp_regconf_destcount;
 
 /* FILEINFO fields */
-static int hf_uftp_fileinfo = -1;
-static int hf_uftp_fileinfo_func = -1;
-static int hf_uftp_fileinfo_ftype = -1;
-static int hf_uftp_fileinfo_file_id = -1;
-static int hf_uftp_fileinfo_block_total = -1;
-static int hf_uftp_fileinfo_section_total = -1;
-static int hf_uftp_fileinfo_destcount = -1;
-static int hf_uftp_fileinfo_fsize = -1;
-static int hf_uftp_fileinfo_ftstamp = -1;
-static int hf_uftp_fileinfo_name = -1;
+static int hf_uftp_fileinfo;
+static int hf_uftp_fileinfo_func;
+static int hf_uftp_fileinfo_ftype;
+static int hf_uftp_fileinfo_file_id;
+static int hf_uftp_fileinfo_block_total;
+static int hf_uftp_fileinfo_section_total;
+static int hf_uftp_fileinfo_destcount;
+static int hf_uftp_fileinfo_fsize;
+static int hf_uftp_fileinfo_ftstamp;
+static int hf_uftp_fileinfo_name;
 
 /* KEYINFO fields */
-static int hf_uftp_keyinfo = -1;
-static int hf_uftp_keyinfo_func = -1;
-static int hf_uftp_keyinfo_reserved = -1;
-static int hf_uftp_keyinfo_destcount = -1;
-static int hf_uftp_keyinfo_groupmaster_len = -1;
-static int hf_uftp_keyinfo_tstamp = -1;
-static int hf_uftp_keyinfo_destkey = -1;
-static int hf_uftp_keyinfo_destaddr = -1;
-static int hf_uftp_keyinfo_groupmaster = -1;
+static int hf_uftp_keyinfo;
+static int hf_uftp_keyinfo_func;
+static int hf_uftp_keyinfo_reserved;
+static int hf_uftp_keyinfo_destcount;
+static int hf_uftp_keyinfo_groupmaster_len;
+static int hf_uftp_keyinfo_tstamp;
+static int hf_uftp_keyinfo_destkey;
+static int hf_uftp_keyinfo_destaddr;
+static int hf_uftp_keyinfo_groupmaster;
 
 /* INFO_ACK fields */
-static int hf_uftp_infoack = -1;
-static int hf_uftp_infoack_func = -1;
-static int hf_uftp_infoack_flags = -1;
-static int hf_uftp_infoack_flags_partial = -1;
-static int hf_uftp_infoack_flags_reserved = -1;
-static int hf_uftp_infoack_file_id = -1;
-static int hf_uftp_infoack_destcount = -1;
-static int hf_uftp_infoack_reserved = -1;
-static int hf_uftp_infoack_verify_data = -1;
+static int hf_uftp_infoack;
+static int hf_uftp_infoack_func;
+static int hf_uftp_infoack_flags;
+static int hf_uftp_infoack_flags_partial;
+static int hf_uftp_infoack_flags_reserved;
+static int hf_uftp_infoack_file_id;
+static int hf_uftp_infoack_destcount;
+static int hf_uftp_infoack_reserved;
+static int hf_uftp_infoack_verify_data;
 
 /* FILESEG fields */
-static int hf_uftp_fileseg = -1;
-static int hf_uftp_fileseg_func = -1;
-static int hf_uftp_fileseg_reserved1 = -1;
-static int hf_uftp_fileseg_file_id = -1;
-static int hf_uftp_fileseg_pass = -1;
-static int hf_uftp_fileseg_reserved2 = -1;
-static int hf_uftp_fileseg_section = -1;
-static int hf_uftp_fileseg_seq_num = -1;
-static int hf_uftp_fileseg_data = -1;
+static int hf_uftp_fileseg;
+static int hf_uftp_fileseg_func;
+static int hf_uftp_fileseg_reserved1;
+static int hf_uftp_fileseg_file_id;
+static int hf_uftp_fileseg_pass;
+static int hf_uftp_fileseg_reserved2;
+static int hf_uftp_fileseg_section;
+static int hf_uftp_fileseg_seq_num;
+static int hf_uftp_fileseg_data;
 
 /* DONE fields */
-static int hf_uftp_done = -1;
-static int hf_uftp_done_func = -1;
-static int hf_uftp_done_pass = -1;
-static int hf_uftp_done_section = -1;
-static int hf_uftp_done_file_id = -1;
-static int hf_uftp_done_destcount = -1;
+static int hf_uftp_done;
+static int hf_uftp_done_func;
+static int hf_uftp_done_pass;
+static int hf_uftp_done_section;
+static int hf_uftp_done_file_id;
+static int hf_uftp_done_destcount;
 
 /* STATUS fields */
-static int hf_uftp_status = -1;
-static int hf_uftp_status_func = -1;
-static int hf_uftp_status_reserved = -1;
-static int hf_uftp_status_file_id = -1;
-static int hf_uftp_status_pass = -1;
-static int hf_uftp_status_seq = -1;
-static int hf_uftp_status_section = -1;
-static int hf_uftp_status_nak_count = -1;
-static int hf_uftp_status_naks = -1;
+static int hf_uftp_status;
+static int hf_uftp_status_func;
+static int hf_uftp_status_reserved;
+static int hf_uftp_status_file_id;
+static int hf_uftp_status_pass;
+static int hf_uftp_status_seq;
+static int hf_uftp_status_section;
+static int hf_uftp_status_nak_count;
+static int hf_uftp_status_naks;
 
 /* PRSTATUS fields */
-static int hf_uftp_prstatus = -1;
-static int hf_uftp_prstatus_func = -1;
-static int hf_uftp_prstatus_reserved1 = -1;
-static int hf_uftp_prstatus_file_id = -1;
-static int hf_uftp_prstatus_pass = -1;
-static int hf_uftp_prstatus_seq = -1;
-static int hf_uftp_prstatus_section = -1;
-static int hf_uftp_prstatus_destcount = -1;
-static int hf_uftp_prstatus_reserved2 = -1;
+static int hf_uftp_prstatus;
+static int hf_uftp_prstatus_func;
+static int hf_uftp_prstatus_reserved1;
+static int hf_uftp_prstatus_file_id;
+static int hf_uftp_prstatus_pass;
+static int hf_uftp_prstatus_seq;
+static int hf_uftp_prstatus_section;
+static int hf_uftp_prstatus_destcount;
+static int hf_uftp_prstatus_reserved2;
 
 /* COMPLETE fields */
-static int hf_uftp_complete = -1;
-static int hf_uftp_complete_func = -1;
-static int hf_uftp_complete_status = -1;
-static int hf_uftp_complete_file_id = -1;
-static int hf_uftp_complete_destcount = -1;
-static int hf_uftp_complete_reserved2 = -1;
+static int hf_uftp_complete;
+static int hf_uftp_complete_func;
+static int hf_uftp_complete_status;
+static int hf_uftp_complete_file_id;
+static int hf_uftp_complete_destcount;
+static int hf_uftp_complete_reserved2;
 
 /* DONE_CONF fields */
-static int hf_uftp_doneconf = -1;
-static int hf_uftp_doneconf_func = -1;
-static int hf_uftp_doneconf_reserved1 = -1;
-static int hf_uftp_doneconf_file_id = -1;
-static int hf_uftp_doneconf_destcount = -1;
-static int hf_uftp_doneconf_reserved2 = -1;
+static int hf_uftp_doneconf;
+static int hf_uftp_doneconf_func;
+static int hf_uftp_doneconf_reserved1;
+static int hf_uftp_doneconf_file_id;
+static int hf_uftp_doneconf_destcount;
+static int hf_uftp_doneconf_reserved2;
 
 /* HB_REQ fields */
-static int hf_uftp_hbreq = -1;
-static int hf_uftp_hbreq_func = -1;
-static int hf_uftp_hbreq_reserved = -1;
-static int hf_uftp_hbreq_nonce = -1;
-static int hf_uftp_hbreq_keylen = -1;
-static int hf_uftp_hbreq_siglen = -1;
-static int hf_uftp_hbreq_keyexp = -1;
-static int hf_uftp_hbreq_keymod = -1;
-static int hf_uftp_hbreq_verify = -1;
+static int hf_uftp_hbreq;
+static int hf_uftp_hbreq_func;
+static int hf_uftp_hbreq_reserved;
+static int hf_uftp_hbreq_nonce;
+static int hf_uftp_hbreq_keylen;
+static int hf_uftp_hbreq_siglen;
+static int hf_uftp_hbreq_keyexp;
+static int hf_uftp_hbreq_keymod;
+static int hf_uftp_hbreq_verify;
 
 /* HB_RESP fields */
-static int hf_uftp_hbresp = -1;
-static int hf_uftp_hbresp_func = -1;
-static int hf_uftp_hbresp_authenticated = -1;
-static int hf_uftp_hbresp_reserved = -1;
-static int hf_uftp_hbresp_nonce = -1;
+static int hf_uftp_hbresp;
+static int hf_uftp_hbresp_func;
+static int hf_uftp_hbresp_authenticated;
+static int hf_uftp_hbresp_reserved;
+static int hf_uftp_hbresp_nonce;
 
 /* KEY_REQ fields */
-static int hf_uftp_keyreq = -1;
-static int hf_uftp_keyreq_func = -1;
-static int hf_uftp_keyreq_reserved = -1;
+static int hf_uftp_keyreq;
+static int hf_uftp_keyreq_func;
+static int hf_uftp_keyreq_reserved;
 
 /* PROXY_KEY fields */
-static int hf_uftp_proxykey = -1;
-static int hf_uftp_proxykey_func = -1;
-static int hf_uftp_proxykey_reserved = -1;
-static int hf_uftp_proxykey_nonce = -1;
-static int hf_uftp_proxykey_keylen = -1;
-static int hf_uftp_proxykey_siglen = -1;
-static int hf_uftp_proxykey_keyexp = -1;
-static int hf_uftp_proxykey_keymod = -1;
-static int hf_uftp_proxykey_verify = -1;
+static int hf_uftp_proxykey;
+static int hf_uftp_proxykey_func;
+static int hf_uftp_proxykey_reserved;
+static int hf_uftp_proxykey_nonce;
+static int hf_uftp_proxykey_keylen;
+static int hf_uftp_proxykey_siglen;
+static int hf_uftp_proxykey_keyexp;
+static int hf_uftp_proxykey_keymod;
+static int hf_uftp_proxykey_verify;
 
 /* ENCRYPTED fields */
-static int hf_uftp_encrypted = -1;
-static int hf_uftp_encrypted_tstamp = -1;
-static int hf_uftp_encrypted_sig_len = -1;
-static int hf_uftp_encrypted_payload_len = -1;
-static int hf_uftp_encrypted_signature = -1;
-static int hf_uftp_encrypted_payload = -1;
+static int hf_uftp_encrypted;
+static int hf_uftp_encrypted_tstamp;
+static int hf_uftp_encrypted_sig_len;
+static int hf_uftp_encrypted_payload_len;
+static int hf_uftp_encrypted_signature;
+static int hf_uftp_encrypted_payload;
 
 /* ABORT fields */
-static int hf_uftp_abort = -1;
-static int hf_uftp_abort_func = -1;
-static int hf_uftp_abort_flags = -1;
-static int hf_uftp_abort_flags_curfile = -1;
-static int hf_uftp_abort_flags_reserved = -1;
-static int hf_uftp_abort_reserved = -1;
-static int hf_uftp_abort_host = -1;
-static int hf_uftp_abort_message = -1;
+static int hf_uftp_abort;
+static int hf_uftp_abort_func;
+static int hf_uftp_abort_flags;
+static int hf_uftp_abort_flags_curfile;
+static int hf_uftp_abort_flags_reserved;
+static int hf_uftp_abort_reserved;
+static int hf_uftp_abort_host;
+static int hf_uftp_abort_message;
 
-static gint ett_uftp = -1;
-static gint ett_uftp_announce = -1;
-static gint ett_uftp_register = -1;
-static gint ett_uftp_clientkey = -1;
-static gint ett_uftp_regconf = -1;
-static gint ett_uftp_fileinfo = -1;
-static gint ett_uftp_keyinfo = -1;
-static gint ett_uftp_infoack = -1;
-static gint ett_uftp_fileseg = -1;
-static gint ett_uftp_done = -1;
-static gint ett_uftp_status = -1;
-static gint ett_uftp_prstatus = -1;
-static gint ett_uftp_complete = -1;
-static gint ett_uftp_doneconf = -1;
-static gint ett_uftp_hbreq = -1;
-static gint ett_uftp_hbresp = -1;
-static gint ett_uftp_keyreq = -1;
-static gint ett_uftp_proxykey = -1;
-static gint ett_uftp_encrypted = -1;
-static gint ett_uftp_abort = -1;
+static int ett_uftp;
+static int ett_uftp_announce;
+static int ett_uftp_register;
+static int ett_uftp_clientkey;
+static int ett_uftp_regconf;
+static int ett_uftp_fileinfo;
+static int ett_uftp_keyinfo;
+static int ett_uftp_infoack;
+static int ett_uftp_fileseg;
+static int ett_uftp_done;
+static int ett_uftp_status;
+static int ett_uftp_prstatus;
+static int ett_uftp_complete;
+static int ett_uftp_doneconf;
+static int ett_uftp_hbreq;
+static int ett_uftp_hbresp;
+static int ett_uftp_keyreq;
+static int ett_uftp_proxykey;
+static int ett_uftp_encrypted;
+static int ett_uftp_abort;
 
-static gint ett_uftp_announce_flags = -1;
-static gint ett_uftp_keyinfo_destkey = -1;
-static gint ett_uftp_infoack_flags = -1;
-static gint ett_uftp_abort_flags = -1;
+static int ett_uftp_announce_flags;
+static int ett_uftp_keyinfo_destkey;
+static int ett_uftp_infoack_flags;
+static int ett_uftp_abort_flags;
 
-static gint ett_uftp_destlist = -1;
+static int ett_uftp_destlist;
 
-static expert_field ei_uftp_length_invalid = EI_INIT;
-static expert_field ei_uftp_func_unknown = EI_INIT;
+static expert_field ei_uftp_length_invalid;
+static expert_field ei_uftp_func_unknown;
 
 static dissector_handle_t uftp4_handle;
 static dissector_handle_t uftp5_handle;
@@ -465,8 +465,8 @@ static void dissect_uftp_announce(tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
     proto_item *destlist = NULL;
     proto_tree *announce_tree = NULL;
     proto_tree *destlist_tree = NULL;
-    gint offset = 0;
-    guint16 destcount, keylen, idx;
+    int offset = 0;
+    uint16_t destcount, keylen, idx;
 
     if (tvb_reported_length(tvb) < ANNOUNCE_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -476,7 +476,7 @@ static void dissect_uftp_announce(tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
 
     destcount = tvb_get_ntohs(tvb, 2);
     keylen = tvb_get_ntohs(tvb, 24);
-    if ((gint)tvb_reported_length(tvb) < ANNOUNCE_LEN + keylen + (destcount * 4)) {
+    if ((int)tvb_reported_length(tvb) < ANNOUNCE_LEN + keylen + (destcount * 4)) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, keylen = %d, count=%d",
                             tvb_reported_length(tvb), keylen, destcount);
@@ -543,8 +543,8 @@ static void dissect_uftp_register(tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
     proto_item *destlist = NULL;
     proto_tree *register_tree = NULL;
     proto_tree *destlist_tree = NULL;
-    gint offset = 0;
-    guint16 destcount, keylen, idx;
+    int offset = 0;
+    uint16_t destcount, keylen, idx;
 
     if (tvb_reported_length(tvb) < REGISTER_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -554,7 +554,7 @@ static void dissect_uftp_register(tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
 
     destcount = tvb_get_ntohs(tvb, 4);
     keylen = tvb_get_ntohs(tvb, 6);
-    if ((gint)tvb_reported_length(tvb) < REGISTER_LEN + keylen + (destcount * 4)) {
+    if ((int)tvb_reported_length(tvb) < REGISTER_LEN + keylen + (destcount * 4)) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, keylen = %d, count=%d",
                             tvb_reported_length(tvb), keylen, destcount);
@@ -591,8 +591,8 @@ static void dissect_uftp_clientkey(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
 {
     proto_item *ti = NULL;
     proto_tree *clientkey_tree = NULL;
-    gint offset = 0;
-    guint16 keylen, verifylen;
+    int offset = 0;
+    uint16_t keylen, verifylen;
 
     if (tvb_reported_length(tvb) < CLIENT_KEY_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -602,7 +602,7 @@ static void dissect_uftp_clientkey(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
 
     keylen = tvb_get_ntohs(tvb, 4);
     verifylen = tvb_get_ntohs(tvb, 6);
-    if ((gint)tvb_reported_length(tvb) < CLIENT_KEY_LEN + keylen + verifylen) {
+    if ((int)tvb_reported_length(tvb) < CLIENT_KEY_LEN + keylen + verifylen) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, keylen=%d verifylen=%d",
                             tvb_reported_length(tvb), keylen, verifylen);
@@ -636,8 +636,8 @@ static void dissect_uftp_regconf(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
     proto_item *destlist = NULL;
     proto_tree *regconf_tree = NULL;
     proto_tree *destlist_tree = NULL;
-    gint offset = 0;
-    guint16 destcount, idx;
+    int offset = 0;
+    uint16_t destcount, idx;
 
     if (tvb_reported_length(tvb) < REG_CONF_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -646,7 +646,7 @@ static void dissect_uftp_regconf(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
     }
 
     destcount = tvb_get_ntohs(tvb, 2);
-    if ((gint)tvb_reported_length(tvb) < REG_CONF_LEN + (destcount * 4)) {
+    if ((int)tvb_reported_length(tvb) < REG_CONF_LEN + (destcount * 4)) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, count=%d",
                             tvb_reported_length(tvb), destcount);
@@ -677,8 +677,8 @@ static void dissect_uftp_fileinfo_30(tvbuff_t *tvb, packet_info *pinfo, proto_tr
     proto_item *destlist = NULL;
     proto_tree *fileinfo_tree = NULL;
     proto_tree *destlist_tree = NULL;
-    gint offset = 0;
-    guint16 file_id, destcount, idx;
+    int offset = 0;
+    uint16_t file_id, destcount, idx;
 
     if (tvb_reported_length(tvb) < FILEINFO_30_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -687,7 +687,7 @@ static void dissect_uftp_fileinfo_30(tvbuff_t *tvb, packet_info *pinfo, proto_tr
     }
 
     destcount = tvb_get_ntohs(tvb, 10);
-    if ((gint)tvb_reported_length(tvb) < FILEINFO_30_LEN + (destcount * 4)) {
+    if ((int)tvb_reported_length(tvb) < FILEINFO_30_LEN + (destcount * 4)) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, count=%d",
                             tvb_reported_length(tvb), destcount);
@@ -731,8 +731,8 @@ static void dissect_uftp_fileinfo(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     proto_item *destlist = NULL;
     proto_tree *fileinfo_tree = NULL;
     proto_tree *destlist_tree = NULL;
-    gint offset = 0;
-    guint16 file_id, destcount, idx;
+    int offset = 0;
+    uint16_t file_id, destcount, idx;
 
     if (tvb_reported_length(tvb) < FILEINFO_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -741,7 +741,7 @@ static void dissect_uftp_fileinfo(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     }
 
     destcount = tvb_get_ntohs(tvb, 10);
-    if ((gint)tvb_reported_length(tvb) < FILEINFO_LEN + (destcount * 4)) {
+    if ((int)tvb_reported_length(tvb) < FILEINFO_LEN + (destcount * 4)) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, count=%d",
                             tvb_reported_length(tvb), destcount);
@@ -789,8 +789,8 @@ static void dissect_uftp_keyinfo(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
     proto_tree *keyinfo_tree = NULL;
     proto_tree *destlist_tree = NULL;
     proto_tree *destkey_tree = NULL;
-    gint offset = 0;
-    guint8 destcount, idx;
+    int offset = 0;
+    uint8_t destcount, idx;
 
     if (tvb_reported_length(tvb) < KEYINFO_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -798,8 +798,8 @@ static void dissect_uftp_keyinfo(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
         return;
     }
 
-    destcount = tvb_get_guint8(tvb, 2);
-    if ((gint)tvb_reported_length(tvb) < KEYINFO_LEN + (destcount * DESTKEY_LEN)) {
+    destcount = tvb_get_uint8(tvb, 2);
+    if ((int)tvb_reported_length(tvb) < KEYINFO_LEN + (destcount * DESTKEY_LEN)) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, count=%d",
                             tvb_reported_length(tvb), destcount);
@@ -838,8 +838,8 @@ static void dissect_uftp_infoack(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
     proto_item *destlist = NULL;
     proto_tree *infoack_tree = NULL;
     proto_tree *destlist_tree = NULL;
-    gint offset = 0;
-    guint16 file_id, destcount, idx;
+    int offset = 0;
+    uint16_t file_id, destcount, idx;
 
     if (tvb_reported_length(tvb) < INFO_ACK_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -848,7 +848,7 @@ static void dissect_uftp_infoack(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
     }
 
     destcount = tvb_get_ntohs(tvb, 4);
-    if ((gint)tvb_reported_length(tvb) < INFO_ACK_LEN + (destcount * 4)) {
+    if ((int)tvb_reported_length(tvb) < INFO_ACK_LEN + (destcount * 4)) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, count=%d",
                             tvb_reported_length(tvb), destcount);
@@ -888,10 +888,10 @@ static void dissect_uftp_fileseg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 {
     proto_item *ti = NULL;
     proto_tree *fileseg_tree = NULL;
-    gint offset = 0;
-    guint8 pass;
-    guint16 file_id;
-    guint32 seq_num;
+    int offset = 0;
+    uint8_t pass;
+    uint16_t file_id;
+    uint32_t seq_num;
 
     if (tvb_reported_length(tvb) < FILESEG_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -900,7 +900,7 @@ static void dissect_uftp_fileseg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
     }
 
     file_id = tvb_get_ntohs(tvb, 2);
-    pass = tvb_get_guint8(tvb, 4);
+    pass = tvb_get_uint8(tvb, 4);
     seq_num = tvb_get_ntohl(tvb, 8);
     col_append_fstr(pinfo->cinfo, COL_INFO, ":%04X  Pass=%d  Seq=%d",
                     file_id, pass, seq_num);
@@ -930,9 +930,9 @@ static void dissect_uftp_done(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     proto_item *destlist = NULL;
     proto_tree *done_tree = NULL;
     proto_tree *destlist_tree = NULL;
-    gint offset = 0;
-    guint8 pass;
-    guint16 file_id, section, destcount, idx;
+    int offset = 0;
+    uint8_t pass;
+    uint16_t file_id, section, destcount, idx;
 
     if (tvb_reported_length(tvb) < DONE_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -941,14 +941,14 @@ static void dissect_uftp_done(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     }
 
     destcount = tvb_get_ntohs(tvb, 6);
-    if ((gint)tvb_reported_length(tvb) < DONE_LEN + (destcount * 4)) {
+    if ((int)tvb_reported_length(tvb) < DONE_LEN + (destcount * 4)) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, count=%d",
                             tvb_reported_length(tvb), destcount);
         return;
     }
 
-    pass = tvb_get_guint8(tvb, 1);
+    pass = tvb_get_uint8(tvb, 1);
     section = tvb_get_ntohs(tvb, 2);
     file_id = tvb_get_ntohs(tvb, 4);
     if (file_id > 0) {
@@ -982,10 +982,10 @@ static void dissect_uftp_status(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 {
     proto_item *ti = NULL;
     proto_tree *status_tree = NULL;
-    gint offset = 0;
-    guint8 pass, seq;
-    guint16 file_id, section;
-    guint32 nak_count;
+    int offset = 0;
+    uint8_t pass, seq;
+    uint16_t file_id, section;
+    uint32_t nak_count;
 
     if (tvb_reported_length(tvb) < STATUS_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -995,8 +995,8 @@ static void dissect_uftp_status(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 
     file_id = tvb_get_ntohs(tvb, 2);
     section = tvb_get_ntohs(tvb, 2);
-    pass = tvb_get_guint8(tvb, 4);
-    seq = tvb_get_guint8(tvb, 5);
+    pass = tvb_get_uint8(tvb, 4);
+    seq = tvb_get_uint8(tvb, 5);
     nak_count = tvb_get_ntohl(tvb, 8);
     col_append_fstr(pinfo->cinfo, COL_INFO, ":%04X  Pass=%d  Section=%d Seq=%d",
                     file_id, pass, section, seq);
@@ -1028,10 +1028,10 @@ static void dissect_uftp_prstatus(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     proto_item *destlist = NULL;
     proto_tree *prstatus_tree = NULL;
     proto_tree *destlist_tree = NULL;
-    gint offset = 0;
-    guint8 pass, seq;
-    guint16 file_id, destcount, idx, section;
-    guint32 nak_count;
+    int offset = 0;
+    uint8_t pass, seq;
+    uint16_t file_id, destcount, idx, section;
+    uint32_t nak_count;
 
     if (tvb_reported_length(tvb) < PRSTATUS_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -1040,7 +1040,7 @@ static void dissect_uftp_prstatus(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     }
 
     destcount = tvb_get_ntohs(tvb, 8);
-    if ((gint)tvb_reported_length(tvb) < PRSTATUS_LEN + (destcount * 4)) {
+    if ((int)tvb_reported_length(tvb) < PRSTATUS_LEN + (destcount * 4)) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, count=%d",
                             tvb_reported_length(tvb), destcount);
@@ -1049,8 +1049,8 @@ static void dissect_uftp_prstatus(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 
     file_id = tvb_get_ntohs(tvb, 2);
     section = tvb_get_ntohs(tvb, 2);
-    pass = tvb_get_guint8(tvb, 4);
-    seq = tvb_get_guint8(tvb, 5);
+    pass = tvb_get_uint8(tvb, 4);
+    seq = tvb_get_uint8(tvb, 5);
     nak_count = tvb_get_ntohl(tvb, 8);
     col_append_fstr(pinfo->cinfo, COL_INFO, ":%04X  Pass=%d Section=%d Seq=%d "
                     "NAKs=%d", file_id, pass, section, seq, nak_count);
@@ -1089,8 +1089,8 @@ static void dissect_uftp_complete(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     proto_item *destlist = NULL;
     proto_tree *complete_tree = NULL;
     proto_tree *destlist_tree = NULL;
-    gint offset = 0;
-    guint16 file_id, destcount, idx;
+    int offset = 0;
+    uint16_t file_id, destcount, idx;
 
     if (tvb_reported_length(tvb) < COMPLETE_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -1099,7 +1099,7 @@ static void dissect_uftp_complete(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     }
 
     destcount = tvb_get_ntohs(tvb, 4);
-    if ((gint)tvb_reported_length(tvb) < COMPLETE_LEN + (destcount * 4)) {
+    if ((int)tvb_reported_length(tvb) < COMPLETE_LEN + (destcount * 4)) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, count=%d",
                             tvb_reported_length(tvb), destcount);
@@ -1139,8 +1139,8 @@ static void dissect_uftp_doneconf(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     proto_item *destlist = NULL;
     proto_tree *doneconf_tree = NULL;
     proto_tree *destlist_tree = NULL;
-    gint offset = 0;
-    guint16 file_id, destcount, idx;
+    int offset = 0;
+    uint16_t file_id, destcount, idx;
 
     if (tvb_reported_length(tvb) < DONE_CONF_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -1149,7 +1149,7 @@ static void dissect_uftp_doneconf(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     }
 
     destcount = tvb_get_ntohs(tvb, 4);
-    if ((gint)tvb_reported_length(tvb) < DONE_CONF_LEN + (destcount * 4)) {
+    if ((int)tvb_reported_length(tvb) < DONE_CONF_LEN + (destcount * 4)) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, count=%d",
                             tvb_reported_length(tvb), destcount);
@@ -1187,8 +1187,8 @@ static void dissect_uftp_hbreq(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
 {
     proto_item *ti = NULL;
     proto_tree *hbreq_tree = NULL;
-    gint offset = 0;
-    guint16 keylen, siglen;
+    int offset = 0;
+    uint16_t keylen, siglen;
 
     if (tvb_reported_length(tvb) < HB_REQ_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -1198,7 +1198,7 @@ static void dissect_uftp_hbreq(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
 
     keylen = tvb_get_ntohs(tvb, 8);
     siglen = tvb_get_ntohs(tvb, 10);
-    if ((gint)tvb_reported_length(tvb) < HB_REQ_LEN + keylen + siglen) {
+    if ((int)tvb_reported_length(tvb) < HB_REQ_LEN + keylen + siglen) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, keylen=%d siglen=%d",
                             tvb_reported_length(tvb), keylen, siglen);
@@ -1232,7 +1232,7 @@ static void dissect_uftp_hbresp(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 {
     proto_item *ti = NULL;
     proto_tree *hbresp_tree = NULL;
-    gint offset = 0;
+    int offset = 0;
 
     if (tvb_reported_length(tvb) < HB_RESP_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -1255,7 +1255,7 @@ static void dissect_uftp_keyreq(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 {
     proto_item *ti = NULL;
     proto_tree *keyreq_tree = NULL;
-    gint offset = 0;
+    int offset = 0;
 
     if (tvb_reported_length(tvb) < KEY_REQ_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -1274,8 +1274,8 @@ static void dissect_uftp_proxykey(tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
 {
     proto_item *ti = NULL;
     proto_tree *proxykey_tree = NULL;
-    gint offset = 0;
-    guint16 keylen, siglen;
+    int offset = 0;
+    uint16_t keylen, siglen;
 
     if (tvb_reported_length(tvb) < PROXY_KEY_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -1285,7 +1285,7 @@ static void dissect_uftp_proxykey(tvbuff_t *tvb, packet_info *pinfo _U_, proto_t
 
     keylen = tvb_get_ntohs(tvb, 8);
     siglen = tvb_get_ntohs(tvb, 10);
-    if ((gint)tvb_reported_length(tvb) < PROXY_KEY_LEN + keylen + siglen) {
+    if ((int)tvb_reported_length(tvb) < PROXY_KEY_LEN + keylen + siglen) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, keylen=%d siglen=%d",
                             tvb_reported_length(tvb), keylen, siglen);
@@ -1319,8 +1319,8 @@ static void dissect_uftp_encrypted(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
 {
     proto_item *ti = NULL;
     proto_tree *encrypted_tree = NULL;
-    gint offset = 0;
-    guint16 sig_len, payload_len;
+    int offset = 0;
+    uint16_t sig_len, payload_len;
 
     if (tvb_reported_length(tvb) < ENCRYPTED_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -1330,7 +1330,7 @@ static void dissect_uftp_encrypted(tvbuff_t *tvb, packet_info *pinfo _U_, proto_
 
     sig_len = tvb_get_ntohs(tvb, 8);
     payload_len = tvb_get_ntohs(tvb, 10);
-    if ((gint)tvb_reported_length(tvb) < ENCRYPTED_LEN + sig_len + payload_len) {
+    if ((int)tvb_reported_length(tvb) < ENCRYPTED_LEN + sig_len + payload_len) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
                             "Invalid length, len = %d, sig=%d, payload=%d",
                             tvb_reported_length(tvb), sig_len, payload_len);
@@ -1354,7 +1354,7 @@ static void dissect_uftp_abort(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
 {
     proto_item *ti = NULL;
     proto_tree *abort_tree = NULL;
-    gint offset = 0;
+    int offset = 0;
 
     if (tvb_reported_length(tvb) < ABORT_LEN) {
         proto_tree_add_expert_format(tree, pinfo, &ei_uftp_length_invalid, tvb, offset, -1,
@@ -1377,16 +1377,16 @@ static void dissect_uftp_abort(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
 
 static int dissect_uftp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    guint8 version;
-    guint8 mes_type;
-    guint32 group_id;
-    guint16 blsize;
+    uint8_t version;
+    uint8_t mes_type;
+    uint32_t group_id;
+    uint16_t blsize;
     tvbuff_t *next_tvb;
     proto_item *ti = NULL;
     proto_tree *uftp_tree = NULL;
-    gint offset = 0;
+    int offset = 0;
 
-    version = tvb_get_guint8(tvb, 0);
+    version = tvb_get_uint8(tvb, 0);
     if (version == 0x50) {
         return call_dissector(uftp5_handle, tvb, pinfo, tree);
     } else if (version == 0x40) {
@@ -1399,7 +1399,7 @@ static int dissect_uftp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
         return 0;
     }
 
-    mes_type = tvb_get_guint8(tvb, 1);
+    mes_type = tvb_get_uint8(tvb, 1);
     blsize = tvb_get_ntohs(tvb, 2);
     group_id = tvb_get_ntohl(tvb, 4);
 
@@ -2170,7 +2170,7 @@ void proto_register_uftp(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_uftp,
         &ett_uftp_announce,
         &ett_uftp_register,

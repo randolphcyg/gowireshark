@@ -21,44 +21,45 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/tfs.h>
 
 #include "packet-h263.h"
 
 void proto_register_h263_data(void);
 
-static int proto_h263_data		= -1;
+static int proto_h263_data;
 
 /* Fields for the data section */
-static int hf_h263_psc = -1;
-static int hf_h263_gbsc = -1;
-static int hf_h263_TR =-1;
-static int hf_h263_split_screen_indicator = -1;
-static int hf_h263_document_camera_indicator = -1;
-static int hf_h263_full_picture_freeze_release = -1;
-static int hf_h263_source_format = -1;
-static int hf_h263_payload_picture_coding_type = -1;
-static int hf_h263_opt_unres_motion_vector_mode = -1;
-static int hf_h263_syntax_based_arithmetic_coding_mode = -1;
-static int hf_h263_optional_advanced_prediction_mode = -1;
-static int hf_h263_PB_frames_mode = -1;
-static int hf_h263_data			= -1;
-static int hf_h263_GN			= -1;
-static int hf_h263_UFEP			= -1;
-static int hf_h263_opptype		= -1;
-static int hf_h263_pquant		= -1;
-static int hf_h263_cpm			= -1;
-static int hf_h263_psbi			= -1;
-static int hf_h263_picture_type_code = -1;
-static int hf_h263_ext_source_format = -1;
-static int hf_h263_custom_pcf	= -1;
-static int hf_h263_pei			= -1;
-static int hf_h263_psupp		= -1;
-static int hf_h263_trb = -1;
-static int hf_h263_not_dissected = -1;
+static int hf_h263_psc;
+static int hf_h263_gbsc;
+static int hf_h263_TR;
+static int hf_h263_split_screen_indicator;
+static int hf_h263_document_camera_indicator;
+static int hf_h263_full_picture_freeze_release;
+static int hf_h263_source_format;
+static int hf_h263_payload_picture_coding_type;
+static int hf_h263_opt_unres_motion_vector_mode;
+static int hf_h263_syntax_based_arithmetic_coding_mode;
+static int hf_h263_optional_advanced_prediction_mode;
+static int hf_h263_PB_frames_mode;
+static int hf_h263_data;
+static int hf_h263_GN;
+static int hf_h263_UFEP;
+static int hf_h263_opptype;
+static int hf_h263_pquant;
+static int hf_h263_cpm;
+static int hf_h263_psbi;
+static int hf_h263_picture_type_code;
+static int hf_h263_ext_source_format;
+static int hf_h263_custom_pcf;
+static int hf_h263_pei;
+static int hf_h263_psupp;
+static int hf_h263_trb;
+static int hf_h263_not_dissected;
 
 /* H.263 fields defining a sub tree */
-static gint ett_h263_payload	= -1;
-static gint ett_h263_optype		= -1;
+static int ett_h263_payload;
+static int ett_h263_optype;
 
 
 /* Source format types */
@@ -149,7 +150,7 @@ static const value_string picture_type_code_vals[] =
 /*
  * 5.3 Macroblock layer
 static int
-dissect_h263_macroblock_layer( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
+dissect_h263_macroblock_layer( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
 
 }
@@ -157,7 +158,7 @@ dissect_h263_macroblock_layer( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
 
 
 int
-dissect_h263_group_of_blocks_layer( tvbuff_t *tvb, proto_tree *tree, gint offset, gboolean is_rfc4626)
+dissect_h263_group_of_blocks_layer( tvbuff_t *tvb, proto_tree *tree, int offset, bool is_rfc4626)
 {
 
 	unsigned int offset_in_bits		= offset << 3;
@@ -199,20 +200,20 @@ dissect_h263_group_of_blocks_layer( tvbuff_t *tvb, proto_tree *tree, gint offset
  * Length is used for the "Extra header" otherwise set to -1.
  */
 int
-dissect_h263_picture_layer( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset, gint length _U_, gboolean is_rfc4626)
+dissect_h263_picture_layer( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, int length _U_, bool is_rfc4626)
 {
 	proto_tree *h263_opptype_tree	= NULL;
 	proto_item *opptype_item		= NULL;
 	unsigned int offset_in_bits		= offset << 3;
 	unsigned int saved_bit_offset;
-	guint64 source_format;
-	guint64 ufep;
-	guint64 picture_coding_type;
-	guint64 PB_frames_mode = 0;
-	guint64 custom_pcf = 0;
-	guint64 picture_type_code =0;
-	guint64 cpm;
-	guint64 pei;
+	uint64_t source_format;
+	uint64_t ufep;
+	uint64_t picture_coding_type;
+	uint64_t PB_frames_mode = 0;
+	uint64_t custom_pcf = 0;
+	uint64_t picture_type_code =0;
+	uint64_t cpm;
+	uint64_t pei;
 
 	if(is_rfc4626){
 		/* PC 1000 00xx */
@@ -252,7 +253,7 @@ dissect_h263_picture_layer( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 		/* Not extended PTYPE */
 		/* Bit 9: Picture Coding Type, "0" INTRA (I-picture), "1" INTER (P-picture). */
 		proto_tree_add_bits_ret_val( tree, hf_h263_payload_picture_coding_type, tvb, offset_in_bits, 1, &picture_coding_type, ENC_BIG_ENDIAN);
-		col_append_str(pinfo->cinfo, COL_INFO, val_to_str((guint32)picture_coding_type, picture_coding_type_vals, "Unknown (%u)"));
+		col_append_str(pinfo->cinfo, COL_INFO, val_to_str((uint32_t)picture_coding_type, picture_coding_type_vals, "Unknown (%u)"));
 		offset_in_bits++;
 		/* Bit 10: Optional Unrestricted Motion Vector mode (see Annex D), "0" off, "1" on. */
 		proto_tree_add_bits_item( tree, hf_h263_opt_unres_motion_vector_mode, tvb, offset_in_bits, 1, ENC_BIG_ENDIAN);
@@ -578,7 +579,7 @@ dissect_h263_picture_layer( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 	/*
 	 * 5.3 Macroblock layer
-	 * dissect_h263_macroblock_layer( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
+	 * dissect_h263_macroblock_layer( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 	 */
 
 	return offset_in_bits>>3;
@@ -609,11 +610,11 @@ dissect_h263_picture_layer( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
   */
 static int dissect_h263_data( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dissector_data _U_ )
 {
-	guint offset = 0;
+	unsigned offset = 0;
 	proto_item *h263_payload_item	= NULL;
 	proto_tree *h263_payload_tree	= NULL;
-	guint32 data;
-	guint8 startcode;
+	uint32_t data;
+	uint8_t startcode;
 	int length;
 
 	col_append_str( pinfo->cinfo, COL_INFO, "H263 payload ");
@@ -635,7 +636,7 @@ static int dissect_h263_data( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 		 *
 		 * Startc code holds bit 17 -23 of the codeword
 		 */
-		startcode = tvb_get_guint8(tvb,offset+2)&0xfe;
+		startcode = tvb_get_uint8(tvb,offset+2)&0xfe;
 		if (startcode & 0x80){
 			switch(startcode){
 			case 0xf8:
@@ -661,7 +662,7 @@ static int dissect_h263_data( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 				 * Slice Start Code (SSC)
 				 */
 				col_append_str( pinfo->cinfo, COL_INFO, "(GBSC) ");
-				offset = dissect_h263_group_of_blocks_layer( tvb, h263_payload_tree, offset,FALSE);
+				offset = dissect_h263_group_of_blocks_layer( tvb, h263_payload_tree, offset,false);
 				break;
 			}
 		}else{
@@ -699,7 +700,7 @@ proto_register_h263_data(void)
 				BASE_HEX,
 				NULL,
 				0x0,
-				"Group of Block Start Code", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -735,7 +736,7 @@ proto_register_h263_data(void)
 				BASE_NONE,
 				TFS(&tfs_on_off),
 				0x0,
-				"Split screen indicator", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -747,19 +748,19 @@ proto_register_h263_data(void)
 				BASE_NONE,
 				TFS(&tfs_on_off),
 				0x0,
-				"Document camera indicator", HFILL
+				NULL, HFILL
 			}
 		},
 		{
 			&hf_h263_full_picture_freeze_release,
 			{
 				"H.263 Full Picture Freeze Release",
-				"h263.split_screen_indicator",
+				"h263.full_picture_freeze_release",
 				FT_BOOLEAN,
 				BASE_NONE,
 				TFS(&tfs_on_off),
 				0x0,
-				"Full Picture Freeze Release", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -771,7 +772,7 @@ proto_register_h263_data(void)
 				BASE_HEX,
 				VALS(h263_srcformat_vals),
 				0x0,
-				"Source Format", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -783,7 +784,7 @@ proto_register_h263_data(void)
 				BASE_HEX,
 				VALS(ext_srcformat_vals),
 				0x0,
-				"Source Format", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -795,7 +796,7 @@ proto_register_h263_data(void)
 				BASE_DEC,
 				VALS(h263_ufep_vals),
 				0x0,
-				"Update Full Extended PTYPE", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -807,7 +808,7 @@ proto_register_h263_data(void)
 				BASE_DEC,
 				NULL,
 				0x0,
-				"Optional Part of PLUSPTYPE", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -819,7 +820,7 @@ proto_register_h263_data(void)
 				BASE_NONE,
 				TFS(&picture_coding_type_flg),
 				0x0,
-				"Picture Coding Type", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -831,7 +832,7 @@ proto_register_h263_data(void)
 				BASE_NONE,
 				TFS(&tfs_on_off),
 				0x0,
-				"Optional Unrestricted Motion Vector mode", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -843,7 +844,7 @@ proto_register_h263_data(void)
 				BASE_NONE,
 				TFS(&tfs_on_off),
 				0x0,
-				"Optional Syntax-based Arithmetic Coding mode", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -855,7 +856,7 @@ proto_register_h263_data(void)
 				BASE_NONE,
 				TFS(&tfs_on_off),
 				0x0,
-				"Optional Advanced Prediction mode", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -867,7 +868,7 @@ proto_register_h263_data(void)
 				BASE_NONE,
 				TFS(&PB_frames_mode_flg),
 				0x0,
-				"Optional PB-frames mode", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -891,7 +892,7 @@ proto_register_h263_data(void)
 				BASE_DEC,
 				NULL,
 				0x0,
-				"Quantizer Information (PQUANT)", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -903,7 +904,7 @@ proto_register_h263_data(void)
 				BASE_NONE,
 				TFS(&tfs_on_off),
 				0x0,
-				"Continuous Presence Multipoint and Video Multiplex (CPM)", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -915,7 +916,7 @@ proto_register_h263_data(void)
 				BASE_DEC,
 				NULL,
 				0x0,
-				"Picture Sub-Bitstream Indicator (PSBI)", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -927,7 +928,7 @@ proto_register_h263_data(void)
 				BASE_DEC,
 				VALS(picture_type_code_vals),
 				0x0,
-				"Picture Type Code", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -939,7 +940,7 @@ proto_register_h263_data(void)
 				BASE_NONE,
 				TFS(&custom_pcf_flg),
 				0x0,
-				"Custom PCF", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -951,7 +952,7 @@ proto_register_h263_data(void)
 				BASE_NONE,
 				NULL,
 				0x0,
-				"Extra Insertion Information (PEI)", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -963,7 +964,7 @@ proto_register_h263_data(void)
 				BASE_DEC,
 				NULL,
 				0x0,
-				"Supplemental Enhancement Information (PSUPP)", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -992,7 +993,7 @@ proto_register_h263_data(void)
 		},
 };
 
-	static gint *ett[] =
+	static int *ett[] =
 	{
 		&ett_h263_payload,
 		&ett_h263_optype,

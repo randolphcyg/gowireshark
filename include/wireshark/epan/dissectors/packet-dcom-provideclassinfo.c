@@ -21,16 +21,16 @@
 void proto_register_dcom_provideclassinfo(void);
 void proto_reg_handoff_dcom_provideclassinfo(void);
 
-static int hf_provideclassinfo_opnum = -1;
-static int hf_typeinfo = -1;
+static int hf_provideclassinfo_opnum;
+static int hf_typeinfo;
 
 static e_guid_t uuid_provideclassinfo = { 0xb196b283, 0xbab4, 0x101a, { 0xB6, 0x9C, 0x00, 0xAA, 0x00, 0x34, 0x1D, 0x07} };
-static guint16 ver_provideclassinfo = 0;
-static gint ett_provideclassinfo = -1;
-static int proto_provideclassinfo = -1;
+static uint16_t ver_provideclassinfo;
+static int ett_provideclassinfo;
+static int proto_provideclassinfo;
 
 static int dissect_IProvideClassInfo_GetClassInfo_rqst(tvbuff_t *tvb, int offset,
-                                            packet_info *pinfo, proto_tree *tree, dcerpc_info *di, guint8 *drep)
+                                            packet_info *pinfo, proto_tree *tree, dcerpc_info *di, uint8_t *drep)
 {
     offset = dissect_dcom_this(tvb, offset, pinfo, tree, di, drep);
 
@@ -38,9 +38,9 @@ static int dissect_IProvideClassInfo_GetClassInfo_rqst(tvbuff_t *tvb, int offset
 }
 
 static int dissect_IProvideClassInfo_GetClassInfo_resp(tvbuff_t *tvb, int offset,
-                                            packet_info *pinfo, proto_tree *tree, dcerpc_info *di, guint8 *drep)
+                                            packet_info *pinfo, proto_tree *tree, dcerpc_info *di, uint8_t *drep)
 {
-    guint32 u32HResult;
+    uint32_t u32HResult;
 
     offset = dissect_dcom_that(tvb, offset, pinfo, tree, di, drep);
 
@@ -54,7 +54,7 @@ static int dissect_IProvideClassInfo_GetClassInfo_resp(tvbuff_t *tvb, int offset
 }
 
 /* sub dissector table of IProvideClassInfo interface */
-static dcerpc_sub_dissector provideclassinfo_dissectors[] = {
+static const dcerpc_sub_dissector provideclassinfo_dissectors[] = {
     {3, "GetClassInfo", dissect_IProvideClassInfo_GetClassInfo_rqst, dissect_IProvideClassInfo_GetClassInfo_resp},
     {0, NULL, NULL, NULL},
 };
@@ -68,7 +68,7 @@ void proto_register_dcom_provideclassinfo(void)
          { "ITypeInfo", "provideclassinfo.itypeinfo", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }}
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_provideclassinfo,
     };
 

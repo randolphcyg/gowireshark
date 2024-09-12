@@ -21,21 +21,21 @@ void proto_reg_handoff_ayiya(void);
 
 static dissector_table_t ip_dissector_table;
 
-static int proto_ayiya = -1;
-static int hf_id_len = -1;
-static int hf_id_type = -1;
-static int hf_sig_len = -1;
-static int hf_hash_method = -1;
-static int hf_auth_method = -1;
-static int hf_opcode = -1;
-static int hf_next_header = -1;
-static int hf_epoch = -1;
-static int hf_identity = -1;
-static int hf_signature = -1;
+static int proto_ayiya;
+static int hf_id_len;
+static int hf_id_type;
+static int hf_sig_len;
+static int hf_hash_method;
+static int hf_auth_method;
+static int hf_opcode;
+static int hf_next_header;
+static int hf_epoch;
+static int hf_identity;
+static int hf_signature;
 
-static gint ett_ayiya = -1;
+static int ett_ayiya;
 
-static dissector_handle_t ayiya_handle = NULL;
+static dissector_handle_t ayiya_handle;
 
 static const value_string identity_types[] = {
     { 0x0, "None" },
@@ -80,13 +80,13 @@ dissect_ayiya(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     proto_tree *ayiya_tree;
     int offset = 0;
     int idlen, siglen, ayiya_len;
-    guint8 next_header, opcode;
+    uint8_t next_header, opcode;
     tvbuff_t *payload;
 
     idlen = 1 << tvb_get_bits8(tvb, 0, 4);
     siglen = tvb_get_bits8(tvb, 8, 4) * 4;
     opcode = tvb_get_bits8(tvb, 20, 4);
-    next_header = tvb_get_guint8(tvb, 3);
+    next_header = tvb_get_uint8(tvb, 3);
 
     ayiya_len = 8+idlen+siglen;
 
@@ -178,7 +178,7 @@ proto_register_ayiya(void)
           }
         },
     };
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_ayiya,
     };
 

@@ -43,18 +43,19 @@ void proto_register_xti(void);
 
 static dissector_handle_t xti_handle;
 
-static int proto_xti = -1;
-static expert_field ei_xti_counter_overflow = EI_INIT;
-static expert_field ei_xti_invalid_template = EI_INIT;
-static expert_field ei_xti_invalid_length = EI_INIT;
-static expert_field ei_xti_unaligned = EI_INIT;
-static expert_field ei_xti_missing = EI_INIT;
-static expert_field ei_xti_overused = EI_INIT;
+static int proto_xti;
 
-static int hf_xti[] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static int hf_xti_dscp_exec_summary = -1;
-static int hf_xti_dscp_improved = -1;
-static int hf_xti_dscp_widened = -1;
+static expert_field ei_xti_counter_overflow;
+static expert_field ei_xti_invalid_template;
+static expert_field ei_xti_invalid_length;
+static expert_field ei_xti_unaligned;
+static expert_field ei_xti_missing;
+static expert_field ei_xti_overused;
+
+static int hf_xti[324];
+static int hf_xti_dscp_exec_summary;
+static int hf_xti_dscp_improved;
+static int hf_xti_dscp_widened;
 enum Field_Handle_Index {
       ACCOUNT_FH_IDX
     , ACCRUEDINTERESAMT_FH_IDX
@@ -2020,21 +2021,21 @@ struct ETI_Field {
                                // or max value if ETI_COUNTER
 };
 
-static gint ett_xti[] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static gint ett_xti_dscp = -1;
+static int ett_xti[32];
+static int ett_xti_dscp;
 /* This method dissects fully reassembled messages */
 static int
 dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "XTI");
     col_clear(pinfo->cinfo, COL_INFO);
-    guint16 templateid = tvb_get_letohs(tvb, 4);
+    uint16_t templateid = tvb_get_letohs(tvb, 4);
     const char *template_str = val_to_str_ext(templateid, &template_id_vals_ext, "Unknown XTI template: 0x%04x");
-    col_add_fstr(pinfo->cinfo, COL_INFO, "%s", template_str);
+    col_add_str(pinfo->cinfo, COL_INFO, template_str);
 
     /* create display subtree for the protocol */
     proto_item *ti = proto_tree_add_item(tree, proto_xti, tvb, 0, -1, ENC_NA);
-    guint32 bodylen= tvb_get_letohl(tvb, 0);
+    uint32_t bodylen= tvb_get_letohl(tvb, 0);
     proto_item_append_text(ti, ", %s (%" PRIu16 "), BodyLen: %u", template_str, templateid, bodylen);
     proto_tree *root = proto_item_add_subtree(ti, ett_xti[0]);
 
@@ -9584,7 +9585,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
 
     int uidx = tid2uidx[templateid - 10000];
     DISSECTOR_ASSERT_CMPINT(uidx, >=, 0);
-    DISSECTOR_ASSERT_CMPUINT(((size_t)uidx), <, (sizeof usages / sizeof usages[0]));
+    DISSECTOR_ASSERT_CMPUINT(((size_t)uidx), <, array_length(usages));
 
     int old_fidx = 0;
     int old_uidx = 0;
@@ -9596,9 +9597,9 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
     proto_tree *t = root;
     while (top) {
         DISSECTOR_ASSERT_CMPINT(fidx, >=, 0);
-        DISSECTOR_ASSERT_CMPUINT(((size_t)fidx), <, (sizeof fields / sizeof fields[0]));
+        DISSECTOR_ASSERT_CMPUINT(((size_t)fidx), <, array_length(fields));
         DISSECTOR_ASSERT_CMPINT(uidx, >=, 0);
-        DISSECTOR_ASSERT_CMPUINT(((size_t)uidx), <, (sizeof usages / sizeof usages[0]));
+        DISSECTOR_ASSERT_CMPUINT(((size_t)uidx), <, array_length(usages));
 
         switch (fields[fidx].type) {
             case ETI_EOF:
@@ -9620,7 +9621,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                 break;
             case ETI_VAR_STRUCT:
             case ETI_STRUCT:
-                DISSECTOR_ASSERT_CMPUINT(fields[fidx].counter_off, <, sizeof counter / sizeof counter[0]);
+                DISSECTOR_ASSERT_CMPUINT(fields[fidx].counter_off, <, array_length(counter));
                 repeats = fields[fidx].type == ETI_VAR_STRUCT ? counter[fields[fidx].counter_off] : 1;
                 if (repeats) {
                     --repeats;
@@ -9647,7 +9648,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                 break;
             case ETI_STRING:
                 {
-                    guint8 c = tvb_get_guint8(tvb, off);
+                    uint8_t c = tvb_get_uint8(tvb, off);
                     if (c)
                         proto_tree_add_item(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, ENC_ASCII);
                     else {
@@ -9661,20 +9662,20 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                 ++uidx;
                 break;
             case ETI_VAR_STRING:
-                DISSECTOR_ASSERT_CMPUINT(fields[fidx].counter_off, <, sizeof counter / sizeof counter[0]);
+                DISSECTOR_ASSERT_CMPUINT(fields[fidx].counter_off, <, array_length(counter));
                 proto_tree_add_item(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, counter[fields[fidx].counter_off], ENC_ASCII);
                 off += counter[fields[fidx].counter_off];
                 ++fidx;
                 ++uidx;
                 break;
             case ETI_COUNTER:
-                DISSECTOR_ASSERT_CMPUINT(fields[fidx].counter_off, <, sizeof counter / sizeof counter[0]);
+                DISSECTOR_ASSERT_CMPUINT(fields[fidx].counter_off, <, array_length(counter));
                 DISSECTOR_ASSERT_CMPUINT(fields[fidx].size, <=, 2);
                 {
                     switch (fields[fidx].size) {
                         case 1:
                             {
-                                guint8 x = tvb_get_guint8(tvb, off);
+                                uint8_t x = tvb_get_uint8(tvb, off);
                                 if (x == UINT8_MAX) {
                                     proto_tree_add_uint_format_value(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, x, "NO_VALUE (0xff)");
                                     counter[fields[fidx].counter_off] = 0;
@@ -9691,7 +9692,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                             break;
                         case 2:
                             {
-                                guint16 x = tvb_get_letohs(tvb, off);
+                                uint16_t x = tvb_get_letohs(tvb, off);
                                 if (x == UINT16_MAX) {
                                     proto_tree_add_uint_format_value(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, x, "NO_VALUE (0xffff)");
                                     counter[fields[fidx].counter_off] = 0;
@@ -9716,7 +9717,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                 switch (fields[fidx].size) {
                     case 1:
                         {
-                            guint8 x = tvb_get_guint8(tvb, off);
+                            uint8_t x = tvb_get_uint8(tvb, off);
                             if (x == UINT8_MAX) {
                                 proto_item *e = proto_tree_add_uint_format_value(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, x, "NO_VALUE (0xff)");
                                 if (!usages[uidx])
@@ -9730,7 +9731,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                         break;
                     case 2:
                         {
-                            guint16 x = tvb_get_letohs(tvb, off);
+                            uint16_t x = tvb_get_letohs(tvb, off);
                             if (x == UINT16_MAX) {
                                 proto_item *e = proto_tree_add_uint_format_value(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, x, "NO_VALUE (0xffff)");
                                 if (!usages[uidx])
@@ -9744,7 +9745,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                         break;
                     case 4:
                         {
-                            guint32 x = tvb_get_letohl(tvb, off);
+                            uint32_t x = tvb_get_letohl(tvb, off);
                             if (x == UINT32_MAX) {
                                 proto_item *e = proto_tree_add_uint_format_value(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, x, "NO_VALUE (0xffffffff)");
                                 if (!usages[uidx])
@@ -9758,7 +9759,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                         break;
                     case 8:
                         {
-                            guint64 x = tvb_get_letoh64(tvb, off);
+                            uint64_t x = tvb_get_letoh64(tvb, off);
                             if (x == UINT64_MAX) {
                                 proto_item *e = proto_tree_add_uint64_format_value(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, x, "NO_VALUE (0xffffffffffffffff)");
                                 if (!usages[uidx])
@@ -9779,7 +9780,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                 switch (fields[fidx].size) {
                     case 1:
                         {
-                            gint8 x = tvb_get_gint8(tvb, off);
+                            int8_t x = tvb_get_int8(tvb, off);
                             if (x == INT8_MIN) {
                                 proto_item *e = proto_tree_add_int_format_value(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, x, "NO_VALUE (0x80)");
                                 if (!usages[uidx])
@@ -9793,7 +9794,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                         break;
                     case 2:
                         {
-                            gint16 x = tvb_get_letohis(tvb, off);
+                            int16_t x = tvb_get_letohis(tvb, off);
                             if (x == INT16_MIN) {
                                 proto_item *e = proto_tree_add_int_format_value(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, x, "NO_VALUE (0x8000)");
                                 if (!usages[uidx])
@@ -9807,7 +9808,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                         break;
                     case 4:
                         {
-                            gint32 x = tvb_get_letohil(tvb, off);
+                            int32_t x = tvb_get_letohil(tvb, off);
                             if (x == INT32_MIN) {
                                 proto_item *e = proto_tree_add_int_format_value(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, x, "NO_VALUE (0x80000000)");
                                 if (!usages[uidx])
@@ -9821,7 +9822,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                         break;
                     case 8:
                         {
-                            gint64 x = tvb_get_letohi64(tvb, off);
+                            int64_t x = tvb_get_letohi64(tvb, off);
                             if (x == INT64_MIN) {
                                 proto_item *e = proto_tree_add_int64_format_value(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, x, "NO_VALUE (0x8000000000000000)");
                                 if (!usages[uidx])
@@ -9850,7 +9851,7 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                 DISSECTOR_ASSERT_CMPUINT(fields[fidx].counter_off, >, 0);
                 DISSECTOR_ASSERT_CMPUINT(fields[fidx].counter_off, <=, 16);
                 {
-                    gint64 x = tvb_get_letohi64(tvb, off);
+                    int64_t x = tvb_get_letohi64(tvb, off);
                     if (x == INT64_MIN) {
                         proto_item *e = proto_tree_add_int64_format_value(t, hf_xti[fields[fidx].field_handle_idx], tvb, off, fields[fidx].size, x, "NO_VALUE (0x8000000000000000)");
                         if (!usages[uidx])
@@ -9891,17 +9892,17 @@ dissect_xti_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
 }
 
 /* determine PDU length of protocol XTI */
-static guint
+static unsigned
 get_xti_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-    return (guint)tvb_get_letohl(tvb, offset);
+    return (unsigned)tvb_get_letohl(tvb, offset);
 }
 
 static int
 dissect_xti(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         void *data)
 {
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, 4 /* bytes to read for bodylen */,
+    tcp_dissect_pdus(tvb, pinfo, tree, true, 4 /* bytes to read for bodylen */,
             get_xti_message_len, dissect_xti_message, data);
     return tvb_captured_length(tvb);
 }
@@ -11577,8 +11578,9 @@ proto_register_xti(void)
     expert_module_t *expert_xti = expert_register_protocol(proto_xti);
     expert_register_field_array(expert_xti, ei, array_length(ei));
     proto_register_field_array(proto_xti, hf, array_length(hf));
-    static gint * const ett[] = { &ett_xti[0], &ett_xti[1], &ett_xti[2], &ett_xti[3], &ett_xti[4], &ett_xti[5], &ett_xti[6], &ett_xti[7], &ett_xti[8], &ett_xti[9], &ett_xti[10], &ett_xti[11], &ett_xti[12], &ett_xti[13], &ett_xti[14], &ett_xti[15], &ett_xti[16], &ett_xti[17], &ett_xti[18], &ett_xti[19], &ett_xti[20], &ett_xti[21], &ett_xti[22], &ett_xti[23], &ett_xti[24], &ett_xti[25], &ett_xti[26], &ett_xti[27], &ett_xti[28], &ett_xti[29], &ett_xti[30], &ett_xti[31], &ett_xti_dscp };
+    static int * const ett[] = { &ett_xti[0], &ett_xti[1], &ett_xti[2], &ett_xti[3], &ett_xti[4], &ett_xti[5], &ett_xti[6], &ett_xti[7], &ett_xti[8], &ett_xti[9], &ett_xti[10], &ett_xti[11], &ett_xti[12], &ett_xti[13], &ett_xti[14], &ett_xti[15], &ett_xti[16], &ett_xti[17], &ett_xti[18], &ett_xti[19], &ett_xti[20], &ett_xti[21], &ett_xti[22], &ett_xti[23], &ett_xti[24], &ett_xti[25], &ett_xti[26], &ett_xti[27], &ett_xti[28], &ett_xti[29], &ett_xti[30], &ett_xti[31], &ett_xti_dscp };
     proto_register_subtree_array(ett, array_length(ett));
+
     xti_handle = register_dissector("xti", dissect_xti, proto_xti);
 }
 

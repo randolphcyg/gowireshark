@@ -36,17 +36,17 @@ typedef struct rlc_info
     /* Preferred  content: */
     /* 1. U-RNTI */
     /* 2. C-RNC Context (from NBAP) */
-    guint32 ueid[MAX_RLC_CHANS];
-    guint8 mode[MAX_RLC_CHANS];
-    guint8 rbid[MAX_RLC_CHANS];
+    uint32_t ueid[MAX_RLC_CHANS];
+    uint8_t mode[MAX_RLC_CHANS];
+    uint8_t rbid[MAX_RLC_CHANS];
     enum rlc_li_size li_size[MAX_RLC_CHANS];
-    gboolean ciphered[MAX_RLC_CHANS];
-    gboolean deciphered[MAX_RLC_CHANS];
+    bool ciphered[MAX_RLC_CHANS];
+    bool deciphered[MAX_RLC_CHANS];
 } rlc_info;
 
 /* Reset the specified channel's reassembly data, useful for when a sequence
  * resets on transport channel swap. */
-void rlc_reset_channel(enum rlc_mode mode, guint8 rbid, guint8 dir, guint32 ueid, struct atm_phdr *atm);
+void rlc_reset_channel(enum rlc_mode mode, uint8_t rbid, uint8_t dir, uint32_t ueid, struct atm_phdr *atm);
 
 /*****************************************************************/
 /* UDP framing format                                            */
@@ -58,7 +58,7 @@ void rlc_reset_channel(enum rlc_mode mode, guint8 rbid, guint8 dir, guint32 ueid
 /* these headers and send RLC PDUs on a UDP socket is provided   */
 /* at https://gitlab.com/wireshark/wireshark/-/wikis/RLC         */
 /*                                                               */
-/* A heuristic dissecter (enabled by a preference) will          */
+/* A heuristic dissector (enabled by a preference) will          */
 /* recognise a signature at the beginning of these frames.       */
 /* Until someone is using this format, suggestions for changes   */
 /* are welcome.                                                  */

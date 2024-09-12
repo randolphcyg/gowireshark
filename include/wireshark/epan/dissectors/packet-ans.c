@@ -41,16 +41,16 @@ void proto_reg_handoff_ans(void);
 static dissector_handle_t ans_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_ans        = -1;
+static int proto_ans;
 
-static int hf_ans_app_id    = -1;
-static int hf_ans_rev_id    = -1;
-static int hf_ans_seq_num   = -1;
-static int hf_ans_sender_id = -1;
-static int hf_ans_team_id   = -1;
+static int hf_ans_app_id;
+static int hf_ans_rev_id;
+static int hf_ans_seq_num;
+static int hf_ans_sender_id;
+static int hf_ans_team_id;
 
 /* Initialize the subtree pointers */
-static gint ett_ans = -1;
+static int ett_ans;
 
 /* Code to actually dissect the packets */
 static int
@@ -58,8 +58,8 @@ dissect_ans(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	proto_item  *ti;
 	proto_tree  *ans_tree;
-	guint16      sender_id;
-	guint32      seq_num;
+	uint16_t     sender_id;
+	uint32_t     seq_num;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "Intel ANS probe");
 
@@ -113,7 +113,7 @@ proto_register_ans(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_ans,
 	};
 

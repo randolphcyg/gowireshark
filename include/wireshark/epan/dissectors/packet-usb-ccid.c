@@ -18,100 +18,104 @@
 #include <epan/decode_as.h>
 #include <epan/packet.h>
 #include <epan/prefs.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
+
+#include <wsutil/array.h>
 #include "packet-usb.h"
 
-static int proto_ccid = -1;
+static int proto_ccid;
 
 static dissector_table_t subdissector_table;
 
-static int hf_ccid_bMessageType = -1;
-static int hf_ccid_dwLength = -1;
-static int hf_ccid_bSlot = -1;
-static int hf_ccid_bSeq = -1;
-static int hf_ccid_bStatus = -1;
-static int hf_ccid_bStatus_bmIccStatus = -1;
-static int hf_ccid_bStatus_bmCommandStatus = -1;
-static int hf_ccid_bError = -1;
-static int hf_ccid_bRFU = -1;
-static int hf_ccid_abRFU = -1;
-static int hf_ccid_bChainParameter = -1;
-static int hf_ccid_bPowerSelect = -1;
-static int hf_ccid_bClockStatus = -1;
-static int hf_ccid_bProtocolNum = -1;
-static int hf_ccid_bBWI = -1;
-static int hf_ccid_wLevelParameter = -1;
-static int hf_ccid_bcdCCID = -1;
-static int hf_ccid_bMaxSlotIndex = -1;
-static int hf_ccid_bVoltageSupport = -1;
-static int hf_ccid_bVoltageSupport18 = -1;
-static int hf_ccid_bVoltageSupport30 = -1;
-static int hf_ccid_bVoltageSupport50 = -1;
-static int hf_ccid_dwProtocols = -1;
-static int hf_ccid_dwProtocols_t0 = -1;
-static int hf_ccid_dwProtocols_t1 = -1;
-static int hf_ccid_dwDefaultClock = -1;
-static int hf_ccid_dwMaximumClock = -1;
-static int hf_ccid_bNumClockSupported = -1;
-static int hf_ccid_dwDataRate = -1;
-static int hf_ccid_dwMaxDataRate = -1;
-static int hf_ccid_bNumDataRatesSupported = -1;
-static int hf_ccid_dwMaxIFSD = -1;
-static int hf_ccid_dwSynchProtocols = -1;
-static int hf_ccid_dwMechanical = -1;
-static int hf_ccid_dwFeatures = -1;
-static int hf_ccid_dwFeatures_autoParam = -1;
-static int hf_ccid_dwFeatures_autoIccActivation = -1;
-static int hf_ccid_dwFeatures_autoIccVoltSelect = -1;
-static int hf_ccid_dwFeatures_autoIccClk = -1;
-static int hf_ccid_dwFeatures_autoBaudRate = -1;
-static int hf_ccid_dwFeatures_autoParamNegotiation = -1;
-static int hf_ccid_dwFeatures_autoPPS = -1;
-static int hf_ccid_dwFeatures_stopIccClk = -1;
-static int hf_ccid_dwFeatures_nadValNot0accept = -1;
-static int hf_ccid_dwFeatures_autoIfsd = -1;
-static int hf_ccid_dwFeatures_levelExchangeTDPU = -1;
-static int hf_ccid_dwFeatures_levelExchangeShortAPDU = -1;
-static int hf_ccid_dwFeatures_levelExchangeShortExtendedAPDU = -1;
-static int hf_ccid_dwFeatures_UsbWakeUp = -1;
-static int hf_ccid_dwMaxCCIDMessageLength = -1;
-static int hf_ccid_bClassGetResponse = -1;
-static int hf_ccid_bClassEnvelope = -1;
-static int hf_ccid_wLcdLayout = -1;
-static int hf_ccid_wLcdLayout_lines = -1;
-static int hf_ccid_wLcdLayout_chars = -1;
-static int hf_ccid_bPINSupport = -1;
-static int hf_ccid_bPINSupport_modify = -1;
-static int hf_ccid_bPINSupport_vrfy = -1;
-static int hf_ccid_bMaxCCIDBusySlots = -1;
-static int hf_ccid_Reserved = -1;
-static int hf_ccid_bmSlotICCState = -1;
-static int hf_ccid_bmSlotICCState_slot0Current = -1;
-static int hf_ccid_bmSlotICCState_slot0Changed = -1;
-static int hf_ccid_bmSlotICCState_slot1Current = -1;
-static int hf_ccid_bmSlotICCState_slot1Changed = -1;
-static int hf_ccid_bmSlotICCState_slot2Current = -1;
-static int hf_ccid_bmSlotICCState_slot2Changed = -1;
-static int hf_ccid_bmSlotICCState_slot3Current = -1;
-static int hf_ccid_bmSlotICCState_slot3Changed = -1;
-static int hf_ccid_bmSlotICCState_slot4Current = -1;
-static int hf_ccid_bmSlotICCState_slot4Changed = -1;
-static int hf_ccid_bmSlotICCState_slot5Current = -1;
-static int hf_ccid_bmSlotICCState_slot5Changed = -1;
-static int hf_ccid_bmSlotICCState_slot6Current = -1;
-static int hf_ccid_bmSlotICCState_slot6Changed = -1;
-static int hf_ccid_bmSlotICCState_slot7Current = -1;
-static int hf_ccid_bmSlotICCState_slot7Changed = -1;
-static int hf_ccid_bHardwareErrorCode = -1;
-static int hf_ccid_bmFindexDindex = -1;
-static int hf_ccid_bmTCCKST0 = -1;
-static int hf_ccid_bmTCCKST1 = -1;
-static int hf_ccid_bGuardTimeT0 = -1;
-static int hf_ccid_bGuardTimeT1 = -1;
-static int hf_ccid_bWaitingIntegerT0 = -1;
-static int hf_ccid_bmWaitingIntegersT1 = -1;
-static int hf_ccid_bClockStop = -1;
-static int hf_ccid_bIFSC = -1;
-static int hf_ccid_bNadValue = -1;
+static int hf_ccid_bMessageType;
+static int hf_ccid_dwLength;
+static int hf_ccid_bSlot;
+static int hf_ccid_bSeq;
+static int hf_ccid_bStatus;
+static int hf_ccid_bStatus_bmIccStatus;
+static int hf_ccid_bStatus_bmCommandStatus;
+static int hf_ccid_bError;
+static int hf_ccid_bRFU;
+static int hf_ccid_abRFU;
+static int hf_ccid_bChainParameter;
+static int hf_ccid_bPowerSelect;
+static int hf_ccid_bClockStatus;
+static int hf_ccid_bProtocolNum;
+static int hf_ccid_bBWI;
+static int hf_ccid_wLevelParameter;
+static int hf_ccid_bcdCCID;
+static int hf_ccid_bMaxSlotIndex;
+static int hf_ccid_bVoltageSupport;
+static int hf_ccid_bVoltageSupport18;
+static int hf_ccid_bVoltageSupport30;
+static int hf_ccid_bVoltageSupport50;
+static int hf_ccid_dwProtocols;
+static int hf_ccid_dwProtocols_t0;
+static int hf_ccid_dwProtocols_t1;
+static int hf_ccid_dwDefaultClock;
+static int hf_ccid_dwMaximumClock;
+static int hf_ccid_bNumClockSupported;
+static int hf_ccid_dwDataRate;
+static int hf_ccid_dwMaxDataRate;
+static int hf_ccid_bNumDataRatesSupported;
+static int hf_ccid_dwMaxIFSD;
+static int hf_ccid_dwSynchProtocols;
+static int hf_ccid_dwMechanical;
+static int hf_ccid_dwFeatures;
+static int hf_ccid_dwFeatures_autoParam;
+static int hf_ccid_dwFeatures_autoIccActivation;
+static int hf_ccid_dwFeatures_autoIccVoltSelect;
+static int hf_ccid_dwFeatures_autoIccClk;
+static int hf_ccid_dwFeatures_autoBaudRate;
+static int hf_ccid_dwFeatures_autoParamNegotiation;
+static int hf_ccid_dwFeatures_autoPPS;
+static int hf_ccid_dwFeatures_stopIccClk;
+static int hf_ccid_dwFeatures_nadValNot0accept;
+static int hf_ccid_dwFeatures_autoIfsd;
+static int hf_ccid_dwFeatures_levelExchangeTDPU;
+static int hf_ccid_dwFeatures_levelExchangeShortAPDU;
+static int hf_ccid_dwFeatures_levelExchangeShortExtendedAPDU;
+static int hf_ccid_dwFeatures_UsbWakeUp;
+static int hf_ccid_dwMaxCCIDMessageLength;
+static int hf_ccid_bClassGetResponse;
+static int hf_ccid_bClassEnvelope;
+static int hf_ccid_wLcdLayout;
+static int hf_ccid_wLcdLayout_lines;
+static int hf_ccid_wLcdLayout_chars;
+static int hf_ccid_bPINSupport;
+static int hf_ccid_bPINSupport_modify;
+static int hf_ccid_bPINSupport_vrfy;
+static int hf_ccid_bMaxCCIDBusySlots;
+static int hf_ccid_Reserved;
+static int hf_ccid_bmSlotICCState;
+static int hf_ccid_bmSlotICCState_slot0Current;
+static int hf_ccid_bmSlotICCState_slot0Changed;
+static int hf_ccid_bmSlotICCState_slot1Current;
+static int hf_ccid_bmSlotICCState_slot1Changed;
+static int hf_ccid_bmSlotICCState_slot2Current;
+static int hf_ccid_bmSlotICCState_slot2Changed;
+static int hf_ccid_bmSlotICCState_slot3Current;
+static int hf_ccid_bmSlotICCState_slot3Changed;
+static int hf_ccid_bmSlotICCState_slot4Current;
+static int hf_ccid_bmSlotICCState_slot4Changed;
+static int hf_ccid_bmSlotICCState_slot5Current;
+static int hf_ccid_bmSlotICCState_slot5Changed;
+static int hf_ccid_bmSlotICCState_slot6Current;
+static int hf_ccid_bmSlotICCState_slot6Changed;
+static int hf_ccid_bmSlotICCState_slot7Current;
+static int hf_ccid_bmSlotICCState_slot7Changed;
+static int hf_ccid_bHardwareErrorCode;
+static int hf_ccid_bmFindexDindex;
+static int hf_ccid_bmTCCKST0;
+static int hf_ccid_bmTCCKST1;
+static int hf_ccid_bGuardTimeT0;
+static int hf_ccid_bGuardTimeT1;
+static int hf_ccid_bWaitingIntegerT0;
+static int hf_ccid_bmWaitingIntegersT1;
+static int hf_ccid_bClockStop;
+static int hf_ccid_bIFSC;
+static int hf_ccid_bNadValue;
 
 static dissector_handle_t usb_ccid_handle;
 static dissector_handle_t usb_ccid_descr_handle;
@@ -212,7 +216,7 @@ static int * const bStatus_fields[] = {
 #define RDR_PC_ESCAPE          0x83
 #define RDR_PC_DATA_CLOCK      0x84
 
-/* Standardised Interupt IN message types */
+/* Standardised Interrupt IN message types */
 #define RDR_PC_NOTIF_SLOT_CHNG 0x50
 #define RDR_PC_HWERROR         0x51
 
@@ -250,7 +254,7 @@ static const value_string ccid_opcode_vals[] = {
     {RDR_PC_ESCAPE          , "RDR_to_PC_Escape"},
     {RDR_PC_DATA_CLOCK      , "RDR_to_PC_DataRateAndClockFrequency"},
 
-    /* Standardised Interupt IN message types */
+    /* Standardised Interrupt IN message types */
     {RDR_PC_NOTIF_SLOT_CHNG , "RDR_to_PC_NotifySlotChange"},
     {RDR_PC_HWERROR         , "RDR_to_PC_HardwareError"},
 
@@ -282,7 +286,7 @@ static const value_string ccid_messagetypes_vals[] = {
     {RDR_PC_ESCAPE          , "Reader to PC: Escape"},
     {RDR_PC_DATA_CLOCK      , "Reader to PC: Data Rate and Clock Frequency"},
 
-    /* Standardised Interupt IN message types */
+    /* Standardised Interrupt IN message types */
     {RDR_PC_NOTIF_SLOT_CHNG , "Reader to PC: Notify Slot Change"},
     {RDR_PC_HWERROR         , "Reader to PC: Hardware Error"},
 
@@ -349,32 +353,32 @@ static const value_string ccid_status_cmd_status_vals[] = {
 };
 
 /* Subtree handles: set by register_subtree_array */
-static gint ett_ccid      = -1;
-static gint ett_ccid_desc = -1;
-static gint ett_ccid_protocol_data_structure = -1;
-static gint ett_ccid_voltage_level = -1;
-static gint ett_ccid_protocols = -1;
-static gint ett_ccid_features = -1;
-static gint ett_ccid_lcd_layout = -1;
-static gint ett_ccid_pin_support = -1;
-static gint ett_ccid_slot_change = -1;
-static gint ett_ccid_status = -1;
+static int ett_ccid;
+static int ett_ccid_desc;
+static int ett_ccid_protocol_data_structure;
+static int ett_ccid_voltage_level;
+static int ett_ccid_protocols;
+static int ett_ccid_features;
+static int ett_ccid_lcd_layout;
+static int ett_ccid_pin_support;
+static int ett_ccid_slot_change;
+static int ett_ccid_status;
 
-static gint
+static int
 dissect_usb_ccid_descriptor(tvbuff_t *tvb, packet_info *pinfo _U_,
         proto_tree *tree, void *data _U_)
 {
-    gint        offset = 0;
-    guint8      descriptor_type;
-    guint8      descriptor_len;
+    int         offset = 0;
+    uint8_t     descriptor_type;
+    uint8_t     descriptor_len;
     proto_item *freq_item;
     proto_tree *desc_tree;
-    guint8      num_clock_supp;
+    uint8_t     num_clock_supp;
     proto_item *lcd_layout_item;
     proto_tree *lcd_layout_tree;
 
-    descriptor_len  = tvb_get_guint8(tvb, offset);
-    descriptor_type = tvb_get_guint8(tvb, offset+1);
+    descriptor_len  = tvb_get_uint8(tvb, offset);
+    descriptor_type = tvb_get_uint8(tvb, offset+1);
     if (descriptor_type!=USB_DESC_TYPE_SMARTCARD)
         return 0;
 
@@ -408,7 +412,7 @@ dissect_usb_ccid_descriptor(tvbuff_t *tvb, packet_info *pinfo _U_,
     proto_tree_add_item(desc_tree, hf_ccid_dwMaximumClock, tvb,
             offset, 4, ENC_LITTLE_ENDIAN);
     offset += 4;
-    num_clock_supp = tvb_get_guint8(tvb, offset);
+    num_clock_supp = tvb_get_uint8(tvb, offset);
     freq_item = proto_tree_add_item(desc_tree, hf_ccid_bNumClockSupported, tvb,
             offset, 1, ENC_LITTLE_ENDIAN);
     if (num_clock_supp==0)
@@ -476,23 +480,23 @@ dissect_usb_ccid_descriptor(tvbuff_t *tvb, packet_info *pinfo _U_,
 }
 
 
-static gint
+static int
 dissect_ccid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     proto_item *item;
     proto_tree *ccid_tree;
-    guint8      cmd;
-    guint32     payload_len;
+    uint8_t     cmd;
+    uint32_t    payload_len;
     tvbuff_t   *next_tvb;
-    usb_conv_info_t  *usb_conv_info;
+    urb_info_t *urb;
     int len_remaining;
-    guint8 bProtocolNum;
+    uint8_t bProtocolNum;
     proto_tree *protocol_tree;
 
     /* Reject the packet if data is NULL */
     if (data == NULL)
         return 0;
-    usb_conv_info = (usb_conv_info_t *)data;
+    urb = (urb_info_t *)data;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "USBCCID");
     col_set_str(pinfo->cinfo, COL_INFO,     "CCID Packet");
@@ -502,7 +506,7 @@ dissect_ccid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     ccid_tree = proto_item_add_subtree(item, ett_ccid);
 
     proto_tree_add_item(ccid_tree, hf_ccid_bMessageType, tvb, 0, 1, ENC_LITTLE_ENDIAN);
-    cmd = tvb_get_guint8(tvb, 0);
+    cmd = tvb_get_uint8(tvb, 0);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " - %s", val_to_str_const(cmd, ccid_messagetypes_vals, "Unknown"));
 
@@ -520,7 +524,7 @@ dissect_ccid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         payload_len = tvb_get_letohl(tvb, 1);
 
         /* abProtocolDataStructure */
-        bProtocolNum = tvb_get_guint8(tvb, 7);
+        bProtocolNum = tvb_get_uint8(tvb, 7);
         switch (bProtocolNum)
         {
             case 0: /* T=0 */
@@ -607,7 +611,7 @@ dissect_ccid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         /* sent/received is from the perspective of the card reader */
         pinfo->p2p_dir = P2P_DIR_SENT;
 
-        if (!dissector_try_payload_new(subdissector_table, next_tvb, pinfo, tree, TRUE, usb_conv_info)) {
+        if (!dissector_try_payload_new(subdissector_table, next_tvb, pinfo, tree, true, urb)) {
             call_data_dissector(next_tvb, pinfo, tree);
         }
         break;
@@ -631,7 +635,7 @@ dissect_ccid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         next_tvb = tvb_new_subset_length(tvb, 10, payload_len);
         pinfo->p2p_dir = P2P_DIR_RECV;
 
-        if (!dissector_try_payload_new(subdissector_table, next_tvb, pinfo, tree, TRUE, usb_conv_info)) {
+        if (!dissector_try_payload_new(subdissector_table, next_tvb, pinfo, tree, true, urb)) {
             call_data_dissector(next_tvb, pinfo, tree);
         }
         break;
@@ -656,7 +660,7 @@ dissect_ccid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         payload_len = tvb_get_letohl(tvb, 1);
 
         /* abProtocolDataStructure */
-        bProtocolNum = tvb_get_guint8(tvb, 9);
+        bProtocolNum = tvb_get_uint8(tvb, 9);
         switch (bProtocolNum)
         {
             case 0: /* T=0 */
@@ -685,7 +689,7 @@ dissect_ccid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         }
         break;
 
-    /*Interupt IN*/
+    /*Interrupt IN*/
     case RDR_PC_NOTIF_SLOT_CHNG:
         proto_tree_add_bitmask(ccid_tree, tvb, 1,
             hf_ccid_bmSlotICCState, ett_ccid_slot_change, bmSlotICCStateb0_fields,
@@ -794,10 +798,10 @@ proto_register_ccid(void)
             TFS(&tfs_supported_not_supported), 0x00000002, NULL, HFILL }},
         {&hf_ccid_dwDefaultClock,
          { "default clock frequency", "usbccid.dwDefaultClock",
-             FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_khz, 0x0, NULL, HFILL }},
+             FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_khz), 0x0, NULL, HFILL }},
         {&hf_ccid_dwMaximumClock,
          { "maximum clock frequency", "usbccid.dwMaximumClock",
-             FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_khz, 0x0, NULL, HFILL }},
+             FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_khz), 0x0, NULL, HFILL }},
         {&hf_ccid_bNumClockSupported,
          { "number of supported clock frequencies", "usbccid.bNumClockSupported",
              FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
@@ -828,7 +832,7 @@ proto_register_ccid(void)
              TFS(&tfs_supported_not_supported), 0x00000004, NULL, HFILL }},
         {&hf_ccid_dwFeatures_autoIccVoltSelect,
          { "Automatic ICC voltage selection",
-             "usbccid.dwFeatures.autoParamNegotiation", FT_BOOLEAN, 32,
+             "usbccid.dwFeatures.autoIccVoltSelect", FT_BOOLEAN, 32,
              TFS(&tfs_supported_not_supported), 0x00000008, NULL, HFILL }},
         {&hf_ccid_dwFeatures_autoParam,
          { "Automatic parameter configuration based on ATR",
@@ -997,7 +1001,7 @@ proto_register_ccid(void)
            NULL, 0x0, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_ccid,
         &ett_ccid_desc,
         &ett_ccid_protocol_data_structure,

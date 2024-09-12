@@ -12,7 +12,6 @@
 #ifndef __PACKET_DVBCI_H__
 #define __PACKET_DVBCI_H__
 
-#include <glib.h>
 #include <epan/packet_info.h>
 #include <epan/value_string.h>
 
@@ -29,7 +28,7 @@
 
 WS_DLL_PUBLIC const value_string dvbci_event[];
 
-gint dvbci_set_addrs(guint8 event, packet_info *pinfo);
+int dvbci_set_addrs(uint8_t event, packet_info *pinfo);
 
 #endif
 

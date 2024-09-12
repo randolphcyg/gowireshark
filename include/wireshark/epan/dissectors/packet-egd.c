@@ -63,21 +63,21 @@ static const value_string egd_stat_vals[] = {
   { 0,                             NULL }
 };
 
-static int proto_egd = -1;
+static int proto_egd;
 
-static int hf_egd_ver = -1;
-static int hf_egd_type = -1;
-static int hf_egd_rid = -1;
-static int hf_egd_pid = -1;
-static int hf_egd_exid = -1;
-static int hf_egd_time = -1;
-static int hf_egd_notime = -1;
-static int hf_egd_stat = -1;
-static int hf_egd_csig = -1;
-static int hf_egd_resv = -1;
+static int hf_egd_ver;
+static int hf_egd_type;
+static int hf_egd_rid;
+static int hf_egd_pid;
+static int hf_egd_exid;
+static int hf_egd_time;
+static int hf_egd_notime;
+static int hf_egd_stat;
+static int hf_egd_csig;
+static int hf_egd_resv;
 
-static gint ett_egd = -1;
-static gint ett_status_item = -1;
+static int ett_egd;
+static int ett_status_item;
 
 static int dissect_egd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
@@ -103,8 +103,8 @@ static int dissect_egd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
     proto_item *notime = NULL;
     proto_tree *egd_tree = NULL;
     tvbuff_t *next_tvb = NULL;
-    gint offset, data_length;
-    guint32 sectime;
+    int offset, data_length;
+    uint32_t sectime;
 
     offset = 0;
 
@@ -217,7 +217,7 @@ void proto_register_egd(void)
       }
     };
 
-  static gint *ett[] =
+  static int *ett[] =
     {
       &ett_egd,
       &ett_status_item

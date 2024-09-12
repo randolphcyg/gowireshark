@@ -21,10 +21,10 @@ target_include_directories(lrexlib SYSTEM PRIVATE
 add_dependencies(lrexlib register_wslua)
 
 if(FETCH_lua)
-	add_dependencies(lrexlib lua52)
+	add_dependencies(lrexlib lua54)
 endif()
 
 add_compile_definitions(
-	VERSION=\"2.9.1\"
+	VERSION=\"2.9.2\"
 	PCRE2_CODE_UNIT_WIDTH=8
 )

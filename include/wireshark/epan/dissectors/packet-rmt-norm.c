@@ -125,77 +125,77 @@ static const value_string string_norm_nack_form[] =
 
 typedef struct norm_packet_data
 {
-    guint8 encoding_id;
+    uint8_t encoding_id;
 } norm_packet_data_t;
 
 /* Initialize the protocol and registered fields */
 /* ============================================= */
 static dissector_handle_t rmt_fec_handle;
 
-static int proto_rmt_norm = -1;
+static int proto_rmt_norm;
 
-static int hf_version = -1;
-static int hf_type = -1;
-static int hf_hlen = -1;
-static int hf_sequence = -1;
-static int hf_source_id = -1;
-static int hf_instance_id = -1;
-static int hf_grtt = -1;
-static int hf_backoff = -1;
-static int hf_gsize = -1;
-static int hf_flags = -1;
-static int hf_flag_repair = -1;
-static int hf_flag_norm_explicit = -1;
-static int hf_flag_info = -1;
-static int hf_flag_unreliable = -1;
-static int hf_flag_file = -1;
-static int hf_flag_stream = -1;
-static int hf_flag_msgstart = -1;
-static int hf_object_transport_id = -1;
-static int hf_extension = -1;
-static int hf_reserved = -1;
-static int hf_payload_len = -1;
-static int hf_payload_offset = -1;
-static int hf_cmd_flavor = -1;
-static int hf_cc_sequence = -1;
-static int hf_cc_sts = -1;
-static int hf_cc_stus = -1;
-static int hf_cc_node_id = -1;
-static int hf_cc_flags = -1;
-static int hf_cc_flags_clr = -1;
-static int hf_cc_flags_plr = -1;
-static int hf_cc_flags_rtt = -1;
-static int hf_cc_flags_start = -1;
-static int hf_cc_flags_leave = -1;
-static int hf_cc_rtt = -1;
-static int hf_cc_rate = -1;
-static int hf_cc_transport_id = -1;
-static int hf_ack_source = -1;
-static int hf_ack_type = -1;
-static int hf_ack_id = -1;
-static int hf_ack_grtt_sec = -1;
-static int hf_ack_grtt_usec = -1;
-static int hf_nack_server = -1;
-static int hf_nack_grtt_sec = -1;
-static int hf_nack_grtt_usec = -1;
-static int hf_nack_form = -1;
-static int hf_nack_flags = -1;
-static int hf_nack_flags_segment = -1;
-static int hf_nack_flags_block = -1;
-static int hf_nack_flags_info = -1;
-static int hf_nack_flags_object = -1;
-static int hf_nack_length = -1;
-static int hf_payload = -1;
-static int hf_fec_encoding_id = -1;
+static int hf_version;
+static int hf_type;
+static int hf_hlen;
+static int hf_sequence;
+static int hf_source_id;
+static int hf_instance_id;
+static int hf_grtt;
+static int hf_backoff;
+static int hf_gsize;
+static int hf_flags;
+static int hf_flag_repair;
+static int hf_flag_norm_explicit;
+static int hf_flag_info;
+static int hf_flag_unreliable;
+static int hf_flag_file;
+static int hf_flag_stream;
+static int hf_flag_msgstart;
+static int hf_object_transport_id;
+static int hf_extension;
+static int hf_reserved;
+static int hf_payload_len;
+static int hf_payload_offset;
+static int hf_cmd_flavor;
+static int hf_cc_sequence;
+static int hf_cc_sts;
+static int hf_cc_stus;
+static int hf_cc_node_id;
+static int hf_cc_flags;
+static int hf_cc_flags_clr;
+static int hf_cc_flags_plr;
+static int hf_cc_flags_rtt;
+static int hf_cc_flags_start;
+static int hf_cc_flags_leave;
+static int hf_cc_rtt;
+static int hf_cc_rate;
+static int hf_cc_transport_id;
+static int hf_ack_source;
+static int hf_ack_type;
+static int hf_ack_id;
+static int hf_ack_grtt_sec;
+static int hf_ack_grtt_usec;
+static int hf_nack_server;
+static int hf_nack_grtt_sec;
+static int hf_nack_grtt_usec;
+static int hf_nack_form;
+static int hf_nack_flags;
+static int hf_nack_flags_segment;
+static int hf_nack_flags_block;
+static int hf_nack_flags_info;
+static int hf_nack_flags_object;
+static int hf_nack_length;
+static int hf_payload;
+static int hf_fec_encoding_id;
 
-static int ett_main = -1;
-static int ett_hdrext = -1;
-static int ett_flags = -1;
-static int ett_streampayload = -1;
-static int ett_congestioncontrol = -1;
-static int ett_nackdata = -1;
+static int ett_main;
+static int ett_hdrext;
+static int ett_flags;
+static int ett_streampayload;
+static int ett_congestioncontrol;
+static int ett_nackdata;
 
-static expert_field ei_version1_only = EI_INIT;
+static expert_field ei_version1_only;
 
 static const double RTT_MIN = 1.0e-06;
 static const double RTT_MAX = 1000;
@@ -206,27 +206,27 @@ static double UnquantizeRtt(unsigned char qrtt)
             (RTT_MAX/exp(((double)(255-qrtt))/(double)13.0)));
 }
 
-static double UnquantizeGSize(guint8 gsizex)
+static double UnquantizeGSize(uint8_t gsizex)
 {
-    guint mant = (gsizex & 0x8) ? 5 : 1;
-    guint exponent = gsizex & 0x7;
+    unsigned mant = (gsizex & 0x8) ? 5 : 1;
+    unsigned exponent = gsizex & 0x7;
 
     exponent += 1;
     return mant * pow(10, exponent);
 }
 
 /* code to dissect fairly common sequence in NORM packets */
-static guint dissect_grrtetc(proto_tree *tree, tvbuff_t *tvb, guint offset)
+static unsigned dissect_grrtetc(proto_tree *tree, tvbuff_t *tvb, unsigned offset)
 {
-    guint8 backoff;
+    uint8_t backoff;
     double gsizex;
     double grtt;
 
     proto_tree_add_item(tree, hf_instance_id, tvb, offset, 2, ENC_BIG_ENDIAN); offset+=2;
-    grtt    = UnquantizeRtt(tvb_get_guint8(tvb, offset));
+    grtt    = UnquantizeRtt(tvb_get_uint8(tvb, offset));
     proto_tree_add_double(tree, hf_grtt, tvb, offset, 1, grtt); offset += 1;
-    backoff = hi_nibble(tvb_get_guint8(tvb, offset));
-    gsizex  = UnquantizeGSize((guint8)lo_nibble(tvb_get_guint8(tvb, offset)));
+    backoff = hi_nibble(tvb_get_uint8(tvb, offset));
+    gsizex  = UnquantizeGSize((uint8_t)lo_nibble(tvb_get_uint8(tvb, offset)));
     proto_tree_add_uint(tree, hf_backoff, tvb, offset, 1, backoff);
     proto_tree_add_double(tree, hf_gsize, tvb, offset, 1, gsizex);
     offset += 1;
@@ -234,11 +234,11 @@ static guint dissect_grrtetc(proto_tree *tree, tvbuff_t *tvb, guint offset)
 }
 
 /* split out some common FEC handling */
-static guint dissect_feccode(proto_tree *tree, tvbuff_t *tvb, guint offset,
-                             packet_info *pinfo, gint reserved)
+static unsigned dissect_feccode(proto_tree *tree, tvbuff_t *tvb, unsigned offset,
+                             packet_info *pinfo, int reserved)
 {
     norm_packet_data_t *norm_data;
-    guint8              encoding_id = tvb_get_guint8(tvb, offset);
+    uint8_t             encoding_id = tvb_get_uint8(tvb, offset);
 
     /* Save encoding ID */
     norm_data = wmem_new0(wmem_file_scope(), norm_packet_data_t);
@@ -268,8 +268,8 @@ static guint dissect_feccode(proto_tree *tree, tvbuff_t *tvb, guint offset,
     return offset;
 }
 
-static guint dissect_norm_hdrext(proto_tree *tree, packet_info *pinfo,
-                                 tvbuff_t *tvb, guint offset, guint8 hlen)
+static unsigned dissect_norm_hdrext(proto_tree *tree, packet_info *pinfo,
+                                 tvbuff_t *tvb, unsigned offset, uint8_t hlen)
 {
     lct_data_exchange_t  data_exchange;
     norm_packet_data_t  *packet_data = (norm_packet_data_t *)p_get_proto_data(wmem_file_scope(), pinfo, proto_rmt_norm, 0);
@@ -285,12 +285,12 @@ static guint dissect_norm_hdrext(proto_tree *tree, packet_info *pinfo,
     return offset;
 }
 
-static guint dissect_nack_data(proto_tree *tree, tvbuff_t *tvb, guint offset,
+static unsigned dissect_nack_data(proto_tree *tree, tvbuff_t *tvb, unsigned offset,
                                packet_info *pinfo)
 {
     proto_item *ti, *tif;
     proto_tree *nack_tree, *flag_tree;
-    guint16     len;
+    uint16_t    len;
 
     nack_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_nackdata, &ti, "NACK Data");
     proto_tree_add_item(nack_tree, hf_nack_form, tvb, offset, 1, ENC_BIG_ENDIAN); offset += 1;
@@ -314,16 +314,16 @@ static guint dissect_nack_data(proto_tree *tree, tvbuff_t *tvb, guint offset,
 
 /* code to dissect NORM data packets */
 static void dissect_norm_data(proto_tree *tree, packet_info *pinfo,
-                              tvbuff_t *tvb, guint offset, guint8 hlen)
+                              tvbuff_t *tvb, unsigned offset, uint8_t hlen)
 {
-    guint8      flags;
+    uint8_t     flags;
     proto_item *ti;
     proto_tree *flag_tree;
 
     offset = dissect_grrtetc(tree, tvb, offset);
 
     ti = proto_tree_add_item(tree, hf_flags, tvb, offset, 1, ENC_BIG_ENDIAN);
-    flags = tvb_get_guint8(tvb, offset);
+    flags = tvb_get_uint8(tvb, offset);
     flag_tree = proto_item_add_subtree(ti, ett_flags);
     proto_tree_add_item(flag_tree, hf_flag_repair,        tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(flag_tree, hf_flag_norm_explicit, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -351,7 +351,7 @@ static void dissect_norm_data(proto_tree *tree, packet_info *pinfo,
 }
 
 /* code to dissect NORM info packets */
-static void dissect_norm_info(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, guint offset, guint8 hlen)
+static void dissect_norm_info(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, unsigned offset, uint8_t hlen)
 {
     proto_item         *ti;
     proto_tree         *flag_tree;
@@ -372,7 +372,7 @@ static void dissect_norm_info(proto_tree *tree, packet_info *pinfo, tvbuff_t *tv
 
     /* Save encoding ID */
     norm_data = wmem_new0(wmem_file_scope(), norm_packet_data_t);
-    norm_data->encoding_id = tvb_get_guint8(tvb, offset);
+    norm_data->encoding_id = tvb_get_uint8(tvb, offset);
 
     p_add_proto_data(wmem_file_scope(), pinfo, proto_rmt_norm, 0, norm_data);
 
@@ -387,8 +387,8 @@ static void dissect_norm_info(proto_tree *tree, packet_info *pinfo, tvbuff_t *tv
 }
 
 /* code to dissect NORM cmd(flush) packets */
-static guint dissect_norm_cmd_flush(proto_tree *tree, packet_info *pinfo,
-                                    tvbuff_t *tvb, guint offset, guint8 hlen)
+static unsigned dissect_norm_cmd_flush(proto_tree *tree, packet_info *pinfo,
+                                    tvbuff_t *tvb, unsigned offset, uint8_t hlen)
 {
     offset = dissect_feccode(tree, tvb, offset, pinfo, 0);
     if (offset < hdrlen2bytes(hlen)) {
@@ -398,8 +398,8 @@ static guint dissect_norm_cmd_flush(proto_tree *tree, packet_info *pinfo,
 }
 
 /* code to dissect NORM cmd(flush) packets */
-static guint dissect_norm_cmd_repairadv(proto_tree *tree, packet_info *pinfo,
-                                        tvbuff_t *tvb, guint offset, guint8 hlen)
+static unsigned dissect_norm_cmd_repairadv(proto_tree *tree, packet_info *pinfo,
+                                        tvbuff_t *tvb, unsigned offset, uint8_t hlen)
 {
     proto_tree_add_item(tree, hf_flags,    tvb, offset, 1, ENC_BIG_ENDIAN); offset += 1;
     proto_tree_add_item(tree, hf_reserved, tvb, offset, 2, ENC_BIG_ENDIAN); offset += 2;
@@ -414,8 +414,8 @@ static guint dissect_norm_cmd_repairadv(proto_tree *tree, packet_info *pinfo,
 }
 
 /* code to dissect NORM cmd(cc) packets */
-static guint dissect_norm_cmd_cc(proto_tree *tree, packet_info *pinfo,
-                                 tvbuff_t *tvb, guint offset, guint8 hlen)
+static unsigned dissect_norm_cmd_cc(proto_tree *tree, packet_info *pinfo,
+                                 tvbuff_t *tvb, unsigned offset, uint8_t hlen)
 {
     proto_tree_add_item(tree, hf_reserved,    tvb, offset, 1, ENC_BIG_ENDIAN); offset += 1;
     proto_tree_add_item(tree, hf_cc_sequence, tvb, offset, 2, ENC_BIG_ENDIAN); offset += 2;
@@ -439,7 +439,7 @@ static guint dissect_norm_cmd_cc(proto_tree *tree, packet_info *pinfo,
         proto_tree_add_item(flag_tree, hf_cc_flags_start, tvb, offset, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(flag_tree, hf_cc_flags_leave, tvb, offset, 1, ENC_BIG_ENDIAN);
         offset += 1;
-        grtt = UnquantizeRtt(tvb_get_guint8(tvb, offset));
+        grtt = UnquantizeRtt(tvb_get_uint8(tvb, offset));
         proto_tree_add_double(cc_tree, hf_cc_rtt,  tvb, offset, 1, grtt); offset += 1;
         grtt = rmt_decode_send_rate(tvb_get_ntohs(tvb, offset));
         proto_tree_add_double(cc_tree, hf_cc_rate, tvb, offset, 2, grtt); offset += 2;
@@ -448,8 +448,8 @@ static guint dissect_norm_cmd_cc(proto_tree *tree, packet_info *pinfo,
 }
 
 /* code to dissect NORM cmd(squelch) packets */
-static guint dissect_norm_cmd_squelch(proto_tree *tree, packet_info *pinfo,
-                                      tvbuff_t *tvb, guint offset)
+static unsigned dissect_norm_cmd_squelch(proto_tree *tree, packet_info *pinfo,
+                                      tvbuff_t *tvb, unsigned offset)
 {
     offset = dissect_feccode(tree, tvb, offset, pinfo, 0);
 
@@ -460,8 +460,8 @@ static guint dissect_norm_cmd_squelch(proto_tree *tree, packet_info *pinfo,
 }
 
 /* code to dissect NORM cmd(squelch) packets */
-static guint dissect_norm_cmd_ackreq(proto_tree *tree, packet_info *pinfo _U_,
-                                     tvbuff_t *tvb, guint offset)
+static unsigned dissect_norm_cmd_ackreq(proto_tree *tree, packet_info *pinfo _U_,
+                                     tvbuff_t *tvb, unsigned offset)
 {
     proto_tree_add_item(tree, hf_reserved, tvb, offset, 1, ENC_BIG_ENDIAN); offset += 1;
     proto_tree_add_item(tree, hf_ack_type, tvb, offset, 1, ENC_BIG_ENDIAN); offset += 1;
@@ -471,12 +471,12 @@ static guint dissect_norm_cmd_ackreq(proto_tree *tree, packet_info *pinfo _U_,
 
 /* code to dissect NORM cmd packets */
 static void dissect_norm_cmd(proto_tree *tree, packet_info *pinfo,
-                             tvbuff_t *tvb, guint offset, guint8 hlen)
+                             tvbuff_t *tvb, unsigned offset, uint8_t hlen)
 {
-    guint8 flavor;
+    uint8_t flavor;
 
     offset = dissect_grrtetc(tree, tvb, offset);
-    flavor = tvb_get_guint8(tvb, offset);
+    flavor = tvb_get_uint8(tvb, offset);
 
     col_append_sep_str(pinfo->cinfo, COL_INFO, " ",
                        val_to_str(flavor, string_norm_cmd_type, "Unknown Cmd Type (0x%04x)"));
@@ -504,13 +504,13 @@ static void dissect_norm_cmd(proto_tree *tree, packet_info *pinfo,
 
 /* code to dissect NORM ack packets */
 static void dissect_norm_ack(proto_tree *tree, packet_info *pinfo,
-                             tvbuff_t *tvb, guint offset, guint8 hlen)
+                             tvbuff_t *tvb, unsigned offset, uint8_t hlen)
 {
-    guint8 acktype;
+    uint8_t acktype;
 
     proto_tree_add_item(tree, hf_ack_source,  tvb, offset, 4, ENC_BIG_ENDIAN); offset += 4;
     proto_tree_add_item(tree, hf_instance_id, tvb, offset, 2, ENC_BIG_ENDIAN); offset += 2;
-    acktype = tvb_get_guint8(tvb, offset);
+    acktype = tvb_get_uint8(tvb, offset);
 
     col_append_sep_str(pinfo->cinfo, COL_INFO, " ",
                        val_to_str(acktype, string_norm_ack_type, "Unknown Ack Type (0x%04x)"));
@@ -528,7 +528,7 @@ static void dissect_norm_ack(proto_tree *tree, packet_info *pinfo,
 
 /* code to dissect NORM nack packets */
 static void dissect_norm_nack(proto_tree *tree, packet_info *pinfo,
-                              tvbuff_t *tvb, guint offset, guint8 hlen)
+                              tvbuff_t *tvb, unsigned offset, uint8_t hlen)
 {
     proto_tree_add_item(tree, hf_nack_server,    tvb, offset, 4, ENC_BIG_ENDIAN); offset += 4;
     proto_tree_add_item(tree, hf_instance_id,    tvb, offset, 2, ENC_BIG_ENDIAN); offset += 2;
@@ -552,12 +552,12 @@ static int
 dissect_norm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     /* Logical packet representation */
-    guint8 version;
-    guint8 type;
-    guint8 hlen;
+    uint8_t version;
+    uint8_t type;
+    uint8_t hlen;
 
     /* Offset for subpacket dissection */
-    guint offset = 0;
+    unsigned offset = 0;
 
     /* Set up structures needed to add the protocol subtree and manage it */
     proto_item *ti;
@@ -570,7 +570,7 @@ dissect_norm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
     /* NORM header dissection, part 1 */
     /* ------------------------------ */
 
-    version = hi_nibble(tvb_get_guint8(tvb, offset));
+    version = hi_nibble(tvb_get_uint8(tvb, offset));
 
     /* Create subtree for the NORM protocol */
     ti = proto_tree_add_item(tree, proto_rmt_norm, tvb, offset, -1, ENC_NA);
@@ -593,8 +593,8 @@ dissect_norm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
     /* NORM header dissection, part 2 */
     /* ------------------------------ */
 
-    type = lo_nibble(tvb_get_guint8(tvb, offset));
-    hlen = tvb_get_guint8(tvb, offset+1);
+    type = lo_nibble(tvb_get_uint8(tvb, offset));
+    hlen = tvb_get_uint8(tvb, offset+1);
 
     if (tree) {
         proto_tree_add_uint(norm_tree, hf_type, tvb, offset, 1, type);
@@ -638,21 +638,21 @@ dissect_norm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
     return tvb_reported_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_norm_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    guint8 byte1;
+    uint8_t byte1;
 
     if (tvb_reported_length(tvb) < 12)
-        return FALSE;  /* not enough to check */
-    byte1 = tvb_get_guint8(tvb, 0);
+        return false;  /* not enough to check */
+    byte1 = tvb_get_uint8(tvb, 0);
 
-    if (hi_nibble(byte1) != 1) return FALSE;
-    if (lo_nibble(byte1) < 1 || lo_nibble(byte1) > 6) return FALSE;
-    if (tvb_get_guint8(tvb, 1) > 20) return FALSE;
+    if (hi_nibble(byte1) != 1) return false;
+    if (lo_nibble(byte1) < 1 || lo_nibble(byte1) > 6) return false;
+    if (tvb_get_uint8(tvb, 1) > 20) return false;
 
     dissect_norm(tvb, pinfo, tree, data);
-    return TRUE; /* appears to be a NORM packet */
+    return true; /* appears to be a NORM packet */
 }
 
 void proto_register_norm(void)
@@ -931,7 +931,7 @@ void proto_register_norm(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_main,
         &ett_hdrext,
         &ett_flags,

@@ -11,11 +11,13 @@
 #define DFVM_H
 
 #include <wsutil/regex.h>
-#include <epan/proto.h>
 #include "dfilter-int.h"
 #include "syntax-tree.h"
 #include "drange.h"
 #include "dfunctions.h"
+
+#define ASSERT_DFVM_OP_NOT_REACHED(op) \
+	ws_error("Invalid dfvm opcode '%s'.", dfvm_opcode_tostr(op))
 
 typedef enum {
 	EMPTY,
@@ -27,7 +29,7 @@ typedef enum {
 	INTEGER,
 	DRANGE,
 	FUNCTION_DEF,
-	PCRE
+	PCRE,
 } dfvm_value_type_t;
 
 typedef struct {
@@ -35,7 +37,7 @@ typedef struct {
 
 	union {
 		GPtrArray		*fvalue_p; /* Always has length == 1 */
-		uint32_t			numeric;
+		uint32_t		numeric;
 		drange_t		*drange;
 		header_field_info	*hfinfo;
 		df_func_def_t		*funcdef;
@@ -48,7 +50,7 @@ typedef struct {
 #define dfvm_value_get_fvalue(val) ((val)->value.fvalue_p->pdata[0])
 
 typedef enum {
-
+	DFVM_NULL,	/* Null/invalid opcode */
 	DFVM_IF_TRUE_GOTO,
 	DFVM_IF_FALSE_GOTO,
 	DFVM_CHECK_EXISTS,
@@ -85,6 +87,7 @@ typedef enum {
 	DFVM_SET_CLEAR,
 	DFVM_SLICE,
 	DFVM_LENGTH,
+	DFVM_VALUE_STRING,
 	DFVM_BITWISE_AND,
 	DFVM_UNARY_MINUS,
 	DFVM_ADD,
@@ -96,6 +99,7 @@ typedef enum {
 	DFVM_STACK_PUSH,
 	DFVM_STACK_POP,
 	DFVM_NOT_ALL_ZERO,
+	DFVM_NO_OP,
 } dfvm_opcode_t;
 
 const char *
@@ -111,6 +115,9 @@ typedef struct {
 
 dfvm_insn_t*
 dfvm_insn_new(dfvm_opcode_t op);
+
+void
+dfvm_insn_replace_no_op(dfvm_insn_t *insn);
 
 void
 dfvm_insn_free(dfvm_insn_t *insn);
@@ -143,7 +150,7 @@ dfvm_value_t*
 dfvm_value_new_pcre(ws_regex_t *re);
 
 dfvm_value_t*
-dfvm_value_new_guint(unsigned num);
+dfvm_value_new_uint(unsigned num);
 
 void
 dfvm_dump(FILE *f, dfilter_t *df, uint16_t flags);
@@ -153,6 +160,9 @@ dfvm_dump_str(wmem_allocator_t *alloc, dfilter_t *df,  uint16_t flags);
 
 bool
 dfvm_apply(dfilter_t *df, proto_tree *tree);
+
+bool
+dfvm_apply_full(dfilter_t *df, proto_tree *tree, GPtrArray **fvals);
 
 fvalue_t *
 dfvm_get_raw_fvalue(const field_info *fi);

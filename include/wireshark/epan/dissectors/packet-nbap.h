@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-nbap.h                                                              */
-/* asn2wrs.py -L -p nbap -c ./nbap.cnf -s ./packet-nbap-template -D . -O ../.. NBAP-CommonDataTypes.asn NBAP-Constants.asn NBAP-Containers.asn NBAP-IEs.asn NBAP-PDU-Contents.asn NBAP-PDU-Descriptions.asn */
+/* asn2wrs.py -q -L -p nbap -c ./nbap.cnf -s ./packet-nbap-template -D . -O ../.. NBAP-CommonDataTypes.asn NBAP-Constants.asn NBAP-Containers.asn NBAP-IEs.asn NBAP-PDU-Contents.asn NBAP-PDU-Descriptions.asn */
 
 /* packet-nbap-template.h
  *
@@ -25,10 +25,10 @@
 
 /*Array are indexed on logical channel id, meaning they need to be defined for 1-15*/
 /* Mapping from logical channel id to MAC content type ie. DCCH or DTCH*/
-extern guint8 lchId_type_table[];
+extern uint8_t lchId_type_table[];
 
 /* Mapping logicalchannel id to RLC_MODE */
-extern guint8 lchId_rlc_map[];
+extern uint8_t lchId_rlc_map[];
 
 /* Mapping Scrambling Codes to C-RNC Contexts */
 extern wmem_tree_t *nbap_scrambling_code_crncc_map;

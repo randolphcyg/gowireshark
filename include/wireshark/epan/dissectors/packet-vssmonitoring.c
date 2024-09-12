@@ -37,29 +37,29 @@ static const value_string clksrc_vals[] = {
 void proto_register_vssmonitoring(void);
 void proto_reg_handoff_vssmonitoring(void);
 
-static int proto_vssmonitoring = -1;
+static int proto_vssmonitoring;
 
-static int hf_vssmonitoring_time = -1;
-static int hf_vssmonitoring_clksrc = -1;
-static int hf_vssmonitoring_srcport = -1;
+static int hf_vssmonitoring_time;
+static int hf_vssmonitoring_clksrc;
+static int hf_vssmonitoring_srcport;
 
-static gint ett_vssmonitoring = -1;
+static int ett_vssmonitoring;
 
-static gboolean vss_dissect_portstamping_only = FALSE;
-static gboolean vss_two_byte_portstamps = FALSE;
+static bool vss_dissect_portstamping_only;
+static bool vss_two_byte_portstamps;
 
-static int
+static bool
 dissect_vssmonitoring(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   proto_tree    *ti = NULL;
   proto_tree    *vssmonitoring_tree = NULL;
-  guint         offset = 0;
+  unsigned      offset = 0;
 
-  guint         trailer_len;
-  guint         portstamp_len = (vss_two_byte_portstamps) ? 2 : 1;
+  unsigned      trailer_len;
+  unsigned      portstamp_len = (vss_two_byte_portstamps) ? 2 : 1;
   nstime_t      vssmonitoring_time;
-  guint8        vssmonitoring_clksrc = 0;
-  guint32       vssmonitoring_srcport = 0;
+  uint8_t       vssmonitoring_clksrc = 0;
+  uint32_t      vssmonitoring_srcport = 0;
 
   struct tm     *tmp;
 
@@ -120,10 +120,10 @@ dissect_vssmonitoring(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
    *    it has no timestamp).
    */
   if ( trailer_len > 12 + portstamp_len )
-    return 0;
+    return false;
 
   if ( (trailer_len & 3) != 0 && (trailer_len & 3) != portstamp_len )
-    return 0;
+    return false;
 
   /*
    * If we have a time stamp, check it for validity.
@@ -131,7 +131,7 @@ dissect_vssmonitoring(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
   if ( trailer_len >= 8 ) {
     vssmonitoring_time.secs  = tvb_get_ntohl(tvb, offset);
     vssmonitoring_time.nsecs = tvb_get_ntohl(tvb, offset + 4);
-    vssmonitoring_clksrc     = (guint8)(((guint32)vssmonitoring_time.nsecs) >> CLKSRC_SHIFT);
+    vssmonitoring_clksrc     = (uint8_t)(((uint32_t)vssmonitoring_time.nsecs) >> CLKSRC_SHIFT);
     vssmonitoring_time.nsecs &= VSS_NS_MASK;
 
       /* Probably padding passed to this dissector (e.g., a 802.1Q tagged
@@ -140,7 +140,7 @@ dissect_vssmonitoring(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
        * FIXME: Should be made even stricter.
        */
       if (vssmonitoring_time.secs == 0)
-        return 0;
+        return false;
       /* The timestamp will be based on the uptime until the TAP is completely
        * booted, this takes about 60s, but use 1 hour to be sure
        */
@@ -152,17 +152,17 @@ dissect_vssmonitoring(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
          */
         if ( vssmonitoring_time.secs > pinfo->abs_ts.secs ) {
           if ( vssmonitoring_time.secs - pinfo->abs_ts.secs > 2592000 ) /* 30 days */
-            return 0;
+            return false;
         } else {
           if ( pinfo->abs_ts.secs - vssmonitoring_time.secs > 2592000 ) /* 30 days */
-            return 0;
+            return false;
         }
       }
 
       /* The nanoseconds field should be less than 1000000000
        */
       if ( vssmonitoring_time.nsecs >= 1000000000 )
-        return 0;
+        return false;
   } else if (!vss_dissect_portstamping_only || (trailer_len & 3) == 0) {
     /* No timestamp, so we need a port stamp and be willing to accept
      * packets with port stamping but not time stamping.
@@ -172,7 +172,7 @@ dissect_vssmonitoring(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
      * padding can be misinterpreted as a VSS monitoring trailer, among
      * other false positives, so we disable that by default.
      */
-    return 0;
+    return false;
   }
 
   /* All systems are go, lets dissect the VSS-Monitoring trailer */
@@ -204,10 +204,10 @@ dissect_vssmonitoring(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
       proto_tree_add_item_ret_uint(vssmonitoring_tree, hf_vssmonitoring_srcport, tvb, offset, portstamp_len, ENC_BIG_ENDIAN, &vssmonitoring_srcport);
       proto_item_append_text(ti, ", Source Port: %d", vssmonitoring_srcport);
     }
-    offset += portstamp_len;
+    /*offset += portstamp_len;*/
   }
 
-  return offset;
+  return true;
 }
 
 void
@@ -230,7 +230,7 @@ proto_register_vssmonitoring(void)
         "VSS Monitoring Source Port", HFILL }}
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_vssmonitoring
   };
 

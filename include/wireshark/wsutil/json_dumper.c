@@ -11,13 +11,15 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#include "config.h"
+#define WS_LOG_DOMAIN LOG_DOMAIN_WSUTIL
+
 #include <glib.h>
 
 #include "json_dumper.h"
-#define WS_LOG_DOMAIN LOG_DOMAIN_WSUTIL
-
 #include <math.h>
 
+#include <wsutil/array.h>
 #include <wsutil/wslog.h>
 
 /*
@@ -49,7 +51,7 @@ static const char *json_dumper_element_type_names[] = {
     [JSON_DUMPER_TYPE_ARRAY] = "array",
     [JSON_DUMPER_TYPE_BASE64] = "base64"
 };
-#define NUM_JSON_DUMPER_ELEMENT_TYPE_NAMES (sizeof json_dumper_element_type_names / sizeof json_dumper_element_type_names[0])
+#define NUM_JSON_DUMPER_ELEMENT_TYPE_NAMES array_length(json_dumper_element_type_names)
 
 #define JSON_DUMPER_FLAGS_ERROR     (1 << 16)   /* Output flag: an error occurred. */
 
@@ -414,7 +416,7 @@ json_dumper_end_nested_element(json_dumper *dumper, enum json_dumper_element_typ
             break;
         }
         default:
-            json_dumper_bad(dumper, "endning unknown nested element type");
+            json_dumper_bad(dumper, "ending unknown nested element type");
             return false;
     }
 

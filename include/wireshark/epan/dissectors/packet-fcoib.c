@@ -76,32 +76,32 @@ static const value_string fcoib_sof_vals[] = {
     {0, NULL}
 };
 
-static int proto_fcoib          = -1;
-static int hf_fcoib_ver         = -1;
-static int hf_fcoib_sig         = -1;
-static int hf_fcoib_sof         = -1;
-static int hf_fcoib_eof         = -1;
-static int hf_fcoib_crc         = -1;
-static int hf_fcoib_crc_status  = -1;
+static int proto_fcoib;
+static int hf_fcoib_ver;
+static int hf_fcoib_sig;
+static int hf_fcoib_sof;
+static int hf_fcoib_eof;
+static int hf_fcoib_crc;
+static int hf_fcoib_crc_status;
 
-static int ett_fcoib            = -1;
+static int ett_fcoib;
 
-static expert_field ei_fcoib_crc = EI_INIT;
+static expert_field ei_fcoib_crc;
 
 static dissector_handle_t fc_handle;
 
 static int
 dissect_fcoib(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    gint        crc_offset;
-    gint        eof_offset;
-    gint        sof_offset;
-    gint        frame_len;
-    guint       version;
+    int         crc_offset;
+    int         eof_offset;
+    int         sof_offset;
+    int         frame_len;
+    unsigned    version;
     const char *ver;
-    guint8      sof          = 0;
-    guint8      eof          = 0;
-    guint8      sig          = 0;
+    uint8_t     sof          = 0;
+    uint8_t     eof          = 0;
+    uint8_t     sig          = 0;
     const char *eof_str;
     const char *sof_str;
     const char *crc_msg;
@@ -109,9 +109,9 @@ dissect_fcoib(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
     proto_item *ti;
     proto_tree *fcoib_tree;
     tvbuff_t   *next_tvb;
-    gboolean    crc_exists;
-    guint32     crc_computed = 0;
-    guint32     crc          = 0;
+    bool        crc_exists;
+    uint32_t    crc_computed = 0;
+    uint32_t    crc          = 0;
     fc_data_t   fc_data;
 
     frame_len = tvb_reported_length_remaining(tvb, 0) -
@@ -131,22 +131,22 @@ dissect_fcoib(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
      * Don't print the version in the short summary if it is zero.
      */
     ver = "";
-    version = tvb_get_guint8(tvb, 0 + FCOIB_VER_OFFSET) >> 4;
+    version = tvb_get_uint8(tvb, 0 + FCOIB_VER_OFFSET) >> 4;
     if (version != 0)
         ver = wmem_strdup_printf(pinfo->pool, ver, "ver %d ", version);
 
     if (tvb_bytes_exist(tvb, 0, 1))
-        sig = tvb_get_guint8(tvb, 0) >> 6;
+        sig = tvb_get_uint8(tvb, 0) >> 6;
 
     eof_str = "none";
     if (tvb_bytes_exist(tvb, eof_offset, 1)) {
-        eof = tvb_get_guint8(tvb, eof_offset);
+        eof = tvb_get_uint8(tvb, eof_offset);
         eof_str = val_to_str(eof, fcoib_eof_vals, "0x%x");
     }
 
     sof_str = "none";
     if (tvb_bytes_exist(tvb, sof_offset, 1)) {
-        sof = tvb_get_guint8(tvb, sof_offset);
+        sof = tvb_get_uint8(tvb, sof_offset);
         sof_str = val_to_str(sof, fcoib_sof_vals, "0x%x");
     }
 
@@ -226,16 +226,16 @@ dissect_fcoib(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
     return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_fcoib_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    gint        crc_offset;
-    gint        eof_offset;
-    gint        sof_offset;
-    gint        frame_len;
-    guint8      sof          = 0;
-    guint8      eof          = 0;
-    guint8      sig          = 0;
+    int         crc_offset;
+    int         eof_offset;
+    int         sof_offset;
+    int         frame_len;
+    uint8_t     sof          = 0;
+    uint8_t     eof          = 0;
+    uint8_t     sig          = 0;
 
     frame_len = tvb_reported_length_remaining(tvb, 0) -
       FCOIB_HEADER_LEN - FCOIB_TRAILER_LEN;
@@ -244,28 +244,28 @@ dissect_fcoib_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
     sof_offset = FCOIB_HEADER_LEN - 1;
 
     if (frame_len <= 0)
-        return FALSE;   /* this packet isn't even long enough to contain the header+trailer w/o FC payload! */
+        return false;   /* this packet isn't even long enough to contain the header+trailer w/o FC payload! */
 
     /* we start off with some basic heuristics checks to make sure this could be a FCoIB packet */
 
     if (tvb_bytes_exist(tvb, 0, 1))
-        sig = tvb_get_guint8(tvb, 0) >> 6;
+        sig = tvb_get_uint8(tvb, 0) >> 6;
     if (tvb_bytes_exist(tvb, eof_offset, 1))
-        eof = tvb_get_guint8(tvb, eof_offset);
+        eof = tvb_get_uint8(tvb, eof_offset);
     if (tvb_bytes_exist(tvb, sof_offset, 1))
-        sof = tvb_get_guint8(tvb, sof_offset);
+        sof = tvb_get_uint8(tvb, sof_offset);
 
     if (sig != 1)
-        return FALSE;   /* the sig field in the FCoIB Encap. header MUST be 2'b01*/
+        return false;   /* the sig field in the FCoIB Encap. header MUST be 2'b01*/
     if (!tvb_bytes_exist(tvb, eof_offset + 1, 3) || tvb_get_ntoh24(tvb, eof_offset + 1) != 0)
-        return FALSE;   /* 3 bytes of RESERVED field immediately after eEOF MUST be 0 */
+        return false;   /* 3 bytes of RESERVED field immediately after eEOF MUST be 0 */
     if (!try_val_to_str(sof, fcoib_sof_vals))
-        return FALSE;   /* invalid value for SOF */
+        return false;   /* invalid value for SOF */
     if (!try_val_to_str(eof, fcoib_eof_vals))
-        return FALSE;   /* invalid value for EOF */
+        return false;   /* invalid value for EOF */
 
     dissect_fcoib(tvb, pinfo, tree, data);
-    return TRUE;
+    return true;
 }
 
 void
@@ -291,7 +291,7 @@ proto_register_fcoib(void)
           {"CRC Status", "fcoib.crc.status", FT_UINT8, BASE_NONE, VALS(proto_checksum_vals), 0x0,
            NULL, HFILL }},
     };
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_fcoib,
     };
 

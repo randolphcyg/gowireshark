@@ -59,24 +59,27 @@
 #define NETLOGON_NETRGETFORESTTRUSTINFORMATION		0x2c
 #define NETLOGON_NETRLOGONSAMLOGONWITHFLAGS		0x2d
 #define NETLOGON_NETRSERVERGETTRUSTINFO			0x2e
+#define NETLOGON_DSRUPDATEREADONLYSERVERDNSRECORDS	0x30
+#define NETLOGON_NETRCHAINSETCLIENTATTRIBUTES		0x36 /* This is documented as 49 (0x31) but it's 54) */
+#define NETLOGON_NETRSERVERAUTHENTICATEKERBEROS		0x3B
 
 
 /* needed to decrypt PAC_LOGON_INFO in kerberos */
 int
 netlogon_dissect_PAC_LOGON_INFO(tvbuff_t *tvb, int offset,
 			packet_info *pinfo, proto_tree *tree,
-			dcerpc_info *di, guint8 *drep);
+			dcerpc_info *di, uint8_t *drep);
 
 /* needed to decrypt PAC_S4U_DELEGATION_INFO in kerberos */
 int
 netlogon_dissect_PAC_S4U_DELEGATION_INFO(tvbuff_t *tvb, int offset,
 			packet_info *pinfo, proto_tree *tree,
-			dcerpc_info *di, guint8 *drep);
+			dcerpc_info *di, uint8_t *drep);
 
 /* needed to decrypt PAC_DEVICE_INFO in kerberos */
 int
 netlogon_dissect_PAC_DEVICE_INFO(tvbuff_t *tvb, int offset,
 			packet_info *pinfo, proto_tree *tree,
-			dcerpc_info *di, guint8 *drep);
+			dcerpc_info *di, uint8_t *drep);
 
 #endif /* packet-dcerpc-netlogon.h */

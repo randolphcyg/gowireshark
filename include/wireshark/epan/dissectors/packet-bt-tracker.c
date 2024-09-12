@@ -15,6 +15,7 @@
 #include <epan/conversation.h>
 #include <epan/to_str.h>
 #include <epan/prefs.h>
+#include <epan/unit_strings.h>
 
 void proto_register_bt_tracker(void);
 void proto_reg_handoff_bt_tracker(void);
@@ -84,47 +85,47 @@ static const value_string bt_tracker_extension_type_vals[] = {
   { 0, NULL }
 };
 
-static int proto_bt_tracker = -1;
+static int proto_bt_tracker;
 static dissector_handle_t bt_tracker_handle;
 
-static int hf_bt_tracker_msg_type = -1;
-static int hf_bt_tracker_protocol_id = -1;
-static int hf_bt_tracker_action = -1;
-static int hf_bt_tracker_transaction_id = -1;
-static int hf_bt_tracker_connection_id = -1;
-static int hf_bt_tracker_info_hash = -1;
-static int hf_bt_tracker_peer_id = -1;
-static int hf_bt_tracker_downloaded = -1;
-static int hf_bt_tracker_left = -1;
-static int hf_bt_tracker_uploaded = -1;
-static int hf_bt_tracker_event = -1;
-static int hf_bt_tracker_ip_address = -1;
-static int hf_bt_tracker_key = -1;
-static int hf_bt_tracker_num_want = -1;
-static int hf_bt_tracker_port = -1;
-static int hf_bt_tracker_interval = -1;
-static int hf_bt_tracker_leechers = -1;
-static int hf_bt_tracker_seeders = -1;
-static int hf_bt_tracker_trackers = -1;
-static int hf_bt_tracker_tracker = -1;
-static int hf_bt_tracker_tr_ip = -1;
-static int hf_bt_tracker_tr_ip6 = -1;
-static int hf_bt_tracker_tr_port = -1;
-static int hf_bt_tracker_completed = -1;
-static int hf_bt_tracker_error_msg = -1;
-static int hf_bt_tracker_extension = -1;
-static int hf_bt_tracker_extension_type = -1;
-static int hf_bt_tracker_extension_len = -1;
-static int hf_bt_tracker_extension_unknown = -1;
-static int hf_bt_tracker_extension_urldata = -1;
+static int hf_bt_tracker_msg_type;
+static int hf_bt_tracker_protocol_id;
+static int hf_bt_tracker_action;
+static int hf_bt_tracker_transaction_id;
+static int hf_bt_tracker_connection_id;
+static int hf_bt_tracker_info_hash;
+static int hf_bt_tracker_peer_id;
+static int hf_bt_tracker_downloaded;
+static int hf_bt_tracker_left;
+static int hf_bt_tracker_uploaded;
+static int hf_bt_tracker_event;
+static int hf_bt_tracker_ip_address;
+static int hf_bt_tracker_key;
+static int hf_bt_tracker_num_want;
+static int hf_bt_tracker_port;
+static int hf_bt_tracker_interval;
+static int hf_bt_tracker_leechers;
+static int hf_bt_tracker_seeders;
+static int hf_bt_tracker_trackers;
+static int hf_bt_tracker_tracker;
+static int hf_bt_tracker_tr_ip;
+static int hf_bt_tracker_tr_ip6;
+static int hf_bt_tracker_tr_port;
+static int hf_bt_tracker_completed;
+static int hf_bt_tracker_error_msg;
+static int hf_bt_tracker_extension;
+static int hf_bt_tracker_extension_type;
+static int hf_bt_tracker_extension_len;
+static int hf_bt_tracker_extension_unknown;
+static int hf_bt_tracker_extension_urldata;
 
-static gint ett_bt_tracker = -1;
-static gint ett_bt_tracker_trackers = -1;
-static gint ett_bt_tracker_extension = -1;
+static int ett_bt_tracker;
+static int ett_bt_tracker_trackers;
+static int ett_bt_tracker_extension;
 
 #define MAGIC_CONSTANT 0x41727101980
 
-static guint
+static unsigned
 get_message_type(tvbuff_t *tvb)
 {
   if (tvb_get_ntoh64(tvb, 0) == MAGIC_CONSTANT &&
@@ -146,11 +147,11 @@ get_message_type(tvbuff_t *tvb)
   return MSG_TYPE_UNKNOWN;
 }
 
-static gboolean
+static bool
 is_ipv4_format(packet_info *pinfo)
 {
   wmem_list_frame_t *cur;
-  gint cur_proto;
+  int cur_proto;
   const char *cur_name;
 
   /* Format of Announce Response message depends on IPv4 vs IPv6
@@ -161,31 +162,31 @@ is_ipv4_format(packet_info *pinfo)
 
   cur = wmem_list_frame_prev(wmem_list_tail(pinfo->layers));
   while (cur != NULL) {
-    cur_proto = (gint)GPOINTER_TO_UINT(wmem_list_frame_data(cur));
+    cur_proto = (int)GPOINTER_TO_UINT(wmem_list_frame_data(cur));
     cur_name = proto_get_protocol_filter_name(cur_proto);
     if (!strcmp(cur_name, "ip"))
-      return TRUE;
+      return true;
     if (!strcmp(cur_name, "ipv6"))
-      return FALSE;
+      return false;
     cur = wmem_list_frame_prev(cur);
   }
-  return TRUE;
+  return true;
 }
 static int
 dissect_bt_tracker_extension(tvbuff_t *tvb, packet_info _U_*pinfo, proto_tree *tree, int offset)
 {
   proto_item *ti;
   proto_tree *ext_tree;
-  guint8 extension_type;
-  guint32 extension_length;
-  gint32 tot_length;
+  uint8_t extension_type;
+  uint32_t extension_length;
+  int32_t tot_length;
 
   while (offset < (int)tvb_reported_length(tvb)) {
-    extension_type = tvb_get_guint8(tvb, offset);
+    extension_type = tvb_get_uint8(tvb, offset);
 
     tot_length = 1;
     if (extension_type == EXT_URLDATA) {
-      tot_length += 1 + tvb_get_guint8(tvb, offset + 1);
+      tot_length += 1 + tvb_get_uint8(tvb, offset + 1);
     } else if (extension_type >= EXT_MAX) {
       tot_length = -1;
     }
@@ -218,13 +219,13 @@ dissect_bt_tracker_extension(tvbuff_t *tvb, packet_info _U_*pinfo, proto_tree *t
 }
 
 static int
-dissect_bt_tracker_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint offset, guint msg_type)
+dissect_bt_tracker_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, unsigned msg_type)
 {
-  guint node_index = 0;
-  gint stride_length;
+  unsigned node_index = 0;
+  int stride_length;
   proto_item *ti;
   proto_tree *sub_tree;
-  gboolean is_ipv6;
+  bool is_ipv6;
 
   ti = proto_tree_add_uint(tree, hf_bt_tracker_msg_type, tvb, 0, 0, msg_type);
   proto_item_set_generated(ti);
@@ -386,7 +387,7 @@ dissect_bt_tracker_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guin
 static int
 dissect_bt_tracker(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  guint msg_type;
+  unsigned msg_type;
   proto_item *ti;
   proto_tree *sub_tree;
 
@@ -404,24 +405,24 @@ dissect_bt_tracker(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 }
 
 
-static gboolean
-dissect_bt_tracker_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
+static bool
+dissect_bt_tracker_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   conversation_t *conversation;
 
   /* Look for a Connect Request */
   if (tvb_captured_length_remaining(tvb, 0) < 16)
-    return FALSE;
+    return false;
   if (tvb_get_ntoh64(tvb, 0) != MAGIC_CONSTANT)
-    return FALSE;
+    return false;
   if (tvb_get_ntohl(tvb, 8) != ACTION_CONNECT)
-    return FALSE;
+    return false;
 
   conversation = find_or_create_conversation(pinfo);
   conversation_set_dissector_from_frame_number(conversation, pinfo->num, bt_tracker_handle);
 
   dissect_bt_tracker(tvb, pinfo, tree, data);
-  return TRUE;
+  return true;
 }
 
 void
@@ -565,7 +566,7 @@ proto_register_bt_tracker(void)
     },
     { &hf_bt_tracker_extension_len,
       { "Extension Length", "bt-tracker.extension_len",
-      FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0,
+      FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0,
       NULL, HFILL }
     },
     { &hf_bt_tracker_extension_unknown,
@@ -581,7 +582,7 @@ proto_register_bt_tracker(void)
   };
 
   /* Setup protocol subtree array */
-  static gint *ett[] = { &ett_bt_tracker, &ett_bt_tracker_trackers, &ett_bt_tracker_extension};
+  static int *ett[] = { &ett_bt_tracker, &ett_bt_tracker_trackers, &ett_bt_tracker_extension};
   module_t *bt_tracker_module;
 
   /* Register protocol */

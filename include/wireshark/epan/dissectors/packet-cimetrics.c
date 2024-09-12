@@ -28,12 +28,12 @@ static const value_string cimetrics_pid_vals[] = {
 	{ 0,		NULL }
 };
 
-static int proto_cimetrics_mstp = -1;
-static int hf_llc_cimetrics_pid = -1;
-static gint ett_cimetrics_mstp = -1;
+static int proto_cimetrics_mstp;
+static int hf_llc_cimetrics_pid;
+static int ett_cimetrics_mstp;
 
-static int hf_cimetrics_mstp_timer = -1;
-static int hf_cimetrics_mstp_value = -1;
+static int hf_cimetrics_mstp_timer;
+static int hf_cimetrics_mstp_value;
 
 static dissector_handle_t cimetric_handle;
 
@@ -42,17 +42,17 @@ dissect_cimetrics_mstp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
 {
 	proto_item *ti;
 	proto_tree *subtree;
-	gint offset = 0;
+	int offset = 0;
 #ifdef BACNET_MSTP_SUMMARY_IN_TREE
-	guint8 mstp_frame_type = 0;
-	guint8 mstp_frame_source = 0;
-	guint8 mstp_frame_destination = 0;
+	uint8_t mstp_frame_type = 0;
+	uint8_t mstp_frame_source = 0;
+	uint8_t mstp_frame_destination = 0;
 #endif
 
 #ifdef BACNET_MSTP_SUMMARY_IN_TREE
-	mstp_frame_type = tvb_get_guint8(tvb, offset+3);
-	mstp_frame_destination = tvb_get_guint8(tvb, offset+4);
-	mstp_frame_source = tvb_get_guint8(tvb, offset+5);
+	mstp_frame_type = tvb_get_uint8(tvb, offset+3);
+	mstp_frame_destination = tvb_get_uint8(tvb, offset+4);
+	mstp_frame_source = tvb_get_uint8(tvb, offset+5);
 	ti = proto_tree_add_protocol_format(tree,
 		proto_cimetrics_mstp, tvb, offset, 9,
 		"BACnet MS/TP, Src (%u), Dst (%u), %s",
@@ -83,7 +83,7 @@ proto_register_cimetrics(void)
 		{ &hf_cimetrics_mstp_value,
 		  { "8-bit value", "cimetrics.mstp_value",
 		    FT_UINT8, BASE_DEC, NULL, 0,
-		    "value", HFILL }
+		    NULL, HFILL }
 		}
 	};
 	static hf_register_info hf2[] = {
@@ -93,7 +93,7 @@ proto_register_cimetrics(void)
 		    NULL, HFILL }
 		}
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_cimetrics_mstp
 	};
 

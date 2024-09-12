@@ -14,61 +14,63 @@
 #include <epan/packet.h>
 #include <epan/to_str.h>
 #include <epan/expert.h>
+#include <epan/unit_strings.h>
 
+#include <wsutil/array.h>
 void proto_register_trmac(void);
 
-static int proto_trmac = -1;
-static int hf_trmac_mv = -1;
-static int hf_trmac_length = -1;
-static int hf_trmac_srcclass = -1;
-static int hf_trmac_dstclass = -1;
-static int hf_trmac_sv_len = -1;
-static int hf_trmac_sv_id = -1;
-static int hf_trmac_errors_iso = -1;
-static int hf_trmac_errors_line = -1;
-static int hf_trmac_errors_internal = -1;
-static int hf_trmac_errors_burst = -1;
-static int hf_trmac_errors_ac = -1;
-static int hf_trmac_errors_abort = -1;
-static int hf_trmac_errors_noniso = -1;
-static int hf_trmac_errors_lost = -1;
-static int hf_trmac_errors_congestion = -1;
-static int hf_trmac_errors_fc = -1;
-static int hf_trmac_errors_freq = -1;
-static int hf_trmac_errors_token = -1;
-static int hf_trmac_naun = -1;
-static int hf_trmac_beacon_type = -1;
-static int hf_trmac_assign_physical_drop_number = -1;
-static int hf_trmac_error_code = -1;
-static int hf_trmac_group_address32 = -1;
-static int hf_trmac_transmit_status_code = -1;
-static int hf_trmac_station_identifier = -1;
-static int hf_trmac_sa_of_last_amp_or_smp_frame = -1;
-static int hf_trmac_error_report_timer_value = -1;
-static int hf_trmac_individual_address_count = -1;
-static int hf_trmac_correlator = -1;
-static int hf_trmac_group_address_ether = -1;
-static int hf_trmac_authorized_access_priority = -1;
-static int hf_trmac_physical_drop_number = -1;
-static int hf_trmac_authorized_function_classes = -1;
-static int hf_trmac_local_ring_number = -1;
-static int hf_trmac_functional_addresses = -1;
+static int proto_trmac;
+static int hf_trmac_mv;
+static int hf_trmac_length;
+static int hf_trmac_srcclass;
+static int hf_trmac_dstclass;
+static int hf_trmac_sv_len;
+static int hf_trmac_sv_id;
+static int hf_trmac_errors_iso;
+static int hf_trmac_errors_line;
+static int hf_trmac_errors_internal;
+static int hf_trmac_errors_burst;
+static int hf_trmac_errors_ac;
+static int hf_trmac_errors_abort;
+static int hf_trmac_errors_noniso;
+static int hf_trmac_errors_lost;
+static int hf_trmac_errors_congestion;
+static int hf_trmac_errors_fc;
+static int hf_trmac_errors_freq;
+static int hf_trmac_errors_token;
+static int hf_trmac_naun;
+static int hf_trmac_beacon_type;
+static int hf_trmac_assign_physical_drop_number;
+static int hf_trmac_error_code;
+static int hf_trmac_group_address32;
+static int hf_trmac_transmit_status_code;
+static int hf_trmac_station_identifier;
+static int hf_trmac_sa_of_last_amp_or_smp_frame;
+static int hf_trmac_error_report_timer_value;
+static int hf_trmac_individual_address_count;
+static int hf_trmac_correlator;
+static int hf_trmac_group_address_ether;
+static int hf_trmac_authorized_access_priority;
+static int hf_trmac_physical_drop_number;
+static int hf_trmac_authorized_function_classes;
+static int hf_trmac_local_ring_number;
+static int hf_trmac_functional_addresses;
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_trmac_unknown_subvector = -1;
-static int hf_trmac_response_code48 = -1;
-static int hf_trmac_product_instance_id = -1;
-static int hf_trmac_ring_station_version_number = -1;
-static int hf_trmac_wrap_data = -1;
-static int hf_trmac_ring_station_status = -1;
-static int hf_trmac_frame_forward = -1;
-static int hf_trmac_response_code32 = -1;
+static int hf_trmac_unknown_subvector;
+static int hf_trmac_response_code48;
+static int hf_trmac_product_instance_id;
+static int hf_trmac_ring_station_version_number;
+static int hf_trmac_wrap_data;
+static int hf_trmac_ring_station_status;
+static int hf_trmac_frame_forward;
+static int hf_trmac_response_code32;
 
-static gint ett_tr_mac = -1;
-static gint ett_tr_sv = -1;
-static gint ett_tr_ierr_cnt = -1;
-static gint ett_tr_nerr_cnt = -1;
+static int ett_tr_mac;
+static int ett_tr_sv;
+static int ett_tr_ierr_cnt;
+static int ett_tr_nerr_cnt;
 
-static expert_field ei_trmac_sv_len = EI_INIT;
+static expert_field ei_trmac_sv_len;
 
 /* Major Vector */
 static const value_string major_vector_vs[] = {
@@ -152,18 +154,18 @@ static const value_string beacon_vs[] = {
 static int
 sv_text(tvbuff_t *tvb, int svoff, packet_info *pinfo, proto_tree *tree)
 {
-	guint	sv_length, sv_id;
-	guint16	beacon_type, ring;
-	guint32	error_report_timer_value;
+	unsigned	sv_length, sv_id;
+	uint16_t	beacon_type, ring;
+	uint32_t	error_report_timer_value;
 
 	proto_tree	*sv_tree, *sv_subtree;
 	proto_item	*sv_item, *len_item, *ti;
 
-	guchar		errors[6];	/* isolating or non-isolating */
+	unsigned char		errors[6];	/* isolating or non-isolating */
 
 	sv_tree = proto_tree_add_subtree(tree, tvb, svoff+0, 1, ett_tr_sv, &sv_item, "Subvector");
 
-	sv_length = tvb_get_guint8(tvb, svoff+0);
+	sv_length = tvb_get_uint8(tvb, svoff+0);
 	len_item = proto_tree_add_item(sv_tree, hf_trmac_sv_len, tvb, svoff+0, 1, ENC_BIG_ENDIAN);
 
 	/* Check the SV length; it must be at least 2, to include
@@ -174,7 +176,7 @@ sv_text(tvbuff_t *tvb, int svoff, packet_info *pinfo, proto_tree *tree)
 		return 0;	/* tells our caller to give up */
 	}
 
-	sv_id = tvb_get_guint8(tvb, svoff+1);
+	sv_id = tvb_get_uint8(tvb, svoff+1);
 	proto_tree_add_item(sv_tree, hf_trmac_sv_id, tvb, svoff+1, 1, ENC_BIG_ENDIAN);
 	proto_item_append_text(sv_item, " (%s)", val_to_str_ext(sv_id, &subvector_vs_ext, "Unknown subvector ID 0x%02X"));
 
@@ -303,22 +305,22 @@ sv_text(tvbuff_t *tvb, int svoff, packet_info *pinfo, proto_tree *tree)
 			if (sv_length == 4) {
 				proto_tree_add_uint_format_value(sv_tree, hf_trmac_response_code32, tvb, svoff+2, sv_length-2,
 					tvb_get_ntohl(tvb, svoff+2), "0x%04X 0x%02X 0x%02x",
-					tvb_get_ntohs(tvb, svoff+2), tvb_get_guint8(tvb, svoff+4), tvb_get_guint8(tvb, svoff+5));
+					tvb_get_ntohs(tvb, svoff+2), tvb_get_uint8(tvb, svoff+4), tvb_get_uint8(tvb, svoff+5));
 				proto_item_append_text(sv_item,
 					": 0x%04X 0x%02X 0x%02x",
 					tvb_get_ntohs(tvb, svoff+2),
-					tvb_get_guint8(tvb, svoff+4),
-					tvb_get_guint8(tvb, svoff+5));
+					tvb_get_uint8(tvb, svoff+4),
+					tvb_get_uint8(tvb, svoff+5));
 			} else {
 				proto_tree_add_uint64_format_value(sv_tree, hf_trmac_response_code48, tvb, svoff+2, sv_length-2,
 					tvb_get_ntoh48(tvb, svoff+2), "0x%04X 0x%02X 0x%06X",
 					tvb_get_ntohs(tvb, svoff+2),
-					tvb_get_guint8(tvb, svoff+4),
+					tvb_get_uint8(tvb, svoff+4),
 					tvb_get_ntoh24(tvb, svoff+5));
 				proto_item_append_text(sv_item,
 					": 0x%04X 0x%02X 0x%06X",
 					tvb_get_ntohs(tvb, svoff+2),
-					tvb_get_guint8(tvb, svoff+4),
+					tvb_get_uint8(tvb, svoff+4),
 					tvb_get_ntoh24(tvb, svoff+5));
 			}
 			break;
@@ -467,7 +469,7 @@ dissect_trmac(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 	proto_tree	*mac_tree;
 	proto_item	*ti;
 	int		sv_additional;
-	guint32		mv_val, mv_length, sv_offset;
+	uint32_t		mv_val, mv_length, sv_offset;
 
 	if (tvb_captured_length(tvb) < 3)
 		return 0;
@@ -513,7 +515,7 @@ proto_register_trmac(void)
 			NULL, HFILL }},
 
 		{ &hf_trmac_length,
-		{ "Total Length",			"trmac.length", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0,
+		{ "Total Length",			"trmac.length", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0,
 			NULL, HFILL }},
 
 		{ &hf_trmac_srcclass,
@@ -597,7 +599,7 @@ proto_register_trmac(void)
 			NULL, HFILL }},
 
 		{ &hf_trmac_error_report_timer_value,
-		{ "Error Report Timer Value",		"trmac.error_report_timer_value", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_milliseconds, 0x0,
+		{ "Error Report Timer Value",		"trmac.error_report_timer_value", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
 			NULL, HFILL }},
 
 		{ &hf_trmac_authorized_function_classes,
@@ -633,7 +635,7 @@ proto_register_trmac(void)
 			NULL, HFILL }},
 
 		{ &hf_trmac_group_address32,
-		{ "Group Address",			"trmac.group_addres32s", FT_UINT32, BASE_HEX, NULL, 0x0,
+		{ "Group Address",			"trmac.group_address32s", FT_UINT32, BASE_HEX, NULL, 0x0,
 			NULL, HFILL }},
 
 		{ &hf_trmac_group_address_ether,
@@ -659,7 +661,7 @@ proto_register_trmac(void)
 		{ &hf_trmac_unknown_subvector, { "Unknown Subvector", "trmac.unknown_subvector", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
 
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_tr_mac,
 		&ett_tr_sv,
 		&ett_tr_ierr_cnt,

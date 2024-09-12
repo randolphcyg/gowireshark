@@ -21,22 +21,22 @@ void proto_reg_handoff_vntag(void);
 static dissector_handle_t vntag_handle;
 static dissector_handle_t ethertype_handle;
 
-static int proto_vntag = -1;
+static int proto_vntag;
 
-static int hf_vntag_etype = -1;
-static int hf_vntag_dir = -1;
-static int hf_vntag_ptr = -1;
-static int hf_vntag_dst = -1;
-static int hf_vntag_looped = -1;
-static int hf_vntag_r = -1;
-static int hf_vntag_version = -1;
-static int hf_vntag_src = -1;
-static int hf_vntag_len = -1;
-static int hf_vntag_trailer = -1;
+static int hf_vntag_etype;
+static int hf_vntag_dir;
+static int hf_vntag_ptr;
+static int hf_vntag_dst;
+static int hf_vntag_looped;
+static int hf_vntag_r;
+static int hf_vntag_version;
+static int hf_vntag_src;
+static int hf_vntag_len;
+static int hf_vntag_trailer;
 
-static gint ett_vntag = -1;
+static int ett_vntag;
 
-static expert_field ei_vntag_len = EI_INIT;
+static expert_field ei_vntag_len;
 
 static const true_false_string vntag_dir_tfs = {
         "From Bridge",
@@ -50,7 +50,7 @@ static const true_false_string vntag_ptr_tfs = {
 static int
 dissect_vntag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	guint16     encap_proto;
+	uint16_t    encap_proto;
 	proto_tree *vntag_tree = NULL;
 	ethertype_data_t ethertype_data;
 
@@ -83,7 +83,7 @@ dissect_vntag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 
 	/* VNTAG may also carry 802.2 encapsulated data */
 	if (encap_proto <= IEEE_802_3_MAX_LEN) {
-		gboolean is_802_2;
+		bool is_802_2;
 
 		/* Is there an 802.2 layer? I can tell by looking at the first 2
 		   bytes after the VLAN header. If they are 0xffff, then what
@@ -92,12 +92,12 @@ dissect_vntag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 		   straight 802.3 packet, so presumably the same applies for
 		   Ethernet VLAN packets). A non-0xffff value means that there's an
 		   802.2 layer inside the VLAN layer */
-		is_802_2 = TRUE;
+		is_802_2 = true;
 
 		/* Don't throw an exception for this check (even a BoundsError) */
 		if (tvb_captured_length_remaining(tvb, 6) >= 2) {
 			if (tvb_get_ntohs(tvb, 6) == 0xffff)
-				is_802_2 = FALSE;
+				is_802_2 = false;
 		}
 
 		dissect_802_3(encap_proto, is_802_2, tvb, 6, pinfo, tree, vntag_tree, hf_vntag_len, hf_vntag_trailer, &ei_vntag_len, 0);
@@ -152,7 +152,7 @@ proto_register_vntag(void)
 		}
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_vntag
 	};
 

@@ -48,29 +48,29 @@ static const range_string jpeg_type_rvals [] = {
     {  0,   0,  NULL}
 };
 
-static int proto_jpeg = -1;
+static int proto_jpeg;
 
-static int hf_rtp_jpeg_main_hdr = -1;
-static int hf_rtp_jpeg_main_hdr_height = -1;
-static int hf_rtp_jpeg_main_hdr_offs = -1;
-static int hf_rtp_jpeg_main_hdr_q = -1;
-static int hf_rtp_jpeg_main_hdr_ts = -1;
-static int hf_rtp_jpeg_main_hdr_type = -1;
-static int hf_rtp_jpeg_main_hdr_width = -1;
-static int hf_rtp_jpeg_payload = -1;
-static int hf_rtp_jpeg_qtable_hdr = -1;
-static int hf_rtp_jpeg_qtable_hdr_data = -1;
-static int hf_rtp_jpeg_qtable_hdr_length = -1;
-static int hf_rtp_jpeg_qtable_hdr_mbz = -1;
-static int hf_rtp_jpeg_qtable_hdr_prec = -1;
-static int hf_rtp_jpeg_restart_hdr = -1;
-static int hf_rtp_jpeg_restart_hdr_count = -1;
-static int hf_rtp_jpeg_restart_hdr_f = -1;
-static int hf_rtp_jpeg_restart_hdr_interval = -1;
-static int hf_rtp_jpeg_restart_hdr_l = -1;
+static int hf_rtp_jpeg_main_hdr;
+static int hf_rtp_jpeg_main_hdr_height;
+static int hf_rtp_jpeg_main_hdr_offs;
+static int hf_rtp_jpeg_main_hdr_q;
+static int hf_rtp_jpeg_main_hdr_ts;
+static int hf_rtp_jpeg_main_hdr_type;
+static int hf_rtp_jpeg_main_hdr_width;
+static int hf_rtp_jpeg_payload;
+static int hf_rtp_jpeg_qtable_hdr;
+static int hf_rtp_jpeg_qtable_hdr_data;
+static int hf_rtp_jpeg_qtable_hdr_length;
+static int hf_rtp_jpeg_qtable_hdr_mbz;
+static int hf_rtp_jpeg_qtable_hdr_prec;
+static int hf_rtp_jpeg_restart_hdr;
+static int hf_rtp_jpeg_restart_hdr_count;
+static int hf_rtp_jpeg_restart_hdr_f;
+static int hf_rtp_jpeg_restart_hdr_interval;
+static int hf_rtp_jpeg_restart_hdr_l;
 
 /* JPEG fields defining a sub tree */
-static gint ett_jpeg = -1;
+static int ett_jpeg;
 
 static int
 dissect_jpeg( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_ )
@@ -80,12 +80,12 @@ dissect_jpeg( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 	proto_tree *main_hdr_tree = NULL;
 	proto_tree *restart_hdr_tree = NULL;
 	proto_tree *qtable_hdr_tree = NULL;
-	guint32 fragment_offset = 0;
-	guint16 len = 0;
-	guint8 type = 0;
-	guint8 q = 0;
-	gint h = 0;
-	gint w = 0;
+	uint32_t fragment_offset = 0;
+	uint16_t len = 0;
+	uint8_t type = 0;
+	uint8_t q = 0;
+	int h = 0;
+	int w = 0;
 
 	unsigned int offset       = 0;
 
@@ -106,15 +106,15 @@ dissect_jpeg( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 		fragment_offset = tvb_get_ntoh24(tvb, offset);
 		offset += 3;
 		proto_tree_add_item(main_hdr_tree, hf_rtp_jpeg_main_hdr_type, tvb, offset, 1, ENC_BIG_ENDIAN);
-		type = tvb_get_guint8(tvb, offset);
+		type = tvb_get_uint8(tvb, offset);
 		offset += 1;
 		proto_tree_add_item(main_hdr_tree, hf_rtp_jpeg_main_hdr_q, tvb, offset, 1, ENC_BIG_ENDIAN);
-		q = tvb_get_guint8(tvb, offset);
+		q = tvb_get_uint8(tvb, offset);
 		offset += 1;
-		w = tvb_get_guint8(tvb, offset) * 8;
+		w = tvb_get_uint8(tvb, offset) * 8;
 		proto_tree_add_uint(main_hdr_tree, hf_rtp_jpeg_main_hdr_width, tvb, offset, 1, w);
 		offset += 1;
-		h = tvb_get_guint8(tvb, offset) * 8;
+		h = tvb_get_uint8(tvb, offset) * 8;
 		proto_tree_add_uint(main_hdr_tree, hf_rtp_jpeg_main_hdr_height, tvb, offset, 1, h);
 		offset += 1;
 
@@ -248,7 +248,7 @@ proto_register_jpeg(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_jpeg,
 	};
 

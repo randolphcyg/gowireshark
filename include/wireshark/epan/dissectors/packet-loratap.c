@@ -20,6 +20,11 @@
 #include <epan/decode_as.h>
 #include <epan/proto_data.h>
 #include <epan/to_str.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
+
+#include <wsutil/array.h>
+
 
 void proto_reg_handoff_loratap(void);
 void proto_register_loratap(void);
@@ -28,34 +33,34 @@ static dissector_handle_t loratap_handle;
 
 static dissector_table_t loratap_dissector_table;
 
-static int proto_loratap = -1;
-static int hf_loratap_header_version_type = -1;
-static int hf_loratap_header_length_type = -1;
-static int hf_loratap_header_padding = -1;
-static int hf_loratap_header_channel_type = -1;
-static int hf_loratap_header_channel_frequency_type = -1;
-static int hf_loratap_header_channel_bandwidth_type = -1;
-static int hf_loratap_header_channel_sf_type = -1;
-static int hf_loratap_header_rssi_type = -1;
-static int hf_loratap_header_rssi_packet_type = -1;
-static int hf_loratap_header_rssi_max_type = -1;
-static int hf_loratap_header_rssi_current_type = -1;
-static int hf_loratap_header_rssi_snr_type = -1;
-static int hf_loratap_header_syncword_type = -1;
-static int hf_loratap_header_tag_type = -1;
-static int hf_loratap_header_payload_type = -1;
-static int hf_loratap_header_source_gw_type = -1;
-static int hf_loratap_header_timestamp_type = -1;
-static int hf_loratap_header_datarate_type = -1;
-static int hf_loratap_header_if_channel_type = -1;
-static int hf_loratap_header_rf_chain_type = -1;
-static int hf_loratap_header_cr_type = -1;
-static int hf_loratap_header_flags_type = -1;
-static int hf_loratap_header_flags_mod_fsk_type = -1;
-static int hf_loratap_header_flags_iq_inverted_type = -1;
-static int hf_loratap_header_flags_implicit_hdr_type = -1;
-static int hf_loratap_header_flags_crc_type = -1;
-static int hf_loratap_header_flags_padding_type = -1;
+static int proto_loratap;
+static int hf_loratap_header_version_type;
+static int hf_loratap_header_length_type;
+static int hf_loratap_header_padding;
+static int hf_loratap_header_channel_type;
+static int hf_loratap_header_channel_frequency_type;
+static int hf_loratap_header_channel_bandwidth_type;
+static int hf_loratap_header_channel_sf_type;
+static int hf_loratap_header_rssi_type;
+static int hf_loratap_header_rssi_packet_type;
+static int hf_loratap_header_rssi_max_type;
+static int hf_loratap_header_rssi_current_type;
+static int hf_loratap_header_rssi_snr_type;
+static int hf_loratap_header_syncword_type;
+static int hf_loratap_header_tag_type;
+static int hf_loratap_header_payload_type;
+static int hf_loratap_header_source_gw_type;
+static int hf_loratap_header_timestamp_type;
+static int hf_loratap_header_datarate_type;
+static int hf_loratap_header_if_channel_type;
+static int hf_loratap_header_rf_chain_type;
+static int hf_loratap_header_cr_type;
+static int hf_loratap_header_flags_type;
+static int hf_loratap_header_flags_mod_fsk_type;
+static int hf_loratap_header_flags_iq_inverted_type;
+static int hf_loratap_header_flags_implicit_hdr_type;
+static int hf_loratap_header_flags_crc_type;
+static int hf_loratap_header_flags_padding_type;
 
 static int * const hfx_loratap_header_flags[] = {
 	&hf_loratap_header_flags_mod_fsk_type,
@@ -66,10 +71,10 @@ static int * const hfx_loratap_header_flags[] = {
 	NULL
 };
 
-static gint ett_loratap = -1;
-static gint ett_loratap_flags = -1;
-static gint ett_loratap_channel = -1;
-static gint ett_loratap_rssi = -1;
+static int ett_loratap;
+static int ett_loratap_flags;
+static int ett_loratap_channel;
+static int ett_loratap_rssi;
 
 static const value_string channel_bandwidth[] = {
 	{ 1, "125 kHz" },
@@ -101,7 +106,7 @@ static const value_string crc_state[] = {
 };
 
 static void
-rssi_base_custom(gchar *buffer, guint32 value)
+rssi_base_custom(char *buffer, uint32_t value)
 {
 	if (value == 255) {
 		snprintf(buffer, ITEM_LABEL_LENGTH, "N/A");
@@ -111,18 +116,18 @@ rssi_base_custom(gchar *buffer, guint32 value)
 }
 
 static void
-snr_base_custom(gchar *buffer, guint32 value)
+snr_base_custom(char *buffer, uint32_t value)
 {
-	snprintf(buffer, ITEM_LABEL_LENGTH, "%.1f dB", ((gint8)value) / 4.);
+	snprintf(buffer, ITEM_LABEL_LENGTH, "%.1f dB", ((int8_t)value) / 4.);
 }
 
 static void
-loratap_prompt(packet_info *pinfo, gchar* result)
+loratap_prompt(packet_info *pinfo, char* result)
 {
 	snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "LoRaTap syncword 0x%02x as", GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_loratap, 0)));
 }
 
-static gpointer
+static void *
 loratap_value(packet_info *pinfo)
 {
 	return p_get_proto_data(pinfo->pool, pinfo, proto_loratap, 0);
@@ -133,17 +138,17 @@ dissect_loratap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *d
 {
 	proto_item *ti, *channel_item, *rssi_item;
 	proto_tree *loratap_tree, *channel_tree, *rssi_tree;
-	gint32 current_offset = 0;
-	gint32 header_v1_offset = 15;
-	guint16 length;
-	guint32 lt_length, lt_version;
-	gboolean try_dissect;
-	guint32 syncword;
+	int32_t current_offset = 0;
+	int32_t header_v1_offset = 15;
+	uint16_t length;
+	uint32_t lt_length, lt_version;
+	bool try_dissect;
+	uint32_t syncword;
 	tvbuff_t *next_tvb;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "LoRaTap");
 	col_clear(pinfo->cinfo, COL_INFO);
-	length = tvb_get_guint16(tvb, 2, ENC_BIG_ENDIAN);
+	length = tvb_get_uint16(tvb, 2, ENC_BIG_ENDIAN);
 
 	ti = proto_tree_add_item(tree, proto_loratap, tvb, 0, length, ENC_NA);
 	loratap_tree = proto_item_add_subtree(ti, ett_loratap);
@@ -162,7 +167,7 @@ dissect_loratap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *d
 		proto_tree_add_item(loratap_tree, hf_loratap_header_timestamp_type, tvb, header_v1_offset, 4, ENC_NA);
 		header_v1_offset += 4;
 		proto_tree_add_bitmask(loratap_tree, tvb, header_v1_offset, hf_loratap_header_flags_type, ett_loratap_flags, hfx_loratap_header_flags, ENC_NA);
-		try_dissect = (tvb_get_guint8(tvb, header_v1_offset) & 0x28); /* Only try the next dissector for CRC OK and No CRC packets with v1 encapsulation */
+		try_dissect = (tvb_get_uint8(tvb, header_v1_offset) & 0x28); /* Only try the next dissector for CRC OK and No CRC packets with v1 encapsulation */
 		header_v1_offset++;
 	} else {
 		try_dissect = true; /* Always try the next dissector for v0 encapsulation */
@@ -208,10 +213,10 @@ dissect_loratap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *d
 	length = tvb_reported_length_remaining(tvb, lt_length);
 	proto_tree_add_bytes_format_value(loratap_tree, hf_loratap_header_payload_type, tvb, current_offset, length, NULL, "%d bytes", length);
 
-	p_add_proto_data(pinfo->pool, pinfo, proto_loratap, 0, GUINT_TO_POINTER((guint)syncword));
+	p_add_proto_data(pinfo->pool, pinfo, proto_loratap, 0, GUINT_TO_POINTER((unsigned)syncword));
 	next_tvb = tvb_new_subset_length(tvb, current_offset, length);
 
-	if (!try_dissect || !dissector_try_uint_new(loratap_dissector_table, syncword, next_tvb, pinfo, tree, TRUE, NULL)) {
+	if (!try_dissect || !dissector_try_uint_new(loratap_dissector_table, syncword, next_tvb, pinfo, tree, true, NULL)) {
 		call_data_dissector(next_tvb, pinfo, tree);
 	}
 
@@ -238,7 +243,7 @@ proto_register_loratap(void)
 	{ &hf_loratap_header_length_type,
 		{ "Header Length", "loratap.header_length",
 		FT_UINT16, BASE_DEC|BASE_UNIT_STRING,
-		&units_byte_bytes, 0x0,
+		UNS(&units_byte_bytes), 0x0,
 		NULL, HFILL }
 	},
 	{ &hf_loratap_header_padding,
@@ -256,7 +261,7 @@ proto_register_loratap(void)
 	{ &hf_loratap_header_channel_frequency_type,
 		{ "Frequency", "loratap.channel.frequency",
 		FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-		&units_hz, 0x0,
+		UNS(&units_hz), 0x0,
 		NULL, HFILL }
 	},
 	{ &hf_loratap_header_channel_bandwidth_type,
@@ -334,7 +339,7 @@ proto_register_loratap(void)
 	{ &hf_loratap_header_datarate_type,
 		{ "FSK datarate", "loratap.channel.datarate",
 		FT_UINT16, BASE_DEC|BASE_UNIT_STRING,
-		&units_bit_sec, 0x0,
+		UNS(&units_bit_sec), 0x0,
 		NULL, HFILL }
 	},
 	{ &hf_loratap_header_if_channel_type,
@@ -399,7 +404,7 @@ proto_register_loratap(void)
 	static decode_as_t loratap_da = {"loratap", "loratap.syncword", 1, 0, &loratap_da_values, NULL, NULL, decode_as_default_populate_list, decode_as_default_reset, decode_as_default_change, NULL};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_loratap,
 		&ett_loratap_flags,
 		&ett_loratap_channel,

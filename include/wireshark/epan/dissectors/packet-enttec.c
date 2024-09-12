@@ -62,47 +62,47 @@ void proto_reg_handoff_enttec(void);
 static dissector_handle_t enttec_udp_handle, enttec_tcp_handle;
 
 /* Define the enttec proto */
-static int proto_enttec = -1;
+static int proto_enttec;
 
 /* general */
-static int hf_enttec_head = -1;
+static int hf_enttec_head;
 
 /* poll */
-static int hf_enttec_poll_type = -1;
+static int hf_enttec_poll_type;
 
 /* poll reply */
-static int hf_enttec_poll_reply_mac = -1;
-static int hf_enttec_poll_reply_node_type = -1;
-static int hf_enttec_poll_reply_version = -1;
-static int hf_enttec_poll_reply_switch = -1;
-static int hf_enttec_poll_reply_name = -1;
-static int hf_enttec_poll_reply_option = -1;
-static int hf_enttec_poll_reply_tos = -1;
-static int hf_enttec_poll_reply_ttl = -1;
+static int hf_enttec_poll_reply_mac;
+static int hf_enttec_poll_reply_node_type;
+static int hf_enttec_poll_reply_version;
+static int hf_enttec_poll_reply_switch;
+static int hf_enttec_poll_reply_name;
+static int hf_enttec_poll_reply_option;
+static int hf_enttec_poll_reply_tos;
+static int hf_enttec_poll_reply_ttl;
 
 /* dmx data */
-static int hf_enttec_dmx_data_universe = -1;
-static int hf_enttec_dmx_data_start_code = -1;
-static int hf_enttec_dmx_data_type = -1;
-static int hf_enttec_dmx_data_size = -1;
-static int hf_enttec_dmx_data_data = -1;
-static int hf_enttec_dmx_data_data_filter = -1;
-static int hf_enttec_dmx_data_dmx_data = -1;
+static int hf_enttec_dmx_data_universe;
+static int hf_enttec_dmx_data_start_code;
+static int hf_enttec_dmx_data_type;
+static int hf_enttec_dmx_data_size;
+static int hf_enttec_dmx_data_data;
+static int hf_enttec_dmx_data_data_filter;
+static int hf_enttec_dmx_data_dmx_data;
 
 /* Define the tree for enttec */
-static int ett_enttec = -1;
+static int ett_enttec;
 
 /*
  * Here are the global variables associated with the preferences
  * for enttec
  */
 
-static gint global_disp_chan_val_type = 0;
-static gint global_disp_col_count = 16;
-static gint global_disp_chan_nr_type = 0;
+static int global_disp_chan_val_type;
+static int global_disp_col_count = 16;
+static int global_disp_chan_nr_type;
 
-static gint
-dissect_enttec_poll_reply(tvbuff_t *tvb, guint offset, proto_tree *tree)
+static int
+dissect_enttec_poll_reply(tvbuff_t *tvb, unsigned offset, proto_tree *tree)
 {
 	proto_tree_add_item(tree, hf_enttec_poll_reply_mac, tvb,
 					offset, 6, ENC_NA);
@@ -141,8 +141,8 @@ dissect_enttec_poll_reply(tvbuff_t *tvb, guint offset, proto_tree *tree)
 	return offset;
 }
 
-static gint
-dissect_enttec_poll(tvbuff_t *tvb, guint offset, proto_tree *tree)
+static int
+dissect_enttec_poll(tvbuff_t *tvb, unsigned offset, proto_tree *tree)
 {
 	proto_tree_add_item(tree, hf_enttec_poll_type, tvb,
 					offset, 1, ENC_BIG_ENDIAN);
@@ -151,15 +151,15 @@ dissect_enttec_poll(tvbuff_t *tvb, guint offset, proto_tree *tree)
 	return offset;
 }
 
-static gint
-dissect_enttec_ack(tvbuff_t *tvb _U_, guint offset, proto_tree *tree _U_)
+static int
+dissect_enttec_ack(tvbuff_t *tvb _U_, unsigned offset, proto_tree *tree _U_)
 {
 
 	return offset;
 }
 
-static gint
-dissect_enttec_dmx_data(tvbuff_t *tvb, guint offset, proto_tree *tree)
+static int
+dissect_enttec_dmx_data(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, proto_tree *tree)
 {
 	static const char* chan_format[] = {
 		"%2u ",
@@ -171,15 +171,15 @@ dissect_enttec_dmx_data(tvbuff_t *tvb, guint offset, proto_tree *tree)
 		"%3u: %s"
 	};
 
-	guint8 *dmx_data = (guint8 *)wmem_alloc(wmem_packet_scope(), 512 * sizeof(guint8));
-	guint16 *dmx_data_offset = (guint16 *)wmem_alloc(wmem_packet_scope(), 513 * sizeof(guint16)); /* 1 extra for last offset */
+	uint8_t *dmx_data = (uint8_t *)wmem_alloc(pinfo->pool, 512 * sizeof(uint8_t));
+	uint16_t *dmx_data_offset = (uint16_t *)wmem_alloc(pinfo->pool, 513 * sizeof(uint16_t)); /* 1 extra for last offset */
 	wmem_strbuf_t *dmx_epstr;
 
 	proto_tree *hi,*si;
 	proto_item *item;
-	guint16 length,r,c,row_count;
-	guint8 v,type,count;
-	guint16 ci,ui,i,start_offset,end_offset;
+	uint16_t length,r,c,row_count;
+	uint8_t v,type,count;
+	uint16_t ci,ui,i,start_offset,end_offset;
 
 	proto_tree_add_item(tree, hf_enttec_dmx_data_universe, tvb,
 					offset, 1, ENC_BIG_ENDIAN);
@@ -189,7 +189,7 @@ dissect_enttec_dmx_data(tvbuff_t *tvb, guint offset, proto_tree *tree)
 					offset, 1, ENC_BIG_ENDIAN);
 	offset += 1;
 
-	type = tvb_get_guint8(tvb, offset);
+	type = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(tree, hf_enttec_dmx_data_type, tvb,
 					offset, 1, ENC_BIG_ENDIAN);
 	offset += 1;
@@ -210,12 +210,12 @@ dissect_enttec_dmx_data(tvbuff_t *tvb, guint offset, proto_tree *tree)
 		ui = 0;
 		ci = 0;
 		while (ci < length && ui < 512) {
-			v = tvb_get_guint8(tvb, offset+ci);
+			v = tvb_get_uint8(tvb, offset+ci);
 			if (v == 0xFE) {
 				ci++;
-				count = tvb_get_guint8(tvb, offset+ci);
+				count = tvb_get_uint8(tvb, offset+ci);
 				ci++;
-				v = tvb_get_guint8(tvb, offset+ci);
+				v = tvb_get_uint8(tvb, offset+ci);
 				ci++;
 				for (i=0;i < count && ui < 512;i++) {
 					dmx_data[ui] = v;
@@ -224,7 +224,7 @@ dissect_enttec_dmx_data(tvbuff_t *tvb, guint offset, proto_tree *tree)
 				}
 			} else if (v == 0xFD) {
 				ci++;
-				v = tvb_get_guint8(tvb, offset+ci);
+				v = tvb_get_uint8(tvb, offset+ci);
 				dmx_data[ui] = v;
 				dmx_data_offset[ui] = ci;
 				ci++;
@@ -239,7 +239,7 @@ dissect_enttec_dmx_data(tvbuff_t *tvb, guint offset, proto_tree *tree)
 		dmx_data_offset[ui] = ci;
 	} else {
 		for (ui=0; ui < length;ui++) {
-			dmx_data[ui] =  tvb_get_guint8(tvb, offset+ui);
+			dmx_data[ui] =  tvb_get_uint8(tvb, offset+ui);
 			dmx_data_offset[ui] = ui;
 		}
 		dmx_data_offset[ui] = ui;
@@ -257,7 +257,7 @@ dissect_enttec_dmx_data(tvbuff_t *tvb, guint offset, proto_tree *tree)
 		si = proto_item_add_subtree(hi, ett_enttec);
 
 		row_count = (ui/global_disp_col_count) + ((ui%global_disp_col_count) == 0 ? 0 : 1);
-		dmx_epstr = wmem_strbuf_create(wmem_packet_scope());
+		dmx_epstr = wmem_strbuf_create(pinfo->pool);
 		for (r=0; r < row_count;r++) {
 			for (c=0;(c < global_disp_col_count) && (((r*global_disp_col_count)+c) < ui);c++) {
 				if ((global_disp_col_count > 1) && (c % (global_disp_col_count/2)) == 0) {
@@ -304,8 +304,8 @@ dissect_enttec_dmx_data(tvbuff_t *tvb, guint offset, proto_tree *tree)
 	return offset;
 }
 
-static gint
-dissect_enttec_reset(tvbuff_t *tvb _U_, guint offset, proto_tree *tree _U_)
+static int
+dissect_enttec_reset(tvbuff_t *tvb _U_, unsigned offset, proto_tree *tree _U_)
 {
 
 	return offset;
@@ -314,8 +314,8 @@ dissect_enttec_reset(tvbuff_t *tvb _U_, guint offset, proto_tree *tree _U_)
 static int
 dissect_enttec_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	gint offset = 0;
-	guint32 head = 0;
+	int offset = 0;
+	uint32_t head = 0;
 	proto_tree *ti, *enttec_tree;
 
 	/*
@@ -348,7 +348,7 @@ dissect_enttec_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "ENTTEC");
 
 	/* Clear out stuff in the info column */
-	col_add_fstr(pinfo->cinfo, COL_INFO, "%s",
+	col_add_str(pinfo->cinfo, COL_INFO,
 				val_to_str(head, enttec_head_vals, "Unknown (0x%08x)"));
 
 	ti = proto_tree_add_item(tree, proto_enttec, tvb, offset, -1, ENC_NA);
@@ -372,7 +372,7 @@ dissect_enttec_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 			break;
 
 		case ENTTEC_HEAD_ESDD:
-			offset = dissect_enttec_dmx_data( tvb, offset, enttec_tree);
+			offset = dissect_enttec_dmx_data( tvb, pinfo, offset, enttec_tree);
 			break;
 
 		case ENTTEC_HEAD_ESZZ:
@@ -386,8 +386,8 @@ dissect_enttec_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 static int
 dissect_enttec_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	gint offset = 0;
-	guint32 head = 0;
+	int offset = 0;
+	uint32_t head = 0;
 	proto_tree *ti,*enttec_tree;
 
 	/*
@@ -412,7 +412,7 @@ dissect_enttec_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "ENTTEC");
 
 	/* Clear out stuff in the info column */
-	col_add_fstr(pinfo->cinfo, COL_INFO, "%s",
+	col_add_str(pinfo->cinfo, COL_INFO,
 				val_to_str(head, enttec_head_vals, "Unknown (0x%08x)"));
 
 	ti = proto_tree_add_item(tree, proto_enttec, tvb, offset, -1, ENC_NA);
@@ -500,7 +500,7 @@ proto_register_enttec(void)
 			  NULL, HFILL } }
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_enttec,
 	};
 
@@ -541,19 +541,19 @@ proto_register_enttec(void)
 				"DMX Display channel value type",
 				"The way DMX values are displayed",
 				&global_disp_chan_val_type,
-				disp_chan_val_types, FALSE);
+				disp_chan_val_types, false);
 
 	prefs_register_enum_preference(enttec_module, "dmx_disp_chan_nr_type",
 				"DMX Display channel nr. type",
 				"The way DMX channel numbers are displayed",
 				&global_disp_chan_nr_type,
-				disp_chan_nr_types, FALSE);
+				disp_chan_nr_types, false);
 
 	prefs_register_enum_preference(enttec_module, "dmx_disp_col_count",
 				"DMX Display Column Count",
 				"The number of columns for the DMX display",
 				&global_disp_col_count,
-				col_count, FALSE);
+				col_count, false);
 }
 
 /* The registration hand-off routing */

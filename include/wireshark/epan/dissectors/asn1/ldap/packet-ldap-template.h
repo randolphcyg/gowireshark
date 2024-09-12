@@ -80,16 +80,16 @@
 #define LOGON_SAM_LOGON_RESPONSE_EX     23
 
 typedef struct ldap_call_response {
-  gboolean is_request;
-  guint32 req_frame;
+  bool is_request;
+  uint32_t req_frame;
   nstime_t req_time;
-  guint32 rep_frame;
-  guint messageId;
-  guint protocolOpTag;
+  uint32_t rep_frame;
+  unsigned messageId;
+  unsigned protocolOpTag;
 } ldap_call_response_t;
 
 WS_DLL_PUBLIC
-int dissect_mscldap_string(tvbuff_t *tvb, int offset, int max_len, char **str);
+int dissect_mscldap_string(wmem_allocator_t *scope, tvbuff_t *tvb, int offset, int max_len, char **str);
 
 WS_DLL_PUBLIC const value_string ldap_procedure_names[];
 

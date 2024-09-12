@@ -418,7 +418,7 @@ void proto_register_u3v(void);
 void proto_reg_handoff_u3v(void);
 
 /* Define the u3v protocol */
-static int proto_u3v = -1;
+static int proto_u3v;
 
 /* GenCP transaction tracking
  * the protocol only allows strict sequential
@@ -432,180 +432,180 @@ static int proto_u3v = -1;
  * and dissection of addresses
  */
 typedef struct _gencp_transaction_t {
-    guint32  cmd_frame;
-    guint32  ack_frame;
+    uint32_t cmd_frame;
+    uint32_t ack_frame;
     nstime_t cmd_time;
     /* list of pending acknowledges */
     wmem_array_t *pend_ack_frame_list;
     /* current requested address */
-    guint64 address;
+    uint64_t address;
     /* current requested count read/write */
-    guint32 count;
+    uint32_t count;
 } gencp_transaction_t;
 
 typedef struct _u3v_conv_info_t {
-    guint64 abrm_addr;
-    guint64 sbrm_addr;
-    guint64 sirm_addr;
-    guint64 eirm_addr;
-    guint64 iidc2_addr;
-    guint64 manifest_addr;
-    guint32 ep_stream;
+    uint64_t abrm_addr;
+    uint64_t sbrm_addr;
+    uint64_t sirm_addr;
+    uint64_t eirm_addr;
+    uint64_t iidc2_addr;
+    uint64_t manifest_addr;
+    uint32_t ep_stream;
     gencp_transaction_t *trans_info;
 } u3v_conv_info_t;
 
 /*
  \brief IDs used for bootstrap dissection
 */
-static int hf_u3v_gencp_prefix = -1;
-static int hf_u3v_flag = -1;
-static int hf_u3v_acknowledge_required_flag = -1;
-static int hf_u3v_command_id = -1;
-static int hf_u3v_length = -1;
-static int hf_u3v_request_id = -1;
-static int hf_u3v_status = -1;
-static int hf_u3v_address = -1;
-static int hf_u3v_count = -1;
-static int hf_u3v_eventcmd_id = -1;
-static int hf_u3v_eventcmd_error_id = -1;
-static int hf_u3v_eventcmd_device_specific_id = -1;
-static int hf_u3v_eventcmd_timestamp = -1;
-static int hf_u3v_eventcmd_data = -1;
-static int hf_u3v_time_to_completion = -1;
-static int hf_u3v_payloaddata = -1;
-static int hf_u3v_reserved = -1;
+static int hf_u3v_gencp_prefix;
+static int hf_u3v_flag;
+static int hf_u3v_acknowledge_required_flag;
+static int hf_u3v_command_id;
+static int hf_u3v_length;
+static int hf_u3v_request_id;
+static int hf_u3v_status;
+static int hf_u3v_address;
+static int hf_u3v_count;
+static int hf_u3v_eventcmd_id;
+static int hf_u3v_eventcmd_error_id;
+static int hf_u3v_eventcmd_device_specific_id;
+static int hf_u3v_eventcmd_timestamp;
+static int hf_u3v_eventcmd_data;
+static int hf_u3v_time_to_completion;
+static int hf_u3v_payloaddata;
+static int hf_u3v_reserved;
 
-static int hf_u3v_bootstrap_GenCP_Version = -1;
-static int hf_u3v_bootstrap_Manufacturer_Name = -1;
-static int hf_u3v_bootstrap_Model_Name = -1;
-static int hf_u3v_bootstrap_Family_Name = -1;
-static int hf_u3v_bootstrap_Device_Version = -1;
-static int hf_u3v_bootstrap_Manufacturer_Info = -1;
-static int hf_u3v_bootstrap_Serial_Number = -1;
-static int hf_u3v_bootstrap_User_Defined_Name = -1;
-static int hf_u3v_bootstrap_Device_Capability = -1;
-static int hf_u3v_bootstrap_Maximum_Device_Response_Time = -1;
-static int hf_u3v_bootstrap_Manifest_Table_Address = -1;
-static int hf_u3v_bootstrap_SBRM_Address = -1;
-static int hf_u3v_bootstrap_Device_Configuration = -1;
-static int hf_u3v_bootstrap_Heartbeat_Timeout = -1;
-static int hf_u3v_bootstrap_Message_Channel_channel_id = -1;
-static int hf_u3v_bootstrap_Timestamp = -1;
-static int hf_u3v_bootstrap_Timestamp_Latch = -1;
-static int hf_u3v_bootstrap_Timestamp_Increment = -1;
-static int hf_u3v_bootstrap_Access_Privilege = -1;
-static int hf_u3v_bootstrap_Protocol_Endianness = -1;
-static int hf_u3v_bootstrap_Implementation_Endianness = -1;
-static int hf_u3v_bootstrap_U3V_Version = -1;
-static int hf_u3v_bootstrap_U3VCP_Capability_Register = -1;
-static int hf_u3v_bootstrap_U3VCP_Configuration_Register = -1;
-static int hf_u3v_bootstrap_Maximum_Command_Transfer_Length = -1;
-static int hf_u3v_bootstrap_Maximum_Acknowledge_Transfer_Length = -1;
-static int hf_u3v_bootstrap_Number_of_Stream_Channels = -1;
-static int hf_u3v_bootstrap_SIRM_Address = -1;
-static int hf_u3v_bootstrap_SIRM_Length = -1;
-static int hf_u3v_bootstrap_EIRM_Address = -1;
-static int hf_u3v_bootstrap_EIRM_Length = -1;
-static int hf_u3v_bootstrap_IIDC2_Address = -1;
-static int hf_u3v_bootstrap_Current_Speed = -1;
-static int hf_u3v_bootstrap_SI_Info = -1;
-static int hf_u3v_bootstrap_SI_Control = -1;
-static int hf_u3v_bootstrap_SI_Required_Payload_Size = -1;
-static int hf_u3v_bootstrap_SI_Required_Leader_Size = -1;
-static int hf_u3v_bootstrap_SI_Required_Trailer_Size = -1;
-static int hf_u3v_bootstrap_SI_Maximum_Leader_Size = -1;
-static int hf_u3v_bootstrap_SI_Payload_Transfer_Size = -1;
-static int hf_u3v_bootstrap_SI_Payload_Transfer_Count = -1;
-static int hf_u3v_bootstrap_SI_Payload_Final_Transfer1_Size = -1;
-static int hf_u3v_bootstrap_SI_Payload_Final_Transfer2_Size = -1;
-static int hf_u3v_bootstrap_SI_Maximum_Trailer_Size = -1;
-static int hf_u3v_bootstrap_EI_Control = -1;
-static int hf_u3v_bootstrap_Maximum_Event_Transfer_Length = -1;
-static int hf_u3v_bootstrap_Event_Test_Control = -1;
-static int hf_u3v_custom_memory_addr = -1;
-static int hf_u3v_custom_memory_data = -1;
+static int hf_u3v_bootstrap_GenCP_Version;
+static int hf_u3v_bootstrap_Manufacturer_Name;
+static int hf_u3v_bootstrap_Model_Name;
+static int hf_u3v_bootstrap_Family_Name;
+static int hf_u3v_bootstrap_Device_Version;
+static int hf_u3v_bootstrap_Manufacturer_Info;
+static int hf_u3v_bootstrap_Serial_Number;
+static int hf_u3v_bootstrap_User_Defined_Name;
+static int hf_u3v_bootstrap_Device_Capability;
+static int hf_u3v_bootstrap_Maximum_Device_Response_Time;
+static int hf_u3v_bootstrap_Manifest_Table_Address;
+static int hf_u3v_bootstrap_SBRM_Address;
+static int hf_u3v_bootstrap_Device_Configuration;
+static int hf_u3v_bootstrap_Heartbeat_Timeout;
+static int hf_u3v_bootstrap_Message_Channel_channel_id;
+static int hf_u3v_bootstrap_Timestamp;
+static int hf_u3v_bootstrap_Timestamp_Latch;
+static int hf_u3v_bootstrap_Timestamp_Increment;
+static int hf_u3v_bootstrap_Access_Privilege;
+static int hf_u3v_bootstrap_Protocol_Endianness;
+static int hf_u3v_bootstrap_Implementation_Endianness;
+static int hf_u3v_bootstrap_U3V_Version;
+static int hf_u3v_bootstrap_U3VCP_Capability_Register;
+static int hf_u3v_bootstrap_U3VCP_Configuration_Register;
+static int hf_u3v_bootstrap_Maximum_Command_Transfer_Length;
+static int hf_u3v_bootstrap_Maximum_Acknowledge_Transfer_Length;
+static int hf_u3v_bootstrap_Number_of_Stream_Channels;
+static int hf_u3v_bootstrap_SIRM_Address;
+static int hf_u3v_bootstrap_SIRM_Length;
+static int hf_u3v_bootstrap_EIRM_Address;
+static int hf_u3v_bootstrap_EIRM_Length;
+static int hf_u3v_bootstrap_IIDC2_Address;
+static int hf_u3v_bootstrap_Current_Speed;
+static int hf_u3v_bootstrap_SI_Info;
+static int hf_u3v_bootstrap_SI_Control;
+static int hf_u3v_bootstrap_SI_Required_Payload_Size;
+static int hf_u3v_bootstrap_SI_Required_Leader_Size;
+static int hf_u3v_bootstrap_SI_Required_Trailer_Size;
+static int hf_u3v_bootstrap_SI_Maximum_Leader_Size;
+static int hf_u3v_bootstrap_SI_Payload_Transfer_Size;
+static int hf_u3v_bootstrap_SI_Payload_Transfer_Count;
+static int hf_u3v_bootstrap_SI_Payload_Final_Transfer1_Size;
+static int hf_u3v_bootstrap_SI_Payload_Final_Transfer2_Size;
+static int hf_u3v_bootstrap_SI_Maximum_Trailer_Size;
+static int hf_u3v_bootstrap_EI_Control;
+static int hf_u3v_bootstrap_Maximum_Event_Transfer_Length;
+static int hf_u3v_bootstrap_Event_Test_Control;
+static int hf_u3v_custom_memory_addr;
+static int hf_u3v_custom_memory_data;
 
-static int hf_u3v_scd_readmem_cmd = -1;
-static int hf_u3v_scd_writemem_cmd = -1;
-static int hf_u3v_scd_event_cmd = -1;
-static int hf_u3v_scd_ack_readmem_ack = -1;
-static int hf_u3v_scd_writemem_ack = -1;
-static int hf_u3v_ccd_pending_ack = -1;
-static int hf_u3v_stream_leader = -1;
-static int hf_u3v_stream_trailer = -1;
-static int hf_u3v_stream_payload = -1;
-static int hf_u3v_ccd_cmd = -1;
-static int hf_u3v_ccd_ack = -1;
-static int hf_u3v_device_info_descriptor = -1;
+static int hf_u3v_scd_readmem_cmd;
+static int hf_u3v_scd_writemem_cmd;
+static int hf_u3v_scd_event_cmd;
+static int hf_u3v_scd_ack_readmem_ack;
+static int hf_u3v_scd_writemem_ack;
+static int hf_u3v_ccd_pending_ack;
+static int hf_u3v_stream_leader;
+static int hf_u3v_stream_trailer;
+static int hf_u3v_stream_payload;
+static int hf_u3v_ccd_cmd;
+static int hf_u3v_ccd_ack;
+static int hf_u3v_device_info_descriptor;
 
 /* stream elements */
-static int hf_u3v_stream_reserved = -1;
-static int hf_u3v_stream_leader_size = -1;
+static int hf_u3v_stream_reserved;
+static int hf_u3v_stream_leader_size;
 
-static int hf_u3v_stream_prefix = -1;
-static int hf_u3v_stream_trailer_size = -1;
+static int hf_u3v_stream_prefix;
+static int hf_u3v_stream_trailer_size;
 
-static int hf_u3v_stream_block_id = -1;
-static int hf_u3v_stream_payload_type = -1;
-static int hf_u3v_stream_status = -1;
-static int hf_u3v_stream_valid_payload_size = -1;
+static int hf_u3v_stream_block_id;
+static int hf_u3v_stream_payload_type;
+static int hf_u3v_stream_status;
+static int hf_u3v_stream_valid_payload_size;
 
-static int hf_u3v_stream_timestamp = -1;
-static int hf_u3v_stream_pixel_format = -1;
-static int hf_u3v_stream_size_x = -1;
-static int hf_u3v_stream_size_y = -1;
-static int hf_u3v_stream_offset_x = -1;
-static int hf_u3v_stream_offset_y = -1;
-static int hf_u3v_stream_padding_x = -1;
-static int hf_u3v_stream_chunk_layout_id = -1;
+static int hf_u3v_stream_timestamp;
+static int hf_u3v_stream_pixel_format;
+static int hf_u3v_stream_size_x;
+static int hf_u3v_stream_size_y;
+static int hf_u3v_stream_offset_x;
+static int hf_u3v_stream_offset_y;
+static int hf_u3v_stream_padding_x;
+static int hf_u3v_stream_chunk_layout_id;
 
-static int hf_u3v_stream_data = -1;
+static int hf_u3v_stream_data;
 
 /* U3V device info descriptor */
-static int hf_u3v_device_info_descriptor_bLength = -1;
-static int hf_u3v_device_info_descriptor_bDescriptorType = -1;
-static int hf_u3v_device_info_descriptor_bDescriptorSubtype = -1;
-static int hf_u3v_device_info_descriptor_bGenCPVersion = -1;
-static int hf_u3v_device_info_descriptor_bGenCPVersion_minor = -1;
-static int hf_u3v_device_info_descriptor_bGenCPVersion_major = -1;
-static int hf_u3v_device_info_descriptor_bU3VVersion = -1;
-static int hf_u3v_device_info_descriptor_bU3VVersion_minor = -1;
-static int hf_u3v_device_info_descriptor_bU3VVersion_major = -1;
-static int hf_u3v_device_info_descriptor_iDeviceGUID = -1;
-static int hf_u3v_device_info_descriptor_iVendorName = -1;
-static int hf_u3v_device_info_descriptor_iModelName = -1;
-static int hf_u3v_device_info_descriptor_iFamilyName = -1;
-static int hf_u3v_device_info_descriptor_iDeviceVersion = -1;
-static int hf_u3v_device_info_descriptor_iManufacturerInfo = -1;
-static int hf_u3v_device_info_descriptor_iSerialNumber = -1;
-static int hf_u3v_device_info_descriptor_iUserDefinedName = -1;
-static int hf_u3v_device_info_descriptor_bmSpeedSupport = -1;
-static int hf_u3v_device_info_descriptor_bmSpeedSupport_low_speed = -1;
-static int hf_u3v_device_info_descriptor_bmSpeedSupport_full_speed = -1;
-static int hf_u3v_device_info_descriptor_bmSpeedSupport_high_speed = -1;
-static int hf_u3v_device_info_descriptor_bmSpeedSupport_super_speed = -1;
-static int hf_u3v_device_info_descriptor_bmSpeedSupport_reserved = -1;
+static int hf_u3v_device_info_descriptor_bLength;
+static int hf_u3v_device_info_descriptor_bDescriptorType;
+static int hf_u3v_device_info_descriptor_bDescriptorSubtype;
+static int hf_u3v_device_info_descriptor_bGenCPVersion;
+static int hf_u3v_device_info_descriptor_bGenCPVersion_minor;
+static int hf_u3v_device_info_descriptor_bGenCPVersion_major;
+static int hf_u3v_device_info_descriptor_bU3VVersion;
+static int hf_u3v_device_info_descriptor_bU3VVersion_minor;
+static int hf_u3v_device_info_descriptor_bU3VVersion_major;
+static int hf_u3v_device_info_descriptor_iDeviceGUID;
+static int hf_u3v_device_info_descriptor_iVendorName;
+static int hf_u3v_device_info_descriptor_iModelName;
+static int hf_u3v_device_info_descriptor_iFamilyName;
+static int hf_u3v_device_info_descriptor_iDeviceVersion;
+static int hf_u3v_device_info_descriptor_iManufacturerInfo;
+static int hf_u3v_device_info_descriptor_iSerialNumber;
+static int hf_u3v_device_info_descriptor_iUserDefinedName;
+static int hf_u3v_device_info_descriptor_bmSpeedSupport;
+static int hf_u3v_device_info_descriptor_bmSpeedSupport_low_speed;
+static int hf_u3v_device_info_descriptor_bmSpeedSupport_full_speed;
+static int hf_u3v_device_info_descriptor_bmSpeedSupport_high_speed;
+static int hf_u3v_device_info_descriptor_bmSpeedSupport_super_speed;
+static int hf_u3v_device_info_descriptor_bmSpeedSupport_reserved;
 
 /*Define the tree for u3v*/
-static int ett_u3v = -1;
-static int ett_u3v_cmd = -1;
-static int ett_u3v_flags = -1;
-static int ett_u3v_ack = -1;
-static int ett_u3v_payload_cmd = -1;
-static int ett_u3v_payload_ack = -1;
-static int ett_u3v_payload_cmd_subtree = -1;
-static int ett_u3v_payload_ack_subtree = -1;
-static int ett_u3v_bootstrap_fields = -1;
-static int ett_u3v_stream_leader = -1;
-static int ett_u3v_stream_trailer = -1;
-static int ett_u3v_stream_payload = -1;
+static int ett_u3v;
+static int ett_u3v_cmd;
+static int ett_u3v_flags;
+static int ett_u3v_ack;
+static int ett_u3v_payload_cmd;
+static int ett_u3v_payload_ack;
+static int ett_u3v_payload_cmd_subtree;
+static int ett_u3v_payload_ack_subtree;
+static int ett_u3v_bootstrap_fields;
+static int ett_u3v_stream_leader;
+static int ett_u3v_stream_trailer;
+static int ett_u3v_stream_payload;
 
-static int ett_u3v_device_info_descriptor = -1;
-static int ett_u3v_device_info_descriptor_speed_support = -1;
-static int ett_u3v_device_info_descriptor_gencp_version = -1;
-static int ett_u3v_device_info_descriptor_u3v_version = -1;
+static int ett_u3v_device_info_descriptor;
+static int ett_u3v_device_info_descriptor_speed_support;
+static int ett_u3v_device_info_descriptor_gencp_version;
+static int ett_u3v_device_info_descriptor_u3v_version;
 
-static dissector_handle_t u3v_handle = NULL;
+static dissector_handle_t u3v_handle;
 
 static const value_string command_names[] =
 {
@@ -1045,38 +1045,38 @@ static int * const speed_support_fields[] = {
 /*
  \brief Returns a register name based on its address
  */
-static const gchar*
-get_register_name_from_address(guint64 addr, gboolean* is_custom_register, u3v_conv_info_t * u3v_conv_info)
+static const char*
+get_register_name_from_address(uint64_t addr, bool* is_custom_register, u3v_conv_info_t * u3v_conv_info)
 {
-    const gchar* address_string = NULL;
-    guint32 offset_address;
+    const char* address_string = NULL;
+    uint32_t offset_address;
 
     if (is_custom_register != NULL) {
-        *is_custom_register = FALSE;
+        *is_custom_register = false;
     }
 
     /* check if this is the access to one of the base address registers */
     if ( addr < 0x10000 ) {
-        offset_address = (guint32)addr;
+        offset_address = (uint32_t)addr;
         address_string = try_val_to_str(offset_address, bootstrap_register_names_abrm);
     }
     if ( u3v_conv_info && u3v_conv_info->sbrm_addr != 0 && (addr >= u3v_conv_info->sbrm_addr)) {
-        offset_address = (guint32)( addr - u3v_conv_info->sbrm_addr);
+        offset_address = (uint32_t)( addr - u3v_conv_info->sbrm_addr);
         address_string = try_val_to_str(offset_address, bootstrap_register_names_sbrm);
     }
     if ( u3v_conv_info && u3v_conv_info->sirm_addr != 0 && (addr >= u3v_conv_info->sirm_addr)) {
-        offset_address = (guint32)( addr - u3v_conv_info->sirm_addr);
+        offset_address = (uint32_t)( addr - u3v_conv_info->sirm_addr);
         address_string = try_val_to_str(offset_address, bootstrap_register_names_sirm);
     }
     if ( u3v_conv_info && u3v_conv_info->eirm_addr != 0 && (addr >= u3v_conv_info->eirm_addr)) {
-        offset_address = (guint32)( addr - u3v_conv_info->eirm_addr);
+        offset_address = (uint32_t)( addr - u3v_conv_info->eirm_addr);
         address_string = try_val_to_str(offset_address, bootstrap_register_names_eirm);
     }
 
     if (!address_string) {
         address_string = wmem_strdup_printf(wmem_packet_scope(), "[Addr:0x%016" PRIX64 "]", addr);
         if (is_custom_register != NULL) {
-            *is_custom_register = TRUE;
+            *is_custom_register = true;
         }
     }
 
@@ -1087,25 +1087,25 @@ get_register_name_from_address(guint64 addr, gboolean* is_custom_register, u3v_c
  \brief Returns true if a register (identified by its address) is a known bootstrap register
  */
 static int
-is_known_bootstrap_register(guint64 addr, u3v_conv_info_t * u3v_conv_info)
+is_known_bootstrap_register(uint64_t addr, u3v_conv_info_t * u3v_conv_info)
 {
-    const gchar* address_string = NULL;
-    guint32 offset_address;
+    const char* address_string = NULL;
+    uint32_t offset_address;
     /* check if this is the access to one of the base address registers */
     if ( addr < 0x10000 ) {
-        offset_address = (guint32)addr;
+        offset_address = (uint32_t)addr;
         address_string = try_val_to_str(offset_address, bootstrap_register_names_abrm);
     }
     if ( u3v_conv_info->sbrm_addr != 0 &&  (addr >= u3v_conv_info->sbrm_addr)) {
-        offset_address = (guint32)( addr - u3v_conv_info->sbrm_addr);
+        offset_address = (uint32_t)( addr - u3v_conv_info->sbrm_addr);
         address_string = try_val_to_str(offset_address, bootstrap_register_names_sbrm);
     }
     if ( u3v_conv_info->sirm_addr != 0 &&  (addr >= u3v_conv_info->sirm_addr)) {
-        offset_address = (guint32)( addr - u3v_conv_info->sirm_addr);
+        offset_address = (uint32_t)( addr - u3v_conv_info->sirm_addr);
         address_string = try_val_to_str(offset_address, bootstrap_register_names_sirm);
     }
     if ( u3v_conv_info->eirm_addr != 0 &&  (addr >= u3v_conv_info->eirm_addr)) {
-        offset_address = (guint32)( addr - u3v_conv_info->eirm_addr);
+        offset_address = (uint32_t)( addr - u3v_conv_info->eirm_addr);
         address_string = try_val_to_str(offset_address, bootstrap_register_names_eirm);
     }
     return address_string != NULL;
@@ -1115,7 +1115,7 @@ is_known_bootstrap_register(guint64 addr, u3v_conv_info_t * u3v_conv_info)
  \brief Identify Base Address Pointer
 */
 static void
-dissect_u3v_register_bases(guint64 addr, tvbuff_t *tvb, gint offset, u3v_conv_info_t * u3v_conv_info)
+dissect_u3v_register_bases(uint64_t addr, tvbuff_t *tvb, int offset, u3v_conv_info_t * u3v_conv_info)
 {
     if ( addr < 0x10000 ) {
         switch (addr) {
@@ -1147,12 +1147,12 @@ dissect_u3v_register_bases(guint64 addr, tvbuff_t *tvb, gint offset, u3v_conv_in
  \brief Attempt to dissect a bootstrap register
 */
 static int
-dissect_u3v_register(guint64 addr, proto_tree *branch, tvbuff_t *tvb, gint offset, gint length, u3v_conv_info_t *u3v_conv_info)
+dissect_u3v_register(uint64_t addr, proto_tree *branch, tvbuff_t *tvb, int offset, int length, u3v_conv_info_t *u3v_conv_info)
 {
-    gint isABRM = FALSE, isSBRM = FALSE, isSIRM = FALSE,isEIRM = FALSE;
+    bool isABRM = false, isSBRM = false, isSIRM = false, isEIRM = false;
     /* check if this is the access to one of the base address registers */
     if ( addr < 0x10000 ) {
-        isABRM = TRUE;
+        isABRM = true;
         switch (addr) {
         case U3V_ABRM_GENCP_VERSION:
             proto_tree_add_item(branch, hf_u3v_bootstrap_GenCP_Version, tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -1232,13 +1232,13 @@ dissect_u3v_register(guint64 addr, proto_tree *branch, tvbuff_t *tvb, gint offse
             proto_tree_add_item(branch, hf_u3v_bootstrap_Implementation_Endianness, tvb, offset, 4, ENC_LITTLE_ENDIAN);
             break;
         default:
-            isABRM = FALSE;
+            isABRM = false;
             break;
         }
     }
     if ( u3v_conv_info->sbrm_addr != 0 && (addr >= u3v_conv_info->sbrm_addr)) {
-        guint64 map_offset = addr - u3v_conv_info->sbrm_addr;
-        isSBRM = TRUE;
+        uint64_t map_offset = addr - u3v_conv_info->sbrm_addr;
+        isSBRM = true;
         switch(map_offset) {
         case U3V_SBRM_U3V_VERSION:
             proto_tree_add_item(branch, hf_u3v_bootstrap_U3V_Version, tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -1277,13 +1277,13 @@ dissect_u3v_register(guint64 addr, proto_tree *branch, tvbuff_t *tvb, gint offse
             proto_tree_add_item(branch, hf_u3v_bootstrap_Current_Speed, tvb, offset, 4, ENC_LITTLE_ENDIAN);
             break;
         default:
-            isSBRM = FALSE;
+            isSBRM = false;
             break;
         }
     }
     if ( u3v_conv_info->sirm_addr != 0 && (addr >= u3v_conv_info->sirm_addr)) {
-        guint64 map_offset = addr - u3v_conv_info->sirm_addr;
-        isSIRM = TRUE;
+        uint64_t map_offset = addr - u3v_conv_info->sirm_addr;
+        isSIRM = true;
         switch(map_offset) {
         case U3V_SIRM_SI_INFO:
             proto_tree_add_item(branch, hf_u3v_bootstrap_SI_Info, tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -1319,13 +1319,13 @@ dissect_u3v_register(guint64 addr, proto_tree *branch, tvbuff_t *tvb, gint offse
             proto_tree_add_item(branch, hf_u3v_bootstrap_SI_Maximum_Trailer_Size, tvb, offset, 4, ENC_LITTLE_ENDIAN);
             break;
         default:
-            isSIRM = FALSE;
+            isSIRM = false;
             break;
         }
     }
     if ( u3v_conv_info->eirm_addr != 0 && (addr >= u3v_conv_info->eirm_addr)) {
-        guint64 map_offset = addr -u3v_conv_info->eirm_addr;
-        isEIRM=TRUE;
+        uint64_t map_offset = addr -u3v_conv_info->eirm_addr;
+        isEIRM=true;
         switch(map_offset) {
         case U3V_EIRM_EI_CONTROL:
             proto_tree_add_item(branch, hf_u3v_bootstrap_EI_Control, tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -1337,7 +1337,7 @@ dissect_u3v_register(guint64 addr, proto_tree *branch, tvbuff_t *tvb, gint offse
             proto_tree_add_item(branch, hf_u3v_bootstrap_Event_Test_Control, tvb, offset, 4, ENC_LITTLE_ENDIAN);
             break;
         default:
-            isEIRM = FALSE;
+            isEIRM = false;
             break;
         }
     }
@@ -1351,13 +1351,13 @@ dissect_u3v_register(guint64 addr, proto_tree *branch, tvbuff_t *tvb, gint offse
  \brief DISSECT: Read memory command
 */
 static void
-dissect_u3v_read_mem_cmd(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, gint startoffset, gint length, u3v_conv_info_t *u3v_conv_info, gencp_transaction_t * gencp_trans)
+dissect_u3v_read_mem_cmd(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, int startoffset, int length, u3v_conv_info_t *u3v_conv_info, gencp_transaction_t * gencp_trans)
 {
-    guint64 addr = 0;
-    const gchar* address_string = NULL;
-    gboolean is_custom_register = FALSE;
-    guint16 count = 0;
-    gint offset = startoffset;
+    uint64_t addr = 0;
+    const char* address_string = NULL;
+    bool is_custom_register = false;
+    uint16_t count = 0;
+    int offset = startoffset;
     proto_item *item = NULL;
 
     addr = tvb_get_letoh64(tvb, offset);
@@ -1370,7 +1370,7 @@ dissect_u3v_read_mem_cmd(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_in
     if ( 0xffffffff00000000 & addr ) {
         col_append_fstr(pinfo->cinfo, COL_INFO, " (0x%016" PRIX64 " (%d) bytes) %s", addr, count, address_string);
     } else {
-        col_append_fstr(pinfo->cinfo, COL_INFO, " (0x%08X (%d) bytes)", (guint32)addr, count);
+        col_append_fstr(pinfo->cinfo, COL_INFO, " (0x%08X (%d) bytes)", (uint32_t)addr, count);
     }
 
 
@@ -1398,14 +1398,14 @@ dissect_u3v_read_mem_cmd(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_in
  \brief DISSECT: Write memory command
 */
 static void
-dissect_u3v_write_mem_cmd(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, gint startoffset, gint length, u3v_conv_info_t *u3v_conv_info, gencp_transaction_t *gencp_trans)
+dissect_u3v_write_mem_cmd(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, int startoffset, int length, u3v_conv_info_t *u3v_conv_info, gencp_transaction_t *gencp_trans)
 {
-    const gchar* address_string = NULL;
-    gboolean is_custom_register = FALSE;
-    guint64 addr = 0;
-    guint byte_count = 0;
+    const char* address_string = NULL;
+    bool is_custom_register = false;
+    uint64_t addr = 0;
+    unsigned byte_count = 0;
     proto_item *item = NULL;
-    guint offset = startoffset + 8;
+    unsigned offset = startoffset + 8;
 
     addr = tvb_get_letoh64(tvb, startoffset);
     byte_count = length - 8;
@@ -1437,10 +1437,10 @@ dissect_u3v_write_mem_cmd(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_i
  *  \brief DISSECT: Event command
  */
 static void
-dissect_u3v_event_cmd(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, gint startoffset, gint length)
+dissect_u3v_event_cmd(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, int startoffset, int length)
 {
-    gint32 eventid;
-    gint offset = startoffset;
+    int32_t eventid;
+    int offset = startoffset;
     proto_item *item = NULL;
 
     /* Get event ID */
@@ -1482,15 +1482,15 @@ dissect_u3v_event_cmd(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info 
  \brief DISSECT: Read memory acknowledge
 */
 static void
-dissect_u3v_read_mem_ack(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, gint startoffset, gint length, u3v_conv_info_t *u3v_conv_info, gencp_transaction_t * gencp_trans)
+dissect_u3v_read_mem_ack(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, int startoffset, int length, u3v_conv_info_t *u3v_conv_info, gencp_transaction_t * gencp_trans)
 {
-    guint64 addr = 0;
-    const gchar *address_string = NULL;
-    gboolean is_custom_register = FALSE;
-    gboolean have_address = (0 != gencp_trans->cmd_frame);
+    uint64_t addr = 0;
+    const char *address_string = NULL;
+    bool is_custom_register = false;
+    bool have_address = (0 != gencp_trans->cmd_frame);
     proto_item *item = NULL;
-    guint offset = startoffset;
-    guint byte_count = (length);
+    unsigned offset = startoffset;
+    unsigned byte_count = (length);
 
     addr = gencp_trans->address;
     dissect_u3v_register_bases(addr, tvb, startoffset, u3v_conv_info);
@@ -1522,13 +1522,13 @@ dissect_u3v_read_mem_ack(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_in
  \brief DISSECT: Write memory acknowledge
 */
 static void
-dissect_u3v_write_mem_ack(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, gint startoffset, gint length, u3v_conv_info_t *u3v_conv_info , gencp_transaction_t * gencp_trans)
+dissect_u3v_write_mem_ack(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, int startoffset, int length, u3v_conv_info_t *u3v_conv_info , gencp_transaction_t * gencp_trans)
 {
-    guint64 addr = 0;
-    gint offset = startoffset;
-    const gchar *address_string = NULL;
-    gboolean is_custom_register = FALSE;
-    gboolean have_address = (0 != gencp_trans->cmd_frame);
+    uint64_t addr = 0;
+    int offset = startoffset;
+    const char *address_string = NULL;
+    bool is_custom_register = false;
+    bool have_address = (0 != gencp_trans->cmd_frame);
     proto_item *item = NULL;
 
     addr = gencp_trans->address;
@@ -1561,10 +1561,10 @@ dissect_u3v_write_mem_ack(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_i
  \brief DISSECT: Pending acknowledge
 */
 static void
-dissect_u3v_pending_ack(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint startoffset, gint length, u3v_conv_info_t *u3v_conv_info _U_, gencp_transaction_t *gencp_trans _U_)
+dissect_u3v_pending_ack(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int startoffset, int length, u3v_conv_info_t *u3v_conv_info _U_, gencp_transaction_t *gencp_trans _U_)
 {
     proto_item *item = NULL;
-    guint offset = startoffset;
+    unsigned offset = startoffset;
 
     /* Fill in Wireshark GUI Info column */
     col_append_fstr(pinfo->cinfo, COL_INFO, " %d ms", tvb_get_letohs(tvb, startoffset+2));
@@ -1583,11 +1583,11 @@ dissect_u3v_pending_ack(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_inf
  \brief DISSECT: Stream Leader
 */
 static void
-dissect_u3v_stream_leader(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, usb_conv_info_t *usb_conv_info _U_)
+dissect_u3v_stream_leader(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, urb_info_t *urb _U_)
 {
-    guint32 offset = 0;
-    guint32 payload_type = 0;
-    guint64 block_id = 0;
+    uint32_t offset = 0;
+    uint32_t payload_type = 0;
+    uint64_t block_id = 0;
     proto_item *item = NULL;
 
     /* Subtree initialization for Stream Leader */
@@ -1669,10 +1669,10 @@ dissect_u3v_stream_leader(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_i
  \brief DISSECT: Stream Trailer
 */
 static void
-dissect_u3v_stream_trailer(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, usb_conv_info_t *usb_conv_info _U_)
+dissect_u3v_stream_trailer(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, urb_info_t *urb _U_)
 {
-    gint offset = 0;
-    guint64 block_id;
+    int offset = 0;
+    uint64_t block_id;
     proto_item *item = NULL;
 
     /* Subtree initialization for Stream Trailer */
@@ -1728,7 +1728,7 @@ dissect_u3v_stream_trailer(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_
  \brief DISSECT: Stream Payload
 */
 static void
-dissect_u3v_stream_payload(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, usb_conv_info_t *usb_conv_info _U_)
+dissect_u3v_stream_payload(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_info *pinfo, urb_info_t *urb _U_)
 {
     proto_item *item = NULL;
 
@@ -1749,52 +1749,55 @@ dissect_u3v_stream_payload(proto_tree *u3v_telegram_tree, tvbuff_t *tvb, packet_
 static int
 dissect_u3v(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
-    gint offset = 0;
+    int offset = 0;
     proto_tree *u3v_tree = NULL, *ccd_tree_flag, *u3v_telegram_tree = NULL, *ccd_tree = NULL;
-    gint data_length = 0;
-    gint req_id = 0;
-    gint command_id = -1;
-    gint status = 0;
-    guint prefix = 0;
+    int data_length = 0;
+    int req_id = 0;
+    int command_id = -1;
+    int status = 0;
+    unsigned prefix = 0;
     proto_item *ti = NULL;
     proto_item *item = NULL;
     const char *command_string;
-    usb_conv_info_t *usb_conv_info;
-    gint stream_detected = FALSE;
-    gint control_detected = FALSE;
+    urb_info_t *urb;
+    bool stream_detected = false;
+    bool control_detected = false;
     u3v_conv_info_t *u3v_conv_info = NULL;
     gencp_transaction_t *gencp_trans = NULL;
 
-    usb_conv_info = (usb_conv_info_t *)data;
+    urb = (urb_info_t *)data;
+    if (!urb || !urb->conv) {
+        return 0;
+    }
 
     /* decide if this packet belongs to U3V protocol */
-    u3v_conv_info = (u3v_conv_info_t *)usb_conv_info->class_data;
+    u3v_conv_info = (u3v_conv_info_t *)urb->conv->class_data;
 
     if (!u3v_conv_info) {
         u3v_conv_info = wmem_new0(wmem_file_scope(), u3v_conv_info_t);
-        usb_conv_info->class_data = u3v_conv_info;
-        usb_conv_info->class_data_type = USB_CONV_U3V;
-    } else if (usb_conv_info->class_data_type != USB_CONV_U3V) {
+        urb->conv->class_data = u3v_conv_info;
+        urb->conv->class_data_type = USB_CONV_U3V;
+    } else if (urb->conv->class_data_type != USB_CONV_U3V) {
         /* Don't dissect if another USB type is in the conversation */
         return 0;
     }
 
     prefix = tvb_get_letohl(tvb, 0);
     if ((tvb_reported_length(tvb) >= 4) && ( ( U3V_CONTROL_PREFIX == prefix ) || ( U3V_EVENT_PREFIX == prefix ) ) ) {
-        control_detected = TRUE;
+        control_detected = true;
     }
 
     if (((tvb_reported_length(tvb) >= 4) && (( U3V_STREAM_LEADER_PREFIX == prefix ) || ( U3V_STREAM_TRAILER_PREFIX == prefix )))
-         || (usb_conv_info->endpoint == u3v_conv_info->ep_stream)) {
-        stream_detected = TRUE;
+         || (urb->endpoint == u3v_conv_info->ep_stream)) {
+        stream_detected = true;
     }
 
     /* initialize interface class/subclass in case no descriptors have been dissected yet */
     if ( control_detected || stream_detected){
-        if ( usb_conv_info->interfaceClass  == IF_CLASS_UNKNOWN &&
-             usb_conv_info->interfaceSubclass  == IF_SUBCLASS_UNKNOWN){
-            usb_conv_info->interfaceClass = IF_CLASS_MISCELLANEOUS;
-            usb_conv_info->interfaceSubclass = IF_SUBCLASS_MISC_U3V;
+        if (urb->conv->interfaceClass == IF_CLASS_UNKNOWN &&
+            urb->conv->interfaceSubclass == IF_SUBCLASS_UNKNOWN) {
+            urb->conv->interfaceClass = IF_CLASS_MISCELLANEOUS;
+            urb->conv->interfaceSubclass = IF_SUBCLASS_MISC_U3V;
         }
     }
 
@@ -1942,8 +1945,8 @@ dissect_u3v(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
         /* this is streaming data */
 
         /* init this stream configuration */
-        u3v_conv_info = (u3v_conv_info_t *)usb_conv_info->class_data;
-        u3v_conv_info->ep_stream = usb_conv_info->endpoint;
+        u3v_conv_info = (u3v_conv_info_t *)urb->conv->class_data;
+        u3v_conv_info->ep_stream = urb->endpoint;
 
         /* Set the protocol column */
         col_set_str(pinfo->cinfo, COL_PROTOCOL, "U3V");
@@ -1960,13 +1963,13 @@ dissect_u3v(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
             prefix = tvb_get_letohl(tvb, offset);
             switch (prefix) {
             case U3V_STREAM_LEADER_PREFIX:
-                dissect_u3v_stream_leader(u3v_tree, tvb, pinfo, usb_conv_info);
+                dissect_u3v_stream_leader(u3v_tree, tvb, pinfo, urb);
                 break;
             case U3V_STREAM_TRAILER_PREFIX:
-                dissect_u3v_stream_trailer(u3v_tree, tvb, pinfo, usb_conv_info);
+                dissect_u3v_stream_trailer(u3v_tree, tvb, pinfo, urb);
                 break;
             default:
-                dissect_u3v_stream_payload(u3v_tree, tvb, pinfo, usb_conv_info);
+                dissect_u3v_stream_payload(u3v_tree, tvb, pinfo, urb);
                 break;
             }
         }
@@ -1976,43 +1979,43 @@ dissect_u3v(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 }
 
 
-static gboolean
+static bool
 dissect_u3v_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
-    guint32 prefix;
-    usb_conv_info_t *usb_conv_info;
+    uint32_t prefix;
+    urb_info_t *urb;
 
     /* all control and meta data packets of U3V contain at least the prefix */
     if (tvb_reported_length(tvb) < 4)
-        return FALSE;
+        return false;
     prefix = tvb_get_letohl(tvb, 0);
 
     /* check if stream endpoint has been already set up for this conversation */
-    usb_conv_info = (usb_conv_info_t *)data;
-    if (!usb_conv_info)
-        return FALSE;
+    urb = (urb_info_t *)data;
+    if (!urb || !urb->conv)
+        return false;
 
     /* either right prefix or the endpoint of the interface descriptor
        set the correct class and subclass */
     if ((U3V_STREAM_LEADER_PREFIX  == prefix) || (U3V_STREAM_TRAILER_PREFIX == prefix) ||
         (U3V_CONTROL_PREFIX        == prefix) || (U3V_EVENT_PREFIX          == prefix) ||
-        ((usb_conv_info->interfaceClass == IF_CLASS_MISCELLANEOUS &&
-          usb_conv_info->interfaceSubclass == IF_SUBCLASS_MISC_U3V))) {
+        ((urb->conv->interfaceClass == IF_CLASS_MISCELLANEOUS &&
+          urb->conv->interfaceSubclass == IF_SUBCLASS_MISC_U3V))) {
         dissect_u3v(tvb, pinfo, tree, data);
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
-static gint
+static int
 dissect_u3v_descriptors(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
 {
-    guint8          type;
-    gint            offset = 0;
+    uint8_t         type;
+    int             offset = 0;
     proto_item *    ti;
     proto_tree *    sub_tree;
-    guint32         version;
+    uint32_t        version;
 
 
     /* The descriptor must at least have a length and type field. */
@@ -2021,7 +2024,7 @@ dissect_u3v_descriptors(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     }
 
     /* skip len */
-    type = tvb_get_guint8(tvb, 1);
+    type = tvb_get_uint8(tvb, 1);
 
     /* Check for U3V device info descriptor. */
     if (type != DESCRIPTOR_TYPE_U3V_INTERFACE) {
@@ -2293,7 +2296,7 @@ static hf_register_info hf[] =
     { &hf_u3v_bootstrap_Maximum_Device_Response_Time,
     { "Device Maximum response time in ms", "u3v.bootstrap.Maximum_Device_Response_Time",
     FT_UINT32, BASE_DEC, NULL, 0x0,
-    "Maximum response time in ms", HFILL
+    NULL, HFILL
     } },
 
     { &hf_u3v_bootstrap_Manifest_Table_Address,
@@ -2335,13 +2338,13 @@ static hf_register_info hf[] =
     { &hf_u3v_bootstrap_Timestamp_Latch,
     { "Latch Timestamp", "u3v.bootstrap.Timestamp_Latch",
     FT_UINT32, BASE_DEC, NULL, 0x0,
-    "Timestamp Latch", HFILL
+    NULL, HFILL
     } },
 
     { &hf_u3v_bootstrap_Timestamp_Increment,
     { "Timestamp Increment Value", "u3v.bootstrap.Timestamp_Increment",
     FT_UINT64, BASE_DEC, NULL, 0x0,
-    "Timestamp Increment", HFILL
+    NULL, HFILL
     } },
 
     { &hf_u3v_bootstrap_Access_Privilege,
@@ -2800,7 +2803,7 @@ static hf_register_info hf[] =
 void
 proto_register_u3v(void)
 {
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_u3v,
         &ett_u3v_cmd,
         &ett_u3v_flags,

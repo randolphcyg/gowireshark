@@ -25,176 +25,176 @@
 
 static dissector_handle_t elf_handle;
 
-static int proto_elf = -1;
+static int proto_elf;
 
-static int hf_elf_magic_bytes = -1;
-static int hf_elf_file_size = -1;
-static int hf_elf_header_segment_size = -1;
-static int hf_elf_blackholes_size = -1;
-static int hf_elf_blackhole_size = -1;
-static int hf_elf_overlapping_size = -1;
-static int hf_elf_segment = -1;
-static int hf_elf_entry_bytes = -1;
-static int hf_elf_file_class = -1;
-static int hf_elf_data_encoding = -1;
-static int hf_elf_file_version = -1;
-static int hf_elf_os_abi = -1;
-static int hf_elf_abi_version = -1;
-static int hf_elf_file_padding = -1;
-static int hf_elf_type = -1;
-static int hf_elf_machine = -1;
-static int hf_elf_version = -1;
-static int hf_elf_entry = -1;
-static int hf_elf_phoff = -1;
-static int hf_elf_shoff = -1;
-static int hf_elf64_entry = -1;
-static int hf_elf64_phoff = -1;
-static int hf_elf64_shoff = -1;
-static int hf_elf_flags = -1;
-static int hf_elf_ehsize = -1;
-static int hf_elf_phentsize = -1;
-static int hf_elf_phnum = -1;
-static int hf_elf_shentsize = -1;
-static int hf_elf_shnum = -1;
-static int hf_elf_shstrndx = -1;
-static int hf_elf_p_type = -1;
-static int hf_elf_p_type_operating_system_specific = -1;
-static int hf_elf_p_type_processor_specific = -1;
-static int hf_elf_p_flags_execute = -1;
-static int hf_elf_p_flags_write = -1;
-static int hf_elf_p_flags_read = -1;
-static int hf_elf_p_flags_reserved = -1;
-static int hf_elf_p_flags_operating_system_specific = -1;
-static int hf_elf_p_flags_processor_specific = -1;
-static int hf_elf_p_offset = -1;
-static int hf_elf64_p_offset = -1;
-static int hf_elf_p_vaddr = -1;
-static int hf_elf64_p_vaddr = -1;
-static int hf_elf_p_paddr = -1;
-static int hf_elf64_p_paddr = -1;
-static int hf_elf_p_filesz = -1;
-static int hf_elf64_p_filesz = -1;
-static int hf_elf_p_memsz = -1;
-static int hf_elf64_p_memsz = -1;
-static int hf_elf_p_align = -1;
-static int hf_elf64_p_align = -1;
+static int hf_elf_magic_bytes;
+static int hf_elf_file_size;
+static int hf_elf_header_segment_size;
+static int hf_elf_blackholes_size;
+static int hf_elf_blackhole_size;
+static int hf_elf_overlapping_size;
+static int hf_elf_segment;
+static int hf_elf_entry_bytes;
+static int hf_elf_file_class;
+static int hf_elf_data_encoding;
+static int hf_elf_file_version;
+static int hf_elf_os_abi;
+static int hf_elf_abi_version;
+static int hf_elf_file_padding;
+static int hf_elf_type;
+static int hf_elf_machine;
+static int hf_elf_version;
+static int hf_elf_entry;
+static int hf_elf_phoff;
+static int hf_elf_shoff;
+static int hf_elf64_entry;
+static int hf_elf64_phoff;
+static int hf_elf64_shoff;
+static int hf_elf_flags;
+static int hf_elf_ehsize;
+static int hf_elf_phentsize;
+static int hf_elf_phnum;
+static int hf_elf_shentsize;
+static int hf_elf_shnum;
+static int hf_elf_shstrndx;
+static int hf_elf_p_type;
+static int hf_elf_p_type_operating_system_specific;
+static int hf_elf_p_type_processor_specific;
+static int hf_elf_p_flags_execute;
+static int hf_elf_p_flags_write;
+static int hf_elf_p_flags_read;
+static int hf_elf_p_flags_reserved;
+static int hf_elf_p_flags_operating_system_specific;
+static int hf_elf_p_flags_processor_specific;
+static int hf_elf_p_offset;
+static int hf_elf64_p_offset;
+static int hf_elf_p_vaddr;
+static int hf_elf64_p_vaddr;
+static int hf_elf_p_paddr;
+static int hf_elf64_p_paddr;
+static int hf_elf_p_filesz;
+static int hf_elf64_p_filesz;
+static int hf_elf_p_memsz;
+static int hf_elf64_p_memsz;
+static int hf_elf_p_align;
+static int hf_elf64_p_align;
 
-static int hf_elf_sh_name = -1;
-static int hf_elf_sh_type_user_specific = -1;
-static int hf_elf_sh_type_operating_system_specific = -1;
-static int hf_elf_sh_type_processor_specific = -1;
-static int hf_elf_sh_type = -1;
+static int hf_elf_sh_name;
+static int hf_elf_sh_type_user_specific;
+static int hf_elf_sh_type_operating_system_specific;
+static int hf_elf_sh_type_processor_specific;
+static int hf_elf_sh_type;
 
-static int hf_elf_sh_flags_processor_specific = -1;
-static int hf_elf_sh_flags_operating_system_specific = -1;
-static int hf_elf_sh_flags_reserved = -1;
-static int hf_elf_sh_flags_tls = -1;
-static int hf_elf_sh_flags_group = -1;
-static int hf_elf_sh_flags_os_nonconforming = -1;
-static int hf_elf_sh_flags_link_order = -1;
-static int hf_elf_sh_flags_info_link = -1;
-static int hf_elf_sh_flags_strings = -1;
-static int hf_elf_sh_flags_merge = -1;
-static int hf_elf_sh_flags_reserved_8 = -1;
-static int hf_elf_sh_flags_exec_instr = -1;
-static int hf_elf_sh_flags_alloc = -1;
-static int hf_elf_sh_flags_write = -1;
-static int hf_elf_sh_addr = -1;
-static int hf_elf64_sh_addr = -1;
+static int hf_elf_sh_flags_processor_specific;
+static int hf_elf_sh_flags_operating_system_specific;
+static int hf_elf_sh_flags_reserved;
+static int hf_elf_sh_flags_tls;
+static int hf_elf_sh_flags_group;
+static int hf_elf_sh_flags_os_nonconforming;
+static int hf_elf_sh_flags_link_order;
+static int hf_elf_sh_flags_info_link;
+static int hf_elf_sh_flags_strings;
+static int hf_elf_sh_flags_merge;
+static int hf_elf_sh_flags_reserved_8;
+static int hf_elf_sh_flags_exec_instr;
+static int hf_elf_sh_flags_alloc;
+static int hf_elf_sh_flags_write;
+static int hf_elf_sh_addr;
+static int hf_elf64_sh_addr;
 
-static int hf_elf_sh_offset = -1;
-static int hf_elf64_sh_offset = -1;
-static int hf_elf_sh_size = -1;
-static int hf_elf64_sh_size = -1;
-static int hf_elf_sh_link = -1;
-static int hf_elf_sh_info = -1;
-static int hf_elf_sh_addralign = -1;
-static int hf_elf64_sh_addralign = -1;
-static int hf_elf_sh_entsize = -1;
-static int hf_elf64_sh_entsize = -1;
+static int hf_elf_sh_offset;
+static int hf_elf64_sh_offset;
+static int hf_elf_sh_size;
+static int hf_elf64_sh_size;
+static int hf_elf_sh_link;
+static int hf_elf_sh_info;
+static int hf_elf_sh_addralign;
+static int hf_elf64_sh_addralign;
+static int hf_elf_sh_entsize;
+static int hf_elf64_sh_entsize;
 
-static int hf_elf_eh_frame_length = -1;
-static int hf_elf_eh_frame_extended_length = -1;
-static int hf_elf_eh_frame_cie_id = -1;
-static int hf_elf_eh_frame_version = -1;
-static int hf_elf_eh_frame_augmentation_string = -1;
-static int hf_elf_eh_frame_code_alignment_factor = -1;
-static int hf_elf_eh_frame_data_alignment_factor = -1;
-static int hf_elf_eh_frame_return_address_register = -1;
-static int hf_elf_eh_frame_augmentation_length = -1;
-static int hf_elf_eh_frame_augmentation_data = -1;
-static int hf_elf_eh_frame_initial_instructions = -1;
+static int hf_elf_eh_frame_length;
+static int hf_elf_eh_frame_extended_length;
+static int hf_elf_eh_frame_cie_id;
+static int hf_elf_eh_frame_version;
+static int hf_elf_eh_frame_augmentation_string;
+static int hf_elf_eh_frame_code_alignment_factor;
+static int hf_elf_eh_frame_data_alignment_factor;
+static int hf_elf_eh_frame_return_address_register;
+static int hf_elf_eh_frame_augmentation_length;
+static int hf_elf_eh_frame_augmentation_data;
+static int hf_elf_eh_frame_initial_instructions;
 
-static int hf_elf_eh_frame_fde_length = -1;
-static int hf_elf_eh_frame_fde_extended_length = -1;
-static int hf_elf_eh_frame_fde_cie_pointer = -1;
-static int hf_elf_eh_frame_fde_pc_begin = -1;
-static int hf_elf_eh_frame_fde_pc_range = -1;
-static int hf_elf_eh_frame_fde_augmentation_length = -1;
-static int hf_elf_eh_frame_fde_augmentation_data = -1;
-static int hf_elf_eh_frame_fde_call_frame_instructions = -1;
+static int hf_elf_eh_frame_fde_length;
+static int hf_elf_eh_frame_fde_extended_length;
+static int hf_elf_eh_frame_fde_cie_pointer;
+static int hf_elf_eh_frame_fde_pc_begin;
+static int hf_elf_eh_frame_fde_pc_range;
+static int hf_elf_eh_frame_fde_augmentation_length;
+static int hf_elf_eh_frame_fde_augmentation_data;
+static int hf_elf_eh_frame_fde_call_frame_instructions;
 
-static int hf_elf_eh_frame_hdr_version = -1;
-static int hf_elf_eh_frame_hdr_exception_frame_pointer_encoding = -1;
-static int hf_elf_eh_frame_hdr_fde_count_encoding = -1;
-static int hf_elf_eh_frame_hdr_binary_search_table_encoding = -1;
-static int hf_elf_eh_frame_hdr_eh_frame_ptr = -1;
-static int hf_elf_eh_frame_hdr_fde_count = -1;
-static int hf_elf_eh_frame_hdr_binary_search_table_entry_initial_location = -1;
-static int hf_elf_eh_frame_hdr_binary_search_table_entry_address = -1;
+static int hf_elf_eh_frame_hdr_version;
+static int hf_elf_eh_frame_hdr_exception_frame_pointer_encoding;
+static int hf_elf_eh_frame_hdr_fde_count_encoding;
+static int hf_elf_eh_frame_hdr_binary_search_table_encoding;
+static int hf_elf_eh_frame_hdr_eh_frame_ptr;
+static int hf_elf_eh_frame_hdr_fde_count;
+static int hf_elf_eh_frame_hdr_binary_search_table_entry_initial_location;
+static int hf_elf_eh_frame_hdr_binary_search_table_entry_address;
 
-static int hf_elf_symbol_table_name_index = -1;
-static int hf_elf_symbol_table_value = -1;
-static int hf_elf64_symbol_table_value = -1;
-static int hf_elf_symbol_table_size = -1;
-static int hf_elf64_symbol_table_size = -1;
-static int hf_elf_symbol_table_info = -1;
-static int hf_elf_symbol_table_info_bind = -1;
-static int hf_elf_symbol_table_info_type = -1;
-static int hf_elf_symbol_table_other = -1;
-static int hf_elf_symbol_table_shndx = -1;
+static int hf_elf_symbol_table_name_index;
+static int hf_elf_symbol_table_value;
+static int hf_elf64_symbol_table_value;
+static int hf_elf_symbol_table_size;
+static int hf_elf64_symbol_table_size;
+static int hf_elf_symbol_table_info;
+static int hf_elf_symbol_table_info_bind;
+static int hf_elf_symbol_table_info_type;
+static int hf_elf_symbol_table_other;
+static int hf_elf_symbol_table_shndx;
 
-static int hf_elf_dynamic_tag = -1;
-static int hf_elf_dynamic_value = -1;
-static int hf_elf_dynamic_pointer = -1;
-static int hf_elf_dynamic_ignored = -1;
-static int hf_elf_dynamic_unspecified = -1;
-static int hf_elf64_dynamic_tag = -1;
-static int hf_elf64_dynamic_value = -1;
-static int hf_elf64_dynamic_pointer = -1;
-static int hf_elf64_dynamic_ignored = -1;
-static int hf_elf64_dynamic_unspecified = -1;
+static int hf_elf_dynamic_tag;
+static int hf_elf_dynamic_value;
+static int hf_elf_dynamic_pointer;
+static int hf_elf_dynamic_ignored;
+static int hf_elf_dynamic_unspecified;
+static int hf_elf64_dynamic_tag;
+static int hf_elf64_dynamic_value;
+static int hf_elf64_dynamic_pointer;
+static int hf_elf64_dynamic_ignored;
+static int hf_elf64_dynamic_unspecified;
 
-static int hf_elf_string = -1;
+static int hf_elf_string;
 
-static int hf_dwarf_omit = -1;
-static int hf_dwarf_upper = -1;
-static int hf_dwarf_format = -1;
+static int hf_dwarf_omit;
+static int hf_dwarf_upper;
+static int hf_dwarf_format;
 
-static expert_field ei_invalid_segment_size                           = EI_INIT;
-static expert_field ei_invalid_entry_size                             = EI_INIT;
-static expert_field ei_cfi_extraneous_data                            = EI_INIT;
-static expert_field ei_invalid_cie_length                             = EI_INIT;
+static expert_field ei_invalid_segment_size;
+static expert_field ei_invalid_entry_size;
+static expert_field ei_cfi_extraneous_data;
+static expert_field ei_invalid_cie_length;
 
-static gint ett_elf = -1;
-static gint ett_elf_header = -1;
-static gint ett_elf_program_header = -1;
-static gint ett_elf_program_header_entry = -1;
-static gint ett_elf_section_header = -1;
-static gint ett_elf_section_header_entry = -1;
-static gint ett_elf_segment = -1;
-static gint ett_elf_cfi_record = -1;
-static gint ett_elf_cie_entry = -1;
-static gint ett_elf_fde_entry = -1;
-static gint ett_elf_cie_terminator = -1;
-static gint ett_elf_info = -1;
-static gint ett_elf_black_holes = -1;
-static gint ett_elf_overlapping = -1;
-static gint ett_dwarf_encoding = -1;
-static gint ett_binary_table = -1;
-static gint ett_binary_table_entry = -1;
-static gint ett_symbol_table_entry = -1;
-static gint ett_symbol_table_info = -1;
+static int ett_elf;
+static int ett_elf_header;
+static int ett_elf_program_header;
+static int ett_elf_program_header_entry;
+static int ett_elf_section_header;
+static int ett_elf_section_header_entry;
+static int ett_elf_segment;
+static int ett_elf_cfi_record;
+static int ett_elf_cie_entry;
+static int ett_elf_fde_entry;
+static int ett_elf_cie_terminator;
+static int ett_elf_info;
+static int ett_elf_black_holes;
+static int ett_elf_overlapping;
+static int ett_dwarf_encoding;
+static int ett_binary_table;
+static int ett_binary_table_entry;
+static int ett_symbol_table_entry;
+static int ett_symbol_table_info;
 
 #define REGISTER_32_SIZE  4
 #define REGISTER_64_SIZE  8
@@ -442,44 +442,51 @@ static const value_string os_abi_vals[] = {
     { 0x0E,  "Hewlett-Packard Non-Stop Kernel" },
     { 0x0F,  "Amiga Research OS" },
     { 0x10,  "The FenixOS highly scalable multi-core OS" },
+    { 0x11,  "Nuxi CloudABI" },
+    { 0x12,  "Stratus Technologies OpenVOS" },
     { 0, NULL }
 };
 static value_string_ext os_abi_vals_ext = VALUE_STRING_EXT_INIT(os_abi_vals);
 
-static const value_string p_type_vals[] = {
-    { 0,  "PT_NULL" },
-    { 1,  "PT_LOAD" },
-    { 2,  "PT_DYNAMIC" },
-    { 3,  "PT_INTERP" },
-    { 4,  "PT_NOTE" },
-    { 5,  "PT_SHLIB" },
-    { 6,  "PT_PHDR" },
-    { 7,  "PT_TLS" },
-    { 0, NULL }
+/* https://www.sco.com/developers/gabi/latest/ch5.pheader.html */
+static const range_string p_type_rvals[] = {
+    { 0, 0, "PT_NULL" },
+    { 1, 1, "PT_LOAD" },
+    { 2, 2, "PT_DYNAMIC" },
+    { 3, 3, "PT_INTERP" },
+    { 4, 4, "PT_NOTE" },
+    { 5, 5, "PT_SHLIB" },
+    { 6, 6, "PT_PHDR" },
+    { 7, 7, "PT_TLS" },
+    { 0x60000000, 0x6fffffff, "PT_OS" },
+    { 0x70000000, 0x7fffffff, "PT_PROC" },
+    { 0, 0, NULL }
 };
 
-static const value_string sh_type_vals[] = {
-    {  0,  "SHT_NULL" },
-    {  1,  "SHT_PROGBITS" },
-    {  2,  "SHT_SYMTAB" },
-    {  3,  "SHT_STRTAB" },
-    {  4,  "SHT_RELA" },
-    {  5,  "SHT_HASH" },
-    {  6,  "SHT_DYNAMIC" },
-    {  7,  "SHT_NOTE" },
-    {  8,  "SHT_NOBITS" },
-    {  9,  "SHT_REL" },
-    { 10,  "SHT_SHLIB" },
-    { 11,  "SHT_DYNSYM" },
-    { 14,  "SHT_INIT_ARRAY" },
-    { 15,  "SHT_FINI_ARRAY" },
-    { 16,  "SHT_PREINIT_ARRAY" },
-    { 17,  "SHT_GROUP" },
-    { 18,  "SHT_SYMTAB_SHNDX" },
-    /* TODO: https://www.sco.com/developers/gabi/latest/ch4.sheader.html range_string? */
-    { 0, NULL }
+/* https://www.sco.com/developers/gabi/latest/ch4.sheader.html */
+static const range_string sh_type_rvals[] = {
+    {  0,  0, "SHT_NULL" },
+    {  1,  1, "SHT_PROGBITS" },
+    {  2,  2, "SHT_SYMTAB" },
+    {  3,  3, "SHT_STRTAB" },
+    {  4,  4, "SHT_RELA" },
+    {  5,  5, "SHT_HASH" },
+    {  6,  6, "SHT_DYNAMIC" },
+    {  7,  7, "SHT_NOTE" },
+    {  8,  8, "SHT_NOBITS" },
+    {  9,  9, "SHT_REL" },
+    { 10, 10, "SHT_SHLIB" },
+    { 11, 11, "SHT_DYNSYM" },
+    { 14, 14, "SHT_INIT_ARRAY" },
+    { 15, 15, "SHT_FINI_ARRAY" },
+    { 16, 16, "SHT_PREINIT_ARRAY" },
+    { 17, 17, "SHT_GROUP" },
+    { 18, 18, "SHT_SYMTAB_SHNDX" },
+    { 0x60000000, 0x6fffffff, "SHT_OS" },
+    { 0x70000000, 0x7fffffff, "SHT_PROC" },
+    { 0x80000000, 0xffffffff, "SHT_USER" },
+    { 0, 0, NULL }
 };
-static value_string_ext sh_type_vals_ext = VALUE_STRING_EXT_INIT(sh_type_vals);
 
 static const value_string eh_dwarf_upper[] = {
     { 0x0,  "Normal Value"  },
@@ -601,55 +608,55 @@ static const range_string dynamic_tag_rvals[] = {
 
 
 typedef struct _segment_info_t {
-    guint64        offset;
-    guint64        size;
+    uint64_t       offset;
+    uint64_t       size;
     const char  *name;
 } segment_info_t;
 
 void proto_register_elf(void);
 void proto_reg_handoff_elf(void);
 
-static gint
-dissect_leb128(tvbuff_t *tvb, gint offset, gint64 *value)
+static int
+dissect_leb128(tvbuff_t *tvb, int offset, int64_t *value)
 {
-    guint  start_offset = offset;
-    guint  shift = 0;
-    guint8 byte;
+    unsigned  start_offset = offset;
+    unsigned  shift = 0;
+    uint8_t byte;
 
     *value = 0;
 
     do {
-        byte = tvb_get_guint8(tvb, offset);
+        byte = tvb_get_uint8(tvb, offset);
         offset += 1;
 
-        *value |= ((guint64)(byte & 0x7F) << shift);
+        *value |= ((uint64_t)(byte & 0x7F) << shift);
         shift += 7;
     } while ((byte & 0x80) && (shift < 64));
 
     if (shift < 64 && byte & 0x40)
-        *value |= - ((gint64)1 << shift);
+        *value |= - ((int64_t)1 << shift);
 
     return offset - start_offset;
 }
 
-/* Wireshark support "offset" as gint, but ELF needed guint64 size, so check if there is no overflow */
-static gint
-value_guard(guint64 value)
+/* Wireshark support "offset" as int, but ELF needed uint64_t size, so check if there is no overflow */
+static int
+value_guard(uint64_t value)
 {
-    DISSECTOR_ASSERT_HINT(value <= G_MAXINT, "Too big file - not supported");
+    DISSECTOR_ASSERT_HINT(value <= INT_MAX, "Too big file - not supported");
 
-    return (gint) value;
+    return (int) value;
 }
 
-static guint8
-dissect_dwarf_encoding(tvbuff_t *tvb, gint offset, proto_item *item)
+static uint8_t
+dissect_dwarf_encoding(tvbuff_t *tvb, int offset, proto_item *item)
 {
-    guint8      value;
+    uint8_t     value;
     proto_tree *tree;
 
     tree = proto_item_add_subtree(item, ett_dwarf_encoding);
 
-    value = tvb_get_guint8(tvb, offset);
+    value = tvb_get_uint8(tvb, offset);
 
     if (value == 0xFF) {
         proto_tree_add_item(tree, hf_dwarf_omit,   tvb, offset, 1, ENC_NA);
@@ -664,8 +671,8 @@ dissect_dwarf_encoding(tvbuff_t *tvb, gint offset, proto_item *item)
 #define LENGTH_LEB128   -1
 #define LENGTH_ULEB128  -2
 
-static gint8
-get_dwarf_extension_length(guint8 format, guint register_size)
+static int8_t
+get_dwarf_extension_length(uint8_t format, unsigned register_size)
 {
     switch (format & 0x0F) {
     case 0x0:
@@ -692,23 +699,23 @@ get_dwarf_extension_length(guint8 format, guint register_size)
 }
 
 static const char *
-get_section_name_offset(tvbuff_t *tvb, guint64 shoff, guint16 shnum, guint16 shentsize, guint16 shndx, guint64 shstrtab_offset, guint machine_encoding)
+get_section_name_offset(wmem_allocator_t *scope, tvbuff_t *tvb, uint64_t shoff, uint16_t shnum, uint16_t shentsize, uint16_t shndx, uint64_t shstrtab_offset, unsigned machine_encoding)
 {
-    gint     offset;
-    guint32  sh_name;
+    int      offset;
+    uint32_t sh_name;
 
     if (shndx > shnum)
         return NULL;
 
-    offset = value_guard(shoff + (guint32)shndx * (guint32)shentsize);
+    offset = value_guard(shoff + (uint32_t)shndx * (uint32_t)shentsize);
     sh_name = (machine_encoding == ENC_BIG_ENDIAN) ? tvb_get_ntohl(tvb, offset) : tvb_get_letohl(tvb, offset);
-    return tvb_get_stringz_enc(wmem_packet_scope(), tvb, value_guard(shstrtab_offset + sh_name), NULL, ENC_ASCII);
+    return tvb_get_stringz_enc(scope, tvb, value_guard(shstrtab_offset + sh_name), NULL, ENC_ASCII);
 }
 
 #define MAX_TAG_TO_TYPE 34
-static gint
+static int
 dissect_dynamic(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tree, proto_item *entry_item,
-        gint offset, gint register_size, guint machine_encoding)
+        int offset, int register_size, unsigned machine_encoding)
 {
     enum enum_tag_type {
         DYNAMIC_TYPE_VALUE,
@@ -717,7 +724,7 @@ dissect_dynamic(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tree, p
         DYNAMIC_TYPE_UNSPECIFIED
     };
 
-    guint64                          tag;
+    uint64_t                         tag;
     static const enum enum_tag_type  tag_to_type[MAX_TAG_TO_TYPE] = {
         DYNAMIC_TYPE_IGNORED,
         DYNAMIC_TYPE_VALUE,
@@ -793,20 +800,20 @@ dissect_dynamic(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tree, p
     return offset;
 }
 
-static gint
-dissect_symbol_table(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tree, proto_item *entry_item,
-        gint offset, gint register_size, guint machine_encoding, guint64 strtab_offset,
-        guint64 shoff, guint16 shnum, guint16 shentsize, guint64 shstrtab_offset)
+static int
+dissect_symbol_table(tvbuff_t *tvb, packet_info *pinfo, proto_tree *entry_tree, proto_item *entry_item,
+        int offset, int register_size, unsigned machine_encoding, uint64_t strtab_offset,
+        uint64_t shoff, uint16_t shnum, uint16_t shentsize, uint64_t shstrtab_offset)
 {
     proto_item   *pitem;
     proto_item   *info_item;
     proto_tree   *info_tree;
-    guint16       shndx;
-    guint32       name_index;
+    uint16_t      shndx;
+    uint32_t      name_index;
     const char *section_name;
     const char *name;
-    guint8        info_bind;
-    guint8        info_type;
+    uint8_t       info_bind;
+    uint8_t       info_type;
 
     pitem = proto_tree_add_item(entry_tree, hf_elf_symbol_table_name_index, tvb, offset, 4, machine_encoding);
     if (strtab_offset) {
@@ -830,8 +837,8 @@ dissect_symbol_table(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tr
         info_tree = proto_item_add_subtree(info_item, ett_symbol_table_info);
         proto_tree_add_item(info_tree, hf_elf_symbol_table_info_bind, tvb, offset, 1, machine_encoding);
         proto_tree_add_item(info_tree, hf_elf_symbol_table_info_type, tvb, offset, 1, machine_encoding);
-        info_bind = tvb_get_guint8(tvb, offset) >> 4;
-        info_type = tvb_get_guint8(tvb, offset) & 0x0F;
+        info_bind = tvb_get_uint8(tvb, offset) >> 4;
+        info_type = tvb_get_uint8(tvb, offset) & 0x0F;
         offset += 1;
 
         proto_tree_add_item(entry_tree, hf_elf_symbol_table_other, tvb, offset, 1, machine_encoding);
@@ -840,7 +847,7 @@ dissect_symbol_table(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tr
         pitem = proto_tree_add_item(entry_tree, hf_elf_symbol_table_shndx, tvb, offset, 2, machine_encoding);
         shndx = (machine_encoding == ENC_BIG_ENDIAN) ? tvb_get_ntohs(tvb, offset) : tvb_get_letohs(tvb, offset);
         if (shndx <= shnum) {
-            section_name = get_section_name_offset(tvb, shoff, shnum, shentsize, shndx, shstrtab_offset, machine_encoding);
+            section_name = get_section_name_offset(pinfo->pool, tvb, shoff, shnum, shentsize, shndx, shstrtab_offset, machine_encoding);
             if (section_name && section_name[0] != '\0')
                 proto_item_append_text(pitem, " (%u: %s)", shndx, section_name);
         } else {
@@ -852,8 +859,8 @@ dissect_symbol_table(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tr
         info_tree = proto_item_add_subtree(info_item, ett_symbol_table_info);
         proto_tree_add_item(info_tree, hf_elf_symbol_table_info_bind, tvb, offset, 1, machine_encoding);
         proto_tree_add_item(info_tree, hf_elf_symbol_table_info_type, tvb, offset, 1, machine_encoding);
-        info_bind = tvb_get_guint8(tvb, offset) >> 4;
-        info_type = tvb_get_guint8(tvb, offset) & 0x0F;
+        info_bind = tvb_get_uint8(tvb, offset) >> 4;
+        info_type = tvb_get_uint8(tvb, offset) & 0x0F;
         offset += 1;
 
         proto_tree_add_item(entry_tree, hf_elf_symbol_table_other, tvb, offset, 1, machine_encoding);
@@ -862,7 +869,7 @@ dissect_symbol_table(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tr
         pitem = proto_tree_add_item(entry_tree, hf_elf_symbol_table_shndx, tvb, offset, 2, machine_encoding);
         shndx = (machine_encoding == ENC_BIG_ENDIAN) ? tvb_get_ntohs(tvb, offset) : tvb_get_letohs(tvb, offset);
         if (shndx <= shnum) {
-            section_name = get_section_name_offset(tvb, shoff, shnum, shentsize, shndx, shstrtab_offset, machine_encoding);
+            section_name = get_section_name_offset(pinfo->pool, tvb, shoff, shnum, shentsize, shndx, shstrtab_offset, machine_encoding);
             if (section_name && section_name[0] != '\0')
                 proto_item_append_text(pitem, " (%u: %s)", shndx, section_name);
         } else {
@@ -888,18 +895,18 @@ dissect_symbol_table(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *entry_tr
     return offset;
 }
 
-static gint
+static int
 dissect_eh_frame_hdr(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *segment_tree,
-        gint offset, gint segment_size _U_, gint register_size, guint machine_encoding)
+        int offset, int segment_size _U_, int register_size, unsigned machine_encoding)
 {
     proto_item  *item;
     proto_tree  *table_tree;
-    guint8       format;
-    gint         efp_length;
-    gint         fde_count_length;
-    gint         table_entry_length;
-    guint64      fde_count;
-    guint        i_entry;
+    uint8_t      format;
+    int          efp_length;
+    int          fde_count_length;
+    int          table_entry_length;
+    uint64_t     fde_count;
+    unsigned     i_entry;
 
     proto_tree_add_item(segment_tree, hf_elf_eh_frame_hdr_version, tvb, offset, 1, machine_encoding);
     offset += 1;
@@ -920,11 +927,11 @@ dissect_eh_frame_hdr(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *segment_
     offset += 1;
 
     if (efp_length == LENGTH_ULEB128) {
-        guint64 value;
+        uint64_t value;
 
         efp_length = tvb_get_varint(tvb, offset, FT_VARINT_MAX_LEN, &value, ENC_VARINT_PROTOBUF);
     } else if (efp_length == LENGTH_LEB128) {
-        gint64 value;
+        int64_t value;
 
         efp_length = dissect_leb128(tvb, offset, &value);
     }
@@ -936,10 +943,10 @@ dissect_eh_frame_hdr(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *segment_
     if (fde_count_length == LENGTH_ULEB128) {
         fde_count_length = tvb_get_varint(tvb, offset, FT_VARINT_MAX_LEN, &fde_count, ENC_VARINT_PROTOBUF);
     } else if (fde_count_length == LENGTH_LEB128) {
-        gint64 value;
+        int64_t value;
 
         fde_count_length = dissect_leb128(tvb, offset, &value);
-        fde_count = (guint64) value;
+        fde_count = (uint64_t) value;
     } else {
         if (fde_count_length == 0) fde_count_length = register_size;
 
@@ -965,11 +972,11 @@ dissect_eh_frame_hdr(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *segment_
     offset += fde_count_length;
 
     if (table_entry_length == LENGTH_ULEB128) {
-        guint64 value;
+        uint64_t value;
 
         table_entry_length = tvb_get_varint(tvb, offset, FT_VARINT_MAX_LEN, &value, ENC_VARINT_PROTOBUF);
     } else if (table_entry_length == LENGTH_LEB128) {
-        gint64 value;
+        int64_t value;
 
         table_entry_length = dissect_leb128(tvb, offset, &value);
     }
@@ -996,27 +1003,27 @@ dissect_eh_frame_hdr(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *segment_
 }
 
 
-static gint
+static int
 dissect_eh_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *segment_tree,
-        gint offset, gint segment_size, gint register_size _U_, guint machine_encoding)
+        int offset, int segment_size, int register_size _U_, unsigned machine_encoding)
 {
     proto_tree    *cfi_tree = NULL;
     proto_item    *cfi_tree_item = NULL;
     proto_tree    *entry_tree;
     proto_item    *pi = NULL;
-    guint64        length;
-    guint          lengths_size;
-    gboolean       is_cie;
-    guint          entry_size, entry_end = 0;
-    guint          cfi_size = 0;
-    guint64        unsigned_value;
-    gint64         signed_value;
-    gint           size;
-    const gchar   *augmentation_string = "";
-    gboolean       is_extended_length;
-    gint           start_offset = offset;
-    guint          cfi_number = 0;
-    gint           entry_number = 0;
+    uint64_t       length;
+    unsigned       lengths_size;
+    bool           is_cie;
+    unsigned       entry_size, entry_end = 0;
+    unsigned       cfi_size = 0;
+    uint64_t       unsigned_value;
+    int64_t        signed_value;
+    int            size;
+    const char    *augmentation_string = "";
+    bool           is_extended_length;
+    int            start_offset = offset;
+    unsigned       cfi_number = 0;
+    int            entry_number = 0;
 
     while (offset - start_offset < segment_size) {
         length = (machine_encoding == ENC_BIG_ENDIAN) ?
@@ -1079,7 +1086,7 @@ dissect_eh_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *segment_tree,
             break;
 
         /* CIE ID (8) + Augment. Str (1) + CAF+DAF+Aug.Len (3) = 12 (min. length) */
-        if (length < 12 || entry_end - start_offset > (guint64)segment_size) {
+        if (length < 12 || entry_end - start_offset > (uint64_t)segment_size) {
             expert_add_info(pinfo, pi, &ei_invalid_cie_length);
             return offset;
         }
@@ -1143,7 +1150,7 @@ dissect_eh_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *segment_tree,
         offset = value_guard(entry_end);
     }
 
-    if (entry_end - start_offset != (guint64)segment_size)
+    if (entry_end - start_offset != (uint64_t)segment_size)
         expert_add_info(pinfo, pi, &ei_cfi_extraneous_data);
 
     return offset;
@@ -1152,8 +1159,8 @@ dissect_eh_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *segment_tree,
 static int
 dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    static const guint8 magic[] = { 0x7F, 'E', 'L', 'F'};
-    gint             offset = 0;
+    static const uint8_t magic[] = { 0x7F, 'E', 'L', 'F'};
+    int              offset = 0;
     proto_tree      *main_tree;
     proto_item      *main_item, *ti;
     proto_tree      *header_tree;
@@ -1171,36 +1178,36 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
     proto_tree      *blackhole_tree;
     proto_item      *entry_item;
     proto_tree      *entry_tree;
-    guint            machine_encoding = ENC_NA;
-    gint             register_size = 4;
-    guint16          phentsize;
-    guint16          phnum;
-    guint16          shentsize;
-    guint16          shnum;
-    guint64          phoff;
-    guint64          shoff;
-    guint16          i_16;
-    guint32          p_type;
-    guint32          sh_type;
-    guint16          shstrndx;
-    guint64          shstrtab_offset;
-    guint32          sh_name;
+    unsigned         machine_encoding = ENC_NA;
+    int              register_size = 4;
+    uint16_t         phentsize;
+    uint16_t         phnum;
+    uint16_t         shentsize;
+    uint16_t         shnum;
+    uint64_t         phoff;
+    uint64_t         shoff;
+    uint16_t         i_16;
+    uint32_t         p_type;
+    uint32_t         sh_type;
+    uint16_t         shstrndx;
+    uint64_t         shstrtab_offset;
+    uint32_t         sh_name;
     const char      *section_name;
-    guint64          length;
-    guint64          segment_offset;
-    guint64          segment_size;
-    guint64          file_size;
-    guint64          p_offset;
-    gint             ehsize;
-    guint            area_counter = 0;
+    uint64_t         length;
+    uint64_t         segment_offset;
+    uint64_t         segment_size;
+    uint64_t         file_size;
+    uint64_t         p_offset;
+    int              ehsize;
+    unsigned         area_counter = 0;
     segment_info_t  *segment_info;
-    guint            i;
-    guint            i_next;
-    gint             next_offset;
-    gint             len;
-    guint64          sh_entsize;
-    guint64          strtab_offset = 0;
-    guint64          dynstr_offset = 0;
+    unsigned         i;
+    unsigned         i_next;
+    int              next_offset;
+    int              len;
+    uint64_t         sh_entsize;
+    uint64_t         strtab_offset = 0;
+    uint64_t         dynstr_offset = 0;
 
     if (tvb_captured_length(tvb) < 52)
         return 0;
@@ -1218,11 +1225,11 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
     offset += (int)sizeof(magic);
 
     proto_tree_add_item(header_tree, hf_elf_file_class, tvb, offset, 1, ENC_NA);
-    register_size *= tvb_get_guint8(tvb, offset);
+    register_size *= tvb_get_uint8(tvb, offset);
     offset += 1;
 
     proto_tree_add_item(header_tree, hf_elf_data_encoding, tvb, offset, 1, ENC_NA);
-    if (tvb_get_guint8(tvb, offset) == 1)
+    if (tvb_get_uint8(tvb, offset) == 1)
         machine_encoding = ENC_LITTLE_ENDIAN;
     else
         machine_encoding = ENC_BIG_ENDIAN;
@@ -1319,7 +1326,7 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
     section_header_tree = proto_tree_add_subtree_format(main_tree, tvb, value_guard(shoff),
             shnum * shentsize, ett_elf_section_header, NULL, "Section Header Table [%d entries]", shnum);
 
-    file_size = ehsize + (guint32)phnum * (guint32)phentsize + (guint32)shnum * (guint32)shentsize;
+    file_size = ehsize + (uint32_t)phnum * (uint32_t)phentsize + (uint32_t)shnum * (uint32_t)shentsize;
 
     /* Collect infos for blackholes */
     segment_info = (segment_info_t *) wmem_alloc(pinfo->pool, sizeof(segment_info_t) * (shnum + phnum + 3));
@@ -1331,14 +1338,14 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
     if (phoff) {
         segment_info[area_counter].offset = phoff;
-        segment_info[area_counter].size = (guint32)phnum * (guint32)phentsize;
+        segment_info[area_counter].size = (uint32_t)phnum * (uint32_t)phentsize;
         segment_info[area_counter].name = "ProgramHeader";
         area_counter += 1;
     }
 
     if (shoff) {
         segment_info[area_counter].offset = shoff;
-        segment_info[area_counter].size = (guint32)shnum * (guint32)shentsize;
+        segment_info[area_counter].size = (uint32_t)shnum * (uint32_t)shentsize;
         segment_info[area_counter].name = "SectionHeader";
         area_counter += 1;
     }
@@ -1363,7 +1370,7 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
             ph_entry_tree = proto_tree_add_subtree_format(program_header_tree,
                      tvb, offset, phentsize, ett_elf_program_header_entry, NULL,
                     "Entry #%d: %s", phnum - i_16 - 1,
-                    val_to_str_const(p_type, p_type_vals, "Unknown"));
+                    rval_to_str_const(p_type, p_type_rvals, "Unknown"));
             proto_tree_add_item(ph_entry_tree, hf_elf_p_type, tvb, offset, 4, machine_encoding);
         }
         offset += 4;
@@ -1434,7 +1441,7 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
         offset += register_size;
 
         if (segment_size) {
-            gchar  *name;
+            char   *name;
 
             name = wmem_strdup_printf(pinfo->pool, "ProgramHeaderEntry #%u", phnum - i_16 - 1);
 
@@ -1462,7 +1469,7 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
         offset += 4;
 
-        length = shoff + (guint32)shstrndx * (guint32)shentsize + 2 * 4 + 2 * register_size;
+        length = shoff + (uint32_t)shstrndx * (uint32_t)shentsize + 2 * 4 + 2 * register_size;
         if (register_size == REGISTER_32_SIZE) {
             shstrtab_offset = (machine_encoding == ENC_BIG_ENDIAN) ?
                     tvb_get_ntohl(tvb, value_guard(length)) : tvb_get_letohl(tvb, value_guard(length));
@@ -1532,12 +1539,12 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
             proto_item_append_text(sh_entry_item, "User Specific (0x%08x)", sh_type);
             proto_tree_add_item(sh_entry_tree, hf_elf_sh_type_user_specific, tvb, offset, 4, machine_encoding);
         }else {
-            proto_item_append_text(sh_entry_item, "%s", val_to_str_ext_const(sh_type, &sh_type_vals_ext, "Unknown"));
+            proto_item_append_text(sh_entry_item, "%s", rval_to_str_const(sh_type, sh_type_rvals, "Unknown"));
             proto_tree_add_item(sh_entry_tree, hf_elf_sh_type, tvb, offset, 4, machine_encoding);
         }
         offset += 4;
 
-        length = shoff + (guint32)shstrndx * (guint32)shentsize + 2 * 4 + 2 * register_size;
+        length = shoff + (uint32_t)shstrndx * (uint32_t)shentsize + 2 * 4 + 2 * register_size;
         if (register_size == REGISTER_32_SIZE) {
             shstrtab_offset = (machine_encoding == ENC_BIG_ENDIAN) ?
                     tvb_get_ntohl(tvb, value_guard(length)) : tvb_get_letohl(tvb, value_guard(length));
@@ -1641,13 +1648,13 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
                 next_offset = dissect_eh_frame(tvb, pinfo, segment_tree,
                         value_guard(segment_offset), value_guard(segment_size), register_size,
                         machine_encoding);
-                if (next_offset != (gint) (segment_offset + segment_size))
+                if (next_offset != (int) (segment_offset + segment_size))
                     expert_add_info(pinfo, segment_item, &ei_invalid_segment_size);
             } else if (g_strcmp0(section_name, ".eh_frame_hdr") == 0) {
                 next_offset = dissect_eh_frame_hdr(tvb, pinfo, segment_tree,
                         value_guard(segment_offset), value_guard(segment_size), register_size,
                         machine_encoding);
-                if (next_offset != (gint) (segment_offset + segment_size))
+                if (next_offset != (int) (segment_offset + segment_size))
                     expert_add_info(pinfo, segment_item, &ei_invalid_segment_size);
             } else if (sh_type == 0x06) { /* SHT_DYNAMIC */
                 if (sh_entsize > 0) {
@@ -1658,7 +1665,7 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
                         next_offset = dissect_dynamic(tvb, pinfo, entry_tree, entry_item,
                                 next_offset, register_size, machine_encoding);
-                        if (next_offset != (gint) (segment_offset + i * sh_entsize))
+                        if (next_offset != (int) (segment_offset + i * sh_entsize))
                             expert_add_info(pinfo, segment_item, &ei_invalid_entry_size);
                     }
                 }
@@ -1672,17 +1679,17 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
                         next_offset = dissect_symbol_table(tvb, pinfo, entry_tree, entry_item,
                                 next_offset, register_size, machine_encoding, (sh_type == 0x02) ? strtab_offset : dynstr_offset,
                                 shoff, shnum, shentsize, shstrtab_offset);
-                        if (next_offset != (gint) (segment_offset + i * sh_entsize))
+                        if (next_offset != (int) (segment_offset + i * sh_entsize))
                             expert_add_info(pinfo, segment_item, &ei_invalid_entry_size);
                     }
                 }
             } else if (sh_type == 0x03) { /* SHT_STRTAB */
                     next_offset = value_guard(segment_offset);
                     i = 1;
-                    while (next_offset < (gint) (segment_offset + segment_size)) {
+                    while (next_offset < (int) (segment_offset + segment_size)) {
                         len = tvb_strsize(tvb, next_offset);
                         entry_item = proto_tree_add_item(segment_tree, hf_elf_string, tvb, next_offset, len, ENC_ASCII | ENC_NA);
-                        proto_item_append_text(entry_item, " (Number: %u, Index: %u, Length: %u)", (guint) i, (guint) (next_offset - segment_offset), len - 1);
+                        proto_item_append_text(entry_item, " (Number: %u, Index: %u, Length: %u)", (unsigned) i, (unsigned) (next_offset - segment_offset), len - 1);
                         next_offset += len;
                         i += 1;
                     }
@@ -1727,7 +1734,7 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
     for (i = 1; i < area_counter; i += 1) {
         if (segment_info[i - 1].offset + segment_info[i - 1].size < segment_info[i].offset) {
             /* blackhole */
-            len = (guint) (segment_info[i].offset - segment_info[i - 1].offset - segment_info[i - 1].size);
+            len = (unsigned) (segment_info[i].offset - segment_info[i - 1].offset - segment_info[i - 1].size);
 
             ti = proto_tree_add_uint_format(blackhole_tree, hf_elf_blackhole_size, tvb, value_guard(segment_info[i].offset - len), 1, len,
                     "Blackhole between: %s and %s, size: %u", segment_info[i - 1].name, segment_info[i].name, len);
@@ -1735,7 +1742,7 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
         } else if (segment_info[i - 1].offset + segment_info[i - 1].size > segment_info[i].offset) {
             /* overlapping */
-            len = (guint) (segment_info[i - 1].offset + segment_info[i - 1].size - segment_info[i].offset);
+            len = (unsigned) (segment_info[i - 1].offset + segment_info[i - 1].size - segment_info[i].offset);
 
             ti = proto_tree_add_uint_format(overlapping_tree, hf_elf_overlapping_size, tvb, value_guard(segment_info[i - 1].offset + segment_info[i - 1].size - len), 1, len,
                     "Overlapping between: %s and %s, size: %u", segment_info[i - 1].name, segment_info[i].name, len);
@@ -1746,7 +1753,7 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
     }
 
     if (segment_info[area_counter - 1].offset + segment_info[area_counter - 1].size < tvb_captured_length(tvb)) {
-            len = tvb_captured_length(tvb) - (guint) (segment_info[area_counter - 1].offset - segment_info[area_counter - 1].size);
+            len = tvb_captured_length(tvb) - (unsigned) (segment_info[area_counter - 1].offset - segment_info[area_counter - 1].size);
 
             ti = proto_tree_add_uint_format(blackhole_tree, hf_elf_blackhole_size, tvb,
                     value_guard(segment_info[area_counter - 1].offset +
@@ -1757,20 +1764,20 @@ dissect_elf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
     }
 
     proto_tree_add_uint(generated_tree, hf_elf_file_size, tvb, 0, 0, tvb_captured_length(tvb));
-    proto_tree_add_uint(generated_tree, hf_elf_header_segment_size, tvb, 0, 0, (guint)file_size);
-    proto_tree_add_uint(generated_tree, hf_elf_blackholes_size, tvb, 0, 0, tvb_captured_length(tvb) - (guint)file_size);
+    proto_tree_add_uint(generated_tree, hf_elf_header_segment_size, tvb, 0, 0, (unsigned)file_size);
+    proto_tree_add_uint(generated_tree, hf_elf_blackholes_size, tvb, 0, 0, tvb_captured_length(tvb) - (unsigned)file_size);
 
     col_clear(pinfo->cinfo, COL_INFO);
-    col_add_str(pinfo->cinfo, COL_INFO, "(ELF)");
+    col_set_str(pinfo->cinfo, COL_INFO, "(ELF)");
 
     /* We jumping around offsets, so treat as bytes as read */
     return tvb_captured_length(tvb);
 }
 
-static gboolean
-dissect_elf_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
+static bool
+dissect_elf_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    return dissect_elf(tvb, pinfo, tree, NULL) > 0;
+    return dissect_elf(tvb, pinfo, tree, data) > 0;
 }
 
 void
@@ -1934,7 +1941,7 @@ proto_register_elf(void)
         /* Program Header */
         { &hf_elf_p_type,
             { "Element Type",                              "elf.p_type",
-            FT_UINT32, BASE_HEX_DEC, VALS(p_type_vals), 0x00,
+            FT_UINT32, BASE_HEX_DEC | BASE_RANGE_STRING, RVALS(p_type_rvals), 0x00,
             "This member tells what kind of segment this array element describes or how to interpret the array element's information.", HFILL }
         },
         { &hf_elf_p_type_operating_system_specific,
@@ -2045,7 +2052,7 @@ proto_register_elf(void)
         },
         { &hf_elf_sh_type,
             { "Type",                                      "elf.sh_type",
-            FT_UINT32, BASE_HEX_DEC | BASE_EXT_STRING, &sh_type_vals_ext, 0x00,
+            FT_UINT32, BASE_HEX_DEC | BASE_RANGE_STRING, RVALS(sh_type_rvals), 0x00,
             "This member categorizes the section's contents and semantics.", HFILL }
         },
         { &hf_elf_sh_type_operating_system_specific,
@@ -2224,7 +2231,7 @@ proto_register_elf(void)
         { &hf_elf_eh_frame_code_alignment_factor,
             { "Code Alignment Factor",                     "elf.eh_frame.code_alignment_factor",
             FT_UINT64, BASE_DEC, NULL, 0x00,
-            "An unsigned LEB128 encoded value that is factored out of all advance location instructions that are associated with this CIE or its FDEs. This value shall be multiplied by the delta argument of an adavance location instruction to obtain the new location value.", HFILL }
+            "An unsigned LEB128 encoded value that is factored out of all advance location instructions that are associated with this CIE or its FDEs. This value shall be multiplied by the delta argument of an advance location instruction to obtain the new location value.", HFILL }
         },
         { &hf_elf_eh_frame_data_alignment_factor,
             { "Data Alignment Factor",                     "elf.eh_frame.data_alignment_factor",
@@ -2471,7 +2478,7 @@ proto_register_elf(void)
         { &ei_invalid_cie_length,   { "elf.invalid_cie_length", PI_PROTOCOL, PI_ERROR, "CIE length is too small or larger than segment size", EXPFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_elf,
         &ett_elf_header,
         &ett_elf_program_header,

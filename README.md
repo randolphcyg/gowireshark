@@ -121,14 +121,14 @@ gowireshark
 ├── libs/
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
-│   ├── libwireshark.so.17
-│   ├── libwireshark.so.17.0.6
+│   ├── libwireshark.so.18
+│   ├── libwireshark.so.18.0.0
 │   ├── libwiretap.so
-│   ├── libwiretap.so.14
-│   ├── libwiretap.so.14.1.6
+│   ├── libwiretap.so.15
+│   ├── libwiretap.so.15.0.0
 │   ├── libwsutil.so
-│   ├── libwsutil.so.15
-│   └── libwsutil.so.15.0.0
+│   ├── libwsutil.so.16
+│   └── libwsutil.so.16.0.0
 ├── offline.c
 ├── online.c
 ├── pcaps/
@@ -183,7 +183,7 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 
 ```shell
 # Determine the latest release version and set environment variables
-export WIRESHARKV=4.2.6
+export WIRESHARKV=4.4.0
 # Operate in the /opt directory
 cd /opt/
 # Download the source code
@@ -262,7 +262,7 @@ tree -L 2 -F gowireshark
 ```shell
 #include <ws_version.h>
 #include <config.h>
-after build, it genarate file `ws_version.h` and `config.h`
+# after build, it genarate file `ws_version.h` and `config.h`
 cp /opt/wireshark/build/ws_version.h /opt/wireshark/ws_version.h
 cp /opt/wireshark/build/config.h /opt/wireshark/config.h
 

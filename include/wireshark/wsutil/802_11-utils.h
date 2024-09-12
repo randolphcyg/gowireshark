@@ -51,9 +51,18 @@ WS_DLL_PUBLIC
 char*
 ieee80211_mhz_to_str(unsigned freq);
 
+/*
+ * Get Frequency given a Channel number and band.
+ */
+WS_DLL_PUBLIC
+unsigned
+ieee80211_chan_band_to_mhz(int chan, bool is_bg, bool is_6ghz);
+
 /* Should this be "(freq < 4920)", or something else? */
 #define FREQ_IS_BG(freq) ((freq) <= 2484)
 #define CHAN_IS_BG(chan) ((chan) <= 14)
+
+#define FREQ_IS_6G(freq) (5950 <= (freq) && (freq) <= 7125)
 
 /*
  * Test whether a data rate is an {HR}/DSSS (legacy DSSS/11b) data rate

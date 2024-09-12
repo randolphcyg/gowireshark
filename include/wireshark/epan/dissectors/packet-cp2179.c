@@ -58,7 +58,7 @@ void proto_register_cp2179(void);
 #define SBO_OPERATE_REPLY_LEN              9
 #define SBO_SELECT_REPLY_LEN               10
 
-static gboolean cp2179_telnet_clean = TRUE;
+static bool cp2179_telnet_clean = true;
 
 /* Message Types */
 #define BASIC_SCAN_REQUEST                 1
@@ -204,92 +204,92 @@ static const value_string cp2179_FC20_CommandCodeNames [] = {
 
 /* Holds Request information required to later decode a response  */
 typedef struct {
-   guint32  fnum;  /* frame number */
-   guint16  address_word;
-   guint8   function_code;
-   guint8   commmand_code;
-   guint16  numberofcharacters;
-   guint8   *requested_points;
+   uint32_t fnum;  /* frame number */
+   uint16_t address_word;
+   uint8_t  function_code;
+   uint8_t  commmand_code;
+   uint16_t numberofcharacters;
+   uint8_t  *requested_points;
 } request_frame;
 
 
-static int proto_cp2179 = -1;
+static int proto_cp2179;
 
 /* Initialize the subtree pointers */
-static gint ett_cp2179 = -1;
-static gint ett_cp2179_header = -1;
-static gint ett_cp2179_addr = -1;
-static gint ett_cp2179_fc = -1;
-static gint ett_cp2179_data = -1;
-static gint ett_cp2179_subdata = -1;
-static gint ett_cp2179_event   = -1;
+static int ett_cp2179;
+static int ett_cp2179_header;
+static int ett_cp2179_addr;
+static int ett_cp2179_fc;
+static int ett_cp2179_data;
+static int ett_cp2179_subdata;
+static int ett_cp2179_event;
 
 /* Initialize the protocol and registered fields */
-static int hf_cp2179_request_frame = -1;
-static int hf_cp2179_rtu_address = -1;
-static int hf_cp2179_master_address = -1;
-static int hf_cp2179_function_code = -1;
-static int hf_cp2179_nop_flag = -1;
-static int hf_cp2179_rst_flag = -1;
-static int hf_cp2179_reserved = -1;
-static int hf_cp2179_command_code = -1;
-static int hf_cp2179_command_code_fc04 = -1;
-static int hf_cp2179_command_code_fc20 = -1;
-static int hf_cp2179_sbo_request_point = -1;
-static int hf_cp2179_resetacc_request_point = -1;
-static int hf_cp2179_speccalc_request_point = -1;
-static int hf_cp2179_scaninc_startreq_point = -1;
-static int hf_cp2179_scaninc_stopreq_point = -1;
-static int hf_cp2179_number_characters = -1;
-static int hf_cp2179_analog_16bit = -1;
-static int hf_cp2179_accumulator = -1;
-static int hf_cp2179_crc = -1;
-/* static int hf_cp2179_data_field = -1; */
-static int hf_cp2179_status_byte = -1;
-static int hf_cp2179_port_status_byte = -1;
-static int hf_cp2179_simplestatusbit  = -1;
-static int hf_cp2179_simplestatusbit0 = -1;
-static int hf_cp2179_simplestatusbit1 = -1;
-static int hf_cp2179_simplestatusbit2 = -1;
-static int hf_cp2179_simplestatusbit3 = -1;
-static int hf_cp2179_simplestatusbit4 = -1;
-static int hf_cp2179_simplestatusbit5 = -1;
-static int hf_cp2179_simplestatusbit6 = -1;
-static int hf_cp2179_simplestatusbit7 = -1;
-static int hf_cp2179_simplestatusbit8 = -1;
-static int hf_cp2179_simplestatusbit9 = -1;
-static int hf_cp2179_simplestatusbit10 = -1;
-static int hf_cp2179_simplestatusbit11 = -1;
-static int hf_cp2179_simplestatusbit12 = -1;
-static int hf_cp2179_simplestatusbit13 = -1;
-static int hf_cp2179_simplestatusbit14 = -1;
-static int hf_cp2179_simplestatusbit15 = -1;
-static int hf_cp2179_specialcalc       = -1;
-static int hf_cp2179_2bitstatus        = -1;
-static int hf_cp2179_2bitstatuschg0    = -1;
-static int hf_cp2179_2bitstatuschg1    = -1;
-static int hf_cp2179_2bitstatuschg2    = -1;
-static int hf_cp2179_2bitstatuschg3    = -1;
-static int hf_cp2179_2bitstatuschg4    = -1;
-static int hf_cp2179_2bitstatuschg5    = -1;
-static int hf_cp2179_2bitstatuschg6    = -1;
-static int hf_cp2179_2bitstatuschg7    = -1;
-static int hf_cp2179_2bitstatusstatus0 = -1;
-static int hf_cp2179_2bitstatusstatus1 = -1;
-static int hf_cp2179_2bitstatusstatus2 = -1;
-static int hf_cp2179_2bitstatusstatus3 = -1;
-static int hf_cp2179_2bitstatusstatus4 = -1;
-static int hf_cp2179_2bitstatusstatus5 = -1;
-static int hf_cp2179_2bitstatusstatus6 = -1;
-static int hf_cp2179_2bitstatusstatus7 = -1;
-static int hf_cp2179_timetag_moredata  = -1;
-static int hf_cp2179_timetag_numsets   = -1;
-static int hf_cp2179_timetag_event_type            = -1;
-static int hf_cp2179_timetag_event_date_hundreds   = -1;
-static int hf_cp2179_timetag_event_date_tens       = -1;
-static int hf_cp2179_timetag_event_hour            = -1;
-static int hf_cp2179_timetag_event_minute          = -1;
-static int hf_cp2179_timetag_event_second          = -1;
+static int hf_cp2179_request_frame;
+static int hf_cp2179_rtu_address;
+static int hf_cp2179_master_address;
+static int hf_cp2179_function_code;
+static int hf_cp2179_nop_flag;
+static int hf_cp2179_rst_flag;
+static int hf_cp2179_reserved;
+static int hf_cp2179_command_code;
+static int hf_cp2179_command_code_fc04;
+static int hf_cp2179_command_code_fc20;
+static int hf_cp2179_sbo_request_point;
+static int hf_cp2179_resetacc_request_point;
+static int hf_cp2179_speccalc_request_point;
+static int hf_cp2179_scaninc_startreq_point;
+static int hf_cp2179_scaninc_stopreq_point;
+static int hf_cp2179_number_characters;
+static int hf_cp2179_analog_16bit;
+static int hf_cp2179_accumulator;
+static int hf_cp2179_crc;
+/* static int hf_cp2179_data_field; */
+static int hf_cp2179_status_byte;
+static int hf_cp2179_port_status_byte;
+static int hf_cp2179_simplestatusbit;
+static int hf_cp2179_simplestatusbit0;
+static int hf_cp2179_simplestatusbit1;
+static int hf_cp2179_simplestatusbit2;
+static int hf_cp2179_simplestatusbit3;
+static int hf_cp2179_simplestatusbit4;
+static int hf_cp2179_simplestatusbit5;
+static int hf_cp2179_simplestatusbit6;
+static int hf_cp2179_simplestatusbit7;
+static int hf_cp2179_simplestatusbit8;
+static int hf_cp2179_simplestatusbit9;
+static int hf_cp2179_simplestatusbit10;
+static int hf_cp2179_simplestatusbit11;
+static int hf_cp2179_simplestatusbit12;
+static int hf_cp2179_simplestatusbit13;
+static int hf_cp2179_simplestatusbit14;
+static int hf_cp2179_simplestatusbit15;
+static int hf_cp2179_specialcalc;
+static int hf_cp2179_2bitstatus;
+static int hf_cp2179_2bitstatuschg0;
+static int hf_cp2179_2bitstatuschg1;
+static int hf_cp2179_2bitstatuschg2;
+static int hf_cp2179_2bitstatuschg3;
+static int hf_cp2179_2bitstatuschg4;
+static int hf_cp2179_2bitstatuschg5;
+static int hf_cp2179_2bitstatuschg6;
+static int hf_cp2179_2bitstatuschg7;
+static int hf_cp2179_2bitstatusstatus0;
+static int hf_cp2179_2bitstatusstatus1;
+static int hf_cp2179_2bitstatusstatus2;
+static int hf_cp2179_2bitstatusstatus3;
+static int hf_cp2179_2bitstatusstatus4;
+static int hf_cp2179_2bitstatusstatus5;
+static int hf_cp2179_2bitstatusstatus6;
+static int hf_cp2179_2bitstatusstatus7;
+static int hf_cp2179_timetag_moredata;
+static int hf_cp2179_timetag_numsets;
+static int hf_cp2179_timetag_event_type;
+static int hf_cp2179_timetag_event_date_hundreds;
+static int hf_cp2179_timetag_event_date_tens;
+static int hf_cp2179_timetag_event_hour;
+static int hf_cp2179_timetag_event_minute;
+static int hf_cp2179_timetag_event_second;
 
 
 static dissector_handle_t cp2179_handle;
@@ -343,13 +343,13 @@ static tvbuff_t *
 clean_telnet_iac(packet_info *pinfo, tvbuff_t *tvb, int offset, int len)
 {
   tvbuff_t     *telnet_tvb;
-  guint8       *buf;
-  const guint8 *spos;
-  guint8       *dpos;
+  uint8_t      *buf;
+  const uint8_t *spos;
+  uint8_t      *dpos;
   int           skip_byte, len_remaining;
 
   spos=tvb_get_ptr(tvb, offset, len);
-  buf = (guint8 *)wmem_alloc(pinfo->pool, len);
+  buf = (uint8_t *)wmem_alloc(pinfo->pool, len);
   dpos = buf;
   skip_byte = 0;
   len_remaining = len;
@@ -381,7 +381,7 @@ clean_telnet_iac(packet_info *pinfo, tvbuff_t *tvb, int offset, int len)
 /* Code to Dissect Request frames */
 /******************************************************************************************************/
 static int
-dissect_request_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int offset, guint16 message_type )
+dissect_request_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int offset, uint16_t message_type )
 {
 /* Set up structures needed to add the protocol subtree and manage it */
     proto_tree *cp2179_proto_tree = NULL;
@@ -390,11 +390,11 @@ dissect_request_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int o
 
     proto_item *cp2179_proto_item = NULL;
 
-    guint8 req_command_code = 0;
-    guint8 function_code = 0;
+    uint8_t req_command_code = 0;
+    uint8_t function_code = 0;
 
-    guint16 address_word = -1;
-    guint16 requestnumberofcharacters = 0;
+    uint16_t address_word = -1;
+    uint16_t requestnumberofcharacters = 0;
 
     cp2179_proto_item = proto_tree_add_item(tree, proto_cp2179, tvb, 0, -1, ENC_NA);
     cp2179_proto_tree = proto_item_add_subtree(cp2179_proto_item, ett_cp2179_header);
@@ -409,7 +409,7 @@ dissect_request_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int o
     offset += 2;
 
     /* Report the function code */
-    function_code = tvb_get_guint8(tvb, offset) & 0x3f;
+    function_code = tvb_get_uint8(tvb, offset) & 0x3f;
     cp2179_fc_tree = proto_tree_add_subtree_format(cp2179_proto_tree, tvb, offset, 1, ett_cp2179_fc, NULL,
                "Function Code: %s (0x%02x)", val_to_str_const(function_code, FunctionCodenames, "Unknown Function Code"), function_code);
 
@@ -427,7 +427,7 @@ dissect_request_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int o
 
         case BASIC_SCAN_REQUEST:
         case SCAN_INCLUSIVE_16_ANALOG_REQUEST:
-            req_command_code = tvb_get_guint8(tvb, offset);
+            req_command_code = tvb_get_uint8(tvb, offset);
             /* Update Info column with useful information of Command Code Type */
             col_append_fstr(pinfo->cinfo, COL_INFO, " [ %s ]", val_to_str_ext_const(req_command_code, &cp2179_CommandCodeNames_ext, "Unknown Command Code"));
             proto_tree_add_item(cp2179_proto_tree, hf_cp2179_command_code, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -493,7 +493,7 @@ dissect_request_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int o
 /* Code to dissect Response frames  */
 /******************************************************************************************************/
 static int
-dissect_response_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int offset, guint16 message_type)
+dissect_response_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int offset, uint16_t message_type)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     proto_item *response_item = NULL;
@@ -507,23 +507,23 @@ dissect_response_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int 
     proto_tree *cp2179_event_tree = NULL;
 
     cp2179_conversation  *conv;
-    guint32 req_frame_num;
-    guint16 req_address_word;
-    guint8  req_command_code;
-    gboolean request_found = FALSE;
+    uint32_t req_frame_num;
+    uint16_t req_address_word;
+    uint8_t req_command_code;
+    bool request_found = false;
     request_frame *request_data;
 
-    gint analogtestvalue = 0;
-    gint analog16_num = 0;
-    gint point_num = 0;
+    int analogtestvalue = 0;
+    int analog16_num = 0;
+    int point_num = 0;
 
-    guint function_code;
-    guint simplestatusseq = 0x30;
+    unsigned function_code;
+    unsigned simplestatusseq = 0x30;
 
-    guint16 address_word = 0;
-    guint16 numberofcharacters = -1;
+    uint16_t address_word = 0;
+    uint16_t numberofcharacters = -1;
 
-    gfloat specialcalvalue = 0;
+    float specialcalvalue = 0;
 
     int x, y, num_records = 0, recordsize = 0, num_values = 0;
 
@@ -542,7 +542,7 @@ dissect_response_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int 
 
     /*The response always echos the function code in request, except when the RTU can't perform the required function.
     It may set the NOP or RST bit. Bit 0 to bit 5 is the field for function codes. Bit 6 is NOP bit. Bit 7 is RST bit. */
-    function_code = tvb_get_guint8(tvb, offset);
+    function_code = tvb_get_uint8(tvb, offset);
 
     cp2179_fc_tree = proto_tree_add_subtree_format(cp2179_proto_tree, tvb, offset, 1, ett_cp2179_fc, NULL,
                "Function Code: %s (0x%02x)", val_to_str_const(function_code, FunctionCodenames, "Unknown Function Code"), function_code);
@@ -564,7 +564,7 @@ dissect_response_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int 
     proto_tree_add_item(cp2179_proto_tree, hf_cp2179_number_characters, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
 
-    /* get the converstation data */
+    /* get the conversation data */
     conv = (cp2179_conversation *)p_get_proto_data(wmem_file_scope(), pinfo, proto_cp2179, 0);
 
     if (conv) {
@@ -579,7 +579,7 @@ dissect_response_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int 
                 if ((pinfo->num > req_frame_num) && (req_address_word == address_word)) {
                     response_item = proto_tree_add_uint(cp2179_proto_tree, hf_cp2179_request_frame, tvb, 0, 0, req_frame_num);
                     proto_item_set_generated(response_item);
-                    request_found = TRUE;
+                    request_found = true;
                 }
                 frame = wmem_list_frame_next(frame);
         }
@@ -720,7 +720,7 @@ dissect_response_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int 
                     proto_tree_add_item(cp2179_proto_tree, hf_cp2179_timetag_moredata, tvb, offset, 1, ENC_LITTLE_ENDIAN);
                     proto_tree_add_item(cp2179_proto_tree, hf_cp2179_timetag_numsets, tvb, offset, 1, ENC_LITTLE_ENDIAN);
 
-                    num_records = tvb_get_guint8(tvb, offset) & 0x7F;
+                    num_records = tvb_get_uint8(tvb, offset) & 0x7F;
                     offset += 1;
 
                     if (num_records == 0 || numberofcharacters <= 1)
@@ -774,28 +774,28 @@ dissect_response_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int 
 static request_frame* copy_request_frame(tvbuff_t *tvb  )
 {
  /* Set up structures needed to add the protocol request and use it for dissecting response packet */
-    guint offset = 0;
-    guint8 idx=0 ;
+    unsigned offset = 0;
+    uint8_t idx=0 ;
     request_frame *frame;
-    guint16 num_objects=0;
+    uint16_t num_objects=0;
 
     /* get a new frame and initialize it */
     frame = wmem_new(wmem_file_scope(), request_frame);
 
     /* update the data within the structure frame */
     frame->address_word = tvb_get_letohs(tvb, offset); offset +=2;
-    frame->function_code = tvb_get_guint8(tvb, offset); offset +=1;
-    frame->commmand_code = tvb_get_guint8(tvb, offset); offset +=1;
+    frame->function_code = tvb_get_uint8(tvb, offset); offset +=1;
+    frame->commmand_code = tvb_get_uint8(tvb, offset); offset +=1;
     frame->numberofcharacters = tvb_get_letohs(tvb, offset);offset +=2;
 
     /*Keep track of the request data field in a request.
       Such as SCAN INCLUSIVE request contains a Start Sequence Number and an Ending Sequence Number. */
     if (frame->function_code == SCAN_INCLUSIVE) {
-        guint8 startpt, endpt;
-        startpt = tvb_get_guint8(tvb, offset);
-        endpt = tvb_get_guint8(tvb, offset+1);
+        uint8_t startpt, endpt;
+        startpt = tvb_get_uint8(tvb, offset);
+        endpt = tvb_get_uint8(tvb, offset+1);
         num_objects = (endpt - startpt) + 1;
-        frame->requested_points = (guint8 *)wmem_alloc(wmem_file_scope(), num_objects * sizeof(guint8));
+        frame->requested_points = (uint8_t *)wmem_alloc(wmem_file_scope(), num_objects * sizeof(uint8_t));
 
         /* We have a range of 'request' points */
         for (idx = 0; idx < num_objects; idx++) {
@@ -807,9 +807,9 @@ static request_frame* copy_request_frame(tvbuff_t *tvb  )
     /* Get Details for all Requested Points */
     else {
         num_objects = frame->numberofcharacters;
-        frame->requested_points = (guint8 *)wmem_alloc(wmem_file_scope(), num_objects * sizeof(guint8));
+        frame->requested_points = (uint8_t *)wmem_alloc(wmem_file_scope(), num_objects * sizeof(uint8_t));
         for (idx = 0; idx < num_objects; idx++) {
-            frame->requested_points[idx] = tvb_get_guint8(tvb, offset);
+            frame->requested_points[idx] = tvb_get_uint8(tvb, offset);
             offset += 1;
         }
 
@@ -827,19 +827,19 @@ static int
 classify_message_type(tvbuff_t *tvb)
 {
     int message_type = -1;
-    guint8 function_code;
-    guint8 command_code;
-    guint16 requestnumberofcharacters = 0;
-    guint16 responsenumberofcharacters = 0;
-    guint16 message_length = 0;
+    uint8_t function_code;
+    uint8_t command_code;
+    uint16_t requestnumberofcharacters = 0;
+    uint16_t responsenumberofcharacters = 0;
+    uint16_t message_length = 0;
 
 
     message_length = tvb_reported_length(tvb);
 
     /* The response always echos the function code from the request, except when the RTU can't perform the required function.
        It may set the NOP or RST bit. Bit 0 to bit 5 is the field for function codes. Bit 6 is NOP bit. Bit 7 is RST bit. */
-    function_code = tvb_get_guint8(tvb, 2);
-    command_code = tvb_get_guint8(tvb, 3);
+    function_code = tvb_get_uint8(tvb, 2);
+    command_code = tvb_get_uint8(tvb, 3);
 
     /* We still don't know what type of message this is, request or response                       */
     /* Get the 'number of characters' value, for both request frames (offset 4) and response frames (offset 5) */
@@ -966,13 +966,13 @@ static int
 dissect_cp2179_pdu(tvbuff_t *cp2179_tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
     int offset = 0;
-    gint16 message_type;
+    int16_t message_type;
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "CP2179");
     col_clear(pinfo->cinfo,COL_INFO);
 
     message_type = classify_message_type(cp2179_tvb);
     /* set information for Information column for CP2179 */
-    col_add_str(pinfo->cinfo, COL_INFO, val_to_str_ext_const(message_type, &cp2179_messagetype_vals_ext, "Unknown Message Type"));
+    col_set_str(pinfo->cinfo, COL_INFO, val_to_str_ext_const(message_type, &cp2179_messagetype_vals_ext, "Unknown Message Type"));
 
     if (!pinfo->fd->visited){
         conversation_t           *conversation = NULL;
@@ -1046,7 +1046,7 @@ static int
 dissect_cp2179(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     tvbuff_t *cp2179_tvb;
-    gint length = tvb_reported_length(tvb);
+    int length = tvb_reported_length(tvb);
 
    /* Check for the packet length, a 2179 Message is at least 7 byte long*/
     if(length < CP2179_MIN_LENGTH){
@@ -1483,7 +1483,7 @@ proto_register_cp2179(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
       &ett_cp2179,
       &ett_cp2179_header,
       &ett_cp2179_addr,
@@ -1504,7 +1504,7 @@ proto_register_cp2179(void)
     /* Register required preferences for CP2179 Encapsulated-over-TCP decoding */
     cp2179_module = prefs_register_protocol(proto_cp2179, NULL);
 
-    /* Telnet protocol IAC (0xFF) processing; defaults to TRUE to allow Telnet Encapsulated Data */
+    /* Telnet protocol IAC (0xFF) processing; defaults to true to allow Telnet Encapsulated Data */
     prefs_register_bool_preference(cp2179_module, "telnetclean",
                                   "Remove extra 0xFF (IAC) bytes from Telnet-encapsulated data",
                                   "Whether the SEL Protocol dissector should automatically pre-process Telnet data to remove IAC bytes",

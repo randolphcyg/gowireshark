@@ -28,7 +28,7 @@ typedef enum {
 	TAP_PACKET_FAILED	/**< Packet processing failed, stop calling this tap */
 } tap_packet_status;
 
-typedef guint tap_flags_t;
+typedef unsigned tap_flags_t;
 
 typedef void (*tap_reset_cb)(void *tapdata);
 typedef tap_packet_status (*tap_packet_cb)(void *tapdata, packet_info *pinfo, epan_dissect_t *edt, const void *data, tap_flags_t flags);
@@ -39,16 +39,27 @@ typedef void (*tap_finish_cb)(void *tapdata);
  * Flags to indicate what a tap listener's packet routine requires.
  */
 #define TL_REQUIRES_NOTHING         0x00000000	    /**< nothing */
-#define TL_REQUIRES_PROTO_TREE      0x00000001	    /**< full protocol tree */
+#define TL_REQUIRES_PROTO_TREE      0x00000001	    /**< non-NULL protocol tree */
 #define TL_REQUIRES_COLUMNS         0x00000002	    /**< columns */
 #define TL_REQUIRES_ERROR_PACKETS   0x00000004	    /**< include packet even if pinfo->flags.in_error_pkt is set */
+
+/** TL_REQUIRES_PROTO_TREE does not generate the full protocol tree;
+ * any fields not referenced (e.g., in a filter) will still be "faked."
+ * Note that if the tap does have a filter, it doesn't need
+ * TL_REQUIRES_PROTO_TREE because filtering implies needing a tree.
+ * It is for ensuring anything normally skipped with a NULL tree won't be,
+ * which may include constructing data to pass to the tap. To make all
+ * fields visible (which impacts performance), epan_set_always_visible()
+ * can be used at the same time as registering the tap.
+ * XXX - There should probably be a flag to set the tree visible.
+ */
 
 /** Flags to indicate what the tap listener does */
 #define TL_IS_DISSECTOR_HELPER      0x00000008	    /**< tap helps a dissector do work
 						                             ** but does not, itself, require dissection */
 
 /** Flags to indicate what the packet cb should do */
-#define TL_IGNORE_DISPLAY_FILTER    0x00000010      /**< use packet, even if it woul dbe filtered out */
+#define TL_IGNORE_DISPLAY_FILTER    0x00000010      /**< use packet, even if it would be filtered out */
 #define TL_DISPLAY_FILTER_IGNORED   0x00100000      /**< flag for the conversation handler */
 
 typedef struct {
@@ -74,7 +85,7 @@ typedef struct _tap_reg {
  * XXX - should probably be handled by epan_init(), as the tap mechanism
  * is part of libwireshark.
  */
-WS_DLL_PUBLIC void register_all_tap_listeners(tap_reg_t *tap_reg_listeners);
+WS_DLL_PUBLIC void register_all_tap_listeners(tap_reg_t const *tap_reg_listeners);
 
 extern void tap_init(void);
 
@@ -100,7 +111,7 @@ WS_DLL_PUBLIC GList* get_tap_names(void);
  */
 WS_DLL_PUBLIC int find_tap_id(const char *name);
 
-/** Everytime the dissector has finished dissecting a packet (and all
+/** Every time the dissector has finished dissecting a packet (and all
  *  subdissectors have returned) and if the dissector has been made "tappable"
  *  it will push some data to everyone tapping this layer by a call
  *  to tap_queue_packet().
@@ -150,7 +161,7 @@ WS_DLL_PUBLIC void reset_tap_listeners(void);
  * If draw_all is true, redraw all applications regardless if they have
  * changed or not.
  */
-WS_DLL_PUBLIC void draw_tap_listeners(gboolean draw_all);
+WS_DLL_PUBLIC void draw_tap_listeners(bool draw_all);
 
 /** this function attaches the tap_listener to the named tap.
  * function returns :
@@ -205,14 +216,14 @@ WS_DLL_PUBLIC void draw_tap_listeners(gboolean draw_all);
  *                   listener that it is about to start [re]reading a capture file or a new capture
  *                   from an interface and that your application should reset any state it has
  *                   in the *tapdata instance.
- * @param tap_packet gboolean (*packet)(void *tapdata, packet_info *pinfo, epan_dissect_t *edt, const void *data)
+ * @param tap_packet tap_packet_status (*packet)(void *tapdata, packet_info *pinfo, epan_dissect_t *edt, const void *data)
  *                   This callback is used whenever a new packet has arrived at the tap and that
  *                   it has passed the filter (if there were a filter).
  *                   The *data structure type is specific to each tap.
- *                   This function returns an gboolean and it should return
- *                    TRUE, if the data in the packet caused state to be updated
+ *                   This function returns an bool and it should return
+ *                    true, if the data in the packet caused state to be updated
  *                          (and thus a redraw of the window would later be required)
- *                    FALSE, if we don't need to redraw the window.
+ *                    false, if we don't need to redraw the window.
  *                   NOTE: that (*packet) should be as fast and efficient as possible. Use this
  *                   function ONLY to store data for later and do the CPU-intensive processing
  *                   or GUI updates down in (*draw) instead.
@@ -229,7 +240,7 @@ WS_DLL_PUBLIC void draw_tap_listeners(gboolean draw_all);
  */
 
 WS_DLL_PUBLIC GString *register_tap_listener(const char *tapname, void *tapdata,
-    const char *fstring, guint flags, tap_reset_cb tap_reset,
+    const char *fstring, unsigned flags, tap_reset_cb tap_reset,
     tap_packet_cb tap_packet, tap_draw_cb tap_draw,
     tap_finish_cb tap_finish) G_GNUC_WARN_UNUSED_RESULT;
 
@@ -243,22 +254,22 @@ WS_DLL_PUBLIC void tap_listeners_dfilter_recompile(void);
 WS_DLL_PUBLIC void remove_tap_listener(void *tapdata);
 
 /**
- * Return TRUE if we have one or more tap listeners that require dissection,
- * FALSE otherwise.
+ * Return true if we have one or more tap listeners that require dissection,
+ * false otherwise.
  */
-WS_DLL_PUBLIC gboolean tap_listeners_require_dissection(void);
+WS_DLL_PUBLIC bool tap_listeners_require_dissection(void);
 
 /**
- * Return TRUE if we have one or more tap listeners that require the columns,
- * FALSE otherwise.
+ * Return true if we have one or more tap listeners that require the columns,
+ * false otherwise.
  */
-WS_DLL_PUBLIC gboolean tap_listeners_require_columns(void);
+WS_DLL_PUBLIC bool tap_listeners_require_columns(void);
 
-/** Returns TRUE there is an active tap listener for the specified tap id. */
-WS_DLL_PUBLIC gboolean have_tap_listener(int tap_id);
+/** Returns true there is an active tap listener for the specified tap id. */
+WS_DLL_PUBLIC bool have_tap_listener(int tap_id);
 
-/** Return TRUE if we have any tap listeners with filters, FALSE otherwise. */
-WS_DLL_PUBLIC gboolean have_filtering_tap_listeners(void);
+/** Return true if we have any tap listeners with filters, false otherwise. */
+WS_DLL_PUBLIC bool have_filtering_tap_listeners(void);
 
 /** If any tap listeners have a filter with references to the currently
  * selected frame in the GUI (edt->tree), update them.
@@ -270,7 +281,7 @@ WS_DLL_PUBLIC void tap_listeners_load_field_references(epan_dissect_t *edt);
  * an indication of whether the protocol tree, or the columns, are
  * required by any taps.
  */
-WS_DLL_PUBLIC guint union_of_tap_listener_flags(void);
+WS_DLL_PUBLIC unsigned union_of_tap_listener_flags(void);
 
 /** This function can be used by a dissector to fetch any tapped data before
  * returning.

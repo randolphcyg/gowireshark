@@ -19,33 +19,33 @@
 void proto_register_nfsacl(void);
 void proto_reg_handoff_nfsacl(void);
 
-static int proto_nfsacl = -1;
-static int hf_nfsacl_mask = -1;
-static int hf_nfsacl_mask_acl_entry = -1;
-static int hf_nfsacl_mask_acl_count = -1;
-static int hf_nfsacl_mask_default_acl_entry = -1;
-static int hf_nfsacl_mask_default_acl_count = -1;
-static int hf_nfsacl_procedure_v1 = -1;
-static int hf_nfsacl_procedure_v2 = -1;
-static int hf_nfsacl_procedure_v3 = -1;
-static int hf_nfsacl_entry = -1;
-static int hf_nfsacl_aclcnt = -1;
-static int hf_nfsacl_dfaclcnt = -1;
-static int hf_nfsacl_aclent = -1;
-static int hf_nfsacl_aclent_type = -1;
-static int hf_nfsacl_aclent_uid = -1;
-static int hf_nfsacl_aclent_perm = -1;
-static int hf_nfsacl_aclent_perm_read = -1;
-static int hf_nfsacl_aclent_perm_write = -1;
-static int hf_nfsacl_aclent_perm_exec = -1;
-static int hf_nfsacl_create = -1;
+static int proto_nfsacl;
+static int hf_nfsacl_mask;
+static int hf_nfsacl_mask_acl_entry;
+static int hf_nfsacl_mask_acl_count;
+static int hf_nfsacl_mask_default_acl_entry;
+static int hf_nfsacl_mask_default_acl_count;
+static int hf_nfsacl_procedure_v1;
+static int hf_nfsacl_procedure_v2;
+static int hf_nfsacl_procedure_v3;
+static int hf_nfsacl_entry;
+static int hf_nfsacl_aclcnt;
+static int hf_nfsacl_dfaclcnt;
+static int hf_nfsacl_aclent;
+static int hf_nfsacl_aclent_type;
+static int hf_nfsacl_aclent_uid;
+static int hf_nfsacl_aclent_perm;
+static int hf_nfsacl_aclent_perm_read;
+static int hf_nfsacl_aclent_perm_write;
+static int hf_nfsacl_aclent_perm_exec;
+static int hf_nfsacl_create;
 
-static gint ett_nfsacl = -1;
-static gint ett_nfsacl_mask = -1;
-static gint ett_nfsacl_entry = -1;
-static gint ett_nfsacl_aclent = -1;
-static gint ett_nfsacl_aclent_perm = -1;
-static gint ett_nfsacl_aclent_entries = -1;
+static int ett_nfsacl;
+static int ett_nfsacl_mask;
+static int ett_nfsacl_entry;
+static int ett_nfsacl_aclent;
+static int ett_nfsacl_aclent_perm;
+static int ett_nfsacl_aclent_entries;
 
 #define NFSACL_PROGRAM	100227
 
@@ -148,8 +148,8 @@ static int
 dissect_nfsacl_secattr(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
 		       proto_tree *tree)
 {
-	guint32 aclcnt, dfaclcnt;
-	guint32 i;
+	uint32_t aclcnt, dfaclcnt;
+	uint32_t i;
 	proto_tree *entry_tree;
 
 	offset = dissect_nfsacl_mask(tvb, offset, tree);
@@ -213,7 +213,7 @@ static int
 dissect_nfsacl2_getacl_reply(tvbuff_t *tvb, packet_info *pinfo _U_,
 			     proto_tree *tree, void* data _U_)
 {
-	guint32 status;
+	uint32_t status;
 	int offset = 0;
 
 	proto_tree_add_item_ret_uint(tree, hf_nfs_status, tvb, offset, 4, ENC_BIG_ENDIAN, &status);
@@ -244,7 +244,7 @@ static int
 dissect_nfsacl2_setacl_reply(tvbuff_t *tvb, packet_info *pinfo _U_,
 			     proto_tree *tree, void* data _U_)
 {
-	guint32 status;
+	uint32_t status;
 	int offset = 0;
 
 	proto_tree_add_item_ret_uint(tree, hf_nfs_status, tvb, offset + 0, 4, ENC_BIG_ENDIAN, &status);
@@ -275,7 +275,7 @@ static int
 dissect_nfsacl2_access_call(tvbuff_t *tvb, packet_info *pinfo _U_,
 			    proto_tree *tree, void* data)
 {
-	guint32 *acc_request, amask;
+	uint32_t *acc_request, amask;
 	rpc_call_info_value *civ = (rpc_call_info_value*)data;
 	int offset = 0;
 
@@ -283,7 +283,7 @@ dissect_nfsacl2_access_call(tvbuff_t *tvb, packet_info *pinfo _U_,
 
 	/* Get access mask to check and save it for comparison to the access reply. */
 	amask = tvb_get_ntohl(tvb, offset);
-	acc_request = (guint32 *)wmem_memdup(wmem_file_scope(), &amask, sizeof(guint32));
+	acc_request = (uint32_t *)wmem_memdup(wmem_file_scope(), &amask, sizeof(uint32_t));
 	civ->private_data = acc_request;
 
 	display_access_items(tvb, offset, pinfo, tree, amask, 'C', 3, NULL, "Check") ;
@@ -296,7 +296,7 @@ static int
 dissect_nfsacl2_access_reply(tvbuff_t *tvb, packet_info *pinfo _U_,
 			     proto_tree *tree, void* data)
 {
-	guint32 status;
+	uint32_t status;
 	int offset = 0;
 
 	status = tvb_get_ntohl(tvb, offset + 0);
@@ -327,7 +327,7 @@ dissect_nfsacl2_getxattrdir_call(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 static int
 dissect_nfsacl2_getxattrdir_reply(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void* data)
 {
-	guint32 status;
+	uint32_t status;
 	int offset = 0;
 
 	status = tvb_get_ntohl(tvb, offset + 0);
@@ -385,7 +385,7 @@ static int
 dissect_nfsacl3_getacl_reply(tvbuff_t *tvb, packet_info *pinfo _U_,
 			     proto_tree *tree, void* data _U_)
 {
-	guint32 status;
+	uint32_t status;
 	proto_item *entry_item;
 	proto_tree *entry_tree;
 	int offset = 0;
@@ -432,7 +432,7 @@ static int
 dissect_nfsacl3_setacl_reply(tvbuff_t *tvb, packet_info *pinfo _U_,
 			     proto_tree *tree, void* data _U_)
 {
-	guint32 status;
+	uint32_t status;
 	int offset = 0;
 
 	proto_tree_add_item_ret_uint(tree, hf_nfs_status, tvb, offset, 4, ENC_BIG_ENDIAN, &status);
@@ -458,7 +458,7 @@ dissect_nfsacl3_getxattrdir_call(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 static int
 dissect_nfsacl3_getxattrdir_reply(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void* data)
 {
-	guint32 status;
+	uint32_t status;
 	int offset = 0;
 
 	proto_tree_add_item_ret_uint(tree, hf_nfs_status, tvb, offset, 4, ENC_BIG_ENDIAN, &status);
@@ -538,7 +538,7 @@ proto_register_nfsacl(void)
 			NULL, 0, NULL, HFILL }},
 		{ &hf_nfsacl_aclent, {
 			"ACL Entry", "nfsacl.aclent", FT_NONE, BASE_NONE,
-			NULL, 0, "ACL", HFILL }},
+			NULL, 0, NULL, HFILL }},
 		{ &hf_nfsacl_aclent_type, {
 			"Type", "nfsacl.aclent.type", FT_UINT32, BASE_DEC,
 			VALS(names_nfsacl_aclent_type), 0, NULL, HFILL }},
@@ -563,7 +563,7 @@ proto_register_nfsacl(void)
 			TFS(&tfs_yes_no), 0x0, "Create?", HFILL }},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_nfsacl,
 		&ett_nfsacl_mask,
 		&ett_nfsacl_entry,

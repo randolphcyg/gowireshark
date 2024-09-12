@@ -5,14 +5,15 @@
 	Pidl is a perl based IDL compiler for DCE/RPC idl files.
 	It is maintained by the Samba team, not the Wireshark team.
 	Instructions on how to download and install Pidl can be
-	found at https://gitlab.com/wireshark/wireshark/-/wikis/Pidl
+	found at https://wiki.wireshark.org/Pidl
 */
 
 
 #include "config.h"
-#include <glib.h>
 #include <string.h>
+#include <wsutil/array.h>
 #include <epan/packet.h>
+#include <epan/tfs.h>
 
 #include "packet-dcerpc.h"
 #include "packet-dcerpc-nt.h"
@@ -22,53 +23,53 @@ void proto_register_dcerpc_fsrvp(void);
 void proto_reg_handoff_dcerpc_fsrvp(void);
 
 /* Ett declarations */
-static gint ett_dcerpc_fsrvp = -1;
-static gint ett_fsrvp_fssagent_share_mapping_1 = -1;
-static gint ett_fsrvp_fssagent_share_mapping = -1;
+static int ett_dcerpc_fsrvp;
+static int ett_fsrvp_fssagent_share_mapping_1;
+static int ett_fsrvp_fssagent_share_mapping;
 
 
 /* Header field declarations */
-static gint hf_fsrvp_fsrvp_AbortShadowCopySet_ShadowCopySetId = -1;
-static gint hf_fsrvp_fsrvp_AddToShadowCopySet_ClientShadowCopyId = -1;
-static gint hf_fsrvp_fsrvp_AddToShadowCopySet_ShadowCopySetId = -1;
-static gint hf_fsrvp_fsrvp_AddToShadowCopySet_ShareName = -1;
-static gint hf_fsrvp_fsrvp_AddToShadowCopySet_pShadowCopyId = -1;
-static gint hf_fsrvp_fsrvp_CommitShadowCopySet_ShadowCopySetId = -1;
-static gint hf_fsrvp_fsrvp_CommitShadowCopySet_TimeOutInMilliseconds = -1;
-static gint hf_fsrvp_fsrvp_DeleteShareMapping_ShadowCopyId = -1;
-static gint hf_fsrvp_fsrvp_DeleteShareMapping_ShadowCopySetId = -1;
-static gint hf_fsrvp_fsrvp_DeleteShareMapping_ShareName = -1;
-static gint hf_fsrvp_fsrvp_ExposeShadowCopySet_ShadowCopySetId = -1;
-static gint hf_fsrvp_fsrvp_ExposeShadowCopySet_TimeOutInMilliseconds = -1;
-static gint hf_fsrvp_fsrvp_GetShareMapping_Level = -1;
-static gint hf_fsrvp_fsrvp_GetShareMapping_ShadowCopyId = -1;
-static gint hf_fsrvp_fsrvp_GetShareMapping_ShadowCopySetId = -1;
-static gint hf_fsrvp_fsrvp_GetShareMapping_ShareMapping = -1;
-static gint hf_fsrvp_fsrvp_GetShareMapping_ShareName = -1;
-static gint hf_fsrvp_fsrvp_GetSupportedVersion_MaxVersion = -1;
-static gint hf_fsrvp_fsrvp_GetSupportedVersion_MinVersion = -1;
-static gint hf_fsrvp_fsrvp_IsPathShadowCopied_ShadowCopyCompatibility = -1;
-static gint hf_fsrvp_fsrvp_IsPathShadowCopied_ShadowCopyPresent = -1;
-static gint hf_fsrvp_fsrvp_IsPathShadowCopied_ShareName = -1;
-static gint hf_fsrvp_fsrvp_IsPathSupported_OwnerMachineName = -1;
-static gint hf_fsrvp_fsrvp_IsPathSupported_ShareName = -1;
-static gint hf_fsrvp_fsrvp_IsPathSupported_SupportedByThisProvider = -1;
-static gint hf_fsrvp_fsrvp_PrepareShadowCopySet_ShadowCopySetId = -1;
-static gint hf_fsrvp_fsrvp_PrepareShadowCopySet_TimeOutInMilliseconds = -1;
-static gint hf_fsrvp_fsrvp_RecoveryCompleteShadowCopySet_ShadowCopySetId = -1;
-static gint hf_fsrvp_fsrvp_SetContext_Context = -1;
-static gint hf_fsrvp_fsrvp_StartShadowCopySet_ClientShadowCopySetId = -1;
-static gint hf_fsrvp_fsrvp_StartShadowCopySet_pShadowCopySetId = -1;
-static gint hf_fsrvp_fssagent_share_mapping_1_ShadowCopyId = -1;
-static gint hf_fsrvp_fssagent_share_mapping_1_ShadowCopySetId = -1;
-static gint hf_fsrvp_fssagent_share_mapping_1_ShadowCopyShareName = -1;
-static gint hf_fsrvp_fssagent_share_mapping_1_ShareNameUNC = -1;
-static gint hf_fsrvp_fssagent_share_mapping_1_tstamp = -1;
-static gint hf_fsrvp_fssagent_share_mapping_ShareMapping1 = -1;
-static gint hf_fsrvp_opnum = -1;
-static gint hf_fsrvp_status = -1;
+static int hf_fsrvp_fsrvp_AbortShadowCopySet_ShadowCopySetId;
+static int hf_fsrvp_fsrvp_AddToShadowCopySet_ClientShadowCopyId;
+static int hf_fsrvp_fsrvp_AddToShadowCopySet_ShadowCopySetId;
+static int hf_fsrvp_fsrvp_AddToShadowCopySet_ShareName;
+static int hf_fsrvp_fsrvp_AddToShadowCopySet_pShadowCopyId;
+static int hf_fsrvp_fsrvp_CommitShadowCopySet_ShadowCopySetId;
+static int hf_fsrvp_fsrvp_CommitShadowCopySet_TimeOutInMilliseconds;
+static int hf_fsrvp_fsrvp_DeleteShareMapping_ShadowCopyId;
+static int hf_fsrvp_fsrvp_DeleteShareMapping_ShadowCopySetId;
+static int hf_fsrvp_fsrvp_DeleteShareMapping_ShareName;
+static int hf_fsrvp_fsrvp_ExposeShadowCopySet_ShadowCopySetId;
+static int hf_fsrvp_fsrvp_ExposeShadowCopySet_TimeOutInMilliseconds;
+static int hf_fsrvp_fsrvp_GetShareMapping_Level;
+static int hf_fsrvp_fsrvp_GetShareMapping_ShadowCopyId;
+static int hf_fsrvp_fsrvp_GetShareMapping_ShadowCopySetId;
+static int hf_fsrvp_fsrvp_GetShareMapping_ShareMapping;
+static int hf_fsrvp_fsrvp_GetShareMapping_ShareName;
+static int hf_fsrvp_fsrvp_GetSupportedVersion_MaxVersion;
+static int hf_fsrvp_fsrvp_GetSupportedVersion_MinVersion;
+static int hf_fsrvp_fsrvp_IsPathShadowCopied_ShadowCopyCompatibility;
+static int hf_fsrvp_fsrvp_IsPathShadowCopied_ShadowCopyPresent;
+static int hf_fsrvp_fsrvp_IsPathShadowCopied_ShareName;
+static int hf_fsrvp_fsrvp_IsPathSupported_OwnerMachineName;
+static int hf_fsrvp_fsrvp_IsPathSupported_ShareName;
+static int hf_fsrvp_fsrvp_IsPathSupported_SupportedByThisProvider;
+static int hf_fsrvp_fsrvp_PrepareShadowCopySet_ShadowCopySetId;
+static int hf_fsrvp_fsrvp_PrepareShadowCopySet_TimeOutInMilliseconds;
+static int hf_fsrvp_fsrvp_RecoveryCompleteShadowCopySet_ShadowCopySetId;
+static int hf_fsrvp_fsrvp_SetContext_Context;
+static int hf_fsrvp_fsrvp_StartShadowCopySet_ClientShadowCopySetId;
+static int hf_fsrvp_fsrvp_StartShadowCopySet_pShadowCopySetId;
+static int hf_fsrvp_fssagent_share_mapping_1_ShadowCopyId;
+static int hf_fsrvp_fssagent_share_mapping_1_ShadowCopySetId;
+static int hf_fsrvp_fssagent_share_mapping_1_ShadowCopyShareName;
+static int hf_fsrvp_fssagent_share_mapping_1_ShareNameUNC;
+static int hf_fsrvp_fssagent_share_mapping_1_tstamp;
+static int hf_fsrvp_fssagent_share_mapping_ShareMapping1;
+static int hf_fsrvp_opnum;
+static int hf_fsrvp_status;
 
-static gint proto_dcerpc_fsrvp = -1;
+static int proto_dcerpc_fsrvp;
 /* Version information */
 
 
@@ -76,79 +77,79 @@ static e_guid_t uuid_dcerpc_fsrvp = {
 	0xa8e0653c, 0x2744, 0x4389,
 	{ 0xa6, 0x1d, 0x73, 0x73, 0xdf, 0x8b, 0x22, 0x92 }
 };
-static guint16 ver_dcerpc_fsrvp = 1;
+static uint16_t ver_dcerpc_fsrvp = 1;
 
-static int fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_fssagent_share_mapping_1_ShareNameUNC(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_fssagent_share_mapping_1_ShareNameUNC_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_fssagent_share_mapping_1_tstamp(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_fssagent_share_mapping_ShareMapping1(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_fssagent_share_mapping_ShareMapping1_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_GetSupportedVersion_MinVersion(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_GetSupportedVersion_MinVersion_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_GetSupportedVersion_MaxVersion(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_GetSupportedVersion_MaxVersion_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_SetContext_Context(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_StartShadowCopySet_ClientShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_AddToShadowCopySet_ClientShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_AddToShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_AddToShadowCopySet_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_AddToShadowCopySet_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_CommitShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_CommitShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_ExposeShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_ExposeShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_RecoveryCompleteShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_AbortShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathSupported_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathSupported_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathSupported_OwnerMachineName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathSupported_OwnerMachineName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathSupported_OwnerMachineName__(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathShadowCopied_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathShadowCopied_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyCompatibility(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyCompatibility_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_GetShareMapping_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_GetShareMapping_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_GetShareMapping_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_GetShareMapping_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_GetShareMapping_Level(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_GetShareMapping_ShareMapping(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_GetShareMapping_ShareMapping_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_DeleteShareMapping_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_DeleteShareMapping_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_DeleteShareMapping_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_DeleteShareMapping_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_PrepareShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
-static int fsrvp_dissect_element_PrepareShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_);
+static int fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_fssagent_share_mapping_1_ShareNameUNC(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_fssagent_share_mapping_1_ShareNameUNC_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_fssagent_share_mapping_1_tstamp(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_fssagent_share_mapping_ShareMapping1(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_fssagent_share_mapping_ShareMapping1_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_GetSupportedVersion_MinVersion(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_GetSupportedVersion_MinVersion_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_GetSupportedVersion_MaxVersion(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_GetSupportedVersion_MaxVersion_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_SetContext_Context(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_StartShadowCopySet_ClientShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_AddToShadowCopySet_ClientShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_AddToShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_AddToShadowCopySet_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_AddToShadowCopySet_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_CommitShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_CommitShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_ExposeShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_ExposeShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_RecoveryCompleteShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_AbortShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathSupported_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathSupported_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathSupported_OwnerMachineName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathSupported_OwnerMachineName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathSupported_OwnerMachineName__(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathShadowCopied_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathShadowCopied_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyCompatibility(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyCompatibility_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_GetShareMapping_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_GetShareMapping_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_GetShareMapping_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_GetShareMapping_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_GetShareMapping_Level(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_GetShareMapping_ShareMapping(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_GetShareMapping_ShareMapping_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_DeleteShareMapping_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_DeleteShareMapping_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_DeleteShareMapping_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_DeleteShareMapping_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_PrepareShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+static int fsrvp_dissect_element_PrepareShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
 static int
-fsrvp_dissect_SetContext_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_SetContext_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="SetContext";
 	offset = fsrvp_dissect_element_SetContext_Context(tvb, offset, pinfo, tree, di, drep);
 	return offset;
 }
 static int
-fsrvp_dissect_StartShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_StartShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="StartShadowCopySet";
 	offset = fsrvp_dissect_element_StartShadowCopySet_ClientShadowCopySetId(tvb, offset, pinfo, tree, di, drep);
 	return offset;
 }
 static int
-fsrvp_dissect_AddToShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_AddToShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="AddToShadowCopySet";
 	offset = fsrvp_dissect_element_AddToShadowCopySet_ClientShadowCopyId(tvb, offset, pinfo, tree, di, drep);
@@ -158,7 +159,7 @@ fsrvp_dissect_AddToShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, pack
 	return offset;
 }
 static int
-fsrvp_dissect_CommitShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_CommitShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="CommitShadowCopySet";
 	offset = fsrvp_dissect_element_CommitShadowCopySet_ShadowCopySetId(tvb, offset, pinfo, tree, di, drep);
@@ -166,7 +167,7 @@ fsrvp_dissect_CommitShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, pac
 	return offset;
 }
 static int
-fsrvp_dissect_ExposeShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_ExposeShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="ExposeShadowCopySet";
 	offset = fsrvp_dissect_element_ExposeShadowCopySet_ShadowCopySetId(tvb, offset, pinfo, tree, di, drep);
@@ -174,21 +175,21 @@ fsrvp_dissect_ExposeShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, pac
 	return offset;
 }
 static int
-fsrvp_dissect_RecoveryCompleteShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_RecoveryCompleteShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="RecoveryCompleteShadowCopySet";
 	offset = fsrvp_dissect_element_RecoveryCompleteShadowCopySet_ShadowCopySetId(tvb, offset, pinfo, tree, di, drep);
 	return offset;
 }
 static int
-fsrvp_dissect_AbortShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_AbortShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="AbortShadowCopySet";
 	offset = fsrvp_dissect_element_AbortShadowCopySet_ShadowCopySetId(tvb, offset, pinfo, tree, di, drep);
 	return offset;
 }
 static int
-fsrvp_dissect_GetShareMapping_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_GetShareMapping_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="GetShareMapping";
 	offset = fsrvp_dissect_element_GetShareMapping_ShadowCopyId(tvb, offset, pinfo, tree, di, drep);
@@ -199,7 +200,7 @@ fsrvp_dissect_GetShareMapping_request(tvbuff_t *tvb _U_, int offset _U_, packet_
 	return offset;
 }
 static int
-fsrvp_dissect_DeleteShareMapping_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_DeleteShareMapping_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="DeleteShareMapping";
 	offset = fsrvp_dissect_element_DeleteShareMapping_ShadowCopySetId(tvb, offset, pinfo, tree, di, drep);
@@ -209,7 +210,7 @@ fsrvp_dissect_DeleteShareMapping_request(tvbuff_t *tvb _U_, int offset _U_, pack
 	return offset;
 }
 static int
-fsrvp_dissect_PrepareShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_PrepareShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="PrepareShadowCopySet";
 	offset = fsrvp_dissect_element_PrepareShadowCopySet_ShadowCopySetId(tvb, offset, pinfo, tree, di, drep);
@@ -227,7 +228,7 @@ fsrvp_dissect_PrepareShadowCopySet_request(tvbuff_t *tvb _U_, int offset _U_, pa
 /* IDL: } */
 
 static int
-fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fssagent_share_mapping_1_ShadowCopySetId, NULL);
 
@@ -235,7 +236,7 @@ fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopySetId(tvbuff_t *tvb _U_
 }
 
 static int
-fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fssagent_share_mapping_1_ShadowCopyId, NULL);
 
@@ -243,7 +244,7 @@ fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyId(tvbuff_t *tvb _U_, i
 }
 
 static int
-fsrvp_dissect_element_fssagent_share_mapping_1_ShareNameUNC(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_fssagent_share_mapping_1_ShareNameUNC(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_embedded_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_fssagent_share_mapping_1_ShareNameUNC_, NDR_POINTER_UNIQUE, "Pointer to ShareNameUNC (uint16)",hf_fsrvp_fssagent_share_mapping_1_ShareNameUNC);
 
@@ -251,18 +252,18 @@ fsrvp_dissect_element_fssagent_share_mapping_1_ShareNameUNC(tvbuff_t *tvb _U_, i
 }
 
 static int
-fsrvp_dissect_element_fssagent_share_mapping_1_ShareNameUNC_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_fssagent_share_mapping_1_ShareNameUNC_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	char *data;
 
-	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(guint16), hf_fsrvp_fssagent_share_mapping_1_ShareNameUNC, FALSE, &data);
+	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(uint16_t), hf_fsrvp_fssagent_share_mapping_1_ShareNameUNC, false, &data);
 	proto_item_append_text(tree, ": %s", data);
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_embedded_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyShareName_, NDR_POINTER_UNIQUE, "Pointer to ShadowCopyShareName (uint16)",hf_fsrvp_fssagent_share_mapping_1_ShadowCopyShareName);
 
@@ -270,18 +271,18 @@ fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyShareName(tvbuff_t *tvb
 }
 
 static int
-fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_fssagent_share_mapping_1_ShadowCopyShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	char *data;
 
-	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(guint16), hf_fsrvp_fssagent_share_mapping_1_ShadowCopyShareName, FALSE, &data);
+	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(uint16_t), hf_fsrvp_fssagent_share_mapping_1_ShadowCopyShareName, false, &data);
 	proto_item_append_text(tree, ": %s", data);
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_fssagent_share_mapping_1_tstamp(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_fssagent_share_mapping_1_tstamp(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_nt_NTTIME(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fssagent_share_mapping_1_tstamp);
 
@@ -289,7 +290,7 @@ fsrvp_dissect_element_fssagent_share_mapping_1_tstamp(tvbuff_t *tvb _U_, int off
 }
 
 int
-fsrvp_dissect_struct_fssagent_share_mapping_1(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *parent_tree _U_, dcerpc_info* di _U_, guint8 *drep _U_, int hf_index _U_, guint32 param _U_)
+fsrvp_dissect_struct_fssagent_share_mapping_1(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *parent_tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_, int hf_index _U_, uint32_t param _U_)
 {
 	proto_item *item = NULL;
 	proto_tree *tree = NULL;
@@ -332,7 +333,7 @@ fsrvp_dissect_struct_fssagent_share_mapping_1(tvbuff_t *tvb _U_, int offset _U_,
 /* IDL: } */
 
 static int
-fsrvp_dissect_element_fssagent_share_mapping_ShareMapping1(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_fssagent_share_mapping_ShareMapping1(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_embedded_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_fssagent_share_mapping_ShareMapping1_, NDR_POINTER_UNIQUE, "Pointer to ShareMapping1 (fssagent_share_mapping_1)",hf_fsrvp_fssagent_share_mapping_ShareMapping1);
 
@@ -340,7 +341,7 @@ fsrvp_dissect_element_fssagent_share_mapping_ShareMapping1(tvbuff_t *tvb _U_, in
 }
 
 static int
-fsrvp_dissect_element_fssagent_share_mapping_ShareMapping1_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_fssagent_share_mapping_ShareMapping1_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = fsrvp_dissect_struct_fssagent_share_mapping_1(tvb,offset,pinfo,tree,di,drep,hf_fsrvp_fssagent_share_mapping_ShareMapping1,0);
 
@@ -348,12 +349,12 @@ fsrvp_dissect_element_fssagent_share_mapping_ShareMapping1_(tvbuff_t *tvb _U_, i
 }
 
 static int
-fsrvp_dissect_fssagent_share_mapping(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *parent_tree _U_, dcerpc_info* di _U_, guint8 *drep _U_, int hf_index _U_, guint32 param _U_)
+fsrvp_dissect_fssagent_share_mapping(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *parent_tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_, int hf_index _U_, uint32_t param _U_)
 {
 	proto_item *item = NULL;
 	proto_tree *tree = NULL;
 	int old_offset;
-	guint32 level;
+	uint32_t level;
 
 	old_offset = offset;
 	if (parent_tree) {
@@ -377,7 +378,7 @@ fsrvp_dissect_fssagent_share_mapping(tvbuff_t *tvb _U_, int offset _U_, packet_i
 	return offset;
 }
 static int
-fsrvp_dissect_element_GetSupportedVersion_MinVersion(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_GetSupportedVersion_MinVersion(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_GetSupportedVersion_MinVersion_, NDR_POINTER_REF, "Pointer to MinVersion (uint32)",hf_fsrvp_fsrvp_GetSupportedVersion_MinVersion);
 
@@ -385,7 +386,7 @@ fsrvp_dissect_element_GetSupportedVersion_MinVersion(tvbuff_t *tvb _U_, int offs
 }
 
 static int
-fsrvp_dissect_element_GetSupportedVersion_MinVersion_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_GetSupportedVersion_MinVersion_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = PIDL_dissect_uint32(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_GetSupportedVersion_MinVersion, 0);
 
@@ -393,7 +394,7 @@ fsrvp_dissect_element_GetSupportedVersion_MinVersion_(tvbuff_t *tvb _U_, int off
 }
 
 static int
-fsrvp_dissect_element_GetSupportedVersion_MaxVersion(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_GetSupportedVersion_MaxVersion(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_GetSupportedVersion_MaxVersion_, NDR_POINTER_REF, "Pointer to MaxVersion (uint32)",hf_fsrvp_fsrvp_GetSupportedVersion_MaxVersion);
 
@@ -401,7 +402,7 @@ fsrvp_dissect_element_GetSupportedVersion_MaxVersion(tvbuff_t *tvb _U_, int offs
 }
 
 static int
-fsrvp_dissect_element_GetSupportedVersion_MaxVersion_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_GetSupportedVersion_MaxVersion_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = PIDL_dissect_uint32(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_GetSupportedVersion_MaxVersion, 0);
 
@@ -414,9 +415,9 @@ fsrvp_dissect_element_GetSupportedVersion_MaxVersion_(tvbuff_t *tvb _U_, int off
 /* IDL: ); */
 
 static int
-fsrvp_dissect_GetSupportedVersion_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_GetSupportedVersion_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="GetSupportedVersion";
 	offset = fsrvp_dissect_element_GetSupportedVersion_MinVersion(tvb, offset, pinfo, tree, di, drep);
@@ -428,20 +429,20 @@ fsrvp_dissect_GetSupportedVersion_response(tvbuff_t *tvb _U_, int offset _U_, pa
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_GetSupportedVersion_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_GetSupportedVersion_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="GetSupportedVersion";
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_SetContext_Context(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_SetContext_Context(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = PIDL_dissect_uint32(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_SetContext_Context, 0);
 
@@ -453,21 +454,21 @@ fsrvp_dissect_element_SetContext_Context(tvbuff_t *tvb _U_, int offset _U_, pack
 /* IDL: ); */
 
 static int
-fsrvp_dissect_SetContext_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_SetContext_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="SetContext";
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_StartShadowCopySet_ClientShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_StartShadowCopySet_ClientShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_StartShadowCopySet_ClientShadowCopySetId, NULL);
 
@@ -475,7 +476,7 @@ fsrvp_dissect_element_StartShadowCopySet_ClientShadowCopySetId(tvbuff_t *tvb _U_
 }
 
 static int
-fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId_, NDR_POINTER_REF, "Pointer to PShadowCopySetId (GUID)",hf_fsrvp_fsrvp_StartShadowCopySet_pShadowCopySetId);
 
@@ -483,7 +484,7 @@ fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId(tvbuff_t *tvb _U_, int
 }
 
 static int
-fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_StartShadowCopySet_pShadowCopySetId, NULL);
 
@@ -496,9 +497,9 @@ fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId_(tvbuff_t *tvb _U_, in
 /* IDL: ); */
 
 static int
-fsrvp_dissect_StartShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_StartShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="StartShadowCopySet";
 	offset = fsrvp_dissect_element_StartShadowCopySet_pShadowCopySetId(tvb, offset, pinfo, tree, di, drep);
@@ -507,13 +508,13 @@ fsrvp_dissect_StartShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, pac
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_AddToShadowCopySet_ClientShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_AddToShadowCopySet_ClientShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_AddToShadowCopySet_ClientShadowCopyId, NULL);
 
@@ -521,7 +522,7 @@ fsrvp_dissect_element_AddToShadowCopySet_ClientShadowCopyId(tvbuff_t *tvb _U_, i
 }
 
 static int
-fsrvp_dissect_element_AddToShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_AddToShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_AddToShadowCopySet_ShadowCopySetId, NULL);
 
@@ -529,7 +530,7 @@ fsrvp_dissect_element_AddToShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int 
 }
 
 static int
-fsrvp_dissect_element_AddToShadowCopySet_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_AddToShadowCopySet_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_AddToShadowCopySet_ShareName_, NDR_POINTER_REF, "Pointer to ShareName (uint16)",hf_fsrvp_fsrvp_AddToShadowCopySet_ShareName);
 
@@ -537,18 +538,18 @@ fsrvp_dissect_element_AddToShadowCopySet_ShareName(tvbuff_t *tvb _U_, int offset
 }
 
 static int
-fsrvp_dissect_element_AddToShadowCopySet_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_AddToShadowCopySet_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	char *data;
 
-	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(guint16), hf_fsrvp_fsrvp_AddToShadowCopySet_ShareName, FALSE, &data);
+	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(uint16_t), hf_fsrvp_fsrvp_AddToShadowCopySet_ShareName, false, &data);
 	proto_item_append_text(tree, ": %s", data);
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId_, NDR_POINTER_REF, "Pointer to PShadowCopyId (GUID)",hf_fsrvp_fsrvp_AddToShadowCopySet_pShadowCopyId);
 
@@ -556,7 +557,7 @@ fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId(tvbuff_t *tvb _U_, int of
 }
 
 static int
-fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_AddToShadowCopySet_pShadowCopyId, NULL);
 
@@ -571,9 +572,9 @@ fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId_(tvbuff_t *tvb _U_, int o
 /* IDL: ); */
 
 static int
-fsrvp_dissect_AddToShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_AddToShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="AddToShadowCopySet";
 	offset = fsrvp_dissect_element_AddToShadowCopySet_pShadowCopyId(tvb, offset, pinfo, tree, di, drep);
@@ -582,13 +583,13 @@ fsrvp_dissect_AddToShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, pac
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_CommitShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_CommitShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_CommitShadowCopySet_ShadowCopySetId, NULL);
 
@@ -596,7 +597,7 @@ fsrvp_dissect_element_CommitShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int
 }
 
 static int
-fsrvp_dissect_element_CommitShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_CommitShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = PIDL_dissect_uint32(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_CommitShadowCopySet_TimeOutInMilliseconds, 0);
 
@@ -609,21 +610,21 @@ fsrvp_dissect_element_CommitShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U
 /* IDL: ); */
 
 static int
-fsrvp_dissect_CommitShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_CommitShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="CommitShadowCopySet";
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_ExposeShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_ExposeShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_ExposeShadowCopySet_ShadowCopySetId, NULL);
 
@@ -631,7 +632,7 @@ fsrvp_dissect_element_ExposeShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int
 }
 
 static int
-fsrvp_dissect_element_ExposeShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_ExposeShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = PIDL_dissect_uint32(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_ExposeShadowCopySet_TimeOutInMilliseconds, 0);
 
@@ -644,21 +645,21 @@ fsrvp_dissect_element_ExposeShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U
 /* IDL: ); */
 
 static int
-fsrvp_dissect_ExposeShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_ExposeShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="ExposeShadowCopySet";
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_RecoveryCompleteShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_RecoveryCompleteShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_RecoveryCompleteShadowCopySet_ShadowCopySetId, NULL);
 
@@ -670,21 +671,21 @@ fsrvp_dissect_element_RecoveryCompleteShadowCopySet_ShadowCopySetId(tvbuff_t *tv
 /* IDL: ); */
 
 static int
-fsrvp_dissect_RecoveryCompleteShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_RecoveryCompleteShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="RecoveryCompleteShadowCopySet";
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_AbortShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_AbortShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_AbortShadowCopySet_ShadowCopySetId, NULL);
 
@@ -696,21 +697,21 @@ fsrvp_dissect_element_AbortShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int 
 /* IDL: ); */
 
 static int
-fsrvp_dissect_AbortShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_AbortShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="AbortShadowCopySet";
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_IsPathSupported_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathSupported_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_IsPathSupported_ShareName_, NDR_POINTER_REF, "Pointer to ShareName (uint16)",hf_fsrvp_fsrvp_IsPathSupported_ShareName);
 
@@ -718,18 +719,18 @@ fsrvp_dissect_element_IsPathSupported_ShareName(tvbuff_t *tvb _U_, int offset _U
 }
 
 static int
-fsrvp_dissect_element_IsPathSupported_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathSupported_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	char *data;
 
-	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(guint16), hf_fsrvp_fsrvp_IsPathSupported_ShareName, FALSE, &data);
+	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(uint16_t), hf_fsrvp_fsrvp_IsPathSupported_ShareName, false, &data);
 	proto_item_append_text(tree, ": %s", data);
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider_, NDR_POINTER_REF, "Pointer to SupportedByThisProvider (uint32)",hf_fsrvp_fsrvp_IsPathSupported_SupportedByThisProvider);
 
@@ -737,7 +738,7 @@ fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider(tvbuff_t *tvb _U_,
 }
 
 static int
-fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = PIDL_dissect_uint32(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_IsPathSupported_SupportedByThisProvider, 0);
 
@@ -745,7 +746,7 @@ fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider_(tvbuff_t *tvb _U_
 }
 
 static int
-fsrvp_dissect_element_IsPathSupported_OwnerMachineName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathSupported_OwnerMachineName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_IsPathSupported_OwnerMachineName_, NDR_POINTER_REF, "Pointer to OwnerMachineName (uint16)",hf_fsrvp_fsrvp_IsPathSupported_OwnerMachineName);
 
@@ -753,7 +754,7 @@ fsrvp_dissect_element_IsPathSupported_OwnerMachineName(tvbuff_t *tvb _U_, int of
 }
 
 static int
-fsrvp_dissect_element_IsPathSupported_OwnerMachineName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathSupported_OwnerMachineName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_embedded_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_IsPathSupported_OwnerMachineName__, NDR_POINTER_UNIQUE, "Pointer to OwnerMachineName (uint16)",hf_fsrvp_fsrvp_IsPathSupported_OwnerMachineName);
 
@@ -761,11 +762,11 @@ fsrvp_dissect_element_IsPathSupported_OwnerMachineName_(tvbuff_t *tvb _U_, int o
 }
 
 static int
-fsrvp_dissect_element_IsPathSupported_OwnerMachineName__(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathSupported_OwnerMachineName__(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	char *data;
 
-	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(guint16), hf_fsrvp_fsrvp_IsPathSupported_OwnerMachineName, FALSE, &data);
+	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(uint16_t), hf_fsrvp_fsrvp_IsPathSupported_OwnerMachineName, false, &data);
 	proto_item_append_text(tree, ": %s", data);
 
 	return offset;
@@ -778,9 +779,9 @@ fsrvp_dissect_element_IsPathSupported_OwnerMachineName__(tvbuff_t *tvb _U_, int 
 /* IDL: ); */
 
 static int
-fsrvp_dissect_IsPathSupported_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_IsPathSupported_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="IsPathSupported";
 	offset = fsrvp_dissect_element_IsPathSupported_SupportedByThisProvider(tvb, offset, pinfo, tree, di, drep);
@@ -792,13 +793,13 @@ fsrvp_dissect_IsPathSupported_response(tvbuff_t *tvb _U_, int offset _U_, packet
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_IsPathSupported_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_IsPathSupported_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="IsPathSupported";
 	offset = fsrvp_dissect_element_IsPathSupported_ShareName(tvb, offset, pinfo, tree, di, drep);
@@ -807,7 +808,7 @@ fsrvp_dissect_IsPathSupported_request(tvbuff_t *tvb _U_, int offset _U_, packet_
 }
 
 static int
-fsrvp_dissect_element_IsPathShadowCopied_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathShadowCopied_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_IsPathShadowCopied_ShareName_, NDR_POINTER_REF, "Pointer to ShareName (uint16)",hf_fsrvp_fsrvp_IsPathShadowCopied_ShareName);
 
@@ -815,18 +816,18 @@ fsrvp_dissect_element_IsPathShadowCopied_ShareName(tvbuff_t *tvb _U_, int offset
 }
 
 static int
-fsrvp_dissect_element_IsPathShadowCopied_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathShadowCopied_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	char *data;
 
-	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(guint16), hf_fsrvp_fsrvp_IsPathShadowCopied_ShareName, FALSE, &data);
+	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(uint16_t), hf_fsrvp_fsrvp_IsPathShadowCopied_ShareName, false, &data);
 	proto_item_append_text(tree, ": %s", data);
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent_, NDR_POINTER_REF, "Pointer to ShadowCopyPresent (uint32)",hf_fsrvp_fsrvp_IsPathShadowCopied_ShadowCopyPresent);
 
@@ -834,7 +835,7 @@ fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent(tvbuff_t *tvb _U_, in
 }
 
 static int
-fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = PIDL_dissect_uint32(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_IsPathShadowCopied_ShadowCopyPresent, 0);
 
@@ -842,7 +843,7 @@ fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent_(tvbuff_t *tvb _U_, i
 }
 
 static int
-fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyCompatibility(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyCompatibility(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyCompatibility_, NDR_POINTER_REF, "Pointer to ShadowCopyCompatibility (int32)",hf_fsrvp_fsrvp_IsPathShadowCopied_ShadowCopyCompatibility);
 
@@ -850,7 +851,7 @@ fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyCompatibility(tvbuff_t *tvb _
 }
 
 static int
-fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyCompatibility_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyCompatibility_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = PIDL_dissect_uint32(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_IsPathShadowCopied_ShadowCopyCompatibility, 0);
 
@@ -864,9 +865,9 @@ fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyCompatibility_(tvbuff_t *tvb 
 /* IDL: ); */
 
 static int
-fsrvp_dissect_IsPathShadowCopied_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_IsPathShadowCopied_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="IsPathShadowCopied";
 	offset = fsrvp_dissect_element_IsPathShadowCopied_ShadowCopyPresent(tvb, offset, pinfo, tree, di, drep);
@@ -878,13 +879,13 @@ fsrvp_dissect_IsPathShadowCopied_response(tvbuff_t *tvb _U_, int offset _U_, pac
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_IsPathShadowCopied_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_IsPathShadowCopied_request(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	di->dcerpc_procedure_name="IsPathShadowCopied";
 	offset = fsrvp_dissect_element_IsPathShadowCopied_ShareName(tvb, offset, pinfo, tree, di, drep);
@@ -893,7 +894,7 @@ fsrvp_dissect_IsPathShadowCopied_request(tvbuff_t *tvb _U_, int offset _U_, pack
 }
 
 static int
-fsrvp_dissect_element_GetShareMapping_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_GetShareMapping_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_GetShareMapping_ShadowCopyId, NULL);
 
@@ -901,7 +902,7 @@ fsrvp_dissect_element_GetShareMapping_ShadowCopyId(tvbuff_t *tvb _U_, int offset
 }
 
 static int
-fsrvp_dissect_element_GetShareMapping_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_GetShareMapping_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_GetShareMapping_ShadowCopySetId, NULL);
 
@@ -909,7 +910,7 @@ fsrvp_dissect_element_GetShareMapping_ShadowCopySetId(tvbuff_t *tvb _U_, int off
 }
 
 static int
-fsrvp_dissect_element_GetShareMapping_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_GetShareMapping_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_GetShareMapping_ShareName_, NDR_POINTER_REF, "Pointer to ShareName (uint16)",hf_fsrvp_fsrvp_GetShareMapping_ShareName);
 
@@ -917,18 +918,18 @@ fsrvp_dissect_element_GetShareMapping_ShareName(tvbuff_t *tvb _U_, int offset _U
 }
 
 static int
-fsrvp_dissect_element_GetShareMapping_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_GetShareMapping_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	char *data;
 
-	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(guint16), hf_fsrvp_fsrvp_GetShareMapping_ShareName, FALSE, &data);
+	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(uint16_t), hf_fsrvp_fsrvp_GetShareMapping_ShareName, false, &data);
 	proto_item_append_text(tree, ": %s", data);
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_GetShareMapping_Level(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_GetShareMapping_Level(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = PIDL_dissect_uint32(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_GetShareMapping_Level, 0);
 
@@ -936,7 +937,7 @@ fsrvp_dissect_element_GetShareMapping_Level(tvbuff_t *tvb _U_, int offset _U_, p
 }
 
 static int
-fsrvp_dissect_element_GetShareMapping_ShareMapping(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_GetShareMapping_ShareMapping(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_GetShareMapping_ShareMapping_, NDR_POINTER_REF, "Pointer to ShareMapping (fssagent_share_mapping)",hf_fsrvp_fsrvp_GetShareMapping_ShareMapping);
 
@@ -944,7 +945,7 @@ fsrvp_dissect_element_GetShareMapping_ShareMapping(tvbuff_t *tvb _U_, int offset
 }
 
 static int
-fsrvp_dissect_element_GetShareMapping_ShareMapping_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_GetShareMapping_ShareMapping_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = fsrvp_dissect_fssagent_share_mapping(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_GetShareMapping_ShareMapping, 0);
 
@@ -960,9 +961,9 @@ fsrvp_dissect_element_GetShareMapping_ShareMapping_(tvbuff_t *tvb _U_, int offse
 /* IDL: ); */
 
 static int
-fsrvp_dissect_GetShareMapping_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_GetShareMapping_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="GetShareMapping";
 	offset = fsrvp_dissect_element_GetShareMapping_ShareMapping(tvb, offset, pinfo, tree, di, drep);
@@ -971,13 +972,13 @@ fsrvp_dissect_GetShareMapping_response(tvbuff_t *tvb _U_, int offset _U_, packet
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_DeleteShareMapping_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_DeleteShareMapping_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_DeleteShareMapping_ShadowCopySetId, NULL);
 
@@ -985,7 +986,7 @@ fsrvp_dissect_element_DeleteShareMapping_ShadowCopySetId(tvbuff_t *tvb _U_, int 
 }
 
 static int
-fsrvp_dissect_element_DeleteShareMapping_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_DeleteShareMapping_ShadowCopyId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_DeleteShareMapping_ShadowCopyId, NULL);
 
@@ -993,7 +994,7 @@ fsrvp_dissect_element_DeleteShareMapping_ShadowCopyId(tvbuff_t *tvb _U_, int off
 }
 
 static int
-fsrvp_dissect_element_DeleteShareMapping_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_DeleteShareMapping_ShareName(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_toplevel_pointer(tvb, offset, pinfo, tree, di, drep, fsrvp_dissect_element_DeleteShareMapping_ShareName_, NDR_POINTER_REF, "Pointer to ShareName (uint16)",hf_fsrvp_fsrvp_DeleteShareMapping_ShareName);
 
@@ -1001,11 +1002,11 @@ fsrvp_dissect_element_DeleteShareMapping_ShareName(tvbuff_t *tvb _U_, int offset
 }
 
 static int
-fsrvp_dissect_element_DeleteShareMapping_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_DeleteShareMapping_ShareName_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	char *data;
 
-	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(guint16), hf_fsrvp_fsrvp_DeleteShareMapping_ShareName, FALSE, &data);
+	offset = dissect_ndr_cvstring(tvb, offset, pinfo, tree, di, drep, sizeof(uint16_t), hf_fsrvp_fsrvp_DeleteShareMapping_ShareName, false, &data);
 	proto_item_append_text(tree, ": %s", data);
 
 	return offset;
@@ -1018,21 +1019,21 @@ fsrvp_dissect_element_DeleteShareMapping_ShareName_(tvbuff_t *tvb _U_, int offse
 /* IDL: ); */
 
 static int
-fsrvp_dissect_DeleteShareMapping_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_DeleteShareMapping_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="DeleteShareMapping";
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 static int
-fsrvp_dissect_element_PrepareShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_PrepareShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = dissect_ndr_uuid_t(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_PrepareShadowCopySet_ShadowCopySetId, NULL);
 
@@ -1040,7 +1041,7 @@ fsrvp_dissect_element_PrepareShadowCopySet_ShadowCopySetId(tvbuff_t *tvb _U_, in
 }
 
 static int
-fsrvp_dissect_element_PrepareShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_element_PrepareShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
 	offset = PIDL_dissect_uint32(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_fsrvp_PrepareShadowCopySet_TimeOutInMilliseconds, 0);
 
@@ -1053,21 +1054,21 @@ fsrvp_dissect_element_PrepareShadowCopySet_TimeOutInMilliseconds(tvbuff_t *tvb _
 /* IDL: ); */
 
 static int
-fsrvp_dissect_PrepareShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_)
+fsrvp_dissect_PrepareShadowCopySet_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_)
 {
-	guint32 status;
+	uint32_t status;
 
 	di->dcerpc_procedure_name="PrepareShadowCopySet";
 	offset = dissect_ntstatus(tvb, offset, pinfo, tree, di, drep, hf_fsrvp_status, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str(status, NT_errors, "Unknown NT status 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &NT_errors_ext, "Unknown NT status 0x%08x"));
 
 	return offset;
 }
 
 
-static dcerpc_sub_dissector fsrvp_dissectors[] = {
+static const dcerpc_sub_dissector fsrvp_dissectors[] = {
 	{ 0, "GetSupportedVersion",
 	   fsrvp_dissect_GetSupportedVersion_request, fsrvp_dissect_GetSupportedVersion_response},
 	{ 1, "SetContext",
@@ -1177,11 +1178,11 @@ void proto_register_dcerpc_fsrvp(void)
 	{ &hf_fsrvp_opnum,
 	  { "Operation", "fsrvp.opnum", FT_UINT16, BASE_DEC, NULL, 0, NULL, HFILL }},
 	{ &hf_fsrvp_status,
-	  { "NT Error", "fsrvp.status", FT_UINT32, BASE_HEX, VALS(NT_errors), 0, NULL, HFILL }},
+	  { "NT Error", "fsrvp.status", FT_UINT32, BASE_HEX|BASE_EXT_STRING, &NT_errors_ext, 0, NULL, HFILL }},
 	};
 
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_dcerpc_fsrvp,
 		&ett_fsrvp_fssagent_share_mapping_1,
 		&ett_fsrvp_fssagent_share_mapping,

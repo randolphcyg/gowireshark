@@ -18,6 +18,7 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 
 #include "packet-btmesh.h"
 
@@ -26,42 +27,42 @@
 
 void proto_register_btmesh_beacon(void);
 
-static int proto_btmesh_beacon = -1;
+static int proto_btmesh_beacon;
 
-static int hf_btmesh_beacon_type = -1;
-static int hf_btmesh_beacon_uuid = -1;
-static int hf_btmesh_beacon_oob = -1;
-static int hf_btmesh_beacon_oob_other = -1;
-static int hf_btmesh_beacon_oob_electronic = -1;
-static int hf_btmesh_beacon_oob_2d_code = -1;
-static int hf_btmesh_beacon_oob_bar_code = -1;
-static int hf_btmesh_beacon_oob_nfc= -1;
-static int hf_btmesh_beacon_oob_number = -1;
-static int hf_btmesh_beacon_oob_string = -1;
-static int hf_btmesh_beacon_oob_rfu = -1;
-static int hf_btmesh_beacon_oob_on_box = -1;
-static int hf_btmesh_beacon_oob_inside_box = -1;
-static int hf_btmesh_beacon_oob_on_paper = -1;
-static int hf_btmesh_beacon_oob_inside_manual = -1;
-static int hf_btmesh_beacon_oob_on_device = -1;
-static int hf_btmesh_beacon_uri_hash = -1;
-static int hf_btmesh_beacon_flags = -1;
-static int hf_btmesh_beacon_flags_key_refresh = -1;
-static int hf_btmesh_beacon_flags_iv_update = -1;
-static int hf_btmesh_beacon_flags_rfu = -1;
-static int hf_btmesh_beacon_network_id = -1;
-static int hf_btmesh_beacon_ivindex = -1;
+static int hf_btmesh_beacon_type;
+static int hf_btmesh_beacon_uuid;
+static int hf_btmesh_beacon_oob;
+static int hf_btmesh_beacon_oob_other;
+static int hf_btmesh_beacon_oob_electronic;
+static int hf_btmesh_beacon_oob_2d_code;
+static int hf_btmesh_beacon_oob_bar_code;
+static int hf_btmesh_beacon_oob_nfc;
+static int hf_btmesh_beacon_oob_number;
+static int hf_btmesh_beacon_oob_string;
+static int hf_btmesh_beacon_oob_rfu;
+static int hf_btmesh_beacon_oob_on_box;
+static int hf_btmesh_beacon_oob_inside_box;
+static int hf_btmesh_beacon_oob_on_paper;
+static int hf_btmesh_beacon_oob_inside_manual;
+static int hf_btmesh_beacon_oob_on_device;
+static int hf_btmesh_beacon_uri_hash;
+static int hf_btmesh_beacon_flags;
+static int hf_btmesh_beacon_flags_key_refresh;
+static int hf_btmesh_beacon_flags_iv_update;
+static int hf_btmesh_beacon_flags_rfu;
+static int hf_btmesh_beacon_network_id;
+static int hf_btmesh_beacon_ivindex;
 //TODO: check authentication value
-static int hf_btmesh_beacon_authentication_value = -1;
-static int hf_btmesh_beacon_unknown_data = -1;
+static int hf_btmesh_beacon_authentication_value;
+static int hf_btmesh_beacon_unknown_data;
 
-static int ett_btmesh_beacon = -1;
-static int ett_btmesh_beacon_oob = -1;
-static int ett_btmesh_beacon_flags = -1;
+static int ett_btmesh_beacon;
+static int ett_btmesh_beacon_oob;
+static int ett_btmesh_beacon_flags;
 
-static expert_field ei_btmesh_beacon_unknown_beacon_type = EI_INIT;
-static expert_field ei_btmesh_beacon_unknown_payload = EI_INIT;
-static expert_field ei_btmesh_beacon_rfu_not_zero = EI_INIT;
+static expert_field ei_btmesh_beacon_unknown_beacon_type;
+static expert_field ei_btmesh_beacon_unknown_payload;
+static expert_field ei_btmesh_beacon_rfu_not_zero;
 
 static const value_string btmesh_beacon_type[] = {
     { 0, "Unprovisioned Device Beacon" },
@@ -79,18 +80,18 @@ static const true_false_string flags_iv_update = {
   "Normal operation"
 };
 
-static gint
+static int
 dissect_btmesh_beacon_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
 
     proto_item *item, *oob_item, *flags_item;
     proto_tree *sub_tree, *oob_tree, *flags_tree;
-    guint offset = 0;
-    guint data_size = 0;
+    unsigned offset = 0;
+    unsigned data_size = 0;
     btle_mesh_transport_ctx_t *tr_ctx;
-    btle_mesh_transport_ctx_t dummy_ctx = {E_BTMESH_TR_UNKNOWN, FALSE, 0};
-    guint16 rfu_bits16;
-    guint8 rfu_bits8;
+    btle_mesh_transport_ctx_t dummy_ctx = {E_BTMESH_TR_UNKNOWN, false, 0};
+    uint16_t rfu_bits16;
+    uint8_t rfu_bits8;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "BT Mesh Beacon");
 
@@ -103,7 +104,7 @@ dissect_btmesh_beacon_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     item = proto_tree_add_item(tree, proto_btmesh_beacon, tvb, offset, -1, ENC_NA);
     sub_tree = proto_item_add_subtree(item, ett_btmesh_beacon);
 
-    guint8 beacon_type = tvb_get_guint8(tvb, offset);
+    uint8_t beacon_type = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(sub_tree, hf_btmesh_beacon_type, tvb, offset, 1, ENC_NA);
     offset += 1;
 
@@ -142,7 +143,7 @@ dissect_btmesh_beacon_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
             proto_tree_add_item(oob_tree, hf_btmesh_beacon_oob_on_paper, tvb, offset, 2, ENC_NA);
             proto_tree_add_item(oob_tree, hf_btmesh_beacon_oob_inside_manual, tvb, offset, 2, ENC_NA);
             proto_tree_add_item(oob_tree, hf_btmesh_beacon_oob_on_device, tvb, offset, 2, ENC_NA);
-            rfu_bits16 = (tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN) & 0x0780) >> 7;
+            rfu_bits16 = (tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN) & 0x0780) >> 7;
             if (rfu_bits16 != 0) {
                 //RFU bits should be 0
                 proto_tree_add_expert(oob_tree, pinfo, &ei_btmesh_beacon_rfu_not_zero, tvb, offset, -1);
@@ -163,7 +164,7 @@ dissect_btmesh_beacon_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
             proto_tree_add_item(flags_tree, hf_btmesh_beacon_flags_key_refresh, tvb, offset, 1, ENC_NA);
             proto_tree_add_item(flags_tree, hf_btmesh_beacon_flags_iv_update, tvb, offset, 1, ENC_NA);
             proto_tree_add_item(flags_tree, hf_btmesh_beacon_flags_rfu, tvb, offset, 1, ENC_NA);
-            rfu_bits8 = tvb_get_guint8(tvb, offset) >> 2;
+            rfu_bits8 = tvb_get_uint8(tvb, offset) >> 2;
             if (rfu_bits8 != 0) {
                 //RFU bits should be 0
                 proto_tree_add_expert(flags_tree, pinfo, &ei_btmesh_beacon_rfu_not_zero, tvb, offset, -1);
@@ -322,7 +323,7 @@ proto_register_btmesh_beacon(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btmesh_beacon,
         &ett_btmesh_beacon_oob,
         &ett_btmesh_beacon_flags,

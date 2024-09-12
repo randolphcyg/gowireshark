@@ -27,38 +27,38 @@
 void proto_register_hdcp2(void);
 void proto_reg_handoff_hdcp2(void);
 
-static int proto_hdcp2 = -1;
+static int proto_hdcp2;
 
-static gint ett_hdcp2 = -1;
-static gint ett_hdcp2_cert = -1;
+static int ett_hdcp2;
+static int ett_hdcp2_cert;
 
-static int hf_hdcp2_msg_id = -1;
-static int hf_hdcp2_r_tx = -1;
-static int hf_hdcp2_repeater = -1;
-static int hf_hdcp2_cert_rcv_id = -1;
-static int hf_hdcp2_cert_n = -1;
-static int hf_hdcp2_cert_e = -1;
-static int hf_hdcp2_cert_rcv_sig = -1;
-static int hf_hdcp2_e_kpub_km = -1;
-static int hf_hdcp2_e_kh_km = -1;
-static int hf_hdcp2_m = -1;
-static int hf_hdcp2_r_rx = -1;
-static int hf_hdcp2_h_prime = -1;
-static int hf_hdcp2_r_n = -1;
-static int hf_hdcp2_l_prime = -1;
-static int hf_hdcp2_e_dkey_ks = -1;
-static int hf_hdcp2_r_iv = -1;
-static int hf_hdcp2_reserved = -1;
-static int hf_hdcp2_tx_length = -1;
-static int hf_hdcp2_tx_version = -1;
-static int hf_hdcp2_tx_loc_precompute = -1;
-static int hf_hdcp2_rx_length = -1;
-static int hf_hdcp2_rx_version = -1;
-static int hf_hdcp2_rx_loc_precompute = -1;
+static int hf_hdcp2_msg_id;
+static int hf_hdcp2_r_tx;
+static int hf_hdcp2_repeater;
+static int hf_hdcp2_cert_rcv_id;
+static int hf_hdcp2_cert_n;
+static int hf_hdcp2_cert_e;
+static int hf_hdcp2_cert_rcv_sig;
+static int hf_hdcp2_e_kpub_km;
+static int hf_hdcp2_e_kh_km;
+static int hf_hdcp2_m;
+static int hf_hdcp2_r_rx;
+static int hf_hdcp2_h_prime;
+static int hf_hdcp2_r_n;
+static int hf_hdcp2_l_prime;
+static int hf_hdcp2_e_dkey_ks;
+static int hf_hdcp2_r_iv;
+static int hf_hdcp2_reserved;
+static int hf_hdcp2_tx_length;
+static int hf_hdcp2_tx_version;
+static int hf_hdcp2_tx_loc_precompute;
+static int hf_hdcp2_rx_length;
+static int hf_hdcp2_rx_version;
+static int hf_hdcp2_rx_loc_precompute;
 
-static expert_field ei_hdcp2_reserved_0 = EI_INIT;
-static expert_field ei_hdcp2_version_not_2 = EI_INIT;
-static expert_field ei_hdcp2_length = EI_INIT;
+static expert_field ei_hdcp2_reserved_0;
+static expert_field ei_hdcp2_version_not_2;
+static expert_field ei_hdcp2_length;
 
 
 #define ID_AKE_INIT              2
@@ -102,11 +102,11 @@ static const value_string hdcp2_msg_id[] = {
 };
 
 typedef struct _msg_info_t {
-    guint8  id;
-    guint16 len;  /* number of bytes following initial msg_id field */
+    uint8_t id;
+    uint16_t len;  /* number of bytes following initial msg_id field */
 } msg_info_t;
 
-static wmem_map_t *msg_table = NULL;
+static wmem_map_t *msg_table;
 
 static const msg_info_t msg_info[] = {
     { ID_AKE_INIT,               8 },
@@ -130,22 +130,22 @@ dissect_hdcp2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
     msg_info_t *mi;
     proto_item *pi;
     proto_tree *hdcp_tree, *cert_tree;
-    guint8 msg_id, version;
-    gboolean repeater, loc_precomp;
-    guint16 reserved, length;
+    uint8_t msg_id, version;
+    bool repeater, loc_precomp;
+    uint16_t reserved, length;
     ptvcursor_t *cursor;
 
     /* do the plausibility checks before setting up anything */
 
-    /* make sure that tvb_get_guint8() won't throw an exception */
+    /* make sure that tvb_get_uint8() won't throw an exception */
     if (tvb_captured_length(tvb) < 1)
         return 0;
-    msg_id = tvb_get_guint8(tvb, 0);
+    msg_id = tvb_get_uint8(tvb, 0);
     if (msg_id > ID_MAX)
         return 0;
 
     mi = (msg_info_t *)wmem_map_lookup(msg_table,
-            GUINT_TO_POINTER((guint)msg_id));
+            GUINT_TO_POINTER((unsigned)msg_id));
     /* 1 -> start after msg_id byte */
     if (!mi || mi->len!=tvb_reported_length_remaining(tvb, 1))
         return 0;
@@ -177,7 +177,7 @@ dissect_hdcp2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
                         MSG_FIELD_TRANSMITTER_INFO_LENGTH);
             }
             ptvcursor_advance(cursor, 2);
-            version = tvb_get_guint8(tvb, ptvcursor_current_offset(cursor));
+            version = tvb_get_uint8(tvb, ptvcursor_current_offset(cursor));
             pi = proto_tree_add_item(ptvcursor_tree(cursor),
                     hf_hdcp2_tx_version, tvb, ptvcursor_current_offset(cursor),
                     1, ENC_BIG_ENDIAN);
@@ -192,7 +192,7 @@ dissect_hdcp2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
             ptvcursor_add(cursor, hf_hdcp2_tx_loc_precompute, 2, ENC_BIG_ENDIAN);
             break;
         case ID_AKE_SEND_CERT:
-            repeater = ((tvb_get_guint8(tvb, ptvcursor_current_offset(cursor))
+            repeater = ((tvb_get_uint8(tvb, ptvcursor_current_offset(cursor))
                         & 0x01) == 0x01);
             col_append_sep_str(pinfo->cinfo, COL_INFO, NULL,
                     repeater ? "repeater" : "no repeater");
@@ -223,7 +223,7 @@ dissect_hdcp2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
                         MSG_FIELD_RECEIVER_INFO_LENGTH);
             }
             ptvcursor_advance(cursor, 2);
-            version = tvb_get_guint8(tvb, ptvcursor_current_offset(cursor));
+            version = tvb_get_uint8(tvb, ptvcursor_current_offset(cursor));
             pi = proto_tree_add_item(ptvcursor_tree(cursor),
                     hf_hdcp2_rx_version, tvb, ptvcursor_current_offset(cursor),
                     1, ENC_BIG_ENDIAN);
@@ -271,12 +271,17 @@ dissect_hdcp2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
     return tvb_reported_length(tvb);
 }
 
+static bool
+dissect_hdcp2_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+{
+    return dissect_hdcp2(tvb, pinfo, tree, data) > 0;
+}
 
 
 void
 proto_register_hdcp2(void)
 {
-    guint i;
+    unsigned i;
 
     static hf_register_info hf[] = {
         { &hf_hdcp2_msg_id,
@@ -351,7 +356,7 @@ proto_register_hdcp2(void)
 
 };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_hdcp2,
         &ett_hdcp2_cert,
     };
@@ -368,8 +373,8 @@ proto_register_hdcp2(void)
     msg_table = wmem_map_new(wmem_epan_scope(), g_direct_hash, g_direct_equal);
     for(i=0; i<array_length(msg_info); i++) {
         wmem_map_insert(msg_table,
-                GUINT_TO_POINTER((guint)msg_info[i].id),
-                (gpointer)(&msg_info[i]));
+                GUINT_TO_POINTER((unsigned)msg_info[i].id),
+                (void *)(&msg_info[i]));
     }
 
     proto_hdcp2 = proto_register_protocol("High bandwidth Digital Content Protection version 2", "HDCP2", "hdcp2");
@@ -388,12 +393,12 @@ proto_register_hdcp2(void)
 void
 proto_reg_handoff_hdcp2(void)
 {
-    static gboolean prefs_initialized = FALSE;
+    static bool prefs_initialized = false;
 
     if (!prefs_initialized) {
-        heur_dissector_add ("tcp", dissect_hdcp2, "HDCP2 over TCP", "hdcp2_tcp", proto_hdcp2, HEURISTIC_DISABLE);
+        heur_dissector_add ("tcp", dissect_hdcp2_heur, "HDCP2 over TCP", "hdcp2_tcp", proto_hdcp2, HEURISTIC_DISABLE);
 
-        prefs_initialized = TRUE;
+        prefs_initialized = true;
     }
 }
 

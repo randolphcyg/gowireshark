@@ -16,6 +16,7 @@
 
 #include <epan/packet.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-per.h"
 #include "packet-lpp.h"
@@ -33,15 +34,15 @@ void proto_register_lppe(void);
 void proto_reg_handoff_lppe(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_lppe = -1;
+static int proto_lppe;
 
 static dissector_handle_t xml_handle;
 
 #include "packet-lppe-hf.c"
 
 /* Initialize the subtree pointers */
-static gint ett_lppe = -1;
-static gint ett_lppe_civicLocation = -1;
+static int ett_lppe;
+static int ett_lppe_civicLocation;
 #include "packet-lppe-ett.c"
 
 /* Include constants */
@@ -61,7 +62,7 @@ void proto_register_lppe(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 	  &ett_lppe,
       &ett_lppe_civicLocation,
 #include "packet-lppe-ettarr.c"

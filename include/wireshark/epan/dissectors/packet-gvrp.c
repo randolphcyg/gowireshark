@@ -17,20 +17,20 @@
 void proto_register_gvrp(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_gvrp = -1;
-static int hf_gvrp_proto_id = -1;
-static int hf_gvrp_attribute_type = -1;
-static int hf_gvrp_attribute_length = -1;
-static int hf_gvrp_attribute_event = -1;
-static int hf_gvrp_attribute_value = -1;
-static int hf_gvrp_end_of_mark = -1;
+static int proto_gvrp;
+static int hf_gvrp_proto_id;
+static int hf_gvrp_attribute_type;
+static int hf_gvrp_attribute_length;
+static int hf_gvrp_attribute_event;
+static int hf_gvrp_attribute_value;
+static int hf_gvrp_end_of_mark;
 
 /* Initialize the subtree pointers */
-static gint ett_gvrp = -1;
-static gint ett_gvrp_message = -1;
-static gint ett_gvrp_attribute = -1;
+static int ett_gvrp;
+static int ett_gvrp_message;
+static int ett_gvrp_attribute;
 
-static expert_field ei_gvrp_proto_id = EI_INIT;
+static expert_field ei_gvrp_proto_id;
 
 /* Constant definitions */
 #define GARP_DEFAULT_PROTOCOL_ID        0x0001
@@ -45,12 +45,12 @@ static const value_string attribute_type_vals[] = {
 
 /* The length of GVRP LeaveAll attribute should be 2 octets (one for length
  * and the other for event) */
-#define GVRP_LENGTH_LEAVEALL            (int)(sizeof(guint8)+sizeof(guint8))
+#define GVRP_LENGTH_LEAVEALL            (int)(sizeof(uint8_t)+sizeof(uint8_t))
 
 /* The length of GVRP attribute other than LeaveAll should be 4 octets (one
  * for length, one for event, and the last two for VID value).
  */
-#define GVRP_LENGTH_NON_LEAVEALL        (int)(sizeof(guint8)+sizeof(guint8)+sizeof(guint16))
+#define GVRP_LENGTH_NON_LEAVEALL        (int)(sizeof(uint8_t)+sizeof(uint8_t)+sizeof(uint16_t))
 
 /* Packet offset definitions */
 #define GARP_PROTOCOL_ID                0
@@ -79,8 +79,8 @@ dissect_gvrp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 {
     proto_item *ti, *id_item;
     proto_tree *gvrp_tree, *msg_tree, *attr_tree;
-    guint16     protocol_id;
-    guint8      octet;
+    uint16_t    protocol_id;
+    uint8_t     octet;
     int         msg_index;
     int         attr_index;
     int         offset = 0;
@@ -126,7 +126,7 @@ dissect_gvrp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
         int         msg_start = offset;
 
         /* Read in attribute type. */
-        octet = tvb_get_guint8(tvb, offset);
+        octet = tvb_get_uint8(tvb, offset);
 
         /* Check for end of mark */
         if (octet == GARP_END_OF_MARK)
@@ -169,7 +169,7 @@ dissect_gvrp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
             proto_item *attr_item;
 
             /* Read in attribute length. */
-            octet = tvb_get_guint8(tvb, offset);
+            octet = tvb_get_uint8(tvb, offset);
 
             /* Check for end of mark */
             if (octet == GARP_END_OF_MARK)
@@ -195,7 +195,7 @@ dissect_gvrp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
             }
             else
             {
-                guint8 event;
+                uint8_t event;
 
                 offset += 1;
                 length -= 1;
@@ -207,7 +207,7 @@ dissect_gvrp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
                         tvb, attr_start, 1, octet);
 
                 /* Read in attribute event */
-                event = tvb_get_guint8(tvb, offset);
+                event = tvb_get_uint8(tvb, offset);
 
                 proto_tree_add_uint(attr_tree, hf_gvrp_attribute_event,
                         tvb, offset, 1, event);
@@ -306,7 +306,7 @@ proto_register_gvrp(void)
 
     expert_module_t* expert_gvrp;
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_gvrp,
         &ett_gvrp_message,
         &ett_gvrp_attribute,

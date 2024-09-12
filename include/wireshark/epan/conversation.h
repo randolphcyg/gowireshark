@@ -42,6 +42,7 @@ extern "C" {
 #define NO_PORT2 0x02
 #define NO_PORT2_FORCE 0x04
 #define CONVERSATION_TEMPLATE 0x08
+#define NO_PORTS 0x010
 
 /**
  * Flags to pass to "find_conversation()" to indicate that the address B
@@ -50,6 +51,8 @@ extern "C" {
 #define NO_MASK_B 0xFFFF0000
 #define NO_ADDR_B 0x00010000
 #define NO_PORT_B 0x00020000
+#define NO_PORT_X 0x00040000
+#define NO_ANC    0x00080000
 
 /** Flags to handle endpoints */
 #define USE_LAST_ENDPOINT 0x08		/**< Use last endpoint created, regardless of type */
@@ -99,6 +102,15 @@ typedef enum {
     CONVERSATION_SNMP,		/* SNMP */
     CONVERSATION_QUIC,		/* QUIC */
     CONVERSATION_IDN,
+    CONVERSATION_IP,		/* IP */
+    CONVERSATION_IPV6,		/* IPv6 */
+    CONVERSATION_ETH,           /* ETHERNET classic */
+    CONVERSATION_ETH_NN,        /* ETHERNET deinterlaced Interface:N VLAN:N */
+    CONVERSATION_ETH_NV,        /* ETHERNET deinterlaced Interface:N VLAN:Y */
+    CONVERSATION_ETH_IN,        /* ETHERNET deinterlaced Interface:Y VLAN:N */
+    CONVERSATION_ETH_IV,        /* ETHERNET deinterlaced Interface:Y VLAN:Y */
+    CONVERSATION_VSPC_VMOTION,	/* VMware vSPC vMotion (Telnet) */
+    CONVERSATION_OPENVPN,
 } conversation_type;
 
 /*
@@ -153,13 +165,15 @@ typedef conversation_type endpoint_type;
  * Conversation element type.
  */
 typedef enum {
-    CE_CONVERSATION_TYPE,	/* CONVERSATION_ value */
-    CE_ADDRESS,			/* address */
-    CE_PORT,			/* unsigned integer representing a port */
-    CE_STRING,			/* string */
-    CE_UINT,			/* unsigned integer not representing a port */
-    CE_UINT64,			/* 64-bit unsigned integer */
-    CE_INT,             /* signed integer */
+    CE_CONVERSATION_TYPE,   /* CONVERSATION_ value */
+    CE_ADDRESS,             /* address */
+    CE_PORT,                /* unsigned integer representing a port */
+    CE_STRING,              /* string */
+    CE_UINT,                /* unsigned integer not representing a port */
+    CE_UINT64,              /* 64-bit unsigned integer */
+    CE_INT,                 /* signed integer */
+    CE_INT64,               /* signed integer */
+    CE_BLOB,                /* arbitrary binary data */
 } conversation_element_type;
 
 /**
@@ -193,6 +207,11 @@ typedef struct conversation_element {
         unsigned int uint_val;
         uint64_t uint64_val;
         int int_val;
+        int64_t int64_val;
+        struct {
+            const uint8_t *val;
+            size_t len;
+        } blob;
     };
 } conversation_element_t;
 
@@ -203,13 +222,13 @@ typedef struct conversation {
     struct conversation *next;	/** pointer to next conversation on hash chain */
     struct conversation *last;	/** pointer to the last conversation on hash chain */
     struct conversation *latest_found; /** pointer to the last conversation on hash chain */
-    guint32	conv_index;		/** unique ID for conversation */
-    guint32 setup_frame;		/** frame number that setup this conversation */
+    uint32_t	conv_index;		/** unique ID for conversation */
+    uint32_t setup_frame;		/** frame number that setup this conversation */
     /* Assume that setup_frame is also the lowest frame number for now. */
-    guint32 last_frame;		/** highest frame number in this conversation */
+    uint32_t last_frame;		/** highest frame number in this conversation */
     wmem_tree_t *data_list;		/** list of data associated with conversation */
     wmem_tree_t *dissector_tree;	/** tree containing protocol dissector client associated with conversation */
-    guint	options;		/** wildcard flags */
+    unsigned	options;		/** wildcard flags */
     conversation_element_t *key_ptr;	/** Keys are conversation element arrays terminated with a CE_CONVERSATION_TYPE */
 } conversation_t;
 
@@ -240,7 +259,7 @@ typedef struct conversation {
  * type specifying the protocol for the conversation.  Now we use an
  * array of elements, with a CE_UINT value for the integer followed
  * by a CE_CONVERSATION_TYPE value specifying the protocol for the
- * converation.
+ * conversation.
  *
  * XXX - is there any reason why we shouldn't use an array of conversation
  * elements, with the appropriate addresses and ports, instead of this
@@ -251,9 +270,9 @@ struct conversation_addr_port_endpoints;
 typedef struct conversation_addr_port_endpoints* conversation_addr_port_endpoints_t;
 
 WS_DLL_PUBLIC const address* conversation_key_addr1(const conversation_element_t *key);
-WS_DLL_PUBLIC guint32 conversation_key_port1(const conversation_element_t *key);
+WS_DLL_PUBLIC uint32_t conversation_key_port1(const conversation_element_t *key);
 WS_DLL_PUBLIC const address* conversation_key_addr2(const conversation_element_t *key);
-WS_DLL_PUBLIC guint32 conversation_key_port2(const conversation_element_t *key);
+WS_DLL_PUBLIC uint32_t conversation_key_port2(const conversation_element_t *key);
 
 /**
  * Create a new hash tables for conversations.
@@ -271,7 +290,7 @@ extern void conversation_epan_reset(void);
  * @param elements An array of element types and values. Must not be NULL. Must be terminated with a CE_CONVERSATION_TYPE element.
  * @return The new conversation.
  */
-WS_DLL_PUBLIC WS_RETNONNULL conversation_t *conversation_new_full(const guint32 setup_frame, conversation_element_t *elements);
+WS_DLL_PUBLIC WS_RETNONNULL conversation_t *conversation_new_full(const uint32_t setup_frame, conversation_element_t *elements);
 
 /**
  * Given two address/port pairs for a packet, create a new conversation
@@ -292,10 +311,44 @@ WS_DLL_PUBLIC WS_RETNONNULL conversation_t *conversation_new_full(const guint32 
  *        Options except for NO_PORT2 and NO_PORT2_FORCE can be ORed.
  * @return The new conversation.
  */
-WS_DLL_PUBLIC WS_RETNONNULL conversation_t *conversation_new(const guint32 setup_frame, const address *addr1, const address *addr2,
-    const conversation_type ctype, const guint32 port1, const guint32 port2, const guint options);
+WS_DLL_PUBLIC WS_RETNONNULL conversation_t *conversation_new(const uint32_t setup_frame, const address *addr1, const address *addr2,
+    const conversation_type ctype, const uint32_t port1, const uint32_t port2, const unsigned options);
 
-WS_DLL_PUBLIC WS_RETNONNULL conversation_t *conversation_new_by_id(const guint32 setup_frame, const conversation_type ctype, const guint32 id);
+WS_DLL_PUBLIC WS_RETNONNULL conversation_t *conversation_new_by_id(const uint32_t setup_frame, const conversation_type ctype, const uint32_t id);
+
+/**
+ *
+ */
+WS_DLL_PUBLIC WS_RETNONNULL conversation_t *conversation_new_deinterlaced(const uint32_t setup_frame, const address *addr1, const address *addr2,
+    const conversation_type ctype, const uint32_t port1, const uint32_t port2, const uint32_t anchor, const unsigned options);
+
+/**
+ * Create a deinterlacer conversation, based on two addresses,
+ * a type, and several keys (VLAN, Mac, Interface).
+ *
+ * @param setup_frame The first frame in the conversation.
+ * @param addr1 The first address in the identifying tuple.
+ * @param addr2 The second address in the identifying tuple.
+ * @param ctype The conversation type.
+ * @param key1  The first key in the identifying tuple.
+ * @param key2  The second key in the identifying tuple.
+ * @param key3  The third key in the identifying tuple.
+ * @return The new conversation.
+ */
+WS_DLL_PUBLIC WS_RETNONNULL conversation_t *conversation_new_deinterlacer(const uint32_t setup_frame, const address *addr1, const address *addr2,
+    const conversation_type ctype, const uint32_t key1, const uint32_t key2, const uint32_t key3);
+
+/**
+ * A helper function for creating conversations according to the runtime deinterlacing strategy,
+ * which means the returned conversation is either a classic (historical) object, or a deinterlaced one.
+ *
+ * @param pinfo Packet info.
+ * @param ctype The conversation type.
+ * @param options NO_ADDR2, NO_PORT2, NO_PORT2_FORCE, or CONVERSATION_TEMPLATE.
+ *        Options except for NO_PORT2 and NO_PORT2_FORCE can be ORed.
+ * @return The new conversation.
+ */
+WS_DLL_PUBLIC WS_RETNONNULL conversation_t *conversation_new_strat(packet_info *pinfo, const conversation_type ctype, const unsigned options);
 
 /**
  * Search for a conversation based on the structure and values of an element list.
@@ -303,7 +356,7 @@ WS_DLL_PUBLIC WS_RETNONNULL conversation_t *conversation_new_by_id(const guint32
  * @param elements An array of element types and values. Must not be NULL. Must be terminated with a CE_CONVERSATION_TYPE element.
  * @return The matching conversation if found, otherwise NULL.
  */
-WS_DLL_PUBLIC conversation_t *find_conversation_full(const guint32 frame_num, conversation_element_t *elements);
+WS_DLL_PUBLIC conversation_t *find_conversation_full(const uint32_t frame_num, conversation_element_t *elements);
 
 /**
  * Given two address/port pairs for a packet, search for a conversation
@@ -352,15 +405,42 @@ WS_DLL_PUBLIC conversation_t *find_conversation_full(const guint32 frame_num, co
  * @param options Wildcard options as described above.
  * @return The matching conversation if found, otherwise NULL.
  */
-WS_DLL_PUBLIC conversation_t *find_conversation(const guint32 frame_num, const address *addr_a, const address *addr_b,
-    const conversation_type ctype, const guint32 port_a, const guint32 port_b, const guint options);
+WS_DLL_PUBLIC conversation_t *find_conversation(const uint32_t frame_num, const address *addr_a, const address *addr_b,
+    const conversation_type ctype, const uint32_t port_a, const uint32_t port_b, const unsigned options);
 
-WS_DLL_PUBLIC conversation_t *find_conversation_by_id(const guint32 frame, const conversation_type ctype, const guint32 id);
+WS_DLL_PUBLIC conversation_t *find_conversation_deinterlaced(const uint32_t frame_num, const address *addr_a, const address *addr_b,
+    const conversation_type ctype, const uint32_t port_a, const uint32_t port_b, const uint32_t anchor, const unsigned options);
+
+WS_DLL_PUBLIC conversation_t *find_conversation_deinterlacer(const uint32_t frame_num, const address *addr_a, const address *addr_b,
+    const conversation_type ctype, const uint32_t key_a, const uint32_t key_b, const uint32_t key_c);
+
+/**  A wrapper function of find_conversation_deinterlacer() using data from pinfo,
+ *  which evaluates the execution context first (user preference, VLAN, interface,..),
+ *  and then calls find_conversation_deinterlacer().
+ *  The frame number and addresses are taken from pinfo.
+ */
+WS_DLL_PUBLIC conversation_t *find_conversation_deinterlacer_pinfo(const packet_info *pinfo);
+
+WS_DLL_PUBLIC conversation_t *find_conversation_by_id(const uint32_t frame, const conversation_type ctype, const uint32_t id);
+
+/**  A helper function that calls find_conversation() using data from pinfo,
+ *  and returns a conversation according to the runtime deinterlacing strategy.
+ *  The frame number and addresses are taken from pinfo.
+ */
+WS_DLL_PUBLIC conversation_t *find_conversation_strat(const packet_info *pinfo, const conversation_type ctype, const unsigned options);
 
 /**  A helper function that calls find_conversation() using data from pinfo
  *  The frame number and addresses are taken from pinfo.
  */
-WS_DLL_PUBLIC conversation_t *find_conversation_pinfo(packet_info *pinfo, const guint options);
+WS_DLL_PUBLIC conversation_t *find_conversation_pinfo(const packet_info *pinfo, const unsigned options);
+
+/**  A helper function that calls find_conversation() using data from pinfo.
+ *  It's a simplified version of find_conversation_pinfo() to avoid
+ *  unnecessary checks and be limited to read-only, which is the minimal
+ *  need for displaying packets in packet_list.
+ *  The frame number and addresses are taken from pinfo.
+ */
+WS_DLL_PUBLIC conversation_t *find_conversation_pinfo_ro(const packet_info *pinfo, const unsigned options);
 
 /**
  * A helper function that calls find_conversation() and, if a conversation is
@@ -378,7 +458,7 @@ WS_DLL_PUBLIC WS_RETNONNULL conversation_t *find_or_create_conversation(packet_i
  *  conversation is not found, calls conversation_new_by_id().
  *  The frame number is taken from pinfo.
  */
-WS_DLL_PUBLIC WS_RETNONNULL conversation_t *find_or_create_conversation_by_id(packet_info *pinfo, const conversation_type ctype, const guint32 id);
+WS_DLL_PUBLIC WS_RETNONNULL conversation_t *find_or_create_conversation_by_id(packet_info *pinfo, const conversation_type ctype, const uint32_t id);
 
 /** Associate data with a conversation.
  * @param conv Conversation. Must not be NULL.
@@ -403,9 +483,9 @@ WS_DLL_PUBLIC void conversation_delete_proto_data(conversation_t *conv, const in
 WS_DLL_PUBLIC void conversation_set_dissector(conversation_t *conversation, const dissector_handle_t handle);
 
 WS_DLL_PUBLIC void conversation_set_dissector_from_frame_number(conversation_t *conversation,
-    const guint32 starting_frame_num, const dissector_handle_t handle);
+    const uint32_t starting_frame_num, const dissector_handle_t handle);
 
-WS_DLL_PUBLIC dissector_handle_t conversation_get_dissector(conversation_t *conversation, const guint32 frame_num);
+WS_DLL_PUBLIC dissector_handle_t conversation_get_dissector(conversation_t *conversation, const uint32_t frame_num);
 
 /**
  * Save address+port information in the current packet info; it can be matched
@@ -419,7 +499,7 @@ WS_DLL_PUBLIC dissector_handle_t conversation_get_dissector(conversation_t *conv
  * @param port2 The second port in the identifying tuple.
  */
 WS_DLL_PUBLIC void conversation_set_conv_addr_port_endpoints(struct _packet_info *pinfo, address* addr1, address* addr2,
-    conversation_type ctype, guint32 port1, guint32 port2);
+    conversation_type ctype, uint32_t port1, uint32_t port2);
 
 /**
  * Save conversation elements including ID information in the current
@@ -430,7 +510,7 @@ WS_DLL_PUBLIC void conversation_set_conv_addr_port_endpoints(struct _packet_info
  * @param id A unique ID.
  */
 WS_DLL_PUBLIC void conversation_set_elements_by_id(struct _packet_info *pinfo,
-    conversation_type ctype, guint32 id);
+    conversation_type ctype, uint32_t id);
 
 /**
  * @brief Get the ID value from the conversation elements in the packet info.
@@ -440,24 +520,24 @@ WS_DLL_PUBLIC void conversation_set_elements_by_id(struct _packet_info *pinfo,
  * @return The ID value from the elements if successful, or 0
  *   on failure.
  */
-WS_DLL_PUBLIC guint32 conversation_get_id_from_elements(struct _packet_info *pinfo,
-    conversation_type ctype, const guint options);
+WS_DLL_PUBLIC uint32_t conversation_get_id_from_elements(struct _packet_info *pinfo,
+    conversation_type ctype, const unsigned options);
 
 /**
  * Given two address/port pairs for a packet, search for a matching
  * conversation and, if found and it has a conversation dissector,
- * call that dissector and return TRUE, otherwise return FALSE.
+ * call that dissector and return true, otherwise return false.
  *
  * This helper uses call_dissector_only which will NOT call the default
  * "data" dissector if the packet was rejected.
  * Our caller is responsible to call the data dissector explicitly in case
- * this function returns FALSE.
+ * this function returns false.
  */
-WS_DLL_PUBLIC gboolean try_conversation_dissector(const address *addr_a, const address *addr_b, const conversation_type ctype,
-    const guint32 port_a, const guint32 port_b, tvbuff_t *tvb, packet_info *pinfo,
-    proto_tree *tree, void* data, const guint options);
+WS_DLL_PUBLIC bool try_conversation_dissector(const address *addr_a, const address *addr_b, const conversation_type ctype,
+    const uint32_t port_a, const uint32_t port_b, tvbuff_t *tvb, packet_info *pinfo,
+    proto_tree *tree, void* data, const unsigned options);
 
-WS_DLL_PUBLIC gboolean try_conversation_dissector_by_id(const conversation_type ctype, const guint32 id, tvbuff_t *tvb,
+WS_DLL_PUBLIC bool try_conversation_dissector_by_id(const conversation_type ctype, const uint32_t id, tvbuff_t *tvb,
     packet_info *pinfo, proto_tree *tree, void* data);
 
 /* These routines are used to set undefined values for a conversation */
@@ -467,7 +547,7 @@ WS_DLL_PUBLIC gboolean try_conversation_dissector_by_id(const conversation_type 
  * @param conv Conversation. Must be created with conversation_new.
  * @param port The second port to set.
  */
-WS_DLL_PUBLIC void conversation_set_port2(conversation_t *conv, const guint32 port);
+WS_DLL_PUBLIC void conversation_set_port2(conversation_t *conv, const uint32_t port);
 
 /**
  * Set the second address in a conversation created with conversation_new.

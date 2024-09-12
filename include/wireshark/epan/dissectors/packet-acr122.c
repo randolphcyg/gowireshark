@@ -15,83 +15,85 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+
 #include "packet-usb.h"
 
-static int proto_acr122                                                    = -1;
+static int proto_acr122;
 
-static int hf_class                                                        = -1;
-static int hf_ins                                                          = -1;
-static int hf_p1                                                           = -1;
-static int hf_p2                                                           = -1;
-static int hf_length                                                       = -1;
-static int hf_status_word                                                  = -1;
-static int hf_status_word_sw1                                              = -1;
-static int hf_status_word_sw2                                              = -1;
-static int hf_status_word_led_reserved                                     = -1;
-static int hf_status_word_led_green                                        = -1;
-static int hf_status_word_led_red                                          = -1;
-static int hf_command                                                      = -1;
-static int hf_response                                                     = -1;
-static int hf_response_for                                                 = -1;
-static int hf_picc_operating_auto_picc_polling                             = -1;
-static int hf_picc_operating_auto_ats_generation                           = -1;
-static int hf_picc_operating_polling_interval                              = -1;
-static int hf_picc_operating_felica_424k                                   = -1;
-static int hf_picc_operating_felica_212k                                   = -1;
-static int hf_picc_operating_topaz                                         = -1;
-static int hf_picc_operating_iso_14443_type_b                              = -1;
-static int hf_picc_operating_iso_14443_type_a                              = -1;
-static int hf_firmware_version                                             = -1;
-static int hf_led_green_blinking_state                                     = -1;
-static int hf_led_red_blinking_state                                       = -1;
-static int hf_led_green_mask                                               = -1;
-static int hf_led_red_mask                                                 = -1;
-static int hf_led_initial_green_blinking_state                             = -1;
-static int hf_led_initial_red_blinking_state                               = -1;
-static int hf_led_final_green_state                                        = -1;
-static int hf_led_final_red_state                                          = -1;
-static int hf_led_t1_duration                                              = -1;
-static int hf_led_t2_duration                                              = -1;
-static int hf_led_number_of_repetition                                     = -1;
-static int hf_led_link_to_buzzer                                           = -1;
-static int hf_timeout                                                      = -1;
-static int hf_poll_buzzer_status                                           = -1;
-static int hf_key                                                          = -1;
-static int hf_key_structure                                                = -1;
-static int hf_key_number                                                   = -1;
-static int hf_key_type                                                     = -1;
-static int hf_block_number                                                 = -1;
-static int hf_source_block_number                                          = -1;
-static int hf_target_block_number                                          = -1;
-static int hf_vb_op                                                        = -1;
-static int hf_static_byte                                                  = -1;
-static int hf_version                                                      = -1;
-static int hf_value                                                        = -1;
-static int hf_uid                                                          = -1;
-static int hf_ats                                                          = -1;
-static int hf_data                                                         = -1;
+static int hf_class;
+static int hf_ins;
+static int hf_p1;
+static int hf_p2;
+static int hf_length;
+static int hf_status_word;
+static int hf_status_word_sw1;
+static int hf_status_word_sw2;
+static int hf_status_word_led_reserved;
+static int hf_status_word_led_green;
+static int hf_status_word_led_red;
+static int hf_command;
+static int hf_response;
+static int hf_response_for;
+static int hf_picc_operating_auto_picc_polling;
+static int hf_picc_operating_auto_ats_generation;
+static int hf_picc_operating_polling_interval;
+static int hf_picc_operating_felica_424k;
+static int hf_picc_operating_felica_212k;
+static int hf_picc_operating_topaz;
+static int hf_picc_operating_iso_14443_type_b;
+static int hf_picc_operating_iso_14443_type_a;
+static int hf_firmware_version;
+static int hf_led_green_blinking_state;
+static int hf_led_red_blinking_state;
+static int hf_led_green_mask;
+static int hf_led_red_mask;
+static int hf_led_initial_green_blinking_state;
+static int hf_led_initial_red_blinking_state;
+static int hf_led_final_green_state;
+static int hf_led_final_red_state;
+static int hf_led_t1_duration;
+static int hf_led_t2_duration;
+static int hf_led_number_of_repetition;
+static int hf_led_link_to_buzzer;
+static int hf_timeout;
+static int hf_poll_buzzer_status;
+static int hf_key;
+static int hf_key_structure;
+static int hf_key_number;
+static int hf_key_type;
+static int hf_block_number;
+static int hf_source_block_number;
+static int hf_target_block_number;
+static int hf_vb_op;
+static int hf_static_byte;
+static int hf_version;
+static int hf_value;
+static int hf_uid;
+static int hf_ats;
+static int hf_data;
 
-static gint ett_acr122                                                 = -1;
-static gint ett_p1_item                                                    = -1;
-static gint ett_p2_item                                                    = -1;
-static gint ett_status_word                                                = -1;
-static gint ett_status_word_sw2                                            = -1;
+static int ett_acr122;
+static int ett_p1_item;
+static int ett_p2_item;
+static int ett_status_word;
+static int ett_status_word_sw2;
 
-static expert_field ei_unknown_command_or_invalid_parameters          = EI_INIT;
+static expert_field ei_unknown_command_or_invalid_parameters;
 
 static dissector_handle_t  acr122_handle;
 static dissector_handle_t  pn532_handle;
 
-static wmem_tree_t *command_info = NULL;
+static wmem_tree_t *command_info;
 
 typedef struct command_data_t {
-    guint32  bus_id;
-    guint32  device_address;
-    guint32  endpoint;
+    uint32_t bus_id;
+    uint32_t device_address;
+    uint32_t endpoint;
 
-    guint8   command;
-    guint32  command_frame_number;
-    guint32  response_frame_number;
+    uint8_t  command;
+    uint32_t command_frame_number;
+    uint32_t response_frame_number;
 } command_data_t;
 
 /* Not part of protocol, generated values */
@@ -179,12 +181,12 @@ void proto_register_acr122(void);
 void proto_reg_handoff_acr122(void);
 
 static void
-duration_base(gchar *buf, guint32 value) {
+duration_base(char *buf, uint32_t value) {
         snprintf(buf, ITEM_LABEL_LENGTH, "%u.%03u s", value * 100 / 1000, value * 100 % 1000);
 }
 
 static void
-timeout_base(gchar *buf, guint32 value) {
+timeout_base(char *buf, uint32_t value) {
         if (value == 0x00)
             snprintf(buf, ITEM_LABEL_LENGTH, "No timeout check");
         else if (value == 0xFF)
@@ -196,7 +198,7 @@ timeout_base(gchar *buf, guint32 value) {
 }
 
 
-static gint
+static int
 dissect_acr122(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     proto_item      *main_item;
@@ -209,25 +211,25 @@ dissect_acr122(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     proto_item      *sub_tree;
     proto_item      *sw2_item;
     proto_item      *sw2_tree;
-    gint             offset = 0;
-    guint32          value;
+    int              offset = 0;
+    uint32_t         value;
     tvbuff_t        *next_tvb;
-    guint8           acr_class;
-    guint8           ins;
-    guint8           p1;
-    guint8           p2;
-    guint8           length;
-    guint8           command = CMD_UNKNOWN;
+    uint8_t          acr_class;
+    uint8_t          ins;
+    uint8_t          p1;
+    uint8_t          p2;
+    uint8_t          length;
+    uint8_t          command = CMD_UNKNOWN;
     command_data_t  *command_data;
-    usb_conv_info_t *usb_conv_info;
+    urb_info_t      *urb;
     wmem_tree_key_t  key[5];
-    guint32          bus_id;
-    guint32          device_address;
-    guint32          endpoint;
-    guint32          k_bus_id;
-    guint32          k_device_address;
-    guint32          k_endpoint;
-    guint32          k_frame_number;
+    uint32_t         bus_id;
+    uint32_t         device_address;
+    uint32_t         endpoint;
+    uint32_t         k_bus_id;
+    uint32_t         k_device_address;
+    uint32_t         k_endpoint;
+    uint32_t         k_frame_number;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "ACR 122");
     col_clear(pinfo->cinfo, COL_INFO);
@@ -236,11 +238,11 @@ dissect_acr122(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     main_tree = proto_item_add_subtree(main_item, ett_acr122);
 
     if (!data) return offset;
-    usb_conv_info = (usb_conv_info_t *) data;
+    urb = (urb_info_t *) data;
 
-    bus_id = usb_conv_info->bus_id;
-    device_address = usb_conv_info->device_address;
-    endpoint = usb_conv_info->endpoint;
+    bus_id = urb->bus_id;
+    device_address = urb->device_address;
+    endpoint = urb->endpoint;
 
     k_bus_id  = bus_id;
     k_device_address  = device_address;
@@ -260,11 +262,11 @@ dissect_acr122(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
 
     if (pinfo->p2p_dir == P2P_DIR_SENT) { /* Request */
-        acr_class = tvb_get_guint8(tvb, offset);
-        ins = tvb_get_guint8(tvb, offset + 1);
-        p1 = tvb_get_guint8(tvb, offset + 2);
-        p2 = tvb_get_guint8(tvb, offset + 3);
-        length = tvb_get_guint8(tvb, offset + 4);
+        acr_class = tvb_get_uint8(tvb, offset);
+        ins = tvb_get_uint8(tvb, offset + 1);
+        p1 = tvb_get_uint8(tvb, offset + 2);
+        p2 = tvb_get_uint8(tvb, offset + 3);
+        length = tvb_get_uint8(tvb, offset + 4);
 
         /* Recognize command by simple heuristic */
         if (acr_class == 0xFF) {
@@ -330,7 +332,7 @@ dissect_acr122(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         case CMD_DIRECT_TRANSMIT:
             if (length > 0) {
                 next_tvb = tvb_new_subset_length(tvb, offset, length);
-                call_dissector_with_data(pn532_handle, next_tvb, pinfo, tree, usb_conv_info);
+                call_dissector_with_data(pn532_handle, next_tvb, pinfo, tree, urb);
                 offset += length;
             }
             break;
@@ -468,8 +470,8 @@ dissect_acr122(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         }
 
     } else { /* Response */
-        guint32       command_frame_number = 0;
-        gboolean      use_status_word = FALSE;
+        uint32_t      command_frame_number = 0;
+        bool          use_status_word = false;
         wmem_tree_t  *wmem_tree;
 
         key[3].length = 0;
@@ -507,35 +509,35 @@ dissect_acr122(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
             break;
 
         case CMD_DIRECT_TRANSMIT:
-            use_status_word = TRUE;
+            use_status_word = true;
 
             if (tvb_captured_length_remaining(tvb, offset) > 2) {
                 next_tvb = tvb_new_subset_length(tvb, offset, tvb_captured_length_remaining(tvb, offset) - 2);
-                call_dissector_with_data(pn532_handle, next_tvb, pinfo, tree, usb_conv_info);
+                call_dissector_with_data(pn532_handle, next_tvb, pinfo, tree, urb);
                 offset += tvb_captured_length_remaining(tvb, offset) - 2;
             }
             break;
 
 
         case CMD_READ_BINARY_BLOCKS:
-            use_status_word = TRUE;
+            use_status_word = true;
             proto_tree_add_item(main_tree, hf_data, tvb, offset, tvb_captured_length_remaining(tvb, offset) - 2, ENC_NA);
             offset += tvb_captured_length_remaining(tvb, offset) - 2;
             break;
 
         case CMD_READ_VALUE_BLOCK:
-            use_status_word = TRUE;
+            use_status_word = true;
             proto_tree_add_item(main_tree, hf_value, tvb, offset, 4, ENC_BIG_ENDIAN);
             break;
 
         case CMD_GET_DATA_UID:
-            use_status_word = TRUE;
+            use_status_word = true;
             proto_tree_add_item(main_tree, hf_uid, tvb, offset, tvb_captured_length_remaining(tvb, offset) - 2, ENC_NA);
             offset += tvb_captured_length_remaining(tvb, offset) - 2;
             break;
 
         case CMD_GET_DATA_ATS:
-            use_status_word = TRUE;
+            use_status_word = true;
             proto_tree_add_item(main_tree, hf_ats, tvb, offset, tvb_captured_length_remaining(tvb, offset) - 2, ENC_NA);
             offset += tvb_captured_length_remaining(tvb, offset) - 2;
             break;
@@ -552,7 +554,7 @@ dissect_acr122(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         case CMD_SET_PICC_OPERATING_PARAMETER:
         case CMD_GET_PICC_OPERATING_PARAMETER:
         default:
-            use_status_word = TRUE;
+            use_status_word = true;
             break;
         }
 
@@ -862,7 +864,7 @@ proto_register_acr122(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_acr122,
         &ett_p1_item,
         &ett_p2_item,

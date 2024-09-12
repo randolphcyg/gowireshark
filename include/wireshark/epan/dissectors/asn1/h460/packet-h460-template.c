@@ -14,6 +14,7 @@
 #include <epan/packet.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-per.h"
 #include "packet-h225.h"
@@ -28,7 +29,7 @@ void proto_register_h460(void);
 void proto_reg_handoff_h460(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_h460 = -1;
+static int proto_h460;
 #include "packet-h460-hf.c"
 
 /* Initialize the subtree pointers */
@@ -38,8 +39,8 @@ static int proto_h460 = -1;
 static dissector_handle_t h460_name_handle;
 
 /* Subdissectors */
-static dissector_handle_t q931_ie_handle = NULL;
-static dissector_handle_t h225_ras_handle = NULL;
+static dissector_handle_t q931_ie_handle;
+static dissector_handle_t h225_ras_handle;
 
 #include "packet-h460-fn.c"
 
@@ -66,15 +67,15 @@ dissect_ras(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 }
 
 typedef struct _h460_feature_t {
-  guint32 opt;
-  const gchar *id;
-  const gchar *name;
+  uint32_t opt;
+  const char *id;
+  const char *name;
   dissector_t content_pdu;
   /*---*/
-  const gchar *key_gd;
-  const gchar *key_fd;
-  const gchar *key_gm;
-  const gchar *key_gi;
+  const char *key_gd;
+  const char *key_fd;
+  const char *key_gm;
+  const char *key_gi;
   dissector_handle_t content_hnd;
 } h460_feature_t;
 
@@ -190,7 +191,7 @@ static h460_feature_t h460_feature_tab[] = {
   { 0, NULL, NULL, NULL, FFILL },
 };
 
-static h460_feature_t *find_ftr(const gchar *key) {
+static h460_feature_t *find_ftr(const char *key) {
   h460_feature_t *ftr = NULL;
   h460_feature_t *f;
 
@@ -239,7 +240,7 @@ void proto_register_h460(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 #include "packet-h460-ettarr.c"
   };
 

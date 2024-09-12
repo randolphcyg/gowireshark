@@ -18,6 +18,7 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 
 #include "packet-btmesh.h"
 
@@ -39,80 +40,80 @@
 
 void proto_register_btmesh_provisioning(void);
 
-static int proto_btmesh_provisioning = -1;
-static int hf_btmesh_provisioning_pdu_type = -1;
-static int hf_btmesh_provisioning_pdu_padding = -1;
+static int proto_btmesh_provisioning;
+static int hf_btmesh_provisioning_pdu_type;
+static int hf_btmesh_provisioning_pdu_padding;
 
-static int hf_btmesh_provisioning_attention_duration = -1;
+static int hf_btmesh_provisioning_attention_duration;
 
-static int hf_btmesh_provisioning_number_of_elements = -1;
-static int hf_btmesh_provisioning_algorithms = -1;
-static int hf_btmesh_provisioning_algorithms_p256 = -1;
-static int hf_btmesh_provisioning_algorithms_rfu = -1;
-static int hf_btmesh_provisioning_public_key_type = -1;
-static int hf_btmesh_provisioning_public_key_type_oob = -1;
-static int hf_btmesh_provisioning_public_key_type_rfu = -1;
-static int hf_btmesh_provisioning_static_oob_type = -1;
-static int hf_btmesh_provisioning_static_oob_type_static_oob_available = -1;
-static int hf_btmesh_provisioning_static_oob_type_rfu = -1;
-static int hf_btmesh_provisioning_output_oob_size = -1;
-static int hf_btmesh_provisioning_output_oob_action = -1;
-static int hf_btmesh_provisioning_output_oob_action_blink = -1;
-static int hf_btmesh_provisioning_output_oob_action_beep = -1;
-static int hf_btmesh_provisioning_output_oob_action_vibrate = -1;
-static int hf_btmesh_provisioning_output_oob_action_output_numeric = -1;
-static int hf_btmesh_provisioning_output_oob_action_output_alphanumeric = -1;
-static int hf_btmesh_provisioning_output_oob_action_output_rfu = -1;
-static int hf_btmesh_provisioning_input_oob_size = -1;
-static int hf_btmesh_provisioning_input_oob_action = -1;
-static int hf_btmesh_provisioning_input_oob_action_push = -1;
-static int hf_btmesh_provisioning_input_oob_action_twist = -1;
-static int hf_btmesh_provisioning_input_oob_action_input_numeric = -1;
-static int hf_btmesh_provisioning_input_oob_action_input_alphanumeric = -1;
-static int hf_btmesh_provisioning_input_oob_action_rfu = -1;
-static int hf_btmesh_provisioning_algorithm = -1;
-static int hf_btmesh_provisioning_public_key = -1;
-static int hf_btmesh_provisioning_authentication_method = -1;
-static int hf_btmesh_provisioning_authentication_action_no_oob_action = -1;
-static int hf_btmesh_provisioning_authentication_action_static_oob_action = -1;
-static int hf_btmesh_provisioning_authentication_action_output_oob_action = -1;
-static int hf_btmesh_provisioning_authentication_action_input_oob_action = -1;
-static int hf_btmesh_provisioning_authentication_size_no_oob_action = -1;
-static int hf_btmesh_provisioning_authentication_size_static_oob_action = -1;
-static int hf_btmesh_provisioning_authentication_size_output_oob_action = -1;
-static int hf_btmesh_provisioning_authentication_size_input_oob_action = -1;
-static int hf_btmesh_provisioning_public_key_x = -1;
-static int hf_btmesh_provisioning_public_key_y = -1;
-static int hf_btmesh_provisioning_confirmation = -1;
-static int hf_btmesh_provisioning_random = -1;
-static int hf_btmesh_provisioning_encrypted_provisioning_data = -1;
-static int hf_btmesh_provisioning_decrypted_provisioning_data_mic = -1;
-static int hf_btmesh_provisioning_error_code = -1;
+static int hf_btmesh_provisioning_number_of_elements;
+static int hf_btmesh_provisioning_algorithms;
+static int hf_btmesh_provisioning_algorithms_p256;
+static int hf_btmesh_provisioning_algorithms_rfu;
+static int hf_btmesh_provisioning_public_key_type;
+static int hf_btmesh_provisioning_public_key_type_oob;
+static int hf_btmesh_provisioning_public_key_type_rfu;
+static int hf_btmesh_provisioning_static_oob_type;
+static int hf_btmesh_provisioning_static_oob_type_static_oob_available;
+static int hf_btmesh_provisioning_static_oob_type_rfu;
+static int hf_btmesh_provisioning_output_oob_size;
+static int hf_btmesh_provisioning_output_oob_action;
+static int hf_btmesh_provisioning_output_oob_action_blink;
+static int hf_btmesh_provisioning_output_oob_action_beep;
+static int hf_btmesh_provisioning_output_oob_action_vibrate;
+static int hf_btmesh_provisioning_output_oob_action_output_numeric;
+static int hf_btmesh_provisioning_output_oob_action_output_alphanumeric;
+static int hf_btmesh_provisioning_output_oob_action_output_rfu;
+static int hf_btmesh_provisioning_input_oob_size;
+static int hf_btmesh_provisioning_input_oob_action;
+static int hf_btmesh_provisioning_input_oob_action_push;
+static int hf_btmesh_provisioning_input_oob_action_twist;
+static int hf_btmesh_provisioning_input_oob_action_input_numeric;
+static int hf_btmesh_provisioning_input_oob_action_input_alphanumeric;
+static int hf_btmesh_provisioning_input_oob_action_rfu;
+static int hf_btmesh_provisioning_algorithm;
+static int hf_btmesh_provisioning_public_key;
+static int hf_btmesh_provisioning_authentication_method;
+static int hf_btmesh_provisioning_authentication_action_no_oob_action;
+static int hf_btmesh_provisioning_authentication_action_static_oob_action;
+static int hf_btmesh_provisioning_authentication_action_output_oob_action;
+static int hf_btmesh_provisioning_authentication_action_input_oob_action;
+static int hf_btmesh_provisioning_authentication_size_no_oob_action;
+static int hf_btmesh_provisioning_authentication_size_static_oob_action;
+static int hf_btmesh_provisioning_authentication_size_output_oob_action;
+static int hf_btmesh_provisioning_authentication_size_input_oob_action;
+static int hf_btmesh_provisioning_public_key_x;
+static int hf_btmesh_provisioning_public_key_y;
+static int hf_btmesh_provisioning_confirmation;
+static int hf_btmesh_provisioning_random;
+static int hf_btmesh_provisioning_encrypted_provisioning_data;
+static int hf_btmesh_provisioning_decrypted_provisioning_data_mic;
+static int hf_btmesh_provisioning_error_code;
 
-static int hf_btmesh_provisioning_unknown_data = -1;
+static int hf_btmesh_provisioning_unknown_data;
 
-static int ett_btmesh_provisioning = -1;
-static int ett_btmesh_provisioning_algorithms = -1;
-static int ett_btmesh_provisioning_public_key_type = -1;
-static int ett_btmesh_provisioning_static_oob_type = -1;
-static int ett_btmesh_provisioning_output_oob_action = -1;
-static int ett_btmesh_provisioning_output_oob_size = -1;
-static int ett_btmesh_provisioning_input_oob_action = -1;
-static int ett_btmesh_provisioning_input_oob_size = -1;
-static int ett_btmesh_provisioning_algorithm = -1;
-static int ett_btmesh_provisioning_public_key = -1;
-static int ett_btmesh_provisioning_authentication_method = -1;
-static int ett_btmesh_provisioning_authentication_action = -1;
-static int ett_btmesh_provisioning_authentication_size = -1;
-static int ett_btmesh_provisioning_error_code = -1;
+static int ett_btmesh_provisioning;
+static int ett_btmesh_provisioning_algorithms;
+static int ett_btmesh_provisioning_public_key_type;
+static int ett_btmesh_provisioning_static_oob_type;
+static int ett_btmesh_provisioning_output_oob_action;
+static int ett_btmesh_provisioning_output_oob_size;
+static int ett_btmesh_provisioning_input_oob_action;
+static int ett_btmesh_provisioning_input_oob_size;
+static int ett_btmesh_provisioning_algorithm;
+static int ett_btmesh_provisioning_public_key;
+static int ett_btmesh_provisioning_authentication_method;
+static int ett_btmesh_provisioning_authentication_action;
+static int ett_btmesh_provisioning_authentication_size;
+static int ett_btmesh_provisioning_error_code;
 
-static expert_field ei_btmesh_provisioning_unknown_opcode = EI_INIT;
-static expert_field ei_btmesh_provisioning_unknown_payload = EI_INIT;
-static expert_field ei_btmesh_provisioning_unknown_authentication_method = EI_INIT;
-static expert_field ei_btmesh_provisioning_rfu_not_zero = EI_INIT;
-static expert_field ei_btmesh_provisioning_in_rfu_range = EI_INIT;
-static expert_field ei_btmesh_provisioning_prohibited = EI_INIT;
-static expert_field ei_btmesh_provisioning_zero_elements = EI_INIT;
+static expert_field ei_btmesh_provisioning_unknown_opcode;
+static expert_field ei_btmesh_provisioning_unknown_payload;
+static expert_field ei_btmesh_provisioning_unknown_authentication_method;
+static expert_field ei_btmesh_provisioning_rfu_not_zero;
+static expert_field ei_btmesh_provisioning_in_rfu_range;
+static expert_field ei_btmesh_provisioning_prohibited;
+static expert_field ei_btmesh_provisioning_zero_elements;
 
 static const value_string btmesh_provisioning_pdu_type_format[] = {
     { 0, "Provisioning Invite PDU" },
@@ -249,7 +250,7 @@ static const value_string btmesh_provisioning_input_oob_size_format[] = {
     { 0, NULL }
 };
 
-static gint
+static int
 dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     proto_item *item, *algorithms_item, *public_key_type_item;
@@ -260,14 +261,14 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
     proto_tree *expert_tree;
     int offset = 0;
     btle_mesh_transport_ctx_t *tr_ctx;
-    btle_mesh_transport_ctx_t dummy_ctx = {E_BTMESH_TR_UNKNOWN, FALSE, 0};
-    guint8 authentication_method, authentication_action, authentication_size;
-    guint8 provisioning_algorithm;
-    guint8 prohibited_value, output_oob_size, input_oob_size;
-    guint16 rfu_uint16;
-    guint8 no_of_elements;
-    guint8 error_code;
-    guint8 provisioning_public_key;
+    btle_mesh_transport_ctx_t dummy_ctx = {E_BTMESH_TR_UNKNOWN, false, 0};
+    uint8_t authentication_method, authentication_action, authentication_size;
+    uint8_t provisioning_algorithm;
+    uint8_t prohibited_value, output_oob_size, input_oob_size;
+    uint16_t rfu_uint16;
+    uint8_t no_of_elements;
+    uint8_t error_code;
+    uint8_t provisioning_public_key;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "BT Mesh Provisioning PDU");
 
@@ -281,9 +282,9 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
     sub_tree = proto_item_add_subtree(item, ett_btmesh_provisioning);
 
     proto_tree_add_item(sub_tree, hf_btmesh_provisioning_pdu_type, tvb, offset, 1, ENC_NA);
-    guint8 pdu_type = tvb_get_guint8(tvb, offset) & 0x3F;
+    uint8_t pdu_type = tvb_get_uint8(tvb, offset) & 0x3F;
     proto_tree_add_item(sub_tree, hf_btmesh_provisioning_pdu_padding, tvb, offset, 1, ENC_NA);
-    guint8 pdu_padding = (tvb_get_guint8(tvb, offset) & 0xC0) >> 6;
+    uint8_t pdu_padding = (tvb_get_uint8(tvb, offset) & 0xC0) >> 6;
     if (pdu_padding != 0) {
         //Padding should be 0
         proto_tree_add_expert(sub_tree, pinfo, &ei_btmesh_provisioning_rfu_not_zero, tvb, offset, -1);
@@ -316,7 +317,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
         break;
         case PROVISIONING_CAPABILITIES_PDU:
             proto_tree_add_item(sub_tree, hf_btmesh_provisioning_number_of_elements, tvb, offset, 1, ENC_NA);
-            no_of_elements = tvb_get_guint8(tvb, offset);
+            no_of_elements = tvb_get_uint8(tvb, offset);
             if (no_of_elements == 0) {
                 proto_tree_add_expert(sub_tree, pinfo, &ei_btmesh_provisioning_zero_elements, tvb, offset, -1);
             }
@@ -326,7 +327,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
             algorithms_tree = proto_item_add_subtree(algorithms_item, ett_btmesh_provisioning_algorithms);
             proto_tree_add_item(algorithms_tree, hf_btmesh_provisioning_algorithms_p256, tvb, offset, 2, ENC_NA);
             proto_tree_add_item(algorithms_tree, hf_btmesh_provisioning_algorithms_rfu, tvb, offset, 2, ENC_NA);
-            rfu_uint16 = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN) >> 1;
+            rfu_uint16 = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN) >> 1;
             if (rfu_uint16 != 0) {
                 proto_tree_add_expert(algorithms_tree, pinfo, &ei_btmesh_provisioning_rfu_not_zero, tvb, offset, -1);
             }
@@ -336,7 +337,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
             public_key_type_tree = proto_item_add_subtree(public_key_type_item, ett_btmesh_provisioning_public_key_type);
             proto_tree_add_item(public_key_type_tree, hf_btmesh_provisioning_public_key_type_oob, tvb, offset, 1, ENC_NA);
             proto_tree_add_item(public_key_type_tree, hf_btmesh_provisioning_public_key_type_rfu, tvb, offset, 1, ENC_NA);
-            prohibited_value = tvb_get_guint8(tvb, offset) >> 1;
+            prohibited_value = tvb_get_uint8(tvb, offset) >> 1;
             if (prohibited_value != 0) {
                 proto_tree_add_expert(public_key_type_tree, pinfo, &ei_btmesh_provisioning_prohibited, tvb, offset, -1);
             }
@@ -346,14 +347,14 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
             static_oob_type_tree = proto_item_add_subtree(static_oob_type_item, ett_btmesh_provisioning_static_oob_type);
             proto_tree_add_item(static_oob_type_tree, hf_btmesh_provisioning_static_oob_type_static_oob_available, tvb, offset, 1, ENC_NA);
             proto_tree_add_item(static_oob_type_tree, hf_btmesh_provisioning_static_oob_type_rfu, tvb, offset, 1, ENC_NA);
-            prohibited_value = tvb_get_guint8(tvb, offset) >> 1;
+            prohibited_value = tvb_get_uint8(tvb, offset) >> 1;
             if (prohibited_value != 0) {
                 proto_tree_add_expert(static_oob_type_tree, pinfo, &ei_btmesh_provisioning_prohibited, tvb, offset, -1);
             }
             offset += 1;
 
             expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_output_oob_size, tvb, offset, 1, ENC_NA);
-            output_oob_size = tvb_get_guint8(tvb, offset);
+            output_oob_size = tvb_get_uint8(tvb, offset);
             if (output_oob_size >= 9) {
                 expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_output_oob_size);
                 proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -368,14 +369,14 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
             proto_tree_add_item(output_oob_action_tree, hf_btmesh_provisioning_output_oob_action_output_numeric, tvb, offset, 2, ENC_NA);
             proto_tree_add_item(output_oob_action_tree, hf_btmesh_provisioning_output_oob_action_output_alphanumeric, tvb, offset, 2, ENC_NA);
             proto_tree_add_item(output_oob_action_tree, hf_btmesh_provisioning_output_oob_action_output_rfu, tvb, offset, 2, ENC_NA);
-            rfu_uint16 = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN) >> 5;
+            rfu_uint16 = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN) >> 5;
             if (rfu_uint16 != 0) {
                 proto_tree_add_expert(output_oob_action_tree, pinfo, &ei_btmesh_provisioning_rfu_not_zero, tvb, offset, -1);
             }
             offset += 2;
 
             expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_input_oob_size, tvb, offset, 1, ENC_NA);
-            input_oob_size = tvb_get_guint8(tvb, offset);
+            input_oob_size = tvb_get_uint8(tvb, offset);
             if (input_oob_size >= 9) {
                 expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_input_oob_size);
                 proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -389,7 +390,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
             proto_tree_add_item(input_oob_action_tree, hf_btmesh_provisioning_input_oob_action_input_numeric, tvb, offset, 2, ENC_NA);
             proto_tree_add_item(input_oob_action_tree, hf_btmesh_provisioning_input_oob_action_input_alphanumeric, tvb, offset, 2, ENC_NA);
             proto_tree_add_item(input_oob_action_tree, hf_btmesh_provisioning_input_oob_action_rfu, tvb, offset, 2, ENC_NA);
-            rfu_uint16 = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN) >> 4;
+            rfu_uint16 = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN) >> 4;
             if (rfu_uint16 != 0) {
                 proto_tree_add_expert(input_oob_action_tree, pinfo, &ei_btmesh_provisioning_rfu_not_zero, tvb, offset, -1);
             }
@@ -398,7 +399,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
         break;
         case PROVISIONING_START_PDU:
             expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_algorithm, tvb, offset, 1, ENC_NA);
-            provisioning_algorithm = tvb_get_guint8(tvb, offset);
+            provisioning_algorithm = tvb_get_uint8(tvb, offset);
             if (provisioning_algorithm >= 1) {
                 expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_algorithm);
                 proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -406,7 +407,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
             offset += 1;
 
             expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_public_key, tvb, offset, 1, ENC_NA);
-            provisioning_public_key = tvb_get_guint8(tvb, offset);
+            provisioning_public_key = tvb_get_uint8(tvb, offset);
             if (provisioning_public_key >= 2) {
                 expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_public_key);
                 proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -414,13 +415,13 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
             offset += 1;
 
             expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_authentication_method, tvb, offset, 1, ENC_NA);
-            authentication_method = tvb_get_guint8(tvb, offset);
+            authentication_method = tvb_get_uint8(tvb, offset);
             offset += 1;
 
             switch(authentication_method){
                 case NO_OOB_AUTHENTICATION_IS_USED:
                     expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_authentication_action_no_oob_action, tvb, offset, 1, ENC_NA);
-                    authentication_action = tvb_get_guint8(tvb, offset);
+                    authentication_action = tvb_get_uint8(tvb, offset);
                     if (authentication_action != 0) {
                         expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_authentication_action);
                         proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -428,7 +429,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
                     offset += 1;
 
                     expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_authentication_size_no_oob_action, tvb, offset, 1, ENC_NA);
-                    authentication_size = tvb_get_guint8(tvb, offset);
+                    authentication_size = tvb_get_uint8(tvb, offset);
                     if (authentication_size != 0) {
                         expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_authentication_size);
                         proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -438,7 +439,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
                 break;
                 case STATIC_OOB_AUTHENTICATION_IS_USED:
                     expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_authentication_action_static_oob_action, tvb, offset, 1, ENC_NA);
-                    authentication_action = tvb_get_guint8(tvb, offset);
+                    authentication_action = tvb_get_uint8(tvb, offset);
                     if (authentication_action != 0) {
                         expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_authentication_action);
                         proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -446,7 +447,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
                     offset += 1;
 
                     expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_authentication_size_static_oob_action, tvb, offset, 1, ENC_NA);
-                    authentication_size = tvb_get_guint8(tvb, offset);
+                    authentication_size = tvb_get_uint8(tvb, offset);
                     if (authentication_size != 0) {
                         expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_authentication_size);
                         proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -456,7 +457,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
                 break;
                 case OUTPUT_OOB_AUTHENTICATION_IS_USED:
                     expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_authentication_action_output_oob_action, tvb, offset, 1, ENC_NA);
-                    authentication_action = tvb_get_guint8(tvb, offset);
+                    authentication_action = tvb_get_uint8(tvb, offset);
                     if (authentication_action >= 5) {
                         expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_authentication_action);
                         proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -464,7 +465,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
                     offset += 1;
 
                     expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_authentication_size_output_oob_action, tvb, offset, 1, ENC_NA);
-                    authentication_size = tvb_get_guint8(tvb, offset);
+                    authentication_size = tvb_get_uint8(tvb, offset);
                     if (authentication_size >= 9) {
                         expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_authentication_size);
                         proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -479,7 +480,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
                 break;
                 case INPUT_OOB_AUTHENTICATION_IS_USED:
                     expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_authentication_action_input_oob_action, tvb, offset, 1, ENC_NA);
-                    authentication_action = tvb_get_guint8(tvb, offset);
+                    authentication_action = tvb_get_uint8(tvb, offset);
                     if (authentication_action >= 4) {
                         expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_authentication_action);
                         proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -487,7 +488,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
                     offset += 1;
 
                     expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_authentication_size_input_oob_action, tvb, offset, 1, ENC_NA);
-                    authentication_size = tvb_get_guint8(tvb, offset);
+                    authentication_size = tvb_get_uint8(tvb, offset);
                     if (authentication_size >= 9) {
                         expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_authentication_size);
                         proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -543,7 +544,7 @@ dissect_btmesh_provisioning_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
         break;
         case PROVISIONING_FAILED_PDU:
             expert_item = proto_tree_add_item(sub_tree, hf_btmesh_provisioning_error_code, tvb, offset, 1, ENC_NA);
-            error_code = tvb_get_guint8(tvb, offset);
+            error_code = tvb_get_uint8(tvb, offset);
             if (error_code >= 9) {
                 expert_tree = proto_item_add_subtree(expert_item, ett_btmesh_provisioning_error_code);
                 proto_tree_add_expert(expert_tree, pinfo, &ei_btmesh_provisioning_in_rfu_range, tvb, offset, -1);
@@ -808,7 +809,7 @@ proto_register_btmesh_provisioning(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btmesh_provisioning,
         &ett_btmesh_provisioning_algorithms,
         &ett_btmesh_provisioning_public_key_type,

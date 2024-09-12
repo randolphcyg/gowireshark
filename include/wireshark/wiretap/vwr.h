@@ -11,7 +11,8 @@
 #define __VWR_H__
 
 #include "include/ws_symbol_export.h"
+#include "wtap.h"
 
-wtap_open_return_val vwr_open(wtap *wth, int *err, gchar **err_info);
+wtap_open_return_val vwr_open(wtap *wth, int *err, char **err_info);
 
 #endif

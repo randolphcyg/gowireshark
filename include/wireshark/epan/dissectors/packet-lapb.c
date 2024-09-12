@@ -18,21 +18,21 @@
 void proto_register_lapb(void);
 void proto_reg_handoff_lapb(void);
 
-static int proto_lapb = -1;
-static int hf_lapb_address = -1;
-static int hf_lapb_control = -1;
-static int hf_lapb_n_r = -1;
-static int hf_lapb_n_s = -1;
-static int hf_lapb_p = -1;
-static int hf_lapb_f = -1;
-static int hf_lapb_s_ftype = -1;
-static int hf_lapb_u_modifier_cmd = -1;
-static int hf_lapb_u_modifier_resp = -1;
-static int hf_lapb_ftype_i = -1;
-static int hf_lapb_ftype_s_u = -1;
+static int proto_lapb;
+static int hf_lapb_address;
+static int hf_lapb_control;
+static int hf_lapb_n_r;
+static int hf_lapb_n_s;
+static int hf_lapb_p;
+static int hf_lapb_f;
+static int hf_lapb_s_ftype;
+static int hf_lapb_u_modifier_cmd;
+static int hf_lapb_u_modifier_resp;
+static int hf_lapb_ftype_i;
+static int hf_lapb_ftype_s_u;
 
-static gint ett_lapb = -1;
-static gint ett_lapb_control = -1;
+static int ett_lapb;
+static int ett_lapb_control;
 
 static dissector_handle_t x25_dir_handle;
 static dissector_handle_t x25_handle;
@@ -54,9 +54,9 @@ static int
 dissect_lapb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
     proto_tree          *lapb_tree, *ti;
-    guint16             control;
+    uint16_t            control;
     int                 is_response;
-    guint8              byte0;
+    uint8_t             byte0;
     tvbuff_t            *next_tvb;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "LAPB");
@@ -80,7 +80,7 @@ dissect_lapb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
         break;
     }
 
-    byte0 = tvb_get_guint8(tvb, 0);
+    byte0 = tvb_get_uint8(tvb, 0);
 
     if (byte0 != 0x01 && byte0 != 0x03 && byte0 != 0x07 && byte0 != 0x0f) /* invalid LAPB frame */
     {
@@ -95,16 +95,16 @@ dissect_lapb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
     case P2P_DIR_SENT:
         if (byte0 == 0x03)
-            is_response = TRUE;
+            is_response = true;
         else
-            is_response = FALSE;
+            is_response = false;
         break;
 
     case P2P_DIR_RECV:
         if (byte0 == 0x01)
-            is_response = TRUE;
+            is_response = true;
         else
-            is_response = FALSE;
+            is_response = false;
         break;
 
     default:
@@ -114,7 +114,7 @@ dissect_lapb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
          * from another with that, but we can't say which is DTE->DCE
          * and which is DCE->DTE.
          */
-        is_response = FALSE;
+        is_response = false;
         break;
     }
 
@@ -125,7 +125,7 @@ dissect_lapb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
     control = dissect_xdlc_control(tvb, 1, pinfo, lapb_tree, hf_lapb_control,
             ett_lapb_control, &lapb_cf_items, NULL, NULL, NULL,
-            is_response, FALSE, FALSE);
+            is_response, false, false);
 
     /* information frame ==> X.25 */
     if (XDLC_IS_INFORMATION(control)) {
@@ -193,7 +193,7 @@ proto_register_lapb(void)
           { "Frame type", "lapb.control.ftype", FT_UINT8, BASE_HEX,
             VALS(ftype_vals), XDLC_S_U_MASK, NULL, HFILL }},
     };
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_lapb,
         &ett_lapb_control,
     };

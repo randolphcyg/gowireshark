@@ -75,16 +75,16 @@
 
 
 
-void dissect_sbc_startstopunit (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint offset, gboolean isreq _U_, gboolean iscdb, guint payload_len _U_, scsi_task_data_t *cdata _U_);
-void dissect_sbc_read12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint offset, gboolean isreq, gboolean iscdb, guint payload_len _U_, scsi_task_data_t *cdata _U_);
-void dissect_sbc_write12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint offset, gboolean isreq, gboolean iscdb, guint payload_len _U_, scsi_task_data_t *cdata _U_);
-void dissect_sbc_read10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint offset, gboolean isreq, gboolean iscdb, guint payload_len _U_, scsi_task_data_t *cdata _U_);
-void dissect_sbc_write10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint offset, gboolean isreq, gboolean iscdb, guint payload_len _U_, scsi_task_data_t *cdata _U_);
-void dissect_sbc_readcapacity10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint offset, gboolean isreq, gboolean iscdb, guint payload_len _U_, scsi_task_data_t *cdata _U_);
+void dissect_sbc_startstopunit (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsigned offset, bool isreq _U_, bool iscdb, unsigned payload_len _U_, scsi_task_data_t *cdata _U_);
+void dissect_sbc_read12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsigned offset, bool isreq, bool iscdb, unsigned payload_len _U_, scsi_task_data_t *cdata _U_);
+void dissect_sbc_write12 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsigned offset, bool isreq, bool iscdb, unsigned payload_len _U_, scsi_task_data_t *cdata _U_);
+void dissect_sbc_read10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsigned offset, bool isreq, bool iscdb, unsigned payload_len _U_, scsi_task_data_t *cdata _U_);
+void dissect_sbc_write10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsigned offset, bool isreq, bool iscdb, unsigned payload_len _U_, scsi_task_data_t *cdata _U_);
+void dissect_sbc_readcapacity10 (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsigned offset, bool isreq, bool iscdb, unsigned payload_len _U_, scsi_task_data_t *cdata _U_);
 
 
 extern int hf_scsi_sbc_opcode;
-extern scsi_cdb_table_t scsi_sbc_table[256];
+extern const scsi_cdb_table_t scsi_sbc_table[256];
 WS_DLL_PUBLIC value_string_ext scsi_sbc_vals_ext;
 
 #endif

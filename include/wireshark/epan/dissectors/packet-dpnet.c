@@ -14,6 +14,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/tfs.h>
 
 void proto_register_dpnet(void);
 void proto_reg_handoff_dpnet(void);
@@ -22,74 +23,74 @@ static dissector_handle_t dpnet_handle;
 
 #define DPNET_PORT 6073
 
-static int proto_dpnet = -1;
+static int proto_dpnet;
 
-static int hf_dpnet_lead = -1;
-static int hf_dpnet_command = -1;
-static int hf_dpnet_payload = -1;
-static int hf_dpnet_type = -1;
-static int hf_dpnet_application = -1;
-static int hf_dpnet_data = -1;
-static int hf_dpnet_reply_offset = -1;
-static int hf_dpnet_response_size = -1;
+static int hf_dpnet_lead;
+static int hf_dpnet_command;
+static int hf_dpnet_payload;
+static int hf_dpnet_type;
+static int hf_dpnet_application;
+static int hf_dpnet_data;
+static int hf_dpnet_reply_offset;
+static int hf_dpnet_response_size;
 
-static int hf_dpnet_desc_size = -1;
-static int hf_dpnet_desc_flags = -1;
-static int hf_dpnet_max_players = -1;
-static int hf_dpnet_current_players = -1;
-static int hf_dpnet_session_offset = -1;
-static int hf_dpnet_session_size = -1;
-static int hf_dpnet_session_name = -1;
-static int hf_dpnet_password_offset = -1;
-static int hf_dpnet_password_size = -1;
-static int hf_dpnet_reserved_offset = -1;
-static int hf_dpnet_reserved_size = -1;
-static int hf_dpnet_application_offset = -1;
-static int hf_dpnet_application_size = -1;
-static int hf_dpnet_application_data = -1;
-static int hf_dpnet_instance = -1;
-static int hf_dpnet_data_cframe_control = -1;
-static int hf_dpnet_data_cframe_msgid = -1;
-static int hf_dpnet_data_cframe_rspid = -1;
-static int hf_dpnet_data_cframe_protocol = -1;
-static int hf_dpnet_data_cframe_session = -1;
-static int hf_dpnet_data_cframe_timestamp = -1;
-static int hf_dpnet_data_cframe_padding = -1;
-static int hf_dpnet_data_cframe_flags = -1;
-static int hf_dpnet_data_cframe_retry = -1;
-static int hf_dpnet_data_cframe_nseq = -1;
-static int hf_dpnet_data_cframe_nrcv = -1;
-static int hf_dpnet_data_cframe_sack_mask1 = -1;
-static int hf_dpnet_data_cframe_sack_mask2 = -1;
-static int hf_dpnet_data_cframe_send_mask1 = -1;
-static int hf_dpnet_data_cframe_send_mask2 = -1;
-static int hf_dpnet_data_cframe_signature = -1;
-static int hf_dpnet_data_cframe_send_secret = -1;
-static int hf_dpnet_data_cframe_recv_secret = -1;
-static int hf_dpnet_data_cframe_signing_opts = -1;
-static int hf_dpnet_data_cframe_echo_time = -1;
-static int hf_dpnet_data_seq        = -1;
-static int hf_dpnet_data_nseq       = -1;
-static int hf_dpnet_data_command = -1;
-static int hf_dpnet_command_data     = -1;
-static int hf_dpnet_command_reliable = -1;
-static int hf_dpnet_command_seq      = -1;
-static int hf_dpnet_command_poll     = -1;
-static int hf_dpnet_command_new_msg  = -1;
-static int hf_dpnet_command_end_msg  = -1;
-static int hf_dpnet_command_user1    = -1;
-static int hf_dpnet_command_user2    = -1;
-static int hf_dpnet_desc_client_server = -1;
-static int hf_dpnet_desc_migrate_host  = -1;
-static int hf_dpnet_desc_nodpnsvr      = -1;
-static int hf_dpnet_desc_req_password  = -1;
-static int hf_dpnet_desc_no_enums      = -1;
-static int hf_dpnet_desc_fast_signed   = -1;
-static int hf_dpnet_desc_full_signed   = -1;
+static int hf_dpnet_desc_size;
+static int hf_dpnet_desc_flags;
+static int hf_dpnet_max_players;
+static int hf_dpnet_current_players;
+static int hf_dpnet_session_offset;
+static int hf_dpnet_session_size;
+static int hf_dpnet_session_name;
+static int hf_dpnet_password_offset;
+static int hf_dpnet_password_size;
+static int hf_dpnet_reserved_offset;
+static int hf_dpnet_reserved_size;
+static int hf_dpnet_application_offset;
+static int hf_dpnet_application_size;
+static int hf_dpnet_application_data;
+static int hf_dpnet_instance;
+static int hf_dpnet_data_cframe_control;
+static int hf_dpnet_data_cframe_msgid;
+static int hf_dpnet_data_cframe_rspid;
+static int hf_dpnet_data_cframe_protocol;
+static int hf_dpnet_data_cframe_session;
+static int hf_dpnet_data_cframe_timestamp;
+static int hf_dpnet_data_cframe_padding;
+static int hf_dpnet_data_cframe_flags;
+static int hf_dpnet_data_cframe_retry;
+static int hf_dpnet_data_cframe_nseq;
+static int hf_dpnet_data_cframe_nrcv;
+static int hf_dpnet_data_cframe_sack_mask1;
+static int hf_dpnet_data_cframe_sack_mask2;
+static int hf_dpnet_data_cframe_send_mask1;
+static int hf_dpnet_data_cframe_send_mask2;
+static int hf_dpnet_data_cframe_signature;
+static int hf_dpnet_data_cframe_send_secret;
+static int hf_dpnet_data_cframe_recv_secret;
+static int hf_dpnet_data_cframe_signing_opts;
+static int hf_dpnet_data_cframe_echo_time;
+static int hf_dpnet_data_seq;
+static int hf_dpnet_data_nseq;
+static int hf_dpnet_data_command;
+static int hf_dpnet_command_data;
+static int hf_dpnet_command_reliable;
+static int hf_dpnet_command_seq;
+static int hf_dpnet_command_poll;
+static int hf_dpnet_command_new_msg;
+static int hf_dpnet_command_end_msg;
+static int hf_dpnet_command_user1;
+static int hf_dpnet_command_user2;
+static int hf_dpnet_desc_client_server;
+static int hf_dpnet_desc_migrate_host;
+static int hf_dpnet_desc_nodpnsvr;
+static int hf_dpnet_desc_req_password;
+static int hf_dpnet_desc_no_enums;
+static int hf_dpnet_desc_fast_signed;
+static int hf_dpnet_desc_full_signed;
 
-static gint ett_dpnet = -1;
-static gint ett_dpnet_command_flags = -1;
-static gint ett_dpnet_desc_flags = -1;
+static int ett_dpnet;
+static int ett_dpnet_command_flags;
+static int ett_dpnet_desc_flags;
 
 #define DPNET_QUERY_GUID     0x01
 
@@ -248,12 +249,12 @@ static int * const command_flags[] = {
 
 static void process_dpnet_query(proto_tree *dpnet_tree, tvbuff_t *tvb, packet_info *pinfo)
 {
-    gint offset = 0, data_tvb_len;
-    guint8  has_guid;
-    guint8  is_query;
+    int offset = 0, data_tvb_len;
+    uint8_t has_guid;
+    uint8_t is_query;
 
     proto_tree_add_item(dpnet_tree, hf_dpnet_lead, tvb, 0, 1, ENC_BIG_ENDIAN); offset += 1;
-    is_query = tvb_get_guint8(tvb, offset);
+    is_query = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(dpnet_tree, hf_dpnet_command, tvb, offset, 1, ENC_BIG_ENDIAN); offset += 1;
     proto_tree_add_item(dpnet_tree, hf_dpnet_payload, tvb, offset, 2, ENC_LITTLE_ENDIAN); offset += 2;
 
@@ -261,7 +262,7 @@ static void process_dpnet_query(proto_tree *dpnet_tree, tvbuff_t *tvb, packet_in
     {
         col_set_str(pinfo->cinfo, COL_INFO, "DPNET Enum Query");
 
-        has_guid = tvb_get_guint8(tvb, offset);
+        has_guid = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(dpnet_tree, hf_dpnet_type, tvb, offset, 1, ENC_BIG_ENDIAN); offset += 1;
 
         if (has_guid & DPNET_QUERY_GUID) {
@@ -276,8 +277,8 @@ static void process_dpnet_query(proto_tree *dpnet_tree, tvbuff_t *tvb, packet_in
     }
     else if(is_query == DPNET_ENUM_RESPONSE)
     {
-        guint32 session_offset, session_size;
-        guint32 application_offset, application_size;
+        uint32_t session_offset, session_size;
+        uint32_t application_offset, application_size;
 
         col_set_str(pinfo->cinfo, COL_INFO, "DPNET Enum Response");
 
@@ -316,7 +317,7 @@ static void process_dpnet_query(proto_tree *dpnet_tree, tvbuff_t *tvb, packet_in
 static void
 dpnet_process_data_frame(proto_tree *dpnet_tree, tvbuff_t *tvb, packet_info *pinfo)
 {
-    gint offset = 0;
+    int offset = 0;
 
     col_set_str(pinfo->cinfo, COL_INFO, "DPNET DFrame");
 
@@ -328,18 +329,18 @@ dpnet_process_data_frame(proto_tree *dpnet_tree, tvbuff_t *tvb, packet_info *pin
 static void
 dpnet_process_control_frame(proto_tree *dpnet_tree, tvbuff_t *tvb, packet_info *pinfo)
 {
-    gint offset = 0;
-    gint command;
-    const gchar *command_str;
-    gint flag;
-    guint32 data_tvb_len;
+    int offset = 0;
+    int command;
+    const char *command_str;
+    int flag;
+    uint32_t data_tvb_len;
 
     col_set_str(pinfo->cinfo, COL_INFO, "DPNET CFrame");
 
     proto_tree_add_bitmask(dpnet_tree, tvb, offset, hf_dpnet_data_command, ett_dpnet_command_flags, command_flags, ENC_BIG_ENDIAN);
     offset += 1;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
     command_str = val_to_str_const(command, msg_cframe_control, "Unknown Control (obsolete or malformed?)");
     col_append_fstr(pinfo->cinfo, COL_INFO, " - %s", command_str);
 
@@ -398,7 +399,7 @@ dpnet_process_control_frame(proto_tree *dpnet_tree, tvbuff_t *tvb, packet_info *
                 proto_tree_add_item(dpnet_tree, hf_dpnet_data_cframe_signature, tvb, offset, 8, ENC_NA);
             break;
         case FRAME_EXOPCODE_SACK:
-            flag = tvb_get_guint8(tvb, offset);
+            flag = tvb_get_uint8(tvb, offset);
             proto_tree_add_item(dpnet_tree, hf_dpnet_data_cframe_flags, tvb, offset, 1, ENC_LITTLE_ENDIAN);
             offset += 1;
             proto_tree_add_item(dpnet_tree, hf_dpnet_data_cframe_retry, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -440,7 +441,7 @@ dpnet_process_control_frame(proto_tree *dpnet_tree, tvbuff_t *tvb, packet_info *
 static int
 dissect_dpnet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    guint8  lead;
+    uint8_t lead;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "DPNET");
     /* Clear out stuff in the info column */
@@ -449,7 +450,7 @@ dissect_dpnet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
     proto_item *ti = proto_tree_add_item(tree, proto_dpnet, tvb, 0, -1, ENC_NA);
     proto_tree *dpnet_tree = proto_item_add_subtree(ti, ett_dpnet);
 
-    lead = tvb_get_guint8(tvb, 0);
+    lead = tvb_get_uint8(tvb, 0);
     if(lead == 0)
     {
         process_dpnet_query(dpnet_tree, tvb, pinfo);
@@ -838,7 +839,7 @@ proto_register_dpnet(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_dpnet,
         &ett_dpnet_command_flags,
         &ett_dpnet_desc_flags

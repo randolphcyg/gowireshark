@@ -5,7 +5,7 @@
 	Pidl is a perl based IDL compiler for DCE/RPC idl files.
 	It is maintained by the Samba team, not the Wireshark team.
 	Instructions on how to download and install Pidl can be
-	found at https://gitlab.com/wireshark/wireshark/-/wikis/Pidl
+	found at https://wiki.wireshark.org/Pidl
 */
 
 #include "packet-dcerpc-lsa.h"
@@ -22,7 +22,7 @@
 #define SHTDN_REASON_MAJOR_POWER (0x00060000)
 #define SHTDN_REASON_MAJOR_LEGACY_API (0x00070000)
 extern const value_string initshutdown_initshutdown_ReasonMajor_vals[];
-int initshutdown_dissect_enum_ReasonMajor(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_, int hf_index _U_, guint32 *param _U_);
+int initshutdown_dissect_enum_ReasonMajor(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_, int hf_index _U_, uint32_t *param _U_);
 #define SHTDN_REASON_MINOR_OTHER (0x00000000)
 #define SHTDN_REASON_MINOR_MAINTENANCE (0x00000001)
 #define SHTDN_REASON_MINOR_INSTALLATION (0x00000002)
@@ -51,6 +51,6 @@ int initshutdown_dissect_enum_ReasonMajor(tvbuff_t *tvb _U_, int offset _U_, pac
 #define SHTDN_REASON_MINOR_MMC (0x00000019)
 #define SHTDN_REASON_MINOR_TERMSRV (0x00000020)
 extern const value_string initshutdown_initshutdown_ReasonMinor_vals[];
-int initshutdown_dissect_enum_ReasonMinor(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_, int hf_index _U_, guint32 *param _U_);
-int initshutdown_dissect_bitmap_ReasonFlags(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, guint8 *drep _U_, int hf_index _U_, guint32 param _U_);
+int initshutdown_dissect_enum_ReasonMinor(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_, int hf_index _U_, uint32_t *param _U_);
+int initshutdown_dissect_bitmap_ReasonFlags(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_, int hf_index _U_, uint32_t param _U_);
 #endif /* __PACKET_DCERPC_INITSHUTDOWN_H */

@@ -1,5 +1,4 @@
 #include <cJSON.h>
-#include <cfile.h>
 #include <epan/charsets.h>
 #include <epan/column.h>
 #include <epan/epan.h>

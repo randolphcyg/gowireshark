@@ -30,62 +30,62 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/prefs.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 #include "packet-gre.h"
 
 void proto_register_erspan(void);
 void proto_reg_handoff_erspan(void);
 
-static int proto_erspan = -1;
+static int proto_erspan;
 
-static gint ett_erspan = -1;
+static int ett_erspan;
 
-static int hf_erspan_version = -1;
-static int hf_erspan_vlan = -1;
-static int hf_erspan_cos = -1;
-static int hf_erspan_encap = -1;
-static int hf_erspan_truncated = -1;
-static int hf_erspan_spanid = -1;
-static int hf_erspan_reserved = -1;
-static int hf_erspan_index = -1;
-static int hf_erspan_timestamp = -1;
-static int hf_erspan_direction = -1;
+static int hf_erspan_version;
+static int hf_erspan_vlan;
+static int hf_erspan_cos;
+static int hf_erspan_encap;
+static int hf_erspan_truncated;
+static int hf_erspan_spanid;
+static int hf_erspan_reserved;
+static int hf_erspan_index;
+static int hf_erspan_timestamp;
+static int hf_erspan_direction;
 
-static int hf_erspan_bso = -1;
-static int hf_erspan_sgt = -1;
-static int hf_erspan_p = -1;
-static int hf_erspan_ft = -1;
-static int hf_erspan_hw = -1;
-static int hf_erspan_gra = -1;
-static int hf_erspan_o = -1;
+static int hf_erspan_bso;
+static int hf_erspan_sgt;
+static int hf_erspan_p;
+static int hf_erspan_ft;
+static int hf_erspan_hw;
+static int hf_erspan_gra;
+static int hf_erspan_o;
 
 /* Optional Sub-header */
-static int hf_erspan_platid = -1;
+static int hf_erspan_platid;
 /* Platform ID = 1 */
-static int hf_erspan_pid1_rsvd1 = -1;
-static int hf_erspan_pid1_domain_id = -1;
-static int hf_erspan_pid1_port_index = -1;
+static int hf_erspan_pid1_rsvd1;
+static int hf_erspan_pid1_domain_id;
+static int hf_erspan_pid1_port_index;
 /* Platform ID = 3 */
-static int hf_erspan_pid3_rsvd1 = -1;
-static int hf_erspan_pid3_port_index = -1;
-static int hf_erspan_pid3_timestamp = -1;
+static int hf_erspan_pid3_rsvd1;
+static int hf_erspan_pid3_port_index;
+static int hf_erspan_pid3_timestamp;
 /* Platform ID = 4 */
-static int hf_erspan_pid4_rsvd1 = -1;
-static int hf_erspan_pid4_rsvd2 = -1;
-static int hf_erspan_pid4_rsvd3 = -1;
+static int hf_erspan_pid4_rsvd1;
+static int hf_erspan_pid4_rsvd2;
+static int hf_erspan_pid4_rsvd3;
 /* Platform ID = 5 or 6 */
-static int hf_erspan_pid5_switchid = -1;
-static int hf_erspan_pid5_port_index = -1;
-static int hf_erspan_pid5_timestamp = -1;
+static int hf_erspan_pid5_switchid;
+static int hf_erspan_pid5_port_index;
+static int hf_erspan_pid5_timestamp;
 /* Platform ID = 7 (or 0) */
-static int hf_erspan_pid7_rsvd1 = -1;
-static int hf_erspan_pid7_source_index = -1;
-static int hf_erspan_pid7_timestamp = -1;
+static int hf_erspan_pid7_rsvd1;
+static int hf_erspan_pid7_source_index;
+static int hf_erspan_pid7_timestamp;
 /* ID: 0x0, 0x2, 0x8-0x63 are reserved. */
-static int hf_erspan_pid_rsvd = -1;
+static int hf_erspan_pid_rsvd;
 
-static expert_field ei_erspan_version_unknown = EI_INIT;
+static expert_field ei_erspan_version_unknown;
 
 #define PROTO_SHORT_NAME "ERSPAN"
 #define PROTO_LONG_NAME "Encapsulated Remote Switch Packet ANalysis"
@@ -155,9 +155,9 @@ dissect_erspan(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 	proto_item *ti;
 	proto_tree *erspan_tree = NULL;
 	tvbuff_t *frame_tvb;
-	guint32 offset = 0;
-	guint32 version;
-	guint32 frame_type = ERSPAN_FT_ETHERNET;
+	uint32_t offset = 0;
+	uint32_t version;
+	uint32_t frame_type = ERSPAN_FT_ETHERNET;
 
 	ti = proto_tree_add_item(tree, proto_erspan, tvb, offset, -1,
 	    ENC_NA);
@@ -181,7 +181,7 @@ dissect_erspan(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 	 */
 	switch (version) {
 	case 1: {
-		guint32 vlan, vlan_encap;
+		uint32_t vlan, vlan_encap;
 
 		proto_tree_add_item_ret_uint(erspan_tree, hf_erspan_vlan, tvb, offset, 2,
 			ENC_BIG_ENDIAN, &vlan);
@@ -208,8 +208,8 @@ dissect_erspan(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 		break;
 		}
 	case 2: {
-		guint32 subheader = 0;
-		guint32 vlan;
+		uint32_t subheader = 0;
+		uint32_t vlan;
 
 		proto_tree_add_item_ret_uint(erspan_tree, hf_erspan_vlan, tvb, offset, 2,
 			ENC_BIG_ENDIAN, &vlan);
@@ -253,9 +253,9 @@ dissect_erspan(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 			offset, 2, ENC_BIG_ENDIAN, &subheader);
 		offset += 2;
 
-		/* Platform Sepcific SubHeader, 8 octets, optional */
+		/* Platform Specific SubHeader, 8 octets, optional */
 		if (subheader) {
-			gint32 platform_id = tvb_get_ntohl(tvb, offset) >> 26;
+			int32_t platform_id = tvb_get_ntohl(tvb, offset) >> 26;
 
 			proto_tree_add_item(erspan_tree, hf_erspan_platid, tvb,
 					offset, 4, ENC_BIG_ENDIAN);
@@ -360,7 +360,7 @@ dissect_erspan(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 static int
 dissect_erspan_88BE(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-	gboolean has_erspan_header;
+	bool has_erspan_header;
 
 	/*
 	 * Frames with a GRE type of 0x88BE have an ERSPAN header iff
@@ -376,7 +376,7 @@ dissect_erspan_88BE(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
 		 * For now, we just assume this is Type I, with no
 		 * header.
 		 */
-		has_erspan_header = FALSE;
+		has_erspan_header = false;
 	} else {
 		gre_hdr_info_t *gre_hdr_info = (gre_hdr_info_t *)data;
 
@@ -385,12 +385,12 @@ dissect_erspan_88BE(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
 			 * "sequence number present" set, so it has a
 			 * header.
 			 */
-			has_erspan_header = TRUE;
+			has_erspan_header = true;
 		} else {
 			/*
 			 * Not present, so no header.
 			 */
-			has_erspan_header = FALSE;
+			has_erspan_header = false;
 		}
 	}
 
@@ -585,7 +585,7 @@ proto_register_erspan(void)
 
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_erspan,
 	};
 

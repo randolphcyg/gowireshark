@@ -1,7 +1,7 @@
 /* packet-someip.c
  * SOME/IP dissector.
  * By Dr. Lars Voelker <lars.voelker@technica-engineering.de> / <lars.voelker@bmw.de>
- * Copyright 2012-2023 Dr. Lars Voelker
+ * Copyright 2012-2024 Dr. Lars Voelker
  * Copyright 2019      Ana Pantar
  * Copyright 2019      Guenter Ebermann
  *
@@ -23,6 +23,7 @@
 #include <epan/reassemble.h>
 #include <epan/addr_resolv.h>
 #include <epan/stats_tree.h>
+#include <epan/prefs-int.h>
 
 #include "packet-udp.h"
 #include "packet-dtls.h"
@@ -125,96 +126,97 @@
 #define SOMEIP_WTLV_MASK_DATA_ID                 0x0fff
 
 /* ID wireshark identifies the dissector by */
-static int proto_someip = -1;
+static int proto_someip;
+static module_t *someip_module;
 
-static dissector_handle_t someip_handle_udp = NULL;
-static dissector_handle_t someip_handle_tcp = NULL;
-static dissector_handle_t dtls_handle = NULL;
+static dissector_handle_t someip_handle_udp;
+static dissector_handle_t someip_handle_tcp;
+static dissector_handle_t dtls_handle;
 
 /* header field */
-static int hf_someip_messageid                                          = -1;
-static int hf_someip_serviceid                                          = -1;
-static int hf_someip_servicename                                        = -1;
-static int hf_someip_methodid                                           = -1;
-static int hf_someip_methodname                                         = -1;
-static int hf_someip_length                                             = -1;
-static int hf_someip_clientid                                           = -1;
-static int hf_someip_clientname                                         = -1;
-static int hf_someip_sessionid                                          = -1;
-static int hf_someip_protover                                           = -1;
-static int hf_someip_interface_ver                                      = -1;
-static int hf_someip_messagetype                                        = -1;
-static int hf_someip_messagetype_ack_flag                               = -1;
-static int hf_someip_messagetype_tp_flag                                = -1;
-static int hf_someip_returncode                                         = -1;
+static int hf_someip_messageid;
+static int hf_someip_serviceid;
+static int hf_someip_servicename;
+static int hf_someip_methodid;
+static int hf_someip_methodname;
+static int hf_someip_length;
+static int hf_someip_clientid;
+static int hf_someip_clientname;
+static int hf_someip_sessionid;
+static int hf_someip_protover;
+static int hf_someip_interface_ver;
+static int hf_someip_messagetype;
+static int hf_someip_messagetype_ack_flag;
+static int hf_someip_messagetype_tp_flag;
+static int hf_someip_returncode;
 
-static int hf_someip_tp                                                 = -1;
-static int hf_someip_tp_offset                                          = -1;
-static int hf_someip_tp_flags                                           = -1;
-static int hf_someip_tp_reserved                                        = -1;
-static int hf_someip_tp_more_segments                                   = -1;
+static int hf_someip_tp;
+static int hf_someip_tp_offset;
+static int hf_someip_tp_offset_encoded;
+static int hf_someip_tp_flags;
+static int hf_someip_tp_reserved;
+static int hf_someip_tp_more_segments;
 
-static int hf_someip_payload                                            = -1;
+static int hf_someip_payload;
 
 /* protocol tree items */
-static gint ett_someip                                                  = -1;
-static gint ett_someip_msgtype                                          = -1;
-static gint ett_someip_tp                                               = -1;
-static gint ett_someip_tp_flags                                         = -1;
+static int ett_someip;
+static int ett_someip_msgtype;
+static int ett_someip_tp;
 
 /* dissector handling */
-static dissector_table_t someip_dissector_table = NULL;
+static dissector_table_t someip_dissector_table;
 
 /* message reassembly for SOME/IP-TP */
-static int hf_someip_tp_fragments                                       = -1;
-static int hf_someip_tp_fragment                                        = -1;
-static int hf_someip_tp_fragment_overlap                                = -1;
-static int hf_someip_tp_fragment_overlap_conflicts                      = -1;
-static int hf_someip_tp_fragment_multiple_tails                         = -1;
-static int hf_someip_tp_fragment_too_long_fragment                      = -1;
-static int hf_someip_tp_fragment_error                                  = -1;
-static int hf_someip_tp_fragment_count                                  = -1;
-static int hf_someip_tp_reassembled_in                                  = -1;
-static int hf_someip_tp_reassembled_length                              = -1;
-static int hf_someip_tp_reassembled_data                                = -1;
+static int hf_someip_tp_fragments;
+static int hf_someip_tp_fragment;
+static int hf_someip_tp_fragment_overlap;
+static int hf_someip_tp_fragment_overlap_conflicts;
+static int hf_someip_tp_fragment_multiple_tails;
+static int hf_someip_tp_fragment_too_long_fragment;
+static int hf_someip_tp_fragment_error;
+static int hf_someip_tp_fragment_count;
+static int hf_someip_tp_reassembled_in;
+static int hf_someip_tp_reassembled_length;
+static int hf_someip_tp_reassembled_data;
 
-static int hf_payload_unparsed                                          = -1;
-static int hf_payload_length_field_8bit                                 = -1;
-static int hf_payload_length_field_16bit                                = -1;
-static int hf_payload_length_field_32bit                                = -1;
-static int hf_payload_type_field_8bit                                   = -1;
-static int hf_payload_type_field_16bit                                  = -1;
-static int hf_payload_type_field_32bit                                  = -1;
-static int hf_payload_str_base                                          = -1;
-static int hf_payload_str_string                                        = -1;
-static int hf_payload_str_struct                                        = -1;
-static int hf_payload_str_array                                         = -1;
-static int hf_payload_str_union                                         = -1;
+static int hf_payload_unparsed;
+static int hf_payload_length_field_8bit;
+static int hf_payload_length_field_16bit;
+static int hf_payload_length_field_32bit;
+static int hf_payload_type_field_8bit;
+static int hf_payload_type_field_16bit;
+static int hf_payload_type_field_32bit;
+static int hf_payload_str_base;
+static int hf_payload_str_string;
+static int hf_payload_str_struct;
+static int hf_payload_str_array;
+static int hf_payload_str_union;
 
-static int hf_payload_wtlv_tag                                          = -1;
-static int hf_payload_wtlv_tag_res                                      = -1;
-static int hf_payload_wtlv_tag_wire_type                                = -1;
-static int hf_payload_wtlv_tag_data_id                                  = -1;
+static int hf_payload_wtlv_tag;
+static int hf_payload_wtlv_tag_res;
+static int hf_payload_wtlv_tag_wire_type;
+static int hf_payload_wtlv_tag_data_id;
 
-static hf_register_info* dynamic_hf_param                               = NULL;
-static guint dynamic_hf_param_size                                      = 0;
-static hf_register_info* dynamic_hf_array                               = NULL;
-static guint dynamic_hf_array_size                                      = 0;
-static hf_register_info* dynamic_hf_struct                              = NULL;
-static guint dynamic_hf_struct_size                                     = 0;
-static hf_register_info* dynamic_hf_union                               = NULL;
-static guint dynamic_hf_union_size                                      = 0;
+static hf_register_info* dynamic_hf_param;
+static unsigned dynamic_hf_param_size;
+static hf_register_info* dynamic_hf_array;
+static unsigned dynamic_hf_array_size;
+static hf_register_info* dynamic_hf_struct;
+static unsigned dynamic_hf_struct_size;
+static hf_register_info* dynamic_hf_union;
+static unsigned dynamic_hf_union_size;
 
-static gint ett_someip_tp_fragment                                      = -1;
-static gint ett_someip_tp_fragments                                     = -1;
-static gint ett_someip_payload                                          = -1;
-static gint ett_someip_string                                           = -1;
-static gint ett_someip_array                                            = -1;
-static gint ett_someip_array_dim                                        = -1;
-static gint ett_someip_struct                                           = -1;
-static gint ett_someip_union                                            = -1;
-static gint ett_someip_parameter                                        = -1;
-static gint ett_someip_wtlv_tag                                         = -1;
+static int ett_someip_tp_fragment;
+static int ett_someip_tp_fragments;
+static int ett_someip_payload;
+static int ett_someip_string;
+static int ett_someip_array;
+static int ett_someip_array_dim;
+static int ett_someip_struct;
+static int ett_someip_union;
+static int ett_someip_parameter;
+static int ett_someip_wtlv_tag;
 
 static const fragment_items someip_tp_frag_items = {
     &ett_someip_tp_fragment,
@@ -233,10 +235,10 @@ static const fragment_items someip_tp_frag_items = {
     "SOME/IP-TP Segments"
 };
 
-static gboolean someip_tp_reassemble = TRUE;
-static gboolean someip_deserializer_activated = TRUE;
-static gboolean someip_deserializer_wtlv_default = FALSE;
-static gboolean someip_detect_dtls = FALSE;
+static bool someip_tp_reassemble = true;
+static bool someip_deserializer_activated = true;
+static bool someip_deserializer_wtlv_default;
+static bool someip_detect_dtls;
 
 /* SOME/IP Message Types */
 static const value_string someip_msg_type[] = {
@@ -270,38 +272,38 @@ static const value_string someip_return_code[] = {
 };
 
 /*** expert info items ***/
-static expert_field ef_someip_unknown_version                           = EI_INIT;
-static expert_field ef_someip_message_truncated                         = EI_INIT;
-static expert_field ef_someip_incomplete_headers                        = EI_INIT;
+static expert_field ei_someip_unknown_version;
+static expert_field ei_someip_message_truncated;
+static expert_field ei_someip_incomplete_headers;
 
-static expert_field ef_someip_payload_truncated                         = EI_INIT;
-static expert_field ef_someip_payload_malformed                         = EI_INIT;
-static expert_field ef_someip_payload_config_error                      = EI_INIT;
-static expert_field ef_someip_payload_alignment_error                   = EI_INIT;
-static expert_field ef_someip_payload_static_array_min_not_max          = EI_INIT;
-static expert_field ef_someip_payload_dyn_array_not_within_limit        = EI_INIT;
+static expert_field ei_someip_payload_truncated;
+static expert_field ei_someip_payload_malformed;
+static expert_field ei_someip_payload_config_error;
+static expert_field ei_someip_payload_alignment_error;
+static expert_field ei_someip_payload_static_array_min_not_max;
+static expert_field ei_someip_payload_dyn_array_not_within_limit;
 
 /*** Data Structure for mapping IDs to Names (Services, Methods, ...) ***/
-static GHashTable *data_someip_services                                 = NULL;
-static GHashTable *data_someip_methods                                  = NULL;
-static GHashTable *data_someip_eventgroups                              = NULL;
-static GHashTable *data_someip_clients                                  = NULL;
+static GHashTable *data_someip_services;
+static GHashTable *data_someip_methods;
+static GHashTable *data_someip_eventgroups;
+static GHashTable *data_someip_clients;
 
-static GHashTable *data_someip_parameter_list                           = NULL;
-static GHashTable *data_someip_parameter_base_type_list                 = NULL;
-static GHashTable *data_someip_parameter_strings                        = NULL;
-static GHashTable *data_someip_parameter_typedefs                       = NULL;
-static GHashTable *data_someip_parameter_arrays                         = NULL;
-static GHashTable *data_someip_parameter_structs                        = NULL;
-static GHashTable *data_someip_parameter_unions                         = NULL;
-static GHashTable *data_someip_parameter_enums                          = NULL;
+static GHashTable *data_someip_parameter_list;
+static GHashTable *data_someip_parameter_base_type_list;
+static GHashTable *data_someip_parameter_strings;
+static GHashTable *data_someip_parameter_typedefs;
+static GHashTable *data_someip_parameter_arrays;
+static GHashTable *data_someip_parameter_structs;
+static GHashTable *data_someip_parameter_unions;
+static GHashTable *data_someip_parameter_enums;
 
 /*** Taps ***/
 static int tap_someip_messages = -1;
 
 /*** Stats ***/
-static const gchar *st_str_ip_src = "Source Addresses";
-static const gchar *st_str_ip_dst = "Destination Addresses";
+static const char *st_str_ip_src = "Source Addresses";
+static const char *st_str_ip_dst = "Destination Addresses";
 
 static int st_node_ip_src = -1;
 static int st_node_ip_dst = -1;
@@ -311,13 +313,12 @@ static int st_node_ip_dst = -1;
  ***********************************************/
 
 typedef struct _someip_payload_parameter_item {
-    guint32     pos;
-    gchar      *name;
-    guint32     data_type;
-    guint32     id_ref;
+    uint32_t    pos;
+    char       *name;
+    uint32_t    data_type;
+    uint32_t    id_ref;
     int        *hf_id;
-    gchar      *filter_string;
-
+    char       *filter_string;
 } someip_payload_parameter_item_t;
 
 #define INIT_SOMEIP_PAYLOAD_PARAMETER_ITEM(NAME) \
@@ -330,50 +331,50 @@ typedef struct _someip_payload_parameter_item {
 
 
 typedef struct _someip_payload_parameter_base_type_list {
-    guint32     id;
-    gchar      *name;
-    gchar      *data_type;
-    gboolean    big_endian;
-    guint32     bitlength_base_type;
-    guint32     bitlength_encoded_type;
+    uint32_t    id;
+    char       *name;
+    char       *data_type;
+    bool        big_endian;
+    uint32_t    bitlength_base_type;
+    uint32_t    bitlength_encoded_type;
 } someip_payload_parameter_base_type_list_t;
 
 #define INIT_COMMON_BASE_TYPE_LIST_ITEM(NAME) \
     (NAME)->id                      = 0; \
     (NAME)->name                    = NULL; \
     (NAME)->data_type               = NULL ; \
-    (NAME)->big_endian              = TRUE; \
+    (NAME)->big_endian              = true; \
     (NAME)->bitlength_base_type     = 0; \
     (NAME)->bitlength_encoded_type  = 0;
 
 
 typedef struct _someip_payload_parameter_string {
-    guint32     id;
-    gchar      *name;
-    gchar      *encoding;
-    gboolean    dynamic_length;
-    guint32     max_length;
-    guint32     length_of_length;   /* default: 32 */
-    gboolean    big_endian;
-    guint32     pad_to;
+    uint32_t    id;
+    char       *name;
+    char       *encoding;
+    bool        dynamic_length;
+    uint32_t    max_length;
+    uint32_t    length_of_length;   /* default: 32 */
+    bool        big_endian;
+    uint32_t    pad_to;
 } someip_payload_parameter_string_t;
 
 #define INIT_SOMEIP_PAYLOAD_PARAMETER_STRING(NAME) \
     (NAME)->id                  = 0; \
     (NAME)->name                = NULL; \
     (NAME)->encoding            = NULL; \
-    (NAME)->dynamic_length      = FALSE; \
+    (NAME)->dynamic_length      = false; \
     (NAME)->max_length          = 0; \
     (NAME)->length_of_length    = 0; \
-    (NAME)->big_endian          = TRUE; \
+    (NAME)->big_endian          = true; \
     (NAME)->pad_to              = 0;
 
 
 typedef struct _someip_payload_parameter_typedef {
-    guint32    id;
-    gchar*     name;
-    guint32    data_type;
-    guint32    id_ref;
+    uint32_t   id;
+    char*     name;
+    uint32_t   data_type;
+    uint32_t   id_ref;
 } someip_payload_parameter_typedef_t;
 
 #define INIT_SOMEIP_PAYLOAD_PARAMETER_TYPEDEF(NAME) \
@@ -384,12 +385,12 @@ typedef struct _someip_payload_parameter_typedef {
 
 
 typedef struct _someip_payload_parameter_struct {
-    guint32     id;
-    gchar      *struct_name;
-    guint32     length_of_length;   /* default: 0 */
-    guint32     pad_to;             /* default: 0 */
-    gboolean    wtlv_encoding;
-    guint32     num_of_items;
+    uint32_t    id;
+    char       *struct_name;
+    uint32_t    length_of_length;   /* default: 0 */
+    uint32_t    pad_to;             /* default: 0 */
+    bool        wtlv_encoding;
+    uint32_t    num_of_items;
 
     /* array of items */
     someip_payload_parameter_item_t *items;
@@ -400,13 +401,13 @@ typedef struct _someip_payload_parameter_struct {
     (NAME)->struct_name         = NULL; \
     (NAME)->length_of_length    = 0; \
     (NAME)->pad_to              = 0; \
-    (NAME)->wtlv_encoding       = FALSE; \
+    (NAME)->wtlv_encoding       = false; \
     (NAME)->num_of_items        = 0;
 
 
 typedef struct _someip_payload_parameter_enum_item {
-    guint64     value;
-    gchar      *name;
+    uint64_t    value;
+    char       *name;
 } someip_payload_parameter_enum_item_t;
 
 #define INIT_SOMEIP_PAYLOAD_PARAMETER_ENUM_ITEM(NAME) \
@@ -415,11 +416,11 @@ typedef struct _someip_payload_parameter_enum_item {
 
 
 typedef struct _someip_payload_parameter_enum {
-    guint32     id;
-    gchar      *name;
-    guint32     data_type;
-    guint32     id_ref;
-    guint32     num_of_items;
+    uint32_t    id;
+    char       *name;
+    uint32_t    data_type;
+    uint32_t    id_ref;
+    uint32_t    num_of_items;
 
     someip_payload_parameter_enum_item_t *items;
 } someip_payload_parameter_enum_t;
@@ -433,63 +434,63 @@ typedef struct _someip_payload_parameter_enum {
     (NAME)->items           = NULL;
 
 typedef struct _someip_parameter_union_item {
-    guint32             id;
-    gchar              *name;
-    guint32             data_type;
-    guint32             id_ref;
+    uint32_t            id;
+    char               *name;
+    uint32_t            data_type;
+    uint32_t            id_ref;
     int                *hf_id;
-    gchar              *filter_string;
+    char               *filter_string;
 } someip_parameter_union_item_t;
 
 typedef struct _someip_parameter_union {
-    guint32             id;
-    gchar              *name;
-    guint32             length_of_length;       /* default: 32 */
-    guint32             length_of_type;         /* default: 32 */
-    guint32             pad_to;                 /* default: 0 */
-    guint32             num_of_items;
+    uint32_t            id;
+    char               *name;
+    uint32_t            length_of_length;       /* default: 32 */
+    uint32_t            length_of_type;         /* default: 32 */
+    uint32_t            pad_to;                 /* default: 0 */
+    uint32_t            num_of_items;
 
     someip_parameter_union_item_t *items;
 } someip_parameter_union_t;
 
 typedef struct _someip_parameter_union_uat {
-    guint32             id;
-    gchar              *name;
-    guint32             length_of_length;
-    guint32             length_of_type;
-    guint32             pad_to;
-    guint32             num_of_items;
-    guint32             type_id;
-    gchar              *type_name;
-    guint32             data_type;
-    guint32             id_ref;
-    gchar              *filter_string;
+    uint32_t            id;
+    char               *name;
+    uint32_t            length_of_length;
+    uint32_t            length_of_type;
+    uint32_t            pad_to;
+    uint32_t            num_of_items;
+    uint32_t            type_id;
+    char               *type_name;
+    uint32_t            data_type;
+    uint32_t            id_ref;
+    char               *filter_string;
 } someip_parameter_union_uat_t;
 
 typedef struct _someip_parameter_enum_uat {
-    guint32             id;
-    gchar              *name;
-    guint32             data_type;
-    guint32             id_ref;
-    guint32             num_of_items;
-    guint32             value;
-    gchar              *value_name;
+    uint32_t            id;
+    char               *name;
+    uint32_t            data_type;
+    uint32_t            id_ref;
+    uint32_t            num_of_items;
+    uint32_t            value;
+    char               *value_name;
 } someip_parameter_enum_uat_t;
 
 typedef struct _someip_parameter_array_dim {
-    guint32             num;
-    guint32             lower_limit;
-    guint32             upper_limit;
-    guint32             length_of_length;
-    guint32             pad_to;
+    uint32_t            num;
+    uint32_t            lower_limit;
+    uint32_t            upper_limit;
+    uint32_t            length_of_length;
+    uint32_t            pad_to;
 } someip_parameter_array_dim_t;
 
 typedef struct _someip_parameter_array {
-    guint32             id;
-    gchar              *name;
-    guint32             data_type;
-    guint32             id_ref;
-    guint32             num_of_dims;
+    uint32_t            id;
+    char               *name;
+    uint32_t            data_type;
+    uint32_t            id_ref;
+    uint32_t            num_of_dims;
     int                *hf_id;
     char               *filter_string;
 
@@ -497,62 +498,62 @@ typedef struct _someip_parameter_array {
 } someip_parameter_array_t;
 
 typedef struct _someip_parameter_array_uat {
-    guint32             id;
-    gchar              *name;
-    guint32             data_type;
-    guint32             id_ref;
-    guint32             num_of_dims;
-    gchar              *filter_string;
+    uint32_t            id;
+    char               *name;
+    uint32_t            data_type;
+    uint32_t            id_ref;
+    uint32_t            num_of_dims;
+    char               *filter_string;
 
-    guint32             num;
-    guint32             lower_limit;
-    guint32             upper_limit;
-    guint32             length_of_length;
-    guint32             pad_to;
+    uint32_t            num;
+    uint32_t            lower_limit;
+    uint32_t            upper_limit;
+    uint32_t            length_of_length;
+    uint32_t            pad_to;
 } someip_parameter_array_uat_t;
 
 typedef struct _someip_parameter_list {
-    guint32             service_id;
-    guint32             method_id;
-    guint32             version;
-    guint32             message_type;
-    gboolean            wtlv_encoding;
+    uint32_t            service_id;
+    uint32_t            method_id;
+    uint32_t            version;
+    uint32_t            message_type;
+    bool                wtlv_encoding;
 
-    guint32             num_of_items;
+    uint32_t            num_of_items;
 
     someip_payload_parameter_item_t *items;
 } someip_parameter_list_t;
 
 typedef struct _someip_parameter_list_uat {
-    guint32             service_id;
-    guint32             method_id;
-    guint32             version;
-    guint32             message_type;
-    gboolean            wtlv_encoding;
+    uint32_t            service_id;
+    uint32_t            method_id;
+    uint32_t            version;
+    uint32_t            message_type;
+    bool                wtlv_encoding;
 
-    guint32             num_of_params;
+    uint32_t            num_of_params;
 
-    guint32             pos;
-    gchar              *name;
-    guint32             data_type;
-    guint32             id_ref;
-    gchar              *filter_string;
+    uint32_t            pos;
+    char               *name;
+    uint32_t            data_type;
+    uint32_t            id_ref;
+    char               *filter_string;
 } someip_parameter_list_uat_t;
 
 typedef struct _someip_parameter_struct_uat {
-    guint32             id;
-    gchar              *struct_name;
-    guint32             length_of_length;       /* default: 0 */
-    guint32             pad_to;                 /* default: 0 */
-    gboolean            wtlv_encoding;
+    uint32_t            id;
+    char               *struct_name;
+    uint32_t            length_of_length;       /* default: 0 */
+    uint32_t            pad_to;                 /* default: 0 */
+    bool                wtlv_encoding;
 
-    guint32             num_of_items;
+    uint32_t            num_of_items;
 
-    guint32             pos;
-    gchar              *name;
-    guint32             data_type;
-    guint32             id_ref;
-    gchar              *filter_string;
+    uint32_t            pos;
+    char               *name;
+    uint32_t            data_type;
+    uint32_t            id_ref;
+    char               *filter_string;
 } someip_parameter_struct_uat_t;
 
 typedef someip_payload_parameter_base_type_list_t someip_parameter_base_type_list_uat_t;
@@ -560,55 +561,56 @@ typedef someip_payload_parameter_string_t someip_parameter_string_uat_t;
 typedef someip_payload_parameter_typedef_t someip_parameter_typedef_uat_t;
 
 typedef struct _generic_one_id_string {
-    guint   id;
-    gchar  *name;
+    unsigned   id;
+    char   *name;
 } generic_one_id_string_t;
 
 typedef struct _generic_two_id_string {
-    guint   id;
-    guint   id2;
-    gchar  *name;
+    unsigned   id;
+    unsigned   id2;
+    char   *name;
 } generic_two_id_string_t;
 
-static generic_one_id_string_t *someip_service_ident = NULL;
-static guint someip_service_ident_num = 0;
+static generic_one_id_string_t *someip_service_ident;
+static unsigned someip_service_ident_num;
 
-static generic_two_id_string_t *someip_method_ident = NULL;
-static guint someip_method_ident_num = 0;
+static generic_two_id_string_t *someip_method_ident;
+static unsigned someip_method_ident_num;
 
-static generic_two_id_string_t *someip_eventgroup_ident = NULL;
-static guint someip_eventgroup_ident_num = 0;
+static generic_two_id_string_t *someip_eventgroup_ident;
+static unsigned someip_eventgroup_ident_num;
 
-static generic_two_id_string_t *someip_client_ident = NULL;
-static guint someip_client_ident_num = 0;
+static generic_two_id_string_t *someip_client_ident;
+static unsigned someip_client_ident_num;
 
-static someip_parameter_list_uat_t *someip_parameter_list = NULL;
-static guint someip_parameter_list_num = 0;
+static someip_parameter_list_uat_t *someip_parameter_list;
+static unsigned someip_parameter_list_num;
 
-static someip_parameter_string_uat_t *someip_parameter_strings = NULL;
-static guint someip_parameter_strings_num = 0;
+static someip_parameter_string_uat_t *someip_parameter_strings;
+static unsigned someip_parameter_strings_num;
 
-static someip_parameter_typedef_uat_t *someip_parameter_typedefs = NULL;
-static guint someip_parameter_typedefs_num = 0;
+static someip_parameter_typedef_uat_t *someip_parameter_typedefs;
+static unsigned someip_parameter_typedefs_num;
 
-static someip_parameter_array_uat_t *someip_parameter_arrays = NULL;
-static guint someip_parameter_arrays_num = 0;
+static someip_parameter_array_uat_t *someip_parameter_arrays;
+static unsigned someip_parameter_arrays_num;
 
-static someip_parameter_struct_uat_t *someip_parameter_structs = NULL;
-static guint someip_parameter_structs_num = 0;
+static someip_parameter_struct_uat_t *someip_parameter_structs;
+static unsigned someip_parameter_structs_num;
 
-static someip_parameter_union_uat_t *someip_parameter_unions = NULL;
-static guint someip_parameter_unions_num = 0;
+static someip_parameter_union_uat_t *someip_parameter_unions;
+static unsigned someip_parameter_unions_num;
 
-static someip_parameter_enum_uat_t *someip_parameter_enums = NULL;
-static guint someip_parameter_enums_num = 0;
+static someip_parameter_enum_uat_t *someip_parameter_enums;
+static unsigned someip_parameter_enums_num;
 
-static someip_parameter_base_type_list_uat_t *someip_parameter_base_type_list = NULL;
-static guint someip_parameter_base_type_list_num = 0;
+static someip_parameter_base_type_list_uat_t *someip_parameter_base_type_list;
+static unsigned someip_parameter_base_type_list_num;
 
 void proto_register_someip(void);
 void proto_reg_handoff_someip(void);
 
+static void deregister_dynamic_hf_data(hf_register_info **hf_array, unsigned *hf_size);
 static void update_dynamic_hf_entries_someip_parameter_list(void);
 static void update_dynamic_hf_entries_someip_parameter_arrays(void);
 static void update_dynamic_hf_entries_someip_parameter_structs(void);
@@ -620,16 +622,16 @@ static void update_dynamic_hf_entries_someip_parameter_unions(void);
 typedef struct _someip_segment_key {
     address src_addr;
     address dst_addr;
-    guint32 src_port;
-    guint32 dst_port;
+    uint32_t src_port;
+    uint32_t dst_port;
     someip_info_t info;
 } someip_segment_key;
 
-static guint
-someip_segment_hash(gconstpointer k)
+static unsigned
+someip_segment_hash(const void *k)
 {
     const someip_segment_key *key = (const someip_segment_key *)k;
-    guint hash_val;
+    unsigned hash_val;
 
     hash_val = (key->info.service_id << 16 | key->info.method_id) ^
         (key->info.client_id << 16 | key->info.session_id);
@@ -637,8 +639,8 @@ someip_segment_hash(gconstpointer k)
     return hash_val;
 }
 
-static gint
-someip_segment_equal(gconstpointer k1, gconstpointer k2)
+static int
+someip_segment_equal(const void *k1, const void *k2)
 {
     const someip_segment_key *key1 = (someip_segment_key *)k1;
     const someip_segment_key *key2 = (someip_segment_key *)k2;
@@ -660,8 +662,8 @@ someip_segment_equal(gconstpointer k1, gconstpointer k2)
  * persistent data, and so must only be used to look up and
  * delete entries, not to add them.
  */
-static gpointer
-someip_segment_temporary_key(const packet_info *pinfo, const guint32 id _U_,
+static void *
+someip_segment_temporary_key(const packet_info *pinfo, const uint32_t id _U_,
                           const void *data)
 {
     const someip_info_t *info = (const someip_info_t *)data;
@@ -674,16 +676,16 @@ someip_segment_temporary_key(const packet_info *pinfo, const guint32 id _U_,
     key->dst_port = pinfo->destport;
     memcpy(&key->info, info, sizeof(someip_info_t));
 
-    return (gpointer)key;
+    return (void *)key;
 }
 
 /*
  * Create a fragment key for permanent use; it must point to persistent
  * data, so that it can be used to add entries.
  */
-static gpointer
+static void *
 someip_segment_persistent_key(const packet_info *pinfo,
-                              const guint32 id _U_, const void *data)
+                              const uint32_t id _U_, const void *data)
 {
     const someip_info_t *info = (const someip_info_t *)data;
     someip_segment_key *key = g_slice_new(someip_segment_key);
@@ -695,11 +697,11 @@ someip_segment_persistent_key(const packet_info *pinfo,
     key->dst_port = pinfo->destport;
     memcpy(&key->info, info, sizeof(someip_info_t));
 
-    return (gpointer)key;
+    return (void *)key;
 }
 
 static void
-someip_segment_free_temporary_key(gpointer ptr)
+someip_segment_free_temporary_key(void *ptr)
 {
     someip_segment_key *key = (someip_segment_key *)ptr;
     if (key) {
@@ -707,7 +709,7 @@ someip_segment_free_temporary_key(gpointer ptr)
     }
 }
 static void
-someip_segment_free_persistent_key(gpointer ptr)
+someip_segment_free_persistent_key(void *ptr)
 {
     someip_segment_key *key = (someip_segment_key *)ptr;
     if (key) {
@@ -734,22 +736,30 @@ static reassembly_table someip_tp_reassembly_table;
 
 /* register a UDP SOME/IP port */
 void
-register_someip_port_udp(guint32 portnumber) {
+register_someip_port_udp(uint32_t portnumber) {
     dissector_add_uint("udp.port", portnumber, someip_handle_udp);
 }
 
 /* register a TCP SOME/IP port */
 void
-register_someip_port_tcp(guint32 portnumber) {
+register_someip_port_tcp(uint32_t portnumber) {
     dissector_add_uint("tcp.port", portnumber, someip_handle_tcp);
 }
 
 /*** UAT Callbacks and Helpers ***/
 
+static void
+set_prefs_changed(void) {
+    /* This ensures that proto_reg_handoff_someip is called, even if SOME/IP is not bound to any port yet. */
+    if (someip_module) {
+        someip_module->prefs_changed_flags |= (PREF_EFFECT_DISSECTION|PREF_EFFECT_FIELDS);
+    }
+}
+
 static char*
-check_filter_string(gchar *filter_string, guint32 id) {
+check_filter_string(char *filter_string, uint32_t id) {
     char   *err = NULL;
-    guchar  c;
+    unsigned char  c;
 
     c = proto_check_field_name(filter_string);
     if (c) {
@@ -766,12 +776,12 @@ check_filter_string(gchar *filter_string, guint32 id) {
 }
 
 static void
-someip_free_key(gpointer key) {
+someip_free_key(void *key) {
     wmem_free(wmem_epan_scope(), key);
 }
 
 static void
-simple_free(gpointer data _U_) {
+simple_free(void *data _U_) {
     /* we need to free because of the g_strdup in post_update*/
     g_free(data);
 }
@@ -788,24 +798,29 @@ copy_generic_one_id_string_cb(void *n, const void *o, size_t size _U_) {
 }
 
 static bool
-update_generic_one_identifier_16bit(void *r, char **err) {
+update_serviceid(void *r, char **err) {
     generic_one_id_string_t *rec = (generic_one_id_string_t *)r;
 
+    if (rec->id == 0xffff) {
+        *err = ws_strdup_printf("Service-ID 0xffff is reserved and cannot be used (ID: %i  Name: %s)", rec->id, rec->name);
+        return false;
+    }
+
     if (rec->id > 0xffff) {
-        *err = ws_strdup_printf("We currently only support 16 bit identifiers (ID: %i  Name: %s)", rec->id, rec->name);
-        return FALSE;
+        *err = ws_strdup_printf("Service-IDs have to be 16bit (ID: %i  Name: %s)", rec->id, rec->name);
+        return false;
     }
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = g_strdup("Name cannot be empty");
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
-free_generic_one_id_string_cb(void*r) {
+free_generic_one_id_string_cb(void *r) {
     generic_one_id_string_t *rec = (generic_one_id_string_t *)r;
 
     /* freeing result of g_strdup */
@@ -814,8 +829,8 @@ free_generic_one_id_string_cb(void*r) {
 }
 
 static void
-post_update_one_id_string_template_cb(generic_one_id_string_t *data, guint data_num, GHashTable *ht) {
-    guint   i;
+post_update_one_id_string_template_cb(generic_one_id_string_t *data, unsigned data_num, GHashTable *ht) {
+    unsigned   i;
     int    *key = NULL;
 
     for (i = 0; i < data_num; i++) {
@@ -840,29 +855,61 @@ copy_generic_two_id_string_cb(void *n, const void *o, size_t size _U_) {
 }
 
 static bool
-update_generic_two_identifier_16bit(void *r, char **err) {
+update_two_identifier_16bit_check_both(void *r, char **err) {
     generic_two_id_string_t *rec = (generic_two_id_string_t *)r;
 
-    if ( rec->id > 0xffff ) {
-        *err = ws_strdup_printf("We currently only support 16 bit identifiers (ID: %i  Name: %s)", rec->id, rec->name);
-        return FALSE;
+    if (rec->id == 0xffff) {
+        *err = ws_strdup_printf("Service-ID 0xffff is reserved and cannot be used (ID: %i  Name: %s)", rec->id, rec->name);
+        return false;
     }
 
-    if ( rec->id2 > 0xffff ) {
+    if (rec->id > 0xffff) {
+        *err = ws_strdup_printf("Service-IDs have to be 16bit (ID: %i  Name: %s)", rec->id, rec->name);
+        return false;
+    }
+
+    if (rec->id2 == 0xffff) {
+        *err = ws_strdup_printf("0xffff is reserved and cannot be used (ID: %i  ID2: %i  Name: %s)", rec->id, rec->id2, rec->name);
+        return false;
+    }
+
+    if (rec->id2 > 0xffff) {
         *err = ws_strdup_printf("We currently only support 16 bit identifiers (ID: %i  ID2: %i  Name: %s)", rec->id, rec->id2, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = g_strdup("Name cannot be empty");
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
+}
+
+static bool
+update_generic_two_identifier_16bit(void *r, char **err) {
+    generic_two_id_string_t *rec = (generic_two_id_string_t *)r;
+
+    if (rec->id > 0xffff) {
+        *err = ws_strdup_printf("We currently only support 16 bit identifiers (ID: %i  Name: %s)", rec->id, rec->name);
+        return false;
+    }
+
+    if (rec->id2 > 0xffff) {
+        *err = ws_strdup_printf("We currently only support 16 bit identifiers (ID: %i  ID2: %i  Name: %s)", rec->id, rec->id2, rec->name);
+        return false;
+    }
+
+    if (rec->name == NULL || rec->name[0] == 0) {
+        *err = g_strdup("Name cannot be empty");
+        return false;
+    }
+
+    return true;
 }
 
 static void
-free_generic_two_id_string_cb(void*r) {
+free_generic_two_id_string_cb(void *r) {
     generic_two_id_string_t *rec = (generic_two_id_string_t *)r;
 
     /* freeing result of g_strdup */
@@ -871,11 +918,11 @@ free_generic_two_id_string_cb(void*r) {
 }
 
 static void
-post_update_generic_two_id_string_template_cb(generic_two_id_string_t *data, guint data_num, GHashTable *ht) {
-    guint   i;
+post_update_generic_two_id_string_template_cb(generic_two_id_string_t *data, unsigned data_num, GHashTable *ht) {
+    unsigned   i;
     int    *key = NULL;
-    guint   tmp;
-    guint   tmp2;
+    unsigned   tmp;
+    unsigned   tmp2;
 
     for (i = 0; i < data_num; i++) {
         key = wmem_new(wmem_epan_scope(), int);
@@ -889,9 +936,9 @@ post_update_generic_two_id_string_template_cb(generic_two_id_string_t *data, gui
     }
 }
 
-char*
-someip_lookup_service_name(guint16 serviceid) {
-    guint32 tmp = (guint32)serviceid;
+char *
+someip_lookup_service_name(uint16_t serviceid) {
+    uint32_t tmp = (uint32_t)serviceid;
 
     if (data_someip_services == NULL) {
         return NULL;
@@ -900,9 +947,9 @@ someip_lookup_service_name(guint16 serviceid) {
     return (char *)g_hash_table_lookup(data_someip_services, &tmp);
 }
 
-static char*
-someip_lookup_method_name(guint16 serviceid, guint16 methodid) {
-    guint32 tmp = (serviceid << 16) + methodid;
+static char *
+someip_lookup_method_name(uint16_t serviceid, uint16_t methodid) {
+    uint32_t tmp = (serviceid << 16) + methodid;
 
     if (data_someip_methods == NULL) {
         return NULL;
@@ -911,9 +958,9 @@ someip_lookup_method_name(guint16 serviceid, guint16 methodid) {
     return (char *)g_hash_table_lookup(data_someip_methods, &tmp);
 }
 
-char*
-someip_lookup_eventgroup_name(guint16 serviceid, guint16 eventgroupid) {
-    guint32 tmp = (serviceid << 16) + eventgroupid;
+char *
+someip_lookup_eventgroup_name(uint16_t serviceid, uint16_t eventgroupid) {
+    uint32_t tmp = (serviceid << 16) + eventgroupid;
 
     if (data_someip_eventgroups == NULL) {
         return NULL;
@@ -922,9 +969,9 @@ someip_lookup_eventgroup_name(guint16 serviceid, guint16 eventgroupid) {
     return (char *)g_hash_table_lookup(data_someip_eventgroups, &tmp);
 }
 
-static char*
-someip_lookup_client_name(guint16 serviceid, guint16 clientid) {
-    guint32 tmp = (serviceid << 16) + clientid;
+static char *
+someip_lookup_client_name(uint16_t serviceid, uint16_t clientid) {
+    uint32_t tmp = (serviceid << 16) + clientid;
 
     if (data_someip_clients == NULL) {
         return NULL;
@@ -1029,39 +1076,39 @@ post_update_someip_client_cb(void) {
 }
 
 static void
-someip_payload_free_key(gpointer key) {
+someip_payload_free_key(void *key) {
     wmem_free(wmem_epan_scope(), key);
 }
 
-static gint64
-someip_parameter_key(guint16 serviceid, guint16 methodid, guint8 version, guint8 msgtype) {
-    gint64 tmp1;
-    gint64 tmp2;
-    gint64 tmp3;
-    gint64 tmp4;
+static int64_t
+someip_parameter_key(uint16_t serviceid, uint16_t methodid, uint8_t version, uint8_t msgtype) {
+    int64_t tmp1;
+    int64_t tmp2;
+    int64_t tmp3;
+    int64_t tmp4;
 
     /* key:
         Service-ID [16bit] | Method-ID [16bit] | Version [8bit] | Message-Type [8bit]
     */
 
-    tmp1 = (gint64)(serviceid & 0xffff);
-    tmp2 = (gint64)(methodid & 0xffff) << 16;
-    tmp3 = (gint64)(version & 0xff) << 32;
-    tmp4 = (gint64)(msgtype & 0xff) << 40;
+    tmp1 = (int64_t)(serviceid & 0xffff);
+    tmp2 = (int64_t)(methodid & 0xffff) << 16;
+    tmp3 = (int64_t)(version & 0xff) << 32;
+    tmp4 = (int64_t)(msgtype & 0xff) << 40;
 
-    return (gint64)(tmp1 + tmp2 + tmp3 + tmp4);
+    return (int64_t)(tmp1 + tmp2 + tmp3 + tmp4);
 }
 
 static someip_parameter_list_t*
-get_parameter_config(guint16 serviceid, guint16 methodid, guint8 version, guint8 msgtype) {
-    gint64                  *key = NULL;
+get_parameter_config(uint16_t serviceid, uint16_t methodid, uint8_t version, uint8_t msgtype) {
+    int64_t                 *key = NULL;
     someip_parameter_list_t *tmp = NULL;
 
     if (data_someip_parameter_list == NULL) {
         return NULL;
     }
 
-    key = wmem_new(wmem_epan_scope(), gint64);
+    key = wmem_new(wmem_epan_scope(), int64_t);
     *key = someip_parameter_key(serviceid, methodid, version, msgtype);
     tmp = (someip_parameter_list_t *)g_hash_table_lookup(data_someip_parameter_list, key);
     wmem_free(wmem_epan_scope(), key);
@@ -1069,48 +1116,48 @@ get_parameter_config(guint16 serviceid, guint16 methodid, guint8 version, guint8
     return tmp;
 }
 
-static gpointer
-get_generic_config(GHashTable *ht, gint64 id) {
+static void *
+get_generic_config(GHashTable *ht, int64_t id) {
     if (ht == NULL) {
         return NULL;
     }
 
-    return (gpointer)g_hash_table_lookup(ht, &id);
+    return (void *)g_hash_table_lookup(ht, &id);
 }
 
 static someip_payload_parameter_base_type_list_t*
-get_base_type_config(guint32 id) {
-    return (someip_payload_parameter_base_type_list_t *)get_generic_config(data_someip_parameter_base_type_list, (gint64)id);
+get_base_type_config(uint32_t id) {
+    return (someip_payload_parameter_base_type_list_t *)get_generic_config(data_someip_parameter_base_type_list, (int64_t)id);
 }
 
 static someip_payload_parameter_string_t*
-get_string_config(guint32 id) {
-    return (someip_payload_parameter_string_t *)get_generic_config(data_someip_parameter_strings, (gint64)id);
+get_string_config(uint32_t id) {
+    return (someip_payload_parameter_string_t *)get_generic_config(data_someip_parameter_strings, (int64_t)id);
 }
 
 static someip_payload_parameter_typedef_t*
-get_typedef_config(guint32 id) {
-    return (someip_payload_parameter_typedef_t *)get_generic_config(data_someip_parameter_typedefs, (gint64)id);
+get_typedef_config(uint32_t id) {
+    return (someip_payload_parameter_typedef_t *)get_generic_config(data_someip_parameter_typedefs, (int64_t)id);
 }
 
 static someip_parameter_array_t*
-get_array_config(guint32 id) {
-    return (someip_parameter_array_t *)get_generic_config(data_someip_parameter_arrays, (gint64)id);
+get_array_config(uint32_t id) {
+    return (someip_parameter_array_t *)get_generic_config(data_someip_parameter_arrays, (int64_t)id);
 }
 
 static someip_payload_parameter_struct_t*
-get_struct_config(guint32 id) {
-    return (someip_payload_parameter_struct_t *)get_generic_config(data_someip_parameter_structs, (gint64)id);
+get_struct_config(uint32_t id) {
+    return (someip_payload_parameter_struct_t *)get_generic_config(data_someip_parameter_structs, (int64_t)id);
 }
 
 static someip_parameter_union_t*
-get_union_config(guint32 id) {
-    return (someip_parameter_union_t *)get_generic_config(data_someip_parameter_unions, (gint64)id);
+get_union_config(uint32_t id) {
+    return (someip_parameter_union_t *)get_generic_config(data_someip_parameter_unions, (int64_t)id);
 }
 
 static someip_payload_parameter_enum_t*
-get_enum_config(guint32 id) {
-    return (someip_payload_parameter_enum_t *)get_generic_config(data_someip_parameter_enums, (gint64)id);
+get_enum_config(uint32_t id) {
+    return (someip_payload_parameter_enum_t *)get_generic_config(data_someip_parameter_enums, (int64_t)id);
 }
 
 UAT_HEX_CB_DEF(someip_parameter_list, service_id, someip_parameter_list_uat_t)
@@ -1160,41 +1207,41 @@ copy_someip_parameter_list_cb(void *n, const void *o, size_t size _U_) {
 static bool
 update_someip_parameter_list(void *r, char **err) {
     someip_parameter_list_uat_t *rec = (someip_parameter_list_uat_t *)r;
-    guchar c;
+    unsigned char c;
 
     if (rec->service_id > 0xffff) {
         *err = ws_strdup_printf("We currently only support 16 bit Service IDs (Service-ID: %i  Name: %s)", rec->service_id, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->method_id > 0xffff) {
         *err = ws_strdup_printf("We currently only support 16 bit Method IDs (Service-ID: %i  Method-ID: %i  Name: %s)", rec->service_id, rec->method_id, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->version > 0xff) {
         *err = ws_strdup_printf("We currently only support 8 bit Version (Service-ID: %i  Method-ID: %i  Version: %d  Name: %s)", rec->service_id, rec->method_id, rec->version, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->message_type > 0xff) {
         *err = ws_strdup_printf("We currently only support 8 bit Message Type (Service-ID: %i  Method-ID: %i  Version: %d  Message Type: %x  Name: %s)", rec->service_id, rec->method_id, rec->version, rec->message_type, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = ws_strdup_printf("Name cannot be empty");
-        return FALSE;
+        return false;
     }
 
     if (rec->pos >= rec->num_of_params) {
         *err = ws_strdup_printf("Position >= Number of Parameters");
-        return FALSE;
+        return false;
     }
 
     if (rec->filter_string == NULL || rec->filter_string[0] == 0) {
         *err = ws_strdup_printf("Name cannot be empty");
-        return FALSE;
+        return false;
     }
 
     c = proto_check_field_name(rec->filter_string);
@@ -1206,10 +1253,10 @@ update_someip_parameter_list(void *r, char **err) {
         } else {
             *err = ws_strdup_printf("Filter String contains invalid byte \\%03o (Service-ID: %i  Method-ID: %i)", c, rec->service_id, rec->method_id);
         }
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
@@ -1228,7 +1275,7 @@ free_someip_parameter_list_cb(void *r) {
 }
 
 static void
-free_someip_parameter_list(gpointer data) {
+free_someip_parameter_list(void *data) {
     someip_parameter_list_t *list = (someip_parameter_list_t *)data;
 
     if (list->items != NULL) {
@@ -1240,9 +1287,9 @@ free_someip_parameter_list(gpointer data) {
 }
 
 static void
-post_update_someip_parameter_list_read_in_data(someip_parameter_list_uat_t *data, guint data_num, GHashTable *ht) {
-    guint                               i = 0;
-    gint64                             *key = NULL;
+post_update_someip_parameter_list_read_in_data(someip_parameter_list_uat_t *data, unsigned data_num, GHashTable *ht) {
+    unsigned                            i = 0;
+    int64_t                            *key = NULL;
     someip_parameter_list_t            *list = NULL;
     someip_payload_parameter_item_t    *item = NULL;
     someip_payload_parameter_item_t    *items = NULL;
@@ -1253,8 +1300,8 @@ post_update_someip_parameter_list_read_in_data(someip_parameter_list_uat_t *data
 
     for (i = 0; i < data_num; i++) {
         /* the hash table does not know about uint64, so we use int64*/
-        key = wmem_new(wmem_epan_scope(), gint64);
-        *key = someip_parameter_key((guint16)data[i].service_id, (guint16)data[i].method_id, (guint8)data[i].version, (guint8)data[i].message_type);
+        key = wmem_new(wmem_epan_scope(), int64_t);
+        *key = someip_parameter_key((uint16_t)data[i].service_id, (uint16_t)data[i].method_id, (uint8_t)data[i].version, (uint8_t)data[i].message_type);
 
         list = (someip_parameter_list_t *)g_hash_table_lookup(ht, key);
         if (list == NULL) {
@@ -1296,9 +1343,12 @@ static void
 reset_someip_parameter_list_cb(void) {
     /* destroy old hash table, if it exists */
     if (data_someip_parameter_list) {
+        deregister_dynamic_hf_data(&dynamic_hf_param, &dynamic_hf_param_size);
         g_hash_table_destroy(data_someip_parameter_list);
         data_someip_parameter_list = NULL;
     }
+
+    set_prefs_changed();
 }
 
 static void
@@ -1307,7 +1357,6 @@ post_update_someip_parameter_list_cb(void) {
 
     data_someip_parameter_list = g_hash_table_new_full(g_int64_hash, g_int64_equal, &someip_payload_free_key, &free_someip_parameter_list);
     post_update_someip_parameter_list_read_in_data(someip_parameter_list, someip_parameter_list_num, data_someip_parameter_list);
-    update_dynamic_hf_entries_someip_parameter_list();
 }
 
 UAT_HEX_CB_DEF(someip_parameter_enums, id, someip_parameter_enum_uat_t)
@@ -1352,29 +1401,29 @@ update_someip_parameter_enum(void *r, char **err) {
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = ws_strdup_printf("Name cannot be empty (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     if (rec->value_name == NULL || rec->value_name[0] == 0) {
         *err = ws_strdup_printf("Value Name cannot be empty (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     if (rec->num_of_items == 0) {
         *err = ws_strdup_printf("Number_of_Items = 0 (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     if (rec->data_type == SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_ENUM) {
         *err = ws_strdup_printf("An enum cannot reference an enum (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
-free_someip_parameter_enum_cb(void*r) {
+free_someip_parameter_enum_cb(void *r) {
     someip_parameter_enum_uat_t *rec = (someip_parameter_enum_uat_t *)r;
     if (rec->name) {
         g_free(rec->name);
@@ -1388,7 +1437,7 @@ free_someip_parameter_enum_cb(void*r) {
 }
 
 static void
-free_someip_parameter_enum(gpointer data) {
+free_someip_parameter_enum(void *data) {
     someip_payload_parameter_enum_t *list = (someip_payload_parameter_enum_t *)data;
 
     if (list->items != NULL) {
@@ -1400,10 +1449,10 @@ free_someip_parameter_enum(gpointer data) {
 }
 
 static void
-post_update_someip_parameter_enum_read_in_data(someip_parameter_enum_uat_t *data, guint data_num, GHashTable *ht) {
-    guint                                   i = 0;
-    guint                                   j = 0;
-    gint64                                 *key = NULL;
+post_update_someip_parameter_enum_read_in_data(someip_parameter_enum_uat_t *data, unsigned data_num, GHashTable *ht) {
+    unsigned                                i = 0;
+    unsigned                                j = 0;
+    int64_t                                *key = NULL;
     someip_payload_parameter_enum_t        *list = NULL;
     someip_payload_parameter_enum_item_t   *item = NULL;
 
@@ -1412,7 +1461,7 @@ post_update_someip_parameter_enum_read_in_data(someip_parameter_enum_uat_t *data
     }
 
     for (i = 0; i < data_num; i++) {
-        key = wmem_new(wmem_epan_scope(), gint64);
+        key = wmem_new(wmem_epan_scope(), int64_t);
         *key = data[i].id;
 
         list = (someip_payload_parameter_enum_t *)g_hash_table_lookup(ht, key);
@@ -1461,6 +1510,8 @@ reset_someip_parameter_enum_cb(void) {
         g_hash_table_destroy(data_someip_parameter_enums);
         data_someip_parameter_enums = NULL;
     }
+
+    set_prefs_changed();
 }
 
 static void
@@ -1520,35 +1571,35 @@ update_someip_parameter_array(void *r, char **err) {
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = ws_strdup_printf("Name cannot be empty (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     if (rec->num >= rec->num_of_dims) {
         *err = ws_strdup_printf("Dimension >= Number of Dimensions (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     if (rec->filter_string == NULL || rec->filter_string[0] == 0) {
         *err = ws_strdup_printf("Filter String cannot be empty (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     tmp = check_filter_string(rec->filter_string, rec->id);
     if (tmp != NULL) {
         *err = tmp;
-        return FALSE;
+        return false;
     }
 
     if (rec->data_type == SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_ARRAY && rec->id == rec->id_ref) {
         *err = ws_strdup_printf("An array cannot include itself (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
-free_someip_parameter_array_cb(void*r) {
+free_someip_parameter_array_cb(void *r) {
     someip_parameter_array_uat_t *rec = (someip_parameter_array_uat_t *)r;
 
     if (rec->name) g_free(rec->name);
@@ -1559,7 +1610,7 @@ free_someip_parameter_array_cb(void*r) {
 }
 
 static void
-free_someip_parameter_array(gpointer data) {
+free_someip_parameter_array(void *data) {
     someip_parameter_array_t *list = (someip_parameter_array_t *)data;
 
     if (list->dims != NULL) {
@@ -1571,9 +1622,9 @@ free_someip_parameter_array(gpointer data) {
 }
 
 static void
-post_update_someip_parameter_array_read_in_data(someip_parameter_array_uat_t *data, guint data_num, GHashTable *ht) {
-    guint                            i = 0;
-    gint64                          *key = NULL;
+post_update_someip_parameter_array_read_in_data(someip_parameter_array_uat_t *data, unsigned data_num, GHashTable *ht) {
+    unsigned                         i = 0;
+    int64_t                         *key = NULL;
     someip_parameter_array_t        *list = NULL;
     someip_parameter_array_dim_t    *item = NULL;
     someip_parameter_array_dim_t    *items = NULL;
@@ -1583,7 +1634,7 @@ post_update_someip_parameter_array_read_in_data(someip_parameter_array_uat_t *da
     }
 
     for (i = 0; i < data_num; i++) {
-        key = wmem_new(wmem_epan_scope(), gint64);
+        key = wmem_new(wmem_epan_scope(), int64_t);
         *key = data[i].id;
 
         list = (someip_parameter_array_t *)g_hash_table_lookup(ht, key);
@@ -1620,25 +1671,23 @@ post_update_someip_parameter_array_read_in_data(someip_parameter_array_uat_t *da
 }
 
 static void
-post_update_someip_parameter_array_cb(void) {
-    /* destroy old hash table, if it exists */
-    if (data_someip_parameter_arrays) {
-        g_hash_table_destroy(data_someip_parameter_arrays);
-        data_someip_parameter_arrays = NULL;
-    }
-
-    data_someip_parameter_arrays = g_hash_table_new_full(g_int64_hash, g_int64_equal, &someip_payload_free_key, &free_someip_parameter_array);
-    post_update_someip_parameter_array_read_in_data(someip_parameter_arrays, someip_parameter_arrays_num, data_someip_parameter_arrays);
-    update_dynamic_hf_entries_someip_parameter_arrays();
-}
-
-static void
 reset_someip_parameter_array_cb(void) {
     /* destroy old hash table, if it exists */
     if (data_someip_parameter_arrays) {
+        deregister_dynamic_hf_data(&dynamic_hf_array, &dynamic_hf_array_size);
         g_hash_table_destroy(data_someip_parameter_arrays);
         data_someip_parameter_arrays = NULL;
     }
+
+    set_prefs_changed();
+}
+
+static void
+post_update_someip_parameter_array_cb(void) {
+    reset_someip_parameter_array_cb();
+
+    data_someip_parameter_arrays = g_hash_table_new_full(g_int64_hash, g_int64_equal, &someip_payload_free_key, &free_someip_parameter_array);
+    post_update_someip_parameter_array_read_in_data(someip_parameter_arrays, someip_parameter_arrays_num, data_someip_parameter_arrays);
 }
 
 UAT_HEX_CB_DEF(someip_parameter_structs, id, someip_parameter_struct_uat_t)
@@ -1699,36 +1748,36 @@ update_someip_parameter_struct(void *r, char **err) {
 
     if (rec->struct_name == NULL || rec->struct_name[0] == 0) {
         *err = ws_strdup_printf("Struct name cannot be empty (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     if (rec->filter_string == NULL || rec->filter_string[0] == 0) {
         *err = ws_strdup_printf("Struct name cannot be empty (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     tmp = check_filter_string(rec->filter_string, rec->id);
     if (tmp != NULL) {
         *err = tmp;
-        return FALSE;
+        return false;
     }
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = ws_strdup_printf("Name cannot be empty (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     if (rec->pos >= rec->num_of_items) {
         *err = ws_strdup_printf("Position >= Number of Parameters (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     if (rec->data_type == SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_STRUCT && rec->id == rec->id_ref) {
         *err = ws_strdup_printf("A struct cannot include itself (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
@@ -1746,7 +1795,7 @@ free_someip_parameter_struct_cb(void *r) {
 }
 
 static void
-free_someip_parameter_struct(gpointer data) {
+free_someip_parameter_struct(void *data) {
     someip_payload_parameter_struct_t *list = (someip_payload_parameter_struct_t *)data;
 
     if (list->items != NULL) {
@@ -1758,9 +1807,9 @@ free_someip_parameter_struct(gpointer data) {
 }
 
 static void
-post_update_someip_parameter_struct_read_in_data(someip_parameter_struct_uat_t *data, guint data_num, GHashTable *ht) {
-    guint                               i = 0;
-    gint64                             *key = NULL;
+post_update_someip_parameter_struct_read_in_data(someip_parameter_struct_uat_t *data, unsigned data_num, GHashTable *ht) {
+    unsigned                            i = 0;
+    int64_t                            *key = NULL;
     someip_payload_parameter_struct_t  *list = NULL;
     someip_payload_parameter_item_t    *item = NULL;
     someip_payload_parameter_item_t    *items = NULL;
@@ -1770,7 +1819,7 @@ post_update_someip_parameter_struct_read_in_data(someip_parameter_struct_uat_t *
     }
 
     for (i = 0; i < data_num; i++) {
-        key = wmem_new(wmem_epan_scope(), gint64);
+        key = wmem_new(wmem_epan_scope(), int64_t);
         *key = data[i].id;
 
         list = (someip_payload_parameter_struct_t *)g_hash_table_lookup(ht, key);
@@ -1808,25 +1857,23 @@ post_update_someip_parameter_struct_read_in_data(someip_parameter_struct_uat_t *
 }
 
 static void
-post_update_someip_parameter_struct_cb(void) {
-    /* destroy old hash table, if it exists */
-    if (data_someip_parameter_structs) {
-        g_hash_table_destroy(data_someip_parameter_structs);
-        data_someip_parameter_structs = NULL;
-    }
-
-    data_someip_parameter_structs = g_hash_table_new_full(g_int64_hash, g_int64_equal, &someip_payload_free_key, &free_someip_parameter_struct);
-    post_update_someip_parameter_struct_read_in_data(someip_parameter_structs, someip_parameter_structs_num, data_someip_parameter_structs);
-    update_dynamic_hf_entries_someip_parameter_structs();
-}
-
-static void
 reset_someip_parameter_struct_cb(void) {
     /* destroy old hash table, if it exists */
     if (data_someip_parameter_structs) {
+        deregister_dynamic_hf_data(&dynamic_hf_struct, &dynamic_hf_struct_size);
         g_hash_table_destroy(data_someip_parameter_structs);
         data_someip_parameter_structs = NULL;
     }
+
+    set_prefs_changed();
+}
+
+static void
+post_update_someip_parameter_struct_cb(void) {
+    reset_someip_parameter_struct_cb();
+
+    data_someip_parameter_structs = g_hash_table_new_full(g_int64_hash, g_int64_equal, &someip_payload_free_key, &free_someip_parameter_struct);
+    post_update_someip_parameter_struct_read_in_data(someip_parameter_structs, someip_parameter_structs_num, data_someip_parameter_structs);
 }
 
 UAT_HEX_CB_DEF(someip_parameter_unions, id, someip_parameter_union_uat_t)
@@ -1883,34 +1930,34 @@ copy_someip_parameter_union_cb(void *n, const void *o, size_t size _U_) {
 static bool
 update_someip_parameter_union(void *r, char **err) {
     someip_parameter_union_uat_t *rec = (someip_parameter_union_uat_t *)r;
-    gchar                        *tmp;
+    char                         *tmp;
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = ws_strdup_printf("Union name cannot be empty (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     tmp = check_filter_string(rec->filter_string, rec->id);
     if (tmp != NULL) {
         *err = tmp;
-        return FALSE;
+        return false;
     }
 
     if (rec->type_name == NULL || rec->type_name[0] == 0) {
         *err = ws_strdup_printf("Type Name cannot be empty (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     if (rec->data_type == SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_UNION && rec->id == rec->id_ref) {
         *err = ws_strdup_printf("A union cannot include itself (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
-free_someip_parameter_union_cb(void*r) {
+free_someip_parameter_union_cb(void *r) {
     someip_parameter_union_uat_t *rec = (someip_parameter_union_uat_t *)r;
 
     if (rec->name) {
@@ -1930,7 +1977,7 @@ free_someip_parameter_union_cb(void*r) {
 }
 
 static void
-free_someip_parameter_union(gpointer data) {
+free_someip_parameter_union(void *data) {
     someip_parameter_union_t *list = (someip_parameter_union_t *)data;
 
     if (list->items != NULL) {
@@ -1942,10 +1989,10 @@ free_someip_parameter_union(gpointer data) {
 }
 
 static void
-post_update_someip_parameter_union_read_in_data(someip_parameter_union_uat_t *data, guint data_num, GHashTable *ht) {
-    guint           i = 0;
-    guint           j = 0;
-    gint64         *key = NULL;
+post_update_someip_parameter_union_read_in_data(someip_parameter_union_uat_t *data, unsigned data_num, GHashTable *ht) {
+    unsigned        i = 0;
+    unsigned        j = 0;
+    int64_t        *key = NULL;
     someip_parameter_union_t       *list = NULL;
     someip_parameter_union_item_t  *item = NULL;
 
@@ -1954,7 +2001,7 @@ post_update_someip_parameter_union_read_in_data(someip_parameter_union_uat_t *da
     }
 
     for (i = 0; i < data_num; i++) {
-        key = wmem_new(wmem_epan_scope(), gint64);
+        key = wmem_new(wmem_epan_scope(), int64_t);
         *key = data[i].id;
 
         list = (someip_parameter_union_t *)g_hash_table_lookup(ht, key);
@@ -2002,9 +2049,12 @@ static void
 reset_someip_parameter_union_cb(void) {
     /* destroy old hash table, if it exists */
     if (data_someip_parameter_unions) {
+        deregister_dynamic_hf_data(&dynamic_hf_union, &dynamic_hf_union_size);
         g_hash_table_destroy(data_someip_parameter_unions);
         data_someip_parameter_unions = NULL;
     }
+
+    set_prefs_changed();
 }
 
 static void
@@ -2013,7 +2063,6 @@ post_update_someip_parameter_union_cb(void) {
 
     data_someip_parameter_unions = g_hash_table_new_full(g_int64_hash, g_int64_equal, &someip_payload_free_key, &free_someip_parameter_union);
     post_update_someip_parameter_union_read_in_data(someip_parameter_unions, someip_parameter_unions_num, data_someip_parameter_unions);
-    update_dynamic_hf_entries_someip_parameter_unions();
 }
 
 UAT_HEX_CB_DEF(someip_parameter_base_type_list, id, someip_parameter_base_type_list_uat_t)
@@ -2054,31 +2103,31 @@ update_someip_parameter_base_type_list(void *r, char **err) {
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = ws_strdup_printf("Name cannot be empty (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     if (rec->id > 0xffffffff) {
         *err = ws_strdup_printf("We currently only support 32 bit IDs (%i) Name: %s", rec->id, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->bitlength_base_type != 8 && rec->bitlength_base_type != 16 && rec->bitlength_base_type != 32 && rec->bitlength_base_type != 64) {
         *err = ws_strdup_printf("Bit length of base type may only be 8, 16, 32, or 64. Affected item: ID (%i) Name (%s).", rec->id, rec->name);
-        return FALSE;
+        return false;
     }
 
     /* As long as we check that rec->bitlength_base_type equals rec->bitlength_encoded_type, we do not have to check that bitlength_encoded_type is 8, 16, 32, or 64. */
 
     if (rec->bitlength_base_type != rec->bitlength_encoded_type) {
         *err = ws_strdup_printf("Bit length of encoded type must be equal to bit length of base type. Affected item: ID (%i) Name (%s). Shortened types supported by Signal-PDU dissector.", rec->id, rec->name);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
-free_someip_parameter_base_type_list_cb(void*r) {
+free_someip_parameter_base_type_list_cb(void *r) {
     someip_parameter_base_type_list_uat_t *rec = (someip_parameter_base_type_list_uat_t *)r;
 
     if (rec->name) {
@@ -2099,12 +2148,14 @@ reset_someip_parameter_base_type_list_cb(void) {
         g_hash_table_destroy(data_someip_parameter_base_type_list);
         data_someip_parameter_base_type_list = NULL;
     }
+
+    set_prefs_changed();
 }
 
 static void
 post_update_someip_parameter_base_type_list_cb(void) {
-    guint   i;
-    gint64 *key = NULL;
+    unsigned   i;
+    int64_t *key = NULL;
 
     reset_someip_parameter_base_type_list_cb();
 
@@ -2117,7 +2168,7 @@ post_update_someip_parameter_base_type_list_cb(void) {
 
     if (someip_parameter_base_type_list_num > 0) {
         for (i = 0; i < someip_parameter_base_type_list_num; i++) {
-            key = wmem_new(wmem_epan_scope(), gint64);
+            key = wmem_new(wmem_epan_scope(), int64_t);
             *key = someip_parameter_base_type_list[i].id;
 
             g_hash_table_insert(data_someip_parameter_base_type_list, key, &someip_parameter_base_type_list[i]);
@@ -2167,29 +2218,29 @@ update_someip_parameter_string_list(void *r, char **err) {
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = ws_strdup_printf("Name cannot be empty (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
     if (rec->id > 0xffffffff) {
         *err = ws_strdup_printf("We currently only support 32 bit IDs (%i) Name: %s", rec->id, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->max_length > 0xffffffff) {
         *err = ws_strdup_printf("We currently only support 32 bit max_length (%i) Name: %s", rec->max_length, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->length_of_length != 0 && rec->length_of_length != 8 && rec->length_of_length != 16 && rec->length_of_length != 32) {
         *err = ws_strdup_printf("length_of_length can be only 0, 8, 16, or 32 but not %d (IDs: %i Name: %s)", rec->length_of_length, rec->id, rec->name);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
-free_someip_parameter_string_list_cb(void*r) {
+free_someip_parameter_string_list_cb(void *r) {
     someip_parameter_string_uat_t *rec = (someip_parameter_string_uat_t *)r;
 
     if (rec->name) {
@@ -2210,18 +2261,16 @@ reset_someip_parameter_string_list_cb(void) {
         g_hash_table_destroy(data_someip_parameter_strings);
         data_someip_parameter_strings = NULL;
     }
+
+    set_prefs_changed();
 }
 
 static void
 post_update_someip_parameter_string_list_cb(void) {
-    guint   i;
-    gint64 *key = NULL;
+    unsigned   i;
+    int64_t *key = NULL;
 
-    /* destroy old hash table, if it exists */
-    if (data_someip_parameter_strings) {
-        g_hash_table_destroy(data_someip_parameter_strings);
-        data_someip_parameter_strings = NULL;
-    }
+    reset_someip_parameter_string_list_cb();
 
     /* we don't need to free the data as long as we don't alloc it first */
     data_someip_parameter_strings = g_hash_table_new_full(g_int64_hash, g_int64_equal, &someip_payload_free_key, NULL);
@@ -2232,7 +2281,7 @@ post_update_someip_parameter_string_list_cb(void) {
 
     if (someip_parameter_strings_num > 0) {
         for (i = 0; i < someip_parameter_strings_num; i++) {
-            key = wmem_new(wmem_epan_scope(), gint64);
+            key = wmem_new(wmem_epan_scope(), int64_t);
             *key = someip_parameter_strings[i].id;
 
             g_hash_table_insert(data_someip_parameter_strings, key, &someip_parameter_strings[i]);
@@ -2269,19 +2318,19 @@ update_someip_parameter_typedef_list(void *r, char **err) {
 
     if (rec->id > 0xffffffff) {
         *err = ws_strdup_printf("We currently only support 32 bit IDs (%i) Name: %s", rec->id, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->data_type == SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_TYPEDEF && rec->id == rec->id_ref) {
         *err = ws_strdup_printf("A typedef cannot reference itself (ID: 0x%x)!", rec->id);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
-free_someip_parameter_typedef_list_cb(void*r) {
+free_someip_parameter_typedef_list_cb(void *r) {
     someip_parameter_typedef_uat_t *rec = (someip_parameter_typedef_uat_t *)r;
 
     if (rec->name) {
@@ -2297,12 +2346,14 @@ reset_someip_parameter_typedef_list_cb(void) {
         g_hash_table_destroy(data_someip_parameter_typedefs);
         data_someip_parameter_typedefs = NULL;
     }
+
+    set_prefs_changed();
 }
 
 static void
 post_update_someip_parameter_typedef_list_cb(void) {
-    guint   i;
-    gint64 *key = NULL;
+    unsigned   i;
+    int64_t *key = NULL;
 
     reset_someip_parameter_typedef_list_cb();
 
@@ -2316,7 +2367,7 @@ post_update_someip_parameter_typedef_list_cb(void) {
     if (someip_parameter_typedefs_num > 0) {
         for (i = 0; i < someip_parameter_typedefs_num; i++) {
             /* key: ID [32bit] */
-            key = wmem_new(wmem_epan_scope(), gint64);
+            key = wmem_new(wmem_epan_scope(), int64_t);
             *key = someip_parameter_typedefs[i].id;
             g_hash_table_insert(data_someip_parameter_typedefs, key, &someip_parameter_typedefs[i]);
         }
@@ -2325,10 +2376,10 @@ post_update_someip_parameter_typedef_list_cb(void) {
 
 
 static void
-deregister_dynamic_hf_data(hf_register_info **hf_array, guint *hf_size) {
+deregister_dynamic_hf_data(hf_register_info **hf_array, unsigned *hf_size) {
     if (*hf_array) {
         /* Unregister all fields used before */
-        for (guint i = 0; i < *hf_size; i++) {
+        for (unsigned i = 0; i < *hf_size; i++) {
             if ((*hf_array)[i].p_id != NULL) {
                 proto_deregister_field(proto_someip, *((*hf_array)[i].p_id));
                 g_free((*hf_array)[i].p_id);
@@ -2342,7 +2393,7 @@ deregister_dynamic_hf_data(hf_register_info **hf_array, guint *hf_size) {
 }
 
 static void
-allocate_dynamic_hf_data(hf_register_info **hf_array, guint *hf_size, guint new_size) {
+allocate_dynamic_hf_data(hf_register_info **hf_array, unsigned *hf_size, unsigned new_size) {
     *hf_array = g_new0(hf_register_info, new_size);
     *hf_size = new_size;
 }
@@ -2350,12 +2401,12 @@ allocate_dynamic_hf_data(hf_register_info **hf_array, guint *hf_size, guint new_
 typedef struct _param_return_attibutes_t {
     enum ftenum     type;
     int             display_base;
-    gchar          *base_type_name;
+    char           *base_type_name;
 } param_return_attributes_t;
 
 static param_return_attributes_t
-get_param_attributes(guint8 data_type, guint32 id_ref) {
-    gint count = 10;
+get_param_attributes(uint8_t data_type, uint32_t id_ref) {
+    int count = 10;
 
     param_return_attributes_t ret;
     ret.type = FT_NONE;
@@ -2450,18 +2501,18 @@ get_param_attributes(guint8 data_type, guint32 id_ref) {
     return ret;
 }
 
-static gint*
-update_dynamic_hf_entry(hf_register_info *hf_array, int pos, guint32 data_type, guint id_ref, char *param_name, char *filter_string) {
+static int*
+update_dynamic_hf_entry(hf_register_info *hf_array, int pos, uint32_t data_type, unsigned id_ref, char *param_name, char *filter_string) {
     param_return_attributes_t   attribs;
-    gint                       *hf_id;
+    int                        *hf_id;
 
     attribs = get_param_attributes(data_type, id_ref);
     if (hf_array == NULL || attribs.type == FT_NONE) {
         return NULL;
     }
 
-    hf_id = g_new(gint, 1);
-    *hf_id = -1;
+    hf_id = g_new(int, 1);
+    *hf_id = 0;
     hf_array[pos].p_id = hf_id;
 
     hf_array[pos].hfinfo.strings = NULL;
@@ -2484,10 +2535,10 @@ update_dynamic_hf_entry(hf_register_info *hf_array, int pos, guint32 data_type, 
 }
 
 static void
-update_dynamic_param_hf_entry(gpointer key _U_, gpointer value, gpointer data) {
-    guint32                    *pos = (guint32 *)data;
+update_dynamic_param_hf_entry(void *key _U_, void *value, void *data) {
+    uint32_t                   *pos = (uint32_t *)data;
     someip_parameter_list_t    *list = (someip_parameter_list_t *)value;
-    guint                       i = 0;
+    unsigned                    i = 0;
 
     for (i = 0; i < list->num_of_items ; i++) {
         if (*pos >= dynamic_hf_param_size) {
@@ -2505,8 +2556,8 @@ update_dynamic_param_hf_entry(gpointer key _U_, gpointer value, gpointer data) {
 }
 
 static void
-update_dynamic_array_hf_entry(gpointer key _U_, gpointer value, gpointer data) {
-    guint32                    *pos = (guint32 *)data;
+update_dynamic_array_hf_entry(void *key _U_, void *value, void *data) {
+    uint32_t                   *pos = (uint32_t *)data;
     someip_parameter_array_t   *item = (someip_parameter_array_t *)value;
 
     if (*pos >= dynamic_hf_array_size) {
@@ -2521,10 +2572,10 @@ update_dynamic_array_hf_entry(gpointer key _U_, gpointer value, gpointer data) {
 }
 
 static void
-update_dynamic_struct_hf_entry(gpointer key _U_, gpointer value, gpointer data) {
-    guint32                            *pos = (guint32 *)data;
+update_dynamic_struct_hf_entry(void *key _U_, void *value, void *data) {
+    uint32_t                           *pos = (uint32_t *)data;
     someip_payload_parameter_struct_t  *list = (someip_payload_parameter_struct_t *)value;
-    guint                               i = 0;
+    unsigned                            i = 0;
 
     for (i = 0; i < list->num_of_items; i++) {
         if (*pos >= dynamic_hf_struct_size) {
@@ -2541,10 +2592,10 @@ update_dynamic_struct_hf_entry(gpointer key _U_, gpointer value, gpointer data) 
 }
 
 static void
-update_dynamic_union_hf_entry(gpointer key _U_, gpointer value, gpointer data) {
-    guint32                    *pos = (guint32 *)data;
+update_dynamic_union_hf_entry(void *key _U_, void *value, void *data) {
+    uint32_t                   *pos = (uint32_t *)data;
     someip_parameter_union_t   *list = (someip_parameter_union_t *)value;
-    guint                       i = 0;
+    unsigned                    i = 0;
 
     for (i = 0; i < list->num_of_items; i++) {
         if (*pos >= dynamic_hf_union_size) {
@@ -2566,7 +2617,7 @@ update_dynamic_hf_entries_someip_parameter_list(void) {
     if (data_someip_parameter_list != NULL) {
         deregister_dynamic_hf_data(&dynamic_hf_param, &dynamic_hf_param_size);
         allocate_dynamic_hf_data(&dynamic_hf_param, &dynamic_hf_param_size, someip_parameter_list_num);
-        guint32 pos = 0;
+        uint32_t pos = 0;
         g_hash_table_foreach(data_someip_parameter_list, update_dynamic_param_hf_entry, &pos);
         proto_register_field_array(proto_someip, dynamic_hf_param, pos);
     }
@@ -2577,7 +2628,7 @@ update_dynamic_hf_entries_someip_parameter_arrays(void) {
     if (data_someip_parameter_arrays != NULL) {
         deregister_dynamic_hf_data(&dynamic_hf_array, &dynamic_hf_array_size);
         allocate_dynamic_hf_data(&dynamic_hf_array, &dynamic_hf_array_size, someip_parameter_arrays_num);
-        guint32 pos = 0;
+        uint32_t pos = 0;
         g_hash_table_foreach(data_someip_parameter_arrays, update_dynamic_array_hf_entry, &pos);
         proto_register_field_array(proto_someip, dynamic_hf_array, pos);
     }
@@ -2588,7 +2639,7 @@ update_dynamic_hf_entries_someip_parameter_structs(void) {
     if (data_someip_parameter_structs != NULL) {
         deregister_dynamic_hf_data(&dynamic_hf_struct, &dynamic_hf_struct_size);
         allocate_dynamic_hf_data(&dynamic_hf_struct, &dynamic_hf_struct_size, someip_parameter_structs_num);
-        guint32 pos = 0;
+        uint32_t pos = 0;
         g_hash_table_foreach(data_someip_parameter_structs, update_dynamic_struct_hf_entry, &pos);
         proto_register_field_array(proto_someip, dynamic_hf_struct, pos);
     }
@@ -2599,27 +2650,27 @@ update_dynamic_hf_entries_someip_parameter_unions(void) {
     if (data_someip_parameter_unions != NULL) {
         deregister_dynamic_hf_data(&dynamic_hf_union, &dynamic_hf_union_size);
         allocate_dynamic_hf_data(&dynamic_hf_union, &dynamic_hf_union_size, someip_parameter_unions_num);
-        guint32 pos = 0;
+        uint32_t pos = 0;
         g_hash_table_foreach(data_someip_parameter_unions, update_dynamic_union_hf_entry, &pos);
         proto_register_field_array(proto_someip, dynamic_hf_union, pos);
     }
 }
 
 static void
-expert_someip_payload_truncated(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, gint offset, gint length) {
-    proto_tree_add_expert(tree, pinfo, &ef_someip_payload_truncated, tvb, offset, length);
+expert_someip_payload_truncated(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset, int length) {
+    proto_tree_add_expert(tree, pinfo, &ei_someip_payload_truncated, tvb, offset, length);
     col_append_str(pinfo->cinfo, COL_INFO, " [SOME/IP Payload: Truncated payload!]");
 }
 
 static void
-expert_someip_payload_malformed(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, gint offset, gint length) {
-    proto_tree_add_expert(tree, pinfo, &ef_someip_payload_malformed, tvb, offset, length);
+expert_someip_payload_malformed(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset, int length) {
+    proto_tree_add_expert(tree, pinfo, &ei_someip_payload_malformed, tvb, offset, length);
     col_append_str(pinfo->cinfo, COL_INFO, " [SOME/IP Payload: Malformed payload!]");
 }
 
 static void
-expert_someip_payload_config_error(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, gint offset, gint length, const char *message) {
-    proto_tree_add_expert_format(tree, pinfo, &ef_someip_payload_config_error, tvb, offset, length, "SOME/IP Payload: %s", message);
+expert_someip_payload_config_error(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset, int length, const char *message) {
+    proto_tree_add_expert_format(tree, pinfo, &ei_someip_payload_config_error, tvb, offset, length, "SOME/IP Payload: %s", message);
     col_append_str(pinfo->cinfo, COL_INFO, " [SOME/IP Payload: Config Error]");
 }
 
@@ -2629,28 +2680,28 @@ expert_someip_payload_config_error(proto_tree *tree, packet_info *pinfo, tvbuff_
 
 static void
 someip_messages_stats_tree_init(stats_tree *st) {
-    st_node_ip_src = stats_tree_create_node(st, st_str_ip_src, 0, STAT_DT_INT, TRUE);
-    stat_node_set_flags(st, st_str_ip_src, 0, FALSE, ST_FLG_SORT_TOP);
-    st_node_ip_dst = stats_tree_create_node(st, st_str_ip_dst, 0, STAT_DT_INT, TRUE);
+    st_node_ip_src = stats_tree_create_node(st, st_str_ip_src, 0, STAT_DT_INT, true);
+    stat_node_set_flags(st, st_str_ip_src, 0, false, ST_FLG_SORT_TOP);
+    st_node_ip_dst = stats_tree_create_node(st, st_str_ip_dst, 0, STAT_DT_INT, true);
 }
 
 static tap_packet_status
 someip_messages_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_dissect_t *edt _U_, const void *p, tap_flags_t flags _U_) {
-    static gchar tmp_srv_str[128];
-    static gchar tmp_meth_str[128];
-    static gchar tmp_addr_str[128];
+    static char tmp_srv_str[128];
+    static char tmp_meth_str[128];
+    static char tmp_addr_str[128];
     int tmp;
 
     DISSECTOR_ASSERT(p);
     const someip_messages_tap_t *data = (const someip_messages_tap_t *)p;
 
     snprintf(tmp_addr_str, sizeof(tmp_addr_str) - 1, "%s (%s)", address_to_str(pinfo->pool, &pinfo->net_src), address_to_name(&pinfo->net_src));
-    tick_stat_node(st, st_str_ip_src, 0, FALSE);
-    int src_id = tick_stat_node(st, tmp_addr_str, st_node_ip_src, TRUE);
+    tick_stat_node(st, st_str_ip_src, 0, false);
+    int src_id = tick_stat_node(st, tmp_addr_str, st_node_ip_src, true);
 
     snprintf(tmp_addr_str, sizeof(tmp_addr_str) - 1, "%s (%s)", address_to_str(pinfo->pool, &pinfo->net_dst), address_to_name(&pinfo->net_dst));
-    tick_stat_node(st, st_str_ip_dst, 0, FALSE);
-    int dst_id = tick_stat_node(st, tmp_addr_str, st_node_ip_dst, TRUE);
+    tick_stat_node(st, st_str_ip_dst, 0, false);
+    int dst_id = tick_stat_node(st, tmp_addr_str, st_node_ip_dst, true);
 
     char *service_name = someip_lookup_service_name(data->service_id);
     if (service_name == NULL) {
@@ -2668,10 +2719,10 @@ someip_messages_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_disse
             val_to_str(data->message_type, someip_msg_type, "Message-Type: 0x%02x"));
     }
 
-    tmp = tick_stat_node(st, tmp_srv_str, src_id, TRUE);
-    tick_stat_node(st, tmp_meth_str, tmp, FALSE);
-    tmp = tick_stat_node(st, tmp_srv_str, dst_id, TRUE);
-    tick_stat_node(st, tmp_meth_str, tmp, FALSE);
+    tmp = tick_stat_node(st, tmp_srv_str, src_id, true);
+    tick_stat_node(st, tmp_meth_str, tmp, false);
+    tmp = tick_stat_node(st, tmp_srv_str, dst_id, true);
+    tick_stat_node(st, tmp_meth_str, tmp, false);
 
     return TAP_PACKET_REDRAW;
 }
@@ -2681,16 +2732,16 @@ someip_messages_stats_tree_packet(stats_tree *st, packet_info *pinfo, epan_disse
  *******************************************/
 
 static int
-dissect_someip_payload_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset, guint8 data_type, guint32 idref, gchar *name, int *hf_id_ptr, gint wtlv_offset);
+dissect_someip_payload_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, uint8_t data_type, uint32_t idref, char *name, int *hf_id_ptr, int wtlv_offset);
 
 static int
-dissect_someip_payload_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset, someip_payload_parameter_item_t *items, guint32 num_of_items, gboolean wtlv);
+dissect_someip_payload_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, someip_payload_parameter_item_t *items, uint32_t num_of_items, bool wtlv);
 
 /* add a flexible size length field, -1 for error*/
-static gint64
-dissect_someip_payload_length_field(tvbuff_t *tvb, packet_info *pinfo, proto_tree *subtree, gint offset, gint length_of_length_field) {
+static int64_t
+dissect_someip_payload_length_field(tvbuff_t *tvb, packet_info *pinfo, proto_tree *subtree, int offset, int length_of_length_field) {
     proto_item *ti;
-    guint32     tmp = 0;
+    uint32_t    tmp = 0;
 
     switch (length_of_length_field) {
     case 8:
@@ -2706,20 +2757,20 @@ dissect_someip_payload_length_field(tvbuff_t *tvb, packet_info *pinfo, proto_tre
         proto_item_set_hidden(ti);
         break;
     default:
-        proto_tree_add_expert_format(subtree, pinfo, &ef_someip_payload_config_error, tvb, offset, 0,
+        proto_tree_add_expert_format(subtree, pinfo, &ei_someip_payload_config_error, tvb, offset, 0,
             "SOME/IP: Payload: length of length field does not make sense: %d bits", length_of_length_field);
         col_append_str(pinfo->cinfo, COL_INFO, " [SOME/IP: Payload Config Error]");
         return -1;
     }
 
-    return (gint64)tmp;
+    return (int64_t)tmp;
 }
 
 /* add a flexible size type field */
-static gint64
-dissect_someip_payload_type_field(tvbuff_t *tvb, packet_info *pinfo, proto_tree *subtree, gint offset, gint length_of_type_field) {
+static int64_t
+dissect_someip_payload_type_field(tvbuff_t *tvb, packet_info *pinfo, proto_tree *subtree, int offset, int length_of_type_field) {
     proto_item *ti;
-    guint32     tmp = 0;
+    uint32_t    tmp = 0;
 
     switch (length_of_type_field) {
     case 8:
@@ -2735,17 +2786,17 @@ dissect_someip_payload_type_field(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
         proto_item_set_hidden(ti);
         break;
     default:
-        proto_tree_add_expert_format(subtree, pinfo, &ef_someip_payload_config_error, tvb, offset, 0,
+        proto_tree_add_expert_format(subtree, pinfo, &ei_someip_payload_config_error, tvb, offset, 0,
             "SOME/IP: Payload: length of type field does not make sense: %d bits", length_of_type_field);
         col_append_str(pinfo->cinfo, COL_INFO, " [SOME/IP: Payload Config Error]");
         return -1;
     }
 
-    return (gint64)tmp;
+    return (int64_t)tmp;
 }
 
-static guint32
-dissect_someip_payload_add_wtlv_if_needed(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_item *ti_root, proto_tree *parent_tree) {
+static uint32_t
+dissect_someip_payload_add_wtlv_if_needed(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_item *ti_root, proto_tree *parent_tree) {
     static int * const tag_bitfield[] = {
         &hf_payload_wtlv_tag_res,
         &hf_payload_wtlv_tag_wire_type,
@@ -2762,11 +2813,11 @@ dissect_someip_payload_add_wtlv_if_needed(tvbuff_t *tvb, packet_info *pinfo _U_,
         tree = proto_item_add_subtree(ti_root, ett_someip_parameter);
     }
 
-    guint64 tagdata = 0;
+    uint64_t tagdata = 0;
     proto_item *ti = proto_tree_add_bitmask_ret_uint64(tree, tvb, offset, hf_payload_wtlv_tag, ett_someip_wtlv_tag, tag_bitfield, ENC_BIG_ENDIAN, &tagdata);
     proto_item_set_hidden(ti);
 
-    guint wiretype = (guint)((tagdata & SOMEIP_WTLV_MASK_WIRE_TYPE) >> 12);
+    unsigned wiretype = (unsigned)((tagdata & SOMEIP_WTLV_MASK_WIRE_TYPE) >> 12);
 
     switch (wiretype) {
     case 5:
@@ -2780,28 +2831,28 @@ dissect_someip_payload_add_wtlv_if_needed(tvbuff_t *tvb, packet_info *pinfo _U_,
     }
 }
 
-static gint
-dissect_someip_payload_base_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, gint offset, guint8 data_type, guint32 id, gchar *name, int *hf_id_ptr, gint wtlv_offset) {
+static int
+dissect_someip_payload_base_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, uint8_t data_type, uint32_t id, char *name, int *hf_id_ptr, int wtlv_offset) {
     someip_payload_parameter_base_type_list_t  *base_type = NULL;
     someip_payload_parameter_enum_t            *enum_config = NULL;
 
-    guint32     basetype_id = 0;
-    guint32     enum_id = 0;
+    uint32_t    basetype_id = 0;
+    uint32_t    enum_id = 0;
 
-    gint        param_length = -1;
+    int         param_length = -1;
 
     proto_item *ti = NULL;
 
-    guint64     value = 0;
-    guint32     value32 = 0;
-    gboolean    value_set = FALSE;
+    uint64_t    value = 0;
+    uint32_t    value32 = 0;
+    bool        value_set = false;
 
-    guint32     i = 0;
-    gchar      *value_name = NULL;
+    uint32_t    i = 0;
+    char       *value_name = NULL;
 
-    gboolean    big_endian = TRUE;
+    bool        big_endian = true;
 
-    int         hf_id = -1;
+    int         hf_id = 0;
 
     if (hf_id_ptr != NULL) {
         hf_id = *hf_id_ptr;
@@ -2829,21 +2880,21 @@ dissect_someip_payload_base_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
     }
 
     big_endian = base_type->big_endian;
-    param_length = (gint)((base_type->bitlength_base_type) / 8);
+    param_length = (int)((base_type->bitlength_base_type) / 8);
 
     if (param_length > tvb_captured_length_remaining(tvb, 0) - offset) {
         return 0;
     }
 
-    if (hf_id != -1) {
+    if (hf_id > 0) {
         if (strncmp(base_type->data_type, "uint", 4) == 0) {
             if (base_type->bitlength_base_type > 32) {
                 ti = proto_tree_add_item_ret_uint64(tree, hf_id, tvb, offset, param_length, big_endian ? ENC_BIG_ENDIAN : ENC_LITTLE_ENDIAN, &value);
             } else {
                 ti = proto_tree_add_item_ret_uint(tree, hf_id, tvb, offset, param_length, big_endian ? ENC_BIG_ENDIAN : ENC_LITTLE_ENDIAN, &value32);
-                value = (guint64)value32;
+                value = (uint64_t)value32;
             }
-            value_set = TRUE;
+            value_set = true;
         } else {
             ti = proto_tree_add_item(tree, hf_id, tvb, offset, param_length, big_endian ? ENC_BIG_ENDIAN : ENC_LITTLE_ENDIAN);
         }
@@ -2857,7 +2908,7 @@ dissect_someip_payload_base_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 
     dissect_someip_payload_add_wtlv_if_needed(tvb, pinfo, wtlv_offset, ti, NULL);
 
-    if (enum_config != NULL && value_set == TRUE) {
+    if (enum_config != NULL && value_set == true) {
         for (i = 0; i < enum_config->num_of_items; i++) {
             if (enum_config->items[i].value == value) {
                 value_name = enum_config->items[i].name;
@@ -2873,19 +2924,19 @@ dissect_someip_payload_base_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 }
 
 static int
-dissect_someip_payload_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset, guint32 id, gchar *name, int *hf_id_ptr, gint wtlv_offset) {
+dissect_someip_payload_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, uint32_t id, char *name, int *hf_id_ptr, int wtlv_offset) {
     someip_payload_parameter_string_t *config = NULL;
 
-    guint8     *buf = NULL;
-    guint32     i = 0;
+    uint8_t    *buf = NULL;
+    uint32_t    i = 0;
 
     proto_item *ti = NULL;
     proto_tree *subtree = NULL;
-    gint64      tmp = 0;
-    guint32     length = 0;
-    gint        offset_orig = offset;
+    int64_t     tmp = 0;
+    uint32_t    length = 0;
+    int         offset_orig = offset;
 
-    guint       str_encoding = 0;
+    unsigned    str_encoding = 0;
     int         hf_id = hf_payload_str_string;
 
     if (hf_id_ptr != NULL) {
@@ -2905,7 +2956,7 @@ dissect_someip_payload_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     }
 
     subtree = proto_item_add_subtree(ti, ett_someip_string);
-    guint32 length_of_length = dissect_someip_payload_add_wtlv_if_needed(tvb, pinfo, wtlv_offset, ti, NULL);
+    uint32_t length_of_length = dissect_someip_payload_add_wtlv_if_needed(tvb, pinfo, wtlv_offset, ti, NULL);
 
     /* WTLV length overrides configured length */
     if (config->length_of_length == 0 && length_of_length == 0) {
@@ -2915,7 +2966,7 @@ dissect_someip_payload_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             length_of_length = config->length_of_length;
         }
 
-        if (tvb_captured_length_remaining(tvb, offset) < (gint)(length_of_length >> 3)) {
+        if (tvb_captured_length_remaining(tvb, offset) < (int)(length_of_length >> 3)) {
             expert_someip_payload_malformed(tree, pinfo, tvb, offset, 0);
             return 0;
         }
@@ -2925,11 +2976,11 @@ dissect_someip_payload_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             /* error */
             return length_of_length / 8;
         }
-        length = (guint32)tmp;
+        length = (uint32_t)tmp;
         offset += length_of_length / 8;
     }
 
-    if ((guint32)tvb_captured_length_remaining(tvb, offset) < length) {
+    if ((uint32_t)tvb_captured_length_remaining(tvb, offset) < length) {
         expert_someip_payload_malformed(subtree, pinfo, tvb, offset, 0);
         return 0;
     }
@@ -2945,7 +2996,7 @@ dissect_someip_payload_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     buf = tvb_get_string_enc(pinfo->pool, tvb, offset, length, str_encoding);
 
     /* sanitizing buffer */
-    if (str_encoding & ENC_ASCII || str_encoding & ENC_UTF_8) {
+    if ((str_encoding == (ENC_ASCII | ENC_NA)) || (str_encoding & ENC_UTF_8)) {
         for (i = 0; i < length; i++) {
             if (buf[i] > 0x00 && buf[i] < 0x20) {
                 buf[i] = 0x20;
@@ -2963,15 +3014,15 @@ dissect_someip_payload_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
 static int
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_someip_payload_struct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset_orig, guint32 id, gchar *name, gint wtlv_offset) {
+dissect_someip_payload_struct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset_orig, uint32_t id, char *name, int wtlv_offset) {
     someip_payload_parameter_struct_t *config = NULL;
 
     proto_tree *subtree = NULL;
     proto_item *ti = NULL;
     tvbuff_t   *subtvb = tvb;
 
-    gint64      length = 0;
-    gint        offset = offset_orig;
+    int64_t     length = 0;
+    int         offset = offset_orig;
 
     config = get_struct_config(id);
 
@@ -2986,14 +3037,14 @@ dissect_someip_payload_struct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     }
 
     subtree = proto_item_add_subtree(ti, ett_someip_struct);
-    guint32 length_of_length = dissect_someip_payload_add_wtlv_if_needed(tvb, pinfo, wtlv_offset, ti, subtree);
+    uint32_t length_of_length = dissect_someip_payload_add_wtlv_if_needed(tvb, pinfo, wtlv_offset, ti, subtree);
 
     /* WTLV length overrides configured length */
     if (length_of_length == 0) {
         length_of_length = config->length_of_length;
     }
 
-    if (tvb_captured_length_remaining(tvb, 0) < (gint)(length_of_length >> 3)) {
+    if (tvb_captured_length_remaining(tvb, 0) < (int)(length_of_length >> 3)) {
         expert_someip_payload_malformed(tree, pinfo, tvb, offset, 0);
         return 0;
     };
@@ -3005,7 +3056,7 @@ dissect_someip_payload_struct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             return length_of_length / 8;
         }
         offset += length_of_length / 8;
-        int endpos = offset_orig + (length_of_length / 8) + (guint32)length;
+        int endpos = offset_orig + (length_of_length / 8) + (uint32_t)length;
         proto_item_set_end(ti, tvb, endpos);
         subtvb = tvb_new_subset_length(tvb, 0, endpos);
     }
@@ -3017,13 +3068,13 @@ dissect_someip_payload_struct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
         return offset - offset_orig;
     } else {
-        return (length_of_length / 8) + (guint32)length;
+        return (length_of_length / 8) + (uint32_t)length;
     }
 }
 
 static int
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_someip_payload_typedef(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset, guint32 id, gchar *name _U_, int *hf_id, gint wtlv_offset) {
+dissect_someip_payload_typedef(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, uint32_t id, char *name _U_, int *hf_id, int wtlv_offset) {
     someip_payload_parameter_typedef_t *config = NULL;
 
     config = get_typedef_config(id);
@@ -3033,15 +3084,15 @@ dissect_someip_payload_typedef(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
     }
 
     /* we basically skip over the typedef for now */
-    return dissect_someip_payload_parameter(tvb, pinfo, tree, offset, (guint8)config->data_type, config->id_ref, config->name, hf_id, wtlv_offset);
+    return dissect_someip_payload_parameter(tvb, pinfo, tree, offset, (uint8_t)config->data_type, config->id_ref, config->name, hf_id, wtlv_offset);
 }
 
-/* returns bytes parsed, length needs to be gint to encode "non-existing" as -1 */
+/* returns bytes parsed, length needs to be int to encode "non-existing" as -1 */
 static int
-dissect_someip_payload_array_dim_length(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset_orig, gint *length, gint *lower_limit, gint *upper_limit,
-    someip_parameter_array_t *config, gint current_dim, guint32 length_of_length) {
-    gint    offset = offset_orig;
-    gint64  tmp = 0;
+dissect_someip_payload_array_dim_length(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset_orig, int *length, int *lower_limit, int *upper_limit,
+    someip_parameter_array_t *config, int current_dim, uint32_t length_of_length) {
+    int     offset = offset_orig;
+    int64_t tmp = 0;
 
     *lower_limit = config->dims[current_dim].lower_limit;
     *upper_limit = config->dims[current_dim].upper_limit;
@@ -3059,12 +3110,12 @@ dissect_someip_payload_array_dim_length(tvbuff_t *tvb, packet_info *pinfo, proto
             /* leave *length = -1 */
             return length_of_length/8;
         }
-        *length = (gint32)tmp;
+        *length = (int32_t)tmp;
         offset += length_of_length/8;
     } else {
         /* without a length field, the number of elements needs be fixed */
         if (config->dims[current_dim].lower_limit != config->dims[current_dim].upper_limit) {
-            proto_tree_add_expert_format(tree, pinfo, &ef_someip_payload_static_array_min_not_max, tvb, offset_orig, 0,
+            proto_tree_add_expert_format(tree, pinfo, &ei_someip_payload_static_array_min_not_max, tvb, offset_orig, 0,
                 "Static array config with Min!=Max (%d, %d)", config->dims[current_dim].lower_limit, config->dims[current_dim].upper_limit);
             col_append_str(pinfo->cinfo, COL_INFO, " [SOME/IP Payload: Static array config with Min!=Max!]");
 
@@ -3075,16 +3126,16 @@ dissect_someip_payload_array_dim_length(tvbuff_t *tvb, packet_info *pinfo, proto
     return offset - offset_orig;
 }
 
-/* returns bytes parsed, length needs to be gint to encode "non-existing" as -1 */
-static gint
+/* returns bytes parsed, length needs to be int to encode "non-existing" as -1 */
+static int
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_someip_payload_array_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset_orig, gint length, gint lower_limit, gint upper_limit,
+dissect_someip_payload_array_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset_orig, int length, int lower_limit, int upper_limit,
     someip_parameter_array_t *config) {
     tvbuff_t   *subtvb = NULL;
-    guint32     offset = offset_orig;
-    guint32     bytes_parsed = 0;
-    guint32     ret = 0;
-    gint        count = 0;
+    uint32_t    offset = offset_orig;
+    uint32_t    bytes_parsed = 0;
+    uint32_t    ret = 0;
+    int         count = 0;
 
     if (length != -1) {
         if (length <= tvb_captured_length_remaining(tvb, offset)) {
@@ -3099,8 +3150,8 @@ dissect_someip_payload_array_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tr
         subtvb = tvb;
     }
 
-    while ((length == -1 && count < upper_limit) || ((gint)offset < length)) {
-        bytes_parsed = dissect_someip_payload_parameter(subtvb, pinfo, tree, offset, (guint8)config->data_type, config->id_ref, config->name, config->hf_id, -1);
+    while ((length == -1 && count < upper_limit) || ((int)offset < length)) {
+        bytes_parsed = dissect_someip_payload_parameter(subtvb, pinfo, tree, offset, (uint8_t)config->data_type, config->id_ref, config->name, config->hf_id, -1);
         if (bytes_parsed == 0) {
             /* does this make sense? */
             return 1;
@@ -3110,7 +3161,7 @@ dissect_someip_payload_array_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tr
     }
 
     if (count<lower_limit && count>upper_limit) {
-        proto_tree_add_expert_format(tree, pinfo, &ef_someip_payload_dyn_array_not_within_limit, tvb, offset_orig, length,
+        proto_tree_add_expert_format(tree, pinfo, &ei_someip_payload_dyn_array_not_within_limit, tvb, offset_orig, length,
             "Number of items (%d) outside limit %d-%d", count, lower_limit, upper_limit);
         col_append_str(pinfo->cinfo, COL_INFO, " [SOME/IP Payload: Dynamic array does not stay between Min and Max values]");
     }
@@ -3125,25 +3176,25 @@ dissect_someip_payload_array_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tr
     return ret;
 }
 
-static gint
+static int
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_someip_payload_array_dim(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset_orig, gint length, gint lower_limit, gint upper_limit, someip_parameter_array_t *config, guint current_dim, gchar *name, guint32 length_of_length) {
+dissect_someip_payload_array_dim(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset_orig, int length, int lower_limit, int upper_limit, someip_parameter_array_t *config, unsigned current_dim, char *name, uint32_t length_of_length) {
     proto_item *ti = NULL;
     proto_tree *subtree = NULL;
-    gint        sub_length = 0;
-    gint        sub_lower_limit = 0;
-    gint        sub_upper_limit = 0;
-    gint        i = 0;
+    int         sub_length = 0;
+    int         sub_lower_limit = 0;
+    int         sub_upper_limit = 0;
+    int         i = 0;
 
-    gint        sub_offset = 0;
-    gint        offset = offset_orig;
+    int         sub_offset = 0;
+    int         offset = offset_orig;
 
     if (config->num_of_dims == current_dim + 1) {
         /* only payload left. :) */
         offset += dissect_someip_payload_array_payload(tvb, pinfo, tree, offset, length, lower_limit, upper_limit, config);
     } else {
         if (length != -1) {
-            while (offset < offset_orig + (gint)length) {
+            while (offset < offset_orig + (int)length) {
                 sub_offset = offset;
 
                 ti = proto_tree_add_string_format(tree, hf_payload_str_array, tvb, sub_offset, 0, name, "subarray (dim: %d, limit %d-%d)", current_dim + 1, sub_lower_limit, sub_upper_limit);
@@ -3151,7 +3202,7 @@ dissect_someip_payload_array_dim(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 
                 offset += dissect_someip_payload_array_dim_length(tvb, pinfo, subtree, offset, &sub_length, &sub_lower_limit, &sub_upper_limit, config, current_dim + 1, length_of_length);
 
-                if (tvb_captured_length_remaining(tvb, offset) < (gint)sub_length) {
+                if (tvb_captured_length_remaining(tvb, offset) < (int)sub_length) {
                     expert_someip_payload_truncated(subtree, pinfo, tvb, offset, tvb_captured_length_remaining(tvb, offset));
                     return 0;
                 }
@@ -3176,18 +3227,18 @@ dissect_someip_payload_array_dim(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 
 static int
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_someip_payload_array(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset_orig, guint32 id, gchar *name, gint wtlv_offset) {
+dissect_someip_payload_array(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset_orig, uint32_t id, char *name, int wtlv_offset) {
     someip_parameter_array_t *config = NULL;
 
     proto_tree *subtree;
     proto_item *ti = NULL;
 
-    gint        offset = offset_orig;
+    int         offset = offset_orig;
 
-    gint        length = 0;
-    gint        size_of_length = 0;
-    gint        lower_limit = 0;
-    gint        upper_limit = 0;
+    int         length = 0;
+    int         size_of_length = 0;
+    int         lower_limit = 0;
+    int         upper_limit = 0;
 
     config = get_array_config(id);
 
@@ -3202,7 +3253,7 @@ dissect_someip_payload_array(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 
     ti = proto_tree_add_string_format(tree, hf_payload_str_array, tvb, offset, 0, config->name, "array %s", name);
     subtree = proto_item_add_subtree(ti, ett_someip_array);
-    guint32 length_of_length = dissect_someip_payload_add_wtlv_if_needed(tvb, pinfo, wtlv_offset, ti, subtree);
+    uint32_t length_of_length = dissect_someip_payload_add_wtlv_if_needed(tvb, pinfo, wtlv_offset, ti, subtree);
 
     offset += dissect_someip_payload_array_dim_length(tvb, pinfo, subtree, offset_orig, &length, &lower_limit, &upper_limit, config, 0, length_of_length);
     size_of_length = offset - offset_orig;
@@ -3228,7 +3279,7 @@ dissect_someip_payload_array(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 
 static int
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_someip_payload_union(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset_orig, guint32 id, gchar *name, gint wtlv_offset) {
+dissect_someip_payload_union(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset_orig, uint32_t id, char *name, int wtlv_offset) {
     someip_parameter_union_t        *config = NULL;
     someip_parameter_union_item_t   *item = NULL;
 
@@ -3236,15 +3287,15 @@ dissect_someip_payload_union(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     proto_tree *subtree = NULL;
 
     tvbuff_t   *subtvb;
-    gint        buf_length = -1;
+    int         buf_length = -1;
 
-    gint64      tmp = 0;
-    guint32     length = 0;
-    guint32     type = 0;
+    int64_t     tmp = 0;
+    uint32_t    length = 0;
+    uint32_t    type = 0;
 
-    guint32     i = 0;
+    uint32_t    i = 0;
 
-    gint        offset = offset_orig;
+    int         offset = offset_orig;
 
     config = get_union_config(id);
     buf_length = tvb_captured_length_remaining(tvb, 0);
@@ -3261,13 +3312,13 @@ dissect_someip_payload_union(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     }
 
     subtree = proto_item_add_subtree(ti, ett_someip_union);
-    guint32 length_of_length = dissect_someip_payload_add_wtlv_if_needed(tvb, pinfo, wtlv_offset, ti, subtree);
+    uint32_t length_of_length = dissect_someip_payload_add_wtlv_if_needed(tvb, pinfo, wtlv_offset, ti, subtree);
 
     if (length_of_length == 0) {
         length_of_length = config->length_of_length;
     }
 
-    if ((length_of_length + config->length_of_type) / 8 > (guint)buf_length - offset) {
+    if ((length_of_length + config->length_of_type) / 8 > (unsigned)buf_length - offset) {
         expert_someip_payload_truncated(tree, pinfo, tvb, offset, tvb_captured_length_remaining(tvb, offset));
         return 0;
     }
@@ -3276,14 +3327,14 @@ dissect_someip_payload_union(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     if (tmp == -1) {
         return offset - offset_orig;
     } else {
-        length = (guint32)tmp;
+        length = (uint32_t)tmp;
     }
 
     tmp = dissect_someip_payload_type_field(tvb, pinfo, subtree, offset_orig + length_of_length / 8, config->length_of_type);
     if (tmp == -1) {
         return offset - offset_orig;
     } else {
-        type = (guint32)tmp;
+        type = (uint32_t)tmp;
     }
 
     offset += (length_of_length + config->length_of_type) / 8;
@@ -3298,7 +3349,7 @@ dissect_someip_payload_union(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 
     if (item != NULL) {
         subtvb = tvb_new_subset_length(tvb, offset, length);
-        dissect_someip_payload_parameter(subtvb, pinfo, subtree, 0, (guint8)item->data_type, item->id_ref, item->name, item->hf_id, -1);
+        dissect_someip_payload_parameter(subtvb, pinfo, subtree, 0, (uint8_t)item->data_type, item->id_ref, item->name, item->hf_id, -1);
     } else {
         expert_someip_payload_config_error(tree, pinfo, tvb, offset, 0, "Union type not configured");
     }
@@ -3308,8 +3359,8 @@ dissect_someip_payload_union(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 
 static int
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_someip_payload_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset, guint8 data_type, guint32 idref, gchar *name, int *hf_id_ptr, gint wtlv_offset) {
-    gint bytes_parsed = 0;
+dissect_someip_payload_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, uint8_t data_type, uint32_t idref, char *name, int *hf_id_ptr, int wtlv_offset) {
+    int bytes_parsed = 0;
 
     increment_dissection_depth(pinfo);
     switch (data_type) {
@@ -3333,7 +3384,7 @@ dissect_someip_payload_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
         bytes_parsed = dissect_someip_payload_union(tvb, pinfo, tree, offset, idref, name, wtlv_offset);
         break;
     default:
-        proto_tree_add_expert_format(tree, pinfo, &ef_someip_payload_config_error, tvb, offset, 0,
+        proto_tree_add_expert_format(tree, pinfo, &ei_someip_payload_config_error, tvb, offset, 0,
             "SOME/IP: Payload: item->data_type (0x%x) unknown/not implemented yet! name: %s, id_ref: 0x%x",
             data_type, name, idref);
         col_append_str(pinfo->cinfo, COL_INFO, " [SOME/IP: Payload Config Error]");
@@ -3347,16 +3398,16 @@ dissect_someip_payload_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 /*
  * returns <0 for errors
  */
-static int dissect_someip_payload_peek_length_of_length(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, gint offset, gint length, someip_payload_parameter_item_t *item) {
+static int dissect_someip_payload_peek_length_of_length(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset, int length, someip_payload_parameter_item_t *item) {
     if (item == NULL) {
         return -1;
     }
 
-    guint32 data_type = item->data_type;
-    guint32 id_ref    = item->id_ref;
+    uint32_t data_type = item->data_type;
+    uint32_t id_ref    = item->id_ref;
 
     /* a config error could cause an endless loop, so we limit the number of indirections with loop_limit */
-    gint loop_limit = 255;
+    int loop_limit = 255;
     while (data_type == SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_TYPEDEF && loop_limit > 0) {
         someip_payload_parameter_typedef_t *tmp = get_typedef_config(id_ref);
         data_type = tmp->data_type;
@@ -3377,7 +3428,6 @@ static int dissect_someip_payload_peek_length_of_length(proto_tree *tree, packet
         }
 
         return tmp_string_config->length_of_length;
-        break;
 
     case SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_ARRAY:
         tmp_array_config = get_array_config(id_ref);
@@ -3391,7 +3441,6 @@ static int dissect_someip_payload_peek_length_of_length(proto_tree *tree, packet
         }
 
         return tmp_array_config->dims[0].length_of_length;
-        break;
 
     case SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_STRUCT:
         tmp_struct_config = get_struct_config(id_ref);
@@ -3400,7 +3449,6 @@ static int dissect_someip_payload_peek_length_of_length(proto_tree *tree, packet
         }
 
         return tmp_struct_config->length_of_length;
-        break;
 
     case SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_UNION:
         tmp_union_config = get_union_config(id_ref);
@@ -3409,23 +3457,22 @@ static int dissect_someip_payload_peek_length_of_length(proto_tree *tree, packet
         }
 
         return tmp_union_config->length_of_length;
-        break;
 
     case SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_TYPEDEF:
     case SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_BASE_TYPE:
     case SOMEIP_PAYLOAD_PARAMETER_DATA_TYPE_ENUM:
     default:
-        /* This happends only if configuration or message are buggy. */
+        /* This happens only if configuration or message are buggy. */
         return -2;
     }
 }
 
 static int
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_someip_payload_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset, someip_payload_parameter_item_t *items, guint32 num_of_items, gboolean wtlv) {
+dissect_someip_payload_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, someip_payload_parameter_item_t *items, uint32_t num_of_items, bool wtlv) {
     someip_payload_parameter_item_t *item;
 
-    gint      offset_orig = offset;
+    int       offset_orig = offset;
 
     if (items == NULL && !someip_deserializer_wtlv_default) {
         return 0;
@@ -3433,9 +3480,9 @@ dissect_someip_payload_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 
     if (wtlv) {
         while (tvb_captured_length_remaining(tvb, offset) >= 2) {
-            guint64 tagdata = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
-            guint wiretype = (tagdata & SOMEIP_WTLV_MASK_WIRE_TYPE) >> 12;
-            guint param_id = tagdata & SOMEIP_WTLV_MASK_DATA_ID;
+            uint64_t tagdata = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
+            unsigned wiretype = (tagdata & SOMEIP_WTLV_MASK_WIRE_TYPE) >> 12;
+            unsigned param_id = tagdata & SOMEIP_WTLV_MASK_DATA_ID;
             offset += 2;
 
             if (param_id < num_of_items && items != NULL) {
@@ -3444,7 +3491,7 @@ dissect_someip_payload_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
                 item = NULL;
             }
 
-            guint param_length = 0;
+            unsigned param_length = 0;
             switch (wiretype) {
 
             /* fixed length type with just 1, 2, 4, or 8 byte length */
@@ -3461,13 +3508,13 @@ dissect_someip_payload_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 
                 switch (dissect_someip_payload_peek_length_of_length(tree, pinfo, tvb, offset - 2, 0, item)) {
                 case 8:
-                    param_length = 1 + tvb_get_guint8(tvb, offset);
+                    param_length = 1 + tvb_get_uint8(tvb, offset);
                     break;
                 case 16:
-                    param_length = 2 + tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+                    param_length = 2 + tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
                     break;
                 case 32:
-                    param_length = 4 + tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+                    param_length = 4 + tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
                     break;
                 default:
                     expert_someip_payload_config_error(tree, pinfo, tvb, offset - 2, 2, "WTLV type 4 but datatype has not an appropriate length field configured");
@@ -3476,13 +3523,13 @@ dissect_someip_payload_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
                 break;
 
             case 5:
-                param_length = 1 + tvb_get_guint8(tvb, offset);
+                param_length = 1 + tvb_get_uint8(tvb, offset);
                 break;
             case 6:
-                param_length = 2 + tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+                param_length = 2 + tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
                 break;
             case 7:
-                param_length = 4 + tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+                param_length = 4 + tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
                 break;
 
             default:
@@ -3493,7 +3540,7 @@ dissect_someip_payload_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 
             tvbuff_t *subtvb = tvb_new_subset_length(tvb, offset - 2, param_length + 2);
             if (item != NULL) {
-                dissect_someip_payload_parameter(subtvb, pinfo, tree, 2, (guint8)item->data_type, item->id_ref, item->name, item->hf_id, 0);
+                dissect_someip_payload_parameter(subtvb, pinfo, tree, 2, (uint8_t)item->data_type, item->id_ref, item->name, item->hf_id, 0);
             } else {
                 proto_item *ti = proto_tree_add_item(tree, hf_payload_unparsed, subtvb, 2, param_length, ENC_NA);
                 dissect_someip_payload_add_wtlv_if_needed(tvb, pinfo, offset - 2, ti, NULL);
@@ -3504,10 +3551,10 @@ dissect_someip_payload_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
         if (items == NULL) {
             return 0;
         }
-        guint32 i;
+        uint32_t i;
         for (i = 0; i < num_of_items; i++) {
             item = &(items[i]);
-            offset += dissect_someip_payload_parameter(tvb, pinfo, tree, offset, (guint8)item->data_type, item->id_ref, item->name, item->hf_id, -1);
+            offset += dissect_someip_payload_parameter(tvb, pinfo, tree, offset, (uint8_t)item->data_type, item->id_ref, item->name, item->hf_id, -1);
         }
     }
 
@@ -3515,11 +3562,11 @@ dissect_someip_payload_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 }
 
 static void
-dissect_someip_payload(tvbuff_t* tvb, packet_info* pinfo, proto_item *ti, guint16 serviceid, guint16 methodid, guint8 version, guint8 msgtype) {
+dissect_someip_payload(tvbuff_t* tvb, packet_info* pinfo, proto_item *ti, uint16_t serviceid, uint16_t methodid, uint8_t version, uint8_t msgtype) {
     someip_parameter_list_t* paramlist = NULL;
 
-    gint        length = -1;
-    gint        offset = 0;
+    int         length = -1;
+    int         offset = 0;
 
     proto_tree *tree = NULL;
 
@@ -3529,7 +3576,7 @@ dissect_someip_payload(tvbuff_t* tvb, packet_info* pinfo, proto_item *ti, guint1
 
     if (paramlist == NULL) {
         if (someip_deserializer_wtlv_default) {
-            offset += dissect_someip_payload_parameters(tvb, pinfo, tree, offset, NULL, 0, TRUE);
+            offset += dissect_someip_payload_parameters(tvb, pinfo, tree, offset, NULL, 0, true);
         } else {
             return;
         }
@@ -3548,19 +3595,19 @@ dissect_someip_payload(tvbuff_t* tvb, packet_info* pinfo, proto_item *ti, guint1
 
 static int
 dissect_someip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_) {
-    guint32         offset = 0;
-    guint32         someip_messageid = 0;
-    guint32         someip_serviceid = 0;
-    guint32         someip_methodid = 0;
-    guint32         someip_clientid = 0;
-    guint32         someip_sessionid = 0;
-    guint32         someip_length = 0;
-    const gchar    *service_description = NULL;
-    const gchar    *method_description = NULL;
-    const gchar    *client_description = NULL;
+    uint32_t        offset = 0;
+    uint32_t        someip_messageid = 0;
+    uint32_t        someip_serviceid = 0;
+    uint32_t        someip_methodid = 0;
+    uint32_t        someip_clientid = 0;
+    uint32_t        someip_sessionid = 0;
+    uint32_t        someip_length = 0;
+    const char     *service_description = NULL;
+    const char     *method_description = NULL;
+    const char     *client_description = NULL;
     someip_info_t   someip_data = SOMEIP_INFO_T_INIT;
 
-    guint32         someip_payload_length = 0;
+    uint32_t        someip_payload_length = 0;
     tvbuff_t       *subtvb = NULL;
 
     proto_item     *ti = NULL;
@@ -3568,21 +3615,15 @@ dissect_someip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
     proto_tree     *someip_tree = NULL;
     proto_tree     *msgtype_tree = NULL;
 
-    guint32         protocol_version = 0;
-    guint32         version = 0;
-    guint32         msgtype = 0;
-    gboolean        msgtype_ack = FALSE;
-    gboolean        msgtype_tp = FALSE;
-    guint32         retcode = 0;
+    uint32_t        protocol_version = 0;
+    uint32_t        version = 0;
+    uint32_t        msgtype = 0;
+    bool            msgtype_ack = false;
+    bool            msgtype_tp = false;
+    uint32_t        retcode = 0;
     int             tmp = 0;
 
-    gint            tvb_length = tvb_captured_length_remaining(tvb, offset);
-
-    static int * const someip_tp_flags[] = {
-        &hf_someip_tp_reserved,
-        &hf_someip_tp_more_segments,
-        NULL
-    };
+    int             tvb_length = tvb_captured_length_remaining(tvb, offset);
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, SOMEIP_NAME);
     col_set_str(pinfo->cinfo, COL_INFO, SOMEIP_NAME_LONG);
@@ -3629,7 +3670,7 @@ dissect_someip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
 
     /* this checks if value of the header field */
     if (someip_length < 8) {
-        expert_add_info_format(pinfo, ti_someip, &ef_someip_incomplete_headers, "%s", "SOME/IP length too short (<8 Bytes)!");
+        expert_add_info_format(pinfo, ti_someip, &ei_someip_incomplete_headers, "%s", "SOME/IP length too short (<8 Bytes)!");
         return tvb_length;
     }
 
@@ -3647,8 +3688,8 @@ dissect_someip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
     proto_item_append_text(ti_someip, " (Service ID: 0x%04x, Method ID: 0x%04x, Length: %i)", someip_serviceid, someip_methodid, someip_length);
 
     /* check if we have bytes for the rest of the header */
-    if (tvb_length < 0 || offset + 8 > (guint32)tvb_length) {
-        expert_add_info_format(pinfo, ti_someip, &ef_someip_incomplete_headers, "%s", "SOME/IP not enough buffer bytes for header!");
+    if (tvb_length < 0 || offset + 8 > (uint32_t)tvb_length) {
+        expert_add_info_format(pinfo, ti_someip, &ei_someip_incomplete_headers, "%s", "SOME/IP not enough buffer bytes for header!");
         return tvb_length;
     }
 
@@ -3672,7 +3713,7 @@ dissect_someip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
     /* Protocol Version*/
     ti = proto_tree_add_item_ret_uint(someip_tree, hf_someip_protover, tvb, offset, 1, ENC_BIG_ENDIAN, &protocol_version);
     if (protocol_version!=SOMEIP_PROTOCOL_VERSION) {
-        expert_add_info(pinfo, ti, &ef_someip_unknown_version);
+        expert_add_info(pinfo, ti, &ei_someip_unknown_version);
     }
     offset += 1;
 
@@ -3700,29 +3741,31 @@ dissect_someip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
     offset += 1;
 
     /* lets figure out what we have for the rest */
-    if (((guint32)tvb_length >= (someip_length + 8)) ) {
+    if (((uint32_t)tvb_length >= (someip_length + 8)) ) {
         someip_payload_length = someip_length - SOMEIP_HDR_PART1_LEN;
     } else {
         someip_payload_length = tvb_length - SOMEIP_HDR_LEN;
-        expert_add_info(pinfo, ti_someip, &ef_someip_message_truncated);
+        expert_add_info(pinfo, ti_someip, &ei_someip_message_truncated);
     }
 
     /* Is this a SOME/IP-TP segment? */
     if (msgtype_tp) {
-        guint32         tp_offset = 0;
-        gboolean        tp_more_segments = FALSE;
-        gboolean        update_col_info = TRUE;
+        uint32_t        tp_offset = 0;
+        bool            tp_more_segments = false;
+        bool            update_col_info = true;
         fragment_head  *someip_tp_head = NULL;
         proto_tree     *tp_tree = NULL;
 
         ti = proto_tree_add_item(someip_tree, hf_someip_tp, tvb, offset, someip_payload_length, ENC_NA);
         tp_tree = proto_item_add_subtree(ti, ett_someip_tp);
 
-        tp_offset = (tvb_get_ntohl(tvb, offset) & SOMEIP_TP_OFFSET_MASK);
-        tp_more_segments = ((tvb_get_ntohl(tvb, offset) & SOMEIP_TP_OFFSET_MASK_MORE_SEGMENTS) != 0);
-        /* Why can I not mask an FT_UINT32 without it being shifted. :( . */
-        proto_tree_add_uint(tp_tree, hf_someip_tp_offset, tvb, offset, 4, tp_offset);
-        proto_tree_add_bitmask_with_flags(tp_tree, tvb, offset, hf_someip_tp_flags, ett_someip_tp_flags, someip_tp_flags, ENC_BIG_ENDIAN, BMT_NO_TFS | BMT_NO_INT);
+        /* Unfortunately, with a bitmask set the value is always shifted and cannot be set directly. */
+        proto_tree_add_item_ret_uint(tp_tree, hf_someip_tp_offset_encoded, tvb, offset, 4, ENC_BIG_ENDIAN, &tp_offset);
+        tp_offset <<= 4;
+        proto_tree_add_item(tp_tree, hf_someip_tp_reserved, tvb, offset, 4, ENC_BIG_ENDIAN);
+        proto_tree_add_item_ret_boolean(tp_tree, hf_someip_tp_more_segments, tvb, offset, 4, ENC_BIG_ENDIAN, &tp_more_segments);
+        ti = proto_tree_add_uint(tp_tree, hf_someip_tp_offset, tvb, offset, 4, tp_offset);
+        PROTO_ITEM_SET_GENERATED(ti);
         offset += 4;
 
         proto_tree_add_item(tp_tree, hf_someip_payload, tvb, offset, someip_payload_length - SOMEIP_TP_HDR_LEN, ENC_NA);
@@ -3741,24 +3784,24 @@ dissect_someip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
         /* TAP */
         if (have_tap_listener(tap_someip_messages)) {
             someip_messages_tap_t *stats_data = wmem_alloc(pinfo->pool, sizeof(someip_messages_tap_t));
-            stats_data->service_id = (guint16)someip_serviceid;
-            stats_data->method_id = (guint16)someip_methodid;
-            stats_data->interface_version = (guint8)version;
-            stats_data->message_type = (guint8)(~SOMEIP_MSGTYPE_TP_MASK) & msgtype;
+            stats_data->service_id = (uint16_t)someip_serviceid;
+            stats_data->method_id = (uint16_t)someip_methodid;
+            stats_data->interface_version = (uint8_t)version;
+            stats_data->message_type = (uint8_t)(~SOMEIP_MSGTYPE_TP_MASK) & msgtype;
 
             tap_queue_packet(tap_someip_messages, pinfo, stats_data);
         }
 
         tvb_length = tvb_captured_length_remaining(subtvb, 0);
         if (tvb_length > 0) {
-            tmp = dissector_try_uint_new(someip_dissector_table, someip_messageid, subtvb, pinfo, tree, FALSE, &someip_data);
+            tmp = dissector_try_uint_new(someip_dissector_table, someip_messageid, subtvb, pinfo, tree, false, &someip_data);
 
             /* if no subdissector was found, the generic payload dissector takes over. */
             if (tmp==0) {
                 ti = proto_tree_add_item(someip_tree, hf_someip_payload, subtvb, 0, tvb_length, ENC_NA);
 
                 if (someip_deserializer_activated) {
-                    dissect_someip_payload(subtvb, pinfo, ti, (guint16)someip_serviceid, (guint16)someip_methodid, (guint8)version, (guint8)(~SOMEIP_MSGTYPE_TP_MASK)&msgtype);
+                    dissect_someip_payload(subtvb, pinfo, ti, (uint16_t)someip_serviceid, (uint16_t)someip_methodid, (uint8_t)version, (uint8_t)(~SOMEIP_MSGTYPE_TP_MASK)&msgtype);
                 } else {
                     proto_tree* payload_dissection_disabled_info_sub_tree = proto_item_add_subtree(ti, ett_someip_payload);
                     proto_tree_add_text_internal(payload_dissection_disabled_info_sub_tree, subtvb, 0, tvb_length, "Dissection of payload is disabled. It can be enabled via protocol preferences.");
@@ -3770,18 +3813,18 @@ dissect_someip_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
     return SOMEIP_HDR_LEN + someip_payload_length;
 }
 
-static guint
+static unsigned
 get_someip_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_) {
-    return SOMEIP_HDR_PART1_LEN + (guint)tvb_get_ntohl(tvb, offset + 4);
+    return SOMEIP_HDR_PART1_LEN + (unsigned)tvb_get_ntohl(tvb, offset + 4);
 }
 
 static int
 dissect_someip_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, SOMEIP_HDR_PART1_LEN, get_someip_message_len, dissect_someip_message, data);
+    tcp_dissect_pdus(tvb, pinfo, tree, true, SOMEIP_HDR_PART1_LEN, get_someip_message_len, dissect_someip_message, data);
     return tvb_reported_length(tvb);
 }
 
-static gboolean
+static bool
 could_this_be_dtls(tvbuff_t *tvb) {
     /* Headers compared
      *
@@ -3805,7 +3848,7 @@ could_this_be_dtls(tvbuff_t *tvb) {
      * 15   | Return Code | ...
      * 16   | ...         | ...
      */
-    gint length = tvb_captured_length_remaining(tvb, 0);
+    int length = tvb_captured_length_remaining(tvb, 0);
 
     /* DTLS header is 13 bytes. */
     if (length < 13) {
@@ -3813,24 +3856,24 @@ could_this_be_dtls(tvbuff_t *tvb) {
         return false;
     }
 
-    guint8 dtls_content_type = tvb_get_guint8(tvb, 0);
-    guint16 dtls_version = tvb_get_guint16(tvb, 1, ENC_BIG_ENDIAN);
-    guint16 dtls_length = tvb_get_guint16(tvb, 11, ENC_BIG_ENDIAN);
+    uint8_t dtls_content_type = tvb_get_uint8(tvb, 0);
+    uint16_t dtls_version = tvb_get_uint16(tvb, 1, ENC_BIG_ENDIAN);
+    uint16_t dtls_length = tvb_get_uint16(tvb, 11, ENC_BIG_ENDIAN);
 
-    gboolean dtls_possible = (20 <= dtls_content_type) && (dtls_content_type <= 63) &&
+    bool dtls_possible = (20 <= dtls_content_type) && (dtls_content_type <= 63) &&
                              (0xfefc <= dtls_version) && (dtls_version <= 0xfeff) &&
-                             ((guint32)length == (guint32)dtls_length + 13);
+                             ((uint32_t)length == (uint32_t)dtls_length + 13);
 
     if (dtls_possible && length < SOMEIP_HDR_LEN) {
         return true;
     }
 
-    guint32 someip_length = tvb_get_guint32(tvb, 4, ENC_BIG_ENDIAN);
-    guint8 someip_version = tvb_get_guint8(tvb, 12);
+    uint32_t someip_length = tvb_get_uint32(tvb, 4, ENC_BIG_ENDIAN);
+    uint8_t someip_version = tvb_get_uint8(tvb, 12);
 
     /* typically this is 1500 bytes or less on UDP but being conservative */
-    gboolean someip_possible = (someip_version == 1) && (8 <= someip_length) && (someip_length <= 65535) &&
-                               ((guint32)length == someip_length + 8);
+    bool someip_possible = (someip_version == 1) && (8 <= someip_length) && (someip_length <= 65535) &&
+                               ((uint32_t)length == someip_length + 8);
 
     return dtls_possible && !someip_possible;
 }
@@ -3839,7 +3882,7 @@ static int
 dissect_someip_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
     if (someip_detect_dtls && could_this_be_dtls(tvb)) {
         if (!PINFO_FD_VISITED(pinfo)) {
-            dissector_add_uint("dtls.port", (guint16)pinfo->destport, someip_handle_udp);
+            dissector_add_uint("dtls.port", (uint16_t)pinfo->destport, someip_handle_udp);
         }
 
         if (dtls_handle != 0) {
@@ -3850,44 +3893,43 @@ dissect_someip_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
     return udp_dissect_pdus(tvb, pinfo, tree, SOMEIP_HDR_PART1_LEN, NULL, get_someip_message_len, dissect_someip_message, data);
 }
 
-static gboolean
+static bool
 test_someip(packet_info *pinfo _U_, tvbuff_t *tvb, int offset _U_, void *data _U_) {
     if (tvb_captured_length(tvb) < SOMEIP_HDR_LEN) {
-        return FALSE;
+        return false;
     }
 
-    if (tvb_get_guint32(tvb, 4, ENC_BIG_ENDIAN) < 8) {
-        return FALSE;
+    if (tvb_get_uint32(tvb, 4, ENC_BIG_ENDIAN) < 8) {
+        return false;
     }
 
-    if ((tvb_get_guint8(tvb, 12)) != SOMEIP_PROTOCOL_VERSION) {
-        return FALSE;
+    if ((tvb_get_uint8(tvb, 12)) != SOMEIP_PROTOCOL_VERSION) {
+        return false;
     }
 
-    if (!try_val_to_str((tvb_get_guint8(tvb, 14) & ~SOMEIP_MSGTYPE_TP_MASK), someip_msg_type)) {
-        return FALSE;
+    if (!try_val_to_str((tvb_get_uint8(tvb, 14) & ~SOMEIP_MSGTYPE_TP_MASK), someip_msg_type)) {
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
-static gboolean
+static bool
 dissect_some_ip_heur_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
     if (test_someip(pinfo, tvb, 0, data)) {
-        tcp_dissect_pdus(tvb, pinfo, tree, TRUE, SOMEIP_HDR_PART1_LEN, get_someip_message_len, dissect_someip_message, data);
-        return TRUE;
+        tcp_dissect_pdus(tvb, pinfo, tree, true, SOMEIP_HDR_PART1_LEN, get_someip_message_len, dissect_someip_message, data);
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
-static gboolean
+static bool
 dissect_some_ip_heur_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
     return (udp_dissect_pdus(tvb, pinfo, tree, SOMEIP_HDR_PART1_LEN, test_someip, get_someip_message_len, dissect_someip_message, data) != 0);
 }
 
 void
 proto_register_someip(void) {
-    module_t        *someip_module;
     expert_module_t *expert_module_someip;
 
     uat_t *someip_service_uat;
@@ -3962,6 +4004,9 @@ proto_register_someip(void) {
         { &hf_someip_tp_offset,
             { "Offset", "someip.tp.offset",
             FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_someip_tp_offset_encoded,
+            { "Encoded Offset", "someip.tp.offset_encoded",
+            FT_UINT32, BASE_HEX, NULL, SOMEIP_TP_OFFSET_MASK, NULL, HFILL }},
         { &hf_someip_tp_flags,
             { "Flags", "someip.tp.flags",
             FT_UINT32, BASE_HEX, NULL, SOMEIP_TP_OFFSET_MASK_FLAGS, NULL, HFILL }},
@@ -3980,16 +4025,16 @@ proto_register_someip(void) {
             FT_FRAMENUM, BASE_NONE, NULL, 0x00, NULL, HFILL } },
         {&hf_someip_tp_fragment_overlap,
             {"SOME/IP-TP segment overlap", "someip.tp.fragment.overlap",
-            FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL } },
+            FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL } },
         {&hf_someip_tp_fragment_overlap_conflicts,
             {"SOME/IP-TP segment overlapping with conflicting data", "someip.tp.fragment.overlap.conflicts",
-            FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL } },
+            FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL } },
         {&hf_someip_tp_fragment_multiple_tails,
             {"SOME/IP-TP Message has multiple tail fragments", "someip.tp.fragment.multiple_tails",
-            FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL } },
+            FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL } },
         {&hf_someip_tp_fragment_too_long_fragment,
             {"SOME/IP-TP segment too long", "someip.tp.fragment.too_long_fragment",
-            FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL } },
+            FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL } },
         {&hf_someip_tp_fragment_error,
             {"SOME/IP-TP Message defragmentation error", "someip.tp.fragment.error",
             FT_FRAMENUM, BASE_NONE, NULL, 0x00, NULL, HFILL } },
@@ -4059,11 +4104,10 @@ proto_register_someip(void) {
             FT_UINT16, BASE_DEC, NULL, SOMEIP_WTLV_MASK_DATA_ID, NULL, HFILL } },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_someip,
         &ett_someip_msgtype,
         &ett_someip_tp,
-        &ett_someip_tp_flags,
         &ett_someip_tp_fragment,
         &ett_someip_tp_fragments,
 
@@ -4216,24 +4260,24 @@ proto_register_someip(void) {
     };
 
     static ei_register_info ei[] = {
-        { &ef_someip_unknown_version,{ "someip.unknown_protocol_version",
+        { &ei_someip_unknown_version,{ "someip.unknown_protocol_version",
           PI_PROTOCOL, PI_WARN, "SOME/IP Unknown Protocol Version!", EXPFILL } },
-        { &ef_someip_message_truncated,{ "someip.message_truncated",
+        { &ei_someip_message_truncated,{ "someip.message_truncated",
           PI_MALFORMED, PI_ERROR, "SOME/IP Truncated message!", EXPFILL } },
-        { &ef_someip_incomplete_headers,{ "someip.incomplete_headers",
+        { &ei_someip_incomplete_headers,{ "someip.incomplete_headers",
           PI_MALFORMED, PI_ERROR, "SOME/IP Incomplete headers or some bytes left over!", EXPFILL } },
 
-        { &ef_someip_payload_truncated, {"someip.payload.expert_truncated",
+        { &ei_someip_payload_truncated, {"someip.payload.expert_truncated",
           PI_MALFORMED, PI_ERROR, "SOME/IP Payload: Truncated payload!", EXPFILL} },
-        { &ef_someip_payload_malformed, {"someip.payload.expert_malformed",
+        { &ei_someip_payload_malformed, {"someip.payload.expert_malformed",
           PI_MALFORMED, PI_ERROR, "SOME/IP Payload: Malformed payload!", EXPFILL} },
-        { &ef_someip_payload_config_error, {"someip.payload.expert_config_error",
+        { &ei_someip_payload_config_error, {"someip.payload.expert_config_error",
          PI_MALFORMED, PI_ERROR, "SOME/IP Payload: Config Error!", EXPFILL} },
-        { &ef_someip_payload_alignment_error, {"someip.payload.expert_alignment_error",
+        { &ei_someip_payload_alignment_error, {"someip.payload.expert_alignment_error",
           PI_MALFORMED, PI_ERROR, "SOME/IP Payload: SOME/IP datatype must be align to a byte!", EXPFILL} },
-        { &ef_someip_payload_static_array_min_not_max, {"someip.payload.expert_static_array_min_max",
+        { &ei_someip_payload_static_array_min_not_max, {"someip.payload.expert_static_array_min_max",
           PI_MALFORMED, PI_ERROR, "SOME/IP Payload: Static array with min!=max!", EXPFILL} },
-        { &ef_someip_payload_dyn_array_not_within_limit, {"someip.payload.expert_dyn_array_not_within_limit",
+        { &ei_someip_payload_dyn_array_not_within_limit, {"someip.payload.expert_dyn_array_not_within_limit",
           PI_MALFORMED, PI_WARN, "SOME/IP Payload: Dynamic array does not stay between Min and Max values!", EXPFILL} },
     };
 
@@ -4261,13 +4305,13 @@ proto_register_someip(void) {
     someip_service_uat = uat_new("SOME/IP Services",
         sizeof(generic_one_id_string_t),                   /* record size           */
         DATAFILE_SOMEIP_SERVICES,                          /* filename              */
-        TRUE,                                              /* from profile          */
+        true,                                              /* from profile          */
         (void **) &someip_service_ident,                   /* data_ptr              */
         &someip_service_ident_num,                         /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                            /* but not fields        */
         NULL,                                              /* help                  */
         copy_generic_one_id_string_cb,                     /* copy callback         */
-        update_generic_one_identifier_16bit,               /* update callback       */
+        update_serviceid,                                  /* update callback       */
         free_generic_one_id_string_cb,                     /* free callback         */
         post_update_someip_service_cb,                     /* post update callback  */
         reset_someip_service_cb,                           /* reset callback        */
@@ -4280,13 +4324,13 @@ proto_register_someip(void) {
     someip_method_uat = uat_new("SOME/IP Methods/Events/Fields",
         sizeof(generic_two_id_string_t),                    /* record size           */
         DATAFILE_SOMEIP_METHODS,                            /* filename              */
-        TRUE,                                               /* from profile          */
+        true,                                               /* from profile          */
         (void **) &someip_method_ident,                     /* data_ptr              */
         &someip_method_ident_num,                           /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                             /* but not fields        */
         NULL,                                               /* help                  */
         copy_generic_two_id_string_cb,                      /* copy callback         */
-        update_generic_two_identifier_16bit,                /* update callback       */
+        update_two_identifier_16bit_check_both,             /* update callback       */
         free_generic_two_id_string_cb,                      /* free callback         */
         post_update_someip_method_cb,                       /* post update callback  */
         reset_someip_method_cb,                             /* reset callback        */
@@ -4299,13 +4343,13 @@ proto_register_someip(void) {
     someip_eventgroup_uat = uat_new("SOME/IP Eventgroups",
         sizeof(generic_two_id_string_t),                   /* record size           */
         DATAFILE_SOMEIP_EVENTGROUPS,                       /* filename              */
-        TRUE,                                              /* from profile          */
+        true,                                              /* from profile          */
         (void **) &someip_eventgroup_ident,                /* data_ptr              */
         &someip_eventgroup_ident_num,                      /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                            /* but not fields        */
         NULL,                                              /* help                  */
         copy_generic_two_id_string_cb,                     /* copy callback         */
-        update_generic_two_identifier_16bit,               /* update callback       */
+        update_two_identifier_16bit_check_both,            /* update callback       */
         free_generic_two_id_string_cb,                     /* free callback         */
         post_update_someip_eventgroup_cb,                  /* post update callback  */
         reset_someip_eventgroup_cb,                        /* reset callback        */
@@ -4318,7 +4362,7 @@ proto_register_someip(void) {
     someip_client_uat = uat_new("SOME/IP Clients",
         sizeof(generic_two_id_string_t),                   /* record size           */
         DATAFILE_SOMEIP_CLIENTS,                           /* filename              */
-        TRUE,                                              /* from profile          */
+        true,                                              /* from profile          */
         (void **)&someip_client_ident,                     /* data_ptr              */
         &someip_client_ident_num,                          /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                            /* but not fields        */
@@ -4337,7 +4381,7 @@ proto_register_someip(void) {
     someip_parameter_list_uat = uat_new("SOME/IP Parameter List",
         sizeof(someip_parameter_list_uat_t),               /* record size           */
         DATAFILE_SOMEIP_PARAMETERS,                        /* filename              */
-        TRUE,                                              /* from profile          */
+        true,                                              /* from profile          */
         (void **)&someip_parameter_list,                   /* data_ptr              */
         &someip_parameter_list_num,                        /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION | UAT_AFFECTS_FIELDS,
@@ -4374,7 +4418,7 @@ proto_register_someip(void) {
     someip_parameter_arrays_uat = uat_new("SOME/IP Parameter Arrays",
         sizeof(someip_parameter_array_uat_t),              /* record size           */
         DATAFILE_SOMEIP_ARRAYS,                            /* filename              */
-        TRUE,                                              /* from profile          */
+        true,                                              /* from profile          */
         (void **)&someip_parameter_arrays,                 /* data_ptr              */
         &someip_parameter_arrays_num,                      /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION | UAT_AFFECTS_FIELDS,
@@ -4393,7 +4437,7 @@ proto_register_someip(void) {
     someip_parameter_structs_uat = uat_new("SOME/IP Parameter Structs",
         sizeof(someip_parameter_struct_uat_t),             /* record size           */
         DATAFILE_SOMEIP_STRUCTS,                           /* filename              */
-        TRUE,                                              /* from profile          */
+        true,                                              /* from profile          */
         (void **)&someip_parameter_structs,                /* data_ptr              */
         &someip_parameter_structs_num,                     /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION | UAT_AFFECTS_FIELDS,
@@ -4412,7 +4456,7 @@ proto_register_someip(void) {
     someip_parameter_unions_uat = uat_new("SOME/IP Parameter Unions",
         sizeof(someip_parameter_union_uat_t),              /* record size           */
         DATAFILE_SOMEIP_UNIONS,                            /* filename              */
-        TRUE,                                              /* from profile          */
+        true,                                              /* from profile          */
         (void **)&someip_parameter_unions,                 /* data_ptr              */
         &someip_parameter_unions_num,                      /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION | UAT_AFFECTS_FIELDS,
@@ -4431,7 +4475,7 @@ proto_register_someip(void) {
     someip_parameter_enums_uat = uat_new("SOME/IP Parameter Enums",
         sizeof(someip_parameter_enum_uat_t),               /* record size           */
         DATAFILE_SOMEIP_ENUMS,                             /* filename              */
-        TRUE,                                              /* from profile          */
+        true,                                              /* from profile          */
         (void **)&someip_parameter_enums,                  /* data_ptr              */
         &someip_parameter_enums_num,                       /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                            /* but not fields        */
@@ -4450,7 +4494,7 @@ proto_register_someip(void) {
     someip_parameter_base_type_list_uat = uat_new("SOME/IP Parameter Base Type List",
         sizeof(someip_parameter_base_type_list_uat_t),     /* record size           */
         DATAFILE_SOMEIP_BASE_TYPES,                        /* filename              */
-        TRUE,                                              /* from profile          */
+        true,                                              /* from profile          */
         (void **)&someip_parameter_base_type_list,         /* data_ptr              */
         &someip_parameter_base_type_list_num,              /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                            /* but not fields        */
@@ -4469,7 +4513,7 @@ proto_register_someip(void) {
     someip_parameter_strings_uat = uat_new("SOME/IP Parameter String List",
         sizeof(someip_parameter_string_uat_t),             /* record size           */
         DATAFILE_SOMEIP_STRINGS,                           /* filename              */
-        TRUE,                                              /* from profile          */
+        true,                                              /* from profile          */
         (void **)&someip_parameter_strings,                /* data_ptr              */
         &someip_parameter_strings_num,                     /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                            /* but not fields        */
@@ -4488,7 +4532,7 @@ proto_register_someip(void) {
     someip_parameter_typedefs_uat = uat_new("SOME/IP Parameter Typedef List",
         sizeof(someip_parameter_typedef_uat_t),            /* record size           */
         DATAFILE_SOMEIP_TYPEDEFS,                          /* filename              */
-        TRUE,                                              /* from profile          */
+        true,                                              /* from profile          */
         (void **)&someip_parameter_typedefs,               /* data_ptr              */
         &someip_parameter_typedefs_num,                    /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                            /* but not fields        */
@@ -4562,7 +4606,7 @@ clean_all_hashtables_with_empty_uat(void) {
 
 void
 proto_reg_handoff_someip(void) {
-    static gboolean initialized = FALSE;
+    static bool initialized = false;
 
     if (!initialized) {
         /* add support for (D)TLS decode as */
@@ -4579,7 +4623,7 @@ proto_reg_handoff_someip(void) {
 
         dtls_handle = find_dissector("dtls");
 
-        initialized = TRUE;
+        initialized = true;
     } else {
         clean_all_hashtables_with_empty_uat();
     }

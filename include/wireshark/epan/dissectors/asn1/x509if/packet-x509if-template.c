@@ -16,6 +16,7 @@
 #include <epan/asn1.h>
 #include <epan/proto_data.h>
 #include <epan/strutil.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-dap.h"
@@ -31,29 +32,29 @@ void proto_register_x509if(void);
 void proto_reg_handoff_x509if(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_x509if = -1;
-static int hf_x509if_object_identifier_id = -1;
-static int hf_x509if_any_string = -1;
+static int proto_x509if;
+static int hf_x509if_object_identifier_id;
+static int hf_x509if_any_string;
 #include "packet-x509if-hf.c"
 
 /* Initialize the subtree pointers */
 #include "packet-x509if-ett.c"
 
-static proto_tree *top_of_dn = NULL;
-static proto_tree *top_of_rdn = NULL;
+static proto_tree *top_of_dn;
+static proto_tree *top_of_rdn;
 
-static gboolean rdn_one_value = FALSE; /* have we seen one value in an RDN yet */
-static gboolean dn_one_rdn = FALSE; /* have we seen one RDN in a DN yet */
-static gboolean doing_attr = FALSE;
+static bool rdn_one_value; /* have we seen one value in an RDN yet */
+static bool dn_one_rdn; /* have we seen one RDN in a DN yet */
+static bool doing_attr;
 
-static wmem_strbuf_t *last_dn_buf = NULL;
-static wmem_strbuf_t *last_rdn_buf = NULL;
+static wmem_strbuf_t *last_dn_buf;
+static wmem_strbuf_t *last_rdn_buf;
 
 static int ava_hf_index;
 #define MAX_FMT_VALS   32
 static value_string fmt_vals[MAX_FMT_VALS];
 #define MAX_AVA_STR_LEN   64
-static char *last_ava = NULL;
+static char *last_ava;
 
 static void
 x509if_frame_end(void)
@@ -61,9 +62,9 @@ x509if_frame_end(void)
   top_of_dn = NULL;
   top_of_rdn = NULL;
 
-  rdn_one_value = FALSE;
-  dn_one_rdn = FALSE;
-  doing_attr = FALSE;
+  rdn_one_value = false;
+  dn_one_rdn = false;
+  doing_attr = false;
 
   last_dn_buf = NULL;
   last_rdn_buf = NULL;
@@ -77,7 +78,7 @@ const char * x509if_get_last_dn(void)
   return last_dn_buf ? wmem_strbuf_get_str(last_dn_buf) : NULL;
 }
 
-gboolean x509if_register_fmt(int hf_index, const gchar *fmt)
+bool x509if_register_fmt(int hf_index, const char *fmt)
 {
   static int idx = 0;
 
@@ -91,10 +92,10 @@ gboolean x509if_register_fmt(int hf_index, const gchar *fmt)
     fmt_vals[idx].value = 0;
     fmt_vals[idx].strptr = NULL;
 
-    return TRUE;
+    return true;
 
   } else
-    return FALSE; /* couldn't register it */
+    return false; /* couldn't register it */
 
 }
 
@@ -119,7 +120,7 @@ void proto_register_x509if(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 #include "packet-x509if-ettarr.c"
   };
 

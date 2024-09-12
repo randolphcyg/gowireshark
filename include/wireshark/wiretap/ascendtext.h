@@ -10,6 +10,7 @@
 #ifndef __ASCENDTEXT_H__
 #define __ASCENDTEXT_H__
 #include <glib.h>
+#include "wtap.h"
 
 /*
  * ASCEND_MAX_PKT_LEN is < WTAP_MAX_PACKET_SIZE_STANDARD, so we don't need to
@@ -19,6 +20,6 @@
 #define ASCEND_MAX_DATA_COLS 16
 #define ASCEND_MAX_PKT_LEN (ASCEND_MAX_DATA_ROWS * ASCEND_MAX_DATA_COLS)
 
-wtap_open_return_val ascend_open(wtap *wth, int *err, gchar **err_info);
+wtap_open_return_val ascend_open(wtap *wth, int *err, char **err_info);
 
 #endif

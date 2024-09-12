@@ -21,6 +21,7 @@
 #include "config.h"
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/unit_strings.h>
 #include "packet-tcp.h"
 
 /* N.B. IANA has these ports registered for hdl-srv (name from original RFC) */
@@ -36,206 +37,205 @@ void proto_reg_handoff_do_irp(void);
 static dissector_handle_t do_irp_handle_udp;
 static dissector_handle_t do_irp_handle_tcp;
 
-static int proto_do_irp = -1;
-expert_module_t* expert_do_irp;
+static int proto_do_irp;
 
 /* Fields Generic */
-static int hf_do_irp_string_len = -1;
-static int hf_do_irp_string_value = -1;
-static int hf_do_irp_data_len = -1;
-static int hf_do_irp_data_value = -1;
+static int hf_do_irp_string_len;
+static int hf_do_irp_string_value;
+static int hf_do_irp_data_len;
+static int hf_do_irp_data_value;
 
 /* Fields Message Envelope */
-static int hf_do_irp_envelope = -1;
-static int hf_do_irp_version_major = -1;
-static int hf_do_irp_version_minor = -1;
-static int hf_do_irp_flags = -1;
-static int hf_do_irp_flag_cp = -1;
-static int hf_do_irp_flag_ec = -1;
-static int hf_do_irp_flag_tc = -1;
-static int hf_do_irp_version_major_sugg = -1;
-static int hf_do_irp_version_minor_sugg = -1;
-static int hf_do_irp_sessid = -1;
-static int hf_do_irp_reqid = -1;
-static int hf_do_irp_seq = -1;
-static int hf_do_irp_msglen = -1;
+static int hf_do_irp_envelope;
+static int hf_do_irp_version_major;
+static int hf_do_irp_version_minor;
+static int hf_do_irp_flags;
+static int hf_do_irp_flag_cp;
+static int hf_do_irp_flag_ec;
+static int hf_do_irp_flag_tc;
+static int hf_do_irp_version_major_sugg;
+static int hf_do_irp_version_minor_sugg;
+static int hf_do_irp_sessid;
+static int hf_do_irp_reqid;
+static int hf_do_irp_seq;
+static int hf_do_irp_msglen;
 
 /* Fields Message Header */
-static int hf_do_irp_header = -1;
-static int hf_do_irp_opcode = -1;
-static int hf_do_irp_responsecode = -1;
-static int hf_do_irp_opflags = -1;
-static int hf_do_irp_opflags_at = -1;
-static int hf_do_irp_opflags_ct = -1;
-static int hf_do_irp_opflags_enc = -1;
-static int hf_do_irp_opflags_rec = -1;
-static int hf_do_irp_opflags_ca = -1;
-static int hf_do_irp_opflags_cn = -1;
-static int hf_do_irp_opflags_kc = -1;
-static int hf_do_irp_opflags_po = -1;
-static int hf_do_irp_opflags_rd = -1;
-static int hf_do_irp_opflags_owe = -1;
-static int hf_do_irp_opflags_mns = -1;
-static int hf_do_irp_opflags_dnr = -1;
-static int hf_do_irp_sisn = -1;
-static int hf_do_irp_rcount = -1;
-static int hf_do_irp_expiration = -1;
-static int hf_do_irp_bodylen = -1;
+static int hf_do_irp_header;
+static int hf_do_irp_opcode;
+static int hf_do_irp_responsecode;
+static int hf_do_irp_opflags;
+static int hf_do_irp_opflags_at;
+static int hf_do_irp_opflags_ct;
+static int hf_do_irp_opflags_enc;
+static int hf_do_irp_opflags_rec;
+static int hf_do_irp_opflags_ca;
+static int hf_do_irp_opflags_cn;
+static int hf_do_irp_opflags_kc;
+static int hf_do_irp_opflags_po;
+static int hf_do_irp_opflags_rd;
+static int hf_do_irp_opflags_owe;
+static int hf_do_irp_opflags_mns;
+static int hf_do_irp_opflags_dnr;
+static int hf_do_irp_sisn;
+static int hf_do_irp_rcount;
+static int hf_do_irp_expiration;
+static int hf_do_irp_bodylen;
 
 /* Fields Message Body */
-static int hf_do_irp_body = -1;
-static int hf_do_irp_digest_algo = -1;
-static int hf_do_irp_digest = -1;
-static int hf_do_irp_error_msg = -1;
-static int hf_do_irp_error_idxcount = -1;
-static int hf_do_irp_error_idx = -1;
-static int hf_do_irp_ident = -1;
-static int hf_do_irp_idxcount = -1;
-static int hf_do_irp_idx = -1;
-static int hf_do_irp_typecount = -1;
-static int hf_do_irp_type = -1;
-static int hf_do_irp_identcount = -1;
-static int hf_do_irp_identrecord = -1;
-static int hf_do_irp_identrecord_idx = -1;
-static int hf_do_irp_identrecord_type = -1;
-static int hf_do_irp_identrecord_value = -1;
-static int hf_do_irp_identrecord_value_string = -1;
-static int hf_do_irp_identrecord_value_len = -1;
-static int hf_do_irp_identrecord_perm = -1;
-static int hf_do_irp_identrecord_perm_pw = -1;
-static int hf_do_irp_identrecord_perm_pr = -1;
-static int hf_do_irp_identrecord_perm_aw = -1;
-static int hf_do_irp_identrecord_perm_ar = -1;
-static int hf_do_irp_identrecord_ttl_type = -1;
-static int hf_do_irp_identrecord_ttl = -1;
-static int hf_do_irp_identrecord_ttl_absolute = -1;
-static int hf_do_irp_identrecord_ts = -1;
-static int hf_do_irp_identrecord_ts_utc = -1;
-static int hf_do_irp_identrecord_refcount = -1;
-static int hf_do_irp_identrecord_ref = -1;
-static int hf_do_irp_hsadmin_perm = -1;
-static int hf_do_irp_hsadmin_perm_ai = -1;
-static int hf_do_irp_hsadmin_perm_di = -1;
-static int hf_do_irp_hsadmin_perm_adp = -1;
-static int hf_do_irp_hsadmin_perm_me = -1;
-static int hf_do_irp_hsadmin_perm_de = -1;
-static int hf_do_irp_hsadmin_perm_ae = -1;
-static int hf_do_irp_hsadmin_perm_ma = -1;
-static int hf_do_irp_hsadmin_perm_ra = -1;
-static int hf_do_irp_hsadmin_perm_aa = -1;
-static int hf_do_irp_hsadmin_perm_ar = -1;
-static int hf_do_irp_hsadmin_perm_li = -1;
-static int hf_do_irp_hsadmin_perm_ldp = -1;
-static int hf_do_irp_hsadmin_idx = -1;
-static int hf_do_irp_hsadmin_ident = -1;
-static int hf_do_irp_body_hssite_version = -1;
-static int hf_do_irp_hssite_protoversion_major = -1;
-static int hf_do_irp_hssite_protoversion_minor = -1;
-static int hf_do_irp_hssite_serial = -1;
-static int hf_do_irp_hssite_primask = -1;
-static int hf_do_irp_hssite_primask_pri = -1;
-static int hf_do_irp_hssite_primask_multi = -1;
-static int hf_do_irp_hssite_hashoption = -1;
-static int hf_do_irp_hssite_hashfilter = -1;
-static int hf_do_irp_hssite_attr_count = -1;
-static int hf_do_irp_hssite_attr = -1;
-static int hf_do_irp_hssite_attr_key = -1;
-static int hf_do_irp_hssite_attr_value = -1;
-static int hf_do_irp_hssite_srvcount = -1;
-static int hf_do_irp_hssite_srv = -1;
-static int hf_do_irp_hssite_srv_id = -1;
-static int hf_do_irp_hssite_srv_addr = -1;
-static int hf_do_irp_pkrec = -1;
-static int hf_do_irp_pkrec_len = -1;
-static int hf_do_irp_pkrec_type = -1;
-static int hf_do_irp_pkrec_dsa_q = -1;
-static int hf_do_irp_pkrec_dsa_p = -1;
-static int hf_do_irp_pkrec_dsa_g = -1;
-static int hf_do_irp_pkrec_dsa_y = -1;
-static int hf_do_irp_pkrec_rsa_exp = -1;
-static int hf_do_irp_pkrec_rsa_mod = -1;
-static int hf_do_irp_pkrec_dh_p = -1;
-static int hf_do_irp_pkrec_dh_g = -1;
-static int hf_do_irp_pkrec_dh_y = -1;
-static int hf_do_irp_hssite_srv_if = -1;
-static int hf_do_irp_hssite_srv_ifcount = -1;
-static int hf_do_irp_hssite_srv_if_type = -1;
-static int hf_do_irp_hssite_srv_if_type_admin = -1;
-static int hf_do_irp_hssite_srv_if_type_res = -1;
-static int hf_do_irp_hssite_srv_if_proto = -1;
-static int hf_do_irp_hssite_srv_if_port = -1;
-static int hf_do_irp_hsserv_ident = -1;
-static int hf_do_irp_hsvlist_count = -1;
-static int hf_do_irp_hsvlist_ref = -1;
-static int hf_do_irp_hsalias = -1;
-static int hf_do_irp_hsnamespace = -1;
-static int hf_do_irp_hscert_jwt = -1;
-static int hf_do_irp_hssignature_jwt = -1;
-static int hf_do_irp_refident = -1;
-static int hf_do_irp_nonce = -1;
-static int hf_do_irp_authtype = -1;
-static int hf_do_irp_keyident = -1;
-static int hf_do_irp_keyidx = -1;
-static int hf_do_irp_challresp = -1;
-static int hf_do_irp_veri_result = -1;
-static int hf_do_irp_ignoredident = -1;
-static int hf_do_irp_keyexmode = -1;
-static int hf_do_irp_timeout = -1;
+static int hf_do_irp_body;
+static int hf_do_irp_digest_algo;
+static int hf_do_irp_digest;
+static int hf_do_irp_error_msg;
+static int hf_do_irp_error_idxcount;
+static int hf_do_irp_error_idx;
+static int hf_do_irp_ident;
+static int hf_do_irp_idxcount;
+static int hf_do_irp_idx;
+static int hf_do_irp_typecount;
+static int hf_do_irp_type;
+static int hf_do_irp_identcount;
+static int hf_do_irp_identrecord;
+static int hf_do_irp_identrecord_idx;
+static int hf_do_irp_identrecord_type;
+static int hf_do_irp_identrecord_value;
+static int hf_do_irp_identrecord_value_string;
+static int hf_do_irp_identrecord_value_len;
+static int hf_do_irp_identrecord_perm;
+static int hf_do_irp_identrecord_perm_pw;
+static int hf_do_irp_identrecord_perm_pr;
+static int hf_do_irp_identrecord_perm_aw;
+static int hf_do_irp_identrecord_perm_ar;
+static int hf_do_irp_identrecord_ttl_type;
+static int hf_do_irp_identrecord_ttl;
+static int hf_do_irp_identrecord_ttl_absolute;
+static int hf_do_irp_identrecord_ts;
+static int hf_do_irp_identrecord_ts_utc;
+static int hf_do_irp_identrecord_refcount;
+static int hf_do_irp_identrecord_ref;
+static int hf_do_irp_hsadmin_perm;
+static int hf_do_irp_hsadmin_perm_ai;
+static int hf_do_irp_hsadmin_perm_di;
+static int hf_do_irp_hsadmin_perm_adp;
+static int hf_do_irp_hsadmin_perm_me;
+static int hf_do_irp_hsadmin_perm_de;
+static int hf_do_irp_hsadmin_perm_ae;
+static int hf_do_irp_hsadmin_perm_ma;
+static int hf_do_irp_hsadmin_perm_ra;
+static int hf_do_irp_hsadmin_perm_aa;
+static int hf_do_irp_hsadmin_perm_ar;
+static int hf_do_irp_hsadmin_perm_li;
+static int hf_do_irp_hsadmin_perm_ldp;
+static int hf_do_irp_hsadmin_idx;
+static int hf_do_irp_hsadmin_ident;
+static int hf_do_irp_body_hssite_version;
+static int hf_do_irp_hssite_protoversion_major;
+static int hf_do_irp_hssite_protoversion_minor;
+static int hf_do_irp_hssite_serial;
+static int hf_do_irp_hssite_primask;
+static int hf_do_irp_hssite_primask_pri;
+static int hf_do_irp_hssite_primask_multi;
+static int hf_do_irp_hssite_hashoption;
+static int hf_do_irp_hssite_hashfilter;
+static int hf_do_irp_hssite_attr_count;
+static int hf_do_irp_hssite_attr;
+static int hf_do_irp_hssite_attr_key;
+static int hf_do_irp_hssite_attr_value;
+static int hf_do_irp_hssite_srvcount;
+static int hf_do_irp_hssite_srv;
+static int hf_do_irp_hssite_srv_id;
+static int hf_do_irp_hssite_srv_addr;
+static int hf_do_irp_pkrec;
+static int hf_do_irp_pkrec_len;
+static int hf_do_irp_pkrec_type;
+static int hf_do_irp_pkrec_dsa_q;
+static int hf_do_irp_pkrec_dsa_p;
+static int hf_do_irp_pkrec_dsa_g;
+static int hf_do_irp_pkrec_dsa_y;
+static int hf_do_irp_pkrec_rsa_exp;
+static int hf_do_irp_pkrec_rsa_mod;
+static int hf_do_irp_pkrec_dh_p;
+static int hf_do_irp_pkrec_dh_g;
+static int hf_do_irp_pkrec_dh_y;
+static int hf_do_irp_hssite_srv_if;
+static int hf_do_irp_hssite_srv_ifcount;
+static int hf_do_irp_hssite_srv_if_type;
+static int hf_do_irp_hssite_srv_if_type_admin;
+static int hf_do_irp_hssite_srv_if_type_res;
+static int hf_do_irp_hssite_srv_if_proto;
+static int hf_do_irp_hssite_srv_if_port;
+static int hf_do_irp_hsserv_ident;
+static int hf_do_irp_hsvlist_count;
+static int hf_do_irp_hsvlist_ref;
+static int hf_do_irp_hsalias;
+static int hf_do_irp_hsnamespace;
+static int hf_do_irp_hscert_jwt;
+static int hf_do_irp_hssignature_jwt;
+static int hf_do_irp_refident;
+static int hf_do_irp_nonce;
+static int hf_do_irp_authtype;
+static int hf_do_irp_keyident;
+static int hf_do_irp_keyidx;
+static int hf_do_irp_challresp;
+static int hf_do_irp_veri_result;
+static int hf_do_irp_ignoredident;
+static int hf_do_irp_keyexmode;
+static int hf_do_irp_timeout;
 
 /* Fields Message Credential */
-static int hf_do_irp_credential = -1;
-static int hf_do_irp_credential_len = -1;
-static int hf_do_irp_credential_sesscounter = -1;
-static int hf_do_irp_credential_type = -1;
-static int hf_do_irp_credential_signedinfo = -1;
-static int hf_do_irp_credential_signedinfo_len = -1;
-static int hf_do_irp_credential_signedinfo_algo = -1;
-static int hf_do_irp_credential_signedinfo_sig = -1;
+static int hf_do_irp_credential;
+static int hf_do_irp_credential_len;
+static int hf_do_irp_credential_sesscounter;
+static int hf_do_irp_credential_type;
+static int hf_do_irp_credential_signedinfo;
+static int hf_do_irp_credential_signedinfo_len;
+static int hf_do_irp_credential_signedinfo_algo;
+static int hf_do_irp_credential_signedinfo_sig;
 
 /* Conversation */
-static int hf_do_irp_response_in = -1;
-static int hf_do_irp_response_to = -1;
+static int hf_do_irp_response_in;
+static int hf_do_irp_response_to;
 
 /* Fragment handling */
-static int hf_msg_fragments = -1;
-static int hf_msg_fragment = -1;
-static int hf_msg_fragment_overlap = -1;
-static int hf_msg_fragment_overlap_conflicts = -1;
-static int hf_msg_fragment_multiple_tails = -1;
-static int hf_msg_fragment_too_long_fragment = -1;
-static int hf_msg_fragment_error = -1;
-static int hf_msg_fragment_count = -1;
-static int hf_msg_reassembled_in = -1;
-static int hf_msg_reassembled_len = -1;
-static int hf_msg_reassembled_data = -1;
+static int hf_msg_fragments;
+static int hf_msg_fragment;
+static int hf_msg_fragment_overlap;
+static int hf_msg_fragment_overlap_conflicts;
+static int hf_msg_fragment_multiple_tails;
+static int hf_msg_fragment_too_long_fragment;
+static int hf_msg_fragment_error;
+static int hf_msg_fragment_count;
+static int hf_msg_reassembled_in;
+static int hf_msg_reassembled_len;
+static int hf_msg_reassembled_data;
 
 /* Expert fields */
-static expert_field ei_do_irp_digest_unknown = EI_INIT;
-static expert_field ei_do_irp_frag_wo_tc = EI_INIT;
+static expert_field ei_do_irp_digest_unknown;
+static expert_field ei_do_irp_frag_wo_tc;
 
 /* Trees */
-static gint ett_do_irp = -1;
-static gint ett_do_irp_string = -1;
-static gint ett_do_irp_envelope = -1;
-static gint ett_do_irp_envelope_flags = -1;
-static gint ett_do_irp_header = -1;
-static gint ett_do_irp_header_flags = -1;
-static gint ett_do_irp_body = -1;
-static gint ett_do_irp_credential = -1;
-static gint ett_do_irp_credential_signedinfo = -1;
-static gint ett_do_irp_identifier_record = -1;
-static gint ett_do_irp_element_permission_flags = -1;
-static gint ett_do_irp_element_hsadmin_permission_flags = -1;
-static gint ett_do_irp_element_hsadmin_primary_flags = -1;
-static gint ett_do_irp_hsadmin = -1;
-static gint ett_do_irp_hssite = -1;
-static gint ett_do_irp_hssite_attribute = -1;
-static gint ett_do_irp_hssite_server = -1;
-static gint ett_do_irp_hssite_server_if = -1;
-static gint ett_do_irp_hssite_server_if_flags = -1;
-static gint ett_do_irp_pk = -1;
-static gint ett_msg_fragment = -1;
-static gint ett_msg_fragments = -1;
+static int ett_do_irp;
+static int ett_do_irp_string;
+static int ett_do_irp_envelope;
+static int ett_do_irp_envelope_flags;
+static int ett_do_irp_header;
+static int ett_do_irp_header_flags;
+static int ett_do_irp_body;
+static int ett_do_irp_credential;
+static int ett_do_irp_credential_signedinfo;
+static int ett_do_irp_identifier_record;
+static int ett_do_irp_element_permission_flags;
+static int ett_do_irp_element_hsadmin_permission_flags;
+static int ett_do_irp_element_hsadmin_primary_flags;
+static int ett_do_irp_hsadmin;
+static int ett_do_irp_hssite;
+static int ett_do_irp_hssite_attribute;
+static int ett_do_irp_hssite_server;
+static int ett_do_irp_hssite_server_if;
+static int ett_do_irp_hssite_server_if_flags;
+static int ett_do_irp_pk;
+static int ett_msg_fragment;
+static int ett_msg_fragments;
 
 static const fragment_items msg_frag_items = {
     &ett_msg_fragment,
@@ -256,16 +256,16 @@ static const fragment_items msg_frag_items = {
 
 /* Request Hashmap Key */
 struct do_irp_request_hash_key {
-    guint32 conv_index;
-    guint32 reqid;
+    uint32_t conv_index;
+    uint32_t reqid;
 };
 /* Request Hashmap Val */
 struct do_irp_request_hash_val {
-    guint32 pnum;
-    guint32 pnum_resp;
-    guint32 opcode;
+    uint32_t pnum;
+    uint32_t pnum_resp;
+    uint32_t opcode;
 };
-static wmem_map_t *do_irp_request_hash_map = NULL;
+static wmem_map_t *do_irp_request_hash_map;
 
 #define DO_IRP_OC_RESERVED                0
 #define DO_IRP_OC_RESOLUTION              1
@@ -420,19 +420,19 @@ static const value_string key_exchange_vals[] = {
 static reassembly_table do_irp_reassemble_table;
 
 /* wmem hash/equal funcs */
-static guint
-do_irp_handle_hash (gconstpointer v)
+static unsigned
+do_irp_handle_hash (const void *v)
 {
     const struct do_irp_request_hash_key *key = (const struct do_irp_request_hash_key *)v;
-    guint val;
+    unsigned val;
 
     val = key->conv_index + key->reqid;
 
     return val;
 }
 
-static gint
-do_irp_handle_equal(gconstpointer v, gconstpointer w)
+static int
+do_irp_handle_equal(const void *v, const void *w)
 {
     const struct do_irp_request_hash_key *v1 = (const struct do_irp_request_hash_key *)v;
     const struct do_irp_request_hash_key *v2 = (const struct do_irp_request_hash_key *)w;
@@ -458,10 +458,10 @@ do_irp_handle_equal(gconstpointer v, gconstpointer w)
  * Returns length of the dissected string
  * length, value_of_string and string_tree can be used by the calling function.
  */
-static gint
-decode_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset, int hf, const char **value_of_string)
+static int
+decode_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, int hf, const char **value_of_string)
 {
-    guint32 len = tvb_get_gint32(tvb, offset, ENC_BIG_ENDIAN);
+    uint32_t len = tvb_get_int32(tvb, offset, ENC_BIG_ENDIAN);
     proto_item *ti;
 
     const char *text = tvb_get_string_enc(pinfo->pool, tvb, offset+4, len, ENC_UTF_8);
@@ -489,10 +489,10 @@ decode_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset, 
  *
  * Returns length of the dissected value
  */
-static gint
-decode_generic_data(tvbuff_t *tvb, proto_tree *tree, gint offset, int hf)
+static int
+decode_generic_data(tvbuff_t *tvb, proto_tree *tree, int offset, int hf)
 {
-    guint32 len = tvb_get_gint32(tvb, offset, ENC_BIG_ENDIAN);
+    uint32_t len = tvb_get_int32(tvb, offset, ENC_BIG_ENDIAN);
 
     proto_item *ti = proto_tree_add_item(tree, hf, tvb, offset, len + 4, ENC_NA);
     proto_tree *string_tree = proto_item_add_subtree(ti, ett_do_irp_string);
@@ -508,12 +508,12 @@ decode_generic_data(tvbuff_t *tvb, proto_tree *tree, gint offset, int hf)
  *
  * Returns length of the dissected data
  */
-static gint
-decode_pk_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
+static int
+decode_pk_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
-    gint len = 0;
+    int len = 0;
 
-    guint32 pk_len = tvb_get_guint32(tvb, offset + len, ENC_BIG_ENDIAN);
+    uint32_t pk_len = tvb_get_uint32(tvb, offset + len, ENC_BIG_ENDIAN);
 
     proto_item *ti = proto_tree_add_item(tree, hf_do_irp_pkrec, tvb, offset, pk_len + 4, ENC_NA);
     proto_tree *pk_tree = proto_item_add_subtree(ti, ett_do_irp_pk);
@@ -522,7 +522,7 @@ decode_pk_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
     len += 4;
 
     const char *pk_type;
-    gint pk_type_len = decode_string(tvb, pinfo, pk_tree, offset + len, hf_do_irp_pkrec_type, &pk_type);
+    int pk_type_len = decode_string(tvb, pinfo, pk_tree, offset + len, hf_do_irp_pkrec_type, &pk_type);
     len += pk_type_len;
 
     len += 2; /* Reserved */
@@ -555,10 +555,10 @@ decode_pk_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
  *
  * Returns length of the dissected data
  */
-static gint
-decode_hsadmin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
+static int
+decode_hsadmin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
-    gint len = 0;
+    int len = 0;
 
     proto_tree *ti_hsadmin = proto_tree_add_item(tree, hf_do_irp_identrecord_value, tvb, offset + len, -1, ENC_NA);
     proto_tree *do_irp_hsadmin_tree = proto_item_add_subtree(ti_hsadmin, ett_do_irp_hsadmin);
@@ -589,7 +589,7 @@ decode_hsadmin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
     len += decode_string(tvb, pinfo, do_irp_hsadmin_tree, offset + len, hf_do_irp_hsadmin_ident, &admin_identifier);
 
     proto_tree_add_item(do_irp_hsadmin_tree, hf_do_irp_hsadmin_idx, tvb, offset + len, 4, ENC_BIG_ENDIAN);
-    proto_item_append_text(ti_hsadmin, " %s, Index: %u", admin_identifier, tvb_get_guint32(tvb, offset + len, ENC_BIG_ENDIAN));
+    proto_item_append_text(ti_hsadmin, " %s, Index: %u", admin_identifier, tvb_get_uint32(tvb, offset + len, ENC_BIG_ENDIAN));
     len += 4;
 
     proto_item_set_len(ti_hsadmin, len);
@@ -601,10 +601,10 @@ decode_hsadmin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
  *
  * Returns length of the dissected data
  */
-static gint
-decode_hssite(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
+static int
+decode_hssite(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
-    gint len = 0;
+    int len = 0;
 
     proto_tree *ti_hssite = proto_tree_add_item(tree, hf_do_irp_identrecord_value, tvb, offset + len, -1, ENC_NA);
     proto_tree *do_irp_hssite_tree = proto_item_add_subtree(ti_hssite, ett_do_irp_hssite);
@@ -638,14 +638,14 @@ decode_hssite(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
 
     len += decode_string(tvb, pinfo, do_irp_hssite_tree, offset + len, hf_do_irp_hssite_hashfilter, NULL);
 
-    guint32 attr = tvb_get_guint32(tvb, offset + len, ENC_BIG_ENDIAN);
+    uint32_t attr = tvb_get_uint32(tvb, offset + len, ENC_BIG_ENDIAN);
     proto_tree_add_item(do_irp_hssite_tree, hf_do_irp_hssite_attr_count, tvb, offset + len, 4, ENC_BIG_ENDIAN);
     len += 4;
 
-    for(guint32 i = 0; i < attr; i++) {
+    for(uint32_t i = 0; i < attr; i++) {
         proto_tree *ti_hssite_attr = proto_tree_add_item(do_irp_hssite_tree, hf_do_irp_hssite_attr, tvb, offset + len, -1, ENC_NA);
         proto_tree *do_irp_hssite_attr_tree = proto_item_add_subtree(ti_hssite_attr, ett_do_irp_hssite_attribute);
-        gint attr_len = 0;
+        int attr_len = 0;
 
         const char *attr_name;
 
@@ -656,18 +656,18 @@ decode_hssite(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
         proto_item_set_len(ti_hssite_attr, attr_len);
     }
 
-    guint32 serv = tvb_get_guint32(tvb, offset + len, ENC_BIG_ENDIAN);
+    uint32_t serv = tvb_get_uint32(tvb, offset + len, ENC_BIG_ENDIAN);
     proto_tree_add_item(do_irp_hssite_tree, hf_do_irp_hssite_srvcount, tvb, offset + len, 4, ENC_BIG_ENDIAN);
     len += 4;
 
-    for(guint32 i = 0; i < serv; i++) {
+    for(uint32_t i = 0; i < serv; i++) {
 
         proto_tree *ti_hssite_serv = proto_tree_add_item(do_irp_hssite_tree, hf_do_irp_hssite_srv, tvb, offset + len, -1, ENC_NA);
         proto_tree *do_irp_hssite_serv_tree = proto_item_add_subtree(ti_hssite_serv, ett_do_irp_hssite_server);
-        gint serv_len = 0;
+        int serv_len = 0;
 
         proto_tree_add_item(do_irp_hssite_serv_tree, hf_do_irp_hssite_srv_id, tvb, offset + len + serv_len, 4, ENC_BIG_ENDIAN);
-        proto_item_append_text(do_irp_hssite_serv_tree, " (ID: %u)", tvb_get_guint32(tvb, offset + len + serv_len, ENC_BIG_ENDIAN));
+        proto_item_append_text(do_irp_hssite_serv_tree, " (ID: %u)", tvb_get_uint32(tvb, offset + len + serv_len, ENC_BIG_ENDIAN));
         serv_len += 4;
 
         proto_tree_add_item(do_irp_hssite_serv_tree, hf_do_irp_hssite_srv_addr, tvb, offset + len + serv_len, 16, ENC_NA);
@@ -675,11 +675,11 @@ decode_hssite(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
 
         serv_len += decode_pk_data(tvb, pinfo, do_irp_hssite_serv_tree, offset + len + serv_len);
 
-        guint32 servif = tvb_get_guint32(tvb, offset + len + serv_len, ENC_BIG_ENDIAN);
+        uint32_t servif = tvb_get_uint32(tvb, offset + len + serv_len, ENC_BIG_ENDIAN);
         proto_tree_add_item(do_irp_hssite_serv_tree, hf_do_irp_hssite_srv_ifcount, tvb, offset + len + serv_len, 4, ENC_BIG_ENDIAN);
         serv_len += 4;
 
-        for(guint32 j = 0; j < servif; j++) {
+        for(uint32_t j = 0; j < servif; j++) {
 
             proto_tree *ti_hssite_serv_if = proto_tree_add_item(do_irp_hssite_serv_tree, hf_do_irp_hssite_srv_if, tvb, offset + len + serv_len, 6, ENC_NA);
             proto_tree *do_irp_hssite_serv_if_tree = proto_item_add_subtree(ti_hssite_serv_if, ett_do_irp_hssite_server_if);
@@ -693,11 +693,11 @@ decode_hssite(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
             proto_tree_add_bitmask(do_irp_hssite_serv_if_tree, tvb, offset + len + serv_len, hf_do_irp_hssite_srv_if_type, ett_do_irp_hssite_server_if_flags, hsadmin_srv_if_type_bits, ENC_BIG_ENDIAN);
             serv_len += 1;
 
-            guint8 serv_if_proto = tvb_get_guint8(tvb, offset + len + serv_len);
+            uint8_t serv_if_proto = tvb_get_uint8(tvb, offset + len + serv_len);
             proto_tree_add_item(do_irp_hssite_serv_if_tree, hf_do_irp_hssite_srv_if_proto, tvb, offset + len + serv_len, 1, ENC_BIG_ENDIAN);
             serv_len += 1;
 
-            guint32 serv_if_port = tvb_get_guint32(tvb, offset + len + serv_len, ENC_BIG_ENDIAN);
+            uint32_t serv_if_port = tvb_get_uint32(tvb, offset + len + serv_len, ENC_BIG_ENDIAN);
             proto_tree_add_item(do_irp_hssite_serv_if_tree, hf_do_irp_hssite_srv_if_port, tvb, offset + len + serv_len, 4, ENC_BIG_ENDIAN);
             serv_len += 4;
 
@@ -720,10 +720,10 @@ decode_hssite(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
  *
  * Returns length of the dissected record
  */
-static gint
-decode_identifier_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
+static int
+decode_identifier_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
-    gint len = 0;
+    int len = 0;
 
     const char *type_string;
 
@@ -738,7 +738,7 @@ decode_identifier_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gi
     proto_item_set_generated(ts);
     len += 4;
 
-    guint8 ttl_type = tvb_get_guint8(tvb, offset + len);
+    uint8_t ttl_type = tvb_get_uint8(tvb, offset + len);
     proto_tree_add_item(do_irp_record_tree, hf_do_irp_identrecord_ttl_type, tvb, offset + len, 1, ENC_BIG_ENDIAN);
     len += 1;
 
@@ -776,11 +776,11 @@ decode_identifier_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gi
         len += decode_pk_data(tvb, pinfo, do_irp_record_tree, offset + len);
     }
     else if(!strcmp("HS_VLIST", type_string)) {
-        guint32 refs = tvb_get_guint32(tvb, offset + len, ENC_BIG_ENDIAN);
+        uint32_t refs = tvb_get_uint32(tvb, offset + len, ENC_BIG_ENDIAN);
         proto_tree_add_item(do_irp_record_tree, hf_do_irp_hsvlist_count, tvb, offset + len, 4, ENC_BIG_ENDIAN);
         len += 4;
 
-        for(guint32 i = 0; i < refs; i++) {
+        for(uint32_t i = 0; i < refs; i++) {
             len += decode_string(tvb, pinfo, do_irp_record_tree, offset + len, hf_do_irp_hsvlist_ref, NULL);
         }
     }
@@ -809,11 +809,11 @@ decode_identifier_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gi
         len += decode_generic_data(tvb, do_irp_record_tree, offset + len, hf_do_irp_identrecord_value);
     }
 
-    guint32 references = tvb_get_guint32(tvb, offset + len, ENC_BIG_ENDIAN);
+    uint32_t references = tvb_get_uint32(tvb, offset + len, ENC_BIG_ENDIAN);
     proto_tree_add_item(do_irp_record_tree, hf_do_irp_identrecord_refcount, tvb, offset + len, 4, ENC_BIG_ENDIAN);
     len += 4;
 
-    for(guint32 i = 0; i < references; i++) {
+    for(uint32_t i = 0; i < references; i++) {
         len += decode_string(tvb, pinfo, do_irp_record_tree, offset + len, hf_do_irp_identrecord_ref, NULL);
     }
 
@@ -829,13 +829,13 @@ decode_identifier_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gi
  * It also sets reqid (Request ID) and encrypted (the encrypted bit)
  */
 static int
-decode_envelope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *reqid, gboolean *encrypted)
+decode_envelope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t *reqid, bool *encrypted)
 {
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "DO-IRP");
     col_clear(pinfo->cinfo,COL_INFO);
 
-    gint offset = 0;
+    int offset = 0;
 
     /* Message Envelope */
     proto_item *ti_envelope = proto_tree_add_item(tree, hf_do_irp_envelope, tvb, offset, 20, ENC_NA);
@@ -854,7 +854,7 @@ decode_envelope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *re
         NULL
     };
 
-    *encrypted = (gboolean)tvb_get_bits8(tvb, offset*8 + 1, 1);
+    *encrypted = (bool)tvb_get_bits8(tvb, offset*8 + 1, 1);
     proto_tree_add_bitmask(do_irp_envelope_tree, tvb, offset, hf_do_irp_flags, ett_do_irp_envelope_flags, envelope_flag_bits, ENC_BIG_ENDIAN);
     proto_tree_add_bits_item(do_irp_envelope_tree, hf_do_irp_version_major_sugg, tvb, offset*8+3, 5, ENC_BIG_ENDIAN);
     offset += 1;
@@ -865,9 +865,9 @@ decode_envelope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *re
     proto_tree_add_item(do_irp_envelope_tree, hf_do_irp_sessid, tvb, offset, 4, ENC_BIG_ENDIAN);
     offset += 4;
 
-    *reqid = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+    *reqid = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
     proto_tree_add_item(do_irp_envelope_tree, hf_do_irp_reqid, tvb, offset, 4, ENC_BIG_ENDIAN);
-    col_append_fstr(pinfo->cinfo, COL_INFO, "ReqID=%u", tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN));
+    col_append_fstr(pinfo->cinfo, COL_INFO, "ReqID=%u", tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN));
     offset += 4;
 
     proto_tree_add_item(do_irp_envelope_tree, hf_do_irp_seq, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -885,7 +885,7 @@ decode_envelope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *re
  * Returns length of the dissected record
  */
 static int
-decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 reqid)
+decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t reqid)
 {
     conversation_t *conversation;
     struct do_irp_request_hash_key request_key, *new_request_key;
@@ -896,16 +896,16 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     proto_item *ti_header = proto_tree_add_item(tree, hf_do_irp_header, tvb, 0, 24, ENC_NA);
     proto_tree *do_irp_header_tree = proto_item_add_subtree(ti_header, ett_do_irp_header);
 
-    gint offset = 0;
+    int offset = 0;
 
-    guint32 opcode = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+    uint32_t opcode = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
     proto_tree_add_item(do_irp_header_tree, hf_do_irp_opcode, tvb, offset, 4, ENC_BIG_ENDIAN);
-    const char *opcode_text = val_to_str_const(tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN), opcode_vals, "Unknown OpCode");
+    const char *opcode_text = val_to_str_const(tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN), opcode_vals, "Unknown OpCode");
     offset += 4;
 
-    guint32 respcode = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+    uint32_t respcode = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
     proto_tree_add_item(do_irp_header_tree, hf_do_irp_responsecode, tvb, offset, 4, ENC_BIG_ENDIAN);
-    const char *respcode_text = val_to_str_const(tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN), responsecode_vals, "Unknown RespCode");
+    const char *respcode_text = val_to_str_const(tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN), responsecode_vals, "Unknown RespCode");
     offset += 4;
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " [%s, %s]", opcode_text, respcode_text);
@@ -927,7 +927,7 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     };
 
     proto_tree_add_bitmask(do_irp_header_tree, tvb, offset, hf_do_irp_opflags, ett_do_irp_header_flags, header_flag_bits, ENC_BIG_ENDIAN);
-    guint32 header_opflags = tvb_get_ntohl(tvb, offset);
+    uint32_t header_opflags = tvb_get_ntohl(tvb, offset);
     offset += 4;
 
     proto_tree_add_item(do_irp_header_tree, hf_do_irp_sisn, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -940,7 +940,7 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     offset += 4;
 
     proto_tree_add_item(do_irp_header_tree, hf_do_irp_bodylen, tvb, offset, 4, ENC_BIG_ENDIAN);
-    guint32 body_len = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+    uint32_t body_len = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
     offset += 4;
 
     /* Message Body */
@@ -949,7 +949,7 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         proto_item *ti_body = proto_tree_add_item(tree, hf_do_irp_body, tvb, offset, body_len, ENC_NA);
         proto_tree *do_irp_body_tree = proto_item_add_subtree(ti_body, ett_do_irp_body);
 
-        gint body_start_offset = offset;
+        int body_start_offset = offset;
 
         /* If RD bit is set, body must start with message digest (response only) */
         if(header_opflags & 0x800000 && respcode > DO_IRP_RC_RESERVED) {
@@ -957,7 +957,7 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             proto_tree_add_item(do_irp_body_tree, hf_do_irp_digest_algo, tvb, offset, 1, ENC_NA);
             offset += 1;
 
-            switch (tvb_get_guint8(tvb, offset-1)) {
+            switch (tvb_get_uint8(tvb, offset-1)) {
 
                 case DO_IRP_DIGEST_ALGO_MD5:
                     proto_tree_add_item(do_irp_body_tree, hf_do_irp_digest, tvb, offset, 16, ENC_NA);
@@ -991,20 +991,20 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
             col_append_fstr(pinfo->cinfo, COL_INFO, " [%s]", identifier_text);
 
-            guint32 index_entries = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+            uint32_t index_entries = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_item(do_irp_body_tree, hf_do_irp_idxcount, tvb, offset, 4, ENC_BIG_ENDIAN);
             offset += 4;
 
-            for(guint32 i = 0; i < index_entries; i++) {
+            for(uint32_t i = 0; i < index_entries; i++) {
                 proto_tree_add_item(do_irp_body_tree, hf_do_irp_idx, tvb, offset, 4, ENC_BIG_ENDIAN);
                 offset += 4;
             }
 
-            guint32 type_entries = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+            uint32_t type_entries = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_item(do_irp_body_tree, hf_do_irp_typecount, tvb, offset, 4, ENC_BIG_ENDIAN);
             offset += 4;
 
-            for(guint32 i = 0; i < type_entries; i++) {
+            for(uint32_t i = 0; i < type_entries; i++) {
                 offset += decode_string(tvb, pinfo, do_irp_body_tree, offset, hf_do_irp_type, NULL);
             }
 
@@ -1021,11 +1021,11 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
             col_append_fstr(pinfo->cinfo, COL_INFO, " [%s]", identifier_text);
 
-            guint32 element_entries = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+            uint32_t element_entries = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_item(do_irp_body_tree, hf_do_irp_identcount, tvb, offset, 4, ENC_BIG_ENDIAN);
             offset += 4;
 
-            for(guint32 i = 0; i < element_entries; i++) {
+            for(uint32_t i = 0; i < element_entries; i++) {
                 offset += decode_identifier_record(tvb, pinfo, do_irp_body_tree, offset);
 
             }
@@ -1038,11 +1038,11 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
             col_append_fstr(pinfo->cinfo, COL_INFO, " [%s]", identifier_text);
 
-            guint32 index_entries = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+            uint32_t index_entries = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_item(do_irp_body_tree, hf_do_irp_idxcount, tvb, offset, 4, ENC_BIG_ENDIAN);
             offset += 4;
 
-            for(guint32 i = 0; i < index_entries; i++) {
+            for(uint32_t i = 0; i < index_entries; i++) {
                 proto_tree_add_item(do_irp_body_tree, hf_do_irp_idx, tvb, offset, 4, ENC_BIG_ENDIAN);
                 offset += 4;
             }
@@ -1059,11 +1059,11 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             /* The following identifier records only exist if ReferralIdentifier is not provided, otherwise it must be empty */
             if(strlen(refident) == 0) {
 
-                guint32 element_entries = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+                uint32_t element_entries = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
                 proto_tree_add_item(do_irp_body_tree, hf_do_irp_identcount, tvb, offset, 4, ENC_BIG_ENDIAN);
                 offset += 4;
 
-                for(guint32 i = 0; i < element_entries; i++) {
+                for(uint32_t i = 0; i < element_entries; i++) {
                     offset += decode_identifier_record(tvb, pinfo, do_irp_body_tree, offset);
 
                 }
@@ -1138,11 +1138,11 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             (opcode == DO_IRP_OC_LIST_HOMED_PREFIXES && respcode == DO_IRP_RC_SUCCESS)      /* List homed prefixes response */
         ) {
 
-            guint32 element_entries = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+            uint32_t element_entries = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_item(do_irp_body_tree, hf_do_irp_identcount, tvb, offset, 4, ENC_BIG_ENDIAN);
             offset += 4;
 
-            for(guint32 i = 0; i < element_entries; i++) {
+            for(uint32_t i = 0; i < element_entries; i++) {
                 offset += decode_string(tvb, pinfo, do_irp_body_tree, offset, hf_do_irp_ident, NULL);
             }
 
@@ -1183,13 +1183,13 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             }
 
             /* If body length has not been reached, there must be error indices*/
-            if((guint32)(offset - body_start_offset) < body_len) {
+            if((uint32_t)(offset - body_start_offset) < body_len) {
 
-                guint32 err_indices = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+                uint32_t err_indices = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
                 proto_tree_add_item(do_irp_body_tree, hf_do_irp_error_idxcount, tvb, offset, 4, ENC_BIG_ENDIAN);
                 offset += 4;
 
-                for(guint32 i = 0; i < err_indices; i++) {
+                for(uint32_t i = 0; i < err_indices; i++) {
                     proto_tree_add_item(do_irp_body_tree, hf_do_irp_error_idx, tvb, offset, 4, ENC_BIG_ENDIAN);
                     offset += 4;
                 }
@@ -1197,7 +1197,7 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         }
         else {
             /* unsupported codes */
-            gint unhandled_bytes = body_len - (offset - body_start_offset);
+            int unhandled_bytes = body_len - (offset - body_start_offset);
             call_data_dissector(
                 tvb_new_subset_length(tvb, offset, unhandled_bytes),
                 pinfo, do_irp_body_tree
@@ -1209,7 +1209,7 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     /* Message Credential */
     if(tvb_captured_length_remaining(tvb, offset) >= 4) {
 
-        guint32 cred_len = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+        uint32_t cred_len = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
 
         proto_item *ti_cred = proto_tree_add_item(tree, hf_do_irp_credential, tvb, offset, cred_len + 4, ENC_NA);
         proto_tree *do_irp_cred_tree = proto_item_add_subtree(ti_cred, ett_do_irp_credential);
@@ -1226,7 +1226,7 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
             offset += decode_string(tvb, pinfo, do_irp_cred_tree, offset, hf_do_irp_credential_type, NULL);
 
-            guint32 sig_len = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+            uint32_t sig_len = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
 
             if(sig_len) {
 
@@ -1287,29 +1287,29 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     return offset;
 }
 
-static gboolean
+static bool
 test_do_irp(tvbuff_t *tvb)
 {
     /* Minimum length (envelope must be present) */
     if(tvb_captured_length(tvb) < DO_IRP_ENVELOPE_LEN)
-        return FALSE;
+        return false;
 
     /* Supported versions (2, 3) */
-    guint8 majorversion = tvb_get_guint8(tvb, 0);
+    uint8_t majorversion = tvb_get_uint8(tvb, 0);
     if(majorversion < 2 || majorversion > 3)
-        return FALSE;
+        return false;
 
     /* Message Length must not be 0 */
-    if(tvb_get_guint32(tvb, 16, ENC_BIG_ENDIAN) == 0)
-        return FALSE;
+    if(tvb_get_uint32(tvb, 16, ENC_BIG_ENDIAN) == 0)
+        return false;
 
-    return TRUE;
+    return true;
 }
 
-static guint
+static unsigned
 get_do_irp_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-    return (tvb_get_guint32(tvb, offset + 16, ENC_BIG_ENDIAN) + DO_IRP_ENVELOPE_LEN);
+    return (tvb_get_uint32(tvb, offset + 16, ENC_BIG_ENDIAN) + DO_IRP_ENVELOPE_LEN);
 }
 
 static int
@@ -1323,10 +1323,10 @@ dissect_do_irp_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
     proto_item *ti = proto_tree_add_item(tree, proto_do_irp, tvb, 0, -1, ENC_NA);
     proto_tree *do_irp_tree = proto_item_add_subtree(ti, ett_do_irp);
 
-    guint32 reqid;
-    gboolean encrypted;
+    uint32_t reqid;
+    bool encrypted;
     tvbuff_t *new_tvb = NULL;
-    gint offset = 0;
+    int offset = 0;
 
     /*
      * RFC 3652 defines `<MessageFlag>` in 2.2.1.2 as two octets containing three flags.
@@ -1340,8 +1340,8 @@ dissect_do_irp_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
      * to be able to generate expert info when protocol specs are violated.
      */
 
-    guint32 msg_len = tvb_get_guint32(tvb, 16, ENC_BIG_ENDIAN); /* Length of over-all message, excluding enevlope */
-    guint8 env_flags = tvb_get_guint8(tvb, 2);
+    uint32_t msg_len = tvb_get_uint32(tvb, 16, ENC_BIG_ENDIAN); /* Length of over-all message, excluding envelope */
+    uint8_t env_flags = tvb_get_uint8(tvb, 2);
 
     /* Envelope is always present */
     offset += decode_envelope(tvb, pinfo, do_irp_tree, &reqid, &encrypted);
@@ -1353,10 +1353,10 @@ dissect_do_irp_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
         /* fragmented */
 
         fragment_head *frag_msg = NULL;
-        gboolean first_frag = FALSE;
+        bool first_frag = false;
 
-        guint16 msg_reqid = tvb_get_guint32(tvb, 8, ENC_BIG_ENDIAN);
-        guint16 msg_seqid = tvb_get_guint32(tvb, 12, ENC_BIG_ENDIAN);
+        uint16_t msg_reqid = tvb_get_uint32(tvb, 8, ENC_BIG_ENDIAN);
+        uint16_t msg_seqid = tvb_get_uint32(tvb, 12, ENC_BIG_ENDIAN);
 
         if( !(env_flags & 0x20) ) {
             expert_add_info(pinfo, do_irp_tree, &ei_do_irp_frag_wo_tc);
@@ -1364,15 +1364,15 @@ dissect_do_irp_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 
         /* Check if it's the first fragment, to set expected packets after first fragment_add */
         if(fragment_get_tot_len(&do_irp_reassemble_table, pinfo, msg_reqid, NULL) == 0) {
-            first_frag = TRUE;
+            first_frag = true;
         }
 
-        pinfo->fragmented = TRUE;
+        pinfo->fragmented = true;
         frag_msg = fragment_add_seq_check(&do_irp_reassemble_table, tvb, offset, pinfo,
             msg_reqid, NULL,
             msg_seqid,
             tvb_captured_length_remaining(tvb, offset),
-            TRUE /* Expected packet count set */
+            true /* Expected packet count set */
         );
 
         if(first_frag) {
@@ -1431,9 +1431,9 @@ dissect_do_irp_tcp_full_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
     proto_item *ti = proto_tree_add_item(tree, proto_do_irp, tvb, 0, -1, ENC_NA);
     proto_tree *do_irp_tree = proto_item_add_subtree(ti, ett_do_irp);
 
-    guint32 reqid;
-    gboolean enc;
-    gint offset = 0;
+    uint32_t reqid;
+    bool enc;
+    int offset = 0;
 
     offset += decode_envelope(tvb, pinfo, do_irp_tree, &reqid, &enc);
     offset += decode_header_body_credential(tvb_new_subset_remaining(tvb, offset), pinfo, do_irp_tree, reqid);
@@ -1448,7 +1448,7 @@ dissect_do_irp_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
     if(!test_do_irp(tvb))
         return 0;
 
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, DO_IRP_ENVELOPE_LEN, get_do_irp_message_len, dissect_do_irp_tcp_full_message, data);
+    tcp_dissect_pdus(tvb, pinfo, tree, true, DO_IRP_ENVELOPE_LEN, get_do_irp_message_len, dissect_do_irp_tcp_full_message, data);
     return tvb_reported_length(tvb);
 }
 
@@ -1468,19 +1468,19 @@ proto_register_do_irp(void)
         },
         {&hf_msg_fragment_overlap,
             { "Message fragment overlap", "do-irp.fragment.overlap",
-            FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }
+            FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }
         },
         {&hf_msg_fragment_overlap_conflicts,
             { "Message fragment overlapping with conflicting data", "do-irp.fragment.overlap.conflicts",
-            FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }
+            FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }
         },
         {&hf_msg_fragment_multiple_tails,
             { "Message has multiple tail fragments", "do-irp.fragment.multiple_tails",
-            FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }
+            FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }
         },
         {&hf_msg_fragment_too_long_fragment,
             { "Message fragment too long", "do-irp.fragment.too_long_fragment",
-            FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL }
+            FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL }
         },
         {&hf_msg_fragment_error,
             { "Message defragmentation error", "do-irp.fragment.error",
@@ -2048,7 +2048,7 @@ proto_register_do_irp(void)
         },
         { &hf_do_irp_timeout,
             { "Timeout", "do-irp.timeout",
-            FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_seconds, 0x0, NULL, HFILL }
+            FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_seconds), 0x0, NULL, HFILL }
         },
 
         /* Message Credential */
@@ -2107,7 +2107,7 @@ proto_register_do_irp(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_msg_fragment,
         &ett_msg_fragments,
         &ett_do_irp,
@@ -2131,6 +2131,8 @@ proto_register_do_irp(void)
         &ett_do_irp_hssite_server_if_flags,
         &ett_do_irp_pk
     };
+
+    expert_module_t* expert_do_irp;
 
     do_irp_request_hash_map = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(), do_irp_handle_hash, do_irp_handle_equal);
 

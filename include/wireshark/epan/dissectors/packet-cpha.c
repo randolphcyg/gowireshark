@@ -18,44 +18,44 @@ void proto_reg_handoff_cpha(void);
 
 static dissector_handle_t cpha_handle;
 
-static int proto_cphap = -1;
+static int proto_cphap;
 
-static int hf_magic_number = -1;
-static int hf_cpha_protocol_ver = -1;
-static int hf_cluster_number = -1;
-static int hf_opcode = -1;
-static int hf_payload = -1;
-static int hf_src_if_num = -1;
-static int hf_random_id = -1;
-static int hf_src_machine_id = -1;
-static int hf_dst_machine_id = -1;
-static int hf_policy_id = -1;
-static int hf_filler = -1;
-static int hf_unknown_data = -1;
-static int hf_id_num = -1;
-static int hf_report_code = -1;
-static int hf_ha_mode = -1;
-static int hf_ha_time_unit = -1;
-static int hf_machine_states = -1;
-static int hf_state_node = -1;
-static int hf_interface_states = -1;
-static int hf_num_reported_ifs = -1;
-static int hf_ethernet_add = -1;
-static int hf_is_if_trusted = -1;
-static int hf_ip = -1;
-static int hf_slot_num = -1;
-static int hf_machine_num = -1;
-static int hf_seed = -1;
-static int hf_hash_len = -1;
-static int hf_status = -1;
-static int hf_in_up_num = -1;
-static int hf_in_assumed_up_num = -1;
-static int hf_out_up_num = -1;
-static int hf_out_assumed_up_num = -1;
-static int hf_cluster_last_packet = -1;
-static int hf_ifn = -1;
+static int hf_magic_number;
+static int hf_cpha_protocol_ver;
+static int hf_cluster_number;
+static int hf_opcode;
+static int hf_payload;
+static int hf_src_if_num;
+static int hf_random_id;
+static int hf_src_machine_id;
+static int hf_dst_machine_id;
+static int hf_policy_id;
+static int hf_filler;
+static int hf_unknown_data;
+static int hf_id_num;
+static int hf_report_code;
+static int hf_ha_mode;
+static int hf_ha_time_unit;
+static int hf_machine_states;
+static int hf_state_node;
+static int hf_interface_states;
+static int hf_num_reported_ifs;
+static int hf_ethernet_add;
+static int hf_is_if_trusted;
+static int hf_ip;
+static int hf_slot_num;
+static int hf_machine_num;
+static int hf_seed;
+static int hf_hash_len;
+static int hf_status;
+static int hf_in_up_num;
+static int hf_in_assumed_up_num;
+static int hf_out_up_num;
+static int hf_out_assumed_up_num;
+static int hf_cluster_last_packet;
+static int hf_ifn;
 
-static gint ett_cphap = -1;
+static int ett_cphap;
 
 #define UDP_PORT_CPHA        8116
 #define CPHA_MAGIC 0x1A90
@@ -246,9 +246,9 @@ dissect_cpha(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
   proto_item *          nti;
   proto_tree *          cpha_tree = NULL;
   proto_tree *          ntree = NULL;
-  guint16               opcode;
-  guint16               magic_number;
-  guint16               ha_version;
+  uint16_t              opcode;
+  uint16_t              magic_number;
+  uint16_t              ha_version;
   /*
    * If the magic number or protocol version is unknown, don't treat this
    * frame as a CPHA frame.
@@ -336,7 +336,7 @@ static int dissect_my_state(tvbuff_t * tvb, int offset, proto_tree * tree) {
   int i;
   proto_item *  nti = NULL;
   proto_tree *  ntree = NULL;
-  guint16       report_code, id_num;
+  uint16_t      report_code, id_num;
 
   proto_tree_add_item(tree, hf_id_num, tvb, offset, 2, ENC_BIG_ENDIAN);
   id_num = tvb_get_ntohs(tvb, offset);
@@ -507,7 +507,7 @@ proto_register_cpha(void)
     { &hf_ifn,
     { "Interface Number", "cpha.ifn", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL}},
   };
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_cphap,
   };
 

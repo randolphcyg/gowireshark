@@ -18,17 +18,17 @@
 void proto_register_exablaze(void);
 void proto_reg_handoff_exablaze(void);
 
-static int proto_exablaze = -1;
+static int proto_exablaze;
 
-static int hf_exablaze_original_fcs = -1;
-static int hf_exablaze_device = -1;
-static int hf_exablaze_port = -1;
-static int hf_exablaze_timestamp = -1;
-static int hf_exablaze_timestamp_integer = -1;
-static int hf_exablaze_timestamp_fractional = -1;
+static int hf_exablaze_original_fcs;
+static int hf_exablaze_device;
+static int hf_exablaze_port;
+static int hf_exablaze_timestamp;
+static int hf_exablaze_timestamp_integer;
+static int hf_exablaze_timestamp_fractional;
 
-static gint ett_exablaze = -1;
-static gint ett_exablaze_timestamp = -1;
+static int ett_exablaze;
+static int ett_exablaze_timestamp;
 
 static int
 dissect_exablaze(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
@@ -38,15 +38,15 @@ dissect_exablaze(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     proto_tree *exablaze_tree;
     proto_tree *timestamp_tree;
 
-    guint trailer_length;
-    guint fcs_length;
-    guint offset;
-    gboolean trailer_found;
+    unsigned trailer_length;
+    unsigned fcs_length;
+    unsigned offset;
+    bool trailer_found;
 
-    guint8 device;
-    guint8 port;
-    guint32 timestamp_sec;
-    guint64 timestamp_frac;
+    uint8_t device;
+    uint8_t port;
+    uint32_t timestamp_sec;
+    uint64_t timestamp_frac;
 
     nstime_t timestamp;
     double timestamp_frac_double;
@@ -60,7 +60,7 @@ dissect_exablaze(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     }
 
     /* Try matching with and without FCS */
-    trailer_found = FALSE;
+    trailer_found = false;
     for (fcs_length = 0; fcs_length <= 4; fcs_length += 4)
     {
         if (trailer_length < fcs_length + 16)
@@ -68,14 +68,14 @@ dissect_exablaze(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
         offset = trailer_length - fcs_length - 16;
 
-        device = tvb_get_guint8(tvb, offset + 4);
-        port = tvb_get_guint8(tvb, offset + 5);
+        device = tvb_get_uint8(tvb, offset + 4);
+        port = tvb_get_uint8(tvb, offset + 5);
         timestamp_sec = tvb_get_ntohl(tvb, offset + 6);
         timestamp_frac = tvb_get_ntoh40(tvb, offset + 10);
 
         /* If the capture time and timestamp differ by more than a week,
          * then this is probably not a valid Exablaze trailer */
-        if (timestamp_sec > (guint)pinfo->abs_ts.secs) {
+        if (timestamp_sec > (unsigned)pinfo->abs_ts.secs) {
             if (timestamp_sec - pinfo->abs_ts.secs > 604800)
                 continue;
         } else {
@@ -83,7 +83,7 @@ dissect_exablaze(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                 continue;
         }
 
-        trailer_found = TRUE;
+        trailer_found = true;
         break;
     }
 
@@ -125,6 +125,12 @@ dissect_exablaze(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             timestamp_frac_double, "%.12f", timestamp_frac_double);
 
     return offset + 16;
+}
+
+static bool
+dissect_exablaze_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+{
+    return dissect_exablaze(tvb, pinfo, tree, data) > 0;
 }
 
 void
@@ -174,7 +180,7 @@ proto_register_exablaze(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_exablaze,
         &ett_exablaze_timestamp
     };
@@ -188,7 +194,7 @@ proto_register_exablaze(void)
 void
 proto_reg_handoff_exablaze(void)
 {
-    heur_dissector_add("eth.trailer", dissect_exablaze, "Exablaze trailer",
+    heur_dissector_add("eth.trailer", dissect_exablaze_heur, "Exablaze trailer",
             "exablaze_eth", proto_exablaze, HEURISTIC_DISABLE);
 }
 

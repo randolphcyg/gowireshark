@@ -20,6 +20,7 @@
 #include <epan/expert.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <epan/tfs.h>
 
 #include "packet-rtp.h"
 
@@ -42,54 +43,54 @@ static dissector_handle_t amr_handle;
 static dissector_handle_t amr_wb_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_amr = -1;
-static int proto_amr_wb = -1;
-static int hf_amr_nb_cmr = -1;
-static int hf_amr_wb_cmr = -1;
-static int hf_amr_payload_decoded_as = -1;
-static int hf_amr_reserved = -1;
-static int hf_amr_toc_f = -1;
-static int hf_amr_nb_toc_ft = -1;
-static int hf_amr_wb_toc_ft = -1;
-static int hf_amr_toc_q = -1;
+static int proto_amr;
+static int proto_amr_wb;
+static int hf_amr_nb_cmr;
+static int hf_amr_wb_cmr;
+static int hf_amr_payload_decoded_as;
+static int hf_amr_reserved;
+static int hf_amr_toc_f;
+static int hf_amr_nb_toc_ft;
+static int hf_amr_wb_toc_ft;
+static int hf_amr_toc_q;
 
-static int hf_amr_speech_data = -1;
-static int hf_amr_frame_data = -1;
-static int hf_amr_nb_if1_ft = -1;
-static int hf_amr_wb_if1_ft = -1;
-static int hf_amr_if1_fqi = -1;
-static int hf_amr_nb_if1_mode_req = -1;
-static int hf_amr_wb_if1_mode_req = -1;
-static int hf_amr_if1_sti = -1;
-static int hf_amr_nb_if1_mode_ind = -1;
-static int hf_amr_wb_if1_mode_ind = -1;
-static int hf_amr_nb_if1_sti_mode_ind = -1;
-static int hf_amr_wb_if1_sti_mode_ind = -1;
-static int hf_amr_if2_sti = -1;
-static int hf_amr_nb_if2_sti_mode_ind = -1;
-static int hf_amr_wb_if2_sti_mode_ind = -1;
+static int hf_amr_speech_data;
+static int hf_amr_frame_data;
+static int hf_amr_nb_if1_ft;
+static int hf_amr_wb_if1_ft;
+static int hf_amr_if1_fqi;
+static int hf_amr_nb_if1_mode_req;
+static int hf_amr_wb_if1_mode_req;
+static int hf_amr_if1_sti;
+static int hf_amr_nb_if1_mode_ind;
+static int hf_amr_wb_if1_mode_ind;
+static int hf_amr_nb_if1_sti_mode_ind;
+static int hf_amr_wb_if1_sti_mode_ind;
+static int hf_amr_if2_sti;
+static int hf_amr_nb_if2_sti_mode_ind;
+static int hf_amr_wb_if2_sti_mode_ind;
 
-static int hf_amr_nb_if2_ft = -1;
-static int hf_amr_wb_if2_ft = -1;
+static int hf_amr_nb_if2_ft;
+static int hf_amr_wb_if2_ft;
 
 
 /* Initialize the subtree pointers */
-static int ett_amr = -1;
-static int ett_amr_toc = -1;
+static int ett_amr;
+static int ett_amr_toc;
 
-static expert_field ei_amr_spare_bit_not0 = EI_INIT;
-static expert_field ei_amr_not_enough_data_for_frames = EI_INIT;
-static expert_field ei_amr_superfluous_data = EI_INIT;
-static expert_field ei_amr_padding_bits_not0 = EI_INIT;
-static expert_field ei_amr_padding_bits_correct = EI_INIT;
-static expert_field ei_amr_reserved = EI_INIT;
+static expert_field ei_amr_spare_bit_not0;
+static expert_field ei_amr_not_enough_data_for_frames;
+static expert_field ei_amr_superfluous_data;
+static expert_field ei_amr_padding_bits_not0;
+static expert_field ei_amr_padding_bits_correct;
+static expert_field ei_amr_reserved;
 
-static gint  amr_encoding_type         = AMR_OA;
-static gint  pref_amr_mode             = AMR_NB;
+static int   amr_encoding_type         = AMR_OA;
+static int   pref_amr_mode             = AMR_NB;
 
 
 /* Currently only octet aligned works */
-/* static gboolean octet_aligned = TRUE; */
+/* static bool octet_aligned = true; */
 
 static const value_string amr_encoding_type_value[] = {
     {AMR_OA, "RFC 3267"},
@@ -224,15 +225,15 @@ amr_apply_prefs(void) {
 static int
 dissect_amr_nb_if1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
     int         offset = 0;
-    guint8      octet;
+    uint8_t     octet;
     proto_item *ti;
 
     proto_tree_add_item(tree, hf_amr_nb_if1_ft, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_amr_if1_fqi,   tvb, offset, 1, ENC_BIG_ENDIAN);
-    octet = (tvb_get_guint8(tvb,offset) & 0xf0) >> 4;
+    octet = (tvb_get_uint8(tvb,offset) & 0xf0) >> 4;
     if (octet == AMR_NB_SID) {
         ti = proto_tree_add_item(tree, hf_amr_nb_if1_mode_req, tvb, offset+1, 1, ENC_BIG_ENDIAN);
-        if (tvb_get_guint8(tvb,offset+1) & 0x1f)
+        if (tvb_get_uint8(tvb,offset+1) & 0x1f)
             expert_add_info(pinfo, ti, &ei_amr_spare_bit_not0);
         proto_tree_add_item(tree, hf_amr_speech_data, tvb, offset+2, 5, ENC_NA);
         proto_tree_add_item(tree, hf_amr_if1_sti, tvb, offset+7, 1, ENC_BIG_ENDIAN);
@@ -243,7 +244,7 @@ dissect_amr_nb_if1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
     proto_tree_add_item(tree, hf_amr_nb_if1_mode_ind, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset += 1;
     ti = proto_tree_add_item(tree, hf_amr_nb_if1_mode_req, tvb, offset, 1, ENC_BIG_ENDIAN);
-    if (tvb_get_guint8(tvb,offset) & 0x1f)
+    if (tvb_get_uint8(tvb,offset) & 0x1f)
         expert_add_info(pinfo, ti, &ei_amr_spare_bit_not0);
     offset += 1;
     proto_tree_add_item(tree, hf_amr_speech_data, tvb, offset, -1, ENC_NA);
@@ -254,14 +255,14 @@ dissect_amr_nb_if1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 static int
 dissect_amr_wb_if1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
     int         offset = 0;
-    guint8      octet;
+    uint8_t     octet;
     proto_item *ti;
 
     proto_tree_add_item(tree, hf_amr_wb_if1_ft, tvb, offset, 1, ENC_BIG_ENDIAN);
     ti = proto_tree_add_item(tree, hf_amr_if1_fqi, tvb, offset, 1, ENC_BIG_ENDIAN);
-    if (tvb_get_guint8(tvb,offset) & 0x03)
+    if (tvb_get_uint8(tvb,offset) & 0x03)
         expert_add_info(pinfo, ti, &ei_amr_spare_bit_not0);
-    octet = (tvb_get_guint8(tvb,offset) & 0xf0) >> 4;
+    octet = (tvb_get_uint8(tvb,offset) & 0xf0) >> 4;
     if (octet == AMR_WB_SID) {
         proto_tree_add_item(tree, hf_amr_wb_if1_mode_req, tvb, offset+1, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(tree, hf_amr_speech_data, tvb, offset+2, 4, ENC_NA);
@@ -281,10 +282,10 @@ dissect_amr_wb_if1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 static int
 dissect_amr_nb_if2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
     int    offset = 0;
-    guint8 octet;
+    uint8_t octet;
 
     proto_tree_add_item(tree, hf_amr_nb_if2_ft, tvb, offset, 1, ENC_BIG_ENDIAN);
-    octet = tvb_get_guint8(tvb,offset) & 0x0f;
+    octet = tvb_get_uint8(tvb,offset) & 0x0f;
 
     if (octet == AMR_NB_SID) {
         proto_tree_add_item(tree, hf_amr_speech_data, tvb, offset+1, 3, ENC_NA);
@@ -304,10 +305,10 @@ dissect_amr_nb_if2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 static int
 dissect_amr_wb_if2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
     int    offset = 0;
-    guint8 octet;
+    uint8_t octet;
 
     proto_tree_add_item(tree, hf_amr_wb_if2_ft, tvb, offset, 1, ENC_BIG_ENDIAN);
-    octet = (tvb_get_guint8(tvb,offset) & 0xf0) >> 4;
+    octet = (tvb_get_uint8(tvb,offset) & 0xf0) >> 4;
 
     if (octet == AMR_WB_SID) {
         proto_tree_add_item(tree, hf_amr_speech_data, tvb, offset+1, 4, ENC_NA);
@@ -325,14 +326,14 @@ dissect_amr_wb_if2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 }
 
 static void
-dissect_amr_be(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint amr_mode) {
+dissect_amr_be(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int amr_mode) {
     proto_item *item;
     int         ft;
     int         bit_offset = 0;
     int         bitcount;       /*bitcounter, MSB = bit 0, over bytes*/
     int         bits_used_for_frames = 0;
     int         bytes_needed_for_frames;
-    guint8      f_bit, q_bit;
+    uint8_t     f_bit, q_bit;
 
     /* Number of bits per frame for AMR-NB, see Table 1 RFC3267*/
     /* Values taken for GSM-EFR SID, TDMA-EFR SID and PDC-EFR SID from 3GPP 26.101 Table A.1b */
@@ -423,7 +424,7 @@ dissect_amr_be(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint amr_mod
 
         /* Now check the paddings */
         if (bitcount%8 != 0) {
-            if ( (1 << (8 -(bitcount%8)-1)) & tvb_get_guint8(tvb,bitcount/8) )
+            if ( (1 << (8 -(bitcount%8)-1)) & tvb_get_uint8(tvb,bitcount/8) )
                 proto_tree_add_expert(tree, pinfo, &ei_amr_padding_bits_correct, tvb, bitcount/8, 1);
             else {
                 proto_tree_add_expert(tree, pinfo, &ei_amr_padding_bits_not0, tvb,
@@ -435,13 +436,13 @@ dissect_amr_be(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint amr_mod
 
 /* Code to actually dissect the packets */
 static void
-dissect_amr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint amr_mode, unsigned encoding)
+dissect_amr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int amr_mode, unsigned encoding)
 {
     int         offset     = 0;
     int         bit_offset = 0;
-    guint8      octet;
+    uint8_t     octet;
     proto_item *item;
-    gboolean    first_time;
+    bool        first_time;
 
 /* Set up structures needed to add the protocol subtree and manage it */
     proto_item *ti;
@@ -476,7 +477,7 @@ dissect_amr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint amr
         break;
     }
 
-    octet = tvb_get_guint8(tvb,offset) & 0x0f;
+    octet = tvb_get_uint8(tvb,offset) & 0x0f;
     if ( octet != 0  ) {
         item = proto_tree_add_item(amr_tree, hf_amr_reserved, tvb, offset, 1, ENC_BIG_ENDIAN);
         expert_add_info(pinfo, item, &ei_amr_reserved);
@@ -510,13 +511,13 @@ dissect_amr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint amr
      *
      *   P bits: padding bits, MUST be set to zero.
      */
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     toc_tree = proto_tree_add_subtree(amr_tree, tvb, offset, -1, ett_amr_toc, NULL, "Payload Table of Contents");
 
-    first_time = TRUE;
-    while ((( octet& 0x80 ) == 0x80) || (first_time == TRUE)) {
-        first_time = FALSE;
-        octet = tvb_get_guint8(tvb,offset);
+    first_time = true;
+    while ((( octet& 0x80 ) == 0x80) || (first_time == true)) {
+        first_time = false;
+        octet = tvb_get_uint8(tvb,offset);
 
         proto_tree_add_bits_item(toc_tree, hf_amr_toc_f, tvb, bit_offset, 1, ENC_BIG_ENDIAN);
         bit_offset += 1;
@@ -609,8 +610,8 @@ dissect_amr_wb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 
 
 typedef struct _amr_capability_t {
-    const gchar     *id;
-    const gchar     *name;
+    const char      *id;
+    const char      *name;
     dissector_t  content_pdu;
 } amr_capability_t;
 
@@ -636,7 +637,7 @@ static amr_capability_t amr_capability_tab[] = {
     { NULL, NULL, NULL },
 };
 
-static amr_capability_t *find_cap(const gchar *id) {
+static amr_capability_t *find_cap(const char *id) {
     amr_capability_t *ftr = NULL;
     amr_capability_t *f;
 
@@ -809,7 +810,7 @@ proto_register_amr(void)
     };
 
 /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_amr,
         &ett_amr_toc,
     };
@@ -857,7 +858,7 @@ proto_register_amr(void)
                        "Type of AMR encoding of the payload",
                        "Type of AMR encoding of the payload, if not specified "
                        "via SDP",
-                       &amr_encoding_type, encoding_types, FALSE);
+                       &amr_encoding_type, encoding_types, false);
 
     prefs_register_enum_preference(amr_module, "mode",
                        "The AMR mode",

@@ -111,91 +111,91 @@ static const value_string nd_code_vs[]=
 	{0, NULL}
 };
 
-static gint hf_lon_ppdu			= -1;
-static gint hf_lon_ppdu_prio		= -1;
-static gint hf_lon_ppdu_alt		= -1;
-static gint hf_lon_ppdu_deltabl		= -1;
-static gint hf_lon_npdu			= -1;
-static gint hf_lon_npdu_version		= -1;
-static gint hf_lon_npdu_pdu_fmt		= -1;
-static gint hf_lon_npdu_addr_fmt	= -1;
-static gint hf_lon_npdu_dom_len		= -1;
-static gint hf_lon_addr_srcsub		= -1;
-static gint hf_lon_addr_srcnode		= -1;
-static gint hf_lon_addr_dstsub		= -1;
-static gint hf_lon_addr_dstgrp		= -1;
-static gint hf_lon_addr_dstnode		= -1;
-static gint hf_lon_addr_grp		= -1;
-static gint hf_lon_addr_grpmem		= -1;
-static gint hf_lon_addr_uid		= -1;
-static gint hf_lon_name			= -1;
-static gint hf_lon_domain		= -1;
-static gint hf_lon_tpdu			= -1;
-static gint hf_lon_auth			= -1;
-static gint hf_lon_tpdu_tpdu_type	= -1;
-static gint hf_lon_trans_no		= -1;
-static gint hf_lon_spdu			= -1;
-static gint hf_lon_spdu_spdu_type	= -1;
-static gint hf_lon_mlen			= -1;
-static gint hf_lon_mlist		= -1;
-static gint hf_lon_authpdu		= -1;
-static gint hf_lon_authpdu_fmt		= -1;
-static gint hf_lon_authpdu_authpdu_type	= -1;
-static gint hf_lon_nv_dir		= -1;
-static gint hf_lon_nv_selector		= -1;
-static gint hf_lon_app_code		= -1;
-static gint hf_lon_nm_code		= -1;
-static gint hf_lon_nd_code		= -1;
-static gint hf_lon_ff_code		= -1;
-static gint hf_lon_nv			= -1;
-static gint hf_lon_app			= -1;
-static gint hf_lon_nm			= -1;
-static gint hf_lon_nd			= -1;
-static gint hf_lon_ff			= -1;
-/* static gint hf_lon_checksum		= -1; */
-static gint proto_lon			= -1;
+static int hf_lon_ppdu;
+static int hf_lon_ppdu_prio;
+static int hf_lon_ppdu_alt;
+static int hf_lon_ppdu_deltabl;
+static int hf_lon_npdu;
+static int hf_lon_npdu_version;
+static int hf_lon_npdu_pdu_fmt;
+static int hf_lon_npdu_addr_fmt;
+static int hf_lon_npdu_dom_len;
+static int hf_lon_addr_srcsub;
+static int hf_lon_addr_srcnode;
+static int hf_lon_addr_dstsub;
+static int hf_lon_addr_dstgrp;
+static int hf_lon_addr_dstnode;
+static int hf_lon_addr_grp;
+static int hf_lon_addr_grpmem;
+static int hf_lon_addr_uid;
+static int hf_lon_name;
+static int hf_lon_domain;
+static int hf_lon_tpdu;
+static int hf_lon_auth;
+static int hf_lon_tpdu_tpdu_type;
+static int hf_lon_trans_no;
+static int hf_lon_spdu;
+static int hf_lon_spdu_spdu_type;
+static int hf_lon_mlen;
+static int hf_lon_mlist;
+static int hf_lon_authpdu;
+static int hf_lon_authpdu_fmt;
+static int hf_lon_authpdu_authpdu_type;
+static int hf_lon_nv_dir;
+static int hf_lon_nv_selector;
+static int hf_lon_app_code;
+static int hf_lon_nm_code;
+static int hf_lon_nd_code;
+static int hf_lon_ff_code;
+static int hf_lon_nv;
+static int hf_lon_app;
+static int hf_lon_nm;
+static int hf_lon_nd;
+static int hf_lon_ff;
+/* static int hf_lon_checksum; */
+static int proto_lon;
 
 
-static gint ett_lon                     = -1;
-static gint ett_ppdu			= -1;
-static gint ett_npdu			= -1;
-static gint ett_tpdu                    = -1;
-static gint ett_spdu                    = -1;
-static gint ett_authpdu                 = -1;
-static gint ett_apdu                    = -1;
-static gint ett_nv                      = -1;
-static gint ett_app                     = -1;
-static gint ett_nm                      = -1;
-static gint ett_nd                      = -1;
-static gint ett_ff                      = -1;
+static int ett_lon;
+static int ett_ppdu;
+static int ett_npdu;
+static int ett_tpdu;
+static int ett_spdu;
+static int ett_authpdu;
+static int ett_apdu;
+static int ett_nv;
+static int ett_app;
+static int ett_nm;
+static int ett_nd;
+static int ett_ff;
 
-static gint ett_address			= -1;
+static int ett_address;
 
-static expert_field ei_lon_tpdu_tpdu_type_unknown = EI_INIT;
-static expert_field ei_lon_tpdu_spdu_type_unknown = EI_INIT;
-static expert_field ei_lon_tpdu_authpdu_type_unknown = EI_INIT;
-static expert_field ei_lon_tpdu_apdu_dest_type = EI_INIT;
+static expert_field ei_lon_tpdu_tpdu_type_unknown;
+static expert_field ei_lon_tpdu_spdu_type_unknown;
+static expert_field ei_lon_tpdu_authpdu_type_unknown;
+static expert_field ei_lon_tpdu_apdu_dest_type;
 
-static gint dissect_apdu(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
-		gint offset);
+static int dissect_apdu(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
+		int offset);
 
-static gint
+static int
 dissect_lon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	gint offset = 0;
+	int offset = 0;
 
-	gint pdu_fmt, addr_fmt, dom_len, pdutype, length;
-	gint addr_a;
+	int pdu_fmt, addr_fmt, dom_len, pdutype, length;
+	int addr_a;
 
 	proto_tree *ti;
 	proto_tree *lon_tree;
-	gint npdu, type;
+	int npdu, type;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "LON");
 	col_clear(pinfo->cinfo, COL_INFO);
 
-	npdu = tvb_get_guint8(tvb, 0);
-	type = tvb_get_guint8(tvb, 1);
+	npdu = tvb_get_uint8(tvb, 0);
+	type = tvb_get_uint8(tvb, 1);
 	type = (type&0x30)>>4;
 	col_add_fstr(pinfo->cinfo, COL_INFO,
 			     "%sDelta_BL: %i Type: %s",
@@ -228,9 +228,9 @@ dissect_lon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 		proto_tree_add_bitmask(lon_tree, tvb, offset, hf_lon_npdu,
 					ett_npdu, npdu_fields, ENC_BIG_ENDIAN);
 
-		pdu_fmt  = (tvb_get_guint8(tvb, offset) >> 4) & 0x03;
-		addr_fmt = (tvb_get_guint8(tvb, offset) >> 2) & 0x03;
-		dom_len  = tvb_get_guint8(tvb, offset) & 0x03;
+		pdu_fmt  = (tvb_get_uint8(tvb, offset) >> 4) & 0x03;
+		addr_fmt = (tvb_get_uint8(tvb, offset) >> 2) & 0x03;
+		dom_len  = tvb_get_uint8(tvb, offset) & 0x03;
 		offset++;
 	}
 	/* Address part */
@@ -251,7 +251,7 @@ dissect_lon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 		offset += 3;
 		break;
 	case 2: /* Unicast/Multicast */
-		addr_a = tvb_get_guint8(tvb, offset+1) >> 7;
+		addr_a = tvb_get_uint8(tvb, offset+1) >> 7;
 		if (addr_a) { /* Type 2a */
 			ti = proto_tree_add_subtree(lon_tree, tvb, offset, 4, ett_address, NULL, "Address type 2a (unicast)");
 			proto_tree_add_item(ti, hf_lon_addr_srcsub, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -314,7 +314,7 @@ dissect_lon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 		proto_tree_add_bitmask(lon_tree, tvb, offset, hf_lon_tpdu,
 					ett_tpdu, tpdu_fields, ENC_BIG_ENDIAN);
 
-		pdutype = (tvb_get_guint8(tvb, offset)>>4)& 0x07;
+		pdutype = (tvb_get_uint8(tvb, offset)>>4)& 0x07;
 		offset++;
 		switch(pdutype)
 		{
@@ -325,14 +325,14 @@ dissect_lon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 		case 2: /* ACK */
 			break;
 		case 4: /* REMINDER */
-			length = tvb_get_guint8(tvb, offset);
+			length = tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(lon_tree, hf_lon_mlen, tvb, offset, 1, ENC_BIG_ENDIAN);
 			offset++;
 			proto_tree_add_item(lon_tree, hf_lon_mlist, tvb, offset, length, ENC_BIG_ENDIAN);
 			offset += length;
 			break;
 		case 5: /* REM/MSG */
-			length = tvb_get_guint8(tvb, offset);
+			length = tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(lon_tree, hf_lon_mlen, tvb, offset, 1, ENC_BIG_ENDIAN);
 			offset++;
 			if (length > 0)
@@ -356,7 +356,7 @@ dissect_lon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 		};
 		proto_tree_add_bitmask(lon_tree, tvb, offset, hf_lon_spdu,
 					ett_spdu, spdu_fields, ENC_BIG_ENDIAN);
-		pdutype = (tvb_get_guint8(tvb, offset)>>4)& 0x07;
+		pdutype = (tvb_get_uint8(tvb, offset)>>4)& 0x07;
 		offset++;
 		switch(pdutype)
 		{
@@ -367,14 +367,14 @@ dissect_lon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 			offset += dissect_apdu(lon_tree, pinfo, tvb, offset);
 			break;
 		case 4: /* REMINDER */
-			length = tvb_get_guint8(tvb, offset);
+			length = tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(lon_tree, hf_lon_mlen, tvb, offset, 1, ENC_BIG_ENDIAN);
 			offset++;
 			proto_tree_add_item(lon_tree, hf_lon_mlist, tvb, offset, length, ENC_BIG_ENDIAN);
 			offset += length;
 			break;
 		case 5: /* REM/MSG */
-			length = tvb_get_guint8(tvb, offset);
+			length = tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(lon_tree, hf_lon_mlen, tvb, offset, 1, ENC_BIG_ENDIAN);
 			offset++;
 			if (length > 0)
@@ -400,7 +400,7 @@ dissect_lon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 		proto_tree_add_bitmask(lon_tree, tvb, offset, hf_lon_authpdu,
 					ett_authpdu, authpdu_fields, ENC_BIG_ENDIAN);
 
-		pdutype = (tvb_get_guint8(tvb, offset)>>4)& 0x03;
+		pdutype = (tvb_get_uint8(tvb, offset)>>4)& 0x03;
 		offset++;
 		switch(pdutype)
 		{
@@ -423,14 +423,14 @@ dissect_lon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 	return offset;
 }
 
-static gint
+static int
 dissect_apdu(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
-		gint offset)
+		int offset)
 {
 	tvbuff_t *next_tvb;
-	gint old_offset = offset, dest_type;
+	int old_offset = offset, dest_type;
 
-	dest_type = tvb_get_guint8(tvb, offset);
+	dest_type = tvb_get_uint8(tvb, offset);
 
 	if ((dest_type&0x80) == 0x80) { /* Network variable */
 		static int * const nv_fields[] = {
@@ -709,7 +709,7 @@ proto_register_lon(void)
 #endif
 	};
 
-	static gint *ett[] =
+	static int *ett[] =
 	{
 		&ett_lon,
 		&ett_address,

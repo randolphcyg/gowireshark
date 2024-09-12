@@ -22,18 +22,18 @@ void proto_register_dcerpc_bossvr(void);
 void proto_reg_handoff_dcerpc_bossvr(void);
 
 
-static int proto_bossvr = -1;
-static int hf_bossvr_opnum = -1;
+static int proto_bossvr;
+static int hf_bossvr_opnum;
 
 
-static gint ett_bossvr = -1;
+static int ett_bossvr;
 
 
 static e_guid_t uuid_bossvr = { 0x4d37f2dd, 0xed43, 0x0000, { 0x02, 0xc0, 0x37, 0xcf, 0x1e, 0x00, 0x00, 0x01 } };
-static guint16  ver_bossvr = 0;
+static uint16_t ver_bossvr;
 
 
-static dcerpc_sub_dissector bossvr_dissectors[] = {
+static const dcerpc_sub_dissector bossvr_dissectors[] = {
 	{  0, "GetServerStatus", NULL, NULL},
 	{  1, "CreateBnode", NULL, NULL},
 	{  2, "DeleteBnode", NULL, NULL},
@@ -80,7 +80,7 @@ proto_register_dcerpc_bossvr (void)
 		    NULL, 0x0, NULL, HFILL }}
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_bossvr,
 	};
 	proto_bossvr = proto_register_protocol ("DCE DFS Basic Overseer Server", "BOSSVR", "bossvr");

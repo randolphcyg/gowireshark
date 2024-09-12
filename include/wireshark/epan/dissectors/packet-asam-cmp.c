@@ -20,6 +20,7 @@
 #include <epan/packet.h>
 #include <epan/uat.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 
 #include "packet-socketcan.h"
 #include "packet-flexray.h"
@@ -28,58 +29,58 @@
 void proto_register_asam_cmp(void);
 void proto_reg_handoff_asam_cmp(void);
 
-static int proto_asam_cmp = -1;
+static int proto_asam_cmp;
 
 static dissector_handle_t eth_handle;
 
-static gboolean heuristic_first = FALSE;
-static gboolean old_11bit_canid_encoding = FALSE;
+static bool heuristic_first;
+static bool old_11bit_canid_encoding;
 
 static dissector_table_t lin_subdissector_table;
 
 /* Header fields */
-static int hf_cmp_header = -1;
-static int hf_cmp_version = -1;
-static int hf_cmp_header_res = -1;
-static int hf_cmp_device_id = -1;
-static int hf_cmp_msg_type = -1;
-static int hf_cmp_stream_id = -1;
-static int hf_cmp_stream_seq_ctr = -1;
+static int hf_cmp_header;
+static int hf_cmp_version;
+static int hf_cmp_header_res;
+static int hf_cmp_device_id;
+static int hf_cmp_msg_type;
+static int hf_cmp_stream_id;
+static int hf_cmp_stream_seq_ctr;
 
 /* Message Fields */
 /* Message Header Fields */
-static int hf_cmp_msg_header = -1;
+static int hf_cmp_msg_header;
 
-static int hf_cmp_common_flag_recal = -1;
-static int hf_cmp_common_flag_insync = -1;
-static int hf_cmp_common_flag_seg = -1;
-static int hf_cmp_common_flag_dir_on_if = -1;
-static int hf_cmp_common_flag_overflow = -1;
-static int hf_cmp_common_flag_err_in_payload = -1;
-static int hf_cmp_common_flag_reserved = -1;
-static int hf_cmp_common_flag_reserved_ctrl = -1;
+static int hf_cmp_common_flag_recal;
+static int hf_cmp_common_flag_insync;
+static int hf_cmp_common_flag_seg;
+static int hf_cmp_common_flag_dir_on_if;
+static int hf_cmp_common_flag_overflow;
+static int hf_cmp_common_flag_err_in_payload;
+static int hf_cmp_common_flag_reserved;
+static int hf_cmp_common_flag_reserved_ctrl;
 
-static int hf_cmp_msg_timestamp = -1;
-static int hf_cmp_msg_timestamp_ns = -1;
-static int hf_cmp_msg_reserved = -1;
-static int hf_cmp_msg_common_flags = -1;
-static int hf_cmp_msg_vendor_id = -1;
-static int hf_cmp_msg_payload_length = -1;
-static int hf_cmp_msg_payload = -1;
+static int hf_cmp_msg_timestamp;
+static int hf_cmp_msg_timestamp_ns;
+static int hf_cmp_msg_reserved;
+static int hf_cmp_msg_common_flags;
+static int hf_cmp_msg_vendor_id;
+static int hf_cmp_msg_payload_length;
+static int hf_cmp_msg_payload;
 
 /* Additional Data Message Header Fields */
-static int hf_cmp_interface_id = -1;
-static int hf_cmp_payload_type = -1;
+static int hf_cmp_interface_id;
+static int hf_cmp_payload_type;
 
 /* Additional Control Message Header Fields */
-static int hf_cmp_ctrl_msg_reserved = -1;
-static int hf_cmp_ctrl_msg_payload_type = -1;
+static int hf_cmp_ctrl_msg_reserved;
+static int hf_cmp_ctrl_msg_payload_type;
 
 /* Additional Status Message Header Fields */
-static int hf_cmp_status_msg_payload_type = -1;
+static int hf_cmp_status_msg_payload_type;
 
 /* Additional Status Message Header Fields */
-static int hf_cmp_vendor_msg_payload_type = -1;
+static int hf_cmp_vendor_msg_payload_type;
 
 /* Data Message Payload Fields */
 /* CAN */
@@ -96,37 +97,37 @@ static int hf_cmp_vendor_msg_payload_type = -1;
 #define CMP_CAN_CRC_RES             0x7fff8000
 #define CMP_CAN_CRC_CRC_SUPP        0x80000000
 
-static int hf_cmp_can_flags = -1;
+static int hf_cmp_can_flags;
 
-static int hf_cmp_can_flag_crc_err = -1;
-static int hf_cmp_can_flag_ack_err = -1;
-static int hf_cmp_can_flag_passive_ack_err = -1;
-static int hf_cmp_can_flag_active_ack_err = -1;
-static int hf_cmp_can_flag_ack_del_err = -1;
-static int hf_cmp_can_flag_form_err = -1;
-static int hf_cmp_can_flag_stuff_err = -1;
-static int hf_cmp_can_flag_crc_del_err = -1;
-static int hf_cmp_can_flag_eof_err = -1;
-static int hf_cmp_can_flag_bit_err = -1;
-static int hf_cmp_can_flag_r0 = -1;
-static int hf_cmp_can_flag_srr_dom = -1;
-static int hf_cmp_can_flag_reserved = -1;
+static int hf_cmp_can_flag_crc_err;
+static int hf_cmp_can_flag_ack_err;
+static int hf_cmp_can_flag_passive_ack_err;
+static int hf_cmp_can_flag_active_ack_err;
+static int hf_cmp_can_flag_ack_del_err;
+static int hf_cmp_can_flag_form_err;
+static int hf_cmp_can_flag_stuff_err;
+static int hf_cmp_can_flag_crc_del_err;
+static int hf_cmp_can_flag_eof_err;
+static int hf_cmp_can_flag_bit_err;
+static int hf_cmp_can_flag_r0;
+static int hf_cmp_can_flag_srr_dom;
+static int hf_cmp_can_flag_reserved;
 
-static int hf_cmp_can_reserved = -1;
-static int hf_cmp_can_id = -1;
-static int hf_cmp_can_id_11bit = -1;
-static int hf_cmp_can_id_11bit_old = -1;
-static int hf_cmp_can_id_29bit = -1;
-static int hf_cmp_can_id_res = -1;
-static int hf_cmp_can_id_rtr = -1;
-static int hf_cmp_can_id_ide = -1;
-static int hf_cmp_can_crc = -1;
-static int hf_cmp_can_crc_crc = -1;
-static int hf_cmp_can_crc_res = -1;
-static int hf_cmp_can_crc_crc_support = -1;
-static int hf_cmp_can_err_pos = -1;
-static int hf_cmp_can_dlc = -1;
-static int hf_cmp_can_data_len = -1;
+static int hf_cmp_can_reserved;
+static int hf_cmp_can_id;
+static int hf_cmp_can_id_11bit;
+static int hf_cmp_can_id_11bit_old;
+static int hf_cmp_can_id_29bit;
+static int hf_cmp_can_id_res;
+static int hf_cmp_can_id_rtr;
+static int hf_cmp_can_id_ide;
+static int hf_cmp_can_crc;
+static int hf_cmp_can_crc_crc;
+static int hf_cmp_can_crc_res;
+static int hf_cmp_can_crc_crc_support;
+static int hf_cmp_can_err_pos;
+static int hf_cmp_can_dlc;
+static int hf_cmp_can_data_len;
 
 /* CAN FD */
 #define CMP_CANFD_FLAGS_ERRORS      0x03ff
@@ -142,269 +143,269 @@ static int hf_cmp_can_data_len = -1;
 #define CMP_CANFD_CRC_SBC_SUPP      0x40000000
 #define CMP_CANFD_CRC_CRC_SUPP      0x80000000
 
-static int hf_cmp_canfd_flags = -1;
+static int hf_cmp_canfd_flags;
 
-static int hf_cmp_canfd_flag_crc_err = -1;
-static int hf_cmp_canfd_flag_ack_err = -1;
-static int hf_cmp_canfd_flag_passive_ack_err = -1;
-static int hf_cmp_canfd_flag_active_ack_err = -1;
-static int hf_cmp_canfd_flag_ack_del_err = -1;
-static int hf_cmp_canfd_flag_form_err = -1;
-static int hf_cmp_canfd_flag_stuff_err = -1;
-static int hf_cmp_canfd_flag_crc_del_err = -1;
-static int hf_cmp_canfd_flag_eof_err = -1;
-static int hf_cmp_canfd_flag_bit_err = -1;
-static int hf_cmp_canfd_flag_res = -1;
-static int hf_cmp_canfd_flag_srr_dom = -1;
-static int hf_cmp_canfd_flag_brs = -1;
-static int hf_cmp_canfd_flag_esi = -1;
-static int hf_cmp_canfd_flag_reserved = -1;
+static int hf_cmp_canfd_flag_crc_err;
+static int hf_cmp_canfd_flag_ack_err;
+static int hf_cmp_canfd_flag_passive_ack_err;
+static int hf_cmp_canfd_flag_active_ack_err;
+static int hf_cmp_canfd_flag_ack_del_err;
+static int hf_cmp_canfd_flag_form_err;
+static int hf_cmp_canfd_flag_stuff_err;
+static int hf_cmp_canfd_flag_crc_del_err;
+static int hf_cmp_canfd_flag_eof_err;
+static int hf_cmp_canfd_flag_bit_err;
+static int hf_cmp_canfd_flag_res;
+static int hf_cmp_canfd_flag_srr_dom;
+static int hf_cmp_canfd_flag_brs;
+static int hf_cmp_canfd_flag_esi;
+static int hf_cmp_canfd_flag_reserved;
 
-static int hf_cmp_canfd_reserved = -1;
-static int hf_cmp_canfd_id = -1;
-static int hf_cmp_canfd_id_11bit = -1;
-static int hf_cmp_canfd_id_11bit_old = -1;
-static int hf_cmp_canfd_id_29bit = -1;
-static int hf_cmp_canfd_id_res = -1;
-static int hf_cmp_canfd_id_rrs = -1;
-static int hf_cmp_canfd_id_ide = -1;
-static int hf_cmp_canfd_crc = -1;
-static int hf_cmp_canfd_crc_crc17 = -1;
-static int hf_cmp_canfd_crc_crc21 = -1;
-static int hf_cmp_canfd_crc_sbc = -1;
-static int hf_cmp_canfd_crc_sbc_parity = -1;
-static int hf_cmp_canfd_crc_res = -1;
-static int hf_cmp_canfd_crc_sbc_support = -1;
-static int hf_cmp_canfd_crc_crc_support = -1;
-static int hf_cmp_canfd_err_pos = -1;
-static int hf_cmp_canfd_dlc = -1;
-static int hf_cmp_canfd_data_len = -1;
+static int hf_cmp_canfd_reserved;
+static int hf_cmp_canfd_id;
+static int hf_cmp_canfd_id_11bit;
+static int hf_cmp_canfd_id_11bit_old;
+static int hf_cmp_canfd_id_29bit;
+static int hf_cmp_canfd_id_res;
+static int hf_cmp_canfd_id_rrs;
+static int hf_cmp_canfd_id_ide;
+static int hf_cmp_canfd_crc;
+static int hf_cmp_canfd_crc_crc17;
+static int hf_cmp_canfd_crc_crc21;
+static int hf_cmp_canfd_crc_sbc;
+static int hf_cmp_canfd_crc_sbc_parity;
+static int hf_cmp_canfd_crc_res;
+static int hf_cmp_canfd_crc_sbc_support;
+static int hf_cmp_canfd_crc_crc_support;
+static int hf_cmp_canfd_err_pos;
+static int hf_cmp_canfd_dlc;
+static int hf_cmp_canfd_data_len;
 
 /* LIN */
 #define CMP_CANFD_PID_PARITY_MASK   0xc0
 #define CMP_CANFD_PID_ID_MASK       0x3f
 
-static int hf_cmp_lin_flags = -1;
-static int hf_cmp_lin_flag_checksum_err = -1;
-static int hf_cmp_lin_flag_col_err = -1;
-static int hf_cmp_lin_flag_parity_err = -1;
-static int hf_cmp_lin_flag_no_slave_res_err = -1;
-static int hf_cmp_lin_flag_sync_err = -1;
-static int hf_cmp_lin_flag_framing_err = -1;
-static int hf_cmp_lin_flag_short_dom_err = -1;
-static int hf_cmp_lin_flag_long_dom_err = -1;
-static int hf_cmp_lin_flag_wup = -1;
-static int hf_cmp_lin_flag_reserved = -1;
+static int hf_cmp_lin_flags;
+static int hf_cmp_lin_flag_checksum_err;
+static int hf_cmp_lin_flag_col_err;
+static int hf_cmp_lin_flag_parity_err;
+static int hf_cmp_lin_flag_no_slave_res_err;
+static int hf_cmp_lin_flag_sync_err;
+static int hf_cmp_lin_flag_framing_err;
+static int hf_cmp_lin_flag_short_dom_err;
+static int hf_cmp_lin_flag_long_dom_err;
+static int hf_cmp_lin_flag_wup;
+static int hf_cmp_lin_flag_reserved;
 
-static int hf_cmp_lin_reserved = -1;
-static int hf_cmp_lin_pid = -1;
-static int hf_cmp_lin_pid_parity = -1;
-static int hf_cmp_lin_pid_id = -1;
-static int hf_cmp_lin_reserved_2 = -1;
-static int hf_cmp_lin_checksum = -1;
-static int hf_cmp_lin_data_len = -1;
+static int hf_cmp_lin_reserved;
+static int hf_cmp_lin_pid;
+static int hf_cmp_lin_pid_parity;
+static int hf_cmp_lin_pid_id;
+static int hf_cmp_lin_reserved_2;
+static int hf_cmp_lin_checksum;
+static int hf_cmp_lin_data_len;
 
 /* FlexRay */
 #define CMP_FLEXRAY_FLAGS_NF 0x0004
 
-static int hf_cmp_flexray_flags = -1;
+static int hf_cmp_flexray_flags;
 
-static int hf_cmp_flexray_flag_crc_frame_err = -1;
-static int hf_cmp_flexray_flag_crc_header_err = -1;
-static int hf_cmp_flexray_flag_nf = -1;
-static int hf_cmp_flexray_flag_sf = -1;
-static int hf_cmp_flexray_flag_sync = -1;
-static int hf_cmp_flexray_flag_wus = -1;
-static int hf_cmp_flexray_flag_ppi = -1;
-static int hf_cmp_flexray_flag_cas = -1;
-static int hf_cmp_flexray_flag_reserved = -1;
+static int hf_cmp_flexray_flag_crc_frame_err;
+static int hf_cmp_flexray_flag_crc_header_err;
+static int hf_cmp_flexray_flag_nf;
+static int hf_cmp_flexray_flag_sf;
+static int hf_cmp_flexray_flag_sync;
+static int hf_cmp_flexray_flag_wus;
+static int hf_cmp_flexray_flag_ppi;
+static int hf_cmp_flexray_flag_cas;
+static int hf_cmp_flexray_flag_reserved;
 
-static int hf_cmp_flexray_reserved = -1;
-static int hf_cmp_flexray_header_crc = -1;
-static int hf_cmp_flexray_frame_id = -1;
-static int hf_cmp_flexray_cycle = -1;
-static int hf_cmp_flexray_frame_crc = -1;
-static int hf_cmp_flexray_reserved_2 = -1;
-static int hf_cmp_flexray_data_len = -1;
+static int hf_cmp_flexray_reserved;
+static int hf_cmp_flexray_header_crc;
+static int hf_cmp_flexray_frame_id;
+static int hf_cmp_flexray_cycle;
+static int hf_cmp_flexray_frame_crc;
+static int hf_cmp_flexray_reserved_2;
+static int hf_cmp_flexray_data_len;
 
 /* UART/RS-232 */
 #define CMP_UART_DATA_DATA_MASK     0x01FF
 
-static int hf_cmp_uart_flags = -1;
+static int hf_cmp_uart_flags;
 
-static int hf_cmp_uart_flag_cl = -1;
-static int hf_cmp_uart_flag_reserved = -1;
+static int hf_cmp_uart_flag_cl;
+static int hf_cmp_uart_flag_reserved;
 
-static int hf_cmp_uart_reserved = -1;
-static int hf_cmp_uart_data_len = -1;
-static int hf_cmp_uart_data = -1;
+static int hf_cmp_uart_reserved;
+static int hf_cmp_uart_data_len;
+static int hf_cmp_uart_data;
 
-static int hf_cmp_uart_data_data = -1;
-static int hf_cmp_uart_data_reserved = -1;
-static int hf_cmp_uart_data_framing_err = -1;
-static int hf_cmp_uart_data_break_condition = -1;
-static int hf_cmp_uart_data_parity_err = -1;
+static int hf_cmp_uart_data_data;
+static int hf_cmp_uart_data_reserved;
+static int hf_cmp_uart_data_framing_err;
+static int hf_cmp_uart_data_break_condition;
+static int hf_cmp_uart_data_parity_err;
 
 /* Analog */
-static int hf_cmp_analog_flags = -1;
+static int hf_cmp_analog_flags;
 
-static int hf_cmp_analog_flag_sample_dt = -1;
-static int hf_cmp_analog_flag_reserved = -1;
+static int hf_cmp_analog_flag_sample_dt;
+static int hf_cmp_analog_flag_reserved;
 
-static int hf_cmp_analog_reserved = -1;
-static int hf_cmp_analog_unit = -1;
-static int hf_cmp_analog_sample_interval = -1;
-static int hf_cmp_analog_sample_scalar = -1;
-static int hf_cmp_analog_sample_offset = -1;
-static int hf_cmp_analog_sample = -1;
+static int hf_cmp_analog_reserved;
+static int hf_cmp_analog_unit;
+static int hf_cmp_analog_sample_interval;
+static int hf_cmp_analog_sample_scalar;
+static int hf_cmp_analog_sample_offset;
+static int hf_cmp_analog_sample;
 
 /* Ethernet */
-static int hf_cmp_eth_flags = -1;
+static int hf_cmp_eth_flags;
 
-static int hf_cmp_eth_flag_fcs_err = -1;
-static int hf_cmp_eth_flag_short_err = -1;
-static int hf_cmp_eth_flag_tx_down = -1;
-static int hf_cmp_eth_flag_collision = -1;
-static int hf_cmp_eth_flag_long_err = -1;
-static int hf_cmp_eth_flag_phy_err = -1;
-static int hf_cmp_eth_flag_truncated = -1;
-static int hf_cmp_eth_flag_fcs_supported = -1;
-static int hf_cmp_eth_flag_reserved = -1;
+static int hf_cmp_eth_flag_fcs_err;
+static int hf_cmp_eth_flag_short_err;
+static int hf_cmp_eth_flag_tx_down;
+static int hf_cmp_eth_flag_collision;
+static int hf_cmp_eth_flag_long_err;
+static int hf_cmp_eth_flag_phy_err;
+static int hf_cmp_eth_flag_truncated;
+static int hf_cmp_eth_flag_fcs_supported;
+static int hf_cmp_eth_flag_reserved;
 
-static int hf_cmp_eth_reserved = -1;
-static int hf_cmp_eth_payload_length = -1;
+static int hf_cmp_eth_reserved;
+static int hf_cmp_eth_payload_length;
 
 /* Control Message Payload Fields */
 /* Data Sink Ready */
-static int hf_cmp_ctrl_msg_device_id = -1;
+static int hf_cmp_ctrl_msg_device_id;
 
 /* User Event */
-static int hf_cmp_ctrl_msg_event_id = -1;
+static int hf_cmp_ctrl_msg_event_id;
 
 /* Vendor specific */
-static int hf_cmp_ctrl_msg_vendor_id = -1;
-static int hf_cmp_ctrl_msg_vendor_payload_type = -1;
+static int hf_cmp_ctrl_msg_vendor_id;
+static int hf_cmp_ctrl_msg_vendor_payload_type;
 
 /* Status Message Payload Fields */
 /* Capture Module Status Message */
-static int hf_cmp_status_msg_cm_uptime_ns = -1;
-static int hf_cmp_status_msg_cm_uptime_s = -1;
-static int hf_cmp_status_msg_gm_identity = -1;
-static int hf_cmp_status_msg_gm_clock_quality = -1;
-static int hf_cmp_status_msg_current_utc_offset = -1;
-static int hf_cmp_status_msg_time_source = -1;
-static int hf_cmp_status_msg_domain_num = -1;
-static int hf_cmp_status_msg_res = -1;
-static int hf_cmp_gptp_flags = -1;
+static int hf_cmp_status_msg_cm_uptime_ns;
+static int hf_cmp_status_msg_cm_uptime_s;
+static int hf_cmp_status_msg_gm_identity;
+static int hf_cmp_status_msg_gm_clock_quality;
+static int hf_cmp_status_msg_current_utc_offset;
+static int hf_cmp_status_msg_time_source;
+static int hf_cmp_status_msg_domain_num;
+static int hf_cmp_status_msg_res;
+static int hf_cmp_gptp_flags;
 
-static int hf_cmp_gptp_flags_leap61 = -1;
-static int hf_cmp_gptp_flags_leap59 = -1;
-static int hf_cmp_gptp_flags_cur_utco_valid = -1;
-static int hf_cmp_gptp_flags_ptp_timescale = -1;
-static int hf_cmp_gptp_flags_time_traceable = -1;
-static int hf_cmp_gptp_flags_freq_traceable = -1;
-static int hf_cmp_gptp_flags_reserved = -1;
+static int hf_cmp_gptp_flags_leap61;
+static int hf_cmp_gptp_flags_leap59;
+static int hf_cmp_gptp_flags_cur_utco_valid;
+static int hf_cmp_gptp_flags_ptp_timescale;
+static int hf_cmp_gptp_flags_time_traceable;
+static int hf_cmp_gptp_flags_freq_traceable;
+static int hf_cmp_gptp_flags_reserved;
 
-static int hf_cmp_status_dev_desc_length = -1;
-static int hf_cmp_status_dev_desc = -1;
-static int hf_cmp_status_sn_length = -1;
-static int hf_cmp_status_sn = -1;
-static int hf_cmp_status_hw_ver_length = -1;
-static int hf_cmp_status_hw_ver = -1;
-static int hf_cmp_status_sw_ver_length = -1;
-static int hf_cmp_status_sw_ver = -1;
-static int hf_cmp_status_vendor_data_length = -1;
-static int hf_cmp_status_vendor_data = -1;
+static int hf_cmp_status_dev_desc_length;
+static int hf_cmp_status_dev_desc;
+static int hf_cmp_status_sn_length;
+static int hf_cmp_status_sn;
+static int hf_cmp_status_hw_ver_length;
+static int hf_cmp_status_hw_ver;
+static int hf_cmp_status_sw_ver_length;
+static int hf_cmp_status_sw_ver;
+static int hf_cmp_status_vendor_data_length;
+static int hf_cmp_status_vendor_data;
 
 /* Interface Status Message */
-static int hf_cmp_iface_interface = -1;
-static int hf_cmp_iface_iface_id = -1;
-static int hf_cmp_iface_msg_total_rx = -1;
-static int hf_cmp_iface_msg_total_tx = -1;
-static int hf_cmp_iface_msg_dropped_rx = -1;
-static int hf_cmp_iface_msg_dropped_tx = -1;
-static int hf_cmp_iface_errs_total_rx = -1;
-static int hf_cmp_iface_errs_total_tx = -1;
-static int hf_cmp_iface_iface_type = -1;
-static int hf_cmp_iface_iface_status = -1;
-static int hf_cmp_iface_stream_id_cnt = -1;
-static int hf_cmp_iface_reserved = -1;
+static int hf_cmp_iface_interface;
+static int hf_cmp_iface_iface_id;
+static int hf_cmp_iface_msg_total_rx;
+static int hf_cmp_iface_msg_total_tx;
+static int hf_cmp_iface_msg_dropped_rx;
+static int hf_cmp_iface_msg_dropped_tx;
+static int hf_cmp_iface_errs_total_rx;
+static int hf_cmp_iface_errs_total_tx;
+static int hf_cmp_iface_iface_type;
+static int hf_cmp_iface_iface_status;
+static int hf_cmp_iface_stream_id_cnt;
+static int hf_cmp_iface_reserved;
 
-static int hf_cmp_iface_feat = -1;
-static int hf_cmp_iface_feat_can_pas_ack = -1;
-static int hf_cmp_iface_feat_can_act_ack = -1;
-static int hf_cmp_iface_feat_can_ack_del_err = -1;
-static int hf_cmp_iface_feat_can_crc_del_err = -1;
-static int hf_cmp_iface_feat_can_eof_err = -1;
-static int hf_cmp_iface_feat_can_r0 = -1;
-static int hf_cmp_iface_feat_can_srr_dom = -1;
+static int hf_cmp_iface_feat;
+static int hf_cmp_iface_feat_can_pas_ack;
+static int hf_cmp_iface_feat_can_act_ack;
+static int hf_cmp_iface_feat_can_ack_del_err;
+static int hf_cmp_iface_feat_can_crc_del_err;
+static int hf_cmp_iface_feat_can_eof_err;
+static int hf_cmp_iface_feat_can_r0;
+static int hf_cmp_iface_feat_can_srr_dom;
 
-static int hf_cmp_iface_feat_canfd_pas_ack = -1;
-static int hf_cmp_iface_feat_canfd_act_ack = -1;
-static int hf_cmp_iface_feat_canfd_ack_del_err = -1;
-static int hf_cmp_iface_feat_canfd_crc_del_err = -1;
-static int hf_cmp_iface_feat_canfd_eof_err = -1;
-static int hf_cmp_iface_feat_canfd_rsvd = -1;
-static int hf_cmp_iface_feat_canfd_srr_dom = -1;
-static int hf_cmp_iface_feat_canfd_brs_dom = -1;
-static int hf_cmp_iface_feat_canfd_esi_dom = -1;
+static int hf_cmp_iface_feat_canfd_pas_ack;
+static int hf_cmp_iface_feat_canfd_act_ack;
+static int hf_cmp_iface_feat_canfd_ack_del_err;
+static int hf_cmp_iface_feat_canfd_crc_del_err;
+static int hf_cmp_iface_feat_canfd_eof_err;
+static int hf_cmp_iface_feat_canfd_rsvd;
+static int hf_cmp_iface_feat_canfd_srr_dom;
+static int hf_cmp_iface_feat_canfd_brs_dom;
+static int hf_cmp_iface_feat_canfd_esi_dom;
 
-static int hf_cmp_iface_feat_lin_sync_err = -1;
-static int hf_cmp_iface_feat_lin_framing_err = -1;
-static int hf_cmp_iface_feat_lin_short_dom_err = -1;
-static int hf_cmp_iface_feat_lin_long_dom_err = -1;
-static int hf_cmp_iface_feat_lin_wup = -1;
+static int hf_cmp_iface_feat_lin_sync_err;
+static int hf_cmp_iface_feat_lin_framing_err;
+static int hf_cmp_iface_feat_lin_short_dom_err;
+static int hf_cmp_iface_feat_lin_long_dom_err;
+static int hf_cmp_iface_feat_lin_wup;
 
-static int hf_cmp_iface_feat_eth_too_long = -1;
-static int hf_cmp_iface_feat_eth_phy_err = -1;
-static int hf_cmp_iface_feat_eth_trunc = -1;
+static int hf_cmp_iface_feat_eth_too_long;
+static int hf_cmp_iface_feat_eth_phy_err;
+static int hf_cmp_iface_feat_eth_trunc;
 
-static int hf_cmp_iface_stream_ids = -1;
-static int hf_cmp_iface_stream_id = -1;
-static int hf_cmp_iface_vendor_data_len = -1;
-static int hf_cmp_iface_vendor_data = -1;
+static int hf_cmp_iface_stream_ids;
+static int hf_cmp_iface_stream_id;
+static int hf_cmp_iface_vendor_data_len;
+static int hf_cmp_iface_vendor_data;
 
 /* Configuration Status Message */
-static int hf_cmp_status_msg_config = -1;
+static int hf_cmp_status_msg_config;
 
 /* Data Lost Event Status Message */
-static int hf_cmp_dataloss_data_sink_port = -1;
-static int hf_cmp_dataloss_device_id = -1;
-static int hf_cmp_dataloss_reserved = -1;
-static int hf_cmp_dataloss_stream_id = -1;
-static int hf_cmp_dataloss_last_ssq_value = -1;
-static int hf_cmp_dataloss_current_ssq_value = -1;
+static int hf_cmp_dataloss_data_sink_port;
+static int hf_cmp_dataloss_device_id;
+static int hf_cmp_dataloss_reserved;
+static int hf_cmp_dataloss_stream_id;
+static int hf_cmp_dataloss_last_ssq_value;
+static int hf_cmp_dataloss_current_ssq_value;
 
 /* Time Sync Lost Event Status Message */
-static int hf_cmp_timeloss_port_nr = -1;
-static int hf_cmp_timeloss_device_id = -1;
-static int hf_cmp_timeloss_error_flags = -1;
+static int hf_cmp_timeloss_port_nr;
+static int hf_cmp_timeloss_device_id;
+static int hf_cmp_timeloss_error_flags;
 
-static int hf_cmp_timeloss_error_flags_ts = -1;
-static int hf_cmp_timeloss_error_flags_insync = -1;
-static int hf_cmp_timeloss_error_flags_delta = -1;
-static int hf_cmp_timeloss_error_flags_reserved = -1;
+static int hf_cmp_timeloss_error_flags_ts;
+static int hf_cmp_timeloss_error_flags_insync;
+static int hf_cmp_timeloss_error_flags_delta;
+static int hf_cmp_timeloss_error_flags_reserved;
 
 /* Vendor Specific */
-static int hf_cmp_status_msg_vendor_specific = -1;
+static int hf_cmp_status_msg_vendor_specific;
 
 /* Protocol trees */
-static gint ett_asam_cmp = -1;
-static gint ett_asam_cmp_header = -1;
-static gint ett_asam_cmp_timestamp = -1;
-static gint ett_asam_cmp_common_flags = -1;
-static gint ett_asam_cmp_payload = -1;
-static gint ett_asam_cmp_payload_flags = -1;
-static gint ett_asam_cmp_lin_pid = -1;
-static gint ett_asam_cmp_can_id = -1;
-static gint ett_asam_cmp_can_crc = -1;
-static gint ett_asam_cmp_uart_data = -1;
-static gint ett_asam_cmp_status_cm_flags = -1;
-static gint ett_asam_cmp_status_cm_uptime = -1;
-static gint ett_asam_cmp_status_timeloss_flags = -1;
-static gint ett_asam_cmp_status_interface = -1;
-static gint ett_asam_cmp_status_feature_support = -1;
-static gint ett_asam_cmp_status_stream_ids = -1;
+static int ett_asam_cmp;
+static int ett_asam_cmp_header;
+static int ett_asam_cmp_timestamp;
+static int ett_asam_cmp_common_flags;
+static int ett_asam_cmp_payload;
+static int ett_asam_cmp_payload_flags;
+static int ett_asam_cmp_lin_pid;
+static int ett_asam_cmp_can_id;
+static int ett_asam_cmp_can_crc;
+static int ett_asam_cmp_uart_data;
+static int ett_asam_cmp_status_cm_flags;
+static int ett_asam_cmp_status_cm_uptime;
+static int ett_asam_cmp_status_timeloss_flags;
+static int ett_asam_cmp_status_interface;
+static int ett_asam_cmp_status_feature_support;
+static int ett_asam_cmp_status_stream_ids;
 
 /* General */
 #define CMP_HEADER_LEN                         8
@@ -709,23 +710,23 @@ static const value_string analog_units[] = {
 /********* UATs *********/
 
 typedef struct _generic_one_id_string {
-    guint   id;
-    gchar  *name;
+    unsigned   id;
+    char   *name;
 } generic_one_id_string_t;
 
 /* Interface UAT */
 typedef struct _interface_config {
-    guint     id;
-    guint     bus_id;
-    gchar    *name;
+    unsigned  id;
+    unsigned  bus_id;
+    char     *name;
 } interface_config_t;
 
 /* Devices */
 #define DATAFILE_ASAM_CMP_DEVICES_IDS "ASAM_CMP_devices"
 
-static GHashTable *data_asam_cmp_devices = NULL;
-static generic_one_id_string_t *asam_cmp_devices = NULL;
-static guint asam_cmp_devices_num = 0;
+static GHashTable *data_asam_cmp_devices;
+static generic_one_id_string_t *asam_cmp_devices;
+static unsigned asam_cmp_devices_num;
 
 UAT_HEX_CB_DEF(asam_cmp_devices, id, generic_one_id_string_t)
 UAT_CSTRING_CB_DEF(asam_cmp_devices, name, generic_one_id_string_t)
@@ -733,26 +734,26 @@ UAT_CSTRING_CB_DEF(asam_cmp_devices, name, generic_one_id_string_t)
 /* Interfaces */
 #define DATAFILE_ASAM_CMP_IFACE_IDS "ASAM_CMP_interfaces"
 
-static GHashTable *data_asam_cmp_interfaces = NULL;
-static interface_config_t *asam_cmp_interfaces = NULL;
-static guint asam_cmp_interface_num = 0;
+static GHashTable *data_asam_cmp_interfaces;
+static interface_config_t *asam_cmp_interfaces;
+static unsigned asam_cmp_interface_num;
 
 UAT_HEX_CB_DEF(asam_cmp_interfaces, id, interface_config_t)
 UAT_CSTRING_CB_DEF(asam_cmp_interfaces, name, interface_config_t)
 UAT_HEX_CB_DEF(asam_cmp_interfaces, bus_id, interface_config_t)
 
 /*** expert info items ***/
-static expert_field ef_asam_cmp_length_mismatch = EI_INIT;
-static expert_field ef_asam_cmp_unsupported_crc_not_zero = EI_INIT;
+static expert_field ei_asam_cmp_length_mismatch;
+static expert_field ei_asam_cmp_unsupported_crc_not_zero;
 
 /* generic UAT */
 static void
-tecmp_free_key(gpointer key) {
+tecmp_free_key(void *key) {
     wmem_free(wmem_epan_scope(), key);
 }
 
 static void
-simple_free(gpointer data) {
+simple_free(void *data) {
     /* we need to free because of the g_strdup in post_update*/
     g_free(data);
 }
@@ -774,15 +775,15 @@ update_generic_one_identifier_16bit(void *r, char **err) {
 
     if (rec->id > 0xffff) {
         *err = ws_strdup_printf("We currently only support 16 bit identifiers (ID: %i  Name: %s)", rec->id, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = g_strdup("Name cannot be empty");
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
@@ -794,8 +795,8 @@ free_generic_one_id_string_cb(void *r) {
 }
 
 static void
-post_update_one_id_string_template_cb(generic_one_id_string_t *data, guint data_num, GHashTable *ht) {
-    guint   i;
+post_update_one_id_string_template_cb(generic_one_id_string_t *data, unsigned data_num, GHashTable *ht) {
+    unsigned   i;
     int    *key = NULL;
 
     for (i = 0; i < data_num; i++) {
@@ -841,20 +842,20 @@ update_interface_config(void *r, char **err) {
 
     if (rec->id > 0xffffffff) {
         *err = ws_strdup_printf("We currently only support 32 bit identifiers (ID: %i  Name: %s)", rec->id, rec->name);
-        return FALSE;
+        return false;
     }
 
     if (rec->name == NULL || rec->name[0] == 0) {
         *err = g_strdup("Name cannot be empty");
-        return FALSE;
+        return false;
     }
 
     if (rec->bus_id > 0xffff) {
         *err = ws_strdup_printf("We currently only support 16 bit bus identifiers (ID: %i  Name: %s  Bus-ID: %i)", rec->id, rec->name, rec->bus_id);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void
@@ -882,7 +883,7 @@ ht_lookup_channel_config(unsigned int identifier) {
     return tmp;
 }
 
-static gchar *
+static char *
 ht_interface_config_to_string(unsigned int identifier) {
     interface_config_t   *tmp = ht_lookup_channel_config(identifier);
     if (tmp == NULL) {
@@ -892,7 +893,7 @@ ht_interface_config_to_string(unsigned int identifier) {
     return tmp->name;
 }
 
-static guint16
+static uint16_t
 ht_interface_config_to_bus_id(unsigned int identifier) {
     interface_config_t   *tmp = ht_lookup_channel_config(identifier);
     if (tmp == NULL) {
@@ -918,7 +919,7 @@ post_update_asam_cmp_devices_cb(void) {
 
 static void
 post_update_interface_config_cb(void) {
-    guint  i;
+    unsigned  i;
     int   *key = NULL;
 
     /* destroy old hash table, if it exists */
@@ -942,8 +943,8 @@ post_update_interface_config_cb(void) {
 }
 
 static void
-add_device_id_text(proto_item *ti, guint16 device_id) {
-    const gchar *descr = ht_lookup_name(data_asam_cmp_devices, device_id);
+add_device_id_text(proto_item *ti, uint16_t device_id) {
+    const char *descr = ht_lookup_name(data_asam_cmp_devices, device_id);
 
     if (descr != NULL) {
         proto_item_append_text(ti, " (%s)", descr);
@@ -951,8 +952,8 @@ add_device_id_text(proto_item *ti, guint16 device_id) {
 }
 
 static void
-add_interface_id_text(proto_item *ti, guint32 interface_id) {
-    const gchar *descr = ht_interface_config_to_string(interface_id);
+add_interface_id_text(proto_item *ti, uint32_t interface_id) {
+    const char *descr = ht_interface_config_to_string(interface_id);
 
     if (descr != NULL) {
         proto_item_append_text(ti, " (%s)", descr);
@@ -960,19 +961,19 @@ add_interface_id_text(proto_item *ti, guint32 interface_id) {
 }
 
 static int
-dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tree, proto_tree *tree, guint offset_orig) {
+dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tree, proto_tree *tree, unsigned offset_orig) {
     proto_item *ti = NULL;
     proto_item *ti_msg_header = NULL;
     proto_item *ti_msg_payload = NULL;
     proto_tree *asam_cmp_data_msg_header_tree = NULL;
     proto_tree *asam_cmp_data_msg_payload_tree = NULL;
     proto_tree *subtree = NULL;
-    guint offset = offset_orig;
+    unsigned offset = offset_orig;
 
-    guint msg_payload_type = 0;
-    guint msg_payload_length = 0;
-    guint msg_payload_type_length = 0;
-    guint interface_id = 0;
+    unsigned msg_payload_type = 0;
+    unsigned msg_payload_length = 0;
+    unsigned msg_payload_type_length = 0;
+    unsigned interface_id = 0;
 
     static int * const asam_cmp_common_flags[] = {
         &hf_cmp_common_flag_reserved,
@@ -1092,7 +1093,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
     asam_cmp_data_msg_header_tree = proto_item_add_subtree(ti_msg_header, ett_asam_cmp_header);
     proto_item_append_text(ti_msg_header, " %s", "- Data Message");
 
-    guint64 ns = tvb_get_guint64(tvb, offset, ENC_BIG_ENDIAN);
+    uint64_t ns = tvb_get_uint64(tvb, offset, ENC_BIG_ENDIAN);
     nstime_t timestamp = { .secs = (time_t)(ns / 1000000000), .nsecs = (int)(ns % 1000000000) };
 
     ti = proto_tree_add_time(asam_cmp_data_msg_header_tree, hf_cmp_msg_timestamp, tvb, offset, 8, &timestamp);
@@ -1127,7 +1128,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         if (msg_payload_length > 0) {
             tvbuff_t *sub_tvb = tvb_new_subset_length(tvb, offset, msg_payload_length);
             call_data_dissector(sub_tvb, pinfo, tree);
-            offset += (gint)msg_payload_length;
+            offset += (int)msg_payload_length;
         }
 
         proto_item_set_end(ti_msg_payload, tvb, offset);
@@ -1170,16 +1171,16 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         col_append_str(pinfo->cinfo, COL_INFO, " (CAN)");
         proto_item_append_text(ti_msg_payload, " %s", "(CAN)");
 
-        guint16 can_flags = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+        uint16_t can_flags = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
         proto_tree_add_bitmask(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_can_flags, ett_asam_cmp_payload_flags, asam_cmp_can_flags, ENC_BIG_ENDIAN);
         offset += 2;
 
         proto_tree_add_item(asam_cmp_data_msg_payload_tree, hf_cmp_can_reserved, tvb, offset, 2, ENC_BIG_ENDIAN);
         offset += 2;
 
-        guint32 can_id_field = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
-        gboolean can_id_29bit = (can_id_field & CMP_CAN_ID_IDE) == CMP_CAN_ID_IDE;
-        guint32 can_id = 0;
+        uint32_t can_id_field = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
+        bool can_id_29bit = (can_id_field & CMP_CAN_ID_IDE) == CMP_CAN_ID_IDE;
+        uint32_t can_id = 0;
         if (can_id_29bit) {
             proto_tree_add_bitmask_with_flags(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_can_id, ett_asam_cmp_can_id, asam_cmp_can_id_field_29bit, ENC_BIG_ENDIAN, BMT_NO_FALSE);
             can_id = can_id_field & (CMP_CAN_ID_29BIT_MASK | CMP_CAN_ID_RTR | CMP_CAN_ID_IDE);
@@ -1194,14 +1195,14 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         }
         offset += 4;
 
-        guint64 tmp64;
+        uint64_t tmp64;
         proto_tree_add_bitmask_with_flags_ret_uint64(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_can_crc, ett_asam_cmp_can_crc, asam_cmp_can_crc_field, ENC_BIG_ENDIAN, BMT_NO_FALSE, &tmp64);
         if ((tmp64 & CMP_CAN_CRC_CRC_SUPP) == 0 && (tmp64 & CMP_CAN_CRC_CRC) != 0) {
-            proto_tree_add_expert(asam_cmp_data_msg_payload_tree, pinfo, &ef_asam_cmp_unsupported_crc_not_zero, tvb, offset, 4);
+            proto_tree_add_expert(asam_cmp_data_msg_payload_tree, pinfo, &ei_asam_cmp_unsupported_crc_not_zero, tvb, offset, 4);
         }
         offset += 4;
 
-        guint32 err_pos = 0;
+        uint32_t err_pos = 0;
         proto_tree_add_item_ret_uint(asam_cmp_data_msg_payload_tree, hf_cmp_can_err_pos, tvb, offset, 2, ENC_BIG_ENDIAN, &err_pos);
         offset += 2;
 
@@ -1223,7 +1224,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
                 call_data_dissector(sub_tvb, pinfo, tree);
             }
 
-            offset += (gint)msg_payload_type_length;
+            offset += (int)msg_payload_type_length;
         }
 
         proto_item_set_end(ti_msg_payload, tvb, offset);
@@ -1278,16 +1279,16 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         col_append_str(pinfo->cinfo, COL_INFO, " (CAN FD)");
         proto_item_append_text(ti_msg_payload, " %s", "(CAN FD)");
 
-        guint16 canfd_flags = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+        uint16_t canfd_flags = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
         proto_tree_add_bitmask(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_canfd_flags, ett_asam_cmp_payload_flags, asam_cmp_canfd_flags, ENC_BIG_ENDIAN);
         offset += 2;
 
         proto_tree_add_item(asam_cmp_data_msg_payload_tree, hf_cmp_canfd_reserved, tvb, offset, 2, ENC_BIG_ENDIAN);
         offset += 2;
 
-        guint32 can_id_field = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
-        gboolean can_id_29bit = (can_id_field & CMP_CANFD_ID_IDE) == CMP_CANFD_ID_IDE;
-        guint32 can_id = 0;
+        uint32_t can_id_field = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
+        bool can_id_29bit = (can_id_field & CMP_CANFD_ID_IDE) == CMP_CANFD_ID_IDE;
+        uint32_t can_id = 0;
         if (can_id_29bit) {
             proto_tree_add_bitmask_with_flags(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_canfd_id, ett_asam_cmp_can_id, asam_cmp_canfd_id_field_29bit, ENC_BIG_ENDIAN, BMT_NO_FALSE);
             can_id = can_id_field & (CMP_CAN_ID_29BIT_MASK | CMP_CANFD_ID_IDE);
@@ -1303,7 +1304,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         offset += 4;
 
         /* We peek ahead to find out the DLC. 0..10: 17bit CRC, 11..15: 21bit CRC. */
-        if (tvb_get_guint8(tvb, offset + 6) <= 10) {
+        if (tvb_get_uint8(tvb, offset + 6) <= 10) {
             proto_tree_add_bitmask_with_flags(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_canfd_crc, ett_asam_cmp_can_crc, asam_cmp_canfd_crc_field_17bit, ENC_BIG_ENDIAN, BMT_NO_FALSE);
         } else {
             proto_tree_add_bitmask_with_flags(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_canfd_crc, ett_asam_cmp_can_crc, asam_cmp_canfd_crc_field_21bit, ENC_BIG_ENDIAN, BMT_NO_FALSE);
@@ -1331,7 +1332,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
                 call_data_dissector(sub_tvb, pinfo, tree);
             }
 
-            offset += (gint)msg_payload_type_length;
+            offset += (int)msg_payload_type_length;
         }
 
         proto_item_set_end(ti_msg_payload, tvb, offset);
@@ -1350,7 +1351,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         proto_tree_add_item(asam_cmp_data_msg_payload_tree, hf_cmp_lin_reserved, tvb, offset, 2, ENC_BIG_ENDIAN);
         offset += 2;
 
-        lin_info.id = tvb_get_guint8(tvb, offset) & CMP_CANFD_PID_ID_MASK;
+        lin_info.id = tvb_get_uint8(tvb, offset) & CMP_CANFD_PID_ID_MASK;
         proto_tree_add_bitmask(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_lin_pid, ett_asam_cmp_lin_pid, asam_cmp_lin_pid, ENC_BIG_ENDIAN);
         offset += 1;
 
@@ -1369,13 +1370,13 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
             lin_info.bus_id = ht_interface_config_to_bus_id(interface_id);
             lin_info.len = msg_payload_type_length;
 
-            if (!dissector_try_uint_new(lin_subdissector_table, lin_info.id | (lin_info.bus_id << 16), sub_tvb, pinfo, tree, FALSE, &lin_info)) {
-                if (!dissector_try_uint_new(lin_subdissector_table, lin_info.id, sub_tvb, pinfo, tree, FALSE, &lin_info)) {
+            if (!dissector_try_uint_new(lin_subdissector_table, lin_info.id | (lin_info.bus_id << 16), sub_tvb, pinfo, tree, false, &lin_info)) {
+                if (!dissector_try_uint_new(lin_subdissector_table, lin_info.id, sub_tvb, pinfo, tree, false, &lin_info)) {
                     call_data_dissector(sub_tvb, pinfo, tree);
                 }
             }
 
-            offset += (gint)msg_payload_type_length;
+            offset += (int)msg_payload_type_length;
         }
 
         proto_item_set_end(ti_msg_payload, tvb, offset);
@@ -1384,12 +1385,12 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
 
     case CMP_DATA_MSG_FLEXRAY: {
         flexray_info_t fr_info = {0, 0, 0, 0};
-        guint32 tmp;
+        uint32_t tmp;
 
         col_append_str(pinfo->cinfo, COL_INFO, " (FlexRay)");
         proto_item_append_text(ti_msg_payload, " %s", "(FlexRay)");
 
-        guint16 flags = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+        uint16_t flags = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
         proto_tree_add_bitmask(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_flexray_flags, ett_asam_cmp_payload_flags, asam_cmp_flexray_flags, ENC_BIG_ENDIAN);
         offset += 2;
 
@@ -1400,11 +1401,11 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         offset += 2;
 
         proto_tree_add_item_ret_uint(asam_cmp_data_msg_payload_tree, hf_cmp_flexray_frame_id, tvb, offset, 2, ENC_BIG_ENDIAN, &tmp);
-        fr_info.id = (guint16)tmp;
+        fr_info.id = (uint16_t)tmp;
         offset += 2;
 
         proto_tree_add_item_ret_uint(asam_cmp_data_msg_payload_tree, hf_cmp_flexray_cycle, tvb, offset, 1, ENC_NA, &tmp);
-        fr_info.cc= (guint8)tmp;
+        fr_info.cc= (uint8_t)tmp;
         offset += 1;
 
         proto_tree_add_item(asam_cmp_data_msg_payload_tree, hf_cmp_flexray_frame_crc, tvb, offset, 3, ENC_BIG_ENDIAN);
@@ -1425,7 +1426,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
                 call_data_dissector(sub_tvb, pinfo, tree);
             }
         }
-        offset += (gint)msg_payload_type_length;
+        offset += (int)msg_payload_type_length;
 
         proto_item_set_end(ti_msg_payload, tvb, offset);
         break;
@@ -1435,7 +1436,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         col_append_str(pinfo->cinfo, COL_INFO, " (UART/RS-232)");
         proto_item_append_text(ti_msg_payload, " %s", "(UART/RS-232)");
 
-        guint64 char_len;
+        uint64_t char_len;
         proto_tree_add_bitmask_ret_uint64(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_uart_flags, ett_asam_cmp_payload_flags, asam_cmp_uart_flags, ENC_BIG_ENDIAN, &char_len);
         char_len = char_len & 0x07;
         offset += 2;
@@ -1447,8 +1448,8 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         offset += 2;
 
         if (msg_payload_type_length > 0) {
-            for (guint i = 0; i < msg_payload_type_length; i++) {
-                guint8 *buf = NULL;
+            for (unsigned i = 0; i < msg_payload_type_length; i++) {
+                uint8_t *buf = NULL;
                 ti = proto_tree_add_bitmask(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_uart_data, ett_asam_cmp_uart_data, asam_cmp_uart_data, ENC_BIG_ENDIAN);
                 if (char_len == CMP_UART_CL_7 || char_len == CMP_UART_CL_8) {
                     buf = tvb_get_string_enc(pinfo->pool, tvb, offset + 1, 1, ENC_ASCII | ENC_NA);
@@ -1472,38 +1473,38 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         col_append_str(pinfo->cinfo, COL_INFO, " (Analog)");
         proto_item_append_text(ti_msg_payload, " %s", "(Analog)");
 
-        guint64 flags;
+        uint64_t flags;
         proto_tree_add_bitmask_ret_uint64(asam_cmp_data_msg_payload_tree, tvb, offset, hf_cmp_analog_flags, ett_asam_cmp_payload_flags, asam_cmp_analog_flags, ENC_BIG_ENDIAN, &flags);
         offset += 2;
 
         proto_tree_add_item(asam_cmp_data_msg_payload_tree, hf_cmp_analog_reserved, tvb, offset, 1, ENC_NA);
         offset += 1;
 
-        guint analog_unit;
+        unsigned analog_unit;
         proto_tree_add_item_ret_uint(asam_cmp_data_msg_payload_tree, hf_cmp_analog_unit, tvb, offset, 1, ENC_NA, &analog_unit);
-        const gchar *unit_symbol;
+        const char *unit_symbol;
         unit_symbol = try_val_to_str(analog_unit, analog_units);
         offset += 1;
 
         proto_tree_add_item(asam_cmp_data_msg_payload_tree, hf_cmp_analog_sample_interval, tvb, offset, 4, ENC_BIG_ENDIAN);
         offset += 4;
 
-        gfloat sample_offset;
+        float sample_offset;
         proto_tree_add_item(asam_cmp_data_msg_payload_tree, hf_cmp_analog_sample_offset, tvb, offset, 4, ENC_BIG_ENDIAN);
         sample_offset = tvb_get_ieee_float(tvb, offset, ENC_BIG_ENDIAN);
         offset += 4;
 
-        gfloat sample_scalar;
+        float sample_scalar;
         proto_tree_add_item(asam_cmp_data_msg_payload_tree, hf_cmp_analog_sample_scalar, tvb, offset, 4, ENC_BIG_ENDIAN);
         sample_scalar = tvb_get_ieee_float(tvb, offset, ENC_BIG_ENDIAN);
         offset += 4;
 
-        gint data_left = msg_payload_length - 16;
+        int data_left = msg_payload_length - 16;
         if (data_left > 0) {
             switch (flags & 0x03) {
             case 0: /* INT16 */
                 while (data_left >= 2) {
-                    gint16 data_sample = tvb_get_gint16(tvb, offset, ENC_BIG_ENDIAN);
+                    int16_t data_sample = tvb_get_int16(tvb, offset, ENC_BIG_ENDIAN);
                     ti = proto_tree_add_double(asam_cmp_data_msg_payload_tree, hf_cmp_analog_sample, tvb, offset, 2, ((double)data_sample * sample_scalar + sample_offset));
 
                     if (unit_symbol != NULL) {
@@ -1516,7 +1517,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
                 break;
             case 1: /* INT32 */
                 while (data_left >= 4) {
-                    gint32 data_sample = tvb_get_gint32(tvb, offset, ENC_BIG_ENDIAN);
+                    int32_t data_sample = tvb_get_int32(tvb, offset, ENC_BIG_ENDIAN);
                     ti = proto_tree_add_double(asam_cmp_data_msg_payload_tree, hf_cmp_analog_sample, tvb, offset, 4, ((double)data_sample * sample_scalar + sample_offset));
 
                     if (unit_symbol != NULL) {
@@ -1548,10 +1549,10 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         offset += 2;
 
         if (msg_payload_type_length > 0) {
-            tvbuff_t *sub_tvb = tvb_new_subset_length(tvb, offset, (gint)msg_payload_type_length);
+            tvbuff_t *sub_tvb = tvb_new_subset_length(tvb, offset, (int)msg_payload_type_length);
             call_dissector(eth_handle, sub_tvb, pinfo, root_tree);
         }
-        offset += (gint)msg_payload_type_length;
+        offset += (int)msg_payload_type_length;
 
         proto_item_set_end(ti_msg_payload, tvb, offset);
         break;
@@ -1562,7 +1563,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         if (msg_payload_length > 0) {
             tvbuff_t *sub_tvb = tvb_new_subset_length(tvb, offset, msg_payload_length);
             call_data_dissector(sub_tvb, pinfo, tree);
-            offset += (gint)msg_payload_length;
+            offset += (int)msg_payload_length;
         }
 
         proto_item_set_end(ti_msg_payload, tvb, offset);
@@ -1570,7 +1571,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
 
     default:
         if (msg_payload_length > 0) {
-            offset += (gint)msg_payload_length;
+            offset += (int)msg_payload_length;
         }
 
         proto_item_set_end(ti_msg_payload, tvb, offset);
@@ -1578,7 +1579,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
     }
 
     if ((CMP_MSG_HEADER_LEN + msg_payload_length) < (offset - offset_orig)) {
-        proto_tree_add_expert(tree, pinfo, &ef_asam_cmp_length_mismatch, tvb, offset_orig + CMP_MSG_HEADER_LEN, msg_payload_length);
+        proto_tree_add_expert(tree, pinfo, &ei_asam_cmp_length_mismatch, tvb, offset_orig + CMP_MSG_HEADER_LEN, msg_payload_length);
         proto_item_set_end(ti_msg_payload, tvb, offset);
     }
 
@@ -1586,7 +1587,7 @@ dissect_asam_cmp_data_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
 }
 
 static int
-dissect_asam_cmp_ctrl_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tree _U_, proto_tree *tree, guint offset_orig) {
+dissect_asam_cmp_ctrl_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tree _U_, proto_tree *tree, unsigned offset_orig) {
 
     proto_item *ti = NULL;
     proto_item *ti_msg_header = NULL;
@@ -1594,9 +1595,9 @@ dissect_asam_cmp_ctrl_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
     proto_tree *asam_cmp_ctrl_msg_header_tree = NULL;
     proto_tree *asam_cmp_ctrl_msg_payload_tree = NULL;
     proto_tree *subtree = NULL;
-    guint asam_cmp_ctrl_msg_payload_type = 0;
-    guint asam_cmp_ctrl_msg_payload_length = 0;
-    guint offset = offset_orig;
+    unsigned asam_cmp_ctrl_msg_payload_type = 0;
+    unsigned asam_cmp_ctrl_msg_payload_length = 0;
+    unsigned offset = offset_orig;
 
     static int * const asam_cmp_common_flags[] = {
         &hf_cmp_common_flag_reserved_ctrl,
@@ -1610,7 +1611,7 @@ dissect_asam_cmp_ctrl_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
     asam_cmp_ctrl_msg_header_tree = proto_item_add_subtree(ti_msg_header, ett_asam_cmp_header);
     proto_item_append_text(ti_msg_header, " %s", "- Control Message");
 
-    guint64 ns = tvb_get_guint64(tvb, offset, ENC_BIG_ENDIAN);
+    uint64_t ns = tvb_get_uint64(tvb, offset, ENC_BIG_ENDIAN);
     nstime_t timestamp = { .secs = (time_t)(ns / 1000000000), .nsecs = (int)(ns % 1000000000) };
 
     ti = proto_tree_add_time(asam_cmp_ctrl_msg_header_tree, hf_cmp_msg_timestamp, tvb, offset, 8, &timestamp);
@@ -1644,7 +1645,6 @@ dissect_asam_cmp_ctrl_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         proto_item_set_end(ti_msg_payload, tvb, offset + asam_cmp_ctrl_msg_payload_length);
 
         return tvb_reported_length_remaining(tvb, offset_orig);
-        break;
 
     case CMP_CTRL_MSG_DSR_CTRL_MSG:
         col_append_str(pinfo->cinfo, COL_INFO, " (Data Sink Ready)");
@@ -1679,16 +1679,15 @@ dissect_asam_cmp_ctrl_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
         if ((asam_cmp_ctrl_msg_payload_length) > 0) {
             tvbuff_t *sub_tvb = tvb_new_subset_length(tvb, offset, asam_cmp_ctrl_msg_payload_length);
             call_data_dissector(sub_tvb, pinfo, tree);
-            offset += (gint)asam_cmp_ctrl_msg_payload_length;
+            offset += (int)asam_cmp_ctrl_msg_payload_length;
         }
 
         /* we changed the payload length, so lets skip the length check by leaving */
         return (offset + asam_cmp_ctrl_msg_payload_length) - offset_orig;
-        break;
 
     default:
         if (asam_cmp_ctrl_msg_payload_length > 0) {
-            offset += (gint)asam_cmp_ctrl_msg_payload_length;
+            offset += (int)asam_cmp_ctrl_msg_payload_length;
         }
 
         proto_item_set_end(ti_msg_payload, tvb, offset);
@@ -1696,7 +1695,7 @@ dissect_asam_cmp_ctrl_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
     }
 
     if ((CMP_MSG_HEADER_LEN + asam_cmp_ctrl_msg_payload_length) < (offset - offset_orig)) {
-        proto_tree_add_expert(tree, pinfo, &ef_asam_cmp_length_mismatch, tvb, offset_orig + CMP_MSG_HEADER_LEN, asam_cmp_ctrl_msg_payload_length);
+        proto_tree_add_expert(tree, pinfo, &ei_asam_cmp_length_mismatch, tvb, offset_orig + CMP_MSG_HEADER_LEN, asam_cmp_ctrl_msg_payload_length);
         proto_item_set_end(ti_msg_payload, tvb, offset);
     }
 
@@ -1704,9 +1703,9 @@ dissect_asam_cmp_ctrl_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tr
 }
 
 static int
-dissect_asam_cmp_status_interface_support_mask(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint offset_orig, guint8 interface_type) {
-    guint offset = offset_orig;
-    guint64 temp = 0;
+dissect_asam_cmp_status_interface_support_mask(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsigned offset_orig, uint8_t interface_type) {
+    unsigned offset = offset_orig;
+    uint64_t temp = 0;
 
     static int *const can_feature_support[] = {
         &hf_cmp_iface_feat_can_srr_dom,
@@ -1775,7 +1774,7 @@ dissect_asam_cmp_status_interface_support_mask(tvbuff_t *tvb, packet_info *pinfo
 }
 
 static int
-dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tree _U_, proto_tree *tree, guint offset_orig) {
+dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tree _U_, proto_tree *tree, unsigned offset_orig) {
     proto_item *ti = NULL;
     proto_item *ti_msg_header = NULL;
     proto_item *ti_msg_payload = NULL;
@@ -1785,18 +1784,18 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
     proto_tree *asam_cmp_status_msg_payload_tree = NULL;
     proto_tree *subtree = NULL;
     proto_tree *stream_ids_subtree = NULL;
-    guint offset = offset_orig;
+    unsigned offset = offset_orig;
 
-    guint asam_cmp_status_msg_payload_type = 0;
-    guint asam_cmp_status_msg_payload_length = 0;
-    guint asam_cmp_status_msg_cm_dev_desc_length = 0;
-    guint asam_cmp_status_msg_cm_sn_length = 0;
-    guint asam_cmp_status_msg_cm_hw_ver_length = 0;
-    guint asam_cmp_status_msg_cm_sw_ver_length = 0;
-    guint asam_cmp_status_msg_vendor_data_length = 0;
-    guint asam_cmp_status_msg_iface_stream_id_count = 0;
-    guint64 uptime = 0;
-    const gchar *descr = NULL;
+    unsigned asam_cmp_status_msg_payload_type = 0;
+    unsigned asam_cmp_status_msg_payload_length = 0;
+    unsigned asam_cmp_status_msg_cm_dev_desc_length = 0;
+    unsigned asam_cmp_status_msg_cm_sn_length = 0;
+    unsigned asam_cmp_status_msg_cm_hw_ver_length = 0;
+    unsigned asam_cmp_status_msg_cm_sw_ver_length = 0;
+    unsigned asam_cmp_status_msg_vendor_data_length = 0;
+    unsigned asam_cmp_status_msg_iface_stream_id_count = 0;
+    uint64_t uptime = 0;
+    const char *descr = NULL;
 
     static int * const asam_cmp_common_flags[] = {
         &hf_cmp_common_flag_reserved_ctrl,
@@ -1829,7 +1828,7 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
     asam_cmp_status_msg_header_tree = proto_item_add_subtree(ti_msg_header, ett_asam_cmp_header);
     proto_item_append_text(ti_msg_header, " %s", "- Status Message");
 
-    guint64 ns = tvb_get_guint64(tvb, offset, ENC_BIG_ENDIAN);
+    uint64_t ns = tvb_get_uint64(tvb, offset, ENC_BIG_ENDIAN);
     nstime_t timestamp = { .secs = (time_t)(ns / 1000000000), .nsecs = (int)(ns % 1000000000) };
 
     ti = proto_tree_add_time(asam_cmp_status_msg_header_tree, hf_cmp_msg_timestamp, tvb, offset, 8, &timestamp);
@@ -1865,7 +1864,6 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
         proto_item_set_end(ti_msg_payload, tvb, offset + asam_cmp_status_msg_payload_length);
 
         return tvb_reported_length_remaining(tvb, offset_orig);
-        break;
 
     case CMP_STATUS_MSG_CM_STAT_MSG:
         col_append_str(pinfo->cinfo, COL_INFO, " (CM)");
@@ -1904,7 +1902,7 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
         if ((asam_cmp_status_msg_cm_dev_desc_length) > 0) {
             asam_cmp_status_msg_cm_dev_desc_length += (asam_cmp_status_msg_cm_dev_desc_length % 2); /* padding to 16bit */
             proto_tree_add_item(asam_cmp_status_msg_payload_tree, hf_cmp_status_dev_desc, tvb, offset, asam_cmp_status_msg_cm_dev_desc_length, ENC_UTF_8 | ENC_NA);
-            offset += (gint)asam_cmp_status_msg_cm_dev_desc_length;
+            offset += (int)asam_cmp_status_msg_cm_dev_desc_length;
         }
 
         proto_tree_add_item_ret_uint(asam_cmp_status_msg_payload_tree, hf_cmp_status_sn_length, tvb, offset, 2, ENC_BIG_ENDIAN, &asam_cmp_status_msg_cm_sn_length);
@@ -1913,7 +1911,7 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
         if ((asam_cmp_status_msg_cm_sn_length) > 0) {
             asam_cmp_status_msg_cm_sn_length += (asam_cmp_status_msg_cm_sn_length % 2); /* padding to 16bit */
             proto_tree_add_item(asam_cmp_status_msg_payload_tree, hf_cmp_status_sn, tvb, offset, asam_cmp_status_msg_cm_sn_length, ENC_UTF_8 | ENC_NA);
-            offset += (gint)asam_cmp_status_msg_cm_sn_length;
+            offset += (int)asam_cmp_status_msg_cm_sn_length;
         }
 
         proto_tree_add_item_ret_uint(asam_cmp_status_msg_payload_tree, hf_cmp_status_hw_ver_length, tvb, offset, 2, ENC_BIG_ENDIAN, &asam_cmp_status_msg_cm_hw_ver_length);
@@ -1922,7 +1920,7 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
         if ((asam_cmp_status_msg_cm_hw_ver_length) > 0) {
             asam_cmp_status_msg_cm_hw_ver_length += (asam_cmp_status_msg_cm_hw_ver_length % 2); /* padding to 16bit */
             proto_tree_add_item(asam_cmp_status_msg_payload_tree, hf_cmp_status_hw_ver, tvb, offset, asam_cmp_status_msg_cm_hw_ver_length, ENC_UTF_8 | ENC_NA);
-            offset += (gint)asam_cmp_status_msg_cm_hw_ver_length;
+            offset += (int)asam_cmp_status_msg_cm_hw_ver_length;
         }
 
         proto_tree_add_item_ret_uint(asam_cmp_status_msg_payload_tree, hf_cmp_status_sw_ver_length, tvb, offset, 2, ENC_BIG_ENDIAN, &asam_cmp_status_msg_cm_sw_ver_length);
@@ -1931,7 +1929,7 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
         if ((asam_cmp_status_msg_cm_sw_ver_length) > 0) {
             asam_cmp_status_msg_cm_sw_ver_length += (asam_cmp_status_msg_cm_sw_ver_length % 2); /* padding to 16bit */
             proto_tree_add_item(asam_cmp_status_msg_payload_tree, hf_cmp_status_sw_ver, tvb, offset, asam_cmp_status_msg_cm_sw_ver_length, ENC_UTF_8 | ENC_NA);
-            offset += (gint)asam_cmp_status_msg_cm_sw_ver_length;
+            offset += (int)asam_cmp_status_msg_cm_sw_ver_length;
         }
 
         proto_tree_add_item_ret_uint(asam_cmp_status_msg_payload_tree, hf_cmp_status_vendor_data_length, tvb, offset, 2, ENC_BIG_ENDIAN, &asam_cmp_status_msg_vendor_data_length);
@@ -1939,7 +1937,7 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
 
         if ((asam_cmp_status_msg_vendor_data_length) > 0) {
             proto_tree_add_item(asam_cmp_status_msg_payload_tree, hf_cmp_status_vendor_data, tvb, offset, asam_cmp_status_msg_vendor_data_length, ENC_NA);
-            offset += (gint)asam_cmp_status_msg_vendor_data_length;
+            offset += (int)asam_cmp_status_msg_vendor_data_length;
         }
         break;
 
@@ -1949,8 +1947,8 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
 
         /* each entry is 40 bytes, header is 16 bytes */
         while (tvb_reported_length_remaining(tvb, offset) >= 40 && offset - offset_orig + 40 <= 16 + asam_cmp_status_msg_payload_length) {
-            guint32 ifaceid;
-            guint32 ifacetype;
+            uint32_t ifaceid;
+            uint32_t ifacetype;
 
             ti_interface = proto_tree_add_item(asam_cmp_status_msg_payload_tree, hf_cmp_iface_interface, tvb, offset, 34, ENC_NA);
             subtree = proto_item_add_subtree(ti_interface, ett_asam_cmp_status_interface);
@@ -1995,7 +1993,7 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
             proto_tree_add_item(subtree, hf_cmp_iface_reserved, tvb, offset, 2, ENC_BIG_ENDIAN);
             offset += 2;
 
-            offset += dissect_asam_cmp_status_interface_support_mask(tvb, pinfo, subtree, offset, (guint8)ifacetype);
+            offset += dissect_asam_cmp_status_interface_support_mask(tvb, pinfo, subtree, offset, (uint8_t)ifacetype);
 
             proto_tree_add_item_ret_uint(subtree, hf_cmp_iface_stream_id_cnt, tvb, offset, 2, ENC_BIG_ENDIAN, &asam_cmp_status_msg_iface_stream_id_count);
             offset += 2;
@@ -2004,7 +2002,7 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
                 ti_stream_ids = proto_tree_add_item(subtree, hf_cmp_iface_stream_ids, tvb, offset, asam_cmp_status_msg_iface_stream_id_count, ENC_NA);
                 stream_ids_subtree = proto_item_add_subtree(ti_stream_ids, ett_asam_cmp_status_stream_ids);
 
-                for (guint i = 0; i < asam_cmp_status_msg_iface_stream_id_count; i++) {
+                for (unsigned i = 0; i < asam_cmp_status_msg_iface_stream_id_count; i++) {
                     proto_tree_add_item(stream_ids_subtree, hf_cmp_iface_stream_id, tvb, offset, 1, ENC_NA);
                     offset += 1;
                 }
@@ -2016,7 +2014,7 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
 
             if ((asam_cmp_status_msg_vendor_data_length) > 0) {
                 proto_tree_add_item(subtree, hf_cmp_iface_vendor_data, tvb, offset, asam_cmp_status_msg_vendor_data_length, ENC_NA);
-                offset += (gint)asam_cmp_status_msg_vendor_data_length;
+                offset += (int)asam_cmp_status_msg_vendor_data_length;
             }
 
             proto_item_set_end(ti_interface, tvb, offset);
@@ -2029,7 +2027,7 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
 
         if ((asam_cmp_status_msg_payload_length) > 0) {
             proto_tree_add_item(asam_cmp_status_msg_payload_tree, hf_cmp_status_msg_config, tvb, offset, asam_cmp_status_msg_payload_length, ENC_NA);
-            offset += (gint)asam_cmp_status_msg_payload_length;
+            offset += (int)asam_cmp_status_msg_payload_length;
         }
         break;
 
@@ -2076,13 +2074,13 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
 
         if ((asam_cmp_status_msg_payload_length) > 0) {
             proto_tree_add_item(asam_cmp_status_msg_payload_tree, hf_cmp_status_msg_vendor_specific, tvb, offset, asam_cmp_status_msg_payload_length, ENC_NA);
-            offset += (gint)asam_cmp_status_msg_payload_length;
+            offset += (int)asam_cmp_status_msg_payload_length;
         }
         break;
 
     default:
         if (asam_cmp_status_msg_payload_length > 0) {
-            offset += (gint)asam_cmp_status_msg_payload_length;
+            offset += (int)asam_cmp_status_msg_payload_length;
         }
 
         proto_item_set_end(ti_msg_payload, tvb, offset);
@@ -2090,7 +2088,7 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
     }
 
     if ((CMP_MSG_HEADER_LEN + asam_cmp_status_msg_payload_length) < (offset - offset_orig)) {
-        proto_tree_add_expert(tree, pinfo, &ef_asam_cmp_length_mismatch, tvb, offset_orig + CMP_MSG_HEADER_LEN, asam_cmp_status_msg_payload_length);
+        proto_tree_add_expert(tree, pinfo, &ei_asam_cmp_length_mismatch, tvb, offset_orig + CMP_MSG_HEADER_LEN, asam_cmp_status_msg_payload_length);
         proto_item_set_end(ti_msg_payload, tvb, offset);
     }
 
@@ -2098,15 +2096,15 @@ dissect_asam_cmp_status_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_
 }
 
 static int
-dissect_asam_cmp_vendor_msg(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *root_tree _U_, proto_tree *tree, guint offset_orig) {
+dissect_asam_cmp_vendor_msg(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *root_tree _U_, proto_tree *tree, unsigned offset_orig) {
     proto_item *ti = NULL;
     proto_item *ti_msg_header = NULL;
     proto_item *ti_msg_payload = NULL;
     proto_tree *asam_cmp_vendor_msg_header_tree = NULL;
     proto_tree *subtree = NULL;
-    guint asam_cmp_vendor_msg_payload_type = 0;
-    guint asam_cmp_vendor_msg_payload_length = 0;
-    guint offset = offset_orig;
+    unsigned asam_cmp_vendor_msg_payload_type = 0;
+    unsigned asam_cmp_vendor_msg_payload_length = 0;
+    unsigned offset = offset_orig;
 
     static int * const asam_cmp_common_flags[] = {
         &hf_cmp_common_flag_recal,
@@ -2120,7 +2118,7 @@ dissect_asam_cmp_vendor_msg(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *r
     asam_cmp_vendor_msg_header_tree = proto_item_add_subtree(ti_msg_header, ett_asam_cmp_header);
     proto_item_append_text(ti_msg_header, " %s", "- Vendor-Defined Message");
 
-    guint64 ns = tvb_get_guint64(tvb, offset, ENC_BIG_ENDIAN);
+    uint64_t ns = tvb_get_uint64(tvb, offset, ENC_BIG_ENDIAN);
     nstime_t timestamp = { .secs = (time_t)(ns / 1000000000), .nsecs = (int)(ns % 1000000000) };
 
     ti = proto_tree_add_time(asam_cmp_vendor_msg_header_tree, hf_cmp_msg_timestamp, tvb, offset, 8, &timestamp);
@@ -2150,7 +2148,7 @@ dissect_asam_cmp_vendor_msg(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *r
     proto_item_append_text(ti_msg_payload, " %s", "- Vendor-Defined Message");
 
     if ((asam_cmp_vendor_msg_payload_length) > 0) {
-        offset += (gint)asam_cmp_vendor_msg_payload_length;
+        offset += (int)asam_cmp_vendor_msg_payload_length;
         proto_item_set_end(ti_msg_payload, tvb, offset);
     }
 
@@ -2164,9 +2162,9 @@ dissect_asam_cmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
     proto_item *ti = NULL;
     proto_tree *asam_cmp_tree = NULL;
     proto_tree *asam_cmp_header_tree = NULL;
-    guint msg_type = 0;
-    guint device_id = 0;
-    guint offset = 0;
+    unsigned msg_type = 0;
+    unsigned device_id = 0;
+    unsigned offset = 0;
 
     col_clear(pinfo->cinfo, COL_INFO);
     col_set_str(pinfo->cinfo, COL_INFO, "ASAM-CMP");
@@ -2515,7 +2513,7 @@ proto_register_asam_cmp(void) {
         { &hf_cmp_iface_feat_canfd_brs_dom,         { "BRS Dom Supported", "asam-cmp.msg.iface.feat_supp.canfd.brs_dom", FT_BOOLEAN, 32, NULL, 0x00001000, NULL, HFILL } },
         { &hf_cmp_iface_feat_canfd_esi_dom,         { "ESI Dom Supported", "asam-cmp.msg.iface.feat_supp.canfd.esi_dom", FT_BOOLEAN, 32, NULL, 0x00002000, NULL, HFILL } },
         { &hf_cmp_iface_feat_lin_sync_err,          { "Sync Error Supported", "asam-cmp.msg.iface.feat_supp.lin.sync_err", FT_BOOLEAN, 32, NULL, 0x00000010, NULL, HFILL } },
-        { &hf_cmp_iface_feat_lin_framing_err,       { "Framing Error Supported", "asam-cmp.msg.iface.feat_supp.lin.frameing_err", FT_BOOLEAN, 32, NULL, 0x00000020, NULL, HFILL } },
+        { &hf_cmp_iface_feat_lin_framing_err,       { "Framing Error Supported", "asam-cmp.msg.iface.feat_supp.lin.framing_err", FT_BOOLEAN, 32, NULL, 0x00000020, NULL, HFILL } },
         { &hf_cmp_iface_feat_lin_short_dom_err,     { "Short Dom Error Supported", "asam-cmp.msg.iface.feat_supp.lin.short_dom_err", FT_BOOLEAN, 32, NULL, 0x00000040, NULL, HFILL } },
         { &hf_cmp_iface_feat_lin_long_dom_err,      { "Long Dom Error Supported", "asam-cmp.msg.iface.feat_supp.lin.long_dom_err", FT_BOOLEAN, 32, NULL, 0x00000080, NULL, HFILL } },
         { &hf_cmp_iface_feat_lin_wup,               { "WUP Supported", "asam-cmp.msg.iface.feat_supp.lin.wup", FT_BOOLEAN, 32, NULL, 0x00000100, NULL, HFILL } },
@@ -2553,7 +2551,7 @@ proto_register_asam_cmp(void) {
         { &hf_cmp_status_msg_vendor_specific,       { "Vendor Specific", "asam-cmp.msg.vendor_specific", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL } },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_asam_cmp,
         &ett_asam_cmp_header,
         &ett_asam_cmp_timestamp,
@@ -2573,8 +2571,8 @@ proto_register_asam_cmp(void) {
     };
 
     static ei_register_info ei[] = {
-        { &ef_asam_cmp_length_mismatch, {"asam-cmp.expert.length_mismatch", PI_MALFORMED, PI_WARN, "Malformed message, length mismatch!", EXPFILL } },
-        { &ef_asam_cmp_unsupported_crc_not_zero, {"asam-cmp.export.deactivated_crc_not_zero", PI_MALFORMED, PI_WARN, "Unsupported CRC is not zero!", EXPFILL } },
+        { &ei_asam_cmp_length_mismatch, {"asam-cmp.expert.length_mismatch", PI_MALFORMED, PI_WARN, "Malformed message, length mismatch!", EXPFILL } },
+        { &ei_asam_cmp_unsupported_crc_not_zero, {"asam-cmp.export.deactivated_crc_not_zero", PI_MALFORMED, PI_WARN, "Unsupported CRC is not zero!", EXPFILL } },
     };
 
     /* UATs for user_data fields */
@@ -2603,7 +2601,7 @@ proto_register_asam_cmp(void) {
     asam_cmp_deviceid_uat = uat_new("ASAM CMP Devices",
         sizeof(generic_one_id_string_t),        /* record size           */
         DATAFILE_ASAM_CMP_DEVICES_IDS,          /* filename              */
-        TRUE,                                   /* from profile          */
+        true,                                   /* from profile          */
         (void**)&asam_cmp_devices,              /* data_ptr              */
         &asam_cmp_devices_num,                  /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                 /* but not fields        */
@@ -2622,7 +2620,7 @@ proto_register_asam_cmp(void) {
     asam_cmp_interfaceid_uat = uat_new("ASAM CMP Interfaces",
         sizeof(interface_config_t),             /* record size           */
         DATAFILE_ASAM_CMP_IFACE_IDS,            /* filename              */
-        TRUE,                                   /* from profile          */
+        true,                                   /* from profile          */
         (void**)&asam_cmp_interfaces,           /* data_ptr              */
         &asam_cmp_interface_num,                /* numitems_ptr          */
         UAT_AFFECTS_DISSECTION,                 /* but not fields        */

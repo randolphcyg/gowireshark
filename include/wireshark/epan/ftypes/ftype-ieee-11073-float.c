@@ -15,10 +15,7 @@
 #include <ftypes-int.h>
 #include <inttypes.h>
 #include <stdio.h>
-#include <math.h>
-#include <float.h>
-
-#include "strutil.h"
+#include <wsutil/array.h>
 
 #define DOUBLE_REPR_LENGTH  27
 
@@ -200,6 +197,24 @@ sfloat_ieee_11073_val_from_literal(fvalue_t *fv, const char *s, bool allow_parti
     return true;
 }
 
+static bool
+sfloat_ieee_11073_val_from_uinteger64(fvalue_t *fv, const char *s, uint64_t value _U_, char **err_msg)
+{
+    return sfloat_ieee_11073_val_from_literal(fv, s, FALSE, err_msg);
+}
+
+static bool
+sfloat_ieee_11073_val_from_sinteger64(fvalue_t *fv, const char *s, int64_t value _U_, char **err_msg)
+{
+    return sfloat_ieee_11073_val_from_literal(fv, s, FALSE, err_msg);
+}
+
+static bool
+sfloat_ieee_11073_val_from_double(fvalue_t *fv, const char *s, double value _U_, char **err_msg)
+{
+    return sfloat_ieee_11073_val_from_literal(fv, s, FALSE, err_msg);
+}
+
 static char *
 sfloat_ieee_11073_val_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_)
 {
@@ -211,7 +226,7 @@ sfloat_ieee_11073_val_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrep
     char    *mantissa_str;
     uint8_t  mantissa_digits;
 
-    /* Predefinied: +INFINITY, -INFINITY, RFU, NRes, NaN */
+    /* Predefined: +INFINITY, -INFINITY, RFU, NRes, NaN */
     if (fv->value.sfloat_ieee_11073 >= 0x07FE && fv->value.sfloat_ieee_11073 <= 0x0802) {
         char *s = NULL;
 
@@ -635,6 +650,24 @@ float_ieee_11073_val_from_literal(fvalue_t *fv, const char *s, bool allow_partia
     return true;
 }
 
+static bool
+float_ieee_11073_val_from_uinteger64(fvalue_t *fv, const char *s, uint64_t value _U_, char **err_msg)
+{
+    return float_ieee_11073_val_from_literal(fv, s, FALSE, err_msg);
+}
+
+static bool
+float_ieee_11073_val_from_sinteger64(fvalue_t *fv, const char *s, int64_t value _U_, char **err_msg)
+{
+    return float_ieee_11073_val_from_literal(fv, s, FALSE, err_msg);
+}
+
+static bool
+float_ieee_11073_val_from_double(fvalue_t *fv, const char *s, double value _U_, char **err_msg)
+{
+    return float_ieee_11073_val_from_literal(fv, s, FALSE, err_msg);
+}
+
 static char *
 float_ieee_11073_val_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_)
 {
@@ -646,7 +679,7 @@ float_ieee_11073_val_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr
     char    *mantissa_str;
     uint8_t  mantissa_digits;
 
-    /* Predefinied: +INFINITY, -INFINITY, RFU, NRes, NaN */
+    /* Predefined: +INFINITY, -INFINITY, RFU, NRes, NaN */
     if (fv->value.float_ieee_11073 >= 0x007FFFFE && fv->value.float_ieee_11073 <= 0x00800002) {
         char *s = NULL;
         switch (fv->value.float_ieee_11073) {
@@ -916,10 +949,8 @@ be carefour when comparing: 1e == 10e-1 == 10e-2 == ... (solution: compare only 
 Example: 114 is 0x0072
 
 */
-    static ftype_t sfloat_type = {
+    static const ftype_t sfloat_type = {
         FT_IEEE_11073_SFLOAT,                 /* ftype */
-        "FT_IEEE_11073_SFLOAT",               /* name */
-        "IEEE-11073 floating point (16-bit)", /* pretty_name */
         2,                                    /* wire_size */
 
         sfloat_ieee_11073_fvalue_new,         /* new_value */
@@ -928,10 +959,14 @@ Example: 114 is 0x0072
         sfloat_ieee_11073_val_from_literal,   /* val_from_literal */
         NULL,                                 /* val_from_string */
         NULL,                                 /* val_from_charconst */
+        sfloat_ieee_11073_val_from_uinteger64, /* val_from_uinteger64 */
+        sfloat_ieee_11073_val_from_sinteger64, /* val_from_sinteger64 */
+        sfloat_ieee_11073_val_from_double,    /* val_from_double */
         sfloat_ieee_11073_val_to_repr,        /* val_to_string_repr */
 
         NULL,                                 /* val_to_uinteger64 */
         NULL,                                 /* val_to_sinteger64 */
+        NULL,                                 /* val_to_double */
 
         { .set_value_uinteger = sfloat_ieee_11073_value_set }, /* union set_value */
         { .get_value_uinteger = sfloat_ieee_11073_value_get }, /* union get_value */
@@ -980,10 +1015,8 @@ Example: 36.4 is 0xFF00016C
 
 */
 
-    static ftype_t float_type = {
+    static const ftype_t float_type = {
         FT_IEEE_11073_FLOAT,                  /* ftype */
-        "FT_IEEE_11073_FLOAT",                /* name */
-        "IEEE-11073 Floating point (32-bit)", /* pretty_name */
         4,                                    /* wire_size */
 
         float_ieee_11073_fvalue_new,         /* new_value */
@@ -992,10 +1025,14 @@ Example: 36.4 is 0xFF00016C
         float_ieee_11073_val_from_literal,   /* val_from_literal */
         NULL,                                /* val_from_string */
         NULL,                                /* val_from_charconst */
+        float_ieee_11073_val_from_uinteger64, /* val_from_uinteger64 */
+        float_ieee_11073_val_from_sinteger64, /* val_from_sinteger64 */
+        float_ieee_11073_val_from_double,    /* val_from_double */
         float_ieee_11073_val_to_repr,        /* val_to_string_repr */
 
         NULL,                                 /* val_to_uinteger64 */
         NULL,                                 /* val_to_sinteger64 */
+        NULL,                                 /* val_to_double */
 
         { .set_value_uinteger = float_ieee_11073_value_set }, /* union set_value */
         { .get_value_uinteger = float_ieee_11073_value_get }, /* union get_value */

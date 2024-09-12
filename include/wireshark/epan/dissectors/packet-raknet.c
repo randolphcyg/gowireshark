@@ -17,138 +17,138 @@
 #include "config.h"
 
 #include <epan/conversation.h>
-#include <epan/exceptions.h>
 #include <epan/expert.h>
 #include <epan/packet.h>
 #include <epan/reassemble.h>
 #include <epan/to_str.h>
 #include <epan/wmem_scopes.h>
+#include <wsutil/array.h>
 
 #include "packet-raknet.h"
 
 /*
  * RakNet Protocol Constants.
  */
-static guint8 RAKNET_OFFLINE_MESSAGE_DATA_ID[16] = {0x00, 0xff, 0xff, 0x00, 0xfe, 0xfe, 0xfe, 0xfe, 0xfd, 0xfd, 0xfd, 0xfd, 0x12, 0x34, 0x56, 0x78};
+static uint8_t RAKNET_OFFLINE_MESSAGE_DATA_ID[16] = {0x00, 0xff, 0xff, 0x00, 0xfe, 0xfe, 0xfe, 0xfe, 0xfd, 0xfd, 0xfd, 0xfd, 0x12, 0x34, 0x56, 0x78};
 #define RAKNET_CHALLENGE_LENGTH 64
 #define RAKNET_ANSWER_LENGTH 128
 #define RAKNET_PROOF_LENGTH 32
 #define RAKNET_IDENTITY_LENGTH 160
 #define RAKNET_NUMBER_OF_INTERNAL_IDS 10
 
-static int proto_raknet = -1;
-static gint ett_raknet = -1; /* Should this node be expanded */
-static gint ett_raknet_system_address = -1;
-static gint ett_raknet_packet_type = -1;
-static gint ett_raknet_packet_number_range = -1;
-static gint ett_raknet_message = -1;
-static gint ett_raknet_message_flags = -1;
-static gint ett_raknet_system_message = -1;
+static int proto_raknet;
+static int ett_raknet; /* Should this node be expanded */
+static int ett_raknet_system_address;
+static int ett_raknet_packet_type;
+static int ett_raknet_packet_number_range;
+static int ett_raknet_message;
+static int ett_raknet_message_flags;
+static int ett_raknet_system_message;
 
 /*
  * Dissectors
  */
-static dissector_handle_t raknet_handle = NULL;
-static dissector_table_t raknet_offline_message_dissectors = NULL;
-static dissector_table_t raknet_system_message_dissectors = NULL;
-static dissector_table_t raknet_port_dissectors = NULL;
-static heur_dissector_list_t raknet_heur_subdissectors = NULL;
+static dissector_handle_t raknet_handle;
+static dissector_table_t raknet_offline_message_dissectors;
+static dissector_table_t raknet_system_message_dissectors;
+static dissector_table_t raknet_port_dissectors;
+static heur_dissector_list_t raknet_heur_subdissectors;
 
 /*
  * Expert fields
  */
-static expert_field ei_raknet_unknown_message_id = EI_INIT;
-static expert_field ei_raknet_encrypted_message = EI_INIT;
-static expert_field ei_raknet_subdissector_failed = EI_INIT;
-static expert_field ei_raknet_ip_ver_invalid = EI_INIT;
+static expert_field ei_raknet_unknown_message_id;
+static expert_field ei_raknet_encrypted_message;
+static expert_field ei_raknet_subdissector_failed;
+static expert_field ei_raknet_ip_ver_invalid;
 
 /*
  * First byte gives us the packet id
  */
-static int hf_raknet_offline_message_id = -1;
+static int hf_raknet_offline_message_id;
 
 /*
  * General fields (fields that are in >1 packet types.
  */
-static int hf_raknet_client_guid = -1;
-static int hf_raknet_timestamp = -1;
-static int hf_raknet_offline_message_data_id = -1;
-static int hf_raknet_mtu_size = -1;
-static int hf_raknet_raknet_proto_ver = -1;
-static int hf_raknet_server_guid = -1;
-static int hf_raknet_ip_version = -1;
-static int hf_raknet_ipv4_address = -1;
-static int hf_raknet_ipv6_address = -1;
-static int hf_raknet_port = -1;
+static int hf_raknet_client_guid;
+static int hf_raknet_timestamp;
+static int hf_raknet_offline_message_data_id;
+static int hf_raknet_mtu_size;
+static int hf_raknet_raknet_proto_ver;
+static int hf_raknet_server_guid;
+static int hf_raknet_ip_version;
+static int hf_raknet_ipv4_address;
+static int hf_raknet_ipv6_address;
+static int hf_raknet_port;
 
 /*
  * Fields specific to a packet id type
  */
-static int hf_raknet_null_padding = -1;
-static int hf_raknet_use_encryption = -1;
-static int hf_raknet_server_public_key = -1;
-static int hf_raknet_cookie = -1;
-static int hf_raknet_client_wrote_challenge = -1;
-static int hf_raknet_client_challenge = -1;
-static int hf_raknet_client_address = -1;
-static int hf_raknet_server_address = -1;
-static int hf_raknet_server_answer = -1;
-static int hf_raknet_0x1C_server_id_str_len = -1;
-static int hf_raknet_0x1C_server_id_str = -1;
-static int hf_raknet_packet_type = -1;
-static int hf_raknet_packet_is_for_connected = -1;
-static int hf_raknet_packet_is_ACK = -1;
-static int hf_raknet_packet_has_B_and_AS = -1;
-static int hf_raknet_packet_is_NAK = -1;
-static int hf_raknet_packet_is_pair = -1;
-static int hf_raknet_packet_is_continuous_send = -1;
-static int hf_raknet_packet_needs_B_and_AS = -1;
-static int hf_raknet_AS = -1;
-static int hf_raknet_NACK_record_count = -1;
-static int hf_raknet_packet_number_range = -1;
-static int hf_raknet_range_max_equal_to_min = -1;
-static int hf_raknet_packet_number_min = -1;
-static int hf_raknet_packet_number_max = -1;
-static int hf_raknet_packet_number = -1;
-static int hf_raknet_message = -1;
-static int hf_raknet_message_flags = -1;
-static int hf_raknet_message_reliability = -1;
-static int hf_raknet_message_has_split_packet = -1;
-static int hf_raknet_payload_length = -1;
-static int hf_raknet_reliable_message_number = -1;
-static int hf_raknet_message_sequencing_index = -1;
-static int hf_raknet_message_ordering_index = -1;
-static int hf_raknet_message_ordering_channel = -1;
-static int hf_raknet_split_packet_count = -1;
-static int hf_raknet_split_packet_id = -1;
-static int hf_raknet_split_packet_index = -1;
-static int hf_raknet_split_packet = -1;
-static int hf_raknet_system_message = -1;
-static int hf_raknet_system_message_id = -1;
-static int hf_raknet_client_proof = -1;
-static int hf_raknet_use_client_key = -1;
-static int hf_raknet_client_identity = -1;
-static int hf_raknet_password = -1;
-static int hf_raknet_system_index = -1;
-static int hf_raknet_internal_address = -1;
+static int hf_raknet_null_padding;
+static int hf_raknet_use_encryption;
+static int hf_raknet_server_public_key;
+static int hf_raknet_cookie;
+static int hf_raknet_client_wrote_challenge;
+static int hf_raknet_client_challenge;
+static int hf_raknet_client_address;
+static int hf_raknet_server_address;
+static int hf_raknet_server_answer;
+static int hf_raknet_0x1C_server_id_str_len;
+static int hf_raknet_0x1C_server_id_str;
+static int hf_raknet_packet_type;
+static int hf_raknet_packet_is_for_connected;
+static int hf_raknet_packet_is_ACK;
+static int hf_raknet_packet_has_B_and_AS;
+static int hf_raknet_packet_is_NAK;
+static int hf_raknet_packet_is_pair;
+static int hf_raknet_packet_is_continuous_send;
+static int hf_raknet_packet_needs_B_and_AS;
+static int hf_raknet_AS;
+static int hf_raknet_NACK_record_count;
+static int hf_raknet_packet_number_range;
+static int hf_raknet_range_max_equal_to_min;
+static int hf_raknet_packet_number_min;
+static int hf_raknet_packet_number_max;
+static int hf_raknet_packet_number;
+static int hf_raknet_message;
+static int hf_raknet_message_flags;
+static int hf_raknet_message_reliability;
+static int hf_raknet_message_has_split_packet;
+static int hf_raknet_payload_length;
+static int hf_raknet_reliable_message_number;
+static int hf_raknet_message_sequencing_index;
+static int hf_raknet_message_ordering_index;
+static int hf_raknet_message_ordering_channel;
+static int hf_raknet_split_packet_count;
+static int hf_raknet_split_packet_id;
+static int hf_raknet_split_packet_index;
+static int hf_raknet_split_packet;
+static int hf_raknet_system_message;
+static int hf_raknet_system_message_id;
+static int hf_raknet_client_proof;
+static int hf_raknet_use_client_key;
+static int hf_raknet_client_identity;
+static int hf_raknet_password;
+static int hf_raknet_system_index;
+static int hf_raknet_internal_address;
 
 /*
  * Frame reassembly
  */
 static reassembly_table raknet_reassembly_table;
 
-static gint ett_raknet_fragment = -1;
-static gint ett_raknet_fragments = -1;
-static gint hf_raknet_fragment = -1;
-static gint hf_raknet_fragment_count = -1;
-static gint hf_raknet_fragment_error = -1;
-static gint hf_raknet_fragment_multiple_tails = -1;
-static gint hf_raknet_fragment_overlap = -1;
-static gint hf_raknet_fragment_overlap_conflicts = -1;
-static gint hf_raknet_fragment_too_long_fragment = -1;
-static gint hf_raknet_fragments = -1;
-static gint hf_raknet_reassembled_in = -1;
-static gint hf_raknet_reassembled_length = -1;
+static int ett_raknet_fragment;
+static int ett_raknet_fragments;
+static int hf_raknet_fragment;
+static int hf_raknet_fragment_count;
+static int hf_raknet_fragment_error;
+static int hf_raknet_fragment_multiple_tails;
+static int hf_raknet_fragment_overlap;
+static int hf_raknet_fragment_overlap_conflicts;
+static int hf_raknet_fragment_too_long_fragment;
+static int hf_raknet_fragments;
+static int hf_raknet_reassembled_in;
+static int hf_raknet_reassembled_length;
 
 static const fragment_items raknet_frag_items = {
     /* Fragment subtrees */
@@ -177,7 +177,7 @@ static const fragment_items raknet_frag_items = {
  * Session state
  */
 typedef struct raknet_session_state {
-    gboolean use_encryption;
+    bool use_encryption;
     dissector_handle_t subdissector;
 } raknet_session_state_t;
 
@@ -203,14 +203,14 @@ VALUE_STRING_ARRAY(raknet_reliability);
  */
 void proto_register_raknet(void);
 void proto_reg_handoff_raknet(void);
-static proto_tree *init_raknet_offline_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint *offset);
+static proto_tree *init_raknet_offline_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int *offset);
 
 
 /*
  * Called by dissectors for protocols that run atop RakNet/UDP.
  */
 void
-raknet_add_udp_dissector(guint32 port, const dissector_handle_t handle) {
+raknet_add_udp_dissector(uint32_t port, const dissector_handle_t handle) {
     /*
      * Register ourselves as the handler for that port number
      * over TCP.
@@ -224,7 +224,7 @@ raknet_add_udp_dissector(guint32 port, const dissector_handle_t handle) {
 }
 
 void
-raknet_delete_udp_dissector(guint32 port, const dissector_handle_t handle) {
+raknet_delete_udp_dissector(uint32_t port, const dissector_handle_t handle) {
     dissector_delete_uint("udp.port", port, raknet_handle);
     dissector_delete_uint("raknet.port", port, handle);
 }
@@ -239,7 +239,7 @@ raknet_get_session_state(packet_info *pinfo) {
 
     if (state == NULL) {
         state = wmem_new(wmem_file_scope(), raknet_session_state_t);
-        state->use_encryption = FALSE;
+        state->use_encryption = false;
         state->subdissector = NULL;
         conversation_add_proto_data(conversation, proto_raknet, state);
     }
@@ -257,20 +257,20 @@ raknet_conversation_set_dissector(packet_info *pinfo, const dissector_handle_t h
 
 static void
 raknet_dissect_system_address(proto_tree *tree, int hf,
-        packet_info *pinfo, tvbuff_t *tvb, gint *offset) {
+        packet_info *pinfo, tvbuff_t *tvb, int *offset) {
     proto_item *ti;
     proto_tree *sub_tree;
-    guint8 ip_version;
-    guint32 v4_addr;
-    guint16 port;
+    uint8_t ip_version;
+    uint32_t v4_addr;
+    uint16_t port;
     address addr;
-    gchar *addr_str;
+    char *addr_str;
 
     /* XXX - does it really make sense to have a string hf that's set to
        an empty string? */
     ti = proto_tree_add_string(tree, hf, tvb, *offset, -1, "");
     sub_tree = proto_item_add_subtree(ti, ett_raknet_system_address);
-    ip_version = tvb_get_guint8(tvb, *offset);
+    ip_version = tvb_get_uint8(tvb, *offset);
     proto_tree_add_item(sub_tree, hf_raknet_ip_version, tvb, *offset, 1, ENC_NA);
     (*offset)++;
     switch (ip_version) {
@@ -312,7 +312,7 @@ raknet_dissect_unconnected_ping(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
                                 void *data _U_)
 {
     proto_tree *sub_tree;
-    gint offset;
+    int offset;
 
     sub_tree = init_raknet_offline_message(tvb, pinfo, tree, &offset);
 
@@ -336,7 +336,7 @@ raknet_dissect_open_connection_request_1(tvbuff_t *tvb, packet_info *pinfo, prot
                                          void *data _U_)
 {
     proto_tree *sub_tree;
-    gint offset;
+    int offset;
 
     sub_tree = init_raknet_offline_message(tvb, pinfo, tree, &offset);
 
@@ -360,7 +360,7 @@ raknet_dissect_open_connection_reply_1(tvbuff_t *tvb, packet_info *pinfo, proto_
                                        void *data _U_)
 {
     proto_tree *sub_tree;
-    gint offset;
+    int offset;
     raknet_session_state_t* state;
 
     sub_tree = init_raknet_offline_message(tvb, pinfo, tree, &offset);
@@ -375,7 +375,7 @@ raknet_dissect_open_connection_reply_1(tvbuff_t *tvb, packet_info *pinfo, proto_
     offset += 8;
 
     state = raknet_get_session_state(pinfo);
-    state->use_encryption = tvb_get_guint8(tvb, offset) ? TRUE : FALSE;
+    state->use_encryption = tvb_get_uint8(tvb, offset) ? true : false;
 
     proto_tree_add_item(sub_tree, hf_raknet_use_encryption, tvb,
                         offset, 1, ENC_NA);
@@ -403,7 +403,7 @@ raknet_dissect_open_connection_request_2(tvbuff_t *tvb, packet_info *pinfo, prot
                                          void *data _U_)
 {
     proto_tree *sub_tree;
-    gint offset;
+    int offset;
     raknet_session_state_t* state;
 
     sub_tree = init_raknet_offline_message(tvb, pinfo, tree, &offset);
@@ -414,13 +414,13 @@ raknet_dissect_open_connection_request_2(tvbuff_t *tvb, packet_info *pinfo, prot
 
     state = raknet_get_session_state(pinfo);
     if (state->use_encryption) {
-        gboolean client_wrote_challenge;
+        bool client_wrote_challenge;
 
         proto_tree_add_item(sub_tree, hf_raknet_cookie, tvb, offset,
                             4, ENC_BIG_ENDIAN);
         offset += 4;
 
-        client_wrote_challenge = tvb_get_guint8(tvb, offset) ? TRUE : FALSE;
+        client_wrote_challenge = tvb_get_uint8(tvb, offset) ? true : false;
         proto_tree_add_item(sub_tree, hf_raknet_client_wrote_challenge, tvb, offset,
                             1, ENC_NA);
         offset += 1;
@@ -451,10 +451,10 @@ raknet_dissect_open_connection_reply_2(tvbuff_t *tvb, packet_info *pinfo, proto_
                                        void *data _U_)
 {
     proto_tree *sub_tree;
-    gint offset;
+    int offset;
+    raknet_session_state_t* state;
 
     sub_tree = init_raknet_offline_message(tvb, pinfo, tree, &offset);
-    gboolean use_encryption;
 
     proto_tree_add_item(sub_tree, hf_raknet_offline_message_data_id, tvb, offset,
                         16, ENC_NA);
@@ -471,13 +471,14 @@ raknet_dissect_open_connection_reply_2(tvbuff_t *tvb, packet_info *pinfo, proto_
                         2, ENC_BIG_ENDIAN);
     offset += 2;
 
-    use_encryption = tvb_get_guint8(tvb, offset) ? TRUE : FALSE;
+    state = raknet_get_session_state(pinfo);
+    state->use_encryption = tvb_get_uint8(tvb, offset) ? true : false;
 
     proto_tree_add_item(sub_tree, hf_raknet_use_encryption, tvb, offset,
                         1, ENC_NA);
     offset += 1;
 
-    if (use_encryption) {
+    if (state->use_encryption) {
         proto_tree_add_item(sub_tree, hf_raknet_server_answer, tvb, offset,
                             128, ENC_NA);
         offset += 128;
@@ -491,7 +492,7 @@ raknet_dissect_incompatible_protocol_version(tvbuff_t *tvb, packet_info *pinfo, 
                                              void *data _U_)
 {
     proto_tree *sub_tree;
-    gint offset;
+    int offset;
 
     sub_tree = init_raknet_offline_message(tvb, pinfo, tree, &offset);
 
@@ -515,7 +516,7 @@ raknet_dissect_connection_failed(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
                                  void *data _U_)
 {
     proto_tree *sub_tree;
-    gint offset;
+    int offset;
 
     sub_tree = init_raknet_offline_message(tvb, pinfo, tree, &offset);
 
@@ -535,8 +536,8 @@ raknet_dissect_unconnected_pong(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
                                 void *data _U_)
 {
     proto_tree *sub_tree;
-    guint32 str_size;
-    gint offset;
+    uint32_t str_size;
+    int offset;
 
     sub_tree = init_raknet_offline_message(tvb, pinfo, tree, &offset);
 
@@ -569,7 +570,7 @@ raknet_dissect_connected_ping(tvbuff_t *tvb, packet_info *pinfo _U_,
                               proto_tree *tree, void* data _U_)
 {
 
-    gint offset = 1;
+    int offset = 1;
 
     proto_tree_add_item(tree, hf_raknet_timestamp, tvb,
                         offset, 8, ENC_BIG_ENDIAN);
@@ -582,7 +583,7 @@ static int
 raknet_dissect_connected_pong(tvbuff_t *tvb, packet_info *pinfo _U_,
                               proto_tree *tree, void* data _U_)
 {
-    gint offset = 1;
+    int offset = 1;
 
     proto_tree_add_item(tree, hf_raknet_timestamp, tvb,
                         offset, 8, ENC_BIG_ENDIAN);
@@ -599,8 +600,8 @@ static int
 raknet_dissect_connection_request(tvbuff_t *tvb, packet_info *pinfo _U_,
                                   proto_tree *tree, void* data _U_)
 {
-    gint offset = 1;
-    gboolean use_encryption;
+    int offset = 1;
+    bool use_encryption;
 
     proto_tree_add_item(tree, hf_raknet_client_guid, tvb, offset,
                         8, ENC_NA);
@@ -610,20 +611,20 @@ raknet_dissect_connection_request(tvbuff_t *tvb, packet_info *pinfo _U_,
                         offset, 8, ENC_BIG_ENDIAN);
     offset += 8;
 
-    use_encryption = tvb_get_guint8(tvb, offset) ? TRUE : FALSE;
+    use_encryption = tvb_get_uint8(tvb, offset) ? true : false;
 
     proto_tree_add_item(tree, hf_raknet_use_encryption, tvb, offset,
                         1, ENC_NA);
     offset += 1;
 
     if (use_encryption) {
-        gboolean use_client_key;
+        bool use_client_key;
 
         proto_tree_add_item(tree, hf_raknet_client_proof, tvb, offset,
                             32, ENC_NA);
         offset += 32;
 
-        use_client_key = tvb_get_guint8(tvb, offset) ? TRUE : FALSE;
+        use_client_key = tvb_get_uint8(tvb, offset) ? true : false;
 
         proto_tree_add_item(tree, hf_raknet_use_client_key, tvb, offset,
                             1, ENC_NA);
@@ -646,8 +647,8 @@ static int
 raknet_dissect_connection_request_accepted(tvbuff_t *tvb, packet_info *pinfo _U_,
                                            proto_tree *tree, void* data _U_)
 {
-    gint offset = 1;
-    gint i;
+    int offset = 1;
+    int i;
 
     raknet_dissect_system_address(
             tree, hf_raknet_client_address, pinfo, tvb, &offset);
@@ -677,8 +678,8 @@ raknet_dissect_new_incoming_connection(tvbuff_t *tvb, packet_info *pinfo,
                                        proto_tree *tree, void* data _U_)
 {
 
-    gint offset = 1;
-    gint i;
+    int offset = 1;
+    int i;
 
     raknet_dissect_system_address(
             tree, hf_raknet_server_address, pinfo, tvb, &offset);
@@ -792,11 +793,11 @@ raknet_init_message_names(void)
  * Offset is updated for the caller.
  */
 static proto_tree *
-init_raknet_offline_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint *offset)
+init_raknet_offline_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int *offset)
 {
     proto_tree *sub_tree;
     proto_item *ti;
-    guint8 message_id;
+    uint8_t message_id;
 
     *offset = 0;
 
@@ -806,7 +807,7 @@ init_raknet_offline_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     ti = proto_tree_add_item(tree, proto_raknet, tvb, 0, -1, ENC_NA);
     sub_tree = proto_item_add_subtree(ti, ett_raknet);
 
-    message_id = tvb_get_guint8(tvb, *offset);
+    message_id = tvb_get_uint8(tvb, *offset);
     proto_tree_add_item(sub_tree, hf_raknet_offline_message_id, tvb, *offset,
                         1, ENC_BIG_ENDIAN);
     *offset += 1;
@@ -826,16 +827,16 @@ static int
 raknet_dissect_ACK(tvbuff_t *tvb, packet_info *pinfo,
                    proto_tree *tree, void* data)
 {
-    gint offset = 0;
+    int offset = 0;
     proto_tree *sub_tree;
-    guint32 count;
-    guint32 i;
+    uint32_t count;
+    uint32_t i;
 
-    if (*(gboolean*)data) {
-        col_add_str(pinfo->cinfo, COL_INFO, "ACK");
+    if (*(bool*)data) {
+        col_set_str(pinfo->cinfo, COL_INFO, "ACK");
     }
     else {
-        col_add_str(pinfo->cinfo, COL_INFO, "NAK");
+        col_set_str(pinfo->cinfo, COL_INFO, "NAK");
     }
 
     proto_tree_add_item_ret_uint(tree, hf_raknet_NACK_record_count, tvb,
@@ -844,8 +845,8 @@ raknet_dissect_ACK(tvbuff_t *tvb, packet_info *pinfo,
 
     for (i = 0; i < count; i++) {
         proto_item *ti;
-        guint32 max;
-        guint32 min;
+        uint32_t max;
+        uint32_t min;
 
         if (i == 0) {
             col_append_str(pinfo->cinfo, COL_INFO, " ");
@@ -854,8 +855,8 @@ raknet_dissect_ACK(tvbuff_t *tvb, packet_info *pinfo,
             col_append_str(pinfo->cinfo, COL_INFO, ", ");
         }
 
-        if (tvb_get_guint8(tvb, offset)) { /* maxEqualToMin */
-            min = tvb_get_guint24(tvb, offset + 1, ENC_LITTLE_ENDIAN);
+        if (tvb_get_uint8(tvb, offset)) { /* maxEqualToMin */
+            min = tvb_get_uint24(tvb, offset + 1, ENC_LITTLE_ENDIAN);
 
             col_append_fstr(pinfo->cinfo, COL_INFO, "#%" PRIu32, min);
 
@@ -874,8 +875,8 @@ raknet_dissect_ACK(tvbuff_t *tvb, packet_info *pinfo,
             offset += 3;
         }
         else {
-            min = tvb_get_guint24(tvb, offset + 1    , ENC_LITTLE_ENDIAN);
-            max = tvb_get_guint24(tvb, offset + 1 + 3, ENC_LITTLE_ENDIAN);
+            min = tvb_get_uint24(tvb, offset + 1    , ENC_LITTLE_ENDIAN);
+            max = tvb_get_uint24(tvb, offset + 1 + 3, ENC_LITTLE_ENDIAN);
 
             col_append_fstr(pinfo->cinfo, COL_INFO,
                             "#%" PRIu32 "..%" PRIu32,
@@ -906,24 +907,24 @@ raknet_dissect_ACK(tvbuff_t *tvb, packet_info *pinfo,
 static int
 raknet_dissect_common_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *raknet_tree, void *data)
 {
-    gint offset = 0;
-    gboolean *has_multiple_messages;
+    int offset = 0;
+    bool *has_multiple_messages;
     proto_item *ti;
     proto_item *raknet_ti;
     proto_item *msg_ti;
     proto_tree *msg_tree;
-    guint64 msg_flags;
-    guint32 payload_bits;
-    guint32 payload_octets;
+    uint64_t msg_flags;
+    uint32_t payload_bits;
+    uint32_t payload_octets;
     raknet_reliability_t reliability;
-    gboolean has_split_packet;
-    guint8 message_id;
-    gint message_size;
+    bool has_split_packet;
+    uint8_t message_id;
+    int message_size;
     proto_tree *payload_tree;
     tvbuff_t* next_tvb;
-    gboolean next_tvb_is_subset;
+    bool next_tvb_is_subset;
     dissector_handle_t next_dissector;
-    gint dissected;
+    int dissected;
     heur_dtbl_entry_t *hdtbl_entry;
     static int * const flag_flds[] = {
         &hf_raknet_message_reliability,
@@ -931,7 +932,7 @@ raknet_dissect_common_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rak
         NULL
     };
 
-    has_multiple_messages = (gboolean*)data;
+    has_multiple_messages = (bool*)data;
     raknet_ti = proto_tree_get_parent(raknet_tree);
 
     msg_ti = proto_tree_add_item(raknet_tree, hf_raknet_message, tvb, offset, -1, ENC_NA);
@@ -949,7 +950,7 @@ raknet_dissect_common_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rak
     proto_item_append_text(ti, " bits (%" PRIu32 " octets)", payload_octets);
 
     reliability = (raknet_reliability_t)((msg_flags >> 5) & 0x07);
-    has_split_packet = (msg_flags >> 4) & 0x01 ? TRUE : FALSE;
+    has_split_packet = (msg_flags >> 4) & 0x01 ? true : false;
 
     if (reliability == RAKNET_RELIABLE ||
         reliability == RAKNET_RELIABLE_SEQUENCED ||
@@ -982,10 +983,10 @@ raknet_dissect_common_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rak
     }
 
     if (has_split_packet) {
-        gboolean save_fragmented;
-        guint32 split_packet_count;
-        guint32 split_packet_id;
-        guint32 split_packet_index;
+        bool save_fragmented;
+        uint32_t split_packet_count;
+        uint32_t split_packet_id;
+        uint32_t split_packet_index;
         fragment_head *frag_msg;
 
 
@@ -1005,7 +1006,7 @@ raknet_dissect_common_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rak
          * Reassemble the fragmented packet.
          */
         save_fragmented = pinfo->fragmented;
-        pinfo->fragmented = TRUE;
+        pinfo->fragmented = true;
 
         frag_msg =
             fragment_add_seq_check(&raknet_reassembly_table,
@@ -1037,7 +1038,7 @@ raknet_dissect_common_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rak
             col_add_str(pinfo->cinfo, COL_INFO, wmem_strbuf_get_str(strbuf));
             col_set_fence(pinfo->cinfo, COL_INFO);
 
-            next_tvb_is_subset = FALSE;
+            next_tvb_is_subset = false;
         }
         else {
             wmem_strbuf_t *strbuf;
@@ -1057,7 +1058,7 @@ raknet_dissect_common_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rak
     }
     else {
         next_tvb = tvb_new_subset_length(tvb, offset, payload_octets);
-        next_tvb_is_subset = TRUE;
+        next_tvb_is_subset = true;
     }
 
     /*
@@ -1066,8 +1067,8 @@ raknet_dissect_common_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rak
      */
     if (! *has_multiple_messages) {
         *has_multiple_messages =
-            tvb_reported_length_remaining(tvb, offset) > (gint)payload_octets
-            ? TRUE : FALSE;
+            tvb_reported_length_remaining(tvb, offset) > (int)payload_octets
+            ? true : false;
     }
 
     /*
@@ -1086,7 +1087,7 @@ raknet_dissect_common_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rak
         return message_size;
     }
 
-    message_id = tvb_get_guint8(next_tvb, 0);
+    message_id = tvb_get_uint8(next_tvb, 0);
 
     /*
      * Now we want to dissect this message. First we search for a
@@ -1231,9 +1232,9 @@ raknet_dissect_connected_message(tvbuff_t *tvb, packet_info *pinfo,
     raknet_session_state_t* state;
     proto_item *ti;
     proto_tree *raknet_tree;
-    gint item_size;
-    gint offset = 0;
-    guint8 msg_type;
+    int item_size;
+    int offset = 0;
+    uint8_t msg_type;
 
     state = raknet_get_session_state(pinfo);
     if (state->use_encryption) {
@@ -1241,7 +1242,7 @@ raknet_dissect_connected_message(tvbuff_t *tvb, packet_info *pinfo,
          * RakNet uses ChaCha stream cipher to encrypt messages, which
          * is currently not supported by this dissector.
          */
-        col_add_str(pinfo->cinfo, COL_INFO, "Encrypted message");
+        col_set_str(pinfo->cinfo, COL_INFO, "Encrypted message");
 
         item_size = tvb_reported_length_remaining(tvb, offset);
         ti = proto_tree_add_expert(root_tree, pinfo, &ei_raknet_encrypted_message, tvb,
@@ -1250,7 +1251,7 @@ raknet_dissect_connected_message(tvbuff_t *tvb, packet_info *pinfo,
         return tvb_captured_length(tvb);
     }
 
-    msg_type = tvb_get_guint8(tvb, offset);
+    msg_type = tvb_get_uint8(tvb, offset);
 
     if (!(msg_type & (1 << 7))) { /* !isValid */
         /*
@@ -1286,7 +1287,7 @@ raknet_dissect_connected_message(tvbuff_t *tvb, packet_info *pinfo,
         }
 
         if (raknet_tree) {
-            gboolean is_ACK = TRUE;
+            bool is_ACK = true;
             return raknet_dissect_ACK(tvb_new_subset_remaining(tvb, offset),
                                       pinfo, raknet_tree, &is_ACK);
         }
@@ -1311,7 +1312,7 @@ raknet_dissect_connected_message(tvbuff_t *tvb, packet_info *pinfo,
         offset += 1;
 
         if (raknet_tree) {
-            gboolean is_ACK = FALSE;
+            bool is_ACK = false;
             return raknet_dissect_ACK(tvb_new_subset_remaining(tvb, offset),
                                       pinfo, raknet_tree, &is_ACK);
         }
@@ -1325,8 +1326,8 @@ raknet_dissect_connected_message(tvbuff_t *tvb, packet_info *pinfo,
          * length of its RakNet header varies, and its payload can
          * even be fragmented so we might have to reassemble them.
          */
-        guint32 packet_number;
-        gboolean has_multiple_messages = FALSE;
+        uint32_t packet_number;
+        bool has_multiple_messages = false;
         static int * const common_flds[] = {
             &hf_raknet_packet_is_for_connected,
             &hf_raknet_packet_is_ACK,
@@ -1359,7 +1360,7 @@ raknet_dissect_connected_message(tvbuff_t *tvb, packet_info *pinfo,
          */
         proto_item_set_len(ti, offset);
 
-        while (TRUE) {
+        while (true) {
             int dissected;
 
             dissected = raknet_dissect_common_message(tvb_new_subset_remaining(tvb, offset), pinfo,
@@ -1371,7 +1372,7 @@ raknet_dissect_connected_message(tvbuff_t *tvb, packet_info *pinfo,
                     /*
                      * More messages are in the packet.
                      */
-                    col_append_fstr(pinfo->cinfo, COL_INFO, ", ");
+                    col_append_str(pinfo->cinfo, COL_INFO, ", ");
                     col_set_fence(pinfo->cinfo, COL_INFO);
                     continue;
                 }
@@ -1400,16 +1401,16 @@ raknet_dissect_connected_message(tvbuff_t *tvb, packet_info *pinfo,
 static int
 dissect_raknet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
-    guint8 message_id;
-    gint dissected;
+    uint8_t message_id;
+    int dissected;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "RakNet");
     col_clear(pinfo->cinfo, COL_INFO);
 
-    message_id = tvb_get_guint8(tvb, 0);
+    message_id = tvb_get_uint8(tvb, 0);
 
     dissected = dissector_try_uint_new(raknet_offline_message_dissectors, message_id, tvb,
-                                       pinfo, tree, TRUE, data);
+                                       pinfo, tree, true, data);
     if (!dissected) {
         raknet_dissect_connected_message(tvb, pinfo, tree, data);
     }
@@ -1422,27 +1423,27 @@ dissect_raknet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
  * every RakNet sessions start with offline messages we can do
  * heuristics to detect such sessions.
  */
-static gboolean
+static bool
 test_raknet_heur(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_, void* data _U_)
 {
     if (tvb_memeql(tvb, 1 + 8, RAKNET_OFFLINE_MESSAGE_DATA_ID, sizeof(RAKNET_OFFLINE_MESSAGE_DATA_ID)) == 0) {
         /* ID_UNCONNECTED_PING */
-        return TRUE;
+        return true;
     }
     else if (tvb_memeql(tvb, 1, RAKNET_OFFLINE_MESSAGE_DATA_ID, sizeof(RAKNET_OFFLINE_MESSAGE_DATA_ID)) == 0) {
         /* ID_OPEN_CONNECTION_REQUEST_1 */
-        return TRUE;
+        return true;
     }
     else if (tvb_memeql(tvb, 1 + 8 + 8, RAKNET_OFFLINE_MESSAGE_DATA_ID, sizeof(RAKNET_OFFLINE_MESSAGE_DATA_ID)) == 0) {
         /* ID_UNCONNECTED_PONG */
-        return TRUE;
+        return true;
     }
     else {
-        return FALSE;
+        return false;
     }
 }
 
-static gboolean
+static bool
 dissect_raknet_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
     if (test_raknet_heur(tvb, pinfo, tree, data)) {
@@ -1454,7 +1455,7 @@ dissect_raknet_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
         return call_dissector_only(raknet_handle, tvb, pinfo, tree, data) > 0;
     }
     else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -1896,7 +1897,7 @@ proto_register_raknet(void)
     /*
      * Setup protocol subtree array
      */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_raknet,
         &ett_raknet_system_address,
         &ett_raknet_packet_type,
@@ -1993,7 +1994,7 @@ proto_register_raknet(void)
      * ...and their heuristic dissector to this table.
      */
     raknet_heur_subdissectors =
-        register_heur_dissector_list("raknet", proto_raknet);
+        register_heur_dissector_list_with_description("raknet", "RakNet fallback", proto_raknet);
 }
 
 void

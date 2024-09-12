@@ -62,22 +62,22 @@ typedef enum
 void proto_register_iperf3(void);
 void proto_reg_handoff_iperf3(void);
 
-static int proto_iperf3 = -1;
+static int proto_iperf3;
 
-static int hf_iperf3_sequence = -1;
-static int hf_iperf3_sec = -1;
-static int hf_iperf3_usec = -1;
-static int hf_iperf3_udp_init_msg = -1;
-static int hf_iperf3_state = -1;
-static int hf_iperf3_prejson = -1;
-static int hf_iperf3_cookie = -1;
+static int hf_iperf3_sequence;
+static int hf_iperf3_sec;
+static int hf_iperf3_usec;
+static int hf_iperf3_udp_init_msg;
+static int hf_iperf3_state;
+static int hf_iperf3_prejson;
+static int hf_iperf3_cookie;
 
-static int ett_iperf3 = -1;
-static int ett_time = -1;
+static int ett_iperf3;
+static int ett_time;
 
-static dissector_handle_t iperf3_handle_tcp = NULL;
-static dissector_handle_t iperf3_handle_udp = NULL;
-static dissector_handle_t json_handle = NULL;
+static dissector_handle_t iperf3_handle_tcp;
+static dissector_handle_t iperf3_handle_udp;
+static dissector_handle_t json_handle;
 
 static const value_string iperf3_state_vals[] = {
     { TEST_START,       "TEST_START" },
@@ -106,13 +106,13 @@ typedef struct
 {
     bool control_connection;
     // Ephemeral packet data
-    guint pdu_size;
+    unsigned pdu_size;
     pdu_sequence sequence;
 } iperf3_tcp_conversation_data;
 
 typedef struct
 {
-    guint pdu_size;
+    unsigned pdu_size;
     pdu_sequence sequence;
 } iperf3_tcp_packet_data;
 
@@ -127,10 +127,10 @@ static udp_conversation_data *udp_set_conversation_data(packet_info *);
 
 
 /* protocol preferences */
-static gboolean iperf3_pref_64bit_seq_no = FALSE;
-static gboolean iperf3_pref_detect_udp_order = TRUE;
+static bool iperf3_pref_64bit_seq_no;
+static bool iperf3_pref_detect_udp_order = true;
 /* expert info */
-static expert_field ei_udp_out_of_order = EI_INIT;
+static expert_field ei_udp_out_of_order;
 
 #define IPERF3_UDP_HDR_SIZE 12
 #define COOKIE_SIZE 37
@@ -159,7 +159,7 @@ DEFINE_CONTROL_PREFACE(UDP) /* invoke as col_info_preface_UDP(pinfo) */
 
 // Collection of cookies used to differentiate between control and data connections.
 // See dissect_iperf3_tcp() for details.
-static wmem_map_t *cookiejar = NULL;
+static wmem_map_t *cookiejar;
 
 static int
 dissect_iperf3_control_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
@@ -174,7 +174,7 @@ dissect_iperf3_control_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         // ------
         case INIT:
         {
-            const guint8 *cookie;
+            const uint8_t *cookie;
             proto_tree_add_item_ret_string(iperf3_tree, hf_iperf3_cookie, tvb, 0, COOKIE_SIZE,
                                                         ENC_ASCII, pinfo->pool, &cookie);
             col_append_fstr(pinfo->cinfo, COL_INFO, " Cookie: \"%s\"", cookie);
@@ -185,8 +185,8 @@ dissect_iperf3_control_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         }
         case GENERIC_STATE:
         {
-            int8_t state_code = tvb_get_gint8(tvb, 0);
-            const gchar *msg = val_to_str(state_code, iperf3_state_vals, "Unknown %d");
+            int8_t state_code = tvb_get_int8(tvb, 0);
+            const char *msg = val_to_str(state_code, iperf3_state_vals, "Unknown %d");
             col_append_fstr(pinfo->cinfo, COL_INFO, " %s(%" PRIi8 ")", msg, state_code);
             col_set_fence(pinfo->cinfo, COL_INFO);
             proto_tree_add_item(iperf3_tree, hf_iperf3_state, tvb, 0, 1, ENC_BIG_ENDIAN);
@@ -209,9 +209,9 @@ dissect_iperf3_control_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         // ------
         case PARAM_EXCHANGE_LENGTH:
         {
-            uint32_t json_size = tvb_get_guint32(tvb, 0, ENC_BIG_ENDIAN);
+            uint32_t json_size = tvb_get_uint32(tvb, 0, ENC_BIG_ENDIAN);
             col_append_fstr(pinfo->cinfo, COL_INFO,
-                " Next message is JSON of this length: %" PRIu32 "", json_size);
+                " Next message is JSON of this length: %" PRIu32, json_size);
             proto_tree_add_item(iperf3_tree, hf_iperf3_prejson, tvb, 0, 4, ENC_BIG_ENDIAN);
 
             conversation_data->pdu_size = json_size;
@@ -221,7 +221,7 @@ dissect_iperf3_control_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         case PARAM_EXCHANGE_JSON:
         {
             uint32_t nbytes = tvb_reported_length(tvb);
-            guint8 *buffer = tvb_get_string_enc(pinfo->pool, tvb, 0, (gint)nbytes, ENC_UTF_8);
+            uint8_t *buffer = tvb_get_string_enc(pinfo->pool, tvb, 0, (int)nbytes, ENC_UTF_8);
             col_append_fstr(pinfo->cinfo, COL_INFO, " %s", buffer);
             call_dissector(json_handle, tvb, pinfo, iperf3_tree);
 
@@ -232,9 +232,9 @@ dissect_iperf3_control_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         // ------
         case EXCHANGE_RESULTS_LENGTH_1:
         {
-            uint32_t json_size = tvb_get_guint32(tvb, 0, ENC_BIG_ENDIAN);
+            uint32_t json_size = tvb_get_uint32(tvb, 0, ENC_BIG_ENDIAN);
             col_append_fstr(pinfo->cinfo, COL_INFO,
-                " Next message is JSON of this length: %" PRIu32 "", json_size);
+                " Next message is JSON of this length: %" PRIu32, json_size);
             proto_tree_add_item(iperf3_tree, hf_iperf3_prejson, tvb, 0, 4, ENC_BIG_ENDIAN);
 
             conversation_data->pdu_size = json_size;
@@ -244,7 +244,7 @@ dissect_iperf3_control_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         case EXCHANGE_RESULTS_JSON_1:
         {
             uint32_t nbytes = tvb_reported_length(tvb);
-            guint8 *buffer = tvb_get_string_enc(pinfo->pool, tvb, 0, (gint)nbytes, ENC_UTF_8);
+            uint8_t *buffer = tvb_get_string_enc(pinfo->pool, tvb, 0, (int)nbytes, ENC_UTF_8);
             col_append_fstr(pinfo->cinfo, COL_INFO, " %s", buffer);
             call_dissector(json_handle, tvb, pinfo, iperf3_tree);
 
@@ -254,9 +254,9 @@ dissect_iperf3_control_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         }
         case EXCHANGE_RESULTS_LENGTH_2:
         {
-            uint32_t json_size = tvb_get_guint32(tvb, 0, ENC_BIG_ENDIAN);
+            uint32_t json_size = tvb_get_uint32(tvb, 0, ENC_BIG_ENDIAN);
             col_append_fstr(pinfo->cinfo, COL_INFO,
-                " Next message is JSON of this length: %" PRIu32 "", json_size);
+                " Next message is JSON of this length: %" PRIu32, json_size);
             proto_tree_add_item(iperf3_tree, hf_iperf3_prejson, tvb, 0, 4, ENC_BIG_ENDIAN);
 
             conversation_data->pdu_size = json_size;
@@ -266,7 +266,7 @@ dissect_iperf3_control_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         case EXCHANGE_RESULTS_JSON_2:
         {
             uint32_t nbytes = tvb_reported_length(tvb);
-            guint8 *buffer = tvb_get_string_enc(pinfo->pool, tvb, 0, (gint)nbytes, ENC_UTF_8);
+            uint8_t *buffer = tvb_get_string_enc(pinfo->pool, tvb, 0, (int)nbytes, ENC_UTF_8);
             col_append_fstr(pinfo->cinfo, COL_INFO, " %s", buffer);
             call_dissector(json_handle, tvb, pinfo, iperf3_tree);
 
@@ -294,7 +294,7 @@ dissect_iperf3_data_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     {
         case INIT:
         {
-            const guint8 *cookie;
+            const uint8_t *cookie;
             proto_tree_add_item_ret_string(iperf3_tree, hf_iperf3_cookie, tvb, 0, COOKIE_SIZE,
                                                         ENC_ASCII, pinfo->pool, &cookie);
             col_info_preface_TCP(pinfo);
@@ -316,7 +316,7 @@ dissect_iperf3_data_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     return tvb_reported_length(tvb);
 }
 
-static guint
+static unsigned
 get_iperf3_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb _U_, int offset _U_, void *data)
 {
     iperf3_tcp_conversation_data *conversation_data = (iperf3_tcp_conversation_data *)data;
@@ -397,7 +397,7 @@ dissect_iperf3_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 
     if (conversation_data->control_connection) {
         col_info_preface_TCP(pinfo);
-        tcp_dissect_pdus(tvb, pinfo, tree, FALSE, 1, get_iperf3_pdu_len, dissect_iperf3_control_pdu, conversation_data);
+        tcp_dissect_pdus(tvb, pinfo, tree, false, 1, get_iperf3_pdu_len, dissect_iperf3_control_pdu, conversation_data);
     } else {
         dissect_iperf3_data_pdu(tvb, pinfo, tree, conversation_data);
     }
@@ -420,7 +420,7 @@ dissect_iperf3_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
     {
         /* Due to the fact that UDP_CONNECT_MSG and UDP_CONNECT_REPLY are each others
            reverse it does not matter which endianness is used. */
-        uint32_t init_cxn_msg = tvb_get_guint32(tvb, offset, ENC_HOST_ENDIAN);
+        uint32_t init_cxn_msg = tvb_get_uint32(tvb, offset, ENC_HOST_ENDIAN);
         if (init_cxn_msg != UDP_CONNECT_MSG &&
                 init_cxn_msg != UDP_CONNECT_REPLY &&
                 init_cxn_msg != LEGACY_UDP_CONNECT_MSG &&
@@ -463,7 +463,7 @@ dissect_iperf3_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
     /* let users choose if they're using 64 bit sequence numbers, but still want sensible
         default... so we detect if the top 32 bits are all zero. if so then they must
         be using 64 bit numbers regardless */
-    maybe_sequence_num = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+    maybe_sequence_num = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
     if (iperf3_pref_64bit_seq_no || maybe_sequence_num == 0) {
         proto_tree_add_item_ret_uint64(iperf3_tree, hf_iperf3_sequence, tvb, offset, 8, ENC_BIG_ENDIAN, &maybe_sequence_num);
         offset += 8;

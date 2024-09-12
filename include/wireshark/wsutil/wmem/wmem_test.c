@@ -91,7 +91,7 @@ wmem_test_rand_string(wmem_allocator_t *allocator, int minlen, int maxlen)
 }
 
 static int
-wmem_test_compare_guint32(const void *a, const void *b)
+wmem_test_compare_uint32(const void *a, const void *b)
 {
     uint32_t l, r;
 
@@ -692,7 +692,7 @@ wmem_test_array(void)
         }
     }
 
-    wmem_array_sort(array, wmem_test_compare_guint32);
+    wmem_array_sort(array, wmem_test_compare_uint32);
     for (i=0, k=0; i<8; i++) {
         for (j=0; j<=i; j++, k++) {
             val = *(uint32_t*)wmem_array_index(array, k);
@@ -736,7 +736,7 @@ check_val_list(void * val, void * val_to_check)
 }
 
 static int
-str_compare(gconstpointer a, gconstpointer b)
+str_compare(const void *a, const void *b)
 {
     return strcmp((const char*)a, (const char*)b);
 }

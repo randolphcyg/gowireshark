@@ -183,6 +183,8 @@ double nstime_to_sec(const nstime_t *nstime)
 }
 
 /*
+ * Compute the minimum and maximum time_t values.
+ *
  * This code is based on the Samba code:
  *
  *  Unix SMB/Netbios implementation.
@@ -252,7 +254,7 @@ filetime_to_nstime(nstime_t *nstime, uint64_t filetime)
 }
 
 /*
- * function: nsfiletime_to_nstime
+ * function: filetime_ns_to_nstime
  * converts a Windows FILETIME-like value, but given in nanoseconds
  * rather than 10ths of microseconds, to an nstime_t
  * returns true if the conversion succeeds, false if it doesn't
@@ -260,7 +262,7 @@ filetime_to_nstime(nstime_t *nstime, uint64_t filetime)
  * underflows time_t)
  */
 bool
-nsfiletime_to_nstime(nstime_t *nstime, uint64_t nsfiletime)
+filetime_ns_to_nstime(nstime_t *nstime, uint64_t nsfiletime)
 {
     uint64_t ftsecs;
     int nsecs;
@@ -270,6 +272,25 @@ nsfiletime_to_nstime(nstime_t *nstime, uint64_t nsfiletime)
     nsecs = (int)(nsfiletime % NS_PER_S);
 
     return common_filetime_to_nstime(nstime, ftsecs, nsecs);
+}
+
+/*
+ * function: filetime_1sec_to_nstime
+ * converts a Windows FILETIME-like value, but given in seconds
+ * rather than 10ths of microseconds, to an nstime_t
+ * returns true if the conversion succeeds, false if it doesn't
+ * (for example, with a 32-bit time_t, the time overflows or
+ * underflows time_t)
+ */
+bool
+filetime_1sec_to_nstime(nstime_t *nstime, uint64_t filetime_1sec)
+{
+    /*
+     * Make sure filetime_1sec fits in a 64-bit signed integer.
+     */
+    if (filetime_1sec > INT64_MAX)
+        return false; /* No, it doesn't */
+    return common_filetime_to_nstime(nstime, filetime_1sec, 0);
 }
 
 /*

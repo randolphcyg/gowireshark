@@ -23,7 +23,6 @@
 #include "wmem_tree-int.h"
 #include "wmem_user_cb.h"
 
-
 static wmem_tree_node_t *
 node_uncle(wmem_tree_node_t *node)
 {

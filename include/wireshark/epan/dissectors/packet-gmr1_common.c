@@ -29,7 +29,7 @@
 void proto_register_gmr1_common(void);
 
 /* GMR-1 Common proto */
-static int proto_gmr1_common = -1;
+static int proto_gmr1_common;
 
 
 /* ------------------------------------------------------------------------ */
@@ -70,29 +70,29 @@ static const value_string gmr1_ie_common_strings[] = {
 };
 value_string_ext gmr1_ie_common_strings_ext = VALUE_STRING_EXT_INIT(gmr1_ie_common_strings);
 
-gint ett_gmr1_ie_common[NUM_GMR1_IE_COMMON];
+int ett_gmr1_ie_common[NUM_GMR1_IE_COMMON];
 
 /* Fields */
-int hf_gmr1_skip_ind = -1;
-int hf_gmr1_l3_pd = -1;
-int hf_gmr1_elem_id = -1;
-int hf_gmr1_len = -1;
+int hf_gmr1_skip_ind;
+int hf_gmr1_l3_pd;
+int hf_gmr1_elem_id;
+int hf_gmr1_len;
 
-static int hf_com_cm2_spare1 = -1;
-static int hf_com_cm2_revision = -1;
-static int hf_com_cm2_early_send = -1;
-static int hf_com_cm2_a5_1 = -1;
-static int hf_com_cm2_mes_type = -1;
-static int hf_com_cm2_spare2 = -1;
-static int hf_com_cm2_ss_screen_ind = -1;
-static int hf_com_cm2_sms_cap = -1;
-static int hf_com_cm2_spare3 = -1;
-static int hf_com_cm2_freq_cap = -1;
-static int hf_com_cm2_cm3_presence = -1;
-static int hf_com_cm2_spare4 = -1;
-static int hf_com_cm2_a5_3 = -1;
-static int hf_com_cm2_a5_2_gmr1 = -1;
-static int hf_com_spare_nibble = -1;
+static int hf_com_cm2_spare1;
+static int hf_com_cm2_revision;
+static int hf_com_cm2_early_send;
+static int hf_com_cm2_a5_1;
+static int hf_com_cm2_mes_type;
+static int hf_com_cm2_spare2;
+static int hf_com_cm2_ss_screen_ind;
+static int hf_com_cm2_sms_cap;
+static int hf_com_cm2_spare3;
+static int hf_com_cm2_freq_cap;
+static int hf_com_cm2_cm3_presence;
+static int hf_com_cm2_spare4;
+static int hf_com_cm2_a5_3;
+static int hf_com_cm2_a5_2_gmr1;
+static int hf_com_spare_nibble;
 
 /* [1] 11.5.1.6 - Mobile Earth Station Classmark 2 */
 static const value_string com_cm2_revision_vals[] = {
@@ -233,7 +233,7 @@ elem_fcn gmr1_ie_common_func[NUM_GMR1_IE_COMMON] = {
 /* ------------------------------------------------------------------------ */
 
 void
-gmr1_get_msg_params(gmr1_pd_e pd, guint8 oct, const gchar **msg_str,
+gmr1_get_msg_params(gmr1_pd_e pd, uint8_t oct, const char **msg_str,
 		    int *ett_tree, int *hf_idx, gmr1_msg_func_t *msg_func_p)
 {
 	switch (pd) {

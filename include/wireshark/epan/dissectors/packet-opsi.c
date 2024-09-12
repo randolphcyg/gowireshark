@@ -46,10 +46,10 @@ static dissector_handle_t opsi_handle;
 
 /* Internal structure to dissect attributes */
 typedef struct {
-	guint16		 attribute_type;	/* attribute code */
+	uint16_t		 attribute_type;	/* attribute code */
 	const char	*tree_text;             /* text for fold out */
-	gint		*tree_id;               /* id for add_item */
-	int             *hf_type_attribute;	/* id for seach option */
+	int		*tree_id;               /* id for add_item */
+	int             *hf_type_attribute;	/* id for search option */
 	void		(*dissect)(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item,
 				   int* hfValue, int offset, int length);
 } opsi_attribute_handle_t;
@@ -124,91 +124,91 @@ static void decode_time_attribute(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 /******* *******/
 
 /* Initialize the protocol and registered fields */
-static int proto_opsi 			= -1;
-static int hf_opsi_major_version 	= -1;
-static int hf_opsi_minor_version 	= -1;
-static int hf_opsi_opcode	 	= -1;
-static int hf_opsi_hook_id	 	= -1;
-static int hf_opsi_length	 	= -1;
-static int hf_opsi_session_id	 	= -1;
-static int hf_user_name_att		= -1;
-static int hf_password_att		= -1;
-static int hf_chap_password_att		= -1;
-static int hf_nas_ip_add_att		= -1;
-static int hf_nas_port_att		= -1;
-static int hf_service_type_att		= -1;
-static int hf_framed_protocol_att	= -1;
-static int hf_framed_address_att	= -1;
-static int hf_framed_netmask_att	= -1;
-static int hf_framed_routing_att	= -1;
-static int hf_framed_filter_att		= -1;
-static int hf_framed_mtu_att		= -1;
-static int hf_framed_compression_att	= -1;
-static int hf_called_station_att	= -1;
-static int hf_calling_station_att	= -1;
-static int hf_nas_identifier_att	= -1;
-static int hf_accounting_att		= -1;
-static int hf_acct_session_id_att	= -1;
-static int hf_chap_challenge_att	= -1;
-static int hf_nas_port_type_att		= -1;
-static int hf_designation_num_att	= -1;
-static int hf_nas_port_id_att		= -1;
-static int hf_smc_aaa_id_att		= -1;
-static int hf_smc_vpn_id_att		= -1;
-static int hf_smc_vpn_name_att		= -1;
-static int hf_smc_ran_id_att		= -1;
-static int hf_smc_ran_ip_att		= -1;
-static int hf_smc_ran_name_att		= -1;
-static int hf_smc_pop_id_att		= -1;
-static int hf_smc_pop_name_att		= -1;
-static int hf_smc_id_att		= -1;
-static int hf_smc_receive_time_att	= -1;
-static int hf_smc_stat_time_att		= -1;
-static int hf_opsi_flags_att		= -1;
-static int hf_opsi_application_name_att	= -1;
-static int hf_opsi_attribute_length = -1;
+static int proto_opsi;
+static int hf_opsi_major_version;
+static int hf_opsi_minor_version;
+static int hf_opsi_opcode;
+static int hf_opsi_hook_id;
+static int hf_opsi_length;
+static int hf_opsi_session_id;
+static int hf_user_name_att;
+static int hf_password_att;
+static int hf_chap_password_att;
+static int hf_nas_ip_add_att;
+static int hf_nas_port_att;
+static int hf_service_type_att;
+static int hf_framed_protocol_att;
+static int hf_framed_address_att;
+static int hf_framed_netmask_att;
+static int hf_framed_routing_att;
+static int hf_framed_filter_att;
+static int hf_framed_mtu_att;
+static int hf_framed_compression_att;
+static int hf_called_station_att;
+static int hf_calling_station_att;
+static int hf_nas_identifier_att;
+static int hf_accounting_att;
+static int hf_acct_session_id_att;
+static int hf_chap_challenge_att;
+static int hf_nas_port_type_att;
+static int hf_designation_num_att;
+static int hf_nas_port_id_att;
+static int hf_smc_aaa_id_att;
+static int hf_smc_vpn_id_att;
+static int hf_smc_vpn_name_att;
+static int hf_smc_ran_id_att;
+static int hf_smc_ran_ip_att;
+static int hf_smc_ran_name_att;
+static int hf_smc_pop_id_att;
+static int hf_smc_pop_name_att;
+static int hf_smc_id_att;
+static int hf_smc_receive_time_att;
+static int hf_smc_stat_time_att;
+static int hf_opsi_flags_att;
+static int hf_opsi_application_name_att;
+static int hf_opsi_attribute_length;
 
 /* Initialize the subtree pointers */
-static gint ett_opsi 			= -1;
-static gint ett_opsi_user_name		= -1;
-static gint ett_opsi_user_password	= -1;
-static gint ett_opsi_chap_password	= -1;
-static gint ett_opsi_nas_ip_address	= -1;
-static gint ett_opsi_nas_port		= -1;
-static gint ett_opsi_service_type	= -1;
-static gint ett_opsi_framed_protocol	= -1;
-static gint ett_opsi_framed_address	= -1;
-static gint ett_opsi_framed_netmask	= -1;
-static gint ett_opsi_framed_routing	= -1;
-static gint ett_opsi_framed_filter	= -1;
-static gint ett_opsi_framed_mtu		= -1;
-static gint ett_opsi_framed_compression	= -1;
-static gint ett_opsi_called_station_id	= -1;
-static gint ett_opsi_calling_station_id	= -1;
-static gint ett_opsi_nas_identifier	= -1;
-static gint ett_opsi_accounting		= -1;
-static gint ett_opsi_acct_session_id	= -1;
-static gint ett_opsi_chap_challenge	= -1;
-static gint ett_opsi_nas_port_type	= -1;
-static gint ett_opsi_designation_number	= -1;
-static gint ett_opsi_nas_port_id	= -1;
-static gint ett_opsi_smc_aaa_id		= -1;
-static gint ett_opsi_smc_vpn_id		= -1;
-static gint ett_opsi_smc_vpn_name	= -1;
-static gint ett_opsi_smc_ran_id		= -1;
-static gint ett_opsi_smc_ran_ip		= -1;
-static gint ett_opsi_smc_ran_name	= -1;
-static gint ett_opsi_smc_pop_id		= -1;
-static gint ett_opsi_smc_pop_name	= -1;
-static gint ett_opsi_smc_id		= -1;
-static gint ett_opsi_smc_receive_time	= -1;
-static gint ett_opsi_smc_stat_time	= -1;
-static gint ett_opsi_flags		= -1;
-static gint ett_opsi_application_name	= -1;
+static int ett_opsi;
+static int ett_opsi_user_name;
+static int ett_opsi_user_password;
+static int ett_opsi_chap_password;
+static int ett_opsi_nas_ip_address;
+static int ett_opsi_nas_port;
+static int ett_opsi_service_type;
+static int ett_opsi_framed_protocol;
+static int ett_opsi_framed_address;
+static int ett_opsi_framed_netmask;
+static int ett_opsi_framed_routing;
+static int ett_opsi_framed_filter;
+static int ett_opsi_framed_mtu;
+static int ett_opsi_framed_compression;
+static int ett_opsi_called_station_id;
+static int ett_opsi_calling_station_id;
+static int ett_opsi_nas_identifier;
+static int ett_opsi_accounting;
+static int ett_opsi_acct_session_id;
+static int ett_opsi_chap_challenge;
+static int ett_opsi_nas_port_type;
+static int ett_opsi_designation_number;
+static int ett_opsi_nas_port_id;
+static int ett_opsi_smc_aaa_id;
+static int ett_opsi_smc_vpn_id;
+static int ett_opsi_smc_vpn_name;
+static int ett_opsi_smc_ran_id;
+static int ett_opsi_smc_ran_ip;
+static int ett_opsi_smc_ran_name;
+static int ett_opsi_smc_pop_id;
+static int ett_opsi_smc_pop_name;
+static int ett_opsi_smc_id;
+static int ett_opsi_smc_receive_time;
+static int ett_opsi_smc_stat_time;
+static int ett_opsi_flags;
+static int ett_opsi_application_name;
 
-static expert_field ei_opsi_unknown_attribute = EI_INIT;
-static expert_field ei_opsi_short_attribute = EI_INIT;
-static expert_field ei_opsi_short_frame = EI_INIT;
+static expert_field ei_opsi_unknown_attribute;
+static expert_field ei_opsi_short_attribute;
+static expert_field ei_opsi_short_frame;
 
 /* Code mapping */
 static const value_string opsi_opcode[] = {
@@ -410,10 +410,10 @@ static opsi_attribute_handle_t opsi_attributes[] = {
 	"OPSI application name attribute", &ett_opsi_application_name, &hf_opsi_application_name_att, decode_string_attribute },
 
 };
-#define OPSI_ATTRIBUTES_COUNT (sizeof(opsi_attributes)/sizeof(opsi_attribute_handle_t))
+#define OPSI_ATTRIBUTES_COUNT array_length(opsi_attributes)
 
 /* Desegmentation of OPSI (over TCP) */
-static gboolean opsi_desegment = TRUE;
+static bool opsi_desegment = true;
 
 static void
 decode_string_attribute(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *item, int* hfValue, int offset, int length)
@@ -472,7 +472,7 @@ decode_time_attribute(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto
 /****************************************************************************/
 
 /* To find the correct size of the PDU. Needed by the desegmentation feature*/
-static guint
+static unsigned
 get_opsi_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
 	/*
@@ -551,7 +551,7 @@ dissect_opsi_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
 	col_clear(pinfo->cinfo, COL_INFO);
 
 	col_append_sep_str(pinfo->cinfo, COL_INFO, ", ",
-		val_to_str(tvb_get_guint8(tvb, CODE_OFFSET), opsi_opcode,
+		val_to_str(tvb_get_uint8(tvb, CODE_OFFSET), opsi_opcode,
 			"<Unknown opcode %d>"));
 	col_set_fence(pinfo->cinfo, COL_INFO);
 
@@ -575,7 +575,7 @@ dissect_opsi_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
 static int
 dissect_opsi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
-	/* We should mimimally grab the header */
+	/* We should minimally grab the header */
 	tcp_dissect_pdus(tvb, pinfo, tree, opsi_desegment, HEADER_LENGTH, get_opsi_pdu_len,
 		dissect_opsi_pdu, data);
 	return tvb_reported_length(tvb);
@@ -801,7 +801,7 @@ proto_register_opsi(void)
 	};
 
 /* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_opsi,
 		&ett_opsi_user_name,
 		&ett_opsi_user_password,

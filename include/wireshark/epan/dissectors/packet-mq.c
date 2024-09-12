@@ -41,9 +41,7 @@
   *
   *   See:
   *
-  *       http://www-01.ibm.com/support/docview.wss?uid=pub1sc34606203
-  *
-  *       http://www-01.ibm.com/support/docview.wss?uid=pub1sc34694001
+  *       https://www.ibm.com/docs/en/ibm-mq/7.5?topic=structure-application-programming-reference
   *
   *   Possible structures combinations :
   *   TSH [ ID ^ UID ^ CONN ^ INQ ^ OD ]
@@ -79,31 +77,31 @@
 void proto_register_mq(void);
 void proto_reg_handoff_mq(void);
 
-static int proto_mq = -1;
-static int hf_mq_tsh_StructID = -1;
-static int hf_mq_tsh_mqseglen = -1;
-static int hf_mq_tsh_convid = -1;
-static int hf_mq_tsh_requestid = -1;
-static int hf_mq_tsh_byteorder = -1;
-static int hf_mq_tsh_opcode = -1;
-static int hf_mq_tsh_ctlflgs1 = -1;
+static int proto_mq;
+static int hf_mq_tsh_StructID;
+static int hf_mq_tsh_mqseglen;
+static int hf_mq_tsh_convid;
+static int hf_mq_tsh_requestid;
+static int hf_mq_tsh_byteorder;
+static int hf_mq_tsh_opcode;
+static int hf_mq_tsh_ctlflgs1;
 
-static int hf_mq_tsh_ctlflgs2 = -1;
-static int hf_mq_tsh_luwid = -1;
-static int hf_mq_tsh_encoding = -1;
+static int hf_mq_tsh_ctlflgs2;
+static int hf_mq_tsh_luwid;
+static int hf_mq_tsh_encoding;
 
-static int hf_mq_tsh_ccsid = -1;
-static int hf_mq_tsh_reserved = -1;
+static int hf_mq_tsh_ccsid;
+static int hf_mq_tsh_reserved;
 
 /* Transmission Segment Control Flags 1 */
-static int hf_mq_tsh_tcf_confirmreq = -1;
-static int hf_mq_tsh_tcf_error = -1;
-static int hf_mq_tsh_tcf_reqclose = -1;
-static int hf_mq_tsh_tcf_closechann = -1;
-static int hf_mq_tsh_tcf_first = -1;
-static int hf_mq_tsh_tcf_last = -1;
-static int hf_mq_tsh_tcf_reqacc = -1;
-static int hf_mq_tsh_tcf_dlq = -1;
+static int hf_mq_tsh_tcf_confirmreq;
+static int hf_mq_tsh_tcf_error;
+static int hf_mq_tsh_tcf_reqclose;
+static int hf_mq_tsh_tcf_closechann;
+static int hf_mq_tsh_tcf_first;
+static int hf_mq_tsh_tcf_last;
+static int hf_mq_tsh_tcf_reqacc;
+static int hf_mq_tsh_tcf_dlq;
 static int* const pf_flds_tcf[] =
 {
     &hf_mq_tsh_tcf_dlq,
@@ -118,10 +116,10 @@ static int* const pf_flds_tcf[] =
 };
 
 /* Transmission Segment Control Flags 2 */
-static int hf_mq_tsh_tcf2_HdrComp = -1;
-static int hf_mq_tsh_tcf2_MsgComp = -1;
-static int hf_mq_tsh_tcf2_CSH = -1;
-static int hf_mq_tsh_tcf2_CmitIntv = -1;
+static int hf_mq_tsh_tcf2_HdrComp;
+static int hf_mq_tsh_tcf2_MsgComp;
+static int hf_mq_tsh_tcf2_CSH;
+static int hf_mq_tsh_tcf2_CmitIntv;
 static int* const pf_flds_tcf2[] =
 {
     &hf_mq_tsh_tcf2_CmitIntv,
@@ -131,69 +129,69 @@ static int* const pf_flds_tcf2[] =
     NULL
 };
 
-static int hf_mq_api_replylen = -1;
-static int hf_mq_api_compcode = -1;
-static int hf_mq_api_reascode = -1;
-static int hf_mq_api_objecthdl = -1;
-static int hf_mq_socket_conversid = -1;
-static int hf_mq_socket_requestid = -1;
-static int hf_mq_socket_type = -1;
-static int hf_mq_socket_parm1 = -1;
-static int hf_mq_socket_parm2 = -1;
-static int hf_mq_msh_StructID = -1;
-static int hf_mq_msh_seqnum = -1;
-static int hf_mq_msh_datalength = -1;
-static int hf_mq_msh_unknown1 = -1;
-static int hf_mq_msh_msglength = -1;
-static int hf_mq_xqh_StructID = -1;
-static int hf_mq_xqh_version = -1;
-static int hf_mq_xqh_remoteq = -1;
-static int hf_mq_xqh_remoteqmgr = -1;
+static int hf_mq_api_replylen;
+static int hf_mq_api_compcode;
+static int hf_mq_api_reascode;
+static int hf_mq_api_objecthdl;
+static int hf_mq_socket_conversid;
+static int hf_mq_socket_requestid;
+static int hf_mq_socket_type;
+static int hf_mq_socket_parm1;
+static int hf_mq_socket_parm2;
+static int hf_mq_msh_StructID;
+static int hf_mq_msh_seqnum;
+static int hf_mq_msh_datalength;
+static int hf_mq_msh_unknown1;
+static int hf_mq_msh_msglength;
+static int hf_mq_xqh_StructID;
+static int hf_mq_xqh_version;
+static int hf_mq_xqh_remoteq;
+static int hf_mq_xqh_remoteqmgr;
 
-static int hf_mq_id_StructID = -1;
-static int hf_mq_id_FapLevel = -1;
-static int hf_mq_id_cf1 = -1;
-static int hf_mq_id_ecf1 = -1;
-static int hf_mq_id_ief1 = -1;
-static int hf_mq_id_Reserved = -1;
-static int hf_mq_id_MaxMsgBatch = -1;
-static int hf_mq_id_MaxTrSize = -1;
-static int hf_mq_id_MaxMsgSize = -1;
-static int hf_mq_id_SeqWrapVal = -1;
-static int hf_mq_id_channel = -1;
-static int hf_mq_id_cf2 = -1;
-static int hf_mq_id_ecf2 = -1;
-static int hf_mq_id_ccsid = -1;
-static int hf_mq_id_qmgrname = -1;
-static int hf_mq_id_HBInterval = -1;
-static int hf_mq_id_EFLLength = -1;
-static int hf_mq_id_ief2 = -1;
-static int hf_mq_id_Reserved1 = -1;
-static int hf_mq_id_HdrCprsLst = -1;
-static int hf_mq_id_MsgCprsLst = -1;
-static int hf_mq_id_Reserved2 = -1;
-static int hf_mq_id_SSLKeyRst = -1;
-static int hf_mq_id_ConvBySkt = -1;
-static int hf_mq_id_cf3 = -1;
-static int hf_mq_id_ecf3 = -1;
-static int hf_mq_id_Reserved3 = -1;
-static int hf_mq_id_ProcessId = -1;
-static int hf_mq_id_ThreadId = -1;
-static int hf_mq_id_TraceId = -1;
-static int hf_mq_id_ProdId = -1;
-static int hf_mq_id_mqmid = -1;
-static int hf_mq_id_pal = -1;
-static int hf_mq_id_r = -1;
+static int hf_mq_id_StructID;
+static int hf_mq_id_FapLevel;
+static int hf_mq_id_cf1;
+static int hf_mq_id_ecf1;
+static int hf_mq_id_ief1;
+static int hf_mq_id_Reserved;
+static int hf_mq_id_MaxMsgBatch;
+static int hf_mq_id_MaxTrSize;
+static int hf_mq_id_MaxMsgSize;
+static int hf_mq_id_SeqWrapVal;
+static int hf_mq_id_channel;
+static int hf_mq_id_cf2;
+static int hf_mq_id_ecf2;
+static int hf_mq_id_ccsid;
+static int hf_mq_id_qmgrname;
+static int hf_mq_id_HBInterval;
+static int hf_mq_id_EFLLength;
+static int hf_mq_id_ief2;
+static int hf_mq_id_Reserved1;
+static int hf_mq_id_HdrCprsLst;
+static int hf_mq_id_MsgCprsLst;
+static int hf_mq_id_Reserved2;
+static int hf_mq_id_SSLKeyRst;
+static int hf_mq_id_ConvBySkt;
+static int hf_mq_id_cf3;
+static int hf_mq_id_ecf3;
+static int hf_mq_id_Reserved3;
+static int hf_mq_id_ProcessId;
+static int hf_mq_id_ThreadId;
+static int hf_mq_id_TraceId;
+static int hf_mq_id_ProdId;
+static int hf_mq_id_mqmid;
+static int hf_mq_id_pal;
+static int hf_mq_id_r;
 
 /* Initial Data - Capability Flag 1 */
-static int hf_mq_id_cf1_msgseq = -1;
-static int hf_mq_id_cf1_convcap = -1;
-static int hf_mq_id_cf1_splitmsg = -1;
-static int hf_mq_id_cf1_RqstInit = -1;
-static int hf_mq_id_cf1_RqstSecu = -1;
-static int hf_mq_id_cf1_mqreq = -1;
-static int hf_mq_id_cf1_svrsec = -1;
-static int hf_mq_id_cf1_runtime = -1;
+static int hf_mq_id_cf1_msgseq;
+static int hf_mq_id_cf1_convcap;
+static int hf_mq_id_cf1_splitmsg;
+static int hf_mq_id_cf1_RqstInit;
+static int hf_mq_id_cf1_RqstSecu;
+static int hf_mq_id_cf1_mqreq;
+static int hf_mq_id_cf1_svrsec;
+static int hf_mq_id_cf1_runtime;
 static int* const pf_flds_cf1[] =
 {
     &hf_mq_id_cf1_runtime,
@@ -208,14 +206,14 @@ static int* const pf_flds_cf1[] =
 };
 
 /* Initial Data - Init Error Flag 1 */
-static int hf_mq_id_ief1_ccsid = -1;
-static int hf_mq_id_ief1_enc = -1;
-static int hf_mq_id_ief1_mxtrsz = -1;
-static int hf_mq_id_ief1_fap = -1;
-static int hf_mq_id_ief1_mxmsgsz = -1;
-static int hf_mq_id_ief1_mxmsgpb = -1;
-static int hf_mq_id_ief1_seqwrap = -1;
-static int hf_mq_id_ief1_hbint = -1;
+static int hf_mq_id_ief1_ccsid;
+static int hf_mq_id_ief1_enc;
+static int hf_mq_id_ief1_mxtrsz;
+static int hf_mq_id_ief1_fap;
+static int hf_mq_id_ief1_mxmsgsz;
+static int hf_mq_id_ief1_mxmsgpb;
+static int hf_mq_id_ief1_seqwrap;
+static int hf_mq_id_ief1_hbint;
 static int* const pf_flds_ef1[] =
 {
     &hf_mq_id_ief1_hbint,
@@ -230,14 +228,14 @@ static int* const pf_flds_ef1[] =
 };
 
 /* Initial Data - Capability Flag 2 */
-static int hf_mq_id_cf2_CanDstLst = -1;
-static int hf_mq_id_cf2_FstMsgReq = -1;
-static int hf_mq_id_cf2_RespConv = -1;
-static int hf_mq_id_cf2_XARequest = -1;
-static int hf_mq_id_cf2_XARunTApp = -1;
-static int hf_mq_id_cf2_SPIRqst = -1;
-static int hf_mq_id_cf2_DualUOW = -1;
-static int hf_mq_id_cf2_CanTrcRte = -1;
+static int hf_mq_id_cf2_CanDstLst;
+static int hf_mq_id_cf2_FstMsgReq;
+static int hf_mq_id_cf2_RespConv;
+static int hf_mq_id_cf2_XARequest;
+static int hf_mq_id_cf2_XARunTApp;
+static int hf_mq_id_cf2_SPIRqst;
+static int hf_mq_id_cf2_DualUOW;
+static int hf_mq_id_cf2_CanTrcRte;
 static int* const pf_flds_cf2[] =
 {
     &hf_mq_id_cf2_CanTrcRte,
@@ -252,9 +250,9 @@ static int* const pf_flds_cf2[] =
 };
 
 /* Initial Data - Init Error Flag 2 */
-static int hf_mq_id_ief2_HdrCmpLst = -1;
-static int hf_mq_id_ief2_MsgCmpLst = -1;
-static int hf_mq_id_ief2_SSLReset = -1;
+static int hf_mq_id_ief2_HdrCmpLst;
+static int hf_mq_id_ief2_MsgCmpLst;
+static int hf_mq_id_ief2_SSLReset;
 static int* const pf_flds_ef2[] =
 {
     &hf_mq_id_ief2_SSLReset,
@@ -264,12 +262,12 @@ static int* const pf_flds_ef2[] =
 };
 
 /* Initial Data - Capability Flag 3 */
-static int hf_mq_id_cf3_CanMsgPrp = -1;
-static int hf_mq_id_cf3_CanMulticast = -1;
-static int hf_mq_id_cf3_PropIntSep = -1;
-static int hf_mq_id_cf3_MPlxSyGet = -1;
-static int hf_mq_id_cf3_ProtAlgorit = -1;
-static int hf_mq_id_cf3_CanGenConnTag = -1;
+static int hf_mq_id_cf3_CanMsgPrp;
+static int hf_mq_id_cf3_CanMulticast;
+static int hf_mq_id_cf3_PropIntSep;
+static int hf_mq_id_cf3_MPlxSyGet;
+static int hf_mq_id_cf3_ProtAlgorit;
+static int hf_mq_id_cf3_CanGenConnTag;
 
 static int* const pf_flds_cf3[] =
 {
@@ -282,61 +280,61 @@ static int* const pf_flds_cf3[] =
     NULL
 };
 
-static int hf_mq_uid_StructID = -1;
-static int hf_mq_uid_userid = -1;
-static int hf_mq_uid_password = -1;
-static int hf_mq_uid_longuserid = -1;
-static int hf_mq_sidlen = -1;
-static int hf_mq_sidtyp = -1;
-static int hf_mq_securityid = -1;
+static int hf_mq_uid_StructID;
+static int hf_mq_uid_userid;
+static int hf_mq_uid_password;
+static int hf_mq_uid_longuserid;
+static int hf_mq_sidlen;
+static int hf_mq_sidtyp;
+static int hf_mq_securityid;
 
-static int hf_mq_conn_QMgr = -1;
-static int hf_mq_conn_appname = -1;
-static int hf_mq_conn_apptype = -1;
-static int hf_mq_conn_acttoken = -1;
-static int hf_mq_conn_Xoptions = -1;
-static int hf_mq_conn_options = -1;
-static int hf_mq_fcno_StructID = -1;
-static int hf_mq_fcno_prodid = -1;
-static int hf_mq_fcno_mqmid = -1;
-static int hf_mq_fcno_version = -1;
-static int hf_mq_fcno_capflag = -1;
-static int hf_mq_fcno_conn_tag = -1;
-static int hf_mq_fcno_retconn_tag = -1;
-static int hf_mq_fcno_unknowb01 = -1;
+static int hf_mq_conn_QMgr;
+static int hf_mq_conn_appname;
+static int hf_mq_conn_apptype;
+static int hf_mq_conn_acttoken;
+static int hf_mq_conn_Xoptions;
+static int hf_mq_conn_options;
+static int hf_mq_fcno_StructID;
+static int hf_mq_fcno_prodid;
+static int hf_mq_fcno_mqmid;
+static int hf_mq_fcno_version;
+static int hf_mq_fcno_capflag;
+static int hf_mq_fcno_conn_tag;
+static int hf_mq_fcno_retconn_tag;
+static int hf_mq_fcno_unknowb01;
 
-static int hf_mq_inq_nbsel = -1;
-static int hf_mq_inq_nbint = -1;
-static int hf_mq_inq_charlen = -1;
-static int hf_mq_inq_sel = -1;
-static int hf_mq_inq_intvalue = -1;
-static int hf_mq_inq_charvalues = -1;
+static int hf_mq_inq_nbsel;
+static int hf_mq_inq_nbint;
+static int hf_mq_inq_charlen;
+static int hf_mq_inq_sel;
+static int hf_mq_inq_intvalue;
+static int hf_mq_inq_charvalues;
 
-static int hf_mq_spi_verb = -1;
-static int hf_mq_spi_version = -1;
-static int hf_mq_spi_length = -1;
-static int hf_mq_spi_base_StructID = -1;
-static int hf_mq_spi_base_version = -1;
-static int hf_mq_spi_base_length = -1;
-static int hf_mq_spi_spqo_nbverb = -1;
-static int hf_mq_spi_spqo_verbid = -1;
-static int hf_mq_spi_spqo_maxiover = -1;
-static int hf_mq_spi_spqo_maxinver = -1;
-static int hf_mq_spi_spqo_maxouver = -1;
-static int hf_mq_spi_spqo_flags = -1;
-static int hf_mq_spi_spai_mode = -1;
-static int hf_mq_spi_spai_unknown1 = -1;
-static int hf_mq_spi_spai_unknown2 = -1;
-static int hf_mq_spi_spai_msgid = -1;
-static int hf_mq_spi_spgi_batchsz = -1;
-static int hf_mq_spi_spgi_batchint = -1;
-static int hf_mq_spi_spgi_maxmsgsz = -1;
-static int hf_mq_spi_spgo_options = -1;
-static int hf_mq_spi_spgo_size = -1;
+static int hf_mq_spi_verb;
+static int hf_mq_spi_version;
+static int hf_mq_spi_length;
+static int hf_mq_spi_base_StructID;
+static int hf_mq_spi_base_version;
+static int hf_mq_spi_base_length;
+static int hf_mq_spi_spqo_nbverb;
+static int hf_mq_spi_spqo_verbid;
+static int hf_mq_spi_spqo_maxiover;
+static int hf_mq_spi_spqo_maxinver;
+static int hf_mq_spi_spqo_maxouver;
+static int hf_mq_spi_spqo_flags;
+static int hf_mq_spi_spai_mode;
+static int hf_mq_spi_spai_unknown1;
+static int hf_mq_spi_spai_unknown2;
+static int hf_mq_spi_spai_msgid;
+static int hf_mq_spi_spgi_batchsz;
+static int hf_mq_spi_spgi_batchint;
+static int hf_mq_spi_spgi_maxmsgsz;
+static int hf_mq_spi_spgo_options;
+static int hf_mq_spi_spgo_size;
 
-static int hf_mq_spi_opt_blank = -1;
-static int hf_mq_spi_opt_syncp = -1;
-static int hf_mq_spi_opt_deferred = -1;
+static int hf_mq_spi_opt_blank;
+static int hf_mq_spi_opt_syncp;
+static int hf_mq_spi_opt_deferred;
 static int* const pf_flds_spiopt[] =
 {
     &hf_mq_spi_opt_deferred,
@@ -345,14 +343,14 @@ static int* const pf_flds_spiopt[] =
     NULL
 };
 
-static int hf_mq_put_length = -1;
+static int hf_mq_put_length;
 
-static int hf_mq_close_options = -1;
-static int hf_mq_close_options_DELETE = -1;
-static int hf_mq_close_options_DELETE_PURGE = -1;
-static int hf_mq_close_options_KEEP_SUB = -1;
-static int hf_mq_close_options_REMOVE_SUB = -1;
-static int hf_mq_close_options_QUIESCE = -1;
+static int hf_mq_close_options;
+static int hf_mq_close_options_DELETE;
+static int hf_mq_close_options_DELETE_PURGE;
+static int hf_mq_close_options_KEEP_SUB;
+static int hf_mq_close_options_REMOVE_SUB;
+static int hf_mq_close_options_QUIESCE;
 static int* const pf_flds_clsopt[] =
 {
     &hf_mq_close_options_QUIESCE,
@@ -363,30 +361,30 @@ static int* const pf_flds_clsopt[] =
     NULL
 };
 
-static int hf_mq_open_options = -1;
-static int hf_mq_open_options_INPUT_SHARED = -1;
-static int hf_mq_open_options_INPUT_AS_Q_DEF = -1;
-static int hf_mq_open_options_INPUT_EXCLUSIVE = -1;
-static int hf_mq_open_options_BROWSE = -1;
-static int hf_mq_open_options_OUTPUT = -1;
-static int hf_mq_open_options_INQUIRE = -1;
-static int hf_mq_open_options_SET = -1;
-static int hf_mq_open_options_SAVE_ALL_CTX = -1;
-static int hf_mq_open_options_PASS_IDENT_CTX = -1;
-static int hf_mq_open_options_PASS_ALL_CTX = -1;
-static int hf_mq_open_options_SET_IDENT_CTX = -1;
-static int hf_mq_open_options_SET_ALL_CONTEXT = -1;
-static int hf_mq_open_options_ALT_USER_AUTH = -1;
-static int hf_mq_open_options_FAIL_IF_QUIESC = -1;
-static int hf_mq_open_options_BIND_ON_OPEN = -1;
-static int hf_mq_open_options_BIND_NOT_FIXED = -1;
-static int hf_mq_open_options_RESOLVE_NAMES = -1;
-static int hf_mq_open_options_CO_OP = -1;
-static int hf_mq_open_options_RESOLVE_LOCAL_Q = -1;
-static int hf_mq_open_options_NO_READ_AHEAD = -1;
-static int hf_mq_open_options_READ_AHEAD = -1;
-static int hf_mq_open_options_NO_MULTICAST = -1;
-static int hf_mq_open_options_BIND_ON_GROUP = -1;
+static int hf_mq_open_options;
+static int hf_mq_open_options_INPUT_SHARED;
+static int hf_mq_open_options_INPUT_AS_Q_DEF;
+static int hf_mq_open_options_INPUT_EXCLUSIVE;
+static int hf_mq_open_options_BROWSE;
+static int hf_mq_open_options_OUTPUT;
+static int hf_mq_open_options_INQUIRE;
+static int hf_mq_open_options_SET;
+static int hf_mq_open_options_SAVE_ALL_CTX;
+static int hf_mq_open_options_PASS_IDENT_CTX;
+static int hf_mq_open_options_PASS_ALL_CTX;
+static int hf_mq_open_options_SET_IDENT_CTX;
+static int hf_mq_open_options_SET_ALL_CONTEXT;
+static int hf_mq_open_options_ALT_USER_AUTH;
+static int hf_mq_open_options_FAIL_IF_QUIESC;
+static int hf_mq_open_options_BIND_ON_OPEN;
+static int hf_mq_open_options_BIND_NOT_FIXED;
+static int hf_mq_open_options_RESOLVE_NAMES;
+static int hf_mq_open_options_CO_OP;
+static int hf_mq_open_options_RESOLVE_LOCAL_Q;
+static int hf_mq_open_options_NO_READ_AHEAD;
+static int hf_mq_open_options_READ_AHEAD;
+static int hf_mq_open_options_NO_MULTICAST;
+static int hf_mq_open_options_BIND_ON_GROUP;
 static int* const pf_flds_opnopt[] =
 {
     &hf_mq_open_options_BIND_ON_GROUP,
@@ -415,151 +413,151 @@ static int* const pf_flds_opnopt[] =
     NULL
 };
 
-static int hf_mq_fopa_StructID = -1;
-static int hf_mq_fopa_version = -1;
-static int hf_mq_fopa_length = -1;
-static int hf_mq_fopa_DefPersistence = -1;
-static int hf_mq_fopa_DefPutRespType = -1;
-static int hf_mq_fopa_DefReadAhead = -1;
-static int hf_mq_fopa_PropertyControl = -1;
-static int hf_mq_fopa_Unknown = -1;
+static int hf_mq_fopa_StructID;
+static int hf_mq_fopa_version;
+static int hf_mq_fopa_length;
+static int hf_mq_fopa_DefPersistence;
+static int hf_mq_fopa_DefPutRespType;
+static int hf_mq_fopa_DefReadAhead;
+static int hf_mq_fopa_PropertyControl;
+static int hf_mq_fopa_Unknown;
 
-static int hf_mq_fcmi_StructID = -1;
-static int hf_mq_fcmi_unknown = -1;
+static int hf_mq_fcmi_StructID;
+static int hf_mq_fcmi_unknown;
 
-static int hf_mq_ping_length = -1;
-static int hf_mq_ping_buffer = -1;
-static int hf_mq_reset_length = -1;
-static int hf_mq_reset_seqnum = -1;
-static int hf_mq_status_length = -1;
-static int hf_mq_status_code = -1;
-static int hf_mq_status_value = -1;
+static int hf_mq_ping_length;
+static int hf_mq_ping_buffer;
+static int hf_mq_reset_length;
+static int hf_mq_reset_seqnum;
+static int hf_mq_status_length;
+static int hf_mq_status_code;
+static int hf_mq_status_value;
 
-static int hf_mq_caut_StructID = -1;
-static int hf_mq_caut_AuthType = -1;
-static int hf_mq_caut_UsrMaxLen = -1;
-static int hf_mq_caut_PwdMaxLen = -1;
-static int hf_mq_caut_UsrLength = -1;
-static int hf_mq_caut_PwdLength = -1;
-static int hf_mq_caut_usr = -1;
-static int hf_mq_caut_psw = -1;
+static int hf_mq_caut_StructID;
+static int hf_mq_caut_AuthType;
+static int hf_mq_caut_UsrMaxLen;
+static int hf_mq_caut_PwdMaxLen;
+static int hf_mq_caut_UsrLength;
+static int hf_mq_caut_PwdLength;
+static int hf_mq_caut_usr;
+static int hf_mq_caut_psw;
 
-static int hf_mq_od_StructID = -1;
-static int hf_mq_od_version = -1;
-static int hf_mq_od_objecttype = -1;
-static int hf_mq_od_objectname = -1;
-static int hf_mq_od_objqmgrname = -1;
-static int hf_mq_od_dynqname = -1;
-static int hf_mq_od_altuserid = -1;
-static int hf_mq_od_recspresent = -1;
-static int hf_mq_od_knowndstcnt = -1;
-static int hf_mq_od_unknowdstcnt = -1;
-static int hf_mq_od_invaldstcnt = -1;
-static int hf_mq_od_objrecofs = -1;
-static int hf_mq_od_resprecofs = -1;
-static int hf_mq_od_objrecptr = -1;
-static int hf_mq_od_resprecptr = -1;
-static int hf_mq_od_altsecurid = -1;
-static int hf_mq_od_resolvqname = -1;
-static int hf_mq_od_resolvqmgrnm = -1;
-static int hf_mq_od_resolvobjtyp = -1;
+static int hf_mq_od_StructID;
+static int hf_mq_od_version;
+static int hf_mq_od_objecttype;
+static int hf_mq_od_objectname;
+static int hf_mq_od_objqmgrname;
+static int hf_mq_od_dynqname;
+static int hf_mq_od_altuserid;
+static int hf_mq_od_recspresent;
+static int hf_mq_od_knowndstcnt;
+static int hf_mq_od_unknowdstcnt;
+static int hf_mq_od_invaldstcnt;
+static int hf_mq_od_objrecofs;
+static int hf_mq_od_resprecofs;
+static int hf_mq_od_objrecptr;
+static int hf_mq_od_resprecptr;
+static int hf_mq_od_altsecurid;
+static int hf_mq_od_resolvqname;
+static int hf_mq_od_resolvqmgrnm;
+static int hf_mq_od_resolvobjtyp;
 
-static int hf_mq_or_objname = -1;
-static int hf_mq_or_objqmgrname = -1;
-static int hf_mq_rr_compcode = -1;
-static int hf_mq_rr_reascode = -1;
-static int hf_mq_pmr_msgid = -1;
-static int hf_mq_pmr_correlid = -1;
-static int hf_mq_pmr_groupid = -1;
-static int hf_mq_pmr_feedback = -1;
-static int hf_mq_pmr_acttoken = -1;
-static int hf_mq_md_StructID = -1;
-static int hf_mq_md_version = -1;
-static int hf_mq_md_report = -1;
-static int hf_mq_md_msgtype = -1;
-static int hf_mq_md_expiry = -1;
-static int hf_mq_md_feedback = -1;
-static int hf_mq_md_encoding = -1;
-static int hf_mq_md_ccsid = -1;
-static int hf_mq_md_format = -1;
-static int hf_mq_md_priority = -1;
-static int hf_mq_md_persistence = -1;
-static int hf_mq_md_msgid = -1;
-static int hf_mq_md_correlid = -1;
-static int hf_mq_md_backoutcnt = -1;
-static int hf_mq_md_replytoq = -1;
-static int hf_mq_md_replytoqmgr = -1;
-static int hf_mq_md_userid = -1;
-static int hf_mq_md_acttoken = -1;
-static int hf_mq_md_appliddata = -1;
-static int hf_mq_md_putappltype = -1;
-static int hf_mq_md_putapplname = -1;
-static int hf_mq_md_putdate = -1;
-static int hf_mq_md_puttime = -1;
-static int hf_mq_md_apporigdata = -1;
-static int hf_mq_md_groupid = -1;
-static int hf_mq_md_msgseqnumber = -1;
-static int hf_mq_md_offset = -1;
-static int hf_mq_md_msgflags = -1;
-static int hf_mq_md_origlen = -1;
-static int hf_mq_dlh_StructID = -1;
-static int hf_mq_dlh_version = -1;
-static int hf_mq_dlh_reason = -1;
-static int hf_mq_dlh_destq = -1;
-static int hf_mq_dlh_destqmgr = -1;
-static int hf_mq_dlh_encoding = -1;
-static int hf_mq_dlh_ccsid = -1;
-static int hf_mq_dlh_format = -1;
-static int hf_mq_dlh_putappltype = -1;
-static int hf_mq_dlh_putapplname = -1;
-static int hf_mq_dlh_putdate = -1;
-static int hf_mq_dlh_puttime = -1;
+static int hf_mq_or_objname;
+static int hf_mq_or_objqmgrname;
+static int hf_mq_rr_compcode;
+static int hf_mq_rr_reascode;
+static int hf_mq_pmr_msgid;
+static int hf_mq_pmr_correlid;
+static int hf_mq_pmr_groupid;
+static int hf_mq_pmr_feedback;
+static int hf_mq_pmr_acttoken;
+static int hf_mq_md_StructID;
+static int hf_mq_md_version;
+static int hf_mq_md_report;
+static int hf_mq_md_msgtype;
+static int hf_mq_md_expiry;
+static int hf_mq_md_feedback;
+static int hf_mq_md_encoding;
+static int hf_mq_md_ccsid;
+static int hf_mq_md_format;
+static int hf_mq_md_priority;
+static int hf_mq_md_persistence;
+static int hf_mq_md_msgid;
+static int hf_mq_md_correlid;
+static int hf_mq_md_backoutcnt;
+static int hf_mq_md_replytoq;
+static int hf_mq_md_replytoqmgr;
+static int hf_mq_md_userid;
+static int hf_mq_md_acttoken;
+static int hf_mq_md_appliddata;
+static int hf_mq_md_putappltype;
+static int hf_mq_md_putapplname;
+static int hf_mq_md_putdate;
+static int hf_mq_md_puttime;
+static int hf_mq_md_apporigdata;
+static int hf_mq_md_groupid;
+static int hf_mq_md_msgseqnumber;
+static int hf_mq_md_offset;
+static int hf_mq_md_msgflags;
+static int hf_mq_md_origlen;
+static int hf_mq_dlh_StructID;
+static int hf_mq_dlh_version;
+static int hf_mq_dlh_reason;
+static int hf_mq_dlh_destq;
+static int hf_mq_dlh_destqmgr;
+static int hf_mq_dlh_encoding;
+static int hf_mq_dlh_ccsid;
+static int hf_mq_dlh_format;
+static int hf_mq_dlh_putappltype;
+static int hf_mq_dlh_putapplname;
+static int hf_mq_dlh_putdate;
+static int hf_mq_dlh_puttime;
 
-static int hf_mq_gmo_StructID = -1;
-static int hf_mq_gmo_version = -1;
-static int hf_mq_gmo_options = -1;
-static int hf_mq_gmo_waitinterval = -1;
-static int hf_mq_gmo_signal1 = -1;
-static int hf_mq_gmo_signal2 = -1;
-static int hf_mq_gmo_resolvqname = -1;
-static int hf_mq_gmo_matchoptions = -1;
-static int hf_mq_gmo_groupstatus = -1;
-static int hf_mq_gmo_segmstatus = -1;
-static int hf_mq_gmo_segmentation = -1;
-static int hf_mq_gmo_reserved = -1;
-static int hf_mq_gmo_msgtoken = -1;
-static int hf_mq_gmo_returnedlen = -1;
-static int hf_mq_gmo_reserved2 = -1;
-static int hf_mq_gmo_msghandle = -1;
+static int hf_mq_gmo_StructID;
+static int hf_mq_gmo_version;
+static int hf_mq_gmo_options;
+static int hf_mq_gmo_waitinterval;
+static int hf_mq_gmo_signal1;
+static int hf_mq_gmo_signal2;
+static int hf_mq_gmo_resolvqname;
+static int hf_mq_gmo_matchoptions;
+static int hf_mq_gmo_groupstatus;
+static int hf_mq_gmo_segmstatus;
+static int hf_mq_gmo_segmentation;
+static int hf_mq_gmo_reserved;
+static int hf_mq_gmo_msgtoken;
+static int hf_mq_gmo_returnedlen;
+static int hf_mq_gmo_reserved2;
+static int hf_mq_gmo_msghandle;
 
-static int hf_mq_gmo_options_PROPERTIES_COMPATIBILITY = -1;
-static int hf_mq_gmo_options_PROPERTIES_IN_HANDLE = -1;
-static int hf_mq_gmo_options_NO_PROPERTIES = -1;
-static int hf_mq_gmo_options_PROPERTIES_FORCE_MQRFH2 = -1;
-static int hf_mq_gmo_options_UNMARKED_BROWSE_MSG = -1;
-static int hf_mq_gmo_options_UNMARK_BROWSE_HANDLE = -1;
-static int hf_mq_gmo_options_UNMARK_BROWSE_CO_OP = -1;
-static int hf_mq_gmo_options_MARK_BROWSE_CO_OP = -1;
-static int hf_mq_gmo_options_MARK_BROWSE_HANDLE = -1;
-static int hf_mq_gmo_options_ALL_SEGMENTS_AVAILABLE = -1;
-static int hf_mq_gmo_options_ALL_MSGS_AVAILABLE = -1;
-static int hf_mq_gmo_options_COMPLETE_MSG = -1;
-static int hf_mq_gmo_options_LOGICAL_ORDER = -1;
-static int hf_mq_gmo_options_CONVERT = -1;
-static int hf_mq_gmo_options_FAIL_IF_QUIESCING = -1;
-static int hf_mq_gmo_options_SYNCPOINT_IF_PERSISTENT = -1;
-static int hf_mq_gmo_options_BROWSE_MSG_UNDER_CURSOR = -1;
-static int hf_mq_gmo_options_UNLOCK = -1;
-static int hf_mq_gmo_options_LOCK = -1;
-static int hf_mq_gmo_options_MSG_UNDER_CURSOR = -1;
-static int hf_mq_gmo_options_MARK_SKIP_BACKOUT = -1;
-static int hf_mq_gmo_options_ACCEPT_TRUNCATED_MSG = -1;
-static int hf_mq_gmo_options_BROWSE_NEXT = -1;
-static int hf_mq_gmo_options_BROWSE_FIRST = -1;
-static int hf_mq_gmo_options_SET_SIGNAL = -1;
-static int hf_mq_gmo_options_NO_SYNCPOINT = -1;
-static int hf_mq_gmo_options_SYNCPOINT = -1;
-static int hf_mq_gmo_options_WAIT = -1;
+static int hf_mq_gmo_options_PROPERTIES_COMPATIBILITY;
+static int hf_mq_gmo_options_PROPERTIES_IN_HANDLE;
+static int hf_mq_gmo_options_NO_PROPERTIES;
+static int hf_mq_gmo_options_PROPERTIES_FORCE_MQRFH2;
+static int hf_mq_gmo_options_UNMARKED_BROWSE_MSG;
+static int hf_mq_gmo_options_UNMARK_BROWSE_HANDLE;
+static int hf_mq_gmo_options_UNMARK_BROWSE_CO_OP;
+static int hf_mq_gmo_options_MARK_BROWSE_CO_OP;
+static int hf_mq_gmo_options_MARK_BROWSE_HANDLE;
+static int hf_mq_gmo_options_ALL_SEGMENTS_AVAILABLE;
+static int hf_mq_gmo_options_ALL_MSGS_AVAILABLE;
+static int hf_mq_gmo_options_COMPLETE_MSG;
+static int hf_mq_gmo_options_LOGICAL_ORDER;
+static int hf_mq_gmo_options_CONVERT;
+static int hf_mq_gmo_options_FAIL_IF_QUIESCING;
+static int hf_mq_gmo_options_SYNCPOINT_IF_PERSISTENT;
+static int hf_mq_gmo_options_BROWSE_MSG_UNDER_CURSOR;
+static int hf_mq_gmo_options_UNLOCK;
+static int hf_mq_gmo_options_LOCK;
+static int hf_mq_gmo_options_MSG_UNDER_CURSOR;
+static int hf_mq_gmo_options_MARK_SKIP_BACKOUT;
+static int hf_mq_gmo_options_ACCEPT_TRUNCATED_MSG;
+static int hf_mq_gmo_options_BROWSE_NEXT;
+static int hf_mq_gmo_options_BROWSE_FIRST;
+static int hf_mq_gmo_options_SET_SIGNAL;
+static int hf_mq_gmo_options_NO_SYNCPOINT;
+static int hf_mq_gmo_options_SYNCPOINT;
+static int hf_mq_gmo_options_WAIT;
 static int* const pf_flds_gmoopt[] =
 {
     &hf_mq_gmo_options_PROPERTIES_COMPATIBILITY,
@@ -593,12 +591,12 @@ static int* const pf_flds_gmoopt[] =
     NULL
 };
 
-static int hf_mq_gmo_matchoptions_MATCH_MSG_TOKEN = -1;
-static int hf_mq_gmo_matchoptions_MATCH_OFFSET = -1;
-static int hf_mq_gmo_matchoptions_MATCH_MSG_SEQ_NUMBER = -1;
-static int hf_mq_gmo_matchoptions_MATCH_GROUP_ID = -1;
-static int hf_mq_gmo_matchoptions_MATCH_CORREL_ID = -1;
-static int hf_mq_gmo_matchoptions_MATCH_MSG_ID = -1;
+static int hf_mq_gmo_matchoptions_MATCH_MSG_TOKEN;
+static int hf_mq_gmo_matchoptions_MATCH_OFFSET;
+static int hf_mq_gmo_matchoptions_MATCH_MSG_SEQ_NUMBER;
+static int hf_mq_gmo_matchoptions_MATCH_GROUP_ID;
+static int hf_mq_gmo_matchoptions_MATCH_CORREL_ID;
+static int hf_mq_gmo_matchoptions_MATCH_MSG_ID;
 static int* const pf_flds_mtchopt[] =
 {
     &hf_mq_gmo_matchoptions_MATCH_MSG_TOKEN,
@@ -610,20 +608,20 @@ static int* const pf_flds_mtchopt[] =
     NULL
 };
 
-static int hf_mq_lpoo_StructID = -1;
-static int hf_mq_lpoo_version = -1;
-static int hf_mq_lpoo_lpiopts = -1;
-static int hf_mq_lpoo_defpersist = -1;
-static int hf_mq_lpoo_defputresptype = -1;
-static int hf_mq_lpoo_defreadahead = -1;
-static int hf_mq_lpoo_propertyctl = -1;
-static int hf_mq_lpoo_qprotect = -1;
-static int hf_mq_lpoo_qprotect_val1 = -1;
-static int hf_mq_lpoo_qprotect_val2 = -1;
+static int hf_mq_lpoo_StructID;
+static int hf_mq_lpoo_version;
+static int hf_mq_lpoo_lpiopts;
+static int hf_mq_lpoo_defpersist;
+static int hf_mq_lpoo_defputresptype;
+static int hf_mq_lpoo_defreadahead;
+static int hf_mq_lpoo_propertyctl;
+static int hf_mq_lpoo_qprotect;
+static int hf_mq_lpoo_qprotect_val1;
+static int hf_mq_lpoo_qprotect_val2;
 
-static int hf_mq_lpoo_lpiopts_SAVE_IDENTITY_CTXT = -1;
-static int hf_mq_lpoo_lpiopts_SAVE_ORIGIN_CTXT = -1;
-static int hf_mq_lpoo_lpiopts_SAVE_USER_CTXT = -1;
+static int hf_mq_lpoo_lpiopts_SAVE_IDENTITY_CTXT;
+static int hf_mq_lpoo_lpiopts_SAVE_ORIGIN_CTXT;
+static int hf_mq_lpoo_lpiopts_SAVE_USER_CTXT;
 static int* const pf_flds_lpooopt[] =
 {
     &hf_mq_lpoo_lpiopts_SAVE_USER_CTXT,
@@ -633,69 +631,69 @@ static int* const pf_flds_lpooopt[] =
 };
 
 
-static int hf_mq_charv_vsptr = -1;
-static int hf_mq_charv_vsoffset = -1;
-static int hf_mq_charv_vsbufsize = -1;
-static int hf_mq_charv_vslength = -1;
-static int hf_mq_charv_vsccsid = -1;
-static int hf_mq_charv_vsvalue = -1;
+static int hf_mq_charv_vsptr;
+static int hf_mq_charv_vsoffset;
+static int hf_mq_charv_vsbufsize;
+static int hf_mq_charv_vslength;
+static int hf_mq_charv_vsccsid;
+static int hf_mq_charv_vsvalue;
 
-static int hf_mq_pmo_StructID = -1;
-static int hf_mq_pmo_version = -1;
-static int hf_mq_pmo_options = -1;
-static int hf_mq_pmo_timeout = -1;
-static int hf_mq_pmo_context = -1;
-static int hf_mq_pmo_knowndstcnt = -1;
-static int hf_mq_pmo_unkndstcnt = -1;
-static int hf_mq_pmo_invaldstcnt = -1;
-static int hf_mq_pmo_resolvqname = -1;
-static int hf_mq_pmo_resolvqmgr = -1;
-static int hf_mq_pmo_recspresent = -1;
-static int hf_mq_pmo_putmsgrecfld = -1;
-static int hf_mq_pmo_putmsgrecofs = -1;
-static int hf_mq_pmo_resprecofs = -1;
-static int hf_mq_pmo_putmsgrecptr = -1;
-static int hf_mq_pmo_resprecptr = -1;
-static int hf_mq_pmo_originalmsghandle = -1;
-static int hf_mq_pmo_newmsghandle = -1;
-static int hf_mq_pmo_action = -1;
-static int hf_mq_pmo_publevel = -1;
+static int hf_mq_pmo_StructID;
+static int hf_mq_pmo_version;
+static int hf_mq_pmo_options;
+static int hf_mq_pmo_timeout;
+static int hf_mq_pmo_context;
+static int hf_mq_pmo_knowndstcnt;
+static int hf_mq_pmo_unkndstcnt;
+static int hf_mq_pmo_invaldstcnt;
+static int hf_mq_pmo_resolvqname;
+static int hf_mq_pmo_resolvqmgr;
+static int hf_mq_pmo_recspresent;
+static int hf_mq_pmo_putmsgrecfld;
+static int hf_mq_pmo_putmsgrecofs;
+static int hf_mq_pmo_resprecofs;
+static int hf_mq_pmo_putmsgrecptr;
+static int hf_mq_pmo_resprecptr;
+static int hf_mq_pmo_originalmsghandle;
+static int hf_mq_pmo_newmsghandle;
+static int hf_mq_pmo_action;
+static int hf_mq_pmo_publevel;
 
-static int hf_mq_xa_length = -1;
-static int hf_mq_xa_returnvalue = -1;
-static int hf_mq_xa_tmflags = -1;
-static int hf_mq_xa_rmid = -1;
-static int hf_mq_xa_count = -1;
-static int hf_mq_xa_xid_formatid = -1;
-static int hf_mq_xa_xid_glbxid_len = -1;
-static int hf_mq_xa_xid_brq_length = -1;
-static int hf_mq_xa_xid_globalxid = -1;
-static int hf_mq_xa_xid_brq = -1;
-static int hf_mq_xa_xainfo_length = -1;
-static int hf_mq_xa_xainfo_value = -1;
+static int hf_mq_xa_length;
+static int hf_mq_xa_returnvalue;
+static int hf_mq_xa_tmflags;
+static int hf_mq_xa_rmid;
+static int hf_mq_xa_count;
+static int hf_mq_xa_xid_formatid;
+static int hf_mq_xa_xid_glbxid_len;
+static int hf_mq_xa_xid_brq_length;
+static int hf_mq_xa_xid_globalxid;
+static int hf_mq_xa_xid_brq;
+static int hf_mq_xa_xainfo_length;
+static int hf_mq_xa_xainfo_value;
 
-static int hf_mq_pmo_options_NOT_OWN_SUBS = -1;
-static int hf_mq_pmo_options_SUPPRESS_REPLYTO = -1;
-static int hf_mq_pmo_options_SCOPE_QMGR = -1;
-static int hf_mq_pmo_options_MD_FOR_OUTPUT_ONLY = -1;
-static int hf_mq_pmo_options_RETAIN = -1;
-static int hf_mq_pmo_options_WARN_IF_NO_SUBS_MATCHED = -1;
-static int hf_mq_pmo_options_RESOLVE_LOCAL_Q = -1;
-static int hf_mq_pmo_options_SYNC_RESPONSE = -1;
-static int hf_mq_pmo_options_ASYNC_RESPONSE = -1;
-static int hf_mq_pmo_options_LOGICAL_ORDER = -1;
-static int hf_mq_pmo_options_NO_CONTEXT = -1;
-static int hf_mq_pmo_options_FAIL_IF_QUIESCING = -1;
-static int hf_mq_pmo_options_ALTERNATE_USER_AUTHORITY = -1;
-static int hf_mq_pmo_options_SET_ALL_CONTEXT = -1;
-static int hf_mq_pmo_options_SET_IDENTITY_CONTEXT = -1;
-static int hf_mq_pmo_options_PASS_ALL_CONTEXT = -1;
-static int hf_mq_pmo_options_PASS_IDENTITY_CONTEXT = -1;
-static int hf_mq_pmo_options_NEW_CORREL_ID = -1;
-static int hf_mq_pmo_options_NEW_MSG_ID = -1;
-static int hf_mq_pmo_options_DEFAULT_CONTEXT = -1;
-static int hf_mq_pmo_options_NO_SYNCPOINT = -1;
-static int hf_mq_pmo_options_SYNCPOINT = -1;
+static int hf_mq_pmo_options_NOT_OWN_SUBS;
+static int hf_mq_pmo_options_SUPPRESS_REPLYTO;
+static int hf_mq_pmo_options_SCOPE_QMGR;
+static int hf_mq_pmo_options_MD_FOR_OUTPUT_ONLY;
+static int hf_mq_pmo_options_RETAIN;
+static int hf_mq_pmo_options_WARN_IF_NO_SUBS_MATCHED;
+static int hf_mq_pmo_options_RESOLVE_LOCAL_Q;
+static int hf_mq_pmo_options_SYNC_RESPONSE;
+static int hf_mq_pmo_options_ASYNC_RESPONSE;
+static int hf_mq_pmo_options_LOGICAL_ORDER;
+static int hf_mq_pmo_options_NO_CONTEXT;
+static int hf_mq_pmo_options_FAIL_IF_QUIESCING;
+static int hf_mq_pmo_options_ALTERNATE_USER_AUTHORITY;
+static int hf_mq_pmo_options_SET_ALL_CONTEXT;
+static int hf_mq_pmo_options_SET_IDENTITY_CONTEXT;
+static int hf_mq_pmo_options_PASS_ALL_CONTEXT;
+static int hf_mq_pmo_options_PASS_IDENTITY_CONTEXT;
+static int hf_mq_pmo_options_NEW_CORREL_ID;
+static int hf_mq_pmo_options_NEW_MSG_ID;
+static int hf_mq_pmo_options_DEFAULT_CONTEXT;
+static int hf_mq_pmo_options_NO_SYNCPOINT;
+static int hf_mq_pmo_options_SYNCPOINT;
 static int* const pf_flds_pmoopt[] =
 {
     &hf_mq_pmo_options_NOT_OWN_SUBS,
@@ -723,14 +721,14 @@ static int* const pf_flds_pmoopt[] =
     NULL
 };
 
-static int hf_mq_xa_tmflags_join = -1;
-static int hf_mq_xa_tmflags_endrscan = -1;
-static int hf_mq_xa_tmflags_startrscan = -1;
-static int hf_mq_xa_tmflags_suspend = -1;
-static int hf_mq_xa_tmflags_success = -1;
-static int hf_mq_xa_tmflags_resume = -1;
-static int hf_mq_xa_tmflags_fail = -1;
-static int hf_mq_xa_tmflags_onephase = -1;
+static int hf_mq_xa_tmflags_join;
+static int hf_mq_xa_tmflags_endrscan;
+static int hf_mq_xa_tmflags_startrscan;
+static int hf_mq_xa_tmflags_suspend;
+static int hf_mq_xa_tmflags_success;
+static int hf_mq_xa_tmflags_resume;
+static int hf_mq_xa_tmflags_fail;
+static int hf_mq_xa_tmflags_onephase;
 static int* const pf_flds_tmflags[] =
 {
     &hf_mq_xa_tmflags_onephase,
@@ -744,30 +742,30 @@ static int* const pf_flds_tmflags[] =
     NULL
 };
 
-static int hf_mq_msgreq_version = -1;
-static int hf_mq_msgreq_handle = -1;
-static int hf_mq_msgreq_RecvBytes = -1;
-static int hf_mq_msgreq_RqstBytes = -1;
-static int hf_mq_msgreq_MaxMsgLen = -1;
-static int hf_mq_msgreq_WaitIntrv = -1;
-static int hf_mq_msgreq_QueStatus = -1;
-static int hf_mq_msgreq_RqstFlags = -1;
-static int hf_mq_msgreq_GlbMsgIdx = -1;
-static int hf_mq_msgreq_SelectIdx = -1;
-static int hf_mq_msgreq_MQMDVers = -1;
-static int hf_mq_msgreq_ccsid = -1;
-static int hf_mq_msgreq_encoding = -1;
-static int hf_mq_msgreq_MsgSeqNum = -1;
-static int hf_mq_msgreq_offset = -1;
-static int hf_mq_msgreq_mtchMsgId = -1;
-static int hf_mq_msgreq_mtchCorId = -1;
-static int hf_mq_msgreq_mtchGrpid = -1;
-static int hf_mq_msgreq_mtchMsgTk = -1;
+static int hf_mq_msgreq_version;
+static int hf_mq_msgreq_handle;
+static int hf_mq_msgreq_RecvBytes;
+static int hf_mq_msgreq_RqstBytes;
+static int hf_mq_msgreq_MaxMsgLen;
+static int hf_mq_msgreq_WaitIntrv;
+static int hf_mq_msgreq_QueStatus;
+static int hf_mq_msgreq_RqstFlags;
+static int hf_mq_msgreq_GlbMsgIdx;
+static int hf_mq_msgreq_SelectIdx;
+static int hf_mq_msgreq_MQMDVers;
+static int hf_mq_msgreq_ccsid;
+static int hf_mq_msgreq_encoding;
+static int hf_mq_msgreq_MsgSeqNum;
+static int hf_mq_msgreq_offset;
+static int hf_mq_msgreq_mtchMsgId;
+static int hf_mq_msgreq_mtchCorId;
+static int hf_mq_msgreq_mtchGrpid;
+static int hf_mq_msgreq_mtchMsgTk;
 
-static int hf_mq_msgreq_flags_selection = -1;
-static int hf_mq_msgreq_flags_F00000008 = -1;
-static int hf_mq_msgreq_flags_F00000004 = -1;
-static int hf_mq_msgreq_flags_F00000002 = -1;
+static int hf_mq_msgreq_flags_selection;
+static int hf_mq_msgreq_flags_F00000008;
+static int hf_mq_msgreq_flags_F00000004;
+static int hf_mq_msgreq_flags_F00000002;
 static int* const pf_flds_msgreq_flags[] =
 {
     &hf_mq_msgreq_flags_selection,
@@ -777,51 +775,51 @@ static int* const pf_flds_msgreq_flags[] =
     NULL
 };
 
-static int hf_mq_msgasy_version = -1;
-static int hf_mq_msgasy_handle = -1;
-static int hf_mq_msgasy_MsgIndex = -1;
-static int hf_mq_msgasy_GlbMsgIdx = -1;
-static int hf_mq_msgasy_SegLength = -1;
-static int hf_mq_msgasy_SeleIndex = -1;
-static int hf_mq_msgasy_SegmIndex = -1;
-static int hf_mq_msgasy_ReasonCod = -1;
-static int hf_mq_msgasy_ActMsgLen = -1;
-static int hf_mq_msgasy_TotMsgLen = -1;
-static int hf_mq_msgasy_MsgToken = -1;
-static int hf_mq_msgasy_Status = -1;
-static int hf_mq_msgasy_resolQNLn = -1;
-static int hf_mq_msgasy_resolQNme = -1;
-static int hf_mq_msgasy_padding = -1;
+static int hf_mq_msgasy_version;
+static int hf_mq_msgasy_handle;
+static int hf_mq_msgasy_MsgIndex;
+static int hf_mq_msgasy_GlbMsgIdx;
+static int hf_mq_msgasy_SegLength;
+static int hf_mq_msgasy_SeleIndex;
+static int hf_mq_msgasy_SegmIndex;
+static int hf_mq_msgasy_ReasonCod;
+static int hf_mq_msgasy_ActMsgLen;
+static int hf_mq_msgasy_TotMsgLen;
+static int hf_mq_msgasy_MsgToken;
+static int hf_mq_msgasy_Status;
+static int hf_mq_msgasy_resolQNLn;
+static int hf_mq_msgasy_resolQNme;
+static int hf_mq_msgasy_padding;
 
-static int hf_mq_notif_vers = -1;
-static int hf_mq_notif_handle = -1;
-static int hf_mq_notif_code = -1;
-static int hf_mq_notif_value = -1;
+static int hf_mq_notif_vers;
+static int hf_mq_notif_handle;
+static int hf_mq_notif_code;
+static int hf_mq_notif_value;
 
-static int hf_mq_head_StructID = -1;
-static int hf_mq_head_version = -1;
-static int hf_mq_head_length = -1;
-static int hf_mq_head_encoding = -1;
-static int hf_mq_head_ccsid = -1;
-static int hf_mq_head_format = -1;
-static int hf_mq_head_flags = -1;
-static int hf_mq_head_struct = -1;
+static int hf_mq_head_StructID;
+static int hf_mq_head_version;
+static int hf_mq_head_length;
+static int hf_mq_head_encoding;
+static int hf_mq_head_ccsid;
+static int hf_mq_head_format;
+static int hf_mq_head_flags;
+static int hf_mq_head_struct;
 
-static int hf_mq_dh_flags_newmsgid = -1;
+static int hf_mq_dh_flags_newmsgid;
 static int* const pf_flds_dh_flags[] =
 {
     &hf_mq_dh_flags_newmsgid,
     NULL
 };
-static int hf_mq_dh_putmsgrecfld = -1;
-static int hf_mq_dh_recspresent = -1;
-static int hf_mq_dh_objrecofs = -1;
-static int hf_mq_dh_putmsgrecofs = -1;
+static int hf_mq_dh_putmsgrecfld;
+static int hf_mq_dh_recspresent;
+static int hf_mq_dh_objrecofs;
+static int hf_mq_dh_putmsgrecofs;
 
-static int hf_mq_iih_flags_passexpir = -1;
-static int hf_mq_iih_flags_replyfmtnone = -1;
-static int hf_mq_iih_flags_ignorepurg = -1;
-static int hf_mq_iih_flags_cmqrqstresp = -1;
+static int hf_mq_iih_flags_passexpir;
+static int hf_mq_iih_flags_replyfmtnone;
+static int hf_mq_iih_flags_ignorepurg;
+static int hf_mq_iih_flags_cmqrqstresp;
 static int* const pf_flds_iih_flags[] =
 {
     &hf_mq_iih_flags_cmqrqstresp,
@@ -830,45 +828,45 @@ static int* const pf_flds_iih_flags[] =
     &hf_mq_iih_flags_passexpir,
     NULL
 };
-static int hf_mq_iih_ltermoverride = -1;
-static int hf_mq_iih_mfsmapname = -1;
-static int hf_mq_iih_replytofmt = -1;
-static int hf_mq_iih_authenticator = -1;
-static int hf_mq_iih_transinstid = -1;
-static int hf_mq_iih_transstate = -1;
-static int hf_mq_iih_commimode = -1;
-static int hf_mq_iih_securityscope = -1;
-static int hf_mq_iih_reserved = -1;
+static int hf_mq_iih_ltermoverride;
+static int hf_mq_iih_mfsmapname;
+static int hf_mq_iih_replytofmt;
+static int hf_mq_iih_authenticator;
+static int hf_mq_iih_transinstid;
+static int hf_mq_iih_transstate;
+static int hf_mq_iih_commimode;
+static int hf_mq_iih_securityscope;
+static int hf_mq_iih_reserved;
 
-static int hf_mq_ims_ll = -1;
-static int hf_mq_ims_zz = -1;
-static int hf_mq_ims_trx = -1;
-static int hf_mq_ims_data = -1;
+static int hf_mq_ims_ll;
+static int hf_mq_ims_zz;
+static int hf_mq_ims_trx;
+static int hf_mq_ims_data;
 
-static int hf_mq_tm_StructID = -1;
-static int hf_mq_tm_version = -1;
-static int hf_mq_tm_QName = -1;
-static int hf_mq_tm_ProcessNme = -1;
-static int hf_mq_tm_TriggerData = -1;
-static int hf_mq_tm_ApplType = -1;
-static int hf_mq_tm_ApplId = -1;
-static int hf_mq_tm_EnvData = -1;
-static int hf_mq_tm_UserData = -1;
+static int hf_mq_tm_StructID;
+static int hf_mq_tm_version;
+static int hf_mq_tm_QName;
+static int hf_mq_tm_ProcessNme;
+static int hf_mq_tm_TriggerData;
+static int hf_mq_tm_ApplType;
+static int hf_mq_tm_ApplId;
+static int hf_mq_tm_EnvData;
+static int hf_mq_tm_UserData;
 
-static int hf_mq_tmc2_StructID = -1;
-static int hf_mq_tmc2_version = -1;
-static int hf_mq_tmc2_QName = -1;
-static int hf_mq_tmc2_ProcessNme = -1;
-static int hf_mq_tmc2_TriggerData = -1;
-static int hf_mq_tmc2_ApplType = -1;
-static int hf_mq_tmc2_ApplId = -1;
-static int hf_mq_tmc2_EnvData = -1;
-static int hf_mq_tmc2_UserData = -1;
-static int hf_mq_tmc2_QMgrName = -1;
+static int hf_mq_tmc2_StructID;
+static int hf_mq_tmc2_version;
+static int hf_mq_tmc2_QName;
+static int hf_mq_tmc2_ProcessNme;
+static int hf_mq_tmc2_TriggerData;
+static int hf_mq_tmc2_ApplType;
+static int hf_mq_tmc2_ApplId;
+static int hf_mq_tmc2_EnvData;
+static int hf_mq_tmc2_UserData;
+static int hf_mq_tmc2_QMgrName;
 
-static int hf_mq_cih_flags_synconret = -1;
-static int hf_mq_cih_flags_replywonulls = -1;
-static int hf_mq_cih_flags_passexpir = -1;
+static int hf_mq_cih_flags_synconret;
+static int hf_mq_cih_flags_replywonulls;
+static int hf_mq_cih_flags_passexpir;
 static int* const pf_flds_cih_flags[] =
 {
     &hf_mq_cih_flags_synconret,
@@ -876,138 +874,138 @@ static int* const pf_flds_cih_flags[] =
     &hf_mq_cih_flags_passexpir,
     NULL
 };
-static int hf_mq_cih_returncode = -1;
-static int hf_mq_cih_compcode = -1;
-static int hf_mq_cih_reasoncode = -1;
-static int hf_mq_cih_uowcontrols = -1;
-static int hf_mq_cih_getwaitintv = -1;
-static int hf_mq_cih_linktype = -1;
-static int hf_mq_cih_outdatalen = -1;
-static int hf_mq_cih_facilkeeptime = -1;
-static int hf_mq_cih_adsdescriptor = -1;
-static int hf_mq_cih_converstask = -1;
-static int hf_mq_cih_taskendstatus = -1;
-static int hf_mq_cih_bridgefactokn = -1;
-static int hf_mq_cih_function = -1;
-static int hf_mq_cih_abendcode = -1;
-static int hf_mq_cih_authenticator = -1;
-static int hf_mq_cih_reserved = -1;
-static int hf_mq_cih_replytofmt = -1;
-static int hf_mq_cih_remotesysid = -1;
-static int hf_mq_cih_remotetransid = -1;
-static int hf_mq_cih_transactionid = -1;
-static int hf_mq_cih_facilitylike = -1;
-static int hf_mq_cih_attentionid = -1;
-static int hf_mq_cih_startcode = -1;
-static int hf_mq_cih_cancelcode = -1;
-static int hf_mq_cih_nexttransid = -1;
-static int hf_mq_cih_reserved2 = -1;
-static int hf_mq_cih_reserved3 = -1;
-static int hf_mq_cih_cursorpos = -1;
-static int hf_mq_cih_erroroffset = -1;
-static int hf_mq_cih_inputitem = -1;
-static int hf_mq_cih_reserved4 = -1;
+static int hf_mq_cih_returncode;
+static int hf_mq_cih_compcode;
+static int hf_mq_cih_reasoncode;
+static int hf_mq_cih_uowcontrols;
+static int hf_mq_cih_getwaitintv;
+static int hf_mq_cih_linktype;
+static int hf_mq_cih_outdatalen;
+static int hf_mq_cih_facilkeeptime;
+static int hf_mq_cih_adsdescriptor;
+static int hf_mq_cih_converstask;
+static int hf_mq_cih_taskendstatus;
+static int hf_mq_cih_bridgefactokn;
+static int hf_mq_cih_function;
+static int hf_mq_cih_abendcode;
+static int hf_mq_cih_authenticator;
+static int hf_mq_cih_reserved;
+static int hf_mq_cih_replytofmt;
+static int hf_mq_cih_remotesysid;
+static int hf_mq_cih_remotetransid;
+static int hf_mq_cih_transactionid;
+static int hf_mq_cih_facilitylike;
+static int hf_mq_cih_attentionid;
+static int hf_mq_cih_startcode;
+static int hf_mq_cih_cancelcode;
+static int hf_mq_cih_nexttransid;
+static int hf_mq_cih_reserved2;
+static int hf_mq_cih_reserved3;
+static int hf_mq_cih_cursorpos;
+static int hf_mq_cih_erroroffset;
+static int hf_mq_cih_inputitem;
+static int hf_mq_cih_reserved4;
 
-static int hf_mq_rfh_ccsid = -1;
-static int hf_mq_rfh_length = -1;
-static int hf_mq_rfh_string = -1;
+static int hf_mq_rfh_ccsid;
+static int hf_mq_rfh_length;
+static int hf_mq_rfh_string;
 
-static int hf_mq_rmh_flags_last = -1;
+static int hf_mq_rmh_flags_last;
 static int* const pf_flds_rmh_flags[] =
 {
     &hf_mq_rmh_flags_last,
     NULL
 };
-static int hf_mq_rmh_objecttype = -1;
-static int hf_mq_rmh_objectinstid = -1;
-static int hf_mq_rmh_srcenvlen = -1;
-static int hf_mq_rmh_srcenvofs = -1;
-static int hf_mq_rmh_srcnamelen = -1;
-static int hf_mq_rmh_srcnameofs = -1;
-static int hf_mq_rmh_dstenvlen = -1;
-static int hf_mq_rmh_dstenvofs = -1;
-static int hf_mq_rmh_dstnamelen = -1;
-static int hf_mq_rmh_dstnameofs = -1;
-static int hf_mq_rmh_datalogiclen = -1;
-static int hf_mq_rmh_datalogicofsl = -1;
-static int hf_mq_rmh_datalogicofsh = -1;
+static int hf_mq_rmh_objecttype;
+static int hf_mq_rmh_objectinstid;
+static int hf_mq_rmh_srcenvlen;
+static int hf_mq_rmh_srcenvofs;
+static int hf_mq_rmh_srcnamelen;
+static int hf_mq_rmh_srcnameofs;
+static int hf_mq_rmh_dstenvlen;
+static int hf_mq_rmh_dstenvofs;
+static int hf_mq_rmh_dstnamelen;
+static int hf_mq_rmh_dstnameofs;
+static int hf_mq_rmh_datalogiclen;
+static int hf_mq_rmh_datalogicofsl;
+static int hf_mq_rmh_datalogicofsh;
 
-static int hf_mq_wih_servicename = -1;
-static int hf_mq_wih_servicestep = -1;
-static int hf_mq_wih_msgtoken = -1;
-static int hf_mq_wih_reserved = -1;
+static int hf_mq_wih_servicename;
+static int hf_mq_wih_servicestep;
+static int hf_mq_wih_msgtoken;
+static int hf_mq_wih_reserved;
 
-static gint ett_mq = -1;
-static gint ett_mq_tsh = -1;
-static gint ett_mq_tsh_tcf = -1;
-static gint ett_mq_tsh_tcf2 = -1;
-static gint ett_mq_api = -1;
-static gint ett_mq_socket = -1;
-static gint ett_mq_caut = -1;
-static gint ett_mq_msh = -1;
-static gint ett_mq_xqh = -1;
-static gint ett_mq_id = -1;
-static gint ett_mq_id_cf1 = -1;
-static gint ett_mq_id_cf2 = -1;
-static gint ett_mq_id_cf3 = -1;
-static gint ett_mq_id_ecf1 = -1;
-static gint ett_mq_id_ecf2 = -1;
-static gint ett_mq_id_ecf3 = -1;
-static gint ett_mq_id_ief1 = -1;
-static gint ett_mq_id_ief2 = -1;
-static gint ett_mq_uid = -1;
-static gint ett_mq_conn = -1;
-static gint ett_mq_fcno = -1;
-static gint ett_mq_msg = -1;
-static gint ett_mq_inq = -1;
-static gint ett_mq_spi = -1;
-static gint ett_mq_spi_base = -1; /* Factorisation of common SPI items */
-static gint ett_mq_spi_options = -1;
-static gint ett_mq_put = -1;
-static gint ett_mq_open = -1;
-static gint ett_mq_open_option = -1;
-static gint ett_mq_close_option = -1;
-static gint ett_mq_fopa = -1;
-static gint ett_mq_fcmi = -1;
-static gint ett_mq_ping = -1;
-static gint ett_mq_reset = -1;
-static gint ett_mq_status = -1;
-static gint ett_mq_od = -1;
-static gint ett_mq_od_objstr = -1;
-static gint ett_mq_od_selstr = -1;
-static gint ett_mq_od_resobjstr = -1;
-static gint ett_mq_or = -1;
-static gint ett_mq_rr = -1;
-static gint ett_mq_pmr = -1;
-static gint ett_mq_md = -1;
-static gint ett_mq_dlh = -1;
-static gint ett_mq_dh = -1;
-static gint ett_mq_gmo = -1;
-static gint ett_mq_gmo_option = -1;
-static gint ett_mq_gmo_matchoption = -1;
-static gint ett_mq_pmo = -1;
-static gint ett_mq_pmo_option = -1;
-static gint ett_mq_rfh_ValueName = -1;
-static gint ett_mq_msgreq_RqstFlags = -1;
+static int ett_mq;
+static int ett_mq_tsh;
+static int ett_mq_tsh_tcf;
+static int ett_mq_tsh_tcf2;
+static int ett_mq_api;
+static int ett_mq_socket;
+static int ett_mq_caut;
+static int ett_mq_msh;
+static int ett_mq_xqh;
+static int ett_mq_id;
+static int ett_mq_id_cf1;
+static int ett_mq_id_cf2;
+static int ett_mq_id_cf3;
+static int ett_mq_id_ecf1;
+static int ett_mq_id_ecf2;
+static int ett_mq_id_ecf3;
+static int ett_mq_id_ief1;
+static int ett_mq_id_ief2;
+static int ett_mq_uid;
+static int ett_mq_conn;
+static int ett_mq_fcno;
+static int ett_mq_msg;
+static int ett_mq_inq;
+static int ett_mq_spi;
+static int ett_mq_spi_base; /* Factorisation of common SPI items */
+static int ett_mq_spi_options;
+static int ett_mq_put;
+static int ett_mq_open;
+static int ett_mq_open_option;
+static int ett_mq_close_option;
+static int ett_mq_fopa;
+static int ett_mq_fcmi;
+static int ett_mq_ping;
+static int ett_mq_reset;
+static int ett_mq_status;
+static int ett_mq_od;
+static int ett_mq_od_objstr;
+static int ett_mq_od_selstr;
+static int ett_mq_od_resobjstr;
+static int ett_mq_or;
+static int ett_mq_rr;
+static int ett_mq_pmr;
+static int ett_mq_md;
+static int ett_mq_dlh;
+static int ett_mq_dh;
+static int ett_mq_gmo;
+static int ett_mq_gmo_option;
+static int ett_mq_gmo_matchoption;
+static int ett_mq_pmo;
+static int ett_mq_pmo_option;
+static int ett_mq_rfh_ValueName;
+static int ett_mq_msgreq_RqstFlags;
 
-static gint ett_mq_lpoo = -1;
-static gint ett_mq_lpoo_lpiopts = -1;
+static int ett_mq_lpoo;
+static int ett_mq_lpoo_lpiopts;
 
-static gint ett_mq_head = -1; /* Factorisation of common Header structure items (DH, MDE, CIH, IIH, RFH, RMH, WIH, TM, TMC2 */
-static gint ett_mq_head_flags = -1;
-static gint ett_mq_ims = -1;
+static int ett_mq_head; /* Factorisation of common Header structure items (DH, MDE, CIH, IIH, RFH, RMH, WIH, TM, TMC2 */
+static int ett_mq_head_flags;
+static int ett_mq_ims;
 
-static gint ett_mq_xa = -1;
-static gint ett_mq_xa_tmflags = -1;
-static gint ett_mq_xa_xid = -1;
-static gint ett_mq_xa_info = -1;
-static gint ett_mq_charv = -1;
-static gint ett_mq_reassemb = -1;
-static gint ett_mq_notif = -1;
+static int ett_mq_xa;
+static int ett_mq_xa_tmflags;
+static int ett_mq_xa_xid;
+static int ett_mq_xa_info;
+static int ett_mq_charv;
+static int ett_mq_reassemb;
+static int ett_mq_notif;
 
-static gint ett_mq_structid = -1;
+static int ett_mq_structid;
 
-static expert_field ei_mq_reassembly_error = EI_INIT;
+static expert_field ei_mq_reassembly_error;
 
 static dissector_handle_t mq_handle;
 static dissector_handle_t mq_spx_handle;
@@ -1015,10 +1013,10 @@ static dissector_handle_t mqpcf_handle;
 
 static heur_dissector_list_t mq_heur_subdissector_list;
 
-static gboolean mq_desegment = TRUE;
-static gboolean mq_reassembly = TRUE;
+static bool mq_desegment = true;
+static bool mq_reassembly = true;
 
-static gboolean mq_in_reassembly = FALSE;
+static bool mq_in_reassembly;
 
 static reassembly_table mq_reassembly_table;
 
@@ -1292,19 +1290,19 @@ DEF_VALSB(sidtype)
 /* 2*/ DEF_VALS1(MQSIDT_WAS_SECURITY_ID),
 DEF_VALSE;
 
-static gint dissect_mq_encoding(proto_tree* tree, int hfindex, tvbuff_t* tvb, const gint start, gint length, const guint encoding)
+static int dissect_mq_encoding(proto_tree* tree, int hfindex, tvbuff_t* tvb, const int start, int length, const unsigned encoding)
 {
-    gchar  sEnc[128] = "";
-    gchar* pEnc;
-    guint  uEnc;
+    char   sEnc[128] = "";
+    char* pEnc;
+    unsigned  uEnc;
 
     if (length == 2)
     {
-        uEnc = (gint)tvb_get_guint16(tvb, start, encoding);
+        uEnc = (int)tvb_get_uint16(tvb, start, encoding);
     }
     else
     {
-        uEnc = tvb_get_guint32(tvb, start, encoding);
+        uEnc = tvb_get_uint32(tvb, start, encoding);
     }
     pEnc = sEnc;
 
@@ -1379,11 +1377,11 @@ static gint dissect_mq_encoding(proto_tree* tree, int hfindex, tvbuff_t* tvb, co
     return length;
 }
 
-static gint dissect_mq_MQMO(tvbuff_t* tvb, proto_tree* mq_tree, gint offset, gint ett_subtree, mq_parm_t* p_mq_parm)
+static int dissect_mq_MQMO(tvbuff_t* tvb, proto_tree* mq_tree, int offset, int ett_subtree, mq_parm_t* p_mq_parm)
 {
-    guint        uMoOpt;
+    unsigned     uMoOpt;
 
-    uMoOpt = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
+    uMoOpt = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
 
     if (uMoOpt == 0)
     {
@@ -1399,11 +1397,11 @@ static gint dissect_mq_MQMO(tvbuff_t* tvb, proto_tree* mq_tree, gint offset, gin
     }
     return 4;
 }
-static gint dissect_mq_LPOO_LPIOPTS(tvbuff_t* tvb, proto_tree* mq_tree, gint offset, gint ett_subtree, mq_parm_t* p_mq_parm)
+static int dissect_mq_LPOO_LPIOPTS(tvbuff_t* tvb, proto_tree* mq_tree, int offset, int ett_subtree, mq_parm_t* p_mq_parm)
 {
-    guint        uLpiOpts;
+    unsigned     uLpiOpts;
 
-    uLpiOpts = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
+    uLpiOpts = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
 
     if (uLpiOpts == 0)
     {
@@ -1419,11 +1417,11 @@ static gint dissect_mq_LPOO_LPIOPTS(tvbuff_t* tvb, proto_tree* mq_tree, gint off
     }
     return 4;
 }
-static gint dissect_mq_MQGMO(tvbuff_t* tvb, proto_tree* mq_tree, gint offset, gint ett_subtree, mq_parm_t* p_mq_parm)
+static int dissect_mq_MQGMO(tvbuff_t* tvb, proto_tree* mq_tree, int offset, int ett_subtree, mq_parm_t* p_mq_parm)
 {
-    guint        uGmoOpt;
+    unsigned     uGmoOpt;
 
-    uGmoOpt = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
+    uGmoOpt = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
 
     if (uGmoOpt == 0)
     {
@@ -1440,11 +1438,11 @@ static gint dissect_mq_MQGMO(tvbuff_t* tvb, proto_tree* mq_tree, gint offset, gi
     return 4;
 }
 
-static gint dissect_mq_MQPMO(tvbuff_t* tvb, proto_tree* mq_tree, gint offset, gint ett_subtree, mq_parm_t* p_mq_parm)
+static int dissect_mq_MQPMO(tvbuff_t* tvb, proto_tree* mq_tree, int offset, int ett_subtree, mq_parm_t* p_mq_parm)
 {
-    guint        uPmoOpt;
+    unsigned     uPmoOpt;
 
-    uPmoOpt = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
+    uPmoOpt = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
 
     if (uPmoOpt == 0)
     {
@@ -1461,11 +1459,11 @@ static gint dissect_mq_MQPMO(tvbuff_t* tvb, proto_tree* mq_tree, gint offset, gi
     return 4;
 }
 
-static gint dissect_mq_MQOO(tvbuff_t* tvb, proto_tree* mq_tree, gint offset, gint ett_subtree, gint hfindex, mq_parm_t* p_mq_parm)
+static int dissect_mq_MQOO(tvbuff_t* tvb, proto_tree* mq_tree, int offset, int ett_subtree, int hfindex, mq_parm_t* p_mq_parm)
 {
-    guint        uOpenOpt;
+    unsigned     uOpenOpt;
 
-    uOpenOpt = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
+    uOpenOpt = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
 
     if (uOpenOpt == 0)
     {
@@ -1481,11 +1479,11 @@ static gint dissect_mq_MQOO(tvbuff_t* tvb, proto_tree* mq_tree, gint offset, gin
     }
     return 4;
 }
-static gint dissect_mq_MQCO(tvbuff_t* tvb, proto_tree* mq_tree, gint offset, mq_parm_t* p_mq_parm)
+static int dissect_mq_MQCO(tvbuff_t* tvb, proto_tree* mq_tree, int offset, mq_parm_t* p_mq_parm)
 {
-    guint        iCloseOpt;
+    unsigned     iCloseOpt;
 
-    iCloseOpt = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
+    iCloseOpt = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
 
     if (iCloseOpt == 0)
     {
@@ -1501,17 +1499,17 @@ static gint dissect_mq_MQCO(tvbuff_t* tvb, proto_tree* mq_tree, gint offset, mq_
     }
     return 4;
 }
-static gint dissect_mq_charv(tvbuff_t* tvb, proto_tree* tree, gint offset, gint iSize, gint idx, const char* pStr, mq_parm_t* p_mq_parm)
+static int dissect_mq_charv(tvbuff_t* tvb, proto_tree* tree, int offset, int iSize, int idx, const char* pStr, mq_parm_t* p_mq_parm)
 {
     proto_tree* mq_tree_sub;
-    guint32     lStr;
-    guint32     oStr;
-    gint32      eStr;
+    uint32_t    lStr;
+    uint32_t    oStr;
+    int32_t     eStr;
     const char* sStr;
 
-    lStr = tvb_get_guint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
-    oStr = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
-    eStr = tvb_get_guint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
+    lStr = tvb_get_uint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
+    oStr = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+    eStr = tvb_get_uint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
     if (lStr && oStr)
     {
         sStr = (const char*)tvb_get_string_enc(wmem_packet_scope(), tvb, oStr, lStr, p_mq_parm->mq_str_enc);
@@ -1530,10 +1528,10 @@ static gint dissect_mq_charv(tvbuff_t* tvb, proto_tree* tree, gint offset, gint 
 
     return 20;
 }
-static gint dissect_mq_pmr(tvbuff_t* tvb, proto_tree* tree, gint offset, gint iNbrRecords, gint offsetPMR, guint32 recFlags, mq_parm_t* p_mq_parm)
+static int dissect_mq_pmr(tvbuff_t* tvb, proto_tree* tree, int offset, int iNbrRecords, int offsetPMR, uint32_t recFlags, mq_parm_t* p_mq_parm)
 {
-    gint iSizePMR1 = 0;
-    gint iSizePMR = 0;
+    int iSizePMR1 = 0;
+    int iSizePMR = 0;
 
     iSizePMR1 = ((((recFlags & MQ_PMRF_MSG_ID) != 0) * 24)
         + (((recFlags & MQ_PMRF_CORREL_ID) != 0) * 24)
@@ -1546,8 +1544,8 @@ static gint dissect_mq_pmr(tvbuff_t* tvb, proto_tree* tree, gint offset, gint iN
         iSizePMR = iNbrRecords * iSizePMR1;
         if (tvb_reported_length_remaining(tvb, offset) >= iSizePMR)
         {
-            gint iOffsetPMR = 0;
-            gint iRecord = 0;
+            int iOffsetPMR = 0;
+            int iRecord = 0;
             for (iRecord = 0; iRecord < iNbrRecords; iRecord++)
             {
                 proto_tree* mq_tree = proto_tree_add_subtree(tree, tvb, offset + iOffsetPMR, iSizePMR1, ett_mq_pmr, NULL, MQ_TEXT_PMR);
@@ -1582,16 +1580,16 @@ static gint dissect_mq_pmr(tvbuff_t* tvb, proto_tree* tree, gint offset, gint iN
     }
     return iSizePMR;
 }
-static gint dissect_mq_or(tvbuff_t* tvb, proto_tree* tree, gint offset, gint iNbrRecords, gint offsetOR, mq_parm_t* p_mq_parm)
+static int dissect_mq_or(tvbuff_t* tvb, proto_tree* tree, int offset, int iNbrRecords, int offsetOR, mq_parm_t* p_mq_parm)
 {
-    gint iSizeOR = 0;
+    int iSizeOR = 0;
     if (offsetOR != 0)
     {
         iSizeOR = iNbrRecords * 96;
         if (tvb_reported_length_remaining(tvb, offset) >= iSizeOR)
         {
-            gint iOffsetOR = 0;
-            gint iRecord = 0;
+            int iOffsetOR = 0;
+            int iRecord = 0;
             for (iRecord = 0; iRecord < iNbrRecords; iRecord++)
             {
                 proto_tree* mq_tree = proto_tree_add_subtree(tree, tvb, offset + iOffsetOR, 96, ett_mq_or, NULL, MQ_TEXT_OR);
@@ -1604,16 +1602,16 @@ static gint dissect_mq_or(tvbuff_t* tvb, proto_tree* tree, gint offset, gint iNb
     }
     return iSizeOR;
 }
-static gint dissect_mq_rr(tvbuff_t* tvb, proto_tree* tree, gint offset, gint iNbrRecords, gint offsetRR, mq_parm_t* p_mq_parm)
+static int dissect_mq_rr(tvbuff_t* tvb, proto_tree* tree, int offset, int iNbrRecords, int offsetRR, mq_parm_t* p_mq_parm)
 {
-    gint iSizeRR = 0;
+    int iSizeRR = 0;
     if (offsetRR != 0)
     {
         iSizeRR = iNbrRecords * 8;
         if (tvb_reported_length_remaining(tvb, offset) >= iSizeRR)
         {
-            gint iOffsetRR = 0;
-            gint iRecord = 0;
+            int iOffsetRR = 0;
+            int iRecord = 0;
             for (iRecord = 0; iRecord < iNbrRecords; iRecord++)
             {
                 proto_tree* mq_tree = proto_tree_add_subtree(tree, tvb, offset + iOffsetRR, 8, ett_mq_rr, NULL, MQ_TEXT_RR);
@@ -1626,15 +1624,15 @@ static gint dissect_mq_rr(tvbuff_t* tvb, proto_tree* tree, gint offset, gint iNb
     }
     return iSizeRR;
 }
-static gint dissect_mq_gmo(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, gint offset, mq_parm_t* p_mq_parm)
+static int dissect_mq_gmo(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, int offset, mq_parm_t* p_mq_parm)
 {
-    gint iSize = 0;
+    int iSize = 0;
 
     p_mq_parm->mq_strucID = (tvb_reported_length_remaining(tvb, offset) >= 4) ? tvb_get_ntohl(tvb, offset) : MQ_STRUCTID_NULL;
     if (p_mq_parm->mq_strucID == MQ_STRUCTID_GMO || p_mq_parm->mq_strucID == MQ_STRUCTID_GMO_EBCDIC)
     {
-        guint32 iVersion = 0;
-        iVersion = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+        uint32_t iVersion = 0;
+        iVersion = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
         /* Compute length according to version */
         switch (iVersion)
         {
@@ -1646,7 +1644,7 @@ static gint dissect_mq_gmo(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, 
 
         if (iSize != 0 && tvb_reported_length_remaining(tvb, offset) >= iSize)
         {
-            guint8* sQueue;
+            uint8_t* sQueue;
             sQueue = tvb_get_string_enc(wmem_packet_scope(), tvb, offset + 24, 48, p_mq_parm->mq_str_enc);
             if (strip_trailing_blanks(sQueue, 48) > 0)
             {
@@ -1696,17 +1694,17 @@ static gint dissect_mq_gmo(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, 
     return iSize;
 }
 
-static gint dissect_mq_pmo(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, gint offset, mq_parm_t* p_mq_parm, gint* iDistributionListSize)
+static int dissect_mq_pmo(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, int offset, mq_parm_t* p_mq_parm, int* iDistributionListSize)
 {
-    gint iSize = 0;
-    gint iPosV2 = offset + 128;
-    gint offsetb = offset;
+    int iSize = 0;
+    int iPosV2 = offset + 128;
+    int offsetb = offset;
 
     p_mq_parm->mq_strucID = (tvb_reported_length_remaining(tvb, offset) >= 4) ? tvb_get_ntohl(tvb, offset) : MQ_STRUCTID_NULL;
     if (p_mq_parm->mq_strucID == MQ_STRUCTID_PMO || p_mq_parm->mq_strucID == MQ_STRUCTID_PMO_EBCDIC)
     {
-        guint32 iVersion = 0;
-        iVersion = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+        uint32_t iVersion = 0;
+        iVersion = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
         /* Compute length according to version */
         switch (iVersion)
         {
@@ -1717,8 +1715,8 @@ static gint dissect_mq_pmo(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, 
 
         if (iSize != 0 && tvb_reported_length_remaining(tvb, offset) >= iSize)
         {
-            guint8* sQueue;
-            guint8* sQueueA;
+            uint8_t* sQueue;
+            uint8_t* sQueueA;
 
             sQueueA = tvb_get_string_enc(wmem_packet_scope(), tvb, offset + 32, 48, 0);
             sQueue = tvb_get_string_enc(wmem_packet_scope(), tvb, offset + 32, 48, p_mq_parm->mq_str_enc);
@@ -1766,21 +1764,21 @@ static gint dissect_mq_pmo(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, 
             }
             if (iVersion >= 2)
             {
-                gint iNbrRecords = 0;
-                guint32 iRecFlags = 0;
+                int iNbrRecords = 0;
+                uint32_t iRecFlags = 0;
 
-                iNbrRecords = tvb_get_guint32(tvb, iPosV2, p_mq_parm->mq_int_enc);
-                iRecFlags = tvb_get_guint32(tvb, iPosV2 + 4, p_mq_parm->mq_int_enc);
+                iNbrRecords = tvb_get_uint32(tvb, iPosV2, p_mq_parm->mq_int_enc);
+                iRecFlags = tvb_get_uint32(tvb, iPosV2 + 4, p_mq_parm->mq_int_enc);
 
                 if (iNbrRecords > 0)
                 {
-                    gint iOffsetPMR = 0;
-                    gint iOffsetRR = 0;
+                    int iOffsetPMR = 0;
+                    int iOffsetRR = 0;
 
                     if (iDistributionListSize)
                         *iDistributionListSize = iNbrRecords;
-                    iOffsetPMR = tvb_get_guint32(tvb, iPosV2 + 8, p_mq_parm->mq_int_enc);
-                    iOffsetRR = tvb_get_guint32(tvb, iPosV2 + 12, p_mq_parm->mq_int_enc);
+                    iOffsetPMR = tvb_get_uint32(tvb, iPosV2 + 8, p_mq_parm->mq_int_enc);
+                    iOffsetRR = tvb_get_uint32(tvb, iPosV2 + 12, p_mq_parm->mq_int_enc);
                     iSize += dissect_mq_pmr(tvb, tree, offsetb + iSize, iNbrRecords, iOffsetPMR, iRecFlags, p_mq_parm);
                     iSize += dissect_mq_rr(tvb, tree, offsetb + iSize, iNbrRecords, iOffsetRR, p_mq_parm);
                 }
@@ -1790,16 +1788,16 @@ static gint dissect_mq_pmo(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, 
     return iSize;
 }
 
-static gint dissect_mq_od(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, gint offset, mq_parm_t* p_mq_parm, gint* iDistributionListSize)
+static int dissect_mq_od(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, int offset, mq_parm_t* p_mq_parm, int* iDistributionListSize)
 {
-    gint iSize = 0;
+    int iSize = 0;
 
     p_mq_parm->mq_strucID = (tvb_reported_length_remaining(tvb, offset) >= 4) ? tvb_get_ntohl(tvb, offset) : MQ_STRUCTID_NULL;
     if (p_mq_parm->mq_strucID == MQ_STRUCTID_OD || p_mq_parm->mq_strucID == MQ_STRUCTID_OD_EBCDIC)
     {
         /* The OD struct can be present in several messages at different levels */
-        guint32 iVersion = 0;
-        iVersion = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+        uint32_t iVersion = 0;
+        iVersion = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
         /* Compute length according to version */
         switch (iVersion)
         {
@@ -1811,14 +1809,14 @@ static gint dissect_mq_od(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, g
 
         if (iSize != 0 && tvb_reported_length_remaining(tvb, offset) >= iSize)
         {
-            gint     iNbrRecords = 0;
-            guint8* sObj;
-            guint32  uTyp;
+            int      iNbrRecords = 0;
+            uint8_t* sObj;
+            uint32_t uTyp;
 
             if (iVersion >= 2)
-                iNbrRecords = tvb_get_guint32(tvb, offset + 168, p_mq_parm->mq_int_enc);
+                iNbrRecords = tvb_get_uint32(tvb, offset + 168, p_mq_parm->mq_int_enc);
 
-            uTyp = tvb_get_guint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
+            uTyp = tvb_get_uint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
             sObj = tvb_get_string_enc(wmem_packet_scope(), tvb, offset + 12, 48, p_mq_parm->mq_str_enc);
             if (pinfo)
                 col_append_fstr(pinfo->cinfo, COL_INFO, " Typ=%s", try_val_to_str_ext(uTyp, GET_VALS_EXTP(objtype)));
@@ -1869,12 +1867,12 @@ static gint dissect_mq_od(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, g
             }
             if (iNbrRecords > 0)
             {
-                gint iOffsetOR = 0;
-                gint iOffsetRR = 0;
+                int iOffsetOR = 0;
+                int iOffsetRR = 0;
 
                 *iDistributionListSize = iNbrRecords;
-                iOffsetOR = tvb_get_guint32(tvb, offset + 184, p_mq_parm->mq_int_enc);
-                iOffsetRR = tvb_get_guint32(tvb, offset + 188, p_mq_parm->mq_int_enc);
+                iOffsetOR = tvb_get_uint32(tvb, offset + 184, p_mq_parm->mq_int_enc);
+                iOffsetRR = tvb_get_uint32(tvb, offset + 188, p_mq_parm->mq_int_enc);
 
                 iSize += dissect_mq_or(tvb, tree, offset, iNbrRecords, iOffsetOR, p_mq_parm);
                 iSize += dissect_mq_rr(tvb, tree, offset, iNbrRecords, iOffsetRR, p_mq_parm);
@@ -1884,16 +1882,16 @@ static gint dissect_mq_od(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, g
     return iSize;
 }
 
-static gint dissect_mq_xid(tvbuff_t* tvb, proto_tree* tree, mq_parm_t* p_mq_parm, gint offset)
+static int dissect_mq_xid(tvbuff_t* tvb, proto_tree* tree, mq_parm_t* p_mq_parm, int offset)
 {
-    gint iSizeXid = 0;
+    int iSizeXid = 0;
     if (tvb_reported_length_remaining(tvb, offset) >= 6)
     {
-        guint8 iXidLength = 0;
-        guint8 iBqLength = 0;
+        uint8_t iXidLength = 0;
+        uint8_t iBqLength = 0;
 
-        iXidLength = tvb_get_guint8(tvb, offset + 4);
-        iBqLength = tvb_get_guint8(tvb, offset + 5);
+        iXidLength = tvb_get_uint8(tvb, offset + 4);
+        iBqLength = tvb_get_uint8(tvb, offset + 5);
         iSizeXid = 6 + iXidLength + iBqLength;
 
         if (tvb_reported_length_remaining(tvb, offset) >= iSizeXid)
@@ -1917,19 +1915,19 @@ static gint dissect_mq_xid(tvbuff_t* tvb, proto_tree* tree, mq_parm_t* p_mq_parm
     return iSizeXid;
 }
 
-static gint dissect_mq_sid(tvbuff_t* tvb, proto_tree* tree, mq_parm_t* p_mq_parm, gint offset)
+static int dissect_mq_sid(tvbuff_t* tvb, proto_tree* tree, mq_parm_t* p_mq_parm, int offset)
 {
-    guint8 iSIDL;
-    guint8 iSID;
+    uint8_t iSIDL;
+    uint8_t iSID;
     char* sid_str;
-    gint   bOffset = offset;
+    int    bOffset = offset;
 
-    iSIDL = tvb_get_guint8(tvb, offset);
+    iSIDL = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(tree, hf_mq_sidlen, tvb, offset, 1, p_mq_parm->mq_int_enc);
     offset++;
     if (iSIDL > 0)
     {
-        iSID = tvb_get_guint8(tvb, offset);
+        iSID = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(tree, hf_mq_sidtyp, tvb, offset, 1, p_mq_parm->mq_int_enc);
         offset++;
         if (iSID == MQ_MQSIDT_NT_SECURITY_ID)
@@ -1949,14 +1947,14 @@ static void dissect_mq_addCR_colinfo(packet_info* pinfo, mq_parm_t* p_mq_parm)
     if (p_mq_parm->mq_convID)
         col_append_fstr(pinfo->cinfo, COL_INFO, " C.R=%d.%d", p_mq_parm->mq_convID, p_mq_parm->mq_rqstID);
 }
-static gint dissect_mq_id(tvbuff_t* tvb, packet_info* pinfo, proto_tree* mqroot_tree, gint offset, mq_parm_t* p_mq_parm)
+static int dissect_mq_id(tvbuff_t* tvb, packet_info* pinfo, proto_tree* mqroot_tree, int offset, mq_parm_t* p_mq_parm)
 {
-    guint8 iFAPLvl;
-    gint   iSize;
-    gint   iPktSz;
+    uint8_t iFAPLvl;
+    int    iSize;
+    int    iPktSz;
 
     iPktSz = tvb_reported_length_remaining(tvb, offset);
-    iFAPLvl = tvb_get_guint8(tvb, offset + 4);
+    iFAPLvl = tvb_get_uint8(tvb, offset + 4);
 
     if (iFAPLvl < 4)
         iSize = 44;
@@ -1970,7 +1968,7 @@ static gint dissect_mq_id(tvbuff_t* tvb, packet_info* pinfo, proto_tree* mqroot_
 
     if (iSize != 0 && tvb_reported_length_remaining(tvb, offset) >= iSize)
     {
-        guint8* sChannel;
+        uint8_t* sChannel;
         sChannel = tvb_get_string_enc(wmem_packet_scope(), tvb, offset + 24, 20, p_mq_parm->mq_str_enc);
         dissect_mq_addCR_colinfo(pinfo, p_mq_parm);
         col_append_fstr(pinfo->cinfo, COL_INFO, " FAPLvl=%d", iFAPLvl);
@@ -1980,13 +1978,13 @@ static gint dissect_mq_id(tvbuff_t* tvb, packet_info* pinfo, proto_tree* mqroot_
         }
         if (iSize > 48)
         {
-            guint8* sQMgr;
+            uint8_t* sQMgr;
             sQMgr = tvb_get_string_enc(wmem_packet_scope(), tvb, offset + 48, 48, p_mq_parm->mq_str_enc);
             if (strip_trailing_blanks(sQMgr, 48) > 0)
             {
                 col_append_fstr(pinfo->cinfo, COL_INFO, ", QM=%s", sQMgr);
             }
-            p_mq_parm->mq_id_ccsid.ccsid = (guint32)tvb_get_guint16(tvb, offset + 46, p_mq_parm->mq_int_enc);
+            p_mq_parm->mq_id_ccsid.ccsid = (uint32_t)tvb_get_uint16(tvb, offset + 46, p_mq_parm->mq_int_enc);
         }
         if (mqroot_tree)
         {
@@ -2061,15 +2059,15 @@ static gint dissect_mq_id(tvbuff_t* tvb, packet_info* pinfo, proto_tree* mqroot_
     }
     return iPktSz;
 }
-static gint dissect_mq_md(tvbuff_t* tvb, proto_tree* tree, gint offset, mq_parm_t* p_mq_parm, gboolean bDecode)
+static int dissect_mq_md(tvbuff_t* tvb, proto_tree* tree, int offset, mq_parm_t* p_mq_parm, bool bDecode)
 {
-    gint iSize = 0;
+    int iSize = 0;
 
     p_mq_parm->mq_strucID = (tvb_reported_length_remaining(tvb, offset) >= 4) ? tvb_get_ntohl(tvb, offset) : MQ_STRUCTID_NULL;
     if (p_mq_parm->mq_strucID == MQ_STRUCTID_MD || p_mq_parm->mq_strucID == MQ_STRUCTID_MD_EBCDIC)
     {
-        guint32 iVersion = 0;
-        iVersion = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+        uint32_t iVersion = 0;
+        iVersion = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
         /* Compute length according to version */
         switch (iVersion)
         {
@@ -2083,8 +2081,8 @@ static gint dissect_mq_md(tvbuff_t* tvb, proto_tree* tree, gint offset, mq_parm_
             p_mq_parm->iOfsCcs = offset + 28;
             p_mq_parm->iOfsFmt = offset + 32;
 
-            p_mq_parm->mq_md_ccsid.encod = tvb_get_guint32(tvb, offset + 24, p_mq_parm->mq_int_enc);
-            p_mq_parm->mq_md_ccsid.ccsid = tvb_get_guint32(tvb, offset + 28, p_mq_parm->mq_int_enc);
+            p_mq_parm->mq_md_ccsid.encod = tvb_get_uint32(tvb, offset + 24, p_mq_parm->mq_int_enc);
+            p_mq_parm->mq_md_ccsid.ccsid = tvb_get_uint32(tvb, offset + 28, p_mq_parm->mq_int_enc);
             if (tree)
             {
                 proto_tree* mq_tree = proto_tree_add_subtree(tree, tvb, offset, iSize, ett_mq_md, NULL, MQ_TEXT_MD);
@@ -2127,16 +2125,16 @@ static gint dissect_mq_md(tvbuff_t* tvb, proto_tree* tree, gint offset, mq_parm_
     }
     return iSize;
 }
-static gint dissect_mq_fopa(tvbuff_t* tvb, proto_tree* tree, gint offset, mq_parm_t* p_mq_parm)
+static int dissect_mq_fopa(tvbuff_t* tvb, proto_tree* tree, int offset, mq_parm_t* p_mq_parm)
 {
-    gint iSize = 0;
-    gint iVers = 0;
+    int iSize = 0;
+    int iVers = 0;
 
     p_mq_parm->mq_strucID = (tvb_reported_length_remaining(tvb, offset) >= 4) ? tvb_get_ntohl(tvb, offset) : MQ_STRUCTID_NULL;
     if (p_mq_parm->mq_strucID == MQ_STRUCTID_FOPA || p_mq_parm->mq_strucID == MQ_STRUCTID_FOPA_EBCDIC)
     {
-        iVers = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
-        iSize = tvb_get_guint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
+        iVers = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+        iSize = tvb_get_uint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
         if (iSize != 0 && tvb_reported_length_remaining(tvb, offset) >= iSize)
         {
             proto_tree* mq_tree = proto_tree_add_subtree(tree, tvb, offset, iSize, ett_mq_fopa, NULL, MQ_TEXT_FOPA);
@@ -2156,9 +2154,9 @@ static gint dissect_mq_fopa(tvbuff_t* tvb, proto_tree* tree, gint offset, mq_par
     }
     return iSize;
 }
-static gint dissect_mq_fcmi(tvbuff_t* tvb, proto_tree* tree, gint offset, mq_parm_t* p_mq_parm)
+static int dissect_mq_fcmi(tvbuff_t* tvb, proto_tree* tree, int offset, mq_parm_t* p_mq_parm)
 {
-    gint iSize = 0;
+    int iSize = 0;
 
     p_mq_parm->mq_strucID = (tvb_reported_length_remaining(tvb, offset) >= 4) ? tvb_get_ntohl(tvb, offset) : MQ_STRUCTID_NULL;
     if (p_mq_parm->mq_strucID == MQ_STRUCTID_FCMI || p_mq_parm->mq_strucID == MQ_STRUCTID_FCMI_EBCDIC)
@@ -2176,15 +2174,15 @@ static gint dissect_mq_fcmi(tvbuff_t* tvb, proto_tree* tree, gint offset, mq_par
 }
 static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
 {
-    gint       offset = 0;
-    guint32    iSegmentLength = 0;
-    guint32    iSizePayload = 0;
-    gint       iSizeMD = 0;
-    gboolean   bPayload = FALSE;
-    gboolean   bEBCDIC = FALSE;
-    guint      strid_enc;
-    gint       iDistributionListSize = 0;
-    gint       capLen;
+    int        offset = 0;
+    uint32_t   iSegmentLength = 0;
+    uint32_t   iSizePayload = 0;
+    int        iSizeMD = 0;
+    bool       bPayload = false;
+    bool       bEBCDIC = false;
+    unsigned   strid_enc;
+    int        iDistributionListSize = 0;
+    int        capLen;
     mq_parm_t* p_mq_parm;
     heur_dtbl_entry_t* hdtbl_entry;
 
@@ -2212,13 +2210,13 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
             proto_item* ti = NULL;
 
             /* An MQ packet always starts with this structure*/
-            gint iSizeTSH = 28;
-            gint iSizeMPF = 0;  /* Size Of Multiplexed Field */
+            int iSizeTSH = 28;
+            int iSizeMPF = 0;  /* Size Of Multiplexed Field */
 
             strid_enc = ENC_ASCII | ENC_NA;
             if ((p_mq_parm->mq_strucID & MQ_MASK_TSHx) == MQ_STRUCTID_TSHx_EBCDIC)
             {
-                bEBCDIC = TRUE;
+                bEBCDIC = true;
                 strid_enc = ENC_EBCDIC | ENC_NA;
                 p_mq_parm->mq_str_enc = ENC_EBCDIC | ENC_NA;
             }
@@ -2234,7 +2232,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                 p_mq_parm->mq_convID = tvb_get_ntohl(tvb, offset + 8);
                 p_mq_parm->mq_rqstID = tvb_get_ntohl(tvb, offset + 12);
             }
-            p_mq_parm->mq_opcode = tvb_get_guint8(tvb, offset + iSizeMPF + 9);
+            p_mq_parm->mq_opcode = tvb_get_uint8(tvb, offset + iSizeMPF + 9);
 
             if (p_mq_parm->mq_opcode == MQ_TST_REQUEST_MSGS || p_mq_parm->mq_opcode == MQ_TST_ASYNC_MESSAGE)
             {
@@ -2242,16 +2240,16 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                 p_mq_parm->iOfsCcs = offset + iSizeMPF + 24;
                 p_mq_parm->iOfsFmt = offset;
             }
-            p_mq_parm->mq_int_enc = (tvb_get_guint8(tvb, offset + iSizeMPF + 8) == MQ_LITTLE_ENDIAN ? ENC_LITTLE_ENDIAN : ENC_BIG_ENDIAN);
-            p_mq_parm->mq_ctlf1 = tvb_get_guint8(tvb, offset + iSizeMPF + 10);
-            p_mq_parm->mq_ctlf2 = tvb_get_guint8(tvb, offset + iSizeMPF + 11);
+            p_mq_parm->mq_int_enc = (tvb_get_uint8(tvb, offset + iSizeMPF + 8) == MQ_LITTLE_ENDIAN ? ENC_LITTLE_ENDIAN : ENC_BIG_ENDIAN);
+            p_mq_parm->mq_ctlf1 = tvb_get_uint8(tvb, offset + iSizeMPF + 10);
+            p_mq_parm->mq_ctlf2 = tvb_get_uint8(tvb, offset + iSizeMPF + 11);
 
-            p_mq_parm->mq_tsh_ccsid.encod = tvb_get_guint32(tvb, offset + iSizeMPF + 20, p_mq_parm->mq_int_enc);
-            p_mq_parm->mq_tsh_ccsid.ccsid = tvb_get_guint16(tvb, offset + iSizeMPF + 24, p_mq_parm->mq_int_enc);
+            p_mq_parm->mq_tsh_ccsid.encod = tvb_get_uint32(tvb, offset + iSizeMPF + 20, p_mq_parm->mq_int_enc);
+            p_mq_parm->mq_tsh_ccsid.ccsid = tvb_get_uint16(tvb, offset + iSizeMPF + 24, p_mq_parm->mq_int_enc);
 
             if (IS_EBCDIC(p_mq_parm->mq_tsh_ccsid.ccsid) && !bEBCDIC)
             {
-                bEBCDIC = TRUE;
+                bEBCDIC = true;
                 p_mq_parm->mq_str_enc = ENC_EBCDIC | ENC_NA;
             }
 
@@ -2268,7 +2266,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                 {
                     ti = proto_tree_add_item(tree, proto_mq, tvb, offset, -1, ENC_NA);
                     proto_item_append_text(ti, " (%s)", val_to_str_ext(p_mq_parm->mq_opcode, GET_VALS_EXTP(opcode), "Unknown (0x%02x)"));
-                    if (bEBCDIC == TRUE)
+                    if (bEBCDIC == true)
                         proto_item_append_text(ti, " (EBCDIC)");
                     mqroot_tree = proto_item_add_subtree(ti, ett_mq);
                 }
@@ -2308,13 +2306,13 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                 if (((p_mq_parm->mq_ctlf1 & MQ_TCF_FIRST) != 0) || p_mq_parm->mq_opcode < 0x80)
                 {
                     /* First MQ segment (opcodes below 0x80 never span several TSH) */
-                    gint iSizeAPI = 16;
+                    int iSizeAPI = 16;
                     if (p_mq_parm->mq_opcode >= 0x80 && p_mq_parm->mq_opcode <= 0x9F && tvb_reported_length_remaining(tvb, offset) >= 16)
                     {
-                        guint32 iReturnCode = 0;
-                        guint32 iHdl = 0;
-                        iReturnCode = tvb_get_guint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
-                        iHdl = tvb_get_guint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
+                        uint32_t iReturnCode = 0;
+                        uint32_t iHdl = 0;
+                        iReturnCode = tvb_get_uint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
+                        iHdl = tvb_get_uint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
                         if (!mq_in_reassembly)
                             dissect_mq_addCR_colinfo(pinfo, p_mq_parm);
                         if (iHdl != 0 && iHdl != 0xffffffff && !mq_in_reassembly)
@@ -2335,9 +2333,9 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     capLen = tvb_reported_length_remaining(tvb, offset);
                     if ((p_mq_parm->mq_strucID == MQ_STRUCTID_MSH || p_mq_parm->mq_strucID == MQ_STRUCTID_MSH_EBCDIC) && capLen >= 20)
                     {
-                        gint iSize = 20;
-                        iSizePayload = tvb_get_guint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
-                        bPayload = TRUE;
+                        int iSize = 20;
+                        iSizePayload = tvb_get_uint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
+                        bPayload = true;
 
                         mq_tree = proto_tree_add_subtree(mqroot_tree, tvb, offset, iSize, ett_mq_msh, NULL, MQ_TEXT_MSH);
 
@@ -2351,12 +2349,12 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     }
                     else if (p_mq_parm->mq_opcode == MQ_TST_CONAUTH_INFO && capLen >= 20)
                     {
-                        gint iSize = 24;
-                        gint iUsr = 0;
-                        gint iPsw = 0;
+                        int iSize = 24;
+                        int iUsr = 0;
+                        int iPsw = 0;
 
-                        iUsr = tvb_get_guint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
-                        iPsw = tvb_get_guint32(tvb, offset + 20, p_mq_parm->mq_int_enc);
+                        iUsr = tvb_get_uint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
+                        iPsw = tvb_get_uint32(tvb, offset + 20, p_mq_parm->mq_int_enc);
 
                         mq_tree = proto_tree_add_subtree(mqroot_tree, tvb, offset, iSize, ett_mq_caut, NULL, MQ_TEXT_CAUT);
 
@@ -2377,17 +2375,17 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     }
                     else if (p_mq_parm->mq_opcode == MQ_TST_SOCKET_ACTION && capLen >= 20)
                     {
-                        gint iSize = 20;
-                        gint iTy;
-                        gint iP1;
-                        gint iP2;
+                        int iSize = 20;
+                        int iTy;
+                        int iP1;
+                        int iP2;
 
-                        p_mq_parm->mq_convID = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
-                        p_mq_parm->mq_rqstID = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+                        p_mq_parm->mq_convID = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
+                        p_mq_parm->mq_rqstID = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
                         dissect_mq_addCR_colinfo(pinfo, p_mq_parm);
-                        iTy = tvb_get_guint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
-                        iP1 = tvb_get_guint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
-                        iP2 = tvb_get_guint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
+                        iTy = tvb_get_uint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
+                        iP1 = tvb_get_uint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
+                        iP2 = tvb_get_uint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
                         col_append_fstr(pinfo->cinfo, COL_INFO, " Type=%d, P1=%d, P2=%d", iTy, iP1, iP2);
 
                         mq_tree = proto_tree_add_subtree(mqroot_tree, tvb, offset, iSizeAPI, ett_mq_socket, NULL, MQ_TEXT_SOCKET);
@@ -2404,11 +2402,11 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     else if (p_mq_parm->mq_opcode == MQ_TST_STATUS && capLen >= 8)
                     {
                         /* Some status are 28 bytes long and some are 36 bytes long */
-                        gint iStatus = 0;
-                        gint iStatusLength = 0;
+                        int iStatus = 0;
+                        int iStatusLength = 0;
 
-                        iStatus = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
-                        iStatusLength = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
+                        iStatus = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+                        iStatusLength = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
 
                         if (tvb_reported_length_remaining(tvb, offset) >= iStatusLength)
                         {
@@ -2466,7 +2464,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     }
                     else if ((p_mq_parm->mq_opcode == MQ_TST_MQCONN || p_mq_parm->mq_opcode == MQ_TST_MQCONN_REPLY) && capLen > 0)
                     {
-                        gint iSizeCONN = 0;
+                        int iSizeCONN = 0;
 
                         /*iSizeCONN = ((iVersionID == 4 || iVersionID == 6) ? 120 : 112);*/ /* guess */
                         /* The iVersionID is available in the previous ID segment, we should keep a state
@@ -2481,12 +2479,12 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
 
                         if (iSizeCONN != 0 && tvb_reported_length_remaining(tvb, offset) >= iSizeCONN)
                         {
-                            gchar* sApplicationName;
-                            gchar* sQMgr;
-                            guint32 iEnc;
-                            guint32 iCod;
-                            guint32 iApp;
-                            gchar   cChr;
+                            char* sApplicationName;
+                            char* sQMgr;
+                            uint32_t iEnc;
+                            uint32_t iCod;
+                            uint32_t iApp;
+                            char    cChr;
 
                             /*
                             We have to handle the ccsid/coding of the MQCONN REPLY
@@ -2500,7 +2498,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                     iCod = ENC_LITTLE_ENDIAN;
                                 else
                                     iCod = ENC_BIG_ENDIAN;
-                                cChr = tvb_get_guint8(tvb, offset + 48);
+                                cChr = tvb_get_uint8(tvb, offset + 48);
                                 if ((cChr >= 'A' && cChr <= 'Z') ||
                                     (cChr >= 'a' && cChr <= 'z') ||
                                     (cChr >= '0' && cChr <= '9') ||
@@ -2518,17 +2516,17 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                 iCod = p_mq_parm->mq_int_enc;
                                 iEnc = p_mq_parm->mq_str_enc;
                             }
-                            iApp = tvb_get_guint32(tvb, offset + 48 + 28, iCod);
+                            iApp = tvb_get_uint32(tvb, offset + 48 + 28, iCod);
 
                             sApplicationName = tvb_get_string_enc(wmem_packet_scope(), tvb, offset + 48, 28, iEnc);
                             sApplicationName = format_text_chr(wmem_packet_scope(), sApplicationName, strlen(sApplicationName), '.');
-                            if (strip_trailing_blanks((guint8*)sApplicationName, (guint32)strlen(sApplicationName)) > 0)
+                            if (strip_trailing_blanks((uint8_t*)sApplicationName, (uint32_t)strlen(sApplicationName)) > 0)
                             {
                                 col_append_fstr(pinfo->cinfo, COL_INFO, " App=%s", sApplicationName);
                             }
                             sQMgr = tvb_get_string_enc(wmem_packet_scope(), tvb, offset, 48, iEnc);
                             sQMgr = format_text_chr(wmem_packet_scope(), sQMgr, strlen(sQMgr), '.');
-                            if (strip_trailing_blanks((guint8*)sQMgr, (guint32)strlen(sQMgr)) > 0)
+                            if (strip_trailing_blanks((uint8_t*)sQMgr, (uint32_t)strlen(sQMgr)) > 0)
                             {
                                 col_append_fstr(pinfo->cinfo, COL_INFO, " QM=%s", sQMgr);
                             }
@@ -2549,7 +2547,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                 ptvcursor_add(cursor, hf_mq_conn_Xoptions, 4, iCod);
                                 if (iSizeCONN == 120)
                                 {
-                                    gint tRemain = tvb_reported_length_remaining(tvb, ptvcursor_current_offset(cursor));
+                                    int tRemain = tvb_reported_length_remaining(tvb, ptvcursor_current_offset(cursor));
                                     if (tRemain > 0)
                                     {
                                         if (tRemain >= 24 && iApp != MQ_MQAT_JAVA)
@@ -2569,12 +2567,12 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                 else
                                 {
                                     proto_tree* mq_tree_sub;
-                                    gint iOption;
-                                    gint iVersion;
-                                    gint nofs = ptvcursor_current_offset(cursor);
+                                    int iOption;
+                                    int iVersion;
+                                    int nofs = ptvcursor_current_offset(cursor);
 
-                                    iVersion = tvb_get_guint32(tvb, nofs + 4, iCod);
-                                    iOption = tvb_get_guint32(tvb, nofs + 8, iCod);
+                                    iVersion = tvb_get_uint32(tvb, nofs + 4, iCod);
+                                    iOption = tvb_get_uint32(tvb, nofs + 8, iCod);
                                     mq_tree_sub = proto_tree_add_subtree(mq_tree, tvb, nofs, iSizeCONN - nofs, ett_mq_fcno, NULL, MQ_TEXT_FCNO);
 
                                     ptvcursor_set_tree(cursor, mq_tree_sub);
@@ -2590,7 +2588,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                     {
                                         ptvcursor_add(cursor, hf_mq_fcno_retconn_tag, 128, ENC_NA);
                                     }
-                                    gint tRemain = tvb_reported_length_remaining(tvb, ptvcursor_current_offset(cursor));
+                                    int tRemain = tvb_reported_length_remaining(tvb, ptvcursor_current_offset(cursor));
                                     if (tRemain > 0)
                                     {
                                         if (tRemain >= 24 && iApp != MQ_MQAT_JAVA)
@@ -2607,7 +2605,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                         {
                                             if (iOption != 0)
                                             {
-                                                guint32 tUsed = dissect_mqpcf_parm(tvb, pinfo, mq_tree_sub, ptvcursor_current_offset(cursor), tRemain, iCod, TRUE);
+                                                uint32_t tUsed = dissect_mqpcf_parm(tvb, pinfo, mq_tree_sub, ptvcursor_current_offset(cursor), tRemain, iCod, true);
                                                 tRemain -= tUsed;
                                             }
                                             if (tRemain > 0)
@@ -2625,15 +2623,15 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     else if ((p_mq_parm->mq_opcode == MQ_TST_MQINQ || p_mq_parm->mq_opcode == MQ_TST_MQINQ_REPLY || p_mq_parm->mq_opcode == MQ_TST_MQSET) && capLen >= 12)
                     {
                         /* The MQINQ/MQSET structure is special because it does not start with a structid */
-                        gint iNbSelectors;
-                        gint iNbIntegers;
-                        gint iCharLen;
-                        gint iOffsetINQ;
-                        gint iSelector;
+                        int iNbSelectors;
+                        int iNbIntegers;
+                        int iCharLen;
+                        int iOffsetINQ;
+                        int iSelector;
 
-                        iNbSelectors = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
-                        iNbIntegers = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
-                        iCharLen = tvb_get_guint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
+                        iNbSelectors = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
+                        iNbIntegers = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+                        iCharLen = tvb_get_uint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
 
                         mq_tree = proto_tree_add_subtree(mqroot_tree, tvb, offset, -1, ett_mq_inq, NULL, MQ_TEXT_INQ);
 
@@ -2644,9 +2642,9 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                         iOffsetINQ = 12;
                         if (tvb_reported_length_remaining(tvb, offset + iOffsetINQ) >= iNbSelectors * 4)
                         {
-                            guint _posSel = offset + iOffsetINQ;
-                            guint _posSelE = _posSel + iNbSelectors * 4 + 4;
-                            const guint8* _pVal = NULL;
+                            unsigned _posSel = offset + iOffsetINQ;
+                            unsigned _posSelE = _posSel + iNbSelectors * 4 + 4;
+                            const uint8_t* _pVal = NULL;
                             for (iSelector = 0; iSelector < iNbSelectors; iSelector++)
                             {
                                 proto_tree_add_item(mq_tree, hf_mq_inq_sel, tvb, offset + iOffsetINQ + iSelector * 4, 4, p_mq_parm->mq_int_enc);
@@ -2654,22 +2652,22 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                             iOffsetINQ += iNbSelectors * 4;
                             if (p_mq_parm->mq_opcode == MQ_TST_MQINQ_REPLY || p_mq_parm->mq_opcode == MQ_TST_MQSET)
                             {
-                                gint iSizeINQValues;
+                                int iSizeINQValues;
                                 iSizeINQValues = iNbIntegers * 4 + iCharLen;
                                 if (tvb_reported_length_remaining(tvb, offset + iOffsetINQ) >= iSizeINQValues)
                                 {
-                                    gint iInteger;
-                                    guint _lVal;
-                                    guint _lSel;
+                                    int iInteger;
+                                    unsigned _lVal;
+                                    unsigned _lSel;
                                     for (iInteger = 0; iInteger < iNbIntegers; iInteger++)
                                     {
-                                        _lSel = tvb_get_guint32(tvb, _posSel, p_mq_parm->mq_int_enc);
+                                        _lSel = tvb_get_uint32(tvb, _posSel, p_mq_parm->mq_int_enc);
                                         while (_posSel < _posSelE && (_lSel < MQ_MQIA_FIRST || _lSel > MQ_MQIA_LAST))
                                         {
                                             _posSel += 4;
-                                            _lSel = tvb_get_guint32(tvb, _posSel, p_mq_parm->mq_int_enc);
+                                            _lSel = tvb_get_uint32(tvb, _posSel, p_mq_parm->mq_int_enc);
                                         }
-                                        _lVal = tvb_get_guint32(tvb, offset + iOffsetINQ + iInteger * 4, p_mq_parm->mq_int_enc);
+                                        _lVal = tvb_get_uint32(tvb, offset + iOffsetINQ + iInteger * 4, p_mq_parm->mq_int_enc);
                                         _pVal = dissect_mqpcf_parm_getintval(_lSel, _lVal);
                                         _posSel += 4;
                                         if (_pVal)
@@ -2690,11 +2688,11 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     }
                     else if (p_mq_parm->mq_opcode == MQ_TST_NOTIFICATION)
                     {
-                        guint uHdl;
-                        guint uCod;
+                        unsigned uHdl;
+                        unsigned uCod;
 
-                        uHdl = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
-                        uCod = tvb_get_guint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
+                        uHdl = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+                        uCod = tvb_get_uint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
 
                         dissect_mq_addCR_colinfo(pinfo, p_mq_parm);
                         col_append_fstr(pinfo->cinfo, COL_INFO, " Hdl=0x%04x Cod=%s(0x%x)",
@@ -2712,20 +2710,20 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     }
                     else if (p_mq_parm->mq_opcode == MQ_TST_REQUEST_MSGS)
                     {
-                        gint iHdl;
-                        gint iFlags;
-                        gint iGlbMsgIdx;
-                        gint iMaxMsgLen;
-                        gint iOpt;
+                        int iHdl;
+                        int iFlags;
+                        int iGlbMsgIdx;
+                        int iMaxMsgLen;
+                        int iOpt;
 
-                        iHdl = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
-                        iMaxMsgLen = tvb_get_guint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
-                        iFlags = tvb_get_guint32(tvb, offset + 32, p_mq_parm->mq_int_enc);
-                        iGlbMsgIdx = tvb_get_guint32(tvb, offset + 36, p_mq_parm->mq_int_enc);
+                        iHdl = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+                        iMaxMsgLen = tvb_get_uint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
+                        iFlags = tvb_get_uint32(tvb, offset + 32, p_mq_parm->mq_int_enc);
+                        iGlbMsgIdx = tvb_get_uint32(tvb, offset + 36, p_mq_parm->mq_int_enc);
                         if (iFlags & MQ_REQUEST_MSG_SELECTION)
                         {
-                            p_mq_parm->mq_msgreq_ccsid.encod = tvb_get_guint32(tvb, offset + 44, p_mq_parm->mq_int_enc);
-                            p_mq_parm->mq_msgreq_ccsid.ccsid = tvb_get_guint32(tvb, offset + 48, p_mq_parm->mq_int_enc);
+                            p_mq_parm->mq_msgreq_ccsid.encod = tvb_get_uint32(tvb, offset + 44, p_mq_parm->mq_int_enc);
+                            p_mq_parm->mq_msgreq_ccsid.ccsid = tvb_get_uint32(tvb, offset + 48, p_mq_parm->mq_int_enc);
                         }
                         dissect_mq_addCR_colinfo(pinfo, p_mq_parm);
                         col_append_fstr(pinfo->cinfo, COL_INFO, " Hdl=0x%04x RqstFlags=%08x GlbMsgIdx=%d MaxLen=%d ",
@@ -2757,7 +2755,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                 proto_tree_add_item(mq_tree, hf_mq_msgreq_MsgSeqNum, tvb, offset + 52, 4, p_mq_parm->mq_int_enc);
                                 proto_tree_add_item(mq_tree, hf_mq_msgreq_offset, tvb, offset + 56, 4, p_mq_parm->mq_int_enc);
                                 dissect_mq_MQMO(tvb, mq_tree, offset + 60, ett_mq_gmo_matchoption, p_mq_parm);
-                                iOpt = tvb_get_guint32(tvb, offset + 60, p_mq_parm->mq_int_enc);
+                                iOpt = tvb_get_uint32(tvb, offset + 60, p_mq_parm->mq_int_enc);
 
                                 offset += MQ_REQUEST_MSG_SIZE_V1_SELECTION_FIXED_PART;
                                 if (iOpt & MQ_MQMO_MATCH_MSG_ID)
@@ -2790,27 +2788,27 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     }
                     else if (p_mq_parm->mq_opcode == MQ_TST_ASYNC_MESSAGE)
                     {
-                        gint  iReasnCode = 0;
-                        gint  iSegmIndex;
-                        gint  iGlbMsgIdx;
-                        gint  iPadLen;
+                        int   iReasnCode = 0;
+                        int   iSegmIndex;
+                        int   iGlbMsgIdx;
+                        int   iPadLen;
 
-                        gint8 iStrLen;
-                        gint  iHdl;
-                        gint  iHdrL;
+                        int8_t iStrLen;
+                        int   iHdl;
+                        int   iHdrL;
 
-                        iHdl = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
-                        iGlbMsgIdx = tvb_get_guint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
-                        iSegmIndex = tvb_get_guint16(tvb, offset + 20, p_mq_parm->mq_int_enc);
+                        iHdl = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+                        iGlbMsgIdx = tvb_get_uint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
+                        iSegmIndex = tvb_get_uint16(tvb, offset + 20, p_mq_parm->mq_int_enc);
 
                         if (p_mq_parm->mq_ctlf1 & MQ_TCF_FIRST)
                         {
-                            iReasnCode = tvb_get_guint32(tvb, offset + 24, p_mq_parm->mq_int_enc);
+                            iReasnCode = tvb_get_uint32(tvb, offset + 24, p_mq_parm->mq_int_enc);
                         }
 
                         if (iSegmIndex == 0)
                         {
-                            iStrLen = tvb_get_guint8(tvb, offset + 54);
+                            iStrLen = tvb_get_uint8(tvb, offset + 54);
                             iPadLen = (2 + 1 + iStrLen) % 4;
                             iPadLen = (iPadLen) ? 4 - iPadLen : 0;
                         }
@@ -2864,14 +2862,14 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     }
                     else if ((p_mq_parm->mq_opcode == MQ_TST_SPI || p_mq_parm->mq_opcode == MQ_TST_SPI_REPLY) && capLen >= 12)
                     {
-                        gint    iOffsetSPI = 0;
-                        guint32 iSpiVerb = 0;
+                        int     iOffsetSPI = 0;
+                        uint32_t iSpiVerb = 0;
 
                         p_mq_parm->iOfsEnc = offset + 12;
                         p_mq_parm->iOfsCcs = offset + 16;
                         p_mq_parm->iOfsFmt = offset + 20;
 
-                        iSpiVerb = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
+                        iSpiVerb = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
                         col_append_fstr(pinfo->cinfo, COL_INFO, " (%s)", val_to_str(iSpiVerb, mq_spi_verbs_vals, "Unknown (0x%08x)"));
 
                         mq_tree = proto_tree_add_subtree(mqroot_tree, tvb, offset, 12, ett_mq_spi, NULL, MQ_TEXT_SPI);
@@ -2886,8 +2884,8 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                             (p_mq_parm->mq_strucID & MQ_MASK_SPxZ) == MQ_STRUCTID_SPxU_EBCDIC)
                             && tvb_reported_length_remaining(tvb, offset) >= 12)
                         {
-                            gint iSizeSPIMD = 0;
-                            guint8* sStructId;
+                            int iSizeSPIMD = 0;
+                            uint8_t* sStructId;
 
                             if ((p_mq_parm->mq_strucID & MQ_MASK_SPxx) == MQ_STRUCTID_SPxx)
                             {
@@ -2907,7 +2905,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                             offset += 12;
                             p_mq_parm->mq_strucID = (tvb_reported_length_remaining(tvb, offset) >= 4) ? tvb_get_ntohl(tvb, offset) : MQ_STRUCTID_NULL;
 
-                            if ((iSizeSPIMD = dissect_mq_md(tvb, mqroot_tree, offset, p_mq_parm, TRUE)) != 0)
+                            if ((iSizeSPIMD = dissect_mq_md(tvb, mqroot_tree, offset, p_mq_parm, true)) != 0)
                             {
                                 offset += iSizeSPIMD;
                                 offset += dissect_mq_gmo(tvb, pinfo, mqroot_tree, offset, p_mq_parm);
@@ -2944,13 +2942,13 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                 {
                                     if (tree)
                                     {
-                                        gint iVerbNumber = 0;
+                                        int iVerbNumber = 0;
                                         proto_tree_add_item(mq_tree, hf_mq_spi_spqo_nbverb, tvb, offset + 12, 4, p_mq_parm->mq_int_enc);
-                                        iVerbNumber = tvb_get_guint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
+                                        iVerbNumber = tvb_get_uint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
 
                                         if (tvb_reported_length_remaining(tvb, offset) >= iVerbNumber * 20 + 16)
                                         {
-                                            gint iVerb = 0;
+                                            int iVerb = 0;
                                             iOffsetSPI = offset + 16;
                                             for (iVerb = 0; iVerb < iVerbNumber; iVerb++)
                                             {
@@ -2988,9 +2986,9 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                 {
                                     proto_tree_add_bitmask(mq_tree, tvb, offset + 12, hf_mq_spi_spgo_options, ett_mq_spi_options, pf_flds_spiopt, ENC_BIG_ENDIAN);
                                     proto_tree_add_item(mq_tree, hf_mq_spi_spgo_size, tvb, offset + 16, 4, p_mq_parm->mq_int_enc);
-                                    iSizePayload = tvb_get_guint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
+                                    iSizePayload = tvb_get_uint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
                                     offset += 20;
-                                    bPayload = TRUE;
+                                    bPayload = true;
                                 }
                                 else
                                 {
@@ -3017,15 +3015,15 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                             || p_mq_parm->mq_opcode == MQ_TST_XA_COMMIT || p_mq_parm->mq_opcode == MQ_TST_XA_ROLLBACK || p_mq_parm->mq_opcode == MQ_TST_XA_FORGET
                             || p_mq_parm->mq_opcode == MQ_TST_XA_COMPLETE)
                         {
-                            gint iSizeXid = 0;
+                            int iSizeXid = 0;
                             if ((iSizeXid = dissect_mq_xid(tvb, mqroot_tree, p_mq_parm, offset)) != 0)
                                 offset += iSizeXid;
                         }
                         else if ((p_mq_parm->mq_opcode == MQ_TST_XA_OPEN || p_mq_parm->mq_opcode == MQ_TST_XA_CLOSE)
                             && tvb_reported_length_remaining(tvb, offset) >= 1)
                         {
-                            guint8 iXAInfoLength = 0;
-                            iXAInfoLength = tvb_get_guint8(tvb, offset);
+                            uint8_t iXAInfoLength = 0;
+                            iXAInfoLength = tvb_get_uint8(tvb, offset);
                             if (tvb_reported_length_remaining(tvb, offset) >= iXAInfoLength + 1)
                             {
                                 mq_tree = proto_tree_add_subtree(mqroot_tree, tvb, offset, iXAInfoLength + 1, ett_mq_xa_info, NULL, MQ_TEXT_XINF);
@@ -3038,16 +3036,16 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                         else if ((p_mq_parm->mq_opcode == MQ_TST_XA_RECOVER || p_mq_parm->mq_opcode == MQ_TST_XA_RECOVER_REPLY)
                             && tvb_reported_length_remaining(tvb, offset) >= 4)
                         {
-                            gint iNbXid = 0;
-                            iNbXid = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
+                            int iNbXid = 0;
+                            iNbXid = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
                             proto_tree_add_item(mq_tree, hf_mq_xa_count, tvb, offset, 4, p_mq_parm->mq_int_enc);
                             offset += 4;
                             if (p_mq_parm->mq_opcode == MQ_TST_XA_RECOVER_REPLY)
                             {
-                                gint iXid = 0;
+                                int iXid = 0;
                                 for (iXid = 0; iXid < iNbXid; iXid++)
                                 {
-                                    gint iSizeXid = 0;
+                                    int iSizeXid = 0;
                                     if ((iSizeXid = dissect_mq_xid(tvb, mqroot_tree, p_mq_parm, offset)) != 0)
                                         offset += iSizeXid;
                                     else
@@ -3059,16 +3057,16 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     /* LPOO seems to be a bug for SPOO */
                     if ((p_mq_parm->mq_strucID == MQ_STRUCTID_LPOO || p_mq_parm->mq_strucID == MQ_STRUCTID_LPOO_EBCDIC) && tvb_reported_length_remaining(tvb, offset) >= 32)
                     {
-                        guint iVersion;
-                        guint iXtraData = 0;
-                        gint  iSize = 32;
-                        gint  iPos = 0;
-                        gint  iSegSize = tvb_reported_length_remaining(tvb, offset);
-                        iVersion = tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+                        unsigned iVersion;
+                        unsigned iXtraData = 0;
+                        int   iSize = 32;
+                        int   iPos = 0;
+                        int   iSegSize = tvb_reported_length_remaining(tvb, offset);
+                        iVersion = tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
                         if (iSegSize >= 488)
                         {
                             iSize += 56;
-                            iXtraData = tvb_get_guint32(tvb, offset + 84, p_mq_parm->mq_int_enc);
+                            iXtraData = tvb_get_uint32(tvb, offset + 84, p_mq_parm->mq_int_enc);
                         }
 
                         if (iSize != 0 && iSegSize >= iSize)
@@ -3094,7 +3092,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                             }
                             if (iVersion >= 1)
                             {
-                                guint iDistributionListSize2;
+                                unsigned iDistributionListSize2;
                                 iSize = dissect_mq_od(tvb, pinfo, mqroot_tree, offset + iPos, p_mq_parm, &iDistributionListSize2);
                             }
                             offset += iPos + iSize;
@@ -3103,7 +3101,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                             {
                                 if (p_mq_parm->mq_opcode == MQ_TST_SPI_REPLY)
                                 {
-                                    bPayload = TRUE;
+                                    bPayload = true;
                                     iSizePayload = iXtraData;
                                     p_mq_parm->iOfsFmt = (offset - iSize);
                                 }
@@ -3117,7 +3115,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     }
                     if ((p_mq_parm->mq_strucID == MQ_STRUCTID_UID || p_mq_parm->mq_strucID == MQ_STRUCTID_UID_EBCDIC) && tvb_reported_length_remaining(tvb, offset) > 0)
                     {
-                        gint iSizeUID;
+                        int iSizeUID;
                         /* iSizeUID = (iVersionID < 5 ? 28 : 132);  guess */
                         /* The iVersionID is available in the previous ID segment, we should keep a state *
                          * Instead we rely on the segment length announced in the TSH */
@@ -3127,7 +3125,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
 
                         if (iSizeUID != 0 && tvb_reported_length_remaining(tvb, offset) >= iSizeUID)
                         {
-                            guint8* sUserId;
+                            uint8_t* sUserId;
                             sUserId = tvb_get_string_enc(wmem_packet_scope(), tvb, offset + 4, 12, p_mq_parm->mq_str_enc);
                             dissect_mq_addCR_colinfo(pinfo, p_mq_parm);
                             if (strip_trailing_blanks(sUserId, 12) > 0)
@@ -3153,27 +3151,27 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
 
                     offset += dissect_mq_od(tvb, pinfo, mqroot_tree, offset, p_mq_parm, &iDistributionListSize);
 
-                    if ((iSizeMD = dissect_mq_md(tvb, mqroot_tree, offset, p_mq_parm, TRUE)) != 0)
+                    if ((iSizeMD = dissect_mq_md(tvb, mqroot_tree, offset, p_mq_parm, true)) != 0)
                     {
-                        gint iSizeGMO = 0;
-                        gint iSizePMO = 0;
+                        int iSizeGMO = 0;
+                        int iSizePMO = 0;
                         offset += iSizeMD;
 
                         if ((iSizeGMO = dissect_mq_gmo(tvb, pinfo, mqroot_tree, offset, p_mq_parm)) != 0)
                         {
                             offset += iSizeGMO;
-                            bPayload = TRUE;
+                            bPayload = true;
                         }
                         else if ((iSizePMO = dissect_mq_pmo(tvb, pinfo, mqroot_tree, offset, p_mq_parm, &iDistributionListSize)) != 0)
                         {
                             offset += iSizePMO;
-                            bPayload = TRUE;
+                            bPayload = true;
                         }
                         if (tvb_reported_length_remaining(tvb, offset) >= 4)
                         {
-                            if (bPayload == TRUE && (p_mq_parm->mq_opcode != MQ_TST_ASYNC_MESSAGE))
+                            if (bPayload == true && (p_mq_parm->mq_opcode != MQ_TST_ASYNC_MESSAGE))
                             {
-                                iSizePayload = tvb_get_guint32(tvb, offset, p_mq_parm->mq_int_enc);
+                                iSizePayload = tvb_get_uint32(tvb, offset, p_mq_parm->mq_int_enc);
                                 if (tree)
                                 {
                                     mq_tree = proto_tree_add_subtree(mqroot_tree, tvb, offset, 4, ett_mq_put, NULL, MQ_TEXT_PUT);
@@ -3187,23 +3185,23 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                     {
                         col_append_fstr(pinfo->cinfo, COL_INFO, " (Distribution List, Size=%d)", iDistributionListSize);
                     }
-                    if (bPayload == TRUE)
+                    if (bPayload == true)
                     {
                         if (iSizePayload != 0 && tvb_reported_length_remaining(tvb, offset) > 0)
                         {
                             /* For the following header structures, each structure has a "format" field
                             which announces the type of the following structure.  For dissection we
                             do not use it and rely on the structid instead. */
-                            guint32 iHeadersLength = 0;
+                            uint32_t iHeadersLength = 0;
                             if (tvb_reported_length_remaining(tvb, offset) >= 4)
                             {
-                                gint iSizeMD2 = 0;
+                                int iSizeMD2 = 0;
                                 p_mq_parm->mq_strucID = tvb_get_ntohl(tvb, offset);
 
                                 if ((p_mq_parm->mq_strucID == MQ_STRUCTID_XQH || p_mq_parm->mq_strucID == MQ_STRUCTID_XQH_EBCDIC) && tvb_reported_length_remaining(tvb, offset) >= 104)
                                 {
                                     /* if MD.format == MQXMIT */
-                                    gint iSizeXQH = 104;
+                                    int iSizeXQH = 104;
                                     if (tree)
                                     {
                                         mq_tree = proto_tree_add_subtree(mqroot_tree, tvb, offset, iSizeXQH, ett_mq_xqh, NULL, MQ_TEXT_XQH);
@@ -3216,7 +3214,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                     offset += iSizeXQH;
                                     iHeadersLength += iSizeXQH;
 
-                                    if ((iSizeMD2 = dissect_mq_md(tvb, mqroot_tree, offset, p_mq_parm, TRUE)) != 0)
+                                    if ((iSizeMD2 = dissect_mq_md(tvb, mqroot_tree, offset, p_mq_parm, true)) != 0)
                                     {
                                         offset += iSizeMD2;
                                         iHeadersLength += iSizeMD2;
@@ -3227,13 +3225,13 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                 if ((p_mq_parm->mq_strucID == MQ_STRUCTID_DLH || p_mq_parm->mq_strucID == MQ_STRUCTID_DLH_EBCDIC) && tvb_reported_length_remaining(tvb, offset) >= 172)
                                 {
                                     /* if MD.format == MQDEAD */
-                                    gint iSizeDLH = 172;
+                                    int iSizeDLH = 172;
                                     p_mq_parm->iOfsEnc = offset + 108;
                                     p_mq_parm->iOfsCcs = offset + 112;
                                     p_mq_parm->iOfsFmt = offset + 116;
 
-                                    p_mq_parm->mq_dlh_ccsid.encod = tvb_get_guint32(tvb, offset + 108, p_mq_parm->mq_int_enc);
-                                    p_mq_parm->mq_dlh_ccsid.ccsid = tvb_get_guint32(tvb, offset + 112, p_mq_parm->mq_int_enc);
+                                    p_mq_parm->mq_dlh_ccsid.encod = tvb_get_uint32(tvb, offset + 108, p_mq_parm->mq_int_enc);
+                                    p_mq_parm->mq_dlh_ccsid.ccsid = tvb_get_uint32(tvb, offset + 112, p_mq_parm->mq_int_enc);
 
                                     if (tree)
                                     {
@@ -3307,32 +3305,32 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                 {
                                     /* Dissect the generic part of the other pre-defined headers */
                                     /* We assume that only one such header is present */
-                                    gint iSizeHeader;
-                                    gint oIntEnc = p_mq_parm->mq_int_enc;
+                                    int iSizeHeader;
+                                    int oIntEnc = p_mq_parm->mq_int_enc;
                                     /* Use MD encoding */
                                     p_mq_parm->mq_int_enc = ((p_mq_parm->mq_md_ccsid.encod & MQ_MQENC_INTEGER_MASK) == MQ_MQENC_INTEGER_NORMAL) ? ENC_BIG_ENDIAN : ENC_LITTLE_ENDIAN;
-                                    iSizeHeader = (gint)tvb_get_guint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
+                                    iSizeHeader = (int)tvb_get_uint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
                                     /* XXX - 32 is inferred from the code below.  What's the
                                     * correct minimum? */
                                     if (iSizeHeader <= 32)
                                         return;
 
-                                    p_mq_parm->mq_head_ccsid.encod = tvb_get_guint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
-                                    p_mq_parm->mq_head_ccsid.ccsid = tvb_get_guint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
+                                    p_mq_parm->mq_head_ccsid.encod = tvb_get_uint32(tvb, offset + 12, p_mq_parm->mq_int_enc);
+                                    p_mq_parm->mq_head_ccsid.ccsid = tvb_get_uint32(tvb, offset + 16, p_mq_parm->mq_int_enc);
 
                                     if (tvb_reported_length_remaining(tvb, offset) >= iSizeHeader)
                                     {
-                                        gint iTmp;
-                                        gint iVer;
-                                        gint iLen;
-                                        gint oStrEnc = p_mq_parm->mq_str_enc;
+                                        int iTmp;
+                                        int iVer;
+                                        int iLen;
+                                        int oStrEnc = p_mq_parm->mq_str_enc;
 
                                         p_mq_parm->iOfsEnc = offset + 12;
                                         p_mq_parm->iOfsCcs = offset + 16;
                                         p_mq_parm->iOfsFmt = offset + 20;
 
-                                        iVer = (gint)tvb_get_guint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
-                                        iLen = (gint)tvb_get_guint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
+                                        iVer = (int)tvb_get_uint32(tvb, offset + 4, p_mq_parm->mq_int_enc);
+                                        iLen = (int)tvb_get_uint32(tvb, offset + 8, p_mq_parm->mq_int_enc);
                                         iTmp = p_mq_parm->mq_head_ccsid.ccsid;
                                         if (iTmp == 0)
                                             iTmp = p_mq_parm->mq_md_ccsid.ccsid;
@@ -3356,8 +3354,8 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
 
                                             if (p_mq_parm->mq_strucID == MQ_STRUCTID_DH || p_mq_parm->mq_strucID == MQ_STRUCTID_DH_EBCDIC)
                                             {
-                                                gint iRec;
-                                                iRec = tvb_get_guint32(tvb, offset + 36, p_mq_parm->mq_int_enc);
+                                                int iRec;
+                                                iRec = tvb_get_uint32(tvb, offset + 36, p_mq_parm->mq_int_enc);
 
                                                 proto_tree_add_bitmask(mq_tree, tvb, offset + 28, hf_mq_head_flags, ett_mq_head_flags, pf_flds_dh_flags, ENC_BIG_ENDIAN);
                                                 proto_tree_add_item(mq_tree, hf_mq_dh_putmsgrecfld, tvb, offset + 32, 4, p_mq_parm->mq_int_enc);
@@ -3367,14 +3365,14 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
 
                                                 if (iRec)
                                                 {
-                                                    gint iOfs1;
-                                                    gint iOfs2;
-                                                    gint iFlgs;
-                                                    gint iSize;
+                                                    int iOfs1;
+                                                    int iOfs2;
+                                                    int iFlgs;
+                                                    int iSize;
 
-                                                    iFlgs = (gint)tvb_get_guint32(tvb, offset + 32, p_mq_parm->mq_int_enc);
-                                                    iOfs1 = (gint)tvb_get_guint32(tvb, offset + 40, p_mq_parm->mq_int_enc);
-                                                    iOfs2 = (gint)tvb_get_guint32(tvb, offset + 44, p_mq_parm->mq_int_enc);
+                                                    iFlgs = (int)tvb_get_uint32(tvb, offset + 32, p_mq_parm->mq_int_enc);
+                                                    iOfs1 = (int)tvb_get_uint32(tvb, offset + 40, p_mq_parm->mq_int_enc);
+                                                    iOfs2 = (int)tvb_get_uint32(tvb, offset + 44, p_mq_parm->mq_int_enc);
 
                                                     iSize = dissect_mq_or(tvb, mq_tree, offset + 48, iRec, iOfs1, p_mq_parm);
                                                     /*iSize = */dissect_mq_pmr(tvb, mqroot_tree, offset + 48 + iSize, iRec, iOfs2, iFlgs, p_mq_parm);
@@ -3391,8 +3389,8 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                             }
                                             else if (p_mq_parm->mq_strucID == MQ_STRUCTID_IIH || p_mq_parm->mq_strucID == MQ_STRUCTID_IIH_EBCDIC)
                                             {
-                                                gint16 sLen;
-                                                gint32 iPos;
+                                                int16_t sLen;
+                                                int32_t iPos;
                                                 proto_tree* mq_ims;
 
                                                 proto_tree_add_bitmask(mq_tree, tvb, offset + 28, hf_mq_head_flags, ett_mq_head_flags, pf_flds_iih_flags, ENC_BIG_ENDIAN);
@@ -3407,7 +3405,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                                 proto_tree_add_item(mq_tree, hf_mq_iih_reserved, tvb, offset + 83, 1, p_mq_parm->mq_str_enc);
 
                                                 iPos = offset + iSizeHeader;
-                                                sLen = tvb_get_guint16(tvb, iPos, p_mq_parm->mq_int_enc);
+                                                sLen = tvb_get_uint16(tvb, iPos, p_mq_parm->mq_int_enc);
                                                 mq_ims = proto_tree_add_subtree(mq_tree, tvb, iPos, sLen, ett_mq_ims, NULL, "IMS Message");
                                                 proto_tree_add_item(mq_ims, hf_mq_ims_ll, tvb, iPos + 0, 2, p_mq_parm->mq_int_enc);
                                                 proto_tree_add_item(mq_ims, hf_mq_ims_zz, tvb, iPos + 2, 2, p_mq_parm->mq_int_enc);
@@ -3482,7 +3480,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                             {
                                                 int iPos, iEnd, iCCSID;
                                                 int iLenStr;
-                                                guint8* sStr;
+                                                uint8_t* sStr;
 
                                                 proto_tree* rfh_tree;
 
@@ -3491,7 +3489,7 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
                                                 iEnd = offset + iLen;
                                                 if (iVer > 1)
                                                 {
-                                                    iCCSID = (int)tvb_get_guint32(tvb, iPos, p_mq_parm->mq_int_enc);
+                                                    iCCSID = (int)tvb_get_uint32(tvb, iPos, p_mq_parm->mq_int_enc);
                                                     proto_tree_add_item(mq_tree, hf_mq_rfh_ccsid, tvb, iPos, 4, p_mq_parm->mq_int_enc);
                                                     iPos += 4;
                                                 }
@@ -3500,12 +3498,12 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
 
                                                 while (iPos < iEnd)
                                                 {
-                                                    iLenStr = (int)tvb_get_guint32(tvb, iPos, p_mq_parm->mq_int_enc);
+                                                    iLenStr = (int)tvb_get_uint32(tvb, iPos, p_mq_parm->mq_int_enc);
                                                     sStr = tvb_get_string_enc(wmem_packet_scope(), tvb, iPos + 4, iLenStr, IS_EBCDIC(iCCSID) ? ENC_EBCDIC : ENC_ASCII);
                                                     if (*sStr)
                                                         strip_trailing_blanks(sStr, iLenStr);
                                                     if (*sStr)
-                                                        sStr = (guint8*)format_text_chr(wmem_packet_scope(), sStr, strlen((const char*)sStr), '.');
+                                                        sStr = (uint8_t*)format_text_chr(wmem_packet_scope(), sStr, strlen((const char*)sStr), '.');
 
                                                     rfh_tree = proto_tree_add_subtree_format(mq_tree, tvb, iPos, iLenStr + 4, ett_mq_rfh_ValueName, NULL, "NameValue: %s", sStr);
 
@@ -3535,8 +3533,8 @@ static void dissect_mq_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree)
 
                                 /* Call subdissector for the payload */
                                 tvbuff_t* next_tvb;
-                                p_mq_parm->mq_cur_ccsid.encod = tvb_get_guint32(tvb, p_mq_parm->iOfsEnc, p_mq_parm->mq_int_enc);
-                                p_mq_parm->mq_cur_ccsid.ccsid = tvb_get_guint32(tvb, p_mq_parm->iOfsCcs, p_mq_parm->mq_int_enc);
+                                p_mq_parm->mq_cur_ccsid.encod = tvb_get_uint32(tvb, p_mq_parm->iOfsEnc, p_mq_parm->mq_int_enc);
+                                p_mq_parm->mq_cur_ccsid.ccsid = tvb_get_uint32(tvb, p_mq_parm->iOfsCcs, p_mq_parm->mq_int_enc);
                                 memcpy(p_mq_parm->mq_format,
                                     tvb_get_string_enc(wmem_packet_scope(), tvb, p_mq_parm->iOfsFmt, sizeof(p_mq_parm->mq_format), p_mq_parm->mq_str_enc),
                                     sizeof(p_mq_parm->mq_format));
@@ -3598,31 +3596,31 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
 
     if ((mq_parm.mq_strucID & MQ_MASK_TSHx) == MQ_STRUCTID_TSHx || (mq_parm.mq_strucID & MQ_MASK_TSHx) == MQ_STRUCTID_TSHx_EBCDIC)
     {
-        guint8   iCtlF = 0;
-        gint32   iSegL = 0;
-        gint32   iBegL = 0;
-        gint32   iEnco = 0;
-        gint32   iMulS = 0;
-        gint32   iHdrL = 0;
-        gint32   iNxtP = 0;
-        guint8   iOpcd = 0;
-        gboolean bSeg1st = FALSE;
-        gboolean bSegLst = FALSE;
-        gboolean bMore = FALSE;
+        uint8_t  iCtlF = 0;
+        int32_t  iSegL = 0;
+        int32_t  iBegL = 0;
+        int32_t  iEnco = 0;
+        int32_t  iMulS = 0;
+        int32_t  iHdrL = 0;
+        int32_t  iNxtP = 0;
+        uint8_t  iOpcd = 0;
+        bool bSeg1st = false;
+        bool bSegLst = false;
+        bool bMore = false;
 
-        gint32   iHdl = 0;
-        gint32   iGlbMsgIdx = 0;
-        gint32   iSegLength = 0;
-        gint16   iSegmIndex = 0;
+        int32_t  iHdl = 0;
+        int32_t  iGlbMsgIdx = 0;
+        int32_t  iSegLength = 0;
+        int16_t  iSegmIndex = 0;
 
-        guint32  uStrL = 0;
-        guint32  uPadL = 0;
+        uint32_t uStrL = 0;
+        uint32_t uPadL = 0;
 
         /* TSHM structure as 8 bytes more after the length (convid/requestid) */
         if (mq_parm.mq_strucID == MQ_STRUCTID_TSHM || mq_parm.mq_strucID == MQ_STRUCTID_TSHM_EBCDIC)
             iMulS = 8;
 
-        /* Get the Semgnet Length */
+        /* Get the Segment Length */
         iSegL = tvb_get_ntohl(tvb, 4);
         if (iMulS == 8)
         {
@@ -3636,20 +3634,20 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
         }
 
         /* Get the Encoding scheme */
-        iEnco = (tvb_get_guint8(tvb, 8 + iMulS) == MQ_LITTLE_ENDIAN ? ENC_LITTLE_ENDIAN : ENC_BIG_ENDIAN);
+        iEnco = (tvb_get_uint8(tvb, 8 + iMulS) == MQ_LITTLE_ENDIAN ? ENC_LITTLE_ENDIAN : ENC_BIG_ENDIAN);
         mq_parm.mq_int_enc = iEnco;
         /* Get the Operation Code */
-        iOpcd = tvb_get_guint8(tvb, 9 + iMulS);
+        iOpcd = tvb_get_uint8(tvb, 9 + iMulS);
         mq_parm.mq_opcode = iOpcd;
         /* Get the Control Flag */
-        iCtlF = tvb_get_guint8(tvb, 10 + iMulS);
+        iCtlF = tvb_get_uint8(tvb, 10 + iMulS);
         mq_parm.mq_ctlf1 = iCtlF;
         /* First Segment ? */
         bSeg1st = ((iCtlF & MQ_TCF_FIRST) != 0);
         /* Last Segment */
         bSegLst = ((iCtlF & MQ_TCF_LAST) != 0);
 
-        mq_in_reassembly = FALSE;
+        mq_in_reassembly = false;
 
         if ((iOpcd > 0x80 && !(bSeg1st && bSegLst)) || iOpcd == MQ_TST_ASYNC_MESSAGE)
         {
@@ -3683,9 +3681,9 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
             if (mq_reassembly)
             {
                 fragment_head* fd_head;
-                guint32 iConnectionId = ((pinfo->srcport << 16) + pinfo->destport);
-                gboolean reassembly_error = FALSE;
-                guint8* pTmp = "Full";
+                uint32_t iConnectionId = ((pinfo->srcport << 16) + pinfo->destport);
+                bool reassembly_error = false;
+                uint8_t* pTmp = "Full";
                 if (bSeg1st && !bSegLst)
                     pTmp = "First ";
                 if (!bSeg1st && bSegLst)
@@ -3698,13 +3696,13 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
                 if (iOpcd == MQ_TST_ASYNC_MESSAGE)
                 {
                     /* Get the MQ Handle of the Object */
-                    iHdl = tvb_get_guint32(tvb, iHdrL + 4, iEnco);
+                    iHdl = tvb_get_uint32(tvb, iHdrL + 4, iEnco);
                     /* Get the Global Message Index */
-                    iGlbMsgIdx = tvb_get_guint32(tvb, iHdrL + 12, iEnco);
+                    iGlbMsgIdx = tvb_get_uint32(tvb, iHdrL + 12, iEnco);
                     /* Get the Segment Length */
-                    iSegLength = tvb_get_guint32(tvb, iHdrL + 16, iEnco);
+                    iSegLength = tvb_get_uint32(tvb, iHdrL + 16, iEnco);
                     /* Get the Segment Index */
-                    iSegmIndex = tvb_get_guint16(tvb, iHdrL + 20, iEnco);
+                    iSegmIndex = tvb_get_uint16(tvb, iHdrL + 20, iEnco);
 
                     /*
                       if SegmIndex == 0, it has 54 bytes + the length and padding
@@ -3713,10 +3711,10 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
 
                     if (iSegmIndex == 0)
                     {
-                        mq_parm.mq_AsyMsgRsn = tvb_get_guint32(tvb, iHdrL + 24, iEnco);
-                        mq_parm.mq_MsgActLen = tvb_get_guint32(tvb, iHdrL + 28, iEnco);
-                        mq_parm.mq_MsgTotLen = tvb_get_guint32(tvb, iHdrL + 32, iEnco);
-                        uStrL = tvb_get_guint8(tvb, iHdrL + 54);
+                        mq_parm.mq_AsyMsgRsn = tvb_get_uint32(tvb, iHdrL + 24, iEnco);
+                        mq_parm.mq_MsgActLen = tvb_get_uint32(tvb, iHdrL + 28, iEnco);
+                        mq_parm.mq_MsgTotLen = tvb_get_uint32(tvb, iHdrL + 32, iEnco);
+                        uStrL = tvb_get_uint8(tvb, iHdrL + 54);
                         uPadL = ((((2 + 1 + uStrL) / 4) + 1) * 4) - (2 + 1 + uStrL);
                         mq_parm.mq_MsgActLen = iSegL - iHdrL;
                     }
@@ -3730,10 +3728,10 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
                 {
                     if (bSeg1st)
                     {
-                        uStrL = mq_parm.mq_API_Len = tvb_get_guint32(tvb, iHdrL, ENC_BIG_ENDIAN);
-                        mq_parm.mq_API_CC = tvb_get_guint32(tvb, iHdrL + 4, iEnco);
-                        mq_parm.mq_API_RC = tvb_get_guint32(tvb, iHdrL + 8, iEnco);
-                        iHdl = mq_parm.mq_API_Hdl = tvb_get_guint32(tvb, iHdrL + 12, iEnco);
+                        uStrL = mq_parm.mq_API_Len = tvb_get_uint32(tvb, iHdrL, ENC_BIG_ENDIAN);
+                        mq_parm.mq_API_CC = tvb_get_uint32(tvb, iHdrL + 4, iEnco);
+                        mq_parm.mq_API_RC = tvb_get_uint32(tvb, iHdrL + 8, iEnco);
+                        iHdl = mq_parm.mq_API_Hdl = tvb_get_uint32(tvb, iHdrL + 12, iEnco);
                         mq_parm.mq_MsgTotLen = uStrL;
                         mq_parm.mq_MsgActLen = iSegL - iHdrL;
                         mq_parm.mq_MsgActLen -= 16; /* API */
@@ -3743,10 +3741,10 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
                         fragment_head* _head = fragment_get_reassembled_id(&mq_reassembly_table, pinfo, iConnectionId);
                         if (_head)
                         {
-                            uStrL = mq_parm.mq_API_Len = tvb_get_guint32(_head->tvb_data, iHdrL, ENC_BIG_ENDIAN);
-                            mq_parm.mq_API_CC = tvb_get_guint32(_head->tvb_data, iHdrL + 4, iEnco);
-                            mq_parm.mq_API_RC = tvb_get_guint32(_head->tvb_data, iHdrL + 8, iEnco);
-                            iHdl = mq_parm.mq_API_Hdl = tvb_get_guint32(_head->tvb_data, iHdrL + 12, iEnco);
+                            uStrL = mq_parm.mq_API_Len = tvb_get_uint32(_head->tvb_data, iHdrL, ENC_BIG_ENDIAN);
+                            mq_parm.mq_API_CC = tvb_get_uint32(_head->tvb_data, iHdrL + 4, iEnco);
+                            mq_parm.mq_API_RC = tvb_get_uint32(_head->tvb_data, iHdrL + 8, iEnco);
+                            iHdl = mq_parm.mq_API_Hdl = tvb_get_uint32(_head->tvb_data, iHdrL + 12, iEnco);
                             mq_parm.mq_MsgTotLen = uStrL;
                         }
                     }
@@ -3763,16 +3761,16 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
                 */
                 if (bSeg1st)
                 {
-                    guint32 _iLen;
+                    uint32_t _iLen;
                     if (iOpcd == MQ_TST_MQPUT1 || iOpcd == MQ_TST_MQPUT1_REPLY)
                     {
-                        guint iDistributionListSize2;
+                        unsigned iDistributionListSize2;
                         _iLen = dissect_mq_od(tvb, NULL, NULL, iNxtP, &mq_parm, &iDistributionListSize2);
                         iNxtP += _iLen;
                         mq_parm.mq_MsgActLen -= _iLen;
                     }
 
-                    _iLen = dissect_mq_md(tvb, NULL, iNxtP, &mq_parm, FALSE);
+                    _iLen = dissect_mq_md(tvb, NULL, iNxtP, &mq_parm, false);
                     iNxtP += _iLen;
                     mq_parm.mq_MsgActLen -= _iLen;
 
@@ -3794,7 +3792,7 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
                 {
                     /* negative or null fragment length - something is wrong; skip reassembly */
                     fd_head = NULL;
-                    reassembly_error = TRUE;
+                    reassembly_error = true;
                 }
                 else
                 {
@@ -3854,9 +3852,9 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
                         /* dissect the last(s) MQ segment received */
                         /* Reassembly in progress, so no decode */
 
-                        mq_in_reassembly = TRUE;
+                        mq_in_reassembly = true;
                         dissect_mq_pdu(tvb, pinfo, mq_tree);
-                        mq_in_reassembly = FALSE;
+                        mq_in_reassembly = false;
 
                         /*
                         2 or more fragments.
@@ -3901,7 +3899,7 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
                 }
                 else
                 {
-                    mq_in_reassembly = TRUE;
+                    mq_in_reassembly = true;
                     /* Reassembly in progress */
 
                     col_add_fstr(pinfo->cinfo, COL_INFO, "[%s %s Segment]",
@@ -3936,13 +3934,13 @@ static int reassemble_mq(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, vo
     return tvb_reported_length(tvb);
 }
 
-static guint get_mq_pdu_len(packet_info* pinfo _U_, tvbuff_t* tvb,
+static unsigned get_mq_pdu_len(packet_info* pinfo _U_, tvbuff_t* tvb,
     int offset, void* data _U_)
 {
-    guint uLen = tvb_reported_length_remaining(tvb, offset);
+    unsigned uLen = tvb_reported_length_remaining(tvb, offset);
     if (uLen >= 8)
     {
-        guint32 mq_strucID = tvb_get_ntohl(tvb, offset + 0);
+        uint32_t mq_strucID = tvb_get_ntohl(tvb, offset + 0);
         if ((mq_strucID & MQ_MASK_TSHx) == MQ_STRUCTID_TSHx || (mq_strucID & MQ_MASK_TSHx) == MQ_STRUCTID_TSHx_EBCDIC)
         {
             uLen = tvb_get_ntohl(tvb, offset + 4);
@@ -3964,12 +3962,12 @@ static int dissect_mq_spx(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, v
     return tvb_captured_length(tvb);
 }
 
-static gboolean dissect_mq_heur(tvbuff_t* tvb, packet_info* pinfo,
-    proto_tree* tree, gboolean is_tcp, dissector_handle_t* ssl_app_handle)
+static bool dissect_mq_heur(tvbuff_t* tvb, packet_info* pinfo,
+    proto_tree* tree, bool is_tcp, dissector_handle_t* ssl_app_handle)
 {
     if ((tvb_captured_length(tvb) >= 4) && (tvb_reported_length(tvb) >= 28))
     {
-        guint32 mq_strucID = tvb_get_ntohl(tvb, 0);
+        uint32_t mq_strucID = tvb_get_ntohl(tvb, 0);
         if ((mq_strucID & MQ_MASK_TSHx) == MQ_STRUCTID_TSHx || (mq_strucID & MQ_MASK_TSHx) == MQ_STRUCTID_TSHx_EBCDIC)
         {
             /* Register this dissector for this conversation */
@@ -3983,26 +3981,26 @@ static gboolean dissect_mq_heur(tvbuff_t* tvb, packet_info* pinfo,
 
             /* Dissect the packet */
             reassemble_mq(tvb, pinfo, tree, NULL);
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
-static gboolean    dissect_mq_heur_tcp(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
+static bool    dissect_mq_heur_tcp(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
 {
-    return dissect_mq_heur(tvb, pinfo, tree, TRUE, NULL);
+    return dissect_mq_heur(tvb, pinfo, tree, true, NULL);
 }
 
-static gboolean    dissect_mq_heur_nontcp(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
+static bool    dissect_mq_heur_nontcp(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
 {
-    return dissect_mq_heur(tvb, pinfo, tree, FALSE, NULL);
+    return dissect_mq_heur(tvb, pinfo, tree, false, NULL);
 }
 
-static gboolean    dissect_mq_heur_ssl(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data)
+static bool    dissect_mq_heur_ssl(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data)
 {
     struct tlsinfo *tlsinfo = (struct tlsinfo*)data;
-    return dissect_mq_heur(tvb, pinfo, tree, FALSE, tlsinfo->app_handle);
+    return dissect_mq_heur(tvb, pinfo, tree, false, tlsinfo->app_handle);
 }
 
 void proto_register_mq(void)
@@ -4645,7 +4643,7 @@ void proto_register_mq(void)
         {&hf_mq_wih_reserved, {"Reserved.....", "mq.wih.reserved", FT_STRING, BASE_NONE, NULL, 0x0, "Reserved", HFILL}},
     };
 
-    static gint* ett[] =
+    static int* ett[] =
     {
         &ett_mq,
         &ett_mq_tsh,
@@ -4729,7 +4727,7 @@ void proto_register_mq(void)
     expert_mq = expert_register_protocol(proto_mq);
     expert_register_field_array(expert_mq, ei, array_length(ei));
 
-    mq_heur_subdissector_list = register_heur_dissector_list("mq", proto_mq);
+    mq_heur_subdissector_list = register_heur_dissector_list_with_description("mq", "WebSphere MQ data", proto_mq);
 
     reassembly_table_register(&mq_reassembly_table,
         &addresses_reassembly_table_functions);

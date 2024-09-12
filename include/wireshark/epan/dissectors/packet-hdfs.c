@@ -42,68 +42,68 @@ void proto_reg_handoff_hdfs(void);
 
 
 #if 0
-static const int START = 0;
+static const int START;
 static const int AUTHENTICATION = 1;
 static const int DATA = 2;
 #endif
 
-static range_t *tcp_ports = NULL;
+static range_t *tcp_ports;
 
-static int proto_hdfs = -1;
-static int hf_hdfs_pdu_type = -1;
-static int hf_hdfs_flags = -1;
-static int hf_hdfs_sequenceno = -1;
-static int hf_hdfs_packetno = -1;
-static int hf_hdfs_authlen = -1;
-static int hf_hdfs_success = -1;
-static int hf_hdfs_auth = -1;
-static int hf_hdfs_len = -1;
-static int hf_hdfs_strcall = -1;
-static int hf_hdfs_params = -1;
-static int hf_hdfs_paramtype = -1;
-static int hf_hdfs_paramval = -1;
-static int hf_hdfs_paramvalnum = -1;
-/* static int hf_hdfs_rest = -1; */
-static int hf_hdfs_fileperm = -1;
-static int hf_hdfs_blockloc = -1;
-static int hf_hdfs_endblockloc = -1;
-static int hf_hdfs_blockgen = -1;
-static int hf_hdfs_prover = -1;
-static int hf_hdfs_objname = -1;
-static int hf_hdfs_filename = -1;
-static int hf_hdfs_blockcount = -1;
-static int hf_hdfs_ownername = -1;
-static int hf_hdfs_groupname = -1;
-static int hf_hdfs_namelenone = -1;
-static int hf_hdfs_namelentwo = -1;
-static int hf_hdfs_accesstime = -1;
-static int hf_hdfs_modtime = -1;
-static int hf_hdfs_blockrep = -1;
-static int hf_hdfs_isdir = -1;
-static int hf_hdfs_blocksize = -1;
-static int hf_hdfs_filelen = -1;
-static int hf_hdfs_construct = -1;
-static int hf_hdfs_hostname = -1;
-static int hf_hdfs_rackloc = -1;
-static int hf_hdfs_adminstate = -1;
-static int hf_hdfs_activecon = -1;
-static int hf_hdfs_lastupdate = -1;
-static int hf_hdfs_remaining = -1;
-static int hf_hdfs_dfsused = -1;
-static int hf_hdfs_capacity = -1;
-static int hf_hdfs_ipcport = -1;
-static int hf_hdfs_infoport = -1;
-static int hf_hdfs_storageid = -1;
-static int hf_hdfs_datanodeid = -1;
-static int hf_hdfs_locations = -1;
-static int hf_hdfs_offset = -1;
-static int hf_hdfs_corrupt = -1;
-static int hf_hdfs_identifier = -1;
-static int hf_hdfs_password = -1;
-static int hf_hdfs_kind = -1;
-static int hf_hdfs_service = -1;
+static int proto_hdfs;
+static int hf_hdfs_pdu_type;
+static int hf_hdfs_flags;
+static int hf_hdfs_sequenceno;
+static int hf_hdfs_packetno;
+static int hf_hdfs_authlen;
+static int hf_hdfs_success;
+static int hf_hdfs_auth;
+static int hf_hdfs_len;
+static int hf_hdfs_strcall;
+static int hf_hdfs_params;
+static int hf_hdfs_paramtype;
+static int hf_hdfs_paramval;
+static int hf_hdfs_paramvalnum;
+/* static int hf_hdfs_rest; */
+static int hf_hdfs_fileperm;
+static int hf_hdfs_blockloc;
+static int hf_hdfs_endblockloc;
+static int hf_hdfs_blockgen;
+static int hf_hdfs_prover;
+static int hf_hdfs_objname;
+static int hf_hdfs_filename;
+static int hf_hdfs_blockcount;
+static int hf_hdfs_ownername;
+static int hf_hdfs_groupname;
+static int hf_hdfs_namelenone;
+static int hf_hdfs_namelentwo;
+static int hf_hdfs_accesstime;
+static int hf_hdfs_modtime;
+static int hf_hdfs_blockrep;
+static int hf_hdfs_isdir;
+static int hf_hdfs_blocksize;
+static int hf_hdfs_filelen;
+static int hf_hdfs_construct;
+static int hf_hdfs_hostname;
+static int hf_hdfs_rackloc;
+static int hf_hdfs_adminstate;
+static int hf_hdfs_activecon;
+static int hf_hdfs_lastupdate;
+static int hf_hdfs_remaining;
+static int hf_hdfs_dfsused;
+static int hf_hdfs_capacity;
+static int hf_hdfs_ipcport;
+static int hf_hdfs_infoport;
+static int hf_hdfs_storageid;
+static int hf_hdfs_datanodeid;
+static int hf_hdfs_locations;
+static int hf_hdfs_offset;
+static int hf_hdfs_corrupt;
+static int hf_hdfs_identifier;
+static int hf_hdfs_password;
+static int hf_hdfs_kind;
+static int hf_hdfs_service;
 
-static gint ett_hdfs = -1;
+static int ett_hdfs;
 
 static dissector_handle_t hdfs_handle;
 
@@ -114,11 +114,11 @@ static dissector_handle_t hdfs_handle;
    from 2 bytes and then the data.
    Otherwise reads just the data. */
 static void
-dissect_params (tvbuff_t *tvb, proto_tree *hdfs_tree, guint offset, int params) {
+dissect_params (tvbuff_t *tvb, proto_tree *hdfs_tree, unsigned offset, int params) {
 
-    guint length;
+    unsigned length;
     int i =  0;
-    const guint8* type_name;
+    const uint8_t* type_name;
     for (i = 0; i < params; i++) {
 
         /* get length that we just dissected */
@@ -132,14 +132,14 @@ dissect_params (tvbuff_t *tvb, proto_tree *hdfs_tree, guint offset, int params) 
         proto_tree_add_item(hdfs_tree, hf_hdfs_paramtype, tvb, offset, length, ENC_ASCII);
         offset += length;
 
-        if (offset >= length && (!tvb_memeql(tvb, offset - length, (const guint8*)"long", length) || !tvb_memeql(tvb, offset - length, (const guint8*)"int", length) ||
-                                 !tvb_memeql(tvb, offset - length, (const guint8*)"short", length) || !tvb_memeql(tvb, offset - length, (const guint8*)"char", length) ||
-                                 !tvb_memeql(tvb, offset - length, (const guint8*)"byte", length) || !tvb_memeql(tvb, offset - length, (const guint8*)"float", length)
-                                 || !tvb_memeql(tvb, offset - length, (const guint8*)"double", length) || !tvb_memeql(tvb, offset - length, (const guint8*)"boolean", length))) {
+        if (offset >= length && (!tvb_memeql(tvb, offset - length, (const uint8_t*)"long", length) || !tvb_memeql(tvb, offset - length, (const uint8_t*)"int", length) ||
+                                 !tvb_memeql(tvb, offset - length, (const uint8_t*)"short", length) || !tvb_memeql(tvb, offset - length, (const uint8_t*)"char", length) ||
+                                 !tvb_memeql(tvb, offset - length, (const uint8_t*)"byte", length) || !tvb_memeql(tvb, offset - length, (const uint8_t*)"float", length)
+                                 || !tvb_memeql(tvb, offset - length, (const uint8_t*)"double", length) || !tvb_memeql(tvb, offset - length, (const uint8_t*)"boolean", length))) {
 
-            if (!tvb_memeql(tvb, offset - length, (const guint8*)"boolean", length)) {
+            if (!tvb_memeql(tvb, offset - length, (const uint8_t*)"boolean", length)) {
                 length = 1;
-            } else if (!tvb_memeql(tvb, offset - length, (const guint8*)"short", length)) {
+            } else if (!tvb_memeql(tvb, offset - length, (const uint8_t*)"short", length)) {
                 length = 2;
             } else {
                 length = sizeof(type_name);
@@ -159,7 +159,7 @@ dissect_params (tvbuff_t *tvb, proto_tree *hdfs_tree, guint offset, int params) 
             proto_tree_add_item(hdfs_tree, hf_hdfs_paramval, tvb, offset, length, ENC_ASCII);
             offset += length;
 
-            if (!tvb_memeql(tvb, offset - length, (const guint8*)"org.apache.hadoop.fs.permission.FsPermission", length)) {
+            if (!tvb_memeql(tvb, offset - length, (const uint8_t*)"org.apache.hadoop.fs.permission.FsPermission", length)) {
                 proto_tree_add_item(hdfs_tree, hf_hdfs_fileperm, tvb, offset, 2, ENC_BIG_ENDIAN);
                 offset += 2;
             }
@@ -181,9 +181,9 @@ dissect_params (tvbuff_t *tvb, proto_tree *hdfs_tree, guint offset, int params) 
    -- otherwise --
    parameter value      : length of the type  */
 static void
-dissect_data (tvbuff_t *tvb, proto_tree *hdfs_tree, guint offset) {
+dissect_data (tvbuff_t *tvb, proto_tree *hdfs_tree, unsigned offset) {
     int params = 0;
-    guint length = 0;
+    unsigned length = 0;
 
     /* get length */
     length = tvb_get_ntohs(tvb, offset);
@@ -199,7 +199,7 @@ dissect_data (tvbuff_t *tvb, proto_tree *hdfs_tree, guint offset) {
     /* we only want to parse the packet if it is not a heartbeat (random looking numbers are the decimal
        representation of sendHeartbeat */
     if (!(tvb_get_ntohl(tvb, offset - SEND_OFFSET) == SEND_DEC && tvb_get_ntohl(tvb, offset - HEAR_OFFSET) == HEAR_DEC &&
-          tvb_get_ntohl(tvb, offset - TBEA_OFFSET) == TBEA_DEC && tvb_get_guint8(tvb, offset - T_OFFSET) == T_DEC)) {
+          tvb_get_ntohl(tvb, offset - TBEA_OFFSET) == TBEA_DEC && tvb_get_uint8(tvb, offset - T_OFFSET) == T_DEC)) {
 
         /* get number of params */
         params = tvb_get_ntohl(tvb, offset);
@@ -291,7 +291,7 @@ dissect_resp_filestatus (tvbuff_t *tvb, proto_tree *hdfs_tree, int offset) {
 
 
     /* get length */
-    length = tvb_get_guint8 (tvb, offset);
+    length = tvb_get_uint8 (tvb, offset);
 
     /* owner name length */
     proto_tree_add_item(hdfs_tree, hf_hdfs_namelenone, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -302,7 +302,7 @@ dissect_resp_filestatus (tvbuff_t *tvb, proto_tree *hdfs_tree, int offset) {
     offset += length;
 
     /* get length */
-    length = tvb_get_guint8 (tvb, offset);
+    length = tvb_get_uint8 (tvb, offset);
 
     /* group name length */
     proto_tree_add_item(hdfs_tree, hf_hdfs_namelenone, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -325,7 +325,7 @@ dissect_block_info (tvbuff_t *tvb, proto_tree *hdfs_tree, int offset) {
 
     int length;
 
-    length = tvb_get_guint8(tvb, offset);
+    length = tvb_get_uint8(tvb, offset);
 
     /* identifier length */
     proto_tree_add_item(hdfs_tree, hf_hdfs_namelenone, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -335,7 +335,7 @@ dissect_block_info (tvbuff_t *tvb, proto_tree *hdfs_tree, int offset) {
     proto_tree_add_item(hdfs_tree, hf_hdfs_identifier, tvb, offset, length, ENC_ASCII);
     offset += length;
 
-    length = tvb_get_guint8(tvb, offset);
+    length = tvb_get_uint8(tvb, offset);
 
     /* password length */
     proto_tree_add_item(hdfs_tree, hf_hdfs_namelenone, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -345,7 +345,7 @@ dissect_block_info (tvbuff_t *tvb, proto_tree *hdfs_tree, int offset) {
     proto_tree_add_item(hdfs_tree, hf_hdfs_password, tvb, offset, length, ENC_ASCII);
     offset += length;
 
-    length = tvb_get_guint8(tvb, offset);
+    length = tvb_get_uint8(tvb, offset);
 
     /* kind length */
     proto_tree_add_item(hdfs_tree, hf_hdfs_namelenone, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -355,7 +355,7 @@ dissect_block_info (tvbuff_t *tvb, proto_tree *hdfs_tree, int offset) {
     proto_tree_add_item(hdfs_tree, hf_hdfs_kind, tvb, offset, length, ENC_ASCII);
     offset += length;
 
-    length = tvb_get_guint8(tvb, offset);
+    length = tvb_get_uint8(tvb, offset);
 
     /* service length */
     proto_tree_add_item(hdfs_tree, hf_hdfs_namelenone, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -446,7 +446,7 @@ dissect_block_info (tvbuff_t *tvb, proto_tree *hdfs_tree, int offset) {
     offset += 4;
 
 
-    length = tvb_get_guint8(tvb, offset);
+    length = tvb_get_uint8(tvb, offset);
 
     /* location rack length */
     proto_tree_add_item(hdfs_tree, hf_hdfs_namelenone, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -456,7 +456,7 @@ dissect_block_info (tvbuff_t *tvb, proto_tree *hdfs_tree, int offset) {
     proto_tree_add_item(hdfs_tree, hf_hdfs_rackloc, tvb, offset, length, ENC_ASCII);
     offset += length;
 
-    length = tvb_get_guint8(tvb, offset);
+    length = tvb_get_uint8(tvb, offset);
 
     /* hostname length */
     proto_tree_add_item(hdfs_tree, hf_hdfs_namelenone, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -466,7 +466,7 @@ dissect_block_info (tvbuff_t *tvb, proto_tree *hdfs_tree, int offset) {
     proto_tree_add_item(hdfs_tree, hf_hdfs_hostname, tvb, offset, length, ENC_ASCII);
     offset += length;
 
-    length = tvb_get_guint8(tvb, offset);
+    length = tvb_get_uint8(tvb, offset);
 
     /* admin state length */
     proto_tree_add_item(hdfs_tree, hf_hdfs_namelenone, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -512,9 +512,9 @@ dissect_resp_locatedblocks (tvbuff_t *tvb, proto_tree *hdfs_tree, int offset) {
 static int
 dissect_hdfs_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint offset = 0;
+    unsigned offset = 0;
     int success = 0;
-    guint length = 0;
+    unsigned length = 0;
 
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "HDFS");
@@ -544,7 +544,7 @@ dissect_hdfs_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
                 return offset;
             }
 
-            if (!tvb_memeql(tvb, offset + 2, (const guint8*)"long", 4)) {
+            if (!tvb_memeql(tvb, offset + 2, (const uint8_t*)"long", 4)) {
                 dissect_resp_long (tvb, hdfs_tree,  offset);
 
             } else {
@@ -570,11 +570,11 @@ dissect_hdfs_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
                 offset += length;
 
                 /* responses about block location info */
-                if (!tvb_memeql(tvb, offset - length, (const guint8*)"org.apache.hadoop.hdfs.protocol.LocatedBlocks", length)) {
+                if (!tvb_memeql(tvb, offset - length, (const uint8_t*)"org.apache.hadoop.hdfs.protocol.LocatedBlocks", length)) {
                     dissect_resp_locatedblocks (tvb, hdfs_tree, offset);
 
                     /* responses about file statuses */
-                } else if (!tvb_memeql(tvb, offset - length, (const guint8*)"org.apache.hadoop.hdfs.protocol.HdfsFileStatus", length)) {
+                } else if (!tvb_memeql(tvb, offset - length, (const uint8_t*)"org.apache.hadoop.hdfs.protocol.HdfsFileStatus", length)) {
                     dissect_resp_filestatus (tvb, hdfs_tree, offset);
 
                 } else {
@@ -595,10 +595,10 @@ dissect_hdfs_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
         } else {
 
             /* check the packet length */
-            guint auth = tvb_get_ntohl(tvb, offset);
+            unsigned auth = tvb_get_ntohl(tvb, offset);
 
             /* first setup packet starts with "hrpc" */
-            if (!tvb_memeql(tvb, offset, (const guint8*)REQUEST_STR, sizeof(REQUEST_STR) - 1)) {
+            if (!tvb_memeql(tvb, offset, (const uint8_t*)REQUEST_STR, sizeof(REQUEST_STR) - 1)) {
 
                 proto_tree_add_item(hdfs_tree, hf_hdfs_sequenceno, tvb, offset, sizeof(REQUEST_STR) - 1, ENC_ASCII);
                 offset += (int)sizeof(REQUEST_STR) - 1;
@@ -642,7 +642,7 @@ dissect_hdfs_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
 }
 
 /* determine PDU length of protocol  */
-static guint get_hdfs_message_len(packet_info *pinfo _U_, tvbuff_t *tvb,
+static unsigned get_hdfs_message_len(packet_info *pinfo _U_, tvbuff_t *tvb,
                                   int offset _U_, void *data _U_)
 {
     int len = tvb_reported_length(tvb);
@@ -659,12 +659,12 @@ static int
 dissect_hdfs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
     int frame_header_len = 0;
-    gboolean need_reassemble = FALSE;
+    bool need_reassemble = false;
 
     frame_header_len = tvb_reported_length(tvb);
 
     if (frame_header_len == 1448 || frame_header_len ==  1321) {
-        need_reassemble = TRUE;
+        need_reassemble = true;
     }
 
     tcp_dissect_pdus(tvb, pinfo, tree, need_reassemble, frame_header_len, get_hdfs_message_len, dissect_hdfs_message, data);
@@ -675,7 +675,7 @@ static void
 apply_hdfs_prefs(void)
 {
   /* HDFS uses the port preference to determine request/response */
-  tcp_ports = prefs_get_range_value("hdfs", "tcp.port");;
+  tcp_ports = prefs_get_range_value("hdfs", "tcp.port");
 }
 
 /* registers the protcol with the given names */
@@ -1031,7 +1031,7 @@ proto_register_hdfs(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_hdfs
     };
 

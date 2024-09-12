@@ -62,36 +62,36 @@ void proto_register_hsms(void);
 static dissector_handle_t hsms_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_hsms = -1;
+static int proto_hsms;
 
-static int hf_hsms_packet_length = -1;
-static int hf_hsms_header_sessionid = -1;
-static int hf_hsms_header_statusbyte2 = -1;
-static int hf_hsms_header_wbit = -1;
-static int hf_hsms_header_stream = -1;
-static int hf_hsms_header_statusbyte3 = -1;
-static int hf_hsms_header_function = -1;
-static int hf_hsms_header_ptype = -1;
-static int hf_hsms_header_stype = -1;
-static int hf_hsms_header_system = -1;
-static int hf_hsms_data_item_format = -1;
-static int hf_hsms_data_item_length_bytes = -1;
-static int hf_hsms_data_item_length = -1;
-static int hf_hsms_data_item_value_binary = -1;
-static int hf_hsms_data_item_value_boolean = -1;
-static int hf_hsms_data_item_value_string = -1;
-static int hf_hsms_data_item_value_i8 = -1;
-static int hf_hsms_data_item_value_i1 = -1;
-static int hf_hsms_data_item_value_i2 = -1;
-static int hf_hsms_data_item_value_i4 = -1;
-static int hf_hsms_data_item_value_f8 = -1;
-static int hf_hsms_data_item_value_f4 = -1;
-static int hf_hsms_data_item_value_u8 = -1;
-static int hf_hsms_data_item_value_u1 = -1;
-static int hf_hsms_data_item_value_u2 = -1;
-static int hf_hsms_data_item_value_u4 = -1;
+static int hf_hsms_packet_length;
+static int hf_hsms_header_sessionid;
+static int hf_hsms_header_statusbyte2;
+static int hf_hsms_header_wbit;
+static int hf_hsms_header_stream;
+static int hf_hsms_header_statusbyte3;
+static int hf_hsms_header_function;
+static int hf_hsms_header_ptype;
+static int hf_hsms_header_stype;
+static int hf_hsms_header_system;
+static int hf_hsms_data_item_format;
+static int hf_hsms_data_item_length_bytes;
+static int hf_hsms_data_item_length;
+static int hf_hsms_data_item_value_binary;
+static int hf_hsms_data_item_value_boolean;
+static int hf_hsms_data_item_value_string;
+static int hf_hsms_data_item_value_i8;
+static int hf_hsms_data_item_value_i1;
+static int hf_hsms_data_item_value_i2;
+static int hf_hsms_data_item_value_i4;
+static int hf_hsms_data_item_value_f8;
+static int hf_hsms_data_item_value_f4;
+static int hf_hsms_data_item_value_u8;
+static int hf_hsms_data_item_value_u1;
+static int hf_hsms_data_item_value_u2;
+static int hf_hsms_data_item_value_u4;
 
-static expert_field ei_hsms_ptype = EI_INIT;
+static expert_field ei_hsms_ptype;
 
 static wmem_map_t *value_lengths;
 
@@ -163,10 +163,10 @@ static const value_string item_format_names[] = {
 #define HSMS_TCP_PORT 0
 
 /* Initialize the subtree pointers */
-static gint ett_hsms = -1;
-static gint ett_hsms_header = -1;
-static gint ett_hsms_data = -1;
-static gint ett_hsms_data_item = -1;
+static int ett_hsms;
+static int ett_hsms_header;
+static int ett_hsms_data;
+static int ett_hsms_data_item;
 
 /* A sample #define of the minimum length (in bytes) of the protocol data.
  * If data is received with fewer than this many bytes it is rejected by
@@ -182,18 +182,18 @@ dissect_secs_variable(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
 
     proto_item *hdr_item = NULL;
 
-    guint item_format_code = -1;
-    guint length_bytes = -1;
-    guint length = 0;
+    unsigned item_format_code = -1;
+    unsigned length_bytes = -1;
+    unsigned length = 0;
 
-    guint *value_length = NULL;
+    unsigned *value_length = NULL;
 
     int len = 0;
     int itemLength = 0;
 
     /* extract item format code and number of length bytes from byte #1 */
-    item_format_code = (tvb_get_guint8(tvb, *offset) & 0xFC) >> 2;
-    length_bytes = (tvb_get_guint8(tvb, *offset) & 0x3);
+    item_format_code = (tvb_get_uint8(tvb, *offset) & 0xFC) >> 2;
+    length_bytes = (tvb_get_uint8(tvb, *offset) & 0x3);
 
     /* extract item length in bytes */
     switch (length_bytes)
@@ -205,7 +205,7 @@ dissect_secs_variable(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
         length = tvb_get_ntohs(tvb, *offset + 1);
         break;
     case 1:
-        length = tvb_get_guint8(tvb, *offset + 1);
+        length = tvb_get_uint8(tvb, *offset + 1);
         break;
     default:
         return -1;
@@ -214,7 +214,7 @@ dissect_secs_variable(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
     /* list has no item length and length is alreaty the count of items */
     if (item_format_code != 0)
     {
-        value_length = (guint*)wmem_map_lookup(value_lengths, GUINT_TO_POINTER(item_format_code));
+        value_length = (unsigned*)wmem_map_lookup(value_lengths, GUINT_TO_POINTER(item_format_code));
 
         /* length must be dividable by item length, because it must be a multiple of items */
         if (length % GPOINTER_TO_UINT(value_length) != 0)
@@ -243,7 +243,7 @@ dissect_secs_variable(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
     {
     case FORMAT_CODE_BINARY:
         /* add binary value as one to item list */
-        value_length = (guint*)wmem_map_lookup(value_lengths, GUINT_TO_POINTER(item_format_code));
+        value_length = (unsigned*)wmem_map_lookup(value_lengths, GUINT_TO_POINTER(item_format_code));
 
         len = GPOINTER_TO_UINT(value_length) * length;
         proto_tree_add_item(hsms_data_item_tree, hf_hsms_data_item_value_binary, tvb, *offset, len, ENC_NA);
@@ -252,7 +252,7 @@ dissect_secs_variable(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
         break;
     case FORMAT_CODE_ASCII:
         /* add ascii value as one to item list */
-        value_length = (guint*)wmem_map_lookup(value_lengths, GUINT_TO_POINTER(item_format_code));
+        value_length = (unsigned*)wmem_map_lookup(value_lengths, GUINT_TO_POINTER(item_format_code));
 
         len = GPOINTER_TO_UINT(value_length) * length;
         proto_tree_add_item(hsms_data_item_tree, hf_hsms_data_item_value_string, tvb, *offset, len, ENC_ASCII);
@@ -281,7 +281,7 @@ dissect_secs_variable(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
             else
             {
                 /* add single item of type item tree */
-                value_length = (guint*)wmem_map_lookup(value_lengths, GUINT_TO_POINTER(item_format_code));
+                value_length = (unsigned*)wmem_map_lookup(value_lengths, GUINT_TO_POINTER(item_format_code));
 
                 len = GPOINTER_TO_UINT(value_length);
                 switch(item_format_code)
@@ -351,13 +351,13 @@ dissect_hsms_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
     proto_tree *hsms_tree, *hsms_header_tree, *hsms_header_stream_tree;
 
     /* Other misc. local variables. */
-    guint       offset = 0;
+    unsigned    offset = 0;
 
-    guint sessionId = -1;
-    guint byte2 = -1;
-    guint byte3 = -1;
-    guint pType = -1;
-    guint sType = -1;
+    unsigned sessionId = -1;
+    unsigned byte2 = -1;
+    unsigned byte3 = -1;
+    unsigned pType = -1;
+    unsigned sType = -1;
 
     /*** HEURISTICS ***/
 
@@ -370,10 +370,10 @@ dissect_hsms_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
         return 0;
 
     sessionId = tvb_get_ntohs(tvb, 4);
-    byte2 = tvb_get_guint8(tvb, 6);
-    byte3 = tvb_get_guint8(tvb, 7);
-    pType = tvb_get_guint8(tvb, 8);
-    sType = tvb_get_guint8(tvb, 9);
+    byte2 = tvb_get_uint8(tvb, 6);
+    byte3 = tvb_get_uint8(tvb, 7);
+    pType = tvb_get_uint8(tvb, 8);
+    sType = tvb_get_uint8(tvb, 9);
 
     /* sTypes 8, 10 and 128+ are unused, 11-127 might be used for subsidiary standards */
     if ((sType == 8) || (sType == 10) || (sType > 127))
@@ -514,18 +514,18 @@ dissect_hsms_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 }
 
 /* determine PDU length of protocol foo */
-static guint
+static unsigned
 get_hsms_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
     /* first four bytes are length information */
-    return (guint)tvb_get_ntohl(tvb, offset) + 4;
+    return (unsigned)tvb_get_ntohl(tvb, offset) + 4;
 }
 
 /* The main dissecting routine */
 static int
 dissect_hsms(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, 4,
+    tcp_dissect_pdus(tvb, pinfo, tree, true, 4,
                      get_hsms_message_len, dissect_hsms_message, data);
     return tvb_captured_length(tvb);
 }
@@ -718,7 +718,7 @@ proto_register_hsms(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_hsms,
         &ett_hsms_header,
         &ett_hsms_data,

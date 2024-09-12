@@ -17,7 +17,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/to_str.h>
+#include <epan/tfs.h>
 #include <epan/expert.h>
 #include "packet-fc.h"
 #include "packet-fcels.h"
@@ -31,233 +31,233 @@ static dissector_handle_t els_handle;
 #define FC_ELS_REQ  1
 
 /* Initialize the protocol and registered fields */
-static int proto_fcels                  = -1;
-static int hf_fcels_opcode              = -1;
-static int hf_fcels_rjtcode             = -1;
-static int hf_fcels_rjtdetcode          = -1;
-static int hf_fcels_vnduniq             = -1;
-static int hf_fcels_b2b                 = -1;
-static int hf_fcels_cmnfeatures         = -1;
-static int hf_fcels_bbscnum             = -1;
-static int hf_fcels_rcvsize             = -1;
-static int hf_fcels_maxconseq           = -1;
-static int hf_fcels_reloffset           = -1;
-static int hf_fcels_edtov               = -1;
-static int hf_fcels_npname              = -1;
-static int hf_fcels_fnname              = -1;
+static int proto_fcels;
+static int hf_fcels_opcode;
+static int hf_fcels_rjtcode;
+static int hf_fcels_rjtdetcode;
+static int hf_fcels_vnduniq;
+static int hf_fcels_b2b;
+static int hf_fcels_cmnfeatures;
+static int hf_fcels_bbscnum;
+static int hf_fcels_rcvsize;
+static int hf_fcels_maxconseq;
+static int hf_fcels_reloffset;
+static int hf_fcels_edtov;
+static int hf_fcels_npname;
+static int hf_fcels_fnname;
 #if 0
-static int hf_fcels_cls1param           = -1;
-static int hf_fcels_cls2param           = -1;
-static int hf_fcels_cls3param           = -1;
-static int hf_fcels_cls4param           = -1;
+static int hf_fcels_cls1param;
+static int hf_fcels_cls2param;
+static int hf_fcels_cls3param;
+static int hf_fcels_cls4param;
 #endif
-static int hf_fcels_vendorvers          = -1;
-static int hf_fcels_svcavail            = -1;
-static int hf_fcels_clsflags            = -1;
-static int hf_fcels_clsrcvsize          = -1;
-static int hf_fcels_conseq              = -1;
-static int hf_fcels_e2e                 = -1;
-static int hf_fcels_openseq             = -1;
-static int hf_fcels_nportid             = -1;
-static int hf_fcels_oxid                = -1;
-static int hf_fcels_rxid                = -1;
-static int hf_fcels_recovqual           = -1;
-static int hf_fcels_fabricaddr          = -1;
-static int hf_fcels_fabricpname         = -1;
-static int hf_fcels_failedrcvr          = -1;
-static int hf_fcels_flacompliance       = -1;
-static int hf_fcels_loopstate           = -1;
-static int hf_fcels_publicloop_bmap     = -1;
-static int hf_fcels_pvtloop_bmap        = -1;
-static int hf_fcels_alpa_map            = -1;
-static int hf_fcels_scrregn             = -1;
-static int hf_fcels_farp_matchcodept    = -1;
-static int hf_fcels_farp_respaction     = -1;
-static int hf_fcels_resportid           = -1;
-static int hf_fcels_respname            = -1;
-static int hf_fcels_respnname           = -1;
-static int hf_fcels_reqipaddr           = -1;
-static int hf_fcels_respipaddr          = -1;
-static int hf_fcels_hardaddr            = -1;
-static int hf_fcels_rps_flag            = -1;
-static int hf_fcels_rps_portnum         = -1;
-static int hf_fcels_rps_portstatus      = -1;
-static int hf_fcels_rnft_fc4type        = -1;
-static int hf_fcels_rscn_evqual         = -1;
-static int hf_fcels_rscn_addrfmt        = -1;
-static int hf_fcels_rscn_domain         = -1;
-static int hf_fcels_rscn_area           = -1;
-static int hf_fcels_rscn_port           = -1;
-static int hf_fcels_rec_fc4             = -1;
-static int hf_fcels_estat               = -1;
-static int hf_fcels_estat_resp          = -1;
-static int hf_fcels_estat_seq_init      = -1;
-static int hf_fcels_estat_compl         = -1;
-static int hf_fcels_nodeidfmt           = -1;
-static int hf_fcels_spidlen             = -1;
-static int hf_fcels_vendoruniq          = -1;
-static int hf_fcels_vendorsp            = -1;
-static int hf_fcels_asstype             = -1;
-static int hf_fcels_physport            = -1;
-static int hf_fcels_attnodes            = -1;
-static int hf_fcels_nodemgmt            = -1;
-static int hf_fcels_ipvers              = -1;
-static int hf_fcels_tcpport             = -1;
-static int hf_fcels_ip                  = -1;
-static int hf_fcels_cbind_liveness      = -1;
-static int hf_fcels_cbind_addr_mode     = -1;
-static int hf_fcels_cbind_ifcp_version  = -1;
-static int hf_fcels_cbind_userinfo      = -1;
-static int hf_fcels_cbind_snpname       = -1;
-static int hf_fcels_cbind_dnpname       = -1;
-static int hf_fcels_cbind_status        = -1;
-static int hf_fcels_chandle             = -1;
-static int hf_fcels_unbind_status       = -1;
-static int hf_fcels_cmn_cios            = -1;
-static int hf_fcels_cmn_rro             = -1;
-static int hf_fcels_cmn_vvv             = -1;
-static int hf_fcels_cmn_b2b             = -1;
-static int hf_fcels_cmn_e_d_tov         = -1;
-static int hf_fcels_cmn_simplex         = -1;
-static int hf_fcels_cmn_multicast       = -1;
-static int hf_fcels_cmn_broadcast       = -1;
-static int hf_fcels_cmn_security        = -1;
-static int hf_fcels_cmn_clk             = -1;
-static int hf_fcels_cmn_dhd             = -1;
-static int hf_fcels_cmn_seqcnt          = -1;
-static int hf_fcels_cmn_payload         = -1;
-static int hf_fcels_cls_cns             = -1;
-static int hf_fcels_cls_sdr             = -1;
-static int hf_fcels_cls_prio            = -1;
-static int hf_fcels_cls_nzctl           = -1;
-static int hf_fcels_initctl             = -1;
-static int hf_fcels_initctl_initial_pa  = -1;
-static int hf_fcels_initctl_ack0        = -1;
-static int hf_fcels_initctl_ackgaa      = -1;
-static int hf_fcels_initctl_sync        = -1;
-static int hf_fcels_rcptctl             = -1;
-static int hf_fcels_rcptctl_ack0        = -1;
-static int hf_fcels_rcptctl_interlock   = -1;
-static int hf_fcels_rcptctl_policy      = -1;
-static int hf_fcels_rcptctl_category    = -1;
-static int hf_fcels_rcptctl_sync        = -1;
-static int hf_fcels_fcpflags            = -1;
-static int hf_fcels_fcpflags_trireq     = -1;
-static int hf_fcels_fcpflags_trirep     = -1;
-static int hf_fcels_fcpflags_retry      = -1;
-static int hf_fcels_fcpflags_ccomp      = -1;
-static int hf_fcels_fcpflags_datao      = -1;
-static int hf_fcels_fcpflags_initiator  = -1;
-static int hf_fcels_fcpflags_target     = -1;
-static int hf_fcels_fcpflags_rdxr       = -1;
-static int hf_fcels_fcpflags_wrxr       = -1;
-static int hf_fcels_prliloflags         = -1;
-static int hf_fcels_tprloflags_opav     = -1;
-static int hf_fcels_tprloflags_rpav     = -1;
-static int hf_fcels_tprloflags_npv      = -1;
-static int hf_fcels_tprloflags_gprlo    = -1;
-static int hf_fcels_speedflags          = -1;
-static int hf_fcels_speedflags_1gb      = -1;
-static int hf_fcels_speedflags_2gb      = -1;
-static int hf_fcels_speedflags_4gb      = -1;
-static int hf_fcels_speedflags_10gb     = -1;
-static int hf_fcels_prliloflags_opav    = -1;
-static int hf_fcels_prliloflags_ipe     = -1;
-static int hf_fcels_prliloflags_eip     = -1;
+static int hf_fcels_vendorvers;
+static int hf_fcels_svcavail;
+static int hf_fcels_clsflags;
+static int hf_fcels_clsrcvsize;
+static int hf_fcels_conseq;
+static int hf_fcels_e2e;
+static int hf_fcels_openseq;
+static int hf_fcels_nportid;
+static int hf_fcels_oxid;
+static int hf_fcels_rxid;
+static int hf_fcels_recovqual;
+static int hf_fcels_fabricaddr;
+static int hf_fcels_fabricpname;
+static int hf_fcels_failedrcvr;
+static int hf_fcels_flacompliance;
+static int hf_fcels_loopstate;
+static int hf_fcels_publicloop_bmap;
+static int hf_fcels_pvtloop_bmap;
+static int hf_fcels_alpa_map;
+static int hf_fcels_scrregn;
+static int hf_fcels_farp_matchcodept;
+static int hf_fcels_farp_respaction;
+static int hf_fcels_resportid;
+static int hf_fcels_respname;
+static int hf_fcels_respnname;
+static int hf_fcels_reqipaddr;
+static int hf_fcels_respipaddr;
+static int hf_fcels_hardaddr;
+static int hf_fcels_rps_flag;
+static int hf_fcels_rps_portnum;
+static int hf_fcels_rps_portstatus;
+static int hf_fcels_rnft_fc4type;
+static int hf_fcels_rscn_evqual;
+static int hf_fcels_rscn_addrfmt;
+static int hf_fcels_rscn_domain;
+static int hf_fcels_rscn_area;
+static int hf_fcels_rscn_port;
+static int hf_fcels_rec_fc4;
+static int hf_fcels_estat;
+static int hf_fcels_estat_resp;
+static int hf_fcels_estat_seq_init;
+static int hf_fcels_estat_compl;
+static int hf_fcels_nodeidfmt;
+static int hf_fcels_spidlen;
+static int hf_fcels_vendoruniq;
+static int hf_fcels_vendorsp;
+static int hf_fcels_asstype;
+static int hf_fcels_physport;
+static int hf_fcels_attnodes;
+static int hf_fcels_nodemgmt;
+static int hf_fcels_ipvers;
+static int hf_fcels_tcpport;
+static int hf_fcels_ip;
+static int hf_fcels_cbind_liveness;
+static int hf_fcels_cbind_addr_mode;
+static int hf_fcels_cbind_ifcp_version;
+static int hf_fcels_cbind_userinfo;
+static int hf_fcels_cbind_snpname;
+static int hf_fcels_cbind_dnpname;
+static int hf_fcels_cbind_status;
+static int hf_fcels_chandle;
+static int hf_fcels_unbind_status;
+static int hf_fcels_cmn_cios;
+static int hf_fcels_cmn_rro;
+static int hf_fcels_cmn_vvv;
+static int hf_fcels_cmn_b2b;
+static int hf_fcels_cmn_e_d_tov;
+static int hf_fcels_cmn_simplex;
+static int hf_fcels_cmn_multicast;
+static int hf_fcels_cmn_broadcast;
+static int hf_fcels_cmn_security;
+static int hf_fcels_cmn_clk;
+static int hf_fcels_cmn_dhd;
+static int hf_fcels_cmn_seqcnt;
+static int hf_fcels_cmn_payload;
+static int hf_fcels_cls_cns;
+static int hf_fcels_cls_sdr;
+static int hf_fcels_cls_prio;
+static int hf_fcels_cls_nzctl;
+static int hf_fcels_initctl;
+static int hf_fcels_initctl_initial_pa;
+static int hf_fcels_initctl_ack0;
+static int hf_fcels_initctl_ackgaa;
+static int hf_fcels_initctl_sync;
+static int hf_fcels_rcptctl;
+static int hf_fcels_rcptctl_ack0;
+static int hf_fcels_rcptctl_interlock;
+static int hf_fcels_rcptctl_policy;
+static int hf_fcels_rcptctl_category;
+static int hf_fcels_rcptctl_sync;
+static int hf_fcels_fcpflags;
+static int hf_fcels_fcpflags_trireq;
+static int hf_fcels_fcpflags_trirep;
+static int hf_fcels_fcpflags_retry;
+static int hf_fcels_fcpflags_ccomp;
+static int hf_fcels_fcpflags_datao;
+static int hf_fcels_fcpflags_initiator;
+static int hf_fcels_fcpflags_target;
+static int hf_fcels_fcpflags_rdxr;
+static int hf_fcels_fcpflags_wrxr;
+static int hf_fcels_prliloflags;
+static int hf_fcels_tprloflags_opav;
+static int hf_fcels_tprloflags_rpav;
+static int hf_fcels_tprloflags_npv;
+static int hf_fcels_tprloflags_gprlo;
+static int hf_fcels_speedflags;
+static int hf_fcels_speedflags_1gb;
+static int hf_fcels_speedflags_2gb;
+static int hf_fcels_speedflags_4gb;
+static int hf_fcels_speedflags_10gb;
+static int hf_fcels_prliloflags_opav;
+static int hf_fcels_prliloflags_ipe;
+static int hf_fcels_prliloflags_eip;
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_fcels_rnft_index_of_first_rec_in_list = -1;
-static int hf_fcels_lip_f7_received_count = -1;
-static int hf_fcels_recovery_qualifier_status = -1;
-static int hf_fcels_rpl_port_identifier = -1;
-static int hf_fcels_rpl_index_of_i_port_block = -1;
-static int hf_fcels_lip_f7_initiated_count = -1;
-static int hf_fcels_srl_fl_port_addr = -1;
-static int hf_fcels_loss_of_signal_count = -1;
-static int hf_fcels_lirr_regn_function = -1;
-static int hf_fcels_rscn_page_len = -1;
-static int hf_fcels_prlilo_service_parameter_response = -1;
-static int hf_fcels_prlilo_type_code_extension = -1;
-static int hf_fcels_rnft_list_length = -1;
-static int hf_fcels_rpl_index = -1;
-static int hf_fcels_rpl_physical_port = -1;
-static int hf_fcels_prlilo_originator_pa = -1;
-static int hf_fcels_rpl_list_length = -1;
-static int hf_fcels_common_identification_data_length = -1;
-static int hf_fcels_loss_of_sync_count = -1;
-static int hf_fcels_lip_reset_received_count = -1;
-static int hf_fcels_rpl_max_size = -1;
-static int hf_fcels_prlilo_response_code = -1;
-static int hf_fcels_invalid_crc_count = -1;
-static int hf_fcels_rscn_payload_len = -1;
-static int hf_fcels_link_failure_count = -1;
-static int hf_fcels_prlilo_3rd_party_n_port_id = -1;
-static int hf_fcels_lip_al_ps = -1;
-static int hf_fcels_prlilo_type = -1;
-static int hf_fcels_lirr_regn_format = -1;
-static int hf_fcels_srl_flag = -1;
-static int hf_fcels_prlilo_page_length = -1;
-static int hf_fcels_rpl_payload_length = -1;
-static int hf_fcels_rpsc_port_oper_speed = -1;
-static int hf_fcels_lip_reset_initiated_count = -1;
-static int hf_fcels_l_port_status = -1;
-static int hf_fcels_primitive_seq_protocol_err = -1;
-static int hf_fcels_rnft_max_size = -1;
-static int hf_fcels_lip_f8_received_count = -1;
-static int hf_fcels_rnft_index = -1;
-static int hf_fcels_rnft_payload_len = -1;
-static int hf_fcels_prlilo_payload_length = -1;
-static int hf_fcels_prlilo_responder_pa = -1;
-static int hf_fcels_rpsc_number_of_entries = -1;
-static int hf_fcels_prlilo_3rd_party_originator_pa = -1;
-static int hf_fcels_invalid_xmission_word = -1;
-static int hf_fcels_rnft_fc4_qualifier = -1;
-static int hf_fcels_lip_f8_initiated_count = -1;
-static int hf_fcels_rpl_port_name = -1;
+static int hf_fcels_rnft_index_of_first_rec_in_list;
+static int hf_fcels_lip_f7_received_count;
+static int hf_fcels_recovery_qualifier_status;
+static int hf_fcels_rpl_port_identifier;
+static int hf_fcels_rpl_index_of_i_port_block;
+static int hf_fcels_lip_f7_initiated_count;
+static int hf_fcels_srl_fl_port_addr;
+static int hf_fcels_loss_of_signal_count;
+static int hf_fcels_lirr_regn_function;
+static int hf_fcels_rscn_page_len;
+static int hf_fcels_prlilo_service_parameter_response;
+static int hf_fcels_prlilo_type_code_extension;
+static int hf_fcels_rnft_list_length;
+static int hf_fcels_rpl_index;
+static int hf_fcels_rpl_physical_port;
+static int hf_fcels_prlilo_originator_pa;
+static int hf_fcels_rpl_list_length;
+static int hf_fcels_common_identification_data_length;
+static int hf_fcels_loss_of_sync_count;
+static int hf_fcels_lip_reset_received_count;
+static int hf_fcels_rpl_max_size;
+static int hf_fcels_prlilo_response_code;
+static int hf_fcels_invalid_crc_count;
+static int hf_fcels_rscn_payload_len;
+static int hf_fcels_link_failure_count;
+static int hf_fcels_prlilo_3rd_party_n_port_id;
+static int hf_fcels_lip_al_ps;
+static int hf_fcels_prlilo_type;
+static int hf_fcels_lirr_regn_format;
+static int hf_fcels_srl_flag;
+static int hf_fcels_prlilo_page_length;
+static int hf_fcels_rpl_payload_length;
+static int hf_fcels_rpsc_port_oper_speed;
+static int hf_fcels_lip_reset_initiated_count;
+static int hf_fcels_l_port_status;
+static int hf_fcels_primitive_seq_protocol_err;
+static int hf_fcels_rnft_max_size;
+static int hf_fcels_lip_f8_received_count;
+static int hf_fcels_rnft_index;
+static int hf_fcels_rnft_payload_len;
+static int hf_fcels_prlilo_payload_length;
+static int hf_fcels_prlilo_responder_pa;
+static int hf_fcels_rpsc_number_of_entries;
+static int hf_fcels_prlilo_3rd_party_originator_pa;
+static int hf_fcels_invalid_xmission_word;
+static int hf_fcels_rnft_fc4_qualifier;
+static int hf_fcels_lip_f8_initiated_count;
+static int hf_fcels_rpl_port_name;
 
-static gint ett_fcels                   = -1;
-static gint ett_fcels_lsrjt             = -1;
-static gint ett_fcels_acc               = -1;
-static gint ett_fcels_logi              = -1;
-static gint ett_fcels_logi_cmnsvc       = -1;
-static gint ett_fcels_logi_clssvc       = -1;
-static gint ett_fcels_logo              = -1;
-static gint ett_fcels_abtx              = -1;
-static gint ett_fcels_rsi               = -1;
-static gint ett_fcels_rrq               = -1;
-static gint ett_fcels_rec               = -1;
-static gint ett_fcels_prli              = -1;
-static gint ett_fcels_prli_svcpg        = -1;
-static gint ett_fcels_adisc             = -1;
-static gint ett_fcels_farp              = -1;
-static gint ett_fcels_rps               = -1;
-static gint ett_fcels_rpl               = -1;
-static gint ett_fcels_rplpb             = -1;
-static gint ett_fcels_fan               = -1;
-static gint ett_fcels_rscn              = -1;
-static gint ett_fcels_rscn_rec          = -1;
-static gint ett_fcels_estat             = -1;
-static gint ett_fcels_scr               = -1;
-static gint ett_fcels_rnft              = -1;
-static gint ett_fcels_rnft_fc4          = -1;
-static gint ett_fcels_lsts              = -1;
-static gint ett_fcels_rnid              = -1;
-static gint ett_fcels_rlir              = -1;
-static gint ett_fcels_lirr              = -1;
-static gint ett_fcels_srl               = -1;
-static gint ett_fcels_rpsc              = -1;
-static gint ett_fcels_cbind             = -1;
-static gint ett_fcels_cmnfeatures       = -1;
-static gint ett_fcels_clsflags          = -1;
-static gint ett_fcels_initctl           = -1;
-static gint ett_fcels_rcptctl           = -1;
-static gint ett_fcels_fcpflags          = -1;
-static gint ett_fcels_prliloflags       = -1;
-static gint ett_fcels_speedflags        = -1;
+static int ett_fcels;
+static int ett_fcels_lsrjt;
+static int ett_fcels_acc;
+static int ett_fcels_logi;
+static int ett_fcels_logi_cmnsvc;
+static int ett_fcels_logi_clssvc;
+static int ett_fcels_logo;
+static int ett_fcels_abtx;
+static int ett_fcels_rsi;
+static int ett_fcels_rrq;
+static int ett_fcels_rec;
+static int ett_fcels_prli;
+static int ett_fcels_prli_svcpg;
+static int ett_fcels_adisc;
+static int ett_fcels_farp;
+static int ett_fcels_rps;
+static int ett_fcels_rpl;
+static int ett_fcels_rplpb;
+static int ett_fcels_fan;
+static int ett_fcels_rscn;
+static int ett_fcels_rscn_rec;
+static int ett_fcels_estat;
+static int ett_fcels_scr;
+static int ett_fcels_rnft;
+static int ett_fcels_rnft_fc4;
+static int ett_fcels_lsts;
+static int ett_fcels_rnid;
+static int ett_fcels_rlir;
+static int ett_fcels_lirr;
+static int ett_fcels_srl;
+static int ett_fcels_rpsc;
+static int ett_fcels_cbind;
+static int ett_fcels_cmnfeatures;
+static int ett_fcels_clsflags;
+static int ett_fcels_initctl;
+static int ett_fcels_rcptctl;
+static int ett_fcels_fcpflags;
+static int ett_fcels_prliloflags;
+static int ett_fcels_speedflags;
 
-static expert_field ei_fcels_src_unknown = EI_INIT;
-static expert_field ei_fcels_dst_unknown = EI_INIT;
-static expert_field ei_fcels_no_record_of_els_req = EI_INIT;
-static expert_field ei_fcels_no_record_of_exchange = EI_INIT;
+static expert_field ei_fcels_src_unknown;
+static expert_field ei_fcels_dst_unknown;
+static expert_field ei_fcels_no_record_of_els_req;
+static expert_field ei_fcels_no_record_of_exchange;
 
 static int * const hf_fcels_estat_fields[] = {
     &hf_fcels_estat_resp,
@@ -602,22 +602,22 @@ static const value_string unbind_status_vals[] = {
 };
 
 typedef struct _fcels_conv_key {
-    guint32 conv_idx;
+    uint32_t conv_idx;
 } fcels_conv_key_t;
 
 typedef struct _fcels_conv_data {
-    guint32 opcode;
+    uint32_t opcode;
 } fcels_conv_data_t;
 
-static wmem_map_t *fcels_req_hash = NULL;
+static wmem_map_t *fcels_req_hash;
 
 static dissector_handle_t fcsp_handle;
 
 /*
  * Hash Functions
  */
-static gint
-fcels_equal(gconstpointer v, gconstpointer w)
+static int
+fcels_equal(const void *v, const void *w)
 {
   const fcels_conv_key_t *v1 = (const fcels_conv_key_t *)v;
   const fcels_conv_key_t *v2 = (const fcels_conv_key_t *)w;
@@ -625,11 +625,11 @@ fcels_equal(gconstpointer v, gconstpointer w)
   return (v1->conv_idx == v2->conv_idx);
 }
 
-static guint
-fcels_hash (gconstpointer v)
+static unsigned
+fcels_hash (const void *v)
 {
     const fcels_conv_key_t *key = (const fcels_conv_key_t *)v;
-    guint val;
+    unsigned val;
 
     val = key->conv_idx;
 
@@ -654,7 +654,7 @@ static const true_false_string tfs_fc_fcels_cmn_payload = {
 };
 
 static void
-dissect_cmnsvc (proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint16 flags, guint8 opcode)
+dissect_cmnsvc (proto_tree *parent_tree, tvbuff_t *tvb, int offset, uint16_t flags, uint8_t opcode)
 {
     static int * const common_flags[] = {
         &hf_fcels_cmn_cios,
@@ -709,7 +709,7 @@ static const true_false_string tfs_fc_fcels_cls_nzctl = {
 
 /* The next 3 routines decode only Class 2 & Class 3 relevant bits */
 static void
-dissect_clssvc_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint16 flags, guint8 opcode)
+dissect_clssvc_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, uint16_t flags, uint8_t opcode)
 {
     static int * const common_flags[] = {
         &hf_fcels_cls_cns,
@@ -764,7 +764,7 @@ static const true_false_string tfs_fc_fcels_fcpflags_wrxr = {
 };
 
 static void
-dissect_fcp_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint32 flags, guint8 isreq)
+dissect_fcp_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, uint32_t flags, uint8_t isreq)
 {
     static int * const req_flags[] = {
         &hf_fcels_fcpflags_trireq,
@@ -801,7 +801,7 @@ dissect_fcp_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint32 f
 
 
 static void
-dissect_speed_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint32 flags, int port)
+dissect_speed_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, uint32_t flags, int port)
 {
     proto_item *item;
     static int * const speed_flags[] = {
@@ -831,7 +831,7 @@ static const true_false_string tfs_fc_fcels_prliloflags_eip = {
 };
 
 static void
-dissect_prlilo_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, int flags, guint8 opcode)
+dissect_prlilo_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, int flags, uint8_t opcode)
 {
     static int * const tprlo_flags[] = {
         &hf_fcels_tprloflags_opav,
@@ -882,7 +882,7 @@ static const true_false_string tfs_fc_fcels_initctl_ackgaa = {
 };
 
 static void
-dissect_initctl_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint16 flags, guint8 opcode)
+dissect_initctl_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, uint16_t flags, uint8_t opcode)
 {
     static int * const plogi_flags[] = {
         &hf_fcels_initctl_initial_pa,
@@ -922,7 +922,7 @@ static const value_string rcptctl_category_vals[] = {
 };
 
 static void
-dissect_rcptctl_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint16 flags, guint8 opcode)
+dissect_rcptctl_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, uint16_t flags, uint8_t opcode)
 {
     static int * const plogi_flags[] = {
         &hf_fcels_rcptctl_ack0,
@@ -953,14 +953,14 @@ dissect_rcptctl_flags (proto_tree *parent_tree, tvbuff_t *tvb, int offset, guint
 
 static void
 dissect_fcels_logi (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                    proto_item *ti, guint8 opcode)
+                    proto_item *ti, uint8_t opcode)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 0,
         svcvld = 0,
         svcclass;
     proto_tree *logi_tree, *cmnsvc_tree;
-    guint16 flag;
+    uint16_t flag;
 
     if (tree) {
         logi_tree = proto_item_add_subtree (ti, ett_fcels_logi);
@@ -1019,21 +1019,21 @@ dissect_fcels_logi (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_plogi (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                     guint8 isreq _U_, proto_item *ti)
+                     uint8_t isreq _U_, proto_item *ti)
 {
     dissect_fcels_logi (tvb, pinfo, tree, ti, FC_ELS_PLOGI);
 }
 
 static void
 dissect_fcels_flogi (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                     guint8 isreq _U_, proto_item *ti)
+                     uint8_t isreq _U_, proto_item *ti)
 {
     dissect_fcels_logi (tvb, pinfo, tree, ti, FC_ELS_FLOGI);
 }
 
 static void
 dissect_fcels_logout (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                      guint8 isreq, proto_item *ti)
+                      uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 5;             /* bypass opcode+rsvd field */
@@ -1056,7 +1056,7 @@ dissect_fcels_logout (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_abtx (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                    guint8 isreq, proto_item *ti)
+                    uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 0;
@@ -1080,7 +1080,7 @@ dissect_fcels_abtx (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_rsi (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                   guint8 isreq, proto_item *ti)
+                   uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 4;
@@ -1102,7 +1102,7 @@ dissect_fcels_rsi (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_rrq (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                   guint8 isreq, proto_item *ti)
+                   uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 0;
@@ -1123,7 +1123,7 @@ dissect_fcels_rrq (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_rec (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                   guint8 isreq, proto_item *ti)
+                   uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 0;
@@ -1161,21 +1161,21 @@ dissect_fcels_rec (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_pdisc (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                     guint8 isreq _U_, proto_item *ti)
+                     uint8_t isreq _U_, proto_item *ti)
 {
     dissect_fcels_logi (tvb, pinfo, tree, ti, FC_ELS_PDISC);
 }
 
 static void
 dissect_fcels_fdisc (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                     guint8 isreq _U_, proto_item *ti)
+                     uint8_t isreq _U_, proto_item *ti)
 {
     dissect_fcels_logi (tvb, pinfo, tree, ti, FC_ELS_FDISC);
 }
 
 static void
 dissect_fcels_adisc (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint8 isreq _U_, proto_item *ti)
+                     uint8_t isreq _U_, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 5;
@@ -1229,28 +1229,28 @@ dissect_fcels_farp (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_farp_req (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                        guint8 isreq _U_, proto_item *ti)
+                        uint8_t isreq _U_, proto_item *ti)
 {
     dissect_fcels_farp (tvb, pinfo, tree, ti);
 }
 
 static void
 dissect_fcels_farp_rply (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                         guint8 isreq _U_, proto_item *ti)
+                         uint8_t isreq _U_, proto_item *ti)
 {
     dissect_fcels_farp (tvb, pinfo, tree, ti);
 }
 
 static void
 dissect_fcels_rps (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                   guint8 isreq, proto_item *ti)
+                   uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 3;
-    guint8 flag;
+    uint8_t flag;
     proto_tree *rps_tree;
 
-    flag = tvb_get_guint8 (tvb, offset);
+    flag = tvb_get_uint8 (tvb, offset);
 
     if (tree) {
         rps_tree = proto_item_add_subtree (ti, ett_fcels_rps);
@@ -1296,7 +1296,7 @@ dissect_fcels_rps (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_rpl (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                   guint8 isreq, proto_item *ti)
+                   uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 0;
@@ -1334,7 +1334,7 @@ dissect_fcels_rpl (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_fan (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                   guint8 isreq _U_, proto_item *ti)
+                   uint8_t isreq _U_, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 5;
@@ -1354,7 +1354,7 @@ dissect_fcels_fan (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_rscn (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                    guint8 isreq, proto_item *ti)
+                    uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 1;
@@ -1395,7 +1395,7 @@ dissect_fcels_rscn (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_scr (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                   guint8 isreq, proto_item *ti)
+                   uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 7;
@@ -1411,10 +1411,10 @@ dissect_fcels_scr (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_rnft (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                    guint8 isreq, proto_item *ti)
+                    uint8_t isreq, proto_item *ti)
 {
     int offset = 0;
-    guint16 numrec, i;
+    uint16_t numrec, i;
     proto_tree *rnft_tree, *fc4_tree;
 
     if (tree) {
@@ -1428,7 +1428,7 @@ dissect_fcels_rnft (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
         }
         else {
             proto_tree_add_item(rnft_tree, hf_fcels_rnft_payload_len, tvb, offset+2, 2, ENC_BIG_ENDIAN);
-            numrec = tvb_get_guint8 (tvb, offset+5);
+            numrec = tvb_get_uint8 (tvb, offset+5);
             proto_tree_add_item(rnft_tree, hf_fcels_rnft_list_length, tvb, offset+5, 1, ENC_BIG_ENDIAN);
             proto_tree_add_item(rnft_tree, hf_fcels_rnft_index_of_first_rec_in_list, tvb, offset+7, 1, ENC_BIG_ENDIAN);
             offset = 8;
@@ -1447,7 +1447,7 @@ dissect_fcels_rnft (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_lsts (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                    guint8 isreq, proto_item *ti)
+                    uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 5;
@@ -1480,10 +1480,10 @@ dissect_fcels_lsts (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_prlilo_payload (tvbuff_t *tvb, packet_info *pinfo _U_,
-                              guint8 isreq, proto_item *ti, guint8 opcode)
+                              uint8_t isreq, proto_item *ti, uint8_t opcode)
 {
     int offset = 0;
-    guint8 type;
+    uint8_t type;
     proto_tree *prli_tree, *svcpg_tree;
     int num_svcpg, payload_len, i, flag;
 
@@ -1504,11 +1504,11 @@ dissect_fcels_prlilo_payload (tvbuff_t *tvb, packet_info *pinfo _U_,
         svcpg_tree = proto_tree_add_subtree_format(prli_tree, tvb, offset, 16,
                                      ett_fcels_prli_svcpg, NULL, "Service Parameter Page %u", i);
 
-        type = tvb_get_guint8 (tvb, offset);
+        type = tvb_get_uint8 (tvb, offset);
         proto_tree_add_item(svcpg_tree, hf_fcels_prlilo_type, tvb, offset, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(svcpg_tree, hf_fcels_prlilo_type_code_extension, tvb, offset+1, 1, ENC_BIG_ENDIAN);
 
-        flag = tvb_get_guint8 (tvb, offset+2);
+        flag = tvb_get_uint8 (tvb, offset+2);
         dissect_prlilo_flags (svcpg_tree, tvb, offset+2, flag, opcode);
 
         if (!isreq && (opcode != FC_ELS_TPRLO)) {
@@ -1538,7 +1538,7 @@ dissect_fcels_prlilo_payload (tvbuff_t *tvb, packet_info *pinfo _U_,
 
 static void
 dissect_fcels_prli (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                    guint8 isreq, proto_item *ti)
+                    uint8_t isreq, proto_item *ti)
 {
     if (tree) {
         dissect_fcels_prlilo_payload (tvb, pinfo, isreq, ti, FC_ELS_PRLI);
@@ -1547,7 +1547,7 @@ dissect_fcels_prli (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 static void
 dissect_fcels_prlo (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                    guint8 isreq, proto_item *ti)
+                    uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     if (tree) {
@@ -1557,7 +1557,7 @@ dissect_fcels_prlo (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 static void
 dissect_fcels_tprlo (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                     guint8 isreq, proto_item *ti)
+                     uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
 
@@ -1568,12 +1568,12 @@ dissect_fcels_tprlo (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 static void
 dissect_fcels_lirr (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                    guint8 isreq _U_, proto_item *ti)
+                    uint8_t isreq _U_, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 4;
     proto_tree *lirr_tree;
-    guint8 lirr_fmt;
+    uint8_t lirr_fmt;
 
     if (tree) {
         lirr_tree = proto_item_add_subtree (ti, ett_fcels_lirr);
@@ -1581,7 +1581,7 @@ dissect_fcels_lirr (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
         proto_tree_add_item (lirr_tree, hf_fcels_opcode, tvb, offset-4, 1, ENC_BIG_ENDIAN);
 
         proto_tree_add_item(lirr_tree, hf_fcels_lirr_regn_function, tvb, offset, 1, ENC_BIG_ENDIAN);
-        lirr_fmt = tvb_get_guint8 (tvb, offset+1);
+        lirr_fmt = tvb_get_uint8 (tvb, offset+1);
         if (!lirr_fmt) {
             /* This scheme is resorted to because the value 0 has a string in
              * the value_string that is not what we want displayed here.
@@ -1598,7 +1598,7 @@ static const true_false_string tfs_srl_flag = { "Scan only specified FL Port", "
 
 static void
 dissect_fcels_srl (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                   guint8 isreq, proto_item *ti)
+                   uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 4;
@@ -1618,7 +1618,7 @@ dissect_fcels_srl (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_rpsc (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                    guint8 isreq, proto_item *ti)
+                    uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 2;
@@ -1712,7 +1712,7 @@ dissect_fcels_unbind (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 static void
 dissect_fcels_rnid (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                    guint8 isreq, proto_item *ti)
+                    uint8_t isreq, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 0;
@@ -1731,7 +1731,7 @@ dissect_fcels_rnid (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
             /* We only decode responses to nodeid fmt DF */
             proto_tree_add_item (rnid_tree, hf_fcels_nodeidfmt, tvb, offset+4,
                                  1, ENC_BIG_ENDIAN);
-            clen = tvb_get_guint8 (tvb, offset+5);
+            clen = tvb_get_uint8 (tvb, offset+5);
             proto_tree_add_item(rnid_tree, hf_fcels_common_identification_data_length, tvb, offset+5, 1, ENC_BIG_ENDIAN);
             proto_tree_add_item (rnid_tree, hf_fcels_spidlen, tvb, offset+7,
                                  1, ENC_BIG_ENDIAN);
@@ -1741,7 +1741,7 @@ dissect_fcels_rnid (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
                 proto_tree_add_item (rnid_tree, hf_fcels_fnname, tvb,
                                        offset+16, 8, ENC_NA);
             }
-            if (tvb_get_guint8 (tvb, offset+4) == 0xDF) {
+            if (tvb_get_uint8 (tvb, offset+4) == 0xDF) {
                 /* Decode the Specific Node ID Format as this is known */
                 proto_tree_add_item (rnid_tree, hf_fcels_vendoruniq, tvb,
                                      offset+24, 16, ENC_NA);
@@ -1768,7 +1768,7 @@ dissect_fcels_rnid (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 static void
 dissect_fcels_rlir (tvbuff_t *tvb _U_, packet_info *pinfo _U_,
-                    proto_tree *tree, guint8 isreq _U_,
+                    proto_tree *tree, uint8_t isreq _U_,
                     proto_item *ti _U_)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
@@ -1779,7 +1779,7 @@ dissect_fcels_rlir (tvbuff_t *tvb _U_, packet_info *pinfo _U_,
 
 static void
 dissect_fcels_lsrjt (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint8 isreq _U_, proto_item *ti)
+                     uint8_t isreq _U_, proto_item *ti)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     int offset = 5;
@@ -1803,16 +1803,16 @@ dissect_fcels (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 /* Set up structures needed to add the protocol subtree and manage it */
     proto_item *ti = NULL;
     proto_tree *acc_tree;
-    guint8 isreq = FC_ELS_REQ;
+    uint8_t isreq = FC_ELS_REQ;
     int offset = 0;
-    guint8 opcode,
+    uint8_t opcode,
            failed_opcode = 0;
     conversation_t *conversation;
     fcels_conv_data_t *cdata;
     fcels_conv_key_t ckey, *req_key;
-    guint find_options, new_options;
+    unsigned find_options, new_options;
     address dstaddr;
-    guint8 addrdata[3];
+    uint8_t addrdata[3];
     fc_hdr *fchdr;
 
     /* Reject the packet if data is NULL */
@@ -1825,7 +1825,7 @@ dissect_fcels (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     /* col_clear(pinfo->cinfo, COL_INFO);  XXX: It seems to me that COL_INFO should be cleared here ?? */
 
     /* decoding of this is done by each individual opcode handler */
-    opcode = tvb_get_guint8 (tvb, 0);
+    opcode = tvb_get_uint8 (tvb, 0);
 
     if (tree) {
         ti = proto_tree_add_protocol_format (tree, proto_fcels, tvb, 0,
@@ -1835,7 +1835,7 @@ dissect_fcels (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     /* Register conversation in case this is not a response */
     if ((opcode != FC_ELS_LSRJT) && (opcode != FC_ELS_ACC)) {
         if (opcode == FC_ELS_FLOGI) {
-            const guint8 *srcfc;
+            const uint8_t *srcfc;
 
             /* Check that the source address is, in fact, an FC address */
             if (pinfo->src.type != AT_FC) {
@@ -1845,7 +1845,7 @@ dissect_fcels (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
                 return 0;
             }
 
-            srcfc = (const guint8 *)pinfo->src.data;
+            srcfc = (const uint8_t *)pinfo->src.data;
             if (srcfc[2]) {
                 /* If it is a loop port, we'll need to remember the ALPA */
                 find_options = NO_PORT_B;
@@ -1902,7 +1902,7 @@ dissect_fcels (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
             /* FLOGI has two ways to save state: without the src and using just
              * the port (ALPA) part of the address. Try both.
              */
-            const guint8 *dstfc;
+            const uint8_t *dstfc;
 
             /* Check that the source address is, in fact, an FC address */
             if (pinfo->dst.type != AT_FC) {
@@ -1912,7 +1912,7 @@ dissect_fcels (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
                 return 0;
             }
 
-            dstfc = (const guint8 *)pinfo->dst.data;
+            dstfc = (const uint8_t *)pinfo->dst.data;
 
             addrdata[0] = addrdata[1] = 0;
             addrdata[2] = dstfc[2];
@@ -2535,7 +2535,7 @@ proto_register_fcels (void)
       { &hf_fcels_common_identification_data_length, { "Common Identification Data Length", "fcels.common_identification_data_length", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_fcels,
         &ett_fcels_lsrjt,
         &ett_fcels_acc,

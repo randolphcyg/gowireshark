@@ -15,6 +15,7 @@
 
 #include "config.h"
 #include <epan/packet.h>
+#include <epan/tfs.h>
 #include <epan/conversation.h>
 #include <epan/prefs.h>
 
@@ -448,51 +449,51 @@ void proto_reg_handoff_gvsp(void);
 /* Structure to hold GVSP packet information */
 typedef struct _gvsp_packet_info
 {
-    gint    chunk;
-    guint8  format;
-    guint16 status;
-    guint16 payloadtype;
-    guint64 blockid;
-    guint32 packetid;
-    gint    enhanced;
-    gint    flag_resendrangeerror;
-    gint    flag_previousblockdropped;
-    gint    flag_packetresend;
+    int     chunk;
+    uint8_t format;
+    uint16_t status;
+    uint16_t payloadtype;
+    uint64_t blockid;
+    uint32_t packetid;
+    int     enhanced;
+    int     flag_resendrangeerror;
+    int     flag_previousblockdropped;
+    int     flag_packetresend;
 } gvsp_packet_info;
 
 
 /*Define the gvsp proto */
-static int proto_gvsp = -1;
+static int proto_gvsp;
 /*static int global_gvsp_port = 20202;*/
 static dissector_handle_t gvsp_handle;
 
 
 /* Define the tree for gvsp */
-static int ett_gvsp = -1;
-static int ett_gvsp_flags = -1;
-static int ett_gvsp_header = -1;
-static int ett_gvsp_payload = -1;
-static int ett_gvsp_trailer = -1;
-static int ett_gvsp_pixelformat = -1;
-static int ett_gvsp_fieldinfo = -1;
-static int ett_gvsp_cs = -1;
-static int ett_gvsp_sc_zone_direction = -1;
-static int ett_gvsp_zoneinfo = -1;
-static int ett_gvsp_zoneinfo_multipart = -1;
-static int ett_gvsp_partinfo_leader = -1;
-static int ett_gvsp_partinfo_trailer = -1;
-static int ett_gvsp_gendc_leader_flags = -1;
-static int ett_gvsp_gendc_payload_data_flags = -1;
-static int ett_gvsp_gendc_payload_flow_flags = -1;
-static int ett_gvsp_gendc_container_descriptor = -1;
-static int ett_gvsp_gendc_container_header_flags = -1;
-static int ett_gvsp_gendc_container_header_variable_fields = -1;
-static int ett_gvsp_gendc_container_header_component_offsets = -1;
-static int ett_gvsp_gendc_component_header = -1;
-static int ett_gvsp_gendc_part_offsets = -1;
-static int ett_gvsp_gendc_part_header = -1;
-static int ett_gvsp_gendc_component_header_flags = -1;
-static int ett_gvsp_gendc_part_header_flags = -1;
+static int ett_gvsp;
+static int ett_gvsp_flags;
+static int ett_gvsp_header;
+static int ett_gvsp_payload;
+static int ett_gvsp_trailer;
+static int ett_gvsp_pixelformat;
+static int ett_gvsp_fieldinfo;
+static int ett_gvsp_cs;
+static int ett_gvsp_sc_zone_direction;
+static int ett_gvsp_zoneinfo;
+static int ett_gvsp_zoneinfo_multipart;
+static int ett_gvsp_partinfo_leader;
+static int ett_gvsp_partinfo_trailer;
+static int ett_gvsp_gendc_leader_flags;
+static int ett_gvsp_gendc_payload_data_flags;
+static int ett_gvsp_gendc_payload_flow_flags;
+static int ett_gvsp_gendc_container_descriptor;
+static int ett_gvsp_gendc_container_header_flags;
+static int ett_gvsp_gendc_container_header_variable_fields;
+static int ett_gvsp_gendc_container_header_component_offsets;
+static int ett_gvsp_gendc_component_header;
+static int ett_gvsp_gendc_part_offsets;
+static int ett_gvsp_gendc_part_header;
+static int ett_gvsp_gendc_component_header_flags;
+static int ett_gvsp_gendc_part_header_flags;
 
 static const value_string statusnames[] = {
     { GEV_STATUS_SUCCESS,                             "GEV_STATUS_SUCCESS" },
@@ -927,174 +928,174 @@ static const val64_string gendc_component_typeid_values[] = {
     { 0, NULL }
 };
 
-static int hf_gvsp_status = -1;
-static int hf_gvsp_blockid16 = -1;
-static int hf_gvsp_flags = -1;
-static int hf_gvsp_flagdevicespecific0 = -1;
-static int hf_gvsp_flagdevicespecific1 = -1;
-static int hf_gvsp_flagdevicespecific2 = -1;
-static int hf_gvsp_flagdevicespecific3 = -1;
-static int hf_gvsp_flagdevicespecific4 = -1;
-static int hf_gvsp_flagdevicespecific5 = -1;
-static int hf_gvsp_flagdevicespecific6 = -1;
-static int hf_gvsp_flagdevicespecific7 = -1;
-static int hf_gvsp_flagresendrangeerror = -1;
-static int hf_gvsp_flagpreviousblockdropped = -1;
-static int hf_gvsp_flagpacketresend = -1;
-static int hf_gvsp_format = -1;
-static int hf_gvsp_packetid24 = -1;
-static int hf_gvsp_blockid64 = -1;
-static int hf_gvsp_packetid32 = -1;
-static int hf_gvsp_payloadtype = -1;
-static int hf_gvsp_payloaddata = -1;
-static int hf_gvsp_timestamp = -1;
-static int hf_gvsp_pixelformat = -1;
-static int hf_gvsp_sizex = -1;
-static int hf_gvsp_sizey = -1;
-static int hf_gvsp_offsetx = -1;
-static int hf_gvsp_offsety = -1;
-static int hf_gvsp_paddingx = -1;
-static int hf_gvsp_paddingy = -1;
-static int hf_gvsp_payloaddatasize = -1;
-static int hf_gvsp_pixelcolor = -1;
-static int hf_gvsp_pixeloccupy = -1;
-static int hf_gvsp_pixelid = -1;
-static int hf_gvsp_filename = -1;
-static int hf_gvsp_payloadlength = -1;
-static int hf_gvsp_fieldinfo = -1;
-static int hf_gvsp_fieldid = -1;
-static int hf_gvsp_fieldcount = -1;
-static int hf_gvsp_genericflags = -1;
-static int hf_gvsp_timestamptickfrequency = -1;
-static int hf_gvsp_dataformat = -1;
-static int hf_gvsp_packetizationmode = -1;
-static int hf_gvsp_packetsize = -1;
-static int hf_gvsp_profileidc = -1;
-static int hf_gvsp_cs = -1;
-static int hf_gvsp_cs0 = -1;
-static int hf_gvsp_cs1 = -1;
-static int hf_gvsp_cs2 = -1;
-static int hf_gvsp_cs3 = -1;
-static int hf_gvsp_levelidc = -1;
-static int hf_gvsp_sropinterleavingdepth = -1;
-static int hf_gvsp_sropmaxdondiff = -1;
-static int hf_gvsp_sropdeintbufreq = -1;
-static int hf_gvsp_sropinitbuftime = -1;
-static int hf_gvsp_add_zones = -1;
-static int hf_gvsp_zoneinfo = -1;
-static int hf_gvsp_zoneid = -1;
-static int hf_gvsp_endofzone = -1;
-static int hf_gvsp_addressoffset = -1;
-static int hf_gvsp_sc_zone_direction = -1;
-static int hf_gvsp_sc_zone0_direction = -1;
-static int hf_gvsp_sc_zone1_direction = -1;
-static int hf_gvsp_sc_zone2_direction = -1;
-static int hf_gvsp_sc_zone3_direction = -1;
-static int hf_gvsp_sc_zone4_direction = -1;
-static int hf_gvsp_sc_zone5_direction = -1;
-static int hf_gvsp_sc_zone6_direction = -1;
-static int hf_gvsp_sc_zone7_direction = -1;
-static int hf_gvsp_sc_zone8_direction = -1;
-static int hf_gvsp_sc_zone9_direction = -1;
-static int hf_gvsp_sc_zone10_direction = -1;
-static int hf_gvsp_sc_zone11_direction = -1;
-static int hf_gvsp_sc_zone12_direction = -1;
-static int hf_gvsp_sc_zone13_direction = -1;
-static int hf_gvsp_sc_zone14_direction = -1;
-static int hf_gvsp_sc_zone15_direction = -1;
-static int hf_gvsp_sc_zone16_direction = -1;
-static int hf_gvsp_sc_zone17_direction = -1;
-static int hf_gvsp_sc_zone18_direction = -1;
-static int hf_gvsp_sc_zone19_direction = -1;
-static int hf_gvsp_sc_zone20_direction = -1;
-static int hf_gvsp_sc_zone21_direction = -1;
-static int hf_gvsp_sc_zone22_direction = -1;
-static int hf_gvsp_sc_zone23_direction = -1;
-static int hf_gvsp_sc_zone24_direction = -1;
-static int hf_gvsp_sc_zone25_direction = -1;
-static int hf_gvsp_sc_zone26_direction = -1;
-static int hf_gvsp_sc_zone27_direction = -1;
-static int hf_gvsp_sc_zone28_direction = -1;
-static int hf_gvsp_sc_zone29_direction = -1;
-static int hf_gvsp_sc_zone30_direction = -1;
-static int hf_gvsp_sc_zone31_direction = -1;
-static int hf_gvsp_numparts = -1;
-static int hf_gvsp_multipart_data_type = -1;
-static int hf_gvsp_partlength = -1;
-static int hf_gvsp_multi_part_source_id = -1;
-static int hf_gvsp_data_purpose_id = -1;
-static int hf_gvsp_region_id = -1;
-static int hf_gvsp_endofpart = -1;
-static int hf_gvsp_add_zones_multipart = -1;
-static int hf_gvsp_zoneinfo_multipart = -1;
-static int hf_gvsp_multi_part_part_id = -1;
-static int hf_gvsp_data_type_specific = -1;
-static int hf_gvsp_chunk_data_payload_length_hex = -1;
-static int hf_gvsp_chunk_layout_id_hex = -1;
+static int hf_gvsp_status;
+static int hf_gvsp_blockid16;
+static int hf_gvsp_flags;
+static int hf_gvsp_flagdevicespecific0;
+static int hf_gvsp_flagdevicespecific1;
+static int hf_gvsp_flagdevicespecific2;
+static int hf_gvsp_flagdevicespecific3;
+static int hf_gvsp_flagdevicespecific4;
+static int hf_gvsp_flagdevicespecific5;
+static int hf_gvsp_flagdevicespecific6;
+static int hf_gvsp_flagdevicespecific7;
+static int hf_gvsp_flagresendrangeerror;
+static int hf_gvsp_flagpreviousblockdropped;
+static int hf_gvsp_flagpacketresend;
+static int hf_gvsp_format;
+static int hf_gvsp_packetid24;
+static int hf_gvsp_blockid64;
+static int hf_gvsp_packetid32;
+static int hf_gvsp_payloadtype;
+static int hf_gvsp_payloaddata;
+static int hf_gvsp_timestamp;
+static int hf_gvsp_pixelformat;
+static int hf_gvsp_sizex;
+static int hf_gvsp_sizey;
+static int hf_gvsp_offsetx;
+static int hf_gvsp_offsety;
+static int hf_gvsp_paddingx;
+static int hf_gvsp_paddingy;
+static int hf_gvsp_payloaddatasize;
+static int hf_gvsp_pixelcolor;
+static int hf_gvsp_pixeloccupy;
+static int hf_gvsp_pixelid;
+static int hf_gvsp_filename;
+static int hf_gvsp_payloadlength;
+static int hf_gvsp_fieldinfo;
+static int hf_gvsp_fieldid;
+static int hf_gvsp_fieldcount;
+static int hf_gvsp_genericflags;
+static int hf_gvsp_timestamptickfrequency;
+static int hf_gvsp_dataformat;
+static int hf_gvsp_packetizationmode;
+static int hf_gvsp_packetsize;
+static int hf_gvsp_profileidc;
+static int hf_gvsp_cs;
+static int hf_gvsp_cs0;
+static int hf_gvsp_cs1;
+static int hf_gvsp_cs2;
+static int hf_gvsp_cs3;
+static int hf_gvsp_levelidc;
+static int hf_gvsp_sropinterleavingdepth;
+static int hf_gvsp_sropmaxdondiff;
+static int hf_gvsp_sropdeintbufreq;
+static int hf_gvsp_sropinitbuftime;
+static int hf_gvsp_add_zones;
+static int hf_gvsp_zoneinfo;
+static int hf_gvsp_zoneid;
+static int hf_gvsp_endofzone;
+static int hf_gvsp_addressoffset;
+static int hf_gvsp_sc_zone_direction;
+static int hf_gvsp_sc_zone0_direction;
+static int hf_gvsp_sc_zone1_direction;
+static int hf_gvsp_sc_zone2_direction;
+static int hf_gvsp_sc_zone3_direction;
+static int hf_gvsp_sc_zone4_direction;
+static int hf_gvsp_sc_zone5_direction;
+static int hf_gvsp_sc_zone6_direction;
+static int hf_gvsp_sc_zone7_direction;
+static int hf_gvsp_sc_zone8_direction;
+static int hf_gvsp_sc_zone9_direction;
+static int hf_gvsp_sc_zone10_direction;
+static int hf_gvsp_sc_zone11_direction;
+static int hf_gvsp_sc_zone12_direction;
+static int hf_gvsp_sc_zone13_direction;
+static int hf_gvsp_sc_zone14_direction;
+static int hf_gvsp_sc_zone15_direction;
+static int hf_gvsp_sc_zone16_direction;
+static int hf_gvsp_sc_zone17_direction;
+static int hf_gvsp_sc_zone18_direction;
+static int hf_gvsp_sc_zone19_direction;
+static int hf_gvsp_sc_zone20_direction;
+static int hf_gvsp_sc_zone21_direction;
+static int hf_gvsp_sc_zone22_direction;
+static int hf_gvsp_sc_zone23_direction;
+static int hf_gvsp_sc_zone24_direction;
+static int hf_gvsp_sc_zone25_direction;
+static int hf_gvsp_sc_zone26_direction;
+static int hf_gvsp_sc_zone27_direction;
+static int hf_gvsp_sc_zone28_direction;
+static int hf_gvsp_sc_zone29_direction;
+static int hf_gvsp_sc_zone30_direction;
+static int hf_gvsp_sc_zone31_direction;
+static int hf_gvsp_numparts;
+static int hf_gvsp_multipart_data_type;
+static int hf_gvsp_partlength;
+static int hf_gvsp_multi_part_source_id;
+static int hf_gvsp_data_purpose_id;
+static int hf_gvsp_region_id;
+static int hf_gvsp_endofpart;
+static int hf_gvsp_add_zones_multipart;
+static int hf_gvsp_zoneinfo_multipart;
+static int hf_gvsp_multi_part_part_id;
+static int hf_gvsp_data_type_specific;
+static int hf_gvsp_chunk_data_payload_length_hex;
+static int hf_gvsp_chunk_layout_id_hex;
 
 /* Added for 2.2 support */
-static int hf_gvsp_gendc_leader_descriptor_size_v2_2 = -1;
-static int hf_gvsp_gendc_leader_flags_v2_2 = -1;
-static int hf_gvsp_gendc_leader_flags_preliminary_descriptor_v2_2 = -1;
-static int hf_gvsp_gendc_leader_flags_reserved_v2_2 = -1;
-static int hf_gvsp_gendc_payload_data_size_v2_2 = -1;
-static int hf_gvsp_gendc_payload_data_destination_offset_v2_2 = -1;
-static int hf_gvsp_gendc_payload_data_flags_v2_2 = -1;
-static int hf_gvsp_gendc_payload_data_flag_descriptor_flags_v2_2 = -1;
-static int hf_gvsp_gendc_payload_data_flag_start_of_descriptor_data_v2_2 = -1;
-static int hf_gvsp_gendc_payload_data_flag_end_of_descriptor_data_v2_2 = -1;
-static int hf_gvsp_gendc_payload_data_flags_reserved_v2_2 = -1;
-static int hf_gvsp_gendc_payload_flow_flags_v2_2 = -1;
-static int hf_gvsp_gendc_payload_flow_flag_first_packet_v2_2 = -1;
-static int hf_gvsp_gendc_payload_flow_flag_last_packet_v2_2 = -1;
-static int hf_gvsp_gendc_payload_flow_id_v2_2 = -1;
-static int hf_gvsp_gendc_header_size_v2_2 = -1;
-static int hf_gvsp_gendc_header_type_v2_2 = -1;
-static int hf_gvsp_gendc_header_reserved_1_byte_v2_2 = -1;
-static int hf_gvsp_gendc_header_reserved_2_bytes_v2_2 = -1;
-static int hf_gvsp_gendc_header_reserved_4_bytes_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_signature_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_version_major_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_version_minor_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_version_sub_minor_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_flags_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_flags_timestamp_ptp_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_flags_component_invalid_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_flags_reserved_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_id_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_variable_fields_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_variable_fields_data_size_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_variable_fields_size_x_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_variable_fields_size_y_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_variable_fields_region_offset_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_variable_fields_format_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_variable_fields_timestamp_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_variable_fields_component_count_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_variable_fields_component_invalid_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_variable_fields_reserved_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_data_size_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_data_offset_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_descriptor_size_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_component_count_v2_2 = -1;
-static int hf_gvsp_gendc_container_header_component_offset_v2_2 = -1;
-static int hf_gvsp_gendc_component_header_flags_v2_2 = -1;
-static int hf_gvsp_gendc_component_header_flags_invalid_v2_2 = -1;
-static int hf_gvsp_gendc_component_header_flags_reserved_v2_2 = -1;
-static int hf_gvsp_gendc_component_header_group_id_v2_2 = -1;
-static int hf_gvsp_gendc_component_header_source_id_v2_2 = -1;
-static int hf_gvsp_gendc_component_header_region_id_v2_2 = -1;
-static int hf_gvsp_gendc_component_header_type_id_v2_2 = -1;
-static int hf_gvsp_gendc_component_header_part_count_v2_2 = -1;
-static int hf_gvsp_gendc_component_header_part_offset_v2_2 = -1;
-static int hf_gvsp_gendc_part_header_flags_xml_reserved1_v2_2 = -1;
-static int hf_gvsp_gendc_part_header_flags_xml_zip_v2_2 = -1;
-static int hf_gvsp_gendc_part_header_flags_xml_chunk_v2_2 = -1;
-static int hf_gvsp_gendc_part_header_flags_xml_reserved2_v2_2 = -1;
-static int hf_gvsp_gendc_part_header_flags_v2_2 = -1;
-static int hf_gvsp_gendc_part_header_flow_offset_v2_2 = -1;
-static int hf_gvsp_gendc_part_header_type_specific_info_v2_2 = -1;
-static int hf_gvsp_gendc_part_header_1D_size_v2_2 = -1;
-static int hf_gvsp_gendc_part_header_1D_padding_v2_2 = -1;
+static int hf_gvsp_gendc_leader_descriptor_size_v2_2;
+static int hf_gvsp_gendc_leader_flags_v2_2;
+static int hf_gvsp_gendc_leader_flags_preliminary_descriptor_v2_2;
+static int hf_gvsp_gendc_leader_flags_reserved_v2_2;
+static int hf_gvsp_gendc_payload_data_size_v2_2;
+static int hf_gvsp_gendc_payload_data_destination_offset_v2_2;
+static int hf_gvsp_gendc_payload_data_flags_v2_2;
+static int hf_gvsp_gendc_payload_data_flag_descriptor_flags_v2_2;
+static int hf_gvsp_gendc_payload_data_flag_start_of_descriptor_data_v2_2;
+static int hf_gvsp_gendc_payload_data_flag_end_of_descriptor_data_v2_2;
+static int hf_gvsp_gendc_payload_data_flags_reserved_v2_2;
+static int hf_gvsp_gendc_payload_flow_flags_v2_2;
+static int hf_gvsp_gendc_payload_flow_flag_first_packet_v2_2;
+static int hf_gvsp_gendc_payload_flow_flag_last_packet_v2_2;
+static int hf_gvsp_gendc_payload_flow_id_v2_2;
+static int hf_gvsp_gendc_header_size_v2_2;
+static int hf_gvsp_gendc_header_type_v2_2;
+static int hf_gvsp_gendc_header_reserved_1_byte_v2_2;
+static int hf_gvsp_gendc_header_reserved_2_bytes_v2_2;
+static int hf_gvsp_gendc_header_reserved_4_bytes_v2_2;
+static int hf_gvsp_gendc_container_header_signature_v2_2;
+static int hf_gvsp_gendc_container_header_version_major_v2_2;
+static int hf_gvsp_gendc_container_header_version_minor_v2_2;
+static int hf_gvsp_gendc_container_header_version_sub_minor_v2_2;
+static int hf_gvsp_gendc_container_header_flags_v2_2;
+static int hf_gvsp_gendc_container_header_flags_timestamp_ptp_v2_2;
+static int hf_gvsp_gendc_container_header_flags_component_invalid_v2_2;
+static int hf_gvsp_gendc_container_header_flags_reserved_v2_2;
+static int hf_gvsp_gendc_container_header_id_v2_2;
+static int hf_gvsp_gendc_container_header_variable_fields_v2_2;
+static int hf_gvsp_gendc_container_header_variable_fields_data_size_v2_2;
+static int hf_gvsp_gendc_container_header_variable_fields_size_x_v2_2;
+static int hf_gvsp_gendc_container_header_variable_fields_size_y_v2_2;
+static int hf_gvsp_gendc_container_header_variable_fields_region_offset_v2_2;
+static int hf_gvsp_gendc_container_header_variable_fields_format_v2_2;
+static int hf_gvsp_gendc_container_header_variable_fields_timestamp_v2_2;
+static int hf_gvsp_gendc_container_header_variable_fields_component_count_v2_2;
+static int hf_gvsp_gendc_container_header_variable_fields_component_invalid_v2_2;
+static int hf_gvsp_gendc_container_header_variable_fields_reserved_v2_2;
+static int hf_gvsp_gendc_container_header_data_size_v2_2;
+static int hf_gvsp_gendc_container_header_data_offset_v2_2;
+static int hf_gvsp_gendc_container_header_descriptor_size_v2_2;
+static int hf_gvsp_gendc_container_header_component_count_v2_2;
+static int hf_gvsp_gendc_container_header_component_offset_v2_2;
+static int hf_gvsp_gendc_component_header_flags_v2_2;
+static int hf_gvsp_gendc_component_header_flags_invalid_v2_2;
+static int hf_gvsp_gendc_component_header_flags_reserved_v2_2;
+static int hf_gvsp_gendc_component_header_group_id_v2_2;
+static int hf_gvsp_gendc_component_header_source_id_v2_2;
+static int hf_gvsp_gendc_component_header_region_id_v2_2;
+static int hf_gvsp_gendc_component_header_type_id_v2_2;
+static int hf_gvsp_gendc_component_header_part_count_v2_2;
+static int hf_gvsp_gendc_component_header_part_offset_v2_2;
+static int hf_gvsp_gendc_part_header_flags_xml_reserved1_v2_2;
+static int hf_gvsp_gendc_part_header_flags_xml_zip_v2_2;
+static int hf_gvsp_gendc_part_header_flags_xml_chunk_v2_2;
+static int hf_gvsp_gendc_part_header_flags_xml_reserved2_v2_2;
+static int hf_gvsp_gendc_part_header_flags_v2_2;
+static int hf_gvsp_gendc_part_header_flow_offset_v2_2;
+static int hf_gvsp_gendc_part_header_type_specific_info_v2_2;
+static int hf_gvsp_gendc_part_header_1D_size_v2_2;
+static int hf_gvsp_gendc_part_header_1D_padding_v2_2;
 
 static int * const pixelformat_fields[] = {
     &hf_gvsp_pixelcolor,
@@ -1239,7 +1240,7 @@ static int * const gendc_part_header_flags_fields[] = {
     \brief Dissects the image dimensions
  */
 
-static void dissect_image_dimensions(proto_tree *gvsp_tree, tvbuff_t *tvb, gint offset, const guint encoding)
+static void dissect_image_dimensions(proto_tree *gvsp_tree, tvbuff_t *tvb, int offset, const unsigned encoding)
 {
     /* Size X */
     proto_tree_add_item(gvsp_tree, hf_gvsp_sizex, tvb, offset, 4, encoding);
@@ -1258,7 +1259,7 @@ static void dissect_image_dimensions(proto_tree *gvsp_tree, tvbuff_t *tvb, gint 
     \brief Dissects the image AOI
  */
 
-static void dissect_image_aoi(proto_tree *gvsp_tree, tvbuff_t *tvb, gint offset)
+static void dissect_image_aoi(proto_tree *gvsp_tree, tvbuff_t *tvb, int offset)
 {
     /* Size X */
     proto_tree_add_item(gvsp_tree, hf_gvsp_sizex, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -1283,7 +1284,7 @@ static void dissect_image_aoi(proto_tree *gvsp_tree, tvbuff_t *tvb, gint offset)
     \brief Dissects the image leader
  */
 
-static gint dissect_image_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_image_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Field info */
     proto_tree_add_bitmask(gvsp_tree, tvb, offset, hf_gvsp_fieldinfo,
@@ -1311,7 +1312,7 @@ static gint dissect_image_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_in
     \brief Dissects the image trailer
  */
 
-static gint dissect_image_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_image_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Payload type */
     proto_tree_add_item(gvsp_tree, hf_gvsp_payloadtype, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
@@ -1328,18 +1329,18 @@ static gint dissect_image_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_i
     \brief Dissects the multi-part trailer
  */
 
-static gint dissect_multi_part_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_multi_part_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
-    gint part_count = tvb_reported_length_remaining(tvb, offset + 4) / GVSP_SIZE_OF_PART_INFO_TRAILER;
-    gint i = 0;
-    gint j = 0;
+    int part_count = tvb_reported_length_remaining(tvb, offset + 4) / GVSP_SIZE_OF_PART_INFO_TRAILER;
+    int i = 0;
+    int j = 0;
 
     /* Payload type */
     proto_tree_add_item(gvsp_tree, hf_gvsp_payloadtype, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
 
     for (i = 0; i < part_count; i++)
     {
-        guint16 multi_part_data_type = tvb_get_ntohs(tvb, offset + 4 + i * GVSP_SIZE_OF_PART_INFO_TRAILER);
+        uint16_t multi_part_data_type = tvb_get_ntohs(tvb, offset + 4 + i * GVSP_SIZE_OF_PART_INFO_TRAILER);
 
         /* Add a tree per part */
         proto_tree* gvsp_part_tree = proto_tree_add_subtree(gvsp_tree, tvb, offset + 4 + i * GVSP_SIZE_OF_PART_INFO_TRAILER, GVSP_SIZE_OF_PART_INFO_TRAILER, ett_gvsp_partinfo_trailer, NULL, "Part Specific Data");
@@ -1383,7 +1384,7 @@ static gint dissect_multi_part_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, pac
     \brief Dissects the raw data leader
  */
 
-static gint dissect_raw_data_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_raw_data_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Payload type */
     proto_tree_add_item(gvsp_tree, hf_gvsp_payloadtype, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
@@ -1403,9 +1404,9 @@ static gint dissect_raw_data_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet
     \brief Dissects a file leader
  */
 
-static gint dissect_file_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_file_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
-    guint file_length = 0;
+    unsigned file_length = 0;
 
     /* Payload type */
     proto_tree_add_item(gvsp_tree, hf_gvsp_payloadtype, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
@@ -1420,11 +1421,11 @@ static gint dissect_file_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_inf
     file_length = tvb_strsize(tvb, offset + 20);
     proto_tree_add_item(gvsp_tree, hf_gvsp_filename, tvb, offset + 20, file_length, ENC_ASCII);
 
-    if (20 + file_length > G_MAXINT)
+    if (20 + file_length > INT_MAX)
         return -1;
 
     /* Return dissected byte count (for all-in dissection) */
-    return (gint)(20 + file_length);
+    return (int)(20 + file_length);
 }
 
 
@@ -1432,7 +1433,7 @@ static gint dissect_file_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_inf
     \brief Dissects a chunk data leader
  */
 
-static gint dissect_chunk_data_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_chunk_data_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Payload type */
     proto_tree_add_item(gvsp_tree, hf_gvsp_payloadtype, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
@@ -1449,7 +1450,7 @@ static gint dissect_chunk_data_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, pack
     \brief Dissects a chunk data trailer
  */
 
-static gint dissect_chunk_data_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_chunk_data_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Payload type */
     proto_tree_add_item(gvsp_tree, hf_gvsp_payloadtype, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
@@ -1466,7 +1467,7 @@ static gint dissect_chunk_data_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, pac
     \brief Dissects extended chunk data leader
  */
 
-static gint dissect_extended_chunk_data_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_extended_chunk_data_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Field info */
     proto_tree_add_bitmask(gvsp_tree, tvb, offset, hf_gvsp_fieldinfo,
@@ -1496,7 +1497,7 @@ static gint dissect_extended_chunk_data_leader(proto_tree *gvsp_tree, tvbuff_t *
     \brief Dissects extended chunk data trailer
  */
 
-static gint dissect_extended_chunk_data_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_extended_chunk_data_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Payload type */
     proto_tree_add_item(gvsp_tree, hf_gvsp_payloadtype, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
@@ -1519,7 +1520,7 @@ static gint dissect_extended_chunk_data_trailer(proto_tree *gvsp_tree, tvbuff_t 
     \brief Dissects a JPEG leader
  */
 
-static gint dissect_jpeg_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_jpeg_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Field info */
     proto_tree_add_bitmask(gvsp_tree, tvb, offset, hf_gvsp_fieldinfo,
@@ -1552,7 +1553,7 @@ static gint dissect_jpeg_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_inf
  \brief Dissects a H264 leader
  */
 
-static void dissect_h264_leader_common(proto_tree *gvsp_tree, tvbuff_t *tvb, gint offset, const guint encoding)
+static void dissect_h264_leader_common(proto_tree *gvsp_tree, tvbuff_t *tvb, int offset, const unsigned encoding)
 {
     /* profile_idc */
     proto_tree_add_item(gvsp_tree, hf_gvsp_profileidc, tvb, offset, 1, encoding);
@@ -1577,7 +1578,7 @@ static void dissect_h264_leader_common(proto_tree *gvsp_tree, tvbuff_t *tvb, gin
     proto_tree_add_item(gvsp_tree, hf_gvsp_sropinitbuftime, tvb, offset + 11, 4, encoding);
 }
 
-static gint dissect_h264_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_h264_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Field info */
     proto_tree_add_bitmask(gvsp_tree, tvb, offset, hf_gvsp_fieldinfo,
@@ -1606,7 +1607,7 @@ static gint dissect_h264_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_inf
     \brief Dissects the multi-zone image leader
  */
 
-static gint dissect_multizone_image_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_multizone_image_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Field info */
     proto_tree_add_bitmask(gvsp_tree, tvb, offset, hf_gvsp_fieldinfo,
@@ -1637,15 +1638,15 @@ static gint dissect_multizone_image_leader(proto_tree *gvsp_tree, tvbuff_t *tvb,
     \brief Dissects the multi-part leader
  */
 
-static gint dissect_multi_part_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_multi_part_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Get the number of parts from the header. As we are already looking at the beginning of the sixth DWORD here we must step back */
-    gint part_count_from_leader = tvb_get_guint8(tvb, offset - 13);
-    gint part_count_from_remaining_bytes = tvb_reported_length_remaining(tvb, offset + 12) / GVSP_SIZE_OF_PART_INFO_LEADER;
+    int part_count_from_leader = tvb_get_uint8(tvb, offset - 13);
+    int part_count_from_remaining_bytes = tvb_reported_length_remaining(tvb, offset + 12) / GVSP_SIZE_OF_PART_INFO_LEADER;
     /* In case the leader contains incorrect data rely on the number of reported bytes instead */
-    gint part_count = part_count_from_leader <= part_count_from_remaining_bytes ? part_count_from_leader : part_count_from_remaining_bytes;
-    gint i = 0;
-    gint j = 0;
+    int part_count = part_count_from_leader <= part_count_from_remaining_bytes ? part_count_from_leader : part_count_from_remaining_bytes;
+    int i = 0;
+    int j = 0;
 
     /* Payload type */
     proto_tree_add_item(gvsp_tree, hf_gvsp_payloadtype, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
@@ -1655,7 +1656,7 @@ static gint dissect_multi_part_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, pack
 
     for (i = 0; i < part_count; i++)
     {
-        guint16 multi_part_data_type = tvb_get_ntohs(tvb, offset + 12 + i * GVSP_SIZE_OF_PART_INFO_LEADER);
+        uint16_t multi_part_data_type = tvb_get_ntohs(tvb, offset + 12 + i * GVSP_SIZE_OF_PART_INFO_LEADER);
         /* Add a tree per part */
         proto_tree* gvsp_part_tree = proto_tree_add_subtree(gvsp_tree, tvb, offset + 12 + i * GVSP_SIZE_OF_PART_INFO_LEADER, GVSP_SIZE_OF_PART_INFO_LEADER,
             ett_gvsp_partinfo_leader, NULL, "Part Specific Data");
@@ -1746,7 +1747,7 @@ static gint dissect_multi_part_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, pack
     \brief Dissects the GenDC leader
  */
 
-static gint dissect_gendc_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_gendc_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Payload type */
     proto_tree_add_item(gvsp_tree, hf_gvsp_payloadtype, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
@@ -1773,7 +1774,7 @@ static gint dissect_gendc_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_in
     \brief Dissects a generic trailer (contains just the payload type)
  */
 
-static gint dissect_generic_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_generic_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Payload type */
     proto_tree_add_item(gvsp_tree, hf_gvsp_payloadtype, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
@@ -1787,7 +1788,7 @@ static gint dissect_generic_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, packet
     \brief Dissects a generic trailer (contains just the payload type)
  */
 
-static gint dissect_extra_chunk_info(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset)
+static int dissect_extra_chunk_info(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset)
 {
     /* Chunk data payload length */
     proto_tree_add_item(gvsp_tree, hf_gvsp_chunk_data_payload_length_hex, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -1803,7 +1804,7 @@ static gint dissect_extra_chunk_info(proto_tree *gvsp_tree, tvbuff_t *tvb, packe
 /*
     \brief Check if a packet with given status has payload
  */
-static gboolean status_with_payload(gvsp_packet_info *info){
+static bool status_with_payload(gvsp_packet_info *info){
     return info->status == GEV_STATUS_SUCCESS || ( info->enhanced && info->status == GEV_STATUS_PACKET_RESEND);
 }
 
@@ -1811,7 +1812,7 @@ static gboolean status_with_payload(gvsp_packet_info *info){
     \brief Dissects a packet payload
  */
 
-static void dissect_packet_payload(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, gvsp_packet_info *info)
+static void dissect_packet_payload(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset, gvsp_packet_info *info)
 {
     if (status_with_payload(info) && tvb_reported_length_remaining(tvb, offset))
     {
@@ -1824,7 +1825,7 @@ static void dissect_packet_payload(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_
     \brief Dissects a packet payload for H264
  */
 
-static void dissect_packet_payload_h264(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, gvsp_packet_info *info)
+static void dissect_packet_payload_h264(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset, gvsp_packet_info *info)
 {
     if (status_with_payload(info) && tvb_reported_length_remaining(tvb, offset))
     {
@@ -1841,7 +1842,7 @@ static void dissect_packet_payload_h264(proto_tree *gvsp_tree, tvbuff_t *tvb, pa
     \brief Dissects a packet payload for multi-zone
  */
 
-static void dissect_packet_payload_multizone(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, gvsp_packet_info *info)
+static void dissect_packet_payload_multizone(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset, gvsp_packet_info *info)
 {
     if (status_with_payload(info) && tvb_reported_length_remaining(tvb, offset))
     {
@@ -1862,7 +1863,7 @@ static void dissect_packet_payload_multizone(proto_tree *gvsp_tree, tvbuff_t *tv
     \brief Dissects a packet payload for multi-part
  */
 
-static void dissect_packet_payload_multipart(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, gvsp_packet_info *info)
+static void dissect_packet_payload_multipart(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset, gvsp_packet_info *info)
 {
     if (status_with_payload(info) && tvb_reported_length_remaining(tvb, offset))
     {
@@ -1885,11 +1886,11 @@ static void dissect_packet_payload_multipart(proto_tree *gvsp_tree, tvbuff_t *tv
     \brief Dissects a payload packet for GenDC
  */
 
-static void dissect_packet_payload_gendc(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, gvsp_packet_info *info)
+static void dissect_packet_payload_gendc(proto_tree *gvsp_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset, gvsp_packet_info *info)
 {
     if (status_with_payload(info) && tvb_reported_length_remaining(tvb, offset))
     {
-        const guint8 data_flags = tvb_get_guint8(tvb, offset + 12);
+        const uint8_t data_flags = tvb_get_uint8(tvb, offset + 12);
 
         /* Data size */
         proto_tree_add_item(gvsp_tree, hf_gvsp_gendc_payload_data_size_v2_2, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -1910,7 +1911,7 @@ static void dissect_packet_payload_gendc(proto_tree *gvsp_tree, tvbuff_t *tvb, p
 
         if ((data_flags & GENDC_DESCRIPTOR_FLAG) && (data_flags & GENDC_DESCRIPTOR_START_FLAG))
         {
-            const guint32 component_count = tvb_get_guint32(tvb, offset + 68, ENC_LITTLE_ENDIAN);
+            const uint32_t component_count = tvb_get_uint32(tvb, offset + 68, ENC_LITTLE_ENDIAN);
             proto_tree* gvsp_gendc_container_descriptor_tree = proto_tree_add_subtree(gvsp_tree, tvb, offset + 16, -1, ett_gvsp_gendc_container_descriptor, NULL, "GenDC Container Descriptor");
             proto_tree* gvsp_gendc_container_header_component_offsets_tree = 0;
 
@@ -1966,10 +1967,10 @@ static void dissect_packet_payload_gendc(proto_tree *gvsp_tree, tvbuff_t *tvb, p
 
             gvsp_gendc_container_header_component_offsets_tree = proto_tree_add_subtree(gvsp_gendc_container_descriptor_tree, tvb, offset + 72, 8 * component_count, ett_gvsp_gendc_container_header_component_offsets, NULL, "Component Offsets");
 
-            for (guint32 i = 0; i < component_count; i++)
+            for (uint32_t i = 0; i < component_count; i++)
             {
-                guint component_offset = offset + 16 + (gint)tvb_get_guint64(tvb, offset + 72 + 8 * i, ENC_LITTLE_ENDIAN);
-                guint16 part_count = tvb_get_guint16(tvb, component_offset + 46, ENC_LITTLE_ENDIAN);
+                unsigned component_offset = offset + 16 + (int)tvb_get_uint64(tvb, offset + 72 + 8 * i, ENC_LITTLE_ENDIAN);
+                uint16_t part_count = tvb_get_uint16(tvb, component_offset + 46, ENC_LITTLE_ENDIAN);
 
                 proto_tree* gvsp_gendc_component_header_tree = proto_tree_add_subtree(gvsp_gendc_container_descriptor_tree, tvb, offset + 16 + component_offset, -1, ett_gvsp_gendc_component_header, NULL, "Component Header");
                 proto_tree* gvsp_gendc_component_header_part_offsets_tree = 0;
@@ -2040,10 +2041,10 @@ static void dissect_packet_payload_gendc(proto_tree *gvsp_tree, tvbuff_t *tvb, p
 
                 gvsp_gendc_component_header_part_offsets_tree = proto_tree_add_subtree(gvsp_gendc_component_header_tree, tvb, component_offset + 48, 8 * part_count, ett_gvsp_gendc_part_offsets, NULL, "Part Offsets");
 
-                for (guint16 j = 0; j < part_count; j++)
+                for (uint16_t j = 0; j < part_count; j++)
                 {
-                    guint part_offset = offset + 16 + (gint)tvb_get_guint64(tvb, component_offset + 48 + 8 * j, ENC_LITTLE_ENDIAN);
-                    guint16 part_type = tvb_get_guint16(tvb, part_offset, ENC_LITTLE_ENDIAN);
+                    unsigned part_offset = offset + 16 + (int)tvb_get_uint64(tvb, component_offset + 48 + 8 * j, ENC_LITTLE_ENDIAN);
+                    uint16_t part_type = tvb_get_uint16(tvb, part_offset, ENC_LITTLE_ENDIAN);
 
                     proto_tree* gvsp_gendc_part_header_tree = proto_tree_add_subtree(gvsp_gendc_component_header_tree, tvb, offset + 16 + part_offset, -1, ett_gvsp_gendc_part_header, NULL, "Part Header");
 
@@ -2139,9 +2140,9 @@ static void dissect_packet_payload_gendc(proto_tree *gvsp_tree, tvbuff_t *tvb, p
     \brief Dissects an all in packet
  */
 
-static void dissect_packet_all_in(proto_tree *gvsp_tree, tvbuff_t *tvb, gint offset, packet_info *pinfo, gvsp_packet_info *info)
+static void dissect_packet_all_in(proto_tree *gvsp_tree, tvbuff_t *tvb, int offset, packet_info *pinfo, gvsp_packet_info *info)
 {
-    gint ret;
+    int ret;
 
     switch (info->payloadtype)
     {
@@ -2245,7 +2246,7 @@ static void dissect_packet_all_in(proto_tree *gvsp_tree, tvbuff_t *tvb, gint off
     \brief Dissects a leader packet
  */
 
-static void dissect_packet_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, gint offset, packet_info *pinfo, gvsp_packet_info *info)
+static void dissect_packet_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, int offset, packet_info *pinfo, gvsp_packet_info *info)
 {
     switch (info->payloadtype)
     {
@@ -2300,7 +2301,7 @@ static void dissect_packet_leader(proto_tree *gvsp_tree, tvbuff_t *tvb, gint off
     \brief Dissects a trailer packet
  */
 
-static void dissect_packet_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, gint offset, packet_info *pinfo, gvsp_packet_info *info)
+static void dissect_packet_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, int offset, packet_info *pinfo, gvsp_packet_info *info)
 {
     switch (info->payloadtype)
     {
@@ -2348,7 +2349,7 @@ static void dissect_packet_trailer(proto_tree *gvsp_tree, tvbuff_t *tvb, gint of
 static int dissect_gvsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     proto_item *ti = NULL;
-    gint offset = 0;
+    int offset = 0;
     proto_tree *gvsp_tree = NULL;
     gvsp_packet_info info;
 
@@ -2360,7 +2361,7 @@ static int dissect_gvsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 
     memset(&info, 0x00, sizeof(info));
 
-    info.format = tvb_get_guint8(tvb, 4);
+    info.format = tvb_get_uint8(tvb, 4);
 
     if ((info.format & GVSP_EXTENDED_ID_BIT) && tvb_reported_length(tvb) < GVSP_V2_MIN_PACKET_SIZE)
     {
@@ -2397,8 +2398,8 @@ static int dissect_gvsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     }
     else
     {
-        guint8 flags;
-        flags = tvb_get_guint8(tvb, offset + 1);
+        uint8_t flags;
+        flags = tvb_get_uint8(tvb, offset + 1);
         info.flag_resendrangeerror = flags & 0x04;
         info.flag_previousblockdropped = flags & 0x02;
         info.flag_packetresend = flags & 0x01;
@@ -2424,12 +2425,12 @@ static int dissect_gvsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
         offset += 2;
         if (info.format == GVSP_PACKET_LEADER)
         {
-            if (tvb_get_guint8(tvb, 23) == GVSP_PAYLOAD_MULTIZONEIMAGE)
+            if (tvb_get_uint8(tvb, 23) == GVSP_PAYLOAD_MULTIZONEIMAGE)
             {
                 /* packet id contains the number of additional zones for multi-zone */
                 proto_tree_add_item(gvsp_tree, hf_gvsp_add_zones, tvb, offset, 1, ENC_BIG_ENDIAN);
             }
-            else if (tvb_get_guint8(tvb, 23) == GVSP_PAYLOAD_MULTIPART)
+            else if (tvb_get_uint8(tvb, 23) == GVSP_PAYLOAD_MULTIPART)
             {
                 /* packet id contains the number of parts for multi-part */
                 proto_tree_add_item(gvsp_tree, hf_gvsp_numparts, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -2454,24 +2455,24 @@ static int dissect_gvsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 
     /* At this point offset is pointing to end of packet */
 
-    col_append_fstr(pinfo->cinfo, COL_INFO, "[Block ID: %" PRIu64 " Packet ID: %d] ", (guint64)info.blockid, info.packetid);
+    col_append_fstr(pinfo->cinfo, COL_INFO, "[Block ID: %" PRIu64 " Packet ID: %d] ", (uint64_t)info.blockid, info.packetid);
 
     if (info.flag_resendrangeerror != 0)
     {
         /* Add range error to info string */
-        col_append_fstr(pinfo->cinfo, COL_INFO, "[RANGE_ERROR] ");
+        col_append_str(pinfo->cinfo, COL_INFO, "[RANGE_ERROR] ");
     }
 
     if (info.flag_previousblockdropped != 0)
     {
         /* Add block dropped to info string */
-        col_append_fstr(pinfo->cinfo, COL_INFO, "[BLOCK_DROPPED] ");
+        col_append_str(pinfo->cinfo, COL_INFO, "[BLOCK_DROPPED] ");
     }
 
     if (info.flag_packetresend != 0)
     {
         /* Add packet resend to info string */
-        col_append_fstr(pinfo->cinfo, COL_INFO, "[PACKET_RESEND] ");
+        col_append_str(pinfo->cinfo, COL_INFO, "[PACKET_RESEND] ");
     }
 
     /* Process packet types that are payload agnostic */
@@ -2532,25 +2533,25 @@ static int dissect_gvsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     return tvb_captured_length(tvb);
 }
 
-static gboolean dissect_gvsp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+static bool dissect_gvsp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     conversation_t *conversation = NULL;
-    guint16 status_code = 0;
-    guint8 format = 0;
+    uint16_t status_code = 0;
+    uint8_t format = 0;
 
     /* Verify packet size */
     if ((tvb_reported_length(tvb) <  GVSP_MIN_PACKET_SIZE) ||
         (tvb_captured_length(tvb) < 5))
     {
-        return FALSE;
+        return false;
     }
 
     /* Larger packet size if Extended ID flag is set */
-    format = tvb_get_guint8(tvb, 4);
+    format = tvb_get_uint8(tvb, 4);
 
     if ((format & GVSP_EXTENDED_ID_BIT) && tvb_reported_length(tvb) < GVSP_V2_MIN_PACKET_SIZE)
     {
-        return FALSE;
+        return false;
     }
 
     /* Check for valid status codes */
@@ -2568,22 +2569,22 @@ static gboolean dissect_gvsp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
         {
             if(format == GVSP_PACKET_LEADER && tvb_captured_length_remaining(tvb, 8) >= 2)
             {
-                guint32 payloadtype;
+                uint32_t payloadtype;
                 payloadtype = tvb_get_ntohs(tvb, 8);
                 payloadtype &= 0x3FFF;
                 if (try_val_to_str_ext(payloadtype, &payloadtypenames_ext) == NULL ){
-                    return FALSE;
+                    return false;
                 }
             }
 
             conversation = find_or_create_conversation(pinfo);
             conversation_set_dissector(conversation, gvsp_handle);
             dissect_gvsp(tvb, pinfo, tree, data);
-            return TRUE;
+            return true;
         }
     }
 
-    return FALSE;
+    return false;
 }
 
 /*
@@ -2789,7 +2790,7 @@ void proto_register_gvsp(void)
         }},
 
         {&hf_gvsp_filename,
-        { "ID", "gvsp.filename",
+        { "Filename", "gvsp.filename",
         FT_STRINGZ, BASE_NONE, NULL, 0,
         NULL, HFILL
         }},
@@ -3589,12 +3590,12 @@ void proto_register_gvsp(void)
 
         { &hf_gvsp_gendc_part_header_1D_padding_v2_2,
         { "Padding (1D Data)", "gvsp.gendc.part.header.1d.padding",
-        FT_UINT16, BASE_HEX_DEC, NULL, 0x0,
+        FT_UINT32, BASE_HEX_DEC, NULL, 0x0,
         NULL, HFILL
         } },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_gvsp,
         &ett_gvsp_flags,
         &ett_gvsp_header,

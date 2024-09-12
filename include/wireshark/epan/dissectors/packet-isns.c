@@ -41,133 +41,133 @@ void proto_reg_handoff_isns(void);
 static dissector_handle_t isns_tcp_handle;
 static dissector_handle_t isns_udp_handle;
 
-static gint ett_isns_flags = -1;
-static gint ett_isns_payload = -1;
-static gint ett_isns_attribute = -1;
-static gint ett_isns_port = -1;
-static gint ett_isns_isnt = -1;
+static int ett_isns_flags;
+static int ett_isns_payload;
+static int ett_isns_attribute;
+static int ett_isns_port;
+static int ett_isns_isnt;
 
-static guint AddAttribute(packet_info *pinfo, tvbuff_t *tvb, proto_tree *tree,
-                          guint offset, guint16 function_id);
+static unsigned AddAttribute(packet_info *pinfo, tvbuff_t *tvb, proto_tree *tree,
+                          unsigned offset, uint16_t function_id);
 
 /* Initialize the protocol and registered fields */
-static int proto_isns = -1;
+static int proto_isns;
 
 
 /* Header Stuff */
-static int hf_isns_version = -1;
-static int hf_isns_function_id = -1;
-static int hf_isns_pdu_length = -1;
-static int hf_isns_flags = -1;
-static int hf_isns_transaction_id = -1;
-static int hf_isns_sequence_id = -1;
-static int hf_isns_payload = -1;
-static int hf_isns_first_pdu = -1;
-static int hf_isns_last_pdu = -1;
-static int hf_isns_replace = -1;
-static int hf_isns_auth = -1;
-static int hf_isns_server = -1;
-static int hf_isns_client = -1;
+static int hf_isns_version;
+static int hf_isns_function_id;
+static int hf_isns_pdu_length;
+static int hf_isns_flags;
+static int hf_isns_transaction_id;
+static int hf_isns_sequence_id;
+static int hf_isns_payload;
+static int hf_isns_first_pdu;
+static int hf_isns_last_pdu;
+static int hf_isns_replace;
+static int hf_isns_auth;
+static int hf_isns_server;
+static int hf_isns_client;
 
 /* Payload stuff */
-static int hf_isns_scn_bitmap                                      = -1;
-static int hf_isns_scn_bitmap_initiator_and_self_information_only  = -1;
-static int hf_isns_scn_bitmap_target_and_self_information_only     = -1;
-static int hf_isns_scn_bitmap_management_registration_scn          = -1;
-static int hf_isns_scn_bitmap_object_removed                       = -1;
-static int hf_isns_scn_bitmap_object_added                         = -1;
-static int hf_isns_scn_bitmap_object_updated                       = -1;
-static int hf_isns_scn_bitmap_dd_dds_member_removed                = -1;
-static int hf_isns_scn_bitmap_dd_dds_member_added                  = -1;
-static int hf_isns_isnt_control = -1;
-static int hf_isns_isnt_initiator = -1;
-static int hf_isns_isnt_target = -1;
+static int hf_isns_scn_bitmap;
+static int hf_isns_scn_bitmap_initiator_and_self_information_only;
+static int hf_isns_scn_bitmap_target_and_self_information_only;
+static int hf_isns_scn_bitmap_management_registration_scn;
+static int hf_isns_scn_bitmap_object_removed;
+static int hf_isns_scn_bitmap_object_added;
+static int hf_isns_scn_bitmap_object_updated;
+static int hf_isns_scn_bitmap_dd_dds_member_removed;
+static int hf_isns_scn_bitmap_dd_dds_member_added;
+static int hf_isns_isnt_control;
+static int hf_isns_isnt_initiator;
+static int hf_isns_isnt_target;
 
-static int hf_isns_psb = -1;
-static int hf_isns_psb_tunnel_mode = -1;
-static int hf_isns_psb_transport_mode = -1;
-static int hf_isns_psb_pfs = -1;
-static int hf_isns_psb_aggressive_mode = -1;
-static int hf_isns_psb_main_mode = -1;
-static int hf_isns_psb_ike_ipsec = -1;
-static int hf_isns_psb_bitmap = -1;
+static int hf_isns_psb;
+static int hf_isns_psb_tunnel_mode;
+static int hf_isns_psb_transport_mode;
+static int hf_isns_psb_pfs;
+static int hf_isns_psb_aggressive_mode;
+static int hf_isns_psb_main_mode;
+static int hf_isns_psb_ike_ipsec;
+static int hf_isns_psb_bitmap;
 
-static int hf_isns_dd_member_portal_port = -1;
-static int hf_isns_portal_port = -1;
-static int hf_isns_esi_port = -1;
-static int hf_isns_scn_port = -1;
-static int hf_isns_port_type = -1;
+static int hf_isns_dd_member_portal_port;
+static int hf_isns_portal_port;
+static int hf_isns_esi_port;
+static int hf_isns_scn_port;
+static int hf_isns_port_type;
 
-static int hf_isns_entity_protocol = -1;
-static int hf_isns_iscsi_node_type = -1;
-static int hf_isns_resp_errorcode = -1;
-static int hf_isns_attr_tag = -1;
-static int hf_isns_attr_len = -1;
-static int hf_isns_heartbeat_ipv6_addr = -1;
-static int hf_isns_heartbeat_udp_port = -1;
-static int hf_isns_heartbeat_tcp_port = -1;
-static int hf_isns_heartbeat_interval = -1;
-static int hf_isns_heartbeat_counter = -1;
+static int hf_isns_entity_protocol;
+static int hf_isns_iscsi_node_type;
+static int hf_isns_resp_errorcode;
+static int hf_isns_attr_tag;
+static int hf_isns_attr_len;
+static int hf_isns_heartbeat_ipv6_addr;
+static int hf_isns_heartbeat_udp_port;
+static int hf_isns_heartbeat_tcp_port;
+static int hf_isns_heartbeat_interval;
+static int hf_isns_heartbeat_counter;
 
-static int hf_isns_mgmt_ip_addr = -1;
-static int hf_isns_node_ip_addr = -1;
-static int hf_isns_port_ip_addr = -1;
-static int hf_isns_portal_ip_addr = -1;
-static int hf_isns_dd_member_portal_ip_addr = -1;
-static int hf_isns_iscsi_name = -1;
-static int hf_isns_switch_name = -1;
-static int hf_isns_dd_member_iscsi_name = -1;
-static int hf_isns_virtual_fabric_id = -1;
-static int hf_isns_proxy_iscsi_name = -1;
-static int hf_isns_fc4_descriptor = -1;
-static int hf_isns_iscsi_auth_method = -1;
-static int hf_isns_iscsi_alias = -1;
-static int hf_isns_portal_symbolic_name = -1;
-static int hf_isns_dd_set_symbolic_name = -1;
-static int hf_isns_dd_symbolic_name = -1;
-static int hf_isns_symbolic_port_name = -1;
-static int hf_isns_symbolic_node_name = -1;
-static int hf_isns_entity_identifier = -1;
-static int hf_isns_dd_id_next_id = -1;
-static int hf_isns_member_iscsi_index = -1;
-static int hf_isns_member_portal_index = -1;
-static int hf_isns_member_fc_port_name = -1;
-static int hf_isns_vendor_oui = -1;
-static int hf_isns_preferred_id = -1;
-static int hf_isns_assigned_id = -1;
-static int hf_isns_dd_id = -1;
-static int hf_isns_dd_set_id = -1;
-static int hf_isns_dd_set_next_id = -1;
-static int hf_isns_node_index = -1;
-static int hf_isns_node_next_index = -1;
-static int hf_isns_entity_index = -1;
-static int hf_isns_portal_index = -1;
-static int hf_isns_portal_next_index = -1;
-static int hf_isns_entity_next_index = -1;
-static int hf_isns_timestamp = -1;
-static int hf_isns_esi_interval = -1;
-static int hf_isns_registration_period = -1;
-static int hf_isns_port_id = -1;
-static int hf_isns_hard_address = -1;
-static int hf_isns_wwnn_token = -1;
-static int hf_isns_node_ipa = -1;
-static int hf_isns_fc_port_name_wwpn = -1;
-static int hf_isns_fc_node_name_wwnn = -1;
-static int hf_isns_fabric_port_name = -1;
-static int hf_isns_permanent_port_name = -1;
-static int hf_isns_not_decoded_yet = -1;
-static int hf_isns_portal_group_tag = -1;
-static int hf_isns_pg_iscsi_name = -1;
-static int hf_isns_pg_portal_ip_addr = -1;
-static int hf_isns_pg_portal_port = -1;
-static int hf_isns_pg_index = -1;
-static int hf_isns_pg_next_index = -1;
+static int hf_isns_mgmt_ip_addr;
+static int hf_isns_node_ip_addr;
+static int hf_isns_port_ip_addr;
+static int hf_isns_portal_ip_addr;
+static int hf_isns_dd_member_portal_ip_addr;
+static int hf_isns_iscsi_name;
+static int hf_isns_switch_name;
+static int hf_isns_dd_member_iscsi_name;
+static int hf_isns_virtual_fabric_id;
+static int hf_isns_proxy_iscsi_name;
+static int hf_isns_fc4_descriptor;
+static int hf_isns_iscsi_auth_method;
+static int hf_isns_iscsi_alias;
+static int hf_isns_portal_symbolic_name;
+static int hf_isns_dd_set_symbolic_name;
+static int hf_isns_dd_symbolic_name;
+static int hf_isns_symbolic_port_name;
+static int hf_isns_symbolic_node_name;
+static int hf_isns_entity_identifier;
+static int hf_isns_dd_id_next_id;
+static int hf_isns_member_iscsi_index;
+static int hf_isns_member_portal_index;
+static int hf_isns_member_fc_port_name;
+static int hf_isns_vendor_oui;
+static int hf_isns_preferred_id;
+static int hf_isns_assigned_id;
+static int hf_isns_dd_id;
+static int hf_isns_dd_set_id;
+static int hf_isns_dd_set_next_id;
+static int hf_isns_node_index;
+static int hf_isns_node_next_index;
+static int hf_isns_entity_index;
+static int hf_isns_portal_index;
+static int hf_isns_portal_next_index;
+static int hf_isns_entity_next_index;
+static int hf_isns_timestamp;
+static int hf_isns_esi_interval;
+static int hf_isns_registration_period;
+static int hf_isns_port_id;
+static int hf_isns_hard_address;
+static int hf_isns_wwnn_token;
+static int hf_isns_node_ipa;
+static int hf_isns_fc_port_name_wwpn;
+static int hf_isns_fc_node_name_wwnn;
+static int hf_isns_fabric_port_name;
+static int hf_isns_permanent_port_name;
+static int hf_isns_not_decoded_yet;
+static int hf_isns_portal_group_tag;
+static int hf_isns_pg_iscsi_name;
+static int hf_isns_pg_portal_ip_addr;
+static int hf_isns_pg_portal_port;
+static int hf_isns_pg_index;
+static int hf_isns_pg_next_index;
 
-static expert_field ei_isns_not_first_pdu = EI_INIT;
-static expert_field ei_isns_invalid_attr_len = EI_INIT;
+static expert_field ei_isns_not_first_pdu;
+static expert_field ei_isns_invalid_attr_len;
 
 /* Desegment iSNS over TCP messages */
-static gboolean isns_desegment = TRUE;
+static bool isns_desegment = true;
 
 /* Function Id's */
 #define ISNS_FUNC_DEVATTRREG     0x0001
@@ -519,19 +519,19 @@ static const true_false_string tfs_isns_flag_client = {
 
 
 /* Initialize the subtree pointers */
-static gint ett_isns = -1;
+static int ett_isns;
 
 
 /* Code to actually dissect the packets */
 static int
 dissect_isns_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint offset = 0;
-    guint16 function_id;
-    guint packet_len;
+    unsigned offset = 0;
+    uint16_t function_id;
+    unsigned packet_len;
     proto_item *ti;
     proto_tree *isns_tree;
-    guint16     flags;
+    uint16_t    flags;
     proto_tree *tt = NULL;
     proto_item *tpayload;
     static int * const isns_flags[] = {
@@ -659,10 +659,10 @@ dissect_isns_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
     return tvb_captured_length(tvb);
 }
 
-static guint
+static unsigned
 get_isns_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-    guint16 isns_len;
+    uint16_t isns_len;
 
     isns_len = tvb_get_ntohs(tvb, offset+4);
     return (isns_len+ISNS_HEADER_SIZE);
@@ -671,9 +671,9 @@ get_isns_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _
 static int
 dissect_isns_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    gint length = tvb_captured_length(tvb);
-    guint16 isns_protocol_version;
-    guint16 function_id;
+    int length = tvb_captured_length(tvb);
+    uint16_t isns_protocol_version;
+    uint16_t function_id;
 
     if (length < ISNS_HEADER_SIZE) {
         /*
@@ -702,9 +702,9 @@ dissect_isns_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 static int
 dissect_isns_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    gint length = tvb_captured_length(tvb);
-    guint16 isns_protocol_version;
-    guint16 function_id;
+    int length = tvb_captured_length(tvb);
+    uint16_t isns_protocol_version;
+    uint16_t function_id;
 
     if (length < ISNS_HEADER_SIZE) {
         /*
@@ -731,11 +731,11 @@ dissect_isns_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 
 
 static void
-dissect_isns_attr_port(tvbuff_t *tvb, guint offset, proto_tree *tree, int hf_index,
-                       guint16 isns_port_type, packet_info *pinfo)
+dissect_isns_attr_port(tvbuff_t *tvb, unsigned offset, proto_tree *tree, int hf_index,
+                       uint16_t isns_port_type, packet_info *pinfo)
 {
-    guint16             port  = tvb_get_ntohs(tvb, offset+2);
-    gboolean            is_udp = ((tvb_get_ntohs(tvb, offset) & 0x01) == 0x01);
+    uint16_t            port  = tvb_get_ntohs(tvb, offset+2);
+    bool                is_udp = ((tvb_get_ntohs(tvb, offset) & 0x01) == 0x01);
     conversation_t     *conversation;
     conversation_type ckt;
     dissector_handle_t  handle;
@@ -765,7 +765,7 @@ dissect_isns_attr_port(tvbuff_t *tvb, guint offset, proto_tree *tree, int hf_ind
 
 
 static void
-dissect_isns_attr_iscsi_node_type(tvbuff_t *tvb, guint offset, proto_tree *tree)
+dissect_isns_attr_iscsi_node_type(tvbuff_t *tvb, unsigned offset, proto_tree *tree)
 {
     static int * const flags[] = {
         &hf_isns_isnt_control,
@@ -781,7 +781,7 @@ dissect_isns_attr_iscsi_node_type(tvbuff_t *tvb, guint offset, proto_tree *tree)
 
 
 static void
-dissect_isns_attr_portal_security_bitmap(tvbuff_t *tvb, guint offset, proto_tree *tree)
+dissect_isns_attr_portal_security_bitmap(tvbuff_t *tvb, unsigned offset, proto_tree *tree)
 {
     static int * const flags[] = {
         &hf_isns_psb_tunnel_mode,
@@ -800,7 +800,7 @@ dissect_isns_attr_portal_security_bitmap(tvbuff_t *tvb, guint offset, proto_tree
 
 
 static void
-dissect_isns_attr_scn_bitmap(tvbuff_t *tvb, guint offset, proto_tree *tree)
+dissect_isns_attr_scn_bitmap(tvbuff_t *tvb, unsigned offset, proto_tree *tree)
 {
     /*
         24              INITIATOR AND SELF INFORMATION ONLY
@@ -828,13 +828,13 @@ dissect_isns_attr_scn_bitmap(tvbuff_t *tvb, guint offset, proto_tree *tree)
 }
 
 
-static guint
-AddAttribute(packet_info *pinfo, tvbuff_t *tvb, proto_tree *tree, guint offset,
-             guint16 function_id)
+static unsigned
+AddAttribute(packet_info *pinfo, tvbuff_t *tvb, proto_tree *tree, unsigned offset,
+             uint16_t function_id)
 {
     proto_tree *attr_tree;
     proto_item *attr_item;
-    guint32 tag,len;
+    uint32_t tag,len;
     proto_item *len_item;
 
     attr_tree = proto_tree_add_subtree(tree, tvb, offset, -1,
@@ -1628,7 +1628,7 @@ void proto_register_isns(void)
     { &hf_isns_entity_next_index,
       { "Entity Next Index", "isns.entity.next_index",
         FT_UINT32, BASE_DEC, NULL, 0x0,
-        "Next Entity Index", HFILL }},
+        NULL, HFILL }},
 
     { &hf_isns_timestamp,
       { "Timestamp", "isns.timestamp",
@@ -1658,7 +1658,7 @@ void proto_register_isns(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
     &ett_isns,
     &ett_isns_flags,
     &ett_isns_payload,

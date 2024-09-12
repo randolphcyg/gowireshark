@@ -27,62 +27,62 @@ void proto_reg_handoff_isis_lsp(void);
 void proto_register_isis_hello(void);
 void proto_reg_handoff_isis_hello(void);
 
-static int proto_isis_csnp = -1;
-static int proto_isis_psnp = -1;
+static int proto_isis_csnp;
+static int proto_isis_psnp;
 
 /* csnp packets */
-static int hf_isis_csnp_pdu_length = -1;
-static int hf_isis_csnp_source_id = -1;
-static int hf_isis_csnp_source_circuit = -1;
-static int hf_isis_csnp_start_lsp_id = -1;
-static int hf_isis_csnp_end_lsp_id = -1;
-static int hf_isis_csnp_lsp_id = -1;
-static int hf_isis_csnp_lsp_seq_num = -1;
-static int hf_isis_csnp_lsp_remain_life = -1;
-static int hf_isis_csnp_lsp_checksum = -1;
-static int hf_isis_csnp_checksum = -1;
-static int hf_isis_csnp_checksum_status = -1;
-static int hf_isis_csnp_clv_type = -1;
-static int hf_isis_csnp_clv_length = -1;
-static int hf_isis_csnp_ip_authentication = -1;
-static int hf_isis_csnp_authentication = -1;
-static int hf_isis_csnp_instance_identifier = -1;
-static int hf_isis_csnp_supported_itid = -1;
-static gint ett_isis_csnp = -1;
-static gint ett_isis_csnp_clv_lsp_entries = -1;
-static gint ett_isis_csnp_lsp_entry = -1;
-static gint ett_isis_csnp_clv_authentication = -1;
-static gint ett_isis_csnp_clv_ip_authentication = -1;
-static gint ett_isis_csnp_clv_instance_identifier = -1;
-static gint ett_isis_csnp_clv_checksum = -1;
-static gint ett_isis_csnp_clv_unknown = -1;
+static int hf_isis_csnp_pdu_length;
+static int hf_isis_csnp_source_id;
+static int hf_isis_csnp_source_circuit;
+static int hf_isis_csnp_start_lsp_id;
+static int hf_isis_csnp_end_lsp_id;
+static int hf_isis_csnp_lsp_id;
+static int hf_isis_csnp_lsp_seq_num;
+static int hf_isis_csnp_lsp_remain_life;
+static int hf_isis_csnp_lsp_checksum;
+static int hf_isis_csnp_checksum;
+static int hf_isis_csnp_checksum_status;
+static int hf_isis_csnp_clv_type;
+static int hf_isis_csnp_clv_length;
+static int hf_isis_csnp_ip_authentication;
+static int hf_isis_csnp_authentication;
+static int hf_isis_csnp_instance_identifier;
+static int hf_isis_csnp_supported_itid;
+static int ett_isis_csnp;
+static int ett_isis_csnp_clv_lsp_entries;
+static int ett_isis_csnp_lsp_entry;
+static int ett_isis_csnp_clv_authentication;
+static int ett_isis_csnp_clv_ip_authentication;
+static int ett_isis_csnp_clv_instance_identifier;
+static int ett_isis_csnp_clv_checksum;
+static int ett_isis_csnp_clv_unknown;
 
-static expert_field ei_isis_csnp_short_pdu = EI_INIT;
-static expert_field ei_isis_csnp_long_pdu = EI_INIT;
-static expert_field ei_isis_csnp_bad_checksum = EI_INIT;
-static expert_field ei_isis_csnp_authentication = EI_INIT;
-static expert_field ei_isis_csnp_short_clv = EI_INIT;
-static expert_field ei_isis_csnp_clv_unknown = EI_INIT;
+static expert_field ei_isis_csnp_short_pdu;
+static expert_field ei_isis_csnp_long_pdu;
+static expert_field ei_isis_csnp_bad_checksum;
+static expert_field ei_isis_csnp_authentication;
+static expert_field ei_isis_csnp_short_clv;
+static expert_field ei_isis_csnp_clv_unknown;
 
 /* psnp packets */
-static int hf_isis_psnp_pdu_length = -1;
-static int hf_isis_psnp_source_id = -1;
-static int hf_isis_psnp_source_circuit = -1;
-static int hf_isis_psnp_clv_type = -1;
-static int hf_isis_psnp_clv_length = -1;
-static int hf_isis_psnp_ip_authentication = -1;
-static gint ett_isis_psnp = -1;
-static gint ett_isis_psnp_clv_lsp_entries = -1;
-static gint ett_isis_psnp_lsp_entry = -1;
-static gint ett_isis_psnp_clv_authentication = -1;
-static gint ett_isis_psnp_clv_ip_authentication = -1;
-static gint ett_isis_psnp_clv_checksum = -1;
-static gint ett_isis_psnp_clv_unknown = -1;
+static int hf_isis_psnp_pdu_length;
+static int hf_isis_psnp_source_id;
+static int hf_isis_psnp_source_circuit;
+static int hf_isis_psnp_clv_type;
+static int hf_isis_psnp_clv_length;
+static int hf_isis_psnp_ip_authentication;
+static int ett_isis_psnp;
+static int ett_isis_psnp_clv_lsp_entries;
+static int ett_isis_psnp_lsp_entry;
+static int ett_isis_psnp_clv_authentication;
+static int ett_isis_psnp_clv_ip_authentication;
+static int ett_isis_psnp_clv_checksum;
+static int ett_isis_psnp_clv_unknown;
 
-static expert_field ei_isis_psnp_short_pdu = EI_INIT;
-static expert_field ei_isis_psnp_long_pdu = EI_INIT;
-static expert_field ei_isis_psnp_short_clv = EI_INIT;
-static expert_field ei_isis_psnp_clv_unknown = EI_INIT;
+static expert_field ei_isis_psnp_short_pdu;
+static expert_field ei_isis_psnp_long_pdu;
+static expert_field ei_isis_psnp_short_clv;
+static expert_field ei_isis_psnp_clv_unknown;
 
 static void
 dissect_snp_authentication_clv(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, int offset,
@@ -119,7 +119,7 @@ static void
 dissect_snp_checksum_clv(tvbuff_t *tvb, packet_info* pinfo,
         proto_tree *tree, int offset, isis_data_t *isis, int length) {
 
-    guint16 checksum, cacl_checksum=0;
+    uint16_t checksum, cacl_checksum=0;
 
     if ( length != 2 ) {
         proto_tree_add_expert_format(tree, pinfo, &ei_isis_csnp_short_clv, tvb, offset, -1,
@@ -357,8 +357,8 @@ dissect_isis_csnp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offse
 {
     proto_item    *ti;
     proto_tree    *csnp_tree = NULL;
-    guint16        pdu_length;
-    gboolean       pdu_length_too_short = FALSE;
+    uint16_t       pdu_length;
+    bool           pdu_length_too_short = false;
 
     /*
      * We are passed a tvbuff for the entire ISIS PDU, because some ISIS
@@ -384,7 +384,7 @@ dissect_isis_csnp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offse
             offset, 2, pdu_length);
     if (pdu_length < isis->header_length) {
         expert_add_info(pinfo, ti, &ei_isis_csnp_short_pdu);
-        pdu_length_too_short = TRUE;
+        pdu_length_too_short = true;
     } else if (pdu_length > tvb_reported_length(tvb) + isis->header_length) {
         expert_add_info(pinfo, ti, &ei_isis_csnp_long_pdu);
     }
@@ -452,8 +452,8 @@ dissect_isis_psnp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offse
 {
     proto_item    *ti;
     proto_tree    *psnp_tree;
-    guint16        pdu_length;
-    gboolean       pdu_length_too_short = FALSE;
+    uint16_t       pdu_length;
+    bool           pdu_length_too_short = false;
 
     /*
      * We are passed a tvbuff for the entire ISIS PDU, because some ISIS
@@ -479,7 +479,7 @@ dissect_isis_psnp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offse
             offset, 2, pdu_length);
     if (pdu_length < isis->header_length) {
         expert_add_info(pinfo, ti, &ei_isis_psnp_short_pdu);
-        pdu_length_too_short = TRUE;
+        pdu_length_too_short = true;
     } else if (pdu_length > tvb_reported_length(tvb) + isis->header_length) {
         expert_add_info(pinfo, ti, &ei_isis_psnp_long_pdu);
     }
@@ -581,7 +581,7 @@ proto_register_isis_csnp(void)
            BASE_DEC, NULL, 0x0, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_isis_csnp,
         &ett_isis_csnp_clv_lsp_entries,
         &ett_isis_csnp_lsp_entry,
@@ -642,7 +642,7 @@ proto_register_isis_psnp(void)
           BASE_NONE, NULL, 0x0, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_isis_psnp,
         &ett_isis_psnp_clv_lsp_entries,
         &ett_isis_psnp_lsp_entry,

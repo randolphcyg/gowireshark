@@ -25,16 +25,16 @@ void proto_reg_handoff_tsp(void);
 
 static dissector_handle_t tsp_handle;
 
-static int proto_tsp = -1;
-static int hf_tsp_type = -1;
-static int hf_tsp_vers = -1;
-static int hf_tsp_seq = -1;
-static int hf_tsp_hopcnt = -1;
-static int hf_tsp_time_sec = -1;
-static int hf_tsp_time_usec = -1;
-static int hf_tsp_name = -1;
+static int proto_tsp;
+static int hf_tsp_type;
+static int hf_tsp_vers;
+static int hf_tsp_seq;
+static int hf_tsp_hopcnt;
+static int hf_tsp_time_sec;
+static int hf_tsp_time_usec;
+static int hf_tsp_name;
 
-static gint ett_tsp = -1;
+static int ett_tsp;
 
 /* timed port from /etc/services */
 #define UDP_PORT_TIMED	525
@@ -101,12 +101,12 @@ dissect_tsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 	proto_tree	*tsp_tree;
 	proto_item	*tsp_item;
 
-	guint8		tsp_type;
+	uint8_t		tsp_type;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "TSP");
 	col_clear(pinfo->cinfo, COL_INFO);
 
-	tsp_type = tvb_get_guint8(tvb, 0);
+	tsp_type = tvb_get_uint8(tvb, 0);
 	col_add_str(pinfo->cinfo, COL_INFO,
 		    val_to_str(tsp_type, names_tsp_type, "Unknown message type (%u)"));
 
@@ -192,7 +192,7 @@ proto_register_tsp(void)
 		    FT_STRINGZ, BASE_NONE, NULL, 0x0,
 		    "Sender Machine Name", HFILL }}
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_tsp
 	};
 

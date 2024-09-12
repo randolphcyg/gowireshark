@@ -17,7 +17,7 @@
 
 void proto_register_ipmi_pps(void);
 
-static ipmi_cmd_t cmd_pps[] = {
+static const ipmi_cmd_t cmd_pps[] = {
 	{ 0x00, IPMI_TBD,   NULL, NULL, "[PPS OEM] Get Status", 0 },
 	{ 0x01, IPMI_TBD,   NULL, NULL, "[PPS OEM] Get Serial Interface Properties", 0 },
 	{ 0x02, IPMI_TBD,   NULL, NULL, "[PPS OEM] Set Serial Interface Properties", 0 },
@@ -89,8 +89,8 @@ static ipmi_cmd_t cmd_pps[] = {
 void
 proto_register_ipmi_pps(void)
 {
-	static guint8 sig_pps[3] = { 0x0a, 0x40, 0x00 };
-	static guint8 sig_pps_rev[3] = { 0x00, 0x40, 0x0a };
+	static uint8_t sig_pps[3] = { 0x0a, 0x40, 0x00 };
+	static uint8_t sig_pps_rev[3] = { 0x00, 0x40, 0x0a };
 
 	ipmi_register_netfn_cmdtab(IPMI_OEM_REQ, IPMI_OEM_NONE, sig_pps, 3,
 				   "Pigeon Point Systems", cmd_pps, array_length(cmd_pps));

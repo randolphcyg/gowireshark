@@ -13,6 +13,7 @@
 
 #include <epan/packet.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 /* #include "packet-mudurl.h" */ // At the moment we are not exporting.
@@ -27,7 +28,7 @@ void proto_reg_handoff_mudurl(void);
 
 
 /* Initialize the protocol and registered fields */
-static int proto_mudurl = -1;
+static int proto_mudurl;
 #include "packet-mudurl-hf.c"
 
 /* Initialize the subtree pointers */
@@ -47,7 +48,7 @@ void proto_register_mudurl(void) {
   };
 
   /* List of subtrees */
-  /*  static gint *ett[] = {
+  /*  static int *ett[] = {
 #include "packet-mudurl-ettarr.c"
   }; */
 

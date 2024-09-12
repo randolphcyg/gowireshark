@@ -24,24 +24,24 @@ void proto_reg_handoff_erspan_marker(void);
 
 static dissector_handle_t marker_handle;
 
-static int proto_marker = -1;
+static int proto_marker;
 
-static int hf_cisco_erspan_granularity = -1;
-static int hf_cisco_erspan_info = -1;
-static int hf_cisco_erspan_prop_header = -1;
-static int hf_cisco_erspan_reserved = -1;
-static int hf_cisco_erspan_sequence_number = -1;
-static int hf_cisco_erspan_ssid = -1;
-static int hf_cisco_erspan_tail = -1;
-static int hf_cisco_erspan_timestamp = -1;
-static int hf_cisco_erspan_type = -1;
-static int hf_cisco_erspan_utc_sec = -1;
-static int hf_cisco_erspan_utc_usec = -1;
-static int hf_cisco_erspan_utcoffset = -1;
-static int hf_cisco_erspan_version = -1;
+static int hf_cisco_erspan_granularity;
+static int hf_cisco_erspan_info;
+static int hf_cisco_erspan_prop_header;
+static int hf_cisco_erspan_reserved;
+static int hf_cisco_erspan_sequence_number;
+static int hf_cisco_erspan_ssid;
+static int hf_cisco_erspan_tail;
+static int hf_cisco_erspan_timestamp;
+static int hf_cisco_erspan_type;
+static int hf_cisco_erspan_utc_sec;
+static int hf_cisco_erspan_utc_usec;
+static int hf_cisco_erspan_utcoffset;
+static int hf_cisco_erspan_version;
 
 
-static gint ett_marker = -1;
+static int ett_marker;
 
 
 static int
@@ -56,7 +56,7 @@ dissect_marker(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
   if (tree) {
 
     /* Skip the proprietary CISCO header - no docs have been released for this */
-    guint32 offset = 20;
+    uint32_t offset = 20;
 
     ti = proto_tree_add_item(tree, proto_marker, tvb, 0, -1, ENC_NA);
     marker_tree = proto_item_add_subtree(ti, ett_marker);
@@ -106,7 +106,7 @@ proto_register_erspan_marker(void)
     },
     { &hf_cisco_erspan_info,
       { "Header", "erspan-marker.header",
-        FT_BOOLEAN, 8, NULL, 0x0,
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
         NULL, HFILL }
     },
     { &hf_cisco_erspan_version,
@@ -176,7 +176,7 @@ proto_register_erspan_marker(void)
     },
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_marker,
   };
 

@@ -84,10 +84,10 @@
 /* ZigBee Direct Tunnel Service */
 #define ZBEE_TLV_TYPE_TUNNELING_NPDU_MESSAGE  0            /* NPDU Message */
 
-/* ZigBee Direct Secuirty Service */
-#define ZBEE_TLV_TYPE_KEY_METHOD        0        /* ZigBee Direct Key Negotitaion Method */
-#define ZBEE_TLV_TYPE_PUB_POINT_P256    1        /* ZigBee Direct Key Negotitaion P-256 Public Point */
-#define ZBEE_TLV_TYPE_PUB_POINT_C25519  2        /* ZigBee Direct Key Negotitaion Curve25519 Public Point */
+/* ZigBee Direct Security Service */
+#define ZBEE_TLV_TYPE_KEY_METHOD        0        /* ZigBee Direct Key Negotiation Method */
+#define ZBEE_TLV_TYPE_PUB_POINT_P256    1        /* ZigBee Direct Key Negotiation P-256 Public Point */
+#define ZBEE_TLV_TYPE_PUB_POINT_C25519  2        /* ZigBee Direct Key Negotiation Curve25519 Public Point */
 #define ZBEE_TLV_TYPE_NWK_KEY_SEQ_NUM   3        /* Network Key Sequence Number */
 #define ZBEE_TLV_TYPE_MAC_TAG           4        /* MacTag */
 
@@ -185,6 +185,6 @@
 #define ZBEE_TLV_TYPE_LINK_KEY_FLAG_PERMANENT   0
 #define ZBEE_TLV_TYPE_LINK_KEY_FLAG_PROVISIONAL 1
 
-guint dissect_zbee_tlvs(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, guint offset, void *data, guint8 source_type, guint cmd_id);
+unsigned dissect_zbee_tlvs(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsigned offset, void *data, uint8_t source_type, unsigned cmd_id);
 
 #endif

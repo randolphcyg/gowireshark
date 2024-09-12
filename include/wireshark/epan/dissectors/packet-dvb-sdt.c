@@ -12,6 +12,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/tfs.h>
 #include "packet-mpeg-sect.h"
 #include "packet-mpeg-descriptor.h"
 
@@ -20,27 +21,27 @@ void proto_reg_handoff_dvb_sdt(void);
 
 static dissector_handle_t dvb_sdt_handle;
 
-static int proto_dvb_sdt = -1;
-static int hf_dvb_sdt_transport_stream_id = -1;
-static int hf_dvb_sdt_reserved1 = -1;
-static int hf_dvb_sdt_version_number = -1;
-static int hf_dvb_sdt_current_next_indicator = -1;
-static int hf_dvb_sdt_section_number = -1;
-static int hf_dvb_sdt_last_section_number = -1;
+static int proto_dvb_sdt;
+static int hf_dvb_sdt_transport_stream_id;
+static int hf_dvb_sdt_reserved1;
+static int hf_dvb_sdt_version_number;
+static int hf_dvb_sdt_current_next_indicator;
+static int hf_dvb_sdt_section_number;
+static int hf_dvb_sdt_last_section_number;
 
-static int hf_dvb_sdt_original_network_id = -1;
-static int hf_dvb_sdt_reserved2 = -1;
+static int hf_dvb_sdt_original_network_id;
+static int hf_dvb_sdt_reserved2;
 
-static int hf_dvb_sdt_service_id = -1;
-static int hf_dvb_sdt_reserved3 = -1;
-static int hf_dvb_sdt_eit_schedule_flag = -1;
-static int hf_dvb_sdt_eit_present_following_flag = -1;
-static int hf_dvb_sdt_running_status = -1;
-static int hf_dvb_sdt_free_ca_mode = -1;
-static int hf_dvb_sdt_descriptors_loop_length = -1;
+static int hf_dvb_sdt_service_id;
+static int hf_dvb_sdt_reserved3;
+static int hf_dvb_sdt_eit_schedule_flag;
+static int hf_dvb_sdt_eit_present_following_flag;
+static int hf_dvb_sdt_running_status;
+static int hf_dvb_sdt_free_ca_mode;
+static int hf_dvb_sdt_descriptors_loop_length;
 
-static gint ett_dvb_sdt = -1;
-static gint ett_dvb_sdt_service = -1;
+static int ett_dvb_sdt;
+static int ett_dvb_sdt_service;
 
 #define DVB_SDT_RESERVED1_MASK                  0xC0
 #define DVB_SDT_VERSION_NUMBER_MASK             0x3E
@@ -76,9 +77,9 @@ static int
 dissect_dvb_sdt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 
-    guint       offset = 0, length = 0;
-    guint       descriptor_len;
-    guint16     svc_id;
+    unsigned    offset = 0, length = 0;
+    unsigned    descriptor_len;
+    uint16_t    svc_id;
 
     proto_item *ti;
     proto_tree *dvb_sdt_tree;
@@ -232,7 +233,7 @@ proto_register_dvb_sdt(void)
 
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_dvb_sdt,
         &ett_dvb_sdt_service
     };

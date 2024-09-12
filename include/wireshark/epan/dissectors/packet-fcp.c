@@ -14,6 +14,7 @@
 #include <epan/packet.h>
 #include <epan/conversation.h>
 #include <epan/proto_data.h>
+#include <epan/tfs.h>
 #include "packet-scsi.h"
 #include "packet-fc.h"
 #include "packet-fcels.h"
@@ -24,66 +25,66 @@ void proto_reg_handoff_fcp(void);
 static dissector_handle_t fcp_handle;
 
 typedef struct _fcp_proto_data_t {
-    guint16 lun;
+    uint16_t lun;
 } fcp_proto_data_t;
 
 /* Initialize the protocol and registered fields */
-static int proto_fcp = -1;
-static int hf_fcp_multilun = -1;
-static int hf_fcp_singlelun = -1;
-static int hf_fcp_crn = -1;
-static int hf_fcp_taskattr = -1;
-static int hf_fcp_taskmgmt = -1;
-static int hf_fcp_addlcdblen = -1;
-static int hf_fcp_rddata = -1;
-static int hf_fcp_wrdata = -1;
-static int hf_fcp_dl = -1;
-static int hf_fcp_bidir_dl = -1;
-static int hf_fcp_data_ro = -1;
-static int hf_fcp_r_ctl = -1;
-static int hf_fcp_burstlen = -1;
-static int hf_fcp_rspflags = -1;
-static int hf_fcp_retry_delay_timer = -1;
-static int hf_fcp_resid = -1;
-static int hf_fcp_bidir_resid = -1;
-static int hf_fcp_snslen = -1;
-static int hf_fcp_rsplen = -1;
-static int hf_fcp_rspcode = -1;
-static int hf_fcp_scsistatus = -1;
-static int hf_fcp_mgmt_flags_obsolete = -1;
-static int hf_fcp_mgmt_flags_clear_aca = -1;
-static int hf_fcp_mgmt_flags_target_reset = -1;
-static int hf_fcp_mgmt_flags_lu_reset = -1;
-static int hf_fcp_mgmt_flags_rsvd = -1;
-static int hf_fcp_mgmt_flags_clear_task_set = -1;
-static int hf_fcp_mgmt_flags_abort_task_set = -1;
-static int hf_fcp_rsp_flags_bidi = -1;
-static int hf_fcp_rsp_flags_bidi_rru = -1;
-static int hf_fcp_rsp_flags_bidi_rro = -1;
-static int hf_fcp_rsp_flags_conf_req = -1;
-static int hf_fcp_rsp_flags_resid_under = -1;
-static int hf_fcp_rsp_flags_resid_over = -1;
-static int hf_fcp_rsp_flags_sns_vld = -1;
-static int hf_fcp_rsp_flags_res_vld = -1;
-static int hf_fcp_request_in = -1;
-static int hf_fcp_response_in = -1;
-static int hf_fcp_time = -1;
-static int hf_fcp_els_op = -1;
-static int hf_fcp_srr_ox_id = -1;
-static int hf_fcp_srr_rx_id = -1;
+static int proto_fcp;
+static int hf_fcp_multilun;
+static int hf_fcp_singlelun;
+static int hf_fcp_crn;
+static int hf_fcp_taskattr;
+static int hf_fcp_taskmgmt;
+static int hf_fcp_addlcdblen;
+static int hf_fcp_rddata;
+static int hf_fcp_wrdata;
+static int hf_fcp_dl;
+static int hf_fcp_bidir_dl;
+static int hf_fcp_data_ro;
+static int hf_fcp_r_ctl;
+static int hf_fcp_burstlen;
+static int hf_fcp_rspflags;
+static int hf_fcp_retry_delay_timer;
+static int hf_fcp_resid;
+static int hf_fcp_bidir_resid;
+static int hf_fcp_snslen;
+static int hf_fcp_rsplen;
+static int hf_fcp_rspcode;
+static int hf_fcp_scsistatus;
+static int hf_fcp_mgmt_flags_obsolete;
+static int hf_fcp_mgmt_flags_clear_aca;
+static int hf_fcp_mgmt_flags_target_reset;
+static int hf_fcp_mgmt_flags_lu_reset;
+static int hf_fcp_mgmt_flags_rsvd;
+static int hf_fcp_mgmt_flags_clear_task_set;
+static int hf_fcp_mgmt_flags_abort_task_set;
+static int hf_fcp_rsp_flags_bidi;
+static int hf_fcp_rsp_flags_bidi_rru;
+static int hf_fcp_rsp_flags_bidi_rro;
+static int hf_fcp_rsp_flags_conf_req;
+static int hf_fcp_rsp_flags_resid_under;
+static int hf_fcp_rsp_flags_resid_over;
+static int hf_fcp_rsp_flags_sns_vld;
+static int hf_fcp_rsp_flags_res_vld;
+static int hf_fcp_request_in;
+static int hf_fcp_response_in;
+static int hf_fcp_time;
+static int hf_fcp_els_op;
+static int hf_fcp_srr_ox_id;
+static int hf_fcp_srr_rx_id;
 
 /* Initialize the subtree pointers */
-static gint ett_fcp = -1;
-static gint ett_fcp_taskmgmt = -1;
-static gint ett_fcp_rsp_flags = -1;
+static int ett_fcp;
+static int ett_fcp_taskmgmt;
+static int ett_fcp_rsp_flags;
 
 typedef struct _fcp_conv_data_t {
     wmem_map_t *luns;
 } fcp_conv_data_t;
 
 typedef struct fcp_request_data {
-   guint32 request_frame;
-   guint32 response_frame;
+   uint32_t request_frame;
+   uint32_t response_frame;
    nstime_t request_time;
    itlq_nexus_t *itlq;
 } fcp_request_data_t;
@@ -179,9 +180,9 @@ dissect_task_mgmt_flags(packet_info *pinfo, proto_tree *parent_tree, tvbuff_t *t
         NULL
     };
 
-    guint8 flags;
+    uint8_t flags;
 
-    flags = tvb_get_guint8(tvb, offset);
+    flags = tvb_get_uint8(tvb, offset);
     item = proto_tree_add_bitmask_with_flags(parent_tree, tvb, offset, hf_fcp_taskmgmt,
                                    ett_fcp_taskmgmt, mgmt_flags, ENC_NA, BMT_NO_FALSE|BMT_NO_TFS);
 
@@ -254,7 +255,7 @@ static void
 dissect_rsp_flags(proto_tree *parent_tree, tvbuff_t *tvb, int offset)
 {
     proto_item *item;
-    guint8      flags;
+    uint8_t     flags;
     static int * const resid_present_flags[] = {
         &hf_fcp_rsp_flags_bidi,
         &hf_fcp_rsp_flags_bidi_rru,
@@ -277,7 +278,7 @@ dissect_rsp_flags(proto_tree *parent_tree, tvbuff_t *tvb, int offset)
         NULL
     };
 
-    flags = tvb_get_guint8(tvb, offset);
+    flags = tvb_get_uint8(tvb, offset);
     if (flags & 0x80) {
         item = proto_tree_add_bitmask_with_flags(parent_tree, tvb, offset, hf_fcp_rspflags,
                                    ett_fcp_rsp_flags, resid_present_flags, ENC_NA, BMT_NO_FALSE|BMT_NO_TFS);
@@ -295,8 +296,8 @@ dissect_fcp_cmnd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, pro
 {
     int          offset  = 0;
     int          add_len = 0;
-    guint8       flags, rwflags, lun0;
-    guint16      lun     = 0xffff;
+    uint8_t      flags, rwflags, lun0;
+    uint16_t     lun     = 0xffff;
     tvbuff_t    *cdb_tvb;
     int          tvb_len;
     fcp_request_data_t *request_data = NULL;
@@ -304,13 +305,13 @@ dissect_fcp_cmnd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, pro
     fcp_proto_data_t *proto_data;
 
     /* Determine the length of the FCP part of the packet */
-    flags = tvb_get_guint8(tvb, offset+10);
+    flags = tvb_get_uint8(tvb, offset+10);
     if (flags) {
-        add_len = tvb_get_guint8(tvb, offset+11) & 0x7C;
+        add_len = tvb_get_uint8(tvb, offset+11) & 0x7C;
         add_len = add_len >> 2;
     }
 
-    lun0 = tvb_get_guint8(tvb, offset);
+    lun0 = tvb_get_uint8(tvb, offset);
 
     /* Display single-level LUNs in decimal for clarity */
     /* I'm taking a shortcut here by assuming that if the first byte of the
@@ -319,13 +320,13 @@ dissect_fcp_cmnd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, pro
      */
     if (lun0) {
       proto_tree_add_item(tree, hf_fcp_multilun, tvb, offset, 8, ENC_NA);
-      lun = tvb_get_guint8(tvb, offset) & 0x3f;
+      lun = tvb_get_uint8(tvb, offset) & 0x3f;
       lun <<= 8;
-      lun |= tvb_get_guint8(tvb, offset+1);
+      lun |= tvb_get_uint8(tvb, offset+1);
     } else {
       proto_tree_add_item(tree, hf_fcp_singlelun, tvb, offset+1,
                           1, ENC_BIG_ENDIAN);
-      lun = tvb_get_guint8(tvb, offset+1);
+      lun = tvb_get_uint8(tvb, offset+1);
     }
 
     if (!pinfo->fd->visited) {
@@ -334,7 +335,7 @@ dissect_fcp_cmnd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, pro
         p_add_proto_data(wmem_file_scope(), pinfo, proto_fcp, 0, proto_data);
     }
 
-    request_data = (fcp_request_data_t*)wmem_map_lookup(fcp_conv_data->luns, GUINT_TO_POINTER((guint)lun));
+    request_data = (fcp_request_data_t*)wmem_map_lookup(fcp_conv_data->luns, GUINT_TO_POINTER((unsigned)lun));
     if (!request_data) {
         request_data = wmem_new(wmem_file_scope(), fcp_request_data_t);
         request_data->request_frame = pinfo->num;
@@ -354,7 +355,7 @@ dissect_fcp_cmnd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, pro
         request_data->itlq->alloc_len=0;
         request_data->itlq->extra_data=NULL;
 
-        wmem_map_insert(fcp_conv_data->luns, GUINT_TO_POINTER((guint)lun), request_data);
+        wmem_map_insert(fcp_conv_data->luns, GUINT_TO_POINTER((unsigned)lun), request_data);
     }
 
     /* populate the exchange struct */
@@ -377,7 +378,7 @@ dissect_fcp_cmnd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, pro
     proto_tree_add_item(tree, hf_fcp_taskattr, tvb, offset+9, 1, ENC_BIG_ENDIAN);
     dissect_task_mgmt_flags(pinfo, tree, tvb, offset+10);
     proto_tree_add_item(tree, hf_fcp_addlcdblen, tvb, offset+11, 1, ENC_BIG_ENDIAN);
-    rwflags = tvb_get_guint8(tvb, offset+11);
+    rwflags = tvb_get_uint8(tvb, offset+11);
     if (request_data->itlq) {
         if (rwflags & 0x02) {
             request_data->itlq->task_flags |= SCSI_DATA_READ;
@@ -418,7 +419,7 @@ dissect_fcp_cmnd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, pro
 }
 
 static void
-dissect_fcp_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, conversation_t *conversation, itlq_nexus_t *itlq, guint32 relative_offset)
+dissect_fcp_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, conversation_t *conversation, itlq_nexus_t *itlq, uint32_t relative_offset)
 {
     itl_nexus_t itl;
     itlq_nexus_t empty_itlq;
@@ -435,7 +436,7 @@ dissect_fcp_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, con
         itlq = &empty_itlq;
     }
 
-    dissect_scsi_payload(tvb, pinfo, parent_tree, FALSE, itlq, &itl, relative_offset);
+    dissect_scsi_payload(tvb, pinfo, parent_tree, false, itlq, &itl, relative_offset);
 }
 
 /* fcp-3  9.5 table 24 */
@@ -458,15 +459,15 @@ dissect_fcp_rspinfo(tvbuff_t *tvb, proto_tree *tree, int offset)
 static void
 dissect_fcp_rsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, proto_tree *tree, conversation_t *conversation, fc_hdr *fchdr, fcp_request_data_t *request_data)
 {
-    guint32     offset = 0;
-    gint32      snslen = 0;
-    gint32      rsplen = 0;
-    guint8      flags;
-    guint8      status;
+    uint32_t    offset = 0;
+    int32_t     snslen = 0;
+    int32_t     rsplen = 0;
+    uint8_t     flags;
+    uint8_t     status;
     itl_nexus_t itl;
     itlq_nexus_t empty_itlq;
 
-    status = tvb_get_guint8(tvb, offset+11);
+    status = tvb_get_uint8(tvb, offset+11);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, ":%s",
                          val_to_str(status, scsi_status_val, "0x%x"));
@@ -500,7 +501,7 @@ dissect_fcp_rsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, prot
     offset += 2;
 
     /* flags */
-    flags = tvb_get_guint8(tvb, offset);
+    flags = tvb_get_uint8(tvb, offset);
     dissect_rsp_flags(tree, tvb, offset);
     offset += 1;
 
@@ -509,7 +510,7 @@ dissect_fcp_rsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, prot
 
     /* scsi status code */
     proto_tree_add_item(tree, hf_fcp_scsistatus, tvb, offset, 1, ENC_BIG_ENDIAN);
-    dissect_scsi_rsp(tvb, pinfo, parent_tree, (request_data != NULL) ? request_data->itlq : &empty_itlq, &itl, tvb_get_guint8(tvb, offset));
+    dissect_scsi_rsp(tvb, pinfo, parent_tree, (request_data != NULL) ? request_data->itlq : &empty_itlq, &itl, tvb_get_uint8(tvb, offset));
     offset += 1;
 
     /* residual count */
@@ -577,7 +578,7 @@ dissect_fcp_xfer_rdy(tvbuff_t *tvb, proto_tree *tree)
 static void
 dissect_fcp_srr(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, fc_hdr *fchdr)
 {
-    guint8 r_ctl;
+    uint8_t r_ctl;
 
     r_ctl = fchdr->r_ctl & 0xf;
     if (r_ctl == FCP_IU_UNSOL_CTL) {            /* request */
@@ -600,9 +601,9 @@ static const value_string fcp_els_iu_val[] = {
 static void
 dissect_fcp_els(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, fc_hdr *fchdr)
 {
-    guint8 op;
+    uint8_t op;
 
-    op = tvb_get_guint8(tvb, 0);
+    op = tvb_get_uint8(tvb, 0);
     col_add_str(pinfo->cinfo, COL_INFO, val_to_str_ext(op, &fc_els_proto_val_ext, "0x%x"));
     proto_tree_add_item(tree, hf_fcp_els_op, tvb, 0, 1, ENC_NA);
 
@@ -622,11 +623,11 @@ dissect_fcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     proto_item      *ti            = NULL;
     proto_tree      *fcp_tree      = NULL;
     fc_hdr          *fchdr;
-    guint8           r_ctl;
+    uint8_t          r_ctl;
     conversation_t  *fc_conv;
     fcp_conv_data_t *fcp_conv_data = NULL;
     fcp_request_data_t *request_data = NULL;
-    gboolean         els;
+    bool             els;
     fcp_proto_data_t *proto_data;
 
     /* Reject the packet if data is NULL */
@@ -673,7 +674,7 @@ dissect_fcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     }
 
     if ((r_ctl != FCP_IU_CMD) && (r_ctl != FCP_IU_UNSOL_CTL) && (proto_data != NULL)) {
-        request_data = (fcp_request_data_t *)wmem_map_lookup(fcp_conv_data->luns, GUINT_TO_POINTER((guint)(proto_data->lun)));
+        request_data = (fcp_request_data_t *)wmem_map_lookup(fcp_conv_data->luns, GUINT_TO_POINTER((unsigned)(proto_data->lun)));
     }
 
     /* put a request_in in all frames except the command frame */
@@ -951,7 +952,7 @@ proto_register_fcp(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_fcp,
         &ett_fcp_taskmgmt,
         &ett_fcp_rsp_flags,

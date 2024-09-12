@@ -31,17 +31,17 @@
 void proto_register_mctp_control(void);
 void proto_reg_handoff_mctp_control(void);
 
-static int proto_mctp_ctrl = -1;
+static int proto_mctp_ctrl;
 
-static int hf_mctp_ctrl_command = -1;
-static int hf_mctp_ctrl_rq = -1;
-static int hf_mctp_ctrl_d = -1;
-static int hf_mctp_ctrl_instance = -1;
-static int hf_mctp_ctrl_cc = -1;
-static int hf_mctp_ctrl_data = -1;
+static int hf_mctp_ctrl_command;
+static int hf_mctp_ctrl_rq;
+static int hf_mctp_ctrl_d;
+static int hf_mctp_ctrl_instance;
+static int hf_mctp_ctrl_cc;
+static int hf_mctp_ctrl_data;
 
-static gint ett_mctp_ctrl = -1;
-static gint ett_mctp_ctrl_hdr = -1;
+static int ett_mctp_ctrl;
+static int ett_mctp_ctrl_hdr;
 
 static const value_string command_vals[] = {
     { 0x00, "Reserved" },
@@ -70,9 +70,9 @@ dissect_mctp_ctrl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         void *data _U_)
 {
     proto_tree *mctp_ctrl_tree, *mctp_ctrl_hdr_tree;
-    guint len, payload_start, cmd;
+    unsigned len, payload_start, cmd;
     proto_item *ti, *hti;
-    gboolean rq;
+    bool rq;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "MCTP Control");
     col_clear(pinfo->cinfo, COL_INFO);
@@ -170,7 +170,7 @@ proto_register_mctp_control(void)
     };
 
     /* protocol subtree */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_mctp_ctrl,
         &ett_mctp_ctrl_hdr,
     };

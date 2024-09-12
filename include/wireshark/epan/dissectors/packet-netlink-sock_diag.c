@@ -55,13 +55,13 @@ enum {
 
 enum ws_unix_diag_show_mask {
 	/* show mask for unix diag from <include/uapi/linux/unix_diag.h> */
-	WS_UDIAG_SHOW_NAME     = 0x01,
-	WS_UDIAG_SHOW_VFS      = 0x02,
-	WS_UDIAG_SHOW_PEER     = 0x04,
-	WS_UDIAG_SHOW_ICONS    = 0x08,
-	WS_UDIAG_SHOW_RQLEN    = 0x10,
-	WS_UDIAG_SHOW_MEMINFO  = 0x20,
-	WS_UDIAG_SHOW_UID      = 0X40
+	WS_UDIAG_SHOW_NAME     = 0x00000001,
+	WS_UDIAG_SHOW_VFS      = 0x00000002,
+	WS_UDIAG_SHOW_PEER     = 0x00000004,
+	WS_UDIAG_SHOW_ICONS    = 0x00000008,
+	WS_UDIAG_SHOW_RQLEN    = 0x00000010,
+	WS_UDIAG_SHOW_MEMINFO  = 0x00000020,
+	WS_UDIAG_SHOW_UID      = 0x00000040
 };
 
 enum ws_unix_diag_attr_type {
@@ -105,10 +105,10 @@ enum ws_inet_diag_attr_type {
 
 enum ws_netlink_diag_show_type {
 	/* show mask for netlink diag from <include/uapi/linux/netlink_diag.h> */
-	WS_NDIAG_SHOW_MEMINFO   = 0x01,
-	WS_NDIAG_SHOW_GROUPS    = 0x02,
-	WS_NDIAG_SHOW_RING_CFG  = 0x04,
-	WS_NDIAG_SHOW_FLAGS     = 0X08,
+	WS_NDIAG_SHOW_MEMINFO   = 0x00000001,
+	WS_NDIAG_SHOW_GROUPS    = 0x00000002,
+	WS_NDIAG_SHOW_RING_CFG  = 0x00000004,
+	WS_NDIAG_SHOW_FLAGS     = 0x00000008,
 };
 
 enum ws_netlink_diag_attr_type {
@@ -122,12 +122,12 @@ enum ws_netlink_diag_attr_type {
 
 enum ws_packet_diag_show_mask {
 	/* show mask for packet diag from <include/uapi/linux/packet_diag.h> */
-	WS_PACKET_SHOW_INFO        = 0x01,
-	WS_PACKET_SHOW_MCLIST      = 0x02,
-	WS_PACKET_SHOW_RING_CFG    = 0x04,
-	WS_PACKET_SHOW_FANOUT      = 0x08,
-	WS_PACKET_SHOW_MEMINFO     = 0x10,
-	WS_PACKET_SHOW_FILTER      = 0x20
+	WS_PACKET_SHOW_INFO        = 0x00000001,
+	WS_PACKET_SHOW_MCLIST      = 0x00000002,
+	WS_PACKET_SHOW_RING_CFG    = 0x00000004,
+	WS_PACKET_SHOW_FANOUT      = 0x00000008,
+	WS_PACKET_SHOW_MEMINFO     = 0x00000010,
+	WS_PACKET_SHOW_FILTER      = 0x00000020
 };
 
 enum ws_packet_diag_attr_type {
@@ -158,64 +158,64 @@ enum {
 	WS_NEW_SYNC_RECV = 12
 };
 
-static int hf_netlink_sock_diag_cookie = -1;
-static int hf_netlink_sock_diag_family = -1;
-static int hf_netlink_sock_diag_fwd_alloc = -1;
-static int hf_netlink_sock_diag_inet_attr = -1;
-static int hf_netlink_sock_diag_inet_dport = -1;
-static int hf_netlink_sock_diag_inet_dst_ip4 = -1;
-static int hf_netlink_sock_diag_inet_dst_ip6 = -1;
-static int hf_netlink_sock_diag_inet_extended = -1;
-static int hf_netlink_sock_diag_inet_interface = -1;
-static int hf_netlink_sock_diag_inet_padding = -1;
-static int hf_netlink_sock_diag_inet_proto = -1;
-static int hf_netlink_sock_diag_inet_sport = -1;
-static int hf_netlink_sock_diag_inet_src_ip4 = -1;
-static int hf_netlink_sock_diag_inet_src_ip6 = -1;
-static int hf_netlink_sock_diag_inet_states = -1;
-static int hf_netlink_sock_diag_inode = -1;
-static int hf_netlink_sock_diag_netlink_attr = -1;
-static int hf_netlink_sock_diag_netlink_dst_port_id = -1;
-static int hf_netlink_sock_diag_netlink_port_id = -1;
-static int hf_netlink_sock_diag_netlink_proto = -1;
-static int hf_netlink_sock_diag_netlink_show = -1;
-static int hf_netlink_sock_diag_netlink_show_groups = -1;
-static int hf_netlink_sock_diag_netlink_show_meminfo = -1;
-static int hf_netlink_sock_diag_netlink_show_ring_cfg = -1;
-static int hf_netlink_sock_diag_nltype = -1;
-static int hf_netlink_sock_diag_packet_attr = -1;
-static int hf_netlink_sock_diag_packet_proto = -1;
-static int hf_netlink_sock_diag_packet_show = -1;
-static int hf_netlink_sock_diag_packet_show_fanout = -1;
-static int hf_netlink_sock_diag_packet_show_filter = -1;
-static int hf_netlink_sock_diag_packet_show_info = -1;
-static int hf_netlink_sock_diag_packet_show_mclist = -1;
-static int hf_netlink_sock_diag_packet_show_meminfo = -1;
-static int hf_netlink_sock_diag_packet_show_ring_cfg = -1;
-static int hf_netlink_sock_diag_rcvbuf = -1;
-static int hf_netlink_sock_diag_rmem_alloc = -1;
-static int hf_netlink_sock_diag_rqueue = -1;
-static int hf_netlink_sock_diag_shutdown = -1;
-static int hf_netlink_sock_diag_sndbuf = -1;
-static int hf_netlink_sock_diag_state = -1;
-static int hf_netlink_sock_diag_type = -1;
-static int hf_netlink_sock_diag_unix_attr = -1;
-static int hf_netlink_sock_diag_unix_name = -1;
-static int hf_netlink_sock_diag_unix_peer_inode = -1;
-static int hf_netlink_sock_diag_unix_show = -1;
-static int hf_netlink_sock_diag_unix_show_icons = -1;
-static int hf_netlink_sock_diag_unix_show_meminfo = -1;
-static int hf_netlink_sock_diag_unix_show_name = -1;
-static int hf_netlink_sock_diag_unix_show_peer = -1;
-static int hf_netlink_sock_diag_unix_show_rqlen = -1;
-static int hf_netlink_sock_diag_unix_show_vfs = -1;
-static int hf_netlink_sock_diag_wmem_alloc = -1;
-static int hf_netlink_sock_diag_wmem_queued = -1;
-static int hf_netlink_sock_diag_wqueue = -1;
+static int hf_netlink_sock_diag_cookie;
+static int hf_netlink_sock_diag_family;
+static int hf_netlink_sock_diag_fwd_alloc;
+static int hf_netlink_sock_diag_inet_attr;
+static int hf_netlink_sock_diag_inet_dport;
+static int hf_netlink_sock_diag_inet_dst_ip4;
+static int hf_netlink_sock_diag_inet_dst_ip6;
+static int hf_netlink_sock_diag_inet_extended;
+static int hf_netlink_sock_diag_inet_interface;
+static int hf_netlink_sock_diag_inet_padding;
+static int hf_netlink_sock_diag_inet_proto;
+static int hf_netlink_sock_diag_inet_sport;
+static int hf_netlink_sock_diag_inet_src_ip4;
+static int hf_netlink_sock_diag_inet_src_ip6;
+static int hf_netlink_sock_diag_inet_states;
+static int hf_netlink_sock_diag_inode;
+static int hf_netlink_sock_diag_netlink_attr;
+static int hf_netlink_sock_diag_netlink_dst_port_id;
+static int hf_netlink_sock_diag_netlink_port_id;
+static int hf_netlink_sock_diag_netlink_proto;
+static int hf_netlink_sock_diag_netlink_show;
+static int hf_netlink_sock_diag_netlink_show_groups;
+static int hf_netlink_sock_diag_netlink_show_meminfo;
+static int hf_netlink_sock_diag_netlink_show_ring_cfg;
+static int hf_netlink_sock_diag_nltype;
+static int hf_netlink_sock_diag_packet_attr;
+static int hf_netlink_sock_diag_packet_proto;
+static int hf_netlink_sock_diag_packet_show;
+static int hf_netlink_sock_diag_packet_show_fanout;
+static int hf_netlink_sock_diag_packet_show_filter;
+static int hf_netlink_sock_diag_packet_show_info;
+static int hf_netlink_sock_diag_packet_show_mclist;
+static int hf_netlink_sock_diag_packet_show_meminfo;
+static int hf_netlink_sock_diag_packet_show_ring_cfg;
+static int hf_netlink_sock_diag_rcvbuf;
+static int hf_netlink_sock_diag_rmem_alloc;
+static int hf_netlink_sock_diag_rqueue;
+static int hf_netlink_sock_diag_shutdown;
+static int hf_netlink_sock_diag_sndbuf;
+static int hf_netlink_sock_diag_state;
+static int hf_netlink_sock_diag_type;
+static int hf_netlink_sock_diag_unix_attr;
+static int hf_netlink_sock_diag_unix_name;
+static int hf_netlink_sock_diag_unix_peer_inode;
+static int hf_netlink_sock_diag_unix_show;
+static int hf_netlink_sock_diag_unix_show_icons;
+static int hf_netlink_sock_diag_unix_show_meminfo;
+static int hf_netlink_sock_diag_unix_show_name;
+static int hf_netlink_sock_diag_unix_show_peer;
+static int hf_netlink_sock_diag_unix_show_rqlen;
+static int hf_netlink_sock_diag_unix_show_vfs;
+static int hf_netlink_sock_diag_wmem_alloc;
+static int hf_netlink_sock_diag_wmem_queued;
+static int hf_netlink_sock_diag_wqueue;
 
-static int ett_netlink_sock_diag = -1;
-static int ett_netlink_sock_diag_show = -1;
-static int ett_netlink_sock_diag_attr = -1;
+static int ett_netlink_sock_diag;
+static int ett_netlink_sock_diag_show;
+static int ett_netlink_sock_diag_attr;
 
 static const true_false_string _tfs_show_do_not_show = { "Show", "Don't show" };
 
@@ -246,14 +246,14 @@ static const value_string socket_state_vals[] = {
 	{ 0, NULL }
 };
 
-/* Geneirc */
+/* Generic */
 
 static int
 _tvb_check_if_zeros(tvbuff_t *tvb, int offset, int len)
 {
 	/* padding, all bytes should be 0, if not display as unknown */
 	while (len >= 0) {
-		if (tvb_get_guint8(tvb, offset) != 0)
+		if (tvb_get_uint8(tvb, offset) != 0)
 			return 1;
 
 		offset++;
@@ -286,7 +286,7 @@ dissect_sock_diag_meminfo(proto_tree *tree, netlink_sock_diag_info_t *info _U_, 
 		/* XXX BACKLOG */
 	};
 
-	guint i;
+	unsigned i;
 
 	if (len == 0 || (len % 4) != 0)
 		return 0;
@@ -308,7 +308,7 @@ dissect_sock_diag_meminfo(proto_tree *tree, netlink_sock_diag_info_t *info _U_, 
 static void
 sock_diag_proto_tree_add_cookie(proto_tree *tree, netlink_sock_diag_info_t *info _U_, struct packet_netlink_data *nl_data _U_, tvbuff_t *tvb, int offset)
 {
-	guint64 cookie;
+	uint64_t cookie;
 
 	cookie = tvb_get_letohl(tvb, offset + 4);
 	cookie <<= 32;
@@ -330,7 +330,7 @@ static const value_string netlink_sock_diag_shutdown_flags_vals[] = {
 static void
 sock_diag_proto_tree_add_shutdown(proto_tree *tree, tvbuff_t *tvb, int offset)
 {
-	guint8 how = tvb_get_guint8(tvb, offset);
+	uint8_t how = tvb_get_uint8(tvb, offset);
 
 	proto_tree_add_item(tree, hf_netlink_sock_diag_shutdown, tvb, offset, 1, ENC_NA);
 
@@ -362,7 +362,7 @@ dissect_netlink_unix_sock_diag_reply_attrs(tvbuff_t *tvb, void *data, struct pac
 			const char *name;
 
 			/* XXX make it nicer */
-			if (len > 0 && tvb_get_guint8(tvb, offset) == '\0') {
+			if (len > 0 && tvb_get_uint8(tvb, offset) == '\0') {
 				name = wmem_strconcat(wmem_packet_scope(),
 					"@",
 					tvb_get_string_enc(wmem_packet_scope(), tvb, offset+1, len-1, ENC_ASCII | ENC_NA),
@@ -377,7 +377,7 @@ dissect_netlink_unix_sock_diag_reply_attrs(tvbuff_t *tvb, void *data, struct pac
 
 		case WS_UNIX_DIAG_PEER:
 			if (len == 4) {
-				guint32 value;
+				uint32_t value;
 				proto_tree_add_item_ret_uint(tree, hf_netlink_sock_diag_unix_peer_inode, tvb, offset, 4, nl_data->encoding, &value);
 				proto_item_append_text(tree, ": Peer inode %u", value);
 				return 1;
@@ -618,9 +618,9 @@ dissect_sock_diag_inet_sockid(tvbuff_t *tvb, netlink_sock_diag_info_t *info, str
 static int
 dissect_sock_diag_inet_reply(tvbuff_t *tvb, netlink_sock_diag_info_t *info, struct packet_netlink_data *nl_data, proto_tree *tree, int offset)
 {
-	guint8 af_family;
+	uint8_t af_family;
 
-	af_family = tvb_get_guint8(tvb, offset);
+	af_family = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(tree, hf_netlink_sock_diag_family, tvb, offset, 1, ENC_NA);
 	offset += 1;
 
@@ -655,9 +655,9 @@ dissect_sock_diag_inet_reply(tvbuff_t *tvb, netlink_sock_diag_info_t *info, stru
 static int
 dissect_sock_diag_inet_request(tvbuff_t *tvb, netlink_sock_diag_info_t *info, struct packet_netlink_data *nl_data, proto_tree *tree, int offset)
 {
-	guint8 af_family;
+	uint8_t af_family;
 
-	af_family = tvb_get_guint8(tvb, offset);
+	af_family = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(tree, hf_netlink_sock_diag_family, tvb, offset, 1, ENC_NA);
 	offset += 1;
 
@@ -720,7 +720,7 @@ dissect_sock_diag_netlink_reply(tvbuff_t *tvb, netlink_sock_diag_info_t *info, s
 	offset += 1;
 
 	/* ti = */ proto_tree_add_item(tree, hf_netlink_sock_diag_type, tvb, offset, 1, ENC_NA);
-	switch (tvb_get_guint8(tvb, offset)) {
+	switch (tvb_get_uint8(tvb, offset)) {
 		case WS_SOCK_DGRAM:
 		case WS_SOCK_RAW:
 			break;
@@ -911,10 +911,10 @@ dissect_sock_diag_packet_request(tvbuff_t *tvb, netlink_sock_diag_info_t *info, 
 static int
 dissect_sock_diag_by_family(tvbuff_t *tvb, netlink_sock_diag_info_t *info, struct packet_netlink_data *nl_data, proto_tree *tree, int offset)
 {
-	const gboolean is_req = (info->pinfo->p2p_dir == P2P_DIR_SENT);
-	guint8 af_family;
+	const bool is_req = (info->pinfo->p2p_dir == P2P_DIR_SENT);
+	uint8_t af_family;
 
-	af_family = tvb_get_guint8(tvb, offset);
+	af_family = tvb_get_uint8(tvb, offset);
 
 	switch (af_family) {
 		case LINUX_AF_LOCAL:
@@ -1266,7 +1266,7 @@ proto_register_netlink_sock_diag(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_netlink_sock_diag,
 		&ett_netlink_sock_diag_show,
 		&ett_netlink_sock_diag_attr

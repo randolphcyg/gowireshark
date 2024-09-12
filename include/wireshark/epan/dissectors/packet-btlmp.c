@@ -13,131 +13,129 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/expert.h>
+#include <epan/unit_strings.h>
 
 
-#include "packet-bluetooth.h"
 #include "packet-btbredr_rf.h"
 
-static int proto_btlmp = -1;
+static int proto_btlmp;
 
-static int hf_opcode[3] = { -1, -1, -1 };
-static int hf_escopcode[4] = { -1, -1, -1, -1 };
-static int hf_accept_opcode = -1;
-static int hf_accept_escopcode[4] = { -1, -1, -1, -1 };
-static int hf_errorcode = -1;
-static int hf_param_feature_page0_byte0[9] = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static int hf_param_feature_page0_byte1[9] = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static int hf_param_feature_page0_byte2[7] = { -1, -1, -1, -1, -1, -1, -1 };
-static int hf_param_feature_page0_byte3[9] = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static int hf_param_feature_page0_byte4[9] = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static int hf_param_feature_page0_byte5[9] = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static int hf_param_feature_page0_byte6[9] = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static int hf_param_feature_page0_byte7[6] = { -1, -1, -1, -1, -1, -1 };
-static int hf_param_feature_page1_byte0[6] = { -1, -1, -1, -1, -1, -1 };
-static int hf_param_feature_page2_byte0[9] = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static int hf_param_feature_page2_byte1[6] = { -1, -1, -1, -1, -1, -1 };
-static int hf_param_features_page = -1;
-static int hf_param_max_supported_page = -1;
-static int hf_param_versnr = -1;
-static int hf_param_compid = -1;
-static int hf_param_subversnr = -1;
-static int hf_param_namelength = -1;
-static int hf_param_nameoffset = -1;
-static int hf_param_namefragment = -1;
-static int hf_param_afh_mode = -1;
-static int hf_param_afh_instant = -1;
-static int hf_param_afh_channelmap[10] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static int hf_param_afh_reportingmode = -1;
-static int hf_param_afh_mininterval = -1;
-static int hf_param_afh_maxinterval = -1;
-static int hf_param_afh_channelclass[10][4] = { { -1, -1, -1, -1 }, { -1, -1, -1, -1 }, { -1, -1, -1, -1 }, { -1, -1, -1, -1 }, { -1, -1, -1, -1 },
-                                                { -1, -1, -1, -1 }, { -1, -1, -1, -1 }, { -1, -1, -1, -1 }, { -1, -1, -1, -1 }, { -1, -1, -1, -1 } };
-static int hf_param_rand = -1;
-static int hf_param_key = -1;
-static int hf_param_clockoffset = -1;
-static int hf_param_authresp = -1;
-static int hf_param_encryptionmode = -1;
-static int hf_param_encryptionkeysize = -1;
-static int hf_param_switchinstant = -1;
-static int hf_param_holdtime = -1;
-static int hf_param_holdinstant = -1;
-static int hf_param_dsniff = -1;
-static int hf_param_tsniff = -1;
-static int hf_param_sniffattempt = -1;
-static int hf_param_snifftimeout = -1;
-static int hf_param_timingcontrolflags[5] = { -1, -1, -1, -1, -1 };
-static int hf_param_futureuse1 = -1;
-static int hf_param_datarate[6] = { -1, -1, -1, -1, -1, -1 };
-static int hf_param_pollinterval = -1;
-static int hf_param_nbc = -1;
-static int hf_param_scohandle = -1;
-static int hf_param_dsco = -1;
-static int hf_param_tsco = -1;
-static int hf_param_scopacket = -1;
-static int hf_param_airmode = -1;
-static int hf_param_slots = -1;
-static int hf_param_tmgacc_drift = -1;
-static int hf_param_tmgacc_jitter = -1;
-static int hf_param_slotoffset = -1;
-static int hf_param_bdaddr = -1;
-static int hf_param_pagingscheme = -1;
-static int hf_param_pagingschemesettings = -1;
-static int hf_param_supervisiontimeout = -1;
-static int hf_param_testscenario = -1;
-static int hf_param_testhoppingmode = -1;
-static int hf_param_testtxfrequency = -1;
-static int hf_param_testrxfrequency = -1;
-static int hf_param_testpowercontrolmode = -1;
-static int hf_param_testpollperiod = -1;
-static int hf_param_testpackettype = -1;
-static int hf_param_testdatalength = -1;
-static int hf_param_keysizemask = -1;
-static int hf_param_encapsulatedmajor = -1;
-static int hf_param_encapsulatedminor = -1;
-static int hf_param_encapsulatedlength = -1;
-static int hf_param_encapsulateddata = -1;
-static int hf_param_simplepaircommit = -1;
-static int hf_param_simplepairnonce = -1;
-static int hf_param_dhkeyconfirm = -1;
-static int hf_param_clkadjid = -1;
-static int hf_param_clkadjinstant = -1;
-static int hf_param_clkadjus = -1;
-static int hf_param_clkadjslots = -1;
-static int hf_param_clkadjmode = -1;
-static int hf_param_clkadjclk = -1;
-static int hf_param_clkadjperiod = -1;
-static int hf_param_packettypetable = -1;
-static int hf_param_escohandle = -1;
-static int hf_param_escoltaddr = -1;
-static int hf_param_escod = -1;
-static int hf_param_escot = -1;
-static int hf_param_escow = -1;
-static int hf_param_escopackettypems = -1;
-static int hf_param_escopackettypesm = -1;
-static int hf_param_escopacketlengthms = -1;
-static int hf_param_escopacketlengthsm = -1;
-static int hf_param_negostate = -1;
-static int hf_param_maxsniffsubrate = -1;
-static int hf_param_minsniffmodetimeout = -1;
-static int hf_param_sniffsubratinginstant = -1;
-static int hf_param_iocapcap = -1;
-static int hf_param_iocapoobauthdata = -1;
-static int hf_param_iocapauthreq = -1;
-static int hf_param_keypressnotificationtype = -1;
-static int hf_param_poweradjreq = -1;
-static int hf_param_poweradjresp[5] = { -1, -1, -1, -1, -1 };
-static int hf_param_samindex = -1;
-static int hf_param_samtsm = -1;
-static int hf_param_samnsm = -1;
-static int hf_param_samsubmaps = -1;
-static int hf_param_samupdatemode = -1;
-static int hf_param_samtype0submap = -1;
-static int hf_param_samd = -1;
-static int hf_param_saminstant = -1;
-static int hf_params = -1;
+static int hf_opcode[3];
+static int hf_escopcode[4];
+static int hf_accept_opcode;
+static int hf_accept_escopcode[4];
+static int hf_errorcode;
+static int hf_param_feature_page0_byte0[9];
+static int hf_param_feature_page0_byte1[9];
+static int hf_param_feature_page0_byte2[7];
+static int hf_param_feature_page0_byte3[9];
+static int hf_param_feature_page0_byte4[9];
+static int hf_param_feature_page0_byte5[9];
+static int hf_param_feature_page0_byte6[9];
+static int hf_param_feature_page0_byte7[6];
+static int hf_param_feature_page1_byte0[6];
+static int hf_param_feature_page2_byte0[9];
+static int hf_param_feature_page2_byte1[6];
+static int hf_param_features_page;
+static int hf_param_max_supported_page;
+static int hf_param_versnr;
+static int hf_param_compid;
+static int hf_param_subversnr;
+static int hf_param_namelength;
+static int hf_param_nameoffset;
+static int hf_param_namefragment;
+static int hf_param_afh_mode;
+static int hf_param_afh_instant;
+static int hf_param_afh_channelmap[10];
+static int hf_param_afh_reportingmode;
+static int hf_param_afh_mininterval;
+static int hf_param_afh_maxinterval;
+static int hf_param_afh_channelclass[10][4];
+static int hf_param_rand;
+static int hf_param_key;
+static int hf_param_clockoffset;
+static int hf_param_authresp;
+static int hf_param_encryptionmode;
+static int hf_param_encryptionkeysize;
+static int hf_param_switchinstant;
+static int hf_param_holdtime;
+static int hf_param_holdinstant;
+static int hf_param_dsniff;
+static int hf_param_tsniff;
+static int hf_param_sniffattempt;
+static int hf_param_snifftimeout;
+static int hf_param_timingcontrolflags[5];
+static int hf_param_futureuse1;
+static int hf_param_datarate[6];
+static int hf_param_pollinterval;
+static int hf_param_nbc;
+static int hf_param_scohandle;
+static int hf_param_dsco;
+static int hf_param_tsco;
+static int hf_param_scopacket;
+static int hf_param_airmode;
+static int hf_param_slots;
+static int hf_param_tmgacc_drift;
+static int hf_param_tmgacc_jitter;
+static int hf_param_slotoffset;
+static int hf_param_bdaddr;
+static int hf_param_pagingscheme;
+static int hf_param_pagingschemesettings;
+static int hf_param_supervisiontimeout;
+static int hf_param_testscenario;
+static int hf_param_testhoppingmode;
+static int hf_param_testtxfrequency;
+static int hf_param_testrxfrequency;
+static int hf_param_testpowercontrolmode;
+static int hf_param_testpollperiod;
+static int hf_param_testpackettype;
+static int hf_param_testdatalength;
+static int hf_param_keysizemask;
+static int hf_param_encapsulatedmajor;
+static int hf_param_encapsulatedminor;
+static int hf_param_encapsulatedlength;
+static int hf_param_encapsulateddata;
+static int hf_param_simplepaircommit;
+static int hf_param_simplepairnonce;
+static int hf_param_dhkeyconfirm;
+static int hf_param_clkadjid;
+static int hf_param_clkadjinstant;
+static int hf_param_clkadjus;
+static int hf_param_clkadjslots;
+static int hf_param_clkadjmode;
+static int hf_param_clkadjclk;
+static int hf_param_clkadjperiod;
+static int hf_param_packettypetable;
+static int hf_param_escohandle;
+static int hf_param_escoltaddr;
+static int hf_param_escod;
+static int hf_param_escot;
+static int hf_param_escow;
+static int hf_param_escopackettypems;
+static int hf_param_escopackettypesm;
+static int hf_param_escopacketlengthms;
+static int hf_param_escopacketlengthsm;
+static int hf_param_negostate;
+static int hf_param_maxsniffsubrate;
+static int hf_param_minsniffmodetimeout;
+static int hf_param_sniffsubratinginstant;
+static int hf_param_iocapcap;
+static int hf_param_iocapoobauthdata;
+static int hf_param_iocapauthreq;
+static int hf_param_keypressnotificationtype;
+static int hf_param_poweradjreq;
+static int hf_param_poweradjresp[5];
+static int hf_param_samindex;
+static int hf_param_samtsm;
+static int hf_param_samnsm;
+static int hf_param_samsubmaps;
+static int hf_param_samupdatemode;
+static int hf_param_samtype0submap;
+static int hf_param_samd;
+static int hf_param_saminstant;
+static int hf_params;
 
-static gint ett_btlmp = -1;
+static int ett_btlmp;
 
 static dissector_handle_t btlmp_handle;
 
@@ -543,9 +541,9 @@ static const unit_name_string units_slotpairs = { " slot pair", " slot pairs" };
 
 
 
-static void decode_uint8_binary(gchar *s, guint8 value)
+static void decode_uint8_binary(char *s, uint8_t value)
 {
-    for (guint i = 0; i < 8 && i + 1 < ITEM_LABEL_LENGTH; ++i, value <<= 1)
+    for (unsigned i = 0; i < 8 && i + 1 < ITEM_LABEL_LENGTH; ++i, value <<= 1)
         *s++ = '0' + ((value >> 7) & 1);
     *s = 0;
 }
@@ -553,13 +551,13 @@ static void decode_uint8_binary(gchar *s, guint8 value)
 void proto_register_btlmp(void);
 void proto_reg_handoff_btlmp(void);
 
-static gint
+static int
 dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     proto_item                *btlmp_item;
     proto_tree                *btlmp_tree;
-    gint                       offset = 0;
-    guint16                    opcode;
+    int                        offset = 0;
+    uint16_t                   opcode;
     connection_info_t *connection_info = (connection_info_t *)data;
 
     btlmp_item = proto_tree_add_item(tree, proto_btlmp, tvb, offset, -1, ENC_NA);
@@ -567,16 +565,16 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "BT LMP");
 
-    for (guint i = 0; i < array_length(hf_opcode); ++i)
+    for (unsigned i = 0; i < array_length(hf_opcode); ++i)
         proto_tree_add_item(btlmp_tree, hf_opcode[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
-    opcode = tvb_get_guint8(tvb, offset) >> 1;
+    opcode = tvb_get_uint8(tvb, offset) >> 1;
     offset += 1;
     if (opcode >= 0x7c) {
         opcode &= 3;
         proto_tree_add_item(btlmp_tree, hf_escopcode[opcode], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++opcode;
         opcode <<= 8;
-        opcode |= tvb_get_guint8(tvb, offset);
+        opcode |= tvb_get_uint8(tvb, offset);
         offset += 1;
     }
     switch (opcode) {
@@ -667,7 +665,7 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         break;
 
     case 0x017: // LMP_sniff_req
-        for (guint i = 0; i < array_length(hf_param_timingcontrolflags); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_timingcontrolflags); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_timingcontrolflags[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
         proto_tree_add_item(btlmp_tree, hf_param_dsniff, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -695,7 +693,7 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
        break;
 
     case 0x024: // LMP_preferred_rate
-        for (guint i = 0; i < array_length(hf_param_datarate); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_datarate); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_datarate[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         break;
 
@@ -711,28 +709,28 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
     case 0x027: // LMP_features_req
     case 0x028: // LMP_features_res
-        for (guint i = 0; i < array_length(hf_param_feature_page0_byte0); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte0); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte0[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        for (guint i = 0; i < array_length(hf_param_feature_page0_byte1); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte1); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte1[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        for (guint i = 0; i < array_length(hf_param_feature_page0_byte2); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte2); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte2[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        for (guint i = 0; i < array_length(hf_param_feature_page0_byte3); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte3); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte3[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        for (guint i = 0; i < array_length(hf_param_feature_page0_byte4); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte4); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte4[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        for (guint i = 0; i < array_length(hf_param_feature_page0_byte5); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte5); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte5[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        for (guint i = 0; i < array_length(hf_param_feature_page0_byte6); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte6); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte6[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        for (guint i = 0; i < array_length(hf_param_feature_page0_byte7); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte7); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte7[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
         break;
@@ -748,7 +746,7 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     case 0x02b: // LMP_SCO_link_req
         proto_tree_add_item(btlmp_tree, hf_param_scohandle, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        for (guint i = 0; i < array_length(hf_param_timingcontrolflags); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_timingcontrolflags); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_timingcontrolflags[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
         proto_tree_add_item(btlmp_tree, hf_param_dsco, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -844,7 +842,7 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         offset += 4;
         proto_tree_add_item(btlmp_tree, hf_param_afh_mode, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        for (guint i = 0; i < array_length(hf_param_afh_channelmap); ++i, ++offset)
+        for (unsigned i = 0; i < array_length(hf_param_afh_channelmap); ++i, ++offset)
             proto_tree_add_item(btlmp_tree, hf_param_afh_channelmap[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         break;
 
@@ -880,14 +878,14 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     case 0x401: // LMP_accepted_ext
         proto_tree_add_item(btlmp_tree, hf_accept_opcode, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        proto_tree_add_item(btlmp_tree, hf_accept_escopcode[tvb_get_guint8(tvb, offset - 1) & 3], tvb, offset, 1, ENC_LITTLE_ENDIAN);
+        proto_tree_add_item(btlmp_tree, hf_accept_escopcode[tvb_get_uint8(tvb, offset - 1) & 3], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
         break;
 
     case 0x402: // LMP_not_accepted_ext
         proto_tree_add_item(btlmp_tree, hf_accept_opcode, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        proto_tree_add_item(btlmp_tree, hf_accept_escopcode[tvb_get_guint8(tvb, offset - 1) & 3], tvb, offset, 1, ENC_LITTLE_ENDIAN);
+        proto_tree_add_item(btlmp_tree, hf_accept_escopcode[tvb_get_uint8(tvb, offset - 1) & 3], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
         proto_tree_add_item(btlmp_tree, hf_errorcode, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
@@ -899,45 +897,45 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         ++offset;
         proto_tree_add_item(btlmp_tree, hf_param_max_supported_page, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        switch (tvb_get_guint8(tvb, offset - 2)) {
+        switch (tvb_get_uint8(tvb, offset - 2)) {
         case 0:
-            for (guint i = 0; i < array_length(hf_param_feature_page0_byte0); ++i)
+            for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte0); ++i)
                 proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte0[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
             ++offset;
-            for (guint i = 0; i < array_length(hf_param_feature_page0_byte1); ++i)
+            for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte1); ++i)
                 proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte1[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
             ++offset;
-            for (guint i = 0; i < array_length(hf_param_feature_page0_byte2); ++i)
+            for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte2); ++i)
                 proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte2[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
             ++offset;
-            for (guint i = 0; i < array_length(hf_param_feature_page0_byte3); ++i)
+            for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte3); ++i)
                 proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte3[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
             ++offset;
-            for (guint i = 0; i < array_length(hf_param_feature_page0_byte4); ++i)
+            for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte4); ++i)
                 proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte4[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
             ++offset;
-            for (guint i = 0; i < array_length(hf_param_feature_page0_byte5); ++i)
+            for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte5); ++i)
                 proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte5[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
             ++offset;
-            for (guint i = 0; i < array_length(hf_param_feature_page0_byte6); ++i)
+            for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte6); ++i)
                 proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte6[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
             ++offset;
-            for (guint i = 0; i < array_length(hf_param_feature_page0_byte7); ++i)
+            for (unsigned i = 0; i < array_length(hf_param_feature_page0_byte7); ++i)
                 proto_tree_add_item(btlmp_tree, hf_param_feature_page0_byte7[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
             ++offset;
             break;
 
         case 1:
-            for (guint i = 0; i < array_length(hf_param_feature_page1_byte0); ++i)
+            for (unsigned i = 0; i < array_length(hf_param_feature_page1_byte0); ++i)
                 proto_tree_add_item(btlmp_tree, hf_param_feature_page1_byte0[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
             ++offset;
             break;
 
         case 2:
-            for (guint i = 0; i < array_length(hf_param_feature_page2_byte0); ++i)
+            for (unsigned i = 0; i < array_length(hf_param_feature_page2_byte0); ++i)
                 proto_tree_add_item(btlmp_tree, hf_param_feature_page2_byte0[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
             ++offset;
-            for (guint i = 0; i < array_length(hf_param_feature_page2_byte1); ++i)
+            for (unsigned i = 0; i < array_length(hf_param_feature_page2_byte1); ++i)
                 proto_tree_add_item(btlmp_tree, hf_param_feature_page2_byte1[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
             ++offset;
             break;
@@ -982,13 +980,13 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         break;
 
     case 0x40c: // LMP_eSCO_link_req
-        btbredr_rf_add_esco_link(connection_info, pinfo, tvb_get_guint8(tvb, offset), tvb_get_guint8(tvb, offset + 1),
-                                 tvb_get_guint16(tvb, offset + 8, ENC_LITTLE_ENDIAN), tvb_get_guint16(tvb, offset + 10, ENC_LITTLE_ENDIAN));
+        btbredr_rf_add_esco_link(connection_info, pinfo, tvb_get_uint8(tvb, offset), tvb_get_uint8(tvb, offset + 1),
+                                 tvb_get_uint16(tvb, offset + 8, ENC_LITTLE_ENDIAN), tvb_get_uint16(tvb, offset + 10, ENC_LITTLE_ENDIAN));
         proto_tree_add_item(btlmp_tree, hf_param_escohandle, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
         proto_tree_add_item(btlmp_tree, hf_param_escoltaddr, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        for (guint i = 0; i < array_length(hf_param_timingcontrolflags); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_timingcontrolflags); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_timingcontrolflags[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
         proto_tree_add_item(btlmp_tree, hf_param_escod, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -1012,7 +1010,7 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         break;
 
     case 0x40d: // LMP_remove_eSCO_link_req
-        btbredr_rf_remove_esco_link(connection_info, pinfo, tvb_get_guint8(tvb, offset));
+        btbredr_rf_remove_esco_link(connection_info, pinfo, tvb_get_uint8(tvb, offset));
         proto_tree_add_item(btlmp_tree, hf_param_escohandle, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
         proto_tree_add_item(btlmp_tree, hf_errorcode, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -1029,8 +1027,8 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         break;
 
     case 0x411: // LMP_channel_classification
-        for (guint i = 0; i < array_length(hf_param_afh_channelclass); ++i)
-            for (guint j = 0; j < array_length(hf_param_afh_channelclass[0]); ++j)
+        for (unsigned i = 0; i < array_length(hf_param_afh_channelclass); ++i)
+            for (unsigned j = 0; j < array_length(hf_param_afh_channelclass[0]); ++j)
                 proto_tree_add_item(btlmp_tree, hf_param_afh_channelclass[i][j], tvb, offset + i, 1, ENC_LITTLE_ENDIAN);
         offset += array_length(hf_param_afh_channelclass);
         break;
@@ -1075,7 +1073,7 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
        break;
 
     case 0x420: // LMP_power_control_res
-        for (guint i = 0; i < array_length(hf_param_poweradjresp); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_poweradjresp); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_poweradjresp[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
         break;
@@ -1105,7 +1103,7 @@ dissect_btlmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     case 0x425: // LMP_SAM_switch
         proto_tree_add_item(btlmp_tree, hf_param_samindex, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
-        for (guint i = 0; i < array_length(hf_param_timingcontrolflags); ++i)
+        for (unsigned i = 0; i < array_length(hf_param_timingcontrolflags); ++i)
             proto_tree_add_item(btlmp_tree, hf_param_timingcontrolflags[i], tvb, offset, 1, ENC_LITTLE_ENDIAN);
         ++offset;
         proto_tree_add_item(btlmp_tree, hf_param_samd, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -1384,12 +1382,12 @@ proto_register_btlmp(void)
             NULL, HFILL }
         },
         {  &hf_param_feature_page0_byte4[4],
-            { "AFH capable slave",                              "btlmp.feature.page0.afhcapableslave",
+            { "AFH capable peripheral",                              "btlmp.feature.page0.afhcapableperipheral",
             FT_UINT8, BASE_DEC, NULL, 0x08,
             NULL, HFILL }
         },
         {  &hf_param_feature_page0_byte4[5],
-            { "AFH classification slave",                       "btlmp.feature.page0.afhclassificationslave",
+            { "AFH classification peripheral",                       "btlmp.feature.page0.afhclassificationperipheral",
             FT_UINT8, BASE_DEC, NULL, 0x10,
             NULL, HFILL }
         },
@@ -1429,12 +1427,12 @@ proto_register_btlmp(void)
             NULL, HFILL }
         },
         {  &hf_param_feature_page0_byte5[4],
-            { "AFH capable master",                             "btlmp.feature.page0.afhcapablemaster",
+            { "AFH capable central",                             "btlmp.feature.page0.afhcapablecentral",
             FT_UINT8, BASE_DEC, NULL, 0x08,
             NULL, HFILL }
         },
         {  &hf_param_feature_page0_byte5[5],
-            { "AFH classification master",                      "btlmp.feature.page0.afhclassificationmaster",
+            { "AFH classification central",                      "btlmp.feature.page0.afhclassificationcentral",
             FT_UINT8, BASE_DEC, NULL, 0x10,
             NULL, HFILL }
         },
@@ -1564,12 +1562,12 @@ proto_register_btlmp(void)
             NULL, HFILL }
         },
         {  &hf_param_feature_page2_byte0[1],
-            { "Connectionless Slave Broadcast - Master",        "btlmp.feature.page2.csbmaster",
+            { "Connectionless Peripheral Broadcast - Central",        "btlmp.feature.page2.cpbcentral",
             FT_UINT8, BASE_DEC, NULL, 0x01,
             NULL, HFILL }
         },
         {  &hf_param_feature_page2_byte0[2],
-            { "Connectionless Slave Broadcast - Slave",         "btlmp.feature.page2.csbslave",
+            { "Connectionless Peripheral Broadcast - Peripheral",         "btlmp.feature.page2.cpbperipheral",
             FT_UINT8, BASE_DEC, NULL, 0x02,
             NULL, HFILL }
         },
@@ -1680,7 +1678,7 @@ proto_register_btlmp(void)
         },
         {  &hf_param_afh_instant,
            { "AFH Instant",                                     "btlmp.afh.instant",
-             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_afh_channelmap[0],
@@ -1740,12 +1738,12 @@ proto_register_btlmp(void)
         },
         {  &hf_param_afh_mininterval,
            { "AFH Min Interval",                                "btlmp.afh.mininterval",
-             FT_UINT16, BASE_HEX_DEC | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT16, BASE_HEX_DEC | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_afh_maxinterval,
            { "AFH Max Interval",                                "btlmp.afh.maxinterval",
-             FT_UINT16, BASE_HEX_DEC | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT16, BASE_HEX_DEC | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_afh_channelclass[0][0],
@@ -1960,7 +1958,7 @@ proto_register_btlmp(void)
         },
         {  &hf_param_clockoffset,
            { "Clock Offset",                                    "btlmp.clockoffset",
-             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, &units_slotpairs, 0x00,
+             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slotpairs), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_authresp,
@@ -1980,37 +1978,37 @@ proto_register_btlmp(void)
         },
         {  &hf_param_switchinstant,
            { "Switch Instant",                                  "btlmp.switchinstant",
-             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_holdtime,
            { "Hold Time",                                       "btlmp.holdtime",
-             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_holdinstant,
            { "Hold Instant",                                    "btlmp.holdinstant",
-             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_dsniff,
            { "Dsniff",                                          "btlmp.sniff.d",
-             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_tsniff,
            { "Tsniff",                                          "btlmp.sniff.t",
-             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_sniffattempt,
            { "Sniff Attempt",                                   "btlmp.sniff.attempt",
-             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_snifftimeout,
            { "Sniff Timeout",                                   "btlmp.sniff.timeout",
-             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_timingcontrolflags[0],
@@ -2075,7 +2073,7 @@ proto_register_btlmp(void)
         },
         {  &hf_param_pollinterval,
            { "Poll Interval",                                   "btlmp.qos.pollinterval",
-             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT16, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_nbc,
@@ -2090,12 +2088,12 @@ proto_register_btlmp(void)
         },
         {  &hf_param_dsco,
            { "Dsco",                                            "btlmp.sco.d",
-             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_tsco,
            { "Tsco",                                            "btlmp.sco.t",
-             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_scopacket,
@@ -2110,22 +2108,22 @@ proto_register_btlmp(void)
         },
         {  &hf_param_slots,
            { "Slots",                                           "btlmp.slots",
-             FT_UINT8, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT8, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_tmgacc_drift,
            { "Drift",                                           "btlmp.timingaccuracy.drift",
-             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_ppm, 0x00,
+             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_ppm), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_tmgacc_jitter,
            { "Jitter",                                          "btlmp.timingaccuracy.jitter",
-             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_microsecond_microseconds, 0x00,
+             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_microsecond_microseconds), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_slotoffset,
            { "Slot Offset",                                     "btlmp.slotoffset",
-             FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_microsecond_microseconds, 0x00,
+             FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_microsecond_microseconds), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_bdaddr,
@@ -2145,7 +2143,7 @@ proto_register_btlmp(void)
         },
         {  &hf_param_supervisiontimeout,
            { "Supervision Timeout",                             "btlmp.supervisiontimeout",
-             FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_testscenario,
@@ -2235,17 +2233,17 @@ proto_register_btlmp(void)
         },
         {  &hf_param_clkadjinstant,
            { "Clock Adjust Instant",                            "btlmp.clkadj.instant",
-             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_clkadjus,
            { "Clock Adjust Microseconds",                       "btlmp.clkadj.us",
-             FT_INT16, BASE_DEC | BASE_UNIT_STRING, &units_microsecond_microseconds, 0x00,
+             FT_INT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_microsecond_microseconds), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_clkadjslots,
            { "Clock Adjust Slots",                              "btlmp.clkadj.slots",
-             FT_UINT8, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT8, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_clkadjmode,
@@ -2255,12 +2253,12 @@ proto_register_btlmp(void)
         },
         {  &hf_param_clkadjclk,
            { "Clock Adjust Clock",                              "btlmp.clkadj.clk",
-             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, &units_slotpairs, 0x00,
+             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slotpairs), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_clkadjperiod,
            { "Clock Adjust Period",                             "btlmp.clkadj.period",
-             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_packettypetable,
@@ -2280,17 +2278,17 @@ proto_register_btlmp(void)
         },
         {  &hf_param_escod,
            { "Desco",                                           "btlmp.esco.d",
-             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_escot,
            { "Tesco",                                           "btlmp.esco.t",
-             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_escow,
            { "Wesco",                                           "btlmp.esco.w",
-             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_escopackettypems,
@@ -2325,7 +2323,7 @@ proto_register_btlmp(void)
         },
         {  &hf_param_minsniffmodetimeout,
            { "Min Sniff Mode Timeout",                          "btlmp.sniffsubrate.minmodetimeout",
-             FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_sniffsubratinginstant,
@@ -2390,7 +2388,7 @@ proto_register_btlmp(void)
         },
         {  &hf_param_samtsm,
            { "Tsam-sm",                                         "btlmp.sam.tsm",
-             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_param_samnsm,
@@ -2420,7 +2418,7 @@ proto_register_btlmp(void)
         },
         {  &hf_param_saminstant,
            { "SAM Instant",                                     "btlmp.sam.instant",
-             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, &units_slots, 0x00,
+             FT_UINT32, BASE_HEX | BASE_UNIT_STRING, UNS(&units_slots), 0x00,
              NULL, HFILL }
         },
         {  &hf_params,
@@ -2430,7 +2428,7 @@ proto_register_btlmp(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btlmp
     };
 

@@ -24,17 +24,17 @@ void proto_reg_handoff_mpls_psc(void);
 
 static dissector_handle_t mpls_psc_handle;
 
-static gint proto_mpls_psc = -1;
+static int proto_mpls_psc;
 
-static gint ett_mpls_psc = -1;
+static int ett_mpls_psc;
 
-static int hf_mpls_psc_ver = -1;
-static int hf_mpls_psc_req = -1;
-static int hf_mpls_psc_pt = -1;
-static int hf_mpls_psc_rev = -1;
-static int hf_mpls_psc_fpath = -1;
-static int hf_mpls_psc_dpath = -1;
-static int hf_mpls_psc_tlvlen = -1;
+static int hf_mpls_psc_ver;
+static int hf_mpls_psc_req;
+static int hf_mpls_psc_pt;
+static int hf_mpls_psc_rev;
+static int hf_mpls_psc_fpath;
+static int hf_mpls_psc_dpath;
+static int hf_mpls_psc_tlvlen;
 
 /*
  * FF: please keep this list in sync with
@@ -104,18 +104,18 @@ dissect_mpls_psc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
 {
     proto_item *ti;
     proto_tree *psc_tree;
-    guint32     offset   = 0;
-    guint8      req;
-    guint8      fpath;
-    guint8      path;
+    uint32_t    offset   = 0;
+    uint8_t     req;
+    uint8_t     fpath;
+    uint8_t     path;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "PSC");
     col_clear(pinfo->cinfo, COL_INFO);
 
     /* build cinfo */
-    req   = (tvb_get_guint8(tvb, offset) & 0x3C) >> 2;
-    fpath = tvb_get_guint8(tvb, offset + 2);
-    path  = tvb_get_guint8(tvb, offset + 3);
+    req   = (tvb_get_uint8(tvb, offset) & 0x3C) >> 2;
+    fpath = tvb_get_uint8(tvb, offset + 2);
+    path  = tvb_get_uint8(tvb, offset + 3);
 
     col_add_fstr(pinfo->cinfo, COL_INFO,
                  "%s(%u,%u)",
@@ -213,7 +213,7 @@ proto_register_mpls_psc(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_mpls_psc,
     };
 

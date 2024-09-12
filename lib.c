@@ -52,20 +52,84 @@ int init_env() {
   return 1;
 }
 
-/**
- * Copy from tshark, handle time.
- */
-static const nstime_t *tshark_get_frame_ts(struct packet_provider_data *prov,
-                                           guint32 frame_num) {
-  if (prov->ref && prov->ref->num == frame_num)
-    return &prov->ref->abs_ts;
-  if (prov->prev_dis && prov->prev_dis->num == frame_num)
-    return &prov->prev_dis->abs_ts;
-  if (prov->prev_cap && prov->prev_cap->num == frame_num)
-    return &prov->prev_cap->abs_ts;
-  if (prov->frames) {
-    frame_data *fd = frame_data_sequence_find(prov->frames, frame_num);
-    return (fd) ? &fd->abs_ts : NULL;
+const nstime_t *
+cap_file_provider_get_frame_ts(struct packet_provider_data *prov,
+                               uint32_t frame_num) {
+  const frame_data *fd = NULL;
+
+  if (prov->ref && prov->ref->num == frame_num) {
+    fd = prov->ref;
+  } else if (prov->prev_dis && prov->prev_dis->num == frame_num) {
+    fd = prov->prev_dis;
+  } else if (prov->prev_cap && prov->prev_cap->num == frame_num) {
+    fd = prov->prev_cap;
+  } else if (prov->frames) {
+    fd = frame_data_sequence_find(prov->frames, frame_num);
+  }
+
+  return (fd && fd->has_ts) ? &fd->abs_ts : NULL;
+}
+
+const char *
+cap_file_provider_get_interface_name(struct packet_provider_data *prov,
+                                     uint32_t interface_id,
+                                     unsigned section_number) {
+  wtapng_iface_descriptions_t *idb_info;
+  wtap_block_t wtapng_if_descr = NULL;
+  char *interface_name;
+
+  idb_info = wtap_file_get_idb_info(prov->wth);
+
+  unsigned gbl_iface_id = wtap_file_get_shb_global_interface_id(
+      prov->wth, section_number, interface_id);
+
+  if (gbl_iface_id < idb_info->interface_data->len)
+    wtapng_if_descr =
+        g_array_index(idb_info->interface_data, wtap_block_t, gbl_iface_id);
+
+  g_free(idb_info);
+
+  if (wtapng_if_descr) {
+    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_NAME,
+                                           &interface_name) ==
+        WTAP_OPTTYPE_SUCCESS)
+      return interface_name;
+    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_DESCRIPTION,
+                                           &interface_name) ==
+        WTAP_OPTTYPE_SUCCESS)
+      return interface_name;
+    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_HARDWARE,
+                                           &interface_name) ==
+        WTAP_OPTTYPE_SUCCESS)
+      return interface_name;
+  }
+  return "unknown";
+}
+
+const char *
+cap_file_provider_get_interface_description(struct packet_provider_data *prov,
+                                            uint32_t interface_id,
+                                            unsigned section_number) {
+  wtapng_iface_descriptions_t *idb_info;
+  wtap_block_t wtapng_if_descr = NULL;
+  char *interface_name;
+
+  idb_info = wtap_file_get_idb_info(prov->wth);
+
+  interface_id = wtap_file_get_shb_global_interface_id(
+      prov->wth, section_number, interface_id);
+
+  if (interface_id < idb_info->interface_data->len)
+    wtapng_if_descr =
+        g_array_index(idb_info->interface_data, wtap_block_t, interface_id);
+
+  g_free(idb_info);
+
+  if (wtapng_if_descr) {
+    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_DESCRIPTION,
+                                           &interface_name) ==
+        WTAP_OPTTYPE_SUCCESS)
+      return interface_name;
   }
   return NULL;
 }
@@ -176,9 +240,9 @@ int init_cf(char *filepath) {
   cf.count = 0;
   cf.provider.frames = new_frame_data_sequence();
   static const struct packet_provider_funcs funcs = {
-      tshark_get_frame_ts,
-      NULL,
-      NULL,
+      cap_file_provider_get_frame_ts,
+      cap_file_provider_get_interface_name,
+      cap_file_provider_get_interface_description,
       NULL,
   };
   cf.epan = epan_new(&cf.provider, &funcs);
@@ -198,7 +262,7 @@ gboolean read_packet(epan_dissect_t **edt_r) {
   int err;
   gchar *err_info = NULL;
   guint32 cum_bytes = 0;
-  gint64 data_offset = 0;
+  int64_t data_offset = 0;
   wtap_rec rec;
   wtap_rec_init(&rec);
 

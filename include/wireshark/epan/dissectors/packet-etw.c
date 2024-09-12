@@ -24,36 +24,52 @@ void proto_reg_handoff_etw(void);
 
 static dissector_handle_t etw_handle;
 
-static int proto_etw = -1;
-static int hf_etw_size = -1;
-static int hf_etw_header_type = -1;
-static int hf_etw_flags = -1;
-static int hf_etw_event_property = -1;
-static int hf_etw_thread_id = -1;
-static int hf_etw_process_id = -1;
-static int hf_etw_time_stamp = -1;
-static int hf_etw_provider_id = -1;
-static int hf_etw_buffer_context_processor_number = -1;
-static int hf_etw_buffer_context_alignment = -1;
-static int hf_etw_buffer_context_logger_id = -1;
-static int hf_etw_message_length = -1;
-static int hf_etw_provider_name_length = -1;
-static int hf_etw_provider_name = -1;
-static int hf_etw_message = -1;
-static int hf_etw_user_data_length = -1;
-static int hf_etw_descriptor_id = -1;
-static int hf_etw_descriptor_version = -1;
-static int hf_etw_descriptor_channel = -1;
-static int hf_etw_descriptor_level = -1;
-static int hf_etw_descriptor_opcode = -1;
-static int hf_etw_descriptor_task = -1;
-static int hf_etw_descriptor_keywords = -1;
-static int hf_etw_processor_time = -1;
-static int hf_etw_activity_id = -1;
+static int proto_etw;
+static int hf_etw_size;
+static int hf_etw_header_type;
+static int hf_etw_header_flag_extended_info;
+static int hf_etw_header_flag_private_session;
+static int hf_etw_header_flag_string_only;
+static int hf_etw_header_flag_trace_message;
+static int hf_etw_header_flag_no_cputime;
+static int hf_etw_header_flag_32_bit_header;
+static int hf_etw_header_flag_64_bit_header;
+static int hf_etw_header_flag_decode_guid;
+static int hf_etw_header_flag_classic_header;
+static int hf_etw_header_flag_processor_index;
+static int hf_etw_flags;
+static int hf_etw_event_property;
+static int hf_etw_event_property_xml;
+static int hf_etw_event_property_forwarded_xml;
+static int hf_etw_event_property_legacy_eventlog;
+static int hf_etw_event_property_legacy_reloggable;
+static int hf_etw_thread_id;
+static int hf_etw_process_id;
+static int hf_etw_time_stamp;
+static int hf_etw_provider_id;
+static int hf_etw_buffer_context_processor_number;
+static int hf_etw_buffer_context_alignment;
+static int hf_etw_buffer_context_logger_id;
+static int hf_etw_message_length;
+static int hf_etw_provider_name_length;
+static int hf_etw_provider_name;
+static int hf_etw_message;
+static int hf_etw_user_data_length;
+static int hf_etw_descriptor_id;
+static int hf_etw_descriptor_version;
+static int hf_etw_descriptor_channel;
+static int hf_etw_descriptor_level;
+static int hf_etw_descriptor_opcode;
+static int hf_etw_descriptor_task;
+static int hf_etw_descriptor_keywords;
+static int hf_etw_processor_time;
+static int hf_etw_activity_id;
 
-static gint ett_etw_header = -1;
-static gint ett_etw_descriptor = -1;
-static gint ett_etw_buffer_context = -1;
+static int ett_etw_header;
+static int ett_etw_descriptor;
+static int ett_etw_buffer_context;
+static int ett_etw_header_flags;
+static int ett_etw_event_property_types;
 
 static dissector_handle_t mbim_dissector;
 
@@ -63,25 +79,48 @@ static e_guid_t mbim_net_providerid = { 0xA42FE227, 0xA7BF, 0x4483, {0xA5, 0x02,
         ( ((Count)+(Pow2)-1) & (~(((int)(Pow2))-1)) )
 #define ETW_HEADER_SIZE 0x60
 
-static int etw_counter = 0;
+static int etw_counter;
 
 static int
 dissect_etw(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree _U_, void* data _U_)
 {
     proto_tree* etw_header, * etw_descriptor, * etw_buffer_context;
     tvbuff_t* mbim_tvb;
-    guint32 message_offset, message_length, provider_name_offset, provider_name_length, user_data_offset, user_data_length;
+    uint32_t message_offset, message_length, provider_name_offset, provider_name_length, user_data_offset, user_data_length;
     e_guid_t provider_id;
-    gint offset = 0;
+    int offset = 0;
+    static int * const etw_header_flags[] = {
+        &hf_etw_header_flag_extended_info,
+        &hf_etw_header_flag_private_session,
+        &hf_etw_header_flag_string_only,
+        &hf_etw_header_flag_trace_message,
+        &hf_etw_header_flag_no_cputime,
+        &hf_etw_header_flag_32_bit_header,
+        &hf_etw_header_flag_64_bit_header,
+        &hf_etw_header_flag_decode_guid,
+        &hf_etw_header_flag_classic_header,
+        &hf_etw_header_flag_processor_index,
+        NULL
+    };
+
+    static int * const etw_event_property_opt[] = {
+        &hf_etw_event_property_xml,
+        &hf_etw_event_property_forwarded_xml,
+        &hf_etw_event_property_legacy_eventlog,
+        &hf_etw_event_property_legacy_reloggable,
+        NULL
+    };
 
     etw_header = proto_tree_add_subtree(tree, tvb, 0, ETW_HEADER_SIZE, ett_etw_header, NULL, "ETW Header");
     proto_tree_add_item(etw_header, hf_etw_size, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
     proto_tree_add_item(etw_header, hf_etw_header_type, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
-    proto_tree_add_item(etw_header, hf_etw_flags, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    proto_tree_add_bitmask(etw_header, tvb, offset, hf_etw_flags,
+			ett_etw_header_flags, etw_header_flags, ENC_LITTLE_ENDIAN);
     offset += 2;
-    proto_tree_add_item(etw_header, hf_etw_event_property, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    proto_tree_add_bitmask(etw_header, tvb, offset, hf_etw_event_property,
+            ett_etw_event_property_types, etw_event_property_opt, ENC_LITTLE_ENDIAN);
     offset += 2;
     proto_tree_add_item(etw_header, hf_etw_thread_id, tvb, offset, 4, ENC_LITTLE_ENDIAN);
     offset += 4;
@@ -128,11 +167,11 @@ dissect_etw(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree _U_, void* data 
     proto_tree_add_item_ret_uint(etw_header, hf_etw_provider_name_length, tvb, offset, 4, ENC_LITTLE_ENDIAN, &provider_name_length);
     offset += 4;
     user_data_offset = offset;
-    message_offset = user_data_offset + ROUND_UP_COUNT(user_data_length, sizeof(gint32));
+    message_offset = user_data_offset + ROUND_UP_COUNT(user_data_length, sizeof(int32_t));
     if (message_length) {
         proto_tree_add_item(etw_header, hf_etw_message, tvb, message_offset, message_length, ENC_LITTLE_ENDIAN | ENC_UTF_16);
     }
-    provider_name_offset = message_offset + ROUND_UP_COUNT(message_length, sizeof(gint32));
+    provider_name_offset = message_offset + ROUND_UP_COUNT(message_length, sizeof(int32_t));
     if (provider_name_length) {
         proto_tree_add_item(etw_header, hf_etw_provider_name, tvb, provider_name_offset, provider_name_length, ENC_LITTLE_ENDIAN | ENC_UTF_16);
     }
@@ -140,7 +179,7 @@ dissect_etw(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree _U_, void* data 
     col_set_str(pinfo->cinfo, COL_DEF_SRC, "windows");
     col_set_str(pinfo->cinfo, COL_DEF_DST, "windows");
     if (memcmp(&mbim_net_providerid, &provider_id, sizeof(e_guid_t)) == 0) {
-        guint32 pack_flags;
+        uint32_t pack_flags;
 
         if (WTAP_OPTTYPE_SUCCESS == wtap_block_get_uint32_option_value(pinfo->rec->block, OPT_PKT_FLAGS, &pack_flags)) {
             switch(PACK_FLAGS_DIRECTION(pack_flags)) {
@@ -191,10 +230,80 @@ proto_register_etw(void)
                FT_UINT16, BASE_DEC, NULL, 0,
               NULL, HFILL }
         },
+        { &hf_etw_header_flag_extended_info,
+            { "Extended Info", "etw.header.flag.extended_info",
+               FT_UINT32, BASE_DEC, NULL, 0x0001,
+               NULL, HFILL }
+        },
+        { &hf_etw_header_flag_private_session,
+            { "Private Session", "etw.header.flag.private_session",
+               FT_UINT32, BASE_DEC, NULL, 0x0002,
+               NULL, HFILL }
+        },
+        { &hf_etw_header_flag_string_only,
+            { "String Only", "etw.header.flag.string_only",
+               FT_UINT32, BASE_DEC, NULL, 0x0004,
+               NULL, HFILL }
+        },
+        { &hf_etw_header_flag_trace_message,
+            { "Trace Message", "etw.header.flag.trace_message",
+               FT_UINT32, BASE_DEC, NULL, 0x0008,
+               NULL, HFILL }
+        },
+        { &hf_etw_header_flag_no_cputime,
+            { "No CPU time", "etw.header.flag.no_cputime",
+               FT_UINT32, BASE_DEC, NULL, 0x0010,
+               NULL, HFILL }
+        },
+        { &hf_etw_header_flag_32_bit_header,
+            { "32-bit Header", "etw.header.flag.32_bit_header",
+               FT_UINT32, BASE_DEC, NULL, 0x0020,
+               NULL, HFILL }
+        },
+        { &hf_etw_header_flag_64_bit_header,
+            { "64-bit Header", "etw.header.flag.64_bit_header",
+               FT_UINT32, BASE_DEC, NULL, 0x0040,
+               NULL, HFILL }
+        },
+        { &hf_etw_header_flag_decode_guid,
+            { "Decode GUID", "etw.header.flag.decode_guid",
+               FT_UINT32, BASE_DEC, NULL, 0x0080,
+               NULL, HFILL }
+        },
+        { &hf_etw_header_flag_classic_header,
+            { "Classic Header", "etw.header.flag.classic_header",
+               FT_UINT32, BASE_DEC, NULL, 0x0100,
+               NULL, HFILL }
+        },
+        { &hf_etw_header_flag_processor_index,
+            { "Processor Index", "etw.header.flag.processor_index",
+               FT_UINT32, BASE_DEC, NULL, 0x0200,
+               NULL, HFILL }
+        },
         { &hf_etw_event_property,
             { "Event Property", "etw.event_property",
                FT_UINT16, BASE_DEC, NULL, 0,
               NULL, HFILL }
+        },
+        { &hf_etw_event_property_xml,
+            { "XML", "etw.property.xml",
+               FT_UINT32, BASE_DEC, NULL, 0x0001,
+               NULL, HFILL }
+        },
+        { &hf_etw_event_property_forwarded_xml,
+            { "Forwarded XML", "etw.property.forwarded_xml",
+               FT_UINT32, BASE_DEC, NULL, 0x0002,
+               NULL, HFILL }
+        },
+        { &hf_etw_event_property_legacy_eventlog,
+            { "Legacy Event Log", "etw.property.legacy_event",
+               FT_UINT32, BASE_DEC, NULL, 0x0004,
+               NULL, HFILL }
+        },
+        { &hf_etw_event_property_legacy_reloggable,
+            { "Legacy Reloggable", "etw.property.legacy_reloggable",
+               FT_UINT32, BASE_DEC, NULL, 0x0008,
+               NULL, HFILL }
         },
         { &hf_etw_thread_id,
             { "Thread ID", "etw.thread_id",
@@ -303,10 +412,12 @@ proto_register_etw(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_etw_header,
         &ett_etw_descriptor,
-        &ett_etw_buffer_context
+        &ett_etw_buffer_context,
+        &ett_etw_header_flags,
+        &ett_etw_event_property_types
     };
 
     proto_etw = proto_register_protocol("Event Tracing for Windows", "ETW", "etw");

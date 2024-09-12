@@ -36,9 +36,9 @@
 /* IGS Functions values */
 static const value_string sapigs_function_lst[] = {
 	{ 1, "ADM:REGPW"},		/* Register a PortWatcher */
-	{ 2, "ADM:UNREGPW"},		/* Unregsiter a PortWatcher */
+	{ 2, "ADM:UNREGPW"},		/* Unregister a PortWatcher */
 	{ 3, "ADM:REGIP"},		/* Register an Interpreter */
-	{ 4, "ADM:UNREGIP"},		/* Unregsiter an Interpreter */
+	{ 4, "ADM:UNREGIP"},		/* Unregister an Interpreter */
 	{ 5, "ADM:FREEIP"},		/* Inform than Interpreter is free */
 	{ 6, "ADM:ILLBEBACK"},		/* Call back function */
 	{ 7, "ADM:ABORT"},		/* Abort Interpreter work */
@@ -63,59 +63,59 @@ static const value_string sapigs_function_lst[] = {
 	{ 30, "ZIPPER"},		/* ZIP provide file(s) */
 	{ 31, "IMGCONV"},		/* Image converter */
 	{ 32, "RSPOCONNECTOR"},		/* Remote Spool Connector */
-	{ 33, "XMLCHART"},		/* Chart generator throught xml input */
-	{ 34, "CHART"},			/* Chart generator throught ABAP Table input */
+	{ 33, "XMLCHART"},		/* Chart generator through xml input */
+	{ 34, "CHART"},			/* Chart generator through ABAP Table input */
 	{ 35, "BWGIS"},			/* BW Geographic Information System */
-	{ 36, "SAPGISXML"},		/* old SAP GIS throught xml input */
+	{ 36, "SAPGISXML"},		/* old SAP GIS through xml input */
 	/* NULL */
 	{ 0, NULL}
 };
 
-static int proto_sapigs = -1;
+static int proto_sapigs;
 
 /* Headers */
-static int hf_sapigs_function = -1;
-static int hf_sapigs_listener = -1;
-static int hf_sapigs_hostname = -1;
-static int hf_sapigs_id = -1;
-static int hf_sapigs_padd1 = -1;
-static int hf_sapigs_flag1 = -1;
-static int hf_sapigs_padd2 = -1;
-static int hf_sapigs_flag2 = -1;
-static int hf_sapigs_padd3 = -1;
+static int hf_sapigs_function;
+static int hf_sapigs_listener;
+static int hf_sapigs_hostname;
+static int hf_sapigs_id;
+static int hf_sapigs_padd1;
+static int hf_sapigs_flag1;
+static int hf_sapigs_padd2;
+static int hf_sapigs_flag2;
+static int hf_sapigs_padd3;
 
 /* Data */
-static int hf_sapigs_eye_catcher = -1;
-static int hf_sapigs_padd4 = -1;
-static int hf_sapigs_codepage = -1;
-static int hf_sapigs_offset_data = -1;
-static int hf_sapigs_data_size = -1;
-static int hf_sapigs_data = -1;
+static int hf_sapigs_eye_catcher;
+static int hf_sapigs_padd4;
+static int hf_sapigs_codepage;
+static int hf_sapigs_offset_data;
+static int hf_sapigs_data_size;
+static int hf_sapigs_data;
 
 /* Table definition */
-static int hf_sapigs_tables = -1;
-static int hf_sapigs_table_version = -1;
-static int hf_sapigs_table_name = -1;
-static int hf_sapigs_table_line_number = -1;
-static int hf_sapigs_table_width = -1;
-static int hf_sapigs_table_column_name = -1;
-static int hf_sapigs_table_column_number = -1;
-static int hf_sapigs_table_column_width = -1;
+static int hf_sapigs_tables;
+static int hf_sapigs_table_version;
+static int hf_sapigs_table_name;
+static int hf_sapigs_table_line_number;
+static int hf_sapigs_table_width;
+static int hf_sapigs_table_column_name;
+static int hf_sapigs_table_column_number;
+static int hf_sapigs_table_column_width;
 
 /* Others */
-static int hf_sapigs_portwatcher = -1;
-static int hf_sapigs_portwatcher_version = -1;
-static int hf_sapigs_portwatcher_info = -1;
-static int hf_sapigs_interpreter = -1;
-static int hf_sapigs_chart_config = -1;
+static int hf_sapigs_portwatcher;
+static int hf_sapigs_portwatcher_version;
+static int hf_sapigs_portwatcher_info;
+static int hf_sapigs_interpreter;
+static int hf_sapigs_chart_config;
 
-static gint ett_sapigs = -1;
+static int ett_sapigs;
 
 /* Global port preference */
 static range_t *global_sapigs_port_range;
 
 /* Global highlight preference */
-static gboolean global_sapigs_highlight_items = TRUE;
+static bool global_sapigs_highlight_items = true;
 
 /* Protocol handle */
 static dissector_handle_t sapigs_handle;
@@ -127,14 +127,14 @@ void proto_register_sapigs(void);
 static int
 dissect_sapigs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	guint32 offset = 0, err_val = 0;
-	gint data_offset = 0, data_length = 0;
-	gchar *sapigs_info_function = NULL, *illbeback_type = NULL, *is_table = NULL;
+	uint32_t offset = 0, err_val = 0;
+	int data_offset = 0, data_length = 0;
+	char *sapigs_info_function = NULL, *illbeback_type = NULL, *is_table = NULL;
 	proto_item *ti = NULL, *sapigs_tables = NULL;
 	proto_tree *sapigs_tree = NULL, *sapigs_tables_tree = NULL;
 
 	/* Add the protocol to the column */
-	col_add_str(pinfo->cinfo, COL_PROTOCOL, "SAPIGS");
+	col_set_str(pinfo->cinfo, COL_PROTOCOL, "SAPIGS");
 	/* Add function name in the info column */
 	col_add_fstr(pinfo->cinfo, COL_INFO, " function: %s", tvb_get_string_enc(pinfo->pool, tvb, 0, 32, ENC_ASCII));
 
@@ -192,7 +192,7 @@ dissect_sapigs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 			break;
 		}
 		case 6:{	/* ADM:ILLBEBACK */
-			illbeback_type = (gchar *)tvb_get_string_enc(pinfo->pool, tvb, offset, 10, ENC_ASCII|ENC_NA);
+			illbeback_type = (char *)tvb_get_string_enc(pinfo->pool, tvb, offset, 10, ENC_ASCII|ENC_NA);
 			if (strncmp("TransMagic", illbeback_type, 10) == 0){
 				/* data is raw after eye_catcher */
 				proto_tree_add_item(sapigs_tree, hf_sapigs_eye_catcher, tvb, offset, 10, ENC_ASCII|ENC_NA);
@@ -200,7 +200,7 @@ dissect_sapigs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 				proto_tree_add_item(sapigs_tree, hf_sapigs_data, tvb, offset, -1, ENC_NA);
 			} else {
 				/* we receive sized data */
-				ws_strtoi((gchar *)tvb_get_string_enc(pinfo->pool, tvb, offset, 5, ENC_ASCII), NULL, &data_length);
+				ws_strtoi((char *)tvb_get_string_enc(pinfo->pool, tvb, offset, 5, ENC_ASCII), NULL, &data_length);
 				proto_tree_add_item(sapigs_tree, hf_sapigs_data_size, tvb, offset, 5, ENC_ASCII|ENC_NA);
 				offset += 5;
 				/* Data */
@@ -221,17 +221,17 @@ dissect_sapigs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 			proto_tree_add_item(sapigs_tree, hf_sapigs_codepage, tvb, offset, 4, ENC_ASCII|ENC_NA);
 			offset += 4;
 			/* Data offset */
-			ws_strtoi((gchar *)tvb_get_string_enc(pinfo->pool, tvb, offset, 16, ENC_ASCII), NULL, &data_offset);
+			ws_strtoi((char *)tvb_get_string_enc(pinfo->pool, tvb, offset, 16, ENC_ASCII), NULL, &data_offset);
 			proto_tree_add_item(sapigs_tree, hf_sapigs_offset_data, tvb, offset, 16, ENC_ASCII|ENC_NA);
 			offset += 16;
 			/* Data length */
-			ws_strtoi((gchar *)tvb_get_string_enc(pinfo->pool, tvb, offset, 16, ENC_ASCII), NULL, &data_length);
+			ws_strtoi((char *)tvb_get_string_enc(pinfo->pool, tvb, offset, 16, ENC_ASCII), NULL, &data_length);
 			proto_tree_add_item(sapigs_tree, hf_sapigs_data_size, tvb, offset, 16, ENC_ASCII|ENC_NA);
 			offset += 16;
 			data_offset += offset;
 			/* Definition tables */
-			is_table = (gchar *)tvb_get_string_enc(pinfo->pool, tvb, offset, 4, ENC_ASCII);
-			/* if the 4 next char is VERS, we are at the begining of one definition table */
+			is_table = (char *)tvb_get_string_enc(pinfo->pool, tvb, offset, 4, ENC_ASCII);
+			/* if the 4 next char is VERS, we are at the beginning of one definition table */
 			while(strncmp("VERS", is_table, 4) == 0){
 				/* Build a tree for Tables */
 				sapigs_tables = proto_tree_add_item(sapigs_tree, hf_sapigs_tables, tvb, offset, 336, ENC_NA);
@@ -250,7 +250,7 @@ dissect_sapigs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 				offset += 48;
 				proto_tree_add_item(sapigs_tables_tree, hf_sapigs_table_column_width, tvb, offset+8, 40, ENC_ASCII);
 				offset += 48;
-				is_table = (gchar *)tvb_get_string_enc(pinfo->pool, tvb, offset, 4, ENC_ASCII);
+				is_table = (char *)tvb_get_string_enc(pinfo->pool, tvb, offset, 4, ENC_ASCII);
 			}
 			/* Data */
 			if ((data_length > 0) && (tvb_reported_length_remaining(tvb, offset) >= data_length)) {
@@ -344,7 +344,7 @@ proto_register_sapigs(void)
 	};
 
 	/* Setup protocol subtre array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_sapigs
 	};
 
@@ -364,19 +364,19 @@ proto_register_sapigs(void)
 	range_convert_str(wmem_epan_scope(), &global_sapigs_port_range, SAPIGS_PORT_RANGE, MAX_TCP_PORT);
 	prefs_register_range_preference(sapigs_module, "tcp_ports", "SAP IGS Protocol TCP port numbers", "Port numbers used for SAP IGS Protocol (default "SAPIGS_PORT_RANGE ")", &global_sapigs_port_range, MAX_TCP_PORT);
 
-	prefs_register_bool_preference(sapigs_module, "highlight_unknow_items", "Highlight unknow SAP IGS messages", "Wether the SAP IGS Protocol dissector should highlight unknown IGS messages", &global_sapigs_highlight_items);
+	prefs_register_bool_preference(sapigs_module, "highlight_unknow_items", "Highlight unknown SAP IGS messages", "Whether the SAP IGS Protocol dissector should highlight unknown IGS messages", &global_sapigs_highlight_items);
 
 }
 
 /**
  * Helpers for dealing with the port range
  */
-static void range_delete_callback (guint32 port, gpointer ptr _U_)
+static void range_delete_callback (uint32_t port, void *ptr _U_)
 {
         dissector_delete_uint("sapni.port", port, sapigs_handle);
 }
 
-static void range_add_callback (guint32 port, gpointer ptr _U_)
+static void range_add_callback (uint32_t port, void *ptr _U_)
 {
         dissector_add_uint("sapni.port", port, sapigs_handle);
 }
@@ -388,11 +388,11 @@ void
 proto_reg_handoff_sapigs(void)
 {
 	static range_t *sapigs_port_range;
-	static gboolean initialized = FALSE;
+	static bool initialized = false;
 
 	if (!initialized) {
 		sapigs_handle = create_dissector_handle(dissect_sapigs, proto_sapigs);
-		initialized = TRUE;
+		initialized = true;
 	} else {
 		range_foreach(sapigs_port_range, range_delete_callback, NULL);
 		wmem_free(wmem_epan_scope(), sapigs_port_range);

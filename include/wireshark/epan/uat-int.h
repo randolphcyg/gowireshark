@@ -16,6 +16,8 @@
 #ifndef __UAT_INT_H__
 #define __UAT_INT_H__
 
+#include <glib.h>
+
 #include "uat.h"
 #include "include/ws_symbol_export.h"
 
@@ -60,7 +62,6 @@ struct epan_uat {
     uat_rep_t* rep;
     uat_rep_free_cb_t free_rep;
     bool loaded;
-    bool from_global;
 };
 
 WS_DLL_PUBLIC
@@ -95,9 +96,18 @@ void uat_insert_record_idx(uat_t *uat, unsigned rec_idx, const void *src_record)
 
 /**
  * Removes the record with the given index from the internal record list.
+ * If the UAT has a free_cb it is called for the removed record.
  */
 WS_DLL_PUBLIC
 void uat_remove_record_idx(uat_t *uat, unsigned rec_idx);
+
+/**
+ * Removes the given number of records starting with the given index from
+ * the internal record list. If the UAT has a free_cb it is called for
+ * the removed records.
+ */
+WS_DLL_PUBLIC
+void uat_remove_record_range(uat_t *uat, unsigned rec_idx, unsigned count);
 
 /**
  * Moves the entry from the old position to the new one
@@ -125,7 +135,11 @@ bool uat_save(uat_t *uat, char **error);
 void uat_load_all(void);
 
 /**
- * Dump given UAT record to string in form, which can be later loaded with uat_load_str().
+ * Dump given UAT record to string in form which can be later loaded with uat_load_str().
+ * XXX - In fact this only dumps a single field. To produce the format for
+ * uat_load_str(), join all the fields as CSV records, escaping and double-
+ * quoting field types other than PT_TXTMOD_HEXBYTES. Perhaps we should have
+ * a function that dumps the entire record.
  */
 WS_DLL_PUBLIC
 char *uat_fld_tostr(void *rec, uat_field_t *f);

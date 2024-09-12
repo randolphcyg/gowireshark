@@ -15,6 +15,7 @@
 #include <epan/packet.h>
 #include <epan/etypes.h>
 #include <epan/ppptypes.h>
+#include <epan/tfs.h>
 
 /* Offsets of fields within a BPDU */
 
@@ -46,27 +47,27 @@ void proto_reg_handoff_dec_bpdu(void);
 
 static dissector_handle_t dec_bpdu_handle;
 
-static int proto_dec_bpdu = -1;
-static int hf_dec_bpdu_proto_id = -1;
-static int hf_dec_bpdu_type = -1;
-static int hf_dec_bpdu_version_id = -1;
-static int hf_dec_bpdu_flags = -1;
-static int hf_dec_bpdu_flags_short_timers = -1;
-static int hf_dec_bpdu_flags_tcack = -1;
-static int hf_dec_bpdu_flags_tc = -1;
-static int hf_dec_bpdu_root_pri = -1;
-static int hf_dec_bpdu_root_mac = -1;
-static int hf_dec_bpdu_root_cost = -1;
-static int hf_dec_bpdu_bridge_pri = -1;
-static int hf_dec_bpdu_bridge_mac = -1;
-static int hf_dec_bpdu_port_id = -1;
-static int hf_dec_bpdu_msg_age = -1;
-static int hf_dec_bpdu_hello_time = -1;
-static int hf_dec_bpdu_max_age = -1;
-static int hf_dec_bpdu_forward_delay = -1;
+static int proto_dec_bpdu;
+static int hf_dec_bpdu_proto_id;
+static int hf_dec_bpdu_type;
+static int hf_dec_bpdu_version_id;
+static int hf_dec_bpdu_flags;
+static int hf_dec_bpdu_flags_short_timers;
+static int hf_dec_bpdu_flags_tcack;
+static int hf_dec_bpdu_flags_tc;
+static int hf_dec_bpdu_root_pri;
+static int hf_dec_bpdu_root_mac;
+static int hf_dec_bpdu_root_cost;
+static int hf_dec_bpdu_bridge_pri;
+static int hf_dec_bpdu_bridge_mac;
+static int hf_dec_bpdu_port_id;
+static int hf_dec_bpdu_msg_age;
+static int hf_dec_bpdu_hello_time;
+static int hf_dec_bpdu_max_age;
+static int hf_dec_bpdu_forward_delay;
 
-static gint ett_dec_bpdu = -1;
-static gint ett_dec_bpdu_flags = -1;
+static int ett_dec_bpdu;
+static int ett_dec_bpdu_flags;
 
 static const value_string protocol_id_vals[] = {
     { 0xe1, "DEC Spanning Tree Protocol" },
@@ -85,7 +86,7 @@ static const value_string bpdu_type_vals[] = {
 static int
 dissect_dec_bpdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint8  bpdu_type;
+    uint8_t bpdu_type;
     proto_tree *bpdu_tree;
     proto_item *ti;
     static int * const bpdu_flags[] = {
@@ -98,7 +99,7 @@ dissect_dec_bpdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "DEC_STP");
     col_clear(pinfo->cinfo, COL_INFO);
 
-    bpdu_type = tvb_get_guint8(tvb, BPDU_TYPE);
+    bpdu_type = tvb_get_uint8(tvb, BPDU_TYPE);
 
     col_add_str(pinfo->cinfo, COL_INFO,
                 val_to_str(bpdu_type, bpdu_type_vals,
@@ -220,7 +221,7 @@ proto_register_dec_bpdu(void)
             FT_UINT8,       BASE_DEC,       NULL,   0x0,
             NULL, HFILL }},
     };
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_dec_bpdu,
         &ett_dec_bpdu_flags,
     };

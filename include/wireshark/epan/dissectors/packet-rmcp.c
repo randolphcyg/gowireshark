@@ -31,22 +31,22 @@ static dissector_handle_t rsp_handle;
  * (the ASF specification includes RMCP)
  */
 
-static int proto_rmcp = -1;
-static int hf_rmcp_version = -1;
-static int hf_rmcp_reserved = -1;
-static int hf_rmcp_sequence = -1;
-static int hf_rmcp_class = -1;
-static int hf_rmcp_type = -1;
-static int hf_rmcp_trailer = -1;
+static int proto_rmcp;
+static int hf_rmcp_version;
+static int hf_rmcp_reserved;
+static int hf_rmcp_sequence;
+static int hf_rmcp_class;
+static int hf_rmcp_type;
+static int hf_rmcp_trailer;
 
-static int proto_rsp = -1;
-static int hf_rsp_session_id = -1;
-static int hf_rsp_sequence = -1;
+static int proto_rsp;
+static int hf_rsp_session_id;
+static int hf_rsp_sequence;
 
-static gint ett_rmcp = -1;
-static gint ett_rmcp_typeclass = -1;
+static int ett_rmcp;
+static int ett_rmcp_typeclass;
 
-static gint ett_rsp = -1;
+static int ett_rsp;
 
 static dissector_table_t rmcp_dissector_table;
 
@@ -81,10 +81,10 @@ dissect_rmcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 	proto_tree	*rmcp_tree = NULL, *field_tree;
 	proto_item	*ti;
 	tvbuff_t	*next_tvb;
-	guint8		rmcp_class;
-	const gchar	*class_str;
-	guint8		type;
-	guint		len;
+	uint8_t		rmcp_class;
+	const char	*class_str;
+	uint8_t		type;
+	unsigned		len;
 
 	/*
 	 * Check whether it's a known class value; if not, assume it's
@@ -92,7 +92,7 @@ dissect_rmcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 	 */
 	if (!tvb_bytes_exist(tvb, 3, 1))
 		return 0;	/* class value byte not present */
-	rmcp_class = tvb_get_guint8(tvb, 3);
+	rmcp_class = tvb_get_uint8(tvb, 3);
 
 	/* Get the normal/ack bit from the RMCP class */
 	type = (rmcp_class & RMCP_TYPE_MASK) >> 7;
@@ -202,7 +202,7 @@ proto_register_rmcp(void)
 			FT_BYTES, BASE_NONE, NULL, 0,
 			NULL, HFILL }},
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_rmcp,
 		&ett_rmcp_typeclass
 	};
@@ -231,7 +231,7 @@ proto_register_rsp(void)
 			FT_UINT32, BASE_HEX, NULL, 0,
 			"RSP sequence", HFILL }},
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_rsp
 	};
 

@@ -15,6 +15,7 @@
  */
 
 #include "config.h"
+#define WS_LOG_DOMAIN LOG_DOMAIN_WSLUA
 
 /* WSLUA_MODULE Listener Post-Dissection Packet Analysis */
 
@@ -27,11 +28,11 @@ WSLUA_CLASS_DEFINE(Listener,FAIL_ON_NULL("Listener"));
  */
 
 static int tap_packet_cb_error_handler(lua_State* L) {
-    const gchar* error =  lua_tostring(L,1);
-    static gchar* last_error = NULL;
+    const char* error =  lua_tostring(L,1);
+    static char* last_error = NULL;
     static int repeated = 0;
     static int next = 2;
-    gchar* where =  (lua_pinfo) ?
+    char* where =  (lua_pinfo) ?
         wmem_strdup_printf(NULL, "Lua: on packet %i Error during execution of Listener packet callback",lua_pinfo->num) :
         wmem_strdup_printf(NULL, "Lua: Error during execution of Listener packet callback") ;
 
@@ -124,7 +125,7 @@ static tap_packet_status lua_tap_packet(void *tapdata, packet_info *pinfo, epan_
 }
 
 static int tap_reset_cb_error_handler(lua_State* L) {
-    const gchar* error = lua_tostring(L,1);
+    const char* error = lua_tostring(L,1);
     report_failure("Lua: Error during execution of Listener reset callback:\n %s",error);
     return 0;
 }
@@ -156,14 +157,14 @@ static void lua_tap_reset(void *tapdata) {
 }
 
 static int tap_draw_cb_error_handler(lua_State* L) {
-    const gchar* error = lua_tostring(L,1);
+    const char* error = lua_tostring(L,1);
     report_failure("Lua: Error during execution of Listener draw callback:\n %s",error);
     return 0;
 }
 
 static void lua_tap_draw(void *tapdata) {
     Listener tap = (Listener)tapdata;
-    const gchar* error;
+    const char* error;
 
     if (tap->draw_ref == LUA_NOREF) return;
 
@@ -191,12 +192,12 @@ static void lua_tap_draw(void *tapdata) {
 }
 
 /* TODO: we should probably use a Lua table here */
-static GPtrArray *listeners = NULL;
+static GPtrArray *listeners;
 
 static void deregister_Listener (lua_State* L _U_, Listener tap) {
     if (tap->all_fields) {
-        epan_set_always_visible(FALSE);
-        tap->all_fields = FALSE;
+        epan_set_always_visible(false);
+        tap->all_fields = false;
     }
 
     remove_tap_listener(tap);
@@ -220,9 +221,9 @@ WSLUA_CONSTRUCTOR Listener_new(lua_State* L) {
     The default is `false`.
     Note: This impacts performance. */
 
-    const gchar* tap_type = luaL_optstring(L,WSLUA_OPTARG_Listener_new_TAP,"frame");
-    const gchar* filter = luaL_optstring(L,WSLUA_OPTARG_Listener_new_FILTER,NULL);
-    const gboolean all_fields = wslua_optbool(L, WSLUA_OPTARG_Listener_new_ALLFIELDS, FALSE);
+    const char* tap_type = luaL_optstring(L,WSLUA_OPTARG_Listener_new_TAP,"frame");
+    const char* filter = luaL_optstring(L,WSLUA_OPTARG_Listener_new_FILTER,NULL);
+    const bool all_fields = wslua_optbool(L, WSLUA_OPTARG_Listener_new_ALLFIELDS, false);
     Listener tap;
     GString* error;
 
@@ -257,7 +258,7 @@ WSLUA_CONSTRUCTOR Listener_new(lua_State* L) {
     }
 
     if (all_fields) {
-        epan_set_always_visible(TRUE);
+        epan_set_always_visible(true);
     }
 
     g_ptr_array_add(listeners, tap);
@@ -267,8 +268,8 @@ WSLUA_CONSTRUCTOR Listener_new(lua_State* L) {
 }
 
 /* Allow dissector key names to be sorted alphabetically */
-static gint
-compare_dissector_key_name(gconstpointer dissector_a, gconstpointer dissector_b)
+static int
+compare_dissector_key_name(const void *dissector_a, const void *dissector_b)
 {
   return strcmp((const char*)dissector_a, (const char*)dissector_b);
 }
@@ -277,9 +278,6 @@ WSLUA_CONSTRUCTOR Listener_list (lua_State *L) { /*
     Gets a Lua array table of all registered `Listener` tap names.
 
     Note: This is an expensive operation, and should only be used for troubleshooting.
-
-    @since 1.11.3
-
     ===== Example
 
     [source,lua]
@@ -354,7 +352,7 @@ WSLUA_ATTRIBUTE_FUNC_SETTER(Listener,packet);
 
 
 /* WSLUA_ATTRIBUTE Listener_draw WO A function that will be called once every few seconds to redraw the GUI objects;
-            in TShark this funtion is called only at the very end of the capture file.
+            in TShark this function is called only at the very end of the capture file.
 
     When later called by Wireshark, the `draw` function will not be given any arguments.
 
@@ -414,7 +412,7 @@ int Listener_register(lua_State* L) {
     return 0;
 }
 
-static void deregister_tap_listener (gpointer data, gpointer userdata) {
+static void deregister_tap_listener (void *data, void *userdata) {
     lua_State *L = (lua_State *) userdata;
     Listener tap = (Listener) data;
     deregister_Listener(L, tap);
@@ -422,7 +420,7 @@ static void deregister_tap_listener (gpointer data, gpointer userdata) {
 
 int wslua_deregister_listeners(lua_State* L) {
     g_ptr_array_foreach(listeners, deregister_tap_listener, L);
-    g_ptr_array_free(listeners, TRUE);
+    g_ptr_array_free(listeners, true);
     listeners = NULL;
 
     return 0;

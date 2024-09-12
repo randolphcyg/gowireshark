@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-mpeg-pes.c                                                          */
-/* asn2wrs.py -L -p mpeg-pes -c ./mpeg-pes.cnf -s ./packet-mpeg-pes-template -D . -O ../.. mpeg-pes.asn */
+/* asn2wrs.py -q -L -p mpeg-pes -c ./mpeg-pes.cnf -s ./packet-mpeg-pes-template -D . -O ../.. mpeg-pes.asn */
 
 /* MPEG Packetized Elementary Stream (PES) packet decoder.
  * Written by Shaun Jackman <sjackman@gmail.com>.
@@ -19,72 +19,74 @@
 #include <epan/packet.h>
 #include <epan/asn1.h>
 
+#include <wsutil/array.h>
+
 #include <wiretap/wtap.h>
 
 #include "packet-per.h"
 
-static int hf_mpeg_pes_prefix = -1;               /* OCTET_STRING_SIZE_3 */
-static int hf_mpeg_pes_stream = -1;               /* T_stream */
-static int hf_mpeg_pes_length = -1;               /* INTEGER_0_65535 */
-static int hf_mpeg_pes_must_be_one = -1;          /* BOOLEAN */
-static int hf_mpeg_pes_stream_must_be_zero = -1;  /* BOOLEAN */
-static int hf_mpeg_pes_scrambling_control = -1;   /* T_scrambling_control */
-static int hf_mpeg_pes_priority = -1;             /* BOOLEAN */
-static int hf_mpeg_pes_data_alignment = -1;       /* BOOLEAN */
-static int hf_mpeg_pes_copyright = -1;            /* BOOLEAN */
-static int hf_mpeg_pes_original = -1;             /* BOOLEAN */
-static int hf_mpeg_pes_pts_flag = -1;             /* BOOLEAN */
-static int hf_mpeg_pes_dts_flag = -1;             /* BOOLEAN */
-static int hf_mpeg_pes_escr_flag = -1;            /* BOOLEAN */
-static int hf_mpeg_pes_es_rate_flag = -1;         /* BOOLEAN */
-static int hf_mpeg_pes_dsm_trick_mode_flag = -1;  /* BOOLEAN */
-static int hf_mpeg_pes_additional_copy_info_flag = -1;  /* BOOLEAN */
-static int hf_mpeg_pes_crc_flag = -1;             /* BOOLEAN */
-static int hf_mpeg_pes_extension_flag = -1;       /* BOOLEAN */
-static int hf_mpeg_pes_header_data_length = -1;   /* INTEGER_0_255 */
-static int hf_mpeg_pes_horizontal_size = -1;      /* BIT_STRING_SIZE_12 */
-static int hf_mpeg_pes_vertical_size = -1;        /* BIT_STRING_SIZE_12 */
-static int hf_mpeg_pes_aspect_ratio = -1;         /* T_aspect_ratio */
-static int hf_mpeg_pes_frame_rate = -1;           /* T_frame_rate */
-static int hf_mpeg_pes_bit_rate = -1;             /* BIT_STRING_SIZE_18 */
-static int hf_mpeg_pes_vbv_buffer_size = -1;      /* BIT_STRING_SIZE_10 */
-static int hf_mpeg_pes_constrained_parameters_flag = -1;  /* BOOLEAN */
-static int hf_mpeg_pes_load_intra_quantiser_matrix = -1;  /* BOOLEAN */
-static int hf_mpeg_pes_load_non_intra_quantiser_matrix = -1;  /* BOOLEAN */
-static int hf_mpeg_pes_must_be_0001 = -1;         /* BIT_STRING_SIZE_4 */
-static int hf_mpeg_pes_profile_and_level = -1;    /* INTEGER_0_255 */
-static int hf_mpeg_pes_progressive_sequence = -1;  /* BOOLEAN */
-static int hf_mpeg_pes_chroma_format = -1;        /* INTEGER_0_3 */
-static int hf_mpeg_pes_horizontal_size_extension = -1;  /* INTEGER_0_3 */
-static int hf_mpeg_pes_vertical_size_extension = -1;  /* INTEGER_0_3 */
-static int hf_mpeg_pes_bit_rate_extension = -1;   /* BIT_STRING_SIZE_12 */
-static int hf_mpeg_pes_vbv_buffer_size_extension = -1;  /* INTEGER_0_255 */
-static int hf_mpeg_pes_low_delay = -1;            /* BOOLEAN */
-static int hf_mpeg_pes_frame_rate_extension_n = -1;  /* INTEGER_0_3 */
-static int hf_mpeg_pes_frame_rate_extension_d = -1;  /* INTEGER_0_3 */
-static int hf_mpeg_pes_drop_frame_flag = -1;      /* BOOLEAN */
-static int hf_mpeg_pes_hour = -1;                 /* INTEGER_0_32 */
-static int hf_mpeg_pes_minute = -1;               /* INTEGER_0_64 */
-static int hf_mpeg_pes_second = -1;               /* INTEGER_0_64 */
-static int hf_mpeg_pes_frame = -1;                /* INTEGER_0_64 */
-static int hf_mpeg_pes_closed_gop = -1;           /* BOOLEAN */
-static int hf_mpeg_pes_broken_gop = -1;           /* BOOLEAN */
-static int hf_mpeg_pes_must_be_zero = -1;         /* BIT_STRING_SIZE_5 */
-static int hf_mpeg_pes_temporal_sequence_number = -1;  /* BIT_STRING_SIZE_10 */
-static int hf_mpeg_pes_frame_type = -1;           /* T_frame_type */
-static int hf_mpeg_pes_vbv_delay = -1;            /* BIT_STRING_SIZE_16 */
-static gint ett_mpeg_pes_PES = -1;
-static gint ett_mpeg_pes_Stream = -1;
-static gint ett_mpeg_pes_Sequence_header = -1;
-static gint ett_mpeg_pes_Sequence_extension = -1;
-static gint ett_mpeg_pes_Group_of_pictures = -1;
-static gint ett_mpeg_pes_Picture = -1;
+static int hf_mpeg_pes_prefix;                    /* OCTET_STRING_SIZE_3 */
+static int hf_mpeg_pes_stream;                    /* T_stream */
+static int hf_mpeg_pes_length;                    /* INTEGER_0_65535 */
+static int hf_mpeg_pes_must_be_one;               /* BOOLEAN */
+static int hf_mpeg_pes_stream_must_be_zero;       /* BOOLEAN */
+static int hf_mpeg_pes_scrambling_control;        /* T_scrambling_control */
+static int hf_mpeg_pes_priority;                  /* BOOLEAN */
+static int hf_mpeg_pes_data_alignment;            /* BOOLEAN */
+static int hf_mpeg_pes_copyright;                 /* BOOLEAN */
+static int hf_mpeg_pes_original;                  /* BOOLEAN */
+static int hf_mpeg_pes_pts_flag;                  /* BOOLEAN */
+static int hf_mpeg_pes_dts_flag;                  /* BOOLEAN */
+static int hf_mpeg_pes_escr_flag;                 /* BOOLEAN */
+static int hf_mpeg_pes_es_rate_flag;              /* BOOLEAN */
+static int hf_mpeg_pes_dsm_trick_mode_flag;       /* BOOLEAN */
+static int hf_mpeg_pes_additional_copy_info_flag;  /* BOOLEAN */
+static int hf_mpeg_pes_crc_flag;                  /* BOOLEAN */
+static int hf_mpeg_pes_extension_flag;            /* BOOLEAN */
+static int hf_mpeg_pes_header_data_length;        /* INTEGER_0_255 */
+static int hf_mpeg_pes_horizontal_size;           /* BIT_STRING_SIZE_12 */
+static int hf_mpeg_pes_vertical_size;             /* BIT_STRING_SIZE_12 */
+static int hf_mpeg_pes_aspect_ratio;              /* T_aspect_ratio */
+static int hf_mpeg_pes_frame_rate;                /* T_frame_rate */
+static int hf_mpeg_pes_bit_rate;                  /* BIT_STRING_SIZE_18 */
+static int hf_mpeg_pes_vbv_buffer_size;           /* BIT_STRING_SIZE_10 */
+static int hf_mpeg_pes_constrained_parameters_flag;  /* BOOLEAN */
+static int hf_mpeg_pes_load_intra_quantiser_matrix;  /* BOOLEAN */
+static int hf_mpeg_pes_load_non_intra_quantiser_matrix;  /* BOOLEAN */
+static int hf_mpeg_pes_must_be_0001;              /* BIT_STRING_SIZE_4 */
+static int hf_mpeg_pes_profile_and_level;         /* INTEGER_0_255 */
+static int hf_mpeg_pes_progressive_sequence;      /* BOOLEAN */
+static int hf_mpeg_pes_chroma_format;             /* INTEGER_0_3 */
+static int hf_mpeg_pes_horizontal_size_extension;  /* INTEGER_0_3 */
+static int hf_mpeg_pes_vertical_size_extension;   /* INTEGER_0_3 */
+static int hf_mpeg_pes_bit_rate_extension;        /* BIT_STRING_SIZE_12 */
+static int hf_mpeg_pes_vbv_buffer_size_extension;  /* INTEGER_0_255 */
+static int hf_mpeg_pes_low_delay;                 /* BOOLEAN */
+static int hf_mpeg_pes_frame_rate_extension_n;    /* INTEGER_0_3 */
+static int hf_mpeg_pes_frame_rate_extension_d;    /* INTEGER_0_3 */
+static int hf_mpeg_pes_drop_frame_flag;           /* BOOLEAN */
+static int hf_mpeg_pes_hour;                      /* INTEGER_0_32 */
+static int hf_mpeg_pes_minute;                    /* INTEGER_0_64 */
+static int hf_mpeg_pes_second;                    /* INTEGER_0_64 */
+static int hf_mpeg_pes_frame;                     /* INTEGER_0_64 */
+static int hf_mpeg_pes_closed_gop;                /* BOOLEAN */
+static int hf_mpeg_pes_broken_gop;                /* BOOLEAN */
+static int hf_mpeg_pes_must_be_zero;              /* BIT_STRING_SIZE_5 */
+static int hf_mpeg_pes_temporal_sequence_number;  /* BIT_STRING_SIZE_10 */
+static int hf_mpeg_pes_frame_type;                /* T_frame_type */
+static int hf_mpeg_pes_vbv_delay;                 /* BIT_STRING_SIZE_16 */
+static int ett_mpeg_pes_PES;
+static int ett_mpeg_pes_Stream;
+static int ett_mpeg_pes_Sequence_header;
+static int ett_mpeg_pes_Sequence_extension;
+static int ett_mpeg_pes_Group_of_pictures;
+static int ett_mpeg_pes_Picture;
 
 
 static int
 dissect_mpeg_pes_OCTET_STRING_SIZE_3(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       3, 3, FALSE, NULL);
+                                       3, 3, false, NULL);
 
   return offset;
 }
@@ -111,7 +113,7 @@ static const value_string mpeg_pes_T_stream_vals[] = {
 static int
 dissect_mpeg_pes_T_stream(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -136,7 +138,7 @@ dissect_mpeg_pes_PES(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
 static int
 dissect_mpeg_pes_INTEGER_0_65535(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -160,7 +162,7 @@ static const value_string mpeg_pes_T_scrambling_control_vals[] = {
 static int
 dissect_mpeg_pes_T_scrambling_control(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3U, NULL, FALSE);
+                                                            0U, 3U, NULL, false);
 
   return offset;
 }
@@ -170,7 +172,7 @@ dissect_mpeg_pes_T_scrambling_control(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 static int
 dissect_mpeg_pes_INTEGER_0_255(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -210,7 +212,7 @@ dissect_mpeg_pes_Stream(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_mpeg_pes_BIT_STRING_SIZE_12(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     12, 12, FALSE, NULL, 0, NULL, NULL);
+                                     12, 12, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -228,7 +230,7 @@ static const value_string mpeg_pes_T_aspect_ratio_vals[] = {
 static int
 dissect_mpeg_pes_T_aspect_ratio(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, FALSE);
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -252,7 +254,7 @@ static uint32_t T_frame_rate_value_map[9+0] = {0, 23976, 24000, 25000, 29970, 30
 static int
 dissect_mpeg_pes_T_frame_rate(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     9, NULL, FALSE, 0, T_frame_rate_value_map);
+                                     9, NULL, false, 0, T_frame_rate_value_map);
 
   return offset;
 }
@@ -262,7 +264,7 @@ dissect_mpeg_pes_T_frame_rate(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_mpeg_pes_BIT_STRING_SIZE_18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     18, 18, FALSE, NULL, 0, NULL, NULL);
+                                     18, 18, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -272,7 +274,7 @@ dissect_mpeg_pes_BIT_STRING_SIZE_18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 static int
 dissect_mpeg_pes_BIT_STRING_SIZE_10(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     10, 10, FALSE, NULL, 0, NULL, NULL);
+                                     10, 10, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -305,7 +307,7 @@ dissect_mpeg_pes_Sequence_header(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 static int
 dissect_mpeg_pes_BIT_STRING_SIZE_4(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     4, 4, FALSE, NULL, 0, NULL, NULL);
+                                     4, 4, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -315,7 +317,7 @@ dissect_mpeg_pes_BIT_STRING_SIZE_4(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_mpeg_pes_INTEGER_0_3(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3U, NULL, FALSE);
+                                                            0U, 3U, NULL, false);
 
   return offset;
 }
@@ -350,7 +352,7 @@ dissect_mpeg_pes_Sequence_extension(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 static int
 dissect_mpeg_pes_INTEGER_0_32(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 32U, NULL, FALSE);
+                                                            0U, 32U, NULL, false);
 
   return offset;
 }
@@ -360,7 +362,7 @@ dissect_mpeg_pes_INTEGER_0_32(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_mpeg_pes_INTEGER_0_64(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 64U, NULL, FALSE);
+                                                            0U, 64U, NULL, false);
 
   return offset;
 }
@@ -370,7 +372,7 @@ dissect_mpeg_pes_INTEGER_0_64(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_mpeg_pes_BIT_STRING_SIZE_5(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     5, 5, FALSE, NULL, 0, NULL, NULL);
+                                     5, 5, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -410,7 +412,7 @@ static const value_string mpeg_pes_T_frame_type_vals[] = {
 static int
 dissect_mpeg_pes_T_frame_type(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -420,7 +422,7 @@ dissect_mpeg_pes_T_frame_type(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_mpeg_pes_BIT_STRING_SIZE_16(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     16, 16, FALSE, NULL, 0, NULL, NULL);
+                                     16, 16, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -445,47 +447,47 @@ dissect_mpeg_pes_Picture(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 void proto_register_mpeg_pes(void);
 void proto_reg_handoff_mpeg_pes(void);
 
-static int proto_mpeg = -1;
-static int proto_mpeg_pes = -1;
+static int proto_mpeg;
+static int proto_mpeg_pes;
 
-static int ett_mpeg_pes_pack_header = -1;
-static int ett_mpeg_pes_header_data = -1;
-static int ett_mpeg_pes_trick_mode = -1;
+static int ett_mpeg_pes_pack_header;
+static int ett_mpeg_pes_header_data;
+static int ett_mpeg_pes_trick_mode;
 
-static int hf_mpeg_pes_pack_header = -1;
-static int hf_mpeg_pes_scr = -1;
-static int hf_mpeg_pes_program_mux_rate = -1;
-static int hf_mpeg_pes_stuffing_length = -1;
-static int hf_mpeg_pes_stuffing = -1;
-static int hf_mpeg_pes_extension = -1;
-static int hf_mpeg_pes_header_data = -1;
-static int hf_mpeg_pes_pts = -1;
-static int hf_mpeg_pes_dts = -1;
-static int hf_mpeg_pes_escr = -1;
-static int hf_mpeg_pes_es_rate = -1;
-static int hf_mpeg_pes_dsm_trick_mode = -1;
-static int hf_mpeg_pes_dsm_trick_mode_control = -1;
-static int hf_mpeg_pes_dsm_trick_mode_field_id = -1;
-static int hf_mpeg_pes_dsm_trick_mode_intra_slice_refresh = -1;
-static int hf_mpeg_pes_dsm_trick_mode_frequency_truncation = -1;
-static int hf_mpeg_pes_dsm_trick_mode_rep_cntrl = -1;
-static int hf_mpeg_pes_copy_info = -1;
-static int hf_mpeg_pes_crc = -1;
-static int hf_mpeg_pes_extension_flags = -1;
-static int hf_mpeg_pes_private_data = -1;
-static int hf_mpeg_pes_pack_length = -1;
-static int hf_mpeg_pes_sequence = -1;
-static int hf_mpeg_pes_pstd_buffer = -1;
-static int hf_mpeg_pes_extension2 = -1;
-static int hf_mpeg_pes_padding = -1;
-static int hf_mpeg_pes_data = -1;
+static int hf_mpeg_pes_pack_header;
+static int hf_mpeg_pes_scr;
+static int hf_mpeg_pes_program_mux_rate;
+static int hf_mpeg_pes_stuffing_length;
+static int hf_mpeg_pes_stuffing;
+static int hf_mpeg_pes_extension;
+static int hf_mpeg_pes_header_data;
+static int hf_mpeg_pes_pts;
+static int hf_mpeg_pes_dts;
+static int hf_mpeg_pes_escr;
+static int hf_mpeg_pes_es_rate;
+static int hf_mpeg_pes_dsm_trick_mode;
+static int hf_mpeg_pes_dsm_trick_mode_control;
+static int hf_mpeg_pes_dsm_trick_mode_field_id;
+static int hf_mpeg_pes_dsm_trick_mode_intra_slice_refresh;
+static int hf_mpeg_pes_dsm_trick_mode_frequency_truncation;
+static int hf_mpeg_pes_dsm_trick_mode_rep_cntrl;
+static int hf_mpeg_pes_copy_info;
+static int hf_mpeg_pes_crc;
+static int hf_mpeg_pes_extension_flags;
+static int hf_mpeg_pes_private_data;
+static int hf_mpeg_pes_pack_length;
+static int hf_mpeg_pes_sequence;
+static int hf_mpeg_pes_pstd_buffer;
+static int hf_mpeg_pes_extension2;
+static int hf_mpeg_pes_padding;
+static int hf_mpeg_pes_data;
 
-static int hf_mpeg_video_sequence_header = -1;
-static int hf_mpeg_video_sequence_extension = -1;
-static int hf_mpeg_video_group_of_pictures = -1;
-static int hf_mpeg_video_picture = -1;
-static int hf_mpeg_video_quantization_matrix = -1;
-static int hf_mpeg_video_data = -1;
+static int hf_mpeg_video_sequence_header;
+static int hf_mpeg_video_sequence_extension;
+static int hf_mpeg_video_group_of_pictures;
+static int hf_mpeg_video_picture;
+static int hf_mpeg_video_quantization_matrix;
+static int hf_mpeg_video_data;
 
 static dissector_handle_t mpeg_handle;
 
@@ -611,34 +613,34 @@ static const value_string mpeg_pes_TrickModeFrequencyTruncation_vals[] = {
 
 #define TSHZ 90000
 
-static guint64 decode_time_stamp(tvbuff_t *tvb, gint offset, nstime_t *nst)
+static uint64_t decode_time_stamp(tvbuff_t *tvb, int offset, nstime_t *nst)
 {
-	guint64 bytes = tvb_get_ntoh40(tvb, offset);
-	guint64 ts =
+	uint64_t bytes = tvb_get_ntoh40(tvb, offset);
+	uint64_t ts =
 		(bytes >> 33 & 0x0007) << 30 |
 		(bytes >> 17 & 0x7fff) << 15 |
 		(bytes >>  1 & 0x7fff) << 0;
 	unsigned int rem = (unsigned int)(ts % TSHZ);
 	nst->secs = (time_t)(ts / TSHZ);
-	nst->nsecs = (int)(G_GINT64_CONSTANT(1000000000) * rem / TSHZ);
+	nst->nsecs = (int)(INT64_C(1000000000) * rem / TSHZ);
 	return ts;
 }
 
 #define SCRHZ 27000000
 
-static guint64 decode_clock_reference(tvbuff_t *tvb, gint offset,
+static uint64_t decode_clock_reference(tvbuff_t *tvb, int offset,
 		nstime_t *nst)
 {
-	guint64 bytes = tvb_get_ntoh48(tvb, offset);
-	guint64 ts =
+	uint64_t bytes = tvb_get_ntoh48(tvb, offset);
+	uint64_t ts =
 		(bytes >> 43 & 0x0007) << 30 |
 		(bytes >> 27 & 0x7fff) << 15 |
 		(bytes >> 11 & 0x7fff) << 0;
 	unsigned int ext = (unsigned int)((bytes >> 1) & 0x1ff);
-	guint64 cr = 300 * ts + ext;
+	uint64_t cr = 300 * ts + ext;
 	unsigned int rem = (unsigned int)(cr % SCRHZ);
 	nst->secs = (time_t)(cr / SCRHZ);
-	nst->nsecs = (int)(G_GINT64_CONSTANT(1000000000) * rem / SCRHZ);
+	nst->nsecs = (int)(INT64_C(1000000000) * rem / SCRHZ);
 	return cr;
 }
 
@@ -650,7 +652,7 @@ dissect_mpeg_pes_header_data(tvbuff_t *tvb, packet_info *pinfo _U_,
 			0, -1, ENC_NA);
 	proto_tree *tree = proto_item_add_subtree(item, ett_mpeg_pes_header_data);
 
-	gint offset = 0;
+	int offset = 0;
 	if (flags & PTS_FLAG) {
 		nstime_t nst;
 		decode_time_stamp(tvb, offset, &nst);
@@ -680,8 +682,8 @@ dissect_mpeg_pes_header_data(tvbuff_t *tvb, packet_info *pinfo _U_,
 	}
 	if (flags & DSM_TRICK_MODE_FLAG)
 	{
-		guint8 value = tvb_get_guint8(tvb, offset);
-		guint8 control;
+		uint8_t value = tvb_get_uint8(tvb, offset);
+		uint8_t control;
 		proto_tree *trick_tree;
 		proto_item *trick_item;
 
@@ -746,7 +748,7 @@ dissect_mpeg_pes_header_data(tvbuff_t *tvb, packet_info *pinfo _U_,
 	}
 
 	if (flags & EXTENSION_FLAG) {
-		int flags2 = tvb_get_guint8(tvb, offset);
+		int flags2 = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(tree, hf_mpeg_pes_extension_flags, tvb,
 				offset, 1, ENC_BIG_ENDIAN);
 		offset++;
@@ -781,8 +783,8 @@ dissect_mpeg_pes_header_data(tvbuff_t *tvb, packet_info *pinfo _U_,
 	return offset;
 }
 
-static gint
-dissect_mpeg_pes_pack_header(tvbuff_t *tvb, gint offset,
+static int
+dissect_mpeg_pes_pack_header(tvbuff_t *tvb, int offset,
 		packet_info *pinfo _U_, proto_tree *root)
 {
 	unsigned int program_mux_rate, stuffing_length;
@@ -801,7 +803,7 @@ dissect_mpeg_pes_pack_header(tvbuff_t *tvb, gint offset,
 			program_mux_rate);
 	offset += 3 * 8;
 
-	stuffing_length = tvb_get_guint8(tvb, offset / 8) & 0x07;
+	stuffing_length = tvb_get_uint8(tvb, offset / 8) & 0x07;
 	proto_tree_add_item(tree, hf_mpeg_pes_stuffing_length, tvb,
 			offset / 8, 1, ENC_BIG_ENDIAN);
 	offset += 1 * 8;
@@ -818,26 +820,26 @@ dissect_mpeg_pes_pack_header(tvbuff_t *tvb, gint offset,
 static int
 dissect_mpeg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data);
 
-static gboolean
+static int
 // NOLINTNEXTLINE(misc-no-recursion)
 dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
 	int prefix;
 	int stream;
 	asn1_ctx_t asn1_ctx;
-	gint offset = 0;
-	guint8 stream_type;
+	int offset = 0;
+	uint8_t stream_type;
 
 	if (!tvb_bytes_exist(tvb, 0, 3))
-		return FALSE;	/* not enough bytes for a PES prefix */
+		return 0;	/* not enough bytes for a PES prefix */
 
 	prefix = tvb_get_ntoh24(tvb, 0);
 	if (prefix != PES_PREFIX)
-		return FALSE;
+		return 0;
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "MPEG PES");
 	col_clear(pinfo->cinfo, COL_INFO);
 
-	stream = tvb_get_guint8(tvb, 3);
+	stream = tvb_get_uint8(tvb, 3);
 	col_add_fstr(pinfo->cinfo, COL_INFO, "%s ", val_to_str(stream, mpeg_pes_T_stream_vals, "Unknown stream: %d"));
 
 	/* Were we called from MP2T providing a stream type from a PMT? */
@@ -847,11 +849,7 @@ dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 	 * to PMT but maps stream_ids to stream_types instead of PIDs.)
 	 */
 
-#if 0
-	if (tree == NULL)
-		return TRUE;
-#endif
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, true, pinfo);
 	offset = dissect_mpeg_pes_PES(tvb, offset, &asn1_ctx,
 			tree, proto_mpeg_pes);
 
@@ -859,7 +857,7 @@ dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 	if (stream == STREAM_PICTURE) {
 		int frame_type;
 
-		frame_type = tvb_get_guint8(tvb, 5) >> 3 & 0x07;
+		frame_type = tvb_get_uint8(tvb, 5) >> 3 & 0x07;
 		col_add_fstr(pinfo->cinfo, COL_INFO, "%s ", val_to_str(frame_type, mpeg_pes_T_frame_type_vals, "Unknown frame type: %d"));
 
 		offset = dissect_mpeg_pes_Picture(tvb, offset, &asn1_ctx,
@@ -895,7 +893,7 @@ dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 		es = tvb_new_subset_remaining(tvb, offset / 8);
 		dissect_mpeg_pes(es, pinfo, tree, NULL);
 	} else if (stream == STREAM_PACK) {
-		if (tvb_get_guint8(tvb, offset / 8) >> 6 == 1) {
+		if (tvb_get_uint8(tvb, offset / 8) >> 6 == 1) {
 			dissect_mpeg_pes_pack_header(tvb, offset, pinfo, tree);
 		} else {
 			proto_tree_add_item(tree, hf_mpeg_pes_data, tvb,
@@ -921,7 +919,7 @@ dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 			|| stream >= STREAM_AUDIO) {
 		int length = tvb_get_ntohs(tvb, 4);
 
-		if ((tvb_get_guint8(tvb, 6) & 0xc0) == 0x80) {
+		if ((tvb_get_uint8(tvb, 6) & 0xc0) == 0x80) {
 			int header_length;
 			tvbuff_t *es;
 			int save_offset = offset;
@@ -976,9 +974,9 @@ dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 				length -= ((offset - save_offset) / 8) - 2;
 			}
 
-			header_length = tvb_get_guint8(tvb, 8);
+			header_length = tvb_get_uint8(tvb, 8);
 			if (header_length > 0) {
-				int flags = tvb_get_guint8(tvb, 7);
+				int flags = tvb_get_uint8(tvb, 7);
 				tvbuff_t *header_data = tvb_new_subset_length(tvb, offset / 8,
 						header_length);
 				dissect_mpeg_pes_header_data(header_data, pinfo, tree, flags);
@@ -995,13 +993,13 @@ dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 			} else {
 				es = tvb_new_subset_length_caplen(tvb, offset / 8, -1, length);
 			}
-			if (!dissector_try_uint_new(stream_type_table, stream_type, es, pinfo, tree, TRUE, NULL)) {
+			if (!dissector_try_uint_new(stream_type_table, stream_type, es, pinfo, tree, true, NULL)) {
 				/* If we didn't get a stream type, then assume
 				 * MPEG-1/2 Audio or Video.
 				 */
 				if (tvb_get_ntoh24(es, 0) == PES_PREFIX)
 					dissect_mpeg_pes(es, pinfo, tree, NULL);
-				else if (tvb_get_guint8(es, 0) == 0xff)
+				else if (tvb_get_uint8(es, 0) == 0xff)
 					dissect_mpeg(es, pinfo, tree, NULL);
 				else
 					proto_tree_add_item(tree, hf_mpeg_pes_data, es,
@@ -1021,7 +1019,7 @@ dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 				offset / 8, -1, ENC_NA);
 	}
 	decrement_dissection_depth(pinfo);
-	return TRUE;
+	return tvb_reported_length(tvb);
 }
 
 static heur_dissector_list_t heur_subdissector_list;
@@ -1038,6 +1036,11 @@ dissect_mpeg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	    proto_tree_add_item(tree, proto_mpeg, tvb, 0, -1, ENC_NA);
     }
 	return tvb_captured_length(tvb);
+}
+
+static bool
+dissect_mpeg_pes_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
+  return dissect_mpeg_pes(tvb, pinfo, tree, data) > 0;
 }
 
 void
@@ -1349,7 +1352,7 @@ proto_register_mpeg_pes(void)
 				FT_BYTES, BASE_NONE, NULL, 0, NULL, HFILL }},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
     &ett_mpeg_pes_PES,
     &ett_mpeg_pes_Stream,
     &ett_mpeg_pes_Sequence_header,
@@ -1363,7 +1366,7 @@ proto_register_mpeg_pes(void)
 
 	proto_mpeg = proto_register_protocol("Moving Picture Experts Group", "MPEG", "mpeg");
 	mpeg_handle = register_dissector("mpeg", dissect_mpeg, proto_mpeg);
-	heur_subdissector_list = register_heur_dissector_list("mpeg", proto_mpeg);
+	heur_subdissector_list = register_heur_dissector_list_with_description("mpeg", "MPEG payload", proto_mpeg);
 
 	proto_mpeg_pes = proto_register_protocol("Packetized Elementary Stream", "MPEG PES", "mpeg-pes");
 	proto_register_field_array(proto_mpeg_pes, hf, array_length(hf));
@@ -1377,7 +1380,7 @@ void
 proto_reg_handoff_mpeg_pes(void)
 {
 	dissector_add_uint("wtap_encap", WTAP_ENCAP_MPEG, mpeg_handle);
-	heur_dissector_add("mpeg", dissect_mpeg_pes, "MPEG PES", "mpeg_pes", proto_mpeg_pes, HEURISTIC_ENABLE);
+	heur_dissector_add("mpeg", dissect_mpeg_pes_heur, "MPEG PES", "mpeg_pes", proto_mpeg_pes, HEURISTIC_ENABLE);
 
 	dissector_add_uint("mpeg-pes.stream", 0x1B, find_dissector_add_dependency("h264_bytestream", proto_mpeg_pes));
 	dissector_add_uint("mpeg-pes.stream", 0x24, find_dissector_add_dependency("h265_bytestream", proto_mpeg_pes));

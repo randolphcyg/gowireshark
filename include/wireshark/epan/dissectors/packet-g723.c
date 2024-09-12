@@ -22,12 +22,12 @@ void proto_register_g723(void);
 static dissector_handle_t g723_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_g723					= -1;
-static int hf_g723_frame_size_and_codec	= -1;
-static int hf_g723_lpc_B5_B0			= -1;
+static int proto_g723;
+static int hf_g723_frame_size_and_codec;
+static int hf_g723_lpc_B5_B0;
 
 /* Initialize the subtree pointers */
-static int ett_g723 = -1;
+static int ett_g723;
 
 
 /*		 RFC 3551
@@ -54,7 +54,7 @@ static int
 dissect_g723(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	int offset = 0;
-	guint octet;
+	unsigned octet;
 
 	proto_item *ti;
 	proto_tree *g723_tree;
@@ -65,7 +65,7 @@ dissect_g723(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
 		g723_tree = proto_item_add_subtree(ti, ett_g723);
 
-		octet = tvb_get_guint8(tvb,offset);
+		octet = tvb_get_uint8(tvb,offset);
 		proto_tree_add_item(g723_tree, hf_g723_frame_size_and_codec, tvb, offset, 1, ENC_BIG_ENDIAN);
 		proto_tree_add_item(g723_tree, hf_g723_lpc_B5_B0, tvb, offset, 1, ENC_BIG_ENDIAN);
 
@@ -102,7 +102,7 @@ proto_register_g723(void)
 
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_g723,
 	};
 

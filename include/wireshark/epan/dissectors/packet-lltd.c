@@ -20,131 +20,131 @@ void proto_reg_handoff_lltd(void);
 
 static dissector_handle_t lltd_handle;
 
-static int proto_lltd = -1;
+static int proto_lltd;
 
-static int hf_lltd_version                  = -1;
-static int hf_lltd_type_of_service          = -1;
-static int hf_lltd_reserved                 = -1;
-static int hf_lltd_discovery_func           = -1;
-static int hf_lltd_discovery_real_dest_addr = -1;
-static int hf_lltd_discovery_real_src_addr  = -1;
-static int hf_lltd_discovery_xid            = -1;
-static int hf_lltd_discovery_seq_num        = -1;
-static int hf_lltd_discover_gen_num         = -1;
-static int hf_lltd_discover_num_stations    = -1;
-static int hf_lltd_discover_station         = -1;
-static int hf_lltd_hello_gen_num            = -1;
-static int hf_lltd_hello_current_address    = -1;
-static int hf_lltd_hello_apparent_address   = -1;
-static int hf_lltd_tlv_type                 = -1;
-static int hf_lltd_tlv_length               = -1;
-static int hf_lltd_host_id                  = -1;
-static int hf_lltd_char_p                   = -1;
-static int hf_lltd_char_x                   = -1;
-static int hf_lltd_char_f                   = -1;
-static int hf_lltd_char_m                   = -1;
-static int hf_lltd_char_l                   = -1;
-static int hf_lltd_char_reserved            = -1;
-static int hf_lltd_physical_medium          = -1;
-static int hf_lltd_wireless_mode            = -1;
-static int hf_lltd_bssid                    = -1;
-static int hf_lltd_ssid                     = -1;
-static int hf_lltd_ipv4_address             = -1;
-static int hf_lltd_ipv6_address             = -1;
-static int hf_lltd_max_operation_rate       = -1;
-static int hf_lltd_performance_count_freq   = -1;
-static int hf_lltd_link_speed               = -1;
-static int hf_lltd_rssi                     = -1;
-static int hf_lltd_machine_name             = -1;
-static int hf_lltd_support_info             = -1;
-static int hf_lltd_device_uuid              = -1;
-static int hf_lltd_qos_char_e               = -1;
-static int hf_lltd_qos_char_q               = -1;
-static int hf_lltd_qos_char_p               = -1;
-static int hf_lltd_qos_char_reserved        = -1;
-static int hf_lltd_80211_physical_medium    = -1;
-static int hf_lltd_sees_list_working_set    = -1;
-static int hf_lltd_repeater_ap_lineage      = -1;
-static int hf_lltd_emit_num_descs           = -1;
-static int hf_lltd_emit_type                = -1;
-static int hf_lltd_emit_pause               = -1;
-static int hf_lltd_emit_src_addr            = -1;
-static int hf_lltd_emit_dest_addr           = -1;
-static int hf_lltd_queryresp_more_descs     = -1;
-static int hf_lltd_queryresp_memory_descs   = -1;
-static int hf_lltd_queryresp_num_descs      = -1;
-static int hf_lltd_queryresp_type           = -1;
-static int hf_lltd_queryresp_real_src_addr  = -1;
-static int hf_lltd_queryresp_ethernet_src_addr  = -1;
-static int hf_lltd_queryresp_ethernet_dest_addr = -1;
-static int hf_lltd_flat_crc_bytes           = -1;
-static int hf_lltd_flat_crc_packets         = -1;
-static int hf_lltd_query_large_tlv_type     = -1;
-static int hf_lltd_query_large_tlv_offset   = -1;
-static int hf_lltd_querylargeresp_more_descs    = -1;
-static int hf_lltd_querylargeresp_memory_descs  = -1;
-static int hf_lltd_querylargeresp_num_descs = -1;
-static int hf_lltd_querylargeresp_data      = -1;
+static int hf_lltd_version;
+static int hf_lltd_type_of_service;
+static int hf_lltd_reserved;
+static int hf_lltd_discovery_func;
+static int hf_lltd_discovery_real_dest_addr;
+static int hf_lltd_discovery_real_src_addr;
+static int hf_lltd_discovery_xid;
+static int hf_lltd_discovery_seq_num;
+static int hf_lltd_discover_gen_num;
+static int hf_lltd_discover_num_stations;
+static int hf_lltd_discover_station;
+static int hf_lltd_hello_gen_num;
+static int hf_lltd_hello_current_address;
+static int hf_lltd_hello_apparent_address;
+static int hf_lltd_tlv_type;
+static int hf_lltd_tlv_length;
+static int hf_lltd_host_id;
+static int hf_lltd_char_p;
+static int hf_lltd_char_x;
+static int hf_lltd_char_f;
+static int hf_lltd_char_m;
+static int hf_lltd_char_l;
+static int hf_lltd_char_reserved;
+static int hf_lltd_physical_medium;
+static int hf_lltd_wireless_mode;
+static int hf_lltd_bssid;
+static int hf_lltd_ssid;
+static int hf_lltd_ipv4_address;
+static int hf_lltd_ipv6_address;
+static int hf_lltd_max_operation_rate;
+static int hf_lltd_performance_count_freq;
+static int hf_lltd_link_speed;
+static int hf_lltd_rssi;
+static int hf_lltd_machine_name;
+static int hf_lltd_support_info;
+static int hf_lltd_device_uuid;
+static int hf_lltd_qos_char_e;
+static int hf_lltd_qos_char_q;
+static int hf_lltd_qos_char_p;
+static int hf_lltd_qos_char_reserved;
+static int hf_lltd_80211_physical_medium;
+static int hf_lltd_sees_list_working_set;
+static int hf_lltd_repeater_ap_lineage;
+static int hf_lltd_emit_num_descs;
+static int hf_lltd_emit_type;
+static int hf_lltd_emit_pause;
+static int hf_lltd_emit_src_addr;
+static int hf_lltd_emit_dest_addr;
+static int hf_lltd_queryresp_more_descs;
+static int hf_lltd_queryresp_memory_descs;
+static int hf_lltd_queryresp_num_descs;
+static int hf_lltd_queryresp_type;
+static int hf_lltd_queryresp_real_src_addr;
+static int hf_lltd_queryresp_ethernet_src_addr;
+static int hf_lltd_queryresp_ethernet_dest_addr;
+static int hf_lltd_flat_crc_bytes;
+static int hf_lltd_flat_crc_packets;
+static int hf_lltd_query_large_tlv_type;
+static int hf_lltd_query_large_tlv_offset;
+static int hf_lltd_querylargeresp_more_descs;
+static int hf_lltd_querylargeresp_memory_descs;
+static int hf_lltd_querylargeresp_num_descs;
+static int hf_lltd_querylargeresp_data;
 
-static int hf_lltd_qos_diag_func            = -1;
-static int hf_lltd_qos_real_dest_addr       = -1;
-static int hf_lltd_qos_real_src_addr        = -1;
-static int hf_lltd_qos_seq_num              = -1;
-static int hf_lltd_qos_initialize_interrupt_mod = -1;
-static int hf_lltd_qos_ready_sink_link_speed = -1;
-static int hf_lltd_qos_ready_perf_count_freq = -1;
-static int hf_lltd_qos_probe_controller_transmit_timestamp = -1;
-static int hf_lltd_qos_probe_sink_receive_timestamp = -1;
-static int hf_lltd_qos_probe_sink_transmit_timestamp = -1;
-static int hf_lltd_qos_probe_test_type      = -1;
-static int hf_lltd_qos_probe_packet_id      = -1;
-static int hf_lltd_qos_probe_t              = -1;
-static int hf_lltd_qos_probe_8021p_value    = -1;
-static int hf_lltd_qos_probe_payload        = -1;
-static int hf_lltd_qos_error_value          = -1;
-static int hf_lltd_qos_count_snapshot_history = -1;
-static int hf_lltd_qos_query_resp_r         = -1;
-static int hf_lltd_qos_query_resp_e         = -1;
-static int hf_lltd_qos_query_resp_num_events = -1;
-static int hf_lltd_qos_query_resp_controller_timestamp = -1;
-static int hf_lltd_qos_query_resp_sink_timestamp = -1;
-static int hf_lltd_qos_query_resp_packet_id = -1;
-static int hf_lltd_qos_query_resp_reserved  = -1;
-static int hf_lltd_qos_counter_result_subsec_span = -1;
-static int hf_lltd_qos_counter_result_byte_scale = -1;
-static int hf_lltd_qos_counter_result_packet_scale = -1;
-static int hf_lltd_qos_counter_result_history_size = -1;
-static int hf_lltd_qos_snapshot_bytes_recv  = -1;
-static int hf_lltd_qos_snapshot_packets_recv= -1;
-static int hf_lltd_qos_snapshot_bytes_sent  = -1;
-static int hf_lltd_qos_snapshot_packets_sent= -1;
+static int hf_lltd_qos_diag_func;
+static int hf_lltd_qos_real_dest_addr;
+static int hf_lltd_qos_real_src_addr;
+static int hf_lltd_qos_seq_num;
+static int hf_lltd_qos_initialize_interrupt_mod;
+static int hf_lltd_qos_ready_sink_link_speed;
+static int hf_lltd_qos_ready_perf_count_freq;
+static int hf_lltd_qos_probe_controller_transmit_timestamp;
+static int hf_lltd_qos_probe_sink_receive_timestamp;
+static int hf_lltd_qos_probe_sink_transmit_timestamp;
+static int hf_lltd_qos_probe_test_type;
+static int hf_lltd_qos_probe_packet_id;
+static int hf_lltd_qos_probe_t;
+static int hf_lltd_qos_probe_8021p_value;
+static int hf_lltd_qos_probe_payload;
+static int hf_lltd_qos_error_value;
+static int hf_lltd_qos_count_snapshot_history;
+static int hf_lltd_qos_query_resp_r;
+static int hf_lltd_qos_query_resp_e;
+static int hf_lltd_qos_query_resp_num_events;
+static int hf_lltd_qos_query_resp_controller_timestamp;
+static int hf_lltd_qos_query_resp_sink_timestamp;
+static int hf_lltd_qos_query_resp_packet_id;
+static int hf_lltd_qos_query_resp_reserved;
+static int hf_lltd_qos_counter_result_subsec_span;
+static int hf_lltd_qos_counter_result_byte_scale;
+static int hf_lltd_qos_counter_result_packet_scale;
+static int hf_lltd_qos_counter_result_history_size;
+static int hf_lltd_qos_snapshot_bytes_recv;
+static int hf_lltd_qos_snapshot_packets_recv;
+static int hf_lltd_qos_snapshot_bytes_sent;
+static int hf_lltd_qos_snapshot_packets_sent;
 
 
-static gint ett_lltd                = -1;
-static gint ett_base_header         = -1;
-static gint ett_discover_stations   = -1;
-static gint ett_tlv                 = -1;
-static gint ett_tlv_item            = -1;
-static gint ett_characteristics     = -1;
-static gint ett_qos_characteristics = -1;
-static gint ett_repeater_ap_lineage = -1;
-static gint ett_emitee_descs        = -1;
-static gint ett_emitee_descs_item   = -1;
-static gint ett_recvee_descs        = -1;
-static gint ett_recvee_descs_item   = -1;
-static gint ett_qos_event_descs     = -1;
-static gint ett_qos_event_item      = -1;
-static gint ett_qos_snapshot_list   = -1;
-static gint ett_qos_snapshot_item   = -1;
+static int ett_lltd;
+static int ett_base_header;
+static int ett_discover_stations;
+static int ett_tlv;
+static int ett_tlv_item;
+static int ett_characteristics;
+static int ett_qos_characteristics;
+static int ett_repeater_ap_lineage;
+static int ett_emitee_descs;
+static int ett_emitee_descs_item;
+static int ett_recvee_descs;
+static int ett_recvee_descs_item;
+static int ett_qos_event_descs;
+static int ett_qos_event_item;
+static int ett_qos_snapshot_list;
+static int ett_qos_snapshot_item;
 
-static expert_field ei_lltd_tlv_length_invalid = EI_INIT;
-static expert_field ei_lltd_too_many_paths = EI_INIT;
-static expert_field ei_lltd_type_of_service = EI_INIT;
-static expert_field ei_lltd_char_reserved = EI_INIT;
-static expert_field ei_lltd_qos_seq_num = EI_INIT;
-static expert_field ei_lltd_discovery_func = EI_INIT;
-static expert_field ei_lltd_tlv_type = EI_INIT;
-static expert_field ei_lltd_qos_diag_func = EI_INIT;
+static expert_field ei_lltd_tlv_length_invalid;
+static expert_field ei_lltd_too_many_paths;
+static expert_field ei_lltd_type_of_service;
+static expert_field ei_lltd_char_reserved;
+static expert_field ei_lltd_qos_seq_num;
+static expert_field ei_lltd_discovery_func;
+static expert_field ei_lltd_tlv_type;
+static expert_field ei_lltd_qos_diag_func;
 
 #define LLTD_CHARACTERISTIC_P_MASK          0x80000000
 #define LLTD_CHARACTERISTIC_X_MASK          0x40000000
@@ -310,26 +310,26 @@ static const true_false_string tfs_full_half_duplex = { "Full Duplex", "Half Dup
 
 
 static int
-dissect_lltd_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, gboolean* end)
+dissect_lltd_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset, bool* end)
 {
-    guint8     type, length = 0;
+    uint8_t    type, length = 0;
     proto_item *tlv_item, *type_item;
     proto_tree *tlv_tree, *type_tree;
-    guint32 i, temp32;
+    uint32_t i, temp32;
 
-    type = tvb_get_guint8(tvb, offset);
+    type = tvb_get_uint8(tvb, offset);
     if (type == 0)
     {
         /* End of Property type doesn't have length */
         tlv_tree = proto_tree_add_subtree(tree, tvb, offset, 1, ett_tlv_item, &tlv_item, "TLV Item (End of Property List)");
-        *end = TRUE;
+        *end = true;
     }
     else
     {
-        length = tvb_get_guint8(tvb, offset+1);
+        length = tvb_get_uint8(tvb, offset+1);
         tlv_tree = proto_tree_add_subtree_format(tree, tvb, offset, length+2, ett_tlv_item, &tlv_item,
                     "TLV Item (%s)", val_to_str(type, lltd_tlv_type_vals, "Unknown (0x%02x)"));
-        *end = FALSE;
+        *end = false;
     }
 
     proto_tree_add_item(tlv_tree, hf_lltd_tlv_type, tvb, offset, 1, ENC_NA);
@@ -340,7 +340,7 @@ dissect_lltd_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 of
     if ((type != 0) && (length > tvb_reported_length_remaining(tvb, offset+2)))
     {
         expert_add_info_format(pinfo, tlv_item, &ei_lltd_tlv_length_invalid, "TLV Length field too big");
-        *end = TRUE;
+        *end = true;
         return 2;
     }
 
@@ -549,12 +549,12 @@ dissect_lltd_discovery(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int 
 {
     proto_item *header_item, *func_item;
     proto_tree *header_tree, *func_tree, *func_subtree;
-    guint8     func;
-    guint16    temp16;
-    gboolean   end_tlv = FALSE;
+    uint8_t    func;
+    uint16_t   temp16;
+    bool       end_tlv = false;
     int loop_offset, start_offset;
 
-    func = tvb_get_guint8(tvb, offset);
+    func = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(tree, hf_lltd_discovery_func, tvb, offset, 1, ENC_NA);
     col_add_str(pinfo->cinfo, COL_INFO, val_to_str(func, lltd_discovery_vals, "Unknown (0x%02x)"));
     offset++;
@@ -589,7 +589,7 @@ dissect_lltd_discovery(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int 
 
         func_tree = proto_tree_add_subtree(tree, tvb, offset+28, 0, ett_tlv, &func_item, "TLVs");
         start_offset = loop_offset = offset+28;
-        while ((end_tlv == FALSE) && (tvb_reported_length_remaining(tvb, loop_offset) >= 1))
+        while ((end_tlv == false) && (tvb_reported_length_remaining(tvb, loop_offset) >= 1))
         {
             loop_offset += dissect_lltd_tlv(tvb, pinfo, func_tree, loop_offset, &end_tlv);
         }
@@ -667,11 +667,11 @@ dissect_lltd_qos(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset
 {
     proto_item *header_item;
     proto_tree *header_tree, *func_tree, *func_subtree;
-    guint8     func;
-    guint16    seq_num, temp16;
+    uint8_t    func;
+    uint16_t   seq_num, temp16;
     int loop_offset;
 
-    func = tvb_get_guint8(tvb, offset);
+    func = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(tree, hf_lltd_qos_diag_func, tvb, offset, 1, ENC_NA);
     col_add_str(pinfo->cinfo, COL_INFO, val_to_str(func, lltd_qos_diag_vals, "Unknown (0x%02x)"));
     offset++;
@@ -743,7 +743,7 @@ dissect_lltd_qos(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset
         proto_tree_add_item(tree, hf_lltd_qos_counter_result_byte_scale, tvb, offset+15, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(tree, hf_lltd_qos_counter_result_packet_scale, tvb, offset+16, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(tree, hf_lltd_qos_counter_result_history_size, tvb, offset+17, 1, ENC_BIG_ENDIAN);
-        temp16 = tvb_get_guint8(tvb, offset+17);
+        temp16 = tvb_get_uint8(tvb, offset+17);
         if (temp16 > 0)
         {
             func_tree = proto_tree_add_subtree(tree, tvb, offset+18, temp16*4, ett_qos_snapshot_list, NULL, "Snapshot List");
@@ -772,7 +772,7 @@ dissect_lltd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 {
     proto_item *ti;
     proto_tree *lltd_tree;
-    guint8     tos;
+    uint8_t    tos;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "LLTD");
     col_clear(pinfo->cinfo, COL_INFO);
@@ -782,7 +782,7 @@ dissect_lltd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 
     proto_tree_add_item(lltd_tree, hf_lltd_version, tvb, 0, 1, ENC_NA);
     proto_tree_add_item(lltd_tree, hf_lltd_type_of_service, tvb, 1, 1, ENC_NA);
-    tos = tvb_get_guint8(tvb, 1);
+    tos = tvb_get_uint8(tvb, 1);
     proto_tree_add_item(lltd_tree, hf_lltd_reserved, tvb, 2, 1, ENC_NA);
 
     switch(tos)
@@ -907,7 +907,7 @@ proto_register_lltd(void)
         { &hf_lltd_qos_snapshot_packets_sent, {"Packets Sent", "lltd.qos_snapshot.packets_sent", FT_UINT16, BASE_DEC, NULL, 0, NULL, HFILL }}
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_lltd,
         &ett_base_header,
         &ett_discover_stations,

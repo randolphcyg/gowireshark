@@ -18,6 +18,7 @@
 
 #include <epan/packet.h>
 #include <epan/prefs.h>
+#include <wsutil/array.h>
 
 #include <epan/strutil.h>
 #include <epan/asn1.h>
@@ -42,22 +43,22 @@ void proto_reg_handoff_pcap(void);
 
 #include "packet-pcap-val.h"
 
-static dissector_handle_t pcap_handle = NULL;
+static dissector_handle_t pcap_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_pcap = -1;
+static int proto_pcap;
 
 #include "packet-pcap-hf.c"
 
 /* Initialize the subtree pointers */
-static int ett_pcap = -1;
+static int ett_pcap;
 
 #include "packet-pcap-ett.c"
 
 /* Global variables */
-static guint32 ProcedureCode;
-static guint32 ProtocolIE_ID;
-/*static guint32 ProtocolExtensionID;*/
+static uint32_t ProcedureCode;
+static uint32_t ProtocolIE_ID;
+/*static uint32_t ProtocolExtensionID;*/
 
 /* Dissector tables */
 static dissector_table_t pcap_ies_dissector_table;
@@ -144,7 +145,7 @@ void proto_register_pcap(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 		  &ett_pcap,
 #include "packet-pcap-ettarr.c"
   };

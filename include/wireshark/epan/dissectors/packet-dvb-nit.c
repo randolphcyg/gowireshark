@@ -12,32 +12,33 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/tfs.h>
 #include "packet-mpeg-sect.h"
 #include "packet-mpeg-descriptor.h"
 
 void proto_register_dvb_nit(void);
 void proto_reg_handoff_dvb_nit(void);
 
-static int proto_dvb_nit = -1;
-static int hf_dvb_nit_network_id = -1;
-static int hf_dvb_nit_reserved1 = -1;
-static int hf_dvb_nit_version_number = -1;
-static int hf_dvb_nit_current_next_indicator = -1;
-static int hf_dvb_nit_section_number = -1;
-static int hf_dvb_nit_last_section_number = -1;
-static int hf_dvb_nit_reserved2 = -1;
+static int proto_dvb_nit;
+static int hf_dvb_nit_network_id;
+static int hf_dvb_nit_reserved1;
+static int hf_dvb_nit_version_number;
+static int hf_dvb_nit_current_next_indicator;
+static int hf_dvb_nit_section_number;
+static int hf_dvb_nit_last_section_number;
+static int hf_dvb_nit_reserved2;
 
-static int hf_dvb_nit_network_descriptors_length = -1;
-static int hf_dvb_nit_reserved3 = -1;
-static int hf_dvb_nit_transport_stream_loop_length = -1;
+static int hf_dvb_nit_network_descriptors_length;
+static int hf_dvb_nit_reserved3;
+static int hf_dvb_nit_transport_stream_loop_length;
 
-static int hf_dvb_nit_transport_stream_id = -1;
-static int hf_dvb_nit_original_network_id = -1;
-static int hf_dvb_nit_reserved4 = -1;
-static int hf_dvb_nit_transport_descriptors_length = -1;
+static int hf_dvb_nit_transport_stream_id;
+static int hf_dvb_nit_original_network_id;
+static int hf_dvb_nit_reserved4;
+static int hf_dvb_nit_transport_descriptors_length;
 
-static gint ett_dvb_nit = -1;
-static gint ett_dvb_nit_ts = -1;
+static int ett_dvb_nit;
+static int ett_dvb_nit_ts;
 
 static dissector_handle_t dvb_nit_handle;
 
@@ -55,10 +56,10 @@ static int
 dissect_dvb_nit(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
 
-    guint       offset = 0;
-    guint       ts_desc_len, desc_loop_len, ts_end;
+    unsigned    offset = 0;
+    unsigned    ts_desc_len, desc_loop_len, ts_end;
 
-    guint16     tsid;
+    uint16_t    tsid;
 
     proto_item *ti;
     proto_tree *dvb_nit_tree;
@@ -203,7 +204,7 @@ proto_register_dvb_nit(void)
 
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_dvb_nit,
         &ett_dvb_nit_ts
     };

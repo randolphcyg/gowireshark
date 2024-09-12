@@ -253,15 +253,15 @@ MAX_VAL = asn1_param_get_integer(%(ACTX)s,"upperBound")
   s1ap_data->number_type = E212_NONE;
 
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       3, 3, FALSE, &parameter_tvb);
+                                       3, 3, false, &parameter_tvb);
   if(tvb_reported_length(tvb)==0)
     return offset;
 
   if (!parameter_tvb)
     return offset;
-  dissect_e212_mcc_mnc(parameter_tvb, actx->pinfo, tree, 0, number_type, FALSE);
+  dissect_e212_mcc_mnc(parameter_tvb, actx->pinfo, tree, 0, number_type, false);
   if (s1ap_data->supported_ta) {
-    guint32 plmn = tvb_get_ntoh24(parameter_tvb, 0);
+    uint32_t plmn = tvb_get_ntoh24(parameter_tvb, 0);
     wmem_array_append_one(s1ap_data->supported_ta->plmn, plmn);
   } else if (s1ap_data->tai) {
     s1ap_data->tai->plmn = tvb_get_ntoh24(parameter_tvb, 0);
@@ -271,7 +271,7 @@ MAX_VAL = asn1_param_get_integer(%(ACTX)s,"upperBound")
 #.FN_BODY ENBname VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb=NULL;
   int length;
-  gboolean is_ascii;
+  bool is_ascii;
 
 %(DEFAULT_BODY)s
 
@@ -287,7 +287,7 @@ MAX_VAL = asn1_param_get_integer(%(ACTX)s,"upperBound")
 #.FN_BODY MMEname VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb=NULL;
   int length;
-  gboolean is_ascii;
+  bool is_ascii;
 
 %(DEFAULT_BODY)s
 
@@ -324,7 +324,7 @@ tvbuff_t *parameter_tvb=NULL;
 #.FN_BODY TransportLayerAddress VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb=NULL;
   proto_tree *subtree;
-  gint tvb_len;
+  int tvb_len;
 
 %(DEFAULT_BODY)s
   if (!parameter_tvb)
@@ -376,17 +376,17 @@ Port-Number TYPE = FT_UINT16 DISPLAY = BASE_DEC
 %(DEFAULT_BODY)s
 
 #.FN_BODY SRVCCHOIndication VAL_PTR = &srvcc_ho_ind
-  guint32 srvcc_ho_ind;
+  uint32_t srvcc_ho_ind;
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
 %(DEFAULT_BODY)s
   if (srvcc_ho_ind == cSonly)
-    s1ap_data->srvcc_ho_cs_only = TRUE;
+    s1ap_data->srvcc_ho_cs_only = true;
 
 #Undef the value before use
 #.FN_HDR HandoverRequired
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->handover_type_value = 0xff;
-  s1ap_data->srvcc_ho_cs_only = FALSE;
+  s1ap_data->srvcc_ho_cs_only = false;
 #.FN_HDR HandoverCommand
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
   s1ap_data->handover_type_value = 0xff;
@@ -399,7 +399,7 @@ Port-Number TYPE = FT_UINT16 DISPLAY = BASE_DEC
 
 #.FN_BODY SourceeNB-ToTargeteNB-TransparentContainer
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
-  volatile guint32 _offset;
+  volatile uint32_t _offset;
 
   s1ap_data->transparent_container_type = SOURCE_TO_TARGET_TRANSPARENT_CONTAINER;
   _offset = offset;
@@ -431,7 +431,7 @@ Port-Number TYPE = FT_UINT16 DISPLAY = BASE_DEC
   if ((g_s1ap_dissect_container)&&(parameter_tvb) && (tvb_reported_length(parameter_tvb) > 0)) {
     struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
     /* Don't want elements inside container to write to info column */
-    col_set_writable(actx->pinfo->cinfo, COL_INFO, FALSE);
+    col_set_writable(actx->pinfo->cinfo, COL_INFO, false);
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_ToTargetTransparentContainer);
 
     switch(s1ap_data->handover_type_value){
@@ -487,12 +487,12 @@ Port-Number TYPE = FT_UINT16 DISPLAY = BASE_DEC
       break;
     }
     /* Enable writing of the column again */
-    col_set_writable(actx->pinfo->cinfo, COL_INFO, TRUE);
+    col_set_writable(actx->pinfo->cinfo, COL_INFO, true);
   }
 
 #.FN_BODY TargeteNB-ToSourceeNB-TransparentContainer
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
-  volatile guint32 _offset;
+  volatile uint32_t _offset;
 
   s1ap_data->transparent_container_type = TARGET_TO_SOURCE_TRANSPARENT_CONTAINER;
   _offset = offset;
@@ -722,7 +722,10 @@ Hysteresis DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(s1ap_Hysteresis_fmt)
       &hf_s1ap_rAT_RestrictionInformation_MEO,
       &hf_s1ap_rAT_RestrictionInformation_GEO,
       &hf_s1ap_rAT_RestrictionInformation_OTHERSAT,
-      &hf_s1ap_rAT_RestrictionInformation_Reserved,
+      &hf_s1ap_rAT_RestrictionInformation_NR_LEO,
+      &hf_s1ap_rAT_RestrictionInformation_NR_MEO,
+      &hf_s1ap_rAT_RestrictionInformation_NR_GEO,
+      &hf_s1ap_rAT_RestrictionInformation_NR_OTHERSAT,
       NULL
     };
     proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_rAT_RestrictionInformation);
@@ -954,7 +957,7 @@ ProtocolExtensionID TYPE = FT_UINT8  DISPLAY = BASE_DEC|BASE_EXT_STRING STRINGS 
   if (!parameter_tvb)
     return offset;
   subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_E_UTRAN_Trace_ID);
-  dissect_e212_mcc_mnc(parameter_tvb, actx->pinfo, subtree, 0, E212_NONE, FALSE);
+  dissect_e212_mcc_mnc(parameter_tvb, actx->pinfo, subtree, 0, E212_NONE, false);
   proto_tree_add_item(subtree, hf_s1ap_E_UTRAN_Trace_ID_TraceID, parameter_tvb, 3, 3, ENC_BIG_ENDIAN);
   proto_tree_add_item(subtree, hf_s1ap_E_UTRAN_Trace_ID_TraceRecordingSessionReference, parameter_tvb, 6, 2, ENC_BIG_ENDIAN);
 
@@ -985,10 +988,10 @@ IntersystemMeasurementConfiguration/rSRQ DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC
 IntersystemMeasurementConfiguration/sINR DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(s1ap_threshold_nr_sinr_fmt)
 
 #.TYPE_ATTR
-InterSystemMeasurementParameters/measurementDuration DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+InterSystemMeasurementParameters/measurementDuration DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-BitRate DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_bit_sec
+BitRate DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_bit_sec)
 
 #.FN_BODY InterSystemMeasurementItem/sMTC VAL_PTR = &ssb_mtc_tvb
   tvbuff_t *ssb_mtc_tvb = NULL;
@@ -1093,7 +1096,7 @@ MME-Group-ID TYPE = FT_UINT16 DISPLAY = BASE_DEC_HEX
   }
 
 #.TYPE_ATTR
-Time-UE-StayedInCell DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+Time-UE-StayedInCell DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
 Time-UE-StayedInCell-EnhancedGranularity DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(s1ap_Time_UE_StayedInCell_EnhancedGranularity_fmt)
@@ -1106,13 +1109,13 @@ Time-UE-StayedInCell-EnhancedGranularity DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC
   }
 
 #.TYPE_ATTR
-TimeSinceSecondaryNodeRelease TYPE=FT_UINT32 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+TimeSinceSecondaryNodeRelease TYPE=FT_UINT32 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-LastVisitedPSCellInformation/timeStay DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+LastVisitedPSCellInformation/timeStay DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-RecommendedCellItem/timeStayedInCell DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+RecommendedCellItem/timeStayedInCell DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_BODY LastVisitedNGRANCellInformation VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb = NULL;
@@ -1175,7 +1178,7 @@ MessageIdentifier TYPE = FT_UINT16 DISPLAY = BASE_DEC|BASE_EXT_STRING STRINGS = 
   }
 
 #.TYPE_ATTR
-RepetitionPeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+RepetitionPeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_BODY WarningType VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb = NULL;
@@ -1199,7 +1202,7 @@ RepetitionPeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
   }
 
 #.TYPE_ATTR
-DataSize DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_bit_bits
+DataSize DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_bit_bits)
 
 #.FN_BODY WarningMessageContents VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb = NULL;
@@ -1230,7 +1233,7 @@ DataSize DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_bit_bits
 EUTRANRoundTripDelayEstimationInfo DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(s1ap_EUTRANRoundTripDelayEstimationInfo_fmt)
 
 #.TYPE_ATTR
-ExtendedRepetitionPeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+ExtendedRepetitionPeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_BODY MeasurementsToActivate VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb = NULL;
@@ -1274,10 +1277,10 @@ LHN-ID TYPE=FT_STRING DISPLAY = BASE_NONE
 #.END
 
 #.TYPE_ATTR
-ExpectedActivityPeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+ExpectedActivityPeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-ExpectedIdlePeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+ExpectedIdlePeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_BODY E-RABUsageReportItem/startTimestamp VAL_PTR = &timestamp_tvb
   tvbuff_t *timestamp_tvb = NULL;
@@ -1298,13 +1301,13 @@ ExpectedIdlePeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
   }
 
 #.TYPE_ATTR
-E-RABUsageReportItem/usageCountUL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_octet_octets
+E-RABUsageReportItem/usageCountUL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_octet_octets)
 
 #.TYPE_ATTR
-E-RABUsageReportItem/usageCountDL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_octet_octets
+E-RABUsageReportItem/usageCountDL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_octet_octets)
 
 #.TYPE_ATTR
-ExtendedBitRate DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_bit_sec
+ExtendedBitRate DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_bit_sec)
 
 #.FN_BODY NRencryptionAlgorithms VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb = NULL;
@@ -1420,7 +1423,7 @@ M-TMSI TYPE = FT_UINT32 DISPLAY = BASE_DEC_HEX
 %(DEFAULT_BODY)s
   if (parameter_tvb) {
     proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_IMSI);
-    dissect_e212_imsi(parameter_tvb, actx->pinfo, subtree, 0, tvb_reported_length(parameter_tvb), FALSE);
+    dissect_e212_imsi(parameter_tvb, actx->pinfo, subtree, 0, tvb_reported_length(parameter_tvb), false);
   }
 
 #.FN_BODY NASSecurityParametersfromE-UTRAN VAL_PTR = &parameter_tvb
@@ -1447,29 +1450,29 @@ M-TMSI TYPE = FT_UINT32 DISPLAY = BASE_DEC_HEX
       ((s1ap_data->procedure_code == id_S1Setup) ||
        (s1ap_data->procedure_code == id_ENBConfigurationUpdate))) {
     s1ap_data->supported_ta = wmem_new0(actx->pinfo->pool, struct s1ap_supported_ta);
-    s1ap_data->supported_ta->plmn = wmem_array_new(actx->pinfo->pool, sizeof(guint32));
+    s1ap_data->supported_ta->plmn = wmem_array_new(actx->pinfo->pool, sizeof(uint32_t));
   }
 
 #.FN_FTR SupportedTAs-Item
   s1ap_data->supported_ta = NULL;
 
 #.FN_BODY RAT-Type VAL_PTR = &rat_type
-  guint32 rat_type = 0xffffffff;
+  uint32_t rat_type = 0xffffffff;
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
 %(DEFAULT_BODY)s
   if (s1ap_data->s1ap_conv && s1ap_data->supported_ta && rat_type <= nbiot_othersat) {
-    guint64 *key;
-    guint i;
+    uint64_t *key;
+    unsigned i;
 
     for (i = 0; i < wmem_array_get_count(s1ap_data->supported_ta->plmn); i++) {
-      key = wmem_new(wmem_file_scope(), guint64);
-      *key = ((*(guint32*)wmem_array_index(s1ap_data->supported_ta->plmn, i)) << 16) | s1ap_data->supported_ta->tac;
+      key = wmem_new(wmem_file_scope(), uint64_t);
+      *key = ((*(uint32_t*)wmem_array_index(s1ap_data->supported_ta->plmn, i)) << 16) | s1ap_data->supported_ta->tac;
       wmem_map_insert(s1ap_data->s1ap_conv->nbiot_ta, key, GUINT_TO_POINTER(1));
     }
   }
 
 #.FN_BODY ENB-UE-S1AP-ID VAL_PTR = &enb_ue_s1ap_id
-  guint32 enb_ue_s1ap_id;
+  uint32_t enb_ue_s1ap_id;
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(actx->pinfo);
 %(DEFAULT_BODY)s
   if (hf_index == hf_s1ap_eNB_UE_S1AP_ID) {
@@ -1478,10 +1481,10 @@ M-TMSI TYPE = FT_UINT32 DISPLAY = BASE_DEC_HEX
     proto_item_set_hidden(item);
   }
 
-  s1ap_data->enb_ue_s1ap_id = (guint16)enb_ue_s1ap_id;
+  s1ap_data->enb_ue_s1ap_id = (uint16_t)enb_ue_s1ap_id;
 
 #.FN_BODY MME-UE-S1AP-ID VAL_PTR = &mme_ue_s1ap_id
-  guint32 mme_ue_s1ap_id;
+  uint32_t mme_ue_s1ap_id;
 %(DEFAULT_BODY)s
   if (hf_index == hf_s1ap_mME_UE_S1AP_ID) {
     proto_item *item;
@@ -1497,11 +1500,11 @@ M-TMSI TYPE = FT_UINT32 DISPLAY = BASE_DEC_HEX
   if (!PINFO_FD_VISITED(actx->pinfo) && s1ap_data->s1ap_conv &&
       (s1ap_data->message_type == INITIATING_MESSAGE) &&
       (s1ap_data->procedure_code == id_initialUEMessage)) {
-    guint64 key = (s1ap_data->tai->plmn << 16) | s1ap_data->tai->tac;
+    uint64_t key = (s1ap_data->tai->plmn << 16) | s1ap_data->tai->tac;
 
     if (wmem_map_lookup(s1ap_data->s1ap_conv->nbiot_ta, &key)) {
       wmem_tree_key_t tree_key[3];
-      guint32 *id = wmem_new(wmem_file_scope(), guint32);
+      uint32_t *id = wmem_new(wmem_file_scope(), uint32_t);
 
       *id = s1ap_data->enb_ue_s1ap_id;
       tree_key[0].length = 1;
@@ -1534,16 +1537,16 @@ WLANName TYPE=FT_STRING DISPLAY = BASE_NONE
 #.END
 
 #.TYPE_ATTR
-Subscription-Based-UE-DifferentiationInfo/periodicTime DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+Subscription-Based-UE-DifferentiationInfo/periodicTime DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-ScheduledCommunicationTime/timeofDayStart DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+ScheduledCommunicationTime/timeofDayStart DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-ScheduledCommunicationTime/timeofDayEnd DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+ScheduledCommunicationTime/timeofDayEnd DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-TrafficLoadReductionIndication DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_percent
+TrafficLoadReductionIndication DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_percent)
 
 #.FN_BODY MDT-ConfigurationNR VAL_PTR = &parameter_tvb
   tvbuff_t *parameter_tvb = NULL;
@@ -1562,6 +1565,12 @@ TrafficLoadReductionIndication DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_
     subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_IntersystemSONConfigurationTransfer);
     dissect_ngap_SONConfigurationTransfer_PDU(parameter_tvb, actx->pinfo, subtree, NULL);
   }
+
+#.TYPE_ATTR
+HandoverWindowStart DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
+
+#.TYPE_ATTR
+HandoverWindowDuration DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(s1ap_handover_window_duration_fmt)
 
 #.ASSIGN_VALUE_TO_TYPE  # S1AP does not have constants assigned to types, they are pure INTEGER
 # ProcedureCode
@@ -1958,6 +1967,13 @@ id-E-RABToBeUpdatedItem                             ProtocolIE-ID
 id-SourceSNID                                       ProtocolIE-ID
 id-LoggedMDTTrigger                                 ProtocolIE-ID
 id-SensorMeasurementConfiguration                   ProtocolIE-ID
+id-M4ReportAmount                                   ProtocolIE-ID
+id-M5ReportAmount                                   ProtocolIE-ID
+id-M6ReportAmount                                   ProtocolIE-ID
+id-M7ReportAmount                                   ProtocolIE-ID
+id-TimeBasedHandoverInformation                     ProtocolIE-ID
+id-Bearers-SubjectToDLDiscarding-Item               ProtocolIE-ID
+id-Bearers-SubjectToDLDiscardingList                ProtocolIE-ID
 
 #.END
 
@@ -2212,6 +2228,7 @@ E-RABSecurityResultItem                         N s1ap.ies id-E-RABSecurityResul
 LTE-NTN-TAI-Information                         N s1ap.ies id-LTE-NTN-TAI-Information
 E-RABToBeUpdatedList                            N s1ap.ies id-E-RABToBeUpdatedList
 E-RABToBeUpdatedItem                            N s1ap.ies id-E-RABToBeUpdatedItem
+Bearers-SubjectToDLDiscarding-Item              N s1ap.ies id-Bearers-SubjectToDLDiscarding-Item
 
 #S1AP-PROTOCOL-IES-PAIR
 #RAB-SetupOrModifyItemFirst             N s1ap.ies.pair.first id-RAB-SetupOrModifyItem
@@ -2295,6 +2312,12 @@ TransportLayerAddress                   N s1ap.extension id-SourceNodeTransportL
 Global-RAN-NODE-ID                      N s1ap.extension id-SourceSNID
 LoggedMDTTrigger                        N s1ap.extension id-LoggedMDTTrigger
 SensorMeasurementConfiguration          N s1ap.extension id-SensorMeasurementConfiguration
+M4ReportAmountMDT                       N s1ap.extension id-M4ReportAmount
+M5ReportAmountMDT                       N s1ap.extension id-M5ReportAmount
+M6ReportAmountMDT                       N s1ap.extension id-M6ReportAmount
+M7ReportAmountMDT                       N s1ap.extension id-M7ReportAmount
+TimeBasedHandoverInformation            N s1ap.extension id-TimeBasedHandoverInformation
+Bearers-SubjectToDLDiscardingList       N s1ap.extension id-Bearers-SubjectToDLDiscardingList
 
 #S1AP-ELEMENTARY-PROCEDURE
 HandoverRequired                        N s1ap.proc.imsg id-HandoverPreparation
@@ -2664,27 +2687,27 @@ MMEEarlyStatusTransfer                  N s1ap.proc.imsg id-MMEEarlyStatusTransf
 # Whenever a Cause appears, look up the reason and show it in the Info column
 
 #.FN_BODY CauseRadioNetwork VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
 %(DEFAULT_BODY)s
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " [RadioNetwork-cause=%%s]", val_to_str_const(value, s1ap_CauseRadioNetwork_vals, "Unknown"));
 
 #.FN_BODY CauseTransport VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
 %(DEFAULT_BODY)s
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " [Transport-cause=%%s]", val_to_str_const(value, s1ap_CauseTransport_vals, "Unknown"));
 
 #.FN_BODY CauseNas VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
 %(DEFAULT_BODY)s
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " [NAS-cause=%%s]", val_to_str_const(value, s1ap_CauseNas_vals, "Unknown"));
 
 #.FN_BODY CauseProtocol VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
 %(DEFAULT_BODY)s
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " [Protocol-cause=%%s]", val_to_str_const(value, s1ap_CauseProtocol_vals, "Unknown"));
 
 #.FN_BODY CauseMisc VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
 %(DEFAULT_BODY)s
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " [Misc-cause=%%s]", val_to_str_const(value, s1ap_CauseMisc_vals, "Unknown"));
 
