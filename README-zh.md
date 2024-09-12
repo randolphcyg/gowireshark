@@ -120,14 +120,14 @@ gowireshark
 ├── libs/
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
-│   ├── libwireshark.so.17
-│   ├── libwireshark.so.17.0.6
+│   ├── libwireshark.so.18
+│   ├── libwireshark.so.18.0.0
 │   ├── libwiretap.so
-│   ├── libwiretap.so.14
-│   ├── libwiretap.so.14.1.6
+│   ├── libwiretap.so.15
+│   ├── libwiretap.so.15.0.0
 │   ├── libwsutil.so
-│   ├── libwsutil.so.15
-│   └── libwsutil.so.15.0.0
+│   ├── libwsutil.so.16
+│   └── libwsutil.so.16.0.0
 ├── offline.c
 ├── online.c
 ├── pcaps/
@@ -177,7 +177,7 @@ graph LR
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.2.6
+export WIRESHARKV=4.4.0
 # 到/opt目录下操作
 cd /opt/
 # 下载源码
