@@ -158,15 +158,8 @@ Detailed description of the project directory structure：
 
 ### 2.2. Call chain
 
-```mermaid
-graph LR
-    A(golang)==cgo==>B(clang)
-    B(clang)-.->C[wireshark dll]
-    B(clang)-.->D[libpcap dll]
-    style A fill:#FFCCCC
-    style B fill:#99CCCC
-    style C fill:#FFCC99,stroke:#FFCCCC,stroke-width:2px,stroke-dasharray: 5, 5
-    style D fill:#FFCC99,stroke:#FFCCCC,stroke-width:2px,stroke-dasharray: 5, 5
+```
+Golang =cgo=> Clang ==> Wireshark/libpcap DLL
 ```
 
 

@@ -152,17 +152,9 @@ gowireshark
 
 ### 2.2. 调用链
 
-```mermaid
-graph LR
-    A(golang)==cgo==>B(clang)
-    B(clang)-.->C[wireshark dll]
-    B(clang)-.->D[libpcap dll]
-    style A fill:#FFCCCC
-    style B fill:#99CCCC
-    style C fill:#FFCC99,stroke:#FFCCCC,stroke-width:2px,stroke-dasharray: 5, 5
-    style D fill:#FFCC99,stroke:#FFCCCC,stroke-width:2px,stroke-dasharray: 5, 5
 ```
-
+Golang =cgo=> Clang ==> Wireshark/libpcap DLL
+```
 
 ### 2.3. 编译dll
 
